@@ -326,7 +326,10 @@ from `main`).
   intersects, and a lazy image inside it never loads); clip its children.
 - **House style has three registers; pick by job, never mix them in one image.**
   - *The mark* is toil's logo: branches converging into an orbit around a sheet
-    carrying a terminal prompt (`>_`), the central integrator. It's flat, symbolic, serious, and hand-built SVG in
+    carrying a terminal prompt (`>_`), the central integrator. In motion, packets
+    flow in along a left branch, round the orbit, and out on the right (SMIL
+    `animateMotion`; `packets` sets how many). SMIL ignores media queries, so the
+    packets are hidden in CSS under reduced motion. It's flat, symbolic, serious, and hand-built SVG in
     `site/src/components/Logo.astro` (wide and `square` cuts; the square one is also
     `public/favicon.svg`). It never comes from an image model, and has no characters
     and no jokes.

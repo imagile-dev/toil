@@ -2,6 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import Terminal from '../components/Terminal.astro';
 import Ticker from '../components/Ticker.astro';
+import Logo from '../components/Logo.astro';
 import { integrationCount } from '../data/integrations';
 import { principles } from '../data/principles';
 import { url, repoUrl } from '../lib/url';
@@ -273,6 +274,7 @@ const teaser = principles.slice(0, 3);
   <section class="cta grid-ground">
     <div class="cta__glow" aria-hidden="true"></div>
     <div class="container cta__inner" data-reveal>
+      <div class="cta__mark"><Logo height={128} packets={6} /></div>
       <h2>Watch it get built.</h2>
       <p>toil is pre-release and developed in the open. Star the repo or watch releases to hear when the first version lands on npm.</p>
       <div class="hero__actions">
@@ -707,6 +709,10 @@ const teaser = principles.slice(0, 3);
   }
 
   .cta__inner { position: relative; display: grid; justify-items: center; gap: var(--space-sm); }
+
+  /* The mark, large, with packets flowing through it. Scales down on phones. */
+  .cta__mark { width: min(192px, 60vw); margin-bottom: var(--space-sm); filter: drop-shadow(0 0 24px rgba(var(--rgb-accent), 0.25)); }
+  .cta__mark :global(svg) { width: 100%; height: auto; }
   .cta h2 { font-size: var(--text-3xl); }
   .cta p { color: var(--color-muted); max-width: 52ch; margin-bottom: var(--space-xs); }
 
