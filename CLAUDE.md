@@ -3,37 +3,134 @@
 ## Project
 
 toil is a structured-JSON CLI and MCP server, owned by Imagile, that gives AI agents
-and humans one interface to enterprise tools, databases, and codebases. .NET 10, C#,
-shipped as a Native AOT binary and a `dotnet tool`.
+and humans one interface to enterprise tools, databases, and codebases. TypeScript on
+Node.js (22 LTS or later), published to npm as `@imagile/toil`.
+
+Who it is for, in priority order:
+
+1. **Engineers at locked-down organizations** who install it themselves from npm and
+   let an agent drive it. Every default is chosen for them.
+2. **A stand-in for vendor MCP servers** that are blocked, need an OAuth login, or
+   don't exist. `toil mcp --areas <list>` replaces one vendor server with one config
+   entry.
+3. **CI pipelines and headless agents**, configured entirely through env vars.
+
+## Principles
+
+The rules in this file are consequences of a few principles. When a rule and a
+situation disagree, or a case is not covered, reason from the principle.
+
+**When feedback or a correction arrives, find the principle under it before changing
+anything.** Add or sharpen the principle here, then update every rule that follows
+from it, not only the one instance that prompted it. A fix with no principle recorded
+gets made again in the next place it applies.
+
+1. **Adoptable inside a locked-down enterprise.** Installs from npm, runs on Node, and
+   needs nothing else: no executable, no native library, no other CLI, no browser
+   login. The only things a security team should need to approve are Node and one npm
+   package. → No Executables, the Authentication Bar, no hardcoded hosts,
+   placeholders that never resolve.
+2. **Safe by default when an agent is driving.** Reads are free. Anything that writes,
+   to a database, an enterprise tool, or the codebase, needs a human's standing opt-in
+   in config plus an explicit flag on the call. Agents never loosen the rules that
+   constrain them, and humans merge. → Writes, Databases, rename preview, MCP Server,
+   Automation.
+3. **One command does one thing against one source; the caller composes.** No
+   aggregate command that decides on the caller's behalf which services to ask. →
+   dependency analysis split by source, stdin / `--from` composition.
+4. **Honest about what is known.** Every result says where it came from and how
+   precise it is; every integration says how far it has been verified. → Verification
+   Levels, `precision` on code results, source on every finding.
+5. **The environment wins without editing files.** CI and agents configure through
+   env vars that override anything on disk. → Configuration Precedence.
+6. **This repository stands alone.** Docs, code and skills never name another
+   repository or another CLI as a reference, ancestor or comparison.
+7. **Never break what users already rely on silently.** Config on disk, flags, the
+   JSON envelope and precedence are contracts; changing them is a declared,
+   documented breaking change. → Output Contract, Delivery.
+8. **Same behavior on Windows, macOS and Linux.** None is second-class; a feature
+   that works on one and not the others is not done. → Cross-Platform.
+9. **toil talks only to what the user pointed it at.** No telemetry, no update checks,
+   no call home. The only network traffic is to hosts in the user's config, or to a
+   public API that a command the user ran names in its own name (`toil osv vulns`).
+
+## Cross-Platform
+
+*Principle 8.* Windows, macOS and Linux are all first-class.
+
+- Build paths with `node:path` and resolve home with `os.homedir()`; never hardcode a
+  separator, a drive letter, or `~`. Paths in JSON output use forward slashes;
+  paths on disk use the platform's own form.
+- Never spawn through a shell (`shell: true`, `exec`), and never assume bash,
+  PowerShell, or a POSIX utility. The only spawns allowed are the OS credential
+  stores under **Secrets**, each behind a platform check.
+- Read files as UTF-8 and accept both CRLF and LF; write LF. `.gitattributes` keeps
+  the repo LF so Windows checkouts produce identical bundles.
+- Config lives in `~/.toil/` on every platform, so instructions are identical.
+- CI runs the full gate on `windows-latest`, `macos-latest` and `ubuntu-latest`, on
+  Node 22 and 24. A test that is skipped on one platform says
+  why in its name.
+
+## No Executables
+
+*Principle 1.* toil runs as JavaScript on the user's existing Node runtime and nothing else. Many
+organizations block unsigned or unapproved executables and native libraries but allow
+Node, and toil has to work there. This is the most important rule in the repo.
+
+- Every runtime dependency is pure JavaScript or WebAssembly. No native addons (`.node`
+  files), no `node-gyp`, no `prebuild`, no package that downloads a binary on install,
+  no `install` / `postinstall` scripts.
+- toil never spawns a bundled or downloaded binary. Spawning a program the OS already
+  ships is allowed only for opt-in credential storage (see **Secrets**).
+- The published package is one bundled JS file plus `package.json`, with no runtime
+  `dependencies`. It installs with `npm install --ignore-scripts` and runs offline.
+- CI enforces this: `npm ci --ignore-scripts`, then fail if `node_modules` contains any
+  `*.node` file, any `binding.gyp`, or any package with an install script, and fail if
+  the packed tarball contains anything but JS, JSON, Markdown and the license.
+
+Before adding a dependency, check it against this rule. If the only good library is
+native, find a pure-JS or WASM alternative or implement the protocol directly.
 
 ## Layout
 
-- `src/Toil.Core/` — every capability: commands, config, HTTP, database providers, code analysis
-- `src/Toil.Cli/` — the `toil` command line; thin, no logic
-- `src/Toil.Mcp/` — the MCP server (`toil mcp`); thin, tools generated from Core command definitions
-- `tests/` — xUnit, mirrors `src/`
+- `src/core/` — every capability: command definitions, config, HTTP, database providers, code analysis
+- `src/cli.ts` — the `toil` command line; thin, no logic
+- `src/mcp/` — the MCP server (`toil mcp`, stdio); tools generated from the command definitions
+- `src/**/*.test.ts` — Vitest, next to the code
 - `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files
 - `.claude/skills/` — repo-internal skills only
 - `docs/` — plans and decisions
 
-A command is defined once in Core. The CLI and MCP surfaces never implement behavior
-of their own; if one needs something the other lacks, the gap is in Core.
+A command is defined once in `src/core/` with a schema (zod) for its input and output.
+The CLI and MCP surfaces never implement behavior of their own; if one needs something
+the other lacks, the gap is in core. Every definition declares whether it writes.
+
+## MCP Server
+
+`toil mcp` serves over stdio. `--areas jira,confluence` limits it to those areas, so
+an agent sees a small, focused tool list and one config entry stands in for one vendor
+server. With no `--areas`, it serves every area that has config. Write tools are not
+registered at all unless the area has writes enabled (see **Writes**), so an agent
+cannot discover them, let alone call them. Tool descriptions are written for a model
+choosing between tools: what it returns, when to use it, and which sibling tool to use
+instead.
 
 ## Build & Test
 
 ```bash
-dotnet build
-dotnet test
-dotnet format --verify-no-changes
-dotnet publish src/Toil.Cli -c Release -r win-x64   # AOT smoke; must stay warning-free
+npm run typecheck   # tsc --noEmit
+npm run lint        # ESLint
+npm test            # Vitest
+npm run build       # tsup → dist/toil.js, single bundle
+npm run check:pure  # the No Executables gate
 ```
 
-All four pass before a PR opens. AOT trim warnings are errors, not noise.
+All five pass before a PR opens.
 
 ## Output Contract
 
 Every command writes exactly one JSON envelope to stdout: `{ ok, data, error, meta }`.
-Errors are a `ToilException` with a code and a fix the user can act on, never a raw
+Errors are a `ToilError` with a code and a fix the user can act on, never a raw
 stack trace. Logs and progress go to stderr. Removing or renaming a field in `data` is
 a breaking change.
 
@@ -63,39 +160,81 @@ decline and name the blocking mechanism.
 
 No hardcoded vendor base URLs; every host is user-supplied.
 
+## Writes
+
+*Principle 2.* Every command that changes something outside the local machine —
+creating or transitioning an issue, commenting on a PR, writing a row — needs both:
+
+1. `writes: true` on that service or connection in config, set by a human, and
+2. `--allow-write` on the call.
+
+Without either, the command fails with a `ToilError` naming the missing one. Env vars
+can enable writes for CI (`TOIL_<AREA>_WRITES=true`), following normal precedence.
+Deletes are never exposed through MCP.
+
 ## Databases
 
-- **Read-only by default.** A write needs `allowWrite: true` on the connection *and*
-  `--allow-write` on the call. MCP tools never pass `--allow-write` on the agent's
-  behalf; the connection setting is the user's decision.
+- **Read-only by default**, per **Writes**: `writes: true` on the connection and
+  `--allow-write` on the call.
 - Statements run in a read-only transaction or session where the engine supports it,
   then rolled back. Do not rely on parsing SQL to decide whether it writes.
 - Every query has a row cap (default 100) and a timeout, returns a cursor for paging,
   and can be cancelled.
 - Connection strings resolve like any other secret: env var, then keychain reference,
   then config. Never log a connection string; log the connection name.
-- Providers live in `src/Toil.Core/Data/<Engine>/`. Adding one follows the
-  `db-provider` skill.
+- Drivers are pure JS: `pg` (PostgreSQL), `mysql2` (MySQL/MariaDB), `tedious` (SQL
+  Server), `node:sqlite` (built into Node), `oracledb` in Thin mode only (Oracle).
+  SQL Server has no read-only transaction, so its queries always roll back, and its
+  docs tell users to connect with a read-only login.
+- Providers live in `src/core/db/<engine>/`. Adding one follows the `db-provider` skill.
 
 ## Code Intelligence
 
-`code` commands load the solution with Roslyn `MSBuildWorkspace` and answer from the
-semantic model, not text search: symbol search, symbol info, references, call
-hierarchy, diagnostics, rename, build, test. Results carry file, line, and column so an
-agent can jump straight to them. Rename previews by default and applies with `--apply`.
-Workspace load is the expensive step; the MCP server keeps one warm per solution.
+`code` commands answer questions about a codebase (symbol search, symbol info,
+definitions, references, call hierarchy, diagnostics, rename preview) without
+executables. Each result says how precise it is:
+
+- `semantic` — TypeScript and JavaScript, via the TypeScript compiler's language
+  service, which is pure JS. The MCP server keeps one warm per project.
+- `syntactic` — every other language (C#, Java, Python, Go, SQL, …), via tree-sitter
+  grammars compiled to WebAssembly (`web-tree-sitter`). Definitions and outlines are
+  exact; references are name-matched and say so.
+- `ide` — when the user has a JetBrains IDE open with its MCP server enabled, `code`
+  can query it over localhost HTTP for semantic answers in any language the IDE
+  understands. Opt-in per project, never required, and off when the IDE isn't running.
+
+Results carry file, line and column. Rename previews by default and applies with
+`--apply`. Building and testing are left to the project's own toolchain; toil does not
+wrap them.
+
+## Secrets
+
+Secrets resolve from env vars, then keychain references, then plaintext config.
+Keychain storage is opt-in and uses only what the OS already ships (`security` on
+macOS, PowerShell on Windows, `secret-tool` on Linux). Secrets travel to that process
+on stdin, never argv. An unresolvable reference is treated as unset, never sent as a
+literal. Nothing may require the keychain.
 
 ## Adding an Enterprise Integration
 
 Confirm the Authentication Bar first. Then, in one change: config type and env-var
-resolution, HTTP client methods, commands in Core, `config init`/`check`/`test`
+resolution, HTTP client methods, commands in core, `config init`/`check`/`test`
 entries, `skills/toil/<service>.md`, and its row in `SKILL.md`. The
 `new-integration` skill holds the checklist; a test fails when a registered service
 has no skill file.
 
-Each integration records a testing level — `untested`, `basic`, `beta`, `live` —
-measured against a real instance, not the unit suite. New integrations start
-`untested`. Raise a level only after a live run, and say in the PR what was run.
+### Verification Levels
+
+*Principle 4.* Every integration and database provider records how far it has been
+verified, shown in `toil config check` and the skill docs:
+
+| Level | Means | How it is raised |
+|-------|-------|------------------|
+| `unit` | Logic tested with stubbed `fetch`; skill doc written | The minimum to merge |
+| `integration` | Automated tests pass against a real instance (a CI service container or a sandbox tenant) | A PR adding those tests to `npm run test:integration` |
+| `live` | Used against a real organization's instance in day-to-day work | A PR saying what was run, against what kind of instance |
+
+Never raise a level on the strength of the unit suite.
 
 A command talks to one service. Do not build an aggregate command that fans out to
 several sources; give each source its own area and let them compose through stdin or
@@ -106,9 +245,10 @@ self-hosted shape and only that.
 
 ## Testing
 
-Unit tests stub HTTP (`HttpMessageHandler` fakes) and never need the network. Database
-tests use SQLite in-process, or Testcontainers behind the `Integration` trait, which CI
-runs and offline developers can skip. Fixtures use placeholder hosts.
+Unit tests stub `fetch` and never need the network. Database tests use `node:sqlite`
+in-process; tests against real PostgreSQL, MySQL and SQL Server run as CI service
+containers under `npm run test:integration`, which offline developers can skip.
+Fixtures use placeholder hosts.
 
 ## Placeholders
 
@@ -123,7 +263,7 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 - Conventional Commits: `fix:`, `feat:`, `feat!:` with a `BREAKING CHANGE:` footer
   that says why and how to migrate. release-please builds the changelog from them.
 - Branches: `kolatts/<issue#>-<description>`. Every branch has an issue.
-- PRs are vertical slices (Core → CLI → MCP → tests → skill doc), sized large enough
+- PRs are vertical slices (core → CLI → MCP → tests → skill doc), sized large enough
   to avoid process overhead, fully verified before opening. Use the `ship` skill.
 - Before changing behavior users rely on, check config already on disk, existing
   flags, the envelope, and precedence. Say what you checked in the PR.
@@ -131,7 +271,8 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 ## Automation
 
 An agent reviews every PR and submits a formal review. `CHANGES_REQUESTED` dispatches
-a fix agent that pushes to the PR branch.
+a fix agent that pushes to the PR branch. A human merges every PR, including the
+release PR; no agent merges, approves its own work into `main`, or enables auto-merge.
 
 - `no-auto-fix` label: the fix agent leaves the PR alone.
 - `needs-human` label: set after 3 pushed rounds; the loop stops.
