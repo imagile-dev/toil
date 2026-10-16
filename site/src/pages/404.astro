@@ -9,6 +9,7 @@ import { url } from '../lib/url';
       <p class="eyebrow"><b>404</b> · not found</p>
       <pre class="nf__json"><span class="p">{</span> <span class="k">"ok"</span><span class="p">:</span> <span class="s">false</span><span class="p">,</span> <span class="k">"error"</span><span class="p">: {</span> <span class="k">"code"</span><span class="p">:</span> <span class="s">"NOT_FOUND"</span><span class="p">,</span> <span class="k">"fix"</span><span class="p">:</span> <span class="s">"Go back to the homepage."</span> <span class="p">} }</span></pre>
       <h1>Nothing at this path.</h1>
+      <img class="nf__toon" src={url('/images/cartoon-lost-960.webp')} width="960" height="640" alt="A small package character looks through a telescope at a sheet of paperwork flying away as a paper plane." />
       <a class="btn btn--primary" href={url('/')}>Back to toil</a>
     </div>
   </section>
@@ -18,6 +19,7 @@ import { url } from '../lib/url';
   .nf { padding-block: var(--space-2xl); min-height: 60svh; display: grid; align-items: center; }
   .nf__inner { display: grid; justify-items: start; gap: var(--space-md); }
   .nf h1 { font-size: var(--text-3xl); }
+  .nf__toon { width: min(100%, 560px); height: auto; mix-blend-mode: lighten; margin-inline: -1rem; }
   .nf__json {
     font-family: var(--font-mono);
     font-size: var(--text-sm);

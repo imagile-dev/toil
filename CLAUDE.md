@@ -324,10 +324,23 @@ from `main`).
   `motion.js` has armed them, so with no JS or reduced motion everything is visible.
   A reveal never clips the observed element itself (a fully clipped element never
   intersects, and a lazy image inside it never loads); clip its children.
-- **Generated art** is made with the image-generation skill using
-  `.claude/image-generation/style.md`, on the page colour `#16130f`, then shown with
-  `mix-blend-mode: lighten` on its wrapper so the grid shows through. Ship WebP at
-  960 and 1536 wide; the PNG masters stay in the ignored run folders.
+- **House style has three registers; pick by job, never mix them in one image.**
+  - *The mark* is toil's logo: branches converging into an orbit around a sheet, the
+    central integrator. It's flat, symbolic, serious, and hand-built SVG in
+    `site/src/components/Logo.astro` (wide and `square` cuts; the square one is also
+    `public/favicon.svg`). It never comes from an image model, and has no characters
+    and no jokes.
+  - *Diagrams* are precise drafting-style line drawings for how-it-works art (the
+    hero), generated with `.claude/image-generation/style.md`.
+  - *Cartoons* are lighthearted spot illustrations, generated with
+    `.claude/image-generation/style-cartoon.md` (pass `--style-file`). The recurring
+    character is the crate, a package box in a teal-striped hard hat. The crate is
+    always competent; the joke is on the bureaucracy around it, never on users or
+    their employers.
+- **Generated art** sits on the page colour `#16130f` (or darker) and shows with
+  `mix-blend-mode: lighten` on its wrapper, so the grid shows through. Ship WebP at
+  960 and 1536 wide; the PNG masters stay in the ignored run folders. Every cartoon
+  gets real alt text describing the joke.
 - Internal links go through `url()` in `site/src/lib/url.ts` because the site is
   served under `/toil/`.
 - Any change under `site/src/` is checked in a browser at desktop width, 375px and

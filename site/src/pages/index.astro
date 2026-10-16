@@ -73,9 +73,9 @@ const teaser = principles.slice(0, 3);
           <span class="hero__in" style="--i: 2"><em class="hero__mark text-gradient">one npm install</em> away.</span>
         </h1>
         <p class="hero__subtitle hero__in" style="--i: 3">
-          toil is a CLI and MCP server that gives agents and engineers structured access to
-          enterprise tools, databases and code. Plain JavaScript on Node, so it runs where
-          executables are blocked.
+          toil is the central integrator between your agents and your enterprise: one CLI
+          and MCP server for the tools, databases and code they need. Plain JavaScript on
+          Node, so it runs where executables are blocked.
         </p>
         <div class="hero__actions hero__in" style="--i: 4">
           <a href="#demo" class="btn btn--primary">See it work</a>
@@ -139,14 +139,14 @@ const teaser = principles.slice(0, 3);
   <!-- ============ Locked down ============ -->
   <section class="section section--rule locked">
     <div class="container locked__inner">
-      <div class="locked__art" data-reveal="wipe">
+      <div class="locked__art toon" data-reveal="wipe">
         <img
-          src={url('/images/locked-down-1536.webp')}
-          srcset={`${url('/images/locked-down-960.webp')} 960w, ${url('/images/locked-down-1536.webp')} 1536w`}
+          src={url('/images/cartoon-bouncer-1536.webp')}
+          srcset={`${url('/images/cartoon-bouncer-960.webp')} 960w, ${url('/images/cartoon-bouncer-1536.webp')} 1536w`}
           sizes="(min-width: 980px) 560px, 100vw"
           width="1536"
           height="1024"
-          alt="A laptop inside a locked enclosure. Executable files are stopped outside; a single package passes through a slot."
+          alt="A security guard holds back a glum queue of executable files at a velvet rope, while a small package walks straight through the door."
           loading="lazy"
         />
       </div>
@@ -174,9 +174,23 @@ const teaser = principles.slice(0, 3);
   <!-- ============ Areas ============ -->
   <section class="section section--rule">
     <div class="container">
-      <div class="section-head" data-reveal>
-        <p class="eyebrow">Three areas, one interface</p>
-        <h2>Everything an agent reaches for outside the editor.</h2>
+      <div class="integrator">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">The central integrator</p>
+          <h2>One switchboard for everything outside the editor.</h2>
+          <p>Your agent asks toil, and toil knows which line to plug in. Databases, code and every enterprise tool sit behind one interface and one JSON shape, so nothing new to learn per system.</p>
+        </div>
+        <div class="toon integrator__art" data-reveal style="--d: 120ms">
+          <img
+            src={url('/images/cartoon-switchboard-1536.webp')}
+            srcset={`${url('/images/cartoon-switchboard-960.webp')} 960w, ${url('/images/cartoon-switchboard-1536.webp')} 1536w`}
+            sizes="(min-width: 980px) 520px, 100vw"
+            width="1536"
+            height="1024"
+            alt="A small package character in a hard hat calmly works an old telephone switchboard, plugging cables into sockets for a database, tickets, metrics, code and security."
+            loading="lazy"
+          />
+        </div>
       </div>
       <div class="areas">
         {areas.map((a, n) => (
@@ -197,10 +211,23 @@ const teaser = principles.slice(0, 3);
   <!-- ============ MCP stand-in ============ -->
   <section class="section section--rule mcp">
     <div class="container mcp__inner">
-      <div class="section-head" data-reveal>
-        <p class="eyebrow">MCP, without the approval queue</p>
-        <h2>Stand in for the server you can't install.</h2>
-        <p>Vendor MCP servers are often blocked, need a browser login, or don't exist. Scope toil to the areas you need and point your agent at it: one config entry, a small, focused tool list, and write tools that only exist if you've turned them on.</p>
+      <div>
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">MCP, without the approval queue</p>
+          <h2>Stand in for the server you can't install.</h2>
+          <p>Vendor MCP servers are often blocked, need a browser login, or don't exist. Scope toil to the areas you need and point your agent at it: one config entry, a small, focused tool list, and write tools that only exist if you've turned them on.</p>
+        </div>
+        <div class="toon mcp__art" data-reveal style="--d: 80ms">
+          <img
+            src={url('/images/cartoon-understudy-1536.webp')}
+            srcset={`${url('/images/cartoon-understudy-960.webp')} 960w, ${url('/images/cartoon-understudy-1536.webp')} 1536w`}
+            sizes="(min-width: 980px) 520px, 100vw"
+            width="1536"
+            height="1024"
+            alt="A star performer is stuck backstage, wrapped in red tape and a login pop-up, while a small package steps into the spotlight as the understudy holding a bouquet of cables."
+            loading="lazy"
+          />
+        </div>
       </div>
       <div class="codeblock mcp__code" data-reveal style="--d: 120ms">
         <span class="card-tag">mcp.json</span>
@@ -530,8 +557,24 @@ const teaser = principles.slice(0, 3);
 
   /* ---------- Locked down ---------- */
   .locked__inner { display: grid; gap: var(--space-lg); align-items: center; }
-  .locked__art { margin-inline: -1rem; mix-blend-mode: lighten; }
-  .locked__art img { width: 100%; height: auto; }
+  .locked__art { margin-inline: -1rem; }
+
+  /* Cartoon spot art: painted on (slightly darker than) the page colour, so
+     lighten drops its background. A small tilt on hover, nothing more. */
+  .toon { mix-blend-mode: lighten; }
+  .toon img { width: 100%; height: auto; transition: transform 600ms var(--ease-out); }
+  .toon:hover img { transform: rotate(-1.2deg) scale(1.02); }
+
+  .integrator { display: grid; gap: var(--space-md); align-items: center; margin-bottom: var(--space-lg); }
+  .integrator .section-head { margin-bottom: 0; }
+  .integrator__art { margin-inline: -1rem; }
+  @media (min-width: 980px) {
+    .integrator { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .integrator__art { margin-inline: 0 -6%; }
+  }
+
+  .mcp__art { margin: var(--space-md) -1rem 0; }
+  @media (min-width: 980px) { .mcp__art { margin-inline: -4% 0; max-width: 520px; } }
 
   .facts { display: grid; gap: var(--space-md); }
 

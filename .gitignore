@@ -40,6 +40,7 @@ Thumbs.db
 # Image generation working folders (prompt records + PNG masters)
 .claude/image-generation/*
 !.claude/image-generation/style.md
+!.claude/image-generation/style-cartoon.md
 
 # Astro
 site/.astro/

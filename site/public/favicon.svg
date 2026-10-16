@@ -1,7 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <rect width="32" height="32" rx="7" fill="#16130f"/>
-  <circle cx="16" cy="16" r="11" stroke="#ece7df" stroke-width="1.6"/>
-  <path d="M16 3v3.5M16 25.5V29M3 16h3.5M25.5 16H29" stroke="#ff6a3d" stroke-width="1.6" stroke-linecap="round"/>
-  <path d="M11 12.5 14.5 16 11 19.5" stroke="#ece7df" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M16.5 20h4.5" stroke="#ff6a3d" stroke-width="2" stroke-linecap="round"/>
+  <g fill="none" stroke="#ff6a3d" stroke-width="2" stroke-linecap="round">
+    <path d="M1 11C3.5 11 3.5 16 5.5 16M1 21C3.5 21 3.5 16 5.5 16"/>
+    <path d="M31 11C28.5 11 28.5 16 26.5 16M31 21C28.5 21 28.5 16 26.5 16"/>
+    <circle cx="16" cy="16" r="10.5"/>
+  </g>
+  <circle cx="5.5" cy="16" r="2.4" fill="#ff6a3d" stroke="#16130f" stroke-width="1.1"/>
+  <circle cx="26.5" cy="16" r="2.4" fill="#ff6a3d" stroke="#16130f" stroke-width="1.1"/>
+  <circle cx="16" cy="5.5" r="2.1" fill="#34e2c4" stroke="#16130f" stroke-width="1.1"/>
+  <path d="M12.5 10h5l3 3v7.5a1.5 1.5 0 0 1-1.5 1.5h-6.5a1.5 1.5 0 0 1-1.5-1.5v-9a1.5 1.5 0 0 1 1.5-1.5Z" fill="#f6f1e9"/>
+  <path d="M17.5 10v2a1 1 0 0 0 1 1h2Z" fill="#ff6a3d"/>
+  <path d="M13 16h4.5M13 19h3" stroke="#16130f" stroke-width="1.4" stroke-linecap="round"/>
 </svg>
