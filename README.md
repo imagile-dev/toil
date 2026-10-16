@@ -12,16 +12,27 @@ scripts can use it as easily as people.
 | Area | Examples |
 |------|----------|
 | `db` | List connections, describe tables, preview rows, run read-only queries with paging |
-| `code` | Search symbols, find references, call hierarchy, diagnostics, build and test (.NET via Roslyn) |
+| `code` | Search symbols, find definitions and references, call hierarchy, diagnostics, rename preview |
 | Enterprise tools | Issue trackers, source hosts, CI, scanners, observability, all with a pasted token |
 
 ## Install
 
+toil is plain JavaScript on Node 22 or later, on Windows, macOS and Linux. There is no
+executable, no native module, and no install script, so it runs where unapproved
+binaries are blocked.
+
 ```bash
-dotnet tool install -g Imagile.Toil
+npm install -g @imagile/toil
 ```
 
-Or download a single binary from [Releases](https://github.com/imagile-dev/toil/releases).
+As an MCP server, with no install step:
+
+```json
+{ "command": "npx", "args": ["-y", "@imagile/toil", "mcp"] }
+```
+
+Each [release](https://github.com/imagile-dev/toil/releases) also carries the packed
+`.tgz` for offline or mirrored installs: `npm install -g ./imagile-toil-<version>.tgz`.
 
 ## Use
 

@@ -1,20 +1,15 @@
-# .NET build output
-bin/
-obj/
-artifacts/
-publish/
-TestResults/
-*.trx
-coverage*.xml
-*.nupkg
-*.snupkg
+# Node build output
+node_modules/
+dist/
+coverage/
+*.tgz
+*.tsbuildinfo
+.eslintcache
+npm-debug.log*
 
 # IDEs
 .vs/
 .idea/
-*.user
-*.suo
-*.DotSettings.user
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
@@ -26,8 +21,6 @@ coverage*.xml
 .envrc
 *.local
 .toil/
-appsettings.Development.json
-local.settings.json
 
 # Local databases created by tests or samples
 *.db

@@ -2,7 +2,7 @@
 
 The enterprise services toil will cover. Each one is its own command area
 (`toil <area> <verb>`) and must clear the Authentication Bar in CLAUDE.md. Every one
-starts at testing level `untested`.
+starts at verification level `unit` (see CLAUDE.md).
 
 ## Work tracking and source
 
