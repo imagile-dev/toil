@@ -32,5 +32,5 @@ jobs:
             --arg url "$URL" \
             --arg desc "${VERB} by [@${ISSUE_USER}](https://github.com/${ISSUE_USER})" \
             --argjson color $COLOR \
-            '{"embeds":[{"title":$title,"url":$url,"description":$desc,"color":$color}]}' \
+            --arg avatar "https://imagile-dev.github.io/toil/brand/toil-avatar-512.png"             '{"username":"toil","avatar_url":$avatar,"embeds":[{"title":$title,"url":$url,"description":$desc,"color":$color}]}' \
           | curl -sf -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" -d @-
