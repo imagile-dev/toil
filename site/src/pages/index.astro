@@ -1,0 +1,650 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Terminal from '../components/Terminal.astro';
+import Ticker from '../components/Ticker.astro';
+import { integrationCount } from '../data/integrations';
+import { principles } from '../data/principles';
+import { url, repoUrl } from '../lib/url';
+
+const stats = [
+  { value: integrationCount, label: 'Planned integrations' },
+  { value: 0, label: 'Executables to approve' },
+  { value: 0, label: 'Install scripts' },
+  { value: 3, label: 'Platforms, all first-class' },
+];
+
+const facts = [
+  {
+    title: 'No executable',
+    body: 'One bundled JavaScript file on the Node you already have. Nothing for application control to block.',
+    icon: '<rect x="5" y="4" width="22" height="24" rx="2"/><path d="M10 11h12M10 16h12M10 21h7"/><path d="M4 28 28 4" class="accent"/>',
+  },
+  {
+    title: 'No install scripts',
+    body: 'No postinstall, no native addon, no binary download. It installs cleanly with --ignore-scripts.',
+    icon: '<path d="M16 4v16M9 13l7 7 7-7"/><path d="M5 26h22" class="accent"/>',
+  },
+  {
+    title: 'No browser login',
+    body: 'Paste a token you generated once. No OAuth dance, no SSO pop-up, no device code.',
+    icon: '<rect x="5" y="14" width="22" height="14" rx="2"/><path d="M10 14V9a6 6 0 0 1 12 0"/><circle cx="16" cy="21" r="2" class="accent"/>',
+  },
+  {
+    title: 'No telemetry',
+    body: 'toil talks only to hosts in your config. Your firewall logs show exactly what you expect.',
+    icon: '<circle cx="16" cy="16" r="11"/><path d="M5 16h22M16 5c3.5 3.2 3.5 18.8 0 22M16 5c-3.5 3.2-3.5 18.8 0 22"/><path d="M7 25 25 7" class="accent"/>',
+  },
+];
+
+const areas = [
+  {
+    tag: 'db',
+    title: 'Databases',
+    body: 'List connections, describe tables, preview rows and run queries with paging and a row cap, against PostgreSQL, MySQL, SQL Server, SQLite and Oracle. Read-only unless you say otherwise.',
+    example: 'toil db describe -c reporting orders',
+  },
+  {
+    tag: 'code',
+    title: 'Code intelligence',
+    body: 'Symbol search, definitions, references, call hierarchy and diagnostics, with every answer labelled semantic, syntactic, or from your IDE.',
+    example: 'toil code refs OrderService.submit',
+  },
+  {
+    tag: 'tools',
+    title: 'Enterprise tools',
+    body: 'Issue trackers, source hosts, CI, scanners and observability, each behind one pasted token and one consistent JSON shape.',
+    example: 'toil jira issue get PAY-1042',
+  },
+];
+
+const teaser = principles.slice(0, 3);
+---
+
+<Layout title="toil">
+  <!-- ============ Hero ============ -->
+  <section class="hero grid-ground">
+    <div class="hero__glow" aria-hidden="true"></div>
+    <div class="container hero__inner">
+      <div class="hero__copy">
+        <p class="eyebrow hero__in" style="--i: 0"><b>Pre-release</b> · Open source · Apache 2.0</p>
+        <h1 class="hero__title">
+          <span class="hero__in" style="--i: 1">The work around the code,</span>
+          <span class="hero__in" style="--i: 2"><em class="hero__mark">one npm install</em> away.</span>
+        </h1>
+        <p class="hero__subtitle hero__in" style="--i: 3">
+          toil is a CLI and MCP server that gives agents and engineers structured access to
+          enterprise tools, databases and code. Plain JavaScript on Node, so it runs where
+          executables are blocked.
+        </p>
+        <div class="hero__actions hero__in" style="--i: 4">
+          <a href="#demo" class="btn btn--primary">See it work</a>
+          <a href={repoUrl} class="btn btn--ghost">Follow on GitHub</a>
+        </div>
+        <p class="hero__install hero__in" style="--i: 5"><span>$</span> npm install -g @imagile-dev/toil <em>coming soon</em></p>
+      </div>
+      <div class="hero__art" aria-hidden="true">
+        <img
+          src={url('/images/hero-diagram-1536.webp')}
+          srcset={`${url('/images/hero-diagram-960.webp')} 960w, ${url('/images/hero-diagram-1536.webp')} 1536w`}
+          sizes="(min-width: 980px) 640px, 100vw"
+          width="1536"
+          height="1024"
+          alt=""
+          loading="eager"
+          fetchpriority="high"
+          data-parallax="-0.06"
+        />
+        <span class="hero__pulse"></span>
+        <span class="hero__scan"></span>
+      </div>
+    </div>
+  </section>
+
+  <Ticker />
+
+  <!-- ============ Stats ============ -->
+  <section class="section--tight">
+    <div class="container">
+      <ul class="stats">
+        {stats.map((s, n) => (
+          <li data-reveal style={`--d: ${n * 90}ms`}>
+            <strong data-count={s.value}>{s.value}</strong>
+            <span>{s.label}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ Demo ============ -->
+  <section class="section section--rule demo" id="demo">
+    <div class="container demo__inner">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">One envelope, every command</p>
+        <h2>Answers an agent can act on.</h2>
+        <p>Every command returns the same JSON shape on stdout, says where its data came from, and stays read-only until you decide otherwise.</p>
+        <ul class="demo__notes">
+          <li><b>ok / data / error / meta</b> on every call, CLI or MCP</li>
+          <li><b>readOnly</b> reported, not assumed</li>
+          <li><b>source</b> on every result, so nothing is a mystery</li>
+        </ul>
+      </div>
+      <div data-reveal style="--d: 120ms">
+        <Terminal />
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Locked down ============ -->
+  <section class="section section--rule locked">
+    <div class="container locked__inner">
+      <div class="locked__art" data-reveal="wipe">
+        <img
+          src={url('/images/locked-down-1536.webp')}
+          srcset={`${url('/images/locked-down-960.webp')} 960w, ${url('/images/locked-down-1536.webp')} 1536w`}
+          sizes="(min-width: 980px) 560px, 100vw"
+          width="1536"
+          height="1024"
+          alt="A laptop inside a locked enclosure. Executable files are stopped outside; a single package passes through a slot."
+          loading="lazy"
+        />
+      </div>
+      <div>
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">Built for the locked-down laptop</p>
+          <h2>If your machine runs Node, it runs toil.</h2>
+          <p>Application control blocks unsigned executables. Security reviews stall on native modules. toil is built so there is nothing for either to catch.</p>
+        </div>
+        <ul class="facts">
+          {facts.map((f, n) => (
+            <li class="fact" data-reveal style={`--d: ${n * 100}ms`}>
+              <svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={f.icon} />
+              <div>
+                <h3>{f.title}</h3>
+                <p>{f.body}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Areas ============ -->
+  <section class="section section--rule">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">Three areas, one interface</p>
+        <h2>Everything an agent reaches for outside the editor.</h2>
+      </div>
+      <div class="areas">
+        {areas.map((a, n) => (
+          <article class="card area" data-reveal style={`--d: ${n * 110}ms`}>
+            <span class="card-tag">{a.tag}</span>
+            <h3>{a.title}</h3>
+            <p>{a.body}</p>
+            <code class="area__ex"><span>$</span> {a.example}</code>
+          </article>
+        ))}
+      </div>
+      <p class="areas__more" data-reveal>
+        <a class="tap" href={url('/integrations/')}>See all {integrationCount} planned integrations <span aria-hidden="true">→</span></a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ MCP stand-in ============ -->
+  <section class="section section--rule mcp">
+    <div class="container mcp__inner">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">MCP, without the approval queue</p>
+        <h2>Stand in for the server you can't install.</h2>
+        <p>Vendor MCP servers are often blocked, need a browser login, or don't exist. Scope toil to the areas you need and point your agent at it: one config entry, a small, focused tool list, and write tools that only exist if you've turned them on.</p>
+      </div>
+      <div class="codeblock mcp__code" data-reveal style="--d: 120ms">
+        <span class="card-tag">mcp.json</span>
+<pre><span class="p">{</span>
+  <span class="k">"mcpServers"</span><span class="p">: {</span>
+    <span class="k">"tickets-and-docs"</span><span class="p">: {</span>
+      <span class="k">"command"</span><span class="p">:</span> <span class="s">"npx"</span><span class="p">,</span>
+      <span class="k">"args"</span><span class="p">: [</span>
+        <span class="s">"-y"</span><span class="p">,</span> <span class="s">"@imagile-dev/toil"</span><span class="p">,</span> <span class="s">"mcp"</span><span class="p">,</span>
+        <span class="s">"--areas"</span><span class="p">,</span> <span class="s">"jira,confluence"</span>
+      <span class="p">]</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Principles teaser ============ -->
+  <section class="section section--rule">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">How it's built</p>
+        <h2>Principles first. Rules follow.</h2>
+        <p>Every decision in toil traces back to a short list of principles. Here are the first three.</p>
+      </div>
+      <ol class="teaser">
+        {teaser.map((p, n) => (
+          <li data-reveal style={`--d: ${n * 110}ms`}>
+            <span class="teaser__n">{p.n}</span>
+            <h3>{p.title}</h3>
+            <p>{p.forYou}</p>
+          </li>
+        ))}
+      </ol>
+      <p class="areas__more" data-reveal>
+        <a class="tap" href={url('/principles/')}>Read all nine principles <span aria-hidden="true">→</span></a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ============ CTA ============ -->
+  <section class="cta grid-ground">
+    <div class="cta__glow" aria-hidden="true"></div>
+    <div class="container cta__inner" data-reveal>
+      <h2>Watch it get built.</h2>
+      <p>toil is pre-release and developed in the open. Star the repo or watch releases to hear when the first version lands on npm.</p>
+      <div class="hero__actions">
+        <a href={repoUrl} class="btn btn--primary">Star on GitHub</a>
+        <a href={`${repoUrl}/releases`} class="btn btn--ghost">Watch releases</a>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  // Count stats up from zero once they scroll into view.
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const nums = document.querySelectorAll<HTMLElement>('[data-count]');
+  if (!reduce && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        io.unobserve(e.target);
+        const el = e.target as HTMLElement;
+        const end = Number(el.dataset.count);
+        if (!end) continue;
+        const t0 = performance.now();
+        const step = (t: number) => {
+          const k = Math.min(1, (t - t0) / 1400);
+          el.textContent = String(Math.round(end * (1 - Math.pow(1 - k, 3))));
+          if (k < 1) requestAnimationFrame(step);
+        };
+        el.textContent = '0';
+        requestAnimationFrame(step);
+      }
+    }, { threshold: 0.6 });
+    nums.forEach((n) => io.observe(n));
+  }
+</script>
+
+<style>
+  /* ---------- Hero ---------- */
+  .hero { position: relative; overflow: clip; padding-block: var(--space-xl) var(--space-2xl); }
+
+  .hero__glow {
+    position: absolute;
+    inset: -20% -10% auto auto;
+    width: 70vw;
+    height: 70vw;
+    max-width: 900px;
+    max-height: 900px;
+    background: radial-gradient(closest-side, rgba(224, 131, 86, 0.16), transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero__inner {
+    position: relative;
+    display: grid;
+    gap: var(--space-lg);
+    align-items: center;
+  }
+
+  .hero__copy { position: relative; z-index: 2; }
+
+  .hero__title {
+    font-size: var(--text-display);
+    line-height: 1.04;
+    letter-spacing: -0.015em;
+    margin: var(--space-sm) 0 var(--space-md);
+  }
+  .hero__title > span { display: block; }
+
+  .hero__title em { font-style: normal; color: var(--color-accent); }
+
+  /* The accent phrase gets a hand-ruled underline that draws itself in. */
+  .hero__mark {
+    position: relative;
+    white-space: nowrap;
+  }
+  .hero__mark::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0.02em;
+    height: 2px;
+    background: var(--color-accent);
+    transform-origin: left;
+    transform: scaleX(1);
+  }
+
+  .hero__subtitle {
+    font-size: var(--text-lg);
+    color: var(--color-muted);
+    max-width: 52ch;
+    margin-bottom: var(--space-md);
+  }
+
+  .hero__actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+  .hero__install {
+    margin-top: var(--space-md);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--color-ink);
+  }
+  .hero__install span { color: var(--color-accent); }
+  .hero__install em {
+    font-style: normal;
+    margin-left: 0.6rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+    border: 1px dashed var(--color-line-strong);
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    white-space: nowrap;
+  }
+
+  /* The drawing was generated on the page colour, so lighten lets the
+     drafting grid show through exactly as a transparent PNG would. The blend
+     sits on the wrapper: its animations make it a stacking context, which
+     would otherwise isolate a blend set on the img from the page beneath. */
+  .hero__art {
+    position: relative;
+    margin-inline: -1rem;
+    mix-blend-mode: lighten;
+  }
+
+  .hero__art img { width: 100%; height: auto; }
+
+  /* A soft beacon behind the crate, roughly where it sits in the drawing. */
+  .hero__pulse {
+    position: absolute;
+    left: 49%;
+    top: 62%;
+    width: 22%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(closest-side, rgba(224, 131, 86, 0.28), transparent);
+    mix-blend-mode: screen;
+    pointer-events: none;
+  }
+
+  /* A thin scan line sweeping the drawing, like a plotter head. */
+  .hero__scan {
+    position: absolute;
+    inset: 8% 6%;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(224, 131, 86, 0.5), transparent) no-repeat;
+    background-size: 1px 100%;
+    background-position: -10% 0;
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero__in {
+      opacity: 0;
+      transform: translateY(16px);
+      animation: rise 800ms var(--ease-out) forwards;
+      animation-delay: calc(120ms + var(--i) * 110ms);
+    }
+
+    .hero__mark::after {
+      transform: scaleX(0);
+      animation: rule 900ms var(--ease-out) 900ms forwards;
+    }
+
+    .hero__art {
+      opacity: 0;
+      animation: art-in 1600ms var(--ease-out) 300ms forwards, float 9s ease-in-out 1.9s infinite;
+    }
+
+    .hero__pulse { animation: pulse 3.2s ease-in-out 1.6s infinite; }
+
+    .hero__scan { animation: scan 7s ease-in-out 2.4s infinite; }
+
+    .hero__glow { animation: glow 12s ease-in-out infinite alternate; }
+  }
+
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  @keyframes rule { to { transform: scaleX(1); } }
+  @keyframes art-in { from { opacity: 0; transform: scale(0.96); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+  @keyframes float { 50% { translate: 0 -10px; } }
+  @keyframes pulse { 0%, 100% { opacity: 0.35; scale: 0.85; } 50% { opacity: 1; scale: 1.15; } }
+  @keyframes scan {
+    0% { opacity: 0; background-position: 0% 0; }
+    10% { opacity: 1; }
+    60% { opacity: 1; background-position: 100% 0; }
+    70%, 100% { opacity: 0; background-position: 100% 0; }
+  }
+  @keyframes glow { to { transform: translate(-6%, 8%) scale(1.08); } }
+
+  @media (min-width: 980px) {
+    .hero { padding-block: var(--space-2xl); }
+    .hero__inner { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr); }
+    .hero__title { font-size: clamp(2.8rem, 1.2rem + 3.4vw, 4.4rem); }
+    .hero__art { margin-inline: -10% -14%; }
+  }
+
+  /* ---------- Stats ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1px;
+    background: var(--color-line);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  .stats li {
+    background: var(--color-bg);
+    padding: var(--space-md);
+    display: grid;
+    gap: 0.25rem;
+  }
+
+  .stats strong {
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    line-height: 1;
+    color: var(--color-ink);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stats li:first-child strong { color: var(--color-accent); }
+
+  .stats span {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  @media (min-width: 760px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+
+  /* ---------- Demo ---------- */
+  .demo__inner { display: grid; gap: var(--space-lg); align-items: center; }
+
+  .demo__notes { margin-top: var(--space-md); display: grid; gap: 0.6rem; color: var(--color-muted); }
+  .demo__notes li { padding-left: 1.2rem; position: relative; }
+  .demo__notes li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.62em;
+    width: 0.45rem;
+    height: 0.45rem;
+    border: 1px solid var(--color-accent);
+    border-radius: 50%;
+  }
+  .demo__notes b { font-family: var(--font-mono); font-weight: 500; font-size: 0.9em; color: var(--color-ink); }
+
+  @media (min-width: 980px) {
+    .demo__inner { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
+    .demo .section-head { margin-bottom: 0; }
+  }
+
+  /* ---------- Locked down ---------- */
+  .locked__inner { display: grid; gap: var(--space-lg); align-items: center; }
+  .locked__art { margin-inline: -1rem; mix-blend-mode: lighten; }
+  .locked__art img { width: 100%; height: auto; }
+
+  .facts { display: grid; gap: var(--space-md); }
+
+  .fact { display: grid; grid-template-columns: auto 1fr; gap: var(--space-sm); align-items: start; }
+  .fact svg { color: var(--color-ink); margin-top: 0.15rem; }
+  .fact svg :global(.accent) { stroke: var(--color-accent); }
+  .fact h3 { font-family: var(--font-body); font-size: var(--text-base); font-weight: 600; }
+  .fact p { color: var(--color-muted); font-size: var(--text-sm); margin-top: 0.2rem; }
+
+  /* Icons trace themselves in once their row is revealed. */
+  @media (prefers-reduced-motion: no-preference) {
+    :global(.reveal-armed) .fact svg :global(*) { stroke-dasharray: 80; stroke-dashoffset: 80; }
+    :global(.reveal-armed) .fact.is-visible svg :global(*) {
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 1400ms var(--ease-out) calc(var(--d, 0ms) + 200ms);
+    }
+  }
+
+  @media (min-width: 560px) { .facts { grid-template-columns: 1fr 1fr; } }
+
+  @media (min-width: 980px) {
+    .locked__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .locked__art { margin-inline: -8% 0; }
+  }
+
+  /* ---------- Areas ---------- */
+  .areas { display: grid; gap: var(--space-md); }
+
+  .area {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding: var(--space-md) var(--space-md) var(--space-sm);
+    transition: transform var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out);
+  }
+
+  /* A hairline of accent sweeps along the bottom edge on hover. Animated by
+     background-position so nothing overflows the card (its tag sits above). */
+  .area::before {
+    content: '';
+    position: absolute;
+    left: var(--radius-md);
+    right: var(--radius-md);
+    bottom: -1px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-accent), transparent) no-repeat;
+    background-size: 40% 100%;
+    background-position: -80% 0;
+    transition: background-position 900ms var(--ease-out);
+  }
+
+  .area:hover { transform: translateY(-3px); border-color: var(--color-line-strong); }
+  .area:hover::before { background-position: 180% 0; }
+
+  .area h3 { font-size: var(--text-xl); margin-top: var(--space-2xs); }
+  .area p { color: var(--color-muted); font-size: var(--text-sm); flex: 1; }
+
+  .area__ex {
+    display: block;
+    margin-top: var(--space-xs);
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-deep);
+    border: 1px solid var(--color-line);
+    font-size: 0.75rem;
+    color: var(--color-ink);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .area__ex span { color: var(--color-accent); }
+
+  .areas__more { margin-top: var(--space-lg); }
+  .areas__more a {
+    font-family: var(--font-action);
+    font-weight: 500;
+    color: var(--color-accent);
+  }
+  .areas__more a span { display: inline-block; transition: transform var(--duration-fast) var(--ease-out); }
+  .areas__more a:hover span { transform: translateX(4px); }
+
+  @media (min-width: 860px) { .areas { grid-template-columns: repeat(3, 1fr); } }
+
+  /* ---------- MCP ---------- */
+  .mcp__inner { display: grid; gap: var(--space-lg); align-items: center; }
+  .mcp__code { font-size: 0.8rem; }
+  @media (min-width: 980px) {
+    .mcp__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .mcp .section-head { margin-bottom: 0; }
+  }
+
+  /* ---------- Principles teaser ---------- */
+  .teaser { display: grid; gap: var(--space-md); }
+
+  .teaser li {
+    position: relative;
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-line-strong);
+  }
+
+  .teaser__n {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-accent);
+    letter-spacing: 0.1em;
+  }
+
+  .teaser h3 { font-size: var(--text-xl); margin: var(--space-2xs) 0; }
+  .teaser p { color: var(--color-muted); font-size: var(--text-sm); }
+
+  @media (min-width: 860px) { .teaser { grid-template-columns: repeat(3, 1fr); gap: var(--space-lg); } }
+
+  /* ---------- CTA ---------- */
+  .cta {
+    position: relative;
+    overflow: clip;
+    padding-block: var(--space-2xl);
+    border-top: 1px solid var(--color-line);
+    text-align: center;
+  }
+
+  .cta__glow {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(900px, 120vw);
+    aspect-ratio: 2;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(closest-side, rgba(224, 131, 86, 0.18), transparent);
+    pointer-events: none;
+  }
+
+  .cta__inner { position: relative; display: grid; justify-items: center; gap: var(--space-sm); }
+  .cta h2 { font-size: var(--text-3xl); }
+  .cta p { color: var(--color-muted); max-width: 52ch; margin-bottom: var(--space-xs); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .cta__glow { animation: breathe 6s ease-in-out infinite; }
+  }
+
+  @keyframes breathe { 50% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.1); } }
+</style>

@@ -1,0 +1,60 @@
+---
+interface Props {
+  eyebrow: string;
+  title: string;
+  lead: string;
+}
+const { eyebrow, title, lead } = Astro.props;
+---
+
+<section class="page-hero grid-ground">
+  <div class="page-hero__glow" aria-hidden="true"></div>
+  <div class="container page-hero__inner">
+    <p class="eyebrow ph-in" style="--i: 0" set:html={eyebrow} />
+    <h1 class="ph-in" style="--i: 1" set:html={title} />
+    <p class="page-hero__lead ph-in" style="--i: 2">{lead}</p>
+    <slot />
+  </div>
+</section>
+
+<style>
+  .page-hero {
+    position: relative;
+    overflow: clip;
+    padding-block: var(--space-xl) var(--space-lg);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .page-hero__glow {
+    position: absolute;
+    right: -10%;
+    top: -40%;
+    width: 60vw;
+    max-width: 760px;
+    aspect-ratio: 1;
+    background: radial-gradient(closest-side, rgba(224, 131, 86, 0.13), transparent 70%);
+    pointer-events: none;
+  }
+
+  .page-hero__inner { position: relative; max-width: var(--max-width); }
+
+  h1 {
+    font-size: var(--text-3xl);
+    margin: var(--space-sm) 0;
+    max-width: 22ch;
+  }
+  h1 :global(em) { font-style: normal; color: var(--color-accent); }
+
+  .page-hero__lead { font-size: var(--text-lg); color: var(--color-muted); max-width: 60ch; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .ph-in {
+      opacity: 0;
+      transform: translateY(14px);
+      animation: ph-rise 700ms var(--ease-out) forwards;
+      animation-delay: calc(80ms + var(--i) * 100ms);
+    }
+  }
+
+  @keyframes ph-rise { to { opacity: 1; transform: none; } }
+</style>

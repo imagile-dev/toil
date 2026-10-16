@@ -1,0 +1,83 @@
+---
+// Fonts are imported at the JS level, not via CSS @import: Vite only copies
+// and rewrites the woff2 url()s when fontsource CSS comes through the module
+// graph, and an @import inside a <style> block 404s in the built output.
+import '@fontsource/source-serif-4/600.css';
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/500.css';
+import '@fontsource/ibm-plex-sans/600.css';
+import '@fontsource/fira-code/400.css';
+import '@fontsource/fira-code/500.css';
+import '@fontsource/archivo/500.css';
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import { url } from '../lib/url';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const {
+  title,
+  description = 'toil is a CLI and MCP server that gives AI agents and engineers structured access to enterprise tools, databases and code. Plain JavaScript on Node, so it runs where executables are blocked.',
+} = Astro.props;
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const pageTitle = title === 'toil' ? 'toil — the work around the code' : `${title} — toil`;
+const ogImage = new URL(url('/og.png'), Astro.site);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#16130f" />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="canonical" href={canonicalURL} />
+
+    <meta property="og:site_name" content="toil" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalURL} />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link rel="icon" href={url('/favicon.svg')} type="image/svg+xml" />
+    <link rel="sitemap" href={url('/sitemap-index.xml')} />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <SiteHeader />
+    <main id="main">
+      <slot />
+    </main>
+    <SiteFooter />
+    <script src="../scripts/motion.js"></script>
+  </body>
+</html>
+
+<style is:global>
+  @import '../styles/global.css';
+
+  .skip {
+    position: absolute;
+    left: 1rem;
+    top: -3rem;
+    z-index: 100;
+    padding: 0.5rem 0.9rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-accent);
+    color: var(--color-accent-ink);
+    font-weight: 500;
+  }
+  .skip:focus { top: 1rem; }
+</style>

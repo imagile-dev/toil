@@ -4,7 +4,7 @@
 
 toil is a structured-JSON CLI and MCP server, owned by Imagile, that gives AI agents
 and humans one interface to enterprise tools, databases, and codebases. TypeScript on
-Node.js (22 LTS or later), published to npm as `@imagile/toil`.
+Node.js (22 LTS or later), published to npm as `@imagile-dev/toil`.
 
 Who it is for, in priority order:
 
@@ -91,6 +91,10 @@ Node, and toil has to work there. This is the most important rule in the repo.
 Before adding a dependency, check it against this rule. If the only good library is
 native, find a pure-JS or WASM alternative or implement the protocol directly.
 
+The rule protects what users install, so it covers the published package and its
+runtime dependencies. `site/` is a separate private package that only ever builds in
+GitHub Actions; its build tooling is out of scope.
+
 ## Layout
 
 - `src/core/` — every capability: command definitions, config, HTTP, database providers, code analysis
@@ -100,6 +104,7 @@ native, find a pure-JS or WASM alternative or implement the protocol directly.
 - `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files
 - `.claude/skills/` — repo-internal skills only
 - `docs/` — plans and decisions
+- `site/` — the GitHub Pages site (Astro), its own private package; see **Site**
 
 A command is defined once in `src/core/` with a schema (zod) for its input and output.
 The CLI and MCP surfaces never implement behavior of their own; if one needs something
@@ -284,6 +289,50 @@ release PR; no agent merges, approves its own work into `main`, or enables auto-
 - Externally filed issues are redacted (secrets, internal hosts, private IPs, org names
   from the `REDACT_TERMS` secret) before any agent reads them. The denylist lives only
   in that secret.
+
+## Site
+
+`site/` is an Astro site deployed to https://imagile-dev.github.io/toil/ by
+`.github/workflows/pages.yml` (it builds on every PR that touches `site/` and deploys
+from `main`).
+
+- **Always mobile responsive.** The site is read wherever a shared link lands, and
+  that is often a phone, so a page that only works on a desktop isn't finished, the
+  same way *principle 8* treats platforms. Every page and component works from 320px
+  up with a 16px side gutter: nothing scrolls sideways, text stays readable without
+  zooming, standalone tap targets (buttons, nav and footer links, "see all" links; not
+  links inside a sentence) are at least 44px tall, and multi-column layouts collapse to one
+  column. Wide content (code, tables) scrolls inside its own container, never the
+  page. Grid children get `min-width: 0` so one long line can't widen the layout.
+- **Dark only.** It uses the Imagile design system in its dark finish: tokens in
+  `site/src/styles/global.css`, no light palette, no theme toggle. Don't add one.
+- **Honest about status** (*principle 4*). Until a version is on npm, the site says
+  pre-release, labels sample output as planned, and marks every integration
+  `planned`. Statuses on `/integrations/` use the same levels as **Verification
+  Levels**, plus `planned`.
+- **One source per fact.** `site/src/data/integrations.ts` and `docs/integrations.md`
+  change together; `site/src/data/principles.ts` restates the **Principles** above for
+  users and keeps their numbering.
+- **Motion everywhere, never required.** Every animation sits behind
+  `prefers-reduced-motion: no-preference`, and scroll reveals only hide content after
+  `motion.js` has armed them, so with no JS or reduced motion everything is visible.
+  A reveal never clips the observed element itself (a fully clipped element never
+  intersects, and a lazy image inside it never loads); clip its children.
+- **Generated art** is made with the image-generation skill using
+  `.claude/image-generation/style.md`, on the page colour `#16130f`, then shown with
+  `mix-blend-mode: lighten` on its wrapper so the grid shows through. Ship WebP at
+  960 and 1536 wide; the PNG masters stay in the ignored run folders.
+- Internal links go through `url()` in `site/src/lib/url.ts` because the site is
+  served under `/toil/`.
+- Any change under `site/src/` is checked in a browser at desktop width, 375px and
+  320px before the PR opens (`document.documentElement.scrollWidth` must equal the
+  viewport width), with desktop and 375px screenshots in the PR.
+
+```bash
+npm --prefix site ci
+npm --prefix site run dev     # http://localhost:4321/toil/
+npm --prefix site run build
+```
 
 ## Cloud Cost
 

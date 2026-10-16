@@ -1,0 +1,140 @@
+---
+/**
+ * A terminal sheet that types a command, then streams the JSON envelope back
+ * line by line. The full transcript is server-rendered, so without JS or
+ * under reduced motion the reader sees the finished output immediately.
+ */
+interface Props {
+  tag?: string;
+}
+const { tag = 'Preview · planned output' } = Astro.props;
+
+const command = 'npx -y @imagile-dev/toil db query -c reporting "select status, count(*) from orders group by status"';
+
+// Pre-highlighted response lines: k = key, s = string/value, p = punctuation.
+const lines = [
+  '<span class="p">{</span>',
+  '  <span class="k">"ok"</span><span class="p">:</span> <span class="s">true</span><span class="p">,</span>',
+  '  <span class="k">"data"</span><span class="p">: {</span>',
+  '    <span class="k">"columns"</span><span class="p">:</span> <span class="p">[</span><span class="s">"status"</span><span class="p">,</span> <span class="s">"count"</span><span class="p">],</span>',
+  '    <span class="k">"rows"</span><span class="p">:</span> <span class="p">[[</span><span class="s">"open"</span><span class="p">,</span> <span class="s">42</span><span class="p">], [</span><span class="s">"shipped"</span><span class="p">,</span> <span class="s">318</span><span class="p">]],</span>',
+  '    <span class="k">"truncated"</span><span class="p">:</span> <span class="s">false</span>',
+  '  <span class="p">},</span>',
+  '  <span class="k">"meta"</span><span class="p">: {</span> <span class="k">"source"</span><span class="p">:</span> <span class="s">"postgres:reporting"</span><span class="p">,</span> <span class="k">"readOnly"</span><span class="p">:</span> <span class="s">true</span> <span class="p">}</span>',
+  '<span class="p">}</span>',
+];
+---
+
+<div class="term" data-term>
+  <span class="card-tag">{tag}</span>
+  <div class="term__bar" aria-hidden="true">
+    <i></i><i></i><i></i>
+    <span>~/orders-service</span>
+  </div>
+  <div class="term__body">
+    <pre class="term__cmd"><span class="p">$ </span><span data-term-cmd data-text={command}>{command}</span><span class="term__caret" aria-hidden="true"></span></pre>
+    <pre class="term__out" data-term-out>{lines.map((l) => <span class="term__line" set:html={l} />)}</pre>
+  </div>
+</div>
+
+<style>
+  .term {
+    position: relative;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: color-mix(in oklab, var(--color-bg-deep) 92%, transparent);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(224, 131, 86, 0.04);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.75;
+    min-width: 0;
+  }
+
+  .term .card-tag { background: var(--color-bg); }
+
+  .term__bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0.7rem 0.9rem;
+    border-bottom: 1px solid var(--color-line);
+    color: var(--color-faint);
+    font-size: 0.7rem;
+  }
+
+  .term__bar i { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--color-line-strong); }
+  .term__bar span { margin-left: auto; }
+
+  .term__body { padding: 0.9rem 1rem 1.1rem; overflow-x: auto; }
+  .term pre { margin: 0; font: inherit; white-space: pre-wrap; word-break: break-word; }
+  .term__cmd { color: var(--color-ink); margin-bottom: 0.6rem !important; }
+  .term__out { color: var(--color-ink); white-space: pre !important; }
+  .term__line { display: block; }
+
+  .term :global(.k) { color: var(--color-accent); }
+  .term :global(.s) { color: var(--color-ok); }
+  .term :global(.p) { color: var(--color-muted); }
+
+  .term__caret {
+    display: inline-block;
+    width: 0.55em;
+    height: 1.1em;
+    margin-left: 2px;
+    vertical-align: -0.2em;
+    background: var(--color-accent);
+    opacity: 0;
+  }
+
+  /* Only animated once the script has armed this terminal. */
+  .term.is-typing .term__caret { opacity: 1; animation: blink 1s steps(1) infinite; }
+  .term.is-armed .term__line { opacity: 0; transform: translateX(-6px); }
+  .term.is-armed .term__line.is-in {
+    opacity: 1;
+    transform: none;
+    transition: opacity 260ms var(--ease-out), transform 260ms var(--ease-out);
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+
+<script>
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  for (const term of document.querySelectorAll<HTMLElement>('[data-term]')) {
+    if (reduce || !('IntersectionObserver' in window)) continue;
+    const cmd = term.querySelector<HTMLElement>('[data-term-cmd]');
+    const lines = Array.from(term.querySelectorAll<HTMLElement>('.term__line'));
+    if (!cmd) continue;
+    const text = cmd.dataset.text ?? '';
+
+    term.classList.add('is-armed', 'is-typing');
+    cmd.textContent = '';
+
+    const play = () => {
+      let i = 0;
+      const type = () => {
+        i += 1 + Math.round(Math.random());
+        cmd.textContent = text.slice(0, i);
+        if (i < text.length) {
+          setTimeout(type, 18 + Math.random() * 30);
+        } else {
+          setTimeout(stream, 380);
+        }
+      };
+      const stream = () => {
+        lines.forEach((line, n) => setTimeout(() => line.classList.add('is-in'), n * 90));
+        setTimeout(() => term.classList.remove('is-typing'), lines.length * 90 + 400);
+      };
+      setTimeout(type, 500);
+    };
+
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) {
+        io.disconnect();
+        play();
+      }
+    }, { threshold: 0.3 });
+    io.observe(term);
+  }
+</script>
