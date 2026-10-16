@@ -42,7 +42,9 @@ jobs:
     # claude[bot]'s; other bots are skipped, including release-please's
     # (github-actions[bot]) and imagile-bot[bot]'s own, which it couldn't approve.
     # A manual dispatch re-checks the fork and state guards in "Resolve pull
-    # request" below, since there's no event payload to check here.
+    # request" below, since there's no event payload to check here. It skips the
+    # author check on purpose: dispatching on a PR imagile-bot[bot] authored runs
+    # a review the App can't approve, and the verify step will say so.
     if: |
       github.event_name == 'workflow_dispatch' || (
       github.event.pull_request.head.repo.fork == false &&
@@ -148,7 +150,10 @@ jobs:
           github_token: ${{ steps.imagile-token.outputs.token }}
           bot_id: ${{ steps.imagile-bot.outputs.id }}
           bot_name: ${{ steps.imagile-bot.outputs.login }}
-          track_progress: true
+          # The action rejects track_progress on events outside its PR and issue
+          # list, and workflow_dispatch isn't on it; a manual run would fail at
+          # this step. The formal review is the record either way.
+          track_progress: ${{ github.event_name == 'pull_request' }}
           classify_inline_comments: 'true'
           include_fix_links: 'true'
           prompt: |
