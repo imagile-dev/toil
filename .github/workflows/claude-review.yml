@@ -22,9 +22,18 @@ name: Claude Review
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  # Review any open PR on demand (Actions → Claude Review → Run workflow), e.g.
+  # one opened before this workflow existed. Dispatch runs the default branch's
+  # copy of this file, and needs write access to the repository.
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to review
+        required: true
+        type: number
 
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
+  group: claude-review-${{ github.event.pull_request.number || inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
@@ -32,13 +41,16 @@ jobs:
     # Same-repo heads only, never forks, and not drafts. Human-authored PRs plus
     # claude[bot]'s; other bots are skipped, including release-please's
     # (github-actions[bot]) and imagile-bot[bot]'s own, which it couldn't approve.
+    # A manual dispatch re-checks the fork and state guards in "Resolve pull
+    # request" below, since there's no event payload to check here.
     if: |
+      github.event_name == 'workflow_dispatch' || (
       github.event.pull_request.head.repo.fork == false &&
       github.event.pull_request.draft == false &&
       (
         !endsWith(github.event.pull_request.user.login, '[bot]') ||
         github.event.pull_request.user.login == 'claude[bot]'
-      )
+      ))
     runs-on: ubuntu-latest
     # The workflow token only checks the code out. Everything that writes uses
     # the App token minted below, scoped to what a reviewer needs.
@@ -46,6 +58,32 @@ jobs:
       contents: read
       pull-requests: read
     steps:
+      # One source of PR facts for both triggers, so the event and dispatch
+      # paths run identical steps from here on.
+      - name: Resolve pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          gh api "repos/${REPO}/pulls/${NUMBER}" > /tmp/pr.json
+          FORK=$(jq -r '.head.repo.fork // true' /tmp/pr.json)
+          STATE=$(jq -r '.state' /tmp/pr.json)
+          if [ "${FORK}" != "false" ]; then
+            echo "::error::PR #${NUMBER} comes from a fork; this workflow only reviews same-repo heads."
+            exit 1
+          fi
+          if [ "${STATE}" != "open" ]; then
+            echo "::error::PR #${NUMBER} is ${STATE}; only open PRs are reviewed."
+            exit 1
+          fi
+          {
+            echo "number=${NUMBER}"
+            echo "head_sha=$(jq -r '.head.sha' /tmp/pr.json)"
+            echo "author=$(jq -r '.user.login' /tmp/pr.json)"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Generate Imagile Bot token
         id: imagile-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -73,6 +111,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          # The PR's head commit on both paths; a dispatch would otherwise check
+          # out the default branch and review the wrong code.
+          ref: ${{ steps.pr.outputs.head_sha }}
           fetch-depth: 0
 
       # The reviewer runs the same gate CI runs, so a finding is backed by an
@@ -109,21 +150,21 @@ jobs:
           include_fix_links: 'true'
           prompt: |
             REPO: ${{ github.repository }}
-            PR NUMBER: ${{ github.event.pull_request.number }}
-            PR AUTHOR: ${{ github.event.pull_request.user.login }}
+            PR NUMBER: ${{ steps.pr.outputs.number }}
+            PR AUTHOR: ${{ steps.pr.outputs.author }}
             REVIEW ACTOR: ${{ steps.imagile-bot.outputs.login }}
 
             **Before anything else, read and clean up earlier automated feedback:**
             1. Read previous automated comments on this PR to keep their context:
-               gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments --jq '.[] | select(.user.login == "${{ steps.imagile-bot.outputs.login }}" or .user.login == "claude[bot]" or .user.login == "github-actions[bot]") | {id: .id, body: .body}'
+               gh api repos/${{ github.repository }}/issues/${{ steps.pr.outputs.number }}/comments --jq '.[] | select(.user.login == "${{ steps.imagile-bot.outputs.login }}" or .user.login == "claude[bot]" or .user.login == "github-actions[bot]") | {id: .id, body: .body}'
             2. Note the concerns they raised; carry them into this review.
             3. Delete each of those comments by id, except the tracking comment for THIS
                run and any comment containing "claude-pr-feedback-round":
                gh api repos/${{ github.repository }}/issues/comments/<id> -X DELETE
             4. Dismiss earlier formal reviews from ${{ steps.imagile-bot.outputs.login }}. List them with:
-               gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews --jq '.[] | select(.user.login == "${{ steps.imagile-bot.outputs.login }}" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED")) | .id'
+               gh api repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.number }}/reviews --jq '.[] | select(.user.login == "${{ steps.imagile-bot.outputs.login }}" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED")) | .id'
                and dismiss each with:
-               gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews/<id>/dismissals -X PUT -f message="Superseded by a newer automated review"
+               gh api repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.number }}/reviews/<id>/dismissals -X PUT -f message="Superseded by a newer automated review"
             5. Best effort only: resolve outdated inline threads with `gh api graphql`
                (resolveReviewThread). Move on if it's refused.
 
@@ -163,7 +204,7 @@ jobs:
             **Finish with a formal GitHub review.** Prefer the MCP tool
             `mcp__github__create_and_submit_pull_request_review` with event `APPROVE` when
             there are no substantive problems, or `REQUEST_CHANGES` when there are blocking
-            ones. `gh pr review ${{ github.event.pull_request.number }} --approve|--request-changes --body "..."`
+            ones. `gh pr review ${{ steps.pr.outputs.number }} --approve|--request-changes --body "..."`
             is the fallback. Never leave the PR without an APPROVE or REQUEST_CHANGES state.
 
             **Do the whole review yourself, in this session.** This runs headless: when your
@@ -190,8 +231,8 @@ jobs:
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
           REPO: ${{ github.repository }}
           BOT_LOGIN: ${{ steps.imagile-bot.outputs.login }}
         run: |

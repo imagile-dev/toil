@@ -297,8 +297,9 @@ release PR; no agent merges, approves its own work into `main`, or enables auto-
     ends. Bash allow-rules with a mid-pattern `*` use the trailing-space form.
 - **Every action is pinned to a full commit SHA**, with its version as a trailing
   comment (`uses: actions/checkout@<sha> # v4.4.0`), in every workflow. Tags can be
-  moved after review; SHAs can't, and these jobs hold tokens. A new pin follows the
-  14-day rule for dependencies.
+  moved after review; SHAs can't, and these jobs hold tokens. A new or bumped pin must
+  be a release at least 14 days old, so a compromised release has time to be caught
+  before it runs here with those tokens.
 - **The fix agent** (`claude-pr-feedback.yml`) isn't wired yet. App-authored reviews
   raise `pull_request_review` events, so when it lands it triggers on a
   `CHANGES_REQUESTED` review from `imagile-bot[bot]` directly. That bot must be named
