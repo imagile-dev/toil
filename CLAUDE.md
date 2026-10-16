@@ -84,12 +84,31 @@ Node, and toil has to work there. This is the most important rule in the repo.
   ships is allowed only for opt-in credential storage (see **Secrets**).
 - The published package is one bundled JS file plus `package.json`, with no runtime
   `dependencies`. It installs with `npm install --ignore-scripts` and runs offline.
-- CI enforces this: `npm ci --ignore-scripts`, then fail if `node_modules` contains any
-  `*.node` file, any `binding.gyp`, or any package with an install script, and fail if
-  the packed tarball contains anything but JS, JSON, Markdown and the license.
+- CI enforces it on what ships, not on the dev toolchain:
+  - `npm run check:pure` fails if `package.json` has runtime `dependencies` or any
+    install/prepare script, or if the bundle imports anything but Node built-ins.
+    That's read from esbuild's metafile, never by scanning text. It also fails on
+    `child_process` or a native addon, or if the tarball holds anything beyond
+    `dist/toil.js`, `package.json`, `README.md`, `LICENSE` and `NOTICE`.
+  - `npm run smoke` installs the packed tarball with `--ignore-scripts` into a
+    throwaway prefix and drives the installed bin through the CLI and MCP.
+- Bundled dependencies can drag in a spawning API (commander imports `child_process`
+  for subcommands toil never uses). The build resolves `child_process` to
+  `src/shims/no-spawn.ts`, a stub that throws. Keep it that way; if a future area
+  genuinely needs the OS credential store, it gets its own narrowly scoped module
+  and the gate gains an explicit, reviewed exception.
 
 Before adding a dependency, check it against this rule. If the only good library is
 native, find a pure-JS or WASM alternative or implement the protocol directly.
+
+**Dependencies are pinned exactly** (`.npmrc` sets `save-exact`) and must be at least
+14 days old when added or bumped, so a compromised release has time to be caught
+before it lands here. Everything lives in `devDependencies`, because it all gets
+bundled. npm 11.5's resolver can crash (`Cannot read properties of null (reading
+'edgesOut')`) when resolving this tree from scratch. Installs from
+`package-lock.json` are fine, so keep the lockfile, and if a fresh resolve crashes,
+add the new package with `--legacy-peer-deps` and confirm `npm ls` reports no
+invalid peers.
 
 The rule protects what users install, so it covers the published package and its
 runtime dependencies. `site/` is a separate private package that only ever builds in
@@ -97,18 +116,27 @@ GitHub Actions; its build tooling is out of scope.
 
 ## Layout
 
-- `src/core/` — every capability: command definitions, config, HTTP, database providers, code analysis
-- `src/cli.ts` — the `toil` command line; thin, no logic
-- `src/mcp/` — the MCP server (`toil mcp`, stdio); tools generated from the command definitions
-- `src/**/*.test.ts` — Vitest, next to the code
+- `src/core/` — the machinery: `defineCommand`, `execute` (validation, write gate,
+  envelope), errors, config loading
+- `src/areas/` — the commands themselves, one module per area
+- `src/registry.ts` — the list of shipped commands; both front doors read it
+- `src/program.ts` — builds the CLI from the registry; `src/cli.ts` is the bundle
+  entry that wires it to the real process
+- `src/mcp/` — the MCP server (`toil mcp`, stdio); tools generated from the registry
+- `src/shims/` — build-time stand-ins (the no-spawn stub)
+- `src/**/*.test.ts`, `test/` — Vitest; `test/harness/` holds the shared fakes,
+  `test/fixtures/` test-only commands
+- `scripts/` — the purity gate, the tarball smoke test, contract capture
 - `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files
 - `.claude/skills/` — repo-internal skills only
 - `docs/` — plans and decisions
 - `site/` — the GitHub Pages site (Astro), its own private package; see **Site**
 
-A command is defined once in `src/core/` with a schema (zod) for its input and output.
-The CLI and MCP surfaces never implement behavior of their own; if one needs something
-the other lacks, the gap is in core. Every definition declares whether it writes.
+A command is defined once with `defineCommand` in `src/areas/`: its path, a zod
+input schema, whether it writes, its CLI arguments and flags (each mapped to an input
+field), and at least one example input. The CLI and MCP surfaces never implement
+behavior of their own; if one needs something the other lacks, the gap is in core.
+A write command spreads `allowWriteField` into its input.
 
 ## MCP Server
 
@@ -127,10 +155,12 @@ npm run typecheck   # tsc --noEmit
 npm run lint        # ESLint
 npm test            # Vitest
 npm run build       # tsup → dist/toil.js, single bundle
-npm run check:pure  # the No Executables gate
+npm run check:pure  # the No Executables gate (after build)
+npm run smoke       # install the tarball with scripts off; drive CLI and MCP (after build)
 ```
 
-All five pass before a PR opens.
+All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 22
+and 24.
 
 ## Output Contract
 
@@ -250,10 +280,37 @@ self-hosted shape and only that.
 
 ## Testing
 
-Unit tests stub `fetch` and never need the network. Database tests use `node:sqlite`
-in-process; tests against real PostgreSQL, MySQL and SQL Server run as CI service
-containers under `npm run test:integration`, which offline developers can skip.
-Fixtures use placeholder hosts.
+Tests never need the network: a developer offline gets the same result as CI.
+
+- **Mock HTTP with `fakeFetch`** (`test/harness/fake-fetch.ts`), injected through
+  `Context.fetch`. A request with no route throws, so a test can't pass against a
+  real server by accident. Every integration test asserts both sides: the exact
+  request toil sent (method, URL, headers, body) and how the canned response was
+  reshaped. Build contexts with `testContext()`; run the real CLI in-process with
+  `runCli()`; connect a real MCP client over an in-memory transport with
+  `connectMcp()`.
+- **Canned responses are shaped like the real API**, captured from a live instance
+  where possible and sanitized to placeholders (see **Placeholders**). A response
+  invented from the docs is labelled as such in the fixture.
+- **The CLI and MCP stay 1:1 because `test/parity.test.ts` proves it.** It walks
+  every registered command and checks five things:
+  - one tool per command
+  - an identical JSON Schema
+  - every input field reachable from the CLI and vice versa
+  - for every example, identical envelopes and identical HTTP requests through both
+    front doors
+  - the write gate holding on both sides
+
+  New commands are covered on registration; never add a command without examples,
+  and never exempt one from this suite. When changing the harness, prove the suite
+  still bites: break the mapping on purpose and watch it fail.
+- `test/fixtures/demo-commands.ts` holds test-only commands (a read and a write
+  against a fake API) that exercise the harness before real integrations exist.
+  They're never registered in the shipped CLI.
+- Database tests use `node:sqlite` in-process. Tests against real PostgreSQL, MySQL
+  and SQL Server run as CI service containers under `npm run test:integration`,
+  which offline developers can skip.
+- Fixtures use placeholder hosts.
 
 ## Placeholders
 
@@ -267,7 +324,18 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 
 - Conventional Commits: `fix:`, `feat:`, `feat!:` with a `BREAKING CHANGE:` footer
   that says why and how to migrate. release-please builds the changelog from them.
-- Branches: `kolatts/<issue#>-<description>`. Every branch has an issue.
+- **Every major item starts with a GitHub issue, created before the branch.** Keep it
+  concise: a short paragraph on what and why, and one "Done when" line. One issue per
+  broad area (foundation, a set of integrations, the site, the gateway), never
+  sub-issues or per-feature issues. Many PRs can serve one issue; they use
+  `Refs #n`, and the PR that finishes it uses `Closes #n`.
+- Branches: `kolatts/<issue#>-<description>`.
+- **Releases** come from release-please (`.github/workflows/release.yml`): Conventional
+  Commits on `main` become a release PR, and merging it, which is always a human's
+  call, tags, publishes `@imagile-dev/toil` to npm with provenance, attaches the
+  tarball to the GitHub release, and posts to Discord, loudly if the publish fails.
+  Publishing uses the `NPM_TOKEN` secret until npm trusted publishing is configured
+  for the package, then OIDC with no token.
 - PRs are vertical slices (core → CLI → MCP → tests → skill doc), sized large enough
   to avoid process overhead, fully verified before opening. Use the `ship` skill.
 - Before changing behavior users rely on, check config already on disk, existing
@@ -300,7 +368,7 @@ forks and fresh clones never fail on it.
   Each post sets `username: toil` and its avatar from
   `https://imagile-dev.github.io/toil/brand/toil-avatar-512.png`, so moving or
   renaming that file breaks the bot's avatar.
-- The release workflow, when it's built, posts each npm publish (version, release
+- `.github/workflows/release.yml` posts each npm publish (version, release
   notes, npm link). It **also posts loudly when a publish fails**, because a silent
   publish failure is the one that goes unnoticed. Both steps are non-fatal:
   `|| echo "Discord notify failed (non-fatal)"`.
