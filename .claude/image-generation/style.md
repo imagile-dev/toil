@@ -3,7 +3,7 @@ Style: precise technical line drawing, like an engineer's drafting sheet or a pa
 Palette (use only these):
 - Ivory linework #ece7df (rgb 236,231,223) for most strokes
 - Flame orange #ff6a3d (rgb 255,106,61) for the focal element, shading into amber #ffb84d (rgb 255,184,77)
-- Teal #34e2c4 (rgb 52,226,196) for one or two small accents only
+- Amber #ffb84d on its own for one or two small accents. All warm: no green, teal, blue or purple
 - Muted taupe #a89e91 (rgb 168,158,145) for construction lines and secondary detail
 - Background: fully transparent, or warm near-black #16130f (rgb 22,19,15) when transparency is impossible
 

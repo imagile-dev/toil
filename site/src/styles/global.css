@@ -8,9 +8,9 @@
 
 :root {
   /* ---- color ----
-     Warmer, brighter than the Imagile finish: a flame-orange accent that
-     shades into amber, and a cool teal as its complement for values,
-     "live" states and the odd highlight. --rgb-* feed glows and tints. */
+     Warmer, brighter than the Imagile finish, and all warm: a flame-orange
+     accent that shades into amber, with amber on its own for values, "live"
+     states and the odd highlight. No second hue. --rgb-* feed glows and tints. */
   --color-bg: #16130f; /* must match the generated art; see Site in CLAUDE.md */
   --color-bg-deep: #0e0c09;
   --color-surface: #1f1a15;
@@ -20,13 +20,11 @@
   --color-faint: #857a6c;
   --rgb-accent: 255, 106, 61;
   --rgb-amber: 255, 184, 77;
-  --rgb-teal: 52, 226, 196;
   --color-accent: rgb(var(--rgb-accent));
   --color-amber: rgb(var(--rgb-amber));
-  --color-teal: rgb(var(--rgb-teal));
   --color-accent-soft: rgba(var(--rgb-accent), 0.14);
   --color-accent-ink: #160b05;
-  --color-ok: var(--color-teal);
+  --color-ok: var(--color-amber);
   --gradient-accent: linear-gradient(100deg, var(--color-accent) 10%, var(--color-amber) 90%);
   --color-line: rgba(246, 241, 233, 0.14);
   --color-line-strong: rgba(246, 241, 233, 0.3);

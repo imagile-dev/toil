@@ -306,9 +306,11 @@ from `main`).
   page. Grid children get `min-width: 0` so one long line can't widen the layout.
 - **Dark only.** It uses the Imagile design system's bones (type, grid, spacing,
   drafting-style iconography) in a dark finish with toil's own, brighter palette:
-  a flame-to-amber accent gradient and a teal complement, all as tokens in
-  `site/src/styles/global.css`. No light palette, no theme toggle. The background
-  stays `#16130f` because the generated art is painted on it.
+  all warm, with a flame-to-amber accent gradient and amber on its own for values,
+  "live" states and small highlights, as tokens in `site/src/styles/global.css`.
+  There's no second hue: no green, teal, blue or purple, in the site or in
+  generated art. No light palette, no theme toggle. The background stays
+  `#16130f` because the generated art is painted on it.
 - **Imagile is credited prominently**: a byline in the header, a linked "By Imagile"
   in the hero eyebrow, and a feature panel in the footer, all pointing to
   https://www.imagile.dev. Imagile's mark keeps its own colours.
@@ -325,19 +327,24 @@ from `main`).
   A reveal never clips the observed element itself (a fully clipped element never
   intersects, and a lazy image inside it never loads); clip its children.
 - **House style has three registers; pick by job, never mix them in one image.**
-  - *The mark* is toil's logo: branches converging into an orbit around a sheet
-    carrying a terminal prompt (`>_`), the central integrator. In motion, packets
-    flow in along a left branch, round the orbit, and out on the right (SMIL
-    `animateMotion`; `packets` sets how many). SMIL ignores media queries, so the
-    packets are hidden in CSS under reduced motion. It's flat, symbolic, serious, and hand-built SVG in
-    `site/src/components/Logo.astro` (wide and `square` cuts; the square one is also
-    `public/favicon.svg`). It never comes from an image model, and has no characters
-    and no jokes.
+  - *The mark* is toil's logo, and the central integrator drawn literally. A
+    terminal (a sheet with a `>_` prompt) is the hub. Three branches leave each
+    side of it and fan out to six tools, dots on an outer ring at 0° and 38° either
+    side of horizontal. It's flat, symbolic, serious, and hand-built SVG: the
+    component is `site/src/components/Logo.astro`, the static copies are
+    `public/favicon.svg` and `public/brand/toil-avatar.svg` (circular, with
+    transparent corners, exported to 512 and 256 PNG for avatars). All three share
+    one geometry; change them together. It never comes from an image model, and
+    has no characters and no jokes.
+  - *Its motion is "Command".* The ring and branches draw in, and the tools pop
+    on. Then, every 4.5s, the cursor types two keystrokes, a signal fires down all
+    six branches at once, and each tool bumps as it arrives. The motion is pure
+    CSS, so reduced motion turns it off.
   - *Diagrams* are precise drafting-style line drawings for how-it-works art (the
     hero), generated with `.claude/image-generation/style.md`.
   - *Cartoons* are lighthearted spot illustrations, generated with
     `.claude/image-generation/style-cartoon.md` (pass `--style-file`). The recurring
-    character is the crate, a package box in a teal-striped hard hat. The crate is
+    character is the crate, a package box in an amber-striped hard hat. The crate is
     always competent; the joke is on the bureaucracy around it, never on users or
     their employers.
 - **Generated art** sits on the page colour `#16130f` (or darker) and shows with

@@ -44,3 +44,6 @@ Thumbs.db
 
 # Astro
 site/.astro/
+
+# Local design labs, never shipped
+site/public/lab/

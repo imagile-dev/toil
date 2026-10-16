@@ -65,7 +65,7 @@ const teaser = principles.slice(0, 3);
   <!-- ============ Hero ============ -->
   <section class="hero grid-ground">
     <div class="hero__glow" aria-hidden="true"></div>
-    <div class="hero__glow hero__glow--teal" aria-hidden="true"></div>
+    <div class="hero__glow hero__glow--warm" aria-hidden="true"></div>
     <div class="container hero__inner">
       <div class="hero__copy">
         <p class="eyebrow hero__in" style="--i: 0"><span><b>Pre-release</b> · Open source · By <a class="hero__imagile" href="https://www.imagile.dev">Imagile</a></span></p>
@@ -274,7 +274,7 @@ const teaser = principles.slice(0, 3);
   <section class="cta grid-ground">
     <div class="cta__glow" aria-hidden="true"></div>
     <div class="container cta__inner" data-reveal>
-      <div class="cta__mark"><Logo height={128} packets={6} /></div>
+      <div class="cta__mark"><Logo height={128} /></div>
       <h2>Watch it get built.</h2>
       <p>toil is pre-release and developed in the open. Star the repo or watch releases to hear when the first version lands on npm.</p>
       <div class="hero__actions">
@@ -326,11 +326,11 @@ const teaser = principles.slice(0, 3);
     pointer-events: none;
   }
 
-  .hero__glow--teal {
+  .hero__glow--warm {
     inset: auto auto -35% -20%;
     width: 55vw;
     height: 55vw;
-    background: radial-gradient(closest-side, rgba(var(--rgb-teal), 0.1), transparent 70%);
+    background: radial-gradient(closest-side, rgba(var(--rgb-amber), 0.1), transparent 70%);
     animation-direction: alternate-reverse !important;
   }
 
@@ -523,7 +523,7 @@ const teaser = principles.slice(0, 3);
     background-clip: text;
     color: transparent;
   }
-  .stats strong[data-count='0'] { color: var(--color-teal); }
+  .stats strong[data-count='0'] { color: var(--color-amber); }
 
   .stats span {
     font-family: var(--font-mono);
@@ -704,13 +704,13 @@ const teaser = principles.slice(0, 3);
     width: min(900px, 120vw);
     aspect-ratio: 2;
     transform: translate(-50%, -50%);
-    background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.26), rgba(var(--rgb-teal), 0.05) 60%, transparent);
+    background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.26), rgba(var(--rgb-amber), 0.05) 60%, transparent);
     pointer-events: none;
   }
 
   .cta__inner { position: relative; display: grid; justify-items: center; gap: var(--space-sm); }
 
-  /* The mark, large, with packets flowing through it. Scales down on phones. */
+  /* The mark, large, running its command loop. Scales down on phones. */
   .cta__mark { width: min(192px, 60vw); margin-bottom: var(--space-sm); filter: drop-shadow(0 0 24px rgba(var(--rgb-accent), 0.25)); }
   .cta__mark :global(svg) { width: 100%; height: auto; }
   .cta h2 { font-size: var(--text-3xl); }
