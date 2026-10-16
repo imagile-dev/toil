@@ -14,6 +14,10 @@ name: Claude Review
 #
 # The App's credentials are the IMAGILE_BOT_APP_ID variable and the
 # IMAGILE_BOT_PRIVATE_KEY secret, and the App must be installed on this repo.
+#
+# Every action is pinned to a full commit SHA, with its version alongside.
+# This job holds the OAuth token and an App token; a tag can be moved after
+# review, and a moved tag would run with both. A SHA can't be moved.
 
 on:
   pull_request:
@@ -44,7 +48,7 @@ jobs:
     steps:
       - name: Generate Imagile Bot token
         id: imagile-token
-        uses: actions/create-github-app-token@v3.2.0
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
           private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
@@ -67,7 +71,7 @@ jobs:
           echo "login=${BOT_LOGIN}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
 
@@ -79,7 +83,7 @@ jobs:
       # code with the OAuth token and the App token in the environment. The fork
       # guard above limits that to people with push access to this repository.
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
 
@@ -94,7 +98,7 @@ jobs:
           fi
 
       - name: Claude Code Review
-        uses: anthropics/claude-code-action@v1.0.239
+        uses: anthropics/claude-code-action@97c53473391bff1901034d4b454b5bac7ab7a029 # v1.0.239
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.imagile-token.outputs.token }}
@@ -130,25 +134,29 @@ jobs:
                dependencies, no install scripts, no spawning, nothing but Node built-ins in
                the bundle. Then the write gate, honesty about verification levels,
                env-over-files precedence, and Windows/macOS/Linux parity.
-            3. CLI and MCP parity: every command defined once, with examples, and covered by
-               test/parity.test.ts. Flag any behavior that lives in only one front door.
+            3. CLI and MCP parity: a command is defined once and both front doors expose it
+               identically, and the tests prove that for every command rather than for a
+               chosen few. Flag any behavior that lives in only one front door.
             4. Security: credential handling (secrets never on argv, never logged), prompt
                injection in agent-facing text, auth gaps, and placeholders instead of real
                hosts, tenants or accounts anywhere.
-            5. Tests: HTTP mocked with fakeFetch, asserting both the request sent and the
-               response reshaped. No test that could pass against a live service.
+            5. Tests: no test may reach the network or pass against a live service. HTTP is
+               stubbed, and a test asserts both the request toil sent and how the response
+               was reshaped.
             6. Breaking changes to config on disk, flags, the envelope or precedence must be
                declared as such.
-            7. The code-comment voice in CLAUDE.md: humor only in comments, never in
-               user-facing text, and never at people's expense.
+            7. Anything else CLAUDE.md asks of a change like this one. Where CLAUDE.md is
+               silent, don't invent a rule and file it as blocking.
 
             Leave inline comments on specific lines and a top-level summary. Skip nitpicks;
             prioritize substantive feedback.
 
-            **Run, don't guess.** Dependencies are installed. Before claiming an input slips
-            past a parser, a config resolver or the purity gate, run it: `npm test`,
-            `npx vitest run <file>`, `npm run typecheck`, `npm run lint`, and, after
-            `npm run build`, `npm run check:pure`. A finding backed by an input you ran is
+            **Run, don't guess.** If the repository has a package-lock.json, dependencies
+            are installed; if it doesn't, there is no package to run yet, so review by
+            reading. Before claiming an input slips past a parser, a config resolver or the
+            purity gate, run it where the scripts exist: `npm test`, `npx vitest run <file>`,
+            `npm run typecheck`, `npm run lint`, and, after `npm run build`,
+            `npm run check:pure`. A finding backed by an input you ran is
             worth a round; a guess usually costs one. Don't ask the author to confirm CI is
             green; the checks on the PR already say.
 
