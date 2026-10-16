@@ -22,17 +22,17 @@ executable, no native module, and no install script, so it runs where unapproved
 binaries are blocked.
 
 ```bash
-npm install -g @imagile/toil
+npm install -g @imagile-dev/toil
 ```
 
 As an MCP server, with no install step:
 
 ```json
-{ "command": "npx", "args": ["-y", "@imagile/toil", "mcp"] }
+{ "command": "npx", "args": ["-y", "@imagile-dev/toil", "mcp"] }
 ```
 
 Each [release](https://github.com/imagile-dev/toil/releases) also carries the packed
-`.tgz` for offline or mirrored installs: `npm install -g ./imagile-toil-<version>.tgz`.
+`.tgz` for offline or mirrored installs: `npm install -g ./imagile-dev-toil-<version>.tgz`.
 
 ## Use
 

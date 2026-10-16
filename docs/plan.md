@@ -7,8 +7,8 @@ itself. The principles behind every choice here are in [CLAUDE.md](../CLAUDE.md)
 ## Approaches
 
 - **npm and Node, nothing else.** TypeScript bundled into one JS file, published as
-  `@imagile/toil` with no runtime dependencies and no install scripts. Works where
-  executables are blocked: `npx -y @imagile/toil mcp` is the whole setup. A CI gate
+  `@imagile-dev/toil` with no runtime dependencies and no install scripts. Works where
+  executables are blocked: `npx -y @imagile-dev/toil mcp` is the whole setup. A CI gate
   fails on any native addon, binary or install script.
 - **Windows, macOS and Linux, all first-class.** No shell spawning, `node:path` everywhere,
   LF in the repo, and the full CI gate on all three.

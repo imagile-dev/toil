@@ -1,0 +1,319 @@
+/* ============================================================
+   toil — design tokens & base styles
+   The Imagile "workbench, refined" system in its dark finish only:
+   warm near-black paper, a serif display face, one terracotta accent,
+   a faint drafting grid. Mono is an accent voice (labels, commands),
+   never the navigation. There is no light theme and no toggle.
+   ============================================================ */
+
+:root {
+  /* ---- color ---- */
+  --color-bg: #16130f;
+  --color-bg-deep: #110e0b;
+  --color-surface: #201c17;
+  --color-surface-raised: #29241e;
+  --color-ink: #ece7df;
+  --color-muted: #a89e91;
+  --color-faint: #7d7469;
+  --color-accent: #e08356;
+  --color-accent-soft: rgba(224, 131, 86, 0.14);
+  --color-accent-ink: #16130f;
+  --color-ok: #8fbf8a;
+  --color-line: rgba(236, 231, 223, 0.15);
+  --color-line-strong: rgba(236, 231, 223, 0.28);
+  --color-grid: rgba(236, 231, 223, 0.04);
+  --color-focus: #6fb2ff;
+
+  /* ---- type ---- */
+  --font-display: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --font-action: 'Archivo', var(--font-body);
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.3rem;
+  --text-2xl: clamp(1.6rem, 1.35rem + 1.1vw, 2.15rem);
+  --text-3xl: clamp(2.1rem, 1.6rem + 2.2vw, 3.25rem);
+  --text-display: clamp(2.5rem, 1.6rem + 4vw, 4.6rem);
+  --leading-tight: 1.1;
+  --leading-snug: 1.35;
+  --leading-normal: 1.6;
+
+  /* ---- space (4px base) ---- */
+  --space-3xs: 0.25rem;
+  --space-2xs: 0.5rem;
+  --space-xs: 0.75rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2.5rem;
+  --space-xl: 4rem;
+  --space-2xl: 6rem;
+
+  /* ---- shape ---- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --grid-size: 24px;
+  --max-width: 1180px;
+  --measure: 62ch;
+
+  /* ---- motion ---- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 160ms;
+  --duration-base: 320ms;
+
+  color-scheme: dark;
+}
+
+/* ============================================================
+   Reset
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+main { flex: 1; }
+
+img, picture, svg { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  line-height: var(--leading-tight);
+  text-wrap: balance;
+}
+
+h4 {
+  font-family: var(--font-body);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+p { text-wrap: pretty; }
+ul, ol { list-style: none; padding: 0; }
+code { font-family: var(--font-mono); font-size: 0.92em; }
+
+button { font: inherit; color: inherit; }
+
+::selection { background: var(--color-accent); color: var(--color-accent-ink); }
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   Layout primitives
+   ============================================================ */
+
+.container {
+  width: min(100% - 2rem, var(--max-width));
+  margin-inline: auto;
+}
+
+.section { padding-block: var(--space-2xl); }
+.section--tight { padding-block: var(--space-xl); }
+.section--rule { border-top: 1px solid var(--color-line); }
+
+/* Grid items default to min-width: auto, so one long code line would widen
+   the whole page on a phone. Every grid child here may shrink. */
+[class*='__inner'] > * { min-width: 0; }
+
+.section-head { max-width: 60ch; margin-bottom: var(--space-lg); }
+.section-head h2 { font-size: var(--text-3xl); margin-top: var(--space-xs); }
+.section-head p { color: var(--color-muted); font-size: var(--text-lg); margin-top: var(--space-sm); }
+
+.prose { max-width: var(--measure); }
+.prose p + p { margin-top: var(--space-sm); }
+.prose a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Fine drafting grid: an ambient texture that drifts one cell every two
+   minutes, quiet enough to read as "instrumented" rather than decorative. */
+.grid-ground {
+  background-image:
+    linear-gradient(var(--color-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
+  background-size: var(--grid-size) var(--grid-size);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .grid-ground { animation: grid-drift 120s linear infinite; }
+}
+
+@keyframes grid-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: var(--grid-size) var(--grid-size), var(--grid-size) var(--grid-size); }
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.eyebrow b { color: var(--color-accent); font-weight: 500; }
+
+/* Registration-mark bullet. */
+.eyebrow::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border: 1px solid var(--color-accent);
+  border-radius: 50%;
+  flex: none;
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  min-height: 44px;
+  padding: 0.75rem 1.3rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-family: var(--font-action);
+  font-weight: 500;
+  font-size: var(--text-sm);
+  letter-spacing: -0.005em;
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn--primary { background: var(--color-accent); color: var(--color-accent-ink); }
+.btn--ghost { background: transparent; border-color: var(--color-line-strong); color: var(--color-ink); }
+.btn--ghost:hover { border-color: var(--color-accent); }
+.btn--sm { min-height: 36px; padding: 0.5rem 0.9rem; font-size: var(--text-xs); }
+
+/* ============================================================
+   Cards, pills, code
+   ============================================================ */
+
+.card {
+  position: relative;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  padding: var(--space-md);
+}
+
+.card-tag {
+  position: absolute;
+  top: -0.6rem;
+  left: 0.85rem;
+  background: var(--color-bg);
+  padding: 0 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  white-space: nowrap;
+}
+
+.pill--accent { color: var(--color-accent); border-color: color-mix(in oklab, var(--color-accent) 45%, transparent); }
+
+/* Code block: a mounted sheet with a labelled tab, not a generic grey box. */
+.codeblock {
+  position: relative;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-deep);
+  padding: var(--space-md) var(--space-md) var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+  color: var(--color-ink);
+}
+
+/* Scroll lives on the pre, so the card tag above the block is never clipped. */
+.codeblock pre { margin: 0; font: inherit; white-space: pre; overflow-x: auto; }
+.codeblock .c { color: var(--color-faint); }
+.codeblock .k { color: var(--color-accent); }
+.codeblock .s { color: var(--color-ok); }
+.codeblock .p { color: var(--color-muted); user-select: none; }
+
+/* ============================================================
+   Scroll reveal: content is visible unless motion.js has armed it.
+   ============================================================ */
+
+/* --d staggers siblings: style="--d: 120ms". */
+:root.reveal-armed [data-reveal] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 640ms var(--ease-out) var(--d, 0ms),
+    transform 640ms var(--ease-out) var(--d, 0ms);
+}
+
+/* Wipe variant for images: uncovers left to right instead of rising. The
+   clip goes on the children, never the observed element itself: a fully
+   clipped target never intersects, so it would never be revealed, and a
+   lazy image inside it would never load. */
+:root.reveal-armed [data-reveal='wipe'] { opacity: 1; transform: none; }
+:root.reveal-armed [data-reveal='wipe'] > * {
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 1400ms var(--ease-out) var(--d, 0ms);
+}
+:root.reveal-armed [data-reveal='wipe'].is-visible > * { clip-path: inset(0 0 0 0); }
+
+:root.reveal-armed [data-reveal].is-visible { opacity: 1; transform: none; }
+
+[data-parallax] {
+  transform: translate3d(0, var(--parallax-y, 0), 0);
+  will-change: transform;
+}

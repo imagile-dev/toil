@@ -1,0 +1,63 @@
+---
+import Logo from './Logo.astro';
+import { url, repoUrl } from '../lib/url';
+---
+
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    <div class="site-footer__brand">
+      <a href={url('/')} class="site-footer__logo"><Logo size={22} /> toil</a>
+      <p>The work around the code, one npm install away.</p>
+    </div>
+    <ul class="site-footer__links">
+      <li><a href={url('/integrations/')}>Integrations</a></li>
+      <li><a href={url('/principles/')}>Principles</a></li>
+      <li><a href={repoUrl}>GitHub</a></li>
+      <li><a href={`${repoUrl}/issues`}>Issues</a></li>
+    </ul>
+    <p class="site-footer__fine">
+      MIT licensed · Built by <a href="https://www.imagile.dev">Imagile</a>
+    </p>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--color-line);
+    background: var(--color-bg-deep);
+    padding-block: var(--space-xl) var(--space-lg);
+    font-size: var(--text-sm);
+  }
+
+  .site-footer__inner {
+    display: grid;
+    gap: var(--space-md);
+    grid-template-columns: 1fr;
+  }
+
+  .site-footer__logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.2rem;
+  }
+
+  .site-footer__brand p { color: var(--color-muted); margin-top: var(--space-2xs); }
+
+  .site-footer__links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.4rem; color: var(--color-muted); }
+  .site-footer__links a:hover, .site-footer__fine a:hover { color: var(--color-accent); }
+
+  .site-footer__fine {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-faint);
+  }
+  .site-footer__fine a { color: var(--color-muted); }
+
+  @media (min-width: 760px) {
+    .site-footer__inner { grid-template-columns: 1fr auto; align-items: start; }
+    .site-footer__fine { grid-column: 1 / -1; padding-top: var(--space-md); border-top: 1px solid var(--color-line); }
+  }
+</style>
