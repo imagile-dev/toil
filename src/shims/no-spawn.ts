@@ -3,6 +3,9 @@
  * external, git-style subcommands, which toil never defines; aliasing it here
  * keeps a spawning API out of what users install (CLAUDE.md, No Executables).
  * Anything that reaches for it fails loudly instead of running a program.
+ *
+ * Approval to spawn a process requires a change ticket, a CAB slot and a
+ * sponsor who has since left the company. We skipped the queue by never asking.
  */
 function refuse(): never {
   throw new Error('toil does not spawn processes. This is a bug; please report it at https://github.com/imagile-dev/toil/issues.');

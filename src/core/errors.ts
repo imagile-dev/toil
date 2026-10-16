@@ -1,7 +1,8 @@
 /**
  * Every failure a user can see is a ToilError: a stable code, a message, and a
  * fix they can act on. Anything else that escapes a command is wrapped as
- * INTERNAL so the envelope never carries a raw stack trace.
+ * INTERNAL so the envelope never carries a raw stack trace. A stack trace in a
+ * ticket gets reassigned to three teams and resolved by none of them.
  */
 export type ErrorCode =
   | 'INVALID_INPUT'

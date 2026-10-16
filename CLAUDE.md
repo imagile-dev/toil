@@ -312,6 +312,30 @@ Tests never need the network: a developer offline gets the same result as CI.
   which offline developers can skip.
 - Fixtures use placeholder hosts.
 
+## Code Comments
+
+Comments explain *why*, and they're also the one place toil is allowed to be funny.
+The voice is deadpan bureaucratic satire: the flat, mock-official tone of a compliance
+notice, aimed at the paperwork toil exists to route around. For example:
+
+```ts
+// Approval to spawn a process requires a change ticket, a CAB slot and a
+// sponsor who has since left the company. We skipped the queue by never asking.
+```
+
+- **The explanation comes first and stands alone.** Delete the joke and the comment
+  still tells the next engineer what they need. A joke never replaces a reason.
+- **Aim at the bureaucracy, never at people.** Not at users, their employers, a real
+  company or vendor, a colleague, or the reader. Stand-ups, CAB, RACI matrices,
+  spreadsheets of record and tickets about tickets are all fair game.
+- **One dry line, not a bit.** Understatement over exclamation marks; no emoji, no
+  "lol". Most comments have no joke at all, and that's fine.
+- **Comments only.** None of it goes on the site, in `--help` text, error messages,
+  `fix` hints, the JSON envelope, MCP tool descriptions, docs, skills, commit
+  messages or PR descriptions. Those are read by people mid-task, or by models
+  choosing a tool, and both deserve a straight answer. The site keeps its own,
+  gentler register (see **Site**).
+
 ## Placeholders
 
 Never commit a real hostname, tenant ID, account, or connection string from any

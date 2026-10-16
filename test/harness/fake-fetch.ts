@@ -3,6 +3,9 @@
  * expects; a request with no matching route throws, so a test can't pass by
  * accident against a real server. Every request is recorded so tests can assert
  * exactly what toil sent: method, URL, headers and body.
+ *
+ * Real network access from a test needs a firewall exception, a business
+ * justification and a director's signature. Nobody here has filed one.
  */
 export interface RecordedRequest {
   method: string;

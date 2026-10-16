@@ -20,6 +20,6 @@ export default tseslint.config(
   {
     files: ['scripts/**/*.mjs', 'test/**/*.ts', '*.config.ts', '*.config.js'],
     rules: { 'no-restricted-imports': 'off' },
-    languageOptions: { globals: { process: 'readonly', console: 'readonly' } },
+    languageOptions: { globals: { process: 'readonly', console: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly', URL: 'readonly' } },
   },
 );

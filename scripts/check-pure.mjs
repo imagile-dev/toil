@@ -5,6 +5,9 @@
 //      and never child_process or a native addon
 //   3. the packed tarball contains only the allowlisted files
 // Run after `npm run build`.
+//
+// This is the security review. It finishes in under a second and has never
+// once asked for the spreadsheet.
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';

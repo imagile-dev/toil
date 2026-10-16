@@ -29,7 +29,10 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
   }
 }
 
-/** Writes need both the area's standing opt-in and --allow-write on this call. */
+/**
+ * Writes need both the area's standing opt-in and --allow-write on this call.
+ * Two approvals, like a change request, except both of these are actually read.
+ */
 function assertWritesAllowed(def: AnyCommand, input: Record<string, unknown>, ctx: Context): void {
   const area = areaOf(def);
   if (!writesEnabled(ctx.config, area)) {
