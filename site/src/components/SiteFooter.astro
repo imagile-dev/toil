@@ -1,0 +1,124 @@
+---
+import Logo from './Logo.astro';
+import { url, repoUrl } from '../lib/url';
+---
+
+<footer class="site-footer">
+  <div class="container">
+    <a class="imagile" href="https://www.imagile.dev" data-reveal>
+      <img class="imagile__mark" src={url('/images/imagile-mark-128.png')} width="64" height="64" alt="" loading="lazy" />
+      <div class="imagile__copy">
+        <p class="eyebrow">Built by <b>Imagile</b></p>
+        <p class="imagile__line">Imagile helps companies put AI to work: training engineers to build with it, designing the agentic workflows that remove the busywork, and shipping the software behind it.</p>
+      </div>
+      <span class="btn btn--primary imagile__cta">Visit imagile.dev <span aria-hidden="true">→</span></span>
+    </a>
+
+    <div class="site-footer__inner">
+      <div class="site-footer__brand">
+        <a href={url('/')} class="site-footer__logo tap"><Logo height={22} /> toil</a>
+        <p>The work around the code, one npm install away.</p>
+      </div>
+      <ul class="site-footer__links">
+        <li><a class="tap" href={url('/integrations/')}>Integrations</a></li>
+        <li><a class="tap" href={url('/principles/')}>Principles</a></li>
+        <li><a class="tap" href={repoUrl}>GitHub</a></li>
+        <li><a class="tap" href={`${repoUrl}/issues`}>Issues</a></li>
+        <li><a class="tap" href="https://www.imagile.dev">imagile.dev</a></li>
+      </ul>
+      <p class="site-footer__fine">Apache 2.0 licensed · © Imagile</p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    border-top: 1px solid var(--color-line);
+    background: var(--color-bg-deep);
+    padding-block: var(--space-xl) var(--space-lg);
+    font-size: var(--text-sm);
+  }
+
+  /* ---------- Imagile feature ---------- */
+  .imagile {
+    position: relative;
+    display: grid;
+    gap: var(--space-sm) var(--space-md);
+    align-items: center;
+    padding: var(--space-md);
+    margin-bottom: var(--space-xl);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background:
+      radial-gradient(120% 140% at 0% 0%, rgba(var(--rgb-accent), 0.14), transparent 55%),
+      var(--color-surface);
+    overflow: hidden;
+    transition: border-color var(--duration-base) var(--ease-out), translate var(--duration-base) var(--ease-out);
+  }
+
+  .imagile > * { min-width: 0; }
+
+  /* A slow sheen crosses the panel on hover. */
+  .imagile::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, 0.06) 50%, transparent 65%) no-repeat;
+    background-size: 250% 100%;
+    background-position: 150% 0;
+    transition: background-position 1100ms var(--ease-out);
+    pointer-events: none;
+  }
+
+  .imagile:hover { border-color: rgba(var(--rgb-accent), 0.45); translate: 0 -2px; }
+  .imagile:hover::after { background-position: -50% 0; }
+
+  .imagile__mark { width: 64px; height: 64px; transition: transform var(--duration-base) var(--ease-out); }
+  .imagile:hover .imagile__mark { transform: rotate(-6deg) scale(1.06); }
+
+  .imagile__line {
+    margin-top: 0.35rem;
+    font-family: var(--font-display);
+    font-size: var(--text-lg);
+    line-height: var(--leading-snug);
+    color: var(--color-ink);
+    max-width: 58ch;
+  }
+
+  .imagile__cta { justify-self: start; }
+
+  @media (min-width: 820px) {
+    .imagile { grid-template-columns: auto 1fr auto; padding: var(--space-md) var(--space-lg); }
+    .imagile__cta { justify-self: end; }
+  }
+
+  /* ---------- Footer rows ---------- */
+  .site-footer__inner {
+    display: grid;
+    gap: var(--space-md);
+    grid-template-columns: 1fr;
+  }
+
+  .site-footer__logo {
+    gap: 0.45rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.2rem;
+  }
+
+  .site-footer__brand p { color: var(--color-muted); }
+
+  .site-footer__links { display: flex; flex-wrap: wrap; gap: 0 1.4rem; color: var(--color-muted); }
+  .site-footer__links a:hover { color: var(--color-accent); }
+
+  .site-footer__fine {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-faint);
+  }
+
+  @media (min-width: 760px) {
+    .site-footer__inner { grid-template-columns: 1fr auto; align-items: start; }
+    .site-footer__fine { grid-column: 1 / -1; padding-top: var(--space-md); border-top: 1px solid var(--color-line); }
+  }
+</style>

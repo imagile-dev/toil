@@ -36,3 +36,14 @@ scheduled_tasks.lock
 # OS
 .DS_Store
 Thumbs.db
+
+# Image generation working folders (prompt records + PNG masters)
+.claude/image-generation/*
+!.claude/image-generation/style.md
+!.claude/image-generation/style-cartoon.md
+
+# Astro
+site/.astro/
+
+# Local design labs, never shipped
+site/public/lab/
