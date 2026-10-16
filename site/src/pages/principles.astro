@@ -1,0 +1,100 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PageHero from '../components/PageHero.astro';
+import { principles } from '../data/principles';
+import { repoUrl } from '../lib/url';
+---
+
+<Layout title="Principles" description="The nine principles every decision in toil traces back to.">
+  <PageHero
+    eyebrow="How toil is built"
+    title="Principles first. <em>Rules follow.</em>"
+    lead="Every rule in toil is a consequence of one of these. When a new case comes up, we reason from the principle rather than adding a one-off rule, so the tool stays predictable as it grows."
+  />
+
+  <section class="section">
+    <div class="container">
+      <ol class="plist">
+        {principles.map((p) => (
+          <li class="pitem" data-reveal>
+            <span class="pitem__n">{p.n}</span>
+            <div class="pitem__body">
+              <h2>{p.title}</h2>
+              <p>{p.body}</p>
+            </div>
+            <p class="pitem__you"><span>For you</span>{p.forYou}</p>
+          </li>
+        ))}
+      </ol>
+      <p class="plist__src" data-reveal>
+        The full engineering rules derived from these live in the repository's
+        <a href={`${repoUrl}/blob/main/CLAUDE.md`}>CLAUDE.md</a>.
+      </p>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .plist { display: grid; }
+
+  .pitem {
+    position: relative;
+    display: grid;
+    gap: var(--space-xs) var(--space-lg);
+    padding-block: var(--space-lg);
+    border-top: 1px solid var(--color-line);
+  }
+
+  /* The rule above each principle draws across as it is revealed. */
+  .pitem::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: -1px;
+    width: 100%;
+    height: 1px;
+    background: var(--color-accent);
+    transform-origin: left;
+    transform: scaleX(0.12);
+    transition: transform 1100ms var(--ease-out) 150ms;
+  }
+  :global(.reveal-armed) .pitem::before { transform: scaleX(0); }
+  :global(.reveal-armed) .pitem.is-visible::before { transform: scaleX(0.12); }
+  .pitem:hover::before { transform: scaleX(1) !important; }
+
+  .pitem__n {
+    font-family: var(--font-display);
+    font-size: var(--text-3xl);
+    line-height: 1;
+    color: transparent;
+    -webkit-text-stroke: 1px var(--color-accent);
+  }
+
+  .pitem__body h2 { font-size: var(--text-2xl); }
+  .pitem__body p { color: var(--color-muted); margin-top: var(--space-2xs); max-width: 56ch; }
+
+  .pitem__you {
+    align-self: start;
+    padding: var(--space-sm);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    font-size: var(--text-sm);
+  }
+  .pitem__you span {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+  }
+
+  @media (min-width: 900px) {
+    .pitem { grid-template-columns: 5rem minmax(0, 1fr) 18rem; align-items: start; }
+  }
+
+  .plist__src { margin-top: var(--space-lg); color: var(--color-muted); }
+  .plist__src a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+</style>
