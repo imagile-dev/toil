@@ -97,6 +97,10 @@ Each integration records a testing level — `untested`, `basic`, `beta`, `live`
 measured against a real instance, not the unit suite. New integrations start
 `untested`. Raise a level only after a live run, and say in the PR what was run.
 
+A command talks to one service. Do not build an aggregate command that fans out to
+several sources; give each source its own area and let them compose through stdin or
+`--from <file>` (see the dependency-analysis section of `docs/integrations.md`).
+
 Where a vendor ships self-hosted and SaaS with diverging APIs, implement the
 self-hosted shape and only that.
 

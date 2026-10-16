@@ -4,7 +4,8 @@ One CLI and MCP server for the work around the code: your enterprise tools, your
 databases, and your codebase. Every command returns structured JSON, so agents and
 scripts can use it as easily as people.
 
-> Status: early. Nothing is released yet. See [docs/plan.md](docs/plan.md).
+> Status: early. Nothing is released yet. See [docs/plan.md](docs/plan.md) and
+> [docs/integrations.md](docs/integrations.md).
 
 ## What it does
 
