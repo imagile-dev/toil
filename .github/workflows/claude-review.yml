@@ -1,18 +1,19 @@
 name: Claude Review
 
 # An agent reviews every same-repo PR against CLAUDE.md and submits a formal
-# review. Reviews go out under the workflow's own GITHUB_TOKEN, so they are
-# authored by github-actions[bot], which is never a PR's author here; that is
-# what makes formal APPROVE / REQUEST_CHANGES possible on every PR.
+# review as the Imagile Bot GitHub App (imagile-bot[bot]). Using the App
+# rather than the workflow's GITHUB_TOKEN means:
 #
-# APPROVE also needs the repo setting "Allow GitHub Actions to create and
-# approve pull requests" (Settings → Actions → General → Workflow
-# permissions). REQUEST_CHANGES is not gated by it.
+# 1. Formal APPROVE works without the repo setting that lets GitHub Actions
+#    approve PRs; that setting gates only GITHUB_TOKEN. The App can't approve
+#    a PR it authored, which is why its own PRs are skipped below.
+# 2. Its reviews raise `pull_request_review` events that other workflows see.
+#    When the fix agent (claude-pr-feedback.yml) lands, a CHANGES_REQUESTED
+#    review triggers it directly, so no dispatch workaround is needed. That
+#    workflow must then allowlist imagile-bot[bot] as a reviewer, explicitly.
 #
-# Events raised by GITHUB_TOKEN do not trigger other workflows. When the fix
-# agent (claude-pr-feedback.yml) lands, this file gains a deterministic step
-# that dispatches it on CHANGES_REQUESTED; until then a requested change waits
-# for a human, which is to say it waits.
+# The App's credentials are the IMAGILE_BOT_APP_ID variable and the
+# IMAGILE_BOT_PRIVATE_KEY secret, and the App must be installed on this repo.
 
 on:
   pull_request:
@@ -24,8 +25,9 @@ concurrency:
 
 jobs:
   review:
-    # Same-repo heads only, never forks. Human-authored PRs, plus claude[bot]'s.
-    # Other bots (release-please's PRs come from github-actions[bot]) are skipped.
+    # Same-repo heads only, never forks, and not drafts. Human-authored PRs plus
+    # claude[bot]'s; other bots are skipped, including release-please's
+    # (github-actions[bot]) and imagile-bot[bot]'s own, which it couldn't approve.
     if: |
       github.event.pull_request.head.repo.fork == false &&
       github.event.pull_request.draft == false &&
@@ -34,12 +36,36 @@ jobs:
         github.event.pull_request.user.login == 'claude[bot]'
       )
     runs-on: ubuntu-latest
+    # The workflow token only checks the code out. Everything that writes uses
+    # the App token minted below, scoped to what a reviewer needs.
     permissions:
       contents: read
-      # Previous rounds' tracking comments are deleted through the issues API.
-      issues: write
-      pull-requests: write
+      pull-requests: read
     steps:
+      - name: Generate Imagile Bot token
+        id: imagile-token
+        uses: actions/create-github-app-token@v3.2.0
+        with:
+          app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
+          private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
+          # A reviewer reads code and writes reviews and comments. It does not
+          # push, and it certainly doesn't touch workflows.
+          permission-contents: read
+          permission-pull-requests: write
+          permission-issues: write
+
+      - name: Resolve Imagile Bot identity
+        id: imagile-bot
+        env:
+          GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
+          BOT_LOGIN: ${{ steps.imagile-token.outputs.app-slug }}[bot]
+        run: |
+          # Assigned on its own line: inside an echo argument, a failed lookup's
+          # exit status would be masked and write an empty id.
+          BOT_ID=$(gh api "/users/${BOT_LOGIN}" --jq .id)
+          echo "id=${BOT_ID}" >> "$GITHUB_OUTPUT"
+          echo "login=${BOT_LOGIN}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -50,7 +76,7 @@ jobs:
       # scripts stay off, as everywhere else (CLAUDE.md, No Executables).
       #
       # Accepted trade-off: `npm test` inside the agent step runs PR-head test
-      # code with the OAuth token and github.token in the environment. The fork
+      # code with the OAuth token and the App token in the environment. The fork
       # guard above limits that to people with push access to this repository.
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -71,12 +97,9 @@ jobs:
         uses: anthropics/claude-code-action@v1.0.239
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # The workflow token, always: it can submit formal reviews (see header).
-          github_token: ${{ github.token }}
-          # github-actions[bot]'s global account id; reviews and comments from
-          # the workflow token are authored by this identity.
-          bot_id: 41898282
-          bot_name: github-actions[bot]
+          github_token: ${{ steps.imagile-token.outputs.token }}
+          bot_id: ${{ steps.imagile-bot.outputs.id }}
+          bot_name: ${{ steps.imagile-bot.outputs.login }}
           track_progress: true
           classify_inline_comments: 'true'
           include_fix_links: 'true'
@@ -84,21 +107,21 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
             PR AUTHOR: ${{ github.event.pull_request.user.login }}
-            REVIEW ACTOR: github-actions[bot]
+            REVIEW ACTOR: ${{ steps.imagile-bot.outputs.login }}
 
             **Before anything else, read and clean up earlier automated feedback:**
             1. Read previous automated comments on this PR to keep their context:
-               gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments --jq '.[] | select(.user.login == "claude[bot]" or .user.login == "github-actions[bot]") | {id: .id, body: .body}'
+               gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments --jq '.[] | select(.user.login == "${{ steps.imagile-bot.outputs.login }}" or .user.login == "claude[bot]" or .user.login == "github-actions[bot]") | {id: .id, body: .body}'
             2. Note the concerns they raised; carry them into this review.
             3. Delete each of those comments by id, except the tracking comment for THIS
                run and any comment containing "claude-pr-feedback-round":
                gh api repos/${{ github.repository }}/issues/comments/<id> -X DELETE
-            4. Dismiss earlier formal reviews from github-actions[bot]. List them with:
-               gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews --jq '.[] | select(.user.login == "github-actions[bot]" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED")) | .id'
+            4. Dismiss earlier formal reviews from ${{ steps.imagile-bot.outputs.login }}. List them with:
+               gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews --jq '.[] | select(.user.login == "${{ steps.imagile-bot.outputs.login }}" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED")) | .id'
                and dismiss each with:
                gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews/<id>/dismissals -X PUT -f message="Superseded by a newer automated review"
             5. Best effort only: resolve outdated inline threads with `gh api graphql`
-               (resolveReviewThread). The workflow token is often refused; move on if so.
+               (resolveReviewThread). Move on if it's refused.
 
             **Now review the pull request against CLAUDE.md.** Read CLAUDE.md first; it is
             the standard. In particular:
@@ -152,9 +175,9 @@ jobs:
             --model claude-opus-5-5 --disallowedTools "Agent,Task" --allowedTools "Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(npm run build:*),Bash(npm run check:pure:*),Bash(npm test:*),Bash(npx vitest run:*),mcp__github__get_issue_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_diff,mcp__github__create_and_submit_pull_request_review,mcp__github__create_pending_pull_request_review,mcp__github__add_comment_to_pending_review,mcp__github__submit_pending_pull_request_review,mcp__github__add_issue_comment,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api graphql *),Bash(gh api repos/*/issues/*/comments *),Bash(gh api repos/*/issues/comments/* *),Bash(gh api repos/*/pulls/*/reviews *),Bash(gh api repos/*/pulls/*/reviews/*/dismissals *),Bash(gh api repos/*/pulls/*/comments *)"
 
       # The agent can finish "successfully" without submitting a review. Look for
-      # one on this run's head commit and fail loudly instead of letting a
-      # missing review read as a green check. A job that passes without doing
-      # its one job is how a status report gets written.
+      # one by the bot on this run's head commit and fail loudly instead of
+      # letting a missing review read as a green check. A job that passes
+      # without doing its one job is how a status report gets written.
       - name: Verify a formal review was submitted
         if: success()
         env:
@@ -162,16 +185,17 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REPO: ${{ github.repository }}
+          BOT_LOGIN: ${{ steps.imagile-bot.outputs.login }}
         run: |
           gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/reviews" > /tmp/verify-reviews.json
           # shellcheck disable=SC2016
-          jq -r --arg sha "${HEAD_SHA}" \
-            '.[] | select(.user.login == "github-actions[bot]"
+          jq -r --arg sha "${HEAD_SHA}" --arg bot "${BOT_LOGIN}" \
+            '.[] | select(.user.login == $bot
                           and .commit_id == $sha
                           and (.state == "APPROVED" or .state == "CHANGES_REQUESTED")) | .id' \
             /tmp/verify-reviews.json > /tmp/verify-ids.txt
           if ! grep -q . /tmp/verify-ids.txt; then
-            echo "::error::The review agent finished without submitting an APPROVE or REQUEST_CHANGES review for ${HEAD_SHA}. Re-run this job, or push a new commit."
+            echo "::error::The review agent finished without submitting an APPROVE or REQUEST_CHANGES review as ${BOT_LOGIN} for ${HEAD_SHA}. Re-run this job, or push a new commit."
             exit 1
           fi
-          echo "Formal review found for ${HEAD_SHA}"
+          echo "Formal review by ${BOT_LOGIN} found for ${HEAD_SHA}"
