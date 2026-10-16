@@ -285,6 +285,21 @@ release PR; no agent merges, approves its own work into `main`, or enables auto-
   from the `REDACT_TERMS` secret) before any agent reads them. The denylist lives only
   in that secret.
 
+### Discord
+
+A Discord channel follows the project through one webhook, the `DISCORD_WEBHOOK`
+repository secret. Without the secret, every notify step logs a skip and exits 0, so
+forks and fresh clones never fail on it.
+
+- `.github/workflows/discord-notify.yml` posts every issue as it opens and closes.
+- The release workflow, when it's built, posts each npm publish (version, release
+  notes, npm link). It **also posts loudly when a publish fails**, because a silent
+  publish failure is the one that goes unnoticed. Both steps are non-fatal:
+  `|| echo "Discord notify failed (non-fatal)"`.
+- Event text such as issue titles reaches the script through `env:` and goes into the
+  payload with `jq --arg`, never by interpolating `${{ }}` into `run:`. An issue
+  title is attacker-controlled.
+
 ## Cloud Cost
 
 No standing cloud resources without approval. Anything this repo provisions states its

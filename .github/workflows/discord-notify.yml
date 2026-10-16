@@ -1,0 +1,36 @@
+name: Discord Notifications
+
+on:
+  issues:
+    types: [opened, closed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          ACTION: ${{ github.event.action }}
+          NUMBER: ${{ github.event.issue.number }}
+          TITLE: ${{ github.event.issue.title }}
+          URL: ${{ github.event.issue.html_url }}
+          ISSUE_USER: ${{ github.event.issue.user.login }}
+        run: |
+          [[ -z "$DISCORD_WEBHOOK" ]] && echo "DISCORD_WEBHOOK not set, skipping" && exit 0
+          if [[ "$ACTION" == "opened" ]]; then
+            VERB="Opened"
+            COLOR=5793266
+          elif [[ "$ACTION" == "closed" ]]; then
+            VERB="Closed"
+            COLOR=3066993
+          else
+            exit 0
+          fi
+          jq -n \
+            --arg title "Issue #${NUMBER} ${ACTION}: ${TITLE}" \
+            --arg url "$URL" \
+            --arg desc "${VERB} by [@${ISSUE_USER}](https://github.com/${ISSUE_USER})" \
+            --argjson color $COLOR \
+            '{"embeds":[{"title":$title,"url":$url,"description":$desc,"color":$color}]}' \
+          | curl -sf -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" -d @-
