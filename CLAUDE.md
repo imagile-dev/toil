@@ -304,8 +304,14 @@ from `main`).
   links inside a sentence) are at least 44px tall, and multi-column layouts collapse to one
   column. Wide content (code, tables) scrolls inside its own container, never the
   page. Grid children get `min-width: 0` so one long line can't widen the layout.
-- **Dark only.** It uses the Imagile design system in its dark finish: tokens in
-  `site/src/styles/global.css`, no light palette, no theme toggle. Don't add one.
+- **Dark only.** It uses the Imagile design system's bones (type, grid, spacing,
+  drafting-style iconography) in a dark finish with toil's own, brighter palette:
+  a flame-to-amber accent gradient and a teal complement, all as tokens in
+  `site/src/styles/global.css`. No light palette, no theme toggle. The background
+  stays `#16130f` because the generated art is painted on it.
+- **Imagile is credited prominently**: a byline in the header, a linked "By Imagile"
+  in the hero eyebrow, and a feature panel in the footer, all pointing to
+  https://www.imagile.dev. Imagile's mark keeps its own colours.
 - **Honest about status** (*principle 4*). Until a version is on npm, the site says
   pre-release, labels sample output as planned, and marks every integration
   `planned`. Statuses on `/integrations/` use the same levels as **Verification

@@ -48,7 +48,13 @@ const names = groups.flatMap((g) => g.items.map((i) => i.name));
     height: 5px;
     border-radius: 50%;
     background: var(--color-accent);
-    opacity: 0.7;
+    opacity: 0.9;
+    box-shadow: 0 0 8px rgba(var(--rgb-accent), 0.6);
+  }
+
+  .ticker li:nth-child(even)::after {
+    background: var(--color-teal);
+    box-shadow: 0 0 8px rgba(var(--rgb-teal), 0.6);
   }
 
   @media (prefers-reduced-motion: no-preference) {

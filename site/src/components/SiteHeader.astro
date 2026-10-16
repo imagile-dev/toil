@@ -15,6 +15,11 @@ const current = Astro.url.pathname;
       <Logo />
       <span>toil</span>
     </a>
+    <a href="https://www.imagile.dev" class="site-header__by tap" aria-label="toil is built by Imagile — visit imagile.dev">
+      <span class="site-header__by-text">by</span>
+      <img src={url('/images/imagile-mark-64.png')} srcset={`${url('/images/imagile-mark-64.png')} 1x, ${url('/images/imagile-mark-128.png')} 2x`} width="20" height="20" alt="" />
+      <span>Imagile</span>
+    </a>
 
     <nav class="site-header__nav" aria-label="Primary">
       <ul>
@@ -53,12 +58,42 @@ const current = Astro.url.pathname;
     display: inline-flex;
     align-items: center;
     gap: 0.55rem;
-    margin-right: auto;
     font-family: var(--font-display);
     font-weight: 600;
     font-size: 1.45rem;
     letter-spacing: -0.01em;
   }
+
+  /* Byline: a hairline divider, then Imagile's own mark in its own colour. */
+  .site-header__by {
+    gap: 0.4rem;
+    margin-right: auto;
+    padding-left: 0.9rem;
+    background: linear-gradient(var(--color-line-strong), var(--color-line-strong)) left center / 1px 22px no-repeat;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--color-muted);
+    transition: color var(--duration-fast) var(--ease-out);
+  }
+  .site-header__by img { transition: transform var(--duration-base) var(--ease-out); }
+  .site-header__by:hover { color: var(--color-ink); }
+  .site-header__by:hover img { transform: rotate(-8deg) scale(1.12); }
+  .site-header__by-text { color: var(--color-faint); }
+
+  @media (max-width: 640px) {
+    .site-header__by span { display: none; }
+    .site-header__by { padding-left: 0.6rem; }
+  }
+
+  /* On the narrowest phones the byline yields its space; the hero eyebrow and
+     the footer panel still credit Imagile there. */
+  @media (max-width: 379px) {
+    .site-header__by { display: none; }
+    .site-header__logo { margin-right: auto; }
+  }
+
+  .site-header__gh { flex: none; min-width: 44px; }
+  .site-header__nav ul a { white-space: nowrap; }
 
   .site-header__nav { display: flex; align-items: center; gap: 1.4rem; }
 

@@ -64,12 +64,13 @@ const teaser = principles.slice(0, 3);
   <!-- ============ Hero ============ -->
   <section class="hero grid-ground">
     <div class="hero__glow" aria-hidden="true"></div>
+    <div class="hero__glow hero__glow--teal" aria-hidden="true"></div>
     <div class="container hero__inner">
       <div class="hero__copy">
-        <p class="eyebrow hero__in" style="--i: 0"><b>Pre-release</b> · Open source · Apache 2.0</p>
+        <p class="eyebrow hero__in" style="--i: 0"><span><b>Pre-release</b> · Open source · By <a class="hero__imagile" href="https://www.imagile.dev">Imagile</a></span></p>
         <h1 class="hero__title">
           <span class="hero__in" style="--i: 1">The work around the code,</span>
-          <span class="hero__in" style="--i: 2"><em class="hero__mark">one npm install</em> away.</span>
+          <span class="hero__in" style="--i: 2"><em class="hero__mark text-gradient">one npm install</em> away.</span>
         </h1>
         <p class="hero__subtitle hero__in" style="--i: 3">
           toil is a CLI and MCP server that gives agents and engineers structured access to
@@ -292,8 +293,16 @@ const teaser = principles.slice(0, 3);
     height: 70vw;
     max-width: 900px;
     max-height: 900px;
-    background: radial-gradient(closest-side, rgba(224, 131, 86, 0.16), transparent 70%);
+    background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.24), transparent 70%);
     pointer-events: none;
+  }
+
+  .hero__glow--teal {
+    inset: auto auto -35% -20%;
+    width: 55vw;
+    height: 55vw;
+    background: radial-gradient(closest-side, rgba(var(--rgb-teal), 0.1), transparent 70%);
+    animation-direction: alternate-reverse !important;
   }
 
   .hero__inner {
@@ -313,7 +322,7 @@ const teaser = principles.slice(0, 3);
   }
   .hero__title > span { display: block; }
 
-  .hero__title em { font-style: normal; color: var(--color-accent); }
+  .hero__title em { font-style: normal; }
 
   /* The accent phrase gets a hand-ruled underline that draws itself in. */
   .hero__mark {
@@ -326,11 +335,21 @@ const teaser = principles.slice(0, 3);
     left: 0;
     right: 0;
     bottom: 0.02em;
-    height: 2px;
-    background: var(--color-accent);
+    height: 3px;
+    border-radius: 2px;
+    background: var(--gradient-accent);
+    box-shadow: 0 0 18px rgba(var(--rgb-accent), 0.6);
     transform-origin: left;
     transform: scaleX(1);
   }
+
+  .hero__imagile {
+    color: var(--color-ink);
+    text-decoration: underline;
+    text-decoration-color: rgba(var(--rgb-accent), 0.7);
+    text-underline-offset: 3px;
+  }
+  .hero__imagile:hover { color: var(--color-accent); }
 
   .hero__subtitle {
     font-size: var(--text-lg);
@@ -382,7 +401,7 @@ const teaser = principles.slice(0, 3);
     aspect-ratio: 1;
     border-radius: 50%;
     transform: translate(-50%, -50%);
-    background: radial-gradient(closest-side, rgba(224, 131, 86, 0.28), transparent);
+    background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.28), transparent);
     mix-blend-mode: screen;
     pointer-events: none;
   }
@@ -392,7 +411,7 @@ const teaser = principles.slice(0, 3);
     position: absolute;
     inset: 8% 6%;
     pointer-events: none;
-    background: linear-gradient(90deg, transparent, rgba(224, 131, 86, 0.5), transparent) no-repeat;
+    background: linear-gradient(90deg, transparent, rgba(var(--rgb-accent), 0.5), transparent) no-repeat;
     background-size: 1px 100%;
     background-position: -10% 0;
     opacity: 0;
@@ -469,7 +488,13 @@ const teaser = principles.slice(0, 3);
     font-variant-numeric: tabular-nums;
   }
 
-  .stats li:first-child strong { color: var(--color-accent); }
+  .stats li:first-child strong {
+    background: var(--gradient-accent);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .stats strong[data-count='0'] { color: var(--color-teal); }
 
   .stats span {
     font-family: var(--font-mono);
@@ -634,7 +659,7 @@ const teaser = principles.slice(0, 3);
     width: min(900px, 120vw);
     aspect-ratio: 2;
     transform: translate(-50%, -50%);
-    background: radial-gradient(closest-side, rgba(224, 131, 86, 0.18), transparent);
+    background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.26), rgba(var(--rgb-teal), 0.05) 60%, transparent);
     pointer-events: none;
   }
 

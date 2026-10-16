@@ -7,21 +7,30 @@
    ============================================================ */
 
 :root {
-  /* ---- color ---- */
-  --color-bg: #16130f;
-  --color-bg-deep: #110e0b;
-  --color-surface: #201c17;
-  --color-surface-raised: #29241e;
-  --color-ink: #ece7df;
-  --color-muted: #a89e91;
-  --color-faint: #7d7469;
-  --color-accent: #e08356;
-  --color-accent-soft: rgba(224, 131, 86, 0.14);
-  --color-accent-ink: #16130f;
-  --color-ok: #8fbf8a;
-  --color-line: rgba(236, 231, 223, 0.15);
-  --color-line-strong: rgba(236, 231, 223, 0.28);
-  --color-grid: rgba(236, 231, 223, 0.04);
+  /* ---- color ----
+     Warmer, brighter than the Imagile finish: a flame-orange accent that
+     shades into amber, and a cool teal as its complement for values,
+     "live" states and the odd highlight. --rgb-* feed glows and tints. */
+  --color-bg: #16130f; /* must match the generated art; see Site in CLAUDE.md */
+  --color-bg-deep: #0e0c09;
+  --color-surface: #1f1a15;
+  --color-surface-raised: #2a231c;
+  --color-ink: #f6f1e9;
+  --color-muted: #b4a998;
+  --color-faint: #857a6c;
+  --rgb-accent: 255, 106, 61;
+  --rgb-amber: 255, 184, 77;
+  --rgb-teal: 52, 226, 196;
+  --color-accent: rgb(var(--rgb-accent));
+  --color-amber: rgb(var(--rgb-amber));
+  --color-teal: rgb(var(--rgb-teal));
+  --color-accent-soft: rgba(var(--rgb-accent), 0.14);
+  --color-accent-ink: #160b05;
+  --color-ok: var(--color-teal);
+  --gradient-accent: linear-gradient(100deg, var(--color-accent) 10%, var(--color-amber) 90%);
+  --color-line: rgba(246, 241, 233, 0.14);
+  --color-line-strong: rgba(246, 241, 233, 0.3);
+  --color-grid: rgba(246, 241, 233, 0.045);
   --color-focus: #6fb2ff;
 
   /* ---- type ---- */
@@ -223,7 +232,21 @@ button { font: inherit; color: inherit; }
 
 .btn:hover { transform: translateY(-1px); }
 .btn:active { transform: translateY(0); }
-.btn--primary { background: var(--color-accent); color: var(--color-accent-ink); }
+.btn--primary {
+  background: var(--gradient-accent);
+  color: var(--color-accent-ink);
+  font-weight: 600;
+  box-shadow: 0 0 0 0 rgba(var(--rgb-accent), 0);
+}
+.btn--primary:hover { box-shadow: 0 8px 28px -8px rgba(var(--rgb-accent), 0.65); }
+
+/* Gradient text for the one phrase per view that should glow. */
+.text-gradient {
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 .btn--ghost { background: transparent; border-color: var(--color-line-strong); color: var(--color-ink); }
 .btn--ghost:hover { border-color: var(--color-accent); }
 .btn--sm { min-height: 36px; padding: 0.5rem 0.9rem; font-size: var(--text-xs); }

@@ -32,7 +32,7 @@ const { eyebrow, title, lead } = Astro.props;
     width: 60vw;
     max-width: 760px;
     aspect-ratio: 1;
-    background: radial-gradient(closest-side, rgba(224, 131, 86, 0.13), transparent 70%);
+    background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.2), transparent 70%);
     pointer-events: none;
   }
 
@@ -43,7 +43,13 @@ const { eyebrow, title, lead } = Astro.props;
     margin: var(--space-sm) 0;
     max-width: 22ch;
   }
-  h1 :global(em) { font-style: normal; color: var(--color-accent); }
+  h1 :global(em) {
+    font-style: normal;
+    background: var(--gradient-accent);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
 
   .page-hero__lead { font-size: var(--text-lg); color: var(--color-muted); max-width: 60ch; }
 
