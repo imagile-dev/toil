@@ -1,0 +1,45 @@
+# .NET build output
+bin/
+obj/
+artifacts/
+publish/
+TestResults/
+*.trx
+coverage*.xml
+*.nupkg
+*.snupkg
+
+# IDEs
+.vs/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Local config and secrets
+.env
+.env.*
+!.env.example
+.envrc
+*.local
+.toil/
+appsettings.Development.json
+local.settings.json
+
+# Local databases created by tests or samples
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# Claude Code
+.claude/settings.local.json
+.claude/worktrees/
+scheduled_tasks.lock
+
+# OS
+.DS_Store
+Thumbs.db
