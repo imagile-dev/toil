@@ -325,8 +325,8 @@ from `main`).
   A reveal never clips the observed element itself (a fully clipped element never
   intersects, and a lazy image inside it never loads); clip its children.
 - **House style has three registers; pick by job, never mix them in one image.**
-  - *The mark* is toil's logo: branches converging into an orbit around a sheet, the
-    central integrator. It's flat, symbolic, serious, and hand-built SVG in
+  - *The mark* is toil's logo: branches converging into an orbit around a sheet
+    carrying a terminal prompt (`>_`), the central integrator. It's flat, symbolic, serious, and hand-built SVG in
     `site/src/components/Logo.astro` (wide and `square` cuts; the square one is also
     `public/favicon.svg`). It never comes from an image model, and has no characters
     and no jokes.
