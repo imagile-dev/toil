@@ -1,5 +1,6 @@
 // The planned integrations, rendered on /integrations/ and counted on the
-// homepage. Mirrors docs/integrations.md; update both together.
+// homepage. Mirrors docs/integrations.md; update both together. Command
+// names follow docs/command-contract.md.
 
 export type Status = 'planned' | 'unit' | 'integration' | 'live';
 
@@ -85,8 +86,9 @@ export const depsCommands: DepsCommand[] = [
   { command: 'toil osv vulns', source: 'OSV.dev', covers: 'Known vulnerabilities for an inventory', network: 'Public API' },
   { command: 'toil ossindex vulns', source: 'Sonatype OSS Index', covers: 'Known vulnerabilities for an inventory', network: 'Public API' },
   { command: 'toil sonatypeiq evaluate', source: 'Sonatype IQ Server', covers: 'Policy evaluation against an application', network: 'Your server' },
-  { command: 'toil artifactory outdated', source: 'JFrog Artifactory', covers: 'Newer versions in your mirrors', network: 'Your server' },
-  { command: 'toil artifactory licenses', source: 'JFrog Artifactory', covers: 'License metadata for an inventory', network: 'Your server' },
+  { command: 'toil deps frisk --source <one>', source: 'The source you name', covers: 'Alias for the matching command above', network: 'As above' },
+  { command: 'toil deps outdated', source: 'JFrog Artifactory', covers: 'Newer versions in your mirrors', network: 'Your server' },
+  { command: 'toil deps license-check', source: 'JFrog Artifactory', covers: 'License metadata for an inventory', network: 'Your server' },
 ];
 
 export const notPlanned = [
