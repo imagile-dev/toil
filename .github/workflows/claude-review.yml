@@ -68,7 +68,10 @@ jobs:
           NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
         run: |
           gh api "repos/${REPO}/pulls/${NUMBER}" > /tmp/pr.json
-          FORK=$(jq -r '.head.repo.fork // true' /tmp/pr.json)
+          # Not `.head.repo.fork // true`: jq's `//` replaces false as well as
+          # null, which would call every same-repo PR a fork. A deleted head repo
+          # (null) is treated as a fork.
+          FORK=$(jq -r 'if .head.repo == null then true else .head.repo.fork end' /tmp/pr.json)
           STATE=$(jq -r '.state' /tmp/pr.json)
           if [ "${FORK}" != "false" ]; then
             echo "::error::PR #${NUMBER} comes from a fork; this workflow only reviews same-repo heads."
