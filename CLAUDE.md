@@ -279,6 +279,21 @@ An agent reviews every PR and submits a formal review. `CHANGES_REQUESTED` dispa
 a fix agent that pushes to the PR branch. A human merges every PR, including the
 release PR; no agent merges, approves its own work into `main`, or enables auto-merge.
 
+- **The review** is `.github/workflows/claude-review.yml`. It runs on same-repo,
+  non-draft PRs from humans and `claude[bot]`, authenticated by the
+  `CLAUDE_CODE_OAUTH_TOKEN` secret. It submits under the workflow token as
+  `github-actions[bot]`, so formal APPROVE and REQUEST_CHANGES work. Approving also
+  needs "Allow GitHub Actions to create and approve pull requests" switched on.
+  - It reviews against this file, and can run the gate (`npm test`, `typecheck`,
+    `lint`, `build`, `check:pure`), so findings are backed by inputs it ran.
+  - A last step fails the job if no formal review landed on the head commit, so a
+    silent agent can't read as green.
+  - Subagents are disallowed, because in headless mode they get killed when the turn
+    ends. Bash allow-rules with a mid-pattern `*` use the trailing-space form.
+- **The fix agent** (`claude-pr-feedback.yml`) isn't wired yet. When it lands, the
+  review gains a deterministic step that dispatches it on `CHANGES_REQUESTED`: events
+  raised by the workflow token don't trigger other workflows on their own.
+
 - `no-auto-fix` label: the fix agent leaves the PR alone.
 - `needs-human` label: set after 3 pushed rounds; the loop stops.
 - Only `OWNER`/`MEMBER`/`COLLABORATOR` reviews and explicitly named bots trigger it.
