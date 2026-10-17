@@ -11,9 +11,8 @@ import { repositoriesListCommand } from './repositories.js';
 /**
  * Request building and response reshaping for both commands, checked against
  * LogScale's API docs rather than a contract (#37). Each #85 item the
- * rework settles has a test here that names it; the one it can't settle
- * without core (item 4) is pinned as it stands, pending the usual change
- * request to a department this area may not write to.
+ * rework settles has a test here that names it. Item 4 was settled in core
+ * by KF2 (#128), which carries a plain-text error body into the message.
  */
 
 const HEADERS = { authorization: 'Bearer test-token', 'content-type': 'application/json', accept: 'application/json', connection: 'close' };
@@ -116,11 +115,11 @@ describe('query', () => {
     expect(queryCommand.timeLimitMs).toBe(605_000);
   });
 
-  it('#85 item 4 (pinned, kit gap): a plain-text error body is dropped, so the message is the bare status', async () => {
+  it('#85 item 4: a plain-text error body now reaches the message, through core (KF2, #128)', async () => {
     const { envelope } = await run(queryCommand, { repository: 'imagile-app', query: 'count(' }, [
       { method: 'POST', url: /.*/, respond: { status: 400, text: 'Unexpected end of input at 1:7' } },
     ]);
-    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'HTTP 400' });
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'HTTP 400: Unexpected end of input at 1:7' });
   });
 
   it('a 401 is AUTH with where to make a personal API token and the env var', async () => {
