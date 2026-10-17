@@ -142,6 +142,10 @@ the bottom of their section.
     passes the connection's `baseUrl` setting to `restRequest`; another host
     (Dynatrace's `platformUrl`) gets "Check the connection's URL settings". A caller
     with no connection (a token exchange) keeps the old wording.
+  - **A renamed key keeps its tier** (principle 5): with both names set, env and CI
+    beat the connection in the file, which beats `defaults.<area>`, which beats
+    provider defaults; a tie goes to the new name, as before. So SDE's old
+    `TOIL_SDE_CONNECTION` beats a `connectionString` in the file.
   - **`scripts/shoot.mjs` retries removing its Chrome profile** for about three
     seconds, then warns and leaves the exit code alone.
   - **Not done here:** `statusText` on `apiResponse`, and an opt-out of the 429

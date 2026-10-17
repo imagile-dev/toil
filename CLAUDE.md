@@ -441,7 +441,8 @@ created before an area's default is chosen, so `TOIL_CONN_CI_AREA=jira` plus
 `TOIL_JIRA_TOKEN` is one connection. Env values stay strings until the area's schema types them (`"5432"` to a number,
 `"true"` to a boolean only where the schema says boolean), keys
 an area doesn't declare are dropped with a warning, and renamed keys still work, with
-one.
+one; with both names set, the higher tier wins (an old env var over a new name in the
+file), and the new name wins a tie.
 
 CI must be able to override anything without editing files. Lowering env-var priority
 for any field is a breaking change. Anything that rewrites the global config carries

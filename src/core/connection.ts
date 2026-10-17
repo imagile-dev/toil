@@ -66,7 +66,13 @@ export async function resolveConnection(
   delete own.area;
   delete own.writes;
   refusePlaintextSecrets(config, area, name, shared, own);
-  const merged = renameKeys({ ...(area.defaults ?? {}), ...shared, ...own }, area, name, warn);
+  // How each key's value ranks, so an old name set in a higher tier beats a new name set lower.
+  const tier = (key: string): number => {
+    const source = config.sources[`${name}.${key}`];
+    if (key in own) return source === 'env' || source === 'ci' ? 0 : 1;
+    return key in shared ? 2 : 3;
+  };
+  const merged = renameKeys({ ...(area.defaults ?? {}), ...shared, ...own }, area, name, warn, tier);
   await resolveSecrets(merged, area, name, secrets, warn, signal);
   if (area.shares) await takeShared(config, area, name, stored, merged, { warn, secrets, signal, report: options.shared });
 
@@ -159,10 +165,16 @@ async function resolveSecrets(
   }
 }
 
-function renameKeys(settings: Settings, area: AnyArea, name: string, warn: (w: Warning) => void): Settings {
+/**
+ * Old key names mapped onto new ones, with a warning. When both are set, the
+ * value from the higher tier wins (env and CI over the connection in the file,
+ * over `defaults.<area>`, over provider defaults), so an old env var still
+ * overrides a new name in the file (principle 5); on a tie the new name wins.
+ */
+function renameKeys(settings: Settings, area: AnyArea, name: string, warn: (w: Warning) => void, tier: (key: string) => number): Settings {
   for (const [from, to] of Object.entries(area.renamed ?? {})) {
     if (!(from in settings)) continue;
-    if (!(to in settings)) settings[to] = settings[from];
+    if (!(to in settings) || tier(from) < tier(to)) settings[to] = settings[from];
     delete settings[from];
     warn({ code: 'CONFIG_RENAMED_KEY', message: `"${from}" on connection ${name} is now "${to}". The old name still works for now.` });
   }
