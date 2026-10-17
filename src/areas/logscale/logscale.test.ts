@@ -11,9 +11,8 @@ import { repositoriesListCommand } from './repositories.js';
 /**
  * Request building and response reshaping for both commands, checked against
  * LogScale's API docs rather than a predecessor (#37). Each #85 item the
- * rework settles has a test here that names it; the one it can't settle
- * without core (item 4) is pinned as it stands, pending the usual change
- * request to a department this area may not write to.
+ * rework settles has a test here that names it. Item 4 was settled in core
+ * by KF2 (#128), which carries a plain-text error body into the message.
  */
 
 const HEADERS = { authorization: 'Bearer test-token', 'content-type': 'application/json', accept: 'application/json', connection: 'close' };
