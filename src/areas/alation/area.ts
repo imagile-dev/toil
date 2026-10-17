@@ -37,6 +37,7 @@ export const alationArea = defineArea({
   description: 'Alation data catalog (data sources, schemas, tables, columns, search, documents)',
   connection: connectionSchema,
   secrets: ['refreshToken'],
+  examples: { baseUrl: 'https://alation.imagile.dev', userId: '102' },
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     service: 'Alation',

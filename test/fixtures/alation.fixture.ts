@@ -18,13 +18,8 @@ export const ALATION = 'https://alation.imagile.dev';
 
 export const config = { alation: { baseUrl: ALATION, refreshToken: 'refresh-abc', userId: '102', writes: true } };
 
-/**
- * From the canonical tests: POST integration/v1/createAPIAccessToken/. The
- * expiry is in the past on purpose, so every request exchanges again: core's
- * token cache lives for the process, and the parity suite runs the CLI and
- * MCP in one process and compares their requests.
- */
-export const exchanged = { api_access_token: 'short-tok', user_id: 102, created_at: '2026-10-17T09:00:00.000000Z', token_expires_at: '2000-01-01T00:00:00Z', token_status: 'ACTIVE' };
+// From the canonical tests: POST integration/v1/createAPIAccessToken/.
+export const exchanged = { api_access_token: 'short-tok', user_id: 102, created_at: '2026-10-17T09:00:00.000000Z', token_expires_at: '2099-01-01T00:00:00Z', token_status: 'ACTIVE' };
 
 // Invented from the docs: POST integration/v1/validateAPIAccessToken/.
 export const validated = { api_access_token: 'short-tok', user_id: 102, created_at: '2026-10-17T09:00:00.000000Z', token_expires_at: '2026-10-18T09:00:00.000000Z', token_status: 'ACTIVE' };

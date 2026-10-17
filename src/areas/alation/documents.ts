@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { alationArea } from './area.js';
-import { alation, getOne, given, intText, pageParams, parsePositiveId, READ, type Params } from './client.js';
+import { alation, getOne, given, intText, pageParams, parsePositiveId, type Params } from './client.js';
 import { buildDocumentPayload, DOCUMENT_INPUT_FILE_EXAMPLE, DOCUMENT_INPUT_FILE_SCHEMA } from './input.js';
 
 /**
@@ -32,7 +32,7 @@ export const folderListCommand = alationArea.command({
     search: z.string().optional().describe('Filter on textual fields'),
     ...paging,
   }),
-  ...READ,
+  writes: false,
   options: [
     { flags: '--hub <id>', field: 'hub', description: 'Document hub ID' },
     { flags: '--parent <id>', field: 'parent', description: 'Parent folder ID (list its subfolders)' },
@@ -55,7 +55,7 @@ export const folderGetCommand = alationArea.command({
   path: ['alation', 'folder', 'get'],
   description: 'Get a Document Hub folder by ID',
   input: z.object({ id: intText.describe('Folder ID') }),
-  ...READ,
+  writes: false,
   args: [{ name: 'id', field: 'id', description: 'Folder ID' }],
   examples: [{ id: '42' }],
   run: async (input, ctx) => getOne(ctx, 'integration/v2/folder/', parsePositiveId(input.id, 'folder ID'), 'Folder'),
@@ -72,7 +72,7 @@ export const documentListCommand = alationArea.command({
     deleted: z.boolean().optional().describe('Return only deleted documents'),
     ...paging,
   }),
-  ...READ,
+  writes: false,
   options: [
     { flags: '--hub <id>', field: 'hub', description: 'Document hub ID' },
     { flags: '--folder <id>', field: 'folder', description: 'Parent folder ID' },
@@ -99,7 +99,7 @@ export const documentGetCommand = alationArea.command({
   path: ['alation', 'document', 'get'],
   description: 'Get a document by ID, including its custom field values',
   input: z.object({ id: intText.describe('Document ID') }),
-  ...READ,
+  writes: false,
   args: [{ name: 'id', field: 'id', description: 'Document ID' }],
   examples: [{ id: '12' }],
   run: async (input, ctx) => getOne(ctx, 'integration/v2/document/', parsePositiveId(input.id, 'document ID'), 'Document'),
@@ -202,7 +202,7 @@ export const jobGetCommand = alationArea.command({
   path: ['alation', 'job', 'get'],
   description: 'Get the status of a bulk job (returned by document create/update)',
   input: z.object({ id: intText.describe('Job ID') }),
-  ...READ,
+  writes: false,
   args: [{ name: 'id', field: 'id', description: 'Job ID' }],
   examples: [{ id: '555' }],
   run: async (input, ctx) => {

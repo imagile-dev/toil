@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { buildUrl, restRequest } from '../../core/rest.js';
-import { exchangeToken, forgetToken, tokenKey } from '../../core/token.js';
+import { exchangeToken, forgetToken, tokenKey, tokenScope } from '../../core/token.js';
 import { alationArea, authFix, tokenExchange, userIdOf } from './area.js';
 
 /**
@@ -15,18 +15,16 @@ export const tokenStatusCommand = alationArea.command({
   description: 'Mint an API access token from the configured refresh token and report its expiry (verifies credentials)',
   input: z.object({}),
   writes: false,
-  // The exchange and the validation are POSTs that change nothing in the catalog.
+  // The validation is a POST that changes nothing in the catalog.
   queryByPost: true,
   examples: [{}],
   run: async (_input, ctx) => {
     const connection = ctx.connection;
     const exchange = tokenExchange(connection);
     const fix = authFix(connection.name, alationArea.envName('refreshToken'), alationArea.envName('userId'));
-    // The same cache entry data requests use (core's scope is area/connection): the
-    // predecessor always minted a new token here, so the cached one is dropped first.
-    // This copies core's scope format until core exports it (a kit gap); the test
-    // "mints a new token even when one is cached" fails if the two drift apart.
-    const scope = `${alationArea.name}/${connection.name}`;
+    // The same cache entry data requests use: the predecessor always minted a new
+    // token here, so the cached one is dropped first.
+    const scope = tokenScope(alationArea, connection);
     forgetToken(tokenKey(scope, exchange));
     const token = await exchangeToken({ fetch: ctx.fetch, signal: ctx.signal, scope, service: 'Alation', authFix: fix }, exchange);
     const data = await restRequest<Record<string, unknown> | undefined>(

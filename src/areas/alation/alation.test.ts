@@ -122,6 +122,8 @@ describe('the token exchange', () => {
     const envelope = await execute(schemaListCommand, {}, t.context);
     expect(envelope.error).toMatchObject({ code: 'NOT_CONFIGURED' });
     for (const name of ['TOIL_ALATION_BASE_URL', 'TOIL_ALATION_REFRESH_TOKEN', 'TOIL_ALATION_USER_ID']) expect(envelope.error?.fix).toContain(name);
+    expect(envelope.error?.fix).toContain('TOIL_ALATION_BASE_URL (e.g. https://alation.imagile.dev)');
+    expect(envelope.error?.fix).toContain('TOIL_ALATION_USER_ID (e.g. 102)');
   });
 
   it('refuses a cross-origin redirect on a data request, so TOKEN stays on the configured host (#77 item 1, a security divergence)', async () => {

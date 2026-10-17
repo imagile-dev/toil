@@ -16,12 +16,6 @@ import { alationArea, type AlationConnection } from './area.js';
 export type AlationContext = CommandContext<AlationConnection>;
 export type Params = Record<string, QueryValue>;
 
-/**
- * What every read declares. Each starts with the token exchange, a POST that
- * changes nothing in the catalog, so the parity suite is told to expect one.
- */
-export const READ = { writes: false, queryByPost: true } as const;
-
 /** Alation's paginated list endpoints share limit/skip and cap at 1000 per page. */
 export const MAX_PAGE = 1000;
 /** The predecessor's per-request timeout. */

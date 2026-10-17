@@ -4,6 +4,7 @@
     "tool": "alation_token_status",
     "description": "Mint an API access token from the configured refresh token and report its expiry (verifies credentials)",
     "writes": false,
+    "connection": true,
     "flags": []
   },
   {
@@ -11,6 +12,7 @@
     "tool": "alation_datasource_list",
     "description": "List data sources",
     "writes": false,
+    "connection": true,
     "flags": [
       "--include-undeployed",
       "--include-hidden"
@@ -21,6 +23,7 @@
     "tool": "alation_datasource_get",
     "description": "Get a data source by ID",
     "writes": false,
+    "connection": true,
     "flags": [
       "<id>"
     ]
@@ -30,6 +33,7 @@
     "tool": "alation_schema_list",
     "description": "List schemas, optionally within one data source",
     "writes": false,
+    "connection": true,
     "flags": [
       "--ds <id>",
       "--name <name>",
@@ -42,6 +46,7 @@
     "tool": "alation_schema_get",
     "description": "Get a schema by ID",
     "writes": false,
+    "connection": true,
     "flags": [
       "<id>"
     ]
@@ -51,6 +56,7 @@
     "tool": "alation_table_list",
     "description": "List tables (descriptions, custom fields, fully-qualified keys)",
     "writes": false,
+    "connection": true,
     "flags": [
       "--ds <id>",
       "--schema <id>",
@@ -66,6 +72,7 @@
     "tool": "alation_table_get",
     "description": "Get a table by ID, optionally with its columns",
     "writes": false,
+    "connection": true,
     "flags": [
       "<id>",
       "--columns"
@@ -76,6 +83,7 @@
     "tool": "alation_column_list",
     "description": "List columns of a table (types, descriptions, keys, custom fields)",
     "writes": false,
+    "connection": true,
     "flags": [
       "--table <id>",
       "--table-name <name>",
@@ -92,6 +100,7 @@
     "tool": "alation_column_get",
     "description": "Get a column by ID",
     "writes": false,
+    "connection": true,
     "flags": [
       "<id>"
     ]
@@ -101,6 +110,7 @@
     "tool": "alation_search",
     "description": "Full-text search across the catalog",
     "writes": false,
+    "connection": true,
     "flags": [
       "<query>",
       "--otype <types>",
@@ -113,6 +123,7 @@
     "tool": "alation_folder_list",
     "description": "List folders in a Document Hub",
     "writes": false,
+    "connection": true,
     "flags": [
       "--hub <id>",
       "--parent <id>",
@@ -126,6 +137,7 @@
     "tool": "alation_folder_get",
     "description": "Get a Document Hub folder by ID",
     "writes": false,
+    "connection": true,
     "flags": [
       "<id>"
     ]
@@ -135,6 +147,7 @@
     "tool": "alation_document_list",
     "description": "List documents in a Document Hub or folder",
     "writes": false,
+    "connection": true,
     "flags": [
       "--hub <id>",
       "--folder <id>",
@@ -150,6 +163,7 @@
     "tool": "alation_document_get",
     "description": "Get a document by ID, including its custom field values",
     "writes": false,
+    "connection": true,
     "flags": [
       "<id>"
     ]
@@ -159,6 +173,7 @@
     "tool": "alation_document_schema",
     "description": "Print the --input-file JSON schema and an example for document create/update",
     "writes": false,
+    "connection": false,
     "flags": [
       "--example-only"
     ]
@@ -168,6 +183,7 @@
     "tool": "alation_document_create",
     "description": "Create a document (async — returns a job ID; check it with `alation job get`)",
     "writes": true,
+    "connection": true,
     "flags": [
       "--title <title>",
       "--description <text>",
@@ -184,6 +200,7 @@
     "tool": "alation_document_update",
     "description": "Update a document (async — returns a job ID; custom field values replace existing values per field)",
     "writes": true,
+    "connection": true,
     "flags": [
       "<id>",
       "--title <title>",
@@ -199,6 +216,7 @@
     "tool": "alation_job_get",
     "description": "Get the status of a bulk job (returned by document create/update)",
     "writes": false,
+    "connection": true,
     "flags": [
       "<id>"
     ]

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { alationArea } from './area.js';
-import { alation, getOne, given, intText, MAX_PAGE, pageParams, parseIntOption, parsePositiveId, READ, type Params } from './client.js';
+import { alation, getOne, given, intText, MAX_PAGE, pageParams, parseIntOption, parsePositiveId, type Params } from './client.js';
 
 /**
  * The relational catalog: data sources under `integration/v1/datasource/`,
@@ -47,7 +47,7 @@ export const datasourceListCommand = alationArea.command({
     includeUndeployed: z.boolean().optional().describe('Include data sources whose setup is incomplete'),
     includeHidden: z.boolean().optional().describe('Include hidden data sources'),
   }),
-  ...READ,
+  writes: false,
   options: [
     { flags: '--include-undeployed', field: 'includeUndeployed', description: 'Include data sources whose setup is incomplete' },
     { flags: '--include-hidden', field: 'includeHidden', description: 'Include hidden data sources' },
@@ -66,7 +66,7 @@ export const datasourceGetCommand = alationArea.command({
   path: ['alation', 'datasource', 'get'],
   description: 'Get a data source by ID',
   input: idInput('Data source'),
-  ...READ,
+  writes: false,
   args: idArg('Data source'),
   examples: [{ id: '3' }],
   run: async (input, ctx) => alation<unknown>(ctx, `integration/v1/datasource/${parsePositiveId(input.id, 'data source ID')}/`),
@@ -80,7 +80,7 @@ export const schemaListCommand = alationArea.command({
     name: z.string().optional().describe('Filter by exact schema name'),
     ...paging,
   }),
-  ...READ,
+  writes: false,
   options: [
     { flags: '--ds <id>', field: 'ds', description: 'Filter by data source ID' },
     { flags: '--name <name>', field: 'name', description: 'Filter by exact schema name' },
@@ -101,7 +101,7 @@ export const schemaGetCommand = alationArea.command({
   path: ['alation', 'schema', 'get'],
   description: 'Get a schema by ID',
   input: idInput('Schema'),
-  ...READ,
+  writes: false,
   args: idArg('Schema'),
   examples: [{ id: '11' }],
   run: async (input, ctx) => getOne(ctx, 'integration/v2/schema/', parsePositiveId(input.id, 'schema ID'), 'Schema'),
@@ -118,7 +118,7 @@ export const tableListCommand = alationArea.command({
     search: z.string().optional().describe('Case-insensitive substring match on table name'),
     ...paging,
   }),
-  ...READ,
+  writes: false,
   options: [
     { flags: '--ds <id>', field: 'ds', description: 'Filter by data source ID' },
     { flags: '--schema <id>', field: 'schema', description: 'Filter by schema ID' },
@@ -148,7 +148,7 @@ export const tableGetCommand = alationArea.command({
     id: intText.describe('Table ID'),
     columns: z.boolean().optional().describe("Also fetch the table's columns (up to 1000)"),
   }),
-  ...READ,
+  writes: false,
   args: idArg('Table'),
   options: [{ flags: '--columns', field: 'columns', description: "Also fetch the table's columns (up to 1000)" }],
   examples: [{ id: '7' }, { id: '7', columns: true }],
@@ -177,7 +177,7 @@ export const columnListCommand = alationArea.command({
     search: z.string().optional().describe('Case-insensitive substring match on column name'),
     ...paging,
   }),
-  ...READ,
+  writes: false,
   options: [
     { flags: '--table <id>', field: 'table', description: 'Filter by table ID' },
     { flags: '--table-name <name>', field: 'tableName', description: 'Filter by table name' },
@@ -211,7 +211,7 @@ export const columnGetCommand = alationArea.command({
   path: ['alation', 'column', 'get'],
   description: 'Get a column by ID',
   input: idInput('Column'),
-  ...READ,
+  writes: false,
   args: idArg('Column'),
   examples: [{ id: '70' }],
   run: async (input, ctx) => getOne(ctx, 'integration/v2/column/', parsePositiveId(input.id, 'column ID'), 'Column'),
@@ -236,7 +236,7 @@ export const searchCommand = alationArea.command({
     limit: intText.optional().describe('Maximum results (default 20, max 10000) (default: "20")'),
     offset: intText.optional().describe('Index of the first result (default: "0")'),
   }),
-  ...READ,
+  writes: false,
   args: [{ name: 'query', field: 'query', description: 'Search text' }],
   options: [
     { flags: '--otype <types>', field: 'otype', description: OTYPE_HELP },
