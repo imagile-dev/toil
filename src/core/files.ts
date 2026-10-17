@@ -20,7 +20,7 @@ export interface FileAccess {
   readText(path: string): string;
   /** A file's bytes. */
   readBytes(path: string): Uint8Array;
-  /** Writes `data`, creating parent directories and replacing any file there. Returns the absolute path written, with forward slashes. */
+  /** Writes `data`, creating parent directories. Refuses with INVALID_INPUT if a file is already there. Returns the absolute path written, with forward slashes. */
   writeBytes(path: string, data: Uint8Array): string;
 }
 
@@ -45,7 +45,7 @@ export const STDIN_OVER_MCP = new ToilError('INVALID_INPUT', '"-" (stdin) is not
 /** The error for a write that would replace a file already there. */
 export function alreadyExists(path: string): ToilError {
   return new ToilError('INVALID_INPUT', `"${forwardSlashes(path)}" already exists.`, {
-    fix: 'Delete it or pass a different --dir. toil never overwrites a file.',
+    fix: 'Delete it or write somewhere else. toil never overwrites a file.',
   });
 }
 

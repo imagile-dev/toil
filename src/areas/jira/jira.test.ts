@@ -413,7 +413,7 @@ describe('attachments', () => {
       listing(`${JIRA}/secure/attachment/7/notes.md`, 'notes.md'),
       { url: `${JIRA}/secure/attachment/7/notes.md`, respond: { text: 'from jira' } },
     ], { files: { '.toil/notes.md': 'mine' } });
-    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '"/work/.toil/notes.md" already exists.', fix: expect.stringContaining('--dir') });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '"/work/.toil/notes.md" already exists.', fix: expect.stringContaining('never overwrites') });
     expect(written).toEqual({});
   });
 
