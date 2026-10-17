@@ -89,7 +89,7 @@ Every command but `cluster list` needs `--namespace <ns>`.
 - `cluster list`: Lists every configured cluster: it runs `toil connections list --area
   openshift` (CLI only; over MCP, call the `connections_list` tool with `area`
   `openshift`). Each connection shows its `name`, `isDefault`, `host`, `writes` and
-  where each setting came from, never a secret.
+  where each setting came from, never a secret. It takes no `--env` or `--instance`.
 - `pods`: Pod health summary: phase counters, `crashLoopBackOff`,
   `imagePullBackOff` (which includes `ErrImagePull`), `oomKilled` and
   `totalRestarts`, then each pod with `phase`, `ready`, `restartCount`, `age`,
