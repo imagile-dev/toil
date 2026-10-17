@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { AGENT_MARK, events, idsOf, trusted, type Seen, type Snapshot } from '../scripts/pr-watch.mjs';
+import { AGENT_MARK, MAX_ROUNDS, events, idsOf, trusted, type Seen, type Snapshot } from '../scripts/pr-watch.mjs';
 
 /** The ship skill's PR watcher decides what wakes the agent. A watcher that sleeps through a review is worse than none. */
 
 const HEAD = 'abc1234def';
 const quiet = (over: Partial<Snapshot> = {}): Snapshot => ({
   state: 'OPEN', head: HEAD, mergeable: 'MERGEABLE', reviewDecision: 'REVIEW_REQUIRED',
-  reviews: [], threads: [], comments: [], rollup: 'SUCCESS',
+  reviews: [], threads: [], comments: [], labels: [], rounds: 0, rollup: 'SUCCESS',
   checks: [{ name: 'test', done: true, failed: false }],
   ...over,
 });
@@ -37,7 +37,7 @@ describe('pr-watch events', () => {
     const reply = `Fixed in abc.\n\n_🤖 ${AGENT_MARK}(https://claude.com/claude-code)_`;
     const s = quiet({
       threads: [{ id: 'T1', resolved: false, path: 'a.ts', last: { id: 9, trusted: true, body: reply } }],
-      comments: [{ id: 5, trusted: true, body: reply }],
+      comments: [{ id: 5, trusted: true, body: reply }, { id: 6, trusted: true, body: '<!-- toil-feedback-round --> Round 1 of 3.' }],
     });
     expect(kinds(s)).toEqual([]);
   });
@@ -82,6 +82,20 @@ describe('pr-watch events', () => {
     for (const a of ['OWNER', 'MEMBER', 'COLLABORATOR']) expect(trusted(a, 'someone')).toBe(true);
     expect(trusted('NONE', 'imagile-bot')).toBe(true);
     for (const a of ['CONTRIBUTOR', 'FIRST_TIME_CONTRIBUTOR', 'NONE', undefined]) expect(trusted(a, 'drive-by')).toBe(false);
+  });
+
+  it('stops on the off switch, or once a person has taken over', () => {
+    const review = { reviews: [{ id: 1, trusted: true, state: 'CHANGES_REQUESTED', body: 'fix it' }] };
+    expect(events(quiet({ ...review, labels: ['no-auto-fix'] }), none)).toEqual([{ kind: 'stopped', label: 'no-auto-fix' }]);
+    expect(events(quiet({ ...review, labels: ['needs-human'] }), none)).toEqual([{ kind: 'stopped', label: 'needs-human' }]);
+  });
+
+  it('reports the round limit with new feedback once the rounds are used up, and not before', () => {
+    const review = { reviews: [{ id: 1, trusted: true, state: 'CHANGES_REQUESTED', body: 'fix it' }] };
+    expect(kinds(quiet({ ...review, rounds: MAX_ROUNDS - 1 }))).toEqual(['review']);
+    expect(kinds(quiet({ ...review, rounds: MAX_ROUNDS }))).toEqual(['review', 'round-limit']);
+    // A failing check alone isn't review feedback, so it doesn't spend the limit.
+    expect(kinds(quiet({ rounds: MAX_ROUNDS, checks: [{ name: 'lint', done: true, failed: true }] }))).toEqual(['checks-failed']);
   });
 
   it('reports a merged or closed PR and nothing else', () => {

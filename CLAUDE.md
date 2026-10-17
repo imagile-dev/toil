@@ -39,8 +39,11 @@ gets made again in the next place it applies.
 2. **Safe by default when an agent is driving.** Reads are free. Anything that writes,
    to a database, an enterprise tool, or the codebase, needs a human's standing opt-in
    in config plus an explicit flag on the call. Agents never loosen the rules that
-   constrain them, and humans merge. → Writes; the `databases`, `code-intelligence`
-   (rename preview), `mcp` and `automation` skills.
+   constrain them, and humans merge. The same holds for agents working on this
+   repository: they act only on feedback from its own people and named bots, stop
+   after three pushed rounds with `needs-human`, and stay off any PR labelled
+   `no-auto-fix`. → Writes; the `databases`, `code-intelligence` (rename preview),
+   `mcp`, `automation` and `ship` skills.
 3. **One command does one thing against one source; the caller composes.** No
    aggregate command that decides on the caller's behalf which services to ask. →
    dependency analysis split by source, stdin / `--from` composition (`integrations`

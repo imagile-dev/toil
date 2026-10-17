@@ -4,7 +4,7 @@
 // ready to merge, the PR closing, or polls that keep failing. Used by the ship
 // skill, which runs it in the background and acts on what it prints.
 //
-//   node scripts/pr-watch.mjs <pr> [--interval 240] [--max-hours 8] [--once] [--fresh]
+//   node scripts/pr-watch.mjs <pr> [--interval 240] [--max-polls 15] [--once] [--fresh]
 //
 // What it has already reported is kept in a state file in the OS temp folder, so
 // a restart never loses or repeats a review. The first run for a PR treats what's
@@ -20,6 +20,14 @@ import { pathToFileURL } from 'node:url';
 
 /** Replies the agent posts end with this, so its own replies never wake it. */
 export const AGENT_MARK = 'Addressed by [Claude Code]';
+
+/**
+ * Posted on the PR after each round of review fixes that pushed. Rounds are
+ * counted on GitHub, not here, so a restart or another session can't reset the
+ * count. The fix agent counts the same marker, so both loops share one limit.
+ */
+export const ROUND_MARK = '<!-- toil-feedback-round -->';
+export const MAX_ROUNDS = 3;
 
 /**
  * Who may steer the agent: the repository's own people and the review bot, the
@@ -50,6 +58,8 @@ const short = (s) => (s ?? '').replace(/\s+/g, ' ').slice(0, 160);
 export function events(now, seen) {
   const found = [];
   if (now.state !== 'OPEN') return [{ kind: now.state.toLowerCase() }];
+  // The off switch, and the record that a person has taken over. Either one ends the watch.
+  for (const label of ['no-auto-fix', 'needs-human']) if (now.labels.includes(label)) return [{ kind: 'stopped', label }];
   // Feedback from outside the allowlist is reported, never acted on.
   const as = (kind, item) => (item.trusted ? kind : 'untrusted');
   for (const r of now.reviews) {
@@ -65,9 +75,12 @@ export function events(now, seen) {
     found.push({ kind: as('inline-comment', c), of: 'inline-comment', id: c.id, thread: t.id, resolved: t.resolved, path: t.path, author: c.author, summary: short(c.body) });
   }
   for (const c of now.comments) {
-    if (seen.comments.includes(c.id) || c.body.includes(AGENT_MARK)) continue;
+    if (seen.comments.includes(c.id) || c.body.includes(AGENT_MARK) || c.body.includes(ROUND_MARK)) continue;
     found.push({ kind: as('comment', c), of: 'comment', id: c.id, author: c.author, summary: short(c.body) });
   }
+  // Out of rounds: what's left needs a person, not another push.
+  const feedback = found.filter((e) => e.kind !== 'untrusted' && e.of !== 'comment');
+  if (feedback.length && now.rounds >= MAX_ROUNDS) found.push({ kind: 'round-limit', rounds: now.rounds });
   const failing = now.checks.filter((c) => c.failed).map((c) => c.name);
   if (failing.length) found.push({ kind: 'checks-failed', failing });
   if (now.mergeable === 'CONFLICTING') found.push({ kind: 'conflict' });
@@ -87,7 +100,7 @@ function main(args) {
     process.exit(1);
   };
   const pr = Number(args[0]);
-  if (!Number.isInteger(pr) || pr <= 0) fail('usage: node scripts/pr-watch.mjs <pr> [--interval 240] [--max-hours 8] [--once] [--fresh]');
+  if (!Number.isInteger(pr) || pr <= 0) fail('usage: node scripts/pr-watch.mjs <pr> [--interval 240] [--max-polls 15] [--once] [--fresh]');
   const opt = (name, fallback) => {
     const i = args.indexOf(`--${name}`);
     if (i === -1) return fallback;
@@ -96,7 +109,9 @@ function main(args) {
     return n;
   };
   const intervalMs = opt('interval', 240) * 1000;
-  const deadline = Date.now() + opt('max-hours', 8) * 3600_000;
+  // Fifteen quiet polls is an hour: long enough for CI and a review, so silence
+  // past it means something upstream stalled.
+  const maxPolls = opt('max-polls', 15);
 
   const gh = (...a) => execFileSync('gh', a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 * 1024 * 1024 });
   let owner, name;
@@ -107,10 +122,10 @@ function main(args) {
   }
 
   const QUERY = `query($o:String!,$n:String!,$p:Int!){repository(owner:$o,name:$n){pullRequest(number:$p){
-    state headRefOid mergeable reviewDecision
+    state headRefOid mergeable reviewDecision labels(first:50){nodes{name}}
     reviews(last:50){nodes{databaseId state body authorAssociation author{login} commit{oid}}}
     reviewThreads(last:100){nodes{id isResolved path comments(last:1){nodes{databaseId body authorAssociation author{login}}}}}
-    comments(last:50){nodes{databaseId body authorAssociation author{__typename login}}}
+    comments(last:100){nodes{databaseId body authorAssociation author{__typename login}}}
     commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){nodes{
       ... on CheckRun{name status conclusion} ... on StatusContext{context state}}}}}}}
   }}}`;
@@ -138,6 +153,8 @@ function main(args) {
       // Only people's comments. Bots' feedback arrives as formal reviews, and the
       // review bot's progress comment is edited in place while it works.
       comments: p.comments.nodes.filter((c) => c.author?.__typename !== 'Bot').map((c) => ({ id: c.databaseId, body: c.body, author: c.author?.login, trusted: trusted(c.authorAssociation, c.author?.login) })),
+      labels: p.labels.nodes.map((l) => l.name),
+      rounds: p.comments.nodes.filter((c) => c.body.includes(ROUND_MARK)).length,
       rollup: rollup?.state ?? 'NONE',
       checks,
     };
@@ -164,7 +181,7 @@ function main(args) {
   function report(now, found) {
     console.log(JSON.stringify({
       pr, head: now.head.slice(0, 7), state: now.state, mergeable: now.mergeable, reviewDecision: now.reviewDecision,
-      rollup: now.rollup,
+      rollup: now.rollup, labels: now.labels, rounds: `${now.rounds} of ${MAX_ROUNDS}`,
       failingChecks: now.checks.filter((c) => c.failed).map((c) => c.name),
       pendingChecks: now.checks.filter((c) => !c.done).map((c) => c.name),
       unresolvedThreads: now.threads.filter((t) => !t.resolved).length,
@@ -189,9 +206,11 @@ function main(args) {
   }
 
   let failures = 0;
+  let polls = 0;
   const poll = () => {
-    if (Date.now() > deadline) {
-      report(first, [{ kind: 'timeout' }]);
+    polls += 1;
+    if (polls > maxPolls) {
+      report(first, [{ kind: 'stalled', polls: maxPolls, minutes: Math.round((maxPolls * intervalMs) / 60_000) }]);
       return;
     }
     let now;
@@ -200,7 +219,7 @@ function main(args) {
       failures = 0;
     } catch (err) {
       // Once or twice is a blip. Three in a row is a broken login or network, and
-      // waiting out the deadline would report hours of failure as hours of quiet.
+      // waiting out the poll limit would report an hour of failure as an hour of quiet.
       failures += 1;
       if (failures >= 3) {
         console.log(JSON.stringify({ pr, events: [{ kind: 'poll-failing', error: err.message.split('\n')[0] }] }, null, 2));
