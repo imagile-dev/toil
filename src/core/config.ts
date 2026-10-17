@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { ToilError } from './errors.js';
 
 /**
@@ -130,6 +130,10 @@ export function anyWrites(config: ResolvedConfig, area: string): boolean {
 
 function readConfigFile(path: string, warnings: ResolvedConfig['warnings']): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings> } {
   if (!existsSync(path)) return { connections: {}, defaults: {} };
+  return migrateConfig(readJson(path), path, warnings);
+}
+
+function readJson(path: string): Record<string, unknown> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(readFileSync(path, 'utf8'));
@@ -143,7 +147,53 @@ function readConfigFile(path: string, warnings: ResolvedConfig['warnings']): { c
       fix: `Make ${path} look like { "version": ${CONFIG_VERSION}, "connections": { ... } }.`,
     });
   }
-  return migrateConfig(parsed, path, warnings);
+  return parsed;
+}
+
+/** A config file as `toil connections` edits it: always version 2, every other key kept as found. */
+export type EditableConfig = Record<string, unknown> & {
+  version: number;
+  connections: Record<string, ConnectionSettings>;
+  defaults: Record<string, Settings>;
+};
+
+/**
+ * Reads the config file for editing, as version 2. A version 2 file comes back
+ * exactly as written, unknown keys included, so writing it back drops nothing.
+ * A version 1 file becomes the version 2 file it already meant: one connection
+ * per area, named after it and set as its default, with every setting carried
+ * over. A missing file is an empty one.
+ */
+export function readConfigForEdit(path: string): EditableConfig {
+  if (!existsSync(path)) return { version: CONFIG_VERSION, connections: {}, defaults: {} };
+  const raw = readJson(path);
+  const { connections, defaults } = migrateConfig(raw, path, []);
+  if ((raw.version ?? 1) !== 1) return { ...raw, version: CONFIG_VERSION, connections: { ...connections }, defaults: { ...defaults } };
+  // In version 1 these two keys were ignored; upgrading would give them meaning.
+  for (const key of ['connections', 'defaults']) {
+    if (key in raw) {
+      throw new ToilError('CONFIG_INVALID', `${path} is a version 1 file with a "${key}" key, which version 1 ignores, so toil won't upgrade it automatically.`, {
+        fix: `Remove "${key}" from ${path}, or add "version": ${CONFIG_VERSION} and check it reads as you intend.`,
+      });
+    }
+  }
+  return { ...('$schema' in raw ? { $schema: raw.$schema } : {}), version: CONFIG_VERSION, connections, defaults };
+}
+
+/**
+ * Writes the config file, readable by the user only where the platform has
+ * POSIX modes (0600, in a 0700 folder). On Windows the file inherits the
+ * ACL of the user's profile folder, which already keeps other users out. The
+ * new file is written alongside and renamed into place, so a crash halfway
+ * leaves the old file, not half of a new one. The content is checked with the
+ * same reader that will load it, so toil never writes a file it would refuse.
+ */
+export function writeConfigFile(path: string, config: EditableConfig): void {
+  migrateConfig(config, path, []);
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  const temp = `${path}.${process.pid}.tmp`;
+  writeFileSync(temp, `${JSON.stringify(config, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 });
+  renameSync(temp, path);
 }
 
 /**

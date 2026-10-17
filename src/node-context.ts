@@ -1,6 +1,8 @@
 import type { AnyCommand } from './core/command.js';
 import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
+import type { SecretStore } from './core/keychain.js';
+import type { Prompter } from './core/prompt.js';
 import type { GlobalOptions } from './program.js';
 
 export interface NodeContextOptions {
@@ -14,6 +16,10 @@ export interface NodeContextOptions {
   areas: readonly AreaInfo[];
   version: string;
   stderr: (text: string) => void;
+  /** The OS credential store, for `keychain:` references. */
+  secrets?: SecretStore | undefined;
+  /** Only on a terminal, and never for MCP. */
+  prompt?: Prompter | undefined;
 }
 
 /** TOIL_TIMEOUT_MS, when it's a positive number; otherwise execute()'s default. */
@@ -41,5 +47,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
     debug: o.globals.debug ? (message) => o.stderr(`[toil] ${message}\n`) : () => {},
     signal: o.signal,
     timeoutMs: timeoutFromEnv(o.env),
+    ...(o.secrets ? { secrets: o.secrets } : {}),
+    ...(o.prompt ? { prompt: o.prompt } : {}),
   };
 }

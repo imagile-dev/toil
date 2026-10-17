@@ -2,7 +2,8 @@
 // install, not the dev toolchain:
 //   1. package.json declares no runtime dependencies and no install scripts
 //   2. the bundle imports nothing but Node built-ins (per esbuild's metafile),
-//      and never child_process or a native addon
+//      no native addon, and child_process only from src/core/keychain.ts, the
+//      OS credential store (CLAUDE.md, No Executables)
 //   3. the packed tarball contains only the allowlisted files
 // Run after `npm run build`.
 //
@@ -32,7 +33,24 @@ const builtins = new Set(builtinModules.flatMap((m) => [m, `node:${m}`]));
 const specifiers = new Set((output?.imports ?? []).filter((i) => i.external).map((i) => i.path));
 for (const spec of specifiers) {
   if (!builtins.has(spec)) problems.push(`bundle imports "${spec}", which is not a Node built-in; it must be bundled or removed.`);
-  if (spec === 'child_process' || spec === 'node:child_process') problems.push('bundle imports child_process; toil spawns nothing outside the opt-in OS credential stores.');
+}
+// Who imports child_process, per source file, as written (`original`) and as
+// resolved. The credential store gets the real module. A bundled dependency
+// (commander) gets the no-spawn stub. Any other file of ours importing it at
+// all is a mistake, stubbed or not.
+const SPAWNER = 'src/core/keychain.ts';
+const SHIM = 'src/shims/no-spawn.ts';
+const isChildProcess = (path) => path === 'child_process' || path === 'node:child_process';
+const spawners = [];
+for (const [file, input] of Object.entries(meta.inputs)) {
+  for (const i of input.imports.filter((i) => isChildProcess(i.original ?? i.path))) {
+    if (file === SPAWNER && i.external) spawners.push(file);
+    else if (file.startsWith('node_modules/') && i.path === SHIM) continue;
+    else problems.push(`${file} imports child_process${i.external ? '' : ' (stubbed)'}; only ${SPAWNER}, the OS credential store, may spawn.`);
+  }
+}
+for (const spec of specifiers) {
+  if (isChildProcess(spec) && spawners.length === 0) problems.push('bundle imports child_process, but not from the credential store; the gate cannot tell who spawns.');
 }
 const bundle = readFileSync(pkg.bin.toil, 'utf8');
 if (bundle.includes('process.dlopen')) problems.push('bundle loads a native addon (process.dlopen).');
@@ -50,4 +68,4 @@ if (problems.length > 0) {
   console.error(`check:pure found ${problems.length} problem(s):\n${problems.map((p) => `  - ${p}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`check:pure ok: no runtime deps or install scripts; bundle imports only ${specifiers.size} Node built-in(s); tarball is ${pack.files.length} files, ${(pack.unpackedSize / 1024).toFixed(0)} KB unpacked.`);
+console.log(`check:pure ok: no runtime deps or install scripts; bundle imports only ${specifiers.size} Node built-in(s), child_process only from ${[...new Set(spawners)].join(', ') || 'nowhere'}; tarball is ${pack.files.length} files, ${(pack.unpackedSize / 1024).toFixed(0)} KB unpacked.`);
