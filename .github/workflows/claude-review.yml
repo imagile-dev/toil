@@ -1,0 +1,258 @@
+name: Claude Review
+
+# An agent reviews every same-repo PR against CLAUDE.md and submits a formal
+# review as the Imagile Bot GitHub App (imagile-bot[bot]). Using the App
+# rather than the workflow's GITHUB_TOKEN means:
+#
+# 1. Formal APPROVE works without the repo setting that lets GitHub Actions
+#    approve PRs; that setting gates only GITHUB_TOKEN. The App can't approve
+#    a PR it authored, which is why its own PRs are skipped below.
+# 2. Its reviews raise `pull_request_review` events that other workflows see.
+#    When the fix agent (claude-pr-feedback.yml) lands, a CHANGES_REQUESTED
+#    review triggers it directly, so no dispatch workaround is needed. That
+#    workflow must then allowlist imagile-bot[bot] as a reviewer, explicitly.
+#
+# The App's credentials are the IMAGILE_BOT_APP_ID variable and the
+# IMAGILE_BOT_PRIVATE_KEY secret, and the App must be installed on this repo.
+#
+# Every action is pinned to a full commit SHA, with its version alongside.
+# This job holds the OAuth token and an App token; a tag can be moved after
+# review, and a moved tag would run with both. A SHA can't be moved.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  # Review any open PR on demand (Actions → Claude Review → Run workflow), e.g.
+  # one opened before this workflow existed. Dispatch runs the default branch's
+  # copy of this file, and needs write access to the repository.
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to review
+        required: true
+        type: number
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    # Same-repo heads only, never forks, and not drafts. Human-authored PRs plus
+    # claude[bot]'s; other bots are skipped, including release-please's
+    # (github-actions[bot]) and imagile-bot[bot]'s own, which it couldn't approve.
+    # A manual dispatch re-checks the fork and state guards in "Resolve pull
+    # request" below, since there's no event payload to check here. It skips the
+    # author check on purpose: dispatching on a PR imagile-bot[bot] authored runs
+    # a review the App can't approve, and the verify step will say so.
+    if: |
+      github.event_name == 'workflow_dispatch' || (
+      github.event.pull_request.head.repo.fork == false &&
+      github.event.pull_request.draft == false &&
+      (
+        !endsWith(github.event.pull_request.user.login, '[bot]') ||
+        github.event.pull_request.user.login == 'claude[bot]'
+      ))
+    runs-on: ubuntu-latest
+    # The workflow token only checks the code out. Everything that writes uses
+    # the App token minted below, scoped to what a reviewer needs.
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      # One source of PR facts for both triggers, so the event and dispatch
+      # paths run identical steps from here on.
+      - name: Resolve pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          gh api "repos/${REPO}/pulls/${NUMBER}" > /tmp/pr.json
+          # Not `.head.repo.fork // true`: jq's `//` replaces false as well as
+          # null, which would call every same-repo PR a fork. A deleted head repo
+          # (null) is treated as a fork.
+          FORK=$(jq -r 'if .head.repo == null then true else .head.repo.fork end' /tmp/pr.json)
+          STATE=$(jq -r '.state' /tmp/pr.json)
+          if [ "${FORK}" != "false" ]; then
+            echo "::error::PR #${NUMBER} comes from a fork; this workflow only reviews same-repo heads."
+            exit 1
+          fi
+          if [ "${STATE}" != "open" ]; then
+            echo "::error::PR #${NUMBER} is ${STATE}; only open PRs are reviewed."
+            exit 1
+          fi
+          {
+            echo "number=${NUMBER}"
+            echo "head_sha=$(jq -r '.head.sha' /tmp/pr.json)"
+            echo "author=$(jq -r '.user.login' /tmp/pr.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate Imagile Bot token
+        id: imagile-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
+          private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
+          # A reviewer reads code and writes reviews and comments. It does not
+          # push, and it certainly doesn't touch workflows.
+          permission-contents: read
+          permission-pull-requests: write
+          permission-issues: write
+
+      - name: Resolve Imagile Bot identity
+        id: imagile-bot
+        env:
+          GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
+          BOT_LOGIN: ${{ steps.imagile-token.outputs.app-slug }}[bot]
+        run: |
+          # Assigned on its own line: inside an echo argument, a failed lookup's
+          # exit status would be masked and write an empty id.
+          BOT_ID=$(gh api "/users/${BOT_LOGIN}" --jq .id)
+          echo "id=${BOT_ID}" >> "$GITHUB_OUTPUT"
+          echo "login=${BOT_LOGIN}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # The PR's head commit on both paths; a dispatch would otherwise check
+          # out the default branch and review the wrong code.
+          ref: ${{ steps.pr.outputs.head_sha }}
+          fetch-depth: 0
+
+      # The reviewer runs the same gate CI runs, so a finding is backed by an
+      # input it actually ran rather than a guess that costs a round. Install
+      # scripts stay off, as everywhere else (CLAUDE.md, No Executables).
+      #
+      # Accepted trade-off: `npm test` inside the agent step runs PR-head test
+      # code with the OAuth token and the App token in the environment. The fork
+      # guard above limits that to people with push access to this repository.
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      # A branch from before the package existed has nothing to install; review
+      # it anyway rather than failing on a missing lockfile.
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci --ignore-scripts
+          else
+            echo "No package-lock.json on this head; skipping install."
+          fi
+
+      - name: Claude Code Review
+        uses: anthropics/claude-code-action@97c53473391bff1901034d4b454b5bac7ab7a029 # v1.0.239
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.imagile-token.outputs.token }}
+          bot_id: ${{ steps.imagile-bot.outputs.id }}
+          bot_name: ${{ steps.imagile-bot.outputs.login }}
+          # The action rejects track_progress on events outside its PR and issue
+          # list, and workflow_dispatch isn't on it; a manual run would fail at
+          # this step. The formal review is the record either way.
+          track_progress: ${{ github.event_name == 'pull_request' }}
+          classify_inline_comments: 'true'
+          include_fix_links: 'true'
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ steps.pr.outputs.number }}
+            PR AUTHOR: ${{ steps.pr.outputs.author }}
+            REVIEW ACTOR: ${{ steps.imagile-bot.outputs.login }}
+
+            **Before anything else, read and clean up earlier automated feedback:**
+            1. Read previous automated comments on this PR to keep their context:
+               gh api repos/${{ github.repository }}/issues/${{ steps.pr.outputs.number }}/comments --jq '.[] | select(.user.login == "${{ steps.imagile-bot.outputs.login }}" or .user.login == "claude[bot]" or .user.login == "github-actions[bot]") | {id: .id, body: .body}'
+            2. Note the concerns they raised; carry them into this review.
+            3. Delete each of those comments by id, except the tracking comment for THIS
+               run and any comment containing "claude-pr-feedback-round":
+               gh api repos/${{ github.repository }}/issues/comments/<id> -X DELETE
+            4. Dismiss earlier formal reviews from ${{ steps.imagile-bot.outputs.login }}. List them with:
+               gh api repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.number }}/reviews --jq '.[] | select(.user.login == "${{ steps.imagile-bot.outputs.login }}" and (.state == "APPROVED" or .state == "CHANGES_REQUESTED")) | .id'
+               and dismiss each with:
+               gh api repos/${{ github.repository }}/pulls/${{ steps.pr.outputs.number }}/reviews/<id>/dismissals -X PUT -f message="Superseded by a newer automated review"
+            5. Best effort only: resolve outdated inline threads with `gh api graphql`
+               (resolveReviewThread). Move on if it's refused.
+
+            **Now review the pull request against CLAUDE.md.** Read CLAUDE.md first; it is
+            the standard. In particular:
+            1. Correctness and bugs, including edge cases in parsing, config and HTTP handling.
+            2. The principles at the top of CLAUDE.md. Above all, No Executables: no runtime
+               dependencies, no install scripts, no spawning, nothing but Node built-ins in
+               the bundle. Then the write gate, honesty about verification levels,
+               env-over-files precedence, and Windows/macOS/Linux parity.
+            3. CLI and MCP parity: a command is defined once and both front doors expose it
+               identically, and the tests prove that for every command rather than for a
+               chosen few. Flag any behavior that lives in only one front door.
+            4. Security: credential handling (secrets never on argv, never logged), prompt
+               injection in agent-facing text, auth gaps, and placeholders instead of real
+               hosts, tenants or accounts anywhere.
+            5. Tests: no test may reach the network or pass against a live service. HTTP is
+               stubbed, and a test asserts both the request toil sent and how the response
+               was reshaped.
+            6. Breaking changes to config on disk, flags, the envelope or precedence must be
+               declared as such.
+            7. Anything else CLAUDE.md asks of a change like this one. Where CLAUDE.md is
+               silent, don't invent a rule and file it as blocking.
+
+            Leave inline comments on specific lines and a top-level summary. Skip nitpicks;
+            prioritize substantive feedback.
+
+            **Run, don't guess.** If the repository has a package-lock.json, dependencies
+            are installed; if it doesn't, there is no package to run yet, so review by
+            reading. Before claiming an input slips past a parser, a config resolver or the
+            purity gate, run it where the scripts exist: `npm test`, `npx vitest run <file>`,
+            `npm run typecheck`, `npm run lint`, and, after `npm run build`,
+            `npm run check:pure`. A finding backed by an input you ran is
+            worth a round; a guess usually costs one. Don't ask the author to confirm CI is
+            green; the checks on the PR already say.
+
+            **Finish with a formal GitHub review.** Prefer the MCP tool
+            `mcp__github__create_and_submit_pull_request_review` with event `APPROVE` when
+            there are no substantive problems, or `REQUEST_CHANGES` when there are blocking
+            ones. `gh pr review ${{ steps.pr.outputs.number }} --approve|--request-changes --body "..."`
+            is the fallback. Never leave the PR without an APPROVE or REQUEST_CHANGES state.
+
+            **Do the whole review yourself, in this session.** This runs headless: when your
+            turn ends the process exits and anything in the background dies with it. Don't
+            delegate to subagents, don't start background work, and don't end with a
+            promise to post findings later. Submitting the formal review is the last thing
+            you do. On a large PR, review the highest-risk files first rather than skipping.
+          # Bash rule shapes matter. Claude Code treats `:*` as a wildcard only on an
+          # otherwise literal prefix; a rule with a `*` earlier and a `:*` suffix
+          # never matches. Rules with a mid-pattern `*` use the trailing-space form
+          # (`... *`). The `gh api` rules stay scoped to issues and pulls endpoints.
+          #
+          # Agent and Task are disallowed: a headless run that hands work to a
+          # subagent and ends its turn to "wait" exits, kills the subagent, and
+          # never submits the review, while the job still reads green.
+          claude_args: |
+            --model claude-opus-5-5 --disallowedTools "Agent,Task" --allowedTools "Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(npm run typecheck:*),Bash(npm run lint:*),Bash(npm run build:*),Bash(npm run check:pure:*),Bash(npm test:*),Bash(npx vitest run:*),mcp__github__get_issue_comments,mcp__github__get_pull_request_reviews,mcp__github__get_pull_request_diff,mcp__github__create_and_submit_pull_request_review,mcp__github__create_pending_pull_request_review,mcp__github__add_comment_to_pending_review,mcp__github__submit_pending_pull_request_review,mcp__github__add_issue_comment,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr review:*),Bash(gh api graphql *),Bash(gh api repos/*/issues/*/comments *),Bash(gh api repos/*/issues/comments/* *),Bash(gh api repos/*/pulls/*/reviews *),Bash(gh api repos/*/pulls/*/reviews/*/dismissals *),Bash(gh api repos/*/pulls/*/comments *)"
+
+      # The agent can finish "successfully" without submitting a review. Look for
+      # one by the bot on this run's head commit and fail loudly instead of
+      # letting a missing review read as a green check. A job that passes
+      # without doing its one job is how a status report gets written.
+      - name: Verify a formal review was submitted
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          REPO: ${{ github.repository }}
+          BOT_LOGIN: ${{ steps.imagile-bot.outputs.login }}
+        run: |
+          gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/reviews" > /tmp/verify-reviews.json
+          # shellcheck disable=SC2016
+          jq -r --arg sha "${HEAD_SHA}" --arg bot "${BOT_LOGIN}" \
+            '.[] | select(.user.login == $bot
+                          and .commit_id == $sha
+                          and (.state == "APPROVED" or .state == "CHANGES_REQUESTED")) | .id' \
+            /tmp/verify-reviews.json > /tmp/verify-ids.txt
+          if ! grep -q . /tmp/verify-ids.txt; then
+            echo "::error::The review agent finished without submitting an APPROVE or REQUEST_CHANGES review as ${BOT_LOGIN} for ${HEAD_SHA}. Re-run this job, or push a new commit."
+            exit 1
+          fi
+          echo "Formal review by ${BOT_LOGIN} found for ${HEAD_SHA}"
