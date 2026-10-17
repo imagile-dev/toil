@@ -10,6 +10,10 @@ export interface Integration {
   covers: string;
   credential: string;
   status: Status;
+  /** SaaS only: the vendor's own API host, shown in examples instead of a self-hosted placeholder. */
+  host?: string;
+  /** Credential env keys, when the area takes more than one token. Defaults to TOKEN. */
+  keys?: string[];
 }
 
 export interface Group {
@@ -26,7 +30,7 @@ export const groups: Group[] = [
       { area: 'jira', name: 'Jira Data Center', covers: 'Issues, sprints, boards, projects, transitions, comments', credential: 'Personal access token', status: 'planned' },
       { area: 'ado', name: 'Azure DevOps Server', covers: 'Work items, repos, pull requests, pipelines', credential: 'Personal access token', status: 'planned' },
       { area: 'bitbucket', name: 'Bitbucket Data Center', covers: 'Repositories, pull requests, comments, builds', credential: 'HTTP access token', status: 'planned' },
-      { area: 'github', name: 'GitHub & GitHub Enterprise', covers: 'Pull requests, reviews, issues, checks', credential: 'Fine-grained PAT', status: 'planned' },
+      { area: 'github', name: 'GitHub & GitHub Enterprise', covers: 'Pull requests, reviews, issues, checks', credential: 'Fine-grained PAT', status: 'planned', host: 'https://ghe.imagile.dev' },
       { area: 'confluence', name: 'Confluence Data Center', covers: 'Pages, spaces, search, attachments', credential: 'Personal access token', status: 'planned' },
       { area: 'git', name: 'Local git', covers: 'Status, diff, log, branch, current PR', credential: 'None — local', status: 'planned' },
     ],
@@ -38,8 +42,8 @@ export const groups: Group[] = [
       { area: 'jenkins', name: 'Jenkins', covers: 'Jobs, builds, console logs, queue', credential: 'API token', status: 'planned' },
       { area: 'artifactory', name: 'JFrog Artifactory', covers: 'Repositories, artifact search, versions, licenses', credential: 'Access token', status: 'planned' },
       { area: 'openshift', name: 'OpenShift / Kubernetes', covers: 'Pods, events, logs, metrics, deployments', credential: 'Service account token', status: 'planned' },
-      { area: 'splitio', name: 'Split.IO', covers: 'Feature flags, environments, change requests', credential: 'Admin API key', status: 'planned' },
-      { area: 'saucelabs', name: 'Sauce Labs', covers: 'Test jobs, builds, real devices', credential: 'Access key', status: 'planned' },
+      { area: 'splitio', name: 'Split.IO', covers: 'Feature flags, environments, change requests', credential: 'Admin API key', status: 'planned', host: 'https://api.split.io' },
+      { area: 'saucelabs', name: 'Sauce Labs', covers: 'Test jobs, builds, real devices', credential: 'Access key', status: 'planned', host: 'https://api.us-west-1.saucelabs.com', keys: ['USERNAME', 'ACCESS_KEY'] },
     ],
   },
   {
@@ -47,9 +51,9 @@ export const groups: Group[] = [
     blurb: 'The scanners and gates every change has to clear.',
     items: [
       { area: 'sonar', name: 'SonarQube', covers: 'Quality gates, issues, hotspots, measures', credential: 'User token', status: 'planned' },
-      { area: 'checkmarx', name: 'Checkmarx One', covers: 'SAST scans, results, projects', credential: 'API key, exchanged over HTTP', status: 'planned' },
-      { area: 'contrast', name: 'Contrast Security', covers: 'Applications, vulnerabilities, routes', credential: 'API key + service key', status: 'planned' },
-      { area: 'sonatypeiq', name: 'Sonatype IQ Server', covers: 'Applications, policy evaluations, violations, waivers', credential: 'User token pair', status: 'planned' },
+      { area: 'checkmarx', name: 'Checkmarx One', covers: 'SAST scans, results, projects', credential: 'API key, exchanged over HTTP', status: 'planned', host: 'https://eu.ast.checkmarx.net', keys: ['API_KEY'] },
+      { area: 'contrast', name: 'Contrast Security', covers: 'Applications, vulnerabilities, routes', credential: 'API key + service key', status: 'planned', keys: ['API_KEY', 'SERVICE_KEY'] },
+      { area: 'sonatypeiq', name: 'Sonatype IQ Server', covers: 'Applications, policy evaluations, violations, waivers', credential: 'User token pair', status: 'planned', keys: ['USER_CODE', 'PASSCODE'] },
       { area: 'sde', name: 'SD Elements', covers: 'Projects, countermeasures, security requirements', credential: 'API token', status: 'planned' },
     ],
   },
@@ -67,8 +71,8 @@ export const groups: Group[] = [
     title: 'Design and data',
     blurb: 'The context engineers pull in from outside the code.',
     items: [
-      { area: 'figma', name: 'Figma', covers: 'Files from a link, comments, version history', credential: 'Personal access token', status: 'planned' },
-      { area: 'alation', name: 'Alation', covers: 'Catalog metadata, search, documents', credential: 'Refresh token, exchanged over HTTP', status: 'planned' },
+      { area: 'figma', name: 'Figma', covers: 'Files from a link, comments, version history', credential: 'Personal access token', status: 'planned', host: 'https://api.figma.com' },
+      { area: 'alation', name: 'Alation', covers: 'Catalog metadata, search, documents', credential: 'Refresh token, exchanged over HTTP', status: 'planned', keys: ['REFRESH_TOKEN'] },
     ],
   },
 ];
@@ -97,3 +101,43 @@ export const notPlanned = [
 ];
 
 export const integrationCount = groups.reduce((n, g) => n + g.items.length, 0);
+
+/**
+ * Where a user generates each integration's credential, for its docs page. Only
+ * paths we're confident of; anything absent gets a generic line rather than a
+ * guess that sends someone clicking round the wrong menu.
+ */
+export const credentialWhere: Record<string, string> = {
+  jira: 'Your profile picture → Profile → Personal Access Tokens',
+  confluence: 'Your profile picture → Settings → Personal Access Tokens',
+  bitbucket: 'Your profile picture → Manage account → HTTP access tokens',
+  github: 'Settings → Developer settings → Personal access tokens → Fine-grained tokens',
+  ado: 'User settings → Personal access tokens',
+  sonar: 'My Account → Security → Generate Tokens',
+  jenkins: 'Your user name → Security → API Token',
+  artifactory: 'Your profile → Edit Profile → Generate an Identity Token',
+  dynatrace: 'Access tokens → Generate new token',
+  elasticsearch: 'Kibana → Stack Management → API keys',
+  kibana: 'Stack Management → API keys',
+  figma: 'Settings → Security → Personal access tokens',
+  saucelabs: 'User settings → Access key',
+};
+
+export interface IntegrationEntry extends Integration {
+  group: string;
+}
+
+/** Every integration, flattened, in board order. */
+export const allIntegrations: IntegrationEntry[] = groups.flatMap((g) => g.items.map((item) => ({ ...item, group: g.title })));
+
+/** The env var prefix for an area: jira-cloud -> TOIL_JIRA_CLOUD_. */
+export function envPrefix(area: string): string {
+  return `TOIL_${area.toUpperCase().replace(/-/g, '_')}_`;
+}
+
+export const statusMeaning: Record<Status, string> = {
+  planned: 'Designed and scheduled. No code has shipped yet, so the details below describe the plan.',
+  unit: 'Shipped, with its logic tested against stubbed HTTP. Not yet run against a real instance in CI.',
+  integration: 'Automated tests pass against a real instance in CI.',
+  live: "In day-to-day use against a real organization's instance.",
+};
