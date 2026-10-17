@@ -142,7 +142,7 @@ A write command spreads `allowWriteField` into its input.
 
 `toil mcp` serves over stdio. `--areas jira,confluence` limits it to those areas, so
 an agent sees a small, focused tool list and one config entry stands in for one vendor
-server. With no `--areas`, it serves every area that has config. Write tools are not
+server. With no `--areas`, it serves every area that has config, plus `standalone` commands that need none (like `version`). Write tools are not
 registered at all unless the area has writes enabled (see **Writes**), so an agent
 cannot discover them, let alone call them. Tool descriptions are written for a model
 choosing between tools: what it returns, when to use it, and which sibling tool to use
@@ -169,17 +169,38 @@ Errors are a `ToilError` with a code and a fix the user can act on, never a raw
 stack trace. Logs and progress go to stderr. Removing or renaming a field in `data` is
 a breaking change.
 
+- **Usage errors are envelopes too.** An unknown command or flag, or a missing
+  argument, gets an `INVALID_INPUT` envelope on stdout (`runProgram` in
+  `src/program.ts`). Only `--help` and `--version` print plain text.
+- **`--dry-run` sends no writes, from either front door.** `execute()` hands every
+  command an instrumented fetch: reads go through, and the first write is captured,
+  not sent, and returned as `{ dryRun: true, wouldSend: [...] }` with credentials
+  redacted. A dry run skips the write gate, because it writes nothing.
+- **`--verbose` adds `meta.requests`**: method, URL with credentials redacted, status
+  and timing for every request. It never includes headers or bodies.
+- Both live in core, so no command implements them and no front door can forget them.
+
 ## Configuration Precedence
 
 1. `TOIL_*` environment variable
 2. A well-known CI-provided variable for that service, only where the service's own
    tooling treats it as canonical (`GITHUB_TOKEN`, `SYSTEM_ACCESSTOKEN`). Never invent one.
-3. `.toil.json` in the repository
-4. `~/.toil/config.json`
+3. `~/.toil/config.json`, or the file passed with `--config`
 
 CI must be able to override anything without editing files. Lowering env-var priority
 for any field is a breaking change. Anything that rewrites the global config carries
 through keys it did not prompt for.
+
+**There is no repository-level config file, and there won't be one.** Anyone who
+can push to a repo, or an agent editing the working tree, could use such a file to
+switch on writes or send the user's credentials to a host of its choosing
+(*principles 2 and 9*). Hosts, credentials and `writes` come only from env vars and
+the user's own config. Knowledge about a body of work (its repos, Jira keys and
+fields, boards, environments) belongs in the user's dossiers, which hold no secrets
+and no hosts and name connections instead.
+
+Env var names map onto areas through the registry, using the longest match, so
+`TOIL_JIRA_CLOUD_TOKEN` is `jira-cloud.token`, not `jira.cloudToken`.
 
 ## Authentication Bar
 

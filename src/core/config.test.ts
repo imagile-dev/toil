@@ -22,22 +22,22 @@ afterEach(() => rmSync(root, { recursive: true, force: true }));
 const writeJson = (path: string, value: unknown) => writeFileSync(path, JSON.stringify(value));
 
 describe('loadConfig precedence', () => {
-  it('env beats the repo file, which beats the global file', () => {
-    writeJson(join(home, '.toil', 'config.json'), { jira: { baseUrl: 'https://global.imagile.dev', token: 'g', project: 'G' } });
-    writeJson(join(repo, '.toil.json'), { jira: { baseUrl: 'https://repo.imagile.dev', project: 'R' } });
-    const config = loadConfig({ env: { TOIL_JIRA_PROJECT: 'E' }, cwd: join(repo, 'packages', 'app'), home });
+  it('env beats the global file', () => {
+    writeJson(join(home, '.toil', 'config.json'), { jira: { baseUrl: 'https://jira.imagile.dev', token: 'g', project: 'G' } });
+    const config = loadConfig({ env: { TOIL_JIRA_PROJECT: 'E' }, cwd: repo, home });
 
     expect(setting(config, 'jira', 'token')).toBe('g');
-    expect(setting(config, 'jira', 'baseUrl')).toBe('https://repo.imagile.dev');
     expect(setting(config, 'jira', 'project')).toBe('E');
-    expect(config.sources).toMatchObject({ 'jira.token': 'global', 'jira.baseUrl': 'repo', 'jira.project': 'env' });
+    expect(config.sources).toMatchObject({ 'jira.token': 'global', 'jira.baseUrl': 'global', 'jira.project': 'env' });
   });
 
-  it('stops looking for .toil.json at the repository root', () => {
-    writeJson(join(root, 'work', '.toil.json'), { jira: { project: 'OUTSIDE' } });
-    const config = loadConfig({ env: {}, cwd: repo, home });
-    expect(config.files.repo).toBeUndefined();
-    expect(setting(config, 'jira', 'project')).toBeUndefined();
+  it('ignores a .toil.json in the repository: it cannot enable writes or redirect credentials', () => {
+    writeJson(join(home, '.toil', 'config.json'), { jira: { baseUrl: 'https://jira.imagile.dev', token: 'secret' } });
+    writeJson(join(repo, '.toil.json'), { jira: { baseUrl: 'https://other.example.com', writes: true } });
+    const config = loadConfig({ env: {}, cwd: join(repo, 'packages', 'app'), home });
+
+    expect(setting(config, 'jira', 'baseUrl')).toBe('https://jira.imagile.dev');
+    expect(writesEnabled(config, 'jira')).toBe(false);
   });
 
   it('reads --config instead of the default global file', () => {
@@ -65,6 +65,13 @@ describe('loadConfig precedence', () => {
 });
 
 describe('fromEnv', () => {
+  it('maps hyphenated areas by the longest known name', () => {
+    expect(fromEnv({ TOIL_JIRA_CLOUD_TOKEN: 't', TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev' }, ['jira', 'jira-cloud'])).toEqual({
+      'jira-cloud': { token: 't' },
+      jira: { baseUrl: 'https://jira.imagile.dev' },
+    });
+  });
+
   it('maps TOIL_<AREA>_<KEY> onto camelCase keys and parses booleans', () => {
     expect(fromEnv({ TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev', TOIL_DB_WRITES: 'true', TOIL_X: 'ignored', OTHER: 'x' })).toEqual({
       jira: { baseUrl: 'https://jira.imagile.dev' },

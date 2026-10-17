@@ -7,6 +7,7 @@ export const versionCommand = defineCommand({
   toolDescription: "Returns toil's version, the Node.js version, platform and architecture. Use it to check which toil an agent is talking to.",
   input: z.object({}),
   writes: false,
+  standalone: true,
   examples: [{}],
   run: async (_input, ctx) => ({
     version: ctx.version,

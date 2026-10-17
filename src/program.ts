@@ -1,8 +1,8 @@
-import { Command } from 'commander';
+import { Command, CommanderError } from 'commander';
 import { commandName, type AnyCommand } from './core/command.js';
 import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
-import { toToilError } from './core/errors.js';
+import { ToilError, toToilError } from './core/errors.js';
 import { execute } from './core/run.js';
 
 /** Flags every command accepts. Names and meanings are part of the contract. */
@@ -44,9 +44,9 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       .description('The central integrator between AI agents and the enterprise. Every command prints one JSON envelope.')
       .version(options.version, '-v, --version', 'output the version number')
       .option('--pretty', 'Human-readable formatted output', false)
-      .option('--verbose', 'Include full response metadata', false)
+      .option('--verbose', 'Add every request to meta.requests (credentials redacted)', false)
       .option('--debug', 'Print diagnostic traces to stderr (never credentials)', false)
-      .option('--dry-run', 'Print API requests without executing', false)
+      .option('--dry-run', 'Send no writes: return the first write as wouldSend instead', false)
       .option('--config <path>', 'Override global config file location')
       .option('--output-file <path>', 'Write JSON output to file instead of stdout')
       .showHelpAfterError(),
@@ -104,6 +104,91 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
   });
 
   return { program, result };
+}
+
+function emit(envelope: Envelope, globals: GlobalOptions, io: CliIO): void {
+  const json = `${JSON.stringify(envelope, null, globals.pretty ? 2 : undefined)}\n`;
+  if (globals.outputFile) io.writeFile(globals.outputFile, json);
+  else io.stdout(json);
+}
+
+/** Commander exits these ways on purpose; they are output, not errors. */
+const INFORMATIONAL = new Set(['commander.helpDisplayed', 'commander.help', 'commander.version']);
+
+/**
+ * Parses argv and runs the matching command, returning the exit code. A usage
+ * error (unknown command or flag, missing argument) still produces exactly one
+ * envelope on stdout, as INVALID_INPUT, because an agent reading stdout should
+ * never have to parse help text from stderr to learn that it typed it wrong.
+ */
+export async function runProgram(options: ProgramOptions, argv: string[], from: 'node' | 'user' = 'node'): Promise<number> {
+  const { program, result } = buildProgram(options);
+  try {
+    await program.parseAsync(argv, { from });
+    return result.exitCode;
+  } catch (err) {
+    if (!(err instanceof CommanderError)) throw err;
+    if (INFORMATIONAL.has(err.code)) return err.exitCode;
+
+    const userArgs = from === 'node' ? argv.slice(2) : argv;
+    const globals = globalsFromArgv(userArgs);
+    const command = commandFromArgv(userArgs, options.commands);
+    const message = err.message.replace(/^error:\s*/, '');
+    emit(
+      failure(new ToilError('INVALID_INPUT', message.charAt(0).toUpperCase() + message.slice(1), { fix: `Run toil ${command ? `${command} ` : ''}--help to see what it accepts.` }), {
+        command,
+        durationMs: 0,
+        version: options.version,
+      }),
+      globals,
+      options.io,
+    );
+    return err.exitCode === 0 ? 1 : err.exitCode;
+  }
+}
+
+const VALUE_GLOBALS = new Set(['--config', '--output-file']);
+
+/**
+ * The command the user meant, for meta.command on a usage error: the longest
+ * registered path matching the words they typed, or the first word when none
+ * matches. Global flags and their values are skipped, and argument values never
+ * end up in it.
+ */
+function commandFromArgv(args: string[], commands: AnyCommand[]): string {
+  const words: string[] = [];
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i]!;
+    if (VALUE_GLOBALS.has(token)) {
+      i++;
+      continue;
+    }
+    if (token.startsWith('-')) {
+      if (words.length > 0) break;
+      continue;
+    }
+    words.push(token);
+  }
+  let best: string[] = [];
+  for (const def of commands) {
+    const matches = def.path.every((segment, i) => words[i] === segment);
+    if (matches && def.path.length > best.length) best = def.path;
+  }
+  if (best.length === 0) {
+    // A group typed without its leaf (`toil demo`) still names the group.
+    const group = commands.find((def) => def.path[0] === words[0]);
+    return group ? words[0]! : (words[0] ?? '');
+  }
+  return best.join(' ');
+}
+
+/** The output flags, read straight from argv when commander couldn't parse it. */
+function globalsFromArgv(args: string[]): GlobalOptions {
+  const globals: GlobalOptions = { pretty: args.includes('--pretty') };
+  const i = args.indexOf('--output-file');
+  const next = i === -1 ? undefined : args[i + 1];
+  if (next && !next.startsWith('-')) globals.outputFile = next;
+  return globals;
 }
 
 /** Maps parsed argv onto a command's input fields. */

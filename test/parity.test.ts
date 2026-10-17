@@ -95,6 +95,30 @@ for (const suite of suites) {
   });
 }
 
+describe('which tools MCP serves', () => {
+  it('without --areas: configured areas plus standalone commands, never an unconfigured service', async () => {
+    const all = [...commands, ...demoCommands];
+    const bare = testContext();
+    const s1 = await connectMcp({ commands: all, context: bare.context });
+    sessions.push(s1);
+    const names = (await s1.client.listTools()).tools.map((t) => t.name);
+    expect(names).toContain('version');
+    expect(names).not.toContain('demo_get_thing');
+
+    const configured = testContext({ config: { demo: { token: 't' } } });
+    const s2 = await connectMcp({ commands: all, context: configured.context });
+    sessions.push(s2);
+    expect((await s2.client.listTools()).tools.map((t) => t.name)).toContain('demo_get_thing');
+  });
+
+  it('with --areas: exactly the named areas, configured or not', async () => {
+    const { context } = testContext();
+    const session = await connectMcp({ commands: [...commands, ...demoCommands], context, areas: ['demo'] });
+    sessions.push(session);
+    expect((await session.client.listTools()).tools.map((t) => t.name)).toEqual(['demo_get_thing']);
+  });
+});
+
 describe('write gate, through both front doors', () => {
   const write = demoCommands.find((d) => d.writes)!;
   const example = write.examples[0] as Record<string, unknown>;

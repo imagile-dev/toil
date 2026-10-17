@@ -6,7 +6,10 @@ export interface Context {
   fetch: typeof globalThis.fetch;
   env: NodeJS.ProcessEnv;
   version: string;
+  /** Send no writes: record the first one and return it instead. */
   dryRun: boolean;
+  /** Add the request log to meta. */
+  verbose: boolean;
   /** Diagnostics to stderr under --debug; never credentials. */
   debug: (message: string) => void;
 }

@@ -1,26 +1,30 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { ToilError } from './errors.js';
 
 /**
- * Configuration is a map of areas (jira, db, ...) to their settings.
+ * Configuration is a map of areas (jira, jira-cloud, db, ...) to their settings.
  *
  * Precedence, highest first (CLAUDE.md, Configuration Precedence):
  *   1. TOIL_<AREA>_<KEY> environment variables
- *   2. .toil.json in the repository (found by walking up from cwd)
- *   3. the global config (~/.toil/config.json, or --config <path>)
+ *   2. the global config (~/.toil/config.json, or --config <path>)
+ *
+ * There is deliberately no repository-level file. A config file inside a repo
+ * could be written by anyone who can push to it, or by an agent editing the
+ * working tree, and use it to switch on writes or send the user's credentials
+ * to a host of its choosing. Project knowledge lives in the user's own files.
  *
  * Well-known CI fallback variables are per integration and are resolved by the
  * integration itself, between 1 and 2.
  */
 export type Settings = Record<string, unknown>;
-export type Source = 'env' | 'repo' | 'global';
+export type Source = 'env' | 'global';
 
 export interface ResolvedConfig {
   areas: Record<string, Settings>;
   /** Where each `area.key` came from, for `config check` and debugging. */
   sources: Record<string, Source>;
-  files: { global: string; repo: string | undefined };
+  files: { global: string };
 }
 
 export interface LoadConfigOptions {
@@ -28,16 +32,15 @@ export interface LoadConfigOptions {
   cwd: string;
   home: string;
   configPath?: string | undefined;
+  /** Registered area names, so TOIL_JIRA_CLOUD_TOKEN maps to jira-cloud, not jira. */
+  knownAreas?: readonly string[];
 }
 
 export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
   const globalPath = options.configPath ? resolve(options.cwd, options.configPath) : join(options.home, '.toil', 'config.json');
-  const repoPath = findRepoConfig(options.cwd);
-
-  const config: ResolvedConfig = { areas: {}, sources: {}, files: { global: globalPath, repo: repoPath } };
+  const config: ResolvedConfig = { areas: {}, sources: {}, files: { global: globalPath } };
   apply(config, readConfigFile(globalPath), 'global');
-  if (repoPath) apply(config, readConfigFile(repoPath), 'repo');
-  apply(config, fromEnv(options.env), 'env');
+  apply(config, fromEnv(options.env, options.knownAreas ?? []), 'env');
   return config;
 }
 
@@ -52,6 +55,11 @@ export function writesEnabled(config: ResolvedConfig, area: string): boolean {
   return value === true || value === 'true';
 }
 
+/** Whether the user has configured anything at all for an area. */
+export function hasConfig(config: ResolvedConfig, area: string): boolean {
+  return Object.keys(config.areas[area] ?? {}).length > 0;
+}
+
 function apply(config: ResolvedConfig, layer: Record<string, Settings>, source: Source): void {
   for (const [area, settings] of Object.entries(layer)) {
     const target = (config.areas[area] ??= {});
@@ -59,19 +67,6 @@ function apply(config: ResolvedConfig, layer: Record<string, Settings>, source: 
       target[key] = value;
       config.sources[`${area}.${key}`] = source;
     }
-  }
-}
-
-/** Walk up from cwd to the first .toil.json, stopping at a repository root. */
-function findRepoConfig(cwd: string): string | undefined {
-  let dir = resolve(cwd);
-  for (;;) {
-    const candidate = join(dir, '.toil.json');
-    if (existsSync(candidate)) return candidate;
-    if (existsSync(join(dir, '.git'))) return undefined;
-    const parent = dirname(dir);
-    if (parent === dir) return undefined;
-    dir = parent;
   }
 }
 
@@ -102,14 +97,38 @@ function readConfigFile(path: string): Record<string, Settings> {
   return out;
 }
 
-/** TOIL_JIRA_BASE_URL -> { jira: { baseUrl } }. "true"/"false" become booleans. */
-export function fromEnv(env: NodeJS.ProcessEnv): Record<string, Settings> {
+/**
+ * TOIL_JIRA_BASE_URL -> { jira: { baseUrl } }, and with "jira-cloud" known,
+ * TOIL_JIRA_CLOUD_TOKEN -> { "jira-cloud": { token } }. The longest known area
+ * wins; a name matching no known area falls back to its first segment.
+ * "true"/"false" become booleans.
+ */
+export function fromEnv(env: NodeJS.ProcessEnv, knownAreas: readonly string[] = []): Record<string, Settings> {
+  const prefixes = knownAreas
+    .map((area) => ({ area, prefix: `${area.toUpperCase().replace(/-/g, '_')}_` }))
+    .sort((a, b) => b.prefix.length - a.prefix.length);
+
   const out: Record<string, Settings> = {};
   for (const [name, raw] of Object.entries(env)) {
     if (raw === undefined || !name.startsWith('TOIL_')) continue;
-    const [area, ...rest] = name.slice(5).toLowerCase().split('_');
-    if (!area || rest.length === 0) continue;
-    const key = rest.map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1))).join('');
+    const rest = name.slice(5);
+    const known = prefixes.find((p) => rest.startsWith(p.prefix) && rest.length > p.prefix.length);
+    let area: string | undefined;
+    let keyPart: string;
+    if (known) {
+      area = known.area;
+      keyPart = rest.slice(known.prefix.length);
+    } else {
+      const [first, ...tail] = rest.split('_');
+      area = first?.toLowerCase();
+      keyPart = tail.join('_');
+    }
+    if (!area || keyPart === '') continue;
+    const key = keyPart
+      .toLowerCase()
+      .split('_')
+      .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+      .join('');
     const value: unknown = raw === 'true' ? true : raw === 'false' ? false : raw;
     (out[area] ??= {})[key] = value;
   }

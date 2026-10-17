@@ -2,16 +2,25 @@ import { z } from 'zod';
 import { areaOf, commandName, type AnyCommand } from './command.js';
 import { writesEnabled } from './config.js';
 import type { Context } from './context.js';
-import { failure, success, type Envelope } from './envelope.js';
+import { failure, success, type Envelope, type Meta } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
+import { DryRunHalt, instrumentFetch, type RequestLog } from './http.js';
 
 /**
  * The one way any command runs, from either front door: validate the input,
- * enforce the write gate, run, and wrap the result or failure in the envelope.
+ * enforce the write gate, run with an instrumented fetch, and wrap the result
+ * or failure in the envelope. --dry-run and --verbose live here, so neither
+ * front door can forget them.
  */
 export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context): Promise<Envelope> {
   const started = performance.now();
-  const meta = () => ({ command: commandName(def), durationMs: Math.round(performance.now() - started), version: ctx.version });
+  const requests: RequestLog[] = [];
+  const meta = (): Meta => {
+    const m: Meta = { command: commandName(def), durationMs: Math.round(performance.now() - started), version: ctx.version };
+    if (ctx.dryRun) m.dryRun = true;
+    if (ctx.verbose) m.requests = requests;
+    return m;
+  };
 
   try {
     const parsed = def.input.safeParse(rawInput ?? {});
@@ -21,10 +30,12 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
         details: parsed.error.issues,
       });
     }
-    if (def.writes) assertWritesAllowed(def, parsed.data, ctx);
-    const data = await def.run(parsed.data, ctx);
+    // A dry run sends no writes, so it needs no permission to make one.
+    if (def.writes && !ctx.dryRun) assertWritesAllowed(def, parsed.data, ctx);
+    const data = await def.run(parsed.data, { ...ctx, fetch: instrumentFetch(ctx.fetch, requests, ctx.dryRun) });
     return success(data, meta());
   } catch (err) {
+    if (err instanceof DryRunHalt) return success({ dryRun: true, wouldSend: [err.planned] }, meta());
     return failure(toToilError(err), meta());
   }
 }
@@ -37,7 +48,7 @@ function assertWritesAllowed(def: AnyCommand, input: Record<string, unknown>, ct
   const area = areaOf(def);
   if (!writesEnabled(ctx.config, area)) {
     throw new ToilError('WRITE_DISABLED', `${commandName(def)} changes data in ${area}, and writes are off for ${area}.`, {
-      fix: `To allow writes, set "writes": true under "${area}" in your toil config (or TOIL_${area.toUpperCase()}_WRITES=true), then pass --allow-write.`,
+      fix: `To allow writes, set "writes": true under "${area}" in your global toil config (or ${envName(area, 'writes')}=true), then pass --allow-write.`,
     });
   }
   if (input.allowWrite !== true) {
@@ -47,7 +58,15 @@ function assertWritesAllowed(def: AnyCommand, input: Record<string, unknown>, ct
   }
 }
 
-/** Write commands add this field to their input; MCP tools expose it as a required choice. */
+function envName(area: string, key: string): string {
+  return `TOIL_${area.toUpperCase().replace(/-/g, '_')}_${key.replace(/[A-Z]/g, (c) => `_${c}`).toUpperCase()}`;
+}
+
+/**
+ * Write commands spread this into their input. It is optional in the schema so
+ * MCP clients see it as a field they may set; execute() refuses the write when
+ * it isn't true, so leaving it out is the safe default.
+ */
 export const allowWriteField = {
   allowWrite: z.boolean().optional().describe('Must be true to make the change. Set only when the user asked for this write.'),
 };

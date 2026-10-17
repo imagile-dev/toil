@@ -34,6 +34,8 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
   toolDescription?: string;
   input: S;
   writes: boolean;
+  /** Works with no configuration at all (e.g. `version`); always served by `toil mcp`. */
+  standalone?: boolean;
   args?: CliArgument[];
   options?: CliOption[];
   examples: Array<z.input<S>>;
