@@ -245,7 +245,9 @@ belongs to the commands that list it in their own `context`, which also marks an
 input `required`. Core resolves each in one order: the call's own value, then the
 dossier (empty until #16), then the git remote where the area declares how to read
 it (no reader is wired into the CLI yet; the git reader supplies one), then the
-connection's `setting`, then the area's `default`. An input with `selectsConnection`
+connection's `setting`, then the area's `default`. A command that reads one from a
+file the call named (an `--input-file`) reports it with `ctx.supply`, which ranks
+it just below the call's own value. An input with `selectsConnection`
 picks the connection (`--env staging` selects the one named `staging` or whose `env`
 is `staging`), and `--connection` goes through the same chain: at each source in
 turn, a named connection and a selecting input must agree. `run` reads
@@ -369,8 +371,9 @@ a breaking change.
 - **Usage errors are envelopes too.** An unknown command or flag, or a missing
   argument, gets an `INVALID_INPUT` envelope on stdout (`runProgram` in
   `src/program.ts`). Only `--help` and `--version` print plain text.
-- **`--verbose` adds `meta.requests`**: method, URL with credentials redacted, status
-  and timing for every request. It never includes headers or bodies.
+- **`--verbose` adds `meta.requests`**: method, URL as sent with credential
+  parameters and userinfo redacted (`redactUrl` fails closed on credential-shaped
+  names, and leaves identifiers such as `projectKey` and `componentKeys`), status and timing for every request. It never includes headers or bodies.
 - `--verbose` lives in core: `execute()` hands every command an instrumented
   `ctx.fetch`, so no command implements it and no front door can forget it. Commands
   under `src/areas/` may not call `fetch` directly, and ESLint enforces it.
@@ -383,7 +386,8 @@ a breaking change.
   that pages. Both are absent when empty.
 - **`meta.context`**, on area commands only, says where the call acted: `{ connection,
   inputs, shared }`. `connection` and each of `inputs` is `{ value, source }`, the
-  source one of `input`, `dossier`, `git`, `connection` or `default`, plus `via` (the
+  source one of `input`, `file` (a value the command read from a file the call
+  named, through `ctx.supply`), `dossier`, `git`, `connection` or `default`, plus `via` (the
   input that selected the connection) or `default` (`named`, `area-name` or `only`).
   `shared` lists settings taken from another area's connection, with where each
   lived, never the value. It's set on a failure too, as far as resolution got.
@@ -558,13 +562,16 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   `setup` and removed in `teardown`, never at import, and an area that isn't HTTP
   names what to `trace` for the operations log. The suite finds a fixture by file
   name and fails when a registered area has none.
-- **Three more suites cover every area with no per-area code:** `test/contract.test.ts`
+- **Four more suites cover every area with no per-area code:** `test/contract.test.ts`
   (the command contract's commands, flags and output field names, see the
   `integrations` skill), `test/skills.test.ts` (a `skills/toil/<area>.md` with
-  frontmatter, naming every command, every env var and the area's supported
-  versions), and `test/site-commands.test.ts`, which writes
-  `site/src/data/commands/<area>.json` for the docs pages (`npx vitest run -u` after
-  changing a command) and checks the board's `site/src/data/integrations/<area>.json`.
+  frontmatter, naming every command, every env var, every CI fallback and the area's
+  supported versions), `test/fallbacks.test.ts` (each declared CI fallback in its
+  precedence position, through the real config loader), and
+  `test/site-commands.test.ts`, which writes `site/src/data/commands/<area>.json` and
+  `site/src/data/settings/<area>.json` for the docs pages (`npx vitest run -u` after
+  changing a command or a connection key) and checks the board's
+  `site/src/data/integrations/<area>.json`.
 - **No file every integration edits.** Each area has its own fixture, skill file, divergence
   file, board entry and command list; the lists that span areas (the registry, the
   areas in `SKILL.md`, the CLI-only commands) are derived or generic. A change that

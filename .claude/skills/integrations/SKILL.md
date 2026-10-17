@@ -47,20 +47,42 @@ versions.
 3. **Build each command**: request, paging, errors and `data` exactly as the
    contract had them, through `ctx.fetch` and core's helpers. Set `writes`
    from what the contract does; the stub only guessed from the verb.
+   - **Paging** goes through `paginate`. A `p`/`ps`/`total` API (SonarQube) is
+     the `page` style with a `total` callback: it stops once the items read reach
+     the total or a page is empty, never on a short page. The result's `total` is
+     the last one the server reported, an empty page's included, so a command
+     asked for zero items (`--max-results 0`) still returns the count.
+   - **The 1,000-page bound** (`MAX_PAGES`) is new to toil, and the contract
+     had none: list it in the area's `docs/divergences/<area>.json` (principle 4)
+     for every area that pages, and pass `what` so the error names the list.
+   - **A context value read from a file** (Jira's `project` in `--input-file`)
+     goes through `ctx.supply('project', value, 'file')`. It ranks below the
+     call's own flag and above the dossier, git and the connection, returns the
+     value to use, and `meta.context` reports source `file`. Keep the input
+     `optional` in the command's `context` when the file may supply it, since a
+     required one is checked before `run`.
 4. **Fixture**: canned responses for every request the examples send, as routes on
    method, `path` and `query`. Local state goes in `setup`/`teardown`; a non-HTTP
    area names what to `trace`.
-5. **Supported version**: export `supported` from `index.ts`, set the same value in
+5. **CI fallback**: where the service's own tooling reads a well-known variable
+   (`SONAR_TOKEN`), declare it in `defineArea({ fallbacks })` and name it in the
+   skill file; `test/skills.test.ts` fails if the file doesn't. Don't write a
+   precedence test for it: `test/fallbacks.test.ts` checks every declared
+   fallback against the real config loader (below `TOIL_<AREA>_<KEY>`, above the
+   file, default connection only), and the not-configured errors name it beside
+   the `TOIL_` variable on their own.
+6. **Supported version**: export `supported` from `index.ts`, set the same value in
    the board entry, and state it in the skill file. An error that means the server
    is too old uses `serverTooOld()` from `src/core/supported.ts`, so its message says so and names
    the minimum.
-6. **Contract**: `test/contract.test.ts` checks paths, flags and output field names.
+7. **Contract**: `test/contract.test.ts` checks paths, flags and output field names.
    Anything a principle makes you change goes in `docs/divergences/<area>.json`.
-7. **Docs**: `npx vitest run -u` writes `site/src/data/commands/<area>.json`; set the
+8. **Docs**: `npx vitest run -u` writes `site/src/data/commands/<area>.json` and
+   `site/src/data/settings/<area>.json`; set the
    board entry's `status` to `unit`; review the docs page and take its screenshots
    with `node scripts/shoot.mjs docs/integrations/<area>/` (the `site` skill).
-8. **Suspected bugs** go in the area's issue, never fixed in the integration (below).
-9. **Delete the brief**, `docs/briefs/<area>.md`, in the same PR. Briefs are the only
+9. **Suspected bugs** go in the area's issue, never fixed in the integration (below).
+10. **Delete the brief**, `docs/briefs/<area>.md`, in the same PR. Briefs are the only
    docs that point at the contract's source; shipped docs, code and skills never
    do, so a brief goes once its area is built.
 
@@ -96,13 +118,16 @@ versions.
   with the contract's spelling in `flags`; a per-command one (`jira --project`) is a
   `command` input the command lists in its `context`, marked `required` where the
   contract failed without it, unless the command has its own fallback (a project in
-  `--input-file`); then keep it optional, fill that step in the command, and set
-  `ctx.resolved.inputs` so `meta.context` reports it, as `jira create-issue` does.
+  `--input-file`); then keep it optional and fill that step with `ctx.supply` (step 3).
   A flag that names a target but never fell back to a setting stays an ordinary
   option (Jira's `fields`, `list-boards`, `list-sprints`); a context input always
   falls back. Give it a `setting` when the connection can hold a
   default, `git` when the remote names it, and `selectsConnection` when the contract
-  picked an instance or environment by it. Read it from `ctx.context`.
+  picked an instance or environment by it. Read it from `ctx.context`. When the
+  contract had its own wording for a missing one ("No project specified. Use
+  --project or set defaults.sonar.project in config."), keep it with the input's
+  `missing: { message, fix? }`; the fix defaults to core's, which names the flag,
+  the setting and its env var.
 - **Another area's credential** (Kibana on Elasticsearch's key) is `defineArea({
   shares: { area, keys } })`. It declares which keys a connection may pair, nothing
   more: the user pairs one with `<key>From` (`"apiKeyFrom": "es-prod"`), and the

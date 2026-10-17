@@ -68,6 +68,14 @@ describe('shipped skill', () => {
       }
     });
 
+    it(`${area.name}: its reference names every CI fallback variable it declares`, () => {
+      const doc = readFileSync(join(dir, `${area.name}.md`), 'utf8');
+      const fallbacks = Object.entries((area.fallbacks ?? {}) as Record<string, string[] | undefined>);
+      for (const [key, names] of fallbacks) {
+        for (const name of names ?? []) expect(doc, `${area.name}.${key} falls back to ${name}; say so in skills/toil/${area.name}.md`).toContain(name);
+      }
+    });
+
     it(`${area.name}: declares its supported versions once, and its skill file and site data say the same`, () => {
       const supported = supportedOf.get(area.name);
       expect(supported, `export const supported: SupportedVersion from src/areas/${area.name}/index.ts`).toBeDefined();

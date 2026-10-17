@@ -1,0 +1,18 @@
+[
+  {
+    "key": "engine",
+    "env": "TOIL_DB_ENGINE",
+    "description": "Database engine: sqlite",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "path",
+    "env": "TOIL_DB_PATH",
+    "description": "SQLite: absolute path to the database file",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]

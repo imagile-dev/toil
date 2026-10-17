@@ -26,8 +26,12 @@ export interface Meta {
   context?: ContextReport;
 }
 
-/** Where a resolved value came from, highest precedence first. */
-export type ContextSource = 'input' | 'dossier' | 'git' | 'connection' | 'default';
+/**
+ * Where a resolved value came from, highest precedence first. `file`: the
+ * command read it from a file the call named, such as an `--input-file`
+ * (`ctx.supply`).
+ */
+export type ContextSource = 'input' | 'file' | 'dossier' | 'git' | 'connection' | 'default';
 
 export interface ContextValue {
   value: string;

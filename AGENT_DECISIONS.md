@@ -65,6 +65,29 @@ the bottom of their section.
 - **MCP field descriptions never mention CLI-only flags** (`--output-file`), since the
   description is the same text on both front doors. The rule itself is in the `mcp`
   skill.
+- **The kit-fix PR's own choices** (#68):
+  - **`ctx.supply` takes only the source `file`.** It's the one case the pilots
+    met; another source is a one-word addition when an integration needs it.
+  - **`paginate` returns the last `total` a page reported**, as `Paged.total`,
+    rather than only calling the callback on empty pages, so a count needs no
+    side effect in the callback.
+  - **A `page` style's cursor carries the count of items before its page.** With
+    `total`, a page needn't be full to have a next one, so the page number alone
+    can't restore the count on resume (review of #113).
+  - **A missing context input's own wording**: the first missing input that
+    declares `missing` words the error; its `fix` defaults to core's.
+  - **`redactUrl` fails closed** (the coordinator's decision on #113's review,
+    replacing an exact-name list). It redacts any name containing token, secret,
+    passw, pwd, signature or credential; exactly sig, jwt, key or code; and any
+    name ending in key, except a key right after project, component, metric, issue,
+    rule, branch, repo, space, board, sprint, file or entity. Names ending in keys
+    and `projectKeyOrId` show. Why: being wrong toward redaction hides one
+    identifier; the other way prints a token.
+  - **The docs page's settings come from the connection schema**, written to
+    `site/src/data/settings/<area>.json` by the site test, one file per area. A
+    planned area's page keeps its Writes section, since its commands aren't known.
+  - **The pilots' workarounds stay in `src/areas/jira/` and `src/areas/sonar/`** for
+    now; this PR doesn't edit area code. The PR lists what each can drop.
 
 ## Building process
 

@@ -72,6 +72,29 @@ describe('resolveConnection', async () => {
     );
   });
 
+  it('names a declared CI fallback beside the TOIL_ variable, for the default connection only', async () => {
+    const scanned = defineArea({
+      name: 'scan',
+      description: 'test',
+      connection: z.object({ baseUrl: z.string(), token: z.string() }),
+      secrets: ['token'],
+      fallbacks: { token: ['SCAN_TOKEN', 'SCANNER_TOKEN'] },
+    });
+    const fail = (cfg: ResolvedConfig, requested?: string) => resolveConnection(cfg, scanned, requested, () => {}).catch((e: unknown) => e);
+    expect(await fail(config({}))).toMatchObject({
+      code: 'NOT_CONFIGURED',
+      fix: 'Set TOIL_SCAN_BASE_URL and TOIL_SCAN_TOKEN (or SCAN_TOKEN or SCANNER_TOKEN), or add a scan connection to your toil config.',
+    });
+    expect(await fail(config({ scan: { area: 'scan', baseUrl: 'https://scan.imagile.dev' } }, { scan: { connection: 'scan' } }))).toMatchObject({
+      code: 'CONFIG_INVALID',
+      fix: expect.stringContaining('Set TOIL_SCAN_TOKEN (or SCAN_TOKEN or SCANNER_TOKEN), or fix token'),
+    });
+    // Another connection doesn't take the fallback, so its fix doesn't offer it.
+    const other = (await fail(config({ scan: { area: 'scan', baseUrl: 'b', token: 't' }, ci: { area: 'scan', baseUrl: 'b' } }, { scan: { connection: 'scan' } }), 'ci')) as { fix: string };
+    expect(other.fix).toContain('TOIL_CONN_CI_TOKEN');
+    expect(other.fix).not.toContain('SCAN_TOKEN');
+  });
+
   it('explains every way the choice can fail', async () => {
     await expect(resolve(config({}))).rejects.toEqual(expect.objectContaining({ code: 'NOT_CONFIGURED', fix: expect.stringContaining('TOIL_DB_HOST') }));
     await expect(resolve(config({ a: { area: 'db', host: 'h' }, b: { area: 'db', host: 'h' } }))).rejects.toEqual(

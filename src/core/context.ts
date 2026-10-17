@@ -1,4 +1,4 @@
-import type { DossierLookup, GitRemoteReader } from './call-context.js';
+import type { DossierLookup, GitRemoteReader, SuppliedSource } from './call-context.js';
 import type { ResolvedConfig } from './config.js';
 import type { ContextReport, Page, Warning } from './envelope.js';
 import type { FileAccess } from './files.js';
@@ -83,6 +83,16 @@ export interface CommandContext<C = undefined, X = Record<string, string | undef
   context: X;
   /** Where each resolved value came from; the same object `meta.context` reports. */
   resolved: ContextReport;
+  /**
+   * Fill a context input from a value the command read itself, such as a
+   * project named in an `--input-file`: `ctx.supply('project', value, 'file')`.
+   * It beats every source but the call's own value, and returns the value to
+   * use, with `ctx.context` and `meta.context` (source `file`) updated to
+   * match. An empty or absent value changes nothing. The input must be one
+   * the command lists in its `context`; mark it optional there when the file
+   * may be what supplies it, since a required one is checked before `run`.
+   */
+  supply: (name: Extract<keyof X, string>, value: string | undefined, source: SuppliedSource) => string | undefined;
   /** Set only for defineConfigCommand commands. */
   manage?: ConfigAccess;
   signal: AbortSignal;

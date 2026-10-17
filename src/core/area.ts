@@ -114,6 +114,12 @@ export interface ContextInput {
    * `--connection` naming a different one is refused, never silently preferred.
    */
   selectsConnection?: boolean;
+  /**
+   * The error when a command that requires this input finds it nowhere, so a
+   * integration keeps the contract's wording ("No project specified…"). `fix`
+   * defaults to core's, which names the flag, the setting and its env var.
+   */
+  missing?: { message: string; fix?: string };
 }
 
 /** A connection as a command receives it: validated, defaults applied. */

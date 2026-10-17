@@ -9,7 +9,9 @@ import { ToilError } from './errors.js';
  * - `offset`: start/limit (`startAt`/`maxResults`), stopping on an empty page
  *   or when `total` is reached
  * - `page`: page/per_page, stopping on a short page, so `pageSize` must not
- *   exceed the server's own maximum (GitHub's is 100) or page 1 looks like the last
+ *   exceed the server's own maximum (GitHub's is 100) or page 1 looks like the last.
+ *   With `total` (SonarQube's `p`/`ps`/`total`), it stops instead once the items
+ *   read reach the total, or on an empty page, and never on a short one
  * - `nextPageStart`: `isLastPage` and `nextPageStart` in the body
  * - `header`: a continuation token in a response header, sent back as a query
  *   parameter (`x-ms-continuationtoken`)
@@ -20,6 +22,8 @@ import { ToilError } from './errors.js';
  * empty: null means the last page was read, anything else resumes exactly.
  * Each page is requested only when the previous one says there is more, which
  * is the procedure; skipping ahead to the last page is a privilege of auditors.
+ * A style with `total` also reports the last total the server gave, an empty
+ * page's included, so a command asked only to count still has the count.
  */
 
 /** What one request yields: the parsed body and the response headers. */
@@ -32,7 +36,7 @@ type Items<T> = (body: unknown) => T[];
 
 export type PageStyle<T> =
   | { kind: 'offset'; startParam: string; limitParam: string; pageSize: number; items: Items<T>; total?: (body: unknown) => number | undefined; first?: number }
-  | { kind: 'page'; pageParam: string; sizeParam: string; pageSize: number; items: Items<T>; first?: number }
+  | { kind: 'page'; pageParam: string; sizeParam: string; pageSize: number; items: Items<T>; total?: (body: unknown) => number | undefined; first?: number }
   | { kind: 'nextPageStart'; startParam: string; limitParam: string; pageSize: number; items?: Items<T> }
   | { kind: 'header'; header: string; param: string; items: Items<T>; params?: Record<string, string | number> }
   | { kind: 'nextPageKey'; param?: string; items: Items<T>; key?: (body: unknown) => string | undefined; params?: Record<string, string | number> };
@@ -58,6 +62,8 @@ export interface Paged<T> {
   items: T[];
   /** Where the next page starts, or null when the last page was read. */
   nextCursor: string | null;
+  /** The total the last page read reported, for a style with `total`; absent when no page gave one. */
+  total?: number;
 }
 
 const field = (body: unknown, name: string): unknown => (typeof body === 'object' && body !== null ? (body as Record<string, unknown>)[name] : undefined);
@@ -78,6 +84,11 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
   const exact = style.kind === 'offset' || style.kind === 'nextPageStart';
   let cursor: string | undefined = initial(style);
   let skip = 0;
+  // Items the server has handed over before the current page, counting from
+  // its first item: what a `page` style with `total` compares. Its cursor
+  // carries the count, because with a total a page needn't be full to have a
+  // next one, so the page number alone can't say how many came before.
+  let counted = 0;
   if (options.cursor !== undefined) {
     if (exact) {
       if (!/^\d+$/.test(options.cursor)) throw badCursor(options.cursor);
@@ -87,10 +98,13 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
       if (style.kind === 'page' && decoded.c !== null && !/^\d+$/.test(decoded.c)) throw badCursor(options.cursor);
       cursor = decoded.c ?? cursor;
       skip = decoded.s;
+      counted = decoded.n ?? 0;
     }
   }
   let nextCursor: string | null = null;
   const seen = new Set<string>();
+  let total: number | undefined;
+  const counts = style.kind === 'page';
 
   for (let pages = 1; ; pages++) {
     if (pages > MAX_PAGES) {
@@ -101,7 +115,11 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
     }
     const page = await fetchPage(params(style, cursor));
     const all = (style.items ?? values<T>)(page.body);
-    const next = advance(style, cursor, all, page);
+    const before = counted;
+    counted += all.length;
+    const reported = (style.kind === 'offset' || style.kind === 'page') && style.total ? style.total(page.body) : undefined;
+    if (typeof reported === 'number') total = reported;
+    const next = advance(style, cursor, all, page, counted, reported);
     const skipped = skip;
     skip = 0;
     const got = all.slice(skipped);
@@ -109,8 +127,8 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
     if (cap !== undefined && items.length + got.length >= cap) {
       const take = cap - items.length;
       items.push(...got.slice(0, take));
-      if (take < got.length) nextCursor = exact ? String(Number(cursor) + take) : encodeCursor(cursor ?? null, skipped + take);
-      else nextCursor = next === null ? null : exact ? next : encodeCursor(next, 0);
+      if (take < got.length) nextCursor = exact ? String(Number(cursor) + take) : encodeCursor(cursor ?? null, skipped + take, counts ? before : undefined);
+      else nextCursor = next === null ? null : exact ? next : encodeCursor(next, 0, counts ? counted : undefined);
       break;
     }
     items.push(...got);
@@ -121,7 +139,7 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
   }
 
   if (cap !== undefined) options.setPage?.({ nextCursor, limit: cap });
-  return { items, nextCursor };
+  return { items, nextCursor, ...(total === undefined ? {} : { total }) };
 }
 
 function initial<T>(style: PageStyle<T>): string | undefined {
@@ -153,16 +171,18 @@ function params<T>(style: PageStyle<T>, cursor: string | undefined): Record<stri
   }
 }
 
-function advance<T>(style: PageStyle<T>, cursor: string | undefined, got: T[], page: FetchedPage): string | null {
+/** `total` is what this page reported, read before the empty-page check so an empty page's total still counts. */
+function advance<T>(style: PageStyle<T>, cursor: string | undefined, got: T[], page: FetchedPage, counted: number, total: number | undefined): string | null {
   switch (style.kind) {
     case 'offset': {
       if (got.length === 0) return null;
       const next = Number(cursor) + got.length;
-      const total = style.total?.(page.body);
-      return typeof total === 'number' && next >= total ? null : String(next);
+      return style.total && typeof total === 'number' && next >= total ? null : String(next);
     }
     case 'page':
-      return got.length === 0 || got.length < style.pageSize ? null : String(Number(cursor) + 1);
+      if (got.length === 0) return null;
+      if (style.total) return typeof total === 'number' && counted >= total ? null : String(Number(cursor) + 1);
+      return got.length < style.pageSize ? null : String(Number(cursor) + 1);
     case 'nextPageStart': {
       const start = field(page.body, 'nextPageStart');
       return field(page.body, 'isLastPage') === true || typeof start !== 'number' ? null : String(start);
@@ -178,15 +198,23 @@ function advance<T>(style: PageStyle<T>, cursor: string | undefined, got: T[], p
   }
 }
 
-/** A page cursor: the page number or token (null for the first page), and items of it already returned. */
-function encodeCursor(c: string | null, s: number): string {
-  return Buffer.from(JSON.stringify({ c, s })).toString('base64url');
+/**
+ * A page cursor: the page number or token (null for the first page), items of
+ * it already returned, and for a page number, the items the server handed over
+ * before that page (`n`).
+ */
+function encodeCursor(c: string | null, s: number, n?: number): string {
+  return Buffer.from(JSON.stringify(n === undefined ? { c, s } : { c, s, n })).toString('base64url');
 }
 
-function decodeCursor(raw: string): { c: string | null; s: number } {
+const count = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= 0;
+
+function decodeCursor(raw: string): { c: string | null; s: number; n?: number } {
   try {
-    const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as { c?: unknown; s?: unknown };
-    if ((parsed.c === null || typeof parsed.c === 'string') && Number.isInteger(parsed.s) && (parsed.s as number) >= 0) return { c: parsed.c, s: parsed.s as number };
+    const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as { c?: unknown; s?: unknown; n?: unknown };
+    if ((parsed.c === null || typeof parsed.c === 'string') && count(parsed.s) && (parsed.n === undefined || count(parsed.n))) {
+      return { c: parsed.c, s: parsed.s, ...(parsed.n === undefined ? {} : { n: parsed.n }) };
+    }
   } catch {
     // fall through to the error
   }

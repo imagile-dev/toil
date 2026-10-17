@@ -1,0 +1,28 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_SONAR_BASE_URL",
+    "description": "SonarQube server root, e.g. https://sonar.imagile.dev",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "token",
+    "env": "TOIL_SONAR_TOKEN",
+    "description": "SonarQube user token",
+    "required": true,
+    "secret": true,
+    "fallbacks": [
+      "SONAR_TOKEN"
+    ]
+  },
+  {
+    "key": "project",
+    "env": "TOIL_SONAR_PROJECT",
+    "description": "Default project key for quality-gate, issues, measures and hotspots",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]
