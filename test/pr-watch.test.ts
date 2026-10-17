@@ -101,6 +101,11 @@ describe('pr-watch events', () => {
     expect(kinds(quiet({ rounds: MAX_ROUNDS, checks: [{ name: 'lint', done: true, failed: true }] }))).toEqual(['checks-failed']);
   });
 
+  it('ignores a dismissed review, so it never spends the round limit', () => {
+    const s = quiet({ rounds: MAX_ROUNDS, reviews: [{ id: 1, trusted: true, state: 'DISMISSED', body: 'Approving round 2.', commit: 'old' }] });
+    expect(kinds(s)).toEqual([]);
+  });
+
   it('reports a merged or closed PR and nothing else', () => {
     expect(kinds(quiet({ state: 'MERGED', comments: [{ id: 5, trusted: true, body: 'x' }] }))).toEqual(['merged']);
   });
