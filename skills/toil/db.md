@@ -94,6 +94,13 @@ through, so the pages are stable.
 whatever the connection's `writes` setting. `db query` runs exactly one statement;
 SQL holding several is refused with `INVALID_INPUT`.
 
+One known gap: SQLite lets two statements touch other files from a read-only
+connection. `ATTACH DATABASE` can open another existing SQLite file for reading, and
+`VACUUM INTO '<file>'` writes a copy of the database to a new file (toil still reports
+it as `WRITE_DISABLED`). Neither changes the connected database. If the files a
+connection can reach matter, run toil as a user that can only read and write what it
+should.
+
 ### Writes
 
 `db execute` is the only command that changes data. It needs both:
@@ -104,7 +111,9 @@ SQL holding several is refused with `INVALID_INPUT`.
 
 Without either it fails with `WRITE_DISABLED` and changes nothing. It runs one or more
 statements, separated by semicolons, in one transaction that commits only if every
-statement succeeds. Don't include `BEGIN` or `COMMIT` yourself.
+statement succeeds. A script that starts or ends a transaction of its own (`BEGIN`,
+`COMMIT`, `END`, `ROLLBACK`, `SAVEPOINT`, `RELEASE`) is refused with `INVALID_INPUT`
+before any of it runs.
 
 ### Time limits and cancelling
 

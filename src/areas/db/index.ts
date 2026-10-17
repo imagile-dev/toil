@@ -146,7 +146,7 @@ export const execute = area.command({
   path: ['db', 'execute'],
   description: 'Run SQL that changes data, in one transaction (needs writes on and --allow-write)',
   toolDescription:
-    'Run one or more SQL statements that change data (INSERT, UPDATE, DELETE, DDL), in one transaction that commits only if every statement succeeds. Returns { changes }: rows inserted, updated or deleted. Only for a change the user asked for; to read, use db_query.',
+    'Run one or more SQL statements that change data (INSERT, UPDATE, DELETE, DDL), in one transaction that commits only if every statement succeeds; leave out BEGIN, COMMIT and ROLLBACK. Returns { changes }: rows inserted, updated or deleted. Only for a change the user asked for; to read, use db_query.',
   input: z.object({ sql: z.string().min(1).describe('SQL to run; several statements separated by semicolons run as one transaction'), ...allowWriteField }),
   writes: true,
   args: [{ name: 'sql', field: 'sql', description: 'SQL to run, quoted' }],

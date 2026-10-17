@@ -115,7 +115,8 @@ const commands = [
           <h2>Writes</h2>
           <p>
             Reads run where the engine itself refuses writes: for SQLite, the file opens read-only. A query that tries to change data fails,
-            whatever it says. Only <code>db execute</code> writes, and it needs <code>"writes": true</code> on the connection in your own config
+            whatever it says. (One gap: SQLite lets <code>VACUUM INTO</code> write a copy of the database to a new file from a read-only
+            connection. The connected database itself is never changed.) Only <code>db execute</code> writes, and it needs <code>"writes": true</code> on the connection in your own config
             and <code>--allow-write</code> on the call. Over MCP, the write tool doesn't exist until writes are on.{' '}
             <a href={url('/how-it-works/#safety')}>How writes are gated</a>.
           </p>

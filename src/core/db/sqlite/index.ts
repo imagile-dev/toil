@@ -76,6 +76,11 @@ function toToilError(err: SqliteWorkerError, conn: DbConnection, write: boolean)
       fix: 'Send one statement per call. To run a script of writes, use toil db execute.',
     });
   }
+  if (f.kind === 'transaction') {
+    return new ToilError('INVALID_INPUT', 'db execute runs the whole script in one transaction, and this SQL starts or ends one of its own (BEGIN, COMMIT, END, ROLLBACK, SAVEPOINT or RELEASE). Nothing was changed.', {
+      fix: 'Remove the transaction statements and send the rest; toil commits only if every statement succeeds.',
+    });
+  }
   if (f.kind === 'empty') return new ToilError('INVALID_INPUT', 'The SQL holds no statement, only comments or semicolons.', { fix: 'Pass the statement to run.' });
   const primary = (f.errcode ?? -1) & 0xff;
   if (primary === 8 && !write) {
@@ -97,7 +102,7 @@ function toToilError(err: SqliteWorkerError, conn: DbConnection, write: boolean)
   if (f.errcode === undefined) {
     return new ToilError('DATABASE', `SQLite: ${f.message}`, { fix: 'Check the SQL and the database file. If it persists, run with --debug and report it.' });
   }
-  return new ToilError('DATABASE', `SQLite: ${f.message}`, { fix: 'Check the SQL against toil db describe for the tables it uses.' });
+  return new ToilError('DATABASE', `SQLite: ${f.message}`, { fix: 'Check the SQL against toil db describe-table for the tables it uses.' });
 }
 
 function rowsOf(result: SqliteStepResult | undefined): unknown[][] {
@@ -105,12 +110,12 @@ function rowsOf(result: SqliteStepResult | undefined): unknown[][] {
 }
 
 function notFoundSchema(conn: DbConnection, schema: string): ToilError {
-  return new ToilError('NOT_FOUND', `Connection ${conn.name} has no schema "${schema}".`, { fix: 'Run toil db schemas to see the schemas it has.' });
+  return new ToilError('NOT_FOUND', `Connection ${conn.name} has no schema "${schema}".`, { fix: 'Run toil db list-schemas to see the schemas it has.' });
 }
 
 function notFoundTable(conn: DbConnection, ref: TableRef): ToilError {
   return new ToilError('NOT_FOUND', `Schema "${ref.schema}" on connection ${conn.name} has no table or view "${ref.table}".`, {
-    fix: `Run toil db tables --schema ${ref.schema} to see what it has.`,
+    fix: `Run toil db list-tables --schema ${ref.schema} to see what it has.`,
   });
 }
 

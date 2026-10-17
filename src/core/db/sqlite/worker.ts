@@ -48,7 +48,7 @@ export interface SqliteFailure {
   message: string;
   code?: string;
   errcode?: number;
-  kind?: 'multiple' | 'empty';
+  kind?: 'multiple' | 'empty' | 'transaction';
 }
 
 type WorkerReply = { ok: true; results: SqliteStepResult[] } | { ok: false; error: SqliteFailure };
@@ -67,6 +67,8 @@ function sqliteWorkerMain(): void {
 
   // Whitespace, semicolons and comments: what may follow the one statement a query runs.
   const trailing = /^(?:\s|;|--[^\n]*(?:\n|$)|\/\*[\s\S]*?(?:\*\/|$))*$/;
+  // A statement that begins, ends or nests a transaction, after any leading comments.
+  const transactionControl = /^(?:\s|;|--[^\n]*(?:\n|$)|\/\*[\s\S]*?\*\/)*(?:BEGIN|COMMIT|END|ROLLBACK|SAVEPOINT|RELEASE)\b/i;
   let db: InstanceType<typeof DatabaseSync> | undefined;
   try {
     db = new DatabaseSync(job.path, { readOnly: !job.write, timeout: job.busyTimeoutMs });
@@ -78,8 +80,22 @@ function sqliteWorkerMain(): void {
         const before = total();
         db.exec('BEGIN');
         try {
-          db.exec(step.sql);
-          if (db.isTransaction) db.exec('COMMIT');
+          // One statement at a time, so a script's own COMMIT or ROLLBACK is
+          // refused before it runs. Run blind, it would end our transaction
+          // and leave the statements before it applied however the rest went.
+          let rest = step.sql;
+          while (!trailing.test(rest)) {
+            const stmt = db.prepare(rest);
+            const source = stmt.sourceSQL;
+            if (transactionControl.test(source)) {
+              throw Object.assign(new Error('The script controls its own transaction.'), { kind: 'transaction' });
+            }
+            stmt.run();
+            // sourceSQL is a prefix of what was prepared; if it ever isn't, stop rather than loop.
+            if (!source || !rest.startsWith(source)) break;
+            rest = rest.slice(source.length);
+          }
+          db.exec('COMMIT');
         } catch (err) {
           if (db.isTransaction) db.exec('ROLLBACK');
           throw err;
@@ -120,8 +136,16 @@ function sqliteWorkerMain(): void {
     }
     reply({ ok: true, results });
   } catch (err) {
-    const e = err as { message?: string; code?: string; errcode?: number };
-    reply({ ok: false, error: { message: String(e.message ?? err), ...(e.code ? { code: e.code } : {}), ...(typeof e.errcode === 'number' ? { errcode: e.errcode } : {}) } });
+    const e = err as { message?: string; code?: string; errcode?: number; kind?: SqliteFailure['kind'] };
+    reply({
+      ok: false,
+      error: {
+        message: String(e.message ?? err),
+        ...(e.code ? { code: e.code } : {}),
+        ...(typeof e.errcode === 'number' ? { errcode: e.errcode } : {}),
+        ...(e.kind ? { kind: e.kind } : {}),
+      },
+    });
   } finally {
     try {
       db?.close();

@@ -265,6 +265,22 @@ for (const target of targets) {
         expect(failed.error?.code).toBe('DATABASE');
         expect(await activeOf(4)).toBe(1);
       });
+
+      it('db execute runs DDL and the statements that depend on it in one script', async () => {
+        const envelope = await run(executeCmd, { sql: 'CREATE TABLE notes (id INTEGER PRIMARY KEY, body VARCHAR(20)); INSERT INTO notes (id, body) VALUES (1, \'a\'), (2, \'b\')', allowWrite: true }, { writes: true });
+        expect(envelope.data).toEqual({ changes: 2 });
+        expect(await ids('SELECT id FROM notes ORDER BY id')).toEqual([1, 2]);
+      });
+
+      it("db execute refuses a script that ends the transaction itself, before running any of it", async () => {
+        for (const control of ['COMMIT', 'ROLLBACK', 'BEGIN', 'END']) {
+          const sql = `UPDATE people SET active = 0 WHERE id = 1; ${control}; UPDATE people SET active = 0 WHERE id = 2; SELECT * FROM no_such_table`;
+          const envelope = await run(executeCmd, { sql, allowWrite: true }, { writes: true });
+          expect(envelope.error?.code, control).toBe('INVALID_INPUT');
+          expect(await activeOf(1), control).toBe(1);
+          expect(await activeOf(2), control).toBe(1);
+        }
+      });
     });
   });
 }

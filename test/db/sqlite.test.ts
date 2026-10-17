@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { execute as executeCmd, listTables, query } from '../../src/areas/db/index.js';
+import { commands, describeTable, execute as executeCmd, listTables, query } from '../../src/areas/db/index.js';
 import type { AnyCommand } from '../../src/core/command.js';
 import { loadConfig, type Settings } from '../../src/core/config.js';
 import { assertNodeSupportsSqlite } from '../../src/core/db/sqlite/index.js';
@@ -73,6 +73,31 @@ describe('sqlite file handling', () => {
     const envelope = await run(query, { sql: `ATTACH DATABASE '${attached}' AS other` }, { engine: 'sqlite', path: db.path, writes: true });
     expect(envelope.ok).toBe(false);
     expect(existsSync(join(db.dir, 'attached.db'))).toBe(false);
+  });
+
+  // A known limit, pinned so it can't change unnoticed. VACUUM INTO writes a
+  // copy of the database to a new file, and SQLite lets it do so from a
+  // read-only connection; Node 22 has no authorizer to stop it. The statement
+  // is still reported as a refused write, and the original is untouched.
+  it('known limit: VACUUM INTO from db query can create a copy of the database', async () => {
+    const copy = join(db.dir, 'copy.db');
+    const envelope = await run(query, { sql: `VACUUM INTO '${copy.replace(/'/g, "''")}'` });
+    expect(envelope.error?.code).toBe('WRITE_DISABLED');
+    expect(existsSync(copy)).toBe(true);
+  });
+
+  it('names only commands that exist in its fixes', async () => {
+    const fixes = [
+      (await run(listTables, { schema: 'nope' })).error?.fix,
+      (await run(describeTable, { table: 'nope' })).error?.fix,
+      (await run(query, { sql: 'SELECT * FROM nope' })).error?.fix,
+      (await run(query, { sql: 'DELETE FROM people' })).error?.fix,
+      (await run(query, { sql: 'SELECT 1; SELECT 2' })).error?.fix,
+    ];
+    const known = new Set(commands.map((c) => c.path.join(' ')));
+    const named = fixes.flatMap((f) => [...(f ?? '').matchAll(/toil (db [a-z-]+)/g)].map((m) => m[1]!));
+    expect(named.length).toBeGreaterThan(0);
+    expect(named.filter((n) => !known.has(n))).toEqual([]);
   });
 
   it('logs the connection name under --debug, never the path', async () => {

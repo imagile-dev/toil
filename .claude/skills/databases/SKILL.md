@@ -38,7 +38,12 @@ one they got.
   carry a fingerprint of the SQL or table and are refused against any other.
 - **Read-only is the engine's job.** `query` must run where the engine itself
   refuses writes, and a refused write maps to `WRITE_DISABLED` from the engine's
-  error code, never from reading the SQL.
+  error code, never from reading the SQL. Where the engine has a hole, pin it with a test and
+  document it rather than patch it with SQL parsing: SQLite's `VACUUM INTO` writes a
+  copy to a new file even from a read-only connection (`test/db/sqlite.test.ts`).
+- **`execute` is all or nothing.** A script that starts or ends its own transaction
+  is refused before any of it runs, so a mid-script `COMMIT` can't leave half a
+  change applied.
 - **Adding an engine:** write `src/core/db/<engine>/` implementing `DbProvider`,
   add it to `providers` in `src/core/db/engines.ts`, add its connection keys
   (optional in the zod schema in `src/areas/db/index.ts`, listed in the provider's
