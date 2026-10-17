@@ -1,9 +1,10 @@
 import { join, resolve } from 'node:path';
-import { commandName, type AnyCommand } from './core/command.js';
+import { commandName, needsConfig, type AnyCommand } from './core/command.js';
 import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
 import { nodeFiles, resolveWorkspace } from './core/files.js';
 import { createGitRunner } from './core/git.js';
+import { findGitRepo, readGitRemotes } from './core/git-repo.js';
 import type { SecretStore } from './core/keychain.js';
 import type { Prompter } from './core/prompt.js';
 import type { GlobalOptions } from './program.js';
@@ -52,13 +53,13 @@ export function timeoutFromEnv(env: NodeJS.ProcessEnv): number | undefined {
 }
 
 /**
- * The real context for one command in a Node process. A standalone command
- * needs no config, so it doesn't load any: a broken file, or one written by a
+ * The real context for one command in a Node process. A standalone or
+ * area-local command needs no config, so it doesn't load any: a broken file, or one written by a
  * newer toil, can't stop `toil version` from answering. That's how you find out
  * which toil you have before being told to upgrade it.
  */
 export function createNodeContext(o: NodeContextOptions): Context {
-  const config = o.def?.standalone ? emptyConfig() : loadConfig({ env: o.env, cwd: o.cwd, home: o.home, configPath: o.globals.config, areas: o.areas });
+  const config = o.def && !needsConfig(o.def) ? emptyConfig() : loadConfig({ env: o.env, cwd: o.cwd, home: o.home, configPath: o.globals.config, areas: o.areas });
   const mcp = o.stdin === false;
   const workspace = resolveWorkspace({ flag: o.globals.workspace, env: o.env, cwd: o.cwd, mcp, roots: o.roots });
   return {
@@ -75,6 +76,17 @@ export function createNodeContext(o: NodeContextOptions): Context {
       env: o.env,
       protect: ownFiles(o.home, o.cwd, o.globals.config),
     }),
+    // Area context from the workspace's `origin` remote, read from .git in pure
+    // JS, so --project and --repo come from the remote with no git installed.
+    // The URL is cut at its first space, as the `git remote -v` parsing it
+    // replaces did.
+    gitRemote: async () => {
+      if (!workspace.dir) return undefined;
+      const guard = { home: o.home, env: o.env, protect: ownFiles(o.home, o.cwd, o.globals.config) };
+      const repo = findGitRepo(workspace.dir, guard);
+      const origin = repo ? readGitRemotes(repo, guard).find((r) => r.name === 'origin') : undefined;
+      return origin ? { name: origin.name, url: origin.url.split(' ')[0]! } : undefined;
+    },
     // Looked up only when a command runs git, so nothing else notices it's missing.
     git: createGitRunner({
       command: o.def ? commandName(o.def) : 'mcp',

@@ -95,8 +95,10 @@ TTYs); prompts go to stderr so stdout stays one envelope. Without a terminal the
 fail with a fix naming the `TOIL_CONN_<NAME>_*` variables. They ask for exactly the
 keys the area declares, secrets hidden, so a token area is never asked for a
 username and password (the Authentication Bar in the `integrations` skill).
-Setup commands are `cliOnly`: never MCP tools, since stdin is the protocol there and
-agents never create or change connections.
+Setup commands are of kind `cli-only`: never MCP tools, since stdin is the protocol
+there and agents never create or change connections. A secret an area declares as a
+`password` (`defineArea({ secrets: { password: 'password' } })`) is asked for as one;
+every other secret is a token.
 
 ## Verifying
 

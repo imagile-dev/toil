@@ -191,6 +191,18 @@ describe('which folder is the workspace', () => {
   });
 });
 
+describe('the git remote for area context', () => {
+  it("reads the workspace's origin from .git with PATH emptied, nothing spawned", async () => {
+    const repo = join(root, 'remote-repo');
+    mkdirSync(join(repo, '.git', 'refs', 'heads'), { recursive: true });
+    writeFileSync(join(repo, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    writeFileSync(join(repo, '.git', 'config'), '[remote "upstream"]\n\turl = git@github.com:imagile/other.git\n[remote "origin"]\n\turl = https://bitbucket.imagile.dev/scm/PROJ/widgets.git\n');
+    const ctx = nodeContext({ env: { PATH: '' }, globals: { workspace: repo } });
+    expect(await ctx.gitRemote!(new AbortController().signal)).toEqual({ name: 'origin', url: 'https://bitbucket.imagile.dev/scm/PROJ/widgets.git' });
+    expect(await nodeContext({ env: { PATH: '' }, globals: { workspace: other } }).gitRemote!(new AbortController().signal)).toBeUndefined();
+  });
+});
+
 describe('a refused git include during a listing', () => {
   it('lands in meta.warnings as GIT_INCLUDE_REFUSED', async () => {
     const repo = join(root, 'repo');
@@ -270,8 +282,8 @@ describe('relaxing the file bound', () => {
     const env = {};
     let stdout = '';
     const area = defineCommand({ ...readProbe, path: ['probe', 'read-config'] });
-    // Standalone commands skip config, so give this one config the way an area command loads it.
-    const withConfig = { ...area, standalone: false } as AnyCommand;
+    // Standalone commands skip config; a config-kind command loads it the way an area command does.
+    const withConfig = { ...area, kind: 'config' } as AnyCommand;
     await runProgram(
       {
         commands: [withConfig],

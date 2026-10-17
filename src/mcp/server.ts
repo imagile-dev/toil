@@ -2,7 +2,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { fileURLToPath } from 'node:url';
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError, RootsListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { areaOf, commandName, toolName, type AnyCommand } from '../core/command.js';
+import { areaOf, commandName, isCliOnly, toolName, usesConnection, type AnyCommand } from '../core/command.js';
 import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
@@ -17,9 +17,11 @@ import { runCommand } from '../core/run.js';
  * discovered, let alone called. Listing grants nothing; each call is still
  * gated against the one connection it resolves.
  *
- * A `cliOnly` command is never a tool, whatever the flags: it prompts on a
+ * A `cli-only` command is never a tool, whatever the flags: it prompts on a
  * terminal, which under MCP is the protocol, or it changes connections, which
- * an agent never does.
+ * an agent never does. A command that needs no connection (standalone,
+ * config, area-local such as `jira schema`) is served without --areas whether
+ * or not its area is set up. Aliases stay on the CLI: one tool per command.
  */
 export function selectCommands(commands: AnyCommand[], areas: string[] | undefined, config: ResolvedConfig): AnyCommand[] {
   if (areas) {
@@ -31,9 +33,9 @@ export function selectCommands(commands: AnyCommand[], areas: string[] | undefin
       });
     }
   }
-  // A command outside any area (version, connections list) needs no area set up.
-  const inScope = (def: AnyCommand) => (areas ? areas.includes(areaOf(def)) : !def.area || hasConfig(config, areaOf(def)));
-  return commands.filter((def) => !def.cliOnly && inScope(def) && (!def.writes || anyWrites(config, areaOf(def))));
+  // A command with no connection (version, connections list, jira schema) needs no area set up.
+  const inScope = (def: AnyCommand) => (areas ? areas.includes(areaOf(def)) : !usesConnection(def) || hasConfig(config, areaOf(def)));
+  return commands.filter((def) => !isCliOnly(def) && inScope(def) && (!def.writes || anyWrites(config, areaOf(def))));
 }
 
 /**
@@ -47,8 +49,8 @@ export function selectCommands(commands: AnyCommand[], areas: string[] | undefin
  * bad input as well as good.
  *
  * `context` is a factory, called once with no command to decide which tools
- * to list, and once per tool call with the command (so standalone ones skip
- * config, as on the CLI) and that call's cancellation signal. One context per call is
+ * to list, and once per tool call with the command (so standalone and
+ * area-local ones skip config, as on the CLI) and that call's cancellation signal. One context per call is
  * what a shared transport (the planned gateway) needs, and it lets a client's
  * cancel stop the request it belongs to.
  *

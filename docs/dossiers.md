@@ -205,9 +205,11 @@ Changing it is an explicit replace (`--replace`), never a silent second copy.
 For each command, toil works out the dossier, the repo and the environment from one
 resolver, **fed identically by both front doors**:
 
-1. **Explicit input:** `dossier` and `env` (`--dossier`, `--env` on the CLI), or
-   `TOIL_DOSSIER` and `TOIL_ENV`. `dossier` is a name, or a path to a dossier file, so
-   a pipeline can use a checked-in dossier with no home folder.
+1. **Explicit input:** `dossier` (`--dossier` on the CLI, or `TOIL_DOSSIER`), a name
+   or a path to a dossier file, so a pipeline can use a checked-in dossier with no
+   home folder. The environment is not a separate flag: it's the `env` context input
+   of each area that has environments (`--env`), and the dossier's environment
+   supplies that same input when the call leaves it out (see below).
 2. **Otherwise a folder, `cwd`.** `cwd` is an input on every command that resolves
    context, on both front doors (`--cwd <dir>` on the CLI, `cwd` over MCP). The name
    says what it stands in for, and it can't clash with a command's own path input
@@ -224,19 +226,42 @@ resolver, **fed identically by both front doors**:
 4. **Otherwise** there is no dossier, and commands need their keys as inputs, exactly
    as without dossiers.
 
-Explicit inputs always beat dossier defaults. `meta.context` in the envelope reports
-what was resolved and from where: the dossier and its `source`, the repo, the
-environment, the connection per area and how it was selected (name, host or default),
-and whether the folder came from the `cwd` input, the CLI's working directory or an
-MCP root. Dossiers are
+Explicit inputs always beat dossier defaults. Inside a command, the dossier is step 2
+of core's context resolver (`resolveCall` in `src/core/call-context.ts`), through its
+`DossierLookup` seam: for each context input an area declares, and for `connection`,
+the order is the call's own value, then the dossier, then the git remote where the
+area reads one, then the connection's setting, then the area's default. Until this
+plan lands the seam returns nothing.
+
+**One `--env`.** "Which environment" is one input everywhere: an explicit `--env`
+wins, otherwise the dossier's environment fills it through the resolver, and an
+environment the area doesn't know is an `INVALID_INPUT` listing the ones it has.
+`--help` says so (`--env <name>`: the environment; defaults to your dossier's
+environment, then the connection's). This plan also adds a context view, `toil
+dossiers show`, printing the resolved environment and connection per area.
+
+**Writes ask once.** A connection the dossier chose (or the git remote, through a
+selecting input) is a suggestion: reads follow it, but a write on it is
+`WRITE_DISABLED` until the user adopts that binding, which `toil dossiers import`
+records. Core already refuses such writes; this plan supplies the adoption
+(`Context.adopted`), after which writes work normally.
+
+`meta.context` in the envelope reports what was resolved and from where. Today it
+holds `{ connection, inputs, shared }`: the connection and each context input as `{
+value, source }` (source `input`, `dossier`, `git`, `connection` or `default`, with
+`via` when an input selected the connection), and any setting taken from another
+area's connection. Dossiers add the dossier and its `source`, a connection selected
+by host, and whether the folder came from the `cwd` input, the CLI's working
+directory or an MCP root. Dossiers are
 read on every call, so an edit made while `toil mcp` is running applies from the next
 call; the tool list never depends on dossier content.
 
 ### The filesystem the server sees
 
-Every file location is an explicit input on both front doors: `cwd`, `--repo`, a
-dossier file, an import source. That keeps the CLI and MCP 1:1. The defaults are the
-only difference, and `meta.context` names them. The server can only use paths on its
+Every file location is an explicit input on both front doors: `cwd`, a dossier
+file, an import source. (`--repo` is a context input naming a repository in a
+service, not a folder.) That keeps the CLI and MCP 1:1. The defaults are the
+only difference, and `meta.context` will name them once `cwd` arrives with this plan. The server can only use paths on its
 own filesystem, so:
 
 - MCP roots arrive as `file://` URIs and are converted with Node's own URL handling,

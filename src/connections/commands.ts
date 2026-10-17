@@ -50,7 +50,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       area: z.string().optional().describe('The area it connects to; asked for when left out'),
     }),
     writes: false,
-    cliOnly: true,
+    kind: 'cli-only',
     args: [{ name: 'name', field: 'name', description: 'Connection name, e.g. corp-jira' }],
     options: [
       { flags: '--area <area>', field: 'area', description: 'The area it connects to (asked for when left out)' },
@@ -99,7 +99,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       name: z.string().describe('Connection name'),
     }),
     writes: false,
-    cliOnly: true,
+    kind: 'cli-only',
     args: [{ name: 'name', field: 'name', description: 'Connection name' }],
     examples: [{ name: 'corp-jira' }],
     run: async (input, ctx) => {
@@ -116,7 +116,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
 
       const entered: Record<string, string> = {};
       for (const key of keys) {
-        const value = await prompt.askSecret(label(area, key));
+        const value = await prompt.askSecret(secretLabel(area, key));
         if (value !== '') entered[key] = value;
       }
       if (Object.keys(entered).length === 0) throw new ToilError('INVALID_INPUT', 'Nothing was entered, so nothing changed.', { fix: `Run toil connections login ${input.name} again.` });
@@ -177,7 +177,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     description: 'Remove a connection from config, and its secrets from the OS credential store',
     input: z.object({ name: z.string().describe('Connection name') }),
     writes: false,
-    cliOnly: true,
+    kind: 'cli-only',
     args: [{ name: 'name', field: 'name', description: 'Connection name' }],
     examples: [{ name: 'corp-jira' }],
     run: async (input, ctx) => {
@@ -240,6 +240,11 @@ function label(area: AnyArea, key: string): string {
   return description ? `${key} (${description})` : key;
 }
 
+/** A password is asked for as one, so nobody pastes a token where a database expects their password. */
+function secretLabel(area: AnyArea, key: string): string {
+  return area.secretKinds[key] === 'password' ? `${label(area, key)} [password]` : label(area, key);
+}
+
 /**
  * Asks for every setting the area declares, defaults from defineArea shown
  * and kept on an empty answer, then for its secrets without echo. Only the
@@ -261,7 +266,7 @@ async function askSettings(prompt: Prompter, area: AnyArea): Promise<{ settings:
   }
   const secretValues: Record<string, string> = {};
   for (const key of secretKeys) {
-    const value = await prompt.askSecret(label(area, key));
+    const value = await prompt.askSecret(secretLabel(area, key));
     if (value !== '') secretValues[key] = value;
   }
   return { settings, secretValues };
