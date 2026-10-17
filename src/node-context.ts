@@ -29,6 +29,21 @@ export interface NodeContextOptions {
   prompt?: Prompter | undefined;
 }
 
+/** toil's own files: the config home and the --config file. Nothing reads or writes them for a command. */
+export function ownFiles(home: string, cwd: string, configFlag: string | undefined): string[] {
+  return [join(home, '.toil'), ...(configFlag ? [resolve(cwd, configFlag)] : [])];
+}
+
+/**
+ * `--output-file`, the one file flag that may write outside the workspace: the
+ * person typing it chose the path, and it's never an MCP input. It still
+ * refuses toil's own files and /proc and /sys, and never overwrites
+ * (docs/bounds.md, `output-file`).
+ */
+export function writeOutputFile(o: { path: string; content: string; cwd: string; home: string; config?: string | undefined }): void {
+  nodeFiles({ cwd: o.cwd, stdin: true, unbounded: true, protect: ownFiles(o.home, o.cwd, o.config) }).writeBytes(o.path, new TextEncoder().encode(o.content));
+}
+
 /** TOIL_TIMEOUT_MS, when it's a positive number; otherwise execute()'s default. */
 export function timeoutFromEnv(env: NodeJS.ProcessEnv): number | undefined {
   const raw = env.TOIL_TIMEOUT_MS;
@@ -58,7 +73,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
       unbounded: config.bounds?.files === 'unbounded',
       home: o.home,
       env: o.env,
-      protect: [join(o.home, '.toil'), ...(o.globals.config ? [resolve(o.cwd, o.globals.config)] : [])],
+      protect: ownFiles(o.home, o.cwd, o.globals.config),
     }),
     // Looked up only when a command runs git, so nothing else notices it's missing.
     git: createGitRunner({

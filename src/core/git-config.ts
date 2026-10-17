@@ -47,6 +47,11 @@ export function readGitConfigFiles(files: readonly string[], ctx: IncludeContext
 
 function readInto(file: string, ctx: IncludeContext, out: GitConfigEntry[], depth: number): void {
   if (depth > MAX_INCLUDE_DEPTH || !existsSync(file)) return;
+  // The global config is found by name, so it passes the same check an include does.
+  if (depth === 0 && refusedGitRead(file, ctx.home, ctx.protect)) {
+    ctx.warn?.({ code: 'GIT_INCLUDE_REFUSED', message: `toil doesn't read ${slashes(file)} as git config: it's toil's own file, or under /proc or /sys. It was skipped.` });
+    return;
+  }
   let text: string;
   try {
     text = readFileSync(file, 'utf8');
@@ -57,7 +62,7 @@ function readInto(file: string, ctx: IncludeContext, out: GitConfigEntry[], dept
     out.push(entry);
     const include = includeTarget(entry, ctx);
     if (!include) continue;
-    if (refusedInclude(include, ctx)) {
+    if (refusedGitRead(include, ctx.home, ctx.protect)) {
       ctx.warn?.({ code: 'GIT_INCLUDE_REFUSED', message: `git config in ${slashes(entry.file)} includes ${slashes(include)}, which toil doesn't read (its own files, /proc or /sys); the include was skipped.` });
       continue;
     }
@@ -66,12 +71,13 @@ function readInto(file: string, ctx: IncludeContext, out: GitConfigEntry[], dept
 }
 
 /**
- * An include may name any file, so it gets the same refusals as a file a
- * command is handed (docs/bounds.md): toil's own config and `/proc` and
- * `/sys`, judged after realpath. The values would only reach remote and branch
- * parsing, but the refusal is cheaper than the argument.
+ * Every git metadata file read above or beside the workspace (an include, the
+ * global config, a `gitdir:` target, a parent `.gitignore`) gets the same
+ * refusals as a file a command is handed (docs/bounds.md): toil's own config
+ * and `/proc` and `/sys`, judged after realpath. The values would only reach
+ * remote and branch parsing, but the refusal is cheaper than the argument.
  */
-function refusedInclude(path: string, ctx: IncludeContext): boolean {
+export function refusedGitRead(path: string, home: string, protect: readonly string[] = []): boolean {
   let real = resolve(path);
   try {
     real = realpathSync.native(real);
@@ -81,7 +87,7 @@ function refusedInclude(path: string, ctx: IncludeContext): boolean {
   if (isSystemPath(real)) return true;
   const fold = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
   const target = fold(real);
-  return [join(ctx.home, '.toil'), ...(ctx.protect ?? [])].some((p) => {
+  return [join(home, '.toil'), ...protect].some((p) => {
     let g = resolve(p);
     try {
       g = realpathSync.native(g);

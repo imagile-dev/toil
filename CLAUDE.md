@@ -80,10 +80,11 @@ gets made again in the next place it applies.
   separator, a drive letter, or `~`. Paths in JSON output use forward slashes;
   paths on disk use the platform's own form.
 - Never spawn through a shell (`shell: true`, `exec`), and never assume bash,
-  PowerShell, or a POSIX utility. In toil's own code, the only spawns allowed are the
-  OS credential stores in the `secrets` skill, all in `src/core/keychain.ts`, each
-  behind a platform check, and git, in `src/core/git.ts` (No Executables). Repo
-  tooling may spawn `git` and `gh`, without a shell.
+  PowerShell, or a POSIX utility. toil itself runs only git and the OS credential
+  stores; repo tooling may also run tools developers already have (git, gh, a
+  browser, node), never through a shell. The credential stores are in
+  `src/core/keychain.ts`, each behind a platform check (`secrets` skill), and git
+  is in `src/core/git.ts` (No Executables).
 - Read files as UTF-8 and accept both CRLF and LF; write LF. `.gitattributes` keeps
   the repo LF so Windows checkouts produce identical bundles.
 - Config lives in `~/.toil/` on every platform, so instructions are identical.
@@ -137,8 +138,9 @@ Node, and toil has to work there. This is the most important rule in the repo.
     list, and `--end-of-options` / `--` before user values; turns off what
     repository config can make it run (`-c core.fsmonitor=`,
     `-c log.showSignature=false`, `--no-ext-diff`, `--no-textconv`, no pager); sets
-    `GIT_TERMINAL_PROMPT=0` and `GIT_OPTIONAL_LOCKS=0`; and cancels it with the
-    command's signal. It needs git 2.24 or later (`--end-of-options`); an older git
+    `GIT_TERMINAL_PROMPT=0` and `GIT_OPTIONAL_LOCKS=0`; passes git only an
+    allowlist of the caller's env (PATH, home, locale, temp, the Windows system
+    variables), so no token reaches it; and cancels it with the command's signal. It needs git 2.24 or later (`--end-of-options`); an older git
     gets `GIT_NOT_FOUND` saying so.
 
 ## Secrets

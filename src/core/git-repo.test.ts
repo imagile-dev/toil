@@ -134,6 +134,19 @@ describe('readGitContext, with no git anywhere', () => {
     expect(warnings).toEqual(process.platform === 'win32' ? ['GIT_INCLUDE_REFUSED', 'GIT_INCLUDE_REFUSED'] : ['GIT_INCLUDE_REFUSED', 'GIT_INCLUDE_REFUSED', 'GIT_INCLUDE_REFUSED']);
   });
 
+  it("refuses read-up into toil's own files: a gitdir: pointing there, and a global config there", () => {
+    const { home, work, root } = handRepo('');
+    put(join(home, '.toil', 'HEAD'), 'ref: refs/heads/main\n');
+    const checkout = join(root, 'pointing');
+    put(join(checkout, '.git'), `gitdir: ${join(home, '.toil')}\n`);
+    expect(findGitRepo(checkout, { home })).toBeUndefined();
+    put(join(home, '.toil', 'config.json'), '[remote "leak"]\n\turl = https://bitbucket.imagile.dev/scm/P/leak.git\n');
+    const warnings: string[] = [];
+    const remotes = readGitRemotes(findGitRepo(work, { home })!, { home, env: { GIT_CONFIG_GLOBAL: join(home, '.toil', 'config.json') }, warn: (w) => warnings.push(w.code) });
+    expect(remotes).toEqual([]);
+    expect(warnings).toEqual(['GIT_INCLUDE_REFUSED']);
+  });
+
   it('reads XDG_CONFIG_HOME, or only GIT_CONFIG_GLOBAL when that is set', () => {
     const { home, work, root } = handRepo('');
     put(join(root, 'xdg', 'git', 'config'), '[remote "xdg"]\n\turl = https://bitbucket.imagile.dev/scm/P/xdg.git\n');

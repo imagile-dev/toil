@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { ListRootsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { defineCommand, type AnyCommand } from '../src/core/command.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { createMcpServer } from '../src/mcp/server.js';
-import { createNodeContext } from '../src/node-context.js';
+import { createNodeContext, writeOutputFile } from '../src/node-context.js';
 import { runProgram, type GlobalOptions } from '../src/program.js';
 import { connectMcp } from './harness/mcp.js';
 
@@ -188,6 +188,45 @@ describe('which folder is the workspace', () => {
     const pinned = await mcpWithRoots([cwd, other], { TOIL_WORKSPACE: other });
     expect((await pinned.call({ file: 'a.txt' })).data).toMatchObject({ text: 'from other' });
     await pinned.close();
+  });
+});
+
+describe('--output-file', () => {
+  const write = (path: string) => writeOutputFile({ path, content: '{}\n', cwd, home, config: join(home, 'custom.json') });
+
+  it('may write outside the workspace, but never over a file, into toil\'s own files, or the --config file', () => {
+    const target = join(root, 'elsewhere', 'out.json');
+    write(target);
+    expect(readFileSync(target, 'utf8')).toBe('{}\n');
+    expect(() => write(target)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('already exists') }));
+    expect(() => write(join(home, '.toil', 'config.json'))).toThrow(expect.objectContaining({ message: expect.stringContaining("toil's own configuration") }));
+    expect(() => write(join(home, 'custom.json'))).toThrow(expect.objectContaining({ message: expect.stringContaining("toil's own configuration") }));
+  });
+
+  it('puts the refusal on stdout, exit code 1, when the file cannot be written', async () => {
+    let stdout = '';
+    const exitCode = await runProgram(
+      {
+        commands: probes,
+        version: '0.0.0-test',
+        io: { stdout: (t) => (stdout += t), stderr: () => {}, writeFile: (path) => write(path) },
+        createContext: (globals, def) => nodeContext({ env: {}, globals, def }),
+        startMcp: async () => {},
+      },
+      ['--output-file', join(home, '.toil', 'out.json'), 'probe', 'read', 'a.txt'],
+      'user',
+    );
+    expect(exitCode).toBe(1);
+    expect(JSON.parse(stdout).error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("toil's own configuration") });
+  });
+});
+
+describe('over MCP, no tool input chooses a config file', () => {
+  it('refuses a config field as INVALID_INPUT, so the server keeps the config it was started with', async () => {
+    const session = await connectMcp({ commands: probes, context: nodeContext({ env: {}, globals: { workspace: cwd }, mcp: true, def: readProbe }) });
+    const result = await session.call('probe_read', { file: 'a.txt', config: join(home, 'unbounded.json') });
+    await session.close();
+    expect(result.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('config') });
   });
 });
 

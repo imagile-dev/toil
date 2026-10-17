@@ -1,4 +1,3 @@
-import { writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { AnyCommand } from './core/command.js';
@@ -7,7 +6,7 @@ import type { Context } from './core/context.js';
 import { createSecretStore } from './core/keychain.js';
 import { terminalPrompter } from './core/prompt.js';
 import { createMcpServer } from './mcp/server.js';
-import { createNodeContext } from './node-context.js';
+import { createNodeContext, writeOutputFile } from './node-context.js';
 import { runProgram, type GlobalOptions } from './program.js';
 import { areas, commands } from './registry.js';
 import { VERSION } from './version.js';
@@ -59,7 +58,7 @@ try {
       io: {
         stdout: (text) => process.stdout.write(text),
         stderr: (text) => process.stderr.write(text),
-        writeFile: (path, content) => writeFileSync(path, content, 'utf8'),
+        writeFile: (path, content, globals) => writeOutputFile({ path, content, cwd: process.cwd(), home: homedir(), config: globals.config }),
       },
       createContext: (globals, def) => createContext(globals, def),
       startMcp: async ({ areas, globals }) => {

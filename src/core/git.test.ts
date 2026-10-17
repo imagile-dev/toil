@@ -64,9 +64,18 @@ describe('gitArgv: the safeguards are always there', () => {
     expect(() => gitArgv({ subcommand: 'push' as never })).toThrow(expect.objectContaining({ code: 'INTERNAL' }));
   });
 
-  it('runs git with prompts and optional locks off, and no TOIL_* variable in its env', () => {
-    const env = gitEnv({ PATH: '/usr/bin', TOIL_JIRA_API_TOKEN: 'secret', toil_lower: 'x', HOME: '/home/u', GIT_TERMINAL_PROMPT: '1' });
-    expect(env).toEqual({ PATH: '/usr/bin', HOME: '/home/u', GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0' });
+  it('gives git only the allowlisted env, prompts and optional locks off, so no token (TOIL_*, GITHUB_TOKEN, SYSTEM_ACCESSTOKEN) reaches it', () => {
+    const env = gitEnv({
+      PATH: '/usr/bin', Path: 'C:/Windows', HOME: '/home/u', USERPROFILE: 'C:/Users/u', LANG: 'en_US.UTF-8', LC_ALL: 'C', TMPDIR: '/tmp', TEMP: 'C:/t', TMP: 'C:/t',
+      SystemRoot: 'C:/Windows', COMSPEC: 'cmd', PATHEXT: '.EXE', APPDATA: 'a', LOCALAPPDATA: 'l', HOMEDRIVE: 'C:', HOMEPATH: '/Users/u',
+      TOIL_JIRA_API_TOKEN: 'secret', GITHUB_TOKEN: 'ghp_secret', SYSTEM_ACCESSTOKEN: 'ado-secret', GIT_ASKPASS: 'x', GIT_CONFIG_GLOBAL: '/x', AWS_SECRET_ACCESS_KEY: 'k', GIT_TERMINAL_PROMPT: '1',
+    });
+    expect(env).toEqual({
+      PATH: '/usr/bin', Path: 'C:/Windows', HOME: '/home/u', USERPROFILE: 'C:/Users/u', LANG: 'en_US.UTF-8', LC_ALL: 'C', TMPDIR: '/tmp', TEMP: 'C:/t', TMP: 'C:/t',
+      SystemRoot: 'C:/Windows', COMSPEC: 'cmd', PATHEXT: '.EXE', APPDATA: 'a', LOCALAPPDATA: 'l', HOMEDRIVE: 'C:', HOMEPATH: '/Users/u',
+      GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0',
+    });
+    expect(JSON.stringify(env)).not.toMatch(/secret|GITHUB_TOKEN|SYSTEM_ACCESSTOKEN/);
   });
 });
 

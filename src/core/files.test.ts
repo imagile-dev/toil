@@ -240,7 +240,7 @@ describe('resolveWorkspace', () => {
     const several = resolveWorkspace({ env: {}, cwd: r, mcp: true, roots: [join(r, 'root1'), join(r, 'root2')] });
     expect(several.dir).toBeUndefined();
     expect(several.error).toMatchObject({ code: 'NOT_CONFIGURED', message: expect.stringContaining('shared 2 roots'), fix: expect.stringContaining('--workspace <dir>') });
-    expect(resolveWorkspace({ env: {}, cwd: r, mcp: true }).error).toMatchObject({ code: 'NOT_CONFIGURED', message: 'No workspace folder is set, and this command reads or writes files.' });
+    expect(resolveWorkspace({ env: {}, cwd: r, mcp: true }).error).toMatchObject({ code: 'NOT_CONFIGURED', message: "This command reads or writes files, but there's no workspace folder to keep them in." });
   });
 
   it('defers a workspace that is not a folder to the first file operation', () => {

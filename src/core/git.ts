@@ -25,7 +25,8 @@ import { ToilError } from './errors.js';
  *     config still run on `status` and `diff`, as they would for git itself
  *     (docs/bounds.md)
  *   - no prompts (GIT_TERMINAL_PROMPT=0, stdin closed), no optional index
- *     writes (GIT_OPTIONAL_LOCKS=0), and no TOIL_* variables in git's env
+ *     writes (GIT_OPTIONAL_LOCKS=0), and an allowlisted environment, so no
+ *     token on the machine reaches git
  *   - async, cancelled with the command's own signal
  *
  * One exception, approved in writing, reviewed annually, and scoped tighter
@@ -101,10 +102,18 @@ export function gitArgv(call: GitCall): string[] {
   return argv;
 }
 
-/** git's environment: the caller's, minus every TOIL_* variable, with prompts and optional locks off. */
+/**
+ * The only variables git gets from the caller: where to find programs and
+ * home, the locale, the temp folder, and the Windows system variables git
+ * needs to start. Nothing else, so no token in the environment (TOIL_*,
+ * GITHUB_TOKEN, SYSTEM_ACCESSTOKEN) reaches the child.
+ */
+const GIT_ENV_ALLOWED = /^(PATH|HOME|USERPROFILE|LANG|LC_[A-Z_]+|TMP|TEMP|TMPDIR|SYSTEMROOT|COMSPEC|PATHEXT|APPDATA|LOCALAPPDATA|HOMEDRIVE|HOMEPATH)$/i;
+
+/** git's environment: the allowlist above, with prompts and optional locks off. */
 export function gitEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const out: NodeJS.ProcessEnv = {};
-  for (const [key, value] of Object.entries(env)) if (!/^TOIL_/i.test(key)) out[key] = value;
+  for (const [key, value] of Object.entries(env)) if (GIT_ENV_ALLOWED.test(key)) out[key] = value;
   out.GIT_TERMINAL_PROMPT = '0';
   out.GIT_OPTIONAL_LOCKS = '0';
   return out;

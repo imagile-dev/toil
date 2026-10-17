@@ -23,8 +23,8 @@ export interface Bound {
 
 export const BOUNDS: readonly Bound[] = [
   { id: 'files.workspace', enforcedIn: ['src/core/files.ts'], errors: ['INVALID_INPUT', 'NOT_CONFIGURED'], relaxedBy: '"bounds": { "files": "unbounded" }', securityClass: false },
-  { id: 'files.own', enforcedIn: ['src/core/files.ts', 'src/node-context.ts'], errors: ['INVALID_INPUT'], securityClass: true },
-  { id: 'files.system', enforcedIn: ['src/core/files.ts'], errors: ['INVALID_INPUT'], securityClass: true },
+  { id: 'files.own', enforcedIn: ['src/core/files.ts', 'src/node-context.ts', 'src/core/git-config.ts'], errors: ['INVALID_INPUT'], securityClass: true },
+  { id: 'files.system', enforcedIn: ['src/core/files.ts', 'src/core/git-config.ts'], errors: ['INVALID_INPUT'], securityClass: true },
   { id: 'files.no-overwrite', enforcedIn: ['src/core/files.ts'], errors: ['INVALID_INPUT'], securityClass: true },
   { id: 'credentials.host', enforcedIn: ['src/core/rest.ts', 'src/areas/jira/attachments.ts'], errors: [], securityClass: true },
   { id: 'secrets.storage', enforcedIn: ['src/core/connection.ts'], errors: ['CONFIG_INVALID'], securityClass: true },
@@ -44,4 +44,5 @@ export interface BoundException {
 
 export const BOUND_EXCEPTIONS: readonly BoundException[] = [
   { id: 'git.read-up', bound: 'files.workspace', enforcedIn: ['src/core/git-repo.ts', 'src/core/git-config.ts', 'src/core/files.ts'] },
+  { id: 'output-file', bound: 'files.workspace', enforcedIn: ['src/node-context.ts', 'src/program.ts'] },
 ];

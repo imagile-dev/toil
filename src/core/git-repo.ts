@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
-import { gitBool, lastValue, readGitConfigFiles, type GitConfigEntry } from './git-config.js';
+import { homedir } from 'node:os';
+import { gitBool, lastValue, readGitConfigFiles, refusedGitRead, type GitConfigEntry } from './git-config.js';
 
 /**
  * Reads a repository's metadata straight from `.git`, with no git binary:
@@ -75,13 +76,21 @@ const isDir = (path: string) => {
 const looksLikeGitDir = (dir: string) => existsSync(join(dir, 'HEAD'));
 
 /** The git directory a `.git` entry stands for: the folder itself, or where a `gitdir:` file points. */
-function gitDirOf(dotGit: string): string | undefined {
+function gitDirOf(dotGit: string, guard: Guard): string | undefined {
   if (isDir(dotGit)) return looksLikeGitDir(dotGit) ? dotGit : undefined;
   const text = readText(dotGit);
   const match = text?.match(/^gitdir: *(.+?)\s*$/m);
   if (!match) return undefined;
   const target = isAbsolute(match[1]!) ? match[1]! : resolve(dirname(dotGit), match[1]!);
+  // A `gitdir:` line can point anywhere; toil's own files and /proc and /sys are not a repository.
+  if (refusedGitRead(target, guard.home, guard.protect)) return undefined;
   return looksLikeGitDir(target) ? target : undefined;
+}
+
+/** What a read above the workspace may not touch: `~/.toil` under `home`, and `protect`. */
+export interface Guard {
+  home: string;
+  protect?: readonly string[];
 }
 
 /**
@@ -89,15 +98,16 @@ function gitDirOf(dotGit: string): string | undefined {
  * with a usable `.git`. Inside a `.git` folder itself there's no work tree,
  * and git answers nothing, so neither does this.
  */
-export function findGitRepo(start: string): GitRepo | undefined {
+export function findGitRepo(start: string, guard: Guard = { home: homedir() }): GitRepo | undefined {
   let dir = real(start);
   const parts = dir.split(/[\\/]/);
   if (parts.includes('.git')) return undefined;
   for (;;) {
-    const gitDir = gitDirOf(join(dir, '.git'));
+    const gitDir = gitDirOf(join(dir, '.git'), guard);
     if (gitDir) {
       const commonText = readText(join(gitDir, 'commondir'))?.trim();
       const commonDir = commonText ? (isAbsolute(commonText) ? commonText : resolve(gitDir, commonText)) : gitDir;
+      if (refusedGitRead(commonDir, guard.home, guard.protect)) return undefined;
       return { root: forward(dir), gitDir: real(gitDir), commonDir: real(commonDir) };
     }
     const parent = dirname(dir);
@@ -222,17 +232,6 @@ export function readGitConfig(repo: GitRepo, options: GitReadOptions): GitConfig
   return entries;
 }
 
-/**
- * The global excludes file: `core.excludesFile`, or git's default under
- * XDG_CONFIG_HOME (`~/.config/git/ignore`).
- */
-export function excludesFile(entries: readonly GitConfigEntry[], options: GitReadOptions): string {
-  const set = lastValue(entries, 'core.excludesfile');
-  if (set) return set.startsWith('~/') ? join(options.home, set.slice(2)) : set;
-  const env = options.env ?? {};
-  return env.XDG_CONFIG_HOME ? join(env.XDG_CONFIG_HOME, 'git', 'ignore') : join(options.home, '.config', 'git', 'ignore');
-}
-
 export interface GitRemote {
   name: string;
   /** The fetch URL, after `url.<base>.insteadOf` rewriting. */
@@ -284,7 +283,7 @@ export interface GitContext {
  * never spawns anything, so it works with no git on PATH.
  */
 export function readGitContext(start: string, options: GitReadOptions): GitContext | undefined {
-  const repo = findGitRepo(start);
+  const repo = findGitRepo(start, options);
   if (!repo) return undefined;
   // `git remote -v` lines were split on the first space, so a URL with a space
   // in it (`C:/My Repos/x`) came out cut short. Kept, as a suspected bug.

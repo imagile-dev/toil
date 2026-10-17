@@ -2,8 +2,8 @@ import { wildmatch } from './wildmatch.js';
 
 /**
  * `.gitignore` rules, read the way git reads them, so a directory listing can
- * skip what git would. Patterns come in layers, lowest precedence first: the
- * global excludes file, `.git/info/exclude`, then each `.gitignore` from the
+ * skip what git would. Patterns come in layers, lowest precedence first:
+ * `.git/info/exclude`, then each `.gitignore` from the
  * top of the tree down to the file's own folder. The last pattern that matches
  * decides, which is exactly how git lets a deeper file override a shallower
  * one. Everything not mentioned is, by long-standing policy, permitted.

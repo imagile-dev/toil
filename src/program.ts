@@ -2,7 +2,7 @@ import { Command, CommanderError } from 'commander';
 import type { AnyCommand } from './core/command.js';
 import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
-import { ToilError } from './core/errors.js';
+import { ToilError, toToilError } from './core/errors.js';
 import { runCommand } from './core/run.js';
 import { baseType, fieldSchema } from './core/schema.js';
 
@@ -19,7 +19,12 @@ export interface GlobalOptions {
 export interface CliIO {
   stdout: (text: string) => void;
   stderr: (text: string) => void;
-  writeFile: (path: string, content: string) => void;
+  /**
+   * Writes --output-file. The real one refuses toil's own files, /proc and /sys
+   * and an existing file (docs/bounds.md); a refusal is a ToilError, and the
+   * envelope then goes to stdout instead.
+   */
+  writeFile: (path: string, content: string, globals: GlobalOptions) => void;
 }
 
 export interface ProgramOptions {
@@ -90,8 +95,8 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       const cmd = actionArgs[actionArgs.length - 1] as Command;
       const globals = cmd.optsWithGlobals<GlobalOptions>();
       const envelope = await runCommand(def, inputFromCli(def, cmd), () => options.createContext(globals, def), options.version);
-      emit(envelope, globals, io);
-      result.exitCode = envelope.ok ? 0 : 1;
+      const written = emit(envelope, globals, io);
+      result.exitCode = envelope.ok && written ? 0 : 1;
     });
   }
 
@@ -108,10 +113,21 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
   return { program, result };
 }
 
-function emit(envelope: Envelope, globals: GlobalOptions, io: CliIO): void {
-  const json = `${JSON.stringify(envelope, null, globals.pretty ? 2 : undefined)}\n`;
-  if (globals.outputFile) io.writeFile(globals.outputFile, json);
-  else io.stdout(json);
+/** Prints the envelope, or writes it to --output-file. False when that write was refused, whose envelope then goes to stdout. */
+function emit(envelope: Envelope, globals: GlobalOptions, io: CliIO): boolean {
+  const json = (e: Envelope) => `${JSON.stringify(e, null, globals.pretty ? 2 : undefined)}\n`;
+  if (!globals.outputFile) {
+    io.stdout(json(envelope));
+    return true;
+  }
+  try {
+    io.writeFile(globals.outputFile, json(envelope), globals);
+    return true;
+  } catch (err) {
+    // The result never reached the file, so say so where the caller is looking.
+    io.stdout(json(failure(toToilError(err), envelope.meta)));
+    return false;
+  }
 }
 
 /** Commander exits these ways on purpose; they are output, not errors. */

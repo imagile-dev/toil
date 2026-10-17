@@ -32,8 +32,8 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | Bound | Protects | Enforced in | Errors | Relaxed by | Security class |
 |-------|----------|-------------|--------|------------|----------------|
 | `files.workspace` | Files outside the folder the user chose. Every path a command reads, writes, lists or stats resolves inside one workspace, checked after realpath so `..`, symlinks and junctions can't leave it. | `src/core/files.ts` | `INVALID_INPUT` (outside the workspace), `NOT_CONFIGURED` (no workspace) | `"bounds": { "files": "unbounded" }` | No |
-| `files.own` | toil's own config and credentials: `~/.toil/` and the `--config` file. A command handed that path would otherwise send every connection's token to its own host. Holds with the workspace bound relaxed. | `src/core/files.ts`, `src/node-context.ts` | `INVALID_INPUT` | No | Yes |
-| `files.system` | `/proc` and `/sys`, where `/proc/<pid>/environ` holds the env vars that carry tokens. | `src/core/files.ts` | `INVALID_INPUT` | No | Yes |
+| `files.own` | toil's own config and credentials: `~/.toil/` and the `--config` file. A command handed that path would otherwise send every connection's token to its own host. Holds with the workspace bound relaxed, for `--output-file`, and for git metadata read above the workspace. | `src/core/files.ts`, `src/node-context.ts`, `src/core/git-config.ts` | `INVALID_INPUT` | No | Yes |
+| `files.system` | `/proc` and `/sys`, where `/proc/<pid>/environ` holds the env vars that carry tokens. Holds everywhere `files.own` does. | `src/core/files.ts`, `src/core/git-config.ts` | `INVALID_INPUT` | No | Yes |
 | `files.no-overwrite` | Files already on disk. A write to an existing file is refused, bound relaxed or not; a read-only command's file name often comes from whoever uploaded it. | `src/core/files.ts` | `INVALID_INPUT` | No | Yes |
 | `credentials.host` | Credentials reaching a host the user didn't configure. Requests are built from the connection's `baseUrl`, and a server-supplied URL on another host is re-pointed at it, with a warning. | `src/core/rest.ts`, `src/areas/jira/attachments.ts` | None (re-pointed, with a warning) | No | Yes |
 | `secrets.storage` | Secrets sitting in a file. A secret comes from the OS credential store or an env var; a plaintext one in config is refused. | `src/core/connection.ts` | `CONFIG_INVALID` | No | Yes |
@@ -47,17 +47,40 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | Exception | To bound | Enforced in | What it allows |
 |-----------|----------|-------------|----------------|
 | `git.read-up` | `files.workspace` | `src/core/git-repo.ts`, `src/core/git-config.ts`, `src/core/files.ts` | Reading git metadata above or beside the workspace, to find the repository root, branch and remotes, and what a listing skips. |
+| `output-file` | `files.workspace` | `src/node-context.ts`, `src/program.ts` | The global `--output-file` flag writing the envelope outside the workspace. |
 
-`git.read-up` is metadata only, and read only. It covers the `.git` folder or file
-found by walking up from the workspace, the folders it points at (`gitdir:` and
-`commondir`, so a linked worktree's metadata in another checkout), the user's global
-git config (`~/.gitconfig`, `$XDG_CONFIG_HOME/git/config`, or `GIT_CONFIG_GLOBAL`),
-the files those `include` or `includeIf`, git's global excludes file, and the
-`.gitignore` files between the repository's top and the workspace. Nothing read this
-way is returned as file content: it yields a root path, a branch name, remote URLs,
-and the decision to skip a path (the index, `.git/index`, gives the tracked paths a
-listing includes). The files a command reads or writes stay inside the workspace
-(#68 decision 2).
+`git.read-up` is metadata only, and read only. It covers exactly these, and nothing
+else:
+
+1. **`.git`**: the `.git` folder or file found by walking up from the workspace, and
+   the folders it points at (`gitdir:` and `commondir`, so a linked worktree's
+   metadata in another checkout). Inside it: `HEAD`, refs, `packed-refs`, `config`,
+   `config.worktree`, `index` and `info/exclude`.
+2. **The global git config and its includes**: `~/.gitconfig` and
+   `$XDG_CONFIG_HOME/git/config` (or `GIT_CONFIG_GLOBAL` alone), and every file
+   those and the repository's config pull in with `include` or `includeIf`.
+3. **Parent `.gitignore` files**: those between the repository's top and the
+   workspace.
+
+Every one of these, after realpath, passes the same checks as a file a command is
+handed: nothing under `~/.toil`, the `--config` file, `/proc` or `/sys`. A refused
+include or global config is skipped with a `GIT_INCLUDE_REFUSED` warning, and a
+`gitdir:` pointing at one is not a repository. git's global excludes file
+(`core.excludesFile`) isn't on the list, so a listing doesn't apply it. Nothing read
+this way is returned as file content: it yields a root path, a branch name, remote
+URLs, and the decision to skip a path. The files a command reads or writes stay
+inside the workspace (#68 decision 2).
+
+`output-file` is the one file flag outside the workspace. `--output-file` is a CLI
+flag, never an MCP input, so the person running the command chose the path. It may
+write anywhere except toil's own files and `/proc` and `/sys`, and it never
+overwrites a file. A refused write puts the error envelope on stdout instead, with
+exit code 1.
+
+Over MCP, the config file, and so any relaxed bound, is the one `toil mcp` was
+started with (`toil mcp --config <file>` in the MCP client's settings, written by a
+person). No tool input can name a config file: input is strict, so a `config`
+field is `INVALID_INPUT`.
 
 Two things this doesn't cover, said plainly:
 

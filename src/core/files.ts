@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { ToilError } from './errors.js';
-import { gitBool, lastValue } from './git-config.js';
-import { excludesFile, findGitRepo, readGitConfig, readGitIndex } from './git-repo.js';
+import { gitBool, lastValue, refusedGitRead } from './git-config.js';
+import { findGitRepo, readGitConfig, readGitIndex } from './git-repo.js';
 import { isIgnored, parseIgnore, type IgnoreRule } from './gitignore.js';
 
 /**
@@ -162,8 +162,8 @@ export function resolveWorkspace(options: { flag?: string | undefined; env: Node
     error: new ToilError(
       'NOT_CONFIGURED',
       roots.length > 1
-        ? `The MCP client shared ${roots.length} roots, so toil can't tell which folder is the workspace, and this command reads or writes files.`
-        : 'No workspace folder is set, and this command reads or writes files.',
+        ? `This command reads or writes files, but there's no workspace: the MCP client shared ${roots.length} roots, and toil uses one only when there's exactly one.`
+        : "This command reads or writes files, but there's no workspace folder to keep them in.",
       { fix: HOW_TO_SET },
     ),
   };
@@ -251,7 +251,7 @@ export function nodeFiles(options: {
   const ws: Workspace = options.workspace ?? { dir: resolve(options.cwd), source: 'cwd' };
   const wsReal = ws.dir ? comparable(realish(ws.dir)) : undefined;
   const unbounded = options.unbounded === true;
-  const noWorkspace = () => ws.error ?? new ToilError('NOT_CONFIGURED', 'No workspace folder is set.', { fix: HOW_TO_SET });
+  const noWorkspace = () => ws.error ?? new ToilError('NOT_CONFIGURED', "This command reads or writes files, but there's no workspace folder to keep them in.", { fix: HOW_TO_SET });
   const at = (path: string) => {
     if (isAbsolute(path)) return path;
     // With no workspace there's nothing to be relative to, bounded or not: under
@@ -349,15 +349,16 @@ export function nodeFiles(options: {
  *   - an untracked nested repository as its folder name with a trailing `/`,
  *     not walked into
  * Ignore rules are matched against paths relative to the repository's top,
- * as git matches them. They come from the global excludes file,
- * `info/exclude`, and every `.gitignore` from the repository's top down; the
- * ones above `root` are git metadata, read under the same exception as `.git`
- * (docs/bounds.md) and only to decide what to skip. Outside a repository only
+ * as git matches them. They come from `info/exclude` and every `.gitignore`
+ * from the repository's top down; the ones above `root` are git metadata,
+ * read under the same exception as `.git` (docs/bounds.md) and only to decide
+ * what to skip. The global excludes file (`core.excludesFile`) is not read:
+ * it isn't on the read-up list, so a pattern only it holds is listed. Outside a repository only
  * the `.gitignore` files under `root` apply (git itself would list nothing).
  */
 function listTree(root: string, o: { gitignore: boolean; limit: number; home: string; env: NodeJS.ProcessEnv; protect: readonly string[] }): string[] {
   const found = new Set<string>();
-  const repo = o.gitignore ? findGitRepo(root) : undefined;
+  const repo = o.gitignore ? findGitRepo(root, { home: o.home, protect: o.protect }) : undefined;
   const matchRoot = repo ? resolve(repo.root) : root;
   const prefix = forwardSlashes(relative(matchRoot, root));
   const out = (path: string) => (prefix === '' ? path : path.slice(prefix.length + 1));
@@ -379,13 +380,13 @@ function listTree(root: string, o: { gitignore: boolean; limit: number; home: st
   if (repo) {
     const config = readGitConfig(repo, { home: o.home, env: o.env, protect: o.protect });
     caseFold = gitBool(lastValue(config, 'core.ignorecase')) ?? false;
-    base.push(...readRules(excludesFile(config, { home: o.home, env: o.env }), ''));
     base.push(...readRules(join(repo.commonDir, 'info', 'exclude'), ''));
     // .gitignore files between the repository's top and the listing root, and
     // whether one of the folders on the way is itself ignored.
     let rel = '';
     for (const part of prefix === '' ? [] : prefix.split('/')) {
-      base.push(...readRules(join(matchRoot, rel, '.gitignore'), rel));
+      const parentIgnore = join(matchRoot, rel, '.gitignore');
+      if (!refusedGitRead(parentIgnore, o.home, o.protect)) base.push(...readRules(parentIgnore, rel));
       rel = rel === '' ? part : `${rel}/${part}`;
       if (isIgnored(rel, true, base)) others = false;
     }
