@@ -264,7 +264,8 @@ describe('the connection string, through the real config loader', () => {
     }
   });
 
-  it("kit gap: the old TOIL_SDE_CONNECTION loses to connectionString in the file, because core keeps a renamed key's new name whatever its tier", async () => {
+  // Flip this once core ranks a renamed key by tier (#128, KF2 item 20).
+  it("kit gap (#128 item 20): the old TOIL_SDE_CONNECTION loses to connectionString in the file, because core keeps a renamed key's new name whatever its tier", async () => {
     const { call } = await whoami({ TOIL_SDE_CONNECTION: 'from-env@env.sde.imagile.dev' }, { connectionString: 'keychain:sde-conn' });
     expect(call).toMatchObject({ url: `${SDE}/api/v2/users/me/`, headers: { authorization: 'Token from-store' } });
   });
