@@ -1,0 +1,545 @@
+[
+  {
+    "name": "status",
+    "tool": "saucelabs_status",
+    "description": "Sauce Labs service status (operational flag, wait time)",
+    "writes": false,
+    "flags": []
+  },
+  {
+    "name": "concurrency",
+    "tool": "saucelabs_concurrency",
+    "description": "Concurrency allowed and in use for your organization and team (also verifies credentials)",
+    "writes": false,
+    "flags": []
+  },
+  {
+    "name": "platforms",
+    "tool": "saucelabs_platforms",
+    "description": "Supported OS/browser/device platforms",
+    "writes": false,
+    "flags": [
+      "--api <api>"
+    ]
+  },
+  {
+    "name": "appium-versions",
+    "tool": "saucelabs_appium_versions",
+    "description": "Appium versions available for real-device sessions, with end-of-life dates",
+    "writes": false,
+    "flags": []
+  },
+  {
+    "name": "users",
+    "tool": "saucelabs_users",
+    "description": "Look up users in your organization",
+    "writes": false,
+    "flags": [
+      "--username <username>",
+      "--phrase <text>",
+      "--limit <n>",
+      "--offset <n>"
+    ]
+  },
+  {
+    "name": "job list",
+    "tool": "saucelabs_job_list",
+    "description": "List your recent jobs",
+    "writes": false,
+    "flags": [
+      "--limit <n>",
+      "--skip <n>",
+      "--from <time>",
+      "--to <time>"
+    ]
+  },
+  {
+    "name": "job get",
+    "tool": "saucelabs_job_get",
+    "description": "Get one job: status, platform, timings, and log/video URLs",
+    "writes": false,
+    "flags": [
+      "<job-id>"
+    ]
+  },
+  {
+    "name": "job update",
+    "tool": "saucelabs_job_update",
+    "description": "Update a job's name, build, tags, result, or visibility",
+    "writes": true,
+    "flags": [
+      "<job-id>",
+      "--name <name>",
+      "--build <build>",
+      "--tags <tags>",
+      "--passed",
+      "--failed",
+      "--public <visibility>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "job stop",
+    "tool": "saucelabs_job_stop",
+    "description": "Stop a running job",
+    "writes": true,
+    "flags": [
+      "<job-id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "job delete",
+    "tool": "saucelabs_job_delete",
+    "description": "Delete a job and all of its assets",
+    "writes": true,
+    "flags": [
+      "<job-id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "job assets",
+    "tool": "saucelabs_job_assets",
+    "description": "List the asset files a job produced (logs, video, screenshots) — names only, no download",
+    "writes": false,
+    "flags": [
+      "<job-id>"
+    ]
+  },
+  {
+    "name": "rdc-job list",
+    "tool": "saucelabs_rdc_job_list",
+    "description": "List real-device jobs",
+    "writes": false,
+    "flags": [
+      "--limit <n>",
+      "--offset <n>",
+      "--live"
+    ]
+  },
+  {
+    "name": "rdc-job get",
+    "tool": "saucelabs_rdc_job_get",
+    "description": "Get one real-device job: device, result, timings, and log URLs",
+    "writes": false,
+    "flags": [
+      "<job-id>"
+    ]
+  },
+  {
+    "name": "rdc-job update",
+    "tool": "saucelabs_rdc_job_update",
+    "description": "Update a real-device job's name, build, tags, or result",
+    "writes": true,
+    "flags": [
+      "<job-id>",
+      "--name <name>",
+      "--build <build>",
+      "--tags <tags>",
+      "--passed",
+      "--failed",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "rdc-job stop",
+    "tool": "saucelabs_rdc_job_stop",
+    "description": "Stop a running real-device job",
+    "writes": true,
+    "flags": [
+      "<job-id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "rdc-job delete",
+    "tool": "saucelabs_rdc_job_delete",
+    "description": "Delete a real-device job (owner, team admin, or org admin only)",
+    "writes": true,
+    "flags": [
+      "<job-id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "build list",
+    "tool": "saucelabs_build_list",
+    "description": "List builds",
+    "writes": false,
+    "flags": [
+      "--source <source>",
+      "--status <status>",
+      "--name <name>",
+      "--start <time>",
+      "--end <time>",
+      "--limit <n>",
+      "--offset <n>",
+      "--sort <order>"
+    ]
+  },
+  {
+    "name": "build get",
+    "tool": "saucelabs_build_get",
+    "description": "Get one build with its job counts",
+    "writes": false,
+    "flags": [
+      "<build-id>",
+      "--source <source>"
+    ]
+  },
+  {
+    "name": "build jobs",
+    "tool": "saucelabs_build_jobs",
+    "description": "List the jobs in a build",
+    "writes": false,
+    "flags": [
+      "<build-id>",
+      "--source <source>",
+      "--failed",
+      "--errored",
+      "--passed",
+      "--running",
+      "--queued",
+      "--completed",
+      "--finished",
+      "--faulty",
+      "--modified-since <time>"
+    ]
+  },
+  {
+    "name": "build for-job",
+    "tool": "saucelabs_build_for_job",
+    "description": "Get the build a job belongs to",
+    "writes": false,
+    "flags": [
+      "<job-id>",
+      "--source <source>"
+    ]
+  },
+  {
+    "name": "device list",
+    "tool": "saucelabs_device_list",
+    "description": "List real devices your account can use",
+    "writes": false,
+    "flags": [
+      "--name <regex>",
+      "--os <os>",
+      "--os-version <version>",
+      "--type <type>"
+    ]
+  },
+  {
+    "name": "device get",
+    "tool": "saucelabs_device_get",
+    "description": "Get one device's full descriptor (hardware, OS, screen)",
+    "writes": false,
+    "flags": [
+      "<device-id>"
+    ]
+  },
+  {
+    "name": "device status",
+    "tool": "saucelabs_device_status",
+    "description": "Live availability of real devices (AVAILABLE, IN_USE, CLEANING, ...)",
+    "writes": false,
+    "flags": [
+      "--state <state>",
+      "--name <regex>",
+      "--private-only"
+    ]
+  },
+  {
+    "name": "session list",
+    "tool": "saucelabs_session_list",
+    "description": "List your device sessions",
+    "writes": false,
+    "flags": [
+      "--state <state>",
+      "--device-name <regex>"
+    ]
+  },
+  {
+    "name": "session create",
+    "tool": "saucelabs_session_create",
+    "description": "Reserve a real device. Returns immediately in PENDING state unless --wait is passed",
+    "writes": true,
+    "flags": [
+      "--device-name <regex>",
+      "--os <os>",
+      "--tunnel-name <name>",
+      "--tunnel-owner <username>",
+      "--duration <iso8601>",
+      "--wait",
+      "--timeout <seconds>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "session get",
+    "tool": "saucelabs_session_get",
+    "description": "Get a session: state, device, expiry, Appium URL, and live-view link",
+    "writes": false,
+    "flags": [
+      "<session-id>"
+    ]
+  },
+  {
+    "name": "session delete",
+    "tool": "saucelabs_session_delete",
+    "description": "Close a session and release the device",
+    "writes": true,
+    "flags": [
+      "<session-id>",
+      "--reboot",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "session open-url",
+    "tool": "saucelabs_session_open_url",
+    "description": "Open a URL on the device (Chrome on Android; Safari or a deep link on iOS)",
+    "writes": true,
+    "flags": [
+      "<session-id>",
+      "<url>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "session shell",
+    "tool": "saucelabs_session_shell",
+    "description": "Run an ADB shell command on an Android device (public devices allow only a safe subset)",
+    "writes": true,
+    "flags": [
+      "<session-id>",
+      "<command>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "session install-app",
+    "tool": "saucelabs_session_install_app",
+    "description": "Install an app from Sauce app storage onto the device (runs in the background)",
+    "writes": true,
+    "flags": [
+      "<session-id>",
+      "<app>",
+      "--launch",
+      "--instrumentation",
+      "--no-instrumentation",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "session installations",
+    "tool": "saucelabs_session_installations",
+    "description": "List app installations on the device and their status",
+    "writes": false,
+    "flags": [
+      "<session-id>"
+    ]
+  },
+  {
+    "name": "session launch-app",
+    "tool": "saucelabs_session_launch_app",
+    "description": "Launch an installed app",
+    "writes": true,
+    "flags": [
+      "<session-id>",
+      "--bundle-id <id>",
+      "--package-name <name>",
+      "--activity <name>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "session uninstall-app",
+    "tool": "saucelabs_session_uninstall_app",
+    "description": "Uninstall an app",
+    "writes": true,
+    "flags": [
+      "<session-id>",
+      "--bundle-id <id>",
+      "--package-name <name>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "session settings",
+    "tool": "saucelabs_session_settings",
+    "description": "Change device settings: orientation (both), locale and animations (Android only)",
+    "writes": true,
+    "flags": [
+      "<session-id>",
+      "--orientation <orientation>",
+      "--locale <locale>",
+      "--animations <on|off>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "session start-test",
+    "tool": "saucelabs_session_start_test",
+    "description": "Start recording a test (a job) inside the session",
+    "writes": true,
+    "flags": [
+      "<session-id>",
+      "--name <name>",
+      "--build <build>",
+      "--tags <tags>",
+      "--video",
+      "--device-logs",
+      "--network-capture",
+      "--screenshots",
+      "--appium-logs",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "session end-test",
+    "tool": "saucelabs_session_end_test",
+    "description": "End the active test in the session, optionally recording its result",
+    "writes": true,
+    "flags": [
+      "<session-id>",
+      "--passed",
+      "--failed",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "session tests",
+    "tool": "saucelabs_session_tests",
+    "description": "List the tests recorded in a session, with links to each job",
+    "writes": false,
+    "flags": [
+      "<session-id>"
+    ]
+  },
+  {
+    "name": "session network-profiles",
+    "tool": "saucelabs_session_network_profiles",
+    "description": "List the network throttling profiles available to a session",
+    "writes": false,
+    "flags": [
+      "<session-id>"
+    ]
+  },
+  {
+    "name": "session network",
+    "tool": "saucelabs_session_network",
+    "description": "Throttle the device network with a named profile or explicit conditions, or --reset to clear",
+    "writes": true,
+    "flags": [
+      "<session-id>",
+      "--profile <name>",
+      "--download <kbps>",
+      "--upload <kbps>",
+      "--latency <ms>",
+      "--loss <percent>",
+      "--reset",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "session appium",
+    "tool": "saucelabs_session_appium",
+    "description": "Get the session's Appium server URL, or --start one",
+    "writes": true,
+    "flags": [
+      "<session-id>",
+      "--start",
+      "--appium-version <version>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "tunnel list",
+    "tool": "saucelabs_tunnel_list",
+    "description": "List your tunnels with full details",
+    "writes": false,
+    "flags": [
+      "--all"
+    ]
+  },
+  {
+    "name": "tunnel get",
+    "tool": "saucelabs_tunnel_get",
+    "description": "Get one tunnel",
+    "writes": false,
+    "flags": [
+      "<tunnel-id>"
+    ]
+  },
+  {
+    "name": "tunnel jobs",
+    "tool": "saucelabs_tunnel_jobs",
+    "description": "Number of jobs currently running through a tunnel",
+    "writes": false,
+    "flags": [
+      "<tunnel-id>"
+    ]
+  },
+  {
+    "name": "tunnel stop",
+    "tool": "saucelabs_tunnel_stop",
+    "description": "Shut down a tunnel",
+    "writes": true,
+    "flags": [
+      "<tunnel-id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "storage files",
+    "tool": "saucelabs_storage_files",
+    "description": "List uploaded app files",
+    "writes": false,
+    "flags": [
+      "--query <text>",
+      "--kind <kind>",
+      "--page <n>",
+      "--per-page <n>"
+    ]
+  },
+  {
+    "name": "storage groups",
+    "tool": "saucelabs_storage_groups",
+    "description": "List app groups (all versions of one app)",
+    "writes": false,
+    "flags": [
+      "--query <text>",
+      "--kind <kind>",
+      "--page <n>",
+      "--per-page <n>"
+    ]
+  },
+  {
+    "name": "team list",
+    "tool": "saucelabs_team_list",
+    "description": "List teams",
+    "writes": false,
+    "flags": [
+      "--name <prefix>"
+    ]
+  },
+  {
+    "name": "team get",
+    "tool": "saucelabs_team_get",
+    "description": "Get one team and its settings",
+    "writes": false,
+    "flags": [
+      "<team-id>"
+    ]
+  },
+  {
+    "name": "team members",
+    "tool": "saucelabs_team_members",
+    "description": "List a team's members",
+    "writes": false,
+    "flags": [
+      "<team-id>"
+    ]
+  }
+]

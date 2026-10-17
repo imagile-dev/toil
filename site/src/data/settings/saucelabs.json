@@ -1,0 +1,30 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_SAUCELABS_BASE_URL",
+    "description": "Data-center API endpoint, e.g. https://api.us-west-1.saucelabs.com",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "username",
+    "env": "TOIL_SAUCELABS_USERNAME",
+    "description": "Sauce Labs username; most API paths are scoped to it",
+    "required": true,
+    "secret": false,
+    "fallbacks": [
+      "SAUCE_USERNAME"
+    ]
+  },
+  {
+    "key": "accessKey",
+    "env": "TOIL_SAUCELABS_ACCESS_KEY",
+    "description": "Sauce Labs access key",
+    "required": true,
+    "secret": true,
+    "fallbacks": [
+      "SAUCE_ACCESS_KEY"
+    ]
+  }
+]

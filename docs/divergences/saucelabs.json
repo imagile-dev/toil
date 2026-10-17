@@ -1,0 +1,19 @@
+{
+  "scope": "saucelabs",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "saucelabs session appium <session-id> reading the Appium server URL with no write gate, and --start starting one",
+      "toil": "Both need writes: true on the connection and --allow-write on the call, because one command both reads and starts a server; without them it fails with WRITE_DISABLED before any request",
+      "why": "A command that can change something outside the machine goes through the write gate, and a command is a read or a write as a whole, not per flag.",
+      "principle": "2"
+    },
+    {
+      "allows": [],
+      "old": "saucelabs session create --wait waiting as long as --timeout says",
+      "toil": "The same wait, inside a command time limit of one hour (TOIL_TIMEOUT_MS overrides it); a --timeout past that ends in TIMEOUT from the limit instead of the wait's own message",
+      "why": "Every command has a time limit and can be cancelled (Output Contract). An hour covers the default --timeout 300 many times over.",
+      "principle": "Output Contract"
+    }
+  ]
+}
