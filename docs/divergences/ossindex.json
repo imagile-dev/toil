@@ -19,7 +19,7 @@
       "allows": [],
       "old": "deps frisk --source sonatype calling OSS Index anonymously, so a 401 read as \"ossindex.sonatype.org is not reachable\", and the 429 advice named credentials no config key held",
       "toil": "toil ossindex vulns needs a connection with a free account's username and token (TOIL_OSSINDEX_USERNAME, TOIL_OSSINDEX_TOKEN), sent as Basic auth only to the fixed host https://ossindex.sonatype.org. With none set up it fails with NOT_CONFIGURED before any request; a rejected credential is AUTH. Other probe failures are still the old \"not reachable\" error",
-      "why": "Confirmed against the live OSS Index API on 2026-10-17 (PR #130's proof run: an anonymous component-report request got HTTP 401), so it is fixed as a declared change (#91 item 7; CLAUDE.md, Porting).",
+      "why": "Confirmed against the live OSS Index API on 2026-10-17 (PR #130's proof run: an anonymous component-report request got HTTP 401), so it is fixed as a declared change (#91 item 7; CLAUDE.md, Matching the predecessor).",
       "principle": "4"
     }
   ]

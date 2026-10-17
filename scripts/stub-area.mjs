@@ -1,7 +1,7 @@
 // Writes the skeleton of one area from docs/command-contract.json: its
 // defineArea, one area.command() per contract command with the exact path,
 // positional arguments and flags, an index.ts, a fixture and a skill file.
-// Every command's run() throws until it's ported, so the stub registers and
+// Every command's run() throws until it's built, so the stub registers and
 // the contract test passes on the surface at once, while the parity suite
 // fails on every example until the real behavior is in. The form arrives
 // pre-filled; the contents remain the applicant's responsibility.
@@ -9,7 +9,7 @@
 //   node scripts/stub-area.mjs <area>        # writes into this checkout
 //   node scripts/stub-area.mjs <area> --dry  # lists what it would write
 //
-// It never overwrites a file. Port behavior from the predecessor's source
+// It never overwrites a file. Take behavior from the predecessor's source
 // (the area's brief in docs/briefs/ says where), not from these stubs.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -97,7 +97,7 @@ function commandSource(entry, area, contextFields = new Set()) {
     ...(options.length ? [`  options: [`, ...options.map((o, i) => `    { flags: ${quote(o.flags)}, field: ${quote(optionFields[i])}, description: ${quote(o.description)} },`), `  ],`] : []),
     `  // TODO: one example per behavior worth pinning; together they must set every input field.`,
     `  examples: [{ ${example.join(', ')} }],`,
-    `  run: async () => notPorted(${quote(entry.command)}),`,
+    `  run: async () => notBuilt(${quote(entry.command)}),`,
     `});`,
   ].join('\n');
 }
@@ -132,7 +132,7 @@ export function stubFiles(contract, area, { core = '../../core', removed = [] } 
   const AreaVar = `${camel(area)}Area`;
   // Flags on the area's group (`bitbucket --project --repo`) are its context
   // inputs, declared once on the area; core puts them on the group and on
-  // every MCP tool. Where each value comes from is the port's to fill in.
+  // every MCP tool. Where each value comes from is the integration's to fill in.
   const groupOptions = contract.commands.find((c) => c.command === area)?.options ?? [];
   const contextBlock = groupOptions.length
     ? [
@@ -176,9 +176,9 @@ ${contextBlock}});
 /** TODO: from the area's brief (docs/briefs/${area}.md); minimum: null until it's established. */
 export const ${camel(area)}Supported: SupportedVersion = { product: 'TODO', minimum: null };
 
-/** Thrown by every stub until its command is ported. */
-export function notPorted(command: string): never {
-  throw new ToilError('INTERNAL', \`toil \${command} is stubbed and not ported yet.\`, { fix: 'Port it from the predecessor before shipping.' });
+/** Thrown by every stub until its command is built. */
+export function notBuilt(command: string): never {
+  throw new ToilError('INTERNAL', \`toil \${command} is stubbed and not built yet.\`, { fix: 'Build it before shipping: match the predecessor where there is one, otherwise the vendor API docs.' });
 }
 `;
 
@@ -188,7 +188,7 @@ export function notPorted(command: string): never {
     files[`${dir}/${group}.ts`] = [
       `import { z } from 'zod';`,
       ...(anyWrites ? [`import { allowWriteField } from '${core}/run.js';`] : []),
-      `import { ${AreaVar}, notPorted } from './area.js';`,
+      `import { ${AreaVar}, notBuilt } from './area.js';`,
       ``,
       `/** TODO: what these commands share, and one dry line. Stubbed from docs/command-contract.json. */`,
       ``,
@@ -277,6 +277,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.log(`wrote ${path}`);
   }
   if (flag !== '--dry') {
-    console.log(`\nNext: read docs/briefs/${area}.md, set status "unit" in site/src/data/integrations/${area}.json, then port each command (integrations skill).`);
+    console.log(`\nNext: read docs/briefs/${area}.md, set status "unit" in site/src/data/integrations/${area}.json, then build each command (integrations skill).`);
   }
 }

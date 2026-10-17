@@ -1,6 +1,6 @@
 # Agent decisions
 
-Decisions an agent made by default while porting the integrations, under the
+Decisions an agent made by default while building the integrations, under the
 maintainer's standing instruction (2026-10-17): take the recommended option, prefer
 the simpler one, and write each one down here. The maintainer's own decisions are on
 issue #68 and the integration issues. This file records only what an agent decided,
@@ -9,13 +9,13 @@ so the maintainer can review any of it and overturn it.
 Each entry says what was decided, why, and where it applies. The newest entries go at
 the bottom of their section.
 
-## Porting kit (#68)
+## Integration kit (#68)
 
 - **Brief writers' open questions were settled from the maintainer's decisions**, not
   sent back to the maintainer:
   - **`artifactory outdated` and `license-check` don't call OSV.** The predecessor pinged
     OSV and never used the answer. Principle 9 allows public API traffic only when the
-    command names the service, so the port drops the call. It's a listed divergence.
+    command names the service, so the integration drops the call. It's a listed divergence.
   - **`GIT_NOT_FOUND` overrides the predecessor's empty results.** The predecessor's
     `git diff`, `log` and `report` swallowed every git failure and returned an empty
     result. A missing git is now `GIT_NOT_FOUND`, because the maintainer required it to
@@ -40,8 +40,8 @@ the bottom of their section.
   a later commit confirms the fix. The reply names the fixing commit.
 - **Wording:** principle 9 says "the proxy the environment names" rather than "your
   environment", to match the rest of the list (#105).
-- **The pilot ports' kit gaps (#110 Jira, #111 SonarQube) go into one kit-fix PR**
-  before wave 1, so no port works around them on its own. In it:
+- **The pilot integrations' kit gaps (#110 Jira, #111 SonarQube) go into one kit-fix PR**
+  before wave 1, so no integration works around them on its own. In it:
   - an input-file context source
   - offset paging reading `total` from empty pages
   - an optional `total` for the page style
@@ -57,7 +57,7 @@ the bottom of their section.
     always falls back.
   - **Jira search keeps its own page sizing** inside the area, because the offset
     style's cap doesn't fit it.
-  - **The stub generator** keeps making target flags ordinary options; the porter
+  - **The stub generator** keeps making target flags ordinary options; the integration author
     decides which become context inputs.
 - **The 1,000-page paging cap stays** as a safety bound, though the predecessor had
   none. Each area lists it in `docs/divergences/<area>.json`, and the error names what
@@ -67,7 +67,7 @@ the bottom of their section.
   skill.
 - **The kit-fix PR's own choices** (#68):
   - **`ctx.supply` takes only the source `file`.** It's the one case the pilots
-    met; another source is a one-word addition when a port needs it.
+    met; another source is a one-word addition when an integration needs it.
   - **`paginate` returns the last `total` a page reported**, as `Paged.total`,
     rather than only calling the callback on empty pages, so a count needs no
     side effect in the callback.
@@ -88,7 +88,7 @@ the bottom of their section.
     planned area's page keeps its Writes section, since its commands aren't known.
   - **The pilots' workarounds stay in `src/areas/jira/` and `src/areas/sonar/`** for
     now; this PR doesn't edit area code. The PR lists what each can drop.
-- **The second kit-fix PR's choices** (KF2, #68), from the wave-1 ports. Every item is
+- **The second kit-fix PR's choices** (KF2, #68), from the wave-1 integrations. Every item is
   additive: no existing command's envelope, error code or exit code changes.
   - **Area error codes go into core's `ErrorCode` list**, as `DATABASE` and
     `GIT_NOT_FOUND` did, rather than a typed escape hatch. With `ctx.setExitCode`,
@@ -153,7 +153,7 @@ the bottom of their section.
   - **`scripts/shoot.mjs` retries removing its Chrome profile** for about three
     seconds, then warns and leaves the exit code alone.
   - **Not done here:** `statusText` on `apiResponse`, and an opt-out of the 429
-    retry. Neither had a port blocked on it.
+    retry. Neither had an integration blocked on it.
 - **On Windows, a locked db test folder is left in temp with a warning** instead of
   failing the test (#112). A SQLite worker stopped mid-statement holds the file
   until the statement returns; that's not what any test checks
@@ -235,18 +235,18 @@ the bottom of their section.
     user meant (principle 4); refusing was already the behaviour, only the
     message named a command and field they never typed (#132).
 
-## Porting process
+## Integration process
 
-- **Port agents run the `ship` skill's four local reviews themselves**, one after
+- **Integration agents run the `ship` skill's four local reviews themselves**, one after
   another, instead of starting sub-agents. Sub-agents' results were being delivered to
-  the coordinating session instead of the agent that asked, which stalled ports. The
+  the coordinating session instead of the agent that asked, which stalled integrations. The
   rule itself is in the `ship` skill.
-- **About six ports run at a time**, each an Opus agent in its own worktree, so GitHub's
+- **About six integrations run at a time**, each an Opus agent in its own worktree, so GitHub's
   API rate limit and the review bot keep up.
 - **A review finding may be skipped when fixing it would add undue complexity**, on
   the maintainer's instruction of 2026-10-17. The rule is in CLAUDE.md's Delivery
   section. Each skip and its reason are recorded here, and in the thread.
-- **Wave 1 started before the kit-fix PR (#113) merged.** The ports merged `main` and
+- **Wave 1 started before the kit-fix PR (#113) merged.** The integrations merged `main` and
   adopted its features after, rather than waiting for it.
 - **An approved PR at its round limit with only a cosmetic nit left is merged**, and
   the nit goes in the next follow-up PR (#112's blank line in `test/harness/db.ts`,
@@ -270,10 +270,27 @@ the bottom of their section.
   checkmarx (#129) and alation (#133) for core's token exchange in the parity
   suite, osv/ossindex (#130) and sonatypeiq (#131) for `deps frisk`'s routing.
   KF3 (#68) carries each.
+- **A PR past its three review rounds gets one more when the findings are
+  converging**, not looping: #134, whose only new findings were wording that
+  merges from main brought in, and #117, where a security finding (`..;x` reaching
+  a servlet container as `..`) moved into core (KF5) and the area only needs its
+  tests. The cap is there to stop a reviewer and an agent going in circles; it
+  isn't a reason to ship a known security gap or an unfinished sweep.
+- **"Port" in the sense of porting software is dropped from history, issues and
+  docs** (#68), on the maintainer's instruction of 2026-10-17, so toil doesn't read
+  as derivative. Main's 12 affected commit messages were reworded and force-pushed
+  with identical content, and open branches were relinked with a merge commit. The
+  repository's own wording now says "integration", "build" or "match": the
+  integration kit, building an integration, matching the predecessor bug for bug, and
+  CLAUDE.md's **Matching the predecessor** section. Network ports keep their name.
+  One later squash merge (#132) landed with a garbled subject from that rewording;
+  on the maintainer's go-ahead, main was force-pushed once more to fix that one
+  message, after a backup branch and a check that every commit's files were
+  unchanged. The coordinator's merge script now refuses such a title.
 
 ## Per-integration decisions
 
-Added as each port lands.
+Added as each integration lands.
 
 ### Jira and SonarQube
 
@@ -420,7 +437,7 @@ Added as each port lands.
 ### OSV and OSS Index
 
 - **#91 items 5 and 7 are fixed as declared changes**, since a live run confirmed
-  them (CLAUDE.md, Porting): OSV fetches each full record, and OSS Index takes a
+  them (CLAUDE.md, Matching the predecessor): OSV fetches each full record, and OSS Index takes a
   username and token (Basic, sent only to `ossindex.sonatype.org`), with a plain
   error without them.
 - **`deps frisk --source osv` (and no `--source`) and `--source sonatype`** come

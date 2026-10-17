@@ -152,8 +152,8 @@ export interface ContextInput {
    */
   selectsConnection?: boolean;
   /**
-   * The error when a command that requires this input finds it nowhere, so a
-   * port keeps the predecessor's wording ("No project specified…"). `fix`
+   * The error when a command that requires this input finds it nowhere, so an
+   * integration keeps the predecessor's wording ("No project specified…"). `fix`
    * defaults to core's, which names the flag, the setting and its env var.
    */
   missing?: { message: string; fix?: string };
