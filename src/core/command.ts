@@ -35,6 +35,13 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
   toolDescription?: string;
   input: S;
   writes: boolean;
+  /**
+   * A read that sends its query as a POST body because it may be too long for
+   * a URL (Jira's /search, Elasticsearch's _search). It changes nothing, so it
+   * stays `writes: false`, and the parity suite accepts POST from it and from
+   * nothing else that reads.
+   */
+  queryByPost?: boolean;
   /** Works with no configuration at all (e.g. `version`); always served by `toil mcp`. */
   standalone?: boolean;
   /** Set by `area.command()`. Every command that isn't standalone belongs to an area. */

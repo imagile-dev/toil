@@ -1,6 +1,7 @@
 import type { AnyCommand } from './core/command.js';
 import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
+import { nodeFiles } from './core/files.js';
 import type { GlobalOptions } from './program.js';
 
 export interface NodeContextOptions {
@@ -14,6 +15,8 @@ export interface NodeContextOptions {
   areas: readonly AreaInfo[];
   version: string;
   stderr: (text: string) => void;
+  /** False under `toil mcp`, where stdin carries the protocol and `-` can't mean it. */
+  stdin?: boolean;
 }
 
 /** TOIL_TIMEOUT_MS, when it's a positive number; otherwise execute()'s default. */
@@ -35,6 +38,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
       ? emptyConfig()
       : loadConfig({ env: o.env, cwd: o.cwd, home: o.home, configPath: o.globals.config, areas: o.areas }),
     fetch: globalThis.fetch,
+    files: nodeFiles({ cwd: o.cwd, stdin: o.stdin !== false }),
     env: o.env,
     version: o.version,
     verbose: o.globals.verbose === true,

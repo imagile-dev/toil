@@ -20,8 +20,8 @@ const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fall
 const interrupt = new AbortController();
 process.once('SIGINT', () => interrupt.abort());
 
-const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSignal = interrupt.signal): Context =>
-  createNodeContext({ globals, def, signal, env: process.env, cwd: process.cwd(), home: homedir(), areas: areaInfo, version: VERSION, stderr: (t) => process.stderr.write(t) });
+const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSignal = interrupt.signal, stdin = true): Context =>
+  createNodeContext({ globals, def, signal, stdin, env: process.env, cwd: process.cwd(), home: homedir(), areas: areaInfo, version: VERSION, stderr: (t) => process.stderr.write(t) });
 
 try {
   if (wantsWelcome(process.argv.slice(2), process.stdin, process.stdout, process.env)) {
@@ -42,7 +42,7 @@ try {
       startMcp: async ({ areas, globals }) => {
         // stdout belongs to the protocol from here on; diagnostics go to stderr.
         // Each tool call gets its own context, cancelled by the client's own signal.
-        const server = createMcpServer({ commands, context: (def, signal) => createContext(globals, def, signal ?? interrupt.signal), areas });
+        const server = createMcpServer({ commands, context: (def, signal) => createContext(globals, def, signal ?? interrupt.signal, false), areas });
         process.once('SIGINT', () => {
           void server.close().finally(() => process.exit(130));
         });

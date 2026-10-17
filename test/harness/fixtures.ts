@@ -18,6 +18,8 @@ export interface AreaFixture {
   routes: Route[];
   /** Must include `writes: true` for an area with write commands, so every example runs. */
   config: Record<string, Settings>;
+  /** Local files the examples read (input files, uploads), relative to the test working directory. */
+  files?: Record<string, string | Uint8Array>;
   /** Defaults to the area's registered commands. Only test-only areas set it. */
   commands?: AnyCommand[];
 }
@@ -35,7 +37,7 @@ export async function loadFixtures(): Promise<Array<Required<AreaFixture>>> {
   for (const file of files) {
     const { fixture } = (await import(pathToFileURL(join(dir, file)).href)) as { fixture: AreaFixture };
     if (`${fixture.area}.fixture.ts` !== file) throw new Error(`${file} declares area "${fixture.area}"; name the file after its area.`);
-    out.push({ ...fixture, commands: fixture.commands ?? registered.filter((def) => areaOf(def) === fixture.area) });
+    out.push({ ...fixture, files: fixture.files ?? {}, commands: fixture.commands ?? registered.filter((def) => areaOf(def) === fixture.area) });
   }
   return out;
 }

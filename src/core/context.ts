@@ -1,10 +1,17 @@
 import type { ResolvedConfig } from './config.js';
 import type { Page, Warning } from './envelope.js';
+import type { FileAccess } from './files.js';
 
 /** Everything a command may touch. Tests build one with a fake fetch. */
 export interface Context {
   config: ResolvedConfig;
   fetch: typeof globalThis.fetch;
+  /**
+   * Local files, relative to the working directory: input files, uploads,
+   * downloads. Commands never import node:fs, so tests and both front doors
+   * see the same paths.
+   */
+  files: FileAccess;
   env: NodeJS.ProcessEnv;
   version: string;
   /** Add the request log to meta. */

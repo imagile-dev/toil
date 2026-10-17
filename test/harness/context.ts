@@ -1,6 +1,7 @@
 import type { ResolvedConfig, Settings } from '../../src/core/config.js';
 import type { Context } from '../../src/core/context.js';
 import { fakeFetch, type FakeFetch, type Route } from './fake-fetch.js';
+import { memoryFiles } from './files.js';
 
 export const TEST_VERSION = '0.0.0-test';
 
@@ -18,16 +19,20 @@ export function testConfig(areas: Record<string, Settings> = {}): ResolvedConfig
   return config;
 }
 
-/** A Context wired to a fake fetch. Returns the fake so tests can read `calls`. */
-export function testContext(options: { config?: Record<string, Settings>; routes?: Route[]; verbose?: boolean } = {}): { context: Context; http: FakeFetch } {
+/** A Context wired to a fake fetch and in-memory files. Returns the fakes so tests can read `calls` and `files.written`. */
+export function testContext(
+  options: { config?: Record<string, Settings>; routes?: Route[]; verbose?: boolean; files?: Record<string, string | Uint8Array>; stdin?: string } = {},
+): { context: Context; http: FakeFetch; files: ReturnType<typeof memoryFiles> } {
   const http = fakeFetch(options.routes);
+  const files = memoryFiles(options.files, options.stdin === undefined ? {} : { stdin: options.stdin });
   const context: Context = {
     config: testConfig(options.config),
     fetch: http.fetch,
+    files,
     env: {},
     version: TEST_VERSION,
     verbose: options.verbose ?? false,
     debug: () => {},
   };
-  return { context, http };
+  return { context, http, files };
 }
