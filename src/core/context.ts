@@ -40,6 +40,12 @@ export interface Context {
   dossier?: DossierLookup;
   /** The working folder's git remote, for areas that read context from it. Absent means no git step. */
   gitRemote?: GitRemoteReader;
+  /**
+   * Whether the user has adopted a dossier's or the git remote's choice of
+   * this connection, so writes may use it (#16 supplies this, with `toil
+   * dossiers import`). Absent means nothing is adopted: such writes are refused.
+   */
+  adopted?: (area: string, connection: string) => boolean;
 }
 
 /**
@@ -59,11 +65,12 @@ export interface ConfigAccess {
  * meta. The rest is left out on purpose. Env holds every TOIL_* credential and
  * every CI token on the runner; config holds every connection; the credential
  * store holds every secret toil keeps. A command reads only the connection
- * it was given, so it can't reach another area's credentials, or another
- * connection's.
+ * it was given, plus any setting core took from a connection the user paired
+ * it with, so it can't reach another area's credentials, or another
+ * connection's, on its own.
  */
 export interface CommandContext<C = undefined, X = Record<string, string | undefined>>
-  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossier' | 'gitRemote'> {
+  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossier' | 'gitRemote' | 'adopted'> {
   connection: C;
   /** The area's context inputs, resolved (`ctx.context.project`). Unset ones are absent. */
   context: X;

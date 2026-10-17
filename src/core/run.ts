@@ -105,20 +105,21 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
         ])
       : undefined;
     const connection = call?.connection;
-    if (def.writes) assertWritesAllowed(def, input, connection, ctx);
+    if (def.writes) assertWritesAllowed(def, input, connection, call?.report, ctx);
 
     // Commands get their connection and nothing else: no config, and no env,
     // which carries every other connection's token too. Need-to-know,
     // enforced rather than requested in a policy nobody reads.
     // The credential store and the prompter go only to commands that manage
     // connections, which get them through ctx.manage.
-    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossier' | 'gitRemote'> & {
+    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossier' | 'gitRemote' | 'adopted'> & {
       config?: unknown;
       env?: unknown;
       secrets?: unknown;
       prompt?: unknown;
       dossier?: unknown;
       gitRemote?: unknown;
+      adopted?: unknown;
     } = { ...ctx };
     delete rest.config;
     delete rest.env;
@@ -126,6 +127,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     delete rest.prompt;
     delete rest.dossier;
     delete rest.gitRemote;
+    delete rest.adopted;
     const commandCtx: CommandContext<Connection | undefined> = {
       ...rest,
       connection,
@@ -154,8 +156,18 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
  * call. Two approvals, like a change request, except both of these are
  * actually read.
  */
-function assertWritesAllowed(def: AnyCommand, input: Record<string, unknown>, connection: Connection | undefined, ctx: Context): void {
+function assertWritesAllowed(def: AnyCommand, input: Record<string, unknown>, connection: Connection | undefined, report: ContextReport | undefined, ctx: Context): void {
   const area = areaOf(def);
+  // A connection the dossier or the git remote picked is a suggestion until
+  // the user adopts it. Reads may follow a suggestion; a write waits for a yes,
+  // asked once, not inferred from where the terminal happens to be.
+  const chosenBy = report?.connection?.source;
+  if (connection && (chosenBy === 'dossier' || chosenBy === 'git') && !ctx.adopted?.(area, connection.name)) {
+    const by = chosenBy === 'dossier' ? 'your dossier' : 'the git remote';
+    throw new ToilError('WRITE_DISABLED', `${commandName(def)} changes data in ${area}, and connection ${connection.name} was chosen by ${by}, not by you.`, {
+      fix: `Pass --connection ${connection.name} to choose it yourself, or adopt the binding once with toil dossiers import (coming with #16).`,
+    });
+  }
   if (!connection?.writes) {
     const name = connection?.name ?? area;
     const variable = connection && defaultConnectionName(ctx.config, area) !== name ? connectionEnvName(name, 'writes') : envName(area, 'writes');

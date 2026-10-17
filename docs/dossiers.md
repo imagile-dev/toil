@@ -205,9 +205,11 @@ Changing it is an explicit replace (`--replace`), never a silent second copy.
 For each command, toil works out the dossier, the repo and the environment from one
 resolver, **fed identically by both front doors**:
 
-1. **Explicit input:** `dossier` and `env` (`--dossier`, `--env` on the CLI), or
-   `TOIL_DOSSIER` and `TOIL_ENV`. `dossier` is a name, or a path to a dossier file, so
-   a pipeline can use a checked-in dossier with no home folder.
+1. **Explicit input:** `dossier` (`--dossier` on the CLI, or `TOIL_DOSSIER`), a name
+   or a path to a dossier file, so a pipeline can use a checked-in dossier with no
+   home folder. The environment is not a separate flag: it's the `env` context input
+   of each area that has environments (`--env`), and the dossier's environment
+   supplies that same input when the call leaves it out (see below).
 2. **Otherwise a folder, `cwd`.** `cwd` is an input on every command that resolves
    context, on both front doors (`--cwd <dir>` on the CLI, `cwd` over MCP). The name
    says what it stands in for, and it can't clash with a command's own path input
@@ -229,6 +231,19 @@ of core's context resolver (`resolveCall` in `src/core/call-context.ts`), throug
 the order is the call's own value, then the dossier, then the git remote where the
 area reads one, then the connection's setting, then the area's default. Until this
 plan lands the seam returns nothing.
+
+**One `--env`.** "Which environment" is one input everywhere: an explicit `--env`
+wins, otherwise the dossier's environment fills it through the resolver, and an
+environment the area doesn't know is an `INVALID_INPUT` listing the ones it has.
+`--help` says so (`--env <name>`: the environment; defaults to your dossier's
+environment, then the connection's). This plan also adds a context view, `toil
+dossiers show`, printing the resolved environment and connection per area.
+
+**Writes ask once.** A connection the dossier chose (or the git remote, through a
+selecting input) is a suggestion: reads follow it, but a write on it is
+`WRITE_DISABLED` until the user adopts that binding, which `toil dossiers import`
+records. Core already refuses such writes; this plan supplies the adoption
+(`Context.adopted`), after which writes work normally.
 
 `meta.context` in the envelope reports what was resolved and from where. Today it
 holds `{ connection, inputs, shared }`: the connection and each context input as `{

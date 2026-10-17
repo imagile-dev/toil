@@ -86,8 +86,6 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
    * command-level ones it lists.
    */
   context?: Record<string, ContextNeed>;
-  /** Settings this command takes from another area's connection. Set by `area.command()`. */
-  shares?: SharedSettings;
   args?: CliArgument[];
   options?: CliOption[];
   examples: Array<z.input<S>>;
@@ -96,23 +94,11 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
   run(input: z.output<S>, ctx: CommandContext<any>): Promise<unknown>;
 }
 
-/**
- * Settings a command takes from another area's default connection when its
- * own connection lacks them, as Kibana takes Elasticsearch's API key. The env
- * tier still outranks files across both: the own connection's env var, then
- * the other area's, then the own config file, then the other's.
- */
-export interface SharedSettings {
-  area: AnyArea;
-  /** Keys present, with the same name, on both areas' connection schemas. */
-  keys: string[];
-}
-
 // The registry holds commands of many input shapes.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyCommand = CommandDefinition<any>;
 
-type CoreSet = 'area' | 'kind' | 'context' | 'shares';
+type CoreSet = 'area' | 'kind' | 'context';
 
 /** A standalone command: no area, no connection, no config. Area commands use `area.command()`. */
 export function defineCommand<S extends z.ZodObject>(def: Omit<CommandDefinition<S>, CoreSet>): CommandDefinition<S> {

@@ -44,10 +44,11 @@ export interface ContextReport {
   inputs?: Record<string, ContextValue>;
   /**
    * Settings taken from another area's connection, by key: which area and
-   * connection, and where that value lived (env, ci, store, or defaults in
-   * the file). Never the value. Absent when none were.
+   * connection, where that value lived (env, ci, the store, the file, or
+   * `defaults` in the file), and whether the user paired the connections or it was the default
+   * connection's env fallback. Never the value. Absent when none were.
    */
-  shared?: Record<string, { area: string; connection: string; source: 'env' | 'ci' | 'store' | 'defaults' }>;
+  shared?: Record<string, { area: string; connection: string; source: 'env' | 'ci' | 'store' | 'file' | 'defaults'; via: 'pairing' | 'env-fallback' }>;
 }
 
 export interface Warning {

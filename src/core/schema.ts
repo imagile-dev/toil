@@ -40,7 +40,8 @@ export function elementSchema(schema: z.ZodType): z.ZodType | undefined {
  * Text from argv or an env var, as the type the schema asks for. The one
  * place this happens, for every area and both sources:
  *
- * - number: a finite number ("50", "-1.5"); boolean: exactly "true" or "false"
+ * - number: plain decimal digits ("50", "-1.5"), never hex, exponents or
+ *   padding; boolean: exactly "true" or "false"
  * - array or object: JSON (`[1,2]`, `{"a":1}`), as an env var or a single flag value
  * - anything else, a union included, stays text. Jira's `--max-results`
  *   accepts number or string on purpose, so `parseInt` keeps the predecessor's
@@ -52,7 +53,7 @@ export function elementSchema(schema: z.ZodType): z.ZodType | undefined {
 export function fromText(schema: z.ZodType, value: unknown): unknown {
   if (typeof value !== 'string') return value;
   const type = baseType(schema);
-  if (type === 'number' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value);
+  if (type === 'number' && /^-?\d+(\.\d+)?$/.test(value)) return Number(value);
   if (type === 'boolean' && (value === 'true' || value === 'false')) return value === 'true';
   if (type === 'array' || type === 'object' || type === 'record') {
     try {

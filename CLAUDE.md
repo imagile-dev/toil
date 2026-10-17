@@ -69,6 +69,8 @@ gets made again in the next place it applies.
 9. **toil talks only to what the user pointed it at.** No telemetry, no update checks,
    no call home. The only network traffic is to hosts in the user's config, or to a
    public API that a command the user ran names in its own name (`toil osv vulns`).
+   A credential goes only to the connection it's configured on, or to one the user
+   paired it with.
 
 ## Cross-Platform
 
@@ -213,14 +215,37 @@ picks the connection (`--env staging` selects the one named `staging` or whose `
 is `staging`), and `--connection` goes through the same chain: at each source in
 turn, a named connection and a selecting input must agree. `run` reads
 `ctx.context.<input>`, and `ctx.resolved` is the same report `meta.context` carries:
-the connection, each input, and where each came from.
+the connection, each input, and where each came from. `--help` and each MCP field
+say where an input defaults from, in that order.
 
-**Cross-area use is declared on the command.** `shares: { area, keys }` takes those
-settings from another area's default connection when this one lacks them (Kibana
-sending Elasticsearch's key), env tier first across both, and reports it in
-`meta.context.shared`. `aliases` adds CLI paths onto a command: a word is a sibling
-in its group, a path may sit in another group (`deps outdated` for `artifactory
-outdated`); MCP still has one tool per command, and `meta.command` names the command.
+**`--env` is one concept:** "which environment", everywhere. It's the context input
+on areas that have environments (`openshift`, `dynatrace`), and the dossier's
+environment is the same input: an explicit `--env` wins, otherwise the dossier
+supplies it through the resolver. There is no separate global `--env`. An
+environment the area doesn't know is a loud `INVALID_INPUT` listing the ones it has,
+never a guess.
+
+**A write on a connection that the dossier or the git remote chose is refused** until
+the user adopts that binding (`WRITE_DISABLED`, naming the connection; adopting is
+#16's `toil dossiers import`, and until then the fix says to pass `--connection`).
+Reads may follow the suggestion; once adopted, writes work normally. A connection the
+user named, selected with an explicit input, or set as the default is theirs already.
+
+**Cross-area credentials are paired explicitly** (*principle 9*). `defineArea({
+shares: { area, keys } })` only declares which keys may be paired; core adds a
+`<key>From` setting, and a connection borrows only when the user set it (a Kibana
+connection with `"apiKeyFrom": "es-prod"`), and only from that connection. Between
+the two, the env tier beats the file tier, and the own connection wins a tie. With
+no pairing a connection uses only its own key, with one exception that keeps the old
+env chain: the area's default connection takes the other area's default
+connection's env value (`TOIL_KIBANA_API_KEY`, then `TOIL_ELASTICSEARCH_API_KEY`),
+matching precedence rule 2. A shared key is a secret in both areas or in neither.
+`meta.context.shared` names the connection, whether it was paired, and whether the
+value came from env or the store, never the value.
+
+**Aliases** add CLI paths onto a command: a word is a sibling in its group, a path
+may sit in another group (`deps outdated` for `artifactory outdated`); MCP still has
+one tool per command, and `meta.command` names the command.
 
 Local files go through `ctx.files` (`src/core/files.ts`), never `node:fs`: input
 files, uploads and downloads resolve against the working directory on both front
@@ -235,10 +260,11 @@ value typed as its element. A union stays text, which is how Jira keeps the
 predecessor's `parseInt` reading of `--max-results`.
 
 **Commands never read config or env.** `run` gets `ctx.connection`, the one
-connection this call resolved, validated and typed from the area's schema, and a
+connection this call resolved, plus any setting from a connection the user paired
+it with, resolved by core, validated and typed from the area's schema, and a
 context with no `config` and no `env` (which carries every `TOIL_*` credential and
 every CI token on the runner), so no area can reach another area's or another
-connection's credentials. ESLint bans importing config, the credential store
+connection's credentials on its own. ESLint bans importing config, the credential store
 (`core/keychain`) and the prompter (`core/prompt`) under `src/areas/`, and
 `process.env` stays out of area code for the same reason. The store and the
 prompter are withheld from the context too. The only commands that see the whole config are the

@@ -32,7 +32,7 @@ describe('command kinds', () => {
   it('refuses the old flags and a kind an area command cannot have', () => {
     expect(() => area.command({ ...base, path: ['kinds', 'x'], cliOnly: true } as never)).toThrow(/"cliOnly" is gone/);
     expect(() => area.command({ ...base, path: ['kinds', 'x'], kind: 'config' } as never)).toThrow(/area or area-local/);
-    expect(() => area.command({ ...base, path: ['kinds', 'x'], kind: 'area-local', shares: { area, keys: [] } })).toThrow(/no connection/);
+    expect(() => area.command({ ...base, path: ['kinds', 'x'], kind: 'area-local', context: {} })).toThrow(/no connection/);
   });
 
   it('refuses two commands on one path, aliases included', () => {
@@ -76,8 +76,8 @@ describe('defineArea', () => {
     expect(Object.keys(plain.input.shape).sort()).toEqual(['connection', 'instance', 'project']);
     expect(board.options).toEqual(
       expect.arrayContaining([
-        { flags: '--project <value>', field: 'project', description: 'Project', group: true },
-        { flags: '--board-id <value>', field: 'boardId', description: 'Board' },
+        { flags: '--project <value>', field: 'project', description: "Project; defaults to your dossier's project, then the connection's project.", group: true },
+        { flags: '--board-id <value>', field: 'boardId', description: "Board; defaults to your dossier's boardId." },
       ]),
     );
     expect(() => area.command({ ...base, path: ['ctx', 'x'], context: { nope: 'optional' } as never })).toThrow(/isn't a context input/);
@@ -91,11 +91,15 @@ describe('defineArea', () => {
     expect(() => defineArea({ name: 'a', description: 'test', connection, context: { env: { description: 'x', selectsConnection: true } } })).toThrow(/must be a connection key/);
   });
 
-  it('checks shared settings exist on both areas', () => {
-    const other = defineArea({ name: 'other', description: 'test', connection: z.object({ apiKey: z.string() }) });
-    const area = defineArea({ name: 'mine', description: 'test', connection: z.object({ apiKey: z.string().optional(), baseUrl: z.string() }) });
-    expect(() => area.command({ ...base, path: ['mine', 'x'], shares: { area: other, keys: ['baseUrl'] } })).toThrow(/both mine and other/);
-    expect(area.command({ ...base, path: ['mine', 'y'], shares: { area: other, keys: ['apiKey'] } }).shares?.area).toBe(other);
+  it('checks shared settings fit both areas, and adds the pairing setting', () => {
+    const other = defineArea({ name: 'other', description: 'test', connection: z.object({ apiKey: z.string(), host: z.string().optional() }), secrets: ['apiKey'] });
+    const make = (keys: string[], secrets: string[] = ['apiKey']) =>
+      defineArea({ name: 'mine', description: 'test', connection: z.object({ apiKey: z.string().optional(), host: z.string().optional(), baseUrl: z.string() }), secrets: secrets as never, shares: { area: other, keys } });
+    expect(() => make(['baseUrl'])).toThrow(/both mine and other/);
+    expect(() => make(['apiKey'], [])).toThrow(/secret in both mine and other, or in neither/);
+    expect(() => make(['host'], ['apiKey', 'host'])).toThrow(/secret in both/);
+    expect(Object.keys(make(['apiKey']).connection.shape)).toContain('apiKeyFrom');
+    expect(() => defineArea({ name: 'other', description: 'test', connection: z.object({ apiKey: z.string() }), shares: { area: other, keys: ['apiKey'] } })).toThrow(/itself/);
   });
 });
 
@@ -128,6 +132,8 @@ describe('fromText', () => {
     expect(fromText(z.number(), '-1.5')).toBe(-1.5);
     expect(fromText(z.number(), 'five')).toBe('five');
     expect(fromText(z.number(), ' ')).toBe(' ');
+    // Decimal only, as argv was read before: no hex, binary, exponents, padding or Infinity.
+    for (const text of ['0x10', '0b11', '1e3', ' 5 ', 'Infinity']) expect(fromText(z.number(), text), text).toBe(text);
     expect(fromText(z.boolean().default(false), 'true')).toBe(true);
     expect(fromText(z.boolean(), 'yes')).toBe('yes');
     expect(fromText(z.array(z.string()), '["a","b"]')).toEqual(['a', 'b']);

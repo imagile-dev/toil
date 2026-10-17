@@ -158,9 +158,15 @@ export async function runProgram(options: ProgramOptions, argv: string[], from: 
     const globals = globalsFromArgv(userArgs);
     const command = commandFromArgv(userArgs, options.commands);
     const message = err.message.replace(/^error:\s*/, '');
+    const misplaced = err.code === 'commander.unknownOption' ? groupFlagBeforeAlias(userArgs, options.commands) : undefined;
+    const error = misplaced
+      ? new ToilError('INVALID_INPUT', `${misplaced.flag} goes after the command on toil ${misplaced.path.join(' ')}: it's a ${misplaced.def.path[0]} group flag, and ${misplaced.path[0]} doesn't have it.`, {
+          fix: `Run toil ${misplaced.path.join(' ')} ... ${misplaced.flag} <value>, or toil ${misplaced.def.path[0]} ${misplaced.flag} <value> ${misplaced.def.path.slice(1).join(' ')} ....`,
+        })
+      : new ToilError('INVALID_INPUT', message.charAt(0).toUpperCase() + message.slice(1), { fix: `Run toil ${command ? `${command} ` : ''}--help to see what it accepts.` });
     emit(
-      failure(new ToilError('INVALID_INPUT', message.charAt(0).toUpperCase() + message.slice(1), { fix: `Run toil ${command ? `${command} ` : ''}--help to see what it accepts.` }), {
-        command,
+      failure(error, {
+        command: misplaced ? commandName(misplaced.def) : command,
         durationMs: 0,
         version: options.version,
       }),
@@ -169,6 +175,27 @@ export async function runProgram(options: ProgramOptions, argv: string[], from: 
     );
     return err.exitCode === 0 ? 1 : err.exitCode;
   }
+}
+
+/**
+ * A group flag typed before the leaf of an alias that lives in another group
+ * (`toil demo --project X widget`): the alias's group doesn't own the flag, so
+ * commander refuses it there. Found here so the error says to move it, rather
+ * than claiming the flag doesn't exist when it works one word later.
+ */
+function groupFlagBeforeAlias(args: string[], commands: AnyCommand[]): { def: AnyCommand; path: string[]; flag: string } | undefined {
+  for (const def of commands) {
+    const flags = new Map((def.options ?? []).filter((o) => o.group).map((o) => [o.flags.split(/[ ,]+/).find((p) => p.startsWith('--'))!, o.flags]));
+    for (const path of aliasPaths(def)) {
+      if (path[0] === def.path[0]) continue;
+      let at = -1;
+      const positions = path.map((segment) => (at = args.indexOf(segment, at + 1)));
+      if (positions.some((p) => p < 0)) continue;
+      const flag = args.slice(positions[0]! + 1, positions[positions.length - 1]).find((t) => flags.has(t.split('=')[0]!));
+      if (flag) return { def, path, flag: flag.split('=')[0]! };
+    }
+  }
+  return undefined;
 }
 
 const VALUE_GLOBALS = new Set(['--config', '--output-file']);

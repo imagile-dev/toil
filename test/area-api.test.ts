@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { z } from 'zod';
+import { defineArea } from '../src/core/area.js';
 import type { GitRemoteReader } from '../src/core/call-context.js';
 import type { ResolvedConfig, Settings, Source } from '../src/core/config.js';
-import { execute } from '../src/core/run.js';
+import { allowWriteField, execute } from '../src/core/run.js';
 import { demoCommands } from './fixtures/demo-commands.js';
-import { demoContextCommands, demoContextRoutes, getWidget } from './fixtures/demo-context-commands.js';
+import { demoContextCommands, demoContextRoutes, getWidget, renameWidget } from './fixtures/demo-context-commands.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
 import { fakeStore } from './harness/fake-store.js';
@@ -41,7 +43,7 @@ describe('context inputs', () => {
     expect(run.envelope?.meta.context).toEqual({
       connection: { value: 'demo-context', source: 'default', default: 'named' },
       inputs: { project: { value: 'PRJ', source: 'connection' }, board: { value: 'main', source: 'default' } },
-      shared: { token: { area: 'demo', connection: 'demo', source: 'env' } },
+      shared: { token: { area: 'demo', connection: 'demo', source: 'env', via: 'env-fallback' } },
     });
     expect(http.calls.map((c) => [c.url, c.headers.authorization])).toEqual([['https://demo.imagile.dev/api/projects/PRJ/widgets/W-1?board=main', 'Bearer shared-token']]);
   });
@@ -121,8 +123,8 @@ describe('context inputs', () => {
 describe('choosing the connection', () => {
   const two = configOf(
     {
-      prod: { area: 'demo-context', env: 'production', project: 'PRD' },
-      stage: { area: 'demo-context', env: 'staging', project: 'STG' },
+      prod: { area: 'demo-context', env: 'production', project: 'PRD', token: 'p' },
+      stage: { area: 'demo-context', env: 'staging', project: 'STG', token: 's' },
       demo: { area: 'demo', token: 't' },
     },
     { 'demo-context': { connection: 'prod' }, demo: { connection: 'demo' } },
@@ -173,9 +175,14 @@ describe('choosing the connection', () => {
   it('refuses --connection and --env that disagree, an env no connection serves, and one several do', async () => {
     expect((await run({ id: 'W-1', connection: 'prod', env: 'staging' })).error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('selects connection stage') });
     expect((await run({ id: 'W-1', connection: 'stage', env: 'staging' })).ok).toBe(true);
-    expect((await run({ id: 'W-1', env: 'qa' })).error).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('prod, stage') });
+    expect((await run({ id: 'W-1', env: 'qa' })).error).toMatchObject({
+      code: 'INVALID_INPUT',
+      message: 'demo-context has no env "qa" (from the call). It knows: production (connection prod), staging (connection stage).',
+    });
+    const fromDossier = await run({ id: 'W-1' }, two, { dossier: (_a: string, key: string) => (key === 'env' ? 'qa' : undefined) });
+    expect(fromDossier.error).toMatchObject({ message: expect.stringContaining('(from your dossier)'), fix: expect.stringContaining('or correct your dossier') });
 
-    const twins = configOf({ a: { area: 'demo-context', env: 'staging' }, b: { area: 'demo-context', env: 'staging' }, demo: { area: 'demo', token: 't' } }, { demo: { connection: 'demo' } });
+    const twins = configOf({ a: { area: 'demo-context', env: 'staging', token: 't' }, b: { area: 'demo-context', env: 'staging', token: 't' }, demo: { area: 'demo', token: 't' } }, { demo: { connection: 'demo' } });
     expect((await run({ id: 'W-1', env: 'staging', project: 'P' }, twins)).error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('a, b') });
   });
 });
@@ -187,41 +194,145 @@ describe('settings shared from another area', () => {
     return { envelope, auth: http.calls[0]?.headers.authorization };
   };
   const defaults = { 'demo-context': { connection: 'dc' }, demo: { connection: 'de' } };
+  /** A file-tier value must be a keychain reference; this swaps one in, with the secret in the store. */
+  const inFile = (cfg: ResolvedConfig, store: ReturnType<typeof fakeStore>, name: string, key: string) => {
+    store.entries.set(`${name}.${key}`, String(cfg.connections[name]![key]));
+    cfg.connections[name]![key] = `keychain:${name}.${key}`;
+    cfg.sources[`${name}.${key}`] = 'global';
+  };
 
-  it('ranks the env tier above files across both areas, and the own connection first within a tier', async () => {
+  it('borrows from a paired connection: env beats file across both, and the own connection wins a tie', async () => {
     const cases: Array<[Source, Source, string]> = [
       ['env', 'env', 'Bearer own'],
       ['global', 'env', 'Bearer theirs'],
       ['env', 'global', 'Bearer own'],
+      ['global', 'global', 'Bearer own'],
     ];
     for (const [own, theirs, expected] of cases) {
-      const cfg = configOf({ dc: { area: 'demo-context', token: 'own' }, de: { area: 'demo', token: 'theirs' } }, defaults, { 'dc.token': own, 'de.token': theirs });
-      // A plaintext secret in a file is refused, so the file tier holds keychain references.
-      const store = fakeStore({ entries: { 'dc.token': 'own', 'de.token': 'theirs' } });
-      for (const [name, source] of [['dc', own], ['de', theirs]] as const) if (source === 'global') cfg.connections[name]!.token = `keychain:${name}.token`;
+      const cfg = configOf({ dc: { area: 'demo-context', token: 'own', tokenFrom: 'de' }, de: { area: 'demo', token: 'theirs' } }, defaults);
+      const store = fakeStore();
+      if (own === 'global') inFile(cfg, store, 'dc', 'token');
+      if (theirs === 'global') inFile(cfg, store, 'de', 'token');
       expect((await run(cfg, store)).auth, `${own} vs ${theirs}`).toBe(expected);
     }
 
-    const ownUnset = configOf({ dc: { area: 'demo-context' }, de: { area: 'demo', token: 'keychain:de.token' } }, defaults, { 'de.token': 'global' });
-    const { envelope, auth } = await run(ownUnset, fakeStore({ entries: { 'de.token': 'from-store' } }));
+    const ownUnset = configOf({ dc: { area: 'demo-context', tokenFrom: 'de' }, de: { area: 'demo', token: 'from-store' } }, defaults);
+    const store = fakeStore();
+    inFile(ownUnset, store, 'de', 'token');
+    const { envelope, auth } = await run(ownUnset, store);
     expect(auth).toBe('Bearer from-store');
-    expect(envelope.meta.context?.shared).toEqual({ token: { area: 'demo', connection: 'de', source: 'store' } });
+    expect(envelope.meta.context?.shared).toEqual({ token: { area: 'demo', connection: 'de', source: 'store', via: 'pairing' } });
   });
 
-  it("refuses the other area's plaintext secret in a file, naming that connection", async () => {
-    const cfg = configOf({ dc: { area: 'demo-context' }, de: { area: 'demo', token: 'plain' } }, defaults, { 'de.token': 'global' });
+  it("ranks the own defaults.<area> with the own file tier, above the paired connection's file value", async () => {
+    const cfg = configOf({ dc: { area: 'demo-context', tokenFrom: 'de' }, de: { area: 'demo', token: 'theirs' } }, { ...defaults, 'demo-context': { connection: 'dc', token: 'keychain:shared.token' } });
+    const store = fakeStore({ entries: { 'shared.token': 'own-defaults' } });
+    inFile(cfg, store, 'de', 'token');
+    expect((await run(cfg, store)).auth).toBe('Bearer own-defaults');
+  });
+
+  it('borrows nothing without a pairing, except the default connection taking the other default env value', async () => {
+    // Not the default connection, not paired: its own token or nothing.
+    const unpaired = configOf({ dc: { area: 'demo-context' }, other: { area: 'demo-context' }, de: { area: 'demo', token: 'theirs' } }, defaults);
+    const { context, http } = testContext({ routes: demoContextRoutes });
+    const viaOther = await execute(getWidget, { id: 'W-1', project: 'PRJ', connection: 'other' }, { ...context, config: unpaired });
+    expect(viaOther.error?.code).toBe('NOT_CONFIGURED');
+    expect(http.calls).toHaveLength(0);
+
+    // The default connection: the other default's env value, as TOIL_DEMO_TOKEN would give it.
+    const fallback = await run(unpaired);
+    expect(fallback.auth).toBe('Bearer theirs');
+    expect(fallback.envelope.meta.context?.shared).toEqual({ token: { area: 'demo', connection: 'de', source: 'env', via: 'env-fallback' } });
+
+    // ...but never its stored value, which only a pairing reaches.
+    const store = fakeStore();
+    inFile(unpaired, store, 'de', 'token');
+    expect((await run(unpaired, store)).envelope.error?.code).toBe('NOT_CONFIGURED');
+  });
+
+  it('refuses a pairing with a connection that is missing or of another area', async () => {
+    for (const target of ['nope', 'dc2']) {
+      const cfg = configOf({ dc: { area: 'demo-context', tokenFrom: target }, dc2: { area: 'demo-context' }, de: { area: 'demo', token: 't' } }, defaults);
+      const { envelope, auth } = await run(cfg);
+      expect(envelope.error, target).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining(`takes token from "${target}", which isn't a demo connection`), fix: expect.stringContaining('(de)') });
+      expect(auth).toBeUndefined();
+    }
+  });
+
+  it('finds a shared key under a renamed name, on either side', async () => {
+    const ownOld = configOf({ dc: { area: 'demo-context', apiToken: 'own-old', tokenFrom: 'de' }, de: { area: 'demo', token: 'theirs' } }, defaults);
+    expect((await run(ownOld)).auth).toBe('Bearer own-old');
+    const theirsOld = configOf({ dc: { area: 'demo-context', tokenFrom: 'de' }, de: { area: 'demo', apiToken: 'theirs-old' } }, defaults);
+    expect((await run(theirsOld)).auth).toBe('Bearer theirs-old');
+  });
+
+  it("refuses the paired connection's plaintext secret in a file, naming that connection", async () => {
+    const cfg = configOf({ dc: { area: 'demo-context', tokenFrom: 'de' }, de: { area: 'demo', token: 'plain' } }, defaults, { 'de.token': 'global' });
     const { envelope, auth } = await run(cfg);
     expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('Connection de (demo) has token in plain text') });
     expect(auth).toBeUndefined();
   });
 
   it('reports nothing shared when the own connection has the setting, and says which key was sent on a 401', async () => {
-    const own = configOf({ dc: { area: 'demo-context', token: 'own' }, de: { area: 'demo', token: 'theirs' } }, defaults);
+    const own = configOf({ dc: { area: 'demo-context', token: 'own', tokenFrom: 'de' }, de: { area: 'demo', token: 'theirs' } }, defaults);
     expect((await run(own)).envelope.meta.context).not.toHaveProperty('shared');
 
     const { context } = testContext({ config: base, routes: [{ url: /widgets/, respond: { status: 401, json: {} } }] });
     const rejected = await execute(getWidget, { id: 'W-1' }, context);
     expect(rejected.error?.message).toBe('The token was rejected (sent the shared token from demo connection demo).');
+  });
+});
+
+describe('writes on a connection the dossier or the git remote chose', () => {
+  const two = configOf(
+    {
+      prod: { area: 'demo-context', env: 'production', project: 'PRD', token: 'p', writes: true },
+      stage: { area: 'demo-context', env: 'staging', project: 'STG', token: 's', writes: true },
+      demo: { area: 'demo', token: 't' },
+    },
+    { 'demo-context': { connection: 'prod' }, demo: { connection: 'demo' } },
+  );
+  const write = async (input: Record<string, unknown>, extra: object = {}) => {
+    const { context, http } = testContext({ routes: demoContextRoutes });
+    const envelope = await execute(renameWidget, { id: 'W-1', name: 'N', allowWrite: true, ...input }, { ...context, config: two, ...extra });
+    return { envelope, calls: http.calls };
+  };
+  const dossier = (_area: string, key: string) => (key === 'env' ? 'staging' : undefined);
+
+  it('refuses until the binding is adopted, naming the connection and how to choose it', async () => {
+    const refused = await write({}, { dossier });
+    expect(refused.envelope.error).toEqual({
+      code: 'WRITE_DISABLED',
+      message: 'demo-context rename-widget changes data in demo-context, and connection stage was chosen by your dossier, not by you.',
+      fix: 'Pass --connection stage to choose it yourself, or adopt the binding once with toil dossiers import (coming with #16).',
+    });
+    expect(refused.calls).toHaveLength(0);
+
+    const adopted = await write({}, { dossier, adopted: (area: string, name: string) => area === 'demo-context' && name === 'stage' });
+    expect(adopted.envelope.ok).toBe(true);
+    expect(adopted.calls[0]?.url).toContain('/projects/STG/');
+  });
+
+  it('lets reads follow the dossier, and writes follow an explicit choice or the default', async () => {
+    const { context } = testContext({ routes: demoContextRoutes });
+    expect((await execute(getWidget, { id: 'W-1' }, { ...context, config: two, dossier })).ok).toBe(true);
+    expect((await write({ connection: 'stage' }, { dossier })).envelope.ok).toBe(true);
+    expect((await write({ env: 'staging' })).envelope.ok).toBe(true);
+    expect((await write({})).envelope.ok).toBe(true);
+  });
+
+  it('refuses a write on a connection the git remote selected', async () => {
+    const gitArea = defineArea({
+      name: 'git-picked',
+      description: 'test',
+      connection: z.object({ instance: z.string().optional() }),
+      context: { instance: { description: 'Instance', selectsConnection: true, git: (r) => new URL(r.url).hostname.split('.')[0] } },
+    });
+    const change = gitArea.command({ path: ['git-picked', 'change'], description: 'test', input: z.object({ ...allowWriteField }), writes: true, examples: [{ allowWrite: true }], run: async () => ({ changed: true }) });
+    const config = configOf({ alpha: { area: 'git-picked', writes: true }, beta: { area: 'git-picked', writes: true } }, { 'git-picked': { connection: 'alpha' } });
+    const { context } = testContext();
+    const envelope = await execute(change, { allowWrite: true }, { ...context, config, gitRemote: async () => ({ name: 'origin', url: 'https://beta.imagile.dev/x.git' }) });
+    expect(envelope.error).toMatchObject({ code: 'WRITE_DISABLED', message: expect.stringContaining('connection beta was chosen by the git remote') });
   });
 });
 
@@ -255,6 +366,21 @@ describe('aliases', () => {
     const run = await runCli(['demo', 'widget', 'W-1', '--project', 'ABC', '--env', 'staging'], { commands, context });
     expect(run.envelope?.meta.context?.inputs?.project).toEqual({ value: 'ABC', source: 'input' });
     expect(http.calls[0]?.url).toContain('/projects/ABC/');
+  });
+
+  it("refuses a group flag before an alias's leaf in another group, saying to move it", async () => {
+    const { context, http } = testContext({ config: base, routes: demoContextRoutes });
+    const run = await runCli(['demo', '--project', 'ABC', 'widget', 'W-1'], { commands, context });
+    expect(run.envelope).toMatchObject({
+      ok: false,
+      error: {
+        code: 'INVALID_INPUT',
+        message: "--project goes after the command on toil demo widget: it's a demo-context group flag, and demo doesn't have it.",
+        fix: 'Run toil demo widget ... --project <value>, or toil demo-context --project <value> get-widget ....',
+      },
+      meta: { command: 'demo-context get-widget' },
+    });
+    expect(http.calls).toHaveLength(0);
   });
 
   it('names the command, not the alias, on a usage error', async () => {

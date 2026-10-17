@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { CommandDefinition, CliOption, ContextNeed, SharedSettings } from './command.js';
+import type { CommandDefinition, CliOption, ContextNeed } from './command.js';
 import { envName } from './config.js';
 import type { GitRemote } from './call-context.js';
 import type { CommandContext } from './context.js';
@@ -11,8 +11,10 @@ import type { CommandContext } from './context.js';
  * validation with a fix, and handing each command its own resolved connection.
  *
  * Commands never read config. They get `ctx.connection`, typed from this
- * schema, so no area can reach another area's credentials. Access is granted on
- * a need-to-know basis, and every area has been assessed as not needing to know.
+ * schema: their own connection, plus any setting from a connection the user
+ * paired it with (`shares`), resolved by core. No area can reach another
+ * area's credentials on its own. Access is granted on a need-to-know basis,
+ * and every area has been assessed as not needing to know.
  */
 export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string = string> {
   name: string;
@@ -49,7 +51,29 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string 
    * connection's setting or the area's default. See {@link ContextInput}.
    */
   context?: Record<K, ContextInput>;
+  /**
+   * Settings a connection of this area may take from a connection of another
+   * area, as Kibana takes Elasticsearch's API key. Declaring it pairs nothing:
+   * core adds a `<key>From` setting, and only a connection whose user set it
+   * (`"apiKeyFrom": "es-prod"`) borrows, from that connection. The one
+   * exception keeps the old env chain: the area's default connection takes
+   * the other area's `TOIL_<AREA>_<KEY>` env value when it has no env value
+   * of its own.
+   */
+  shares?: SharedSettings;
 }
+
+/** See {@link AreaSpec.shares}. */
+export interface SharedSettings {
+  // A type-only reference back to Area, which is defined below.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  area: Area<any, string>;
+  /** Keys with the same name on both areas' connection schemas, secret in both or in neither. */
+  keys: string[];
+}
+
+/** The setting that pairs `key` with another area's connection: `apiKey` -> `apiKeyFrom`. */
+export const pairingKey = (key: string): string => `${key}From`;
 
 export type SecretKind = 'token' | 'password';
 
@@ -112,15 +136,13 @@ export interface Area<S extends z.ZodObject = z.ZodObject, K extends string = st
 }
 
 /** What an area command declares; `path[0]` must be the area's name. */
-export type AreaCommand<I extends z.ZodObject, C, K extends string = string> = Omit<CommandDefinition<I>, 'run' | 'kind' | 'area' | 'context' | 'shares' | 'examples'> & {
+export type AreaCommand<I extends z.ZodObject, C, K extends string = string> = Omit<CommandDefinition<I>, 'run' | 'kind' | 'area' | 'context' | 'examples'> & {
   /** Real inputs, which may set the context inputs core adds. */
   examples: Array<z.input<I> & Partial<Record<K, string>>>;
   /** `area-local` for a command that needs no connection (`jira schema`). Defaults to `area`. */
   kind?: 'area' | 'area-local';
   /** Command-level context inputs it takes, and any input (group-level too) it can't do without. */
   context?: Partial<Record<K, ContextNeed>>;
-  /** Settings taken from another area's connection when this one lacks them. */
-  shares?: SharedSettings;
   /** An `area-local` command's `ctx.connection` is undefined at run time, whatever this type says; it has no connection to read. */
   run(input: z.output<I>, ctx: CommandContext<Connection<C>, Partial<Record<K, string>>>): Promise<unknown>;
 };
@@ -165,9 +187,10 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
     }
   }
 
+  const connection = spec.shares ? withPairing(spec, secretKinds as Record<string, SecretKind>) : spec.connection;
   const area: Area<S, K> = {
     ...spec,
-    connection: withVariants(spec) as S,
+    connection: withVariants({ ...spec, connection }) as S,
     secrets,
     secretKinds,
     context: context as Partial<Record<K, ContextInput>>,
@@ -182,7 +205,7 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
       const kind = def.kind ?? 'area';
       if (kind !== 'area' && kind !== 'area-local') throw new Error(`Command ${name}: an area command's kind is area or area-local, not ${String(kind)}.`);
       if (kind === 'area-local') {
-        if (def.context || def.shares) throw new Error(`Command ${name}: an area-local command has no connection, so no context inputs or shared settings.`);
+        if (def.context) throw new Error(`Command ${name}: an area-local command has no connection, so no context inputs.`);
         return { ...def, kind, area, run: def.run as CommandDefinition['run'] } as CommandDefinition<typeof def.input>;
       }
       const needs = contextFor(spec.name, name, context, (def.context ?? {}) as Record<string, ContextNeed>);
@@ -191,11 +214,11 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
       for (const input of Object.keys(needs)) {
         const declared = context[input]!;
         if (input in def.input.shape) throw new Error(`Command ${name}: "${input}" is a context input of ${spec.name}; core adds it.`);
-        fields[input] = (declared.schema ?? z.string().min(1)).optional().describe(declared.description);
+        const description = describeInput(input, declared);
+        fields[input] = (declared.schema ?? z.string().min(1)).optional().describe(description);
         const flags = declared.flags ?? `--${kebab(input)} <value>`;
-        options.push({ flags, field: input, description: declared.description, ...((declared.scope ?? 'group') === 'group' ? { group: true } : {}) });
+        options.push({ flags, field: input, description, ...((declared.scope ?? 'group') === 'group' ? { group: true } : {}) });
       }
-      if (def.shares) checkShares(spec, name, def.shares);
       return {
         ...def,
         kind,
@@ -227,13 +250,39 @@ function contextFor(area: string, command: string, declared: Record<string, Cont
   return needs;
 }
 
-function checkShares(spec: AreaSpec<z.ZodObject, string>, command: string, shares: SharedSettings): void {
-  if (shares.area.name === spec.name) throw new Error(`Command ${command}: an area can't share settings with itself.`);
+/**
+ * What `--help` and the MCP field say about an input: its own description,
+ * then where a value comes from when the call leaves it out, in the order
+ * core looks. "Where did that come from?" should be answerable before asking.
+ */
+function describeInput(name: string, spec: ContextInput): string {
+  const fallbacks = [`your dossier's ${name}`, ...(spec.git ? ['the git remote'] : []), ...(spec.setting ? [`the connection's ${spec.setting}`] : []), ...(spec.default !== undefined ? [`"${spec.default}"`] : [])];
+  const selects = spec.selectsConnection ? ' It also picks the connection.' : '';
+  return `${spec.description}; defaults to ${fallbacks.join(', then ')}.${selects}`;
+}
+
+/** The connection schema with a `<key>From` pairing setting for each shared key, after checking the keys fit both areas. */
+function withPairing(spec: AreaSpec<z.ZodObject, string>, secretKinds: Record<string, SecretKind>): z.ZodObject {
+  const shares = spec.shares!;
+  if (shares.area.name === spec.name) throw new Error(`Area ${spec.name}: an area can't share settings with itself.`);
+  const pairing: Record<string, z.ZodType> = {};
   for (const key of shares.keys) {
     if (!(key in spec.connection.shape) || !(key in shares.area.connection.shape)) {
-      throw new Error(`Command ${command}: shared setting "${key}" must be a connection key of both ${spec.name} and ${shares.area.name}.`);
+      throw new Error(`Area ${spec.name}: shared setting "${key}" must be a connection key of both ${spec.name} and ${shares.area.name}.`);
     }
+    // A reference resolves only where the key is a secret; one side treating
+    // it as plain text would send `keychain:...` itself.
+    if ((key in secretKinds) !== shares.area.secrets.includes(key)) {
+      throw new Error(`Area ${spec.name}: shared setting "${key}" must be a secret in both ${spec.name} and ${shares.area.name}, or in neither.`);
+    }
+    if (pairingKey(key) in spec.connection.shape) throw new Error(`Area ${spec.name}: "${pairingKey(key)}" is added by core for the shared setting "${key}".`);
+    pairing[pairingKey(key)] = z
+      .string()
+      .min(1)
+      .optional()
+      .describe(`The ${shares.area.name} connection to take ${key} from when this connection has none`);
   }
+  return spec.connection.extend(pairing);
 }
 
 /**

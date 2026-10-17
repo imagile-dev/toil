@@ -53,9 +53,16 @@ skill file, or the file misses a command or a connection key's env var.
   predecessor failed without it. Give it a `setting` when the connection can hold a
   default, `git` when the remote names it, and `selectsConnection` when the old CLI
   picked an instance or environment by it. Read it from `ctx.context`.
-- **Another area's credential** (Kibana on Elasticsearch's key) is `shares: { area,
-  keys }` on each command that uses it; `ctx.resolved.shared` says whether the key
-  came from the other area, for an auth error that names which key was sent.
+- **Another area's credential** (Kibana on Elasticsearch's key) is `defineArea({
+  shares: { area, keys } })`. It declares which keys a connection may pair, nothing
+  more: the user pairs one with `<key>From` (`"apiKeyFrom": "es-prod"`), and the
+  area's default connection alone also takes the other area's default env value, as
+  the old env chain did. Document the `<key>From` setting in the area's skill file.
+  `ctx.resolved.shared` says whether the key came from the other area, for an auth
+  error that names which key was sent.
+- **`--env` means which environment**, and it's the same input the dossier supplies.
+  Name it `env`, give it `selectsConnection` (or an enum schema), and never add a
+  second environment flag.
 - **A path the old CLI had in another group** (`deps outdated`, now `artifactory
   outdated`) is an `aliases` entry on the new command; the contract test checks the
   old row against it.

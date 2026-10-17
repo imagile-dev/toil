@@ -98,7 +98,7 @@ export async function resolveCall(
 
   const chosen = chooseConnection(sources.config, area, def, input, early, dossier);
   const shared: NonNullable<ContextReport['shared']> = {};
-  const connection = await resolveConnection(sources.config, area, chosen?.value, warn, sources.secrets, signal, { shares: def.shares, shared });
+  const connection = await resolveConnection(sources.config, area, chosen?.value, warn, sources.secrets, signal, { shared });
   report.connection = chosen ? { value: connection.name, source: chosen.source, ...(chosen.via ? { via: chosen.via } : {}) } : { value: connection.name, source: 'default', default: defaultKind(sources.config, area, connection.name) };
   if (Object.keys(shared).length > 0) report.shared = shared;
 
@@ -110,7 +110,7 @@ export async function resolveCall(
     if (!spec.selectsConnection || found.source === 'input') continue;
     let selects: string | undefined;
     try {
-      selects = selectConnection(sources.config, area, name, spec.setting ?? name, found.value, flagOf(name, spec));
+      selects = selectConnection(sources.config, area, name, spec.setting ?? name, found.value, flagOf(name, spec), found.source);
     } catch {
       selects = undefined;
     }
@@ -162,7 +162,7 @@ function chooseConnection(
     for (const [name, found] of Object.entries(early)) {
       const spec = declared[name]!;
       if (!spec.selectsConnection || found.source !== source) continue;
-      const selected = selectConnection(config, area, name, spec.setting ?? name, found.value, flagOf(name, spec));
+      const selected = selectConnection(config, area, name, spec.setting ?? name, found.value, flagOf(name, spec), found.source);
       if (pick && pick.value !== selected) {
         const was = pick.via ? `${flagOf(pick.via, declared[pick.via]!).split(' ')[0]}, which selects ${pick.value}` : `connection ${pick.value}`;
         throw new ToilError('INVALID_INPUT', `${commandName(def)} got ${was}, and ${flagOf(name, spec).split(' ')[0]} ${found.value}, which selects connection ${selected} (both from the ${source}).`, {
