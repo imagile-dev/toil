@@ -33,10 +33,13 @@ from `main`).
   `/integrations/` use the same levels as **Verification Levels** (`integrations`
   skill), plus `planned`.
 - **A shipped integration's docs page lists its real commands** from
-  `site/src/data/commands.generated.json`, which `test/site-commands.test.ts` writes
-  from the registry. Never edit it by hand; run `npx vitest run -u` in the root.
-- **One source per fact.** `site/src/data/integrations.ts` and `docs/integrations.md`
-  change together; `site/src/data/principles.ts` restates the **Principles** in CLAUDE.md for
+  `site/src/data/commands/<area>.json`, which `test/site-commands.test.ts` writes
+  from the registry, one file per area. Never edit them by hand; run
+  `npx vitest run -u` in the root.
+- **One source per fact.** Each integration's board entry is its own file,
+  `site/src/data/integrations/<area>.json` (status, credential, supported version);
+  `site/src/data/integrations.ts` gathers them and `docs/integrations.md` points at
+  them; `site/src/data/principles.ts` restates the **Principles** in CLAUDE.md for
   users and keeps their numbering.
 - **Motion everywhere, never required.** Every animation sits behind
   `prefers-reduced-motion: no-preference`, and scroll reveals only hide content after
@@ -114,7 +117,10 @@ npm --prefix site run build
 ### Screenshots for the PR
 
 The browser pane's viewport emulation can paint only part of a tall page. For proof
-images, use headless Chrome with a throwaway profile; for 375px, render the page in a
-375px-wide iframe, because headless windows on Windows have a minimum width. Host the
+images, run `node scripts/shoot.mjs <page>...` against the dev server (or `--base`
+another): headless Chrome with a throwaway profile, full-height shots at desktop
+width and 375px set through the DevTools protocol (so no iframe is needed for
+Windows' minimum window width), and a sideways-scroll check at 375px and 320px that
+fails the run. Host the
 images on the orphan `screenshots` branch under `pr-<n>/` and link them by
 `raw.githubusercontent.com` URL. That branch is never merged.
