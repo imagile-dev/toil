@@ -125,7 +125,7 @@ describe('the contract diff bites', () => {
     commands: [
       { command: 'bites get', usage: '[options] <id>', leaf: true, options: [{ flags: '--name <text>', description: '' }, { flags: '--gone', description: '' }], aliases: ['g'] },
       { command: 'bites missing', usage: '[options]', leaf: true, options: [] },
-      { command: 'unported thing', usage: '[options]', leaf: true, options: [] },
+      { command: 'unbuilt thing', usage: '[options]', leaf: true, options: [] },
     ],
   };
 
