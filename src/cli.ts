@@ -26,7 +26,8 @@ const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSi
 try {
   if (wantsWelcome(process.argv.slice(2), process.stdin, process.stdout, process.env)) {
     const data = gatherWelcomeData({ version: VERSION, env: process.env, cwd: process.cwd(), home: homedir(), areas: areaInfo, script: process.argv[1] });
-    await runWelcome({ input: process.stdin, output: process.stdout, env: process.env }, data);
+    const ended = await runWelcome({ input: process.stdin, output: process.stdout, env: process.env }, data);
+    if (ended === 'interrupted') process.exitCode = 130;
   } else {
     process.exitCode = await runProgram(
     {

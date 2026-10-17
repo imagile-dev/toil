@@ -1,11 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { EventEmitter } from 'node:events';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DURATION, logoFrame, sceneAt, SIGNALS, SPIN } from '../src/welcome/logo.js';
 import { initialState, reduce, render, type MenuState } from '../src/welcome/menu.js';
 import { agentScreen, connectionsScreen, healthScreen, type WelcomeData } from '../src/welcome/screens.js';
 import { launchCommand } from '../src/welcome/data.js';
 import { playSplash, SPEED, splashFrame, TAGLINE } from '../src/welcome/splash.js';
 import { detectCaps, visibleLength } from '../src/welcome/term.js';
-import { wantsWelcome } from '../src/welcome/index.js';
+import { CTRL_C_WINDOW_MS, doubleTap, runWelcome, wantsWelcome } from '../src/welcome/index.js';
 import { testConfig } from './harness/context.js';
 
 // eslint-disable-next-line no-control-regex
@@ -181,8 +182,8 @@ describe('the menu', () => {
 
   it('moves with arrows or j/k, wrapping at both ends', () => {
     expect(press(initialState, 'down', 'down').selected).toBe(2);
-    expect(press(initialState, 'up').selected).toBe(5);
-    expect(press(initialState, 'j', 'k', 'k').selected).toBe(5);
+    expect(press(initialState, 'up').selected).toBe(4);
+    expect(press(initialState, 'j', 'k', 'k').selected).toBe(4);
   });
 
   it('opens a screen with enter or its number, and goes back with esc to where it was', () => {
@@ -198,19 +199,47 @@ describe('the menu', () => {
     expect(press(codex, 'escape').view).toBe('agents');
   });
 
-  it('quits with q, Ctrl+C or the Quit entry, and asks for a replay with its entry', () => {
+  it('quits with q or the Quit entry; Ctrl+C is left to the loop, which wants it twice', () => {
     expect(press(initialState, 'q').quit).toBe(true);
-    expect(press(initialState, { name: 'c', ctrl: true }).quit).toBe(true);
-    expect(press(initialState, '6').quit).toBe(true);
-    expect(press(initialState, '4').replay).toBe(true);
+    expect(press(initialState, { name: 'c', ctrl: true }).quit).toBeUndefined();
+    expect(press(initialState, '5').quit).toBe(true);
+    expect(press(initialState, '6').quit).toBeUndefined();
   });
 
   it('renders every screen without throwing, with a breadcrumb', () => {
-    for (const keys of [[], ['1'], ['2'], ['3'], ['3', '1'], ['5']]) {
+    for (const keys of [[], ['1'], ['2'], ['3'], ['3', '1'], ['4']]) {
       const lines = render(press(initialState, ...keys), plain, data()).join('\n');
       expect(lines).toContain('toil');
     }
     expect(render(press(initialState, '2'), plain, data()).join('\n')).toContain('toil › Connections');
+  });
+});
+
+describe('Ctrl+C', () => {
+  it('exits only on a second press within the window', () => {
+    let t = 0;
+    const press = doubleTap(2000, () => t);
+    expect(press()).toBe(false);
+    t = 1500;
+    expect(press()).toBe(true);
+  });
+
+  it('starts over when the second press comes too late, or after an exit', () => {
+    let t = 0;
+    const press = doubleTap(2000, () => t);
+    press();
+    t = 5000;
+    expect(press()).toBe(false);
+    t = 5100;
+    expect(press()).toBe(true);
+    t = 5200;
+    expect(press()).toBe(false);
+  });
+
+  it('shows the notice in the menu footer in place of the key hints', () => {
+    const lines = render(initialState, plain, data(), 'Press Ctrl+C again to exit.').join('\n');
+    expect(lines).toContain('Press Ctrl+C again to exit.');
+    expect(lines).not.toContain('1-5 jump');
   });
 });
 
@@ -234,5 +263,64 @@ describe('the screens', () => {
     const vscode = agentScreen(plain, data(), 'vscode').join('\n');
     expect(vscode).toContain('"command": "toil"');
     expect(launchCommand('/usr/lib/node_modules/@imagile-dev/toil/dist/toil.js')).toEqual({ command: 'toil', args: [] });
+  });
+});
+
+describe('the welcome loop', () => {
+  // A terminal made of plain objects: keys go in as keypress events, and
+  // everything written comes out in `screen`.
+  function fakeTerminal() {
+    const input = Object.assign(new EventEmitter(), { isTTY: true, setRawMode: () => input, resume: () => input, pause: () => input });
+    let screen = '';
+    const output = Object.assign(new EventEmitter(), { isTTY: true, columns: 120, rows: 40, getColorDepth: () => 1, write: (t: string) => ((screen += t), true) });
+    const signals = new EventEmitter();
+    const ctrlC = () => input.emit('keypress', '\x03', { ctrl: true, name: 'c' });
+    const key = (name: string) => input.emit('keypress', name, { name, sequence: name });
+    return { input, output, signals, ctrlC, key, screen: () => screen };
+  }
+
+  async function start(t: ReturnType<typeof fakeTerminal>) {
+    const ended = runWelcome(
+      { input: t.input as never, output: t.output as never, env: { TOIL_NO_ANIMATION: '1' }, signals: t.signals as never },
+      data(),
+    );
+    await vi.advanceTimersByTimeAsync(10);
+    return ended;
+  }
+
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('warns on the first Ctrl+C and exits on the second, restoring the terminal', async () => {
+    const t = fakeTerminal();
+    const ended = start(t);
+    await vi.advanceTimersByTimeAsync(10);
+    t.ctrlC();
+    expect(t.screen()).toContain('Press Ctrl+C again to exit.');
+    t.ctrlC();
+    await expect(ended).resolves.toBe('interrupted');
+    expect(t.screen()).toContain('\x1b[?1049l');
+    expect(t.screen()).toContain('\x1b[?25h');
+  });
+
+  it('starts over when the second Ctrl+C comes after the window, and q still quits at once', async () => {
+    const t = fakeTerminal();
+    const ended = start(t);
+    await vi.advanceTimersByTimeAsync(10);
+    t.ctrlC();
+    await vi.advanceTimersByTimeAsync(CTRL_C_WINDOW_MS + 500);
+    t.ctrlC();
+    t.key('q');
+    await expect(ended).resolves.toBe('quit');
+  });
+
+  it('treats SIGINT the same as a Ctrl+C keypress, and stops listening once it exits', async () => {
+    const t = fakeTerminal();
+    const ended = start(t);
+    await vi.advanceTimersByTimeAsync(10);
+    t.signals.emit('SIGINT');
+    t.signals.emit('SIGINT');
+    await expect(ended).resolves.toBe('interrupted');
+    expect(t.signals.listenerCount('SIGINT')).toBe(0);
   });
 });

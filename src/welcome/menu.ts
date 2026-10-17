@@ -6,7 +6,7 @@ import { PALETTE, paint, type TermCaps } from './term.js';
  * The main menu as a small state machine: `reduce(state, key)` returns the
  * next state, and `render(state)` returns the lines to draw. Neither touches
  * the terminal, so the whole menu is testable as data, and the loop that does
- * touch the terminal stays a few lines long. Six numbered options on one
+ * touch the terminal stays a few lines long. Five numbered options on one
  * screen: the rare phone tree that never says "please listen carefully".
  */
 
@@ -18,8 +18,6 @@ export interface MenuState {
   selected: number;
   client?: AgentClient;
   quit?: boolean;
-  /** Set for one step when the user asks to see the intro again. */
-  replay?: boolean;
 }
 
 export interface Key {
@@ -28,11 +26,10 @@ export interface Key {
   ctrl?: boolean | undefined;
 }
 
-const HOME: Array<{ label: string; hint: string; go: View | 'replay' | 'quit' }> = [
+const HOME: Array<{ label: string; hint: string; go: View | 'quit' }> = [
   { label: 'Health check', hint: 'Config file, connections and warnings', go: 'health' },
   { label: 'Connections', hint: 'What toil can talk to, and with what', go: 'connections' },
   { label: 'Connect an agent', hint: 'Register toil mcp with Claude Code, Codex or VS Code', go: 'agents' },
-  { label: 'Replay the intro', hint: 'Once more, with feeling', go: 'replay' },
   { label: 'About toil', hint: 'Version, docs, source', go: 'about' },
   { label: 'Quit', hint: 'Back to your shell', go: 'quit' },
 ];
@@ -43,8 +40,9 @@ const listLength = (view: View) => (view === 'home' ? HOME.length : view === 'ag
 const parentOf = (view: View): View => (view === 'agent' ? 'agents' : 'home');
 
 export function reduce(state: MenuState, key: Key): MenuState {
-  const s: MenuState = { ...state, replay: false };
-  if ((key.ctrl && key.name === 'c') || key.name === 'q') return { ...s, quit: true };
+  const s: MenuState = { ...state };
+  // Ctrl+C is the loop's to handle (twice to exit); q quits from anywhere.
+  if (key.name === 'q' && !key.ctrl) return { ...s, quit: true };
   if (key.name === 'escape' || key.name === 'backspace' || key.name === 'left') {
     if (s.view === 'home') return s;
     const parent = parentOf(s.view);
@@ -64,7 +62,6 @@ function choose(s: MenuState): MenuState {
   if (s.view === 'agents') return { view: 'agent', selected: 0, client: AGENT_CLIENTS[s.selected]!.id };
   const target = HOME[s.selected]!.go;
   if (target === 'quit') return { ...s, quit: true };
-  if (target === 'replay') return { ...s, replay: true };
   return { view: target, selected: 0 };
 }
 
@@ -77,7 +74,7 @@ const CRUMB: Record<View, string> = {
   about: 'About toil',
 };
 
-export function render(state: MenuState, caps: Pick<TermCaps, 'colorDepth' | 'unicode'>, data: WelcomeData): string[] {
+export function render(state: MenuState, caps: Pick<TermCaps, 'colorDepth' | 'unicode'>, data: WelcomeData, notice = ''): string[] {
   const arrow = caps.unicode ? '›' : '>';
   const crumbs = ['toil', CRUMB[state.view], state.view === 'agent' ? AGENT_CLIENTS.find((c) => c.id === state.client)?.label : '']
     .filter(Boolean)
@@ -107,8 +104,8 @@ export function render(state: MenuState, caps: Pick<TermCaps, 'colorDepth' | 'un
       break;
   }
   lines.push(...body.map((l) => `  ${l}`), '');
-  const keys = state.view === 'home' ? 'up/down move   enter select   1-6 jump   q quit' : listLength(state.view) ? 'up/down move   enter select   esc back   q quit' : 'esc back   q quit';
-  lines.push(`  ${paint(caps, PALETTE.faint, keys)}`);
+  const keys = state.view === 'home' ? 'up/down move   enter select   1-5 jump   q quit' : listLength(state.view) ? 'up/down move   enter select   esc back   q quit' : 'esc back   q quit';
+  lines.push(notice ? `  ${paint(caps, PALETTE.accent, notice)}` : `  ${paint(caps, PALETTE.faint, keys)}`);
   return lines;
 }
 
