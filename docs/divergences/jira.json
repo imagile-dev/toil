@@ -36,6 +36,13 @@
       "why": "A read-only command, whose file name comes from whoever uploaded the attachment, must not change files already on disk.",
       "principle": "2",
       "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "jira search, list-comments, list-boards and list-sprints paging for as long as the server kept answering",
+      "toil": "Paging stops after 1,000 pages (100,000 items at 100 a page) with an HTTP error naming the list, e.g. \"Paging Jira search didn't end after 1000 pages\", and a fix to narrow the request",
+      "why": "A server that ignores startAt hands back the same page forever; the bound turns a hang into an error that says what happened. A list that size is far past anything a caller can use in one envelope.",
+      "principle": "4"
     }
   ]
 }

@@ -112,6 +112,11 @@ toil jira download-attachment --key ABC-123 --attachment-id 10001 --dir download
 
 `search` without `--max-results` pages through every match, so bound broad
 queries. `meta.page.nextCursor` is the `--start-at` for the next page (or `null`).
+`create-issue` takes its project from `--project`, then `project` in `--input-file`, then
+the connection's `project`, and `meta.context.inputs.project` says which: `input` for
+the flag or the file, `connection` for the setting (`TOIL_JIRA_PROJECT` and
+`defaults.jira.project` both report `connection`, not `default`). The `--project` on `fields`,
+`list-boards` and `list-sprints` never falls back to the connection.
 `--time-spent` takes Jira durations (`1d`, `2h 30m`); `--started` takes Jira's datetime
 format (`2024-01-15T09:00:00.000+0000`) and defaults to now.
 

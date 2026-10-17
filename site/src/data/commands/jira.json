@@ -14,7 +14,6 @@
     "description": "Create a Jira issue",
     "writes": true,
     "flags": [
-      "--project <key>",
       "--type <type>",
       "--summary <text>",
       "--description <text>",
@@ -25,6 +24,7 @@
       "--field <Name=value>",
       "--fields-file <path>",
       "--input-file <path>",
+      "--project <key>",
       "--allow-write"
     ]
   },
