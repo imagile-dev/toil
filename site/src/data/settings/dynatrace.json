@@ -2,7 +2,7 @@
   {
     "key": "baseUrl",
     "env": "TOIL_DYNATRACE_BASE_URL",
-    "description": "Classic environment URL, e.g. https://abc12345.live.dynatrace.com (Managed: keep the /e/<environment-id> path)",
+    "description": "Classic environment URL, like https://<environment-id>.live.dynatrace.com (Managed: keep the /e/<environment-id> path)",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -18,7 +18,7 @@
   {
     "key": "platformUrl",
     "env": "TOIL_DYNATRACE_PLATFORM_URL",
-    "description": "Platform URL for trace, e.g. https://abc12345.apps.dynatrace.com",
+    "description": "Platform URL for trace, like https://<environment-id>.apps.dynatrace.com",
     "required": false,
     "secret": false,
     "fallbacks": []

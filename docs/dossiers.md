@@ -100,7 +100,7 @@ TOIL_CONN_OCP_PROD_TOKEN=...
     "test": { "openshift": { "host": "api.ocp-nonprod.imagile.dev", "namespace": "payments-test" } },
     "prod": {
       "openshift": { "host": "api.ocp.imagile.dev", "namespace": "payments-prod", "deployments": ["payments-api", "ledger-svc"] },
-      "dynatrace": { "host": "abc12345.live.dynatrace.com", "entities": ["SERVICE-abc12345"] }
+      "dynatrace": { "host": "dynatrace.imagile.dev", "entities": ["SERVICE-abc12345"] }
     }
   }
 }
