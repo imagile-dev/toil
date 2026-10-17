@@ -4,6 +4,7 @@ import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
 import { ToilError, toToilError } from './core/errors.js';
 import { exitCodeOf, runCommand } from './core/run.js';
+import { longFlag, type ResolvedRoutedAlias } from './core/routed-alias.js';
 import { baseType, elementSchema, fieldSchema, fromText } from './core/schema.js';
 
 /** Flags every command accepts. Names and meanings are part of the contract. */
@@ -40,6 +41,8 @@ export interface ProgramOptions {
   /** Builds the context for one command. `def` lets standalone and area-local commands skip loading config. */
   createContext: (globals: GlobalOptions, def?: AnyCommand) => Context;
   startMcp: (options: { areas: string[] | undefined; globals: GlobalOptions }) => Promise<void>;
+  /** Old paths that route to a command by a flag's value (`deps frisk --source osv`); see src/core/routed-alias.ts. */
+  routed?: readonly ResolvedRoutedAlias[];
 }
 
 /**
@@ -147,6 +150,63 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
   // gets a leaf of its own that runs the same definition.
   for (const def of options.commands) {
     for (const [i, path] of aliasPaths(def).entries()) if (typeof def.aliases![i] !== 'string') register(def, path);
+  }
+
+  // A routed alias is one leaf with every target's flags: the routing flag
+  // picks the command, and a flag that command doesn't take is refused by name.
+  for (const alias of options.routed ?? []) {
+    const routing = longFlag(alias.flag);
+    const present = Object.entries(alias.routes).filter((entry): entry is [string, AnyCommand] => entry[1] !== undefined);
+    const routeText = Object.entries(alias.targets)
+      .map(([value, target]) => `toil ${target} (${routing} ${value}${value === alias.default ? ', the default' : ''})`)
+      .join(', ');
+    const leaf = quiet(groupFor(alias.path.slice(0, -1)).command(alias.path[alias.path.length - 1]!).description(`${alias.description}. Runs ${routeText}.`));
+    leaf.option(alias.flag, `Which command to run: ${Object.keys(alias.targets).join(', ')} (default: "${alias.default}")`);
+    const owners = new Map<string, string[]>();
+    for (const [value, def] of present) {
+      for (const opt of def.options ?? []) {
+        const long = longFlag(opt.flags);
+        if (!owners.has(long)) addOption(leaf, def, opt);
+        owners.set(long, [...(owners.get(long) ?? []), value]);
+      }
+    }
+    leaf.action(async (...actionArgs: unknown[]) => {
+      const cmd = actionArgs[actionArgs.length - 1] as Command;
+      const globals = cmd.optsWithGlobals<GlobalOptions>();
+      const own = cmd.opts<Record<string, unknown>>();
+      const value = String(own[new Option(alias.flag).attributeName()] ?? alias.default);
+      const def = alias.routes[value];
+      const refuse = (message: string, fix: string) => {
+        io.stdout(`${JSON.stringify(failure(new ToilError('INVALID_INPUT', message, { fix }), { command: alias.path.join(' '), durationMs: 0, version: options.version }), null, globals.pretty ? 2 : undefined)}
+`);
+        result.exitCode = 1;
+      };
+      if (!(value in alias.targets)) {
+        return refuse(`toil ${alias.path.join(' ')} has no ${routing} "${value}"; it takes ${Object.keys(alias.targets).join(', ')}.`, `Run one source at a time: ${routeText}.`);
+      }
+      if (!def) {
+        return refuse(`toil ${alias.path.join(' ')} ${routing} ${value} runs toil ${alias.targets[value]}, which this build of toil doesn't have yet.`, `Use another ${routing} value, or a toil release that has toil ${alias.targets[value]}.`);
+      }
+      const theirs = new Set((def.options ?? []).map((o) => longFlag(o.flags)));
+      for (const [long, values] of owners) {
+        // Where the value came from, not whether it is set: commander defaults a --no-x flag to true.
+        if (theirs.has(long) || cmd.getOptionValueSource(new Option(long).attributeName()) !== "cli") continue;
+        return refuse(`${long} is for ${routing} ${values.join(' or ')}; ${routing} ${value} runs toil ${commandName(def)}, which doesn't take it.`, `Leave out ${long}, or pass ${routing} ${values[0]}.`);
+      }
+      const input = inputFromCli(def, cmd, groupFlags(alias.path[0]!));
+      if (globals.outputFile && io.checkFile) {
+        try {
+          io.checkFile(globals.outputFile, globals);
+        } catch (err) {
+          io.stdout(`${JSON.stringify(failure(toToilError(err), { command: commandName(def), durationMs: 0, version: options.version }), null, globals.pretty ? 2 : undefined)}\n`);
+          result.exitCode = 1;
+          return;
+        }
+      }
+      const envelope = await runCommand(def, input, () => options.createContext(globals, def), options.version);
+      const written = emit(envelope, globals, io, def.writes);
+      result.exitCode = written ? exitCodeOf(envelope) : 1;
+    });
   }
 
   quiet(
@@ -378,6 +438,11 @@ function typed(def: AnyCommand, field: string, value: unknown): unknown {
     return element ? value.map((item) => fromText(element, item)) : value;
   }
   return fromText(schema, value);
+}
+
+/** The argv that runs `def` with `input` through a routed alias, picking it with `value`. */
+export function routedArgvFor(alias: Pick<ResolvedRoutedAlias, 'path' | 'flag'>, value: string, def: AnyCommand, input: Record<string, unknown>): string[] {
+  return [...alias.path, longFlag(alias.flag), value, ...argvFor(def, input).slice(def.path.length)];
 }
 
 /**

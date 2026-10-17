@@ -24,6 +24,29 @@ export type QueryParam = QueryValue | readonly QueryValue[];
  * `https://jira.imagile.dev/jira` keeps its `/jira`. Commas in the query stay
  * literal, because several REST APIs read `expand=a,b` and nothing else.
  */
+/**
+ * Refuses a request path with a `.` or `..` segment, in any spelling the
+ * URL parser collapses (`%2e`, `.%2E`). An id of `..` dropped into
+ * `items/${id}/delete` would otherwise send the request, and its
+ * credential, to `delete` on another endpoint of the same host, and a write
+ * would land somewhere nobody asked for. A dot inside a segment (`v1.2`,
+ * `.hidden`) is untouched. Checked before anything is sent.
+ */
+export function assertNoDotSegments(raw: string): void {
+  const authority = /^[a-z][a-z0-9+.-]*:\/\/[^/?#\\]*/i.exec(raw);
+  const rest = authority ? raw.slice(authority[0].length) : raw;
+  const path = rest.split(/[?#]/, 1)[0]!;
+  for (const segment of path.split(/[/\\]/)) {
+    const plain = segment.replace(/%2e/gi, '.');
+    if (plain === '.' || plain === '..') {
+      throw new ToilError('INVALID_INPUT', `A request path can't have "${segment}" as a segment: ${redactUrl(raw)} would reach a different endpoint than the one named.`, {
+        fix: `Check the id, key or name passed to the command; "${segment}" isn't one.`,
+        details: { segment },
+      });
+    }
+  }
+}
+
 export function buildUrl(base: string, path: string, params?: Record<string, QueryParam>): string {
   const root = base.endsWith('/') ? base : `${base}/`;
   const url = new URL(path.startsWith('/') ? path.slice(1) : path, root);
@@ -130,6 +153,13 @@ export interface RestOptions {
    * caller with no connection, the error names `baseUrl` as it always did.
    */
   baseUrl?: string | null;
+  /**
+   * `false` hands a 429 back at once, as any other error status (or as an
+   * answer, with `accept`), instead of waiting and retrying. For an area
+   * whose service already queues, or whose predecessor reported a 429
+   * straight away.
+   */
+  retryRateLimit?: false;
 }
 
 /**
@@ -148,7 +178,7 @@ export interface RestResponse<T> {
 }
 
 /**
- * Sends one request (retrying a 429) and returns the parsed body: JSON, or
+ * Sends one request (retrying a 429, unless `retryRateLimit` is false) and returns the parsed body: JSON, or
  * undefined for an empty or 204 response, or text, NDJSON or bytes as asked.
  */
 export async function restRequest<T>(ctx: RestContext, url: string, init: RequestInit, options: RestOptions): Promise<T> {
@@ -157,13 +187,14 @@ export async function restRequest<T>(ctx: RestContext, url: string, init: Reques
 
 /** restRequest, but with the status and response headers too (a continuation token, a `Location`). */
 export async function restResponse<T>(ctx: RestContext, url: string, init: RequestInit, options: RestOptions): Promise<RestResponse<T>> {
+  assertNoDotSegments(url);
   for (let attempt = 1; ; attempt++) {
     const timeout = options.timeoutMs !== undefined ? AbortSignal.timeout(options.timeoutMs) : undefined;
     const signals = [init.signal, timeout].filter((s): s is AbortSignal => s !== undefined && s !== null);
     const attemptInit: RequestInit = signals.length > 0 ? { ...init, signal: AbortSignal.any(signals) } : init;
     try {
       const { response, finalUrl } = await follow(ctx, url, attemptInit, options);
-      if (response.status === 429) {
+      if (response.status === 429 && options.retryRateLimit !== false) {
         const wait = parseRetryAfter(response.headers.get('Retry-After'));
         if (attempt >= ATTEMPTS || (wait !== undefined && wait > MAX_RETRY_AFTER_SECONDS)) {
           // The predecessor's wording, so scripts matching on it keep working.

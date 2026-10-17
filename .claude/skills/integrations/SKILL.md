@@ -198,6 +198,39 @@ versions.
 - Fix text names env vars with `area.envName(key)`, never a hard-coded
   `TOIL_<AREA>_…`.
 - A read sent as POST (a search) sets `queryByPost: true` and stays `writes: false`.
+  A token exchange is not such a POST: the parity suite leaves core's exchange out
+  of the read-only check on its own, so don't mark a read `queryByPost` for it.
+- An area that drops its cached token itself builds the key with
+  `tokenKey(tokenScope(area, ctx.connection), exchange)` from `src/core/token.ts`,
+  never by copying the format.
+- **Not-configured wording of the area's own** ("OSS Index needs an account…") is
+  `defineArea({ notConfigured: { message, fix? } })`; the fix defaults to core's.
+- **A key the area no longer accepts** (checkmarx's `clientId`) is `defineArea({
+  removed: { clientId: '<what to do instead>' } })`: a `CONFIG_REMOVED_KEY` warning
+  in the area's words, and the value is dropped.
+- **An old path whose flag value picks the command** (`deps frisk --source <x>`) is
+  a row in `ROUTED_ALIASES` in `src/registry.ts`, never an area's own alias. A
+  route whose command isn't on `main` yet is skipped; the contract test checks
+  the row once every route is registered.
+- **An inventory from `deps scan`** (`--from <file>` or stdin) is read with
+  `readInventory` from `src/core/inventory.ts`, never parsed in the area.
+- **A wait that grows by a fixed step** (`2 s × attempt`) is `poll` with
+  `backoff: 'linear'`.
+- **A 429 the predecessor returned at once** is `apiRequest(..., {
+  retryRateLimit: false })`, with `accept: [429]` if it's an answer.
+- **A request path never takes a `.` or `..` segment**: core refuses one with
+  `INVALID_INPUT` before sending (`requests.path` in `docs/bounds.md`), so an
+  area needn't check ids for it.
+- **A `connectionOptional` command** also runs with `ctx.connection` undefined
+  when the default connection exists but only lacks a key (a missing `pat`), with
+  a `CONFIG_INCOMPLETE` warning; a key set to something wrong still fails.
+- **A fixture whose examples read the repository** (`current-pr`) sets `repo`
+  (root, branch, remotes) in `defineFixture`, and `ctx.repo()` returns it on both
+  front doors.
+- **Two selecting inputs** (`--env prod --instance east`) pick the one connection
+  matching both when each alone matches several.
+- `jenkins instance remove`-style paths are `coreAliases` onto `connections
+  remove`, which takes `--area`.
 - Every connection key keeps the predecessor's name, so its env var does too
   (`apiToken` is `TOIL_JIRA_API_TOKEN`).
 - Unit tests assert exact requests through `execute()` and `testContext()`; the

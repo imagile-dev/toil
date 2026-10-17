@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { apiRequest } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
-import { STDIN_OVER_MCP } from '../../core/files.js';
+import { INVENTORY_FROM_DESCRIPTION, readInventory as readSharedInventory, type InventoryPackage } from '../../core/inventory.js';
 import { artifactoryArea } from './area.js';
 import type { ArtifactoryConnection, ArtifactoryContext } from './client.js';
 import { isNewer, updateType } from './semver.js';
@@ -24,67 +24,15 @@ const TIME_LIMIT_MS = 600_000;
 
 type Ecosystem = 'npm' | 'nuget' | 'maven';
 
-const inventoryPackage = z.object({
-  name: z.string(),
-  version: z.string(),
-  ecosystem: z.string(),
-  source: z.string().optional(),
-  type: z.string().optional(),
-  scope: z.string().optional(),
-});
-type InventoryPackage = z.output<typeof inventoryPackage>;
-
 const ECOSYSTEM_DESCRIPTION = 'Filter to one ecosystem: npm, nuget, maven, all (default: "all")';
-const FROM_DESCRIPTION = 'Inventory to check: a file holding toil deps scan output (its envelope, its data, or a list of packages). Omitted, it is read from stdin on the CLI';
+const FROM_DESCRIPTION = INVENTORY_FROM_DESCRIPTION;
 
 const fromField = z.string().optional().describe(FROM_DESCRIPTION);
 const ecosystemField = z.string().optional().describe(ECOSYSTEM_DESCRIPTION);
 
-/**
- * The inventory's packages. Accepts `deps scan`'s whole envelope, its `data`,
- * or a bare list, so a hand-made list works too.
- */
-export function readInventory(ctx: ArtifactoryContext, from: string | undefined): InventoryPackage[] {
-  const where = from === undefined || from === '-' ? 'stdin' : `"${from}"`;
-  let text: string;
-  try {
-    text = ctx.files.readText(from ?? '-');
-  } catch (err) {
-    if (err === STDIN_OVER_MCP && from === undefined) {
-      throw new ToilError('INVALID_INPUT', 'No inventory to check: pass from, a file holding toil deps scan output. Over MCP there is no stdin to read it from.', {
-        fix: 'Write toil deps scan output to a file in the workspace, then pass its path as from.',
-      });
-    }
-    throw err;
-  }
-  const fix = `Pass the output of toil deps scan, e.g. toil deps scan | toil artifactory <command>, or --from <file> holding it.`;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new ToilError('INVALID_INPUT', `The inventory from ${where} isn't JSON.`, { fix });
-  }
-  const record = (value: unknown) => (typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined);
-  const envelope = record(parsed);
-  if (envelope?.ok === false) {
-    const message = record(envelope.error)?.message;
-    throw new ToilError('INVALID_INPUT', `The inventory from ${where} is a failed result${typeof message === 'string' ? `: ${message}` : ''}.`, {
-      fix: 'Fix what made the scan fail, then run it again.',
-    });
-  }
-  const list = Array.isArray(parsed) ? parsed : (record(envelope?.data)?.packages ?? envelope?.packages);
-  if (!Array.isArray(list)) {
-    throw new ToilError('INVALID_INPUT', `The inventory from ${where} has no packages list.`, { fix });
-  }
-  const packages = z.array(inventoryPackage).safeParse(list);
-  if (!packages.success) {
-    const issue = packages.error.issues[0];
-    throw new ToilError('INVALID_INPUT', `The inventory from ${where} has a package without a usable ${String(issue?.path.at(-1) ?? 'field')} (packages[${String(issue?.path[0] ?? '?')}]).`, {
-      fix: 'Each package needs a name, version and ecosystem, as toil deps scan writes them.',
-      details: packages.error.issues.slice(0, 5).map((i) => ({ path: i.path, message: i.message })),
-    });
-  }
-  return packages.data;
+/** The inventory, read by core's shared reader, with the fix naming this area's commands as before. */
+function readInventory(ctx: ArtifactoryContext, from: string | undefined): InventoryPackage[] {
+  return readSharedInventory(ctx, from, { pipeTo: 'toil artifactory <command>' });
 }
 
 /**
