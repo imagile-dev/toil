@@ -16,7 +16,8 @@ export type PublicContext = Pick<CommandContext<unknown>, 'fetch' | 'signal'>;
 export interface PublicPost {
   service: string;
   url: string;
-  body: unknown;
+  /** A JSON body, sent as POST; absent, the request is a GET. */
+  body?: unknown;
   headers?: Record<string, string>;
   /** Non-OK statuses to hand back rather than fail on. */
   accept?: readonly number[];
@@ -25,11 +26,15 @@ export interface PublicPost {
 }
 
 /** The status and parsed body; a failure is core's ToilError, with `details.status`. */
-export async function postJson<T>(ctx: PublicContext, req: PublicPost): Promise<{ status: number; data: T }> {
+export async function requestJson<T>(ctx: PublicContext, req: PublicPost): Promise<{ status: number; data: T }> {
+  const init: RequestInit =
+    req.body === undefined
+      ? { method: 'GET', ...(req.headers ? { headers: req.headers } : {}), signal: ctx.signal }
+      : { method: 'POST', headers: { 'Content-Type': 'application/json', ...req.headers }, body: JSON.stringify(req.body), signal: ctx.signal };
   const response = await restResponse<T>(
     ctx,
     req.url,
-    { method: 'POST', headers: { 'Content-Type': 'application/json', ...req.headers }, body: JSON.stringify(req.body), signal: ctx.signal },
+    init,
     {
       service: req.service,
       authFix: `${req.service} refused the request. toil sends it no credential; check whether ${new URL(req.url).host} still answers anonymous requests.`,
@@ -56,7 +61,7 @@ export function statusOf(err: unknown): number | undefined {
 export async function probe(ctx: PublicContext, req: PublicPost): Promise<{ reachable: true } | { reachable: false; reason: string }> {
   try {
     // Read as text: only the status matters, and a 400's body needn't be JSON.
-    await postJson(ctx, { ...req, accept: [400], text: true });
+    await requestJson(ctx, { ...req, accept: [400], text: true });
     return { reachable: true };
   } catch (err) {
     if (ctx.signal.aborted) throw err;

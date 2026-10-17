@@ -49,19 +49,20 @@ Output, the same shape `deps frisk` had:
   "packages": [{
     "name": "lodash", "version": "4.17.20", "ecosystem": "npm", "source": "package-lock.json", "type": "direct", "scope": "production",
     "vulnerabilities": [{
-      "id": "GHSA-35jh-r3h4-6jhm", "summary": "", "severity": "UNKNOWN", "cvss": null, "aliases": [],
-      "remediation": { "fixAvailable": false, "fixedVersions": [], "advice": "No fix available yet for lodash. Monitor GHSA-35jh-r3h4-6jhm for updates." },
-      "references": []
+      "id": "GHSA-35jh-r3h4-6jhm", "summary": "Command Injection in lodash", "severity": "HIGH", "cvss": null, "aliases": ["CVE-2021-23337"],
+      "remediation": { "fixAvailable": true, "fixedVersions": ["4.17.21"], "advice": "Upgrade lodash to 4.17.21" },
+      "references": ["https://github.com/advisories/GHSA-35jh-r3h4-6jhm"]
     }]
   }]
 }
 ```
 
-**Read the ids, not the details.** OSV's batch query answers with vulnerability ids
-only, and toil doesn't fetch the full records, so `summary`, `severity`, `cvss`,
-`aliases`, `references` and the fix are usually empty, and every finding says "No
-fix available". Look an id up at `https://osv.dev/vulnerability/<id>`. This is the
-old command's behaviour, kept for compatibility until it's fixed.
+OSV's batch query answers with vulnerability ids only, so toil then fetches each
+distinct id's full record (`GET /v1/vulns/<id>`, eight at a time) and fills
+`summary`, `severity`, `cvss`, `aliases`, `references` and the fix from it.
+`fixedVersions` collects the `fixed` events of every affected package in the record,
+and `severity` is the record's `database_specific.severity` as given (GHSA uses
+`MODERATE`), so read the advice against the advisory for multi-package records.
 
 ## Errors
 
@@ -69,7 +70,9 @@ old command's behaviour, kept for compatibility until it's fixed.
   list, or has a package without a name, version or ecosystem. Nothing is sent.
 - `NETWORK`: "toil osv vulns requires OSV.dev access but api.osv.dev is not reachable
   from this machine." The reachability check failed; `error.details.cause` says how.
-- `HTTP`: "OSV.dev returned HTTP <status>" for a batch that failed.
+- `HTTP`: "OSV.dev returned HTTP <status>" for a batch that failed, and "OSV.dev
+  returned HTTP <status> for <id>" (`NOT_FOUND` for a 404) for a record that couldn't
+  be fetched.
 
 ## Old paths
 

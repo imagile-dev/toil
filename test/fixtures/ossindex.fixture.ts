@@ -11,8 +11,8 @@ import { files, inventory } from './osv.fixture.js';
  * Provenance: shaped like the canonical implementation's own types for this
  * source and OSS Index's documented API
  * (https://ossindex.sonatype.org/rest), trimmed. Not captured from the live
- * service, which now asks for credentials toil doesn't hold; the paperwork
- * for those is still in review.
+ * service, which since asks for an account; this one is fictional and
+ * passed every access review.
  */
 
 export const OSSINDEX = 'https://ossindex.sonatype.org';
@@ -44,4 +44,8 @@ export function componentReport(request: RecordedRequest, reports = knownReports
 
 export const routes: Route[] = [{ method: 'POST', url: `${OSSINDEX}/api/v3/component-report`, respond: (request) => componentReport(request) }];
 
-export const fixture = defineFixture({ area: 'ossindex', routes, config: {}, files });
+/** A free account's username and API token, as TOIL_OSSINDEX_USERNAME and TOIL_OSSINDEX_TOKEN would set them. */
+export const config = { ossindex: { username: 'you@example.com', token: 'test-token' } };
+export const BASIC = `Basic ${Buffer.from('you@example.com:test-token').toString('base64')}`;
+
+export const fixture = defineFixture({ area: 'ossindex', routes, config, files });

@@ -6,23 +6,36 @@ description: Known vulnerabilities for a dependency inventory, from the public S
 # Sonatype OSS Index (`ossindex`)
 
 Known vulnerabilities for the packages in a dependency inventory, from the public
-**Sonatype OSS Index** API (`https://ossindex.sonatype.org`), asked anonymously. It
-reads only and needs no connection. Verification level: `unit`.
+**Sonatype OSS Index** API (`https://ossindex.sonatype.org`). It reads only.
+Verification level: `unit`.
 
 **Supported versions:** OSS Index REST API v3 or later
 
-## Credential and configuration
+## Credential
 
-None. toil sends OSS Index no credential, and the command names the service, so
-toil talks to `https://ossindex.sonatype.org` and nothing else. There is no
-connection to add, no `TOIL_OSSINDEX_*` variable and no `--connection` flag. toil
-uses `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` when they're set.
+OSS Index requires a free account: anonymous requests get HTTP 401. Sign up at
+`https://ossindex.sonatype.org`, then copy the **API token** from your account
+settings. toil sends your username and that token as HTTP Basic auth, and only ever
+to `https://ossindex.sonatype.org`: the host is fixed, because the command names the
+service, so there's no `baseUrl` setting.
 
-**This command currently fails.** Sonatype documents that OSS Index now requires an
-account's API token on every request, and anonymous requests get HTTP 401. toil has
-no setting for a token yet, so the reachability check fails with "not reachable"
-(`error.details.cause` is `HTTP 401`). Use `toil osv vulns` instead until a token
-setting ships.
+## Configuration
+
+| Key | Env var | Required | Meaning |
+|-----|---------|----------|---------|
+| `username` | `TOIL_OSSINDEX_USERNAME` | yes | Your OSS Index username (the email address you signed up with) |
+| `token` | `TOIL_OSSINDEX_TOKEN` | yes | Your OSS Index API token |
+
+```bash
+export TOIL_OSSINDEX_USERNAME=you@example.com
+export TOIL_OSSINDEX_TOKEN=<your API token>
+```
+
+Or add a connection with `toil connections add ossindex --area ossindex`, which keeps
+the token in the OS credential store. A plaintext token in the config file is refused
+with `CONFIG_INVALID`. With neither set, the command fails with `NOT_CONFIGURED`
+before sending anything. toil uses `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` when
+they're set.
 
 ## Commands
 
@@ -77,11 +90,14 @@ found in its name, title and description. OSS Index gives no fixed versions, so
 
 - `INVALID_INPUT`: the inventory isn't JSON, is a failed result, has no packages
   list, or has a package without a name, version or ecosystem. Nothing is sent.
+- `NOT_CONFIGURED`: no OSS Index account is set up; set `TOIL_OSSINDEX_USERNAME` and
+  `TOIL_OSSINDEX_TOKEN`.
+- `AUTH`: OSS Index rejected the username and token.
 - `NETWORK`: "toil ossindex vulns requires Sonatype OSS Index access but
   ossindex.sonatype.org is not reachable from this machine." The reachability check
   failed; `error.details.cause` says how.
 - `HTTP`: "Sonatype OSS Index is rate-limiting requests from this IP…" on a 429. The
-  message suggests adding credentials, but toil doesn't send any yet; wait and retry.
+  limit is per account; wait and retry.
 - `HTTP`: "Sonatype OSS Index returned HTTP <status>" for any other failed batch.
 
 ## Old paths

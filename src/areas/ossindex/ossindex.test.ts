@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { testContext } from '../../../test/harness/context.js';
 import type { RecordedRequest, Route } from '../../../test/harness/fake-fetch.js';
-import { componentReport, files, inventory, OSSINDEX, vulnerability } from '../../../test/fixtures/ossindex.fixture.js';
+import { BASIC, componentReport, config, files, inventory, OSSINDEX, vulnerability } from '../../../test/fixtures/ossindex.fixture.js';
 import { runCli } from '../../../test/harness/cli.js';
 import { execute } from '../../core/run.js';
 import { commands } from './index.js';
@@ -9,14 +9,14 @@ import { toPurl, vulnsCommand } from './vulns.js';
 
 /**
  * The exact requests `toil ossindex vulns` sends to Sonatype OSS Index and
- * what it makes of the answers. Suspected bugs from #91 (items 7 and 26) are
- * pinned here, not fixed. The inventory reader
+ * what it makes of the answers. #91 item 7, confirmed live, is fixed: the
+ * connection's account goes as Basic auth. Item 26 is pinned, not fixed. The inventory reader
  * is shared with osv and tested there; this checks it's wired in. A 401
  * reported as an outage is pinned too, as the register's longest-standing entry.
  */
 
 const URL_ = `${OSSINDEX}/api/v3/component-report`;
-const HEADERS = { 'content-type': 'application/json', accept: 'application/json' };
+const HEADERS = { 'content-type': 'application/json', accept: 'application/json', authorization: BASIC };
 const route = (respond: (request: RecordedRequest) => { status?: number; json?: unknown; text?: string; headers?: Record<string, string> }): Route => ({ method: 'POST', url: URL_, respond });
 const fixtureRoute = route((request) => componentReport(request));
 const coordinatesOf = (call: RecordedRequest) => (JSON.parse(call.body ?? '{}') as { coordinates: string[] }).coordinates;
@@ -24,14 +24,14 @@ const coordinatesOf = (call: RecordedRequest) => (JSON.parse(call.body ?? '{}') 
 const afterProbe = (batch: (request: RecordedRequest) => { status?: number; json?: unknown; text?: string; headers?: Record<string, string> }) =>
   route((request) => (coordinatesOf(request).length === 0 ? { json: [] } : batch(request)));
 
-async function run(input: Record<string, unknown>, routes: Route[] = [fixtureRoute], extra: { files?: Record<string, string>; stdin?: string } = {}) {
-  const t = testContext({ routes, files: extra.files ?? files, ...(extra.stdin !== undefined ? { stdin: extra.stdin } : {}) });
+async function run(input: Record<string, unknown>, routes: Route[] = [fixtureRoute], extra: { files?: Record<string, string>; stdin?: string; config?: Record<string, Record<string, unknown>> } = {}) {
+  const t = testContext({ routes, config: extra.config ?? config, files: extra.files ?? files, ...(extra.stdin !== undefined ? { stdin: extra.stdin } : {}) });
   const envelope = await execute(vulnsCommand, input, t.context);
   return { envelope, calls: t.http.calls };
 }
 
 describe('ossindex vulns: requests', () => {
-  it('probes with no coordinates, then sends the packages as package URLs, anonymously, with no config', async () => {
+  it("probes with no coordinates, then sends the packages as package URLs, with the account as Basic auth", async () => {
     const { envelope, calls } = await run({ from: 'inventory.json' });
     expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
     expect(calls.map((c) => [c.method, c.url, c.headers])).toEqual([
@@ -42,9 +42,16 @@ describe('ossindex vulns: requests', () => {
     expect(coordinatesOf(calls[1]!)).toEqual(['pkg:npm/lodash@4.17.20', 'pkg:npm/minimist@1.2.5', 'pkg:nuget/Newtonsoft.Json@12.0.1', 'pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1']);
   });
 
-  it('is an area-local command: it takes no --connection and reads no config', () => {
-    expect(commands.map((c) => c.kind)).toEqual(['area-local']);
-    expect(Object.keys(vulnsCommand.input.shape).sort()).toEqual(['directOnly', 'ecosystem', 'from', 'includeDev']);
+  it('#91 item 7, fixed: with no account set up it fails before any request, naming both variables', async () => {
+    const { envelope, calls } = await run({ from: 'inventory.json' }, [fixtureRoute], { config: {} });
+    expect(envelope.error?.code).toBe('NOT_CONFIGURED');
+    expect(envelope.error?.fix).toContain('TOIL_OSSINDEX_USERNAME and TOIL_OSSINDEX_TOKEN');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('is an area command with a connection, whose host is fixed in code', () => {
+    expect(commands.map((c) => c.kind)).toEqual(['area']);
+    expect(Object.keys(vulnsCommand.input.shape).sort()).toEqual(['connection', 'directOnly', 'ecosystem', 'from', 'includeDev']);
   });
 
   it('builds package URLs as before: a scope encoded, Maven group and artifact encoded, anything else generic', () => {
@@ -64,7 +71,7 @@ describe('ossindex vulns: requests', () => {
   });
 
   it('applies the old filters and reads stdin through the real CLI', async () => {
-    const { context, http } = testContext({ routes: [fixtureRoute], stdin: JSON.stringify(inventory) });
+    const { context, http } = testContext({ routes: [fixtureRoute], config, stdin: JSON.stringify(inventory) });
     const result = await runCli(['ossindex', 'vulns', '--ecosystem', 'npm', '--direct-only', '--include-dev'], { commands, context });
     expect(result.envelope?.ok, result.stdout).toBe(true);
     expect(coordinatesOf(http.calls[1]!)).toEqual(['pkg:npm/lodash@4.17.20', 'pkg:npm/%40types/node@18.0.0']);
@@ -111,12 +118,23 @@ describe('ossindex vulns: reshaping', () => {
 });
 
 describe('ossindex vulns: failures', () => {
-  it('suspected bug #91 item 7: a 401 to the anonymous probe is reported as "not reachable"', async () => {
+  it('#91 item 7, fixed: a rejected account is AUTH with where the token lives, not "not reachable"', async () => {
     const { envelope, calls } = await run({ from: 'inventory.json' }, [route(() => ({ status: 401, json: { message: 'Authentication required' } }))]);
-    expect(envelope.error).toMatchObject({ code: 'NETWORK', message: 'toil ossindex vulns requires Sonatype OSS Index access but ossindex.sonatype.org is not reachable from this machine.' });
-    expect(envelope.error?.details).toMatchObject({ status: 503, cause: 'HTTP 401' });
-    expect(envelope.error?.fix).toContain('401');
+    expect(envelope.error?.code).toBe('AUTH');
+    expect(envelope.error?.fix).toContain('TOIL_OSSINDEX_TOKEN');
     expect(calls).toHaveLength(1);
+  });
+
+  it('any other failed probe is still the old "not reachable" error', async () => {
+    const { envelope, calls } = await run({ from: 'inventory.json' }, [route(() => ({ status: 502, text: 'bad gateway' }))]);
+    expect(envelope.error).toMatchObject({ code: 'NETWORK', message: 'toil ossindex vulns requires Sonatype OSS Index access but ossindex.sonatype.org is not reachable from this machine.' });
+    expect(envelope.error?.details).toMatchObject({ status: 503, cause: 'HTTP 502' });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('a batch rejected for the credential is AUTH too', async () => {
+    const { envelope } = await run({ from: 'inventory.json' }, [afterProbe(() => ({ status: 403, json: { message: 'Forbidden' } }))]);
+    expect(envelope.error?.code).toBe('AUTH');
   });
 
   it('a probe answered with 400 still counts as reachable', async () => {
@@ -124,14 +142,14 @@ describe('ossindex vulns: failures', () => {
     expect((await run({ from: 'inventory.json' }, [r])).envelope.ok).toBe(true);
   });
 
-  it('suspected bug #91 item 7: a 429 keeps the old advice to add credentials, which toil never reads; the fix says so', async () => {
+  it('a 429 keeps the old message, whose advice to add credentials is now true', async () => {
     // A Retry-After past core's cap fails at once rather than waiting out the retries.
     const { envelope } = await run({ from: 'inventory.json' }, [afterProbe(() => ({ status: 429, text: '', headers: { 'Retry-After': '120' } }))]);
     expect(envelope.error?.code).toBe('HTTP');
     expect(envelope.error?.message).toBe(
       'Sonatype OSS Index is rate-limiting requests from this IP. Create a free account at ossindex.sonatype.org and add your credentials to your toil config to raise the limit.',
     );
-    expect(envelope.error?.fix).toContain("doesn't send OSS Index credentials");
+    expect(envelope.error?.fix).toContain('per account');
   });
 
   it('any other failed batch keeps the old wording, "Sonatype OSS Index returned HTTP <status>"', async () => {

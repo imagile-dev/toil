@@ -2,7 +2,7 @@
   {
     "name": "vulns",
     "tool": "ossindex_vulns",
-    "description": "Check a dependency inventory for known vulnerabilities in Sonatype OSS Index (public API, anonymous)",
+    "description": "Check a dependency inventory for known vulnerabilities in Sonatype OSS Index (needs a free account)",
     "writes": false,
     "flags": [
       "--from <file>",

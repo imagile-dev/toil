@@ -1,24 +1,33 @@
 import { z } from 'zod';
+import { apiResponse, type ApiContext } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
-import { friskData, inventoryFields, inventoryOptions, readInventory, selectPackages, TIME_LIMIT_MS, type InventoryPackage, type Vulnerability, type VulnerablePackage } from '../osv/inventory.js';
-import { postJson, probe, statusOf, type PublicContext } from '../osv/public-api.js';
+import { friskData, inventoryFields, inventoryOptions, readInventory, REQUEST_TIMEOUT_MS, selectPackages, TIME_LIMIT_MS, type InventoryPackage, type Vulnerability, type VulnerablePackage } from '../osv/inventory.js';
+import { statusOf } from '../osv/public-api.js';
 import { OSSINDEX_URL, ossindexArea } from './area.js';
 
 /**
  * `toil ossindex vulns`: an inventory's packages as package URLs against OSS
  * Index's component report, 128 a request (its stated limit), one request
  * after another, reports matched back by their `coordinates` string. Ported
- * as the old `deps frisk --source sonatype` had it, bugs included (suspected
- * bugs #91 items 7 and 26): no credential is sent, a
- * 401 reads as "not reachable", and a report whose coordinates come back
- * normalised matches no package and is dropped. The component is reported
- * missing from the report, which is the report's fault, per the report.
+ * as the old `deps frisk --source sonatype` had it, with one declared fix:
+ * OSS Index refuses anonymous requests, so the connection's username and
+ * token go as Basic auth, and a rejected one is AUTH rather than "not
+ * reachable" (#91 item 7, confirmed live). Kept, and pinned: a report whose
+ * coordinates come back normalised matches no package and is dropped (#91
+ * item 26). The component is reported missing from the report, which is the
+ * report's fault, per the report.
  */
 
 const BATCH_SIZE = 128;
-const SERVICE = 'Sonatype OSS Index';
-const COMPONENT_REPORT = `${OSSINDEX_URL}/api/v3/component-report`;
+const PATH = 'api/v3/component-report';
+const COMPONENT_REPORT = `${OSSINDEX_URL}/${PATH}`;
 const HEADERS = { Accept: 'application/json' };
+
+type OssIndexContext = ApiContext;
+
+/** The component-report POST, through the area's hook: credentials only to ossindex.sonatype.org. */
+const post = <T>(ctx: OssIndexContext, coordinates: string[], extra: { accept?: number[]; text?: boolean } = {}) =>
+  apiResponse<T>(ossindexArea, ctx, PATH, { method: 'POST', json: { coordinates }, headers: HEADERS, timeoutMs: REQUEST_TIMEOUT_MS, ...(extra.accept ? { accept: extra.accept } : {}), ...(extra.text ? { as: 'text' as const } : {}) });
 
 interface OssIndexVuln {
   id: string;
@@ -79,20 +88,21 @@ function mapVuln(v: OssIndexVuln, pkg: InventoryPackage): Vulnerability {
   };
 }
 
-async function queryBatch(ctx: PublicContext, chunk: InventoryPackage[]): Promise<VulnerablePackage[]> {
+async function queryBatch(ctx: OssIndexContext, chunk: InventoryPackage[]): Promise<VulnerablePackage[]> {
   const purls = chunk.map(toPurl);
   let reports: ComponentReport[];
   try {
-    reports = (await postJson<ComponentReport[]>(ctx, { service: SERVICE, url: COMPONENT_REPORT, body: { coordinates: purls }, headers: HEADERS })).data;
+    reports = (await post<ComponentReport[]>(ctx, purls)).data;
   } catch (err) {
     const status = statusOf(err);
-    if (!(err instanceof ToilError) || status === undefined) throw err;
+    // A rejected credential is core's AUTH, with the fix that says where the token lives.
+    if (!(err instanceof ToilError) || status === undefined || err.code === 'AUTH') throw err;
     if (status === 429) {
-      // The old advice, kept word for word: toil reads no OSS Index credential, so the fix says what actually helps (#91 item 7).
+      // The old message, word for word; with credentials now sent, its advice is finally true.
       throw new ToilError(
         'HTTP',
         'Sonatype OSS Index is rate-limiting requests from this IP. Create a free account at ossindex.sonatype.org and add your credentials to your toil config to raise the limit.',
-        { fix: "Wait a while and try again with fewer packages. toil doesn't send OSS Index credentials yet, so an account won't raise its limit.", details: err.details },
+        { fix: 'Wait a while and try again with fewer packages. The limit is per account; check the username and token are your own.', details: err.details },
       );
     }
     throw new ToilError(err.code, `Sonatype OSS Index returned HTTP ${status}`, { fix: err.fix ?? `Try again later; check ${OSSINDEX_URL} is up.`, details: { ...(err.details as object), message: err.message } });
@@ -115,13 +125,29 @@ async function queryBatch(ctx: PublicContext, chunk: InventoryPackage[]): Promis
   return vulnerable;
 }
 
+/**
+ * The check the old command made before every run: an empty list of
+ * coordinates, where a 2xx or a 400 means it's up. A rejected credential is
+ * now AUTH with its fix; anything else is still "not reachable".
+ */
+async function requireReachable(ctx: OssIndexContext): Promise<void> {
+  try {
+    await post<string>(ctx, [], { accept: [400], text: true });
+  } catch (err) {
+    if (ctx.signal.aborted || (err instanceof ToilError && err.code === 'AUTH')) throw err;
+    const status = statusOf(err);
+    throw new ToilError('NETWORK', 'toil ossindex vulns requires Sonatype OSS Index access but ossindex.sonatype.org is not reachable from this machine.', {
+      fix: `Check this machine can reach ${OSSINDEX_URL} (VPN, proxy, DNS); toil uses HTTPS_PROXY, HTTP_PROXY and NO_PROXY when they're set. Run with --verbose to see the request.`,
+      details: { status: 503, url: COMPONENT_REPORT, cause: status !== undefined ? `HTTP ${status}` : err instanceof Error ? err.message : String(err) },
+    });
+  }
+}
+
 export const vulnsCommand = ossindexArea.command({
   path: ['ossindex', 'vulns'],
-  // No connection: a public API the command names. It works with no config at all.
-  kind: 'area-local',
-  description: 'Check a dependency inventory for known vulnerabilities in Sonatype OSS Index (public API, anonymous)',
+  description: 'Check a dependency inventory for known vulnerabilities in Sonatype OSS Index (needs a free account)',
   toolDescription:
-    'Known vulnerabilities from the public Sonatype OSS Index API, asked anonymously, for the packages in an inventory from toil deps scan. Returns { tier, source, sourcesQueried, sourceErrors, scanned, vulnerable, packages[] }, each package with vulnerabilities[] of { id, summary, severity, cvss, aliases, remediation, references }; OSS Index gives no fixed versions. OSS Index now refuses anonymous requests with HTTP 401, which this reports as not reachable; prefer osv_vulns.',
+    "Known vulnerabilities from the Sonatype OSS Index API, using the connection's free account, for the packages in an inventory from toil deps scan. Returns { tier, source, sourcesQueried, sourceErrors, scanned, vulnerable, packages[] }, each package with vulnerabilities[] of { id, summary, severity, cvss, aliases, remediation, references }; OSS Index gives no fixed versions. For OSV.dev use osv_vulns.",
   input: z.object(inventoryFields),
   writes: false,
   // A batch report request whose body can hold 128 package URLs: a read, sent as POST.
@@ -131,13 +157,7 @@ export const vulnsCommand = ossindexArea.command({
   examples: [{ from: 'inventory.json' }, { from: 'inventory.json', ecosystem: 'maven', directOnly: true, includeDev: true }],
   run: async (input, ctx) => {
     const packages = selectPackages(readInventory(ctx, input.from, 'ossindex vulns'), input);
-    const up = await probe(ctx, { service: SERVICE, url: COMPONENT_REPORT, body: { coordinates: [] }, headers: HEADERS });
-    if (!up.reachable) {
-      throw new ToilError('NETWORK', 'toil ossindex vulns requires Sonatype OSS Index access but ossindex.sonatype.org is not reachable from this machine.', {
-        fix: `Check this machine can reach ${OSSINDEX_URL} (VPN, proxy, DNS); toil uses HTTPS_PROXY, HTTP_PROXY and NO_PROXY when they're set. If the cause is HTTP 401, OSS Index is refusing anonymous requests, which toil can't change yet.`,
-        details: { status: 503, url: COMPONENT_REPORT, cause: up.reason },
-      });
-    }
+    await requireReachable(ctx);
     if (packages.length === 0) return friskData('sonatype', 0, []);
     const vulnerable: VulnerablePackage[] = [];
     for (let i = 0; i < packages.length; i += BATCH_SIZE) vulnerable.push(...(await queryBatch(ctx, packages.slice(i, i + BATCH_SIZE))));

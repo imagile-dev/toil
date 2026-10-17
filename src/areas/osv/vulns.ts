@@ -2,22 +2,25 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { OSV_URL, osvArea } from './area.js';
 import { friskData, inventoryFields, inventoryOptions, readInventory, selectPackages, TIME_LIMIT_MS, type InventoryPackage, type Vulnerability, type VulnerablePackage } from './inventory.js';
-import { postJson, probe, statusOf, type PublicContext } from './public-api.js';
+import { probe, requestJson, statusOf, type PublicContext } from './public-api.js';
 
 /**
  * `toil osv vulns`: an inventory's packages against OSV.dev's batch query,
  * 500 queries a request, one request after another, results matched back to
- * packages by position. Ported as the old `deps frisk --source osv` had it,
- * bugs included (suspected bugs #91 items 5 and 6): querybatch answers with
- * vulnerability ids only and the full records are never fetched, so every
- * finding has an empty summary, UNKNOWN severity and "No fix available". The
- * report is accurate about which packages are affected and silent on what to
- * do about it, a format long favoured by quarterly risk reviews.
+ * packages by position. querybatch answers with vulnerability ids only, so
+ * each distinct id's full record is then fetched from `/v1/vulns/{id}`, eight
+ * at a time. The old command never did, and every finding came back empty
+ * (#91 item 5, confirmed against the live API, a declared fix). The rest is
+ * ported as the old `deps frisk --source osv` had it, bugs included (#91 item
+ * 6). A finding now arrives with its paperwork attached, which is more than
+ * most findings get.
  */
 
 const BATCH_SIZE = 500;
 const SERVICE = 'OSV.dev';
 const QUERYBATCH = `${OSV_URL}/v1/querybatch`;
+/** Full records fetched at once: enough to be quick, few enough to be polite to a free public API. */
+const RECORD_CONCURRENCY = 8;
 
 const OSV_ECOSYSTEM: Record<string, string> = { npm: 'npm', nuget: 'NuGet', maven: 'Maven' };
 
@@ -97,33 +100,58 @@ function mapVuln(vuln: OsvRawVuln, pkg: InventoryPackage): Vulnerability {
   };
 }
 
-/** One querybatch call. `next_page_token` is never read, so a query past OSV's page of results is cut short (#91 item 5). */
-async function queryBatch(ctx: PublicContext, chunk: InventoryPackage[]): Promise<VulnerablePackage[]> {
+/** One querybatch call: each package with the vulnerability ids OSV listed for it. `next_page_token` is never read, so a query past OSV's page of results is cut short (#91 item 5). */
+async function queryBatch(ctx: PublicContext, chunk: InventoryPackage[]): Promise<Array<{ pkg: InventoryPackage; ids: string[] }>> {
   const queries = chunk.map((pkg) => ({ package: { name: pkg.name, ecosystem: OSV_ECOSYSTEM[pkg.ecosystem] ?? pkg.ecosystem }, version: pkg.version }));
   let data: OsvBatchResponse;
   try {
-    data = (await postJson<OsvBatchResponse>(ctx, { service: SERVICE, url: QUERYBATCH, body: { queries } })).data;
+    data = (await requestJson<OsvBatchResponse>(ctx, { service: SERVICE, url: QUERYBATCH, body: { queries } })).data;
   } catch (err) {
-    const status = statusOf(err);
-    if (!(err instanceof ToilError) || status === undefined) throw err;
-    // The old wording, with core's code and fix.
-    throw new ToilError(err.code, `OSV.dev returned HTTP ${status}`, { fix: err.fix ?? `Try again later; check ${OSV_URL} is up.`, details: { ...(err.details as object), message: err.message } });
+    throw oldWording(err, '');
   }
   const results = data?.results;
   // The old code read data.results.length and failed on an answer without one; it still fails, in words.
   if (!Array.isArray(results)) {
     throw new ToilError('HTTP', `OSV.dev answered ${QUERYBATCH} without a results list.`, { fix: `Try again later; check ${OSV_URL} is up.`, details: { url: QUERYBATCH } });
   }
-  const vulnerable: VulnerablePackage[] = [];
+  const found: Array<{ pkg: InventoryPackage; ids: string[] }> = [];
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     const pkg = chunk[i];
     if (!result || !pkg) continue;
-    const vulns = result.vulns ?? [];
-    if (vulns.length === 0) continue;
-    vulnerable.push({ ...pkg, vulnerabilities: vulns.map((v) => mapVuln(v, pkg)) });
+    const ids = (result.vulns ?? []).map((v) => v.id);
+    if (ids.length > 0) found.push({ pkg, ids });
   }
-  return vulnerable;
+  return found;
+}
+
+/** "OSV.dev returned HTTP <status>", the old wording, with core's code and fix; anything without a status passes through. */
+function oldWording(err: unknown, suffix: string): unknown {
+  const status = statusOf(err);
+  if (!(err instanceof ToilError) || status === undefined) return err;
+  return new ToilError(err.code, `OSV.dev returned HTTP ${status}${suffix}`, { fix: err.fix ?? `Try again later; check ${OSV_URL} is up.`, details: { ...(err.details as object), message: err.message } });
+}
+
+/** Every distinct id's full record, RECORD_CONCURRENCY at a time. One that can't be fetched fails the command, naming the id. */
+async function fetchRecords(ctx: PublicContext, ids: string[]): Promise<Map<string, OsvRawVuln>> {
+  const records = new Map<string, OsvRawVuln>();
+  let next = 0;
+  let failed = false;
+  const worker = async () => {
+    while (next < ids.length && !failed) {
+      const id = ids[next++]!;
+      const url = `${OSV_URL}/v1/vulns/${encodeURIComponent(id)}`;
+      try {
+        const { data } = await requestJson<OsvRawVuln>(ctx, { service: SERVICE, url });
+        records.set(id, { ...data, id: typeof data?.id === 'string' ? data.id : id });
+      } catch (err) {
+        failed = true;
+        throw oldWording(err, ` for ${id}`);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(RECORD_CONCURRENCY, ids.length) }, worker));
+  return records;
 }
 
 export const vulnsCommand = osvArea.command({
@@ -132,7 +160,7 @@ export const vulnsCommand = osvArea.command({
   kind: 'area-local',
   description: 'Check a dependency inventory for known vulnerabilities in OSV.dev (public API, no credential)',
   toolDescription:
-    'Known vulnerabilities from the public OSV.dev API for the packages in an inventory from toil deps scan. Returns { tier, source, sourcesQueried, sourceErrors, scanned, vulnerable, packages[] }, each package with vulnerabilities[] of { id, summary, severity, cvss, aliases, remediation, references }. OSV batch results carry ids only, so summary, severity and fix data are usually empty. For Sonatype OSS Index use ossindex_vulns.',
+    'Known vulnerabilities from the public OSV.dev API for the packages in an inventory from toil deps scan. Returns { tier, source, sourcesQueried, sourceErrors, scanned, vulnerable, packages[] }, each package with vulnerabilities[] of { id, summary, severity, cvss, aliases, remediation, references }. Each finding is filled from its full OSV record. For Sonatype OSS Index use ossindex_vulns.',
   input: z.object(inventoryFields),
   writes: false,
   // A batch query whose body can hold 500 packages: a read, sent as POST.
@@ -150,8 +178,10 @@ export const vulnsCommand = osvArea.command({
       });
     }
     if (packages.length === 0) return friskData('osv', 0, []);
-    const vulnerable: VulnerablePackage[] = [];
-    for (let i = 0; i < packages.length; i += BATCH_SIZE) vulnerable.push(...(await queryBatch(ctx, packages.slice(i, i + BATCH_SIZE))));
+    const found: Array<{ pkg: InventoryPackage; ids: string[] }> = [];
+    for (let i = 0; i < packages.length; i += BATCH_SIZE) found.push(...(await queryBatch(ctx, packages.slice(i, i + BATCH_SIZE))));
+    const records = await fetchRecords(ctx, [...new Set(found.flatMap((f) => f.ids))]);
+    const vulnerable: VulnerablePackage[] = found.map(({ pkg, ids }) => ({ ...pkg, vulnerabilities: ids.map((id) => mapVuln(records.get(id)!, pkg)) }));
     return friskData('osv', packages.length, vulnerable);
   },
 });

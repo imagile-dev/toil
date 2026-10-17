@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { testContext } from '../../../test/harness/context.js';
-import type { RecordedRequest, Route } from '../../../test/harness/fake-fetch.js';
-import { files, inventory, knownVulns, OSV, querybatch } from '../../../test/fixtures/osv.fixture.js';
+import type { CannedResponse, RecordedRequest, Route } from '../../../test/harness/fake-fetch.js';
+import { files, inventory, knownVulns, OSV, querybatch, records, vulnRecord } from '../../../test/fixtures/osv.fixture.js';
 import { runCli } from '../../../test/harness/cli.js';
 import { execute } from '../../core/run.js';
 import { commands } from './index.js';
@@ -10,30 +10,40 @@ import { vulnsCommand } from './vulns.js';
 
 /**
  * The exact requests `toil osv vulns` sends to OSV.dev and what it makes of
- * the answers. Suspected bugs from #91 (items 5, 6 and 24) are pinned here,
- * not fixed: the old command's observable behaviour is the specification
- * until a live run says otherwise. A finding that says nothing is still a
- * finding, and is filed as one.
+ * the answers. #91 item 5, confirmed against the live API, is fixed: each
+ * id's full record is fetched. Items 6 and 24 are pinned here, not fixed: the
+ * old command's observable behaviour is the specification until a live run
+ * says otherwise. A finding that says nothing used to be filed anyway; now it
+ * has to say why.
  */
 
 const URL_ = `${OSV}/v1/querybatch`;
 const HEADERS = { 'content-type': 'application/json' };
-const route = (respond: (request: RecordedRequest) => { status?: number; json?: unknown; text?: string; headers?: Record<string, string> }): Route => ({ method: 'POST', url: URL_, respond });
+const route = (respond: (request: RecordedRequest) => CannedResponse): Route => ({ method: 'POST', url: URL_, respond });
 const fixtureRoute = route((request) => querybatch(request));
+const recordRoute = (respond: (request: RecordedRequest) => CannedResponse): Route => ({ method: 'GET', path: /^\/v1\/vulns\//, origin: OSV, respond });
+const fixtureRecords = recordRoute((request) => vulnRecord(request));
+const both = [fixtureRoute, fixtureRecords];
+const isProbe = (request: RecordedRequest) => (JSON.parse(request.body ?? '{}') as { queries: unknown[] }).queries.length === 0;
+/** querybatch answering every query with these ids; the probe gets `{ results: [] }`. */
+const idsFor = (ids: string[]) =>
+  route((r) => ({ json: { results: (JSON.parse(r.body!) as { queries: unknown[] }).queries.map(() => (ids.length ? { vulns: ids.map((id) => ({ id, modified: '2026-09-01T00:00:00Z' })) } : {})) } }));
+const idOf = (request: RecordedRequest) => decodeURIComponent(new URL(request.url).pathname.slice('/v1/vulns/'.length));
 
-async function run(input: Record<string, unknown>, routes: Route[] = [fixtureRoute], extra: { files?: Record<string, string>; stdin?: string } = {}) {
+async function run(input: Record<string, unknown>, routes: Route[] = both, extra: { files?: Record<string, string>; stdin?: string } = {}) {
   const t = testContext({ routes, files: extra.files ?? files, ...(extra.stdin !== undefined ? { stdin: extra.stdin } : {}) });
   const envelope = await execute(vulnsCommand, input, t.context);
   return { envelope, calls: t.http.calls };
 }
 
 const bodyOf = (call: RecordedRequest) => JSON.parse(call.body ?? 'null') as unknown;
+type Data = { packages: Array<{ name: string; vulnerabilities: Array<Record<string, unknown>> }> } & Record<string, unknown>;
 
 describe('osv vulns: requests', () => {
-  it('probes with an empty batch, then sends one querybatch of every package, ecosystems mapped, with no credential and no config', async () => {
+  it('probes with an empty batch, sends one querybatch of every package, ecosystems mapped, then GETs each id once, with no credential and no config', async () => {
     const { envelope, calls } = await run({ from: 'inventory.json' });
     expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
-    expect(calls.map((c) => [c.method, c.url])).toEqual([
+    expect(calls.slice(0, 2).map((c) => [c.method, c.url])).toEqual([
       ['POST', URL_],
       ['POST', URL_],
     ]);
@@ -48,6 +58,10 @@ describe('osv vulns: requests', () => {
         { package: { name: 'org.apache.logging.log4j:log4j-core', ecosystem: 'Maven' }, version: '2.14.1' },
       ],
     });
+    const ids = Object.values(knownVulns).flatMap((list) => list.map((v) => v.id));
+    expect(calls.slice(2).map((c) => `${c.method} ${c.url}`).sort()).toEqual(ids.map((id) => `GET ${OSV}/v1/vulns/${id}`).sort());
+    expect(calls[2]!.headers).toEqual({});
+    expect(calls[2]!.body).toBeUndefined();
   });
 
   it('is an area-local command: it takes no --connection and reads no config', () => {
@@ -57,15 +71,46 @@ describe('osv vulns: requests', () => {
 
   it('sends 500 queries a batch, one batch after another', async () => {
     const many = Array.from({ length: 501 }, (_, i) => ({ name: `pkg-${i}`, version: '1.0.0', ecosystem: 'npm' }));
-    const { envelope, calls } = await run({ from: 'many.json' }, [fixtureRoute], { files: { 'many.json': JSON.stringify(many) } });
+    const { envelope, calls } = await run({ from: 'many.json' }, both, { files: { 'many.json': JSON.stringify(many) } });
     expect(envelope.ok).toBe(true);
     expect(calls.map((c) => (bodyOf(c) as { queries: unknown[] }).queries.length)).toEqual([0, 500, 1]);
     expect((envelope.data as { scanned: number }).scanned).toBe(501);
   });
 
   it('passes an unknown ecosystem through as given', async () => {
-    const { calls } = await run({ from: 'odd.json' }, [fixtureRoute], { files: { 'odd.json': JSON.stringify([{ name: 'serde', version: '1.0.0', ecosystem: 'crates.io' }]) } });
+    const { calls } = await run({ from: 'odd.json' }, both, { files: { 'odd.json': JSON.stringify([{ name: 'serde', version: '1.0.0', ecosystem: 'crates.io' }]) } });
     expect(bodyOf(calls[1]!)).toEqual({ queries: [{ package: { name: 'serde', ecosystem: 'crates.io' }, version: '1.0.0' }] });
+  });
+
+  it('fetches an id shared by several packages once, and keeps a record with no id under the one asked for', async () => {
+    const shared = { ...records['GHSA-35jh-r3h4-6jhm']!, id: undefined };
+    const { envelope, calls } = await run({ from: 'inventory.json', ecosystem: 'npm' }, [idsFor(['GHSA-35jh-r3h4-6jhm']), recordRoute(() => ({ json: shared }))]);
+    expect(calls.filter((c) => c.method === 'GET')).toHaveLength(1);
+    expect((envelope.data as Data).packages.map((p) => [p.name, p.vulnerabilities[0]!.id])).toEqual([
+      ['lodash', 'GHSA-35jh-r3h4-6jhm'],
+      ['minimist', 'GHSA-35jh-r3h4-6jhm'],
+    ]);
+  });
+
+  it('fetches records eight at a time', async () => {
+    const ids = Array.from({ length: 20 }, (_, i) => `OSV-2026-${i}`);
+    let inFlight = 0;
+    let most = 0;
+    const t = testContext({ routes: [idsFor(ids), recordRoute((r) => ({ json: { id: idOf(r) } }))], files });
+    const tracked: typeof t.context.fetch = async (url, init) => {
+      const record = (url instanceof Request ? url.url : String(url)).includes('/v1/vulns/');
+      if (record) most = Math.max(most, ++inFlight);
+      try {
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        return await t.http.fetch(url, init);
+      } finally {
+        if (record) inFlight--;
+      }
+    };
+    const envelope = await execute(vulnsCommand, { from: 'inventory.json', ecosystem: 'maven' }, { ...t.context, fetch: tracked });
+    expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
+    expect(t.http.calls.filter((c) => c.method === 'GET')).toHaveLength(20);
+    expect(most).toBe(8);
   });
 });
 
@@ -93,28 +138,25 @@ describe('osv vulns: the old deps frisk filters', () => {
 describe('osv vulns: reshaping', () => {
   it('returns the old frisk shape, results matched to packages by position, clean packages left out', async () => {
     const { envelope } = await run({ from: 'inventory.json' });
-    const data = envelope.data as { tier: string; source: string; sourcesQueried: string[]; sourceErrors: unknown[]; scanned: number; vulnerable: number; packages: Array<Record<string, unknown>> };
+    const data = envelope.data as Data;
     expect({ ...data, packages: undefined }).toEqual({ tier: 'full', source: 'osv', sourcesQueried: ['osv'], sourceErrors: [], scanned: 4, vulnerable: 3, packages: undefined });
     expect(data.packages.map((p) => p.name)).toEqual(['lodash', 'minimist', 'org.apache.logging.log4j:log4j-core']);
-    const { vulnerabilities, ...lodash } = data.packages[0]! as { vulnerabilities: unknown[] };
+    const { vulnerabilities, ...lodash } = data.packages[0]!;
     expect(lodash).toEqual(inventory.data.packages[0]);
-    expect(vulnerabilities).toHaveLength(knownVulns.lodash!.length);
+    expect(vulnerabilities.map((v) => v.id)).toEqual(knownVulns.lodash!.map((v) => v.id));
   });
 
-  it('suspected bug #91 item 5: querybatch gives ids only and the full records are never fetched, so every finding is empty and says "No fix available"', async () => {
-    const { envelope, calls } = await run({ from: 'inventory.json' });
-    const lodash = (envelope.data as { packages: Array<{ vulnerabilities: unknown[] }> }).packages[0]!;
-    expect(lodash.vulnerabilities[0]).toEqual({
+  it('#91 item 5, fixed: querybatch gives ids only, so each finding is filled from its full record', async () => {
+    const { envelope } = await run({ from: 'inventory.json' });
+    expect((envelope.data as Data).packages[0]!.vulnerabilities[0]).toEqual({
       id: 'GHSA-35jh-r3h4-6jhm',
-      summary: '',
-      severity: 'UNKNOWN',
+      summary: 'Vulnerability in lodash',
+      severity: 'HIGH',
       cvss: null,
-      aliases: [],
-      remediation: { fixAvailable: false, fixedVersions: [], advice: 'No fix available yet for lodash. Monitor GHSA-35jh-r3h4-6jhm for updates.' },
-      references: [],
+      aliases: ['CVE-2021-23337'],
+      remediation: { fixAvailable: true, fixedVersions: ['4.17.21'], advice: 'Upgrade lodash to 4.17.21' },
+      references: ['https://github.com/advisories/GHSA-35jh-r3h4-6jhm'],
     });
-    // No GET /v1/vulns/<id>: two POSTs and nothing else.
-    expect(calls.every((c) => c.method === 'POST' && c.url === URL_)).toBe(true);
   });
 
   it('suspected bug #91 item 5: next_page_token is never followed', async () => {
@@ -122,11 +164,11 @@ describe('osv vulns: reshaping', () => {
       const { queries } = JSON.parse(request.body ?? '{}') as { queries: unknown[] };
       return { json: { results: queries.map(() => ({ vulns: [{ id: 'OSV-2026-1', modified: '2026-09-01T00:00:00Z' }], next_page_token: 'abc12345' })) } };
     });
-    const { calls } = await run({ from: 'inventory.json' }, [paged]);
-    expect(calls).toHaveLength(2);
+    const { calls } = await run({ from: 'inventory.json' }, [paged, recordRoute(() => ({ json: { id: 'OSV-2026-1' } }))]);
+    expect(calls.filter((c) => c.method === 'POST')).toHaveLength(2);
   });
 
-  it('maps a full record when one arrives: database_specific severity and cvss, references and aliases', async () => {
+  it('maps a full record: database_specific severity and cvss, references and aliases, fixes from SEMVER and ECOSYSTEM ranges only', async () => {
     const full = {
       id: 'GHSA-35jh-r3h4-6jhm',
       summary: 'Command injection in lodash',
@@ -135,8 +177,8 @@ describe('osv vulns: reshaping', () => {
       affected: [{ package: { name: 'lodash', ecosystem: 'npm' }, ranges: [{ type: 'SEMVER', events: [{ introduced: '0' }, { fixed: '4.17.21' }] }, { type: 'GIT', events: [{ fixed: 'abc12345' }] }] }],
       database_specific: { severity: 'HIGH', cvss: { score: 7.2 } },
     };
-    const { envelope } = await run({ from: 'inventory.json', ecosystem: 'npm' }, [route((r) => ((JSON.parse(r.body!) as { queries: unknown[] }).queries.length === 0 ? { json: { results: [] } } : { json: { results: [{ vulns: [full] }, {}] } }))]);
-    expect((envelope.data as { packages: Array<{ vulnerabilities: unknown[] }> }).packages[0]!.vulnerabilities[0]).toEqual({
+    const { envelope } = await run({ from: 'inventory.json', ecosystem: 'npm' }, [idsFor([full.id]), recordRoute(() => ({ json: full }))]);
+    expect((envelope.data as Data).packages[0]!.vulnerabilities[0]).toEqual({
       id: 'GHSA-35jh-r3h4-6jhm',
       summary: 'Command injection in lodash',
       severity: 'HIGH',
@@ -144,6 +186,14 @@ describe('osv vulns: reshaping', () => {
       aliases: ['CVE-2021-23337'],
       remediation: { fixAvailable: true, fixedVersions: ['4.17.21'], advice: 'Upgrade lodash to 4.17.21' },
       references: ['https://github.com/advisories/GHSA-35jh-r3h4-6jhm'],
+    });
+  });
+
+  it('a record with no fixed event still says "No fix available"', async () => {
+    const { envelope } = await run({ from: 'inventory.json', ecosystem: 'maven' }, [idsFor(['OSV-2026-9']), recordRoute(() => ({ json: { id: 'OSV-2026-9', summary: 's' } }))]);
+    expect((envelope.data as Data).packages[0]!.vulnerabilities[0]).toMatchObject({
+      severity: 'UNKNOWN',
+      remediation: { fixAvailable: false, fixedVersions: [], advice: 'No fix available yet for org.apache.logging.log4j:log4j-core. Monitor OSV-2026-9 for updates.' },
     });
   });
 
@@ -158,9 +208,10 @@ describe('osv vulns: reshaping', () => {
       database_specific: { severity: 'MODERATE' },
     };
     const noDb = { id: 'OSV-2', severity: [{ type: 'CVSS_V3', score: '9.8' }] };
-    const { envelope } = await run({ from: 'inventory.json', ecosystem: 'npm' }, [route((r) => ((JSON.parse(r.body!) as { queries: unknown[] }).queries.length === 0 ? { json: { results: [] } } : { json: { results: [{ vulns: [multi, noDb] }] } }))]);
-    const [first, second] = (envelope.data as { packages: Array<{ vulnerabilities: Array<Record<string, unknown>> }> }).packages[0]!.vulnerabilities;
-    expect(first).toMatchObject({ severity: 'MODERATE', cvss: null, remediation: { fixAvailable: true, fixedVersions: ['4.17.21', '4.17.22'], advice: 'Upgrade lodash to 4.17.21 or 4.17.22' } });
+    const byId: Record<string, unknown> = { [multi.id]: multi, [noDb.id]: noDb };
+    const { envelope } = await run({ from: 'inventory.json', ecosystem: 'maven' }, [idsFor([multi.id, noDb.id]), recordRoute((r) => ({ json: byId[idOf(r)] }))]);
+    const [first, second] = (envelope.data as Data).packages[0]!.vulnerabilities;
+    expect(first).toMatchObject({ severity: 'MODERATE', cvss: null, remediation: { fixAvailable: true, fixedVersions: ['4.17.21', '4.17.22'] } });
     // A bare number in severity[].score is the one form that parses.
     expect(second).toMatchObject({ severity: 'CRITICAL', cvss: 9.8 });
   });
@@ -168,8 +219,8 @@ describe('osv vulns: reshaping', () => {
 
 describe('osv vulns: failures', () => {
   it('a probe answered with 400 still counts as reachable, as before', async () => {
-    const r = route((request) => ((JSON.parse(request.body!) as { queries: unknown[] }).queries.length === 0 ? { status: 400, text: 'empty batch' } : querybatch(request)));
-    const { envelope } = await run({ from: 'inventory.json' }, [r]);
+    const r = route((request) => (isProbe(request) ? { status: 400, text: 'empty batch' } : querybatch(request)));
+    const { envelope } = await run({ from: 'inventory.json' }, [r, fixtureRecords]);
     expect(envelope.ok).toBe(true);
   });
 
@@ -188,13 +239,18 @@ describe('osv vulns: failures', () => {
   });
 
   it('a failed batch keeps the old wording, "OSV.dev returned HTTP <status>"', async () => {
-    const r = route((request) => ((JSON.parse(request.body!) as { queries: unknown[] }).queries.length === 0 ? { json: { results: [] } } : { status: 500, json: { message: 'internal' } }));
+    const r = route((request) => (isProbe(request) ? { json: { results: [] } } : { status: 500, json: { message: 'internal' } }));
     const { envelope } = await run({ from: 'inventory.json' }, [r]);
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'OSV.dev returned HTTP 500' });
   });
 
+  it('a record that cannot be fetched fails the command, naming the id', async () => {
+    const { envelope } = await run({ from: 'inventory.json', ecosystem: 'maven' }, [fixtureRoute, recordRoute(() => ({ status: 404, json: { code: 5, message: 'Bug not found.' } }))]);
+    expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'OSV.dev returned HTTP 404 for GHSA-jfh8-c2jp-5v3q' });
+  });
+
   it('an answer with no results list fails, as the old code did, in words', async () => {
-    const r = route((request) => ((JSON.parse(request.body!) as { queries: unknown[] }).queries.length === 0 ? { json: { results: [] } } : { json: { nope: true } }));
+    const r = route((request) => (isProbe(request) ? { json: { results: [] } } : { json: { nope: true } }));
     const { envelope } = await run({ from: 'inventory.json' }, [r]);
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: `OSV.dev answered ${URL_} without a results list.` });
   });
@@ -205,14 +261,14 @@ describe('osv vulns: the inventory', () => {
 
   it("reads deps scan's envelope, its data, or a bare list, from a file or stdin", async () => {
     const want = (await run({ from: 'inventory.json' })).envelope.data;
-    expect((await run({ from: 'data.json' }, [fixtureRoute], { files: { 'data.json': JSON.stringify(inventory.data) } })).envelope.data).toEqual(want);
-    expect((await run({ from: 'list.json' }, [fixtureRoute], { files: { 'list.json': list } })).envelope.data).toEqual(want);
-    expect((await run({}, [fixtureRoute], { stdin: JSON.stringify(inventory) })).envelope.data).toEqual(want);
-    expect((await run({ from: '-' }, [fixtureRoute], { stdin: list })).envelope.data).toEqual(want);
+    expect((await run({ from: 'data.json' }, both, { files: { 'data.json': JSON.stringify(inventory.data) } })).envelope.data).toEqual(want);
+    expect((await run({ from: 'list.json' }, both, { files: { 'list.json': list } })).envelope.data).toEqual(want);
+    expect((await run({}, both, { stdin: JSON.stringify(inventory) })).envelope.data).toEqual(want);
+    expect((await run({ from: '-' }, both, { stdin: list })).envelope.data).toEqual(want);
   });
 
   it('reads stdin through the real CLI: toil deps scan | toil osv vulns', async () => {
-    const { context } = testContext({ routes: [fixtureRoute], stdin: JSON.stringify(inventory) });
+    const { context } = testContext({ routes: both, stdin: JSON.stringify(inventory) });
     const result = await runCli(['osv', 'vulns'], { commands, context });
     expect(result.envelope?.ok, result.stdout).toBe(true);
     expect((result.envelope?.data as { scanned: number }).scanned).toBe(4);
@@ -226,7 +282,7 @@ describe('osv vulns: the inventory', () => {
       ['short.json', JSON.stringify([{ name: 'lodash', ecosystem: 'npm' }]), /without a usable version \(packages\[0\]\)/],
     ];
     for (const [file, text, message] of cases) {
-      const { envelope, calls } = await run({ from: file }, [fixtureRoute], { files: { [file]: text } });
+      const { envelope, calls } = await run({ from: file }, both, { files: { [file]: text } });
       expect(envelope.error?.code, file).toBe('INVALID_INPUT');
       expect(envelope.error?.message, file).toMatch(message);
       expect(envelope.error?.fix, file).toBeTruthy();
