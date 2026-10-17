@@ -1,0 +1,26 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_CONFLUENCE_BASE_URL",
+    "description": "Confluence server root, e.g. https://confluence.imagile.dev",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "apiToken",
+    "env": "TOIL_CONFLUENCE_API_TOKEN",
+    "description": "Personal access token",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "apiTokenFrom",
+    "env": "TOIL_CONFLUENCE_API_TOKEN_FROM",
+    "description": "The jira connection to take apiToken from when this connection has none",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]
