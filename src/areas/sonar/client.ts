@@ -35,7 +35,9 @@ export function sonar<T>(ctx: SonarContext, path: string, params?: Record<string
  * collected reach `total` or a page comes back empty, as the predecessor did.
  * It never stops on a short page. Core's `page` style can't stop on a total,
  * so this rides the `offset` style, whose stopping rule is exactly that, and
- * counts pages itself: the offset it hands over is ignored.
+ * counts pages itself: the offset it hands over is ignored. Suspected bug
+ * (#92 item 1): a refused page fails the whole call, and the pages already
+ * fetched are discarded.
  */
 export async function sonarAll<T>(path: string, ctx: SonarContext, params: Record<string, QueryValue>, read: (body: unknown) => { total: number | undefined; items: T[] }, what: string): Promise<T[]> {
   let page = 0;
@@ -52,7 +54,8 @@ export async function sonarAll<T>(path: string, ctx: SonarContext, params: Recor
 
 const obj = (body: unknown): Record<string, unknown> => (typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {});
 const list = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
-const num = (value: unknown): number | undefined => (typeof value === 'number' ? value : undefined);
+/** `>=` against the total as JavaScript coerces it, as the predecessor compared: null stops after a page, a numeric string counts. */
+const num = (value: unknown): number | undefined => (value === undefined ? undefined : Number(value));
 
 /** `issues/search` reports `total` at the top level. */
 export const issuesPage = <T>(body: unknown) => ({ total: num(obj(body).total), items: list<T>(obj(body).issues) });

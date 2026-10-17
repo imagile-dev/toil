@@ -76,8 +76,11 @@ specified".
 `issues`, `projects` and `hotspots` page with `--page` (default 1) and `--page-size`
 (default 100), passed to the server as given; `data` is then SonarQube's own page.
 `--all` ignores both and fetches every page, 500 at a time, until the total is
-reached; `data` is then one flat list of items. SonarQube refuses `issues` past the
+reached or a page comes back empty; `data` is then one flat list of items. SonarQube refuses `issues` past the
 10,000th result, so `issues --all` on a larger result fails; narrow the filters.
+`--all` also stops with an error after 1,000 pages (500,000 items), and like every
+command it's subject to toil's time limit (`TOIL_TIMEOUT_MS`, 120 s by default), so a
+very large `projects` or `hotspots --all` can end in `TIMEOUT`.
 
 ```bash
 toil sonar quality-gate --project imagile-api

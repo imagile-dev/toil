@@ -181,10 +181,21 @@ describe('hotspots', () => {
     expect(calls[0]!.url).toBe(`${SONAR}/api/hotspots/search?projectKey=${PROJECT}&status=REVIEWED&resolution=FIXED,SAFE&p=3&ps=100`);
   });
 
-  it('--all reads paging.total and returns the hotspots', async () => {
-    const { envelope, calls } = await run(hotspotsCommand, { project: PROJECT, all: true }, [ok(hotspotsPage([hotspot(1), hotspot(2)], 2, 1, 500))]);
-    expect(calls[0]!.url).toBe(`${SONAR}/api/hotspots/search?projectKey=${PROJECT}&p=1&ps=500`);
+  it('--all reads paging.total across pages and returns the hotspots', async () => {
+    const routes: Route[] = [
+      { path: '/api/hotspots/search', query: { projectKey: PROJECT, p: '1', ps: '500' }, respond: { json: hotspotsPage([hotspot(1)], 2, 1, 500) } },
+      { path: '/api/hotspots/search', query: { projectKey: PROJECT, p: '2', ps: '500' }, respond: { json: hotspotsPage([hotspot(2)], 2, 2, 500) } },
+    ];
+    const { envelope, calls } = await run(hotspotsCommand, { project: PROJECT, all: true }, routes);
+    expect(calls.map((c) => c.url)).toEqual([`${SONAR}/api/hotspots/search?projectKey=${PROJECT}&p=1&ps=500`, `${SONAR}/api/hotspots/search?projectKey=${PROJECT}&p=2&ps=500`]);
     expect(envelope.data).toEqual([hotspot(1), hotspot(2)]);
+  });
+
+  it('--all compares with the total as JavaScript coerces it: null stops after one page, "3" is 3', async () => {
+    const nullTotal = await run(hotspotsCommand, { project: PROJECT, all: true }, [ok({ paging: { pageIndex: 1, pageSize: 500, total: null }, hotspots: [hotspot(1)] })]);
+    expect(nullTotal.calls).toHaveLength(1);
+    const text = await run(issuesCommand, { project: PROJECT, all: true }, [ok({ total: '1', issues: [sonarIssue(1)] })]);
+    expect(text.calls).toHaveLength(1);
   });
 });
 

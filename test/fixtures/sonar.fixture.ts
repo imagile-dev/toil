@@ -15,7 +15,7 @@ import { defineFixture } from '../harness/fixtures.js';
 export const SONAR = 'https://sonar.imagile.dev';
 export const PROJECT = 'imagile-api';
 
-export const config = { sonar: { baseUrl: SONAR, token: 'test-token', writes: true } };
+export const config = { sonar: { baseUrl: SONAR, token: 'test-token' } };
 
 // Invented from the docs: GET api/qualitygates/project_status.
 export const qualityGate = {
