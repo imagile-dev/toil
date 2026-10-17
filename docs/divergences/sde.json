@@ -1,0 +1,19 @@
+{
+  "scope": "sde",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "sde users, projects, tasks and threats --all paging until count or an empty page, with no limit on the number of pages",
+      "toil": "The same stop rule, plus a bound: after 1,000 pages (100,000 items) the command fails with HTTP, naming what was being paged, and fix text to narrow the request",
+      "why": "A server that ignores the page parameter would otherwise be asked for the same page forever.",
+      "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "The sde.connection setting: one value, <token>@<host>, read from the env var or the global config file in plain text",
+      "toil": "The same one value under the key connectionString (TOIL_SDE_CONNECTION_STRING), parsed the same way. The old key connection and TOIL_SDE_CONNECTION still work, with a CONFIG_RENAMED_KEY warning, and an env value under either name beats the config file under either name. In a config file it must be a keychain: reference to the OS credential store.",
+      "why": "In toil, connection names the connection a call uses (--connection, defaults.<area>.connection), so it can't also be a setting. The value holds the token, so it's a secret, and secrets never sit in a file in plain text.",
+      "principle": "Secrets"
+    }
+  ]
+}
