@@ -121,6 +121,7 @@ export type AreaCommand<I extends z.ZodObject, C, K extends string = string> = O
   context?: Partial<Record<K, ContextNeed>>;
   /** Settings taken from another area's connection when this one lacks them. */
   shares?: SharedSettings;
+  /** An `area-local` command's `ctx.connection` is undefined at run time, whatever this type says; it has no connection to read. */
   run(input: z.output<I>, ctx: CommandContext<Connection<C>, Partial<Record<K, string>>>): Promise<unknown>;
 };
 
@@ -131,7 +132,7 @@ export type AnyArea = Area<any, string>;
 export const CONNECTION_FIELD = 'connection';
 const NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 /** Field names a context input can't take: core's own fields and the global flags. */
-const RESERVED_INPUTS = new Set([CONNECTION_FIELD, 'allowWrite', 'pretty', 'verbose', 'debug', 'config', 'outputFile', 'version', 'help']);
+const RESERVED_INPUTS = new Set([CONNECTION_FIELD, 'allowWrite', 'pretty', 'verbose', 'debug', 'config', 'outputFile', 'version', 'help', 'dossier', 'cwd']);
 
 const kebab = (name: string) => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 

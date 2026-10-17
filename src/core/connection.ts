@@ -216,11 +216,13 @@ async function takeShared(
     const theirs = tier(config.sources[`${otherName}.${key}`], otherStored[key] !== undefined, otherDefaults[key] !== undefined);
     if (theirs >= mine) continue;
     const taken: Settings = { [key]: otherStored[key] ?? otherDefaults[key] };
+    const tag = config.sources[`${otherName}.${key}`];
+    const from = otherStored[key] !== undefined && (tag === 'env' || tag === 'ci') ? tag : isKeychainRef(taken[key]) ? 'store' : 'defaults';
     refusePlaintextSecrets(config, other, otherName, otherStored[key] === undefined ? taken : {}, otherStored[key] === undefined ? {} : taken);
     await resolveSecrets(taken, other, otherName, io.secrets, io.warn, io.signal);
     if (taken[key] === undefined) continue;
     merged[key] = taken[key];
-    if (io.report) io.report[key] = { area: other.name, connection: otherName };
+    if (io.report) io.report[key] = { area: other.name, connection: otherName, source: from };
   }
 }
 

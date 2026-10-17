@@ -54,8 +54,8 @@ client launched it. Commands that resolve dossier context (`docs/dossiers.md`) t
 a `cwd` input on both front doors. The CLI defaults it to its working directory;
 MCP defaults it to the client's MCP root when the client reports exactly one,
 converting the `file://` URI with Node's URL handling. Any other file location
-(`--repo`, a dossier file) is an explicit input too, so the two doors stay 1:1, and
-`meta.context` says which default applied.
+(a dossier file) is an explicit input too, so the two doors stay 1:1, and
+`meta.context` will say which default applied once dossiers (#16) bring `cwd`.
 
 ## Verifying with a real client
 

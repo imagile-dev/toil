@@ -34,14 +34,20 @@ export interface ContextValue {
   source: ContextSource;
   /** For `connection`: the context input whose value selected it (`instance`). */
   via?: string;
+  /** For `connection` from the default: named in `defaults.<area>`, named after the area, or the only one. */
+  default?: 'named' | 'area-name' | 'only';
 }
 
 export interface ContextReport {
   connection?: ContextValue;
   /** Each context input that resolved. Absent when none did. */
   inputs?: Record<string, ContextValue>;
-  /** Settings taken from another area's connection: key to `{ area, connection }`. Absent when none were. */
-  shared?: Record<string, { area: string; connection: string }>;
+  /**
+   * Settings taken from another area's connection, by key: which area and
+   * connection, and where that value lived (env, ci, store, or defaults in
+   * the file). Never the value. Absent when none were.
+   */
+  shared?: Record<string, { area: string; connection: string; source: 'env' | 'ci' | 'store' | 'defaults' }>;
 }
 
 export interface Warning {

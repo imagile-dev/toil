@@ -48,8 +48,8 @@ export function selectCommands(commands: AnyCommand[], areas: string[] | undefin
  * bad input as well as good.
  *
  * `context` is a factory, called once with no command to decide which tools
- * to list, and once per tool call with the command (so standalone ones skip
- * config, as on the CLI) and that call's cancellation signal. One context per call is
+ * to list, and once per tool call with the command (so standalone and
+ * area-local ones skip config, as on the CLI) and that call's cancellation signal. One context per call is
  * what a shared transport (the planned gateway) needs, and it lets a client's
  * cancel stop the request it belongs to.
  */

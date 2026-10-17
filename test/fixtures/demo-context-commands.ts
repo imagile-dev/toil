@@ -96,7 +96,18 @@ export const echoFilters = demoContextArea.command({
   run: async (input, ctx) => ({ input, context: ctx.context }),
 });
 
-export const demoContextCommands: AnyCommand[] = [getWidget, echoFilters];
+export const about = demoContextArea.command({
+  path: ['demo-context', 'about'],
+  // Needs no connection, so it takes none of the area's context inputs either.
+  kind: 'area-local',
+  description: 'Describe the demo-context area; needs no connection',
+  input: z.object({}),
+  writes: false,
+  examples: [{}],
+  run: async () => ({ area: 'demo-context' }),
+});
+
+export const demoContextCommands: AnyCommand[] = [getWidget, echoFilters, about];
 
 export const demoContextRoutes = [
   {

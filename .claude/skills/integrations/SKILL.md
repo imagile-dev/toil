@@ -44,7 +44,8 @@ skill file, or the file misses a command or a connection key's env var.
 - **Where a command acts** (`--project`, `--repo`, `--owner`, `--instance`, `--env`)
   is a context input in `defineArea({ context })`, never an ordinary flag, so core
   resolves it from the call, the dossier, the git remote and the connection in one
-  order. The predecessor's group-level flags (`bitbucket --project --repo`, `github
+  order (the dossier step is empty until #16, and the git step needs the git reader,
+  which isn't wired in yet). The predecessor's group-level flags (`bitbucket --project --repo`, `github
   --owner --repo`, `ado --collection --organization --project --repo`, `jenkins
   --instance`, `openshift --env --instance`, `dynatrace --env`) are `group` inputs,
   with the contract's spelling in `flags`; a per-command one (`jira --project`) is a
@@ -104,7 +105,9 @@ Never raise a level on the strength of the unit suite.
 
 A command talks to one service. Do not build an aggregate command that fans out to
 several sources; give each source its own area and let them compose through stdin or
-`--from <file>` (see the dependency-analysis section of `docs/integrations.md`).
+`--from <file>` (see the dependency-analysis section of `docs/integrations.md`). A
+group that holds only aliases onto other areas' commands (`deps outdated`) is a
+compatibility path, never a place for a command that calls more than one of them.
 
 ### Deployment Variants
 

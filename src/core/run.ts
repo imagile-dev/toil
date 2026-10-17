@@ -45,7 +45,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     if (ctx.verbose) m.requests = requests;
     if (warnings.length > 0) m.warnings = warnings;
     if (page) m.page = page;
-    if (report) m.context = report;
+    if (report && Object.keys(report).length > 0) m.context = report;
     return m;
   };
 
@@ -95,13 +95,15 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     // Reading a secret from the OS store spawns a process, so it runs under
     // the same time limit and cancel as the command itself.
     const input = parsed.data as Record<string, unknown>;
+    // Filled as it resolves, so a failure part-way still reports what was chosen.
+    const partial: ContextReport = {};
+    if (usesConnection(def)) report = partial;
     const call: ResolvedCall | undefined = usesConnection(def)
       ? await Promise.race([
-          resolveCall(def, input, { config: ctx.config, secrets: ctx.secrets, dossier: ctx.dossier, gitRemote: ctx.gitRemote }, (w) => warnings.push(w), controller.signal),
+          resolveCall(def, input, { config: ctx.config, secrets: ctx.secrets, dossier: ctx.dossier, gitRemote: ctx.gitRemote }, (w) => warnings.push(w), controller.signal, partial),
           aborted,
         ])
       : undefined;
-    report = call?.report;
     const connection = call?.connection;
     if (def.writes) assertWritesAllowed(def, input, connection, ctx);
 

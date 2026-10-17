@@ -39,9 +39,9 @@ describe('context inputs', () => {
 
     expect(run.envelope).toMatchObject({ ok: true, data: { project: 'PRJ', board: 'main', env: null, id: 'W-1', name: 'Widget W-1' } });
     expect(run.envelope?.meta.context).toEqual({
-      connection: { value: 'demo-context', source: 'default' },
+      connection: { value: 'demo-context', source: 'default', default: 'named' },
       inputs: { project: { value: 'PRJ', source: 'connection' }, board: { value: 'main', source: 'default' } },
-      shared: { token: { area: 'demo', connection: 'demo' } },
+      shared: { token: { area: 'demo', connection: 'demo', source: 'env' } },
     });
     expect(http.calls.map((c) => [c.url, c.headers.authorization])).toEqual([['https://demo.imagile.dev/api/projects/PRJ/widgets/W-1?board=main', 'Bearer shared-token']]);
   });
@@ -136,13 +136,38 @@ describe('choosing the connection', () => {
     expect((await run({ id: 'W-1', env: 'staging' })).meta.context?.connection).toEqual({ value: 'stage', source: 'input', via: 'env' });
     expect((await run({ id: 'W-1', env: 'stage' })).meta.context?.connection).toEqual({ value: 'stage', source: 'input', via: 'env' });
     expect((await run({ id: 'W-1', env: 'staging' })).data).toMatchObject({ project: 'STG', env: 'staging' });
-    expect((await run({ id: 'W-1' })).meta.context?.connection).toEqual({ value: 'prod', source: 'default' });
+    expect((await run({ id: 'W-1' })).meta.context?.connection).toEqual({ value: 'prod', source: 'default', default: 'named' });
   });
 
   it('takes the connection from the dossier below the call and above an input the git remote selects', async () => {
     const dossier = (_area: string, key: string) => (key === 'connection' ? 'stage' : undefined);
     expect((await run({ id: 'W-1' }, two, { dossier })).meta.context?.connection).toEqual({ value: 'stage', source: 'dossier' });
     expect((await run({ id: 'W-1', connection: 'prod' }, two, { dossier })).meta.context?.connection).toEqual({ value: 'prod', source: 'input' });
+  });
+
+  it('lets a selecting value from a lower source give way to the connection a higher one chose', async () => {
+    const dossier = (_area: string, key: string) => (key === 'env' ? 'staging' : undefined);
+    const envelope = await run({ id: 'W-1', connection: 'prod' }, two, { dossier });
+    expect(envelope.meta.context?.connection).toEqual({ value: 'prod', source: 'input' });
+    // Not the dossier's "staging", which would describe the other connection.
+    expect(envelope.meta.context?.inputs?.env).toBeUndefined();
+    expect(envelope.data).toMatchObject({ project: 'PRD', env: null });
+    // With nothing higher, the dossier's env picks the connection.
+    expect((await run({ id: 'W-1' }, two, { dossier })).meta.context?.connection).toEqual({ value: 'stage', source: 'dossier', via: 'env' });
+  });
+
+  it('says which kind of default it used', async () => {
+    const only = configOf({ solo: { area: 'demo-context', project: 'P' }, demo: { area: 'demo', token: 't' } }, { demo: { connection: 'demo' } });
+    expect((await run({ id: 'W-1' }, only)).meta.context?.connection).toEqual({ value: 'solo', source: 'default', default: 'only' });
+    const named = configOf({ 'demo-context': { area: 'demo-context', project: 'P' }, other: { area: 'demo-context' }, demo: { area: 'demo', token: 't' } }, { demo: { connection: 'demo' } });
+    expect((await run({ id: 'W-1' }, named)).meta.context?.connection).toEqual({ value: 'demo-context', source: 'default', default: 'area-name' });
+  });
+
+  it('still reports the connection when resolution fails part-way', async () => {
+    const { context } = testContext({ config: { 'demo-context': {}, demo: { token: 't' } } });
+    const envelope = await execute(getWidget, { id: 'W-1', board: 'ops' }, context);
+    expect(envelope.error?.code).toBe('INVALID_INPUT');
+    expect(envelope.meta.context).toMatchObject({ connection: { value: 'demo-context' }, inputs: { board: { value: 'ops', source: 'input' } } });
   });
 
   it('refuses --connection and --env that disagree, an env no connection serves, and one several do', async () => {
@@ -180,7 +205,7 @@ describe('settings shared from another area', () => {
     const ownUnset = configOf({ dc: { area: 'demo-context' }, de: { area: 'demo', token: 'keychain:de.token' } }, defaults, { 'de.token': 'global' });
     const { envelope, auth } = await run(ownUnset, fakeStore({ entries: { 'de.token': 'from-store' } }));
     expect(auth).toBe('Bearer from-store');
-    expect(envelope.meta.context?.shared).toEqual({ token: { area: 'demo', connection: 'de' } });
+    expect(envelope.meta.context?.shared).toEqual({ token: { area: 'demo', connection: 'de', source: 'store' } });
   });
 
   it("refuses the other area's plaintext secret in a file, naming that connection", async () => {
@@ -197,6 +222,21 @@ describe('settings shared from another area', () => {
     const { context } = testContext({ config: base, routes: [{ url: /widgets/, respond: { status: 401, json: {} } }] });
     const rejected = await execute(getWidget, { id: 'W-1' }, context);
     expect(rejected.error?.message).toBe('The token was rejected (sent the shared token from demo connection demo).');
+  });
+});
+
+describe('area-local commands', () => {
+  it("refuse the area's group flags rather than ignore them, before or after the leaf", async () => {
+    for (const argv of [
+      ['demo-context', '--project', 'ABC', 'about'],
+      ['demo-context', 'about', '--project', 'ABC'],
+    ]) {
+      const { context } = testContext({ config: base });
+      const run = await runCli(argv, { commands, context });
+      expect(run.envelope?.error?.code, argv.join(' ')).toBe('INVALID_INPUT');
+    }
+    const { context } = testContext();
+    expect((await runCli(['demo-context', 'about'], { commands, context })).envelope).toMatchObject({ ok: true, meta: { command: 'demo-context about' } });
   });
 });
 

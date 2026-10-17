@@ -25,7 +25,7 @@ export interface ProgramOptions {
   commands: AnyCommand[];
   version: string;
   io: CliIO;
-  /** Builds the context for one command. `def` lets standalone commands skip loading config. */
+  /** Builds the context for one command. `def` lets standalone and area-local commands skip loading config. */
   createContext: (globals: GlobalOptions, def?: AnyCommand) => Context;
   startMcp: (options: { areas: string[] | undefined; globals: GlobalOptions }) => Promise<void>;
 }
@@ -255,6 +255,14 @@ function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<str
     const attribute = new Option(opt.flags).attributeName();
     const value = own[attribute] !== undefined ? own[attribute] : groupFlags.has(opt.flags) ? all[attribute] : undefined;
     if (value !== undefined) input[opt.field] = typed(def, opt.field, value);
+  }
+  // A group flag this command doesn't take (an area-local command, say) is
+  // passed on under its own name, so strict parsing refuses it rather than
+  // the call quietly ignoring it.
+  const mapped = new Set((def.options ?? []).map((opt) => opt.flags));
+  for (const flags of groupFlags) {
+    const attribute = new Option(flags).attributeName();
+    if (!mapped.has(flags) && all[attribute] !== undefined) input[attribute] = all[attribute];
   }
   if (def.writes && own.allowWrite === true) input.allowWrite = true;
   return input;

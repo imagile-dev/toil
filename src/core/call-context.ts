@@ -16,10 +16,16 @@ import type { SecretStore } from './keychain.js';
  *   3. the working folder's git remote, where the area declares how to read it
  *   4. the connection's setting, then the area's default
  *
- * The connection goes through the same chain: `--connection`, then the
- * dossier, then an input that selects one (`--instance prod`), then the
- * area's default connection. The result lands on `ctx.context` and, with each
- * value's source, in `meta.context`. Four sources, one order, no committee.
+ * The connection goes through the same chain: at each source in turn (the
+ * call, the dossier, the git remote), `connection` itself or an input that
+ * selects one (`--instance prod`), and the two must agree; with neither, the
+ * area's default connection. A selecting value from a lower source than the
+ * one that picked the connection gives way to that connection's own setting.
+ * The result lands on `ctx.context` and, with each value's source, in
+ * `meta.context`. Four sources, one order, no committee.
+ *
+ * The git step runs only where a reader is supplied (`Context.gitRemote`);
+ * none is wired into the shipped CLI yet. The dossier step is empty until #16.
  */
 
 /** A git remote as the reader hands it over: the area parses the URL. */
@@ -53,7 +59,18 @@ export interface ResolvedCall {
   report: ContextReport;
 }
 
-export async function resolveCall(def: AnyCommand, input: Record<string, unknown>, sources: CallSources, warn: (w: Warning) => void, signal: AbortSignal): Promise<ResolvedCall> {
+/**
+ * `report` is filled as resolution goes, so a failure part-way (a required
+ * input nobody supplied) still says which connection the call had chosen.
+ */
+export async function resolveCall(
+  def: AnyCommand,
+  input: Record<string, unknown>,
+  sources: CallSources,
+  warn: (w: Warning) => void,
+  signal: AbortSignal,
+  report: ContextReport = {},
+): Promise<ResolvedCall> {
   const area = def.area!;
   const declared = area.context as Record<string, ContextInput>;
   const needs = def.context ?? {};
@@ -82,7 +99,23 @@ export async function resolveCall(def: AnyCommand, input: Record<string, unknown
   const chosen = chooseConnection(sources.config, area, def, input, early, dossier);
   const shared: NonNullable<ContextReport['shared']> = {};
   const connection = await resolveConnection(sources.config, area, chosen?.value, warn, sources.secrets, signal, { shares: def.shares, shared });
-  const report: ContextReport = { connection: { value: connection.name, source: chosen?.source ?? 'default', ...(chosen?.via ? { via: chosen.via } : {}) } };
+  report.connection = chosen ? { value: connection.name, source: chosen.source, ...(chosen.via ? { via: chosen.via } : {}) } : { value: connection.name, source: 'default', default: defaultKind(sources.config, area, connection.name) };
+  if (Object.keys(shared).length > 0) report.shared = shared;
+
+  // A selecting value that lost to a higher source (an explicit --connection
+  // over a dossier's env) mustn't describe a different connection than the
+  // one in use: it gives way to that connection's own setting.
+  for (const [name, found] of Object.entries(early)) {
+    const spec = declared[name]!;
+    if (!spec.selectsConnection || found.source === 'input') continue;
+    let selects: string | undefined;
+    try {
+      selects = selectConnection(sources.config, area, name, spec.setting ?? name, found.value, flagOf(name, spec));
+    } catch {
+      selects = undefined;
+    }
+    if (selects !== connection.name) delete early[name];
+  }
 
   // Step 4, from the connection this call resolved.
   const inputs: Record<string, ContextValue> = {};
@@ -97,10 +130,15 @@ export async function resolveCall(def: AnyCommand, input: Record<string, unknown
     if (value) inputs[name] = value;
     else if (need === 'required') missing.push(name);
   }
-  if (missing.length > 0) throw missingContext(sources.config, def, area, connection.name, missing);
   if (Object.keys(inputs).length > 0) report.inputs = inputs;
-  if (Object.keys(shared).length > 0) report.shared = shared;
+  if (missing.length > 0) throw missingContext(sources.config, def, area, connection.name, missing);
   return { connection, context: Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, v.value])), report };
+}
+
+/** How the area's default connection was found: named in `defaults`, named after the area, or the only one. */
+function defaultKind(config: ResolvedConfig, area: AnyArea, name: string): 'named' | 'area-name' | 'only' {
+  if (typeof config.defaults[area.name]?.connection === 'string') return 'named';
+  return name === area.name ? 'area-name' : 'only';
 }
 
 /** `connection` through the chain. An explicit `--connection` that contradicts an explicit selecting input is refused. */

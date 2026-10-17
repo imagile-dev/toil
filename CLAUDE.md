@@ -207,11 +207,13 @@ after the leaf) and a field on every one of its MCP tools, and a `command` input
 belongs to the commands that list it in their own `context`, which also marks any
 input `required`. Core resolves each in one order: the call's own value, then the
 dossier (empty until #16), then the git remote where the area declares how to read
-it, then the connection's `setting`, then the area's `default`. An input with
-`selectsConnection` picks the connection (`--env staging` selects the one named
-`staging` or whose `env` is `staging`), and `--connection` goes through the same
-chain. `run` reads `ctx.context.<input>`; `meta.context` reports the connection, each
-input and where it came from.
+it (no reader is wired into the CLI yet; the git reader supplies one), then the
+connection's `setting`, then the area's `default`. An input with `selectsConnection`
+picks the connection (`--env staging` selects the one named `staging` or whose `env`
+is `staging`), and `--connection` goes through the same chain: at each source in
+turn, a named connection and a selecting input must agree. `run` reads
+`ctx.context.<input>`, and `ctx.resolved` is the same report `meta.context` carries:
+the connection, each input, and where each came from.
 
 **Cross-area use is declared on the command.** `shares: { area, keys }` takes those
 settings from another area's default connection when this one lacks them (Kibana
@@ -294,6 +296,12 @@ a breaking change.
   config key, a truncated result), from config loading or a command's `ctx.warn()`.
   **`meta.page`** is `{ nextCursor, limit }`, set with `ctx.setPage()` by any command
   that pages. Both are absent when empty.
+- **`meta.context`**, on area commands only, says where the call acted: `{ connection,
+  inputs, shared }`. `connection` and each of `inputs` is `{ value, source }`, the
+  source one of `input`, `dossier`, `git`, `connection` or `default`, plus `via` (the
+  input that selected the connection) or `default` (`named`, `area-name` or `only`).
+  `shared` lists settings taken from another area's connection, with where each
+  lived, never the value. It's set on a failure too, as far as resolution got.
 - **Every command has a time limit and can be cancelled.** `execute()` aborts at
   `TOIL_TIMEOUT_MS` (default 120 s) with `TIMEOUT`, and on Ctrl+C or an MCP cancel
   with `CANCELLED`. Commands pass `ctx.signal` to anything long-running that isn't
@@ -371,8 +379,8 @@ is version 1. Every format change adds a step to `migrateConfig()` with a test, 
 old file always loads. A file from a newer toil is refused with an upgrade fix rather
 than half-read. Version 1 is a map of area to settings and reads as one connection
 per area, named after it and set as its default. Version 2 holds `connections` and
-`defaults`; using them needs `"version": 2`. Standalone commands (`version`) don't
-load config at all, so a broken or newer file can't stop a user finding out which
+`defaults`; using them needs `"version": 2`. Standalone and area-local commands
+(`version`, `jira schema`) don't load config at all, so a broken or newer file can't stop a user finding out which
 toil they have.
 
 ## Writes
