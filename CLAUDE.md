@@ -263,17 +263,21 @@ through keys it did not prompt for.
 **There is no repository-level config file, and there won't be one.** Anyone who
 can push to a repo, or an agent editing the working tree, could use such a file to
 switch on writes or send the user's credentials to a host of its choosing
-(*principles 2 and 9*). Hosts, credentials and `writes` come only from env vars and
-the user's own config. Knowledge about a body of work (its repos, Jira keys and
-fields, boards, environments) belongs in the user's dossiers, which hold no secrets
-and no hosts and name connections instead.
+(*principles 2 and 9*). Hosts to talk to, credentials and `writes` come only from env
+vars and the user's own config.
+
+Knowledge about a body of work (its repos, Jira keys and fields, boards,
+environments) belongs in **dossiers** (`docs/dossiers.md`). A dossier holds no secret
+and no `writes`, and it can't create a connection: it only selects among the reader's
+own connections, by name or by a host that toil uses purely as a selector and never
+contacts. That's why a dossier may be checked into a repository when config may not.
 
 Env var names map onto areas through the registry, using the longest match, so
 `TOIL_JIRA_CLOUD_TOKEN` is `jira-cloud.token`, not `jira.cloudToken`. A `TOIL_*` name
 that matches no registered area is ignored, never guessed at, so a variable can't
 change meaning when an area is added. `envName()` and `parseEnvName()` in
 `src/core/config.ts` are the only places the mapping lives. These names are reserved
-and never map onto an area: `TOIL_CONN_*`, `TOIL_DOSSIER`, `TOIL_ENV`, `TOIL_CONFIG*`,
+and never map onto an area: `TOIL_CONN_*`, `TOIL_DOSSIER*`, `TOIL_ENV`, `TOIL_CONFIG*`,
 `TOIL_TIMEOUT_MS`.
 
 **The config file is versioned.** `"version"` is a whole number; a file without one
