@@ -58,7 +58,11 @@ gets made again in the next place it applies.
    `integrations` skill), which must name its source to be checkable.
 7. **Never break what users already rely on silently.** Config on disk, flags, the
    JSON envelope and precedence are contracts; changing them is a declared,
-   documented breaking change. → Output Contract, Delivery.
+   documented breaking change. → Output Contract, Delivery. **This starts at toil's
+   first npm release**, which waits until every integration is built. Until then
+   no one can rely on anything, so contract changes need no breaking-change checks,
+   declarations or migration notes. Compatibility with the contract (the
+   `integrations` skill) is a separate requirement and still applies.
 8. **Same behavior on Windows, macOS and Linux.** None is second-class; a feature
    that works on one and not the others is not done. → Cross-Platform; the site
    is mobile responsive for the same reason (`site` skill).
@@ -377,8 +381,8 @@ guessing, and it silently breaks callers who rely on the documented result.
   The other is additive output the contract already allows (a new `data` field,
   `meta.warnings`, `meta.page`).
 - **The first live run checks every item** in the area's issue. A confirmed bug is
-  fixed as a declared change (`fix:` or `feat!:`, per Delivery); a refuted one is
-  closed.
+  fixed as a declared change (`fix:` or `feat:`, and `feat!:` once toil has been
+  released, per Delivery); a refuted one is closed.
 
 ## Testing
 
@@ -471,6 +475,10 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 
 - Conventional Commits: `fix:`, `feat:`, `feat!:` with a `BREAKING CHANGE:` footer
   that says why and how to migrate. release-please builds the changelog from them.
+  **Before the first npm release, don't use `feat!:` or `BREAKING CHANGE:`**
+  (principle 7): a contract change is a plain `feat:` or `fix:`, and a breaking
+  marker would put a migration note for a change no user ever saw into the first
+  changelog, and could push the version toward 1.0 before anyone decides to.
 - **Every major item starts with a GitHub issue, created before the branch.** Keep it
   concise: a short paragraph on what and why, and one "Done when" line.
   - **What counts as a major item:** the foundation, the site, the gateway,
@@ -483,6 +491,11 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   - **PR links:** many PRs can serve one issue. They use `Refs #n`, and the PR that
     finishes it uses `Closes #n`.
 - Branches: `kolatts/<issue#>-<description>`.
+- **No npm release until every integration is built.** The release job is off until
+  a maintainer sets the repository variable `TOIL_RELEASES` to `on`; until then
+  there's no release PR, tag or publish. Turning it on is a human's call, made once
+  the last integration merges. release-please then opens one release PR covering every
+  commit since the start.
 - **Releases** come from release-please (`.github/workflows/release.yml`): Conventional
   Commits on `main` become a release PR, and merging it, which is always a human's
   call, tags, publishes `@imagile-dev/toil` to npm with provenance, attaches the
@@ -507,8 +520,10 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   Scratch work goes in a temp folder outside the repo, never at its root.
   `test/repo-hygiene.test.ts` fails on an empty tracked file or an unexpected
   top-level entry. A new top-level file goes on its allowlist on purpose.
-- Before changing behavior users rely on, check config already on disk, existing
-  flags, the envelope, and precedence. Say what you checked in the PR.
+- After the first npm release, before changing behavior users rely on, check config
+  already on disk, existing flags, the envelope, and precedence, and say what you
+  checked in the PR. Before it, skip that: the PR has no section for it, and reviews
+  don't ask.
 - **Fix every review finding in the round it arrives, non-blocking ones included**,
   with the simplest fix that is easy to understand. A finding left for later piles up
   another round; an elaborate fix makes the design harder to follow than the problem
