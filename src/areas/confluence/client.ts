@@ -1,0 +1,245 @@
+import type { z } from 'zod';
+import type { Connection } from '../../core/area.js';
+import type { CommandContext } from '../../core/context.js';
+import { apiRequest } from '../../core/api.js';
+import { ToilError } from '../../core/errors.js';
+import { paginate } from '../../core/paginate.js';
+import { repointUrl, type QueryValue } from '../../core/rest.js';
+import { confluenceArea } from './area.js';
+
+/**
+ * Every request toil sends to Confluence Data Center, kept exactly as the
+ * canonical implementation sent them: the same endpoints, the same headers,
+ * the same `expand` lists (commas left literal, which core's URL builder
+ * does), and ids and keys put in the path unencoded. The paging loop,
+ * re-pointing and multipart are core's. A request that works is not
+ * reworded; rewording it would need a review, and the review would need a
+ * meeting.
+ */
+
+export type ConfluenceConnection = Connection<z.output<typeof confluenceArea.connection>>;
+export type ConfluenceContext = CommandContext<ConfluenceConnection>;
+
+const API = '/rest/api';
+/** The predecessor's page size for every list. */
+const PAGE = 25;
+/** The predecessor's per-request timeouts: JSON calls, and attachment transfers. */
+const TIMEOUT_MS = 30_000;
+const TRANSFER_TIMEOUT_MS = 60_000;
+
+/** What every JSON call sends besides the hook's token, exactly as the predecessor sent it. */
+const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
+
+/**
+ * An id, key or label in a URL path, unencoded, exactly as the predecessor
+ * sent it. A label with `/` or `?` changes the path; recorded as a suspected
+ * bug (#78 item 4), not changed (CLAUDE.md, Porting).
+ */
+const seg = (value: string) => value;
+
+export interface ConfluenceAttachment {
+  id: string;
+  title: string;
+  _links: { download?: string; [key: string]: unknown };
+  [key: string]: unknown;
+}
+
+interface ConfluenceList<T> {
+  results?: T[];
+  size?: number;
+  _links?: { next?: string };
+}
+
+interface ConfluenceRequest {
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  params?: Record<string, QueryValue>;
+  body?: unknown;
+}
+
+export function confluence<T>(ctx: ConfluenceContext, path: string, req: ConfluenceRequest = {}): Promise<T> {
+  return apiRequest<T>(confluenceArea, ctx, `${API}${path}`, {
+    method: req.method ?? 'GET',
+    headers: JSON_HEADERS,
+    timeoutMs: TIMEOUT_MS,
+    ...(req.params ? { query: req.params } : {}),
+    ...(req.body !== undefined ? { body: JSON.stringify(req.body) } : {}),
+  });
+}
+
+/**
+ * Every item of a `start`/`limit` list, 25 a page, as the predecessor read
+ * them: it stops when a page has no `_links.next`, and with `max` it stops
+ * once that many are in hand, asking the last page only for what's left.
+ * `max` is used as the predecessor's parseInt left it: 0, a negative number
+ * or NaN still pages, and the result is cut with `slice(0, max)`, so NaN
+ * returns nothing at all (#78 item 9). `first` offsets every request, as
+ * `list-pages --start` did.
+ */
+async function every<T>(
+  what: string,
+  fetchPage: (start: number, limit: number) => Promise<ConfluenceList<T>>,
+  opts: { max?: number | undefined; first?: number | undefined } = {},
+): Promise<T[]> {
+  const first = opts.first ?? 0;
+  const max = opts.max;
+  const { items } = await paginate<T>(
+    {
+      kind: 'offset',
+      startParam: 'start',
+      limitParam: 'limit',
+      pageSize: PAGE,
+      first,
+      items: (body) => (body as ConfluenceList<T>).results ?? [],
+      // No next link ends the list; so does reaching max. The offset style
+      // stops once the next offset reaches what this returns.
+      total: (body) => (!(body as ConfluenceList<T>)._links?.next ? -Infinity : max === undefined ? undefined : first + max),
+    },
+    async (params) => {
+      const got = Number(params.start) - first;
+      const limit = max === undefined ? PAGE : Math.min(max - got, PAGE);
+      return { body: await fetchPage(first + got, limit) };
+    },
+    { what },
+  );
+  return max === undefined ? items : items.slice(0, max);
+}
+
+export function getPage(ctx: ConfluenceContext, id: string, expand: string): Promise<unknown> {
+  return confluence(ctx, `/content/${seg(id)}`, { params: { expand } });
+}
+
+export async function getPageByTitle(ctx: ConfluenceContext, spaceKey: string, title: string): Promise<unknown> {
+  const result = await confluence<ConfluenceList<unknown>>(ctx, '/content', { params: { spaceKey, title, expand: 'body.storage,version,space', type: 'page' } });
+  return result.results?.[0] ?? null;
+}
+
+export function listPages(ctx: ConfluenceContext, spaceKey: string, opts: { max?: number | undefined; start?: number | undefined }): Promise<unknown[]> {
+  return every(
+    `Confluence pages in space ${spaceKey}`,
+    (start, limit) => confluence(ctx, '/content', { params: { spaceKey, type: 'page', expand: 'version', start, limit } }),
+    { max: opts.max, first: opts.start },
+  );
+}
+
+export function getPageChildren(ctx: ConfluenceContext, id: string): Promise<unknown[]> {
+  return every(`Confluence child pages of ${id}`, (start, limit) => confluence(ctx, `/content/${seg(id)}/child/page`, { params: { expand: 'version', start, limit } }));
+}
+
+export function getLabels(ctx: ConfluenceContext, id: string): Promise<unknown[]> {
+  return every(`Confluence labels on ${id}`, (start, limit) => confluence(ctx, `/content/${seg(id)}/label`, { params: { start, limit } }));
+}
+
+export function search(ctx: ConfluenceContext, cql: string, opts: { start: number; limit: number; expand?: string | undefined }): Promise<unknown> {
+  return confluence(ctx, '/content/search', { params: { cql, start: opts.start, limit: opts.limit, ...(opts.expand ? { expand: opts.expand } : {}) } });
+}
+
+export function createPage(ctx: ConfluenceContext, opts: { spaceKey: string; title: string; body: string; parentId?: string | undefined; representation: string }): Promise<unknown> {
+  return confluence(ctx, '/content', {
+    method: 'POST',
+    body: {
+      type: 'page',
+      title: opts.title,
+      space: { key: opts.spaceKey },
+      ancestors: opts.parentId ? [{ id: opts.parentId }] : [],
+      // Every representation goes under `storage`, wiki included (#78 item 7).
+      body: { storage: { value: opts.body, representation: opts.representation } },
+    },
+  });
+}
+
+export function updatePage(ctx: ConfluenceContext, id: string, opts: { version: number; title: string; body?: string | undefined; status: string; representation: string }): Promise<unknown> {
+  const body: Record<string, unknown> = { version: { number: opts.version }, type: 'page', title: opts.title, status: opts.status };
+  // No body given means no body sent, even for a title-only rename (#78 item 6).
+  if (opts.body !== undefined) body.body = { storage: { value: opts.body, representation: opts.representation } };
+  return confluence(ctx, `/content/${seg(id)}`, { method: 'PUT', body });
+}
+
+/** DELETE on any content id: a page, or an attachment, which goes to the trash. */
+export async function deleteContent(ctx: ConfluenceContext, id: string): Promise<void> {
+  await confluence<void>(ctx, `/content/${seg(id)}`, { method: 'DELETE' });
+}
+
+/** Top-level comments only: no `depth` is sent, as before (#78 item 3). */
+export function listComments(ctx: ConfluenceContext, pageId: string): Promise<unknown[]> {
+  return every(`Confluence comments on ${pageId}`, (start, limit) => confluence(ctx, `/content/${seg(pageId)}/child/comment`, { params: { expand: 'body.storage,version', start, limit } }));
+}
+
+/** The container is always a page, whatever the id is (#78 item 8). */
+export function addComment(ctx: ConfluenceContext, pageId: string, body: string, representation: string): Promise<unknown> {
+  return confluence(ctx, '/content', {
+    method: 'POST',
+    body: { type: 'comment', container: { id: pageId, type: 'page' }, body: { storage: { value: body, representation } } },
+  });
+}
+
+export async function addLabels(ctx: ConfluenceContext, pageId: string, labels: string[]): Promise<unknown[] | undefined> {
+  const result = await confluence<ConfluenceList<unknown>>(ctx, `/content/${seg(pageId)}/label`, { method: 'POST', body: labels.map((name) => ({ prefix: 'global', name })) });
+  return result.results;
+}
+
+export async function removeLabel(ctx: ConfluenceContext, pageId: string, label: string): Promise<void> {
+  await confluence<void>(ctx, `/content/${seg(pageId)}/label/${seg(label)}`, { method: 'DELETE' });
+}
+
+export function listSpaces(ctx: ConfluenceContext, opts: { type?: string | undefined; max?: number | undefined }): Promise<unknown[]> {
+  return every('Confluence spaces', (start, limit) => confluence(ctx, '/space', { params: { start, limit, ...(opts.type ? { type: opts.type } : {}) } }), { max: opts.max });
+}
+
+export function getSpace(ctx: ConfluenceContext, key: string): Promise<unknown> {
+  return confluence(ctx, `/space/${seg(key)}`, { params: { expand: 'description.plain' } });
+}
+
+export function listAttachments(ctx: ConfluenceContext, pageId: string): Promise<unknown[]> {
+  return every(`Confluence attachments on ${pageId}`, (start, limit) => confluence(ctx, `/content/${seg(pageId)}/child/attachment`, { params: { start, limit } }));
+}
+
+export async function uploadAttachment(ctx: ConfluenceContext, pageId: string, fileName: string, data: Uint8Array, comment?: string): Promise<unknown[] | undefined> {
+  // Always a new attachment: a file name already on the page isn't versioned (#78 item 5).
+  const result = await apiRequest<ConfluenceList<unknown>>(confluenceArea, ctx, `${API}/content/${seg(pageId)}/child/attachment`, {
+    method: 'POST',
+    headers: { 'X-Atlassian-Token': 'no-check', Accept: 'application/json', Connection: 'close' },
+    multipart: [{ name: 'file', fileName, data }, ...(comment ? [{ name: 'comment', value: comment }] : [])],
+    timeoutMs: TRANSFER_TIMEOUT_MS,
+  });
+  return result.results;
+}
+
+export function getAttachment(ctx: ConfluenceContext, id: string): Promise<ConfluenceAttachment> {
+  return confluence<ConfluenceAttachment>(ctx, `/content/${seg(id)}`);
+}
+
+/**
+ * The attachment's bytes, from the `_links.download` path Confluence hands
+ * back. A relative one, the usual shape, resolves under baseUrl and keeps its
+ * context path, as before. An absolute one names a host of the server's
+ * choosing, so its origin is re-pointed at baseUrl's with a warning: the
+ * token only ever goes to the host the user configured.
+ */
+export async function downloadAttachment(ctx: ConfluenceContext, attachment: ConfluenceAttachment): Promise<Uint8Array> {
+  const link = attachment._links?.download;
+  // /content/{id} answers for any content, so a page id gets here with no link.
+  if (!link) {
+    throw new ToilError('INVALID_INPUT', `Content ${attachment.id} has no download link — is it an attachment? (title: ${attachment.title})`, {
+      fix: 'Pass an attachment id. toil confluence list-attachments --id <page-id> lists them.',
+    });
+  }
+  const target = /^[a-z][a-z0-9+.-]*:/i.test(link)
+    ? repointUrl(link, ctx.connection.baseUrl, ctx.warn, {
+        service: 'Confluence',
+        subject: 'attachment',
+        code: 'CONFLUENCE_ATTACHMENT_HOST',
+        fix: 'Download it from the Confluence web interface instead.',
+      })
+    : link;
+  return apiRequest<Uint8Array>(confluenceArea, ctx, target, { headers: { Connection: 'close' }, as: 'bytes', timeoutMs: TRANSFER_TIMEOUT_MS });
+}
+
+export function getPageHistory(ctx: ConfluenceContext, id: string): Promise<unknown> {
+  return confluence(ctx, `/content/${seg(id)}/history`);
+}
+
+/** Markdown to storage format, by Confluence's own converter (#78 item 2: DC may not take markdown). */
+export async function convertToStorage(ctx: ConfluenceContext, value: string): Promise<string> {
+  const result = await confluence<{ value: string }>(ctx, '/contentbody/convert/storage', { method: 'POST', body: { value, representation: 'markdown' } });
+  return result.value;
+}

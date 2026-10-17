@@ -3,8 +3,18 @@
   "name": "Confluence Data Center",
   "group": "work",
   "order": 5,
-  "covers": "Pages, spaces, search, attachments",
+  "covers": "Pages, spaces, search, comments, labels, attachments",
   "credential": "Personal access token",
+  "credentialNote": "The default connection uses TOIL_JIRA_API_TOKEN when no Confluence token is set; another connection can borrow a Jira connection's token with apiTokenFrom",
   "credentialWhere": "Your profile picture → Settings → Personal Access Tokens",
-  "status": "planned"
+  "status": "unit",
+  "keys": [
+    "API_TOKEN"
+  ],
+  "supported": {
+    "product": "Confluence Data Center",
+    "minimum": "7.9",
+    "api": "Server REST API",
+    "note": "toil authenticates with a personal access token, which Confluence Data Center added in 7.9. No release has been verified yet."
+  }
 }

@@ -1,0 +1,42 @@
+{
+  "scope": "confluence",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "confluence download-attachment fetching the attachment's _links.download, with the token, from whatever host an absolute link names",
+      "toil": "The token goes only to baseUrl's origin: an absolute download link on another host has its path and query re-pointed at baseUrl, with a CONFLUENCE_ATTACHMENT_HOST warning. Relative links, the usual shape, resolve under baseUrl as before (#78 item 1)",
+      "why": "A server-supplied URL must not carry the user's credential to a host they didn't configure. A change a principle requires, so a port makes it before a live run (CLAUDE.md, Porting).",
+      "principle": "9",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "confluence download-attachment writing to a file that already exists",
+      "toil": "Refused with INVALID_INPUT naming the path; the existing file is left alone. The predecessor replaced it",
+      "why": "A read-only command, whose file name comes from whoever uploaded the attachment, must not change files already on disk.",
+      "principle": "2",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "confluence download-attachment reporting saved with the platform's separator",
+      "toil": "saved uses forward slashes on every platform; the file lands in the same place",
+      "why": "Paths in JSON output are identical on Windows, macOS and Linux (CLAUDE.md, Cross-Platform). Same on macOS and Linux as before.",
+      "principle": "8"
+    },
+    {
+      "allows": [],
+      "old": "The Confluence token falling back to the stored jira.apiToken, and a stored confluence.apiToken outranking the Jira env var",
+      "toil": "Without a pairing, only the default connection borrows, and only TOIL_JIRA_API_TOKEN (the default Jira connection's env value), which outranks a stored Confluence token because env beats the file. A stored Jira token is used only when the connection names it with apiTokenFrom",
+      "why": "A credential goes only to the connection it's configured on, or one the user paired it with (maintainer decision 7 on #68). The env-over-file order is core's single precedence rule for shared keys.",
+      "principle": "9"
+    },
+    {
+      "allows": [],
+      "old": "confluence list-pages, list-spaces, get-page-children, get-labels, list-comments and list-attachments paging for as long as the server kept sending _links.next, advancing start by the page's size",
+      "toil": "start advances by the number of results read, and paging also stops on an empty page or after 1,000 pages (25,000 items) with an HTTP error naming the list and a fix to narrow it",
+      "why": "A server that ignores start, or sends an empty page with a next link, would otherwise be asked for the same page forever. size equals the number of results on every real page.",
+      "principle": "4"
+    }
+  ]
+}
