@@ -1,0 +1,76 @@
+[
+  {
+    "name": "pipeline list",
+    "tool": "jenkins_pipeline_list",
+    "description": "List all jobs on the Jenkins instance (or within a folder)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--folder <name>",
+      "--instance <name>"
+    ]
+  },
+  {
+    "name": "pipeline get",
+    "tool": "jenkins_pipeline_get",
+    "description": "Get details for a specific job",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--name <job>",
+      "--instance <name>"
+    ]
+  },
+  {
+    "name": "pipeline run",
+    "tool": "jenkins_pipeline_run",
+    "description": "Trigger a build",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--name <job>",
+      "--parameter <k=v>",
+      "--wait",
+      "--timeout <s>",
+      "--poll <s>",
+      "--instance <name>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "pipeline list-runs",
+    "tool": "jenkins_pipeline_list_runs",
+    "description": "List recent builds for a job",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--name <job>",
+      "--top <n>",
+      "--instance <name>"
+    ]
+  },
+  {
+    "name": "pipeline get-run",
+    "tool": "jenkins_pipeline_get_run",
+    "description": "Get details for a specific build",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--name <job>",
+      "--number <n>",
+      "--instance <name>"
+    ]
+  },
+  {
+    "name": "pipeline logs",
+    "tool": "jenkins_pipeline_logs",
+    "description": "Fetch console log for a build (consider --output-file for large logs)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--name <job>",
+      "--number <n>",
+      "--instance <name>"
+    ]
+  }
+]
