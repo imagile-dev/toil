@@ -63,9 +63,11 @@ export function events(now, seen) {
   // Feedback from outside the allowlist is reported, never acted on.
   const as = (kind, item) => (item.trusted ? kind : 'untrusted');
   for (const r of now.reviews) {
-    // PENDING is someone's unsubmitted draft. A COMMENTED review with no body is
+    // PENDING is someone's unsubmitted draft. DISMISSED is a review withdrawn
+    // since, usually the review bot clearing its own last round when it starts
+    // a new one, so it asks for nothing. A COMMENTED review with no body is
     // the wrapper for inline comments, which are reported from their threads.
-    if (seen.reviews.includes(r.id) || r.state === 'PENDING' || (r.state === 'COMMENTED' && !r.body)) continue;
+    if (seen.reviews.includes(r.id) || r.state === 'PENDING' || r.state === 'DISMISSED' || (r.state === 'COMMENTED' && !r.body)) continue;
     found.push({ kind: as('review', r), of: 'review', id: r.id, state: r.state, author: r.author, commit: r.commit?.slice(0, 7), summary: short(r.body) });
   }
   for (const t of now.threads) {
