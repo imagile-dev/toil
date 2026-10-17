@@ -46,7 +46,7 @@ itself. The principles behind every choice here are in [CLAUDE.md](../CLAUDE.md)
   allowlists, and agents never edit the rules that constrain them.
 - **Triage with redaction.** Issues from outside are redacted (secrets, internal hosts,
   org names from a secret-only denylist) before any agent reads them.
-- **Repo-internal skills.** `ship` (gate + PR), `integrations`, `databases`,
+- **Repo-internal skills.** `ship` (four local reviews, fixes, and a four-minute PR watch), `integrations`, `databases`,
   `code-intelligence`, `mcp`, `secrets`, `automation`. One distributed skill for users.
 - **Testing honesty.** Unit tests stub `fetch` and use `node:sqlite`; real database
   engines run as CI service containers. Each integration carries a verification level

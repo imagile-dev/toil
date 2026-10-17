@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest';
 /**
  * Stray files get committed by accident: a shell redirect that made an empty
  * file named `{}`, a scratch script, a screenshot. Review catches them late, if
- * at all. These tests catch them at once (CLAUDE.md, Delivery).
+ * at all. These tests catch them at once (CLAUDE.md, Delivery). An empty file
+ * has nothing to say, and these tests make sure it says it somewhere else.
  */
 
 const root = join(import.meta.dirname, '..');
