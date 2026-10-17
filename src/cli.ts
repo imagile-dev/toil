@@ -9,7 +9,7 @@ import { createMcpServer } from './mcp/server.js';
 import { unsupportedNode } from './core/runtime.js';
 import { checkOutputFile, createNodeContext, writeOutputFile } from './node-context.js';
 import { runProgram, type GlobalOptions } from './program.js';
-import { areas, commands } from './registry.js';
+import { areas, commands, routedAliases } from './registry.js';
 import { VERSION } from './version.js';
 import { gatherWelcomeData } from './welcome/data.js';
 import { runWelcome, wantsWelcome } from './welcome/index.js';
@@ -34,7 +34,8 @@ const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSi
     signal,
     // Under `toil mcp` stdin carries the protocol, so `-` can't mean it, and
     // the workspace comes from the flag, the env or the client's one root.
-    stdin: !mcp,
+    // On an interactive terminal nothing is piped in, so `-` refuses rather than waits.
+    stdin: mcp ? false : process.stdin.isTTY ? 'terminal' : true,
     roots,
     env: process.env,
     cwd: process.cwd(),
@@ -61,6 +62,7 @@ try {
     process.exitCode = await runProgram(
     {
       commands,
+      routed: routedAliases,
       version: VERSION,
       io: {
         stdout: (text) => process.stdout.write(text),

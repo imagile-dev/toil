@@ -24,6 +24,29 @@ export type QueryParam = QueryValue | readonly QueryValue[];
  * `https://jira.imagile.dev/jira` keeps its `/jira`. Commas in the query stay
  * literal, because several REST APIs read `expand=a,b` and nothing else.
  */
+/**
+ * Refuses a request path with a `.` or `..` segment, in any spelling the
+ * URL parser collapses (`%2e`, `.%2E`). An id of `..` dropped into
+ * `items/${id}/delete` would otherwise send the request, and its
+ * credential, to `delete` on another endpoint of the same host, and a write
+ * would land somewhere nobody asked for. A dot inside a segment (`v1.2`,
+ * `.hidden`) is untouched. Checked before anything is sent.
+ */
+export function assertNoDotSegments(raw: string): void {
+  const authority = /^[a-z][a-z0-9+.-]*:\/\/[^/?#\\]*/i.exec(raw);
+  const rest = authority ? raw.slice(authority[0].length) : raw;
+  const path = rest.split(/[?#]/, 1)[0]!;
+  for (const segment of path.split(/[/\\]/)) {
+    const plain = segment.replace(/%2e/gi, '.');
+    if (plain === '.' || plain === '..') {
+      throw new ToilError('INVALID_INPUT', `A request path can't have "${segment}" as a segment: ${redactUrl(raw)} would reach a different endpoint than the one named.`, {
+        fix: `Check the id, key or name passed to the command; "${segment}" isn't one.`,
+        details: { segment },
+      });
+    }
+  }
+}
+
 export function buildUrl(base: string, path: string, params?: Record<string, QueryParam>): string {
   const root = base.endsWith('/') ? base : `${base}/`;
   const url = new URL(path.startsWith('/') ? path.slice(1) : path, root);
@@ -81,6 +104,23 @@ export function errorMessageFrom(body: string): string | undefined {
   return parts.length > 0 ? parts.join('; ') : undefined;
 }
 
+/** How much of a plain-text error body a message carries. A stack trace pasted into a ticket is still a stack trace. */
+export const MAX_TEXT_REASON = 500;
+
+/**
+ * A plain-text error body (LogScale's query syntax errors), trimmed, on one
+ * line, capped at {@link MAX_TEXT_REASON} characters, with any URL in it
+ * redacted as `--verbose` redacts one. Undefined for an empty body, or one
+ * that's JSON or HTML: JSON goes through {@link errorMessageFrom}, and HTML is
+ * a sign-in or proxy page with nothing to say about the request.
+ */
+export function textReasonFrom(body: string): string | undefined {
+  const text = body.trim().replace(/\s+/g, ' ');
+  if (text === '' || text.startsWith('<') || text.startsWith('{') || text.startsWith('[')) return undefined;
+  const redacted = text.replace(/https?:\/\/[^\s"'<>]+/gi, (url) => redactUrl(url));
+  return redacted.length > MAX_TEXT_REASON ? `${redacted.slice(0, MAX_TEXT_REASON)}…` : redacted;
+}
+
 export interface RestContext {
   fetch: typeof globalThis.fetch;
   signal: AbortSignal;
@@ -106,6 +146,20 @@ export interface RestOptions {
   timeoutMs?: number;
   /** Cross-origin redirects: refused unless this is `'follow-without-auth'`. */
   redirect?: RedirectPolicy;
+  /**
+   * The connection's `baseUrl` setting, so a network error names it only when
+   * the failing host is its host; `null` when the connection has none (a host
+   * from another setting, such as Dynatrace's `platformUrl`). Left out, as by a
+   * caller with no connection, the error names `baseUrl` as it always did.
+   */
+  baseUrl?: string | null;
+  /**
+   * `false` hands a 429 back at once, as any other error status (or as an
+   * answer, with `accept`), instead of waiting and retrying. For an area
+   * whose service already queues, or whose predecessor reported a 429
+   * straight away.
+   */
+  retryRateLimit?: false;
 }
 
 /**
@@ -124,7 +178,7 @@ export interface RestResponse<T> {
 }
 
 /**
- * Sends one request (retrying a 429) and returns the parsed body: JSON, or
+ * Sends one request (retrying a 429, unless `retryRateLimit` is false) and returns the parsed body: JSON, or
  * undefined for an empty or 204 response, or text, NDJSON or bytes as asked.
  */
 export async function restRequest<T>(ctx: RestContext, url: string, init: RequestInit, options: RestOptions): Promise<T> {
@@ -133,13 +187,14 @@ export async function restRequest<T>(ctx: RestContext, url: string, init: Reques
 
 /** restRequest, but with the status and response headers too (a continuation token, a `Location`). */
 export async function restResponse<T>(ctx: RestContext, url: string, init: RequestInit, options: RestOptions): Promise<RestResponse<T>> {
+  assertNoDotSegments(url);
   for (let attempt = 1; ; attempt++) {
     const timeout = options.timeoutMs !== undefined ? AbortSignal.timeout(options.timeoutMs) : undefined;
     const signals = [init.signal, timeout].filter((s): s is AbortSignal => s !== undefined && s !== null);
     const attemptInit: RequestInit = signals.length > 0 ? { ...init, signal: AbortSignal.any(signals) } : init;
     try {
       const { response, finalUrl } = await follow(ctx, url, attemptInit, options);
-      if (response.status === 429) {
+      if (response.status === 429 && options.retryRateLimit !== false) {
         const wait = parseRetryAfter(response.headers.get('Retry-After'));
         if (attempt >= ATTEMPTS || (wait !== undefined && wait > MAX_RETRY_AFTER_SECONDS)) {
           // The predecessor's wording, so scripts matching on it keep working.
@@ -169,7 +224,7 @@ export async function restResponse<T>(ctx: RestContext, url: string, init: Reque
           details: { url: redactUrl(url), timeoutMs: options.timeoutMs },
         });
       }
-      throw unreachable(url, err, options.service);
+      throw unreachable(url, err, options.service, options.baseUrl);
     }
   }
 }
@@ -269,7 +324,9 @@ function notJson(response: Response, url: string, options: RestOptions): ToilErr
 
 async function failed(response: Response, url: string, options: RestOptions): Promise<ToilError> {
   const body = await response.text().catch(() => '');
-  const reason = errorMessageFrom(body) ?? `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+  const status = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+  const text = textReasonFrom(body);
+  const reason = errorMessageFrom(body) ?? (text === undefined ? status : `${status}: ${text}`);
   const details = { status: response.status, url: redactUrl(url) };
   const code: ErrorCode = response.status === 401 || response.status === 403 ? 'AUTH' : response.status === 404 ? 'NOT_FOUND' : 'HTTP';
   const fix =
@@ -281,7 +338,18 @@ async function failed(response: Response, url: string, options: RestOptions): Pr
   return new ToilError(code, reason, { fix, details });
 }
 
-function unreachable(url: string, err: unknown, service: string): ToilError {
+/** Whether `origin` is the `baseUrl` setting's host; true when that setting isn't known, as before. */
+function isBaseUrlHost(origin: string, baseUrl: string | null | undefined): boolean {
+  if (baseUrl === undefined) return true;
+  if (baseUrl === null) return false;
+  try {
+    return new URL(baseUrl).origin === origin;
+  } catch {
+    return false;
+  }
+}
+
+function unreachable(url: string, err: unknown, service: string, baseUrl?: string | null): ToilError {
   const cause = (err as { cause?: { code?: unknown; message?: unknown } }).cause;
   const code = typeof cause?.code === 'string' ? cause.code : undefined;
   const top = err instanceof Error ? err.message : String(err);
@@ -296,7 +364,7 @@ function unreachable(url: string, err: unknown, service: string): ToilError {
   return new ToilError('NETWORK', `Request failed: ${reason}`, {
     fix: tls
       ? `${service}'s certificate isn't trusted. Point NODE_EXTRA_CA_CERTS at your organization's CA bundle.`
-      : `Check baseUrl, and that this machine can reach ${origin} (VPN, proxy, DNS). toil uses HTTPS_PROXY, HTTP_PROXY and NO_PROXY when they're set.`,
+      : `Check ${isBaseUrlHost(origin, baseUrl) ? 'baseUrl' : "the connection's URL settings"}, and that this machine can reach ${origin} (VPN, proxy, DNS). toil uses HTTPS_PROXY, HTTP_PROXY and NO_PROXY when they're set.`,
     details: { url: redactUrl(url), cause: code ?? reason },
   });
 }

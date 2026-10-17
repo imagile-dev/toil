@@ -1,0 +1,61 @@
+[
+  {
+    "name": "apps list",
+    "tool": "contrast_apps_list",
+    "description": "List applications in the organization",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--limit <n>",
+      "--offset <n>"
+    ]
+  },
+  {
+    "name": "findings list",
+    "tool": "contrast_findings_list",
+    "description": "List vulnerability findings for an application",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--app <app-id>",
+      "--severity <level>",
+      "--status <status>",
+      "--limit <n>",
+      "--offset <n>"
+    ]
+  },
+  {
+    "name": "findings get",
+    "tool": "contrast_findings_get",
+    "description": "Get details for a specific vulnerability finding",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--app <app-id>",
+      "--trace <trace-id>"
+    ]
+  },
+  {
+    "name": "libraries list",
+    "tool": "contrast_libraries_list",
+    "description": "List libraries used by an application, as shown on the Libraries tab",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--app <app-id>",
+      "--limit <n>",
+      "--offset <n>"
+    ]
+  },
+  {
+    "name": "libraries get",
+    "tool": "contrast_libraries_get",
+    "description": "Get details for a specific library used by an application, by hash",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--app <app-id>",
+      "--hash <library-hash>"
+    ]
+  }
+]

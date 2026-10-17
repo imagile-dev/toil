@@ -22,6 +22,23 @@ describe('poll', () => {
     expect(waits).toEqual([0, 100, 200, 300, 300]);
   });
 
+  it('backs off linearly when asked: the interval times the attempt, up to the cap', async () => {
+    vi.useFakeTimers();
+    const waits: number[] = [];
+    let last = Date.now();
+    const done = poll(
+      async (attempt) => {
+        waits.push(Date.now() - last);
+        last = Date.now();
+        return attempt === 6 ? 'finished' : undefined;
+      },
+      { what: 'Evaluation abc12345', deadlineMs: 60_000, intervalMs: 2_000, maxIntervalMs: 7_000, backoff: 'linear', factor: 10, signal: new AbortController().signal },
+    );
+    await vi.runAllTimersAsync();
+    expect(await done).toBe('finished');
+    expect(waits).toEqual([0, 2_000, 4_000, 6_000, 7_000, 7_000]);
+  });
+
   it('gives up at the deadline with TIMEOUT, naming what it waited on', async () => {
     vi.useFakeTimers();
     const done = poll(async () => undefined, { what: 'Report abc12345', deadlineMs: 5_000, intervalMs: 1_000, signal: new AbortController().signal });

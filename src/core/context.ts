@@ -3,6 +3,7 @@ import type { ResolvedConfig } from './config.js';
 import type { ContextReport, Page, Warning } from './envelope.js';
 import type { FileAccess } from './files.js';
 import type { GitRunner } from './git.js';
+import type { GitContext } from './git-repo.js';
 import type { SecretStore } from './keychain.js';
 import type { Prompter } from './prompt.js';
 
@@ -47,6 +48,8 @@ export interface Context {
   dossier?: DossierLookup;
   /** The working folder's git remote, for areas that read context from it. Absent means no git step. */
   gitRemote?: GitRemoteReader;
+  /** The workspace's repository: root, branch, remotes, read from `.git` without git. Absent means none. */
+  repo?: () => GitContext | undefined;
   /**
    * Whether the user has adopted a dossier's or the git remote's choice of
    * this connection, so writes may use it (#16 supplies this, with `toil
@@ -77,7 +80,7 @@ export interface ConfigAccess {
  * connection's, on its own.
  */
 export interface CommandContext<C = undefined, X = Record<string, string | undefined>>
-  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossier' | 'gitRemote' | 'adopted'> {
+  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossier' | 'gitRemote' | 'adopted' | 'repo'> {
   connection: C;
   /** The area's context inputs, resolved (`ctx.context.project`). Unset ones are absent. */
   context: X;
@@ -93,6 +96,14 @@ export interface CommandContext<C = undefined, X = Record<string, string | undef
    * may be what supplies it, since a required one is checked before `run`.
    */
   supply: (name: Extract<keyof X, string>, value: string | undefined, source: SuppliedSource) => string | undefined;
+  /**
+   * The repository the workspace is in: its root, current branch and remote
+   * URLs, read from `.git` in pure JS, so it needs no git installed and spawns
+   * nothing (`bitbucket current-pr`). Undefined outside a repository. Read-only;
+   * to run git, a command that is git uses `ctx.git`. An http(s) remote's
+   * userinfo, which may be a token, is left out.
+   */
+  repo: () => GitContext | undefined;
   /** Set only for defineConfigCommand commands. */
   manage?: ConfigAccess;
   signal: AbortSignal;
@@ -100,4 +111,11 @@ export interface CommandContext<C = undefined, X = Record<string, string | undef
   warn: (warning: Warning) => void;
   /** Set meta.page for a paged result. */
   setPage: (page: Page) => void;
+  /**
+   * Ask the CLI to exit with `code` while the envelope stays a success, as a
+   * build that ran and failed does: `ok: true`, the build as `data`, exit 1.
+   * A whole number from 0 to 255. MCP returns the same envelope and doesn't
+   * mark it as an error; an exit code is the CLI's alone.
+   */
+  setExitCode: (code: number) => void;
 }
