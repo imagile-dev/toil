@@ -191,6 +191,13 @@ describe('hotspots', () => {
     expect(envelope.data).toEqual([hotspot(1), hotspot(2)]);
   });
 
+  it('--all stops after 1,000 pages with an error naming what was paged (docs/divergences/sonar.json)', async () => {
+    const endless = { paging: { pageIndex: 1, pageSize: 500, total: 1_000_000 }, hotspots: [hotspot(1)] };
+    const { envelope, calls } = await run(hotspotsCommand, { project: PROJECT, all: true }, [ok(endless)]);
+    expect(calls).toHaveLength(1000);
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: `Paging SonarQube hotspots for ${PROJECT} didn't end after 1000 pages; toil stopped.` });
+  });
+
   it('--all compares with the total as JavaScript coerces it: null stops after one page, "3" is 3', async () => {
     const nullTotal = await run(hotspotsCommand, { project: PROJECT, all: true }, [ok({ paging: { pageIndex: 1, pageSize: 500, total: null }, hotspots: [hotspot(1)] })]);
     expect(nullTotal.calls).toHaveLength(1);

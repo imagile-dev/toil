@@ -1,0 +1,12 @@
+{
+  "scope": "sonar",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "sonar issues, projects and hotspots --all paging until the total or an empty page, with no limit on the number of pages",
+      "toil": "The same stop rule, plus a bound: after 1,000 pages (500,000 items) the command fails with HTTP, naming what was being paged, and fix text to narrow the request",
+      "why": "A server that ignores the page parameter would otherwise be asked for the same page forever. No real SonarQube result reaches the bound: issues/search stops at 10,000 results.",
+      "principle": "4"
+    }
+  ]
+}
