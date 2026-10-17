@@ -8,7 +8,8 @@
       "old": "git credentials and its subcommands (inspect, mappings, stored, forget)",
       "toil": "Removed. Use git's own git credential commands; toil checks its own credentials per area with config test",
       "why": "They work by asking the git binary (git credential fill/reject, ls-remote) for stored credentials, which toil never handles.",
-      "principle": "1"
+      "principle": "1",
+      "removed": true
     },
     {
       "allows": [],
@@ -18,9 +19,7 @@
       "principle": "4"
     },
     {
-      "allows": [
-        
-      ],
+      "allows": [],
       "old": "git report --csv printing raw CSV to stdout instead of the envelope",
       "toil": "--csv writes the CSV to a file in the workspace named with --out <file>, never overwriting, and data returns the saved absolute path",
       "why": "Every command writes exactly one envelope; CSV goes to a file only (decision 4 on #68).",

@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { CONNECTION_FIELD } from '../src/core/area.js';
-import { aliasPaths, areaOf, commandName, isCliOnly, toolName, type AnyCommand } from '../src/core/command.js';
+import { aliasInput, aliasPaths, areaOf, commandName, isCliOnly, servedOverMcp, toolName, type AnyCommand } from '../src/core/command.js';
 import type { Settings } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
@@ -26,12 +26,14 @@ import { recordOperations } from './harness/operations.js';
  * instead: their fixture traces the object that does the work, and both doors
  * must make the same calls with the same arguments.
  *
- * The one exclusion: `cli-only` commands, which prompt on a terminal or change
- * connections and so are never MCP tools. They're found by their `kind`, so no
- * port edits a list here, and a test proves MCP doesn't serve them. Aliases are
+ * The one exclusion: commands that are never MCP tools, the `cli-only` kind
+ * (they prompt on a terminal or change connections) and area commands marked
+ * `mcp: false` (deletes). They're found by their definition, so no port edits
+ * a list here; a test proves MCP doesn't serve them, and the area ones still
+ * run their examples and hold the write gate on the CLI. Aliases are
  * CLI paths onto a command, so each one is run against that command's MCP tool.
  */
-const bothDoors = (def: AnyCommand) => !isCliOnly(def);
+const bothDoors = servedOverMcp;
 
 const fixtures = await loadFixtures();
 beforeAll(() => setUp(fixtures));
@@ -78,10 +80,11 @@ describe('coverage', () => {
     expect(missing, 'add test/fixtures/<area>.fixture.ts').toEqual([]);
   });
 
-  it('excludes every cli-only command, found by its kind, and MCP never serves them', async () => {
-    const cliOnly = commands.filter(isCliOnly);
-    // Core's own connection setup is cli-only; if none were found, the kind check would prove nothing.
+  it('excludes every command MCP must not serve, found by its definition, and MCP never serves them', async () => {
+    const cliOnly = [...commands, ...demoCommands].filter((def) => !servedOverMcp(def));
+    // Core's own connection setup is cli-only, and the demo delete is mcp: false; if none were found, the check would prove nothing.
     expect(cliOnly.map(commandName)).toContain('connections add');
+    expect(cliOnly.map(commandName)).toContain('demo delete-thing');
     // Every area named and writes on: the widest MCP ever gets, and still none of them.
     const { context } = testContext({ config: { demo: { token: 't', writes: true } } });
     const session = await connectMcp({ commands: [...commands, ...demoCommands], context, areas: [...new Set(commands.map(areaOf))] });
@@ -168,7 +171,8 @@ for (const suite of suites) {
             const cli = testContext({ config: suite.fixture.config, routes: suite.fixture.routes, files: suite.fixture.files });
             const { result: viaAlias, operations: aliasOps } = await recordOperations(() => runCli(argvFor(def, example, path), { commands: suite.commands, context: cli.context }));
             const { session, http } = await mcpFor(suite.commands, suite.fixture.config, suite.fixture.routes, suite.fixture.files);
-            const { result: viaMcp, operations: mcpOps } = await recordOperations(() => session.call(toolName(def), example));
+            // A preset alias (`jenkins instance list`) is the tool with those fields set.
+            const { result: viaMcp, operations: mcpOps } = await recordOperations(() => session.call(toolName(def), { ...example, ...aliasInput(def, path) }));
 
             expect(viaAlias.envelope?.ok, viaAlias.stdout + viaAlias.stderr).toBe(true);
             expect(viaAlias.envelope?.meta.command, 'meta.command names the command, not the alias').toBe(commandName(def));
@@ -247,9 +251,38 @@ for (const suite of suites) {
   });
 }
 
+describe('area commands kept off MCP, on the CLI', () => {
+  for (const f of fixtures) {
+    for (const def of f.commands.filter((d) => isCliOnly(d) === false && !servedOverMcp(d))) {
+      it(`${commandName(def)}: every example succeeds on the CLI`, async () => {
+        for (const example of def.examples as Array<Record<string, unknown>>) {
+          const { context } = testContext({ config: f.config, routes: f.routes, files: f.files });
+          const run = await runCli(argvFor(def, example), { commands: f.commands, context });
+          expect(run.envelope?.ok, run.stdout + run.stderr).toBe(true);
+          expect(run.exitCode).toBe(0);
+        }
+      });
+      if (def.writes) {
+        it(`${commandName(def)}: WRITE_DISABLED on the CLI without writes on or without --allow-write, before any request`, async () => {
+          const example = def.examples[0] as Record<string, unknown>;
+          const withoutFlag = { ...example };
+          delete withoutFlag.allowWrite;
+          for (const [config, input] of [[withoutWrites(f.config, f.area), example], [f.config, withoutFlag]] as const) {
+            const { context, http } = testContext({ config, routes: f.routes, files: f.files });
+            const run = await runCli(argvFor(def, input), { commands: f.commands, context });
+            expect(run.envelope?.error?.code).toBe('WRITE_DISABLED');
+            expect(http.calls).toHaveLength(0);
+          }
+        });
+      }
+    }
+  }
+});
+
 describe('choosing a connection, through both front doors', () => {
   for (const f of fixtures) {
-    const def = f.commands.find((d) => !d.writes) ?? f.commands[0]!;
+    const served = f.commands.filter(servedOverMcp);
+    const def = served.find((d) => !d.writes) ?? served[0]!;
     const example = def.examples[0] as Record<string, unknown>;
 
     it(`${f.area}: --connection <name> gives the same envelope and requests as MCP's connection field`, async () => {
@@ -300,6 +333,6 @@ describe('which tools MCP serves', () => {
     const { context } = testContext();
     const session = await connectMcp({ commands: [...commands, ...demoCommands], context, areas: ['demo'] });
     sessions.push(session);
-    expect((await session.client.listTools()).tools.map((t) => t.name)).toEqual(['demo_get_thing']);
+    expect((await session.client.listTools()).tools.map((t) => t.name)).toEqual(['demo_get_thing', 'demo_status']);
   });
 });

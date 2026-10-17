@@ -1,0 +1,40 @@
+{
+  "scope": "logscale",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "logscale query reading the answer of POST /api/v1/repositories/<repo>/query as an object with done, cancelled, events and metaData, so the documented array answer failed with a TypeError (#85 item 1)",
+      "toil": "Reads the answer as the JSON array of events LogScale documents for Accept: application/json. data keeps its fields: done is true and cancelled false (the synchronous search returns a finished result), events and eventCount come from the array, warnings is [] and metaData is null, since this endpoint has none. Any other answer is an HTTP error saying so. Docs: https://library.humio.com/logscale-api/api-search-responseformat.html",
+      "why": "The maintainer had LogScale rebuilt from its API docs, since the old integration was never confirmed live (#37).",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "logscale query sending --start and --end as text, though its help offered ISO 8601, which LogScale would read as a relative time (#85 item 2)",
+      "toil": "Digits are sent as a number (epoch milliseconds), an ISO 8601 date or date-time as epoch milliseconds (UTC when it has no offset), and anything else as text, a relative time. An impossible ISO date is INVALID_INPUT. Docs: https://library.humio.com/logscale-api/api-search-timespec.html",
+      "why": "LogScale takes a number as epoch milliseconds and reads every string as a relative time (#37).",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "logscale query sending limit and showQueryEventDistribution in the body, neither a documented QueryInput field, so --limit had no documented effect (#85 item 3)",
+      "toil": "The body is the documented queryString, start, end and isLive. --limit (default 200) keeps the first N events of the answer, with a LOGSCALE_LIMIT warning when more came back that suggests head() or tail() in the query. Docs: https://library.humio.com/logscale-api/api-search-request.html",
+      "why": "The Simple Search Request lists no limit field (#37).",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "logscale repositories list sending GET /api/v1/repositories, which LogScale's REST API doesn't document (#85 item 5)",
+      "toil": "POSTs the GraphQL repositories query to /graphql (id, name, description, timeOfLatestIngest) and returns { count, repositories } as before. A GraphQL error is HTTP with LogScale's message. Docs: https://library.humio.com/logscale-graphql-reference-queries/graphql-query-field-repositories.html and https://library.humio.com/logscale-api/api-search.html",
+      "why": "The Search API documents only repository-scoped endpoints; repositories are listed through GraphQL (#37).",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "logscale query passing --limit and --timeout-ms through parseInt, so abc became a null limit and a timeout of about 1 ms; any timeout was accepted (#85 item 6)",
+      "toil": "Both must be positive whole numbers, and --timeout-ms at most 600000; anything else is INVALID_INPUT before a request. --timeout-ms is the per-request timeout (default 30000), and the command's time limit is 605 s so a long --timeout-ms is the one that reports",
+      "why": "Input is validated from the schema, and a value toil can't use fails loudly rather than quietly (principle 4, #37).",
+      "principle": "4"
+    }
+  ]
+}
