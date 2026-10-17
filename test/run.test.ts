@@ -69,7 +69,7 @@ describe('execute', () => {
   });
 
   it('never tells an agent a timed-out or cancelled write was stopped: it may have landed', async () => {
-    const hangWrite = demoArea.command({ ...hang, path: ['demo', 'hang-write'], input: z.object({ ...allowWriteField }), writes: true, examples: [{ allowWrite: true }] });
+    const hangWrite = demoArea.command({ ...hang, kind: 'area', path: ['demo', 'hang-write'], input: z.object({ ...allowWriteField }), writes: true, examples: [{ allowWrite: true }] });
     const { context } = testContext({ config: { demo: { token: 't', writes: true } } });
 
     const timedOut = await execute(hangWrite, { allowWrite: true }, { ...context, timeoutMs: 20 });

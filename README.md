@@ -43,7 +43,7 @@ toil mcp            # run as an MCP server over stdio
 Every command writes one JSON envelope to stdout:
 
 ```json
-{ "ok": true, "data": { }, "meta": { "durationMs": 42 } }
+{ "ok": true, "data": { }, "meta": { "durationMs": 42, "context": { "connection": { "value": "corp-jira", "source": "default", "default": "named" } } } }
 ```
 
 ## Configure

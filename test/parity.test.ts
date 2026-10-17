@@ -1,7 +1,7 @@
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { CONNECTION_FIELD } from '../src/core/area.js';
-import { areaOf, commandName, toolName, type AnyCommand } from '../src/core/command.js';
+import { aliasPaths, areaOf, commandName, isCliOnly, toolName, type AnyCommand } from '../src/core/command.js';
 import type { Settings } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
@@ -21,12 +21,13 @@ import { connectMcp, type McpSession } from './harness/mcp.js';
  * area, so a new command is covered the moment it is registered and its area
  * has a fixture, with no test to remember to write.
  *
- * The one exclusion: `cliOnly` commands, which prompt on a terminal or change
+ * The one exclusion: `cli-only` commands, which prompt on a terminal or change
  * connections and so are never MCP tools. They're listed by name below, and a
- * test proves MCP doesn't serve them.
+ * test proves MCP doesn't serve them. Aliases are CLI paths onto a command, so
+ * each one is run against that command's MCP tool.
  */
 const CLI_ONLY = ['connections add', 'connections login', 'connections remove'];
-const bothDoors = (def: AnyCommand) => !def.cliOnly;
+const bothDoors = (def: AnyCommand) => !isCliOnly(def);
 
 const fixtures = await loadFixtures();
 afterAll(() => {
@@ -73,7 +74,7 @@ describe('coverage', () => {
   });
 
   it('excludes exactly the listed CLI-only commands, and MCP never serves them', async () => {
-    const cliOnly = commands.filter((def) => def.cliOnly);
+    const cliOnly = commands.filter(isCliOnly);
     expect(cliOnly.map(commandName).sort()).toEqual([...CLI_ONLY].sort());
     // Every area named and writes on: the widest MCP ever gets, and still none of them.
     const { context } = testContext({ config: { demo: { token: 't', writes: true } } });
@@ -150,6 +151,22 @@ for (const suite of suites) {
           }
         });
       });
+
+      for (const path of aliasPaths(def)) {
+        it(`${commandName(def)}: the alias toil ${path.join(' ')} gives the same envelope and requests as the MCP tool`, async () => {
+          for (const example of def.examples as Array<Record<string, unknown>>) {
+            const cli = testContext({ config: suite.config, routes: suite.routes, files: suite.files });
+            const viaAlias = await runCli(argvFor(def, example, path), { commands: suite.commands, context: cli.context });
+            const { session, http } = await mcpFor(suite.commands, suite.config, suite.routes, suite.files);
+            const viaMcp = await session.call(toolName(def), example);
+
+            expect(viaAlias.envelope?.ok, viaAlias.stdout + viaAlias.stderr).toBe(true);
+            expect(viaAlias.envelope?.meta.command, 'meta.command names the command, not the alias').toBe(commandName(def));
+            expect(comparable(viaMcp.envelope)).toEqual(comparable(viaAlias.envelope));
+            expect(http.calls).toEqual(cli.http.calls);
+          }
+        });
+      }
 
       it(`${commandName(def)}: an unknown field is INVALID_INPUT through both doors, before any request`, async () => {
         const example = def.examples[0] as Record<string, unknown>;
@@ -246,13 +263,15 @@ describe('choosing a connection, through both front doors', () => {
 });
 
 describe('which tools MCP serves', () => {
-  it('without --areas: configured areas plus standalone commands, never an unconfigured service', async () => {
+  it('without --areas: configured areas plus commands that need no connection, never an unconfigured service', async () => {
     const all = [...commands, ...demoCommands];
     const bare = testContext();
     const s1 = await connectMcp({ commands: all, context: bare.context });
     sessions.push(s1);
     const names = (await s1.client.listTools()).tools.map((t) => t.name);
     expect(names).toContain('version');
+    expect(names, 'an area-local command needs no connection, so it is served unconfigured').toContain('jira_schema');
+    expect(names).not.toContain('jira_get_issue');
     expect(names).not.toContain('demo_get_thing');
 
     const configured = testContext({ config: { demo: { token: 't' } } });
