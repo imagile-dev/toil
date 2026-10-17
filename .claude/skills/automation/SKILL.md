@@ -35,8 +35,13 @@ release PR; no agent merges, approves its own work into `main`, or enables auto-
   `CHANGES_REQUESTED` review from `imagile-bot[bot]` directly. That bot must be named
   in its reviewer allowlist and in `allowed_bots`, never `*`.
 
-- `no-auto-fix` label: the fix agent leaves the PR alone.
-- `needs-human` label: set after 3 pushed rounds; the loop stops.
+- `no-auto-fix` label: the fix agent leaves the PR alone. So does the `ship` skill's
+  local watch.
+- `needs-human` label: set after 3 pushed rounds; the loop stops. Rounds are counted
+  from `<!-- toil-feedback-round -->` marker comments on the PR, which `ship` posts
+  too. When the fix agent is wired, it counts and posts the same marker, so a PR has
+  one limit across both loops. `ship` also sets `needs-human` when a PR stalls for an
+  hour.
 - Only `OWNER`/`MEMBER`/`COLLABORATOR` reviews and explicitly named bots trigger it.
   Never use `allowed_bots: "*"`.
 - The fix agent never edits: `on:` triggers, actor allowlists, `permissions:`, token
