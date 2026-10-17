@@ -39,12 +39,13 @@ dossiers rely on:
     "jira-cloud": { "area": "jira-cloud", "baseUrl": "https://imagile.atlassian.net", "email": "you@example.com", "writes": true },
     "ocp-prod":   { "area": "openshift",  "baseUrl": "https://api.ocp.imagile.dev:6443" }
   },
-  "defaults": { "jira": "corp-jira" }
+  "defaults": { "jira": { "connection": "corp-jira" } }
 }
 ```
 
-- An area can have any number of connections. `defaults` picks one per area when
-  nothing else does.
+- An area can have any number of connections. `defaults.<area>.connection` picks one
+  when nothing else does; other keys under `defaults.<area>` are shared by every
+  connection to that area.
 - `writes` is per connection, so writes can be on for a sandbox and off for production.
 - **Version 1 still loads**, as one connection per area named after the area and set
   as its default.
