@@ -1,0 +1,40 @@
+{
+  "scope": "artifactory",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "deps outdated and deps license-check scanning the direct dependencies of the git repository they ran in, and failing with \"Not inside a git repository.\" elsewhere",
+      "toil": "toil artifactory outdated and license-check (deps outdated and deps license-check are aliases) read an inventory from --from <file>, or from stdin on the CLI: toil deps scan | toil artifactory outdated. --ecosystem, --include-dev and the direct-only filter apply to the inventory as they applied to the scan",
+      "why": "One command talks to one source and the caller composes them (decision 6 on #68). Scanning is deps scan's job; these commands only ask Artifactory.",
+      "principle": "3"
+    },
+    {
+      "allows": [],
+      "old": "deps outdated and deps license-check pinging the public OSV service, and Artifactory, before running, and ignoring OSV's answer",
+      "toil": "Only Artifactory is pinged. OSV is never contacted by these commands",
+      "why": "toil sends traffic to a public API only when the command names it; these name Artifactory.",
+      "principle": "9"
+    },
+    {
+      "allows": [],
+      "old": "deps outdated and deps license-check, when the Artifactory ping fails, saying \"Run 'deps connectivity' to diagnose\", and caching the ping's result for the life of the process",
+      "toil": "The message says \"Run 'toil artifactory ping' to diagnose\" (code AUTH when the token was rejected, NETWORK otherwise, details.status 503), and every call pings afresh",
+      "why": "deps connectivity no longer exists, so the documented advice would point at nothing; and a long-lived MCP server would otherwise repeat a cached failure, or a cached success, for its whole life.",
+      "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "artifactory ping, and the outdated and license-check lookups, sent with no 429 retry, following redirects to any host, and with lookup URLs joined to baseUrl as plain text",
+      "toil": "They go through core's HTTP layer like every other command: a 429 is retried as the rest of the area's calls always were, a redirect to another host is refused (a failed lookup still counts as no answer), and a base URL ending in / doesn't produce //api",
+      "why": "Credentials stay on the connection's host, and every request in toil is sent one way. The answers are otherwise the same.",
+      "principle": "9"
+    },
+    {
+      "allows": [],
+      "old": "artifactory builds --timeout <s> bounding only the request, with no limit on the command",
+      "toil": "The command is allowed 600 s, so --timeout up to 600 works as before; a longer one is cut short with TIMEOUT unless TOIL_TIMEOUT_MS is raised",
+      "why": "Every command has a time limit and can be cancelled.",
+      "principle": "Output Contract"
+    }
+  ]
+}
