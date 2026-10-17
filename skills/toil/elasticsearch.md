@@ -80,8 +80,9 @@ is sent only to that Kibana connection's own host. See `kibana.md`.
   no `asc` or `desc` sorts ascending). `--source` is a comma list of fields to return.
   `--size` (default 100) and `--from` (default 0) go to the server as given; past
   10,000 hits Elasticsearch refuses `from + size` (its `max_result_window`).
-  `--timeout-ms` (default 30000) is how long toil waits for the answer; the command's
-  own limit (`TOIL_TIMEOUT_MS`, 120 s by default) still applies. `data` is `{ index,
+  `--timeout-ms` (default 30000) is how long toil waits for the answer. `search` has
+  a 10-minute time limit of its own, so a `--timeout-ms` up to 600000 is honoured;
+  `TOIL_TIMEOUT_MS`, when set, overrides that limit. `data` is `{ index,
   took, timedOut, total, totalRelation, hitCount, hits, aggregations }`: `hits` as
   Elasticsearch sent them, and `totalRelation` `gte` when `total` is only a lower
   bound.

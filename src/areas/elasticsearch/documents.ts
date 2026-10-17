@@ -10,6 +10,9 @@ import { buildQuery, es, indexPath, nonNegativeInt } from './client.js';
  * agreeing to.
  */
 
+/** search's own time limit, so --timeout-ms up to 10 minutes is honoured; TOIL_TIMEOUT_MS still overrides it. */
+export const SEARCH_TIME_LIMIT_MS = 600_000;
+
 /** A number given as text on the CLI or as a number over MCP. */
 const intText = z.union([z.number(), z.string()]);
 
@@ -59,6 +62,8 @@ export const searchCommand = elasticsearchArea.command({
   writes: false,
   // POST /<index>/_search: a read whose query rides in the body.
   queryByPost: true,
+  // Room for a --timeout-ms above the 120 s default, which would otherwise cut it short.
+  timeLimitMs: SEARCH_TIME_LIMIT_MS,
   options: [
     { flags: '--index <name>', field: 'index', description: 'Index, data stream, alias or wildcard pattern; comma-separate several' },
     { flags: '--query <json>', field: 'query', description: 'Query DSL clause as JSON (e.g. \'{"match":{"message":"error"}}\')' },

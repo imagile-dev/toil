@@ -9,7 +9,7 @@ import { execute } from '../../core/run.js';
 import { elasticsearchArea } from './area.js';
 import { errorReason, indexPath } from './client.js';
 import { clusterHealthCommand } from './cluster.js';
-import { countCommand, parseSort, searchCommand } from './documents.js';
+import { countCommand, parseSort, SEARCH_TIME_LIMIT_MS, searchCommand } from './documents.js';
 import { indicesListCommand } from './indices.js';
 
 /**
@@ -153,6 +153,12 @@ describe('search', () => {
     expect(proxy.envelope.error).toMatchObject({ code: 'HTTP', message: 'upstream unavailable' });
     const blank = await run(searchCommand, { index: 'logs-app' }, [{ method: 'POST', url: /.*/, respond: { status: 503, text: '' } }]);
     expect(blank.envelope.error).toMatchObject({ code: 'HTTP', message: expect.stringMatching(/^HTTP 503/) });
+  });
+
+  it('has a 10-minute time limit, so a --timeout-ms above the 120 s default is honoured; count keeps the default', () => {
+    expect(SEARCH_TIME_LIMIT_MS).toBe(600_000);
+    expect(searchCommand.timeLimitMs).toBe(SEARCH_TIME_LIMIT_MS);
+    expect(countCommand.timeLimitMs).toBeUndefined();
   });
 
   it('#84 item 2, kept (the docs say nothing about a client timeout): --timeout-ms 0 is accepted, and the request is given up at once', async () => {
