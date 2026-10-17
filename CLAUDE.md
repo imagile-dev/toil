@@ -4,7 +4,7 @@
 
 toil is a structured-JSON CLI and MCP server, owned by Imagile, that gives AI agents
 and humans one interface to enterprise tools, databases, and codebases. TypeScript on
-Node.js (22 LTS or later), published to npm as `@imagile-dev/toil`.
+Node.js (22.16 or later), published to npm as `@imagile-dev/toil`.
 
 Who it is for, in priority order:
 
@@ -73,7 +73,7 @@ gets made again in the next place it applies.
   the repo LF so Windows checkouts produce identical bundles.
 - Config lives in `~/.toil/` on every platform, so instructions are identical.
 - CI runs the full gate on `windows-latest`, `macos-latest` and `ubuntu-latest`, on
-  Node 22 and 24. A test that is skipped on one platform says
+  Node 22.16 (the floor) and 24. A test that is skipped on one platform says
   why in its name.
 
 ## No Executables
@@ -174,7 +174,7 @@ npm run check:pure  # the No Executables gate (after build)
 npm run smoke       # install the tarball with scripts off; drive CLI and MCP (after build)
 ```
 
-All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 22
+All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 22.16
 and 24.
 
 ## Output Contract
