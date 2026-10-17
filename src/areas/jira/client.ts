@@ -4,7 +4,7 @@ import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
 import { ToilError } from '../../core/errors.js';
 import { buildUrl, restRequest, type QueryValue } from '../../core/rest.js';
-import type { CustomFieldDefinition, jiraArea } from './area.js';
+import { jiraArea, type CustomFieldDefinition } from './area.js';
 import { suggestedType } from './custom-fields.js';
 
 /**
@@ -108,7 +108,7 @@ const seg = (value: string | number) => String(value);
 export const looksNumeric = (value: string) => !isNaN(parseInt(value, 10));
 
 const authFix = (ctx: JiraContext) =>
-  `Jira rejected the personal access token on connection "${ctx.connection.name}". Create a new one under your profile picture → Profile → Personal Access Tokens, then set apiToken (TOIL_JIRA_API_TOKEN for the default connection).`;
+  `Jira rejected the personal access token on connection "${ctx.connection.name}". Create a new one under your profile picture → Profile → Personal Access Tokens, then set apiToken (${jiraArea.envName('apiToken')} for the default connection).`;
 
 function headers(ctx: JiraContext): Record<string, string> {
   return {

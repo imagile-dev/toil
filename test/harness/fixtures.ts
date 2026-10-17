@@ -42,13 +42,6 @@ export interface AreaFixture {
   /** Defaults to the area's registered commands. Only test-only areas set it. */
   commands?: AnyCommand[];
   /**
-   * The area's commands that are `cliOnly` (they prompt on a terminal, so they
-   * are never MCP tools), by name without the area: `['login']`. The parity
-   * suite checks the list against the commands and proves MCP never serves
-   * them. Declared here so no port edits a shared list.
-   */
-  cliOnly?: string[];
-  /**
    * Objects whose calls go in the operations log, for areas whose work isn't
    * HTTP (the db area's provider). The suite then compares the log between the
    * CLI and MCP runs, as it compares requests.
@@ -74,7 +67,6 @@ export type LoadedFixture = AreaFixture & {
   config: Record<string, Settings>;
   files: Files;
   commands: AnyCommand[];
-  cliOnly: string[];
   trace: TracedTarget[];
 };
 
@@ -92,7 +84,6 @@ export async function loadFixtures(): Promise<LoadedFixture[]> {
       routes: fixture.routes ?? [],
       config: fixture.config ?? {},
       files: fixture.files ?? {},
-      cliOnly: fixture.cliOnly ?? [],
       trace: fixture.trace ?? [],
       commands: fixture.commands ?? registered.filter((def) => areaOf(def) === fixture.area),
     });

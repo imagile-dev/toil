@@ -22,20 +22,14 @@ import type { SupportedVersion } from '../../core/supported.js';
 export const area = defineArea({
   name: 'db',
   description: 'Databases: list schemas and tables, describe a table, preview rows, run read-only queries, and gated writes',
-  connection: z
-    .object({
-      engine: z.enum(engineNames).describe(`Database engine: ${engineNames.join(', ')}`),
-      path: z.string().min(1).optional().describe('SQLite: absolute path to the database file'),
-    })
-    .superRefine((conn, check) => {
-      const provider = providers.find((p) => p.engine === conn.engine);
-      for (const key of provider?.requires ?? []) {
-        if (conn[key] === undefined) check.addIssue({ code: 'custom', path: [key], message: `${provider!.label} connections need ${key}.` });
-      }
-      // A relative path would resolve against wherever the process started,
-      // which for an MCP server is wherever its client happened to be.
-      if (conn.path !== undefined && !isAbsolute(conn.path)) check.addIssue({ code: 'custom', path: ['path'], message: 'path must be absolute.' });
-    }),
+  connection: z.object({
+    engine: z.enum(engineNames).describe(`Database engine: ${engineNames.join(', ')}`),
+    // A relative path would resolve against wherever the process started,
+    // which for an MCP server is wherever its client happened to be.
+    path: z.string().min(1).refine(isAbsolute, 'path must be absolute.').optional().describe('SQLite: absolute path to the database file'),
+  }),
+  // Each engine names the keys its connections need; core checks them.
+  variants: { by: 'engine', of: Object.fromEntries(providers.map((p) => [p.engine, { label: p.label, requires: [...p.requires] }])) },
 });
 
 type DbContext = CommandContext<DbConnection>;

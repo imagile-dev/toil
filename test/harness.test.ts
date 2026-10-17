@@ -55,7 +55,7 @@ describe('operations log', () => {
 });
 
 describe('fixture setup and teardown', () => {
-  const base = { routes: [], config: {}, files: {}, commands: [], cliOnly: [], trace: [] };
+  const base = { routes: [], config: {}, files: {}, commands: [], trace: [] };
 
   it('replaces config, files and routes with what setup returns, starts tracing, and tears down', async () => {
     const target = { async go() {} };

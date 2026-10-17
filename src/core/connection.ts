@@ -1,10 +1,15 @@
 import type { z } from 'zod';
-import type { AnyArea, Connection } from './area.js';
+import { pairingKey, type AnyArea, type Connection } from './area.js';
 import { connectionEnvName, connectionsOf, connectionWrites, defaultConnectionName, envName, type ResolvedConfig, type Settings } from './config.js';
-import type { Warning } from './envelope.js';
+import type { ContextReport, ContextSource, Warning } from './envelope.js';
 import { ToilError } from './errors.js';
 import { isKeychainRef, refName, type SecretStore } from './keychain.js';
-import { baseType } from './schema.js';
+import { fromText } from './schema.js';
+
+export interface ResolveOptions {
+  /** Filled with each setting taken from another area's connection (`defineArea({ shares })`). */
+  shared?: NonNullable<ContextReport['shared']>;
+}
 
 /**
  * Picks the one connection a call uses and turns it into what the command
@@ -22,6 +27,7 @@ export async function resolveConnection(
   warn: (w: Warning) => void,
   secrets?: Pick<SecretStore, 'get'>,
   signal?: AbortSignal,
+  options: ResolveOptions = {},
 ): Promise<Connection> {
   const name = requested ?? defaultConnectionName(config, area.name);
   if (!name) {
@@ -62,6 +68,7 @@ export async function resolveConnection(
   refusePlaintextSecrets(config, area, name, shared, own);
   const merged = renameKeys({ ...(area.defaults ?? {}), ...shared, ...own }, area, name, warn);
   await resolveSecrets(merged, area, name, secrets, warn, signal);
+  if (area.shares) await takeShared(config, area, name, stored, merged, { warn, secrets, signal, report: options.shared });
 
   const shape = area.connection.shape as Record<string, z.ZodType>;
   for (const key of Object.keys(merged)) {
@@ -164,22 +171,123 @@ function renameKeys(settings: Settings, area: AnyArea, name: string, warn: (w: W
 
 /**
  * Env vars are strings; a port of "5432" should still be a number, "true" a
- * boolean, and a list setting (jira's customFields) JSON. Text that doesn't
- * parse is left alone, so the schema rejects it with a fix naming the key.
+ * boolean, and a list setting (jira's customFields) JSON. The same reading
+ * argv gets (`fromText`), so a value means one thing wherever it is typed.
  */
-export function coerce(schema: z.ZodType, value: unknown): unknown {
-  if (typeof value !== 'string') return value;
-  const type = baseType(schema);
-  if (type === 'number' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value);
-  if (type === 'boolean' && (value === 'true' || value === 'false')) return value === 'true';
-  if (type === 'array' || type === 'object') {
-    try {
-      return JSON.parse(value) as unknown;
-    } catch {
-      return value;
-    }
+export const coerce = fromText;
+
+/** Where a setting was found on one connection: its value and how its source ranks (env 0, the file 1). */
+interface Found {
+  value: unknown;
+  rank: 0 | 1;
+  /** For the report: env, ci, or where in the file. */
+  source: 'env' | 'ci' | 'store' | 'file' | 'defaults';
+}
+
+/**
+ * `key` on a connection as configured, under its current name or one it was
+ * renamed from: the connection's own settings, then `defaults.<area>`.
+ * Provider defaults don't count; they're what applies when nobody set anything.
+ */
+function findSetting(config: ResolvedConfig, area: AnyArea, name: string, stored: Settings, key: string): Found | undefined {
+  const names = [key, ...Object.entries(area.renamed ?? {}).filter(([, to]) => to === key).map(([from]) => from)];
+  for (const k of names) {
+    if (stored[k] === undefined) continue;
+    const tag = config.sources[`${name}.${k}`];
+    if (tag === 'env' || tag === 'ci') return { value: stored[k], rank: 0, source: tag };
+    return { value: stored[k], rank: 1, source: isKeychainRef(stored[k]) ? 'store' : 'file' };
   }
-  return value;
+  const shared = config.defaults[area.name] ?? {};
+  for (const k of names) if (shared[k] !== undefined) return { value: shared[k], rank: 1, source: isKeychainRef(shared[k]) ? 'store' : 'defaults' };
+  return undefined;
+}
+
+/**
+ * Takes each shared key from the connection the user paired this one with
+ * (`"apiKeyFrom": "es-prod"`), when that value ranks above this connection's
+ * own: the env tier beats the file tier across both, and within a tier this
+ * connection wins. So a paired Kibana sends TOIL_KIBANA_API_KEY, then the
+ * paired connection's env value, then its own stored key, then the paired
+ * one's. With no pairing, only the area's default connection borrows, and
+ * only the other area's default connection's env value: the old
+ * TOIL_KIBANA_API_KEY then TOIL_ELASTICSEARCH_API_KEY chain. Nothing else
+ * crosses between areas. The other connection is read for those keys only;
+ * whether the rest of it is valid is none of this command's business. A
+ * borrowed value is held to the same rules as an own one: no plaintext secret
+ * in a file, and `keychain:` references resolved from the store.
+ * Inter-departmental lending requires a signed form; we accept exactly one.
+ */
+async function takeShared(
+  config: ResolvedConfig,
+  area: AnyArea,
+  name: string,
+  stored: Settings,
+  merged: Settings,
+  io: { warn: (w: Warning) => void; secrets: Pick<SecretStore, 'get'> | undefined; signal: AbortSignal | undefined; report: ResolveOptions['shared'] },
+): Promise<void> {
+  const other = area.shares!.area;
+  for (const key of area.shares!.keys) {
+    const paired = merged[pairingKey(key)];
+    let from: string | undefined;
+    let via: 'pairing' | 'env-fallback';
+    if (typeof paired === 'string') {
+      from = paired;
+      via = 'pairing';
+      const target = config.connections[from];
+      if (!target || target.area !== other.name) {
+        const known = connectionsOf(config, other.name);
+        throw new ToilError('CONFIG_INVALID', `Connection ${name} (${area.name}) takes ${key} from "${from}", which isn't a ${other.name} connection.`, {
+          fix: `Set ${pairingKey(key)} on "${name}" to one of the ${other.name} connections (${known.join(', ') || 'none set up yet'}), or remove it.`,
+        });
+      }
+    } else if (defaultConnectionName(config, area.name) === name) {
+      from = defaultConnectionName(config, other.name);
+      via = 'env-fallback';
+    } else {
+      continue;
+    }
+    const target = from === undefined ? undefined : config.connections[from];
+    if (from === undefined || !target || target.area !== other.name) continue;
+
+    const mine = findSetting(config, area, name, stored, key);
+    const theirs = findSetting(config, other, from, target, key);
+    if (!theirs || (via === 'env-fallback' && theirs.rank !== 0)) continue;
+    if (mine && mine.rank <= theirs.rank) continue;
+
+    const taken: Settings = { [key]: theirs.value };
+    if (theirs.rank === 1) refusePlaintextSecrets(config, other, from, taken, {});
+    await resolveSecrets(taken, other, from, io.secrets, io.warn, io.signal);
+    if (taken[key] === undefined) continue;
+    merged[key] = taken[key];
+    if (io.report) io.report[key] = { area: other.name, connection: from, source: theirs.source, via };
+  }
+}
+
+/**
+ * The connection a context input's value picks (`--instance prod`): the area's
+ * connection of that name, else the one whose `setting` equals the value.
+ * None, or more than one, is INVALID_INPUT naming the candidates.
+ */
+export function selectConnection(config: ResolvedConfig, area: AnyArea, input: string, setting: string, value: string, flag: string, source: ContextSource = 'input'): string {
+  const where = { input: 'the call', dossier: 'your dossier', git: 'the git remote', connection: 'the connection', default: "the area's default" }[source];
+  const instead = source === 'input' ? '' : `, or correct ${where}`;
+  const names = connectionsOf(config, area.name);
+  if (names.includes(value)) return value;
+  const matches = names.filter((n) => config.connections[n]![setting] !== undefined && String(config.connections[n]![setting]) === value);
+  if (matches.length === 1) return matches[0]!;
+  if (matches.length === 0) {
+    // Loud, and with the whole list: guessing the nearest environment is how
+    // a change meant for staging gets filed against production.
+    const known = names.map((n) => (config.connections[n]![setting] === undefined ? n : `${String(config.connections[n]![setting])} (connection ${n})`));
+    throw new ToilError('INVALID_INPUT', `${area.name} has no ${input} "${value}" (from ${where}). It knows: ${known.join(', ') || 'none'}.`, {
+      fix: names.length
+        ? `Pass ${flag} with one of those, or --connection <name>${instead}; or set ${setting} on the connection you mean.`
+        : `Add a ${area.name} connection with ${setting} "${value}" to your toil config${instead}.`,
+    });
+  }
+  throw new ToilError('INVALID_INPUT', `Several ${area.name} connections have ${setting} "${value}" (from ${where}): ${matches.join(', ')}.`, {
+    fix: `Pass --connection <name> to choose one of them.`,
+  });
 }
 
 function requiredKeys(schema: z.ZodObject): string[] {
