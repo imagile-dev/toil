@@ -138,6 +138,10 @@ describe('change request writes', () => {
     expect(sent(calls[0]!)).toEqual({ split: { name: 'new_checkout' }, operationType: 'RESTORE', title: 'flag-change', comment: COMMENT, approvers: [], rolloutStatus: { id: 'rs-abc12345' } });
   });
 
+  it('archive is CLI-only: it removes a flag definition, and deletes never go through MCP', () => {
+    expect(flagsArchiveCommand.mcp).toBe(false);
+  });
+
   it('archive needs an environment now, and sends ARCHIVE to its path', async () => {
     const { calls } = await run(flagsArchiveCommand, { ...CR, flag: 'old_banner', environment: ENV }, [postCr]);
     expect(calls[0]!.url).toBe(`${SPLIT}${CR_PATH}`);
@@ -226,6 +230,9 @@ describe('flags set-rule and set-default', () => {
     expect((sent(ok.calls[1]!).split as { rules: Array<{ buckets: unknown }> }).rules[0]!.buckets).toEqual(weights);
     const bad = await run(flagsSetRuleCommand, { ...CR, flag: 'new_checkout', environment: ENV, ruleIndex: 0, weights: '[{' }, [defRoute]);
     expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--weights must be valid JSON') });
+    const obj = await run(flagsSetRuleCommand, { ...CR, flag: 'new_checkout', environment: ENV, ruleIndex: 0, weights: '{"treatment":"on"}' }, [defRoute, postCr]);
+    expect(obj.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--weights must be a JSON array of {treatment, size} objects.' });
+    expect(obj.calls.map((c) => c.method)).toEqual(['GET']);
   });
 
   it('set-rule needs --treatment or --weights, and an index inside the rules, with the old messages', async () => {
@@ -267,6 +274,14 @@ describe('flags batch-toggle', () => {
     expect(missing.envelope.error?.message).toBe('--input-file is required for batch-toggle');
     const notArray = await run(flagsBatchToggleCommand, { ...CR, environment: ENV, inputFile: 't.json' }, [], { files: { 't.json': '{}' } });
     expect(notArray.envelope.error?.message).toBe('Input file must be a JSON array of {flag, enabled} objects');
+  });
+
+  it('refuses an entry without a flag name, naming its index, before any request is filed', async () => {
+    for (const body of ['[{"enabled":false}]', '[null]', '[1]', '[{"flag":"a","enabled":false},null]', '[{"flag":"","enabled":true}]']) {
+      const { envelope, calls } = await run(flagsBatchToggleCommand, { ...CR, environment: ENV, inputFile: 't.json' }, [postCr], { files: { 't.json': body } });
+      expect(envelope.error, body).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringMatching(/^Entry \d of --input-file needs a "flag" name/) });
+      expect(calls, body).toEqual([]);
+    }
   });
 });
 

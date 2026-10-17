@@ -157,6 +157,7 @@ export const flagsSetRuleCommand = splitioArea.command({
     }
     // Bucket sizes are percentages: Submit Change Request's example writes a whole bucket as 100.
     const buckets = input.treatment ? [{ treatment: input.treatment, size: 100 }] : parseJson(input.weights!, '--weights', WEIGHTS_FIX);
+    if (!Array.isArray(buckets)) throw new ToilError('INVALID_INPUT', '--weights must be a JSON array of {treatment, size} objects.', { fix: WEIGHTS_FIX });
     rules[idx] = { ...rules[idx], buckets };
     return submitCr(ctx, input.environment, crBody(input, 'UPDATE', writableDefinition(input.flag, current, { rules })));
   },
@@ -244,6 +245,11 @@ export const flagsBatchToggleCommand = splitioArea.command({
     if (!input.inputFile) throw new ToilError('INVALID_INPUT', '--input-file is required for batch-toggle', { fix: 'Pass --input-file <path> holding a JSON array such as [{"flag":"new_checkout","enabled":false}].' });
     const entries = parseJson(ctx.files.readText(input.inputFile), '--input-file', 'The file holds a JSON array of {flag, enabled} objects.') as BatchEntry[];
     if (!Array.isArray(entries)) throw new ToilError('INVALID_INPUT', 'Input file must be a JSON array of {flag, enabled} objects', { fix: 'Wrap the entries in [ ].' });
+    // Every entry is checked before the first request, so a bad one can't leave half the batch filed.
+    const bad = entries.findIndex((e: unknown) => typeof e !== 'object' || e === null || typeof (e as BatchEntry).flag !== 'string' || !(e as BatchEntry).flag);
+    if (bad !== -1) {
+      throw new ToilError('INVALID_INPUT', `Entry ${bad} of --input-file needs a "flag" name; no change requests were filed.`, { fix: 'Each entry is {"flag": "<name>", "enabled": true|false}.' });
+    }
 
     const results: Array<{ flag: string; ok: boolean; id?: string; error?: string }> = [];
     for (const entry of entries) {
@@ -295,6 +301,8 @@ export const flagsArchiveCommand = splitioArea.command({
   context: { workspace: 'required' },
   options: [flagOption, environmentOption, ...crOptions],
   examples: [{ ...CR, flag: 'old_banner', environment: 'env-abc12345' }],
+  // It removes a flag definition, and deletes never go through MCP.
+  mcp: false,
   // ARCHIVE removes the definition from one environment; it isn't Split's flag archive API. https://docs.split.io/reference/create-change-request
   run: async (input, ctx) => submitCr(ctx, input.environment, crBody(input, 'ARCHIVE', { name: input.flag })),
 });

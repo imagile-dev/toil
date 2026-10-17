@@ -89,7 +89,8 @@ one, and the others may).
 - `flags update`: Replace a flag's definition with the JSON object in `--input-file`
   (`-` reads stdin on the CLI). Start from `flags get --environment`.
 - `flags set-rule`: Change rule `--rule-index` (from 0) to one `--treatment` (a
-  100% bucket) or `--weights` (a JSON array of `{treatment, size}`, sizes in percent).
+  100% bucket) or `--weights` (a JSON array of `{treatment, size}`, sizes in percent;
+  anything but an array is refused).
   The rest of the definition is copied from the current one.
 - `flags set-default`: Set the default rule to one `--treatment` at 100%.
 - `flags toggle`: `--enabled false` (or `0`) kills the flag; **any other value
@@ -99,10 +100,12 @@ one, and the others may).
   of `{flag, enabled}`, titled `<mnemonic> — <flag>`. A failed entry doesn't stop the
   rest; it's reported in `results[]` with `ok: false`, the envelope stays `ok`, and
   `meta.warnings` says how many failed. `enabled` is read by truthiness, so the
-  string `"false"` restores.
+  string `"false"` restores. Every entry must have a `flag` name; if one doesn't, the
+  command fails with `INVALID_INPUT` naming the entry, before any request is filed.
 - `flags kill`, `flags restore`: Kill or restore a flag in the environment.
 - `flags archive`: Remove a flag's definition from the environment (Split's
-  `ARCHIVE` change request; not Split's flag-archive API).
+  `ARCHIVE` change request; not Split's flag-archive API). CLI only: it removes a
+  definition, and deletes are never served over MCP.
 
 ```bash
 toil splitio workspaces list
