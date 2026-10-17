@@ -4,11 +4,11 @@
     {
       "allows": [
         "jenkins instance add",
-        "jenkins instance remove data.removed"
+        "jenkins instance remove"
       ],
       "old": "jenkins instance add --name --base-url [--username] [--api-token] [--force] and jenkins instance remove --name, editing the jenkinsInstances array in the global config",
-      "toil": "A named instance is a jenkins connection. jenkins instance add <name> is toil connections add <name> --area jenkins: it takes the name as an argument, asks for baseUrl, username, instance and the API token on a terminal, keeps the token in the OS credential store, and returns connections add's data. Its old flags are gone. jenkins instance remove --name keeps its path and flag, CLI only, and fails with INVALID_INPUT naming toil connections remove <name>",
-      "why": "Only the toil connections commands write config, and a secret goes only to the OS credential store or an env var, never into a config file from a flag. instance remove can't be an alias yet because connections remove takes no area to fix.",
+      "toil": "A named instance is a jenkins connection. jenkins instance add <name> is toil connections add <name> --area jenkins: it takes the name as an argument, asks for baseUrl, username, instance and the API token on a terminal, and keeps the token in the OS credential store. jenkins instance remove <name> is toil connections remove <name> --area jenkins, which also deletes the token from the store and refuses a connection to another area. Both are CLI only, take the name as an argument instead of --name, return the connections commands' data, and the other old flags are gone",
+      "why": "Only the toil connections commands write config, and a secret goes only to the OS credential store or an env var, never into a config file from a flag. Core answers all three instance commands, so the jenkins area never receives the whole config or the credential store.",
       "principle": "Secrets"
     },
     {

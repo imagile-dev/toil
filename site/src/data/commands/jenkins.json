@@ -72,15 +72,5 @@
       "--number <n>",
       "--instance <name>"
     ]
-  },
-  {
-    "name": "instance remove",
-    "tool": null,
-    "description": "Remove a named Jenkins instance: replaced by toil connections remove <name>",
-    "writes": false,
-    "connection": false,
-    "flags": [
-      "--name <name>"
-    ]
   }
 ]

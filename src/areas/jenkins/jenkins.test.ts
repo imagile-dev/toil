@@ -7,7 +7,6 @@ import type { AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
 import { jobPath } from './client.js';
 import { commands } from '../../registry.js';
-import { instanceRemoveCommand } from './instance.js';
 import { pipelineGetCommand, pipelineGetRunCommand, pipelineListCommand, pipelineListRunsCommand, pipelineLogsCommand, pipelineRunCommand } from './pipeline.js';
 
 /**
@@ -320,16 +319,16 @@ describe('instance commands', () => {
     expect(result.stdout).not.toContain('tmp-token');
   });
 
-  it("instance add is core's connections add with the area fixed, CLI only", () => {
-    const add = commands.find((d) => d.path.join(' ') === 'connections add')!;
-    expect(add.kind).toBe('cli-only');
-    expect(add.aliases).toContainEqual({ path: ['jenkins', 'instance', 'add'], input: { area: 'jenkins' } });
+  it("instance add and remove are core's connections add and remove with the area fixed, CLI only", () => {
+    for (const verb of ['add', 'remove']) {
+      const def = commands.find((d) => d.path.join(' ') === `connections ${verb}`)!;
+      expect(def.kind).toBe('cli-only');
+      expect(def.aliases).toContainEqual({ path: ['jenkins', 'instance', verb], input: { area: 'jenkins' } });
+    }
   });
 
-  it('instance remove is CLI only, changes nothing and names the toil connections command to run', async () => {
-    expect(instanceRemoveCommand.kind).toBe('cli-only');
-    const remove = await run(instanceRemoveCommand, { name: 'prod' }, []);
-    expect(remove.envelope.error?.code).toBe('INVALID_INPUT');
-    expect(remove.envelope.error?.fix).toContain('toil connections remove prod');
+  it('the jenkins area defines no command that is handed the config', () => {
+    const own = commands.filter((d) => d.path[0] === 'jenkins');
+    expect(own.map((d) => d.kind).filter((k) => k !== 'area')).toEqual([]);
   });
 });

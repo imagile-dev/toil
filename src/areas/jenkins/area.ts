@@ -18,8 +18,8 @@ export const jenkinsArea = defineArea({
     instance: z.string().min(1).optional().describe("The name --instance selects this connection by, when it isn't the connection's own name"),
   }),
   secrets: ['apiToken'],
-  // Core answers both, so this area never sees the whole config or the credential store.
-  coreAliases: { 'instance list': 'connections list', 'instance add': 'connections add' },
+  // Core answers all three, so this area never sees the whole config or the credential store.
+  coreAliases: { 'instance list': 'connections list', 'instance add': 'connections add', 'instance remove': 'connections remove' },
   context: {
     // Selects the connection: by its name, or by its `instance` setting.
     instance: {

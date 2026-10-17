@@ -73,8 +73,9 @@ and `_API_TOKEN`.
   jenkins`, asking for each setting on a terminal and keeping the token in the OS
   credential store. The old `--name`, `--base-url`, `--username`, `--api-token` and
   `--force` flags are gone.
-- `instance remove`: CLI only. It changes nothing; it fails with `INVALID_INPUT` and
-  names `toil connections remove <name>`, the command that does it.
+- `instance remove <name>`: CLI only. It is `toil connections remove <name> --area
+  jenkins`, which also deletes the token from the OS credential store and refuses a
+  connection to another area. The old `--name` flag is gone.
 
 ## Commands
 
