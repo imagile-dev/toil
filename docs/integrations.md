@@ -9,7 +9,7 @@ The enterprise services toil will cover. Each one is its own command area
 
 | Area | Service | Covers | Credential |
 |------|---------|--------|------------|
-| `jira` | Jira Data Center | Issues, sprints, boards, projects, transitions, comments | Personal access token |
+| `jira` | Jira Data Center | Issues, search, transitions, comments, worklogs, attachments, custom fields, boards, sprints | Personal access token (shipped, `unit`) |
 | `ado` | Azure DevOps Server | Work items, repos, pull requests, pipelines | Personal access token |
 | `bitbucket` | Bitbucket Data Center | Repositories, pull requests, comments, builds | HTTP access token |
 | `github` | GitHub / GitHub Enterprise Server | Pull requests, reviews, issues, checks | Fine-grained PAT (`GITHUB_TOKEN` fallback) |

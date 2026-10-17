@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
+import { defineCommand } from '../src/core/command.js';
+import { argvFor } from '../src/program.js';
 import { commands } from '../src/registry.js';
 import { demoCommands, demoRoutes } from './fixtures/demo-commands.js';
 import { runCli } from './harness/cli.js';
@@ -78,5 +81,37 @@ describe('toil CLI', () => {
     expect(run.exitCode).toBe(1);
     expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('--help') });
     expect(http.calls).toHaveLength(0);
+  });
+
+  describe('argv to typed input', () => {
+    const echo = defineCommand({
+      path: ['echo'],
+      description: 'echo',
+      input: z.object({ n: z.number().int().optional(), tags: z.array(z.string()).optional(), name: z.string().optional() }),
+      writes: false,
+      options: [
+        { flags: '--n <n>', field: 'n', description: 'a number' },
+        { flags: '--tag <tag>', field: 'tags', description: 'repeatable' },
+        { flags: '--name <name>', field: 'name', description: 'text that looks numeric' },
+      ],
+      examples: [{}],
+      run: async (input) => input,
+    });
+
+    it('turns a numeric flag into a number and collects a repeated flag for an array field', async () => {
+      const { context } = testContext();
+      const run = await runCli(['echo', '--n', '50', '--tag', 'a=1', '--tag', 'b=2,3', '--name', '007'], { commands: [echo], context });
+      expect(run.envelope?.data).toEqual({ n: 50, tags: ['a=1', 'b=2,3'], name: '007' });
+    });
+
+    it('leaves a non-numeric value for the schema to refuse', async () => {
+      const { context } = testContext();
+      const run = await runCli(['echo', '--n', 'ten'], { commands: [echo], context });
+      expect(run.envelope?.error?.code).toBe('INVALID_INPUT');
+    });
+
+    it('argvFor repeats a flag per array item', () => {
+      expect(argvFor(echo, { n: 5, tags: ['x', 'y'] })).toEqual(['echo', '--n', '5', '--tag', 'x', '--tag', 'y']);
+    });
   });
 });

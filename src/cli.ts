@@ -32,6 +32,8 @@ const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSi
     globals,
     def,
     signal,
+    // Under `toil mcp` stdin carries the protocol, so `-` can't mean it.
+    stdin: !mcp,
     env: process.env,
     cwd: process.cwd(),
     home: homedir(),

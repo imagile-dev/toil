@@ -4,6 +4,7 @@ import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
 import { ToilError } from './core/errors.js';
 import { runCommand } from './core/run.js';
+import { baseType, fieldSchema } from './core/schema.js';
 
 /** Flags every command accepts. Names and meanings are part of the contract. */
 export interface GlobalOptions {
@@ -72,7 +73,15 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       const name = `${arg.name}${arg.variadic ? '...' : ''}`;
       leaf.argument(arg.required === false ? `[${name}]` : `<${name}>`, arg.description);
     }
-    for (const opt of def.options ?? []) leaf.option(opt.flags, opt.description);
+    for (const opt of def.options ?? []) {
+      // A flag for an array field is repeatable (--field A=1 --field B=2): each
+      // use appends, so nobody has to invent a separator that a value may contain.
+      if (takesValue(opt.flags) && isArrayField(def, opt.field)) {
+        leaf.option(opt.flags, opt.description, (value: string, previous: string[] | undefined) => [...(previous ?? []), value]);
+      } else {
+        leaf.option(opt.flags, opt.description);
+      }
+    }
     if (def.writes) leaf.option('--allow-write', 'Allow this command to change data (writes must also be enabled in config)');
 
     leaf.action(async (...actionArgs: unknown[]) => {
@@ -200,10 +209,30 @@ function inputFromCli(def: AnyCommand, cmd: Command): Record<string, unknown> {
   for (const opt of def.options ?? []) {
     const parsed = cmd.options.find((o) => o.flags === opt.flags);
     const value = parsed ? opts[parsed.attributeName()] : undefined;
-    if (value !== undefined) input[opt.field] = value;
+    if (value !== undefined) input[opt.field] = fromText(def, opt.field, value);
   }
   if (def.writes && opts.allowWrite === true) input.allowWrite = true;
   return input;
+}
+
+const takesValue = (flags: string) => flags.includes('<') || flags.includes('[');
+
+function isArrayField(def: AnyCommand, field: string): boolean {
+  const schema = fieldSchema(def.input, field);
+  return schema !== undefined && baseType(schema) === 'array';
+}
+
+/**
+ * argv holds only text. Where the schema wants a number, a numeric string
+ * becomes one, so `--max-results 50` and MCP's `maxResults: 50` are the same
+ * input. Anything else stays as typed, and the schema rejects it with the same
+ * message through both front doors.
+ */
+function fromText(def: AnyCommand, field: string, value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  const schema = fieldSchema(def.input, field);
+  if (schema && baseType(schema) === 'number' && /^-?\d+(\.\d+)?$/.test(value.trim())) return Number(value);
+  return value;
 }
 
 /**
@@ -223,9 +252,9 @@ export function argvFor(def: AnyCommand, input: Record<string, unknown>): string
     if (value === undefined || value === false) continue;
     const long = opt.flags.split(/[ ,]+/).find((part) => part.startsWith('--'));
     if (!long) continue;
-    const takesValue = opt.flags.includes('<') || opt.flags.includes('[');
-    if (takesValue) argv.push(long, String(value));
-    else argv.push(long);
+    if (!takesValue(opt.flags)) argv.push(long);
+    else if (Array.isArray(value)) for (const item of value) argv.push(long, String(item));
+    else argv.push(long, String(value));
   }
   if (def.writes && input.allowWrite === true) argv.push('--allow-write');
   return argv;

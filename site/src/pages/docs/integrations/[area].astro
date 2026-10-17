@@ -2,7 +2,8 @@
 import Layout from '../../../layouts/Layout.astro';
 import PageHero from '../../../components/PageHero.astro';
 import { allIntegrations, credentialWhere, envPrefix, statusMeaning, type IntegrationEntry } from '../../../data/integrations';
-import { url } from '../../../lib/url';
+import { url, repoUrl } from '../../../lib/url';
+import generated from '../../../data/commands.generated.json';
 
 // One page per integration, generated from the same data as the board, so an
 // integration can't appear on the board without a page to link to.
@@ -19,6 +20,9 @@ const keyLines = (integration.keys ?? ['TOKEN']).map((key) => ({ key, label: key
 const index = allIntegrations.findIndex((i) => i.area === integration.area);
 const prev = allIntegrations[index - 1];
 const next = allIntegrations[index + 1];
+// The real command list, written from the CLI's own registry by a test, so this page can't drift from it.
+type SiteCommand = { name: string; tool: string; description: string; writes: boolean; flags: string[] };
+const commandList: SiteCommand[] = integration.status === 'planned' ? [] : ((generated as Record<string, SiteCommand[]>)[integration.area] ?? []);
 ---
 
 <Layout title={`${integration.name} integration`} description={`toil's ${integration.name} integration: what it covers, the credential it uses, and how to configure it.`}>
@@ -89,13 +93,35 @@ const next = allIntegrations[index + 1];
 
         <section data-reveal>
           <h2>Commands</h2>
-          {integration.status === 'planned' ? (
+          {commandList.length === 0 ? (
             <p>
               The command reference appears here when the integration ships. Every command will be available both as{' '}
               <code>toil {integration.area} &lt;command&gt;</code> on the command line and as an MCP tool, with identical inputs and output.
             </p>
           ) : (
-            <p>Run <code>toil {integration.area} --help</code> for the full list.</p>
+            <>
+              <p>
+                {commandList.length} commands, each on the command line as <code>toil {integration.area} &lt;command&gt;</code> and over MCP as
+                the tool shown, with identical inputs and output. Every command also takes <code>--connection &lt;name&gt;</code>; ones marked
+                <span class="cmd__write">write</span> change data. Run <code>toil {integration.area} &lt;command&gt; --help</code> for each flag's meaning, or read the{' '}
+                <a href={`${repoUrl}/blob/main/skills/toil/${integration.area}.md`}>{integration.name} reference</a>.
+              </p>
+              <ul class="cmds">
+                {commandList.map((c) => (
+                  <li class="cmd">
+                    <div class="cmd__head">
+                      <code class="cmd__name">toil {integration.area} {c.name}</code>
+                      {c.writes && <span class="cmd__write">write</span>}
+                    </div>
+                    <p class="cmd__desc">{c.description}</p>
+                    <p class="cmd__meta">
+                      <span class="cmd__tool">MCP <code>{c.tool}</code></span>
+                      {c.flags.map((f) => <code class="cmd__flag">{f}</code>)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </section>
 
@@ -151,6 +177,22 @@ const next = allIntegrations[index + 1];
   .status--planned { border-style: dashed; color: var(--color-faint); }
   .status--integration { color: var(--color-accent); }
   .status--live { color: var(--color-ok); }
+
+  .cmds { list-style: none; padding: 0; margin: var(--space-sm) 0 0; display: grid; gap: var(--space-xs); }
+  .cmd { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-sm); min-width: 0; }
+  .cmd__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+  .cmd__name { color: var(--color-accent) !important; font-size: var(--text-sm); overflow-wrap: anywhere; }
+  .cmd__desc { margin-top: 0.3rem; font-size: var(--text-sm); }
+  .cmd__meta { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem !important; }
+  .cmd__meta code { font-size: 0.72rem; overflow-wrap: anywhere; }
+  .cmd__tool { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-faint); margin-right: 0.35rem; }
+  .cmd__tool code { text-transform: none; letter-spacing: 0; color: var(--color-ink) !important; }
+  .cmd__flag { border: 1px solid var(--color-line); border-radius: 4px; padding: 0 0.3rem; color: var(--color-muted) !important; }
+  .cmd__write {
+    font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+    border-radius: 999px; padding: 0.05rem 0.45rem; border: 1px solid color-mix(in oklab, var(--color-accent) 50%, transparent); color: var(--color-accent);
+    margin-inline: 0.25rem;
+  }
 
   .pager { display: flex; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; padding-top: var(--space-md); border-top: 1px solid var(--color-line); }
   .pager a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }

@@ -4,6 +4,7 @@ import { connectionEnvName, connectionsOf, connectionWrites, defaultConnectionNa
 import type { Warning } from './envelope.js';
 import { ToilError } from './errors.js';
 import { isKeychainRef, refName, type SecretStore } from './keychain.js';
+import { baseType } from './schema.js';
 
 /**
  * Picks the one connection a call uses and turns it into what the command
@@ -161,21 +162,23 @@ function renameKeys(settings: Settings, area: AnyArea, name: string, warn: (w: W
   return settings;
 }
 
-/** The schema type under optional/default/nullable wrappers. */
-function baseType(schema: z.ZodType): string {
-  let def = (schema as unknown as { _zod: { def: { type: string; innerType?: z.ZodType } } })._zod.def;
-  while ((def.type === 'optional' || def.type === 'default' || def.type === 'nullable' || def.type === 'prefault') && def.innerType) {
-    def = (def.innerType as unknown as { _zod: { def: { type: string; innerType?: z.ZodType } } })._zod.def;
-  }
-  return def.type;
-}
-
-/** Env vars are strings; a port of "5432" should still be a number, and "true" a boolean. */
+/**
+ * Env vars are strings; a port of "5432" should still be a number, "true" a
+ * boolean, and a list setting (jira's customFields) JSON. Text that doesn't
+ * parse is left alone, so the schema rejects it with a fix naming the key.
+ */
 export function coerce(schema: z.ZodType, value: unknown): unknown {
   if (typeof value !== 'string') return value;
   const type = baseType(schema);
   if (type === 'number' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value);
   if (type === 'boolean' && (value === 'true' || value === 'false')) return value === 'true';
+  if (type === 'array' || type === 'object') {
+    try {
+      return JSON.parse(value) as unknown;
+    } catch {
+      return value;
+    }
+  }
   return value;
 }
 
