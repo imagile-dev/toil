@@ -151,7 +151,8 @@ versions.
   'connections list' } })`. Core registers it as an alias of `connections list
   --area jenkins`, with no `--area` flag of its own, so the area's code never sees the
   config. The target must be a core command that takes an `area` input. MCP has the
-  core tool, with its `area` field.
+  core tool, with its `area` field. The area's group flags (`openshift --env`)
+  are refused on it by name, in the path the user typed.
 - **An error code the area needs** (`JENKINS_BUILD_FAILED`) goes into core's
   `ErrorCode` list in `src/core/errors.ts`, with a one-line comment, the way
   `DATABASE` and `GIT_NOT_FOUND` did. Codes are an open set to callers, not to the
