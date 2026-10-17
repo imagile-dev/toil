@@ -37,7 +37,7 @@
     {
       "allows": [],
       "old": "An id, key or name of . or .. pasted into a request path, which URL normalisation collapsed, so the request (a write included) reached a different endpoint on the same host",
-      "toil": "A request path with a . or .. segment (or %2e spellings of one) is refused with INVALID_INPUT naming the segment, before anything is sent. Dots inside a segment (v1.2) are unchanged",
+      "toil": "A request path with a . or .. segment (or %2e spellings of one, one hidden by a tab, newline or trailing control character, or one followed by ;params such as ..;x, which servlet containers strip before resolving dots) is refused with INVALID_INPUT naming the segment, before anything is sent. Dots inside a segment (v1.2) and a ; after anything else (a;b) are unchanged",
       "why": "A value an agent passes must not redirect a command, or its credential, to an endpoint the command doesn't name (docs/bounds.md, requests.path).",
       "principle": "2",
       "class": "security"

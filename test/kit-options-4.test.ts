@@ -66,6 +66,24 @@ describe('a dot segment hidden by what the URL parser drops first', () => {
   });
 });
 
+describe('a dot segment hidden by ;params, which servlet containers strip before resolving dots (KF5)', () => {
+  // Tomcat and Jetty read `..;x` as `..`: `content/12345/label/..;x` reaches `content/12345`.
+  it.each(['..;x', '.;', '..;', '%2e%2e;x', '.%2e;jsessionid=1', '.;a;b'].map((id) => [id]))('%s is refused with nothing sent', async (id) => {
+    const { context, http } = testContext({ config });
+    const envelope = await execute(write, { path: `api/content/12345/label/${id}`, allowWrite: true }, context);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining(`"${id}" as a segment`) });
+    expect(http.calls).toHaveLength(0);
+  });
+
+  it('leaves a ; after anything else alone', async () => {
+    for (const id of ['a;b', 'v1;rev=2', '...;x', ';..', 'x..;y']) {
+      const { context, http } = testContext({ config, routes: [{ method: 'POST', path: /^\/api\/content\/12345\/label\/[^/]+$/, respond: { json: {} } }] });
+      expect((await execute(write, { path: `api/content/12345/label/${id}`, allowWrite: true }, context)).ok, id).toBe(true);
+      expect(http.calls).toHaveLength(1);
+    }
+  });
+});
+
 describe("a group flag on an area's core alias", () => {
   const areas = [vault];
   const commands = [...withCoreAliases(connectionsCommands(areas), areas), write];
