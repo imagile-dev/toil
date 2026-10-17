@@ -1,0 +1,42 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_DYNATRACE_BASE_URL",
+    "description": "Classic environment URL, e.g. https://abc12345.live.dynatrace.com (Managed: keep the /e/<environment-id> path)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "apiToken",
+    "env": "TOIL_DYNATRACE_API_TOKEN",
+    "description": "Access token for the classic environment API, sent as Api-Token",
+    "required": false,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "platformUrl",
+    "env": "TOIL_DYNATRACE_PLATFORM_URL",
+    "description": "Platform URL for trace, e.g. https://abc12345.apps.dynatrace.com",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "platformToken",
+    "env": "TOIL_DYNATRACE_PLATFORM_TOKEN",
+    "description": "Platform token for trace, sent as Bearer",
+    "required": false,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "env",
+    "env": "TOIL_DYNATRACE_ENV",
+    "description": "Environment name that --env selects this connection by, when it differs from the connection name",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]

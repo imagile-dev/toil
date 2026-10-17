@@ -20,6 +20,10 @@ const win = process.platform === 'win32';
 const gitName = win ? 'git.exe' : 'git';
 
 /** The real git's folder, for tests that run it; undefined where git isn't installed. */
+// Tests that spawn the real git get 30 s, not vitest's 5 s default: each runs
+// git several times, and on a loaded machine (CI, or a laptop mid-build) that
+// has passed 5 s without anything being wrong.
+const REAL_GIT_TIMEOUT_MS = 30_000;
 const realGitDir = (() => {
   const found = findGit({ env: process.env });
   return found.found ? join(found.found, '..') : undefined;
@@ -192,7 +196,7 @@ describe('createGitRunner', () => {
     expect(result.stdout).toMatch(/^git version /);
     const config = await runner({ PATH: realGitDir! }, ws).run({ subcommand: 'rev-parse', options: ['--is-inside-work-tree'] });
     expect(config.exitCode).not.toBe(0); // not a repository: git's own answer, passed back
-  });
+  }, REAL_GIT_TIMEOUT_MS);
 
   it.skipIf(!realGitDir)('stops git when the command is cancelled', async () => {
     const ws = temp();
@@ -201,5 +205,5 @@ describe('createGitRunner', () => {
     const reason = new Error('cancelled');
     controller.abort(reason);
     await expect(runner({ PATH: realGitDir! }, ws).run({ subcommand: 'status' }, controller.signal)).rejects.toBe(reason);
-  });
+  }, REAL_GIT_TIMEOUT_MS);
 });

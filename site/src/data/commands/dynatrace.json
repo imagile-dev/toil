@@ -1,0 +1,84 @@
+[
+  {
+    "name": "entities list",
+    "tool": "dynatrace_entities_list",
+    "description": "List monitored entities using an entity selector",
+    "writes": false,
+    "flags": [
+      "--selector <selector>",
+      "--from <time>",
+      "--to <time>",
+      "--fields <fields>",
+      "--env <name>"
+    ]
+  },
+  {
+    "name": "entities get",
+    "tool": "dynatrace_entities_get",
+    "description": "Get a monitored entity by ID",
+    "writes": false,
+    "flags": [
+      "--id <id>",
+      "--from <time>",
+      "--to <time>",
+      "--fields <fields>",
+      "--env <name>"
+    ]
+  },
+  {
+    "name": "services",
+    "tool": "dynatrace_services",
+    "description": "List monitored services",
+    "writes": false,
+    "flags": [
+      "--from <time>",
+      "--to <time>",
+      "--env <name>"
+    ]
+  },
+  {
+    "name": "workloads",
+    "tool": "dynatrace_workloads",
+    "description": "List monitored Kubernetes workloads",
+    "writes": false,
+    "flags": [
+      "--from <time>",
+      "--to <time>",
+      "--env <name>"
+    ]
+  },
+  {
+    "name": "problems list",
+    "tool": "dynatrace_problems_list",
+    "description": "List problems",
+    "writes": false,
+    "flags": [
+      "--from <time>",
+      "--to <time>",
+      "--problem-selector <selector>",
+      "--entity-selector <selector>",
+      "--env <name>"
+    ]
+  },
+  {
+    "name": "problems get",
+    "tool": "dynatrace_problems_get",
+    "description": "Get a problem by ID",
+    "writes": false,
+    "flags": [
+      "--id <id>",
+      "--fields <fields>",
+      "--env <name>"
+    ]
+  },
+  {
+    "name": "trace",
+    "tool": "dynatrace_trace",
+    "description": "Get distributed-trace spans from Grail",
+    "writes": false,
+    "flags": [
+      "--id <trace-id>",
+      "--env <name>"
+    ]
+  }
+]
