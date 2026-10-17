@@ -1,0 +1,41 @@
+{
+  "scope": "sonatypeiq",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "deps frisk --source sonatypeiq scanning the git repository it ran in (transitive dependencies included by default), and failing with \"Not inside a git repository.\" elsewhere",
+      "toil": "toil sonatypeiq evaluate (deps frisk is an alias) reads an inventory from --from <file>, or from stdin on the CLI: toil deps scan --include-transitive | toil sonatypeiq evaluate --application-id <id>. --ecosystem, --direct-only and --include-dev filter the inventory as they filtered the scan",
+      "why": "One command talks to one source and the caller composes them (decision 6 on #68). Scanning is deps scan's job; this command only asks IQ Server.",
+      "principle": "3"
+    },
+    {
+      "allows": [],
+      "old": "deps frisk --source sonatypeiq pinging the public OSV service and Artifactory (with the Artifactory token) before evaluating, and reporting tier as full, artifactory or local from their answers",
+      "toil": "Only IQ Server is contacted. tier is always \"full\": the vulnerability source the command names answered",
+      "why": "toil sends traffic only to hosts the command names; this one names Sonatype IQ Server, so a credential for another service and a call to a public API have no business here.",
+      "principle": "9"
+    },
+    {
+      "allows": [],
+      "old": "An absolute resultsUrl from the evaluation answer fetched as it was, on any host, with the IQ user token; a relative one glued onto baseUrl as text",
+      "toil": "The URL is built as before, then one on another host (a glued slash-less relative URL included) is re-pointed at the connection's host, keeping its path and query, with a SONATYPEIQ_RESULTS_HOST warning",
+      "why": "The user token goes only to the host it's configured for (suspected bug #91 item 1).",
+      "principle": "9",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "The evaluation's application lookup, POST and polls sent with fetch directly: no 429 retry, redirects followed to any host, an empty body failing to parse",
+      "toil": "They go through core's HTTP layer like the area's other commands: a 429 is retried, a redirect to another host is refused (on the lookup, that counts as a failed lookup, so the public ID is used), and an empty body is an HTTP error saying so",
+      "why": "Credentials stay on the connection's host, and every request in toil is sent one way. The answers are otherwise the same.",
+      "principle": "9"
+    },
+    {
+      "allows": [],
+      "old": "deps frisk with no --source, or with --source osv, sonatype or all, querying OSV.dev, OSS Index or both",
+      "toil": "deps frisk is an alias of toil sonatypeiq evaluate for now: --source osv, sonatype or all is refused with INVALID_INPUT, and no --source runs the IQ evaluation, which needs --application-id",
+      "why": "A CLI alias can't yet choose its command by a flag's value, so deps frisk can point at one source command only; the OSV and OSS Index commands aren't ported. Reported as a gap in the porting kit.",
+      "principle": "decision"
+    }
+  ]
+}
