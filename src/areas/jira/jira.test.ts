@@ -535,6 +535,8 @@ describe('create-issue --project, a context input', () => {
     const { envelope, calls } = await run(createIssue, { inputFile: 'empty.json', ...write }, [], { config, files: empty });
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--project required (or set defaults.jira.project in config, or "project" in --input-file)' });
     expect(calls).toHaveLength(0);
+    // meta.context doesn't claim the connection's project, which the call never used.
+    expect(envelope.meta.context?.inputs?.project).toBeUndefined();
   });
 
   it('the other --project flags are plain flags that never fall back to the connection', async () => {

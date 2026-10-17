@@ -43,7 +43,10 @@ function readIssueFile(path: string | undefined, ctx: client.JiraContext): Issue
  */
 function projectFor(ctx: client.JiraContext, json: IssueJsonInput | undefined): string | undefined {
   if (ctx.resolved.inputs?.project?.source === 'input' || json?.project == null) return ctx.context.project;
-  ctx.supply('project', String(json.project), 'file');
+  // supply ignores an empty value, which would leave meta.context naming the
+  // connection's project on a call that failed for having none.
+  if (json.project === '') delete ctx.resolved.inputs?.project;
+  else ctx.supply('project', String(json.project), 'file');
   return json.project;
 }
 
