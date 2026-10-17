@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fakeFetch, type Route } from '../../test/harness/fake-fetch.js';
 import { ToilError } from './errors.js';
-import { buildUrl, errorMessageFrom, parseRetryAfter, restRequest } from './rest.js';
+import { buildUrl, errorMessageFrom, MAX_REDIRECTS, parseRetryAfter, repointUrl, restRequest, restResponse } from './rest.js';
 
 const opts = { service: 'Jira', authFix: 'Make a new token.' };
 const ctxWith = (routes: Route[], fetchImpl?: typeof fetch) => {
@@ -23,6 +23,10 @@ describe('buildUrl', () => {
       'https://jira.imagile.dev/jira/rest/api/2/issue/A-1?expand=a,b',
     );
     expect(buildUrl('https://jira.imagile.dev/', 'rest/x', { n: 1, b: false })).toBe('https://jira.imagile.dev/rest/x?n=1&b=false');
+  });
+
+  it('repeats a key once per array element, skipping undefined ones', () => {
+    expect(buildUrl('https://jira.imagile.dev', '/x', { state: ['a', undefined, 'b'], n: 1 })).toBe('https://jira.imagile.dev/x?state=a&state=b&n=1');
   });
 
   it('leaves an encoded comma in the path alone', () => {
@@ -135,5 +139,71 @@ describe('restRequest', () => {
     }) as unknown as typeof fetch;
     const err = await failure(restRequest({ fetch: aborting, signal: controller.signal }, url, {}, opts));
     expect(err).toBeInstanceOf(DOMException);
+  });
+
+  it('exposes the status and every response header', async () => {
+    const { ctx } = ctxWith([{ url, respond: { status: 201, json: { id: 1 }, headers: { Location: `${url}/1`, 'x-ms-continuationtoken': 'abc' } } }]);
+    const res = await restResponse<{ id: number }>(ctx, url, {}, opts);
+    expect(res).toMatchObject({ status: 201, data: { id: 1 }, url });
+    expect(res.headers.get('location')).toBe(`${url}/1`);
+    expect(res.headers.get('x-ms-continuationtoken')).toBe('abc');
+  });
+
+  it('gives up on one slow request after its own timeout, as TIMEOUT naming the URL', async () => {
+    const hang = ((_input: unknown, init?: RequestInit) =>
+      new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))))) as unknown as typeof fetch;
+    const err = await failure(restRequest({ fetch: hang, signal: new AbortController().signal }, url, {}, { ...opts, timeoutMs: 20 }));
+    expect(err).toMatchObject({ code: 'TIMEOUT', message: `Jira didn't answer ${url} within 0.02s; toil stopped waiting.` });
+    expect(err.fix).not.toContain('Check whether');
+    const write = await failure(restRequest({ fetch: hang, signal: new AbortController().signal }, url, { method: 'POST' }, { ...opts, timeoutMs: 20 }));
+    expect(write).toMatchObject({ code: 'TIMEOUT', message: expect.stringContaining('The change may already have been applied.'), fix: expect.stringMatching(/^Check whether the change was made before retrying\./) });
+  });
+
+  it('sends every request with redirect: manual, and stops a same-origin redirect loop', async () => {
+    const { ctx, http } = ctxWith([{ url: /loop/, respond: { status: 307, headers: { Location: '/loop' } } }]);
+    let seenRedirect: RequestInit['redirect'];
+    const spy = (async (input: string, init?: RequestInit) => {
+      seenRedirect = init?.redirect;
+      return http.fetch(input, init);
+    }) as unknown as typeof fetch;
+    expect(await failure(restRequest({ ...ctx, fetch: spy }, 'https://jira.imagile.dev/loop', {}, opts))).toMatchObject({ code: 'HTTP', message: expect.stringContaining(`more than ${MAX_REDIRECTS} times`) });
+    expect(seenRedirect).toBe('manual');
+    expect(http.calls).toHaveLength(MAX_REDIRECTS + 1);
+  });
+
+  it('keeps the method and body across a 307 on the same host', async () => {
+    const { ctx, http } = ctxWith([
+      { method: 'PUT', url, respond: { status: 307, headers: { Location: `${url}?moved=1` } } },
+      { method: 'PUT', url: `${url}?moved=1`, respond: { json: { ok: true } } },
+    ]);
+    expect(await restRequest(ctx, url, { method: 'PUT', body: '{"a":1}', headers: { 'X-Api-Key': 'k' } }, opts)).toEqual({ ok: true });
+    expect(http.calls[1]).toMatchObject({ method: 'PUT', body: '{"a":1}', headers: { 'x-api-key': 'k' } });
+  });
+
+  it('refuses a redirect to another origin, even a different port or scheme on the same host', async () => {
+    for (const location of ['https://jira.imagile.dev:8443/x', 'http://jira.imagile.dev/x', 'https://evil.imagile.dev/x']) {
+      const { ctx, http } = ctxWith([{ url, respond: { status: 301, headers: { Location: location } } }]);
+      expect(await failure(restRequest(ctx, url, { headers: { 'X-Figma-Token': 't' } }, opts))).toMatchObject({ code: 'HTTP', details: { status: 301 } });
+      expect(http.calls).toHaveLength(1);
+    }
+  });
+});
+
+describe('repointUrl', () => {
+  const base = 'https://jira.imagile.dev/jira';
+  const opts = { service: 'Jira', subject: 'attachment', code: 'JIRA_ATTACHMENT_HOST', fix: 'Download it from the Jira web interface instead.' };
+
+  it('keeps a same-origin URL, resolves a relative one, and warns only when it re-points', () => {
+    const warnings: unknown[] = [];
+    const warn = (w: unknown) => warnings.push(w);
+    expect(repointUrl('https://jira.imagile.dev/jira/a/1', base, warn, opts)).toBe('https://jira.imagile.dev/jira/a/1');
+    expect(repointUrl('/jira/a/2', base, warn, opts)).toBe('https://jira.imagile.dev/jira/a/2');
+    expect(warnings).toEqual([]);
+    expect(repointUrl('http://10.0.0.1:8080/jira/a/3?x=1', base, warn, opts)).toBe('https://jira.imagile.dev/jira/a/3?x=1');
+    expect(warnings).toEqual([{ code: 'JIRA_ATTACHMENT_HOST', message: 'Jira named http://10.0.0.1:8080 for this attachment; toil fetched it from the configured https://jira.imagile.dev instead.' }]);
+  });
+
+  it("is an HTTP error with the area's fix when the URL can't be read", () => {
+    expect(() => repointUrl('http://[bad', base, () => {}, opts)).toThrow(expect.objectContaining({ code: 'HTTP', message: "Jira returned an attachment URL toil can't read: http://[bad.", fix: opts.fix }));
   });
 });
