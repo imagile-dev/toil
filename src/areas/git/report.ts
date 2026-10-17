@@ -250,6 +250,7 @@ export const reportCommand = gitArea.command({
     }
     const repo = await requireRepo(ctx);
     const options = [`--format=${COMMIT_PREFIX}%H\t%an\t%aI\t%s`, '--numstat'];
+    // User values in options: each joined to its flag with =, so each is one argv token git reads as a date, never as a flag of its own (core's GitCall.options says never user input; this is the exception).
     if (input.since) options.push(`--since=${normalizeGitDate(input.since)}`);
     if (input.until) options.push(`--until=${normalizeGitDate(input.until)}`);
     const range = reportRange(input);

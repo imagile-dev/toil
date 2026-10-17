@@ -129,7 +129,9 @@ describe('git diff', () => {
 
   it('keeps --file relative to the repository root when the workspace is a folder below it', () => {
     expect(rootRelativePathspec('src/a.ts', '/work', '/work')).toBe('src/a.ts');
-    expect(rootRelativePathspec('src/a.ts', 'C:/Work', 'C:/Work/')).toBe(process.platform === 'win32' ? 'src/a.ts' : ':(top)src/a.ts');
+    expect(rootRelativePathspec('src/a.ts', '/work', '/work/')).toBe('src/a.ts');
+    // Case folds only on Windows, where C:/Work and C:/work are the same folder.
+    expect(rootRelativePathspec('src/a.ts', 'C:/Work', 'C:/work/')).toBe(process.platform === 'win32' ? 'src/a.ts' : ':(top)src/a.ts');
     expect(rootRelativePathspec('src/a.ts', '/work', '/work/packages/api')).toBe(':(top)src/a.ts');
     expect(rootRelativePathspec('/work/src/a.ts', '/work', '/work/packages')).toBe('/work/src/a.ts');
   });
