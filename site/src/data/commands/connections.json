@@ -37,7 +37,8 @@
     "writes": false,
     "connection": false,
     "flags": [
-      "<name>"
+      "<name>",
+      "--area <area>"
     ]
   }
 ]

@@ -1,0 +1,34 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_OPENSHIFT_BASE_URL",
+    "description": "API server URL, e.g. https://openshift.imagile.dev",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "token",
+    "env": "TOIL_OPENSHIFT_TOKEN",
+    "description": "Bearer token, typically a service account token",
+    "required": false,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "env",
+    "env": "TOIL_OPENSHIFT_ENV",
+    "description": "Environment name that --env selects this cluster by, e.g. prod",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "instance",
+    "env": "TOIL_OPENSHIFT_INSTANCE",
+    "description": "Cluster instance name within the environment that --instance selects this cluster by, e.g. east",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]

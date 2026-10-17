@@ -4,16 +4,45 @@
     {
       "allows": [],
       "old": "openshift resource-usage --csv printing raw CSV to stdout instead of the envelope",
-      "toil": "--csv writes the CSV to a file in the workspace named with --out <file>, never overwriting, and data returns the saved absolute path. Nothing but the envelope goes to stdout",
+      "toil": "--csv writes the CSV to a file in the workspace named with --out <file>, never overwriting, and data is the JSON result with the saved absolute path added as file. Nothing but the envelope goes to stdout",
       "why": "Every command writes exactly one envelope; CSV goes to a file only (decision 4 on #68).",
       "principle": "Output Contract"
     },
     {
       "allows": [],
       "old": "openshift resource-usage with no --out flag",
-      "toil": "--out <file> is added, and --csv requires it",
+      "toil": "--out <file> is added, and --csv requires it (and --out requires --csv), checked before any request",
       "why": "Where the CSV goes has to be named, since it no longer goes to stdout (decision 4 on #68).",
       "principle": "Output Contract"
+    },
+    {
+      "allows": [],
+      "old": "Named clusters as openshift.environments.<env>.instances.<instance>.{baseUrl, token} beside flat openshift.baseUrl and openshift.token, with openshift.defaultEnvironment and openshift.defaultInstance picking one; --env or a default environment with no instance (or the reverse) failed, naming the missing flag",
+      "toil": "Each cluster is an openshift connection, with env and instance settings for a named one. --env and --instance each select the connection named <name>, or the one whose env (or instance) setting is <name>, and must agree when both are given; either alone is enough when it identifies one connection, and a value that matches several is INVALID_INPUT naming them. defaults.openshift.connection takes the place of defaultEnvironment and defaultInstance. An unknown name is INVALID_INPUT listing the clusters toil knows",
+      "why": "toil's config is a set of named connections, and --env is the one environment concept that selects among them (decision 9 on #68), so clusters can't be a nested map inside one connection.",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "With openshift.defaultEnvironment and openshift.defaultInstance set, the stored cluster's baseUrl and token won over the OPENSHIFT_BASE_URL and OPENSHIFT_TOKEN env vars, which only set the flat cluster (#88 item 3)",
+      "toil": "TOIL_OPENSHIFT_* env vars configure the default connection and win over anything stored for it. Another connection takes only its own TOIL_CONN_<NAME>_* variables, then defaults.openshift; the TOIL_OPENSHIFT_* token never fills a gap in it",
+      "why": "Env vars outrank every stored value, and a credential goes only to the connection it's configured on.",
+      "principle": "9",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "openshift cluster list reading every named and flat cluster from config as { count, clusters[{ environment, instance, baseUrl }], defaultEnvironment, defaultInstance }",
+      "toil": "An alias of toil connections list --area openshift (CLI only; over MCP, the connections_list tool with area openshift). It lists every openshift connection, so every configured cluster, as { configFile, connections[{ name, area, isDefault, host, writes, values }] }: a cluster's env and instance settings are in values (where each came from, never the value), isDefault marks the default, and host stands for baseUrl. It never prints a secret",
+      "why": "Clusters are connections, and listing connections is core's job: an area command never sees the config, so no area can read another connection's settings (CLAUDE.md, Commands never read config or env).",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "openshift logs failing at once on HTTP 429, with no retry",
+      "toil": "A 429 is retried as on every other request (honouring Retry-After up to 30 s, three attempts) before failing with HTTP",
+      "why": "Every request goes through core's one HTTP layer, which retries a 429 the same way for every command.",
+      "principle": "decision"
     }
   ]
 }

@@ -3,6 +3,7 @@ import { areaOf, commandName, isCliOnly, managesConfig, usesConnection, type Any
 import type { Connection } from './area.js';
 import { resolveCall, supplyContext, type ResolvedCall } from './call-context.js';
 import { connectionEnvName, connectionsOf, defaultConnectionName, envName } from './config.js';
+import { IncompleteConnectionError } from './connection.js';
 import type { CommandContext, Context } from './context.js';
 import { failure, success, type ContextReport, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
@@ -113,17 +114,25 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     if (usesConnection(def)) report = partial;
     // A command that handles "not set up" itself runs with no connection when
     // the area has none and the call names none; every other problem still fails.
-    const unconfigured =
+    const optional =
       def.connectionOptional === true &&
       typeof input.connection !== 'string' &&
-      !Object.entries(def.area?.context ?? {}).some(([name, spec]) => spec?.selectsConnection && typeof input[name] === 'string') &&
-      defaultConnectionName(ctx.config, areaOf(def)) === undefined && connectionsOf(ctx.config, areaOf(def)).length === 0;
-    const call: ResolvedCall | undefined = usesConnection(def) && !unconfigured
-      ? await Promise.race([
+      !Object.entries(def.area?.context ?? {}).some(([name, spec]) => spec?.selectsConnection && typeof input[name] === 'string');
+    const unconfigured = optional && defaultConnectionName(ctx.config, areaOf(def)) === undefined && connectionsOf(ctx.config, areaOf(def)).length === 0;
+    let call: ResolvedCall | undefined;
+    if (usesConnection(def) && !unconfigured) {
+      try {
+        call = await Promise.race([
           resolveCall(def, input, { config: ctx.config, secrets: ctx.secrets, dossier: ctx.dossier, gitRemote: ctx.gitRemote }, (w) => warnings.push(w), controller.signal, partial),
           aborted,
-        ])
-      : undefined;
+        ]);
+      } catch (err) {
+        // The default connection exists but lacks a key (a missing `pat`): the
+        // command answers for that as it does for none, and the warning says what's missing.
+        if (!(optional && err instanceof IncompleteConnectionError)) throw err;
+        warnings.push({ code: 'CONFIG_INCOMPLETE', message: `${err.message} ${err.fix ?? ''}`.trim() });
+      }
+    }
     const connection = call?.connection;
     if (def.writes) assertWritesAllowed(def, input, connection, call?.report, ctx);
 

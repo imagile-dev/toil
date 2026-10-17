@@ -18,8 +18,14 @@ export interface PollOptions {
   intervalMs?: number;
   /** Longest wait between checks. Default 10 s. */
   maxIntervalMs?: number;
-  /** Each wait is the last one times this. Default 2. */
+  /** Each wait is the last one times this. Default 2. Ignored with `backoff: 'linear'`. */
   factor?: number;
+  /**
+   * `exponential` (the default) multiplies each wait by `factor`; `linear`
+   * waits `intervalMs` times the attempt number (2 s, 4 s, 6 s for 2000),
+   * still capped at `maxIntervalMs`.
+   */
+  backoff?: 'exponential' | 'linear';
   /** The command's signal: cancelling it stops the wait at once. */
   signal: AbortSignal;
 }
@@ -32,7 +38,8 @@ export interface PollOptions {
  */
 export async function poll<T>(check: (attempt: number) => Promise<T | undefined>, options: PollOptions): Promise<T> {
   const started = Date.now();
-  let wait = options.intervalMs ?? 1000;
+  const first = options.intervalMs ?? 1000;
+  let wait = first;
   const max = options.maxIntervalMs ?? 10_000;
   const factor = options.factor ?? 2;
   for (let attempt = 1; ; attempt++) {
@@ -47,6 +54,6 @@ export async function poll<T>(check: (attempt: number) => Promise<T | undefined>
       });
     }
     await sleep(Math.min(wait, left), options.signal);
-    wait = Math.min(wait * factor, max);
+    wait = Math.min(options.backoff === 'linear' ? first * (attempt + 1) : wait * factor, max);
   }
 }
