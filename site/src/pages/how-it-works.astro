@@ -36,7 +36,7 @@ const parts = [
     title: 'One token, pasted once, kept safe.',
     body: [
       'Every integration signs in with a long-lived token you generate once in the service itself. There are no browser logins, no OAuth pop-ups and no device codes.',
-      "toil keeps tokens in your operating system's credential store and stores only a reference in its config. In CI, they come from environment variables. Tokens never appear on a command line or in output.",
+      "Tokens come from environment variables first, which is how CI provides them, then from your toil config. You can keep them in your operating system's credential store instead, with only a reference in config, but nothing requires it. Tokens never appear on a command line or in output.",
     ],
   },
   {
@@ -61,7 +61,7 @@ const parts = [
     eyebrow: 'Install',
     title: 'Nothing for application control to block.',
     body: [
-      'toil is a single JavaScript file on the Node you already have: no executable, no native module and no install script. Every release is checked to import only Node’s own modules and to contain only the files it should.',
+      'toil is a single JavaScript file on the Node you already have: no executable, no native module and no install script. Every build is checked to import only Node’s own modules and to contain only the files it should.',
     ],
   },
 ];
@@ -73,6 +73,15 @@ const parts = [
     title="The big picture, <em>briefly.</em>"
     lead="What toil is made of and the promises it keeps. For specifics, such as setup steps, configuration keys and each integration, see the docs."
   />
+
+  <section class="section--tight">
+    <div class="container">
+      <p class="prerelease" data-reveal>
+        <strong>Pre-release.</strong> The core described here is built and tested, but no integration has shipped and nothing is on npm
+        yet. Dossiers are still a design.
+      </p>
+    </div>
+  </section>
 
   <section class="section--tight">
     <div class="container hiw">
@@ -116,6 +125,9 @@ const parts = [
   .hiw__part p + p { margin-top: var(--space-xs); }
 
   .more a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
+
+  .prerelease { border: 1px solid var(--color-accent); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); color: var(--color-muted); max-width: 62ch; }
+  .prerelease strong { color: var(--color-accent); }
 
   @media (min-width: 980px) {
     .hiw { grid-template-columns: 12rem minmax(0, 1fr); align-items: start; }

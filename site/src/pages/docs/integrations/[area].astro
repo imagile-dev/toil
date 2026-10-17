@@ -14,6 +14,8 @@ const { integration } = Astro.props as { integration: IntegrationEntry };
 const where = credentialWhere[integration.area];
 const prefix = envPrefix(integration.area);
 const local = integration.area === 'git';
+const host = integration.host ?? `https://${integration.area}.imagile.dev`;
+const keyLines = (integration.keys ?? ['TOKEN']).map((key) => ({ key, label: key.toLowerCase().split('_').join(' ') }));
 const index = allIntegrations.findIndex((i) => i.area === integration.area);
 const prev = allIntegrations[index - 1];
 const next = allIntegrations[index + 1];
@@ -52,13 +54,13 @@ const next = allIntegrations[index + 1];
           ) : (
             <>
               <p>
-                {integration.name} signs in with a <strong>{integration.credential.toLowerCase()}</strong> that you generate once in its own
-                interface and give to toil. There's no browser login and nothing to approve at use time.
+                Credential: <strong>{integration.credential}</strong>. You generate it once in {integration.name}'s own interface and give it to
+                toil. There's no browser login and nothing to approve at use time.
               </p>
               {where ? <p>In {integration.name}, it lives under <strong>{where}</strong>.</p> : <p>In {integration.name}, it lives under your user or account settings.</p>}
               <p>
-                toil stores it in your operating system's credential store and keeps only a reference in its config file. In CI, pass it as an
-                environment variable instead.
+                Pass it as an environment variable, which always wins and is the usual choice in CI, or put it in your toil config. Keeping it in
+                your operating system's credential store instead, with only a reference in config, is optional.
               </p>
             </>
           )}
@@ -72,8 +74,9 @@ const next = allIntegrations[index + 1];
               with <code>{prefix}</code>. For example:
             </p>
             <div class="codeblock"><span class="card-tag">shell</span>
-<pre><span class="p">$</span> export {prefix}BASE_URL=<span class="s">https://{integration.area}.imagile.dev</span>
-<span class="p">$</span> export {prefix}TOKEN=<span class="s">&lt;your token&gt;</span></pre>
+<pre><span class="p">$</span> export {prefix}BASE_URL=<span class="s">{host}</span>{keyLines.map((k) => (
+  <span class="line"><span class="p">$</span> export {prefix}{k.key}=<span class="s">{`<your ${k.label}>`}</span></span>
+))}</pre>
             </div>
             <p class="note">
               {integration.status === 'planned'
@@ -114,6 +117,7 @@ const next = allIntegrations[index + 1];
 </Layout>
 
 <style>
+  .codeblock .line { display: block; }
   .crumb { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-faint); }
   .crumb a { color: var(--color-muted); }
   .crumb a:hover { color: var(--color-accent); }
