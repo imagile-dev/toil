@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -8,7 +8,7 @@ import { loadConfig, type Settings } from '../../src/core/config.js';
 import { assertNodeSupportsSqlite } from '../../src/core/db/sqlite/index.js';
 import { execute } from '../../src/core/run.js';
 import { testContext } from '../harness/context.js';
-import { CLEANUP, createSqliteFile, sqliteRows, type TempSqlite } from '../harness/db.js';
+import { createSqliteFile, removeTestDir, sqliteRows, type TempSqlite } from '../harness/db.js';
 
 /**
  * What only SQLite does, beyond the shared conformance suite: how its values
@@ -117,7 +117,7 @@ describe('sqlite configured from env vars alone', () => {
   beforeEach(() => {
     home = mkdtempSync(join(tmpdir(), 'toil-home-'));
   });
-  afterEach(() => rmSync(home, CLEANUP));
+  afterEach(() => removeTestDir(home));
 
   it('TOIL_DB_ENGINE and TOIL_DB_PATH make a working connection with no config file', async () => {
     const config = loadConfig({ env: { TOIL_DB_ENGINE: 'sqlite', TOIL_DB_PATH: db.path }, cwd: home, home, areas: [{ name: 'db' }] });
