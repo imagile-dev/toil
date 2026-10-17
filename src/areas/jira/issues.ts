@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { defineCommand } from '../../core/command.js';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { jiraArea } from './area.js';
@@ -225,8 +224,10 @@ export const updateIssue = jiraArea.command({
   },
 });
 
-export const schema = defineCommand({
+export const schema = jiraArea.command({
   path: ['jira', 'schema'],
+  // Under jira's path, but it needs no connection: it answers with no config at all.
+  kind: 'area-local',
   description: 'Print the --input-file JSON schema and an example for create-issue/update-issue',
   toolDescription:
     'Returns the JSON Schema and a runnable example for the inputFile accepted by jira_create_issue and jira_update_issue. Needs no Jira connection.',

@@ -34,10 +34,43 @@ skill file, or the file misses a command or a connection key's env var.
 - `area.ts` (the `defineArea`), `client.ts` (every request, built on `restRequest`
   and `buildUrl` from `src/core/rest.ts`, with the area's headers and auth fix), and
   command files grouped by subject, each exporting a list that `index.ts` spreads.
-- A command that needs no connection at all (`jira schema`) is a `defineCommand`
-  under the area's path; it works with no config.
-- Files through `ctx.files`, never `node:fs`. Numbers and repeatable flags come from
-  the schema (`z.number()`, `z.array()`); don't parse argv by hand.
+- A command that needs no connection at all (`jira schema`) is `area.command({
+  kind: 'area-local', ... })`; it works with no config.
+- Files through `ctx.files`, never `node:fs`. Numbers, booleans, enums, JSON objects
+  and repeatable flags come from the schema (`z.number()`, `z.boolean()`,
+  `z.object()`, `z.array()`); don't parse argv by hand. Where the contract read a
+  number with `parseInt`, keep the field a `z.union([z.number(), z.string()])` so it
+  stays text, and build the `parseInt`.
+- **Where a command acts** (`--project`, `--repo`, `--owner`, `--instance`, `--env`)
+  is a context input in `defineArea({ context })`, never an ordinary flag, so core
+  resolves it from the call, the dossier, the git remote and the connection in one
+  order (the dossier step is empty until #16, and the git step needs the git reader,
+  which isn't wired in yet). The contract's group-level flags (`bitbucket --project --repo`, `github
+  --owner --repo`, `ado --collection --organization --project --repo`, `jenkins
+  --instance`, `openshift --env --instance`, `dynatrace --env`) are `group` inputs,
+  with the contract's spelling in `flags`; a per-command one (`jira --project`) is a
+  `command` input the command lists in its `context`, marked `required` where the
+  contract failed without it. Give it a `setting` when the connection can hold a
+  default, `git` when the remote names it, and `selectsConnection` when the contract
+  picked an instance or environment by it. Read it from `ctx.context`.
+- **Another area's credential** (Kibana on Elasticsearch's key) is `defineArea({
+  shares: { area, keys } })`. It declares which keys a connection may pair, nothing
+  more: the user pairs one with `<key>From` (`"apiKeyFrom": "es-prod"`), and the
+  area's default connection alone also takes the other area's default env value, as
+  the documented env chain did. Document the `<key>From` setting in the area's skill file.
+  `ctx.resolved.shared` says whether the key came from the other area, for an auth
+  error that names which key was sent.
+- **`--env` means which environment**, and it's the same input the dossier supplies.
+  Name it `env`, give it `selectsConnection` (or an enum schema), and never add a
+  second environment flag.
+- **A path the contract had in another group** (`deps outdated`, now `artifactory
+  outdated`) is an `aliases` entry on the new command; the contract test checks the
+  old row against it.
+- **Engines or variants** whose connections need different keys use `variants`, not a
+  hand-built `superRefine`. A password (a database) goes in `secrets` as `{ password:
+  'password' }`; a token is the default.
+- Fix text names env vars with `area.envName(key)`, never a hard-coded
+  `TOIL_<AREA>_…`.
 - A read sent as POST (a search) sets `queryByPost: true` and stays `writes: false`.
 - Every connection key keeps the contract's name, so its env var does too
   (`apiToken` is `TOIL_JIRA_API_TOKEN`).
@@ -79,7 +112,9 @@ Never raise a level on the strength of the unit suite.
 
 A command talks to one service. Do not build an aggregate command that fans out to
 several sources; give each source its own area and let them compose through stdin or
-`--from <file>` (see the dependency-analysis section of `docs/integrations.md`).
+`--from <file>` (see the dependency-analysis section of `docs/integrations.md`). A
+group that holds only aliases onto other areas' commands (`deps outdated`) is a
+compatibility path, never a place for a command that calls more than one of them.
 
 ### Deployment Variants
 
@@ -115,7 +150,7 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
   at the exact directory.
   - **Match, don't reinvent.** Keep its requests, payloads, response shaping and
     edge-case handling.
-  - **Rewrite it for toil's style and flow:** one `defineCommand` per command,
+  - **Rewrite it for toil's style and flow:** one `area.command` per command,
     `ctx.fetch`, `ToilError` with a fix, examples for the parity suite, and HTTP
     mocked with `fakeFetch`. Comments use the deadpan voice in CLAUDE.md's Code
     Comments section.

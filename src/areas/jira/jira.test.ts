@@ -52,6 +52,8 @@ describe('issues', () => {
   it('get-issue: a 401 is AUTH, with where to make a new token', async () => {
     const { envelope } = await run(getIssue, { key: 'PROJ-1' }, [{ url: /issue/, respond: { status: 401, text: '' } }]);
     expect(envelope.error).toMatchObject({ code: 'AUTH', fix: expect.stringContaining('Personal Access Tokens') });
+    // Named through jiraArea.envName, and still the same words.
+    expect(envelope.error?.fix).toContain('then set apiToken (TOIL_JIRA_API_TOKEN for the default connection).');
   });
 
   it('create-issue: POSTs the Data Center payload, then reads the issue back', async () => {
