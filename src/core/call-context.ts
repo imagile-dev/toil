@@ -16,6 +16,9 @@ import type { SecretStore } from './keychain.js';
  *   3. the working folder's git remote, where the area declares how to read it
  *   4. the connection's setting, then the area's default
  *
+ * A command may then fill one from a value it read itself (`ctx.supply`,
+ * Jira's `--input-file` project), which ranks between 1 and 2.
+ *
  * The connection goes through the same chain: at each source in turn (the
  * call, the dossier, the git remote), `connection` itself or an input that
  * selects one (`--instance prod`), and the two must agree; with neither, the
@@ -183,7 +186,7 @@ function checked(area: AnyArea, name: string, spec: ContextInput, value: string 
   if (value === undefined || value === '') return undefined;
   const parsed = (spec.schema ?? z.string().min(1)).safeParse(value);
   if (!parsed.success) {
-    const where = { input: 'the call', dossier: 'the dossier', git: 'the git remote', connection: `the connection's ${spec.setting} setting`, default: "the area's default" }[source];
+    const where = { input: 'the call', file: 'the input file', dossier: 'the dossier', git: 'the git remote', connection: `the connection's ${spec.setting} setting`, default: "the area's default" }[source];
     throw new ToilError('INVALID_INPUT', `${area.name} ${name} "${value}" from ${where} isn't valid: ${parsed.error.issues.map((i) => i.message).join('; ')}.`, {
       fix: `Pass ${flagOf(name, spec).split(' ')[0]} explicitly, or correct ${where}.`,
     });
@@ -195,6 +198,7 @@ export function flagOf(name: string, spec: ContextInput): string {
   return spec.flags ?? `--${name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)} <value>`;
 }
 
+/** The first missing input that declares its own wording (`missing`) words the error; otherwise core's. */
 function missingContext(config: ResolvedConfig, def: AnyCommand, area: AnyArea, connection: string, missing: string[]): ToilError {
   const declared = area.context as Record<string, ContextInput>;
   const isDefault = defaultConnectionName(config, area.name) === connection;
@@ -205,7 +209,33 @@ function missingContext(config: ResolvedConfig, def: AnyCommand, area: AnyArea, 
     const variable = isDefault ? envName(area.name, spec.setting) : connectionEnvName(connection, spec.setting);
     return `pass ${flag}, or set ${spec.setting} on connection ${connection} (${variable})`;
   });
-  return new ToilError('INVALID_INPUT', `${commandName(def)} needs ${missing.join(' and ')}, and none was given or found.`, {
-    fix: `${ways.join('; ').replace(/^p/, 'P')}.`,
-  });
+  const fix = `${ways.join('; ').replace(/^p/, 'P')}.`;
+  const own = missing.map((name) => declared[name]!.missing).find((m) => m !== undefined);
+  if (own) return new ToilError('INVALID_INPUT', own.message, { fix: own.fix ?? fix });
+  return new ToilError('INVALID_INPUT', `${commandName(def)} needs ${missing.join(' and ')}, and none was given or found.`, { fix });
 }
+
+/**
+ * A context input the command filled itself from a value it read, such as a
+ * project named in an `--input-file`. It ranks below the call's own value and
+ * above everything else: the dossier, the git remote, the connection and the
+ * default. Returns the value the command should use, and updates
+ * `ctx.context` and `meta.context` to match. An empty or absent value changes
+ * nothing. A selecting input can't be supplied this late, because the
+ * connection it would pick is already in use.
+ */
+export function supplyContext(area: AnyArea, def: AnyCommand, context: Record<string, string>, report: ContextReport, name: string, value: string | undefined, source: SuppliedSource): string | undefined {
+  const spec = (area.context as Record<string, ContextInput>)[name];
+  if (!spec || !(name in (def.context ?? {}))) throw new Error(`${commandName(def)}: "${name}" isn't one of its context inputs, so it can't be supplied.`);
+  if (spec.selectsConnection) throw new Error(`${commandName(def)}: "${name}" selects the connection, which is already chosen, so it can't be supplied from a ${source}.`);
+  const current = report.inputs?.[name];
+  if (current?.source === 'input') return current.value;
+  const found = checked(area, name, spec, value, source);
+  if (!found) return current?.value;
+  context[name] = found.value;
+  report.inputs = { ...(report.inputs ?? {}), [name]: found };
+  return found.value;
+}
+
+/** Where a command may say it read a context value from. */
+export type SuppliedSource = Extract<ContextSource, 'file'>;

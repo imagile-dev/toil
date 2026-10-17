@@ -34,6 +34,34 @@ describe('redactUrl', () => {
     expect(out).toContain('project=PAY');
   });
 
+  it('fails closed: hides every credential-shaped name, case- and separator-insensitively', () => {
+    const secrets = [
+      'token', 'access_token', 'sonar.token', 'personalAccessToken', 'private_token', 'X-Auth-Token',
+      'secret', 'client_secret', 'password', 'os_password', 'Passwd', 'pwd',
+      'signature', 'X-Amz-Signature', 'X-Amz-Credential', 'sig', 'JWT', 'key', 'code',
+      'api_key', 'apikey', 'apiKey', 'api-key', 'x-api-key', 'subscription-key', 'Ocp-Apim-Subscription-Key', 'accessKey',
+    ];
+    for (const name of secrets) expect(redactUrl(`https://sonar.imagile.dev/a?${name}=s3cret&x=1`), name).toBe(`https://sonar.imagile.dev/a?${name}=[redacted]&x=1`);
+  });
+
+  it('leaves identifiers alone: names ending in keys, a key after a known noun, and projectKeyOrId', () => {
+    const ids = [
+      'projectKey=PAY', 'componentKeys=a,b', 'metricKeys=coverage,bugs', 'componentKey=c', 'metricKey=m', 'issueKey=ABC-1', 'ruleKey=r',
+      'branchKey=b', 'repoKey=r', 'spaceKey=DOC', 'boardKey=b', 'sprintKey=s', 'fileKey=f', 'entityKey=e', 'projectKeyOrId=PAY,OPS', 'keys=k', 'q=a',
+    ].join('&');
+    expect(redactUrl(`https://sonar.imagile.dev/api/x?${ids}`)).toBe(`https://sonar.imagile.dev/api/x?${ids}`);
+  });
+
+  it('shows the URL as sent: a literal comma stays a comma, an encoded one stays encoded, and nothing is normalised', () => {
+    expect(redactUrl('https://sonar.imagile.dev/api/issues/search?componentKeys=imagile-api&severities=BLOCKER,MAJOR&token=t')).toBe(
+      'https://sonar.imagile.dev/api/issues/search?componentKeys=imagile-api&severities=BLOCKER,MAJOR&token=[redacted]',
+    );
+    expect(redactUrl('https://sonar.imagile.dev/a?q=a%2Cb&flag')).toBe('https://sonar.imagile.dev/a?q=a%2Cb&flag');
+    expect(redactUrl('https://sonar.imagile.dev')).toBe('https://sonar.imagile.dev');
+    expect(redactUrl('https://u:p@sonar.imagile.dev/x?y=1#frag')).toBe('https://[redacted]@sonar.imagile.dev/x?y=1#frag');
+    expect(redactUrl('not a url')).toBe('not a url');
+  });
+
   it('hides the jwt on a signed release-asset URL', () => {
     const out = redactUrl('https://release-assets.githubusercontent.com/a?sp=r&jwt=eyJabc.def.ghi&rscd=x');
     expect(out).not.toContain('eyJabc');
