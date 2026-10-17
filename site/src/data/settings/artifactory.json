@@ -1,0 +1,42 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_ARTIFACTORY_BASE_URL",
+    "description": "Artifactory root, keeping any context path, e.g. https://artifactory.imagile.dev/artifactory",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "token",
+    "env": "TOIL_ARTIFACTORY_TOKEN",
+    "description": "Artifactory access or identity token",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "npmRepo",
+    "env": "TOIL_ARTIFACTORY_NPM_REPO",
+    "description": "npm repository key that outdated and license-check look packages up in",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "nugetRepo",
+    "env": "TOIL_ARTIFACTORY_NUGET_REPO",
+    "description": "NuGet repository key that outdated and license-check look packages up in",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "mavenRepo",
+    "env": "TOIL_ARTIFACTORY_MAVEN_REPO",
+    "description": "Maven repository key that outdated looks packages up in",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]
