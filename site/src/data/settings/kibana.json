@@ -1,0 +1,34 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_KIBANA_BASE_URL",
+    "description": "Kibana root, e.g. https://kibana.imagile.dev (keep any context path, such as a basePath)",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "apiKey",
+    "env": "TOIL_KIBANA_API_KEY",
+    "description": "API key: the encoded value; unset, a paired Elasticsearch connection's key is used",
+    "required": false,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "space",
+    "env": "TOIL_KIBANA_SPACE",
+    "description": "Default space id for dashboards, data views and rules (unset: the default space)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "apiKeyFrom",
+    "env": "TOIL_KIBANA_API_KEY_FROM",
+    "description": "The elasticsearch connection to take apiKey from when this connection has none",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]
