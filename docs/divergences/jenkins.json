@@ -1,0 +1,52 @@
+{
+  "scope": "jenkins",
+  "divergences": [
+    {
+      "allows": [
+        "jenkins instance add data.baseUrl",
+        "jenkins instance add data.name",
+        "jenkins instance add data.overwritten",
+        "jenkins instance remove data.removed"
+      ],
+      "old": "jenkins instance add --name --base-url [--username] [--api-token] [--force] and jenkins instance remove --name, editing the jenkinsInstances array in the global config",
+      "toil": "Both stay at their paths with their flags, CLI only, and fail with INVALID_INPUT naming the command that does the job: a named instance is a jenkins connection, added with toil connections add <name> --area jenkins (it asks for baseUrl, username and the API token, and keeps the token in the OS credential store) and removed with toil connections remove <name>. jenkins instance list stays",
+      "why": "Only the toil connections commands write config, and a secret goes only to the OS credential store or an env var, never into a config file from a flag. Both commands would be a second way to change connections.",
+      "principle": "Secrets"
+    },
+    {
+      "allows": [],
+      "old": "jenkins --instance <name> picking an entry of jenkinsInstances, with \"Jenkins instance \\\"<name>\\\" not found\" for an unknown name and \"has no baseUrl configured\" for an entry without one",
+      "toil": "--instance (or the MCP instance field) selects a jenkins connection, by its name or by its instance setting. An unknown name is INVALID_INPUT listing the instances toil knows; a connection without baseUrl, username or apiToken is refused when it's resolved, with the usual fix. A connection also takes shared settings from defaults.jenkins, and TOIL_JENKINS_* env vars apply to the default connection only",
+      "why": "Config is a set of named connections, and --instance is a context input that selects one, resolved by core in the same order for every area.",
+      "principle": "Configuration Precedence"
+    },
+    {
+      "allows": [],
+      "old": "jenkins instance list listing only the jenkinsInstances entries, not the default jenkins settings",
+      "toil": "It lists every jenkins connection, the default one included, with the token masked as \"***\". An entry also has instance when that connection sets one",
+      "why": "Every jenkins connection is an instance --instance can select, so a list that left one out would be incomplete.",
+      "principle": "Configuration Precedence"
+    },
+    {
+      "allows": [],
+      "old": "jenkins pipeline run --wait exiting 1, with a success envelope, when the build's result was set and not SUCCESS",
+      "toil": "The envelope is the same, the exit code is 0, and meta.warnings has a JENKINS_BUILD_NOT_SUCCESSFUL warning naming the build and its result. Check data.result, or the warning",
+      "why": "The exit code follows the envelope's ok, and a warning reaches MCP callers too, who never see an exit code.",
+      "principle": "Output Contract"
+    },
+    {
+      "allows": [],
+      "old": "jenkins pipeline run --wait waiting as long as --timeout allowed, twice",
+      "toil": "The command's time limit is 21 minutes: two default 600 s phases and a minute of polling. A longer --timeout ends in TIMEOUT at that limit unless TOIL_TIMEOUT_MS raises it",
+      "why": "Every command has a time limit and can be cancelled; one that waits on slow work declares a longer limit, not none.",
+      "principle": "Output Contract"
+    },
+    {
+      "allows": [],
+      "old": "jenkins pipeline run and pipeline logs failing on the first HTTP 429, and logging progress lines (\"Queued build\", \"Waiting for build to start\") to stderr",
+      "toil": "A 429 is retried up to three times, as it is for every request toil sends, and the progress lines go to stderr only with --debug",
+      "why": "Every request goes through the one HTTP path areas share, and a command has no channel to stderr but --debug.",
+      "principle": "Layout"
+    }
+  ]
+}

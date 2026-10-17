@@ -6,5 +6,11 @@
   "covers": "Jobs, builds, console logs, queue",
   "credential": "API token",
   "credentialWhere": "Your user name → Security → API Token",
-  "status": "planned"
+  "status": "unit",
+  "supported": {
+    "product": "Jenkins",
+    "minimum": null,
+    "api": "Remote access API",
+    "note": "toil calls the classic remote access API (/api/json with tree, consoleText, /queue/item) with a user name and API token sent as Basic auth. No release has been verified yet."
+  }
 }
