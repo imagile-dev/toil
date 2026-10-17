@@ -8,8 +8,8 @@ import { OSSINDEX_URL, ossindexArea } from './area.js';
 /**
  * `toil ossindex vulns`: an inventory's packages as package URLs against OSS
  * Index's component report, 128 a request (its stated limit), one request
- * after another, reports matched back by their `coordinates` string. Built
- * as `deps frisk --source sonatype` had it, with one declared fix:
+ * after another, reports matched back by their `coordinates` string. It behaves
+ * as `deps frisk --source sonatype` did, with one declared fix:
  * OSS Index refuses anonymous requests, so the connection's username and
  * token go as Basic auth, and a rejected one is AUTH rather than "not
  * reachable" (#91 item 7, confirmed live). Kept, and pinned: a report whose

@@ -57,7 +57,7 @@ the bottom of their section.
     always falls back.
   - **Jira search keeps its own page sizing** inside the area, because the offset
     style's cap doesn't fit it.
-  - **The stub generator** keeps making target flags ordinary options; the porter
+  - **The stub generator** keeps making target flags ordinary options; the integration author
     decides which become context inputs.
 - **The 1,000-page paging cap stays** as a safety bound, though the contract had
   none. Each area lists it in `docs/divergences/<area>.json`, and the error names what
@@ -235,7 +235,7 @@ the bottom of their section.
     user meant (principle 4); refusing was already the behaviour, only the
     message named a command and field they never typed (#132).
 
-## Building process
+## Integration process
 
 - **Integration agents run the `ship` skill's four local reviews themselves**, one after
   another, instead of starting sub-agents. Sub-agents' results were being delivered to
@@ -270,6 +270,23 @@ the bottom of their section.
   checkmarx (#129) and alation (#133) for core's token exchange in the parity
   suite, osv/ossindex (#130) and sonatypeiq (#131) for `deps frisk`'s routing.
   KF3 (#68) carries each.
+- **A PR past its three review rounds gets one more when the findings are
+  converging**, not looping: #134, whose only new findings were wording that
+  merges from main brought in, and #117, where a security finding (`..;x` reaching
+  a servlet container as `..`) moved into core (KF5) and the area only needs its
+  tests. The cap is there to stop a reviewer and an agent going in circles; it
+  isn't a reason to ship a known security gap or an unfinished sweep.
+- **"Build" in the sense of building software is dropped from history, issues and
+  docs** (#68), on the maintainer's instruction of 2026-10-17, so toil doesn't read
+  as derivative. Main's 12 affected commit messages were reworded and force-pushed
+  with identical content, and open branches were relinked with a merge commit. The
+  repository's own wording now says "integration", "build" or "match": the
+  integration kit, building an integration, matching the contract exactly, and
+  CLAUDE.md's **Matching the contract** section. Network ports keep their name.
+  One later squash merge (#132) landed with a garbled subject from that rewording;
+  on the maintainer's go-ahead, main was force-pushed once more to fix that one
+  message, after a backup branch and a check that every commit's files were
+  unchanged. The coordinator's merge script now refuses such a title.
 
 ## Per-integration decisions
 
@@ -420,7 +437,7 @@ Added as each integration lands.
 ### OSV and OSS Index
 
 - **#91 items 5 and 7 are fixed as declared changes**, since a live run confirmed
-  them (CLAUDE.md, Building): OSV fetches each full record, and OSS Index takes a
+  them (CLAUDE.md, Matching the contract): OSV fetches each full record, and OSS Index takes a
   username and token (Basic, sent only to `ossindex.sonatype.org`), with a plain
   error without them.
 - **`deps frisk --source osv` (and no `--source`) and `--source sonatype`** come

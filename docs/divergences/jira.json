@@ -18,7 +18,7 @@
       "allows": [],
       "old": "jira download-attachment fetching the attachment's content URL, with the token, from whatever host Jira names",
       "toil": "The token goes only to baseUrl's origin: a content URL on another host has its path and query re-pointed at baseUrl, with a JIRA_ATTACHMENT_HOST warning",
-      "why": "A server-supplied URL must not carry the user's credential to a host they didn't configure. A change a principle requires, so the integration makes it before a live run (CLAUDE.md, The command contract).",
+      "why": "A server-supplied URL must not carry the user's credential to a host they didn't configure. A change a principle requires, so the integration makes it before a live run (CLAUDE.md, Matching the contract).",
       "principle": "9",
       "class": "security"
     },

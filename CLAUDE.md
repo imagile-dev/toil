@@ -496,7 +496,7 @@ for CI (`TOIL_CONN_<NAME>_WRITES=true`, or `TOIL_<AREA>_WRITES=true` for the
 default connection), following normal precedence.
 Deletes are never exposed through MCP: a delete command sets `mcp: false`.
 
-## Building
+## Matching the contract
 
 *Principles 4 and 7.* Until toil has run an integration against a live instance, the
 contract's observable behavior **is** the specification: the requests it sends,
@@ -504,7 +504,7 @@ whether a call succeeds or fails, the error, and the `data` it returns. Toil's u
 suite has never met a real server, so an integration that "fixes" what looks wrong is
 guessing, and it silently breaks callers who rely on the documented result.
 
-- **Build behavior exactly, bugs included,** until a live instance proves otherwise.
+- **Match behavior exactly, bugs included,** until a live instance proves otherwise.
   That covers validation, defaults, paging, id-or-name detection, encoding and error
   messages too, not just the happy path.
 - **Suspected bugs are recorded, not fixed.** Each integration has one issue labelled
@@ -727,7 +727,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 
 | Skill | Use when |
 |-------|----------|
-| `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, building from the contract, the migration command contract |
+| `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, matching the contract, the migration command contract |
 | `databases` | Working on the `db` area, a database provider, or database tests, including the local Docker run |
 | `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: why there is no `code` area, and what reopening it takes |
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |

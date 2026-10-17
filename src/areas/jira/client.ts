@@ -98,7 +98,7 @@ export interface JiraFieldInfo {
 /**
  * A key or id in a URL path, unencoded, exactly as the contract sent it.
  * A key with `/` or `?` changes the path; recorded as a suspected bug (#70), not
- * changed (CLAUDE.md, Building). Precedent outranks preference until a live
+ * changed (CLAUDE.md, Matching the contract). Precedent outranks preference until a live
  * server rules otherwise.
  */
 const seg = (value: string | number) => String(value);

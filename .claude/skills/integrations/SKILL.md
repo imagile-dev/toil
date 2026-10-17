@@ -112,7 +112,7 @@ versions.
   and repeatable flags come from the schema (`z.number()`, `z.boolean()`,
   `z.object()`, `z.array()`); don't parse argv by hand. Where the contract read a
   number with `parseInt`, keep the field a `z.union([z.number(), z.string()])` so it
-  stays text, and build the `parseInt`.
+  stays text, and keep the `parseInt`.
 - **Where a command acts** (`--project`, `--repo`, `--owner`, `--instance`, `--env`)
   is a context input in `defineArea({ context })`, never an ordinary flag, so core
   resolves it from the call, the dossier, the git remote and the connection in one
@@ -314,12 +314,12 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
     `ctx.fetch`, `ToilError` with a fix, examples for the parity suite, and HTTP
     mocked with `fakeFetch`. Comments use the deadpan voice in CLAUDE.md's Code
     Comments section.
-  - **Build its bugs too, until a live instance proves them** (*principles 4 and 7*;
-    **Building** in CLAUDE.md). Its observable behavior, meaning requests, success
-    or failure, the error and `data`, is the specification while toil has no live
-    instance, because the unit suite can't tell a bug from a server quirk the old
-    code was written around. Validation, defaults, paging, id-or-name detection and
-    encoding stay exactly as they were.
+  - **Match its bugs too, until a live instance proves them** (*principles 4 and 7*;
+    **Matching the contract** in CLAUDE.md). Its observable behavior, meaning
+    requests, success or failure, the error and `data`, is the specification while
+    toil has no live instance, because the unit suite can't tell a bug from a server
+    quirk the contract was written around. Validation, defaults, paging, id-or-name
+    detection and encoding stay exactly as they were.
   - **Record each suspected bug** in the area's one `suspected-bug` issue (template:
     title `Suspected bugs to verify: <name> (`<area>`)`, label `suspected-bug`),
     appending to it if it exists: where, what, why, confidence, the observable change
@@ -333,8 +333,8 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
     allows, such as `meta.warnings`.
   - **The first live run checks every item.** A confirmed bug is fixed as a declared
     change; a refuted one is closed.
-  - Its verification level there is context, not a level here. An integration still starts
-    at `unit`.
+  - Its verification level there is context, not a level here. A new integration still
+    starts at `unit`.
   - Cloud variants have no tested contract. They're built against the vendor's
     documented API, and the PR says what they were run against.
 - **The documented surface is frozen** in `docs/command-contract.json`: every command path,
@@ -342,7 +342,7 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
   field names of each command's `data`, read from its source by the TypeScript
   checker. That
   file is the only place the contract is named in the repository; issues may name
-  it, because building needs the source location.
+  it, because building an integration needs the source location.
 - **Every integration command in the contract exists in toil at the same path**,
   with the same positional arguments, the same long and short flags, and the same
   accepted values. Output uses the same envelope with the same `data` field names.

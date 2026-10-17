@@ -10,8 +10,8 @@ import { probe, requestJson, statusOf, type PublicContext } from './public-api.j
  * packages by position. querybatch answers with vulnerability ids only, so
  * each distinct id's full record is then fetched from `/v1/vulns/{id}`, eight
  * at a time. The old command never did, and every finding came back empty
- * (#91 item 5, confirmed against the live API, a declared fix). The rest is
- * built as `deps frisk --source osv` had it, bugs included (#91 item
+ * (#91 item 5, confirmed against the live API, a declared fix). The rest
+ * behaves as `deps frisk --source osv` did, bugs included (#91 item
  * 6). A finding now arrives with its paperwork attached, which is more than
  * most findings get.
  */

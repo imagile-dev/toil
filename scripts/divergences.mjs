@@ -1,7 +1,7 @@
 // Prints every divergence in docs/divergences/*.json as one markdown table,
 // for reading or pasting into a PR. The JSON files are the record; this is a
-// view of them, so there's no generated table in the repo for twenty integrations to
-// fight over. A summary of the exceptions, produced on request, as is customary.
+// view of them, so there's no generated table in the repo for twenty integrations
+// to fight over. A summary of the exceptions, produced on request, as is customary.
 //
 //   node scripts/divergences.mjs [area...]
 import { readdirSync, readFileSync } from 'node:fs';
