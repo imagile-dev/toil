@@ -90,13 +90,15 @@ Repositories and pull requests:
 - `create-prs`: Promote `--from` to `--to` in every repository in `--repos a,b`, one
   at a time, skipping repositories with nothing to promote. Each one reports
   `created`, `nothing_to_promote` or `error`, with counts in `summary`. The command
-  succeeds even when every repository failed, so check `summary.error`. The title
+  succeeds even when every repository failed, so check `summary.error`; that case
+  also carries a `BITBUCKET_ALL_FAILED` warning in `meta.warnings`. The title
   defaults to `Promote <from> to <to>`.
 - `update-pr`: Change `--title`, `--description` or `--reviewers` (which replaces the
   whole list). Anything not given is resent as it is now, so nothing is cleared.
 - `merge-pr`: Merge at the current version. `--strategy` is sent as Bitbucket's merge
   strategy id (`squash`, `ff`; Bitbucket calls a merge commit `no-ff`).
-  `--delete-branch` sets Bitbucket's `autoSubject` and doesn't delete the branch.
+  `--delete-branch` sets Bitbucket's `autoSubject` and doesn't delete the branch; the
+  merge still succeeds, with a `BITBUCKET_BRANCH_NOT_DELETED` warning.
 - `decline-pr`: Decline at the current version.
 
 Comments (`--pr <id>`):

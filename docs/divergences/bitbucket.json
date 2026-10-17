@@ -33,13 +33,6 @@
       "toil": "Paging stops when isLastPage is true or a page has no nextPageStart, and after 1,000 pages (100,000 items) fails with HTTP naming the list and a fix to narrow it",
       "why": "A server that never says isLastPage would otherwise be read forever; Bitbucket sends nextPageStart on every page that isn't the last.",
       "principle": "4"
-    },
-    {
-      "allows": [],
-      "old": "create-prs recording a timeout or cancel as an error for the repository it hit, then carrying on",
-      "toil": "A timeout (TOIL_TIMEOUT_MS) or cancel ends the run with TIMEOUT or CANCELLED, which says pull requests may already have been created",
-      "why": "Once toil has stopped waiting, every remaining request would fail the same way, and a write's timeout has to say the change may have been made.",
-      "principle": "Output Contract"
     }
   ]
 }

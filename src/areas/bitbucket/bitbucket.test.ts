@@ -146,12 +146,15 @@ describe('repositories and pull requests', () => {
     ]);
     expect(data.results[2]!.error).toBe('Repository PROJ/imagile-gone does not exist.');
     expect(data.summary).toEqual({ created: 1, nothing_to_promote: 1, error: 1 });
+    expect(envelope.meta.warnings).toBeUndefined();
   });
 
   it('create-prs succeeds even when every repository failed (#76 item 15), and refuses an empty --repos', async () => {
     const { envelope } = await run('create-prs', { ...W, from: 'a', to: 'b', repos: 'imagile-gone' });
     expect(envelope.ok).toBe(true);
     expect((envelope.data as { summary: unknown }).summary).toEqual({ created: 0, nothing_to_promote: 0, error: 1 });
+    // Additive: still ok, with a warning that nothing was created.
+    expect(envelope.meta.warnings).toEqual([{ code: 'BITBUCKET_ALL_FAILED', message: expect.stringContaining('all 1 repositories failed') }]);
     const empty = await run('create-prs', { ...W, from: 'a', to: 'b', repos: ' , ' });
     expect(empty.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--repos must contain at least one repository slug' });
   });
@@ -167,7 +170,16 @@ describe('repositories and pull requests', () => {
   it('merge-pr POSTs ?version with strategyId verbatim and autoSubject for --delete-branch (#76 items 1 and 2)', async () => {
     const { calls } = await run('merge-pr', { ...W, id: '42', strategy: 'merge', deleteBranch: true });
     expect(calls[1]).toMatchObject({ method: 'POST', url: `${BITBUCKET}${REPO}/pull-requests/42/merge?version=3`, body: json({ strategyId: 'merge', autoSubject: true }) });
-    expect((await run('merge-pr', { ...W, id: '42' })).calls[1]!.body).toBe('{}');
+    const plain = await run('merge-pr', { ...W, id: '42' });
+    expect(plain.calls[1]!.body).toBe('{}');
+    expect(plain.envelope.meta.warnings).toBeUndefined();
+  });
+
+  it('merge-pr --delete-branch succeeds as before, with a warning that the branch was not deleted (#76 item 1)', async () => {
+    const { envelope, calls } = await run('merge-pr', { ...W, id: '42', deleteBranch: true });
+    expect(envelope.ok).toBe(true);
+    expect(calls.map((c) => c.method)).toEqual(['GET', 'POST']);
+    expect(envelope.meta.warnings).toEqual([{ code: 'BITBUCKET_BRANCH_NOT_DELETED', message: expect.stringContaining('feature/retries') }]);
   });
 
   it('decline-pr POSTs ?version with no body', async () => {

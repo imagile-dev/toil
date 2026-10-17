@@ -170,7 +170,7 @@ export const createPrsCommand = bitbucketArea.command({
   path: ['bitbucket', 'create-prs'],
   description: 'Create pull requests for multiple repositories in a project',
   toolDescription:
-    'Opens a pull request from one branch to another in each listed repository of a project, one repository at a time, skipping any with nothing to promote. Never fails as a whole: each repository reports created, nothing_to_promote or error, with counts in summary.',
+    'Opens a pull request from one branch to another in each listed repository of a project, one repository at a time, skipping any with nothing to promote. Never fails as a whole: each repository reports created, nothing_to_promote or error, with counts in summary, and a BITBUCKET_ALL_FAILED warning when every repository failed.',
   input: z.object({
     from: z.string().describe('Source branch'),
     to: z.string().describe('Target branch'),
@@ -224,11 +224,13 @@ export const createPrsCommand = bitbucketArea.command({
         results.push({ repo, status: 'created', pr });
         created++;
       } catch (err) {
-        // A timeout or cancel ends the run; toil gave up, not the repository.
-        if (ctx.signal.aborted) throw err;
         results.push({ repo, status: 'error', error: err instanceof Error ? err.message : String(err) });
         errors++;
       }
+    }
+    if (errors === repos.length) {
+      // Additive only: the envelope stays the success it always was.
+      ctx.warn({ code: 'BITBUCKET_ALL_FAILED', message: `No pull request was created: all ${errors} repositories failed. See each one's error in results.` });
     }
     return { results, summary: { created, nothing_to_promote: nothingToPromote, error: errors } };
   },
@@ -279,7 +281,7 @@ export const mergePrCommand = bitbucketArea.command({
   path: ['bitbucket', 'merge-pr'],
   description: 'Merge a pull request',
   toolDescription:
-    "Merges a pull request at its current version and returns it. strategy is sent to Bitbucket as its merge strategy id (squash and ff are Bitbucket ids). deleteBranch does not delete the source branch; it sets Bitbucket's autoSubject.",
+    "Merges a pull request at its current version and returns it. strategy is sent to Bitbucket as its merge strategy id (squash and ff are Bitbucket ids). deleteBranch does not delete the source branch; it sets Bitbucket's autoSubject, and a BITBUCKET_BRANCH_NOT_DELETED warning says so.",
   input: z.object({
     id: idInput,
     strategy: z.string().optional().describe('Merge strategy: merge|squash|ff'),
@@ -303,7 +305,11 @@ export const mergePrCommand = bitbucketArea.command({
     // which governs the commit message and deletes nothing.
     if (input.strategy) body.strategyId = input.strategy;
     if (input.deleteBranch) body.autoSubject = true;
-    return bb(ctx, `${prPath(project, repo, id)}/merge`, { method: 'POST', query: { version: pr.version }, json: body });
+    const merged = await bb(ctx, `${prPath(project, repo, id)}/merge`, { method: 'POST', query: { version: pr.version }, json: body });
+    if (input.deleteBranch) {
+      ctx.warn({ code: 'BITBUCKET_BRANCH_NOT_DELETED', message: `--delete-branch didn't delete the source branch: it set Bitbucket's autoSubject. Delete ${pr.fromRef?.displayId ?? 'the source branch'} yourself if it should go.` });
+    }
+    return merged;
   },
 });
 
