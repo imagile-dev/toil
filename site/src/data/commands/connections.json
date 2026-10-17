@@ -1,9 +1,10 @@
 [
   {
     "name": "add",
-    "tool": "connections_add",
+    "tool": null,
     "description": "Set up a connection, asking for its settings and secret on the terminal",
     "writes": false,
+    "connection": false,
     "flags": [
       "<name>",
       "--area <area>"
@@ -11,9 +12,10 @@
   },
   {
     "name": "login",
-    "tool": "connections_login",
+    "tool": null,
     "description": "Replace a connection's secret, asking for it on the terminal",
     "writes": false,
+    "connection": false,
     "flags": [
       "<name>"
     ]
@@ -23,15 +25,20 @@
     "tool": "connections_list",
     "description": "List connections: area, host, writes, and where each value came from. Never prints a secret.",
     "writes": false,
-    "flags": []
+    "connection": false,
+    "flags": [
+      "--area <area>"
+    ]
   },
   {
     "name": "remove",
-    "tool": "connections_remove",
+    "tool": null,
     "description": "Remove a connection from config, and its secrets from the OS credential store",
     "writes": false,
+    "connection": false,
     "flags": [
-      "<name>"
+      "<name>",
+      "--area <area>"
     ]
   }
 ]

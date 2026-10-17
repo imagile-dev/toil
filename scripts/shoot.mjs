@@ -143,6 +143,27 @@ async function shoot(cdp, sessionId, url, { width, mobile }, file) {
   return { scrollWidth, scrollHeight };
 }
 
+/**
+ * Chrome on Windows can hold its profile's files for a moment after it's
+ * killed, and rmSync then fails with EPERM or EBUSY once the shots are already
+ * written. Retry for a few seconds; if the folder still won't go, say where it
+ * is and carry on, since a leftover temp folder isn't a failed screenshot.
+ */
+async function removeProfile(profile) {
+  for (let attempt = 0; ; attempt++) {
+    await wait(300);
+    try {
+      rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+      return;
+    } catch (err) {
+      if (attempt >= 10 || !['EPERM', 'EBUSY', 'ENOTEMPTY'].includes(err.code)) {
+        console.warn(`Couldn't remove the Chrome profile ${profile} (${err.code ?? err.message}); delete it by hand.`);
+        return;
+      }
+    }
+  }
+}
+
 async function main() {
   mkdirSync(out, { recursive: true });
   const profile = mkdtempSync(join(tmpdir(), 'toil-shoot-'));
@@ -169,8 +190,7 @@ async function main() {
   } finally {
     cdp.close();
     chrome.kill();
-    await wait(300);
-    rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    await removeProfile(profile);
   }
   if (problems.length > 0) {
     console.error(problems.join('\n'));

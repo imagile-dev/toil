@@ -1,9 +1,10 @@
 import { Command, CommanderError, Option } from 'commander';
-import { aliasPaths, commandName, type AnyCommand, type CliOption } from './core/command.js';
+import { aliasInput, aliasPaths, commandName, type AnyCommand, type CliOption } from './core/command.js';
 import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
 import { ToilError, toToilError } from './core/errors.js';
-import { runCommand } from './core/run.js';
+import { exitCodeOf, runCommand } from './core/run.js';
+import { longFlag, type ResolvedRoutedAlias } from './core/routed-alias.js';
 import { baseType, elementSchema, fieldSchema, fromText } from './core/schema.js';
 
 /** Flags every command accepts. Names and meanings are part of the contract. */
@@ -40,6 +41,8 @@ export interface ProgramOptions {
   /** Builds the context for one command. `def` lets standalone and area-local commands skip loading config. */
   createContext: (globals: GlobalOptions, def?: AnyCommand) => Context;
   startMcp: (options: { areas: string[] | undefined; globals: GlobalOptions }) => Promise<void>;
+  /** Old paths that route to a command by a flag's value (`deps frisk --source osv`); see src/core/routed-alias.ts. */
+  routed?: readonly ResolvedRoutedAlias[];
 }
 
 /**
@@ -87,10 +90,15 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
 
   const register = (def: AnyCommand, path: string[]) => {
     const canonical = path === def.path;
+    // A preset alias (`jenkins instance list`) fixes some fields and has no flag for them.
+    const preset = canonical ? {} : aliasInput(def, path);
+    const fixed = Object.entries(preset)
+      .map(([field, value]) => `${def.options?.find((o) => o.field === field)?.flags.split(/[ ,]+/).find((p) => p.startsWith('--')) ?? field} ${String(value)}`)
+      .join(' ');
     const leaf = quiet(
       groupFor(path.slice(0, -1))
         .command(path[path.length - 1]!)
-        .description(canonical ? def.description : `${def.description} (same as toil ${commandName(def)})`),
+        .description(canonical ? def.description : `${def.description} (same as toil ${commandName(def)}${fixed ? ` ${fixed}` : ''})`),
     );
     if (canonical) for (const alias of def.aliases ?? []) if (typeof alias === 'string') leaf.alias(alias);
     for (const arg of def.args ?? []) {
@@ -100,6 +108,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
     const inArea = path[0] === def.path[0];
     const onLeaf = new Set<string>();
     for (const opt of def.options ?? []) {
+      if (opt.field in preset) continue;
       // Only the area's own group carries its group flags; an alias in another
       // group (`deps outdated`) takes them as its own leaf flags instead.
       if (opt.group && inArea) {
@@ -116,7 +125,9 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
     leaf.action(async (...actionArgs: unknown[]) => {
       const cmd = actionArgs[actionArgs.length - 1] as Command;
       const globals = cmd.optsWithGlobals<GlobalOptions>();
-      const input = inputFromCli(def, cmd, inArea ? groupFlags(path[0]!) : new Set());
+      // An alias in another area's group still hears that group's flags, so one
+      // it doesn't take is refused rather than quietly ignored.
+      const input = { ...inputFromCli(def, cmd, groupFlags(path[0]!), preset), ...preset };
       if (globals.outputFile && io.checkFile) {
         // Refuse a bad --output-file before anything runs, so nothing is changed for a result nobody can read.
         try {
@@ -129,7 +140,8 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       }
       const envelope = await runCommand(def, input, () => options.createContext(globals, def), options.version);
       const written = emit(envelope, globals, io, def.writes);
-      result.exitCode = envelope.ok && written ? 0 : 1;
+      // A success may still ask for a non-zero exit (a build that ran and failed).
+      result.exitCode = written ? exitCodeOf(envelope) : 1;
     });
   };
 
@@ -138,6 +150,63 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
   // gets a leaf of its own that runs the same definition.
   for (const def of options.commands) {
     for (const [i, path] of aliasPaths(def).entries()) if (typeof def.aliases![i] !== 'string') register(def, path);
+  }
+
+  // A routed alias is one leaf with every target's flags: the routing flag
+  // picks the command, and a flag that command doesn't take is refused by name.
+  for (const alias of options.routed ?? []) {
+    const routing = longFlag(alias.flag);
+    const present = Object.entries(alias.routes).filter((entry): entry is [string, AnyCommand] => entry[1] !== undefined);
+    const routeText = Object.entries(alias.targets)
+      .map(([value, target]) => `toil ${target} (${routing} ${value}${value === alias.default ? ', the default' : ''})`)
+      .join(', ');
+    const leaf = quiet(groupFor(alias.path.slice(0, -1)).command(alias.path[alias.path.length - 1]!).description(`${alias.description}. Runs ${routeText}.`));
+    leaf.option(alias.flag, `Which command to run: ${Object.keys(alias.targets).join(', ')} (default: "${alias.default}")`);
+    const owners = new Map<string, string[]>();
+    for (const [value, def] of present) {
+      for (const opt of def.options ?? []) {
+        const long = longFlag(opt.flags);
+        if (!owners.has(long)) addOption(leaf, def, opt);
+        owners.set(long, [...(owners.get(long) ?? []), value]);
+      }
+    }
+    leaf.action(async (...actionArgs: unknown[]) => {
+      const cmd = actionArgs[actionArgs.length - 1] as Command;
+      const globals = cmd.optsWithGlobals<GlobalOptions>();
+      const own = cmd.opts<Record<string, unknown>>();
+      const value = String(own[new Option(alias.flag).attributeName()] ?? alias.default);
+      const def = alias.routes[value];
+      const refuse = (message: string, fix: string) => {
+        io.stdout(`${JSON.stringify(failure(new ToilError('INVALID_INPUT', message, { fix }), { command: alias.path.join(' '), durationMs: 0, version: options.version }), null, globals.pretty ? 2 : undefined)}
+`);
+        result.exitCode = 1;
+      };
+      if (!(value in alias.targets)) {
+        return refuse(`toil ${alias.path.join(' ')} has no ${routing} "${value}"; it takes ${Object.keys(alias.targets).join(', ')}.`, `Run one source at a time: ${routeText}.`);
+      }
+      if (!def) {
+        return refuse(`toil ${alias.path.join(' ')} ${routing} ${value} runs toil ${alias.targets[value]}, which this build of toil doesn't have yet.`, `Use another ${routing} value, or a toil release that has toil ${alias.targets[value]}.`);
+      }
+      const theirs = new Set((def.options ?? []).map((o) => longFlag(o.flags)));
+      for (const [long, values] of owners) {
+        // Where the value came from, not whether it is set: commander defaults a --no-x flag to true.
+        if (theirs.has(long) || cmd.getOptionValueSource(new Option(long).attributeName()) !== "cli") continue;
+        return refuse(`${long} is for ${routing} ${values.join(' or ')}; ${routing} ${value} runs toil ${commandName(def)}, which doesn't take it.`, `Leave out ${long}, or pass ${routing} ${values[0]}.`);
+      }
+      const input = inputFromCli(def, cmd, groupFlags(alias.path[0]!));
+      if (globals.outputFile && io.checkFile) {
+        try {
+          io.checkFile(globals.outputFile, globals);
+        } catch (err) {
+          io.stdout(`${JSON.stringify(failure(toToilError(err), { command: commandName(def), durationMs: 0, version: options.version }), null, globals.pretty ? 2 : undefined)}\n`);
+          result.exitCode = 1;
+          return;
+        }
+      }
+      const envelope = await runCommand(def, input, () => options.createContext(globals, def), options.version);
+      const written = emit(envelope, globals, io, def.writes);
+      result.exitCode = written ? exitCodeOf(envelope) : 1;
+    });
   }
 
   quiet(
@@ -321,7 +390,7 @@ function addOption(cmd: Command, def: AnyCommand, opt: CliOption): void {
  * flag the group also has, is read from the group: commander lets the parent
  * take it wherever it was typed.
  */
-function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<string>): Record<string, unknown> {
+function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<string>, preset: Record<string, unknown> = {}): Record<string, unknown> {
   const input: Record<string, unknown> = {};
   const positional = cmd.processedArgs as unknown[];
   (def.args ?? []).forEach((arg, i) => {
@@ -330,6 +399,7 @@ function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<str
   const own = cmd.opts<Record<string, unknown>>();
   const all = cmd.optsWithGlobals<Record<string, unknown>>();
   for (const opt of def.options ?? []) {
+    if (opt.field in preset) continue;
     const attribute = new Option(opt.flags).attributeName();
     const value = own[attribute] !== undefined ? own[attribute] : groupFlags.has(opt.flags) ? all[attribute] : undefined;
     if (value !== undefined) input[opt.field] = typed(def, opt.field, value);
@@ -370,6 +440,11 @@ function typed(def: AnyCommand, field: string, value: unknown): unknown {
   return fromText(schema, value);
 }
 
+/** The argv that runs `def` with `input` through a routed alias, picking it with `value`. */
+export function routedArgvFor(alias: Pick<ResolvedRoutedAlias, 'path' | 'flag'>, value: string, def: AnyCommand, input: Record<string, unknown>): string[] {
+  return [...alias.path, longFlag(alias.flag), value, ...argvFor(def, input).slice(def.path.length)];
+}
+
 /**
  * The argv that produces `input` for `def`: the inverse of inputFromCli. The
  * parity test uses it to send each example through the CLI, along `path` when
@@ -378,6 +453,8 @@ function typed(def: AnyCommand, field: string, value: unknown): unknown {
  */
 export function argvFor(def: AnyCommand, input: Record<string, unknown>, path: string[] = def.path): string[] {
   const argv: string[] = [...path];
+  // A preset alias sets those fields itself and has no flag to send them with.
+  const preset = path === def.path ? {} : aliasInput(def, path);
   const text = (value: unknown) => (typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value));
   for (const arg of def.args ?? []) {
     const value = input[arg.field];
@@ -388,12 +465,13 @@ export function argvFor(def: AnyCommand, input: Record<string, unknown>, path: s
   const sent = new Set<string>();
   for (const opt of def.options ?? []) {
     const value = input[opt.field];
-    if (value === undefined || sent.has(opt.field)) continue;
+    if (value === undefined || sent.has(opt.field) || opt.field in preset) continue;
     const long = opt.flags.split(/[ ,]+/).find((part) => part.startsWith('--'));
     if (!long) continue;
     sent.add(opt.field);
     if (!takesValue(opt.flags)) {
-      if (value === true) argv.push(long);
+      // `--no-with-replies` sets its field false; commander defaults it to true.
+      if (value === (long.startsWith('--no-') ? false : true)) argv.push(long);
     } else if (Array.isArray(value) && isArrayField(def, opt.field)) {
       for (const item of value) argv.push(long, text(item));
     } else {
