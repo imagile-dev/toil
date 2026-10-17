@@ -1,0 +1,23 @@
+[
+  {
+    "name": "repositories list",
+    "tool": "logscale_repositories_list",
+    "description": "List available repositories",
+    "writes": false,
+    "flags": []
+  },
+  {
+    "name": "query",
+    "tool": "logscale_query",
+    "description": "Execute a LogScale Query Language (LQL) search against a repository",
+    "writes": false,
+    "flags": [
+      "--repository <name>",
+      "--query <lql>",
+      "--start <time>",
+      "--end <time>",
+      "--limit <n>",
+      "--timeout-ms <ms>"
+    ]
+  }
+]

@@ -70,6 +70,21 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
    */
   queryByPost?: boolean;
   kind: CommandKind;
+  /**
+   * `false` keeps an area command off MCP while it keeps its connection, its
+   * context and its time limit on the CLI: a delete, which is never exposed
+   * through MCP (CLAUDE.md, Writes). A `cli-only` config command is off MCP
+   * by its kind already.
+   */
+  mcp?: false;
+  /**
+   * The command handles an area with no connection set up itself: when none
+   * exists and the call names none, `run` gets `ctx.connection` undefined and
+   * no context inputs instead of core failing with NOT_CONFIGURED (`git
+   * current-pr` answering that Bitbucket isn't configured). Only for a read
+   * with no required context input. Any other connection problem still fails.
+   */
+  connectionOptional?: true;
   /** Set by `area.command()`, for `area` and `area-local` commands. */
   area?: AnyArea;
   /**
@@ -78,8 +93,13 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
    * outdated` does for `artifactory outdated`. Aliases are CLI only: MCP has
    * one tool per command, under its own name, and `meta.command` always names
    * the command, never the alias typed.
+   *
+   * An `{ path, input }` alias also fixes some input fields, which its leaf
+   * then has no flag for: `jenkins instance list` is `connections list` with
+   * `area` set to `jenkins`. Areas get these onto core commands with
+   * `defineArea({ coreAliases })`; see {@link withCoreAliases}.
    */
-  aliases?: Array<string | [string, ...string[]]>;
+  aliases?: Array<string | [string, ...string[]] | PresetAlias>;
   /**
    * The area's context inputs this command takes, and whether each must
    * resolve. Set by `area.command()`: every group-level input, plus the
@@ -122,8 +142,10 @@ export function defineConfigCommand<S extends z.ZodObject>(def: Omit<CommandDefi
   return { ...def, kind: def.kind ?? 'config' };
 }
 
-/** Never an MCP tool. */
+/** The `cli-only` kind: a config command that may prompt, never an MCP tool and with no time limit. */
 export const isCliOnly = (def: AnyCommand): boolean => def.kind === 'cli-only';
+/** Whether `toil mcp` may serve it: not `cli-only`, and not an area command marked `mcp: false`. */
+export const servedOverMcp = (def: AnyCommand): boolean => !isCliOnly(def) && def.mcp !== false;
 /** Loads the user's config. `standalone` and `area-local` commands don't, so a broken file can't stop them. */
 export const needsConfig = (def: AnyCommand): boolean => def.kind !== 'standalone' && def.kind !== 'area-local';
 /** Gets `ctx.manage`: the whole config, the credential store and the prompter. */
@@ -144,9 +166,44 @@ export function commandName(def: AnyCommand): string {
   return def.path.join(' ');
 }
 
+/** An alias that runs its command with some input fields fixed. */
+export interface PresetAlias {
+  path: [string, ...string[]];
+  input: Record<string, unknown>;
+}
+
 /** Every full CLI path an alias of `def` adds: a sibling alias becomes the path with its last word swapped. */
 export function aliasPaths(def: AnyCommand): string[][] {
-  return (def.aliases ?? []).map((alias) => (typeof alias === 'string' ? [...def.path.slice(0, -1), alias] : [...alias]));
+  return (def.aliases ?? []).map((alias) => (typeof alias === 'string' ? [...def.path.slice(0, -1), alias] : Array.isArray(alias) ? [...alias] : [...alias.path]));
+}
+
+/** The input fields an alias at `path` fixes, or none. */
+export function aliasInput(def: AnyCommand, path: readonly string[]): Record<string, unknown> {
+  const key = path.join(' ');
+  const found = (def.aliases ?? []).find((alias): alias is PresetAlias => typeof alias === 'object' && !Array.isArray(alias) && alias.path.join(' ') === key);
+  return found?.input ?? {};
+}
+
+/**
+ * The commands with each area's `coreAliases` added to the core command they
+ * name, as aliases fixing `area` to that area: `jenkins instance list` runs
+ * `connections list --area jenkins`, so the area never sees the whole config.
+ * The target must be a command with no area of its own that takes an `area`
+ * input; anything else is refused when the registry is built.
+ */
+export function withCoreAliases(commands: readonly AnyCommand[], areas: ReadonlyArray<{ name: string; coreAliases?: Record<string, string> | undefined }>): AnyCommand[] {
+  const added = new Map<AnyCommand, PresetAlias[]>();
+  for (const area of areas) {
+    for (const [alias, target] of Object.entries(area.coreAliases ?? {})) {
+      const def = commands.find((d) => commandName(d) === target);
+      if (!def || def.area) throw new Error(`Area ${area.name}: core alias "${alias}" names ${target}, which isn't a core command.`);
+      if (!('area' in def.input.shape)) throw new Error(`Area ${area.name}: core alias "${alias}" names ${target}, which takes no area input to fix.`);
+      const words = alias.split(' ').filter(Boolean);
+      if (words.length === 0) throw new Error(`Area ${area.name}: a core alias needs a path.`);
+      added.set(def, [...(added.get(def) ?? []), { path: [area.name, ...words], input: { area: area.name } }]);
+    }
+  }
+  return commands.map((def) => (added.has(def) ? { ...def, aliases: [...(def.aliases ?? []), ...added.get(def)!] } : def));
 }
 
 /**
