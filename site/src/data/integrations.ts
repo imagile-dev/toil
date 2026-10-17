@@ -1,6 +1,7 @@
-// The planned integrations, rendered on /integrations/ and counted on the
-// homepage. Mirrors docs/integrations.md; update both together. Command
-// names follow docs/command-contract.md.
+// Every integration, rendered on /integrations/ and counted on the homepage.
+// Mirrors docs/integrations.md; update both together. Command names follow
+// docs/command-contract.md. Each status is the integration's verification
+// level once its code is on main, and `planned` until then.
 
 export type Status = 'planned' | 'unit' | 'integration' | 'live';
 
@@ -27,7 +28,7 @@ export const groups: Group[] = [
     title: 'Work tracking and source',
     blurb: 'Where the work is described, discussed and reviewed.',
     items: [
-      { area: 'jira', name: 'Jira Data Center', covers: 'Issues, sprints, boards, projects, transitions, comments', credential: 'Personal access token', status: 'planned' },
+      { area: 'jira', name: 'Jira Data Center', covers: 'Issues, search, transitions, comments, worklogs, attachments, custom fields, boards, sprints', credential: 'Personal access token', status: 'unit', keys: ['API_TOKEN'] },
       { area: 'ado', name: 'Azure DevOps Server', covers: 'Work items, repos, pull requests, pipelines', credential: 'Personal access token', status: 'planned' },
       { area: 'bitbucket', name: 'Bitbucket Data Center', covers: 'Repositories, pull requests, comments, builds', credential: 'HTTP access token', status: 'planned' },
       { area: 'github', name: 'GitHub & GitHub Enterprise', covers: 'Pull requests, reviews, issues, checks', credential: 'Fine-grained PAT', status: 'planned', host: 'https://ghe.imagile.dev' },
@@ -101,6 +102,9 @@ export const notPlanned = [
 ];
 
 export const integrationCount = groups.reduce((n, g) => n + g.items.length, 0);
+
+/** Integrations whose code has shipped, at any verification level. */
+export const shippedCount = groups.reduce((n, g) => n + g.items.filter((i) => i.status !== 'planned').length, 0);
 
 /**
  * Where a user generates each integration's credential, for its docs page. Only

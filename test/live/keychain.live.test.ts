@@ -12,6 +12,7 @@ import { demoArea, demoCommands, demoRoutes } from '../fixtures/demo-commands.js
 import { runCli } from '../harness/cli.js';
 import { TEST_VERSION } from '../harness/context.js';
 import { fakeFetch } from '../harness/fake-fetch.js';
+import { memoryFiles } from '../harness/files.js';
 
 /**
  * The one suite that touches a real OS credential store. `npm test` never
@@ -52,6 +53,7 @@ function context(fetch: typeof globalThis.fetch, prompt?: Prompter): Context {
     version: TEST_VERSION,
     verbose: false,
     debug: () => {},
+    files: memoryFiles(),
     secrets: store,
     ...(prompt ? { prompt } : {}),
   };

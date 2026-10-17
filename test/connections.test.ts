@@ -14,6 +14,7 @@ import { runCli } from './harness/cli.js';
 import { TEST_VERSION } from './harness/context.js';
 import { fakeFetch } from './harness/fake-fetch.js';
 import { fakeStore } from './harness/fake-store.js';
+import { memoryFiles } from './harness/files.js';
 
 /**
  * `toil connections` against a real config file in a temp home, a fake
@@ -72,6 +73,7 @@ function context(options: { prompt?: Prompter; secrets?: SecretStore; env?: Node
   return {
     config: loadConfig({ env, cwd: root, home, areas: areas.map((a) => ({ name: a.name })) }),
     fetch: fakeFetch(demoRoutes).fetch,
+    files: memoryFiles(),
     env,
     version: TEST_VERSION,
     verbose: false,
