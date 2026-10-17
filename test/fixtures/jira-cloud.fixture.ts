@@ -9,7 +9,8 @@ import { defineFixture } from '../harness/fixtures.js';
  * Cloud REST API 3 and Agile REST API 1.0 (the OpenAPI specs behind
  * developer.atlassian.com/cloud/jira/platform/rest/v3 and
  * developer.atlassian.com/cloud/jira/software/rest), trimmed to the fields that
- * matter. None was captured from a live site. Rich text is Atlassian Document
+ * matter. None was captured from a live site; the specification has been
+ * accepted as its own witness, pending cross-examination. Rich text is Atlassian Document
  * Format, and people carry an accountId and no username, as the docs show.
  */
 
