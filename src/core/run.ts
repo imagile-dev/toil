@@ -87,7 +87,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     if (def.writes) assertWritesAllowed(def, input, connection, ctx);
 
     // Commands get their connection and nothing else: no config, and no env,
-    // which carries every other connection's token too.
+    // which carries every other connection's token too. Need-to-know,
+    // enforced rather than requested in a policy nobody reads.
     const rest: Omit<Context, 'config' | 'env'> & { config?: unknown; env?: unknown } = { ...ctx };
     delete rest.config;
     delete rest.env;

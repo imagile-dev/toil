@@ -4,6 +4,7 @@
 // in parallel would otherwise all edit the same lines of one registry file and
 // conflict with each other in every possible order. The output is gitignored
 // and rebuilt before typecheck, build and tests, so it can't go stale.
+// A shared sign-up sheet works perfectly until the second person arrives.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
