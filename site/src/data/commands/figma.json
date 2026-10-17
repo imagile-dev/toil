@@ -1,0 +1,48 @@
+[
+  {
+    "name": "file",
+    "tool": "figma_file",
+    "description": "Get a Figma file — metadata, structure, and component/style inventory (or a single node with --node-id)",
+    "writes": false,
+    "flags": [
+      "<file-key-or-url>",
+      "--document",
+      "--node-id <id>"
+    ]
+  },
+  {
+    "name": "comments",
+    "tool": "figma_comments",
+    "description": "Get comments on a Figma file",
+    "writes": false,
+    "flags": [
+      "<file-key-or-url>",
+      "--as-of <date>"
+    ]
+  },
+  {
+    "name": "versions",
+    "tool": "figma_versions",
+    "description": "Get the version history of a Figma file",
+    "writes": false,
+    "flags": [
+      "<file-key-or-url>"
+    ]
+  },
+  {
+    "name": "project-files",
+    "tool": "figma_project_files",
+    "description": "List files in a Figma project",
+    "writes": false,
+    "flags": [
+      "<project-id>"
+    ]
+  },
+  {
+    "name": "me",
+    "tool": "figma_me",
+    "description": "Get the current Figma user (useful for verifying credentials)",
+    "writes": false,
+    "flags": []
+  }
+]
