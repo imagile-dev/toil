@@ -146,10 +146,12 @@ Commands with no area and no config (`version`) use `defineCommand`. The CLI and
 surfaces never implement behavior of their own; if one needs something the other
 lacks, the gap is in core.
 
-**Commands never read config.** `run` gets `ctx.connection`, the one connection this
-call resolved, validated and typed from the area's schema, and a context with no
-`config` at all, so no area can reach another area's or another connection's
-credentials. ESLint bans importing config under `src/areas/`.
+**Commands never read config or env.** `run` gets `ctx.connection`, the one
+connection this call resolved, validated and typed from the area's schema, and a
+context with no `config` and no `env` (which carries every `TOIL_*` credential and
+every CI token on the runner), so no area can reach another area's or another
+connection's credentials. ESLint bans importing config under `src/areas/`, and
+`process.env` stays out of area code for the same reason.
 
 ## MCP Server
 
@@ -247,7 +249,10 @@ creates a connection with no file at all, which is how CI defines one; an area w
 no connection gets one named after it from `TOIL_<AREA>_*`. Connection names are
 lowercase letters, digits and single hyphens, so each maps to exactly one env form;
 variables match the longest connection name first, and one naming no connection is
-a warning. Env strings are coerced to the schema's types (`"5432"` to a number), keys
+a warning, as is a connection for an area toil doesn't have. Env-only connections are
+created before an area's default is chosen, so `TOIL_CONN_CI_AREA=jira` plus
+`TOIL_JIRA_TOKEN` is one connection. Env values stay strings until the area's schema types them (`"5432"` to a number,
+`"true"` to a boolean only where the schema says boolean), keys
 an area doesn't declare are dropped with a warning, and renamed keys still work, with
 one.
 

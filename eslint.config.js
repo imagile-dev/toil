@@ -32,7 +32,11 @@ export default tseslint.config(
         patterns: [{ group: ['**/core/config', '**/core/config.js'], message: 'Areas read settings from ctx.connection, never from config.' }],
       }],
       'no-restricted-globals': ['error', { name: 'fetch', message: 'Use ctx.fetch: core records it for --verbose.' }],
-      'no-restricted-properties': ['error', { object: 'globalThis', property: 'fetch', message: 'Use ctx.fetch: core records it for --verbose.' }],
+      'no-restricted-properties': ['error',
+        { object: 'globalThis', property: 'fetch', message: 'Use ctx.fetch: core records it for --verbose.' },
+        // Env carries every connection's token and every CI token on the runner.
+        { object: 'process', property: 'env', message: 'Areas read settings from ctx.connection, never from env.' },
+      ],
     },
   },
   {

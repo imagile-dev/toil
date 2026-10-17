@@ -75,9 +75,26 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
     config.connections[name] = { ...conn };
     for (const key of Object.keys(conn)) if (key !== 'area') config.sources[`${name}.${key}`] = 'global';
   }
+  // Order matters: connections defined only by env exist before an area's
+  // default is chosen, so TOIL_CONN_CI_AREA=jira plus TOIL_JIRA_TOKEN is one
+  // connection, not a stray second one named after the area.
+  createEnvConnections(config, options.env);
   applyAreaEnv(config, options.env, options.areas ?? []);
   applyConnectionEnv(config, options.env);
+  if (options.areas?.length) warnUnknownAreas(config, options.areas);
   return config;
+}
+
+/** A misspelt area would otherwise surface later as "no such connection", hiding the typo. */
+function warnUnknownAreas(config: ResolvedConfig, areas: readonly AreaInfo[]): void {
+  const known = new Set(areas.map((a) => a.name));
+  for (const [name, conn] of Object.entries(config.connections)) {
+    if (known.has(conn.area)) continue;
+    config.warnings.push({
+      code: 'CONFIG_UNKNOWN_AREA',
+      message: `Connection ${name} is for area "${conn.area}", which this toil doesn't have. Known areas: ${[...known].sort().join(', ')}.`,
+    });
+  }
 }
 
 /** The default connection's name for an area, or undefined when it has none or several and no default. */
@@ -277,19 +294,17 @@ export function parseEnvName(name: string, knownAreas: readonly string[]): { are
   return { area: match.area, key: camel(rest.slice(match.prefix.length)) };
 }
 
-/** "true" and "false" from env become booleans; the area's schema types the rest. */
-const envValue = (raw: string): unknown => (raw === 'true' ? true : raw === 'false' ? false : raw);
-
 /**
  * Every TOIL_<AREA>_<KEY> variable for a known area, as settings per area.
- * Exposed for tests and `config check`; loadConfig applies them.
+ * Values stay strings: the area's schema types them when the connection is
+ * resolved, so a token that happens to be "true" stays a token.
  */
 export function fromEnv(env: NodeJS.ProcessEnv, knownAreas: readonly string[] = []): Record<string, Settings> {
   const out: Record<string, Settings> = {};
   for (const [name, raw] of Object.entries(env)) {
     if (raw === undefined) continue;
     const parsed = parseEnvName(name, knownAreas);
-    if (parsed) (out[parsed.area] ??= {})[parsed.key] = envValue(raw);
+    if (parsed) (out[parsed.area] ??= {})[parsed.key] = raw;
   }
   return out;
 }
@@ -331,15 +346,12 @@ function applyAreaEnv(config: ResolvedConfig, env: NodeJS.ProcessEnv, areas: rea
   }
 }
 
-/**
- * TOIL_CONN_<NAME>_<KEY> variables. `_AREA` creates a connection with no
- * config file at all, which is how CI defines one. Names are matched longest
- * first against known connections, and a variable for a connection that
- * doesn't exist is a warning, never a guess.
- */
-function applyConnectionEnv(config: ResolvedConfig, env: NodeJS.ProcessEnv): void {
-  const vars = Object.entries(env).filter(([name, value]) => name.startsWith('TOIL_CONN_') && value !== undefined) as Array<[string, string]>;
-  for (const [name, value] of vars) {
+const connectionVars = (env: NodeJS.ProcessEnv) =>
+  Object.entries(env).filter(([name, value]) => name.startsWith('TOIL_CONN_') && value !== undefined) as Array<[string, string]>;
+
+/** TOIL_CONN_<NAME>_AREA creates a connection with no config file at all, which is how CI defines one. */
+function createEnvConnections(config: ResolvedConfig, env: NodeJS.ProcessEnv): void {
+  for (const [name, value] of connectionVars(env)) {
     if (!name.endsWith('_AREA')) continue;
     const connection = name.slice('TOIL_CONN_'.length, -'_AREA'.length).toLowerCase().replace(/_/g, '-');
     if (!CONNECTION_NAME.test(connection)) {
@@ -354,8 +366,16 @@ function applyConnectionEnv(config: ResolvedConfig, env: NodeJS.ProcessEnv): voi
     }
     config.connections[connection] = existing ?? { area: value };
   }
+}
+
+/**
+ * TOIL_CONN_<NAME>_<KEY> variables, the highest layer. Names are matched
+ * longest first against known connections, and a variable for a connection
+ * that doesn't exist is a warning, never a guess.
+ */
+function applyConnectionEnv(config: ResolvedConfig, env: NodeJS.ProcessEnv): void {
   const names = Object.keys(config.connections).sort((a, b) => b.length - a.length);
-  for (const [name, value] of vars) {
+  for (const [name, value] of connectionVars(env)) {
     if (name.endsWith('_AREA')) continue;
     const rest = name.slice('TOIL_CONN_'.length);
     const connection = names.find((n) => rest.startsWith(`${envForm(n)}_`) && rest.length > envForm(n).length + 1);
@@ -368,7 +388,7 @@ function applyConnectionEnv(config: ResolvedConfig, env: NodeJS.ProcessEnv): voi
     }
     const key = camel(rest.slice(envForm(connection).length + 1));
     if (key === 'area') continue;
-    config.connections[connection]![key] = envValue(value);
+    config.connections[connection]![key] = value;
     config.sources[`${connection}.${key}`] = 'env';
   }
 }

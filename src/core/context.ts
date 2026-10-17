@@ -22,12 +22,14 @@ export interface Context {
 }
 
 /**
- * What a command's run() receives: the context without config, its own
- * resolved connection, and ways to talk back through meta. Config is left out
- * on purpose: a command reads only the connection it was given, so it can't
- * reach another area's credentials, or another connection's.
+ * What a command's run() receives: the context without config or env, its
+ * own resolved connection, and ways to talk back through meta. Both are left
+ * out on purpose. Env holds every TOIL_* credential and every CI token on the
+ * runner; config holds every connection. A command reads only the connection
+ * it was given, so it can't reach another area's credentials, or another
+ * connection's.
  */
-export interface CommandContext<C = undefined> extends Omit<Context, 'config'> {
+export interface CommandContext<C = undefined> extends Omit<Context, 'config' | 'env'> {
   connection: C;
   signal: AbortSignal;
   /** Add a warning to meta.warnings. */

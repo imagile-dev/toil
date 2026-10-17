@@ -117,8 +117,9 @@ describe('precedence', () => {
 
   it('TOIL_<AREA>_* creates a connection named after the area when there is none, as CI always could', () => {
     const config = load({ TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev', TOIL_JIRA_WRITES: 'true' });
-    expect(config.connections.jira).toEqual({ area: 'jira', baseUrl: 'https://jira.imagile.dev', writes: true });
+    expect(config.connections.jira).toEqual({ area: 'jira', baseUrl: 'https://jira.imagile.dev', writes: 'true' });
     expect(defaultConnectionName(config, 'jira')).toBe('jira');
+    expect(anyWrites(config, 'jira')).toBe(true);
   });
 
   it('TOIL_<AREA>_* is ignored with a warning when the area has several connections and no default', () => {
@@ -150,7 +151,24 @@ describe('precedence', () => {
 describe('connections from env vars alone', () => {
   it('TOIL_CONN_<NAME>_AREA creates a connection, and its other variables fill it in', () => {
     const config = load({ TOIL_CONN_OCP_PROD_AREA: 'jira', TOIL_CONN_OCP_PROD_BASE_URL: 'https://api.ocp.imagile.dev', TOIL_CONN_OCP_PROD_WRITES: 'false' });
-    expect(config.connections['ocp-prod']).toEqual({ area: 'jira', baseUrl: 'https://api.ocp.imagile.dev', writes: false });
+    expect(config.connections['ocp-prod']).toEqual({ area: 'jira', baseUrl: 'https://api.ocp.imagile.dev', writes: 'false' });
+    expect(anyWrites(config, 'jira')).toBe(false);
+  });
+
+  it('makes TOIL_<AREA>_* fill the env-only connection, not a second one', () => {
+    const config = load({ TOIL_CONN_CI_AREA: 'jira', TOIL_JIRA_TOKEN: 'x' });
+    expect(Object.keys(config.connections)).toEqual(['ci']);
+    expect(config.connections.ci!.token).toBe('x');
+  });
+
+  it('keeps env values as strings, so a token that reads "true" stays a token', () => {
+    expect(load({ TOIL_JIRA_TOKEN: 'true' }).connections.jira!.token).toBe('true');
+  });
+
+  it('warns about a connection for an area toil does not have', () => {
+    const config = load({ TOIL_CONN_CI_AREA: 'jria', TOIL_CONN_CI_TOKEN: 'x' });
+    expect(config.warnings.map((w) => w.code)).toEqual(['CONFIG_UNKNOWN_AREA']);
+    expect(config.warnings[0]!.message).toContain('jria');
   });
 
   it('matches the longest connection name, so corp and corp-jira never collide', () => {

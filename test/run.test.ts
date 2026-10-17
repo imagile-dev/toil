@@ -82,7 +82,7 @@ describe('execute', () => {
     expect(read.error?.message).not.toContain('may already have been applied');
   });
 
-  it('hands a command its connection and never the config, so it cannot read another area', async () => {
+  it('hands a command its connection and never the config or env, so it cannot read another credential', async () => {
     let seen: Record<string, unknown> = {};
     const probe = demoArea.command({
       path: ['demo', 'probe'],
@@ -91,13 +91,14 @@ describe('execute', () => {
       writes: false,
       examples: [{}],
       run: async (_input, ctx) => {
-        seen = { hasConfig: 'config' in ctx, connection: ctx.connection.name, token: ctx.connection.token };
+        seen = { hasConfig: 'config' in ctx, hasEnv: 'env' in ctx, connection: ctx.connection.name, token: ctx.connection.token };
         return null;
       },
     });
     const { context } = testContext({ config: { demo: { token: 'demo-token' }, other: { token: 'other-secret' } } });
-    expect((await execute(probe, {}, context)).ok).toBe(true);
-    expect(seen).toEqual({ hasConfig: false, connection: 'demo', token: 'demo-token' });
+    const env = { TOIL_CONN_PROD_TOKEN: 'prod-secret', GITHUB_TOKEN: 'gh-secret' };
+    expect((await execute(probe, {}, { ...context, env })).ok).toBe(true);
+    expect(seen).toEqual({ hasConfig: false, hasEnv: false, connection: 'demo', token: 'demo-token' });
   });
 
   it('puts command warnings, config warnings and the page cursor in meta', async () => {
