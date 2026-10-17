@@ -1,0 +1,119 @@
+[
+  {
+    "name": "ping",
+    "tool": "artifactory_ping",
+    "description": "Check Artifactory connectivity and authentication",
+    "writes": false,
+    "flags": []
+  },
+  {
+    "name": "repos",
+    "tool": "artifactory_repos",
+    "description": "List repositories",
+    "writes": false,
+    "flags": [
+      "--type <type>",
+      "--package-type <type>"
+    ]
+  },
+  {
+    "name": "artifact-info",
+    "tool": "artifactory_artifact_info",
+    "description": "Get metadata for an artifact or folder (checksums, size, timestamps)",
+    "writes": false,
+    "flags": [
+      "<repo>",
+      "<path>"
+    ]
+  },
+  {
+    "name": "properties-get",
+    "tool": "artifactory_properties_get",
+    "description": "Read custom properties on an artifact",
+    "writes": false,
+    "flags": [
+      "<repo>",
+      "<path>"
+    ]
+  },
+  {
+    "name": "properties-set",
+    "tool": "artifactory_properties_set",
+    "description": "Set custom properties on an artifact (format: key=value key=value...)",
+    "writes": true,
+    "flags": [
+      "<repo>",
+      "<path>",
+      "[keyvals]",
+      "--recursive",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "search",
+    "tool": "artifactory_search",
+    "description": "Search artifacts using AQL (Artifactory Query Language) (consider --output-file for large results)",
+    "writes": false,
+    "flags": [
+      "--repo <name>",
+      "--name <pattern>",
+      "--path <pattern>",
+      "--after <date>",
+      "--before <date>",
+      "--limit <n>",
+      "--properties"
+    ]
+  },
+  {
+    "name": "builds",
+    "tool": "artifactory_builds",
+    "description": "List builds registered in Artifactory Build Integration (names may differ from ADO pipeline names; use \"search --repo\" when empty)",
+    "writes": false,
+    "flags": [
+      "--timeout <s>"
+    ]
+  },
+  {
+    "name": "build-runs",
+    "tool": "artifactory_build_runs",
+    "description": "List all run numbers for a build",
+    "writes": false,
+    "flags": [
+      "<name>"
+    ]
+  },
+  {
+    "name": "build-info",
+    "tool": "artifactory_build_info",
+    "description": "Get build info (artifacts, dependencies, VCS revision) for a specific run",
+    "writes": false,
+    "flags": [
+      "<name>",
+      "<number>"
+    ]
+  },
+  {
+    "name": "outdated",
+    "tool": "artifactory_outdated",
+    "description": "Check for newer versions available in Artifactory (requires Artifactory)",
+    "writes": false,
+    "flags": [
+      "--from <file>",
+      "--ecosystem <ecosystem>",
+      "--major",
+      "--minor",
+      "--patch"
+    ]
+  },
+  {
+    "name": "license-check",
+    "tool": "artifactory_license_check",
+    "description": "Report licenses for all direct dependencies via Artifactory (requires Artifactory)",
+    "writes": false,
+    "flags": [
+      "--from <file>",
+      "--ecosystem <ecosystem>",
+      "--include-dev"
+    ]
+  }
+]
