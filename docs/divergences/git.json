@@ -1,0 +1,12 @@
+{
+  "scope": "git",
+  "divergences": [
+    {
+      "allows": ["git credentials"],
+      "old": "git credentials and its subcommands (inspect, mappings, stored, forget)",
+      "toil": "Removed. Use git's own git credential commands; toil checks its own credentials per area with config test",
+      "why": "They work by asking the git binary (git credential fill/reject, ls-remote) for stored credentials, which toil never handles.",
+      "principle": "1"
+    }
+  ]
+}
