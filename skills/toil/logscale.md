@@ -77,9 +77,8 @@ The token never goes in this file; a plaintext one there is refused with
 LogScale recommends this synchronous search for filter queries over short windows.
 An aggregate (`| count()`) works, but blocks until the whole window is searched.
 
-A query LogScale rejects (a syntax error) is `HTTP` with the status only, such as
-`HTTP 400`: LogScale explains it in a plain-text body, which toil doesn't show yet.
-Try the query in LogScale's search page to read the explanation.
+A query LogScale rejects (a syntax error) is `HTTP`, with LogScale's explanation
+after the status, such as `HTTP 400: Unexpected end of input at 1:7`.
 
 ```bash
 toil logscale repositories list
