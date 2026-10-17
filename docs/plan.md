@@ -14,7 +14,16 @@ itself. The principles behind every choice here are in [CLAUDE.md](../CLAUDE.md)
   LF in the repo, and the full CI gate on all three.
 - **One core, two front doors.** Each command is defined once with zod schemas and
   exposed as a CLI (`toil <area> <verb>`, JSON envelope on stdout) and as an MCP tool
-  (`toil mcp`, stdio). The two never drift.
+  (`toil mcp`, stdio). The two never drift. The CLI is primary; MCP is the alternative,
+  in the same package, in-process, and never listening on a port.
+- **MCP gateway, later and separate.** A shared Streamable HTTP endpoint with mandatory
+  auth, shipped as its own opt-in package on the same core
+  ([design note](mcp-gateway.md), issue #4). Not v1.
+- **Migration by find-and-replace.** Integration commands, flags, envelope fields
+  and env var names match the command contract's frozen surface
+  ([command contract](command-contract.md)), so moving a skill or script is one
+  case-insensitive replace. A test diffs the two. Config is rebuilt keychain-first and
+  imported once with `toil config import`.
 - **Enterprise tools behind one auth bar.** Long-lived token pasted once, header or a
   plain-HTTP exchange, no interactive login. Env vars beat config files, always.
 - **Databases, read-only by default.** Pure-JS drivers for PostgreSQL, MySQL, SQL
@@ -37,8 +46,8 @@ itself. The principles behind every choice here are in [CLAUDE.md](../CLAUDE.md)
   allowlists, and agents never edit the rules that constrain them.
 - **Triage with redaction.** Issues from outside are redacted (secrets, internal hosts,
   org names from a secret-only denylist) before any agent reads them.
-- **Repo-internal skills.** `ship` (gate + PR), `new-integration`, `db-provider`. One
-  distributed skill for users.
+- **Repo-internal skills.** `ship` (gate + PR), `integrations`, `databases`,
+  `code-intelligence`, `mcp`, `secrets`, `automation`. One distributed skill for users.
 - **Testing honesty.** Unit tests stub `fetch` and use `node:sqlite`; real database
   engines run as CI service containers. Each integration carries a verification level
   (`unit` → `integration` → `live`) that the unit suite alone can never raise.

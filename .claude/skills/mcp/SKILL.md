@@ -1,0 +1,61 @@
+---
+name: mcp
+description: Rules for `toil mcp`, the stdio MCP server in src/mcp/, and for the separate MCP gateway package (docs/mcp-gateway.md). Use when changing how tools are generated or registered, the `--areas` filter, MCP tool descriptions, which tools are exposed (write tools, deletes), transports, or anything that would make toil listen on a network port.
+---
+
+# MCP Server
+
+The CLI is the primary interface; MCP is the alternative for clients that prefer
+tools. `toil mcp` ships in the same package and runs in-process on the same core.
+It never shells out to the CLI, so connections, exchanged tokens and the TypeScript
+language service stay warm across calls. Neither surface has a capability the other
+lacks.
+
+`toil mcp` serves over stdio. `--areas jira,confluence` limits it to those areas, so
+an agent sees a small, focused tool list and one config entry stands in for one vendor
+server. With no `--areas`, it serves every area that has config, plus `standalone` commands that need none (like `version`). Write tools are not
+registered at all unless at least one of the area's connections has writes
+enabled (see **Writes** in CLAUDE.md), so an agent cannot discover them, let alone call them.
+Listing grants nothing: every call is still gated against the connection it
+resolves.
+
+The server is built on the SDK's low-level `Server`, not `McpServer.registerTool`,
+because `registerTool` validates arguments before our code runs: it drops unknown
+fields and answers a missing one with plain text. toil advertises each tool's strict
+JSON Schema and passes raw arguments to `execute()`, which is the only validator, so
+bad input gets the same envelope through MCP as on the CLI. The server takes a
+context *factory*, called per tool call with the command and that call's cancel
+signal; never share one context across calls. Both front doors run commands through
+`runCommand()`, which turns a failure building the context (config that broke while
+the server was up) into an envelope too. Tool descriptions are written for a model
+choosing between tools: what it returns, when to use it, and which sibling tool to use
+instead.
+
+**The base package never opens a port** (*principle 1*: a listening socket is the
+other thing locked-down machines block). Stdio is the only transport in
+`@imagile-dev/toil`. A shared, network-reachable endpoint is a separate alternative,
+the **MCP gateway** (`docs/mcp-gateway.md`, issue #4): its own opt-in package on the
+same core, Streamable HTTP, and mandatory authentication. Don't add an HTTP transport
+to the base package; that work belongs to the gateway.
+
+## Dossier context over MCP
+
+A stdio server's own working directory means nothing, because it's wherever the
+client launched it. Commands that resolve dossier context (`docs/dossiers.md`) take
+a `cwd` input on both front doors. The CLI defaults it to its working directory;
+MCP defaults it to the client's MCP root when the client reports exactly one,
+converting the `file://` URI with Node's URL handling. Any other file location
+(`--repo`, a dossier file) is an explicit input too, so the two doors stay 1:1, and
+`meta.context` says which default applied.
+
+## Verifying with a real client
+
+The in-memory parity suite and `smoke` don't prove a real agent can use the server.
+Any change to `toil mcp` is also driven by the local Codex CLI before the PR opens,
+with overrides so the user's own Codex config is untouched:
+
+```bash
+codex exec --skip-git-repo-check -s read-only -c 'mcp_servers.toil.command="node"' -c 'mcp_servers.toil.args=["<repo>/dist/toil.js","mcp"]' "List every toil tool, call <tool>, and print the raw JSON it returned."
+```
+
+The PR shows the tool list and the envelope that came back.

@@ -176,8 +176,11 @@ jobs:
             5. Best effort only: resolve outdated inline threads with `gh api graphql`
                (resolveReviewThread). Move on if it's refused.
 
-            **Now review the pull request against CLAUDE.md.** Read CLAUDE.md first; it is
-            the standard. In particular:
+            **Now review the pull request against CLAUDE.md and the skills.** Read CLAUDE.md
+            first; it is the standard. Then read every `.claude/skills/*/SKILL.md` whose
+            description covers the changed files: task-specific rules (integrations,
+            databases, MCP, secrets, automation, the site) live there, not in CLAUDE.md.
+            In particular:
             1. Correctness and bugs, including edge cases in parsing, config and HTTP handling.
             2. The principles at the top of CLAUDE.md. Above all, No Executables: no runtime
                dependencies, no install scripts, no spawning, nothing but Node built-ins in
@@ -194,8 +197,8 @@ jobs:
                was reshaped.
             6. Breaking changes to config on disk, flags, the envelope or precedence must be
                declared as such.
-            7. Anything else CLAUDE.md asks of a change like this one. Where CLAUDE.md is
-               silent, don't invent a rule and file it as blocking.
+            7. Anything else CLAUDE.md or a relevant skill asks of a change like this one.
+               Where they are silent, don't invent a rule and file it as blocking.
 
             Leave inline comments on specific lines and a top-level summary. Skip nitpicks;
             prioritize substantive feedback.

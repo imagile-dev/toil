@@ -1,0 +1,6751 @@
+{
+  "_readme": "Frozen command surface of the command contract, captured from its own --help output. toil must match every integration command here; see docs/command-contract.md for scope and the listed divergences. Do not edit by hand; recapture instead.",
+  "source": {
+    "name": "toil",
+    "package": "@imagile-dev/toil",
+    "version": "6.3.0",
+    "capturedAt": "2026-10-16",
+    "method": "recursive --help walk of the built CLI"
+  },
+  "globalOptions": [
+    {
+      "flags": "-v, --version",
+      "description": "output the version number"
+    },
+    {
+      "flags": "--pretty",
+      "description": "Human-readable formatted output (default: false)"
+    },
+    {
+      "flags": "--verbose",
+      "description": "Include full response metadata (default: false)"
+    },
+    {
+      "flags": "--debug",
+      "description": "Print diagnostic traces (method, URL, status) for all API calls — does not log credentials (default: false)"
+    },
+    {
+      "flags": "--dry-run",
+      "description": "Print API requests without executing (default: false)"
+    },
+    {
+      "flags": "--config <path>",
+      "description": "Override global config file location"
+    },
+    {
+      "flags": "--output-file <path>",
+      "description": "Write JSON output to file instead of stdout"
+    }
+  ],
+  "commands": [
+    {
+      "command": "git",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "git status",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "git diff",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--staged",
+          "description": "Show staged changes only"
+        },
+        {
+          "flags": "--file <path>",
+          "description": "Limit diff to a specific file"
+        }
+      ]
+    },
+    {
+      "command": "git log",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--count <n>",
+          "description": "Number of commits to show (default: \"10\")"
+        },
+        {
+          "flags": "--since <date>",
+          "description": "Show commits since date (e.g. \"2 weeks ago\")"
+        }
+      ]
+    },
+    {
+      "command": "git branch",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "git report",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--branch <name>",
+          "description": "Branch to report on (defaults to current branch)"
+        },
+        {
+          "flags": "--base <ref>",
+          "description": "Base ref to compare against, e.g. \"main\" (base..branch, or base..HEAD if --branch is omitted)"
+        },
+        {
+          "flags": "--since <date>",
+          "description": "Include commits on or after this date (e.g. \"2024-01-01\")"
+        },
+        {
+          "flags": "--until <date>",
+          "description": "Include commits on or before this date (e.g. \"2024-12-31\")"
+        },
+        {
+          "flags": "--csv",
+          "description": "Output as CSV instead of JSON"
+        }
+      ]
+    },
+    {
+      "command": "git current-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "git credentials",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "git credentials inspect",
+      "usage": "[options] [target]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--remote <name>",
+          "description": "Only this remote (default: all remotes)"
+        },
+        {
+          "flags": "--scan <dir>",
+          "description": "Inspect every clone under this directory instead"
+        },
+        {
+          "flags": "--depth <n>",
+          "description": "How many directory levels --scan descends (default: \"2\")"
+        },
+        {
+          "flags": "--problems-only",
+          "description": "With --scan, only list remotes that have problems"
+        },
+        {
+          "flags": "--offline",
+          "description": "Skip network checks (ls-remote and the GitHub API)"
+        }
+      ]
+    },
+    {
+      "command": "git credentials mappings",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--offline",
+          "description": "Skip validating embedded GitHub tokens"
+        }
+      ]
+    },
+    {
+      "command": "git credentials stored",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--host <host...>",
+          "description": "Also ask git what it would send for these hosts"
+        },
+        {
+          "flags": "--offline",
+          "description": "Skip validating GitHub tokens"
+        }
+      ]
+    },
+    {
+      "command": "git credentials forget",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--host <host>",
+          "description": "Host to forget, e.g. github.com"
+        },
+        {
+          "flags": "--username <username>",
+          "description": "Only this account (when several are stored for the host)"
+        },
+        {
+          "flags": "--path <path>",
+          "description": "Repository path, for helpers that store per repository (e.g. Azure Repos in Git Credential Manager)"
+        }
+      ]
+    },
+    {
+      "command": "jira",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "jira get-issue",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key (e.g. PROJ-123)"
+        }
+      ]
+    },
+    {
+      "command": "jira create-issue",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--project <key>",
+          "description": "Project key"
+        },
+        {
+          "flags": "--type <type>",
+          "description": "Issue type (Bug, Story, Task, ...)"
+        },
+        {
+          "flags": "--summary <text>",
+          "description": "Issue summary (required, unless supplied via --input-file)"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "Issue description"
+        },
+        {
+          "flags": "--priority <name>",
+          "description": "Priority name"
+        },
+        {
+          "flags": "--assignee <username>",
+          "description": "Assignee username"
+        },
+        {
+          "flags": "--labels <labels>",
+          "description": "Comma-separated labels"
+        },
+        {
+          "flags": "--parent <key>",
+          "description": "Parent issue key — sets fields.parent in the create payload"
+        },
+        {
+          "flags": "--field <Name=value>",
+          "description": "Custom field value; use Name=@file.json to read value from file (repeatable) (default: [])"
+        },
+        {
+          "flags": "--fields-file <path>",
+          "description": "Path to a JSON file mapping field names/IDs to their Jira API values"
+        },
+        {
+          "flags": "--input-file <path>",
+          "description": "JSON file describing the whole issue ({ project, issueType, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil jira schema"
+        }
+      ]
+    },
+    {
+      "command": "jira update-issue",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key"
+        },
+        {
+          "flags": "--summary <text>",
+          "description": "New summary"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "New description"
+        },
+        {
+          "flags": "--priority <name>",
+          "description": "New priority"
+        },
+        {
+          "flags": "--assignee <username>",
+          "description": "New assignee username"
+        },
+        {
+          "flags": "--labels <labels>",
+          "description": "Comma-separated labels"
+        },
+        {
+          "flags": "--field <Name=value>",
+          "description": "Custom field value; use Name=@file.json to read value from file (repeatable) (default: [])"
+        },
+        {
+          "flags": "--fields-file <path>",
+          "description": "Path to a JSON file mapping field names/IDs to their Jira API values"
+        },
+        {
+          "flags": "--input-file <path>",
+          "description": "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil jira schema"
+        }
+      ]
+    },
+    {
+      "command": "jira schema",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--example-only",
+          "description": "Print only the runnable example JSON (no envelope) — pipeable straight into --input-file"
+        }
+      ]
+    },
+    {
+      "command": "jira transition-issue",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key"
+        },
+        {
+          "flags": "--transition <name-or-id>",
+          "description": "Transition name or ID"
+        }
+      ]
+    },
+    {
+      "command": "jira list-transitions",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key"
+        }
+      ]
+    },
+    {
+      "command": "jira add-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Comment text"
+        }
+      ]
+    },
+    {
+      "command": "jira log-work",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key"
+        },
+        {
+          "flags": "--time-spent <duration>",
+          "description": "Time spent in Jira duration format (e.g. \"2h 30m\", \"1d\")"
+        },
+        {
+          "flags": "--comment <text>",
+          "description": "Worklog comment"
+        },
+        {
+          "flags": "--started <datetime>",
+          "description": "When the work started, in Jira datetime format (e.g. 2024-01-15T09:00:00.000+0000); defaults to now"
+        }
+      ]
+    },
+    {
+      "command": "jira list-comments",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key"
+        }
+      ]
+    },
+    {
+      "command": "jira search",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--jql <query>",
+          "description": "JQL query string"
+        },
+        {
+          "flags": "--jql-file <path>",
+          "description": "Path to a file containing the JQL query ('-' = stdin)"
+        },
+        {
+          "flags": "--max-results <n>",
+          "description": "Maximum number of results"
+        },
+        {
+          "flags": "--start-at <n>",
+          "description": "Index of the first result to return (for resuming or paging)"
+        },
+        {
+          "flags": "--fields <list>",
+          "description": "Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,\"Story Points\")"
+        }
+      ]
+    },
+    {
+      "command": "jira add-label",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key"
+        },
+        {
+          "flags": "--labels <labels>",
+          "description": "Comma-separated labels to add"
+        }
+      ]
+    },
+    {
+      "command": "jira remove-label",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key"
+        },
+        {
+          "flags": "--labels <labels>",
+          "description": "Comma-separated labels to remove"
+        }
+      ]
+    },
+    {
+      "command": "jira assign",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key"
+        },
+        {
+          "flags": "--assignee <username>",
+          "description": "Assignee username"
+        }
+      ]
+    },
+    {
+      "command": "jira link-issue",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Source issue key"
+        },
+        {
+          "flags": "--link-type <type>",
+          "description": "Link type name or ID"
+        },
+        {
+          "flags": "--target <issue-key>",
+          "description": "Target issue key"
+        }
+      ]
+    },
+    {
+      "command": "jira add-attachment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key (e.g. PROJ-123)"
+        },
+        {
+          "flags": "--file <path>",
+          "description": "Path to the file to upload"
+        }
+      ]
+    },
+    {
+      "command": "jira list-attachments",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key (e.g. PROJ-123)"
+        }
+      ]
+    },
+    {
+      "command": "jira download-attachment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key (e.g. PROJ-123)"
+        },
+        {
+          "flags": "--attachment-id <id>",
+          "description": "Attachment ID from list-attachments output"
+        },
+        {
+          "flags": "--dir <path>",
+          "description": "Output directory (default: .toil relative to cwd)"
+        }
+      ]
+    },
+    {
+      "command": "jira fields",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--discover",
+          "description": "Fetch field metadata from Jira API"
+        },
+        {
+          "flags": "--custom-only",
+          "description": "Show only custom fields (requires --discover)"
+        },
+        {
+          "flags": "--project <key>",
+          "description": "Project key — fetches allowedValues for select fields via createmeta (requires --discover)"
+        },
+        {
+          "flags": "--issue-type <type>",
+          "description": "Filter allowedValues to a specific issue type (requires --project)"
+        }
+      ]
+    },
+    {
+      "command": "jira list-boards",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--project <key>",
+          "description": "Project key"
+        }
+      ]
+    },
+    {
+      "command": "jira list-sprints",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--board <id>",
+          "description": "Board ID"
+        },
+        {
+          "flags": "--project <key>",
+          "description": "Project key — resolves to that project's board(s)"
+        },
+        {
+          "flags": "--state <states>",
+          "description": "Comma-separated states to filter (active,future,closed)"
+        }
+      ]
+    },
+    {
+      "command": "jira set-sprint",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <issue-key>",
+          "description": "Issue key"
+        },
+        {
+          "flags": "--sprint <id>",
+          "description": "Sprint ID (from list-sprints)"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": [
+        {
+          "flags": "--project <key>",
+          "description": "Bitbucket project key"
+        },
+        {
+          "flags": "--repo <slug>",
+          "description": "Bitbucket repository slug"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket create-repo",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <name>",
+          "description": "Repository name (slug)"
+        },
+        {
+          "flags": "--description <desc>",
+          "description": "Repository description"
+        },
+        {
+          "flags": "--project <key>",
+          "description": "Bitbucket project key (overrides parent --project)"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket list-prs",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--state <state>",
+          "description": "PR state: OPEN|MERGED|DECLINED|ALL (default: \"OPEN\")"
+        },
+        {
+          "flags": "--author <username>",
+          "description": "Filter by author username"
+        },
+        {
+          "flags": "--reviewer <username>",
+          "description": "Filter by reviewer username"
+        },
+        {
+          "flags": "--created-after <date>",
+          "description": "Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)"
+        },
+        {
+          "flags": "--created-before <date>",
+          "description": "Only PRs created before this ISO 8601 date"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket get-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <pr-id>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket create-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--title <title>",
+          "description": "PR title"
+        },
+        {
+          "flags": "--source <branch>",
+          "description": "Source branch"
+        },
+        {
+          "flags": "--target <branch>",
+          "description": "Target branch (defaults to config)"
+        },
+        {
+          "flags": "--description <desc>",
+          "description": "PR description"
+        },
+        {
+          "flags": "--reviewers <users>",
+          "description": "Comma-separated reviewer usernames"
+        },
+        {
+          "flags": "--project <key>",
+          "description": "Bitbucket project key (overrides parent --project; use ~username for personal repos)"
+        },
+        {
+          "flags": "--repo <slug>",
+          "description": "Bitbucket repository slug (overrides parent --repo)"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket create-prs",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--from <branch>",
+          "description": "Source branch"
+        },
+        {
+          "flags": "--to <branch>",
+          "description": "Target branch"
+        },
+        {
+          "flags": "--repos <slugs>",
+          "description": "Comma-separated repository slugs"
+        },
+        {
+          "flags": "--title <title>",
+          "description": "PR title (defaults to \"Promote <from> to <to>\")"
+        },
+        {
+          "flags": "--description <desc>",
+          "description": "PR description"
+        },
+        {
+          "flags": "--reviewers <users>",
+          "description": "Comma-separated reviewer usernames"
+        },
+        {
+          "flags": "--project <key>",
+          "description": "Bitbucket project key (overrides parent --project)"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket update-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <pr-id>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--title <title>",
+          "description": "New title"
+        },
+        {
+          "flags": "--description <desc>",
+          "description": "New description"
+        },
+        {
+          "flags": "--reviewers <users>",
+          "description": "Comma-separated reviewer usernames"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket merge-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <pr-id>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--strategy <strategy>",
+          "description": "Merge strategy: merge|squash|ff"
+        },
+        {
+          "flags": "--delete-branch",
+          "description": "Delete source branch after merge"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket decline-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <pr-id>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket list-comments",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--no-with-replies",
+          "description": "Exclude replies; return top-level comments only"
+        },
+        {
+          "flags": "--inline-only",
+          "description": "Return only inline file comments"
+        },
+        {
+          "flags": "--general-only",
+          "description": "Return only general (non-inline) PR comments"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket add-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Comment text"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket add-inline-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--file <path>",
+          "description": "File path"
+        },
+        {
+          "flags": "--line <n>",
+          "description": "Line number"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Comment text"
+        },
+        {
+          "flags": "--line-type <type>",
+          "description": "Line type: ADDED|REMOVED|CONTEXT (default: \"ADDED\")"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket reply-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--comment-id <id>",
+          "description": "Comment ID to reply to"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Reply text"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket resolve-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--comment-id <id>",
+          "description": "Comment ID"
+        },
+        {
+          "flags": "--comment-version <n>",
+          "description": "Comment version, as reported by list-comments (default: \"0\")"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket delete-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--comment-id <id>",
+          "description": "Comment ID"
+        },
+        {
+          "flags": "--comment-version <n>",
+          "description": "Comment version, as reported by list-comments (default: \"0\")"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket diff",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--file <path>",
+          "description": "Limit diff to a specific file"
+        },
+        {
+          "flags": "--context-lines <n>",
+          "description": "Lines of context around changes"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket list-files",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket approve",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket unapprove",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket needs-work",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket list-reviewers",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket list-default-reviewers",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "bitbucket add-reviewer",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--user <username>",
+          "description": "Username to add as a reviewer"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket list-builds",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <pr-id>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "bitbucket get-build-status",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--commit <sha>",
+          "description": "Commit SHA"
+        }
+      ]
+    },
+    {
+      "command": "github",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": [
+        {
+          "flags": "--owner <owner>",
+          "description": "GitHub owner (user or org)"
+        },
+        {
+          "flags": "--repo <repo>",
+          "description": "GitHub repository name"
+        }
+      ]
+    },
+    {
+      "command": "github create-repo",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <name>",
+          "description": "Repository name"
+        },
+        {
+          "flags": "--description <desc>",
+          "description": "Repository description"
+        },
+        {
+          "flags": "--private",
+          "description": "Create as a private repository"
+        },
+        {
+          "flags": "--auto-init",
+          "description": "Initialize with a README"
+        }
+      ]
+    },
+    {
+      "command": "github create-issue",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--title <title>",
+          "description": "Issue title"
+        },
+        {
+          "flags": "--body <body>",
+          "description": "Issue body (markdown)"
+        },
+        {
+          "flags": "--body-file <path>",
+          "description": "Read issue body from a file (use - for stdin); overridden by --body"
+        },
+        {
+          "flags": "--label <label>",
+          "description": "Label to apply (repeatable) (default: [])"
+        },
+        {
+          "flags": "--assignee <login>",
+          "description": "Assignee login (repeatable) (default: [])"
+        }
+      ]
+    },
+    {
+      "command": "github list-prs",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--state <state>",
+          "description": "PR state (choices: \"open\", \"closed\", \"all\", default: \"open\")"
+        },
+        {
+          "flags": "--head <branch>",
+          "description": "Filter by head branch (user:branch)"
+        },
+        {
+          "flags": "--base <branch>",
+          "description": "Filter by base branch"
+        },
+        {
+          "flags": "--author <login>",
+          "description": "Filter by author login"
+        },
+        {
+          "flags": "--created-after <date>",
+          "description": "Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)"
+        },
+        {
+          "flags": "--created-before <date>",
+          "description": "Only PRs created before this ISO 8601 date"
+        }
+      ]
+    },
+    {
+      "command": "github get-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github create-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--title <title>",
+          "description": "PR title"
+        },
+        {
+          "flags": "--head <branch>",
+          "description": "Source branch (or user:branch for forks)"
+        },
+        {
+          "flags": "--base <branch>",
+          "description": "Target branch (defaults to config or main)"
+        },
+        {
+          "flags": "--body <body>",
+          "description": "PR description"
+        },
+        {
+          "flags": "--body-file <path>",
+          "description": "Read PR description from a file (use - for stdin); overridden by --body"
+        },
+        {
+          "flags": "--draft",
+          "description": "Create as draft PR"
+        },
+        {
+          "flags": "--owner <owner>",
+          "description": "GitHub owner (overrides parent --owner)"
+        },
+        {
+          "flags": "--repo <repo>",
+          "description": "GitHub repository name (overrides parent --repo)"
+        }
+      ]
+    },
+    {
+      "command": "github update-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        },
+        {
+          "flags": "--title <title>",
+          "description": "New title"
+        },
+        {
+          "flags": "--body <body>",
+          "description": "New description"
+        },
+        {
+          "flags": "--base <branch>",
+          "description": "New base branch"
+        }
+      ]
+    },
+    {
+      "command": "github merge-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        },
+        {
+          "flags": "--method <method>",
+          "description": "Merge method (choices: \"merge\", \"squash\", \"rebase\", default: \"merge\")"
+        },
+        {
+          "flags": "--commit-title <title>",
+          "description": "Commit title for merge/squash"
+        },
+        {
+          "flags": "--commit-message <msg>",
+          "description": "Commit message for merge/squash"
+        }
+      ]
+    },
+    {
+      "command": "github enable-auto-merge",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        },
+        {
+          "flags": "--method <method>",
+          "description": "Merge method (choices: \"merge\", \"squash\", \"rebase\")"
+        },
+        {
+          "flags": "--match-head-commit <sha>",
+          "description": "Only enable if the PR head matches this SHA (prevents race conditions)"
+        }
+      ]
+    },
+    {
+      "command": "github disable-auto-merge",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github enqueue-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        },
+        {
+          "flags": "--method <method>",
+          "description": "Merge method (choices: \"merge\", \"squash\", \"rebase\")"
+        },
+        {
+          "flags": "--match-head-commit <sha>",
+          "description": "Only enqueue if the PR head matches this SHA (prevents race conditions)"
+        }
+      ]
+    },
+    {
+      "command": "github close-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github list-comments",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github add-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Comment text"
+        }
+      ]
+    },
+    {
+      "command": "github list-review-comments",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github add-inline-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        },
+        {
+          "flags": "--commit <sha>",
+          "description": "Commit SHA the comment is on"
+        },
+        {
+          "flags": "--file <path>",
+          "description": "File path"
+        },
+        {
+          "flags": "--line <n>",
+          "description": "Line number"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Comment text"
+        },
+        {
+          "flags": "--side <side>",
+          "description": "Comment side (choices: \"LEFT\", \"RIGHT\", default: \"RIGHT\")"
+        }
+      ]
+    },
+    {
+      "command": "github reply-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        },
+        {
+          "flags": "--comment-id <id>",
+          "description": "Review comment ID to reply to"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Reply text"
+        }
+      ]
+    },
+    {
+      "command": "github delete-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--comment-id <id>",
+          "description": "Comment ID"
+        }
+      ]
+    },
+    {
+      "command": "github delete-review-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--comment-id <id>",
+          "description": "Review comment ID"
+        }
+      ]
+    },
+    {
+      "command": "github diff",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github list-files",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github list-reviews",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github approve",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Review body text"
+        }
+      ]
+    },
+    {
+      "command": "github request-changes",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Review feedback text"
+        }
+      ]
+    },
+    {
+      "command": "github list-reviewers",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github list-review-threads",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github resolve-thread",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--thread-id <id>",
+          "description": "GraphQL node ID of the review thread (e.g. PRT_kwDO...)"
+        }
+      ]
+    },
+    {
+      "command": "github get-status",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--ref <ref>",
+          "description": "Git ref (branch, tag, or commit SHA)"
+        }
+      ]
+    },
+    {
+      "command": "github list-checks",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--ref <ref>",
+          "description": "Git ref (branch, tag, or commit SHA)"
+        }
+      ]
+    },
+    {
+      "command": "github pr-status",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github convert-to-draft",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github ready-for-review",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github reopen-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        }
+      ]
+    },
+    {
+      "command": "github add-labels",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "PR or issue number"
+        },
+        {
+          "flags": "--label <label>",
+          "description": "Label to add (repeatable) (default: [])"
+        }
+      ]
+    },
+    {
+      "command": "github remove-label",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "PR or issue number"
+        },
+        {
+          "flags": "--label <label>",
+          "description": "Label name to remove"
+        }
+      ]
+    },
+    {
+      "command": "github add-reviewers",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        },
+        {
+          "flags": "--reviewer <login>",
+          "description": "User reviewer login (repeatable) (default: [])"
+        },
+        {
+          "flags": "--team-reviewer <slug>",
+          "description": "Team slug to request (repeatable) (default: [])"
+        }
+      ]
+    },
+    {
+      "command": "github remove-reviewers",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "Pull request number"
+        },
+        {
+          "flags": "--reviewer <login>",
+          "description": "User reviewer login to remove (repeatable) (default: [])"
+        },
+        {
+          "flags": "--team-reviewer <slug>",
+          "description": "Team slug to remove (repeatable) (default: [])"
+        }
+      ]
+    },
+    {
+      "command": "github add-assignees",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "PR or issue number"
+        },
+        {
+          "flags": "--assignee <login>",
+          "description": "Assignee login (repeatable) (default: [])"
+        }
+      ]
+    },
+    {
+      "command": "github remove-assignees",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--number <n>",
+          "description": "PR or issue number"
+        },
+        {
+          "flags": "--assignee <login>",
+          "description": "Assignee login to remove (repeatable) (default: [])"
+        }
+      ]
+    },
+    {
+      "command": "confluence",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "confluence get-page",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <page-id>",
+          "description": "Page ID"
+        },
+        {
+          "flags": "--expand <fields>",
+          "description": "Comma-separated fields to expand (default: \"body.storage,version,space,ancestors\")"
+        }
+      ]
+    },
+    {
+      "command": "confluence get-page-by-title",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--space <key>",
+          "description": "Space key"
+        },
+        {
+          "flags": "--title <title>",
+          "description": "Page title"
+        }
+      ]
+    },
+    {
+      "command": "confluence list-pages",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--space <key>",
+          "description": "Space key"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Max total pages to return (default: all)"
+        },
+        {
+          "flags": "--start <n>",
+          "description": "Offset for first result"
+        }
+      ]
+    },
+    {
+      "command": "confluence get-page-children",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <page-id>",
+          "description": "Parent page ID"
+        }
+      ]
+    },
+    {
+      "command": "confluence get-labels",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <page-id>",
+          "description": "Page ID"
+        }
+      ]
+    },
+    {
+      "command": "confluence search",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--cql <query>",
+          "description": "CQL query string (e.g. \"space=PROJ AND type=page\")"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum number of results (default: \"25\")"
+        },
+        {
+          "flags": "--start <n>",
+          "description": "Offset for first result (default: \"0\")"
+        },
+        {
+          "flags": "--expand <fields>",
+          "description": "Comma-separated fields to expand"
+        }
+      ]
+    },
+    {
+      "command": "confluence create-page",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--space <key>",
+          "description": "Space key"
+        },
+        {
+          "flags": "--title <title>",
+          "description": "Page title"
+        },
+        {
+          "flags": "--body <html>",
+          "description": "Page body (storage format HTML or Markdown when --markdown is set)"
+        },
+        {
+          "flags": "--body-file <path>",
+          "description": "Path to a file containing the page body ('-' = stdin)"
+        },
+        {
+          "flags": "--markdown",
+          "description": "Convert body from Markdown to storage format via Confluence API"
+        },
+        {
+          "flags": "--parent-id <id>",
+          "description": "Parent page ID (to nest under a page)"
+        },
+        {
+          "flags": "--representation <format>",
+          "description": "Body format: storage (default) or wiki (default: \"storage\")"
+        }
+      ]
+    },
+    {
+      "command": "confluence update-page",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <page-id>",
+          "description": "Page ID"
+        },
+        {
+          "flags": "--title <title>",
+          "description": "New page title"
+        },
+        {
+          "flags": "--body <html>",
+          "description": "New page body (storage format HTML or Markdown when --markdown is set)"
+        },
+        {
+          "flags": "--body-file <path>",
+          "description": "Path to a file containing the new page body ('-' = stdin)"
+        },
+        {
+          "flags": "--markdown",
+          "description": "Convert body from Markdown to storage format via Confluence API"
+        },
+        {
+          "flags": "--status <status>",
+          "description": "Page status: current (default) or draft (default: \"current\")"
+        },
+        {
+          "flags": "--representation <format>",
+          "description": "Body format: storage (default) or wiki (default: \"storage\")"
+        }
+      ]
+    },
+    {
+      "command": "confluence delete-page",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <page-id>",
+          "description": "Page ID"
+        }
+      ]
+    },
+    {
+      "command": "confluence list-comments",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <page-id>",
+          "description": "Page ID"
+        }
+      ]
+    },
+    {
+      "command": "confluence add-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <page-id>",
+          "description": "Page ID"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Comment body (storage format HTML)"
+        },
+        {
+          "flags": "--representation <format>",
+          "description": "Body format: storage (default) or wiki (default: \"storage\")"
+        }
+      ]
+    },
+    {
+      "command": "confluence add-label",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <page-id>",
+          "description": "Page ID"
+        },
+        {
+          "flags": "--labels <names>",
+          "description": "Comma-separated label names"
+        }
+      ]
+    },
+    {
+      "command": "confluence remove-label",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <page-id>",
+          "description": "Page ID"
+        },
+        {
+          "flags": "--label <name>",
+          "description": "Label name to remove"
+        }
+      ]
+    },
+    {
+      "command": "confluence list-spaces",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--type <type>",
+          "description": "Space type: global or personal"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Max total spaces to return (default: all)"
+        }
+      ]
+    },
+    {
+      "command": "confluence get-space",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--key <space-key>",
+          "description": "Space key"
+        }
+      ]
+    },
+    {
+      "command": "confluence list-attachments",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <page-id>",
+          "description": "Page ID"
+        }
+      ]
+    },
+    {
+      "command": "confluence upload-attachment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <page-id>",
+          "description": "Page ID"
+        },
+        {
+          "flags": "--file <path>",
+          "description": "Path to the file to upload"
+        },
+        {
+          "flags": "--comment <text>",
+          "description": "Optional comment to attach to the file version"
+        }
+      ]
+    },
+    {
+      "command": "confluence download-attachment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <attachment-id>",
+          "description": "Attachment content ID"
+        },
+        {
+          "flags": "--dir <path>",
+          "description": "Output directory (default: .toil relative to cwd)"
+        }
+      ]
+    },
+    {
+      "command": "confluence delete-attachment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <attachment-id>",
+          "description": "Attachment content ID"
+        }
+      ]
+    },
+    {
+      "command": "confluence get-page-history",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <page-id>",
+          "description": "Page ID"
+        }
+      ]
+    },
+    {
+      "command": "sonar",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "sonar quality-gate",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--project <key>",
+          "description": "SonarQube project key (or set defaults.sonar.project in config)"
+        },
+        {
+          "flags": "--branch <name>",
+          "description": "Branch name"
+        }
+      ]
+    },
+    {
+      "command": "sonar issues",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--project <key>",
+          "description": "SonarQube project key (or set defaults.sonar.project in config)"
+        },
+        {
+          "flags": "--severities <list>",
+          "description": "Filter by severity: BLOCKER,CRITICAL,MAJOR,MINOR,INFO (comma-separated)"
+        },
+        {
+          "flags": "--types <list>",
+          "description": "Filter by type: BUG,VULNERABILITY,CODE_SMELL (comma-separated)"
+        },
+        {
+          "flags": "--statuses <list>",
+          "description": "Filter by status: OPEN,CONFIRMED,REOPENED,RESOLVED,CLOSED (comma-separated)"
+        },
+        {
+          "flags": "--branch <name>",
+          "description": "Branch name"
+        },
+        {
+          "flags": "--resolved <bool>",
+          "description": "Filter resolved issues: true or false"
+        },
+        {
+          "flags": "--page <n>",
+          "description": "Page number (1-based) (default: \"1\")"
+        },
+        {
+          "flags": "--page-size <n>",
+          "description": "Results per page (max 500) (default: \"100\")"
+        },
+        {
+          "flags": "--all",
+          "description": "Fetch all pages (consider --output-file for large results; ignores --page/--page-size)"
+        }
+      ]
+    },
+    {
+      "command": "sonar measures",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--project <key>",
+          "description": "SonarQube project key (or set defaults.sonar.project in config)"
+        },
+        {
+          "flags": "--metrics <list>",
+          "description": "Comma-separated metric keys (default: \"coverage,duplicated_lines_density,bugs,vulnerabilities,code_smells,sqale_rating,reliability_rating,security_rating,ncloc\")"
+        },
+        {
+          "flags": "--branch <name>",
+          "description": "Branch name"
+        }
+      ]
+    },
+    {
+      "command": "sonar projects",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--query <text>",
+          "description": "Search query"
+        },
+        {
+          "flags": "--page <n>",
+          "description": "Page number (1-based) (default: \"1\")"
+        },
+        {
+          "flags": "--page-size <n>",
+          "description": "Results per page (default: \"100\")"
+        },
+        {
+          "flags": "--all",
+          "description": "Fetch all pages (consider --output-file for large results)"
+        }
+      ]
+    },
+    {
+      "command": "sonar hotspots",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--project <key>",
+          "description": "SonarQube project key (or set defaults.sonar.project in config)"
+        },
+        {
+          "flags": "--status <status>",
+          "description": "Filter: TO_REVIEW or REVIEWED"
+        },
+        {
+          "flags": "--resolution <list>",
+          "description": "Filter: FIXED,SAFE,ACKNOWLEDGED (comma-separated)"
+        },
+        {
+          "flags": "--branch <name>",
+          "description": "Branch name"
+        },
+        {
+          "flags": "--page <n>",
+          "description": "Page number (1-based) (default: \"1\")"
+        },
+        {
+          "flags": "--page-size <n>",
+          "description": "Results per page (default: \"100\")"
+        },
+        {
+          "flags": "--all",
+          "description": "Fetch all pages (consider --output-file for large results)"
+        }
+      ]
+    },
+    {
+      "command": "sde",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "sde server-info",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "sde whoami",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "sde users",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--email <email>",
+          "description": "Filter by email address"
+        },
+        {
+          "flags": "--first-name <name>",
+          "description": "Filter by first name"
+        },
+        {
+          "flags": "--last-name <name>",
+          "description": "Filter by last name"
+        },
+        {
+          "flags": "--active <bool>",
+          "description": "Filter by active status: true or false"
+        },
+        {
+          "flags": "--page <n>",
+          "description": "Page number (1-based) (default: \"1\")"
+        },
+        {
+          "flags": "--page-size <n>",
+          "description": "Results per page (default: \"100\")"
+        },
+        {
+          "flags": "--all",
+          "description": "Fetch all pages (consider --output-file for large results)"
+        }
+      ]
+    },
+    {
+      "command": "sde projects",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <name>",
+          "description": "Filter by project name"
+        },
+        {
+          "flags": "--search <text>",
+          "description": "Text search on name and profile"
+        },
+        {
+          "flags": "--active <val>",
+          "description": "Filter by active status: true, false, or all"
+        },
+        {
+          "flags": "--ordering <field>",
+          "description": "Sort by: name, created, updated (prefix with - for descending)"
+        },
+        {
+          "flags": "--expand <fields>",
+          "description": "Expand nested fields (comma-separated): application,business_unit,creator"
+        },
+        {
+          "flags": "--include <fields>",
+          "description": "Include extra fields (comma-separated): task_counts,permissions"
+        },
+        {
+          "flags": "--page <n>",
+          "description": "Page number (1-based) (default: \"1\")"
+        },
+        {
+          "flags": "--page-size <n>",
+          "description": "Results per page (default: \"100\")"
+        },
+        {
+          "flags": "--all",
+          "description": "Fetch all pages (consider --output-file for large results)"
+        }
+      ]
+    },
+    {
+      "command": "sde project",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <id>",
+          "description": "Project ID (or set defaults.sde.project in config)"
+        },
+        {
+          "flags": "--expand <fields>",
+          "description": "Expand nested fields (comma-separated): application,business_unit,creator"
+        },
+        {
+          "flags": "--include <fields>",
+          "description": "Include extra fields (comma-separated): task_counts,permissions"
+        }
+      ]
+    },
+    {
+      "command": "sde tasks",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--project <id>",
+          "description": "Project ID (or set defaults.sde.project in config)"
+        },
+        {
+          "flags": "--phase <slug>",
+          "description": "Filter by phase slug (e.g. development, architecture-design)"
+        },
+        {
+          "flags": "--priority <n>",
+          "description": "Filter by priority (1-10)"
+        },
+        {
+          "flags": "--status <id>",
+          "description": "Filter by status ID (e.g. TS1, TS2)"
+        },
+        {
+          "flags": "--assigned-to <email>",
+          "description": "Filter by assignee email"
+        },
+        {
+          "flags": "--source <val>",
+          "description": "Filter by source: default, custom, manual, project"
+        },
+        {
+          "flags": "--verification <val>",
+          "description": "Filter by verification: pass, fail, partial, none"
+        },
+        {
+          "flags": "--tag <name>",
+          "description": "Filter by tag name"
+        },
+        {
+          "flags": "--accepted <bool>",
+          "description": "Filter by accepted status: true or false"
+        },
+        {
+          "flags": "--relevant <bool>",
+          "description": "Filter by relevant status: true or false"
+        },
+        {
+          "flags": "--expand <fields>",
+          "description": "Expand nested fields (comma-separated): status,phase,problem,text"
+        },
+        {
+          "flags": "--include <fields>",
+          "description": "Include extra fields (comma-separated): how_tos,last_note,references,regulation_sections"
+        },
+        {
+          "flags": "--page <n>",
+          "description": "Page number (1-based) (default: \"1\")"
+        },
+        {
+          "flags": "--page-size <n>",
+          "description": "Results per page (default: \"100\")"
+        },
+        {
+          "flags": "--all",
+          "description": "Fetch all pages (consider --output-file for large results)"
+        }
+      ]
+    },
+    {
+      "command": "sde task",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--project <id>",
+          "description": "Project ID (or set defaults.sde.project in config)"
+        },
+        {
+          "flags": "--task <id>",
+          "description": "Task ID (e.g. T21)"
+        },
+        {
+          "flags": "--expand <fields>",
+          "description": "Expand nested fields (comma-separated): status,phase,problem,text"
+        },
+        {
+          "flags": "--include <fields>",
+          "description": "Include extra fields (comma-separated): how_tos,last_note,references"
+        }
+      ]
+    },
+    {
+      "command": "sde threats",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--project <id>",
+          "description": "Project ID (or set defaults.sde.project in config)"
+        },
+        {
+          "flags": "--severity <n>",
+          "description": "Filter by severity (1-10)"
+        },
+        {
+          "flags": "--search <text>",
+          "description": "Full-text search on title and threat ID"
+        },
+        {
+          "flags": "--ordering <field>",
+          "description": "Sort by: threat__severity, threat_id, status (prefix - for descending)"
+        },
+        {
+          "flags": "--capec-id <id>",
+          "description": "Filter by CAPEC attack pattern ID"
+        },
+        {
+          "flags": "--component-id <id>",
+          "description": "Filter by component ID"
+        },
+        {
+          "flags": "--page <n>",
+          "description": "Page number (1-based) (default: \"1\")"
+        },
+        {
+          "flags": "--page-size <n>",
+          "description": "Results per page (default: \"100\")"
+        },
+        {
+          "flags": "--all",
+          "description": "Fetch all pages (consider --output-file for large results)"
+        }
+      ]
+    },
+    {
+      "command": "deps",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "deps frisk",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--ecosystem <ecosystem>",
+          "description": "Filter to one ecosystem: npm, nuget, maven, all (default: \"all\")"
+        },
+        {
+          "flags": "--direct-only",
+          "description": "Only scan direct dependencies (default: include transitive) (default: false)"
+        },
+        {
+          "flags": "--include-dev",
+          "description": "Include dev/test dependencies (default: false)"
+        },
+        {
+          "flags": "--source <source>",
+          "description": "Vulnerability source (choices: \"osv\", \"sonatype\", \"sonatypeiq\", \"all\", default: \"osv\")"
+        },
+        {
+          "flags": "--application-id <id>",
+          "description": "Sonatype IQ Server application ID (required when --source sonatypeiq)"
+        }
+      ]
+    },
+    {
+      "command": "deps scan",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--ecosystem <ecosystem>",
+          "description": "Filter to one ecosystem: npm, nuget, maven, all (default: \"all\")"
+        },
+        {
+          "flags": "--include-transitive",
+          "description": "Include transitive dependencies (default: false)"
+        },
+        {
+          "flags": "--include-dev",
+          "description": "Include dev/test dependencies (default: false)"
+        }
+      ]
+    },
+    {
+      "command": "deps diff",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--from <ref>",
+          "description": "Base git ref (commit, tag, or branch)"
+        },
+        {
+          "flags": "--to <ref>",
+          "description": "Target git ref (default: working tree)"
+        },
+        {
+          "flags": "--ecosystem <ecosystem>",
+          "description": "Filter to one ecosystem: npm, nuget, maven, all (default: \"all\")"
+        },
+        {
+          "flags": "--include-dev",
+          "description": "Include dev/test dependencies (default: false)"
+        }
+      ]
+    },
+    {
+      "command": "deps outdated",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--ecosystem <ecosystem>",
+          "description": "Filter to one ecosystem: npm, nuget, maven, all (default: \"all\")"
+        },
+        {
+          "flags": "--major",
+          "description": "Only show major version bumps"
+        },
+        {
+          "flags": "--minor",
+          "description": "Only show minor version bumps or higher"
+        },
+        {
+          "flags": "--patch",
+          "description": "Only show patch version bumps or higher"
+        }
+      ]
+    },
+    {
+      "command": "deps license-check",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--ecosystem <ecosystem>",
+          "description": "Filter to one ecosystem: npm, nuget, maven, all (default: \"all\")"
+        },
+        {
+          "flags": "--include-dev",
+          "description": "Include dev/test dependencies (default: false)"
+        }
+      ]
+    },
+    {
+      "command": "deps connectivity",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "config",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "config keychain",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "config keychain status",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "config keychain set",
+      "usage": "[options] <key>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--stdin",
+          "description": "Read the secret from stdin instead of prompting"
+        },
+        {
+          "flags": "--value <secret>",
+          "description": "Pass the secret inline (ends up in shell history — prefer the prompt or --stdin)"
+        },
+        {
+          "flags": "--account <account>",
+          "description": "Keychain account name to store under (default: the config key)"
+        }
+      ]
+    },
+    {
+      "command": "config keychain remove",
+      "usage": "[options] <key>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--restore",
+          "description": "Write the secret back into config as plaintext instead of clearing the key"
+        }
+      ]
+    },
+    {
+      "command": "config keychain migrate",
+      "usage": "[options] [keys...]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--to <destination>",
+          "description": "keychain (move plaintext secrets in) or config (move keychain secrets back out) (default: \"keychain\")"
+        },
+        {
+          "flags": "--purge",
+          "description": "With --to config: also delete the keychain entries once config holds the secrets"
+        },
+        {
+          "flags": "--dry-run",
+          "description": "List what would move without touching the keychain or config"
+        }
+      ]
+    },
+    {
+      "command": "config init",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--repo",
+          "description": "Write repo config (.toil.json) instead of global config"
+        }
+      ]
+    },
+    {
+      "command": "config show",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "config set",
+      "usage": "[options] <key> <value>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--repo",
+          "description": "Write to repo config (.toil.json) instead of global config"
+        }
+      ]
+    },
+    {
+      "command": "config test",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "config check",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--output <format>",
+          "description": "Output format: json or table (default: \"json\")"
+        }
+      ]
+    },
+    {
+      "command": "doctor",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--offline",
+          "description": "Skip credential checks (no network calls)"
+        }
+      ]
+    },
+    {
+      "command": "ado",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": [
+        {
+          "flags": "--collection <name>",
+          "description": "Azure DevOps collection (organization)"
+        },
+        {
+          "flags": "--organization <name>",
+          "description": "Alias for --collection"
+        },
+        {
+          "flags": "--project <name>",
+          "description": "Azure DevOps team project"
+        },
+        {
+          "flags": "--repo <name>",
+          "description": "Azure DevOps git repository name"
+        }
+      ]
+    },
+    {
+      "command": "ado whoami",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "ado connection-data",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "ado project",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "ado project list-collections",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "ado project list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "ado project get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <project>",
+          "description": "Project name"
+        }
+      ]
+    },
+    {
+      "command": "ado work",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "ado work get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Work item ID"
+        }
+      ]
+    },
+    {
+      "command": "ado work create",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--type <type>",
+          "description": "Work item type (e.g. Bug, Task, User Story) (required, unless supplied via --input-file)"
+        },
+        {
+          "flags": "--title <title>",
+          "description": "Work item title (required, unless supplied via --input-file)"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "Description"
+        },
+        {
+          "flags": "--assignee <user>",
+          "description": "Assigned to (display name or email)"
+        },
+        {
+          "flags": "--priority <n>",
+          "description": "Priority (1-4)"
+        },
+        {
+          "flags": "--parent <id>",
+          "description": "Parent work item ID — creates a parent link after creation"
+        },
+        {
+          "flags": "--field <name=value>",
+          "description": "Additional field (repeatable) (default: [])"
+        },
+        {
+          "flags": "--input-file <path>",
+          "description": "JSON file describing the work item ({ type, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil ado work schema"
+        }
+      ]
+    },
+    {
+      "command": "ado work update",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Work item ID"
+        },
+        {
+          "flags": "--field <name=value>",
+          "description": "Field to update (repeatable) (default: [])"
+        },
+        {
+          "flags": "--input-file <path>",
+          "description": "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil ado work schema"
+        }
+      ]
+    },
+    {
+      "command": "ado work transition",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Work item ID"
+        },
+        {
+          "flags": "--state <state>",
+          "description": "New state (e.g. Active, Resolved, Closed)"
+        }
+      ]
+    },
+    {
+      "command": "ado work assign",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Work item ID"
+        },
+        {
+          "flags": "--to <user>",
+          "description": "User display name or email"
+        }
+      ]
+    },
+    {
+      "command": "ado work link",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <a>",
+          "description": "Source work item ID"
+        },
+        {
+          "flags": "--to <b>",
+          "description": "Target work item ID"
+        },
+        {
+          "flags": "--type <rel>",
+          "description": "Link type (related|parent|child|duplicate|duplicate-of) (default: \"related\")"
+        }
+      ]
+    },
+    {
+      "command": "ado work search",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--wiql <query>",
+          "description": "WIQL query string"
+        }
+      ]
+    },
+    {
+      "command": "ado work list-comments",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Work item ID"
+        }
+      ]
+    },
+    {
+      "command": "ado work add-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Work item ID"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Comment text"
+        }
+      ]
+    },
+    {
+      "command": "ado work add-tag",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Work item ID"
+        },
+        {
+          "flags": "--tags <tags>",
+          "description": "Semicolon- or comma-separated tags to add"
+        }
+      ]
+    },
+    {
+      "command": "ado work remove-tag",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Work item ID"
+        },
+        {
+          "flags": "--tags <tags>",
+          "description": "Semicolon- or comma-separated tags to remove"
+        }
+      ]
+    },
+    {
+      "command": "ado work list-attachments",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Work item ID"
+        }
+      ]
+    },
+    {
+      "command": "ado work add-attachment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Work item ID"
+        },
+        {
+          "flags": "--file <path>",
+          "description": "Path to the file to upload"
+        },
+        {
+          "flags": "--comment <text>",
+          "description": "Optional comment for the attachment"
+        }
+      ]
+    },
+    {
+      "command": "ado work download-attachment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Work item ID"
+        },
+        {
+          "flags": "--attachment-id <guid>",
+          "description": "Attachment ID from work list-attachments output"
+        },
+        {
+          "flags": "--dir <path>",
+          "description": "Output directory (default: .toil relative to cwd)"
+        }
+      ]
+    },
+    {
+      "command": "ado work list-areas",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--depth <n>",
+          "description": "Depth of the area tree to retrieve (default: \"10\")"
+        }
+      ]
+    },
+    {
+      "command": "ado work list-iterations",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--depth <n>",
+          "description": "Depth of the iteration tree to retrieve (default: \"10\")"
+        }
+      ]
+    },
+    {
+      "command": "ado work types",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--discover",
+          "description": "Fetch from server (always true for this command)"
+        },
+        {
+          "flags": "--save",
+          "description": "Save discovered types to ~/.toil/config.json"
+        }
+      ]
+    },
+    {
+      "command": "ado work list-states",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--type <type>",
+          "description": "Work item type name (e.g. Bug)"
+        }
+      ]
+    },
+    {
+      "command": "ado work fields",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--type <type>",
+          "description": "Scope to fields for a specific work item type (e.g. Bug)"
+        },
+        {
+          "flags": "--custom-only",
+          "description": "Exclude System.* and Microsoft.VSTS.* fields"
+        },
+        {
+          "flags": "--discover",
+          "description": "Fetch from server (always true for this command)"
+        },
+        {
+          "flags": "--save",
+          "description": "Save discovered fields and aliases to ~/.toil/config.json"
+        }
+      ]
+    },
+    {
+      "command": "ado work schema",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--example-only",
+          "description": "Print only the runnable example JSON (no envelope) — pipeable straight into --input-file"
+        }
+      ]
+    },
+    {
+      "command": "ado repo",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "ado repo list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "ado repo create",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <name>",
+          "description": "Repository name"
+        }
+      ]
+    },
+    {
+      "command": "ado repo get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "ado repo list-prs",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--state <state>",
+          "description": "PR state: active|abandoned|completed|all (default: \"active\")"
+        },
+        {
+          "flags": "--creator <alias>",
+          "description": "Filter by creator"
+        },
+        {
+          "flags": "--reviewer <alias>",
+          "description": "Filter by reviewer"
+        },
+        {
+          "flags": "--created-after <date>",
+          "description": "Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)"
+        },
+        {
+          "flags": "--created-before <date>",
+          "description": "Only PRs created before this ISO 8601 date"
+        }
+      ]
+    },
+    {
+      "command": "ado repo get-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "ado repo create-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--title <title>",
+          "description": "PR title"
+        },
+        {
+          "flags": "--source <branch>",
+          "description": "Source branch"
+        },
+        {
+          "flags": "--target <branch>",
+          "description": "Target branch (default: main) (default: \"main\")"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "PR description"
+        },
+        {
+          "flags": "--reviewers <ids>",
+          "description": "Comma-separated reviewer IDs or display names"
+        },
+        {
+          "flags": "--draft",
+          "description": "Create as a draft pull request"
+        }
+      ]
+    },
+    {
+      "command": "ado repo update-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--title <title>",
+          "description": "New title"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "New description"
+        },
+        {
+          "flags": "--reviewers <ids>",
+          "description": "Comma-separated reviewer IDs"
+        },
+        {
+          "flags": "--draft <bool>",
+          "description": "Set draft status: true|false"
+        }
+      ]
+    },
+    {
+      "command": "ado repo merge-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--strategy <s>",
+          "description": "Merge strategy: noFastForward|squash|rebase|rebaseMerge (default: \"noFastForward\")"
+        },
+        {
+          "flags": "--delete-source",
+          "description": "Delete source branch after merge"
+        }
+      ]
+    },
+    {
+      "command": "ado repo abandon-pr",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "ado repo list-comments",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--inline-only",
+          "description": "Return only inline file comments"
+        },
+        {
+          "flags": "--general-only",
+          "description": "Return only general PR comments"
+        }
+      ]
+    },
+    {
+      "command": "ado repo add-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Comment text"
+        }
+      ]
+    },
+    {
+      "command": "ado repo add-inline-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--file <path>",
+          "description": "File path"
+        },
+        {
+          "flags": "--line <n>",
+          "description": "Line number"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Comment text"
+        },
+        {
+          "flags": "--line-type <side>",
+          "description": "Line side: left|right (default: right) (default: \"right\")"
+        }
+      ]
+    },
+    {
+      "command": "ado repo reply-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--thread-id <id>",
+          "description": "Thread ID"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Reply text"
+        }
+      ]
+    },
+    {
+      "command": "ado repo resolve-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--thread-id <id>",
+          "description": "Thread ID"
+        }
+      ]
+    },
+    {
+      "command": "ado repo delete-comment",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--thread-id <id>",
+          "description": "Thread ID"
+        },
+        {
+          "flags": "--comment-id <id>",
+          "description": "Comment ID"
+        }
+      ]
+    },
+    {
+      "command": "ado repo list-files",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "ado repo diff",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        },
+        {
+          "flags": "--path <p>",
+          "description": "Filter diff to a specific file path"
+        }
+      ]
+    },
+    {
+      "command": "ado repo get-build-status",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--commit <sha>",
+          "description": "Commit SHA"
+        }
+      ]
+    },
+    {
+      "command": "ado repo list-reviewers",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "ado repo list-default-reviewers",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "ado repo approve",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "ado repo unapprove",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "ado repo wait-for-author",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "ado repo list-builds",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pr <n>",
+          "description": "Pull request ID"
+        }
+      ]
+    },
+    {
+      "command": "ado pipeline",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "ado pipeline list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "ado pipeline get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Pipeline definition ID"
+        }
+      ]
+    },
+    {
+      "command": "ado pipeline run",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Pipeline definition ID"
+        },
+        {
+          "flags": "--branch <ref>",
+          "description": "Source branch (e.g. refs/heads/main or main)"
+        },
+        {
+          "flags": "--parameter <k=v>",
+          "description": "Build parameter (repeatable) (default: [])"
+        },
+        {
+          "flags": "--wait",
+          "description": "Wait for the run to complete before returning"
+        },
+        {
+          "flags": "--timeout <s>",
+          "description": "Max wait time in seconds (default 600) (default: \"600\")"
+        },
+        {
+          "flags": "--poll <s>",
+          "description": "Poll interval in seconds (default 10) (default: \"10\")"
+        }
+      ]
+    },
+    {
+      "command": "ado pipeline list-runs",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--definition <id>",
+          "description": "Filter by definition ID"
+        },
+        {
+          "flags": "--name <name>",
+          "description": "Filter by pipeline name (resolved to definition ID; use pipeline list to see names)"
+        },
+        {
+          "flags": "--branch <ref>",
+          "description": "Filter by branch name"
+        },
+        {
+          "flags": "--status <filter>",
+          "description": "Filter by status (inProgress|completed|cancelling|...)"
+        },
+        {
+          "flags": "--top <n>",
+          "description": "Maximum results (default: \"50\")"
+        }
+      ]
+    },
+    {
+      "command": "ado pipeline get-run",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Build ID"
+        }
+      ]
+    },
+    {
+      "command": "ado pipeline cancel-run",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <n>",
+          "description": "Build ID"
+        }
+      ]
+    },
+    {
+      "command": "ado pipeline logs",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--build-id <n>",
+          "description": "Build (run) ID — from pipeline list-runs or get-run"
+        },
+        {
+          "flags": "--id <n>",
+          "description": "Build (run) ID — alias for --build-id (kept for backwards compatibility)"
+        },
+        {
+          "flags": "--log-id <n>",
+          "description": "Specific log ID (omit to list all logs)"
+        }
+      ]
+    },
+    {
+      "command": "jenkins",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": [
+        {
+          "flags": "--instance <name>",
+          "description": "Named Jenkins instance from global config (overrides default jenkins config)"
+        }
+      ]
+    },
+    {
+      "command": "jenkins pipeline",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "jenkins pipeline list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--folder <name>",
+          "description": "Folder name to enumerate (supports nested folders: parentFolder/childFolder)"
+        }
+      ]
+    },
+    {
+      "command": "jenkins pipeline get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <job>",
+          "description": "Job name (use folder/job for folder-scoped jobs)"
+        }
+      ]
+    },
+    {
+      "command": "jenkins pipeline run",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <job>",
+          "description": "Job name (use folder/job for folder-scoped jobs)"
+        },
+        {
+          "flags": "--parameter <k=v>",
+          "description": "Build parameter (repeatable) (default: [])"
+        },
+        {
+          "flags": "--wait",
+          "description": "Wait for the build to complete before returning"
+        },
+        {
+          "flags": "--timeout <s>",
+          "description": "Max wait time in seconds per phase (queue-wait and build-wait each get this budget; default 600) (default: \"600\")"
+        },
+        {
+          "flags": "--poll <s>",
+          "description": "Poll interval in seconds (default 10) (default: \"10\")"
+        }
+      ]
+    },
+    {
+      "command": "jenkins pipeline list-runs",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <job>",
+          "description": "Job name (use folder/job for folder-scoped jobs)"
+        },
+        {
+          "flags": "--top <n>",
+          "description": "Maximum number of builds to return (default 25) (default: \"25\")"
+        }
+      ]
+    },
+    {
+      "command": "jenkins pipeline get-run",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <job>",
+          "description": "Job name (use folder/job for folder-scoped jobs)"
+        },
+        {
+          "flags": "--number <n>",
+          "description": "Build number"
+        }
+      ]
+    },
+    {
+      "command": "jenkins pipeline logs",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <job>",
+          "description": "Job name (use folder/job for folder-scoped jobs)"
+        },
+        {
+          "flags": "--number <n>",
+          "description": "Build number"
+        }
+      ]
+    },
+    {
+      "command": "jenkins instance",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "jenkins instance list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "jenkins instance add",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <name>",
+          "description": "Instance name used with --instance"
+        },
+        {
+          "flags": "--base-url <url>",
+          "description": "Jenkins base URL (e.g. jenkins.imagile.dev)"
+        },
+        {
+          "flags": "--username <user>",
+          "description": "Jenkins username"
+        },
+        {
+          "flags": "--api-token <token>",
+          "description": "Jenkins API token (prompted for when omitted on an interactive terminal, keeping it out of shell history)"
+        },
+        {
+          "flags": "--force",
+          "description": "Overwrite an instance that already uses this name"
+        }
+      ]
+    },
+    {
+      "command": "jenkins instance remove",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <name>",
+          "description": "Instance name to remove"
+        }
+      ]
+    },
+    {
+      "command": "artifactory",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "artifactory ping",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "artifactory repos",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--type <type>",
+          "description": "Filter by type: local, virtual, remote, federated"
+        },
+        {
+          "flags": "--package-type <type>",
+          "description": "Filter by package type: npm, maven, nuget, docker, pypi, etc."
+        }
+      ]
+    },
+    {
+      "command": "artifactory artifact-info",
+      "usage": "[options] <repo> <path>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "artifactory properties-get",
+      "usage": "[options] <repo> <path>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "artifactory properties-set",
+      "usage": "[options] <repo> <path> [keyvals...]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--recursive",
+          "description": "Apply recursively to folder contents (default: false)"
+        }
+      ]
+    },
+    {
+      "command": "artifactory search",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--repo <name>",
+          "description": "Filter by repository key"
+        },
+        {
+          "flags": "--name <pattern>",
+          "description": "Filter by artifact name (supports * and ? wildcards)"
+        },
+        {
+          "flags": "--path <pattern>",
+          "description": "Filter by artifact path (supports * and ? wildcards)"
+        },
+        {
+          "flags": "--after <date>",
+          "description": "Created after this date (ISO 8601, e.g. 2024-01-01)"
+        },
+        {
+          "flags": "--before <date>",
+          "description": "Created before this date (ISO 8601)"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum results to return (default: 100) (default: \"100\")"
+        },
+        {
+          "flags": "--properties",
+          "description": "Include artifact properties in results (default: false)"
+        }
+      ]
+    },
+    {
+      "command": "artifactory builds",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--timeout <s>",
+          "description": "Request timeout in seconds (default 60; increase for large Artifactory instances) (default: \"60\")"
+        }
+      ]
+    },
+    {
+      "command": "artifactory build-runs",
+      "usage": "[options] <name>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "artifactory build-info",
+      "usage": "[options] <name> <number>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "checkmarx",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "checkmarx project",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "checkmarx project list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "checkmarx project get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <id>",
+          "description": "Project UUID"
+        }
+      ]
+    },
+    {
+      "command": "checkmarx scan",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "checkmarx scan list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--project <id>",
+          "description": "Filter by project UUID"
+        },
+        {
+          "flags": "--last <n>",
+          "description": "Return only the last N scans"
+        }
+      ]
+    },
+    {
+      "command": "checkmarx scan get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <id>",
+          "description": "Scan UUID"
+        }
+      ]
+    },
+    {
+      "command": "checkmarx scan stats",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <id>",
+          "description": "Scan UUID"
+        }
+      ]
+    },
+    {
+      "command": "contrast",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "contrast apps",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "contrast apps list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum number of results (default: \"25\")"
+        },
+        {
+          "flags": "--offset <n>",
+          "description": "Pagination offset (default: \"0\")"
+        }
+      ]
+    },
+    {
+      "command": "contrast findings",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "contrast findings list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--app <app-id>",
+          "description": "Application ID (UUID)"
+        },
+        {
+          "flags": "--severity <level>",
+          "description": "Filter by severity: CRITICAL, HIGH, MEDIUM, LOW, NOTE"
+        },
+        {
+          "flags": "--status <status>",
+          "description": "Filter by status: REPORTED, CONFIRMED, SUSPICIOUS, NOT_A_PROBLEM, REMEDIATED, FIXED"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum number of results (default: \"25\")"
+        },
+        {
+          "flags": "--offset <n>",
+          "description": "Pagination offset (default: \"0\")"
+        }
+      ]
+    },
+    {
+      "command": "contrast findings get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--app <app-id>",
+          "description": "Application ID (UUID)"
+        },
+        {
+          "flags": "--trace <trace-id>",
+          "description": "Trace/finding UUID"
+        }
+      ]
+    },
+    {
+      "command": "contrast libraries",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "contrast libraries list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--app <app-id>",
+          "description": "Application ID (UUID)"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum number of results (default: \"25\")"
+        },
+        {
+          "flags": "--offset <n>",
+          "description": "Pagination offset (default: \"0\")"
+        }
+      ]
+    },
+    {
+      "command": "contrast libraries get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--app <app-id>",
+          "description": "Application ID (UUID)"
+        },
+        {
+          "flags": "--hash <library-hash>",
+          "description": "Library hash"
+        }
+      ]
+    },
+    {
+      "command": "sonatypeiq",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "sonatypeiq applications",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "sonatypeiq applications list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--organization-id <id>",
+          "description": "Filter by organization ID"
+        }
+      ]
+    },
+    {
+      "command": "sonatypeiq applications get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--public-id <id>",
+          "description": "Application public ID"
+        }
+      ]
+    },
+    {
+      "command": "sonatypeiq organizations",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "sonatypeiq organizations list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "sonatypeiq policies",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "sonatypeiq policies list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--organization-id <id>",
+          "description": "Filter by organization ID"
+        }
+      ]
+    },
+    {
+      "command": "skills",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "skills install",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--agent <agent>",
+          "description": "Target agent host: codex | github-copilot | claude-code (default: \"codex\")"
+        },
+        {
+          "flags": "--scope <scope>",
+          "description": "Installation scope: project | user (default: \"project\")"
+        },
+        {
+          "flags": "--claude",
+          "description": "Shorthand for --agent claude-code"
+        },
+        {
+          "flags": "--all-agents",
+          "description": "Install to every supported agent host in one run"
+        },
+        {
+          "flags": "--target <dir>",
+          "description": "Override install directory (ignores --agent and --scope)"
+        }
+      ]
+    },
+    {
+      "command": "skills list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--agent <agent>",
+          "description": "Target agent host: codex | github-copilot | claude-code (default: \"codex\")"
+        },
+        {
+          "flags": "--scope <scope>",
+          "description": "Installation scope: project | user (default: \"project\")"
+        },
+        {
+          "flags": "--claude",
+          "description": "Shorthand for --agent claude-code"
+        },
+        {
+          "flags": "--target <dir>",
+          "description": "Override skills directory to scan"
+        }
+      ]
+    },
+    {
+      "command": "skills uninstall",
+      "usage": "[options] <name>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--agent <agent>",
+          "description": "Target agent host: codex | github-copilot | claude-code (default: \"codex\")"
+        },
+        {
+          "flags": "--scope <scope>",
+          "description": "Installation scope to uninstall from: project | user (default: \"user\")"
+        },
+        {
+          "flags": "--claude",
+          "description": "Shorthand for --agent claude-code"
+        },
+        {
+          "flags": "--target <dir>",
+          "description": "Override skills directory"
+        }
+      ]
+    },
+    {
+      "command": "skills locations",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "skills status",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--marketplace <name>",
+          "description": "Only show skills installed from this marketplace (name or clone URL)"
+        },
+        {
+          "flags": "--plugin <name>",
+          "description": "Only show skills belonging to this plugin"
+        },
+        {
+          "flags": "--source <source>",
+          "description": "Filter by provenance: marketplace | bundled | untracked"
+        },
+        {
+          "flags": "--agent <agent>",
+          "description": "Only show locations for this agent host: codex | github-copilot | claude-code"
+        },
+        {
+          "flags": "--scope <scope>",
+          "description": "Only show this scope: project | user | custom"
+        }
+      ]
+    },
+    {
+      "command": "skills forget-target",
+      "usage": "[options] <dir>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "skills guide",
+      "usage": "[options] [section]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--sections",
+          "description": "List the section names as JSON instead of printing the guide"
+        }
+      ]
+    },
+    {
+      "command": "skills git-auth",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "skills git-auth enable",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--marketplace <name>",
+          "description": "Only this marketplace (default: every marketplace that has a credential)"
+        },
+        {
+          "flags": "--host <host>",
+          "description": "A whole-host entry instead, answered with the provider token toil has for that host"
+        },
+        {
+          "flags": "--mode <mode>",
+          "description": "helper (git asks toil) or keychain (store in the OS credential store) (default: \"helper\")"
+        }
+      ]
+    },
+    {
+      "command": "skills git-auth disable",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--marketplace <name>",
+          "description": "Only this marketplace's entries"
+        },
+        {
+          "flags": "--host <host>",
+          "description": "Only the whole-host entry for this host"
+        },
+        {
+          "flags": "--forget-keychain",
+          "description": "Also erase the credential git stored in the OS keychain"
+        }
+      ]
+    },
+    {
+      "command": "skills git-auth status",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--marketplace <name>",
+          "description": "Only this marketplace"
+        }
+      ]
+    },
+    {
+      "command": "skills marketplace",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "skills marketplace add",
+      "usage": "[options] <url> [localPath]",
+      "aliases": [
+        "setup"
+      ],
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <name>",
+          "description": "Human-readable name for this marketplace (default: derived from URL)"
+        },
+        {
+          "flags": "--branch <branch>",
+          "description": "Branch to clone (default: remote HEAD)"
+        },
+        {
+          "flags": "--token <token>",
+          "description": "HTTP access token for authenticated clone and pull (GitHub PAT or Bitbucket token)"
+        },
+        {
+          "flags": "--keychain",
+          "description": "Store --token in the OS keychain instead of plaintext config (see: toil config keychain --help)"
+        },
+        {
+          "flags": "--username <username>",
+          "description": "Username sent with the token (default: x-access-token on github.com, x-token-auth elsewhere; Bitbucket Data Center personal tokens usually need your username)"
+        },
+        {
+          "flags": "--provider <provider>",
+          "description": "Git host type, when detection guesses wrong: github | bitbucket | ado | git"
+        },
+        {
+          "flags": "--agent <agent>",
+          "description": "Target agent host for plugin install: codex | github-copilot | claude-code (default: codex)"
+        },
+        {
+          "flags": "--claude",
+          "description": "Shorthand for --agent claude-code"
+        },
+        {
+          "flags": "--all-agents",
+          "description": "Install to every supported agent host in one run"
+        },
+        {
+          "flags": "--no-instructions",
+          "description": "Do not apply the shipped AGENTS.md / CLAUDE.md to user-level instructions files"
+        }
+      ]
+    },
+    {
+      "command": "skills marketplace list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "skills marketplace update",
+      "usage": "[options] <name>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--token <token>",
+          "description": "New access token for clone and pull"
+        },
+        {
+          "flags": "--keychain",
+          "description": "Store --token in the OS keychain instead of plaintext config"
+        },
+        {
+          "flags": "--username <username>",
+          "description": "Username sent with the token (Bitbucket Data Center personal tokens usually need your username)"
+        },
+        {
+          "flags": "--provider <provider>",
+          "description": "Git host type: github | bitbucket | ado | git"
+        },
+        {
+          "flags": "--clear-token",
+          "description": "Remove the marketplace's own token (falls back to the provider token toil has, if any)"
+        },
+        {
+          "flags": "--clear-username",
+          "description": "Go back to the default username"
+        },
+        {
+          "flags": "--clear-provider",
+          "description": "Go back to automatic provider detection"
+        }
+      ]
+    },
+    {
+      "command": "skills marketplace plugins",
+      "usage": "[options] <name>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "skills marketplace remove",
+      "usage": "[options] <name>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "skills marketplace sync",
+      "usage": "[options] [plugin]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--marketplace <name>",
+          "description": "Marketplace name to sync, or \"all\" to sync every registered marketplace (skips interactive selection)"
+        },
+        {
+          "flags": "--agent <agent>",
+          "description": "Target agent host: codex | github-copilot | claude-code (default: codex)"
+        },
+        {
+          "flags": "--claude",
+          "description": "Shorthand for --agent claude-code"
+        },
+        {
+          "flags": "--all-agents",
+          "description": "Install to every supported agent host in one run"
+        },
+        {
+          "flags": "--force",
+          "description": "Opt into the interactive picker instead of the installed-only shorthand (plugins are always refreshed from the local clone, with or without new upstream changes)"
+        },
+        {
+          "flags": "--installed-only",
+          "description": "Only sync plugins that are already installed — skip plugins newly added to the marketplace"
+        },
+        {
+          "flags": "--no-instructions",
+          "description": "Do not apply the shipped AGENTS.md / CLAUDE.md to user-level instructions files"
+        }
+      ]
+    },
+    {
+      "command": "skills marketplace instructions",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "skills marketplace instructions list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--marketplace <name>",
+          "description": "Only report this marketplace (name or clone URL)"
+        }
+      ]
+    },
+    {
+      "command": "skills marketplace instructions install",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--marketplace <name>",
+          "description": "Marketplace to apply (name or clone URL); default: every registered marketplace that ships instructions"
+        },
+        {
+          "flags": "--agent <agent>",
+          "description": "Target agent host: codex | github-copilot | claude-code (default: codex)"
+        },
+        {
+          "flags": "--claude",
+          "description": "Shorthand for --agent claude-code"
+        },
+        {
+          "flags": "--all-agents",
+          "description": "Apply to every supported agent host in one run"
+        }
+      ]
+    },
+    {
+      "command": "skills marketplace instructions remove",
+      "usage": "[options] <marketplace>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--agent <agent>",
+          "description": "Target agent host: codex | github-copilot | claude-code (default: codex)"
+        },
+        {
+          "flags": "--claude",
+          "description": "Shorthand for --agent claude-code"
+        },
+        {
+          "flags": "--all-agents",
+          "description": "Remove from every supported agent host in one run"
+        }
+      ]
+    },
+    {
+      "command": "skills marketplace purge-plugin",
+      "usage": "[options] <plugin>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--marketplace <name>",
+          "description": "Restrict purge to skills from this marketplace (by name or repo URL)"
+        },
+        {
+          "flags": "--agent <agent>",
+          "description": "Target agent host: codex | github-copilot | claude-code (default: codex)"
+        },
+        {
+          "flags": "--claude",
+          "description": "Shorthand for --agent claude-code"
+        },
+        {
+          "flags": "--scope <scope>",
+          "description": "Installation scope: project | user (default: user)"
+        },
+        {
+          "flags": "--target <dir>",
+          "description": "Override skills directory"
+        }
+      ]
+    },
+    {
+      "command": "skills marketplace disable",
+      "usage": "[options] <plugin>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--marketplace <name>",
+          "description": "Restrict to skills from this marketplace (by name or repo URL)"
+        },
+        {
+          "flags": "--agent <agent>",
+          "description": "Target agent host: codex | github-copilot | claude-code (default: codex)"
+        },
+        {
+          "flags": "--claude",
+          "description": "Shorthand for --agent claude-code"
+        },
+        {
+          "flags": "--scope <scope>",
+          "description": "Installation scope: project | user (default: user)"
+        },
+        {
+          "flags": "--target <dir>",
+          "description": "Override skills directory"
+        }
+      ]
+    },
+    {
+      "command": "skills marketplace enable",
+      "usage": "[options] <plugin>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--marketplace <name>",
+          "description": "Restrict to skills from this marketplace (by name or repo URL)"
+        },
+        {
+          "flags": "--agent <agent>",
+          "description": "Target agent host: codex | github-copilot | claude-code (default: codex)"
+        },
+        {
+          "flags": "--claude",
+          "description": "Shorthand for --agent claude-code"
+        },
+        {
+          "flags": "--scope <scope>",
+          "description": "Installation scope: project | user (default: user)"
+        },
+        {
+          "flags": "--target <dir>",
+          "description": "Override skills directory"
+        }
+      ]
+    },
+    {
+      "command": "skills marketplace manage",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--agent <agent>",
+          "description": "Target agent host: codex | github-copilot | claude-code (default: codex)"
+        },
+        {
+          "flags": "--claude",
+          "description": "Shorthand for --agent claude-code"
+        },
+        {
+          "flags": "--scope <scope>",
+          "description": "Installation scope: project | user (default: user)"
+        },
+        {
+          "flags": "--target <dir>",
+          "description": "Override skills directory"
+        }
+      ]
+    },
+    {
+      "command": "skills purge-user",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--agent <agent>",
+          "description": "Target agent host: codex | github-copilot | claude-code (default: codex)"
+        },
+        {
+          "flags": "--claude",
+          "description": "Shorthand for --agent claude-code"
+        },
+        {
+          "flags": "--force",
+          "description": "Skip confirmation — remove all skills without prompting"
+        }
+      ]
+    },
+    {
+      "command": "jwt",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "jwt decode",
+      "usage": "[options] <token>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "openshift",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": [
+        {
+          "flags": "--env <name>",
+          "description": "Named environment (openshift.environments.<name>) to target"
+        },
+        {
+          "flags": "--instance <name>",
+          "description": "Named cluster instance within the environment to target"
+        }
+      ]
+    },
+    {
+      "command": "openshift cluster",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "openshift cluster list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "openshift pods",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--namespace <ns>",
+          "description": "Kubernetes namespace"
+        },
+        {
+          "flags": "--label-selector <selector>",
+          "description": "Label selector (e.g. app=my-app)"
+        },
+        {
+          "flags": "--raw",
+          "description": "Return full Kubernetes pod objects without summarization (includes env vars, images, node name, annotations, resources, etc.) (default: false)"
+        }
+      ]
+    },
+    {
+      "command": "openshift deployments",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--namespace <ns>",
+          "description": "Kubernetes namespace"
+        },
+        {
+          "flags": "--label-selector <selector>",
+          "description": "Label selector (e.g. app=my-app)"
+        },
+        {
+          "flags": "--deployment-configs",
+          "description": "Read OpenShift DeploymentConfigs (apps.openshift.io/v1) instead of Deployments (apps/v1) (default: false)"
+        },
+        {
+          "flags": "--raw",
+          "description": "Return full objects without summarization (includes pod template, env vars, strategy, etc.) (default: false)"
+        }
+      ]
+    },
+    {
+      "command": "openshift events",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--namespace <ns>",
+          "description": "Kubernetes namespace"
+        },
+        {
+          "flags": "--field-selector <selector>",
+          "description": "Additional field selector (e.g. involvedObject.name=my-pod)"
+        },
+        {
+          "flags": "--all",
+          "description": "Include Normal events in addition to Warning events (default: false)"
+        }
+      ]
+    },
+    {
+      "command": "openshift logs",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--namespace <ns>",
+          "description": "Kubernetes namespace"
+        },
+        {
+          "flags": "--pod <name>",
+          "description": "Pod name"
+        },
+        {
+          "flags": "--container <name>",
+          "description": "Container name (defaults to first container)"
+        },
+        {
+          "flags": "--lines <n>",
+          "description": "Number of most-recent lines to return (default: \"100\")"
+        },
+        {
+          "flags": "--previous",
+          "description": "Return logs from the previous container instance (default: false)"
+        }
+      ]
+    },
+    {
+      "command": "openshift pod-metrics",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--namespace <ns>",
+          "description": "Kubernetes namespace"
+        }
+      ]
+    },
+    {
+      "command": "openshift resource-usage",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--namespace <ns>",
+          "description": "Kubernetes namespace"
+        },
+        {
+          "flags": "--label-selector <selector>",
+          "description": "Label selector (e.g. app=my-app)"
+        },
+        {
+          "flags": "--csv",
+          "description": "Output as CSV instead of JSON (suitable for Excel) (default: false)"
+        }
+      ]
+    },
+    {
+      "command": "dynatrace",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": [
+        {
+          "flags": "--env <name>",
+          "description": "Named Dynatrace environment to use (from dynatrace.environments.<name>)"
+        }
+      ]
+    },
+    {
+      "command": "dynatrace entities",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "dynatrace entities list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--selector <selector>",
+          "description": "Dynatrace entity selector, e.g. type(\"SERVICE\")"
+        },
+        {
+          "flags": "--from <time>",
+          "description": "Start time (ISO 8601 or relative, e.g. now-2h)"
+        },
+        {
+          "flags": "--to <time>",
+          "description": "End time (ISO 8601 or relative)"
+        },
+        {
+          "flags": "--fields <fields>",
+          "description": "Additional entity fields"
+        }
+      ]
+    },
+    {
+      "command": "dynatrace entities get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <id>",
+          "description": "Entity ID, e.g. SERVICE-1234567890ABCDEF"
+        },
+        {
+          "flags": "--from <time>",
+          "description": "Start time"
+        },
+        {
+          "flags": "--to <time>",
+          "description": "End time"
+        },
+        {
+          "flags": "--fields <fields>",
+          "description": "Additional entity fields"
+        }
+      ]
+    },
+    {
+      "command": "dynatrace services",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--from <time>",
+          "description": "Start time"
+        },
+        {
+          "flags": "--to <time>",
+          "description": "End time"
+        }
+      ]
+    },
+    {
+      "command": "dynatrace workloads",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--from <time>",
+          "description": "Start time"
+        },
+        {
+          "flags": "--to <time>",
+          "description": "End time"
+        }
+      ]
+    },
+    {
+      "command": "dynatrace problems",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "dynatrace problems list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--from <time>",
+          "description": "Start time (default: now-2h)"
+        },
+        {
+          "flags": "--to <time>",
+          "description": "End time (default: now)"
+        },
+        {
+          "flags": "--problem-selector <selector>",
+          "description": "Dynatrace problem selector"
+        },
+        {
+          "flags": "--entity-selector <selector>",
+          "description": "Affected entity selector"
+        }
+      ]
+    },
+    {
+      "command": "dynatrace problems get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <id>",
+          "description": "Problem ID"
+        },
+        {
+          "flags": "--fields <fields>",
+          "description": "Additional fields"
+        }
+      ]
+    },
+    {
+      "command": "dynatrace trace",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <trace-id>",
+          "description": "16- or 32-character hexadecimal trace ID"
+        }
+      ]
+    },
+    {
+      "command": "logscale",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "logscale repositories",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "logscale repositories list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "logscale query",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--repository <name>",
+          "description": "Repository name to query"
+        },
+        {
+          "flags": "--query <lql>",
+          "description": "LogScale Query Language expression (e.g. \"error\" or \"level=error | count()\")"
+        },
+        {
+          "flags": "--start <time>",
+          "description": "Start time (ISO 8601 or relative such as 1h or 24h) (default: \"1h\")"
+        },
+        {
+          "flags": "--end <time>",
+          "description": "End time (ISO 8601 or relative) (default: \"now\")"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum number of events to return (default: \"200\")"
+        },
+        {
+          "flags": "--timeout-ms <ms>",
+          "description": "Client-side HTTP timeout in milliseconds (default: \"30000\")"
+        }
+      ]
+    },
+    {
+      "command": "elasticsearch",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "elasticsearch cluster",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "elasticsearch cluster health",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "elasticsearch indices",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "elasticsearch indices list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--pattern <pattern>",
+          "description": "Index name or wildcard pattern (e.g. \"logs-*\")"
+        }
+      ]
+    },
+    {
+      "command": "elasticsearch search",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--index <name>",
+          "description": "Index, data stream, alias or wildcard pattern; comma-separate several"
+        },
+        {
+          "flags": "--query <json>",
+          "description": "Query DSL clause as JSON (e.g. '{\"match\":{\"message\":\"error\"}}')"
+        },
+        {
+          "flags": "--q <query-string>",
+          "description": "Lucene query string (e.g. \"level:error AND service:api\")"
+        },
+        {
+          "flags": "--sort <field:order>",
+          "description": "Sort, e.g. \"@timestamp:desc\""
+        },
+        {
+          "flags": "--source <fields>",
+          "description": "Comma-separated fields to return (_source filtering)"
+        },
+        {
+          "flags": "--size <n>",
+          "description": "Maximum number of hits to return (default: \"100\")"
+        },
+        {
+          "flags": "--from <n>",
+          "description": "Offset of the first hit (default: \"0\")"
+        },
+        {
+          "flags": "--timeout-ms <ms>",
+          "description": "Client-side HTTP timeout in milliseconds (default: \"30000\")"
+        }
+      ]
+    },
+    {
+      "command": "elasticsearch count",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--index <name>",
+          "description": "Index, data stream, alias or wildcard pattern; comma-separate several"
+        },
+        {
+          "flags": "--query <json>",
+          "description": "Query DSL clause as JSON"
+        },
+        {
+          "flags": "--q <query-string>",
+          "description": "Lucene query string"
+        }
+      ]
+    },
+    {
+      "command": "kibana",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "kibana status",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "kibana spaces",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "kibana spaces list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "kibana dashboards",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "kibana dashboards list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--search <text>",
+          "description": "Match dashboard titles; supports a trailing * wildcard (e.g. \"payments*\")"
+        },
+        {
+          "flags": "--space <id>",
+          "description": "Kibana space ID (default: kibana.space, else the default space)"
+        },
+        {
+          "flags": "--page <n>",
+          "description": "Page number (default: \"1\")"
+        },
+        {
+          "flags": "--per-page <n>",
+          "description": "Results per page (default: \"100\")"
+        }
+      ]
+    },
+    {
+      "command": "kibana dashboards export",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <ids...>",
+          "description": "Dashboard ID(s) to export"
+        },
+        {
+          "flags": "--no-references",
+          "description": "Export only the dashboards themselves, not what they reference"
+        },
+        {
+          "flags": "--space <id>",
+          "description": "Kibana space ID (default: kibana.space, else the default space)"
+        }
+      ]
+    },
+    {
+      "command": "kibana data-views",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "kibana data-views list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--space <id>",
+          "description": "Kibana space ID (default: kibana.space, else the default space)"
+        }
+      ]
+    },
+    {
+      "command": "kibana rules",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "kibana rules list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--search <text>",
+          "description": "Match rule names; supports a trailing * wildcard"
+        },
+        {
+          "flags": "--space <id>",
+          "description": "Kibana space ID (default: kibana.space, else the default space)"
+        },
+        {
+          "flags": "--page <n>",
+          "description": "Page number (default: \"1\")"
+        },
+        {
+          "flags": "--per-page <n>",
+          "description": "Results per page (default: \"100\")"
+        }
+      ]
+    },
+    {
+      "command": "kibana rules get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <id>",
+          "description": "Rule ID"
+        },
+        {
+          "flags": "--space <id>",
+          "description": "Kibana space ID (default: kibana.space, else the default space)"
+        }
+      ]
+    },
+    {
+      "command": "splitio",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "splitio workspaces",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "splitio workspaces list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "splitio environments",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "splitio environments list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--workspace <id>",
+          "description": "Workspace ID"
+        }
+      ]
+    },
+    {
+      "command": "splitio flags",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "splitio flags list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--workspace <id>",
+          "description": "Workspace ID"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum number of flags to return (default: \"50\")"
+        },
+        {
+          "flags": "--offset <n>",
+          "description": "Pagination offset (default: \"0\")"
+        },
+        {
+          "flags": "--flag-set <name>",
+          "description": "Filter by flag set name"
+        }
+      ]
+    },
+    {
+      "command": "splitio flags get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--workspace <id>",
+          "description": "Workspace ID"
+        },
+        {
+          "flags": "--flag <name>",
+          "description": "Feature flag name"
+        },
+        {
+          "flags": "--environment <id>",
+          "description": "Environment ID — include targeting rules for this environment"
+        }
+      ]
+    },
+    {
+      "command": "splitio flags update",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--workspace <id>",
+          "description": "Workspace ID"
+        },
+        {
+          "flags": "--flag <name>",
+          "description": "Feature flag name"
+        },
+        {
+          "flags": "--environment <id>",
+          "description": "Environment ID"
+        },
+        {
+          "flags": "--mnemonic <text>",
+          "description": "Short Change Request title (mnemonic)"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "Change Request description"
+        },
+        {
+          "flags": "--change-number <CHG>",
+          "description": "Change request number (e.g. CHG0001234)"
+        },
+        {
+          "flags": "--approvers <ids>",
+          "description": "Comma-separated Split user IDs required to approve this CR"
+        },
+        {
+          "flags": "--input-file <path>",
+          "description": "JSON file with the complete flag definition body (use - for stdin)"
+        },
+        {
+          "flags": "--yes",
+          "description": "Skip interactive confirmation prompt"
+        }
+      ]
+    },
+    {
+      "command": "splitio flags set-rule",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--workspace <id>",
+          "description": "Workspace ID"
+        },
+        {
+          "flags": "--flag <name>",
+          "description": "Feature flag name"
+        },
+        {
+          "flags": "--environment <id>",
+          "description": "Environment ID"
+        },
+        {
+          "flags": "--rule-index <n>",
+          "description": "Zero-based index of the targeting rule to update"
+        },
+        {
+          "flags": "--treatment <name>",
+          "description": "Treatment to assign to the entire rule bucket"
+        },
+        {
+          "flags": "--weights <json>",
+          "description": "JSON array of {treatment, size} objects for weighted distribution"
+        },
+        {
+          "flags": "--mnemonic <text>",
+          "description": "Short Change Request title (mnemonic)"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "Change Request description"
+        },
+        {
+          "flags": "--change-number <CHG>",
+          "description": "Change request number (e.g. CHG0001234)"
+        },
+        {
+          "flags": "--approvers <ids>",
+          "description": "Comma-separated Split user IDs required to approve this CR"
+        },
+        {
+          "flags": "--yes",
+          "description": "Skip interactive confirmation prompt"
+        }
+      ]
+    },
+    {
+      "command": "splitio flags set-default",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--workspace <id>",
+          "description": "Workspace ID"
+        },
+        {
+          "flags": "--flag <name>",
+          "description": "Feature flag name"
+        },
+        {
+          "flags": "--environment <id>",
+          "description": "Environment ID"
+        },
+        {
+          "flags": "--treatment <name>",
+          "description": "Treatment to assign as the default"
+        },
+        {
+          "flags": "--mnemonic <text>",
+          "description": "Short Change Request title (mnemonic)"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "Change Request description"
+        },
+        {
+          "flags": "--change-number <CHG>",
+          "description": "Change request number (e.g. CHG0001234)"
+        },
+        {
+          "flags": "--approvers <ids>",
+          "description": "Comma-separated Split user IDs required to approve this CR"
+        },
+        {
+          "flags": "--yes",
+          "description": "Skip interactive confirmation prompt"
+        }
+      ]
+    },
+    {
+      "command": "splitio flags toggle",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--workspace <id>",
+          "description": "Workspace ID"
+        },
+        {
+          "flags": "--flag <name>",
+          "description": "Feature flag name"
+        },
+        {
+          "flags": "--environment <id>",
+          "description": "Environment ID"
+        },
+        {
+          "flags": "--enabled <bool>",
+          "description": "true to restore / false to kill the flag"
+        },
+        {
+          "flags": "--mnemonic <text>",
+          "description": "Short Change Request title (mnemonic)"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "Change Request description"
+        },
+        {
+          "flags": "--change-number <CHG>",
+          "description": "Change request number (e.g. CHG0001234)"
+        },
+        {
+          "flags": "--approvers <ids>",
+          "description": "Comma-separated Split user IDs required to approve this CR"
+        },
+        {
+          "flags": "--yes",
+          "description": "Skip interactive confirmation prompt"
+        }
+      ]
+    },
+    {
+      "command": "splitio flags batch-toggle",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--workspace <id>",
+          "description": "Workspace ID"
+        },
+        {
+          "flags": "--environment <id>",
+          "description": "Environment ID"
+        },
+        {
+          "flags": "--mnemonic <text>",
+          "description": "Short Change Request title prefix (mnemonic)"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "Change Request description"
+        },
+        {
+          "flags": "--change-number <CHG>",
+          "description": "Change request number (e.g. CHG0001234)"
+        },
+        {
+          "flags": "--approvers <ids>",
+          "description": "Comma-separated Split user IDs required to approve each CR"
+        },
+        {
+          "flags": "--input-file <path>",
+          "description": "JSON file: array of {flag, enabled} objects (use - for stdin)"
+        },
+        {
+          "flags": "--yes",
+          "description": "Skip interactive confirmation prompt"
+        }
+      ]
+    },
+    {
+      "command": "splitio flags kill",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--workspace <id>",
+          "description": "Workspace ID"
+        },
+        {
+          "flags": "--flag <name>",
+          "description": "Feature flag name"
+        },
+        {
+          "flags": "--environment <id>",
+          "description": "Environment ID"
+        },
+        {
+          "flags": "--mnemonic <text>",
+          "description": "Short Change Request title (mnemonic)"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "Change Request description"
+        },
+        {
+          "flags": "--change-number <CHG>",
+          "description": "Change request number (e.g. CHG0001234)"
+        },
+        {
+          "flags": "--approvers <ids>",
+          "description": "Comma-separated Split user IDs required to approve this CR"
+        },
+        {
+          "flags": "--yes",
+          "description": "Skip interactive confirmation prompt"
+        }
+      ]
+    },
+    {
+      "command": "splitio flags restore",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--workspace <id>",
+          "description": "Workspace ID"
+        },
+        {
+          "flags": "--flag <name>",
+          "description": "Feature flag name"
+        },
+        {
+          "flags": "--environment <id>",
+          "description": "Environment ID"
+        },
+        {
+          "flags": "--mnemonic <text>",
+          "description": "Short Change Request title (mnemonic)"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "Change Request description"
+        },
+        {
+          "flags": "--change-number <CHG>",
+          "description": "Change request number (e.g. CHG0001234)"
+        },
+        {
+          "flags": "--approvers <ids>",
+          "description": "Comma-separated Split user IDs required to approve this CR"
+        },
+        {
+          "flags": "--yes",
+          "description": "Skip interactive confirmation prompt"
+        }
+      ]
+    },
+    {
+      "command": "splitio flags archive",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--workspace <id>",
+          "description": "Workspace ID"
+        },
+        {
+          "flags": "--flag <name>",
+          "description": "Feature flag name"
+        },
+        {
+          "flags": "--mnemonic <text>",
+          "description": "Short Change Request title (mnemonic)"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "Change Request description"
+        },
+        {
+          "flags": "--change-number <CHG>",
+          "description": "Change request number (e.g. CHG0001234)"
+        },
+        {
+          "flags": "--yes",
+          "description": "Skip interactive confirmation prompt"
+        }
+      ]
+    },
+    {
+      "command": "splitio change-requests",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "splitio change-requests list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--workspace <id>",
+          "description": "Workspace ID"
+        },
+        {
+          "flags": "--environment <id>",
+          "description": "Filter by environment ID"
+        },
+        {
+          "flags": "--status <status>",
+          "description": "Filter by status (REQUESTED, APPROVED, REJECTED, PUBLISHED)"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum number of results (default: \"25\")"
+        },
+        {
+          "flags": "--offset <n>",
+          "description": "Pagination offset (default: \"0\")"
+        }
+      ]
+    },
+    {
+      "command": "splitio change-requests get",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--id <id>",
+          "description": "Change Request ID"
+        }
+      ]
+    },
+    {
+      "command": "figma",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "figma file",
+      "usage": "[options] <file-key-or-url>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--document",
+          "description": "Include the full document node tree (can be large; omitted by default)"
+        },
+        {
+          "flags": "--node-id <id>",
+          "description": "Fetch only this node and its descendants instead of the whole file (overrides any node-id detected in the URL)"
+        }
+      ]
+    },
+    {
+      "command": "figma comments",
+      "usage": "[options] <file-key-or-url>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--as-of <date>",
+          "description": "ISO 8601 timestamp — return only comments created before this time"
+        }
+      ]
+    },
+    {
+      "command": "figma versions",
+      "usage": "[options] <file-key-or-url>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "figma project-files",
+      "usage": "[options] <project-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "figma me",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "alation",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "alation token",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "alation token status",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "alation datasource",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "alation datasource list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--include-undeployed",
+          "description": "Include data sources whose setup is incomplete"
+        },
+        {
+          "flags": "--include-hidden",
+          "description": "Include hidden data sources"
+        }
+      ]
+    },
+    {
+      "command": "alation datasource get",
+      "usage": "[options] <id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "alation schema",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "alation schema list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--ds <id>",
+          "description": "Filter by data source ID"
+        },
+        {
+          "flags": "--name <name>",
+          "description": "Filter by exact schema name"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Page size (max 1000) (default: \"100\")"
+        },
+        {
+          "flags": "--skip <n>",
+          "description": "Number of results to skip (default: \"0\")"
+        }
+      ]
+    },
+    {
+      "command": "alation schema get",
+      "usage": "[options] <id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "alation table",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "alation table list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--ds <id>",
+          "description": "Filter by data source ID"
+        },
+        {
+          "flags": "--schema <id>",
+          "description": "Filter by schema ID"
+        },
+        {
+          "flags": "--schema-name <name>",
+          "description": "Filter by schema name"
+        },
+        {
+          "flags": "--name <name>",
+          "description": "Filter by exact table name"
+        },
+        {
+          "flags": "--search <text>",
+          "description": "Case-insensitive substring match on table name"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Page size (max 1000) (default: \"100\")"
+        },
+        {
+          "flags": "--skip <n>",
+          "description": "Number of results to skip (default: \"0\")"
+        }
+      ]
+    },
+    {
+      "command": "alation table get",
+      "usage": "[options] <id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--columns",
+          "description": "Also fetch the table's columns (up to 1000)"
+        }
+      ]
+    },
+    {
+      "command": "alation column",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "alation column list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--table <id>",
+          "description": "Filter by table ID"
+        },
+        {
+          "flags": "--table-name <name>",
+          "description": "Filter by table name"
+        },
+        {
+          "flags": "--schema <id>",
+          "description": "Filter by schema ID"
+        },
+        {
+          "flags": "--ds <id>",
+          "description": "Filter by data source ID"
+        },
+        {
+          "flags": "--name <name>",
+          "description": "Filter by exact column name"
+        },
+        {
+          "flags": "--search <text>",
+          "description": "Case-insensitive substring match on column name"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Page size (max 1000) (default: \"100\")"
+        },
+        {
+          "flags": "--skip <n>",
+          "description": "Number of results to skip (default: \"0\")"
+        }
+      ]
+    },
+    {
+      "command": "alation column get",
+      "usage": "[options] <id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "alation search",
+      "usage": "[options] <query>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--otype <types>",
+          "description": "Comma-separated object types to restrict to (e.g. table,column). Valid: api_resource, api_resource_field, api_resource_folder, article, bi_field, catalog_set, column, dataflow, datasource, doc_schema, docstore_collection, docstore_folder, domain, execution_result, file, filesystem, function, glossary, glossary_term, glossary_v3, group, query_or_statement, report_collection, report_datasource, report_object, report_source, schema, table, tag, thread, user, value"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum results (default 20, max 10000) (default: \"20\")"
+        },
+        {
+          "flags": "--offset <n>",
+          "description": "Index of the first result (default: \"0\")"
+        }
+      ]
+    },
+    {
+      "command": "alation folder",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "alation folder list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--hub <id>",
+          "description": "Document hub ID"
+        },
+        {
+          "flags": "--parent <id>",
+          "description": "Parent folder ID (list its subfolders)"
+        },
+        {
+          "flags": "--search <text>",
+          "description": "Filter on textual fields"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Page size (max 1000) (default: \"100\")"
+        },
+        {
+          "flags": "--skip <n>",
+          "description": "Number of results to skip (default: \"0\")"
+        }
+      ]
+    },
+    {
+      "command": "alation folder get",
+      "usage": "[options] <id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "alation document",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "alation document list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--hub <id>",
+          "description": "Document hub ID"
+        },
+        {
+          "flags": "--folder <id>",
+          "description": "Parent folder ID"
+        },
+        {
+          "flags": "--parent-document <id>",
+          "description": "Parent document ID (list sub-documents)"
+        },
+        {
+          "flags": "--search <text>",
+          "description": "Filter on all textual fields"
+        },
+        {
+          "flags": "--deleted",
+          "description": "Return only deleted documents"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Page size (max 1000) (default: \"100\")"
+        },
+        {
+          "flags": "--skip <n>",
+          "description": "Number of results to skip (default: \"0\")"
+        }
+      ]
+    },
+    {
+      "command": "alation document get",
+      "usage": "[options] <id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "alation document schema",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--example-only",
+          "description": "Print only the runnable example JSON (no envelope) — pipeable straight into --input-file"
+        }
+      ]
+    },
+    {
+      "command": "alation document create",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--title <title>",
+          "description": "Document title"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "Document summary"
+        },
+        {
+          "flags": "--hub <id>",
+          "description": "Document hub ID"
+        },
+        {
+          "flags": "--folder <id>",
+          "description": "Parent folder ID"
+        },
+        {
+          "flags": "--template <id>",
+          "description": "Template ID (required when custom fields are set)"
+        },
+        {
+          "flags": "--parent-document <id>",
+          "description": "Parent document ID for a sub-document"
+        },
+        {
+          "flags": "--input-file <path>",
+          "description": "JSON file with title/description/hub/folder/template/fields (see `alation document schema`); \"-\" reads stdin"
+        }
+      ]
+    },
+    {
+      "command": "alation document update",
+      "usage": "[options] <id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--title <title>",
+          "description": "New title"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "New summary"
+        },
+        {
+          "flags": "--folder <id>",
+          "description": "Move to this parent folder"
+        },
+        {
+          "flags": "--template <id>",
+          "description": "Template ID (required when custom fields are set)"
+        },
+        {
+          "flags": "--input-file <path>",
+          "description": "JSON file with title/description/folder/template/fields (see `alation document schema`); \"-\" reads stdin"
+        }
+      ]
+    },
+    {
+      "command": "alation job",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "alation job get",
+      "usage": "[options] <id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "saucelabs status",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs concurrency",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs platforms",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--api <api>",
+          "description": "Automation API: all, appium, webdriver (default: \"all\")"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs job",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "saucelabs job list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum number of jobs to return"
+        },
+        {
+          "flags": "--skip <n>",
+          "description": "Number of jobs to skip"
+        },
+        {
+          "flags": "--from <time>",
+          "description": "Only jobs created after this time (Unix seconds or ISO 8601)"
+        },
+        {
+          "flags": "--to <time>",
+          "description": "Only jobs created before this time (Unix seconds or ISO 8601)"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs job get",
+      "usage": "[options] <job-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs job update",
+      "usage": "[options] <job-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <name>",
+          "description": "Job name"
+        },
+        {
+          "flags": "--build <build>",
+          "description": "Build name to group the job under"
+        },
+        {
+          "flags": "--tags <tags>",
+          "description": "Comma-separated tags; replaces the existing tags"
+        },
+        {
+          "flags": "--passed",
+          "description": "Mark the job as passed"
+        },
+        {
+          "flags": "--failed",
+          "description": "Mark the job as failed"
+        },
+        {
+          "flags": "--public <visibility>",
+          "description": "Visibility: public, public restricted, share, team, private"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs job stop",
+      "usage": "[options] <job-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs job delete",
+      "usage": "[options] <job-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs job assets",
+      "usage": "[options] <job-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs rdc-job",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "saucelabs rdc-job list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum number of jobs to return"
+        },
+        {
+          "flags": "--offset <n>",
+          "description": "Number of jobs to skip"
+        },
+        {
+          "flags": "--live",
+          "description": "Only manual (live) tests"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs rdc-job get",
+      "usage": "[options] <job-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs rdc-job update",
+      "usage": "[options] <job-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <name>",
+          "description": "Job name"
+        },
+        {
+          "flags": "--build <build>",
+          "description": "Build name"
+        },
+        {
+          "flags": "--tags <tags>",
+          "description": "Comma-separated tags; replaces the existing tags"
+        },
+        {
+          "flags": "--passed",
+          "description": "Mark the job as passed"
+        },
+        {
+          "flags": "--failed",
+          "description": "Mark the job as failed"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs rdc-job stop",
+      "usage": "[options] <job-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs rdc-job delete",
+      "usage": "[options] <job-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs build",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "saucelabs build list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--source <source>",
+          "description": "Build source: vdc (virtual devices) or rdc (real devices) (default: \"vdc\")"
+        },
+        {
+          "flags": "--status <status>",
+          "description": "Filter by status (repeatable or comma-separated): running, error, failed, complete, success"
+        },
+        {
+          "flags": "--name <name>",
+          "description": "Filter by build name"
+        },
+        {
+          "flags": "--start <time>",
+          "description": "Only builds started after this time (Unix seconds or ISO 8601)"
+        },
+        {
+          "flags": "--end <time>",
+          "description": "Only builds ended before this time (Unix seconds or ISO 8601)"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum number of builds to return"
+        },
+        {
+          "flags": "--offset <n>",
+          "description": "Number of builds to skip"
+        },
+        {
+          "flags": "--sort <order>",
+          "description": "Sort by creation time: asc or desc"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs build get",
+      "usage": "[options] <build-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--source <source>",
+          "description": "Build source: vdc (virtual devices) or rdc (real devices) (default: \"vdc\")"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs build jobs",
+      "usage": "[options] <build-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--source <source>",
+          "description": "Build source: vdc (virtual devices) or rdc (real devices) (default: \"vdc\")"
+        },
+        {
+          "flags": "--failed",
+          "description": "Only failed jobs"
+        },
+        {
+          "flags": "--errored",
+          "description": "Only errored jobs"
+        },
+        {
+          "flags": "--passed",
+          "description": "Only passed jobs"
+        },
+        {
+          "flags": "--running",
+          "description": "Only running jobs"
+        },
+        {
+          "flags": "--queued",
+          "description": "Only queued jobs"
+        },
+        {
+          "flags": "--completed",
+          "description": "Only completed jobs"
+        },
+        {
+          "flags": "--finished",
+          "description": "Only finished jobs"
+        },
+        {
+          "flags": "--faulty",
+          "description": "Only faulty (failed or errored) jobs"
+        },
+        {
+          "flags": "--modified-since <time>",
+          "description": "Only jobs modified since this ISO 8601 time"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs build for-job",
+      "usage": "[options] <job-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--source <source>",
+          "description": "Build source: vdc (virtual devices) or rdc (real devices) (default: \"vdc\")"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs device",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "saucelabs device list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <regex>",
+          "description": "Device name (regex), for example \"iPhone.*\" or \"Samsung Galaxy S2[34].*\""
+        },
+        {
+          "flags": "--os <os>",
+          "description": "Operating system: android or ios"
+        },
+        {
+          "flags": "--os-version <version>",
+          "description": "OS major version or regex, for example 17 or \"1[78]\""
+        },
+        {
+          "flags": "--type <type>",
+          "description": "Device type: phone or tablet"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs device get",
+      "usage": "[options] <device-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs device status",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--state <state>",
+          "description": "Only devices in this state: available, in_use, cleaning, maintenance, rebooting, offline"
+        },
+        {
+          "flags": "--name <regex>",
+          "description": "Device name (regex)"
+        },
+        {
+          "flags": "--private-only",
+          "description": "Only your organization's private devices"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs session",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "saucelabs session list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--state <state>",
+          "description": "Only sessions in this state: pending, creating, active, closing, closed, errored"
+        },
+        {
+          "flags": "--device-name <regex>",
+          "description": "Device name (regex)"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs session create",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--device-name <regex>",
+          "description": "Device name or regex, for example \"iPhone 15.*\" (any device when omitted)"
+        },
+        {
+          "flags": "--os <os>",
+          "description": "Operating system: android or ios"
+        },
+        {
+          "flags": "--tunnel-name <name>",
+          "description": "Route device traffic through this Sauce Connect tunnel"
+        },
+        {
+          "flags": "--tunnel-owner <username>",
+          "description": "Owner of a shared tunnel"
+        },
+        {
+          "flags": "--duration <iso8601>",
+          "description": "Session length as an ISO 8601 duration, for example PT30M (default 6h; public devices cap at 1h)"
+        },
+        {
+          "flags": "--wait",
+          "description": "Poll until the session is ACTIVE (or fails) before returning"
+        },
+        {
+          "flags": "--timeout <seconds>",
+          "description": "Maximum seconds to wait with --wait (default: \"300\")"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs session get",
+      "usage": "[options] <session-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs session delete",
+      "usage": "[options] <session-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--reboot",
+          "description": "Reboot the device after closing (private devices only)"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs session open-url",
+      "usage": "[options] <session-id> <url>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs session shell",
+      "usage": "[options] <session-id> <command>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs session install-app",
+      "usage": "[options] <session-id> <app>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--launch",
+          "description": "Launch the app once installed"
+        },
+        {
+          "flags": "--no-instrumentation",
+          "description": "Install without Sauce instrumentation"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs session installations",
+      "usage": "[options] <session-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs session launch-app",
+      "usage": "[options] <session-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--bundle-id <id>",
+          "description": "iOS bundle ID"
+        },
+        {
+          "flags": "--package-name <name>",
+          "description": "Android package name"
+        },
+        {
+          "flags": "--activity <name>",
+          "description": "Android activity to launch"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs session uninstall-app",
+      "usage": "[options] <session-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--bundle-id <id>",
+          "description": "iOS bundle ID"
+        },
+        {
+          "flags": "--package-name <name>",
+          "description": "Android package name"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs session settings",
+      "usage": "[options] <session-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--orientation <orientation>",
+          "description": "Screen orientation: portrait or landscape"
+        },
+        {
+          "flags": "--locale <locale>",
+          "description": "Locale, for example en_US (Android only)"
+        },
+        {
+          "flags": "--animations <on|off>",
+          "description": "Enable or disable system animations (Android only)"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs session start-test",
+      "usage": "[options] <session-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <name>",
+          "description": "Test name"
+        },
+        {
+          "flags": "--build <build>",
+          "description": "Build name"
+        },
+        {
+          "flags": "--tags <tags>",
+          "description": "Comma-separated tags"
+        },
+        {
+          "flags": "--video",
+          "description": "Record video"
+        },
+        {
+          "flags": "--device-logs",
+          "description": "Capture device logs"
+        },
+        {
+          "flags": "--network-capture",
+          "description": "Capture network traffic"
+        },
+        {
+          "flags": "--screenshots",
+          "description": "Capture screenshots"
+        },
+        {
+          "flags": "--appium-logs",
+          "description": "Capture Appium logs"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs session end-test",
+      "usage": "[options] <session-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--passed",
+          "description": "Mark the test as passed"
+        },
+        {
+          "flags": "--failed",
+          "description": "Mark the test as failed"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs session tests",
+      "usage": "[options] <session-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs session network-profiles",
+      "usage": "[options] <session-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs session network",
+      "usage": "[options] <session-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--profile <name>",
+          "description": "Named profile from network-profiles, for example 4G-fast"
+        },
+        {
+          "flags": "--download <kbps>",
+          "description": "Download speed in kbps (0-50000)"
+        },
+        {
+          "flags": "--upload <kbps>",
+          "description": "Upload speed in kbps (0-50000)"
+        },
+        {
+          "flags": "--latency <ms>",
+          "description": "Added latency in ms (0-3000)"
+        },
+        {
+          "flags": "--loss <percent>",
+          "description": "Packet loss percent (0-100)"
+        },
+        {
+          "flags": "--reset",
+          "description": "Remove all throttling"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs session appium",
+      "usage": "[options] <session-id>",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--start",
+          "description": "Start an Appium server for the session"
+        },
+        {
+          "flags": "--appium-version <version>",
+          "description": "Appium version to start (see appium-versions)"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs appium-versions",
+      "usage": "[options]",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs tunnel",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "saucelabs tunnel list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--all",
+          "description": "Include tunnels shared with you"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs tunnel get",
+      "usage": "[options] <tunnel-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs tunnel jobs",
+      "usage": "[options] <tunnel-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs tunnel stop",
+      "usage": "[options] <tunnel-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs storage",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "saucelabs storage files",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--query <text>",
+          "description": "Search file names and app metadata"
+        },
+        {
+          "flags": "--kind <kind>",
+          "description": "App kind: android or ios"
+        },
+        {
+          "flags": "--page <n>",
+          "description": "Page number (starts at 1)"
+        },
+        {
+          "flags": "--per-page <n>",
+          "description": "Results per page (max 100)"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs storage groups",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--query <text>",
+          "description": "Search group names"
+        },
+        {
+          "flags": "--kind <kind>",
+          "description": "App kind: android or ios"
+        },
+        {
+          "flags": "--page <n>",
+          "description": "Page number (starts at 1)"
+        },
+        {
+          "flags": "--per-page <n>",
+          "description": "Results per page (max 100)"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs team",
+      "usage": "[options] [command]",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "saucelabs team list",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <prefix>",
+          "description": "Team name prefix"
+        }
+      ]
+    },
+    {
+      "command": "saucelabs team get",
+      "usage": "[options] <team-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs team members",
+      "usage": "[options] <team-id>",
+      "leaf": true,
+      "options": []
+    },
+    {
+      "command": "saucelabs users",
+      "usage": "[options]",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--username <username>",
+          "description": "Exact username"
+        },
+        {
+          "flags": "--phrase <text>",
+          "description": "Search username, name, and email"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Maximum results (default 20, max 100)"
+        },
+        {
+          "flags": "--offset <n>",
+          "description": "Number of results to skip"
+        }
+      ]
+    }
+  ]
+}
