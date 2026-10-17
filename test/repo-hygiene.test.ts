@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { statSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -28,6 +28,15 @@ const ROOT = new Set([
   'tsconfig.json', 'tsup.config.ts', 'vitest.config.ts', 'vitest.live.config.ts',
 ]);
 
+/**
+ * Atlassian and Dynatrace answer for any tenant name, so a tenant-shaped example
+ * on their domains is a real host someone could register, and a copied config
+ * would send them the credential (CLAUDE.md, Placeholders). A name in angle
+ * brackets is fine.
+ */
+const WILDCARD_TENANT = /\b[a-z0-9-]+\.(?:atlassian\.net|live\.dynatrace\.com|apps\.dynatrace\.com)\b/i;
+const BINARY = /\.(?:png|jpe?g|webp|avif|gif|ico|woff2?)$/i;
+
 describe.skipIf(!tracked)('tracked files', () => {
   it('has nothing unexpected at the repo root', () => {
     const top = [...new Set(tracked!.map((f) => f.split('/')[0]!))];
@@ -44,5 +53,16 @@ describe.skipIf(!tracked)('tracked files', () => {
       }
     });
     expect(empty).toEqual([]);
+  });
+
+  it('has no placeholder tenant on a vendor that answers for every subdomain', () => {
+    const found = tracked!.filter((f) => !BINARY.test(f)).flatMap((f) => {
+      try {
+        return readFileSync(join(root, f), 'utf8').split('\n').flatMap((line, i) => (WILDCARD_TENANT.test(line) ? [`${f}:${i + 1}`] : []));
+      } catch {
+        return [];
+      }
+    });
+    expect(found).toEqual([]);
   });
 });

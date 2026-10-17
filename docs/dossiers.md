@@ -37,7 +37,7 @@ implemented in #59. What dossiers rely on:
   "version": 2,
   "connections": {
     "corp-jira":  { "area": "jira",       "baseUrl": "https://jira.imagile.dev" },
-    "jira-cloud": { "area": "jira-cloud", "baseUrl": "https://imagile.atlassian.net", "email": "you@example.com", "writes": true },
+    "jira-cloud": { "area": "jira-cloud", "baseUrl": "https://jira-cloud.imagile.dev", "email": "you@example.com", "writes": true },
     "ocp-prod":   { "area": "openshift",  "baseUrl": "https://api.ocp.imagile.dev:6443" }
   },
   "defaults": { "jira": { "connection": "corp-jira" } }
@@ -100,7 +100,7 @@ TOIL_CONN_OCP_PROD_TOKEN=...
     "test": { "openshift": { "host": "api.ocp-nonprod.imagile.dev", "namespace": "payments-test" } },
     "prod": {
       "openshift": { "host": "api.ocp.imagile.dev", "namespace": "payments-prod", "deployments": ["payments-api", "ledger-svc"] },
-      "dynatrace": { "host": "abc12345.live.dynatrace.com", "entities": ["SERVICE-abc12345"] }
+      "dynatrace": { "host": "dynatrace.imagile.dev", "entities": ["SERVICE-abc12345"] }
     }
   }
 }
