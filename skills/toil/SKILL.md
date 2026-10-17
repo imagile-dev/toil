@@ -8,8 +8,9 @@ description: Use toil, a structured-JSON CLI and MCP server, to read from and (w
 Every command prints one JSON envelope on stdout: `{ ok, data, error, meta }`.
 Check `ok`; on failure, `error.code` says what kind of failure it was and `error.fix`
 says what to do about it. Paged results put the next page's cursor in
-`meta.page.nextCursor` (null on the last page). `--pretty` formats the output for
-people.
+`meta.page.nextCursor` (null on the last page). `meta.context` says which connection
+a call used and how it was chosen, and where any project, repo or environment it
+resolved came from. `--pretty` formats the output for people.
 
 Each area is reachable two ways with identical inputs and output: on the command
 line as `toil <area> <command>`, and as MCP tools from `toil mcp --areas <area>`

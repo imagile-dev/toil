@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { areaOf, commandName, type AnyCommand } from './command.js';
+import { areaOf, commandName, isCliOnly, managesConfig, usesConnection, type AnyCommand } from './command.js';
 import type { Connection } from './area.js';
+import { resolveCall, type ResolvedCall } from './call-context.js';
 import { connectionEnvName, defaultConnectionName, envName } from './config.js';
-import { resolveConnection } from './connection.js';
 import type { CommandContext, Context } from './context.js';
-import { failure, success, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
+import { failure, success, type ContextReport, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
 
@@ -39,16 +39,18 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
   const requests: RequestLog[] = [];
   const warnings: Warning[] = [...ctx.config.warnings];
   let page: Page | undefined;
+  let report: ContextReport | undefined;
   const meta = (): Meta => {
     const m: Meta = { command: commandName(def), durationMs: Math.round(performance.now() - started), version: ctx.version };
     if (ctx.verbose) m.requests = requests;
     if (warnings.length > 0) m.warnings = warnings;
     if (page) m.page = page;
+    if (report && Object.keys(report).length > 0) m.context = report;
     return m;
   };
 
   // A CLI-only command may be waiting on a person typing a token; Ctrl+C still cancels it.
-  const timeoutMs = def.cliOnly ? undefined : (ctx.timeoutMs ?? def.timeLimitMs ?? DEFAULT_TIMEOUT_MS);
+  const timeoutMs = isCliOnly(def) ? undefined : (ctx.timeoutMs ?? def.timeLimitMs ?? DEFAULT_TIMEOUT_MS);
   const controller = new AbortController();
   // Aborting stops toil waiting; it can't recall a request the server already
   // has. For a write, "stopped" would invite a retry that files the change
@@ -89,31 +91,49 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     aborted.catch(() => {});
     // One connection per call, resolved before the gate: writes are switched on
     // per connection, so the gate has to know which one this call would use.
+    // Its context inputs resolve with it, since an input may select it.
     // Reading a secret from the OS store spawns a process, so it runs under
     // the same time limit and cancel as the command itself.
     const input = parsed.data as Record<string, unknown>;
-    const connection = def.area
+    // Filled as it resolves, so a failure part-way still reports what was chosen.
+    const partial: ContextReport = {};
+    if (usesConnection(def)) report = partial;
+    const call: ResolvedCall | undefined = usesConnection(def)
       ? await Promise.race([
-          resolveConnection(ctx.config, def.area, input.connection as string | undefined, (w) => warnings.push(w), ctx.secrets, controller.signal),
+          resolveCall(def, input, { config: ctx.config, secrets: ctx.secrets, dossier: ctx.dossier, gitRemote: ctx.gitRemote }, (w) => warnings.push(w), controller.signal, partial),
           aborted,
         ])
       : undefined;
-    if (def.writes) assertWritesAllowed(def, input, connection, ctx);
+    const connection = call?.connection;
+    if (def.writes) assertWritesAllowed(def, input, connection, call?.report, ctx);
 
     // Commands get their connection and nothing else: no config, and no env,
     // which carries every other connection's token too. Need-to-know,
     // enforced rather than requested in a policy nobody reads.
     // The credential store and the prompter go only to commands that manage
     // connections, which get them through ctx.manage.
-    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt'> & { config?: unknown; env?: unknown; secrets?: unknown; prompt?: unknown } = { ...ctx };
+    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossier' | 'gitRemote' | 'adopted'> & {
+      config?: unknown;
+      env?: unknown;
+      secrets?: unknown;
+      prompt?: unknown;
+      dossier?: unknown;
+      gitRemote?: unknown;
+      adopted?: unknown;
+    } = { ...ctx };
     delete rest.config;
     delete rest.env;
     delete rest.secrets;
     delete rest.prompt;
+    delete rest.dossier;
+    delete rest.gitRemote;
+    delete rest.adopted;
     const commandCtx: CommandContext<Connection | undefined> = {
       ...rest,
       connection,
-      ...(def.managesConfig ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt } } : {}),
+      context: call?.context ?? {},
+      resolved: call?.report ?? {},
+      ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
       warn: (warning) => warnings.push(warning),
@@ -136,8 +156,18 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
  * call. Two approvals, like a change request, except both of these are
  * actually read.
  */
-function assertWritesAllowed(def: AnyCommand, input: Record<string, unknown>, connection: Connection | undefined, ctx: Context): void {
+function assertWritesAllowed(def: AnyCommand, input: Record<string, unknown>, connection: Connection | undefined, report: ContextReport | undefined, ctx: Context): void {
   const area = areaOf(def);
+  // A connection the dossier or the git remote picked is a suggestion until
+  // the user adopts it. Reads may follow a suggestion; a write waits for a yes,
+  // asked once, not inferred from where the terminal happens to be.
+  const chosenBy = report?.connection?.source;
+  if (connection && (chosenBy === 'dossier' || chosenBy === 'git') && !ctx.adopted?.(area, connection.name)) {
+    const by = chosenBy === 'dossier' ? 'your dossier' : 'the git remote';
+    throw new ToilError('WRITE_DISABLED', `${commandName(def)} changes data in ${area}, and connection ${connection.name} was chosen by ${by}, not by you.`, {
+      fix: `Pass --connection ${connection.name} to choose it yourself, or adopt the binding once with toil dossiers import (coming with #16).`,
+    });
+  }
   if (!connection?.writes) {
     const name = connection?.name ?? area;
     const variable = connection && defaultConnectionName(ctx.config, area) !== name ? connectionEnvName(name, 'writes') : envName(area, 'writes');

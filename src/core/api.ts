@@ -51,7 +51,13 @@ export interface AreaToken {
   vendorDomain?: string;
 }
 
-export type RequestHook<C> = (connection: Connection<C>) => AreaEndpoint | Promise<AreaEndpoint>;
+/** What a hook knows about its own area: enough to name an env var in fix text. */
+export interface HookArea {
+  name: string;
+  envName(key: string): string;
+}
+
+export type RequestHook<C> = (connection: Connection<C>, area: HookArea) => AreaEndpoint | Promise<AreaEndpoint>;
 
 export interface ApiRequest {
   method?: 'GET' | 'HEAD' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -134,7 +140,7 @@ async function send<T>(area: AnyArea, ctx: ApiContext, path: string, req: ApiReq
   const { body, contentType } = encode(req);
   for (let attempt = 1; ; attempt++) {
     const scope = `${area.name}/${ctx.connection.name}`;
-    const endpoint = await area.request(ctx.connection);
+    const endpoint = await area.request(ctx.connection, area);
     const service = endpoint.service ?? area.name;
     const authFix = endpoint.authFix ?? `Check the credential on connection "${ctx.connection.name}".`;
     let tokenHeaders: Record<string, string> = {};

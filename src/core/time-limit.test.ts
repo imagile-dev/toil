@@ -54,4 +54,12 @@ describe('a declared time limit', () => {
     setTimeout(() => controller.abort(), 5);
     expect((await result).error).toMatchObject({ code: 'CANCELLED' });
   });
+
+  it('is refused at definition when it would not raise the default', () => {
+    const define = (timeLimitMs: number) => () =>
+      slow.command({ path: ['slow', 'quick'], description: 'x', input: z.object({}), writes: false, timeLimitMs, examples: [{}], run: async () => null });
+    expect(define(60_000)).toThrow(/above the 120 s default/);
+    expect(define(120_000)).toThrow(/above the 120 s default/);
+    expect(define(300_000)).not.toThrow();
+  });
 });
