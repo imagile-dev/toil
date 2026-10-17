@@ -33,10 +33,11 @@ function readIssueFile(path: string | undefined, ctx: client.JiraContext): Issue
 }
 
 /**
- * The project for create-issue, in the predecessor's order: --project, then
- * "project" in --input-file, then the connection's project. Core resolves the
- * first and last (and the dossier, between them, once there is one); the file
- * is read by the command, so its step is taken here. When the file's value
+ * The project for create-issue, in this order: --project, then "project" in
+ * --input-file, then the dossier (#16; empty today), then the connection's
+ * project, which is the predecessor's order with the dossier slotted in.
+ * Core resolves the flag, the dossier and the connection; the file is read by
+ * the command, so its step is taken here. When the file's value
  * wins, meta.context says it came from the call, which is where the file did.
  */
 function projectFor(ctx: client.JiraContext, json: IssueJsonInput | undefined): string | undefined {

@@ -95,7 +95,12 @@ versions.
   --instance`, `openshift --env --instance`, `dynatrace --env`) are `group` inputs,
   with the contract's spelling in `flags`; a per-command one (`jira --project`) is a
   `command` input the command lists in its `context`, marked `required` where the
-  predecessor failed without it. Give it a `setting` when the connection can hold a
+  predecessor failed without it, unless the command has its own fallback (a project in
+  `--input-file`); then keep it optional, fill that step in the command, and set
+  `ctx.resolved.inputs` so `meta.context` reports it, as `jira create-issue` does.
+  A flag that names a target but never fell back to a setting stays an ordinary
+  option (Jira's `fields`, `list-boards`, `list-sprints`); a context input always
+  falls back. Give it a `setting` when the connection can hold a
   default, `git` when the remote names it, and `selectsConnection` when the old CLI
   picked an instance or environment by it. Read it from `ctx.context`.
 - **Another area's credential** (Kibana on Elasticsearch's key) is `defineArea({

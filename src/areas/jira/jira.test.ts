@@ -564,3 +564,10 @@ describe('paging through core', () => {
     expect(envelope.data).toEqual([{ id: '0' }]);
   });
 });
+
+describe('search total', () => {
+  it('keeps the total from an empty page, as the predecessor did', async () => {
+    const { envelope } = await run(search, { jql: 'x', startAt: 500 }, [{ method: 'POST', url: `${JIRA}/rest/api/2/search`, respond: { json: { issues: [], total: 42 } } }]);
+    expect(envelope.data).toMatchObject({ issues: [], total: 42, startAt: 500, maxResults: 0 });
+  });
+});

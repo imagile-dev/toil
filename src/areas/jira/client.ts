@@ -142,7 +142,11 @@ function offsetPages<T>(field: string): PageStyle<T> {
     startParam: 'startAt',
     limitParam: 'maxResults',
     pageSize: PAGE,
-    items: (body) => ((body as Record<string, T[] | undefined>)[field] ?? []),
+    // `issues` first, as the predecessor's shared loop read every list.
+    items: (body) => {
+      const page = body as Record<string, T[] | undefined>;
+      return page.issues ?? page[field] ?? [];
+    },
     total: (body) => Number((body as { total?: unknown }).total),
   };
 }
@@ -272,8 +276,7 @@ export async function search(
       first,
       items: (body) => (body as JiraSearchResult).issues ?? [],
       total: (body) => {
-        total = (body as JiraSearchResult).total;
-        const reported = Number(total);
+        const reported = Number((body as JiraSearchResult).total);
         if (end === undefined) return reported;
         return Number.isNaN(reported) ? end : Math.min(reported, end);
       },
@@ -281,7 +284,10 @@ export async function search(
     async (params) => {
       const startAt = Number(params.startAt);
       const pageSize = max === undefined ? PAGE : Math.min(PAGE, max - (startAt - first));
-      return { body: await jira<JiraSearchResult>(ctx, `${API}/search`, { method: 'POST', body: { jql, startAt, maxResults: pageSize, fields: opts.fields } }) };
+      const page = await jira<JiraSearchResult>(ctx, `${API}/search`, { method: 'POST', body: { jql, startAt, maxResults: pageSize, fields: opts.fields } });
+      // Every page's total, the empty last one included, as the predecessor kept it.
+      total = page.total;
+      return { body: page };
     },
   );
   return { issues: items, total, startAt: first, maxResults: items.length };
