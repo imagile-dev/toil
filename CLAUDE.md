@@ -325,10 +325,12 @@ guessing, and it silently breaks callers who rely on the old result.
   anything new it finds there, with where, what, why, confidence, the observable
   change if fixed, and a live check. Tests pin the predecessor's behavior and say it's
   a suspected bug.
-- **Two kinds of change are allowed:** a credential reaching a host the user didn't
-  configure, which is fixed at once and listed as a divergence in
-  `docs/command-contract.md`, and additive output the contract already allows (a new
-  `data` field, `meta.warnings`, `meta.page`).
+- **Two kinds of change are allowed.** One is a change another principle or the
+  Output Contract requires, such as a credential reaching a host the user didn't
+  configure, or a path an agent passes reaching toil's own credentials. It's made at
+  once and listed as a divergence in `docs/command-contract.md`, naming the principle.
+  The other is additive output the contract already allows (a new `data` field,
+  `meta.warnings`, `meta.page`).
 - **The first live run checks every item** in the area's issue. A confirmed bug is
   fixed as a declared change (`fix:` or `feat!:`, per Delivery); a refuted one is
   closed.

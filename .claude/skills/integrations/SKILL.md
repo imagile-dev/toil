@@ -129,9 +129,11 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
     appending to it if it exists: where, what, why, confidence, the observable change
     if fixed, and a live check. The test that covers it pins the old behavior and
     says so.
-  - **The only changes allowed** are a credential reaching a host the user didn't
-    configure (fixed at once, flagged `**Security:**` in the issue, and listed as a
-    divergence in `docs/command-contract.md`) and additive output the contract
+  - **The only changes allowed** are a change another principle or the Output
+    Contract requires, such as a credential reaching a host the user didn't configure
+    (flagged `**Security:**` in the issue) or a path an agent passes reaching toil's
+    own credentials, made at once and listed as a divergence in
+    `docs/command-contract.md` naming the principle; and additive output the contract
     allows, such as `meta.warnings`.
   - **The first live run checks every item.** A confirmed bug is fixed as a declared
     change; a refuted one is closed.
