@@ -65,7 +65,7 @@ jobs:
           ref: ${{ needs.release-please.outputs.tag_name }}
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
+          node-version: '24.14'
           registry-url: https://registry.npmjs.org
           cache: npm
       # Trusted publishing (OIDC, no token) needs npm 11.5.1 or later.

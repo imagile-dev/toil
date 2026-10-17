@@ -16,7 +16,7 @@ scripts can use it as easily as people.
 
 ## Install
 
-toil is plain JavaScript on Node 22.16 or later, on Windows, macOS and Linux. There is no
+toil is plain JavaScript on Node 24.14 or later, on Windows, macOS and Linux. There is no
 executable, no native module, and no install script, so it runs where unapproved
 binaries are blocked.
 
@@ -55,6 +55,11 @@ config; `toil connections list` shows what's set up. Tokens live in the OS
 credential store or in environment variables, never in the config file; use
 environment variables in CI, containers and anywhere without a credential store. Nothing in a repository can change where your credentials go or
 switch on writes. Database connections are read-only unless you mark them otherwise.
+
+Behind a corporate proxy or TLS inspection, nothing extra is needed: toil trusts the OS
+certificate store as well as Node's bundled CAs, and sends requests through
+`HTTPS_PROXY` / `HTTP_PROXY`, skipping hosts in `NO_PROXY`. If your organization's CA
+is in neither store, point `NODE_EXTRA_CA_CERTS` at its bundle.
 
 ## Contributing
 

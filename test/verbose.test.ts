@@ -33,6 +33,12 @@ describe('redactUrl', () => {
     expect(out).not.toMatch(/api_key=1/);
     expect(out).toContain('project=PAY');
   });
+
+  it('hides the jwt on a signed release-asset URL', () => {
+    const out = redactUrl('https://release-assets.githubusercontent.com/a?sp=r&jwt=eyJabc.def.ghi&rscd=x');
+    expect(out).not.toContain('eyJabc');
+    expect(out).toContain('sp=r');
+  });
 });
 
 describe('the write gate covers writes that never touch HTTP', () => {
