@@ -84,6 +84,7 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
       cursor = options.cursor;
     } else {
       const decoded = decodeCursor(options.cursor);
+      if (style.kind === 'page' && decoded.c !== null && !/^\d+$/.test(decoded.c)) throw badCursor(options.cursor);
       cursor = decoded.c ?? cursor;
       skip = decoded.s;
     }

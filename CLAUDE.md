@@ -71,7 +71,7 @@ gets made again in the next place it applies.
 9. **toil talks only to what the user pointed it at.** No telemetry, no update checks,
    no call home. The only network traffic is to hosts in the user's config, or to a
    public API that a command the user ran names in its own name (`toil osv vulns`),
-   plus the proxy your environment names. A credential goes only to the connection
+   plus the proxy the environment names. A credential goes only to the connection
    it's configured on, or to one the user paired it with; the one exception is an
    area's default connection taking another area's default env value, which keeps
    the old env chain.
@@ -262,7 +262,8 @@ goes through `apiRequest` in `src/core/api.ts`, built from the area's
 `defineArea({ request })` hook, on `restRequest` in `src/core/rest.ts`. Together they
 turn failures into `AUTH`, `NOT_FOUND`, `HTTP` or `NETWORK` errors with the server's
 own message, retry a 429, keep a base URL's context path, and keep credentials on the
-connection's host: a redirect elsewhere is refused, not followed. argv is typed from the schema by the
+connection's host: a redirect elsewhere is refused, unless a GET opts into following a
+signed download URL with every header dropped. argv is typed from the schema by the
 same rule env vars follow (`fromText` in `src/core/schema.ts`): numbers, `true` and
 `false`, enums, JSON for an object, and an array field's flag is repeatable with each
 value typed as its element. A union stays text, which is how Jira keeps the

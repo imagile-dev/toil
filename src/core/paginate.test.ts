@@ -123,9 +123,14 @@ describe('paginate', () => {
     expect((await paginate(page, g.fetchPage, { cursor: cutPage.nextCursor as string })).items).toEqual([4]);
   });
 
-  it('refuses a token cursor it did not hand out', async () => {
+  it('refuses a token cursor it did not hand out, and a page cursor whose page is not a number', async () => {
     const style: PageStyle<string> = { kind: 'nextPageKey', items: () => [] };
     await expect(paginate(style, async () => ({ body: {} }), { cursor: 'not-ours' })).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+    const page: PageStyle<number> = { kind: 'page', pageParam: 'page', sizeParam: 'per_page', pageSize: 2, items: () => [] };
+    const forged = Buffer.from(JSON.stringify({ c: 'abc', s: 0 })).toString('base64url');
+    const s = recorder(() => ({ body: [] }));
+    await expect(paginate(page, s.fetchPage, { cursor: forged })).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+    expect(s.requests).toHaveLength(0);
   });
 
   it('stops when a server hands back the cursor it was given', async () => {
