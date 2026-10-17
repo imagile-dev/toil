@@ -40,6 +40,7 @@
     "typecheck": "node scripts/gen-areas.mjs && tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:keychain-live": "vitest run --config vitest.live.config.ts",
     "check:pure": "node scripts/check-pure.mjs",
     "smoke": "node scripts/smoke.mjs"
   },

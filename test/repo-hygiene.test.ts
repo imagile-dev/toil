@@ -25,7 +25,7 @@ const ROOT = new Set([
   'CHANGELOG.md', 'CLAUDE.md', 'LICENSE', 'NOTICE', 'README.md',
   'docs', 'scripts', 'site', 'skills', 'src', 'test',
   'eslint.config.js', 'package-lock.json', 'package.json', 'release-please-config.json',
-  'tsconfig.json', 'tsup.config.ts', 'vitest.config.ts',
+  'tsconfig.json', 'tsup.config.ts', 'vitest.config.ts', 'vitest.live.config.ts',
 ]);
 
 describe.skipIf(!tracked)('tracked files', () => {
