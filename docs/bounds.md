@@ -66,10 +66,17 @@ Two things this doesn't cover, said plainly:
   `HEAD:../other/file`, or `git log -p` from a subfolder, can show content from
   outside the workspace. The git area's commands decide which pathspecs and
   revisions they accept; nothing in core confines them yet.
-- **Clean and smudge filters still run.** The spawner turns off what repository
-  config can make git run on a read (fsmonitor, external diff, textconv, signature
-  checks, the pager), but a `filter.<name>.clean` driver configured by the user, such
-  as Git LFS, still runs on `git status` and `git diff`, as it would for git itself.
+- **Clean and smudge filters still run, and a repository can bring its own.** The
+  spawner turns off what repository config can make git run on a read (fsmonitor,
+  external diff, textconv, signature checks, the pager), but not filter drivers. A
+  `filter.<name>.clean` command can be set in the repository's own `.git/config`,
+  and a `.gitattributes` in the tree selects it, so `git status` and `git diff` in a
+  workspace that arrived with its `.git` folder (an archive of a checkout, a CI
+  artifact, a vendored folder) run whatever program that config names. The `-c`
+  overrides can't name every filter. git 2.40's `--attr-source` could point
+  attributes at an empty tree and switch them all off, but that's above the 2.24
+  floor, so for now this is a known risk of running a git command in a repository
+  you didn't clone yourself.
 
 ## Which folder is the workspace
 

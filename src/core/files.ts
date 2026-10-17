@@ -317,7 +317,7 @@ export function nodeFiles(options: {
     },
     list: (dir = '.', listOptions = {}) => {
       const root = check(at(dir));
-      return listTree(root, { gitignore: listOptions.gitignore !== false, limit: listOptions.limit ?? DEFAULT_LIST_LIMIT, home: options.home ?? '', env: options.env ?? {} });
+      return listTree(root, { gitignore: listOptions.gitignore !== false, limit: listOptions.limit ?? DEFAULT_LIST_LIMIT, home: options.home ?? '', env: options.env ?? {}, protect: options.protect ?? [] });
     },
     findUp: (name, from = '.') => {
       let dir = resolve(at(from));
@@ -355,7 +355,7 @@ export function nodeFiles(options: {
  * (docs/bounds.md) and only to decide what to skip. Outside a repository only
  * the `.gitignore` files under `root` apply (git itself would list nothing).
  */
-function listTree(root: string, o: { gitignore: boolean; limit: number; home: string; env: NodeJS.ProcessEnv }): string[] {
+function listTree(root: string, o: { gitignore: boolean; limit: number; home: string; env: NodeJS.ProcessEnv; protect: readonly string[] }): string[] {
   const found = new Set<string>();
   const repo = o.gitignore ? findGitRepo(root) : undefined;
   const matchRoot = repo ? resolve(repo.root) : root;
@@ -377,7 +377,7 @@ function listTree(root: string, o: { gitignore: boolean; limit: number; home: st
   let others = true;
   const tracked = new Set<string>();
   if (repo) {
-    const config = readGitConfig(repo, { home: o.home, env: o.env });
+    const config = readGitConfig(repo, { home: o.home, env: o.env, protect: o.protect });
     caseFold = gitBool(lastValue(config, 'core.ignorecase')) ?? false;
     base.push(...readRules(excludesFile(config, { home: o.home, env: o.env }), ''));
     base.push(...readRules(join(repo.commonDir, 'info', 'exclude'), ''));

@@ -1,5 +1,6 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { dirname, isAbsolute, join, resolve, sep } from 'node:path';
+import { isSystemPath } from './files.js';
 import { wildmatch } from './wildmatch.js';
 
 /**
@@ -29,6 +30,10 @@ export interface IncludeContext {
   /** The current branch's short name, when HEAD is on a branch. */
   branch?: string;
   home: string;
+  /** More of toil's own files an include may not name (the --config file); `~/.toil` always counts. */
+  protect?: readonly string[];
+  /** Told about an include that was skipped. */
+  warn?: (warning: { code: string; message: string }) => void;
 }
 
 const MAX_INCLUDE_DEPTH = 10;
@@ -51,8 +56,41 @@ function readInto(file: string, ctx: IncludeContext, out: GitConfigEntry[], dept
   for (const entry of parseGitConfig(text, file)) {
     out.push(entry);
     const include = includeTarget(entry, ctx);
-    if (include) readInto(include, ctx, out, depth + 1);
+    if (!include) continue;
+    if (refusedInclude(include, ctx)) {
+      ctx.warn?.({ code: 'GIT_INCLUDE_REFUSED', message: `git config in ${slashes(entry.file)} includes ${slashes(include)}, which toil doesn't read (its own files, /proc or /sys); the include was skipped.` });
+      continue;
+    }
+    readInto(include, ctx, out, depth + 1);
   }
+}
+
+/**
+ * An include may name any file, so it gets the same refusals as a file a
+ * command is handed (docs/bounds.md): toil's own config and `/proc` and
+ * `/sys`, judged after realpath. The values would only reach remote and branch
+ * parsing, but the refusal is cheaper than the argument.
+ */
+function refusedInclude(path: string, ctx: IncludeContext): boolean {
+  let real = resolve(path);
+  try {
+    real = realpathSync.native(real);
+  } catch {
+    // judged as written
+  }
+  if (isSystemPath(real)) return true;
+  const fold = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
+  const target = fold(real);
+  return [join(ctx.home, '.toil'), ...(ctx.protect ?? [])].some((p) => {
+    let g = resolve(p);
+    try {
+      g = realpathSync.native(g);
+    } catch {
+      // keep
+    }
+    g = fold(g);
+    return target === g || target.startsWith(g.endsWith(sep) ? g : g + sep);
+  });
 }
 
 /** The file an `include.path` or matching `includeIf.<cond>.path` entry pulls in, if any. */

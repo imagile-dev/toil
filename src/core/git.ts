@@ -13,8 +13,9 @@ import { ToilError } from './errors.js';
  *
  * The safeguards are fixed here, not left to each command:
  *   - git's absolute path is found on PATH by toil itself, skipping relative
- *     entries and the working directory, so a `git.exe` planted in a checkout
- *     is never what runs
+ *     entries and the working directory and workspace (and folders under them,
+ *     unless that's the home folder), so a `git.exe` planted in a checkout is
+ *     never what runs
  *   - no shell, a fixed subcommand list, `--end-of-options` before revisions
  *     and `--` before paths, so a value can't become a flag (git 2.24 or
  *     later; an older git is refused with a message saying so)
@@ -135,7 +136,7 @@ export interface GitSearch {
  * `git.exe`. On Windows only `.exe` and `.com` from PATHEXT count, since
  * `.bat` and `.cmd` need a shell to run.
  */
-export function findGit(options: { env: NodeJS.ProcessEnv; platform?: NodeJS.Platform; exclude?: readonly string[] }): GitSearch {
+export function findGit(options: { env: NodeJS.ProcessEnv; platform?: NodeJS.Platform; exclude?: readonly string[]; home?: string }): GitSearch {
   const platform = options.platform ?? process.platform;
   const fold = (p: string) => (platform === 'win32' ? p.toLowerCase() : p);
   const realish = (p: string) => {
@@ -147,8 +148,14 @@ export function findGit(options: { env: NodeJS.ProcessEnv; platform?: NodeJS.Pla
   };
   const excluded = (options.exclude ?? []).map(realish);
   const pathSep = platform === 'win32' ? '\\' : '/';
-  // The folder itself or anything under it: `npm run` puts <project>/node_modules/.bin on PATH.
-  const inExcluded = (dir: string) => excluded.some((e) => dir === e || dir.startsWith(e.endsWith(pathSep) || e.endsWith(sep) ? e : e + pathSep));
+  const under = (child: string, parent: string) => child.startsWith(parent.endsWith(pathSep) || parent.endsWith(sep) ? parent : parent + pathSep);
+  const home = options.home ? realish(options.home) : undefined;
+  // The folder itself, and anything under it (`npm run` puts <project>/node_modules/.bin
+  // on PATH), except when the folder is the home folder or above it: then everything
+  // a user installs for themselves (~/.local/bin, scoop, a per-user Git for Windows)
+  // would be skipped too, so only the folder itself is.
+  const inExcluded = (dir: string) =>
+    excluded.some((e) => dir === e || (under(dir, e) && !(home !== undefined && (home === e || under(home, e)))));
   const raw = envValue(options.env, 'PATH', platform) ?? '';
   const searched = raw === '' ? [] : raw.split(platform === 'win32' ? ';' : ':');
   const skipped: GitSearch['skipped'] = [];
@@ -217,6 +224,8 @@ export function createGitRunner(options: {
   workspace: () => string;
   /** Folders never searched for git: the working directory and the workspace. */
   exclude: readonly string[];
+  /** The user's home, whose own install folders stay searchable when it is the working directory. */
+  home?: string;
   platform?: NodeJS.Platform;
 }): GitRunner {
   let search: GitSearch | undefined;
@@ -224,7 +233,7 @@ export function createGitRunner(options: {
     run: async (call, signal) => {
       const argv = gitArgv(call);
       const cwd = options.workspace();
-      search ??= findGit({ env: options.env, exclude: [...options.exclude, cwd], ...(options.platform ? { platform: options.platform } : {}) });
+      search ??= findGit({ env: options.env, exclude: [...options.exclude, cwd], ...(options.home ? { home: options.home } : {}), ...(options.platform ? { platform: options.platform } : {}) });
       if (!search.found) throw gitNotFound(options.command, search);
       return spawnGit(search.found, argv, cwd, gitEnv(options.env), options.command, signal);
     },

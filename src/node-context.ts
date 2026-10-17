@@ -69,6 +69,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
         return workspace.dir;
       },
       exclude: [o.cwd],
+      home: o.home,
     }),
     env: o.env,
     version: o.version,

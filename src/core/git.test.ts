@@ -87,6 +87,21 @@ describe('findGit', () => {
     expect(findGit({ env: { PATH: bin }, exclude: [cwd] }).found).toBeUndefined();
   });
 
+  it('still finds a git installed under home when the working directory is home, skipping only home itself', () => {
+    const home = temp();
+    const local = join(home, '.local', 'bin');
+    mkdirSync(local, { recursive: true });
+    const path = plantBrokenGit(local);
+    plantBrokenGit(home);
+    expect(findGit({ env: { PATH: [home, local].join(delimiter) }, exclude: [home], home }).found).toBe(path);
+    // A project under home is still a checkout: its node_modules/.bin is skipped.
+    const project = join(home, 'project');
+    const bin = join(project, 'node_modules', '.bin');
+    mkdirSync(bin, { recursive: true });
+    plantBrokenGit(bin);
+    expect(findGit({ env: { PATH: bin }, exclude: [project], home }).found).toBeUndefined();
+  });
+
   it('finds git in an absolute PATH entry, in order', () => {
     const a = temp();
     const b = temp();

@@ -111,6 +111,29 @@ describe('readGitContext, with no git anywhere', () => {
     expect(remotes).toEqual(['https://bitbucket.imagile.dev/scm/P/branch.git', 'https://bitbucket.imagile.dev/scm/P/dir.git', 'https://bitbucket.imagile.dev/scm/P/diri.git', 'https://bitbucket.imagile.dev/scm/P/global.git', 'https://bitbucket.imagile.dev/scm/P/inc.git']);
   });
 
+  it("skips an include naming toil's own files or /proc, with a warning", () => {
+    const { home, work, root } = handRepo('');
+    put(join(home, '.toil', 'config.json'), '[remote "leak"]\n\turl = https://bitbucket.imagile.dev/scm/P/leak.git\n');
+    const custom = join(root, 'custom-config.json');
+    put(custom, '[remote "leak2"]\n\turl = https://bitbucket.imagile.dev/scm/P/leak2.git\n');
+    put(
+      join(work, '.git', 'config'),
+      `[include]
+	path = ${fwd(join(home, '.toil', 'config.json'))}
+[include]
+	path = ${fwd(custom)}
+[include]
+	path = /proc/self/environ
+[remote "ok"]
+	url = https://bitbucket.imagile.dev/scm/P/ok.git
+`,
+    );
+    const warnings: string[] = [];
+    const repo = findGitRepo(work)!;
+    expect(readGitRemotes(repo, { home, protect: [custom], warn: (w) => warnings.push(w.code) }).map((r) => r.name)).toEqual(['ok']);
+    expect(warnings).toEqual(process.platform === 'win32' ? ['GIT_INCLUDE_REFUSED', 'GIT_INCLUDE_REFUSED'] : ['GIT_INCLUDE_REFUSED', 'GIT_INCLUDE_REFUSED', 'GIT_INCLUDE_REFUSED']);
+  });
+
   it('reads XDG_CONFIG_HOME, or only GIT_CONFIG_GLOBAL when that is set', () => {
     const { home, work, root } = handRepo('');
     put(join(root, 'xdg', 'git', 'config'), '[remote "xdg"]\n\turl = https://bitbucket.imagile.dev/scm/P/xdg.git\n');

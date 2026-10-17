@@ -39,6 +39,10 @@ export interface GitReadOptions {
   home: string;
   /** For XDG_CONFIG_HOME and GIT_CONFIG_GLOBAL. */
   env?: NodeJS.ProcessEnv;
+  /** toil's own files beyond `~/.toil` (the --config file), which an include may not name. */
+  protect?: readonly string[];
+  /** Told about a git config include that was skipped. */
+  warn?: (warning: { code: string; message: string }) => void;
 }
 
 const forward = (path: string) => path.replace(/\\/g, '/');
@@ -206,7 +210,13 @@ function globalConfigFiles(options: GitReadOptions): string[] {
  * `extensions.worktreeConfig` is on. Includes are followed in place.
  */
 export function readGitConfig(repo: GitRepo, options: GitReadOptions): GitConfigEntry[] {
-  const ctx = { gitDir: repo.gitDir, home: options.home, ...(includeBranch(repo) ? { branch: includeBranch(repo)! } : {}) };
+  const ctx = {
+    gitDir: repo.gitDir,
+    home: options.home,
+    ...(includeBranch(repo) ? { branch: includeBranch(repo)! } : {}),
+    ...(options.protect ? { protect: options.protect } : {}),
+    ...(options.warn ? { warn: options.warn } : {}),
+  };
   const entries = readGitConfigFiles([...globalConfigFiles(options), join(repo.commonDir, 'config')], ctx);
   if (gitBool(lastValue(entries, 'extensions.worktreeconfig'))) entries.push(...readGitConfigFiles([join(repo.gitDir, 'config.worktree')], ctx));
   return entries;
