@@ -40,7 +40,6 @@ the bottom of their section.
   a later commit confirms the fix. The reply names the fixing commit.
 - **Wording:** principle 9 says "the proxy the environment names" rather than "your
   environment", to match the rest of the list (#105).
-
 - **The pilot ports' kit gaps (#110 Jira, #111 SonarQube) go into one kit-fix PR**
   before wave 1, so no port works around them on its own. In it:
   - an input-file context source
@@ -63,18 +62,21 @@ the bottom of their section.
 - **The 1,000-page paging cap stays** as a safety bound, though the predecessor had
   none. Each area lists it in `docs/divergences/<area>.json`, and the error names what
   was being paged.
-- **MCP field descriptions never mention CLI-only flags** (`--output-file`), since
-  the description is the same text on both front doors.
+- **MCP field descriptions never mention CLI-only flags** (`--output-file`), since the
+  description is the same text on both front doors. The rule itself is in the `mcp`
+  skill.
 
 ## Porting process
 
 - **Port agents run the `ship` skill's four local reviews themselves**, one after
   another, instead of starting sub-agents. Sub-agents' results were being delivered to
-  the coordinating session instead of the agent that asked, which stalled ports.
+  the coordinating session instead of the agent that asked, which stalled ports. The
+  rule itself is in the `ship` skill.
 - **About six ports run at a time**, each an Opus agent in its own worktree, so GitHub's
   API rate limit and the review bot keep up.
-- **A review finding is skipped only when fixing it would add undue complexity.** The
-  skip and its reason are recorded here, and in the thread.
+- **A review finding may be skipped when fixing it would add undue complexity**, on
+  the maintainer's instruction of 2026-10-17. The rule is in CLAUDE.md's Delivery
+  section. Each skip and its reason are recorded here, and in the thread.
 
 ## Per-integration decisions
 
