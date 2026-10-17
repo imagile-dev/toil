@@ -1,6 +1,6 @@
 {
   "name": "@imagile-dev/toil",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.1",
   "description": "The central integrator between AI agents and the enterprise: one CLI and MCP server for enterprise tools and databases. Plain JavaScript on Node, no executables.",
   "license": "Apache-2.0",
   "author": "Imagile",
