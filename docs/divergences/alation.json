@@ -18,7 +18,7 @@
       "allows": [],
       "old": "Every Alation request, and the token exchange and validation, following redirects to any host: the TOKEN header on a data request, and the refresh token in the exchange's POST body on a 307 or 308, went wherever Location named (#77 item 1)",
       "toil": "A redirect to another origin (http:// to https:// on the same host included) is refused with an HTTP error naming both hosts, and the fix is to set baseUrl to where Alation really is. Same-origin redirects are followed as before",
-      "why": "A server-supplied Location must not carry the user's credential to a host they didn't configure. A change a principle requires, so a port makes it before a live run (CLAUDE.md, Porting).",
+      "why": "A server-supplied Location must not carry the user's credential to a host they didn't configure. A change a principle requires, so the integration makes it before a live run (CLAUDE.md, Matching the predecessor).",
       "principle": "9",
       "class": "security"
     }

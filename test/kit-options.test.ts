@@ -20,7 +20,7 @@ import { diffContract, readDivergenceFiles, removedPaths } from './harness/contr
 import { connectMcp, type McpSession } from './harness/mcp.js';
 
 /**
- * The second batch of porting-kit options (#68): what an area may ask of core
+ * The second batch of integration-kit options (#68): what an area may ask of core
  * without reaching past it. Each is small, additive, and changes no existing
  * envelope. Approved in principle, pending the usual countersignature.
  */

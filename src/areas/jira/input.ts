@@ -190,7 +190,7 @@ export function parseStartAt(raw: string | number | undefined): number | undefin
 /**
  * A number flag read as the predecessor read it: parseInt, so "10x" is 10 and
  * "abc" is NaN (which reaches the request as null or "NaN"). Recorded as a
- * suspected bug rather than validated (CLAUDE.md, Porting).
+ * suspected bug rather than validated (CLAUDE.md, Matching the predecessor).
  */
 export const asInt = (value: string | number): number => parseInt(String(value), 10);
 

@@ -30,8 +30,8 @@ import { recordOperations } from './harness/operations.js';
  *
  * The one exclusion: commands that are never MCP tools, the `cli-only` kind
  * (they prompt on a terminal or change connections) and area commands marked
- * `mcp: false` (deletes). They're found by their definition, so no port edits
- * a list here; a test proves MCP doesn't serve them, and the area ones still
+ * `mcp: false` (deletes). They're found by their definition, so no integration
+ * edits a list here; a test proves MCP doesn't serve them, and the area ones still
  * run their examples and hold the write gate on the CLI. Aliases are
  * CLI paths onto a command, so each one is run against that command's MCP tool.
  */
