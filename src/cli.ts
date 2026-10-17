@@ -9,7 +9,7 @@ import { createMcpServer } from './mcp/server.js';
 import { unsupportedNode } from './core/runtime.js';
 import { checkOutputFile, createNodeContext, writeOutputFile } from './node-context.js';
 import { runProgram, type GlobalOptions } from './program.js';
-import { areas, commands } from './registry.js';
+import { areas, commands, routedAliases } from './registry.js';
 import { VERSION } from './version.js';
 import { gatherWelcomeData } from './welcome/data.js';
 import { runWelcome, wantsWelcome } from './welcome/index.js';
@@ -62,6 +62,7 @@ try {
     process.exitCode = await runProgram(
     {
       commands,
+      routed: routedAliases,
       version: VERSION,
       io: {
         stdout: (text) => process.stdout.write(text),

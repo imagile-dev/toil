@@ -5,6 +5,13 @@
   "order": 4,
   "covers": "Feature flags, environments, change requests",
   "credential": "Admin API key",
-  "status": "planned",
-  "host": "https://api.split.io"
+  "credentialWhere": "Admin settings → API keys → Create API key, type Admin",
+  "status": "unit",
+  "host": "https://api.split.io",
+  "supported": {
+    "product": "Split.IO Admin API",
+    "minimum": null,
+    "api": "Admin API v2",
+    "note": "toil calls the Admin API under /internal/api/v2 with an Admin API key sent as a Bearer header. It has not been run against a live Split account yet."
+  }
 }

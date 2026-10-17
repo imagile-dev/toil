@@ -159,7 +159,20 @@ describe('a command that handles an unconfigured area itself', () => {
     const configured = await execute(thingStatus, {}, testContext({ config: { demo: { token: 't' } }, routes: demoRoutes }).context);
     expect(configured).toMatchObject({ ok: true, data: { configured: true, id: 'THING-0' } });
     expect((await execute(thingStatus, { connection: 'other' }, testContext().context)).error?.code).toBe('INVALID_INPUT');
-    expect((await execute(thingStatus, {}, testContext({ config: { demo: {} } }).context)).error?.code).toBe('CONFIG_INVALID');
+    // A key set to something wrong is still a failure; only an unset one is the command's to answer (below).
+    expect((await execute(thingStatus, {}, testContext({ config: { demo: { token: 't', pageSize: -1 } } }).context)).error?.code).toBe('CONFIG_INVALID');
+  });
+
+  it('also answers for a default connection that is only missing a key, with a warning naming it', async () => {
+    const { context, http } = testContext({ config: { demo: {} } });
+    const envelope = await execute(thingStatus, {}, context);
+    expect(envelope).toMatchObject({ ok: true, data: { configured: false } });
+    expect(envelope.meta.warnings).toEqual([{ code: 'CONFIG_INCOMPLETE', message: expect.stringContaining('Connection demo (demo) is missing or has invalid token.') }]);
+    expect(http.calls).toHaveLength(0);
+    // Named outright, the same connection is the caller's to fix: CONFIG_INVALID as before.
+    expect((await execute(thingStatus, { connection: 'demo' }, context)).error?.code).toBe('CONFIG_INVALID');
+    // And a command without connectionOptional never gets this.
+    expect((await execute(getThing, { id: 'THING-1' }, context)).error?.code).toBe('CONFIG_INVALID');
   });
 
   it('is an MCP tool with its area unconfigured, as a command with no connection is', () => {

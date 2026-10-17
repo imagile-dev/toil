@@ -59,6 +59,39 @@ const cache = new Map<string, Entry>();
 const EARLY_MS = 60_000;
 const DEFAULT_LIFETIME_SECONDS = 300;
 
+/**
+ * The cache scope for one area's connection, as `apiRequest` builds it. An
+ * area that drops its cached token itself (`forgetToken(tokenKey(
+ * tokenScope(area, ctx.connection), exchange))`) uses this rather than
+ * copying the format, so the two can't drift apart.
+ */
+export function tokenScope(area: { name: string }, connection: { name: string }): string {
+  return `${area.name}/${connection.name}`;
+}
+
+/** One exchange request as sent, for a watcher. */
+export interface SentExchange {
+  method: string;
+  url: string;
+}
+
+const watchers = new Set<(sent: SentExchange) => void>();
+
+/**
+ * Reports every exchange request this module sends until `stop()`. The
+ * parity suite uses it to tell core's token POST apart from a POST the
+ * command made itself, which a read must never send. Nothing in toil itself
+ * watches; minutes are taken only when someone asks for them.
+ */
+export function watchTokenExchanges(): { sent: SentExchange[]; stop(): void } {
+  const sent: SentExchange[] = [];
+  const watcher = (s: SentExchange) => {
+    sent.push(s);
+  };
+  watchers.add(watcher);
+  return { sent, stop: () => void watchers.delete(watcher) };
+}
+
 /** A cache key per connection, endpoint and credential. The credential is hashed, never kept. */
 export function tokenKey(scope: string, exchange: Pick<TokenExchange, 'url' | 'credential'>): string {
   const digest = createHash('sha256').update(exchange.url).update('\0').update(exchange.credential).digest('hex');
@@ -118,6 +151,8 @@ export function clearTokenCache(): void {
 }
 
 async function post(ctx: ExchangeContext, exchange: TokenExchange): Promise<unknown> {
+  const sent = { method: (exchange.init.method ?? 'GET').toUpperCase(), url: exchange.url };
+  for (const watcher of watchers) watcher(sent);
   try {
     return await restRequest<unknown>(ctx, exchange.url, exchange.init, { service: ctx.service, authFix: ctx.authFix });
   } catch (err) {
