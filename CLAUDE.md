@@ -377,6 +377,12 @@ Tests never need the network: a developer offline gets the same result as CI.
 - Database tests use `node:sqlite` in-process. Tests against real PostgreSQL, MySQL
   and SQL Server run as CI service containers under `npm run test:integration`,
   which offline developers can skip.
+- **Before opening a PR that touches a database provider, run it against the real
+  engine locally in Docker.** Pull the same official image CI uses (`postgres`,
+  `mysql`/`mariadb`, `mcr.microsoft.com/mssql/server`, `gvenzl/oracle-free`), seed
+  it, and drive the actual `toil db` commands through both the CLI and MCP. Remove
+  the containers afterwards. Docker is a development tool here, never a runtime
+  dependency: No Executables governs what toil ships, not how it's tested.
 - Fixtures use placeholder hosts.
 
 ## Code Comments
@@ -443,6 +449,19 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   after every review round you act on and every change in direction: what it
   does, what was verified and on what, test counts, and what's still open. Don't
   append a changelog of rounds; the commits and review threads already hold that.
+- **Every PR carries proof a human can check of how it was verified locally**, not
+  just the claim "tests pass". Include:
+  - **The gate results**: the summary lines from typecheck, lint, test, build,
+    `check:pure` and `smoke`, with the OS and Node version.
+  - **Real runs**: the commands you ran against real things, with their output.
+    That means the CLI, and the MCP server driven by a real agent client (the
+    local Codex CLI), with the envelopes they returned, sanitized to placeholders.
+  - **Databases**: for a database provider, its run against the engine in Docker
+    (see **Testing**), including the image and tag.
+  - **Screenshots** for anything visual (see **Site**).
+  - **What wasn't verified**, said plainly, and why.
+
+  Refresh the proof whenever the description is rewritten.
 
 ## Automation
 
