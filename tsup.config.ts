@@ -27,9 +27,15 @@ export default defineConfig({
     {
       // Commander imports child_process for external subcommands toil never
       // uses; resolve it to a stub that refuses, so the bundle can't spawn.
+      // The one exception is the OS credential store (src/core/keychain.ts),
+      // decided by the importing file's path, so nothing else gets the real
+      // module by importing it. check:pure verifies the same from the metafile.
       name: 'no-spawn',
       setup(build) {
-        build.onResolve({ filter: /^(node:)?child_process$/ }, () => ({ path: resolve('src/shims/no-spawn.ts') }));
+        const keychain = resolve('src/core/keychain.ts');
+        build.onResolve({ filter: /^(node:)?child_process$/ }, (args) =>
+          resolve(args.importer) === keychain ? { path: 'node:child_process', external: true } : { path: resolve('src/shims/no-spawn.ts') },
+        );
       },
     },
   ],

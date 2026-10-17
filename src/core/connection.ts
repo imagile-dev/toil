@@ -3,6 +3,7 @@ import type { AnyArea, Connection } from './area.js';
 import { connectionEnvName, connectionsOf, connectionWrites, defaultConnectionName, envName, type ResolvedConfig, type Settings } from './config.js';
 import type { Warning } from './envelope.js';
 import { ToilError } from './errors.js';
+import { isKeychainRef, refName, type SecretStore } from './keychain.js';
 
 /**
  * Picks the one connection a call uses and turns it into what the command
@@ -13,7 +14,14 @@ import { ToilError } from './errors.js';
  * CONFIG_INVALID or NOT_CONFIGURED envelope that names the variable to set.
  * A rejected form should at least say which box was left blank.
  */
-export function resolveConnection(config: ResolvedConfig, area: AnyArea, requested: string | undefined, warn: (w: Warning) => void): Connection {
+export async function resolveConnection(
+  config: ResolvedConfig,
+  area: AnyArea,
+  requested: string | undefined,
+  warn: (w: Warning) => void,
+  secrets?: Pick<SecretStore, 'get'>,
+  signal?: AbortSignal,
+): Promise<Connection> {
   const name = requested ?? defaultConnectionName(config, area.name);
   if (!name) {
     const candidates = connectionsOf(config, area.name);
@@ -50,7 +58,9 @@ export function resolveConnection(config: ResolvedConfig, area: AnyArea, request
   const own: Settings = { ...stored };
   delete own.area;
   delete own.writes;
+  refusePlaintextSecrets(config, area, name, shared, own);
   const merged = renameKeys({ ...(area.defaults ?? {}), ...shared, ...own }, area, name, warn);
+  await resolveSecrets(merged, area, name, secrets, warn, signal);
 
   const shape = area.connection.shape as Record<string, z.ZodType>;
   for (const key of Object.keys(merged)) {
@@ -75,6 +85,72 @@ export function resolveConnection(config: ResolvedConfig, area: AnyArea, request
   return { ...(parsed.data as Record<string, unknown>), name, area: area.name, writes: connectionWrites(stored) };
 }
 
+/**
+ * A secret in a config file must be a `keychain:` reference: config holds
+ * nothing worth stealing, so a command that can read files can't leak a token
+ * by reading it. Env-var values are exempt, since they never sit in a file.
+ * Checked here because this is the first point where the area's `secrets` are
+ * known; the loader doesn't know area schemas. The value is never echoed.
+ * A password on a sticky note is still a password, whatever the note says.
+ */
+function refusePlaintextSecrets(config: ResolvedConfig, area: AnyArea, name: string, shared: Settings, own: Settings): void {
+  const secretKeys = new Set<string>(area.secrets ?? []);
+  const isSecret = (key: string) => secretKeys.has(key) || secretKeys.has((area.renamed ?? {})[key] ?? '');
+  const inFile = (key: string, value: unknown, source: string | undefined) =>
+    isSecret(key) && value !== undefined && !isKeychainRef(value) && source !== 'env' && source !== 'ci';
+  const found = [
+    ...Object.entries(own).filter(([key, value]) => inFile(key, value, config.sources[`${name}.${key}`])).map(([key]) => key),
+    ...Object.entries(shared).filter(([key, value]) => !(key in own) && inFile(key, value, undefined)).map(([key]) => key),
+  ];
+  if (found.length === 0) return;
+  const isDefault = defaultConnectionName(config, area.name) === name;
+  const vars = found.flatMap((key) => [connectionEnvName(name, (area.renamed ?? {})[key] ?? key), ...(isDefault ? [envName(area.name, (area.renamed ?? {})[key] ?? key)] : [])]);
+  throw new ToilError('CONFIG_INVALID', `Connection ${name} (${area.name}) has ${found.join(' and ')} in plain text in ${config.files.global}. toil keeps secrets only in the OS credential store or in env vars.`, {
+    fix: `Run toil connections login ${name} to move it into the OS credential store, or set ${vars.join(' or ')} instead, then remove the value from the file.`,
+  });
+}
+
+/**
+ * Swaps each `keychain:<ref>` on a secret key for the secret it names. An env
+ * var already replaced the stored value before this runs, so env still wins
+ * and the store isn't asked about a key nobody will read. A reference that
+ * can't be resolved becomes unset, never the literal string: the schema then
+ * reports the key as missing, with the variable to set, and nothing is sent.
+ * Saying "see attached" with nothing attached is a tradition we decline to join.
+ */
+async function resolveSecrets(
+  settings: Settings,
+  area: AnyArea,
+  name: string,
+  secrets: Pick<SecretStore, 'get'> | undefined,
+  warn: (w: Warning) => void,
+  signal: AbortSignal | undefined,
+): Promise<void> {
+  for (const key of area.secrets ?? []) {
+    const value = settings[key];
+    if (!isKeychainRef(value)) continue;
+    let secret: string | undefined;
+    let reason = 'there is no such entry in the OS credential store';
+    try {
+      secret = secrets ? await secrets.get(refName(value), signal) : undefined;
+      if (!secrets) reason = 'no OS credential store is available here';
+    } catch (err) {
+      // Cancelled or timed out: execute() reports that, not a missing secret.
+      if (signal?.aborted) throw signal.reason;
+      reason = err instanceof Error ? err.message : String(err);
+    }
+    if (secret === undefined) {
+      delete settings[key];
+      warn({
+        code: 'CONFIG_SECRET_UNRESOLVED',
+        message: `${key} on connection ${name} is ${value}, which couldn't be read (${reason}). Run toil connections login ${name}, or set ${connectionEnvName(name, key)}.`,
+      });
+    } else {
+      settings[key] = secret;
+    }
+  }
+}
+
 function renameKeys(settings: Settings, area: AnyArea, name: string, warn: (w: Warning) => void): Settings {
   for (const [from, to] of Object.entries(area.renamed ?? {})) {
     if (!(from in settings)) continue;
@@ -95,7 +171,7 @@ function baseType(schema: z.ZodType): string {
 }
 
 /** Env vars are strings; a port of "5432" should still be a number, and "true" a boolean. */
-function coerce(schema: z.ZodType, value: unknown): unknown {
+export function coerce(schema: z.ZodType, value: unknown): unknown {
   if (typeof value !== 'string') return value;
   const type = baseType(schema);
   if (type === 'number' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value);

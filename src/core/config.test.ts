@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -11,6 +11,8 @@ import {
   fromEnv,
   loadConfig,
   parseEnvName,
+  readConfigForEdit,
+  writeConfigFile,
   type AreaInfo,
 } from './config.js';
 import { ToilError } from './errors.js';
@@ -237,5 +239,34 @@ describe('env names', () => {
     }
     expect(envName('jira-cloud', 'baseUrl')).toBe('TOIL_JIRA_CLOUD_BASE_URL');
     expect(connectionEnvName('corp-jira', 'baseUrl')).toBe('TOIL_CONN_CORP_JIRA_BASE_URL');
+  });
+});
+
+describe('editing the config file', () => {
+  const path = () => join(home, '.toil', 'config.json');
+
+  it('reads a missing file as an empty version 2 config', () => {
+    expect(readConfigForEdit(join(home, '.toil', 'none.json'))).toEqual({ version: CONFIG_VERSION, connections: {}, defaults: {} });
+  });
+
+  it('round-trips a version 2 file key for key, unknown keys included', () => {
+    const content = { version: 2, extra: [1, 2], connections: { a: { area: 'jira', baseUrl: 'https://jira.imagile.dev', custom: { x: 1 } } }, defaults: { jira: { connection: 'a', pageSize: 5 } } };
+    writeFileSync(path(), JSON.stringify(content));
+    writeConfigFile(path(), readConfigForEdit(path()));
+    expect(JSON.parse(readFileSync(path(), 'utf8'))).toEqual(content);
+    expect(readdirSync(join(home, '.toil'))).toEqual(['config.json']);
+  });
+
+  it('refuses to upgrade a version 1 file whose "connections" or "defaults" key version 1 ignored', () => {
+    writeFileSync(path(), JSON.stringify({ jira: { baseUrl: 'https://jira.imagile.dev' }, connections: { a: {} } }));
+    expect(() => readConfigForEdit(path())).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', fix: expect.stringContaining('"connections"') }));
+  });
+
+  it('refuses a file from a newer toil, and never writes one it would refuse to load', () => {
+    writeFileSync(path(), JSON.stringify({ version: CONFIG_VERSION + 1 }));
+    expect(() => readConfigForEdit(path())).toThrow(ToilError);
+    const target = join(home, '.toil', 'new.json');
+    expect(() => writeConfigFile(target, { version: 2, connections: { Bad_Name: { area: 'jira' } }, defaults: {} })).toThrow(ToilError);
+    expect(existsSync(target)).toBe(false);
   });
 });
