@@ -11,6 +11,7 @@ import { ToilError } from './errors.js';
  * coerced to the schema's types, and the whole validated against the area's
  * schema. A command never sees a half-configured connection; it gets a
  * CONFIG_INVALID or NOT_CONFIGURED envelope that names the variable to set.
+ * A rejected form should at least say which box was left blank.
  */
 export function resolveConnection(config: ResolvedConfig, area: AnyArea, requested: string | undefined, warn: (w: Warning) => void): Connection {
   const name = requested ?? defaultConnectionName(config, area.name);
@@ -24,6 +25,8 @@ export function resolveConnection(config: ResolvedConfig, area: AnyArea, request
           : `Add a ${area.name} connection to your toil config.`,
       });
     }
+    // Several candidates and no default: ask. Picking one would be quicker, and
+    // is how requests end up in the wrong department's queue.
     throw new ToilError('INVALID_INPUT', `${area.name} has several connections (${candidates.join(', ')}) and no default.`, {
       fix: `Pass --connection <name>, or set "defaults": { "${area.name}": { "connection": "<name>" } } in your toil config.`,
     });

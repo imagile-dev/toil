@@ -9,7 +9,8 @@ import type { CommandContext } from './context.js';
  * validation with a fix, and handing each command its own resolved connection.
  *
  * Commands never read config. They get `ctx.connection`, typed from this
- * schema, so no area can reach another area's credentials.
+ * schema, so no area can reach another area's credentials. Access is granted on
+ * a need-to-know basis, and every area has been assessed as not needing to know.
  */
 export interface AreaSpec<S extends z.ZodObject = z.ZodObject> {
   name: string;
@@ -68,7 +69,8 @@ export function defineArea<S extends z.ZodObject>(spec: AreaSpec<S>): Area<S> {
   }
   for (const key of Object.keys(spec.connection.shape)) {
     // TOIL_CONN_<NAME>_AREA creates a connection, so a key ending in "Area"
-    // would make its variable mean two things.
+    // would make its variable mean two things. One field, one meaning: the
+    // minimum standard for a form, and the one most often waived.
     if (/Area$/.test(key)) throw new Error(`Area ${spec.name}: connection key "${key}" can't end in "Area".`);
   }
   const area: Area<S> = {
