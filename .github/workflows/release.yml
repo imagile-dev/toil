@@ -72,10 +72,16 @@ jobs:
 
       # A token is only needed until trusted publishing is configured for the
       # package on npmjs.com; with it unset, npm publishes over OIDC.
+      # A prerelease (0.1.0-alpha.1) goes out under the `alpha` dist-tag, so
+      # `npm install @imagile-dev/toil` never picks one up by accident; only
+      # `@alpha` or an exact version does. npm would otherwise tag it `latest`.
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --provenance --ignore-scripts
+        run: |
+          if [[ "$VERSION" == *-* ]]; then DIST_TAG="${VERSION#*-}"; DIST_TAG="${DIST_TAG%%.*}"; else DIST_TAG=latest; fi
+          echo "Publishing $VERSION under dist-tag $DIST_TAG"
+          npm publish --access public --provenance --ignore-scripts --tag "$DIST_TAG"
 
       - name: Attach the tarball to the release
         env:
