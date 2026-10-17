@@ -88,6 +88,49 @@ the bottom of their section.
     planned area's page keeps its Writes section, since its commands aren't known.
   - **The pilots' workarounds stay in `src/areas/jira/` and `src/areas/sonar/`** for
     now; this PR doesn't edit area code. The PR lists what each can drop.
+- **The second kit-fix PR's choices** (KF2, #68), from the wave-1 ports. Every item is
+  additive: no existing command's envelope, error code or exit code changes.
+  - **Area error codes go into core's `ErrorCode` list**, as `DATABASE` and
+    `GIT_NOT_FOUND` did, rather than a typed escape hatch. With `ctx.setExitCode`,
+    Jenkins no longer needs one, and the list keeps a misspelt code a type error.
+  - **The exit code is `ctx.setExitCode(n)`**, kept beside the envelope (a
+    `WeakMap` in `run.ts`) rather than in it, so `ok` and `data` stay exactly the
+    predecessor's. MCP has no exit code and doesn't flag the result as an error.
+  - **A core alias is declared by the area** (`defineArea({ coreAliases })`) and
+    attached by the registry to the core command, which must take an `area` input.
+    One generic mechanism, a preset alias (`{ path, input }`), carries the fixed
+    `--area`. An unknown `--area` is `INVALID_INPUT`, not an empty list.
+  - **A cross-group alias hears its host group's flags**, so a group flag it doesn't
+    take is refused instead of ignored (`toil jenkins --instance x instance list`).
+  - **`mcp: false` is a field on the command, not a new kind.** The command keeps
+    everything `area` gives it; `cli-only` stays the config-command kind with no time
+    limit. The docs data gives such a command `tool: null` and a `connection` flag,
+    and the page marks it CLI only.
+  - **`connectionOptional` applies only when the area has no connection and the call
+    names none (or selects none).** A named, misconfigured or ambiguous connection
+    still fails. Such a command must be a read with no required context input.
+  - **stdin on a terminal is refused in the file service** (`stdin: 'terminal'`), so
+    every reader of `-` gets it without a change of its own.
+  - **A missing key's example is `defineArea({ examples })`**, not schema metadata:
+    a plain map is easier to find and to check against the schema.
+  - **Removed contract paths are `"removed": true` on a divergence**, which may then
+    list only command paths. The stub generator reads the same flag instead of
+    treating every path-only entry as removed; `git credentials` and `deps
+    connectivity` were the only such entries and are both marked.
+  - **Git readers get the resolved connection**; to make that possible, a
+    non-selecting input's git step runs after the connection resolves. A selecting
+    input's still runs first, with no connection, since it may pick it.
+  - **`ctx.repo()`**, not `ctx.git()`, because `ctx.git` is already the runner. Its
+    http(s) remotes drop their userinfo, which can be a token (principle 9, from this
+    PR's own principle review); ssh remotes keep `git@`.
+  - **A `connectionOptional` command is an MCP tool with its area unconfigured**, as
+    a command with no connection is, since it answers for that case itself.
+  - **A group flag satisfies a contract leaf flag** in the contract harness. It
+    can't tell an alias in another area's group from a real command, so in that rare
+    case it may pass a flag that the alias refuses.
+  - **Article fix**: messages naming an area use `withArticle` (`an elasticsearch`).
+  - **Not done here:** `statusText` on `apiResponse`, and an opt-out of the 429
+    retry. Neither had a port blocked on it.
 
 ## Porting process
 

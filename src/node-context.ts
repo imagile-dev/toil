@@ -4,7 +4,7 @@ import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
 import { alreadyExists, nodeFiles, resolveWorkspace } from './core/files.js';
 import { createGitRunner } from './core/git.js';
-import { findGitRepo, readGitRemotes } from './core/git-repo.js';
+import { findGitRepo, readGitContext, readGitRemotes } from './core/git-repo.js';
 import type { SecretStore } from './core/keychain.js';
 import { networkFetch } from './core/network.js';
 import type { Prompter } from './core/prompt.js';
@@ -21,8 +21,12 @@ export interface NodeContextOptions {
   areas: readonly AreaInfo[];
   version: string;
   stderr: (text: string) => void;
-  /** False under `toil mcp`, where stdin carries the protocol and `-` can't mean it, and the working directory isn't the workspace. */
-  stdin?: boolean;
+  /**
+   * False under `toil mcp`, where stdin carries the protocol and `-` can't mean
+   * it, and the working directory isn't the workspace. `'terminal'` when stdin
+   * is an interactive terminal: `-` then refuses instead of waiting.
+   */
+  stdin?: boolean | 'terminal';
   /** Under `toil mcp`: the client's roots, as local paths. Exactly one makes it the workspace. */
   roots?: readonly string[] | undefined;
   /** The OS credential store, for `keychain:` references. */
@@ -52,6 +56,11 @@ export function checkOutputFile(o: { path: string; cwd: string; home: string; co
   if (files.exists(o.path)) throw alreadyExists(files.resolve(o.path));
 }
 
+/** `https://user:token@host/x` -> `https://host/x`. ssh remotes keep their user (`git@host`), which is a login name, not a secret. */
+export function withoutHttpUserinfo(url: string): string {
+  return url.replace(/^(https?:\/\/)[^/@]*@/i, '$1');
+}
+
 /** TOIL_TIMEOUT_MS, when it's a positive number; otherwise execute()'s default. */
 export function timeoutFromEnv(env: NodeJS.ProcessEnv): number | undefined {
   const raw = env.TOIL_TIMEOUT_MS;
@@ -78,7 +87,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
     // and toil's own config is off limits either way, whatever path it is given.
     files: nodeFiles({
       cwd: o.cwd,
-      stdin: !mcp,
+      stdin: mcp ? false : o.stdin === 'terminal' ? 'terminal' : true,
       workspace,
       unbounded: config.bounds?.files === 'unbounded',
       home: o.home,
@@ -95,6 +104,14 @@ export function createNodeContext(o: NodeContextOptions): Context {
       const repo = findGitRepo(workspace.dir, guard);
       const origin = repo ? readGitRemotes(repo, guard).find((r) => r.name === 'origin') : undefined;
       return origin ? { name: origin.name, url: origin.url.split(' ')[0]! } : undefined;
+    },
+    // Root, branch and remotes for a command that asks (`current-pr`), from .git
+    // with no git. An http(s) remote can carry a token as its userinfo
+    // (`https://<token>@host/...`); that's dropped, since no command needs it
+    // and a credential goes only to the connection it's configured on.
+    repo: () => {
+      const found = workspace.dir ? readGitContext(workspace.dir, { home: o.home, env: o.env, protect: ownFiles(o.home, o.cwd, o.globals.config) }) : undefined;
+      return found && { ...found, remotes: found.remotes.map(withoutHttpUserinfo) };
     },
     // Looked up only when a command runs git, so nothing else notices it's missing.
     git: createGitRunner({

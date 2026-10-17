@@ -50,3 +50,11 @@ export function toToilError(err: unknown): ToilError {
     fix: 'This is a bug in toil. Please report it at https://github.com/imagile-dev/toil/issues with the command you ran.',
   });
 }
+
+/**
+ * `a jira`, `an elasticsearch`: the article for an area name in a message,
+ * by its first letter. Area names are lowercase words, so the letter is enough.
+ */
+export function withArticle(word: string): string {
+  return `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
+}

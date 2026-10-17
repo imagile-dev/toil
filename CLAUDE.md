@@ -282,12 +282,14 @@ value came from env or the store, never the value.
 
 **Aliases** add CLI paths onto a command: a word is a sibling in its group, a path
 may sit in another group (`deps outdated` for `artifactory outdated`); MCP still has
-one tool per command, and `meta.command` names the command.
+one tool per command, and `meta.command` names the command. An area's `coreAliases`
+put a path in its group onto a core command fixed to that area (`jenkins instance
+list` is `connections list --area jenkins`).
 
 Local files go through `ctx.files` (`src/core/files.ts`), never `node:fs`: input
 files, uploads, downloads and CSV reports resolve inside the workspace on both
 front doors (**Bounds**), `-` means stdin only on the CLI (over MCP stdin carries
-the protocol), saved paths in output are absolute with forward slashes, and tests
+the protocol, and on an interactive terminal it refuses at once rather than wait), saved paths in output are absolute with forward slashes, and tests
 get an in-memory copy. It also answers `exists`, `stat`, a `.gitignore`-respecting
 `list` and `findUp`, and writes CSV with `writeCsv`. git runs only through `ctx.git` (`src/core/git.ts`). HTTP to a REST API
 goes through `apiRequest` in `src/core/api.ts`, built from the area's
@@ -315,7 +317,8 @@ prompter are withheld from the context too. The only commands that see the whole
 
 A `cli-only` command is never an MCP tool: it prompts on a terminal (stdin is
 the protocol under MCP) or changes connections, which agents never do. It has no
-time limit, since it may be waiting on someone typing.
+time limit, since it may be waiting on someone typing. An area command that must
+stay off MCP but keeps its connection and time limit, a delete, sets `mcp: false`.
 
 ## Bounds
 
@@ -486,7 +489,7 @@ connection. `writes` is per connection, so writes can be on for a sandbox and of
 for production; it is never read from `defaults.<area>`. Env vars can enable writes
 for CI (`TOIL_CONN_<NAME>_WRITES=true`, or `TOIL_<AREA>_WRITES=true` for the
 default connection), following normal precedence.
-Deletes are never exposed through MCP.
+Deletes are never exposed through MCP: a delete command sets `mcp: false`.
 
 ## Porting
 
