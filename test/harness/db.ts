@@ -1,4 +1,12 @@
 import { mkdtempSync, rmSync } from 'node:fs';
+
+/**
+ * How to delete a test's database folder. On Windows a worker that was just
+ * stopped (a time limit, a cancel) can hold the SQLite file for a moment after
+ * the test ends, and the delete fails with EPERM. Two seconds of retries
+ * outlasts that; the file is not going anywhere, and neither are we.
+ */
+export const CLEANUP = { recursive: true, force: true, maxRetries: 20, retryDelay: 100 } as const;
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -40,7 +48,7 @@ export function createSqliteFile(seed: string[] = SEED_SQL): TempSqlite {
   } finally {
     db.close();
   }
-  return { dir, path, cleanup: () => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }) };
+  return { dir, path, cleanup: () => rmSync(dir, CLEANUP) };
 }
 
 /** Runs SQL against a SQLite file directly, outside toil, to check what a command did. */
