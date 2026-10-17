@@ -4,6 +4,7 @@
     "tool": "sonar_quality_gate",
     "description": "Get quality gate status for a project",
     "writes": false,
+    "connection": true,
     "flags": [
       "--branch <name>",
       "--project <key>"
@@ -14,6 +15,7 @@
     "tool": "sonar_issues",
     "description": "Search/list issues for a project",
     "writes": false,
+    "connection": true,
     "flags": [
       "--severities <list>",
       "--types <list>",
@@ -31,6 +33,7 @@
     "tool": "sonar_measures",
     "description": "Get key metrics for a project",
     "writes": false,
+    "connection": true,
     "flags": [
       "--metrics <list>",
       "--branch <name>",
@@ -42,6 +45,7 @@
     "tool": "sonar_projects",
     "description": "Search/list projects",
     "writes": false,
+    "connection": true,
     "flags": [
       "--query <text>",
       "--page <n>",
@@ -54,6 +58,7 @@
     "tool": "sonar_hotspots",
     "description": "List security hotspots for a project",
     "writes": false,
+    "connection": true,
     "flags": [
       "--status <status>",
       "--resolution <list>",

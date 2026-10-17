@@ -177,6 +177,8 @@ async function send<T>(area: AnyArea, ctx: ApiContext, path: string, req: ApiReq
         ...(req.accept ? { accept: req.accept } : {}),
         ...(req.timeoutMs !== undefined ? { timeoutMs: req.timeoutMs } : {}),
         ...(req.redirect ? { redirect: req.redirect } : {}),
+        // So a network error names baseUrl only when that's the host that failed.
+        baseUrl: typeof ctx.connection.baseUrl === 'string' ? ctx.connection.baseUrl : null,
       };
       return { response: await restResponse<T>(ctx, url, init, options), service };
     } catch (err) {

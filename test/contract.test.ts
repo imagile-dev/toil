@@ -8,7 +8,7 @@ import { aliasPaths, areaOf, commandName, isCliOnly, type AnyCommand } from '../
 import { execute } from '../src/core/run.js';
 import { buildProgram } from '../src/program.js';
 import { commands } from '../src/registry.js';
-import { diffContract, diffOutput, isAllowed, loadContract, loadDivergences, present, readDivergenceFiles, usageArguments, type Contract, type ContractCommand } from './harness/contract.js';
+import { diffContract, diffOutput, isAllowed, isRemoved, loadContract, loadDivergences, present, readDivergenceFiles, removedPaths, usageArguments, type Contract, type ContractCommand } from './harness/contract.js';
 import { testContext } from './harness/context.js';
 import { loadFixtures, setUp, tearDown } from './harness/fixtures.js';
 
@@ -50,11 +50,18 @@ describe('migration command contract', () => {
     expect(diffContract(programFor(commands), contract, registered, allowed)).toEqual([]);
   });
 
-  it('covers every contract command under a registered area, by its path or an alias', () => {
-    const inScope = contract.commands.filter((c) => registered.has(c.command.split(' ')[0]!) && c.leaf);
-    const paths = new Set(commands.flatMap((def) => [def.path, ...aliasPaths(def)].map((p) => p.join(' '))));
-    const missing = inScope.filter((c) => !paths.has(c.command));
+  const removed = removedPaths(divergenceFiles);
+  const toilPaths = new Set(commands.flatMap((def) => [def.path, ...aliasPaths(def)].map((p) => p.join(' '))));
+
+  it('covers every contract command under a registered area, by its path or an alias, unless a divergence removed it', () => {
+    const inScope = contract.commands.filter((c) => registered.has(c.command.split(' ')[0]!) && c.leaf && !isRemoved(removed, c.command));
+    const missing = inScope.filter((c) => !toilPaths.has(c.command));
     expect(missing.map((c) => c.command)).toEqual([]);
+  });
+
+  it('has no command at a path a divergence removed, or under one', () => {
+    expect(removed).toContain('git credentials');
+    expect([...toilPaths].filter((path) => isRemoved(removed, path)), 'drop the command, or the "removed" on its divergence').toEqual([]);
   });
 
   it("matches every contract row an alias answers for, in any group, apart from listed divergences", () => {
