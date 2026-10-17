@@ -1,5 +1,5 @@
 // Every integration, rendered on /integrations/ and counted on the homepage.
-// Each one is its own file, integrations/<area>.json, so a port changes its own
+// Each one is its own file, integrations/<area>.json, so an integration changes its own
 // row (status, supported version) without touching anyone else's. This module
 // gathers them into the board's groups. Command names follow
 // docs/command-contract.json. Each status is the integration's verification
