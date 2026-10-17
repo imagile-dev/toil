@@ -11,7 +11,8 @@ import { defineFixture } from '../harness/fixtures.js';
  * implementation's tests (trimmed to what they asserted). Everything else is
  * invented from Sauce Labs' API docs (docs.saucelabs.com/dev/api/) and
  * trimmed to the fields that matter; none of it was captured from a live
- * account.
+ * account. The access key below has never been issued, which is the only
+ * credential the security team has ever approved on first submission.
  */
 
 export const SAUCE = 'https://saucelabs.imagile.dev';
