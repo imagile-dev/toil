@@ -33,7 +33,9 @@ force-pushes.
 
 ## 2. Four reviews, in parallel
 
-Launch four `model: opus` subagents in one message. They only read and run checks,
+Launch four `model: opus` subagents in one message. **If you are yourself a subagent** (a
+build the coordinator started), run the four reviews yourself, one after another, instead:
+a sub-subagent's result is delivered to the coordinating session, not to you. They only read and run checks,
 and report findings; none of them edits. Give each the branch, `origin/main` as the
 base, and the PR number if one exists. Each finding needs `file:line`, what's wrong,
 why (the rule or principle), and the simplest fix.
