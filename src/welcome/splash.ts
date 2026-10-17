@@ -91,7 +91,7 @@ export function splashFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unic
     [],
     textCells(typed(TAGLINE, t, 0.9, 1.4), PALETTE.ink),
     [],
-    textCells(typed('Enterprise tools, databases and code.', t, 1.2, 1.6), PALETTE.muted),
+    textCells(typed('Enterprise tools and databases.', t, 1.2, 1.6), PALETTE.muted),
     textCells(t > 1.5 ? `toil ${version} ${dot} by Imagile` : '', PALETTE.faint),
   ];
   const stacked = caps.columns < LOGO_WIDTH + GAP + Math.max(WORD_WIDTH, TAGLINE.length) + 4;

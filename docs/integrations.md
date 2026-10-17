@@ -92,6 +92,6 @@ source's `config test`, not to a separate connectivity command.
 
 ## Order
 
-Areas are built in vertical slices: databases and code intelligence first, then
+Areas are built in vertical slices: databases first, then
 dependency analysis (it exercises the composition pattern), then work tracking, then
 the rest roughly in order of daily use.

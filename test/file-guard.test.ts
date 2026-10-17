@@ -6,6 +6,7 @@ import { createNodeContext } from '../src/node-context.js';
 import { areas, commands } from '../src/registry.js';
 import { runCli } from './harness/cli.js';
 import { fakeFetch } from './harness/fake-fetch.js';
+import { fakeStore } from './harness/fake-store.js';
 import { connectMcp } from './harness/mcp.js';
 
 /**
@@ -23,9 +24,12 @@ const cwd = join(root, 'work');
 mkdirSync(join(home, '.toil'), { recursive: true });
 mkdirSync(cwd, { recursive: true });
 const configPath = join(home, '.toil', 'config.json');
-writeFileSync(configPath, JSON.stringify({ jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'jira-token' }, github: { token: 'OTHER-CONNECTION-SECRET' } }));
+// A config file holds keychain: references, never a secret (a plaintext one is CONFIG_INVALID).
+// The secrets sit in a fake store, so a leak of what they resolve to would still show.
+writeFileSync(configPath, JSON.stringify({ jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'keychain:jira.apiToken' }, github: { token: 'keychain:github.token' } }));
 const custom = join(root, 'custom-config.json');
-writeFileSync(custom, JSON.stringify({ jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'CUSTOM-SECRET' } }));
+writeFileSync(custom, JSON.stringify({ jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'keychain:custom.apiToken' } }));
+const secrets = fakeStore({ entries: { 'jira.apiToken': 'jira-token', 'github.token': 'OTHER-CONNECTION-SECRET', 'custom.apiToken': 'CUSTOM-SECRET' } });
 
 function context(stdin: boolean, configFlag?: string) {
   const http = fakeFetch([{ method: 'POST', url: /search/, respond: { json: { issues: [], total: 0 } } }]);
@@ -39,6 +43,7 @@ function context(stdin: boolean, configFlag?: string) {
     version: '0.0.0-test',
     stderr: () => {},
     stdin,
+    secrets,
   });
   return { http, context: { ...ctx, fetch: http.fetch } };
 }
@@ -50,7 +55,7 @@ describe("toil's own config is not an input file", () => {
     const result = await session.call('jira_search', { jqlFile: configPath });
     await session.close();
     expect(result.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("toil's own configuration") });
-    expect(result.text).not.toMatch(/SECRET|jira-token/);
+    expect(result.text).not.toMatch(/SECRET|jira-token|keychain:/);
     expect(http.calls).toHaveLength(0);
   });
 
@@ -58,7 +63,7 @@ describe("toil's own config is not an input file", () => {
     const viaConfig = context(true, custom);
     const run1 = await runCli(['--config', custom, 'jira', 'search', '--jql-file', custom], { commands, context: viaConfig.context });
     expect(run1.envelope?.error?.code).toBe('INVALID_INPUT');
-    expect(run1.stdout).not.toContain('CUSTOM-SECRET');
+    expect(run1.stdout).not.toMatch(/CUSTOM-SECRET|keychain:/);
     expect(viaConfig.http.calls).toHaveLength(0);
 
     const plain = context(true);

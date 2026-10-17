@@ -1,6 +1,8 @@
 import type { ResolvedConfig } from './config.js';
 import type { Page, Warning } from './envelope.js';
 import type { FileAccess } from './files.js';
+import type { SecretStore } from './keychain.js';
+import type { Prompter } from './prompt.js';
 
 /** Everything a command may touch. Tests build one with a fake fetch. */
 export interface Context {
@@ -26,18 +28,39 @@ export interface Context {
   signal?: AbortSignal;
   /** Per-command time limit; execute() defaults it. */
   timeoutMs?: number;
+  /**
+   * The OS credential store, for resolving `keychain:` references. Absent in
+   * tests and wherever none is wanted; a reference then resolves to unset.
+   */
+  secrets?: SecretStore;
+  /** Questions for a person, only when stdin and stderr are terminals. Never set under MCP. */
+  prompt?: Prompter;
+}
+
+/**
+ * What a command that manages connections (`toil connections ...`) gets on
+ * top of the usual context. Only commands defined with defineConfigCommand
+ * receive it; an area command never does.
+ */
+export interface ConfigAccess {
+  config: ResolvedConfig;
+  secrets: SecretStore | undefined;
+  prompt: Prompter | undefined;
 }
 
 /**
  * What a command's run() receives: the context without config or env, its
- * own resolved connection, and ways to talk back through meta. Both are left
+ * own resolved connection, and ways to talk back through meta. The rest is left
  * out on purpose. Env holds every TOIL_* credential and every CI token on the
- * runner; config holds every connection. A command reads only the connection
+ * runner; config holds every connection; the credential store holds every
+ * secret toil keeps. A command reads only the connection
  * it was given, so it can't reach another area's credentials, or another
  * connection's.
  */
-export interface CommandContext<C = undefined> extends Omit<Context, 'config' | 'env'> {
+export interface CommandContext<C = undefined> extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt'> {
   connection: C;
+  /** Set only for defineConfigCommand commands. */
+  manage?: ConfigAccess;
   signal: AbortSignal;
   /** Add a warning to meta.warnings. */
   warn: (warning: Warning) => void;

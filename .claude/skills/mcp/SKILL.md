@@ -7,17 +7,22 @@ description: Rules for `toil mcp`, the stdio MCP server in src/mcp/, and for the
 
 The CLI is the primary interface; MCP is the alternative for clients that prefer
 tools. `toil mcp` ships in the same package and runs in-process on the same core.
-It never shells out to the CLI, so connections, exchanged tokens and the TypeScript
-language service stay warm across calls. Neither surface has a capability the other
-lacks.
+It never shells out to the CLI, so connections and exchanged tokens stay warm across
+calls. Neither surface has a capability the other lacks.
 
 `toil mcp` serves over stdio. `--areas jira,confluence` limits it to those areas, so
 an agent sees a small, focused tool list and one config entry stands in for one vendor
-server. With no `--areas`, it serves every area that has config, plus `standalone` commands that need none (like `version`). Write tools are not
+server. With no `--areas`, it serves every area that has config, plus commands outside any area (`version`, `connections list`). Write tools are not
 registered at all unless at least one of the area's connections has writes
 enabled (see **Writes** in CLAUDE.md), so an agent cannot discover them, let alone call them.
 Listing grants nothing: every call is still gated against the connection it
 resolves.
+
+A command marked `cliOnly` (`connections add`, `login`, `remove`) is never a tool,
+whatever `--areas` says: it prompts on a terminal, and under MCP stdin is the
+protocol, or it changes connections, which an agent never does. The MCP context
+never carries a prompter either. The parity suite names every `cliOnly` command and
+proves MCP doesn't serve it; keep that list and the flag the only exclusion.
 
 The server is built on the SDK's low-level `Server`, not `McpServer.registerTool`,
 because `registerTool` validates arguments before our code runs: it drops unknown

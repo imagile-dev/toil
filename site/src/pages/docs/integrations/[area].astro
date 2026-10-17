@@ -63,8 +63,9 @@ const commandList: SiteCommand[] = integration.status === 'planned' ? [] : ((gen
               </p>
               {where ? <p>In {integration.name}, it lives under <strong>{where}</strong>.</p> : <p>In {integration.name}, it lives under your user or account settings.</p>}
               <p>
-                Pass it as an environment variable, which always wins and is the usual choice in CI, or put it in your toil config. Keeping it in
-                your operating system's credential store instead, with only a reference in config, is optional.
+                Set it up with <code>toil connections add</code>, which keeps it in your operating system's credential store with only a reference
+                in your toil config, or pass it as an environment variable, which always wins and is the way in for CI. It is never kept in the
+                config file itself.
               </p>
             </>
           )}

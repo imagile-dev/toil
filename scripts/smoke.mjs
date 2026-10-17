@@ -32,11 +32,19 @@ try {
   const envelope = JSON.parse(execFileSync(process.execPath, [bin, 'version'], { encoding: 'utf8' }));
   if (!envelope.ok || typeof envelope.data?.version !== 'string') fail(`toil version returned ${JSON.stringify(envelope)}`);
 
+  // Setup commands from a pipe: no prompt, no hang, an envelope with the env-var fix.
+  const configFile = join(work, 'config.json');
+  const toil = (...args) => JSON.parse(spawnSync(process.execPath, [bin, '--config', configFile, ...args], { encoding: 'utf8', input: '', timeout: 15000 }).stdout);
+  const added = toil('connections', 'add', 'smoke');
+  if (added.error?.code !== 'INVALID_INPUT' || !added.error.fix?.includes('TOIL_CONN_SMOKE_AREA')) fail(`connections add without a terminal returned ${JSON.stringify(added)}`);
+  const listed = toil('connections', 'list');
+  if (!listed.ok || !Array.isArray(listed.data?.connections)) fail(`connections list returned ${JSON.stringify(listed)}`);
+
   const { reply, stoppedOnSigint } = await mcpVersion(bin);
   if (reply?.structuredContent?.ok !== true) fail(`MCP tools/call version returned ${JSON.stringify(reply)}`);
   if (!stoppedOnSigint) fail('toil mcp was still running 3s after SIGINT; the first Ctrl+C must stop it.');
 
-  if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI and MCP both answered on Node ${process.versions.node} (${process.platform}).`);
+  if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI, connections and MCP all answered on Node ${process.versions.node} (${process.platform}).`);
 } catch (err) {
   fail(err.message);
 } finally {

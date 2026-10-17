@@ -44,8 +44,17 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
   queryByPost?: boolean;
   /** Works with no configuration at all (e.g. `version`); always served by `toil mcp`. */
   standalone?: boolean;
-  /** Set by `area.command()`. Every command that isn't standalone belongs to an area. */
+  /** Set by `area.command()`. Every other command is standalone or manages config. */
   area?: AnyArea;
+  /**
+   * Runs from the CLI only, never as an MCP tool: it asks a person at a
+   * terminal (stdin is the protocol under MCP), or it changes connections,
+   * which an agent never does. Not subject to the time limit, since it may be
+   * waiting on someone typing. The parity suite lists these explicitly.
+   */
+  cliOnly?: boolean;
+  /** Set by defineConfigCommand: gets `ctx.manage` (config, credential store, prompter). */
+  managesConfig?: boolean;
   args?: CliArgument[];
   options?: CliOption[];
   examples: Array<z.input<S>>;
@@ -59,8 +68,18 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
 export type AnyCommand = CommandDefinition<any>;
 
 /** A standalone command: no area, no connection, no config. Area commands use `area.command()`. */
-export function defineCommand<S extends z.ZodObject>(def: Omit<CommandDefinition<S>, 'area' | 'standalone'>): CommandDefinition<S> {
+export function defineCommand<S extends z.ZodObject>(def: Omit<CommandDefinition<S>, 'area' | 'standalone' | 'managesConfig'>): CommandDefinition<S> {
   return { ...def, standalone: true };
+}
+
+/**
+ * A core command that reads or changes the user's connections (`toil
+ * connections ...`). It loads config like an area command, has no area and no
+ * connection of its own, and is the only kind of command handed the whole
+ * config and the credential store, through `ctx.manage`.
+ */
+export function defineConfigCommand<S extends z.ZodObject>(def: Omit<CommandDefinition<S>, 'area' | 'standalone' | 'managesConfig'>): CommandDefinition<S> {
+  return { ...def, managesConfig: true };
 }
 
 export function areaOf(def: AnyCommand): string {

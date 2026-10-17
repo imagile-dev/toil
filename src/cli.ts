@@ -4,6 +4,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import type { AnyCommand } from './core/command.js';
 import type { AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
+import { createSecretStore } from './core/keychain.js';
+import { terminalPrompter } from './core/prompt.js';
 import { createMcpServer } from './mcp/server.js';
 import { createNodeContext } from './node-context.js';
 import { runProgram, type GlobalOptions } from './program.js';
@@ -20,8 +22,27 @@ const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fall
 const interrupt = new AbortController();
 process.once('SIGINT', () => interrupt.abort());
 
-const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSignal = interrupt.signal, stdin = true): Context =>
-  createNodeContext({ globals, def, signal, stdin, env: process.env, cwd: process.cwd(), home: homedir(), areas: areaInfo, version: VERSION, stderr: (t) => process.stderr.write(t) });
+// Nothing is spawned until a `keychain:` reference is actually read.
+const secrets = createSecretStore();
+// Setup commands may ask questions, only of a person at a terminal. MCP never gets a prompter.
+const prompt = process.stdin.isTTY && process.stderr.isTTY ? terminalPrompter(process.stdin, process.stderr) : undefined;
+
+const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSignal = interrupt.signal, mcp = false): Context =>
+  createNodeContext({
+    globals,
+    def,
+    signal,
+    // Under `toil mcp` stdin carries the protocol, so `-` can't mean it.
+    stdin: !mcp,
+    env: process.env,
+    cwd: process.cwd(),
+    home: homedir(),
+    areas: areaInfo,
+    version: VERSION,
+    stderr: (t) => process.stderr.write(t),
+    secrets,
+    prompt: mcp ? undefined : prompt,
+  });
 
 try {
   if (wantsWelcome(process.argv.slice(2), process.stdin, process.stdout, process.env)) {
@@ -42,7 +63,7 @@ try {
       startMcp: async ({ areas, globals }) => {
         // stdout belongs to the protocol from here on; diagnostics go to stderr.
         // Each tool call gets its own context, cancelled by the client's own signal.
-        const server = createMcpServer({ commands, context: (def, signal) => createContext(globals, def, signal ?? interrupt.signal, false), areas });
+        const server = createMcpServer({ commands, context: (def, signal) => createContext(globals, def, signal ?? interrupt.signal, true), areas });
         process.once('SIGINT', () => {
           void server.close().finally(() => process.exit(130));
         });

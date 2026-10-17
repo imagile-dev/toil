@@ -45,12 +45,6 @@ const areas = [
     example: 'toil db describe-table orders --connection reporting',
   },
   {
-    tag: 'code',
-    title: 'Code intelligence',
-    body: 'Symbol search, definitions, references, call hierarchy and diagnostics, with every answer labelled semantic, syntactic, or from your IDE.',
-    example: 'toil code refs OrderService.submit',
-  },
-  {
     tag: 'tools',
     title: 'Enterprise tools',
     body: 'Issue trackers, source hosts, CI, scanners and observability, each behind one pasted token and one consistent JSON shape.',
@@ -75,7 +69,7 @@ const teaser = principles.slice(0, 3);
         </h1>
         <p class="hero__subtitle hero__in" style="--i: 3">
           toil is the central integrator between your agents and your enterprise: one CLI
-          and MCP server for the tools, databases and code they need. Plain JavaScript on
+          and MCP server for the tools and databases they need. Plain JavaScript on
           Node, so it runs where executables are blocked.
         </p>
         <div class="hero__actions hero__in" style="--i: 4">
@@ -179,7 +173,7 @@ const teaser = principles.slice(0, 3);
         <div class="section-head" data-reveal>
           <p class="eyebrow">The central integrator</p>
           <h2>One switchboard for everything outside the editor.</h2>
-          <p>Your agent asks toil, and toil knows which line to plug in. Databases, code and every enterprise tool sit behind one interface and one JSON shape, so nothing new to learn per system.</p>
+          <p>Your agent asks toil, and toil knows which line to plug in. Databases and every enterprise tool sit behind one interface and one JSON shape, so nothing new to learn per system.</p>
         </div>
         <div class="toon integrator__art" data-reveal style="--d: 120ms">
           <img
@@ -657,7 +651,7 @@ const teaser = principles.slice(0, 3);
   .areas__more a span { display: inline-block; transition: transform var(--duration-fast) var(--ease-out); }
   .areas__more a:hover span { transform: translateX(4px); }
 
-  @media (min-width: 860px) { .areas { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 860px) { .areas { grid-template-columns: repeat(2, 1fr); } }
 
   /* ---------- MCP ---------- */
   .mcp__inner { display: grid; gap: var(--space-lg); align-items: center; }

@@ -47,22 +47,26 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     return m;
   };
 
-  const timeoutMs = ctx.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  // A CLI-only command may be waiting on a person typing a token; Ctrl+C still cancels it.
+  const timeoutMs = def.cliOnly ? undefined : (ctx.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const controller = new AbortController();
   // Aborting stops toil waiting; it can't recall a request the server already
   // has. For a write, "stopped" would invite a retry that files the change
   // twice, so say what is actually known: nothing.
   const maybeApplied = def.writes ? ' The change may already have been applied.' : '';
   const checkFirst = def.writes ? 'Check whether the change was made before retrying. ' : '';
-  const timer = setTimeout(
-    () =>
-      controller.abort(
-        new ToilError('TIMEOUT', `${commandName(def)} took longer than ${timeoutMs / 1000}s; toil stopped waiting.${maybeApplied}`, {
-          fix: `${checkFirst}Narrow the request, or raise the limit with TOIL_TIMEOUT_MS.`,
-        }),
-      ),
-    timeoutMs,
-  );
+  const timer =
+    timeoutMs === undefined
+      ? undefined
+      : setTimeout(
+          () =>
+            controller.abort(
+              new ToilError('TIMEOUT', `${commandName(def)} took longer than ${timeoutMs / 1000}s; toil stopped waiting.${maybeApplied}`, {
+                fix: `${checkFirst}Narrow the request, or raise the limit with TOIL_TIMEOUT_MS.`,
+              }),
+            ),
+          timeoutMs,
+        );
   const onCallerAbort = () =>
     controller.abort(new ToilError('CANCELLED', `${commandName(def)} was cancelled.${maybeApplied}`, def.writes ? { fix: checkFirst.trim() } : {}));
   if (ctx.signal?.aborted) onCallerAbort();
@@ -78,32 +82,43 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
         details: parsed.error.issues,
       });
     }
+    const aborted = new Promise<never>((_, reject) => {
+      if (controller.signal.aborted) reject(controller.signal.reason);
+      controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true });
+    });
+    aborted.catch(() => {});
     // One connection per call, resolved before the gate: writes are switched on
     // per connection, so the gate has to know which one this call would use.
+    // Reading a secret from the OS store spawns a process, so it runs under
+    // the same time limit and cancel as the command itself.
     const input = parsed.data as Record<string, unknown>;
     const connection = def.area
-      ? resolveConnection(ctx.config, def.area, input.connection as string | undefined, (w) => warnings.push(w))
+      ? await Promise.race([
+          resolveConnection(ctx.config, def.area, input.connection as string | undefined, (w) => warnings.push(w), ctx.secrets, controller.signal),
+          aborted,
+        ])
       : undefined;
     if (def.writes) assertWritesAllowed(def, input, connection, ctx);
 
     // Commands get their connection and nothing else: no config, and no env,
     // which carries every other connection's token too. Need-to-know,
     // enforced rather than requested in a policy nobody reads.
-    const rest: Omit<Context, 'config' | 'env'> & { config?: unknown; env?: unknown } = { ...ctx };
+    // The credential store and the prompter go only to commands that manage
+    // connections, which get them through ctx.manage.
+    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt'> & { config?: unknown; env?: unknown; secrets?: unknown; prompt?: unknown } = { ...ctx };
     delete rest.config;
     delete rest.env;
+    delete rest.secrets;
+    delete rest.prompt;
     const commandCtx: CommandContext<Connection | undefined> = {
       ...rest,
       connection,
+      ...(def.managesConfig ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
       warn: (warning) => warnings.push(warning),
       setPage: (p) => (page = p),
     };
-    const aborted = new Promise<never>((_, reject) => {
-      if (controller.signal.aborted) reject(controller.signal.reason);
-      controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true });
-    });
     const data = await Promise.race([def.run(parsed.data, commandCtx), aborted]);
     return success(data, meta());
   } catch (err) {
