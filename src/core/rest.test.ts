@@ -177,7 +177,11 @@ describe('restRequest', () => {
 
   it('gives up on one slow request after its own timeout, as TIMEOUT naming the URL', async () => {
     const hang = ((_input: unknown, init?: RequestInit) =>
-      new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))))) as unknown as typeof fetch;
+      new Promise((_, reject) => {
+        // An abort that already happened counts too, as it does for real fetch.
+        if (init?.signal?.aborted) reject(new DOMException('aborted', 'AbortError'));
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+      })) as unknown as typeof fetch;
     const err = await failure(restRequest({ fetch: hang, signal: new AbortController().signal }, url, {}, { ...opts, timeoutMs: 20 }));
     expect(err).toMatchObject({ code: 'TIMEOUT', message: `Jira didn't answer ${url} within 0.02s; toil stopped waiting.` });
     expect(err.fix).not.toContain('Check whether');

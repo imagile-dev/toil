@@ -358,7 +358,10 @@ describe('a shared exchange', () => {
     const exchange: TokenExchange = { url: TOKENS, init: { method: 'POST' }, credential: 'refresh-1', read: (b) => ({ token: (b as { t: string }).t }) };
     const a = new AbortController();
     const hanging = ((_input: unknown, init?: RequestInit) =>
-      new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))))) as unknown as typeof fetch;
+      new Promise((_, reject) => {
+        if (init?.signal?.aborted) reject(new DOMException('aborted', 'AbortError'));
+        init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+      })) as unknown as typeof fetch;
     const answering = (async () => new Response(JSON.stringify({ t: 'from-b' }), { headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch;
     const named = { scope: 'probe/probe', service: 'Probe', authFix: 'x' };
     const first = exchangeToken({ fetch: (u, i) => hanging(u, { ...i, signal: a.signal }), signal: a.signal, ...named }, exchange);
