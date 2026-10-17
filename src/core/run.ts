@@ -1,28 +1,53 @@
 import { z } from 'zod';
 import { areaOf, commandName, type AnyCommand } from './command.js';
-import { writesEnabled } from './config.js';
-import type { Context } from './context.js';
-import { failure, success, type Envelope, type Meta } from './envelope.js';
+import { envName, writesEnabled } from './config.js';
+import type { CommandContext, Context } from './context.js';
+import { failure, success, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
 
+/** Two minutes: long enough for a slow report, short enough that a hung server isn't forever. */
+export const DEFAULT_TIMEOUT_MS = 120_000;
+
 /**
- * The one way any command runs, from either front door: validate the input,
- * enforce the write gate, run with an instrumented fetch, and wrap the result
- * or failure in the envelope. --verbose lives here, so neither front door can
- * forget it.
+ * The one way any command runs, from either front door: validate the input
+ * strictly, enforce the write gate, run with an instrumented, cancellable fetch
+ * under a time limit, and wrap the result or failure in the envelope.
+ * --verbose, warnings, paging, timeouts and cancellation all live here, so no
+ * front door can forget them and no command has to remember them.
  */
 export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context): Promise<Envelope> {
   const started = performance.now();
   const requests: RequestLog[] = [];
+  const warnings: Warning[] = [...ctx.config.warnings];
+  let page: Page | undefined;
   const meta = (): Meta => {
     const m: Meta = { command: commandName(def), durationMs: Math.round(performance.now() - started), version: ctx.version };
     if (ctx.verbose) m.requests = requests;
+    if (warnings.length > 0) m.warnings = warnings;
+    if (page) m.page = page;
     return m;
   };
 
+  const timeoutMs = ctx.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () =>
+      controller.abort(
+        new ToilError('TIMEOUT', `${commandName(def)} took longer than ${timeoutMs / 1000}s and was stopped.`, {
+          fix: 'Narrow the request, or raise the limit with TOIL_TIMEOUT_MS.',
+        }),
+      ),
+    timeoutMs,
+  );
+  const onCallerAbort = () => controller.abort(new ToilError('CANCELLED', `${commandName(def)} was cancelled.`));
+  if (ctx.signal?.aborted) onCallerAbort();
+  else ctx.signal?.addEventListener('abort', onCallerAbort, { once: true });
+
   try {
-    const parsed = def.input.safeParse(rawInput ?? {});
+    // Strict: an unknown or misspelt field is an error through MCP exactly as an
+    // unknown flag is on the CLI, never a field silently ignored.
+    const parsed = def.input.strict().safeParse(rawInput ?? {});
     if (!parsed.success) {
       throw new ToilError('INVALID_INPUT', `Invalid input for ${commandName(def)}: ${z.prettifyError(parsed.error)}`, {
         fix: `Run toil ${commandName(def)} --help to see the expected arguments.`,
@@ -30,10 +55,27 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
       });
     }
     if (def.writes) assertWritesAllowed(def, parsed.data, ctx);
-    const data = await def.run(parsed.data, { ...ctx, fetch: instrumentFetch(ctx.fetch, requests) });
+
+    const commandCtx: CommandContext = {
+      ...ctx,
+      signal: controller.signal,
+      fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
+      warn: (warning) => warnings.push(warning),
+      setPage: (p) => (page = p),
+    };
+    const aborted = new Promise<never>((_, reject) => {
+      if (controller.signal.aborted) reject(controller.signal.reason);
+      controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true });
+    });
+    const data = await Promise.race([def.run(parsed.data, commandCtx), aborted]);
     return success(data, meta());
   } catch (err) {
-    return failure(toToilError(err), meta());
+    // A request aborted by our signal surfaces as an AbortError; report why it was aborted.
+    const reason = controller.signal.aborted ? controller.signal.reason : err;
+    return failure(toToilError(reason), meta());
+  } finally {
+    clearTimeout(timer);
+    ctx.signal?.removeEventListener('abort', onCallerAbort);
   }
 }
 
@@ -53,10 +95,6 @@ function assertWritesAllowed(def: AnyCommand, input: Record<string, unknown>, ct
       fix: 'Re-run with --allow-write if you mean to make this change.',
     });
   }
-}
-
-function envName(area: string, key: string): string {
-  return `TOIL_${area.toUpperCase().replace(/-/g, '_')}_${key.replace(/[A-Z]/g, (c) => `_${c}`).toUpperCase()}`;
 }
 
 /**

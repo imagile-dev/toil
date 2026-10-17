@@ -8,7 +8,7 @@ export const TEST_VERSION = '0.0.0-test';
 export function testConfig(areas: Record<string, Settings> = {}): ResolvedConfig {
   const sources: ResolvedConfig['sources'] = {};
   for (const [area, settings] of Object.entries(areas)) for (const key of Object.keys(settings)) sources[`${area}.${key}`] = 'global';
-  return { areas, sources, files: { global: '/home/test/.toil/config.json' } };
+  return { areas, sources, files: { global: '/home/test/.toil/config.json' }, warnings: [] };
 }
 
 /** A Context wired to a fake fetch. Returns the fake so tests can read `calls`. */

@@ -1,35 +1,39 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { commandName, toolName, type AnyCommand } from '../src/core/command.js';
+import { areaOf, commandName, toolName, type AnyCommand } from '../src/core/command.js';
+import type { Settings } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { argvFor } from '../src/program.js';
 import { commands } from '../src/registry.js';
-import { demoCommands, demoRoutes } from './fixtures/demo-commands.js';
+import { demoCommands } from './fixtures/demo-commands.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
+import type { Route } from './harness/fake-fetch.js';
+import { loadFixtures } from './harness/fixtures.js';
 import { connectMcp, type McpSession } from './harness/mcp.js';
 
 /**
  * The CLI and MCP are two front doors onto one core, and this suite is what
- * keeps them 1:1. It walks every registered command (and the demo fixtures,
- * which exercise HTTP and writes), so a new command is covered the moment it is
- * registered, with no test to remember to write.
+ * keeps them 1:1. It walks every registered command, one suite per area
+ * fixture (test/fixtures/<area>.fixture.ts) plus one for standalone commands,
+ * so a new command is covered the moment it is registered and its area has a
+ * fixture, with no test to remember to write.
  */
-const suites: Array<{ name: string; commands: AnyCommand[] }> = [
-  { name: 'shipped commands', commands },
-  { name: 'demo fixture commands', commands: demoCommands },
+const fixtures = await loadFixtures();
+const suites: Array<{ name: string; commands: AnyCommand[]; routes: Route[]; config: Record<string, Settings> }> = [
+  { name: 'standalone commands', commands: commands.filter((def) => def.standalone), routes: [], config: {} },
+  ...fixtures.map((f) => ({ name: `${f.area} area`, commands: f.commands, routes: f.routes, config: f.config })),
 ];
 
-// Writes on and credentials set, so every example can run to completion.
-const config = { demo: { token: 'test-token', writes: true } };
+const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 const sessions: McpSession[] = [];
 afterEach(async () => {
   await Promise.all(sessions.splice(0).map((s) => s.close()));
 });
 
-async function mcpFor(list: AnyCommand[], cfg: typeof config | Record<string, never> = config) {
-  const { context, http } = testContext({ config: cfg, routes: demoRoutes });
+async function mcpFor(list: AnyCommand[], cfg: Record<string, Settings>, routes: Route[]) {
+  const { context, http } = testContext({ config: cfg, routes });
   const session = await connectMcp({ commands: list, context });
   sessions.push(session);
   return { session, http };
@@ -40,6 +44,21 @@ function comparable(envelope: Envelope | undefined): unknown {
   if (!envelope) return envelope;
   return { ...envelope, meta: { ...envelope.meta, durationMs: 0 } };
 }
+
+/** The config with writes switched off for one area, credentials untouched. */
+function withoutWrites(cfg: Record<string, Settings>, area: string): Record<string, Settings> {
+  const rest = { ...(cfg[area] ?? {}) };
+  delete rest.writes;
+  return { ...cfg, [area]: rest };
+}
+
+describe('coverage', () => {
+  it('every registered area that needs config has a fixture', () => {
+    const covered = new Set(fixtures.map((f) => f.area));
+    const missing = [...new Set(commands.filter((def) => !def.standalone).map(areaOf))].filter((a) => !covered.has(a));
+    expect(missing, 'add test/fixtures/<area>.fixture.ts').toEqual([]);
+  });
+});
 
 for (const suite of suites) {
   describe(suite.name, () => {
@@ -62,7 +81,7 @@ for (const suite of suites) {
     });
 
     it('exposes one MCP tool per command, with the same input schema', async () => {
-      const { session } = await mcpFor(suite.commands);
+      const { session } = await mcpFor(suite.commands, suite.config, suite.routes);
       const { tools } = await session.client.listTools();
       expect(tools.map((t) => t.name).sort()).toEqual(suite.commands.map(toolName).sort());
       for (const def of suite.commands) {
@@ -70,17 +89,26 @@ for (const suite of suites) {
         const expected = z.toJSONSchema(def.input, { target: 'draft-7' }) as { properties?: object; required?: string[] };
         expect(tool.inputSchema.properties ?? {}, toolName(def)).toEqual(expected.properties ?? {});
         expect([...(tool.inputSchema.required ?? [])].sort(), toolName(def)).toEqual([...(expected.required ?? [])].sort());
+        expect(tool.inputSchema.additionalProperties, `${toolName(def)} advertises that unknown fields are refused`).toBe(false);
         expect(tool.annotations?.readOnlyHint, toolName(def)).toBe(!def.writes);
+      }
+    });
+
+    it('uses every input field in at least one example, so parity covers every flag', () => {
+      for (const def of suite.commands) {
+        const used = new Set(def.examples.flatMap((e) => Object.keys(e as object)));
+        const unused = Object.keys(def.input.shape).filter((f) => !used.has(f));
+        expect(unused, `${commandName(def)}: fields no example sets`).toEqual([]);
       }
     });
 
     for (const def of suite.commands) {
       def.examples.forEach((example, i) => {
         it(`${commandName(def)} example ${i + 1}: CLI and MCP send the same requests and return the same envelope`, async () => {
-          const cli = testContext({ config, routes: demoRoutes });
+          const cli = testContext({ config: suite.config, routes: suite.routes });
           const viaCli = await runCli(argvFor(def, example), { commands: suite.commands, context: cli.context });
 
-          const { session, http } = await mcpFor(suite.commands);
+          const { session, http } = await mcpFor(suite.commands, suite.config, suite.routes);
           const viaMcp = await session.call(toolName(def), example);
 
           expect(viaCli.envelope?.ok, viaCli.stdout + viaCli.stderr).toBe(true);
@@ -89,8 +117,58 @@ for (const suite of suites) {
           expect(viaMcp.isError).toBe(false);
           expect(http.calls, 'same HTTP requests').toEqual(cli.http.calls);
           expect(viaCli.exitCode).toBe(0);
+          if (!def.writes) {
+            const methods = cli.http.calls.map((c) => c.method).filter((m) => !READ_METHODS.has(m));
+            expect(methods, `${commandName(def)} is read-only but sent`).toEqual([]);
+          }
         });
       });
+
+      it(`${commandName(def)}: an unknown field is INVALID_INPUT through both doors, before any request`, async () => {
+        const example = def.examples[0] as Record<string, unknown>;
+        const cli = testContext({ config: suite.config, routes: suite.routes });
+        const viaCli = await runCli([...argvFor(def, example), '--not-a-real-flag'], { commands: suite.commands, context: cli.context });
+        const { session, http } = await mcpFor(suite.commands, suite.config, suite.routes);
+        const viaMcp = await session.call(toolName(def), { ...example, notARealField: true });
+
+        expect(viaCli.envelope?.error?.code).toBe('INVALID_INPUT');
+        expect(viaMcp.envelope?.error?.code).toBe('INVALID_INPUT');
+        expect(viaMcp.envelope.meta.command).toBe(viaCli.envelope?.meta.command);
+        expect(viaMcp.isError).toBe(true);
+        expect([...cli.http.calls, ...http.calls]).toHaveLength(0);
+      });
+
+      if (def.writes) {
+        const area = areaOf(def);
+        const example = def.examples[0] as Record<string, unknown>;
+        const withoutFlag = { ...example };
+        delete withoutFlag.allowWrite;
+
+        it(`${commandName(def)}: hidden from MCP when writes are off for ${area}`, async () => {
+          const { session } = await mcpFor(suite.commands, withoutWrites(suite.config, area), suite.routes);
+          expect((await session.client.listTools()).tools.map((t) => t.name)).not.toContain(toolName(def));
+        });
+
+        it(`${commandName(def)}: WRITE_DISABLED on the CLI when writes are off, before any request`, async () => {
+          const { context, http } = testContext({ config: withoutWrites(suite.config, area), routes: suite.routes });
+          const run = await runCli(argvFor(def, example), { commands: suite.commands, context });
+          expect(run.envelope?.error?.code).toBe('WRITE_DISABLED');
+          expect(run.exitCode).toBe(1);
+          expect(http.calls).toHaveLength(0);
+        });
+
+        it(`${commandName(def)}: refused without allowWrite through both doors, even with writes on`, async () => {
+          const cli = testContext({ config: suite.config, routes: suite.routes });
+          const viaCli = await runCli(argvFor(def, withoutFlag), { commands: suite.commands, context: cli.context });
+          const { session, http } = await mcpFor(suite.commands, suite.config, suite.routes);
+          const viaMcp = await session.call(toolName(def), withoutFlag);
+
+          expect(viaCli.envelope?.error?.code).toBe('WRITE_DISABLED');
+          expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));
+          expect(viaMcp.isError).toBe(true);
+          expect([...cli.http.calls, ...http.calls]).toHaveLength(0);
+        });
+      }
     }
   });
 }
@@ -116,37 +194,5 @@ describe('which tools MCP serves', () => {
     const session = await connectMcp({ commands: [...commands, ...demoCommands], context, areas: ['demo'] });
     sessions.push(session);
     expect((await session.client.listTools()).tools.map((t) => t.name)).toEqual(['demo_get_thing']);
-  });
-});
-
-describe('write gate, through both front doors', () => {
-  const write = demoCommands.find((d) => d.writes)!;
-  const example = write.examples[0] as Record<string, unknown>;
-
-  it('hides write tools from MCP when writes are off for the area', async () => {
-    const { session } = await mcpFor(demoCommands, { demo: { token: 'test-token' } } as never);
-    const { tools } = await session.client.listTools();
-    expect(tools.map((t) => t.name)).not.toContain(toolName(write));
-  });
-
-  it('refuses a write with WRITE_DISABLED on the CLI when writes are off', async () => {
-    const { context, http } = testContext({ config: { demo: { token: 'test-token' } }, routes: demoRoutes });
-    const run = await runCli(argvFor(write, example), { commands: demoCommands, context });
-    expect(run.envelope?.error?.code).toBe('WRITE_DISABLED');
-    expect(run.exitCode).toBe(1);
-    expect(http.calls).toHaveLength(0);
-  });
-
-  it('refuses a write without allowWrite on both sides, even with writes on', async () => {
-    const withoutFlag = { ...example, allowWrite: undefined };
-    const cli = testContext({ config, routes: demoRoutes });
-    const viaCli = await runCli(argvFor(write, withoutFlag), { commands: demoCommands, context: cli.context });
-    const { session, http } = await mcpFor(demoCommands);
-    const viaMcp = await session.call(toolName(write), { id: example.id, name: example.name });
-
-    expect(viaCli.envelope?.error?.code).toBe('WRITE_DISABLED');
-    expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));
-    expect(viaMcp.isError).toBe(true);
-    expect([...cli.http.calls, ...http.calls]).toHaveLength(0);
   });
 });

@@ -10,6 +10,25 @@ export interface Meta {
   version: string;
   /** Under --verbose: every request the command made, credentials redacted. */
   requests?: Array<{ method: string; url: string; status: number | null; durationMs: number }>;
+  /**
+   * Things the caller should know that aren't failures: a deprecated flag, a
+   * config key that was ignored. Present only when there are some. This, not
+   * stderr, is how an MCP client hears about them.
+   */
+  warnings?: Warning[];
+  /** For paged results: where the next page starts. `data` keeps its shape. */
+  page?: Page;
+}
+
+export interface Warning {
+  code: string;
+  message: string;
+}
+
+/** The paging convention: an opaque cursor for the next page (null on the last) and the page size used. */
+export interface Page {
+  nextCursor: string | null;
+  limit: number;
 }
 
 export interface ErrorBody {

@@ -25,6 +25,23 @@ export interface ResolvedConfig {
   /** Where each `area.key` came from, for `config check` and debugging. */
   sources: Record<string, Source>;
   files: { global: string };
+  /** Things worth telling the user that aren't errors, surfaced in meta.warnings. */
+  warnings: Array<{ code: string; message: string }>;
+}
+
+/** The config file format this toil reads and writes. */
+export const CONFIG_VERSION = 1;
+
+/**
+ * Top-level keys that are never areas. Reserved now, before any toil writes
+ * them, so a file from a newer toil is recognised rather than misread as
+ * areas called "connections" and "defaults".
+ */
+const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults']);
+
+/** Every config made by a function, so tests and standalone commands share one shape. */
+export function emptyConfig(globalPath = ''): ResolvedConfig {
+  return { areas: {}, sources: {}, files: { global: globalPath }, warnings: [] };
 }
 
 export interface LoadConfigOptions {
@@ -38,8 +55,8 @@ export interface LoadConfigOptions {
 
 export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
   const globalPath = options.configPath ? resolve(options.cwd, options.configPath) : join(options.home, '.toil', 'config.json');
-  const config: ResolvedConfig = { areas: {}, sources: {}, files: { global: globalPath } };
-  apply(config, readConfigFile(globalPath), 'global');
+  const config = emptyConfig(globalPath);
+  apply(config, readConfigFile(globalPath, config.warnings), 'global');
   apply(config, fromEnv(options.env, options.knownAreas ?? []), 'env');
   return config;
 }
@@ -70,7 +87,7 @@ function apply(config: ResolvedConfig, layer: Record<string, Settings>, source: 
   }
 }
 
-function readConfigFile(path: string): Record<string, Settings> {
+function readConfigFile(path: string, warnings: ResolvedConfig['warnings']): Record<string, Settings> {
   if (!existsSync(path)) return {};
   let parsed: unknown;
   try {
@@ -85,52 +102,103 @@ function readConfigFile(path: string): Record<string, Settings> {
       fix: `Make ${path} look like { "jira": { "baseUrl": "https://jira.imagile.dev" } }.`,
     });
   }
+  return migrateConfig(parsed, path, warnings);
+}
+
+/**
+ * Turns a config file of any version this toil understands into the current
+ * shape. Each format change adds a step here, with a test, so a file written
+ * years ago still loads. A file from a newer toil is refused with an upgrade
+ * hint rather than half-read.
+ */
+export function migrateConfig(raw: Record<string, unknown>, path: string, warnings: ResolvedConfig['warnings']): Record<string, Settings> {
+  // Absent means version 1; present-but-null is a mistake, not a default.
+  const version = 'version' in raw ? raw.version : 1;
+  if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
+    throw new ToilError('CONFIG_INVALID', `"version" in ${path} must be a whole number, found ${JSON.stringify(raw.version)}.`, {
+      fix: `Remove "version" from ${path}, or set it to ${CONFIG_VERSION}.`,
+    });
+  }
+  if (version > CONFIG_VERSION) {
+    throw new ToilError('CONFIG_INVALID', `${path} was written by a newer toil (config version ${version}); this toil reads version ${CONFIG_VERSION}.`, {
+      fix: 'Upgrade toil: npm install -g @imagile-dev/toil@latest.',
+    });
+  }
+
   const out: Record<string, Settings> = {};
-  for (const [area, settings] of Object.entries(parsed)) {
+  for (const [key, settings] of Object.entries(raw)) {
+    if (RESERVED_KEYS.has(key)) {
+      if (key === 'connections' || key === 'defaults') {
+        warnings.push({ code: 'CONFIG_RESERVED_KEY', message: `"${key}" in ${path} is reserved for a later config version and was ignored.` });
+      }
+      continue;
+    }
     if (!isRecord(settings)) {
-      throw new ToilError('CONFIG_INVALID', `"${area}" in ${path} must be an object of settings.`, {
-        fix: `Change "${area}" in ${path} to an object, for example { "baseUrl": "..." }.`,
+      throw new ToilError('CONFIG_INVALID', `"${key}" in ${path} must be an object of settings.`, {
+        fix: `Change "${key}" in ${path} to an object, for example { "baseUrl": "..." }.`,
       });
     }
-    out[area] = settings;
+    out[key] = settings;
   }
   return out;
 }
 
 /**
- * TOIL_JIRA_BASE_URL -> { jira: { baseUrl } }, and with "jira-cloud" known,
- * TOIL_JIRA_CLOUD_TOKEN -> { "jira-cloud": { token } }. The longest known area
- * wins; a name matching no known area falls back to its first segment.
- * "true"/"false" become booleans.
+ * Environment variable names toil reserves for itself. They never map onto an
+ * area, whatever areas exist now or later.
+ */
+const RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER$/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/];
+
+/** camelCase key to SNAKE: baseUrl -> BASE_URL, baseURL -> BASE_URL, apiKey2 -> API_KEY2. */
+function snake(key: string): string {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .toUpperCase();
+}
+
+/** The one place an (area, key) pair becomes a variable name: jira-cloud + baseUrl -> TOIL_JIRA_CLOUD_BASE_URL. */
+export function envName(area: string, key: string): string {
+  return `TOIL_${area.toUpperCase().replace(/-/g, '_')}_${snake(key)}`;
+}
+
+/**
+ * The inverse of envName, against the areas toil knows. The longest matching
+ * area wins, so TOIL_JIRA_CLOUD_TOKEN is jira-cloud.token. A name matching no
+ * known area, or one toil reserves, is not config: it returns undefined rather
+ * than guessing, so the same variable never means different things in
+ * different versions.
+ */
+export function parseEnvName(name: string, knownAreas: readonly string[]): { area: string; key: string } | undefined {
+  if (!name.startsWith('TOIL_') || RESERVED_ENV.some((re) => re.test(name))) return undefined;
+  const rest = name.slice(5);
+  const match = knownAreas
+    .map((area) => ({ area, prefix: `${area.toUpperCase().replace(/-/g, '_')}_` }))
+    .filter((p) => rest.startsWith(p.prefix) && rest.length > p.prefix.length)
+    .sort((a, b) => b.prefix.length - a.prefix.length)[0];
+  if (!match) return undefined;
+  const key = rest
+    .slice(match.prefix.length)
+    .toLowerCase()
+    .split('_')
+    .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join('');
+  return { area: match.area, key };
+}
+
+/**
+ * Every TOIL_<AREA>_<KEY> variable for a known area, as config. "true" and
+ * "false" become booleans; everything else stays a string until areas declare
+ * schemas that type their keys (#51).
  */
 export function fromEnv(env: NodeJS.ProcessEnv, knownAreas: readonly string[] = []): Record<string, Settings> {
-  const prefixes = knownAreas
-    .map((area) => ({ area, prefix: `${area.toUpperCase().replace(/-/g, '_')}_` }))
-    .sort((a, b) => b.prefix.length - a.prefix.length);
-
   const out: Record<string, Settings> = {};
   for (const [name, raw] of Object.entries(env)) {
-    if (raw === undefined || !name.startsWith('TOIL_')) continue;
-    const rest = name.slice(5);
-    const known = prefixes.find((p) => rest.startsWith(p.prefix) && rest.length > p.prefix.length);
-    let area: string | undefined;
-    let keyPart: string;
-    if (known) {
-      area = known.area;
-      keyPart = rest.slice(known.prefix.length);
-    } else {
-      const [first, ...tail] = rest.split('_');
-      area = first?.toLowerCase();
-      keyPart = tail.join('_');
-    }
-    if (!area || keyPart === '') continue;
-    const key = keyPart
-      .toLowerCase()
-      .split('_')
-      .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
-      .join('');
+    if (raw === undefined) continue;
+    const parsed = parseEnvName(name, knownAreas);
+    if (!parsed) continue;
     const value: unknown = raw === 'true' ? true : raw === 'false' ? false : raw;
-    (out[area] ??= {})[key] = value;
+    (out[parsed.area] ??= {})[parsed.key] = value;
   }
   return out;
 }

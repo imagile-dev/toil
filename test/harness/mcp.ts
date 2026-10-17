@@ -14,7 +14,8 @@ export interface McpSession {
 
 /** Connects a real MCP client to toil's MCP server over an in-memory transport. */
 export async function connectMcp(options: { commands: AnyCommand[]; context: Context; areas?: string[] }): Promise<McpSession> {
-  const server = createMcpServer(options);
+  // A fresh context per call, as the shipped server does, carrying the call's signal.
+  const server = createMcpServer({ ...options, context: (signal) => ({ ...options.context, ...(signal ? { signal } : {}) }) });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'toil-tests', version: '0.0.0' });
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)]);

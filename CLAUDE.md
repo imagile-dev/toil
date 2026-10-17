@@ -125,7 +125,7 @@ GitHub Actions; its build tooling is out of scope.
 - `src/mcp/` — the MCP server (`toil mcp`, stdio); tools generated from the registry
 - `src/shims/` — build-time stand-ins (the no-spawn stub)
 - `src/**/*.test.ts`, `test/` — Vitest; `test/harness/` holds the shared fakes,
-  `test/fixtures/` test-only commands
+  `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands
 - `scripts/` — the purity gate, the tarball smoke test, contract capture
 - `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files
 - `.claude/skills/` — repo-internal skills only
@@ -144,7 +144,15 @@ A write command spreads `allowWriteField` into its input.
 an agent sees a small, focused tool list and one config entry stands in for one vendor
 server. With no `--areas`, it serves every area that has config, plus `standalone` commands that need none (like `version`). Write tools are not
 registered at all unless the area has writes enabled (see **Writes**), so an agent
-cannot discover them, let alone call them. Tool descriptions are written for a model
+cannot discover them, let alone call them.
+
+The server is built on the SDK's low-level `Server`, not `McpServer.registerTool`,
+because `registerTool` validates arguments before our code runs: it drops unknown
+fields and answers a missing one with plain text. toil advertises each tool's strict
+JSON Schema and passes raw arguments to `execute()`, which is the only validator, so
+bad input gets the same envelope through MCP as on the CLI. The server takes a
+context *factory*, called per tool call with that call's cancel signal; never share
+one context across calls. Tool descriptions are written for a model
 choosing between tools: what it returns, when to use it, and which sibling tool to use
 instead.
 
@@ -177,6 +185,20 @@ a breaking change.
 - `--verbose` lives in core: `execute()` hands every command an instrumented
   `ctx.fetch`, so no command implements it and no front door can forget it. Commands
   under `src/areas/` may not call `fetch` directly, and ESLint enforces it.
+- **Input is strict.** `execute()` parses with the schema's `.strict()`, so an
+  unknown or misspelt field is `INVALID_INPUT` through MCP exactly as an unknown flag
+  is on the CLI. Never silently ignore a field.
+- **`meta.warnings`** carries things worth saying that aren't failures (a reserved
+  config key, a truncated result), from config loading or a command's `ctx.warn()`.
+  **`meta.page`** is `{ nextCursor, limit }`, set with `ctx.setPage()` by any command
+  that pages. Both are absent when empty.
+- **Every command has a time limit and can be cancelled.** `execute()` aborts at
+  `TOIL_TIMEOUT_MS` (default 120 s) with `TIMEOUT`, and on Ctrl+C or an MCP cancel
+  with `CANCELLED`. Commands pass `ctx.signal` to anything long-running that isn't
+  `ctx.fetch` (which already carries it).
+- **Error codes are an open set.** New codes may appear in any release; callers
+  branch on the ones they know and treat the rest as a generic failure. Removing or
+  repurposing a code is breaking.
 - **There is no `--dry-run`.** It was dropped as low value for its complexity: it
   could only intercept HTTP writes, and showed only the first of several. Writes
   are governed by the two-step gate under **Writes** and nothing else.
@@ -201,7 +223,20 @@ fields, boards, environments) belongs in the user's dossiers, which hold no secr
 and no hosts and name connections instead.
 
 Env var names map onto areas through the registry, using the longest match, so
-`TOIL_JIRA_CLOUD_TOKEN` is `jira-cloud.token`, not `jira.cloudToken`.
+`TOIL_JIRA_CLOUD_TOKEN` is `jira-cloud.token`, not `jira.cloudToken`. A `TOIL_*` name
+that matches no registered area is ignored, never guessed at, so a variable can't
+change meaning when an area is added. `envName()` and `parseEnvName()` in
+`src/core/config.ts` are the only places the mapping lives. These names are reserved
+and never map onto an area: `TOIL_CONN_*`, `TOIL_DOSSIER`, `TOIL_ENV`, `TOIL_CONFIG*`,
+`TOIL_TIMEOUT_MS`.
+
+**The config file is versioned.** `"version"` is a whole number; a file without one
+is version 1. Every format change adds a step to `migrateConfig()` with a test, so an
+old file always loads. A file from a newer toil is refused with an upgrade fix rather
+than half-read. Top-level `version`, `$schema`, `connections` and `defaults` are
+never areas; the last two are reserved for named connections (#51) and produce a
+warning until then. Standalone commands (`version`) don't load config at all, so a
+broken or newer file can't stop a user finding out which toil they have.
 
 ## Authentication Bar
 
@@ -315,17 +350,22 @@ Tests never need the network: a developer offline gets the same result as CI.
   where possible and sanitized to placeholders (see **Placeholders**). A response
   invented from the docs is labelled as such in the fixture.
 - **The CLI and MCP stay 1:1 because `test/parity.test.ts` proves it.** It walks
-  every registered command and checks five things:
-  - one tool per command
-  - an identical JSON Schema
-  - every input field reachable from the CLI and vice versa
+  every registered command, one suite per area, and checks:
+  - one tool per command, with an identical, strict JSON Schema
+  - every input field reachable from the CLI and vice versa, and set by at least
+    one example
   - for every example, identical envelopes and identical HTTP requests through both
-    front doors
-  - the write gate holding on both sides
+    front doors, and only GET/HEAD/OPTIONS from a command that doesn't write
+  - an unknown field refused as `INVALID_INPUT` on both sides before any request
+  - for every write command, the write gate holding on both sides
 
   New commands are covered on registration; never add a command without examples,
   and never exempt one from this suite. When changing the harness, prove the suite
   still bites: break the mapping on purpose and watch it fail.
+- **Each area has a fixture**, `test/fixtures/<area>.fixture.ts`, exporting
+  `defineFixture({ area, routes, config })`: canned responses for every request its
+  examples send, and a config with credentials set and writes on. The suite finds it
+  by file name and fails when a registered area has none.
 - `test/fixtures/demo-commands.ts` holds test-only commands (a read and a write
   against a fake API) that exercise the harness before real integrations exist.
   They're never registered in the shipped CLI.

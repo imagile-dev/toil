@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { fromEnv, loadConfig, setting, writesEnabled } from './config.js';
+import { CONFIG_VERSION, envName, fromEnv, loadConfig, parseEnvName, setting, writesEnabled } from './config.js';
 import { ToilError } from './errors.js';
 
 let root: string;
@@ -20,11 +20,12 @@ beforeEach(() => {
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 const writeJson = (path: string, value: unknown) => writeFileSync(path, JSON.stringify(value));
+const knownAreas = ['jira', 'jira-cloud', 'db', 'sonar'];
 
 describe('loadConfig precedence', () => {
   it('env beats the global file', () => {
     writeJson(join(home, '.toil', 'config.json'), { jira: { baseUrl: 'https://jira.imagile.dev', token: 'g', project: 'G' } });
-    const config = loadConfig({ env: { TOIL_JIRA_PROJECT: 'E' }, cwd: repo, home });
+    const config = loadConfig({ env: { TOIL_JIRA_PROJECT: 'E' }, cwd: repo, home, knownAreas });
 
     expect(setting(config, 'jira', 'token')).toBe('g');
     expect(setting(config, 'jira', 'project')).toBe('E');
@@ -73,16 +74,66 @@ describe('fromEnv', () => {
   });
 
   it('maps TOIL_<AREA>_<KEY> onto camelCase keys and parses booleans', () => {
-    expect(fromEnv({ TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev', TOIL_DB_WRITES: 'true', TOIL_X: 'ignored', OTHER: 'x' })).toEqual({
+    expect(fromEnv({ TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev', TOIL_DB_WRITES: 'true', TOIL_X: 'ignored', OTHER: 'x' }, knownAreas)).toEqual({
       jira: { baseUrl: 'https://jira.imagile.dev' },
       db: { writes: true },
     });
+  });
+
+  it('ignores names for areas toil does not know, and names toil reserves, instead of guessing', () => {
+    expect(
+      fromEnv(
+        { TOIL_GITLAB_TOKEN: 'g', TOIL_CONN_JIRA_PROD_TOKEN: 'c', TOIL_DOSSIER: 'payments', TOIL_ENV: 'prod', TOIL_CONFIG: '/x', TOIL_TIMEOUT_MS: '5', TOIL_JIRA_: 'x' },
+        knownAreas,
+      ),
+    ).toEqual({});
+  });
+
+  it('round-trips every (area, key) through envName and parseEnvName', () => {
+    for (const [area, key] of [['jira', 'baseUrl'], ['jira-cloud', 'apiToken'], ['db', 'writes'], ['sonar', 'token']] as const) {
+      expect(parseEnvName(envName(area, key), knownAreas)).toEqual({ area, key });
+    }
+    expect(envName('jira-cloud', 'baseUrl')).toBe('TOIL_JIRA_CLOUD_BASE_URL');
+  });
+});
+
+describe('config file versions', () => {
+  const file = () => join(home, '.toil', 'config.json');
+  const load = () => loadConfig({ env: {}, cwd: repo, home, knownAreas });
+
+  it('reads a file with no version as version 1', () => {
+    writeJson(file(), { jira: { project: 'P' } });
+    expect(setting(load(), 'jira', 'project')).toBe('P');
+  });
+
+  it('reads the current version and does not treat "version" or "$schema" as areas', () => {
+    writeJson(file(), { version: CONFIG_VERSION, $schema: 'https://imagile-dev.github.io/toil/config.schema.json', jira: { project: 'P' } });
+    expect(Object.keys(load().areas)).toEqual(['jira']);
+  });
+
+  it('refuses a file from a newer toil with an upgrade fix, rather than half-reading it', () => {
+    writeJson(file(), { version: CONFIG_VERSION + 1, jira: { project: 'P' } });
+    expect(load).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', fix: expect.stringContaining('npm install -g @imagile-dev/toil@latest') }));
+  });
+
+  it('refuses a version that is not a whole number', () => {
+    for (const version of ['1', 1.5, 0, null]) {
+      writeJson(file(), { version, jira: {} });
+      expect(load).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID' }));
+    }
+  });
+
+  it('warns about keys reserved for a later version and ignores them', () => {
+    writeJson(file(), { connections: { 'jira-prod': {} }, defaults: {}, jira: { project: 'P' } });
+    const config = load();
+    expect(Object.keys(config.areas)).toEqual(['jira']);
+    expect(config.warnings.map((w) => w.code)).toEqual(['CONFIG_RESERVED_KEY', 'CONFIG_RESERVED_KEY']);
   });
 });
 
 describe('writesEnabled', () => {
   it('is on only with an explicit true', () => {
-    const config = loadConfig({ env: { TOIL_DB_WRITES: 'true', TOIL_JIRA_WRITES: 'yes' }, cwd: repo, home });
+    const config = loadConfig({ env: { TOIL_DB_WRITES: 'true', TOIL_JIRA_WRITES: 'yes' }, cwd: repo, home, knownAreas });
     expect(writesEnabled(config, 'db')).toBe(true);
     expect(writesEnabled(config, 'jira')).toBe(false);
     expect(writesEnabled(config, 'sonar')).toBe(false);

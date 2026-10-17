@@ -1,26 +1,22 @@
 import { writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { areaOf } from './core/command.js';
-import { loadConfig } from './core/config.js';
+import { areaOf, type AnyCommand } from './core/command.js';
 import type { Context } from './core/context.js';
 import { createMcpServer } from './mcp/server.js';
+import { createNodeContext } from './node-context.js';
 import { runProgram, type GlobalOptions } from './program.js';
 import { commands } from './registry.js';
 import { VERSION } from './version.js';
 
 const knownAreas = [...new Set(commands.map(areaOf))];
 
-function createContext(globals: GlobalOptions): Context {
-  return {
-    config: loadConfig({ env: process.env, cwd: process.cwd(), home: homedir(), configPath: globals.config, knownAreas }),
-    fetch: globalThis.fetch,
-    env: process.env,
-    version: VERSION,
-    verbose: globals.verbose === true,
-    debug: globals.debug ? (message) => process.stderr.write(`[toil] ${message}\n`) : () => {},
-  };
-}
+// Ctrl-C cancels the command in flight; execute() turns it into a CANCELLED envelope.
+const interrupt = new AbortController();
+process.once('SIGINT', () => interrupt.abort());
+
+const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSignal = interrupt.signal): Context =>
+  createNodeContext({ globals, def, signal, env: process.env, cwd: process.cwd(), home: homedir(), knownAreas, version: VERSION, stderr: (t) => process.stderr.write(t) });
 
 try {
   process.exitCode = await runProgram(
@@ -32,15 +28,17 @@ try {
         stderr: (text) => process.stderr.write(text),
         writeFile: (path, content) => writeFileSync(path, content, 'utf8'),
       },
-      createContext,
+      createContext: (globals, def) => createContext(globals, def),
       startMcp: async ({ areas, globals }) => {
         // stdout belongs to the protocol from here on; diagnostics go to stderr.
-        const server = createMcpServer({ commands, context: createContext(globals), areas });
+        // Each tool call gets its own context, cancelled by the client's own signal.
+        const server = createMcpServer({ commands, context: (signal) => createContext(globals, undefined, signal ?? interrupt.signal), areas });
         await server.connect(new StdioServerTransport());
       },
     },
     process.argv,
   );
+  if (interrupt.signal.aborted) process.exitCode = 130;
 } catch (err) {
   process.exitCode = 1;
   process.stderr.write(`${(err as Error).message}\n`);

@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { Context } from './context.js';
+import type { CommandContext } from './context.js';
 
 /** A positional CLI argument, mapped onto one input field. */
 export interface CliArgument {
@@ -39,7 +39,7 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
   args?: CliArgument[];
   options?: CliOption[];
   examples: Array<z.input<S>>;
-  run(input: z.output<S>, ctx: Context): Promise<unknown>;
+  run(input: z.output<S>, ctx: CommandContext): Promise<unknown>;
 }
 
 // The registry holds commands of many input shapes.

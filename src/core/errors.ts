@@ -4,6 +4,11 @@
  * INTERNAL so the envelope never carries a raw stack trace. A stack trace in a
  * ticket gets reassigned to three teams and resolved by none of them.
  */
+/**
+ * Error codes are an open set: new ones are added as areas need them, and a
+ * consumer must treat a code it doesn't recognise as a generic failure.
+ * Changing what an existing code means is a breaking change; adding one isn't.
+ */
 export type ErrorCode =
   | 'INVALID_INPUT'
   | 'NOT_CONFIGURED'
@@ -13,6 +18,8 @@ export type ErrorCode =
   | 'HTTP'
   | 'NETWORK'
   | 'WRITE_DISABLED'
+  | 'TIMEOUT'
+  | 'CANCELLED'
   | 'INTERNAL';
 
 export class ToilError extends Error {

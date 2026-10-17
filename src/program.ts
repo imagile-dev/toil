@@ -24,7 +24,8 @@ export interface ProgramOptions {
   commands: AnyCommand[];
   version: string;
   io: CliIO;
-  createContext: (globals: GlobalOptions) => Context;
+  /** Builds the context for one command. `def` lets standalone commands skip loading config. */
+  createContext: (globals: GlobalOptions, def?: AnyCommand) => Context;
   startMcp: (options: { areas: string[] | undefined; globals: GlobalOptions }) => Promise<void>;
 }
 
@@ -79,7 +80,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       const globals = cmd.optsWithGlobals<GlobalOptions>();
       let envelope: Envelope;
       try {
-        envelope = await execute(def, inputFromCli(def, cmd), options.createContext(globals));
+        envelope = await execute(def, inputFromCli(def, cmd), options.createContext(globals, def));
       } catch (err) {
         // Only context creation (config loading) can throw here; execute never does.
         envelope = failure(toToilError(err), { command: commandName(def), durationMs: 0, version: options.version });
