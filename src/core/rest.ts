@@ -81,6 +81,23 @@ export function errorMessageFrom(body: string): string | undefined {
   return parts.length > 0 ? parts.join('; ') : undefined;
 }
 
+/** How much of a plain-text error body a message carries. A stack trace pasted into a ticket is still a stack trace. */
+export const MAX_TEXT_REASON = 500;
+
+/**
+ * A plain-text error body (LogScale's query syntax errors), trimmed, on one
+ * line, capped at {@link MAX_TEXT_REASON} characters, with any URL in it
+ * redacted as `--verbose` redacts one. Undefined for an empty body, or one
+ * that's JSON or HTML: JSON goes through {@link errorMessageFrom}, and HTML is
+ * a sign-in or proxy page with nothing to say about the request.
+ */
+export function textReasonFrom(body: string): string | undefined {
+  const text = body.trim().replace(/\s+/g, ' ');
+  if (text === '' || text.startsWith('<') || text.startsWith('{') || text.startsWith('[')) return undefined;
+  const redacted = text.replace(/https?:\/\/[^\s"'<>]+/gi, (url) => redactUrl(url));
+  return redacted.length > MAX_TEXT_REASON ? `${redacted.slice(0, MAX_TEXT_REASON)}…` : redacted;
+}
+
 export interface RestContext {
   fetch: typeof globalThis.fetch;
   signal: AbortSignal;
@@ -106,6 +123,13 @@ export interface RestOptions {
   timeoutMs?: number;
   /** Cross-origin redirects: refused unless this is `'follow-without-auth'`. */
   redirect?: RedirectPolicy;
+  /**
+   * The connection's `baseUrl` setting, so a network error names it only when
+   * the failing host is its host; `null` when the connection has none (a host
+   * from another setting, such as Dynatrace's `platformUrl`). Left out, as by a
+   * caller with no connection, the error names `baseUrl` as it always did.
+   */
+  baseUrl?: string | null;
 }
 
 /**
@@ -169,7 +193,7 @@ export async function restResponse<T>(ctx: RestContext, url: string, init: Reque
           details: { url: redactUrl(url), timeoutMs: options.timeoutMs },
         });
       }
-      throw unreachable(url, err, options.service);
+      throw unreachable(url, err, options.service, options.baseUrl);
     }
   }
 }
@@ -269,7 +293,9 @@ function notJson(response: Response, url: string, options: RestOptions): ToilErr
 
 async function failed(response: Response, url: string, options: RestOptions): Promise<ToilError> {
   const body = await response.text().catch(() => '');
-  const reason = errorMessageFrom(body) ?? `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+  const status = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+  const text = textReasonFrom(body);
+  const reason = errorMessageFrom(body) ?? (text === undefined ? status : `${status}: ${text}`);
   const details = { status: response.status, url: redactUrl(url) };
   const code: ErrorCode = response.status === 401 || response.status === 403 ? 'AUTH' : response.status === 404 ? 'NOT_FOUND' : 'HTTP';
   const fix =
@@ -281,7 +307,18 @@ async function failed(response: Response, url: string, options: RestOptions): Pr
   return new ToilError(code, reason, { fix, details });
 }
 
-function unreachable(url: string, err: unknown, service: string): ToilError {
+/** Whether `origin` is the `baseUrl` setting's host; true when that setting isn't known, as before. */
+function isBaseUrlHost(origin: string, baseUrl: string | null | undefined): boolean {
+  if (baseUrl === undefined) return true;
+  if (baseUrl === null) return false;
+  try {
+    return new URL(baseUrl).origin === origin;
+  } catch {
+    return false;
+  }
+}
+
+function unreachable(url: string, err: unknown, service: string, baseUrl?: string | null): ToilError {
   const cause = (err as { cause?: { code?: unknown; message?: unknown } }).cause;
   const code = typeof cause?.code === 'string' ? cause.code : undefined;
   const top = err instanceof Error ? err.message : String(err);
@@ -296,7 +333,7 @@ function unreachable(url: string, err: unknown, service: string): ToilError {
   return new ToilError('NETWORK', `Request failed: ${reason}`, {
     fix: tls
       ? `${service}'s certificate isn't trusted. Point NODE_EXTRA_CA_CERTS at your organization's CA bundle.`
-      : `Check baseUrl, and that this machine can reach ${origin} (VPN, proxy, DNS). toil uses HTTPS_PROXY, HTTP_PROXY and NO_PROXY when they're set.`,
+      : `Check ${isBaseUrlHost(origin, baseUrl) ? 'baseUrl' : "the connection's URL settings"}, and that this machine can reach ${origin} (VPN, proxy, DNS). toil uses HTTPS_PROXY, HTTP_PROXY and NO_PROXY when they're set.`,
     details: { url: redactUrl(url), cause: code ?? reason },
   });
 }

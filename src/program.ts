@@ -1,9 +1,9 @@
 import { Command, CommanderError, Option } from 'commander';
-import { aliasPaths, commandName, type AnyCommand, type CliOption } from './core/command.js';
+import { aliasInput, aliasPaths, commandName, type AnyCommand, type CliOption } from './core/command.js';
 import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
 import { ToilError, toToilError } from './core/errors.js';
-import { runCommand } from './core/run.js';
+import { exitCodeOf, runCommand } from './core/run.js';
 import { baseType, elementSchema, fieldSchema, fromText } from './core/schema.js';
 
 /** Flags every command accepts. Names and meanings are part of the contract. */
@@ -87,10 +87,15 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
 
   const register = (def: AnyCommand, path: string[]) => {
     const canonical = path === def.path;
+    // A preset alias (`jenkins instance list`) fixes some fields and has no flag for them.
+    const preset = canonical ? {} : aliasInput(def, path);
+    const fixed = Object.entries(preset)
+      .map(([field, value]) => `${def.options?.find((o) => o.field === field)?.flags.split(/[ ,]+/).find((p) => p.startsWith('--')) ?? field} ${String(value)}`)
+      .join(' ');
     const leaf = quiet(
       groupFor(path.slice(0, -1))
         .command(path[path.length - 1]!)
-        .description(canonical ? def.description : `${def.description} (same as toil ${commandName(def)})`),
+        .description(canonical ? def.description : `${def.description} (same as toil ${commandName(def)}${fixed ? ` ${fixed}` : ''})`),
     );
     if (canonical) for (const alias of def.aliases ?? []) if (typeof alias === 'string') leaf.alias(alias);
     for (const arg of def.args ?? []) {
@@ -100,6 +105,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
     const inArea = path[0] === def.path[0];
     const onLeaf = new Set<string>();
     for (const opt of def.options ?? []) {
+      if (opt.field in preset) continue;
       // Only the area's own group carries its group flags; an alias in another
       // group (`deps outdated`) takes them as its own leaf flags instead.
       if (opt.group && inArea) {
@@ -116,7 +122,9 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
     leaf.action(async (...actionArgs: unknown[]) => {
       const cmd = actionArgs[actionArgs.length - 1] as Command;
       const globals = cmd.optsWithGlobals<GlobalOptions>();
-      const input = inputFromCli(def, cmd, inArea ? groupFlags(path[0]!) : new Set());
+      // An alias in another area's group still hears that group's flags, so one
+      // it doesn't take is refused rather than quietly ignored.
+      const input = { ...inputFromCli(def, cmd, groupFlags(path[0]!), preset), ...preset };
       if (globals.outputFile && io.checkFile) {
         // Refuse a bad --output-file before anything runs, so nothing is changed for a result nobody can read.
         try {
@@ -129,7 +137,8 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       }
       const envelope = await runCommand(def, input, () => options.createContext(globals, def), options.version);
       const written = emit(envelope, globals, io, def.writes);
-      result.exitCode = envelope.ok && written ? 0 : 1;
+      // A success may still ask for a non-zero exit (a build that ran and failed).
+      result.exitCode = written ? exitCodeOf(envelope) : 1;
     });
   };
 
@@ -321,7 +330,7 @@ function addOption(cmd: Command, def: AnyCommand, opt: CliOption): void {
  * flag the group also has, is read from the group: commander lets the parent
  * take it wherever it was typed.
  */
-function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<string>): Record<string, unknown> {
+function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<string>, preset: Record<string, unknown> = {}): Record<string, unknown> {
   const input: Record<string, unknown> = {};
   const positional = cmd.processedArgs as unknown[];
   (def.args ?? []).forEach((arg, i) => {
@@ -330,6 +339,7 @@ function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<str
   const own = cmd.opts<Record<string, unknown>>();
   const all = cmd.optsWithGlobals<Record<string, unknown>>();
   for (const opt of def.options ?? []) {
+    if (opt.field in preset) continue;
     const attribute = new Option(opt.flags).attributeName();
     const value = own[attribute] !== undefined ? own[attribute] : groupFlags.has(opt.flags) ? all[attribute] : undefined;
     if (value !== undefined) input[opt.field] = typed(def, opt.field, value);
@@ -378,6 +388,8 @@ function typed(def: AnyCommand, field: string, value: unknown): unknown {
  */
 export function argvFor(def: AnyCommand, input: Record<string, unknown>, path: string[] = def.path): string[] {
   const argv: string[] = [...path];
+  // A preset alias sets those fields itself and has no flag to send them with.
+  const preset = path === def.path ? {} : aliasInput(def, path);
   const text = (value: unknown) => (typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value));
   for (const arg of def.args ?? []) {
     const value = input[arg.field];
@@ -388,12 +400,13 @@ export function argvFor(def: AnyCommand, input: Record<string, unknown>, path: s
   const sent = new Set<string>();
   for (const opt of def.options ?? []) {
     const value = input[opt.field];
-    if (value === undefined || sent.has(opt.field)) continue;
+    if (value === undefined || sent.has(opt.field) || opt.field in preset) continue;
     const long = opt.flags.split(/[ ,]+/).find((part) => part.startsWith('--'));
     if (!long) continue;
     sent.add(opt.field);
     if (!takesValue(opt.flags)) {
-      if (value === true) argv.push(long);
+      // `--no-with-replies` sets its field false; commander defaults it to true.
+      if (value === (long.startsWith('--no-') ? false : true)) argv.push(long);
     } else if (Array.isArray(value) && isArrayField(def, opt.field)) {
       for (const item of value) argv.push(long, text(item));
     } else {

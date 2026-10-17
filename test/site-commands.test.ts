@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { z } from 'zod';
 import { CONNECTION_FIELD } from '../src/core/area.js';
 import { envName } from '../src/core/config.js';
-import { toolName } from '../src/core/command.js';
+import { servedOverMcp, toolName } from '../src/core/command.js';
 import { areas, commands } from '../src/registry.js';
 
 /**
@@ -19,7 +19,12 @@ import { areas, commands } from '../src/registry.js';
  * per-area files (site/src/data/integrations/<area>.json) are checked here too,
  * since status honesty depends on which areas the registry has.
  */
-export type SiteCommand = { name: string; tool: string; description: string; writes: boolean; flags: string[] };
+/**
+ * `tool` is null for a command MCP never serves (a `cli-only` one, or an area
+ * command marked `mcp: false`), so the page can say it's CLI only. `connection`
+ * says whether it takes `--connection`.
+ */
+export type SiteCommand = { name: string; tool: string | null; description: string; writes: boolean; connection: boolean; flags: string[] };
 
 export function siteCommands(): Record<string, SiteCommand[]> {
   const out: Record<string, SiteCommand[]> = {};
@@ -30,7 +35,8 @@ export function siteCommands(): Record<string, SiteCommand[]> {
       ...(def.options ?? []).filter((o) => o.field !== CONNECTION_FIELD).map((o) => o.flags),
       ...(def.writes ? ['--allow-write'] : []),
     ];
-    (out[def.path[0]] ??= []).push({ name: def.path.slice(1).join(' '), tool: toolName(def), description: def.description, writes: def.writes, flags });
+    const connection = (def.options ?? []).some((o) => o.field === CONNECTION_FIELD);
+    (out[def.path[0]] ??= []).push({ name: def.path.slice(1).join(' '), tool: servedOverMcp(def) ? toolName(def) : null, description: def.description, writes: def.writes, connection, flags });
   }
   return out;
 }

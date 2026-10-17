@@ -73,6 +73,12 @@ export interface DivergenceEntry {
   principle: string;
   /** `security`: needed to keep a credential or a file safe, so it is never relaxed. */
   class?: 'security';
+  /**
+   * The command paths in `allows` are gone from toil (`git credentials`), not
+   * changed: the coverage test accepts their absence, and fails if one, or a
+   * path under it, is still registered.
+   */
+  removed?: true;
 }
 
 export interface DivergenceFile {
@@ -102,6 +108,12 @@ export function readDivergenceFiles(dir = divergenceDir): DivergenceFile[] {
         }
         if (!Array.isArray(d.allows)) throw new Error(`${where}: "allows" must be a list, empty for a behavior-only divergence.`);
         if (d.class !== undefined && d.class !== 'security') throw new Error(`${where}: "class" is "security" or absent.`);
+        if (d.removed !== undefined) {
+          if (d.removed !== true) throw new Error(`${where}: "removed" is true or absent.`);
+          if (!Array.isArray(d.allows) || d.allows.length === 0 || d.allows.some((id) => !isCommandPath(id))) {
+            throw new Error(`${where}: a removed divergence lists the command paths it removes in "allows", and nothing else.`);
+          }
+        }
         if (d.when !== undefined && (typeof d.when !== 'object' || d.when === null || Array.isArray(d.when))) throw new Error(`${where}: "when" is an object of input values.`);
         for (const id of d.allows) {
           if (scopeOf(id) !== file.scope) throw new Error(`${where}: "${id}" belongs in docs/divergences/${scopeOf(id)}.json.`);
@@ -121,6 +133,17 @@ export function loadDivergences(files = readDivergenceFiles(), input?: Record<st
     d.when === undefined || input === 'all' || (input !== undefined && Object.entries(d.when).every(([k, v]) => JSON.stringify(input[k]) === JSON.stringify(v)));
   return new Set(files.flatMap((f) => f.divergences.filter(applies).flatMap((d) => d.allows)));
 }
+
+/** A whole command (`git credentials`), not a global flag, a command's flag or an output field. */
+const isCommandPath = (id: string) => !id.startsWith('--') && !/ --| data\./.test(id);
+
+/** Command paths a divergence marks `removed`; everything under each is gone too. */
+export function removedPaths(files = readDivergenceFiles()): string[] {
+  return files.flatMap((f) => f.divergences.filter((d) => d.removed === true).flatMap((d) => d.allows));
+}
+
+/** Whether `path` is a removed path or sits under one. */
+export const isRemoved = (removed: readonly string[], path: string) => removed.some((r) => path === r || path.startsWith(`${r} `));
 
 /**
  * Whether a divergence allows `id`: listed itself, or under something listed.
@@ -194,10 +217,14 @@ export function diffContract(program: Command, contract: Contract, areas: Readon
     if (JSON.stringify(expectedArgs) !== JSON.stringify(actualArgs)) {
       report(id, `positional arguments are ${JSON.stringify(actualArgs)}, contract has ${JSON.stringify(expectedArgs)}`);
     }
+    // A flag on the leaf's group (`bitbucket --project`) is accepted after the
+    // leaf too, so it counts for a contract leaf flag of the same spelling.
+    const options = [...cmd.options];
+    for (let group = cmd.parent; group && group.parent; group = group.parent) options.push(...group.options);
     for (const option of entry.options) {
-      const exact = cmd.options.find((o) => o.flags === option.flags);
+      const exact = options.find((o) => o.flags === option.flags);
       if (exact) continue;
-      const sameLong = cmd.options.find((o) => o.long === longFlag(option.flags));
+      const sameLong = options.find((o) => o.long === longFlag(option.flags));
       report(`${id} ${longFlag(option.flags)}`, sameLong ? `flag is spelled ${sameLong.flags}, contract has ${option.flags}` : `flag ${option.flags} is missing`);
     }
   }

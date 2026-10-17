@@ -73,7 +73,41 @@ export const renameThing = demoArea.command({
   },
 });
 
-export const demoCommands: AnyCommand[] = [getThing, renameThing];
+/** A delete: on the CLI with its connection and the write gate, never an MCP tool. */
+export const deleteThing = demoArea.command({
+  path: ['demo', 'delete-thing'],
+  description: 'Delete a thing',
+  input: z.object({ id: z.string().min(1).describe('Thing id'), ...allowWriteField }),
+  writes: true,
+  mcp: false,
+  args: [{ name: 'id', field: 'id', description: 'Thing id' }],
+  examples: [{ id: 'THING-1', allowWrite: true }],
+  run: async (input, ctx) => {
+    await ctx.fetch(new URL(`/api/things/${encodeURIComponent(input.id)}`, ctx.connection.baseUrl), { method: 'DELETE', headers: auth(ctx.connection.token) });
+    return { deleted: input.id };
+  },
+});
+
+/**
+ * Answers for itself when demo isn't set up, as a contract command that
+ * returned a success saying so would; with a connection, it reads the API.
+ */
+export const thingStatus = demoArea.command({
+  path: ['demo', 'status'],
+  description: 'Say whether demo is set up, and if so read its status',
+  input: z.object({}),
+  writes: false,
+  connectionOptional: true,
+  examples: [{}],
+  run: async (_input, ctx) => {
+    if (!ctx.connection) return { configured: false, message: 'demo is not configured.' };
+    const res = await ctx.fetch(new URL('/api/things/THING-0', ctx.connection.baseUrl), { headers: auth(ctx.connection.token) });
+    const body = (await res.json()) as { id: string };
+    return { configured: true, id: body.id };
+  },
+});
+
+export const demoCommands: AnyCommand[] = [getThing, renameThing, deleteThing, thingStatus];
 
 /** Canned responses for the demo API, matching the requests the commands send. */
 export const demoRoutes = [
@@ -83,6 +117,11 @@ export const demoRoutes = [
       const id = new URL(req.url).pathname.split('/').pop()!;
       return { json: { id, attributes: { name: `Thing ${id}`, owner: { login: 'you' } } } };
     },
+  },
+  {
+    method: 'DELETE',
+    url: /^https:\/\/demo\.imagile\.dev\/api\/things\/THING-\d+$/,
+    respond: () => ({ status: 204 }),
   },
   {
     method: 'PUT',

@@ -54,10 +54,12 @@ any difference none of them allows. An entry holds:
 | `why` | The reason, in a sentence or two |
 | `principle` | The principle's number, a CLAUDE.md section (`Output Contract`), or `decision` for a deliberate product call |
 | `class` | `security` when it keeps a credential or a file safe. Those are made before any live run and are never relaxed. |
+| `removed` | `true` when the command paths in `allows` are gone from toil, not changed (`git credentials`). `allows` then lists only command paths. The test accepts their absence, and fails if one of them, or a path under it, is still registered. |
 
 Every identifier must name something in the contract and sit in the file for its own
 area, and the test checks both. The test covers paths, aliases, positional arguments,
-flag spellings and output field names. For output, it runs every example in the area's
+flag spellings and output field names; a flag on the command's group counts for a leaf
+flag of the same spelling, since the group accepts it after the leaf. For output, it runs every example in the area's
 fixture and requires every required field of one of the contract's recorded shapes;
 optional fields (`?` in the contract) and output the contract typed as `any` can't be
 checked that way, so an integration still compares those with the contract by hand.

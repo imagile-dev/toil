@@ -2,7 +2,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { fileURLToPath } from 'node:url';
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError, RootsListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { areaOf, commandName, isCliOnly, toolName, usesConnection, type AnyCommand } from '../core/command.js';
+import { areaOf, commandName, servedOverMcp, toolName, usesConnection, type AnyCommand } from '../core/command.js';
 import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
@@ -19,9 +19,10 @@ import { runCommand } from '../core/run.js';
  *
  * A `cli-only` command is never a tool, whatever the flags: it prompts on a
  * terminal, which under MCP is the protocol, or it changes connections, which
- * an agent never does. A command that needs no connection (standalone,
- * config, area-local such as `jira schema`) is served without --areas whether
- * or not its area is set up. Aliases stay on the CLI: one tool per command.
+ * an agent never does. Nor is an area command marked `mcp: false` (a delete).
+ * A command that needs no connection (standalone,
+ * config, area-local such as `jira schema`), or one marked `connectionOptional`,
+ * is served without --areas whether or not its area is set up. Aliases stay on the CLI: one tool per command.
  */
 export function selectCommands(commands: AnyCommand[], areas: string[] | undefined, config: ResolvedConfig): AnyCommand[] {
   if (areas) {
@@ -33,9 +34,10 @@ export function selectCommands(commands: AnyCommand[], areas: string[] | undefin
       });
     }
   }
-  // A command with no connection (version, connections list, jira schema) needs no area set up.
-  const inScope = (def: AnyCommand) => (areas ? areas.includes(areaOf(def)) : !usesConnection(def) || hasConfig(config, areaOf(def)));
-  return commands.filter((def) => !isCliOnly(def) && inScope(def) && (!def.writes || anyWrites(config, areaOf(def))));
+  // A command with no connection (version, connections list, jira schema), or
+  // one that answers for an unconfigured area itself, needs no area set up.
+  const inScope = (def: AnyCommand) => (areas ? areas.includes(areaOf(def)) : !usesConnection(def) || def.connectionOptional === true || hasConfig(config, areaOf(def)));
+  return commands.filter((def) => servedOverMcp(def) && inScope(def) && (!def.writes || anyWrites(config, areaOf(def))));
 }
 
 /**

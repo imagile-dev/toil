@@ -323,6 +323,10 @@ describe('list', () => {
     expect(() => files.list('.', { limit: 3 })).toThrow(/more than 3 files/);
   });
 
+  // Tests that spawn the real git get 30 s, not vitest's 5 s default: each runs
+  // git several times, and on a loaded machine (CI, or a laptop mid-build) that
+  // has passed 5 s without anything being wrong.
+  const REAL_GIT_TIMEOUT_MS = 30_000;
   const git = findGit({ env: process.env }).found;
   it.skipIf(!git)('matches git ls-files --cached --others --exclude-standard: tracked-but-ignored, deleted, nested repos, ignored folders, index v4 (skipped where git is not installed)', () => {
     const root = mkdtempSync(join(tmpdir(), 'toil-lsf-'));
@@ -361,7 +365,7 @@ describe('list', () => {
     // Index version 4 compresses paths; the reader must too.
     g('update-index', '--index-version', '4');
     same();
-  });
+  }, REAL_GIT_TIMEOUT_MS);
 
   it('outside a repository applies only the .gitignore files under the folder (git would list nothing: a deps port must check for a repository itself)', () => {
     const root = mkdtempSync(join(tmpdir(), 'toil-norepo-'));

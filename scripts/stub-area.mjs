@@ -102,12 +102,11 @@ function commandSource(entry, area, contextFields = new Set()) {
   ].join('\n');
 }
 
-/** Command paths the divergence files allow outright: a whole command, not one of its flags or fields. */
+/** Command paths a divergence marks `removed` (`git credentials`): whole commands toil doesn't have. */
 export function removedPaths(dir) {
   return readdirSync(dir)
     .filter((f) => f.endsWith('.json'))
-    .flatMap((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')).divergences.flatMap((d) => d.allows))
-    .filter((id) => !id.startsWith('--') && !/ --| data\./.test(id));
+    .flatMap((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')).divergences.filter((d) => d.removed === true).flatMap((d) => d.allows));
 }
 
 /**
