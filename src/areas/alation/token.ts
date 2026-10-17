@@ -24,6 +24,8 @@ export const tokenStatusCommand = alationArea.command({
     const fix = authFix(connection.name, alationArea.envName('refreshToken'), alationArea.envName('userId'));
     // The same cache entry data requests use (core's scope is area/connection): the
     // predecessor always minted a new token here, so the cached one is dropped first.
+    // This copies core's scope format until core exports it (a kit gap); the test
+    // "mints a new token even when one is cached" fails if the two drift apart.
     const scope = `${alationArea.name}/${connection.name}`;
     forgetToken(tokenKey(scope, exchange));
     const token = await exchangeToken({ fetch: ctx.fetch, signal: ctx.signal, scope, service: 'Alation', authFix: fix }, exchange);
