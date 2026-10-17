@@ -176,7 +176,9 @@ connection's credentials. ESLint bans importing config under `src/areas/`, and
 read or write anything at or under `~/.toil/` or the `--config` file, resolved
 through realpath (so `..`, symlinks and junctions don't get round it) and compared
 case-insensitively on Windows. A command handed a path by an agent would otherwise
-send every connection's token to its own host. It also never overwrites a file.
+send every connection's token to its own host. For the same reason it refuses
+anything under `/proc/` and `/sys/`, where `/proc/<pid>/environ` holds the env vars
+that carry tokens. It also never overwrites a file.
 
 ## Build & Test
 

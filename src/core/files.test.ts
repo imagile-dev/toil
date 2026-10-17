@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { memoryFiles } from '../../test/harness/files.js';
-import { forwardSlashes, nodeFiles } from './files.js';
+import { forwardSlashes, isSystemPath, nodeFiles } from './files.js';
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -101,6 +101,24 @@ describe('nodeFiles never touches toil\'s own config', () => {
       expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('already exists'), fix: expect.stringContaining('--dir') }),
     );
     expect(readFileSync(join(cwd, 'ok.txt'), 'utf8')).toBe('fine');
+  });
+});
+
+describe('nodeFiles never reads /proc or /sys', () => {
+  it('treats anything under /proc or /sys as a system path on Linux and macOS, never on Windows', () => {
+    for (const p of ['/proc/self/environ', '/proc/1234/environ', '/proc', '/sys/kernel/x', '/sys']) expect(isSystemPath(p, 'linux'), p).toBe(true);
+    for (const p of ['/procurement/a.txt', '/system/x', '/home/u/proc/environ', '/work/sys']) expect(isSystemPath(p, 'linux'), p).toBe(false);
+    expect(isSystemPath('/proc/self/environ', 'darwin')).toBe(true);
+    expect(isSystemPath('/proc/self/environ', 'win32')).toBe(false);
+  });
+
+  it.skipIf(process.platform !== 'linux')('refuses /proc/self/environ and a symlink to it (Linux only: the file exists only there)', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'toil-proc-'));
+    dirs.push(cwd);
+    const files = nodeFiles({ cwd, stdin: false });
+    expect(() => files.readText('/proc/self/environ')).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('/proc or /sys') }));
+    symlinkSync('/proc/self/environ', join(cwd, 'env.txt'));
+    expect(() => files.readText('env.txt')).toThrow(/\/proc or \/sys/);
   });
 });
 

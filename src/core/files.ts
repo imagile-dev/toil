@@ -56,6 +56,13 @@ export function protectedPath(path: string): ToilError {
   });
 }
 
+/** The error for a path under /proc or /sys. */
+export function systemPath(path: string): ToilError {
+  return new ToilError('INVALID_INPUT', `"${forwardSlashes(path)}" is under /proc or /sys, which commands may not read.`, {
+    fix: 'Pass an ordinary file. Process and kernel files can hold the environment, and with it credentials.',
+  });
+}
+
 /**
  * `path` with every symlink, junction and `..` resolved, as far as it exists:
  * the longest existing ancestor goes through realpath and the rest is appended.
@@ -80,6 +87,18 @@ function realish(path: string): string {
   return join(real, ...rest);
 }
 
+/**
+ * Kernel views of running processes. `/proc/self/environ` holds every env var,
+ * and env vars are where toil's tokens live, so a command reading files could
+ * otherwise read the credentials it was never given. No toil command has a
+ * reason to read anything under either, so both are refused whole. The
+ * check takes the path after realpath, so a symlink to them is refused too.
+ */
+export function isSystemPath(realPath: string, platform: NodeJS.Platform = process.platform): boolean {
+  if (platform === 'win32') return false;
+  return /^\/(proc|sys)(\/|$)/.test(realPath);
+}
+
 /** Windows paths compare case-insensitively; macOS and Linux paths as written. */
 const comparable = (path: string) => (process.platform === 'win32' ? path.toLowerCase() : path);
 
@@ -95,7 +114,9 @@ export function nodeFiles(options: { cwd: string; stdin: boolean; protect?: stri
   const at = (path: string) => (isAbsolute(path) ? path : resolve(options.cwd, path));
   const guarded = (options.protect ?? []).map((p) => comparable(realish(p)));
   const check = (target: string) => {
-    const real = comparable(realish(target));
+    const resolved = realish(target);
+    if (isSystemPath(resolved)) throw systemPath(target);
+    const real = comparable(resolved);
     if (guarded.some((g) => real === g || real.startsWith(g.endsWith(sep) ? g : g + sep))) throw protectedPath(target);
   };
   const read = (path: string): Buffer => {
