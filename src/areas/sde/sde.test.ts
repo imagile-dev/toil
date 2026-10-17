@@ -264,9 +264,18 @@ describe('the connection string, through the real config loader', () => {
     }
   });
 
-  // Flip this once core ranks a renamed key by tier (#128, KF2 item 20).
-  it("kit gap (#128 item 20): the old TOIL_SDE_CONNECTION loses to connectionString in the file, because core keeps a renamed key's new name whatever its tier", async () => {
-    const { call } = await whoami({ TOIL_SDE_CONNECTION: 'from-env@env.sde.imagile.dev' }, { connectionString: 'keychain:sde-conn' });
-    expect(call).toMatchObject({ url: `${SDE}/api/v2/users/me/`, headers: { authorization: 'Token from-store' } });
+  it('the old TOIL_SDE_CONNECTION beats a connectionString in the file too: core ranks a renamed key by tier (#128 item 20)', async () => {
+    const { envelope, call } = await whoami({ TOIL_SDE_CONNECTION: 'from-env@env.sde.imagile.dev' }, { connectionString: 'keychain:sde-conn' });
+    expect(envelope.error).toBeNull();
+    expect(call).toMatchObject({ url: 'https://env.sde.imagile.dev/api/v2/users/me/', headers: { authorization: 'Token from-env' } });
+  });
+
+  it('no sde connection at all is NOT_CONFIGURED in the old wording, with what to set', async () => {
+    const http = fakeFetch([]);
+    const home = mkdtempSync(join(root, 'home-'));
+    const ctx = createNodeContext({ globals: {}, def: whoamiCommand, signal: new AbortController().signal, env: {}, cwd: home, home, areas: [{ name: area.name, fallbacks: area.fallbacks }], version: '0.0.0-test', stderr: () => {} });
+    const envelope = await execute(whoamiCommand, {}, { ...ctx, fetch: http.fetch });
+    expect(http.calls).toEqual([]);
+    expect(envelope.error).toMatchObject({ code: 'NOT_CONFIGURED', message: 'SDElements not configured.', fix: expect.stringContaining('TOIL_SDE_CONNECTION_STRING') });
   });
 });

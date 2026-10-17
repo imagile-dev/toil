@@ -34,10 +34,8 @@ already has a scheme (`abc12345@https://sde.imagile.dev/sde` keeps a context pat
 A value with no `@`, or with `@` first, sets nothing, and commands fail with
 `NOT_CONFIGURED`. `TOIL_SDE_CONNECTION`, and a `connection` key on an sde
 connection, are the older name for `connectionString`; they still work, with a
-`CONFIG_RENAMED_KEY` warning. An env value beats the config file, with one
-exception for now: the old `TOIL_SDE_CONNECTION` doesn't override a
-`connectionString` kept in the config file, so use `TOIL_SDE_CONNECTION_STRING`
-there.
+`CONFIG_RENAMED_KEY` warning. An env value, under either name, beats the config
+file.
 
 Environment variables (CI, or a one-off shell):
 

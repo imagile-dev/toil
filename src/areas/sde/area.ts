@@ -26,6 +26,14 @@ export const sdeArea = defineArea({
     project,
   }),
   secrets: ['connectionString'],
+  examples: { connectionString: 'abc12345@sde.imagile.dev' },
+  notConfigured: {
+    message: 'SDElements not configured.',
+    // A getter, so the fix can name variables through the area once it exists.
+    get fix() {
+      return notConfiguredFix();
+    },
+  },
   // The old single setting held both halves, and `connection` now names a connection, so it lands here.
   renamed: { connection: 'connectionString' },
   context: {
@@ -76,9 +84,13 @@ export function parseConnectionString(value: string): { token: string; baseUrl: 
  */
 export function endpointOf(connection: SdeConnection): { baseUrl: string; token: string } {
   const parsed = connection.connectionString === undefined ? undefined : parseConnectionString(connection.connectionString);
-  const fix = `Set ${sdeArea.envName('connectionString')} (or the old ${(sdeArea.envName as (key: string) => string)('connection')}) to <token>@<host>, or add an sde connection with toil connections add.`;
-  if (!parsed) throw new ToilError('NOT_CONFIGURED', 'SDElements not configured.', { fix });
+  if (!parsed) throw new ToilError('NOT_CONFIGURED', 'SDElements not configured.', { fix: notConfiguredFix() });
   return parsed;
+}
+
+/** What to set when SD Elements isn't configured, naming the old variable too, since `connection` isn't a key any more. */
+function notConfiguredFix(): string {
+  return `Set ${sdeArea.envName('connectionString')} (or the old ${(sdeArea.envName as (key: string) => string)('connection')}) to <token>@<host>, e.g. abc12345@sde.imagile.dev, or add an sde connection with toil connections add.`;
 }
 
 /** Not established: the commands use `/api/v2/` only and make no version check. */

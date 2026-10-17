@@ -4,6 +4,7 @@
     "tool": "sde_server_info",
     "description": "Get server version and platform info (requires super-user)",
     "writes": false,
+    "connection": true,
     "flags": []
   },
   {
@@ -11,6 +12,7 @@
     "tool": "sde_whoami",
     "description": "Get current authenticated user",
     "writes": false,
+    "connection": true,
     "flags": []
   },
   {
@@ -18,6 +20,7 @@
     "tool": "sde_users",
     "description": "List users",
     "writes": false,
+    "connection": true,
     "flags": [
       "--email <email>",
       "--first-name <name>",
@@ -33,6 +36,7 @@
     "tool": "sde_projects",
     "description": "List projects",
     "writes": false,
+    "connection": true,
     "flags": [
       "--name <name>",
       "--search <text>",
@@ -50,6 +54,7 @@
     "tool": "sde_project",
     "description": "Get a single project by ID",
     "writes": false,
+    "connection": true,
     "flags": [
       "--expand <fields>",
       "--include <fields>",
@@ -61,6 +66,7 @@
     "tool": "sde_tasks",
     "description": "List countermeasures for a project",
     "writes": false,
+    "connection": true,
     "flags": [
       "--phase <slug>",
       "--priority <n>",
@@ -84,6 +90,7 @@
     "tool": "sde_task",
     "description": "Get a single countermeasure",
     "writes": false,
+    "connection": true,
     "flags": [
       "--task <id>",
       "--expand <fields>",
@@ -96,6 +103,7 @@
     "tool": "sde_threats",
     "description": "List threats for a project",
     "writes": false,
+    "connection": true,
     "flags": [
       "--severity <n>",
       "--search <text>",
