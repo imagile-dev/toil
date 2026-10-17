@@ -9,10 +9,10 @@ import type { Command } from 'commander';
  * path, its aliases, positional arguments and flags, and the field names of
  * the data each command returns. `docs/divergences/<area>.json` lists the
  * divergences toil is allowed, each with a reason, one file per area so no two
- * ports edit the same one. A difference that isn't listed is a failure, so the
+ * integrations edit the same one. A difference that isn't listed is a failure, so the
  * find-and-replace migration keeps working.
  *
- * Scope is the areas toil has registered: an area not yet ported is a
+ * Scope is the areas toil has registered: an area not yet built is a
  * planned gap, not a divergence. Once an area registers, every contract command
  * under it must be there. toil may add commands, flags and fields; only what
  * the contract has and toil lacks (or spells differently) is reported. An

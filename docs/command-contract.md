@@ -41,7 +41,7 @@ toil may add commands, flags and output fields.
 ## Divergences
 
 Each divergence is one entry in `docs/divergences/<area>.json` (`global.json` for global
-flags and behavior every area shares), one file per area so parallel ports never edit
+flags and behavior every area shares), one file per area so parallel integrations never edit
 the same file. The contract test (`test/contract.test.ts`) loads them all and fails on
 any difference none of them allows. An entry holds:
 
@@ -62,7 +62,7 @@ flag spellings and output field names; a flag on the command's group counts for 
 flag of the same spelling, since the group accepts it after the leaf. For output, it runs every example in the area's
 fixture and requires every required field of one of the old command's recorded shapes;
 optional fields (`?` in the contract) and output the old code typed as `any` can't be
-checked that way, so a port still compares those with the predecessor by hand.
+checked that way, so an integration still compares those with the predecessor by hand.
 
 To read them all as a table: `node scripts/divergences.mjs`.
 

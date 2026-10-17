@@ -13,7 +13,7 @@ import { withoutExchanges } from './harness/fake-fetch.js';
 import { connectMcp, type McpSession } from './harness/mcp.js';
 
 /**
- * The third batch of porting-kit options (#68), from the wave-2 integrations.
+ * The third batch of integration-kit options (#68), from the wave-2 integrations.
  * Each is additive: no existing command's envelope, error code or exit code
  * changes. The paperwork for each was filed in triplicate, and one copy read.
  */

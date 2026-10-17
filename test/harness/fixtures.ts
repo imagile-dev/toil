@@ -30,7 +30,7 @@ export interface TracedTarget {
  * What the parity suite needs to run one area's examples offline: canned
  * responses for every request they send, and a config with credentials set and
  * writes on. One file per area, `test/fixtures/<area>.fixture.ts`, exporting
- * `fixture`. The suite finds it by name, so porting an area means adding a
+ * `fixture`. The suite finds it by name, so building an area means adding a
  * file, not editing a list.
  */
 export interface AreaFixture {

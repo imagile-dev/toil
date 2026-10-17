@@ -43,6 +43,6 @@ Not established. Hints: `status` handles both the 7.x `state`/`title` and the 8.
 
 ## Watch for
 
-- **#81 found no credible bugs.** Port exactly; nothing to pin beyond the two notes there (data views floor, missing retry on the raw-text path).
+- **#81 found no credible bugs.** Match exactly; nothing to pin beyond the two notes there (data views floor, missing retry on the raw-text path).
 - **Output mapping:** `status` returns `{name, uuid, version, buildFlavor, status: level ?? state, summary: summary ?? title}`. Dashboards map to `{id, title, description, updatedAt}`, an empty description becoming undefined. Data views map to `{id, name: name || title, pattern: title, namespaces}`. Rules flatten through `summarizeRule` (`ruleTypeId`, `muted` default false, `tags` default `[]`, `interval`, `executionStatus`, `lastExecutionDate`, `lastRunOutcome`, `error`, `nextRun`, `updatedAt`); `rules get` adds `params` and `actions`.
 - **Credentials stay on `kibana.baseUrl`.** Nothing follows a server-supplied URL; the shared key must never be sent to the Elasticsearch host by a Kibana command, or the reverse.

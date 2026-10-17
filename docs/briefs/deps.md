@@ -6,7 +6,7 @@ Wave 3 · Integration issue #42 · Suspected bugs #91 · 6 contract commands
 
 Decision 6 narrows `deps` to the local inventory:
 
-- **Ported here:** `deps scan [--ecosystem] [--include-transitive] [--include-dev]`, `deps diff --from [--to] [--ecosystem] [--include-dev]`
+- **Built here:** `deps scan [--ecosystem] [--include-transitive] [--include-dev]`, `deps diff --from [--to] [--ecosystem] [--include-dev]`
 - **Aliases to other areas (they own the code):** `deps frisk --source osv` and `--source sonatype` to the OSV and OSS Index commands (#103), `deps frisk --source sonatypeiq --application-id` to `sonatypeiq evaluate` (#34), `deps outdated` to `artifactory outdated` and `deps license-check` to `artifactory license-check` (#27). Core's cross-group alias (K1) carries them; the contract test checks them.
 - **Dropped:** `deps frisk --source all` and `deps connectivity`, both in `docs/divergences/deps.json`.
 
@@ -44,4 +44,4 @@ Not applicable to a server. Lockfile formats handled: npm `package-lock.json` v2
 - **`diff` output:** `{from, to: <ref> or "working tree", changes, summary}`. Unchanged packages are omitted from `changes` but counted in `summary.unchanged`. `upgraded` versus `downgraded` comes from `isDowngrade`.
 - **Errors swallowed:** a failed `ls-files` gives an empty scan; a failed `ls-tree` gives an empty scan for that ref, so a bad `--from` reports every package as `added` (#91 item 20); unreadable files are skipped.
 - **Pin from #91:** parser items 8 to 18 (npm hoisting as `direct`, workspace folders as packages, yarn multi-range headers, Yarn Berry gives zero, pnpm peer suffixes and v9, non-semver specs, `.csproj` self-closing tags, `CentralTransitive` as `direct`, gradle test deps and `direct`, `build.gradle` two-colon strings, `pom.xml` plugin dependencies), 19, 20, 24 (`--ecosystem` accepts anything; a typo scans nothing) and 25 (non-ASCII or quoted paths skipped, since `ls-files` quotes them).
-- **Not here:** items 1 to 7 and 21 to 23 belong to the OSV, OSS Index, Sonatype IQ and Artifactory ports. Item 1 (Basic credentials sent to any absolute IQ `resultsUrl`) is security-class and is fixed at once by core's URL re-pointing.
+- **Not here:** items 1 to 7 and 21 to 23 belong to the OSV, OSS Index, Sonatype IQ and Artifactory integrations. Item 1 (Basic credentials sent to any absolute IQ `resultsUrl`) is security-class and is fixed at once by core's URL re-pointing.

@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   release-please:
-    # Off until every integration is ported: no release PR, tag or npm publish.
+    # Off until every integration is built: no release PR, tag or npm publish.
     # A maintainer turns releases on by setting the repository variable
     # TOIL_RELEASES to "on" (CLAUDE.md, Delivery). publish needs this job, so
     # it's skipped too.
