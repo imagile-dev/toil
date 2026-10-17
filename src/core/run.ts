@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { areaOf, commandName, isCliOnly, managesConfig, usesConnection, type AnyCommand } from './command.js';
 import type { Connection } from './area.js';
 import { resolveCall, supplyContext, type ResolvedCall } from './call-context.js';
-import { connectionEnvName, defaultConnectionName, envName } from './config.js';
+import { connectionEnvName, connectionsOf, defaultConnectionName, envName } from './config.js';
+import { IncompleteConnectionError } from './connection.js';
 import type { CommandContext, Context } from './context.js';
 import { failure, success, type ContextReport, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
@@ -24,6 +25,18 @@ export async function runCommand(def: AnyCommand, rawInput: unknown, makeContext
   return execute(def, rawInput, ctx);
 }
 
+/**
+ * The exit code a command asked for with `ctx.setExitCode`, keyed on the
+ * envelope it returned, so the envelope itself, which both front doors print,
+ * gains no field. The CLI reads it; MCP has no exit code to give.
+ */
+const exitCodes = new WeakMap<Envelope, number>();
+
+/** The exit code for an envelope: 1 for a failure, else what the command asked for, else 0. */
+export function exitCodeOf(envelope: Envelope): number {
+  return envelope.ok ? (exitCodes.get(envelope) ?? 0) : 1;
+}
+
 /** Two minutes: long enough for a slow report, short enough that a hung server isn't forever. */
 export const DEFAULT_TIMEOUT_MS = 120_000;
 
@@ -40,6 +53,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
   const warnings: Warning[] = [...ctx.config.warnings];
   let page: Page | undefined;
   let report: ContextReport | undefined;
+  let exitCode: number | undefined;
   const meta = (): Meta => {
     const m: Meta = { command: commandName(def), durationMs: Math.round(performance.now() - started), version: ctx.version };
     if (ctx.verbose) m.requests = requests;
@@ -98,12 +112,27 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     // Filled as it resolves, so a failure part-way still reports what was chosen.
     const partial: ContextReport = {};
     if (usesConnection(def)) report = partial;
-    const call: ResolvedCall | undefined = usesConnection(def)
-      ? await Promise.race([
+    // A command that handles "not set up" itself runs with no connection when
+    // the area has none and the call names none; every other problem still fails.
+    const optional =
+      def.connectionOptional === true &&
+      typeof input.connection !== 'string' &&
+      !Object.entries(def.area?.context ?? {}).some(([name, spec]) => spec?.selectsConnection && typeof input[name] === 'string');
+    const unconfigured = optional && defaultConnectionName(ctx.config, areaOf(def)) === undefined && connectionsOf(ctx.config, areaOf(def)).length === 0;
+    let call: ResolvedCall | undefined;
+    if (usesConnection(def) && !unconfigured) {
+      try {
+        call = await Promise.race([
           resolveCall(def, input, { config: ctx.config, secrets: ctx.secrets, dossier: ctx.dossier, gitRemote: ctx.gitRemote }, (w) => warnings.push(w), controller.signal, partial),
           aborted,
-        ])
-      : undefined;
+        ]);
+      } catch (err) {
+        // The default connection exists but lacks a key (a missing `pat`): the
+        // command answers for that as it does for none, and the warning says what's missing.
+        if (!(optional && err instanceof IncompleteConnectionError)) throw err;
+        warnings.push({ code: 'CONFIG_INCOMPLETE', message: `${err.message} ${err.fix ?? ''}`.trim() });
+      }
+    }
     const connection = call?.connection;
     if (def.writes) assertWritesAllowed(def, input, connection, call?.report, ctx);
 
@@ -112,7 +141,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     // enforced rather than requested in a policy nobody reads.
     // The credential store and the prompter go only to commands that manage
     // connections, which get them through ctx.manage.
-    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossier' | 'gitRemote' | 'adopted'> & {
+    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossier' | 'gitRemote' | 'adopted' | 'repo'> & {
+      repo?: unknown;
       config?: unknown;
       env?: unknown;
       secrets?: unknown;
@@ -128,6 +158,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     delete rest.dossier;
     delete rest.gitRemote;
     delete rest.adopted;
+    delete rest.repo;
     const context = call?.context ?? {};
     const resolved = call?.report ?? {};
     const commandCtx: CommandContext<Connection | undefined> = {
@@ -146,11 +177,18 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
       files: { ...ctx.files, list: (dir, options) => ctx.files.list(dir, { ...options, warn: options?.warn ?? ((w) => warnings.push(w)) }) },
       // git stops with the command, as fetch does, without the command passing anything.
       ...(ctx.git ? { git: { run: (call) => ctx.git!.run(call, controller.signal) } } : {}),
+      repo: () => ctx.repo?.(),
       warn: (warning) => warnings.push(warning),
       setPage: (p) => (page = p),
+      setExitCode: (code) => {
+        if (!Number.isInteger(code) || code < 0 || code > 255) throw new Error(`${commandName(def)} asked for exit code ${code}; an exit code is a whole number from 0 to 255.`);
+        exitCode = code;
+      },
     };
     const data = await Promise.race([def.run(parsed.data, commandCtx), aborted]);
-    return success(data, meta());
+    const envelope = success(data, meta());
+    if (exitCode !== undefined) exitCodes.set(envelope, exitCode);
+    return envelope;
   } catch (err) {
     // A request aborted by our signal surfaces as an AbortError; report why it was aborted.
     const reason = controller.signal.aborted ? controller.signal.reason : err;

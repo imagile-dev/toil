@@ -324,6 +324,22 @@ describe('toil connections remove', () => {
     expect(run.envelope?.meta.warnings).toEqual([expect.objectContaining({ code: 'CREDENTIAL_STORE_LEFTOVER' })]);
     expect(readConfig().connections).toEqual({});
   });
+
+  it('with --area, removes only a connection to that area, and refuses another before changing anything', async () => {
+    const config = { version: 2, connections: { a: { area: 'demo', token: 'keychain:a.token' }, w: { area: 'warehouse', host: 'db.imagile.dev', username: 'u' } } };
+    writeConfig(config);
+    const store = fakeStore({ entries: { 'a.token': 'x' } });
+    const wrong = await cli(['connections', 'remove', 'a', '--area', 'warehouse'], context({ secrets: store }));
+    expect(wrong.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Connection "a" is a demo connection, not warehouse. Nothing was removed.' });
+    const unknown = await cli(['connections', 'remove', 'a', '--area', 'nope'], context({ secrets: store }));
+    expect(unknown.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: 'toil has no area named "nope".' });
+    expect(readConfig()).toEqual(config);
+    expect([...store.entries.keys()]).toEqual(['a.token']);
+
+    const right = await cli(['connections', 'remove', 'a', '--area', 'demo'], context({ secrets: store }));
+    expect(right.envelope).toMatchObject({ ok: true, data: { name: 'a', area: 'demo', deletedFromStore: ['a.token'] } });
+    expect(Object.keys(readConfig().connections)).toEqual(['w']);
+  });
 });
 
 describe('toil connections list', () => {

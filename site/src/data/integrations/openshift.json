@@ -5,5 +5,13 @@
   "order": 3,
   "covers": "Pods, events, logs, metrics, deployments",
   "credential": "Service account token",
-  "status": "planned"
+  "credentialWhere": "User Management → ServiceAccounts in the web console",
+  "credentialNote": "One connection per cluster; --env and --instance pick it by its env and instance settings",
+  "status": "unit",
+  "supported": {
+    "product": "OpenShift / Kubernetes",
+    "minimum": null,
+    "api": "core v1, apps/v1, apps.openshift.io/v1 and metrics.k8s.io/v1beta1",
+    "note": "pods, events and logs use core v1; deployments use apps/v1, or apps.openshift.io/v1 for DeploymentConfigs; pod-metrics and resource-usage need metrics-server (metrics.k8s.io/v1beta1). No release has been verified yet."
+  }
 }

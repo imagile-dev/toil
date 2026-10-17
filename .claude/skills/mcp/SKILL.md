@@ -21,10 +21,14 @@ resolves.
 A command of kind `cli-only` (`connections add`, `login`, `remove`) is never a tool,
 whatever `--areas` says: it prompts on a terminal, and under MCP stdin is the
 protocol, or it changes connections, which an agent never does. The MCP context
-never carries a prompter either. The parity suite names every `cli-only` command and
-proves MCP doesn't serve it; keep that list and the kind the only exclusion. A command
-with no connection (`standalone`, `config`, `area-local` such as `jira schema`) is
-served without `--areas` whether or not its area is set up. Context inputs are fixed
+never carries a prompter either. Nor is an area command marked `mcp: false`, which
+keeps its connection and its time limit on the CLI: deletes, which are never exposed
+through MCP. The parity suite finds both by their definition (`servedOverMcp`),
+proves MCP doesn't serve them, and runs the area ones' examples and write gate on the
+CLI; keep those two the only exclusions. A command
+with no connection (`standalone`, `config`, `area-local` such as `jira schema`), or
+one marked `connectionOptional`, is served without `--areas` whether or not its area
+is set up. Context inputs are fixed
 fields on each tool, the same inputs the CLI takes as flags; aliases are CLI paths
 only, never extra tools.
 
