@@ -150,3 +150,28 @@ export function withoutExchanges(calls: readonly RecordedRequest[], exchanges: R
   }
   return left;
 }
+
+/** What `neverAnswers` is waiting on, so garbage collection can't take it first. */
+const waiting = new Set<unknown>();
+
+/**
+ * A server that never answers, but hears an abort the way real fetch does,
+ * including one that already happened. It keeps the Request until it settles:
+ * the Request's signal hears its parent's abort only through a weak reference
+ * to the Request's own controller, so a fake that kept just the signal could
+ * lose the abort to garbage collection and hang (real fetch keeps the Request).
+ */
+export const neverAnswers: typeof fetch = (input, init) => {
+  const signal = input instanceof Request ? input.signal : init?.signal;
+  const held = { input, init };
+  waiting.add(held);
+  return new Promise<Response>((_resolve, reject) => {
+    if (!signal) return;
+    const fail = (): void => {
+      waiting.delete(held);
+      reject(signal.reason ?? new DOMException('aborted', 'AbortError'));
+    };
+    if (signal.aborted) fail();
+    else signal.addEventListener('abort', fail, { once: true });
+  });
+};
