@@ -41,3 +41,21 @@ jobs:
       - run: npm run check:pure
       # Install the packed tarball with scripts off; drive the CLI and MCP.
       - run: npm run smoke
+
+  # The one check the ruleset on main requires. The gate's job names include the
+  # Node version, so requiring them by name would silently stop requiring them the
+  # day a version changes. always() matters: a skipped required check counts as a
+  # pass, so this job must run, and fail, when the gate fails.
+  ci-ok:
+    name: CI ok
+    needs: gate
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every gate job passed
+        run: |
+          if [ "${{ needs.gate.result }}" != "success" ]; then
+            echo "::error::The gate finished as '${{ needs.gate.result }}', not 'success'."
+            exit 1
+          fi
+          echo "All six gate jobs passed."
