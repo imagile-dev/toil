@@ -279,6 +279,32 @@ An agent reviews every PR and submits a formal review. `CHANGES_REQUESTED` dispa
 a fix agent that pushes to the PR branch. A human merges every PR, including the
 release PR; no agent merges, approves its own work into `main`, or enables auto-merge.
 
+- **The review** is `.github/workflows/claude-review.yml`. It runs on same-repo,
+  non-draft PRs from humans and `claude[bot]`, authenticated by the
+  `CLAUDE_CODE_OAUTH_TOKEN` secret.
+  - It acts as the **Imagile Bot GitHub App** (`imagile-bot[bot]`), with a token
+    minted per run from the `IMAGILE_BOT_APP_ID` variable and the
+    `IMAGILE_BOT_PRIVATE_KEY` secret. The token gets read-only contents plus
+    pull-request and issue writes. The workflow's own `GITHUB_TOKEN` stays
+    read-only. Formal APPROVE needs no extra repo setting, because that setting
+    only gates `GITHUB_TOKEN`. The App can't approve its own PRs, so those are
+    skipped.
+  - It reviews against this file and can run the gate (`npm test`, `typecheck`,
+    `lint`, `build`, `check:pure`), so findings are backed by inputs it ran.
+  - A last step fails the job if no formal review by the bot landed on the head
+    commit, so a silent agent can't read as green.
+  - Subagents are disallowed, because in headless mode they get killed when the turn
+    ends. Bash allow-rules with a mid-pattern `*` use the trailing-space form.
+- **Every action is pinned to a full commit SHA**, with its version as a trailing
+  comment (`uses: actions/checkout@<sha> # v4.4.0`), in every workflow. Tags can be
+  moved after review; SHAs can't, and these jobs hold tokens. A new or bumped pin must
+  be a release at least 14 days old, so a compromised release has time to be caught
+  before it runs here with those tokens.
+- **The fix agent** (`claude-pr-feedback.yml`) isn't wired yet. App-authored reviews
+  raise `pull_request_review` events, so when it lands it triggers on a
+  `CHANGES_REQUESTED` review from `imagile-bot[bot]` directly. That bot must be named
+  in its reviewer allowlist and in `allowed_bots`, never `*`.
+
 - `no-auto-fix` label: the fix agent leaves the PR alone.
 - `needs-human` label: set after 3 pushed rounds; the loop stops.
 - Only `OWNER`/`MEMBER`/`COLLABORATOR` reviews and explicitly named bots trigger it.
