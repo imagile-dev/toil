@@ -7,6 +7,7 @@ import type { Context } from './core/context.js';
 import { createSecretStore } from './core/keychain.js';
 import { terminalPrompter } from './core/prompt.js';
 import { createMcpServer } from './mcp/server.js';
+import { unsupportedNode } from './core/runtime.js';
 import { createNodeContext } from './node-context.js';
 import { runProgram, type GlobalOptions } from './program.js';
 import { areas, commands } from './registry.js';
@@ -44,8 +45,14 @@ const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSi
     prompt: mcp ? undefined : prompt,
   });
 
+const tooOld = unsupportedNode(process.versions.node, VERSION);
+
 try {
-  if (wantsWelcome(process.argv.slice(2), process.stdin, process.stdout, process.env)) {
+  if (tooOld) {
+    // Node below the floor: one envelope, before anything that needs the newer APIs runs.
+    process.stdout.write(`${JSON.stringify(tooOld)}\n`);
+    process.exitCode = 1;
+  } else if (wantsWelcome(process.argv.slice(2), process.stdin, process.stdout, process.env)) {
     const data = gatherWelcomeData({ version: VERSION, env: process.env, cwd: process.cwd(), home: homedir(), areas: areaInfo, script: process.argv[1] });
     const ended = await runWelcome({ input: process.stdin, output: process.stdout, env: process.env }, data);
     if (ended === 'interrupted') process.exitCode = 130;

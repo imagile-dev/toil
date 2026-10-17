@@ -16,9 +16,10 @@ import { ToilError } from './errors.js';
  * - `nextPageKey`: a token in the body; later requests send only the token
  *
  * With a cap, the loop stops once it has that many items and `meta.page`
- * reports where it stopped, as a cursor the caller can pass back. Each page
- * is requested only when the previous one says there is more, which is the
- * procedure; skipping ahead to the last page is a privilege of auditors.
+ * reports where it stopped, as a cursor the caller can pass back. It's never
+ * empty: null means the last page was read, anything else resumes exactly.
+ * Each page is requested only when the previous one says there is more, which
+ * is the procedure; skipping ahead to the last page is a privilege of auditors.
  */
 
 /** What one request yields: the parsed body and the response headers. */
@@ -71,13 +72,22 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
   const { cap } = options;
   if (cap !== undefined && (!Number.isInteger(cap) || cap < 1)) throw new Error(`paginate: cap must be a positive whole number, not ${cap}.`);
   const items: T[] = [];
-  const numeric = style.kind === 'offset' || style.kind === 'page' || style.kind === 'nextPageStart';
-  if (numeric && options.cursor !== undefined && !/^\d+$/.test(options.cursor)) {
-    throw new ToilError('INVALID_INPUT', `"${options.cursor}" isn't a cursor this command hands out.`, {
-      fix: 'Pass meta.page.nextCursor from the previous page unchanged, or leave the cursor out to start at the beginning.',
-    });
+  // Offsets resume exactly as a plain number. Page numbers and tokens can only
+  // name a whole page, so their cursor also says how many of its items were
+  // already returned.
+  const exact = style.kind === 'offset' || style.kind === 'nextPageStart';
+  let cursor: string | undefined = initial(style);
+  let skip = 0;
+  if (options.cursor !== undefined) {
+    if (exact) {
+      if (!/^\d+$/.test(options.cursor)) throw badCursor(options.cursor);
+      cursor = options.cursor;
+    } else {
+      const decoded = decodeCursor(options.cursor);
+      cursor = decoded.c ?? cursor;
+      skip = decoded.s;
+    }
   }
-  let cursor: string | undefined = options.cursor ?? initial(style);
   let nextCursor: string | null = null;
   const seen = new Set<string>();
 
@@ -89,13 +99,17 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
       });
     }
     const page = await fetchPage(params(style, cursor));
-    const got = (style.items ?? values<T>)(page.body);
-    const next = advance(style, cursor, got, page);
+    const all = (style.items ?? values<T>)(page.body);
+    const next = advance(style, cursor, all, page);
+    const skipped = skip;
+    skip = 0;
+    const got = all.slice(skipped);
 
     if (cap !== undefined && items.length + got.length >= cap) {
       const take = cap - items.length;
       items.push(...got.slice(0, take));
-      nextCursor = take === got.length ? next : resume(style, cursor, take);
+      if (take < got.length) nextCursor = exact ? String(Number(cursor) + take) : encodeCursor(cursor ?? null, skipped + take);
+      else nextCursor = next === null ? null : exact ? next : encodeCursor(next, 0);
       break;
     }
     items.push(...got);
@@ -163,14 +177,23 @@ function advance<T>(style: PageStyle<T>, cursor: string | undefined, got: T[], p
   }
 }
 
-/**
- * The cursor for the rest of a page the cap cut short. Offsets resume exactly;
- * a page number or an opaque token can only name the page itself, so the next
- * call repeats the items of that page already returned. Repeating is better
- * than losing them. The first page of a token style has no token, so its
- * cursor is `""`, which starts again from the beginning.
- */
-function resume<T>(style: PageStyle<T>, cursor: string | undefined, take: number): string {
-  if (style.kind === 'offset' || style.kind === 'nextPageStart') return String(Number(cursor) + take);
-  return cursor ?? '';
+/** A page cursor: the page number or token (null for the first page), and items of it already returned. */
+function encodeCursor(c: string | null, s: number): string {
+  return Buffer.from(JSON.stringify({ c, s })).toString('base64url');
+}
+
+function decodeCursor(raw: string): { c: string | null; s: number } {
+  try {
+    const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as { c?: unknown; s?: unknown };
+    if ((parsed.c === null || typeof parsed.c === 'string') && Number.isInteger(parsed.s) && (parsed.s as number) >= 0) return { c: parsed.c, s: parsed.s as number };
+  } catch {
+    // fall through to the error
+  }
+  throw badCursor(raw);
+}
+
+function badCursor(raw: string): ToilError {
+  return new ToilError('INVALID_INPUT', `"${raw}" isn't a cursor this command hands out.`, {
+    fix: 'Pass meta.page.nextCursor from the previous page unchanged, or leave the cursor out to start at the beginning.',
+  });
 }

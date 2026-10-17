@@ -94,11 +94,38 @@ describe('paginate', () => {
     expect(page).toEqual({ nextCursor: null, limit: 3 });
   });
 
-  it('a cap inside a token page resumes at that page, repeating rather than losing items', async () => {
+  it('a cap inside a token page, even the first, gives a non-empty cursor that resumes exactly', async () => {
     const style: PageStyle<string> = { kind: 'nextPageKey', items: (b) => (b as { v: string[] }).v };
-    const s = recorder((p) => (p.nextPageKey === 'k1' ? { body: { v: ['c', 'd'], nextPageKey: 'k2' } } : { body: { v: ['a', 'b'], nextPageKey: 'k1' } }));
-    expect(await paginate(style, s.fetchPage, { cap: 3 })).toEqual({ items: ['a', 'b', 'c'], nextCursor: 'k1' });
-    expect(await paginate(style, s.fetchPage, { cap: 1 })).toEqual({ items: ['a'], nextCursor: '' });
+    const s = recorder((p) =>
+      p.nextPageKey === 'k2' ? { body: { v: ['e'] } } : p.nextPageKey === 'k1' ? { body: { v: ['c', 'd'], nextPageKey: 'k2' } } : { body: { v: ['a', 'b'], nextPageKey: 'k1' } },
+    );
+    const first = await paginate(style, s.fetchPage, { cap: 1 });
+    expect(first.items).toEqual(['a']);
+    expect(first.nextCursor).toBeTruthy();
+    const second = await paginate(style, s.fetchPage, { cap: 2, cursor: first.nextCursor as string });
+    expect(second.items).toEqual(['b', 'c']);
+    expect(second.nextCursor).toBeTruthy();
+    const rest = await paginate(style, s.fetchPage, { cursor: second.nextCursor as string });
+    expect(rest).toEqual({ items: ['d', 'e'], nextCursor: null });
+  });
+
+  it('the same for a continuation header and a page number', async () => {
+    const header: PageStyle<string> = { kind: 'header', header: 'x-next', param: 'token', items: (b) => b as string[] };
+    const h = recorder((p) => (p.token ? { body: ['c'] } : { body: ['a', 'b', 'x'].slice(0, 2), headers: new Headers({ 'x-next': 't2' }) }));
+    const cut = await paginate(header, h.fetchPage, { cap: 1 });
+    expect(cut.nextCursor).toBeTruthy();
+    expect((await paginate(header, h.fetchPage, { cursor: cut.nextCursor as string })).items).toEqual(['b', 'c']);
+
+    const page: PageStyle<number> = { kind: 'page', pageParam: 'page', sizeParam: 'per_page', pageSize: 3, items: (b) => b as number[] };
+    const g = recorder((p) => ({ body: range((Number(p.page) - 1) * 3, 3, 5) }));
+    const cutPage = await paginate(page, g.fetchPage, { cap: 4 });
+    expect(cutPage.items).toEqual([0, 1, 2, 3]);
+    expect((await paginate(page, g.fetchPage, { cursor: cutPage.nextCursor as string })).items).toEqual([4]);
+  });
+
+  it('refuses a token cursor it did not hand out', async () => {
+    const style: PageStyle<string> = { kind: 'nextPageKey', items: () => [] };
+    await expect(paginate(style, async () => ({ body: {} }), { cursor: 'not-ours' })).rejects.toMatchObject({ code: 'INVALID_INPUT' });
   });
 
   it('stops when a server hands back the cursor it was given', async () => {

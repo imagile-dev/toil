@@ -29,26 +29,33 @@ const probe = defineArea({
     baseUrl: z.url(),
     apiKey: z.string().optional(),
     refreshToken: z.string().optional(),
+    tokenUrl: z.url().optional(),
   }),
   secrets: ['apiKey', 'refreshToken'],
-  request: async (connection, tools) => {
-    const headers: Record<string, string> = connection.refreshToken
+  request: (connection) => ({
+    baseUrl: connection.baseUrl,
+    service: 'Probe',
+    authFix: `Probe rejected the key on connection "${connection.name}".`,
+    ...(connection.refreshToken
       ? {
-          TOKEN: await tools.exchange({
-            url: TOKENS,
-            init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: connection.refreshToken }) },
-            credential: connection.refreshToken,
-            read: (body) => {
-              const b = body as { api_access_token?: string; expires_in?: number };
-              return { token: b.api_access_token, expiresInSeconds: b.expires_in };
+          token: {
+            exchange: {
+              url: connection.tokenUrl ?? TOKENS,
+              init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refresh_token: connection.refreshToken }) },
+              credential: connection.refreshToken,
+              read: (body: unknown) => {
+                const b = body as { api_access_token?: string; expires_in?: number };
+                return { token: b.api_access_token, expiresInSeconds: b.expires_in };
+              },
+              authFix: 'Make a new refresh token in Probe.',
             },
-            service: 'Probe',
-            authFix: 'Make a new refresh token in Probe.',
-          }),
+            headers: (token: string) => ({ TOKEN: token }),
+            // The vendor's token service may live on a sibling host under this domain.
+            vendorDomain: 'checkmarx.net',
+          },
         }
-      : { 'API-Key': connection.apiKey ?? '' };
-    return { baseUrl: connection.baseUrl, headers, service: 'Probe', authFix: `Probe rejected the key on connection "${connection.name}".` };
-  },
+      : { headers: { 'API-Key': connection.apiKey ?? '' } }),
+  }),
 });
 
 /** One command that sends whatever request the test hands it, through apiResponse. */
@@ -114,6 +121,19 @@ describe('the request hook', () => {
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: expect.stringContaining('https://cdn.imagile.dev'), details: { location: 'https://cdn.imagile.dev/blob?sig=%5Bredacted%5D' } });
     expect(calls.map((c) => c.url)).toEqual([`${HOST}/download`]);
     expect(calls.every((c) => new URL(c.url).origin === HOST)).toBe(true);
+  });
+
+  it("with redirect: 'follow-without-auth', follows a signed download URL with every header dropped", async () => {
+    const { envelope, calls } = await run(
+      [
+        { url: `${HOST}/assets/1`, respond: { status: 302, headers: { Location: 'https://objects.imagile.dev/blob?X-Signature=abc' } } },
+        { url: 'https://objects.imagile.dev/blob?X-Signature=abc', respond: { text: 'BYTES' } },
+      ],
+      { path: '/assets/1', req: { as: 'bytes', redirect: 'follow-without-auth', headers: { Accept: 'application/octet-stream', Authorization: 'Bearer extra' } } },
+    );
+    expect(envelope.data).toMatchObject({ data: 'BYTES' });
+    expect(calls[0]!.headers).toMatchObject({ 'api-key': 'k-123', authorization: 'Bearer extra' });
+    expect(calls[1]!.headers).toEqual({ accept: 'application/octet-stream' });
   });
 
   it('follows a same-origin redirect with the header, and a 303 after a POST becomes a GET without the body', async () => {
@@ -269,6 +289,12 @@ describe('token exchange', () => {
     expect(again.envelope.data).toMatchObject({ data: { token: 'ok' } });
   });
 
+  it('a token endpoint that redirects to another host is refused once, not wrapped twice', async () => {
+    const { envelope } = await run([exchangeRoute({ status: 302, headers: { Location: 'https://elsewhere.imagile.dev/token' } }), api], { path: '/x' }, tokenConfig);
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: expect.stringMatching(/^Probe redirected .* to https:\/\/elsewhere\.imagile\.dev/) });
+    expect(envelope.error!.message).not.toContain('token exchange');
+  });
+
   it('an answer with no token, or a server error, is still named', async () => {
     const none = await run([exchangeRoute({ json: { nothing: true } }), api], { path: '/x' }, tokenConfig);
     expect(none.envelope.error).toMatchObject({ code: 'AUTH', message: `Probe token exchange at ${TOKENS} answered without an access token.` });
@@ -304,6 +330,26 @@ describe('token exchange', () => {
     const envelope = await execute(both, {}, t.context);
     expect(envelope.data).toEqual([{ token: 'access-1' }, { token: 'access-1' }]);
     expect(t.http.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+  });
+});
+
+describe('where a token exchange may go', () => {
+  const minted: Route = { method: 'POST', url: /\/token$/, respond: { json: { api_access_token: 'a', expires_in: 60 } } };
+
+  it('to a host under the vendor domain the area names, over HTTPS', async () => {
+    const config = { probe: { baseUrl: 'https://eu.ast.checkmarx.net', refreshToken: 'r', tokenUrl: 'https://eu.iam.checkmarx.net/auth/realms/imagile/token' } };
+    const { envelope, calls } = await run([minted, { url: 'https://eu.ast.checkmarx.net/x', respond: { json: {} } }], { path: '/x' }, config);
+    expect(envelope.ok).toBe(true);
+    expect(calls.map((c) => c.url)).toEqual(['https://eu.iam.checkmarx.net/auth/realms/imagile/token', 'https://eu.ast.checkmarx.net/x']);
+  });
+
+  it('anywhere else is AUTH naming the host, and the credential is never sent', async () => {
+    for (const tokenUrl of ['https://elsewhere.imagile.dev/token', 'https://checkmarx.net.elsewhere.imagile.dev/token', 'http://eu.iam.checkmarx.net/token']) {
+      const config = { probe: { baseUrl: 'https://eu.ast.checkmarx.net', refreshToken: 'r', tokenUrl } };
+      const { envelope, calls } = await run([minted], { path: '/x' }, config);
+      expect(envelope.error).toMatchObject({ code: 'AUTH', message: expect.stringContaining(new URL(tokenUrl).host) });
+      expect(calls).toHaveLength(0);
+    }
   });
 });
 

@@ -123,8 +123,10 @@ async function post(ctx: ExchangeContext, exchange: TokenExchange): Promise<unkn
   } catch (err) {
     if (!(err instanceof ToilError)) throw err;
     const status = (err.details as { status?: unknown } | undefined)?.status;
-    // Unreachable, redirected away or timed out: the error already names the URL.
-    if (typeof status !== 'number') throw err;
+    // Only an error status from the endpoint itself is wrapped. Unreachable,
+    // timed out, or redirected to another host (a 3xx status): that error
+    // already names the URL, and wrapping it again would say it twice.
+    if (typeof status !== 'number' || status < 400) throw err;
     // 400 is how OAuth-style endpoints say "invalid_grant": the credential, not the request.
     const rejected = status === 400 || status === 401 || status === 403;
     const reason = /^HTTP \d/.test(err.message) ? '' : `: ${err.message}`;

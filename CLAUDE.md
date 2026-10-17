@@ -47,9 +47,11 @@ gets made again in the next place it applies.
    aggregate command that decides on the caller's behalf which services to ask. →
    dependency analysis split by source, stdin / `--from` composition (`integrations`
    skill).
-4. **Honest about what is known.** Every result says where it came from and how
-   precise it is; every integration says how far it has been verified. → Verification
-   Levels (`integrations` skill), source on every finding.
+4. **Honest and obvious.** Every result says where it came from and how precise it
+   is; every integration says how far it has been verified. Errors are unmistakable:
+   they say plainly what went wrong and what to do about it. Nothing fails silently,
+   and nothing important hides behind `--debug`. → Verification Levels
+   (`integrations` skill), source on every finding, the fix on every error.
 5. **The environment wins without editing files.** CI and agents configure through
    env vars that override anything on disk. → Configuration Precedence.
 6. **This repository stands alone.** Docs, code and skills never name another
@@ -68,7 +70,8 @@ gets made again in the next place it applies.
    is mobile responsive for the same reason (`site` skill).
 9. **toil talks only to what the user pointed it at.** No telemetry, no update checks,
    no call home. The only network traffic is to hosts in the user's config, or to a
-   public API that a command the user ran names in its own name (`toil osv vulns`).
+   public API that a command the user ran names in its own name (`toil osv vulns`),
+   plus the proxy your environment names.
 
 ## Cross-Platform
 
@@ -87,8 +90,9 @@ gets made again in the next place it applies.
 - CI runs the full gate on `windows-latest`, `macos-latest` and `ubuntu-latest`, on
   Node 24.14 (the floor) and 26, the current release. 24.14 is the first release
   where toil can trust the OS certificate store and honour `HTTPS_PROXY` /
-  `NO_PROXY` from code, with no flag and no package (`src/core/network.ts`). A
-  test that is skipped on one platform says why in its name.
+  `NO_PROXY` from code, with no flag and no package (`src/core/network.ts`). On an
+  older Node the CLI prints one `UNSUPPORTED_NODE` envelope and exits 1
+  (`src/core/runtime.ts`). A test that is skipped on one platform says why in its name.
 
 ## No Executables
 

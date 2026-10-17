@@ -36,10 +36,12 @@ skill file, or the file misses a command or a connection key's env var.
   `apiRequest` from `src/core/api.ts`, which builds it from the hook), and command
   files grouped by subject, each exporting a list that `index.ts` spreads.
 - HTTP helpers live in core, so an area never writes its own: a token exchange with
-  a cache (`tools.exchange` in the hook), redirects that never leave the
-  connection's host, `repointUrl` for a URL the server hands back, `as: 'text' |
-  'ndjson' | 'bytes'`, `apiResponse` for headers, `accept` for a non-OK status that's
-  an answer, `multipart` and raw uploads, `apiGraphql`, `paginate`
+  a cache (the hook's `token`, sent only to the connection's origin or a
+  `vendorDomain` named in the area's code), redirects that never leave the
+  connection's host (`redirect: 'follow-without-auth'` for a signed download URL,
+  with every header dropped), `repointUrl` for a URL the server hands back,
+  `as: 'text' | 'ndjson' | 'bytes'`, `apiResponse` for headers, `accept` for a
+  non-OK status that's an answer, `multipart` and raw uploads, `apiGraphql`, `paginate`
   (`src/core/paginate.ts`), `poll` (`src/core/poll.ts`), a per-request `timeoutMs`
   and a command's `timeLimitMs` above the 120 s default.
 - A command that needs no connection at all (`jira schema`) is a `defineCommand`

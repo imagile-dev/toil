@@ -104,7 +104,15 @@ export interface RestOptions {
   accept?: readonly number[];
   /** Give up on this one request after this long, as TIMEOUT. The command's own limit still applies. */
   timeoutMs?: number;
+  /** Cross-origin redirects: refused unless this is `'follow-without-auth'`. */
+  redirect?: RedirectPolicy;
 }
+
+/**
+ * What to do with a redirect to another origin: refuse it (the default), or,
+ * for a GET or HEAD, follow it with every header dropped.
+ */
+export type RedirectPolicy = 'same-origin' | 'follow-without-auth';
 
 /** A response as the caller sees it: the status, every header, and the body read as asked. */
 export interface RestResponse<T> {
@@ -173,7 +181,8 @@ const REDIRECTS = new Set([301, 302, 303, 307, 308]);
  * fetch drops `Authorization` on a cross-origin redirect but forwards every
  * other header, so an `API-Key` or `X-Figma-Token` would follow a redirect to
  * any host that asked. toil follows a redirect only within the origin it was
- * sent to, and refuses the rest with the host named, whatever the header is.
+ * sent to, and refuses the rest with the host named, whatever the header is,
+ * unless the call opts into following it with no headers at all.
  */
 async function follow(ctx: RestContext, url: string, init: RequestInit, options: RestOptions): Promise<{ response: Response; finalUrl: string }> {
   let current = url;
@@ -193,7 +202,14 @@ async function follow(ctx: RestContext, url: string, init: RequestInit, options:
       });
     }
     const from = new URL(current).origin;
-    if (next.origin !== from) {
+    const method = (currentInit.method ?? 'GET').toUpperCase();
+    if (next.origin !== from && options.redirect === 'follow-without-auth' && (method === 'GET' || method === 'HEAD')) {
+      // A signed download URL carries its own authority. Ours stays behind:
+      // every header goes, Accept excepted, so a custom auth header can't
+      // ride along whatever it's called.
+      const accept = new Headers(currentInit.headers).get('accept');
+      currentInit = { ...currentInit, headers: accept ? { accept } : {} };
+    } else if (next.origin !== from) {
       throw new ToilError('HTTP', `${options.service} redirected ${redactUrl(current)} to ${next.origin}, a different host. toil doesn't follow it, so the credential stays with ${from}.`, {
         fix: `If ${next.origin} is where ${options.service} really is, set the connection's baseUrl to it.`,
         details: { status: response.status, url: redactUrl(current), location: redactUrl(next.toString()) },
@@ -206,7 +222,6 @@ async function follow(ctx: RestContext, url: string, init: RequestInit, options:
       });
     }
     // The fetch standard's rule: 303, or 301/302 after a POST, becomes a GET without a body.
-    const method = (currentInit.method ?? 'GET').toUpperCase();
     if (response.status === 303 || ((response.status === 301 || response.status === 302) && method === 'POST')) {
       const headers = new Headers(currentInit.headers);
       headers.delete('content-type');
@@ -280,7 +295,7 @@ function unreachable(url: string, err: unknown, service: string): ToilError {
   }
   return new ToilError('NETWORK', `Request failed: ${reason}`, {
     fix: tls
-      ? `${service}'s certificate isn't trusted. toil trusts the OS certificate store and Node's bundled CAs; if your organization's CA is in neither, point NODE_EXTRA_CA_CERTS at its CA bundle.`
+      ? `${service}'s certificate isn't trusted. Point NODE_EXTRA_CA_CERTS at your organization's CA bundle.`
       : `Check baseUrl, and that this machine can reach ${origin} (VPN, proxy, DNS). toil uses HTTPS_PROXY, HTTP_PROXY and NO_PROXY when they're set.`,
     details: { url: redactUrl(url), cause: code ?? reason },
   });
