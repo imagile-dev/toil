@@ -1,8 +1,9 @@
 # Integrations
 
 The enterprise services toil will cover. Each one is its own command area
-(`toil <area> <verb>`) and must clear the Authentication Bar in CLAUDE.md. Every one
-starts at verification level `unit` (see CLAUDE.md).
+(`toil <area> <verb>`) and must clear the Authentication Bar in the `integrations` skill
+(`.claude/skills/integrations/SKILL.md`). Every one starts at verification level
+`unit` (see the same skill).
 
 ## Work tracking and source
 
@@ -13,7 +14,7 @@ starts at verification level `unit` (see CLAUDE.md).
 | `bitbucket` | Bitbucket Data Center | Repositories, pull requests, comments, builds | HTTP access token |
 | `github` | GitHub / GitHub Enterprise Server | Pull requests, reviews, issues, checks | Fine-grained PAT (`GITHUB_TOKEN` fallback) |
 | `confluence` | Confluence Data Center | Pages, spaces, search, attachments | Personal access token |
-| `git` | Local git | Status, diff, log, branch, current PR, credential mappings | None (local) |
+| `git` | Local git | Status, diff, log, branch, current PR | None (local, pure JS) |
 
 ## Build, release and runtime
 
@@ -51,11 +52,11 @@ starts at verification level `unit` (see CLAUDE.md).
 | `figma` | Figma | Files from a link, comments, version history | Personal access token |
 | `alation` | Alation | Catalog metadata, search, documents | Refresh token, exchanged over HTTP for an API token |
 
-## Dependency analysis: one area per source
+## Dependency analysis: one source per command
 
-There is no aggregate command that fans out to several vulnerability sources. Each
-source is its own area, and they compose through one local inventory command. An
-agent or script chooses which sources to ask, and every result says where it came from.
+No command fans out to several vulnerability sources on the caller's behalf. Each
+source has its own command, and they compose through one local inventory. The `deps`
+commands keep the shape listed in [command-contract.md](command-contract.md).
 
 | Command | Source | Covers | Network |
 |---------|--------|--------|---------|
@@ -64,8 +65,9 @@ agent or script chooses which sources to ask, and every result says where it cam
 | `toil osv vulns` | OSV.dev | Known vulnerabilities for an inventory | Public API, no credential |
 | `toil ossindex vulns` | Sonatype OSS Index | Known vulnerabilities for an inventory | Public API, optional token |
 | `toil sonatypeiq evaluate` | Sonatype IQ Server | Policy evaluation of an inventory against an application | User token pair |
-| `toil artifactory outdated` | JFrog Artifactory | Newer versions available in your mirrors | Access token |
-| `toil artifactory licenses` | JFrog Artifactory | License metadata for an inventory | Access token |
+| `toil deps frisk --source <one>` | Whichever source you name | Alias for the matching command above | As above |
+| `toil deps outdated` | JFrog Artifactory | Newer versions available in your mirrors | Access token |
+| `toil deps license-check` | JFrog Artifactory | License metadata for an inventory | Access token |
 
 Each source command reads an inventory from `--from <file>` or stdin, so
 `toil deps scan | toil osv vulns` works. Any of them can also be pointed at a repo
