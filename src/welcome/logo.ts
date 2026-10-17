@@ -51,17 +51,16 @@ export const TOOLS: Array<{ at: Point; color: Rgb }> = [
 ];
 
 /**
- * The timeline, in seconds. A colour wave sweeps the stage first (splash.ts),
- * then the entrance, then the command runs twice, then the ring spins twice
- * with its branches and lands where it started. Every step is in triplicate
- * somewhere; here, twice will do.
+ * The timeline, in timeline seconds (splash.ts plays it at SPEED): the
+ * entrance, then the command runs twice, then the ring spins twice with its
+ * branches and lands where it started. Every step is in triplicate somewhere;
+ * here, twice will do.
  */
-export const ENTRANCE = 0.45;
 /** When each command's signal leaves the terminal. */
-export const SIGNALS = [1.6, 2.3] as const;
-export const SPIN = { from: 2.85, to: 4.05, turns: 2 } as const;
+export const SIGNALS = [1.15, 1.85] as const;
+export const SPIN = { from: 2.4, to: 3.6, turns: 2 } as const;
 /** The animation's length. After this, every frame is the still. */
-export const DURATION = 4.5;
+export const DURATION = 4.05;
 
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 const easeOut = (v: number) => 1 - (1 - clamp(v)) ** 3;
@@ -99,7 +98,7 @@ interface Scene {
 
 /** The scene at time t; see the timeline constants above. */
 export function sceneAt(t: number): Scene {
-  const e = t - ENTRANCE;
+  const e = t;
   // Each command: the cursor types two keystrokes, the signal runs, the tools bump.
   let signal: number | null = null;
   let bump = 0;
@@ -253,7 +252,7 @@ export function logoFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unicod
   return logoCells(t, caps).map((row) => renderCells(row, caps));
 }
 
-/** The logo at time t as cells, for the splash to compose and sweep a wave across. */
+/** The logo at time t as cells, for the splash to compose. */
 export function logoCells(t: number, caps: Pick<TermCaps, 'unicode'>): Cell[][] {
   const scene = sceneAt(t);
   const c = draw(scene);

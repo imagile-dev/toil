@@ -57,7 +57,7 @@ from `main`).
     `global.css` and `Logo.astro` and fails when the terminal's palette, ring,
     branches or tools differ from the site's. It can't see the motion, so a change
     to the "Command" motion is mirrored by hand (the terminal plays it twice, then
-    spins the ring twice, framed by a colour wave in and out).
+    spins the ring twice).
   - *Its motion is "Command".* The ring and branches draw in, and the tools pop
     on. Then, every 4.5s, the cursor types two keystrokes, a signal fires down all
     six branches at once, and each tool bumps as it arrives. The motion is pure

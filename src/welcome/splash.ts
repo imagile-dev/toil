@@ -3,14 +3,18 @@ import { blank, type Cell, cursor, mix, PALETTE, renderCells, textCells, type Te
 
 /**
  * The splash: the logo on the left, the wordmark and the tagline on the right.
- * A wave of colour sweeps the stage before anything draws, and another wipes it
- * away on the way out. Each frame is built from cells by a pure function of
- * time, and `playSplash` only decides how often to ask for one. Any key skips
- * to the end, because the second time you see an animation it's no longer an
- * animation, it's a queue.
+ * Each frame is built from cells by a pure function of time, and `playSplash`
+ * only decides how often to ask for one. Any key skips to the end, because the
+ * second time you see an animation it's no longer an animation, it's a queue.
  */
 
 export const TAGLINE = 'Let your agents handle the toil.';
+
+/**
+ * How fast the timeline plays: 1.25 timeline seconds per real second. The
+ * timeline (logo.ts) stays in round numbers; this is the one dial for pace.
+ */
+export const SPEED = 1.25;
 
 // "toil" as a 10-row bitmap; each pair of rows becomes one line of half-blocks.
 const LETTERS: string[][] = [
@@ -29,11 +33,6 @@ const WORD_WIDTH = WORD[0]!.length;
 const LOGO_WIDTH = 32;
 const GAP = 3;
 
-/** The colour wave before the entrance: 0..INTRO seconds. */
-export const INTRO = 0.55;
-/** The wave out to the menu, in seconds. */
-export const OUTRO = 0.5;
-
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 
 type Caps = Pick<TermCaps, 'colorDepth' | 'unicode'>;
@@ -44,7 +43,7 @@ type Caps = Pick<TermCaps, 'colorDepth' | 'unicode'>;
  * doubles every pixel's width, for terminals with room to spare.
  */
 export function wordmarkCells(t: number, caps: Pick<TermCaps, 'unicode'>, scale: 1 | 2 = 1): Cell[][] {
-  const reveal = clamp((t - 0.75) / 0.6) * (WORD_WIDTH + 4);
+  const reveal = clamp((t - 0.3) / 0.6) * (WORD_WIDTH + 4);
   const shineAt = SPIN.to - 0.05;
   const shine = ((t - shineAt) / 0.45) * (WORD_WIDTH + 8) - 4;
   const rows: Cell[][] = [];
@@ -79,12 +78,8 @@ function typed(text: string, t: number, from: number, to: number): string {
   return text.slice(0, Math.round(clamp((t - from) / (to - from)) * text.length));
 }
 
-type Layout = Pick<TermCaps, 'unicode' | 'columns'>;
-
-const stackedFor = (columns: number) => columns < LOGO_WIDTH + GAP + Math.max(WORD_WIDTH, TAGLINE.length) + 4;
-
-/** The splash's content at time t, as rows of cells, before any wave. */
-function stageCells(t: number, caps: Layout, version: string): Cell[][] {
+/** One frame of the splash, as lines. Every frame has the same height, so redrawing in place never scrolls. */
+export function splashFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unicode' | 'columns'>, version: string): string[] {
   const logo = logoCells(t, caps);
   const dot = caps.unicode ? '·' : '-';
   const wide = caps.columns >= LOGO_WIDTH + GAP + WORD_WIDTH * 2 + 6;
@@ -94,60 +89,16 @@ function stageCells(t: number, caps: Layout, version: string): Cell[][] {
     [],
     ...wordmarkCells(t, caps, wide ? 2 : 1),
     [],
-    textCells(typed(TAGLINE, t, 1.35, 1.85), PALETTE.ink),
+    textCells(typed(TAGLINE, t, 0.9, 1.4), PALETTE.ink),
     [],
-    textCells(typed('Enterprise tools, databases and code.', t, 1.65, 2.05), PALETTE.muted),
-    textCells(t > 1.95 ? `toil ${version} ${dot} by Imagile` : '', PALETTE.faint),
+    textCells(typed('Enterprise tools, databases and code.', t, 1.2, 1.6), PALETTE.muted),
+    textCells(t > 1.5 ? `toil ${version} ${dot} by Imagile` : '', PALETTE.faint),
   ];
-  if (stackedFor(caps.columns)) return [...logo, ...side.slice(3)].map((row) => [{ ch: ' ' }, ...row]);
-  return logo.map((row, i) => [{ ch: ' ' }, ...row, ...blank(GAP), ...(side[i] ?? [])]);
-}
-
-/** The width every row is padded to, so a wave crosses the whole stage. */
-function stageWidth(caps: Layout): number {
-  const wide = caps.columns >= LOGO_WIDTH + GAP + WORD_WIDTH * 2 + 6;
-  return stackedFor(caps.columns) ? 1 + LOGO_WIDTH : 1 + LOGO_WIDTH + GAP + Math.max(wide ? WORD_WIDTH * 2 : WORD_WIDTH, TAGLINE.length + 6);
-}
-
-const SHADES_UNICODE = ['█', '▓', '▒', '░'];
-const SHADES_ASCII = ['#', '+', '-', '.'];
-
-/**
- * A diagonal band of shading, flame to amber, sweeping left to right as p goes
- * 0 to 1. 'in' reveals what's behind it (the stage, still empty while the wave
- * runs); 'out' leaves blank behind it and the content ahead of it untouched.
- */
-export function wave(rows: Cell[][], p: number, direction: 'in' | 'out', caps: Pick<TermCaps, 'unicode'>, width: number): Cell[][] {
-  const band = 7;
-  const span = width + rows.length * 2 + band * 2;
-  const centre = p * span - band;
-  const shades = caps.unicode ? SHADES_UNICODE : SHADES_ASCII;
-  return rows.map((row, y) => {
-    const out: Cell[] = [];
-    for (let x = 0; x < width; x++) {
-      const d = x + y * 2 - centre;
-      const cell = row[x] ?? { ch: ' ' };
-      if (Math.abs(d) <= band) {
-        const k = Math.abs(d) / band;
-        const shade = shades[Math.min(shades.length - 1, Math.floor(k * shades.length))]!;
-        out.push({ ch: shade, color: mix(mix(PALETTE.accent, PALETTE.amber, x / width), PALETTE.ink, (1 - k) * 0.35) });
-      } else if (d > band) out.push(direction === 'in' ? { ch: ' ' } : cell);
-      else out.push(direction === 'in' ? cell : { ch: ' ' });
-    }
-    return out;
-  });
-}
-
-/** One frame of the splash, as lines. Every frame has the same height, so redrawing in place never scrolls. */
-export function splashFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unicode' | 'columns'>, version: string): string[] {
-  let rows = stageCells(t, caps, version);
-  if (t < INTRO) rows = wave(rows, t / INTRO, 'in', caps, stageWidth(caps));
+  const stacked = caps.columns < LOGO_WIDTH + GAP + Math.max(WORD_WIDTH, TAGLINE.length) + 4;
+  const rows = stacked
+    ? [...logo, ...side.slice(3)].map((row) => [{ ch: ' ' }, ...row])
+    : logo.map((row, i) => [{ ch: ' ' }, ...row, ...blank(GAP), ...(side[i] ?? [])]);
   return rows.map((row) => renderCells(row, caps));
-}
-
-/** The still, wiped away by the outro wave as p goes 0 to 1. */
-export function outroFrame(p: number, caps: Pick<TermCaps, 'colorDepth' | 'unicode' | 'columns'>, version: string): string[] {
-  return wave(stageCells(DURATION + 1, caps, version), p, 'out', caps, stageWidth(caps)).map((row) => renderCells(row, caps));
 }
 
 export interface SplashIO {
@@ -171,44 +122,24 @@ export async function playSplash(io: SplashIO, caps: TermCaps, version: string):
     io.write(`\n${still.join('\n')}\n`);
     return;
   }
+  const now = io.now ?? (() => performance.now());
+  const sleep = io.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
   let skipped = false;
   const stopListening = io.onKey?.(() => (skipped = true));
+  const redraw = (lines: string[]) => io.write(`${cursor.up(still.length)}${lines.map((line) => `${cursor.clearLine}${line}`).join('\n')}\n`);
+
   io.write(`${cursor.hide}\n${splashFrame(0, caps, version).join('\n')}\n`);
+  const start = now();
   try {
-    await animate(io, still.length, (t) => (skipped || t >= DURATION ? null : splashFrame(t, caps, version)));
-    io.write(`${cursor.up(still.length)}${still.map((line) => `${cursor.clearLine}${line}`).join('\n')}\n`);
+    for (;;) {
+      const t = ((now() - start) / 1000) * SPEED;
+      if (skipped || t >= DURATION) break;
+      redraw(splashFrame(t, caps, version));
+      await sleep(FRAME_MS);
+    }
+    redraw(still);
   } finally {
     stopListening?.();
     io.write(cursor.show);
-  }
-}
-
-/**
- * The wave out, drawn from the top-left of a cleared screen (the alternate
- * screen the menu lives on). Skippable like the rest.
- */
-export async function playOutro(io: SplashIO, caps: TermCaps, version: string): Promise<void> {
-  if (!caps.animate) return;
-  let skipped = false;
-  const stopListening = io.onKey?.(() => (skipped = true));
-  const height = outroFrame(0, caps, version).length;
-  io.write(`${cursor.home}\n${outroFrame(0, caps, version).join('\n')}\n`);
-  try {
-    await animate(io, height, (t) => (skipped || t >= OUTRO ? null : outroFrame(t / OUTRO, caps, version)));
-  } finally {
-    stopListening?.();
-  }
-}
-
-/** Redraws `height` lines in place with whatever `frame(t)` returns, until it returns null. */
-async function animate(io: SplashIO, height: number, frame: (t: number) => string[] | null): Promise<void> {
-  const now = io.now ?? (() => performance.now());
-  const sleep = io.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
-  const start = now();
-  for (;;) {
-    const lines = frame((now() - start) / 1000);
-    if (!lines) return;
-    io.write(`${cursor.up(height)}${lines.map((line) => `${cursor.clearLine}${line}`).join('\n')}\n`);
-    await sleep(FRAME_MS);
   }
 }

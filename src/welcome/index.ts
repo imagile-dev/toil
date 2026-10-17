@@ -1,7 +1,7 @@
 import { emitKeypressEvents } from 'node:readline';
 import { initialState, type Key, type MenuState, reduce, render } from './menu.js';
 import type { WelcomeData } from './screens.js';
-import { playOutro, playSplash } from './splash.js';
+import { playSplash } from './splash.js';
 import { cursor, detectCaps } from './term.js';
 
 export type { WelcomeData } from './screens.js';
@@ -57,11 +57,10 @@ export async function runWelcome(io: WelcomeIO, data: WelcomeData): Promise<void
     await playSplash({ write, onKey }, detectCaps(output, io.env), data.version);
     await pause(io.env.TOIL_NO_ANIMATION ? 0 : 600, onKey);
 
-    // The wave out runs on the alternate screen, so the finished splash stays
-    // in the scrollback of the normal one.
-    write(`${cursor.altScreenOn}${cursor.hide}${cursor.home}${cursor.clearDown}`);
+    // The menu lives on the alternate screen, so the finished splash stays in
+    // the scrollback of the normal one.
+    write(`${cursor.altScreenOn}${cursor.hide}`);
     altScreen = true;
-    await playOutro({ write, onKey }, detectCaps(output, io.env), data.version);
     let state: MenuState = initialState;
     const draw = () => {
       const caps = detectCaps(output, io.env);
@@ -84,8 +83,6 @@ export async function runWelcome(io: WelcomeIO, data: WelcomeData): Promise<void
           write(`${cursor.home}${cursor.clearDown}`);
           await playSplash({ write: (t) => write(t.replace(/^\n/, '')), onKey }, detectCaps(output, io.env), data.version);
           await pause(800, onKey);
-          write(`${cursor.home}${cursor.clearDown}`);
-          await playOutro({ write, onKey }, detectCaps(output, io.env), data.version);
           state = { ...state, replay: false };
           keyListeners.add(l);
         }
