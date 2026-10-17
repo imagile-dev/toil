@@ -2,7 +2,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { areaOf, commandName, toolName, type AnyCommand } from '../core/command.js';
-import { hasConfig, writesEnabled, type ResolvedConfig } from '../core/config.js';
+import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
 import { runCommand } from '../core/run.js';
@@ -11,8 +11,10 @@ import { runCommand } from '../core/run.js';
  * Which commands become tools. With --areas, exactly the named areas. Without
  * it, the areas the user has configured plus commands that need no
  * configuration, so an agent never sees tools for services nobody set up. In
- * every case, write commands drop out unless their area has writes enabled: a
- * write tool that isn't registered can't be discovered, let alone called.
+ * every case, write commands drop out unless at least one of their area's
+ * connections has writes enabled: a write tool that isn't registered can't be
+ * discovered, let alone called. Listing grants nothing; each call is still
+ * gated against the one connection it resolves.
  */
 export function selectCommands(commands: AnyCommand[], areas: string[] | undefined, config: ResolvedConfig): AnyCommand[] {
   if (areas) {
@@ -25,7 +27,7 @@ export function selectCommands(commands: AnyCommand[], areas: string[] | undefin
     }
   }
   const inScope = (def: AnyCommand) => (areas ? areas.includes(areaOf(def)) : def.standalone === true || hasConfig(config, areaOf(def)));
-  return commands.filter((def) => inScope(def) && (!def.writes || writesEnabled(config, areaOf(def))));
+  return commands.filter((def) => inScope(def) && (!def.writes || anyWrites(config, areaOf(def))));
 }
 
 /**

@@ -3,45 +3,58 @@ import { join, resolve } from 'node:path';
 import { ToilError } from './errors.js';
 
 /**
- * Configuration is a map of areas (jira, jira-cloud, db, ...) to their settings.
+ * Configuration is a set of named **connections**, each one instance of a
+ * service (an area), plus per-area **defaults**.
  *
- * Precedence, highest first (CLAUDE.md, Configuration Precedence):
- *   1. TOIL_<AREA>_<KEY> environment variables
- *   2. the global config (~/.toil/config.json, or --config <path>)
+ * Where a connection's value comes from, highest first (CLAUDE.md,
+ * Configuration Precedence):
+ *   1. TOIL_CONN_<NAME>_<KEY>, for that connection
+ *   2. TOIL_<AREA>_<KEY>, for the area's default connection
+ *   3. a well-known CI variable the area declares, for its default connection
+ *   4. the connection in ~/.toil/config.json (or --config)
+ *   5. `defaults.<area>` in that file, shared by every connection to the area
+ *   6. the area's provider defaults (applied when the connection is resolved)
  *
  * There is deliberately no repository-level file. A config file inside a repo
  * could be written by anyone who can push to it, or by an agent editing the
  * working tree, and use it to switch on writes or send the user's credentials
- * to a host of its choosing. Project knowledge lives in the user's own files.
- *
- * Well-known CI fallback variables are per integration and are resolved by the
- * integration itself, between 1 and 2.
+ * to a host of its choosing.
  */
 export type Settings = Record<string, unknown>;
-export type Source = 'env' | 'global';
+export type Source = 'env' | 'ci' | 'global' | 'defaults';
+
+/** A connection as stored: its area, `writes`, and the area's own keys. */
+export type ConnectionSettings = Settings & { area: string };
 
 export interface ResolvedConfig {
-  areas: Record<string, Settings>;
-  /** Where each `area.key` came from, for `config check` and debugging. */
+  connections: Record<string, ConnectionSettings>;
+  /** Per area: `connection` names the default connection; any other key is a shared default. */
+  defaults: Record<string, Settings>;
+  /** Where each `<connection>.<key>` came from, for `config check` and debugging. */
   sources: Record<string, Source>;
   files: { global: string };
   /** Things worth telling the user that aren't errors, surfaced in meta.warnings. */
   warnings: Array<{ code: string; message: string }>;
 }
 
-/** The config file format this toil reads and writes. */
-export const CONFIG_VERSION = 1;
+/** What config loading needs to know about each registered area. */
+export interface AreaInfo {
+  name: string;
+  /** Key to the CI variables that stand in for it, in order. */
+  fallbacks?: Record<string, string[] | undefined>;
+}
 
-/**
- * Top-level keys that are never areas. Reserved now, before any toil writes
- * them, so a file from a newer toil is recognised rather than misread as
- * areas called "connections" and "defaults".
- */
+/** The config file format this toil writes. It reads every version up to this one. */
+export const CONFIG_VERSION = 2;
+
+/** Top-level keys that are never areas, in any version. */
 const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults']);
 
-/** Every config made by a function, so tests and standalone commands share one shape. */
+/** Connection names map one-to-one onto env names: lowercase, digits, single hyphens. */
+export const CONNECTION_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+
 export function emptyConfig(globalPath = ''): ResolvedConfig {
-  return { areas: {}, sources: {}, files: { global: globalPath }, warnings: [] };
+  return { connections: {}, defaults: {}, sources: {}, files: { global: globalPath }, warnings: [] };
 }
 
 export interface LoadConfigOptions {
@@ -49,69 +62,104 @@ export interface LoadConfigOptions {
   cwd: string;
   home: string;
   configPath?: string | undefined;
-  /** Registered area names, so TOIL_JIRA_CLOUD_TOKEN maps to jira-cloud, not jira. */
-  knownAreas?: readonly string[];
+  /** Registered areas, so TOIL_JIRA_CLOUD_TOKEN maps to jira-cloud, not jira. */
+  areas?: readonly AreaInfo[];
 }
 
 export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
   const globalPath = options.configPath ? resolve(options.cwd, options.configPath) : join(options.home, '.toil', 'config.json');
   const config = emptyConfig(globalPath);
-  apply(config, readConfigFile(globalPath, config.warnings), 'global');
-  apply(config, fromEnv(options.env, options.knownAreas ?? []), 'env');
+  const file = readConfigFile(globalPath, config.warnings);
+  config.defaults = file.defaults;
+  for (const [name, conn] of Object.entries(file.connections)) {
+    config.connections[name] = { ...conn };
+    for (const key of Object.keys(conn)) if (key !== 'area') config.sources[`${name}.${key}`] = 'global';
+  }
+  // Order matters: connections defined only by env exist before an area's
+  // default is chosen, so TOIL_CONN_CI_AREA=jira plus TOIL_JIRA_TOKEN is one
+  // connection, not a stray second one named after the area.
+  createEnvConnections(config, options.env);
+  applyAreaEnv(config, options.env, options.areas ?? []);
+  applyConnectionEnv(config, options.env);
+  if (options.areas?.length) warnUnknownAreas(config, options.areas);
   return config;
 }
 
-/** The setting for `area.key`, or undefined when unset at every level. */
-export function setting<T = unknown>(config: ResolvedConfig, area: string, key: string): T | undefined {
-  return config.areas[area]?.[key] as T | undefined;
+/** A misspelt area would otherwise surface later as "no such connection", hiding the typo. */
+function warnUnknownAreas(config: ResolvedConfig, areas: readonly AreaInfo[]): void {
+  const known = new Set(areas.map((a) => a.name));
+  for (const [name, conn] of Object.entries(config.connections)) {
+    if (known.has(conn.area)) continue;
+    config.warnings.push({
+      code: 'CONFIG_UNKNOWN_AREA',
+      message: `Connection ${name} is for area "${conn.area}", which this toil doesn't have. Known areas: ${[...known].sort().join(', ')}.`,
+    });
+  }
 }
 
-/** Writes need a human's standing opt-in: `writes: true` on the area. */
-export function writesEnabled(config: ResolvedConfig, area: string): boolean {
-  const value = setting(config, area, 'writes');
-  return value === true || value === 'true';
+/** The default connection's name for an area, or undefined when it has none or several and no default. */
+export function defaultConnectionName(config: ResolvedConfig, area: string): string | undefined {
+  const named = config.defaults[area]?.connection;
+  if (typeof named === 'string') return named;
+  const candidates = connectionsOf(config, area);
+  if (candidates.includes(area)) return area;
+  return candidates.length === 1 ? candidates[0] : undefined;
+}
+
+/** Every connection name for an area. */
+export function connectionsOf(config: ResolvedConfig, area: string): string[] {
+  return Object.keys(config.connections).filter((name) => config.connections[name]!.area === area);
 }
 
 /** Whether the user has configured anything at all for an area. */
 export function hasConfig(config: ResolvedConfig, area: string): boolean {
-  return Object.keys(config.areas[area] ?? {}).length > 0;
+  return connectionsOf(config, area).length > 0;
 }
 
-function apply(config: ResolvedConfig, layer: Record<string, Settings>, source: Source): void {
-  for (const [area, settings] of Object.entries(layer)) {
-    const target = (config.areas[area] ??= {});
-    for (const [key, value] of Object.entries(settings)) {
-      target[key] = value;
-      config.sources[`${area}.${key}`] = source;
-    }
-  }
+/** `writes: true` on a connection, set by a human (or by CI through env). */
+export function connectionWrites(settings: Settings | undefined): boolean {
+  const value = settings?.writes;
+  return value === true || value === 'true';
 }
 
-function readConfigFile(path: string, warnings: ResolvedConfig['warnings']): Record<string, Settings> {
-  if (!existsSync(path)) return {};
+/** Whether any connection to an area has writes on: MCP lists its write tools only then. */
+export function anyWrites(config: ResolvedConfig, area: string): boolean {
+  return connectionsOf(config, area).some((name) => connectionWrites(config.connections[name]));
+}
+
+function readConfigFile(path: string, warnings: ResolvedConfig['warnings']): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings> } {
+  if (!existsSync(path)) return { connections: {}, defaults: {} };
   let parsed: unknown;
   try {
     parsed = JSON.parse(readFileSync(path, 'utf8'));
   } catch (err) {
     throw new ToilError('CONFIG_INVALID', `${path} is not valid JSON: ${(err as Error).message}`, {
-      fix: `Fix the JSON in ${path}, or move it aside and run toil config init.`,
+      fix: `Fix the JSON in ${path}, or move it aside and set toil up again.`,
     });
   }
   if (!isRecord(parsed)) {
-    throw new ToilError('CONFIG_INVALID', `${path} must contain a JSON object of areas.`, {
-      fix: `Make ${path} look like { "jira": { "baseUrl": "https://jira.imagile.dev" } }.`,
+    throw new ToilError('CONFIG_INVALID', `${path} must contain a JSON object.`, {
+      fix: `Make ${path} look like { "version": ${CONFIG_VERSION}, "connections": { ... } }.`,
     });
   }
   return migrateConfig(parsed, path, warnings);
 }
 
 /**
- * Turns a config file of any version this toil understands into the current
- * shape. Each format change adds a step here, with a test, so a file written
- * years ago still loads. A file from a newer toil is refused with an upgrade
- * hint rather than half-read.
+ * Turns a config file of any version this toil understands into connections
+ * and defaults. Each format change adds a step here, with a test, so a file
+ * written years ago still loads. A file from a newer toil is refused with an
+ * upgrade hint rather than half-read.
+ *
+ * Version 1 is a map of area to settings. It reads as one connection per area,
+ * named after the area and set as that area's default, which is exactly what
+ * it always meant.
  */
-export function migrateConfig(raw: Record<string, unknown>, path: string, warnings: ResolvedConfig['warnings']): Record<string, Settings> {
+export function migrateConfig(
+  raw: Record<string, unknown>,
+  path: string,
+  warnings: ResolvedConfig['warnings'],
+): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings> } {
   // Absent means version 1; present-but-null is a mistake, not a default.
   const version = 'version' in raw ? raw.version : 1;
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
@@ -120,16 +168,20 @@ export function migrateConfig(raw: Record<string, unknown>, path: string, warnin
     });
   }
   if (version > CONFIG_VERSION) {
-    throw new ToilError('CONFIG_INVALID', `${path} was written by a newer toil (config version ${version}); this toil reads version ${CONFIG_VERSION}.`, {
+    throw new ToilError('CONFIG_INVALID', `${path} was written by a newer toil (config version ${version}); this toil reads up to version ${CONFIG_VERSION}.`, {
       fix: 'Upgrade toil: npm install -g @imagile-dev/toil@latest.',
     });
   }
+  return version === 1 ? fromVersion1(raw, path, warnings) : fromVersion2(raw, path, warnings);
+}
 
-  const out: Record<string, Settings> = {};
+function fromVersion1(raw: Record<string, unknown>, path: string, warnings: ResolvedConfig['warnings']) {
+  const connections: Record<string, ConnectionSettings> = {};
+  const defaults: Record<string, Settings> = {};
   for (const [key, settings] of Object.entries(raw)) {
     if (RESERVED_KEYS.has(key)) {
       if (key === 'connections' || key === 'defaults') {
-        warnings.push({ code: 'CONFIG_RESERVED_KEY', message: `"${key}" in ${path} is reserved for a later config version and was ignored.` });
+        warnings.push({ code: 'CONFIG_RESERVED_KEY', message: `"${key}" in ${path} needs "version": ${CONFIG_VERSION} and was ignored.` });
       }
       continue;
     }
@@ -138,9 +190,55 @@ export function migrateConfig(raw: Record<string, unknown>, path: string, warnin
         fix: `Change "${key}" in ${path} to an object, for example { "baseUrl": "..." }.`,
       });
     }
-    out[key] = settings;
+    connections[key] = { ...settings, area: key };
+    defaults[key] = { connection: key };
   }
-  return out;
+  return { connections, defaults };
+}
+
+function fromVersion2(raw: Record<string, unknown>, path: string, warnings: ResolvedConfig['warnings']) {
+  const connections: Record<string, ConnectionSettings> = {};
+  const defaults: Record<string, Settings> = {};
+  for (const key of Object.keys(raw)) {
+    if (!RESERVED_KEYS.has(key)) {
+      warnings.push({ code: 'CONFIG_UNKNOWN_KEY', message: `"${key}" in ${path} was ignored: in version ${CONFIG_VERSION}, settings belong to a connection under "connections".` });
+    }
+  }
+  const rawConnections = raw.connections ?? {};
+  if (!isRecord(rawConnections)) {
+    throw new ToilError('CONFIG_INVALID', `"connections" in ${path} must be an object of named connections.`, {
+      fix: `Make it look like "connections": { "corp-jira": { "area": "jira", "baseUrl": "https://jira.imagile.dev" } }.`,
+    });
+  }
+  for (const [name, settings] of Object.entries(rawConnections)) {
+    if (!CONNECTION_NAME.test(name)) {
+      throw new ToilError('CONFIG_INVALID', `Connection name "${name}" in ${path} isn't valid.`, {
+        fix: 'Use lowercase letters, digits and single hyphens, starting with a letter, e.g. "corp-jira".',
+      });
+    }
+    if (!isRecord(settings) || typeof settings.area !== 'string') {
+      throw new ToilError('CONFIG_INVALID', `Connection "${name}" in ${path} must be an object with an "area".`, {
+        fix: `Give "${name}" an area, e.g. { "area": "jira", "baseUrl": "https://jira.imagile.dev" }.`,
+      });
+    }
+    connections[name] = settings as ConnectionSettings;
+  }
+  const rawDefaults = raw.defaults ?? {};
+  if (!isRecord(rawDefaults) || !Object.values(rawDefaults).every(isRecord)) {
+    throw new ToilError('CONFIG_INVALID', `"defaults" in ${path} must map each area to an object.`, {
+      fix: `Make it look like "defaults": { "jira": { "connection": "corp-jira" } }.`,
+    });
+  }
+  for (const [area, settings] of Object.entries(rawDefaults as Record<string, Settings>)) {
+    const named = settings.connection;
+    if (named !== undefined && (typeof named !== 'string' || connections[named]?.area !== area)) {
+      throw new ToilError('CONFIG_INVALID', `"defaults.${area}.connection" in ${path} names ${JSON.stringify(named)}, which isn't a ${area} connection.`, {
+        fix: `Set it to one of: ${Object.keys(connections).filter((n) => connections[n]!.area === area).join(', ') || `(no ${area} connections yet)`}.`,
+      });
+    }
+    defaults[area] = settings;
+  }
+  return { connections, defaults };
 }
 
 /**
@@ -157,9 +255,25 @@ function snake(key: string): string {
     .toUpperCase();
 }
 
-/** The one place an (area, key) pair becomes a variable name: jira-cloud + baseUrl -> TOIL_JIRA_CLOUD_BASE_URL. */
+/** SNAKE to camelCase: BASE_URL -> baseUrl. */
+function camel(snakeKey: string): string {
+  return snakeKey
+    .toLowerCase()
+    .split('_')
+    .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
+    .join('');
+}
+
+const envForm = (name: string) => name.toUpperCase().replace(/-/g, '_');
+
+/** The variable for a key on an area's default connection: jira-cloud + baseUrl -> TOIL_JIRA_CLOUD_BASE_URL. */
 export function envName(area: string, key: string): string {
-  return `TOIL_${area.toUpperCase().replace(/-/g, '_')}_${snake(key)}`;
+  return `TOIL_${envForm(area)}_${snake(key)}`;
+}
+
+/** The variable for a key on a named connection: corp-jira + token -> TOIL_CONN_CORP_JIRA_TOKEN. */
+export function connectionEnvName(connection: string, key: string): string {
+  return `TOIL_CONN_${envForm(connection)}_${snake(key)}`;
 }
 
 /**
@@ -173,34 +287,110 @@ export function parseEnvName(name: string, knownAreas: readonly string[]): { are
   if (!name.startsWith('TOIL_') || RESERVED_ENV.some((re) => re.test(name))) return undefined;
   const rest = name.slice(5);
   const match = knownAreas
-    .map((area) => ({ area, prefix: `${area.toUpperCase().replace(/-/g, '_')}_` }))
+    .map((area) => ({ area, prefix: `${envForm(area)}_` }))
     .filter((p) => rest.startsWith(p.prefix) && rest.length > p.prefix.length)
     .sort((a, b) => b.prefix.length - a.prefix.length)[0];
   if (!match) return undefined;
-  const key = rest
-    .slice(match.prefix.length)
-    .toLowerCase()
-    .split('_')
-    .map((part, i) => (i === 0 ? part : part.charAt(0).toUpperCase() + part.slice(1)))
-    .join('');
-  return { area: match.area, key };
+  return { area: match.area, key: camel(rest.slice(match.prefix.length)) };
 }
 
 /**
- * Every TOIL_<AREA>_<KEY> variable for a known area, as config. "true" and
- * "false" become booleans; everything else stays a string until areas declare
- * schemas that type their keys (#51).
+ * Every TOIL_<AREA>_<KEY> variable for a known area, as settings per area.
+ * Values stay strings: the area's schema types them when the connection is
+ * resolved, so a token that happens to be "true" stays a token.
  */
 export function fromEnv(env: NodeJS.ProcessEnv, knownAreas: readonly string[] = []): Record<string, Settings> {
   const out: Record<string, Settings> = {};
   for (const [name, raw] of Object.entries(env)) {
     if (raw === undefined) continue;
     const parsed = parseEnvName(name, knownAreas);
-    if (!parsed) continue;
-    const value: unknown = raw === 'true' ? true : raw === 'false' ? false : raw;
-    (out[parsed.area] ??= {})[parsed.key] = value;
+    if (parsed) (out[parsed.area] ??= {})[parsed.key] = raw;
   }
   return out;
+}
+
+/**
+ * CI fallbacks, then TOIL_<AREA>_* variables, onto each area's default
+ * connection. An area with no connection gets one named after it, so CI can
+ * configure an area with env vars alone, as it always could.
+ */
+function applyAreaEnv(config: ResolvedConfig, env: NodeJS.ProcessEnv, areas: readonly AreaInfo[]): void {
+  const fromToil = fromEnv(env, areas.map((a) => a.name));
+  for (const area of areas) {
+    const layer: Array<[string, unknown, Source]> = [];
+    for (const [key, names] of Object.entries(area.fallbacks ?? {})) {
+      const found = (names ?? []).find((n) => env[n] !== undefined && env[n] !== '');
+      if (found) layer.push([key, env[found], 'ci']);
+    }
+    for (const [key, value] of Object.entries(fromToil[area.name] ?? {})) layer.push([key, value, 'env']);
+    if (layer.length === 0) continue;
+
+    let name = defaultConnectionName(config, area.name);
+    if (!name) {
+      if (connectionsOf(config, area.name).length > 0) {
+        config.warnings.push({
+          code: 'CONFIG_AMBIGUOUS_DEFAULT',
+          message: `TOIL_${envForm(area.name)}_* variables were ignored: ${area.name} has several connections and no default. Set defaults.${area.name}.connection, or use TOIL_CONN_<NAME>_* variables.`,
+        });
+        continue;
+      }
+      name = area.name;
+      config.connections[name] = { area: area.name };
+      (config.defaults[area.name] ??= {}).connection = name;
+    }
+    const target = config.connections[name]!;
+    for (const [key, value, source] of layer) {
+      target[key] = value;
+      config.sources[`${name}.${key}`] = source;
+    }
+  }
+}
+
+const connectionVars = (env: NodeJS.ProcessEnv) =>
+  Object.entries(env).filter(([name, value]) => name.startsWith('TOIL_CONN_') && value !== undefined) as Array<[string, string]>;
+
+/** TOIL_CONN_<NAME>_AREA creates a connection with no config file at all, which is how CI defines one. */
+function createEnvConnections(config: ResolvedConfig, env: NodeJS.ProcessEnv): void {
+  for (const [name, value] of connectionVars(env)) {
+    if (!name.endsWith('_AREA')) continue;
+    const connection = name.slice('TOIL_CONN_'.length, -'_AREA'.length).toLowerCase().replace(/_/g, '-');
+    if (!CONNECTION_NAME.test(connection)) {
+      config.warnings.push({ code: 'CONFIG_UNKNOWN_KEY', message: `${name} doesn't name a valid connection and was ignored.` });
+      continue;
+    }
+    const existing = config.connections[connection];
+    if (existing && existing.area !== value) {
+      throw new ToilError('CONFIG_INVALID', `${name}=${value} conflicts with connection "${connection}", which is a ${existing.area} connection.`, {
+        fix: `Remove ${name}, or rename one of the two connections.`,
+      });
+    }
+    config.connections[connection] = existing ?? { area: value };
+  }
+}
+
+/**
+ * TOIL_CONN_<NAME>_<KEY> variables, the highest layer. Names are matched
+ * longest first against known connections, and a variable for a connection
+ * that doesn't exist is a warning, never a guess.
+ */
+function applyConnectionEnv(config: ResolvedConfig, env: NodeJS.ProcessEnv): void {
+  const names = Object.keys(config.connections).sort((a, b) => b.length - a.length);
+  for (const [name, value] of connectionVars(env)) {
+    if (name.endsWith('_AREA')) continue;
+    const rest = name.slice('TOIL_CONN_'.length);
+    const connection = names.find((n) => rest.startsWith(`${envForm(n)}_`) && rest.length > envForm(n).length + 1);
+    if (!connection) {
+      config.warnings.push({
+        code: 'CONFIG_UNKNOWN_CONNECTION',
+        message: `${name} was ignored: no connection matches it. To define one from env vars, also set TOIL_CONN_<NAME>_AREA.`,
+      });
+      continue;
+    }
+    const key = camel(rest.slice(envForm(connection).length + 1));
+    if (key === 'area') continue;
+    config.connections[connection]![key] = value;
+    config.sources[`${connection}.${key}`] = 'env';
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

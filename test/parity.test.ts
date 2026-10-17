@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { CONNECTION_FIELD } from '../src/core/area.js';
 import { areaOf, commandName, toolName, type AnyCommand } from '../src/core/command.js';
 import type { Settings } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
@@ -98,7 +99,8 @@ for (const suite of suites) {
     it('uses every input field in at least one example, so parity covers every flag', () => {
       for (const def of suite.commands) {
         const used = new Set(def.examples.flatMap((e) => Object.keys(e as object)));
-        const unused = Object.keys(def.input.shape).filter((f) => !used.has(f));
+        // `connection` is added by core to every area command; the connection suite below covers it.
+        const unused = Object.keys(def.input.shape).filter((f) => !used.has(f) && f !== CONNECTION_FIELD);
         expect(unused, `${commandName(def)}: fields no example sets`).toEqual([]);
       }
     });
@@ -189,6 +191,35 @@ for (const suite of suites) {
     }
   });
 }
+
+describe('choosing a connection, through both front doors', () => {
+  for (const f of fixtures) {
+    const def = f.commands.find((d) => !d.writes) ?? f.commands[0]!;
+    const example = def.examples[0] as Record<string, unknown>;
+
+    it(`${f.area}: --connection <name> gives the same envelope and requests as MCP's connection field`, async () => {
+      const cli = testContext({ config: f.config, routes: f.routes });
+      const viaCli = await runCli([...argvFor(def, example), '--connection', f.area], { commands: f.commands, context: cli.context });
+      const { session, http } = await mcpFor(f.commands, f.config, f.routes);
+      const viaMcp = await session.call(toolName(def), { ...example, connection: f.area });
+
+      expect(viaCli.envelope?.ok, viaCli.stdout).toBe(true);
+      expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));
+      expect(http.calls).toEqual(cli.http.calls);
+    });
+
+    it(`${f.area}: an unknown connection is INVALID_INPUT on both sides, before any request`, async () => {
+      const cli = testContext({ config: f.config, routes: f.routes });
+      const viaCli = await runCli([...argvFor(def, example), '--connection', 'no-such-connection'], { commands: f.commands, context: cli.context });
+      const { session, http } = await mcpFor(f.commands, f.config, f.routes);
+      const viaMcp = await session.call(toolName(def), { ...example, connection: 'no-such-connection' });
+
+      expect(viaCli.envelope?.error?.code).toBe('INVALID_INPUT');
+      expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));
+      expect([...cli.http.calls, ...http.calls]).toHaveLength(0);
+    });
+  }
+});
 
 describe('which tools MCP serves', () => {
   it('without --areas: configured areas plus standalone commands, never an unconfigured service', async () => {

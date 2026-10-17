@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { areaOf, commandName, type AnyCommand } from './command.js';
-import { envName, writesEnabled } from './config.js';
+import type { Connection } from './area.js';
+import { connectionEnvName, defaultConnectionName, envName } from './config.js';
+import { resolveConnection } from './connection.js';
 import type { CommandContext, Context } from './context.js';
 import { failure, success, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
@@ -76,10 +78,22 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
         details: parsed.error.issues,
       });
     }
-    if (def.writes) assertWritesAllowed(def, parsed.data, ctx);
+    // One connection per call, resolved before the gate: writes are switched on
+    // per connection, so the gate has to know which one this call would use.
+    const input = parsed.data as Record<string, unknown>;
+    const connection = def.area
+      ? resolveConnection(ctx.config, def.area, input.connection as string | undefined, (w) => warnings.push(w))
+      : undefined;
+    if (def.writes) assertWritesAllowed(def, input, connection, ctx);
 
-    const commandCtx: CommandContext = {
-      ...ctx,
+    // Commands get their connection and nothing else: no config, and no env,
+    // which carries every other connection's token too.
+    const rest: Omit<Context, 'config' | 'env'> & { config?: unknown; env?: unknown } = { ...ctx };
+    delete rest.config;
+    delete rest.env;
+    const commandCtx: CommandContext<Connection | undefined> = {
+      ...rest,
+      connection,
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
       warn: (warning) => warnings.push(warning),
@@ -102,14 +116,17 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
 }
 
 /**
- * Writes need both the area's standing opt-in and --allow-write on this call.
- * Two approvals, like a change request, except both of these are actually read.
+ * Writes need both the connection's standing opt-in and --allow-write on this
+ * call. Two approvals, like a change request, except both of these are
+ * actually read.
  */
-function assertWritesAllowed(def: AnyCommand, input: Record<string, unknown>, ctx: Context): void {
+function assertWritesAllowed(def: AnyCommand, input: Record<string, unknown>, connection: Connection | undefined, ctx: Context): void {
   const area = areaOf(def);
-  if (!writesEnabled(ctx.config, area)) {
-    throw new ToilError('WRITE_DISABLED', `${commandName(def)} changes data in ${area}, and writes are off for ${area}.`, {
-      fix: `To allow writes, set "writes": true under "${area}" in your global toil config (or ${envName(area, 'writes')}=true), then pass --allow-write.`,
+  if (!connection?.writes) {
+    const name = connection?.name ?? area;
+    const variable = connection && defaultConnectionName(ctx.config, area) !== name ? connectionEnvName(name, 'writes') : envName(area, 'writes');
+    throw new ToilError('WRITE_DISABLED', `${commandName(def)} changes data in ${area}, and writes are off for connection ${name}.`, {
+      fix: `To allow writes, set "writes": true on connection "${name}" in your toil config (or ${variable}=true), then pass --allow-write.`,
     });
   }
   if (input.allowWrite !== true) {
