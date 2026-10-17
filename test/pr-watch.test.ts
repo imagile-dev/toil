@@ -94,6 +94,9 @@ describe('pr-watch events', () => {
     const review = { reviews: [{ id: 1, trusted: true, state: 'CHANGES_REQUESTED', body: 'fix it' }] };
     expect(kinds(quiet({ ...review, rounds: MAX_ROUNDS - 1 }))).toEqual(['review']);
     expect(kinds(quiet({ ...review, rounds: MAX_ROUNDS }))).toEqual(['review', 'round-limit']);
+    // An approval after the last round is the normal ending: ready, not stuck.
+    const approved = { reviewDecision: 'APPROVED', reviews: [{ id: 2, trusted: true, state: 'APPROVED', body: 'ok', commit: HEAD }] };
+    expect(kinds(quiet({ ...approved, rounds: MAX_ROUNDS }))).toEqual(['review', 'ready']);
     // A failing check alone isn't review feedback, so it doesn't spend the limit.
     expect(kinds(quiet({ rounds: MAX_ROUNDS, checks: [{ name: 'lint', done: true, failed: true }] }))).toEqual(['checks-failed']);
   });

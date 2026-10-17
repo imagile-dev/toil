@@ -78,8 +78,9 @@ export function events(now, seen) {
     if (seen.comments.includes(c.id) || c.body.includes(AGENT_MARK) || c.body.includes(ROUND_MARK)) continue;
     found.push({ kind: as('comment', c), of: 'comment', id: c.id, author: c.author, summary: short(c.body) });
   }
-  // Out of rounds: what's left needs a person, not another push.
-  const feedback = found.filter((e) => e.kind !== 'untrusted' && e.of !== 'comment');
+  // Out of rounds: what's left needs a person, not another push. An approval
+  // asks for no push, so it's how a last round ends, not a reason to stop.
+  const feedback = found.filter((e) => e.kind !== 'untrusted' && e.of !== 'comment' && e.state !== 'APPROVED');
   if (feedback.length && now.rounds >= MAX_ROUNDS) found.push({ kind: 'round-limit', rounds: now.rounds });
   const failing = now.checks.filter((c) => c.failed).map((c) => c.name);
   if (failing.length) found.push({ kind: 'checks-failed', failing });
