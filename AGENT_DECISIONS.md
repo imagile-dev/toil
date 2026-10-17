@@ -41,6 +41,31 @@ the bottom of their section.
 - **Wording:** principle 9 says "the proxy the environment names" rather than "your
   environment", to match the rest of the list (#105).
 
+- **The pilot ports' kit gaps (#110 Jira, #111 SonarQube) go into one kit-fix PR**
+  before wave 1, so no port works around them on its own. In it:
+  - an input-file context source
+  - offset paging reading `total` from empty pages
+  - an optional `total` for the page style
+  - per-area wording for a missing context input
+  - a docs check and a generic precedence test for CI fallbacks
+  - not-configured fixes that name the fallback variables
+  - `--verbose` redacting only real secret parameter names and showing URLs as sent
+  - the docs page showing every key and hiding Writes for read-only areas
+  - the per-area table removed from the briefs README
+- **Not changed in core:**
+  - **A target flag that never fell back to a setting stays an ordinary option.**
+    Examples are Jira's `fields`, `list-boards` and `list-sprints`; a context input
+    always falls back.
+  - **Jira search keeps its own page sizing** inside the area, because the offset
+    style's cap doesn't fit it.
+  - **The stub generator** keeps making target flags ordinary options; the porter
+    decides which become context inputs.
+- **The 1,000-page paging cap stays** as a safety bound, though the predecessor had
+  none. Each area lists it in `docs/divergences/<area>.json`, and the error names what
+  was being paged.
+- **MCP field descriptions never mention CLI-only flags** (`--output-file`), since
+  the description is the same text on both front doors.
+
 ## Porting process
 
 - **Port agents run the `ship` skill's four local reviews themselves**, one after
