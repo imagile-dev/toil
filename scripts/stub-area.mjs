@@ -97,7 +97,7 @@ function commandSource(entry, area, contextFields = new Set()) {
     ...(options.length ? [`  options: [`, ...options.map((o, i) => `    { flags: ${quote(o.flags)}, field: ${quote(optionFields[i])}, description: ${quote(o.description)} },`), `  ],`] : []),
     `  // TODO: one example per behavior worth pinning; together they must set every input field.`,
     `  examples: [{ ${example.join(', ')} }],`,
-    `  run: async () => notPorted(${quote(entry.command)}),`,
+    `  run: async () => notBuilt(${quote(entry.command)}),`,
     `});`,
   ].join('\n');
 }
@@ -177,7 +177,7 @@ ${contextBlock}});
 export const ${camel(area)}Supported: SupportedVersion = { product: 'TODO', minimum: null };
 
 /** Thrown by every stub until its command is built. */
-export function notPorted(command: string): never {
+export function notBuilt(command: string): never {
   throw new ToilError('INTERNAL', \`toil \${command} is stubbed and not built yet.\`, { fix: 'Build it before shipping: match the predecessor where there is one, otherwise the vendor API docs.' });
 }
 `;
@@ -188,7 +188,7 @@ export function notPorted(command: string): never {
     files[`${dir}/${group}.ts`] = [
       `import { z } from 'zod';`,
       ...(anyWrites ? [`import { allowWriteField } from '${core}/run.js';`] : []),
-      `import { ${AreaVar}, notPorted } from './area.js';`,
+      `import { ${AreaVar}, notBuilt } from './area.js';`,
       ``,
       `/** TODO: what these commands share, and one dry line. Stubbed from docs/command-contract.json. */`,
       ``,

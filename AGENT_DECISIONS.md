@@ -270,6 +270,12 @@ the bottom of their section.
   checkmarx (#129) and alation (#133) for core's token exchange in the parity
   suite, osv/ossindex (#130) and sonatypeiq (#131) for `deps frisk`'s routing.
   KF3 (#68) carries each.
+- **A PR past its three review rounds gets one more when the findings are
+  converging**, not looping: #134, whose only new findings were wording that
+  merges from main brought in, and #117, where a security finding (`..;x` reaching
+  a servlet container as `..`) moved into core (KF5) and the area only needs its
+  tests. The cap is there to stop a reviewer and an agent going in circles; it
+  isn't a reason to ship a known security gap or an unfinished sweep.
 - **"Port" in the sense of porting software is dropped from history, issues and
   docs** (#68), on the maintainer's instruction of 2026-10-17, so toil doesn't read
   as derivative. Main's 12 affected commit messages were reworded and force-pushed
