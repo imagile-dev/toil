@@ -222,6 +222,19 @@ the bottom of their section.
   recorded rather than fixed: rewording every area's input errors per front door
   isn't worth its complexity yet.
 
+- **The fourth kit-fix PR's choices** (KF4, #68):
+  - **Dot segments are checked after the URL parser's own first step**: tabs, LF
+    and CR dropped, and leading and trailing C0 controls and spaces trimmed, so
+    `.\t.`, `.\n.`, `.\r.`, a trailing `.. ` and `..` before `\u0000` or `\u001f` are
+    refused like `..` (principle 2; found by #119). The github and confluence
+    area checks stay.
+  - **A group flag on a path in another group is refused in the words the user
+    typed** (`toil openshift --env prod cluster list` says `toil openshift cluster
+    list` doesn't take `--env`, and runs `toil connections list --area
+    openshift`), rather than dropped. Dropping it would quietly ignore a flag the
+    user meant (principle 4); refusing was already the behaviour, only the
+    message named a command and field they never typed (#132).
+
 ## Building process
 
 - **Integration agents run the `ship` skill's four local reviews themselves**, one after
