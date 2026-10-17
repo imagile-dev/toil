@@ -95,7 +95,13 @@ jobs:
           # out, and it mustn't be reported as a failed one. Before dropping
           # NPM_TOKEN for trusted publishing, move this step or remove it.
           if [[ "$DIST_TAG" != latest ]]; then
-            CURRENT_LATEST="$(npm view @imagile-dev/toil dist-tags.latest 2>/dev/null || true)"
+            # The package exists by now, so no `latest` shows as empty output
+            # with exit 0; a non-zero exit only ever means the lookup failed,
+            # and then `latest` is left alone rather than guessed at.
+            if ! CURRENT_LATEST="$(npm view @imagile-dev/toil dist-tags.latest)"; then
+              echo "::warning::Published $VERSION, but couldn't read the latest dist-tag, so left it alone."
+              CURRENT_LATEST=unknown
+            fi
             if [[ -z "$CURRENT_LATEST" || "$CURRENT_LATEST" == *-* ]]; then
               if npm dist-tag add "@imagile-dev/toil@$VERSION" latest; then
                 echo "No stable release yet: latest now points at $VERSION"
