@@ -79,7 +79,8 @@ one, and within a tier Kibana's own key wins. The borrowed key is still sent onl
 Kibana's `baseUrl`, never to Elasticsearch's. `meta.context.shared` says when the key
 came from Elasticsearch (the connection, and env or store, never the value), and a
 401 or 403 while sending it says so in the error: such a key may lack Kibana
-privileges, so give Kibana its own with `TOIL_KIBANA_API_KEY` or `kibana.apiKey`.
+privileges, so give that Kibana connection its own key with
+`toil connections login <name>` (or `TOIL_KIBANA_API_KEY` for the default connection).
 
 With no key at all, commands fail with `NOT_CONFIGURED`, naming both ways to set one.
 

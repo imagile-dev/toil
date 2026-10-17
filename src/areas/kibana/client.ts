@@ -104,7 +104,7 @@ async function withKeyHint<T>(ctx: KibanaContext, call: () => Promise<T>): Promi
     if (!(err instanceof ToilError) || err.code !== 'AUTH' || !shared) throw err;
     throw new ToilError(
       'AUTH',
-      `${err.message} (sent the shared Elasticsearch API key from connection ${shared.connection}; if it lacks Kibana privileges, set ${kibanaArea.envName('apiKey')} or kibana.apiKey)`,
+      `${err.message} (sent the shared Elasticsearch API key from connection ${shared.connection}; if it lacks Kibana privileges, give connection ${ctx.connection.name} its own key: toil connections login ${ctx.connection.name}, or ${kibanaArea.envName('apiKey')} for the default connection)`,
       { fix: err.fix, details: err.details },
     );
   }

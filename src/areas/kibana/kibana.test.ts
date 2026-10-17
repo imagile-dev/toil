@@ -117,6 +117,13 @@ describe('the API key', () => {
     const paired = await run(statusCommand, { connection: 'kb-b' }, [json(status)], cfg({ apiKeyFrom: 'es-prod' }));
     expect(paired.calls[0]!.headers.authorization).toBe('ApiKey es-encoded-key');
     expect(paired.envelope.meta.context?.shared).toEqual({ apiKey: { area: 'elasticsearch', connection: 'es-prod', source: 'env', via: 'pairing' } });
+
+    const rejected = await run(spacesListCommand, { connection: 'kb-b' }, [json({ message: 'Unauthorized' }, 401)], cfg({ apiKeyFrom: 'es-prod' }));
+    expect(rejected.envelope.error).toMatchObject({
+      code: 'AUTH',
+      message: 'Unauthorized (sent the shared Elasticsearch API key from connection es-prod; if it lacks Kibana privileges, give connection kb-b its own key: toil connections login kb-b, or TOIL_KIBANA_API_KEY for the default connection)',
+    });
+    expect(rejected.envelope.error?.message).not.toContain('kibana.apiKey');
   });
 
   it('with no key at all, nothing is sent and the error names both ways to set one', async () => {
@@ -130,7 +137,7 @@ describe('the API key', () => {
     const { envelope } = await run(spacesListCommand, {}, [json({ statusCode: 403, error: 'Forbidden', message: 'Unauthorized' }, 403)], { ...kibanaOnly(), ...ES_KEY });
     expect(envelope.error).toMatchObject({
       code: 'AUTH',
-      message: 'Unauthorized (sent the shared Elasticsearch API key from connection elasticsearch; if it lacks Kibana privileges, set TOIL_KIBANA_API_KEY or kibana.apiKey)',
+      message: 'Unauthorized (sent the shared Elasticsearch API key from connection elasticsearch; if it lacks Kibana privileges, give connection kibana its own key: toil connections login kibana, or TOIL_KIBANA_API_KEY for the default connection)',
       fix: expect.stringContaining('Stack Management → API keys'),
     });
   });

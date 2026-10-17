@@ -3,16 +3,16 @@
   "divergences": [
     {
       "allows": [],
-      "old": "Kibana used the Elasticsearch API key whenever it had none of its own: PNCLI_KIBANA_API_KEY, then PNCLI_ELASTICSEARCH_API_KEY, then the stored kibana.apiKey, then the stored elasticsearch.apiKey",
+      "old": "Kibana used the Elasticsearch API key whenever it had none of its own: TOIL_KIBANA_API_KEY, then TOIL_ELASTICSEARCH_API_KEY (in the old prefix), then the stored kibana.apiKey, then the stored elasticsearch.apiKey",
       "toil": "A Kibana connection uses an Elasticsearch connection's apiKey only when it names it in apiKeyFrom, with the env tier beating the file tier and Kibana's own key winning a tie. The one exception keeps the old env chain: Kibana's default connection takes TOIL_ELASTICSEARCH_API_KEY when TOIL_KIBANA_API_KEY isn't set. A stored Elasticsearch key is never borrowed unpaired. The key still goes only to the Kibana connection's own baseUrl, and meta.context.shared says when it was borrowed",
       "why": "Cross-area credentials need an explicit pairing (maintainer decision 7 on #68): a credential goes only to the connection it's configured on, or to one the user paired it with.",
       "principle": "9"
     },
     {
       "allows": [],
-      "old": "With no key: \"Kibana credentials not configured. Set kibana.apiKey, or elasticsearch.apiKey to share the Elasticsearch key.\"",
-      "toil": "NOT_CONFIGURED, \"Kibana credentials not configured on connection <name>.\", with a fix naming TOIL_KIBANA_API_KEY, toil connections login and the apiKeyFrom pairing; nothing is sent",
-      "why": "The old advice is no longer true: a stored elasticsearch.apiKey is shared only through apiKeyFrom, so the error says what does work.",
+      "old": "With no key: \"Kibana credentials not configured. Set kibana.apiKey, or elasticsearch.apiKey to share the Elasticsearch key.\" A 401 or 403 on the borrowed key added \"set ..._KIBANA_API_KEY or kibana.apiKey\"",
+      "toil": "NOT_CONFIGURED, \"Kibana credentials not configured on connection <name>.\", with a fix naming TOIL_KIBANA_API_KEY, toil connections login and the apiKeyFrom pairing; nothing is sent. A 401 or 403 on a borrowed key names the Elasticsearch connection it came from and says to give the Kibana connection its own key with toil connections login <name>, or TOIL_KIBANA_API_KEY for the default connection",
+      "why": "The old advice no longer works: a stored elasticsearch.apiKey is shared only through apiKeyFrom, and a plaintext kibana.apiKey in a config file is refused (Secrets), so each error names what does work.",
       "principle": "4"
     }
   ]
