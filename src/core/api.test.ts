@@ -9,7 +9,7 @@ import { multipart } from './multipart.js';
 import { paginate } from './paginate.js';
 import { repointUrl } from './rest.js';
 import { execute } from './run.js';
-import { clearTokenCache } from './token.js';
+import { clearTokenCache, exchangeToken, type TokenExchange } from './token.js';
 
 /**
  * The request hook end to end, through execute(), with a test-only area that
@@ -194,6 +194,8 @@ describe('uploads', () => {
     );
     expect(calls[0]).toEqual({ method: 'POST', url: `${HOST}/upload`, headers: { 'api-key': 'k-123', 'content-type': contentType }, body: new TextDecoder().decode(body) });
     expect(calls[0]!.body).toContain('Content-Disposition: form-data; name="comment"\r\n\r\nsee attached\r\n');
+    const overridden = await run([{ method: 'POST', url: `${HOST}/upload`, respond: { json: {} } }], { path: '/upload', req: { method: 'POST', multipart: parts, headers: { 'Content-Type': 'application/json' } } });
+    expect(overridden.calls[0]!.headers['content-type']).toBe(contentType);
     const raw = await run([{ method: 'PUT', url: `${HOST}/raw`, respond: { status: 204 } }], { path: '/raw', req: { method: 'PUT', body: 'abc', contentType: 'application/octet-stream' } });
     expect(raw.calls[0]).toMatchObject({ headers: { 'api-key': 'k-123', 'content-type': 'application/octet-stream' }, body: 'abc' });
   });
@@ -302,6 +304,22 @@ describe('token exchange', () => {
     const envelope = await execute(both, {}, t.context);
     expect(envelope.data).toEqual([{ token: 'access-1' }, { token: 'access-1' }]);
     expect(t.http.calls.filter((c) => c.method === 'POST')).toHaveLength(1);
+  });
+});
+
+describe('a shared exchange', () => {
+  it('a call that joined an exchange another call cancelled exchanges again on its own', async () => {
+    const exchange: TokenExchange = { url: TOKENS, init: { method: 'POST' }, credential: 'refresh-1', read: (b) => ({ token: (b as { t: string }).t }) };
+    const a = new AbortController();
+    const hanging = ((_input: unknown, init?: RequestInit) =>
+      new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))))) as unknown as typeof fetch;
+    const answering = (async () => new Response(JSON.stringify({ t: 'from-b' }), { headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch;
+    const named = { scope: 'probe/probe', service: 'Probe', authFix: 'x' };
+    const first = exchangeToken({ fetch: (u, i) => hanging(u, { ...i, signal: a.signal }), signal: a.signal, ...named }, exchange);
+    const second = exchangeToken({ fetch: answering, signal: new AbortController().signal, ...named }, exchange);
+    a.abort();
+    await expect(first).rejects.toBeInstanceOf(DOMException);
+    expect(await second).toBe('from-b');
   });
 });
 

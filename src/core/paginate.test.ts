@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Page } from './envelope.js';
-import { paginate, type FetchedPage, type PageStyle } from './paginate.js';
+import { MAX_PAGES, paginate, type FetchedPage, type PageStyle } from './paginate.js';
 
 /** A server with `n` numbered items, answering in whatever shape the style expects. */
 function recorder(answer: (params: Record<string, string | number>) => FetchedPage) {
@@ -111,5 +111,19 @@ describe('paginate', () => {
   it('refuses a cap that is not a positive whole number', async () => {
     const style: PageStyle<number> = { kind: 'page', pageParam: 'p', sizeParam: 's', pageSize: 1, items: () => [] };
     await expect(paginate(style, async () => ({ body: [] }), { cap: 0 })).rejects.toThrow(/positive whole number/);
+  });
+
+  it('gives up after MAX_PAGES on a server that ignores the start parameter', async () => {
+    const style: PageStyle<number> = { kind: 'offset', startParam: 'startAt', limitParam: 'maxResults', pageSize: 2, items: (b) => b as number[] };
+    const s = recorder(() => ({ body: [1, 2] }));
+    await expect(paginate(style, s.fetchPage, { what: 'Jira sprints' })).rejects.toMatchObject({ code: 'HTTP', message: `Paging Jira sprints didn't end after ${MAX_PAGES} pages; toil stopped.` });
+    expect(s.requests).toHaveLength(MAX_PAGES);
+  });
+
+  it('refuses a cursor that is not a number for a numeric style, before any request', async () => {
+    const style: PageStyle<number> = { kind: 'offset', startParam: 'startAt', limitParam: 'maxResults', pageSize: 2, items: (b) => b as number[] };
+    const s = recorder(() => ({ body: [] }));
+    await expect(paginate(style, s.fetchPage, { cursor: 'abc' })).rejects.toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('meta.page.nextCursor') });
+    expect(s.requests).toHaveLength(0);
   });
 });

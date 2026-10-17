@@ -63,4 +63,17 @@ describe('networkFetch', () => {
     expect(calls.defaults).toHaveLength(1);
     expect(base).toHaveBeenCalledTimes(2);
   });
+
+  it('a proxy Node rejects is CONFIG_INVALID naming the variable, on this request and the next', async () => {
+    const { apis } = fakeApis();
+    apis.setGlobalProxyFromEnv = (() => {
+      throw new Error('Invalid proxy URL');
+    }) as NetworkApis['setGlobalProxyFromEnv'];
+    const base = vi.fn(async () => new Response('ok'));
+    const fetch = networkFetch(base as unknown as typeof globalThis.fetch, { HTTPS_PROXY: 'not a url' }, () => {}, apis);
+    for (let i = 0; i < 2; i++) {
+      await expect(fetch('https://jira.imagile.dev/a')).rejects.toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('HTTPS_PROXY'), fix: expect.stringContaining('HTTPS_PROXY') });
+    }
+    expect(base).not.toHaveBeenCalled();
+  });
 });

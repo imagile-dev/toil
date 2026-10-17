@@ -1,4 +1,5 @@
 import type { Page } from './envelope.js';
+import { ToilError } from './errors.js';
 
 /**
  * One paging loop for every REST convention toil's areas meet, so no area
@@ -7,7 +8,8 @@ import type { Page } from './envelope.js';
  *
  * - `offset`: start/limit (`startAt`/`maxResults`), stopping on an empty page
  *   or when `total` is reached
- * - `page`: page/per_page, stopping on a short page
+ * - `page`: page/per_page, stopping on a short page, so `pageSize` must not
+ *   exceed the server's own maximum (GitHub's is 100) or page 1 looks like the last
  * - `nextPageStart`: `isLastPage` and `nextPageStart` in the body
  * - `header`: a continuation token in a response header, sent back as a query
  *   parameter (`x-ms-continuationtoken`)
@@ -41,7 +43,15 @@ export interface PaginateOptions {
   cursor?: string;
   /** Sets meta.page; pass the command's `ctx.setPage`. Only called when there is a cap. */
   setPage?: (page: Page) => void;
+  /** What is being listed, for messages: "Jira sprints for board 7". */
+  what?: string;
 }
+
+/**
+ * Pages read before giving up. A server that ignores the start parameter
+ * would otherwise hand back page one forever, and offsets never repeat.
+ */
+export const MAX_PAGES = 1000;
 
 export interface Paged<T> {
   items: T[];
@@ -61,11 +71,23 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
   const { cap } = options;
   if (cap !== undefined && (!Number.isInteger(cap) || cap < 1)) throw new Error(`paginate: cap must be a positive whole number, not ${cap}.`);
   const items: T[] = [];
+  const numeric = style.kind === 'offset' || style.kind === 'page' || style.kind === 'nextPageStart';
+  if (numeric && options.cursor !== undefined && !/^\d+$/.test(options.cursor)) {
+    throw new ToilError('INVALID_INPUT', `"${options.cursor}" isn't a cursor this command hands out.`, {
+      fix: 'Pass meta.page.nextCursor from the previous page unchanged, or leave the cursor out to start at the beginning.',
+    });
+  }
   let cursor: string | undefined = options.cursor ?? initial(style);
   let nextCursor: string | null = null;
   const seen = new Set<string>();
 
-  for (;;) {
+  for (let pages = 1; ; pages++) {
+    if (pages > MAX_PAGES) {
+      throw new ToilError('HTTP', `Paging ${options.what ?? 'the results'} didn't end after ${MAX_PAGES} pages; toil stopped.`, {
+        fix: 'Narrow the request, or set a smaller limit. The server may be ignoring the paging parameters.',
+        details: { pages: MAX_PAGES, items: items.length },
+      });
+    }
     const page = await fetchPage(params(style, cursor));
     const got = (style.items ?? values<T>)(page.body);
     const next = advance(style, cursor, got, page);

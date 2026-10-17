@@ -72,7 +72,17 @@ export function tokenKey(scope: string, exchange: Pick<TokenExchange, 'url' | 'c
 export async function exchangeToken(ctx: ExchangeContext, exchange: TokenExchange): Promise<string> {
   const key = tokenKey(ctx.scope, exchange);
   const cached = cache.get(key);
-  if (cached && Date.now() < cached.refreshAt) return cached.token;
+  if (cached && Date.now() < cached.refreshAt) {
+    try {
+      return await cached.token;
+    } catch (err) {
+      // The exchange this call joined belonged to another call, which was
+      // cancelled. That's its abort, not this call's: exchange again.
+      if (err instanceof ToilError || ctx.signal.aborted) throw err;
+      if (cache.get(key) === cached) cache.delete(key);
+      return exchangeToken(ctx, exchange);
+    }
+  }
 
   const entry: Entry = { token: Promise.resolve(''), refreshAt: Number.POSITIVE_INFINITY };
   entry.token = (async () => {

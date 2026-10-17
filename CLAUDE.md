@@ -267,9 +267,9 @@ a breaking change.
   **`meta.page`** is `{ nextCursor, limit }`, set with `ctx.setPage()` by any command
   that pages. Both are absent when empty.
 - **Every command has a time limit and can be cancelled.** `execute()` aborts at
-  `TOIL_TIMEOUT_MS` (default 120 s, or a longer `timeLimitMs` the command declares)
-  with `TIMEOUT`, and on Ctrl+C or an MCP cancel
-  with `CANCELLED`. Commands pass `ctx.signal` to anything long-running that isn't
+  `TOIL_TIMEOUT_MS` (default 120 s, or a longer `timeLimitMs` the command declares;
+  `TOIL_TIMEOUT_MS`, when set, overrides both) with `TIMEOUT`, and on Ctrl+C or an
+  MCP cancel with `CANCELLED`. Commands pass `ctx.signal` to anything long-running that isn't
   `ctx.fetch` (which already carries it). Aborting stops toil waiting, not the
   server: for a write command both errors say the change may already have been
   applied, and to check before retrying. Never word them as "stopped" for a write.

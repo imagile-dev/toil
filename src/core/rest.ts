@@ -41,7 +41,7 @@ export function buildUrl(base: string, path: string, params?: Record<string, Que
 /** A server asking for a longer wait than this is answered with an error, not a hang. */
 export const MAX_RETRY_AFTER_SECONDS = 30;
 const ATTEMPTS = 3;
-/** Same-origin redirects followed before giving up; a loop is not a workflow. */
+/** Same-origin redirects followed before giving up (the next one is refused); a loop is not a workflow. */
 export const MAX_REDIRECTS = 5;
 
 /** Retry-After as seconds: a number of seconds, or an HTTP date. Anything else is ignored. */
@@ -154,8 +154,10 @@ export async function restResponse<T>(ctx: RestContext, url: string, init: Reque
       // An abort is execute()'s to report (TIMEOUT or CANCELLED); anything else is the network.
       if (ctx.signal.aborted) throw err;
       if (timeout?.aborted) {
-        throw new ToilError('TIMEOUT', `${options.service} didn't answer ${redactUrl(url)} within ${(options.timeoutMs as number) / 1000}s; toil stopped waiting.`, {
-          fix: `Try again later, or narrow the request. Check ${options.service} itself if it keeps happening.`,
+        // As with execute()'s own limit: giving up can't recall a write the server already has.
+        const write = !['GET', 'HEAD', 'OPTIONS'].includes((init.method ?? 'GET').toUpperCase());
+        throw new ToilError('TIMEOUT', `${options.service} didn't answer ${redactUrl(url)} within ${(options.timeoutMs as number) / 1000}s; toil stopped waiting.${write ? ' The change may already have been applied.' : ''}`, {
+          fix: `${write ? 'Check whether the change was made before retrying. ' : ''}Try again later, or narrow the request. Check ${options.service} itself if it keeps happening.`,
           details: { url: redactUrl(url), timeoutMs: options.timeoutMs },
         });
       }
@@ -197,7 +199,7 @@ async function follow(ctx: RestContext, url: string, init: RequestInit, options:
         details: { status: response.status, url: redactUrl(current), location: redactUrl(next.toString()) },
       });
     }
-    if (hop + 1 >= MAX_REDIRECTS) {
+    if (hop >= MAX_REDIRECTS) {
       throw new ToilError('HTTP', `${options.service} redirected ${redactUrl(url)} more than ${MAX_REDIRECTS} times.`, {
         fix: 'Check baseUrl points at the service itself, not a sign-in page in front of it.',
         details: { status: response.status, url: redactUrl(url) },

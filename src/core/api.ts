@@ -131,7 +131,8 @@ async function send<T>(area: AnyArea, ctx: ApiContext, path: string, req: ApiReq
     const service = endpoint.service ?? area.name;
     const authFix = endpoint.authFix ?? fallbackFix;
 
-    // A full URL (one the server handed back, after repointUrl) is sent as it is.
+    // A full URL (one the server handed back, after repointUrl) is sent as it is:
+    // buildUrl would rewrite an encoded comma in its query.
     const url = /^[a-z][a-z0-9+.-]*:/i.test(path) && req.query === undefined ? new URL(path).toString() : buildUrl(endpoint.baseUrl, path, req.query);
     const origin = new URL(endpoint.baseUrl).origin;
     if (new URL(url).origin !== origin) {
@@ -142,7 +143,8 @@ async function send<T>(area: AnyArea, ctx: ApiContext, path: string, req: ApiReq
     }
     const headers = new Headers(endpoint.headers);
     for (const [name, value] of Object.entries(req.headers ?? {})) headers.set(name, value);
-    if (contentType && !headers.has('content-type')) headers.set('content-type', contentType);
+    // A multipart body's type carries its boundary, so it always wins; any other can be overridden.
+    if (contentType && (req.multipart !== undefined || !headers.has('content-type'))) headers.set('content-type', contentType);
     const init: RequestInit = { method: req.method ?? 'GET', headers };
     if (body !== undefined) init.body = body;
 

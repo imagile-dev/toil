@@ -154,6 +154,9 @@ describe('restRequest', () => {
       new Promise((_, reject) => init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError'))))) as unknown as typeof fetch;
     const err = await failure(restRequest({ fetch: hang, signal: new AbortController().signal }, url, {}, { ...opts, timeoutMs: 20 }));
     expect(err).toMatchObject({ code: 'TIMEOUT', message: `Jira didn't answer ${url} within 0.02s; toil stopped waiting.` });
+    expect(err.fix).not.toContain('Check whether');
+    const write = await failure(restRequest({ fetch: hang, signal: new AbortController().signal }, url, { method: 'POST' }, { ...opts, timeoutMs: 20 }));
+    expect(write).toMatchObject({ code: 'TIMEOUT', message: expect.stringContaining('The change may already have been applied.'), fix: expect.stringMatching(/^Check whether the change was made before retrying\./) });
   });
 
   it('sends every request with redirect: manual, and stops a same-origin redirect loop', async () => {
@@ -165,7 +168,7 @@ describe('restRequest', () => {
     }) as unknown as typeof fetch;
     expect(await failure(restRequest({ ...ctx, fetch: spy }, 'https://jira.imagile.dev/loop', {}, opts))).toMatchObject({ code: 'HTTP', message: expect.stringContaining(`more than ${MAX_REDIRECTS} times`) });
     expect(seenRedirect).toBe('manual');
-    expect(http.calls).toHaveLength(MAX_REDIRECTS);
+    expect(http.calls).toHaveLength(MAX_REDIRECTS + 1);
   });
 
   it('keeps the method and body across a 307 on the same host', async () => {
