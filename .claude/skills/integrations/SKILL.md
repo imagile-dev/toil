@@ -1,6 +1,6 @@
 ---
 name: integrations
-description: Rules for toil's enterprise-tool integrations (Jira, Confluence, Bitbucket, SonarQube and every other service area). Use when adding, changing or reviewing an integration or one of its commands, judging whether a requested service can be supported (its authentication), recording or raising a verification level, adding a vendor's Cloud variant (each variant is its own area), reviewing an integration's site documentation page, or touching anything covered by the migration command contract (docs/command-contract.json, docs/command-contract.md, `toil config import`, command paths, flags, env var and config key names). Not needed for databases, code intelligence or the MCP server alone.
+description: Rules for toil's enterprise-tool integrations (Jira, Confluence, Bitbucket, SonarQube and every other service area). Use when adding, changing or reviewing an integration or one of its commands, judging whether a requested service can be supported (its authentication), recording or raising a verification level, adding a vendor's Cloud variant (each variant is its own area), reviewing an integration's site documentation page, or touching anything covered by the migration command contract (docs/command-contract.json, docs/command-contract.md, `toil config import`, command paths, flags, env var and config key names). Not needed for databases or the MCP server alone.
 ---
 
 # Integrations
