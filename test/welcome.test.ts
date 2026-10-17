@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { DURATION, logoFrame, sceneAt } from '../src/welcome/logo.js';
+import { DURATION, logoFrame, sceneAt, SIGNALS, SPIN } from '../src/welcome/logo.js';
 import { initialState, reduce, render, type MenuState } from '../src/welcome/menu.js';
 import { agentScreen, connectionsScreen, healthScreen, type WelcomeData } from '../src/welcome/screens.js';
 import { launchCommand } from '../src/welcome/data.js';
-import { playSplash, splashFrame, TAGLINE } from '../src/welcome/splash.js';
+import { INTRO, outroFrame, playOutro, playSplash, splashFrame, TAGLINE } from '../src/welcome/splash.js';
 import { detectCaps, visibleLength } from '../src/welcome/term.js';
 import { wantsWelcome } from '../src/welcome/index.js';
 import { testConfig } from './harness/context.js';
@@ -73,9 +73,26 @@ describe('the logo', () => {
     expect(sceneAt(DURATION + 1).tools.every((s) => s === 1)).toBe(true);
   });
 
-  it('fires one signal down the branches mid-animation, and none once it settles', () => {
-    expect(sceneAt(1.3).signal).not.toBeNull();
-    expect(sceneAt(DURATION + 1).signal).toBeNull();
+  it('runs the command twice: two separate signals down the branches, then none once it settles', () => {
+    const firing = (t: number) => sceneAt(t).signal !== null;
+    expect(SIGNALS).toHaveLength(2);
+    expect(firing(SIGNALS[0] + 0.15)).toBe(true);
+    // A signal runs about 0.4s, so the first has finished well before the second starts.
+    expect(firing(SIGNALS[0] + 0.5)).toBe(false);
+    expect(SIGNALS[0] + 0.5).toBeLessThan(SIGNALS[1]);
+    expect(firing(SIGNALS[1] + 0.15)).toBe(true);
+    expect(firing(DURATION + 1)).toBe(false);
+  });
+
+  it('then spins the ring and branches twice, and lands exactly where it started', () => {
+    expect(sceneAt(SPIN.from).spin).toBe(0);
+    const mid = sceneAt((SPIN.from + SPIN.to) / 2).spin;
+    expect(mid).toBeGreaterThan(Math.PI);
+    expect(sceneAt(SPIN.to - 0.001).spin).toBeCloseTo(SPIN.turns * Math.PI * 2, 2);
+    expect(sceneAt(SPIN.to).spin).toBe(0);
+    expect(logoFrame((SPIN.from + SPIN.to) / 2, plain)).not.toEqual(logoFrame(DURATION + 1, plain));
+    // Just before the spin and after it settles, the picture is identical.
+    expect(logoFrame(SPIN.from - 0.02, plain)).toEqual(logoFrame(DURATION + 1, plain));
   });
 
   it('falls back to plain ASCII, and to no escape codes without color', () => {
@@ -88,6 +105,21 @@ describe('the logo', () => {
 });
 
 describe('the splash', () => {
+  it('opens with a wave of colour sweeping an empty stage, before the logo draws', () => {
+    const wave = splashFrame(INTRO / 2, { ...plain, columns: 120 }, '0.1.0').join('\n');
+    expect(wave).toContain('█');
+    expect(wave).not.toContain(TAGLINE);
+    expect(splashFrame(INTRO + 0.01, { ...plain, columns: 120 }, '0.1.0').join('')).not.toContain('▓');
+  });
+
+  it('leaves with a wave that wipes the still away, left to right', () => {
+    const caps = { ...plain, columns: 120 } as const;
+    const ink = (lines: string[]) => lines.join('').replace(/[\s░▒▓█]/g, '').length;
+    expect(ink(outroFrame(0.5, caps, 'x'))).toBeLessThan(ink(outroFrame(0, caps, 'x')));
+    expect(ink(outroFrame(1, caps, 'x'))).toBe(0);
+    expect(outroFrame(0.5, caps, 'x').join('')).toMatch(/[░▒▓█]/);
+  });
+
   it('ends on the tagline, typed out in full', () => {
     expect(splashFrame(DURATION + 1, { ...plain, columns: 120 }, '0.1.0').join('\n')).toContain(TAGLINE);
     expect(splashFrame(0.2, { ...plain, columns: 120 }, '0.1.0').join('\n')).not.toContain(TAGLINE);
@@ -122,6 +154,21 @@ describe('the splash', () => {
     // Each redraw moves the cursor back up the splash's 16 lines.
     expect(animated.split('\x1b[16A').length - 1).toBeGreaterThan(10);
     expect(animated.endsWith('\x1b[?25h')).toBe(true);
+  });
+
+  it('skips the wave out on any key, and plays nothing when it cannot animate', async () => {
+    let out = '';
+    await playOutro({ write: (t) => (out += t) }, { colorDepth: 1, unicode: true, animate: false, columns: 120, rows: 40 }, 'x');
+    expect(out).toBe('');
+    let fire = () => {};
+    let frames = 0;
+    let clock = 0;
+    await playOutro(
+      { write: () => void frames++, onKey: (h) => ((fire = h), () => {}), now: () => clock, sleep: async (ms) => void ((clock += ms), fire()) },
+      { colorDepth: 1, unicode: true, animate: true, columns: 120, rows: 40 },
+      'x',
+    );
+    expect(frames).toBeLessThan(4);
   });
 
   it('jumps to the still on any key', async () => {

@@ -438,7 +438,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
 | `automation` | Editing workflows under `.github/`: the review agent, the fix agent, action pins, Discord notifications, redaction |
-| `site` | Changing anything under `site/`: responsive rules, palette, house style, art, status honesty, screenshots |
+| `site` | Changing anything under `site/`, or the brand it shares with the terminal splash and menu in `src/welcome/`: responsive rules, palette, the mark and its motion, art, status honesty, screenshots |
 
 The `ship` skill (gate and PR, named under **Delivery**) becomes the eighth.
 

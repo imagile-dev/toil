@@ -118,3 +118,35 @@ export const cursor = {
   altScreenOff: `${ESC}?1049l`,
   home: `${ESC}H`,
 };
+
+/** One character cell: what it shows, and in what color (none for blank or uncolored). */
+export interface Cell {
+  ch: string;
+  color?: Rgb;
+}
+
+export const blank = (width: number): Cell[] => Array.from({ length: width }, () => ({ ch: ' ' }));
+
+/** Text as cells, all in one color. */
+export function textCells(text: string, color?: Rgb): Cell[] {
+  return [...text].map((ch) => (color ? { ch, color } : { ch }));
+}
+
+/** Cells to a line, opening a color only when it changes, so a frame stays small. */
+export function renderCells(cells: Cell[], caps: Pick<TermCaps, 'colorDepth'>): string {
+  if (caps.colorDepth === 1) return cells.map((c) => c.ch).join('');
+  let out = '';
+  let open: Rgb | undefined;
+  const same = (a?: Rgb, b?: Rgb) => a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1] && a[2] === b[2]);
+  for (const cell of cells) {
+    const color = cell.ch === ' ' ? undefined : cell.color;
+    if (!same(color, open)) {
+      if (open) out += '\x1b[0m';
+      if (color) out += fg(caps, color);
+      open = color;
+    }
+    out += cell.ch;
+  }
+  if (open && caps.colorDepth > 1) out += '\x1b[0m';
+  return out;
+}
