@@ -42,13 +42,14 @@ versions.
    one `area.command()` per contract command (exact path, arguments and flags, each
    `run` throwing until ported), plus the fixture and skill file. It never
    overwrites, and it leaves out commands a divergence removes. Group-level flags
-   are named in a TODO in `area.ts`, to declare as the area's context inputs.
+   become the area's context inputs in `area.ts`, with a TODO for where each value
+   comes from (a connection setting, the git remote, or selecting the connection).
 3. **Port each command**: request, paging, errors and `data` exactly as the
    predecessor had them, through `ctx.fetch` and core's helpers. Set `writes`
    from what the old command does; the stub only guessed from the verb.
 4. **Fixture**: canned responses for every request the examples send, as routes on
    method, `path` and `query`. Local state goes in `setup`/`teardown`; a non-HTTP
-   area names what to `trace`; CLI-only commands go in `cliOnly`.
+   area names what to `trace`.
 5. **Supported version**: export `supported` from `index.ts`, set the same value in
    the board entry, and state it in the skill file. An error that means the server
    is too old uses `serverTooOld()` from `src/core/supported.ts`, so its message says so and names

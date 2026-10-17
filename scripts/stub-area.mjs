@@ -45,13 +45,13 @@ const quote = (text) => `'${String(text).replace(/\\/g, '\\\\').replace(/'/g, "\
 /** The exported name of a command's stub: `ado repo list` -> `repoListCommand`. */
 const exportName = (command) => `${camel(command.split(' ').slice(1).join('-'))}Command`;
 
-function commandSource(entry, area) {
+function commandSource(entry, area, contextFields = new Set()) {
   const path = entry.command.split(' ');
   const args = argsOf(entry.usage);
   const options = entry.options;
   // One input field per argument and flag. A name already taken (an argument
   // and a flag both called `key`) gets a number, since the parity suite needs 1:1.
-  const taken = new Set(['connection', 'allowWrite']);
+  const taken = new Set(['connection', 'allowWrite', ...contextFields]);
   const claim = (name) => {
     let field = name;
     for (let n = 2; taken.has(field); n++) field = `${name}${n}`;
@@ -59,13 +59,17 @@ function commandSource(entry, area) {
     return field;
   };
   const argFields = args.map((a) => claim(camel(a.name)));
-  const optionFields = options.map((o) => claim(fieldOf(o.flags)));
+  // A leaf flag the group also has (`bitbucket create-pr --project`) maps onto
+  // the area's context input, which core adds; the command declares no field for it.
+  const isContext = (o) => contextFields.has(fieldOf(o.flags));
+  const optionFields = options.map((o) => (isContext(o) ? fieldOf(o.flags) : claim(fieldOf(o.flags))));
   const fields = [];
   args.forEach((a, i) => {
     const type = a.variadic ? 'z.array(z.string())' : 'z.string()';
     fields.push(`    ${argFields[i]}: ${type}${a.required ? '' : '.optional()'}.describe(${quote(a.name)}),`);
   });
   options.forEach((o, i) => {
+    if (isContext(o)) return;
     const takes = /[<[]/.test(o.flags);
     const type = !takes ? 'z.boolean()' : /\.\.\.[>\]]/.test(o.flags) ? 'z.array(z.string())' : 'z.string()';
     fields.push(`    ${optionFields[i]}: ${type}.optional().describe(${quote(o.description || o.flags)}),`);
@@ -127,13 +131,19 @@ export function stubFiles(contract, area, { core = '../../core', removed = [] } 
   const files = {};
   const dir = `src/areas/${area}`;
   const AreaVar = `${camel(area)}Area`;
-  // Flags on a group rather than a command (`bitbucket --project --repo`) are
-  // area context inputs, declared once on the area; the stub names them.
-  const groupFlags = contract.commands
-    .filter((c) => !c.leaf && c.command.split(' ')[0] === area && c.options.length > 0)
-    .map((c) => `${c.command} ${c.options.map((o) => o.flags).join(', ')}`);
-  const contextTodo = groupFlags.length
-    ? `  // TODO: group-level flags from the contract, declared as the area's context inputs:\n${groupFlags.map((f) => `  //   ${f}\n`).join('')}`
+  // Flags on the area's group (`bitbucket --project --repo`) are its context
+  // inputs, declared once on the area; core puts them on the group and on
+  // every MCP tool. Where each value comes from is the port's to fill in.
+  const groupOptions = contract.commands.find((c) => c.command === area)?.options ?? [];
+  const contextBlock = groupOptions.length
+    ? [
+        '  // TODO: for each, the connection `setting` that supplies it, a `git` reader if the remote names it,',
+        '  // and `selectsConnection: true` where the value picks the connection (--instance, --env).',
+        '  context: {',
+        ...groupOptions.map((o) => `    ${fieldOf(o.flags)}: { description: ${quote(o.description || o.flags)}, flags: ${quote(o.flags)} },`),
+        '  },',
+        '',
+      ].join('\n')
     : '';
 
   files[`${dir}/area.ts`] = `import { z } from 'zod';
@@ -146,7 +156,7 @@ import type { SupportedVersion } from '${core}/supported.js';
  * (CLAUDE.md, Code Comments). Stubbed from docs/command-contract.json.
  */
 export const ${AreaVar} = defineArea({
-${contextTodo}  name: ${quote(area)},
+  name: ${quote(area)},
   description: 'TODO: what this area covers, in one line',
   // TODO: the predecessor's config keys, with the same names, so the env vars match (TOIL_${area.toUpperCase().replace(/-/g, '_')}_*).
   connection: z.object({
@@ -154,7 +164,7 @@ ${contextTodo}  name: ${quote(area)},
     token: z.string().min(1).describe('TODO: the credential the Authentication Bar allows'),
   }),
   secrets: ['token'],
-});
+${contextBlock}});
 
 /** TODO: from the area's brief (docs/briefs/${area}.md); minimum: null until it's established. */
 export const ${camel(area)}Supported: SupportedVersion = { product: 'TODO', minimum: null };
@@ -175,7 +185,7 @@ export function notPorted(command: string): never {
       ``,
       `/** TODO: what these commands share, and one dry line. Stubbed from docs/command-contract.json. */`,
       ``,
-      list.map((c) => commandSource(c, area)).join('\n\n'),
+      list.map((c) => commandSource(c, area, new Set(groupOptions.map((o) => fieldOf(o.flags))))).join('\n\n'),
       ``,
       `export const ${camel(group)}Commands = [${list.map((c) => exportName(c.command)).join(', ')}];`,
       ``,

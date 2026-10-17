@@ -64,10 +64,11 @@ describe('stub generator', () => {
   });
 
   it('writes a stub that typechecks', async () => {
-    const { files } = await load('sonar');
-    const base = join(out, 'sonar');
+    // bitbucket: context inputs, a leaf flag mapped onto one, reads and writes.
+    const { files } = await load('bitbucket');
+    const base = join(out, 'bitbucket');
     const config = join(base, 'tsconfig.json');
-    writeFileSync(config, JSON.stringify({ extends: relative(base, join(repo, 'tsconfig.json')).replace(/\\/g, '/'), include: ['src/areas/sonar/*.ts'], compilerOptions: { noEmit: true } }));
+    writeFileSync(config, JSON.stringify({ extends: relative(base, join(repo, 'tsconfig.json')).replace(/\\/g, '/'), include: ['src/areas/bitbucket/*.ts'], compilerOptions: { noEmit: true } }));
     const tsc = join(repo, 'node_modules', 'typescript', 'bin', 'tsc');
     const run = spawnSync(process.execPath, [tsc, '-p', config], { encoding: 'utf8' });
     expect(run.stdout + run.stderr, Object.keys(files).join(', ')).toBe('');
@@ -84,15 +85,9 @@ describe('stub generator', () => {
   });
 
   for (const area of boardAreas.filter((a) => contract.commands.some((c) => c.command.split(' ')[0] === a))) {
-    it(`${area}: the stub matches the contract's surface, and maps every field onto the CLI`, async () => {
+    it(`${area}: the stub matches the contract's surface, group-level flags included, and maps every field onto the CLI`, async () => {
       const { commands, files } = await load(area);
-      // Group-level flags (`bitbucket --project`) are area context inputs; the stub names them in a TODO.
-      const groups = new Set(contract.commands.filter((c) => !c.leaf).map((c) => c.command));
-      const found = diffContract(programFor(commands), contract, new Set([area]), allowed).filter((d) => !groups.has(d.id.split(' --')[0]!));
-      expect(found).toEqual([]);
-      for (const group of contract.commands.filter((c) => !c.leaf && c.command.split(' ')[0] === area)) {
-        for (const option of group.options) expect(files[`src/areas/${area}/area.ts`], `${group.command} ${option.flags} named in a TODO`).toContain(option.flags);
-      }
+      expect(diffContract(programFor(commands), contract, new Set([area]), allowed)).toEqual([]);
       for (const def of commands) {
         const fields = Object.keys(def.input.shape).filter((f) => f !== 'allowWrite');
         const mapped = [...(def.args ?? []), ...(def.options ?? [])].map((x) => x.field);
