@@ -39,7 +39,7 @@ itself. The principles behind every choice here are in [CLAUDE.md](../CLAUDE.md)
 - **Automated delivery from day one.** Conventional Commits → release-please → npm
   publish with provenance. The release also attaches the packed `.tgz` to the GitHub
   release for offline and mirrored installs. CI gate: typecheck, lint, tests, build,
-  purity check, and a smoke run of the packed tarball on Node 22 and 24.
+  purity check, and a smoke run of the packed tarball on Node 22.16 and 24.
 - **Agent review loop.** An agent reviews every PR and submits a formal review;
   `CHANGES_REQUESTED` dispatches a fix agent that pushes to the branch. Opt-out label
   `no-auto-fix`, stop label `needs-human` after 3 rounds, explicit reviewer and bot

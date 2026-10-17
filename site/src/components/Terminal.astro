@@ -9,7 +9,7 @@ interface Props {
 }
 const { tag = 'Preview · planned output' } = Astro.props;
 
-const command = 'npx -y @imagile-dev/toil db query -c reporting "select status, count(*) from orders group by status"';
+const command = 'npx -y @imagile-dev/toil db query --connection reporting "select status, count(*) from orders group by status"';
 
 // Pre-highlighted response lines: k = key, s = string/value, p = punctuation.
 const lines = [
