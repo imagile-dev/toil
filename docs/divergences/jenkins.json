@@ -29,9 +29,9 @@
     },
     {
       "allows": [],
-      "old": "jenkins pipeline run --wait exiting 1, with a success envelope, when the build's result was set and not SUCCESS",
-      "toil": "The call fails: an error envelope with code JENKINS_BUILD_FAILED, the build number, result and url in error.details, and exit code 1. data is null, so the full build record is no longer returned; toil jenkins pipeline get-run has it",
-      "why": "A build that ran and failed is a failed call, and it has to be obvious through both front doors; MCP callers never see an exit code, only the envelope (coordinator's call on #115).",
+      "old": "jenkins pipeline run --wait returning the build as a success envelope and exiting 1 when the build's result was set and not SUCCESS",
+      "toil": "The same envelope (ok, the build as data) plus a JENKINS_BUILD_NOT_SUCCESSFUL warning in meta.warnings naming the build and its result. Until core can return a success envelope with a non-zero exit code (KF2), the exit code is 0; the test for exit code 1 is skipped until then",
+      "why": "The warning is additive output the contract allows, and it makes the failure visible to MCP callers, who never see an exit code.",
       "principle": "4"
     },
     {

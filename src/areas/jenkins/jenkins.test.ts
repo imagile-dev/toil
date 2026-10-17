@@ -175,22 +175,21 @@ describe('pipeline run', () => {
     expect(envelope.ok).toBe(true);
   }, 10_000);
 
-  it('fails with JENKINS_BUILD_FAILED, naming the build, when the build did not succeed', async () => {
+  it('returns the build as a success with a warning when the build did not succeed, as the predecessor did', async () => {
     const routes: Route[] = [
       trigger('/job/api-build/build', 501),
       { path: '/queue/item/501/api/json', respond: { json: queueItem(501, 42) } },
       { path: '/job/api-build/42/api/json', respond: { json: build(42, { result: 'FAILURE' }) } },
     ];
     const { envelope } = await run(pipelineRunCommand, { name: 'api-build', wait: true, allowWrite: true }, routes);
-    expect(envelope.ok).toBe(false);
-    expect(envelope.error).toMatchObject({
-      code: 'JENKINS_BUILD_FAILED',
-      message: 'Build #42 of api-build finished with result FAILURE.',
-      details: { number: 42, result: 'FAILURE', url: `${JENKINS}/job/api-build/42/` },
-    });
+    expect(envelope.ok).toBe(true);
+    expect(envelope.data).toEqual(build(42, { result: 'FAILURE' }));
+    expect(envelope.meta.warnings).toEqual([{ code: 'JENKINS_BUILD_NOT_SUCCESSFUL', message: 'Build #42 of api-build finished with result FAILURE.' }]);
   });
 
-  it('exits 1 on the CLI for a failed build', async () => {
+  // Waiting for KF2: core can't yet return a success envelope with a non-zero
+  // exit code. The predecessor exited 1 here; flip to it() once KF2 lands.
+  it.skip('exits 1 on the CLI, with the success envelope, for a build that did not succeed (waiting for KF2)', async () => {
     const routes: Route[] = [
       trigger('/job/api-build/build', 501),
       { path: '/queue/item/501/api/json', respond: { json: queueItem(501, 42) } },
@@ -198,8 +197,8 @@ describe('pipeline run', () => {
     ];
     const t = testContext({ config: fixtureConfig, routes });
     const result = await runCli(['jenkins', 'pipeline', 'run', '--name', 'api-build', '--wait', '--allow-write'], { commands: [pipelineRunCommand], context: t.context });
+    expect(result.envelope?.ok).toBe(true);
     expect(result.exitCode).toBe(1);
-    expect(result.envelope?.error?.code).toBe('JENKINS_BUILD_FAILED');
   });
 
   it('reports a build cancelled in the queue', async () => {

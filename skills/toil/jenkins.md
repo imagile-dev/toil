@@ -85,9 +85,9 @@ becomes `/job/<segment>`, percent-encoded.
   a parameterized job. Without `--wait`, `data` is `{ queueItemId }`. With `--wait`
   it polls every `--poll` seconds (default 10) until the build leaves the queue, then
   until it finishes, giving each phase `--timeout` seconds (default 600), and returns
-  the build. A build whose result is set and isn't `SUCCESS` fails the call with
-  `JENKINS_BUILD_FAILED` (exit code 1), with the build number, result and URL in
-  `error.details`.
+  the build. A build whose result is set and isn't `SUCCESS` is still returned as
+  `data` with `ok: true`, plus a `JENKINS_BUILD_NOT_SUCCESSFUL` warning in
+  `meta.warnings`; check `data.result`.
   The command's time limit is 21 minutes (`TOIL_TIMEOUT_MS` overrides it).
   `--timeout` and `--poll` are checked only after the build was triggered.
 - `pipeline list-runs`: List recent builds for a job (`--name`, `--top`, default 25).
