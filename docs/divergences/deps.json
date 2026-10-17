@@ -1,0 +1,37 @@
+{
+  "scope": "deps",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "deps frisk --source all",
+      "toil": "Run each source separately: toil deps frisk --source osv, --source sonatype, --source sonatypeiq",
+      "why": "No command fans out to several services on the caller's behalf. Single-source deps frisk stays, as a thin alias over the per-source commands (toil osv vulns, toil ossindex vulns, toil sonatypeiq evaluate).",
+      "principle": "3"
+    },
+    {
+      "allows": [
+        "deps connectivity"
+      ],
+      "old": "deps connectivity",
+      "toil": "Removed. Check each source with its own config test",
+      "why": "It decides on the caller's behalf which services to contact.",
+      "principle": "3"
+    },
+    {
+      "allows": [],
+      "old": "deps scan always scanning from the repository root, even from a subdirectory",
+      "toil": "deps scan reads only inside the workspace folder: when the repository root is above the workspace, it scans the workspace subtree. Run it from the repository root, or pass --workspace <root>, to scan the whole repository",
+      "why": "Files a command reads stay inside the workspace; only .git metadata may be read above it (decision 2 on #68, docs/bounds.md).",
+      "principle": "2",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "deps scan finding files the way git ls-files --cached --others --exclude-standard does, global excludes included",
+      "toil": "The listing (ctx.files.list) applies .gitignore files and .git/info/exclude but not core.excludesFile or the default ~/.config/git/ignore, so a file only those ignore is listed",
+      "why": "Reading above the workspace is limited to .git, the global git config and its includes, and parent .gitignore files (docs/bounds.md, git.read-up; #68 decision 7).",
+      "principle": "2",
+      "class": "security"
+    }
+  ]
+}

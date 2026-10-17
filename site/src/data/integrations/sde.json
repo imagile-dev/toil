@@ -1,0 +1,9 @@
+{
+  "area": "sde",
+  "name": "SD Elements",
+  "group": "security",
+  "order": 5,
+  "covers": "Projects, countermeasures, security requirements",
+  "credential": "API token",
+  "status": "planned"
+}

@@ -1,0 +1,41 @@
+{
+  "scope": "jira",
+  "divergences": [
+    {
+      "allows": [
+        "jira schema data.example",
+        "jira schema data.schema"
+      ],
+      "when": {
+        "exampleOnly": true
+      },
+      "old": "jira schema --example-only printing the bare example with no envelope",
+      "toil": "The flag stays; the example comes back as data in the usual envelope, so with the flag data is the example itself, not { schema, example }. Save .data to use it as an --input-file",
+      "why": "Every command writes exactly one envelope, so an agent never has to guess which shape stdout holds. The allowed fields are excused only for calls with --example-only (`when`), so plain jira schema must still return both.",
+      "principle": "Output Contract"
+    },
+    {
+      "allows": [],
+      "old": "jira download-attachment fetching the attachment's content URL, with the token, from whatever host Jira names",
+      "toil": "The token goes only to baseUrl's origin: a content URL on another host has its path and query re-pointed at baseUrl, with a JIRA_ATTACHMENT_HOST warning",
+      "why": "A server-supplied URL must not carry the user's credential to a host they didn't configure. A change a principle requires, so a port makes it before a live run (CLAUDE.md, Porting).",
+      "principle": "9",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "jira download-attachment reporting saved with the platform's separator",
+      "toil": "saved uses forward slashes on every platform; the file lands in the same place",
+      "why": "Paths in JSON output are identical on Windows, macOS and Linux (CLAUDE.md, Cross-Platform). Same on macOS and Linux as before.",
+      "principle": "8"
+    },
+    {
+      "allows": [],
+      "old": "jira download-attachment writing to a file that already exists",
+      "toil": "Refused with INVALID_INPUT naming the path; the existing file is left alone. The predecessor replaced it (#70 item 8)",
+      "why": "A read-only command, whose file name comes from whoever uploaded the attachment, must not change files already on disk.",
+      "principle": "2",
+      "class": "security"
+    }
+  ]
+}

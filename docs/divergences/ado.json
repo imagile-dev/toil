@@ -1,0 +1,12 @@
+{
+  "scope": "ado",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "ado work schema --example-only printing the bare example with no envelope",
+      "toil": "The flag stays; the example comes back as data in the usual envelope. Save .data to use it as an --input-file",
+      "why": "Every command writes exactly one envelope, so an agent never has to guess which shape stdout holds.",
+      "principle": "Output Contract"
+    }
+  ]
+}

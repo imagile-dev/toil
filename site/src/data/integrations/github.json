@@ -1,0 +1,12 @@
+{
+  "area": "github",
+  "name": "GitHub & GitHub Enterprise",
+  "group": "work",
+  "order": 4,
+  "covers": "Pull requests, reviews, issues, checks",
+  "credential": "Fine-grained PAT",
+  "credentialNote": "In GitHub Actions, GITHUB_TOKEN is used when no toil token is set",
+  "credentialWhere": "Settings → Developer settings → Personal access tokens → Fine-grained tokens",
+  "status": "planned",
+  "host": "https://ghe.imagile.dev"
+}

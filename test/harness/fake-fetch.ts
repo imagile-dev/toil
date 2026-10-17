@@ -21,19 +21,85 @@ export interface CannedResponse {
   headers?: Record<string, string>;
 }
 
-export interface Route {
+/** Query parameters a route requires. A repeated key is an array, in the order sent. */
+export type RouteQuery = Record<string, string | string[]>;
+
+/**
+ * One canned response. Match on `url` (the full URL, exact or a pattern), or
+ * on `path` plus `query`, which is easier to read and doesn't care what order
+ * the query string was built in.
+ */
+export type Route = {
   method?: string;
-  /** Exact URL, or a pattern matched against the full URL. */
-  url: string | RegExp;
   respond: CannedResponse | ((request: RecordedRequest) => CannedResponse);
-}
+} & (
+  | {
+      /** Exact URL, or a pattern matched against the full URL. */
+      url: string | RegExp;
+      path?: never;
+      query?: never;
+      origin?: never;
+    }
+  | {
+      url?: never;
+      /** The URL's pathname, exact or a pattern, e.g. `/rest/api/2/search`. */
+      path: string | RegExp;
+      /**
+       * The query the request must carry, compared without regard to order.
+       * Omitted, any query matches; `{}` means the request has none.
+       */
+      query?: RouteQuery;
+      /** Only requests to this origin (`https://jira.imagile.dev`). Omitted, any origin. */
+      origin?: string;
+    }
+);
 
 export interface FakeFetch {
   fetch: typeof globalThis.fetch;
   calls: RecordedRequest[];
 }
 
+/** A URL's query as a RouteQuery, so two queries compare whatever order they were written in. */
+export function queryOf(url: string): RouteQuery {
+  const out: RouteQuery = {};
+  for (const [key, value] of new URL(url).searchParams) {
+    const seen = out[key];
+    out[key] = seen === undefined ? value : [...(Array.isArray(seen) ? seen : [seen]), value];
+  }
+  return out;
+}
+
+const sameQuery = (want: RouteQuery, got: RouteQuery) => {
+  const norm = (q: RouteQuery) => JSON.stringify(Object.keys(q).sort().map((k) => [k, q[k]]));
+  return norm(want) === norm(got);
+};
+
+function matches(route: Route, method: string, url: string): boolean {
+  if ((route.method ?? 'GET').toUpperCase() !== method) return false;
+  if (route.url !== undefined) return typeof route.url === 'string' ? route.url === url : route.url.test(url);
+  const parsed = new URL(url);
+  if (route.origin !== undefined && route.origin !== parsed.origin) return false;
+  if (typeof route.path === 'string' ? route.path !== parsed.pathname : !route.path.test(parsed.pathname)) return false;
+  return route.query === undefined || sameQuery(route.query, queryOf(url));
+}
+
+/** For the no-route error: routes that agree on method and path, so a wrong query is obvious. */
+function nearMisses(routes: Route[], method: string, url: string): string {
+  const parsed = new URL(url);
+  const near = routes.filter(
+    (r) =>
+      r.path !== undefined &&
+      (r.method ?? 'GET').toUpperCase() === method &&
+      (typeof r.path === 'string' ? r.path === parsed.pathname : r.path.test(parsed.pathname)),
+  );
+  if (near.length === 0) return '';
+  return ` Routes for that path expect the query ${near.map((r) => JSON.stringify(r.query ?? 'any')).join(' or ')}; the request had ${JSON.stringify(queryOf(url))}.`;
+}
+
 export function fakeFetch(routes: Route[] = []): FakeFetch {
+  for (const route of routes) {
+    if ((route.url === undefined) === (route.path === undefined)) throw new Error('fakeFetch: a route matches on url, or on path (and query), not both or neither.');
+  }
   const calls: RecordedRequest[] = [];
 
   const fetch = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
@@ -46,13 +112,11 @@ export function fakeFetch(routes: Route[] = []): FakeFetch {
     };
     calls.push(recorded);
 
-    const route = routes.find(
-      (r) =>
-        (r.method ?? 'GET').toUpperCase() === recorded.method &&
-        (typeof r.url === 'string' ? r.url === recorded.url : r.url.test(recorded.url)),
-    );
+    const route = routes.find((r) => matches(r, recorded.method, recorded.url));
     if (!route) {
-      throw new Error(`fakeFetch: no route for ${recorded.method} ${recorded.url}. Add one to the test; tests never reach the network.`);
+      throw new Error(
+        `fakeFetch: no route for ${recorded.method} ${recorded.url}.${nearMisses(routes, recorded.method, recorded.url)} Add one to the test; tests never reach the network.`,
+      );
     }
 
     const canned = typeof route.respond === 'function' ? route.respond(recorded) : route.respond;

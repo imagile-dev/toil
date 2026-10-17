@@ -1,6 +1,6 @@
 ---
 name: integrations
-description: Rules for toil's enterprise-tool integrations (Jira, Confluence, Bitbucket, SonarQube and every other service area). Use when adding, changing or reviewing an integration or one of its commands, judging whether a requested service can be supported (its authentication), recording or raising a verification level, adding a vendor's Cloud variant (each variant is its own area), reviewing an integration's site documentation page, or touching anything covered by the migration command contract (docs/command-contract.json, docs/command-contract.md, `toil config import`, command paths, flags, env var and config key names). Not needed for databases or the MCP server alone.
+description: Rules for toil's enterprise-tool integrations (Jira, Confluence, Bitbucket, SonarQube and every other service area). Use when adding, changing or reviewing an integration or one of its commands, judging whether a requested service can be supported (its authentication), recording or raising a verification level, adding a vendor's Cloud variant (each variant is its own area), reviewing an integration's site documentation page, or touching anything covered by the migration command contract (docs/command-contract.json, docs/command-contract.md, docs/divergences/, `toil config import`, command paths, flags, env var and config key names). Not needed for databases or the MCP server alone.
 ---
 
 # Integrations
@@ -23,11 +23,46 @@ No hardcoded vendor base URLs; every host is user-supplied.
 ## Adding an Enterprise Integration
 
 Confirm the Authentication Bar first. Then, in one change: `src/areas/<area>/` with
-its `defineArea` (connection schema, secrets, CI fallbacks) and its commands, a
-`test/fixtures/<area>.fixture.ts`, `config init`/`check`/`test` entries (once the
-`config` commands exist), `skills/toil/<area>.md`, and its row in `SKILL.md`. This
-skill holds the checklist; `test/skills.test.ts` fails when a registered area has no
-skill file, or the file misses a command or a connection key's env var.
+its `defineArea` (connection schema, secrets, CI fallbacks), its commands and its
+`supported` export, a `test/fixtures/<area>.fixture.ts`, `config init`/`check`/`test`
+entries (once the `config` commands exist), `skills/toil/<area>.md`, its board entry
+`site/src/data/integrations/<area>.json`, and `docs/divergences/<area>.json` if it
+diverges. Every one of those files is the area's own; no port edits a shared list.
+`test/skills.test.ts` fails when a registered area has no skill file, the file has no
+frontmatter, or it misses a command, a connection key's env var or the supported
+versions.
+
+### Porting an area, step by step
+
+1. **Read the brief**, `docs/briefs/<area>.md`: auth, paging, special HTTP needs,
+   context inputs, the suspected-bug issue and the supported version. Then read the
+   predecessor's `src/services/<area>/`, which the brief summarizes and which wins
+   where they disagree.
+2. **Stub it**: `node scripts/stub-area.mjs <area>` writes `src/areas/<area>/` with
+   a `defineArea` with a `request` hook to fill in, one `area.command()` per
+   contract command (exact path, arguments and flags, each `run` throwing until ported), plus the fixture and skill file. It never
+   overwrites, and it leaves out commands a divergence removes. Group-level flags
+   become the area's context inputs in `area.ts`, with a TODO for where each value
+   comes from (a connection setting, the git remote, or selecting the connection).
+3. **Port each command**: request, paging, errors and `data` exactly as the
+   predecessor had them, through `ctx.fetch` and core's helpers. Set `writes`
+   from what the old command does; the stub only guessed from the verb.
+4. **Fixture**: canned responses for every request the examples send, as routes on
+   method, `path` and `query`. Local state goes in `setup`/`teardown`; a non-HTTP
+   area names what to `trace`.
+5. **Supported version**: export `supported` from `index.ts`, set the same value in
+   the board entry, and state it in the skill file. An error that means the server
+   is too old uses `serverTooOld()` from `src/core/supported.ts`, so its message says so and names
+   the minimum.
+6. **Contract**: `test/contract.test.ts` checks paths, flags and output field names.
+   Anything a principle makes you change goes in `docs/divergences/<area>.json`.
+7. **Docs**: `npx vitest run -u` writes `site/src/data/commands/<area>.json`; set the
+   board entry's `status` to `unit`; review the docs page and take its screenshots
+   with `node scripts/shoot.mjs docs/integrations/<area>/` (the `site` skill).
+8. **Suspected bugs** go in the area's issue, never fixed in the port (below).
+9. **Delete the brief**, `docs/briefs/<area>.md`, in the same PR. Briefs are the only
+   docs that point at the predecessor's source; shipped docs, code and skills never
+   do, so a brief goes once its area is ported.
 
 `src/areas/jira/` is the reference port. Follow its shape:
 
@@ -179,7 +214,7 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
     Contract requires, such as a credential reaching a host the user didn't configure
     (flagged `**Security:**` in the issue) or a path an agent passes reaching toil's
     own credentials, made at once and listed as a divergence in
-    `docs/command-contract.md` naming the principle; and additive output the contract
+    `docs/divergences/<area>.json` naming the principle; and additive output the contract
     allows, such as `meta.warnings`.
   - **The first live run checks every item.** A confirmed bug is fixed as a declared
     change; a refuted one is closed.
@@ -188,7 +223,9 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
   - Cloud variants have no tested predecessor. They're built against the vendor's
     documented API, and the PR says what they were run against.
 - **The old surface is frozen** in `docs/command-contract.json`: every command path,
-  its arguments, and its flags, captured from the old CLI's own help output. That
+  its arguments and its flags, captured from the old CLI's own help output, and the
+  field names of each command's `data`, read from its source by the TypeScript
+  checker. That
   file is the only place the predecessor is named in the repository; issues may name
   it, because porting needs the source location.
 - **Every integration command in the contract exists in toil at the same path**,
@@ -201,13 +238,16 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
   `jira.baseUrl`.
 - **toil may add** commands, flags and output fields freely. It may drop or change a
   contract command only where a principle requires it. Each such divergence is listed
-  in `docs/command-contract.md` with what to use instead. One example: `deps frisk`
+  in `docs/divergences/<area>.json` with what to use instead (the format is in
+  `docs/command-contract.md`). One example: `deps frisk`
   splits into per-source commands under *principle 3*.
 - **A test enforces this.** `test/contract.test.ts` diffs every registered area's
   command paths, aliases, positional arguments and flag spellings against the
-  contract and fails on any divergence not listed in `docs/command-contract.md`.
-  Output field names aren't in the captured contract: check them against the
-  predecessor's code by hand, and keep its names even where they're awkward (jira's
+  contract, runs every example in the area's fixture and checks the `data` has the
+  old command's required field names, and fails on any divergence no file in
+  `docs/divergences/` allows. Optional fields and output the old code typed as
+  `any` can't be checked that way: compare those with the predecessor's code by
+  hand, and keep its names even where they're awkward (jira's
   `fields --discover` keeps the predecessor-named `pncliType` beside `suggestedType`).
 - **Config is rebuilt, not copied.** `toil config import` reads the old global config
   once, writes toil's config, and moves every secret into the OS credential store

@@ -1,0 +1,9 @@
+{
+  "area": "openshift",
+  "name": "OpenShift / Kubernetes",
+  "group": "build",
+  "order": 3,
+  "covers": "Pods, events, logs, metrics, deployments",
+  "credential": "Service account token",
+  "status": "planned"
+}
