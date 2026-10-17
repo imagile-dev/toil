@@ -156,6 +156,15 @@ Commands with no area and no config (`version`) use `defineCommand`. The CLI and
 surfaces never implement behavior of their own; if one needs something the other
 lacks, the gap is in core.
 
+Local files go through `ctx.files` (`src/core/files.ts`), never `node:fs`: input
+files, uploads and downloads resolve against the working directory on both front
+doors, `-` means stdin only on the CLI (over MCP stdin carries the protocol), paths
+in output use forward slashes, and tests get an in-memory copy. HTTP to a REST API
+goes through `restRequest` and `buildUrl` in `src/core/rest.ts`, which turn failures
+into `AUTH`, `NOT_FOUND`, `HTTP` or `NETWORK` errors with the server's own message,
+retry a 429, and keep a base URL's context path. argv is typed from the schema: a
+number field parses `--max-results 50`, and an array field makes its flag repeatable.
+
 **Commands never read config or env.** `run` gets `ctx.connection`, the one
 connection this call resolved, validated and typed from the area's schema, and a
 context with no `config` and no `env` (which carries every `TOIL_*` credential and
@@ -313,6 +322,8 @@ Tests never need the network: a developer offline gets the same result as CI.
     one example
   - for every example, identical envelopes and identical HTTP requests through both
     front doors, and only GET/HEAD/OPTIONS from a command that doesn't write
+    (plus POST from a read marked `queryByPost`, such as a search whose query
+    may be too long for a URL)
   - an unknown field refused as `INVALID_INPUT` on both sides before any request
   - a config failure building the context gives the same envelope on both sides
   - per area, `--connection <name>` and MCP's `connection` field selecting the same
@@ -324,9 +335,15 @@ Tests never need the network: a developer offline gets the same result as CI.
   still bites: break the mapping on purpose and watch it fail.
 - **Each area has a fixture**, `test/fixtures/<area>.fixture.ts`, exporting
   `defineFixture({ area, routes, config })`: canned responses for every request its
-  examples send, and a config keyed by area (read as one connection named after the
-  area, as a version 1 file is) with credentials set and writes on. The suite finds it
-  by file name and fails when a registered area has none.
+  examples send, a config keyed by area (read as one connection named after the
+  area, as a version 1 file is) with credentials set and writes on, and any local
+  `files` the examples read. The suite finds it by file name and fails when a
+  registered area has none.
+- **Three more suites cover every area with no per-area code:** `test/contract.test.ts`
+  (the migration contract, see the `integrations` skill), `test/skills.test.ts` (a
+  `skills/toil/<area>.md` naming every command and env var, and a row in `SKILL.md`),
+  and `test/site-commands.test.ts`, which writes `site/src/data/commands.generated.json`
+  for the docs pages (`npx vitest run -u` after changing a command).
 - `test/fixtures/demo-commands.ts` holds test-only commands (a read and a write
   against a fake API) that exercise the harness before real integrations exist.
   They're never registered in the shipped CLI.

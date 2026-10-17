@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import PageHero from '../components/PageHero.astro';
 import { url } from '../lib/url';
-import { groups, depsCommands, notPlanned, integrationCount } from '../data/integrations';
+import { groups, depsCommands, notPlanned, integrationCount, shippedCount } from '../data/integrations';
 
 const levels = [
   { name: 'planned', body: 'Designed and scheduled. No code has shipped yet.' },
@@ -12,9 +12,9 @@ const levels = [
 ];
 ---
 
-<Layout title="Integrations" description={`The ${integrationCount} enterprise integrations planned for toil, what each covers, and the credential it uses.`}>
+<Layout title="Integrations" description={`The ${integrationCount} enterprise integrations toil covers or plans, what each covers, and the credential it uses.`}>
   <PageHero
-    eyebrow={`<b>${integrationCount}</b> planned · one auth bar`}
+    eyebrow={`<b>${integrationCount}</b> integrations · ${shippedCount} shipped · one auth bar`}
     title="Every tool behind <em>one pasted token.</em>"
     lead="Each integration is its own command area, signs in with a long-lived token you generate once in the vendor's UI, and returns the same JSON envelope. Nothing needs a browser login at use time."
   />

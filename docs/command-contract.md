@@ -39,13 +39,18 @@ toil may add commands, flags and output fields.
 ## Divergences
 
 Each entry says why it diverges (a principle, or a deliberate product decision) and what to use instead. Anything not
-listed here must match exactly, and the contract test fails on an unlisted difference.
+listed here must match exactly, and the contract test (`test/contract.test.ts`) fails on an unlisted difference. It
+reads the code spans in this table's first column: a command path (`git credentials`), a command and flag
+(`jira schema --example-only`), or a global flag (`--dry-run`) allows that one difference. It checks every
+registered area's paths, aliases, positional arguments and flag spellings; output field names aren't in the
+captured contract, so each port checks those against the predecessor by hand.
 
 | Old | toil | Why |
 |-----|------|-----|
 | `deps frisk --source all` | Run each source separately: `toil deps frisk --source osv`, `--source sonatype`, `--source sonatypeiq` | *Principle 3*: no command fans out to several services on the caller's behalf. Single-source `deps frisk` stays, as a thin alias over the per-source commands (`toil osv vulns`, `toil ossindex vulns`, `toil sonatypeiq evaluate`). |
 | `deps connectivity` | Removed. Check each source with its own `config test` | *Principle 3*: it decides on the caller's behalf which services to contact. |
 | `git credentials` and its subcommands (`inspect`, `mappings`, `stored`, `forget`) | Removed. Use git's own `git credential` commands; toil checks its own credentials per area with `config test` | *Principle 1*: they work by asking the git binary (`git credential fill`/`reject`, `ls-remote`), and toil runs no executables. |
+| `jira schema --example-only` printing the bare example with no envelope | The flag stays; the example comes back as `data` in the usual envelope. Save `.data` to use it as an `--input-file` | *Output Contract* (CLAUDE.md): every command writes exactly one envelope, so an agent never has to guess which shape stdout holds. |
 | Global `--dry-run` | Removed. Run the command without `--allow-write`, which refuses the write | It could only intercept writes made over HTTP, showed only the first of several, and saw little use. Writes are governed by the two-step gate (writes enabled in config plus `--allow-write`) alone. |
 
 ## Recapturing

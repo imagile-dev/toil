@@ -23,9 +23,27 @@ No hardcoded vendor base URLs; every host is user-supplied.
 
 Confirm the Authentication Bar first. Then, in one change: `src/areas/<area>/` with
 its `defineArea` (connection schema, secrets, CI fallbacks) and its commands, a
-`test/fixtures/<area>.fixture.ts`, `config init`/`check`/`test` entries,
-`skills/toil/<service>.md`, and its row in `SKILL.md`. This skill holds the
-checklist; a test fails when a registered service has no skill file.
+`test/fixtures/<area>.fixture.ts`, `config init`/`check`/`test` entries (once the
+`config` commands exist), `skills/toil/<area>.md`, and its row in `SKILL.md`. This
+skill holds the checklist; `test/skills.test.ts` fails when a registered area has no
+skill file, or the file misses a command or a connection key's env var.
+
+`src/areas/jira/` is the reference port. Follow its shape:
+
+- `area.ts` (the `defineArea`), `client.ts` (every request, built on `restRequest`
+  and `buildUrl` from `src/core/rest.ts`, with the area's headers and auth fix), and
+  command files grouped by subject, each exporting a list that `index.ts` spreads.
+- A command that needs no connection at all (`jira schema`) is a `defineCommand`
+  under the area's path; it works with no config.
+- Files through `ctx.files`, never `node:fs`. Numbers and repeatable flags come from
+  the schema (`z.number()`, `z.array()`); don't parse argv by hand.
+- A read sent as POST (a search) sets `queryByPost: true` and stays `writes: false`.
+- Every connection key keeps the predecessor's name, so its env var does too
+  (`apiToken` is `TOIL_JIRA_API_TOKEN`).
+- Unit tests assert exact requests through `execute()` and `testContext()`; the
+  fixture's canned responses say which shapes came from the predecessor's tests and
+  which were invented from the vendor's docs.
+- After registering, run `npx vitest run -u` once to write the site's command list.
 
 Once dossiers are built (`docs/dossiers.md`), an area also declares the zod schema
 of its dossier section and a read-only `toil <area> check-dossier` command, and its
@@ -121,8 +139,12 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
   contract command only where a principle requires it. Each such divergence is listed
   in `docs/command-contract.md` with what to use instead. One example: `deps frisk`
   splits into per-source commands under *principle 3*.
-- **A test enforces this.** It diffs toil's registered commands and flags against the
+- **A test enforces this.** `test/contract.test.ts` diffs every registered area's
+  command paths, aliases, positional arguments and flag spellings against the
   contract and fails on any divergence not listed in `docs/command-contract.md`.
+  Output field names aren't in the captured contract: check them against the
+  predecessor's code by hand, and keep its names even where they're awkward (jira's
+  `fields --discover` keeps the predecessor-named `pncliType` beside `suggestedType`).
 - **Config is rebuilt, not copied.** `toil config import` reads the old global config
   once, writes toil's config, and moves every secret into the OS credential store
   (see the `secrets` skill). It never modifies or deletes the old files, and it leaves

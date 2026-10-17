@@ -8,7 +8,7 @@ import { principles } from '../data/principles';
 import { url, repoUrl } from '../lib/url';
 
 const stats = [
-  { value: integrationCount, label: 'Planned integrations' },
+  { value: integrationCount, label: 'Integrations' },
   { value: 0, label: 'Executables to approve' },
   { value: 0, label: 'Install scripts' },
   { value: 3, label: 'Platforms, all first-class' },
@@ -204,7 +204,7 @@ const teaser = principles.slice(0, 3);
         ))}
       </div>
       <p class="areas__more" data-reveal>
-        <a class="tap" href={url('/integrations/')}>See all {integrationCount} planned integrations <span aria-hidden="true">→</span></a>
+        <a class="tap" href={url('/integrations/')}>See all {integrationCount} integrations <span aria-hidden="true">→</span></a>
       </p>
     </div>
   </section>
