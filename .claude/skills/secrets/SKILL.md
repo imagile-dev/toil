@@ -43,7 +43,8 @@ platform check, under the service `toil` with the reference name as the account:
   `keychain.ts` would let any module spawn while the gate still passes.
 - The spawner is injectable (`createSecretStore({ platform, spawn })`). Unit tests
   stub it for every platform, and `test/harness/fake-store.ts` stands in for the
-  store in command tests. **No test touches a real store.**
+  store in command tests. **No test in `npm test` touches a real store**; the
+  one suite that does lives in `test/live/` and runs only on its own (below).
 - `testOnlyProgram` runs Node in place of the store's program through the real
   spawner, so tests prove the secret arrives on stdin byte for byte, arguments
   arrive literally with no shell, and an abort ends a hung child as `CANCELLED`.
@@ -98,8 +99,17 @@ agents never create or change connections.
 
 ## Verifying
 
-The unit suite proves the invocations. A change to `keychain.ts` also needs a live
-round trip on the platform you're on, in the PR: add a throwaway connection with a
+The unit suite proves the invocations. `test/live/keychain.live.test.ts` proves
+them against the real store: it logs a throwaway `demo` connection in through
+the real CLI program, resolves its token from the store into a request, removes
+it, and checks each side with the OS's own tool (`security find-generic-password`,
+`secret-tool lookup`). `npm run test:keychain-live` runs it on your machine;
+`.github/workflows/keychain-live.yml` runs it on macOS and Linux runners on every
+PR that touches the store, connection resolution or `src/connections/`, and on
+`workflow_dispatch` (`scripts/keychain-live.sh` starts the Linux keyring). Windows
+isn't in it. Quote its `[keychain-live]` log lines in the PR.
+
+A change to `keychain.ts` also needs a live round trip on the platform you're on, in the PR: add a throwaway connection with a
 fake token against a temp `--config`, show the entry in the store and only the
 reference in config, use it, remove it, and show the store is clean. Say which
 platforms were not run.
