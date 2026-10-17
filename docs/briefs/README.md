@@ -25,13 +25,12 @@ Every brief has the same sections:
 | Supported version | The oldest server or API version, or "not established" with what is known |
 | Watch for | Behavior a port could get wrong, and suspected bugs to pin rather than fix |
 
-## Waves
+## Finding a brief
 
-| Wave | Areas |
-|------|-------|
-| 1. Plain HTTP | [artifactory](artifactory.md), [confluence](confluence.md), [jenkins](jenkins.md), [bitbucket](bitbucket.md), [github](github.md), [splitio](splitio.md), [elasticsearch](elasticsearch.md), [logscale](logscale.md), [kibana](kibana.md) |
-| 2. Exchange, polling, header-only auth, environments | [ado](ado.md), [dynatrace](dynatrace.md), [openshift](openshift.md), [saucelabs](saucelabs.md), [sde](sde.md), [contrast](contrast.md), [sonatypeiq](sonatypeiq.md), [checkmarx](checkmarx.md), [alation](alation.md), [osv and ossindex](osv-ossindex.md) |
-| 3. Local | [git](git.md), [deps](deps.md) |
+The folder listing is the index: each area still to port has `docs/briefs/<area>.md`,
+and nothing else lists them, so a port deleting its brief edits no shared file. Each
+brief's header names its wave: 1 is plain HTTP; 2 is token exchanges, polling,
+header-only auth and environments; 3 is the local `git` and `deps` areas.
 
-A port starts with `node scripts/stub-area.mjs <area>`, then this brief, then the
+A port starts with `node scripts/stub-area.mjs <area>`, then its brief, then the
 `integrations` skill's porting steps.

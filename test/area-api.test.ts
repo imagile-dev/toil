@@ -120,6 +120,76 @@ describe('context inputs', () => {
   });
 });
 
+describe('a context input the command supplies, and its own wording when nothing does', () => {
+  const filed = defineArea({
+    name: 'filed',
+    description: 'test',
+    connection: z.object({ project: z.string().optional(), env: z.string().optional() }),
+    context: {
+      project: { description: 'Project key', flags: '--project <key>', scope: 'command', setting: 'project', schema: z.string().regex(/^[A-Z]+$/) },
+      board: {
+        description: 'Board',
+        scope: 'command',
+        setting: 'project',
+        missing: { message: 'No board specified. Use --board or set defaults.filed.project in config.' },
+      },
+      env: { description: 'Environment', selectsConnection: true },
+    },
+  });
+  const create = filed.command({
+    path: ['filed', 'create'],
+    description: 'test',
+    writes: false,
+    input: z.object({ fromFile: z.string().optional() }),
+    context: { project: 'optional' },
+    examples: [{}],
+    run: async (input, ctx) => ({ used: ctx.supply('project', input.fromFile, 'file') ?? null, context: { ...ctx.context } }),
+  });
+  const run = (input: Record<string, unknown>, connection: Record<string, unknown> = {}) =>
+    execute(create, input, { ...testContext().context, config: configOf({ filed: { area: 'filed', ...connection } }, { filed: { connection: 'filed' } }) });
+
+  it('ranks the supplied value below the call and above the connection, and reports source file', async () => {
+    const fromFile = await run({ fromFile: 'FILE' }, { project: 'CONN' });
+    expect(fromFile.data).toEqual({ used: 'FILE', context: { project: 'FILE' } });
+    expect(fromFile.meta.context?.inputs).toEqual({ project: { value: 'FILE', source: 'file' } });
+
+    const flag = await run({ project: 'FLAG', fromFile: 'FILE' }, { project: 'CONN' });
+    expect(flag.data).toEqual({ used: 'FLAG', context: { project: 'FLAG' } });
+    expect(flag.meta.context?.inputs).toEqual({ project: { value: 'FLAG', source: 'input' } });
+
+    const none = await run({}, { project: 'CONN' });
+    expect(none.data).toEqual({ used: 'CONN', context: { project: 'CONN' } });
+    expect(none.meta.context?.inputs).toEqual({ project: { value: 'CONN', source: 'connection' } });
+
+    const nothing = await run({ fromFile: '' });
+    expect(nothing.data).toEqual({ used: null, context: {} });
+    expect(nothing.meta.context).not.toHaveProperty('inputs');
+  });
+
+  it("checks a supplied value against the input's schema, naming the file as where it came from", async () => {
+    const bad = await run({ fromFile: 'lower' });
+    expect(bad.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('filed project "lower" from the input file isn') });
+  });
+
+  it('refuses to supply an input the command does not list, or one that selects the connection', async () => {
+    const wrong = (name: 'board' | 'env') =>
+      filed.command({ path: ['filed', `w-${name}`], description: 'test', writes: false, input: z.object({}), examples: [{}], run: async (_i, ctx) => ctx.supply(name, 'X', 'file') });
+    const config = configOf({ filed: { area: 'filed' } }, { filed: { connection: 'filed' } });
+    expect((await execute(wrong('board'), {}, { ...testContext().context, config })).error?.message).toContain(`"board" isn't one of its context inputs`);
+    expect((await execute(wrong('env'), {}, { ...testContext().context, config })).error?.message).toContain('"env" selects the connection');
+  });
+
+  it("uses an input's own missing wording, with core's fix unless it gives one", async () => {
+    const needsBoard = filed.command({ path: ['filed', 'board'], description: 'test', writes: false, input: z.object({}), context: { board: 'required' }, examples: [{}], run: async () => ({}) });
+    const envelope = await execute(needsBoard, {}, { ...testContext().context, config: configOf({ filed: { area: 'filed' } }, { filed: { connection: 'filed' } }) });
+    expect(envelope.error).toEqual({
+      code: 'INVALID_INPUT',
+      message: 'No board specified. Use --board or set defaults.filed.project in config.',
+      fix: 'Pass --board <value>, or set project on connection filed (TOIL_FILED_PROJECT).',
+    });
+  });
+});
+
 describe('choosing the connection', () => {
   const two = configOf(
     {

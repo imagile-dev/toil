@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { areaOf, commandName, isCliOnly, managesConfig, usesConnection, type AnyCommand } from './command.js';
 import type { Connection } from './area.js';
-import { resolveCall, type ResolvedCall } from './call-context.js';
+import { resolveCall, supplyContext, type ResolvedCall } from './call-context.js';
 import { connectionEnvName, defaultConnectionName, envName } from './config.js';
 import type { CommandContext, Context } from './context.js';
 import { failure, success, type ContextReport, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
@@ -128,11 +128,17 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     delete rest.dossier;
     delete rest.gitRemote;
     delete rest.adopted;
+    const context = call?.context ?? {};
+    const resolved = call?.report ?? {};
     const commandCtx: CommandContext<Connection | undefined> = {
       ...rest,
       connection,
-      context: call?.context ?? {},
-      resolved: call?.report ?? {},
+      context,
+      resolved,
+      supply: (name, value, source) => {
+        if (!def.area || !call) throw new Error(`${commandName(def)} has no context inputs to supply.`);
+        return supplyContext(def.area, def, context, resolved, name, value, source);
+      },
       ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),

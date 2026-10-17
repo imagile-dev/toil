@@ -32,10 +32,12 @@ from `main`).
   until its code is on `main`, then shows its verification level. Statuses on
   `/integrations/` use the same levels as **Verification Levels** (`integrations`
   skill), plus `planned`.
-- **A shipped integration's docs page lists its real commands** from
-  `site/src/data/commands/<area>.json`, which `test/site-commands.test.ts` writes
-  from the registry, one file per area. Never edit them by hand; run
-  `npx vitest run -u` in the root.
+- **A shipped integration's docs page lists its real commands and settings** from
+  `site/src/data/commands/<area>.json` and `site/src/data/settings/<area>.json`
+  (every connection key, its env var and any CI fallback), which
+  `test/site-commands.test.ts` writes from the registry, one file per area. Never
+  edit them by hand; run `npx vitest run -u` in the root. A page whose area has no
+  write command leaves out the Writes section.
 - **One source per fact.** Each integration's board entry is its own file,
   `site/src/data/integrations/<area>.json` (status, credential, supported version);
   `site/src/data/integrations.ts` gathers them and `docs/integrations.md` points at
