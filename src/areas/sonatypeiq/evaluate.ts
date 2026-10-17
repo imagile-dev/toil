@@ -318,7 +318,7 @@ export const evaluateCommand = sonatypeiqArea.command({
     "Sonatype IQ policy evaluation of an inventory from toil deps scan, against one application (applicationId is its public ID; see sonatypeiq_applications_list). Returns { tier, source, sourcesQueried, sourceErrors, scanned, vulnerable, packages: [{ name, version, ecosystem, ..., vulnerabilities }] }. Only SECURITY policy violations count.",
   input: z.object({
     from: z.string().optional().describe(FROM_DESCRIPTION),
-    applicationId: z.string().optional().describe('Sonatype IQ Server application ID (required when --source sonatypeiq)'),
+    applicationId: z.string().optional().describe('Sonatype IQ Server application public ID (required)'),
     ecosystem: z.string().optional().describe('Filter to one ecosystem: npm, nuget, maven, all (default: "all")'),
     directOnly: z.boolean().optional().describe('Only scan direct dependencies (default: include transitive) (default: false)'),
     includeDev: z.boolean().optional().describe('Include dev/test dependencies (default: false)'),
@@ -329,7 +329,7 @@ export const evaluateCommand = sonatypeiqArea.command({
   timeLimitMs: TIME_LIMIT_MS,
   options: [
     { flags: '--from <file>', field: 'from', description: FROM_DESCRIPTION },
-    { flags: '--application-id <id>', field: 'applicationId', description: 'Sonatype IQ Server application ID (required when --source sonatypeiq)' },
+    { flags: '--application-id <id>', field: 'applicationId', description: 'Sonatype IQ Server application public ID (required)' },
     { flags: '--ecosystem <ecosystem>', field: 'ecosystem', description: 'Filter to one ecosystem: npm, nuget, maven, all (default: "all")' },
     { flags: '--direct-only', field: 'directOnly', description: 'Only scan direct dependencies (default: include transitive) (default: false)' },
     { flags: '--include-dev', field: 'includeDev', description: 'Include dev/test dependencies (default: false)' },
