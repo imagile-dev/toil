@@ -7,9 +7,8 @@ description: Rules for `toil mcp`, the stdio MCP server in src/mcp/, and for the
 
 The CLI is the primary interface; MCP is the alternative for clients that prefer
 tools. `toil mcp` ships in the same package and runs in-process on the same core.
-It never shells out to the CLI, so connections, exchanged tokens and the TypeScript
-language service stay warm across calls. Neither surface has a capability the other
-lacks.
+It never shells out to the CLI, so connections and exchanged tokens stay warm across
+calls. Neither surface has a capability the other lacks.
 
 `toil mcp` serves over stdio. `--areas jira,confluence` limits it to those areas, so
 an agent sees a small, focused tool list and one config entry stands in for one vendor

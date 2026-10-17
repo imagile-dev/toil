@@ -1,7 +1,7 @@
 # toil
 
-One CLI and MCP server for the work around the code: your enterprise tools, your
-databases, and your codebase. Every command returns structured JSON, so agents and
+One CLI and MCP server for the work around the code: your enterprise tools and your
+databases. Every command returns structured JSON, so agents and
 scripts can use it as easily as people.
 
 > Status: early. Nothing is released yet. See [docs/plan.md](docs/plan.md) and
@@ -12,7 +12,6 @@ scripts can use it as easily as people.
 | Area | Examples |
 |------|----------|
 | `db` | List connections, describe tables, preview rows, run read-only queries with paging |
-| `code` | Search symbols, find definitions and references, call hierarchy, diagnostics, rename preview |
 | Enterprise tools | Issue trackers, source hosts, CI, scanners, observability, all with a pasted token |
 
 ## Install
@@ -38,7 +37,6 @@ Each [release](https://github.com/imagile-dev/toil/releases) also carries the pa
 
 ```bash
 toil db query --connection reporting "select top 10 * from orders"
-toil code refs --symbol OrderService.Submit
 toil mcp            # run as an MCP server over stdio
 ```
 
