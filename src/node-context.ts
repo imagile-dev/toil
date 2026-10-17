@@ -1,5 +1,5 @@
 import { join, resolve } from 'node:path';
-import type { AnyCommand } from './core/command.js';
+import { needsConfig, type AnyCommand } from './core/command.js';
 import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
 import { nodeFiles } from './core/files.js';
@@ -34,14 +34,14 @@ export function timeoutFromEnv(env: NodeJS.ProcessEnv): number | undefined {
 }
 
 /**
- * The real context for one command in a Node process. A standalone command
- * needs no config, so it doesn't load any: a broken file, or one written by a
+ * The real context for one command in a Node process. A standalone or
+ * area-local command needs no config, so it doesn't load any: a broken file, or one written by a
  * newer toil, can't stop `toil version` from answering. That's how you find out
  * which toil you have before being told to upgrade it.
  */
 export function createNodeContext(o: NodeContextOptions): Context {
   return {
-    config: o.def?.standalone
+    config: o.def && !needsConfig(o.def)
       ? emptyConfig()
       : loadConfig({ env: o.env, cwd: o.cwd, home: o.home, configPath: o.globals.config, areas: o.areas }),
     fetch: globalThis.fetch,
