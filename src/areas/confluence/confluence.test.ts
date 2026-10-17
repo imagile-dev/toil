@@ -23,6 +23,8 @@ import { listSpaces } from './spaces.js';
 const API = `${CONFLUENCE}/rest/api`;
 const JSON_HEADERS = { authorization: 'Bearer test-token', 'content-type': 'application/json', accept: 'application/json', connection: 'close' };
 const write = { allowWrite: true };
+/** Dot segments carrying `;params`, which some servers strip before routing; core's bound refuses them (KF5). */
+const DOT_PARAMS = ['..;x', '.;', '%2e%2e;x', '.%2e;jsessionid=1'];
 
 async function run(
   def: AnyCommand,
@@ -75,7 +77,7 @@ describe('pages', () => {
     const plain = await run(getPage, { id: 'abc 1' }, [{ url: /content/, respond: { json: {} } }]);
     expect(plain.calls[0]!.url).toBe(`${API}/content/abc%201?expand=body.storage,version,space,ancestors`);
     // Dot segments in any spelling are core's bound (requests.path); the rest are seg()'s.
-    for (const id of ['1/history', '..', '.', '%2e%2e', '.%2E', '%2e', 'a\\b', '1?x', '1#x', '.\t.', '%2e\n%2e', '.\t', '.\r.']) {
+    for (const id of ['1/history', '..', '.', '%2e%2e', '.%2E', '%2e', 'a\\b', '1?x', '1#x', '.\t.', '%2e\n%2e', '.\t', '.\r.', ...DOT_PARAMS]) {
       const { envelope, calls } = await run(getPage, { id }, []);
       expect(envelope.error, id).toMatchObject({ code: 'INVALID_INPUT' });
       expect(calls).toHaveLength(0);
@@ -86,9 +88,11 @@ describe('pages', () => {
     const { envelope, calls } = await run(deletePage, { id: '../space/DOCS', ...write }, []);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('../space/DOCS') });
     expect(calls).toHaveLength(0);
-    const tab = await run(deletePage, { id: '.\t', ...write }, []);
-    expect(tab.envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
-    expect(tab.calls).toHaveLength(0);
+    for (const id of ['.\t', ...DOT_PARAMS]) {
+      const refused = await run(deletePage, { id, ...write }, []);
+      expect(refused.envelope.error, id).toMatchObject({ code: 'INVALID_INPUT' });
+      expect(refused.calls).toHaveLength(0);
+    }
   });
 
   it('delete-page and delete-attachment are CLI only: never MCP tools', () => {
@@ -255,9 +259,15 @@ describe('comments and labels', () => {
     expect(envelope.data).toEqual({ removed: 'runbook', from: '12345' });
   });
 
+  it('remove-label: a ; that leaves a real name before it is sent as given', async () => {
+    const { envelope, calls } = await run(removeLabel, { id: '12345', label: 'a;b', ...write }, [{ method: 'DELETE', url: /label/, respond: { status: 204 } }]);
+    expect(calls[0]!.url).toBe(`${API}/content/12345/label/a;b`);
+    expect(envelope.data).toEqual({ removed: 'a;b', from: '12345' });
+  });
+
   it('remove-label: a label that would change the path is refused before any request', async () => {
     // Tab, LF and CR are dropped by the URL parser, so core's bound strips them first (KF4).
-    for (const label of ['a/b', '../../../space/DOCS', '..', '%2e%2e', '.%2E', '.\t.', '%2e\n%2e', '.\t', '.\r.']) {
+    for (const label of ['a/b', '../../../space/DOCS', '..', '%2e%2e', '.%2E', '.\t.', '%2e\n%2e', '.\t', '.\r.', ...DOT_PARAMS]) {
       const { envelope, calls } = await run(removeLabel, { id: '12345', label, ...write }, []);
       expect(envelope.error, label).toMatchObject({ code: 'INVALID_INPUT' });
       expect(calls).toHaveLength(0);

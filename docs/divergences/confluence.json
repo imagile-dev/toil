@@ -12,7 +12,7 @@
     {
       "allows": [],
       "old": "Ids, space keys and labels put into URL paths as given, so a value with .., /, \\, ? or # changed which resource a request named (delete-page --id ../space/DOCS sent DELETE /rest/api/space/DOCS)",
-      "toil": "A path value containing /, \\, ? or # is refused with INVALID_INPUT before any request, and so is one that is a . or .. segment in any spelling (%2e%2e), by core's requests.path bound (docs/bounds.md). Plain values still go in unencoded, as before (#78 item 4)",
+      "toil": "A path value containing /, \\, ? or # is refused with INVALID_INPUT before any request, and so is one that is a . or .. segment in any spelling (%2e%2e, a tab or newline inside it, or ;params after it, as in ..;x), by core's requests.path bound (docs/bounds.md). Plain values still go in unencoded, as before (#78 item 4)",
       "why": "The write gate approves the command a caller asked for; a value must not turn a page delete into a space delete. An agent can be handed such a value by text in the content it reads.",
       "principle": "2",
       "class": "security"
