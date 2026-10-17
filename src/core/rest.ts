@@ -123,6 +123,13 @@ export interface RestOptions {
   timeoutMs?: number;
   /** Cross-origin redirects: refused unless this is `'follow-without-auth'`. */
   redirect?: RedirectPolicy;
+  /**
+   * The connection's `baseUrl` setting, so a network error names it only when
+   * the failing host is its host; `null` when the connection has none (a host
+   * from another setting, such as Dynatrace's `platformUrl`). Left out, as by a
+   * caller with no connection, the error names `baseUrl` as it always did.
+   */
+  baseUrl?: string | null;
 }
 
 /**
@@ -186,7 +193,7 @@ export async function restResponse<T>(ctx: RestContext, url: string, init: Reque
           details: { url: redactUrl(url), timeoutMs: options.timeoutMs },
         });
       }
-      throw unreachable(url, err, options.service);
+      throw unreachable(url, err, options.service, options.baseUrl);
     }
   }
 }
@@ -300,7 +307,18 @@ async function failed(response: Response, url: string, options: RestOptions): Pr
   return new ToilError(code, reason, { fix, details });
 }
 
-function unreachable(url: string, err: unknown, service: string): ToilError {
+/** Whether `origin` is the `baseUrl` setting's host; true when that setting isn't known, as before. */
+function isBaseUrlHost(origin: string, baseUrl: string | null | undefined): boolean {
+  if (baseUrl === undefined) return true;
+  if (baseUrl === null) return false;
+  try {
+    return new URL(baseUrl).origin === origin;
+  } catch {
+    return false;
+  }
+}
+
+function unreachable(url: string, err: unknown, service: string, baseUrl?: string | null): ToilError {
   const cause = (err as { cause?: { code?: unknown; message?: unknown } }).cause;
   const code = typeof cause?.code === 'string' ? cause.code : undefined;
   const top = err instanceof Error ? err.message : String(err);
@@ -315,7 +333,7 @@ function unreachable(url: string, err: unknown, service: string): ToilError {
   return new ToilError('NETWORK', `Request failed: ${reason}`, {
     fix: tls
       ? `${service}'s certificate isn't trusted. Point NODE_EXTRA_CA_CERTS at your organization's CA bundle.`
-      : `Check baseUrl, and that this machine can reach ${origin} (VPN, proxy, DNS). toil uses HTTPS_PROXY, HTTP_PROXY and NO_PROXY when they're set.`,
+      : `Check ${isBaseUrlHost(origin, baseUrl) ? 'baseUrl' : "the connection's URL settings"}, and that this machine can reach ${origin} (VPN, proxy, DNS). toil uses HTTPS_PROXY, HTTP_PROXY and NO_PROXY when they're set.`,
     details: { url: redactUrl(url), cause: code ?? reason },
   });
 }

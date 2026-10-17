@@ -138,6 +138,10 @@ the bottom of their section.
     (`REAL_GIT_TIMEOUT_MS`), not a raised suite-wide timeout.
   - **The docs page's config example lists every setting** when no key is required
     on its own (sde: a base URL and token, or a connection string), and says so.
+  - **A network error names `baseUrl` only when its host failed.** `apiRequest`
+    passes the connection's `baseUrl` setting to `restRequest`; another host
+    (Dynatrace's `platformUrl`) gets "Check the connection's URL settings". A caller
+    with no connection (a token exchange) keeps the old wording.
   - **`scripts/shoot.mjs` retries removing its Chrome profile** for about three
     seconds, then warns and leaves the exit code alone.
   - **Not done here:** `statusText` on `apiResponse`, and an opt-out of the 429
