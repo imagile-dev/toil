@@ -163,10 +163,11 @@ const waiting = new Set<unknown>();
  */
 export const neverAnswers: typeof fetch = (input, init) => {
   const signal = input instanceof Request ? input.signal : init?.signal;
+  // With no signal it can never settle, so there's nothing to hold it for.
+  if (!signal) return new Promise<Response>(() => {});
   const held = { input, init };
   waiting.add(held);
   return new Promise<Response>((_resolve, reject) => {
-    if (!signal) return;
     const fail = (): void => {
       waiting.delete(held);
       reject(signal.reason ?? new DOMException('aborted', 'AbortError'));
