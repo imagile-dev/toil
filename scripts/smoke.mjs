@@ -40,11 +40,28 @@ try {
   const listed = toil('connections', 'list');
   if (!listed.ok || !Array.isArray(listed.data?.connections)) fail(`connections list returned ${JSON.stringify(listed)}`);
 
+  // No git on PATH (CLAUDE.md, No Executables): toil still starts, and a command
+  // that runs git answers GIT_NOT_FOUND, exit 1, rather than hanging or crashing.
+  const stripped = { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH')), PATH: '' };
+  const bare = (...args) => spawnSync(process.execPath, [bin, ...args], { encoding: 'utf8', input: '', timeout: 15000, env: stripped, cwd: work });
+  const started = bare('version');
+  if (started.status !== 0 || JSON.parse(started.stdout).ok !== true) fail(`toil version with PATH stripped returned ${started.stdout || started.stderr}`);
+  const gitCommands = [['git', 'status']];
+  // `--help` on an unknown command prints the root help, so look for the command's own usage line.
+  const gitCommand = gitCommands.find((path) => bare(...path, '--help').stdout.includes(`Usage: toil ${path.join(' ')}`));
+  let gitStep = 'no command that runs git is registered yet, so only startup was checked with PATH stripped';
+  if (gitCommand) {
+    const run = bare(...gitCommand);
+    const env = JSON.parse(run.stdout || '{}');
+    if (run.status !== 1 || env.error?.code !== 'GIT_NOT_FOUND' || !env.error.fix?.includes('PATH searched')) fail(`toil ${gitCommand.join(' ')} with PATH stripped returned ${run.stdout || run.stderr || `signal ${run.signal}`}`);
+    gitStep = `toil ${gitCommand.join(' ')} answered GIT_NOT_FOUND with PATH stripped`;
+  }
+
   const { reply, stoppedOnSigint } = await mcpVersion(bin);
   if (reply?.structuredContent?.ok !== true) fail(`MCP tools/call version returned ${JSON.stringify(reply)}`);
   if (!stoppedOnSigint) fail('toil mcp was still running 3s after SIGINT; the first Ctrl+C must stop it.');
 
-  if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI, connections and MCP all answered on Node ${process.versions.node} (${process.platform}).`);
+  if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI, connections and MCP all answered on Node ${process.versions.node} (${process.platform}); ${gitStep}.`);
 } catch (err) {
   fail(err.message);
 } finally {

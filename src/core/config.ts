@@ -36,6 +36,17 @@ export interface ResolvedConfig {
   files: { global: string };
   /** Things worth telling the user that aren't errors, surfaced in meta.warnings. */
   warnings: Array<{ code: string; message: string }>;
+  /** Bounds the user relaxed in the config file (docs/bounds.md). Absent means every bound holds. */
+  bounds?: Bounds;
+}
+
+/**
+ * The bounds a config file may relax. Only the file workspace can be, and
+ * only from the user's own config file: never from env, a dossier or a
+ * repository (docs/bounds.md).
+ */
+export interface Bounds {
+  files: 'workspace' | 'unbounded';
 }
 
 /** What config loading needs to know about each registered area. */
@@ -49,7 +60,7 @@ export interface AreaInfo {
 export const CONFIG_VERSION = 2;
 
 /** Top-level keys that are never areas, in any version. */
-const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults']);
+const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds']);
 
 /** Connection names map one-to-one onto env names: lowercase, digits, single hyphens. */
 export const CONNECTION_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -72,6 +83,15 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
   const config = emptyConfig(globalPath);
   const file = readConfigFile(globalPath, config.warnings);
   config.defaults = file.defaults;
+  if (file.bounds) {
+    config.bounds = file.bounds;
+    if (file.bounds.files === 'unbounded') {
+      config.warnings.push({
+        code: 'BOUND_RELAXED',
+        message: `The file workspace bound is off ("bounds": { "files": "unbounded" } in ${globalPath.replace(/\\/g, '/')}): commands may read and write files anywhere you can, except toil's own files.`,
+      });
+    }
+  }
   for (const [name, conn] of Object.entries(file.connections)) {
     config.connections[name] = { ...conn };
     for (const key of Object.keys(conn)) if (key !== 'area') config.sources[`${name}.${key}`] = 'global';
@@ -128,7 +148,7 @@ export function anyWrites(config: ResolvedConfig, area: string): boolean {
   return connectionsOf(config, area).some((name) => connectionWrites(config.connections[name]));
 }
 
-function readConfigFile(path: string, warnings: ResolvedConfig['warnings']): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings> } {
+function readConfigFile(path: string, warnings: ResolvedConfig['warnings']): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds } {
   if (!existsSync(path)) return { connections: {}, defaults: {} };
   return migrateConfig(readJson(path), path, warnings);
 }
@@ -177,7 +197,7 @@ export function readConfigForEdit(path: string): EditableConfig {
       });
     }
   }
-  return { ...('$schema' in raw ? { $schema: raw.$schema } : {}), version: CONFIG_VERSION, connections, defaults };
+  return { ...('$schema' in raw ? { $schema: raw.$schema } : {}), ...('bounds' in raw ? { bounds: raw.bounds } : {}), version: CONFIG_VERSION, connections, defaults };
 }
 
 /**
@@ -211,7 +231,7 @@ export function migrateConfig(
   raw: Record<string, unknown>,
   path: string,
   warnings: ResolvedConfig['warnings'],
-): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings> } {
+): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds } {
   // Absent means version 1; present-but-null is a mistake, not a default.
   const version = 'version' in raw ? raw.version : 1;
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
@@ -224,7 +244,32 @@ export function migrateConfig(
       fix: 'Upgrade toil: npm install -g @imagile-dev/toil@latest.',
     });
   }
-  return version === 1 ? fromVersion1(raw, path, warnings) : fromVersion2(raw, path, warnings);
+  const read = version === 1 ? fromVersion1(raw, path, warnings) : fromVersion2(raw, path, warnings);
+  const bounds = readBounds(raw.bounds, path);
+  return bounds ? { ...read, bounds } : read;
+}
+
+const RELAXABLE: Record<keyof Bounds, readonly string[]> = { files: ['workspace', 'unbounded'] };
+
+/**
+ * `"bounds"` in the config file. An unknown key is refused rather than
+ * ignored: a bound that can't be relaxed (toil's own files, credentials to
+ * their host) has no setting, and a typo shouldn't read as having worked.
+ */
+function readBounds(raw: unknown, path: string): Bounds | undefined {
+  if (raw === undefined) return undefined;
+  const fix = `Set "bounds": { "files": "unbounded" } to let commands reach files outside the workspace, or remove "bounds" from ${path}. No other bound can be relaxed (docs/bounds.md).`;
+  if (!isRecord(raw)) throw new ToilError('CONFIG_INVALID', `"bounds" in ${path} must be an object.`, { fix });
+  const bounds: Bounds = { files: 'workspace' };
+  for (const [key, value] of Object.entries(raw)) {
+    const allowed = RELAXABLE[key as keyof Bounds];
+    if (!allowed) throw new ToilError('CONFIG_INVALID', `"bounds.${key}" in ${path} isn't a bound that can be relaxed.`, { fix });
+    if (typeof value !== 'string' || !allowed.includes(value)) {
+      throw new ToilError('CONFIG_INVALID', `"bounds.${key}" in ${path} must be one of ${allowed.map((a) => `"${a}"`).join(', ')}, found ${JSON.stringify(value)}.`, { fix });
+    }
+    bounds[key as keyof Bounds] = value as Bounds['files'];
+  }
+  return bounds;
 }
 
 function fromVersion1(raw: Record<string, unknown>, path: string, warnings: ResolvedConfig['warnings']) {
@@ -297,7 +342,7 @@ function fromVersion2(raw: Record<string, unknown>, path: string, warnings: Reso
  * Environment variable names toil reserves for itself. They never map onto an
  * area, whatever areas exist now or later.
  */
-const RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/];
+const RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/, /^TOIL_WORKSPACE$/];
 
 /** camelCase key to SNAKE: baseUrl -> BASE_URL, baseURL -> BASE_URL, apiKey2 -> API_KEY2. */
 function snake(key: string): string {

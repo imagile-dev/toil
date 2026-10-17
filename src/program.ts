@@ -2,7 +2,7 @@ import { Command, CommanderError, Option } from 'commander';
 import { aliasPaths, commandName, type AnyCommand, type CliOption } from './core/command.js';
 import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
-import { ToilError } from './core/errors.js';
+import { ToilError, toToilError } from './core/errors.js';
 import { runCommand } from './core/run.js';
 import { baseType, elementSchema, fieldSchema, fromText } from './core/schema.js';
 
@@ -13,12 +13,24 @@ export interface GlobalOptions {
   debug?: boolean;
   config?: string;
   outputFile?: string;
+  workspace?: string;
 }
 
 export interface CliIO {
   stdout: (text: string) => void;
   stderr: (text: string) => void;
-  writeFile: (path: string, content: string) => void;
+  /**
+   * Writes --output-file. The real one refuses toil's own files, /proc and /sys
+   * and an existing file (docs/bounds.md); a refusal is a ToilError, and the
+   * envelope then goes to stdout instead.
+   */
+  writeFile: (path: string, content: string, globals: GlobalOptions) => void;
+  /**
+   * Checks --output-file before the command runs, with the same refusals and
+   * "already exists", so a write is never made and then reported as failed.
+   * Throws a ToilError. Absent in tests that don't check.
+   */
+  checkFile?: (path: string, globals: GlobalOptions) => void;
 }
 
 export interface ProgramOptions {
@@ -49,6 +61,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       .option('--debug', 'Print diagnostic traces to stderr (never credentials)', false)
       .option('--config <path>', 'Override global config file location')
       .option('--output-file <path>', 'Write JSON output to file instead of stdout')
+      .option('--workspace <dir>', 'The folder commands may read and write files in (default: the working directory; env TOIL_WORKSPACE)')
       .showHelpAfterError(),
   );
 
@@ -104,9 +117,19 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       const cmd = actionArgs[actionArgs.length - 1] as Command;
       const globals = cmd.optsWithGlobals<GlobalOptions>();
       const input = inputFromCli(def, cmd, inArea ? groupFlags(path[0]!) : new Set());
+      if (globals.outputFile && io.checkFile) {
+        // Refuse a bad --output-file before anything runs, so nothing is changed for a result nobody can read.
+        try {
+          io.checkFile(globals.outputFile, globals);
+        } catch (err) {
+          io.stdout(`${JSON.stringify(failure(toToilError(err), { command: commandName(def), durationMs: 0, version: options.version }), null, globals.pretty ? 2 : undefined)}\n`);
+          result.exitCode = 1;
+          return;
+        }
+      }
       const envelope = await runCommand(def, input, () => options.createContext(globals, def), options.version);
-      emit(envelope, globals, io);
-      result.exitCode = envelope.ok ? 0 : 1;
+      const written = emit(envelope, globals, io, def.writes);
+      result.exitCode = envelope.ok && written ? 0 : 1;
     });
   };
 
@@ -130,10 +153,35 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
   return { program, result };
 }
 
-function emit(envelope: Envelope, globals: GlobalOptions, io: CliIO): void {
-  const json = `${JSON.stringify(envelope, null, globals.pretty ? 2 : undefined)}\n`;
-  if (globals.outputFile) io.writeFile(globals.outputFile, json);
-  else io.stdout(json);
+/**
+ * Prints the envelope, or writes it to --output-file. False when that write
+ * failed; the error envelope then goes to stdout. For a write command the
+ * command has already run by then, so the error says so.
+ */
+function emit(envelope: Envelope, globals: GlobalOptions, io: CliIO, writes = false): boolean {
+  const json = (e: Envelope) => `${JSON.stringify(e, null, globals.pretty ? 2 : undefined)}\n`;
+  if (!globals.outputFile) {
+    io.stdout(json(envelope));
+    return true;
+  }
+  try {
+    io.writeFile(globals.outputFile, json(envelope), globals);
+    return true;
+  } catch (err) {
+    // The result never reached the file, so say so where the caller is looking.
+    const cause = toToilError(err);
+    let error = cause;
+    if (writes && envelope.ok) {
+      error = new ToilError(cause.code, `${envelope.meta.command} ran, and the change may already have been applied, but its result couldn't be written to --output-file: ${cause.message}`, {
+        fix: 'Check whether the change was made before retrying. Then pass a different --output-file, or none.',
+      });
+    } else if (!envelope.ok) {
+      // The command's own failure matters more than where it couldn't be saved.
+      error = new ToilError(envelope.error.code, `${envelope.error.message} (This result couldn't be written to --output-file either: ${cause.message})`, envelope.error.fix ? { fix: envelope.error.fix } : {});
+    }
+    io.stdout(json(failure(error, envelope.meta)));
+    return false;
+  }
 }
 
 /** Commander exits these ways on purpose; they are output, not errors. */
@@ -201,7 +249,7 @@ function groupFlagBeforeAlias(args: string[], commands: AnyCommand[], rejected: 
   return undefined;
 }
 
-const VALUE_GLOBALS = new Set(['--config', '--output-file']);
+const VALUE_GLOBALS = new Set(['--config', '--output-file', '--workspace']);
 
 /**
  * The command the user meant, for meta.command on a usage error: the longest
