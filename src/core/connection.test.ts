@@ -163,3 +163,55 @@ describe('keychain: references', async () => {
     expect((await run(cfg, store({ 'shared.token': 'shared-secret' }))).connection).toMatchObject({ token: 'shared-secret' });
   });
 });
+
+describe('plaintext secrets in a config file', () => {
+  const api = defineArea({
+    name: 'api',
+    description: 'test',
+    connection: z.object({ baseUrl: z.string(), token: z.string().min(1) }),
+    secrets: ['token'],
+    renamed: { apiToken: 'token' },
+  });
+  const store = { get: async (ref: string) => (ref === 'a.token' ? 'from-store' : undefined) };
+  const run = (cfg: ResolvedConfig) => resolveConnection(cfg, api, undefined, () => {}, store);
+  const file = (settings: Record<string, unknown>, defaults: ResolvedConfig['defaults'] = {}) => {
+    const cfg = config({ a: { area: 'api', baseUrl: 'https://api.imagile.dev', ...settings } }, defaults);
+    for (const key of Object.keys(settings)) cfg.sources[`a.${key}`] = 'global';
+    return cfg;
+  };
+
+  it('is CONFIG_INVALID, naming login and both env vars, and never echoing the value', async () => {
+    let thrown: unknown;
+    try {
+      await run(file({ token: 'pasted-secret-value' }));
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toMatchObject({
+      code: 'CONFIG_INVALID',
+      fix: expect.stringMatching(/toil connections login a.*TOIL_CONN_A_TOKEN or TOIL_API_TOKEN/),
+    });
+    expect(JSON.stringify(thrown) + String((thrown as Error).message)).not.toContain('pasted-secret-value');
+  });
+
+  it('is refused under an old key name, and when shared through defaults.<area>', async () => {
+    await expect(run(file({ apiToken: 'x' }))).rejects.toMatchObject({ code: 'CONFIG_INVALID' });
+    await expect(run(file({}, { api: { token: 'x' } }))).rejects.toMatchObject({ code: 'CONFIG_INVALID' });
+  });
+
+  it('a keychain: reference resolves instead', async () => {
+    expect(await run(file({ token: 'keychain:a.token' }))).toMatchObject({ token: 'from-store' });
+  });
+
+  it('an env var or CI variable wins and may be plaintext, since it never sits in a file', async () => {
+    for (const source of ['env', 'ci'] as const) {
+      const cfg = file({ token: 'from-env' });
+      cfg.sources['a.token'] = source;
+      expect(await run(cfg)).toMatchObject({ token: 'from-env' });
+    }
+  });
+
+  it('a key that is not a secret is fine in plain text', async () => {
+    expect(await run(file({ token: 'keychain:a.token', baseUrl: 'https://other.imagile.dev' }))).toMatchObject({ baseUrl: 'https://other.imagile.dev' });
+  });
+});

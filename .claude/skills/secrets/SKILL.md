@@ -1,20 +1,24 @@
 ---
 name: secrets
-description: Rules for how toil stores, resolves and moves secrets (API tokens, passwords, connection strings, any credential). Use when changing `toil connections add`, `login`, `list` or `remove`, `keychain:` references, the OS credential store in src/core/keychain.ts (macOS `security`, Windows PowerShell advapi32, Linux `secret-tool`), the `--plaintext` option, the terminal prompter, or any code that reads, writes, migrates or logs a secret. Also when adding `config init`, `config set` or `config import`, which follow the same rules.
+description: Rules for how toil stores, resolves and moves secrets (API tokens, passwords, connection strings, any credential). Use when changing `toil connections add`, `login`, `list` or `remove`, `keychain:` references, the OS credential store in src/core/keychain.ts (macOS `security`, Windows PowerShell advapi32, Linux `secret-tool`), the plaintext-secret check in connection resolution, the terminal prompter, or any code that reads, writes, migrates or logs a secret. Also when adding `config init`, `config set` or `config import`, which follow the same rules.
 ---
 
 # Secrets
 
+**A secret comes from the OS credential store or an env var, never from a file.**
 A secret key on a connection (one an area lists in `defineArea({ secrets })`)
-resolves from, highest first: its env var, then a `keychain:<ref>` reference in
-config, then a plaintext value in config.
+resolves from, highest first: its env var (`TOIL_CONN_<NAME>_<KEY>`,
+`TOIL_<AREA>_<KEY>`, or a CI fallback), then a `keychain:<ref>` reference in the
+config file. A plaintext value in the file is refused with `CONFIG_INVALID`; see
+**Rules**. Config therefore holds nothing worth stealing, so a command that reads
+or uploads files can't leak a credential through `~/.toil/config.json`.
 
-**The OS credential store is the default home for every secret toil writes.**
 `toil connections add <name>` and `toil connections login <name>` read the secret
 without echo and put it in the store, writing only `keychain:<connection>.<key>`
-to the config file. A plaintext secret on disk needs an explicit `--plaintext`.
-Anything added later that writes secrets (`config init`, `config set`,
-`config import`) does the same.
+to the config file. There is no `--plaintext`. Env vars are the path for CI,
+containers and machines with no store (headless Linux without `secret-tool`).
+Anything added later that writes secrets (`config init`, `config set`) does the
+same, and a future `config import` must move every old token into the store.
 
 ## The store
 
@@ -40,26 +44,42 @@ platform check, under the service `toil` with the reference name as the account:
 - The spawner is injectable (`createSecretStore({ platform, spawn })`). Unit tests
   stub it for every platform, and `test/harness/fake-store.ts` stands in for the
   store in command tests. **No test touches a real store.**
+- `testOnlyProgram` runs Node in place of the store's program through the real
+  spawner, so tests prove the secret arrives on stdin byte for byte, arguments
+  arrive literally with no shell, and an abort ends a hung child as `CANCELLED`.
+  `src/cli.ts` never passes it.
 - Area code can't import `core/keychain` or `core/prompt` (ESLint); it gets secrets
   already resolved on `ctx.connection`.
 - Where no store is available, a write fails with a `CREDENTIAL_STORE` error whose
-  fix names `TOIL_CONN_<NAME>_<KEY>` or `--plaintext`.
+  fix names `TOIL_CONN_<NAME>_<KEY>`.
 
 ## Rules
+
+- **A plaintext secret in a config file is refused.** `resolveConnection`
+  (`src/core/connection.ts`, `refusePlaintextSecrets`) checks it, because that's
+  the first point where the area's `secrets` are known; the loader doesn't know
+  area schemas. A value counts as from the file unless `config.sources` says `env`
+  or `ci`, so connection keys, `defaults.<area>` and renamed (old-name) keys are
+  all covered. The error is `CONFIG_INVALID`, its fix names
+  `toil connections login <name>` and the `TOIL_CONN_<NAME>_<KEY>` /
+  `TOIL_<AREA>_<KEY>` variables, and it never echoes the value. Non-secret keys may
+  be plain text. `toil connections login` reads the raw file, so it is the way to
+  move a plaintext secret left in an old file into the store.
 
 - An unresolvable reference is treated as unset, never sent as a literal. The area
   then reports the key as missing, and `meta.warnings` carries
   `CONFIG_SECRET_UNRESOLVED` naming `toil connections login <name>` and the env var.
 - Env vars still win (**Configuration Precedence** in CLAUDE.md): an env var replaces
-  the stored value before references resolve, so the store isn't even asked. Nothing
-  may *require* the store: CI runners and containers configure entirely through env
-  vars, and plaintext config keeps working.
+  the stored value before references resolve, so the store isn't even asked. CI
+  runners, containers and machines with no store configure entirely through env
+  vars, which may hold plaintext because they never sit in a file.
 - Commands never see the store. Only `defineConfigCommand` commands get it, through
   `ctx.manage`; an area command gets its resolved connection and nothing else.
 - Anything that moves a secret leaves it in at least one place at every step:
   store it and read it back (`storeVerified`), then rewrite config, and only then
-  remove the old copy (a plaintext value goes with the rewrite; an old store entry
-  is deleted after it, and only when nothing else in config refers to it).
+  remove the old copy (a plaintext value left in an old file goes with the
+  rewrite; an old store entry is deleted after it, and only when nothing else in
+  config refers to it).
 - Config writes go through `writeConfigFile`: version 2, every key not prompted for
   carried through, written alongside and renamed into place, mode 0600 in a 0700
   folder where the platform has POSIX modes.

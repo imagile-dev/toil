@@ -106,9 +106,20 @@ Node, and toil has to work there. This is the most important rule in the repo.
   alone gets the real `node:child_process` (the tsup `no-spawn` plugin decides by
   importer path, `check:pure` verifies it from the metafile, and ESLint allows the
   import in that file only). It runs only what the OS ships (`security`, Windows
-  PowerShell, `secret-tool`), never through a shell, with secrets on stdin. Nothing
-  may require it: env vars and plaintext config work without it. Any other spawn,
-  or a second file allowed to spawn, needs this section changed first.
+  PowerShell, `secret-tool`), never through a shell, with secrets on stdin. Any
+  other spawn, or a second file allowed to spawn, needs this section changed first.
+
+## Secrets
+
+**A secret comes from the OS credential store or from an env var, never from a
+file.** For every key an area lists in `defineArea({ secrets })`, a value in the
+config file must be a `keychain:<ref>` reference; a plaintext one is
+`CONFIG_INVALID` (fix: `toil connections login <name>`, or the env var), and the
+value is never echoed. Config then holds nothing worth stealing, so a command that
+reads or uploads files can't leak a credential by reading `~/.toil/config.json`.
+Env vars are the path for CI, containers and machines with no store (headless Linux
+without `secret-tool`). There is no `--plaintext`. Details are in the `secrets`
+skill.
 
 Before adding a dependency, check it against this rule. If the only good library is
 native, find a pure-JS or WASM alternative or implement the protocol directly.
@@ -244,8 +255,9 @@ that area. A value on a connection resolves from, highest first:
    connection, only where the service's own tooling treats it as canonical
    (`GITHUB_TOKEN`, `SYSTEM_ACCESSTOKEN`). Never invent one.
 4. The connection in `~/.toil/config.json`, or the file passed with `--config`. A
-   secret there may be a `keychain:<ref>` reference to the OS credential store,
-   read when the connection is resolved (the `secrets` skill)
+   secret there must be a `keychain:<ref>` reference to the OS credential store,
+   read when the connection is resolved; a plaintext secret in a file is refused
+   (**Secrets**)
 5. `defaults.<area>` in that file
 6. The area's provider defaults (`defineArea({ defaults })`, e.g. a port)
 
@@ -345,7 +357,7 @@ Tests never need the network: a developer offline gets the same result as CI.
 - **Each area has a fixture**, `test/fixtures/<area>.fixture.ts`, exporting
   `defineFixture({ area, routes, config })`: canned responses for every request its
   examples send, and a config keyed by area (read as one connection named after the
-  area, as a version 1 file is) with credentials set and writes on. The suite finds it
+  area, as if set by `TOIL_<AREA>_*` env vars) with credentials set and writes on. The suite finds it
   by file name and fails when a registered area has none.
 - `test/fixtures/demo-commands.ts` holds test-only commands (a read and a write
   against a fake API) that exercise the harness before real integrations exist.

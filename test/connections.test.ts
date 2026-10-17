@@ -119,6 +119,21 @@ describe('toil connections add', () => {
     expect(http.calls[0]!.headers.authorization).toBe(`Bearer ${SECRET}`);
   });
 
+  it('then refuses a plaintext secret written into the file by hand, without echoing it', async () => {
+    writeConfig({ version: 2, connections: { 'corp-demo': { area: 'demo', token: 'hand-pasted-secret' } } });
+    const run = await cli(['demo', 'get-thing', '--id', 'THING-1'], context({ secrets: fakeStore() }));
+    expect(run.envelope?.error).toMatchObject({
+      code: 'CONFIG_INVALID',
+      fix: expect.stringMatching(/toil connections login corp-demo.*TOIL_CONN_CORP_DEMO_TOKEN or TOIL_DEMO_TOKEN/),
+    });
+    expect(run.stdout).not.toContain('hand-pasted-secret');
+    // login is the way out: it moves the secret into the store and the command works again.
+    const store = fakeStore();
+    await cli(['connections', 'login', 'corp-demo'], context({ prompt: terminal({ token: SECRET }).prompt, secrets: store }));
+    expect(readFileSync(file, 'utf8')).not.toContain('hand-pasted-secret');
+    expect((await cli(['demo', 'get-thing', '--id', 'THING-1'], context({ secrets: store }))).envelope?.ok).toBe(true);
+  });
+
   it('a hung store read is ended by the time limit with a TIMEOUT envelope, before any request', async () => {
     writeConfig({ version: 2, connections: { demo: { area: 'demo', token: 'keychain:demo.token' } } });
     let signal: AbortSignal | undefined;
@@ -171,7 +186,7 @@ describe('toil connections add', () => {
       version: 2,
       $schema: 'https://imagile-dev.github.io/toil/config.schema.json',
       futureKey: { kept: true },
-      connections: { other: { area: 'demo', baseUrl: 'https://other.imagile.dev', token: 'plain', writes: true, note: 'unknown key' } },
+      connections: { other: { area: 'demo', baseUrl: 'https://other.imagile.dev', token: 'keychain:other.token', writes: true, note: 'unknown key' } },
       defaults: { demo: { connection: 'other', pageSize: 5 } },
     });
     await cli(['connections', 'add', 'second', '--area', 'demo'], context({ prompt: terminal({ token: SECRET }).prompt, secrets: fakeStore() }));
@@ -180,7 +195,7 @@ describe('toil connections add', () => {
       $schema: 'https://imagile-dev.github.io/toil/config.schema.json',
       futureKey: { kept: true },
       connections: {
-        other: { area: 'demo', baseUrl: 'https://other.imagile.dev', token: 'plain', writes: true, note: 'unknown key' },
+        other: { area: 'demo', baseUrl: 'https://other.imagile.dev', token: 'keychain:other.token', writes: true, note: 'unknown key' },
         second: { area: 'demo', token: 'keychain:second.token' },
       },
       defaults: { demo: { connection: 'other', pageSize: 5 } },
@@ -206,14 +221,6 @@ describe('toil connections add', () => {
     expect(statSync(join(home, '.toil')).mode & 0o777).toBe(0o700);
   });
 
-  it('with --plaintext, keeps the secret in config and leaves the store alone', async () => {
-    const store = fakeStore();
-    const run = await cli(['connections', 'add', 'corp-demo', '--area', 'demo', '--plaintext'], context({ prompt: terminal({ token: SECRET }).prompt, secrets: store }));
-    expect(run.envelope?.data).toMatchObject({ secrets: { token: 'file' } });
-    expect(readConfig().connections['corp-demo'].token).toBe(SECRET);
-    expect(store.log).toEqual([]);
-  });
-
   it('with no terminal, fails with a fix naming the env vars, and writes nothing', async () => {
     const store = fakeStore();
     const run = await cli(['connections', 'add', 'corp-demo', '--area', 'demo'], context({ secrets: store }));
@@ -224,14 +231,15 @@ describe('toil connections add', () => {
     expect(() => readConfig()).toThrow();
   });
 
-  it('when the store is unavailable, fails with a fix naming the env var or --plaintext, and writes nothing', async () => {
+  it('when the store is unavailable, fails with a fix naming the env var, and writes nothing', async () => {
     // The real Linux store, with a spawner reporting that secret-tool isn't installed.
     const unavailable = createSecretStore({
       platform: 'linux',
       spawn: async () => ({ status: null, stdout: '', stderr: '', error: Object.assign(new Error('spawn secret-tool ENOENT'), { code: 'ENOENT' }) }),
     });
     const run = await cli(['connections', 'add', 'corp-demo', '--area', 'demo'], context({ prompt: terminal({ token: SECRET }).prompt, secrets: unavailable }));
-    expect(run.envelope?.error).toMatchObject({ code: 'CREDENTIAL_STORE', fix: expect.stringMatching(/TOIL_CONN_CORP_DEMO_TOKEN.*--plaintext/) });
+    expect(run.envelope?.error).toMatchObject({ code: 'CREDENTIAL_STORE', fix: expect.stringContaining('Set TOIL_CONN_CORP_DEMO_TOKEN instead') });
+    expect(run.envelope?.error?.fix).not.toContain('--plaintext');
     expect(() => readConfig()).toThrow();
   });
 
@@ -278,16 +286,6 @@ describe('toil connections login', () => {
     expect(store.log).not.toContain('delete shared.token');
   });
 
-  it('with --plaintext, moves the secret into config first and deletes the store entry after', async () => {
-    writeConfig({ version: 2, connections: { a: { area: 'demo', token: 'keychain:a.token' } } });
-    const seenAtDelete: string[] = [];
-    const store = fakeStore({ entries: { 'a.token': 'old' }, onDelete: () => seenAtDelete.push(readFileSync(file, 'utf8')) });
-    await cli(['connections', 'login', 'a', '--plaintext'], context({ prompt: terminal({ token: SECRET }).prompt, secrets: store }));
-    expect(readConfig().connections.a.token).toBe(SECRET);
-    expect(seenAtDelete[0]).toContain(SECRET);
-    expect(store.entries.size).toBe(0);
-  });
-
   it('with no terminal, fails with a fix naming the env vars and changes nothing', async () => {
     writeConfig({ version: 2, connections: { a: { area: 'demo', token: 'keychain:a.token' } } });
     const before = readFileSync(file, 'utf8');
@@ -327,7 +325,7 @@ describe('toil connections remove', () => {
 });
 
 describe('toil connections list', () => {
-  it('shows names, areas, hosts, writes and where each value came from, never a secret', async () => {
+  it('shows names, areas, hosts, writes and where each value came from, never a secret, even a plaintext one left in an old file', async () => {
     writeConfig({
       version: 2,
       connections: {

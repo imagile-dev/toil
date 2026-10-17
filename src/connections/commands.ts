@@ -20,8 +20,10 @@ import type { Prompter } from '../core/prompt.js';
 /**
  * `toil connections add | login | list | remove`: setting up the connections
  * that every area command resolves. Secrets go straight to the OS credential
- * store and config holds only a `keychain:` reference, unless the user asks
- * for --plaintext. `add`, `login` and `remove` are CLI only: a person sets up
+ * store and config holds only a `keychain:` reference; a secret never sits in
+ * the file (env vars are the other place one may live). `login` is also how a
+ * plaintext secret left in an old file moves into the store. `add`, `login`
+ * and `remove` are CLI only: a person sets up
  * connections, never an agent over MCP. `list` is safe anywhere, because it
  * prints names, hosts and where each value came from, never a value that
  * could be a secret.
@@ -46,14 +48,12 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     input: z.object({
       name: z.string().describe('Connection name, e.g. corp-jira'),
       area: z.string().optional().describe('The area it connects to; asked for when left out'),
-      plaintext: z.boolean().optional().describe('Keep the secret in the config file instead of the OS credential store'),
     }),
     writes: false,
     cliOnly: true,
     args: [{ name: 'name', field: 'name', description: 'Connection name, e.g. corp-jira' }],
     options: [
       { flags: '--area <area>', field: 'area', description: 'The area it connects to (asked for when left out)' },
-      { flags: '--plaintext', field: 'plaintext', description: 'Keep the secret in the config file, not the OS credential store' },
     ],
     examples: [{ name: 'corp-jira', area: 'jira' }],
     run: async (input, ctx) => {
@@ -79,7 +79,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
         });
       }
 
-      const kept = input.plaintext ? { ...secretValues } : await storeNew(secrets, input.name, secretValues, ctx.signal);
+      const kept = await storeNew(secrets, input.name, secretValues, ctx.signal);
       file.connections[input.name] = { area: area.name, ...settings, ...kept };
       // The first connection to an area becomes its default, so adding a
       // second one later doesn't leave the area with no default.
@@ -97,12 +97,10 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     description: "Replace a connection's secret, asking for it on the terminal",
     input: z.object({
       name: z.string().describe('Connection name'),
-      plaintext: z.boolean().optional().describe('Keep the secret in the config file instead of the OS credential store'),
     }),
     writes: false,
     cliOnly: true,
     args: [{ name: 'name', field: 'name', description: 'Connection name' }],
-    options: [{ flags: '--plaintext', field: 'plaintext', description: 'Keep the secret in the config file, not the OS credential store' }],
     examples: [{ name: 'corp-jira' }],
     run: async (input, ctx) => {
       const { config, secrets, prompt } = access(ctx);
@@ -125,13 +123,9 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
 
       const before: Settings = { ...conn };
       for (const [key, value] of Object.entries(entered)) {
-        if (input.plaintext) {
-          conn[key] = value;
-        } else {
-          const ref = refFor(input.name, key);
-          await storeVerified(required(secrets, ref), ref, value, ctx.signal);
-          conn[key] = `${KEYCHAIN_PREFIX}${ref}`;
-        }
+        const ref = refFor(input.name, key);
+        await storeVerified(required(secrets, ref), ref, value, ctx.signal);
+        conn[key] = `${KEYCHAIN_PREFIX}${ref}`;
       }
       writeConfigFile(path, file);
       // Only now, with config pointing at the new copy, does an old one go.
@@ -277,7 +271,7 @@ function required(secrets: SecretStore | undefined, ref: string): SecretStore {
   if (secrets) return secrets;
   const [connection, key] = ref.split('.');
   throw new ToilError('CREDENTIAL_STORE', 'No OS credential store is available here.', {
-    fix: `Set ${connectionEnvName(connection!, key!)} instead, or pass --plaintext to keep the secret in your toil config file.`,
+    fix: `Set ${connectionEnvName(connection!, key!)} instead: without a credential store, secrets come from env vars.`,
   });
 }
 
