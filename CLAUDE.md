@@ -20,6 +20,12 @@ Who it is for, in priority order:
 The rules in this file are consequences of a few principles. When a rule and a
 situation disagree, or a case is not covered, reason from the principle.
 
+Principles 1 to 7 and 9 govern **toil itself**: the npm package and what it does on a
+user's machine. This repository's own tooling (`scripts/`, the tests, workflows, and
+the skills under `.claude/skills/`) is never published or installed by toil. It may
+run `git` and `gh` and call GitHub. It still follows principle 8, because every
+contributor runs it, and principle 2 where an agent does the work.
+
 **When feedback or a correction arrives, find the principle under it before changing
 anything.** Add or sharpen the principle here, then update every rule that follows
 from it, not only the one instance that prompted it. A fix with no principle recorded
@@ -67,8 +73,9 @@ gets made again in the next place it applies.
   separator, a drive letter, or `~`. Paths in JSON output use forward slashes;
   paths on disk use the platform's own form.
 - Never spawn through a shell (`shell: true`, `exec`), and never assume bash,
-  PowerShell, or a POSIX utility. The only spawns allowed are the OS credential
-  stores in the `secrets` skill, each behind a platform check.
+  PowerShell, or a POSIX utility. In toil's own code, the only spawns allowed are the
+  OS credential stores in the `secrets` skill, each behind a platform check. Repo
+  tooling may spawn `git` and `gh`, without a shell.
 - Read files as UTF-8 and accept both CRLF and LF; write LF. `.gitattributes` keeps
   the repo LF so Windows checkouts produce identical bundles.
 - Config lives in `~/.toil/` on every platform, so instructions are identical.
@@ -142,7 +149,8 @@ GitHub Actions; its build tooling is out of scope.
 - `scripts/` — area registration, the purity gate, the tarball smoke test, contract
   capture, and the PR watcher the `ship` skill runs (dev tooling; none of it ships)
 - `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files
-- `.claude/skills/` — repo-internal skills only
+- `.claude/skills/` — repo-internal skills only. They're for working in this
+  repository; they're never published or installed by toil (that's `skills/toil/`)
 - `docs/` — plans and decisions
 - `site/` — the GitHub Pages site (Astro), its own private package; see the `site`
   skill

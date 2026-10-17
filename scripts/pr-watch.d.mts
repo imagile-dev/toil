@@ -5,9 +5,9 @@ export interface Snapshot {
   head: string;
   mergeable: string;
   reviewDecision: string | null;
-  reviews: { id: number; state: string; body: string; author?: string; commit?: string }[];
-  threads: { id: string; resolved: boolean; path: string; last?: { id: number; body: string; author?: string } }[];
-  comments: { id: number; body: string; author?: string }[];
+  reviews: { id: number; state: string; body: string; author?: string; trusted: boolean; commit?: string }[];
+  threads: { id: string; resolved: boolean; path: string; last?: { id: number; body: string; author?: string; trusted: boolean } }[];
+  comments: { id: number; body: string; author?: string; trusted: boolean }[];
   rollup: string;
   checks: { name: string; done: boolean; failed: boolean }[];
 }
@@ -24,5 +24,6 @@ export interface WatchEvent {
 }
 
 export const AGENT_MARK: string;
+export function trusted(association: string | undefined, login: string | undefined): boolean;
 export function idsOf(snap: Snapshot): Seen;
 export function events(now: Snapshot, seen: Seen): WatchEvent[];

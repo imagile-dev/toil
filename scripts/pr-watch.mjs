@@ -21,6 +21,15 @@ import { pathToFileURL } from 'node:url';
 /** Replies the agent posts end with this, so its own replies never wake it. */
 export const AGENT_MARK = 'Addressed by [Claude Code]';
 
+/**
+ * Who may steer the agent: the repository's own people and the review bot, the
+ * same allowlist the review automation uses (the `automation` skill). Anyone can
+ * review a public repository, so anything else is reported as `untrusted`.
+ */
+const TRUSTED_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+const TRUSTED_BOTS = new Set(['imagile-bot']);
+export const trusted = (association, login) => TRUSTED_ASSOCIATIONS.has(association) || TRUSTED_BOTS.has(login);
+
 const FAILED = new Set(['FAILURE', 'ERROR', 'TIMED_OUT', 'CANCELLED', 'ACTION_REQUIRED', 'STARTUP_FAILURE']);
 
 /** The ids a snapshot holds, as the state file stores them. */
@@ -41,28 +50,30 @@ const short = (s) => (s ?? '').replace(/\s+/g, ' ').slice(0, 160);
 export function events(now, seen) {
   const found = [];
   if (now.state !== 'OPEN') return [{ kind: now.state.toLowerCase() }];
+  // Feedback from outside the allowlist is reported, never acted on.
+  const as = (kind, item) => (item.trusted ? kind : 'untrusted');
   for (const r of now.reviews) {
     // PENDING is someone's unsubmitted draft. A COMMENTED review with no body is
     // the wrapper for inline comments, which are reported from their threads.
     if (seen.reviews.includes(r.id) || r.state === 'PENDING' || (r.state === 'COMMENTED' && !r.body)) continue;
-    found.push({ kind: 'review', id: r.id, state: r.state, author: r.author, commit: r.commit?.slice(0, 7), summary: short(r.body) });
+    found.push({ kind: as('review', r), of: 'review', id: r.id, state: r.state, author: r.author, commit: r.commit?.slice(0, 7), summary: short(r.body) });
   }
   for (const t of now.threads) {
     // Every thread, resolved or not: GitHub doesn't reopen a thread when someone replies.
     const c = t.last;
     if (!c || seen.threadComments.includes(c.id) || c.body.includes(AGENT_MARK)) continue;
-    found.push({ kind: 'inline-comment', id: c.id, thread: t.id, resolved: t.resolved, path: t.path, author: c.author, summary: short(c.body) });
+    found.push({ kind: as('inline-comment', c), of: 'inline-comment', id: c.id, thread: t.id, resolved: t.resolved, path: t.path, author: c.author, summary: short(c.body) });
   }
   for (const c of now.comments) {
     if (seen.comments.includes(c.id) || c.body.includes(AGENT_MARK)) continue;
-    found.push({ kind: 'comment', id: c.id, author: c.author, summary: short(c.body) });
+    found.push({ kind: as('comment', c), of: 'comment', id: c.id, author: c.author, summary: short(c.body) });
   }
   const failing = now.checks.filter((c) => c.failed).map((c) => c.name);
   if (failing.length) found.push({ kind: 'checks-failed', failing });
   if (now.mergeable === 'CONFLICTING') found.push({ kind: 'conflict' });
   // reviewDecision is APPROVED only where branch protection requires a review,
   // which this repo's does. Without that rule it's null and ready never fires.
-  const reviewedHead = now.reviews.some((r) => r.state === 'APPROVED' && r.commit === now.head);
+  const reviewedHead = now.reviews.some((r) => r.trusted && r.state === 'APPROVED' && r.commit === now.head);
   const open = now.threads.filter((t) => !t.resolved).length;
   if (now.reviewDecision === 'APPROVED' && reviewedHead && now.rollup === 'SUCCESS' && open === 0 && now.mergeable === 'MERGEABLE') {
     found.push({ kind: 'ready' });
@@ -97,9 +108,9 @@ function main(args) {
 
   const QUERY = `query($o:String!,$n:String!,$p:Int!){repository(owner:$o,name:$n){pullRequest(number:$p){
     state headRefOid mergeable reviewDecision
-    reviews(last:50){nodes{databaseId state body author{login} commit{oid}}}
-    reviewThreads(last:100){nodes{id isResolved path comments(last:1){nodes{databaseId body author{login}}}}}
-    comments(last:50){nodes{databaseId body author{__typename login}}}
+    reviews(last:50){nodes{databaseId state body authorAssociation author{login} commit{oid}}}
+    reviewThreads(last:100){nodes{id isResolved path comments(last:1){nodes{databaseId body authorAssociation author{login}}}}}
+    comments(last:50){nodes{databaseId body authorAssociation author{__typename login}}}
     commits(last:1){nodes{commit{statusCheckRollup{state contexts(first:100){nodes{
       ... on CheckRun{name status conclusion} ... on StatusContext{context state}}}}}}}
   }}}`;
@@ -119,14 +130,14 @@ function main(args) {
       head: p.headRefOid,
       mergeable: p.mergeable,
       reviewDecision: p.reviewDecision,
-      reviews: p.reviews.nodes.map((r) => ({ id: r.databaseId, state: r.state, body: r.body, author: r.author?.login, commit: r.commit?.oid })),
+      reviews: p.reviews.nodes.map((r) => ({ id: r.databaseId, state: r.state, body: r.body, author: r.author?.login, trusted: trusted(r.authorAssociation, r.author?.login), commit: r.commit?.oid })),
       threads: p.reviewThreads.nodes.map((t) => {
         const c = t.comments.nodes[0];
-        return { id: t.id, resolved: t.isResolved, path: t.path, last: c && { id: c.databaseId, body: c.body, author: c.author?.login } };
+        return { id: t.id, resolved: t.isResolved, path: t.path, last: c && { id: c.databaseId, body: c.body, author: c.author?.login, trusted: trusted(c.authorAssociation, c.author?.login) } };
       }),
       // Only people's comments. Bots' feedback arrives as formal reviews, and the
       // review bot's progress comment is edited in place while it works.
-      comments: p.comments.nodes.filter((c) => c.author?.__typename !== 'Bot').map((c) => ({ id: c.databaseId, body: c.body, author: c.author?.login })),
+      comments: p.comments.nodes.filter((c) => c.author?.__typename !== 'Bot').map((c) => ({ id: c.databaseId, body: c.body, author: c.author?.login, trusted: trusted(c.authorAssociation, c.author?.login) })),
       rollup: rollup?.state ?? 'NONE',
       checks,
     };
@@ -143,9 +154,9 @@ function main(args) {
   const save = (seen) => writeFileSync(stateFile, JSON.stringify(seen));
   const remember = (seen, found) => {
     for (const e of found) {
-      if (e.kind === 'review') seen.reviews.push(e.id);
-      if (e.kind === 'inline-comment') seen.threadComments.push(e.id);
-      if (e.kind === 'comment') seen.comments.push(e.id);
+      if (e.of === 'review') seen.reviews.push(e.id);
+      if (e.of === 'inline-comment') seen.threadComments.push(e.id);
+      if (e.of === 'comment') seen.comments.push(e.id);
     }
     save(seen);
   };
