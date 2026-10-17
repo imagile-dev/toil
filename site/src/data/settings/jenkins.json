@@ -1,0 +1,34 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_JENKINS_BASE_URL",
+    "description": "Jenkins server root, e.g. https://jenkins.imagile.dev",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "username",
+    "env": "TOIL_JENKINS_USERNAME",
+    "description": "Jenkins user name the API token belongs to",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "apiToken",
+    "env": "TOIL_JENKINS_API_TOKEN",
+    "description": "Jenkins API token",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "instance",
+    "env": "TOIL_JENKINS_INSTANCE",
+    "description": "The name --instance selects this connection by, when it isn't the connection's own name",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]

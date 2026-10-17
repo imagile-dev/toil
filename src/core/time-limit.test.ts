@@ -18,7 +18,10 @@ const scan = slow.command({
   writes: false,
   timeLimitMs: 600_000,
   examples: [{}],
-  run: (_input, ctx) => new Promise((_, reject) => ctx.signal.addEventListener('abort', () => reject(ctx.signal.reason), { once: true })),
+  run: (_input, ctx) => new Promise((_, reject) => {
+    if (ctx.signal.aborted) reject(ctx.signal.reason);
+    ctx.signal.addEventListener('abort', () => reject(ctx.signal.reason), { once: true });
+  }),
 });
 
 const config = { slow: { baseUrl: 'https://slow.imagile.dev' } };

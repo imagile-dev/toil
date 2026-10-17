@@ -222,6 +222,19 @@ the bottom of their section.
   recorded rather than fixed: rewording every area's input errors per front door
   isn't worth its complexity yet.
 
+- **The fourth kit-fix PR's choices** (KF4, #68):
+  - **Dot segments are checked after the URL parser's own first step**: tabs, LF
+    and CR dropped, and leading and trailing C0 controls and spaces trimmed, so
+    `.\t.`, `.\n.`, `.\r.`, a trailing `.. ` and `..` before `\u0000` or `\u001f` are
+    refused like `..` (principle 2; found by #119). The github and confluence
+    area checks stay.
+  - **A group flag on a path in another group is refused in the words the user
+    typed** (`toil openshift --env prod cluster list` says `toil openshift cluster
+    list` doesn't take `--env`, and runs `toil connections list --area
+    openshift`), rather than dropped. Dropping it would quietly ignore a flag the
+    user meant (principle 4); refusing was already the behaviour, only the
+    message named a command and field they never typed (#132).
+
 ## Integration process
 
 - **Integration agents run the `ship` skill's four local reviews themselves**, one after
@@ -264,6 +277,10 @@ the bottom of their section.
   repository's own wording now says "integration", "build" or "match": the
   integration kit, building an integration, matching the predecessor bug for bug, and
   CLAUDE.md's **Matching the predecessor** section. Network ports keep their name.
+  One later squash merge (#132) landed with a garbled subject from that rewording;
+  on the maintainer's go-ahead, main was force-pushed once more to fix that one
+  message, after a backup branch and a check that every commit's files were
+  unchanged. The coordinator's merge script now refuses such a title.
 
 ## Per-integration decisions
 
@@ -414,7 +431,7 @@ Added as each integration lands.
 ### OSV and OSS Index
 
 - **#91 items 5 and 7 are fixed as declared changes**, since a live run confirmed
-  them (CLAUDE.md, Building): OSV fetches each full record, and OSS Index takes a
+  them (CLAUDE.md, Matching the predecessor): OSV fetches each full record, and OSS Index takes a
   username and token (Basic, sent only to `ossindex.sonatype.org`), with a plain
   error without them.
 - **`deps frisk --source osv` (and no `--source`) and `--source sonatype`** come
@@ -423,11 +440,15 @@ Added as each integration lands.
 ### Sonatype IQ
 
 - **`tier` is fixed at `"full"`**: the OSV and Artifactory pings are dropped
-  (principle 9).
-- **IDs stay ordinary flags.**
+  (principle 9). The evaluation no longer contacts either, so no lower tier can
+  arise; the field stays so the envelope keeps its shape.
+- **IDs stay ordinary flags** (`--organization-id`, `--public-id`,
+  `--application-id`), not context inputs, because the predecessor never filled
+  them from a setting (#131).
 - **`SONATYPEIQ_NO_COMPONENTS` and `SONATYPEIQ_UNMATCHED_RESULT` warnings.**
 - **`resultsUrl` is re-pointed at the configured origin** (security).
-- **The area keeps its own polling** until it adopts KF3's `backoff: 'linear'`.
+- **The evaluation polls with core's `poll`, `backoff: 'linear'`** (KF3): 10 tries,
+  waiting 2 s up to 18 s, as before.
 
 ### OpenShift
 
