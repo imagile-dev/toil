@@ -74,7 +74,8 @@ describe('pages', () => {
   it('get-page: puts a plain id in the path unencoded, and refuses one that would change the path (#78 item 4)', async () => {
     const plain = await run(getPage, { id: 'abc 1' }, [{ url: /content/, respond: { json: {} } }]);
     expect(plain.calls[0]!.url).toBe(`${API}/content/abc%201?expand=body.storage,version,space,ancestors`);
-    for (const id of ['1/history', '..', '.', 'a\\b', '1?x', '1#x']) {
+    // Dot segments in any spelling are core's bound (requests.path); the rest are seg()'s.
+    for (const id of ['1/history', '..', '.', '%2e%2e', '.%2E', '%2e', 'a\\b', '1?x', '1#x']) {
       const { envelope, calls } = await run(getPage, { id }, []);
       expect(envelope.error, id).toMatchObject({ code: 'INVALID_INPUT' });
       expect(calls).toHaveLength(0);
@@ -252,7 +253,7 @@ describe('comments and labels', () => {
   });
 
   it('remove-label: a label that would change the path is refused before any request', async () => {
-    for (const label of ['a/b', '../../../space/DOCS']) {
+    for (const label of ['a/b', '../../../space/DOCS', '..', '%2e%2e', '.%2E']) {
       const { envelope, calls } = await run(removeLabel, { id: '12345', label, ...write }, []);
       expect(envelope.error, label).toMatchObject({ code: 'INVALID_INPUT' });
       expect(calls).toHaveLength(0);

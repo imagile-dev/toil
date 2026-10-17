@@ -63,8 +63,9 @@ Every command also takes `--connection <name>`. Write commands (marked ✎) need
 stands in for the flag. `delete-page` and `delete-attachment` run on the CLI only; they are
 not MCP tools.
 
-Ids, space keys and labels go into URL paths as given. One that is `.` or `..`, or
-contains `/`, `\`, `?` or `#`, is refused with `INVALID_INPUT` before anything is sent.
+Ids, space keys and labels go into URL paths as given. One that is a `.` or `..`
+segment, in any spelling (`%2e%2e` too), or contains `/`, `\`, `?` or `#`, is refused
+with `INVALID_INPUT` before anything is sent.
 
 | Command | Flags | Returns |
 |---------|-------|---------|

@@ -32,14 +32,16 @@ const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/
 
 /**
  * An id, key or label in a URL path, unencoded as the predecessor sent it,
- * as long as it is one plain segment. A value that is `.` or `..`, or holds
- * `/`, `\`, `?` or `#`, would change which resource the request names (a
+ * as long as it is one segment. A value holding `/`, `\`, `?` or `#` would
+ * add segments or a query and change which resource the request names (a
  * page delete becoming a space delete), so it is refused before anything is
- * sent (principle 2; #78 item 4).
+ * sent (principle 2; #78 item 4). A `.` or `..` segment, in any spelling,
+ * is core's to refuse (bound `requests.path`); one form signed twice is
+ * still one form.
  */
 function seg(value: string): string {
-  if (value === '.' || value === '..' || /[/\\?#]/.test(value)) {
-    throw new ToilError('INVALID_INPUT', `"${value}" can't be used in a Confluence URL path: it is "." or "..", or contains /, \\, ? or #.`, {
+  if (/[/\\?#]/.test(value)) {
+    throw new ToilError('INVALID_INPUT', `"${value}" can't be used in a Confluence URL path: it contains /, \\, ? or #.`, {
       fix: 'Pass the plain id, space key or label. A label with one of those characters has to be removed in the Confluence web interface.',
     });
   }
