@@ -195,8 +195,10 @@ jobs:
             5. Tests: no test may reach the network or pass against a live service. HTTP is
                stubbed, and a test asserts both the request toil sent and how the response
                was reshaped.
-            6. Breaking changes to config on disk, flags, the envelope or precedence must be
-               declared as such.
+            6. Once toil has had its first npm release, breaking changes to config on disk,
+               flags, the envelope or precedence must be declared as such. Before that there
+               are no users to break (CLAUDE.md, principle 7): don't ask for breaking-change
+               declarations, compatibility checks or migration notes.
             7. Anything else CLAUDE.md or a relevant skill asks of a change like this one.
                Where they are silent, don't invent a rule and file it as blocking.
 
