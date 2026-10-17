@@ -169,9 +169,10 @@ lacks, the gap is in core.
 connection this call resolved, validated and typed from the area's schema, and a
 context with no `config` and no `env` (which carries every `TOIL_*` credential and
 every CI token on the runner), so no area can reach another area's or another
-connection's credentials. ESLint bans importing config under `src/areas/`, and
-`process.env` stays out of area code for the same reason. The credential store and
-the prompter are withheld too. The only commands that see the whole config are the
+connection's credentials. ESLint bans importing config, the credential store
+(`core/keychain`) and the prompter (`core/prompt`) under `src/areas/`, and
+`process.env` stays out of area code for the same reason. The store and the
+prompter are withheld from the context too. The only commands that see the whole config are the
 `toil connections` commands, defined with `defineConfigCommand`, which get
 `ctx.manage` (config, store, prompter); no area command can.
 
