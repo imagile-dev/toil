@@ -27,12 +27,12 @@ its `defineArea` (connection schema, secrets, CI fallbacks), its commands and it
 `supported` export, a `test/fixtures/<area>.fixture.ts`, `config init`/`check`/`test`
 entries (once the `config` commands exist), `skills/toil/<area>.md`, its board entry
 `site/src/data/integrations/<area>.json`, and `docs/divergences/<area>.json` if it
-diverges. Every one of those files is the area's own; no port edits a shared list.
+diverges. Every one of those files is the area's own; no integration edits a shared list.
 `test/skills.test.ts` fails when a registered area has no skill file, the file has no
 frontmatter, or it misses a command, a connection key's env var or the supported
 versions.
 
-### Porting an area, step by step
+### Building an area, step by step
 
 1. **Read the brief**, `docs/briefs/<area>.md`: auth, paging, special HTTP needs,
    context inputs, the suspected-bug issue and the supported version. Then read the
@@ -40,11 +40,11 @@ versions.
    where they disagree.
 2. **Stub it**: `node scripts/stub-area.mjs <area>` writes `src/areas/<area>/` with
    a `defineArea` with a `request` hook to fill in, one `area.command()` per
-   contract command (exact path, arguments and flags, each `run` throwing until ported), plus the fixture and skill file. It never
+   contract command (exact path, arguments and flags, each `run` throwing until built), plus the fixture and skill file. It never
    overwrites, and it leaves out commands a divergence removes. Group-level flags
    become the area's context inputs in `area.ts`, with a TODO for where each value
    comes from (a connection setting, the git remote, or selecting the connection).
-3. **Port each command**: request, paging, errors and `data` exactly as the
+3. **Build each command**: request, paging, errors and `data` exactly as the
    predecessor had them, through `ctx.fetch` and core's helpers. Set `writes`
    from what the old command does; the stub only guessed from the verb.
    - **Paging** goes through `paginate`. A `p`/`ps`/`total` API (SonarQube) is
@@ -81,12 +81,12 @@ versions.
    `site/src/data/settings/<area>.json`; set the
    board entry's `status` to `unit`; review the docs page and take its screenshots
    with `node scripts/shoot.mjs docs/integrations/<area>/` (the `site` skill).
-9. **Suspected bugs** go in the area's issue, never fixed in the port (below).
+9. **Suspected bugs** go in the area's issue, never fixed in the integration (below).
 10. **Delete the brief**, `docs/briefs/<area>.md`, in the same PR. Briefs are the only
    docs that point at the predecessor's source; shipped docs, code and skills never
-   do, so a brief goes once its area is ported.
+   do, so a brief goes once its area is built.
 
-`src/areas/jira/` is the reference port. Follow its shape:
+`src/areas/jira/` is the reference integration. Follow its shape:
 
 - `area.ts` (the `defineArea`, with its `request` hook: the base URL, auth headers,
   service name and auth fix for a connection), `client.ts` (every request, sent with
@@ -107,7 +107,7 @@ versions.
   and repeatable flags come from the schema (`z.number()`, `z.boolean()`,
   `z.object()`, `z.array()`); don't parse argv by hand. Where the predecessor read a
   number with `parseInt`, keep the field a `z.union([z.number(), z.string()])` so it
-  stays text, and port the `parseInt`.
+  stays text, and keep the `parseInt`.
 - **Where a command acts** (`--project`, `--repo`, `--owner`, `--instance`, `--env`)
   is a context input in `defineArea({ context })`, never an ordinary flag, so core
   resolves it from the call, the dossier, the git remote and the connection in one
@@ -223,18 +223,18 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
   against real systems; toil's unit suite hasn't. Its source is the package named in
   `docs/command-contract.json` (`source.package`), and each integration's issue points
   at the exact directory.
-  - **Port, don't reinvent.** Keep its requests, payloads, response shaping and
+  - **Match, don't reinvent.** Keep its requests, payloads, response shaping and
     edge-case handling.
   - **Rewrite it for toil's style and flow:** one `area.command` per command,
     `ctx.fetch`, `ToilError` with a fix, examples for the parity suite, and HTTP
     mocked with `fakeFetch`. Comments use the deadpan voice in CLAUDE.md's Code
     Comments section.
-  - **Port its bugs too, until a live instance proves them** (*principles 4 and 7*;
-    **Porting** in CLAUDE.md). Its observable behavior, meaning requests, success
-    or failure, the error and `data`, is the specification while toil has no live
-    instance, because the unit suite can't tell a bug from a server quirk the old
-    code was written around. Validation, defaults, paging, id-or-name detection and
-    encoding stay exactly as they were.
+  - **Match its bugs too, until a live instance proves them** (*principles 4 and 7*;
+    **Matching the predecessor** in CLAUDE.md). Its observable behavior, meaning
+    requests, success or failure, the error and `data`, is the specification while
+    toil has no live instance, because the unit suite can't tell a bug from a server
+    quirk the old code was written around. Validation, defaults, paging, id-or-name
+    detection and encoding stay exactly as they were.
   - **Record each suspected bug** in the area's one `suspected-bug` issue (template:
     title `Suspected predecessor bugs: <name> (`<area>`)`, label `suspected-bug`),
     appending to it if it exists: where, what, why, confidence, the observable change
@@ -248,8 +248,8 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
     allows, such as `meta.warnings`.
   - **The first live run checks every item.** A confirmed bug is fixed as a declared
     change; a refuted one is closed.
-  - Its verification level there is context, not a level here. A port still starts
-    at `unit`.
+  - Its verification level there is context, not a level here. A new integration still
+    starts at `unit`.
   - Cloud variants have no tested predecessor. They're built against the vendor's
     documented API, and the PR says what they were run against.
 - **The old surface is frozen** in `docs/command-contract.json`: every command path,
@@ -257,7 +257,7 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
   field names of each command's `data`, read from its source by the TypeScript
   checker. That
   file is the only place the predecessor is named in the repository; issues may name
-  it, because porting needs the source location.
+  it, because building an integration needs the source location.
 - **Every integration command in the contract exists in toil at the same path**,
   with the same positional arguments, the same long and short flags, and the same
   accepted values. Output uses the same envelope with the same `data` field names.

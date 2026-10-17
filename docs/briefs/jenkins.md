@@ -32,7 +32,7 @@ The envelope's command name is hyphenated: `pipeline-list`, `pipeline-run`, `ins
 ## Context inputs
 
 - Group flag `jenkins --instance <name>` selects a `jenkinsInstances` entry and replaces base URL, username and token wholesale, with no fallback to the default `jenkins.*` values. An unknown name or an entry with no `baseUrl` is an error.
-- The predecessor resolved `jenkins.baseUrl` as repo config `defaults.jenkins.baseUrl`, then `TOIL_JENKINS_BASE_URL`, then global config. A checked-in repo file could pick the host that receives the user's credentials, above the env var (#80 item 1, security). This doesn't apply to toil, which has no repository config file at all (CLAUDE.md, Configuration Precedence; noted on #80): there is nothing to port and no divergence to list.
+- The predecessor resolved `jenkins.baseUrl` as repo config `defaults.jenkins.baseUrl`, then `TOIL_JENKINS_BASE_URL`, then global config. A checked-in repo file could pick the host that receives the user's credentials, above the env var (#80 item 1, security). This doesn't apply to toil, which has no repository config file at all (CLAUDE.md, Configuration Precedence; noted on #80): there is nothing to match and no divergence to list.
 - No git remote use.
 
 ## Supported version

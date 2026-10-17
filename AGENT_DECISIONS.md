@@ -1,6 +1,6 @@
 # Agent decisions
 
-Decisions an agent made by default while porting the integrations, under the
+Decisions an agent made by default while building the integrations, under the
 maintainer's standing instruction (2026-10-17): take the recommended option, prefer
 the simpler one, and write each one down here. The maintainer's own decisions are on
 issue #68 and the integration issues. This file records only what an agent decided,
@@ -9,13 +9,13 @@ so the maintainer can review any of it and overturn it.
 Each entry says what was decided, why, and where it applies. The newest entries go at
 the bottom of their section.
 
-## Porting kit (#68)
+## Integration kit (#68)
 
 - **Brief writers' open questions were settled from the maintainer's decisions**, not
   sent back to the maintainer:
   - **`artifactory outdated` and `license-check` don't call OSV.** The predecessor pinged
     OSV and never used the answer. Principle 9 allows public API traffic only when the
-    command names the service, so the port drops the call. It's a listed divergence.
+    command names the service, so the integration drops the call. It's a listed divergence.
   - **`GIT_NOT_FOUND` overrides the predecessor's empty results.** The predecessor's
     `git diff`, `log` and `report` swallowed every git failure and returned an empty
     result. A missing git is now `GIT_NOT_FOUND`, because the maintainer required it to
@@ -40,8 +40,8 @@ the bottom of their section.
   a later commit confirms the fix. The reply names the fixing commit.
 - **Wording:** principle 9 says "the proxy the environment names" rather than "your
   environment", to match the rest of the list (#105).
-- **The pilot ports' kit gaps (#110 Jira, #111 SonarQube) go into one kit-fix PR**
-  before wave 1, so no port works around them on its own. In it:
+- **The pilot integrations' kit gaps (#110 Jira, #111 SonarQube) go into one kit-fix PR**
+  before wave 1, so no integration works around them on its own. In it:
   - an input-file context source
   - offset paging reading `total` from empty pages
   - an optional `total` for the page style
@@ -57,8 +57,8 @@ the bottom of their section.
     always falls back.
   - **Jira search keeps its own page sizing** inside the area, because the offset
     style's cap doesn't fit it.
-  - **The stub generator** keeps making target flags ordinary options; the porter
-    decides which become context inputs.
+  - **The stub generator** keeps making target flags ordinary options; the integration
+    author decides which become context inputs.
 - **The 1,000-page paging cap stays** as a safety bound, though the predecessor had
   none. Each area lists it in `docs/divergences/<area>.json`, and the error names what
   was being paged.
@@ -67,7 +67,7 @@ the bottom of their section.
   skill.
 - **The kit-fix PR's own choices** (#68):
   - **`ctx.supply` takes only the source `file`.** It's the one case the pilots
-    met; another source is a one-word addition when a port needs it.
+    met; another source is a one-word addition when an integration needs it.
   - **`paginate` returns the last `total` a page reported**, as `Paged.total`,
     rather than only calling the callback on empty pages, so a count needs no
     side effect in the callback.
@@ -89,18 +89,25 @@ the bottom of their section.
   - **The pilots' workarounds stay in `src/areas/jira/` and `src/areas/sonar/`** for
     now; this PR doesn't edit area code. The PR lists what each can drop.
 
-## Porting process
+## Integration process
 
-- **Port agents run the `ship` skill's four local reviews themselves**, one after
+- **Integration agents run the `ship` skill's four local reviews themselves**, one after
   another, instead of starting sub-agents. Sub-agents' results were being delivered to
-  the coordinating session instead of the agent that asked, which stalled ports. The
+  the coordinating session instead of the agent that asked, which stalled integrations. The
   rule itself is in the `ship` skill.
-- **About six ports run at a time**, each an Opus agent in its own worktree, so GitHub's
+- **About six integrations run at a time**, each an Opus agent in its own worktree, so GitHub's
   API rate limit and the review bot keep up.
 - **A review finding may be skipped when fixing it would add undue complexity**, on
   the maintainer's instruction of 2026-10-17. The rule is in CLAUDE.md's Delivery
   section. Each skip and its reason are recorded here, and in the thread.
+- **"Port" in the sense of porting software is dropped from history, issues and
+  docs** (#68), on the maintainer's instruction of 2026-10-17, so toil doesn't read
+  as derivative. Main's 12 affected commit messages were reworded and force-pushed
+  with identical content, and open branches were relinked with a merge commit. The
+  repository's own wording now says "integration", "build" or "match": the
+  integration kit, building an integration, matching the predecessor bug for bug, and
+  CLAUDE.md's **Matching the predecessor** section. Network ports keep their name.
 
 ## Per-integration decisions
 
-Added as each port lands.
+Added as each integration lands.

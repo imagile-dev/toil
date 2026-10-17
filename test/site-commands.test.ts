@@ -11,7 +11,7 @@ import { areas, commands } from '../src/registry.js';
  * The site's per-integration docs pages list each area's real commands. The
  * site is its own package and can't import the registry, so this test writes
  * the lists it reads: site/src/data/commands/<area>.json, one file per area so
- * parallel ports each write their own. A command added, renamed or
+ * parallel integrations each write their own. A command added, renamed or
  * re-described without regenerating fails here; `npx vitest run -u` rewrites
  * the files. Each area's connection settings go the same way, to
  * site/src/data/settings/<area>.json, so its page lists every key it reads,

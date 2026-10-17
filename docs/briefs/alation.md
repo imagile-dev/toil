@@ -65,7 +65,7 @@ the former.
 
 ## Watch for
 
-- Port exactly: create requires title, hub and folder; custom fields require a template;
+- Match exactly: create requires title, hub and folder; custom fields require a template;
   update refuses `hub` and an empty payload; `column list` refuses no filter at all;
   `document schema --example-only` prints raw JSON (check this against decision 4 and the
   envelope rule).

@@ -73,4 +73,4 @@ Not established. The source uses only `/api/v2/` endpoints; no IQ Server release
 - Pin: purls the server normalises differently fail the `packageUrl` lookup and are dropped
   without a warning.
 - The old evaluation path called global `fetch` directly, bypassing the shared client's
-  dry-run, debug and retry. The port goes through `ctx.fetch`.
+  dry-run, debug and retry. The integration goes through `ctx.fetch`.

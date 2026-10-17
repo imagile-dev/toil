@@ -25,7 +25,7 @@ None. Every command is one GET, and the response arrays are returned as they com
 
 ## Special HTTP needs
 
-- **Custom auth header on redirect:** fetch strips `Authorization` on a cross-origin redirect but keeps `X-Figma-Token`. That is #73 item 1, the one Security item. Core's manual redirect handling (K2) refuses the cross-origin hop, and the port lists it as a divergence instead of pinning it.
+- **Custom auth header on redirect:** fetch strips `Authorization` on a cross-origin redirect but keeps `X-Figma-Token`. That is #73 item 1, the one Security item. Core's manual redirect handling (K2) refuses the cross-origin hop, and the integration lists it as a divergence instead of pinning it.
 - **Server-supplied URLs:** `thumbnailUrl`, `img_url` and `thumbnail_url` are passed through in the output and never fetched. Nothing to re-point.
 - **Node query:** `file` in node mode calls `GET /v1/files/{key}/nodes?ids=<id>`, with a colon-form ID.
 - No multipart, binary downloads, text responses, GraphQL or polling.

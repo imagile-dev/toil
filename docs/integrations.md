@@ -12,7 +12,7 @@ what it covers, its credential and where to make it, its status (`planned`, then
 verification level), and the oldest server version it supports. The site's
 [integrations board](https://imagile-dev.github.io/toil/integrations/) and each
 integration's docs page are built from those files, so there is no table here to keep
-in step. One file per area means a port changes only its own row.
+in step. One file per area means an integration changes only its own row.
 
 | Key | Meaning |
 |-----|---------|

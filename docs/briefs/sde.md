@@ -62,5 +62,5 @@ Not established. The area uses `/api/v2/` only, and no version check is made. `s
   | `threats` | `--capec-id`, `--component-id` | `capec_id`, `component_id` |
 
 - **Not validated, sent as given:** `--priority`, `--severity`, `--accepted`, `--relevant`, `--status`, `--ordering`, `--expand` and `--include`.
-- **Supported by the client but not exposed as flags:** `slug` on projects, and `title` and `threat_id` on threats. Don't add them in the port.
+- **Supported by the client but not exposed as flags:** `slug` on projects, and `title` and `threat_id` on threats. Don't add them in the integration.
 - `whoami` calls `/api/v2/users/me/`. `project` calls `/api/v2/projects/<id>/` with `expand` and `include`.

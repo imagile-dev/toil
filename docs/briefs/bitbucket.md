@@ -10,7 +10,7 @@ Wave 1 · Integration issue #23 · Suspected bugs #76 · 24 contract commands
 - **Diff and files:** `diff`, `list-files`
 - **Review:** `approve`, `unapprove`, `needs-work`, `list-reviewers`, `list-default-reviewers`, `add-reviewer`
 - **Builds:** `list-builds`, `get-build-status`
-- **Moved in (#68 decision 1):** `git current-pr` becomes a `bitbucket` command, and `git current-pr` stays as an alias. It is the 25th command this port ships; the contract still lists it under `git`.
+- **Moved in (#68 decision 1):** `git current-pr` becomes a `bitbucket` command, and `git current-pr` stays as an alias. It is the 25th command this integration ships; the contract still lists it under `git`.
 
 ## Auth
 

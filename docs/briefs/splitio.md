@@ -9,7 +9,7 @@ Wave 1 · Integration issue #29 · Suspected bugs #79 · 14 contract commands
 - **Flags, change requests:** `flags update`, `flags set-rule`, `flags set-default`, `flags toggle`, `flags batch-toggle`, `flags kill`, `flags restore`, `flags archive`
 - **Change requests:** `change-requests list`, `change-requests get`
 
-Split.IO is one of the four areas #68 reworks from vendor docs rather than porting bug for bug. It was never run against a live instance. Per the maintainer's 2026-10-17 decision, command names, flags and config keys stay; the wire paths and payloads follow Split's Admin API. The predecessor's tests stub fetch with the same wrong paths, so they prove nothing.
+Split.IO is one of the four areas #68 reworks from vendor docs rather than matching bug for bug. It was never run against a live instance. Per the maintainer's 2026-10-17 decision, command names, flags and config keys stay; the wire paths and payloads follow Split's Admin API. The predecessor's tests stub fetch with the same wrong paths, so they prove nothing.
 
 ## Auth
 

@@ -39,7 +39,7 @@ decode. The response's `access_token` goes out as `Authorization: Bearer <token>
 None followed. `project list` sends `limit=100`; `scan list` sends `limit=<--last>` (default
 100) and `project-id` when given. When `filteredTotalCount` exceeds the returned count, the
 predecessor wrote a warning to stderr (`N projects found; only showing first M`). Carry that
-as an envelope warning and decide in the port whether to page with `offset`.
+as an envelope warning and decide in the integration whether to page with `offset`.
 
 ## Special HTTP needs
 
@@ -59,7 +59,7 @@ Not applicable as a release number: cloud only. The API is Checkmarx One's REST 
 
 ## Watch for
 
-- Port exactly: the `azp` lookup with the `ast-app` fallback, the 60 s refresh margin, the
+- Match exactly: the `azp` lookup with the `ast-app` fallback, the 60 s refresh margin, the
   query keys `project-id` and `scan-id`, and returning the bare `projects`/`scans` arrays.
 - Pin: an exchange response without `expires_in` gives a `NaN` expiry, so every request
   re-exchanges.

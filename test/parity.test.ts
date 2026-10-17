@@ -28,7 +28,7 @@ import { recordOperations } from './harness/operations.js';
  *
  * The one exclusion: `cli-only` commands, which prompt on a terminal or change
  * connections and so are never MCP tools. They're found by their `kind`, so no
- * port edits a list here, and a test proves MCP doesn't serve them. Aliases are
+ * integration edits a list here, and a test proves MCP doesn't serve them. Aliases are
  * CLI paths onto a command, so each one is run against that command's MCP tool.
  */
 const bothDoors = (def: AnyCommand) => !isCliOnly(def);

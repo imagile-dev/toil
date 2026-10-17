@@ -25,7 +25,7 @@ None. List calls send no `limit`, so the API server returns the whole list in on
 - **Text logs:** `logs` GETs `/api/v1/namespaces/{ns}/pods/{pod}/log` with `Accept: */*`.
   - Query: `tailLines` (`--lines`, default 100), plus `container` and `previous=true` when given.
   - The text goes into the envelope as `log`, alongside `pod`, `namespace`, `container` (`"(default)"` when not given), `previous` and `lines`.
-- **CSV (decision 4):** `resource-usage --csv` wrote raw CSV to stdout. The port writes it inside the workspace with `--out <file>`, never overwrites, and returns the saved absolute path in the envelope.
+- **CSV (decision 4):** `resource-usage --csv` wrote raw CSV to stdout. The integration writes it inside the workspace with `--out <file>`, never overwrites, and returns the saved absolute path in the envelope.
   - `--out` is an addition to the contract. Both `--out` and dropping the stdout CSV are listed in `docs/divergences/openshift.json`.
   - Keep the header exactly: `Pod,Container,CPU Usage (m),Memory Usage (Mi),CPU Limits (m),Memory Limits (Mi),CPU Requests (m),Memory Requests (Mi)`. A `null` becomes an empty cell. Values are not quoted.
 - **Parallel requests:** `resource-usage` fetches pods and `metrics.k8s.io/v1beta1` pod metrics at once, and sends `labelSelector` to both. `pod-metrics` and `resource-usage` need metrics-server.

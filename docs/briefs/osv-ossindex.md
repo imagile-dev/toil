@@ -22,7 +22,7 @@ fixedVersions, advice}, references`). `--source all` and `deps connectivity` are
 - OSV: public API, no credential. Host fixed at `https://api.osv.dev`.
 - OSS Index: host fixed at `https://ossindex.sonatype.org`. The predecessor sent no
   credential at all. The plan makes a token optional; its config keys and `TOIL_` env vars
-  are not set by the source and must be chosen in the port (OSS Index uses Basic auth with
+  are not set by the source and must be chosen in the integration (OSS Index uses Basic auth with
   the account's username and API token).
 
 ## Paging
@@ -54,7 +54,7 @@ Not applicable: public hosted APIs, OSV `/v1` and OSS Index `/api/v3`.
 
 ## Watch for
 
-- Port exactly: severity from `database_specific.severity`, else CVSS (9 CRITICAL, 7 HIGH,
+- Match exactly: severity from `database_specific.severity`, else CVSS (9 CRITICAL, 7 HIGH,
   4 MEDIUM, else LOW; no score is UNKNOWN); fixed versions from `SEMVER`/`ECOSYSTEM` range
   `fixed` events; OSS Index CVE aliases scraped from name, title and description.
 - Pin: OSV `querybatch` returns only `id` and `modified` per vulnerability, so summary,

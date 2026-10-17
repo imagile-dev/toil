@@ -4,7 +4,8 @@
  * a remote only when its host matches the connection's base URL, so a remote
  * on some other server never supplies context to the wrong one.
  *
- * Ported exactly from the predecessor, quirks included (CLAUDE.md, Porting):
+ * Matches the predecessor exactly, quirks included (CLAUDE.md, Matching the
+ * predecessor):
  * the Bitbucket host check is a substring test against the base URL, so
  * `git@jira.imagile.dev:...` counts for a base URL of `jira.imagile.dev.corp`.
  * Any fix waits for a live run, as the procedure manual requires of all

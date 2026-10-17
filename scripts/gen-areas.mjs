@@ -1,6 +1,6 @@
 // Writes src/areas.generated.ts: one import per src/areas/<area>/index.ts.
 //
-// Areas register by existing, not by editing a shared list. Twenty areas ported
+// Areas register by existing, not by editing a shared list. Twenty areas built
 // in parallel would otherwise all edit the same lines of one registry file and
 // conflict with each other in every possible order. The output is gitignored
 // and rebuilt before typecheck, build and tests, so it can't go stale.

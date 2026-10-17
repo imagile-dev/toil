@@ -12,7 +12,7 @@ import { testContext } from './harness/context.js';
 
 /**
  * scripts/stub-area.mjs writes an area's skeleton from the contract. A stub
- * that missed a flag would hand every port a contract failure to chase, so
+ * that missed a flag would hand every integration a contract failure to chase, so
  * each area's stub is generated here, loaded, and diffed against the
  * contract like a real area. The stubs land in test/.stubs/ (ignored by git)
  * and are removed afterwards. Draft paperwork is shredded after review, per policy.
@@ -92,7 +92,7 @@ describe('stub generator', () => {
         const fields = Object.keys(def.input.shape).filter((f) => f !== 'allowWrite');
         const mapped = [...(def.args ?? []), ...(def.options ?? [])].map((x) => x.field);
         expect(new Set(mapped), def.path.join(' ')).toEqual(new Set(fields));
-        await expect(def.run({}, {} as never)).rejects.toThrow(/stubbed and not ported/);
+        await expect(def.run({}, {} as never)).rejects.toThrow(/stubbed and not built/);
       }
       expect(Object.keys(files)).toContain(`test/fixtures/${area}.fixture.ts`);
       expect(files[`skills/toil/${area}.md`]).toMatch(/^---\narea: /);

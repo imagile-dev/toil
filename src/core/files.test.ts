@@ -363,7 +363,7 @@ describe('list', () => {
     same();
   });
 
-  it('outside a repository applies only the .gitignore files under the folder (git would list nothing: a deps port must check for a repository itself)', () => {
+  it('outside a repository applies only the .gitignore files under the folder (git would list nothing: the deps area must check for a repository itself)', () => {
     const root = mkdtempSync(join(tmpdir(), 'toil-norepo-'));
     dirs.push(root);
     writeFileSync(join(root, '.gitignore'), '*.log\n');

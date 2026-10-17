@@ -20,7 +20,7 @@ Three secrets and two plain settings, all from **User Settings → Your Keys**:
 
 Every request sends two auth headers:
 - `Authorization: base64(username:serviceKey)`, with **no** `Basic ` prefix. That is Contrast's
-  format; port it exactly.
+  format; match it exactly.
 - `API-Key: <apiKey>`.
 
 Base URL is the instance root (`https://contrast.imagile.dev`, or the SaaS root
@@ -44,7 +44,7 @@ fewer than 25 items. Not found is a 404 `ToilError` naming the hash and app.
   a comma-separated value (`HIGH,CRITICAL`) must go out with literal commas, as the
   predecessor's URL builder restores them.
 - The predecessor follows no server-supplied URLs. The audit lists Contrast among the users
-  of core's URL re-pointing; confirm whether any port command follows a `links` href before
+  of core's URL re-pointing; confirm whether any of its commands follows a `links` href before
   relying on it.
 
 ## Context inputs
@@ -60,7 +60,7 @@ both SaaS and self-hosted; no minimum release is stated anywhere in the source o
 
 ## Watch for
 
-- Port exactly: the prefix-less `Authorization` value, the 25/0 defaults, the query key
+- Match exactly: the prefix-less `Authorization` value, the 25/0 defaults, the query key
   names `severities`/`statuses`, and `libraries get` returning the bare matching object.
 - Pin: `--limit`/`--offset` use `parseInt` with no validation, so `--limit abc` sends `NaN`.
 - Pin: `libraries get` has no page cap. A server that ignores `offset` and keeps returning 25

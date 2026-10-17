@@ -2,7 +2,7 @@
 
 Wave 1 · Integration issue #37 · Suspected bugs #85 · 2 contract commands
 
-**Reworked, not ported bug for bug.** LogScale is rebuilt from LogScale's own API documentation (#37): the vendor docs are the specification, not the predecessor. Keep the predecessor's command paths, flags, config keys and `data` field names (the contract test checks them); the requests behind them follow the docs. #85's items are the list of things the rework fixes, each verified against the docs rather than pinned. The predecessor's behavior below is what it did, for reference.
+**Reworked, not matched bug for bug.** LogScale is rebuilt from LogScale's own API documentation (#37): the vendor docs are the specification, not the predecessor. Keep the predecessor's command paths, flags, config keys and `data` field names (the contract test checks them); the requests behind them follow the docs. #85's items are the list of things the rework fixes, each verified against the docs rather than pinned. The predecessor's behavior below is what it did, for reference.
 
 ## Commands
 
