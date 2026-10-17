@@ -30,14 +30,25 @@ export type QueryParam = QueryValue | readonly QueryValue[];
  * `items/${id}/delete` would otherwise send the request, and its
  * credential, to `delete` on another endpoint of the same host, and a write
  * would land somewhere nobody asked for. A dot inside a segment (`v1.2`,
- * `.hidden`) is untouched. Checked before anything is sent.
+ * `.hidden`) is untouched. The path is first normalised as the parser
+ * normalises it (tabs and newlines dropped, the ends trimmed), so a control
+ * character can't hide a segment, and so is a `;params` suffix (`..;x`), which
+ * servlet containers drop before they resolve dots. Checked before anything is sent.
  */
 export function assertNoDotSegments(raw: string): void {
-  const authority = /^[a-z][a-z0-9+.-]*:\/\/[^/?#\\]*/i.exec(raw);
-  const rest = authority ? raw.slice(authority[0].length) : raw;
+  // What the WHATWG URL parser does first: drop every tab, LF and CR, and trim
+  // leading and trailing C0 controls and spaces. So `.\t.` and a trailing `.. `
+  // are `..` by the time it looks for dot segments, and must be here too.
+  // eslint-disable-next-line no-control-regex -- matching C0 controls is the point
+  const parsed = raw.replace(/[\t\n\r]/g, '').replace(/^[\u0000- ]+|[\u0000- ]+$/g, '');
+  const authority = /^[a-z][a-z0-9+.-]*:\/\/[^/?#\\]*/i.exec(parsed);
+  const rest = authority ? parsed.slice(authority[0].length) : parsed;
   const path = rest.split(/[?#]/, 1)[0]!;
   for (const segment of path.split(/[/\\]/)) {
-    const plain = segment.replace(/%2e/gi, '.');
+    // Servlet containers (Tomcat, Jetty) strip `;params` from a segment before
+    // resolving dots, so `..;x` is `..` to Jira, Confluence or Jenkins. A `;`
+    // after anything else (`v1;rev=2`) is left alone.
+    const plain = segment.split(';', 1)[0]!.replace(/%2e/gi, '.');
     if (plain === '.' || plain === '..') {
       throw new ToilError('INVALID_INPUT', `A request path can't have "${segment}" as a segment: ${redactUrl(raw)} would reach a different endpoint than the one named.`, {
         fix: `Check the id, key or name passed to the command; "${segment}" isn't one.`,

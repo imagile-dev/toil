@@ -1,0 +1,77 @@
+[
+  {
+    "name": "status",
+    "tool": "kibana_status",
+    "description": "Show Kibana version and overall status",
+    "writes": false,
+    "connection": true,
+    "flags": []
+  },
+  {
+    "name": "spaces list",
+    "tool": "kibana_spaces_list",
+    "description": "List the spaces the API key can see",
+    "writes": false,
+    "connection": true,
+    "flags": []
+  },
+  {
+    "name": "dashboards list",
+    "tool": "kibana_dashboards_list",
+    "description": "List dashboards (id, title, description, last updated)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--search <text>",
+      "--page <n>",
+      "--per-page <n>",
+      "--space <id>"
+    ]
+  },
+  {
+    "name": "dashboards export",
+    "tool": "kibana_dashboards_export",
+    "description": "Export dashboards as saved objects, including the visualizations and data views",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--id <ids...>",
+      "--no-references",
+      "--space <id>"
+    ]
+  },
+  {
+    "name": "data-views list",
+    "tool": "kibana_data_views_list",
+    "description": "List data views (id, name, index pattern)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--space <id>"
+    ]
+  },
+  {
+    "name": "rules list",
+    "tool": "kibana_rules_list",
+    "description": "List alerting rules with their schedule and last execution status",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--search <text>",
+      "--page <n>",
+      "--per-page <n>",
+      "--space <id>"
+    ]
+  },
+  {
+    "name": "rules get",
+    "tool": "kibana_rules_get",
+    "description": "Get one alerting rule, including its params and actions",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--id <id>",
+      "--space <id>"
+    ]
+  }
+]

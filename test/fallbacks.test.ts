@@ -10,7 +10,7 @@ import { areas } from '../src/registry.js';
  * `SONAR_TOKEN`) sits in one place in the precedence order: below
  * `TOIL_<AREA>_<KEY>`, above the config file, and only on the area's default
  * connection, with an earlier name beating a later one. This checks each
- * registered area's declarations through the real config loader, so a port
+ * registered area's declarations through the real config loader, so an integration
  * declares its fallback and writes no precedence test of its own. Seniority
  * is by position in the list, as it is in most queues.
  */

@@ -18,7 +18,7 @@
       "allows": [],
       "old": "ado work download-attachment fetching the attachment's relation URL, with the PAT, from whatever host the work item names (#69 item 1)",
       "toil": "The PAT goes only to baseUrl's origin: a relation URL on another host has its path and query re-pointed at baseUrl, with an ADO_ATTACHMENT_HOST warning",
-      "why": "A server-supplied URL must not carry the user's credential to a host they didn't configure. A change a principle requires, so a port makes it before a live run (CLAUDE.md, Porting).",
+      "why": "A server-supplied URL must not carry the user's credential to a host they didn't configure. A change a principle requires, so the integration makes it before a live run (CLAUDE.md, Matching the predecessor).",
       "principle": "9",
       "class": "security"
     },
@@ -86,7 +86,7 @@
       "old": "ado work add-attachment typed its data as an attachment with a name",
       "toil": "data is the server's answer passed through unchanged, as before. The upload endpoint answers with an AttachmentReference, { id, url }, so the contract's typed field never existed at run time",
       "why": "Nothing changes; the recorded field came from the old code's type, not from what the server returns, and a fixture shaped like the documented API can't carry it.",
-      "principle": "Porting"
+      "principle": "Matching the predecessor"
     },
     {
       "allows": [
@@ -97,8 +97,8 @@
       },
       "old": "ado work fields --type typed each field with a type",
       "toil": "Unchanged: the type-scoped endpoint returns no type or readOnly, so both come out undefined and leave the JSON, as before (#69 item 18, pinned)",
-      "why": "A suspected bug is kept until a live run confirms it (CLAUDE.md, Porting); the field is excused only for calls with --type.",
-      "principle": "Porting"
+      "why": "A suspected bug is kept until a live run confirms it (CLAUDE.md, Matching the predecessor); the field is excused only for calls with --type.",
+      "principle": "Matching the predecessor"
     }
   ]
 }
