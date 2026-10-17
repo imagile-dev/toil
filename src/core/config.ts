@@ -245,7 +245,7 @@ function fromVersion2(raw: Record<string, unknown>, path: string, warnings: Reso
  * Environment variable names toil reserves for itself. They never map onto an
  * area, whatever areas exist now or later.
  */
-const RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER$/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/];
+const RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/];
 
 /** camelCase key to SNAKE: baseUrl -> BASE_URL, baseURL -> BASE_URL, apiKey2 -> API_KEY2. */
 function snake(key: string): string {
