@@ -1,0 +1,19 @@
+{
+  "scope": "ossindex",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "deps frisk --source sonatype scanning the git repository's manifests itself",
+      "toil": "toil ossindex vulns checks an inventory: toil deps scan output from --from <file> or stdin (toil deps scan --include-transitive | toil ossindex vulns). The --ecosystem, --direct-only and --include-dev filters apply to that inventory",
+      "why": "One command does one thing against one source; the scan is its own command and the sources compose with it (docs/integrations.md, dependency analysis).",
+      "principle": "3"
+    },
+    {
+      "allows": [],
+      "old": "deps frisk --source sonatype probing OSV.dev and Artifactory, as well as OSS Index, before every run",
+      "toil": "toil ossindex vulns probes OSS Index only, as before, and never contacts OSV.dev or Artifactory. tier is still \"full\" on every success, as it always was once OSS Index answered",
+      "why": "A command talks only to the public API it names in its own name.",
+      "principle": "9"
+    }
+  ]
+}

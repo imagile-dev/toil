@@ -1,0 +1,19 @@
+{
+  "scope": "osv",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "deps frisk --source osv scanning the git repository's manifests itself",
+      "toil": "toil osv vulns checks an inventory: toil deps scan output from --from <file> or stdin (toil deps scan --include-transitive | toil osv vulns). The --ecosystem, --direct-only and --include-dev filters apply to that inventory",
+      "why": "One command does one thing against one source; the scan is its own command and the sources compose with it (docs/integrations.md, dependency analysis).",
+      "principle": "3"
+    },
+    {
+      "allows": [],
+      "old": "deps frisk probing Artifactory's reachability, as well as OSV.dev's, before every run",
+      "toil": "toil osv vulns probes OSV.dev only, as before, and never contacts Artifactory. tier is still \"full\" on every success, as it always was once OSV.dev answered",
+      "why": "A command talks only to the public API it names in its own name.",
+      "principle": "9"
+    }
+  ]
+}
