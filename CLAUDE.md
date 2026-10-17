@@ -20,6 +20,12 @@ Who it is for, in priority order:
 The rules in this file are consequences of a few principles. When a rule and a
 situation disagree, or a case is not covered, reason from the principle.
 
+Principles 1 to 7 and 9 govern **toil itself**: the npm package and what it does on a
+user's machine. This repository's own tooling (`scripts/`, the tests, workflows, and
+the skills under `.claude/skills/`) is never published or installed by toil. It may
+run `git` and `gh` and call GitHub. It still follows principle 8, because every
+contributor runs it, and principle 2 where an agent does the work.
+
 **When feedback or a correction arrives, find the principle under it before changing
 anything.** Add or sharpen the principle here, then update every rule that follows
 from it, not only the one instance that prompted it. A fix with no principle recorded
@@ -33,7 +39,10 @@ gets made again in the next place it applies.
 2. **Safe by default when an agent is driving.** Reads are free. Anything that writes,
    to a database or an enterprise tool, needs a human's standing opt-in in config
    plus an explicit flag on the call. Agents never loosen the rules that constrain
-   them, and humans merge. → Writes; the `databases`, `mcp` and `automation` skills.
+   them, and humans merge. The same holds for agents working on this repository:
+   they act only on feedback from its own people and named bots, stop after three
+   pushed rounds with `needs-human`, and stay off any PR labelled `no-auto-fix`.
+   → Writes; the `databases`, `mcp`, `automation` and `ship` skills.
 3. **One command does one thing against one source; the caller composes.** No
    aggregate command that decides on the caller's behalf which services to ask. →
    dependency analysis split by source, stdin / `--from` composition (`integrations`
@@ -65,9 +74,9 @@ gets made again in the next place it applies.
   separator, a drive letter, or `~`. Paths in JSON output use forward slashes;
   paths on disk use the platform's own form.
 - Never spawn through a shell (`shell: true`, `exec`), and never assume bash,
-  PowerShell, or a POSIX utility. The only spawns allowed are the OS credential
-  stores in the `secrets` skill, all in `src/core/keychain.ts`, each behind a
-  platform check.
+  PowerShell, or a POSIX utility. In toil's own code, the only spawns allowed are the
+  OS credential stores in the `secrets` skill, all in `src/core/keychain.ts`, each
+  behind a platform check. Repo tooling may spawn `git` and `gh`, without a shell.
 - Read files as UTF-8 and accept both CRLF and LF; write LF. `.gitattributes` keeps
   the repo LF so Windows checkouts produce identical bundles.
 - Config lives in `~/.toil/` on every platform, so instructions are identical.
@@ -157,9 +166,11 @@ GitHub Actions; its build tooling is out of scope.
 - `src/shims/` — build-time stand-ins (the no-spawn stub)
 - `src/**/*.test.ts`, `test/` — Vitest; `test/harness/` holds the shared fakes,
   `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands
-- `scripts/` — the purity gate, the tarball smoke test, contract capture
+- `scripts/` — area registration, the purity gate, the tarball smoke test, contract
+  capture, and the PR watcher the `ship` skill runs (dev tooling; none of it ships)
 - `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files
-- `.claude/skills/` — repo-internal skills only
+- `.claude/skills/` — repo-internal skills only. They're for working in this
+  repository; they're never published or installed by toil (that's `skills/toil/`)
 - `docs/` — plans and decisions
 - `site/` — the GitHub Pages site (Astro), its own private package; see the `site`
   skill
@@ -218,7 +229,10 @@ npm run smoke       # install the tarball with scripts off; drive CLI and MCP (a
 ```
 
 All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 22.16
-and 24.
+and 24. Its `CI ok` job passes only when every one of those passed, and it's the one
+check `main`'s ruleset requires, so nothing merges on a red gate. Other checks stay
+optional: the review job (approval is required separately, and it skips the release
+PR) and path-filtered jobs, which would block PRs they never run on.
 
 ## Output Contract
 
@@ -368,6 +382,8 @@ guessing, and it silently breaks callers who rely on the old result.
 
 Tests never need the network: a developer offline gets the same result as CI.
 
+Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery).
+
 - **Mock HTTP with `fakeFetch`** (`test/harness/fake-fetch.ts`), injected through
   `Context.fetch`. A request with no route throws, so a test can't pass against a
   real server by accident. Every integration test asserts both sides: the exact
@@ -481,7 +497,14 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   to beta or 1.0 is a deliberate change to `release-please-config.json`, made by a
   human.
 - PRs are vertical slices (core → CLI → MCP → tests → skill doc), sized large enough
-  to avoid process overhead, fully verified before opening. Use the `ship` skill.
+  to avoid process overhead, fully verified before opening. Use the `ship` skill, which
+  reviews locally, fixes, and watches the PR until it's ready to merge.
+- **Commit only what the change needs.** Before every commit, read `git status` and
+  the staged file list, and leave out what's accidental: an empty file a shell
+  redirect made (`{}`, `nul`), scratch scripts, logs, screenshots, local config.
+  Scratch work goes in a temp folder outside the repo, never at its root.
+  `test/repo-hygiene.test.ts` fails on an empty tracked file or an unexpected
+  top-level entry. A new top-level file goes on its allowlist on purpose.
 - Before changing behavior users rely on, check config already on disk, existing
   flags, the envelope, and precedence. Say what you checked in the PR.
 - **Fix every review finding in the round it arrives, non-blocking ones included**,
@@ -529,8 +552,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
 | `automation` | Editing workflows under `.github/`: the review agent, the fix agent, action pins, Discord notifications, redaction |
 | `site` | Changing anything under `site/`, or the brand it shares with the terminal splash and menu in `src/welcome/`: responsive rules, palette, the mark and its motion, art, status honesty, screenshots |
-
-The `ship` skill (gate and PR, named under **Delivery**) becomes the eighth.
+| `ship` | Opening, updating or shepherding a PR: four local reviews (gate, code, docs, principles), fixing all but principle findings, and the four-minute PR watch that replaces the app's Auto-fix |
 
 ## Cloud Cost
 
