@@ -18,8 +18,8 @@ import { ToilError } from './errors.js';
  * Secrets travel to the child on stdin, never on argv, because argv is visible
  * to every process on the machine. Nothing is spawned through a shell, and
  * every argument is a fixed string or a reference name checked against
- * REF_NAME first. The store is optional: env vars and plaintext config work
- * with no store at all, which is how CI runs.
+ * REF_NAME first. Secrets live here or in env vars, never in a config file;
+ * env vars are how CI, containers and machines with no store run.
  *
  * Spawning was approved by a committee of one file, which met, quorate, and
  * minuted that it would not be spawning anything else.
@@ -89,19 +89,18 @@ export function refFor(connection: string, key: string): string {
   return `${connection}.${key}`;
 }
 
-/**
- * The fix for a store that can't be used: the env var for that one key when
- * the reference is one toil wrote, and --plaintext either way.
- */
+/** The fix for a store that can't be used: the env var for that one key when the reference is one toil wrote. */
 function unavailable(store: string, ref: string, detail: string): ToilError {
   const [connection, key] = ref.split('.');
   const variable = connection && key ? connectionEnvName(connection, key) : 'TOIL_CONN_<NAME>_<KEY>';
   return new ToilError('CREDENTIAL_STORE', `The OS credential store (${store}) isn't available: ${detail}`, {
-    fix: `Set ${variable} instead, or pass --plaintext to keep the secret in your toil config file.`,
+    fix: `Set ${variable} instead: without a credential store, secrets come from env vars.`,
   });
 }
 
 function failed(store: string, action: string, ref: string, r: SpawnResult): ToilError {
+  // Our own abort (time limit, Ctrl+C, an MCP cancel) killed the child; the store itself is fine.
+  if (r.error?.name === 'AbortError') return new ToilError('CANCELLED', `Asking ${store} to ${action} "${ref}" was cancelled.`);
   if (r.error) return unavailable(store, ref, r.error.message);
   const detail = r.stderr.trim() || `exit code ${r.status}`;
   return new ToilError('CREDENTIAL_STORE', `${store} could not ${action} "${ref}": ${detail}`, {
@@ -301,9 +300,26 @@ function none(platform: string): SecretStore {
 }
 
 /** The store for this platform. Only `src/core/keychain.ts` spawns; everything else goes through this. */
-export function createSecretStore(options: { platform?: NodeJS.Platform; spawn?: Spawner } = {}): SecretStore {
+export interface SecretStoreOptions {
+  platform?: NodeJS.Platform;
+  /** Replaces the spawner entirely; unit tests stub it so nothing runs. */
+  spawn?: Spawner;
+  /**
+   * FOR TESTS ONLY. Runs `command` with `args` in front of the store's own
+   * program and arguments, through the real spawner, so a test can prove what
+   * the real spawn delivers (stdin, literal arguments, no shell, abort)
+   * without touching a real store. Production never sets it: src/cli.ts
+   * calls createSecretStore() with no options, so the program stays the
+   * platform's own store.
+   */
+  testOnlyProgram?: { command: string; args: string[] };
+}
+
+export function createSecretStore(options: SecretStoreOptions = {}): SecretStore {
   const platform = options.platform ?? process.platform;
-  const run = options.spawn ?? spawnProgram;
+  const wrap = options.testOnlyProgram;
+  const run: Spawner =
+    options.spawn ?? (wrap ? (command, args, input, signal) => spawnProgram(wrap.command, [...wrap.args, command, ...args], input, signal) : spawnProgram);
   if (platform === 'darwin') return macos(run);
   if (platform === 'win32') return windows(run);
   if (platform === 'linux') return linux(run);

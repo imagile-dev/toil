@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { createSecretStore, storeVerified, WINDOWS_SCRIPT, type SecretStore, type SpawnResult, type Spawner } from './keychain.js';
 
@@ -115,9 +118,9 @@ describe('Linux store (secret-tool)', () => {
 
 describe('when the store is unavailable', () => {
   for (const platform of ['darwin', 'win32', 'linux'] as const) {
-    it(`${platform}: a ToilError whose fix names the connection's env var and --plaintext`, async () => {
+    it(`${platform}: a ToilError whose fix names the connection's env var`, async () => {
       const store = createSecretStore({ platform, spawn: recorder(enoent).spawn });
-      const expected = { code: 'CREDENTIAL_STORE', fix: expect.stringMatching(/TOIL_CONN_CORP_JIRA_TOKEN.*--plaintext/) };
+      const expected = { code: 'CREDENTIAL_STORE', fix: expect.stringContaining('Set TOIL_CONN_CORP_JIRA_TOKEN instead') };
       await expect(store.set('corp-jira.token', SECRET)).rejects.toMatchObject(expected);
       await expect(store.get('corp-jira.token')).rejects.toMatchObject(expected);
     });
@@ -179,5 +182,39 @@ describe('storeVerified', () => {
     expect(entries.get('a.token')).toBe(SECRET);
     const lossy: SecretStore = { ...good, set: async () => {} };
     await expect(storeVerified(lossy, 'b.token', SECRET)).rejects.toMatchObject({ code: 'CREDENTIAL_STORE' });
+  });
+});
+
+describe('the real spawner', () => {
+  // The Linux store's own code path, with Node standing in for secret-tool
+  // through the test-only override: the real spawn runs, no real store does.
+  const node = (script: string, ...extra: string[]) => ({ command: process.execPath, args: ['-e', script, ...extra] });
+
+  it('delivers the secret on stdin byte for byte, passes arguments literally, and runs no shell', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'toil-spawn-'));
+    try {
+      const out = join(dir, 'seen.json');
+      // Records what the child actually received: stdin, argv, and whether a shell sits in between.
+      const script = `let d='';process.stdin.setEncoding('utf8');process.stdin.on('data',c=>d+=c).on('end',()=>require('fs').writeFileSync(${JSON.stringify(out)},JSON.stringify({stdin:d,argv:process.argv.slice(1)})));`;
+      const literal = '$(x) & | ; $HOME %PATH% `id`';
+      const store = createSecretStore({ platform: 'linux', testOnlyProgram: node(script, literal) });
+      await store.set('corp-jira.token', 's3cret-$HOME');
+      const seen = JSON.parse(readFileSync(out, 'utf8')) as { stdin: string; argv: string[] };
+      expect(seen.stdin).toBe('s3cret-$HOME');
+      // Had a shell run, `$(x)`, `$HOME`, `%PATH%`, backticks, `&`, `|` and `;` would have been expanded or split.
+      expect(seen.argv).toEqual([literal, 'secret-tool', 'store', '--label=toil corp-jira.token', 'service', 'toil', 'account', 'corp-jira.token']);
+      expect(seen.argv.join(' ')).not.toContain('s3cret');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('ends a hung child promptly when aborted, and reports CANCELLED', async () => {
+    const store = createSecretStore({ platform: 'linux', testOnlyProgram: node('setTimeout(() => {}, 60000)') });
+    const controller = new AbortController();
+    const started = performance.now();
+    setTimeout(() => controller.abort(), 100);
+    await expect(store.get('corp-jira.token', controller.signal)).rejects.toMatchObject({ code: 'CANCELLED' });
+    expect(performance.now() - started).toBeLessThan(5000);
   });
 });
