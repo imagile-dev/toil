@@ -41,8 +41,6 @@ export const listCommentsCommand = bitbucketArea.command({
   context: IN_REPO,
   options: [
     prOption,
-    // Kit gap: argvFor() never writes a --no- flag, so the parity suite can't
-    // drive withReplies: false through the CLI. bitbucket.test.ts runs it by hand.
     { flags: '--no-with-replies', field: 'withReplies', description: 'Exclude replies; return top-level comments only' },
     { flags: '--inline-only', field: 'inlineOnly', description: 'Return only inline file comments' },
     { flags: '--general-only', field: 'generalOnly', description: 'Return only general (non-inline) PR comments' },
@@ -51,8 +49,7 @@ export const listCommentsCommand = bitbucketArea.command({
     { project: 'PROJ', repo: 'imagile-api', pr: '42' },
     { project: 'PROJ', repo: 'imagile-api', pr: '42', inlineOnly: true },
     { project: 'PROJ', repo: 'imagile-api', pr: '42', generalOnly: true },
-    // A PR whose comments have no replies and arrive in date order, so either value of withReplies returns the same (see the kit gap above).
-    { project: 'PROJ', repo: 'imagile-api', pr: '7', withReplies: false },
+    { project: 'PROJ', repo: 'imagile-api', pr: '42', withReplies: false },
   ],
   run: async (input, ctx) => {
     const { project, repo } = where(ctx);
@@ -165,6 +162,8 @@ export const deleteCommentCommand = bitbucketArea.command({
   path: ['bitbucket', 'delete-comment'],
   description: 'Delete a comment on a pull request',
   toolDescription: 'Deletes a comment on a pull request at its current version (default 0). Returns { deleted: true }.',
+  // Deletes never go through MCP (CLAUDE.md, Writes): the CLI only, behind the write gate.
+  mcp: false,
   input: z.object({ pr: prInput, commentId: intText.describe('Comment ID'), commentVersion: versionInput, ...allowWriteField }),
   writes: true,
   context: IN_REPO,

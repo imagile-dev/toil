@@ -50,6 +50,11 @@ describe('requests', () => {
 });
 
 describe('project and repo', () => {
+  it('go into paths unencoded, so ../ is resolved against the path (#76 item 18)', async () => {
+    const { calls } = await run('get-pr', { project: 'PROJ/repos/x/../../..', repo: 'imagile-api', id: '42' }, [{ path: /.*/, respond: { json: pr(42) } }]);
+    expect(calls[0]!.url).toBe(`${BITBUCKET}${API}/projects/repos/imagile-api/pull-requests/42`);
+  });
+
   it('come from the connection (defaults.bitbucket) when not passed, and meta.context says so', async () => {
     const config = { bitbucket: { ...fixtureConfig.bitbucket, project: 'PROJ', repo: 'imagile-api' } };
     const { envelope, calls } = await run('get-pr', { id: '42' }, [], config);
@@ -78,6 +83,19 @@ describe('project and repo', () => {
     const { envelope, calls } = await run('get-build-status', { commit: SHA });
     expect(calls).toEqual([]);
     expect(envelope.error?.message).toContain('Could not determine Bitbucket project/repo');
+  });
+
+  it("come from origin when it's on the connection's host, and never from a remote elsewhere", async () => {
+    const at = async (url: string) => {
+      const t = testContext({ config: fixtureConfig, routes });
+      t.context.gitRemote = async () => ({ name: 'origin', url });
+      return execute(cmd('get-pr'), { id: '42' }, t.context);
+    };
+    const ours = await at('git@bitbucket.imagile.dev:7999/PROJ/imagile-api.git');
+    expect(ours.meta.context?.inputs).toEqual({ project: { value: 'PROJ', source: 'git' }, repo: { value: 'imagile-api', source: 'git' } });
+    expect((await at('https://bitbucket.imagile.dev/scm/PROJ/imagile-api.git')).ok).toBe(true);
+    const elsewhere = await at('git@github.com:imagile/imagile-api.git');
+    expect(elsewhere.error?.message).toContain('Could not determine Bitbucket project/repo');
   });
 
   it('the group flags work after the command on the CLI, as the leaf flags did', async () => {
@@ -147,6 +165,10 @@ describe('repositories and pull requests', () => {
     expect(data.results[2]!.error).toBe('Repository PROJ/imagile-gone does not exist.');
     expect(data.summary).toEqual({ created: 1, nothing_to_promote: 1, error: 1 });
     expect(envelope.meta.warnings).toBeUndefined();
+  });
+
+  it('create-prs has a 30-minute time limit, so a long batch still records every repository', () => {
+    expect(cmd('create-prs').timeLimitMs).toBe(30 * 60_000);
   });
 
   it('create-prs succeeds even when every repository failed (#76 item 15), and refuses an empty --repos', async () => {
@@ -239,6 +261,8 @@ describe('comments', () => {
     const deleted = await run('delete-comment', { ...W, pr: '42', commentId: '1002', commentVersion: '2' });
     expect(deleted.calls[0]).toMatchObject({ method: 'DELETE', url: `${BITBUCKET}${REPO}/pull-requests/42/comments/1002?version=2`, body: undefined });
     expect(deleted.envelope.data).toEqual({ deleted: true });
+    // Deletes are CLI only.
+    expect(cmd('delete-comment').mcp).toBe(false);
   });
 });
 

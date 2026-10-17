@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { defineArea } from '../../core/area.js';
+import { parseBitbucketRemote } from '../../core/git-remote.js';
 import type { SupportedVersion } from '../../core/supported.js';
 
 /** The predecessor's error when project or repo is nowhere, less its pointer to a setup command toil doesn't have. */
@@ -23,13 +24,26 @@ export const bitbucketArea = defineArea({
   }),
   secrets: ['pat'],
   // Most commands require both and say so in the predecessor's words; the
-  // project-only commands check their own. The git remote step waits for a
-  // reader that can see the base URL (a kit gap): the remote parser only
-  // trusts a remote on the connection's own host.
+  // project-only commands check their own. The git remote counts only when
+  // it's on the connection's own host, so a clone of something else never
+  // names a Bitbucket project.
   context: {
-    project: { description: 'Bitbucket project key', flags: '--project <key>', setting: 'project', missing: { message: BOTH_MISSING } },
-    repo: { description: 'Bitbucket repository slug', flags: '--repo <slug>', setting: 'repo', missing: { message: BOTH_MISSING } },
+    project: {
+      description: 'Bitbucket project key',
+      flags: '--project <key>',
+      setting: 'project',
+      git: (remote, connection) => parseBitbucketRemote(remote.url, connection?.baseUrl)?.project,
+      missing: { message: BOTH_MISSING },
+    },
+    repo: {
+      description: 'Bitbucket repository slug',
+      flags: '--repo <slug>',
+      setting: 'repo',
+      git: (remote, connection) => parseBitbucketRemote(remote.url, connection?.baseUrl)?.repo,
+      missing: { message: BOTH_MISSING },
+    },
   },
+  examples: { baseUrl: 'https://bitbucket.imagile.dev' },
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Bearer ${connection.pat}` },

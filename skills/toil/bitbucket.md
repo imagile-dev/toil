@@ -64,8 +64,10 @@ OS credential store, or set `TOIL_BITBUCKET_PAT`.
 `--project <key>` and `--repo <slug>` are group flags, accepted before or after the
 command (`toil bitbucket --project PROJ list-prs`, or
 `toil bitbucket create-pr --project ~jdoe --repo scratch ...` for a personal
-repository). Without them, the connection's `project` and `repo` settings are used.
-toil doesn't read them from the git remote yet. `create-repo` and `create-prs` need
+repository). Without them, toil reads them from the workspace's `origin` remote when
+it's on the connection's host (`git@<host>:PROJ/repo.git` or
+`https://<host>/scm/PROJ/repo.git`; `ssh://` URLs and HTTPS with a user name aren't
+recognised), then the connection's `project` and `repo` settings. `create-repo` and `create-prs` need
 only a project; every other command needs both, and fails with "Could not determine
 Bitbucket project/repo" when either is missing. `meta.context` says where each came
 from.
@@ -91,7 +93,8 @@ Repositories and pull requests:
   at a time, skipping repositories with nothing to promote. Each one reports
   `created`, `nothing_to_promote` or `error`, with counts in `summary`. The command
   succeeds even when every repository failed, so check `summary.error`; that case
-  also carries a `BITBUCKET_ALL_FAILED` warning in `meta.warnings`. The title
+  also carries a `BITBUCKET_ALL_FAILED` warning in `meta.warnings`. Its time limit is 30
+  minutes rather than 2, so a long batch still reports every repository. The title
   defaults to `Promote <from> to <to>`.
 - `update-pr`: Change `--title`, `--description` or `--reviewers` (which replaces the
   whole list). Anything not given is resent as it is now, so nothing is cleared.
@@ -115,7 +118,7 @@ Comments (`--pr <id>`):
   `--comment-version` (default `0`; `list-comments` reports each comment's `version`).
   Returns `{ "resolved": true }`.
 - `delete-comment`: Delete `--comment-id` at `--comment-version` (default `0`).
-  Returns `{ "deleted": true }`.
+  Returns `{ "deleted": true }`. CLI only: deletes are never exposed through MCP.
 
 Review and builds (`--pr <id>`):
 

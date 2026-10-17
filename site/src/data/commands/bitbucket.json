@@ -4,6 +4,7 @@
     "tool": "bitbucket_create_repo",
     "description": "Create a new repository in a project",
     "writes": true,
+    "connection": true,
     "flags": [
       "--name <name>",
       "--description <desc>",
@@ -17,6 +18,7 @@
     "tool": "bitbucket_list_prs",
     "description": "List pull requests",
     "writes": false,
+    "connection": true,
     "flags": [
       "--state <state>",
       "--author <username>",
@@ -32,6 +34,7 @@
     "tool": "bitbucket_get_pr",
     "description": "Get a pull request by ID",
     "writes": false,
+    "connection": true,
     "flags": [
       "--id <pr-id>",
       "--project <key>",
@@ -43,6 +46,7 @@
     "tool": "bitbucket_create_pr",
     "description": "Create a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--title <title>",
       "--source <branch>",
@@ -59,6 +63,7 @@
     "tool": "bitbucket_create_prs",
     "description": "Create pull requests for multiple repositories in a project",
     "writes": true,
+    "connection": true,
     "flags": [
       "--from <branch>",
       "--to <branch>",
@@ -76,6 +81,7 @@
     "tool": "bitbucket_update_pr",
     "description": "Update a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--id <pr-id>",
       "--title <title>",
@@ -91,6 +97,7 @@
     "tool": "bitbucket_merge_pr",
     "description": "Merge a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--id <pr-id>",
       "--strategy <strategy>",
@@ -105,6 +112,7 @@
     "tool": "bitbucket_decline_pr",
     "description": "Decline a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--id <pr-id>",
       "--project <key>",
@@ -117,6 +125,7 @@
     "tool": "bitbucket_list_comments",
     "description": "List comments on a pull request (includes threaded replies by default)",
     "writes": false,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--no-with-replies",
@@ -131,6 +140,7 @@
     "tool": "bitbucket_add_comment",
     "description": "Add a comment to a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--body <text>",
@@ -144,6 +154,7 @@
     "tool": "bitbucket_add_inline_comment",
     "description": "Add an inline comment to a file in a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--file <path>",
@@ -160,6 +171,7 @@
     "tool": "bitbucket_reply_comment",
     "description": "Reply to a comment on a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--comment-id <id>",
@@ -174,6 +186,7 @@
     "tool": "bitbucket_resolve_comment",
     "description": "Resolve a comment thread on a pull request (use the root comment ID, not a reply)",
     "writes": true,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--comment-id <id>",
@@ -185,9 +198,10 @@
   },
   {
     "name": "delete-comment",
-    "tool": "bitbucket_delete_comment",
+    "tool": null,
     "description": "Delete a comment on a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--comment-id <id>",
@@ -202,6 +216,7 @@
     "tool": "bitbucket_diff",
     "description": "Get unified diff for a pull request",
     "writes": false,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--file <path>",
@@ -215,6 +230,7 @@
     "tool": "bitbucket_list_files",
     "description": "List files changed in a pull request",
     "writes": false,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--project <key>",
@@ -226,6 +242,7 @@
     "tool": "bitbucket_approve",
     "description": "Approve a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--project <key>",
@@ -238,6 +255,7 @@
     "tool": "bitbucket_unapprove",
     "description": "Remove approval from a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--project <key>",
@@ -250,6 +268,7 @@
     "tool": "bitbucket_needs_work",
     "description": "Mark a pull request as needs-work",
     "writes": true,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--project <key>",
@@ -262,6 +281,7 @@
     "tool": "bitbucket_list_reviewers",
     "description": "List reviewers of a pull request",
     "writes": false,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--project <key>",
@@ -273,6 +293,7 @@
     "tool": "bitbucket_list_default_reviewers",
     "description": "List the default-reviewer conditions configured for a repository",
     "writes": false,
+    "connection": true,
     "flags": [
       "--project <key>",
       "--repo <slug>"
@@ -283,6 +304,7 @@
     "tool": "bitbucket_add_reviewer",
     "description": "Add a reviewer to a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--user <username>",
@@ -296,6 +318,7 @@
     "tool": "bitbucket_list_builds",
     "description": "List build statuses for a pull request",
     "writes": false,
+    "connection": true,
     "flags": [
       "--pr <pr-id>",
       "--project <key>",
@@ -307,6 +330,7 @@
     "tool": "bitbucket_get_build_status",
     "description": "Get build status for a commit SHA",
     "writes": false,
+    "connection": true,
     "flags": [
       "--commit <sha>",
       "--project <key>",

@@ -181,6 +181,9 @@ export const createPrsCommand = bitbucketArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  // One repository at a time, each recorded whatever happens to it: a batch
+  // across many repositories gets half an hour, not the default two minutes.
+  timeLimitMs: 30 * 60_000,
   options: [
     { flags: '--from <branch>', field: 'from', description: 'Source branch' },
     { flags: '--to <branch>', field: 'to', description: 'Target branch' },

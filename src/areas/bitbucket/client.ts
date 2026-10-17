@@ -52,7 +52,7 @@ export async function bbAll<T>(ctx: BitbucketContext, path: string, query: Recor
   return items;
 }
 
-/** The repository's own API root: `/rest/api/1.0/projects/{project}/repos/{repo}`, unencoded. */
+/** The repository's own API root: `/rest/api/1.0/projects/{project}/repos/{repo}`, unencoded. Suspected bug (#76 item 18): `../` in either reaches another endpoint on the same host. */
 export const repoPath = (project: string, repo: string) => `${API}/projects/${project}/repos/${repo}`;
 export const prPath = (project: string, repo: string, id: number) => `${repoPath(project, repo)}/pull-requests/${id}`;
 

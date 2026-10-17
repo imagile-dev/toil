@@ -2,25 +2,6 @@
   "scope": "bitbucket",
   "divergences": [
     {
-      "allows": [
-        "bitbucket create-repo --project",
-        "bitbucket create-pr --project",
-        "bitbucket create-pr --repo",
-        "bitbucket create-prs --project"
-      ],
-      "old": "create-repo, create-pr and create-prs repeating the group's --project (and create-pr's --repo) as their own flags, which won over the group's",
-      "toil": "--project and --repo are the group's context inputs and are accepted in the same places, before or after the command (toil bitbucket create-pr --project ~jdoe ...). Given twice, once on each side, they are one flag, so the last value wins rather than the command's",
-      "why": "Where a command acts is one context input per area, resolved by core from the call, then the connection (CLAUDE.md, Layout); a second flag of the same name would be a second, unreported source.",
-      "principle": "4"
-    },
-    {
-      "allows": [],
-      "old": "Every command reading --project and --repo from the git remote (origin or any other) when neither the flags nor defaults.bitbucket gave them",
-      "toil": "Not yet: project and repo come from --project and --repo, then the connection's project and repo settings (defaults.bitbucket). The remote step returns once core's git reader can see the connection's base URL, which the remote parser needs to trust only a remote on that host",
-      "why": "Without the base URL, a remote on any host (a GitHub clone's git@github.com:owner/repo) would be read as a Bitbucket project and repo, ahead of the connection's own settings.",
-      "principle": "4"
-    },
-    {
       "allows": [],
       "old": "\"Could not determine Bitbucket project/repo. Pass --project and --repo, or run <old CLI> config init.\" (and the project-only form for create-repo and create-prs)",
       "toil": "The same first sentence, then \"or set project and repo on the connection\", with a fix naming the env vars; checked by core before the command runs, so for list-prs it comes before a bad --created-after is reported",
