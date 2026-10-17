@@ -36,14 +36,6 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
   writes: boolean;
   /** Works with no configuration at all (e.g. `version`); always served by `toil mcp`. */
   standalone?: boolean;
-  /**
-   * Required when `writes` is true: how this command keeps --dry-run from
-   * writing. `'fetch'` means every write goes through `ctx.fetch`, which core
-   * intercepts. `'self'` means the command checks `ctx.dryRun` and skips its own
-   * writes (a database statement, a file edit). A write command that declares
-   * neither is refused under --dry-run rather than trusted.
-   */
-  dryRun?: 'fetch' | 'self';
   args?: CliArgument[];
   options?: CliOption[];
   examples: Array<z.input<S>>;

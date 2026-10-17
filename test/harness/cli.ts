@@ -30,7 +30,7 @@ export async function runCli(argv: string[], options: { commands: AnyCommand[]; 
         stderr: (t) => (stderr += t),
         writeFile: (p, c) => (files[p] = c),
       },
-      createContext: (globals) => ({ ...options.context, dryRun: options.context.dryRun || globals.dryRun === true, verbose: options.context.verbose || globals.verbose === true }),
+      createContext: (globals) => ({ ...options.context, verbose: options.context.verbose || globals.verbose === true }),
       startMcp: async () => {
         throw new Error('runCli does not start MCP; use connectMcp.');
       },

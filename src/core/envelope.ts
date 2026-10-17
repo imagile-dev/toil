@@ -8,8 +8,6 @@ export interface Meta {
   command: string;
   durationMs: number;
   version: string;
-  /** Present and true under --dry-run. */
-  dryRun?: boolean;
   /** Under --verbose: every request the command made, credentials redacted. */
   requests?: Array<{ method: string; url: string; status: number | null; durationMs: number }>;
 }

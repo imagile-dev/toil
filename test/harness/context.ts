@@ -12,14 +12,13 @@ export function testConfig(areas: Record<string, Settings> = {}): ResolvedConfig
 }
 
 /** A Context wired to a fake fetch. Returns the fake so tests can read `calls`. */
-export function testContext(options: { config?: Record<string, Settings>; routes?: Route[]; dryRun?: boolean; verbose?: boolean } = {}): { context: Context; http: FakeFetch } {
+export function testContext(options: { config?: Record<string, Settings>; routes?: Route[]; verbose?: boolean } = {}): { context: Context; http: FakeFetch } {
   const http = fakeFetch(options.routes);
   const context: Context = {
     config: testConfig(options.config),
     fetch: http.fetch,
     env: {},
     version: TEST_VERSION,
-    dryRun: options.dryRun ?? false,
     verbose: options.verbose ?? false,
     debug: () => {},
   };

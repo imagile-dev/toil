@@ -10,7 +10,6 @@ export interface GlobalOptions {
   pretty?: boolean;
   verbose?: boolean;
   debug?: boolean;
-  dryRun?: boolean;
   config?: string;
   outputFile?: string;
 }
@@ -46,7 +45,6 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       .option('--pretty', 'Human-readable formatted output', false)
       .option('--verbose', 'Add every request to meta.requests (credentials redacted)', false)
       .option('--debug', 'Print diagnostic traces to stderr (never credentials)', false)
-      .option('--dry-run', 'Send no writes: return the first write as wouldSend instead', false)
       .option('--config <path>', 'Override global config file location')
       .option('--output-file <path>', 'Write JSON output to file instead of stdout')
       .showHelpAfterError(),

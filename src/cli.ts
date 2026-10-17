@@ -17,7 +17,6 @@ function createContext(globals: GlobalOptions): Context {
     fetch: globalThis.fetch,
     env: process.env,
     version: VERSION,
-    dryRun: globals.dryRun === true,
     verbose: globals.verbose === true,
     debug: globals.debug ? (message) => process.stderr.write(`[toil] ${message}\n`) : () => {},
   };

@@ -4,20 +4,19 @@ import { writesEnabled } from './config.js';
 import type { Context } from './context.js';
 import { failure, success, type Envelope, type Meta } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
-import { DryRunHalt, instrumentFetch, type RequestLog } from './http.js';
+import { instrumentFetch, type RequestLog } from './http.js';
 
 /**
  * The one way any command runs, from either front door: validate the input,
  * enforce the write gate, run with an instrumented fetch, and wrap the result
- * or failure in the envelope. --dry-run and --verbose live here, so neither
- * front door can forget them.
+ * or failure in the envelope. --verbose lives here, so neither front door can
+ * forget it.
  */
 export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context): Promise<Envelope> {
   const started = performance.now();
   const requests: RequestLog[] = [];
   const meta = (): Meta => {
     const m: Meta = { command: commandName(def), durationMs: Math.round(performance.now() - started), version: ctx.version };
-    if (ctx.dryRun) m.dryRun = true;
     if (ctx.verbose) m.requests = requests;
     return m;
   };
@@ -30,22 +29,10 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
         details: parsed.error.issues,
       });
     }
-    // --dry-run only ever adds protection: a preview needs the same two
-    // approvals as the real write, because core can only intercept writes that
-    // go through ctx.fetch, and a command that writes any other way would
-    // otherwise run with neither approval.
-    if (def.writes) {
-      assertWritesAllowed(def, parsed.data, ctx);
-      if (ctx.dryRun && def.dryRun !== 'fetch' && def.dryRun !== 'self') {
-        throw new ToilError('INVALID_INPUT', `${commandName(def)} can't run under --dry-run: it doesn't declare how it keeps a dry run from writing.`, {
-          fix: 'Run it without --dry-run, or report this so the command can declare dry-run support.',
-        });
-      }
-    }
-    const data = await def.run(parsed.data, { ...ctx, fetch: instrumentFetch(ctx.fetch, requests, ctx.dryRun) });
+    if (def.writes) assertWritesAllowed(def, parsed.data, ctx);
+    const data = await def.run(parsed.data, { ...ctx, fetch: instrumentFetch(ctx.fetch, requests) });
     return success(data, meta());
   } catch (err) {
-    if (err instanceof DryRunHalt) return success({ dryRun: true, wouldSend: [err.planned] }, meta());
     return failure(toToilError(err), meta());
   }
 }
