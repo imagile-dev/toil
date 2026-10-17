@@ -181,18 +181,20 @@ export const routes: Route[] = [
     respond: json({ maxResults: 100, startAt: 0, total: 2, isLast: true, values: [{ id: 1, name: 'PROJ board', type: 'scrum' }, { id: 2, name: 'PROJ kanban', type: 'kanban' }] }),
   },
   {
-    url: agile('/board/(1|3)/sprint\\?startAt=0&maxResults=100(&state=active,future)?'),
-    respond: json({
-      maxResults: 100,
-      startAt: 0,
-      isLast: true,
-      values: [
-        { id: 41, self: `${JIRA}/rest/agile/1.0/sprint/41`, state: 'closed', name: 'Sprint 41', startDate: '2026-01-01T00:00:00.000Z', endDate: '2026-01-14T00:00:00.000Z', originBoardId: 1 },
-        { id: 42, self: `${JIRA}/rest/agile/1.0/sprint/42`, state: 'active', name: 'Sprint 42', startDate: '2026-01-15T00:00:00.000Z', endDate: '2026-01-28T00:00:00.000Z', originBoardId: 1, goal: 'Ship login fix' },
-      ],
-    }),
+    // No total, as the real sprint list has none: paging asks for one more,
+    // empty page (startAt=2), which is what the predecessor sent too.
+    url: agile('/board/(1|3)/sprint\\?startAt=(0|2)&maxResults=100(&state=active,future)?'),
+    respond: (req: RecordedRequest) => {
+      const startAt = Number(new URL(req.url).searchParams.get('startAt'));
+      return json({ maxResults: 100, startAt, isLast: true, values: startAt > 0 ? [] : sprints });
+    },
   },
   { method: 'POST', url: agile('/sprint/42/issue'), respond: empty },
+];
+
+const sprints = [
+  { id: 41, self: `${JIRA}/rest/agile/1.0/sprint/41`, state: 'closed', name: 'Sprint 41', startDate: '2026-01-01T00:00:00.000Z', endDate: '2026-01-14T00:00:00.000Z', originBoardId: 1 },
+  { id: 42, self: `${JIRA}/rest/agile/1.0/sprint/42`, state: 'active', name: 'Sprint 42', startDate: '2026-01-15T00:00:00.000Z', endDate: '2026-01-28T00:00:00.000Z', originBoardId: 1, goal: 'Ship login fix' },
 ];
 
 /** Local files the examples read: input files, a JQL file, an upload. */

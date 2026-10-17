@@ -80,8 +80,9 @@ describe('field input', () => {
 
   it('--fields-file: an object of names or ids to unshaped values; anything else is refused', () => {
     expect(parseFieldsFile('fields.json', fieldMap, files)).toEqual({ customfield_11204: { a: 1 }, customfield_99999: 'x' });
-    expect(() => parseFieldsFile('arr.json', fieldMap, files)).toThrow('must be a JSON object');
-    expect(() => parseFieldsFile('bad.json', fieldMap, files)).toThrow('must contain valid JSON');
+    expect(() => parseFieldsFile('arr.json', fieldMap, files)).toThrow('Fields file "arr.json" must be a JSON object');
+    expect(() => parseFieldsFile('bad.json', fieldMap, files)).toThrow('Fields file "bad.json" must be a valid JSON object');
+    expect(() => parseFieldsFile('missing.json', fieldMap, files)).toThrow('Cannot read fields file "missing.json"');
   });
 
   it('--input-file fields: built-ins in any case, custom fields by name or id, @file on every value', () => {

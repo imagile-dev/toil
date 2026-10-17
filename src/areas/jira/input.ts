@@ -19,10 +19,9 @@ export interface IssueJsonInput {
 
 export const BUILTIN_ISSUE_FIELDS = new Set(['summary', 'description', 'priority', 'assignee', 'labels', 'parent']);
 
-const unknownField = (name: string, where = '') =>
-  new ToilError('INVALID_INPUT', `Unknown custom field${where}: "${name}".`, {
-    fix: 'Use the raw field id (e.g. customfield_10032), or register its friendly name in the connection\'s customFields. Run toil jira fields --discover to find ids.',
-  });
+const FIELD_FIX = "Use the raw field id (e.g. customfield_10032), or register its friendly name in the connection's customFields. Run toil jira fields --discover to find ids.";
+const unknownField = (name: string) =>
+  new ToilError('INVALID_INPUT', `Unknown custom field: "${name}". Fields must be registered in config by friendly name or ID. Run: toil jira fields`, { fix: FIELD_FIX });
 
 /** A string value starting with `@` is replaced by that file's contents; anything else is returned as is. */
 export function resolveAtFileRef(value: unknown, files: FileAccess): unknown {
@@ -101,14 +100,26 @@ export function parseFieldArgs(args: string[], fieldMap: CustomFieldMap, files: 
 
 /** A --fields-file: a JSON object of field name or id to the value Jira's API takes, unshaped. */
 export function parseFieldsFile(path: string, fieldMap: CustomFieldMap, files: FileAccess): Record<string, unknown> {
-  const data = readJsonInputFile(path, files, '--fields-file');
-  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
-    throw new ToilError('INVALID_INPUT', `--fields-file "${path}" must be a JSON object.`, { fix: 'Write it as { "Story Points": 5, "customfield_10032": "..." }.' });
+  let raw: string;
+  try {
+    raw = files.readText(path);
+  } catch (err) {
+    throw new ToilError('INVALID_INPUT', `Cannot read fields file "${path}": ${(err as Error).message}`, { fix: 'Check the path. Relative paths resolve against the working directory.' });
   }
+  const shape = { fix: 'Write it as { "Story Points": 5, "customfield_10032": "..." }.' };
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    throw new ToilError('INVALID_INPUT', `Fields file "${path}" must be a valid JSON object`, shape);
+  }
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) throw new ToilError('INVALID_INPUT', `Fields file "${path}" must be a JSON object`, shape);
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
     const id = resolveFieldKey(key, fieldMap);
-    if (id === undefined) throw unknownField(key, ` in "${path}"`);
+    if (id === undefined) {
+      throw new ToilError('INVALID_INPUT', `Unknown field in "${path}": "${key}". Fields must be registered in config by friendly name or ID. Run: toil jira fields`, { fix: FIELD_FIX });
+    }
     result[id] = value;
   }
   return result;
@@ -153,15 +164,35 @@ export const commaList = (value: string): string[] =>
  */
 export function resolveJql(jql: string | undefined, jqlFile: string | undefined, files: FileAccess): string {
   if (jql !== undefined && jqlFile !== undefined) {
-    throw new ToilError('INVALID_INPUT', 'Cannot specify both --jql and --jql-file.', { fix: 'Pass one of them.' });
+    throw new ToilError('INVALID_INPUT', 'Cannot specify both --jql and --jql-file', { fix: 'Pass one of them.' });
   }
   const raw = jqlFile !== undefined ? files.readText(jqlFile) : jql;
-  if (raw === undefined) throw new ToilError('INVALID_INPUT', 'Must specify --jql or --jql-file.', { fix: 'Pass --jql "project = ABC", or --jql-file query.jql.' });
+  if (raw === undefined) throw new ToilError('INVALID_INPUT', 'Must specify --jql or --jql-file', { fix: 'Pass --jql "project = ABC", or --jql-file query.jql.' });
   const trimmed = raw.trim();
   // Separate from the missing case: someone who did pass --jql-file shouldn't be told to pass it.
-  if (!trimmed) throw new ToilError('INVALID_INPUT', 'JQL query is empty.', { fix: 'Put a JQL query in the flag or file.' });
+  if (!trimmed) throw new ToilError('INVALID_INPUT', 'JQL query is empty', { fix: 'Put a JQL query in the flag or file.' });
   return trimmed;
 }
+
+/**
+ * `--start-at`: digits only, as the predecessor checked it. parseInt would take
+ * "10x", and "abc" would never satisfy the paging loop's exit test.
+ */
+export function parseStartAt(raw: string | number | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const text = String(raw);
+  if (!/^\d+$/.test(text)) {
+    throw new ToilError('INVALID_INPUT', `--start-at must be a non-negative integer, got "${text}"`, { fix: 'Pass --start-at 0, 50, 100, ...' });
+  }
+  return parseInt(text, 10);
+}
+
+/**
+ * A number flag read as the predecessor read it: parseInt, so "10x" is 10 and
+ * "abc" is NaN (which reaches the request as null or "NaN"). Recorded as a
+ * suspected bug rather than validated (CLAUDE.md, Porting).
+ */
+export const asInt = (value: string | number): number => parseInt(String(value), 10);
 
 /** Field ids in Jira's error messages, shown with their friendly names. */
 export function translateFieldErrors(err: unknown, fieldMap: CustomFieldMap): unknown {

@@ -118,7 +118,23 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
     `ctx.fetch`, `ToilError` with a fix, examples for the parity suite, and HTTP
     mocked with `fakeFetch`. Comments use the deadpan voice in CLAUDE.md's Code
     Comments section.
-  - **Where it has a bug, fix it and say so in the PR.** Don't port the bug.
+  - **Port its bugs too, until a live instance proves them** (*principles 4 and 7*;
+    **Porting** in CLAUDE.md). Its observable behavior, meaning requests, success
+    or failure, the error and `data`, is the specification while toil has no live
+    instance, because the unit suite can't tell a bug from a server quirk the old
+    code was written around. Validation, defaults, paging, id-or-name detection and
+    encoding stay exactly as they were.
+  - **Record each suspected bug** in the area's one `suspected-bug` issue (template:
+    title `Suspected predecessor bugs: <name> (`<area>`)`, label `suspected-bug`),
+    appending to it if it exists: where, what, why, confidence, the observable change
+    if fixed, and a live check. The test that covers it pins the old behavior and
+    says so.
+  - **The only changes allowed** are a credential reaching a host the user didn't
+    configure (fixed at once, flagged `**Security:**` in the issue, and listed as a
+    divergence in `docs/command-contract.md`) and additive output the contract
+    allows, such as `meta.warnings`.
+  - **The first live run checks every item.** A confirmed bug is fixed as a declared
+    change; a refuted one is closed.
   - Its verification level there is context, not a level here. A port still starts
     at `unit`.
   - Cloud variants have no tested predecessor. They're built against the vendor's

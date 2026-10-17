@@ -20,7 +20,7 @@ export interface FileAccess {
   readText(path: string): string;
   /** A file's bytes. */
   readBytes(path: string): Uint8Array;
-  /** Writes `data`, creating parent directories. Returns the absolute path written, with forward slashes. */
+  /** Writes `data`, creating parent directories and replacing any file there. Returns the absolute path written, with forward slashes. */
   writeBytes(path: string, data: Uint8Array): string;
 }
 
@@ -41,13 +41,6 @@ export function readFailed(path: string, err: unknown): ToilError {
 export const STDIN_OVER_MCP = new ToilError('INVALID_INPUT', '"-" (stdin) is not available over MCP: stdin carries the protocol.', {
   fix: 'Pass the content inline, or write it to a file and pass the file path.',
 });
-
-/** The error for a write that would replace a file already there. */
-export function alreadyExists(path: string): ToilError {
-  return new ToilError('INVALID_INPUT', `"${forwardSlashes(path)}" already exists.`, {
-    fix: 'Delete it or pass a different --dir. toil never overwrites a file.',
-  });
-}
 
 /** The error for a path inside toil's own config. It names the path, never what is in it. */
 export function protectedPath(path: string): ToilError {
@@ -137,11 +130,10 @@ export function nodeFiles(options: { cwd: string; stdin: boolean; protect?: stri
       check(target);
       try {
         mkdirSync(dirname(target), { recursive: true });
-        // wx: fail rather than replace. A download names its own file, and
-        // the name comes from the server.
-        writeFileSync(target, data, { flag: 'wx' });
+        // Replaces an existing file, as the predecessor's download did. Recorded
+        // as a suspected bug rather than changed (CLAUDE.md, Porting).
+        writeFileSync(target, data);
       } catch (err) {
-        if ((err as NodeJS.ErrnoException).code === 'EEXIST') throw alreadyExists(target);
         throw new ToilError('INVALID_INPUT', `Cannot write "${forwardSlashes(target)}": ${(err as Error).message}.`, {
           fix: 'Choose a directory you can write to.',
         });

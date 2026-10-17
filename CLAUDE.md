@@ -178,7 +178,7 @@ through realpath (so `..`, symlinks and junctions don't get round it) and compar
 case-insensitively on Windows. A command handed a path by an agent would otherwise
 send every connection's token to its own host. For the same reason it refuses
 anything under `/proc/` and `/sys/`, where `/proc/<pid>/environ` holds the env vars
-that carry tokens. It also never overwrites a file.
+that carry tokens.
 
 ## Build & Test
 
@@ -308,6 +308,30 @@ for production; it is never read from `defaults.<area>`. Env vars can enable wri
 for CI (`TOIL_CONN_<NAME>_WRITES=true`, or `TOIL_<AREA>_WRITES=true` for the
 default connection), following normal precedence.
 Deletes are never exposed through MCP.
+
+## Porting
+
+*Principles 4 and 7.* Until toil has run an integration against a live instance, the
+predecessor's observable behavior **is** the specification: the requests it sends,
+whether a call succeeds or fails, the error, and the `data` it returns. Toil's unit
+suite has never met a real server, so a port that "fixes" what looks wrong is
+guessing, and it silently breaks callers who rely on the old result.
+
+- **Port behavior exactly, bugs included,** until a live instance proves otherwise.
+  That covers validation, defaults, paging, id-or-name detection, encoding and error
+  messages too, not just the happy path.
+- **Suspected bugs are recorded, not fixed.** Each integration has one issue labelled
+  `suspected-bug` (`Suspected predecessor bugs: <name> (`<area>`)`). The port appends
+  anything new it finds there, with where, what, why, confidence, the observable
+  change if fixed, and a live check. Tests pin the predecessor's behavior and say it's
+  a suspected bug.
+- **Two kinds of change are allowed:** a credential reaching a host the user didn't
+  configure, which is fixed at once and listed as a divergence in
+  `docs/command-contract.md`, and additive output the contract already allows (a new
+  `data` field, `meta.warnings`, `meta.page`).
+- **The first live run checks every item** in the area's issue. A confirmed bug is
+  fixed as a declared change (`fix:` or `feat!:`, per Delivery); a refuted one is
+  closed.
 
 ## Testing
 

@@ -42,10 +42,11 @@ describe('issues', () => {
     expect(data.fields).not.toHaveProperty('customfield_10016');
   });
 
-  it('get-issue: keeps a base URL context path and encodes the key as one path segment', async () => {
+  it('get-issue: keeps a base URL context path, and puts the key in the path unencoded, as the predecessor did', async () => {
     const config = { jira: { ...fixtureConfig.jira, baseUrl: `${JIRA}/jira` } };
-    const { calls } = await run(getIssue, { key: 'A B/../x' }, [{ url: /\/jira\/rest\/api\/2\/issue\//, respond: { json: issue('X-1') } }], { config });
-    expect(calls[0]!.url).toBe(`${JIRA}/jira/rest/api/2/issue/A%20B%2F..%2Fx`);
+    const { calls } = await run(getIssue, { key: 'PROJ-1/comment' }, [{ url: /\/jira\/rest\/api\/2\/issue\//, respond: { json: issue('X-1') } }], { config });
+    // Suspected bug (#70): the key changes the path. Pinned until a live run decides.
+    expect(calls[0]!.url).toBe(`${JIRA}/jira/rest/api/2/issue/PROJ-1/comment`);
   });
 
   it('get-issue: a 401 is AUTH, with where to make a new token', async () => {
@@ -128,9 +129,12 @@ describe('issues', () => {
 
   it('create-issue: refuses before any request without a project, a summary, or with a bad --field', async () => {
     const none = await run(createIssue, { summary: 'S', ...write }, []);
-    expect(none.envelope.error).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('defaults.jira.project') });
+    expect(none.envelope.error).toMatchObject({
+      code: 'INVALID_INPUT',
+      message: '--project required (or set defaults.jira.project in config, or "project" in --input-file)',
+    });
     const noSummary = await run(createIssue, { project: 'P', ...write }, []);
-    expect(noSummary.envelope.error?.message).toContain('summary');
+    expect(noSummary.envelope.error?.message).toBe('Must specify --summary or "fields.summary" in --input-file');
     const badField = await run(createIssue, { project: 'P', summary: 'S', field: ['NoEquals'], ...write }, []);
     expect(badField.envelope.error?.message).toContain('expected Name=value');
     const unknownName = await run(createIssue, { project: 'P', summary: 'S', field: ['Acceptance Criteria=x'], ...write }, []);
@@ -142,7 +146,7 @@ describe('issues', () => {
     const { envelope } = await run(createIssue, { project: 'P', summary: 'S', ...write }, [
       { method: 'POST', url: /issue$/, respond: { status: 400, json: { errorMessages: [], errors: { customfield_10016: 'Number value expected' } } } },
     ]);
-    expect(envelope.error?.message).toBe('Jira: Story Points (customfield_10016): Number value expected');
+    expect(envelope.error?.message).toBe('Story Points (customfield_10016): Number value expected');
   });
 
   it('update-issue: PUTs only the fields given, with --field values shaped by type and @file JSON parsed', async () => {
@@ -159,24 +163,24 @@ describe('issues', () => {
     expect(envelope.data).toEqual({ updated: 'PROJ-1' });
   });
 
-  it('update-issue: nothing to change is INVALID_INPUT, not a PUT that reports success', async () => {
-    const { envelope, calls } = await run(updateIssue, { key: 'PROJ-1', ...write }, []);
-    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Nothing to update on PROJ-1.' });
-    expect(calls).toHaveLength(0);
+  it('update-issue: nothing to change still PUTs { fields: {} } and reports success, as the predecessor did', async () => {
+    const { envelope, calls } = await run(updateIssue, { key: 'PROJ-1', ...write }, [{ method: 'PUT', url: /PROJ-1$/, respond: { status: 204 } }]);
+    expect(calls.map((c) => [c.method, c.body])).toEqual([['PUT', JSON.stringify({ fields: {} })]]);
+    expect(envelope.data).toEqual({ updated: 'PROJ-1' });
   });
 
-  it('transition-issue: resolves a name case-insensitively; an all-digit value is an id; a name starting with a digit is a name', async () => {
+  it('transition-issue: resolves a name case-insensitively; anything parseInt reads a number from is an id', async () => {
     const transitions = { url: /transitions$/, respond: { json: { transitions: [{ id: '21', name: 'In Progress' }, { id: '41', name: '2nd Review' }] } } };
     const post = { method: 'POST', url: /transitions$/, respond: { status: 204 } };
     const byName = await run(transitionIssue, { key: 'PROJ-1', transition: 'in progress', ...write }, [post, transitions]);
     expect(byName.calls.map((c) => [c.method, c.body])).toEqual([['GET', undefined], ['POST', JSON.stringify({ transition: { id: '21' } })]]);
     const byId = await run(transitionIssue, { key: 'PROJ-1', transition: '31', ...write }, [post]);
     expect(byId.calls.map((c) => c.body)).toEqual([JSON.stringify({ transition: { id: '31' } })]);
-    // parseInt('2nd Review') is 2: the predecessor sent id "2nd Review".
+    // Suspected bug (#70), pinned: parseInt('2nd Review') is 2, so it's sent as id "2nd Review" with no lookup.
     const digitName = await run(transitionIssue, { key: 'PROJ-1', transition: '2nd Review', ...write }, [post, transitions]);
-    expect(digitName.calls.at(-1)!.body).toBe(JSON.stringify({ transition: { id: '41' } }));
+    expect(digitName.calls.map((c) => c.body)).toEqual([JSON.stringify({ transition: { id: '2nd Review' } })]);
     const missing = await run(transitionIssue, { key: 'PROJ-1', transition: 'Shipped', ...write }, [transitions]);
-    expect(missing.envelope.error).toMatchObject({ code: 'NOT_FOUND', fix: expect.stringContaining('In Progress, 2nd Review') });
+    expect(missing.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Transition not found: Shipped', fix: expect.stringContaining('In Progress, 2nd Review') });
   });
 
   it('log-work: POSTs timeSpent, and comment and started only when given', async () => {
@@ -201,8 +205,10 @@ describe('issues', () => {
     const { envelope, calls } = await run(addLabel, { key: 'PROJ-1', labels: ' a , b ,', ...write }, [{ method: 'PUT', url: /PROJ-1$/, respond: { status: 204 } }]);
     expect(calls[0]!.body).toBe(JSON.stringify({ update: { labels: [{ add: 'a' }, { add: 'b' }] } }));
     expect(envelope.data).toEqual({ updated: 'PROJ-1', labelsAdded: ['a', 'b'] });
-    const empty = await run(addLabel, { key: 'PROJ-1', labels: ' , ', ...write }, []);
-    expect(empty.envelope.error?.code).toBe('INVALID_INPUT');
+    // An empty list is still sent, as before.
+    const empty = await run(addLabel, { key: 'PROJ-1', labels: ' , ', ...write }, [{ method: 'PUT', url: /PROJ-1$/, respond: { status: 204 } }]);
+    expect(empty.calls[0]!.body).toBe(JSON.stringify({ update: { labels: [] } }));
+    expect(empty.envelope.data).toEqual({ updated: 'PROJ-1', labelsAdded: [] });
   });
 
   it('assign: PUTs the Data Center username as name, never accountId', async () => {
@@ -216,7 +222,7 @@ describe('issues', () => {
     const { calls } = await run(linkIssue, { key: 'A-1', linkType: 'is blocked by', target: 'B-2', ...write }, [types, post]);
     expect(calls[1]!.body).toBe(JSON.stringify({ type: { id: '10000' }, inwardIssue: { key: 'A-1' }, outwardIssue: { key: 'B-2' } }));
     const unknown = await run(linkIssue, { key: 'A-1', linkType: 'Duplicates', target: 'B-2', ...write }, [types]);
-    expect(unknown.envelope.error).toMatchObject({ code: 'NOT_FOUND', fix: expect.stringContaining('Blocks') });
+    expect(unknown.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Link type not found: Duplicates', fix: expect.stringContaining('Blocks') });
   });
 });
 
@@ -278,17 +284,27 @@ describe('search', () => {
     const files = { 'q.jql': 'project = P\n', 'empty.jql': ' \n' };
     const { calls } = await run(search, { jqlFile: 'q.jql', maxResults: 1 }, [searchRoute(1)], { files });
     expect(JSON.parse(calls[0]!.body!).jql).toBe('project = P');
-    expect((await run(search, { jql: 'a', jqlFile: 'q.jql' }, [], { files })).envelope.error?.message).toBe('Cannot specify both --jql and --jql-file.');
-    expect((await run(search, {}, [])).envelope.error?.message).toBe('Must specify --jql or --jql-file.');
-    expect((await run(search, { jqlFile: 'empty.jql' }, [], { files })).envelope.error?.message).toBe('JQL query is empty.');
+    expect((await run(search, { jql: 'a', jqlFile: 'q.jql' }, [], { files })).envelope.error?.message).toBe('Cannot specify both --jql and --jql-file');
+    expect((await run(search, {}, [])).envelope.error?.message).toBe('Must specify --jql or --jql-file');
+    expect((await run(search, { jqlFile: 'empty.jql' }, [], { files })).envelope.error?.message).toBe('JQL query is empty');
   });
 
-  it('refuses a negative or fractional --start-at before any request', async () => {
-    for (const startAt of [-1, 1.5]) {
+  it('refuses a --start-at that is not all digits before any request, as the predecessor did', async () => {
+    for (const startAt of [-1, 1.5, 'abc', '10x', '']) {
       const { envelope, calls } = await run(search, { jql: 'x', startAt }, []);
-      expect(envelope.error?.code).toBe('INVALID_INPUT');
+      expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: `--start-at must be a non-negative integer, got "${startAt}"` });
       expect(calls).toHaveLength(0);
     }
+  });
+
+  it('reads --max-results with parseInt: "10x" is 10, an empty value means all, and a non-number is sent as null', async () => {
+    const tenX = await run(search, { jql: 'x', maxResults: '10x' }, [searchRoute(50)]);
+    expect(JSON.parse(tenX.calls[0]!.body!).maxResults).toBe(10);
+    const empty = await run(search, { jql: 'x', maxResults: '' }, [searchRoute(1)]);
+    expect(JSON.parse(empty.calls[0]!.body!).maxResults).toBe(100);
+    // Suspected bug (#70), pinned: NaN serialises as null, and paging continues to total.
+    const nan = await run(search, { jql: 'x', maxResults: 'abc' }, [searchRoute(1)]);
+    expect(JSON.parse(nan.calls[0]!.body!).maxResults).toBeNull();
   });
 });
 
@@ -392,18 +408,18 @@ describe('attachments', () => {
     expect(envelope.data).toMatchObject({ saved: '/work/out/shot.png' });
   });
 
-  it('download-attachment: refuses to replace a file already there, whatever name Jira gave it', async () => {
+  it('download-attachment: replaces a file already there, as the predecessor did', async () => {
     const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7' }, [
       listing(`${JIRA}/secure/attachment/7/notes.md`, 'notes.md'),
       { url: `${JIRA}/secure/attachment/7/notes.md`, respond: { text: 'from jira' } },
     ], { files: { '.toil/notes.md': 'mine' } });
-    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '"/work/.toil/notes.md" already exists.', fix: expect.stringContaining('--dir') });
-    expect(written).toEqual({});
+    expect(envelope.data).toMatchObject({ saved: '/work/.toil/notes.md', size: 9 });
+    expect(new TextDecoder().decode(written['/work/.toil/notes.md'])).toBe('from jira');
   });
 
   it('download-attachment: an unknown id is NOT_FOUND, pointing at list-attachments', async () => {
     const { envelope } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '8' }, [listing(`${JIRA}/x`)]);
-    expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', fix: expect.stringContaining('list-attachments') });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Attachment not found: 8', fix: expect.stringContaining('list-attachments') });
   });
 });
 
@@ -417,33 +433,43 @@ describe('agile', () => {
     expect((envelope.data as Array<{ id: number }>).map((b) => b.id)).toEqual([1, 2]);
   });
 
-  it('list-sprints: stops on isLast, since the sprint list reports no total', async () => {
-    const { calls } = await run(listSprints, { board: 3, state: 'active, future' }, [
-      { url: /board\/3\/sprint/, respond: { json: { maxResults: 100, startAt: 0, isLast: true, values: [{ id: 5, name: 'S5', state: 'active' }] } } },
+  it('list-sprints: pages on total only, so the sprint list (which has none) costs one more, empty, request', async () => {
+    const { envelope, calls } = await run(listSprints, { board: 3, state: 'active, future' }, [
+      { url: /board\/3\/sprint\?startAt=0&/, respond: { json: { maxResults: 100, startAt: 0, isLast: true, values: [{ id: 5, name: 'S5', state: 'active' }] } } },
+      { url: /board\/3\/sprint\?startAt=1&/, respond: { json: { maxResults: 100, startAt: 1, isLast: true, values: [] } } },
     ]);
-    // The predecessor checked only total, so it always sent a second request here.
-    expect(calls.map((c) => c.url)).toEqual([`${JIRA}/rest/agile/1.0/board/3/sprint?startAt=0&maxResults=100&state=active,future`]);
+    // Suspected bug (#70), pinned: isLast is ignored.
+    expect(calls.map((c) => c.url)).toEqual([
+      `${JIRA}/rest/agile/1.0/board/3/sprint?startAt=0&maxResults=100&state=active,future`,
+      `${JIRA}/rest/agile/1.0/board/3/sprint?startAt=1&maxResults=100&state=active,future`,
+    ]);
+    expect(envelope.data).toEqual([{ id: 5, name: 'S5', state: 'active' }]);
   });
 
   it('list-sprints --project: scrum boards only, each sprint once', async () => {
     const { envelope, calls } = await run(listSprints, { project: 'PROJ' }, [
-      { url: /board\?/, respond: { json: { isLast: true, values: [{ id: 1, type: 'scrum' }, { id: 2, type: 'scrum' }, { id: 3, type: 'kanban' }] } } },
-      { url: /board\/1\/sprint/, respond: { json: { isLast: true, values: [{ id: 10, state: 'active' }] } } },
-      { url: /board\/2\/sprint/, respond: { json: { isLast: true, values: [{ id: 10, state: 'active' }, { id: 11, state: 'future' }] } } },
+      { url: /board\?/, respond: { json: { total: 3, values: [{ id: 1, type: 'scrum' }, { id: 2, type: 'scrum' }, { id: 3, type: 'kanban' }] } } },
+      { url: /board\/1\/sprint/, respond: { json: { total: 1, values: [{ id: 10, state: 'active' }] } } },
+      { url: /board\/2\/sprint/, respond: { json: { total: 2, values: [{ id: 10, state: 'active' }, { id: 11, state: 'future' }] } } },
     ]);
     expect((envelope.data as Array<{ id: number }>).map((s) => s.id)).toEqual([10, 11]);
     expect(calls.some((c) => c.url.includes('/board/3/'))).toBe(false);
   });
 
-  it('list-sprints: needs a board or project, and a known state, before any request', async () => {
-    expect((await run(listSprints, {}, [])).envelope.error?.message).toBe('Either --board or --project is required.');
-    expect((await run(listSprints, { board: 3, state: 'open' }, [])).envelope.error?.message).toBe('Unknown sprint state: open.');
+  it('list-sprints: needs a board or project; a non-numeric board and any state reach the request unchecked', async () => {
+    expect((await run(listSprints, {}, [])).envelope.error?.message).toBe('Either --board or --project is required');
+    const { calls } = await run(listSprints, { board: 'abc', state: 'open,,closed' }, [{ url: /sprint/, respond: { json: { total: 0, values: [] } } }]);
+    // Suspected bug (#70), pinned: parseInt('abc') is NaN.
+    expect(calls[0]!.url).toBe(`${JIRA}/rest/agile/1.0/board/NaN/sprint?startAt=0&maxResults=100&state=open,,closed`);
   });
 
   it('set-sprint: POSTs the key to the sprint, and reports the sprint as the string it always was', async () => {
     const { envelope, calls } = await run(setSprint, { key: 'PROJ-1', sprint: 42, ...write }, [{ method: 'POST', url: /sprint\/42\/issue$/, respond: { status: 204 } }]);
     expect(calls[0]).toMatchObject({ method: 'POST', url: `${JIRA}/rest/agile/1.0/sprint/42/issue`, body: JSON.stringify({ issues: ['PROJ-1'] }) });
     expect(envelope.data).toEqual({ updated: 'PROJ-1', sprint: '42' });
+    const nan = await run(setSprint, { key: 'PROJ-1', sprint: 'next', ...write }, [{ method: 'POST', url: /sprint\/NaN\/issue$/, respond: { status: 204 } }]);
+    expect(nan.calls[0]!.url).toBe(`${JIRA}/rest/agile/1.0/sprint/NaN/issue`);
+    expect(nan.envelope.data).toEqual({ updated: 'PROJ-1', sprint: 'next' });
   });
 });
 

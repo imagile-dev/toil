@@ -1,3 +1,4 @@
+import { basename } from 'node:path';
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
@@ -11,20 +12,17 @@ import * as client from './client.js';
  * triplicate by tradition; toil files them once.
  */
 
-const key = z.string().min(1).describe('Issue key, e.g. PROJ-123');
+const key = z.string().describe('Issue key, e.g. PROJ-123');
 const keyOption = { flags: '--key <issue-key>', field: 'key', description: 'Issue key (e.g. PROJ-123)' };
 
-/** The last segment of a path, on either separator, so a name from Jira can't climb out of the directory. */
-export function baseName(path: string): string {
-  const name = path.split(/[\\/]/).pop() ?? '';
-  return name === '' || name === '.' || name === '..' ? 'attachment' : name;
-}
+/** The platform's own basename, as the predecessor used: on Linux and macOS a backslash is part of the name. */
+export const baseName = (path: string): string => basename(path);
 
 export const addAttachment = jiraArea.command({
   path: ['jira', 'add-attachment'],
   description: 'Upload a file as an attachment to a Jira issue',
   toolDescription: 'Uploads a local file to a Jira issue and returns the attachments Jira created. file is a path on the machine toil runs on.',
-  input: z.object({ key, file: z.string().min(1).describe('Path to the file to upload'), ...allowWriteField }),
+  input: z.object({ key, file: z.string().describe('Path to the file to upload'), ...allowWriteField }),
   writes: true,
   options: [keyOption, { flags: '--file <path>', field: 'file', description: 'Path to the file to upload' }],
   examples: [{ key: 'PROJ-123', file: 'screenshot.png', allowWrite: true }],
@@ -52,8 +50,8 @@ export const downloadAttachment = jiraArea.command({
     'Saves one attachment from a Jira issue to a local directory (default .toil in the working directory) and returns { saved, filename, size }. Get the id from jira_list_attachments.',
   input: z.object({
     key,
-    attachmentId: z.string().min(1).describe('Attachment id from list-attachments'),
-    dir: z.string().min(1).optional().describe('Output directory; defaults to .toil in the working directory'),
+    attachmentId: z.string().describe('Attachment id from list-attachments'),
+    dir: z.string().optional().describe('Output directory; defaults to .toil in the working directory'),
   }),
   writes: false,
   options: [
@@ -69,7 +67,7 @@ export const downloadAttachment = jiraArea.command({
     const attachments = await client.listAttachments(ctx, input.key);
     const attachment = attachments.find((a) => a.id === input.attachmentId);
     if (!attachment) {
-      throw new ToilError('NOT_FOUND', `Attachment not found on ${input.key}: ${input.attachmentId}.`, {
+      throw new ToilError('INVALID_INPUT', `Attachment not found: ${input.attachmentId}`, {
         fix: `Run toil jira list-attachments --key ${input.key} for the ids it has.`,
       });
     }

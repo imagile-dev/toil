@@ -25,21 +25,12 @@ import { JIRA_INPUT_FILE_EXAMPLE, JIRA_INPUT_FILE_SCHEMA } from './input-schema.
  * approvals fewer than the process it replaces and two more than it needs.
  */
 
-const key = z.string().min(1).describe('Issue key, e.g. PROJ-123');
+const key = z.string().describe('Issue key, e.g. PROJ-123');
 const keyOption = (description = 'Issue key') => ({ flags: '--key <issue-key>', field: 'key', description });
 
-/** The --input-file, read and checked to be an object; undefined when not given. */
+/** The --input-file, parsed and taken at its word, as the predecessor did; undefined when not given. */
 function readIssueFile(path: string | undefined, ctx: client.JiraContext): IssueJsonInput | undefined {
-  if (path === undefined) return undefined;
-  const parsed = readJsonInputFile(path, ctx.files);
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new ToilError('INVALID_INPUT', '--input-file must contain a JSON object.', { fix: 'Run toil jira schema --example-only for a runnable example.' });
-  }
-  const input = parsed as IssueJsonInput;
-  if (input.fields !== undefined && (typeof input.fields !== 'object' || input.fields === null || Array.isArray(input.fields))) {
-    throw new ToilError('INVALID_INPUT', '"fields" in --input-file must be an object of field name to value.', { fix: 'Run toil jira schema for the expected shape.' });
-  }
-  return input;
+  return path ? (readJsonInputFile(path, ctx.files) as IssueJsonInput) : undefined;
 }
 
 function reportOverrides(ctx: client.JiraContext, overrides: string[]): void {
@@ -70,7 +61,7 @@ const fieldOptions = [
 ];
 const fieldInputs = {
   field: z.array(z.string()).optional().describe('Custom field values as "Name=value"; "Name=@file.json" reads the value from a file'),
-  fieldsFile: z.string().min(1).optional().describe('Path to a JSON file mapping field names or ids to their Jira API values'),
+  fieldsFile: z.string().optional().describe('Path to a JSON file mapping field names or ids to their Jira API values'),
 };
 
 export const getIssue = jiraArea.command({
@@ -95,16 +86,16 @@ export const createIssue = jiraArea.command({
   toolDescription:
     'Creates a Jira issue and returns it as Jira stores it. Project, issue type and priority fall back to the connection defaults. Custom fields go in field ("Name=value"). Does not check for duplicates: after a timeout, search for the summary before retrying.',
   input: z.object({
-    project: z.string().min(1).optional().describe('Project key; defaults to the connection\'s project'),
-    issueType: z.string().min(1).optional().describe('Issue type (Bug, Story, Task, ...); defaults to the connection\'s issueType, then Task'),
-    summary: z.string().min(1).optional().describe('Issue summary (required, unless supplied via inputFile)'),
+    project: z.string().optional().describe('Project key; defaults to the connection\'s project'),
+    issueType: z.string().optional().describe('Issue type (Bug, Story, Task, ...); defaults to the connection\'s issueType, then Task'),
+    summary: z.string().optional().describe('Issue summary (required, unless supplied via inputFile)'),
     description: z.string().optional().describe('Issue description'),
-    priority: z.string().min(1).optional().describe('Priority name'),
-    assignee: z.string().min(1).optional().describe('Assignee username (Data Center usernames, not Cloud account ids)'),
+    priority: z.string().optional().describe('Priority name'),
+    assignee: z.string().optional().describe('Assignee username (Data Center usernames, not Cloud account ids)'),
     labels: z.string().optional().describe('Comma-separated labels'),
-    parent: z.string().min(1).optional().describe('Parent issue key; sets fields.parent'),
+    parent: z.string().optional().describe('Parent issue key; sets fields.parent'),
     ...fieldInputs,
-    inputFile: z.string().min(1).optional().describe('JSON file describing the whole issue ({ project, issueType, fields }); "-" = stdin on the CLI. Flags override matching keys.'),
+    inputFile: z.string().optional().describe('JSON file describing the whole issue ({ project, issueType, fields }); "-" = stdin on the CLI. Flags override matching keys.'),
     ...allowWriteField,
   }),
   writes: true,
@@ -153,12 +144,12 @@ export const createIssue = jiraArea.command({
       const project = input.project ?? json?.project ?? ctx.connection.project;
       const issueType = input.issueType ?? json?.issueType ?? ctx.connection.issueType ?? 'Task';
       if (!project) {
-        throw new ToilError('INVALID_INPUT', 'A project is required.', {
+        throw new ToilError('INVALID_INPUT', '--project required (or set defaults.jira.project in config, or "project" in --input-file)', {
           fix: 'Pass --project, put "project" in --input-file, or set defaults.jira.project in your toil config.',
         });
       }
       const summary = builtin.summary as string | undefined;
-      if (!summary) throw new ToilError('INVALID_INPUT', 'A summary is required.', { fix: 'Pass --summary, or set "fields.summary" in --input-file.' });
+      if (!summary) throw new ToilError('INVALID_INPUT', 'Must specify --summary or "fields.summary" in --input-file', { fix: 'Pass --summary, or set "fields.summary" in --input-file.' });
       return await client.createIssue(ctx, {
         project,
         issueType,
@@ -183,13 +174,13 @@ export const updateIssue = jiraArea.command({
     'Changes fields on an existing Jira issue and returns { updated: key }. Only the fields you pass are sent. To add or remove single labels without replacing them all, use jira_add_label or jira_remove_label; to change status, use jira_transition_issue.',
   input: z.object({
     key,
-    summary: z.string().min(1).optional().describe('New summary'),
+    summary: z.string().optional().describe('New summary'),
     description: z.string().optional().describe('New description'),
-    priority: z.string().min(1).optional().describe('New priority'),
-    assignee: z.string().min(1).optional().describe('New assignee username'),
+    priority: z.string().optional().describe('New priority'),
+    assignee: z.string().optional().describe('New assignee username'),
     labels: z.string().optional().describe('Comma-separated labels; replaces the issue\'s labels'),
     ...fieldInputs,
-    inputFile: z.string().min(1).optional().describe('JSON file describing fields to update ({ fields }); "-" = stdin on the CLI. Flags override matching keys.'),
+    inputFile: z.string().optional().describe('JSON file describing fields to update ({ fields }); "-" = stdin on the CLI. Flags override matching keys.'),
     ...allowWriteField,
   }),
   writes: true,
@@ -224,11 +215,8 @@ export const updateIssue = jiraArea.command({
         labels: normalizeLabels(builtin.labels),
         customFieldValues: custom,
       });
-      // An empty update succeeds on Jira and changes nothing; reporting it as
-      // "updated" would be a receipt for a delivery that never happened.
-      if (Object.keys(fields).length === 0) {
-        throw new ToilError('INVALID_INPUT', `Nothing to update on ${input.key}.`, { fix: 'Pass at least one of --summary, --description, --priority, --assignee, --labels, --field, --fields-file or --input-file.' });
-      }
+      // Nothing to change still sends { fields: {} } and reports success, as the
+      // predecessor did. Recorded as a suspected bug (#70), not changed.
       await client.updateIssue(ctx, input.key, fields);
       return { updated: input.key };
     } catch (err) {
@@ -262,7 +250,7 @@ export const transitionIssue = jiraArea.command({
   description: 'Transition a Jira issue to a new status',
   toolDescription:
     'Moves a Jira issue through its workflow by transition name (case-insensitive) or id. Use jira_list_transitions to see which transitions the issue allows right now.',
-  input: z.object({ key, transition: z.string().min(1).describe('Transition name or id'), ...allowWriteField }),
+  input: z.object({ key, transition: z.string().describe('Transition name or id'), ...allowWriteField }),
   writes: true,
   options: [keyOption(), { flags: '--transition <name-or-id>', field: 'transition', description: 'Transition name or ID' }],
   examples: [
@@ -271,11 +259,11 @@ export const transitionIssue = jiraArea.command({
   ],
   run: async (input, ctx) => {
     let id = input.transition;
-    if (!client.isId(input.transition)) {
+    if (!client.looksNumeric(input.transition)) {
       const transitions = await client.listTransitions(ctx, input.key);
       const found = transitions.find((t) => t.name.toLowerCase() === input.transition.toLowerCase());
       if (!found) {
-        throw new ToilError('NOT_FOUND', `Transition not found: ${input.transition}.`, {
+        throw new ToilError('INVALID_INPUT', `Transition not found: ${input.transition}`, {
           fix: `Available from here: ${transitions.map((t) => t.name).join(', ') || '(none)'}. Run toil jira list-transitions --key ${input.key}.`,
         });
       }
@@ -301,7 +289,7 @@ export const addComment = jiraArea.command({
   path: ['jira', 'add-comment'],
   description: 'Add a comment to a Jira issue',
   toolDescription: 'Adds a comment to a Jira issue and returns the comment Jira created.',
-  input: z.object({ key, body: z.string().min(1).describe('Comment text (Jira wiki markup)'), ...allowWriteField }),
+  input: z.object({ key, body: z.string().describe('Comment text (Jira wiki markup)'), ...allowWriteField }),
   writes: true,
   options: [keyOption(), { flags: '--body <text>', field: 'body', description: 'Comment text' }],
   examples: [{ key: 'PROJ-123', body: 'Reproduced on staging.', allowWrite: true }],
@@ -314,9 +302,9 @@ export const logWork = jiraArea.command({
   toolDescription: 'Logs time against a Jira issue and returns the worklog Jira created. timeSpent uses Jira durations ("2h 30m", "1d").',
   input: z.object({
     key,
-    timeSpent: z.string().min(1).describe('Time spent in Jira duration format, e.g. "2h 30m", "1d"'),
+    timeSpent: z.string().describe('Time spent in Jira duration format, e.g. "2h 30m", "1d"'),
     comment: z.string().optional().describe('Worklog comment'),
-    started: z.string().min(1).optional().describe('When the work started, e.g. 2024-01-15T09:00:00.000+0000; defaults to now'),
+    started: z.string().optional().describe('When the work started, e.g. 2024-01-15T09:00:00.000+0000; defaults to now'),
     ...allowWriteField,
   }),
   writes: true,
@@ -344,13 +332,10 @@ export const listComments = jiraArea.command({
   run: (input, ctx) => client.listComments(ctx, input.key),
 });
 
-const labelsInput = (verb: string) => z.string().min(1).describe(`Comma-separated labels to ${verb}`);
+const labelsInput = (verb: string) => z.string().describe(`Comma-separated labels to ${verb}`);
 
-function labelList(raw: string): string[] {
-  const labels = commaList(raw);
-  if (labels.length === 0) throw new ToilError('INVALID_INPUT', 'No labels given.', { fix: 'Pass --labels a,b.' });
-  return labels;
-}
+/** An empty list is still sent (an update with no operations), as before. */
+const labelList = (raw: string): string[] => commaList(raw);
 
 export const addLabel = jiraArea.command({
   path: ['jira', 'add-label'],
@@ -386,7 +371,7 @@ export const assign = jiraArea.command({
   path: ['jira', 'assign'],
   description: 'Assign a Jira issue to a user',
   toolDescription: 'Assigns a Jira issue to a user by Data Center username. Returns { assigned, assignee }.',
-  input: z.object({ key, assignee: z.string().min(1).describe('Assignee username'), ...allowWriteField }),
+  input: z.object({ key, assignee: z.string().describe('Assignee username'), ...allowWriteField }),
   writes: true,
   options: [keyOption(), { flags: '--assignee <username>', field: 'assignee', description: 'Assignee username' }],
   examples: [{ key: 'PROJ-123', assignee: 'jsmith', allowWrite: true }],
@@ -402,9 +387,9 @@ export const linkIssue = jiraArea.command({
   toolDescription:
     'Links two Jira issues: key is the inward issue, target the outward one. linkType is a link type id, name ("Blocks") or either phrase ("is blocked by"). Returns { linked, to, type }.',
   input: z.object({
-    key: z.string().min(1).describe('Source issue key'),
-    linkType: z.string().min(1).describe('Link type name, inward or outward phrase, or id'),
-    target: z.string().min(1).describe('Target issue key'),
+    key: z.string().describe('Source issue key'),
+    linkType: z.string().describe('Link type name, inward or outward phrase, or id'),
+    target: z.string().describe('Target issue key'),
     ...allowWriteField,
   }),
   writes: true,

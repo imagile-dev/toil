@@ -93,11 +93,19 @@ export interface JiraFieldInfo {
   pncliType?: CustomFieldDefinition['type'];
 }
 
-/** A key or id as one URL path segment. Valid keys are unchanged; anything else can't escape the path. */
-const seg = (value: string | number) => encodeURIComponent(String(value));
+/**
+ * A key or id in a URL path, unencoded, exactly as the predecessor sent it.
+ * A key with `/` or `?` changes the path; recorded as a suspected bug (#70), not
+ * changed (CLAUDE.md, Porting). Precedent outranks preference until a live
+ * server rules otherwise.
+ */
+const seg = (value: string | number) => String(value);
 
-/** True for an all-digit value: an id rather than a name. */
-export const isId = (value: string) => /^\d+$/.test(value.trim());
+/**
+ * The predecessor's test for "an id, not a name": anything parseInt can read a
+ * number from, so "2nd Review" counts as an id. Recorded as a suspected bug (#70).
+ */
+export const looksNumeric = (value: string) => !isNaN(parseInt(value, 10));
 
 const authFix = (ctx: JiraContext) =>
   `Jira rejected the personal access token on connection "${ctx.connection.name}". Create a new one under your profile picture → Profile → Personal Access Tokens, then set apiToken (TOIL_JIRA_API_TOKEN for the default connection).`;
@@ -126,13 +134,12 @@ export function jira<T>(ctx: JiraContext, path: string, req: JiraRequest = {}): 
 interface Page<T> {
   values?: T[];
   total?: number;
-  isLast?: boolean;
 }
 
 /**
- * Every item from a startAt/maxResults endpoint. Stops on `isLast` where the
- * endpoint reports it (the Agile API's sprint list has no `total`), on
- * `total`, or on an empty page.
+ * Every item from a startAt/maxResults endpoint, stopping on `total` or an
+ * empty page, as the predecessor did. An endpoint with no `total` (the Agile
+ * sprint list) costs one extra empty-page request; recorded as a suspected bug (#70).
  */
 export async function paginate<T>(fetchPage: (startAt: number, maxResults: number) => Promise<Page<T>>): Promise<T[]> {
   const results: T[] = [];
@@ -142,8 +149,7 @@ export async function paginate<T>(fetchPage: (startAt: number, maxResults: numbe
     const items = page.values ?? [];
     results.push(...items);
     startAt += items.length;
-    if (items.length === 0 || page.isLast === true) break;
-    if (typeof page.total === 'number' && startAt >= page.total) break;
+    if ((startAt >= (page.total as number)) || items.length === 0) break;
   }
   return results;
 }
@@ -453,12 +459,12 @@ export async function assignIssue(ctx: JiraContext, key: string, assignee: strin
 /** Links `key` (inward) to `target` (outward). A link type name, inward or outward phrase resolves to its id. */
 export async function linkIssue(ctx: JiraContext, opts: { key: string; linkType: string; target: string }): Promise<void> {
   let linkTypeId = opts.linkType;
-  if (!isId(opts.linkType)) {
+  if (!looksNumeric(opts.linkType)) {
     const types = await jira<{ issueLinkTypes: Array<{ id: string; name: string; inward: string; outward: string }> }>(ctx, `${API}/issueLinkType`);
     const wanted = opts.linkType.toLowerCase();
     const found = types.issueLinkTypes.find((t) => t.name.toLowerCase() === wanted || t.inward.toLowerCase() === wanted || t.outward.toLowerCase() === wanted);
     if (!found) {
-      throw new ToilError('NOT_FOUND', `Link type not found: ${opts.linkType}.`, {
+      throw new ToilError('INVALID_INPUT', `Link type not found: ${opts.linkType}`, {
         fix: `Use one of: ${types.issueLinkTypes.map((t) => t.name).join(', ') || '(Jira reported none)'}, or a link type id.`,
       });
     }

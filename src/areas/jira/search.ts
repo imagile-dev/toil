@@ -3,7 +3,7 @@ import { ToilError } from '../../core/errors.js';
 import { jiraArea } from './area.js';
 import * as client from './client.js';
 import { buildFieldMap, resolveFieldKey, translateFieldsInOutput, translateJql } from './custom-fields.js';
-import { commaList, resolveJql } from './input.js';
+import { asInt, commaList, parseStartAt, resolveJql } from './input.js';
 
 /**
  * Finding issues with JQL, and finding out which fields exist to search on.
@@ -18,11 +18,11 @@ export const search = jiraArea.command({
   toolDescription:
     'Searches Jira issues with JQL and returns { issues, total, startAt, maxResults }. Without maxResults it pages through every match, so bound broad queries. meta.page.nextCursor is the startAt for the next page. Use jira_get_issue for one issue by key.',
   input: z.object({
-    jql: z.string().min(1).optional().describe('JQL query, e.g. project = PROJ AND status = "In Progress"'),
-    jqlFile: z.string().min(1).optional().describe('Path to a file holding the JQL query ("-" = stdin on the CLI)'),
-    maxResults: z.number().int().nonnegative().optional().describe('Maximum number of issues to return; all matches when omitted'),
-    startAt: z.number().int().nonnegative().optional().describe('Index of the first result to return, for resuming or paging'),
-    fields: z.string().min(1).optional().describe('Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,"Story Points")'),
+    jql: z.string().optional().describe('JQL query, e.g. project = PROJ AND status = "In Progress"'),
+    jqlFile: z.string().optional().describe('Path to a file holding the JQL query ("-" = stdin on the CLI)'),
+    maxResults: z.union([z.number(), z.string()]).optional().describe('Maximum number of issues to return; all matches when omitted'),
+    startAt: z.union([z.number(), z.string()]).optional().describe('Index of the first result to return (a non-negative integer), for resuming or paging'),
+    fields: z.string().optional().describe('Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,"Story Points")'),
   }),
   writes: false,
   // POST /search, as Jira recommends for JQL too long for a URL. It only reads.
@@ -54,9 +54,13 @@ export const search = jiraArea.command({
     } else {
       fields = [...client.STANDARD_SEARCH_FIELDS, ...ctx.connection.customFields.map((f) => f.id)];
     }
-    const result = await client.search(ctx, translateJql(jql, fieldMap), { maxResults: input.maxResults, startAt: input.startAt, fields });
+    // As the predecessor read them: an empty --max-results means all, and a
+    // non-number reaches the request as null. --start-at is digits only.
+    const maxResults = input.maxResults !== undefined && String(input.maxResults) !== '' ? asInt(input.maxResults) : undefined;
+    const startAt = parseStartAt(input.startAt);
+    const result = await client.search(ctx, translateJql(jql, fieldMap), { maxResults, startAt, fields });
     const next = result.startAt + result.issues.length;
-    ctx.setPage({ nextCursor: next < result.total ? String(next) : null, limit: input.maxResults ?? result.issues.length });
+    ctx.setPage({ nextCursor: next < result.total ? String(next) : null, limit: maxResults ?? result.issues.length });
     return { ...result, issues: result.issues.map((issue) => ({ ...issue, fields: translateFieldsInOutput(issue.fields, fieldMap) })) };
   },
 });
@@ -69,8 +73,8 @@ export const fields = jiraArea.command({
   input: z.object({
     discover: z.boolean().optional().describe('Fetch field metadata from the Jira API instead of listing registered fields'),
     customOnly: z.boolean().optional().describe('Only custom fields (with discover)'),
-    project: z.string().min(1).optional().describe("Project key: adds allowedValues for select fields from createmeta (with discover)"),
-    issueType: z.string().min(1).optional().describe('Limit allowedValues to one issue type (with project)'),
+    project: z.string().optional().describe("Project key: adds allowedValues for select fields from createmeta (with discover)"),
+    issueType: z.string().optional().describe('Limit allowedValues to one issue type (with project)'),
   }),
   writes: false,
   options: [

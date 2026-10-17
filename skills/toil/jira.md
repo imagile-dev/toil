@@ -149,6 +149,8 @@ jsmith`, `user`-typed fields send `{ "name": ... }`), where Jira Cloud needs an
 
 - `create-issue` doesn't check for duplicates. After a timeout, search for the summary
   before retrying: the issue may already exist.
-- `update-issue` with nothing to change is refused rather than reported as updated.
+- `update-issue` with nothing to change still sends an empty update and reports
+  `{ updated }`.
+- `download-attachment` replaces a file of the same name in the target directory.
 - `download-attachment` only ever sends the token to `baseUrl`'s host. If Jira names
   another host for the file, toil fetches the same path from `baseUrl` and warns.

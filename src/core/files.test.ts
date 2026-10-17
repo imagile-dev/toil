@@ -95,13 +95,6 @@ describe('nodeFiles never touches toil\'s own config', () => {
     refused(() => files.writeBytes(join('innocent', 'planted.json'), new Uint8Array([1])));
   });
 
-  it('never overwrites a file', () => {
-    const { cwd, files } = setup();
-    expect(() => files.writeBytes('ok.txt', new TextEncoder().encode('replaced'))).toThrow(
-      expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('already exists'), fix: expect.stringContaining('--dir') }),
-    );
-    expect(readFileSync(join(cwd, 'ok.txt'), 'utf8')).toBe('fine');
-  });
 });
 
 describe('nodeFiles never reads /proc or /sys', () => {
@@ -123,9 +116,10 @@ describe('nodeFiles never reads /proc or /sys', () => {
 });
 
 describe('memoryFiles', () => {
-  it('never overwrites a file either', () => {
+  it('replaces a file already there, as nodeFiles does', () => {
     const files = memoryFiles({ 'a.png': 'x' });
-    expect(() => files.writeBytes('a.png', new Uint8Array([1]))).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('already exists') }));
+    files.writeBytes('a.png', new Uint8Array([1]));
+    expect([...files.readBytes('a.png')]).toEqual([1]);
   });
 
   it('reads seeded files relative to /work, records writes, and serves stdin when given one', () => {

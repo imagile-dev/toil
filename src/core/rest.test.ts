@@ -75,13 +75,13 @@ describe('restRequest', () => {
     ]);
     expect(await failure(restRequest(ctx, `${url}/401`, {}, opts))).toMatchObject({
       code: 'AUTH',
-      message: 'Jira: You are not authenticated',
+      message: 'You are not authenticated',
       fix: 'Make a new token.',
       details: { status: 401 },
     });
-    expect(await failure(restRequest(ctx, `${url}/403`, {}, opts))).toMatchObject({ code: 'AUTH', message: 'Jira: HTTP 403' });
-    expect(await failure(restRequest(ctx, `${url}/404`, {}, opts))).toMatchObject({ code: 'NOT_FOUND', message: 'Jira: Issue Does Not Exist' });
-    expect(await failure(restRequest(ctx, `${url}/400`, {}, opts))).toMatchObject({ code: 'HTTP', message: 'Jira: customfield_10016: Number required' });
+    expect(await failure(restRequest(ctx, `${url}/403`, {}, opts))).toMatchObject({ code: 'AUTH', message: 'HTTP 403' });
+    expect(await failure(restRequest(ctx, `${url}/404`, {}, opts))).toMatchObject({ code: 'NOT_FOUND', message: 'Issue Does Not Exist' });
+    expect(await failure(restRequest(ctx, `${url}/400`, {}, opts))).toMatchObject({ code: 'HTTP', message: 'customfield_10016: Number required' });
   });
 
   it('retries a 429 after the wait the server asks for, then succeeds', async () => {
@@ -96,11 +96,11 @@ describe('restRequest', () => {
       { url, respond: { status: 429, headers: { 'Retry-After': '0' } } },
       { url: `${url}/long`, respond: { status: 429, headers: { 'Retry-After': '3600' } } },
     ]);
-    expect(await failure(restRequest(ctx, url, {}, opts))).toMatchObject({ code: 'HTTP', details: { status: 429 } });
+    expect(await failure(restRequest(ctx, url, {}, opts))).toMatchObject({ code: 'HTTP', message: 'Rate limited', details: { status: 429 } });
     expect(http.calls).toHaveLength(3);
     expect(await failure(restRequest(ctx, `${url}/long`, {}, opts))).toMatchObject({
       code: 'HTTP',
-      message: expect.stringContaining('3600s'),
+      message: 'Rate limited: server requested a 3600s retry delay, which exceeds the 30s cap',
       details: { retryAfterSeconds: 3600 },
     });
     expect(http.calls).toHaveLength(4);
@@ -115,8 +115,9 @@ describe('restRequest', () => {
       }) as unknown as typeof fetch;
     expect(await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, opts))).toMatchObject({
       code: 'NETWORK',
-      message: 'Could not reach Jira at https://jira.imagile.dev: ENOTFOUND.',
-      fix: expect.stringContaining('baseUrl'),
+      message: 'Request failed: fetch failed: getaddrinfo ENOTFOUND jira.imagile.dev',
+      fix: expect.stringContaining('https://jira.imagile.dev'),
+      details: { cause: 'ENOTFOUND' },
     });
     expect((await failure(restRequest(ctxWith([], reject(tls)).ctx, url, {}, opts))).fix).toContain('NODE_EXTRA_CA_CERTS');
   });

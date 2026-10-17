@@ -103,7 +103,11 @@ export async function restRequest<T>(ctx: RestContext, url: string, init: Reques
     if (response.status === 429) {
       const wait = parseRetryAfter(response.headers.get('Retry-After'));
       if (attempt >= ATTEMPTS || (wait !== undefined && wait > MAX_RETRY_AFTER_SECONDS)) {
-        throw new ToilError('HTTP', `${options.service} is rate limiting requests${wait !== undefined ? ` and asked for a ${wait}s wait` : ''}.`, {
+        // The predecessor's wording, so scripts matching on it keep working.
+        const message = wait !== undefined && wait > MAX_RETRY_AFTER_SECONDS
+          ? `Rate limited: server requested a ${wait}s retry delay, which exceeds the ${MAX_RETRY_AFTER_SECONDS}s cap`
+          : 'Rate limited';
+        throw new ToilError('HTTP', message, {
           fix: 'Wait a while and try again, or make fewer requests (a narrower query, a smaller page).',
           details: { status: 429, url: redactUrl(url), retryAfterSeconds: wait ?? null },
         });
@@ -140,13 +144,14 @@ async function failed(response: Response, url: string, options: RestOptions): Pr
       : code === 'NOT_FOUND'
         ? `Check the key or id you passed exists in ${options.service} and is visible to you.`
         : `See ${options.service}'s message above; fix the request and try again.`;
-  return new ToilError(code, `${options.service}: ${reason}`, { fix, details });
+  return new ToilError(code, reason, { fix, details });
 }
 
 function unreachable(url: string, err: unknown, service: string): ToilError {
   const cause = (err as { cause?: { code?: unknown; message?: unknown } }).cause;
   const code = typeof cause?.code === 'string' ? cause.code : undefined;
-  const reason = code ?? (typeof cause?.message === 'string' ? cause.message : (err as Error).message);
+  const top = err instanceof Error ? err.message : String(err);
+  const reason = typeof cause?.message === 'string' ? `${top}: ${cause.message}` : top;
   const tls = code !== undefined && /CERT|SELF_SIGNED|UNABLE_TO_VERIFY/.test(code);
   let origin = url;
   try {
@@ -154,11 +159,11 @@ function unreachable(url: string, err: unknown, service: string): ToilError {
   } catch {
     // keep the raw URL
   }
-  return new ToilError('NETWORK', `Could not reach ${service} at ${origin}: ${reason}.`, {
+  return new ToilError('NETWORK', `Request failed: ${reason}`, {
     fix: tls
-      ? "The server's certificate isn't trusted. Point NODE_EXTRA_CA_CERTS at your organization's CA bundle."
-      : 'Check baseUrl, and that this machine can reach the host (VPN, proxy, DNS).',
-    details: { url: redactUrl(url), cause: reason },
+      ? `${service}'s certificate isn't trusted. Point NODE_EXTRA_CA_CERTS at your organization's CA bundle.`
+      : `Check baseUrl, and that this machine can reach ${origin} (VPN, proxy, DNS).`,
+    details: { url: redactUrl(url), cause: code ?? reason },
   });
 }
 
