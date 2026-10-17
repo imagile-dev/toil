@@ -220,6 +220,11 @@ describe('env names', () => {
     });
   });
 
+  it('reserve every TOIL_DOSSIER* name, even if an area called dossier is registered', () => {
+    expect(parseEnvName('TOIL_DOSSIER_PATHS', ['dossier', 'jira'])).toBeUndefined();
+    expect(parseEnvName('TOIL_DOSSIER', ['dossier'])).toBeUndefined();
+  });
+
   it('ignore names for areas toil does not know, and names toil reserves, instead of guessing', () => {
     expect(
       fromEnv({ TOIL_GITLAB_TOKEN: 'g', TOIL_CONN_JIRA_PROD_TOKEN: 'c', TOIL_DOSSIER: 'payments', TOIL_ENV: 'prod', TOIL_CONFIG: '/x', TOIL_TIMEOUT_MS: '5', TOIL_JIRA_: 'x' }, knownAreas),
