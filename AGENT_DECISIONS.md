@@ -277,6 +277,13 @@ the bottom of their section.
   checkmarx (#129) and alation (#133) for core's token exchange in the parity
   suite, osv/ossindex (#130) and sonatypeiq (#131) for `deps frisk`'s routing.
   KF3 (#68) carries each.
+- **Placeholders on Atlassian and Dynatrace use `<service>.imagile.dev`, not a
+  vendor tenant** (#142's build, principle 1). Both vendors answer for every
+  subdomain, so an `imagile` tenant on `atlassian.net` and an `abc12345` environment
+  on `live.dynatrace.com` were real hosts someone could register, and a copied example would send them the credential.
+  Prose names the shape as `<environment-id>.live.dynatrace.com`. CLAUDE.md's
+  Placeholders rule says so, and `test/repo-hygiene.test.ts` refuses a tenant-shaped
+  name on those domains.
 - **A PR past its three review rounds gets one more when the findings are
   converging**, not looping: #134, whose only new findings were wording that
   merges from main brought in, and #117, where a security finding (`..;x` reaching

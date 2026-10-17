@@ -627,7 +627,9 @@ notice, aimed at the paperwork toil exists to route around. For example:
 
 Never commit a real hostname, tenant ID, account, or connection string from any
 environment — not in code, tests, docs, issues, or PRs. Self-hosted services use
-`<service>.imagile.dev`; SaaS keeps the vendor domain with `imagile` as tenant; opaque
+`<service>.imagile.dev`; SaaS keeps the vendor domain with `imagile` as tenant, unless
+the vendor answers for every subdomain (Atlassian, Dynatrace), where any tenant name is
+a real host someone could register: those use `<service>.imagile.dev` too; opaque
 IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 `you@example.com`. Never add wildcard DNS to `imagile.dev`.
 

@@ -13,8 +13,8 @@ import { defineFixture } from '../harness/fixtures.js';
  * raised in the making of these problems.
  */
 
-export const CLASSIC = 'https://abc12345.live.dynatrace.com';
-export const PLATFORM = 'https://abc12345.apps.dynatrace.com';
+export const CLASSIC = 'https://dynatrace.imagile.dev';
+export const PLATFORM = 'https://dynatrace-platform.imagile.dev';
 
 export const config = {
   dynatrace: { baseUrl: CLASSIC, apiToken: 'test-api-token', platformUrl: PLATFORM, platformToken: 'test-platform-token', env: 'prod' },
