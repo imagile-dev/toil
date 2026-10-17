@@ -160,7 +160,7 @@ export const vulnsCommand = osvArea.command({
   kind: 'area-local',
   description: 'Check a dependency inventory for known vulnerabilities in OSV.dev (public API, no credential)',
   toolDescription:
-    'Known vulnerabilities from the public OSV.dev API for the packages in an inventory from toil deps scan. Returns { tier, source, sourcesQueried, sourceErrors, scanned, vulnerable, packages[] }, each package with vulnerabilities[] of { id, summary, severity, cvss, aliases, remediation, references }. Each finding is filled from its full OSV record. For Sonatype OSS Index use ossindex_vulns.',
+    'Known vulnerabilities from the public OSV.dev API for the packages in an inventory: a JSON list of { name, version, ecosystem } (npm, nuget or maven), in a file passed as from. Returns { tier, source, sourcesQueried, sourceErrors, scanned, vulnerable, packages[] }, each package with vulnerabilities[] of { id, summary, severity, cvss, aliases, remediation, references }. Each finding is filled from its full OSV record. For Sonatype OSS Index use ossindex_vulns.',
   input: z.object(inventoryFields),
   writes: false,
   // A batch query whose body can hold 500 packages: a read, sent as POST.

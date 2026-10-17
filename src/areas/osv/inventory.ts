@@ -5,7 +5,7 @@ import { STDIN_OVER_MCP } from '../../core/files.js';
 
 /**
  * The dependency inventory the vulnerability sources check (`toil osv vulns`,
- * `toil ossindex vulns`): `toil deps scan` output from `--from <file>` or
+ * `toil ossindex vulns`): a JSON list of packages (or `toil deps scan` output) from `--from <file>` or
  * stdin, as its whole envelope, its `data`, or a bare list of packages, and
  * the old `deps frisk` filters over it. Each source reads the same inventory,
  * so the inventory is filed once and photocopied for every department.
@@ -24,7 +24,7 @@ export type InventoryPackage = z.output<typeof inventoryPackage>;
 /** The parts of a command's context an inventory read needs. */
 export type InventoryContext = Pick<CommandContext<unknown>, 'files'>;
 
-export const FROM_DESCRIPTION = 'Inventory to check: a file holding toil deps scan output (its envelope, its data, or a list of packages). Omitted, it is read from stdin on the CLI';
+export const FROM_DESCRIPTION = 'Inventory to check: a JSON file holding a list of { name, version, ecosystem } packages, or toil deps scan output (its envelope or its data) once that command is available. Omitted, it is read from stdin on the CLI';
 export const ECOSYSTEM_DESCRIPTION = 'Filter to one ecosystem: npm, nuget, maven, all (default: "all")';
 export const DIRECT_ONLY_DESCRIPTION = 'Only scan direct dependencies (default: include transitive)';
 export const INCLUDE_DEV_DESCRIPTION = 'Include dev/test dependencies (default: false)';
@@ -52,13 +52,13 @@ export function readInventory(ctx: InventoryContext, from: string | undefined, c
     text = ctx.files.readText(from ?? '-');
   } catch (err) {
     if (err === STDIN_OVER_MCP && from === undefined) {
-      throw new ToilError('INVALID_INPUT', 'No inventory to check: pass from, a file holding toil deps scan output. Over MCP there is no stdin to read it from.', {
-        fix: 'Write toil deps scan output to a file in the workspace, then pass its path as from.',
+      throw new ToilError('INVALID_INPUT', 'No inventory to check: pass from, a JSON file holding a list of { name, version, ecosystem } packages. Over MCP there is no stdin to read it from.', {
+        fix: 'Write the package list to a file in the workspace, then pass its path as from.',
       });
     }
     throw err;
   }
-  const fix = `Pass the output of toil deps scan, e.g. toil deps scan | toil ${command}, or --from <file> holding it.`;
+  const fix = `Pass a JSON list of { name, version, ecosystem } packages to toil ${command}, with --from <file> or on stdin.`;
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -79,7 +79,7 @@ export function readInventory(ctx: InventoryContext, from: string | undefined, c
   if (!packages.success) {
     const issue = packages.error.issues[0];
     throw new ToilError('INVALID_INPUT', `The inventory from ${where} has a package without a usable ${String(issue?.path.at(-1) ?? 'field')} (packages[${String(issue?.path[0] ?? '?')}]).`, {
-      fix: 'Each package needs a name, version and ecosystem, as toil deps scan writes them.',
+      fix: 'Each package needs a name, version and ecosystem, e.g. { "name": "lodash", "version": "4.17.20", "ecosystem": "npm" }.',
       details: packages.error.issues.slice(0, 5).map((i) => ({ path: i.path, message: i.message })),
     });
   }

@@ -27,7 +27,7 @@ type OssIndexContext = ApiContext;
 
 /** The component-report POST, through the area's hook: credentials only to ossindex.sonatype.org. */
 const post = <T>(ctx: OssIndexContext, coordinates: string[], extra: { accept?: number[]; text?: boolean } = {}) =>
-  apiResponse<T>(ossindexArea, ctx, PATH, { method: 'POST', json: { coordinates }, headers: HEADERS, timeoutMs: REQUEST_TIMEOUT_MS, ...(extra.accept ? { accept: extra.accept } : {}), ...(extra.text ? { as: 'text' as const } : {}) });
+  apiResponse<T>(ossindexArea, ctx, PATH, { method: 'POST', json: { coordinates }, headers: HEADERS, timeoutMs: REQUEST_TIMEOUT_MS, retryRateLimit: false, ...(extra.accept ? { accept: extra.accept } : {}), ...(extra.text ? { as: 'text' as const } : {}) });
 
 interface OssIndexVuln {
   id: string;
@@ -147,7 +147,7 @@ export const vulnsCommand = ossindexArea.command({
   path: ['ossindex', 'vulns'],
   description: 'Check a dependency inventory for known vulnerabilities in Sonatype OSS Index (needs a free account)',
   toolDescription:
-    "Known vulnerabilities from the Sonatype OSS Index API, using the connection's free account, for the packages in an inventory from toil deps scan. Returns { tier, source, sourcesQueried, sourceErrors, scanned, vulnerable, packages[] }, each package with vulnerabilities[] of { id, summary, severity, cvss, aliases, remediation, references }; OSS Index gives no fixed versions. For OSV.dev use osv_vulns.",
+    "Known vulnerabilities from the Sonatype OSS Index API, using the connection's free account, for the packages in an inventory: a JSON list of { name, version, ecosystem } (npm, nuget or maven), in a file passed as from. Returns { tier, source, sourcesQueried, sourceErrors, scanned, vulnerable, packages[] }, each package with vulnerabilities[] of { id, summary, severity, cvss, aliases, remediation, references }; OSS Index gives no fixed versions. For OSV.dev use osv_vulns.",
   input: z.object(inventoryFields),
   writes: false,
   // A batch report request whose body can hold 128 package URLs: a read, sent as POST.

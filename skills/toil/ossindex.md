@@ -41,17 +41,18 @@ they're set.
 
 ### `toil ossindex vulns`
 
-Checks an inventory from `toil deps scan` against OSS Index. MCP tool:
+Checks an inventory, a JSON list of packages, against OSS Index. MCP tool:
 `ossindex_vulns`.
 
 ```bash
-toil deps scan --include-transitive | toil ossindex vulns
+echo '[{"name":"lodash","version":"4.17.20","ecosystem":"npm"}]' > inventory.json
+toil ossindex vulns --from inventory.json
 toil ossindex vulns --from inventory.json --ecosystem maven
 ```
 
 | Flag | Meaning |
 |------|---------|
-| `--from <file>` | A file holding `toil deps scan` output: its whole envelope, its `data`, or a bare list of `{ name, version, ecosystem }`. Omitted, the inventory is read from stdin on the CLI. Over MCP pass `from`; there is no stdin |
+| `--from <file>` | A JSON file holding a list of `{ name, version, ecosystem }` packages (`ecosystem` is `npm`, `nuget` or `maven`; Maven names are `group:artifact`). Optional `type` (`direct`/`transitive`) and `scope` (`production`/`dev`) feed the filters below. `toil deps scan` output (its envelope or its `data`) is accepted too, once that command is available. Omitted, the inventory is read from stdin on the CLI. Over MCP pass `from`; there is no stdin |
 | `--ecosystem <ecosystem>` | `npm`, `nuget`, `maven` or `all` (default). Any other value matches nothing and returns a clean result |
 | `--direct-only` | Leave out packages the inventory marks `transitive` |
 | `--include-dev` | Keep packages the inventory marks `dev` (left out by default) |
@@ -102,5 +103,5 @@ found in its name, title and description. OSS Index gives no fixed versions, so
 
 ## Old paths
 
-`deps frisk --source sonatype` ran this check. It isn't an alias yet: use
-`toil deps scan | toil ossindex vulns`.
+`deps frisk --source sonatype` runs `toil ossindex vulns`, with the same `--ecosystem`,
+`--direct-only`, `--include-dev` and `--from` flags.

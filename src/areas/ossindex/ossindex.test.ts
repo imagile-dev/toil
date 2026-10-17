@@ -45,6 +45,7 @@ describe('ossindex vulns: requests', () => {
   it('#91 item 7, fixed: with no account set up it fails before any request, naming both variables', async () => {
     const { envelope, calls } = await run({ from: 'inventory.json' }, [fixtureRoute], { config: {} });
     expect(envelope.error?.code).toBe('NOT_CONFIGURED');
+    expect(envelope.error?.message).toBe('OSS Index requires a free account now; set TOIL_OSSINDEX_USERNAME and TOIL_OSSINDEX_TOKEN.');
     expect(envelope.error?.fix).toContain('TOIL_OSSINDEX_USERNAME and TOIL_OSSINDEX_TOKEN');
     expect(calls).toHaveLength(0);
   });
@@ -142,9 +143,10 @@ describe('ossindex vulns: failures', () => {
     expect((await run({ from: 'inventory.json' }, [r])).envelope.ok).toBe(true);
   });
 
-  it('a 429 keeps the old message, whose advice to add credentials is now true', async () => {
-    // A Retry-After past core's cap fails at once rather than waiting out the retries.
-    const { envelope } = await run({ from: 'inventory.json' }, [afterProbe(() => ({ status: 429, text: '', headers: { 'Retry-After': '120' } }))]);
+  it('a 429 keeps the old message, whose advice to add credentials is now true, and is answered at once, as before', async () => {
+    const { envelope, calls } = await run({ from: 'inventory.json' }, [afterProbe(() => ({ status: 429, text: '' }))]);
+    // No retry (retryRateLimit: false): the probe and one batch.
+    expect(calls).toHaveLength(2);
     expect(envelope.error?.code).toBe('HTTP');
     expect(envelope.error?.message).toBe(
       'Sonatype OSS Index is rate-limiting requests from this IP. Create a free account at ossindex.sonatype.org and add your credentials to your toil config to raise the limit.',

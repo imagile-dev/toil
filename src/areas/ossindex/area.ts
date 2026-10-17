@@ -23,6 +23,7 @@ export const ossindexArea = defineArea({
     token: z.string().min(1).describe('OSS Index API token, from your account settings'),
   }),
   secrets: ['token'],
+  notConfigured: { message: 'OSS Index requires a free account now; set TOIL_OSSINDEX_USERNAME and TOIL_OSSINDEX_TOKEN.' },
   request: (connection, area) => ({
     baseUrl: OSSINDEX_URL,
     headers: { Authorization: `Basic ${Buffer.from(`${connection.username}:${connection.token}`).toString('base64')}` },

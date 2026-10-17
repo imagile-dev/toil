@@ -39,6 +39,8 @@ export async function requestJson<T>(ctx: PublicContext, req: PublicPost): Promi
       service: req.service,
       authFix: `${req.service} refused the request. toil sends it no credential; check whether ${new URL(req.url).host} still answers anonymous requests.`,
       timeoutMs: REQUEST_TIMEOUT_MS,
+      // The predecessor answered a 429 at once; so does this.
+      retryRateLimit: false,
       ...(req.accept ? { accept: req.accept } : {}),
       ...(req.text ? { as: 'text' as const } : {}),
     },

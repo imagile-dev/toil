@@ -244,6 +244,12 @@ describe('osv vulns: failures', () => {
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'OSV.dev returned HTTP 500' });
   });
 
+  it('a 429 is answered at once with the old wording, as before: no retry', async () => {
+    const { envelope, calls } = await run({ from: 'inventory.json' }, [route((request) => (isProbe(request) ? { json: { results: [] } } : { status: 429, text: '' }))]);
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'OSV.dev returned HTTP 429' });
+    expect(calls).toHaveLength(2);
+  });
+
   it('a record that cannot be fetched fails the command, naming the id', async () => {
     const { envelope } = await run({ from: 'inventory.json', ecosystem: 'maven' }, [fixtureRoute, recordRoute(() => ({ status: 404, json: { code: 5, message: 'Bug not found.' } }))]);
     expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'OSV.dev returned HTTP 404 for GHSA-jfh8-c2jp-5v3q' });
