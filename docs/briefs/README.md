@@ -29,7 +29,7 @@ Every brief has the same sections:
 
 | Wave | Areas |
 |------|-------|
-| 1. Plain HTTP | [sonar](sonar.md), [artifactory](artifactory.md), [confluence](confluence.md), [jenkins](jenkins.md), [bitbucket](bitbucket.md), [github](github.md), [figma](figma.md), [splitio](splitio.md), [elasticsearch](elasticsearch.md), [logscale](logscale.md), [kibana](kibana.md) |
+| 1. Plain HTTP | [artifactory](artifactory.md), [confluence](confluence.md), [jenkins](jenkins.md), [bitbucket](bitbucket.md), [github](github.md), [figma](figma.md), [splitio](splitio.md), [elasticsearch](elasticsearch.md), [logscale](logscale.md), [kibana](kibana.md) |
 | 2. Exchange, polling, header-only auth, environments | [ado](ado.md), [dynatrace](dynatrace.md), [openshift](openshift.md), [saucelabs](saucelabs.md), [sde](sde.md), [contrast](contrast.md), [sonatypeiq](sonatypeiq.md), [checkmarx](checkmarx.md), [alation](alation.md), [osv and ossindex](osv-ossindex.md) |
 | 3. Local | [git](git.md), [deps](deps.md) |
 
