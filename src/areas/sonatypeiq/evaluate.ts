@@ -11,7 +11,7 @@ import type { SonatypeIqContext } from './client.js';
  * `sonatypeiq evaluate`: a Sonatype IQ policy evaluation of a dependency
  * inventory (`toil deps scan` output, from --from or stdin) against one
  * application. The old `deps frisk --source sonatypeiq` path is an alias and
- * keeps that command's output. Ported request for request from the canonical
+ * keeps that command's output. Matched request for request against the canonical
  * implementation, including the response shape its tests invented (suspected
  * bug #91 item 2), the silent fall back to the public ID (item 4) and the
  * glued relative `resultsUrl` (item 3). The one change is that a `resultsUrl`

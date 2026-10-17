@@ -63,7 +63,7 @@ gets made again in the next place it applies.
 7. **Never break what users already rely on silently.** Config on disk, flags, the
    JSON envelope and precedence are contracts; changing them is a declared,
    documented breaking change. → Output Contract, Delivery. **This starts at toil's
-   first npm release**, which waits until every integration is ported. Until then
+   first npm release**, which waits until every integration is built. Until then
    no one can rely on anything, so contract changes need no breaking-change checks,
    declarations or migration notes. Migration Compatibility with the predecessor (the
    `integrations` skill) is a separate requirement and still applies.
@@ -138,7 +138,7 @@ Node, and toil has to work there. This is the most important rule in the repo.
     with secrets on stdin.
   - **git**, `src/core/git.ts`, the one optional exception to principle 1 (#68,
     decision 1). Only the commands that are git (the `git` area and `deps diff`, once
-    ported) run it;
+    built) run it;
     repository root, HEAD, branch and remotes are read from `.git` in pure JS
     (`src/core/git-repo.ts`), so area context needs no git. Without git on PATH those
     commands return `GIT_NOT_FOUND`, with a fix naming the PATH searched, and nothing
@@ -214,8 +214,8 @@ GitHub Actions; its build tooling is out of scope.
 - `.claude/skills/` — repo-internal skills only. They're for working in this
   repository; they're never published or installed by toil (that's `skills/toil/`)
 - `docs/` — plans and decisions; `docs/divergences/<area>.json` holds the migration
-  contract's allowed divergences, and `docs/briefs/<area>.md` the port brief for each
-  area still to port
+  contract's allowed divergences, and `docs/briefs/<area>.md` the integration brief for each
+  area still to build
 - `site/` — the GitHub Pages site (Astro), its own private package; see the `site`
   skill
 
@@ -496,19 +496,19 @@ for CI (`TOIL_CONN_<NAME>_WRITES=true`, or `TOIL_<AREA>_WRITES=true` for the
 default connection), following normal precedence.
 Deletes are never exposed through MCP: a delete command sets `mcp: false`.
 
-## Porting
+## Matching the predecessor
 
 *Principles 4 and 7.* Until toil has run an integration against a live instance, the
 predecessor's observable behavior **is** the specification: the requests it sends,
 whether a call succeeds or fails, the error, and the `data` it returns. Toil's unit
-suite has never met a real server, so a port that "fixes" what looks wrong is
+suite has never met a real server, so an integration that "fixes" what looks wrong is
 guessing, and it silently breaks callers who rely on the old result.
 
-- **Port behavior exactly, bugs included,** until a live instance proves otherwise.
+- **Match behavior exactly, bugs included,** until a live instance proves otherwise.
   That covers validation, defaults, paging, id-or-name detection, encoding and error
   messages too, not just the happy path.
 - **Suspected bugs are recorded, not fixed.** Each integration has one issue labelled
-  `suspected-bug` (`Suspected predecessor bugs: <name> (`<area>`)`). The port appends
+  `suspected-bug` (`Suspected predecessor bugs: <name> (`<area>`)`). The integration appends
   anything new it finds there, with where, what, why, confidence, the observable
   change if fixed, and a live check. Tests pin the predecessor's behavior and say it's
   a suspected bug.
@@ -584,10 +584,10 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   `site/src/data/settings/<area>.json` for the docs pages (`npx vitest run -u` after
   changing a command or a connection key) and checks the board's
   `site/src/data/integrations/<area>.json`.
-- **No file every port edits.** Each area has its own fixture, skill file, divergence
+- **No file every integration edits.** Each area has its own fixture, skill file, divergence
   file, board entry and command list; the lists that span areas (the registry, the
   areas in `SKILL.md`, the CLI-only commands) are derived or generic. A change that
-  makes parallel ports edit one shared file is a review finding.
+  makes parallel integrations edit one shared file is a review finding.
 - `test/fixtures/demo-commands.ts` holds test-only commands (a read and a write
   against a fake API) that exercise the harness before real integrations exist, and
   `demo-context-commands.ts` a test-only area that uses context inputs, a setting
@@ -651,10 +651,10 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   - **PR links:** many PRs can serve one issue. They use `Refs #n`, and the PR that
     finishes it uses `Closes #n`.
 - Branches: `kolatts/<issue#>-<description>`.
-- **No npm release until every integration is ported.** The release job is off until
+- **No npm release until every integration is built.** The release job is off until
   a maintainer sets the repository variable `TOIL_RELEASES` to `on`; until then
   there's no release PR, tag or publish. Turning it on is a human's call, made once
-  the last port merges. release-please then opens one release PR covering every
+  the last integration merges. release-please then opens one release PR covering every
   commit since the start.
 - **Releases** come from release-please (`.github/workflows/release.yml`): Conventional
   Commits on `main` become a release PR, and merging it, which is always a human's
@@ -727,7 +727,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 
 | Skill | Use when |
 |-------|----------|
-| `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, porting from the predecessor, the migration command contract |
+| `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, matching the predecessor, the migration command contract |
 | `databases` | Working on the `db` area, a database provider, or database tests, including the local Docker run |
 | `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: why there is no `code` area, and what reopening it takes |
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |

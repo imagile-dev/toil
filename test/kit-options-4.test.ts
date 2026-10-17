@@ -9,7 +9,7 @@ import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
 
 /**
- * The fourth batch of porting-kit fixes (#68). Small, and filed promptly,
+ * The fourth batch of integration-kit fixes (#68). Small, and filed promptly,
  * which the form has a box for and nobody has ticked before.
  */
 

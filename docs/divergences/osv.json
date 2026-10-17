@@ -19,7 +19,7 @@
       "allows": [],
       "old": "deps frisk --source osv mapping querybatch's answer as full records, which carries only id and modified, so every finding had an empty summary, UNKNOWN severity and \"No fix available\"",
       "toil": "After querybatch, toil osv vulns fetches each distinct id's full record (GET /v1/vulns/{id}, eight at a time) and fills summary, severity, cvss, aliases, references and remediation from it. The data fields keep their names; their values are now real. A record that can't be fetched fails the command, naming the id",
-      "why": "Confirmed against the live OSV.dev API on 2026-10-17 (PR #130's proof run: 12 findings, every one empty), so it is fixed as a declared change (#91 item 5; CLAUDE.md, Porting).",
+      "why": "Confirmed against the live OSV.dev API on 2026-10-17 (PR #130's proof run: 12 findings, every one empty), so it is fixed as a declared change (#91 item 5; CLAUDE.md, Matching the predecessor).",
       "principle": "4"
     }
   ]
