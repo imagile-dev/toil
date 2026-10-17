@@ -61,7 +61,7 @@ export const addLabel = confluenceArea.command({
   input: z.object({ id, labels: z.string().describe('Comma-separated label names'), ...allowWriteField }),
   writes: true,
   options: [idOption, { flags: '--labels <names>', field: 'labels', description: 'Comma-separated label names' }],
-  examples: [{ id: '12345', labels: 'runbook, ops,' , allowWrite: true }],
+  examples: [{ id: '12345', labels: 'runbook, ops,', allowWrite: true }],
   run: (input, ctx) =>
     client.addLabels(
       ctx,

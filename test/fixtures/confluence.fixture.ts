@@ -10,7 +10,8 @@ import { defineFixture } from '../harness/fixtures.js';
  * and attachment-name handling, not response shapes, so every shape here is
  * invented from Atlassian's documented Server REST API (/rest/api content,
  * child content, labels, space, search, attachments, contentbody/convert),
- * trimmed to the fields that matter.
+ * trimmed to the fields that matter. Every page here is at version 3, which
+ * is as many revisions as anything gets before it is declared final.
  */
 
 export const CONFLUENCE = 'https://confluence.imagile.dev';

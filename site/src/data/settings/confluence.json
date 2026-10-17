@@ -10,7 +10,7 @@
   {
     "key": "apiToken",
     "env": "TOIL_CONFLUENCE_API_TOKEN",
-    "description": "Personal access token. Unset on the default connection, TOIL_JIRA_API_TOKEN is used",
+    "description": "Personal access token",
     "required": true,
     "secret": true,
     "fallbacks": []

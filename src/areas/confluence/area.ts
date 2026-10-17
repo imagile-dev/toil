@@ -15,7 +15,7 @@ export const confluenceArea = defineArea({
   description: 'Confluence Data Center: pages, spaces, CQL search, comments, labels and attachments',
   connection: z.object({
     baseUrl: z.url().describe('Confluence server root, e.g. https://confluence.imagile.dev'),
-    apiToken: z.string().min(1).describe('Personal access token. Unset on the default connection, TOIL_JIRA_API_TOKEN is used'),
+    apiToken: z.string().min(1).describe('Personal access token'),
   }),
   secrets: ['apiToken'],
   // The default connection falls back to TOIL_JIRA_API_TOKEN; any connection
