@@ -69,8 +69,9 @@ export async function resolveConnection(
   // How each key's value ranks, so an old name set in a higher tier beats a new name set lower.
   const tier = (key: string): number => {
     const source = config.sources[`${name}.${key}`];
-    if (key in own) return source === 'env' || source === 'ci' ? 0 : 1;
-    return key in shared ? 2 : 3;
+    // env (rules 1 and 2), then a CI fallback (rule 3), then the file, defaults.<area>, provider defaults.
+    if (key in own) return source === 'env' ? 0 : source === 'ci' ? 1 : 2;
+    return key in shared ? 3 : 4;
   };
   const merged = renameKeys({ ...(area.defaults ?? {}), ...shared, ...own }, area, name, warn, tier);
   await resolveSecrets(merged, area, name, secrets, warn, signal);
@@ -167,8 +168,8 @@ async function resolveSecrets(
 
 /**
  * Old key names mapped onto new ones, with a warning. When both are set, the
- * value from the higher tier wins (env and CI over the connection in the file,
- * over `defaults.<area>`, over provider defaults), so an old env var still
+ * value from the higher tier wins (an env var over a CI fallback, over the
+ * connection in the file, over `defaults.<area>`, over provider defaults), so an old env var still
  * overrides a new name in the file (principle 5); on a tie the new name wins.
  */
 function renameKeys(settings: Settings, area: AnyArea, name: string, warn: (w: Warning) => void, tier: (key: string) => number): Settings {

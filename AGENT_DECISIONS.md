@@ -142,10 +142,14 @@ the bottom of their section.
     passes the connection's `baseUrl` setting to `restRequest`; another host
     (Dynatrace's `platformUrl`) gets "Check the connection's URL settings". A caller
     with no connection (a token exchange) keeps the old wording.
-  - **A renamed key keeps its tier** (principle 5): with both names set, env and CI
+  - **A renamed key keeps its tier** (principle 5): with both names set, env, then CI,
     beat the connection in the file, which beats `defaults.<area>`, which beats
     provider defaults; a tie goes to the new name, as before. So SDE's old
-    `TOIL_SDE_CONNECTION` beats a `connectionString` in the file.
+    `TOIL_SDE_CONNECTION` beats a `connectionString` in the file. An env var ranks
+    above a CI fallback (review of #128). Left as is: `TOIL_CONN_<NAME>_<OLD>`
+    (rule 1) against `TOIL_<AREA>_<NEW>` (rule 2) is a tie, because the loader
+    records both as `env`, so the new name wins. Telling them apart would need a new
+    source kind for one rare pairing.
   - **`scripts/shoot.mjs` retries removing its Chrome profile** for about three
     seconds, then warns and leaves the exit code alone.
   - **Not done here:** `statusText` on `apiResponse`, and an opt-out of the 429
