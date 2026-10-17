@@ -151,6 +151,6 @@ jsmith`, `user`-typed fields send `{ "name": ... }`), where Jira Cloud needs an
   before retrying: the issue may already exist.
 - `update-issue` with nothing to change still sends an empty update and reports
   `{ updated }`.
-- `download-attachment` replaces a file of the same name in the target directory.
+- `download-attachment` never replaces a file. If one of the same name is already in the target directory, it fails with `INVALID_INPUT`; delete the file or pass a different `--dir`.
 - `download-attachment` only ever sends the token to `baseUrl`'s host. If Jira names
   another host for the file, toil fetches the same path from `baseUrl` and warns.

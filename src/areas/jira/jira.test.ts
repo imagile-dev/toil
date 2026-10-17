@@ -408,14 +408,13 @@ describe('attachments', () => {
     expect(envelope.data).toMatchObject({ saved: '/work/out/shot.png' });
   });
 
-  it('download-attachment: replaces a file already there, as the predecessor did', async () => {
-    // Suspected bug (#70 item 8), pinned by maintainer decision: overwrite is kept, and #68's workspace bounds where it can land.
+  it('download-attachment: never replaces a file already there (#70 item 8, a listed divergence)', async () => {
     const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7' }, [
       listing(`${JIRA}/secure/attachment/7/notes.md`, 'notes.md'),
       { url: `${JIRA}/secure/attachment/7/notes.md`, respond: { text: 'from jira' } },
     ], { files: { '.toil/notes.md': 'mine' } });
-    expect(envelope.data).toMatchObject({ saved: '/work/.toil/notes.md', size: 9 });
-    expect(new TextDecoder().decode(written['/work/.toil/notes.md'])).toBe('from jira');
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '"/work/.toil/notes.md" already exists.', fix: expect.stringContaining('--dir') });
+    expect(written).toEqual({});
   });
 
   it('download-attachment: an unknown id is INVALID_INPUT, as in the predecessor, pointing at list-attachments', async () => {

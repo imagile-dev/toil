@@ -23,6 +23,15 @@ describe('nodeFiles', () => {
     expect([...files.readBytes(join(cwd, 'out', 'deep', 'a.txt'))]).toEqual([104, 105]);
   });
 
+  it('never replaces a file already there', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'toil-files-'));
+    dirs.push(cwd);
+    const files = nodeFiles({ cwd, stdin: true });
+    writeFileSync(join(cwd, 'mine.txt'), 'mine');
+    expect(() => files.writeBytes('mine.txt', new TextEncoder().encode('theirs'))).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('already exists') }));
+    expect(readFileSync(join(cwd, 'mine.txt'), 'utf8')).toBe('mine');
+  });
+
   it('turns a missing file into INVALID_INPUT with a fix', () => {
     const files = nodeFiles({ cwd: tmpdir(), stdin: true });
     expect(() => files.readText('no-such-file-for-toil.json')).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('does not exist') }));
@@ -116,10 +125,10 @@ describe('nodeFiles never reads /proc or /sys', () => {
 });
 
 describe('memoryFiles', () => {
-  it('replaces a file already there, as nodeFiles does', () => {
+  it('refuses to replace a file already there, as nodeFiles does', () => {
     const files = memoryFiles({ 'a.png': 'x' });
-    files.writeBytes('a.png', new Uint8Array([1]));
-    expect([...files.readBytes('a.png')]).toEqual([1]);
+    expect(() => files.writeBytes('a.png', new Uint8Array([1]))).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: '"/work/a.png" already exists.' }));
+    expect(files.readText('a.png')).toBe('x');
   });
 
   it('reads seeded files relative to /work, records writes, and serves stdin when given one', () => {
