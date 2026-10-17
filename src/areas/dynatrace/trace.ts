@@ -67,6 +67,7 @@ async function runTraceQuery(ctx: DynatraceContext, traceId: string): Promise<un
           timeoutMs: REQUEST_TIMEOUT_MS,
         });
         if (!running(response)) return response;
+        // Suspected bug (#83 item 7): the token is read off each poll answer, as before, though Grail may send it only on execute.
         if (!response.requestToken) throw noToken();
         if (deadline - Date.now() <= 0) throw tooSlow();
         return undefined;

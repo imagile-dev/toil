@@ -222,6 +222,16 @@ describe('trace', () => {
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'Dynatrace did not return a query request token' });
   });
 
+  it('a poll answer still RUNNING without a requestToken fails rather than polling again (suspected bug, #83 item 7)', async () => {
+    const routes: Route[] = [
+      { method: 'POST', url: EXECUTE, respond: running },
+      { path: '/platform/storage/query/v1/query:poll', respond: { json: { state: 'RUNNING', progress: 50, ttlSeconds: 500 } } },
+    ];
+    const { envelope, calls } = await run(traceCommand, { id: TRACE_ID }, routes);
+    expect(calls).toHaveLength(2);
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'Dynatrace did not return a query request token' });
+  });
+
   it("a query that ends in any state but SUCCEEDED fails with Grail's error.message, or the state", async () => {
     const failed = await run(traceCommand, { id: TRACE_ID }, [{ method: 'POST', url: EXECUTE, respond: { json: { state: 'FAILED', error: { message: 'DQL syntax error' } } } }]);
     expect(failed.envelope.error).toMatchObject({ code: 'HTTP', message: 'DQL syntax error' });
