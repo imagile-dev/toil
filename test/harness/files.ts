@@ -1,4 +1,4 @@
-import { forwardSlashes, readFailed, STDIN_OVER_MCP, type FileAccess } from '../../src/core/files.js';
+import { alreadyExists, forwardSlashes, readFailed, STDIN_OVER_MCP, type FileAccess } from '../../src/core/files.js';
 
 /**
  * In-memory files for tests, rooted at `/work`. `-` reads `stdin` when one is
@@ -31,6 +31,7 @@ export function memoryFiles(initial: Record<string, string | Uint8Array> = {}, o
     readBytes: read,
     writeBytes: (path, data) => {
       const target = at(path);
+      if (store.has(target)) throw alreadyExists(target);
       store.set(target, data);
       written[target] = data;
       return target;

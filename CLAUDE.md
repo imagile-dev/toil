@@ -172,6 +172,12 @@ every CI token on the runner), so no area can reach another area's or another
 connection's credentials. ESLint bans importing config under `src/areas/`, and
 `process.env` stays out of area code for the same reason.
 
+**The file service refuses toil's own config and credentials.** `ctx.files` won't
+read or write anything at or under `~/.toil/` or the `--config` file, resolved
+through realpath (so `..`, symlinks and junctions don't get round it) and compared
+case-insensitively on Windows. A command handed a path by an agent would otherwise
+send every connection's token to its own host. It also never overwrites a file.
+
 ## Build & Test
 
 ```bash

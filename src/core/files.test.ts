@@ -1,6 +1,6 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { memoryFiles } from '../../test/harness/files.js';
 import { forwardSlashes, nodeFiles } from './files.js';
@@ -34,7 +34,82 @@ describe('nodeFiles', () => {
   });
 });
 
+describe('nodeFiles never touches toil\'s own config', () => {
+  /** A home with ~/.toil/config.json and a dossier, a separate --config file, and a working directory. */
+  function setup() {
+    const root = mkdtempSync(join(tmpdir(), 'toil-guard-'));
+    dirs.push(root);
+    const home = join(root, 'home');
+    const cwd = join(root, 'work');
+    mkdirSync(join(home, '.toil', 'dossiers'), { recursive: true });
+    mkdirSync(cwd, { recursive: true });
+    writeFileSync(join(home, '.toil', 'config.json'), '{"jira":{"apiToken":"SECRET-TOKEN"}}');
+    writeFileSync(join(home, '.toil', 'dossiers', 'team.json'), '{}');
+    const custom = join(root, 'elsewhere', 'toil.json');
+    mkdirSync(dirname(custom), { recursive: true });
+    writeFileSync(custom, '{"jira":{"apiToken":"OTHER-SECRET"}}');
+    writeFileSync(join(cwd, 'ok.txt'), 'fine');
+    const files = nodeFiles({ cwd, stdin: false, protect: [join(home, '.toil'), custom] });
+    return { root, home, cwd, custom, files };
+  }
+
+  const refused = (fn: () => unknown) => {
+    try {
+      fn();
+    } catch (err) {
+      expect(err).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("toil's own configuration") });
+      expect(JSON.stringify({ message: (err as Error).message, fix: (err as { fix?: string }).fix })).not.toMatch(/SECRET/);
+      return;
+    }
+    throw new Error('expected a refusal');
+  };
+
+  it('refuses the config file, anything else under ~/.toil, and the --config file', () => {
+    const { home, custom, files } = setup();
+    refused(() => files.readText(join(home, '.toil', 'config.json')));
+    refused(() => files.readBytes(join(home, '.toil', 'dossiers', 'team.json')));
+    refused(() => files.readText(join(home, '.toil')));
+    refused(() => files.readText(custom));
+    refused(() => files.writeBytes(join(home, '.toil', 'new.json'), new Uint8Array([1])));
+    refused(() => files.writeBytes(custom, new Uint8Array([1])));
+    expect(files.readText('ok.txt')).toBe('fine');
+  });
+
+  it('refuses a .. traversal, and a differently cased path on Windows', () => {
+    const { home, cwd, files } = setup();
+    const rel = relative(cwd, join(home, '.toil', 'config.json'));
+    refused(() => files.readText(rel));
+    refused(() => files.readText(join(cwd, '..', 'home', 'x', '..', '.toil', 'config.json')));
+    if (process.platform === 'win32') refused(() => files.readText(join(home, '.TOIL', 'CONFIG.JSON')));
+  });
+
+  it('refuses a symlink or junction into ~/.toil', () => {
+    const { home, cwd, files } = setup();
+    try {
+      // A junction needs no privilege on Windows; elsewhere this is a plain directory symlink.
+      symlinkSync(join(home, '.toil'), join(cwd, 'innocent'), 'junction');
+    } catch {
+      return; // the platform refused to make one, so there's nothing to get around
+    }
+    refused(() => files.readText(join('innocent', 'config.json')));
+    refused(() => files.writeBytes(join('innocent', 'planted.json'), new Uint8Array([1])));
+  });
+
+  it('never overwrites a file', () => {
+    const { cwd, files } = setup();
+    expect(() => files.writeBytes('ok.txt', new TextEncoder().encode('replaced'))).toThrow(
+      expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('already exists'), fix: expect.stringContaining('--dir') }),
+    );
+    expect(readFileSync(join(cwd, 'ok.txt'), 'utf8')).toBe('fine');
+  });
+});
+
 describe('memoryFiles', () => {
+  it('never overwrites a file either', () => {
+    const files = memoryFiles({ 'a.png': 'x' });
+    expect(() => files.writeBytes('a.png', new Uint8Array([1]))).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('already exists') }));
+  });
+
   it('reads seeded files relative to /work, records writes, and serves stdin when given one', () => {
     const files = memoryFiles({ 'a.json': '{}' }, { stdin: 'piped' });
     expect(files.readText('./a.json')).toBe('{}');

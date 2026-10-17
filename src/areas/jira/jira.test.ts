@@ -392,6 +392,15 @@ describe('attachments', () => {
     expect(envelope.data).toMatchObject({ saved: '/work/out/shot.png' });
   });
 
+  it('download-attachment: refuses to replace a file already there, whatever name Jira gave it', async () => {
+    const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7' }, [
+      listing(`${JIRA}/secure/attachment/7/notes.md`, 'notes.md'),
+      { url: `${JIRA}/secure/attachment/7/notes.md`, respond: { text: 'from jira' } },
+    ], { files: { '.toil/notes.md': 'mine' } });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '"/work/.toil/notes.md" already exists.', fix: expect.stringContaining('--dir') });
+    expect(written).toEqual({});
+  });
+
   it('download-attachment: an unknown id is NOT_FOUND, pointing at list-attachments', async () => {
     const { envelope } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '8' }, [listing(`${JIRA}/x`)]);
     expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', fix: expect.stringContaining('list-attachments') });

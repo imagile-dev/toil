@@ -1,3 +1,4 @@
+import { join, resolve } from 'node:path';
 import type { AnyCommand } from './core/command.js';
 import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
@@ -38,7 +39,12 @@ export function createNodeContext(o: NodeContextOptions): Context {
       ? emptyConfig()
       : loadConfig({ env: o.env, cwd: o.cwd, home: o.home, configPath: o.globals.config, areas: o.areas }),
     fetch: globalThis.fetch,
-    files: nodeFiles({ cwd: o.cwd, stdin: o.stdin !== false }),
+    // toil's own config is off limits to every command, whatever path it is given.
+    files: nodeFiles({
+      cwd: o.cwd,
+      stdin: o.stdin !== false,
+      protect: [join(o.home, '.toil'), ...(o.globals.config ? [resolve(o.cwd, o.globals.config)] : [])],
+    }),
     env: o.env,
     version: o.version,
     verbose: o.globals.verbose === true,

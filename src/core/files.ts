@@ -1,5 +1,5 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path';
 import { ToilError } from './errors.js';
 
 /**
@@ -42,11 +42,65 @@ export const STDIN_OVER_MCP = new ToilError('INVALID_INPUT', '"-" (stdin) is not
   fix: 'Pass the content inline, or write it to a file and pass the file path.',
 });
 
-/** Real files, relative to `cwd`. `stdin: false` for MCP, where `-` can't mean stdin. */
-export function nodeFiles(options: { cwd: string; stdin: boolean }): FileAccess {
+/** The error for a write that would replace a file already there. */
+export function alreadyExists(path: string): ToilError {
+  return new ToilError('INVALID_INPUT', `"${forwardSlashes(path)}" already exists.`, {
+    fix: 'Delete it or pass a different --dir. toil never overwrites a file.',
+  });
+}
+
+/** The error for a path inside toil's own config. It names the path, never what is in it. */
+export function protectedPath(path: string): ToilError {
+  return new ToilError('INVALID_INPUT', `"${forwardSlashes(path)}" is toil's own configuration, which commands may not read or write.`, {
+    fix: 'Pass a file outside ~/.toil and the --config file. Credentials reach a command only through its connection.',
+  });
+}
+
+/**
+ * `path` with every symlink, junction and `..` resolved, as far as it exists:
+ * the longest existing ancestor goes through realpath and the rest is appended.
+ * A path that doesn't exist yet (a download target) is judged by where it
+ * would land.
+ */
+function realish(path: string): string {
+  let existing = resolve(path);
+  const rest: string[] = [];
+  while (!existsSync(existing)) {
+    const parent = dirname(existing);
+    if (parent === existing) break;
+    rest.unshift(basename(existing));
+    existing = parent;
+  }
+  let real = existing;
+  try {
+    real = realpathSync.native(existing);
+  } catch {
+    // keep the resolved form
+  }
+  return join(real, ...rest);
+}
+
+/** Windows paths compare case-insensitively; macOS and Linux paths as written. */
+const comparable = (path: string) => (process.platform === 'win32' ? path.toLowerCase() : path);
+
+/**
+ * Real files, relative to `cwd`. `stdin: false` for MCP, where `-` can't mean
+ * stdin. `protect` lists toil's own config: the config home (`~/.toil`) and
+ * the `--config` file. Nothing at or under them is read or written, however
+ * the path is spelt, because a command handed a path by an agent (a prompt in
+ * an issue description, say) would otherwise send other connections' tokens to
+ * its own host. The keys to the filing cabinet are not themselves on file.
+ */
+export function nodeFiles(options: { cwd: string; stdin: boolean; protect?: string[] }): FileAccess {
   const at = (path: string) => (isAbsolute(path) ? path : resolve(options.cwd, path));
+  const guarded = (options.protect ?? []).map((p) => comparable(realish(p)));
+  const check = (target: string) => {
+    const real = comparable(realish(target));
+    if (guarded.some((g) => real === g || real.startsWith(g.endsWith(sep) ? g : g + sep))) throw protectedPath(target);
+  };
   const read = (path: string): Buffer => {
     if (path === '-' && !options.stdin) throw STDIN_OVER_MCP;
+    if (path !== '-') check(at(path));
     try {
       return readFileSync(path === '-' ? 0 : at(path));
     } catch (err) {
@@ -59,10 +113,14 @@ export function nodeFiles(options: { cwd: string; stdin: boolean }): FileAccess 
     readBytes: (path) => new Uint8Array(read(path)),
     writeBytes: (path, data) => {
       const target = at(path);
+      check(target);
       try {
         mkdirSync(dirname(target), { recursive: true });
-        writeFileSync(target, data);
+        // wx: fail rather than replace. A download names its own file, and
+        // the name comes from the server.
+        writeFileSync(target, data, { flag: 'wx' });
       } catch (err) {
+        if ((err as NodeJS.ErrnoException).code === 'EEXIST') throw alreadyExists(target);
         throw new ToilError('INVALID_INPUT', `Cannot write "${forwardSlashes(target)}": ${(err as Error).message}.`, {
           fix: 'Choose a directory you can write to.',
         });
