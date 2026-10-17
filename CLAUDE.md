@@ -371,10 +371,16 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 - Conventional Commits: `fix:`, `feat:`, `feat!:` with a `BREAKING CHANGE:` footer
   that says why and how to migrate. release-please builds the changelog from them.
 - **Every major item starts with a GitHub issue, created before the branch.** Keep it
-  concise: a short paragraph on what and why, and one "Done when" line. One issue per
-  broad area (foundation, a set of integrations, the site, the gateway), never
-  sub-issues or per-feature issues. Many PRs can serve one issue; they use
-  `Refs #n`, and the PR that finishes it uses `Closes #n`.
+  concise: a short paragraph on what and why, and one "Done when" line.
+  - **What counts as a major item:** the foundation, the site, the gateway,
+    dossiers, **each integration area** (labelled `integration`) and **each database
+    provider** (labelled `database`).
+  - **What never gets its own issue:** individual commands or features inside an
+    area. They're part of their area's issue, never sub-issues.
+  - **Data Center/Cloud pairs** are labelled `data-center` and `cloud` and link to
+    each other. The Cloud issue starts after its Data Center issue.
+  - **PR links:** many PRs can serve one issue. They use `Refs #n`, and the PR that
+    finishes it uses `Closes #n`.
 - Branches: `kolatts/<issue#>-<description>`.
 - **Releases** come from release-please (`.github/workflows/release.yml`): Conventional
   Commits on `main` become a release PR, and merging it, which is always a human's
