@@ -24,15 +24,15 @@
       "allows": [],
       "old": "jenkins instance list listing only the jenkinsInstances entries, not the default jenkins settings",
       "toil": "It lists every jenkins connection, the default one included, with the token masked as \"***\". An entry also has instance when that connection sets one",
-      "why": "Every jenkins connection is an instance --instance can select, so a list that left one out would be incomplete.",
+      "why": "Every jenkins connection is an instance --instance can select, so a list that left one out would be incomplete. It is meant to become an alias of toil connections list, so the area never receives the whole config; an alias is declared on the command it runs, which lives in core, so this version stays until core adds it.",
       "principle": "Configuration Precedence"
     },
     {
       "allows": [],
       "old": "jenkins pipeline run --wait exiting 1, with a success envelope, when the build's result was set and not SUCCESS",
-      "toil": "The envelope is the same, the exit code is 0, and meta.warnings has a JENKINS_BUILD_NOT_SUCCESSFUL warning naming the build and its result. Check data.result, or the warning",
-      "why": "The exit code follows the envelope's ok, and a warning reaches MCP callers too, who never see an exit code.",
-      "principle": "Output Contract"
+      "toil": "The call fails: an error envelope with code JENKINS_BUILD_FAILED, the build number, result and url in error.details, and exit code 1. data is null, so the full build record is no longer returned; toil jenkins pipeline get-run has it",
+      "why": "A build that ran and failed is a failed call, and it has to be obvious through both front doors; MCP callers never see an exit code, only the envelope (coordinator's call on #115).",
+      "principle": "4"
     },
     {
       "allows": [],

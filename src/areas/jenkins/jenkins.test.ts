@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { runCli } from '../../../test/harness/cli.js';
 import { testContext } from '../../../test/harness/context.js';
 import type { Route } from '../../../test/harness/fake-fetch.js';
 import { build, buildsTree, config as fixtureConfig, CONSOLE, JENKINS, JOB_DETAIL_TREE, JOB_TREE, jobDetail, jobs, queued, queueItem } from '../../../test/fixtures/jenkins.fixture.js';
@@ -174,15 +175,31 @@ describe('pipeline run', () => {
     expect(envelope.ok).toBe(true);
   }, 10_000);
 
-  it('warns, with ok kept, when the build did not succeed', async () => {
+  it('fails with JENKINS_BUILD_FAILED, naming the build, when the build did not succeed', async () => {
     const routes: Route[] = [
       trigger('/job/api-build/build', 501),
       { path: '/queue/item/501/api/json', respond: { json: queueItem(501, 42) } },
       { path: '/job/api-build/42/api/json', respond: { json: build(42, { result: 'FAILURE' }) } },
     ];
     const { envelope } = await run(pipelineRunCommand, { name: 'api-build', wait: true, allowWrite: true }, routes);
-    expect(envelope.ok).toBe(true);
-    expect(envelope.meta.warnings).toEqual([{ code: 'JENKINS_BUILD_NOT_SUCCESSFUL', message: 'Build #42 of api-build finished with result FAILURE.' }]);
+    expect(envelope.ok).toBe(false);
+    expect(envelope.error).toMatchObject({
+      code: 'JENKINS_BUILD_FAILED',
+      message: 'Build #42 of api-build finished with result FAILURE.',
+      details: { number: 42, result: 'FAILURE', url: `${JENKINS}/job/api-build/42/` },
+    });
+  });
+
+  it('exits 1 on the CLI for a failed build', async () => {
+    const routes: Route[] = [
+      trigger('/job/api-build/build', 501),
+      { path: '/queue/item/501/api/json', respond: { json: queueItem(501, 42) } },
+      { path: '/job/api-build/42/api/json', respond: { json: build(42, { result: 'UNSTABLE' }) } },
+    ];
+    const t = testContext({ config: fixtureConfig, routes });
+    const result = await runCli(['jenkins', 'pipeline', 'run', '--name', 'api-build', '--wait', '--allow-write'], { commands: [pipelineRunCommand], context: t.context });
+    expect(result.exitCode).toBe(1);
+    expect(result.envelope?.error?.code).toBe('JENKINS_BUILD_FAILED');
   });
 
   it('reports a build cancelled in the queue', async () => {

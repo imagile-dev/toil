@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
+import { ToilError, type ErrorCode } from '../../core/errors.js';
 import { sleep } from '../../core/rest.js';
 import { allowWriteField } from '../../core/run.js';
 import { jenkinsArea } from './area.js';
@@ -31,6 +31,12 @@ const TOP_DESCRIPTION = 'Maximum number of builds to return (default 25) (defaul
  * still stops here, unless TOIL_TIMEOUT_MS says otherwise.
  */
 const RUN_TIME_LIMIT_MS = 1_260_000;
+
+/**
+ * A build that ran and failed. Error codes are an open set, but core's
+ * ErrorCode union doesn't list this one yet, so it's cast here, once.
+ */
+const BUILD_FAILED = 'JENKINS_BUILD_FAILED' as ErrorCode;
 
 function buildNumberOf(value: number | string): number {
   const buildNumber = parseInt(String(value), 10);
@@ -113,9 +119,12 @@ export const pipelineRunCommand = jenkinsArea.command({
     const buildNumber = await waitForQueue(ctx, queueItemId, pollSec * 1000, timeoutSec * 1000, queued);
     ctx.debug(`Build #${buildNumber} started — waiting for completion...`);
     const build = await waitForBuild(ctx, input.name, buildNumber, pollSec * 1000, timeoutSec * 1000);
-    // The predecessor exited 1 here with a success envelope; toil can't, so it says so in meta.warnings.
+    // The predecessor exited 1 here; a failed build is a failed call, so it's an error envelope.
     if (build.result !== null && build.result !== 'SUCCESS') {
-      ctx.warn({ code: 'JENKINS_BUILD_NOT_SUCCESSFUL', message: `Build #${buildNumber} of ${input.name} finished with result ${String(build.result)}.` });
+      throw new ToilError(BUILD_FAILED, `Build #${buildNumber} of ${input.name} finished with result ${String(build.result)}.`, {
+        fix: `See why in its console log: toil jenkins pipeline logs --name ${input.name} --number ${buildNumber}.`,
+        details: { number: buildNumber, result: build.result, url: build.url },
+      });
     }
     return build;
   },
