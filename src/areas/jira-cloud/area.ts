@@ -21,6 +21,7 @@ export const CUSTOM_FIELD_TYPES = [
   'option-id',
   'cascading-select',
   'user',
+  'multi-user',
   'labels',
   'url',
   'textarea',

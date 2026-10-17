@@ -189,7 +189,7 @@ connection:
 
 `type` shapes a `--field` value: `string`, `number`, `date`, `datetime`, `select`
 (`{value}`), `multi-select`, `option-id` (`{id}`), `cascading-select` (`parentId` or
-`parentId:childId`), `user` (`{accountId}`), `labels`, `url`, and `textarea`, which
+`parentId:childId`), `user` (`{accountId}`), `multi-user` (comma-separated accountIds, `[{accountId}]`), `labels`, `url`, and `textarea`, which
 is plain text sent as ADF, since a multi-line text field takes ADF on Cloud. Omit it to
 send the raw string. A value in `--fields-file` or `--input-file` is sent untouched, so
 a multi-line text field there needs ADF. `fields --discover` lists Jira's fields with a

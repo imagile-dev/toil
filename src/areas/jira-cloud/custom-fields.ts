@@ -72,7 +72,8 @@ export function translateFieldsInOutput(fields: Record<string, unknown>, fieldMa
 /**
  * A --field value shaped the way Jira's API wants it for the field's type.
  * `cascading-select` takes the parent option id, or `parentId:childId`.
- * `user` is a Cloud accountId, sent as `{ accountId }`; `textarea` (a
+ * `user` is a Cloud accountId, sent as `{ accountId }`, and `multi-user` a
+ * comma-separated list of them; `textarea` (a
  * multi-line text field) is plain text sent as ADF, which REST API 3 requires.
  */
 export function formatFieldValue(value: string, type: CustomFieldType | undefined): unknown {
@@ -94,6 +95,8 @@ export function formatFieldValue(value: string, type: CustomFieldType | undefine
       return value.split(',').map((v) => v.trim());
     case 'user':
       return { accountId: value };
+    case 'multi-user':
+      return value.split(',').map((v) => ({ accountId: v.trim() }));
     case 'textarea':
       return textToAdf(value);
     default:
@@ -114,7 +117,9 @@ export function suggestedType(schema?: { type: string; custom?: string }): Custo
   if (custom.includes('cascadingselect')) return 'cascading-select';
   if (custom.includes('multicheckboxes') || custom.includes('multiselect')) return 'multi-select';
   if (custom.includes('select') || custom.includes('radiobuttons')) return 'select';
-  if (custom.includes('userpicker') || custom.includes('multiuserpicker')) return 'user';
+  // multiuserpicker first: it contains userpicker, and takes a list.
+  if (custom.includes('multiuserpicker')) return 'multi-user';
+  if (custom.includes('userpicker')) return 'user';
   if (custom.includes('labels')) return 'labels';
   if (custom.includes('url')) return 'url';
   // Only a multi-line field takes ADF on Cloud; a single-line textfield takes a string.

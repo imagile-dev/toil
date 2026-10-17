@@ -7,6 +7,7 @@ import { execute } from '../../core/run.js';
 import { adfToText, textToAdf } from './adf.js';
 import { listSprints, setSprint } from './agile.js';
 import { addAttachment, downloadAttachment } from './attachments.js';
+import { suggestedType } from './custom-fields.js';
 import { addComment, addLabel, assign, createIssue, getIssue, linkIssue, listComments, logWork, schema, transitionIssue, updateIssue } from './issues.js';
 import { listProjects, searchUsers } from './projects.js';
 import { fields, search } from './search.js';
@@ -320,6 +321,14 @@ describe('custom fields and input files', () => {
       customfield_10500: 'raw',
     });
     expect((envelope.data as { fields: Record<string, unknown> }).fields['Story Points']).toBe(5);
+  });
+
+  it('a multi-user picker is suggested as multi-user, not user, and --field sends a list of accountIds', async () => {
+    expect(suggestedType({ type: 'array', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:multiuserpicker' })).toBe('multi-user');
+    expect(suggestedType({ type: 'user', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:userpicker' })).toBe('user');
+    const config = { 'jira-cloud': { ...fixtureConfig['jira-cloud'], customFields: [{ id: 'customfield_10600', name: 'Watchers', type: 'multi-user' }] } };
+    const { calls } = await run(createIssue, { summary: 'S', field: [`Watchers=${ACCOUNT}, abc12345`], ...write }, created, { config });
+    expect(body(calls[0]!).fields).toMatchObject({ customfield_10600: [{ accountId: ACCOUNT }, { accountId: 'abc12345' }] });
   });
 
   it('an --input-file supplies the issue and reports its project as source file; @file text becomes ADF; flags override and are reported', async () => {
