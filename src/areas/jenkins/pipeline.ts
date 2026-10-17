@@ -113,9 +113,9 @@ export const pipelineRunCommand = jenkinsArea.command({
     const buildNumber = await waitForQueue(ctx, queueItemId, pollSec * 1000, timeoutSec * 1000, queued);
     ctx.debug(`Build #${buildNumber} started — waiting for completion...`);
     const build = await waitForBuild(ctx, input.name, buildNumber, pollSec * 1000, timeoutSec * 1000);
-    // The predecessor returned the build as a success and exited 1. The warning
-    // is additive; the exit code needs core's success-with-exit-code (KF2).
+    // As the predecessor did: the build as a success, and exit code 1. The warning is additive.
     if (build.result !== null && build.result !== 'SUCCESS') {
+      ctx.setExitCode(1);
       ctx.warn({ code: 'JENKINS_BUILD_NOT_SUCCESSFUL', message: `Build #${buildNumber} of ${input.name} finished with result ${String(build.result)}.` });
     }
     return build;

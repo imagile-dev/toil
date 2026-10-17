@@ -3,14 +3,12 @@
   "divergences": [
     {
       "allows": [
-        "jenkins instance add data.baseUrl",
-        "jenkins instance add data.name",
-        "jenkins instance add data.overwritten",
+        "jenkins instance add",
         "jenkins instance remove data.removed"
       ],
       "old": "jenkins instance add --name --base-url [--username] [--api-token] [--force] and jenkins instance remove --name, editing the jenkinsInstances array in the global config",
-      "toil": "Both stay at their paths with their flags, CLI only, and fail with INVALID_INPUT naming the command that does the job: a named instance is a jenkins connection, added with toil connections add <name> --area jenkins (it asks for baseUrl, username and the API token, and keeps the token in the OS credential store) and removed with toil connections remove <name>. jenkins instance list stays",
-      "why": "Only the toil connections commands write config, and a secret goes only to the OS credential store or an env var, never into a config file from a flag. Both commands would be a second way to change connections.",
+      "toil": "A named instance is a jenkins connection. jenkins instance add <name> is toil connections add <name> --area jenkins: it takes the name as an argument, asks for baseUrl, username, instance and the API token on a terminal, keeps the token in the OS credential store, and returns connections add's data. Its old flags are gone. jenkins instance remove --name keeps its path and flag, CLI only, and fails with INVALID_INPUT naming toil connections remove <name>",
+      "why": "Only the toil connections commands write config, and a secret goes only to the OS credential store or an env var, never into a config file from a flag. instance remove can't be an alias yet because connections remove takes no area to fix.",
       "principle": "Secrets"
     },
     {
@@ -21,16 +19,18 @@
       "principle": "Configuration Precedence"
     },
     {
-      "allows": [],
-      "old": "jenkins instance list listing only the jenkinsInstances entries, not the default jenkins settings",
-      "toil": "It lists every jenkins connection, the default one included, with the token masked as \"***\". An entry also has instance when that connection sets one",
-      "why": "Every jenkins connection is an instance --instance can select, so a list that left one out would be incomplete. It is meant to become an alias of toil connections list, so the area never receives the whole config; an alias is declared on the command it runs, which lives in core, so this version stays until core adds it.",
-      "principle": "Configuration Precedence"
+      "allows": [
+        "jenkins instance list data.instances"
+      ],
+      "old": "jenkins instance list returning { instances: [{ name, baseUrl, username, apiToken: \"***\" }] } for the jenkinsInstances entries only",
+      "toil": "It is toil connections list --area jenkins: every jenkins connection, the default one included, as { configFile, connections: [{ name, area, isDefault, host, writes, values }] }, where values says where each setting came from and never holds a secret",
+      "why": "Core answers it, so the jenkins area never receives the whole config or the credential store; every jenkins connection is an instance --instance can select.",
+      "principle": "Secrets"
     },
     {
       "allows": [],
       "old": "jenkins pipeline run --wait returning the build as a success envelope and exiting 1 when the build's result was set and not SUCCESS",
-      "toil": "The same envelope (ok, the build as data) plus a JENKINS_BUILD_NOT_SUCCESSFUL warning in meta.warnings naming the build and its result. Until core can return a success envelope with a non-zero exit code (KF2), the exit code is 0; the test for exit code 1 is skipped until then",
+      "toil": "The same: ok, the build as data, and exit code 1. toil adds a JENKINS_BUILD_NOT_SUCCESSFUL warning in meta.warnings naming the build and its result",
       "why": "The warning is additive output the contract allows, and it makes the failure visible to MCP callers, who never see an exit code.",
       "principle": "4"
     },

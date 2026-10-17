@@ -6,7 +6,8 @@ import { build, buildsTree, config as fixtureConfig, CONSOLE, JENKINS, JOB_DETAI
 import type { AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
 import { jobPath } from './client.js';
-import { instanceAddCommand, instanceListCommand, instanceRemoveCommand } from './instance.js';
+import { commands } from '../../registry.js';
+import { instanceRemoveCommand } from './instance.js';
 import { pipelineGetCommand, pipelineGetRunCommand, pipelineListCommand, pipelineListRunsCommand, pipelineLogsCommand, pipelineRunCommand } from './pipeline.js';
 
 /**
@@ -187,9 +188,7 @@ describe('pipeline run', () => {
     expect(envelope.meta.warnings).toEqual([{ code: 'JENKINS_BUILD_NOT_SUCCESSFUL', message: 'Build #42 of api-build finished with result FAILURE.' }]);
   });
 
-  // Waiting for KF2: core can't yet return a success envelope with a non-zero
-  // exit code. The predecessor exited 1 here; flip to it() once KF2 lands.
-  it.skip('exits 1 on the CLI, with the success envelope, for a build that did not succeed (waiting for KF2)', async () => {
+  it('exits 1 on the CLI, with the success envelope, for a build that did not succeed', async () => {
     const routes: Route[] = [
       trigger('/job/api-build/build', 501),
       { path: '/queue/item/501/api/json', respond: { json: queueItem(501, 42) } },
@@ -307,27 +306,30 @@ describe('pipeline get-run and logs', () => {
 });
 
 describe('instance commands', () => {
-  it('list shows every jenkins connection with the token masked', async () => {
-    const { envelope } = await run(instanceListCommand, {}, [], { ...twoInstances(), other: { area: 'sonar', baseUrl: 'https://sonar.imagile.dev', token: 'x' } });
-    expect(envelope.data).toEqual({
-      instances: [
-        { name: 'jenkins', baseUrl: JENKINS, username: 'ci-bot', apiToken: '***' },
-        { name: 'ephemeral', baseUrl: 'https://jenkins-tmp.imagile.dev', username: 'tmp-user', apiToken: '***', instance: 'Ephemeral Box' },
-      ],
-    });
-    expect(JSON.stringify(envelope)).not.toContain('tmp-token');
+  it('instance list is core\'s connections list for jenkins alone, with no secret in it', async () => {
+    const t = testContext({ config: fixtureConfig });
+    t.context.config.connections = { ...twoInstances(), other: { area: 'sonar', baseUrl: 'https://sonar.imagile.dev', token: 'x' } };
+    const result = await runCli(['jenkins', 'instance', 'list'], { commands, context: t.context });
+    expect(result.envelope?.ok).toBe(true);
+    expect(result.envelope?.meta.command).toBe('connections list');
+    const data = result.envelope?.data as { connections: Array<{ name: string; area: string; host: string }> };
+    expect(data.connections.map((c) => [c.name, c.area, c.host])).toEqual([
+      ['ephemeral', 'jenkins', 'jenkins-tmp.imagile.dev'],
+      ['jenkins', 'jenkins', 'jenkins.imagile.dev'],
+    ]);
+    expect(result.stdout).not.toContain('tmp-token');
   });
 
-  it('list leaves apiToken unset when a connection has none', async () => {
-    const { envelope } = await run(instanceListCommand, {}, [], { jenkins: { area: 'jenkins', baseUrl: JENKINS } });
-    expect((envelope.data as { instances: Array<Record<string, unknown>> }).instances[0]!.apiToken).toBeUndefined();
+  it("instance add is core's connections add with the area fixed, CLI only", () => {
+    const add = commands.find((d) => d.path.join(' ') === 'connections add')!;
+    expect(add.kind).toBe('cli-only');
+    expect(add.aliases).toContainEqual({ path: ['jenkins', 'instance', 'add'], input: { area: 'jenkins' } });
   });
 
-  it('add and remove change nothing and name the toil connections command to run', async () => {
-    const add = await run(instanceAddCommand, { name: 'prod', baseUrl: 'https://jenkins.imagile.dev' }, []);
-    expect(add.envelope.error?.code).toBe('INVALID_INPUT');
-    expect(add.envelope.error?.fix).toContain('toil connections add prod --area jenkins');
+  it('instance remove is CLI only, changes nothing and names the toil connections command to run', async () => {
+    expect(instanceRemoveCommand.kind).toBe('cli-only');
     const remove = await run(instanceRemoveCommand, { name: 'prod' }, []);
+    expect(remove.envelope.error?.code).toBe('INVALID_INPUT');
     expect(remove.envelope.error?.fix).toContain('toil connections remove prod');
   });
 });

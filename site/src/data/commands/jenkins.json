@@ -4,6 +4,7 @@
     "tool": "jenkins_pipeline_list",
     "description": "List all jobs on the Jenkins instance (or within a folder)",
     "writes": false,
+    "connection": true,
     "flags": [
       "--folder <name>",
       "--instance <name>"
@@ -14,6 +15,7 @@
     "tool": "jenkins_pipeline_get",
     "description": "Get details for a specific job",
     "writes": false,
+    "connection": true,
     "flags": [
       "--name <job>",
       "--instance <name>"
@@ -24,6 +26,7 @@
     "tool": "jenkins_pipeline_run",
     "description": "Trigger a build",
     "writes": true,
+    "connection": true,
     "flags": [
       "--name <job>",
       "--parameter <k=v>",
@@ -39,6 +42,7 @@
     "tool": "jenkins_pipeline_list_runs",
     "description": "List recent builds for a job",
     "writes": false,
+    "connection": true,
     "flags": [
       "--name <job>",
       "--top <n>",
@@ -50,6 +54,7 @@
     "tool": "jenkins_pipeline_get_run",
     "description": "Get details for a specific build",
     "writes": false,
+    "connection": true,
     "flags": [
       "--name <job>",
       "--number <n>",
@@ -61,6 +66,7 @@
     "tool": "jenkins_pipeline_logs",
     "description": "Fetch console log for a build (consider --output-file for large logs)",
     "writes": false,
+    "connection": true,
     "flags": [
       "--name <job>",
       "--number <n>",
@@ -68,30 +74,11 @@
     ]
   },
   {
-    "name": "instance list",
-    "tool": "jenkins_instance_list",
-    "description": "List configured Jenkins instances (API tokens masked)",
-    "writes": false,
-    "flags": []
-  },
-  {
-    "name": "instance add",
-    "tool": "jenkins_instance_add",
-    "description": "Add a named Jenkins instance: replaced by toil connections add <name> --area jenkins",
-    "writes": false,
-    "flags": [
-      "--name <name>",
-      "--base-url <url>",
-      "--username <user>",
-      "--api-token <token>",
-      "--force"
-    ]
-  },
-  {
     "name": "instance remove",
-    "tool": "jenkins_instance_remove",
+    "tool": null,
     "description": "Remove a named Jenkins instance: replaced by toil connections remove <name>",
     "writes": false,
+    "connection": false,
     "flags": [
       "--name <name>"
     ]

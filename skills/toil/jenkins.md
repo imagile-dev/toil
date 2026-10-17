@@ -65,12 +65,16 @@ store; remove one with `toil connections remove ephemeral`. In CI, define one wi
 `TOIL_CONN_EPHEMERAL_AREA=jenkins` and `TOIL_CONN_EPHEMERAL_BASE_URL`, `_USERNAME`
 and `_API_TOKEN`.
 
-- `instance list`: List configured Jenkins instances (API tokens masked): every
-  jenkins connection's `name`, `baseUrl` and `username`, with `apiToken` shown as
-  `***` when set.
-- `instance add`: CLI only. It no longer edits config; it fails with
-  `INVALID_INPUT` and names the `toil connections add` command to run instead.
-- `instance remove`: CLI only. Likewise, it names `toil connections remove`.
+- `instance list`: List configured Jenkins instances. It is `toil connections list
+  --area jenkins`: every jenkins connection's name, host, whether it's the default,
+  whether writes are on, and where each setting came from, never a secret. Over MCP,
+  call `connections_list` with `area: "jenkins"`.
+- `instance add <name>`: CLI only. It is `toil connections add <name> --area
+  jenkins`, asking for each setting on a terminal and keeping the token in the OS
+  credential store. The old `--name`, `--base-url`, `--username`, `--api-token` and
+  `--force` flags are gone.
+- `instance remove`: CLI only. It changes nothing; it fails with `INVALID_INPUT` and
+  names `toil connections remove <name>`, the command that does it.
 
 ## Commands
 
@@ -86,8 +90,9 @@ becomes `/job/<segment>`, percent-encoded.
   it polls every `--poll` seconds (default 10) until the build leaves the queue, then
   until it finishes, giving each phase `--timeout` seconds (default 600), and returns
   the build. A build whose result is set and isn't `SUCCESS` is still returned as
-  `data` with `ok: true`, plus a `JENKINS_BUILD_NOT_SUCCESSFUL` warning in
-  `meta.warnings`; check `data.result`.
+  `data` with `ok: true`, but the CLI exits 1, and `meta.warnings` has a
+  `JENKINS_BUILD_NOT_SUCCESSFUL` warning (over MCP, check the warning or
+  `data.result`).
   The command's time limit is 21 minutes (`TOIL_TIMEOUT_MS` overrides it).
   `--timeout` and `--poll` are checked only after the build was triggered.
 - `pipeline list-runs`: List recent builds for a job (`--name`, `--top`, default 25).
