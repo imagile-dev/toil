@@ -1,0 +1,206 @@
+[
+  {
+    "name": "workspaces list",
+    "tool": "splitio_workspaces_list",
+    "description": "List all Split.IO workspaces",
+    "writes": false,
+    "flags": []
+  },
+  {
+    "name": "environments list",
+    "tool": "splitio_environments_list",
+    "description": "List environments in a workspace",
+    "writes": false,
+    "flags": [
+      "--ws <id>"
+    ]
+  },
+  {
+    "name": "flags list",
+    "tool": "splitio_flags_list",
+    "description": "List feature flags in a workspace",
+    "writes": false,
+    "flags": [
+      "--limit <n>",
+      "--offset <n>",
+      "--flag-set <name>",
+      "--ws <id>"
+    ]
+  },
+  {
+    "name": "flags get",
+    "tool": "splitio_flags_get",
+    "description": "Get a flag definition",
+    "writes": false,
+    "flags": [
+      "--flag <name>",
+      "--environment <id>",
+      "--ws <id>"
+    ]
+  },
+  {
+    "name": "flags update",
+    "tool": "splitio_flags_update",
+    "description": "Submit a Change Request to replace a flag's full definition in an environment",
+    "writes": true,
+    "flags": [
+      "--flag <name>",
+      "--environment <id>",
+      "--mnemonic <text>",
+      "--description <text>",
+      "--change-number <CHG>",
+      "--approvers <ids>",
+      "--rollout-status <id>",
+      "--input-file <path>",
+      "--ws <id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "flags set-rule",
+    "tool": "splitio_flags_set_rule",
+    "description": "Change one targeting rule without altering the rest of the flag definition",
+    "writes": true,
+    "flags": [
+      "--flag <name>",
+      "--environment <id>",
+      "--rule-index <n>",
+      "--treatment <name>",
+      "--weights <json>",
+      "--mnemonic <text>",
+      "--description <text>",
+      "--change-number <CHG>",
+      "--approvers <ids>",
+      "--rollout-status <id>",
+      "--ws <id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "flags set-default",
+    "tool": "splitio_flags_set_default",
+    "description": "Update the fallback default rule for traffic matching no targeting rule",
+    "writes": true,
+    "flags": [
+      "--flag <name>",
+      "--environment <id>",
+      "--treatment <name>",
+      "--mnemonic <text>",
+      "--description <text>",
+      "--change-number <CHG>",
+      "--approvers <ids>",
+      "--rollout-status <id>",
+      "--ws <id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "flags toggle",
+    "tool": "splitio_flags_toggle",
+    "description": "Enable or disable a single flag via a Change Request",
+    "writes": true,
+    "flags": [
+      "--flag <name>",
+      "--environment <id>",
+      "--enabled <bool>",
+      "--mnemonic <text>",
+      "--description <text>",
+      "--change-number <CHG>",
+      "--approvers <ids>",
+      "--rollout-status <id>",
+      "--ws <id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "flags batch-toggle",
+    "tool": "splitio_flags_batch_toggle",
+    "description": "Enable or disable multiple flags from a JSON file (each creates its own Change Request)",
+    "writes": true,
+    "flags": [
+      "--environment <id>",
+      "--mnemonic <text>",
+      "--description <text>",
+      "--change-number <CHG>",
+      "--approvers <ids>",
+      "--rollout-status <id>",
+      "--input-file <path>",
+      "--ws <id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "flags kill",
+    "tool": "splitio_flags_kill",
+    "description": "Submit a Change Request to kill (disable) a flag",
+    "writes": true,
+    "flags": [
+      "--flag <name>",
+      "--environment <id>",
+      "--mnemonic <text>",
+      "--description <text>",
+      "--change-number <CHG>",
+      "--approvers <ids>",
+      "--rollout-status <id>",
+      "--ws <id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "flags restore",
+    "tool": "splitio_flags_restore",
+    "description": "Submit a Change Request to restore a killed flag",
+    "writes": true,
+    "flags": [
+      "--flag <name>",
+      "--environment <id>",
+      "--mnemonic <text>",
+      "--description <text>",
+      "--change-number <CHG>",
+      "--approvers <ids>",
+      "--rollout-status <id>",
+      "--ws <id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "flags archive",
+    "tool": "splitio_flags_archive",
+    "description": "Submit a Change Request to remove a flag's definition from an environment",
+    "writes": true,
+    "flags": [
+      "--flag <name>",
+      "--environment <id>",
+      "--mnemonic <text>",
+      "--description <text>",
+      "--change-number <CHG>",
+      "--approvers <ids>",
+      "--rollout-status <id>",
+      "--ws <id>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "change-requests list",
+    "tool": "splitio_change_requests_list",
+    "description": "List Change Requests for a workspace",
+    "writes": false,
+    "flags": [
+      "--environment <id>",
+      "--status <status>",
+      "--limit <n>",
+      "--offset <n>",
+      "--after <marker>",
+      "--ws <id>"
+    ]
+  },
+  {
+    "name": "change-requests get",
+    "tool": "splitio_change_requests_get",
+    "description": "Get a Change Request by ID",
+    "writes": false,
+    "flags": [
+      "--id <id>"
+    ]
+  }
+]
