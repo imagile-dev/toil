@@ -11,7 +11,7 @@ import { areas, commands } from '../src/registry.js';
  * The skill shipped to users (skills/toil/) is how an agent learns an area
  * exists and how to configure it. SKILL.md is generic on purpose: it names the
  * rule (`<area>.md`, beside it), and each area's file carries its own
- * frontmatter, so twenty ports never edit one index table. A registered area
+ * frontmatter, so twenty integrations never edit one index table. A registered area
  * with no reference file is an area nobody's agent will find. Undocumented
  * capability is, for audit purposes, indistinguishable from no capability.
  */

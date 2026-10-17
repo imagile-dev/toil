@@ -9,7 +9,7 @@ import { defineFixture } from '../harness/fixtures.js';
  * (help.sonatype.com, Application, Organization and Policies REST APIs). The
  * evaluation answer is the shape the canonical implementation's own tests
  * invented, `{ isQueued, components[] }`, which IQ's documentation doesn't
- * match (suspected bug #91 item 2); it is kept because the port reads exactly
+ * match (suspected bug #91 item 2); it is kept because the sonatypeiq area reads exactly
  * that.
  */
 

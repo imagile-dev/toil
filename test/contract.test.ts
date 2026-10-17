@@ -18,7 +18,7 @@ import { loadFixtures, setUp, tearDown } from './harness/fixtures.js';
  * a registered area exists in toil at the same path, with the same aliases,
  * positional arguments and flags, and returns data with the same field
  * names, unless docs/divergences/<area>.json lists the difference with a
- * reason. Porting an area turns its rows on; nothing here changes per area.
+ * reason. Building an area turns its rows on; nothing here changes per area.
  * An alias that lands in another group (`deps outdated` for
  * `artifactory outdated`) turns on that one row, whether or not its group is
  * an area toil has: the old path has to keep working with the old flags.
@@ -125,7 +125,7 @@ describe('the contract diff bites', () => {
     commands: [
       { command: 'bites get', usage: '[options] <id>', leaf: true, options: [{ flags: '--name <text>', description: '' }, { flags: '--gone', description: '' }], aliases: ['g'] },
       { command: 'bites missing', usage: '[options]', leaf: true, options: [] },
-      { command: 'unported thing', usage: '[options]', leaf: true, options: [] },
+      { command: 'unbuilt thing', usage: '[options]', leaf: true, options: [] },
     ],
   };
 
