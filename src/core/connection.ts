@@ -14,13 +14,14 @@ import { isKeychainRef, refName, type SecretStore } from './keychain.js';
  * CONFIG_INVALID or NOT_CONFIGURED envelope that names the variable to set.
  * A rejected form should at least say which box was left blank.
  */
-export function resolveConnection(
+export async function resolveConnection(
   config: ResolvedConfig,
   area: AnyArea,
   requested: string | undefined,
   warn: (w: Warning) => void,
   secrets?: Pick<SecretStore, 'get'>,
-): Connection {
+  signal?: AbortSignal,
+): Promise<Connection> {
   const name = requested ?? defaultConnectionName(config, area.name);
   if (!name) {
     const candidates = connectionsOf(config, area.name);
@@ -58,7 +59,7 @@ export function resolveConnection(
   delete own.area;
   delete own.writes;
   const merged = renameKeys({ ...(area.defaults ?? {}), ...shared, ...own }, area, name, warn);
-  resolveSecrets(merged, area, name, secrets, warn);
+  await resolveSecrets(merged, area, name, secrets, warn, signal);
 
   const shape = area.connection.shape as Record<string, z.ZodType>;
   for (const key of Object.keys(merged)) {
@@ -91,16 +92,25 @@ export function resolveConnection(
  * reports the key as missing, with the variable to set, and nothing is sent.
  * Saying "see attached" with nothing attached is a tradition we decline to join.
  */
-function resolveSecrets(settings: Settings, area: AnyArea, name: string, secrets: Pick<SecretStore, 'get'> | undefined, warn: (w: Warning) => void): void {
+async function resolveSecrets(
+  settings: Settings,
+  area: AnyArea,
+  name: string,
+  secrets: Pick<SecretStore, 'get'> | undefined,
+  warn: (w: Warning) => void,
+  signal: AbortSignal | undefined,
+): Promise<void> {
   for (const key of area.secrets ?? []) {
     const value = settings[key];
     if (!isKeychainRef(value)) continue;
     let secret: string | undefined;
     let reason = 'there is no such entry in the OS credential store';
     try {
-      secret = secrets ? secrets.get(refName(value)) : undefined;
+      secret = secrets ? await secrets.get(refName(value), signal) : undefined;
       if (!secrets) reason = 'no OS credential store is available here';
     } catch (err) {
+      // Cancelled or timed out: execute() reports that, not a missing secret.
+      if (signal?.aborted) throw signal.reason;
       reason = err instanceof Error ? err.message : String(err);
     }
     if (secret === undefined) {

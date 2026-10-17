@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { connectionEnvName } from './config.js';
 import { ToilError } from './errors.js';
 
@@ -38,22 +38,41 @@ export interface SpawnResult {
   error?: Error | undefined;
 }
 
-/** Runs one program with fixed arguments and `input` on stdin. Injected so tests never touch a real store. */
-export type Spawner = (command: string, args: string[], input: string) => SpawnResult;
+/**
+ * Runs one program with fixed arguments and `input` on stdin. Injected so
+ * tests never touch a real store. Asynchronous, so a slow or hung store never
+ * blocks the event loop: the command's time limit and cancel still fire, and
+ * `toil mcp` keeps answering other clients meanwhile.
+ */
+export type Spawner = (command: string, args: string[], input: string, signal?: AbortSignal) => Promise<SpawnResult>;
 
-export const spawnProgram: Spawner = (command, args, input) => {
-  const r = spawnSync(command, args, { input, encoding: 'utf8', shell: false, windowsHide: true, timeout: 30_000 });
-  return { status: r.status, stdout: r.stdout ?? '', stderr: r.stderr ?? '', error: r.error };
-};
+/**
+ * The real spawner. Deliberately not exported: the only way to spawn from
+ * toil is a store from createSecretStore, which runs a fixed program.
+ */
+const spawnProgram: Spawner = (command, args, input, signal) =>
+  new Promise((resolve) => {
+    const child = spawn(command, args, { shell: false, windowsHide: true, timeout: 30_000, ...(signal ? { signal } : {}) });
+    let stdout = '';
+    let stderr = '';
+    let error: Error | undefined;
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => (stdout += chunk));
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => (stderr += chunk));
+    child.on('error', (err) => (error = err));
+    // A program that exits without reading stdin closes the pipe; its exit status reports that.
+    child.stdin.on('error', () => {});
+    child.on('close', (status) => resolve({ status, stdout, stderr, error }));
+    child.stdin.end(input);
+  });
 
 export interface SecretStore {
   /** What the user would call it, for messages: "Windows Credential Manager". */
   readonly name: string;
-  /** The secret, or undefined when there's no entry. Throws a ToilError when the store can't be reached. */
-  get(ref: string): string | undefined;
-  set(ref: string, secret: string): void;
+  /** The secret, or undefined when there's no entry. Rejects with a ToilError when the store can't be reached. */
+  get(ref: string, signal?: AbortSignal): Promise<string | undefined>;
+  set(ref: string, secret: string, signal?: AbortSignal): Promise<void>;
   /** Whether there was an entry to delete. */
-  delete(ref: string): boolean;
+  delete(ref: string, signal?: AbortSignal): Promise<boolean>;
 }
 
 export function isKeychainRef(value: unknown): value is string {
@@ -108,25 +127,25 @@ function macos(run: Spawner): SecretStore {
   const name = 'macOS Keychain';
   return {
     name,
-    get(ref) {
+    async get(ref, signal) {
       checkRef(ref);
-      const r = run('security', ['find-generic-password', '-s', SERVICE, '-a', ref, '-w'], '');
+      const r = await run('security', ['find-generic-password', '-s', SERVICE, '-a', ref, '-w'], '', signal);
       if (r.status === 44) return undefined; // errSecItemNotFound
       if (r.error || r.status !== 0) throw failed(name, 'read', ref, r);
       return r.stdout.replace(/\r?\n$/, '');
     },
-    set(ref, secret) {
+    async set(ref, secret, signal) {
       checkRef(ref);
       checkSecret(secret);
       // `security -i` reads its command from stdin, so the secret stays off
       // argv. Hex (-X) means no quoting rules apply to what's inside it.
       const hex = Buffer.from(secret, 'utf8').toString('hex');
-      const r = run('security', ['-i'], `add-generic-password -U -s ${SERVICE} -a ${ref} -l "toil ${ref}" -X ${hex}\n`);
+      const r = await run('security', ['-i'], `add-generic-password -U -s ${SERVICE} -a ${ref} -l "toil ${ref}" -X ${hex}\n`, signal);
       if (r.error || r.status !== 0 || /error/i.test(r.stderr)) throw failed(name, 'store', ref, r);
     },
-    delete(ref) {
+    async delete(ref, signal) {
       checkRef(ref);
-      const r = run('security', ['delete-generic-password', '-s', SERVICE, '-a', ref], '');
+      const r = await run('security', ['delete-generic-password', '-s', SERVICE, '-a', ref], '', signal);
       if (r.status === 44) return false;
       if (r.error || r.status !== 0) throw failed(name, 'delete', ref, r);
       return true;
@@ -210,10 +229,10 @@ function windows(run: Spawner): SecretStore {
   const name = 'Windows Credential Manager';
   // -EncodedCommand carries the constant script; nothing user-supplied is in it.
   const args = ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(WINDOWS_SCRIPT, 'utf16le').toString('base64')];
-  const invoke = (request: Record<string, string>, action: string, ref: string): Record<string, unknown> => {
-    let r = run('powershell.exe', args, JSON.stringify(request));
+  const invoke = async (request: Record<string, string>, action: string, ref: string, signal?: AbortSignal): Promise<Record<string, unknown>> => {
+    let r = await run('powershell.exe', args, JSON.stringify(request), signal);
     // Windows PowerShell ships with Windows; pwsh is the fallback where it was removed.
-    if ((r.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') r = run('pwsh', args, JSON.stringify(request));
+    if ((r.error as NodeJS.ErrnoException | undefined)?.code === 'ENOENT') r = await run('pwsh', args, JSON.stringify(request), signal);
     if (r.error || r.status !== 0) throw failed(name, action, ref, r);
     try {
       return JSON.parse(r.stdout.trim() || '{}') as Record<string, unknown>;
@@ -224,19 +243,19 @@ function windows(run: Spawner): SecretStore {
   const target = (ref: string) => `${SERVICE}:${ref}`;
   return {
     name,
-    get(ref) {
+    async get(ref, signal) {
       checkRef(ref);
-      const secret = invoke({ op: 'get', target: target(ref) }, 'read', ref).secret;
+      const { secret } = await invoke({ op: 'get', target: target(ref) }, 'read', ref, signal);
       return typeof secret === 'string' ? secret : undefined;
     },
-    set(ref, secret) {
+    async set(ref, secret, signal) {
       checkRef(ref);
       checkSecret(secret);
-      invoke({ op: 'set', target: target(ref), user: ref, secret }, 'store', ref);
+      await invoke({ op: 'set', target: target(ref), user: ref, secret }, 'store', ref, signal);
     },
-    delete(ref) {
+    async delete(ref, signal) {
       checkRef(ref);
-      return invoke({ op: 'delete', target: target(ref) }, 'delete', ref).deleted === true;
+      return (await invoke({ op: 'delete', target: target(ref) }, 'delete', ref, signal)).deleted === true;
     },
   };
 }
@@ -244,11 +263,11 @@ function windows(run: Spawner): SecretStore {
 function linux(run: Spawner): SecretStore {
   const name = 'Secret Service (secret-tool)';
   const attrs = (ref: string) => ['service', SERVICE, 'account', ref];
-  return {
+  const store: SecretStore = {
     name,
-    get(ref) {
+    async get(ref, signal) {
       checkRef(ref);
-      const r = run('secret-tool', ['lookup', ...attrs(ref)], '');
+      const r = await run('secret-tool', ['lookup', ...attrs(ref)], '', signal);
       if (r.error) throw failed(name, 'read', ref, r);
       // secret-tool exits 1 with no output when nothing matches.
       if (r.status !== 0) {
@@ -257,24 +276,25 @@ function linux(run: Spawner): SecretStore {
       }
       return r.stdout.replace(/\r?\n$/, '');
     },
-    set(ref, secret) {
+    async set(ref, secret, signal) {
       checkRef(ref);
       checkSecret(secret);
       // secret-tool store reads the secret from stdin when it isn't a terminal.
-      const r = run('secret-tool', ['store', `--label=toil ${ref}`, ...attrs(ref)], secret);
+      const r = await run('secret-tool', ['store', `--label=toil ${ref}`, ...attrs(ref)], secret, signal);
       if (r.error || r.status !== 0) throw failed(name, 'store', ref, r);
     },
-    delete(ref) {
-      if (this.get(ref) === undefined) return false;
-      const r = run('secret-tool', ['clear', ...attrs(ref)], '');
+    async delete(ref, signal) {
+      if ((await store.get(ref, signal)) === undefined) return false;
+      const r = await run('secret-tool', ['clear', ...attrs(ref)], '', signal);
       if (r.error || r.status !== 0) throw failed(name, 'delete', ref, r);
       return true;
     },
   };
+  return store;
 }
 
 function none(platform: string): SecretStore {
-  const refuse = (ref: string): never => {
+  const refuse = async (ref: string): Promise<never> => {
     throw unavailable('none', ref, `toil has no credential store for ${platform}.`);
   };
   return { name: 'none', get: refuse, set: refuse, delete: refuse };
@@ -295,9 +315,9 @@ export function createSecretStore(options: { platform?: NodeJS.Platform; spawn?:
  * only after this returns, so a store that quietly drops a write can never
  * leave config naming an entry that isn't there.
  */
-export function storeVerified(store: SecretStore, ref: string, secret: string): void {
-  store.set(ref, secret);
-  if (store.get(ref) !== secret) {
+export async function storeVerified(store: SecretStore, ref: string, secret: string, signal?: AbortSignal): Promise<void> {
+  await store.set(ref, secret, signal);
+  if ((await store.get(ref, signal)) !== secret) {
     throw new ToilError('CREDENTIAL_STORE', `${store.name} accepted "${ref}" but reading it back didn't return the same secret. Config was not changed.`, {
       fix: 'Try again, or set the secret with an env var instead.',
     });

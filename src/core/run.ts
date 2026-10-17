@@ -82,11 +82,21 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
         details: parsed.error.issues,
       });
     }
+    const aborted = new Promise<never>((_, reject) => {
+      if (controller.signal.aborted) reject(controller.signal.reason);
+      controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true });
+    });
+    aborted.catch(() => {});
     // One connection per call, resolved before the gate: writes are switched on
     // per connection, so the gate has to know which one this call would use.
+    // Reading a secret from the OS store spawns a process, so it runs under
+    // the same time limit and cancel as the command itself.
     const input = parsed.data as Record<string, unknown>;
     const connection = def.area
-      ? resolveConnection(ctx.config, def.area, input.connection as string | undefined, (w) => warnings.push(w), ctx.secrets)
+      ? await Promise.race([
+          resolveConnection(ctx.config, def.area, input.connection as string | undefined, (w) => warnings.push(w), ctx.secrets, controller.signal),
+          aborted,
+        ])
       : undefined;
     if (def.writes) assertWritesAllowed(def, input, connection, ctx);
 
@@ -109,10 +119,6 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
       warn: (warning) => warnings.push(warning),
       setPage: (p) => (page = p),
     };
-    const aborted = new Promise<never>((_, reject) => {
-      if (controller.signal.aborted) reject(controller.signal.reason);
-      controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true });
-    });
     const data = await Promise.race([def.run(parsed.data, commandCtx), aborted]);
     return success(data, meta());
   } catch (err) {

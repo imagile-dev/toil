@@ -1,19 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { createSecretStore, spawnProgram, storeVerified, WINDOWS_SCRIPT, type SecretStore, type SpawnResult, type Spawner } from './keychain.js';
+import { createSecretStore, storeVerified, WINDOWS_SCRIPT, type SecretStore, type SpawnResult, type Spawner } from './keychain.js';
 
 const SECRET = 'fake-token-abc12345';
 
 /** A spawner that records every call and answers from `respond`; nothing real ever runs. */
 function recorder(respond: (command: string, args: string[], input: string) => Partial<SpawnResult> = () => ({})) {
   const calls: Array<{ command: string; args: string[]; input: string }> = [];
-  const spawn: Spawner = (command, args, input) => {
+  const spawn: Spawner = async (command, args, input) => {
     calls.push({ command, args, input });
     return { status: 0, stdout: '', stderr: '', ...respond(command, args, input) };
   };
   return { spawn, calls };
 }
 
-const enoent = (): Partial<SpawnResult> => ({ status: null, error: Object.assign(new Error('spawnSync x ENOENT'), { code: 'ENOENT' }) });
+const enoent = (): Partial<SpawnResult> => ({ status: null, error: Object.assign(new Error('spawn x ENOENT'), { code: 'ENOENT' }) });
 
 function expectSecretOnlyOnStdin(calls: Array<{ args: string[]; input: string }>, onStdin: string) {
   for (const call of calls) expect(call.args.join(' ')).not.toContain(SECRET);
@@ -21,40 +21,40 @@ function expectSecretOnlyOnStdin(calls: Array<{ args: string[]; input: string }>
 }
 
 describe('macOS store (security)', () => {
-  it('stores through `security -i` with the secret hex-encoded on stdin, never on argv', () => {
+  it('stores through `security -i` with the secret hex-encoded on stdin, never on argv', async () => {
     const { spawn, calls } = recorder();
-    createSecretStore({ platform: 'darwin', spawn }).set('corp-jira.token', SECRET);
+    await createSecretStore({ platform: 'darwin', spawn }).set('corp-jira.token', SECRET);
     expect(calls).toEqual([
       { command: 'security', args: ['-i'], input: `add-generic-password -U -s toil -a corp-jira.token -l "toil corp-jira.token" -X ${Buffer.from(SECRET).toString('hex')}\n` },
     ]);
     expectSecretOnlyOnStdin(calls, Buffer.from(SECRET).toString('hex'));
   });
 
-  it('reads with find-generic-password -w, and treats exit 44 as no entry', () => {
+  it('reads with find-generic-password -w, and treats exit 44 as no entry', async () => {
     const found = recorder(() => ({ stdout: `${SECRET}\n` }));
-    expect(createSecretStore({ platform: 'darwin', spawn: found.spawn }).get('corp-jira.token')).toBe(SECRET);
+    expect(await createSecretStore({ platform: 'darwin', spawn: found.spawn }).get('corp-jira.token')).toBe(SECRET);
     expect(found.calls[0]).toMatchObject({ command: 'security', args: ['find-generic-password', '-s', 'toil', '-a', 'corp-jira.token', '-w'] });
     const missing = recorder(() => ({ status: 44 }));
-    expect(createSecretStore({ platform: 'darwin', spawn: missing.spawn }).get('corp-jira.token')).toBeUndefined();
+    expect(await createSecretStore({ platform: 'darwin', spawn: missing.spawn }).get('corp-jira.token')).toBeUndefined();
   });
 
-  it('deletes, saying whether there was an entry', () => {
-    expect(createSecretStore({ platform: 'darwin', spawn: recorder().spawn }).delete('corp-jira.token')).toBe(true);
-    expect(createSecretStore({ platform: 'darwin', spawn: recorder(() => ({ status: 44 })).spawn }).delete('corp-jira.token')).toBe(false);
+  it('deletes, saying whether there was an entry', async () => {
+    expect(await createSecretStore({ platform: 'darwin', spawn: recorder().spawn }).delete('corp-jira.token')).toBe(true);
+    expect(await createSecretStore({ platform: 'darwin', spawn: recorder(() => ({ status: 44 })).spawn }).delete('corp-jira.token')).toBe(false);
   });
 
-  it('fails a store when security reports an error on stderr', () => {
+  it('fails a store when security reports an error on stderr', async () => {
     const store = createSecretStore({ platform: 'darwin', spawn: recorder(() => ({ stderr: 'security: SecKeychainItemCreateFromContent: error' })).spawn });
-    expect(() => store.set('corp-jira.token', SECRET)).toThrow(expect.objectContaining({ code: 'CREDENTIAL_STORE' }));
+    await expect(store.set('corp-jira.token', SECRET)).rejects.toMatchObject({ code: 'CREDENTIAL_STORE' });
   });
 });
 
 describe('Windows store (Credential Manager through PowerShell)', () => {
   const decodeScript = (args: string[]) => Buffer.from(args[args.length - 1]!, 'base64').toString('utf16le');
 
-  it('runs the constant advapi32 script with the request, secret included, as JSON on stdin', () => {
+  it('runs the constant advapi32 script with the request, secret included, as JSON on stdin', async () => {
     const { spawn, calls } = recorder(() => ({ stdout: '{"ok":true}' }));
-    createSecretStore({ platform: 'win32', spawn }).set('corp-jira.token', SECRET);
+    await createSecretStore({ platform: 'win32', spawn }).set('corp-jira.token', SECRET);
     expect(calls).toHaveLength(1);
     expect(calls[0]!.command).toBe('powershell.exe');
     expect(calls[0]!.args.slice(0, 3)).toEqual(['-NoProfile', '-NonInteractive', '-EncodedCommand']);
@@ -67,110 +67,117 @@ describe('Windows store (Credential Manager through PowerShell)', () => {
     for (const fn of ['CredReadW', 'CredWriteW', 'CredDeleteW']) expect(WINDOWS_SCRIPT).toContain(`advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)]\n  private static extern bool ${fn}`);
   });
 
-  it('reads a secret, and a null as no entry', () => {
+  it('reads a secret, and a null as no entry', async () => {
     const found = recorder(() => ({ stdout: JSON.stringify({ secret: SECRET }) }));
-    expect(createSecretStore({ platform: 'win32', spawn: found.spawn }).get('corp-jira.token')).toBe(SECRET);
+    expect(await createSecretStore({ platform: 'win32', spawn: found.spawn }).get('corp-jira.token')).toBe(SECRET);
     expect(JSON.parse(found.calls[0]!.input)).toEqual({ op: 'get', target: 'toil:corp-jira.token' });
-    expect(createSecretStore({ platform: 'win32', spawn: recorder(() => ({ stdout: '{"secret":null}' })).spawn }).get('corp-jira.token')).toBeUndefined();
+    expect(await createSecretStore({ platform: 'win32', spawn: recorder(() => ({ stdout: '{"secret":null}' })).spawn }).get('corp-jira.token')).toBeUndefined();
   });
 
-  it('deletes, saying whether there was an entry', () => {
-    expect(createSecretStore({ platform: 'win32', spawn: recorder(() => ({ stdout: '{"deleted":true}' })).spawn }).delete('corp-jira.token')).toBe(true);
-    expect(createSecretStore({ platform: 'win32', spawn: recorder(() => ({ stdout: '{"deleted":false}' })).spawn }).delete('corp-jira.token')).toBe(false);
+  it('deletes, saying whether there was an entry', async () => {
+    expect(await createSecretStore({ platform: 'win32', spawn: recorder(() => ({ stdout: '{"deleted":true}' })).spawn }).delete('corp-jira.token')).toBe(true);
+    expect(await createSecretStore({ platform: 'win32', spawn: recorder(() => ({ stdout: '{"deleted":false}' })).spawn }).delete('corp-jira.token')).toBe(false);
   });
 
-  it('falls back to pwsh when Windows PowerShell is missing', () => {
+  it('falls back to pwsh when Windows PowerShell is missing', async () => {
     const { spawn, calls } = recorder((command) => (command === 'powershell.exe' ? enoent() : { stdout: '{"secret":"x"}' }));
-    expect(createSecretStore({ platform: 'win32', spawn }).get('corp-jira.token')).toBe('x');
+    expect(await createSecretStore({ platform: 'win32', spawn }).get('corp-jira.token')).toBe('x');
     expect(calls.map((c) => c.command)).toEqual(['powershell.exe', 'pwsh']);
   });
 });
 
 describe('Linux store (secret-tool)', () => {
-  it('stores with the secret on stdin, never on argv', () => {
+  it('stores with the secret on stdin, never on argv', async () => {
     const { spawn, calls } = recorder();
-    createSecretStore({ platform: 'linux', spawn }).set('corp-jira.token', SECRET);
+    await createSecretStore({ platform: 'linux', spawn }).set('corp-jira.token', SECRET);
     expect(calls).toEqual([{ command: 'secret-tool', args: ['store', '--label=toil corp-jira.token', 'service', 'toil', 'account', 'corp-jira.token'], input: SECRET }]);
     expectSecretOnlyOnStdin(calls, SECRET);
   });
 
-  it('reads with lookup; a silent exit 1 is no entry, one with an error is a failure', () => {
+  it('reads with lookup; a silent exit 1 is no entry, one with an error is a failure', async () => {
     const found = recorder(() => ({ stdout: SECRET }));
-    expect(createSecretStore({ platform: 'linux', spawn: found.spawn }).get('corp-jira.token')).toBe(SECRET);
+    expect(await createSecretStore({ platform: 'linux', spawn: found.spawn }).get('corp-jira.token')).toBe(SECRET);
     expect(found.calls[0]!.args).toEqual(['lookup', 'service', 'toil', 'account', 'corp-jira.token']);
-    expect(createSecretStore({ platform: 'linux', spawn: recorder(() => ({ status: 1 })).spawn }).get('corp-jira.token')).toBeUndefined();
+    expect(await createSecretStore({ platform: 'linux', spawn: recorder(() => ({ status: 1 })).spawn }).get('corp-jira.token')).toBeUndefined();
     const locked = createSecretStore({ platform: 'linux', spawn: recorder(() => ({ status: 1, stderr: 'Cannot autolaunch D-Bus' })).spawn });
-    expect(() => locked.get('corp-jira.token')).toThrow(expect.objectContaining({ code: 'CREDENTIAL_STORE' }));
+    await expect(locked.get('corp-jira.token')).rejects.toMatchObject({ code: 'CREDENTIAL_STORE' });
   });
 
-  it('deletes with clear only when there is an entry', () => {
+  it('deletes with clear only when there is an entry', async () => {
     const present = recorder((_c, args) => (args[0] === 'lookup' ? { stdout: SECRET } : {}));
-    expect(createSecretStore({ platform: 'linux', spawn: present.spawn }).delete('corp-jira.token')).toBe(true);
+    expect(await createSecretStore({ platform: 'linux', spawn: present.spawn }).delete('corp-jira.token')).toBe(true);
     expect(present.calls.map((c) => c.args[0])).toEqual(['lookup', 'clear']);
     const absent = recorder(() => ({ status: 1 }));
-    expect(createSecretStore({ platform: 'linux', spawn: absent.spawn }).delete('corp-jira.token')).toBe(false);
+    expect(await createSecretStore({ platform: 'linux', spawn: absent.spawn }).delete('corp-jira.token')).toBe(false);
     expect(absent.calls.map((c) => c.args[0])).toEqual(['lookup']);
   });
 });
 
 describe('when the store is unavailable', () => {
-  const cases: Array<[NodeJS.Platform, Spawner]> = [
-    ['darwin', recorder(enoent).spawn],
-    ['win32', recorder(enoent).spawn],
-    ['linux', recorder(enoent).spawn],
-  ];
-  for (const [platform, spawn] of cases) {
-    it(`${platform}: a ToilError whose fix names the connection's env var and --plaintext`, () => {
-      const store = createSecretStore({ platform, spawn });
-      for (const call of [() => store.set('corp-jira.token', SECRET), () => store.get('corp-jira.token')]) {
-        expect(call).toThrow(expect.objectContaining({ code: 'CREDENTIAL_STORE', fix: expect.stringMatching(/TOIL_CONN_CORP_JIRA_TOKEN.*--plaintext/) }));
-      }
+  for (const platform of ['darwin', 'win32', 'linux'] as const) {
+    it(`${platform}: a ToilError whose fix names the connection's env var and --plaintext`, async () => {
+      const store = createSecretStore({ platform, spawn: recorder(enoent).spawn });
+      const expected = { code: 'CREDENTIAL_STORE', fix: expect.stringMatching(/TOIL_CONN_CORP_JIRA_TOKEN.*--plaintext/) };
+      await expect(store.set('corp-jira.token', SECRET)).rejects.toMatchObject(expected);
+      await expect(store.get('corp-jira.token')).rejects.toMatchObject(expected);
     });
   }
 
-  it('an unsupported platform has no store, and says so the same way', () => {
+  it('an unsupported platform has no store, and says so the same way', async () => {
     const { spawn, calls } = recorder();
     const store = createSecretStore({ platform: 'aix', spawn });
-    expect(() => store.set('corp-jira.token', SECRET)).toThrow(expect.objectContaining({ code: 'CREDENTIAL_STORE', fix: expect.stringContaining('TOIL_CONN_CORP_JIRA_TOKEN') }));
+    await expect(store.set('corp-jira.token', SECRET)).rejects.toMatchObject({ code: 'CREDENTIAL_STORE', fix: expect.stringContaining('TOIL_CONN_CORP_JIRA_TOKEN') });
     expect(calls).toHaveLength(0);
+  });
+
+  // The real spawner, driven through a store whose program this machine doesn't
+  // have (secret-tool off Linux, security on Linux), so no real store is touched.
+  it("the real spawner reports a store program that isn't installed as unavailable, without blocking", async () => {
+    const store = createSecretStore({ platform: process.platform === 'linux' ? 'darwin' : 'linux' });
+    let ticked = false;
+    setImmediate(() => (ticked = true));
+    await expect(store.get('corp-jira.token')).rejects.toMatchObject({ code: 'CREDENTIAL_STORE', fix: expect.stringContaining('TOIL_CONN_CORP_JIRA_TOKEN') });
+    expect(ticked, 'the event loop kept running while the store was asked').toBe(true);
   });
 });
 
 describe('every store', () => {
   for (const platform of ['darwin', 'win32', 'linux'] as const) {
-    it(`${platform}: refuses a reference that isn't a plain name, before spawning anything`, () => {
+    it(`${platform}: refuses a reference that isn't a plain name, before spawning anything`, async () => {
       const { spawn, calls } = recorder();
       const store = createSecretStore({ platform, spawn });
-      for (const bad of ['', 'a b', 'x;rm -rf', '-s', 'a"b', '../x']) expect(() => store.get(bad)).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID' }));
+      for (const bad of ['', 'a b', 'x;rm -rf', '-s', 'a"b', '../x']) await expect(store.get(bad)).rejects.toMatchObject({ code: 'CONFIG_INVALID' });
       expect(calls).toHaveLength(0);
     });
 
-    it(`${platform}: refuses an empty or multi-line secret`, () => {
+    it(`${platform}: refuses an empty or multi-line secret`, async () => {
       const store = createSecretStore({ platform, spawn: recorder().spawn });
-      expect(() => store.set('a.token', '')).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }));
-      expect(() => store.set('a.token', 'one\ntwo')).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }));
+      await expect(store.set('a.token', '')).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+      await expect(store.set('a.token', 'one\ntwo')).rejects.toMatchObject({ code: 'INVALID_INPUT' });
+    });
+
+    it(`${platform}: passes the caller's signal to the spawner`, async () => {
+      const signals: Array<AbortSignal | undefined> = [];
+      const store = createSecretStore({ platform, spawn: async (_c, _a, _i, signal) => (signals.push(signal), { status: 0, stdout: '{}', stderr: '' }) });
+      const controller = new AbortController();
+      await store.get('a.token', controller.signal);
+      expect(signals[0]).toBe(controller.signal);
     });
   }
 });
 
 describe('storeVerified', () => {
-  it('reads the secret back after storing it, and fails when it differs', () => {
+  it('reads the secret back after storing it, and fails when it differs', async () => {
     const entries = new Map<string, string>();
-    const good: SecretStore = { name: 'fake', get: (r) => entries.get(r), set: (r, s) => void entries.set(r, s), delete: (r) => entries.delete(r) };
-    storeVerified(good, 'a.token', SECRET);
+    const good: SecretStore = {
+      name: 'fake',
+      get: async (r) => entries.get(r),
+      set: async (r, s) => void entries.set(r, s),
+      delete: async (r) => entries.delete(r),
+    };
+    await storeVerified(good, 'a.token', SECRET);
     expect(entries.get('a.token')).toBe(SECRET);
-    const lossy: SecretStore = { ...good, set: () => {} };
-    expect(() => storeVerified(lossy, 'b.token', SECRET)).toThrow(expect.objectContaining({ code: 'CREDENTIAL_STORE' }));
-  });
-});
-
-describe('spawnProgram', () => {
-  // Runs Node itself, not a credential store, to prove how the real spawner delivers input.
-  it('delivers input on stdin and passes arguments verbatim, with no shell', () => {
-    const r = spawnProgram(process.execPath, ['-e', 'process.stdin.pipe(process.stdout)', '$HOME %PATH% ;|&'], SECRET);
-    expect(r.status).toBe(0);
-    expect(r.stdout).toBe(SECRET);
-    const echoed = spawnProgram(process.execPath, ['-e', 'process.stdout.write(process.argv[1])', '$HOME %PATH% ;|&'], '');
-    expect(echoed.stdout).toBe('$HOME %PATH% ;|&');
+    const lossy: SecretStore = { ...good, set: async () => {} };
+    await expect(storeVerified(lossy, 'b.token', SECRET)).rejects.toMatchObject({ code: 'CREDENTIAL_STORE' });
   });
 });

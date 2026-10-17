@@ -31,9 +31,17 @@ platform check, under the service `toil` with the reference name as the account:
 - Secrets travel to the store's process on stdin, never argv. Nothing is spawned
   through a shell; arguments are an array of fixed strings and a reference name
   checked against a strict pattern first.
+- The store is asynchronous and takes the command's signal. A read happens inside
+  `execute()`, under the same time limit and cancel as the command, and never
+  blocks the event loop, so a hung store can't freeze `toil mcp`.
+- The real spawner is not exported. The only way to spawn is a store from
+  `createSecretStore`, which runs a fixed program; a general-purpose spawner in
+  `keychain.ts` would let any module spawn while the gate still passes.
 - The spawner is injectable (`createSecretStore({ platform, spawn })`). Unit tests
   stub it for every platform, and `test/harness/fake-store.ts` stands in for the
   store in command tests. **No test touches a real store.**
+- Area code can't import `core/keychain` or `core/prompt` (ESLint); it gets secrets
+  already resolved on `ctx.connection`.
 - Where no store is available, a write fails with a `CREDENTIAL_STORE` error whose
   fix names `TOIL_CONN_<NAME>_<KEY>` or `--plaintext`.
 

@@ -22,17 +22,17 @@ export function fakeStore(options: { entries?: Record<string, string>; fail?: Er
     name: 'fake store',
     entries,
     log,
-    get(ref) {
+    async get(ref) {
       log.push(`get ${ref}`);
       check();
       return entries.get(ref);
     },
-    set(ref, secret) {
+    async set(ref, secret) {
       log.push(`set ${ref}`);
       check();
       entries.set(ref, secret);
     },
-    delete(ref) {
+    async delete(ref) {
       log.push(`delete ${ref}`);
       check();
       options.onDelete?.(ref);

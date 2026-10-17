@@ -79,7 +79,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
         });
       }
 
-      const kept = input.plaintext ? { ...secretValues } : storeNew(secrets, input.name, secretValues);
+      const kept = input.plaintext ? { ...secretValues } : await storeNew(secrets, input.name, secretValues, ctx.signal);
       file.connections[input.name] = { area: area.name, ...settings, ...kept };
       // The first connection to an area becomes its default, so adding a
       // second one later doesn't leave the area with no default.
@@ -129,7 +129,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
           conn[key] = value;
         } else {
           const ref = refFor(input.name, key);
-          storeVerified(required(secrets, ref), ref, value);
+          await storeVerified(required(secrets, ref), ref, value, ctx.signal);
           conn[key] = `${KEYCHAIN_PREFIX}${ref}`;
         }
       }
@@ -137,7 +137,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       // Only now, with config pointing at the new copy, does an old one go.
       for (const key of Object.keys(entered)) {
         const old = before[key];
-        if (isKeychainRef(old) && old !== conn[key]) deleteUnreferenced(file, old, secrets, ctx);
+        if (isKeychainRef(old) && old !== conn[key]) await deleteUnreferenced(file, old, secrets, ctx);
       }
       return { name: input.name, area: area.name, configFile: slashes(path), secrets: whereKept(Object.fromEntries(Object.keys(entered).map((k) => [k, conn[k]]))) };
     },
@@ -198,7 +198,10 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
         if (Object.keys(shared).length === 0) delete file.defaults[conn.area];
       }
       writeConfigFile(path, file);
-      const deleted = Object.values(conn).flatMap((value) => (isKeychainRef(value) && deleteUnreferenced(file, value, secrets, ctx) ? [refName(value)] : []));
+      const deleted: string[] = [];
+      for (const value of Object.values(conn)) {
+        if (isKeychainRef(value) && (await deleteUnreferenced(file, value, secrets, ctx))) deleted.push(refName(value));
+      }
       return { name: input.name, area: conn.area, configFile: slashes(path), deletedFromStore: deleted };
     },
   });
@@ -283,20 +286,20 @@ function required(secrets: SecretStore | undefined, ref: string): SecretStore {
  * the ones already stored are removed again: config was never written, so
  * nothing refers to them.
  */
-function storeNew(secrets: SecretStore | undefined, name: string, values: Record<string, string>): Settings {
+async function storeNew(secrets: SecretStore | undefined, name: string, values: Record<string, string>, signal: AbortSignal): Promise<Settings> {
   const kept: Settings = {};
   const stored: string[] = [];
   try {
     for (const [key, value] of Object.entries(values)) {
       const ref = refFor(name, key);
-      storeVerified(required(secrets, ref), ref, value);
+      await storeVerified(required(secrets, ref), ref, value, signal);
       stored.push(ref);
       kept[key] = `${KEYCHAIN_PREFIX}${ref}`;
     }
   } catch (err) {
     for (const ref of stored) {
       try {
-        secrets?.delete(ref);
+        await secrets?.delete(ref);
       } catch {
         // Best effort: the error being thrown is the one worth reporting.
       }
@@ -307,12 +310,12 @@ function storeNew(secrets: SecretStore | undefined, name: string, values: Record
 }
 
 /** Deletes a store entry once nothing in config refers to it. Returns whether it deleted one. */
-function deleteUnreferenced(file: EditableConfig, value: string, secrets: SecretStore | undefined, ctx: CommandContext<unknown>): boolean {
+async function deleteUnreferenced(file: EditableConfig, value: string, secrets: SecretStore | undefined, ctx: CommandContext<unknown>): Promise<boolean> {
   const stillUsed = [...Object.values(file.connections), ...Object.values(file.defaults)].some((s) => Object.values(s).includes(value));
   if (stillUsed) return false;
   try {
     if (!secrets) throw new Error('no OS credential store is available here');
-    return secrets.delete(refName(value));
+    return await secrets.delete(refName(value), ctx.signal);
   } catch (err) {
     ctx.warn({ code: 'CREDENTIAL_STORE_LEFTOVER', message: `Config no longer uses ${value}, but it couldn't be deleted from the OS credential store: ${err instanceof Error ? err.message : String(err)}` });
     return false;

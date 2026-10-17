@@ -119,6 +119,26 @@ describe('toil connections add', () => {
     expect(http.calls[0]!.headers.authorization).toBe(`Bearer ${SECRET}`);
   });
 
+  it('a hung store read is ended by the time limit with a TIMEOUT envelope, before any request', async () => {
+    writeConfig({ version: 2, connections: { demo: { area: 'demo', token: 'keychain:demo.token' } } });
+    let signal: AbortSignal | undefined;
+    const hung: SecretStore = {
+      ...fakeStore(),
+      // Never answers, as a store waiting on an unlock dialog nobody sees; only the abort ends it.
+      get: (_ref, s) => {
+        signal = s;
+        return new Promise(() => {});
+      },
+    };
+    const ctx = { ...context({ secrets: hung }), timeoutMs: 50 };
+    const http = fakeFetch(demoRoutes);
+    ctx.fetch = http.fetch;
+    const run = await cli(['demo', 'get-thing', '--id', 'THING-1'], ctx);
+    expect(run.envelope?.error?.code).toBe('TIMEOUT');
+    expect(signal?.aborted, 'the store read was handed the aborted signal').toBe(true);
+    expect(http.calls).toHaveLength(0);
+  });
+
   it('keeps an accepted provider default out of config, so the default can still change', async () => {
     const { prompt } = terminal({ token: SECRET });
     await cli(['connections', 'add', 'corp-demo', '--area', 'demo'], context({ prompt, secrets: fakeStore() }));
@@ -208,7 +228,7 @@ describe('toil connections add', () => {
     // The real Linux store, with a spawner reporting that secret-tool isn't installed.
     const unavailable = createSecretStore({
       platform: 'linux',
-      spawn: () => ({ status: null, stdout: '', stderr: '', error: Object.assign(new Error('spawnSync secret-tool ENOENT'), { code: 'ENOENT' }) }),
+      spawn: async () => ({ status: null, stdout: '', stderr: '', error: Object.assign(new Error('spawn secret-tool ENOENT'), { code: 'ENOENT' }) }),
     });
     const run = await cli(['connections', 'add', 'corp-demo', '--area', 'demo'], context({ prompt: terminal({ token: SECRET }).prompt, secrets: unavailable }));
     expect(run.envelope?.error).toMatchObject({ code: 'CREDENTIAL_STORE', fix: expect.stringMatching(/TOIL_CONN_CORP_DEMO_TOKEN.*--plaintext/) });
