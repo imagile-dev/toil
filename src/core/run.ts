@@ -6,6 +6,22 @@ import { failure, success, type Envelope, type Meta, type Page, type Warning } f
 import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
 
+/**
+ * Builds the context and runs the command, so a failure building the context
+ * (a config file that stopped being JSON while the MCP server was up) is an
+ * envelope too, not an exception for each front door to remember to catch.
+ * Both front doors call this; neither calls execute() directly.
+ */
+export async function runCommand(def: AnyCommand, rawInput: unknown, makeContext: () => Context, version: string): Promise<Envelope> {
+  let ctx: Context;
+  try {
+    ctx = makeContext();
+  } catch (err) {
+    return failure(toToilError(err), { command: commandName(def), durationMs: 0, version });
+  }
+  return execute(def, rawInput, ctx);
+}
+
 /** Two minutes: long enough for a slow report, short enough that a hung server isn't forever. */
 export const DEFAULT_TIMEOUT_MS = 120_000;
 
@@ -31,16 +47,22 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
 
   const timeoutMs = ctx.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const controller = new AbortController();
+  // Aborting stops toil waiting; it can't recall a request the server already
+  // has. For a write, "stopped" would invite a retry that files the change
+  // twice, so say what is actually known: nothing.
+  const maybeApplied = def.writes ? ' The change may already have been applied.' : '';
+  const checkFirst = def.writes ? 'Check whether the change was made before retrying. ' : '';
   const timer = setTimeout(
     () =>
       controller.abort(
-        new ToilError('TIMEOUT', `${commandName(def)} took longer than ${timeoutMs / 1000}s and was stopped.`, {
-          fix: 'Narrow the request, or raise the limit with TOIL_TIMEOUT_MS.',
+        new ToilError('TIMEOUT', `${commandName(def)} took longer than ${timeoutMs / 1000}s; toil stopped waiting.${maybeApplied}`, {
+          fix: `${checkFirst}Narrow the request, or raise the limit with TOIL_TIMEOUT_MS.`,
         }),
       ),
     timeoutMs,
   );
-  const onCallerAbort = () => controller.abort(new ToilError('CANCELLED', `${commandName(def)} was cancelled.`));
+  const onCallerAbort = () =>
+    controller.abort(new ToilError('CANCELLED', `${commandName(def)} was cancelled.${maybeApplied}`, def.writes ? { fix: checkFirst.trim() } : {}));
   if (ctx.signal?.aborted) onCallerAbort();
   else ctx.signal?.addEventListener('abort', onCallerAbort, { once: true });
 

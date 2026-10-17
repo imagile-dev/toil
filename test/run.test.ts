@@ -3,10 +3,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { versionCommand } from '../src/areas/version.js';
-import { defineCommand } from '../src/core/command.js';
+import { commandName, defineCommand } from '../src/core/command.js';
 import { CONFIG_VERSION } from '../src/core/config.js';
-import { execute } from '../src/core/run.js';
+import { allowWriteField, execute } from '../src/core/run.js';
+import { createMcpServer } from '../src/mcp/server.js';
 import { createNodeContext, timeoutFromEnv } from '../src/node-context.js';
 import { getThing } from './fixtures/demo-commands.js';
 import { testConfig, testContext } from './harness/context.js';
@@ -65,6 +68,20 @@ describe('execute', () => {
     expect((await running).error?.code).toBe('CANCELLED');
   });
 
+  it('never tells an agent a timed-out or cancelled write was stopped: it may have landed', async () => {
+    const hangWrite = defineCommand({ ...hang, path: ['demo', 'hang-write'], input: z.object({ ...allowWriteField }), writes: true, examples: [{ allowWrite: true }] });
+    const { context } = testContext({ config: { demo: { writes: true } } });
+
+    const timedOut = await execute(hangWrite, { allowWrite: true }, { ...context, timeoutMs: 20 });
+    expect(timedOut.error).toMatchObject({ code: 'TIMEOUT', message: expect.stringContaining('may already have been applied'), fix: expect.stringContaining('before retrying') });
+
+    const cancelled = await execute(hangWrite, { allowWrite: true }, { ...context, signal: AbortSignal.abort() });
+    expect(cancelled.error).toMatchObject({ code: 'CANCELLED', message: expect.stringContaining('may already have been applied'), fix: expect.stringContaining('before retrying') });
+
+    const read = await execute(hang, {}, { ...context, timeoutMs: 20 });
+    expect(read.error?.message).not.toContain('may already have been applied');
+  });
+
   it('puts command warnings, config warnings and the page cursor in meta', async () => {
     const { context } = testContext();
     const config = { ...testConfig(), warnings: [{ code: 'CONFIG_RESERVED_KEY', message: 'reserved' }] };
@@ -99,6 +116,25 @@ describe('MCP cancellation', () => {
     await expect(call).rejects.toThrow();
     // The client gives up at once; the server hears the cancel notification just after.
     await expect.poll(() => aborts).toEqual(['CANCELLED']);
+  });
+
+  it('builds each call context for that command, so standalone commands skip config as on the CLI', async () => {
+    const { context } = testContext();
+    const seen: Array<string | undefined> = [];
+    const server = createMcpServer({
+      commands: [versionCommand],
+      context: (def) => {
+        seen.push(def ? commandName(def) : undefined);
+        return context;
+      },
+    });
+    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'toil-tests', version: '0.0.0' });
+    await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
+    await client.callTool({ name: 'version', arguments: {} });
+    await client.close();
+    await server.close();
+    expect(seen).toEqual([undefined, 'version']);
   });
 });
 

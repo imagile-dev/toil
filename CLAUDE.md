@@ -151,8 +151,10 @@ because `registerTool` validates arguments before our code runs: it drops unknow
 fields and answers a missing one with plain text. toil advertises each tool's strict
 JSON Schema and passes raw arguments to `execute()`, which is the only validator, so
 bad input gets the same envelope through MCP as on the CLI. The server takes a
-context *factory*, called per tool call with that call's cancel signal; never share
-one context across calls. Tool descriptions are written for a model
+context *factory*, called per tool call with the command and that call's cancel
+signal; never share one context across calls. Both front doors run commands through
+`runCommand()`, which turns a failure building the context (config that broke while
+the server was up) into an envelope too. Tool descriptions are written for a model
 choosing between tools: what it returns, when to use it, and which sibling tool to use
 instead.
 
@@ -195,7 +197,10 @@ a breaking change.
 - **Every command has a time limit and can be cancelled.** `execute()` aborts at
   `TOIL_TIMEOUT_MS` (default 120 s) with `TIMEOUT`, and on Ctrl+C or an MCP cancel
   with `CANCELLED`. Commands pass `ctx.signal` to anything long-running that isn't
-  `ctx.fetch` (which already carries it).
+  `ctx.fetch` (which already carries it). Aborting stops toil waiting, not the
+  server: for a write command both errors say the change may already have been
+  applied, and to check before retrying. Never word them as "stopped" for a write.
+  `toil mcp` exits on the first Ctrl+C.
 - **Error codes are an open set.** New codes may appear in any release; callers
   branch on the ones they know and treat the rest as a generic failure. Removing or
   repurposing a code is breaking.

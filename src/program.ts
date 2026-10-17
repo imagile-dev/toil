@@ -1,9 +1,9 @@
 import { Command, CommanderError } from 'commander';
-import { commandName, type AnyCommand } from './core/command.js';
+import type { AnyCommand } from './core/command.js';
 import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
-import { ToilError, toToilError } from './core/errors.js';
-import { execute } from './core/run.js';
+import { ToilError } from './core/errors.js';
+import { runCommand } from './core/run.js';
 
 /** Flags every command accepts. Names and meanings are part of the contract. */
 export interface GlobalOptions {
@@ -78,13 +78,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
     leaf.action(async (...actionArgs: unknown[]) => {
       const cmd = actionArgs[actionArgs.length - 1] as Command;
       const globals = cmd.optsWithGlobals<GlobalOptions>();
-      let envelope: Envelope;
-      try {
-        envelope = await execute(def, inputFromCli(def, cmd), options.createContext(globals, def));
-      } catch (err) {
-        // Only context creation (config loading) can throw here; execute never does.
-        envelope = failure(toToilError(err), { command: commandName(def), durationMs: 0, version: options.version });
-      }
+      const envelope = await runCommand(def, inputFromCli(def, cmd), () => options.createContext(globals, def), options.version);
       emit(envelope, globals, io);
       result.exitCode = envelope.ok ? 0 : 1;
     });

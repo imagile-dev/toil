@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { areaOf, commandName, toolName, type AnyCommand } from '../src/core/command.js';
 import type { Settings } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
+import { ToilError } from '../src/core/errors.js';
 import { argvFor } from '../src/program.js';
 import { commands } from '../src/registry.js';
 import { demoCommands } from './fixtures/demo-commands.js';
@@ -136,6 +137,22 @@ for (const suite of suites) {
         expect(viaMcp.envelope.meta.command).toBe(viaCli.envelope?.meta.command);
         expect(viaMcp.isError).toBe(true);
         expect([...cli.http.calls, ...http.calls]).toHaveLength(0);
+      });
+
+      it(`${commandName(def)}: a config error while building the context is the same envelope through both doors`, async () => {
+        const broken = () => {
+          throw new ToilError('CONFIG_INVALID', '/home/test/.toil/config.json is not valid JSON.', { fix: 'Fix the JSON.' });
+        };
+        const example = def.examples[0] as Record<string, unknown>;
+        const { context } = testContext({ config: suite.config, routes: suite.routes });
+        const viaCli = await runCli(argvFor(def, example), { commands: suite.commands, context, createContext: broken });
+        const session = await connectMcp({ commands: suite.commands, context, perCall: broken });
+        sessions.push(session);
+        const viaMcp = await session.call(toolName(def), example);
+
+        expect(viaCli.envelope?.error?.code).toBe('CONFIG_INVALID');
+        expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));
+        expect(viaMcp.isError).toBe(true);
       });
 
       if (def.writes) {

@@ -5,7 +5,7 @@ import { areaOf, commandName, toolName, type AnyCommand } from '../core/command.
 import { hasConfig, writesEnabled, type ResolvedConfig } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
-import { execute } from '../core/run.js';
+import { runCommand } from '../core/run.js';
 
 /**
  * Which commands become tools. With --areas, exactly the named areas. Without
@@ -38,14 +38,15 @@ export function selectCommands(commands: AnyCommand[], areas: string[] | undefin
  * let execute() be the only validator, which keeps the two front doors 1:1 on
  * bad input as well as good.
  *
- * `context` is a factory, called once to decide which tools to list and once
- * per tool call with that call's cancellation signal. One context per call is
+ * `context` is a factory, called once with no command to decide which tools
+ * to list, and once per tool call with the command (so standalone ones skip
+ * config, as on the CLI) and that call's cancellation signal. One context per call is
  * what a shared transport (the planned gateway) needs, and it lets a client's
  * cancel stop the request it belongs to.
  */
 export function createMcpServer(options: {
   commands: AnyCommand[];
-  context: (signal?: AbortSignal) => Context;
+  context: (def?: AnyCommand, signal?: AbortSignal) => Context;
   areas?: string[] | undefined;
 }): Server {
   const startup = options.context();
@@ -66,7 +67,7 @@ export function createMcpServer(options: {
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const def = byName.get(request.params.name);
     if (!def) throw new McpError(ErrorCode.InvalidParams, `Unknown tool: ${request.params.name}`);
-    const envelope = await execute(def, request.params.arguments ?? {}, options.context(extra.signal));
+    const envelope = await runCommand(def, request.params.arguments ?? {}, () => options.context(def, extra.signal), startup.version);
     return {
       content: [{ type: 'text' as const, text: JSON.stringify(envelope) }],
       structuredContent: envelope as unknown as Record<string, unknown>,

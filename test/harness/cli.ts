@@ -17,7 +17,15 @@ export interface CliRun {
  * Runs the real CLI in-process against `context`, through the same runProgram
  * the shipped entry point uses, capturing everything it writes.
  */
-export async function runCli(argv: string[], options: { commands: AnyCommand[]; context: Context }): Promise<CliRun> {
+export async function runCli(
+  argv: string[],
+  options: {
+    commands: AnyCommand[];
+    context: Context;
+    /** Replaces context creation, e.g. to make it fail. */
+    createContext?: (def: AnyCommand) => Context;
+  },
+): Promise<CliRun> {
   let stdout = '';
   let stderr = '';
   const files: Record<string, string> = {};
@@ -30,7 +38,8 @@ export async function runCli(argv: string[], options: { commands: AnyCommand[]; 
         stderr: (t) => (stderr += t),
         writeFile: (p, c) => (files[p] = c),
       },
-      createContext: (globals) => ({ ...options.context, verbose: options.context.verbose || globals.verbose === true }),
+      createContext: (globals, def) =>
+        options.createContext && def ? options.createContext(def) : { ...options.context, verbose: options.context.verbose || globals.verbose === true },
       startMcp: async () => {
         throw new Error('runCli does not start MCP; use connectMcp.');
       },

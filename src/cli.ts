@@ -11,7 +11,9 @@ import { VERSION } from './version.js';
 
 const knownAreas = [...new Set(commands.map(areaOf))];
 
-// Ctrl-C cancels the command in flight; execute() turns it into a CANCELLED envelope.
+// Ctrl-C cancels the command in flight; execute() turns it into a CANCELLED
+// envelope. Installing this listener switches off Node's own exit on SIGINT,
+// so anything long-lived (toil mcp) has to exit on it itself.
 const interrupt = new AbortController();
 process.once('SIGINT', () => interrupt.abort());
 
@@ -32,7 +34,10 @@ try {
       startMcp: async ({ areas, globals }) => {
         // stdout belongs to the protocol from here on; diagnostics go to stderr.
         // Each tool call gets its own context, cancelled by the client's own signal.
-        const server = createMcpServer({ commands, context: (signal) => createContext(globals, undefined, signal ?? interrupt.signal), areas });
+        const server = createMcpServer({ commands, context: (def, signal) => createContext(globals, def, signal ?? interrupt.signal), areas });
+        process.once('SIGINT', () => {
+          void server.close().finally(() => process.exit(130));
+        });
         await server.connect(new StdioServerTransport());
       },
     },

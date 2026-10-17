@@ -32,8 +32,9 @@ try {
   const envelope = JSON.parse(execFileSync(process.execPath, [bin, 'version'], { encoding: 'utf8' }));
   if (!envelope.ok || typeof envelope.data?.version !== 'string') fail(`toil version returned ${JSON.stringify(envelope)}`);
 
-  const reply = await mcpVersion(bin);
+  const { reply, stoppedOnSigint } = await mcpVersion(bin);
   if (reply?.structuredContent?.ok !== true) fail(`MCP tools/call version returned ${JSON.stringify(reply)}`);
+  if (!stoppedOnSigint) fail('toil mcp was still running 3s after SIGINT; the first Ctrl+C must stop it.');
 
   if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI and MCP both answered on Node ${process.versions.node} (${process.platform}).`);
 } catch (err) {
@@ -42,7 +43,11 @@ try {
   rmSync(work, { recursive: true, force: true });
 }
 
-/** Initialize an MCP session over stdio and call the version tool. */
+/**
+ * Initialize an MCP session over stdio, call the version tool, then send SIGINT
+ * and check the server exits, as a user pressing Ctrl+C once expects. (Windows
+ * has no real signals, so there it ends the process regardless.)
+ */
 function mcpVersion(bin) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [bin, 'mcp'], { stdio: ['pipe', 'pipe', 'inherit'] });
@@ -57,8 +62,15 @@ function mcpVersion(bin) {
         const message = JSON.parse(line);
         if (message.id === 2) {
           clearTimeout(timer);
-          child.kill();
-          resolve(message.result);
+          const stop = setTimeout(() => {
+            child.kill('SIGKILL');
+            resolve({ reply: message.result, stoppedOnSigint: false });
+          }, 3000);
+          child.once('exit', () => {
+            clearTimeout(stop);
+            resolve({ reply: message.result, stoppedOnSigint: true });
+          });
+          child.kill('SIGINT');
         }
       }
       buffer = buffer.slice(buffer.lastIndexOf('\n') + 1);
