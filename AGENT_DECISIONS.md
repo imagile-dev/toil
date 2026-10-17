@@ -154,6 +154,13 @@ the bottom of their section.
     seconds, then warns and leaves the exit code alone.
   - **Not done here:** `statusText` on `apiResponse`, and an opt-out of the 429
     retry. Neither had a port blocked on it.
+- **On Windows, a locked db test folder is left in temp with a warning** instead of
+  failing the test (#112). A SQLite worker stopped mid-statement holds the file
+  until the statement returns; that's not what any test checks
+  (`test/harness/db.ts`).
+- **`redactUrl` fails closed**: substring credential words plus names ending in key,
+  exempting clear identifiers. This overturned an earlier explicit-list call after
+  #113's review.
 
 ## Porting process
 
@@ -166,7 +173,24 @@ the bottom of their section.
 - **A review finding may be skipped when fixing it would add undue complexity**, on
   the maintainer's instruction of 2026-10-17. The rule is in CLAUDE.md's Delivery
   section. Each skip and its reason are recorded here, and in the thread.
+- **Wave 1 started before the kit-fix PR (#113) merged.** The ports merged `main` and
+  adopted its features after, rather than waiting for it.
+- **An approved PR at its round limit with only a cosmetic nit left is merged**, and
+  the nit goes in the next follow-up PR (#112's blank line in `test/harness/db.ts`,
+  fixed in the pilot cleanup).
 
 ## Per-integration decisions
 
 Added as each port lands.
+
+- **Jira and SonarQube adopt #113's kit** (pilot cleanup, #68):
+  - Jira `create-issue` reports a project from `--input-file` through `ctx.supply`,
+    source `file`. The file's value is still used as written, so an empty one gets
+    create-issue's own error, as the predecessor's `??` gave it.
+  - Jira `search` keeps its own `total`. `Paged.total` there is the end offset
+    clamped to `--max-results`, and it drops a total the server left out, where the
+    predecessor returned the server's value as sent.
+  - SonarQube `--all` uses the `page` style with `total`; its four project commands
+    mark `project` required, with the predecessor's message as `missing` and core's
+    fix. The hand-written `SONAR_TOKEN` precedence tests went, since
+    `test/fallbacks.test.ts` covers them.
