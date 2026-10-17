@@ -1,0 +1,55 @@
+[
+  {
+    "name": "status",
+    "tool": "git_status",
+    "description": "Show staged, unstaged, and untracked files as JSON",
+    "writes": false,
+    "connection": false,
+    "flags": []
+  },
+  {
+    "name": "diff",
+    "tool": "git_diff",
+    "description": "Show diff as structured JSON",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--staged",
+      "--file <path>"
+    ]
+  },
+  {
+    "name": "log",
+    "tool": "git_log",
+    "description": "Show recent commits as JSON",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--count <n>",
+      "--since <date>"
+    ]
+  },
+  {
+    "name": "branch",
+    "tool": "git_branch",
+    "description": "Show current branch and all local/remote branches",
+    "writes": false,
+    "connection": false,
+    "flags": []
+  },
+  {
+    "name": "report",
+    "tool": "git_report",
+    "description": "Report lines of code and commit counts for a branch, optionally filtered by date",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--branch <name>",
+      "--base <ref>",
+      "--since <date>",
+      "--until <date>",
+      "--csv",
+      "--out <file>"
+    ]
+  }
+]
