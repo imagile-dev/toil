@@ -9,6 +9,8 @@ import { createNodeContext } from './node-context.js';
 import { runProgram, type GlobalOptions } from './program.js';
 import { areas, commands } from './registry.js';
 import { VERSION } from './version.js';
+import { gatherWelcomeData } from './welcome/data.js';
+import { runWelcome, wantsWelcome } from './welcome/index.js';
 
 const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks }));
 
@@ -22,7 +24,11 @@ const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSi
   createNodeContext({ globals, def, signal, env: process.env, cwd: process.cwd(), home: homedir(), areas: areaInfo, version: VERSION, stderr: (t) => process.stderr.write(t) });
 
 try {
-  process.exitCode = await runProgram(
+  if (wantsWelcome(process.argv.slice(2), process.stdin, process.stdout, process.env)) {
+    const data = gatherWelcomeData({ version: VERSION, env: process.env, cwd: process.cwd(), home: homedir(), areas: areaInfo, script: process.argv[1] });
+    await runWelcome({ input: process.stdin, output: process.stdout, env: process.env }, data);
+  } else {
+    process.exitCode = await runProgram(
     {
       commands,
       version: VERSION,
@@ -44,6 +50,7 @@ try {
     },
     process.argv,
   );
+  }
   if (interrupt.signal.aborted) process.exitCode = 130;
 } catch (err) {
   process.exitCode = 1;
