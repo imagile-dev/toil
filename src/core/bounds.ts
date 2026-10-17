@@ -27,6 +27,7 @@ export const BOUNDS: readonly Bound[] = [
   { id: 'files.system', enforcedIn: ['src/core/files.ts', 'src/core/git-config.ts'], errors: ['INVALID_INPUT'], securityClass: true },
   { id: 'files.no-overwrite', enforcedIn: ['src/core/files.ts'], errors: ['INVALID_INPUT'], securityClass: true },
   { id: 'credentials.host', enforcedIn: ['src/core/api.ts', 'src/core/rest.ts'], errors: ['HTTP', 'AUTH'], securityClass: true },
+  { id: 'requests.path', enforcedIn: ['src/core/api.ts', 'src/core/rest.ts'], errors: ['INVALID_INPUT'], securityClass: true },
   { id: 'secrets.storage', enforcedIn: ['src/core/connection.ts'], errors: ['CONFIG_INVALID'], securityClass: true },
   { id: 'commands.cli-only', enforcedIn: ['src/mcp/server.ts'], errors: [], securityClass: true },
   { id: 'commands.time-limit', enforcedIn: ['src/core/run.ts'], errors: ['TIMEOUT', 'CANCELLED'], securityClass: false },

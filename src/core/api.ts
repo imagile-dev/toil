@@ -3,8 +3,8 @@ import type { CommandContext } from './context.js';
 import { ToilError } from './errors.js';
 import { redactUrl } from './http.js';
 import { multipart, type MultipartPart } from './multipart.js';
-import { buildUrl, restResponse, type BodyFormat, type QueryParam, type RedirectPolicy, type RestResponse } from './rest.js';
-import { exchangeToken, forgetToken, tokenKey, type TokenExchange } from './token.js';
+import { assertNoDotSegments, buildUrl, restResponse, type BodyFormat, type QueryParam, type RedirectPolicy, type RestResponse } from './rest.js';
+import { exchangeToken, forgetToken, tokenKey, tokenScope, type TokenExchange } from './token.js';
 
 /**
  * The one way an HTTP area talks to its service. The area declares, once, how
@@ -84,6 +84,8 @@ export interface ApiRequest {
    * refuses it.
    */
   redirect?: RedirectPolicy;
+  /** `false` returns a 429 at once instead of retrying it (see RestOptions). */
+  retryRateLimit?: false;
 }
 
 /** The parts of a command's context a request needs. */
@@ -137,9 +139,11 @@ export function graphqlData<T>(body: unknown, service: string, url: string): T {
 
 async function send<T>(area: AnyArea, ctx: ApiContext, path: string, req: ApiRequest): Promise<{ response: RestResponse<T>; service: string }> {
   if (!area.request) throw new Error(`Area ${area.name} has no request hook; declare defineArea({ request }) to use apiRequest.`);
+  // Before the URL parser can collapse a `..` an input put there.
+  assertNoDotSegments(path);
   const { body, contentType } = encode(req);
   for (let attempt = 1; ; attempt++) {
-    const scope = `${area.name}/${ctx.connection.name}`;
+    const scope = tokenScope(area, ctx.connection);
     const endpoint = await area.request(ctx.connection, area);
     const service = endpoint.service ?? area.name;
     const authFix = endpoint.authFix ?? `Check the credential on connection "${ctx.connection.name}".`;
@@ -177,6 +181,9 @@ async function send<T>(area: AnyArea, ctx: ApiContext, path: string, req: ApiReq
         ...(req.accept ? { accept: req.accept } : {}),
         ...(req.timeoutMs !== undefined ? { timeoutMs: req.timeoutMs } : {}),
         ...(req.redirect ? { redirect: req.redirect } : {}),
+        ...(req.retryRateLimit === false ? { retryRateLimit: false as const } : {}),
+        // So a network error names baseUrl only when that's the host that failed.
+        baseUrl: typeof ctx.connection.baseUrl === 'string' ? ctx.connection.baseUrl : null,
       };
       return { response: await restResponse<T>(ctx, url, init, options), service };
     } catch (err) {

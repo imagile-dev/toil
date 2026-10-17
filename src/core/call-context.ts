@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { AnyArea, Connection, ContextInput } from './area.js';
 import { commandName, type AnyCommand } from './command.js';
-import { connectionEnvName, defaultConnectionName, envName, type ResolvedConfig } from './config.js';
+import { connectionEnvName, connectionsOf, defaultConnectionName, envName, type ResolvedConfig } from './config.js';
 import { resolveConnection, selectConnection } from './connection.js';
 import type { ContextReport, ContextSource, ContextValue, Warning } from './envelope.js';
 import { ToilError } from './errors.js';
@@ -14,6 +14,7 @@ import type { SecretStore } from './keychain.js';
  *   1. the call's own value: a CLI flag or an MCP field
  *   2. the dossier (#16; until then, nothing)
  *   3. the working folder's git remote, where the area declares how to read it
+ *      (handed the resolved connection, so it can check the remote's host)
  *   4. the connection's setting, then the area's default
  *
  * A command may then fill one from a value it read itself (`ctx.supply`,
@@ -81,13 +82,15 @@ export async function resolveCall(
   const dossier = sources.dossier ?? noDossier;
 
   let remote: Promise<GitRemote | undefined> | undefined;
-  const fromGit = (spec: ContextInput): Promise<string | undefined> => {
+  const fromGit = (spec: ContextInput, connection: Connection | undefined): Promise<string | undefined> => {
     if (!spec.git || !sources.gitRemote) return Promise.resolve(undefined);
     remote ??= sources.gitRemote(signal);
-    return remote.then((r) => (r ? spec.git!(r) : undefined));
+    return remote.then((r) => (r ? spec.git!(r, connection) : undefined));
   };
 
-  // Steps 1 to 3, which don't need the connection, so a selecting input can pick it.
+  // Steps 1 to 3 for an input that may pick the connection, so it can; steps
+  // 1 and 2 for the rest. Their git step waits for the connection, so a
+  // parser can trust only a remote on that connection's host.
   const early: Record<string, ContextValue> = {};
   for (const name of Object.keys(needs)) {
     const spec = declared[name]!;
@@ -96,7 +99,7 @@ export async function resolveCall(
       early[name] = { value: explicit, source: 'input' };
       continue;
     }
-    const found = checked(area, name, spec, dossier(area.name, name), 'dossier') ?? checked(area, name, spec, await fromGit(spec), 'git');
+    const found = checked(area, name, spec, dossier(area.name, name), 'dossier') ?? (spec.selectsConnection ? checked(area, name, spec, await fromGit(spec, undefined), 'git') : undefined);
     if (found) early[name] = found;
   }
 
@@ -116,7 +119,7 @@ export async function resolveCall(
     try {
       selects = selectConnection(sources.config, area, name, spec.setting ?? name, found.value, flagOf(name, spec), found.source);
     } catch {
-      selects = undefined;
+      selects = jointSelection(sources.config, area, early, found.source);
     }
     if (selects !== connection.name) delete early[name];
   }
@@ -129,6 +132,7 @@ export async function resolveCall(
     const setting = spec.setting === undefined ? undefined : connection[spec.setting];
     const value =
       early[name] ??
+      (spec.selectsConnection ? undefined : checked(area, name, spec, await fromGit(spec, connection), 'git')) ??
       checked(area, name, spec, setting === undefined || setting === null ? undefined : String(setting), 'connection') ??
       checked(area, name, spec, spec.default, 'default');
     if (value) inputs[name] = value;
@@ -163,10 +167,18 @@ function chooseConnection(
   // input selects must agree, and the first step with either decides.
   for (const source of ['input', 'dossier', 'git'] as const) {
     let pick: ContextValue | undefined = named[source] === undefined ? undefined : { value: named[source]!, source };
+    const joint = jointSelection(config, area, early, source);
     for (const [name, found] of Object.entries(early)) {
       const spec = declared[name]!;
       if (!spec.selectsConnection || found.source !== source) continue;
-      const selected = selectConnection(config, area, name, spec.setting ?? name, found.value, flagOf(name, spec), found.source);
+      let selected: string;
+      try {
+        selected = selectConnection(config, area, name, spec.setting ?? name, found.value, flagOf(name, spec), found.source);
+      } catch (err) {
+        // Several connections have env prod, but only one is env prod and instance east.
+        if (joint === undefined) throw err;
+        selected = joint;
+      }
       if (pick && pick.value !== selected) {
         const first = pick.via ? `${flagOf(pick.via, declared[pick.via]!).split(' ')[0]} selects connection ${pick.value}` : `--connection is ${pick.value}`;
         const where = { input: 'the call', dossier: 'your dossier', git: 'the git remote' }[source];
@@ -179,6 +191,26 @@ function chooseConnection(
     if (pick) return pick;
   }
   return undefined;
+}
+
+/**
+ * The one connection that every selecting value from `source` matches at
+ * once (`--env prod --instance east`), when there are two or more such
+ * values. A connection matches a value by its name or by the input's
+ * setting. None, or several, is undefined: each value then speaks for itself,
+ * with the usual errors. Two signatures on one form identify one applicant.
+ */
+function jointSelection(config: ResolvedConfig, area: AnyArea, early: Record<string, ContextValue>, source: ContextSource): string | undefined {
+  const declared = area.context as Record<string, ContextInput>;
+  const selecting = Object.entries(early).filter(([name, found]) => declared[name]!.selectsConnection && found.source === source);
+  if (selecting.length < 2) return undefined;
+  const matches = connectionsOf(config, area.name).filter((conn) =>
+    selecting.every(([name, found]) => {
+      const value = config.connections[conn]![declared[name]!.setting ?? name];
+      return conn === found.value || (value !== undefined && value !== null && String(value) === found.value);
+    }),
+  );
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 /** A value from a source other than the call, validated as the input's schema says; INVALID_INPUT names where it came from. */

@@ -37,6 +37,36 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string 
    * connection, below TOIL_* variables and above the config file.
    */
   fallbacks?: Partial<Record<SettingKey<S>, string[]>>;
+  /**
+   * An example value for a key, which the fix names when the key is missing
+   * (`baseUrl: 'https://api.figma.com'` gives "Set TOIL_FIGMA_BASE_URL (e.g.
+   * https://api.figma.com)"). Only text for a person to read: it's never a
+   * default, and toil never connects to it.
+   */
+  examples?: Partial<Record<SettingKey<S>, string>>;
+  /**
+   * Paths in this area that run a core command for this area alone, the core
+   * command fixing its `area` input: `{ 'instance list': 'connections list' }`
+   * makes `toil <area> instance list` list only this area's connections. The
+   * area's own code never sees the config; core answers. CLI only, like every
+   * alias; MCP has the core tool, with its `area` field.
+   */
+  coreAliases?: Record<string, string>;
+  /**
+   * The error when no connection to this area is set up at all, in the
+   * area's own words, where the predecessor had them ("OSS Index needs an
+   * account token…"). `fix` defaults to core's, which names the variables
+   * to set. Without it, core says "No <area> connection is set up."
+   */
+  notConfigured?: { message: string; fix?: string };
+  /**
+   * Keys the area no longer accepts, each with what to say about it
+   * (checkmarx's `clientId`: "Client credentials are no longer supported;
+   * set apiKey."). A connection that still sets one gets that message as a
+   * `CONFIG_REMOVED_KEY` warning instead of core's unknown-key one, and the
+   * value is dropped, never sent. A removed key can't be a connection key.
+   */
+  removed?: Record<string, string>;
   /** Keys that were renamed: old name to new. The old name still works, with a warning. */
   renamed?: Record<string, SettingKey<S>>;
   /**
@@ -105,8 +135,15 @@ export interface ContextInput {
   setting?: string;
   /** The area's own default, after the connection. */
   default?: string;
-  /** Reads the value from the working folder's git remote; the reader is core's, the parsing is the area's. */
-  git?: (remote: GitRemote) => string | undefined;
+  /**
+   * Reads the value from the working folder's git remote; the reader is
+   * core's, the parsing is the area's. It gets the call's resolved
+   * connection too, so it can trust only a remote on the connection's own host
+   * (`baseUrl`). An input that `selectsConnection` is read before there is a
+   * connection, so it gets `undefined`.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  git?: (remote: GitRemote, connection: Connection<any> | undefined) => string | undefined;
   /**
    * The value picks the connection, as `--instance prod` or `--env staging`
    * do: a connection of this area with that name, or else the one whose
@@ -152,8 +189,8 @@ export interface Area<S extends z.ZodObject = z.ZodObject, K extends string = st
 
 /** What an area command declares; `path[0]` must be the area's name. */
 export type AreaCommand<I extends z.ZodObject, C, K extends string = string> = Omit<CommandDefinition<I>, 'run' | 'kind' | 'area' | 'context' | 'examples'> & {
-  /** Real inputs, which may set the context inputs core adds. */
-  examples: Array<z.input<I> & Partial<Record<K, string>>>;
+  /** Real inputs, which may set the context inputs core adds, even on a command with no inputs of its own. */
+  examples: Array<OwnFields<z.input<I>> & Partial<Record<K, string>>>;
   /** `area-local` for a command that needs no connection (`jira schema`). Defaults to `area`. */
   kind?: 'area' | 'area-local';
   /** Command-level context inputs it takes, and any input (group-level too) it can't do without. */
@@ -161,6 +198,14 @@ export type AreaCommand<I extends z.ZodObject, C, K extends string = string> = O
   /** An `area-local` command's `ctx.connection` is undefined at run time, whatever this type says; it has no connection to read. */
   run(input: z.output<I>, ctx: CommandContext<Connection<C>, Partial<Record<K, string>>>): Promise<unknown>;
 };
+
+/**
+ * A schema's input without an index signature. `z.object({})` reads as
+ * `Record<string, never>`, which no example with a context input could
+ * satisfy (`{ env: 'prod' }` on `openshift cluster list`); keeping only the
+ * named fields lets the context inputs in.
+ */
+type OwnFields<T> = { [P in keyof T as string extends P ? never : P]: T[P] };
 
 // Areas of many connection shapes share one registry.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -190,6 +235,12 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
   const secrets = Object.keys(secretKinds) as Array<SettingKey<S>>;
   for (const key of secrets) {
     if (!(key in spec.connection.shape)) throw new Error(`Area ${spec.name}: secret "${key}" isn't a connection key.`);
+  }
+  for (const key of Object.keys(spec.examples ?? {})) {
+    if (!(key in spec.connection.shape)) throw new Error(`Area ${spec.name}: example "${key}" isn't a connection key.`);
+  }
+  for (const key of Object.keys(spec.removed ?? {})) {
+    if (key in spec.connection.shape || key in (spec.renamed ?? {})) throw new Error(`Area ${spec.name}: removed key "${key}" is still a connection key or a renamed one.`);
   }
   const context = { ...(spec.context ?? {}) } as Record<string, ContextInput>;
   for (const [name, input] of Object.entries(context)) {
@@ -222,6 +273,12 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
       // execute()'s default limit (DEFAULT_TIMEOUT_MS in run.ts). A declared one only ever raises it.
       if (def.timeLimitMs !== undefined && !(Number.isInteger(def.timeLimitMs) && def.timeLimitMs > 120_000)) {
         throw new Error(`Command ${name}: timeLimitMs is for a limit above the 120 s default, in whole milliseconds; ${def.timeLimitMs} isn't.`);
+      }
+      if (def.mcp !== undefined && def.mcp !== false) throw new Error(`Command ${name}: "mcp" is false, to keep it off MCP, or left out.`);
+      if (def.connectionOptional !== undefined) {
+        if (def.connectionOptional !== true || kind !== 'area') throw new Error(`Command ${name}: "connectionOptional" is true, on an area command that has a connection, or left out.`);
+        if (def.writes) throw new Error(`Command ${name}: a write always needs its connection, so it can't be connectionOptional.`);
+        if (Object.values(def.context ?? {}).includes('required')) throw new Error(`Command ${name}: a connectionOptional command can run with no context inputs, so none can be required.`);
       }
       if (kind === 'area-local') {
         if (def.context) throw new Error(`Command ${name}: an area-local command has no connection, so no context inputs.`);
