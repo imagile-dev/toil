@@ -38,6 +38,16 @@ the **MCP gateway** (`docs/mcp-gateway.md`, issue #4): its own opt-in package on
 same core, Streamable HTTP, and mandatory authentication. Don't add an HTTP transport
 to the base package; that work belongs to the gateway.
 
+## Dossier context over MCP
+
+A stdio server's own working directory means nothing, because it's wherever the
+client launched it. Commands that resolve dossier context (`docs/dossiers.md`) take
+a `cwd` input on both front doors. The CLI defaults it to its working directory;
+MCP defaults it to the client's MCP root when the client reports exactly one,
+converting the `file://` URI with Node's URL handling. Any other file location
+(`--repo`, a dossier file) is an explicit input too, so the two doors stay 1:1, and
+`meta.context` says which default applied.
+
 ## Verifying with a real client
 
 The in-memory parity suite and `smoke` don't prove a real agent can use the server.

@@ -27,6 +27,10 @@ its `defineArea` (connection schema, secrets, CI fallbacks) and its commands, a
 `skills/toil/<service>.md`, and its row in `SKILL.md`. This skill holds the
 checklist; a test fails when a registered service has no skill file.
 
+Once dossiers are built (`docs/dossiers.md`), an area also declares the zod schema
+of its dossier section and a read-only `toil <area> check-dossier` command, and its
+section selects a connection by `connection` name or `host`, never by anything else.
+
 **Every change to an integration reviews its site documentation in the same PR.**
 That covers a new integration, a new or changed command, a changed credential or
 config key, and a raised verification level. Each integration has its own page in
