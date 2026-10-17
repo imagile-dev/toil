@@ -86,14 +86,6 @@ export async function resolveConnection(
 }
 
 /**
- * Swaps each `keychain:<ref>` on a secret key for the secret it names. An env
- * var already replaced the stored value before this runs, so env still wins
- * and the store isn't asked about a key nobody will read. A reference that
- * can't be resolved becomes unset, never the literal string: the schema then
- * reports the key as missing, with the variable to set, and nothing is sent.
- * Saying "see attached" with nothing attached is a tradition we decline to join.
- */
-/**
  * A secret in a config file must be a `keychain:` reference: config holds
  * nothing worth stealing, so a command that can read files can't leak a token
  * by reading it. Env-var values are exempt, since they never sit in a file.
@@ -118,6 +110,14 @@ function refusePlaintextSecrets(config: ResolvedConfig, area: AnyArea, name: str
   });
 }
 
+/**
+ * Swaps each `keychain:<ref>` on a secret key for the secret it names. An env
+ * var already replaced the stored value before this runs, so env still wins
+ * and the store isn't asked about a key nobody will read. A reference that
+ * can't be resolved becomes unset, never the literal string: the schema then
+ * reports the key as missing, with the variable to set, and nothing is sent.
+ * Saying "see attached" with nothing attached is a tradition we decline to join.
+ */
 async function resolveSecrets(
   settings: Settings,
   area: AnyArea,
