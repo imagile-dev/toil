@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { CONNECTION_FIELD } from '../src/core/area.js';
 import { areaOf, commandName, toolName, type AnyCommand } from '../src/core/command.js';
@@ -22,6 +22,9 @@ import { connectMcp, type McpSession } from './harness/mcp.js';
  * fixture, with no test to remember to write.
  */
 const fixtures = await loadFixtures();
+afterAll(() => {
+  for (const f of fixtures) f.cleanup?.();
+});
 const suites: Array<{ name: string; commands: AnyCommand[]; routes: Route[]; config: Record<string, Settings> }> = [
   { name: 'standalone commands', commands: commands.filter((def) => def.standalone), routes: [], config: {} },
   ...fixtures.map((f) => ({ name: `${f.area} area`, commands: f.commands, routes: f.routes, config: f.config })),
