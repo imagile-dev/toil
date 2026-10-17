@@ -65,9 +65,10 @@ The token never goes in this file; a plaintext one there is refused with
 `--env <name>` and `--instance <name>` go on the group (`toil openshift --env prod
 --instance east pods ...`) or after the command. Each picks the connection with that
 name, or the one whose `env` (or `instance`) setting matches. Given together, they
-must pick the same connection. Each value has to identify one connection on its own:
-with two `prod` clusters, `--env prod` is an `INVALID_INPUT` naming both, so pick one
-with `--instance` (when its instance name is unique) or `--connection <name>`. An
+must pick the same connection. When a value matches several, the other flag narrows
+it: with two `prod` clusters, `--env prod --instance east` picks the one that is both,
+while `--env prod` alone is an `INVALID_INPUT` naming them, so add `--instance` or use
+`--connection <name>`. An
 unknown name is an `INVALID_INPUT` listing the clusters toil knows. With neither
 flag, the default connection is used (`defaults.openshift.connection`, else the one
 named `openshift`, else the only one).

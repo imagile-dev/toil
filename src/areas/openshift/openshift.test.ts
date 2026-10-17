@@ -379,10 +379,13 @@ describe('choosing a cluster', () => {
     expect(byInstance.calls[0]!.url).toContain('https://prod-west.openshift.imagile.dev/');
   });
 
-  it('--env and --instance must pick the same cluster, and a value that matches several is refused naming them', async () => {
+  it('--env and --instance pick a cluster together, must agree, and a value that matches several is refused naming them', async () => {
     const disagree = await run(podMetricsCommand, { namespace: NAMESPACE, env: 'dev', instance: 'west' }, [], { clusters });
     expect(disagree.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('Two different connections') });
-    const ambiguous = await run(podMetricsCommand, { namespace: NAMESPACE, env: 'prod', instance: 'east' }, [], { clusters });
+    // KF3 (#136): each alone is ambiguous here, so the pair picks the one cluster that matches both.
+    const together = await run(podMetricsCommand, { namespace: NAMESPACE, env: 'prod', instance: 'east' }, [json(podMetrics)], { clusters });
+    expect(together.calls[0]!.url).toContain('https://prod-east.openshift.imagile.dev/');
+    const ambiguous = await run(podMetricsCommand, { namespace: NAMESPACE, env: 'prod' }, [], { clusters });
     expect(ambiguous.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Several openshift connections have env "prod" (from the call): prod-east, prod-west.' });
     expect(ambiguous.calls).toEqual([]);
   });
