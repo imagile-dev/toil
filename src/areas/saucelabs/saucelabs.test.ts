@@ -61,6 +61,13 @@ describe('auth and errors', () => {
     expect(calls[0]!.url).toBe(`${SAUCE}/rest/v1/imagile%20qa/tunnels/a%2Fb`);
   });
 
+  it('an id of .. is refused before any request, so a delete cannot climb out of the job path (core bound requests.path)', async () => {
+    const { envelope, calls } = await run(jobDeleteCommand, { jobId: '..', ...write }, []);
+    expect(calls).toEqual([]);
+    expect(envelope.error?.code).toBe('INVALID_INPUT');
+    expect((await run(tunnelGetCommand, { tunnelId: ' . ' }, [])).envelope.error?.code).toBe('INVALID_INPUT');
+  });
+
   it("reads a FastAPI-style { detail } body as the error message", async () => {
     const { envelope } = await run(sessionCreateCommand, write, [{ method: 'POST', url: /.*/, respond: { status: 409, json: { type: 'about:blank', title: 'Conflict', detail: 'Concurrency limit reached' } } }]);
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'Concurrency limit reached' });
