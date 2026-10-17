@@ -50,6 +50,18 @@ export const jiraArea = defineArea({
     priority: z.string().min(1).optional().describe('Default priority for create-issue'),
   }),
   secrets: ['apiToken'],
+  context: {
+    // Only create-issue lists it: the other --project flags never fell back to
+    // a configured project, and a context input always would.
+    project: {
+      scope: 'command',
+      flags: '--project <key>',
+      description: 'Project key (or "project" in --input-file)',
+      setting: 'project',
+      // Any string, as before: an empty --project still gets create-issue's own error.
+      schema: z.string(),
+    },
+  },
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Bearer ${connection.apiToken}` },

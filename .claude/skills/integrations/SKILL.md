@@ -117,17 +117,17 @@ versions.
   --instance`, `openshift --env --instance`, `dynatrace --env`) are `group` inputs,
   with the contract's spelling in `flags`; a per-command one (`jira --project`) is a
   `command` input the command lists in its `context`, marked `required` where the
-  predecessor failed without it. Give it a `setting` when the connection can hold a
+  predecessor failed without it, unless the command has its own fallback (a project in
+  `--input-file`); then keep it optional and fill that step with `ctx.supply` (step 3).
+  A flag that names a target but never fell back to a setting stays an ordinary
+  option (Jira's `fields`, `list-boards`, `list-sprints`); a context input always
+  falls back. Give it a `setting` when the connection can hold a
   default, `git` when the remote names it, and `selectsConnection` when the old CLI
   picked an instance or environment by it. Read it from `ctx.context`. When the
   predecessor had its own wording for a missing one ("No project specified. Use
   --project or set defaults.sonar.project in config."), keep it with the input's
   `missing: { message, fix? }`; the fix defaults to core's, which names the flag,
   the setting and its env var.
-- **A flag that names a target but never fell back to a setting** stays an
-  ordinary option, not a context input: a context input with a `setting` always
-  falls back to it, which would change what the command does with no flag given
-  (Jira's `--project` on `fields`, `list-boards` and `list-sprints`).
 - **Another area's credential** (Kibana on Elasticsearch's key) is `defineArea({
   shares: { area, keys } })`. It declares which keys a connection may pair, nothing
   more: the user pairs one with `<key>From` (`"apiKeyFrom": "es-prod"`), and the

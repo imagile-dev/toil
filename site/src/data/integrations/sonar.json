@@ -7,5 +7,11 @@
   "credential": "User token",
   "credentialNote": "SONAR_TOKEN, the variable SonarSource's own scanner reads, is used when no toil token is set",
   "credentialWhere": "My Account → Security → Generate Tokens",
-  "status": "planned"
+  "status": "unit",
+  "supported": {
+    "product": "SonarQube Server",
+    "minimum": null,
+    "api": "Web API",
+    "note": "toil calls the unversioned Web API (/api/...) with a user token sent as a Bearer header. No release has been verified yet."
+  }
 }
