@@ -212,7 +212,10 @@ npm run smoke       # install the tarball with scripts off; drive CLI and MCP (a
 ```
 
 All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 22.16
-and 24.
+and 24. Its `CI ok` job passes only when every one of those passed, and it's the one
+check `main`'s ruleset requires, so nothing merges on a red gate. Other checks stay
+optional: the review job (approval is required separately, and it skips the release
+PR) and path-filtered jobs, which would block PRs they never run on.
 
 ## Output Contract
 
