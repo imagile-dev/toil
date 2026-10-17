@@ -58,6 +58,7 @@ for (const suite of suites) {
         const mapped = [...(def.args ?? []), ...(def.options ?? [])].map((x) => x.field);
         expect(new Set(mapped), `${commandName(def)}: CLI fields`).toEqual(new Set(fields));
         if (def.writes) expect(def.input.shape, `${commandName(def)} must accept allowWrite`).toHaveProperty('allowWrite');
+        if (def.writes) expect(['fetch', 'self'], `${commandName(def)} must declare how it honours --dry-run`).toContain(def.dryRun);
       }
     });
 

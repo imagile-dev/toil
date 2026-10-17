@@ -57,6 +57,13 @@ describe('toil CLI', () => {
     expect(JSON.parse(run.files['err.json']!)).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' }, meta: { command: 'demo rename-thing' } });
   });
 
+  it('honours --output-file=path on a usage error too', async () => {
+    const { context } = testContext();
+    const run = await runCli(['--output-file=err.json', 'nope'], { commands, context });
+    expect(run.stdout).toBe('');
+    expect(JSON.parse(run.files['err.json']!)).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' }, meta: { command: 'nope' } });
+  });
+
   it('still prints plain help, not an envelope, for --help', async () => {
     const { context } = testContext();
     const run = await runCli(['--help'], { commands, context });

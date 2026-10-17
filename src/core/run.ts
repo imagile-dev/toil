@@ -30,8 +30,18 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
         details: parsed.error.issues,
       });
     }
-    // A dry run sends no writes, so it needs no permission to make one.
-    if (def.writes && !ctx.dryRun) assertWritesAllowed(def, parsed.data, ctx);
+    // --dry-run only ever adds protection: a preview needs the same two
+    // approvals as the real write, because core can only intercept writes that
+    // go through ctx.fetch, and a command that writes any other way would
+    // otherwise run with neither approval.
+    if (def.writes) {
+      assertWritesAllowed(def, parsed.data, ctx);
+      if (ctx.dryRun && def.dryRun !== 'fetch' && def.dryRun !== 'self') {
+        throw new ToilError('INVALID_INPUT', `${commandName(def)} can't run under --dry-run: it doesn't declare how it keeps a dry run from writing.`, {
+          fix: 'Run it without --dry-run, or report this so the command can declare dry-run support.',
+        });
+      }
+    }
     const data = await def.run(parsed.data, { ...ctx, fetch: instrumentFetch(ctx.fetch, requests, ctx.dryRun) });
     return success(data, meta());
   } catch (err) {

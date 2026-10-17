@@ -51,6 +51,7 @@ export const renameThing = defineCommand({
     ...allowWriteField,
   }),
   writes: true,
+  dryRun: 'fetch',
   args: [{ name: 'id', field: 'id', description: 'Thing id' }],
   options: [{ flags: '--name <name>', field: 'name', description: 'New name' }],
   examples: [{ id: 'THING-1', name: 'Renamed', allowWrite: true }],

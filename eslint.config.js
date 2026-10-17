@@ -18,6 +18,15 @@ export default tseslint.config(
     },
   },
   {
+    // Commands reach the network only through ctx.fetch, which core instruments
+    // for --dry-run and --verbose. A bare fetch would skip both.
+    files: ['src/areas/**/*.ts'],
+    rules: {
+      'no-restricted-globals': ['error', { name: 'fetch', message: 'Use ctx.fetch: core intercepts it for --dry-run and --verbose.' }],
+      'no-restricted-properties': ['error', { object: 'globalThis', property: 'fetch', message: 'Use ctx.fetch: core intercepts it for --dry-run and --verbose.' }],
+    },
+  },
+  {
     files: ['scripts/**/*.mjs', 'test/**/*.ts', '*.config.ts', '*.config.js'],
     rules: { 'no-restricted-imports': 'off' },
     languageOptions: { globals: { process: 'readonly', console: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly', URL: 'readonly' } },

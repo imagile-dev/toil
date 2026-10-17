@@ -175,7 +175,16 @@ a breaking change.
 - **`--dry-run` sends no writes, from either front door.** `execute()` hands every
   command an instrumented fetch: reads go through, and the first write is captured,
   not sent, and returned as `{ dryRun: true, wouldSend: [...] }` with credentials
-  redacted. A dry run skips the write gate, because it writes nothing.
+  redacted.
+  - **A dry run only ever adds protection.** Write commands still need both write
+    approvals under `--dry-run`, because core can only intercept writes made through
+    `ctx.fetch`.
+  - **Every write command declares `dryRun`.** `'fetch'` means all its writes go
+    through `ctx.fetch`. `'self'` means it checks `ctx.dryRun` and skips its own
+    writes, such as a database statement or a file edit. One that declares neither is
+    refused under `--dry-run`, and the parity suite requires the declaration.
+  - **Commands under `src/areas/` may not call `fetch` directly**, and ESLint enforces
+    it.
 - **`--verbose` adds `meta.requests`**: method, URL with credentials redacted, status
   and timing for every request. It never includes headers or bodies.
 - Both live in core, so no command implements them and no front door can forget them.

@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { toolName } from '../src/core/command.js';
+import { z } from 'zod';
+import { defineCommand, toolName } from '../src/core/command.js';
+import { allowWriteField, execute } from '../src/core/run.js';
 import { redactUrl } from '../src/core/http.js';
 import { argvFor } from '../src/program.js';
 import { demoCommands, demoRoutes, getThing, renameThing } from './fixtures/demo-commands.js';
@@ -46,11 +48,69 @@ describe('--dry-run', () => {
     expect(flat(viaMcp.envelope)).toEqual(flat(viaCli.envelope));
   });
 
-  it('previews a write without the write gate, since nothing is written', async () => {
+  it('still needs both write approvals: a preview never removes protection', async () => {
     const { context, http } = testContext({ config: { demo: { token: 't' } }, routes: demoRoutes, dryRun: true });
     const run = await runCli(argvFor(renameThing, { id: 'THING-1', name: 'x' }), { commands: demoCommands, context });
-    expect(run.envelope).toMatchObject({ ok: true, data: { dryRun: true } });
+    expect(run.envelope?.error?.code).toBe('WRITE_DISABLED');
     expect(http.calls).toHaveLength(0);
+  });
+
+  it('refuses a write that bypasses ctx.fetch, before it runs, when the gate is closed', async () => {
+    let wrote = 0;
+    const dbWrite = defineCommand({
+      path: ['db', 'exec'],
+      description: 'test',
+      input: z.object({ ...allowWriteField }),
+      writes: true,
+      examples: [{}],
+      run: async () => {
+        wrote++;
+        return { rows: 1 };
+      },
+    });
+    const { context } = testContext({ config: { db: { url: 'x' } }, dryRun: true });
+    const envelope = await execute(dbWrite, {}, context);
+    expect(envelope.error?.code).toBe('WRITE_DISABLED');
+    expect(wrote).toBe(0);
+  });
+
+  it('refuses a write command that declares no dry-run support, even with the gate open', async () => {
+    let wrote = 0;
+    const dbWrite = defineCommand({
+      path: ['db', 'exec'],
+      description: 'test',
+      input: z.object({ ...allowWriteField }),
+      writes: true,
+      examples: [{ allowWrite: true }],
+      run: async () => {
+        wrote++;
+        return { rows: 1 };
+      },
+    });
+    const { context } = testContext({ config: { db: { url: 'x', writes: true } }, dryRun: true });
+    const envelope = await execute(dbWrite, { allowWrite: true }, context);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--dry-run') });
+    expect(wrote).toBe(0);
+  });
+
+  it("trusts a 'self' command to honour ctx.dryRun", async () => {
+    let wrote = 0;
+    const fileEdit = defineCommand({
+      path: ['code', 'rename'],
+      description: 'test',
+      input: z.object({ ...allowWriteField }),
+      writes: true,
+      dryRun: 'self',
+      examples: [{ allowWrite: true }],
+      run: async (_input, ctx) => {
+        if (!ctx.dryRun) wrote++;
+        return { planned: ['src/a.ts'], applied: !ctx.dryRun };
+      },
+    });
+    const { context } = testContext({ config: { code: { writes: true } }, dryRun: true });
+    const envelope = await execute(fileEdit, { allowWrite: true }, context);
+    expect(envelope).toMatchObject({ ok: true, data: { applied: false }, meta: { dryRun: true } });
+    expect(wrote).toBe(0);
   });
 
   it('lets reads through, so a read-only command still answers', async () => {

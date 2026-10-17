@@ -86,9 +86,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
         // Only context creation (config loading) can throw here; execute never does.
         envelope = failure(toToilError(err), { command: commandName(def), durationMs: 0, version: options.version });
       }
-      const json = JSON.stringify(envelope, null, globals.pretty ? 2 : undefined) + '\n';
-      if (globals.outputFile) io.writeFile(globals.outputFile, json);
-      else io.stdout(json);
+      emit(envelope, globals, io);
       result.exitCode = envelope.ok ? 0 : 1;
     });
   }
@@ -163,6 +161,7 @@ function commandFromArgv(args: string[], commands: AnyCommand[]): string {
       i++;
       continue;
     }
+    if ([...VALUE_GLOBALS].some((flag) => token.startsWith(`${flag}=`))) continue;
     if (token.startsWith('-')) {
       if (words.length > 0) break;
       continue;
@@ -185,9 +184,15 @@ function commandFromArgv(args: string[], commands: AnyCommand[]): string {
 /** The output flags, read straight from argv when commander couldn't parse it. */
 function globalsFromArgv(args: string[]): GlobalOptions {
   const globals: GlobalOptions = { pretty: args.includes('--pretty') };
-  const i = args.indexOf('--output-file');
-  const next = i === -1 ? undefined : args[i + 1];
-  if (next && !next.startsWith('-')) globals.outputFile = next;
+  for (let i = 0; i < args.length; i++) {
+    const token = args[i]!;
+    // Commander accepts both `--output-file path` and `--output-file=path`.
+    if (token.startsWith('--output-file=')) globals.outputFile = token.slice('--output-file='.length) || undefined;
+    else if (token === '--output-file') {
+      const next = args[i + 1];
+      if (next && !next.startsWith('-')) globals.outputFile = next;
+    }
+  }
   return globals;
 }
 
