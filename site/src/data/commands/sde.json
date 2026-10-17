@@ -1,0 +1,119 @@
+[
+  {
+    "name": "server-info",
+    "tool": "sde_server_info",
+    "description": "Get server version and platform info (requires super-user)",
+    "writes": false,
+    "connection": true,
+    "flags": []
+  },
+  {
+    "name": "whoami",
+    "tool": "sde_whoami",
+    "description": "Get current authenticated user",
+    "writes": false,
+    "connection": true,
+    "flags": []
+  },
+  {
+    "name": "users",
+    "tool": "sde_users",
+    "description": "List users",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--email <email>",
+      "--first-name <name>",
+      "--last-name <name>",
+      "--active <bool>",
+      "--page <n>",
+      "--page-size <n>",
+      "--all"
+    ]
+  },
+  {
+    "name": "projects",
+    "tool": "sde_projects",
+    "description": "List projects",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--name <name>",
+      "--search <text>",
+      "--active <val>",
+      "--ordering <field>",
+      "--expand <fields>",
+      "--include <fields>",
+      "--page <n>",
+      "--page-size <n>",
+      "--all"
+    ]
+  },
+  {
+    "name": "project",
+    "tool": "sde_project",
+    "description": "Get a single project by ID",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--expand <fields>",
+      "--include <fields>",
+      "--id <id>"
+    ]
+  },
+  {
+    "name": "tasks",
+    "tool": "sde_tasks",
+    "description": "List countermeasures for a project",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--phase <slug>",
+      "--priority <n>",
+      "--status <id>",
+      "--assigned-to <email>",
+      "--source <val>",
+      "--verification <val>",
+      "--tag <name>",
+      "--accepted <bool>",
+      "--relevant <bool>",
+      "--expand <fields>",
+      "--include <fields>",
+      "--page <n>",
+      "--page-size <n>",
+      "--all",
+      "--project <id>"
+    ]
+  },
+  {
+    "name": "task",
+    "tool": "sde_task",
+    "description": "Get a single countermeasure",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--task <id>",
+      "--expand <fields>",
+      "--include <fields>",
+      "--project <id>"
+    ]
+  },
+  {
+    "name": "threats",
+    "tool": "sde_threats",
+    "description": "List threats for a project",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--severity <n>",
+      "--search <text>",
+      "--ordering <field>",
+      "--capec-id <id>",
+      "--component-id <id>",
+      "--page <n>",
+      "--page-size <n>",
+      "--all",
+      "--project <id>"
+    ]
+  }
+]

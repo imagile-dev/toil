@@ -1,0 +1,18 @@
+[
+  {
+    "key": "connectionString",
+    "env": "TOIL_SDE_CONNECTION_STRING",
+    "description": "API token and server host in one value, <token>@<host>, e.g. abc12345@sde.imagile.dev or abc12345@imagile.sdelements.com",
+    "required": false,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "project",
+    "env": "TOIL_SDE_PROJECT",
+    "description": "Default project ID for project, tasks, task and threats",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]
