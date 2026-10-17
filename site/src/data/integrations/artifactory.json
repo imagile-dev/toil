@@ -6,5 +6,11 @@
   "covers": "Repositories, artifact search, versions, licenses",
   "credential": "Access token",
   "credentialWhere": "Your profile → Edit Profile → Generate an Identity Token",
-  "status": "planned"
+  "status": "unit",
+  "supported": {
+    "product": "JFrog Artifactory",
+    "minimum": null,
+    "api": "REST API",
+    "note": "toil calls the classic REST API (api/...) and AQL with an access or identity token sent as a Bearer header. No release has been verified yet."
+  }
 }
