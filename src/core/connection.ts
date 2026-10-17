@@ -2,7 +2,7 @@ import type { z } from 'zod';
 import { pairingKey, type AnyArea, type Connection } from './area.js';
 import { connectionEnvName, connectionsOf, connectionWrites, defaultConnectionName, envName, type ResolvedConfig, type Settings } from './config.js';
 import type { ContextReport, ContextSource, Warning } from './envelope.js';
-import { ToilError } from './errors.js';
+import { ToilError, withArticle } from './errors.js';
 import { isKeychainRef, refName, type SecretStore } from './keychain.js';
 import { fromText } from './schema.js';
 
@@ -36,8 +36,8 @@ export async function resolveConnection(
       const required = requiredKeys(area.connection);
       throw new ToilError('NOT_CONFIGURED', `No ${area.name} connection is set up.`, {
         fix: required.length
-          ? `Set ${required.map((k) => defaultVar(area, k)).join(' and ')}, or add a ${area.name} connection to your toil config.`
-          : `Add a ${area.name} connection to your toil config.`,
+          ? `Set ${required.map((k) => defaultVar(area, k)).join(' and ')}, or add ${withArticle(area.name)} connection to your toil config.`
+          : `Add ${withArticle(area.name)} connection to your toil config.`,
       });
     }
     // Several candidates and no default: ask. Picking one would be quicker, and
@@ -51,12 +51,12 @@ export async function resolveConnection(
   if (!stored) {
     const known = connectionsOf(config, area.name);
     throw new ToilError('INVALID_INPUT', `There's no connection named "${name}".`, {
-      fix: known.length ? `Use one of the ${area.name} connections: ${known.join(', ')}.` : `Add a ${area.name} connection named "${name}" to your toil config.`,
+      fix: known.length ? `Use one of the ${area.name} connections: ${known.join(', ')}.` : `Add ${withArticle(area.name)} connection named "${name}" to your toil config.`,
     });
   }
   if (stored.area !== area.name) {
-    throw new ToilError('INVALID_INPUT', `Connection "${name}" is a ${stored.area} connection, not ${area.name}.`, {
-      fix: `Use a ${area.name} connection: ${connectionsOf(config, area.name).join(', ') || `(none set up yet)`}.`,
+    throw new ToilError('INVALID_INPUT', `Connection "${name}" is ${withArticle(stored.area)} connection, not ${area.name}.`, {
+      fix: `Use ${withArticle(area.name)} connection: ${connectionsOf(config, area.name).join(', ') || `(none set up yet)`}.`,
     });
   }
 
@@ -66,14 +66,21 @@ export async function resolveConnection(
   delete own.area;
   delete own.writes;
   refusePlaintextSecrets(config, area, name, shared, own);
-  const merged = renameKeys({ ...(area.defaults ?? {}), ...shared, ...own }, area, name, warn);
+  // How each key's value ranks, so an old name set in a higher tier beats a new name set lower.
+  const tier = (key: string): number => {
+    const source = config.sources[`${name}.${key}`];
+    // env (rules 1 and 2), then a CI fallback (rule 3), then the file, defaults.<area>, provider defaults.
+    if (key in own) return source === 'env' ? 0 : source === 'ci' ? 1 : 2;
+    return key in shared ? 3 : 4;
+  };
+  const merged = renameKeys({ ...(area.defaults ?? {}), ...shared, ...own }, area, name, warn, tier);
   await resolveSecrets(merged, area, name, secrets, warn, signal);
   if (area.shares) await takeShared(config, area, name, stored, merged, { warn, secrets, signal, report: options.shared });
 
   const shape = area.connection.shape as Record<string, z.ZodType>;
   for (const key of Object.keys(merged)) {
     if (!(key in shape)) {
-      warn({ code: 'CONFIG_UNKNOWN_KEY', message: `"${key}" on connection ${name} isn't a ${area.name} setting and was ignored.` });
+      warn({ code: 'CONFIG_UNKNOWN_KEY', message: `"${key}" on connection ${name} isn't ${withArticle(area.name)} setting and was ignored.` });
       delete merged[key];
     } else {
       merged[key] = coerce(shape[key]!, merged[key]);
@@ -84,7 +91,7 @@ export async function resolveConnection(
   if (!parsed.success) {
     const keys = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? '')).filter(Boolean))];
     const isDefault = defaultConnectionName(config, area.name) === name;
-    const vars = keys.map((k) => (isDefault ? defaultVar(area, k) : connectionEnvName(name, k)));
+    const vars = keys.map((k) => (isDefault ? defaultVar(area, k) : withExample(area, k, connectionEnvName(name, k))));
     throw new ToilError('CONFIG_INVALID', `Connection ${name} (${area.name}) is missing or has invalid ${keys.join(', ') || 'settings'}.`, {
       fix: vars.length ? `Set ${vars.join(' and ')}, or fix ${keys.join(', ')} on "${name}" in your toil config.` : `Fix connection "${name}" in your toil config.`,
       details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
@@ -159,10 +166,16 @@ async function resolveSecrets(
   }
 }
 
-function renameKeys(settings: Settings, area: AnyArea, name: string, warn: (w: Warning) => void): Settings {
+/**
+ * Old key names mapped onto new ones, with a warning. When both are set, the
+ * value from the higher tier wins (an env var over a CI fallback, over the
+ * connection in the file, over `defaults.<area>`, over provider defaults), so an old env var still
+ * overrides a new name in the file (principle 5); on a tie the new name wins.
+ */
+function renameKeys(settings: Settings, area: AnyArea, name: string, warn: (w: Warning) => void, tier: (key: string) => number): Settings {
   for (const [from, to] of Object.entries(area.renamed ?? {})) {
     if (!(from in settings)) continue;
-    if (!(to in settings)) settings[to] = settings[from];
+    if (!(to in settings) || tier(from) < tier(to)) settings[to] = settings[from];
     delete settings[from];
     warn({ code: 'CONFIG_RENAMED_KEY', message: `"${from}" on connection ${name} is now "${to}". The old name still works for now.` });
   }
@@ -236,7 +249,7 @@ async function takeShared(
       const target = config.connections[from];
       if (!target || target.area !== other.name) {
         const known = connectionsOf(config, other.name);
-        throw new ToilError('CONFIG_INVALID', `Connection ${name} (${area.name}) takes ${key} from "${from}", which isn't a ${other.name} connection.`, {
+        throw new ToilError('CONFIG_INVALID', `Connection ${name} (${area.name}) takes ${key} from "${from}", which isn't ${withArticle(other.name)} connection.`, {
           fix: `Set ${pairingKey(key)} on "${name}" to one of the ${other.name} connections (${known.join(', ') || 'none set up yet'}), or remove it.`,
         });
       }
@@ -282,7 +295,7 @@ export function selectConnection(config: ResolvedConfig, area: AnyArea, input: s
     throw new ToilError('INVALID_INPUT', `${area.name} has no ${input} "${value}" (from ${where}). It knows: ${known.join(', ') || 'none'}.`, {
       fix: names.length
         ? `Pass ${flag} with one of those, or --connection <name>${instead}; or set ${setting} on the connection you mean.`
-        : `Add a ${area.name} connection with ${setting} "${value}" to your toil config${instead}.`,
+        : `Add ${withArticle(area.name)} connection with ${setting} "${value}" to your toil config${instead}.`,
     });
   }
   throw new ToilError('INVALID_INPUT', `Several ${area.name} connections have ${setting} "${value}" (from ${where}): ${matches.join(', ')}.`, {
@@ -297,7 +310,13 @@ export function selectConnection(config: ResolvedConfig, area: AnyArea, input: s
  */
 function defaultVar(area: AnyArea, key: string): string {
   const fallbacks = (area.fallbacks as Record<string, string[] | undefined> | undefined)?.[key] ?? [];
-  return fallbacks.length ? `${envName(area.name, key)} (or ${fallbacks.join(' or ')})` : envName(area.name, key);
+  return withExample(area, key, fallbacks.length ? `${envName(area.name, key)} (or ${fallbacks.join(' or ')})` : envName(area.name, key));
+}
+
+/** `TOIL_FIGMA_BASE_URL` -> `TOIL_FIGMA_BASE_URL (e.g. https://api.figma.com)`, where the area declares an example for the key. */
+function withExample(area: AnyArea, key: string, variable: string): string {
+  const example = (area.examples as Record<string, string | undefined> | undefined)?.[key];
+  return example === undefined ? variable : `${variable} (e.g. ${example})`;
 }
 
 function requiredKeys(schema: z.ZodObject): string[] {
