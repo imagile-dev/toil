@@ -5,8 +5,16 @@
   "order": 2,
   "covers": "Catalog metadata, search, documents",
   "credential": "Refresh token, exchanged over HTTP",
-  "status": "planned",
+  "credentialWhere": "Your profile → Account Settings → Authentication → Create Refresh Token",
+  "credentialNote": "toil exchanges it for a 24-hour API access token, kept in memory only, and needs the numeric user ID Alation shows beside it",
+  "status": "unit",
   "keys": [
     "REFRESH_TOKEN"
-  ]
+  ],
+  "supported": {
+    "product": "Alation",
+    "minimum": null,
+    "api": "Integration API v1/v2",
+    "note": "toil needs the token APIs under integration/v1 and the Document Hub endpoints under integration/v2 (document, folder); releases with only Articles lack the latter. No release has been verified yet."
+  }
 }
