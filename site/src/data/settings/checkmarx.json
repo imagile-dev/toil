@@ -1,0 +1,26 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_CHECKMARX_BASE_URL",
+    "description": "Checkmarx One API base, ending in /api, e.g. https://eu.ast.checkmarx.net/api",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "tenantName",
+    "env": "TOIL_CHECKMARX_TENANT_NAME",
+    "description": "Tenant name, e.g. imagile",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "apiKey",
+    "env": "TOIL_CHECKMARX_API_KEY",
+    "description": "API key",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  }
+]

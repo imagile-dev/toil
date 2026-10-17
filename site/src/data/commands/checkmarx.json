@@ -1,0 +1,46 @@
+[
+  {
+    "name": "project list",
+    "tool": "checkmarx_project_list",
+    "description": "List all projects",
+    "writes": false,
+    "flags": []
+  },
+  {
+    "name": "project get",
+    "tool": "checkmarx_project_get",
+    "description": "Get a project by ID",
+    "writes": false,
+    "flags": [
+      "--id <id>"
+    ]
+  },
+  {
+    "name": "scan list",
+    "tool": "checkmarx_scan_list",
+    "description": "List scans",
+    "writes": false,
+    "flags": [
+      "--project <id>",
+      "--last <n>"
+    ]
+  },
+  {
+    "name": "scan get",
+    "tool": "checkmarx_scan_get",
+    "description": "Get a scan by ID",
+    "writes": false,
+    "flags": [
+      "--id <id>"
+    ]
+  },
+  {
+    "name": "scan stats",
+    "tool": "checkmarx_scan_stats",
+    "description": "Get results statistics for a scan",
+    "writes": false,
+    "flags": [
+      "--id <id>"
+    ]
+  }
+]
