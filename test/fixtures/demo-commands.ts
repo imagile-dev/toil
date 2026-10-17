@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { defineCommand, type AnyCommand } from '../../src/core/command.js';
-import { setting } from '../../src/core/config.js';
+import { defineArea } from '../../src/core/area.js';
+import type { AnyCommand } from '../../src/core/command.js';
 import { ToilError } from '../../src/core/errors.js';
 import { allowWriteField } from '../../src/core/run.js';
 
@@ -10,16 +10,24 @@ import { allowWriteField } from '../../src/core/run.js';
  * args, flags, auth headers, response reshaping and the write gate before any
  * real integration exists. Never registered in the shipped CLI.
  */
-const BASE = 'https://demo.imagile.dev';
+export const demoArea = defineArea({
+  name: 'demo',
+  description: 'A fake API for the test harness',
+  connection: z.object({
+    baseUrl: z.url().describe('API base URL'),
+    token: z.string().min(1).describe('Bearer token'),
+    pageSize: z.number().int().positive().optional().describe('Results per page'),
+  }),
+  secrets: ['token'],
+  // A real area never defaults its host (every host is user-supplied); the
+  // demo does, so tests stay short. It also exercises provider defaults.
+  defaults: { baseUrl: 'https://demo.imagile.dev' },
+  renamed: { apiToken: 'token' },
+});
 
-function auth(token: unknown): Record<string, string> {
-  if (typeof token !== 'string' || token === '') {
-    throw new ToilError('NOT_CONFIGURED', 'demo.token is not set.', { fix: 'Set TOIL_DEMO_TOKEN.' });
-  }
-  return { Authorization: `Bearer ${token}`, Accept: 'application/json' };
-}
+const auth = (token: string): Record<string, string> => ({ Authorization: `Bearer ${token}`, Accept: 'application/json' });
 
-export const getThing = defineCommand({
+export const getThing = demoArea.command({
   path: ['demo', 'get-thing'],
   description: 'Get a thing by id',
   input: z.object({
@@ -33,16 +41,16 @@ export const getThing = defineCommand({
   ],
   examples: [{ id: 'THING-1' }, { id: 'THING-2', fields: 'name,owner' }],
   run: async (input, ctx) => {
-    const url = new URL(`/api/things/${encodeURIComponent(input.id)}`, BASE);
+    const url = new URL(`/api/things/${encodeURIComponent(input.id)}`, ctx.connection.baseUrl);
     if (input.fields) url.searchParams.set('fields', input.fields);
-    const res = await ctx.fetch(url, { headers: auth(setting(ctx.config, 'demo', 'token')) });
+    const res = await ctx.fetch(url, { headers: auth(ctx.connection.token) });
     if (res.status === 404) throw new ToilError('NOT_FOUND', `No thing ${input.id}.`, { fix: 'Check the id.' });
     const body = (await res.json()) as { id: string; attributes: { name: string; owner?: { login: string } } };
     return { id: body.id, name: body.attributes.name, owner: body.attributes.owner?.login ?? null };
   },
 });
 
-export const renameThing = defineCommand({
+export const renameThing = demoArea.command({
   path: ['demo', 'rename-thing'],
   description: 'Rename a thing',
   input: z.object({
@@ -55,9 +63,9 @@ export const renameThing = defineCommand({
   options: [{ flags: '--name <name>', field: 'name', description: 'New name' }],
   examples: [{ id: 'THING-1', name: 'Renamed', allowWrite: true }],
   run: async (input, ctx) => {
-    const res = await ctx.fetch(new URL(`/api/things/${encodeURIComponent(input.id)}`, BASE), {
+    const res = await ctx.fetch(new URL(`/api/things/${encodeURIComponent(input.id)}`, ctx.connection.baseUrl), {
       method: 'PUT',
-      headers: { ...auth(setting(ctx.config, 'demo', 'token')), 'Content-Type': 'application/json' },
+      headers: { ...auth(ctx.connection.token), 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: input.name }),
     });
     const body = (await res.json()) as { id: string; attributes: { name: string } };
