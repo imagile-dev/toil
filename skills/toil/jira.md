@@ -162,7 +162,7 @@ accepts option ids needs `"type": "option-id"`. **Sprint is not a custom field**
 
 This area targets Jira Data Center and Server. Users are **usernames** (`--assignee
 jsmith`, `user`-typed fields send `{ "name": ... }`), where Jira Cloud needs an
-`accountId`. Jira Cloud is a separate, planned area, `jira-cloud`, with its own
+`accountId`. Jira Cloud is a separate area, `jira-cloud`, with its own
 `TOIL_JIRA_CLOUD_*` settings; don't point this one at a Cloud site.
 
 ## Notes
