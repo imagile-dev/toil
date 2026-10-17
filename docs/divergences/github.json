@@ -3,6 +3,21 @@
   "divergences": [
     {
       "allows": [],
+      "old": "github commands putting owner, repo, label and ref into request paths as typed, so a \".\" or \"..\" segment (or its %2e or backslash form) was collapsed by URL parsing and the request, a DELETE included, went to a different resource on the same host",
+      "toil": "A path with a \".\" or \"..\" segment is refused with INVALID_INPUT before anything is sent. Every other character still goes in unencoded, as before (#72 item 4)",
+      "why": "A write approved for one resource must not land on another: --label ../../../repos/o/r on remove-label would otherwise send DELETE /repos/o/r.",
+      "principle": "2",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "github delete-comment, delete-review-comment, remove-label, remove-reviewers and remove-assignees available to every caller",
+      "toil": "The same commands on the CLI; toil mcp never serves them",
+      "why": "Deletes are never exposed through MCP (CLAUDE.md, Writes).",
+      "principle": "2"
+    },
+    {
+      "allows": [],
       "old": "github list-prs, list-comments, list-review-comments, list-files, list-reviews and list-checks paging until a short page, with no limit on the number of pages",
       "toil": "The same short-page stop, plus a bound: after 1,000 pages (100,000 items) the command fails with HTTP, naming what was being paged, and fix text to narrow the request",
       "why": "A server that ignores the page parameter would otherwise be asked for the same page forever; the bound turns a hang into an error that says what happened.",

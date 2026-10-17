@@ -105,6 +105,8 @@ export const removeReviewersCommand = githubArea.command({
   description: 'Remove requested reviewers from a pull request',
   input: z.object(reviewerInputs),
   writes: true,
+  // A delete: never served over MCP (CLAUDE.md, Writes).
+  mcp: false,
   options: [
     prNumberOption,
     { flags: '--reviewer <login>', field: 'reviewer', description: 'User reviewer login to remove (repeatable)' },

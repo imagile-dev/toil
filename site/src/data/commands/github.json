@@ -4,6 +4,7 @@
     "tool": "github_create_repo",
     "description": "Create a new repository (personal or org)",
     "writes": true,
+    "connection": true,
     "flags": [
       "--name <name>",
       "--description <desc>",
@@ -19,6 +20,7 @@
     "tool": "github_create_issue",
     "description": "Create a GitHub issue",
     "writes": true,
+    "connection": true,
     "flags": [
       "--title <title>",
       "--body <body>",
@@ -35,6 +37,7 @@
     "tool": "github_add_labels",
     "description": "Add labels to a pull request or issue",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--label <label>",
@@ -45,9 +48,10 @@
   },
   {
     "name": "remove-label",
-    "tool": "github_remove_label",
+    "tool": null,
     "description": "Remove a label from a pull request or issue",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--label <label>",
@@ -61,6 +65,7 @@
     "tool": "github_add_assignees",
     "description": "Add assignees to a pull request or issue",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--assignee <login>",
@@ -71,9 +76,10 @@
   },
   {
     "name": "remove-assignees",
-    "tool": "github_remove_assignees",
+    "tool": null,
     "description": "Remove assignees from a pull request or issue",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--assignee <login>",
@@ -87,6 +93,7 @@
     "tool": "github_list_prs",
     "description": "List pull requests",
     "writes": false,
+    "connection": true,
     "flags": [
       "--state <state>",
       "--head <branch>",
@@ -103,6 +110,7 @@
     "tool": "github_get_pr",
     "description": "Get a pull request by number",
     "writes": false,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -114,6 +122,7 @@
     "tool": "github_create_pr",
     "description": "Create a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--title <title>",
       "--head <branch>",
@@ -133,6 +142,7 @@
     "tool": "github_update_pr",
     "description": "Update a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--title <title>",
@@ -148,6 +158,7 @@
     "tool": "github_merge_pr",
     "description": "Merge a pull request (immediate merge — use enable-auto-merge for auto-merge)",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--method <method>",
@@ -163,6 +174,7 @@
     "tool": "github_close_pr",
     "description": "Close a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -175,6 +187,7 @@
     "tool": "github_reopen_pr",
     "description": "Reopen a closed pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -187,6 +200,7 @@
     "tool": "github_diff",
     "description": "Get unified diff for a pull request",
     "writes": false,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -198,6 +212,7 @@
     "tool": "github_list_files",
     "description": "List files changed in a pull request",
     "writes": false,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -209,6 +224,7 @@
     "tool": "github_enable_auto_merge",
     "description": "Enable auto-merge on a pull request (merges automatically when all requirements are met)",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--method <method>",
@@ -223,6 +239,7 @@
     "tool": "github_disable_auto_merge",
     "description": "Disable auto-merge on a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -235,6 +252,7 @@
     "tool": "github_enqueue_pr",
     "description": "Add a pull request to the repository merge queue",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--method <method>",
@@ -249,6 +267,7 @@
     "tool": "github_convert_to_draft",
     "description": "Convert an open pull request to a draft",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -261,6 +280,7 @@
     "tool": "github_ready_for_review",
     "description": "Mark a draft pull request as ready for review",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -273,6 +293,7 @@
     "tool": "github_pr_status",
     "description": "Aggregated PR status: review decision, checks, mergeability, draft state, and auto-merge",
     "writes": false,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -284,6 +305,7 @@
     "tool": "github_list_comments",
     "description": "List general comments on a pull request",
     "writes": false,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -295,6 +317,7 @@
     "tool": "github_add_comment",
     "description": "Add a general comment to a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--body <text>",
@@ -308,6 +331,7 @@
     "tool": "github_list_review_comments",
     "description": "List inline review comments on a pull request",
     "writes": false,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -319,6 +343,7 @@
     "tool": "github_add_inline_comment",
     "description": "Add an inline review comment to a file in a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--commit <sha>",
@@ -336,6 +361,7 @@
     "tool": "github_reply_comment",
     "description": "Reply to a review comment on a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--comment-id <id>",
@@ -347,9 +373,10 @@
   },
   {
     "name": "delete-comment",
-    "tool": "github_delete_comment",
+    "tool": null,
     "description": "Delete a general issue comment",
     "writes": true,
+    "connection": true,
     "flags": [
       "--comment-id <id>",
       "--owner <owner>",
@@ -359,9 +386,10 @@
   },
   {
     "name": "delete-review-comment",
-    "tool": "github_delete_review_comment",
+    "tool": null,
     "description": "Delete an inline review comment",
     "writes": true,
+    "connection": true,
     "flags": [
       "--comment-id <id>",
       "--owner <owner>",
@@ -374,6 +402,7 @@
     "tool": "github_list_reviews",
     "description": "List reviews on a pull request",
     "writes": false,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -385,6 +414,7 @@
     "tool": "github_approve",
     "description": "Approve a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--body <text>",
@@ -398,6 +428,7 @@
     "tool": "github_request_changes",
     "description": "Request changes on a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--body <text>",
@@ -411,6 +442,7 @@
     "tool": "github_list_reviewers",
     "description": "List requested reviewers for a pull request",
     "writes": false,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -422,6 +454,7 @@
     "tool": "github_list_review_threads",
     "description": "List review threads on a pull request (includes thread node IDs for resolve-thread)",
     "writes": false,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--owner <owner>",
@@ -433,6 +466,7 @@
     "tool": "github_resolve_thread",
     "description": "Mark a review thread as resolved (use list-review-threads to get the thread id)",
     "writes": true,
+    "connection": true,
     "flags": [
       "--thread-id <id>",
       "--owner <owner>",
@@ -445,6 +479,7 @@
     "tool": "github_add_reviewers",
     "description": "Request reviewers on a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--reviewer <login>",
@@ -456,9 +491,10 @@
   },
   {
     "name": "remove-reviewers",
-    "tool": "github_remove_reviewers",
+    "tool": null,
     "description": "Remove requested reviewers from a pull request",
     "writes": true,
+    "connection": true,
     "flags": [
       "--number <n>",
       "--reviewer <login>",
@@ -473,6 +509,7 @@
     "tool": "github_get_status",
     "description": "Get combined commit status for a ref (branch, tag, or SHA)",
     "writes": false,
+    "connection": true,
     "flags": [
       "--ref <ref>",
       "--owner <owner>",
@@ -484,6 +521,7 @@
     "tool": "github_list_checks",
     "description": "List check runs for a ref (branch, tag, or SHA)",
     "writes": false,
+    "connection": true,
     "flags": [
       "--ref <ref>",
       "--owner <owner>",

@@ -93,7 +93,10 @@ without it the repository is created under the token's user.
 
 Numbers (`--number`, `--comment-id`, `--line`) are read as whole numbers from the
 start of the text, so `12abc` is 12. Write commands need `writes` on the connection
-and `--allow-write`.
+and `--allow-write`. The deletes (`delete-comment`, `delete-review-comment`,
+`remove-label`, `remove-reviewers`, `remove-assignees`) run on the CLI only and are
+never MCP tools. Owner, repo, labels and refs go into request paths as typed; a value
+that would make a `.` or `..` path segment is refused with `INVALID_INPUT`.
 
 - **Repositories and issues:** `create-repo` (`--name`, `--description`, `--private`,
   `--auto-init`); `create-issue` (`--title`, `--body` or `--body-file <path>` with `-`

@@ -3,7 +3,6 @@ import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
 import { apiGraphql, apiRequest, type ApiRequest } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
-import { parseGitHubRemote } from '../../core/git-remote.js';
 import { paginate } from '../../core/paginate.js';
 import type { QueryValue } from '../../core/rest.js';
 import { githubArea } from './area.js';
@@ -30,7 +29,25 @@ const HEADERS = { 'Content-Type': 'application/json', Accept: 'application/vnd.g
 
 type Request = Pick<ApiRequest, 'method' | 'query' | 'json'>;
 
+/**
+ * Owner, repo, labels and refs go into paths as typed, and URL parsing
+ * collapses a `.` or `..` segment (`%2e` and backslash forms included), so
+ * `--label ../../../repos/o/r` would aim a DELETE at a different resource.
+ * Such a path is refused before anything is sent. A path that walks
+ * upstairs has not filed the paperwork to be there.
+ */
+export function assertNoDotSegments(path: string): void {
+  const segments = path.split(/[?#]/)[0]!.split(/[/\\]/);
+  const dot = segments.find((segment) => /^(?:\.|%2e){1,2}$/i.test(segment));
+  if (dot !== undefined) {
+    throw new ToilError('INVALID_INPUT', `toil won't send a GitHub request whose path has a "${dot}" segment: ${path}`, {
+      fix: 'Check --owner, --repo, --label and --ref: none of them can be "." or "..", or contain "/../" or "/./".',
+    });
+  }
+}
+
 export function github<T>(ctx: GitHubContext, path: string, req: Request = {}): Promise<T> {
+  assertNoDotSegments(path);
   return apiRequest<T>(githubArea, ctx, path, { ...req, headers: HEADERS, timeoutMs: TIMEOUT_MS });
 }
 
@@ -41,6 +58,7 @@ export function github<T>(ctx: GitHubContext, path: string, req: Request = {}): 
  * (#72 item 11; listed in docs/divergences/github.json).
  */
 export function githubText(ctx: GitHubContext, path: string): Promise<string> {
+  assertNoDotSegments(path);
   return apiRequest<string>(githubArea, ctx, path, { headers: { ...HEADERS, Accept: 'application/vnd.github.v3.diff' }, as: 'text', timeoutMs: TIMEOUT_MS });
 }
 
@@ -77,36 +95,17 @@ export async function githubAll<T>(ctx: GitHubContext, path: string, what: strin
 }
 
 /**
- * The owner and repo a command acts on: a flag, then the git remote, then
- * the connection's owner/repo (usually defaults.github), as before. The git
- * step's value is the remote itself (see gitRemoteValue in area.ts); it
- * counts only when its host matches this connection's base URL, by the same
- * parser, and otherwise gives way to the connection's setting. Both values
- * are written back to ctx.context and meta.context, so the report says what
- * the call used.
+ * The owner and repo a command acts on: a flag, then the origin remote when
+ * it's on this connection's host, then the connection's owner/repo (usually
+ * defaults.github), as before. Core resolves all three; this only keeps the
+ * predecessor's error when none of them has a value.
  */
 export function target(ctx: GitHubContext): { owner: string; repo: string } {
-  const owner = settle(ctx, 'owner');
-  const repo = settle(ctx, 'repo');
+  const { owner, repo } = ctx.context;
   if (!owner || !repo) {
     throw new ToilError('INVALID_INPUT', 'Could not determine GitHub owner/repo. Pass --owner and --repo, or set owner and repo under defaults.github in your toil config.', {
       fix: `Pass --owner <owner> and --repo <repo>, run inside a clone whose origin is on this GitHub host, or set owner and repo under defaults.github (${githubArea.envName('owner')} and ${githubArea.envName('repo')} for the default connection).`,
     });
   }
   return { owner, repo };
-}
-
-function settle(ctx: GitHubContext, name: 'owner' | 'repo'): string | undefined {
-  const found = ctx.resolved.inputs?.[name];
-  if (found?.source !== 'git') return ctx.context[name];
-  const fromRemote = parseGitHubRemote(found.value, ctx.connection.baseUrl)?.[name];
-  const setting = ctx.connection[name];
-  const inputs = ctx.resolved.inputs!;
-  if (fromRemote) inputs[name] = { value: fromRemote, source: 'git' };
-  else if (setting) inputs[name] = { value: setting, source: 'connection' };
-  else delete inputs[name];
-  const value = fromRemote ?? setting;
-  if (value === undefined) delete ctx.context[name];
-  else ctx.context[name] = value;
-  return value;
 }

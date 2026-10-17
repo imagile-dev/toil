@@ -13,28 +13,15 @@ import type { SupportedVersion } from '../../core/supported.js';
  */
 
 /**
- * The remote's host, as each of the three remote shapes the parser accepts
- * spells it. An HTTPS remote with userinfo yields `user@host`, which then
- * matches nothing: that's the parser's own behaviour (#72 item 10).
+ * owner or repo from the working folder's origin remote, only when the
+ * remote is on this connection's host (`api.github.com` counts as
+ * `github.com`), by core's GitHub remote parser. An HTTPS remote with
+ * userinfo matches nothing, as before (#72 item 10).
  */
-function remoteHost(url: string): string | undefined {
-  return (url.match(/^git@([^:]+):/) ?? url.match(/^ssh:\/\/git@([^/:]+)/) ?? url.match(/^https?:\/\/([^/:]+)/))?.[1];
-}
-
-/**
- * What the git step hands over for owner and repo: the remote, rebuilt as a
- * plain `https://<host>/<owner>/<repo>` with any userinfo gone. Core reads
- * the remote before it knows the connection, so it can't check the host
- * against the connection's base URL here; `target()` in client.ts does that
- * with the same parser once the connection is known. Kit gap: when core hands
- * the connection to a git reader, this becomes parseGitHubRemote(url, baseUrl).
- */
-export function gitRemoteValue(remote: GitRemote): string | undefined {
-  const host = remoteHost(remote.url);
-  if (!host) return undefined;
-  const parsed = parseGitHubRemote(remote.url, `https://${host}`);
-  return parsed ? `https://${host}/${parsed.owner}/${parsed.repo}` : undefined;
-}
+const fromRemote =
+  (name: 'owner' | 'repo') =>
+  (remote: GitRemote, connection: { baseUrl?: unknown } | undefined): string | undefined =>
+    connection && typeof connection.baseUrl === 'string' ? parseGitHubRemote(remote.url, connection.baseUrl)?.[name] : undefined;
 
 export const githubArea = defineArea({
   name: 'github',
@@ -55,7 +42,7 @@ export const githubArea = defineArea({
       description: 'GitHub owner (user or org)',
       flags: '--owner <owner>',
       setting: 'owner',
-      git: gitRemoteValue,
+      git: fromRemote('owner'),
       // Any string, as before: an empty --owner still gets the "Could not determine" error.
       schema: z.string(),
     },
@@ -63,7 +50,7 @@ export const githubArea = defineArea({
       description: 'GitHub repository name',
       flags: '--repo <repo>',
       setting: 'repo',
-      git: gitRemoteValue,
+      git: fromRemote('repo'),
       schema: z.string(),
     },
   },

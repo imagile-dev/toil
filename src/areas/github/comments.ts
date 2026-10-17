@@ -110,6 +110,8 @@ export const deleteCommentCommand = githubArea.command({
   description: 'Delete a general issue comment',
   input: z.object({ commentId: commentId, ...allowWriteField }),
   writes: true,
+  // A delete: never served over MCP (CLAUDE.md, Writes).
+  mcp: false,
   options: [{ flags: '--comment-id <id>', field: 'commentId', description: 'Comment ID' }],
   examples: [{ owner: 'imagile', repo: 'toil-probe', commentId: '401', allowWrite: true }],
   run: async (input, ctx) => {
@@ -124,6 +126,8 @@ export const deleteReviewCommentCommand = githubArea.command({
   description: 'Delete an inline review comment',
   input: z.object({ commentId: intText.describe('Review comment ID'), ...allowWriteField }),
   writes: true,
+  // A delete: never served over MCP (CLAUDE.md, Writes).
+  mcp: false,
   options: [{ flags: '--comment-id <id>', field: 'commentId', description: 'Review comment ID' }],
   examples: [{ owner: 'imagile', repo: 'toil-probe', commentId: '501', allowWrite: true }],
   run: async (input, ctx) => {

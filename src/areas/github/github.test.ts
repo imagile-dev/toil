@@ -109,7 +109,7 @@ describe('owner and repo', () => {
     expect(envelope.meta.context?.inputs?.owner).toEqual({ value: 'imagile', source: 'connection' });
     const none = await run(getPrCommand, { number: '7' }, [], {}, remote('git@github.com:someone/else.git'));
     expect(none.envelope.error?.message).toMatch(/^Could not determine/);
-    expect(none.envelope.meta.context?.inputs).toEqual({});
+    expect(none.envelope.meta.context?.inputs).toBeUndefined();
   });
 
   it('suspected bug #72 item 10: an HTTPS remote with userinfo is never matched', async () => {
@@ -263,6 +263,34 @@ describe('GraphQL', () => {
     const withRepo = await run(resolveThreadCommand, { ...BASE, threadId: 'PRT_1', allowWrite: true });
     expect(JSON.parse(withRepo.calls[0]!.body!).variables).toEqual({ threadId: 'PRT_1' });
     expect(withRepo.envelope.data).toMatchObject({ isResolved: true });
+  });
+});
+
+describe('dot segments', () => {
+  it('refuses a . or .. segment in any path value before sending, so a DELETE stays on the resource it names', async () => {
+    const cases: Array<[AnyCommand, Record<string, unknown>]> = [
+      [removeLabelCommand, { ...BASE, number: '7', label: '../../../../../repos/imagile/victim', allowWrite: true }],
+      [removeLabelCommand, { ...BASE, number: '7', label: '%2e%2E/x', allowWrite: true }],
+      [removeLabelCommand, { ...BASE, number: '7', label: '..\\x', allowWrite: true }],
+      [getPrCommand, { owner: 'imagile', repo: '..', number: '7' }],
+      [getStatusCommand, { ...BASE, ref: 'a/./b' }],
+      [diffCommand, { owner: '.', repo: 'toil-probe', number: '7' }],
+    ];
+    for (const [def, input] of cases) {
+      const { envelope, calls } = await run(def, input, []);
+      expect(calls, JSON.stringify(input)).toEqual([]);
+      expect(envelope.error, JSON.stringify(input)).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('segment') });
+    }
+  });
+
+  it('keeps dots inside a segment and leaves the query alone', async () => {
+    const { calls } = await run(removeLabelCommand, { ...BASE, number: '7', label: 'v1..2', allowWrite: true }, [{ method: 'DELETE', url: /.*/, respond: { json: [] } }]);
+    expect(calls[0]!.url).toBe(`${API}/repos/imagile/toil-probe/issues/7/labels/v1..2`);
+  });
+
+  it('keeps the five deletes off MCP', () => {
+    const off = commands.filter((c) => c.mcp === false).map((c) => c.path[1]).sort();
+    expect(off).toEqual(['delete-comment', 'delete-review-comment', 'remove-assignees', 'remove-label', 'remove-reviewers']);
   });
 });
 

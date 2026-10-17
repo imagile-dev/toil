@@ -109,6 +109,8 @@ export const removeLabelCommand = githubArea.command({
   description: 'Remove a label from a pull request or issue',
   input: z.object({ number: itemNumber, label: z.string().describe('Label name to remove'), ...allowWriteField }),
   writes: true,
+  // A delete: never served over MCP (CLAUDE.md, Writes).
+  mcp: false,
   options: [itemNumberOption, { flags: '--label <label>', field: 'label', description: 'Label name to remove' }],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7', label: 'needs review', allowWrite: true }],
   run: async (input, ctx) => {
@@ -141,6 +143,8 @@ export const removeAssigneesCommand = githubArea.command({
   description: 'Remove assignees from a pull request or issue',
   input: z.object({ number: itemNumber, assignee: repeatable('Assignee login to remove (repeatable) (default: [])'), ...allowWriteField }),
   writes: true,
+  // A delete: never served over MCP (CLAUDE.md, Writes).
+  mcp: false,
   options: [itemNumberOption, { flags: '--assignee <login>', field: 'assignee', description: 'Assignee login to remove (repeatable) (default: [])' }],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7', assignee: ['octo-ops'], allowWrite: true }],
   run: async (input, ctx) => assignees(ctx, input.number, input.assignee, 'DELETE'),
