@@ -248,6 +248,7 @@ export const prStatusCommand = githubArea.command({
       mergeable: pr.mergeable,
       mergeStateStatus: pr.mergeStateStatus,
       reviewDecision: pr.reviewDecision,
+      // enabledBy is read without a null check (suspected bug, #72 item 17).
       autoMergeRequest: pr.autoMergeRequest ? { mergeMethod: pr.autoMergeRequest.mergeMethod, enabledAt: pr.autoMergeRequest.enabledAt, enabledBy: pr.autoMergeRequest.enabledBy.login } : null,
       checks: { total: details.length, passed, failed, pending, other, details },
     };

@@ -31,17 +31,22 @@ type Request = Pick<ApiRequest, 'method' | 'query' | 'json'>;
 
 /**
  * Owner, repo, labels and refs go into paths as typed, and URL parsing
- * collapses a `.` or `..` segment (`%2e` and backslash forms included), so
- * `--label ../../../repos/o/r` would aim a DELETE at a different resource.
- * Such a path is refused before anything is sent. A path that walks
- * upstairs has not filed the paperwork to be there.
+ * collapses a `.` or `..` segment, so `--label ../../../repos/o/r` would aim a
+ * DELETE at a different resource. Core refuses such a segment too (bound
+ * `requests.path`); this check also reads the path as the URL parser does
+ * first, dropping tab, LF and CR anywhere and trimming trailing C0 controls
+ * and spaces, so `.\t.` or a trailing `.. ` can't slip past as something
+ * else and become `..` afterwards. A path that walks upstairs has not filed
+ * the paperwork to be there.
  */
 export function assertNoDotSegments(path: string): void {
-  const segments = path.split(/[?#]/)[0]!.split(/[/\\]/);
+  // eslint-disable-next-line no-control-regex
+  const parsed = path.replace(/[\t\n\r]/g, '').replace(/[\u0000- ]+$/, '');
+  const segments = parsed.split(/[?#]/)[0]!.split(/[/\\]/);
   const dot = segments.find((segment) => /^(?:\.|%2e){1,2}$/i.test(segment));
   if (dot !== undefined) {
-    throw new ToilError('INVALID_INPUT', `toil won't send a GitHub request whose path has a "${dot}" segment: ${path}`, {
-      fix: 'Check --owner, --repo, --label and --ref: none of them can be "." or "..", or contain "/../" or "/./".',
+    throw new ToilError('INVALID_INPUT', `toil won't send a GitHub request whose path has a "${dot}" segment: ${JSON.stringify(path)}`, {
+      fix: 'Check --owner, --repo, --label and --ref: none of them can be "." or "..", or contain "/../" or "/./", once tabs, line breaks and trailing spaces are ignored.',
     });
   }
 }
@@ -53,13 +58,12 @@ export function github<T>(ctx: GitHubContext, path: string, req: Request = {}): 
 
 /**
  * A text body (the unified diff), with Accept swapped for the diff media
- * type. Failures go through core like every other call, which reads the
- * body's `message` and, unlike the predecessor's text call, retries a 429
- * (#72 item 11; listed in docs/divergences/github.json).
+ * type. A 429 fails at once with the server's `message`, as the
+ * predecessor's text call did; it never retried (suspected bug, #72 item 11).
  */
 export function githubText(ctx: GitHubContext, path: string): Promise<string> {
   assertNoDotSegments(path);
-  return apiRequest<string>(githubArea, ctx, path, { headers: { ...HEADERS, Accept: 'application/vnd.github.v3.diff' }, as: 'text', timeoutMs: TIMEOUT_MS });
+  return apiRequest<string>(githubArea, ctx, path, { headers: { ...HEADERS, Accept: 'application/vnd.github.v3.diff' }, as: 'text', retryRateLimit: false, timeoutMs: TIMEOUT_MS });
 }
 
 /**

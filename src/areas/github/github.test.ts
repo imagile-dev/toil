@@ -198,10 +198,10 @@ describe('pull requests', () => {
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'Sorry, the diff exceeded the maximum number of files' });
   });
 
-  it('diff: #72 item 11 diverges, a 429 is retried like every other call (core has no opt-out)', async () => {
-    const { envelope, calls } = await run(diffCommand, { ...BASE, number: '7' }, [{ url: /.*/, respond: { status: 429, headers: { 'Retry-After': '0' }, json: { message: 'API rate limit exceeded' } } }]);
-    expect(calls.length).toBe(3);
-    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'Rate limited', details: { status: 429 } });
+  it('diff: suspected bug #72 item 11, a 429 fails at once with the server message and no retry', async () => {
+    const { envelope, calls } = await run(diffCommand, { ...BASE, number: '7' }, [{ url: /.*/, respond: { status: 429, json: { message: 'API rate limit exceeded' } } }]);
+    expect(calls.length).toBe(1);
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'API rate limit exceeded', details: { status: 429 } });
   });
 });
 
@@ -248,6 +248,13 @@ describe('GraphQL', () => {
     expect(envelope.data).toMatchObject({ autoMergeRequest: { mergeMethod: 'SQUASH', enabledAt: 'x', enabledBy: 'octo-dev' }, checks: { total: 4, passed: 1, failed: 1, pending: 1, other: 1 } });
   });
 
+  it('pr-status: suspected bug #72 item 17, an auto-merge request with a null enabledBy fails instead of answering', async () => {
+    const node = { ...prStatusNode([]), autoMergeRequest: { mergeMethod: 'SQUASH', enabledAt: 'x', enabledBy: null } };
+    const { envelope } = await run(prStatusCommand, { ...BASE, number: '7' }, [{ method: 'POST', url: /graphql$/, respond: { json: { data: { repository: { pullRequest: node } } } } }]);
+    expect(envelope.ok).toBe(false);
+    expect(envelope.error?.message).toContain('login');
+  });
+
   it('list-review-threads warns past 100 threads; suspected bug #72 item 3, 10 comments per thread and no warning', async () => {
     const answer = { data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: true }, nodes: [thread()] } } } } };
     const { envelope, calls } = await run(listReviewThreadsCommand, { ...BASE, number: '7' }, [{ method: 'POST', url: /graphql$/, respond: { json: answer } }]);
@@ -275,6 +282,13 @@ describe('dot segments', () => {
       [getPrCommand, { owner: 'imagile', repo: '..', number: '7' }],
       [getStatusCommand, { ...BASE, ref: 'a/./b' }],
       [diffCommand, { owner: '.', repo: 'toil-probe', number: '7' }],
+      // What the URL parser strips before it collapses dot segments.
+      [removeLabelCommand, { ...BASE, number: '7', label: `${'.\t./'.repeat(6)}repos/imagile/victim`, allowWrite: true }],
+      [removeLabelCommand, { ...BASE, number: '7', label: '.\n./x', allowWrite: true }],
+      [removeLabelCommand, { ...BASE, number: '7', label: '.\r./x', allowWrite: true }],
+      [removeLabelCommand, { ...BASE, number: '7', label: 'x/.. ', allowWrite: true }],
+      [removeLabelCommand, { ...BASE, number: '7', label: 'x/..\u0000', allowWrite: true }],
+      [removeLabelCommand, { ...BASE, number: '7', label: 'x/..\u001f', allowWrite: true }],
     ];
     for (const [def, input] of cases) {
       const { envelope, calls } = await run(def, input, []);

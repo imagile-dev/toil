@@ -4,7 +4,7 @@
     {
       "allows": [],
       "old": "github commands putting owner, repo, label and ref into request paths as typed, so a \".\" or \"..\" segment (or its %2e or backslash form) was collapsed by URL parsing and the request, a DELETE included, went to a different resource on the same host",
-      "toil": "A path with a \".\" or \"..\" segment is refused with INVALID_INPUT before anything is sent. Every other character still goes in unencoded, as before (#72 item 4)",
+      "toil": "A path with a \".\" or \"..\" segment is refused with INVALID_INPUT before anything is sent: core's requests.path bound for every area, plus a check here that first reads the path as the URL parser does (tab, LF and CR dropped, trailing C0 controls and spaces trimmed), so two dots with a tab between them or a trailing \".. \" can't become \"..\" afterwards. Every other character still goes in unencoded, as before (#72 item 4)",
       "why": "A write approved for one resource must not land on another: --label ../../../repos/o/r on remove-label would otherwise send DELETE /repos/o/r.",
       "principle": "2",
       "class": "security"
@@ -35,13 +35,6 @@
       "old": "GraphQL failures (review threads, pr-status, auto-merge, merge queue, drafts, resolve-thread) reported as the joined error messages alone, or \"GraphQL response contained no data\"",
       "toil": "\"GitHub GraphQL error: <messages joined with '; '>\", or \"GitHub answered the GraphQL query at <url> with no data.\", both as HTTP with a fix, from core's one GraphQL helper",
       "why": "Every area's GraphQL calls fail the same way, saying which service failed and what to check next.",
-      "principle": "4"
-    },
-    {
-      "allows": [],
-      "old": "github diff failing at once on a 429 with the server's message (its text request skipped the retry every other call had; #72 item 11)",
-      "toil": "diff retries a 429 like every other GitHub call, honouring Retry-After up to 30 s, then fails with \"Rate limited\" and retryAfterSeconds in details",
-      "why": "Core's one request path retries every 429 and offers no opt-out, so the suspected bug can't be kept without a core change; the retry is what the other GitHub calls already did.",
       "principle": "4"
     },
     {
