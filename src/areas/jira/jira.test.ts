@@ -409,6 +409,7 @@ describe('attachments', () => {
   });
 
   it('download-attachment: replaces a file already there, as the predecessor did', async () => {
+    // Suspected bug (#70 item 8), pinned by maintainer decision: overwrite is kept, and #68's workspace bounds where it can land.
     const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7' }, [
       listing(`${JIRA}/secure/attachment/7/notes.md`, 'notes.md'),
       { url: `${JIRA}/secure/attachment/7/notes.md`, respond: { text: 'from jira' } },
@@ -417,7 +418,7 @@ describe('attachments', () => {
     expect(new TextDecoder().decode(written['/work/.toil/notes.md'])).toBe('from jira');
   });
 
-  it('download-attachment: an unknown id is NOT_FOUND, pointing at list-attachments', async () => {
+  it('download-attachment: an unknown id is INVALID_INPUT, as in the predecessor, pointing at list-attachments', async () => {
     const { envelope } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '8' }, [listing(`${JIRA}/x`)]);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Attachment not found: 8', fix: expect.stringContaining('list-attachments') });
   });
