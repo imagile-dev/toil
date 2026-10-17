@@ -1,5 +1,6 @@
+import type { DossierLookup, GitRemoteReader } from './call-context.js';
 import type { ResolvedConfig } from './config.js';
-import type { Page, Warning } from './envelope.js';
+import type { ContextReport, Page, Warning } from './envelope.js';
 import type { FileAccess } from './files.js';
 import type { SecretStore } from './keychain.js';
 import type { Prompter } from './prompt.js';
@@ -35,6 +36,10 @@ export interface Context {
   secrets?: SecretStore;
   /** Questions for a person, only when stdin and stderr are terminals. Never set under MCP. */
   prompt?: Prompter;
+  /** Context values from the dossier (#16). Absent means none, as today. */
+  dossier?: DossierLookup;
+  /** The working folder's git remote, for areas that read context from it. Absent means no git step. */
+  gitRemote?: GitRemoteReader;
 }
 
 /**
@@ -50,15 +55,20 @@ export interface ConfigAccess {
 
 /**
  * What a command's run() receives: the context without config or env, its
- * own resolved connection, and ways to talk back through meta. The rest is left
- * out on purpose. Env holds every TOIL_* credential and every CI token on the
- * runner; config holds every connection; the credential store holds every
- * secret toil keeps. A command reads only the connection
+ * own resolved connection and context inputs, and ways to talk back through
+ * meta. The rest is left out on purpose. Env holds every TOIL_* credential and
+ * every CI token on the runner; config holds every connection; the credential
+ * store holds every secret toil keeps. A command reads only the connection
  * it was given, so it can't reach another area's credentials, or another
  * connection's.
  */
-export interface CommandContext<C = undefined> extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt'> {
+export interface CommandContext<C = undefined, X = Record<string, string | undefined>>
+  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossier' | 'gitRemote'> {
   connection: C;
+  /** The area's context inputs, resolved (`ctx.context.project`). Unset ones are absent. */
+  context: X;
+  /** Where each resolved value came from; the same object `meta.context` reports. */
+  resolved: ContextReport;
   /** Set only for defineConfigCommand commands. */
   manage?: ConfigAccess;
   signal: AbortSignal;

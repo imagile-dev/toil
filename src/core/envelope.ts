@@ -18,6 +18,30 @@ export interface Meta {
   warnings?: Warning[];
   /** For paged results: where the next page starts. `data` keeps its shape. */
   page?: Page;
+  /**
+   * For an area command: which connection the call used and how it was
+   * chosen, each context input's value and source, and any setting taken from
+   * another area's connection. Never a secret's value.
+   */
+  context?: ContextReport;
+}
+
+/** Where a resolved value came from, highest precedence first. */
+export type ContextSource = 'input' | 'dossier' | 'git' | 'connection' | 'default';
+
+export interface ContextValue {
+  value: string;
+  source: ContextSource;
+  /** For `connection`: the context input whose value selected it (`instance`). */
+  via?: string;
+}
+
+export interface ContextReport {
+  connection?: ContextValue;
+  /** Each context input that resolved. Absent when none did. */
+  inputs?: Record<string, ContextValue>;
+  /** Settings taken from another area's connection: key to `{ area, connection }`. Absent when none were. */
+  shared?: Record<string, { area: string; connection: string }>;
 }
 
 export interface Warning {

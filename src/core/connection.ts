@@ -1,10 +1,18 @@
 import type { z } from 'zod';
 import type { AnyArea, Connection } from './area.js';
+import type { SharedSettings } from './command.js';
 import { connectionEnvName, connectionsOf, connectionWrites, defaultConnectionName, envName, type ResolvedConfig, type Settings } from './config.js';
-import type { Warning } from './envelope.js';
+import type { ContextReport, Warning } from './envelope.js';
 import { ToilError } from './errors.js';
 import { isKeychainRef, refName, type SecretStore } from './keychain.js';
-import { baseType } from './schema.js';
+import { fromText } from './schema.js';
+
+export interface ResolveOptions {
+  /** Settings to take from another area's default connection when this one lacks them. */
+  shares?: SharedSettings | undefined;
+  /** Filled with each setting that was taken from the other area. */
+  shared?: NonNullable<ContextReport['shared']>;
+}
 
 /**
  * Picks the one connection a call uses and turns it into what the command
@@ -22,6 +30,7 @@ export async function resolveConnection(
   warn: (w: Warning) => void,
   secrets?: Pick<SecretStore, 'get'>,
   signal?: AbortSignal,
+  options: ResolveOptions = {},
 ): Promise<Connection> {
   const name = requested ?? defaultConnectionName(config, area.name);
   if (!name) {
@@ -62,6 +71,7 @@ export async function resolveConnection(
   refusePlaintextSecrets(config, area, name, shared, own);
   const merged = renameKeys({ ...(area.defaults ?? {}), ...shared, ...own }, area, name, warn);
   await resolveSecrets(merged, area, name, secrets, warn, signal);
+  if (options.shares) await takeShared(config, options.shares, area, name, own, shared, merged, { warn, secrets, signal, report: options.shared });
 
   const shape = area.connection.shape as Record<string, z.ZodType>;
   for (const key of Object.keys(merged)) {
@@ -164,22 +174,74 @@ function renameKeys(settings: Settings, area: AnyArea, name: string, warn: (w: W
 
 /**
  * Env vars are strings; a port of "5432" should still be a number, "true" a
- * boolean, and a list setting (jira's customFields) JSON. Text that doesn't
- * parse is left alone, so the schema rejects it with a fix naming the key.
+ * boolean, and a list setting (jira's customFields) JSON. The same reading
+ * argv gets (`fromText`), so a value means one thing wherever it is typed.
  */
-export function coerce(schema: z.ZodType, value: unknown): unknown {
-  if (typeof value !== 'string') return value;
-  const type = baseType(schema);
-  if (type === 'number' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value);
-  if (type === 'boolean' && (value === 'true' || value === 'false')) return value === 'true';
-  if (type === 'array' || type === 'object') {
-    try {
-      return JSON.parse(value) as unknown;
-    } catch {
-      return value;
-    }
+export const coerce = fromText;
+
+/** How a value's source ranks for sharing: env first, then the file, then shared defaults, then nothing. */
+function tier(source: string | undefined, present: boolean, fromDefaults: boolean): number {
+  if (!present) return fromDefaults ? 2 : 3;
+  return source === 'env' || source === 'ci' ? 0 : 1;
+}
+
+/**
+ * Takes each shared key from the other area's default connection when that
+ * value ranks above this connection's own: the env tier beats the file tier
+ * across both areas, and within a tier this connection wins. So Kibana sends
+ * TOIL_KIBANA_API_KEY, then TOIL_ELASTICSEARCH_API_KEY, then its own stored
+ * key, then Elasticsearch's. The other connection is read for those keys only;
+ * whether the rest of it is valid is none of this command's business. A
+ * borrowed value is held to the same rules as an own one: no plaintext
+ * secret in a file, and `keychain:` references resolved from the store.
+ */
+async function takeShared(
+  config: ResolvedConfig,
+  shares: SharedSettings,
+  area: AnyArea,
+  name: string,
+  own: Settings,
+  ownDefaults: Settings,
+  merged: Settings,
+  io: { warn: (w: Warning) => void; secrets: Pick<SecretStore, 'get'> | undefined; signal: AbortSignal | undefined; report: ResolveOptions['shared'] },
+): Promise<void> {
+  const other = shares.area;
+  const otherName = defaultConnectionName(config, other.name);
+  const otherStored = otherName ? config.connections[otherName] : undefined;
+  if (!otherName || !otherStored || otherStored.area !== other.name) return;
+  const otherDefaults: Settings = { ...(config.defaults[other.name] ?? {}) };
+  delete otherDefaults.connection;
+  for (const key of shares.keys) {
+    const mine = tier(config.sources[`${name}.${key}`], own[key] !== undefined, ownDefaults[key] !== undefined);
+    const theirs = tier(config.sources[`${otherName}.${key}`], otherStored[key] !== undefined, otherDefaults[key] !== undefined);
+    if (theirs >= mine) continue;
+    const taken: Settings = { [key]: otherStored[key] ?? otherDefaults[key] };
+    refusePlaintextSecrets(config, other, otherName, otherStored[key] === undefined ? taken : {}, otherStored[key] === undefined ? {} : taken);
+    await resolveSecrets(taken, other, otherName, io.secrets, io.warn, io.signal);
+    if (taken[key] === undefined) continue;
+    merged[key] = taken[key];
+    if (io.report) io.report[key] = { area: other.name, connection: otherName };
   }
-  return value;
+}
+
+/**
+ * The connection a context input's value picks (`--instance prod`): the area's
+ * connection of that name, else the one whose `setting` equals the value.
+ * None, or more than one, is INVALID_INPUT naming the candidates.
+ */
+export function selectConnection(config: ResolvedConfig, area: AnyArea, input: string, setting: string, value: string, flag: string): string {
+  const names = connectionsOf(config, area.name);
+  if (names.includes(value)) return value;
+  const matches = names.filter((n) => config.connections[n]![setting] !== undefined && String(config.connections[n]![setting]) === value);
+  if (matches.length === 1) return matches[0]!;
+  if (matches.length === 0) {
+    throw new ToilError('INVALID_INPUT', `No ${area.name} connection is named "${value}" or has ${setting} "${value}" (from ${input}).`, {
+      fix: names.length ? `Pass ${flag} with one of: ${names.join(', ')}, or set ${setting} on the connection you mean.` : `Add a ${area.name} connection with ${setting} "${value}" to your toil config.`,
+    });
+  }
+  throw new ToilError('INVALID_INPUT', `Several ${area.name} connections have ${setting} "${value}": ${matches.join(', ')}.`, {
+    fix: `Pass --connection <name> to choose one of them.`,
+  });
 }
 
 function requiredKeys(schema: z.ZodObject): string[] {

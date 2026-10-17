@@ -34,10 +34,35 @@ skill file, or the file misses a command or a connection key's env var.
 - `area.ts` (the `defineArea`), `client.ts` (every request, built on `restRequest`
   and `buildUrl` from `src/core/rest.ts`, with the area's headers and auth fix), and
   command files grouped by subject, each exporting a list that `index.ts` spreads.
-- A command that needs no connection at all (`jira schema`) is a `defineCommand`
-  under the area's path; it works with no config.
-- Files through `ctx.files`, never `node:fs`. Numbers and repeatable flags come from
-  the schema (`z.number()`, `z.array()`); don't parse argv by hand.
+- A command that needs no connection at all (`jira schema`) is `area.command({
+  kind: 'area-local', ... })`; it works with no config.
+- Files through `ctx.files`, never `node:fs`. Numbers, booleans, enums, JSON objects
+  and repeatable flags come from the schema (`z.number()`, `z.boolean()`,
+  `z.object()`, `z.array()`); don't parse argv by hand. Where the predecessor read a
+  number with `parseInt`, keep the field a `z.union([z.number(), z.string()])` so it
+  stays text, and port the `parseInt`.
+- **Where a command acts** (`--project`, `--repo`, `--owner`, `--instance`, `--env`)
+  is a context input in `defineArea({ context })`, never an ordinary flag, so core
+  resolves it from the call, the dossier, the git remote and the connection in one
+  order. The predecessor's group-level flags (`bitbucket --project --repo`, `github
+  --owner --repo`, `ado --collection --organization --project --repo`, `jenkins
+  --instance`, `openshift --env --instance`, `dynatrace --env`) are `group` inputs,
+  with the contract's spelling in `flags`; a per-command one (`jira --project`) is a
+  `command` input the command lists in its `context`, marked `required` where the
+  predecessor failed without it. Give it a `setting` when the connection can hold a
+  default, `git` when the remote names it, and `selectsConnection` when the old CLI
+  picked an instance or environment by it. Read it from `ctx.context`.
+- **Another area's credential** (Kibana on Elasticsearch's key) is `shares: { area,
+  keys }` on each command that uses it; `ctx.resolved.shared` says whether the key
+  came from the other area, for an auth error that names which key was sent.
+- **A path the old CLI had in another group** (`deps outdated`, now `artifactory
+  outdated`) is an `aliases` entry on the new command; the contract test checks the
+  old row against it.
+- **Engines or variants** whose connections need different keys use `variants`, not a
+  hand-built `superRefine`. A password (a database) goes in `secrets` as `{ password:
+  'password' }`; a token is the default.
+- Fix text names env vars with `area.envName(key)`, never a hard-coded
+  `TOIL_<AREA>_…`.
 - A read sent as POST (a search) sets `queryByPost: true` and stays `writes: false`.
 - Every connection key keeps the predecessor's name, so its env var does too
   (`apiToken` is `TOIL_JIRA_API_TOKEN`).
@@ -115,7 +140,7 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
   at the exact directory.
   - **Port, don't reinvent.** Keep its requests, payloads, response shaping and
     edge-case handling.
-  - **Rewrite it for toil's style and flow:** one `defineCommand` per command,
+  - **Rewrite it for toil's style and flow:** one `area.command` per command,
     `ctx.fetch`, `ToilError` with a fix, examples for the parity suite, and HTTP
     mocked with `fakeFetch`. Comments use the deadpan voice in CLAUDE.md's Code
     Comments section.

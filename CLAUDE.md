@@ -151,7 +151,8 @@ GitHub Actions; its build tooling is out of scope.
 ## Layout
 
 - `src/core/` — the machinery: `defineArea`, `defineCommand`, `execute`
-  (validation, connection, write gate, envelope), errors, config loading and
+  (validation, connection and context resolution in `call-context.ts`, write gate,
+  envelope), errors, config loading and
   writing, the OS credential store (`keychain.ts`) and the terminal prompter
 - `src/connections/` — `toil connections add | login | list | remove`
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
@@ -182,14 +183,42 @@ GitHub Actions; its build tooling is out of scope.
   skill
 
 An area is declared once with `defineArea({ name, connection, secrets, defaults,
-fallbacks, renamed })`: `connection` is the zod schema of what a connection to it
-holds. Its commands come from `area.command({ ... })`: a path, a zod input schema,
-whether it writes, CLI arguments and flags (each mapped to an input field), and at
-least one example input. Core adds the `connection` input (`--connection <name>`)
-to every area command. A write command spreads `allowWriteField` into its input.
-Commands with no area and no config (`version`) use `defineCommand`. The CLI and MCP
-surfaces never implement behavior of their own; if one needs something the other
-lacks, the gap is in core.
+fallbacks, renamed, variants, context })`: `connection` is the zod schema of what a
+connection to it holds; `secrets` lists its secret keys, or maps each to `token` or
+`password`; `variants` names the keys each value of one field requires (`db`'s
+`engine`); and `area.envName(key)` gives a setting's env var for fix text, so no
+area spells out `TOIL_<AREA>_…` by hand. Its commands come from `area.command({ ...
+})`: a path, a zod input schema, whether it writes, CLI arguments and flags (each
+mapped to an input field), and at least one example input. Core adds the
+`connection` input (`--connection <name>`) to every area command. A write command
+spreads `allowWriteField` into its input. The CLI and MCP surfaces never implement
+behavior of their own; if one needs something the other lacks, the gap is in core.
+
+**Every command has one `kind`**, which decides what core hands it and which front
+doors serve it: `standalone` (`defineCommand`: no area, no config, e.g. `version`),
+`area` (the default for `area.command`), `area-local` (under an area's path with no
+connection or config, e.g. `jira schema`), `config` (`defineConfigCommand`: gets
+`ctx.manage`) and `cli-only` (a config command never served over MCP).
+
+**Context inputs** say where in the service a command acts (`--project`, `--repo`,
+`--instance`). An area declares them once in `context`; a `group` input (the default)
+is a flag on the area's group (`toil github --owner o get-pr`, accepted before or
+after the leaf) and a field on every one of its MCP tools, and a `command` input
+belongs to the commands that list it in their own `context`, which also marks any
+input `required`. Core resolves each in one order: the call's own value, then the
+dossier (empty until #16), then the git remote where the area declares how to read
+it, then the connection's `setting`, then the area's `default`. An input with
+`selectsConnection` picks the connection (`--env staging` selects the one named
+`staging` or whose `env` is `staging`), and `--connection` goes through the same
+chain. `run` reads `ctx.context.<input>`; `meta.context` reports the connection, each
+input and where it came from.
+
+**Cross-area use is declared on the command.** `shares: { area, keys }` takes those
+settings from another area's default connection when this one lacks them (Kibana
+sending Elasticsearch's key), env tier first across both, and reports it in
+`meta.context.shared`. `aliases` adds CLI paths onto a command: a word is a sibling
+in its group, a path may sit in another group (`deps outdated` for `artifactory
+outdated`); MCP still has one tool per command, and `meta.command` names the command.
 
 Local files go through `ctx.files` (`src/core/files.ts`), never `node:fs`: input
 files, uploads and downloads resolve against the working directory on both front
@@ -197,8 +226,11 @@ doors, `-` means stdin only on the CLI (over MCP stdin carries the protocol), pa
 in output use forward slashes, and tests get an in-memory copy. HTTP to a REST API
 goes through `restRequest` and `buildUrl` in `src/core/rest.ts`, which turn failures
 into `AUTH`, `NOT_FOUND`, `HTTP` or `NETWORK` errors with the server's own message,
-retry a 429, and keep a base URL's context path. argv is typed from the schema: a
-number field parses `--max-results 50`, and an array field makes its flag repeatable.
+retry a 429, and keep a base URL's context path. argv is typed from the schema by the
+same rule env vars follow (`fromText` in `src/core/schema.ts`): numbers, `true` and
+`false`, enums, JSON for an object, and an array field's flag is repeatable with each
+value typed as its element. A union stays text, which is how Jira keeps the
+predecessor's `parseInt` reading of `--max-results`.
 
 **Commands never read config or env.** `run` gets `ctx.connection`, the one
 connection this call resolved, validated and typed from the area's schema, and a
@@ -211,7 +243,7 @@ prompter are withheld from the context too. The only commands that see the whole
 `toil connections` commands, defined with `defineConfigCommand`, which get
 `ctx.manage` (config, store, prompter); no area command can.
 
-A command marked `cliOnly` is never an MCP tool: it prompts on a terminal (stdin is
+A `cli-only` command is never an MCP tool: it prompts on a terminal (stdin is
 the protocol under MCP) or changes connections, which agents never do. It has no
 time limit, since it may be waiting on someone typing.
 
@@ -416,8 +448,9 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   - for every write command, the write gate holding on both sides
 
   New commands are covered on registration; never add a command without examples,
-  and never exempt one from this suite. The only exclusion is `cliOnly` commands,
-  which aren't MCP tools; the suite names each one and proves MCP never serves it. When changing the harness, prove the suite
+  and never exempt one from this suite. The only exclusion is `cli-only` commands,
+  which aren't MCP tools; the suite names each one and proves MCP never serves it.
+  Every alias is run against its command's MCP tool too. When changing the harness, prove the suite
   still bites: break the mapping on purpose and watch it fail.
 - **Each area has a fixture**, `test/fixtures/<area>.fixture.ts`, exporting
   `defineFixture({ area, routes, config })`: canned responses for every request its
@@ -431,8 +464,10 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   and `test/site-commands.test.ts`, which writes `site/src/data/commands.generated.json`
   for the docs pages (`npx vitest run -u` after changing a command).
 - `test/fixtures/demo-commands.ts` holds test-only commands (a read and a write
-  against a fake API) that exercise the harness before real integrations exist.
-  They're never registered in the shipped CLI.
+  against a fake API) that exercise the harness before real integrations exist, and
+  `demo-context-commands.ts` a test-only area that uses context inputs, a setting
+  shared from `demo`, a cross-group alias and every typed flag. They're never
+  registered in the shipped CLI.
 - Database testing, including the local Docker run every provider PR needs, is in
   the `databases` skill.
 - Fixtures use placeholder hosts.

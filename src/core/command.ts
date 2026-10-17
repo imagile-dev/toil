@@ -16,7 +16,34 @@ export interface CliOption {
   flags: string;
   field: string;
   description: string;
+  /**
+   * Registered on the area's group command (`toil bitbucket --project X
+   * list-prs`) rather than on the leaf. Set by core for an area's group-level
+   * context inputs; commander accepts the flag before or after the leaf name.
+   */
+  group?: boolean;
 }
+
+/**
+ * What a command is, which decides what core hands it and which front doors
+ * serve it. One field instead of three flags that could disagree:
+ *
+ * - `standalone`: no area, no config, no connection (`version`). Always served
+ *   by `toil mcp`; a broken config file can't stop it.
+ * - `area`: an area command with one resolved connection (`jira get-issue`).
+ * - `area-local`: lives under an area's path but needs no connection and no
+ *   config (`jira schema`). Served by `toil mcp` whether or not the area is set up.
+ * - `config`: reads or changes the user's connections and gets `ctx.manage`
+ *   (`connections list`). Served by `toil mcp`.
+ * - `cli-only`: a `config` command that runs on the CLI only (`connections
+ *   add`): it prompts on a terminal, or changes connections, which an agent
+ *   never does. Never an MCP tool, and not subject to the time limit, since it
+ *   may be waiting on someone typing.
+ */
+export type CommandKind = 'standalone' | 'area' | 'area-local' | 'config' | 'cli-only';
+
+/** Whether a context input must resolve for this command, or may stay unset. */
+export type ContextNeed = 'optional' | 'required';
 
 /**
  * A command is defined once, here, and exposed by both front doors:
@@ -42,19 +69,25 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
    * nothing else that reads.
    */
   queryByPost?: boolean;
-  /** Works with no configuration at all (e.g. `version`); always served by `toil mcp`. */
-  standalone?: boolean;
-  /** Set by `area.command()`. Every other command is standalone or manages config. */
+  kind: CommandKind;
+  /** Set by `area.command()`, for `area` and `area-local` commands. */
   area?: AnyArea;
   /**
-   * Runs from the CLI only, never as an MCP tool: it asks a person at a
-   * terminal (stdin is the protocol under MCP), or it changes connections,
-   * which an agent never does. Not subject to the time limit, since it may be
-   * waiting on someone typing. The parity suite lists these explicitly.
+   * Other CLI paths that run this command. A string is a sibling in the same
+   * group (commander's own alias); a path may sit in another group, as `deps
+   * outdated` does for `artifactory outdated`. Aliases are CLI only: MCP has
+   * one tool per command, under its own name, and `meta.command` always names
+   * the command, never the alias typed.
    */
-  cliOnly?: boolean;
-  /** Set by defineConfigCommand: gets `ctx.manage` (config, credential store, prompter). */
-  managesConfig?: boolean;
+  aliases?: Array<string | [string, ...string[]]>;
+  /**
+   * The area's context inputs this command takes, and whether each must
+   * resolve. Set by `area.command()`: every group-level input, plus the
+   * command-level ones it lists.
+   */
+  context?: Record<string, ContextNeed>;
+  /** Settings this command takes from another area's connection. Set by `area.command()`. */
+  shares?: SharedSettings;
   args?: CliArgument[];
   options?: CliOption[];
   examples: Array<z.input<S>>;
@@ -63,24 +96,48 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
   run(input: z.output<S>, ctx: CommandContext<any>): Promise<unknown>;
 }
 
+/**
+ * Settings a command takes from another area's default connection when its
+ * own connection lacks them, as Kibana takes Elasticsearch's API key. The env
+ * tier still outranks files across both: the own connection's env var, then
+ * the other area's, then the own config file, then the other's.
+ */
+export interface SharedSettings {
+  area: AnyArea;
+  /** Keys present, with the same name, on both areas' connection schemas. */
+  keys: string[];
+}
+
 // The registry holds commands of many input shapes.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyCommand = CommandDefinition<any>;
 
+type CoreSet = 'area' | 'kind' | 'context' | 'shares';
+
 /** A standalone command: no area, no connection, no config. Area commands use `area.command()`. */
-export function defineCommand<S extends z.ZodObject>(def: Omit<CommandDefinition<S>, 'area' | 'standalone' | 'managesConfig'>): CommandDefinition<S> {
-  return { ...def, standalone: true };
+export function defineCommand<S extends z.ZodObject>(def: Omit<CommandDefinition<S>, CoreSet>): CommandDefinition<S> {
+  return { ...def, kind: 'standalone' };
 }
 
 /**
  * A core command that reads or changes the user's connections (`toil
  * connections ...`). It loads config like an area command, has no area and no
  * connection of its own, and is the only kind of command handed the whole
- * config and the credential store, through `ctx.manage`.
+ * config and the credential store, through `ctx.manage`. `kind: 'cli-only'`
+ * keeps it off MCP.
  */
-export function defineConfigCommand<S extends z.ZodObject>(def: Omit<CommandDefinition<S>, 'area' | 'standalone' | 'managesConfig'>): CommandDefinition<S> {
-  return { ...def, managesConfig: true };
+export function defineConfigCommand<S extends z.ZodObject>(def: Omit<CommandDefinition<S>, CoreSet> & { kind?: 'config' | 'cli-only' }): CommandDefinition<S> {
+  return { ...def, kind: def.kind ?? 'config' };
 }
+
+/** Never an MCP tool. */
+export const isCliOnly = (def: AnyCommand): boolean => def.kind === 'cli-only';
+/** Loads the user's config. `standalone` and `area-local` commands don't, so a broken file can't stop them. */
+export const needsConfig = (def: AnyCommand): boolean => def.kind !== 'standalone' && def.kind !== 'area-local';
+/** Gets `ctx.manage`: the whole config, the credential store and the prompter. */
+export const managesConfig = (def: AnyCommand): boolean => def.kind === 'config' || def.kind === 'cli-only';
+/** Resolves one connection of its area for every call. */
+export const usesConnection = (def: AnyCommand): boolean => def.kind === 'area' && def.area !== undefined;
 
 export function areaOf(def: AnyCommand): string {
   return def.path[0];
@@ -93,4 +150,25 @@ export function toolName(def: AnyCommand): string {
 
 export function commandName(def: AnyCommand): string {
   return def.path.join(' ');
+}
+
+/** Every full CLI path an alias of `def` adds: a sibling alias becomes the path with its last word swapped. */
+export function aliasPaths(def: AnyCommand): string[][] {
+  return (def.aliases ?? []).map((alias) => (typeof alias === 'string' ? [...def.path.slice(0, -1), alias] : [...alias]));
+}
+
+/**
+ * Two commands answering to one path would make the CLI run whichever
+ * registered last. Checked once, when the registry is built.
+ */
+export function assertUniquePaths(commands: readonly AnyCommand[]): void {
+  const seen = new Map<string, string>();
+  for (const def of commands) {
+    for (const path of [def.path, ...aliasPaths(def)]) {
+      const key = path.join(' ');
+      const owner = seen.get(key);
+      if (owner !== undefined) throw new Error(`"${key}" is claimed by both ${owner} and ${commandName(def)}.`);
+      seen.set(key, commandName(def));
+    }
+  }
 }

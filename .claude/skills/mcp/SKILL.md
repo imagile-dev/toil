@@ -18,11 +18,15 @@ enabled (see **Writes** in CLAUDE.md), so an agent cannot discover them, let alo
 Listing grants nothing: every call is still gated against the connection it
 resolves.
 
-A command marked `cliOnly` (`connections add`, `login`, `remove`) is never a tool,
+A command of kind `cli-only` (`connections add`, `login`, `remove`) is never a tool,
 whatever `--areas` says: it prompts on a terminal, and under MCP stdin is the
 protocol, or it changes connections, which an agent never does. The MCP context
-never carries a prompter either. The parity suite names every `cliOnly` command and
-proves MCP doesn't serve it; keep that list and the flag the only exclusion.
+never carries a prompter either. The parity suite names every `cli-only` command and
+proves MCP doesn't serve it; keep that list and the kind the only exclusion. A command
+with no connection (`standalone`, `config`, `area-local` such as `jira schema`) is
+served without `--areas` whether or not its area is set up. Context inputs are fixed
+fields on each tool, the same inputs the CLI takes as flags; aliases are CLI paths
+only, never extra tools.
 
 The server is built on the SDK's low-level `Server`, not `McpServer.registerTool`,
 because `registerTool` validates arguments before our code runs: it drops unknown

@@ -1,10 +1,10 @@
-import { Command, CommanderError } from 'commander';
-import type { AnyCommand } from './core/command.js';
+import { Command, CommanderError, Option } from 'commander';
+import { aliasPaths, commandName, type AnyCommand, type CliOption } from './core/command.js';
 import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
 import { ToilError } from './core/errors.js';
 import { runCommand } from './core/run.js';
-import { baseType, fieldSchema } from './core/schema.js';
+import { baseType, elementSchema, fieldSchema, fromText } from './core/schema.js';
 
 /** Flags every command accepts. Names and meanings are part of the contract. */
 export interface GlobalOptions {
@@ -67,19 +67,35 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
     return parent;
   };
 
-  for (const def of options.commands) {
-    const leaf = quiet(groupFor(def.path.slice(0, -1)).command(def.path[def.path.length - 1]!).description(def.description));
+  // Group-level context flags (`toil bitbucket --project X ...`) live on the
+  // area's group command, once, whichever command declared them first.
+  const onGroup = new Map<string, Set<string>>();
+  const groupFlags = (area: string) => onGroup.get(area) ?? new Set<string>();
+
+  const register = (def: AnyCommand, path: string[]) => {
+    const canonical = path === def.path;
+    const leaf = quiet(
+      groupFor(path.slice(0, -1))
+        .command(path[path.length - 1]!)
+        .description(canonical ? def.description : `${def.description} (same as toil ${commandName(def)})`),
+    );
+    if (canonical) for (const alias of def.aliases ?? []) if (typeof alias === 'string') leaf.alias(alias);
     for (const arg of def.args ?? []) {
       const name = `${arg.name}${arg.variadic ? '...' : ''}`;
       leaf.argument(arg.required === false ? `[${name}]` : `<${name}>`, arg.description);
     }
+    const inArea = path[0] === def.path[0];
+    const onLeaf = new Set<string>();
     for (const opt of def.options ?? []) {
-      // A flag for an array field is repeatable (--field A=1 --field B=2): each
-      // use appends, so nobody has to invent a separator that a value may contain.
-      if (takesValue(opt.flags) && isArrayField(def, opt.field)) {
-        leaf.option(opt.flags, opt.description, (value: string, previous: string[] | undefined) => [...(previous ?? []), value]);
-      } else {
-        leaf.option(opt.flags, opt.description);
+      // Only the area's own group carries its group flags; an alias in another
+      // group (`deps outdated`) takes them as its own leaf flags instead.
+      if (opt.group && inArea) {
+        const flags = onGroup.get(path[0]!) ?? new Set<string>();
+        if (!flags.has(opt.flags)) addOption(groupFor([path[0]!]), def, opt);
+        onGroup.set(path[0]!, flags.add(opt.flags));
+      } else if (!onLeaf.has(opt.flags)) {
+        addOption(leaf, def, opt);
+        onLeaf.add(opt.flags);
       }
     }
     if (def.writes) leaf.option('--allow-write', 'Allow this command to change data (writes must also be enabled in config)');
@@ -87,10 +103,18 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
     leaf.action(async (...actionArgs: unknown[]) => {
       const cmd = actionArgs[actionArgs.length - 1] as Command;
       const globals = cmd.optsWithGlobals<GlobalOptions>();
-      const envelope = await runCommand(def, inputFromCli(def, cmd), () => options.createContext(globals, def), options.version);
+      const input = inputFromCli(def, cmd, inArea ? groupFlags(path[0]!) : new Set());
+      const envelope = await runCommand(def, input, () => options.createContext(globals, def), options.version);
       emit(envelope, globals, io);
       result.exitCode = envelope.ok ? 0 : 1;
     });
+  };
+
+  for (const def of options.commands) register(def, def.path);
+  // A sibling alias is commander's own (`.alias()` above); a path elsewhere
+  // gets a leaf of its own that runs the same definition.
+  for (const def of options.commands) {
+    for (const [i, path] of aliasPaths(def).entries()) if (typeof def.aliases![i] !== 'string') register(def, path);
   }
 
   quiet(
@@ -170,17 +194,20 @@ function commandFromArgv(args: string[], commands: AnyCommand[]): string {
     }
     words.push(token);
   }
-  let best: string[] = [];
+  // An alias reports the command it runs, as the envelope of a successful call does.
+  let best = { length: 0, name: '' };
   for (const def of commands) {
-    const matches = def.path.every((segment, i) => words[i] === segment);
-    if (matches && def.path.length > best.length) best = def.path;
+    for (const path of [def.path, ...aliasPaths(def)]) {
+      const matches = path.every((segment, i) => words[i] === segment);
+      if (matches && path.length > best.length) best = { length: path.length, name: commandName(def) };
+    }
   }
   if (best.length === 0) {
     // A group typed without its leaf (`toil demo`) still names the group.
-    const group = commands.find((def) => def.path[0] === words[0]);
+    const group = commands.find((def) => [def.path, ...aliasPaths(def)].some((path) => path[0] === words[0]));
     return group ? words[0]! : (words[0] ?? '');
   }
-  return best.join(' ');
+  return best.name;
 }
 
 /** The output flags, read straight from argv when commander couldn't parse it. */
@@ -198,20 +225,38 @@ function globalsFromArgv(args: string[]): GlobalOptions {
   return globals;
 }
 
-/** Maps parsed argv onto a command's input fields. */
-function inputFromCli(def: AnyCommand, cmd: Command): Record<string, unknown> {
+/**
+ * A flag on a leaf or a group. An array field's flag is repeatable (--field
+ * A=1 --field B=2): each use appends, so nobody has to invent a separator that
+ * a value may contain.
+ */
+function addOption(cmd: Command, def: AnyCommand, opt: CliOption): void {
+  if (takesValue(opt.flags) && isArrayField(def, opt.field)) {
+    cmd.option(opt.flags, opt.description, (value: string, previous: string[] | undefined) => [...(previous ?? []), value]);
+  } else {
+    cmd.option(opt.flags, opt.description);
+  }
+}
+
+/**
+ * Maps parsed argv onto a command's input fields. A group flag, or a leaf
+ * flag the group also has, is read from the group: commander lets the parent
+ * take it wherever it was typed.
+ */
+function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<string>): Record<string, unknown> {
   const input: Record<string, unknown> = {};
   const positional = cmd.processedArgs as unknown[];
   (def.args ?? []).forEach((arg, i) => {
-    if (positional[i] !== undefined) input[arg.field] = positional[i];
+    if (positional[i] !== undefined) input[arg.field] = typed(def, arg.field, positional[i]);
   });
-  const opts = cmd.opts<Record<string, unknown>>();
+  const own = cmd.opts<Record<string, unknown>>();
+  const all = cmd.optsWithGlobals<Record<string, unknown>>();
   for (const opt of def.options ?? []) {
-    const parsed = cmd.options.find((o) => o.flags === opt.flags);
-    const value = parsed ? opts[parsed.attributeName()] : undefined;
-    if (value !== undefined) input[opt.field] = fromText(def, opt.field, value);
+    const attribute = new Option(opt.flags).attributeName();
+    const value = own[attribute] !== undefined ? own[attribute] : groupFlags.has(opt.flags) ? all[attribute] : undefined;
+    if (value !== undefined) input[opt.field] = typed(def, opt.field, value);
   }
-  if (def.writes && opts.allowWrite === true) input.allowWrite = true;
+  if (def.writes && own.allowWrite === true) input.allowWrite = true;
   return input;
 }
 
@@ -223,38 +268,51 @@ function isArrayField(def: AnyCommand, field: string): boolean {
 }
 
 /**
- * argv holds only text. Where the schema wants a number, a numeric string
- * becomes one, so `--max-results 50` and MCP's `maxResults: 50` are the same
- * input. Anything else stays as typed, and the schema rejects it with the same
- * message through both front doors.
+ * argv holds only text. Each value becomes the type its field's schema asks
+ * for, by the same rule env vars follow (`fromText`): `--max-results 50` and
+ * MCP's `maxResults: 50` are the same input, and a repeated flag's values are
+ * each typed as the array's element. Anything that doesn't parse stays as
+ * typed, and the schema rejects it with the same message through both doors.
  */
-function fromText(def: AnyCommand, field: string, value: unknown): unknown {
-  if (typeof value !== 'string') return value;
+function typed(def: AnyCommand, field: string, value: unknown): unknown {
   const schema = fieldSchema(def.input, field);
-  if (schema && baseType(schema) === 'number' && /^-?\d+(\.\d+)?$/.test(value.trim())) return Number(value);
-  return value;
+  if (!schema) return value;
+  if (Array.isArray(value)) {
+    const element = elementSchema(schema);
+    return element ? value.map((item) => fromText(element, item)) : value;
+  }
+  return fromText(schema, value);
 }
 
 /**
  * The argv that produces `input` for `def`: the inverse of inputFromCli. The
- * parity test uses it to send each example through the CLI.
+ * parity test uses it to send each example through the CLI, along `path` when
+ * it is checking an alias. Group flags go after the leaf, which commander
+ * accepts, and a field mapped by two flags is sent once.
  */
-export function argvFor(def: AnyCommand, input: Record<string, unknown>): string[] {
-  const argv: string[] = [...def.path];
+export function argvFor(def: AnyCommand, input: Record<string, unknown>, path: string[] = def.path): string[] {
+  const argv: string[] = [...path];
+  const text = (value: unknown) => (typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value));
   for (const arg of def.args ?? []) {
     const value = input[arg.field];
     if (value === undefined) continue;
-    if (Array.isArray(value)) argv.push(...value.map(String));
-    else argv.push(String(value));
+    if (Array.isArray(value)) argv.push(...value.map(text));
+    else argv.push(text(value));
   }
+  const sent = new Set<string>();
   for (const opt of def.options ?? []) {
     const value = input[opt.field];
-    if (value === undefined || value === false) continue;
+    if (value === undefined || sent.has(opt.field)) continue;
     const long = opt.flags.split(/[ ,]+/).find((part) => part.startsWith('--'));
     if (!long) continue;
-    if (!takesValue(opt.flags)) argv.push(long);
-    else if (Array.isArray(value)) for (const item of value) argv.push(long, String(item));
-    else argv.push(long, String(value));
+    sent.add(opt.field);
+    if (!takesValue(opt.flags)) {
+      if (value === true) argv.push(long);
+    } else if (Array.isArray(value) && isArrayField(def, opt.field)) {
+      for (const item of value) argv.push(long, text(item));
+    } else {
+      argv.push(long, text(value));
+    }
   }
   if (def.writes && input.allowWrite === true) argv.push('--allow-write');
   return argv;

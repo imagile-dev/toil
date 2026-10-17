@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { areaOf, commandName, type AnyCommand } from './command.js';
+import { areaOf, commandName, isCliOnly, managesConfig, usesConnection, type AnyCommand } from './command.js';
 import type { Connection } from './area.js';
+import { resolveCall, type ResolvedCall } from './call-context.js';
 import { connectionEnvName, defaultConnectionName, envName } from './config.js';
-import { resolveConnection } from './connection.js';
 import type { CommandContext, Context } from './context.js';
-import { failure, success, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
+import { failure, success, type ContextReport, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
 
@@ -39,16 +39,18 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
   const requests: RequestLog[] = [];
   const warnings: Warning[] = [...ctx.config.warnings];
   let page: Page | undefined;
+  let report: ContextReport | undefined;
   const meta = (): Meta => {
     const m: Meta = { command: commandName(def), durationMs: Math.round(performance.now() - started), version: ctx.version };
     if (ctx.verbose) m.requests = requests;
     if (warnings.length > 0) m.warnings = warnings;
     if (page) m.page = page;
+    if (report) m.context = report;
     return m;
   };
 
   // A CLI-only command may be waiting on a person typing a token; Ctrl+C still cancels it.
-  const timeoutMs = def.cliOnly ? undefined : (ctx.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const timeoutMs = isCliOnly(def) ? undefined : (ctx.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const controller = new AbortController();
   // Aborting stops toil waiting; it can't recall a request the server already
   // has. For a write, "stopped" would invite a retry that files the change
@@ -89,15 +91,18 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     aborted.catch(() => {});
     // One connection per call, resolved before the gate: writes are switched on
     // per connection, so the gate has to know which one this call would use.
+    // Its context inputs resolve with it, since an input may select it.
     // Reading a secret from the OS store spawns a process, so it runs under
     // the same time limit and cancel as the command itself.
     const input = parsed.data as Record<string, unknown>;
-    const connection = def.area
+    const call: ResolvedCall | undefined = usesConnection(def)
       ? await Promise.race([
-          resolveConnection(ctx.config, def.area, input.connection as string | undefined, (w) => warnings.push(w), ctx.secrets, controller.signal),
+          resolveCall(def, input, { config: ctx.config, secrets: ctx.secrets, dossier: ctx.dossier, gitRemote: ctx.gitRemote }, (w) => warnings.push(w), controller.signal),
           aborted,
         ])
       : undefined;
+    report = call?.report;
+    const connection = call?.connection;
     if (def.writes) assertWritesAllowed(def, input, connection, ctx);
 
     // Commands get their connection and nothing else: no config, and no env,
@@ -105,15 +110,26 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     // enforced rather than requested in a policy nobody reads.
     // The credential store and the prompter go only to commands that manage
     // connections, which get them through ctx.manage.
-    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt'> & { config?: unknown; env?: unknown; secrets?: unknown; prompt?: unknown } = { ...ctx };
+    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossier' | 'gitRemote'> & {
+      config?: unknown;
+      env?: unknown;
+      secrets?: unknown;
+      prompt?: unknown;
+      dossier?: unknown;
+      gitRemote?: unknown;
+    } = { ...ctx };
     delete rest.config;
     delete rest.env;
     delete rest.secrets;
     delete rest.prompt;
+    delete rest.dossier;
+    delete rest.gitRemote;
     const commandCtx: CommandContext<Connection | undefined> = {
       ...rest,
       connection,
-      ...(def.managesConfig ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt } } : {}),
+      context: call?.context ?? {},
+      resolved: call?.report ?? {},
+      ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
       warn: (warning) => warnings.push(warning),
