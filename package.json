@@ -35,8 +35,9 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsup",
-    "typecheck": "tsc --noEmit",
+    "gen": "node scripts/gen-areas.mjs",
+    "build": "node scripts/gen-areas.mjs && tsup",
+    "typecheck": "node scripts/gen-areas.mjs && tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "check:pure": "node scripts/check-pure.mjs",

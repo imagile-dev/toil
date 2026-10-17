@@ -116,10 +116,14 @@ GitHub Actions; its build tooling is out of scope.
 
 ## Layout
 
-- `src/core/` — the machinery: `defineCommand`, `execute` (validation, write gate,
-  envelope), errors, config loading
-- `src/areas/` — the commands themselves, one module per area
-- `src/registry.ts` — the list of shipped commands; both front doors read it
+- `src/core/` — the machinery: `defineArea`, `defineCommand`, `execute`
+  (validation, connection, write gate, envelope), errors, config loading
+- `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
+  `commands` (standalone commands export only `commands`)
+- `src/registry.ts` — every shipped area and command, read by both front doors. It
+  imports `src/areas.generated.ts`, which `scripts/gen-areas.mjs` writes before
+  typecheck, build and tests and git ignores. **Areas register by existing:** adding
+  one never edits a shared list, so parallel area PRs don't conflict.
 - `src/program.ts` — builds the CLI from the registry; `src/cli.ts` is the bundle
   entry that wires it to the real process
 - `src/mcp/` — the MCP server (`toil mcp`, stdio); tools generated from the registry
@@ -132,19 +136,30 @@ GitHub Actions; its build tooling is out of scope.
 - `docs/` — plans and decisions
 - `site/` — the GitHub Pages site (Astro), its own private package; see **Site**
 
-A command is defined once with `defineCommand` in `src/areas/`: its path, a zod
-input schema, whether it writes, its CLI arguments and flags (each mapped to an input
-field), and at least one example input. The CLI and MCP surfaces never implement
-behavior of their own; if one needs something the other lacks, the gap is in core.
-A write command spreads `allowWriteField` into its input.
+An area is declared once with `defineArea({ name, connection, secrets, defaults,
+fallbacks, renamed })`: `connection` is the zod schema of what a connection to it
+holds. Its commands come from `area.command({ ... })`: a path, a zod input schema,
+whether it writes, CLI arguments and flags (each mapped to an input field), and at
+least one example input. Core adds the `connection` input (`--connection <name>`)
+to every area command. A write command spreads `allowWriteField` into its input.
+Commands with no area and no config (`version`) use `defineCommand`. The CLI and MCP
+surfaces never implement behavior of their own; if one needs something the other
+lacks, the gap is in core.
+
+**Commands never read config.** `run` gets `ctx.connection`, the one connection this
+call resolved, validated and typed from the area's schema, and a context with no
+`config` at all, so no area can reach another area's or another connection's
+credentials. ESLint bans importing config under `src/areas/`.
 
 ## MCP Server
 
 `toil mcp` serves over stdio. `--areas jira,confluence` limits it to those areas, so
 an agent sees a small, focused tool list and one config entry stands in for one vendor
 server. With no `--areas`, it serves every area that has config, plus `standalone` commands that need none (like `version`). Write tools are not
-registered at all unless the area has writes enabled (see **Writes**), so an agent
-cannot discover them, let alone call them.
+registered at all unless at least one of the area's connections has writes
+enabled (see **Writes**), so an agent cannot discover them, let alone call them.
+Listing grants nothing: every call is still gated against the connection it
+resolves.
 
 The server is built on the SDK's low-level `Server`, not `McpServer.registerTool`,
 because `registerTool` validates arguments before our code runs: it drops unknown
@@ -210,10 +225,31 @@ a breaking change.
 
 ## Configuration Precedence
 
-1. `TOIL_*` environment variable
-2. A well-known CI-provided variable for that service, only where the service's own
-   tooling treats it as canonical (`GITHUB_TOKEN`, `SYSTEM_ACCESSTOKEN`). Never invent one.
-3. `~/.toil/config.json`, or the file passed with `--config`
+Config is a set of named **connections**, each one instance of an area's service
+(`"corp-jira": { "area": "jira", "baseUrl": ... }`), plus per-area **defaults**
+(`"defaults": { "jira": { "connection": "corp-jira", ... } }`): `connection` names
+the area's default connection, and any other key is shared by every connection to
+that area. A value on a connection resolves from, highest first:
+
+1. `TOIL_CONN_<NAME>_<KEY>`, for that connection
+2. `TOIL_<AREA>_<KEY>`, for the area's default connection only
+3. A well-known CI-provided variable the area declares (`fallbacks`), for its default
+   connection, only where the service's own tooling treats it as canonical
+   (`GITHUB_TOKEN`, `SYSTEM_ACCESSTOKEN`). Never invent one.
+4. The connection in `~/.toil/config.json`, or the file passed with `--config`
+5. `defaults.<area>` in that file
+6. The area's provider defaults (`defineArea({ defaults })`, e.g. a port)
+
+Each call uses one connection: `--connection`, otherwise the area's default (named in
+`defaults`, else the one named after the area, else the only one). Several and no
+default is an `INVALID_INPUT` with a fix, never a guess. `TOIL_CONN_<NAME>_AREA`
+creates a connection with no file at all, which is how CI defines one; an area with
+no connection gets one named after it from `TOIL_<AREA>_*`. Connection names are
+lowercase letters, digits and single hyphens, so each maps to exactly one env form;
+variables match the longest connection name first, and one naming no connection is
+a warning. Env strings are coerced to the schema's types (`"5432"` to a number), keys
+an area doesn't declare are dropped with a warning, and renamed keys still work, with
+one.
 
 CI must be able to override anything without editing files. Lowering env-var priority
 for any field is a breaking change. Anything that rewrites the global config carries
@@ -238,10 +274,11 @@ and never map onto an area: `TOIL_CONN_*`, `TOIL_DOSSIER`, `TOIL_ENV`, `TOIL_CON
 **The config file is versioned.** `"version"` is a whole number; a file without one
 is version 1. Every format change adds a step to `migrateConfig()` with a test, so an
 old file always loads. A file from a newer toil is refused with an upgrade fix rather
-than half-read. Top-level `version`, `$schema`, `connections` and `defaults` are
-never areas; the last two are reserved for named connections (#51) and produce a
-warning until then. Standalone commands (`version`) don't load config at all, so a
-broken or newer file can't stop a user finding out which toil they have.
+than half-read. Version 1 is a map of area to settings and reads as one connection
+per area, named after it and set as its default. Version 2 holds `connections` and
+`defaults`; using them needs `"version": 2`. Standalone commands (`version`) don't
+load config at all, so a broken or newer file can't stop a user finding out which
+toil they have.
 
 ## Authentication Bar
 
@@ -262,11 +299,14 @@ No hardcoded vendor base URLs; every host is user-supplied.
 *Principle 2.* Every command that changes something outside the local machine —
 creating or transitioning an issue, commenting on a PR, writing a row — needs both:
 
-1. `writes: true` on that service or connection in config, set by a human, and
+1. `writes: true` on the connection the call resolves, set by a human, and
 2. `--allow-write` on the call.
 
-Without either, the command fails with a `ToilError` naming the missing one. Env vars
-can enable writes for CI (`TOIL_<AREA>_WRITES=true`), following normal precedence.
+Without either, the command fails with a `ToilError` naming the missing one and the
+connection. `writes` is per connection, so writes can be on for a sandbox and off
+for production; it is never read from `defaults.<area>`. Env vars can enable writes
+for CI (`TOIL_CONN_<NAME>_WRITES=true`, or `TOIL_<AREA>_WRITES=true` for the
+default connection), following normal precedence.
 Deletes are never exposed through MCP.
 
 ## Databases
@@ -314,9 +354,10 @@ literal. Nothing may require the keychain.
 
 ## Adding an Enterprise Integration
 
-Confirm the Authentication Bar first. Then, in one change: config type and env-var
-resolution, HTTP client methods, commands in core, `config init`/`check`/`test`
-entries, `skills/toil/<service>.md`, and its row in `SKILL.md`. The
+Confirm the Authentication Bar first. Then, in one change: `src/areas/<area>/` with
+its `defineArea` (connection schema, secrets, CI fallbacks) and its commands, a
+`test/fixtures/<area>.fixture.ts`, `config init`/`check`/`test` entries,
+`skills/toil/<service>.md`, and its row in `SKILL.md`. The
 `new-integration` skill holds the checklist; a test fails when a registered service
 has no skill file.
 
@@ -362,6 +403,9 @@ Tests never need the network: a developer offline gets the same result as CI.
   - for every example, identical envelopes and identical HTTP requests through both
     front doors, and only GET/HEAD/OPTIONS from a command that doesn't write
   - an unknown field refused as `INVALID_INPUT` on both sides before any request
+  - a config failure building the context gives the same envelope on both sides
+  - per area, `--connection <name>` and MCP's `connection` field selecting the same
+    connection, and an unknown connection refused the same way
   - for every write command, the write gate holding on both sides
 
   New commands are covered on registration; never add a command without examples,
@@ -369,7 +413,8 @@ Tests never need the network: a developer offline gets the same result as CI.
   still bites: break the mapping on purpose and watch it fail.
 - **Each area has a fixture**, `test/fixtures/<area>.fixture.ts`, exporting
   `defineFixture({ area, routes, config })`: canned responses for every request its
-  examples send, and a config with credentials set and writes on. The suite finds it
+  examples send, and a config keyed by area (read as one connection named after the
+  area, as a version 1 file is) with credentials set and writes on. The suite finds it
   by file name and fails when a registered area has none.
 - `test/fixtures/demo-commands.ts` holds test-only commands (a read and a write
   against a fake API) that exercise the harness before real integrations exist.

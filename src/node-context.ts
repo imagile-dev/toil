@@ -1,5 +1,5 @@
 import type { AnyCommand } from './core/command.js';
-import { emptyConfig, loadConfig } from './core/config.js';
+import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
 import type { GlobalOptions } from './program.js';
 
@@ -10,7 +10,8 @@ export interface NodeContextOptions {
   env: NodeJS.ProcessEnv;
   cwd: string;
   home: string;
-  knownAreas: readonly string[];
+  /** Registered areas: names for env-var mapping, and their CI fallbacks. */
+  areas: readonly AreaInfo[];
   version: string;
   stderr: (text: string) => void;
 }
@@ -32,7 +33,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
   return {
     config: o.def?.standalone
       ? emptyConfig()
-      : loadConfig({ env: o.env, cwd: o.cwd, home: o.home, configPath: o.globals.config, knownAreas: o.knownAreas }),
+      : loadConfig({ env: o.env, cwd: o.cwd, home: o.home, configPath: o.globals.config, areas: o.areas }),
     fetch: globalThis.fetch,
     env: o.env,
     version: o.version,

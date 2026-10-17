@@ -21,8 +21,14 @@ export interface Context {
   timeoutMs?: number;
 }
 
-/** What a command's run() receives: the context, plus ways to talk back through meta. */
-export interface CommandContext extends Context {
+/**
+ * What a command's run() receives: the context without config, its own
+ * resolved connection, and ways to talk back through meta. Config is left out
+ * on purpose: a command reads only the connection it was given, so it can't
+ * reach another area's credentials, or another connection's.
+ */
+export interface CommandContext<C = undefined> extends Omit<Context, 'config'> {
+  connection: C;
   signal: AbortSignal;
   /** Add a warning to meta.warnings. */
   warn: (warning: Warning) => void;

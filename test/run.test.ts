@@ -5,13 +5,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { versionCommand } from '../src/areas/version.js';
+import { versionCommand } from '../src/areas/version/version.js';
 import { commandName, defineCommand } from '../src/core/command.js';
 import { CONFIG_VERSION } from '../src/core/config.js';
 import { allowWriteField, execute } from '../src/core/run.js';
 import { createMcpServer } from '../src/mcp/server.js';
 import { createNodeContext, timeoutFromEnv } from '../src/node-context.js';
-import { getThing } from './fixtures/demo-commands.js';
+import { demoArea, getThing } from './fixtures/demo-commands.js';
 import { testConfig, testContext } from './harness/context.js';
 import { connectMcp, type McpSession } from './harness/mcp.js';
 
@@ -69,8 +69,8 @@ describe('execute', () => {
   });
 
   it('never tells an agent a timed-out or cancelled write was stopped: it may have landed', async () => {
-    const hangWrite = defineCommand({ ...hang, path: ['demo', 'hang-write'], input: z.object({ ...allowWriteField }), writes: true, examples: [{ allowWrite: true }] });
-    const { context } = testContext({ config: { demo: { writes: true } } });
+    const hangWrite = demoArea.command({ ...hang, path: ['demo', 'hang-write'], input: z.object({ ...allowWriteField }), writes: true, examples: [{ allowWrite: true }] });
+    const { context } = testContext({ config: { demo: { token: 't', writes: true } } });
 
     const timedOut = await execute(hangWrite, { allowWrite: true }, { ...context, timeoutMs: 20 });
     expect(timedOut.error).toMatchObject({ code: 'TIMEOUT', message: expect.stringContaining('may already have been applied'), fix: expect.stringContaining('before retrying') });
@@ -80,6 +80,24 @@ describe('execute', () => {
 
     const read = await execute(hang, {}, { ...context, timeoutMs: 20 });
     expect(read.error?.message).not.toContain('may already have been applied');
+  });
+
+  it('hands a command its connection and never the config, so it cannot read another area', async () => {
+    let seen: Record<string, unknown> = {};
+    const probe = demoArea.command({
+      path: ['demo', 'probe'],
+      description: 'probe',
+      input: z.object({}),
+      writes: false,
+      examples: [{}],
+      run: async (_input, ctx) => {
+        seen = { hasConfig: 'config' in ctx, connection: ctx.connection.name, token: ctx.connection.token };
+        return null;
+      },
+    });
+    const { context } = testContext({ config: { demo: { token: 'demo-token' }, other: { token: 'other-secret' } } });
+    expect((await execute(probe, {}, context)).ok).toBe(true);
+    expect(seen).toEqual({ hasConfig: false, connection: 'demo', token: 'demo-token' });
   });
 
   it('puts command warnings, config warnings and the page cursor in meta', async () => {
@@ -150,7 +168,7 @@ describe('createNodeContext', () => {
       env: {},
       cwd: home,
       home,
-      knownAreas: ['demo'],
+      areas: [{ name: 'demo' }],
       version: '0.0.0-test',
       stderr: () => {},
     });
@@ -160,7 +178,7 @@ describe('createNodeContext', () => {
     mkdirSync(join(root, '.toil'));
     writeFileSync(join(root, '.toil', 'config.json'), JSON.stringify({ version: CONFIG_VERSION + 1 }));
 
-    expect(contextFor(versionCommand, root).config.areas).toEqual({});
+    expect(contextFor(versionCommand, root).config.connections).toEqual({});
     expect(() => contextFor(getThing, root)).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID' }));
   });
 });

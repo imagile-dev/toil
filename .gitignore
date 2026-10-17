@@ -47,3 +47,6 @@ site/.astro/
 
 # Local design labs, never shipped
 site/public/lab/
+
+# Generated before typecheck, build and tests (scripts/gen-areas.mjs)
+src/areas.generated.ts
