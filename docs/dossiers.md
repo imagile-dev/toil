@@ -151,20 +151,54 @@ prompts. The names are used through **one fixed input**, never through generated
 ## Where dossiers live
 
 toil reads dossiers from three kinds of place, and every listing says which one a
-dossier came from (`source`: `user`, `repo` or a `dossierPaths` folder):
+dossier came from (`source`: `user`, `repo`, `listed`, or `file` for one passed by
+path):
 
 1. **Your own**, in `~/.toil/dossiers/<name>.json`.
 2. **Checked into the repository you're in**, in `.toil/dossiers/*.json` at its git
    root. A service's repo can carry its own dossier.
-3. **Folders you list** in your config, `"dossierPaths": ["C:/Code/team-dossiers/.toil/dossiers"]`.
-   This is how a team shares dossiers for many services from one repository: clone
-   it once and list its folder. Only folders you list are read; toil never searches
-   for them.
+3. **Folders you list**, for a team that shares dossiers for many services from one
+   repository: clone it once and list its folder. Only folders you list are read;
+   toil never searches for them.
+   - In config, a top-level `"dossierPaths": ["C:/Code/team-dossiers/.toil/dossiers"]`
+     in a version 2 file. It's added to the reserved top-level keys when dossiers are
+     built, so it's never read as an area.
+   - From env, `TOIL_DOSSIER_PATHS`, separated by the platform's path delimiter (`;`
+     on Windows, `:` elsewhere). It replaces the config's list, as env always wins.
+     Every `TOIL_DOSSIER*` name is reserved, so no area can ever claim it.
 
 A checked-in dossier applies only when you're in its repository, or when its folder
-is listed. Two dossiers with the same name: your own wins, then a listed folder, then
-the repository you're in. So you can always override a teammate's copy without
-editing theirs.
+is listed.
+
+**Which dossier applies is never a guess.**
+- **Same name in two places:** your own wins, then a listed folder, then the
+  repository you're in. So you can override a teammate's copy without editing it.
+- **Different dossiers that both match** (two files in one repository, or your own
+  `payments` and the repo's `payments-team`), with no explicit `dossier`: the call
+  fails with `INVALID_INPUT` listing the candidates and saying to pass `dossier`.
+  The answer never depends on hidden state such as which was used last.
+
+## Validation on every read
+
+A dossier is checked **every time toil reads it**, not only by `dossier check`, and
+problems show up where they'll be seen. That means a warning in `meta.warnings` on
+whatever command read it, and the same list from `dossier check`. A dossier with a
+problem still loads where it safely can. A broken one doesn't, and the error says
+which file and which key.
+
+**A key added twice is always reported:**
+- **Twice in the file.** `JSON.parse` keeps the last of two identical keys and drops
+  the first without a word. toil reads dossiers with a parser that sees duplicates,
+  and reports `DOSSIER_DUPLICATE_KEY` with the key path (`jira.fields.storyPoints`).
+- **Twice in a list:** the same repo name, remote, project, field id, board or
+  deployment. Remotes are compared after normalising.
+- **Twice across files:** the same dossier name in two places (see **Where dossiers
+  live**) is a warning naming both files, even when precedence settles which one
+  wins.
+
+**The commands never add a duplicate.** `dossier add-repo`, `field`, `link` and `env`
+refuse a key that's already there with `INVALID_INPUT`, naming the existing entry.
+Changing it is an explicit replace (`--replace`), never a silent second copy.
 
 ## Resolving context
 
@@ -174,13 +208,15 @@ resolver, **fed identically by both front doors**:
 1. **Explicit input:** `dossier` and `env` (`--dossier`, `--env` on the CLI), or
    `TOIL_DOSSIER` and `TOIL_ENV`. `dossier` is a name, or a path to a dossier file, so
    a pipeline can use a checked-in dossier with no home folder.
-2. **Otherwise a `path`.** `path` is an input on every command that resolves
-   context, on both front doors (`--path <dir>` on the CLI, `path` over MCP). Only its
-   default differs: the CLI uses its working directory, and MCP uses the client's MCP
-   root if the client reports exactly one. A stdio server starts wherever its client
-   launched it, so its own working directory means nothing. With neither, there is
-   no path, and step 4 applies.
-3. **From a path,** toil finds the git root and matches a repo by `path`, then by
+2. **Otherwise a folder, `cwd`.** `cwd` is an input on every command that resolves
+   context, on both front doors (`--cwd <dir>` on the CLI, `cwd` over MCP). The name
+   says what it stands in for, and it can't clash with a command's own path input
+   (a file for `code`, a folder for `repos scan`). Only its default differs: the CLI
+   uses its working directory, and MCP uses the client's MCP root if the client
+   reports exactly one. A stdio server starts wherever its client launched it, so its
+   own working directory means nothing. With neither, there is no folder, and step 4
+   applies.
+3. **From that folder,** toil finds the git root and matches a repo by `path`, then by
    `remotes` against the folder's origin, so a fresh clone anywhere still resolves. A
    dossier checked into that repository is a candidate too (see **Where dossiers
    live**).
@@ -190,13 +226,14 @@ resolver, **fed identically by both front doors**:
 Explicit inputs always beat dossier defaults. `meta.context` in the envelope reports
 what was resolved and from where: the dossier and its `source`, the repo, the
 environment, the connection per area and how it was selected (name, host or default),
-and whether the path came from `--path`/`path`, the cwd or an MCP root. Dossiers are
+and whether the folder came from the `cwd` input, the CLI's working directory or an
+MCP root. Dossiers are
 read on every call, so an edit made while `toil mcp` is running applies from the next
 call; the tool list never depends on dossier content.
 
 ### The filesystem the server sees
 
-Every file location is an explicit input on both front doors: `path`, `--repo`, a
+Every file location is an explicit input on both front doors: `cwd`, `--repo`, a
 dossier file, an import source. That keeps the CLI and MCP 1:1. The defaults are the
 only difference, and `meta.context` names them. The server can only use paths on its
 own filesystem, so:
@@ -240,7 +277,7 @@ files directly:
     - remotes are free of userinfo
 
     It contacts no service.
-  - `toil dossier context [--path <dir>]` shows what a folder resolves to.
+  - `toil dossier context [--cwd <dir>]` shows what a folder resolves to.
 - **Checking against the services** is one area at a time, because a command talks to
   one service: `toil <area> check-dossier <name>` verifies that area's section
   (projects and fields exist in Jira, namespaces are reachable in OpenShift), using
@@ -251,11 +288,21 @@ files directly:
     by a `host` selector taken from that connection's `baseUrl`, and `path` entries,
     which are machine-specific, are dropped. toil writes the file and stops; it never
     stages or commits. Committing is the agent's or user's own git workflow.
+  - `toil dossier export <name> --file <path>` writes a single file, for any other kind
+    of sharing.
   - `toil dossier import <file|dir>` copies a dossier into your own folder, so you
     can adapt it. An import never creates connections; any connection or host it
     can't resolve is reported as one to set up.
-  - `toil dossier export <name> --file <path>` writes anywhere, for any other kind
-    of sharing.
+- **Where export may write.** Exports are bounded, because over MCP an agent chooses
+  the path:
+  - `--repo` must be a git root, found the way **Reading git without git** finds one.
+  - `--file` must end in `.json`, and may not be inside `~/.toil/` unless it's under
+    `~/.toil/dossiers/`, so an export can never replace the config.
+  - Neither overwrites a file that isn't already a valid dossier. Replacing an
+    existing dossier needs `--replace`.
+- **What import reveals.** An import that fails reports schema problems only, by key
+  path, and never echoes the file's content. Pointing it at `config.json` can't read
+  connections back out.
 - **Discovery** is read-only and runs through ordinary connections. It's ordinary area
   commands, not dossier magic: `toil repos scan <folder>` (local git repos and their
   remotes), `toil jira fields --project PAY`, `toil ado boards`,
@@ -283,9 +330,14 @@ exporting it into a repository for the team.
 
   Binding a dossier to a writes-enabled connection is done on the CLI, by a human.
   **Checked-in and listed-folder dossiers** follow the same rule when they're read: a
-  section whose selection lands on a writes-enabled connection is reported by
-  `dossier check`, and a write through it fails until the user adopts the dossier
-  with `toil dossier import`. Then the binding is theirs.
+  section whose `connection` or `host` lands on a writes-enabled connection is
+  reported by `dossier check`, and a write through it fails until the user adopts the
+  dossier with `toil dossier import`. Then the binding is theirs.
+- **Only an explicit binding counts.** A section with no `connection` or `host`, or no
+  section at all, selected nothing: the call uses your own default connection, which
+  was always yours to set, and a checked-in dossier doesn't change that. An explicit
+  `connection` input on the call also goes through, since you chose it. So the error
+  for a blocked write offers both fixes: pass `--connection`, or `dossier import`.
 
 **When write tools are registered:** an area's write tools are listed over MCP when
 **any** of that area's connections has `writes: true`. Listing grants nothing: every
@@ -312,6 +364,3 @@ wherever it's used, including dossiers already bound to it.
 
 1. **Where a dossier names a connection the user doesn't have:** a hard error, or a
    warning, with the area falling back to explicit inputs?
-2. **Precedence among several dossiers containing the same repo:** a repo shared by
-   two dossiers is possible (a platform library, say). The proposal is that the
-   explicit `dossier` input wins, otherwise the most recently used.
