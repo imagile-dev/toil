@@ -1,0 +1,42 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_CONTRAST_BASE_URL",
+    "description": "Contrast instance root, e.g. https://contrast.imagile.dev or https://app.contrastsecurity.com",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "orgUuid",
+    "env": "TOIL_CONTRAST_ORG_UUID",
+    "description": "Organization UUID",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "username",
+    "env": "TOIL_CONTRAST_USERNAME",
+    "description": "Contrast username",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "apiKey",
+    "env": "TOIL_CONTRAST_API_KEY",
+    "description": "Organization API key",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "serviceKey",
+    "env": "TOIL_CONTRAST_SERVICE_KEY",
+    "description": "Your service key",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  }
+]
