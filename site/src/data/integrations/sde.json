@@ -3,7 +3,15 @@
   "name": "SD Elements",
   "group": "security",
   "order": 5,
-  "covers": "Projects, countermeasures, security requirements",
+  "covers": "Projects, countermeasures, threats, users",
   "credential": "API token",
-  "status": "planned"
+  "credentialNote": "Given with its host as one connection string, <token>@<host>; the old TOIL_SDE_CONNECTION still works",
+  "credentialWhere": "Your user menu → API Tokens",
+  "status": "unit",
+  "supported": {
+    "product": "SD Elements",
+    "minimum": null,
+    "api": "REST API v2",
+    "note": "toil calls /api/v2/ with an API token sent as Authorization: Token. server-info reports the version but needs a super-user, so toil makes no version check. No release has been verified yet."
+  }
 }
