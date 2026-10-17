@@ -1,0 +1,128 @@
+---
+area: openshift
+description: Pod health, deployments, warning events, pod logs and CPU and memory usage on OpenShift and Kubernetes clusters
+---
+
+# OpenShift / Kubernetes (`openshift`)
+
+Pod health, Deployments and DeploymentConfigs, warning events, pod logs, and CPU and
+memory usage for one namespace, read from the cluster's API server over REST. Every
+command reads; none changes anything. There's no kubeconfig and no other CLI
+involved. Verification level: `unit`.
+
+**Supported versions:** The oldest OpenShift / Kubernetes version toil supports hasn't been established.
+`pods`, `events` and `logs` use core `v1`; `deployments` uses `apps/v1`, or
+`apps.openshift.io/v1` for DeploymentConfigs; `pod-metrics` and `resource-usage` need
+metrics-server (`metrics.k8s.io/v1beta1`). No release has been verified yet.
+
+## Credential
+
+A **Bearer token**, typically a service account token with read access to the
+namespaces you'll ask about. The OpenShift web console's Copy login command shows a
+token for your own user; for anything long-lived, create a service account token.
+toil sends it as `Authorization: Bearer <token>` to the connection's `baseUrl` and
+nowhere else.
+
+## Configuration
+
+One connection per cluster.
+
+| Key | Env var | Required | Meaning |
+|-----|---------|----------|---------|
+| `baseUrl` | `TOIL_OPENSHIFT_BASE_URL` | yes | API server URL, e.g. `https://openshift.imagile.dev` |
+| `token` | `TOIL_OPENSHIFT_TOKEN` | yes | Bearer token |
+| `env` | `TOIL_OPENSHIFT_ENV` | no | Environment name `--env` selects this cluster by, e.g. `prod` |
+| `instance` | `TOIL_OPENSHIFT_INSTANCE` | no | Cluster instance name `--instance` selects this cluster by, e.g. `east` |
+
+There's no CI fallback variable. `TOIL_OPENSHIFT_*` sets the default connection; any
+other connection takes `TOIL_CONN_<NAME>_*`.
+
+```bash
+export TOIL_OPENSHIFT_BASE_URL=https://openshift.imagile.dev
+export TOIL_OPENSHIFT_TOKEN=<your token>
+```
+
+Several clusters, in `~/.toil/config.json`:
+
+```json
+{
+  "version": 2,
+  "connections": {
+    "prod-east": { "area": "openshift", "baseUrl": "https://api.prod-east.openshift.imagile.dev:6443", "env": "prod", "instance": "east" },
+    "dev-east": { "area": "openshift", "baseUrl": "https://api.dev-east.openshift.imagile.dev:6443", "env": "dev", "instance": "east" }
+  },
+  "defaults": { "openshift": { "connection": "prod-east" } }
+}
+```
+
+The token never goes in this file; a plaintext one there is refused with
+`CONFIG_INVALID`. Run `toil connections add prod-east --area openshift` (or
+`toil connections login prod-east`) to keep it in the OS credential store, or set
+`TOIL_CONN_PROD_EAST_TOKEN`.
+
+### Choosing a cluster
+
+`--env <name>` and `--instance <name>` go on the group (`toil openshift --env prod
+--instance east pods ...`) or after the command. Each picks the connection with that
+name, or the one whose `env` (or `instance`) setting matches. Given together, they
+must pick the same connection. Each value has to identify one connection on its own:
+with two `prod` clusters, `--env prod` is an `INVALID_INPUT` naming both, so pick one
+with `--instance` (when its instance name is unique) or `--connection <name>`. An
+unknown name is an `INVALID_INPUT` listing the clusters toil knows. With neither
+flag, the default connection is used (`defaults.openshift.connection`, else the one
+named `openshift`, else the only one).
+
+The documented nested `openshift.environments.<env>.instances.<instance>` map becomes one
+connection per cluster with `env` and `instance` set; `defaultEnvironment` and
+`defaultInstance` become `defaults.openshift.connection`; the flat `baseUrl` and
+`token` become a connection with neither set.
+
+A cluster with `env` and `instance` set reports a missing `baseUrl` or token as
+`OpenShift cluster "<env>/<instance>" is not configured or missing baseUrl.` or
+`... is missing a token.`; one without them as `OpenShift not configured.` or
+`OpenShift credentials not configured.`, all `NOT_CONFIGURED`.
+
+## Commands
+
+Every command but `cluster list` needs `--namespace <ns>`.
+
+- `cluster list`: Lists every configured cluster: it runs `toil connections list --area
+  openshift` (CLI only; over MCP, call the `connections_list` tool with `area`
+  `openshift`). Each connection shows its `name`, `isDefault`, `host`, `writes` and
+  where each setting came from, never a secret. It takes no `--env` or `--instance`.
+- `pods`: Pod health summary: phase counters, `crashLoopBackOff`,
+  `imagePullBackOff` (which includes `ErrImagePull`), `oomKilled` and
+  `totalRestarts`, then each pod with `phase`, `ready`, `restartCount`, `age`,
+  `reason`, `message`, `containers` and `labels`. Failed pods come first, then
+  Pending, then Unknown, then the rest, by restarts within each. `--label-selector`
+  filters; `--raw` returns the pod objects unmodified, with `count`.
+- `deployments`: Deployments (`apps/v1`), or DeploymentConfigs
+  (`apps.openshift.io/v1`) with `--deployment-configs`: `ready` as `ready/desired`,
+  replica counts, `age`, `images`, `strategy`, `latestVersion`, and only the problem
+  conditions (Available or Progressing that are `False`, and any ReplicaFailure),
+  sorted by unavailable replicas. `--raw` returns the objects unmodified.
+- `events`: Warning events only, unless `--all`. `--field-selector` adds to the
+  `type=Warning` selector, joined with a comma. Sorted by `count`, highest first.
+- `logs`: The last `--lines` (default 100) lines of `--pod`'s log, as text in `log`.
+  `--container` picks a container; without it no container is sent, and the API
+  server refuses a pod with more than one unless it names a default container.
+  `--previous` reads the previous container instance.
+- `pod-metrics`: Each pod's containers with their raw `cpu` and `memory` usage, from
+  metrics-server.
+- `resource-usage`: One row per container: usage, limits and requests, in millicores
+  (`m`) and mebibytes (`Mi`); a quantity toil can't read is `null`. `--csv --out
+  <file>` also writes the rows as CSV to a new file inside the workspace (it never
+  overwrites) and returns its absolute path as `file`. `--csv` needs `--out`, and
+  `--out` needs `--csv`. The CSV header is `Pod,Container,CPU Usage (m),Memory Usage
+  (Mi),CPU Limits (m),Memory Limits (Mi),CPU Requests (m),Memory Requests (Mi)`, with
+  an empty cell for `null`.
+
+Lists come back whole: the API server is asked for everything in one response, with
+no paging.
+
+```bash
+toil openshift pods --namespace payments
+toil openshift --env prod --instance east events --namespace payments --all
+toil openshift logs --namespace payments --pod api-7d9f8b6c5-abcde --container api --lines 50
+toil openshift resource-usage --namespace payments --csv --out usage.csv
+```
