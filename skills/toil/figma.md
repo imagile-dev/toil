@@ -85,10 +85,11 @@ parsed locally and never opened.
     found in file ...").
 - `comments`: Get comments on a Figma file. `data` is `fileKey`, `count` and
   `comments` as Figma returns them. `--as-of <date>` is sent as `as_of`, a parameter
-  Figma doesn't document, so every comment comes back regardless.
+  Figma doesn't document, so every comment comes back regardless, and
+  `meta.warnings` says so (`FIGMA_AS_OF_IGNORED`).
 - `versions`: Get the version history of a Figma file. `data` is `fileKey`, `count`
-  and `versions`. Only the first page Figma returns is read; older versions may be
-  missing.
+  and `versions`. Only the first page Figma returns is read; when Figma has more,
+  `meta.warnings` says so (`FIGMA_MORE_VERSIONS`) and older versions are missing.
 - `project-files`: List files in a Figma project. `data` is `projectId`, `count` and
   `files`. The project ID is in the project's URL.
 - `me`: Get the current Figma user (useful for verifying credentials). `data` is

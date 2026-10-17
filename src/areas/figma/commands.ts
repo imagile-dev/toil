@@ -131,6 +131,7 @@ export const commentsCommand = figmaArea.command({
     const fileKey = parseFileKey(input.fileKeyOrUrl);
     // Suspected bug (#73 item 2): Figma has no as_of parameter, so the filter is ignored and every comment comes back.
     const data = await figma<{ comments: unknown[] }>(ctx, `/v1/files/${encodeURIComponent(fileKey)}/comments`, input.asOf ? { as_of: input.asOf } : {});
+    if (input.asOf) ctx.warn({ code: 'FIGMA_AS_OF_IGNORED', message: "Figma's API doesn't filter comments by --as-of; every comment was returned." });
     return { fileKey, count: data.comments.length, comments: data.comments };
   },
 });
@@ -147,7 +148,8 @@ export const versionsCommand = figmaArea.command({
   run: async (input, ctx) => {
     const fileKey = parseFileKey(input.fileKeyOrUrl);
     // Suspected bug (#73 item 3): one page of history only; the answer's `pagination` is dropped.
-    const data = await figma<{ versions: unknown[] }>(ctx, `/v1/files/${encodeURIComponent(fileKey)}/versions`);
+    const data = await figma<{ versions: unknown[]; pagination?: { next_page?: string | null } }>(ctx, `/v1/files/${encodeURIComponent(fileKey)}/versions`);
+    if (data.pagination?.next_page) ctx.warn({ code: 'FIGMA_MORE_VERSIONS', message: 'Figma has more versions than this page; only the first page was read.' });
     return { fileKey, count: data.versions.length, versions: data.versions };
   },
 });

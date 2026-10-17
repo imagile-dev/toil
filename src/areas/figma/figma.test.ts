@@ -184,6 +184,12 @@ describe('comments', () => {
     const { envelope, calls } = await run(commentsCommand, { fileKeyOrUrl: `https://www.figma.com/file/${FILE_KEY}/x`, asOf: '2026-09-02T12:00:00Z' }, [ok(comments)]);
     expect(calls[0]!.url).toBe(`${FIGMA}/v1/files/${FILE_KEY}/comments?as_of=2026-09-02T12%3A00%3A00Z`);
     expect(envelope.data).toMatchObject({ count: 2 });
+    expect(envelope.meta.warnings).toEqual([{ code: 'FIGMA_AS_OF_IGNORED', message: "Figma's API doesn't filter comments by --as-of; every comment was returned." }]);
+  });
+
+  it('warns about --as-of only when it is given', async () => {
+    const { envelope } = await run(commentsCommand, { fileKeyOrUrl: FILE_KEY }, [ok(comments)]);
+    expect(envelope.meta.warnings).toBeUndefined();
   });
 });
 
@@ -192,6 +198,14 @@ describe('versions', () => {
     const { envelope, calls } = await run(versionsCommand, { fileKeyOrUrl: FILE_KEY }, [ok(versions)]);
     expect(calls).toEqual([{ method: 'GET', url: `${FIGMA}/v1/files/${FILE_KEY}/versions`, headers: HEADERS, body: undefined }]);
     expect(envelope.data).toEqual({ fileKey: FILE_KEY, count: 2, versions: versions.versions });
+    expect(envelope.meta.warnings).toEqual([{ code: 'FIGMA_MORE_VERSIONS', message: 'Figma has more versions than this page; only the first page was read.' }]);
+  });
+
+  it('#73 item 3: no warning when the answer has no next_page', async () => {
+    const last = await run(versionsCommand, { fileKeyOrUrl: FILE_KEY }, [ok({ ...versions, pagination: { prev_page: null, next_page: null } })]);
+    expect(last.envelope.meta.warnings).toBeUndefined();
+    const bare = await run(versionsCommand, { fileKeyOrUrl: FILE_KEY }, [ok({ versions: versions.versions })]);
+    expect(bare.envelope.meta.warnings).toBeUndefined();
   });
 });
 
