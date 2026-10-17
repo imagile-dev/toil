@@ -665,6 +665,9 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   already on disk, existing flags, the envelope, and precedence, and say what you
   checked in the PR. Before it, skip that: the PR has no section for it, and reviews
   don't ask.
+- **Decisions an agent makes by default go in `AGENT_DECISIONS.md`**, with what, why
+  and where, so the maintainer can review or overturn them. The maintainer's own
+  decisions stay on the issues.
 - **Fix every review finding in the round it arrives, non-blocking ones included**,
   with the simplest fix that is easy to understand. A finding left for later piles up
   another round; an elaborate fix makes the design harder to follow than the problem
