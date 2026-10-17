@@ -68,6 +68,11 @@ describe('readGitContext, with no git anywhere', () => {
     expect(readGitContext(work, { home })!.remotes).toEqual(['ssh://git@github.com//x']);
   });
 
+  it('cuts a URL at its first space, as the predecessor did splitting git remote -v (suspected bug, pinned)', () => {
+    const { home, work } = handRepo('[remote "local"]\n\turl = "C:/My Repos/widgets"\n');
+    expect(readGitContext(work, { home })!.remotes).toEqual(['C:/My']);
+  });
+
   it('reports a detached HEAD as HEAD, a branch with no commits as unknown, and a packed branch by name', () => {
     expect(readGitContext(handRepo('', `${SHA}\n`).work, { home: tmpdir() })!.branch).toBe('HEAD');
     expect(readGitContext(handRepo('', 'ref: refs/heads/new\n').work, { home: tmpdir() })!.branch).toBe('unknown');

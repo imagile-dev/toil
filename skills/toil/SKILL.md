@@ -24,8 +24,12 @@ Files a command reads or writes (an `--input-file`, an upload, a download, a CSV
 report) must be inside the workspace: `--workspace <dir>`, else `TOIL_WORKSPACE`,
 else the working directory; under `toil mcp`, the client's root when it shares
 exactly one. Relative paths resolve against it, a path outside is refused with
-`INVALID_INPUT`, and nothing is ever overwritten. Saved paths come back absolute,
-with forward slashes. Commands that run git need git on PATH and say
+`INVALID_INPUT`, and nothing is ever overwritten. Under `toil mcp` with no single
+root, a command that touches a file returns `NOT_CONFIGURED`: add `--workspace <dir>`
+to the server's args. A person can let commands reach any path with
+`"bounds": { "files": "unbounded" }` in their config, and every envelope then
+carries a `BOUND_RELAXED` warning. Saved paths come back absolute, with forward
+slashes. Commands that run git need git on PATH and say
 `GIT_NOT_FOUND` without it; nothing else does.
 
 Configuration comes from environment variables, which always win, or from

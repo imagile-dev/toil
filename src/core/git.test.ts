@@ -42,15 +42,17 @@ describe('gitArgv: the safeguards are always there', () => {
       const diffs = ['diff', 'log', 'show'].includes(subcommand);
       expect(argv.slice(GIT_SAFE_GLOBALS.length + 1, GIT_SAFE_GLOBALS.length + 1 + GIT_SAFE_DIFF.length), subcommand).toEqual(diffs ? [...GIT_SAFE_DIFF] : []);
     }
-    expect(GIT_SAFE_GLOBALS).toEqual(['--no-pager', '-c', 'core.fsmonitor=']);
+    expect(GIT_SAFE_GLOBALS).toEqual(['--no-pager', '-c', 'core.fsmonitor=', '-c', 'log.showSignature=false']);
     expect(GIT_SAFE_DIFF).toEqual(['--no-ext-diff', '--no-textconv']);
   });
 
   it('keeps them with options, revisions and paths, which go after --end-of-options and --', () => {
     expect(gitArgv({ subcommand: 'log', options: ['--format=%H'], revisions: ['main..feature'], paths: ['src/a.ts', '-weird-name'] })).toEqual([
-      '--no-pager', '-c', 'core.fsmonitor=', 'log', '--no-ext-diff', '--no-textconv', '--format=%H', '--end-of-options', 'main..feature', '--', 'src/a.ts', '-weird-name',
+      ...GIT_SAFE_GLOBALS, 'log', '--no-ext-diff', '--no-textconv', '--format=%H', '--end-of-options', 'main..feature', '--', 'src/a.ts', '-weird-name',
     ]);
-    expect(gitArgv({ subcommand: 'status', options: ['--porcelain'], paths: ['x'] })).toEqual(['--no-pager', '-c', 'core.fsmonitor=', 'status', '--porcelain', '--', 'x']);
+    expect(gitArgv({ subcommand: 'status', options: ['--porcelain'], paths: ['x'] })).toEqual([...GIT_SAFE_GLOBALS, 'status', '--porcelain', '--', 'x']);
+    // rev-parse only learnt --end-of-options in git 2.43; the leading-dash refusal covers it.
+    expect(gitArgv({ subcommand: 'rev-parse', options: ['--verify'], revisions: ['main'] })).toEqual([...GIT_SAFE_GLOBALS, 'rev-parse', '--verify', 'main']);
   });
 
   it('refuses a revision that would read as a flag, and options that write files or run programs', () => {
@@ -74,7 +76,15 @@ describe('findGit', () => {
     plantBrokenGit(cwd);
     const search = findGit({ env: { PATH: ['.', '', 'bin', cwd].join(delimiter) }, exclude: [cwd] });
     expect(search.found).toBeUndefined();
-    expect(search.skipped.map((s) => s.why)).toEqual(['relative', 'relative', 'relative', 'the working directory']);
+    expect(search.skipped.map((s) => s.why)).toEqual(['relative', 'relative', 'relative', 'inside the working directory or workspace']);
+  });
+
+  it('skips folders inside the working directory too, such as the node_modules/.bin that npm run puts on PATH', () => {
+    const cwd = temp();
+    const bin = join(cwd, 'node_modules', '.bin');
+    mkdirSync(bin, { recursive: true });
+    plantBrokenGit(bin);
+    expect(findGit({ env: { PATH: bin }, exclude: [cwd] }).found).toBeUndefined();
   });
 
   it('finds git in an absolute PATH entry, in order', () => {
@@ -112,6 +122,8 @@ describe('findGit', () => {
     expect(err.message).toBe("git isn't on PATH, and toil git status needs it. Only commands that run git need it installed.");
     expect(err.fix).toContain('Install git (https://git-scm.com/downloads), or add the folder that holds it to PATH');
     expect(err.fix).toContain(`PATH searched: /opt/a${win ? ';' : delimiter}.`);
+    expect(gitNotFound('x', { searched: ['/a', '/b'], skipped: [], platform: 'linux' }).fix).toContain('PATH searched: /a:/b.');
+    expect(gitNotFound('x', { searched: ['C:/a', 'C:/b'], skipped: [], platform: 'win32' }).fix).toContain('PATH searched: C:/a;C:/b.');
     expect(err.fix).toContain('Skipped: . (relative).');
     expect(gitNotFound('x', { searched: [], skipped: [] }).fix).toContain('PATH searched: (empty).');
   });

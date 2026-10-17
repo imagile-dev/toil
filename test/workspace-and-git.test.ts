@@ -132,14 +132,21 @@ describe('which folder is the workspace', () => {
   });
 
   /** A real MCP client that shares `roots`, over the in-memory transport, against the real node context. */
-  async function mcpWithRoots(roots: string[] | undefined, env: NodeJS.ProcessEnv = {}) {
+  async function mcpWithRoots(roots: string[] | undefined, env: NodeJS.ProcessEnv = {}, uris?: () => string[]) {
     const server = createMcpServer({ commands: probes, context: (def, _signal, shared) => nodeContext({ env, mcp: true, roots: shared, def }) });
-    const client = new Client({ name: 'toil-tests', version: '0' }, roots ? { capabilities: { roots: { listChanged: true } } } : {});
-    if (roots) client.setRequestHandler(ListRootsRequestSchema, () => ({ roots: roots.map((r) => ({ uri: pathToFileURL(r).href, name: 'root' })) }));
+    const client = new Client({ name: 'toil-tests', version: '0' }, roots || uris ? { capabilities: { roots: { listChanged: true } } } : {});
+    const list = uris ?? (() => roots!.map((r) => pathToFileURL(r).href));
+    if (roots || uris) {
+      client.setRequestHandler(ListRootsRequestSchema, () => {
+        const current = list();
+        if (current.includes('throw:')) throw new Error('client failed');
+        return { roots: current.map((uri) => ({ uri, name: 'root' })) };
+      });
+    }
     const [a, b] = InMemoryTransport.createLinkedPair();
     await Promise.all([server.connect(b), client.connect(a)]);
     const call = async (args: Record<string, unknown>) => (await client.callTool({ name: 'probe_read', arguments: args })).structuredContent as unknown as Envelope;
-    return { call, close: async () => { await client.close(); await server.close(); } };
+    return { call, client, close: async () => { await client.close(); await server.close(); } };
   }
 
   it("MCP: the client's single root, never the server's working directory", async () => {
@@ -147,6 +154,28 @@ describe('which folder is the workspace', () => {
     expect((await one.call({ file: 'a.txt' })).data).toMatchObject({ text: 'from other' });
     expect((await one.call({ file: join(cwd, 'a.txt') })).error?.code).toBe('INVALID_INPUT');
     await one.close();
+  });
+
+  it('MCP: a root URI Node cannot convert is dropped on its own, and list_changed asks again', async () => {
+    // A file URI with an encoded slash, which Node refuses to turn into a path. (The SDK
+    // itself rejects roots that aren't file:// URIs, so those never reach the server.)
+    let uris = ['file:///x%2Fy', pathToFileURL(other).href];
+    const session = await mcpWithRoots(undefined, {}, () => uris);
+    expect((await session.call({ file: 'a.txt' })).data).toMatchObject({ text: 'from other' });
+    uris = [pathToFileURL(cwd).href];
+    // Cached until the client says the roots changed.
+    expect((await session.call({ file: 'a.txt' })).data).toMatchObject({ text: 'from other' });
+    await session.client.sendRootsListChanged();
+    await new Promise((r) => setTimeout(r, 20));
+    expect((await session.call({ file: 'a.txt' })).data).toMatchObject({ text: 'from cwd' });
+    // A client that fails to answer leaves no workspace, and is asked again next time.
+    uris = ['throw:'];
+    await session.client.sendRootsListChanged();
+    await new Promise((r) => setTimeout(r, 20));
+    expect((await session.call({ file: 'a.txt' })).error?.code).toBe('NOT_CONFIGURED');
+    uris = [pathToFileURL(other).href];
+    expect((await session.call({ file: 'a.txt' })).data).toMatchObject({ text: 'from other' });
+    await session.close();
   });
 
   it('MCP: no roots, or several, refuses file commands with a fix; TOIL_WORKSPACE settles it', async () => {

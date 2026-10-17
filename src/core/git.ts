@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { accessSync, constants, realpathSync, statSync } from 'node:fs';
-import { delimiter, isAbsolute, join } from 'node:path';
+import { isAbsolute, join, sep } from 'node:path';
 import { ToilError } from './errors.js';
 
 /**
@@ -16,9 +16,13 @@ import { ToilError } from './errors.js';
  *     entries and the working directory, so a `git.exe` planted in a checkout
  *     is never what runs
  *   - no shell, a fixed subcommand list, `--end-of-options` before revisions
- *     and `--` before paths, so a value can't become a flag
+ *     and `--` before paths, so a value can't become a flag (git 2.24 or
+ *     later; an older git is refused with a message saying so)
  *   - the repository-config features that run programs are off: the fsmonitor
- *     hook, external diff drivers, textconv filters, the pager
+ *     hook, external diff drivers, textconv filters, signature checks (which
+ *     run gpg.program), the pager. Clean/smudge filters set in the user's own
+ *     config still run on `status` and `diff`, as they would for git itself
+ *     (docs/bounds.md)
  *   - no prompts (GIT_TERMINAL_PROMPT=0, stdin closed), no optional index
  *     writes (GIT_OPTIONAL_LOCKS=0), and no TOIL_* variables in git's env
  *   - async, cancelled with the command's own signal
@@ -32,7 +36,7 @@ export const GIT_SUBCOMMANDS = ['version', 'status', 'diff', 'log', 'show', 'bra
 export type GitSubcommand = (typeof GIT_SUBCOMMANDS)[number];
 
 /** Before every subcommand: no pager, and no fsmonitor hook from repository config. */
-export const GIT_SAFE_GLOBALS: readonly string[] = ['--no-pager', '-c', 'core.fsmonitor='];
+export const GIT_SAFE_GLOBALS: readonly string[] = ['--no-pager', '-c', 'core.fsmonitor=', '-c', 'log.showSignature=false'];
 /** After every subcommand that can produce a diff: no external diff driver, no textconv filter. */
 export const GIT_SAFE_DIFF: readonly string[] = ['--no-ext-diff', '--no-textconv'];
 const PRODUCES_DIFFS = new Set<GitSubcommand>(['diff', 'log', 'show']);
@@ -66,9 +70,10 @@ export interface GitRunner {
 
 /**
  * The argv for a call: safeguards, subcommand, the command's options,
- * `--end-of-options` and revisions, then `--` and paths. A revision that
- * starts with `-` is refused, since some git versions predate
- * `--end-of-options` and a branch can't be named that way anyway.
+ * `--end-of-options` and revisions, then `--` and paths. `rev-parse` only
+ * learnt `--end-of-options` in git 2.43, so it gets none, and the refusal of a
+ * revision starting with `-` (no branch can be named that way) is what keeps a
+ * value from becoming a flag there.
  */
 export function gitArgv(call: GitCall): string[] {
   if (!(GIT_SUBCOMMANDS as readonly string[]).includes(call.subcommand)) {
@@ -87,7 +92,10 @@ export function gitArgv(call: GitCall): string[] {
   const argv = [...GIT_SAFE_GLOBALS, call.subcommand];
   if (PRODUCES_DIFFS.has(call.subcommand)) argv.push(...GIT_SAFE_DIFF);
   argv.push(...(call.options ?? []));
-  if (call.revisions?.length) argv.push('--end-of-options', ...call.revisions);
+  if (call.revisions?.length) {
+    if (call.subcommand !== 'rev-parse') argv.push('--end-of-options');
+    argv.push(...call.revisions);
+  }
   if (call.paths?.length) argv.push('--', ...call.paths);
   return argv;
 }
@@ -115,6 +123,8 @@ export interface GitSearch {
   searched: string[];
   /** Entries passed over and why, for the error's fix. */
   skipped: Array<{ entry: string; why: string }>;
+  /** The platform searched for, so the fix joins PATH with its own separator. */
+  platform?: NodeJS.Platform;
 }
 
 /**
@@ -135,9 +145,12 @@ export function findGit(options: { env: NodeJS.ProcessEnv; platform?: NodeJS.Pla
       return fold(p);
     }
   };
-  const excluded = new Set((options.exclude ?? []).map(realish));
+  const excluded = (options.exclude ?? []).map(realish);
+  const pathSep = platform === 'win32' ? '\\' : '/';
+  // The folder itself or anything under it: `npm run` puts <project>/node_modules/.bin on PATH.
+  const inExcluded = (dir: string) => excluded.some((e) => dir === e || dir.startsWith(e.endsWith(pathSep) || e.endsWith(sep) ? e : e + pathSep));
   const raw = envValue(options.env, 'PATH', platform) ?? '';
-  const searched = raw === '' ? [] : raw.split(platform === 'win32' ? ';' : delimiter);
+  const searched = raw === '' ? [] : raw.split(platform === 'win32' ? ';' : ':');
   const skipped: GitSearch['skipped'] = [];
   const names =
     platform === 'win32'
@@ -152,16 +165,16 @@ export function findGit(options: { env: NodeJS.ProcessEnv; platform?: NodeJS.Pla
       skipped.push({ entry, why: 'relative' });
       continue;
     }
-    if (excluded.has(realish(dir))) {
-      skipped.push({ entry, why: 'the working directory' });
+    if (inExcluded(realish(dir))) {
+      skipped.push({ entry, why: 'inside the working directory or workspace' });
       continue;
     }
     for (const name of names) {
       const candidate = join(dir, name);
-      if (runnable(candidate, platform)) return { found: candidate, searched, skipped };
+      if (runnable(candidate, platform)) return { found: candidate, searched, skipped, platform };
     }
   }
-  return { searched, skipped };
+  return { searched, skipped, platform };
 }
 
 function runnable(path: string, platform: NodeJS.Platform): boolean {
@@ -178,7 +191,7 @@ const INSTALL = 'Install git (https://git-scm.com/downloads), or add the folder 
 
 /** The error for no usable git on PATH, naming the PATH that was searched. */
 export function gitNotFound(command: string, search: GitSearch): ToilError {
-  const path = search.searched.length > 0 ? search.searched.join(process.platform === 'win32' ? ';' : delimiter) : '(empty)';
+  const path = search.searched.length > 0 ? search.searched.join((search.platform ?? process.platform) === 'win32' ? ';' : ':') : '(empty)';
   const skipped = search.skipped.length > 0 ? ` Skipped: ${search.skipped.map((s) => `${s.entry || '(empty entry)'} (${s.why})`).join(', ')}.` : '';
   return new ToilError('GIT_NOT_FOUND', `git isn't on PATH, and toil ${command} needs it. Only commands that run git need it installed.`, {
     fix: `${INSTALL} PATH searched: ${path}.${skipped}`,
@@ -260,7 +273,15 @@ function spawnGit(path: string, argv: string[], cwd: string, env: NodeJS.Process
       if (overflow) {
         return reject(new ToilError('INVALID_INPUT', `git printed more than ${GIT_MAX_OUTPUT / 1024 / 1024} MB, so toil stopped it.`, { fix: 'Narrow the request: fewer commits, a shorter range, or specific paths.' }));
       }
-      resolvePromise({ exitCode: code ?? 1, stdout: Buffer.concat(out).toString('utf8'), stderr: Buffer.concat(err).toString('utf8') });
+      const stderr = Buffer.concat(err).toString('utf8');
+      if (code !== 0 && /unknown option .?end-of-options/.test(stderr)) {
+        return reject(
+          new ToilError('GIT_NOT_FOUND', `git at ${path.replace(/\\/g, '/')} is too old for toil ${command}, which needs git 2.24 or later.`, {
+            fix: `Upgrade git (https://git-scm.com/downloads), or put a newer git earlier on PATH.`,
+          }),
+        );
+      }
+      resolvePromise({ exitCode: code ?? 1, stdout: Buffer.concat(out).toString('utf8'), stderr });
     });
   });
 }

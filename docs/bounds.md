@@ -13,10 +13,10 @@ don't match.
 
 ## Relaxing a bound
 
-Only by a setting in the user's own config file (`~/.toil/config.json`, or the
-`--config` file), never by an env var, a flag, a dossier or anything in a
-repository, so neither an agent nor a checked-in file can loosen what constrains it
-(*principle 2*). Today one bound can be relaxed:
+Only by a setting in the config file toil loads (`~/.toil/config.json`, or the one
+`--config` names). No env var, flag, dossier or repository file sets a bound's
+value, so neither a tool input nor a checked-in file can loosen what constrains
+an agent (*principle 2*). Today one bound can be relaxed:
 
 ```json
 { "version": 2, "connections": {}, "bounds": { "files": "unbounded" } }
@@ -55,8 +55,21 @@ git config (`~/.gitconfig`, `$XDG_CONFIG_HOME/git/config`, or `GIT_CONFIG_GLOBAL
 the files those `include` or `includeIf`, git's global excludes file, and the
 `.gitignore` files between the repository's top and the workspace. Nothing read this
 way is returned as file content: it yields a root path, a branch name, remote URLs,
-and the decision to skip a path. The files a command reads or writes stay inside the
-workspace (#68 decision 2).
+and the decision to skip a path (the index, `.git/index`, gives the tracked paths a
+listing includes). The files a command reads or writes stay inside the workspace
+(#68 decision 2).
+
+Two things this doesn't cover, said plainly:
+
+- **git itself sees the whole repository.** A command that runs git runs it in the
+  workspace, but git answers for the repository it finds there: a revision such as
+  `HEAD:../other/file`, or `git log -p` from a subfolder, can show content from
+  outside the workspace. The git area's commands decide which pathspecs and
+  revisions they accept; nothing in core confines them yet.
+- **Clean and smudge filters still run.** The spawner turns off what repository
+  config can make git run on a read (fsmonitor, external diff, textconv, signature
+  checks, the pager), but a `filter.<name>.clean` driver configured by the user, such
+  as Git LFS, still runs on `git status` and `git diff`, as it would for git itself.
 
 ## Which folder is the workspace
 

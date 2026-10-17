@@ -88,7 +88,7 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
     if (file.bounds.files === 'unbounded') {
       config.warnings.push({
         code: 'BOUND_RELAXED',
-        message: `The file workspace bound is off ("bounds": { "files": "unbounded" } in ${globalPath}): commands may read and write files anywhere you can, except toil's own files.`,
+        message: `The file workspace bound is off ("bounds": { "files": "unbounded" } in ${globalPath.replace(/\\/g, '/')}): commands may read and write files anywhere you can, except toil's own files.`,
       });
     }
   }

@@ -118,6 +118,60 @@ function refExists(repo: GitRepo, ref: string): boolean {
 }
 
 /**
+ * Every path in the index (`.git/index`, the worktree's own in a linked
+ * worktree), relative to the repository's top with forward slashes: what
+ * `git ls-files --cached` lists. Versions 2, 3 and 4 of the format; a
+ * submodule is its folder's path, a conflicted file appears once. An index
+ * that can't be read gives no paths, as a repository with nothing staged
+ * would. A ledger of everything on file, kept in binary so nobody edits it by
+ * hand.
+ */
+export function readGitIndex(repo: GitRepo): string[] {
+  let buf: Buffer;
+  try {
+    buf = readFileSync(join(repo.gitDir, 'index'));
+  } catch {
+    return [];
+  }
+  if (buf.length < 12 || buf.toString('latin1', 0, 4) !== 'DIRC') return [];
+  const version = buf.readUInt32BE(4);
+  const count = buf.readUInt32BE(8);
+  if (version < 2 || version > 4) return [];
+  const paths = new Set<string>();
+  let at = 12;
+  let previous: Buffer = Buffer.alloc(0);
+  for (let n = 0; n < count && at + 62 <= buf.length; n++) {
+    const start = at;
+    const flags = buf.readUInt16BE(at + 60);
+    at += 62;
+    if (version >= 3 && flags & 0x4000) at += 2;
+    let name: Buffer;
+    if (version === 4) {
+      // The path is the previous one minus `strip` bytes, plus a NUL-terminated suffix.
+      let byte = buf[at++]!;
+      let strip = byte & 0x7f;
+      while (byte & 0x80) {
+        byte = buf[at++]!;
+        strip = ((strip + 1) << 7) | (byte & 0x7f);
+      }
+      const end = buf.indexOf(0, at);
+      if (end === -1) break;
+      name = Buffer.concat([previous.subarray(0, previous.length - strip), buf.subarray(at, end)]);
+      at = end + 1;
+    } else {
+      const end = buf.indexOf(0, at);
+      if (end === -1) break;
+      name = buf.subarray(at, end);
+      // Entries are padded with NULs to a multiple of eight bytes.
+      at = start + ((end - start + 8) & ~7);
+    }
+    previous = name;
+    paths.add(name.toString('utf8'));
+  }
+  return [...paths];
+}
+
+/**
  * The branch, as `git rev-parse --abbrev-ref HEAD` prints it: the branch's
  * short name, or `HEAD` when detached. On a branch with no commits yet git
  * fails, and so this returns undefined.
@@ -222,5 +276,7 @@ export interface GitContext {
 export function readGitContext(start: string, options: GitReadOptions): GitContext | undefined {
   const repo = findGitRepo(start);
   if (!repo) return undefined;
-  return { root: repo.root, branch: readGitBranch(repo) ?? 'unknown', remotes: readGitRemotes(repo, options).map((r) => r.url) };
+  // `git remote -v` lines were split on the first space, so a URL with a space
+  // in it (`C:/My Repos/x`) came out cut short. Kept, as a suspected bug.
+  return { root: repo.root, branch: readGitBranch(repo) ?? 'unknown', remotes: readGitRemotes(repo, options).map((r) => r.url.split(' ')[0]!) };
 }

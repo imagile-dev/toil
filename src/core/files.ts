@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSyn
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { ToilError } from './errors.js';
 import { gitBool, lastValue } from './git-config.js';
-import { excludesFile, findGitRepo, readGitConfig } from './git-repo.js';
+import { excludesFile, findGitRepo, readGitConfig, readGitIndex } from './git-repo.js';
 import { isIgnored, parseIgnore, type IgnoreRule } from './gitignore.js';
 
 /**
@@ -26,7 +26,7 @@ import { isIgnored, parseIgnore, type IgnoreRule } from './gitignore.js';
 export interface FileAccess {
   /** The workspace folder, absolute with forward slashes; undefined when none is set (MCP with no single root). */
   readonly workspace: string | undefined;
-  /** Absolute path on disk for `path`, resolved against the workspace. */
+  /** Absolute path on disk for `path`, resolved against the workspace. A relative path with no workspace is NOT_CONFIGURED. */
   resolve(path: string): string;
   /** A file's text, as UTF-8. `-` reads stdin where the front door allows it. */
   readText(path: string): string;
@@ -40,9 +40,12 @@ export interface FileAccess {
   stat(path: string): FileStat;
   /**
    * Every file under `dir` (default: the workspace), relative to it, with
-   * forward slashes, sorted. `.git` is always skipped; with `gitignore` (the
-   * default) so is whatever git would ignore. Symlinks are listed, never
-   * followed. More than `limit` files (default 100,000) is INVALID_INPUT.
+   * forward slashes, sorted. `.git` is always skipped. With `gitignore` (the
+   * default) inside a repository, it's what `git ls-files --cached --others
+   * --exclude-standard` lists: tracked files, ignored or not, plus untracked
+   * ones no ignore rule covers, and a nested repository as `name/`. Symlinks
+   * are listed, never followed. More than `limit` files (default 100,000) is
+   * INVALID_INPUT.
    */
   list(dir?: string, options?: { gitignore?: boolean; limit?: number }): string[];
   /**
@@ -251,8 +254,9 @@ export function nodeFiles(options: {
   const noWorkspace = () => ws.error ?? new ToilError('NOT_CONFIGURED', 'No workspace folder is set.', { fix: HOW_TO_SET });
   const at = (path: string) => {
     if (isAbsolute(path)) return path;
+    // With no workspace there's nothing to be relative to, bounded or not: under
+    // MCP the process's own working directory is wherever the client started it.
     if (ws.dir) return resolve(ws.dir, path);
-    if (unbounded) return resolve(options.cwd, path);
     throw noWorkspace();
   };
   const guarded = (options.protect ?? []).map((p) => comparable(realish(p)));
@@ -336,19 +340,31 @@ export function nodeFiles(options: {
 }
 
 /**
- * The listing behind `list()`. Ignore rules are matched against paths
- * relative to the repository's top when `root` is inside one, as git matches
- * them, so a pattern anchored in a `.gitignore` above `root` still applies.
- * Rules come from the global excludes file, `info/exclude`, and every
- * `.gitignore` from the repository's top down; the ones above `root` are git
- * metadata, read under the same exception as `.git` (docs/bounds.md) and only
- * to decide what to skip.
+ * The listing behind `list()`, matching `git ls-files --cached --others
+ * --exclude-standard` run in `root`, which is how the files to scan used to be
+ * found:
+ *   - every tracked path under `root`, read from the index, ignored or not
+ *   - every other file that no ignore rule covers, never inside an ignored
+ *     folder, and none at all when `root` itself sits in an ignored folder
+ *   - an untracked nested repository as its folder name with a trailing `/`,
+ *     not walked into
+ * Ignore rules are matched against paths relative to the repository's top,
+ * as git matches them. They come from the global excludes file,
+ * `info/exclude`, and every `.gitignore` from the repository's top down; the
+ * ones above `root` are git metadata, read under the same exception as `.git`
+ * (docs/bounds.md) and only to decide what to skip. Outside a repository only
+ * the `.gitignore` files under `root` apply (git itself would list nothing).
  */
 function listTree(root: string, o: { gitignore: boolean; limit: number; home: string; env: NodeJS.ProcessEnv }): string[] {
-  const files: string[] = [];
+  const found = new Set<string>();
   const repo = o.gitignore ? findGitRepo(root) : undefined;
   const matchRoot = repo ? resolve(repo.root) : root;
   const prefix = forwardSlashes(relative(matchRoot, root));
+  const out = (path: string) => (prefix === '' ? path : path.slice(prefix.length + 1));
+  const add = (path: string) => {
+    found.add(out(path));
+    if (found.size > o.limit) throw tooManyFiles(root, o.limit);
+  };
   let caseFold = process.platform === 'win32' || process.platform === 'darwin';
   const base: IgnoreRule[] = [];
   const readRules = (file: string, at: string) => {
@@ -358,16 +374,24 @@ function listTree(root: string, o: { gitignore: boolean; limit: number; home: st
       return [];
     }
   };
+  let others = true;
+  const tracked = new Set<string>();
   if (repo) {
     const config = readGitConfig(repo, { home: o.home, env: o.env });
     caseFold = gitBool(lastValue(config, 'core.ignorecase')) ?? false;
     base.push(...readRules(excludesFile(config, { home: o.home, env: o.env }), ''));
     base.push(...readRules(join(repo.commonDir, 'info', 'exclude'), ''));
-    // .gitignore files between the repository's top and the listing root.
+    // .gitignore files between the repository's top and the listing root, and
+    // whether one of the folders on the way is itself ignored.
     let rel = '';
     for (const part of prefix === '' ? [] : prefix.split('/')) {
       base.push(...readRules(join(matchRoot, rel, '.gitignore'), rel));
       rel = rel === '' ? part : `${rel}/${part}`;
+      if (isIgnored(rel, true, base)) others = false;
+    }
+    for (const path of readGitIndex(repo)) {
+      tracked.add(path);
+      if (prefix === '' || path.startsWith(`${prefix}/`)) add(path);
     }
   }
   const walk = (dir: string, rel: string, rules: IgnoreRule[]) => {
@@ -383,13 +407,15 @@ function listTree(root: string, o: { gitignore: boolean; limit: number; home: st
       const path = rel === '' ? entry.name : `${rel}/${entry.name}`;
       const isDir = entry.isDirectory();
       if (o.gitignore && isIgnored(path, isDir, here)) continue;
-      if (isDir) walk(join(dir, entry.name), path, here);
-      else {
-        files.push(prefix === '' ? path : path.slice(prefix.length + 1));
-        if (files.length > o.limit) throw tooManyFiles(root, o.limit);
+      if (isDir && o.gitignore && existsSync(join(dir, entry.name, '.git'))) {
+        // Another repository: git shows it as one entry and doesn't look inside.
+        if (!tracked.has(path)) add(`${path}/`);
+        continue;
       }
+      if (isDir) walk(join(dir, entry.name), path, here);
+      else add(path);
     }
   };
-  walk(root, prefix, base);
-  return files.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  if (others) walk(root, prefix, base);
+  return [...found].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }

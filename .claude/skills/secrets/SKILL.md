@@ -23,8 +23,9 @@ same, and a future `config import` must move every old token into the store.
 ## The store
 
 `src/core/keychain.ts` is one of only two modules in toil allowed to spawn a
-process; the other is git's, `src/core/git.ts` (**No Executables** in CLAUDE.md). It runs only what the OS ships, each behind a
-platform check, under the service `toil` with the reference name as the account:
+process; the other is git's, `src/core/git.ts` (**No Executables** in CLAUDE.md).
+It runs only what the OS ships, each behind a platform check, under the service
+`toil` with the reference name as the account:
 
 | Platform | Program | Store |
 |----------|---------|-------|
@@ -38,8 +39,8 @@ platform check, under the service `toil` with the reference name as the account:
 - The store is asynchronous and takes the command's signal. A read happens inside
   `execute()`, under the same time limit and cancel as the command, and never
   blocks the event loop, so a hung store can't freeze `toil mcp`.
-- The real spawner is not exported. The only way to spawn is a store from
-  `createSecretStore`, which runs a fixed program; a general-purpose spawner in
+- The real spawner is not exported. The only way `keychain.ts` spawns is a store
+  from `createSecretStore`, which runs a fixed program; a general-purpose spawner in
   `keychain.ts` would let any module spawn while the gate still passes.
 - The spawner is injectable (`createSecretStore({ platform, spawn })`). Unit tests
   stub it for every platform, and `test/harness/fake-store.ts` stands in for the

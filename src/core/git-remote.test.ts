@@ -43,7 +43,7 @@ describe('parseBitbucketRemote', () => {
 
   it('returns null when host does not match base URL', () => {
     const result = parseBitbucketRemote(
-      'git@other.example.com:7999/PROJ/repo.git',
+      'git@other.imagile.dev:7999/PROJ/repo.git',
       'https://bitbucket.imagile.dev'
     );
     expect(result).toBeNull();
@@ -105,7 +105,7 @@ describe('parseAdoRemote', () => {
 
   it('returns null when host does not match', () => {
     const result = parseAdoRemote(
-      'https://other.example.com/col/proj/_git/repo',
+      'https://other.imagile.dev/col/proj/_git/repo',
       'https://tfs.imagile.dev'
     );
     expect(result).toBeNull();

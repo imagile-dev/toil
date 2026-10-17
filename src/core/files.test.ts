@@ -203,7 +203,7 @@ describe('the file workspace', () => {
     expect(() => files.readText(join(outside, 'secret.txt'))).toThrow(/toil's own configuration/);
   });
 
-  it('with no workspace, every file operation refuses with the reason, and unbounded still needs absolute paths', () => {
+  it('with no workspace, every file operation refuses with the reason, and unbounded still refuses relative paths', () => {
     const error = new ToilError('NOT_CONFIGURED', 'No workspace folder is set, and this command reads or writes files.', { fix: 'x' });
     const files = nodeFiles({ cwd: tmpdir(), stdin: false, workspace: { error, source: 'none' } });
     expect(files.workspace).toBeUndefined();
@@ -212,6 +212,8 @@ describe('the file workspace', () => {
     expect(() => files.list()).toThrow(error);
     const open = nodeFiles({ cwd: tmpdir(), stdin: false, workspace: { error, source: 'none' }, unbounded: true });
     expect(() => open.readText(join(tmpdir(), 'no-such-file-for-toil.txt'))).toThrow(/does not exist/);
+    expect(() => open.readText('relative.txt')).toThrow(error);
+    expect(() => open.writeBytes('relative.txt', new Uint8Array([1]))).toThrow(error);
   });
 });
 
@@ -322,7 +324,7 @@ describe('list', () => {
   });
 
   const git = findGit({ env: process.env }).found;
-  it.skipIf(!git)('matches git ls-files --cached --others --exclude-standard, info/exclude included (skipped where git is not installed)', () => {
+  it.skipIf(!git)('matches git ls-files --cached --others --exclude-standard: tracked-but-ignored, deleted, nested repos, ignored folders, index v4 (skipped where git is not installed)', () => {
     const root = mkdtempSync(join(tmpdir(), 'toil-lsf-'));
     dirs.push(root);
     const env = { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: join(root, 'no-global') };
@@ -336,7 +338,37 @@ describe('list', () => {
         .map((p) => p.replace(/^"|"$/g, '').replace(/\\#/g, '#'))
         .sort();
     const files = nodeFiles({ cwd: root, stdin: false, env: { GIT_CONFIG_GLOBAL: join(root, 'no-global') }, home: root });
-    expect(files.list()).toEqual(lsFiles(root));
-    expect(files.list('src')).toEqual(lsFiles(join(root, 'src')));
+    const same = () => {
+      for (const dir of ['', 'src', 'build', 'src/temp1']) expect(files.list(dir || '.'), dir || '(root)').toEqual(lsFiles(join(root, dir)));
+    };
+    same();
+
+    // --cached: tracked files count even when ignored (git add -f) or deleted from disk;
+    // a nested repository is one entry; an untracked file in an ignored folder never shows.
+    const g = (...args: string[]) => execFileSync(git!, ['-c', 'user.name=toil', '-c', 'user.email=you@example.com', ...args], { cwd: root, env });
+    g('add', '-f', 'a.log', 'build/out.js', 'src/index.ts', 'docs/readme.md');
+    g('commit', '-q', '-m', 'first');
+    rmSync(join(root, 'docs', 'readme.md'));
+    writeFileSync(join(root, 'build', 'untracked.js'), 'x');
+    mkdirSync(join(root, 'nested'));
+    execFileSync(git!, ['init', '-q'], { cwd: join(root, 'nested'), env });
+    writeFileSync(join(root, 'nested', 'inner.txt'), 'x');
+    expect(files.list()).toContain('a.log');
+    expect(files.list()).toContain('nested/');
+    expect(files.list('build')).toEqual(['out.js']);
+    same();
+
+    // Index version 4 compresses paths; the reader must too.
+    g('update-index', '--index-version', '4');
+    same();
+  });
+
+  it('outside a repository applies only the .gitignore files under the folder (git would list nothing: a deps port must check for a repository itself)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'toil-norepo-'));
+    dirs.push(root);
+    writeFileSync(join(root, '.gitignore'), '*.log\n');
+    writeFileSync(join(root, 'a.log'), 'x');
+    writeFileSync(join(root, 'b.txt'), 'x');
+    expect(nodeFiles({ cwd: root, stdin: false }).list()).toEqual(['.gitignore', 'b.txt']);
   });
 });

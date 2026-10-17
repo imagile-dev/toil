@@ -121,22 +121,25 @@ Node, and toil has to work there. This is the most important rule in the repo.
 - **There are two exceptions, and only two files get the real
   `node:child_process`** (the tsup `no-spawn` plugin decides by importer path,
   `check:pure` verifies it from the metafile, and ESLint allows the import in those
-  files only). Any other spawn, or a third file allowed to spawn, needs this section
+  files only, apart from repo tooling and tests, which never ship). Any other spawn, or a third file allowed to spawn, needs this section
   changed first.
   - **The OS credential store**, `src/core/keychain.ts`. It runs only what the OS
     ships (`security`, Windows PowerShell, `secret-tool`), never through a shell,
     with secrets on stdin.
   - **git**, `src/core/git.ts`, the one optional exception to principle 1 (#68,
-    decision 1). Only the commands that are git (the `git` area, `deps diff`) run it;
+    decision 1). Only the commands that are git (the `git` area and `deps diff`, once
+    ported) run it;
     repository root, HEAD, branch and remotes are read from `.git` in pure JS
     (`src/core/git-repo.ts`), so area context needs no git. Without git on PATH those
     commands return `GIT_NOT_FOUND`, with a fix naming the PATH searched, and nothing
     else is affected. toil finds git's absolute path itself, skipping relative PATH
     entries and the working directory; runs it with no shell, a fixed subcommand
     list, and `--end-of-options` / `--` before user values; turns off what
-    repository config can make it run (`-c core.fsmonitor=`, `--no-ext-diff`,
-    `--no-textconv`, no pager); sets `GIT_TERMINAL_PROMPT=0` and
-    `GIT_OPTIONAL_LOCKS=0`; and cancels it with the command's signal.
+    repository config can make it run (`-c core.fsmonitor=`,
+    `-c log.showSignature=false`, `--no-ext-diff`, `--no-textconv`, no pager); sets
+    `GIT_TERMINAL_PROMPT=0` and `GIT_OPTIONAL_LOCKS=0`; and cancels it with the
+    command's signal. It needs git 2.24 or later (`--end-of-options`); an older git
+    gets `GIT_NOT_FOUND` saying so.
 
 ## Secrets
 
@@ -214,7 +217,7 @@ files, uploads, downloads and CSV reports resolve inside the workspace on both
 front doors (**Bounds**), `-` means stdin only on the CLI (over MCP stdin carries
 the protocol), saved paths in output are absolute with forward slashes, and tests
 get an in-memory copy. It also answers `exists`, `stat`, a `.gitignore`-respecting
-`list` and `findUp`. git runs only through `ctx.git` (`src/core/git.ts`). HTTP to a REST API
+`list` and `findUp`, and writes CSV with `writeCsv`. git runs only through `ctx.git` (`src/core/git.ts`). HTTP to a REST API
 goes through `restRequest` and `buildUrl` in `src/core/rest.ts`, which turn failures
 into `AUTH`, `NOT_FOUND`, `HTTP` or `NETWORK` errors with the server's own message,
 retry a 429, and keep a base URL's context path. argv is typed from the schema: a

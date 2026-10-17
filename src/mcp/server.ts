@@ -75,7 +75,17 @@ export function createMcpServer(options: {
     if (!server.getClientCapabilities()?.roots) return Promise.resolve(undefined);
     roots ??= server
       .listRoots(undefined, { timeout: 5000 })
-      .then((r) => r.roots.filter((root) => root.uri.startsWith('file:')).map((root) => fileURLToPath(root.uri)))
+      .then((r) =>
+        // Each root on its own: one URI Node can't turn into a path drops that root, not the rest.
+        r.roots.flatMap((root) => {
+          if (!root.uri.startsWith('file:')) return [];
+          try {
+            return [fileURLToPath(root.uri)];
+          } catch {
+            return [];
+          }
+        }),
+      )
       .catch(() => {
         // Ask again next call; a client that can't answer leaves no workspace, not a stale one.
         roots = undefined;
