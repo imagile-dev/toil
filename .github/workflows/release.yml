@@ -14,17 +14,32 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    # The release PR is opened as the Imagile Bot App, not GITHUB_TOKEN. The
+    # repo doesn't let Actions open PRs, and a PR opened with GITHUB_TOKEN
+    # would trigger no workflows, so the release PR would get no CI and no
+    # review. This job's own token only needs to read.
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}
       version: ${{ steps.rp.outputs.version }}
     steps:
-      - id: rp
-        uses: googleapis/release-please-action@v4
+      - name: Generate Imagile Bot token
+        id: imagile-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
+          app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
+          private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
+          # release-please pushes its branch, opens the release PR, and on
+          # merge tags and creates the GitHub release. Nothing else.
+          permission-contents: write
+          permission-pull-requests: write
+
+      - id: rp
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        with:
+          token: ${{ steps.imagile-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
@@ -39,10 +54,10 @@ jobs:
       TAG: ${{ needs.release-please.outputs.tag_name }}
       VERSION: ${{ needs.release-please.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
