@@ -1,7 +1,9 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import type { z } from 'zod';
 import { CONNECTION_FIELD } from '../src/core/area.js';
+import { envName } from '../src/core/config.js';
 import { toolName } from '../src/core/command.js';
 import { areas, commands } from '../src/registry.js';
 
@@ -11,7 +13,9 @@ import { areas, commands } from '../src/registry.js';
  * the lists it reads: site/src/data/commands/<area>.json, one file per area so
  * parallel ports each write their own. A command added, renamed or
  * re-described without regenerating fails here; `npx vitest run -u` rewrites
- * the files. One source per fact, and a clerk who checks it. The board's own
+ * the files. Each area's connection settings go the same way, to
+ * site/src/data/settings/<area>.json, so its page lists every key it reads,
+ * not only the credential. One source per fact, and a clerk who checks it. The board's own
  * per-area files (site/src/data/integrations/<area>.json) are checked here too,
  * since status honesty depends on which areas the registry has.
  */
@@ -31,16 +35,45 @@ export function siteCommands(): Record<string, SiteCommand[]> {
   return out;
 }
 
+/** One connection setting, for the Configuration section of an area's docs page. */
+export type SiteSetting = { key: string; env: string; description: string; required: boolean; secret: boolean; fallbacks: string[] };
+
+/** Every key an area's connection takes, in schema order, with its env var and any CI fallback. */
+export function siteSettings(): Record<string, SiteSetting[]> {
+  const out: Record<string, SiteSetting[]> = {};
+  for (const area of areas) {
+    const fallbacks = (area.fallbacks ?? {}) as Record<string, string[] | undefined>;
+    out[area.name] = Object.entries(area.connection.shape as Record<string, z.ZodType>).map(([key, schema]) => ({
+      key,
+      env: envName(area.name, key),
+      description: schema.description ?? '',
+      required: !schema.safeParse(undefined).success,
+      secret: (area.secrets as readonly string[]).includes(key),
+      fallbacks: fallbacks[key] ?? [],
+    }));
+  }
+  return out;
+}
+
 const dir = join(import.meta.dirname, '..', 'site', 'src', 'data', 'commands');
+const settingsDir = join(import.meta.dirname, '..', 'site', 'src', 'data', 'settings');
 const boardDir = join(import.meta.dirname, '..', 'site', 'src', 'data', 'integrations');
 const GROUPS = ['work', 'build', 'security', 'observability', 'design'];
 const STATUSES = ['planned', 'unit', 'integration', 'live'];
 const lists = siteCommands();
+const settings = siteSettings();
 
 describe('site command reference', () => {
   for (const [area, list] of Object.entries(lists)) {
     it(`site/src/data/commands/${area}.json matches the registry`, async () => {
       await expect(`${JSON.stringify(list, null, 2)}\n`).toMatchFileSnapshot(join(dir, `${area}.json`));
+    });
+  }
+
+  for (const [area, list] of Object.entries(settings)) {
+    it(`site/src/data/settings/${area}.json matches the area's connection schema`, async () => {
+      await expect(`${JSON.stringify(list, null, 2)}
+`).toMatchFileSnapshot(join(settingsDir, `${area}.json`));
     });
   }
 
@@ -67,5 +100,10 @@ describe('site command reference', () => {
       .map((f) => f.slice(0, -'.json'.length))
       .filter((area) => !(area in lists));
     expect(stale, 'delete these from site/src/data/commands/').toEqual([]);
+    const staleSettings = readdirSync(settingsDir)
+      .filter((f) => f.endsWith('.json'))
+      .map((f) => f.slice(0, -'.json'.length))
+      .filter((area) => !(area in settings));
+    expect(staleSettings, 'delete these from site/src/data/settings/').toEqual([]);
   });
 });

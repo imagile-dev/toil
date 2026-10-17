@@ -25,6 +25,16 @@ type SiteCommand = { name: string; tool: string; description: string; writes: bo
 const generated = import.meta.glob<SiteCommand[]>('../../../data/commands/*.json', { eager: true, import: 'default' });
 const commandList: SiteCommand[] = integration.status === 'planned' ? [] : (generated[`../../../data/commands/${integration.area}.json`] ?? []);
 const supported = integration.supported;
+// Every setting a connection takes, written from the area's connection schema
+// by the same test (data/settings/<area>.json): the credential and everything else.
+type SiteSetting = { key: string; env: string; description: string; required: boolean; secret: boolean; fallbacks: string[] };
+const settingFiles = import.meta.glob<SiteSetting[]>('../../../data/settings/*.json', { eager: true, import: 'default' });
+const settings: SiteSetting[] = integration.status === 'planned' ? [] : (settingFiles[`../../../data/settings/${integration.area}.json`] ?? []);
+const exampleLines = settings.length
+  ? settings.filter((s) => s.required).map((s) => ({ env: s.env, value: s.key === 'baseUrl' ? host : `<your ${s.description.toLowerCase() || s.key}>` }))
+  : [{ env: `${prefix}BASE_URL`, value: host }, ...keyLines.map((k) => ({ env: `${prefix}${k.key}`, value: `<your ${k.label}>` }))];
+// A read-only area has nothing to gate, so its page doesn't explain the gate.
+const writes = commandList.length === 0 || commandList.some((c) => c.writes);
 ---
 
 <Layout title={`${integration.name} integration`} description={`toil's ${integration.name} integration: what it covers, the credential it uses, and how to configure it.`}>
@@ -90,15 +100,39 @@ const supported = integration.supported;
               with <code>{prefix}</code>. For example:
             </p>
             <div class="codeblock"><span class="card-tag">shell</span>
-<pre><span class="p">$</span> export {prefix}BASE_URL=<span class="s">{host}</span>{keyLines.map((k) => (
-  <span class="line"><span class="p">$</span> export {prefix}{k.key}=<span class="s">{`<your ${k.label}>`}</span></span>
+<pre>{exampleLines.map((l) => (
+  <span class="line"><span class="p">$</span> export {l.env}=<span class="s">{l.value}</span></span>
 ))}</pre>
             </div>
-            <p class="note">
-              {integration.status === 'planned'
-                ? 'The exact keys are published here when the integration ships. These show the naming pattern every area follows.'
-                : 'These are the keys this integration reads.'}
-            </p>
+            {settings.length === 0 ? (
+              <p class="note">The exact keys are published here when the integration ships. These show the naming pattern every area follows.</p>
+            ) : (
+              <>
+                <p>
+                  Those are the required ones. Every key a {integration.name} connection reads, with its variable for the default connection
+                  (<code>TOIL_CONN_&lt;NAME&gt;_&lt;KEY&gt;</code> sets it on any named one):
+                </p>
+                <ul class="settings">
+                  {settings.map((s) => (
+                    <li class="setting">
+                      <div class="setting__head">
+                        <code class="setting__key">{s.key}</code>
+                        {s.required && <span class="tag">required</span>}
+                        {s.secret && <span class="tag">secret</span>}
+                      </div>
+                      {s.description && <p class="setting__desc">{s.description}</p>}
+                      <p class="setting__env">
+                        <code>{s.env}</code>
+                        {s.fallbacks.map((f) => <><span class="setting__or">or</span><code>{f}</code></>)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+                {settings.some((s) => s.fallbacks.length > 0) && (
+                  <p class="note">A variable after "or" is one your CI or the vendor's own tooling already sets. It counts only when the toil variable is unset, and it still beats the config file.</p>
+                )}
+              </>
+            )}
           </section>
         )}
 
@@ -113,8 +147,7 @@ const supported = integration.supported;
             <>
               <p>
                 {commandList.length} commands, each on the command line as <code>toil {integration.area} &lt;command&gt;</code> and over MCP as
-                the tool shown, with identical inputs and output. Every command also takes <code>--connection &lt;name&gt;</code>; ones marked
-                <span class="cmd__write">write</span> change data. Run <code>toil {integration.area} &lt;command&gt; --help</code> for each flag's meaning, or read the{' '}
+                the tool shown, with identical inputs and output. Every command also takes <code>--connection &lt;name&gt;</code>{writes ? <>; ones marked <span class="cmd__write">write</span> change data</> : <>, and every one of them only reads</>}. Run <code>toil {integration.area} &lt;command&gt; --help</code> for each flag's meaning, or read the{' '}
                 <a href={`${repoUrl}/blob/main/skills/toil/${integration.area}.md`}>{integration.name} reference</a>.
               </p>
               <ul class="cmds">
@@ -136,14 +169,14 @@ const supported = integration.supported;
           )}
         </section>
 
-        <section data-reveal>
+        {writes && <section data-reveal>
           <h2>Writes</h2>
           <p>
             Reads are always allowed. Anything that changes data in {integration.name} needs two things: <code>writes</code> switched on for this
             area in your own config, and <code>--allow-write</code> on the call. Over MCP, write tools don't exist until writes are on.{' '}
             <a href={url('/how-it-works/#safety')}>How writes are gated</a>.
           </p>
-        </section>
+        </section>}
 
         <nav class="pager" aria-label="Other integrations">
           {prev ? <a class="tap" href={url(`/docs/integrations/${prev.area}/`)}>← {prev.name}</a> : <span></span>}
@@ -203,6 +236,19 @@ const supported = integration.supported;
     font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
     border-radius: 999px; padding: 0.05rem 0.45rem; border: 1px solid color-mix(in oklab, var(--color-accent) 50%, transparent); color: var(--color-accent);
     margin-inline: 0.25rem;
+  }
+
+  .settings { list-style: none; padding: 0; margin: var(--space-sm) 0 0; display: grid; gap: var(--space-xs); }
+  .setting { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-sm); min-width: 0; }
+  .setting__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+  .setting__key { color: var(--color-accent) !important; font-size: var(--text-sm); overflow-wrap: anywhere; }
+  .setting__desc { margin-top: 0.3rem; font-size: var(--text-sm); }
+  .setting__env { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-top: 0.4rem !important; }
+  .setting__env code { font-size: 0.72rem; overflow-wrap: anywhere; border: 1px solid var(--color-line); border-radius: 4px; padding: 0 0.3rem; }
+  .setting__or { font-size: var(--text-sm); color: var(--color-faint); }
+  .tag {
+    font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+    border-radius: 999px; padding: 0.05rem 0.45rem; border: 1px solid var(--color-line-strong); color: var(--color-muted);
   }
 
   .pager { display: flex; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; padding-top: var(--space-md); border-top: 1px solid var(--color-line); }

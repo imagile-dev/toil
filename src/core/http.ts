@@ -12,9 +12,34 @@ export interface RequestLog {
   durationMs: number;
 }
 
-const SECRET_PARAM = /token|key|secret|password|signature|sig$|^jwt$/i;
+/**
+ * Query parameter names that carry a credential, compared lowercased with
+ * `-`, `_` and `.` removed, so `api_key`, `apiKey` and `X-Amz-Signature` all
+ * match. Exact names only: `projectKey`, `componentKeys` and `metricKeys` are
+ * identifiers, and hiding them would hide what the request was about.
+ */
+const SECRET_PARAMS = new Set([
+  'token', 'accesstoken', 'refreshtoken', 'idtoken', 'authtoken', 'apitoken', 'privatetoken', 'sessiontoken', 'xauthtoken',
+  'apikey', 'key', 'accesskey', 'privatekey', 'password', 'passwd', 'pwd', 'secret', 'clientsecret',
+  'signature', 'sig', 'jwt', 'xamzsignature', 'xamzsecuritytoken', 'xamzcredential', 'xgoogsignature', 'xgoogcredential',
+]);
 
-/** A URL safe to print: query parameters that look like credentials are replaced. */
+function isSecretParam(name: string): boolean {
+  let decoded = name;
+  try {
+    decoded = decodeURIComponent(name.replace(/\+/g, ' '));
+  } catch {
+    // A malformed escape is compared as written.
+  }
+  return SECRET_PARAMS.has(decoded.toLowerCase().replace(/[-_.]/g, ''));
+}
+
+/**
+ * A URL safe to print: credential query parameters and userinfo are replaced,
+ * and everything else is shown exactly as it was sent, literal commas and all.
+ * Re-serialising through URLSearchParams would print `%2C` for a comma the
+ * server never saw encoded, which is accurate the way a photocopy of a fax is.
+ */
 export function redactUrl(raw: string): string {
   let url: URL;
   try {
@@ -22,14 +47,23 @@ export function redactUrl(raw: string): string {
   } catch {
     return raw;
   }
-  for (const name of [...url.searchParams.keys()]) {
-    if (SECRET_PARAM.test(name)) url.searchParams.set(name, '[redacted]');
-  }
-  if (url.username || url.password) {
-    url.username = '[redacted]';
-    url.password = '';
-  }
-  return url.toString();
+  const hashAt = raw.indexOf('#');
+  const hash = hashAt === -1 ? '' : raw.slice(hashAt);
+  const beforeHash = hashAt === -1 ? raw : raw.slice(0, hashAt);
+  const queryAt = beforeHash.indexOf('?');
+  let base = queryAt === -1 ? beforeHash : beforeHash.slice(0, queryAt);
+  if (url.username || url.password) base = base.replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/?#]*@/i, '$1[redacted]@');
+  if (queryAt === -1) return base + hash;
+  const query = beforeHash
+    .slice(queryAt + 1)
+    .split('&')
+    .map((part) => {
+      const eq = part.indexOf('=');
+      const name = eq === -1 ? part : part.slice(0, eq);
+      return isSecretParam(name) ? `${name}=[redacted]` : part;
+    })
+    .join('&');
+  return `${base}?${query}${hash}`;
 }
 
 /**

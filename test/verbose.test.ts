@@ -34,6 +34,23 @@ describe('redactUrl', () => {
     expect(out).toContain('project=PAY');
   });
 
+  it('hides only real secret names, case-insensitively, and leaves identifiers that merely end in key alone', () => {
+    const secrets = ['token', 'access_token', 'api_key', 'apikey', 'apiKey', 'key', 'Password', 'secret', 'client_secret', 'signature', 'sig', 'JWT', 'X-Amz-Signature', 'private_token'];
+    for (const name of secrets) expect(redactUrl(`https://sonar.imagile.dev/a?${name}=s3cret&x=1`), name).toBe(`https://sonar.imagile.dev/a?${name}=[redacted]&x=1`);
+    const ids = 'projectKey=PAY&componentKeys=a,b&metricKeys=coverage,bugs&issueKey=ABC-1&keys=k&nextPageToken=abc';
+    expect(redactUrl(`https://sonar.imagile.dev/api/x?${ids}`)).toBe(`https://sonar.imagile.dev/api/x?${ids}`);
+  });
+
+  it('shows the URL as sent: a literal comma stays a comma, an encoded one stays encoded, and nothing is normalised', () => {
+    expect(redactUrl('https://sonar.imagile.dev/api/issues/search?componentKeys=imagile-api&severities=BLOCKER,MAJOR&token=t')).toBe(
+      'https://sonar.imagile.dev/api/issues/search?componentKeys=imagile-api&severities=BLOCKER,MAJOR&token=[redacted]',
+    );
+    expect(redactUrl('https://sonar.imagile.dev/a?q=a%2Cb&flag')).toBe('https://sonar.imagile.dev/a?q=a%2Cb&flag');
+    expect(redactUrl('https://sonar.imagile.dev')).toBe('https://sonar.imagile.dev');
+    expect(redactUrl('https://u:p@sonar.imagile.dev/x?y=1#frag')).toBe('https://[redacted]@sonar.imagile.dev/x?y=1#frag');
+    expect(redactUrl('not a url')).toBe('not a url');
+  });
+
   it('hides the jwt on a signed release-asset URL', () => {
     const out = redactUrl('https://release-assets.githubusercontent.com/a?sp=r&jwt=eyJabc.def.ghi&rscd=x');
     expect(out).not.toContain('eyJabc');

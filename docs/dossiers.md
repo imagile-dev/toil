@@ -248,7 +248,7 @@ records. Core already refuses such writes; this plan supplies the adoption
 
 `meta.context` in the envelope reports what was resolved and from where. Today it
 holds `{ connection, inputs, shared }`: the connection and each context input as `{
-value, source }` (source `input`, `dossier`, `git`, `connection` or `default`, with
+value, source }` (source `input`, `file`, `dossier`, `git`, `connection` or `default`, with
 `via` when an input selected the connection), and any setting taken from another
 area's connection. Dossiers add the dossier and its `source`, a connection selected
 by host, and whether the folder came from the `cwd` input, the CLI's working

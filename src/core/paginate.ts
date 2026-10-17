@@ -9,7 +9,9 @@ import { ToilError } from './errors.js';
  * - `offset`: start/limit (`startAt`/`maxResults`), stopping on an empty page
  *   or when `total` is reached
  * - `page`: page/per_page, stopping on a short page, so `pageSize` must not
- *   exceed the server's own maximum (GitHub's is 100) or page 1 looks like the last
+ *   exceed the server's own maximum (GitHub's is 100) or page 1 looks like the last.
+ *   With `total` (SonarQube's `p`/`ps`/`total`), it stops instead once the items
+ *   read reach the total, or on an empty page, and never on a short one
  * - `nextPageStart`: `isLastPage` and `nextPageStart` in the body
  * - `header`: a continuation token in a response header, sent back as a query
  *   parameter (`x-ms-continuationtoken`)
@@ -20,6 +22,8 @@ import { ToilError } from './errors.js';
  * empty: null means the last page was read, anything else resumes exactly.
  * Each page is requested only when the previous one says there is more, which
  * is the procedure; skipping ahead to the last page is a privilege of auditors.
+ * A style with `total` also reports the last total the server gave, an empty
+ * page's included, so a command asked only to count still has the count.
  */
 
 /** What one request yields: the parsed body and the response headers. */
@@ -32,7 +36,7 @@ type Items<T> = (body: unknown) => T[];
 
 export type PageStyle<T> =
   | { kind: 'offset'; startParam: string; limitParam: string; pageSize: number; items: Items<T>; total?: (body: unknown) => number | undefined; first?: number }
-  | { kind: 'page'; pageParam: string; sizeParam: string; pageSize: number; items: Items<T>; first?: number }
+  | { kind: 'page'; pageParam: string; sizeParam: string; pageSize: number; items: Items<T>; total?: (body: unknown) => number | undefined; first?: number }
   | { kind: 'nextPageStart'; startParam: string; limitParam: string; pageSize: number; items?: Items<T> }
   | { kind: 'header'; header: string; param: string; items: Items<T>; params?: Record<string, string | number> }
   | { kind: 'nextPageKey'; param?: string; items: Items<T>; key?: (body: unknown) => string | undefined; params?: Record<string, string | number> };
@@ -58,6 +62,8 @@ export interface Paged<T> {
   items: T[];
   /** Where the next page starts, or null when the last page was read. */
   nextCursor: string | null;
+  /** The total the last page read reported, for a style with `total`; absent when no page gave one. */
+  total?: number;
 }
 
 const field = (body: unknown, name: string): unknown => (typeof body === 'object' && body !== null ? (body as Record<string, unknown>)[name] : undefined);
@@ -91,6 +97,11 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
   }
   let nextCursor: string | null = null;
   const seen = new Set<string>();
+  let total: number | undefined;
+  // Items the server has handed over, counting from its first item: what a
+  // `page` style with `total` compares. A resumed cursor starts past the
+  // pages before it, which were full by definition, or they wouldn't have had a next.
+  let counted = style.kind === 'page' ? (Number(cursor) - (style.first ?? 1)) * style.pageSize : 0;
 
   for (let pages = 1; ; pages++) {
     if (pages > MAX_PAGES) {
@@ -101,7 +112,10 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
     }
     const page = await fetchPage(params(style, cursor));
     const all = (style.items ?? values<T>)(page.body);
-    const next = advance(style, cursor, all, page);
+    counted += all.length;
+    const reported = (style.kind === 'offset' || style.kind === 'page') && style.total ? style.total(page.body) : undefined;
+    if (typeof reported === 'number') total = reported;
+    const next = advance(style, cursor, all, page, counted, reported);
     const skipped = skip;
     skip = 0;
     const got = all.slice(skipped);
@@ -121,7 +135,7 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
   }
 
   if (cap !== undefined) options.setPage?.({ nextCursor, limit: cap });
-  return { items, nextCursor };
+  return { items, nextCursor, ...(total === undefined ? {} : { total }) };
 }
 
 function initial<T>(style: PageStyle<T>): string | undefined {
@@ -153,16 +167,18 @@ function params<T>(style: PageStyle<T>, cursor: string | undefined): Record<stri
   }
 }
 
-function advance<T>(style: PageStyle<T>, cursor: string | undefined, got: T[], page: FetchedPage): string | null {
+/** `total` is what this page reported, read before the empty-page check so an empty page's total still counts. */
+function advance<T>(style: PageStyle<T>, cursor: string | undefined, got: T[], page: FetchedPage, counted: number, total: number | undefined): string | null {
   switch (style.kind) {
     case 'offset': {
       if (got.length === 0) return null;
       const next = Number(cursor) + got.length;
-      const total = style.total?.(page.body);
-      return typeof total === 'number' && next >= total ? null : String(next);
+      return style.total && typeof total === 'number' && next >= total ? null : String(next);
     }
     case 'page':
-      return got.length === 0 || got.length < style.pageSize ? null : String(Number(cursor) + 1);
+      if (got.length === 0) return null;
+      if (style.total) return typeof total === 'number' && counted >= total ? null : String(Number(cursor) + 1);
+      return got.length < style.pageSize ? null : String(Number(cursor) + 1);
     case 'nextPageStart': {
       const start = field(page.body, 'nextPageStart');
       return field(page.body, 'isLastPage') === true || typeof start !== 'number' ? null : String(start);
