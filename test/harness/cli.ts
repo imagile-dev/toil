@@ -1,6 +1,7 @@
 import type { AnyCommand } from '../../src/core/command.js';
 import type { Context } from '../../src/core/context.js';
 import type { Envelope } from '../../src/core/envelope.js';
+import type { ResolvedRoutedAlias } from '../../src/core/routed-alias.js';
 import { runProgram } from '../../src/program.js';
 import { TEST_VERSION } from './context.js';
 
@@ -22,6 +23,8 @@ export async function runCli(
   options: {
     commands: AnyCommand[];
     context: Context;
+    /** Paths routed by a flag's value (`deps frisk --source osv`). */
+    routed?: readonly ResolvedRoutedAlias[];
     /** Replaces context creation, e.g. to make it fail. */
     createContext?: (def: AnyCommand) => Context;
   },
@@ -32,6 +35,7 @@ export async function runCli(
   const exitCode = await runProgram(
     {
       commands: options.commands,
+      ...(options.routed ? { routed: options.routed } : {}),
       version: TEST_VERSION,
       io: {
         stdout: (t) => (stdout += t),

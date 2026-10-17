@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { AnyArea, Connection, ContextInput } from './area.js';
 import { commandName, type AnyCommand } from './command.js';
-import { connectionEnvName, defaultConnectionName, envName, type ResolvedConfig } from './config.js';
+import { connectionEnvName, connectionsOf, defaultConnectionName, envName, type ResolvedConfig } from './config.js';
 import { resolveConnection, selectConnection } from './connection.js';
 import type { ContextReport, ContextSource, ContextValue, Warning } from './envelope.js';
 import { ToilError } from './errors.js';
@@ -119,7 +119,7 @@ export async function resolveCall(
     try {
       selects = selectConnection(sources.config, area, name, spec.setting ?? name, found.value, flagOf(name, spec), found.source);
     } catch {
-      selects = undefined;
+      selects = jointSelection(sources.config, area, early, found.source);
     }
     if (selects !== connection.name) delete early[name];
   }
@@ -167,10 +167,18 @@ function chooseConnection(
   // input selects must agree, and the first step with either decides.
   for (const source of ['input', 'dossier', 'git'] as const) {
     let pick: ContextValue | undefined = named[source] === undefined ? undefined : { value: named[source]!, source };
+    const joint = jointSelection(config, area, early, source);
     for (const [name, found] of Object.entries(early)) {
       const spec = declared[name]!;
       if (!spec.selectsConnection || found.source !== source) continue;
-      const selected = selectConnection(config, area, name, spec.setting ?? name, found.value, flagOf(name, spec), found.source);
+      let selected: string;
+      try {
+        selected = selectConnection(config, area, name, spec.setting ?? name, found.value, flagOf(name, spec), found.source);
+      } catch (err) {
+        // Several connections have env prod, but only one is env prod and instance east.
+        if (joint === undefined) throw err;
+        selected = joint;
+      }
       if (pick && pick.value !== selected) {
         const first = pick.via ? `${flagOf(pick.via, declared[pick.via]!).split(' ')[0]} selects connection ${pick.value}` : `--connection is ${pick.value}`;
         const where = { input: 'the call', dossier: 'your dossier', git: 'the git remote' }[source];
@@ -183,6 +191,26 @@ function chooseConnection(
     if (pick) return pick;
   }
   return undefined;
+}
+
+/**
+ * The one connection that every selecting value from `source` matches at
+ * once (`--env prod --instance east`), when there are two or more such
+ * values. A connection matches a value by its name or by the input's
+ * setting. None, or several, is undefined: each value then speaks for itself,
+ * with the usual errors. Two signatures on one form identify one applicant.
+ */
+function jointSelection(config: ResolvedConfig, area: AnyArea, early: Record<string, ContextValue>, source: ContextSource): string | undefined {
+  const declared = area.context as Record<string, ContextInput>;
+  const selecting = Object.entries(early).filter(([name, found]) => declared[name]!.selectsConnection && found.source === source);
+  if (selecting.length < 2) return undefined;
+  const matches = connectionsOf(config, area.name).filter((conn) =>
+    selecting.every(([name, found]) => {
+      const value = config.connections[conn]![declared[name]!.setting ?? name];
+      return conn === found.value || (value !== undefined && value !== null && String(value) === found.value);
+    }),
+  );
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
 /** A value from a source other than the call, validated as the input's schema says; INVALID_INPUT names where it came from. */
