@@ -151,9 +151,9 @@ function offsetPages<T>(field: string): PageStyle<T> {
   };
 }
 
-/** Every item of a paged list. */
-async function every<T>(field: string, fetchPage: (paging: Record<string, string | number>) => Promise<unknown>): Promise<T[]> {
-  const { items } = await paginate<T>(offsetPages<T>(field), async (paging) => ({ body: await fetchPage(paging) }));
+/** Every item of a paged list; `what` names it if paging never ends. */
+async function every<T>(what: string, field: string, fetchPage: (paging: Record<string, string | number>) => Promise<unknown>): Promise<T[]> {
+  const { items } = await paginate<T>(offsetPages<T>(field), async (paging) => ({ body: await fetchPage(paging) }), { what });
   return items;
 }
 
@@ -229,7 +229,7 @@ export function addComment(ctx: JiraContext, key: string, text: string): Promise
 }
 
 export function listComments(ctx: JiraContext, key: string): Promise<unknown[]> {
-  return every('comments', (paging) => jira(ctx, `${API}/issue/${seg(key)}/comment`, { params: paging }));
+  return every(`Jira comments for ${key}`, 'comments', (paging) => jira(ctx, `${API}/issue/${seg(key)}/comment`, { params: paging }));
 }
 
 export function addWorklog(ctx: JiraContext, key: string, opts: { timeSpent: string; comment?: string | undefined; started?: string | undefined }): Promise<unknown> {
@@ -289,6 +289,7 @@ export async function search(
       total = page.total;
       return { body: page };
     },
+    { what: 'Jira search' },
   );
   return { issues: items, total, startAt: first, maxResults: items.length };
 }
@@ -435,11 +436,11 @@ export async function linkIssue(ctx: JiraContext, opts: { key: string; linkType:
 }
 
 export function listBoards(ctx: JiraContext, project: string): Promise<JiraBoard[]> {
-  return every('values', (paging) => jira(ctx, `${AGILE_API}/board`, { params: { projectKeyOrId: project, ...paging } }));
+  return every(`Jira boards for project ${project}`, 'values', (paging) => jira(ctx, `${AGILE_API}/board`, { params: { projectKeyOrId: project, ...paging } }));
 }
 
 export function listSprintsForBoard(ctx: JiraContext, boardId: number, states?: string[]): Promise<JiraSprint[]> {
-  return every('values', (paging) => jira(ctx, `${AGILE_API}/board/${seg(boardId)}/sprint`, { params: { ...paging, ...(states?.length ? { state: states.join(',') } : {}) } }));
+  return every(`Jira sprints for board ${boardId}`, 'values', (paging) => jira(ctx, `${AGILE_API}/board/${seg(boardId)}/sprint`, { params: { ...paging, ...(states?.length ? { state: states.join(',') } : {}) } }));
 }
 
 /** Sprints across a project's scrum boards, once each: a sprint can sit on several boards. */
