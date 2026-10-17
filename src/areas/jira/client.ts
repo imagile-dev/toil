@@ -3,6 +3,7 @@ import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
 import { apiRequest } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
+import { paginate, type PageStyle } from '../../core/paginate.js';
 import { repointUrl, type QueryValue } from '../../core/rest.js';
 import { jiraArea, type CustomFieldDefinition } from './area.js';
 import { suggestedType } from './custom-fields.js';
@@ -11,8 +12,9 @@ import { suggestedType } from './custom-fields.js';
  * Every request toil sends to Jira Data Center. Commands describe what they
  * want; this module knows the endpoints, the headers, the paging and the odd
  * corners (createmeta moved in 8.4, attachments are fetched from a URL Jira
- * hands back). Requests are kept exactly as the canonical implementation sent
- * them, because those are the ones known to work against real servers.
+ * hands back). The paging loop, re-pointing and multipart are core's.
+ * Requests are kept exactly as the canonical implementation sent them,
+ * because those are the ones known to work against real servers.
  * Altering a request that works would need a change request, and nobody has
  * yet found the form.
  */
@@ -125,27 +127,34 @@ export function jira<T>(ctx: JiraContext, path: string, req: JiraRequest = {}): 
   });
 }
 
-interface Page<T> {
-  values?: T[];
-  total?: number;
+/**
+ * startAt/maxResults paging through core's loop, for a list kept under
+ * `field`: it stops on an empty page or once `total` is reached, as the
+ * predecessor did. `total` is read with Number(), which is how the
+ * predecessor's `startAt >= total` coerced it, so a missing one never stops
+ * the loop. An endpoint with no `total` (the Agile sprint list, which has
+ * `isLast` instead) costs one extra empty-page request; recorded as a
+ * suspected bug (#70).
+ */
+function offsetPages<T>(field: string): PageStyle<T> {
+  return {
+    kind: 'offset',
+    startParam: 'startAt',
+    limitParam: 'maxResults',
+    pageSize: PAGE,
+    // `issues` first, as the predecessor's shared loop read every list.
+    items: (body) => {
+      const page = body as Record<string, T[] | undefined>;
+      return page.issues ?? page[field] ?? [];
+    },
+    total: (body) => Number((body as { total?: unknown }).total),
+  };
 }
 
-/**
- * Every item from a startAt/maxResults endpoint, stopping on `total` or an
- * empty page, as the predecessor did. An endpoint with no `total` (the Agile
- * sprint list) costs one extra empty-page request; recorded as a suspected bug (#70).
- */
-export async function paginate<T>(fetchPage: (startAt: number, maxResults: number) => Promise<Page<T>>): Promise<T[]> {
-  const results: T[] = [];
-  let startAt = 0;
-  for (;;) {
-    const page = await fetchPage(startAt, PAGE);
-    const items = page.values ?? [];
-    results.push(...items);
-    startAt += items.length;
-    if ((startAt >= (page.total as number)) || items.length === 0) break;
-  }
-  return results;
+/** Every item of a paged list; `what` names it if paging never ends. */
+async function every<T>(what: string, field: string, fetchPage: (paging: Record<string, string | number>) => Promise<unknown>): Promise<T[]> {
+  const { items } = await paginate<T>(offsetPages<T>(field), async (paging) => ({ body: await fetchPage(paging) }), { what });
+  return items;
 }
 
 export function getIssue(ctx: JiraContext, key: string): Promise<JiraIssue> {
@@ -220,10 +229,7 @@ export function addComment(ctx: JiraContext, key: string, text: string): Promise
 }
 
 export function listComments(ctx: JiraContext, key: string): Promise<unknown[]> {
-  return paginate(async (startAt, maxResults) => {
-    const page = await jira<{ comments: unknown[]; total: number }>(ctx, `${API}/issue/${seg(key)}/comment`, { params: { startAt, maxResults } });
-    return { values: page.comments, total: page.total };
-  });
+  return every(`Jira comments for ${key}`, 'comments', (paging) => jira(ctx, `${API}/issue/${seg(key)}/comment`, { params: paging }));
 }
 
 export function addWorklog(ctx: JiraContext, key: string, opts: { timeSpent: string; comment?: string | undefined; started?: string | undefined }): Promise<unknown> {
@@ -243,6 +249,14 @@ export const STANDARD_SEARCH_FIELDS = ['summary', 'status', 'priority', 'assigne
  * Search from `startAt` in pages of up to 100 (one huge request times out),
  * stopping at `maxResults` when given. Keeps the server's `total` so the
  * caller can tell whether the result was cut short.
+ *
+ * Core's loop, with the two things the predecessor did that its cap doesn't:
+ * the last page asks only for what's left (`[200, 50]`, not `[200, 100]`),
+ * and a `maxResults` that parseInt couldn't read (NaN) goes out as null and
+ * pages through everything rather than being refused. So the page size is
+ * worked out here, and the cap is folded into the end offset `total` reports:
+ * stopping at the server's total or at startAt + maxResults, whichever comes
+ * first, is exactly the predecessor's two exit tests.
  */
 export async function search(
   ctx: JiraContext,
@@ -250,21 +264,34 @@ export async function search(
   opts: { maxResults?: number | undefined; startAt?: number | undefined; fields: string[] },
 ): Promise<JiraSearchResult> {
   const first = opts.startAt ?? 0;
-  const issues: JiraIssue[] = [];
+  const max = opts.maxResults;
+  const end = max === undefined || Number.isNaN(max) ? undefined : first + max;
   let total = 0;
-  let next = first;
-  for (;;) {
-    const pageSize = opts.maxResults === undefined ? PAGE : Math.min(PAGE, opts.maxResults - issues.length);
-    if (pageSize <= 0 && issues.length > 0) break;
-    const page = await jira<JiraSearchResult>(ctx, `${API}/search`, { method: 'POST', body: { jql, startAt: next, maxResults: pageSize, fields: opts.fields } });
-    const items = page.issues ?? [];
-    issues.push(...items);
-    total = page.total;
-    next += items.length;
-    if (next >= total || items.length === 0) break;
-    if (opts.maxResults !== undefined && issues.length >= opts.maxResults) break;
-  }
-  return { issues, total, startAt: first, maxResults: issues.length };
+  const { items } = await paginate<JiraIssue>(
+    {
+      kind: 'offset',
+      startParam: 'startAt',
+      limitParam: 'maxResults',
+      pageSize: PAGE,
+      first,
+      items: (body) => (body as JiraSearchResult).issues ?? [],
+      total: (body) => {
+        const reported = Number((body as JiraSearchResult).total);
+        if (end === undefined) return reported;
+        return Number.isNaN(reported) ? end : Math.min(reported, end);
+      },
+    },
+    async (params) => {
+      const startAt = Number(params.startAt);
+      const pageSize = max === undefined ? PAGE : Math.min(PAGE, max - (startAt - first));
+      const page = await jira<JiraSearchResult>(ctx, `${API}/search`, { method: 'POST', body: { jql, startAt, maxResults: pageSize, fields: opts.fields } });
+      // Every page's total, the empty last one included, as the predecessor kept it.
+      total = page.total;
+      return { body: page };
+    },
+    { what: 'Jira search' },
+  );
+  return { issues: items, total, startAt: first, maxResults: items.length };
 }
 
 export async function fetchFields(ctx: JiraContext): Promise<JiraFieldInfo[]> {
@@ -409,13 +436,11 @@ export async function linkIssue(ctx: JiraContext, opts: { key: string; linkType:
 }
 
 export function listBoards(ctx: JiraContext, project: string): Promise<JiraBoard[]> {
-  return paginate((startAt, maxResults) => jira<Page<JiraBoard>>(ctx, `${AGILE_API}/board`, { params: { projectKeyOrId: project, startAt, maxResults } }));
+  return every(`Jira boards for project ${project}`, 'values', (paging) => jira(ctx, `${AGILE_API}/board`, { params: { projectKeyOrId: project, ...paging } }));
 }
 
 export function listSprintsForBoard(ctx: JiraContext, boardId: number, states?: string[]): Promise<JiraSprint[]> {
-  return paginate((startAt, maxResults) =>
-    jira<Page<JiraSprint>>(ctx, `${AGILE_API}/board/${seg(boardId)}/sprint`, { params: { startAt, maxResults, ...(states?.length ? { state: states.join(',') } : {}) } }),
-  );
+  return every(`Jira sprints for board ${boardId}`, 'values', (paging) => jira(ctx, `${AGILE_API}/board/${seg(boardId)}/sprint`, { params: { ...paging, ...(states?.length ? { state: states.join(',') } : {}) } }));
 }
 
 /** Sprints across a project's scrum boards, once each: a sprint can sit on several boards. */
