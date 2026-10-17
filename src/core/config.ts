@@ -18,7 +18,8 @@ import { ToilError } from './errors.js';
  * There is deliberately no repository-level file. A config file inside a repo
  * could be written by anyone who can push to it, or by an agent editing the
  * working tree, and use it to switch on writes or send the user's credentials
- * to a host of its choosing.
+ * to a host of its choosing. A memo left in a shared folder is not an
+ * authorisation, however official its letterhead.
  */
 export type Settings = Record<string, unknown>;
 export type Source = 'env' | 'ci' | 'global' | 'defaults';
@@ -153,7 +154,8 @@ function readConfigFile(path: string, warnings: ResolvedConfig['warnings']): { c
  *
  * Version 1 is a map of area to settings. It reads as one connection per area,
  * named after the area and set as that area's default, which is exactly what
- * it always meant.
+ * it always meant. Superseded forms remain valid in perpetuity; nobody is asked
+ * to resubmit.
  */
 export function migrateConfig(
   raw: Record<string, unknown>,
