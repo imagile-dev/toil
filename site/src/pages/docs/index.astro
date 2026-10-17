@@ -7,7 +7,7 @@ import { url } from '../../lib/url';
 const start = [
   {
     title: 'Install',
-    body: 'toil is one npm package on Node 22 or later, with no executable and no install scripts.',
+    body: 'toil is one npm package on Node 22.16 or later, with no executable and no install scripts.',
     code: 'npm install -g @imagile-dev/toil',
   },
   {
@@ -23,7 +23,7 @@ const start = [
 ];
 ---
 
-<Layout title="Docs" description="Documentation for toil: installing, configuring, connecting an agent, and every integration in detail.">
+<Layout title="Docs" description="Documentation for toil: installing, configuring, connecting an agent, and databases, and every integration in detail.">
   <PageHero
     eyebrow="Documentation"
     title="Everything in <em>detail.</em>"
@@ -47,6 +47,17 @@ const start = [
         ))}
       </ol>
       <p class="more" data-reveal><a class="tap" href={url('/how-it-works/')}>How toil works, at a high level <span aria-hidden="true">→</span></a></p>
+    </div>
+  </section>
+
+  <section class="section section--rule">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">Databases</p>
+        <h2>One set of commands for every engine.</h2>
+        <p>List schemas and tables, describe a table, preview rows and run read-only queries with paging. SQLite first; PostgreSQL, MySQL, SQL Server and Oracle follow.</p>
+      </div>
+      <p class="more more--flush" data-reveal><a class="tap" href={url('/docs/databases/')}>Databases in detail <span aria-hidden="true">→</span></a></p>
     </div>
   </section>
 
@@ -89,6 +100,7 @@ const start = [
 
   .more { margin-top: var(--space-lg); }
   .more a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
+  .more--flush { margin-top: 0; }
 
   .index { display: grid; gap: var(--space-lg); }
   .index > * { min-width: 0; }
