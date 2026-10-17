@@ -1,0 +1,137 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PageHero from '../components/PageHero.astro';
+import { url } from '../lib/url';
+
+const parts = [
+  {
+    id: 'core',
+    eyebrow: 'One core',
+    title: 'Two front doors, one set of commands.',
+    body: [
+      'Every command is defined once: its inputs, whether it writes, and its examples. The same definition is exposed as a CLI command and as an MCP tool, and both run exactly the same code.',
+      'A test walks every command and proves the two front doors accept the same inputs, send the same requests and return the same result, so they cannot drift apart.',
+    ],
+  },
+  {
+    id: 'output',
+    eyebrow: 'Output',
+    title: 'One JSON envelope, every time.',
+    body: [
+      'Every command prints exactly one envelope: ok, data, error and meta. Errors carry a stable code and a fix you can act on, never a stack trace. A mistyped command gets an envelope too, so an agent never has to read help text to learn it typed something wrong.',
+    ],
+  },
+  {
+    id: 'configuration',
+    eyebrow: 'Configuration',
+    title: 'Your environment, then your config.',
+    body: [
+      'Settings come from TOIL_* environment variables first, then your own config in your home folder. Pipelines and agents configure toil without editing a file.',
+      'Nothing inside a repository can change where your credentials go or switch on writes. Knowledge about a body of work, such as its repositories, issue keys and environments, is planned to live in dossiers: your own files, with no hosts and no secrets, that name connections you set up yourself.',
+    ],
+  },
+  {
+    id: 'credentials',
+    eyebrow: 'Credentials',
+    title: 'One token, pasted once, kept safe.',
+    body: [
+      'Every integration signs in with a long-lived token you generate once in the service itself. There are no browser logins, no OAuth pop-ups and no device codes.',
+      "Tokens come from environment variables first, which is how CI provides them, then from your toil config. You can keep them in your operating system's credential store instead, with only a reference in config, but nothing requires it. Tokens never appear on a command line or in output.",
+    ],
+  },
+  {
+    id: 'safety',
+    eyebrow: 'Safety',
+    title: 'Reads are free. Writes need two yeses.',
+    body: [
+      'Anything that changes data needs writes switched on for that service in your own config, and --allow-write on the call. Over MCP, write tools are not even listed until writes are on.',
+      '--verbose lists every request a command made, with credentials removed, so you can see exactly what it touched.',
+    ],
+  },
+  {
+    id: 'mcp',
+    eyebrow: 'MCP',
+    title: 'A stand-in for servers you can’t install.',
+    body: [
+      'toil mcp serves over stdio and never opens a network port. Scope it with --areas to give an agent a small, focused set of tools, standing in for vendor MCP servers that are blocked or need a browser login.',
+    ],
+  },
+  {
+    id: 'install',
+    eyebrow: 'Install',
+    title: 'Nothing for application control to block.',
+    body: [
+      'toil is a single JavaScript file on the Node you already have: no executable, no native module and no install script. Every build is checked to import only Node’s own modules and to contain only the files it should.',
+    ],
+  },
+];
+---
+
+<Layout title="How it works" description="How toil works at a high level: one core behind the CLI and MCP, the JSON envelope, configuration, credentials, write safety and installation.">
+  <PageHero
+    eyebrow="How it works"
+    title="The big picture, <em>briefly.</em>"
+    lead="What toil is made of and the promises it keeps. For specifics, such as setup steps, configuration keys and each integration, see the docs."
+  />
+
+  <section class="section--tight">
+    <div class="container">
+      <p class="prerelease" data-reveal>
+        <strong>Pre-release.</strong> The core described here is built and tested, but no integration has shipped and nothing is on npm
+        yet. Dossiers are still a design.
+      </p>
+    </div>
+  </section>
+
+  <section class="section--tight">
+    <div class="container hiw">
+      <nav class="hiw__toc" aria-label="On this page">
+        <p class="eyebrow">On this page</p>
+        <ul>
+          {parts.map((p) => <li><a class="tap" href={`#${p.id}`}>{p.eyebrow}</a></li>)}
+        </ul>
+      </nav>
+      <div class="hiw__parts">
+        {parts.map((p, n) => (
+          <section class="hiw__part" id={p.id} data-reveal>
+            <span class="hiw__n">{String(n + 1).padStart(2, '0')}</span>
+            <div>
+              <p class="eyebrow">{p.eyebrow}</p>
+              <h2>{p.title}</h2>
+              {p.body.map((para) => <p>{para}</p>)}
+            </div>
+          </section>
+        ))}
+        <p class="more" data-reveal><a class="tap" href={url('/docs/')}>Read the detailed docs <span aria-hidden="true">→</span></a></p>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .hiw { display: grid; gap: var(--space-lg); padding-block: var(--space-lg); }
+  .hiw > * { min-width: 0; }
+
+  .hiw__toc ul { display: flex; flex-wrap: wrap; gap: 0 1.2rem; margin-top: var(--space-2xs); }
+  .hiw__toc a { color: var(--color-muted); font-size: var(--text-sm); }
+  .hiw__toc a:hover { color: var(--color-accent); }
+
+  .hiw__parts { display: grid; gap: var(--space-xl); }
+  .hiw__part { display: grid; grid-template-columns: auto 1fr; gap: var(--space-md); scroll-margin-top: 88px; }
+  .hiw__part > * { min-width: 0; }
+  .hiw__n { font-family: var(--font-display); font-size: var(--text-3xl); line-height: 1; color: transparent; -webkit-text-stroke: 1px var(--color-accent); }
+  .hiw__part h2 { font-size: var(--text-2xl); margin: var(--space-2xs) 0 var(--space-xs); }
+  .hiw__part p:not(.eyebrow) { color: var(--color-muted); max-width: 62ch; }
+  .hiw__part p + p { margin-top: var(--space-xs); }
+
+  .more a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
+
+  .prerelease { border: 1px solid var(--color-accent); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); color: var(--color-muted); max-width: 62ch; }
+  .prerelease strong { color: var(--color-accent); }
+
+  @media (min-width: 980px) {
+    .hiw { grid-template-columns: 12rem minmax(0, 1fr); align-items: start; }
+    .hiw__toc { position: sticky; top: 88px; }
+    .hiw__toc ul { flex-direction: column; }
+  }
+</style>
