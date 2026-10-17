@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { testContext } from '../../../test/harness/context.js';
-import type { Route } from '../../../test/harness/fake-fetch.js';
+import { neverAnswers, type Route } from '../../../test/harness/fake-fetch.js';
 import { config, events, LOGSCALE, repositories } from '../../../test/fixtures/logscale.fixture.js';
 import type { AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
@@ -102,14 +102,7 @@ describe('query', () => {
 
   it('--timeout-ms is the per-request timeout: a server that never answers is TIMEOUT naming it', async () => {
     const t = testContext({ config, routes: [] });
-    // The instrumented fetch hands over a Request, which carries the signal.
-    const hang: typeof fetch = (input) => {
-      const { signal } = input as Request;
-      // An abort that already happened counts too, as it does for real fetch.
-      if (signal.aborted) return Promise.reject(signal.reason);
-      return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
-    };
-    const envelope = await execute(queryCommand, { repository: 'imagile-app', query: '*', timeoutMs: 20 }, { ...t.context, fetch: hang });
+    const envelope = await execute(queryCommand, { repository: 'imagile-app', query: '*', timeoutMs: 20 }, { ...t.context, fetch: neverAnswers });
     expect(envelope.error).toMatchObject({ code: 'TIMEOUT', message: expect.stringContaining('within 0.02s') });
   });
 
