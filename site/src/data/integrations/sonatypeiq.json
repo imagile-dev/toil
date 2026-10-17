@@ -3,11 +3,18 @@
   "name": "Sonatype IQ Server",
   "group": "security",
   "order": 4,
-  "covers": "Applications, policy evaluations, violations, waivers",
+  "covers": "Applications, organizations, policies, policy evaluations",
   "credential": "User token pair",
-  "status": "planned",
+  "credentialWhere": "Your profile → User Token",
+  "status": "unit",
   "keys": [
     "USER_CODE",
     "PASSCODE"
-  ]
+  ],
+  "supported": {
+    "product": "Sonatype IQ Server",
+    "minimum": null,
+    "api": "REST API v2",
+    "note": "toil calls only /api/v2 endpoints, with a user token pair sent as HTTP Basic. No release has been verified yet."
+  }
 }

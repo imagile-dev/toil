@@ -1,0 +1,26 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_SONATYPEIQ_BASE_URL",
+    "description": "Sonatype IQ Server root, e.g. https://iq.imagile.dev",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "userCode",
+    "env": "TOIL_SONATYPEIQ_USER_CODE",
+    "description": "User token code",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "passcode",
+    "env": "TOIL_SONATYPEIQ_PASSCODE",
+    "description": "User token passcode",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  }
+]

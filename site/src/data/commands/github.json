@@ -1,0 +1,531 @@
+[
+  {
+    "name": "create-repo",
+    "tool": "github_create_repo",
+    "description": "Create a new repository (personal or org)",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--name <name>",
+      "--description <desc>",
+      "--private",
+      "--auto-init",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "create-issue",
+    "tool": "github_create_issue",
+    "description": "Create a GitHub issue",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--title <title>",
+      "--body <body>",
+      "--body-file <path>",
+      "--label <label>",
+      "--assignee <login>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "add-labels",
+    "tool": "github_add_labels",
+    "description": "Add labels to a pull request or issue",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--label <label>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "remove-label",
+    "tool": null,
+    "description": "Remove a label from a pull request or issue",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--label <label>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "add-assignees",
+    "tool": "github_add_assignees",
+    "description": "Add assignees to a pull request or issue",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--assignee <login>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "remove-assignees",
+    "tool": null,
+    "description": "Remove assignees from a pull request or issue",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--assignee <login>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "list-prs",
+    "tool": "github_list_prs",
+    "description": "List pull requests",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--state <state>",
+      "--head <branch>",
+      "--base <branch>",
+      "--author <login>",
+      "--created-after <date>",
+      "--created-before <date>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "get-pr",
+    "tool": "github_get_pr",
+    "description": "Get a pull request by number",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "create-pr",
+    "tool": "github_create_pr",
+    "description": "Create a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--title <title>",
+      "--head <branch>",
+      "--base <branch>",
+      "--body <body>",
+      "--body-file <path>",
+      "--draft",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "update-pr",
+    "tool": "github_update_pr",
+    "description": "Update a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--title <title>",
+      "--body <body>",
+      "--base <branch>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "merge-pr",
+    "tool": "github_merge_pr",
+    "description": "Merge a pull request (immediate merge — use enable-auto-merge for auto-merge)",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--method <method>",
+      "--commit-title <title>",
+      "--commit-message <msg>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "close-pr",
+    "tool": "github_close_pr",
+    "description": "Close a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "reopen-pr",
+    "tool": "github_reopen_pr",
+    "description": "Reopen a closed pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "diff",
+    "tool": "github_diff",
+    "description": "Get unified diff for a pull request",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "list-files",
+    "tool": "github_list_files",
+    "description": "List files changed in a pull request",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "enable-auto-merge",
+    "tool": "github_enable_auto_merge",
+    "description": "Enable auto-merge on a pull request (merges automatically when all requirements are met)",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--method <method>",
+      "--match-head-commit <sha>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "disable-auto-merge",
+    "tool": "github_disable_auto_merge",
+    "description": "Disable auto-merge on a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "enqueue-pr",
+    "tool": "github_enqueue_pr",
+    "description": "Add a pull request to the repository merge queue",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--method <method>",
+      "--match-head-commit <sha>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "convert-to-draft",
+    "tool": "github_convert_to_draft",
+    "description": "Convert an open pull request to a draft",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "ready-for-review",
+    "tool": "github_ready_for_review",
+    "description": "Mark a draft pull request as ready for review",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "pr-status",
+    "tool": "github_pr_status",
+    "description": "Aggregated PR status: review decision, checks, mergeability, draft state, and auto-merge",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "list-comments",
+    "tool": "github_list_comments",
+    "description": "List general comments on a pull request",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "add-comment",
+    "tool": "github_add_comment",
+    "description": "Add a general comment to a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--body <text>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "list-review-comments",
+    "tool": "github_list_review_comments",
+    "description": "List inline review comments on a pull request",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "add-inline-comment",
+    "tool": "github_add_inline_comment",
+    "description": "Add an inline review comment to a file in a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--commit <sha>",
+      "--file <path>",
+      "--line <n>",
+      "--body <text>",
+      "--side <side>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "reply-comment",
+    "tool": "github_reply_comment",
+    "description": "Reply to a review comment on a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--comment-id <id>",
+      "--body <text>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "delete-comment",
+    "tool": null,
+    "description": "Delete a general issue comment",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--comment-id <id>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "delete-review-comment",
+    "tool": null,
+    "description": "Delete an inline review comment",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--comment-id <id>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "list-reviews",
+    "tool": "github_list_reviews",
+    "description": "List reviews on a pull request",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "approve",
+    "tool": "github_approve",
+    "description": "Approve a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--body <text>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "request-changes",
+    "tool": "github_request_changes",
+    "description": "Request changes on a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--body <text>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "list-reviewers",
+    "tool": "github_list_reviewers",
+    "description": "List requested reviewers for a pull request",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "list-review-threads",
+    "tool": "github_list_review_threads",
+    "description": "List review threads on a pull request (includes thread node IDs for resolve-thread)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "resolve-thread",
+    "tool": "github_resolve_thread",
+    "description": "Mark a review thread as resolved (use list-review-threads to get the thread id)",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--thread-id <id>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "add-reviewers",
+    "tool": "github_add_reviewers",
+    "description": "Request reviewers on a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--reviewer <login>",
+      "--team-reviewer <slug>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "remove-reviewers",
+    "tool": null,
+    "description": "Remove requested reviewers from a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--reviewer <login>",
+      "--team-reviewer <slug>",
+      "--owner <owner>",
+      "--repo <repo>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "get-status",
+    "tool": "github_get_status",
+    "description": "Get combined commit status for a ref (branch, tag, or SHA)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--ref <ref>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "list-checks",
+    "tool": "github_list_checks",
+    "description": "List check runs for a ref (branch, tag, or SHA)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--ref <ref>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  }
+]

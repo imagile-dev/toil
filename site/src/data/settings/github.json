@@ -1,0 +1,46 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_GITHUB_BASE_URL",
+    "description": "REST API root: https://api.github.com, or https://ghe.imagile.dev/api/v3 for Enterprise Server",
+    "required": true,
+    "secret": false,
+    "fallbacks": [
+      "GITHUB_API_URL"
+    ]
+  },
+  {
+    "key": "token",
+    "env": "TOIL_GITHUB_TOKEN",
+    "description": "Fine-grained personal access token",
+    "required": true,
+    "secret": true,
+    "fallbacks": [
+      "GITHUB_TOKEN"
+    ]
+  },
+  {
+    "key": "owner",
+    "env": "TOIL_GITHUB_OWNER",
+    "description": "Default owner (user or org)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "repo",
+    "env": "TOIL_GITHUB_REPO",
+    "description": "Default repository name",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "targetBranch",
+    "env": "TOIL_GITHUB_TARGET_BRANCH",
+    "description": "Default base branch for create-pr (main when unset)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]

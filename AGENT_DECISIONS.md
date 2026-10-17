@@ -222,6 +222,19 @@ the bottom of their section.
   recorded rather than fixed: rewording every area's input errors per front door
   isn't worth its complexity yet.
 
+- **The fourth kit-fix PR's choices** (KF4, #68):
+  - **Dot segments are checked after the URL parser's own first step**: tabs, LF
+    and CR dropped, and leading and trailing C0 controls and spaces trimmed, so
+    `.\t.`, `.\n.`, `.\r.`, a trailing `.. ` and `..` before `\u0000` or `\u001f` are
+    refused like `..` (principle 2; found by #119). The github and confluence
+    area checks stay.
+  - **A group flag on a path in another group is refused in the words the user
+    typed** (`toil openshift --env prod cluster list` says `toil openshift cluster
+    list` doesn't take `--env`, and runs `toil connections list --area
+    openshift`), rather than dropped. Dropping it would quietly ignore a flag the
+    user meant (principle 4); refusing was already the behaviour, only the
+    message named a command and field they never typed (#132).
+
 ## Porting process
 
 - **Port agents run the `ship` skill's four local reviews themselves**, one after
@@ -416,11 +429,15 @@ Added as each port lands.
 ### Sonatype IQ
 
 - **`tier` is fixed at `"full"`**: the OSV and Artifactory pings are dropped
-  (principle 9).
-- **IDs stay ordinary flags.**
+  (principle 9). The evaluation no longer contacts either, so no lower tier can
+  arise; the field stays so the envelope keeps its shape.
+- **IDs stay ordinary flags** (`--organization-id`, `--public-id`,
+  `--application-id`), not context inputs, because the predecessor never filled
+  them from a setting (#131).
 - **`SONATYPEIQ_NO_COMPONENTS` and `SONATYPEIQ_UNMATCHED_RESULT` warnings.**
 - **`resultsUrl` is re-pointed at the configured origin** (security).
-- **The area keeps its own polling** until it adopts KF3's `backoff: 'linear'`.
+- **The evaluation polls with core's `poll`, `backoff: 'linear'`** (KF3): 10 tries,
+  waiting 2 s up to 18 s, as before.
 
 ### OpenShift
 

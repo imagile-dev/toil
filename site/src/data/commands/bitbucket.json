@@ -1,0 +1,351 @@
+[
+  {
+    "name": "create-repo",
+    "tool": "bitbucket_create_repo",
+    "description": "Create a new repository in a project",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--name <name>",
+      "--description <desc>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "list-prs",
+    "tool": "bitbucket_list_prs",
+    "description": "List pull requests",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--state <state>",
+      "--author <username>",
+      "--reviewer <username>",
+      "--created-after <date>",
+      "--created-before <date>",
+      "--project <key>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "get-pr",
+    "tool": "bitbucket_get_pr",
+    "description": "Get a pull request by ID",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--id <pr-id>",
+      "--project <key>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "create-pr",
+    "tool": "bitbucket_create_pr",
+    "description": "Create a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--title <title>",
+      "--source <branch>",
+      "--target <branch>",
+      "--description <desc>",
+      "--reviewers <users>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "create-prs",
+    "tool": "bitbucket_create_prs",
+    "description": "Create pull requests for multiple repositories in a project",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--from <branch>",
+      "--to <branch>",
+      "--repos <slugs>",
+      "--title <title>",
+      "--description <desc>",
+      "--reviewers <users>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "update-pr",
+    "tool": "bitbucket_update_pr",
+    "description": "Update a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--id <pr-id>",
+      "--title <title>",
+      "--description <desc>",
+      "--reviewers <users>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "merge-pr",
+    "tool": "bitbucket_merge_pr",
+    "description": "Merge a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--id <pr-id>",
+      "--strategy <strategy>",
+      "--delete-branch",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "decline-pr",
+    "tool": "bitbucket_decline_pr",
+    "description": "Decline a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--id <pr-id>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "current-pr",
+    "tool": "bitbucket_current_pr",
+    "description": "Find the open PR for the current branch",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--project <key>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "list-comments",
+    "tool": "bitbucket_list_comments",
+    "description": "List comments on a pull request (includes threaded replies by default)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--no-with-replies",
+      "--inline-only",
+      "--general-only",
+      "--project <key>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "add-comment",
+    "tool": "bitbucket_add_comment",
+    "description": "Add a comment to a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--body <text>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "add-inline-comment",
+    "tool": "bitbucket_add_inline_comment",
+    "description": "Add an inline comment to a file in a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--file <path>",
+      "--line <n>",
+      "--body <text>",
+      "--line-type <type>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "reply-comment",
+    "tool": "bitbucket_reply_comment",
+    "description": "Reply to a comment on a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--comment-id <id>",
+      "--body <text>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "resolve-comment",
+    "tool": "bitbucket_resolve_comment",
+    "description": "Resolve a comment thread on a pull request (use the root comment ID, not a reply)",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--comment-id <id>",
+      "--comment-version <n>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "delete-comment",
+    "tool": null,
+    "description": "Delete a comment on a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--comment-id <id>",
+      "--comment-version <n>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "diff",
+    "tool": "bitbucket_diff",
+    "description": "Get unified diff for a pull request",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--file <path>",
+      "--context-lines <n>",
+      "--project <key>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "list-files",
+    "tool": "bitbucket_list_files",
+    "description": "List files changed in a pull request",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--project <key>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "approve",
+    "tool": "bitbucket_approve",
+    "description": "Approve a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "unapprove",
+    "tool": "bitbucket_unapprove",
+    "description": "Remove approval from a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "needs-work",
+    "tool": "bitbucket_needs_work",
+    "description": "Mark a pull request as needs-work",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "list-reviewers",
+    "tool": "bitbucket_list_reviewers",
+    "description": "List reviewers of a pull request",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--project <key>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "list-default-reviewers",
+    "tool": "bitbucket_list_default_reviewers",
+    "description": "List the default-reviewer conditions configured for a repository",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--project <key>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "add-reviewer",
+    "tool": "bitbucket_add_reviewer",
+    "description": "Add a reviewer to a pull request",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--user <username>",
+      "--project <key>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "list-builds",
+    "tool": "bitbucket_list_builds",
+    "description": "List build statuses for a pull request",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--pr <pr-id>",
+      "--project <key>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "get-build-status",
+    "tool": "bitbucket_get_build_status",
+    "description": "Get build status for a commit SHA",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--commit <sha>",
+      "--project <key>",
+      "--repo <slug>"
+    ]
+  }
+]
