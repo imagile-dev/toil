@@ -102,7 +102,7 @@ export function connectionsScreen(caps: Caps, data: WelcomeData): string[] {
       lines.push('', faint(caps, '* the default for its area'));
     }
   }
-  lines.push('', faint(caps, 'Adding connections and signing in from this menu arrives with the OS credential store (#51).'));
+  lines.push('', faint(caps, 'Add one with toil connections add <name>; replace its secret with toil connections login <name>.'));
   return lines;
 }
 
@@ -140,7 +140,7 @@ export function aboutScreen(caps: Caps, data: WelcomeData): string[] {
     heading(caps, 'About toil'),
     '',
     'The central integrator between AI agents and the enterprise.',
-    'One CLI and MCP server for enterprise tools, databases and code.',
+    'One CLI and MCP server for enterprise tools and databases.',
     'Plain JavaScript on Node: no executables, no install scripts.',
     '',
     `${muted(caps, 'Version   ')} ${data.version}`,

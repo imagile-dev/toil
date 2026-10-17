@@ -211,7 +211,7 @@ resolver, **fed identically by both front doors**:
 2. **Otherwise a folder, `cwd`.** `cwd` is an input on every command that resolves
    context, on both front doors (`--cwd <dir>` on the CLI, `cwd` over MCP). The name
    says what it stands in for, and it can't clash with a command's own path input
-   (a file for `code`, a folder for `repos scan`). Only its default differs: the CLI
+   (a folder for `repos scan`). Only its default differs: the CLI
    uses its working directory, and MCP uses the client's MCP root if the client
    reports exactly one. A stdio server starts wherever its client launched it, so its
    own working directory means nothing. With neither, there is no folder, and step 4

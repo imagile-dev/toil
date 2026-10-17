@@ -51,7 +51,7 @@ export interface Area<S extends z.ZodObject = z.ZodObject> extends AreaSpec<S> {
 }
 
 /** What an area command declares; `path[0]` must be the area's name. */
-export type AreaCommand<I extends z.ZodObject, C> = Omit<CommandDefinition<I>, 'run' | 'standalone' | 'area'> & {
+export type AreaCommand<I extends z.ZodObject, C> = Omit<CommandDefinition<I>, 'run' | 'standalone' | 'area' | 'managesConfig'> & {
   run(input: z.output<I>, ctx: CommandContext<Connection<C>>): Promise<unknown>;
 };
 
@@ -78,6 +78,7 @@ export function defineArea<S extends z.ZodObject>(spec: AreaSpec<S>): Area<S> {
     command(def) {
       if (def.path[0] !== spec.name) throw new Error(`Command ${def.path.join(' ')} is defined in area ${spec.name}; its path must start with "${spec.name}".`);
       if (CONNECTION_FIELD in def.input.shape) throw new Error(`Command ${def.path.join(' ')}: "${CONNECTION_FIELD}" is added by core.`);
+      if ('managesConfig' in def) throw new Error(`Command ${def.path.join(' ')}: an area command can't manage config.`);
       return {
         ...def,
         area,

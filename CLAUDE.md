@@ -3,7 +3,7 @@
 ## Project
 
 toil is a structured-JSON CLI and MCP server, owned by Imagile, that gives AI agents
-and humans one interface to enterprise tools, databases, and codebases. TypeScript on
+and humans one interface to enterprise tools and databases. TypeScript on
 Node.js (22.16 or later), published to npm as `@imagile-dev/toil`.
 
 Who it is for, in priority order:
@@ -37,21 +37,19 @@ gets made again in the next place it applies.
    package. → No Executables, the Authentication Bar and no hardcoded hosts
    (`integrations` skill), placeholders that never resolve.
 2. **Safe by default when an agent is driving.** Reads are free. Anything that writes,
-   to a database, an enterprise tool, or the codebase, needs a human's standing opt-in
-   in config plus an explicit flag on the call. Agents never loosen the rules that
-   constrain them, and humans merge. The same holds for agents working on this
-   repository: they act only on feedback from its own people and named bots, stop
-   after three pushed rounds with `needs-human`, and stay off any PR labelled
-   `no-auto-fix`. → Writes; the `databases`, `code-intelligence` (rename preview),
-   `mcp`, `automation` and `ship` skills.
+   to a database or an enterprise tool, needs a human's standing opt-in in config
+   plus an explicit flag on the call. Agents never loosen the rules that constrain
+   them, and humans merge. The same holds for agents working on this repository:
+   they act only on feedback from its own people and named bots, stop after three
+   pushed rounds with `needs-human`, and stay off any PR labelled `no-auto-fix`.
+   → Writes; the `databases`, `mcp`, `automation` and `ship` skills.
 3. **One command does one thing against one source; the caller composes.** No
    aggregate command that decides on the caller's behalf which services to ask. →
    dependency analysis split by source, stdin / `--from` composition (`integrations`
    skill).
 4. **Honest about what is known.** Every result says where it came from and how
    precise it is; every integration says how far it has been verified. → Verification
-   Levels (`integrations` skill), `precision` on code results (`code-intelligence`
-   skill), source on every finding.
+   Levels (`integrations` skill), source on every finding.
 5. **The environment wins without editing files.** CI and agents configure through
    env vars that override anything on disk. → Configuration Precedence.
 6. **This repository stands alone.** Docs, code and skills never name another
@@ -77,8 +75,8 @@ gets made again in the next place it applies.
   paths on disk use the platform's own form.
 - Never spawn through a shell (`shell: true`, `exec`), and never assume bash,
   PowerShell, or a POSIX utility. In toil's own code, the only spawns allowed are the
-  OS credential stores in the `secrets` skill, each behind a platform check. Repo
-  tooling may spawn `git` and `gh`, without a shell.
+  OS credential stores in the `secrets` skill, all in `src/core/keychain.ts`, each
+  behind a platform check. Repo tooling may spawn `git` and `gh`, without a shell.
 - Read files as UTF-8 and accept both CRLF and LF; write LF. `.gitattributes` keeps
   the repo LF so Windows checkouts produce identical bundles.
 - Config lives in `~/.toil/` on every platform, so instructions are identical.
@@ -103,15 +101,32 @@ Node, and toil has to work there. This is the most important rule in the repo.
   - `npm run check:pure` fails if `package.json` has runtime `dependencies` or any
     install/prepare script, or if the bundle imports anything but Node built-ins.
     That's read from esbuild's metafile, never by scanning text. It also fails on
-    `child_process` or a native addon, or if the tarball holds anything beyond
-    `dist/toil.js`, `package.json`, `README.md`, `LICENSE` and `NOTICE`.
+    a native addon, on `child_process` imported by any file but
+    `src/core/keychain.ts` (stubbed or not), or if the tarball holds anything
+    beyond `dist/toil.js`, `package.json`, `README.md`, `LICENSE` and `NOTICE`.
   - `npm run smoke` installs the packed tarball with `--ignore-scripts` into a
     throwaway prefix and drives the installed bin through the CLI and MCP.
 - Bundled dependencies can drag in a spawning API (commander imports `child_process`
   for subcommands toil never uses). The build resolves `child_process` to
-  `src/shims/no-spawn.ts`, a stub that throws. Keep it that way; if a future area
-  genuinely needs the OS credential store, it gets its own narrowly scoped module
-  and the gate gains an explicit, reviewed exception.
+  `src/shims/no-spawn.ts`, a stub that throws, for every importer but one.
+- **The one exception is the OS credential store**, `src/core/keychain.ts`. It
+  alone gets the real `node:child_process` (the tsup `no-spawn` plugin decides by
+  importer path, `check:pure` verifies it from the metafile, and ESLint allows the
+  import in that file only). It runs only what the OS ships (`security`, Windows
+  PowerShell, `secret-tool`), never through a shell, with secrets on stdin. Any
+  other spawn, or a second file allowed to spawn, needs this section changed first.
+
+## Secrets
+
+**A secret comes from the OS credential store or from an env var, never from a
+file.** For every key an area lists in `defineArea({ secrets })`, a value in the
+config file must be a `keychain:<ref>` reference; a plaintext one is
+`CONFIG_INVALID` (fix: `toil connections login <name>`, or the env var), and the
+value is never echoed. Config then holds nothing worth stealing, so a command that
+reads or uploads files can't leak a credential by reading `~/.toil/config.json`.
+Env vars are the path for CI, containers and machines with no store (headless Linux
+without `secret-tool`). There is no `--plaintext`. Details are in the `secrets`
+skill.
 
 Before adding a dependency, check it against this rule. If the only good library is
 native, find a pure-JS or WASM alternative or implement the protocol directly.
@@ -132,7 +147,9 @@ GitHub Actions; its build tooling is out of scope.
 ## Layout
 
 - `src/core/` — the machinery: `defineArea`, `defineCommand`, `execute`
-  (validation, connection, write gate, envelope), errors, config loading
+  (validation, connection, write gate, envelope), errors, config loading and
+  writing, the OS credential store (`keychain.ts`) and the terminal prompter
+- `src/connections/` — `toil connections add | login | list | remove`
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
   `commands` (standalone commands export only `commands`)
 - `src/registry.ts` — every shipped area and command, read by both front doors. It
@@ -172,8 +189,16 @@ lacks, the gap is in core.
 connection this call resolved, validated and typed from the area's schema, and a
 context with no `config` and no `env` (which carries every `TOIL_*` credential and
 every CI token on the runner), so no area can reach another area's or another
-connection's credentials. ESLint bans importing config under `src/areas/`, and
-`process.env` stays out of area code for the same reason.
+connection's credentials. ESLint bans importing config, the credential store
+(`core/keychain`) and the prompter (`core/prompt`) under `src/areas/`, and
+`process.env` stays out of area code for the same reason. The store and the
+prompter are withheld from the context too. The only commands that see the whole config are the
+`toil connections` commands, defined with `defineConfigCommand`, which get
+`ctx.manage` (config, store, prompter); no area command can.
+
+A command marked `cliOnly` is never an MCP tool: it prompts on a terminal (stdin is
+the protocol under MCP) or changes connections, which agents never do. It has no
+time limit, since it may be waiting on someone typing.
 
 ## Build & Test
 
@@ -238,7 +263,10 @@ that area. A value on a connection resolves from, highest first:
 3. A well-known CI-provided variable the area declares (`fallbacks`), for its default
    connection, only where the service's own tooling treats it as canonical
    (`GITHUB_TOKEN`, `SYSTEM_ACCESSTOKEN`). Never invent one.
-4. The connection in `~/.toil/config.json`, or the file passed with `--config`
+4. The connection in `~/.toil/config.json`, or the file passed with `--config`. A
+   secret there must be a `keychain:<ref>` reference to the OS credential store,
+   read when the connection is resolved; a plaintext secret in a file is refused
+   (**Secrets**)
 5. `defaults.<area>` in that file
 6. The area's provider defaults (`defineArea({ defaults })`, e.g. a port)
 
@@ -334,12 +362,13 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   - for every write command, the write gate holding on both sides
 
   New commands are covered on registration; never add a command without examples,
-  and never exempt one from this suite. When changing the harness, prove the suite
+  and never exempt one from this suite. The only exclusion is `cliOnly` commands,
+  which aren't MCP tools; the suite names each one and proves MCP never serves it. When changing the harness, prove the suite
   still bites: break the mapping on purpose and watch it fail.
 - **Each area has a fixture**, `test/fixtures/<area>.fixture.ts`, exporting
   `defineFixture({ area, routes, config })`: canned responses for every request its
   examples send, and a config keyed by area (read as one connection named after the
-  area, as a version 1 file is) with credentials set and writes on. The suite finds it
+  area, as if set by `TOIL_<AREA>_*` env vars) with credentials set and writes on. The suite finds it
   by file name and fails when a registered area has none.
 - `test/fixtures/demo-commands.ts` holds test-only commands (a read and a write
   against a fake API) that exercise the harness before real integrations exist.
@@ -464,7 +493,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 |-------|----------|
 | `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, porting from the predecessor, the migration command contract |
 | `databases` | Working on the `db` area, a database provider, or database tests, including the local Docker run |
-| `code-intelligence` | Working on the `code` area: language service, tree-sitter, IDE bridge, `precision` |
+| `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: why there is no `code` area, and what reopening it takes |
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
 | `automation` | Editing workflows under `.github/`: the review agent, the fix agent, action pins, Discord notifications, redaction |

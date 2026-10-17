@@ -17,17 +17,24 @@ import { connectMcp, type McpSession } from './harness/mcp.js';
 /**
  * The CLI and MCP are two front doors onto one core, and this suite is what
  * keeps them 1:1. It walks every registered command, one suite per area
- * fixture (test/fixtures/<area>.fixture.ts) plus one for standalone commands,
- * so a new command is covered the moment it is registered and its area has a
- * fixture, with no test to remember to write.
+ * fixture (test/fixtures/<area>.fixture.ts) plus one for commands outside any
+ * area, so a new command is covered the moment it is registered and its area
+ * has a fixture, with no test to remember to write.
+ *
+ * The one exclusion: `cliOnly` commands, which prompt on a terminal or change
+ * connections and so are never MCP tools. They're listed by name below, and a
+ * test proves MCP doesn't serve them.
  */
+const CLI_ONLY = ['connections add', 'connections login', 'connections remove'];
+const bothDoors = (def: AnyCommand) => !def.cliOnly;
+
 const fixtures = await loadFixtures();
 afterAll(() => {
   for (const f of fixtures) f.cleanup?.();
 });
 const suites: Array<{ name: string; commands: AnyCommand[]; routes: Route[]; config: Record<string, Settings> }> = [
-  { name: 'standalone commands', commands: commands.filter((def) => def.standalone), routes: [], config: {} },
-  ...fixtures.map((f) => ({ name: `${f.area} area`, commands: f.commands, routes: f.routes, config: f.config })),
+  { name: 'commands outside an area', commands: commands.filter((def) => !def.area && bothDoors(def)), routes: [], config: {} },
+  ...fixtures.map((f) => ({ name: `${f.area} area`, commands: f.commands.filter(bothDoors), routes: f.routes, config: f.config })),
 ];
 
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -60,8 +67,20 @@ function withoutWrites(cfg: Record<string, Settings>, area: string): Record<stri
 describe('coverage', () => {
   it('every registered area that needs config has a fixture', () => {
     const covered = new Set(fixtures.map((f) => f.area));
-    const missing = [...new Set(commands.filter((def) => !def.standalone).map(areaOf))].filter((a) => !covered.has(a));
+    const missing = [...new Set(commands.filter((def) => def.area).map(areaOf))].filter((a) => !covered.has(a));
     expect(missing, 'add test/fixtures/<area>.fixture.ts').toEqual([]);
+  });
+
+  it('excludes exactly the listed CLI-only commands, and MCP never serves them', async () => {
+    const cliOnly = commands.filter((def) => def.cliOnly);
+    expect(cliOnly.map(commandName).sort()).toEqual([...CLI_ONLY].sort());
+    // Every area named and writes on: the widest MCP ever gets, and still none of them.
+    const { context } = testContext({ config: { demo: { token: 't', writes: true } } });
+    const session = await connectMcp({ commands: [...commands, ...demoCommands], context, areas: [...new Set(commands.map(areaOf))] });
+    sessions.push(session);
+    const tools = (await session.client.listTools()).tools.map((t) => t.name);
+    for (const def of cliOnly) expect(tools, commandName(def)).not.toContain(toolName(def));
+    expect(tools).toContain('connections_list');
   });
 });
 

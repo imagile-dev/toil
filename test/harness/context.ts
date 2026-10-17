@@ -5,15 +5,17 @@ import { fakeFetch, type FakeFetch, type Route } from './fake-fetch.js';
 export const TEST_VERSION = '0.0.0-test';
 
 /**
- * A config as if loaded from a version 1 file: one connection per area, named
- * after it and set as its default, every value attributed to the global file.
+ * A config as if set by TOIL_<AREA>_* env vars: one connection per area, named
+ * after it and set as its default. Values are attributed to env because that's
+ * where a plaintext credential may live (a config file holds only `keychain:`
+ * references), and it's how CI provides them.
  */
 export function testConfig(areas: Record<string, Settings> = {}): ResolvedConfig {
   const config: ResolvedConfig = { connections: {}, defaults: {}, sources: {}, files: { global: '/home/test/.toil/config.json' }, warnings: [] };
   for (const [area, settings] of Object.entries(areas)) {
     config.connections[area] = { ...settings, area };
     config.defaults[area] = { connection: area };
-    for (const key of Object.keys(settings)) config.sources[`${area}.${key}`] = 'global';
+    for (const key of Object.keys(settings)) config.sources[`${area}.${key}`] = 'env';
   }
   return config;
 }

@@ -1,8 +1,7 @@
 # Plan
 
 toil is a structured-JSON CLI and MCP server that gives AI agents and humans one
-interface to the work around the code: enterprise tools, databases, and the codebase
-itself. The principles behind every choice here are in [CLAUDE.md](../CLAUDE.md).
+interface to the work around the code: enterprise tools and databases. The principles behind every choice here are in [CLAUDE.md](../CLAUDE.md).
 
 ## Approaches
 
@@ -31,11 +30,12 @@ itself. The principles behind every choice here are in [CLAUDE.md](../CLAUDE.md)
   list schemas, describe objects, preview rows, run a query with a row cap and paging,
   cancel. Writes need a standing opt-in on the connection and `--allow-write` on the
   call. Covers what an IDE's database tools give an agent, without the IDE.
-- **Code intelligence without executables.** Semantic answers for TypeScript and
-  JavaScript from the TypeScript language service; syntax-level answers for every
-  other language from tree-sitter WASM grammars; optional semantic answers from a
-  JetBrains IDE's MCP server over localhost when one is running. Every result is
-  labelled with its precision.
+- **No code intelligence, for now.** Symbol search, references and diagnostics are
+  left to language servers, which engineers already get from their IDE or can
+  install for their agent. Without executables, Java and C# could only get
+  name-matched answers, semantic TypeScript would be pinned to the last JavaScript
+  compiler, and the bundle would grow more than tenfold. The reasoning and the smallest version
+  worth reopening are in the `code-intelligence` skill.
 - **Automated delivery from day one.** Conventional Commits → release-please → npm
   publish with provenance. The release also attaches the packed `.tgz` to the GitHub
   release for offline and mirrored installs. CI gate: typecheck, lint, tests, build,
@@ -58,5 +58,4 @@ itself. The principles behind every choice here are in [CLAUDE.md](../CLAUDE.md)
 2. Package skeleton: `src/core`, `src/cli.ts`, `src/mcp`, tsup bundle, `check:pure`
 3. CI + release-please + `ship` skill
 4. First vertical slice: `db` area on SQLite and PostgreSQL, CLI + MCP, tests
-5. Second slice: `code` area (TypeScript semantic, tree-sitter syntactic)
-6. Review/feedback/triage workflows
+5. Review/feedback/triage workflows
