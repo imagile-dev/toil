@@ -585,11 +585,33 @@ from `main`).
   `mix-blend-mode: lighten` on its wrapper, so the grid shows through. Ship WebP at
   960 and 1536 wide; the PNG masters stay in the ignored run folders. Every cartoon
   gets real alt text describing the joke.
+- **Documentation has two levels:**
+  - **How it works** (`/how-it-works/`) is the high-level picture: the one-core
+    design, output, configuration, credentials, safety, MCP and installation. It
+    changes only when the big picture does.
+  - **The docs** (`/docs/`) are the detail: getting started, and one page per
+    integration at `/docs/integrations/<area>/`, generated from
+    `site/src/data/integrations.ts` by `src/pages/docs/integrations/[area].astro`.
+    An integration on the board therefore always has a page, and each board tile
+    links to its page.
+- **Every new or changed integration reviews its docs page in the same PR**:
+  setup, credential and where to create it, config keys, commands, verification
+  level. Add a `credentialWhere` entry only when the menu path is certain; a wrong
+  path costs users more than a generic one. Pages for `planned` integrations say so
+  and describe the plan, never invented details.
 - Internal links go through `url()` in `site/src/lib/url.ts` because the site is
   served under `/toil/`.
+- **Phones get a menu.** The header shows its links inline on desktop, drops the
+  least-used one below 900px (it stays in the footer), and folds the rest into a
+  `<details>` menu below 720px, which works without JavaScript.
 - Any change under `site/src/` is checked in a browser at desktop width, 375px and
   320px before the PR opens (`document.documentElement.scrollWidth` must equal the
-  viewport width), with desktop and 375px screenshots in the PR.
+  viewport width), with desktop and 375px screenshots in the PR. `main` clips
+  horizontal overflow, so decorative art can bleed but never widen the page.
+- **The dev server sometimes serves stale scoped CSS** after a component's styles
+  change. If a rule you just wrote doesn't apply, check the built CSS
+  (`npm --prefix site run build`, then look in `site/dist/_astro/*.css`) and restart
+  the dev server before debugging specificity.
 
 ```bash
 npm --prefix site ci

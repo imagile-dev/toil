@@ -1,0 +1,161 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import PageHero from '../../../components/PageHero.astro';
+import { allIntegrations, credentialWhere, envPrefix, statusMeaning, type IntegrationEntry } from '../../../data/integrations';
+import { url } from '../../../lib/url';
+
+// One page per integration, generated from the same data as the board, so an
+// integration can't appear on the board without a page to link to.
+export function getStaticPaths() {
+  return allIntegrations.map((integration) => ({ params: { area: integration.area }, props: { integration } }));
+}
+
+const { integration } = Astro.props as { integration: IntegrationEntry };
+const where = credentialWhere[integration.area];
+const prefix = envPrefix(integration.area);
+const local = integration.area === 'git';
+const host = integration.host ?? `https://${integration.area}.imagile.dev`;
+const keyLines = (integration.keys ?? ['TOKEN']).map((key) => ({ key, label: key.toLowerCase().split('_').join(' ') }));
+const index = allIntegrations.findIndex((i) => i.area === integration.area);
+const prev = allIntegrations[index - 1];
+const next = allIntegrations[index + 1];
+---
+
+<Layout title={`${integration.name} integration`} description={`toil's ${integration.name} integration: what it covers, the credential it uses, and how to configure it.`}>
+  <PageHero
+    eyebrow={`<b>Docs</b> · Integrations · ${integration.group}`}
+    title={integration.name}
+    lead={integration.covers + '.'}
+  >
+    <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <a href={url('/integrations/')}>Integrations</a> <span aria-hidden="true">/</span> <span>{integration.name}</span></p>
+  </PageHero>
+
+  <section class="section--tight">
+    <div class="container doc">
+      <aside class="doc__facts" data-reveal>
+        <dl>
+          <div><dt>Area</dt><dd><code>toil {integration.area}</code></dd></div>
+          <div><dt>Status</dt><dd><span class={`status status--${integration.status}`}>{integration.status}</span></dd></div>
+          <div><dt>Credential</dt><dd>{integration.credential}</dd></div>
+          {!local && <div><dt>Env prefix</dt><dd><code>{prefix}</code></dd></div>}
+        </dl>
+      </aside>
+
+      <article class="doc__body prose">
+        <section data-reveal>
+          <h2>Status</h2>
+          <p>{statusMeaning[integration.status]}</p>
+        </section>
+
+        <section data-reveal>
+          <h2>Credential</h2>
+          {local ? (
+            <p>None. This area works on the repository you're in, through Node's own APIs, and talks to no server.</p>
+          ) : (
+            <>
+              <p>
+                Credential: <strong>{integration.credential}</strong>. You generate it once in {integration.name}'s own interface and give it to
+                toil. There's no browser login and nothing to approve at use time.
+              </p>
+              {where ? <p>In {integration.name}, it lives under <strong>{where}</strong>.</p> : <p>In {integration.name}, it lives under your user or account settings.</p>}
+              <p>
+                Pass it as an environment variable, which always wins and is the usual choice in CI, or put it in your toil config. Keeping it in
+                your operating system's credential store instead, with only a reference in config, is optional.
+              </p>
+            </>
+          )}
+        </section>
+
+        {!local && (
+          <section data-reveal>
+            <h2>Configuration</h2>
+            <p>
+              Every setting can come from an environment variable, which always wins, or from your toil config. Variables for this area start
+              with <code>{prefix}</code>. For example:
+            </p>
+            <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="p">$</span> export {prefix}BASE_URL=<span class="s">{host}</span>{keyLines.map((k) => (
+  <span class="line"><span class="p">$</span> export {prefix}{k.key}=<span class="s">{`<your ${k.label}>`}</span></span>
+))}</pre>
+            </div>
+            <p class="note">
+              {integration.status === 'planned'
+                ? 'The exact keys are published here when the integration ships. These show the naming pattern every area follows.'
+                : 'These are the keys this integration reads.'}
+            </p>
+          </section>
+        )}
+
+        <section data-reveal>
+          <h2>Commands</h2>
+          {integration.status === 'planned' ? (
+            <p>
+              The command reference appears here when the integration ships. Every command will be available both as{' '}
+              <code>toil {integration.area} &lt;command&gt;</code> on the command line and as an MCP tool, with identical inputs and output.
+            </p>
+          ) : (
+            <p>Run <code>toil {integration.area} --help</code> for the full list.</p>
+          )}
+        </section>
+
+        <section data-reveal>
+          <h2>Writes</h2>
+          <p>
+            Reads are always allowed. Anything that changes data in {integration.name} needs two things: <code>writes</code> switched on for this
+            area in your own config, and <code>--allow-write</code> on the call. Over MCP, write tools don't exist until writes are on.{' '}
+            <a href={url('/how-it-works/#safety')}>How writes are gated</a>.
+          </p>
+        </section>
+
+        <nav class="pager" aria-label="Other integrations">
+          {prev ? <a class="tap" href={url(`/docs/integrations/${prev.area}/`)}>← {prev.name}</a> : <span></span>}
+          {next ? <a class="tap" href={url(`/docs/integrations/${next.area}/`)}>{next.name} →</a> : <span></span>}
+        </nav>
+      </article>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .codeblock .line { display: block; }
+  .crumb { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-faint); }
+  .crumb a { color: var(--color-muted); }
+  .crumb a:hover { color: var(--color-accent); }
+
+  .doc { display: grid; gap: var(--space-lg); align-items: start; padding-block: var(--space-lg); }
+  .doc > * { min-width: 0; }
+
+  .doc__facts { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-md); }
+  .doc__facts dl { display: grid; gap: var(--space-sm); }
+  .doc__facts dt { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-faint); }
+  .doc__facts dd { margin: 0.2rem 0 0; color: var(--color-ink); font-size: var(--text-sm); overflow-wrap: anywhere; }
+  .doc__facts code { color: var(--color-accent); }
+
+  .doc__body { display: grid; gap: var(--space-lg); max-width: 68ch; }
+  .doc__body > *, .doc__body section > * { min-width: 0; }
+  .doc__body h2 { font-size: var(--text-2xl); margin-bottom: var(--space-xs); }
+  .doc__body p { color: var(--color-muted); }
+  .doc__body p + p { margin-top: var(--space-xs); }
+  .doc__body strong { color: var(--color-ink); font-weight: 600; }
+  .doc__body code { color: var(--color-ink); }
+  .doc__body .codeblock { margin-block: var(--space-sm); }
+  .note { font-size: var(--text-sm); color: var(--color-faint) !important; }
+
+  .status {
+    display: inline-flex; align-items: center; gap: 0.4em;
+    font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase;
+    border-radius: 999px; padding: 0.1rem 0.55rem; border: 1px solid var(--color-line-strong); color: var(--color-muted);
+  }
+  .status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .status--planned { border-style: dashed; color: var(--color-faint); }
+  .status--integration { color: var(--color-accent); }
+  .status--live { color: var(--color-ok); }
+
+  .pager { display: flex; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; padding-top: var(--space-md); border-top: 1px solid var(--color-line); }
+  .pager a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
+
+  @media (min-width: 900px) {
+    .doc { grid-template-columns: 16rem minmax(0, 1fr); }
+    .doc__facts { position: sticky; top: 88px; }
+  }
+</style>

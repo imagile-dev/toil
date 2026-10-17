@@ -1,0 +1,109 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PageHero from '../../components/PageHero.astro';
+import { groups } from '../../data/integrations';
+import { url } from '../../lib/url';
+
+const start = [
+  {
+    title: 'Install',
+    body: 'toil is one npm package on Node 22 or later, with no executable and no install scripts.',
+    code: 'npm install -g @imagile-dev/toil',
+  },
+  {
+    title: 'Connect an agent',
+    body: 'Run toil as an MCP server over stdio, scoped to the areas you need.',
+    code: 'npx -y @imagile-dev/toil mcp --areas jira,confluence',
+  },
+  {
+    title: 'Configure',
+    body: 'Settings come from TOIL_* environment variables first, then your own config. Keeping credentials in the OS credential store is optional.',
+    code: 'export TOIL_JIRA_BASE_URL=https://jira.imagile.dev',
+  },
+];
+---
+
+<Layout title="Docs" description="Documentation for toil: installing, configuring, connecting an agent, and every integration in detail.">
+  <PageHero
+    eyebrow="Documentation"
+    title="Everything in <em>detail.</em>"
+    lead="Start with the overview in How it works, then come here for specifics: setup, configuration and one page per integration. toil is pre-release, so integration pages describe the plan until each one ships."
+  />
+
+  <section class="section--tight">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">Getting started</p>
+        <h2>Three steps, no installer.</h2>
+      </div>
+      <ol class="steps">
+        {start.map((s, n) => (
+          <li class="card" data-reveal style={`--d: ${n * 90}ms`}>
+            <span class="card-tag">step {n + 1}</span>
+            <h3>{s.title}</h3>
+            <p>{s.body}</p>
+            <code class="steps__code"><span>$</span> {s.code}</code>
+          </li>
+        ))}
+      </ol>
+      <p class="more" data-reveal><a class="tap" href={url('/how-it-works/')}>How toil works, at a high level <span aria-hidden="true">→</span></a></p>
+    </div>
+  </section>
+
+  <section class="section section--rule">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">Integrations</p>
+        <h2>One page per integration.</h2>
+        <p>Each covers what it does, the credential it needs and where to create it, how to configure it, and how writes are gated.</p>
+      </div>
+      <div class="index">
+        {groups.map((g) => (
+          <section class="index__group" data-reveal>
+            <h3>{g.title}</h3>
+            <ul>
+              {g.items.map((i) => (
+                <li><a class="tap" href={url(`/docs/integrations/${i.area}/`)}>{i.name}<span class={`dot dot--${i.status}`} title={i.status}></span></a></li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .steps { display: grid; gap: var(--space-md); }
+  .steps > * { min-width: 0; }
+  .steps li { display: flex; flex-direction: column; gap: var(--space-2xs); }
+  .steps h3 { font-size: var(--text-xl); margin-top: var(--space-2xs); }
+  .steps p { color: var(--color-muted); font-size: var(--text-sm); flex: 1; }
+  .steps__code {
+    display: block; margin-top: var(--space-xs); padding: 0.6rem 0.75rem;
+    border-radius: var(--radius-sm); background: var(--color-bg-deep); border: 1px solid var(--color-line);
+    font-size: 0.75rem; white-space: normal; overflow-wrap: anywhere; line-height: 1.6;
+  }
+  .steps__code span { color: var(--color-accent); }
+  @media (min-width: 860px) { .steps { grid-template-columns: repeat(3, 1fr); } }
+
+  .more { margin-top: var(--space-lg); }
+  .more a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
+
+  .index { display: grid; gap: var(--space-lg); }
+  .index > * { min-width: 0; }
+  .index__group h3 { font-size: var(--text-lg); margin-bottom: var(--space-2xs); }
+  .index__group ul { display: grid; }
+  .index__group a {
+    justify-content: space-between; width: 100%; gap: var(--space-sm);
+    border-bottom: 1px solid var(--color-line); color: var(--color-muted);
+    transition: color var(--duration-fast) var(--ease-out), padding var(--duration-fast) var(--ease-out);
+  }
+  .index__group a:hover { color: var(--color-ink); padding-left: 0.3rem; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; border: 1px dashed var(--color-faint); }
+  .dot--unit { background: var(--color-muted); border: 0; }
+  .dot--integration { background: var(--color-accent); border: 0; }
+  .dot--live { background: var(--color-ok); border: 0; }
+  @media (min-width: 760px) { .index { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1080px) { .index { grid-template-columns: repeat(3, 1fr); } }
+</style>
