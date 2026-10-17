@@ -510,10 +510,10 @@ describe('create-issue --project, a context input', () => {
     expect(envelope.meta.context?.inputs).toEqual({ project: { value: 'FLAG', source: 'input' } });
   });
 
-  it('then the input file, which beats the connection and is reported as part of the call', async () => {
+  it('then the input file, which beats the connection and is reported as source file', async () => {
     const { envelope, calls } = await run(createIssue, { inputFile: 'issue.json', ...write }, created, { config, files });
     expect(sent(calls)).toBe('FILE');
-    expect(envelope.meta.context?.inputs).toEqual({ project: { value: 'FILE', source: 'input' } });
+    expect(envelope.meta.context?.inputs).toEqual({ project: { value: 'FILE', source: 'file' } });
   });
 
   it("then the connection's project, resolved by core", async () => {
@@ -528,6 +528,13 @@ describe('create-issue --project, a context input', () => {
       expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--project required (or set defaults.jira.project in config, or "project" in --input-file)' });
       expect(calls).toHaveLength(0);
     }
+  });
+
+  it('an empty project in the input file still wins over the connection and gets the same error, as ?? gave it', async () => {
+    const empty = { 'empty.json': JSON.stringify({ project: '', fields: { summary: 'S' } }) };
+    const { envelope, calls } = await run(createIssue, { inputFile: 'empty.json', ...write }, [], { config, files: empty });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--project required (or set defaults.jira.project in config, or "project" in --input-file)' });
+    expect(calls).toHaveLength(0);
   });
 
   it('the other --project flags are plain flags that never fall back to the connection', async () => {

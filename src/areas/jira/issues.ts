@@ -37,12 +37,13 @@ function readIssueFile(path: string | undefined, ctx: client.JiraContext): Issue
  * --input-file, then the dossier (#16; empty today), then the connection's
  * project, which is the predecessor's order with the dossier slotted in.
  * Core resolves the flag, the dossier and the connection; the file is read by
- * the command, so its step is taken here. When the file's value
- * wins, meta.context says it came from the call, which is where the file did.
+ * the command, so its step goes through ctx.supply, and meta.context reports
+ * source `file`. The file's value is used as written, as the predecessor's `??`
+ * used it: an empty one still wins and gets create-issue's own error.
  */
 function projectFor(ctx: client.JiraContext, json: IssueJsonInput | undefined): string | undefined {
   if (ctx.resolved.inputs?.project?.source === 'input' || json?.project == null) return ctx.context.project;
-  ctx.resolved.inputs = { ...ctx.resolved.inputs, project: { value: String(json.project), source: 'input' } };
+  ctx.supply('project', String(json.project), 'file');
   return json.project;
 }
 
