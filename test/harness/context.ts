@@ -1,5 +1,6 @@
 import type { ResolvedConfig, Settings } from '../../src/core/config.js';
 import type { Context } from '../../src/core/context.js';
+import type { GitRunner } from '../../src/core/git.js';
 import type { GitContext } from '../../src/core/git-repo.js';
 import type { SecretStore } from '../../src/core/keychain.js';
 import type { Prompter } from '../../src/core/prompt.js';
@@ -35,6 +36,8 @@ export interface TestContextOptions {
   secrets?: SecretStore;
   /** The repository `ctx.repo()` reports; absent, as outside one. */
   repo?: GitContext;
+  /** The git `ctx.git` runs; absent, as when none is installed for the test. */
+  git?: GitRunner;
   /** A scripted terminal, for the CLI-only commands that ask a person (`scriptedPrompter()`). Absent, as under MCP or in CI. */
   prompt?: Prompter;
 }
@@ -58,6 +61,7 @@ export function testContext(options: TestContextOptions = {}): { context: Contex
     ...(options.secrets ? { secrets: options.secrets } : {}),
     ...(options.prompt ? { prompt: options.prompt } : {}),
     ...(options.repo ? { repo: () => options.repo } : {}),
+    ...(options.git ? { git: options.git } : {}),
   };
   return { context, http, files };
 }
