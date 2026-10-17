@@ -2,7 +2,7 @@ import { join, resolve } from 'node:path';
 import { commandName, needsConfig, type AnyCommand } from './core/command.js';
 import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
-import { nodeFiles, resolveWorkspace } from './core/files.js';
+import { alreadyExists, nodeFiles, resolveWorkspace } from './core/files.js';
 import { createGitRunner } from './core/git.js';
 import { findGitRepo, readGitRemotes } from './core/git-repo.js';
 import type { SecretStore } from './core/keychain.js';
@@ -43,6 +43,12 @@ export function ownFiles(home: string, cwd: string, configFlag: string | undefin
  */
 export function writeOutputFile(o: { path: string; content: string; cwd: string; home: string; config?: string | undefined }): void {
   nodeFiles({ cwd: o.cwd, stdin: true, unbounded: true, protect: ownFiles(o.home, o.cwd, o.config) }).writeBytes(o.path, new TextEncoder().encode(o.content));
+}
+
+/** The checks writeOutputFile makes, without writing: run before the command, so a refusal comes first. */
+export function checkOutputFile(o: { path: string; cwd: string; home: string; config?: string | undefined }): void {
+  const files = nodeFiles({ cwd: o.cwd, stdin: true, unbounded: true, protect: ownFiles(o.home, o.cwd, o.config) });
+  if (files.exists(o.path)) throw alreadyExists(files.resolve(o.path));
 }
 
 /** TOIL_TIMEOUT_MS, when it's a positive number; otherwise execute()'s default. */

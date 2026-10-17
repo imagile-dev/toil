@@ -25,6 +25,12 @@ export interface CliIO {
    * envelope then goes to stdout instead.
    */
   writeFile: (path: string, content: string, globals: GlobalOptions) => void;
+  /**
+   * Checks --output-file before the command runs, with the same refusals and
+   * "already exists", so a write is never made and then reported as failed.
+   * Throws a ToilError. Absent in tests that don't check.
+   */
+  checkFile?: (path: string, globals: GlobalOptions) => void;
 }
 
 export interface ProgramOptions {
@@ -111,8 +117,18 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       const cmd = actionArgs[actionArgs.length - 1] as Command;
       const globals = cmd.optsWithGlobals<GlobalOptions>();
       const input = inputFromCli(def, cmd, inArea ? groupFlags(path[0]!) : new Set());
+      if (globals.outputFile && io.checkFile) {
+        // Refuse a bad --output-file before anything runs, so nothing is changed for a result nobody can read.
+        try {
+          io.checkFile(globals.outputFile, globals);
+        } catch (err) {
+          io.stdout(`${JSON.stringify(failure(toToilError(err), { command: commandName(def), durationMs: 0, version: options.version }), null, globals.pretty ? 2 : undefined)}\n`);
+          result.exitCode = 1;
+          return;
+        }
+      }
       const envelope = await runCommand(def, input, () => options.createContext(globals, def), options.version);
-      const written = emit(envelope, globals, io);
+      const written = emit(envelope, globals, io, def.writes);
       result.exitCode = envelope.ok && written ? 0 : 1;
     });
   };
@@ -137,8 +153,12 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
   return { program, result };
 }
 
-/** Prints the envelope, or writes it to --output-file. False when that write was refused, whose envelope then goes to stdout. */
-function emit(envelope: Envelope, globals: GlobalOptions, io: CliIO): boolean {
+/**
+ * Prints the envelope, or writes it to --output-file. False when that write
+ * failed; the error envelope then goes to stdout. For a write command the
+ * command has already run by then, so the error says so.
+ */
+function emit(envelope: Envelope, globals: GlobalOptions, io: CliIO, writes = false): boolean {
   const json = (e: Envelope) => `${JSON.stringify(e, null, globals.pretty ? 2 : undefined)}\n`;
   if (!globals.outputFile) {
     io.stdout(json(envelope));
@@ -149,7 +169,17 @@ function emit(envelope: Envelope, globals: GlobalOptions, io: CliIO): boolean {
     return true;
   } catch (err) {
     // The result never reached the file, so say so where the caller is looking.
-    io.stdout(json(failure(toToilError(err), envelope.meta)));
+    const cause = toToilError(err);
+    let error = cause;
+    if (writes && envelope.ok) {
+      error = new ToilError(cause.code, `${envelope.meta.command} ran, and the change may already have been applied, but its result couldn't be written to --output-file: ${cause.message}`, {
+        fix: 'Check whether the change was made before retrying. Then pass a different --output-file, or none.',
+      });
+    } else if (!envelope.ok) {
+      // The command's own failure matters more than where it couldn't be saved.
+      error = new ToilError(envelope.error.code, `${envelope.error.message} (This result couldn't be written to --output-file either: ${cause.message})`, envelope.error.fix ? { fix: envelope.error.fix } : {});
+    }
+    io.stdout(json(failure(error, envelope.meta)));
     return false;
   }
 }

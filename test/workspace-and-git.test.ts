@@ -10,9 +10,12 @@ import { z } from 'zod';
 import { defineCommand, type AnyCommand } from '../src/core/command.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { createMcpServer } from '../src/mcp/server.js';
-import { createNodeContext, writeOutputFile } from '../src/node-context.js';
+import { checkOutputFile, createNodeContext, writeOutputFile } from '../src/node-context.js';
 import { runProgram, type GlobalOptions } from '../src/program.js';
+import { testContext } from './harness/context.js';
 import { connectMcp } from './harness/mcp.js';
+import { demoCommands, demoRoutes } from './fixtures/demo-commands.js';
+import { fixture } from './fixtures/demo.fixture.js';
 
 /**
  * The workspace and git, end to end through both front doors with the real
@@ -263,6 +266,65 @@ describe('--output-file', () => {
     );
     expect(exitCode).toBe(1);
     expect(JSON.parse(stdout).error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("toil's own configuration") });
+  });
+});
+
+describe('--output-file is checked before the command runs', () => {
+  let runs = 0;
+  const counted = defineCommand({ path: ['probe', 'count'], description: 'Test only: counts runs', input: z.object({}), writes: false, examples: [{}], run: async () => ++runs });
+  const program = (argv: string[], writeFile: (path: string) => void) => {
+    let stdout = '';
+    return runProgram(
+      {
+        commands: [counted],
+        version: '0.0.0-test',
+        io: {
+          stdout: (t) => (stdout += t),
+          stderr: () => {},
+          writeFile: (path) => writeFile(path),
+          checkFile: (path, globals) => checkOutputFile({ path, cwd, home, config: globals.config }),
+        },
+        createContext: (globals, def) => nodeContext({ env: {}, globals, def }),
+        startMcp: async () => {},
+      },
+      argv,
+      'user',
+    ).then((exitCode) => ({ exitCode, envelope: JSON.parse(stdout) as Envelope }));
+  };
+
+  it('refuses an existing file or toil\'s own file without running the command', async () => {
+    writeFileSync(join(root, 'taken.json'), 'mine');
+    runs = 0;
+    const taken = await program(['--output-file', join(root, 'taken.json'), 'probe', 'count'], () => {});
+    expect(taken.exitCode).toBe(1);
+    expect(taken.envelope.error?.message).toContain('already exists');
+    const own = await program(['--output-file', join(home, '.toil', 'x.json'), 'probe', 'count'], () => {});
+    expect(own.envelope.error?.message).toContain("toil's own configuration");
+    expect(runs).toBe(0);
+    expect(readFileSync(join(root, 'taken.json'), 'utf8')).toBe('mine');
+  });
+
+  it('when the write fails after a write command ran, says it ran and the change may have been applied', async () => {
+    let stdout = '';
+    const { context, http } = testContext({ config: fixture.config, routes: demoRoutes });
+    const exitCode = await runProgram(
+      {
+        commands: demoCommands,
+        version: '0.0.0-test',
+        io: { stdout: (t) => (stdout += t), stderr: () => {}, writeFile: () => { throw new Error('disk full'); }, checkFile: () => {} },
+        createContext: () => context,
+        startMcp: async () => {},
+      },
+      ['--output-file', join(root, 'late.json'), 'demo', 'rename-thing', 'THING-1', '--name', 'Renamed', '--allow-write'],
+      'user',
+    );
+    const run = { exitCode, envelope: JSON.parse(stdout) as Envelope };
+    expect(http.calls.map((c) => c.method)).toEqual(['PUT']);
+    expect(run.exitCode).toBe(1);
+    expect(run.envelope.error).toMatchObject({
+      message: "demo rename-thing ran, and the change may already have been applied, but its result couldn't be written to --output-file: disk full",
+      fix: expect.stringContaining('Check whether the change was made before retrying'),
+    });
   });
 });
 

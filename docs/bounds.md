@@ -74,8 +74,10 @@ inside the workspace (#68 decision 2).
 `output-file` is the one file flag outside the workspace. `--output-file` is a CLI
 flag, never an MCP input, so the person running the command chose the path. It may
 write anywhere except toil's own files and `/proc` and `/sys`, and it never
-overwrites a file. A refused write puts the error envelope on stdout instead, with
-exit code 1.
+overwrites a file. The path is checked before the command runs, so a refused path
+means nothing ran; the error envelope goes to stdout, with exit code 1. If the write
+still fails afterwards, a write command's error says it ran and the change may
+already have been applied.
 
 Over MCP, the config file, and so any relaxed bound, is the one `toil mcp` was
 started with (`toil mcp --config <file>` in the MCP client's settings, written by a

@@ -105,10 +105,11 @@ export function gitArgv(call: GitCall): string[] {
 /**
  * The only variables git gets from the caller: where to find programs and
  * home, the locale, the temp folder, and the Windows system variables git
- * needs to start. Nothing else, so no token in the environment (TOIL_*,
- * GITHUB_TOKEN, SYSTEM_ACCESSTOKEN) reaches the child.
+ * needs to start, plus XDG_CONFIG_HOME and GIT_CONFIG_GLOBAL so git reads the
+ * same global config the pure-JS reader does. Nothing else, so no token in the
+ * environment (TOIL_*, GITHUB_TOKEN, SYSTEM_ACCESSTOKEN) reaches the child.
  */
-const GIT_ENV_ALLOWED = /^(PATH|HOME|USERPROFILE|LANG|LC_[A-Z_]+|TMP|TEMP|TMPDIR|SYSTEMROOT|COMSPEC|PATHEXT|APPDATA|LOCALAPPDATA|HOMEDRIVE|HOMEPATH)$/i;
+const GIT_ENV_ALLOWED = /^(PATH|HOME|USERPROFILE|LANG|LC_[A-Z_]+|TMP|TEMP|TMPDIR|SYSTEMROOT|COMSPEC|PATHEXT|APPDATA|LOCALAPPDATA|HOMEDRIVE|HOMEPATH|XDG_CONFIG_HOME|GIT_CONFIG_GLOBAL)$/i;
 
 /** git's environment: the allowlist above, with prompts and optional locks off. */
 export function gitEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {

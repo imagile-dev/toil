@@ -6,7 +6,7 @@ import type { Context } from './core/context.js';
 import { createSecretStore } from './core/keychain.js';
 import { terminalPrompter } from './core/prompt.js';
 import { createMcpServer } from './mcp/server.js';
-import { createNodeContext, writeOutputFile } from './node-context.js';
+import { checkOutputFile, createNodeContext, writeOutputFile } from './node-context.js';
 import { runProgram, type GlobalOptions } from './program.js';
 import { areas, commands } from './registry.js';
 import { VERSION } from './version.js';
@@ -59,6 +59,7 @@ try {
         stdout: (text) => process.stdout.write(text),
         stderr: (text) => process.stderr.write(text),
         writeFile: (path, content, globals) => writeOutputFile({ path, content, cwd: process.cwd(), home: homedir(), config: globals.config }),
+        checkFile: (path, globals) => checkOutputFile({ path, cwd: process.cwd(), home: homedir(), config: globals.config }),
       },
       createContext: (globals, def) => createContext(globals, def),
       startMcp: async ({ areas, globals }) => {

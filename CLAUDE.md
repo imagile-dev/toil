@@ -143,7 +143,7 @@ Node, and toil has to work there. This is the most important rule in the repo.
     `-c log.showSignature=false`, `--no-ext-diff`, `--no-textconv`, no pager); sets
     `GIT_TERMINAL_PROMPT=0` and `GIT_OPTIONAL_LOCKS=0`; passes git only an
     allowlist of the caller's env (PATH, home, locale, temp, the Windows system
-    variables), so no token reaches it; and cancels it with the command's signal. It needs git 2.24 or later (`--end-of-options`); an older git
+    variables, and the two that pick git's global config), so no token reaches it; and cancels it with the command's signal. It needs git 2.24 or later (`--end-of-options`); an older git
     gets `GIT_NOT_FOUND` saying so.
 
 ## Secrets
