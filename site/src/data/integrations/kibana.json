@@ -3,9 +3,15 @@
   "name": "Kibana",
   "group": "observability",
   "order": 4,
-  "covers": "Dashboards, data views, alerting rules",
+  "covers": "Status, spaces, dashboards, data views, alerting rules",
   "credential": "API key",
   "credentialNote": "A Kibana connection can pair with an Elasticsearch connection and use its API key, by naming it in apiKeyFrom",
   "credentialWhere": "Stack Management → API keys",
-  "status": "planned"
+  "status": "unit",
+  "supported": {
+    "product": "Kibana",
+    "minimum": null,
+    "api": "REST API",
+    "note": "toil calls /api/status, /api/spaces/space, /api/saved_objects/_find and _export, /api/data_views and the alerting rule APIs with an API key sent as an ApiKey header. Requests follow Elastic's current Kibana API reference; data views list needs Kibana 8.0 or later. No release has been verified yet."
+  }
 }
