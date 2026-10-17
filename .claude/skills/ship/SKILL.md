@@ -59,7 +59,7 @@ why (the rule or principle), and the simplest fix.
   real hostnames instead of placeholders, and any doc that names another repository
   or CLI (principle 6).
 - **Principle review.** For each principle in CLAUDE.md, and for each bound in
-  `docs/bounds.md` once it exists: does this change keep it, bend it, or show that a
+  `docs/bounds.md`: does this change keep it, bend it, or show that a
   principle is missing or needs sharpening? Report only. This reviewer proposes no
   code fix, because the principles are the maintainer's to change.
 

@@ -1,9 +1,12 @@
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { memoryFiles } from '../../test/harness/files.js';
-import { forwardSlashes, isSystemPath, nodeFiles } from './files.js';
+import { ToilError } from './errors.js';
+import { forwardSlashes, isSystemPath, nodeFiles, resolveWorkspace, toCsv } from './files.js';
+import { findGit } from './git.js';
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -139,5 +142,233 @@ describe('memoryFiles', () => {
     expect(files.writeBytes('x/../b.bin', new Uint8Array([1]))).toBe('/work/b.bin');
     expect(Object.keys(files.written)).toEqual(['/work/b.bin']);
     expect(() => memoryFiles().readText('-')).toThrow(/not available over MCP/);
+  });
+});
+
+describe('the file workspace', () => {
+  /** A workspace inside a root, with a sibling folder outside it. */
+  function setup(options: { unbounded?: boolean; protect?: (root: string) => string[] } = {}) {
+    const root = mkdtempSync(join(tmpdir(), 'toil-ws-'));
+    dirs.push(root);
+    const ws = join(root, 'ws');
+    const outside = join(root, 'outside');
+    mkdirSync(join(ws, 'sub'), { recursive: true });
+    mkdirSync(outside, { recursive: true });
+    writeFileSync(join(ws, 'in.txt'), 'in');
+    writeFileSync(join(outside, 'secret.txt'), 'out');
+    const files = nodeFiles({ cwd: join(ws, 'sub'), stdin: false, workspace: { dir: ws, source: 'flag' }, unbounded: options.unbounded ?? false, protect: options.protect?.(root) ?? [] });
+    return { root, ws, outside, files };
+  }
+  const outsideError = expect.objectContaining({
+    code: 'INVALID_INPUT',
+    message: expect.stringContaining('is outside the workspace'),
+    fix: expect.stringMatching(/--workspace <dir> or TOIL_WORKSPACE.*"bounds": \{ "files": "unbounded" \}/),
+  });
+
+  it('resolves relative paths against the workspace, not the working directory, and reports it with forward slashes', () => {
+    const { ws, files } = setup();
+    expect(files.workspace).toBe(forwardSlashes(ws));
+    expect(files.readText('in.txt')).toBe('in');
+    expect(files.writeBytes('sub/new.txt', new Uint8Array([1]))).toBe(forwardSlashes(join(ws, 'sub', 'new.txt')));
+  });
+
+  it('refuses .. and absolute paths that leave it, for reads, writes, exists, stat, list and findUp', () => {
+    const { outside, files } = setup();
+    expect(() => files.readText('../outside/secret.txt')).toThrow(outsideError);
+    expect(() => files.readText(join(outside, 'secret.txt'))).toThrow(outsideError);
+    expect(() => files.writeBytes('../outside/planted.txt', new Uint8Array([1]))).toThrow(outsideError);
+    expect(() => files.exists(join(outside, 'secret.txt'))).toThrow(outsideError);
+    expect(() => files.stat(outside)).toThrow(outsideError);
+    expect(() => files.list(outside)).toThrow(outsideError);
+    expect(() => files.findUp('secret.txt', outside)).toThrow(outsideError);
+  });
+
+  it('refuses a symlink or junction that leads out of it', () => {
+    const { ws, outside, files } = setup();
+    try {
+      symlinkSync(outside, join(ws, 'link'), 'junction');
+    } catch {
+      return; // the platform refused to make one, so there's nothing to get around
+    }
+    expect(() => files.readText('link/secret.txt')).toThrow(outsideError);
+    expect(() => files.writeBytes('link/planted.txt', new Uint8Array([1]))).toThrow(outsideError);
+  });
+
+  it('with "files": "unbounded", reaches outside it, but still never overwrites and never reads toil\'s own files', () => {
+    const { root, outside, files } = setup({ unbounded: true, protect: (r) => [join(r, 'outside', 'secret.txt')] });
+    writeFileSync(join(root, 'other.txt'), 'other');
+    expect(files.readText('../other.txt')).toBe('other');
+    expect(files.writeBytes(join(outside, 'new.txt'), new Uint8Array([1]))).toBe(forwardSlashes(join(outside, 'new.txt')));
+    expect(() => files.writeBytes(join(outside, 'new.txt'), new Uint8Array([2]))).toThrow(/already exists/);
+    expect(() => files.readText(join(outside, 'secret.txt'))).toThrow(/toil's own configuration/);
+  });
+
+  it('with no workspace, every file operation refuses with the reason, and unbounded still refuses relative paths', () => {
+    const error = new ToilError('NOT_CONFIGURED', 'No workspace folder is set, and this command reads or writes files.', { fix: 'x' });
+    const files = nodeFiles({ cwd: tmpdir(), stdin: false, workspace: { error, source: 'none' } });
+    expect(files.workspace).toBeUndefined();
+    expect(() => files.readText('a.txt')).toThrow(error);
+    expect(() => files.readText(join(tmpdir(), 'a.txt'))).toThrow(error);
+    expect(() => files.list()).toThrow(error);
+    const open = nodeFiles({ cwd: tmpdir(), stdin: false, workspace: { error, source: 'none' }, unbounded: true });
+    expect(() => open.readText(join(tmpdir(), 'no-such-file-for-toil.txt'))).toThrow(/does not exist/);
+    expect(() => open.readText('relative.txt')).toThrow(error);
+    expect(() => open.writeBytes('relative.txt', new Uint8Array([1]))).toThrow(error);
+  });
+});
+
+describe('resolveWorkspace', () => {
+  const base = () => {
+    const root = mkdtempSync(join(tmpdir(), 'toil-wsr-'));
+    dirs.push(root);
+    for (const d of ['flag', 'env', 'cwd', 'root1', 'root2']) mkdirSync(join(root, d));
+    return root;
+  };
+
+  it('takes --workspace, then TOIL_WORKSPACE, then the CLI working directory', () => {
+    const r = base();
+    const env = { TOIL_WORKSPACE: join(r, 'env') };
+    expect(resolveWorkspace({ flag: 'flag', env, cwd: r, mcp: false })).toEqual({ dir: join(r, 'flag'), source: 'flag' });
+    expect(resolveWorkspace({ env, cwd: r, mcp: false })).toEqual({ dir: join(r, 'env'), source: 'env' });
+    expect(resolveWorkspace({ env: {}, cwd: join(r, 'cwd'), mcp: false })).toEqual({ dir: join(r, 'cwd'), source: 'cwd' });
+  });
+
+  it("under MCP, uses the client's single root instead of the working directory, and refuses none or several", () => {
+    const r = base();
+    expect(resolveWorkspace({ env: {}, cwd: join(r, 'cwd'), mcp: true, roots: [join(r, 'root1')] })).toEqual({ dir: join(r, 'root1'), source: 'mcp-root' });
+    expect(resolveWorkspace({ env: { TOIL_WORKSPACE: join(r, 'env') }, cwd: r, mcp: true, roots: [join(r, 'root1')] }).source).toBe('env');
+    const several = resolveWorkspace({ env: {}, cwd: r, mcp: true, roots: [join(r, 'root1'), join(r, 'root2')] });
+    expect(several.dir).toBeUndefined();
+    expect(several.error).toMatchObject({ code: 'NOT_CONFIGURED', message: expect.stringContaining('shared 2 roots'), fix: expect.stringContaining('--workspace <dir>') });
+    expect(resolveWorkspace({ env: {}, cwd: r, mcp: true }).error).toMatchObject({ code: 'NOT_CONFIGURED', message: "This command reads or writes files, but there's no workspace folder to keep them in." });
+  });
+
+  it('defers a workspace that is not a folder to the first file operation', () => {
+    const r = base();
+    const ws = resolveWorkspace({ flag: 'missing', env: {}, cwd: r, mcp: false });
+    expect(ws.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("(from --workspace) isn't a folder that exists") });
+  });
+});
+
+describe('exists, stat, findUp and writeCsv', () => {
+  it('answers inside the workspace', () => {
+    const ws = mkdtempSync(join(tmpdir(), 'toil-more-'));
+    dirs.push(ws);
+    mkdirSync(join(ws, 'a', 'b'), { recursive: true });
+    writeFileSync(join(ws, 'Directory.Packages.props'), '<Project/>');
+    writeFileSync(join(ws, 'a', 'x.txt'), 'hello');
+    const files = nodeFiles({ cwd: ws, stdin: false });
+    expect(files.exists('a/x.txt')).toBe(true);
+    expect(files.exists('a/nope.txt')).toBe(false);
+    expect(files.stat('a/x.txt')).toMatchObject({ type: 'file', size: 5, modified: expect.stringMatching(/^\d{4}-\d\d-\d\dT/) });
+    expect(files.stat('a').type).toBe('directory');
+    expect(() => files.stat('a/nope.txt')).toThrow(/does not exist/);
+    expect(files.findUp('Directory.Packages.props', 'a/b')).toBe(forwardSlashes(join(ws, 'Directory.Packages.props')));
+    expect(files.findUp('nowhere.json', 'a/b')).toBeUndefined();
+    const saved = files.writeCsv('out/report.csv', ['week', 'author', 'commits'], [['2026-W01', 'Doe, Jane', 3], ['TOTAL', 'say "hi"', null]]);
+    expect(saved).toBe(forwardSlashes(join(ws, 'out', 'report.csv')));
+    expect(readFileSync(join(ws, 'out', 'report.csv'), 'utf8')).toBe('week,author,commits\n2026-W01,"Doe, Jane",3\nTOTAL,"say ""hi""",\n');
+    expect(() => files.writeCsv('out/report.csv', ['a'], [])).toThrow(/already exists/);
+  });
+
+  it('findUp stops at the top of the workspace', () => {
+    const root = mkdtempSync(join(tmpdir(), 'toil-up-'));
+    dirs.push(root);
+    mkdirSync(join(root, 'ws', 'a'), { recursive: true });
+    writeFileSync(join(root, 'above.json'), '{}');
+    const files = nodeFiles({ cwd: join(root, 'ws'), stdin: false });
+    expect(files.findUp('above.json', 'a')).toBeUndefined();
+  });
+
+  it('toCsv quotes only what needs it and ends every line with LF', () => {
+    expect(toCsv(['a', 'b'], [['x\ny', 'p,q'], [undefined, 1.5]])).toBe('a,b\n"x\ny","p,q"\n,1.5\n');
+  });
+});
+
+describe('list', () => {
+  /** A tree exercising nested, negated, anchored and folder-only patterns. */
+  function tree(root: string) {
+    const put = (path: string, text = 'x') => {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), text);
+    };
+    put('.gitignore', '*.log\n!keep.log\n/build/\ndist\ntemp*/\n# comment\n\\#hash\n');
+    put('a.log');
+    put('keep.log');
+    put('#hash');
+    put('build/out.js');
+    put('src/build/kept.js');
+    put('src/dist');
+    put('src/temp1/x.txt');
+    put('src/tempfile.txt');
+    put('src/index.ts');
+    put('src/.gitignore', 'secret.*\n!secret.example\n');
+    put('src/secret.json');
+    put('src/secret.example');
+    put('docs/readme.md');
+    put('local-only.txt');
+  }
+
+  it('skips .git and what .gitignore files say, the deepest file deciding', () => {
+    const root = mkdtempSync(join(tmpdir(), 'toil-list-'));
+    dirs.push(root);
+    tree(root);
+    mkdirSync(join(root, '.git'));
+    writeFileSync(join(root, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    const files = nodeFiles({ cwd: root, stdin: false });
+    expect(files.list()).toEqual(['.gitignore', 'docs/readme.md', 'keep.log', 'local-only.txt', 'src/.gitignore', 'src/build/kept.js', 'src/index.ts', 'src/secret.example', 'src/tempfile.txt']);
+    expect(files.list('src')).toEqual(['.gitignore', 'build/kept.js', 'index.ts', 'secret.example', 'tempfile.txt']);
+    expect(files.list('.', { gitignore: false })).toContain('build/out.js');
+    expect(files.list('.', { gitignore: false })).not.toContain('.git/HEAD');
+    expect(() => files.list('.', { limit: 3 })).toThrow(/more than 3 files/);
+  });
+
+  const git = findGit({ env: process.env }).found;
+  it.skipIf(!git)('matches git ls-files --cached --others --exclude-standard: tracked-but-ignored, deleted, nested repos, ignored folders, index v4 (skipped where git is not installed)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'toil-lsf-'));
+    dirs.push(root);
+    const env = { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: join(root, 'no-global') };
+    execFileSync(git!, ['init', '-q'], { cwd: root, env });
+    tree(root);
+    writeFileSync(join(root, '.git', 'info', 'exclude'), 'local-only.txt\n');
+    const lsFiles = (cwd: string) =>
+      execFileSync(git!, ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd, env, encoding: 'utf8' })
+        .split('\n')
+        .filter(Boolean)
+        .map((p) => p.replace(/^"|"$/g, '').replace(/\\#/g, '#'))
+        .sort();
+    const files = nodeFiles({ cwd: root, stdin: false, env: { GIT_CONFIG_GLOBAL: join(root, 'no-global') }, home: root });
+    const same = () => {
+      for (const dir of ['', 'src', 'build', 'src/temp1']) expect(files.list(dir || '.'), dir || '(root)').toEqual(lsFiles(join(root, dir)));
+    };
+    same();
+
+    // --cached: tracked files count even when ignored (git add -f) or deleted from disk;
+    // a nested repository is one entry; an untracked file in an ignored folder never shows.
+    const g = (...args: string[]) => execFileSync(git!, ['-c', 'user.name=toil', '-c', 'user.email=you@example.com', ...args], { cwd: root, env });
+    g('add', '-f', 'a.log', 'build/out.js', 'src/index.ts', 'docs/readme.md');
+    g('commit', '-q', '-m', 'first');
+    rmSync(join(root, 'docs', 'readme.md'));
+    writeFileSync(join(root, 'build', 'untracked.js'), 'x');
+    mkdirSync(join(root, 'nested'));
+    execFileSync(git!, ['init', '-q'], { cwd: join(root, 'nested'), env });
+    writeFileSync(join(root, 'nested', 'inner.txt'), 'x');
+    expect(files.list()).toContain('a.log');
+    expect(files.list()).toContain('nested/');
+    expect(files.list('build')).toEqual(['out.js']);
+    same();
+
+    // Index version 4 compresses paths; the reader must too.
+    g('update-index', '--index-version', '4');
+    same();
+  });
+
+  it('outside a repository applies only the .gitignore files under the folder (git would list nothing: a deps port must check for a repository itself)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'toil-norepo-'));
+    dirs.push(root);
+    writeFileSync(join(root, '.gitignore'), '*.log\n');
+    writeFileSync(join(root, 'a.log'), 'x');
+    writeFileSync(join(root, 'b.txt'), 'x');
+    expect(nodeFiles({ cwd: root, stdin: false }).list()).toEqual(['.gitignore', 'b.txt']);
   });
 });

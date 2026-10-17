@@ -1,5 +1,6 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
+import { fileURLToPath } from 'node:url';
+import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError, RootsListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { areaOf, commandName, isCliOnly, toolName, usesConnection, type AnyCommand } from '../core/command.js';
 import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
@@ -52,16 +53,48 @@ export function selectCommands(commands: AnyCommand[], areas: string[] | undefin
  * area-local ones skip config, as on the CLI) and that call's cancellation signal. One context per call is
  * what a shared transport (the planned gateway) needs, and it lets a client's
  * cancel stop the request it belongs to.
+ *
+ * The factory also gets the client's roots, as local paths, when the client
+ * shares any: with exactly one, that folder is the workspace unless
+ * `--workspace` or TOIL_WORKSPACE names another (docs/bounds.md). They're
+ * asked for once and asked again only when the client says they changed.
  */
 export function createMcpServer(options: {
   commands: AnyCommand[];
-  context: (def?: AnyCommand, signal?: AbortSignal) => Context;
+  context: (def?: AnyCommand, signal?: AbortSignal, roots?: readonly string[]) => Context;
   areas?: string[] | undefined;
 }): Server {
   const startup = options.context();
   const selected = selectCommands(options.commands, options.areas, startup.config);
   const byName = new Map(selected.map((def) => [toolName(def), def]));
   const server = new Server({ name: 'toil', version: startup.version }, { capabilities: { tools: {} } });
+
+  let roots: Promise<string[] | undefined> | undefined;
+  server.setNotificationHandler(RootsListChangedNotificationSchema, () => {
+    roots = undefined;
+  });
+  const clientRoots = (): Promise<string[] | undefined> => {
+    if (!server.getClientCapabilities()?.roots) return Promise.resolve(undefined);
+    roots ??= server
+      .listRoots(undefined, { timeout: 5000 })
+      .then((r) =>
+        // Each root on its own: one URI Node can't turn into a path drops that root, not the rest.
+        r.roots.flatMap((root) => {
+          if (!root.uri.startsWith('file:')) return [];
+          try {
+            return [fileURLToPath(root.uri)];
+          } catch {
+            return [];
+          }
+        }),
+      )
+      .catch(() => {
+        // Ask again next call; a client that can't answer leaves no workspace, not a stale one.
+        roots = undefined;
+        return undefined;
+      });
+    return roots;
+  };
 
   server.setRequestHandler(ListToolsRequestSchema, () => ({
     tools: selected.map((def) => ({
@@ -76,7 +109,8 @@ export function createMcpServer(options: {
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const def = byName.get(request.params.name);
     if (!def) throw new McpError(ErrorCode.InvalidParams, `Unknown tool: ${request.params.name}`);
-    const envelope = await runCommand(def, request.params.arguments ?? {}, () => options.context(def, extra.signal), startup.version);
+    const shared = await clientRoots();
+    const envelope = await runCommand(def, request.params.arguments ?? {}, () => options.context(def, extra.signal, shared), startup.version);
     return {
       content: [{ type: 'text' as const, text: JSON.stringify(envelope) }],
       structuredContent: envelope as unknown as Record<string, unknown>,

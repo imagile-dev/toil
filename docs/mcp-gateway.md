@@ -20,7 +20,7 @@ fits the engineer on a locked-down laptop, but not:
   localhost, and the gateway refuses to start without auth configured.
 - **Same rules as `toil mcp`.** `--areas` scoping, write tools registered only when
   writes are enabled, deletes never exposed, the same JSON envelope.
-- **Still no executables.** Pure JS on Node, like the base package.
+- **No executables at all.** Pure JS on Node. It shares no filesystem with its callers, so it has no workspace and no git to run.
 
 ## Open questions
 

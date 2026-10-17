@@ -34,7 +34,9 @@ gets made again in the next place it applies.
 1. **Adoptable inside a locked-down enterprise.** Installs from npm, runs on Node, and
    needs nothing else: no executable, no native library, no other CLI, no browser
    login. The only things a security team should need to approve are Node and one npm
-   package. → No Executables, the Authentication Bar and no hardcoded hosts
+   package. The one optional exception is git, which only the commands that are git
+   need (#68); everything else, area context from a repository included, works without
+   it. → No Executables, the Authentication Bar and no hardcoded hosts
    (`integrations` skill), placeholders that never resolve.
 2. **Safe by default when an agent is driving.** Reads are free. Anything that writes,
    to a database or an enterprise tool, needs a human's standing opt-in in config
@@ -81,9 +83,11 @@ gets made again in the next place it applies.
   separator, a drive letter, or `~`. Paths in JSON output use forward slashes;
   paths on disk use the platform's own form.
 - Never spawn through a shell (`shell: true`, `exec`), and never assume bash,
-  PowerShell, or a POSIX utility. In toil's own code, the only spawns allowed are the
-  OS credential stores in the `secrets` skill, all in `src/core/keychain.ts`, each
-  behind a platform check. Repo tooling may spawn `git` and `gh`, without a shell.
+  PowerShell, or a POSIX utility. toil itself runs only git and the OS credential
+  stores; repo tooling may also run tools developers already have (git, gh, a
+  browser, node), never through a shell. The credential stores are in
+  `src/core/keychain.ts`, each behind a platform check (`secrets` skill), and git
+  is in `src/core/git.ts` (No Executables).
 - Read files as UTF-8 and accept both CRLF and LF; write LF. `.gitattributes` keeps
   the repo LF so Windows checkouts produce identical bundles.
 - Config lives in `~/.toil/` on every platform, so instructions are identical.
@@ -101,7 +105,8 @@ Node, and toil has to work there. This is the most important rule in the repo.
   files), no `node-gyp`, no `prebuild`, no package that downloads a binary on install,
   no `install` / `postinstall` scripts.
 - toil never spawns a bundled or downloaded binary. Spawning a program the OS already
-  ships is allowed only for credential storage (see the `secrets` skill).
+  ships is allowed only for credential storage (see the `secrets` skill). The one
+  other program toil may run is git, below.
 - The published package is one bundled JS file plus `package.json`, with no runtime
   `dependencies`. It installs with `npm install --ignore-scripts` and runs offline.
 - CI enforces it on what ships, not on the dev toolchain:
@@ -109,19 +114,37 @@ Node, and toil has to work there. This is the most important rule in the repo.
     install/prepare script, or if the bundle imports anything but Node built-ins.
     That's read from esbuild's metafile, never by scanning text. It also fails on
     a native addon, on `child_process` imported by any file but
-    `src/core/keychain.ts` (stubbed or not), or if the tarball holds anything
-    beyond `dist/toil.js`, `package.json`, `README.md`, `LICENSE` and `NOTICE`.
+    `src/core/keychain.ts` and `src/core/git.ts` (stubbed or not), or if the
+    tarball holds anything beyond `dist/toil.js`, `package.json`, `README.md`,
+    `LICENSE` and `NOTICE`.
   - `npm run smoke` installs the packed tarball with `--ignore-scripts` into a
     throwaway prefix and drives the installed bin through the CLI and MCP.
 - Bundled dependencies can drag in a spawning API (commander imports `child_process`
   for subcommands toil never uses). The build resolves `child_process` to
   `src/shims/no-spawn.ts`, a stub that throws, for every importer but one.
-- **The one exception is the OS credential store**, `src/core/keychain.ts`. It
-  alone gets the real `node:child_process` (the tsup `no-spawn` plugin decides by
-  importer path, `check:pure` verifies it from the metafile, and ESLint allows the
-  import in that file only). It runs only what the OS ships (`security`, Windows
-  PowerShell, `secret-tool`), never through a shell, with secrets on stdin. Any
-  other spawn, or a second file allowed to spawn, needs this section changed first.
+- **There are two exceptions, and only two files get the real
+  `node:child_process`** (the tsup `no-spawn` plugin decides by importer path,
+  `check:pure` verifies it from the metafile, and ESLint allows the import in those
+  files only, apart from repo tooling and tests, which never ship). Any other spawn, or a third file allowed to spawn, needs this section
+  changed first.
+  - **The OS credential store**, `src/core/keychain.ts`. It runs only what the OS
+    ships (`security`, Windows PowerShell, `secret-tool`), never through a shell,
+    with secrets on stdin.
+  - **git**, `src/core/git.ts`, the one optional exception to principle 1 (#68,
+    decision 1). Only the commands that are git (the `git` area and `deps diff`, once
+    ported) run it;
+    repository root, HEAD, branch and remotes are read from `.git` in pure JS
+    (`src/core/git-repo.ts`), so area context needs no git. Without git on PATH those
+    commands return `GIT_NOT_FOUND`, with a fix naming the PATH searched, and nothing
+    else is affected. toil finds git's absolute path itself, skipping relative PATH
+    entries and the working directory; runs it with no shell, a fixed subcommand
+    list, and `--end-of-options` / `--` before user values; turns off what
+    repository config can make it run (`-c core.fsmonitor=`,
+    `-c log.showSignature=false`, `--no-ext-diff`, `--no-textconv`, no pager); sets
+    `GIT_TERMINAL_PROMPT=0` and `GIT_OPTIONAL_LOCKS=0`; passes git only an
+    allowlist of the caller's env (PATH, home, locale, temp, the Windows system
+    variables, and the two that pick git's global config), so no token reaches it; and cancels it with the command's signal. It needs git 2.24 or later (`--end-of-options`); an older git
+    gets `GIT_NOT_FOUND` saying so.
 
 ## Secrets
 
@@ -249,9 +272,11 @@ may sit in another group (`deps outdated` for `artifactory outdated`); MCP still
 one tool per command, and `meta.command` names the command.
 
 Local files go through `ctx.files` (`src/core/files.ts`), never `node:fs`: input
-files, uploads and downloads resolve against the working directory on both front
-doors, `-` means stdin only on the CLI (over MCP stdin carries the protocol), paths
-in output use forward slashes, and tests get an in-memory copy. HTTP to a REST API
+files, uploads, downloads and CSV reports resolve inside the workspace on both
+front doors (**Bounds**), `-` means stdin only on the CLI (over MCP stdin carries
+the protocol), saved paths in output are absolute with forward slashes, and tests
+get an in-memory copy. It also answers `exists`, `stat`, a `.gitignore`-respecting
+`list` and `findUp`, and writes CSV with `writeCsv`. git runs only through `ctx.git` (`src/core/git.ts`). HTTP to a REST API
 goes through `restRequest` and `buildUrl` in `src/core/rest.ts`, which turn failures
 into `AUTH`, `NOT_FOUND`, `HTTP` or `NETWORK` errors with the server's own message,
 retry a 429, and keep a base URL's context path. argv is typed from the schema by the
@@ -275,6 +300,25 @@ prompter are withheld from the context too. The only commands that see the whole
 A `cli-only` command is never an MCP tool: it prompts on a terminal (stdin is
 the protocol under MCP) or changes connections, which agents never do. It has no
 time limit, since it may be waiting on someone typing.
+
+## Bounds
+
+A bound is a limit every command is held to, whoever drives it: the file
+workspace, toil's own files, credentials only to their host, secrets only in the
+store or env, CLI-only commands, time limits, read-only commands staying read-only,
+and spawning only the credential store and git. `docs/bounds.md` lists each one,
+what it protects, where it's enforced, its error and whether it can be relaxed;
+`src/core/bounds.ts` is the same list in code, and `test/bounds.test.ts` keeps them
+in step. A new bound, or a change to one, updates both. Only a setting in the user's
+own config file relaxes a bound (today only `"bounds": { "files": "unbounded" }`),
+security-class bounds never, and every envelope says so in `meta.warnings` while
+one is relaxed. Reading git metadata above the workspace is the one documented
+exception.
+
+**The file workspace.** Every path a command reads or writes resolves inside one
+folder: `--workspace <dir>`, else `TOIL_WORKSPACE`, else the CLI's working
+directory, else the MCP client's single root; with none, file commands refuse with
+`NOT_CONFIGURED`. It's checked after realpath, like the rule below.
 
 **The file service refuses toil's own config and credentials.** `ctx.files` won't
 read or write anything at or under `~/.toil/` or the `--config` file, resolved
@@ -399,7 +443,7 @@ that matches no registered area is ignored, never guessed at, so a variable can'
 change meaning when an area is added. `envName()` and `parseEnvName()` in
 `src/core/config.ts` are the only places the mapping lives. These names are reserved
 and never map onto an area: `TOIL_CONN_*`, `TOIL_DOSSIER*`, `TOIL_ENV`, `TOIL_CONFIG*`,
-`TOIL_TIMEOUT_MS`.
+`TOIL_TIMEOUT_MS`, `TOIL_WORKSPACE`.
 
 **The config file is versioned.** `"version"` is a whole number; a file without one
 is version 1. Every format change adds a step to `migrateConfig()` with a test, so an
