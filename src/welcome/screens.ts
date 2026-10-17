@@ -140,7 +140,7 @@ export function aboutScreen(caps: Caps, data: WelcomeData): string[] {
     heading(caps, 'About toil'),
     '',
     'The central integrator between AI agents and the enterprise.',
-    'One CLI and MCP server for enterprise tools, databases and code.',
+    'One CLI and MCP server for enterprise tools and databases.',
     'Plain JavaScript on Node: no executables, no install scripts.',
     '',
     `${muted(caps, 'Version   ')} ${data.version}`,
