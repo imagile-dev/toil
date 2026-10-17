@@ -32,7 +32,8 @@ export type QueryParam = QueryValue | readonly QueryValue[];
  * would land somewhere nobody asked for. A dot inside a segment (`v1.2`,
  * `.hidden`) is untouched. The path is first normalised as the parser
  * normalises it (tabs and newlines dropped, the ends trimmed), so a control
- * character can't hide a segment. Checked before anything is sent.
+ * character can't hide a segment, and so is a `;params` suffix (`..;x`), which
+ * servlet containers drop before they resolve dots. Checked before anything is sent.
  */
 export function assertNoDotSegments(raw: string): void {
   // What the WHATWG URL parser does first: drop every tab, LF and CR, and trim
@@ -44,7 +45,10 @@ export function assertNoDotSegments(raw: string): void {
   const rest = authority ? parsed.slice(authority[0].length) : parsed;
   const path = rest.split(/[?#]/, 1)[0]!;
   for (const segment of path.split(/[/\\]/)) {
-    const plain = segment.replace(/%2e/gi, '.');
+    // Servlet containers (Tomcat, Jetty) strip `;params` from a segment before
+    // resolving dots, so `..;x` is `..` to Jira, Confluence or Jenkins. A `;`
+    // after anything else (`v1;rev=2`) is left alone.
+    const plain = segment.split(';', 1)[0]!.replace(/%2e/gi, '.');
     if (plain === '.' || plain === '..') {
       throw new ToilError('INVALID_INPUT', `A request path can't have "${segment}" as a segment: ${redactUrl(raw)} would reach a different endpoint than the one named.`, {
         fix: `Check the id, key or name passed to the command; "${segment}" isn't one.`,
