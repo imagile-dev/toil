@@ -21,10 +21,8 @@ export const SCAN_ID = 'abc12345-0000-0000-0000-0000000000a1';
 
 export const config = { checkmarx: { baseUrl: CX, tenantName: 'imagile', apiKey: 'test-api-key' } };
 
-// Invented from Keycloak's token endpoint. expires_in is 0 so every call
-// exchanges afresh: the parity suite runs the CLI and MCP in one process, and
-// a cached token would make the second front door skip the exchange.
-export const tokenResponse = { access_token: 'test-access-token', expires_in: 0, token_type: 'Bearer' };
+// Invented from Keycloak's token endpoint.
+export const tokenResponse = { access_token: 'test-access-token', expires_in: 1800, token_type: 'Bearer' };
 
 // Invented from the docs: one entry of GET /api/projects's `projects`.
 export const cxProject = (n: number) => ({

@@ -4,6 +4,7 @@
     "tool": "checkmarx_project_list",
     "description": "List all projects",
     "writes": false,
+    "connection": true,
     "flags": []
   },
   {
@@ -11,6 +12,7 @@
     "tool": "checkmarx_project_get",
     "description": "Get a project by ID",
     "writes": false,
+    "connection": true,
     "flags": [
       "--id <id>"
     ]
@@ -20,6 +22,7 @@
     "tool": "checkmarx_scan_list",
     "description": "List scans",
     "writes": false,
+    "connection": true,
     "flags": [
       "--project <id>",
       "--last <n>"
@@ -30,6 +33,7 @@
     "tool": "checkmarx_scan_get",
     "description": "Get a scan by ID",
     "writes": false,
+    "connection": true,
     "flags": [
       "--id <id>"
     ]
@@ -39,6 +43,7 @@
     "tool": "checkmarx_scan_stats",
     "description": "Get results statistics for a scan",
     "writes": false,
+    "connection": true,
     "flags": [
       "--id <id>"
     ]

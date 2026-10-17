@@ -35,8 +35,9 @@ One cloud is the only deployment that works.
 **Client credentials aren't supported.** `clientId` and `clientSecret`, and the
 `client_credentials` grant, were dropped: they need an OAuth client registered for
 toil, which the Authentication Bar rules out. A connection that still has them gets
-a `CONFIG_UNKNOWN_KEY` warning for each, and `CONFIG_INVALID` naming `apiKey` and
-`TOIL_CHECKMARX_API_KEY` until an API key is set.
+a `CONFIG_REMOVED_KEY` warning for each, saying to set `apiKey` instead; the values
+are dropped, never sent. Until an API key is set, the call is `CONFIG_INVALID`
+naming `apiKey` and `TOIL_CHECKMARX_API_KEY`.
 
 ## Configuration
 

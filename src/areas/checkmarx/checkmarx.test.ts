@@ -22,6 +22,8 @@ const FORM = { 'content-type': 'application/x-www-form-urlencoded' };
 type Config = Record<string, Record<string, unknown>>;
 
 async function run(def: AnyCommand, input: Record<string, unknown>, routes: Route[], config: Config = fixtureConfig) {
+  // Each call starts with no cached token, so its first request is the exchange.
+  clearTokenCache();
   const t = testContext({ config, routes });
   const envelope = await execute(def, input, t.context);
   return { envelope, calls: t.http.calls };
@@ -111,12 +113,15 @@ describe('token exchange', () => {
 });
 
 describe('connection', () => {
-  it('client credentials are not read: each is an unknown key, and without apiKey the error names it', async () => {
+  it('client credentials are not read: each is a removed-key warning naming apiKey, and without apiKey the error names it', async () => {
     const config = { checkmarx: { baseUrl: CX, tenantName: 'imagile', clientId: 'imagile-client', clientSecret: 'shh' } };
     const { envelope, calls } = await run(projectListCommand, {}, [], config);
     expect(calls).toEqual([]);
     expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('apiKey'), fix: expect.stringContaining('TOIL_CHECKMARX_API_KEY') });
-    expect(envelope.meta.warnings?.map((w) => w.code)).toEqual(['CONFIG_UNKNOWN_KEY', 'CONFIG_UNKNOWN_KEY']);
+    expect(envelope.meta.warnings).toEqual([
+      { code: 'CONFIG_REMOVED_KEY', message: expect.stringContaining('clientId is ignored. Set apiKey') },
+      { code: 'CONFIG_REMOVED_KEY', message: expect.stringContaining('clientSecret is ignored. Set apiKey') },
+    ]);
     expect(JSON.stringify(envelope)).not.toContain('shh');
   });
 });
@@ -163,7 +168,6 @@ describe('scan list', () => {
   it('reads --last with parseInt: 5abc is 5, 0 and -3 reach the server (suspected bug, #89 item 4)', async () => {
     const urls: string[] = [];
     for (const last of ['5abc', '0', '-3', 0]) {
-      clearTokenCache();
       urls.push((await run(scanListCommand, { last }, [token(), api(scans(0))])).calls[1]!.url);
     }
     expect(urls).toEqual([`${CX}/scans?limit=5`, `${CX}/scans?limit=0`, `${CX}/scans?limit=-3`, `${CX}/scans?limit=0`]);
@@ -189,8 +193,14 @@ describe('get and stats', () => {
   });
 
   it('puts the id into the path unencoded (suspected bug, #89 item 7)', async () => {
-    const { calls } = await run(projectGetCommand, { id: '../scans/x' }, [token(), api(cxScan(1))]);
-    expect(calls[1]!.url).toBe(`${CX}/scans/x`);
+    const { calls } = await run(projectGetCommand, { id: 'x/y' }, [token(), api(cxScan(1))]);
+    expect(calls[1]!.url).toBe(`${CX}/projects/x/y`);
+  });
+
+  it("an id with a dot segment is refused by core's requests.path bound before any GET", async () => {
+    const { envelope, calls } = await run(projectGetCommand, { id: '../scans/x' }, [token(), api(cxScan(1))]);
+    expect(calls.filter((c) => c.method === 'GET')).toEqual([]);
+    expect(envelope.error?.code).toBe('INVALID_INPUT');
   });
 
   it("a 404 is NOT_FOUND with Checkmarx One's message", async () => {

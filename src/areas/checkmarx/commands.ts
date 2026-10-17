@@ -14,19 +14,11 @@ import { checkmarx, checkmarxList } from './client.js';
 const PROJECT_ID = 'abc12345-0000-0000-0000-000000000000';
 const SCAN_ID = 'abc12345-0000-0000-0000-0000000000a1';
 
-/**
- * Every command's first request is the token exchange, a POST that changes
- * nothing. Core has no way yet to tell the parity suite that, so each read is
- * marked as one that may POST; the data requests themselves are all GETs.
- */
-const EXCHANGES_TOKEN = { queryByPost: true } as const;
-
 export const projectListCommand = checkmarxArea.command({
   path: ['checkmarx', 'project', 'list'],
   description: 'List all projects',
   input: z.object({}),
   writes: false,
-  ...EXCHANGES_TOKEN,
   examples: [{}],
   // Suspected bug (#89 item 1): one request with limit=100, despite "all".
   run: async (_input, ctx) => checkmarxList(ctx, 'projects', { limit: 100 }),
@@ -39,7 +31,6 @@ export const projectGetCommand = checkmarxArea.command({
     id: z.string().describe('Project UUID'),
   }),
   writes: false,
-  ...EXCHANGES_TOKEN,
   options: [{ flags: '--id <id>', field: 'id', description: 'Project UUID' }],
   examples: [{ id: PROJECT_ID }],
   // Suspected bug (#89 item 7): the id goes into the path unencoded.
@@ -55,7 +46,6 @@ export const scanListCommand = checkmarxArea.command({
     last: z.union([z.number(), z.string()]).optional().describe('Return only the last N scans'),
   }),
   writes: false,
-  ...EXCHANGES_TOKEN,
   options: [
     { flags: '--project <id>', field: 'project', description: 'Filter by project UUID' },
     { flags: '--last <n>', field: 'last', description: 'Return only the last N scans' },
@@ -79,7 +69,6 @@ export const scanGetCommand = checkmarxArea.command({
     id: z.string().describe('Scan UUID'),
   }),
   writes: false,
-  ...EXCHANGES_TOKEN,
   options: [{ flags: '--id <id>', field: 'id', description: 'Scan UUID' }],
   examples: [{ id: SCAN_ID }],
   run: async (input, ctx) => checkmarx(ctx, `scans/${input.id}`),
@@ -92,7 +81,6 @@ export const scanStatsCommand = checkmarxArea.command({
     id: z.string().describe('Scan UUID'),
   }),
   writes: false,
-  ...EXCHANGES_TOKEN,
   options: [{ flags: '--id <id>', field: 'id', description: 'Scan UUID' }],
   examples: [{ id: SCAN_ID }],
   // Suspected bug (#89 item 2): the deprecated Results Summary API, with scan-id.

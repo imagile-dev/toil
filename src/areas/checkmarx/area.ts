@@ -55,6 +55,12 @@ export const checkmarxArea = defineArea({
     apiKey: z.string().min(1).describe('API key'),
   }),
   secrets: ['apiKey'],
+  examples: { baseUrl: 'https://eu.ast.checkmarx.net/api' },
+  // Client credentials need an OAuth client registered for toil, which the Authentication Bar rules out.
+  removed: {
+    clientId: 'Checkmarx One client credentials are no longer supported, so clientId is ignored. Set apiKey to a Checkmarx One API key instead.',
+    clientSecret: 'Checkmarx One client credentials are no longer supported, so clientSecret is ignored. Set apiKey to a Checkmarx One API key instead.',
+  },
   request: (connection, area) => {
     const exchange: TokenExchange = {
       url: tokenUrl(connection.baseUrl, connection.tenantName),
