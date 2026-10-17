@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -5,7 +6,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import type { AnyCommand } from '../src/core/command.js';
 import { buildProgram } from '../src/program.js';
 // @ts-expect-error -- a plain .mjs script with no type declarations.
-import { argsOf, fieldOf, removedPaths, stubFiles } from '../scripts/stub-area.mjs';
+import { argsOf, fieldOf, removedPaths, stubFiles, WRITE_VERBS } from '../scripts/stub-area.mjs';
 import { diffContract, loadContract, loadDivergences } from './harness/contract.js';
 import { testContext } from './harness/context.js';
 
@@ -56,6 +57,22 @@ describe('stub generator', () => {
       { name: 'rest', required: false, variadic: true },
     ]);
   });
+
+  it('guesses writes from the whole verb, so a read that starts like one stays a read', () => {
+    for (const read of ['logs', 'log', 'settings', 'status', 'list-runs', 'get-build-status']) expect(WRITE_VERBS.test(read), read).toBe(false);
+    for (const write of ['log-work', 'set-sprint', 'set', 'create', 'add-comment', 'run']) expect(WRITE_VERBS.test(write), write).toBe(true);
+  });
+
+  it('writes a stub that typechecks', async () => {
+    const { files } = await load('sonar');
+    const base = join(out, 'sonar');
+    const config = join(base, 'tsconfig.json');
+    writeFileSync(config, JSON.stringify({ extends: relative(base, join(repo, 'tsconfig.json')).replace(/\\/g, '/'), include: ['src/areas/sonar/*.ts'], compilerOptions: { noEmit: true } }));
+    const tsc = join(repo, 'node_modules', 'typescript', 'bin', 'tsc');
+    const run = spawnSync(process.execPath, [tsc, '-p', config], { encoding: 'utf8' });
+    expect(run.stdout + run.stderr, Object.keys(files).join(', ')).toBe('');
+    expect(run.status).toBe(0);
+  }, 60000);
 
   it('leaves out commands a divergence removes', () => {
     const files = stubFiles(contract, 'git', { removed }) as Record<string, string>;

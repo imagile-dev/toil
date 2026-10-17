@@ -1,3 +1,8 @@
+/**
+ * The helper areas use when a server is older than toil supports: its text,
+ * the fix that names the minimum, and the code it keeps. A version nobody has
+ * established is reported as such, rather than filled in to close the ticket.
+ */
 import { describe, expect, it } from 'vitest';
 import { serverTooOld, supportedText, tooOldFix, type SupportedVersion } from './supported.js';
 

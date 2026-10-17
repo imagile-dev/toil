@@ -9,9 +9,9 @@ Issues, JQL search, transitions, comments, worklogs, labels, links, attachments,
 custom fields, boards and sprints on **Jira Data Center / Server** (`/rest/api/2`
 and `/rest/agile/1.0`). Verification level: `unit`.
 
-**Supported versions:** The oldest Jira Data Center version toil supports hasn't been established. toil
-authenticates with a personal access token, which Jira Data Center added in 8.14, so no
-older server can work.
+**Supported versions:** Jira Data Center 8.14 or later (REST API 2 and Agile REST API 1.0). toil
+authenticates with a personal access token, which Jira Data Center added in 8.14. No
+release has been verified yet.
 
 ## Credential
 

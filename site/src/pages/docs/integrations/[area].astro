@@ -64,7 +64,7 @@ const supported = integration.supported;
         <section data-reveal>
           <h2>Credential</h2>
           {local ? (
-            <p>None. This area works on the repository you're in, through Node's own APIs, and talks to no server.</p>
+            <p>None. This area works on the repository you're in and talks to no server. Its commands run your installed git; the repository's root, branch and remotes are read directly.</p>
           ) : (
             <>
               <p>
@@ -72,6 +72,7 @@ const supported = integration.supported;
                 toil. There's no browser login and nothing to approve at use time.
               </p>
               {where ? <p>In {integration.name}, it lives under <strong>{where}</strong>.</p> : <p>In {integration.name}, it lives under your user or account settings.</p>}
+              {integration.credentialNote && <p>{integration.credentialNote}.</p>}
               <p>
                 Set it up with <code>toil connections add</code>, which keeps it in your operating system's credential store with only a reference
                 in your toil config, or pass it as an environment variable, which always wins and is the way in for CI. It is never kept in the

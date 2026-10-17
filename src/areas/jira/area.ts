@@ -52,10 +52,10 @@ export const jiraArea = defineArea({
   secrets: ['apiToken'],
 });
 
-/** Not established yet; see the note. The skill file and the site's integration data say the same. */
+/** The floor the credential sets; no release has been verified yet. The skill file and the site's integration data say the same. */
 export const jiraSupported: SupportedVersion = {
   product: 'Jira Data Center',
-  minimum: null,
+  minimum: '8.14',
   api: 'REST API 2 and Agile REST API 1.0',
-  note: 'toil authenticates with a personal access token, which Jira Data Center added in 8.14, so no older server can work.',
+  note: 'toil authenticates with a personal access token, which Jira Data Center added in 8.14. No release has been verified yet.',
 };

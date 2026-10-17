@@ -8,7 +8,7 @@
       ],
       "old": "jira schema --example-only printing the bare example with no envelope",
       "toil": "The flag stays; the example comes back as data in the usual envelope, so with the flag data is the example itself, not { schema, example }. Save .data to use it as an --input-file",
-      "why": "Every command writes exactly one envelope, so an agent never has to guess which shape stdout holds.",
+      "why": "Every command writes exactly one envelope, so an agent never has to guess which shape stdout holds. Divergences are checked per example, so the allowed fields are excused on every jira schema call, with or without the flag.",
       "principle": "Output Contract"
     },
     {

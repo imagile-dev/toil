@@ -29,7 +29,7 @@ export interface Integration {
   keys?: string[];
   /** Where in the vendor's UI the credential is made. Only paths we're sure of. */
   credentialWhere?: string;
-  /** A fact about the credential worth a line in docs/integrations.md (a CI fallback, a shared key). */
+  /** One more sentence about the credential (a CI fallback, a shared key), shown under Credential on the docs page. No closing full stop. */
   credentialNote?: string;
   supported?: SupportedVersion;
 }

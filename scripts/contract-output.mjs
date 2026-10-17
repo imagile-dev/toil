@@ -15,7 +15,7 @@
 // Used by capture-command-contract.mjs (--source <repo>); not run on its own.
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
@@ -26,7 +26,9 @@ const DEPTH = 2;
  * @param {string} repo the predecessor's checkout: tsconfig.json, src/ and node_modules/
  * @returns {Map<string, Array<{ fields: string[] } | { opaque: string }>>} command path to its output variants
  */
-export function captureOutput(repo) {
+export function captureOutput(source) {
+  // The checker reports absolute file names, so a relative --source has to be made absolute to match them.
+  const repo = resolve(source);
   const configPath = join(repo, 'tsconfig.json');
   const parsed = ts.parseJsonConfigFileContent(ts.readConfigFile(configPath, (p) => readFileSync(p, 'utf8')).config, ts.sys, dirname(configPath));
   const program = ts.createProgram({ rootNames: parsed.fileNames.filter((f) => !/\.test\.ts$/.test(f)), options: parsed.options });
@@ -185,5 +187,6 @@ export function captureOutput(repo) {
       out.set(path, list);
     }
   }
+  if (out.size === 0) throw new Error(`No success(...) calls found under ${join(repo, 'src')}; is --source the predecessor's checkout?`);
   return out;
 }

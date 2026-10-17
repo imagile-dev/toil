@@ -7,7 +7,9 @@
 //   npm --prefix site run dev                     # in another terminal
 //   node scripts/shoot.mjs docs/integrations/jira/ integrations/
 //   (no leading slash, so Git Bash on Windows leaves the paths alone)
-//   node scripts/shoot.mjs --base http://localhost:4321/toil --out .shots   # the home page
+//   node scripts/shoot.mjs --base http://localhost:4321/toil --out <dir>   # the home page
+//
+// Shots go to <os temp>/toil-shots unless --out says otherwise: scratch stays out of the repo.
 //
 // Widths are set through the DevTools protocol, so a 375px page doesn't need
 // the iframe trick headless windows on Windows otherwise require. Reduced
@@ -28,7 +30,7 @@ const take = (flag, fallback) => {
   return at >= 0 ? args.splice(at, 2)[1] : fallback;
 };
 const base = take('--base', 'http://localhost:4321/toil').replace(/\/$/, '');
-const out = take('--out', '.shots');
+const out = take('--out', join(tmpdir(), 'toil-shots'));
 const pages = args.length > 0 ? args : ['/'];
 
 const WIDTHS = [
@@ -101,10 +103,10 @@ function connect(url) {
         pending.set(msgId, { resolve, reject });
         ws.send(JSON.stringify({ id: msgId, method, params, ...(sessionId ? { sessionId } : {}) }));
       }),
-    once: (method, sessionId) =>
+    once: (method, sessionId, match = () => true) =>
       new Promise((resolve) => {
         const l = (msg) => {
-          if (msg.method === method && msg.sessionId === sessionId) {
+          if (msg.method === method && msg.sessionId === sessionId && match(msg.params)) {
             listeners.splice(listeners.indexOf(l), 1);
             resolve(msg.params);
           }
@@ -121,8 +123,13 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 async function shoot(cdp, sessionId, url, { width, mobile }, file) {
   await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile }, sessionId);
   const loaded = cdp.once('Page.loadEventFired', sessionId);
-  await cdp.send('Page.navigate', { url }, sessionId);
-  await loaded;
+  const response = cdp.once('Network.responseReceived', sessionId, (p) => p.type === 'Document');
+  const nav = await cdp.send('Page.navigate', { url }, sessionId);
+  if (nav.errorText) throw new Error(`${url}: ${nav.errorText}`);
+  const timeout = (ms, what) => new Promise((_, reject) => setTimeout(() => reject(new Error(`${url}: no ${what} after ${ms / 1000}s`)), ms).unref());
+  const { response: doc } = await Promise.race([response, timeout(30000, 'response')]);
+  if (doc.status >= 400) throw new Error(`${url}: HTTP ${doc.status}`);
+  await Promise.race([loaded, timeout(30000, 'load event')]);
   await cdp.send('Runtime.evaluate', { expression: 'document.fonts.ready', awaitPromise: true }, sessionId);
   await wait(300);
   const { result } = await cdp.send('Runtime.evaluate', { expression: 'JSON.stringify([document.documentElement.scrollWidth, document.documentElement.scrollHeight])', returnByValue: true }, sessionId);
@@ -147,6 +154,7 @@ async function main() {
     const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
     const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
     await cdp.send('Page.enable', {}, sessionId);
+    await cdp.send('Network.enable', {}, sessionId);
     await cdp.send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] }, sessionId);
     for (const page of pages) {
       const url = `${base}${page.startsWith('/') ? page : `/${page}`}`;

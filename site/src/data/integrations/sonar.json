@@ -5,7 +5,7 @@
   "order": 1,
   "covers": "Quality gates, issues, hotspots, measures",
   "credential": "User token",
-  "credentialNote": "SONAR_TOKEN fallback",
+  "credentialNote": "SONAR_TOKEN, the variable SonarSource's own scanner reads, is used when no toil token is set",
   "credentialWhere": "My Account → Security → Generate Tokens",
   "status": "planned"
 }

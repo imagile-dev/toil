@@ -32,7 +32,7 @@ toil may add commands, flags and output fields.
 | Area | In scope | Notes |
 |------|----------|-------|
 | Every integration (`jira`, `bitbucket`, `github`, `confluence`, `sonar`, `sde`, `ado`, `jenkins`, `artifactory`, `checkmarx`, `contrast`, `sonatypeiq`, `openshift`, `dynatrace`, `logscale`, `elasticsearch`, `kibana`, `splitio`, `figma`, `alation`, `saucelabs`) | Yes | Exact match |
-| `git` | Yes | Exact match, implemented in pure JS (reading `.git` directly or through a pure-JS git library), apart from `git credentials`, below |
+| `git` | Yes | Exact match, apart from the divergences in `docs/divergences/git.json`. The commands spawn git, the one optional exception (decision 1 on #68), and return `GIT_NOT_FOUND` without it; the repo root, branch and remotes are read in pure JS |
 | `jwt` | Yes | Exact match |
 | `deps` | Yes | Two divergences, below |
 | `config` | No | Rebuilt around the OS credential store. `config import` migrates the old global config once. |

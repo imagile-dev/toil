@@ -2,11 +2,44 @@
   "scope": "git",
   "divergences": [
     {
-      "allows": ["git credentials"],
+      "allows": [
+        "git credentials"
+      ],
       "old": "git credentials and its subcommands (inspect, mappings, stored, forget)",
       "toil": "Removed. Use git's own git credential commands; toil checks its own credentials per area with config test",
       "why": "They work by asking the git binary (git credential fill/reject, ls-remote) for stored credentials, which toil never handles.",
       "principle": "1"
+    },
+    {
+      "allows": [],
+      "old": "git diff, git log and git report returning an empty result when git can't run at all",
+      "toil": "With no runnable git on PATH they fail with GIT_NOT_FOUND, exit code 1, and a fix saying to install git or put it on PATH. Any other git failure keeps the predecessor's behavior (an empty result where it gave one)",
+      "why": "A missing git has to be an unmistakable error, never an empty diff or history that reads as \"nothing changed\" (maintainer, 2026-10-17, #68).",
+      "principle": "4"
+    },
+    {
+      "allows": [
+        
+      ],
+      "old": "git report --csv printing raw CSV to stdout instead of the envelope",
+      "toil": "--csv writes the CSV to a file in the workspace named with --out <file>, never overwriting, and data returns the saved absolute path",
+      "why": "Every command writes exactly one envelope; CSV goes to a file only (decision 4 on #68).",
+      "principle": "Output Contract"
+    },
+    {
+      "allows": [],
+      "old": "git diff and git log running with the repository's own diff and fsmonitor settings",
+      "toil": "git runs with --no-ext-diff, --no-textconv, -c core.fsmonitor= and no pager, so diff and log output can differ in a repository that configures an external diff driver, a textconv filter or fsmonitor",
+      "why": "Those settings let a repository's config run programs of its choosing when toil runs git (decision 1 on #68).",
+      "principle": "1",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "git current-pr under the git area",
+      "toil": "bitbucket current-pr; git current-pr stays as an alias to it",
+      "why": "It asks Bitbucket, not git, so it belongs to the area that talks to Bitbucket (decision 1 on #68).",
+      "principle": "decision"
     }
   ]
 }

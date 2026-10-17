@@ -207,22 +207,24 @@ for (const suite of suites) {
 
         it(`${commandName(def)}: WRITE_DISABLED on the CLI when writes are off, before any request`, async () => {
           const { context, http } = testContext({ config: withoutWrites(suite.fixture.config, area), routes: suite.fixture.routes, files: suite.fixture.files });
-          const run = await runCli(argvFor(def, example), { commands: suite.commands, context });
+          const { result: run, operations } = await recordOperations(() => runCli(argvFor(def, example), { commands: suite.commands, context }));
           expect(run.envelope?.error?.code).toBe('WRITE_DISABLED');
           expect(run.exitCode).toBe(1);
           expect(http.calls).toHaveLength(0);
+          expect(operations).toHaveLength(0);
         });
 
         it(`${commandName(def)}: refused without allowWrite through both doors, even with writes on`, async () => {
           const cli = testContext({ config: suite.fixture.config, routes: suite.fixture.routes, files: suite.fixture.files });
-          const viaCli = await runCli(argvFor(def, withoutFlag), { commands: suite.commands, context: cli.context });
+          const { result: viaCli, operations: cliOps } = await recordOperations(() => runCli(argvFor(def, withoutFlag), { commands: suite.commands, context: cli.context }));
           const { session, http } = await mcpFor(suite.commands, suite.fixture.config, suite.fixture.routes, suite.fixture.files);
-          const viaMcp = await session.call(toolName(def), withoutFlag);
+          const { result: viaMcp, operations: mcpOps } = await recordOperations(() => session.call(toolName(def), withoutFlag));
 
           expect(viaCli.envelope?.error?.code).toBe('WRITE_DISABLED');
           expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));
           expect(viaMcp.isError).toBe(true);
           expect([...cli.http.calls, ...http.calls]).toHaveLength(0);
+          expect([...cliOps, ...mcpOps]).toHaveLength(0);
         });
       }
     }
@@ -236,24 +238,26 @@ describe('choosing a connection, through both front doors', () => {
 
     it(`${f.area}: --connection <name> gives the same envelope and requests as MCP's connection field`, async () => {
       const cli = testContext({ config: f.config, routes: f.routes, files: f.files });
-      const viaCli = await runCli([...argvFor(def, example), '--connection', f.area], { commands: f.commands, context: cli.context });
+      const { result: viaCli, operations: cliOps } = await recordOperations(() => runCli([...argvFor(def, example), '--connection', f.area], { commands: f.commands, context: cli.context }));
       const { session, http } = await mcpFor(f.commands, f.config, f.routes, f.files);
-      const viaMcp = await session.call(toolName(def), { ...example, connection: f.area });
+      const { result: viaMcp, operations: mcpOps } = await recordOperations(() => session.call(toolName(def), { ...example, connection: f.area }));
 
       expect(viaCli.envelope?.ok, viaCli.stdout).toBe(true);
       expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));
       expect(http.calls).toEqual(cli.http.calls);
+      expect(mcpOps).toEqual(cliOps);
     });
 
     it(`${f.area}: an unknown connection is INVALID_INPUT on both sides, before any request`, async () => {
       const cli = testContext({ config: f.config, routes: f.routes, files: f.files });
-      const viaCli = await runCli([...argvFor(def, example), '--connection', 'no-such-connection'], { commands: f.commands, context: cli.context });
+      const { result: viaCli, operations: cliOps } = await recordOperations(() => runCli([...argvFor(def, example), '--connection', 'no-such-connection'], { commands: f.commands, context: cli.context }));
       const { session, http } = await mcpFor(f.commands, f.config, f.routes, f.files);
-      const viaMcp = await session.call(toolName(def), { ...example, connection: 'no-such-connection' });
+      const { result: viaMcp, operations: mcpOps } = await recordOperations(() => session.call(toolName(def), { ...example, connection: 'no-such-connection' }));
 
       expect(viaCli.envelope?.error?.code).toBe('INVALID_INPUT');
       expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));
       expect([...cli.http.calls, ...http.calls]).toHaveLength(0);
+      expect([...cliOps, ...mcpOps]).toHaveLength(0);
     });
   }
 });

@@ -5,6 +5,6 @@
   "order": 6,
   "covers": "Status, diff, log, branch, current PR",
   "credential": "None — local",
-  "credentialNote": "Pure JS, no server",
+  "credentialNote": "No server. The commands run git, the one optional exception to running no other program; the repo root, branch and remotes are read in pure JS",
   "status": "planned"
 }

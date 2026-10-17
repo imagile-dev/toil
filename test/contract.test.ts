@@ -50,10 +50,20 @@ describe('migration command contract', () => {
   });
 
   it('allows only identifiers the contract has, so a misspelt entry is noticed', () => {
-    const globals = contract.globalOptions.map((o) => o.flags.split(/[ ,]+/).find((f) => f.startsWith('--'))!);
-    const paths = new Set(contract.commands.map((c) => c.command));
-    const unknown = [...allowed].filter((id) => !globals.includes(id) && !paths.has(id.split(/ (?=--|data\.)/)[0]!));
-    expect(unknown).toEqual([]);
+    const long = (flags: string) => flags.split(/[ ,]+/).find((f) => f.startsWith('--'))!;
+    const globals = contract.globalOptions.map((o) => long(o.flags));
+    const byPath = new Map(contract.commands.map((c) => [c.command, c]));
+    const known = (id: string): boolean => {
+      if (id.startsWith('--')) return globals.includes(id);
+      const [path, rest] = id.split(/ (?=--|data\.)/) as [string, string | undefined];
+      const entry = byPath.get(path);
+      if (!entry) return false;
+      if (rest === undefined) return true;
+      if (rest.startsWith('--')) return entry.options.some((o) => long(o.flags) === rest);
+      const field = rest.slice('data.'.length);
+      return (entry.output ?? []).some((v) => 'fields' in v && v.fields.some((f) => f.replace(/\?$/, '') === field));
+    };
+    expect([...allowed].filter((id) => !known(id))).toEqual([]);
   });
 
   it('parses positional arguments from usage lines', () => {
@@ -186,5 +196,7 @@ describe('the output diff bites', () => {
     expect(present({ a: [] }, 'a[].b')).toBe(true);
     expect(present({}, 'a')).toBe(false);
     expect(present({ a: 'x' }, 'a.b')).toBe(false);
+    // JSON drops an undefined field, so a caller never sees it.
+    expect(present({ a: undefined }, 'a')).toBe(false);
   });
 });

@@ -5,7 +5,7 @@
   "order": 4,
   "covers": "Dashboards, data views, alerting rules",
   "credential": "API key",
-  "credentialNote": "Shared with Elasticsearch",
+  "credentialNote": "A Kibana connection can pair with an Elasticsearch connection and use its API key, by naming it in apiKeyFrom",
   "credentialWhere": "Stack Management → API keys",
   "status": "planned"
 }

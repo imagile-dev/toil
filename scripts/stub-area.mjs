@@ -37,8 +37,8 @@ export function argsOf(usage) {
 }
 
 // A guess from the verb, to be checked against the predecessor: does the old command change anything?
-const WRITE_VERBS =
-  /^(create|update|delete|remove|add|set|merge|decline|approve|unapprove|needs|transition|assign|link|log|upload|run|cancel|stop|toggle|kill|restore|archive|reply|resolve|enable|disable|enqueue|close|reopen|convert|ready|request|abandon|wait|install|uninstall|launch|start|end|batch|properties-set|forget|purge|sync)/;
+export const WRITE_VERBS =
+  /^(create|update|delete|remove|add|set|merge|decline|approve|unapprove|needs|transition|assign|link|log-work|upload|run|cancel|stop|toggle|kill|restore|archive|reply|resolve|enable|disable|enqueue|close|reopen|convert|ready|request|abandon|wait|install|uninstall|launch|start|end|batch|properties-set|forget|purge|sync)(?:-|$)/;
 
 const camel = (name) => name.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
 const quote = (text) => `'${String(text).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;

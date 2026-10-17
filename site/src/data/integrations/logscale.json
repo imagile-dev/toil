@@ -3,7 +3,7 @@
   "name": "Falcon LogScale",
   "group": "observability",
   "order": 2,
-  "covers": "Log queries, repositories, saved searches",
+  "covers": "Log queries, repositories",
   "credential": "API token",
   "status": "planned"
 }

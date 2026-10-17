@@ -222,6 +222,8 @@ export function present(value: unknown, path: string): boolean {
     if (segment === '[]') return Array.isArray(at) && at.every((item) => walk(item, i + 1));
     if (at === null || typeof at !== 'object' || Array.isArray(at) || !(segment in at)) return false;
     const next = (at as Record<string, unknown>)[segment];
+    // JSON.stringify drops an undefined field, so the envelope never carries it.
+    if (next === undefined) return false;
     return next === null ? true : walk(next, i + 1);
   };
   return walk(value, 0);
