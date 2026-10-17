@@ -273,7 +273,7 @@ describe('--env', () => {
   const connections = {
     prod: { baseUrl: CLASSIC, apiToken: 'prod-token' },
     staging: { baseUrl: 'https://dynatrace.imagile.dev/e/abc12345', apiToken: 'staging-token' },
-    eu: { baseUrl: 'https://abc12345.live.dynatrace.com/e/eu', apiToken: 'eu-token', env: 'europe' },
+    eu: { baseUrl: 'https://dynatrace.imagile.dev/e/eu', apiToken: 'eu-token', env: 'europe' },
   };
   const defaults = { dynatrace: { connection: 'prod' } };
 
