@@ -25,7 +25,8 @@ import type { SecretStore } from './keychain.js';
  * `meta.context`. Four sources, one order, no committee.
  *
  * The git step runs only where a reader is supplied (`Context.gitRemote`);
- * none is wired into the shipped CLI yet. The dossier step is empty until #16.
+ * the shipped CLI supplies one that reads `.git` in pure JS (src/core/git-repo.ts).
+ * The dossier step is empty until #16.
  */
 
 /** A git remote as the reader hands it over: the area parses the URL. */

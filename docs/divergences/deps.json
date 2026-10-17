@@ -21,7 +21,15 @@
       "allows": [],
       "old": "deps scan always scanning from the repository root, even from a subdirectory",
       "toil": "deps scan reads only inside the workspace folder: when the repository root is above the workspace, it scans the workspace subtree. Run it from the repository root, or pass --workspace <root>, to scan the whole repository",
-      "why": "Files a command reads stay inside the workspace; only .git metadata may be read above it (decisions 2 and 3 on #68, docs/bounds.md).",
+      "why": "Files a command reads stay inside the workspace; only .git metadata may be read above it (decision 2 on #68, docs/bounds.md).",
+      "principle": "2",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "deps scan finding files the way git ls-files --cached --others --exclude-standard does, global excludes included",
+      "toil": "The listing (ctx.files.list) applies .gitignore files and .git/info/exclude but not core.excludesFile or the default ~/.config/git/ignore, so a file only those ignore is listed",
+      "why": "Reading above the workspace is limited to .git, the global git config and its includes, and parent .gitignore files (docs/bounds.md, git.read-up; #68 decision 7).",
       "principle": "2",
       "class": "security"
     }

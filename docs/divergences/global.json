@@ -3,6 +3,14 @@
   "divergences": [
     {
       "allows": [],
+      "old": "File arguments (--input-file, --jql-file, --fields-file, --file, --dir, @file values) reading or writing any path the OS user can reach",
+      "toil": "A path outside the workspace (--workspace, TOIL_WORKSPACE, the CLI's working directory, or the MCP client's single root) is refused with INVALID_INPUT, after resolving .., symlinks and junctions; relative paths resolve against the workspace. A user can lift this one with \"bounds\": { \"files\": \"unbounded\" } in their config (docs/bounds.md)",
+      "why": "A path an agent passes, perhaps from a prompt in an issue, must not reach files the user never pointed toil at.",
+      "principle": "2",
+      "class": "security"
+    },
+    {
+      "allows": [],
       "old": "File arguments (--input-file, --jql-file, --fields-file, --file, --dir, @file values) reading or writing any path",
       "toil": "A path at or under ~/.toil/ or the --config file, or under /proc/ or /sys/, is refused with INVALID_INPUT, after resolving .., symlinks and junctions",
       "why": "A path an agent passes must not turn a read into a way to send toil's config or the environment's tokens to a service's host.",
@@ -10,7 +18,17 @@
       "class": "security"
     },
     {
-      "allows": ["--dry-run"],
+      "allows": [],
+      "old": "Global --output-file replacing a file that already exists, or writing toil's own files or under /proc or /sys",
+      "toil": "Refused with INVALID_INPUT, and the error envelope goes to stdout with exit code 1; the existing file is left alone. It may still write outside the workspace (docs/bounds.md, output-file)",
+      "why": "An agent driving the CLI must not be able to overwrite toil's config, or any file, with an envelope.",
+      "principle": "2",
+      "class": "security"
+    },
+    {
+      "allows": [
+        "--dry-run"
+      ],
       "old": "Global --dry-run",
       "toil": "Removed. Run the command without --allow-write, which refuses the write",
       "why": "It could only intercept writes made over HTTP, showed only the first of several, and saw little use. Writes are governed by the two-step gate (writes enabled in config plus --allow-write) alone.",
