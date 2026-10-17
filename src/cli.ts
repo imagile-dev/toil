@@ -34,7 +34,8 @@ const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSi
     signal,
     // Under `toil mcp` stdin carries the protocol, so `-` can't mean it, and
     // the workspace comes from the flag, the env or the client's one root.
-    stdin: !mcp,
+    // On an interactive terminal nothing is piped in, so `-` refuses rather than waits.
+    stdin: mcp ? false : process.stdin.isTTY ? 'terminal' : true,
     roots,
     env: process.env,
     cwd: process.cwd(),

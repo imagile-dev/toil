@@ -76,7 +76,12 @@ versions.
    is too old uses `serverTooOld()` from `src/core/supported.ts`, so its message says so and names
    the minimum.
 7. **Contract**: `test/contract.test.ts` checks paths, flags and output field names.
-   Anything a principle makes you change goes in `docs/divergences/<area>.json`.
+   Anything a principle makes you change goes in `docs/divergences/<area>.json`. A
+   contract command toil drops altogether (`git credentials`) is an entry with
+   `"removed": true` listing its paths: the test then accepts their absence and fails
+   if one is still registered, and the stub generator leaves them out. A group flag
+   (`bitbucket --project`) satisfies a contract leaf flag of the same spelling, so
+   moving a target flag to the group needs no divergence.
 8. **Docs**: `npx vitest run -u` writes `site/src/data/commands/<area>.json` and
    `site/src/data/settings/<area>.json`; set the
    board entry's `status` to `unit`; review the docs page and take its screenshots
@@ -141,6 +146,52 @@ versions.
 - **A path the old CLI had in another group** (`deps outdated`, now `artifactory
   outdated`) is an `aliases` entry on the new command; the contract test checks the
   old row against it.
+- **A path in the area that a core command answers** (`jenkins instance list`, which
+  lists the area's connections) is `defineArea({ coreAliases: { 'instance list':
+  'connections list' } })`. Core registers it as an alias of `connections list
+  --area jenkins`, with no `--area` flag of its own, so the area's code never sees the
+  config. The target must be a core command that takes an `area` input. MCP has the
+  core tool, with its `area` field.
+- **An error code the area needs** (`JENKINS_BUILD_FAILED`) goes into core's
+  `ErrorCode` list in `src/core/errors.ts`, with a one-line comment, the way
+  `DATABASE` and `GIT_NOT_FOUND` did. Codes are an open set to callers, not to the
+  type: the list keeps a misspelt code a type error, so there's no cast and no
+  escape hatch. Prefer an existing code when one fits.
+- **A success the old CLI exited non-zero on** (`jenkins pipeline run --wait` on a
+  failed build) calls `ctx.setExitCode(1)` and returns its data. The envelope stays
+  `ok: true` with the same `data`; the CLI exits 1; MCP returns the same envelope and
+  doesn't mark it as an error. Never turn such a success into an error envelope.
+- **A command an agent must never call** (a delete) sets `mcp: false`. It keeps its
+  connection, context, write gate and time limit on the CLI, is never an MCP tool,
+  and its docs page marks it CLI only. The parity suite runs its examples and write
+  gate on the CLI.
+- **A command the old CLI ran with the service unconfigured** (`git current-pr`
+  answering that Bitbucket isn't set up) sets `connectionOptional: true`. When the
+  area has no connection and the call names none, `run` gets `ctx.connection`
+  undefined and no context inputs, and answers itself; any other connection problem
+  still fails as usual. Only for a read with no required context input.
+- **The working repository** (root, current branch, remote URLs) is `ctx.repo()`,
+  read from `.git` in pure JS; it spawns nothing and needs no git. Use `ctx.git` only
+  for a command that is git.
+- **A git remote parser** gets the call's resolved connection as its second
+  argument, so it accepts only a remote on the connection's own host
+  (`connection.baseUrl`). An input that `selectsConnection` is read before there is a
+  connection, and gets `undefined`.
+- **Reading stdin** (`ctx.files.readText('-')`, or an inventory read with no
+  `--from`) needs nothing more: on an interactive terminal core refuses at once with
+  `INVALID_INPUT` ("Nothing was piped in"), and over MCP `-` refuses too. Never wait
+  on a terminal.
+- **A required key whose value is the same for everyone** (Figma's `baseUrl`,
+  `https://api.figma.com`) gets `defineArea({ examples: { baseUrl: '…' } })`. The
+  not-configured and missing-key fixes then say `Set TOIL_FIGMA_BASE_URL (e.g.
+  https://api.figma.com)`. It's text for a person, never a default: toil still has
+  no hardcoded host.
+- **A plain-text error body** (LogScale's query errors) needs nothing: `apiRequest`
+  puts its trimmed text after the status (`HTTP 400: <text>`), capped and with URLs
+  redacted. A JSON body is read as before.
+- **A negated flag** (`--no-with-replies`) maps to its field (`withReplies`) with a
+  `.default(true)` schema, since commander sets it true unless the flag is given;
+  the parity suite sends `--no-<flag>` for `false`.
 - **Engines or variants** whose connections need different keys use `variants`, not a
   hand-built `superRefine`. A password (a database) goes in `secrets` as `{ password:
   'password' }`; a token is the default.

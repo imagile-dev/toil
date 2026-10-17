@@ -1,13 +1,13 @@
-import { alreadyExists, DEFAULT_LIST_LIMIT, forwardSlashes, readFailed, STDIN_OVER_MCP, toCsv, tooManyFiles, type FileAccess } from '../../src/core/files.js';
+import { alreadyExists, DEFAULT_LIST_LIMIT, forwardSlashes, readFailed, STDIN_IS_TERMINAL, STDIN_OVER_MCP, toCsv, tooManyFiles, type FileAccess } from '../../src/core/files.js';
 import { isIgnored, parseIgnore, type IgnoreRule } from '../../src/core/gitignore.js';
 
 /**
  * In-memory files for tests, rooted at `/work`, which is also the workspace.
- * `-` reads `stdin` when one is given. `written` records every write, so a
+ * `-` reads `stdin` when one is given, and refuses as a terminal would with `{ terminal: true }`. `written` records every write, so a
  * test can assert what landed where. A filing system with no cabinet, and
  * therefore no key to lose.
  */
-export function memoryFiles(initial: Record<string, string | Uint8Array> = {}, options: { stdin?: string; cwd?: string } = {}): FileAccess & { written: Record<string, Uint8Array> } {
+export function memoryFiles(initial: Record<string, string | Uint8Array> = {}, options: { stdin?: string | { terminal: true }; cwd?: string } = {}): FileAccess & { written: Record<string, Uint8Array> } {
   const cwd = options.cwd ?? '/work';
   const at = (path: string) => {
     const p = forwardSlashes(path);
@@ -20,6 +20,7 @@ export function memoryFiles(initial: Record<string, string | Uint8Array> = {}, o
   const read = (path: string): Uint8Array => {
     if (path === '-') {
       if (options.stdin === undefined) throw STDIN_OVER_MCP;
+      if (typeof options.stdin !== 'string') throw STDIN_IS_TERMINAL;
       return new TextEncoder().encode(options.stdin);
     }
     const found = store.get(at(path));

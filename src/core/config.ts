@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { ToilError } from './errors.js';
+import { ToilError, withArticle } from './errors.js';
 
 /**
  * Configuration is a set of named **connections**, each one instance of a
@@ -329,7 +329,7 @@ function fromVersion2(raw: Record<string, unknown>, path: string, warnings: Reso
   for (const [area, settings] of Object.entries(rawDefaults as Record<string, Settings>)) {
     const named = settings.connection;
     if (named !== undefined && (typeof named !== 'string' || connections[named]?.area !== area)) {
-      throw new ToilError('CONFIG_INVALID', `"defaults.${area}.connection" in ${path} names ${JSON.stringify(named)}, which isn't a ${area} connection.`, {
+      throw new ToilError('CONFIG_INVALID', `"defaults.${area}.connection" in ${path} names ${JSON.stringify(named)}, which isn't ${withArticle(area)} connection.`, {
         fix: `Set it to one of: ${Object.keys(connections).filter((n) => connections[n]!.area === area).join(', ') || `(no ${area} connections yet)`}.`,
       });
     }
@@ -457,7 +457,7 @@ function createEnvConnections(config: ResolvedConfig, env: NodeJS.ProcessEnv): v
     }
     const existing = config.connections[connection];
     if (existing && existing.area !== value) {
-      throw new ToilError('CONFIG_INVALID', `${name}=${value} conflicts with connection "${connection}", which is a ${existing.area} connection.`, {
+      throw new ToilError('CONFIG_INVALID', `${name}=${value} conflicts with connection "${connection}", which is ${withArticle(existing.area)} connection.`, {
         fix: `Remove ${name}, or rename one of the two connections.`,
       });
     }

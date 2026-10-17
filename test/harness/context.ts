@@ -1,5 +1,6 @@
 import type { ResolvedConfig, Settings } from '../../src/core/config.js';
 import type { Context } from '../../src/core/context.js';
+import type { GitContext } from '../../src/core/git-repo.js';
 import type { SecretStore } from '../../src/core/keychain.js';
 import type { Prompter } from '../../src/core/prompt.js';
 import { fakeFetch, type FakeFetch, type Route } from './fake-fetch.js';
@@ -28,9 +29,12 @@ export interface TestContextOptions {
   routes?: Route[];
   verbose?: boolean;
   files?: Record<string, string | Uint8Array>;
-  stdin?: string;
+  /** What `-` reads; `{ terminal: true }` for an interactive terminal, where it refuses. */
+  stdin?: string | { terminal: true };
   /** The credential store `keychain:` references resolve against; `fakeStore()` in tests. Absent, a reference resolves to unset. */
   secrets?: SecretStore;
+  /** The repository `ctx.repo()` reports; absent, as outside one. */
+  repo?: GitContext;
   /** A scripted terminal, for the CLI-only commands that ask a person (`scriptedPrompter()`). Absent, as under MCP or in CI. */
   prompt?: Prompter;
 }
@@ -53,6 +57,7 @@ export function testContext(options: TestContextOptions = {}): { context: Contex
     debug: () => {},
     ...(options.secrets ? { secrets: options.secrets } : {}),
     ...(options.prompt ? { prompt: options.prompt } : {}),
+    ...(options.repo ? { repo: () => options.repo } : {}),
   };
   return { context, http, files };
 }
