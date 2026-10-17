@@ -1,11 +1,11 @@
 import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DURATION, logoFrame, sceneAt, SIGNALS, SPIN } from '../src/welcome/logo.js';
+import { DURATION, logoCells, logoFrame, sceneAt, SIGNALS, SPIN } from '../src/welcome/logo.js';
 import { initialState, reduce, render, type MenuState } from '../src/welcome/menu.js';
 import { agentScreen, connectionsScreen, healthScreen, type WelcomeData } from '../src/welcome/screens.js';
 import { launchCommand } from '../src/welcome/data.js';
 import { playSplash, SPEED, splashFrame, TAGLINE } from '../src/welcome/splash.js';
-import { detectCaps, visibleLength } from '../src/welcome/term.js';
+import { detectCaps, PALETTE, visibleLength } from '../src/welcome/term.js';
 import { CTRL_C_WINDOW_MS, doubleTap, runWelcome, wantsWelcome } from '../src/welcome/index.js';
 import { testConfig } from './harness/context.js';
 
@@ -83,6 +83,22 @@ describe('the logo', () => {
     expect(SIGNALS[0] + 0.5).toBeLessThan(SIGNALS[1]);
     expect(firing(SIGNALS[1] + 0.15)).toBe(true);
     expect(firing(DURATION + 1)).toBe(false);
+  });
+
+  it('shows no comet before the ring is visibly turning, and a full one at speed', () => {
+    // Regression: the comet used to appear at full length the instant the
+    // spin began, while the eased spin hadn't moved yet: a bar, not a motion.
+    const justStarted = SPIN.from + 0.04;
+    expect(sceneAt(justStarted).spinSpeed).toBeLessThan(0.1);
+    // The top of the ring (above the tools) holds no amber until it's moving.
+    const amberOnTop = (t: number) =>
+      logoCells(t, color)
+        .slice(0, 3)
+        .flat()
+        .some((c) => c.color?.join() === PALETTE.amber.join());
+    expect(amberOnTop(justStarted)).toBe(false);
+    expect(amberOnTop(SPIN.from - 0.02)).toBe(false);
+    expect(sceneAt((SPIN.from + SPIN.to) / 2).spinSpeed).toBeCloseTo(1, 1);
   });
 
   it('then spins the ring and branches twice, and lands exactly where it started', () => {

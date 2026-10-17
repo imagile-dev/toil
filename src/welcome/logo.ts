@@ -68,6 +68,11 @@ const easeInOut = (v: number) => {
   const x = clamp(v);
   return x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2;
 };
+/** easeInOut's rate of change, scaled so its peak (mid-spin) is 1. */
+const easeInOutSpeed = (v: number) => {
+  const x = clamp(v);
+  return (x < 0.5 ? 12 * x * x : 12 * (1 - x) ** 2) / 3;
+};
 /** Overshoots a little, then settles: how the tools pop onto the ring. */
 const backOut = (v: number) => {
   const x = clamp(v);
@@ -94,6 +99,8 @@ interface Scene {
   body: number;
   /** Rotation of the ring, its branches and tools, in radians. The terminal stays put. */
   spin: number;
+  /** How fast it's turning, 0 at rest to 1 at full speed; sizes the comet. */
+  spinSpeed: number;
 }
 
 /** The scene at time t; see the timeline constants above. */
@@ -120,6 +127,7 @@ export function sceneAt(t: number): Scene {
     // Whole turns land exactly at rest: 4π in floating point is close enough
     // to nudge a pixel across a cell, and "close enough" isn't a sign-off.
     spin: t > SPIN.from && t < SPIN.to ? easeInOut((t - SPIN.from) / (SPIN.to - SPIN.from)) * SPIN.turns * Math.PI * 2 : 0,
+    spinSpeed: t > SPIN.from && t < SPIN.to ? easeInOutSpeed((t - SPIN.from) / (SPIN.to - SPIN.from)) : 0,
   };
 }
 
@@ -175,10 +183,13 @@ function draw(scene: Scene): Canvas {
     c.dab(CENTER + Math.cos(a) * RING, CENTER + Math.sin(a) * RING, 0.9, line);
   }
 
-  // While it spins, a bright comet rides the ring so the turn reads at a glance.
-  if (scene.spin > 0 && scene.spin < SPIN.turns * Math.PI * 2) {
+  // While it spins, a bright comet rides the ring so the turn reads at a
+  // glance. Its length follows the speed: it grows as the ring picks up and
+  // fades as it settles, so it never sits there while nothing moves.
+  const tail = 1.1 * scene.spinSpeed;
+  if (tail > 0.12) {
     for (let s = 0; s <= 40; s++) {
-      const a = -Math.PI / 2 + scene.spin - (s / 40) * 0.9;
+      const a = -Math.PI / 2 + scene.spin - (s / 40) * tail;
       c.dab(CENTER + Math.cos(a) * RING, CENTER + Math.sin(a) * RING, s < 12 ? 1.3 : 1, (x, y) => c.plot(x, y, Layer.Signal));
     }
   }
