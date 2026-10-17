@@ -118,7 +118,7 @@ describe('the request hook', () => {
       ],
       { path: '/download' },
     );
-    expect(envelope.error).toMatchObject({ code: 'HTTP', message: expect.stringContaining('https://cdn.imagile.dev'), details: { location: 'https://cdn.imagile.dev/blob?sig=%5Bredacted%5D' } });
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: expect.stringContaining('https://cdn.imagile.dev'), details: { location: 'https://cdn.imagile.dev/blob?sig=[redacted]' } });
     expect(calls.map((c) => c.url)).toEqual([`${HOST}/download`]);
     expect(calls.every((c) => new URL(c.url).origin === HOST)).toBe(true);
   });

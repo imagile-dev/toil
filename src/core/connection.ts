@@ -36,7 +36,7 @@ export async function resolveConnection(
       const required = requiredKeys(area.connection);
       throw new ToilError('NOT_CONFIGURED', `No ${area.name} connection is set up.`, {
         fix: required.length
-          ? `Set ${required.map((k) => envName(area.name, k)).join(' and ')}, or add a ${area.name} connection to your toil config.`
+          ? `Set ${required.map((k) => defaultVar(area, k)).join(' and ')}, or add a ${area.name} connection to your toil config.`
           : `Add a ${area.name} connection to your toil config.`,
       });
     }
@@ -84,7 +84,7 @@ export async function resolveConnection(
   if (!parsed.success) {
     const keys = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? '')).filter(Boolean))];
     const isDefault = defaultConnectionName(config, area.name) === name;
-    const vars = keys.map((k) => (isDefault ? envName(area.name, k) : connectionEnvName(name, k)));
+    const vars = keys.map((k) => (isDefault ? defaultVar(area, k) : connectionEnvName(name, k)));
     throw new ToilError('CONFIG_INVALID', `Connection ${name} (${area.name}) is missing or has invalid ${keys.join(', ') || 'settings'}.`, {
       fix: vars.length ? `Set ${vars.join(' and ')}, or fix ${keys.join(', ')} on "${name}" in your toil config.` : `Fix connection "${name}" in your toil config.`,
       details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
@@ -269,7 +269,7 @@ async function takeShared(
  * None, or more than one, is INVALID_INPUT naming the candidates.
  */
 export function selectConnection(config: ResolvedConfig, area: AnyArea, input: string, setting: string, value: string, flag: string, source: ContextSource = 'input'): string {
-  const where = { input: 'the call', dossier: 'your dossier', git: 'the git remote', connection: 'the connection', default: "the area's default" }[source];
+  const where = { input: 'the call', file: 'the input file', dossier: 'your dossier', git: 'the git remote', connection: 'the connection', default: "the area's default" }[source];
   const instead = source === 'input' ? '' : `, or correct ${where}`;
   const names = connectionsOf(config, area.name);
   if (names.includes(value)) return value;
@@ -288,6 +288,16 @@ export function selectConnection(config: ResolvedConfig, area: AnyArea, input: s
   throw new ToilError('INVALID_INPUT', `Several ${area.name} connections have ${setting} "${value}" (from ${where}): ${matches.join(', ')}.`, {
     fix: `Pass --connection <name> to choose one of them.`,
   });
+}
+
+/**
+ * The variable that sets `key` on the area's default connection, with any CI
+ * fallback the area declares beside it: `TOIL_SONAR_TOKEN (or SONAR_TOKEN)`.
+ * The fallbacks apply only to the default connection, so only it names them.
+ */
+function defaultVar(area: AnyArea, key: string): string {
+  const fallbacks = (area.fallbacks as Record<string, string[] | undefined> | undefined)?.[key] ?? [];
+  return fallbacks.length ? `${envName(area.name, key)} (or ${fallbacks.join(' or ')})` : envName(area.name, key);
 }
 
 function requiredKeys(schema: z.ZodObject): string[] {
