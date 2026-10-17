@@ -1,0 +1,18 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_FIGMA_BASE_URL",
+    "description": "Figma API root: https://api.figma.com",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "token",
+    "env": "TOIL_FIGMA_TOKEN",
+    "description": "Figma personal access token",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  }
+]
