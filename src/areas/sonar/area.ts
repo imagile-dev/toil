@@ -26,6 +26,8 @@ export const sonarArea = defineArea({
       flags: '--project <key>',
       scope: 'command',
       setting: 'project',
+      // The predecessor's wording; core's fix names the flag, the setting and its env var.
+      missing: { message: 'No project specified. Use --project or set defaults.sonar.project in config.' },
     },
   },
   request: (connection, area) => ({
