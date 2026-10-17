@@ -5,6 +5,13 @@
   "order": 3,
   "covers": "Search, count, indices, cluster health",
   "credential": "API key",
+  "credentialNote": "A Kibana connection can use this key when you pair it with apiKeyFrom",
   "credentialWhere": "Kibana → Stack Management → API keys",
-  "status": "planned"
+  "status": "unit",
+  "supported": {
+    "product": "Elasticsearch",
+    "minimum": null,
+    "api": "REST API",
+    "note": "toil calls _cluster/health, _cat/indices, _search and _count with an API key sent as an ApiKey header. Requests follow Elastic's current REST API reference; no release has been verified yet."
+  }
 }

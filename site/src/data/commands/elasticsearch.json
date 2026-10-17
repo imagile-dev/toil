@@ -1,0 +1,45 @@
+[
+  {
+    "name": "cluster health",
+    "tool": "elasticsearch_cluster_health",
+    "description": "Show cluster health (status, node and shard counts)",
+    "writes": false,
+    "flags": []
+  },
+  {
+    "name": "indices list",
+    "tool": "elasticsearch_indices_list",
+    "description": "List indices with health, document count and size",
+    "writes": false,
+    "flags": [
+      "--pattern <pattern>"
+    ]
+  },
+  {
+    "name": "search",
+    "tool": "elasticsearch_search",
+    "description": "Search one or more indices with Query DSL JSON or a query string",
+    "writes": false,
+    "flags": [
+      "--index <name>",
+      "--query <json>",
+      "--q <query-string>",
+      "--sort <field:order>",
+      "--source <fields>",
+      "--size <n>",
+      "--from <n>",
+      "--timeout-ms <ms>"
+    ]
+  },
+  {
+    "name": "count",
+    "tool": "elasticsearch_count",
+    "description": "Count documents matching a query",
+    "writes": false,
+    "flags": [
+      "--index <name>",
+      "--query <json>",
+      "--q <query-string>"
+    ]
+  }
+]

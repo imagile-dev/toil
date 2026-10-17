@@ -1,0 +1,18 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_ELASTICSEARCH_BASE_URL",
+    "description": "Elasticsearch root, e.g. https://elasticsearch.imagile.dev (keep any context path)",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "apiKey",
+    "env": "TOIL_ELASTICSEARCH_API_KEY",
+    "description": "API key, the base64 \"encoded\" value Elasticsearch or Kibana shows once when it is created",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  }
+]
