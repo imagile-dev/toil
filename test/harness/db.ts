@@ -18,7 +18,10 @@ export function removeTestDir(dir: string): void {
     rmSync(dir, { recursive: true, force: true, maxRetries: 6, retryDelay: 100 });
   } catch (err) {
     const code = (err as NodeJS.ErrnoException).code;
-    if (process.platform === 'win32' && (code === 'EPERM' || code === 'EBUSY')) return;
+    if (process.platform === 'win32' && (code === 'EPERM' || code === 'EBUSY')) {
+      console.warn(`Left ${dir} in the temp folder: Windows still holds it (${code}).`);
+      return;
+    }
     throw err;
   }
 }
