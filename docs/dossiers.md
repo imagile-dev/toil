@@ -1,34 +1,35 @@
 # Dossiers (design)
 
 Tracking: [#16](https://github.com/imagile-dev/toil/issues/16). Builds on named
-connections, [#51](https://github.com/imagile-dev/toil/issues/51).
+connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
 
 A **dossier** is everything toil needs to work on one body of work, whether that's
 one service or fifty microservices: its repositories, issue-tracker keys and field
 names, boards, documentation spaces, quality-gate keys, and the runtime resources of
 each environment. Users build one once, usually with an agent doing the discovery,
-and toil works out which dossier applies from the folder they're in.
+and toil works out which dossier applies from the folder they're in. A dossier can be
+kept privately or checked into a repository for a whole team to share.
 
 ## Three kinds of configuration
 
 | | Holds | Where | Who edits it |
 |---|---|---|---|
 | **Connections** (#51) | One instance of a service: area, host, credential, `writes` | `~/.toil/config.json` | The user, via `toil connections`. Never an agent over MCP. |
-| **Dossiers** | Repos, keys, field names, boards, environments. Names connections; never a host or a secret. | `~/.toil/dossiers/<name>.json` | The user or an agent, via `toil dossier` |
+| **Dossiers** | Repos, keys, field names, boards, environments. Selects connections; never holds a secret or turns on writes. | `~/.toil/dossiers/`, or `.toil/dossiers/` in a repository | The user or an agent, via `toil dossier` |
 | **Env vars** | Any connection setting, including whole connections, for CI | The process environment | The pipeline |
 
-A dossier is safe to share because it contains nothing secret and points nowhere by
-itself: an imported dossier only resolves against connections the importer already has.
-
-There is no repository-level config file. It was removed before the first release
-(#13): a file in a repository could switch on writes or send credentials to a host of
-its choosing. Dossiers carry the project knowledge it used to, from the user's own
-folder. Nothing has been released, so this breaks no one.
+**Why a dossier may live in a repository when config may not.** There is no
+repository-level config file (#13): a file in a repository could switch on writes or
+send credentials to a host of its choosing. A dossier can do neither. It holds no
+secret and no `writes`, and it only *selects among connections the reader already
+has*; it can never create one or send anything to a host. So a checked-in dossier is
+project knowledge, reviewable like any other file, and it can't change where
+credentials go.
 
 ## Connections
 
-The connection model, including where secrets live, is specified in #51. What
-dossiers rely on:
+The connection model, including where secrets live, is specified in #51 and
+implemented in #59. What dossiers rely on:
 
 ```jsonc
 // ~/.toil/config.json
@@ -45,8 +46,12 @@ dossiers rely on:
 
 - An area can have any number of connections. `defaults.<area>.connection` picks one
   when nothing else does; other keys under `defaults.<area>` are shared by every
-  connection to that area.
-- `writes` is per connection, so writes can be on for a sandbox and off for production.
+  connection to that area, **except `writes`, which is never read from `defaults`**.
+- `writes` is per connection, so writes can be on for a sandbox and off for
+  production. It is the control that matters: since #59 every area command takes a
+  `connection` input, so whoever runs a command can already choose any connection.
+  The dossier rules below stop a dossier from *silently* redirecting a write; they
+  aren't what keeps production safe. Per-connection `writes` is.
 - **Version 1 still loads**, as one connection per area named after the area and set
   as its default.
 
@@ -75,7 +80,7 @@ TOIL_CONN_OCP_PROD_TOKEN=...
 ## A dossier
 
 ```jsonc
-// ~/.toil/dossiers/payments.json
+// ~/.toil/dossiers/payments.json, or .toil/dossiers/payments.json in a repository
 {
   "name": "payments",
   "description": "Payments platform",
@@ -84,18 +89,18 @@ TOIL_CONN_OCP_PROD_TOKEN=...
     { "name": "ledger-svc", "remotes": ["https://bitbucket.imagile.dev/scm/pay/ledger-svc.git"] }
   ],
   "jira": {
-    "connection": "corp-jira",
+    "host": "jira.imagile.dev",
     "projects": ["PAY", "LEDG"],
     "fields": { "acceptanceCriteria": "customfield_10234", "storyPoints": "customfield_10002" }
   },
   "ado": { "connection": "corp-ado", "project": "Payments", "boards": ["Payments Team"], "areaPath": "Payments\\API" },
-  "confluence": { "connection": "corp-confluence", "spaces": ["PAY"] },
-  "sonar": { "connection": "corp-sonar", "projectKeys": { "payments-api": "pay-payments-api" } },
+  "confluence": { "host": "confluence.imagile.dev", "spaces": ["PAY"] },
+  "sonar": { "host": "sonar.imagile.dev", "projectKeys": { "payments-api": "pay-payments-api" } },
   "environments": {
-    "test": { "openshift": { "connection": "ocp-nonprod", "namespace": "payments-test" } },
+    "test": { "openshift": { "host": "api.ocp-nonprod.imagile.dev", "namespace": "payments-test" } },
     "prod": {
-      "openshift": { "connection": "ocp-prod", "namespace": "payments-prod", "deployments": ["payments-api", "ledger-svc"] },
-      "dynatrace": { "connection": "corp-dt", "entities": ["SERVICE-abc12345"] }
+      "openshift": { "host": "api.ocp.imagile.dev", "namespace": "payments-prod", "deployments": ["payments-api", "ledger-svc"] },
+      "dynatrace": { "host": "abc12345.live.dynatrace.com", "entities": ["SERVICE-abc12345"] }
     }
   }
 }
@@ -104,12 +109,30 @@ TOIL_CONN_OCP_PROD_TOKEN=...
 - Each area defines the shape of its own section with a zod schema, registered next to
   its commands. A dossier is validated section by section, so an unknown area's section
   is kept but reported by `toil dossier check`, never dropped.
-- `connection` is optional where the area's default will do.
 - **Remotes are only for matching.** toil never contacts a remote URL. Before storing,
   comparing or printing one, toil strips any userinfo
   (`https://user:<token>@host/...` becomes `https://host/...`), so a token embedded in
   `.git/config` never reaches a dossier or an envelope. A dossier that still contains
   a remote with userinfo, hand-edited or imported, fails `dossier check`.
+
+### Selecting a connection
+
+Each area section says which of the reader's connections it means, in one of two ways:
+
+- **`connection`: a name.** Right for a private dossier: `"connection": "corp-ado"`.
+- **`host`: a selector.** Right for a shared one, because teammates name their
+  connections differently. `"host": "jira.imagile.dev"` picks the reader's `jira`
+  connection whose `baseUrl` has that host (compared case-insensitively, scheme and
+  port ignored unless the selector gives a port).
+- **Neither:** the area's default connection.
+
+A host in a dossier is **only a selector**. toil never sends a request to it, never
+creates a connection from it, and never uses it as a `baseUrl`. When no connection
+matches, the call fails with `NOT_CONFIGURED`, naming the host and the command to add
+a connection for it. When several match, it fails with `INVALID_INPUT`, listing them
+and saying to pick one with `connection`. A selector never falls back to the default
+connection, because a silent fallback could point the dossier somewhere the author
+didn't mean.
 
 ### Field aliases
 
@@ -125,29 +148,66 @@ prompts. The names are used through **one fixed input**, never through generated
 - An alias the resolved dossier doesn't define is `INVALID_INPUT`, with a fix naming
   the aliases it does define.
 
+## Where dossiers live
+
+toil reads dossiers from three kinds of place, and every listing says which one a
+dossier came from (`source`: `user`, `repo` or a `dossierPaths` folder):
+
+1. **Your own**, in `~/.toil/dossiers/<name>.json`.
+2. **Checked into the repository you're in**, in `.toil/dossiers/*.json` at its git
+   root. A service's repo can carry its own dossier.
+3. **Folders you list** in your config, `"dossierPaths": ["C:/Code/team-dossiers/.toil/dossiers"]`.
+   This is how a team shares dossiers for many services from one repository: clone
+   it once and list its folder. Only folders you list are read; toil never searches
+   for them.
+
+A checked-in dossier applies only when you're in its repository, or when its folder
+is listed. Two dossiers with the same name: your own wins, then a listed folder, then
+the repository you're in. So you can always override a teammate's copy without
+editing theirs.
+
 ## Resolving context
 
 For each command, toil works out the dossier, the repo and the environment from one
-resolver, fed the same way by both front doors:
+resolver, **fed identically by both front doors**:
 
-1. Explicit input: `dossier` and `env` (`--dossier`, `--env` on the CLI), or
-   `TOIL_DOSSIER` and `TOIL_ENV`.
-2. Otherwise a **path**. The CLI passes its working directory. MCP has no meaningful
-   working directory, since a stdio server starts wherever its client launched it, so
-   it takes an explicit `path` input when given, and otherwise the client's MCP root
-   if the client reports exactly one. With neither, there is no path, and step 3
-   applies.
-3. From a path, toil finds the git root and matches a repo by `path`, then by
-   `remotes` against the folder's origin, so a fresh clone anywhere still resolves.
-4. Otherwise there is no dossier, and commands need their keys as inputs, exactly as
-   without dossiers.
+1. **Explicit input:** `dossier` and `env` (`--dossier`, `--env` on the CLI), or
+   `TOIL_DOSSIER` and `TOIL_ENV`. `dossier` is a name, or a path to a dossier file, so
+   a pipeline can use a checked-in dossier with no home folder.
+2. **Otherwise a `path`.** `path` is an input on every command that resolves
+   context, on both front doors (`--path <dir>` on the CLI, `path` over MCP). Only its
+   default differs: the CLI uses its working directory, and MCP uses the client's MCP
+   root if the client reports exactly one. A stdio server starts wherever its client
+   launched it, so its own working directory means nothing. With neither, there is
+   no path, and step 4 applies.
+3. **From a path,** toil finds the git root and matches a repo by `path`, then by
+   `remotes` against the folder's origin, so a fresh clone anywhere still resolves. A
+   dossier checked into that repository is a candidate too (see **Where dossiers
+   live**).
+4. **Otherwise** there is no dossier, and commands need their keys as inputs, exactly
+   as without dossiers.
 
 Explicit inputs always beat dossier defaults. `meta.context` in the envelope reports
-what was resolved and from where (dossier, repo, environment, connection per area,
-and whether the path came from the cwd, an input or an MCP root), so an agent can see
-why a command used the keys it did. Dossiers are read on every call, so an edit made
-while `toil mcp` is running applies from the next call; the tool list never depends
-on dossier content.
+what was resolved and from where: the dossier and its `source`, the repo, the
+environment, the connection per area and how it was selected (name, host or default),
+and whether the path came from `--path`/`path`, the cwd or an MCP root. Dossiers are
+read on every call, so an edit made while `toil mcp` is running applies from the next
+call; the tool list never depends on dossier content.
+
+### The filesystem the server sees
+
+Every file location is an explicit input on both front doors: `path`, `--repo`, a
+dossier file, an import source. That keeps the CLI and MCP 1:1. The defaults are the
+only difference, and `meta.context` names them. The server can only use paths on its
+own filesystem, so:
+
+- MCP roots arrive as `file://` URIs and are converted with Node's own URL handling,
+  never by string slicing.
+- A path that doesn't exist on the server's side is an `INVALID_INPUT` that says so.
+  It isn't a silent "no dossier". That's what an agent in a sandbox, a container, or
+  WSL talking to a Windows server will see, and it can then pass `dossier` by name.
+- The planned MCP gateway (#4) shares no filesystem with its clients. There, path
+  inputs are refused with that explanation, and dossiers are selected by name.
 
 ### Reading git without git
 
@@ -167,24 +227,35 @@ files directly:
 - **Building a dossier:**
   - `toil dossier init <name>` creates one.
   - `toil dossier add-repo <name> <path|remote>` adds a repo.
-  - `toil dossier link <name> <area> [--connection ...] [--project ...]` attaches an
-    area. Each area defines which link inputs it takes.
+  - `toil dossier link <name> <area> [--connection <name> | --host <host>] [--project ...]`
+    attaches an area. Each area defines which link inputs it takes.
   - `toil dossier field <name> <area> <alias> <field-id>` names a field.
   - `toil dossier env <name> <env> <area> ...` adds an environment resource.
 - **Reading and checking:**
-  - `toil dossier list` lists dossiers.
-  - `toil dossier show <name>` prints one.
-  - `toil dossier check <name>` checks **locally only**: the schema, that every named
-    connection exists, unknown sections, aliases, and remotes free of userinfo. It
-    contacts no service.
-  - `toil dossier context` shows what the current folder resolves to.
+  - `toil dossier list` lists every dossier toil can see, with its `source`.
+  - `toil dossier show <name|file>` prints one.
+  - `toil dossier check <name|file>` checks **locally only**:
+    - the schema, unknown sections and aliases
+    - every `connection` exists and every `host` selects exactly one connection
+    - remotes are free of userinfo
+
+    It contacts no service.
+  - `toil dossier context [--path <dir>]` shows what a folder resolves to.
 - **Checking against the services** is one area at a time, because a command talks to
   one service: `toil <area> check-dossier <name>` verifies that area's section
   (projects and fields exist in Jira, namespaces are reachable in OpenShift), using
   and reporting the connection it resolved. An agent or a script composes them.
-- **Sharing:** `toil dossier export <name>` and `toil dossier import <file>`. An import
-  never creates connections; any connection it names that doesn't exist yet is
-  reported as one to create.
+- **Sharing through a repository:**
+  - `toil dossier export <name> --repo <dir>` writes `.toil/dossiers/<name>.json`
+    into that working tree. It's written for sharing: a `connection` name is replaced
+    by a `host` selector taken from that connection's `baseUrl`, and `path` entries,
+    which are machine-specific, are dropped. toil writes the file and stops; it never
+    stages or commits. Committing is the agent's or user's own git workflow.
+  - `toil dossier import <file|dir>` copies a dossier into your own folder, so you
+    can adapt it. An import never creates connections; any connection or host it
+    can't resolve is reported as one to set up.
+  - `toil dossier export <name> --file <path>` writes anywhere, for any other kind
+    of sharing.
 - **Discovery** is read-only and runs through ordinary connections. It's ordinary area
   commands, not dossier magic: `toil repos scan <folder>` (local git repos and their
   remotes), `toil jira fields --project PAY`, `toil ado boards`,
@@ -193,23 +264,32 @@ files directly:
 ## Agents and the write gate
 
 The intended setup is a conversation. The agent runs discovery, proposes a dossier,
-the user confirms, and the agent applies it with the `dossier` commands.
+the user confirms, and the agent applies it with the `dossier` commands, including
+exporting it into a repository for the team.
 
-- **Agents may** read and write dossiers. They are local and non-secret, and every
-  edit goes through the same validated commands. Writing a dossier is a local write,
-  so it doesn't need `--allow-write`, which governs changes to remote systems.
+- **Agents may** read and write dossiers, in your folder and in a repository working
+  tree. They are non-secret and every edit goes through the same validated commands.
+  Writing a dossier is a local write, so it doesn't need `--allow-write`, which
+  governs changes to remote systems.
 - **Agents never** create or change connections, credentials or `writes`
   (*principle 2*). No tool for those exists over MCP.
-- **Agents can't point a dossier at writes.** Over MCP, `dossier link` and the other
-  dossier edits refuse to set a `connection` to one with `writes: true`, or to change
-  a binding that currently points at one. Binding a dossier to a writes-enabled
-  connection is done on the CLI, by a human. Otherwise an agent could repoint
-  `payments` from `corp-jira` to a writes-enabled `jira-cloud` and loosen its own
-  limits without touching a single gate.
+- **A dossier never silently points a write somewhere new.** Over MCP, the dossier
+  commands refuse any change that would make a section select a connection with
+  `writes: true` when it didn't before:
+  - setting `connection` or `host` to one that selects such a connection
+  - changing or clearing a binding when the result is a writes-enabled connection,
+    including a fall-back to the area's default
+  - importing or exporting a dossier with such a binding
+
+  Binding a dossier to a writes-enabled connection is done on the CLI, by a human.
+  **Checked-in and listed-folder dossiers** follow the same rule when they're read: a
+  section whose selection lands on a writes-enabled connection is reported by
+  `dossier check`, and a write through it fails until the user adopts the dossier
+  with `toil dossier import`. Then the binding is theirs.
 
 **When write tools are registered:** an area's write tools are listed over MCP when
-**any** of that area's connections has `writes: true`. Listing a tool grants nothing:
-every call still resolves its one connection, and the gate is checked against that
+**any** of that area's connections has `writes: true`. Listing grants nothing: every
+call still resolves its one connection, and the gate is checked against that
 connection (`writes: true` on it, plus `allowWrite` on the call). A write that
 resolves to a read-only connection fails with `WRITE_DISABLED`, naming the connection.
 Turning writes on for a connection is a human decision about that connection
@@ -217,11 +297,15 @@ wherever it's used, including dossiers already bound to it.
 
 ## Security notes
 
-- A dossier can't introduce a host or a credential, so importing one from a teammate,
-  or an agent editing one, can't redirect where secrets go. Remotes are URLs, but toil
-  only compares them and never contacts them.
-- Dossier files are written with user-only permissions, as is the config.
-- Paths are stored as given and compared after normalising case and separators on
+- **A dossier can't introduce a host to talk to or a credential.** Importing one from a
+  teammate, checking one into a repo, or an agent editing one can't redirect where
+  secrets go. Hosts in a dossier are selectors among the reader's own connections, and
+  remotes are only compared. toil contacts neither.
+- **Repository dossiers are read only from the repository you're in and from folders you
+  list.** toil never scans the disk for them.
+- **File permissions:** dossier files in `~/.toil/` are written with user-only
+  permissions, as is the config. Files in a repository take the repository's.
+- **Paths** are stored as given and compared after normalising case and separators on
   Windows (*principle 8*).
 
 ## Open questions
@@ -231,5 +315,3 @@ wherever it's used, including dossiers already bound to it.
 2. **Precedence among several dossiers containing the same repo:** a repo shared by
    two dossiers is possible (a platform library, say). The proposal is that the
    explicit `dossier` input wins, otherwise the most recently used.
-3. **Team-level sharing beyond files:** is there a need to load dossiers from a shared
-   location (a git repo of dossiers)? Not in v1.
