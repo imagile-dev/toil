@@ -1,6 +1,6 @@
 ---
 name: toil
-description: Use toil, a structured-JSON CLI and MCP server, to read from and (when allowed) write to databases and enterprise tools. Use when you need to list schemas or tables, describe a table, preview rows or run SQL against a configured database, read or change Jira Data Center issues, search with JQL, or work with sprints, comments, worklogs and attachments, or when a task mentions `toil` commands, `toil mcp`, a toil connection, or a TOIL_* environment variable.
+description: Use toil, a structured-JSON CLI and MCP server, to read from and (when allowed) write to databases and the enterprise tools an organization runs, such as issue trackers, source hosts, wikis, CI, artifact repositories, scanners and observability. Use when a task needs data from one of those tools or a database, or mentions `toil` commands, `toil mcp`, a toil connection, or a TOIL_* environment variable.
 ---
 
 # toil
@@ -41,7 +41,10 @@ toil trusts the OS certificate store and Node's bundled CAs, and uses `HTTPS_PRO
 `HTTP_PROXY` / `NO_PROXY` when they're set. A `NETWORK` error about an untrusted
 certificate means the CA is in neither; `NODE_EXTRA_CA_CERTS` adds it.
 
-| Area | Reference | Covers |
-|------|-----------|--------|
-| `db` | [db.md](db.md) | Databases (SQLite): schemas, tables, describe, preview, read-only queries with paging, gated writes |
-| `jira` | [jira.md](jira.md) | Jira Data Center: issues, JQL search, transitions, comments, worklogs, labels, links, attachments, custom fields, boards and sprints |
+## Areas
+
+Each area has its own reference beside this file, named after it: `jira.md` for
+`toil jira …`, `db.md` for `toil db …`. Open the one for the area you need; its
+frontmatter says what the area covers, and the file lists the oldest server version it
+supports, its credential, its configuration keys and every command. `toil --help` lists
+the areas this install has.

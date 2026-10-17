@@ -1,0 +1,10 @@
+{
+  "area": "jenkins",
+  "name": "Jenkins",
+  "group": "build",
+  "order": 1,
+  "covers": "Jobs, builds, console logs, queue",
+  "credential": "API token",
+  "credentialWhere": "Your user name → Security → API Token",
+  "status": "planned"
+}

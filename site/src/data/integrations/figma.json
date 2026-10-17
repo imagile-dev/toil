@@ -1,0 +1,11 @@
+{
+  "area": "figma",
+  "name": "Figma",
+  "group": "design",
+  "order": 1,
+  "covers": "Files from a link, comments, version history",
+  "credential": "Personal access token",
+  "credentialWhere": "Settings → Security → Personal access tokens",
+  "status": "planned",
+  "host": "https://api.figma.com"
+}

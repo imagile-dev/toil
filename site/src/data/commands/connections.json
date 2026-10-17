@@ -1,0 +1,37 @@
+[
+  {
+    "name": "add",
+    "tool": "connections_add",
+    "description": "Set up a connection, asking for its settings and secret on the terminal",
+    "writes": false,
+    "flags": [
+      "<name>",
+      "--area <area>"
+    ]
+  },
+  {
+    "name": "login",
+    "tool": "connections_login",
+    "description": "Replace a connection's secret, asking for it on the terminal",
+    "writes": false,
+    "flags": [
+      "<name>"
+    ]
+  },
+  {
+    "name": "list",
+    "tool": "connections_list",
+    "description": "List connections: area, host, writes, and where each value came from. Never prints a secret.",
+    "writes": false,
+    "flags": []
+  },
+  {
+    "name": "remove",
+    "tool": "connections_remove",
+    "description": "Remove a connection from config, and its secrets from the OS credential store",
+    "writes": false,
+    "flags": [
+      "<name>"
+    ]
+  }
+]

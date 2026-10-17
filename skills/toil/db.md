@@ -1,3 +1,8 @@
+---
+area: db
+description: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite)
+---
+
 # toil db
 
 One set of commands for every database engine. Each connection says which engine it
@@ -7,6 +12,9 @@ uses, and the commands work the same way on all of them.
 |--------|----------------|--------|
 | SQLite | `sqlite` | `integration`: automated tests run against the real engine (Node's built-in `node:sqlite`) |
 | PostgreSQL, MySQL/MariaDB, SQL Server, Oracle | | Planned |
+
+**Supported versions:** The oldest SQLite version toil supports hasn't been established. toil
+uses the SQLite built into Node, so the version is whichever your Node ships.
 
 ## SQLite connections
 

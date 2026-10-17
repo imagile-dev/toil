@@ -1,0 +1,13 @@
+{
+  "area": "checkmarx",
+  "name": "Checkmarx One",
+  "group": "security",
+  "order": 2,
+  "covers": "SAST scans, results, projects",
+  "credential": "API key, exchanged over HTTP",
+  "status": "planned",
+  "host": "https://eu.ast.checkmarx.net",
+  "keys": [
+    "API_KEY"
+  ]
+}

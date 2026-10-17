@@ -206,11 +206,16 @@ GitHub Actions; its build tooling is out of scope.
   `test/live/` is the real-credential-store suite, kept out of `npm test` (`secrets`
   skill)
 - `scripts/` — area registration, the purity gate, the tarball smoke test, contract
-  capture, and the PR watcher the `ship` skill runs (dev tooling; none of it ships)
+  capture (`capture-command-contract.mjs`, with output fields from
+  `contract-output.mjs`), the area stub generator (`stub-area.mjs`), the divergence
+  table (`divergences.mjs`), PR screenshots (`shoot.mjs`), and the PR watcher the
+  `ship` skill runs (dev tooling; none of it ships)
 - `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files
 - `.claude/skills/` — repo-internal skills only. They're for working in this
   repository; they're never published or installed by toil (that's `skills/toil/`)
-- `docs/` — plans and decisions
+- `docs/` — plans and decisions; `docs/divergences/<area>.json` holds the migration
+  contract's allowed divergences, and `docs/briefs/<area>.md` the port brief for each
+  area still to port
 - `site/` — the GitHub Pages site (Astro), its own private package; see the `site`
   skill
 
@@ -498,7 +503,8 @@ guessing, and it silently breaks callers who rely on the old result.
 - **Two kinds of change are allowed.** One is a change another principle or the
   Output Contract requires, such as a credential reaching a host the user didn't
   configure, or a path an agent passes reaching toil's own credentials. It's made at
-  once and listed as a divergence in `docs/command-contract.md`, naming the principle.
+  once and listed as a divergence in `docs/divergences/<area>.json`, naming the
+  principle.
   The other is additive output the contract already allows (a new `data` field,
   `meta.warnings`, `meta.page`).
 - **The first live run checks every item** in the area's issue. A confirmed bug is
@@ -512,10 +518,12 @@ Tests never need the network: a developer offline gets the same result as CI.
 Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery).
 
 - **Mock HTTP with `fakeFetch`** (`test/harness/fake-fetch.ts`), injected through
-  `Context.fetch`. A request with no route throws, so a test can't pass against a
+  `Context.fetch`. Routes match on the method and the full URL, or on the method,
+  `path` and `query` (in any order). A request with no route throws, so a test can't pass against a
   real server by accident. Every integration test asserts both sides: the exact
   request toil sent (method, URL, headers, body) and how the canned response was
-  reshaped. Build contexts with `testContext()`; run the real CLI in-process with
+  reshaped. Build contexts with `testContext()` (with `secrets: fakeStore()` and
+  `prompt: scriptedPrompter()` for commands that use them); run the real CLI in-process with
   `runCli()`; connect a real MCP client over an in-memory transport with
   `connectMcp()`.
 - **Canned responses are shaped like the real API**, captured from a live instance
@@ -526,10 +534,11 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   - one tool per command, with an identical, strict JSON Schema
   - every input field reachable from the CLI and vice versa, and set by at least
     one example
-  - for every example, identical envelopes and identical HTTP requests through both
-    front doors, and only GET/HEAD/OPTIONS from a command that doesn't write
-    (plus POST from a read marked `queryByPost`, such as a search whose query
-    may be too long for a URL)
+  - for every example, identical envelopes, HTTP requests and operations (the log
+    of traced non-HTTP calls, such as the db area's provider) through both front
+    doors; only GET/HEAD/OPTIONS from a command that doesn't write (plus POST from
+    a read marked `queryByPost`, such as a search whose query may be too long for
+    a URL), and no traced write operation
   - an unknown field refused as `INVALID_INPUT` on both sides before any request
   - a config failure building the context gives the same envelope on both sides
   - per area, `--connection <name>` and MCP's `connection` field selecting the same
@@ -538,20 +547,28 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
 
   New commands are covered on registration; never add a command without examples,
   and never exempt one from this suite. The only exclusion is `cli-only` commands,
-  which aren't MCP tools; the suite names each one and proves MCP never serves it.
-  Every alias is run against its command's MCP tool too. When changing the harness, prove the suite
+  which aren't MCP tools; the suite finds them by their `kind` and proves MCP never
+  serves them. Every alias is run against its command's MCP tool too. When changing the harness, prove the suite
   still bites: break the mapping on purpose and watch it fail.
 - **Each area has a fixture**, `test/fixtures/<area>.fixture.ts`, exporting
   `defineFixture({ area, routes, config })`: canned responses for every request its
   examples send, a config keyed by area (read as one connection named after the
   area, as if set by `TOIL_<AREA>_*` env vars) with credentials set and writes on,
-  and any local `files` the examples read. The suite finds it by file name and fails
-  when a registered area has none.
+  and any local `files` the examples read. Local state (a seeded database) is made in
+  `setup` and removed in `teardown`, never at import, and an area that isn't HTTP
+  names what to `trace` for the operations log. The suite finds a fixture by file
+  name and fails when a registered area has none.
 - **Three more suites cover every area with no per-area code:** `test/contract.test.ts`
-  (the migration contract, see the `integrations` skill), `test/skills.test.ts` (a
-  `skills/toil/<area>.md` naming every command and env var, and a row in `SKILL.md`),
-  and `test/site-commands.test.ts`, which writes `site/src/data/commands.generated.json`
-  for the docs pages (`npx vitest run -u` after changing a command).
+  (the migration contract's commands, flags and output field names, see the
+  `integrations` skill), `test/skills.test.ts` (a `skills/toil/<area>.md` with
+  frontmatter, naming every command, every env var and the area's supported
+  versions), and `test/site-commands.test.ts`, which writes
+  `site/src/data/commands/<area>.json` for the docs pages (`npx vitest run -u` after
+  changing a command) and checks the board's `site/src/data/integrations/<area>.json`.
+- **No file every port edits.** Each area has its own fixture, skill file, divergence
+  file, board entry and command list; the lists that span areas (the registry, the
+  areas in `SKILL.md`, the CLI-only commands) are derived or generic. A change that
+  makes parallel ports edit one shared file is a review finding.
 - `test/fixtures/demo-commands.ts` holds test-only commands (a read and a write
   against a fake API) that exercise the harness before real integrations exist, and
   `demo-context-commands.ts` a test-only area that uses context inputs, a setting
@@ -602,7 +619,7 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   **Before the first npm release, don't use `feat!:` or `BREAKING CHANGE:`**
   (principle 7): a contract change is a plain `feat:` or `fix:`, and a breaking
   marker would put a migration note for a change no user ever saw into the first
-  changelog, and could push the version toward 1.0 before anyone decides to.
+  changelog.
 - **Every major item starts with a GitHub issue, created before the branch.** Keep it
   concise: a short paragraph on what and why, and one "Done when" line.
   - **What counts as a major item:** the foundation, the site, the gateway,

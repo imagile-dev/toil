@@ -1,0 +1,19 @@
+{
+  "scope": "openshift",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "openshift resource-usage --csv printing raw CSV to stdout instead of the envelope",
+      "toil": "--csv writes the CSV to a file in the workspace named with --out <file>, never overwriting, and data returns the saved absolute path. Nothing but the envelope goes to stdout",
+      "why": "Every command writes exactly one envelope; CSV goes to a file only (decision 4 on #68).",
+      "principle": "Output Contract"
+    },
+    {
+      "allows": [],
+      "old": "openshift resource-usage with no --out flag",
+      "toil": "--out <file> is added, and --csv requires it",
+      "why": "Where the CSV goes has to be named, since it no longer goes to stdout (decision 4 on #68).",
+      "principle": "Output Contract"
+    }
+  ]
+}

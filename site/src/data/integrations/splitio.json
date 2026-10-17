@@ -1,0 +1,10 @@
+{
+  "area": "splitio",
+  "name": "Split.IO",
+  "group": "build",
+  "order": 4,
+  "covers": "Feature flags, environments, change requests",
+  "credential": "Admin API key",
+  "status": "planned",
+  "host": "https://api.split.io"
+}
