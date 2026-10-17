@@ -3,11 +3,18 @@
   "name": "Checkmarx One",
   "group": "security",
   "order": 2,
-  "covers": "SAST scans, results, projects",
+  "covers": "Projects, scans and scan results statistics",
   "credential": "API key, exchanged over HTTP",
-  "status": "planned",
-  "host": "https://eu.ast.checkmarx.net",
+  "credentialNote": "The API key is a refresh token. toil exchanges it at your region's IAM host (eu.iam.checkmarx.net for eu.ast.checkmarx.net) for a short-lived bearer token, kept in memory and never written to disk. Client credentials (a client ID and secret) aren't supported",
+  "status": "unit",
+  "host": "https://eu.ast.checkmarx.net/api",
   "keys": [
     "API_KEY"
-  ]
+  ],
+  "supported": {
+    "product": "Checkmarx One",
+    "minimum": null,
+    "api": "REST API",
+    "note": "Checkmarx One is cloud only, so there is no server release to pin. toil calls its REST API under /api with a bearer token exchanged from an API key."
+  }
 }
