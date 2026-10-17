@@ -332,7 +332,7 @@ files directly:
 - **Discovery** is read-only and runs through ordinary connections. It's ordinary area
   commands, not dossier magic: `toil repos scan <folder>` (local git repos and their
   remotes), `toil jira fields --project PAY`, `toil ado boards`,
-  `toil openshift namespaces`, `toil sonar projects --search payments`.
+  `toil openshift namespaces`, `toil sonar projects --query payments`.
 
 ## Agents and the write gate
 
