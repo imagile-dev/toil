@@ -1,0 +1,42 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_BITBUCKET_BASE_URL",
+    "description": "Bitbucket server root, e.g. https://bitbucket.imagile.dev",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "pat",
+    "env": "TOIL_BITBUCKET_PAT",
+    "description": "HTTP access token",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "project",
+    "env": "TOIL_BITBUCKET_PROJECT",
+    "description": "Default project key",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "repo",
+    "env": "TOIL_BITBUCKET_REPO",
+    "description": "Default repository slug",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "targetBranch",
+    "env": "TOIL_BITBUCKET_TARGET_BRANCH",
+    "description": "Default target branch for create-pr (main when unset)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]
