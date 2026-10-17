@@ -36,11 +36,17 @@ under `defaults.jira` so every Jira connection shares them:
 {
   "version": 2,
   "connections": {
-    "corp-jira": { "area": "jira", "baseUrl": "https://jira.imagile.dev", "apiToken": "<token>", "writes": true }
+    "corp-jira": { "area": "jira", "baseUrl": "https://jira.imagile.dev", "writes": true }
   },
   "defaults": { "jira": { "connection": "corp-jira", "project": "ABC", "issueType": "Story" } }
 }
 ```
+
+The token never goes in this file; a plaintext one there is refused with
+`CONFIG_INVALID`. Run `toil connections add corp-jira --area jira` (or
+`toil connections login corp-jira` for an existing connection) to keep it in the OS
+credential store, which writes `"apiToken": "keychain:…"`, or set
+`TOIL_JIRA_API_TOKEN`.
 
 Env vars always win over the file. A second Jira server is a second connection
 (`"lab-jira": { "area": "jira", ... }`), chosen per call with `--connection lab-jira`
