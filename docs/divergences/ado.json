@@ -2,11 +2,103 @@
   "scope": "ado",
   "divergences": [
     {
-      "allows": [],
+      "allows": [
+        "ado work schema data.example",
+        "ado work schema data.schema"
+      ],
+      "when": {
+        "exampleOnly": true
+      },
       "old": "ado work schema --example-only printing the bare example with no envelope",
-      "toil": "The flag stays; the example comes back as data in the usual envelope. Save .data to use it as an --input-file",
-      "why": "Every command writes exactly one envelope, so an agent never has to guess which shape stdout holds.",
+      "toil": "The flag stays; the example comes back as data in the usual envelope, so with the flag data is the example itself, not { schema, example }. Save .data to use it as an --input-file",
+      "why": "Every command writes exactly one envelope, so an agent never has to guess which shape stdout holds. The allowed fields are excused only for calls with --example-only (`when`), so plain ado work schema must still return both.",
       "principle": "Output Contract"
+    },
+    {
+      "allows": [],
+      "old": "ado work download-attachment fetching the attachment's relation URL, with the PAT, from whatever host the work item names (#69 item 1)",
+      "toil": "The PAT goes only to baseUrl's origin: a relation URL on another host has its path and query re-pointed at baseUrl, with an ADO_ATTACHMENT_HOST warning",
+      "why": "A server-supplied URL must not carry the user's credential to a host they didn't configure. A change a principle requires, so a port makes it before a live run (CLAUDE.md, Porting).",
+      "principle": "9",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "ado work download-attachment writing under --dir (default the old CLI's dot-folder in the working directory) anywhere on disk, replacing a file already there, and reporting saved with the platform's separator",
+      "toil": "--dir defaults to .toil; the file is written inside the workspace, an existing file is refused with INVALID_INPUT naming the path, and saved uses forward slashes on every platform",
+      "why": "A read-only command, whose file name comes from whoever uploaded the attachment, must not change files already on disk or write outside the workspace; paths in JSON output are the same on every platform.",
+      "principle": "2",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "ado project list, pipeline list, pipeline list-runs (with no --top), repo list-builds and repo list-prs paging for as long as the server kept answering",
+      "toil": "The same stops (no continuation header, or a short $top/$skip page), plus a bound: after 1,000 pages the command fails with HTTP, naming the list, and a fix to narrow the request",
+      "why": "A server that hands back a token or ignores $skip would otherwise be asked forever; the bound turns a hang into an error that says what happened.",
+      "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "ado project list, pipeline list, list-runs, repo list-prs, list-builds and pipeline logs --log-id surfacing a network failure or timeout as Node's bare fetch error, and reading only message from an error body (#69 item 4)",
+      "toil": "The same requests, still with no 429 retry; a failure is core's NETWORK, TIMEOUT, AUTH, NOT_FOUND or HTTP error with the server's message and a fix, as every other ado command's is",
+      "why": "Errors say plainly what went wrong and what to do next; a bare \"fetch failed\" says neither.",
+      "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "ado repo delete-comment available to every caller",
+      "toil": "The same command on the CLI; toil mcp never serves it",
+      "why": "Deletes are never exposed through MCP (CLAUDE.md, Writes).",
+      "principle": "2"
+    },
+    {
+      "allows": [],
+      "old": "ado work fields --save and work types --save writing the discovery (discoveredFields, fieldAliases, discoveredTypes) into the global config file",
+      "toil": "The flags stay and the result is unchanged, but nothing is written: an ADO_SAVE_UNAVAILABLE warning says so and how to set fieldAliases on the connection. Saved fieldAliases are still read",
+      "why": "Area commands never read or write config, so a command an agent can call can't rewrite the user's connections; the core change that would let one save a setting doesn't exist yet.",
+      "principle": "2"
+    },
+    {
+      "allows": [],
+      "old": "ado work create and work update printing input-file keys overridden by flags to stderr and in meta.overrides, and work create --parent printing a failed link to stderr",
+      "toil": "The same text as ADO_INPUT_OVERRIDDEN and ADO_PARENT_LINK_FAILED entries in meta.warnings; data and the exit code are unchanged",
+      "why": "An MCP client never sees stderr, so a warning it can't see would fail silently. meta.warnings is the envelope's place for it (Output Contract).",
+      "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "ado pipeline run --wait giving up with \"Timed out waiting for completion after <n>s\" as a generic failure",
+      "toil": "The same message as a TIMEOUT error, with a fix naming the build id to check",
+      "why": "A wait that gives up is a timeout, and the fix says the build may still finish.",
+      "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "A missing collection or project telling the user to run the old CLI's config init",
+      "toil": "\"Could not determine Azure DevOps collection. Pass --collection, or set collection on the connection.\" (and the same for project), with a fix naming defaults.ado and the env var",
+      "why": "toil has no config init yet; the error names what does exist.",
+      "principle": "4"
+    },
+    {
+      "allows": [
+        "ado work add-attachment data.name"
+      ],
+      "old": "ado work add-attachment typed its data as an attachment with a name",
+      "toil": "data is the server's answer passed through unchanged, as before. The upload endpoint answers with an AttachmentReference, { id, url }, so the contract's typed field never existed at run time",
+      "why": "Nothing changes; the recorded field came from the old code's type, not from what the server returns, and a fixture shaped like the documented API can't carry it.",
+      "principle": "Porting"
+    },
+    {
+      "allows": [
+        "ado work fields data.[].type"
+      ],
+      "when": {
+        "type": "Bug"
+      },
+      "old": "ado work fields --type typed each field with a type",
+      "toil": "Unchanged: the type-scoped endpoint returns no type or readOnly, so both come out undefined and leave the JSON, as before (#69 item 18, pinned)",
+      "why": "A suspected bug is kept until a live run confirms it (CLAUDE.md, Porting); the field is excused only for calls with --type.",
+      "principle": "Porting"
     }
   ]
 }

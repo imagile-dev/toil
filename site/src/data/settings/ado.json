@@ -1,0 +1,68 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_ADO_BASE_URL",
+    "description": "Azure DevOps Server root, e.g. https://ado.imagile.dev (keep any /tfs prefix)",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "pat",
+    "env": "TOIL_ADO_PAT",
+    "description": "Personal access token",
+    "required": true,
+    "secret": true,
+    "fallbacks": [
+      "SYSTEM_ACCESSTOKEN"
+    ]
+  },
+  {
+    "key": "collection",
+    "env": "TOIL_ADO_COLLECTION",
+    "description": "Default collection, when --collection isn't given",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "project",
+    "env": "TOIL_ADO_PROJECT",
+    "description": "Default team project, when --project isn't given",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "repo",
+    "env": "TOIL_ADO_REPO",
+    "description": "Default git repository, when --repo isn't given",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "fieldAliases",
+    "env": "TOIL_ADO_FIELD_ALIASES",
+    "description": "Work item field aliases, friendly name to reference name (e.g. {\"storypoints\": \"Microsoft.VSTS.Scheduling.StoryPoints\"})",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "discoveredFields",
+    "env": "TOIL_ADO_DISCOVERED_FIELDS",
+    "description": "Work item fields recorded by an earlier discovery; kept, not read",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "discoveredTypes",
+    "env": "TOIL_ADO_DISCOVERED_TYPES",
+    "description": "Work item types recorded by an earlier discovery; kept, not read",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]
