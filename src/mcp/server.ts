@@ -15,6 +15,10 @@ import { runCommand } from '../core/run.js';
  * connections has writes enabled: a write tool that isn't registered can't be
  * discovered, let alone called. Listing grants nothing; each call is still
  * gated against the one connection it resolves.
+ *
+ * A `cliOnly` command is never a tool, whatever the flags: it prompts on a
+ * terminal, which under MCP is the protocol, or it changes connections, which
+ * an agent never does.
  */
 export function selectCommands(commands: AnyCommand[], areas: string[] | undefined, config: ResolvedConfig): AnyCommand[] {
   if (areas) {
@@ -26,8 +30,9 @@ export function selectCommands(commands: AnyCommand[], areas: string[] | undefin
       });
     }
   }
-  const inScope = (def: AnyCommand) => (areas ? areas.includes(areaOf(def)) : def.standalone === true || hasConfig(config, areaOf(def)));
-  return commands.filter((def) => inScope(def) && (!def.writes || anyWrites(config, areaOf(def))));
+  // A command outside any area (version, connections list) needs no area set up.
+  const inScope = (def: AnyCommand) => (areas ? areas.includes(areaOf(def)) : !def.area || hasConfig(config, areaOf(def)));
+  return commands.filter((def) => !def.cliOnly && inScope(def) && (!def.writes || anyWrites(config, areaOf(def))));
 }
 
 /**

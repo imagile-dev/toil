@@ -102,7 +102,7 @@ export function connectionsScreen(caps: Caps, data: WelcomeData): string[] {
       lines.push('', faint(caps, '* the default for its area'));
     }
   }
-  lines.push('', faint(caps, 'Adding connections and signing in from this menu arrives with the OS credential store (#51).'));
+  lines.push('', faint(caps, 'Add one with toil connections add <name>; replace its secret with toil connections login <name>.'));
   return lines;
 }
 

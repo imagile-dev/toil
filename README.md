@@ -51,7 +51,9 @@ Every command writes one JSON envelope to stdout:
 ## Configure
 
 Settings resolve in this order: `TOIL_*` environment variables, then
-`~/.toil/config.json`. Nothing in a repository can change where your credentials go or
+`~/.toil/config.json`. `toil connections add <name>` sets up a connection on a
+terminal and keeps its token in the OS credential store, with only a reference in
+config; `toil connections list` shows what's set up. Nothing in a repository can change where your credentials go or
 switch on writes. Database connections are read-only unless you mark them otherwise.
 
 ## Contributing

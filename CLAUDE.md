@@ -68,7 +68,8 @@ gets made again in the next place it applies.
   paths on disk use the platform's own form.
 - Never spawn through a shell (`shell: true`, `exec`), and never assume bash,
   PowerShell, or a POSIX utility. The only spawns allowed are the OS credential
-  stores in the `secrets` skill, each behind a platform check.
+  stores in the `secrets` skill, all in `src/core/keychain.ts`, each behind a
+  platform check.
 - Read files as UTF-8 and accept both CRLF and LF; write LF. `.gitattributes` keeps
   the repo LF so Windows checkouts produce identical bundles.
 - Config lives in `~/.toil/` on every platform, so instructions are identical.
@@ -93,15 +94,21 @@ Node, and toil has to work there. This is the most important rule in the repo.
   - `npm run check:pure` fails if `package.json` has runtime `dependencies` or any
     install/prepare script, or if the bundle imports anything but Node built-ins.
     That's read from esbuild's metafile, never by scanning text. It also fails on
-    `child_process` or a native addon, or if the tarball holds anything beyond
-    `dist/toil.js`, `package.json`, `README.md`, `LICENSE` and `NOTICE`.
+    a native addon, on `child_process` imported by any file but
+    `src/core/keychain.ts` (stubbed or not), or if the tarball holds anything
+    beyond `dist/toil.js`, `package.json`, `README.md`, `LICENSE` and `NOTICE`.
   - `npm run smoke` installs the packed tarball with `--ignore-scripts` into a
     throwaway prefix and drives the installed bin through the CLI and MCP.
 - Bundled dependencies can drag in a spawning API (commander imports `child_process`
   for subcommands toil never uses). The build resolves `child_process` to
-  `src/shims/no-spawn.ts`, a stub that throws. Keep it that way; if a future area
-  genuinely needs the OS credential store, it gets its own narrowly scoped module
-  and the gate gains an explicit, reviewed exception.
+  `src/shims/no-spawn.ts`, a stub that throws, for every importer but one.
+- **The one exception is the OS credential store**, `src/core/keychain.ts`. It
+  alone gets the real `node:child_process` (the tsup `no-spawn` plugin decides by
+  importer path, `check:pure` verifies it from the metafile, and ESLint allows the
+  import in that file only). It runs only what the OS ships (`security`, Windows
+  PowerShell, `secret-tool`), never through a shell, with secrets on stdin. Nothing
+  may require it: env vars and plaintext config work without it. Any other spawn,
+  or a second file allowed to spawn, needs this section changed first.
 
 Before adding a dependency, check it against this rule. If the only good library is
 native, find a pure-JS or WASM alternative or implement the protocol directly.
@@ -122,7 +129,9 @@ GitHub Actions; its build tooling is out of scope.
 ## Layout
 
 - `src/core/` — the machinery: `defineArea`, `defineCommand`, `execute`
-  (validation, connection, write gate, envelope), errors, config loading
+  (validation, connection, write gate, envelope), errors, config loading and
+  writing, the OS credential store (`keychain.ts`) and the terminal prompter
+- `src/connections/` — `toil connections add | login | list | remove`
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
   `commands` (standalone commands export only `commands`)
 - `src/registry.ts` — every shipped area and command, read by both front doors. It
@@ -161,7 +170,14 @@ connection this call resolved, validated and typed from the area's schema, and a
 context with no `config` and no `env` (which carries every `TOIL_*` credential and
 every CI token on the runner), so no area can reach another area's or another
 connection's credentials. ESLint bans importing config under `src/areas/`, and
-`process.env` stays out of area code for the same reason.
+`process.env` stays out of area code for the same reason. The credential store and
+the prompter are withheld too. The only commands that see the whole config are the
+`toil connections` commands, defined with `defineConfigCommand`, which get
+`ctx.manage` (config, store, prompter); no area command can.
+
+A command marked `cliOnly` is never an MCP tool: it prompts on a terminal (stdin is
+the protocol under MCP) or changes connections, which agents never do. It has no
+time limit, since it may be waiting on someone typing.
 
 ## Build & Test
 
@@ -226,7 +242,9 @@ that area. A value on a connection resolves from, highest first:
 3. A well-known CI-provided variable the area declares (`fallbacks`), for its default
    connection, only where the service's own tooling treats it as canonical
    (`GITHUB_TOKEN`, `SYSTEM_ACCESSTOKEN`). Never invent one.
-4. The connection in `~/.toil/config.json`, or the file passed with `--config`
+4. The connection in `~/.toil/config.json`, or the file passed with `--config`. A
+   secret there may be a `keychain:<ref>` reference to the OS credential store,
+   read when the connection is resolved (the `secrets` skill)
 5. `defaults.<area>` in that file
 6. The area's provider defaults (`defineArea({ defaults })`, e.g. a port)
 
@@ -320,7 +338,8 @@ Tests never need the network: a developer offline gets the same result as CI.
   - for every write command, the write gate holding on both sides
 
   New commands are covered on registration; never add a command without examples,
-  and never exempt one from this suite. When changing the harness, prove the suite
+  and never exempt one from this suite. The only exclusion is `cliOnly` commands,
+  which aren't MCP tools; the suite names each one and proves MCP never serves it. When changing the harness, prove the suite
   still bites: break the mapping on purpose and watch it fail.
 - **Each area has a fixture**, `test/fixtures/<area>.fixture.ts`, exporting
   `defineFixture({ area, routes, config })`: canned responses for every request its

@@ -94,3 +94,72 @@ describe('defineArea', () => {
     expect(cmd.area?.name).toBe('x');
   });
 });
+
+describe('keychain: references', () => {
+  const api = defineArea({
+    name: 'api',
+    description: 'test',
+    connection: z.object({ baseUrl: z.string(), token: z.string().min(1), label: z.string().optional() }),
+    secrets: ['token'],
+  });
+  const store = (entries: Record<string, string>, fail?: Error) => {
+    const asked: string[] = [];
+    return {
+      asked,
+      get: (ref: string) => {
+        asked.push(ref);
+        if (fail) throw fail;
+        return entries[ref];
+      },
+    };
+  };
+  const run = (cfg: ResolvedConfig, secrets?: ReturnType<typeof store>) => {
+    const warnings: Warning[] = [];
+    return { connection: resolveConnection(cfg, api, undefined, (w) => warnings.push(w), secrets), warnings };
+  };
+  const withRef = (extra: Record<string, unknown> = {}) => config({ a: { area: 'api', baseUrl: 'https://api.imagile.dev', token: 'keychain:a.token', ...extra } });
+
+  it('resolves a reference on a secret key to the stored secret', () => {
+    const secrets = store({ 'a.token': 'fake-secret' });
+    expect(run(withRef(), secrets).connection).toMatchObject({ token: 'fake-secret' });
+    expect(secrets.asked).toEqual(['a.token']);
+  });
+
+  it('an env var wins, and the store is never asked', () => {
+    const cfg = withRef();
+    cfg.connections.a!.token = 'from-env';
+    cfg.sources['a.token'] = 'env';
+    const secrets = store({ 'a.token': 'fake-secret' });
+    expect(run(cfg, secrets).connection).toMatchObject({ token: 'from-env' });
+    expect(secrets.asked).toEqual([]);
+  });
+
+  it('an unresolvable reference is unset, never the literal string, with a warning naming the fix', () => {
+    for (const secrets of [store({}), store({}, new Error('store is locked')), undefined]) {
+      let thrown: unknown;
+      try {
+        run(withRef(), secrets);
+      } catch (err) {
+        thrown = err;
+      }
+      expect(thrown).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('token') });
+      expect(JSON.stringify(thrown)).not.toContain('keychain:');
+    }
+    const optional = defineArea({ name: 'api', description: 'test', connection: z.object({ baseUrl: z.string(), token: z.string().optional() }), secrets: ['token'] });
+    const warnings: Warning[] = [];
+    const resolved = resolveConnection(withRef(), optional, undefined, (w) => warnings.push(w), store({}));
+    expect(resolved).not.toHaveProperty('token');
+    expect(warnings).toEqual([expect.objectContaining({ code: 'CONFIG_SECRET_UNRESOLVED', message: expect.stringMatching(/toil connections login a.*TOIL_CONN_A_TOKEN/) })]);
+  });
+
+  it('leaves a keychain: value on a key that is not a secret alone', () => {
+    const secrets = store({ 'a.token': 's', 'a.label': 'x' });
+    expect(run(withRef({ label: 'keychain:a.label' }), secrets).connection).toMatchObject({ label: 'keychain:a.label', token: 's' });
+    expect(secrets.asked).toEqual(['a.token']);
+  });
+
+  it('resolves a reference shared through defaults.<area>', () => {
+    const cfg = config({ a: { area: 'api', baseUrl: 'https://api.imagile.dev' } }, { api: { token: 'keychain:shared.token' } });
+    expect(run(cfg, store({ 'shared.token': 'shared-secret' })).connection).toMatchObject({ token: 'shared-secret' });
+  });
+});

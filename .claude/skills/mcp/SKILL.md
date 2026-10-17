@@ -13,11 +13,17 @@ lacks.
 
 `toil mcp` serves over stdio. `--areas jira,confluence` limits it to those areas, so
 an agent sees a small, focused tool list and one config entry stands in for one vendor
-server. With no `--areas`, it serves every area that has config, plus `standalone` commands that need none (like `version`). Write tools are not
+server. With no `--areas`, it serves every area that has config, plus commands outside any area (`version`, `connections list`). Write tools are not
 registered at all unless at least one of the area's connections has writes
 enabled (see **Writes** in CLAUDE.md), so an agent cannot discover them, let alone call them.
 Listing grants nothing: every call is still gated against the connection it
 resolves.
+
+A command marked `cliOnly` (`connections add`, `login`, `remove`) is never a tool,
+whatever `--areas` says: it prompts on a terminal, and under MCP stdin is the
+protocol, or it changes connections, which an agent never does. The MCP context
+never carries a prompter either. The parity suite names every `cliOnly` command and
+proves MCP doesn't serve it; keep that list and the flag the only exclusion.
 
 The server is built on the SDK's low-level `Server`, not `McpServer.registerTool`,
 because `registerTool` validates arguments before our code runs: it drops unknown

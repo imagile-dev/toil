@@ -270,6 +270,7 @@ describe('the screens', () => {
     const text = connectionsScreen(plain, data()).join('\n');
     expect(text).toMatch(/jira\s+jira\s+jira\.imagile\.dev\s+read only\s+file/);
     expect(text).not.toContain('token');
+    expect(text).toContain('toil connections add <name>');
   });
 
   it('give each agent client a snippet that runs toil mcp the way this toil was started', () => {

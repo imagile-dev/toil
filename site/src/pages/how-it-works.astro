@@ -36,7 +36,7 @@ const parts = [
     title: 'One token, pasted once, kept safe.',
     body: [
       'Every integration signs in with a long-lived token you generate once in the service itself. There are no browser logins, no OAuth pop-ups and no device codes.',
-      "Tokens come from environment variables first, which is how CI provides them, then from your toil config. You can keep them in your operating system's credential store instead, with only a reference in config, but nothing requires it. Tokens never appear on a command line or in output.",
+      "Tokens come from environment variables first, which is how CI provides them, then from your toil config. Setting up a connection with toil connections add asks for the token without showing it and keeps it in your operating system's own credential store, with only a reference in config. The store is optional: environment variables, or a token in config, work without it. Tokens never appear on a command line or in output.",
     ],
   },
   {

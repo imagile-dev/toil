@@ -40,6 +40,11 @@ export default tseslint.config(
     },
   },
   {
+    // The one module allowed to spawn: the OS credential store (CLAUDE.md, No Executables).
+    files: ['src/core/keychain.ts'],
+    rules: { 'no-restricted-imports': 'off' },
+  },
+  {
     files: ['scripts/**/*.mjs', 'test/**/*.ts', '*.config.ts', '*.config.js'],
     rules: { 'no-restricted-imports': 'off' },
     languageOptions: { globals: { process: 'readonly', console: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly', URL: 'readonly' } },

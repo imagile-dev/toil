@@ -22,6 +22,7 @@ export type ErrorCode =
   | 'CANCELLED'
   /** A database refused or failed a statement: bad SQL, a constraint, a lock. */
   | 'DATABASE'
+  | 'CREDENTIAL_STORE'
   | 'INTERNAL';
 
 export class ToilError extends Error {
