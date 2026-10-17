@@ -6,7 +6,7 @@
   "covers": "Work items, repos, pull requests, pipelines",
   "credential": "Personal access token",
   "credentialWhere": "User settings → Personal access tokens",
-  "status": "planned",
+  "status": "unit",
   "supported": {
     "product": "Azure DevOps Server",
     "minimum": "2022.1",
