@@ -1,9 +1,9 @@
-import { createHash } from 'node:crypto';
 import type { z } from 'zod';
 import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
+import { apiRequest } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
-import { buildUrl, restRequest, type QueryValue } from '../../core/rest.js';
+import { repointUrl, type QueryValue } from '../../core/rest.js';
 import { jiraArea, type CustomFieldDefinition } from './area.js';
 import { suggestedType } from './custom-fields.js';
 
@@ -107,17 +107,8 @@ const seg = (value: string | number) => String(value);
  */
 export const looksNumeric = (value: string) => !isNaN(parseInt(value, 10));
 
-const authFix = (ctx: JiraContext) =>
-  `Jira rejected the personal access token on connection "${ctx.connection.name}". Create a new one under your profile picture → Profile → Personal Access Tokens, then set apiToken (${jiraArea.envName('apiToken')} for the default connection).`;
-
-function headers(ctx: JiraContext): Record<string, string> {
-  return {
-    Authorization: `Bearer ${ctx.connection.apiToken}`,
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    Connection: 'close',
-  };
-}
+/** What every JSON call sends besides the hook's token, exactly as the contract sent it. */
+const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
 
 interface JiraRequest {
   method?: 'GET' | 'POST' | 'PUT';
@@ -126,9 +117,12 @@ interface JiraRequest {
 }
 
 export function jira<T>(ctx: JiraContext, path: string, req: JiraRequest = {}): Promise<T> {
-  const init: RequestInit = { method: req.method ?? 'GET', headers: headers(ctx) };
-  if (req.body !== undefined) init.body = JSON.stringify(req.body);
-  return restRequest<T>(ctx, buildUrl(ctx.connection.baseUrl, path, req.params), init, { service: 'Jira', authFix: authFix(ctx) });
+  return apiRequest<T>(jiraArea, ctx, path, {
+    method: req.method ?? 'GET',
+    headers: JSON_HEADERS,
+    ...(req.params ? { query: req.params } : {}),
+    ...(req.body !== undefined ? { body: JSON.stringify(req.body) } : {}),
+  });
 }
 
 interface Page<T> {
@@ -358,67 +352,15 @@ export async function removeLabels(ctx: JiraContext, key: string, labels: string
   await jira<void>(ctx, `${API}/issue/${seg(key)}`, { method: 'PUT', body: { update: { labels: labels.map((l) => ({ remove: l })) } } });
 }
 
-const MIME: Record<string, string> = {
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.gif': 'image/gif',
-  '.svg': 'image/svg+xml',
-  '.pdf': 'application/pdf',
-  '.txt': 'text/plain',
-  '.log': 'text/plain',
-  '.csv': 'text/csv',
-  '.json': 'application/json',
-  '.xml': 'application/xml',
-  '.zip': 'application/zip',
-  '.tar': 'application/x-tar',
-  '.gz': 'application/gzip',
-  '.md': 'text/markdown',
-  '.html': 'text/html',
-  '.htm': 'text/html',
-  '.doc': 'application/msword',
-  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  '.xls': 'application/vnd.ms-excel',
-  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-};
-
-export function mimeType(fileName: string): string {
-  const dot = fileName.lastIndexOf('.');
-  return (dot === -1 ? undefined : MIME[fileName.slice(dot).toLowerCase()]) ?? 'application/octet-stream';
-}
-
-/**
- * A multipart/form-data body with one `file` part, built by hand so the
- * boundary is derived from the content: the same upload is the same bytes on
- * every run, which is what lets both front doors be compared request for
- * request. A hash of the content can't occur in the content.
- */
-export function multipartFile(fileName: string, data: Uint8Array): { body: Uint8Array; contentType: string } {
-  const boundary = `toil-${createHash('sha256').update(data).digest('hex').slice(0, 32)}`;
-  const safeName = fileName.replace(/[\r\n]/g, '').replace(/"/g, '%22');
-  const head = new TextEncoder().encode(
-    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${safeName}"\r\nContent-Type: ${mimeType(fileName)}\r\n\r\n`,
-  );
-  const tail = new TextEncoder().encode(`\r\n--${boundary}--\r\n`);
-  const body = new Uint8Array(head.length + data.length + tail.length);
-  body.set(head, 0);
-  body.set(data, head.length);
-  body.set(tail, head.length + data.length);
-  return { body, contentType: `multipart/form-data; boundary=${boundary}` };
-}
+/** The upload body, built in core; exported here because the Jira tests compare against it. */
+export { multipartFile } from '../../core/multipart.js';
 
 export function uploadAttachment(ctx: JiraContext, key: string, fileName: string, data: Uint8Array): Promise<JiraAttachment[]> {
-  const { body, contentType } = multipartFile(fileName, data);
-  return restRequest<JiraAttachment[]>(
-    ctx,
-    buildUrl(ctx.connection.baseUrl, `${API}/issue/${seg(key)}/attachments`),
-    {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${ctx.connection.apiToken}`, 'X-Atlassian-Token': 'no-check', Accept: 'application/json', Connection: 'close', 'Content-Type': contentType },
-      body,
-    },
-    { service: 'Jira', authFix: authFix(ctx) },
-  );
+  return apiRequest<JiraAttachment[]>(jiraArea, ctx, `${API}/issue/${seg(key)}/attachments`, {
+    method: 'POST',
+    headers: { 'X-Atlassian-Token': 'no-check', Accept: 'application/json', Connection: 'close' },
+    multipart: [{ name: 'file', fileName, data }],
+  });
 }
 
 export async function listAttachments(ctx: JiraContext, key: string): Promise<JiraAttachment[]> {
@@ -433,23 +375,13 @@ export async function listAttachments(ctx: JiraContext, key: string): Promise<Ji
  * goes to the configured host: a different origin is re-pointed at it.
  */
 export async function downloadAttachment(ctx: JiraContext, contentUrl: string): Promise<Uint8Array> {
-  const base = new URL(ctx.connection.baseUrl);
-  let target: URL;
-  try {
-    target = new URL(contentUrl, base);
-  } catch {
-    throw new ToilError('HTTP', `Jira returned an attachment URL toil can't read: ${contentUrl}.`, { fix: 'Download it from the Jira web interface instead.' });
-  }
-  if (target.origin !== base.origin) {
-    ctx.warn({ code: 'JIRA_ATTACHMENT_HOST', message: `Jira named ${target.origin} for this attachment; toil fetched it from the configured ${base.origin} instead.` });
-    target = new URL(`${target.pathname}${target.search}`, base.origin);
-  }
-  return restRequest<Uint8Array>(
-    ctx,
-    target.toString(),
-    { headers: { Authorization: `Bearer ${ctx.connection.apiToken}`, Connection: 'close' } },
-    { service: 'Jira', authFix: authFix(ctx), as: 'bytes' },
-  );
+  const target = repointUrl(contentUrl, ctx.connection.baseUrl, ctx.warn, {
+    service: 'Jira',
+    subject: 'attachment',
+    code: 'JIRA_ATTACHMENT_HOST',
+    fix: 'Download it from the Jira web interface instead.',
+  });
+  return apiRequest<Uint8Array>(jiraArea, ctx, target, { headers: { Connection: 'close' }, as: 'bytes' });
 }
 
 export async function assignIssue(ctx: JiraContext, key: string, assignee: string): Promise<void> {

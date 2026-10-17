@@ -3,6 +3,7 @@ import type { CommandDefinition, CliOption, ContextNeed } from './command.js';
 import { envName } from './config.js';
 import type { GitRemote } from './call-context.js';
 import type { CommandContext } from './context.js';
+import type { RequestHook } from './api.js';
 
 /**
  * An area is one service, or one deployment variant of one (`jira`,
@@ -61,6 +62,14 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string 
    * of its own.
    */
   shares?: SharedSettings;
+  /**
+   * For an HTTP area: the base URL and auth headers for a resolved connection,
+   * exchanging a long-lived credential for a token where the service needs
+   * one. Commands send through `apiRequest` (`src/core/api.ts`), which builds
+   * every request from this, so no command assembles its own credentials.
+   */
+  // Method syntax, so a hook typed for one area's connection still fits AreaSpec's defaults.
+  request?(...args: Parameters<RequestHook<z.output<S>>>): ReturnType<RequestHook<z.output<S>>>;
 }
 
 /** See {@link AreaSpec.shares}. */
@@ -204,6 +213,10 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
       }
       const kind = def.kind ?? 'area';
       if (kind !== 'area' && kind !== 'area-local') throw new Error(`Command ${name}: an area command's kind is area or area-local, not ${String(kind)}.`);
+      // execute()'s default limit (DEFAULT_TIMEOUT_MS in run.ts). A declared one only ever raises it.
+      if (def.timeLimitMs !== undefined && !(Number.isInteger(def.timeLimitMs) && def.timeLimitMs > 120_000)) {
+        throw new Error(`Command ${name}: timeLimitMs is for a limit above the 120 s default, in whole milliseconds; ${def.timeLimitMs} isn't.`);
+      }
       if (kind === 'area-local') {
         if (def.context) throw new Error(`Command ${name}: an area-local command has no connection, so no context inputs.`);
         return { ...def, kind, area, run: def.run as CommandDefinition['run'] } as CommandDefinition<typeof def.input>;

@@ -4,7 +4,7 @@
 
 toil is a structured-JSON CLI and MCP server, owned by Imagile, that gives AI agents
 and humans one interface to enterprise tools and databases. TypeScript on
-Node.js (22.16 or later), published to npm as `@imagile-dev/toil`.
+Node.js (24.14 or later), published to npm as `@imagile-dev/toil`.
 
 Who it is for, in priority order:
 
@@ -49,9 +49,11 @@ gets made again in the next place it applies.
    aggregate command that decides on the caller's behalf which services to ask. →
    dependency analysis split by source, stdin / `--from` composition (`integrations`
    skill).
-4. **Honest about what is known.** Every result says where it came from and how
-   precise it is; every integration says how far it has been verified. → Verification
-   Levels (`integrations` skill), source on every finding.
+4. **Honest and obvious.** Every result says where it came from and how precise it
+   is; every integration says how far it has been verified. Errors are unmistakable:
+   they say plainly what went wrong and what to do about it. Nothing fails silently,
+   and nothing important hides behind `--debug`. → Verification Levels
+   (`integrations` skill), source on every finding, the fix on every error.
 5. **The environment wins without editing files.** CI and agents configure through
    env vars that override anything on disk. → Configuration Precedence.
 6. **This repository stands alone.** Docs, code and skills never name another
@@ -70,10 +72,11 @@ gets made again in the next place it applies.
    is mobile responsive for the same reason (`site` skill).
 9. **toil talks only to what the user pointed it at.** No telemetry, no update checks,
    no call home. The only network traffic is to hosts in the user's config, or to a
-   public API that a command the user ran names in its own name (`toil osv vulns`).
-   A credential goes only to the connection it's configured on, or to one the user
-   paired it with; the one exception is an area's default connection taking another
-   area's default env value, which keeps the documented env chain.
+   public API that a command the user ran names in its own name (`toil osv vulns`),
+   plus the proxy the environment names. A credential goes only to the connection
+   it's configured on, or to one the user paired it with; the one exception is an
+   area's default connection taking another area's default env value, which keeps
+   the documented env chain.
 
 ## Cross-Platform
 
@@ -92,8 +95,11 @@ gets made again in the next place it applies.
   the repo LF so Windows checkouts produce identical bundles.
 - Config lives in `~/.toil/` on every platform, so instructions are identical.
 - CI runs the full gate on `windows-latest`, `macos-latest` and `ubuntu-latest`, on
-  Node 22.16 (the floor) and 24. A test that is skipped on one platform says
-  why in its name.
+  Node 24.14 (the floor) and 26, the current release. 24.14 is the first release
+  where toil can trust the OS certificate store and honour `HTTPS_PROXY` /
+  `NO_PROXY` from code, with no flag and no package (`src/core/network.ts`). On an
+  older Node the CLI prints one `UNSUPPORTED_NODE` envelope and exits 1
+  (`src/core/runtime.ts`). A test that is skipped on one platform says why in its name.
 
 ## No Executables
 
@@ -277,9 +283,12 @@ front doors (**Bounds**), `-` means stdin only on the CLI (over MCP stdin carrie
 the protocol), saved paths in output are absolute with forward slashes, and tests
 get an in-memory copy. It also answers `exists`, `stat`, a `.gitignore`-respecting
 `list` and `findUp`, and writes CSV with `writeCsv`. git runs only through `ctx.git` (`src/core/git.ts`). HTTP to a REST API
-goes through `restRequest` and `buildUrl` in `src/core/rest.ts`, which turn failures
-into `AUTH`, `NOT_FOUND`, `HTTP` or `NETWORK` errors with the server's own message,
-retry a 429, and keep a base URL's context path. argv is typed from the schema by the
+goes through `apiRequest` in `src/core/api.ts`, built from the area's
+`defineArea({ request })` hook, on `restRequest` in `src/core/rest.ts`. Together they
+turn failures into `AUTH`, `NOT_FOUND`, `HTTP` or `NETWORK` errors with the server's
+own message, retry a 429, keep a base URL's context path, and keep credentials on the
+connection's host: a redirect elsewhere is refused, unless a GET opts into following a
+signed download URL with every header dropped. argv is typed from the schema by the
 same rule env vars follow (`fromText` in `src/core/schema.ts`): numbers, `true` and
 `false`, enums, JSON for an object, and an array field's flag is repeatable with each
 value typed as its element. A union stays text, which is how Jira keeps the
@@ -339,8 +348,8 @@ npm run check:pure  # the No Executables gate (after build)
 npm run smoke       # install the tarball with scripts off; drive CLI and MCP (after build)
 ```
 
-All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 22.16
-and 24. Its `CI ok` job passes only when every one of those passed, and it's the one
+All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 24.14
+and 26. Its `CI ok` job passes only when every one of those passed, and it's the one
 check `main`'s ruleset requires, so nothing merges on a red gate. Other checks stay
 optional: the review job (approval is required separately, and it skips the release
 PR) and path-filtered jobs, which would block PRs they never run on.
@@ -374,8 +383,9 @@ a breaking change.
   `shared` lists settings taken from another area's connection, with where each
   lived, never the value. It's set on a failure too, as far as resolution got.
 - **Every command has a time limit and can be cancelled.** `execute()` aborts at
-  `TOIL_TIMEOUT_MS` (default 120 s) with `TIMEOUT`, and on Ctrl+C or an MCP cancel
-  with `CANCELLED`. Commands pass `ctx.signal` to anything long-running that isn't
+  `TOIL_TIMEOUT_MS` (default 120 s, or a longer `timeLimitMs` the command declares;
+  `TOIL_TIMEOUT_MS`, when set, overrides both) with `TIMEOUT`, and on Ctrl+C or an
+  MCP cancel with `CANCELLED`. Commands pass `ctx.signal` to anything long-running that isn't
   `ctx.fetch` (which already carries it). Aborting stops toil waiting, not the
   server: for a write command both errors say the change may already have been
   applied, and to check before retrying. Never word them as "stopped" for a write.

@@ -50,7 +50,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
   };
 
   // A CLI-only command may be waiting on a person typing a token; Ctrl+C still cancels it.
-  const timeoutMs = isCliOnly(def) ? undefined : (ctx.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const timeoutMs = isCliOnly(def) ? undefined : (ctx.timeoutMs ?? def.timeLimitMs ?? DEFAULT_TIMEOUT_MS);
   const controller = new AbortController();
   // Aborting stops toil waiting; it can't recall a request the server already
   // has. For a write, "stopped" would invite a retry that files the change

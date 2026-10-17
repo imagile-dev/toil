@@ -49,4 +49,10 @@ export const jiraArea = defineArea({
     priority: z.string().min(1).optional().describe('Default priority for create-issue'),
   }),
   secrets: ['apiToken'],
+  request: (connection, area) => ({
+    baseUrl: connection.baseUrl,
+    headers: { Authorization: `Bearer ${connection.apiToken}` },
+    service: 'Jira',
+    authFix: `Jira rejected the personal access token on connection "${connection.name}". Create a new one under your profile picture → Profile → Personal Access Tokens, then set apiToken (${area.envName('apiToken')} for the default connection).`,
+  }),
 });

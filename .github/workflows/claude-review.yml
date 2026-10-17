@@ -131,7 +131,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '22'
+          node-version: '24.14'
 
       # A branch from before the package existed has nothing to install; review
       # it anyway rather than failing on a missing lockfile.
