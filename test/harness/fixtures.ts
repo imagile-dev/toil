@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { areaOf, type AnyCommand } from '../../src/core/command.js';
 import type { Settings } from '../../src/core/config.js';
+import type { GitContext } from '../../src/core/git-repo.js';
 import { commands as registered } from '../../src/registry.js';
 import type { Route } from './fake-fetch.js';
 import { traceOperations } from './operations.js';
@@ -39,6 +40,11 @@ export interface AreaFixture {
   config?: Record<string, Settings>;
   /** Local files the examples read (input files, uploads), relative to the test working directory. */
   files?: Files;
+  /**
+   * The repository the examples run in, as `ctx.repo()` reports it: root,
+   * branch and remotes (`bitbucket current-pr`). Left out, as outside one.
+   */
+  repo?: GitContext;
   /** Defaults to the area's registered commands. Only test-only areas set it. */
   commands?: AnyCommand[];
   /**

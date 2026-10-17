@@ -117,11 +117,12 @@ describe('findings list', () => {
   });
 
   // Suspected bug (#87 item 6): --app goes into the path unencoded, so a slash or ".." changes the endpoint.
-  it('pastes --app into the path as typed', async () => {
+  it('pastes --app into the path as typed, except a dot segment, which core refuses before sending (global divergence)', async () => {
     const slash = await run(findingsListCommand, { app: 'a/b' }, [ok({})]);
     expect(slash.calls[0]!.url).toBe(`${CONTRAST}${NG}/traces/a/b/filter?limit=25&offset=0`);
     const dots = await run(findingsListCommand, { app: '../../x' }, [ok({})]);
-    expect(dots.calls[0]!.url).toBe(`${CONTRAST}/Contrast/api/ng/x/filter?limit=25&offset=0`);
+    expect(dots.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('".." as a segment') });
+    expect(dots.calls).toEqual([]);
   });
 });
 

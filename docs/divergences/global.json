@@ -33,6 +33,14 @@
       "toil": "Removed. Run the command without --allow-write, which refuses the write",
       "why": "It could only intercept writes made over HTTP, showed only the first of several, and saw little use. Writes are governed by the two-step gate (writes enabled in config plus --allow-write) alone.",
       "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "An id, key or name of . or .. pasted into a request path, which URL normalisation collapsed, so the request (a write included) reached a different endpoint on the same host",
+      "toil": "A request path with a . or .. segment (or %2e spellings of one) is refused with INVALID_INPUT naming the segment, before anything is sent. Dots inside a segment (v1.2) are unchanged",
+      "why": "A value an agent passes must not redirect a command, or its credential, to an endpoint the command doesn't name (docs/bounds.md, requests.path).",
+      "principle": "2",
+      "class": "security"
     }
   ]
 }

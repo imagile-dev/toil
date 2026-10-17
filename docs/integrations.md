@@ -35,16 +35,18 @@ commands keep the shape listed in [command-contract.md](command-contract.md).
 | `toil deps scan` | Local manifests | Package inventory for npm, Maven and NuGet | None |
 | `toil deps diff` | Local manifests | Packages added, removed or changed between two refs | None |
 | `toil osv vulns` | OSV.dev | Known vulnerabilities for an inventory | Public API, no credential |
-| `toil ossindex vulns` | Sonatype OSS Index | Known vulnerabilities for an inventory | Public API, optional token |
+| `toil ossindex vulns` | Sonatype OSS Index | Known vulnerabilities for an inventory | Public API, account username and token |
 | `toil sonatypeiq evaluate` | Sonatype IQ Server | Policy evaluation of an inventory against an application | User token pair |
-| `toil deps frisk --source <one>` | Whichever source you name | Alias for the matching command above | As above |
+| `toil deps frisk --source <one>` | Whichever source you name: `osv` (the default), `sonatype` or `sonatypeiq` | Alias for the matching command above; `--source all` is dropped | As above |
 | `toil deps outdated` | JFrog Artifactory | Newer versions available in your mirrors | Access token |
 | `toil deps license-check` | JFrog Artifactory | License metadata for an inventory | Access token |
 
 Each source command reads an inventory from `--from <file>` or stdin, so
-`toil deps scan | toil osv vulns` works. Any of them can also be pointed at a repo
-directly, in which case it runs the scan itself. Reachability checks belong to each
-source's `config test`, not to a separate connectivity command.
+`toil deps scan | toil osv vulns` works. None of them scans a repository itself:
+`toil deps scan` makes the inventory, and the source commands only read one. They
+share core's reader (`src/core/inventory.ts`), so each accepts the same shapes: the
+scan's whole envelope, its `data`, or a bare list of packages. Reachability checks
+belong to each source's `config test`, not to a separate connectivity command.
 
 ## Local utilities
 

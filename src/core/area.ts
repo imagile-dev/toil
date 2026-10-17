@@ -52,6 +52,21 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string 
    * alias; MCP has the core tool, with its `area` field.
    */
   coreAliases?: Record<string, string>;
+  /**
+   * The error when no connection to this area is set up at all, in the
+   * area's own words, where the contract had them ("OSS Index needs an
+   * account token…"). `fix` defaults to core's, which names the variables
+   * to set. Without it, core says "No <area> connection is set up."
+   */
+  notConfigured?: { message: string; fix?: string };
+  /**
+   * Keys the area no longer accepts, each with what to say about it
+   * (checkmarx's `clientId`: "Client credentials are no longer supported;
+   * set apiKey."). A connection that still sets one gets that message as a
+   * `CONFIG_REMOVED_KEY` warning instead of core's unknown-key one, and the
+   * value is dropped, never sent. A removed key can't be a connection key.
+   */
+  removed?: Record<string, string>;
   /** Keys that were renamed: old name to new. The old name still works, with a warning. */
   renamed?: Record<string, SettingKey<S>>;
   /**
@@ -174,8 +189,8 @@ export interface Area<S extends z.ZodObject = z.ZodObject, K extends string = st
 
 /** What an area command declares; `path[0]` must be the area's name. */
 export type AreaCommand<I extends z.ZodObject, C, K extends string = string> = Omit<CommandDefinition<I>, 'run' | 'kind' | 'area' | 'context' | 'examples'> & {
-  /** Real inputs, which may set the context inputs core adds. */
-  examples: Array<z.input<I> & Partial<Record<K, string>>>;
+  /** Real inputs, which may set the context inputs core adds, even on a command with no inputs of its own. */
+  examples: Array<OwnFields<z.input<I>> & Partial<Record<K, string>>>;
   /** `area-local` for a command that needs no connection (`jira schema`). Defaults to `area`. */
   kind?: 'area' | 'area-local';
   /** Command-level context inputs it takes, and any input (group-level too) it can't do without. */
@@ -183,6 +198,14 @@ export type AreaCommand<I extends z.ZodObject, C, K extends string = string> = O
   /** An `area-local` command's `ctx.connection` is undefined at run time, whatever this type says; it has no connection to read. */
   run(input: z.output<I>, ctx: CommandContext<Connection<C>, Partial<Record<K, string>>>): Promise<unknown>;
 };
+
+/**
+ * A schema's input without an index signature. `z.object({})` reads as
+ * `Record<string, never>`, which no example with a context input could
+ * satisfy (`{ env: 'prod' }` on `openshift cluster list`); keeping only the
+ * named fields lets the context inputs in.
+ */
+type OwnFields<T> = { [P in keyof T as string extends P ? never : P]: T[P] };
 
 // Areas of many connection shapes share one registry.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -215,6 +238,9 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
   }
   for (const key of Object.keys(spec.examples ?? {})) {
     if (!(key in spec.connection.shape)) throw new Error(`Area ${spec.name}: example "${key}" isn't a connection key.`);
+  }
+  for (const key of Object.keys(spec.removed ?? {})) {
+    if (key in spec.connection.shape || key in (spec.renamed ?? {})) throw new Error(`Area ${spec.name}: removed key "${key}" is still a connection key or a renamed one.`);
   }
   const context = { ...(spec.context ?? {}) } as Record<string, ContextInput>;
   for (const [name, input] of Object.entries(context)) {

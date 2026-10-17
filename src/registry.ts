@@ -2,6 +2,7 @@ import { modules } from './areas.generated.js';
 import { connectionsCommands } from './connections/commands.js';
 import type { AnyArea } from './core/area.js';
 import { assertUniquePaths, withCoreAliases, type AnyCommand } from './core/command.js';
+import { resolveRoutedAliases, type RoutedAlias } from './core/routed-alias.js';
 
 /**
  * Every shipped area, found by scripts/gen-areas.mjs. Nobody maintains this
@@ -19,3 +20,23 @@ export const commands: AnyCommand[] = withCoreAliases([...modules.flatMap((m) =>
 // An alias in another group (`deps outdated` for `artifactory outdated`) can
 // collide with a command there; better a failed start than a silent winner.
 assertUniquePaths(commands);
+
+/**
+ * Old paths that pick their command by a flag's value, declared here once so
+ * no area's branch owns them (src/core/routed-alias.ts). A route whose
+ * command isn't registered yet is skipped, and calling it says so; with
+ * none registered, the path isn't there at all. `--source all` is dropped
+ * (docs/divergences/deps.json): one command asks one source.
+ */
+export const ROUTED_ALIASES: readonly RoutedAlias[] = [
+  {
+    path: ['deps', 'frisk'],
+    description: 'Check an inventory for known vulnerabilities in one source',
+    flag: '--source <source>',
+    // The contract's default.
+    default: 'osv',
+    routes: { osv: 'osv vulns', sonatype: 'ossindex vulns', sonatypeiq: 'sonatypeiq evaluate' },
+  },
+];
+
+export const routedAliases = resolveRoutedAliases(ROUTED_ALIASES, commands);
