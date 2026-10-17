@@ -132,9 +132,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       // `connections list`), say so in the words the user typed, rather than
       // let strict parsing name a command and a field they never mentioned.
       if (!canonical) {
-        const mapped = new Set((def.options ?? []).map((opt) => opt.flags));
-        const all = cmd.optsWithGlobals<Record<string, unknown>>();
-        const stray = [...groupFlags(path[0]!)].find((flags) => !mapped.has(flags) && all[new Option(flags).attributeName()] !== undefined);
+        const stray = strayGroupFlags(def, cmd, groupFlags(path[0]!))[0];
         if (stray) {
           const flag = stray.split(/[ ,]+/).find((p) => p.startsWith('--')) ?? stray;
           const error = new ToilError('INVALID_INPUT', `toil ${path.join(' ')} doesn't take ${flag}: it runs toil ${commandName(def)}${fixed ? ` ${fixed}` : ''}, which has no such input.`, {
@@ -424,13 +422,19 @@ function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<str
   // A group flag this command doesn't take (an area-local command, say) is
   // passed on under its own name, so strict parsing refuses it rather than
   // the call quietly ignoring it.
-  const mapped = new Set((def.options ?? []).map((opt) => opt.flags));
-  for (const flags of groupFlags) {
+  for (const flags of strayGroupFlags(def, cmd, groupFlags)) {
     const attribute = new Option(flags).attributeName();
-    if (!mapped.has(flags) && all[attribute] !== undefined) input[attribute] = all[attribute];
+    input[attribute] = all[attribute];
   }
   if (def.writes && own.allowWrite === true) input.allowWrite = true;
   return input;
+}
+
+/** The group flags given on this call that `def` doesn't map, by their `flags` text: one rule for both the refusal and strict parsing. */
+function strayGroupFlags(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<string>): string[] {
+  const mapped = new Set((def.options ?? []).map((opt) => opt.flags));
+  const all = cmd.optsWithGlobals<Record<string, unknown>>();
+  return [...groupFlags].filter((flags) => !mapped.has(flags) && all[new Option(flags).attributeName()] !== undefined);
 }
 
 const takesValue = (flags: string) => flags.includes('<') || flags.includes('[');

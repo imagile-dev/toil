@@ -36,7 +36,7 @@ const config = { vault: { baseUrl: BASE, token: 't', writes: true } };
 
 describe('a dot segment hidden by what the URL parser drops first', () => {
   // Inside the path: the parser removes every tab, LF and CR. At the end: it trims C0 controls and spaces.
-  const inside = ['.\t.', '.\n.', '.\r.', '\t..', '.\t', '%2\te%2e'].map((id) => `api/items/${id}/delete`);
+  const inside = ['.\t.', '.\n.', '.\r.', '\t..', '.\t', '%2\te%2e', '%2e\n%2e'].map((id) => `api/items/${id}/delete`);
   const atEnd = ['.. ', '..\u0000', '..\u001f', '. ', '..\t \u0001'].map((id) => `api/items/${id}`);
 
   it.each([...inside, ...atEnd].map((p) => [JSON.stringify(p), p]))('%s collapses in new URL(), and core refuses it with nothing sent', async (_name, path) => {
