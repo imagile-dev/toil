@@ -18,6 +18,11 @@ import { parseDiff, rootRelativePathspec } from './diff.js';
 import { normalizeGitDate, parseReport, reportRange } from './report.js';
 import { parseStatus } from './status.js';
 
+/**
+ * The git area against a fake git that records every call, pinning the
+ * predecessor's behaviour item by item from #74, then once against the real
+ * binary. Two witnesses, as the procedure requires.
+ */
 const cmd = (name: string) => commands.find((c) => c.path.join(' ') === `git ${name}`)! as AnyCommand;
 const REPO: GitContext = { root: '/work', branch: 'feature/retries', remotes: [] };
 
