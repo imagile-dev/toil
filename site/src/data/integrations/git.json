@@ -3,8 +3,13 @@
   "name": "Local git",
   "group": "work",
   "order": 6,
-  "covers": "Status, diff, log, branch, current PR",
+  "covers": "Status, diff, log, branches, commit report",
   "credential": "None — local",
-  "credentialNote": "No server. The commands run git, the one optional exception to running no other program; the repo root, branch and remotes are read in pure JS",
-  "status": "planned"
+  "credentialNote": "No server. The commands run git, the one optional exception to running no other program; the repo root and branch are read in pure JS",
+  "status": "unit",
+  "supported": {
+    "product": "git",
+    "minimum": null,
+    "note": "Runs the git already on PATH. toil needs git 2.24 or later for its argument safeguards and refuses an older one with GIT_NOT_FOUND; output parsing was checked against git 2.49."
+  }
 }

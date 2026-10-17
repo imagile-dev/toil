@@ -51,7 +51,11 @@ export const GIT_MAX_OUTPUT = 64 * 1024 * 1024;
 
 export interface GitCall {
   subcommand: GitSubcommand;
-  /** Flags, fixed by the command (`--porcelain`, `--format=%H`). Never user input. */
+  /**
+   * Flags, fixed by the command (`--porcelain`, `--format=%H`). A user value
+   * goes here only joined to its flag in one token (`--since=<date>`), so git
+   * reads it as that flag's value and never as a flag of its own.
+   */
   options?: readonly string[];
   /** Revisions (`main`, `HEAD~3..HEAD`, `v1.2:package.json`); user input is fine here. */
   revisions?: readonly string[];
