@@ -72,14 +72,22 @@ describe('paginate', () => {
     expect(untold.requests.map((r) => r.p)).toEqual([1, 2, 3]);
   });
 
-  it('page with total, resumed from a cursor, counts the pages before it as full', async () => {
-    const style: PageStyle<number> = { kind: 'page', pageParam: 'p', sizeParam: 'ps', pageSize: 2, items: (b) => (b as { issues: number[] }).issues, total: () => 5 };
-    const s = recorder((p) => ({ body: { issues: range((Number(p.p) - 1) * 2, 2, 5) } }));
+  it('page with total, resumed from a cursor, carries the count so short pages lose nothing', async () => {
+    const style: PageStyle<number> = { kind: 'page', pageParam: 'p', sizeParam: 'ps', pageSize: 500, items: (b) => (b as { issues: number[] }).issues, total: (b) => (b as { total: number }).total };
+    // A server that caps ps at 2 under pageSize 500, so every page, the middle ones too, is short.
+    const s = recorder((p) => ({ body: { issues: range((Number(p.p) - 1) * 2, 2, 5), total: 5 } }));
     const first = await paginate(style, s.fetchPage, { cap: 2 });
     expect(first.items).toEqual([0, 1]);
     const rest = await paginate(style, s.fetchPage, { cursor: first.nextCursor! });
-    expect(rest.items).toEqual([2, 3, 4]);
+    expect(rest).toEqual({ items: [2, 3, 4], nextCursor: null, total: 5 });
     expect(s.requests.map((r) => r.p)).toEqual([1, 2, 3]);
+
+    // Cut inside a short middle page, then resumed: the count before that page travels too.
+    const t = recorder((p) => ({ body: { issues: range((Number(p.p) - 1) * 2, 2, 5), total: 5 } }));
+    const mid = await paginate(style, t.fetchPage, { cap: 3 });
+    expect(mid.items).toEqual([0, 1, 2]);
+    expect(await paginate(style, t.fetchPage, { cursor: mid.nextCursor! })).toEqual({ items: [3, 4], nextCursor: null, total: 5 });
+    expect(t.requests.map((r) => r.p)).toEqual([1, 2, 2, 3]);
   });
 
   it('page/per_page stops on a short page', async () => {

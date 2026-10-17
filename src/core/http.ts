@@ -13,16 +13,24 @@ export interface RequestLog {
 }
 
 /**
- * Query parameter names that carry a credential, compared lowercased with
- * `-`, `_` and `.` removed, so `api_key`, `apiKey` and `X-Amz-Signature` all
- * match. Exact names only: `projectKey`, `componentKeys` and `metricKeys` are
- * identifiers, and hiding them would hide what the request was about.
+ * Which query parameters carry a credential. It fails closed: being wrong
+ * toward redaction hides one identifier, while the other way prints a token.
+ * Names are compared lowercased, and with `-`, `_` and `.` removed:
+ *
+ * - any name containing token, secret, passw, pwd, signature or credential
+ *   (`sonar.token`, `os_password`, `personalAccessToken`, `X-Amz-Credential`)
+ * - exactly sig, jwt, key or code
+ * - any name ending in key (`api-key`, `subscription-key`, `x-api-key`),
+ *   except a clear identifier: key right after project, component, metric,
+ *   issue, rule, branch, repo, space, board, sprint, file or entity
+ *   (`projectKey`, `issueKey`). Names ending in keys (`componentKeys`,
+ *   `metricKeys`) and `projectKeyOrId` don't end in key, so they show.
+ *
+ * Every other parameter is somebody's business, but not a secret.
  */
-const SECRET_PARAMS = new Set([
-  'token', 'accesstoken', 'refreshtoken', 'idtoken', 'authtoken', 'apitoken', 'privatetoken', 'sessiontoken', 'xauthtoken',
-  'apikey', 'key', 'accesskey', 'privatekey', 'password', 'passwd', 'pwd', 'secret', 'clientsecret',
-  'signature', 'sig', 'jwt', 'xamzsignature', 'xamzsecuritytoken', 'xamzcredential', 'xgoogsignature', 'xgoogcredential',
-]);
+const SECRET_PART = /token|secret|passw|pwd|signature|credential/;
+const SECRET_EXACT = new Set(['sig', 'jwt', 'key', 'code']);
+const IDENTIFIER_KEY = /(project|component|metric|issue|rule|branch|repo|space|board|sprint|file|entity)key$/;
 
 function isSecretParam(name: string): boolean {
   let decoded = name;
@@ -31,7 +39,9 @@ function isSecretParam(name: string): boolean {
   } catch {
     // A malformed escape is compared as written.
   }
-  return SECRET_PARAMS.has(decoded.toLowerCase().replace(/[-_.]/g, ''));
+  const n = decoded.toLowerCase().replace(/[-_.\s]/g, '');
+  if (SECRET_PART.test(n) || SECRET_EXACT.has(n)) return true;
+  return n.endsWith('key') && !IDENTIFIER_KEY.test(n);
 }
 
 /**

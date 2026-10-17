@@ -372,8 +372,8 @@ a breaking change.
   argument, gets an `INVALID_INPUT` envelope on stdout (`runProgram` in
   `src/program.ts`). Only `--help` and `--version` print plain text.
 - **`--verbose` adds `meta.requests`**: method, URL as sent with credential
-  parameters and userinfo redacted (`redactUrl` matches secret names exactly, so
-  `projectKey` stays), status and timing for every request. It never includes headers or bodies.
+  parameters and userinfo redacted (`redactUrl` fails closed on credential-shaped
+  names, and leaves identifiers such as `projectKey` and `componentKeys`), status and timing for every request. It never includes headers or bodies.
 - `--verbose` lives in core: `execute()` hands every command an instrumented
   `ctx.fetch`, so no command implements it and no front door can forget it. Commands
   under `src/areas/` may not call `fetch` directly, and ESLint enforces it.

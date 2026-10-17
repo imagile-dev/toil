@@ -34,10 +34,21 @@ describe('redactUrl', () => {
     expect(out).toContain('project=PAY');
   });
 
-  it('hides only real secret names, case-insensitively, and leaves identifiers that merely end in key alone', () => {
-    const secrets = ['token', 'access_token', 'api_key', 'apikey', 'apiKey', 'key', 'Password', 'secret', 'client_secret', 'signature', 'sig', 'JWT', 'X-Amz-Signature', 'private_token'];
+  it('fails closed: hides every credential-shaped name, case- and separator-insensitively', () => {
+    const secrets = [
+      'token', 'access_token', 'sonar.token', 'personalAccessToken', 'private_token', 'X-Auth-Token',
+      'secret', 'client_secret', 'password', 'os_password', 'Passwd', 'pwd',
+      'signature', 'X-Amz-Signature', 'X-Amz-Credential', 'sig', 'JWT', 'key', 'code',
+      'api_key', 'apikey', 'apiKey', 'api-key', 'x-api-key', 'subscription-key', 'Ocp-Apim-Subscription-Key', 'accessKey',
+    ];
     for (const name of secrets) expect(redactUrl(`https://sonar.imagile.dev/a?${name}=s3cret&x=1`), name).toBe(`https://sonar.imagile.dev/a?${name}=[redacted]&x=1`);
-    const ids = 'projectKey=PAY&componentKeys=a,b&metricKeys=coverage,bugs&issueKey=ABC-1&keys=k&nextPageToken=abc';
+  });
+
+  it('leaves identifiers alone: names ending in keys, a key after a known noun, and projectKeyOrId', () => {
+    const ids = [
+      'projectKey=PAY', 'componentKeys=a,b', 'metricKeys=coverage,bugs', 'componentKey=c', 'metricKey=m', 'issueKey=ABC-1', 'ruleKey=r',
+      'branchKey=b', 'repoKey=r', 'spaceKey=DOC', 'boardKey=b', 'sprintKey=s', 'fileKey=f', 'entityKey=e', 'projectKeyOrId=PAY,OPS', 'keys=k', 'q=a',
+    ].join('&');
     expect(redactUrl(`https://sonar.imagile.dev/api/x?${ids}`)).toBe(`https://sonar.imagile.dev/api/x?${ids}`);
   });
 
