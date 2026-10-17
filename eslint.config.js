@@ -29,7 +29,13 @@ export default tseslint.config(
           { name: 'child_process', message: 'No spawning: toil runs no executables (CLAUDE.md, No Executables).' },
           { name: 'node:child_process', message: 'No spawning: toil runs no executables (CLAUDE.md, No Executables).' },
         ],
-        patterns: [{ group: ['**/core/config', '**/core/config.js'], message: 'Areas read settings from ctx.connection, never from config.' }],
+        patterns: [
+          { group: ['**/core/config', '**/core/config.js'], message: 'Areas read settings from ctx.connection, never from config.' },
+          {
+            group: ['**/core/keychain', '**/core/keychain.js', '**/core/prompt', '**/core/prompt.js'],
+            message: 'Areas get secrets already resolved on ctx.connection, never from the credential store.',
+          },
+        ],
       }],
       'no-restricted-globals': ['error', { name: 'fetch', message: 'Use ctx.fetch: core records it for --verbose.' }],
       'no-restricted-properties': ['error',
@@ -38,6 +44,11 @@ export default tseslint.config(
         { object: 'process', property: 'env', message: 'Areas read settings from ctx.connection, never from env.' },
       ],
     },
+  },
+  {
+    // The one module allowed to spawn: the OS credential store (CLAUDE.md, No Executables).
+    files: ['src/core/keychain.ts'],
+    rules: { 'no-restricted-imports': 'off' },
   },
   {
     files: ['scripts/**/*.mjs', 'test/**/*.ts', '*.config.ts', '*.config.js'],
