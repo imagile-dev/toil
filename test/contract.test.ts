@@ -7,8 +7,9 @@ import { defineArea } from '../src/core/area.js';
 import { aliasPaths, areaOf, commandName, isCliOnly, type AnyCommand } from '../src/core/command.js';
 import { execute } from '../src/core/run.js';
 import { buildProgram } from '../src/program.js';
-import { commands } from '../src/registry.js';
-import { diffContract, diffOutput, isAllowed, loadContract, loadDivergences, present, readDivergenceFiles, usageArguments, type Contract, type ContractCommand } from './harness/contract.js';
+import { commands, routedAliases } from '../src/registry.js';
+import { resolveRoutedAliases, type ResolvedRoutedAlias } from '../src/core/routed-alias.js';
+import { diffContract, diffOutput, isAllowed, isRemoved, loadContract, loadDivergences, present, readDivergenceFiles, removedPaths, usageArguments, type Contract, type ContractCommand } from './harness/contract.js';
 import { testContext } from './harness/context.js';
 import { loadFixtures, setUp, tearDown } from './harness/fixtures.js';
 
@@ -23,9 +24,10 @@ import { loadFixtures, setUp, tearDown } from './harness/fixtures.js';
  * an area toil has: the old path has to keep working with the old flags.
  */
 
-const programFor = (list: AnyCommand[]) =>
+const programFor = (list: AnyCommand[], routed: readonly ResolvedRoutedAlias[] = []) =>
   buildProgram({
     commands: list,
+    routed,
     version: '0.0.0-test',
     io: { stdout: () => {}, stderr: () => {}, writeFile: () => {} },
     createContext: () => testContext().context,
@@ -50,16 +52,30 @@ describe('migration command contract', () => {
     expect(diffContract(programFor(commands), contract, registered, allowed)).toEqual([]);
   });
 
-  it('covers every contract command under a registered area, by its path or an alias', () => {
-    const inScope = contract.commands.filter((c) => registered.has(c.command.split(' ')[0]!) && c.leaf);
-    const paths = new Set(commands.flatMap((def) => [def.path, ...aliasPaths(def)].map((p) => p.join(' '))));
-    const missing = inScope.filter((c) => !paths.has(c.command));
+  const removed = removedPaths(divergenceFiles);
+  const toilPaths = new Set(commands.flatMap((def) => [def.path, ...aliasPaths(def)].map((p) => p.join(' '))));
+
+  it('covers every contract command under a registered area, by its path or an alias, unless a divergence removed it', () => {
+    const inScope = contract.commands.filter((c) => registered.has(c.command.split(' ')[0]!) && c.leaf && !isRemoved(removed, c.command));
+    const missing = inScope.filter((c) => !toilPaths.has(c.command));
     expect(missing.map((c) => c.command)).toEqual([]);
+  });
+
+  it('has no command at a path a divergence removed, or under one', () => {
+    expect(removed).toContain('git credentials');
+    expect([...toilPaths].filter((path) => isRemoved(removed, path)), 'drop the command, or the "removed" on its divergence').toEqual([]);
   });
 
   it("matches every contract row an alias answers for, in any group, apart from listed divergences", () => {
     const rows = aliasRows(commands, contract);
     expect(diffContract(programFor(commands), rows, groupsOf(rows), allowed)).toEqual([]);
+  });
+
+  it('matches the row of each path routed by a flag value, once every command it routes to is registered', () => {
+    // Until then a missing route's flags (deps frisk --application-id, for sonatypeiq) can't be there yet.
+    const complete = new Set(routedAliases.filter((a) => Object.values(a.routes).every(Boolean)).map((a) => a.path.join(' ')));
+    const rows: Contract = { globalOptions: [], commands: contract.commands.filter((c) => complete.has(c.command)) };
+    expect(diffContract(programFor(commands, routedAliases), rows, groupsOf(rows), allowed)).toEqual([]);
   });
 
   it('reads the divergence files', () => {
@@ -211,7 +227,7 @@ describe('migration contract: output field names', async () => {
       const found: string[] = [];
       for (const def of inContract) {
         for (const example of def.examples) {
-          const { context } = testContext({ config: f.config, routes: f.routes, files: f.files });
+          const { context } = testContext({ config: f.config, routes: f.routes, files: f.files, ...(f.repo ? { repo: f.repo } : {}) });
           const envelope = await execute(def, example, context);
           expect(envelope.ok, `${commandName(def)}: ${JSON.stringify(envelope.error)}`).toBe(true);
           const forThisCall = loadDivergences(divergenceFiles, example as Record<string, unknown>);
@@ -221,6 +237,29 @@ describe('migration contract: output field names', async () => {
       expect([...new Set(found)], 'rename it back, or list it in docs/divergences/<area>.json').toEqual([]);
     });
   }
+});
+
+describe('the contract diff bites on a routed path', () => {
+  const area = defineArea({ name: 'routes', description: 'test', connection: z.object({ token: z.string() }) });
+  const target = (name: string, flags: string[]) =>
+    area.command({
+      path: ['routes', name],
+      description: 'test',
+      input: z.object(Object.fromEntries(flags.map((f) => [f, z.string().optional()]))),
+      writes: false,
+      options: flags.map((f) => ({ flags: `--${f} <value>`, field: f, description: f })),
+      examples: [{}],
+      run: async () => ({}),
+    });
+  const list = [target('a', ['ecosystem']), target('b', ['ecosystem', 'app'])];
+  const row: Contract = { globalOptions: [], commands: [{ command: 'old frisk', usage: '[options]', leaf: true, options: [{ flags: '--ecosystem <value>', description: '' }, { flags: '--app <value>', description: '' }, { flags: '--source <source>', description: '' }] }] };
+
+  it("carries every target's flags and the routing flag under the old path, and misses a target's when it isn't registered", () => {
+    const table = [{ path: ['old', 'frisk'] as [string, ...string[]], description: 'test', flag: '--source <source>', default: 'a', routes: { a: 'routes a', b: 'routes b' } }];
+    expect(diffContract(programFor(list, resolveRoutedAliases(table, list)), row, new Set(['old']), new Set())).toEqual([]);
+    const partial = resolveRoutedAliases(table, [list[0]!]);
+    expect(diffContract(programFor([list[0]!], partial), row, new Set(['old']), new Set()).map((d) => d.id)).toEqual(['old frisk --app']);
+  });
 });
 
 describe('the output diff bites', () => {

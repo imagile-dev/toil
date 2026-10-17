@@ -4,7 +4,14 @@
   "group": "observability",
   "order": 1,
   "covers": "Problems, entities, traces",
-  "credential": "API token",
+  "credential": "Access token",
+  "credentialNote": "The trace command also needs a platform token, sent only to the platform URL",
   "credentialWhere": "Access tokens → Generate new token",
-  "status": "planned"
+  "status": "unit",
+  "supported": {
+    "product": "Dynatrace",
+    "minimum": null,
+    "api": "Environment API v2 and the Grail storage query API v1",
+    "note": "The classic commands call Environment API v2 (/api/v2) on SaaS and Managed; trace needs the platform Grail query API (/platform/storage/query/v1), so a deployment without the platform can't run it. No release has been verified yet."
+  }
 }

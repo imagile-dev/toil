@@ -190,6 +190,10 @@ describe('parseGitConfig', () => {
   });
 });
 
+// Tests that spawn the real git get 30 s, not vitest's 5 s default: each runs
+// git several times, and on a loaded machine (CI, or a laptop mid-build) that
+// has passed 5 s without anything being wrong.
+const REAL_GIT_TIMEOUT_MS = 30_000;
 const realGit = findGit({ env: process.env }).found;
 
 describe.skipIf(!realGit)('matches real git (skipped where git is not installed)', () => {
@@ -234,5 +238,5 @@ describe.skipIf(!realGit)('matches real git (skipped where git is not installed)
     git(work, 'pack-refs', '--all');
     git(linked, 'checkout', '-q', 'feature');
     expect(readGitContext(linked, { home, env })).toEqual(expected(linked));
-  });
+  }, REAL_GIT_TIMEOUT_MS);
 });

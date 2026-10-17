@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { fakeFetch, type Route } from '../../test/harness/fake-fetch.js';
 import { ToilError } from './errors.js';
-import { buildUrl, errorMessageFrom, MAX_REDIRECTS, parseRetryAfter, repointUrl, restRequest, restResponse } from './rest.js';
+import { redactUrl } from './http.js';
+import { buildUrl, errorMessageFrom, MAX_REDIRECTS, MAX_TEXT_REASON, textReasonFrom, parseRetryAfter, repointUrl, restRequest, restResponse } from './rest.js';
 
 const opts = { service: 'Jira', authFix: 'Make a new token.' };
 const ctxWith = (routes: Route[], fetchImpl?: typeof fetch) => {
@@ -54,6 +55,21 @@ describe('errorMessageFrom', () => {
   });
 });
 
+describe('textReasonFrom', () => {
+  it('gives a plain-text body trimmed onto one line, and nothing for an empty, JSON or HTML one', () => {
+    expect(textReasonFrom('  Unexpected token at 12:\n  count( \n')).toBe('Unexpected token at 12: count(');
+    for (const body of ['', '  ', '<html><body>Sign in</body></html>', '{"broken', '[1,']) expect(textReasonFrom(body), body).toBeUndefined();
+  });
+
+  it(`caps it at ${MAX_TEXT_REASON} characters and redacts URLs in it as --verbose does`, () => {
+    const long = textReasonFrom('x'.repeat(MAX_TEXT_REASON + 50))!;
+    expect(long).toHaveLength(MAX_TEXT_REASON + 1);
+    expect(long.endsWith('…')).toBe(true);
+    expect(textReasonFrom('Denied for https://logscale.imagile.dev/api?token=abc123 here')).toBe(`Denied for ${redactUrl('https://logscale.imagile.dev/api?token=abc123')} here`);
+    expect(textReasonFrom('Denied for https://logscale.imagile.dev/api?token=abc123')).not.toContain('abc123');
+  });
+});
+
 describe('restRequest', () => {
   const url = 'https://jira.imagile.dev/rest/api/2/issue/A-1';
 
@@ -76,6 +92,7 @@ describe('restRequest', () => {
       { url: `${url}/403`, respond: { status: 403, text: '' } },
       { url: `${url}/404`, respond: { status: 404, json: { errorMessages: ['Issue Does Not Exist'], errors: {} } } },
       { url: `${url}/400`, respond: { status: 400, json: { errorMessages: [], errors: { customfield_10016: 'Number required' } } } },
+      { url: `${url}/text`, respond: { status: 400, text: 'Syntax error: unexpected end of query\n' } },
     ]);
     expect(await failure(restRequest(ctx, `${url}/401`, {}, opts))).toMatchObject({
       code: 'AUTH',
@@ -84,6 +101,8 @@ describe('restRequest', () => {
       details: { status: 401 },
     });
     expect(await failure(restRequest(ctx, `${url}/403`, {}, opts))).toMatchObject({ code: 'AUTH', message: 'HTTP 403' });
+    // A plain-text body is the message's detail, after the status; code and status don't change.
+    expect(await failure(restRequest(ctx, `${url}/text`, {}, opts))).toMatchObject({ code: 'HTTP', message: 'HTTP 400: Syntax error: unexpected end of query', details: { status: 400 } });
     expect(await failure(restRequest(ctx, `${url}/404`, {}, opts))).toMatchObject({ code: 'NOT_FOUND', message: 'Issue Does Not Exist' });
     expect(await failure(restRequest(ctx, `${url}/400`, {}, opts))).toMatchObject({ code: 'HTTP', message: 'customfield_10016: Number required' });
   });
@@ -124,6 +143,13 @@ describe('restRequest', () => {
       details: { cause: 'ENOTFOUND' },
     });
     expect((await failure(restRequest(ctxWith([], reject(tls)).ctx, url, {}, opts))).fix).toContain('NODE_EXTRA_CA_CERTS');
+    // baseUrl is named only when it's the host that failed.
+    expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, opts))).fix).toMatch(/^Check baseUrl, and that this machine can reach https:\/\/jira\.imagile\.dev /);
+    expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, baseUrl: 'https://jira.imagile.dev/jira' }))).fix).toMatch(/^Check baseUrl,/);
+    const platform = await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, baseUrl: 'https://other.imagile.dev' }));
+    expect(platform.fix).toMatch(/^Check the connection's URL settings, and that this machine can reach https:\/\/jira\.imagile\.dev /);
+    expect(platform).toMatchObject({ code: 'NETWORK', details: { cause: 'ENOTFOUND' } });
+    expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, baseUrl: null }))).fix).toMatch(/^Check the connection's URL settings,/);
   });
 
   it('says so when a 200 is not JSON, as a sign-in page would be', async () => {

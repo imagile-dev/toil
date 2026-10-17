@@ -84,6 +84,14 @@ export const STDIN_OVER_MCP = new ToilError('INVALID_INPUT', '"-" (stdin) is not
   fix: 'Pass the content inline, or write it to a file and pass the file path.',
 });
 
+/**
+ * `-` on a terminal: nobody piped anything in, so reading would sit waiting for
+ * someone to type and press Ctrl+D, and look like a hang (principle 4).
+ */
+export const STDIN_IS_TERMINAL = new ToilError('INVALID_INPUT', 'Nothing was piped in, and stdin is a terminal, so toil did not wait for input.', {
+  fix: 'Pass --from <file> or pipe the input. Where a flag was given "-", give it a file path instead.',
+});
+
 /** The error for a write that would replace a file already there. */
 export function alreadyExists(path: string): ToilError {
   return new ToilError('INVALID_INPUT', `"${forwardSlashes(path)}" already exists.`, {
@@ -228,7 +236,9 @@ export function tooManyFiles(dir: string, limit: number): ToilError {
 }
 
 /**
- * Real files. `stdin: false` for MCP, where `-` can't mean stdin. `protect`
+ * Real files. `stdin: false` for MCP, where `-` can't mean stdin, and
+ * `'terminal'` when stdin is an interactive terminal, where `-` refuses at
+ * once rather than waiting for someone to type. `protect`
  * lists toil's own config: the config home (`~/.toil`) and the `--config`
  * file. Nothing at or under them is read or written, however the path is
  * spelt, bounded or not, because a command handed a path by an agent (a
@@ -242,7 +252,7 @@ export function tooManyFiles(dir: string, limit: number): ToilError {
  */
 export function nodeFiles(options: {
   cwd: string;
-  stdin: boolean;
+  stdin: boolean | 'terminal';
   protect?: string[];
   workspace?: Workspace;
   unbounded?: boolean;
@@ -275,6 +285,7 @@ export function nodeFiles(options: {
   };
   const read = (path: string): Buffer => {
     if (path === '-' && !options.stdin) throw STDIN_OVER_MCP;
+    if (path === '-' && options.stdin === 'terminal') throw STDIN_IS_TERMINAL;
     if (path !== '-') check(at(path));
     try {
       return readFileSync(path === '-' ? 0 : at(path));

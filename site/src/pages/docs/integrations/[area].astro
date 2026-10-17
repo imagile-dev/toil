@@ -21,7 +21,9 @@ const prev = allIntegrations[index - 1];
 const next = allIntegrations[index + 1];
 // The real command list, written from the CLI's own registry by a test (one
 // file per area, data/commands/<area>.json), so this page can't drift from it.
-type SiteCommand = { name: string; tool: string; description: string; writes: boolean; flags: string[] };
+// `tool` is null for a command that runs on the command line only (a delete,
+// say); `connection` is whether it takes --connection.
+type SiteCommand = { name: string; tool: string | null; description: string; writes: boolean; connection: boolean; flags: string[] };
 const generated = import.meta.glob<SiteCommand[]>('../../../data/commands/*.json', { eager: true, import: 'default' });
 const commandList: SiteCommand[] = integration.status === 'planned' ? [] : (generated[`../../../data/commands/${integration.area}.json`] ?? []);
 const supported = integration.supported;
@@ -30,11 +32,16 @@ const supported = integration.supported;
 type SiteSetting = { key: string; env: string; description: string; required: boolean; secret: boolean; fallbacks: string[] };
 const settingFiles = import.meta.glob<SiteSetting[]>('../../../data/settings/*.json', { eager: true, import: 'default' });
 const settings: SiteSetting[] = integration.status === 'planned' ? [] : (settingFiles[`../../../data/settings/${integration.area}.json`] ?? []);
+// The required keys; an area whose keys are required only in combination
+// (a base URL and token, or a connection string) has none, so it shows them all.
+const required = settings.filter((s) => s.required);
 const exampleLines = settings.length
-  ? settings.filter((s) => s.required).map((s) => ({ env: s.env, value: s.key === 'baseUrl' ? host : `<your ${s.description.toLowerCase() || s.key}>` }))
+  ? (required.length ? required : settings).map((s) => ({ env: s.env, value: s.key === 'baseUrl' ? host : `<your ${s.description.toLowerCase() || s.key}>` }))
   : [{ env: `${prefix}BASE_URL`, value: host }, ...keyLines.map((k) => ({ env: `${prefix}${k.key}`, value: `<your ${k.label}>` }))];
 // A read-only area has nothing to gate, so its page doesn't explain the gate.
 const writes = commandList.length === 0 || commandList.some((c) => c.writes);
+const cliOnly = commandList.some((c) => c.tool === null);
+const allConnect = commandList.every((c) => c.connection);
 ---
 
 <Layout title={`${integration.name} integration`} description={`toil's ${integration.name} integration: what it covers, the credential it uses, and how to configure it.`}>
@@ -109,7 +116,7 @@ const writes = commandList.length === 0 || commandList.some((c) => c.writes);
             ) : (
               <>
                 <p>
-                  Those are the required ones. Every key a {integration.name} connection reads, with its variable for the default connection
+                  {required.length ? 'Those are the required ones.' : 'No one key is required on its own; set the ones your setup uses.'} Every key a {integration.name} connection reads, with its variable for the default connection
                   (<code>TOIL_CONN_&lt;NAME&gt;_&lt;KEY&gt;</code> sets it on any named one):
                 </p>
                 <ul class="settings">
@@ -147,7 +154,7 @@ const writes = commandList.length === 0 || commandList.some((c) => c.writes);
             <>
               <p>
                 {commandList.length} commands, each on the command line as <code>toil {integration.area} &lt;command&gt;</code> and over MCP as
-                the tool shown, with identical inputs and output. Every command also takes <code>--connection &lt;name&gt;</code>{writes ? <>; ones marked <span class="cmd__write">write</span> change data</> : <>, and every one of them only reads</>}. Run <code>toil {integration.area} &lt;command&gt; --help</code> for each flag's meaning, or read the{' '}
+                the tool shown, with identical inputs and output{cliOnly ? <>, apart from ones marked <span class="cmd__cli">CLI only</span>, which have no MCP tool</> : null}. {allConnect ? 'Every command' : 'Every command that talks to the service'} also takes <code>--connection &lt;name&gt;</code>{writes ? <>; ones marked <span class="cmd__write">write</span> change data</> : <>, and every one of them only reads</>}. Run <code>toil {integration.area} &lt;command&gt; --help</code> for each flag's meaning, or read the{' '}
                 <a href={`${repoUrl}/blob/main/skills/toil/${integration.area}.md`}>{integration.name} reference</a>.
               </p>
               <ul class="cmds">
@@ -156,10 +163,11 @@ const writes = commandList.length === 0 || commandList.some((c) => c.writes);
                     <div class="cmd__head">
                       <code class="cmd__name">toil {integration.area} {c.name}</code>
                       {c.writes && <span class="cmd__write">write</span>}
+                      {c.tool === null && <span class="cmd__cli">CLI only</span>}
                     </div>
                     <p class="cmd__desc">{c.description}</p>
                     <p class="cmd__meta">
-                      <span class="cmd__tool">MCP <code>{c.tool}</code></span>
+                      {c.tool !== null && <span class="cmd__tool">MCP <code>{c.tool}</code></span>}
                       {c.flags.map((f) => <code class="cmd__flag">{f}</code>)}
                     </p>
                   </li>
@@ -235,6 +243,11 @@ const writes = commandList.length === 0 || commandList.some((c) => c.writes);
   .cmd__write {
     font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
     border-radius: 999px; padding: 0.05rem 0.45rem; border: 1px solid color-mix(in oklab, var(--color-accent) 50%, transparent); color: var(--color-accent);
+    margin-inline: 0.25rem;
+  }
+  .cmd__cli {
+    font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+    border-radius: 999px; padding: 0.05rem 0.45rem; border: 1px solid var(--color-line); color: var(--color-muted);
     margin-inline: 0.25rem;
   }
 

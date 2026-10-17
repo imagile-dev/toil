@@ -4,6 +4,7 @@
     "tool": "contrast_apps_list",
     "description": "List applications in the organization",
     "writes": false,
+    "connection": true,
     "flags": [
       "--limit <n>",
       "--offset <n>"
@@ -14,6 +15,7 @@
     "tool": "contrast_findings_list",
     "description": "List vulnerability findings for an application",
     "writes": false,
+    "connection": true,
     "flags": [
       "--app <app-id>",
       "--severity <level>",
@@ -27,6 +29,7 @@
     "tool": "contrast_findings_get",
     "description": "Get details for a specific vulnerability finding",
     "writes": false,
+    "connection": true,
     "flags": [
       "--app <app-id>",
       "--trace <trace-id>"
@@ -37,6 +40,7 @@
     "tool": "contrast_libraries_list",
     "description": "List libraries used by an application, as shown on the Libraries tab",
     "writes": false,
+    "connection": true,
     "flags": [
       "--app <app-id>",
       "--limit <n>",
@@ -48,6 +52,7 @@
     "tool": "contrast_libraries_get",
     "description": "Get details for a specific library used by an application, by hash",
     "writes": false,
+    "connection": true,
     "flags": [
       "--app <app-id>",
       "--hash <library-hash>"
