@@ -4,6 +4,7 @@
     "tool": "logscale_repositories_list",
     "description": "List available repositories",
     "writes": false,
+    "connection": true,
     "flags": []
   },
   {
@@ -11,6 +12,7 @@
     "tool": "logscale_query",
     "description": "Execute a LogScale Query Language (LQL) search against a repository",
     "writes": false,
+    "connection": true,
     "flags": [
       "--repository <name>",
       "--query <lql>",
