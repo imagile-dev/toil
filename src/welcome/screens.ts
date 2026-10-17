@@ -1,4 +1,4 @@
-import { connectionsOf, defaultConnectionName, type ResolvedConfig } from '../core/config.js';
+import { connectionsOf, connectionWrites, defaultConnectionName, type ResolvedConfig } from '../core/config.js';
 import { PALETTE, paint, type TermCaps } from './term.js';
 
 /**
@@ -91,7 +91,7 @@ export function connectionsScreen(caps: Caps, data: WelcomeData): string[] {
         name + (isDefault && connectionsOf(config, c.area).length > 1 ? ' *' : ''),
         c.area,
         hostOf(c.baseUrl) || faint(caps, '-'),
-        c.writes === true || c.writes === 'true' ? ok(caps, false, 'writes on') : muted(caps, 'read only'),
+        connectionWrites(c) ? ok(caps, false, 'writes on') : muted(caps, 'read only'),
         fromEnv ? muted(caps, 'env') : muted(caps, 'file'),
       ];
     });
