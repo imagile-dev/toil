@@ -7,6 +7,7 @@
 
 export type Status = 'planned' | 'unit' | 'integration' | 'live';
 
+// Re-declared from src/core/supported.ts because the site is its own package and can't import toil's source; test/skills.test.ts keeps the values equal.
 /** The oldest server or API version an integration supports. `minimum: null` means it hasn't been established. */
 export interface SupportedVersion {
   product: string;
