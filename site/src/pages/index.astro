@@ -8,7 +8,7 @@ import { principles } from '../data/principles';
 import { url, repoUrl } from '../lib/url';
 
 const stats = [
-  { value: shippedCount, label: 'Integrations shipped' },
+  { value: shippedCount, label: shippedCount === 1 ? 'Integration shipped' : 'Integrations shipped' },
   { value: 0, label: 'Executables to approve' },
   { value: 0, label: 'Install scripts' },
   { value: 3, label: 'Platforms, all first-class' },
