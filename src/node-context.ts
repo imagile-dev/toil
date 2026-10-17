@@ -4,6 +4,7 @@ import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
 import { nodeFiles } from './core/files.js';
 import type { SecretStore } from './core/keychain.js';
+import { networkFetch } from './core/network.js';
 import type { Prompter } from './core/prompt.js';
 import type { GlobalOptions } from './program.js';
 
@@ -40,11 +41,13 @@ export function timeoutFromEnv(env: NodeJS.ProcessEnv): number | undefined {
  * which toil you have before being told to upgrade it.
  */
 export function createNodeContext(o: NodeContextOptions): Context {
+  const debug = o.globals.debug ? (message: string) => o.stderr(`[toil] ${message}\n`) : () => {};
   return {
     config: o.def?.standalone
       ? emptyConfig()
       : loadConfig({ env: o.env, cwd: o.cwd, home: o.home, configPath: o.globals.config, areas: o.areas }),
-    fetch: globalThis.fetch,
+    // The OS certificate store and HTTPS_PROXY / NO_PROXY, set up on the first request.
+    fetch: networkFetch(globalThis.fetch, o.env, debug),
     // toil's own config is off limits to every command, whatever path it is given.
     files: nodeFiles({
       cwd: o.cwd,
@@ -54,7 +57,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
     env: o.env,
     version: o.version,
     verbose: o.globals.verbose === true,
-    debug: o.globals.debug ? (message) => o.stderr(`[toil] ${message}\n`) : () => {},
+    debug,
     signal: o.signal,
     timeoutMs: timeoutFromEnv(o.env),
     ...(o.secrets ? { secrets: o.secrets } : {}),

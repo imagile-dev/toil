@@ -53,6 +53,12 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
    * waiting on someone typing. The parity suite lists these explicitly.
    */
   cliOnly?: boolean;
+  /**
+   * A longer time limit than execute()'s 120 s default, for a command that
+   * waits on slow work by design (a scan, a report). TOIL_TIMEOUT_MS still
+   * overrides it, as it does the default.
+   */
+  timeLimitMs?: number;
   /** Set by defineConfigCommand: gets `ctx.manage` (config, credential store, prompter). */
   managesConfig?: boolean;
   args?: CliArgument[];

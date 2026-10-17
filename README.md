@@ -16,7 +16,7 @@ scripts can use it as easily as people.
 
 ## Install
 
-toil is plain JavaScript on Node 22.16 or later, on Windows, macOS and Linux. There is no
+toil is plain JavaScript on Node 24.14 or later, on Windows, macOS and Linux. There is no
 executable, no native module, and no install script, so it runs where unapproved
 binaries are blocked.
 

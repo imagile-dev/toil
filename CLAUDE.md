@@ -4,7 +4,7 @@
 
 toil is a structured-JSON CLI and MCP server, owned by Imagile, that gives AI agents
 and humans one interface to enterprise tools and databases. TypeScript on
-Node.js (22.16 or later), published to npm as `@imagile-dev/toil`.
+Node.js (24.14 or later), published to npm as `@imagile-dev/toil`.
 
 Who it is for, in priority order:
 
@@ -85,8 +85,10 @@ gets made again in the next place it applies.
   the repo LF so Windows checkouts produce identical bundles.
 - Config lives in `~/.toil/` on every platform, so instructions are identical.
 - CI runs the full gate on `windows-latest`, `macos-latest` and `ubuntu-latest`, on
-  Node 22.16 (the floor) and 24. A test that is skipped on one platform says
-  why in its name.
+  Node 24.14 (the floor) and 26, the current release. 24.14 is the first release
+  where toil can trust the OS certificate store and honour `HTTPS_PROXY` /
+  `NO_PROXY` from code, with no flag and no package (`src/core/network.ts`). A
+  test that is skipped on one platform says why in its name.
 
 ## No Executables
 
@@ -195,9 +197,11 @@ Local files go through `ctx.files` (`src/core/files.ts`), never `node:fs`: input
 files, uploads and downloads resolve against the working directory on both front
 doors, `-` means stdin only on the CLI (over MCP stdin carries the protocol), paths
 in output use forward slashes, and tests get an in-memory copy. HTTP to a REST API
-goes through `restRequest` and `buildUrl` in `src/core/rest.ts`, which turn failures
-into `AUTH`, `NOT_FOUND`, `HTTP` or `NETWORK` errors with the server's own message,
-retry a 429, and keep a base URL's context path. argv is typed from the schema: a
+goes through `apiRequest` in `src/core/api.ts`, built from the area's
+`defineArea({ request })` hook, on `restRequest` in `src/core/rest.ts`. Together they
+turn failures into `AUTH`, `NOT_FOUND`, `HTTP` or `NETWORK` errors with the server's
+own message, retry a 429, keep a base URL's context path, and keep credentials on the
+connection's host: a redirect elsewhere is refused, not followed. argv is typed from the schema: a
 number field parses `--max-results 50`, and an array field makes its flag repeatable.
 
 **Commands never read config or env.** `run` gets `ctx.connection`, the one
@@ -234,8 +238,8 @@ npm run check:pure  # the No Executables gate (after build)
 npm run smoke       # install the tarball with scripts off; drive CLI and MCP (after build)
 ```
 
-All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 22.16
-and 24. Its `CI ok` job passes only when every one of those passed, and it's the one
+All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 24.14
+and 26. Its `CI ok` job passes only when every one of those passed, and it's the one
 check `main`'s ruleset requires, so nothing merges on a red gate. Other checks stay
 optional: the review job (approval is required separately, and it skips the release
 PR) and path-filtered jobs, which would block PRs they never run on.
@@ -263,7 +267,8 @@ a breaking change.
   **`meta.page`** is `{ nextCursor, limit }`, set with `ctx.setPage()` by any command
   that pages. Both are absent when empty.
 - **Every command has a time limit and can be cancelled.** `execute()` aborts at
-  `TOIL_TIMEOUT_MS` (default 120 s) with `TIMEOUT`, and on Ctrl+C or an MCP cancel
+  `TOIL_TIMEOUT_MS` (default 120 s, or a longer `timeLimitMs` the command declares)
+  with `TIMEOUT`, and on Ctrl+C or an MCP cancel
   with `CANCELLED`. Commands pass `ctx.signal` to anything long-running that isn't
   `ctx.fetch` (which already carries it). Aborting stops toil waiting, not the
   server: for a write command both errors say the change may already have been

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { CommandDefinition } from './command.js';
 import type { CommandContext } from './context.js';
+import type { RequestHook } from './api.js';
 
 /**
  * An area is one service, or one deployment variant of one (`jira`,
@@ -30,6 +31,13 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject> {
   fallbacks?: Partial<Record<keyof z.input<S> & string, string[]>>;
   /** Keys that were renamed: old name to new. The old name still works, with a warning. */
   renamed?: Record<string, keyof z.input<S> & string>;
+  /**
+   * For an HTTP area: the base URL and auth headers for a resolved connection,
+   * exchanging a long-lived credential for a token where the service needs
+   * one. Commands send through `apiRequest` (`src/core/api.ts`), which builds
+   * every request from this, so no command assembles its own credentials.
+   */
+  request?: RequestHook<z.output<S>>;
 }
 
 /** A connection as a command receives it: validated, defaults applied. */
