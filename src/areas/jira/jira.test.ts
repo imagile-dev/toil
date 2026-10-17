@@ -494,3 +494,73 @@ describe('connection', () => {
     expect(envelope.error).toMatchObject({ code: 'NOT_CONFIGURED', fix: expect.stringContaining('TOIL_JIRA_BASE_URL and TOIL_JIRA_API_TOKEN') });
   });
 });
+
+describe('create-issue --project, a context input', () => {
+  const created = [
+    { method: 'POST', url: `${JIRA}/rest/api/2/issue`, respond: { status: 201, json: { id: '1', key: 'PROJ-9' } } },
+    { url: `${JIRA}/rest/api/2/issue/PROJ-9`, respond: { json: issue('PROJ-9') } },
+  ];
+  const config = { jira: { ...fixtureConfig.jira, project: 'CONN' } };
+  const files = { 'issue.json': JSON.stringify({ project: 'FILE', fields: { summary: 'S' } }), 'bare.json': JSON.stringify({ fields: { summary: 'S' } }) };
+  const sent = (calls: Array<{ body?: string | undefined }>) => (JSON.parse(calls[0]!.body!) as { fields: { project: { key: string } } }).fields.project.key;
+
+  it('the flag wins over the input file and the connection, and meta.context says it came from the call', async () => {
+    const { envelope, calls } = await run(createIssue, { project: 'FLAG', inputFile: 'issue.json', ...write }, created, { config, files });
+    expect(sent(calls)).toBe('FLAG');
+    expect(envelope.meta.context?.inputs).toEqual({ project: { value: 'FLAG', source: 'input' } });
+  });
+
+  it('then the input file, which beats the connection and is reported as part of the call', async () => {
+    const { envelope, calls } = await run(createIssue, { inputFile: 'issue.json', ...write }, created, { config, files });
+    expect(sent(calls)).toBe('FILE');
+    expect(envelope.meta.context?.inputs).toEqual({ project: { value: 'FILE', source: 'input' } });
+  });
+
+  it("then the connection's project, resolved by core", async () => {
+    const { envelope, calls } = await run(createIssue, { inputFile: 'bare.json', ...write }, created, { config, files });
+    expect(sent(calls)).toBe('CONN');
+    expect(envelope.meta.context?.inputs).toEqual({ project: { value: 'CONN', source: 'connection' } });
+  });
+
+  it('with none of them, the predecessor\'s error; an empty --project gets the same one', async () => {
+    for (const input of [{ summary: 'S' }, { summary: 'S', project: '' }]) {
+      const { envelope, calls } = await run(createIssue, { ...input, ...write }, []);
+      expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--project required (or set defaults.jira.project in config, or "project" in --input-file)' });
+      expect(calls).toHaveLength(0);
+    }
+  });
+
+  it('the other --project flags are plain flags that never fall back to the connection', async () => {
+    const { envelope } = await run(listBoards, {}, [], { config });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
+    const sprints = await run(listSprints, {}, [], { config });
+    expect(sprints.envelope.error?.message).toBe('Either --board or --project is required');
+  });
+});
+
+describe('paging through core', () => {
+  it('search with an unreadable --max-results sends null on every page and reads to the total (#70, pinned)', async () => {
+    // A server that treats a null maxResults as its own default of 2.
+    const route: Route = {
+      method: 'POST',
+      url: `${JIRA}/rest/api/2/search`,
+      respond: (req) => {
+        const { startAt } = JSON.parse(req.body!) as { startAt: number };
+        const n = Math.max(0, Math.min(2, 5 - startAt));
+        return { json: { issues: Array.from({ length: n }, (_, i) => ({ id: String(startAt + i), key: `P-${startAt + i}`, fields: {} })), total: 5 } };
+      },
+    };
+    const { envelope, calls } = await run(search, { jql: 'x', maxResults: 'abc' }, [route]);
+    expect(calls.map((c) => JSON.parse(c.body!) as { startAt: number; maxResults: null }).map((b) => [b.startAt, b.maxResults])).toEqual([[0, null], [2, null], [4, null]]);
+    expect(envelope.data).toMatchObject({ total: 5, maxResults: 5 });
+  });
+
+  it('a page with no total keeps going until an empty page, as the predecessor read `startAt >= total`', async () => {
+    const { envelope, calls } = await run(listComments, { key: 'PROJ-1' }, [
+      { url: /startAt=0/, respond: { json: { comments: [{ id: '0' }] } } },
+      { url: /startAt=1/, respond: { json: { comments: [] } } },
+    ]);
+    expect(calls).toHaveLength(2);
+    expect(envelope.data).toEqual([{ id: '0' }]);
+  });
+});

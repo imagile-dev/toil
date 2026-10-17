@@ -32,6 +32,19 @@ function readIssueFile(path: string | undefined, ctx: client.JiraContext): Issue
   return path ? (readJsonInputFile(path, ctx.files) as IssueJsonInput) : undefined;
 }
 
+/**
+ * The project for create-issue, in the predecessor's order: --project, then
+ * "project" in --input-file, then the connection's project. Core resolves the
+ * first and last (and the dossier, between them, once there is one); the file
+ * is read by the command, so its step is taken here. When the file's value
+ * wins, meta.context says it came from the call, which is where the file did.
+ */
+function projectFor(ctx: client.JiraContext, json: IssueJsonInput | undefined): string | undefined {
+  if (ctx.resolved.inputs?.project?.source === 'input' || json?.project == null) return ctx.context.project;
+  ctx.resolved.inputs = { ...ctx.resolved.inputs, project: { value: String(json.project), source: 'input' } };
+  return json.project;
+}
+
 function reportOverrides(ctx: client.JiraContext, overrides: string[]): void {
   if (overrides.length > 0) ctx.warn({ code: 'JIRA_INPUT_OVERRIDDEN', message: `--input-file value(s) overridden by flags: ${overrides.join(', ')}` });
 }
@@ -85,7 +98,6 @@ export const createIssue = jiraArea.command({
   toolDescription:
     'Creates a Jira issue and returns it as Jira stores it. Project, issue type and priority fall back to the connection defaults. Custom fields go in field ("Name=value"). Does not check for duplicates: after a timeout, search for the summary before retrying.',
   input: z.object({
-    project: z.string().optional().describe('Project key; defaults to the connection\'s project'),
     issueType: z.string().optional().describe('Issue type (Bug, Story, Task, ...); defaults to the connection\'s issueType, then Task'),
     summary: z.string().optional().describe('Issue summary (required, unless supplied via inputFile)'),
     description: z.string().optional().describe('Issue description'),
@@ -98,8 +110,8 @@ export const createIssue = jiraArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  context: { project: 'optional' },
   options: [
-    { flags: '--project <key>', field: 'project', description: 'Project key' },
     { flags: '--type <type>', field: 'issueType', description: 'Issue type (Bug, Story, Task, ...)' },
     { flags: '--summary <text>', field: 'summary', description: 'Issue summary (required, unless supplied via --input-file)' },
     { flags: '--description <text>', field: 'description', description: 'Issue description' },
@@ -140,7 +152,7 @@ export const createIssue = jiraArea.command({
         parent: input.parent,
       });
       const { json, builtin, custom } = gatherFields(ctx, input, flags, fieldMap);
-      const project = input.project ?? json?.project ?? ctx.connection.project;
+      const project = projectFor(ctx, json);
       const issueType = input.issueType ?? json?.issueType ?? ctx.connection.issueType ?? 'Task';
       if (!project) {
         throw new ToilError('INVALID_INPUT', '--project required (or set defaults.jira.project in config, or "project" in --input-file)', {
