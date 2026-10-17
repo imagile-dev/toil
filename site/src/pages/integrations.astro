@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import PageHero from '../components/PageHero.astro';
+import { url } from '../lib/url';
 import { groups, depsCommands, notPlanned, integrationCount } from '../data/integrations';
 
 const levels = [
@@ -45,9 +46,10 @@ const levels = [
                 <code class="tile__area">toil {i.area}</code>
                 <span class={`status status--${i.status}`}>{i.status}</span>
               </div>
-              <h3>{i.name}</h3>
+              <h3><a class="tile__link" href={url(`/docs/integrations/${i.area}/`)}>{i.name}</a></h3>
               <p>{i.covers}</p>
               <p class="tile__cred"><span>Credential</span> {i.credential}</p>
+              <span class="tile__docs" aria-hidden="true">Docs →</span>
             </li>
           ))}
         </ul>
@@ -165,6 +167,20 @@ const levels = [
   .tile__top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
   .tile__area { font-size: 0.75rem; color: var(--color-accent); }
   .tile h3 { font-size: var(--text-lg); margin-top: 0.3rem; }
+
+  /* The whole tile is the link: the heading's anchor stretches over the card,
+     so the tile reads as one target without nesting block content in <a>. */
+  .tile { position: relative; }
+  .tile__link::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+  .tile__link:focus-visible { outline: none; }
+  .tile:has(.tile__link:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  .tile__docs {
+    align-self: flex-end;
+    font-family: var(--font-action); font-size: var(--text-xs); font-weight: 500;
+    color: var(--color-accent); opacity: 0.6;
+    transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  }
+  .tile:hover .tile__docs { opacity: 1; transform: translateX(3px); }
   .tile p { color: var(--color-muted); font-size: var(--text-sm); }
   .tile__cred { margin-top: auto; padding-top: 0.6rem; border-top: 1px dashed var(--color-line); font-size: 0.8rem !important; }
   .tile__cred span {

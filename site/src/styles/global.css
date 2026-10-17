@@ -96,7 +96,10 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-main { flex: 1; }
+/* Decorative art bleeds past the container on purpose; clip it so it can never
+   widen the page. `clip`, unlike `hidden`, makes no scroll container, so
+   position: sticky inside main keeps working. */
+main { flex: 1; overflow-x: clip; }
 
 img, picture, svg { display: block; max-width: 100%; }
 a { color: inherit; text-decoration: none; }

@@ -97,3 +97,43 @@ export const notPlanned = [
 ];
 
 export const integrationCount = groups.reduce((n, g) => n + g.items.length, 0);
+
+/**
+ * Where a user generates each integration's credential, for its docs page. Only
+ * paths we're confident of; anything absent gets a generic line rather than a
+ * guess that sends someone clicking round the wrong menu.
+ */
+export const credentialWhere: Record<string, string> = {
+  jira: 'Your profile picture → Profile → Personal Access Tokens',
+  confluence: 'Your profile picture → Settings → Personal Access Tokens',
+  bitbucket: 'Your profile picture → Manage account → HTTP access tokens',
+  github: 'Settings → Developer settings → Personal access tokens → Fine-grained tokens',
+  ado: 'User settings → Personal access tokens',
+  sonar: 'My Account → Security → Generate Tokens',
+  jenkins: 'Your user name → Security → API Token',
+  artifactory: 'Your profile → Edit Profile → Generate an Identity Token',
+  dynatrace: 'Access tokens → Generate new token',
+  elasticsearch: 'Kibana → Stack Management → API keys',
+  kibana: 'Stack Management → API keys',
+  figma: 'Settings → Security → Personal access tokens',
+  saucelabs: 'User settings → Access key',
+};
+
+export interface IntegrationEntry extends Integration {
+  group: string;
+}
+
+/** Every integration, flattened, in board order. */
+export const allIntegrations: IntegrationEntry[] = groups.flatMap((g) => g.items.map((item) => ({ ...item, group: g.title })));
+
+/** The env var prefix for an area: jira-cloud -> TOIL_JIRA_CLOUD_. */
+export function envPrefix(area: string): string {
+  return `TOIL_${area.toUpperCase().replace(/-/g, '_')}_`;
+}
+
+export const statusMeaning: Record<Status, string> = {
+  planned: 'Designed and scheduled. No code has shipped yet, so the details below describe the plan.',
+  unit: 'Shipped, with its logic tested against stubbed HTTP. Not yet run against a real instance in CI.',
+  integration: 'Automated tests pass against a real instance in CI.',
+  live: "In day-to-day use against a real organization's instance.",
+};
