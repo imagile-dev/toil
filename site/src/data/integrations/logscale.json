@@ -4,6 +4,13 @@
   "group": "observability",
   "order": 2,
   "covers": "Log queries, repositories",
-  "credential": "API token",
-  "status": "planned"
+  "credential": "Personal API token",
+  "credentialWhere": "Account settings → Personal API Token",
+  "status": "unit",
+  "supported": {
+    "product": "Falcon LogScale",
+    "minimum": null,
+    "api": "Search API v1 and GraphQL API",
+    "note": "toil calls the synchronous Search API (/api/v1/repositories/<repo>/query) and the GraphQL repositories query, with a token sent as a Bearer header. No release has been verified yet."
+  }
 }
