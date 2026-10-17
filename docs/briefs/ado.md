@@ -44,7 +44,7 @@ Wave 2 · Integration issue #22 · Suspected bugs #69 · 56 contract commands
 
 ## Supported version
 
-Azure DevOps Server 2022.1 or later, REST API 7.1 or higher. Requests keep `api-version=7.1` exactly. The area exports `supported` from its `index.ts`, equal to the `supported` block in `site/src/data/integrations/ado.json`. When an older server answers that the requested REST API version is out of range, raise the error with `serverTooOld()` from `src/core/supported.ts`, so the fix (`tooOldFix()`) names the minimum. Which requests are sent does not change.
+Azure DevOps Server 2022.1 or later, REST API 7.1 or higher. Requests keep `api-version=7.1` exactly. The area exports `supported` from its `index.ts`, equal to the `supported` block in `site/src/data/integrations/ado.json`. When an older server answers that the requested REST API version is out of range, raise the error with `serverTooOld()` from `src/core/supported.ts`: its message says the server is too old and names the minimum, with the server's own words as `detail`. Which requests are sent does not change.
 
 ## Watch for
 

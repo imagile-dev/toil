@@ -7,6 +7,11 @@ a port starts: it says what the area needs from core before anyone reads the old
 line by line. The source stays the specification (CLAUDE.md, Porting), and a brief that
 disagrees with it is wrong.
 
+Briefs are the one place outside `docs/command-contract.*` and issues that may point at
+the predecessor's source (`src/services/<area>/`), because a port needs it (maintainer
+decision, #68). Shipped docs, code and skills never do. **The PR that ports an area
+deletes its brief.**
+
 Every brief has the same sections:
 
 | Section | What it says |

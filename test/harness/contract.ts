@@ -58,6 +58,12 @@ export function loadContract(): Contract {
  */
 export interface DivergenceEntry {
   allows: string[];
+  /**
+   * Only for calls whose input has these values (`{ "exampleOnly": true }`).
+   * The output check applies it per example; the surface diff never does,
+   * since flags and paths don't depend on a call's input.
+   */
+  when?: Record<string, unknown>;
   /** What the old CLI did. */
   old: string;
   /** What toil does instead, and what to use. */
@@ -96,6 +102,7 @@ export function readDivergenceFiles(dir = divergenceDir): DivergenceFile[] {
         }
         if (!Array.isArray(d.allows)) throw new Error(`${where}: "allows" must be a list, empty for a behavior-only divergence.`);
         if (d.class !== undefined && d.class !== 'security') throw new Error(`${where}: "class" is "security" or absent.`);
+        if (d.when !== undefined && (typeof d.when !== 'object' || d.when === null || Array.isArray(d.when))) throw new Error(`${where}: "when" is an object of input values.`);
         for (const id of d.allows) {
           if (scopeOf(id) !== file.scope) throw new Error(`${where}: "${id}" belongs in docs/divergences/${scopeOf(id)}.json.`);
         }
@@ -104,9 +111,15 @@ export function readDivergenceFiles(dir = divergenceDir): DivergenceFile[] {
     });
 }
 
-/** Every identifier any divergence file allows. */
-export function loadDivergences(files = readDivergenceFiles()): Set<string> {
-  return new Set(files.flatMap((f) => f.divergences.flatMap((d) => d.allows)));
+/**
+ * Every identifier the divergence files allow. With `input`, a conditional
+ * entry counts when its `when` values all match; without, only unconditional
+ * entries count. `all` returns every identifier, conditional or not.
+ */
+export function loadDivergences(files = readDivergenceFiles(), input?: Record<string, unknown> | 'all'): Set<string> {
+  const applies = (d: DivergenceEntry) =>
+    d.when === undefined || input === 'all' || (input !== undefined && Object.entries(d.when).every(([k, v]) => JSON.stringify(input[k]) === JSON.stringify(v)));
+  return new Set(files.flatMap((f) => f.divergences.filter(applies).flatMap((d) => d.allows)));
 }
 
 /**

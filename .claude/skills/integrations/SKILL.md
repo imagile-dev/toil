@@ -51,7 +51,7 @@ versions.
    area names what to `trace`; CLI-only commands go in `cliOnly`.
 5. **Supported version**: export `supported` from `index.ts`, set the same value in
    the board entry, and state it in the skill file. An error that means the server
-   is too old uses `serverTooOld()` from `src/core/supported.ts`, so its fix names
+   is too old uses `serverTooOld()` from `src/core/supported.ts`, so its message says so and names
    the minimum.
 6. **Contract**: `test/contract.test.ts` checks paths, flags and output field names.
    Anything a principle makes you change goes in `docs/divergences/<area>.json`.
@@ -59,6 +59,9 @@ versions.
    board entry's `status` to `unit`; review the docs page and take its screenshots
    with `node scripts/shoot.mjs docs/integrations/<area>/` (the `site` skill).
 8. **Suspected bugs** go in the area's issue, never fixed in the port (below).
+9. **Delete the brief**, `docs/briefs/<area>.md`, in the same PR. Briefs are the only
+   docs that point at the predecessor's source; shipped docs, code and skills never
+   do, so a brief goes once its area is ported.
 
 `src/areas/jira/` is the reference port. Follow its shape:
 

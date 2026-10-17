@@ -30,7 +30,8 @@ const programFor = (list: AnyCommand[]) =>
   }).program;
 
 const contract = loadContract();
-const allowed = loadDivergences();
+const divergenceFiles = readDivergenceFiles();
+const allowed = loadDivergences(divergenceFiles);
 const registered = new Set(commands.map(areaOf));
 
 describe('migration command contract', () => {
@@ -63,7 +64,7 @@ describe('migration command contract', () => {
       const field = rest.slice('data.'.length);
       return (entry.output ?? []).some((v) => 'fields' in v && v.fields.some((f) => f.replace(/\?$/, '') === field));
     };
-    expect([...allowed].filter((id) => !known(id))).toEqual([]);
+    expect([...loadDivergences(divergenceFiles, 'all')].filter((id) => !known(id))).toEqual([]);
   });
 
   it('parses positional arguments from usage lines', () => {
@@ -123,6 +124,13 @@ describe('the contract diff bites', () => {
     writeFileSync(join(dir, 'global.json'), JSON.stringify({ scope: 'global', divergences: [{ ...entry, allows: ['--c'] }] }));
     expect([...loadDivergences(readDivergenceFiles(dir))].sort()).toEqual(['--c', 'bites get', 'bites get data.id']);
 
+    writeFileSync(join(dir, 'bites.json'), JSON.stringify({ scope: 'bites', divergences: [entry, { ...entry, allows: ['bites get data.name'], when: { brief: true } }] }));
+    const files = readDivergenceFiles(dir);
+    expect(loadDivergences(files).has('bites get data.name'), 'not without matching input').toBe(false);
+    expect(loadDivergences(files, { brief: false }).has('bites get data.name')).toBe(false);
+    expect(loadDivergences(files, { brief: true }).has('bites get data.name')).toBe(true);
+    expect(loadDivergences(files, 'all').has('bites get data.name')).toBe(true);
+
     writeFileSync(join(dir, 'other.json'), JSON.stringify({ scope: 'other', divergences: [{ ...entry, allows: ['bites get'] }] }));
     expect(() => readDivergenceFiles(dir)).toThrow(/"bites get" belongs in docs\/divergences\/bites\.json/);
 
@@ -155,7 +163,8 @@ describe('migration contract: output field names', async () => {
           const { context } = testContext({ config: f.config, routes: f.routes, files: f.files });
           const envelope = await execute(def, example, context);
           expect(envelope.ok, `${commandName(def)}: ${JSON.stringify(envelope.error)}`).toBe(true);
-          found.push(...diffOutput(byPath.get(commandName(def))!, envelope.data, allowed).map((d) => `${d.id}: ${d.problem}`));
+          const forThisCall = loadDivergences(divergenceFiles, example as Record<string, unknown>);
+          found.push(...diffOutput(byPath.get(commandName(def))!, envelope.data, forThisCall).map((d) => `${d.id}: ${d.problem}`));
         }
       }
       expect([...new Set(found)], 'rename it back, or list it in docs/divergences/<area>.json').toEqual([]);

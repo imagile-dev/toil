@@ -26,22 +26,28 @@ export function supportedText(s: SupportedVersion): string {
   return `${s.product} ${s.minimum} or later${s.api ? ` (${s.api})` : ''}`;
 }
 
-/**
- * The fix for an error that means the server is older than toil supports,
- * naming the minimum, and the server's own version when the area knows it.
- */
-export function tooOldFix(s: SupportedVersion, found?: string): string {
-  const seen = found ? ` This server reports ${found}.` : '';
-  if (s.minimum === null) return `This ${s.product} may be older than toil supports.${seen} Check the server's version, and report it with the command you ran.`;
-  return `toil needs ${supportedText(s)}.${seen} Upgrade the server, or use a connection to one that is ${s.minimum} or later.`;
+/** What to do about it: upgrade, or point at a server that is new enough. */
+export function tooOldFix(s: SupportedVersion): string {
+  if (s.minimum === null) return `Check the ${s.product} version and report it with the command you ran.`;
+  return `Upgrade the server to ${s.product} ${s.minimum} or later, or use a connection to one that is.`;
 }
 
 /**
- * A ToilError for "this server is too old for this request". The code stays
- * whatever the failure was (`HTTP` by default, `NOT_FOUND` for an endpoint
- * the old server lacks), so callers branching on codes see nothing new; only
- * the fix changes, to name the minimum.
+ * The error for "this server is too old for toil". The message says so in
+ * those words and names the minimum, then adds what the server said
+ * (`detail`) and its version when known (`found`). The code stays whatever
+ * the failure was (`HTTP` by default, `NOT_FOUND` for an endpoint the old
+ * server lacks), so callers branching on codes see nothing new.
  */
-export function serverTooOld(s: SupportedVersion, message: string, options: { code?: ErrorCode; found?: string; details?: unknown } = {}): ToilError {
-  return new ToilError(options.code ?? 'HTTP', message, { fix: tooOldFix(s, options.found), details: options.details });
+export function serverTooOld(
+  s: SupportedVersion,
+  options: { detail?: string; found?: string; code?: ErrorCode; details?: unknown } = {},
+): ToilError {
+  const head =
+    s.minimum === null
+      ? `This server may be too old for toil; the oldest ${s.product} version toil supports hasn't been established.`
+      : `This server is too old for toil, which needs ${supportedText(s)}.`;
+  const found = options.found ? ` It reports ${options.found}.` : '';
+  const detail = options.detail ? ` The server said: ${options.detail}` : '';
+  return new ToilError(options.code ?? 'HTTP', `${head}${found}${detail}`, { fix: tooOldFix(s), details: options.details });
 }

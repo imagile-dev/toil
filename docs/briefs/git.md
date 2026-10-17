@@ -36,7 +36,7 @@ No HTTP. Local operations, per decision 1:
 
 ## Supported version
 
-Not established for git itself. #74 confirmed the porcelain leading space on git 2.49. Node floor 24.x per decision 3.
+Not established for git itself. #74 confirmed the porcelain leading space on git 2.49. The Node floor is 24.14 (decision 3 on #68, set in #105).
 
 ## Watch for
 

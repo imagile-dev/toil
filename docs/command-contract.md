@@ -48,6 +48,7 @@ any difference none of them allows. An entry holds:
 | Key | Meaning |
 |-----|---------|
 | `allows` | The identifiers it excuses: a command path (`git credentials`), a command and flag (`<area> <command> --<flag>`), a global flag (`--dry-run`), or a command and output field (`<area> <command> data.<field>`, such as `jira search data.issues[].key`). Empty for a divergence in behavior only, with the surface unchanged, so it can't excuse a missing command, flag or field. |
+| `when` | Optional. Input values a call must have for the entry to apply, such as `{ "exampleOnly": true }`. The output check applies it per example, so `jira schema`'s fields are excused only with `--example-only`. |
 | `old` | What the old CLI did |
 | `toil` | What toil does instead, and what to use |
 | `why` | The reason, in a sentence or two |

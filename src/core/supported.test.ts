@@ -1,7 +1,8 @@
 /**
  * The helper areas use when a server is older than toil supports: its text,
- * the fix that names the minimum, and the code it keeps. A version nobody has
- * established is reported as such, rather than filled in to close the ticket.
+ * the message that says so plainly, the fix that names the minimum, and the
+ * code it keeps. A version nobody has established is reported as such, rather
+ * than filled in to close the ticket.
  */
 import { describe, expect, it } from 'vitest';
 import { serverTooOld, supportedText, tooOldFix, type SupportedVersion } from './supported.js';
@@ -16,17 +17,21 @@ describe('supported versions', () => {
     expect(supportedText(unknown)).toBe("The oldest Jira Data Center version toil supports hasn't been established");
   });
 
-  it('names the minimum and the server version in the fix', () => {
-    expect(tooOldFix(ado, 'REST API 6.0')).toBe(
-      'toil needs Azure DevOps Server 2022.1 or later (REST API 7.1). This server reports REST API 6.0. Upgrade the server, or use a connection to one that is 2022.1 or later.',
+  it('says plainly that the server is too old, names the minimum, and adds what the server reported', () => {
+    const err = serverTooOld(ado, { found: 'REST API 6.0', detail: 'The requested REST API version of 7.1 is out of range.', details: { status: 400 } });
+    expect(err.message).toBe(
+      'This server is too old for toil, which needs Azure DevOps Server 2022.1 or later (REST API 7.1). It reports REST API 6.0. The server said: The requested REST API version of 7.1 is out of range.',
     );
-    expect(tooOldFix(unknown)).toContain('may be older than toil supports');
+    expect(err.fix).toBe('Upgrade the server to Azure DevOps Server 2022.1 or later, or use a connection to one that is.');
+    expect(err).toMatchObject({ code: 'HTTP', details: { status: 400 } });
   });
 
-  it('keeps the failure code, defaulting to HTTP, and carries details', () => {
-    const err = serverTooOld(ado, 'The server refused api-version=7.1.', { details: { status: 400 } });
-    expect(err).toMatchObject({ code: 'HTTP', message: 'The server refused api-version=7.1.', details: { status: 400 } });
-    expect(err.fix).toContain('2022.1 or later');
-    expect(serverTooOld(ado, 'No such endpoint.', { code: 'NOT_FOUND' }).code).toBe('NOT_FOUND');
+  it('keeps the failure code it is given', () => {
+    expect(serverTooOld(ado, { code: 'NOT_FOUND' }).code).toBe('NOT_FOUND');
+  });
+
+  it('when no minimum is established, says the server may be too old rather than inventing one', () => {
+    expect(serverTooOld(unknown).message).toBe("This server may be too old for toil; the oldest Jira Data Center version toil supports hasn't been established.");
+    expect(tooOldFix(unknown)).toContain('Check the Jira Data Center version');
   });
 });
