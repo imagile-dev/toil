@@ -31,9 +31,9 @@ There is no username, password or browser login, and no CI fallback variable.
 
 | Key | Env var | Required | Meaning |
 |-----|---------|----------|---------|
-| `baseUrl` | `TOIL_DYNATRACE_BASE_URL` | for all but `trace` | Classic environment URL, e.g. `https://abc12345.live.dynatrace.com`. On Managed, keep the `/e/<environment-id>` path |
+| `baseUrl` | `TOIL_DYNATRACE_BASE_URL` | for all but `trace` | Classic environment URL, like `https://<environment-id>.live.dynatrace.com`. On Managed, keep the `/e/<environment-id>` path |
 | `apiToken` | `TOIL_DYNATRACE_API_TOKEN` | for all but `trace` | Access token, sent as `Api-Token` |
-| `platformUrl` | `TOIL_DYNATRACE_PLATFORM_URL` | for `trace` | Platform URL, e.g. `https://abc12345.apps.dynatrace.com` |
+| `platformUrl` | `TOIL_DYNATRACE_PLATFORM_URL` | for `trace` | Platform URL, like `https://<environment-id>.apps.dynatrace.com` |
 | `platformToken` | `TOIL_DYNATRACE_PLATFORM_TOKEN` | for `trace` | Platform token, sent as `Bearer` |
 | `env` | `TOIL_DYNATRACE_ENV` | no | The environment name `--env` selects this connection by, when it differs from the connection's name |
 
@@ -43,9 +43,9 @@ A command that needs a missing key fails with `NOT_CONFIGURED` naming it
 Environment variables (CI, or a one-off shell):
 
 ```bash
-export TOIL_DYNATRACE_BASE_URL=https://abc12345.live.dynatrace.com
+export TOIL_DYNATRACE_BASE_URL=https://dynatrace.imagile.dev
 export TOIL_DYNATRACE_API_TOKEN=<your access token>
-export TOIL_DYNATRACE_PLATFORM_URL=https://abc12345.apps.dynatrace.com
+export TOIL_DYNATRACE_PLATFORM_URL=https://dynatrace-platform.imagile.dev
 export TOIL_DYNATRACE_PLATFORM_TOKEN=<your platform token>
 ```
 
@@ -63,7 +63,7 @@ value wins over them.
 {
   "version": 2,
   "connections": {
-    "prod": { "area": "dynatrace", "baseUrl": "https://abc12345.live.dynatrace.com" },
+    "prod": { "area": "dynatrace", "baseUrl": "https://dynatrace.imagile.dev" },
     "staging": { "area": "dynatrace", "baseUrl": "https://dynatrace.imagile.dev/e/abc12345-0000-0000-0000-000000000000" }
   },
   "defaults": { "dynatrace": { "connection": "prod" } }

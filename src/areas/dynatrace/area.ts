@@ -13,9 +13,9 @@ import type { SupportedVersion } from '../../core/supported.js';
  */
 
 const connection = z.object({
-  baseUrl: z.url().optional().describe('Classic environment URL, e.g. https://abc12345.live.dynatrace.com (Managed: keep the /e/<environment-id> path)'),
+  baseUrl: z.url().optional().describe('Classic environment URL, like https://<environment-id>.live.dynatrace.com (Managed: keep the /e/<environment-id> path)'),
   apiToken: z.string().min(1).optional().describe('Access token for the classic environment API, sent as Api-Token'),
-  platformUrl: z.url().optional().describe('Platform URL for trace, e.g. https://abc12345.apps.dynatrace.com'),
+  platformUrl: z.url().optional().describe('Platform URL for trace, like https://<environment-id>.apps.dynatrace.com'),
   platformToken: z.string().min(1).optional().describe('Platform token for trace, sent as Bearer'),
   env: z.string().min(1).optional().describe('Environment name that --env selects this connection by, when it differs from the connection name'),
 });
