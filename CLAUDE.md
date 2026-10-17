@@ -4,7 +4,7 @@
 
 toil is a structured-JSON CLI and MCP server, owned by Imagile, that gives AI agents
 and humans one interface to enterprise tools, databases, and codebases. TypeScript on
-Node.js (22 LTS or later), published to npm as `@imagile-dev/toil`.
+Node.js (22.16 or later), published to npm as `@imagile-dev/toil`.
 
 Who it is for, in priority order:
 
@@ -73,7 +73,7 @@ gets made again in the next place it applies.
   the repo LF so Windows checkouts produce identical bundles.
 - Config lives in `~/.toil/` on every platform, so instructions are identical.
 - CI runs the full gate on `windows-latest`, `macos-latest` and `ubuntu-latest`, on
-  Node 22 and 24. A test that is skipped on one platform says
+  Node 22.16 (the floor) and 24. A test that is skipped on one platform says
   why in its name.
 
 ## No Executables
@@ -191,7 +191,7 @@ npm run check:pure  # the No Executables gate (after build)
 npm run smoke       # install the tarball with scripts off; drive CLI and MCP (after build)
 ```
 
-All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 22
+All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 22.16
 and 24.
 
 ## Output Contract
@@ -438,7 +438,16 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   call, tags, publishes `@imagile-dev/toil` to npm with provenance, attaches the
   tarball to the GitHub release, and posts to Discord, loudly if the publish fails.
   Publishing uses the `NPM_TOKEN` secret until npm trusted publishing is configured
-  for the package, then OIDC with no token.
+  for the package, then OIDC with no token. The release PR is opened by the Imagile
+  Bot App, not `GITHUB_TOKEN`, so CI runs on it. The agent review skips it, because
+  the App can't review its own PR; the human who merges it is the review.
+- **Until 1.0, every release is an alpha prerelease** (`0.1.0-alpha.1`, then
+  `-alpha.2` …), marked as a prerelease on GitHub and published under npm's `alpha`
+  dist-tag. Until a stable release exists, `latest` also follows the newest alpha,
+  so a plain `npm install @imagile-dev/toil` gets the current alpha rather than a
+  stale first one; once 1.0 ships, prereleases only move their own tag. Going
+  to beta or 1.0 is a deliberate change to `release-please-config.json`, made by a
+  human.
 - PRs are vertical slices (core → CLI → MCP → tests → skill doc), sized large enough
   to avoid process overhead, fully verified before opening. Use the `ship` skill.
 - Before changing behavior users rely on, check config already on disk, existing

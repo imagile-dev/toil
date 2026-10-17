@@ -22,6 +22,12 @@ export interface AreaFixture {
   files?: Record<string, string | Uint8Array>;
   /** Defaults to the area's registered commands. Only test-only areas set it. */
   commands?: AnyCommand[];
+  /**
+   * Removes anything the fixture made when it loaded, run after the suite.
+   * For areas whose examples need local state rather than routes (the db
+   * area's SQLite file); HTTP areas leave it out.
+   */
+  cleanup?: () => void;
 }
 
 export function defineFixture(fixture: AreaFixture): AreaFixture {
@@ -31,9 +37,9 @@ export function defineFixture(fixture: AreaFixture): AreaFixture {
 const dir = join(import.meta.dirname, '..', 'fixtures');
 
 /** Every fixture file, with its commands resolved. */
-export async function loadFixtures(): Promise<Array<Required<AreaFixture>>> {
+export async function loadFixtures(): Promise<Array<AreaFixture & { commands: AnyCommand[]; files: Record<string, string | Uint8Array> }>> {
   const files = readdirSync(dir).filter((f) => f.endsWith('.fixture.ts')).sort();
-  const out: Array<Required<AreaFixture>> = [];
+  const out: Array<AreaFixture & { commands: AnyCommand[]; files: Record<string, string | Uint8Array> }> = [];
   for (const file of files) {
     const { fixture } = (await import(pathToFileURL(join(dir, file)).href)) as { fixture: AreaFixture };
     if (`${fixture.area}.fixture.ts` !== file) throw new Error(`${file} declares area "${fixture.area}"; name the file after its area.`);

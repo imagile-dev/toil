@@ -25,7 +25,10 @@ describe('shipped skill', () => {
     it(`${area.name}: its reference names every command and every connection key's env var`, () => {
       const doc = readFileSync(join(dir, `${area.name}.md`), 'utf8');
       for (const def of commands.filter((d) => d.path[0] === area.name)) {
-        expect(doc, commandName(def)).toContain(`\`${def.path.slice(1).join(' ')}`);
+        // In code, either bare (`get-issue`) or in full (`toil jira get-issue`).
+        const name = def.path.slice(1).join(' ');
+        const named = doc.includes(`\`${name}`) || doc.includes(`\`toil ${def.path.join(' ')}`);
+        expect(named, `${commandName(def)} is not named in skills/toil/${area.name}.md`).toBe(true);
       }
       for (const key of Object.keys(area.connection.shape)) {
         expect(doc, `${area.name}.${key}`).toContain(envName(area.name, key));

@@ -1,26 +1,30 @@
 ---
 name: toil
-description: Use toil, a structured-JSON CLI and MCP server, to read and change enterprise tools (Jira Data Center and more) for the user. Use when a task needs data from, or a change in, one of the services below; every command prints one JSON envelope.
+description: Use toil, a structured-JSON CLI and MCP server, to read from and (when allowed) write to databases and enterprise tools. Use when you need to list schemas or tables, describe a table, preview rows or run SQL against a configured database, read or change Jira Data Center issues, search with JQL, or work with sprints, comments, worklogs and attachments, or when a task mentions `toil` commands, `toil mcp`, a toil connection, or a TOIL_* environment variable.
 ---
 
 # toil
 
-toil gives you one interface to the enterprise tools this machine is configured for.
-Every command prints exactly one JSON envelope on stdout:
+Every command prints one JSON envelope on stdout: `{ ok, data, error, meta }`.
+Check `ok`; on failure, `error.code` says what kind of failure it was and `error.fix`
+says what to do about it. Paged results put the next page's cursor in
+`meta.page.nextCursor` (null on the last page). `--pretty` formats the output for
+people.
 
-```json
-{ "ok": true, "data": { }, "error": null, "meta": { "command": "jira get-issue", "durationMs": 120, "version": "1.0.0" } }
-```
+Each area is reachable two ways with identical inputs and output: on the command
+line as `toil <area> <command>`, and as MCP tools from `toil mcp --areas <area>`
+(tool names are the command path with underscores, e.g. `db_query`).
 
-On failure `ok` is `false`, `data` is `null`, and `error` carries a `code`, a `message`
-and a `fix` you can act on. Run `toil <area> <command> --help` for any command's flags.
+Reads are always allowed. A command that changes data needs `writes: true` on the
+connection, set by a person in their own config or environment, and `--allow-write`
+on the call (`allowWrite: true` over MCP). Over MCP, write tools aren't listed until
+writes are on. Only make a write the user asked for.
 
-Reads are always allowed. A command that changes something needs `writes: true` on
-the connection, set by the user, and `--allow-write` on the call. Pass `--allow-write`
-only when the user asked for that change.
+Configuration comes from environment variables, which always win, or from
+`~/.toil/config.json` (or the file passed with `--config`). A connection is one
+instance of an area; `--connection <name>` picks one when there are several.
 
-## Areas
-
-| Area | Service | Reference |
-|------|---------|-----------|
-| `jira` | Jira Data Center: issues, search, transitions, comments, worklogs, attachments, custom fields, boards and sprints | [jira.md](jira.md) |
+| Area | Reference | Covers |
+|------|-----------|--------|
+| `db` | [db.md](db.md) | Databases (SQLite): schemas, tables, describe, preview, read-only queries with paging, gated writes |
+| `jira` | [jira.md](jira.md) | Jira Data Center: issues, JQL search, transitions, comments, worklogs, labels, links, attachments, custom fields, boards and sprints |

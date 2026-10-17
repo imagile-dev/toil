@@ -1,4 +1,65 @@
 {
+  "db": [
+    {
+      "name": "list-schemas",
+      "tool": "db_list_schemas",
+      "description": "List the schemas in a database",
+      "writes": false,
+      "flags": []
+    },
+    {
+      "name": "list-tables",
+      "tool": "db_list_tables",
+      "description": "List the tables and views in a schema",
+      "writes": false,
+      "flags": [
+        "--schema <name>"
+      ]
+    },
+    {
+      "name": "describe-table",
+      "tool": "db_describe_table",
+      "description": "Describe a table or view: columns, primary key, indexes and foreign keys",
+      "writes": false,
+      "flags": [
+        "<table>",
+        "--schema <name>"
+      ]
+    },
+    {
+      "name": "preview-table",
+      "tool": "db_preview_table",
+      "description": "Preview the rows of a table or view, a page at a time",
+      "writes": false,
+      "flags": [
+        "<table>",
+        "--schema <name>",
+        "--limit <rows>",
+        "--cursor <cursor>"
+      ]
+    },
+    {
+      "name": "query",
+      "tool": "db_query",
+      "description": "Run one read-only SQL statement and return a page of its rows",
+      "writes": false,
+      "flags": [
+        "<sql>",
+        "--limit <rows>",
+        "--cursor <cursor>"
+      ]
+    },
+    {
+      "name": "execute",
+      "tool": "db_execute",
+      "description": "Run SQL that changes data, in one transaction (needs writes on and --allow-write)",
+      "writes": true,
+      "flags": [
+        "<sql>",
+        "--allow-write"
+      ]
+    }
+  ],
   "jira": [
     {
       "name": "get-issue",
