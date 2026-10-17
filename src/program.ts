@@ -13,6 +13,7 @@ export interface GlobalOptions {
   debug?: boolean;
   config?: string;
   outputFile?: string;
+  workspace?: string;
 }
 
 export interface CliIO {
@@ -49,6 +50,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       .option('--debug', 'Print diagnostic traces to stderr (never credentials)', false)
       .option('--config <path>', 'Override global config file location')
       .option('--output-file <path>', 'Write JSON output to file instead of stdout')
+      .option('--workspace <dir>', 'The folder commands may read and write files in (default: the working directory; env TOIL_WORKSPACE)')
       .showHelpAfterError(),
   );
 
@@ -147,7 +149,7 @@ export async function runProgram(options: ProgramOptions, argv: string[], from: 
   }
 }
 
-const VALUE_GLOBALS = new Set(['--config', '--output-file']);
+const VALUE_GLOBALS = new Set(['--config', '--output-file', '--workspace']);
 
 /**
  * The command the user meant, for meta.command on a usage error: the longest

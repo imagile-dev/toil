@@ -1,6 +1,7 @@
 import type { ResolvedConfig } from './config.js';
 import type { Page, Warning } from './envelope.js';
 import type { FileAccess } from './files.js';
+import type { GitRunner } from './git.js';
 import type { SecretStore } from './keychain.js';
 import type { Prompter } from './prompt.js';
 
@@ -9,11 +10,17 @@ export interface Context {
   config: ResolvedConfig;
   fetch: typeof globalThis.fetch;
   /**
-   * Local files, relative to the working directory: input files, uploads,
-   * downloads. Commands never import node:fs, so tests and both front doors
-   * see the same paths.
+   * Local files, inside the workspace: input files, uploads, downloads,
+   * reports. Commands never import node:fs, so tests and both front doors
+   * see the same paths, and no path leaves the workspace (docs/bounds.md).
    */
   files: FileAccess;
+  /**
+   * git, for the commands that are git (CLAUDE.md, No Executables). Runs in
+   * the workspace; GIT_NOT_FOUND when git isn't installed. execute() binds it
+   * to the command's signal. Absent in tests unless one supplies it.
+   */
+  git?: GitRunner;
   env: NodeJS.ProcessEnv;
   version: string;
   /** Add the request log to meta. */

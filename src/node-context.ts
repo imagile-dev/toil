@@ -1,8 +1,9 @@
 import { join, resolve } from 'node:path';
-import type { AnyCommand } from './core/command.js';
+import { commandName, type AnyCommand } from './core/command.js';
 import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
-import { nodeFiles } from './core/files.js';
+import { nodeFiles, resolveWorkspace } from './core/files.js';
+import { createGitRunner } from './core/git.js';
 import type { SecretStore } from './core/keychain.js';
 import type { Prompter } from './core/prompt.js';
 import type { GlobalOptions } from './program.js';
@@ -18,8 +19,10 @@ export interface NodeContextOptions {
   areas: readonly AreaInfo[];
   version: string;
   stderr: (text: string) => void;
-  /** False under `toil mcp`, where stdin carries the protocol and `-` can't mean it. */
+  /** False under `toil mcp`, where stdin carries the protocol and `-` can't mean it, and the working directory isn't the workspace. */
   stdin?: boolean;
+  /** Under `toil mcp`: the client's roots, as local paths. Exactly one makes it the workspace. */
+  roots?: readonly string[] | undefined;
   /** The OS credential store, for `keychain:` references. */
   secrets?: SecretStore | undefined;
   /** Only on a terminal, and never for MCP. */
@@ -40,16 +43,32 @@ export function timeoutFromEnv(env: NodeJS.ProcessEnv): number | undefined {
  * which toil you have before being told to upgrade it.
  */
 export function createNodeContext(o: NodeContextOptions): Context {
+  const config = o.def?.standalone ? emptyConfig() : loadConfig({ env: o.env, cwd: o.cwd, home: o.home, configPath: o.globals.config, areas: o.areas });
+  const mcp = o.stdin === false;
+  const workspace = resolveWorkspace({ flag: o.globals.workspace, env: o.env, cwd: o.cwd, mcp, roots: o.roots });
   return {
-    config: o.def?.standalone
-      ? emptyConfig()
-      : loadConfig({ env: o.env, cwd: o.cwd, home: o.home, configPath: o.globals.config, areas: o.areas }),
+    config,
     fetch: globalThis.fetch,
-    // toil's own config is off limits to every command, whatever path it is given.
+    // Every path lands in the workspace unless the user's config relaxed that,
+    // and toil's own config is off limits either way, whatever path it is given.
     files: nodeFiles({
       cwd: o.cwd,
-      stdin: o.stdin !== false,
+      stdin: !mcp,
+      workspace,
+      unbounded: config.bounds?.files === 'unbounded',
+      home: o.home,
+      env: o.env,
       protect: [join(o.home, '.toil'), ...(o.globals.config ? [resolve(o.cwd, o.globals.config)] : [])],
+    }),
+    // Looked up only when a command runs git, so nothing else notices it's missing.
+    git: createGitRunner({
+      command: o.def ? commandName(o.def) : 'mcp',
+      env: o.env,
+      workspace: () => {
+        if (!workspace.dir) throw workspace.error!;
+        return workspace.dir;
+      },
+      exclude: [o.cwd],
     }),
     env: o.env,
     version: o.version,

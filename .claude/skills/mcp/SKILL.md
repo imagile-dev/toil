@@ -43,6 +43,18 @@ the **MCP gateway** (`docs/mcp-gateway.md`, issue #4): its own opt-in package on
 same core, Streamable HTTP, and mandatory authentication. Don't add an HTTP transport
 to the base package; that work belongs to the gateway.
 
+## The workspace over MCP
+
+Under `toil mcp` the file workspace (`docs/bounds.md`) is `--workspace <dir>` in the
+server's args, else `TOIL_WORKSPACE`, else the client's root when it shares exactly
+one. The server's own working directory is never used. `createMcpServer` asks the
+client for its roots (`roots/list`) when it advertises the capability, caches the
+answer until `notifications/roots/list_changed`, and hands the roots to the context
+factory, so the CLI and MCP resolve the workspace through the same function
+(`resolveWorkspace` in `src/core/files.ts`). With no root or several, a command that
+touches a file returns `NOT_CONFIGURED` with a fix; commands that touch no file are
+unaffected.
+
 ## Dossier context over MCP
 
 A stdio server's own working directory means nothing, because it's wherever the

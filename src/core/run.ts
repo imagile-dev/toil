@@ -116,6 +116,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
       ...(def.managesConfig ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
+      // git stops with the command, as fetch does, without the command passing anything.
+      ...(ctx.git ? { git: { run: (call) => ctx.git!.run(call, controller.signal) } } : {}),
       warn: (warning) => warnings.push(warning),
       setPage: (p) => (page = p),
     };

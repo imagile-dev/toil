@@ -22,8 +22,8 @@ same, and a future `config import` must move every old token into the store.
 
 ## The store
 
-`src/core/keychain.ts` is the only module in toil allowed to spawn a process
-(**No Executables** in CLAUDE.md). It runs only what the OS ships, each behind a
+`src/core/keychain.ts` is one of only two modules in toil allowed to spawn a
+process; the other is git's, `src/core/git.ts` (**No Executables** in CLAUDE.md). It runs only what the OS ships, each behind a
 platform check, under the service `toil` with the reference name as the account:
 
 | Platform | Program | Store |

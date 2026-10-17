@@ -7,7 +7,7 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     rules: {
-      // Spawning is allowed only for the OS credential stores (CLAUDE.md, Secrets).
+      // Spawning is allowed only for the OS credential stores and git (CLAUDE.md, No Executables).
       'no-restricted-imports': ['error', {
         paths: [
           { name: 'child_process', message: 'No spawning: toil runs no executables (CLAUDE.md, No Executables).' },
@@ -46,12 +46,13 @@ export default tseslint.config(
     },
   },
   {
-    // The one module allowed to spawn: the OS credential store (CLAUDE.md, No Executables).
-    files: ['src/core/keychain.ts'],
+    // The two modules allowed to spawn: the OS credential store and git (CLAUDE.md, No Executables).
+    files: ['src/core/keychain.ts', 'src/core/git.ts'],
     rules: { 'no-restricted-imports': 'off' },
   },
   {
-    files: ['scripts/**/*.mjs', 'test/**/*.ts', '*.config.ts', '*.config.js'],
+    // Repo tooling and tests may run git (CLAUDE.md, Principles); none of it ships.
+    files: ['scripts/**/*.mjs', 'test/**/*.ts', 'src/core/**/*.test.ts', '*.config.ts', '*.config.js'],
     rules: { 'no-restricted-imports': 'off' },
     languageOptions: { globals: { process: 'readonly', console: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly', URL: 'readonly' } },
   },

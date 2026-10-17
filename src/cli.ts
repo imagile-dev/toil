@@ -27,13 +27,15 @@ const secrets = createSecretStore();
 // Setup commands may ask questions, only of a person at a terminal. MCP never gets a prompter.
 const prompt = process.stdin.isTTY && process.stderr.isTTY ? terminalPrompter(process.stdin, process.stderr) : undefined;
 
-const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSignal = interrupt.signal, mcp = false): Context =>
+const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSignal = interrupt.signal, mcp = false, roots?: readonly string[]): Context =>
   createNodeContext({
     globals,
     def,
     signal,
-    // Under `toil mcp` stdin carries the protocol, so `-` can't mean it.
+    // Under `toil mcp` stdin carries the protocol, so `-` can't mean it, and
+    // the workspace comes from the flag, the env or the client's one root.
     stdin: !mcp,
+    roots,
     env: process.env,
     cwd: process.cwd(),
     home: homedir(),
@@ -63,7 +65,7 @@ try {
       startMcp: async ({ areas, globals }) => {
         // stdout belongs to the protocol from here on; diagnostics go to stderr.
         // Each tool call gets its own context, cancelled by the client's own signal.
-        const server = createMcpServer({ commands, context: (def, signal) => createContext(globals, def, signal ?? interrupt.signal, true), areas });
+        const server = createMcpServer({ commands, context: (def, signal, roots) => createContext(globals, def, signal ?? interrupt.signal, true, roots), areas });
         process.once('SIGINT', () => {
           void server.close().finally(() => process.exit(130));
         });
