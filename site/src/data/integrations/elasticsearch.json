@@ -6,7 +6,7 @@
   "covers": "Search, count, indices, cluster health",
   "credential": "API key",
   "credentialNote": "A Kibana connection can use this key when you pair it with apiKeyFrom",
-  "credentialWhere": "Kibana → Stack Management → API keys",
+  "credentialWhere": "Stack Management → API keys, in Kibana",
   "status": "unit",
   "supported": {
     "product": "Elasticsearch",

@@ -14,7 +14,7 @@ export const elasticsearchArea = defineArea({
   description: 'Elasticsearch: cluster health, indices, and search and count with Query DSL or a query string',
   connection: z.object({
     baseUrl: z.url().describe('Elasticsearch root, e.g. https://elasticsearch.imagile.dev (keep any context path)'),
-    apiKey: z.string().min(1).describe('API key, the base64 "encoded" value Elasticsearch or Kibana shows once when it is created'),
+    apiKey: z.string().min(1).describe('API key: the encoded value shown once when the key is created'),
   }),
   secrets: ['apiKey'],
   request: (connection, area) => ({

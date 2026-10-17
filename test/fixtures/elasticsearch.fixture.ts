@@ -7,7 +7,8 @@ import { defineFixture } from '../harness/fixtures.js';
  *
  * Provenance: every shape here is invented from Elastic's REST API reference
  * (https://www.elastic.co/docs/api/doc/elasticsearch), trimmed to the fields
- * that matter. None was captured from a live cluster.
+ * that matter. None was captured from a live cluster; the request for one is
+ * with procurement, in the queue behind the request for a queue.
  */
 
 export const ES = 'https://elasticsearch.imagile.dev';

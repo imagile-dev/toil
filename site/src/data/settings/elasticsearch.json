@@ -10,7 +10,7 @@
   {
     "key": "apiKey",
     "env": "TOIL_ELASTICSEARCH_API_KEY",
-    "description": "API key, the base64 \"encoded\" value Elasticsearch or Kibana shows once when it is created",
+    "description": "API key: the encoded value shown once when the key is created",
     "required": true,
     "secret": true,
     "fallbacks": []
