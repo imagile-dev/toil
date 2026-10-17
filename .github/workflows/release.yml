@@ -72,10 +72,12 @@ jobs:
       - run: npm run smoke
 
       # A token is only needed until trusted publishing is configured for the
-      # package on npmjs.com; with it unset, npm publishes over OIDC.
-      # A prerelease (0.1.0-alpha.1) goes out under the `alpha` dist-tag, so
-      # `npm install @imagile-dev/toil` never picks one up by accident; only
-      # `@alpha` or an exact version does. npm would otherwise tag it `latest`.
+      # package on npmjs.com; with it unset, npm publishes over OIDC. (The
+      # `latest` move below still needs a token: see the note there.)
+      # A prerelease (0.1.0-alpha.1) goes out under its own dist-tag (`alpha`).
+      # Once a stable release exists, a plain `npm install @imagile-dev/toil`
+      # never picks up a prerelease; before 1.0, `latest` follows the newest
+      # alpha (below), because there is nothing stable to install instead.
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -88,11 +90,18 @@ jobs:
           # would then go stale. So while `latest` is missing or itself a
           # prerelease, move it to the newest one. Once 1.0 ships and `latest`
           # is stable, prereleases only move their own tag.
+          # `npm dist-tag` needs a token even when publishing uses OIDC, so it
+          # warns rather than fails: by this line the release has already gone
+          # out, and it mustn't be reported as a failed one. Before dropping
+          # NPM_TOKEN for trusted publishing, move this step or remove it.
           if [[ "$DIST_TAG" != latest ]]; then
             CURRENT_LATEST="$(npm view @imagile-dev/toil dist-tags.latest 2>/dev/null || true)"
             if [[ -z "$CURRENT_LATEST" || "$CURRENT_LATEST" == *-* ]]; then
-              npm dist-tag add "@imagile-dev/toil@$VERSION" latest
-              echo "No stable release yet: latest now points at $VERSION"
+              if npm dist-tag add "@imagile-dev/toil@$VERSION" latest; then
+                echo "No stable release yet: latest now points at $VERSION"
+              else
+                echo "::warning::Published $VERSION, but couldn't move latest to it (npm dist-tag needs a token)."
+              fi
             fi
           fi
 
