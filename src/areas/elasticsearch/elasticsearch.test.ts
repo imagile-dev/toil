@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { defineArea } from '../../core/area.js';
 import { testContext } from '../../../test/harness/context.js';
-import type { Route } from '../../../test/harness/fake-fetch.js';
+import { neverAnswers, type Route } from '../../../test/harness/fake-fetch.js';
 import { config as fixtureConfig, ES, health, hit, indexRow, searchBody } from '../../../test/fixtures/elasticsearch.fixture.js';
 import type { AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
@@ -178,13 +178,7 @@ describe('search', () => {
 
   it('#84 item 2, kept (the docs say nothing about a client timeout): --timeout-ms 0 is accepted, and the request is given up at once', async () => {
     const t = testContext({ config: fixtureConfig });
-    // A server that never answers, but hears the abort as real fetch does.
-    t.context.fetch = (input, init) =>
-      new Promise((_resolve, reject) => {
-        const signal = input instanceof Request ? input.signal : init?.signal;
-        if (signal?.aborted) reject(signal.reason);
-        signal?.addEventListener('abort', () => reject(signal.reason));
-      });
+    t.context.fetch = neverAnswers;
     const envelope = await execute(searchCommand, { index: 'logs-app', timeoutMs: '0' }, t.context);
     expect(envelope.error).toMatchObject({ code: 'TIMEOUT', details: { timeoutMs: 0 } });
   });
