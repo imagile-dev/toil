@@ -72,6 +72,7 @@ function sqliteWorkerMain(): void {
   const trailing = /^(?:\s|;|--[^\n]*(?:\n|$)|\/\*(?:[^*]|\*(?!\/))*(?:\*\/|$))*$/;
   // A statement that begins, ends or nests a transaction, after any leading comments.
   const transactionControl = /^(?:\s|;|--[^\n]*(?:\n|$)|\/\*(?:[^*]|\*(?!\/))*\*\/)*(?:BEGIN|COMMIT|END|ROLLBACK|SAVEPOINT|RELEASE)\b/i;
+  const vacuum = /^(?:\s|;|--[^\n]*(?:\n|$)|\/\*(?:[^*]|\*(?!\/))*\*\/)*VACUUM\b/i;
   let db: InstanceType<typeof DatabaseSync> | undefined;
   try {
     db = new DatabaseSync(job.path, { readOnly: !job.write, timeout: job.busyTimeoutMs });
@@ -81,6 +82,18 @@ function sqliteWorkerMain(): void {
       if (step.mode === 'exec') {
         const total = () => Number((db!.prepare('SELECT total_changes() AS n').get() as { n: number | bigint }).n);
         const before = total();
+        // SQLite can't VACUUM inside a transaction. A script that is one
+        // VACUUM and nothing else has no partial state to roll back, so it
+        // runs on its own; VACUUM alongside other statements still fails.
+        if (vacuum.test(step.sql)) {
+          const lone = db.prepare(step.sql);
+          if (!trailing.test(step.sql.slice(lone.sourceSQL.length))) {
+            throw new Error('VACUUM must be sent on its own: SQLite cannot run it inside the transaction the rest of the script needs.');
+          }
+          lone.run();
+          results.push({ mode: 'exec', changes: total() - before });
+          continue;
+        }
         db.exec('BEGIN');
         try {
           // One statement at a time, so a script's own COMMIT or ROLLBACK is

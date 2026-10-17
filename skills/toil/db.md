@@ -94,12 +94,15 @@ through, so the pages are stable.
 whatever the connection's `writes` setting. `db query` runs exactly one statement;
 SQL holding several is refused with `INVALID_INPUT`.
 
-One known gap: SQLite lets two statements touch other files from a read-only
-connection. `ATTACH DATABASE` can open another existing SQLite file for reading, and
-`VACUUM INTO '<file>'` writes a copy of the database to a new file (toil still reports
-it as `WRITE_DISABLED`). Neither changes the connected database. If the files a
-connection can reach matter, run toil as a user that can only read and write what it
-should.
+`VACUUM` is refused on every read with `INVALID_INPUT`, before it reaches SQLite.
+`VACUUM INTO '<file>'` creates its target file even on a read-only connection, so
+reads never get the chance. To vacuum or to write a copy, use `db execute` with
+writes on; it runs a lone `VACUUM` outside the usual transaction, because SQLite
+can't vacuum inside one, and refuses `VACUUM` mixed with other statements.
+
+One known gap remains: `ATTACH DATABASE` from a read-only query can open another
+existing SQLite file for reading (it can't create one). If the files a connection
+can reach matter, run toil as a user that can read only what it should.
 
 ### Writes
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { describeTable, execute as executeCmd, listSchemas, listTables, previewTable, query } from '../../src/areas/db/index.js';
+import { commands, describeTable, execute as executeCmd, listSchemas, listTables, previewTable, query } from '../../src/areas/db/index.js';
 import type { AnyCommand } from '../../src/core/command.js';
 import type { Settings } from '../../src/core/config.js';
 import { encodeCursor, MAX_LIMIT, pageKey } from '../../src/core/db/paging.js';
@@ -221,6 +221,41 @@ for (const target of targets) {
         const { sql, cursor } = target.sql.slow();
         const envelope = await run(query, { sql, ...(cursor ? { cursor } : {}) }, { timeoutMs: 300 });
         expect(envelope.error?.code).toBe('TIMEOUT');
+      });
+    });
+
+    describe('errors', () => {
+      // An agent follows `fix` literally. A hint naming a command that was
+      // renamed, or that another engine never had, sends it to INVALID_INPUT.
+      it('every fix names only registered commands', async () => {
+        const settings = { ...db.settings };
+        delete settings[target.requiredKey];
+        const failures = await Promise.all([
+          run(listTables, { schema: 'no_such_schema' }),
+          run(describeTable, { table: 'no_such_table' }),
+          run(describeTable, { table: 'people', schema: 'no_such_schema' }),
+          run(previewTable, { table: 'no_such_table' }),
+          run(query, { sql: 'SELECT * FROM no_such_table' }),
+          run(query, { sql: 'UPDATE people SET active = 0' }),
+          run(query, { sql: 'SELECT 1; SELECT 2' }),
+          run(query, { sql: 'VACUUM' }),
+          run(query, { sql: target.sql.series(5), cursor: 'not-a-cursor' }),
+          run(query, { sql: target.sql.series(5), cursor: encodeCursor(1, pageKey('db query', 'SELECT 1')) }),
+          run(executeCmd, { sql: 'UPDATE people SET active = 0', allowWrite: true }),
+          run(executeCmd, { sql: 'UPDATE people SET active = 0' }, { writes: true }),
+          run(executeCmd, { sql: 'COMMIT', allowWrite: true }, { writes: true }),
+          run(executeCmd, { sql: 'INSERT INTO teams (id, name) VALUES (1, \'Duplicate\')', allowWrite: true }, { writes: true }),
+          run(listSchemas, {}, { settings }),
+          run(listSchemas, {}, { settings: { ...db.settings, engine: 'abacus' } }),
+        ]);
+        const fixes = failures.map((e) => {
+          expect(e.ok, JSON.stringify(e.data)).toBe(false);
+          return e.error?.fix ?? '';
+        });
+        const registered = new Set(commands.map((c) => c.path.join(' ')));
+        const named = fixes.flatMap((f) => [...f.matchAll(/toil (db [a-z][a-z-]*)/g)].map((m) => m[1]!));
+        expect(named.length, 'the hints name at least some commands').toBeGreaterThan(3);
+        expect(named.filter((n) => !registered.has(n))).toEqual([]);
       });
     });
 

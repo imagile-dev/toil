@@ -50,8 +50,31 @@ export function assertNodeSupportsSqlite(version = process.versions.node): void 
   });
 }
 
+/**
+ * VACUUM, after any leading comments. `VACUUM INTO '<file>'` creates its
+ * target file before SQLite notices the connection is read-only, so a
+ * refused read could still leave a file behind wherever the process can
+ * write, and Node 22.16 has no authorizer to stop it at the engine.
+ *
+ * This is a narrow deny for the one statement that gets around the engine's
+ * own read-only mode. It is not toil deciding whether SQL writes by parsing
+ * it: every other statement still runs read-only and is refused, or not, by
+ * SQLite itself. An exception to the policy, filed in triplicate, with the
+ * policy unchanged.
+ */
+const VACUUM = /^(?:\s|;|--[^\n]*(?:\n|$)|\/\*(?:[^*]|\*(?!\/))*\*\/)*VACUUM\b/i;
+
+/** Refuses VACUUM on a read-only job before it reaches SQLite. Exported for tests. */
+export function assertNoVacuumOnRead(sql: string): void {
+  if (!VACUUM.test(sql)) return;
+  throw new ToilError('INVALID_INPUT', 'VACUUM is refused on reads: it can create files even on a read-only connection.', {
+    fix: 'Run it with toil db execute --allow-write, on a connection with writes on.',
+  });
+}
+
 async function run(conn: DbConnection, job: Omit<SqliteJob, 'path' | 'busyTimeoutMs'>, call: DbCall): Promise<SqliteStepResult[]> {
   assertNodeSupportsSqlite();
+  if (!job.write) for (const step of job.steps) assertNoVacuumOnRead(step.sql);
   const path = conn.path!;
   // Opening a missing file read-write would create an empty database and
   // report success. Refuse instead, for reads and writes alike.

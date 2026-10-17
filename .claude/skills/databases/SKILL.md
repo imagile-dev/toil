@@ -38,9 +38,15 @@ one they got.
   carry a fingerprint of the SQL or table and are refused against any other.
 - **Read-only is the engine's job.** `query` must run where the engine itself
   refuses writes, and a refused write maps to `WRITE_DISABLED` from the engine's
-  error code, never from reading the SQL. Where the engine has a hole, pin it with a test and
-  document it rather than patch it with SQL parsing: SQLite's `VACUUM INTO` writes a
-  copy to a new file even from a read-only connection (`test/db/sqlite.test.ts`).
+  error code, never from reading the SQL. The one exception is a narrow deny for a
+  statement that gets around the engine's own read-only mode: SQLite's `VACUUM INTO`
+  creates its target file before the read-only refusal, so SQLite reads refuse any
+  statement whose first keyword is `VACUUM` (`INVALID_INPUT`, pointing at
+  `db execute`). That denies one statement by name; it does not decide whether SQL
+  writes, and everything else still relies on the engine. Add another such deny only
+  for a statement proven to escape the engine's read-only mode, with a test showing
+  the escape. A hole that can't be closed (SQLite's read-only `ATTACH` of other
+  files) is pinned with a test and documented as a known limit.
 - **`execute` is all or nothing.** A script that starts or ends its own transaction
   is refused before any of it runs, so a mid-script `COMMIT` can't leave half a
   change applied.

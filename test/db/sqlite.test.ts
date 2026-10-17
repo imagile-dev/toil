@@ -1,14 +1,14 @@
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { commands, describeTable, execute as executeCmd, listTables, query } from '../../src/areas/db/index.js';
+import { execute as executeCmd, listTables, query } from '../../src/areas/db/index.js';
 import type { AnyCommand } from '../../src/core/command.js';
 import { loadConfig, type Settings } from '../../src/core/config.js';
 import { assertNodeSupportsSqlite } from '../../src/core/db/sqlite/index.js';
 import { execute } from '../../src/core/run.js';
 import { testContext } from '../harness/context.js';
-import { createSqliteFile, type TempSqlite } from '../harness/db.js';
+import { createSqliteFile, sqliteRows, type TempSqlite } from '../harness/db.js';
 
 /**
  * What only SQLite does, beyond the shared conformance suite: how its values
@@ -75,29 +75,33 @@ describe('sqlite file handling', () => {
     expect(existsSync(join(db.dir, 'attached.db'))).toBe(false);
   });
 
-  // A known limit, pinned so it can't change unnoticed. VACUUM INTO writes a
-  // copy of the database to a new file, and SQLite lets it do so from a
-  // read-only connection; Node 22 has no authorizer to stop it. The statement
-  // is still reported as a refused write, and the original is untouched.
-  it('known limit: VACUUM INTO from db query can create a copy of the database', async () => {
-    const copy = join(db.dir, 'copy.db');
-    const envelope = await run(query, { sql: `VACUUM INTO '${copy.replace(/'/g, "''")}'` });
-    expect(envelope.error?.code).toBe('WRITE_DISABLED');
-    expect(existsSync(copy)).toBe(true);
+  // VACUUM INTO creates its target file before SQLite notices the connection
+  // is read-only, so reads refuse VACUUM before it reaches the engine.
+  it('refuses VACUUM on reads before SQLite sees it, and creates no file', async () => {
+    const target = (name: string) => join(db.dir, name).replace(/'/g, "''");
+    for (const sql of [
+      `VACUUM INTO '${target('copy.db')}'`,
+      `  /* note */ -- line\n vacuum into '${target('copy.db')}'`,
+      'VACUUM',
+    ]) {
+      const envelope = await run(query, { sql }, { engine: 'sqlite', path: db.path, writes: true });
+      expect(envelope.error, sql).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('db execute') });
+    }
+    expect(readdirSync(db.dir)).toEqual(['test.db']);
   });
 
-  it('names only commands that exist in its fixes', async () => {
-    const fixes = [
-      (await run(listTables, { schema: 'nope' })).error?.fix,
-      (await run(describeTable, { table: 'nope' })).error?.fix,
-      (await run(query, { sql: 'SELECT * FROM nope' })).error?.fix,
-      (await run(query, { sql: 'DELETE FROM people' })).error?.fix,
-      (await run(query, { sql: 'SELECT 1; SELECT 2' })).error?.fix,
-    ];
-    const known = new Set(commands.map((c) => c.path.join(' ')));
-    const named = fixes.flatMap((f) => [...(f ?? '').matchAll(/toil (db [a-z-]+)/g)].map((m) => m[1]!));
-    expect(named.length).toBeGreaterThan(0);
-    expect(named.filter((n) => !known.has(n))).toEqual([]);
+  it('runs VACUUM INTO through db execute with both gates open', async () => {
+    const copy = join(db.dir, 'copy.db');
+    const envelope = await run(executeCmd, { sql: `VACUUM INTO '${copy.replace(/'/g, "''")}'`, allowWrite: true }, { engine: 'sqlite', path: db.path, writes: true });
+    expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
+    expect(existsSync(copy)).toBe(true);
+    expect(sqliteRows(copy, 'SELECT count(*) AS n FROM people')).toEqual([{ n: 12 }]);
+  });
+
+  it('refuses VACUUM mixed into a script, changing nothing', async () => {
+    const envelope = await run(executeCmd, { sql: 'VACUUM; UPDATE people SET active = 0 WHERE id = 1', allowWrite: true }, { engine: 'sqlite', path: db.path, writes: true });
+    expect(envelope.error?.code).toBe('DATABASE');
+    expect(sqliteRows(db.path, 'SELECT active FROM people WHERE id = 1')).toEqual([{ active: 1 }]);
   });
 
   it('logs the connection name under --debug, never the path', async () => {
