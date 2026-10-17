@@ -1,0 +1,206 @@
+[
+  {
+    "name": "token status",
+    "tool": "alation_token_status",
+    "description": "Mint an API access token from the configured refresh token and report its expiry (verifies credentials)",
+    "writes": false,
+    "flags": []
+  },
+  {
+    "name": "datasource list",
+    "tool": "alation_datasource_list",
+    "description": "List data sources",
+    "writes": false,
+    "flags": [
+      "--include-undeployed",
+      "--include-hidden"
+    ]
+  },
+  {
+    "name": "datasource get",
+    "tool": "alation_datasource_get",
+    "description": "Get a data source by ID",
+    "writes": false,
+    "flags": [
+      "<id>"
+    ]
+  },
+  {
+    "name": "schema list",
+    "tool": "alation_schema_list",
+    "description": "List schemas, optionally within one data source",
+    "writes": false,
+    "flags": [
+      "--ds <id>",
+      "--name <name>",
+      "--limit <n>",
+      "--skip <n>"
+    ]
+  },
+  {
+    "name": "schema get",
+    "tool": "alation_schema_get",
+    "description": "Get a schema by ID",
+    "writes": false,
+    "flags": [
+      "<id>"
+    ]
+  },
+  {
+    "name": "table list",
+    "tool": "alation_table_list",
+    "description": "List tables (descriptions, custom fields, fully-qualified keys)",
+    "writes": false,
+    "flags": [
+      "--ds <id>",
+      "--schema <id>",
+      "--schema-name <name>",
+      "--name <name>",
+      "--search <text>",
+      "--limit <n>",
+      "--skip <n>"
+    ]
+  },
+  {
+    "name": "table get",
+    "tool": "alation_table_get",
+    "description": "Get a table by ID, optionally with its columns",
+    "writes": false,
+    "flags": [
+      "<id>",
+      "--columns"
+    ]
+  },
+  {
+    "name": "column list",
+    "tool": "alation_column_list",
+    "description": "List columns of a table (types, descriptions, keys, custom fields)",
+    "writes": false,
+    "flags": [
+      "--table <id>",
+      "--table-name <name>",
+      "--schema <id>",
+      "--ds <id>",
+      "--name <name>",
+      "--search <text>",
+      "--limit <n>",
+      "--skip <n>"
+    ]
+  },
+  {
+    "name": "column get",
+    "tool": "alation_column_get",
+    "description": "Get a column by ID",
+    "writes": false,
+    "flags": [
+      "<id>"
+    ]
+  },
+  {
+    "name": "search",
+    "tool": "alation_search",
+    "description": "Full-text search across the catalog",
+    "writes": false,
+    "flags": [
+      "<query>",
+      "--otype <types>",
+      "--limit <n>",
+      "--offset <n>"
+    ]
+  },
+  {
+    "name": "folder list",
+    "tool": "alation_folder_list",
+    "description": "List folders in a Document Hub",
+    "writes": false,
+    "flags": [
+      "--hub <id>",
+      "--parent <id>",
+      "--search <text>",
+      "--limit <n>",
+      "--skip <n>"
+    ]
+  },
+  {
+    "name": "folder get",
+    "tool": "alation_folder_get",
+    "description": "Get a Document Hub folder by ID",
+    "writes": false,
+    "flags": [
+      "<id>"
+    ]
+  },
+  {
+    "name": "document list",
+    "tool": "alation_document_list",
+    "description": "List documents in a Document Hub or folder",
+    "writes": false,
+    "flags": [
+      "--hub <id>",
+      "--folder <id>",
+      "--parent-document <id>",
+      "--search <text>",
+      "--deleted",
+      "--limit <n>",
+      "--skip <n>"
+    ]
+  },
+  {
+    "name": "document get",
+    "tool": "alation_document_get",
+    "description": "Get a document by ID, including its custom field values",
+    "writes": false,
+    "flags": [
+      "<id>"
+    ]
+  },
+  {
+    "name": "document schema",
+    "tool": "alation_document_schema",
+    "description": "Print the --input-file JSON schema and an example for document create/update",
+    "writes": false,
+    "flags": [
+      "--example-only"
+    ]
+  },
+  {
+    "name": "document create",
+    "tool": "alation_document_create",
+    "description": "Create a document (async — returns a job ID; check it with `alation job get`)",
+    "writes": true,
+    "flags": [
+      "--title <title>",
+      "--description <text>",
+      "--hub <id>",
+      "--folder <id>",
+      "--template <id>",
+      "--parent-document <id>",
+      "--input-file <path>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "document update",
+    "tool": "alation_document_update",
+    "description": "Update a document (async — returns a job ID; custom field values replace existing values per field)",
+    "writes": true,
+    "flags": [
+      "<id>",
+      "--title <title>",
+      "--description <text>",
+      "--folder <id>",
+      "--template <id>",
+      "--input-file <path>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "job get",
+    "tool": "alation_job_get",
+    "description": "Get the status of a bulk job (returned by document create/update)",
+    "writes": false,
+    "flags": [
+      "<id>"
+    ]
+  }
+]
