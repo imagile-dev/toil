@@ -105,6 +105,8 @@ describe('query', () => {
     // The instrumented fetch hands over a Request, which carries the signal.
     const hang: typeof fetch = (input) => {
       const { signal } = input as Request;
+      // An abort that already happened counts too, as it does for real fetch.
+      if (signal.aborted) return Promise.reject(signal.reason);
       return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
     };
     const envelope = await execute(queryCommand, { repository: 'imagile-app', query: '*', timeoutMs: 20 }, { ...t.context, fetch: hang });

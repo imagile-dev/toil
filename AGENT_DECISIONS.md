@@ -416,11 +416,15 @@ Added as each integration lands.
 ### Sonatype IQ
 
 - **`tier` is fixed at `"full"`**: the OSV and Artifactory pings are dropped
-  (principle 9).
-- **IDs stay ordinary flags.**
+  (principle 9). The evaluation no longer contacts either, so no lower tier can
+  arise; the field stays so the envelope keeps its shape.
+- **IDs stay ordinary flags** (`--organization-id`, `--public-id`,
+  `--application-id`), not context inputs, because the contract never filled
+  them from a setting (#131).
 - **`SONATYPEIQ_NO_COMPONENTS` and `SONATYPEIQ_UNMATCHED_RESULT` warnings.**
 - **`resultsUrl` is re-pointed at the configured origin** (security).
-- **The area keeps its own polling** until it adopts KF3's `backoff: 'linear'`.
+- **The evaluation polls with core's `poll`, `backoff: 'linear'`** (KF3): 10 tries,
+  waiting 2 s up to 18 s, as before.
 
 ### OpenShift
 
