@@ -128,10 +128,25 @@ describe('search', () => {
     }
   });
 
-  it('--index is required', async () => {
-    const { envelope, calls } = await run(searchCommand, {}, []);
-    expect(calls).toEqual([]);
-    expect(envelope.error?.code).toBe('INVALID_INPUT');
+  it('--index is required, and an empty one is refused rather than searching every index', async () => {
+    for (const input of [{}, { index: '' }]) {
+      const { envelope, calls } = await run(searchCommand, input, []);
+      expect(calls).toEqual([]);
+      expect(envelope.error?.code).toBe('INVALID_INPUT');
+    }
+  });
+
+  it('an empty target in --index or --pattern is refused before any request', async () => {
+    for (const [def, input, flag] of [
+      [searchCommand, { index: 'a,,b' }, '--index'],
+      [searchCommand, { index: ' ' }, '--index'],
+      [countCommand, { index: ',' }, '--index'],
+      [indicesListCommand, { pattern: ' ' }, '--pattern'],
+    ] as const) {
+      const { envelope, calls } = await run(def, input, []);
+      expect(calls).toEqual([]);
+      expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining(`${flag} has an empty target`) });
+    }
   });
 
   it('#84 item 1, fixed from the docs: the error carries Elasticsearch\'s type and reason, with the root cause when it says more', async () => {
@@ -207,9 +222,8 @@ describe('count', () => {
 });
 
 describe('helpers', () => {
-  it('indexPath keeps commas literal and leaves empty targets for the server to refuse', () => {
-    expect(indexPath('a, b ,c*')).toBe('a,b,c*');
-    expect(indexPath('a,,b')).toBe('a,,b');
+  it('indexPath keeps commas literal and wildcards as they are', () => {
+    expect(indexPath('a, b ,c*', '--index')).toBe('a,b,c*');
   });
 
   it('errorReason reads the documented shapes and nothing else', () => {

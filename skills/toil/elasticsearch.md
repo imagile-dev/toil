@@ -73,7 +73,9 @@ is sent only to that Kibana connection's own host. See `kibana.md`.
   each row the `_cat/indices` columns `index`, `health`, `status`, `docs.count`,
   `store.size`, `pri` and `rep`, every value a string.
 - `search`: Search one or more indices with Query DSL JSON or a query string.
-  `--index` is required (comma-separate several; wildcards and aliases work).
+  `--index` is required (comma-separate several; wildcards and aliases work; an empty
+  name or an empty entry between commas is refused, so nothing silently searches every
+  index).
   `--query` takes one Query DSL clause as a JSON object, `--q` a Lucene query string;
   use one or the other, and with neither every document matches. `--sort` takes
   `field:order` pairs, comma-separated (`@timestamp:desc,_score:desc`; an entry with

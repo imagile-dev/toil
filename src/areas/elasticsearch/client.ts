@@ -79,12 +79,15 @@ function withReason(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
  * URI-encoded, rejoined with literal commas. `*` survives encoding, and a
  * date-math name (`<logs-{now/d}>`) comes out encoded, as Elastic requires:
  * https://www.elastic.co/docs/reference/elasticsearch/rest-apis/api-conventions
+ * An empty target is refused: an empty path segment would collapse into a
+ * request against every index.
  */
-export function indexPath(index: string): string {
-  return index
-    .split(',')
-    .map((s) => encodeURIComponent(s.trim()))
-    .join(',');
+export function indexPath(index: string, flag: string): string {
+  const targets = index.split(',').map((s) => s.trim());
+  if (targets.some((t) => t === '')) {
+    throw invalid(`${flag} has an empty target: "${index}".`, `Pass one or more index, data stream or alias names, comma-separated with nothing empty between them, e.g. ${flag} logs-app,logs-web.`);
+  }
+  return targets.map((t) => encodeURIComponent(t)).join(',');
 }
 
 /** The Query DSL clause: --query as a JSON object, or --q as a query_string query, or match_all. */

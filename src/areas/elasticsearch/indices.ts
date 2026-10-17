@@ -24,7 +24,7 @@ export const indicesListCommand = elasticsearchArea.command({
   options: [{ flags: '--pattern <pattern>', field: 'pattern', description: 'Index name or wildcard pattern (e.g. "logs-*")' }],
   examples: [{}, { pattern: 'logs-*,metrics-*' }],
   run: async (input, ctx) => {
-    const path = input.pattern ? `/_cat/indices/${indexPath(input.pattern)}` : '/_cat/indices';
+    const path = input.pattern ? `/_cat/indices/${indexPath(input.pattern, '--pattern')}` : '/_cat/indices';
     const rows = await es<unknown[]>(ctx, path, { query: { format: 'json', h: COLUMNS } });
     if (!Array.isArray(rows)) {
       throw new ToilError('HTTP', `Elasticsearch answered ${path} with something other than a list of indices.`, {

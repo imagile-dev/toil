@@ -23,6 +23,13 @@
       "principle": "4"
     },
     {
+      "allows": [],
+      "old": "elasticsearch search and count sending an empty --index, or an empty comma-separated target in --index or --pattern, to the server: an empty --index became a request to /_search or /_count, which reaches every index",
+      "toil": "INVALID_INPUT before any request, naming the flag and the value; --pattern left out entirely still lists every index",
+      "why": "An agent that sends an empty index would otherwise get the whole cluster back with no error.",
+      "principle": "4"
+    },
+    {
       "allows": [
         "elasticsearch search data.aggregations",
         "elasticsearch search data.totalRelation"

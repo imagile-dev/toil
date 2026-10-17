@@ -16,7 +16,7 @@ export const SEARCH_TIME_LIMIT_MS = 600_000;
 /** A number given as text on the CLI or as a number over MCP. */
 const intText = z.union([z.number(), z.string()]);
 
-const index = z.string().describe('Index, data stream, alias or wildcard pattern; comma-separate several');
+const index = z.string().min(1).describe('Index, data stream, alias or wildcard pattern; comma-separate several');
 
 interface SearchResponse {
   took?: number;
@@ -93,7 +93,7 @@ export const searchCommand = elasticsearchArea.command({
     // #84 item 2, kept: 0 passes, and core gives up on the request at once with TIMEOUT.
     const timeoutMs = nonNegativeInt(input.timeoutMs ?? '30000', '--timeout-ms');
 
-    const data = await es<SearchResponse>(ctx, `/${indexPath(input.index)}/_search`, { method: 'POST', json: body, timeoutMs });
+    const data = await es<SearchResponse>(ctx, `/${indexPath(input.index, '--index')}/_search`, { method: 'POST', json: body, timeoutMs });
     // hits.total is { value, relation } from 7.0, or a bare number with rest_total_hits_as_int, and absent with track_total_hits: false.
     const total = data.hits?.total;
     const hits = data.hits?.hits ?? [];
@@ -130,7 +130,7 @@ export const countCommand = elasticsearchArea.command({
   examples: [{ index: 'logs-app' }, { index: 'logs-*', q: 'level:error' }, { index: 'logs-app', query: '{"term":{"level":"error"}}' }],
   // https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-count
   run: async (input, ctx) => {
-    const data = await es<{ count: number }>(ctx, `/${indexPath(input.index)}/_count`, { method: 'POST', json: { query: buildQuery(input) } });
+    const data = await es<{ count: number }>(ctx, `/${indexPath(input.index, '--index')}/_count`, { method: 'POST', json: { query: buildQuery(input) } });
     return { index: input.index, count: data.count };
   },
 });
