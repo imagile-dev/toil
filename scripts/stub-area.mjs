@@ -164,6 +164,14 @@ export const ${AreaVar} = defineArea({
     token: z.string().min(1).describe('TODO: the credential the Authentication Bar allows'),
   }),
   secrets: ['token'],
+  // TODO: the predecessor's auth headers exactly; a token exchange goes in \`token\` (src/core/api.ts).
+  // Commands send through apiRequest, which builds every request from this.
+  request: (connection, area) => ({
+    baseUrl: connection.baseUrl,
+    headers: { Authorization: \`Bearer \${connection.token}\` },
+    service: 'TODO: the service name for messages',
+    authFix: \`TODO: where to make a new credential, then set token (\${area.envName('token')} for the default connection).\`,
+  }),
 ${contextBlock}});
 
 /** TODO: from the area's brief (docs/briefs/${area}.md); minimum: null until it's established. */

@@ -6,6 +6,7 @@ import { alreadyExists, nodeFiles, resolveWorkspace } from './core/files.js';
 import { createGitRunner } from './core/git.js';
 import { findGitRepo, readGitRemotes } from './core/git-repo.js';
 import type { SecretStore } from './core/keychain.js';
+import { networkFetch } from './core/network.js';
 import type { Prompter } from './core/prompt.js';
 import type { GlobalOptions } from './program.js';
 
@@ -68,9 +69,11 @@ export function createNodeContext(o: NodeContextOptions): Context {
   const config = o.def && !needsConfig(o.def) ? emptyConfig() : loadConfig({ env: o.env, cwd: o.cwd, home: o.home, configPath: o.globals.config, areas: o.areas });
   const mcp = o.stdin === false;
   const workspace = resolveWorkspace({ flag: o.globals.workspace, env: o.env, cwd: o.cwd, mcp, roots: o.roots });
+  const debug = o.globals.debug ? (message: string) => o.stderr(`[toil] ${message}\n`) : () => {};
   return {
     config,
-    fetch: globalThis.fetch,
+    // The OS certificate store and HTTPS_PROXY / NO_PROXY, set up on the first request.
+    fetch: networkFetch(globalThis.fetch, o.env, debug),
     // Every path lands in the workspace unless the user's config relaxed that,
     // and toil's own config is off limits either way, whatever path it is given.
     files: nodeFiles({
@@ -107,7 +110,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
     env: o.env,
     version: o.version,
     verbose: o.globals.verbose === true,
-    debug: o.globals.debug ? (message) => o.stderr(`[toil] ${message}\n`) : () => {},
+    debug,
     signal: o.signal,
     timeoutMs: timeoutFromEnv(o.env),
     ...(o.secrets ? { secrets: o.secrets } : {}),

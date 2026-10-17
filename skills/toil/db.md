@@ -18,8 +18,7 @@ uses the SQLite built into Node, so the version is whichever your Node ships.
 
 ## SQLite connections
 
-SQLite needs Node 22.16 or later. There is nothing to install: toil uses the SQLite
-built into Node.
+There is nothing to install: toil uses the SQLite built into Node.
 
 | Key | Required | Meaning |
 |-----|----------|---------|
@@ -156,7 +155,7 @@ Over MCP:
 
 | Code | Means |
 |------|-------|
-| `NOT_CONFIGURED` | No db connection set up, or Node is older than 22.16 |
+| `NOT_CONFIGURED` | No db connection set up |
 | `CONFIG_INVALID` | A connection is missing `engine` or `path`, `path` is relative, or the file isn't a SQLite database |
 | `NOT_FOUND` | The file, schema or table doesn't exist |
 | `WRITE_DISABLED` | A write was refused: by `db query`, or by the write gate on `db execute` |

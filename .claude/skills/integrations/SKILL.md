@@ -39,8 +39,8 @@ versions.
    predecessor's `src/services/<area>/`, which the brief summarizes and which wins
    where they disagree.
 2. **Stub it**: `node scripts/stub-area.mjs <area>` writes `src/areas/<area>/` with
-   one `area.command()` per contract command (exact path, arguments and flags, each
-   `run` throwing until ported), plus the fixture and skill file. It never
+   a `defineArea` with a `request` hook to fill in, one `area.command()` per
+   contract command (exact path, arguments and flags, each `run` throwing until ported), plus the fixture and skill file. It never
    overwrites, and it leaves out commands a divergence removes. Group-level flags
    become the area's context inputs in `area.ts`, with a TODO for where each value
    comes from (a connection setting, the git remote, or selecting the connection).
@@ -66,9 +66,19 @@ versions.
 
 `src/areas/jira/` is the reference port. Follow its shape:
 
-- `area.ts` (the `defineArea`), `client.ts` (every request, built on `restRequest`
-  and `buildUrl` from `src/core/rest.ts`, with the area's headers and auth fix), and
-  command files grouped by subject, each exporting a list that `index.ts` spreads.
+- `area.ts` (the `defineArea`, with its `request` hook: the base URL, auth headers,
+  service name and auth fix for a connection), `client.ts` (every request, sent with
+  `apiRequest` from `src/core/api.ts`, which builds it from the hook), and command
+  files grouped by subject, each exporting a list that `index.ts` spreads.
+- HTTP helpers live in core, so an area never writes its own: a token exchange with
+  a cache (the hook's `token`, sent only to the connection's origin or a
+  `vendorDomain` named in the area's code), redirects that never leave the
+  connection's host (`redirect: 'follow-without-auth'` for a signed download URL,
+  with every header dropped), `repointUrl` for a URL the server hands back,
+  `as: 'text' | 'ndjson' | 'bytes'`, `apiResponse` for headers, `accept` for a
+  non-OK status that's an answer, `multipart` and raw uploads, `apiGraphql`, `paginate`
+  (`src/core/paginate.ts`), `poll` (`src/core/poll.ts`), a per-request `timeoutMs`
+  and a command's `timeLimitMs` above the 120 s default.
 - A command that needs no connection at all (`jira schema`) is `area.command({
   kind: 'area-local', ... })`; it works with no config.
 - Files through `ctx.files`, never `node:fs`. Numbers, booleans, enums, JSON objects

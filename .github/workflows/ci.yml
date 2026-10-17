@@ -19,11 +19,13 @@ jobs:
       fail-fast: false
       matrix:
         # Windows, macOS and Linux are all first-class (principle 8), on the
-        # supported floor and the current LTS. The floor is 22.16, the first
-        # release with every node:sqlite API the db area uses; keep it in step
-        # with "engines" in package.json.
+        # supported floor and the current Node release. The floor is 24.14, the
+        # first release where both the OS certificate store and the proxy env
+        # vars can be switched on from code (tls.setDefaultCACertificates,
+        # http.setGlobalProxyFromEnv); keep it in step with "engines" in
+        # package.json.
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: ['22.16', 24]
+        node: ['24.14', 26]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

@@ -23,6 +23,8 @@ export type ErrorCode =
   /** A database refused or failed a statement: bad SQL, a constraint, a lock. */
   | 'DATABASE'
   | 'CREDENTIAL_STORE'
+  /** The Node running toil is older than the floor in package.json "engines". */
+  | 'UNSUPPORTED_NODE'
   /** A command that runs git found no usable git on PATH. Nothing else needs git. */
   | 'GIT_NOT_FOUND'
   | 'INTERNAL';

@@ -37,6 +37,10 @@ Configuration comes from environment variables, which always win, or from
 `~/.toil/config.json` (or the file passed with `--config`). A connection is one
 instance of an area; `--connection <name>` picks one when there are several.
 
+toil trusts the OS certificate store and Node's bundled CAs, and uses `HTTPS_PROXY` /
+`HTTP_PROXY` / `NO_PROXY` when they're set. A `NETWORK` error about an untrusted
+certificate means the CA is in neither; `NODE_EXTRA_CA_CERTS` adds it.
+
 ## Areas
 
 Each area has its own reference beside this file, named after it: `jira.md` for

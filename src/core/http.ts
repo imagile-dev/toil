@@ -12,7 +12,7 @@ export interface RequestLog {
   durationMs: number;
 }
 
-const SECRET_PARAM = /token|key|secret|password|signature|sig$/i;
+const SECRET_PARAM = /token|key|secret|password|signature|sig$|^jwt$/i;
 
 /** A URL safe to print: query parameters that look like credentials are replaced. */
 export function redactUrl(raw: string): string {

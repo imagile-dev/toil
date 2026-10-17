@@ -86,6 +86,12 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
    * command-level ones it lists.
    */
   context?: Record<string, ContextNeed>;
+  /**
+   * A time limit above execute()'s 120 s default, for a command that waits
+   * on slow work by design (a scan, a report); `area.command()` refuses a
+   * shorter one. TOIL_TIMEOUT_MS still overrides it, as it does the default.
+   */
+  timeLimitMs?: number;
   args?: CliArgument[];
   options?: CliOption[];
   examples: Array<z.input<S>>;
