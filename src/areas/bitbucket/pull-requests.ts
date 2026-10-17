@@ -333,4 +333,33 @@ export const declinePrCommand = bitbucketArea.command({
   },
 });
 
-export const pullRequestCommands = [createRepoCommand, listPrsCommand, getPrCommand, createPrCommand, createPrsCommand, updatePrCommand, mergePrCommand, declinePrCommand];
+export const currentPrCommand = bitbucketArea.command({
+  path: ['bitbucket', 'current-pr'],
+  aliases: [['git', 'current-pr']],
+  description: 'Find the open PR for the current branch',
+  toolDescription:
+    "Returns the open pull request whose source branch is the workspace's current git branch, or null when there is none. With no Bitbucket connection set up, it succeeds with a message saying so instead.",
+  input: z.object({}),
+  writes: false,
+  connectionOptional: true,
+  // Optional here, as everywhere: with no connection there are no context inputs to require.
+  context: { project: 'optional', repo: 'optional' },
+  examples: [{ project: 'PROJ', repo: 'imagile-api' }],
+  run: async (_input, ctx) => {
+    if (!ctx.connection) return { message: 'Requires Bitbucket config. Available after toil connections add.' };
+    const repository = ctx.repo();
+    if (!repository) throw new ToilError('INVALID_INPUT', 'Not a git repository', { fix: 'Run it inside a git clone, or point --workspace at one.' });
+    // `unknown` is the reader's word for a HEAD it couldn't resolve (no commits yet), where the old lookup gave nothing.
+    if (repository.branch === 'unknown') throw new ToilError('INVALID_INPUT', 'Could not determine current branch', { fix: 'Check out a branch with at least one commit, then try again.' });
+    const { project, repo } = ctx.context;
+    if (!project || !repo) {
+      throw new ToilError('INVALID_INPUT', 'Could not determine Bitbucket project/repo', {
+        fix: `Run it in a clone whose origin is on ${ctx.connection.baseUrl}, pass --project and --repo, or set project and repo on connection ${ctx.connection.name}.`,
+      });
+    }
+    const prs = await listPRs(ctx, project, repo, { state: 'OPEN' });
+    return prs.find((pr) => pr.fromRef?.displayId === repository.branch) ?? null;
+  },
+});
+
+export const pullRequestCommands = [createRepoCommand, listPrsCommand, getPrCommand, createPrCommand, createPrsCommand, updatePrCommand, mergePrCommand, declinePrCommand, currentPrCommand];

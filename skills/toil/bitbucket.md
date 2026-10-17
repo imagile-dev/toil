@@ -67,7 +67,8 @@ command (`toil bitbucket --project PROJ list-prs`, or
 repository). Without them, toil reads them from the workspace's `origin` remote when
 it's on the connection's host (`git@<host>:PROJ/repo.git` or
 `https://<host>/scm/PROJ/repo.git`; `ssh://` URLs and HTTPS with a user name aren't
-recognised), then the connection's `project` and `repo` settings. `create-repo` and `create-prs` need
+recognised; only `origin` is read, not other remotes), then the connection's
+`project` and `repo` settings. `create-repo` and `create-prs` need
 only a project; every other command needs both, and fails with "Could not determine
 Bitbucket project/repo" when either is missing. `meta.context` says where each came
 from.
@@ -103,6 +104,11 @@ Repositories and pull requests:
   `--delete-branch` sets Bitbucket's `autoSubject` and doesn't delete the branch; the
   merge still succeeds, with a `BITBUCKET_BRANCH_NOT_DELETED` warning.
 - `decline-pr`: Decline at the current version.
+- `current-pr`: The open pull request whose source branch is the workspace's current
+  git branch, or `null`. `toil git current-pr` is the same command. The branch is read
+  from `.git` (no git needed). With no Bitbucket connection, or one missing its
+  `pat`, it succeeds with `{ "message": "Requires Bitbucket config. ..." }` (the
+  latter with a `CONFIG_INCOMPLETE` warning).
 
 Comments (`--pr <id>`):
 

@@ -120,7 +120,7 @@ const json = (body: unknown) => ({ json: body });
 export const routes: Route[] = [
   { method: 'POST', path: `${API}/projects/PROJ/repos`, respond: (req) => json(repository(JSON.parse(req.body!).name)) },
   // Two pages of OPEN pull requests, then the filtered query in one.
-  { path: `${REPO}/pull-requests`, query: { state: 'OPEN', start: '0', limit: '100' }, respond: json(page([pr(41)], 1)) },
+  { path: `${REPO}/pull-requests`, query: { state: 'OPEN', start: '0', limit: '100' }, respond: json(page([pr(41, { fromRef: ref('feature/other') })], 1)) },
   { path: `${REPO}/pull-requests`, query: { state: 'OPEN', start: '1', limit: '100' }, respond: json(page([pr(42)])) },
   {
     path: `${REPO}/pull-requests`,
@@ -164,4 +164,7 @@ export const routes: Route[] = [
   { path: `/rest/build-status/1.0/commits/${SHA}`, respond: json({ size: 2, limit: 25, start: 0, isLastPage: true, values: [build('ci', 'SUCCESSFUL'), build('e2e', 'INPROGRESS')] }) },
 ];
 
-export const fixture = defineFixture({ area: 'bitbucket', routes, config });
+/** The workspace's repository for current-pr: on PR 42's source branch. */
+export const repo = { root: 'C:/work/imagile-api', branch: 'feature/retries', remotes: ['https://bitbucket.imagile.dev/scm/PROJ/imagile-api.git'] };
+
+export const fixture = defineFixture({ area: 'bitbucket', routes, config, repo });

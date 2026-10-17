@@ -121,6 +121,17 @@
     ]
   },
   {
+    "name": "current-pr",
+    "tool": "bitbucket_current_pr",
+    "description": "Find the open PR for the current branch",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--project <key>",
+      "--repo <slug>"
+    ]
+  },
+  {
     "name": "list-comments",
     "tool": "bitbucket_list_comments",
     "description": "List comments on a pull request (includes threaded replies by default)",

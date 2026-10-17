@@ -139,8 +139,7 @@ export const listDefaultReviewersCommand = bitbucketArea.command({
   input: z.object({}),
   writes: false,
   context: IN_REPO,
-  // An empty input schema types its examples as having no keys at all; these are the context inputs core adds.
-  examples: [{ project: 'PROJ', repo: 'imagile-api' } as never],
+  examples: [{ project: 'PROJ', repo: 'imagile-api' }],
   run: async (_input, ctx) => {
     const { project, repo } = where(ctx);
     // A bundled plugin's REST root, and the one place project and repo are encoded.

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { runCli } from '../../../test/harness/cli.js';
 import { testContext } from '../../../test/harness/context.js';
 import type { Route } from '../../../test/harness/fake-fetch.js';
-import { API, BITBUCKET, comment, config as fixtureConfig, page, pr, REPO, routes, SHA, user } from '../../../test/fixtures/bitbucket.fixture.js';
+import { API, BITBUCKET, comment, config as fixtureConfig, page, pr, REPO, repo, routes, SHA, user } from '../../../test/fixtures/bitbucket.fixture.js';
 import { commandName, type AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
 import { commands } from './index.js';
@@ -50,9 +50,13 @@ describe('requests', () => {
 });
 
 describe('project and repo', () => {
-  it('go into paths unencoded, so ../ is resolved against the path (#76 item 18)', async () => {
-    const { calls } = await run('get-pr', { project: 'PROJ/repos/x/../../..', repo: 'imagile-api', id: '42' }, [{ path: /.*/, respond: { json: pr(42) } }]);
-    expect(calls[0]!.url).toBe(`${BITBUCKET}${API}/projects/repos/imagile-api/pull-requests/42`);
+  it('go into paths unencoded, but a ../ segment is refused by core before anything is sent (#76 item 18, bound requests.path)', async () => {
+    const { calls, envelope } = await run('get-pr', { project: 'PROJ/repos/x/../../..', repo: 'imagile-api', id: '42' }, [{ path: /.*/, respond: { json: pr(42) } }]);
+    expect(calls).toEqual([]);
+    expect(envelope.error?.code).toBe('INVALID_INPUT');
+    // A ? still cuts the path, as it did: only dot segments are refused.
+    const cut = await run('get-pr', { project: 'PROJ', repo: 'imagile-api?x=', id: '42' }, [{ path: /.*/, respond: { json: pr(42) } }]);
+    expect(new URL(cut.calls[0]!.url).pathname).toBe(`${API}/projects/PROJ/repos/imagile-api`);
   });
 
   it('come from the connection (defaults.bitbucket) when not passed, and meta.context says so', async () => {
@@ -328,5 +332,39 @@ describe('review and builds', () => {
     const none = await run('list-builds', { ...AT, pr: '7' });
     expect(none.calls).toHaveLength(1);
     expect(none.envelope.data).toEqual([]);
+  });
+});
+
+describe('current-pr', () => {
+  const at = (options: { config?: Record<string, Record<string, unknown>>; repository?: typeof repo | undefined; input?: Record<string, unknown> } = {}) => {
+    const t = testContext({ config: options.config ?? fixtureConfig, routes, ...(options.repository ? { repo: options.repository } : {}) });
+    return { t, done: execute(cmd('current-pr'), options.input ?? AT, t.context) };
+  };
+
+  it("lists every OPEN pull request and returns the one whose source is the current branch", async () => {
+    const { t, done } = at({ repository: repo });
+    const envelope = await done;
+    expect(t.http.calls.map((c) => c.url)).toEqual([`${BITBUCKET}${REPO}/pull-requests?state=OPEN&start=0&limit=100`, `${BITBUCKET}${REPO}/pull-requests?state=OPEN&start=1&limit=100`]);
+    expect((envelope.data as { id: number }).id).toBe(42);
+  });
+
+  it('is null when no open pull request comes from the branch, and git current-pr is an alias', async () => {
+    expect((await at({ repository: { ...repo, branch: 'nobody' } }).done).data).toBeNull();
+    expect(cmd('current-pr').aliases).toEqual([['git', 'current-pr']]);
+  });
+
+  it("succeeds with a message, sending nothing, when Bitbucket isn't set up or the connection lacks pat", async () => {
+    const none = at({ config: {}, repository: repo, input: {} });
+    expect(await none.done).toMatchObject({ ok: true, data: { message: 'Requires Bitbucket config. Available after toil connections add.' } });
+    expect(none.t.http.calls).toEqual([]);
+    const partial = await at({ config: { bitbucket: { baseUrl: BITBUCKET } }, repository: repo, input: {} }).done;
+    expect(partial).toMatchObject({ ok: true, data: { message: expect.stringContaining('Requires Bitbucket config') } });
+    expect(partial.meta.warnings?.[0]?.code).toBe('CONFIG_INCOMPLETE');
+  });
+
+  it("fails as before outside a repository, on an unreadable branch, and with no project or repo", async () => {
+    expect((await at().done).error).toMatchObject({ code: 'INVALID_INPUT', message: 'Not a git repository' });
+    expect((await at({ repository: { ...repo, branch: 'unknown' } }).done).error?.message).toBe('Could not determine current branch');
+    expect((await at({ repository: repo, input: {} }).done).error).toMatchObject({ code: 'INVALID_INPUT', message: 'Could not determine Bitbucket project/repo' });
   });
 });
