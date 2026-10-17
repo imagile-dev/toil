@@ -128,6 +128,23 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       // An alias in another area's group still hears that group's flags, so one
       // it doesn't take is refused rather than quietly ignored.
       const input = { ...inputFromCli(def, cmd, groupFlags(path[0]!), preset), ...preset };
+      // Through an alias in another group (`openshift cluster list` for
+      // `connections list`), say so in the words the user typed, rather than
+      // let strict parsing name a command and a field they never mentioned.
+      if (!canonical) {
+        const mapped = new Set((def.options ?? []).map((opt) => opt.flags));
+        const all = cmd.optsWithGlobals<Record<string, unknown>>();
+        const stray = [...groupFlags(path[0]!)].find((flags) => !mapped.has(flags) && all[new Option(flags).attributeName()] !== undefined);
+        if (stray) {
+          const flag = stray.split(/[ ,]+/).find((p) => p.startsWith('--')) ?? stray;
+          const error = new ToilError('INVALID_INPUT', `toil ${path.join(' ')} doesn't take ${flag}: it runs toil ${commandName(def)}${fixed ? ` ${fixed}` : ''}, which has no such input.`, {
+            fix: `Run toil ${path.join(' ')} without ${flag}.`,
+          });
+          io.stdout(`${JSON.stringify(failure(error, { command: commandName(def), durationMs: 0, version: options.version }), null, globals.pretty ? 2 : undefined)}\n`);
+          result.exitCode = 1;
+          return;
+        }
+      }
       if (globals.outputFile && io.checkFile) {
         // Refuse a bad --output-file before anything runs, so nothing is changed for a result nobody can read.
         try {
