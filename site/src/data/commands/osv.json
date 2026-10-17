@@ -1,0 +1,15 @@
+[
+  {
+    "name": "vulns",
+    "tool": "osv_vulns",
+    "description": "Check a dependency inventory for known vulnerabilities in OSV.dev (public API, no credential)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--from <file>",
+      "--ecosystem <ecosystem>",
+      "--direct-only",
+      "--include-dev"
+    ]
+  }
+]
