@@ -164,9 +164,10 @@ function chooseConnection(
       if (!spec.selectsConnection || found.source !== source) continue;
       const selected = selectConnection(config, area, name, spec.setting ?? name, found.value, flagOf(name, spec), found.source);
       if (pick && pick.value !== selected) {
-        const was = pick.via ? `${flagOf(pick.via, declared[pick.via]!).split(' ')[0]}, which selects ${pick.value}` : `connection ${pick.value}`;
-        throw new ToilError('INVALID_INPUT', `${commandName(def)} got ${was}, and ${flagOf(name, spec).split(' ')[0]} ${found.value}, which selects connection ${selected} (both from the ${source}).`, {
-          fix: 'Give only one of them, or make them agree.',
+        const first = pick.via ? `${flagOf(pick.via, declared[pick.via]!).split(' ')[0]} selects connection ${pick.value}` : `--connection is ${pick.value}`;
+        const where = { input: 'the call', dossier: 'your dossier', git: 'the git remote' }[source];
+        throw new ToilError('INVALID_INPUT', `Two different connections for ${commandName(def)}, both from ${where}: ${first}, but ${flagOf(name, spec).split(' ')[0]} ${found.value} selects connection ${selected}.`, {
+          fix: `Give only one of them, or make them name the same connection.`,
         });
       }
       pick ??= { value: selected, source, via: name };

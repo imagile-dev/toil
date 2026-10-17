@@ -381,6 +381,12 @@ describe('aliases', () => {
       meta: { command: 'demo-context get-widget' },
     });
     expect(http.calls).toHaveLength(0);
+
+    // When commander refused a different option, even beside a misplaced group flag, its own error stands.
+    for (const argv of [['demo', '--bogus', 'widget', 'W-1'], ['demo', '--bogus', '--project', 'ABC', 'widget', 'W-1']]) {
+      const other = await runCli(argv, { commands, context });
+      expect(other.envelope?.error, argv.join(' ')).toMatchObject({ code: 'INVALID_INPUT', message: "Unknown option '--bogus'" });
+    }
   });
 
   it('names the command, not the alias, on a usage error', async () => {

@@ -70,7 +70,8 @@ gets made again in the next place it applies.
    no call home. The only network traffic is to hosts in the user's config, or to a
    public API that a command the user ran names in its own name (`toil osv vulns`).
    A credential goes only to the connection it's configured on, or to one the user
-   paired it with.
+   paired it with; the one exception is an area's default connection taking another
+   area's default env value, which keeps the old env chain.
 
 ## Cross-Platform
 
