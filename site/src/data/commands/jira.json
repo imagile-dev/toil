@@ -4,6 +4,7 @@
     "tool": "jira_get_issue",
     "description": "Get a Jira issue by key",
     "writes": false,
+    "connection": true,
     "flags": [
       "--key <issue-key>"
     ]
@@ -13,6 +14,7 @@
     "tool": "jira_create_issue",
     "description": "Create a Jira issue",
     "writes": true,
+    "connection": true,
     "flags": [
       "--type <type>",
       "--summary <text>",
@@ -33,6 +35,7 @@
     "tool": "jira_update_issue",
     "description": "Update a Jira issue",
     "writes": true,
+    "connection": true,
     "flags": [
       "--key <issue-key>",
       "--summary <text>",
@@ -51,6 +54,7 @@
     "tool": "jira_schema",
     "description": "Print the --input-file JSON schema and an example for create-issue/update-issue",
     "writes": false,
+    "connection": false,
     "flags": [
       "--example-only"
     ]
@@ -60,6 +64,7 @@
     "tool": "jira_transition_issue",
     "description": "Transition a Jira issue to a new status",
     "writes": true,
+    "connection": true,
     "flags": [
       "--key <issue-key>",
       "--transition <name-or-id>",
@@ -71,6 +76,7 @@
     "tool": "jira_list_transitions",
     "description": "List available transitions for an issue",
     "writes": false,
+    "connection": true,
     "flags": [
       "--key <issue-key>"
     ]
@@ -80,6 +86,7 @@
     "tool": "jira_add_comment",
     "description": "Add a comment to a Jira issue",
     "writes": true,
+    "connection": true,
     "flags": [
       "--key <issue-key>",
       "--body <text>",
@@ -91,6 +98,7 @@
     "tool": "jira_log_work",
     "description": "Add a worklog (time spent) entry to a Jira issue",
     "writes": true,
+    "connection": true,
     "flags": [
       "--key <issue-key>",
       "--time-spent <duration>",
@@ -104,6 +112,7 @@
     "tool": "jira_list_comments",
     "description": "List comments on a Jira issue",
     "writes": false,
+    "connection": true,
     "flags": [
       "--key <issue-key>"
     ]
@@ -113,6 +122,7 @@
     "tool": "jira_add_label",
     "description": "Add one or more labels to a Jira issue (non-destructive)",
     "writes": true,
+    "connection": true,
     "flags": [
       "--key <issue-key>",
       "--labels <labels>",
@@ -124,6 +134,7 @@
     "tool": "jira_remove_label",
     "description": "Remove one or more labels from a Jira issue (non-destructive)",
     "writes": true,
+    "connection": true,
     "flags": [
       "--key <issue-key>",
       "--labels <labels>",
@@ -135,6 +146,7 @@
     "tool": "jira_assign",
     "description": "Assign a Jira issue to a user",
     "writes": true,
+    "connection": true,
     "flags": [
       "--key <issue-key>",
       "--assignee <username>",
@@ -146,6 +158,7 @@
     "tool": "jira_link_issue",
     "description": "Link two Jira issues together",
     "writes": true,
+    "connection": true,
     "flags": [
       "--key <issue-key>",
       "--link-type <type>",
@@ -158,6 +171,7 @@
     "tool": "jira_search",
     "description": "Search Jira issues with JQL (consider --output-file for large results)",
     "writes": false,
+    "connection": true,
     "flags": [
       "--jql <query>",
       "--jql-file <path>",
@@ -171,6 +185,7 @@
     "tool": "jira_fields",
     "description": "List custom fields (configured or discovered from Jira API) (consider --output-file for large results)",
     "writes": false,
+    "connection": true,
     "flags": [
       "--discover",
       "--custom-only",
@@ -183,6 +198,7 @@
     "tool": "jira_add_attachment",
     "description": "Upload a file as an attachment to a Jira issue",
     "writes": true,
+    "connection": true,
     "flags": [
       "--key <issue-key>",
       "--file <path>",
@@ -194,6 +210,7 @@
     "tool": "jira_list_attachments",
     "description": "List attachments on a Jira issue",
     "writes": false,
+    "connection": true,
     "flags": [
       "--key <issue-key>"
     ]
@@ -203,6 +220,7 @@
     "tool": "jira_download_attachment",
     "description": "Download a Jira issue attachment to .toil/ (or --dir)",
     "writes": false,
+    "connection": true,
     "flags": [
       "--key <issue-key>",
       "--attachment-id <id>",
@@ -214,6 +232,7 @@
     "tool": "jira_list_boards",
     "description": "List Agile boards for a project",
     "writes": false,
+    "connection": true,
     "flags": [
       "--project <key>"
     ]
@@ -223,6 +242,7 @@
     "tool": "jira_list_sprints",
     "description": "List sprints for a board or project, including start/end dates",
     "writes": false,
+    "connection": true,
     "flags": [
       "--board <id>",
       "--project <key>",
@@ -234,6 +254,7 @@
     "tool": "jira_set_sprint",
     "description": "Move a Jira issue into a sprint",
     "writes": true,
+    "connection": true,
     "flags": [
       "--key <issue-key>",
       "--sprint <id>",
