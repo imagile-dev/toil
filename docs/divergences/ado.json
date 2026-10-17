@@ -74,6 +74,13 @@
     },
     {
       "allows": [],
+      "old": "ado pipeline run --wait waiting as long as --timeout allowed",
+      "toil": "The command's time limit is 11 minutes: the default 600 s wait plus a minute of polling. A longer --timeout ends in TIMEOUT at that limit unless TOIL_TIMEOUT_MS raises it",
+      "why": "Every command has a time limit and can be cancelled; one that waits on slow work declares a longer limit, not none.",
+      "principle": "Output Contract"
+    },
+    {
+      "allows": [],
       "old": "A missing collection or project telling the user to run the old CLI's config init",
       "toil": "\"Could not determine Azure DevOps collection. Pass --collection, or set collection on the connection.\" (and the same for project), with a fix naming defaults.ado and the env var",
       "why": "toil has no config init yet; the error names what does exist.",
