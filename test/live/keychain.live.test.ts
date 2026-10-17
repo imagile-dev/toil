@@ -122,7 +122,7 @@ describe.runIf(live)(`OS credential store round trip (${store.name})`, () => {
     expect(get.stdout).not.toContain('keychain:');
     const requests = (get.envelope?.meta as { requests?: unknown[] } | undefined)?.requests;
     log(`demo get-thing --verbose: ok=${get.envelope?.ok}, meta.requests=${JSON.stringify(requests)}`);
-    log(`request header: authorization="Bearer [redacted, ${TOKEN.length} chars]", equals the stored token: ${authorization === `Bearer ${TOKEN}`}`);
+    log(`request authorization header: present=${authorization !== undefined}, credential not printed (${TOKEN.length} chars), equals "Bearer " + the stored token: ${authorization === `Bearer ${TOKEN}`}`);
 
     // 3. remove deletes the connection and its store entry.
     const remove = await runCli(['connections', 'remove', NAME], { commands, context: context(fakeFetch().fetch) });
