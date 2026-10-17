@@ -116,6 +116,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
       ...(def.managesConfig ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
+      // A listing's warnings (a refused git include) land in meta.warnings without the command passing anything.
+      files: { ...ctx.files, list: (dir, options) => ctx.files.list(dir, { ...options, warn: options?.warn ?? ((w) => warnings.push(w)) }) },
       // git stops with the command, as fetch does, without the command passing anything.
       ...(ctx.git ? { git: { run: (call) => ctx.git!.run(call, controller.signal) } } : {}),
       warn: (warning) => warnings.push(warning),

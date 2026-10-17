@@ -46,7 +46,7 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 
 | Exception | To bound | Enforced in | What it allows |
 |-----------|----------|-------------|----------------|
-| `git.read-up` | `files.workspace` | `src/core/git-repo.ts`, `src/core/git-config.ts`, `src/core/files.ts` | Reading git metadata above or beside the workspace, to find the repository root, branch and remotes, and what a listing skips. |
+| `git.read-up` | `files.workspace` | `src/core/git-repo.ts`, `src/core/git-config.ts`, `src/core/files.ts` | Reading git metadata above or beside the workspace, to find the repository root, branch and remotes, and what a listing skips. Anything under `~/.toil`, the `--config` file, `/proc` or `/sys` is refused: a global config or `include`/`includeIf` naming one is skipped with a `GIT_INCLUDE_REFUSED` warning in `meta.warnings`, and a `gitdir:` pointing at one is not a repository. |
 | `output-file` | `files.workspace` | `src/node-context.ts`, `src/program.ts` | The global `--output-file` flag writing the envelope outside the workspace. |
 
 `git.read-up` is metadata only, and read only. It covers exactly these, and nothing

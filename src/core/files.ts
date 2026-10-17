@@ -45,9 +45,10 @@ export interface FileAccess {
    * --exclude-standard` lists: tracked files, ignored or not, plus untracked
    * ones no ignore rule covers, and a nested repository as `name/`. Symlinks
    * are listed, never followed. More than `limit` files (default 100,000) is
-   * INVALID_INPUT.
+   * INVALID_INPUT. A git config include it refuses to read is reported through
+   * `warn`, which execute() points at meta.warnings.
    */
-  list(dir?: string, options?: { gitignore?: boolean; limit?: number }): string[];
+  list(dir?: string, options?: { gitignore?: boolean; limit?: number; warn?: (warning: { code: string; message: string }) => void }): string[];
   /**
    * The nearest `name`, looking in `from` (default: the workspace) and then
    * each parent, stopping at the workspace's top (or the filesystem's, when
@@ -317,7 +318,7 @@ export function nodeFiles(options: {
     },
     list: (dir = '.', listOptions = {}) => {
       const root = check(at(dir));
-      return listTree(root, { gitignore: listOptions.gitignore !== false, limit: listOptions.limit ?? DEFAULT_LIST_LIMIT, home: options.home ?? '', env: options.env ?? {}, protect: options.protect ?? [] });
+      return listTree(root, { gitignore: listOptions.gitignore !== false, limit: listOptions.limit ?? DEFAULT_LIST_LIMIT, home: options.home ?? '', env: options.env ?? {}, protect: options.protect ?? [], ...(listOptions.warn ? { warn: listOptions.warn } : {}) });
     },
     findUp: (name, from = '.') => {
       let dir = resolve(at(from));
@@ -356,7 +357,7 @@ export function nodeFiles(options: {
  * it isn't on the read-up list, so a pattern only it holds is listed. Outside a repository only
  * the `.gitignore` files under `root` apply (git itself would list nothing).
  */
-function listTree(root: string, o: { gitignore: boolean; limit: number; home: string; env: NodeJS.ProcessEnv; protect: readonly string[] }): string[] {
+function listTree(root: string, o: { gitignore: boolean; limit: number; home: string; env: NodeJS.ProcessEnv; protect: readonly string[]; warn?: (warning: { code: string; message: string }) => void }): string[] {
   const found = new Set<string>();
   const repo = o.gitignore ? findGitRepo(root, { home: o.home, protect: o.protect }) : undefined;
   const matchRoot = repo ? resolve(repo.root) : root;
@@ -378,7 +379,7 @@ function listTree(root: string, o: { gitignore: boolean; limit: number; home: st
   let others = true;
   const tracked = new Set<string>();
   if (repo) {
-    const config = readGitConfig(repo, { home: o.home, env: o.env, protect: o.protect });
+    const config = readGitConfig(repo, { home: o.home, env: o.env, protect: o.protect, ...(o.warn ? { warn: o.warn } : {}) });
     caseFold = gitBool(lastValue(config, 'core.ignorecase')) ?? false;
     base.push(...readRules(join(repo.commonDir, 'info', 'exclude'), ''));
     // .gitignore files between the repository's top and the listing root, and

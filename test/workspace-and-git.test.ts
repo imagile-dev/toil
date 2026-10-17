@@ -191,6 +191,39 @@ describe('which folder is the workspace', () => {
   });
 });
 
+describe('a refused git include during a listing', () => {
+  it('lands in meta.warnings as GIT_INCLUDE_REFUSED', async () => {
+    const repo = join(root, 'repo');
+    mkdirSync(join(repo, '.git'), { recursive: true });
+    writeFileSync(join(repo, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    writeFileSync(join(repo, '.git', 'config'), `[include]\n\tpath = ${join(home, '.toil', 'config.json').replace(/\\/g, '/')}\n`);
+    writeFileSync(join(repo, 'a.txt'), 'x');
+    const lister = defineCommand({
+      path: ['probe', 'list'],
+      description: 'Test only: lists files',
+      input: z.object({}),
+      writes: false,
+      examples: [{}],
+      run: async (_input, ctx) => ctx.files.list(),
+    });
+    let stdout = '';
+    await runProgram(
+      {
+        commands: [lister],
+        version: '0.0.0-test',
+        io: { stdout: (t) => (stdout += t), stderr: () => {}, writeFile: () => {} },
+        createContext: (globals, def) => nodeContext({ env: {}, globals: { ...globals, workspace: repo }, def }),
+        startMcp: async () => {},
+      },
+      ['probe', 'list'],
+      'user',
+    );
+    const envelope = JSON.parse(stdout) as Envelope;
+    expect(envelope.data).toEqual(['a.txt']);
+    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'GIT_INCLUDE_REFUSED', message: expect.stringContaining('.toil/config.json') })]);
+  });
+});
+
 describe('--output-file', () => {
   const write = (path: string) => writeOutputFile({ path, content: '{}\n', cwd, home, config: join(home, 'custom.json') });
 
