@@ -21,17 +21,47 @@
     {
       "allows": [],
       "old": "git report --csv printing raw CSV to stdout instead of the envelope",
-      "toil": "--csv writes the CSV to a file in the workspace named with --out <file>, never overwriting, and data returns the saved absolute path",
+      "toil": "--csv writes the CSV to a file in the workspace named with --out <file>, never overwriting, and data is the JSON report with the saved absolute path added as file. Nothing but the envelope goes to stdout",
       "why": "Every command writes exactly one envelope; CSV goes to a file only (decision 4 on #68).",
       "principle": "Output Contract"
     },
     {
       "allows": [],
+      "old": "git report with no --out flag",
+      "toil": "--out <file> is added, and --csv requires it (and --out requires --csv), checked before git runs",
+      "why": "Where the CSV goes has to be named, since it no longer goes to stdout (decision 4 on #68).",
+      "principle": "Output Contract"
+    },
+    {
+      "allows": [],
       "old": "git diff and git log running with the repository's own diff and fsmonitor settings",
-      "toil": "git runs with --no-ext-diff, --no-textconv, -c core.fsmonitor= and no pager, so diff and log output can differ in a repository that configures an external diff driver, a textconv filter or fsmonitor",
+      "toil": "git runs with --no-ext-diff, --no-textconv, -c core.fsmonitor=, -c log.showSignature=false and no pager, so diff and log output can differ in a repository that configures an external diff driver, a textconv filter, fsmonitor or signature display",
       "why": "Those settings let a repository's config run programs of its choosing when toil runs git (decision 1 on #68).",
       "principle": "1",
       "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "git diff building a shell command string, so --file with a space or a shell metacharacter became several pathspecs or shell syntax, and usually an empty diff (#74 item 3)",
+      "toil": "git runs with a fixed argument list and no shell, so --file is one pathspec after --: a path with a space gets its diff",
+      "why": "toil never spawns through a shell (CLAUDE.md, Cross-Platform and No Executables; decision 1 on #68).",
+      "principle": "1",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "git report --branch or --base starting with -, passed to git where it could be read as an option",
+      "toil": "Refused with INVALID_INPUT before git runs (no branch can be named that way), since revisions go after --end-of-options",
+      "why": "A value must never become a git flag (decision 1 on #68, src/core/git.ts).",
+      "principle": "1",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "git report reading up to 200 MB of git log output, and any git command's output read whole",
+      "toil": "git output past 64 MB is refused with INVALID_INPUT (\"git printed more than 64 MB\") on every command, rather than read or turned into an empty result",
+      "why": "Core caps what it buffers from git for every command; a report that size is refused loudly rather than half-read (principle 4).",
+      "principle": "4"
     },
     {
       "allows": [],
