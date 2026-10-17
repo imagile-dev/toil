@@ -1,0 +1,118 @@
+{
+  "scope": "splitio",
+  "divergences": [
+    {
+      "allows": [
+        "splitio environments list --workspace",
+        "splitio flags list --workspace",
+        "splitio flags get --workspace",
+        "splitio flags update --workspace",
+        "splitio flags set-rule --workspace",
+        "splitio flags set-default --workspace",
+        "splitio flags toggle --workspace",
+        "splitio flags batch-toggle --workspace",
+        "splitio flags kill --workspace",
+        "splitio flags restore --workspace",
+        "splitio flags archive --workspace",
+        "splitio change-requests list --workspace"
+      ],
+      "old": "splitio <command> --workspace <id> naming the Split workspace",
+      "toil": "Split's workspace is --ws <id> (the MCP field is still workspace), or the connection's workspace setting (TOIL_SPLITIO_WORKSPACE). A command without one fails with INVALID_INPUT saying --workspace is toil's file-workspace flag and to pass --ws",
+      "why": "--workspace is toil's global flag for the folder commands may read files in, and the CLI parser takes it wherever it appears, so a leaf flag of the same name could never be reached. A find-and-replace migration keeps --workspace <id>, which sets the file workspace to the ID, and then gets the plain error telling it to use --ws.",
+      "principle": "Bounds"
+    },
+    {
+      "allows": [
+        "splitio flags update --yes",
+        "splitio flags set-rule --yes",
+        "splitio flags set-default --yes",
+        "splitio flags toggle --yes",
+        "splitio flags batch-toggle --yes",
+        "splitio flags kill --yes",
+        "splitio flags restore --yes",
+        "splitio flags archive --yes"
+      ],
+      "old": "Every write asking \"Submit Change Request ...?\" on the terminal unless --yes was given; declining ended with \"Aborted by user.\" and exit code 0",
+      "toil": "No prompt and no --yes. A write needs writes: true on the connection and --allow-write on the call, and fails with WRITE_DISABLED naming the missing one",
+      "why": "toil's write gate replaces per-command confirmation everywhere. It also settles #79 item 13: the prompt blocked --input-file - and unattended runs.",
+      "principle": "2"
+    },
+    {
+      "allows": [],
+      "old": "flags get, set-rule and set-default reading /internal/api/v2/splits/ws/{ws}/name/{flag} and .../name/{flag}/environment/{env} (#79 item 1)",
+      "toil": "GET /splits/ws/{ws}/{flag} and /splits/ws/{ws}/{flag}/environments/{env}, as Split documents them: https://docs.split.io/reference/get-feature-flag and https://docs.split.io/reference/get-feature-flag-definition-in-environment",
+      "why": "The integration was never run against a live account, so the maintainer had it rebuilt from the vendor docs (#29). The documented paths have a name/ segment and a singular environment that the reference has not.",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "Every write POSTing to /internal/api/v2/changeRequests/ws/{ws} with the environment inside the body as split.environment.id; flags archive taking no --environment (#79 item 2)",
+      "toil": "POST /changeRequests/ws/{ws}/environments/{env} (https://docs.split.io/reference/create-change-request). flags archive now requires --environment, since the path needs one; ARCHIVE removes the flag's definition from that environment",
+      "why": "Rebuilt from the vendor docs (#29): Split takes the environment in the path, so a change request without it cannot be submitted.",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "operationType sent as UPDATE_SPLIT_DEFINITION, KILL_SPLIT, RESTORE_SPLIT and ARCHIVE_SPLIT (#79 item 3)",
+      "toil": "UPDATE, KILL, RESTORE and ARCHIVE, the values Split lists for feature flags: https://docs.split.io/reference/create-change-request and https://developer.harness.io/docs/feature-management-experimentation/api/approvals",
+      "why": "Rebuilt from the vendor docs (#29).",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "--approvers a,b sent as approvers: [{ id: \"a\" }, { id: \"b\" }], and approvers left out when not given (#79 item 4)",
+      "toil": "approvers is an array of the email addresses given, trimmed, and [] when none are; the flag help says emails. The flag keeps its contract spelling, --approvers <ids>",
+      "why": "Rebuilt from the vendor docs (#29): Split takes approvers as email strings, and an empty array where the environment picks them (https://docs.split.io/reference/create-change-request, https://developer.harness.io/docs/feature-management-experimentation/api/approvals).",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "set-rule --treatment and set-default writing a single bucket as { treatment, size: 100000 } (#79 item 5)",
+      "toil": "size: 100. Bucket sizes are percentages",
+      "why": "Rebuilt from the vendor docs (#29): Split's examples write a whole bucket as 100 (https://docs.split.io/reference/create-change-request, https://docs.split.io/reference/full-update-feature-flag-definition-in-environment).",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "The change request body as { title, comment, crNumber, operationType, split: { name, environment: { id }, definition }, workspace: { id } }, with set-rule and set-default spreading the whole GET response, read-only fields included, into definition (#79 item 6)",
+      "toil": "{ split: { name, treatments, defaultTreatment, baselineTreatment, trafficAllocation, rules, defaultRule }, operationType, title, comment, approvers, rolloutStatus? }, flat as Split documents it (https://docs.split.io/reference/create-change-request). set-rule and set-default copy only those definition fields from the GET; update sends the --input-file object under split with name set from --flag, and refuses a file that isn't a JSON object. Split has no change-number field, so --change-number is appended to the comment as \"Change number: <CHG>\". A new --rollout-status <id> sends rolloutStatus: { id }",
+      "why": "Rebuilt from the vendor docs (#29): a nested definition, crNumber and workspace are not in the reference body, and the GET returns fields Split owns.",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "environments list reading .objects from the response, which fails on a bare array (#79 item 7)",
+      "toil": "The response is read as the bare array Split returns (https://docs.split.io/reference/get-environments). Anything else is an HTTP error saying so",
+      "why": "Rebuilt from the vendor docs (#29).",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "workspaces list returning the first page only, with count the length of that page (#79 item 8)",
+      "toil": "Every page, 100 at a time, until totalCount (https://docs.split.io/reference/get-workspaces); count is the number of workspaces",
+      "why": "Rebuilt from the vendor docs (#29): the endpoint is paged, and the help says it lists all workspaces.",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "change-requests list GETting /internal/api/v2/changeRequests/ws/{ws}?limit&offset[&environmentId][&status], with totalCount from the server (#79 item 9)",
+      "toil": "GET /changeRequests?workspaceId&environmentId&status&limit&after (https://docs.split.io/reference/list-change-requests). Split pages this list by marker: --offset other than 0 is refused with INVALID_INPUT, a new --after <marker> reads the next page, the output adds nextMarker and previousMarker, meta.page.nextCursor is nextMarker, and totalCount is null because Split reports no total",
+      "why": "Rebuilt from the vendor docs (#29): the documented path is the submit path, and the list takes markers, not offsets.",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "set-rule --weights with invalid JSON failing with the raw SyntaxError",
+      "toil": "INVALID_INPUT naming --weights, with an example of the expected array",
+      "why": "An error says plainly what went wrong and what to do; a raw SyntaxError would reach the envelope as an INTERNAL \"bug in toil\".",
+      "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "workspaces list paging (new, above) with no bound",
+      "toil": "Paging stops after 1,000 pages with an HTTP error naming the list (\"Paging Split workspaces didn't end after 1000 pages\")",
+      "why": "A server that ignores offset hands back the same page forever; the bound turns a hang into an error that says what happened.",
+      "principle": "4"
+    }
+  ]
+}
