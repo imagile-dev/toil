@@ -3,13 +3,19 @@
   "name": "Sauce Labs",
   "group": "build",
   "order": 5,
-  "covers": "Test jobs, builds, real devices",
-  "credential": "Access key",
+  "covers": "Test jobs, builds, real devices and device sessions, tunnels, platforms, app storage, teams",
+  "credential": "Username and access key",
+  "credentialNote": "SAUCE_USERNAME and SAUCE_ACCESS_KEY, the variables Sauce's own tooling reads, are used when no toil value is set",
   "credentialWhere": "User settings → Access key",
-  "status": "planned",
+  "status": "unit",
   "host": "https://api.us-west-1.saucelabs.com",
   "keys": [
     "USERNAME",
     "ACCESS_KEY"
-  ]
+  ],
+  "supported": {
+    "product": "Sauce Labs",
+    "minimum": null,
+    "note": "Sauce Labs is SaaS only, so there is no server release to pin. toil calls the REST v1 and v1.2, Real Device Access v2, Builds v2, Team Management v1 and Storage v1 APIs on the data-center host in baseUrl. Nothing has been verified against a live account yet."
+  }
 }
