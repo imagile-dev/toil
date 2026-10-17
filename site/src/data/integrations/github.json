@@ -5,8 +5,14 @@
   "order": 4,
   "covers": "Pull requests, reviews, issues, checks",
   "credential": "Fine-grained PAT",
-  "credentialNote": "In GitHub Actions, GITHUB_TOKEN is used when no toil token is set",
+  "credentialNote": "In GitHub Actions, GITHUB_TOKEN and GITHUB_API_URL are used when no toil token or base URL is set",
   "credentialWhere": "Settings → Developer settings → Personal access tokens → Fine-grained tokens",
-  "status": "planned",
-  "host": "https://ghe.imagile.dev"
+  "status": "unit",
+  "host": "https://ghe.imagile.dev",
+  "supported": {
+    "product": "GitHub Enterprise Server",
+    "minimum": null,
+    "api": "REST API 2022-11-28 and the GraphQL API",
+    "note": "toil pins REST API version 2022-11-28 and uses GraphQL for review threads, PR status, auto-merge, the merge queue and drafts. GitHub.com is always current; no Enterprise Server release has been verified yet, and the auto-merge and merge-queue commands need a release that has those features."
+  }
 }
