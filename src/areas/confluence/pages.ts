@@ -74,7 +74,10 @@ export const listPages = confluenceArea.command({
     { flags: '--start <n>', field: 'start', description: 'Offset for first result' },
   ],
   examples: [{ space: 'DOCS' }, { space: 'DOCS', limit: '30', start: '5' }],
-  run: (input, ctx) => client.listPages(ctx, input.space, { max: optionalInt(input.limit), start: optionalInt(input.start) }),
+  run: async (input, ctx) => {
+    const max = optionalInt(input.limit);
+    return client.warnBadLimit(ctx, input.limit, max, await client.listPages(ctx, input.space, { max, start: optionalInt(input.start) }));
+  },
 });
 
 export const getPageChildren = confluenceArea.command({

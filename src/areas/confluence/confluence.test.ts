@@ -113,6 +113,20 @@ describe('pages', () => {
     const { envelope, calls } = await run(listPages, { space: 'DOCS', limit: 'abc' }, [{ path: '/rest/api/content', respond: listOf([{ id: '1' }]) }]);
     expect(calls[0]!.url).toContain('&limit=NaN');
     expect(envelope.data).toEqual([]);
+    // Additive: the empty result says why (principle 4).
+    expect(envelope.meta.warnings).toEqual([{ code: 'CONFLUENCE_LIMIT_INVALID', message: '--limit must be a positive whole number, not "abc"; the result was cut to 0 item(s), as before.' }]);
+  });
+
+  it('list-spaces: --limit 0 sends limit=0 once, returns nothing, and warns (#78 item 10)', async () => {
+    const { envelope, calls } = await run(listSpaces, { limit: '0' }, [{ url: /space/, respond: listOf([{ key: 'A' }], true) }]);
+    expect(calls.map((c) => c.url)).toEqual([`${API}/space?start=0&limit=0`]);
+    expect(envelope.data).toEqual([]);
+    expect(envelope.meta.warnings).toEqual([{ code: 'CONFLUENCE_LIMIT_INVALID', message: '--limit must be a positive whole number, not "0"; the result was cut to 0 item(s), as before.' }]);
+  });
+
+  it('a valid --limit carries no warning', async () => {
+    const { envelope } = await run(listSpaces, { limit: '1' }, [{ url: /space/, respond: listOf([{ key: 'A' }]) }]);
+    expect(envelope.meta.warnings).toBeUndefined();
   });
 
   it('search: one page, 25 from 0 by default, expand only when given, data as it came', async () => {

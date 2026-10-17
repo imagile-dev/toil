@@ -104,6 +104,21 @@ async function every<T>(
   return max === undefined ? items : items.slice(0, max);
 }
 
+/**
+ * A `--limit` parseInt couldn't make a positive number of: the result is cut
+ * as before (usually to nothing, #78 items 9 and 10), and a warning says why,
+ * so an empty list isn't mistaken for an empty space.
+ */
+export function warnBadLimit(ctx: ConfluenceContext, raw: number | string | undefined, max: number | undefined, items: unknown[]): unknown[] {
+  if (max !== undefined && !(max >= 1)) {
+    ctx.warn({
+      code: 'CONFLUENCE_LIMIT_INVALID',
+      message: `--limit must be a positive whole number, not "${String(raw)}"; the result was cut to ${items.length} item(s), as before.`,
+    });
+  }
+  return items;
+}
+
 export function getPage(ctx: ConfluenceContext, id: string, expand: string): Promise<unknown> {
   return confluence(ctx, `/content/${seg(id)}`, { params: { expand } });
 }

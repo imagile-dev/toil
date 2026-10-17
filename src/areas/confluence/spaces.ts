@@ -17,12 +17,11 @@ export const listSpaces = confluenceArea.command({
     { flags: '--limit <n>', field: 'limit', description: 'Max total spaces to return (default: all)' },
   ],
   examples: [{}, { type: 'global', limit: '10' }],
-  run: (input, ctx) =>
-    client.listSpaces(ctx, {
-      type: input.type,
-      // Read only when set, as before; parseInt leaves "abc" as NaN (#78 item 9).
-      max: input.limit === undefined || input.limit === '' ? undefined : parseInt(String(input.limit), 10),
-    }),
+  run: async (input, ctx) => {
+    // Read only when set, as before; parseInt leaves "abc" as NaN (#78 item 9).
+    const max = input.limit === undefined || input.limit === '' ? undefined : parseInt(String(input.limit), 10);
+    return client.warnBadLimit(ctx, input.limit, max, await client.listSpaces(ctx, { type: input.type, max }));
+  },
 });
 
 export const getSpace = confluenceArea.command({

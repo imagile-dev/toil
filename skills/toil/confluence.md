@@ -117,7 +117,10 @@ toil confluence download-attachment --id 98765 --dir downloads
 - `update-page` reads the current version and sends the next one, keeping the title
   unless `--title` is given. With no body it sends none.
 - `list-pages` and `list-spaces` without `--limit`, and the other lists always, page
-  through everything, 25 at a time.
+  through everything, 25 at a time. A `--limit` that isn't a positive whole number
+  (`abc`, `0`) usually returns an empty list, with a `CONFLUENCE_LIMIT_INVALID` warning.
+- `delete-page` and `delete-attachment` are also MCP tools for now, behind the same
+  write gate.
 - `download-attachment` never replaces a file: one of the same name in the target
   directory fails with `INVALID_INPUT`. The file name is the attachment title's last
   path segment. The token only ever goes to `baseUrl`'s host: a download link naming
