@@ -1,0 +1,26 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_ALATION_BASE_URL",
+    "description": "Alation instance root, e.g. https://alation.imagile.dev",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "refreshToken",
+    "env": "TOIL_ALATION_REFRESH_TOKEN",
+    "description": "Long-lived refresh token, generated in Alation (60-day default life)",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "userId",
+    "env": "TOIL_ALATION_USER_ID",
+    "description": "Numeric ID of the user the refresh token was created for",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  }
+]

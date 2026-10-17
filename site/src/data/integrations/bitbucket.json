@@ -6,5 +6,11 @@
   "covers": "Repositories, pull requests, comments, builds",
   "credential": "HTTP access token",
   "credentialWhere": "Your profile picture → Manage account → HTTP access tokens",
-  "status": "planned"
+  "status": "unit",
+  "supported": {
+    "product": "Bitbucket Data Center",
+    "minimum": null,
+    "api": "REST API 1.0",
+    "note": "toil calls REST API 1.0 (/rest/api/1.0, /rest/build-status/1.0 and /rest/default-reviewers/1.0) with an HTTP access token sent as a Bearer header. No release has been verified yet."
+  }
 }

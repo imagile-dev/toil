@@ -1,0 +1,18 @@
+[
+  {
+    "key": "username",
+    "env": "TOIL_OSSINDEX_USERNAME",
+    "description": "OSS Index account username (the email address you signed up with)",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "token",
+    "env": "TOIL_OSSINDEX_TOKEN",
+    "description": "OSS Index API token, from your account settings",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  }
+]
