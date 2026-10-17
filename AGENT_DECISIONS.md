@@ -235,6 +235,13 @@ the bottom of their section.
     user meant (principle 4); refusing was already the behaviour, only the
     message named a command and field they never typed (#132).
 
+- **KF5 (#68): a dot segment followed by `;params` is refused** (`..;x`, `.;`,
+  `%2e%2e;x`, `.%2e;jsessionid=1`), since servlet containers strip `;params` before
+  resolving dots, which made `confluence remove-label --label "..;x"` a page
+  delete (principles 2 and 9; found by #117's review). Only the part before the
+  first `;` is checked, so `a;b` and `v1;rev=2` still pass. An encoded `%3b` isn't
+  a separator to the container, so it isn't treated as one.
+
 ## Integration process
 
 - **Integration agents run the `ship` skill's four local reviews themselves**, one after
