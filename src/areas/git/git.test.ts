@@ -37,8 +37,7 @@ const failed = (stderr: string): GitResult => ({ exitCode: 128, stdout: '', stde
 
 async function run(name: string, input: Record<string, unknown>, git: GitRunner, options: { repo?: GitContext | null } = {}) {
   const repo = options.repo === null ? undefined : (options.repo ?? REPO);
-  const t = testContext(repo ? { repo } : {});
-  t.context.git = git;
+  const t = testContext({ git, ...(repo ? { repo } : {}) });
   return { ...t, envelope: await execute(cmd(name), input, t.context) };
 }
 

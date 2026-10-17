@@ -1,6 +1,5 @@
 import type { GitCall, GitResult, GitRunner } from '../../src/core/git.js';
 import { gitArgv } from '../../src/core/git.js';
-import { gitRunners } from '../../src/areas/git/runner.js';
 import { defineFixture } from '../harness/fixtures.js';
 
 /**
@@ -8,8 +7,7 @@ import { defineFixture } from '../harness/fixtures.js';
  * against a canned git: each call's argv (built by core's own gitArgv, so a
  * call core would refuse fails here too) maps to the stdout real git printed.
  * The parity suite traces that runner, so both front doors must ask git the
- * same thing. Setup hands it to the area, since the suites' contexts have no
- * git of their own (src/areas/git/runner.ts).
+ * same thing.
  *
  * Provenance: written by hand in the shapes git 2.49 prints, which the area's
  * real-git test (src/areas/git/git.test.ts) checks against the binary itself;
@@ -95,11 +93,6 @@ export const cannedGit: GitRunner = {
 export const fixture = defineFixture({
   area: 'git',
   repo: { root: '/work', branch: 'feature/retries', remotes: ['https://bitbucket.imagile.dev/scm/PROJ/imagile-api.git'] },
+  git: cannedGit,
   trace: [{ label: 'git', target: cannedGit }],
-  setup: () => {
-    gitRunners.fallback = cannedGit;
-  },
-  teardown: () => {
-    gitRunners.fallback = undefined;
-  },
 });

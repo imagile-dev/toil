@@ -1,6 +1,6 @@
 import { ToilError } from '../../core/errors.js';
 import type { CommandContext } from '../../core/context.js';
-import type { GitCall, GitResult, GitRunner } from '../../core/git.js';
+import type { GitCall, GitResult } from '../../core/git.js';
 import type { GitContext } from '../../core/git-repo.js';
 
 /**
@@ -15,14 +15,6 @@ import type { GitContext } from '../../core/git-repo.js';
  */
 
 type Ctx = CommandContext<unknown, Record<string, string | undefined>>;
-
-/**
- * The git a command runs when the context has none. The shipped CLI and MCP
- * server always provide `ctx.git`; the parity and contract suites build their
- * contexts with no git and no way to give one, so the area's fixture puts a
- * canned runner here (test/fixtures/git.fixture.ts). Nothing in toil sets it.
- */
-export const gitRunners: { fallback: GitRunner | undefined } = { fallback: undefined };
 
 /** execSync's default maxBuffer, which every predecessor command but report ran under. */
 export const EXEC_MAX_BUFFER = 1024 * 1024;
@@ -41,13 +33,13 @@ export async function requireRepo(ctx: Ctx): Promise<GitContext> {
 
 /** Runs git through core's runner. GIT_NOT_FOUND, a cancel and a timeout reject from here. */
 export async function runGit(ctx: Ctx, call: GitCall): Promise<GitResult> {
-  const runner = ctx.git ?? gitRunners.fallback;
-  if (!runner) {
+  // The shipped CLI and MCP server always provide ctx.git; a test that runs git gives it one.
+  if (!ctx.git) {
     throw new ToilError('INTERNAL', 'This command needs git, and no git runner was provided.', {
       fix: 'This is a bug in toil. Please report it at https://github.com/imagile-dev/toil/issues with the command you ran.',
     });
   }
-  return runner.run(call, ctx.signal);
+  return ctx.git.run(call, ctx.signal);
 }
 
 /** A git that ran and failed, or printed more than execSync took: what the predecessor's exec threw. */

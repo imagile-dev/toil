@@ -51,7 +51,6 @@ export const logCommand = gitArea.command({
     const options = [`--format=%H${SEP}%an${SEP}%aI${SEP}%s`];
     // `-n NaN` in the predecessor's argv; NaN is falsy, so it never got that far.
     if (count) options.push(`-n${count}`);
-    // The one user value in options: joined to its flag with =, it is a single argv token git reads as the date, never as a flag of its own (core's GitCall.options says never user input; this is the exception).
     if (input.since) options.push(`--since=${input.since}`);
     return swallowGitFailure(
       async () => parseLog(execOutput('git log', await runGit(ctx, { subcommand: 'log', options }))),

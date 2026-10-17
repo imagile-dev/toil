@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { areaOf, type AnyCommand } from '../../src/core/command.js';
 import type { Settings } from '../../src/core/config.js';
+import type { GitRunner } from '../../src/core/git.js';
 import type { GitContext } from '../../src/core/git-repo.js';
 import { commands as registered } from '../../src/registry.js';
 import type { Route } from './fake-fetch.js';
@@ -45,6 +46,11 @@ export interface AreaFixture {
    * branch and remotes (`bitbucket current-pr`). Left out, as outside one.
    */
   repo?: GitContext;
+  /**
+   * The git the examples run, as `ctx.git` (the `git` area): a canned runner,
+   * which the fixture may also `trace`. Left out, a command that runs git gets none.
+   */
+  git?: GitRunner;
   /** Defaults to the area's registered commands. Only test-only areas set it. */
   commands?: AnyCommand[];
   /**
