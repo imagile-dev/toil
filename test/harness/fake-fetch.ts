@@ -133,3 +133,20 @@ export function fakeFetch(routes: Route[] = []): FakeFetch {
 
   return { fetch, calls };
 }
+
+/**
+ * The requests a command sent itself: every call, less one per token
+ * exchange core made (`watchTokenExchanges` in src/core/token.ts), which the
+ * command never asked for. The parity suite holds a read to GET, HEAD and
+ * OPTIONS on what's left, so a second POST to the token URL is still the
+ * command's, and still fails.
+ */
+export function withoutExchanges(calls: readonly RecordedRequest[], exchanges: ReadonlyArray<{ method: string; url: string }>): RecordedRequest[] {
+  const left = [...calls];
+  for (const sent of exchanges) {
+    const url = new URL(sent.url).toString();
+    const at = left.findIndex((c) => c.method === sent.method && c.url === url);
+    if (at >= 0) left.splice(at, 1);
+  }
+  return left;
+}
