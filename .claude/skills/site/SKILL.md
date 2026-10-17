@@ -28,9 +28,13 @@ from `main`).
   in the hero eyebrow, and a feature panel in the footer, all pointing to
   https://www.imagile.dev. Imagile's mark keeps its own colours.
 - **Honest about status** (*principle 4*). Until a version is on npm, the site says
-  pre-release, labels sample output as planned, and marks every integration
-  `planned`. Statuses on `/integrations/` use the same levels as **Verification
-  Levels** (`integrations` skill), plus `planned`.
+  pre-release and labels sample output as planned. An integration is `planned`
+  until its code is on `main`, then shows its verification level. Statuses on
+  `/integrations/` use the same levels as **Verification Levels** (`integrations`
+  skill), plus `planned`.
+- **A shipped integration's docs page lists its real commands** from
+  `site/src/data/commands.generated.json`, which `test/site-commands.test.ts` writes
+  from the registry. Never edit it by hand; run `npx vitest run -u` in the root.
 - **One source per fact.** `site/src/data/integrations.ts` and `docs/integrations.md`
   change together; `site/src/data/principles.ts` restates the **Principles** in CLAUDE.md for
   users and keeps their numbering.

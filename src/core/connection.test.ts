@@ -35,6 +35,18 @@ describe('resolveConnection', async () => {
     expect((await resolve(config({ a: { area: 'db', host: 'h', port: 1600 } }, { db: { port: 1500 } }))).connection).toMatchObject({ port: 1600 });
   });
 
+  it('parses a list or object setting given as JSON text, as an env var must give it', async () => {
+    const listy = defineArea({
+      name: 'listy',
+      description: 'test',
+      connection: z.object({ items: z.array(z.object({ id: z.string() })).default([]), map: z.object({ a: z.number() }).optional() }),
+    });
+    const cfg = config({ l: { area: 'listy', items: '[{"id":"x"}]', map: '{"a":1}' } });
+    await expect(resolveConnection(cfg, listy, undefined, () => {})).resolves.toMatchObject({ items: [{ id: 'x' }], map: { a: 1 } });
+    // Text that isn't JSON is left for the schema to refuse, naming the key.
+    await expect(resolveConnection(config({ l: { area: 'listy', items: 'not json' } }), listy, undefined, () => {})).rejects.toThrow(/items/);
+  });
+
   it('coerces env strings to the schema type', async () => {
     expect((await resolve(config({ a: { area: 'db', host: 'h', port: '5432', readOnly: 'true' } }))).connection).toMatchObject({ port: 5432, readOnly: true });
   });

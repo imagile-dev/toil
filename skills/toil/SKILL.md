@@ -1,6 +1,6 @@
 ---
 name: toil
-description: Use toil, a structured-JSON CLI and MCP server, to read from and (when allowed) write to databases and enterprise tools. Use when you need to list schemas or tables, describe a table, preview rows or run SQL against a configured database, or when a task mentions `toil` commands, `toil mcp`, a toil connection, or a TOIL_* environment variable.
+description: Use toil, a structured-JSON CLI and MCP server, to read from and (when allowed) write to databases and enterprise tools. Use when you need to list schemas or tables, describe a table, preview rows or run SQL against a configured database, read or change Jira Data Center issues, search with JQL, or work with sprints, comments, worklogs and attachments, or when a task mentions `toil` commands, `toil mcp`, a toil connection, or a TOIL_* environment variable.
 ---
 
 # toil
@@ -27,3 +27,4 @@ instance of an area; `--connection <name>` picks one when there are several.
 | Area | Reference | Covers |
 |------|-----------|--------|
 | `db` | [db.md](db.md) | Databases (SQLite): schemas, tables, describe, preview, read-only queries with paging, gated writes |
+| `jira` | [jira.md](jira.md) | Jira Data Center: issues, JQL search, transitions, comments, worklogs, labels, links, attachments, custom fields, boards and sprints |
