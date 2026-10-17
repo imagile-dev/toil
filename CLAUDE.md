@@ -437,6 +437,12 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   to avoid process overhead, fully verified before opening. Use the `ship` skill.
 - Before changing behavior users rely on, check config already on disk, existing
   flags, the envelope, and precedence. Say what you checked in the PR.
+- **The PR description describes the PR as it is now, not as it was opened.**
+  Reviewers, the review bot and the squash commit all read it, so a description
+  that lags the code misleads all three. Rewrite it (`gh pr edit --body-file`)
+  after every review round you act on and every change in direction: what it
+  does, what was verified and on what, test counts, and what's still open. Don't
+  append a changelog of rounds; the commits and review threads already hold that.
 
 ## Automation
 
