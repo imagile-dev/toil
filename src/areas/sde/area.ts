@@ -61,7 +61,8 @@ export type SdeConnection = Connection<z.output<typeof sdeArea.connection>>;
 /**
  * `<token>@<host>`, split at the first `@`; the host gets `https://` unless it
  * already has a scheme. No `@`, or `@` first, sets neither half, exactly as
- * before: the command then reports SD Elements as not configured.
+ * before: the command then reports SD Elements as not configured. Suspected
+ * bug (#86 item 2): a second `@` stays in the host, as URL userinfo.
  */
 export function parseConnectionString(value: string): { token: string; baseUrl: string } | undefined {
   const at = value.indexOf('@');

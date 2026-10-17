@@ -10,7 +10,8 @@ import { defineFixture } from '../harness/fixtures.js';
  * every shape here is invented from SD Elements' documented REST API v2
  * (https://docs.sdelements.com/master/api/docs/), trimmed to the fields that
  * matter, and checked against the response types the canonical
- * implementation declared.
+ * implementation declared. Every countermeasure here is marked complete,
+ * which is how countermeasures look in a fixture and nowhere else.
  */
 
 export const SDE = 'https://sde.imagile.dev';

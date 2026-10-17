@@ -62,6 +62,7 @@ describe('the connection string', () => {
   it('splits at the first @ and adds https:// unless the host has a scheme', () => {
     expect(parseConnectionString('abc12345@sde.imagile.dev')).toEqual({ token: 'abc12345', baseUrl: 'https://sde.imagile.dev' });
     expect(parseConnectionString('abc12345@imagile.sdelements.com')).toEqual({ token: 'abc12345', baseUrl: 'https://imagile.sdelements.com' });
+    // Suspected bug (#86 item 2): a later @ stays in the host, where a URL parser reads it as userinfo.
     expect(parseConnectionString('abc@sde.imagile.dev@x')).toEqual({ token: 'abc', baseUrl: 'https://sde.imagile.dev@x' });
     expect(parseConnectionString('abc@HTTP://sde.imagile.dev:8080')).toEqual({ token: 'abc', baseUrl: 'HTTP://sde.imagile.dev:8080' });
     expect(parseConnectionString('no-at-sign')).toBeUndefined();
