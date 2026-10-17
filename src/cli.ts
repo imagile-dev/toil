@@ -1,4 +1,3 @@
-import { writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { AnyCommand } from './core/command.js';
@@ -7,7 +6,7 @@ import type { Context } from './core/context.js';
 import { createSecretStore } from './core/keychain.js';
 import { terminalPrompter } from './core/prompt.js';
 import { createMcpServer } from './mcp/server.js';
-import { createNodeContext } from './node-context.js';
+import { checkOutputFile, createNodeContext, writeOutputFile } from './node-context.js';
 import { runProgram, type GlobalOptions } from './program.js';
 import { areas, commands } from './registry.js';
 import { VERSION } from './version.js';
@@ -27,13 +26,15 @@ const secrets = createSecretStore();
 // Setup commands may ask questions, only of a person at a terminal. MCP never gets a prompter.
 const prompt = process.stdin.isTTY && process.stderr.isTTY ? terminalPrompter(process.stdin, process.stderr) : undefined;
 
-const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSignal = interrupt.signal, mcp = false): Context =>
+const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSignal = interrupt.signal, mcp = false, roots?: readonly string[]): Context =>
   createNodeContext({
     globals,
     def,
     signal,
-    // Under `toil mcp` stdin carries the protocol, so `-` can't mean it.
+    // Under `toil mcp` stdin carries the protocol, so `-` can't mean it, and
+    // the workspace comes from the flag, the env or the client's one root.
     stdin: !mcp,
+    roots,
     env: process.env,
     cwd: process.cwd(),
     home: homedir(),
@@ -57,13 +58,14 @@ try {
       io: {
         stdout: (text) => process.stdout.write(text),
         stderr: (text) => process.stderr.write(text),
-        writeFile: (path, content) => writeFileSync(path, content, 'utf8'),
+        writeFile: (path, content, globals) => writeOutputFile({ path, content, cwd: process.cwd(), home: homedir(), config: globals.config }),
+        checkFile: (path, globals) => checkOutputFile({ path, cwd: process.cwd(), home: homedir(), config: globals.config }),
       },
       createContext: (globals, def) => createContext(globals, def),
       startMcp: async ({ areas, globals }) => {
         // stdout belongs to the protocol from here on; diagnostics go to stderr.
         // Each tool call gets its own context, cancelled by the client's own signal.
-        const server = createMcpServer({ commands, context: (def, signal) => createContext(globals, def, signal ?? interrupt.signal, true), areas });
+        const server = createMcpServer({ commands, context: (def, signal, roots) => createContext(globals, def, signal ?? interrupt.signal, true, roots), areas });
         process.once('SIGINT', () => {
           void server.close().finally(() => process.exit(130));
         });

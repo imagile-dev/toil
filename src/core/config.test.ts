@@ -270,3 +270,40 @@ describe('editing the config file', () => {
     expect(existsSync(target)).toBe(false);
   });
 });
+
+describe('bounds in the config file', () => {
+  it('reads "bounds": { "files": "unbounded" } and says so in a warning, in version 1 and 2 files', () => {
+    writeJson(file(), { version: 2, connections: {}, bounds: { files: 'unbounded' } });
+    const config = load();
+    expect(config.bounds).toEqual({ files: 'unbounded' });
+    expect(config.warnings).toEqual([expect.objectContaining({ code: 'BOUND_RELAXED', message: expect.stringContaining('"bounds": { "files": "unbounded" }') })]);
+    writeJson(file(), { jira: { baseUrl: 'https://jira.imagile.dev' }, bounds: { files: 'unbounded' } });
+    expect(load().bounds).toEqual({ files: 'unbounded' });
+    expect(Object.keys(load().connections)).toEqual(['jira']);
+  });
+
+  it('leaves every bound on when there is no bounds key, or files is "workspace"', () => {
+    writeJson(file(), { version: 2, connections: {} });
+    expect(load().bounds).toBeUndefined();
+    writeJson(file(), { version: 2, connections: {}, bounds: { files: 'workspace' } });
+    expect(load().warnings).toEqual([]);
+  });
+
+  it('refuses a bound that cannot be relaxed, a typo, and a wrong value, rather than ignoring them', () => {
+    for (const bounds of [{ ownFiles: 'off' }, { file: 'unbounded' }, { files: 'anywhere' }, 'unbounded']) {
+      writeJson(file(), { version: 2, connections: {}, bounds });
+      expect(() => load(), JSON.stringify(bounds)).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', fix: expect.stringContaining('No other bound can be relaxed') }));
+    }
+  });
+
+  it('cannot be relaxed from env', () => {
+    writeJson(file(), { version: 2, connections: {} });
+    expect(load({ TOIL_BOUNDS_FILES: 'unbounded', TOIL_WORKSPACE: '/tmp' }).bounds).toBeUndefined();
+    expect(parseEnvName('TOIL_WORKSPACE', ['workspace'])).toBeUndefined();
+  });
+
+  it('survives an edit that upgrades a version 1 file', () => {
+    writeJson(file(), { jira: { baseUrl: 'https://jira.imagile.dev' }, bounds: { files: 'unbounded' } });
+    expect(readConfigForEdit(file()).bounds).toEqual({ files: 'unbounded' });
+  });
+});

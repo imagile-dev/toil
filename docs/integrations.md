@@ -14,7 +14,7 @@ The enterprise services toil will cover. Each one is its own command area
 | `bitbucket` | Bitbucket Data Center | Repositories, pull requests, comments, builds | HTTP access token |
 | `github` | GitHub / GitHub Enterprise Server | Pull requests, reviews, issues, checks | Fine-grained PAT (`GITHUB_TOKEN` fallback) |
 | `confluence` | Confluence Data Center | Pages, spaces, search, attachments | Personal access token |
-| `git` | Local git | Status, diff, log, branch, current PR | None (local, pure JS) |
+| `git` | Local git | Status, diff, log, branch, current PR | None (local; runs the git on PATH, `GIT_NOT_FOUND` without it) |
 
 ## Build, release and runtime
 

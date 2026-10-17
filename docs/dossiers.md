@@ -217,7 +217,8 @@ resolver, **fed identically by both front doors**:
    uses its working directory, and MCP uses the client's MCP root if the client
    reports exactly one. A stdio server starts wherever its client launched it, so its
    own working directory means nothing. With neither, there is no folder, and step 4
-   applies.
+   applies. `cwd` only chooses context; which files a command may read or write is
+   the workspace's business (`docs/bounds.md`), and `cwd` never widens it.
 3. **From that folder,** toil finds the git root and matches a repo by `path`, then by
    `remotes` against the folder's origin, so a fresh clone anywhere still resolves. A
    dossier checked into that repository is a candidate too (see **Where dossiers
