@@ -4,6 +4,7 @@
     "tool": "sonatypeiq_applications_list",
     "description": "List all applications in Sonatype IQ Server",
     "writes": false,
+    "connection": true,
     "flags": [
       "--organization-id <id>"
     ]
@@ -13,6 +14,7 @@
     "tool": "sonatypeiq_applications_get",
     "description": "Get an application by its public ID",
     "writes": false,
+    "connection": true,
     "flags": [
       "--public-id <id>"
     ]
@@ -22,6 +24,7 @@
     "tool": "sonatypeiq_organizations_list",
     "description": "List all organizations in Sonatype IQ Server",
     "writes": false,
+    "connection": true,
     "flags": []
   },
   {
@@ -29,6 +32,7 @@
     "tool": "sonatypeiq_policies_list",
     "description": "List all policies",
     "writes": false,
+    "connection": true,
     "flags": [
       "--organization-id <id>"
     ]
@@ -38,13 +42,13 @@
     "tool": "sonatypeiq_evaluate",
     "description": "Evaluate a dependency inventory against a Sonatype IQ Server application's policies",
     "writes": false,
+    "connection": true,
     "flags": [
       "--from <file>",
       "--application-id <id>",
       "--ecosystem <ecosystem>",
       "--direct-only",
-      "--include-dev",
-      "--source <source>"
+      "--include-dev"
     ]
   }
 ]

@@ -76,11 +76,12 @@ The four read commands return IQ Server's answer unchanged as `data`.
   `vulnerabilities`.
 
 `evaluate` reads the inventory that `toil deps scan` writes, from `--from <file>` or,
-when that's left out on the CLI, from stdin; over MCP, pass `from`. Use `deps scan
+when that's left out on the CLI, from piped stdin (with nothing piped in on a terminal it
+refuses at once rather than wait); over MCP, pass `from`. Use `deps scan
 --include-transitive` to evaluate transitive dependencies too. `--ecosystem
 npm|nuget|maven|all` (default `all`), `--direct-only` and `--include-dev` filter the
-inventory first. `--source` is accepted for `deps frisk` and must be `sonatypeiq` if
-given.
+inventory first. `toil deps frisk --source sonatypeiq` takes the same flags and runs
+this command.
 
 It looks up the application's internal ID by public ID (if the lookup fails or finds
 nothing, the public ID is used as it is), then posts the packages as package URLs,

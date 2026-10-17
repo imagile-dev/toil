@@ -7,7 +7,7 @@ import type { AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
 import { applicationsGetCommand, applicationsListCommand } from './applications.js';
 import { evaluateCommand, toPurl } from './evaluate.js';
-import { commands } from './index.js';
+import { commands, routedAliases } from '../../registry.js';
 import { organizationsListCommand } from './organizations.js';
 import { policiesListCommand } from './policies.js';
 
@@ -182,16 +182,6 @@ describe('evaluate: the request', () => {
     });
   });
 
-  it('accepts --source sonatypeiq and refuses any other source, before anything else', async () => {
-    const files = inventory([pkg('a')]);
-    const iq = await run(evaluateCommand, { from: 'inventory.json', applicationId: PUBLIC_ID, source: 'sonatypeiq' }, [lookup(), evaluate({ components: [] })], { files });
-    expect(iq.envelope.ok).toBe(true);
-    const osv = await run(evaluateCommand, { source: 'osv' }, []);
-    expect(osv.calls).toEqual([]);
-    expect(osv.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--source osv') });
-    const all = await run(evaluateCommand, { source: 'all' }, []);
-    expect(all.envelope.error?.fix).toContain('--source all was dropped');
-  });
 });
 
 describe('evaluate: the inventory', () => {
@@ -223,11 +213,22 @@ describe('evaluate: the inventory', () => {
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('No inventory to evaluate: pass from') });
   });
 
-  it('reads stdin on the CLI, through the deps frisk --source sonatypeiq alias, and meta.command names the command', async () => {
+  it('reads stdin on the CLI, through the deps frisk --source sonatypeiq route with --application-id, and meta.command names the command', async () => {
     const t = testContext({ config, routes: routes(), stdin: JSON.stringify(scanEnvelope) });
-    const result = await runCli(['deps', 'frisk', '--source', 'sonatypeiq', '--application-id', PUBLIC_ID], { commands, context: t.context });
+    const result = await runCli(['deps', 'frisk', '--source', 'sonatypeiq', '--application-id', PUBLIC_ID, '--ecosystem', 'npm'], { commands, routed: routedAliases, context: t.context });
     expect(result.exitCode).toBe(0);
     expect(result.envelope).toMatchObject({ ok: true, data: { scanned: 2, source: 'sonatypeiq' }, meta: { command: 'sonatypeiq evaluate' } });
+    expect(t.http.calls.map((c) => c.url)).toEqual([`${IQ}/api/v2/applications?publicId=${PUBLIC_ID}`, `${IQ}/api/v2/evaluation/applications/${INTERNAL_ID}`]);
+  });
+
+  it('with nothing piped in on a terminal, refuses at once instead of waiting, on both paths', async () => {
+    for (const argv of [['sonatypeiq', 'evaluate', '--application-id', PUBLIC_ID], ['deps', 'frisk', '--source', 'sonatypeiq', '--application-id', PUBLIC_ID]]) {
+      const t = testContext({ config, routes: [], stdin: { terminal: true } });
+      const result = await runCli(argv, { commands, routed: routedAliases, context: t.context });
+      expect(result.exitCode).toBe(1);
+      expect(result.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('stdin is a terminal') });
+      expect(t.http.calls).toEqual([]);
+    }
   });
 });
 

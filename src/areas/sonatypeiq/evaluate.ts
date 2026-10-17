@@ -3,7 +3,7 @@ import { apiRequest, type ApiRequest } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
 import { STDIN_OVER_MCP } from '../../core/files.js';
 import { poll } from '../../core/poll.js';
-import { repointUrl, sleep } from '../../core/rest.js';
+import { repointUrl } from '../../core/rest.js';
 import { sonatypeiqArea } from './area.js';
 import type { SonatypeIqContext } from './client.js';
 
@@ -22,7 +22,7 @@ import type { SonatypeIqContext } from './client.js';
 /** The predecessor's per-request timeout for every evaluation call. */
 const TIMEOUT_MS = 60_000;
 const MAX_POLL_ATTEMPTS = 10;
-/** Linear: the wait before poll n (from the second) is n-1 times this. */
+/** Linear: the wait before poll n (from the second) is n-1 times this, so the last is 18 s. */
 const POLL_INTERVAL_MS = 2_000;
 const BATCH_SIZE = 128;
 /** A lookup, then per batch a POST and up to ten polls at 60 s each, plus 90 s of waits: ten minutes covers a few batches at their worst. */
@@ -72,7 +72,6 @@ interface IqEvaluationResponse {
 }
 
 const FROM_DESCRIPTION = 'Inventory to evaluate: a file holding toil deps scan output (its envelope, its data, or a list of packages). Omitted, it is read from stdin on the CLI';
-const SOURCE_DESCRIPTION = 'Vulnerability source, kept for deps frisk: only sonatypeiq is evaluated here (choices: "osv", "sonatype", "sonatypeiq", "all")';
 
 /**
  * The inventory's packages. Accepts `deps scan`'s whole envelope, its `data`,
@@ -265,8 +264,6 @@ async function pollResults(ctx: SonatypeIqContext, resultsUrl: string): Promise<
   const url = resultsLocation(ctx, resultsUrl);
   return poll<IqEvaluationResponse>(
     async (attempt) => {
-      // Core's poll grows its wait by a factor; the predecessor's was linear, so the wait lives here.
-      if (attempt > 1) await sleep(POLL_INTERVAL_MS * (attempt - 1), ctx.signal);
       const data = await call<IqEvaluationResponse>(ctx, url, {}, (status) => `Sonatype IQ Server returned HTTP ${status} polling results`);
       if (!data.isQueued) return data;
       if (attempt >= MAX_POLL_ATTEMPTS) {
@@ -277,7 +274,7 @@ async function pollResults(ctx: SonatypeIqContext, resultsUrl: string): Promise<
       }
       return undefined;
     },
-    { what: 'Sonatype IQ evaluation', deadlineMs: TIME_LIMIT_MS, intervalMs: 0, factor: 1, signal: ctx.signal },
+    { what: 'Sonatype IQ evaluation', deadlineMs: TIME_LIMIT_MS, intervalMs: POLL_INTERVAL_MS, maxIntervalMs: POLL_INTERVAL_MS * (MAX_POLL_ATTEMPTS - 1), backoff: 'linear', signal: ctx.signal },
   );
 }
 
@@ -316,7 +313,6 @@ async function evaluateBatch(ctx: SonatypeIqContext, chunk: InventoryPackage[], 
 
 export const evaluateCommand = sonatypeiqArea.command({
   path: ['sonatypeiq', 'evaluate'],
-  aliases: [['deps', 'frisk']],
   description: 'Evaluate a dependency inventory against a Sonatype IQ Server application\'s policies',
   toolDescription:
     "Sonatype IQ policy evaluation of an inventory from toil deps scan, against one application (applicationId is its public ID; see sonatypeiq_applications_list). Returns { tier, source, sourcesQueried, sourceErrors, scanned, vulnerable, packages: [{ name, version, ecosystem, ..., vulnerabilities }] }. Only SECURITY policy violations count.",
@@ -326,7 +322,6 @@ export const evaluateCommand = sonatypeiqArea.command({
     ecosystem: z.string().optional().describe('Filter to one ecosystem: npm, nuget, maven, all (default: "all")'),
     directOnly: z.boolean().optional().describe('Only scan direct dependencies (default: include transitive) (default: false)'),
     includeDev: z.boolean().optional().describe('Include dev/test dependencies (default: false)'),
-    source: z.enum(['osv', 'sonatype', 'sonatypeiq', 'all']).optional().describe(SOURCE_DESCRIPTION),
   }),
   writes: false,
   // The evaluation is a POST, but it reads: it changes no policy, waiver or application.
@@ -338,18 +333,12 @@ export const evaluateCommand = sonatypeiqArea.command({
     { flags: '--ecosystem <ecosystem>', field: 'ecosystem', description: 'Filter to one ecosystem: npm, nuget, maven, all (default: "all")' },
     { flags: '--direct-only', field: 'directOnly', description: 'Only scan direct dependencies (default: include transitive) (default: false)' },
     { flags: '--include-dev', field: 'includeDev', description: 'Include dev/test dependencies (default: false)' },
-    { flags: '--source <source>', field: 'source', description: SOURCE_DESCRIPTION },
   ],
   examples: [
     { from: 'inventory.json', applicationId: 'imagile-api' },
-    { from: 'inventory.json', applicationId: 'imagile-api', ecosystem: 'npm', directOnly: true, includeDev: true, source: 'sonatypeiq' },
+    { from: 'inventory.json', applicationId: 'imagile-api', ecosystem: 'npm', directOnly: true, includeDev: true },
   ],
   run: async (input, ctx) => {
-    if (input.source !== undefined && input.source !== 'sonatypeiq') {
-      throw new ToilError('INVALID_INPUT', `toil sonatypeiq evaluate only evaluates against Sonatype IQ Server; --source ${input.source} isn't served by it.`, {
-        fix: input.source === 'all' ? 'Run each source on its own; --source all was dropped.' : 'Pass --source sonatypeiq, or leave --source out.',
-      });
-    }
     if (!input.applicationId) {
       throw new ToilError('INVALID_INPUT', "deps frisk --source sonatypeiq requires --application-id <id>. Use 'toil sonatypeiq applications list' to find application IDs.", {
         fix: 'Pass --application-id <public ID>; toil sonatypeiq applications list shows each application\'s publicId.',
