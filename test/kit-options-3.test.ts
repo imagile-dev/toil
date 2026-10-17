@@ -279,6 +279,23 @@ describe('a path routed by a flag value', () => {
     });
   });
 
+  it('refuses another route\x27s negated flag only when it was typed', async () => {
+    const dev = src.command({
+      path: ['src', 'dev'],
+      description: 'test',
+      input: z.object({ dev: z.boolean().default(true).describe('Include dev') }),
+      writes: false,
+      options: [{ flags: '--no-dev', field: 'dev', description: 'Leave dev out' }],
+      examples: [{ dev: false }],
+      run: async (input) => ({ ran: 'dev', dev: input.dev }),
+    });
+    const both = resolveRoutedAliases([{ ...table[0]!, routes: { one: 'src dev', two: 'src two' } }], [dev, two]);
+    const run = (argv: string[]) => runCli(argv, { commands: [dev, two], routed: both, context: testContext({ config }).context });
+    expect((await run(['old', 'frisk', '--source', 'two'])).envelope).toMatchObject({ ok: true, data: { ran: 'two' } });
+    expect((await run(['old', 'frisk', '--no-dev'])).envelope).toMatchObject({ ok: true, data: { ran: 'dev', dev: false } });
+    expect((await run(['old', 'frisk', '--source', 'two', '--no-dev'])).envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--no-dev is for --source one') });
+  });
+
   it('is skipped when no route is registered, and refuses a write, a bad default or a taken path', () => {
     expect(resolveRoutedAliases(table, [])).toEqual([]);
     const write = src.command({ path: ['src', 'w'], description: 'test', input: z.object({ allowWrite: z.boolean().optional() }), writes: true, examples: [{}], run: async () => ({}) });

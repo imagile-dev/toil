@@ -1,0 +1,26 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_SPLITIO_BASE_URL",
+    "description": "Admin API root, e.g. https://api.split.io",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "adminApiKey",
+    "env": "TOIL_SPLITIO_ADMIN_API_KEY",
+    "description": "Split Admin API key",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "workspace",
+    "env": "TOIL_SPLITIO_WORKSPACE",
+    "description": "Default Split workspace (project) ID, used when --ws is not given",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]

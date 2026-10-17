@@ -189,7 +189,8 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       }
       const theirs = new Set((def.options ?? []).map((o) => longFlag(o.flags)));
       for (const [long, values] of owners) {
-        if (theirs.has(long) || own[new Option(long).attributeName()] === undefined) continue;
+        // Where the value came from, not whether it is set: commander defaults a --no-x flag to true.
+        if (theirs.has(long) || cmd.getOptionValueSource(new Option(long).attributeName()) !== "cli") continue;
         return refuse(`${long} is for ${routing} ${values.join(' or ')}; ${routing} ${value} runs toil ${commandName(def)}, which doesn't take it.`, `Leave out ${long}, or pass ${routing} ${values[0]}.`);
       }
       const input = inputFromCli(def, cmd, groupFlags(alias.path[0]!));
