@@ -162,6 +162,19 @@ describe('change request writes', () => {
     expect(await op('true')).toBe('RESTORE');
     expect(await op('off')).toBe('RESTORE');
   });
+
+  it('toggle warns when a value other than true or 1 restored the flag, and stays quiet otherwise', async () => {
+    const warnings = async (enabled: string) => (await run(flagsToggleCommand, { ...CR, flag: 'f', environment: ENV, enabled }, [postCr])).envelope.meta.warnings;
+    expect(await warnings('off')).toEqual([
+      {
+        code: 'SPLITIO_TOGGLE_RESTORED',
+        message: `--enabled "off" isn't true or false, and anything but false or 0 counts as true, so this filed a RESTORE change request for f. If you meant to kill it, withdraw this request and run again with --enabled false.`,
+      },
+    ]);
+    expect(await warnings('TRUE')).toBeUndefined();
+    expect(await warnings('1')).toBeUndefined();
+    expect(await warnings('false')).toBeUndefined();
+  });
 });
 
 describe('flags update', () => {

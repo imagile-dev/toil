@@ -207,6 +207,12 @@ export const flagsToggleCommand = splitioArea.command({
   run: async (input, ctx) => {
     // Suspected bug (#79 item 11), kept: anything but "false" (any case) or "0" restores, "off" and "no" included.
     const enable = input.enabled.toLowerCase() !== 'false' && input.enabled !== '0';
+    if (enable && !['true', '1'].includes(input.enabled.toLowerCase())) {
+      ctx.warn({
+        code: 'SPLITIO_TOGGLE_RESTORED',
+        message: `--enabled "${input.enabled}" isn't true or false, and anything but false or 0 counts as true, so this filed a RESTORE change request for ${input.flag}. If you meant to kill it, withdraw this request and run again with --enabled false.`,
+      });
+    }
     return killOrRestore(ctx, input, enable ? 'RESTORE' : 'KILL');
   },
 });

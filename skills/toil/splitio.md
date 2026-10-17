@@ -93,7 +93,8 @@ one, and the others may).
   The rest of the definition is copied from the current one.
 - `flags set-default`: Set the default rule to one `--treatment` at 100%.
 - `flags toggle`: `--enabled false` (or `0`) kills the flag; **any other value
-  restores it**, `off` and `no` included.
+  restores it**, `off` and `no` included. A value other than `true` or `1` that
+  restores adds a `SPLITIO_TOGGLE_RESTORED` warning to `meta.warnings` saying so.
 - `flags batch-toggle`: One change request per entry of `--input-file`, a JSON array
   of `{flag, enabled}`, titled `<mnemonic> — <flag>`. A failed entry doesn't stop the
   rest; it's reported in `results[]` with `ok: false`, the envelope stays `ok`, and
