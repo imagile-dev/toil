@@ -178,7 +178,7 @@ export const ${camel(area)}Supported: SupportedVersion = { product: 'TODO', mini
 
 /** Thrown by every stub until its command is built. */
 export function notPorted(command: string): never {
-  throw new ToilError('INTERNAL', \`toil \${command} is stubbed and not built yet.\`, { fix: 'Build it to match the predecessor before shipping.' });
+  throw new ToilError('INTERNAL', \`toil \${command} is stubbed and not built yet.\`, { fix: 'Build it before shipping: match the predecessor where there is one, otherwise the vendor API docs.' });
 }
 `;
 

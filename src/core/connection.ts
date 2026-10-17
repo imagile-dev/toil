@@ -6,6 +6,19 @@ import { ToilError, withArticle } from './errors.js';
 import { isKeychainRef, refName, type SecretStore } from './keychain.js';
 import { fromText } from './schema.js';
 
+/**
+ * CONFIG_INVALID for a connection that is merely incomplete: every key the
+ * schema rejected is unset (a missing `pat`), none set to something wrong.
+ * The envelope is the same as any CONFIG_INVALID; the class lets a
+ * `connectionOptional` command answer for it as it does for no connection.
+ * An application missing a signature is returned, not shredded.
+ */
+export class IncompleteConnectionError extends ToilError {
+  constructor(message: string, options: { fix?: string; details?: unknown }) {
+    super('CONFIG_INVALID', message, options);
+  }
+}
+
 export interface ResolveOptions {
   /** Filled with each setting taken from another area's connection (`defineArea({ shares })`). */
   shared?: NonNullable<ContextReport['shared']>;
@@ -34,11 +47,11 @@ export async function resolveConnection(
     const candidates = connectionsOf(config, area.name);
     if (candidates.length === 0) {
       const required = requiredKeys(area.connection);
-      throw new ToilError('NOT_CONFIGURED', `No ${area.name} connection is set up.`, {
-        fix: required.length
-          ? `Set ${required.map((k) => defaultVar(area, k)).join(' and ')}, or add ${withArticle(area.name)} connection to your toil config.`
-          : `Add ${withArticle(area.name)} connection to your toil config.`,
-      });
+      const fix = required.length
+        ? `Set ${required.map((k) => defaultVar(area, k)).join(' and ')}, or add ${withArticle(area.name)} connection to your toil config.`
+        : `Add ${withArticle(area.name)} connection to your toil config.`;
+      // The area's own wording where it has some; core's fix unless it brings its own.
+      throw new ToilError('NOT_CONFIGURED', area.notConfigured?.message ?? `No ${area.name} connection is set up.`, { fix: area.notConfigured?.fix ?? fix });
     }
     // Several candidates and no default: ask. Picking one would be quicker, and
     // is how requests end up in the wrong department's queue.
@@ -79,7 +92,11 @@ export async function resolveConnection(
 
   const shape = area.connection.shape as Record<string, z.ZodType>;
   for (const key of Object.keys(merged)) {
-    if (!(key in shape)) {
+    const removed = area.removed?.[key];
+    if (removed !== undefined) {
+      warn({ code: 'CONFIG_REMOVED_KEY', message: `"${key}" on connection ${name} is no longer ${withArticle(area.name)} setting and was ignored: ${removed}` });
+      delete merged[key];
+    } else if (!(key in shape)) {
       warn({ code: 'CONFIG_UNKNOWN_KEY', message: `"${key}" on connection ${name} isn't ${withArticle(area.name)} setting and was ignored.` });
       delete merged[key];
     } else {
@@ -92,10 +109,14 @@ export async function resolveConnection(
     const keys = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? '')).filter(Boolean))];
     const isDefault = defaultConnectionName(config, area.name) === name;
     const vars = keys.map((k) => (isDefault ? defaultVar(area, k) : withExample(area, k, connectionEnvName(name, k))));
-    throw new ToilError('CONFIG_INVALID', `Connection ${name} (${area.name}) is missing or has invalid ${keys.join(', ') || 'settings'}.`, {
+    const options = {
       fix: vars.length ? `Set ${vars.join(' and ')}, or fix ${keys.join(', ')} on "${name}" in your toil config.` : `Fix connection "${name}" in your toil config.`,
       details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
-    });
+    };
+    const message = `Connection ${name} (${area.name}) is missing or has invalid ${keys.join(', ') || 'settings'}.`;
+    // Only unset keys, nothing set wrong: a command that answers "not set up" itself may still run.
+    const incomplete = keys.length > 0 && keys.every((k) => merged[k] === undefined);
+    throw incomplete ? new IncompleteConnectionError(message, options) : new ToilError('CONFIG_INVALID', message, options);
   }
   return { ...(parsed.data as Record<string, unknown>), name, area: area.name, writes: connectionWrites(stored) };
 }

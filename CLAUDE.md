@@ -284,7 +284,11 @@ value came from env or the store, never the value.
 may sit in another group (`deps outdated` for `artifactory outdated`); MCP still has
 one tool per command, and `meta.command` names the command. An area's `coreAliases`
 put a path in its group onto a core command fixed to that area (`jenkins instance
-list` is `connections list --area jenkins`).
+list` is `connections list --area jenkins`). A **routed alias** is an old path
+whose flag value picks the command (`deps frisk --source sonatype` runs `ossindex
+vulns`), declared once in `ROUTED_ALIASES` in `src/registry.ts`
+(`src/core/routed-alias.ts`); a route whose command isn't registered is skipped,
+and calling it says so.
 
 Local files go through `ctx.files` (`src/core/files.ts`), never `node:fs`: input
 files, uploads, downloads and CSV reports resolve inside the workspace on both
@@ -546,11 +550,15 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
     of traced non-HTTP calls, such as the db area's provider) through both front
     doors; only GET/HEAD/OPTIONS from a command that doesn't write (plus POST from
     a read marked `queryByPost`, such as a search whose query may be too long for
-    a URL), and no traced write operation
+    a URL), and no traced write operation. A token exchange core makes for the
+    area (`watchTokenExchanges` in `src/core/token.ts`) doesn't count against a
+    read, and the token cache is cleared before each CLI and MCP run, so both
+    exchange and send the same requests
   - an unknown field refused as `INVALID_INPUT` on both sides before any request
   - a config failure building the context gives the same envelope on both sides
-  - per area, `--connection <name>` and MCP's `connection` field selecting the same
-    connection, and an unknown connection refused the same way
+  - per area with a command that takes a connection, `--connection <name>` and
+    MCP's `connection` field selecting the same connection, and an unknown
+    connection refused the same way
   - for every write command, the write gate holding on both sides
 
   New commands are covered on registration; never add a command without examples,
