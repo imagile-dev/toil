@@ -13,7 +13,7 @@ import {
 } from '../core/config.js';
 import { coerce } from '../core/connection.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
-import { ToilError } from '../core/errors.js';
+import { ToilError, withArticle } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified, type SecretStore } from '../core/keychain.js';
 import type { Prompter } from '../core/prompt.js';
 
@@ -181,16 +181,27 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
   const remove = defineConfigCommand({
     path: ['connections', 'remove'],
     description: 'Remove a connection from config, and its secrets from the OS credential store',
-    input: z.object({ name: z.string().describe('Connection name') }),
+    input: z.object({
+      name: z.string().describe('Connection name'),
+      area: z.string().optional().describe('Remove it only if it connects to this area, e.g. jenkins'),
+    }),
     writes: false,
     kind: 'cli-only',
     args: [{ name: 'name', field: 'name', description: 'Connection name' }],
-    examples: [{ name: 'corp-jira' }],
+    options: [{ flags: '--area <area>', field: 'area', description: 'Remove it only if it connects to this area' }],
+    examples: [{ name: 'corp-jira' }, { name: 'corp-jira', area: 'jira' }],
     run: async (input, ctx) => {
       const { config, secrets } = access(ctx);
+      if (input.area !== undefined) areaNamed(input.area);
       const path = config.files.global;
       const file = readConfigForEdit(path);
       const conn = fileConnection(file, input.name, config);
+      // An area-scoped remove (`toil jenkins instance remove`) touches only that area's connections.
+      if (input.area !== undefined && conn.area !== input.area) {
+        throw new ToilError('INVALID_INPUT', `Connection "${input.name}" is ${withArticle(conn.area)} connection, not ${input.area}. Nothing was removed.`, {
+          fix: `Run toil connections list --area ${input.area} to see its connections.`,
+        });
+      }
       delete file.connections[input.name];
       const shared = file.defaults[conn.area];
       if (shared?.connection === input.name) {
