@@ -4,6 +4,7 @@
     "tool": "elasticsearch_cluster_health",
     "description": "Show cluster health (status, node and shard counts)",
     "writes": false,
+    "connection": true,
     "flags": []
   },
   {
@@ -11,6 +12,7 @@
     "tool": "elasticsearch_indices_list",
     "description": "List indices with health, document count and size",
     "writes": false,
+    "connection": true,
     "flags": [
       "--pattern <pattern>"
     ]
@@ -20,6 +22,7 @@
     "tool": "elasticsearch_search",
     "description": "Search one or more indices with Query DSL JSON or a query string",
     "writes": false,
+    "connection": true,
     "flags": [
       "--index <name>",
       "--query <json>",
@@ -36,6 +39,7 @@
     "tool": "elasticsearch_count",
     "description": "Count documents matching a query",
     "writes": false,
+    "connection": true,
     "flags": [
       "--index <name>",
       "--query <json>",
