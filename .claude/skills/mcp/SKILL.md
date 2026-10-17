@@ -38,7 +38,8 @@ signal; never share one context across calls. Both front doors run commands thro
 `runCommand()`, which turns a failure building the context (config that broke while
 the server was up) into an envelope too. Tool descriptions are written for a model
 choosing between tools: what it returns, when to use it, and which sibling tool to use
-instead.
+instead. A field's description is the same text on both front doors, so it never names a
+CLI-only flag (`--output-file`, `--config`).
 
 **The base package never opens a port** (*principle 1*: a listening socket is the
 other thing locked-down machines block). Stdio is the only transport in

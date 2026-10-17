@@ -665,10 +665,15 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   already on disk, existing flags, the envelope, and precedence, and say what you
   checked in the PR. Before it, skip that: the PR has no section for it, and reviews
   don't ask.
+- **Decisions an agent makes by default go in `AGENT_DECISIONS.md`**, with what, why
+  and where, so the maintainer can review or overturn them. The maintainer's own
+  decisions stay on the issues.
 - **Fix every review finding in the round it arrives, non-blocking ones included**,
   with the simplest fix that is easy to understand. A finding left for later piles up
   another round; an elaborate fix makes the design harder to follow than the problem
-  did. Defer one only when it's genuinely out of scope, and say so in its thread.
+  did. Defer one only when it's genuinely out of scope, or when fixing it would add
+  complexity out of proportion to what it fixes (the maintainer's call, 2026-10-17).
+  Either way, say so in its thread, and record the skip in `AGENT_DECISIONS.md`.
 - **The PR description describes the PR as it is now, not as it was opened.**
   Reviewers, the review bot and the squash commit all read it, so a description
   that lags the code misleads all three. Rewrite it (`gh pr edit --body-file`)
