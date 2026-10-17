@@ -33,6 +33,8 @@ export const openshiftArea = defineArea({
   description: 'OpenShift and Kubernetes: pods, deployments, events, logs and resource usage',
   connection,
   secrets: ['token'],
+  // Every configured cluster is a connection, so core's list answers; this area never sees the config.
+  coreAliases: { 'cluster list': 'connections list' },
   request: (conn, area) => {
     // The predecessor's wording, which differed for a named cluster and the flat one; the URL is checked before the token.
     const cluster = clusterName(conn);

@@ -19,7 +19,8 @@ import {
 } from '../../../test/fixtures/openshift.fixture.js';
 import type { AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
-import { clusterListCommand } from './cluster.js';
+import { runCli } from '../../../test/harness/cli.js';
+import { commands as registered } from '../../registry.js';
 import { age, cpuMillicores, memMiB } from './k8s.js';
 import { podMetricsCommand, resourceUsageCommand } from './metrics.js';
 import { deploymentsCommand, eventsCommand, logsCommand, podsCommand } from './workloads.js';
@@ -404,26 +405,12 @@ describe('choosing a cluster', () => {
 });
 
 describe('cluster list', () => {
-  it('reports the default connection as a named cluster, with its env and instance as the defaults, and warns that it lists only that one', async () => {
-    const { envelope, calls } = await run(clusterListCommand, {}, []);
-    expect(calls).toEqual([]);
-    expect(envelope.data).toEqual({ count: 1, clusters: [{ environment: 'prod', instance: 'east', baseUrl: OPENSHIFT, connection: 'openshift' }], defaultEnvironment: 'prod', defaultInstance: 'east' });
-    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'ONE_CONNECTION_LISTED', message: expect.stringContaining('toil connections list') })]);
-  });
-
-  it('shows a connection without env and instance as (default)/(default), and none at all when it has no baseUrl', async () => {
-    const flat = await run(clusterListCommand, {}, [], { config: { openshift: { baseUrl: OPENSHIFT } } });
-    expect(flat.envelope.data).toEqual({ count: 1, clusters: [{ environment: '(default)', instance: '(default)', baseUrl: OPENSHIFT, connection: 'openshift' }] });
-    const empty = await run(clusterListCommand, {}, [], { config: { openshift: { token: 't' } } });
-    expect(empty.envelope.data).toEqual({ count: 0, clusters: [] });
-  });
-
-  it('reports null defaults when --env picked a connection other than by default', async () => {
-    const clusters: Clusters = {
-      connections: { 'prod-east': { baseUrl: 'https://prod-east.openshift.imagile.dev', env: 'prod', instance: 'east' }, 'dev-north': { baseUrl: 'https://dev-north.openshift.imagile.dev', env: 'dev', instance: 'north' } },
-      defaultConnection: 'prod-east',
-    };
-    const { envelope } = await run(clusterListCommand, { env: 'dev' }, [], { clusters });
-    expect(envelope.data).toEqual({ count: 1, clusters: [{ environment: 'dev', instance: 'north', baseUrl: 'https://dev-north.openshift.imagile.dev', connection: 'dev-north' }], defaultEnvironment: null, defaultInstance: null });
+  it('runs connections list for openshift alone: every configured cluster, never a secret', async () => {
+    const { context } = testContext({ config: { openshift: fixtureConfig.openshift, sonar: { baseUrl: 'https://sonar.imagile.dev', token: 't' } } });
+    const run = await runCli(['openshift', 'cluster', 'list'], { commands: registered, context });
+    expect(run.envelope?.meta.command).toBe('connections list');
+    const data = run.envelope?.data as { connections: Array<{ name: string; area: string; host: string; values: Record<string, string> }> };
+    expect(data.connections).toEqual([expect.objectContaining({ name: 'openshift', area: 'openshift', host: 'openshift.imagile.dev', values: { baseUrl: 'env', token: 'env', env: 'env', instance: 'env' } })]);
+    expect(JSON.stringify(run.envelope)).not.toContain('test-token');
   });
 });

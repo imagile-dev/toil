@@ -1,19 +1,10 @@
 [
   {
-    "name": "cluster list",
-    "tool": "openshift_cluster_list",
-    "description": "Show the OpenShift cluster this call resolves to (--env, --instance or --connection, else the default); toil connections list shows them all",
-    "writes": false,
-    "flags": [
-      "--env <name>",
-      "--instance <name>"
-    ]
-  },
-  {
     "name": "pods",
     "tool": "openshift_pods",
     "description": "List pod health summary for a namespace — pre-processed for LLM analysis. Use --raw to return the full unmodified Kubernetes pod objects.",
     "writes": false,
+    "connection": true,
     "flags": [
       "--namespace <ns>",
       "--label-selector <selector>",
@@ -27,6 +18,7 @@
     "tool": "openshift_deployments",
     "description": "List Deployments (or OpenShift DeploymentConfigs with --deployment-configs) for a namespace, read-only. Use --raw to return the full unmodified objects.",
     "writes": false,
+    "connection": true,
     "flags": [
       "--namespace <ns>",
       "--label-selector <selector>",
@@ -41,6 +33,7 @@
     "tool": "openshift_events",
     "description": "List Warning events for a namespace — pre-filtered for LLM analysis",
     "writes": false,
+    "connection": true,
     "flags": [
       "--namespace <ns>",
       "--field-selector <selector>",
@@ -54,6 +47,7 @@
     "tool": "openshift_logs",
     "description": "Get recent log lines from a pod container",
     "writes": false,
+    "connection": true,
     "flags": [
       "--namespace <ns>",
       "--pod <name>",
@@ -69,6 +63,7 @@
     "tool": "openshift_pod_metrics",
     "description": "Get CPU and memory usage for pods in a namespace (requires metrics-server)",
     "writes": false,
+    "connection": true,
     "flags": [
       "--namespace <ns>",
       "--env <name>",
@@ -80,6 +75,7 @@
     "tool": "openshift_resource_usage",
     "description": "Combined CPU/memory usage, limits, and requests for all pods in a namespace — all values normalized to millicores (m) and mebibytes (Mi). Requires metrics-server. Use --csv with --out <file> to also save a spreadsheet-friendly CSV.",
     "writes": false,
+    "connection": true,
     "flags": [
       "--namespace <ns>",
       "--label-selector <selector>",

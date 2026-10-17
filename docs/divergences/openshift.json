@@ -32,9 +32,9 @@
     },
     {
       "allows": [],
-      "old": "openshift cluster list reading every named and flat cluster from config with no connection, succeeding with count 0 when none was configured, and reporting openshift.defaultEnvironment and openshift.defaultInstance as stored",
-      "toil": "It reports the one connection the call resolves (--env, --instance, --connection or the default), with a meta.warnings entry saying so and pointing at toil connections list for every connection. Each cluster gains its connection name. With no openshift connection it fails NOT_CONFIGURED, and with several and no default INVALID_INPUT. defaultEnvironment and defaultInstance are the connection's env and instance when the call used the default connection, otherwise null",
-      "why": "An area command sees only the connection its call resolved, never the config, so no area can read another connection's settings (CLAUDE.md, Commands never read config or env). Listing every connection is toil connections list's job.",
+      "old": "openshift cluster list reading every named and flat cluster from config as { count, clusters[{ environment, instance, baseUrl }], defaultEnvironment, defaultInstance }",
+      "toil": "An alias of toil connections list --area openshift (CLI only; over MCP, the connections_list tool with area openshift). It lists every openshift connection, so every configured cluster, as { configFile, connections[{ name, area, isDefault, host, writes, values }] }: a cluster's env and instance settings are in values (where each came from, never the value), isDefault marks the default, and host stands for baseUrl. It never prints a secret",
+      "why": "Clusters are connections, and listing connections is core's job: an area command never sees the config, so no area can read another connection's settings (CLAUDE.md, Commands never read config or env).",
       "principle": "decision"
     },
     {

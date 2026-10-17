@@ -86,13 +86,10 @@ A cluster with `env` and `instance` set reports a missing `baseUrl` or token as
 
 Every command but `cluster list` needs `--namespace <ns>`.
 
-- `cluster list`: Show the cluster this call resolves to, as `{ count, clusters,
-  defaultEnvironment, defaultInstance }`, each cluster `{ environment, instance,
-  baseUrl, connection }`. A connection without `env` and `instance` shows as
-  `(default)/(default)`. It lists only that one connection, and says so in
-  `meta.warnings`; `toil connections list` lists every connection. The defaults are
-  the connection's `env` and `instance` when the call used the default connection,
-  otherwise `null`.
+- `cluster list`: Lists every configured cluster: it runs `toil connections list --area
+  openshift` (CLI only; over MCP, call the `connections_list` tool with `area`
+  `openshift`). Each connection shows its `name`, `isDefault`, `host`, `writes` and
+  where each setting came from, never a secret.
 - `pods`: Pod health summary: phase counters, `crashLoopBackOff`,
   `imagePullBackOff` (which includes `ErrImagePull`), `oomKilled` and
   `totalRestarts`, then each pod with `phase`, `ready`, `restartCount`, `age`,
