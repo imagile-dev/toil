@@ -272,8 +272,8 @@ the bottom of their section.
   KF3 (#68) carries each.
 - **Placeholders on Atlassian and Dynatrace use `<service>.imagile.dev`, not a
   vendor tenant** (#142's build, principle 1). Both vendors answer for every
-  subdomain, so `imagile.atlassian.net` and `abc12345.live.dynatrace.com` were real
-  hosts someone could register, and a copied example would send them the credential.
+  subdomain, so an `imagile` tenant on `atlassian.net` and an `abc12345` environment
+  on `live.dynatrace.com` were real hosts someone could register, and a copied example would send them the credential.
   Prose names the shape as `<environment-id>.live.dynatrace.com`. CLAUDE.md's
   Placeholders rule says so, and `test/repo-hygiene.test.ts` refuses a tenant-shaped
   name on those domains.
