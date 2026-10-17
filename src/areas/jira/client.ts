@@ -286,6 +286,8 @@ export async function search(
       const pageSize = max === undefined ? PAGE : Math.min(PAGE, max - (startAt - first));
       const page = await jira<JiraSearchResult>(ctx, `${API}/search`, { method: 'POST', body: { jql, startAt, maxResults: pageSize, fields: opts.fields } });
       // Every page's total, the empty last one included, as the contract kept it.
+      // Not Paged.total: that's the clamped end offset above, and it drops a
+      // total the server left out, where the contract kept it as sent.
       total = page.total;
       return { body: page };
     },

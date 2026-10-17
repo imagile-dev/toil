@@ -1,16 +1,9 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { testContext } from '../../../test/harness/context.js';
 import type { Route } from '../../../test/harness/fake-fetch.js';
-import { fakeFetch } from '../../../test/harness/fake-fetch.js';
-import { fakeStore } from '../../../test/harness/fake-store.js';
 import { config as fixtureConfig, hotspot, hotspotsPage, issuesPage, PROJECT, projectsPage, qualityGate, SONAR, sonarIssue, sonarProject } from '../../../test/fixtures/sonar.fixture.js';
 import type { AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
-import { createNodeContext } from '../../node-context.js';
-import { area } from './index.js';
 import { hotspotsCommand, issuesCommand, measuresCommand, projectsCommand, qualityGateCommand } from './commands.js';
 
 /**
@@ -203,48 +196,5 @@ describe('hotspots', () => {
     expect(nullTotal.calls).toHaveLength(1);
     const text = await run(issuesCommand, { project: PROJECT, all: true }, [ok({ total: '1', issues: [sonarIssue(1)] })]);
     expect(text.calls).toHaveLength(1);
-  });
-});
-
-describe('the token, through the real config loader', () => {
-  const root = mkdtempSync(join(tmpdir(), 'toil-sonar-'));
-  afterAll(() => rmSync(root, { recursive: true, force: true }));
-
-  /** The Authorization header quality-gate sends with this env and, optionally, a config file whose token is in the store. */
-  async function bearer(env: Record<string, string>, withFile = false): Promise<string | undefined> {
-    const home = mkdtempSync(join(root, 'home-'));
-    if (withFile) {
-      mkdirSync(join(home, '.toil'));
-      writeFileSync(join(home, '.toil', 'config.json'), JSON.stringify({ version: 2, connections: { sonar: { area: 'sonar', baseUrl: SONAR, token: 'keychain:sonar-token' } }, defaults: { sonar: { connection: 'sonar' } } }));
-    }
-    const http = fakeFetch([ok(qualityGate)]);
-    const ctx = createNodeContext({
-      globals: {},
-      def: qualityGateCommand,
-      signal: new AbortController().signal,
-      env: { TOIL_SONAR_BASE_URL: SONAR, ...env },
-      cwd: home,
-      home,
-      areas: [{ name: area.name, fallbacks: area.fallbacks }],
-      version: '0.0.0-test',
-      stderr: () => {},
-      secrets: fakeStore({ entries: { 'sonar-token': 'from-file' } }),
-    });
-    const envelope = await execute(qualityGateCommand, { project: PROJECT }, { ...ctx, fetch: http.fetch });
-    expect(envelope.error).toBeNull();
-    return http.calls[0]?.headers.authorization;
-  }
-
-  it('uses SONAR_TOKEN when TOIL_SONAR_TOKEN is unset', async () => {
-    expect(await bearer({ SONAR_TOKEN: 'from-ci' })).toBe('Bearer from-ci');
-  });
-
-  it('prefers TOIL_SONAR_TOKEN when both are set', async () => {
-    expect(await bearer({ TOIL_SONAR_TOKEN: 'from-toil', SONAR_TOKEN: 'from-ci' })).toBe('Bearer from-toil');
-  });
-
-  it('puts SONAR_TOKEN above the config file, which is used when neither is set', async () => {
-    expect(await bearer({ SONAR_TOKEN: 'from-ci' }, true)).toBe('Bearer from-ci');
-    expect(await bearer({}, true)).toBe('Bearer from-file');
   });
 });

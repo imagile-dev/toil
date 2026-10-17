@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
 import { sonarArea } from './area.js';
-import { hotspotsPage, issuesPage, projectsPage, sonar, sonarAll, type SonarContext } from './client.js';
+import { hotspotsPage, issuesPage, projectsPage, sonar, sonarAll } from './client.js';
 
 /**
  * The five SonarQube commands. Four act on one project, taken from --project
@@ -18,17 +17,6 @@ const DEFAULT_METRICS = 'coverage,duplicated_lines_density,bugs,vulnerabilities,
 const intText = z.union([z.number(), z.string()]);
 const parseIntText = (value: number | string | undefined, fallback: string) => parseInt(String(value ?? fallback), 10);
 
-/** The project from --project or the connection, with the contract's error when neither has one. */
-function projectOf(ctx: SonarContext): string {
-  const project = ctx.context.project;
-  if (!project) {
-    throw new ToilError('INVALID_INPUT', 'No project specified. Use --project or set defaults.sonar.project in config.', {
-      fix: `Pass --project <key>, or set project under defaults.sonar in your toil config (${sonarArea.envName('project')} for the default connection).`,
-    });
-  }
-  return project;
-}
-
 export const qualityGateCommand = sonarArea.command({
   path: ['sonar', 'quality-gate'],
   description: 'Get quality gate status for a project',
@@ -36,11 +24,11 @@ export const qualityGateCommand = sonarArea.command({
     branch: z.string().optional().describe('Branch name'),
   }),
   writes: false,
-  context: { project: 'optional' },
+  context: { project: 'required' },
   options: [{ flags: '--branch <name>', field: 'branch', description: 'Branch name' }],
   examples: [{ project: 'imagile-api' }, { project: 'imagile-api', branch: 'release-1.2' }],
   run: async (input, ctx) => {
-    const projectKey = projectOf(ctx);
+    const projectKey = ctx.context.project;
     return sonar(ctx, '/qualitygates/project_status', { projectKey, ...(input.branch ? { branch: input.branch } : {}) });
   },
 });
@@ -59,7 +47,7 @@ export const issuesCommand = sonarArea.command({
     all: z.boolean().optional().describe('Fetch every page (500 per request; ignores --page/--page-size); the result can be large'),
   }),
   writes: false,
-  context: { project: 'optional' },
+  context: { project: 'required' },
   options: [
     { flags: '--severities <list>', field: 'severities', description: 'Filter by severity: BLOCKER,CRITICAL,MAJOR,MINOR,INFO (comma-separated)' },
     { flags: '--types <list>', field: 'types', description: 'Filter by type: BUG,VULNERABILITY,CODE_SMELL (comma-separated)' },
@@ -77,7 +65,7 @@ export const issuesCommand = sonarArea.command({
   ],
   run: async (input, ctx) => {
     const params = {
-      componentKeys: projectOf(ctx),
+      componentKeys: ctx.context.project,
       severities: input.severities,
       types: input.types,
       statuses: input.statuses,
@@ -99,14 +87,14 @@ export const measuresCommand = sonarArea.command({
     branch: z.string().optional().describe('Branch name'),
   }),
   writes: false,
-  context: { project: 'optional' },
+  context: { project: 'required' },
   options: [
     { flags: '--metrics <list>', field: 'metrics', description: `Comma-separated metric keys (default: "${DEFAULT_METRICS}")` },
     { flags: '--branch <name>', field: 'branch', description: 'Branch name' },
   ],
   examples: [{ project: 'imagile-api' }, { project: 'imagile-api', metrics: 'coverage,bugs', branch: 'main' }],
   run: async (input, ctx) => {
-    const component = projectOf(ctx);
+    const component = ctx.context.project;
     return sonar(ctx, '/measures/component', { component, metricKeys: input.metrics ?? DEFAULT_METRICS, ...(input.branch ? { branch: input.branch } : {}) });
   },
 });
@@ -147,7 +135,7 @@ export const hotspotsCommand = sonarArea.command({
     all: z.boolean().optional().describe('Fetch every page (500 per request); the result can be large'),
   }),
   writes: false,
-  context: { project: 'optional' },
+  context: { project: 'required' },
   options: [
     { flags: '--status <status>', field: 'status', description: 'Filter: TO_REVIEW or REVIEWED' },
     { flags: '--resolution <list>', field: 'resolution', description: 'Filter: FIXED,SAFE,ACKNOWLEDGED (comma-separated)' },
@@ -163,7 +151,7 @@ export const hotspotsCommand = sonarArea.command({
     { project: 'imagile-api', all: true },
   ],
   run: async (input, ctx) => {
-    const params = { projectKey: projectOf(ctx), status: input.status, resolution: input.resolution, branch: input.branch };
+    const params = { projectKey: ctx.context.project, status: input.status, resolution: input.resolution, branch: input.branch };
     if (input.all) return sonarAll('/hotspots/search', ctx, params, hotspotsPage, `SonarQube hotspots for ${params.projectKey}`);
     return sonar(ctx, '/hotspots/search', { ...params, p: parseIntText(input.page, '1'), ps: parseIntText(input.pageSize, '100') });
   },

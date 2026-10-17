@@ -33,20 +33,14 @@ export function sonar<T>(ctx: SonarContext, path: string, params?: Record<string
 /**
  * Every item from a `p`/`ps` endpoint, 500 at a time, stopping once the items
  * collected reach `total` or a page comes back empty, as the contract did.
- * It never stops on a short page. Core's `page` style can't stop on a total,
- * so this rides the `offset` style, whose stopping rule is exactly that, and
- * counts pages itself: the offset it hands over is ignored. Suspected bug
- * (#92 item 1): a refused page fails the whole call, and the pages already
- * fetched are discarded.
+ * It never stops on a short page, which is core's `page` style with `total`.
+ * Suspected bug (#92 item 1): a refused page fails the whole call, and the
+ * pages already fetched are discarded.
  */
 export async function sonarAll<T>(path: string, ctx: SonarContext, params: Record<string, QueryValue>, read: (body: unknown) => { total: number | undefined; items: T[] }, what: string): Promise<T[]> {
-  let page = 0;
   const { items } = await paginate<T>(
-    { kind: 'offset', startParam: 'offset', limitParam: 'ps', pageSize: ALL_PAGE_SIZE, items: (body) => read(body).items, total: (body) => read(body).total },
-    async () => {
-      page += 1;
-      return { body: await sonar<unknown>(ctx, path, { ...params, p: page, ps: ALL_PAGE_SIZE }) };
-    },
+    { kind: 'page', pageParam: 'p', sizeParam: 'ps', pageSize: ALL_PAGE_SIZE, items: (body) => read(body).items, total: (body) => read(body).total },
+    async (paging) => ({ body: await sonar<unknown>(ctx, path, { ...params, ...paging }) }),
     { what },
   );
   return items;
