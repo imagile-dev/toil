@@ -5,6 +5,25 @@ import { areaOf, type AnyCommand } from '../../src/core/command.js';
 import type { Settings } from '../../src/core/config.js';
 import { commands as registered } from '../../src/registry.js';
 import type { Route } from './fake-fetch.js';
+import { traceOperations } from './operations.js';
+
+type Files = Record<string, string | Uint8Array>;
+
+/** What a fixture's setup may supply once it has run: anything that depends on state it made. */
+export interface FixtureState {
+  config?: Record<string, Settings>;
+  files?: Files;
+  routes?: Route[];
+}
+
+/** An object whose method calls go in the operations log (see operations.ts). */
+export interface TracedTarget {
+  /** Prefix for each logged call: `sqlite` logs `sqlite.query`. */
+  label: string;
+  target: object;
+  /** Methods that change something. A command that doesn't write must never call one. */
+  writes?: string[];
+}
 
 /**
  * What the parity suite needs to run one area's examples offline: canned
@@ -15,35 +34,88 @@ import type { Route } from './fake-fetch.js';
  */
 export interface AreaFixture {
   area: string;
-  routes: Route[];
+  routes?: Route[];
   /** Must include `writes: true` for an area with write commands, so every example runs. */
-  config: Record<string, Settings>;
+  config?: Record<string, Settings>;
   /** Local files the examples read (input files, uploads), relative to the test working directory. */
-  files?: Record<string, string | Uint8Array>;
+  files?: Files;
   /** Defaults to the area's registered commands. Only test-only areas set it. */
   commands?: AnyCommand[];
   /**
-   * Removes anything the fixture made when it loaded, run after the suite.
-   * For areas whose examples need local state rather than routes (the db
-   * area's SQLite file); HTTP areas leave it out.
+   * Objects whose calls go in the operations log, for areas whose work isn't
+   * HTTP (the db area's provider). The suite then compares the log between the
+   * CLI and MCP runs, as it compares requests.
    */
-  cleanup?: () => void;
+  trace?: TracedTarget[];
+  /**
+   * Makes whatever local state the examples need (a seeded database file), run
+   * once before the suite. What it returns replaces the matching fields above.
+   * Keep it out of module load, so importing a fixture has no side effects.
+   */
+  setup?: () => FixtureState | void | Promise<FixtureState | void>;
+  /** Removes what setup made, run once after the suite. */
+  teardown?: () => void | Promise<void>;
 }
 
 export function defineFixture(fixture: AreaFixture): AreaFixture {
   return fixture;
 }
 
+/** A fixture as the suites use it: every optional list filled in. Config, files and routes are final only after `setUp`. */
+export type LoadedFixture = AreaFixture & {
+  routes: Route[];
+  config: Record<string, Settings>;
+  files: Files;
+  commands: AnyCommand[];
+  trace: TracedTarget[];
+};
+
 const dir = join(import.meta.dirname, '..', 'fixtures');
 
 /** Every fixture file, with its commands resolved. */
-export async function loadFixtures(): Promise<Array<AreaFixture & { commands: AnyCommand[]; files: Record<string, string | Uint8Array> }>> {
+export async function loadFixtures(): Promise<LoadedFixture[]> {
   const files = readdirSync(dir).filter((f) => f.endsWith('.fixture.ts')).sort();
-  const out: Array<AreaFixture & { commands: AnyCommand[]; files: Record<string, string | Uint8Array> }> = [];
+  const out: LoadedFixture[] = [];
   for (const file of files) {
     const { fixture } = (await import(pathToFileURL(join(dir, file)).href)) as { fixture: AreaFixture };
     if (`${fixture.area}.fixture.ts` !== file) throw new Error(`${file} declares area "${fixture.area}"; name the file after its area.`);
-    out.push({ ...fixture, files: fixture.files ?? {}, commands: fixture.commands ?? registered.filter((def) => areaOf(def) === fixture.area) });
+    out.push({
+      ...fixture,
+      routes: fixture.routes ?? [],
+      config: fixture.config ?? {},
+      files: fixture.files ?? {},
+      trace: fixture.trace ?? [],
+      commands: fixture.commands ?? registered.filter((def) => areaOf(def) === fixture.area),
+    });
   }
   return out;
+}
+
+/** Runs each fixture's setup and starts tracing its targets. Call from beforeAll. */
+export async function setUp(fixtures: LoadedFixture[]): Promise<void> {
+  for (const f of fixtures) {
+    for (const t of f.trace) traceOperations(t.target, t.label);
+    const state = (await f.setup?.()) ?? {};
+    if (state.config) f.config = state.config;
+    if (state.files) f.files = state.files;
+    if (state.routes) f.routes = state.routes;
+  }
+}
+
+/** Runs each fixture's teardown, even when one fails. Call from afterAll. */
+export async function tearDown(fixtures: LoadedFixture[]): Promise<void> {
+  const failures: unknown[] = [];
+  for (const f of fixtures) {
+    try {
+      await f.teardown?.();
+    } catch (err) {
+      failures.push(err);
+    }
+  }
+  if (failures.length > 0) throw new AggregateError(failures, 'fixture teardown failed');
+}
+
+/** The traced methods that write, as logged op names: `sqlite.execute`. */
+export function writeOperations(f: LoadedFixture): Set<string> {
+  return new Set(f.trace.flatMap((t) => (t.writes ?? []).map((m) => `${t.label}.${m}`)));
 }

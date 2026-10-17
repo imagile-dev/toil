@@ -1,7 +1,9 @@
 # Command contract
 
 `command-contract.json` freezes the command surface of the CLI toil succeeds, captured
-from that CLI's own `--help` output (version 6.3.0: 443 commands, 368 of them leaves).
+from that CLI's own `--help` output (version 6.3.0: 443 commands, 368 of them leaves),
+and the field names of the `data` each command returns, read from its TypeScript
+source by the type checker.
 The rule it backs, from **Compatibility** in the `integrations` skill
 (`.claude/skills/integrations/SKILL.md`): moving a skill, script
 or pipeline to toil takes one case-insensitive find-and-replace of the old name with
@@ -30,7 +32,7 @@ toil may add commands, flags and output fields.
 | Area | In scope | Notes |
 |------|----------|-------|
 | Every integration (`jira`, `bitbucket`, `github`, `confluence`, `sonar`, `sde`, `ado`, `jenkins`, `artifactory`, `checkmarx`, `contrast`, `sonatypeiq`, `openshift`, `dynatrace`, `logscale`, `elasticsearch`, `kibana`, `splitio`, `figma`, `alation`, `saucelabs`) | Yes | Exact match |
-| `git` | Yes | Exact match, apart from `git credentials`, below. Repository facts (root, branch, remotes) are read from `.git` in pure JS; `status`, `diff`, `log`, `branch` and `report` run the git on PATH, the one program besides the OS credential store toil may run (#68 decision 1), and return `GIT_NOT_FOUND` without it |
+| `git` | Yes | Exact match, apart from the divergences in `docs/divergences/git.json`. Repository facts (root, branch, remotes) are read from `.git` in pure JS; `status`, `diff`, `log`, `branch` and `report` run the git on PATH, the one program besides the OS credential store toil may run (#68 decision 1), and return `GIT_NOT_FOUND` without it |
 | `jwt` | Yes | Exact match |
 | `deps` | Yes | Two divergences, below |
 | `config` | No | Rebuilt around the OS credential store. `config import` migrates the documented global config once. |
@@ -38,36 +40,38 @@ toil may add commands, flags and output fields.
 
 ## Divergences
 
-Each entry says why it diverges (a principle, or a deliberate product decision) and what to use instead. Anything not
-listed here must match exactly, and the contract test (`test/contract.test.ts`) fails on an unlisted difference. It
-reads the code spans in this table's first column: a command path (`git credentials`), a command and flag
-(`<area> <command> --<flag>`), or a global flag (`--dry-run`) allows that one difference. It checks every
-registered area's paths, aliases, positional arguments and flag spellings; output field names aren't in the
-captured contract, so each integration checks those against the contract by hand. A divergence in behavior only, with
-the surface unchanged, keeps its first column free of code spans, so it can't excuse a missing command or flag.
+Each divergence is one entry in `docs/divergences/<area>.json` (`global.json` for global
+flags and behavior every area shares), one file per area so parallel integrations never edit
+the same file. The contract test (`test/contract.test.ts`) loads them all and fails on
+any difference none of them allows. An entry holds:
 
-| Old | toil | Why |
-|-----|------|-----|
-| `deps frisk --source all` | Run each source separately: `toil deps frisk --source osv`, `--source sonatype`, `--source sonatypeiq` | *Principle 3*: no command fans out to several services on the caller's behalf. Single-source `deps frisk` stays, as a thin alias over the per-source commands (`toil osv vulns`, `toil ossindex vulns`, `toil sonatypeiq evaluate`). |
-| `deps connectivity` | Removed. Check each source with its own `config test` | *Principle 3*: it decides on the caller's behalf which services to contact. |
-| `git credentials` and its subcommands (`inspect`, `mappings`, `stored`, `forget`) | Removed. Use git's own `git credential` commands; toil checks its own credentials per area with `config test` | *Principle 1*: they work by asking the git binary (`git credential fill`/`reject`, `ls-remote`), and toil runs no executables. |
-| jira schema --example-only printing the bare example with no envelope | The flag stays; the example comes back as `data` in the usual envelope. Save `.data` to use it as an `--input-file` | *Output Contract* (CLAUDE.md): every command writes exactly one envelope, so an agent never has to guess which shape stdout holds. |
-| jira download-attachment fetching the attachment's content URL, with the token, from whatever host Jira names | The token goes only to `baseUrl`'s origin: a `content` URL on another host has its path and query re-pointed at `baseUrl`, with a `JIRA_ATTACHMENT_HOST` warning | **Security** (*principle 9*): a server-supplied URL must not carry the user's credential to a host they didn't configure. A change a principle requires, so the integration makes it before a live run (CLAUDE.md, Building). |
-| jira download-attachment reporting saved with the platform's separator | `saved` uses forward slashes on every platform; the file lands in the same place | *Principle 8* (CLAUDE.md, Cross-Platform): paths in JSON output are identical on Windows, macOS and Linux. Same on macOS and Linux as before. |
-| File arguments (--input-file, --jql-file, --fields-file, --file, --dir, @file values) reading or writing any path the OS user can reach | A path outside the workspace (`--workspace`, `TOIL_WORKSPACE`, the CLI's working directory, or the MCP client's single root) is refused with `INVALID_INPUT`, after resolving `..`, symlinks and junctions; relative paths resolve against the workspace. A user can lift this one with `"bounds": { "files": "unbounded" }` in their config (docs/bounds.md) | **Security** (*principle 2*): a path an agent passes, perhaps from a prompt in an issue, must not reach files the user never pointed toil at. |
-| File arguments (--input-file, --jql-file, --fields-file, --file, --dir, @file values) reading or writing any path | A path at or under `~/.toil/` or the `--config` file, or under `/proc/` or `/sys/`, is refused with `INVALID_INPUT`, after resolving `..`, symlinks and junctions | **Security** (*principle 2*): a path an agent passes must not turn a read into a way to send toil's config or the environment's tokens to a service's host. |
-| jira download-attachment writing to a file that already exists | Refused with `INVALID_INPUT` naming the path; the existing file is left alone. The contract replaced it (#70 item 8) | **Security** (*principle 2*): a read-only command, whose file name comes from whoever uploaded the attachment, must not change files already on disk. |
-| Global --output-file replacing a file that already exists, or writing toil's own files or under /proc or /sys | Refused with `INVALID_INPUT`, and the error envelope goes to stdout with exit code 1; the existing file is left alone. It may still write outside the workspace (docs/bounds.md, `output-file`) | **Security** (*principle 2*): an agent driving the CLI must not be able to overwrite toil's config, or any file, with an envelope. |
-| deps scan finding files the way git ls-files --cached --others --exclude-standard does, global excludes included | The listing (`ctx.files.list`) applies `.gitignore` files and `.git/info/exclude` but not `core.excludesFile` or the default `~/.config/git/ignore`, so a file only those ignore is listed | **Security** (*principle 2*, #68 decision 7): reading above the workspace is limited to `.git`, the global git config and its includes, and parent `.gitignore` files (docs/bounds.md, `git.read-up`). |
-| Global `--dry-run` | Removed. Run the command without `--allow-write`, which refuses the write | It could only intercept writes made over HTTP, showed only the first of several, and saw little use. Writes are governed by the two-step gate (writes enabled in config plus `--allow-write`) alone. |
+| Key | Meaning |
+|-----|---------|
+| `allows` | The identifiers it excuses: a command path (`git credentials`), a command and flag (`<area> <command> --<flag>`), a global flag (`--dry-run`), or a command and output field (`<area> <command> data.<field>`, such as `jira search data.issues[].key`). Empty for a divergence in behavior only, with the surface unchanged, so it can't excuse a missing command, flag or field. |
+| `when` | Optional. Input values a call must have for the entry to apply, such as `{ "exampleOnly": true }`. The output check applies it per example, so `jira schema`'s fields are excused only with `--example-only`. |
+| `old` | What the contract did |
+| `toil` | What toil does instead, and what to use |
+| `why` | The reason, in a sentence or two |
+| `principle` | The principle's number, a CLAUDE.md section (`Output Contract`), or `decision` for a deliberate product call |
+| `class` | `security` when it keeps a credential or a file safe. Those are made before any live run and are never relaxed. |
+
+Every identifier must name something in the contract and sit in the file for its own
+area, and the test checks both. The test covers paths, aliases, positional arguments,
+flag spellings and output field names. For output, it runs every example in the area's
+fixture and requires every required field of one of the contract's recorded shapes;
+optional fields (`?` in the contract) and output the contract typed as `any` can't be
+checked that way, so an integration still compares those with the contract by hand.
+
+To read them all as a table: `node scripts/divergences.mjs`.
 
 ## Recapturing
 
 The contract changes only on purpose, when a newer version of the contract shipped
-commands toil should also cover. To recapture:
+commands toil should also cover. Recapture from a checkout of that version, built and
+with its dependencies installed, so the checker can resolve its types:
 
 ```bash
-node scripts/capture-command-contract.mjs <path/to/old-cli/dist/cli.js> > docs/command-contract.json
+node scripts/capture-command-contract.mjs <repo>/dist/cli.js --source <repo> > docs/command-contract.json
 ```
 
 Review the diff like any other contract change.

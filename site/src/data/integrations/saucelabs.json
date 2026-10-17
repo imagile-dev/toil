@@ -1,0 +1,15 @@
+{
+  "area": "saucelabs",
+  "name": "Sauce Labs",
+  "group": "build",
+  "order": 5,
+  "covers": "Test jobs, builds, real devices",
+  "credential": "Access key",
+  "credentialWhere": "User settings → Access key",
+  "status": "planned",
+  "host": "https://api.us-west-1.saucelabs.com",
+  "keys": [
+    "USERNAME",
+    "ACCESS_KEY"
+  ]
+}

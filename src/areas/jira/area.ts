@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { defineArea } from '../../core/area.js';
+import type { SupportedVersion } from '../../core/supported.js';
 
 /**
  * Jira Data Center: the self-hosted Jira, on `/rest/api/2` and the Agile API.
@@ -56,3 +57,11 @@ export const jiraArea = defineArea({
     authFix: `Jira rejected the personal access token on connection "${connection.name}". Create a new one under your profile picture → Profile → Personal Access Tokens, then set apiToken (${area.envName('apiToken')} for the default connection).`,
   }),
 });
+
+/** The floor the credential sets; no release has been verified yet. The skill file and the site's integration data say the same. */
+export const jiraSupported: SupportedVersion = {
+  product: 'Jira Data Center',
+  minimum: '8.14',
+  api: 'REST API 2 and Agile REST API 1.0',
+  note: 'toil authenticates with a personal access token, which Jira Data Center added in 8.14. No release has been verified yet.',
+};

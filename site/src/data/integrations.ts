@@ -1,9 +1,21 @@
 // Every integration, rendered on /integrations/ and counted on the homepage.
-// Mirrors docs/integrations.md; update both together. Command names follow
-// docs/command-contract.md. Each status is the integration's verification
+// Each one is its own file, integrations/<area>.json, so an integration changes its own
+// row (status, supported version) without touching anyone else's. This module
+// gathers them into the board's groups. Command names follow
+// docs/command-contract.json. Each status is the integration's verification
 // level once its code is on main, and `planned` until then.
 
 export type Status = 'planned' | 'unit' | 'integration' | 'live';
+
+// Re-declared from src/core/supported.ts because the site is its own package and can't import toil's source; test/skills.test.ts keeps the values equal.
+/** The oldest server or API version an integration supports. `minimum: null` means it hasn't been established. */
+export interface SupportedVersion {
+  product: string;
+  minimum: string | null;
+  /** The API version that minimum speaks, e.g. `REST API 7.1`. */
+  api?: string;
+  note?: string;
+}
 
 export interface Integration {
   area: string;
@@ -15,6 +27,18 @@ export interface Integration {
   host?: string;
   /** Credential env keys, when the area takes more than one token. Defaults to TOKEN. */
   keys?: string[];
+  /** Where in the vendor's UI the credential is made. Only paths we're sure of. */
+  credentialWhere?: string;
+  /** One more sentence about the credential (a CI fallback, a shared key), shown under Credential on the docs page. No closing full stop. */
+  credentialNote?: string;
+  supported?: SupportedVersion;
+}
+
+/** One integrations/<area>.json file. */
+interface IntegrationFile extends Integration {
+  group: GroupId;
+  /** Position within its group on the board. */
+  order: number;
 }
 
 export interface Group {
@@ -23,60 +47,26 @@ export interface Group {
   items: Integration[];
 }
 
-export const groups: Group[] = [
-  {
-    title: 'Work tracking and source',
-    blurb: 'Where the work is described, discussed and reviewed.',
-    items: [
-      { area: 'jira', name: 'Jira Data Center', covers: 'Issues, search, transitions, comments, worklogs, attachments, custom fields, boards, sprints', credential: 'Personal access token', status: 'unit', keys: ['API_TOKEN'] },
-      { area: 'ado', name: 'Azure DevOps Server', covers: 'Work items, repos, pull requests, pipelines', credential: 'Personal access token', status: 'planned' },
-      { area: 'bitbucket', name: 'Bitbucket Data Center', covers: 'Repositories, pull requests, comments, builds', credential: 'HTTP access token', status: 'planned' },
-      { area: 'github', name: 'GitHub & GitHub Enterprise', covers: 'Pull requests, reviews, issues, checks', credential: 'Fine-grained PAT', status: 'planned', host: 'https://ghe.imagile.dev' },
-      { area: 'confluence', name: 'Confluence Data Center', covers: 'Pages, spaces, search, attachments', credential: 'Personal access token', status: 'planned' },
-      { area: 'git', name: 'Local git', covers: 'Status, diff, log, branch, current PR', credential: 'None — local', status: 'planned' },
-    ],
-  },
-  {
-    title: 'Build, release and runtime',
-    blurb: 'Where code becomes something running.',
-    items: [
-      { area: 'jenkins', name: 'Jenkins', covers: 'Jobs, builds, console logs, queue', credential: 'API token', status: 'planned' },
-      { area: 'artifactory', name: 'JFrog Artifactory', covers: 'Repositories, artifact search, versions, licenses', credential: 'Access token', status: 'planned' },
-      { area: 'openshift', name: 'OpenShift / Kubernetes', covers: 'Pods, events, logs, metrics, deployments', credential: 'Service account token', status: 'planned' },
-      { area: 'splitio', name: 'Split.IO', covers: 'Feature flags, environments, change requests', credential: 'Admin API key', status: 'planned', host: 'https://api.split.io' },
-      { area: 'saucelabs', name: 'Sauce Labs', covers: 'Test jobs, builds, real devices', credential: 'Access key', status: 'planned', host: 'https://api.us-west-1.saucelabs.com', keys: ['USERNAME', 'ACCESS_KEY'] },
-    ],
-  },
-  {
-    title: 'Security and quality',
-    blurb: 'The scanners and gates every change has to clear.',
-    items: [
-      { area: 'sonar', name: 'SonarQube', covers: 'Quality gates, issues, hotspots, measures', credential: 'User token', status: 'planned' },
-      { area: 'checkmarx', name: 'Checkmarx One', covers: 'SAST scans, results, projects', credential: 'API key, exchanged over HTTP', status: 'planned', host: 'https://eu.ast.checkmarx.net', keys: ['API_KEY'] },
-      { area: 'contrast', name: 'Contrast Security', covers: 'Applications, vulnerabilities, routes', credential: 'API key + service key', status: 'planned', keys: ['API_KEY', 'SERVICE_KEY'] },
-      { area: 'sonatypeiq', name: 'Sonatype IQ Server', covers: 'Applications, policy evaluations, violations, waivers', credential: 'User token pair', status: 'planned', keys: ['USER_CODE', 'PASSCODE'] },
-      { area: 'sde', name: 'SD Elements', covers: 'Projects, countermeasures, security requirements', credential: 'API token', status: 'planned' },
-    ],
-  },
-  {
-    title: 'Observability',
-    blurb: 'What production is actually doing.',
-    items: [
-      { area: 'dynatrace', name: 'Dynatrace', covers: 'Problems, entities, traces, metrics', credential: 'API token', status: 'planned' },
-      { area: 'logscale', name: 'Falcon LogScale', covers: 'Log queries, repositories, saved searches', credential: 'API token', status: 'planned' },
-      { area: 'elasticsearch', name: 'Elasticsearch', covers: 'Search, count, indices, cluster health', credential: 'API key', status: 'planned' },
-      { area: 'kibana', name: 'Kibana', covers: 'Dashboards, data views, alerting rules', credential: 'API key', status: 'planned' },
-    ],
-  },
-  {
-    title: 'Design and data',
-    blurb: 'The context engineers pull in from outside the code.',
-    items: [
-      { area: 'figma', name: 'Figma', covers: 'Files from a link, comments, version history', credential: 'Personal access token', status: 'planned', host: 'https://api.figma.com' },
-      { area: 'alation', name: 'Alation', covers: 'Catalog metadata, search, documents', credential: 'Refresh token, exchanged over HTTP', status: 'planned', keys: ['REFRESH_TOKEN'] },
-    ],
-  },
+type GroupId = 'work' | 'build' | 'security' | 'observability' | 'design';
+
+const groupInfo: Array<{ id: GroupId; title: string; blurb: string }> = [
+  { id: 'work', title: 'Work tracking and source', blurb: 'Where the work is described, discussed and reviewed.' },
+  { id: 'build', title: 'Build, release and runtime', blurb: 'Where code becomes something running.' },
+  { id: 'security', title: 'Security and quality', blurb: 'The scanners and gates every change has to clear.' },
+  { id: 'observability', title: 'Observability', blurb: 'What production is actually doing.' },
+  { id: 'design', title: 'Design and data', blurb: 'The context engineers pull in from outside the code.' },
 ];
+
+const files = Object.values(import.meta.glob<IntegrationFile>('./integrations/*.json', { eager: true, import: 'default' }));
+
+export const groups: Group[] = groupInfo.map(({ id, title, blurb }) => ({
+  title,
+  blurb,
+  items: files
+    .filter((f) => f.group === id)
+    .sort((a, b) => a.order - b.order || a.area.localeCompare(b.area))
+    .map(({ group: _group, order: _order, ...item }) => item),
+}));
 
 export interface DepsCommand {
   command: string;
@@ -111,21 +101,7 @@ export const shippedCount = groups.reduce((n, g) => n + g.items.filter((i) => i.
  * paths we're confident of; anything absent gets a generic line rather than a
  * guess that sends someone clicking round the wrong menu.
  */
-export const credentialWhere: Record<string, string> = {
-  jira: 'Your profile picture → Profile → Personal Access Tokens',
-  confluence: 'Your profile picture → Settings → Personal Access Tokens',
-  bitbucket: 'Your profile picture → Manage account → HTTP access tokens',
-  github: 'Settings → Developer settings → Personal access tokens → Fine-grained tokens',
-  ado: 'User settings → Personal access tokens',
-  sonar: 'My Account → Security → Generate Tokens',
-  jenkins: 'Your user name → Security → API Token',
-  artifactory: 'Your profile → Edit Profile → Generate an Identity Token',
-  dynatrace: 'Access tokens → Generate new token',
-  elasticsearch: 'Kibana → Stack Management → API keys',
-  kibana: 'Stack Management → API keys',
-  figma: 'Settings → Security → Personal access tokens',
-  saucelabs: 'User settings → Access key',
-};
+export const credentialWhere: Record<string, string> = Object.fromEntries(files.flatMap((f) => (f.credentialWhere ? [[f.area, f.credentialWhere]] : [])));
 
 export interface IntegrationEntry extends Integration {
   group: string;
@@ -145,3 +121,9 @@ export const statusMeaning: Record<Status, string> = {
   integration: 'Automated tests pass against a real instance in CI.',
   live: "In day-to-day use against a real organization's instance.",
 };
+
+/** `Azure DevOps Server 2022.1 or later (REST API 7.1)`, or that the minimum isn't established. Worded as src/core/supported.ts words it. */
+export function supportedText(s: SupportedVersion): string {
+  if (s.minimum === null) return `The oldest ${s.product} version toil supports hasn't been established`;
+  return `${s.product} ${s.minimum} or later${s.api ? ` (${s.api})` : ''}`;
+}

@@ -1,0 +1,10 @@
+{
+  "area": "artifactory",
+  "name": "JFrog Artifactory",
+  "group": "build",
+  "order": 2,
+  "covers": "Repositories, artifact search, versions, licenses",
+  "credential": "Access token",
+  "credentialWhere": "Your profile → Edit Profile → Generate an Identity Token",
+  "status": "planned"
+}

@@ -1,0 +1,16 @@
+{
+  "area": "ado",
+  "name": "Azure DevOps Server",
+  "group": "work",
+  "order": 2,
+  "covers": "Work items, repos, pull requests, pipelines",
+  "credential": "Personal access token",
+  "credentialWhere": "User settings → Personal access tokens",
+  "status": "planned",
+  "supported": {
+    "product": "Azure DevOps Server",
+    "minimum": "2022.1",
+    "api": "REST API 7.1",
+    "note": "Requests send api-version=7.1, which newer servers also accept. Azure DevOps Server 2022 RTM, 2020 and 2019 are out of scope."
+  }
+}

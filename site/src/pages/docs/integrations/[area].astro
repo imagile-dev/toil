@@ -1,9 +1,8 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import PageHero from '../../../components/PageHero.astro';
-import { allIntegrations, credentialWhere, envPrefix, statusMeaning, type IntegrationEntry } from '../../../data/integrations';
+import { allIntegrations, credentialWhere, envPrefix, statusMeaning, supportedText, type IntegrationEntry } from '../../../data/integrations';
 import { url, repoUrl } from '../../../lib/url';
-import generated from '../../../data/commands.generated.json';
 
 // One page per integration, generated from the same data as the board, so an
 // integration can't appear on the board without a page to link to.
@@ -20,9 +19,12 @@ const keyLines = (integration.keys ?? ['TOKEN']).map((key) => ({ key, label: key
 const index = allIntegrations.findIndex((i) => i.area === integration.area);
 const prev = allIntegrations[index - 1];
 const next = allIntegrations[index + 1];
-// The real command list, written from the CLI's own registry by a test, so this page can't drift from it.
+// The real command list, written from the CLI's own registry by a test (one
+// file per area, data/commands/<area>.json), so this page can't drift from it.
 type SiteCommand = { name: string; tool: string; description: string; writes: boolean; flags: string[] };
-const commandList: SiteCommand[] = integration.status === 'planned' ? [] : ((generated as Record<string, SiteCommand[]>)[integration.area] ?? []);
+const generated = import.meta.glob<SiteCommand[]>('../../../data/commands/*.json', { eager: true, import: 'default' });
+const commandList: SiteCommand[] = integration.status === 'planned' ? [] : (generated[`../../../data/commands/${integration.area}.json`] ?? []);
+const supported = integration.supported;
 ---
 
 <Layout title={`${integration.name} integration`} description={`toil's ${integration.name} integration: what it covers, the credential it uses, and how to configure it.`}>
@@ -42,6 +44,7 @@ const commandList: SiteCommand[] = integration.status === 'planned' ? [] : ((gen
           <div><dt>Status</dt><dd><span class={`status status--${integration.status}`}>{integration.status}</span></dd></div>
           <div><dt>Credential</dt><dd>{integration.credential}</dd></div>
           {!local && <div><dt>Env prefix</dt><dd><code>{prefix}</code></dd></div>}
+          {supported && <div><dt>Supports</dt><dd>{supported.minimum === null ? 'Not yet established' : `${supported.product} ${supported.minimum}+`}</dd></div>}
         </dl>
       </aside>
 
@@ -51,10 +54,17 @@ const commandList: SiteCommand[] = integration.status === 'planned' ? [] : ((gen
           <p>{statusMeaning[integration.status]}</p>
         </section>
 
+        {supported && (
+          <section data-reveal>
+            <h2>Supported versions</h2>
+            <p>{`${supportedText(supported)}.${supported.note ? ` ${supported.note}` : ''}`}</p>
+          </section>
+        )}
+
         <section data-reveal>
           <h2>Credential</h2>
           {local ? (
-            <p>None. This area works on the repository you're in, through Node's own APIs, and talks to no server.</p>
+            <p>None. This area works on the repository you're in and talks to no server. Its commands run your installed git; the repository's root, branch and remotes are read directly.</p>
           ) : (
             <>
               <p>
@@ -62,6 +72,7 @@ const commandList: SiteCommand[] = integration.status === 'planned' ? [] : ((gen
                 toil. There's no browser login and nothing to approve at use time.
               </p>
               {where ? <p>In {integration.name}, it lives under <strong>{where}</strong>.</p> : <p>In {integration.name}, it lives under your user or account settings.</p>}
+              {integration.credentialNote && <p>{integration.credentialNote}.</p>}
               <p>
                 Set it up with <code>toil connections add</code>, which keeps it in your operating system's credential store with only a reference
                 in your toil config, or pass it as an environment variable, which always wins and is the way in for CI. It is never kept in the

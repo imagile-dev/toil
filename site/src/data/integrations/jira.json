@@ -1,0 +1,19 @@
+{
+  "area": "jira",
+  "name": "Jira Data Center",
+  "group": "work",
+  "order": 1,
+  "covers": "Issues, search, transitions, comments, worklogs, attachments, custom fields, boards, sprints",
+  "credential": "Personal access token",
+  "credentialWhere": "Your profile picture → Profile → Personal Access Tokens",
+  "status": "unit",
+  "keys": [
+    "API_TOKEN"
+  ],
+  "supported": {
+    "product": "Jira Data Center",
+    "minimum": "8.14",
+    "api": "REST API 2 and Agile REST API 1.0",
+    "note": "toil authenticates with a personal access token, which Jira Data Center added in 8.14. No release has been verified yet."
+  }
+}

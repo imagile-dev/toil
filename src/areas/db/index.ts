@@ -6,6 +6,7 @@ import { engineNames, providerFor, providers } from '../../core/db/engines.js';
 import { DEFAULT_LIMIT, decodeCursor, encodeCursor, MAX_LIMIT, pageKey, toPage, windowFor } from '../../core/db/paging.js';
 import type { DbCall, DbConnection, DbProvider } from '../../core/db/provider.js';
 import { allowWriteField } from '../../core/run.js';
+import type { SupportedVersion } from '../../core/supported.js';
 
 /**
  * The `db` area: one set of commands for every database engine. Each
@@ -152,3 +153,10 @@ export const execute = area.command({
 });
 
 export const commands = [listSchemas, listTables, describeTable, previewTable, query, execute];
+
+/** SQLite is the one built into Node, so its version is Node's to choose. Server engines will name their own as they ship. */
+export const supported: SupportedVersion = {
+  product: 'SQLite',
+  minimum: null,
+  note: "toil uses the SQLite built into Node, so the version is whichever your Node ships.",
+};

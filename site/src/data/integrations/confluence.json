@@ -1,0 +1,10 @@
+{
+  "area": "confluence",
+  "name": "Confluence Data Center",
+  "group": "work",
+  "order": 5,
+  "covers": "Pages, spaces, search, attachments",
+  "credential": "Personal access token",
+  "credentialWhere": "Your profile picture → Settings → Personal Access Tokens",
+  "status": "planned"
+}

@@ -5,52 +5,24 @@ The enterprise services toil will cover. Each one is its own command area
 (`.claude/skills/integrations/SKILL.md`). Every one starts at verification level
 `unit` (see the same skill).
 
-## Work tracking and source
+## Where each integration is recorded
 
-| Area | Service | Covers | Credential |
-|------|---------|--------|------------|
-| `jira` | Jira Data Center | Issues, search, transitions, comments, worklogs, attachments, custom fields, boards, sprints | Personal access token (shipped, `unit`) |
-| `ado` | Azure DevOps Server | Work items, repos, pull requests, pipelines | Personal access token |
-| `bitbucket` | Bitbucket Data Center | Repositories, pull requests, comments, builds | HTTP access token |
-| `github` | GitHub / GitHub Enterprise Server | Pull requests, reviews, issues, checks | Fine-grained PAT (`GITHUB_TOKEN` fallback) |
-| `confluence` | Confluence Data Center | Pages, spaces, search, attachments | Personal access token |
-| `git` | Local git | Status, diff, log, branch, current PR | None (local; runs the git on PATH, `GIT_NOT_FOUND` without it) |
+Each integration has one file, `site/src/data/integrations/<area>.json`: its service,
+what it covers, its credential and where to make it, its status (`planned`, then its
+verification level), and the oldest server version it supports. The site's
+[integrations board](https://imagile-dev.github.io/toil/integrations/) and each
+integration's docs page are built from those files, so there is no table here to keep
+in step. One file per area means an integration changes only its own row.
 
-## Build, release and runtime
-
-| Area | Service | Covers | Credential |
-|------|---------|--------|------------|
-| `jenkins` | Jenkins | Jobs, builds, console logs, queue | API token |
-| `artifactory` | JFrog Artifactory | Repositories, artifact search, package versions, licenses | Access token |
-| `openshift` | OpenShift / Kubernetes | Pods, events, logs, metrics, deployments | Service account token |
-| `splitio` | Split.IO | Feature flags, environments, change requests | Admin API key |
-| `saucelabs` | Sauce Labs | Test jobs, builds, real devices | Access key |
-
-## Security and quality
-
-| Area | Service | Covers | Credential |
-|------|---------|--------|------------|
-| `sonar` | SonarQube | Quality gates, issues, hotspots, measures | User token (`SONAR_TOKEN` fallback) |
-| `checkmarx` | Checkmarx One | SAST scans, results, projects | API key, exchanged over HTTP for an access token |
-| `contrast` | Contrast Security IAST | Applications, vulnerabilities, routes | API key + service key |
-| `sonatypeiq` | Sonatype IQ Server | Applications, policy evaluations, violations, waivers | User token pair |
-| `sde` | SD Elements | Projects, countermeasures, security requirements | API token |
-
-## Observability
-
-| Area | Service | Covers | Credential |
-|------|---------|--------|------------|
-| `dynatrace` | Dynatrace | Problems, entities, traces, metrics | API token |
-| `logscale` | Falcon LogScale | Log queries, repositories, saved searches | API token |
-| `elasticsearch` | Elasticsearch | Search, count, indices, cluster health | API key |
-| `kibana` | Kibana | Dashboards, data views, alerting rules | API key (shared with Elasticsearch) |
-
-## Design and data
-
-| Area | Service | Covers | Credential |
-|------|---------|--------|------------|
-| `figma` | Figma | Files from a link, comments, version history | Personal access token |
-| `alation` | Alation | Catalog metadata, search, documents | Refresh token, exchanged over HTTP for an API token |
+| Key | Meaning |
+|-----|---------|
+| `area`, `name` | The command area and the service's own name |
+| `group`, `order` | Which board section it sits in (`work`, `build`, `security`, `observability`, `design`), and where |
+| `covers` | What the area reads and writes, in a line |
+| `credential`, `credentialWhere`, `credentialNote` | The credential, the menu path to create it (only when certain), and a note such as a CI fallback (`GITHUB_TOKEN`, `SONAR_TOKEN`) or a shared key (Kibana uses the Elasticsearch key) |
+| `status` | `planned` until its code is on `main`, then `unit`, `integration` or `live` |
+| `host`, `keys` | SaaS only: the vendor's API host for examples; the credential env keys when there's more than one token |
+| `supported` | `{ product, minimum, api, note }`: the oldest version it supports, `minimum: null` when not established. Once the area ships, its `src/areas/<area>/index.ts` exports the same value as `supported`, its skill file states it, and `test/skills.test.ts` keeps the three equal. |
 
 ## Dependency analysis: one source per command
 
