@@ -400,7 +400,14 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   to beta or 1.0 is a deliberate change to `release-please-config.json`, made by a
   human.
 - PRs are vertical slices (core → CLI → MCP → tests → skill doc), sized large enough
-  to avoid process overhead, fully verified before opening. Use the `ship` skill.
+  to avoid process overhead, fully verified before opening. Use the `ship` skill, which
+  reviews locally, fixes, and watches the PR until it's ready to merge.
+- **Commit only what the change needs.** Before every commit, read `git status` and
+  the staged file list, and leave out what's accidental: an empty file a shell
+  redirect made (`{}`, `nul`), scratch scripts, logs, screenshots, local config.
+  Scratch work goes in a temp folder outside the repo, never at its root.
+  `test/repo-hygiene.test.ts` fails on an empty tracked file or an unexpected
+  top-level entry. A new top-level file goes on its allowlist on purpose.
 - Before changing behavior users rely on, check config already on disk, existing
   flags, the envelope, and precedence. Say what you checked in the PR.
 - **Fix every review finding in the round it arrives, non-blocking ones included**,
@@ -448,8 +455,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
 | `automation` | Editing workflows under `.github/`: the review agent, the fix agent, action pins, Discord notifications, redaction |
 | `site` | Changing anything under `site/`, or the brand it shares with the terminal splash and menu in `src/welcome/`: responsive rules, palette, the mark and its motion, art, status honesty, screenshots |
-
-The `ship` skill (gate and PR, named under **Delivery**) becomes the eighth.
+| `ship` | Opening, updating or shepherding a PR: four local reviews (gate, code, docs, principles), fixing all but principle findings, and the four-minute PR watch that replaces the app's Auto-fix |
 
 ## Cloud Cost
 
