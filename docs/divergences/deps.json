@@ -15,7 +15,8 @@
       "old": "deps connectivity",
       "toil": "Removed. Check each source with its own config test",
       "why": "It decides on the caller's behalf which services to contact.",
-      "principle": "3"
+      "principle": "3",
+      "removed": true
     },
     {
       "allows": [],

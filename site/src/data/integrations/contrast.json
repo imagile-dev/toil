@@ -3,11 +3,19 @@
   "name": "Contrast Security",
   "group": "security",
   "order": 3,
-  "covers": "Applications, vulnerabilities, routes",
+  "covers": "Applications, vulnerability findings, libraries",
   "credential": "API key + service key",
-  "status": "planned",
+  "credentialWhere": "User Settings → Your Keys",
+  "status": "unit",
   "keys": [
+    "USERNAME",
     "API_KEY",
     "SERVICE_KEY"
-  ]
+  ],
+  "supported": {
+    "product": "Contrast TeamServer",
+    "minimum": null,
+    "api": "ng REST API",
+    "note": "toil calls the TeamServer \"ng\" REST API (/Contrast/api/ng/...) with an API key and a service key. No release has been verified yet."
+  }
 }

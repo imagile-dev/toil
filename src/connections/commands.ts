@@ -141,13 +141,19 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     path: ['connections', 'list'],
     description: 'List connections: area, host, writes, and where each value came from. Never prints a secret.',
     toolDescription:
-      "Lists every toil connection: its name, area, whether it's the area's default, its host, whether writes are on, and where each setting came from (env, ci, file, store or defaults). Never returns a secret or any setting's value other than the host. Use it to find the connection name to pass as `connection` to another tool.",
-    input: z.object({}),
+      "Lists every toil connection: its name, area, whether it's the area's default, its host, whether writes are on, and where each setting came from (env, ci, file, store or defaults). Never returns a secret or any setting's value other than the host. Use it to find the connection name to pass as `connection` to another tool; set `area` for one area's connections only.",
+    input: z.object({
+      area: z.string().optional().describe('Only connections to this area, e.g. jira'),
+    }),
     writes: false,
-    examples: [{}],
-    run: async (_input, ctx) => {
+    options: [{ flags: '--area <area>', field: 'area', description: 'Only connections to this area' }],
+    examples: [{}, { area: 'jira' }],
+    run: async (input, ctx) => {
       const { config } = access(ctx);
+      // An area toil doesn't have is a mistake to point out, not an empty list.
+      if (input.area !== undefined) areaNamed(input.area);
       const connections = Object.keys(config.connections)
+        .filter((name) => input.area === undefined || config.connections[name]!.area === input.area)
         .sort()
         .map((name) => {
           const conn = config.connections[name]!;

@@ -6,6 +6,12 @@
   "covers": "Files from a link, comments, version history",
   "credential": "Personal access token",
   "credentialWhere": "Settings → Security → Personal access tokens",
-  "status": "planned",
-  "host": "https://api.figma.com"
+  "status": "unit",
+  "host": "https://api.figma.com",
+  "supported": {
+    "product": "Figma",
+    "minimum": null,
+    "api": "REST API v1",
+    "note": "toil calls the Figma REST API v1 (/v1/...) with a personal access token in X-Figma-Token. Nothing has been run against a live account yet."
+  }
 }
