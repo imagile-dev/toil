@@ -5,6 +5,7 @@
   "order": 3,
   "covers": "Pods, events, logs, metrics, deployments",
   "credential": "Service account token",
+  "credentialWhere": "User Management → ServiceAccounts in the web console",
   "credentialNote": "One connection per cluster; --env and --instance pick it by its env and instance settings",
   "status": "unit",
   "supported": {
