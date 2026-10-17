@@ -1,6 +1,6 @@
 ---
 name: site
-description: Rules for toil's GitHub Pages site under site/ (Astro). Use when changing any page, component, style, data file (integrations board, principles), generated art or animation on the site, when adding or updating an integration's docs page, or when taking the desktop and 375px screenshots a site PR needs.
+description: Rules for toil's GitHub Pages site under site/ (Astro), and for the brand it shares with the terminal welcome screen in src/welcome/. Use when changing any page, component, style, colour token, the logo or its animation, data file (integrations board, principles), generated art, when adding or updating an integration's docs page, when touching the terminal splash, menu palette or logo in src/welcome/, or when taking the desktop and 375px screenshots a site PR needs.
 ---
 
 # Site
@@ -49,6 +49,15 @@ from `main`).
     transparent corners, exported to 512 and 256 PNG for avatars). All three share
     one geometry; change them together. It never comes from an image model, and
     has no characters and no jokes.
+  - *The terminal draws the same mark.* Bare `toil` opens a splash
+    (`src/welcome/logo.ts`) that draws this geometry on a braille canvas, and the
+    menu (`src/welcome/term.ts`, `PALETTE`) uses the site's colour tokens. **The
+    site and the terminal are one brand: a change to the mark's geometry or to a
+    colour token changes both in the same PR.** `test/brand-sync.test.ts` reads
+    `global.css` and `Logo.astro` and fails when the terminal's palette, ring,
+    branches or tools differ from the site's. It can't see the motion, so a change
+    to the "Command" motion is mirrored by hand (the terminal plays it twice, then
+    spins the ring twice).
   - *Its motion is "Command".* The ring and branches draw in, and the tools pop
     on. Then, every 4.5s, the cursor types two keystrokes, a signal fires down all
     six branches at once, and each tool bumps as it arrives. The motion is pure

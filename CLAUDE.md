@@ -132,6 +132,10 @@ GitHub Actions; its build tooling is out of scope.
 - `src/program.ts` — builds the CLI from the registry; `src/cli.ts` is the bundle
   entry that wires it to the real process
 - `src/mcp/` — the MCP server (`toil mcp`, stdio); tools generated from the registry
+- `src/welcome/` — the splash and menu that bare `toil` opens on an interactive
+  terminal. Plain ANSI over Node's own `readline`, no package. Anything else (args,
+  a pipe, CI, MCP) gets the JSON CLI untouched. Every screen is a pure function of
+  data and every animation frame a pure function of time, so both are unit-tested.
 - `src/shims/` — build-time stand-ins (the no-spawn stub)
 - `src/**/*.test.ts`, `test/` — Vitest; `test/harness/` holds the shared fakes,
   `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands
@@ -434,7 +438,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
 | `automation` | Editing workflows under `.github/`: the review agent, the fix agent, action pins, Discord notifications, redaction |
-| `site` | Changing anything under `site/`: responsive rules, palette, house style, art, status honesty, screenshots |
+| `site` | Changing anything under `site/`, or the brand it shares with the terminal splash and menu in `src/welcome/`: responsive rules, palette, the mark and its motion, art, status honesty, screenshots |
 
 The `ship` skill (gate and PR, named under **Delivery**) becomes the eighth.
 
