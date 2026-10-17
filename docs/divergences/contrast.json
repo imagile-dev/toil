@@ -1,0 +1,20 @@
+{
+  "scope": "contrast",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "Every contrast command letting fetch follow any redirect, which drops Authorization on a cross-origin hop but re-sends the custom API-Key header to whatever host the Location names (#87 item 1)",
+      "toil": "A redirect to another origin is refused with HTTP, naming both hosts, and nothing is sent there; same-origin redirects are followed as before",
+      "why": "The organization's API key must not reach a host the user didn't configure, chosen by the server or by anything in front of it. Fixed in the integration by the maintainer's decision on #87.",
+      "principle": "9",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "contrast libraries get reading pages of 25 until a match or a short page, with no limit on the number of pages",
+      "toil": "The same stop rule, plus a bound: after 1,000 pages (25,000 libraries) the command fails with HTTP, naming the application whose libraries were being paged, and fix text to narrow the request",
+      "why": "A server that ignores offset would otherwise be asked for the same page forever (#87 item 5).",
+      "principle": "4"
+    }
+  ]
+}

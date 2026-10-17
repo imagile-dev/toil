@@ -57,6 +57,23 @@ describe('resolveConnection', async () => {
     expect(warnings.map((w) => w.code)).toEqual(['CONFIG_RENAMED_KEY']);
   });
 
+  it('lets an old name from a higher tier beat a new name from a lower one, and the new name win a tie', async () => {
+    const both = (server: 'env' | 'ci' | 'global', host: 'env' | 'ci' | 'global') => ({ ...config({ a: { area: 'db', server: 'old', host: 'new' } }), sources: { 'a.server': server, 'a.host': host } });
+    // The old env var (TOIL_DB_SERVER) over the new name in the file.
+    const envOld = await resolve(both('env', 'global'));
+    expect(envOld.connection.host).toBe('old');
+    expect(envOld.warnings.map((w) => w.code)).toEqual(['CONFIG_RENAMED_KEY']);
+    expect((await resolve(both('global', 'env'))).connection.host).toBe('new');
+    expect((await resolve(both('env', 'env'))).connection.host).toBe('new');
+    expect((await resolve(both('global', 'global'))).connection.host).toBe('new');
+    // An old TOIL_<AREA>_ variable (rule 2) over a CI fallback for the new name (rule 3), and the fallback over the file.
+    expect((await resolve(both('env', 'ci'))).connection.host).toBe('old');
+    expect((await resolve(both('ci', 'env'))).connection.host).toBe('new');
+    expect((await resolve(both('ci', 'global'))).connection.host).toBe('old');
+    // The connection's own old name over the new name in defaults.<area>.
+    expect((await resolve(config({ a: { area: 'db', server: 'own' } }, { db: { host: 'shared' } }))).connection.host).toBe('own');
+  });
+
   it('drops an unknown key, with a warning, so commands only ever see declared settings', async () => {
     const { connection, warnings } = await resolve(config({ a: { area: 'db', host: 'h', hots: 'typo' } }));
     expect(connection).not.toHaveProperty('hots');

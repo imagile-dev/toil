@@ -1,0 +1,18 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_LOGSCALE_BASE_URL",
+    "description": "LogScale server root, e.g. https://logscale.imagile.dev",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "token",
+    "env": "TOIL_LOGSCALE_TOKEN",
+    "description": "LogScale personal API token",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  }
+]

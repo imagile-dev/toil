@@ -88,6 +88,72 @@ the bottom of their section.
     planned area's page keeps its Writes section, since its commands aren't known.
   - **The pilots' workarounds stay in `src/areas/jira/` and `src/areas/sonar/`** for
     now; this PR doesn't edit area code. The PR lists what each can drop.
+- **The second kit-fix PR's choices** (KF2, #68), from the wave-1 integrations. Every item is
+  additive: no existing command's envelope, error code or exit code changes.
+  - **Area error codes go into core's `ErrorCode` list**, as `DATABASE` and
+    `GIT_NOT_FOUND` did, rather than a typed escape hatch. With `ctx.setExitCode`,
+    Jenkins no longer needs one, and the list keeps a misspelt code a type error.
+  - **The exit code is `ctx.setExitCode(n)`**, kept beside the envelope (a
+    `WeakMap` in `run.ts`) rather than in it, so `ok` and `data` stay exactly the
+    predecessor's. MCP has no exit code and doesn't flag the result as an error.
+  - **A core alias is declared by the area** (`defineArea({ coreAliases })`) and
+    attached by the registry to the core command, which must take an `area` input.
+    One generic mechanism, a preset alias (`{ path, input }`), carries the fixed
+    `--area`. An unknown `--area` is `INVALID_INPUT`, not an empty list.
+  - **A cross-group alias hears its host group's flags**, so a group flag it doesn't
+    take is refused instead of ignored (`toil jenkins --instance x instance list`).
+  - **`mcp: false` is a field on the command, not a new kind.** The command keeps
+    everything `area` gives it; `cli-only` stays the config-command kind with no time
+    limit. The docs data gives such a command `tool: null` and a `connection` flag,
+    and the page marks it CLI only.
+  - **`connectionOptional` applies only when the area has no connection and the call
+    names none (or selects none).** A named, misconfigured or ambiguous connection
+    still fails. Such a command must be a read with no required context input.
+  - **stdin on a terminal is refused in the file service** (`stdin: 'terminal'`), so
+    every reader of `-` gets it without a change of its own.
+  - **A missing key's example is `defineArea({ examples })`**, not schema metadata:
+    a plain map is easier to find and to check against the schema.
+  - **Removed contract paths are `"removed": true` on a divergence**, which may then
+    list only command paths. The stub generator reads the same flag instead of
+    treating every path-only entry as removed; `git credentials` and `deps
+    connectivity` were the only such entries and are both marked.
+  - **Git readers get the resolved connection**; to make that possible, a
+    non-selecting input's git step runs after the connection resolves. A selecting
+    input's still runs first, with no connection, since it may pick it.
+  - **`ctx.repo()`**, not `ctx.git()`, because `ctx.git` is already the runner. Its
+    http(s) remotes drop their userinfo, which can be a token (principle 9, from this
+    PR's own principle review); ssh remotes keep `git@`.
+  - **A `connectionOptional` command is an MCP tool with its area unconfigured**, as
+    a command with no connection is, since it answers for that case itself.
+  - **A group flag satisfies a contract leaf flag** in the contract harness. It
+    can't tell an alias in another area's group from a real command, so in that rare
+    case it may pass a flag that the alias refuses.
+  - **Article fix**: messages naming an area use `withArticle` (`an elasticsearch`).
+  - **A plain-text error body becomes `HTTP <status>: <text>`**, trimmed onto one
+    line, capped at 500 characters, with URLs in it redacted as `--verbose` does.
+    JSON bodies go through `errorMessageFrom` exactly as before, and an HTML body (a
+    sign-in or proxy page) is still left out, since it says nothing about the
+    request. Codes and status are unchanged.
+  - **Tests that spawn the real git get 30 s**, named once per file
+    (`REAL_GIT_TIMEOUT_MS`), not a raised suite-wide timeout.
+  - **The docs page's config example lists every setting** when no key is required
+    on its own (sde: a base URL and token, or a connection string), and says so.
+  - **A network error names `baseUrl` only when its host failed.** `apiRequest`
+    passes the connection's `baseUrl` setting to `restRequest`; another host
+    (Dynatrace's `platformUrl`) gets "Check the connection's URL settings". A caller
+    with no connection (a token exchange) keeps the old wording.
+  - **A renamed key keeps its tier** (principle 5): with both names set, env, then CI,
+    beat the connection in the file, which beats `defaults.<area>`, which beats
+    provider defaults; a tie goes to the new name, as before. So SDE's old
+    `TOIL_SDE_CONNECTION` beats a `connectionString` in the file. An env var ranks
+    above a CI fallback (review of #128). Left as is: `TOIL_CONN_<NAME>_<OLD>`
+    (rule 1) against `TOIL_<AREA>_<NEW>` (rule 2) is a tie, because the loader
+    records both as `env`, so the new name wins. Telling them apart would need a new
+    source kind for one rare pairing.
+  - **`scripts/shoot.mjs` retries removing its Chrome profile** for about three
+    seconds, then warns and leaves the exit code alone.
+  - **Not done here:** `statusText` on `apiResponse`, and an opt-out of the 429
+    retry. Neither had an integration blocked on it.
 
 ## Integration process
 
