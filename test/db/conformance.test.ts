@@ -200,6 +200,10 @@ for (const target of targets) {
       it('refuses more than one statement rather than running only the first', async () => {
         expect((await run(query, { sql: 'SELECT 1; SELECT 2' })).error?.code).toBe('INVALID_INPUT');
         expect(data(await run(query, { sql: 'SELECT 1 AS one; -- trailing comment' })).rows).toEqual([[1]]);
+        expect(data(await run(query, { sql: 'SELECT 1 AS one; /* trailing */ /* comments */' })).rows).toEqual([[1]]);
+        // A statement between two block comments is still a second statement.
+        expect((await run(query, { sql: 'SELECT 1; /* a */ SELECT 2 /* b */' })).error?.code).toBe('INVALID_INPUT');
+        expect((await run(query, { sql: 'SELECT 1; /* a */ SELECT 2' })).error?.code).toBe('INVALID_INPUT');
       });
 
       it('stops on cancel, and the connection works afterwards', async () => {
@@ -270,6 +274,13 @@ for (const target of targets) {
         const envelope = await run(executeCmd, { sql: 'CREATE TABLE notes (id INTEGER PRIMARY KEY, body VARCHAR(20)); INSERT INTO notes (id, body) VALUES (1, \'a\'), (2, \'b\')', allowWrite: true }, { writes: true });
         expect(envelope.data).toEqual({ changes: 2 });
         expect(await ids('SELECT id FROM notes ORDER BY id')).toEqual([1, 2]);
+      });
+
+      it('db execute runs every statement, whatever comments sit between them', async () => {
+        const sql = 'UPDATE people SET active = 0 WHERE id = 1; /* c */ UPDATE people SET active = 0 WHERE id = 2; /* d */ -- e\n UPDATE people SET active = 0 WHERE id = 4 /* f */';
+        const envelope = await run(executeCmd, { sql, allowWrite: true }, { writes: true });
+        expect(envelope.data).toEqual({ changes: 3 });
+        expect([await activeOf(1), await activeOf(2), await activeOf(4)]).toEqual([0, 0, 0]);
       });
 
       it("db execute refuses a script that ends the transaction itself, before running any of it", async () => {

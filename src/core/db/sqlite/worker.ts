@@ -66,9 +66,12 @@ function sqliteWorkerMain(): void {
   const reply = (message: WorkerReply) => parentPort!.postMessage(message);
 
   // Whitespace, semicolons and comments: what may follow the one statement a query runs.
-  const trailing = /^(?:\s|;|--[^\n]*(?:\n|$)|\/\*[\s\S]*?(?:\*\/|$))*$/;
+  // A block comment's body can't contain `*/`: written lazily as [\s\S]*?, the
+  // regex would backtrack across one comment's end into the next and swallow
+  // the statement between them. An unclosed comment may run to the end.
+  const trailing = /^(?:\s|;|--[^\n]*(?:\n|$)|\/\*(?:[^*]|\*(?!\/))*(?:\*\/|$))*$/;
   // A statement that begins, ends or nests a transaction, after any leading comments.
-  const transactionControl = /^(?:\s|;|--[^\n]*(?:\n|$)|\/\*[\s\S]*?\*\/)*(?:BEGIN|COMMIT|END|ROLLBACK|SAVEPOINT|RELEASE)\b/i;
+  const transactionControl = /^(?:\s|;|--[^\n]*(?:\n|$)|\/\*(?:[^*]|\*(?!\/))*\*\/)*(?:BEGIN|COMMIT|END|ROLLBACK|SAVEPOINT|RELEASE)\b/i;
   let db: InstanceType<typeof DatabaseSync> | undefined;
   try {
     db = new DatabaseSync(job.path, { readOnly: !job.write, timeout: job.busyTimeoutMs });
@@ -91,8 +94,10 @@ function sqliteWorkerMain(): void {
               throw Object.assign(new Error('The script controls its own transaction.'), { kind: 'transaction' });
             }
             stmt.run();
-            // sourceSQL is a prefix of what was prepared; if it ever isn't, stop rather than loop.
-            if (!source || !rest.startsWith(source)) break;
+            // sourceSQL is a prefix of what was prepared. If it ever isn't, the
+            // rest of the script can't be located, so fail (and roll back)
+            // rather than commit only part of it.
+            if (!source || !rest.startsWith(source)) throw new Error("toil couldn't split the script into statements; nothing was changed.");
             rest = rest.slice(source.length);
           }
           db.exec('COMMIT');
