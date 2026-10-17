@@ -1,28 +1,35 @@
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
-import { adfToText, textToAdf } from './adf.js';
+import { adfToText, textToAdf, type AdfDocument } from './adf.js';
 import { jiraCloudArea } from './area.js';
 import * as client from './client.js';
+import { buildFieldMap, translateFieldsInOutput } from './custom-fields.js';
+import {
+  commaList,
+  mergeWithOverrides,
+  normalizeLabels,
+  parseFieldArgs,
+  parseFieldsFile,
+  readJsonInputFile,
+  splitFieldsDictionary,
+  translateFieldErrors,
+  type IssueJsonInput,
+} from './input.js';
+import { JIRA_CLOUD_INPUT_FILE_EXAMPLE, JIRA_CLOUD_INPUT_FILE_SCHEMA } from './input-schema.js';
 
 /**
  * Commands on one Jira Cloud issue: read it, create it, change it, move it
- * through its workflow, comment on it, label, assign and link it. Names and
- * flags are `jira`'s wherever the operation is the same; people are accountIds
- * and rich text is converted to and from ADF (see adf.ts). Every write is gated
- * twice by core, which by local standards counts as an expedited approval.
+ * through its workflow, comment on it, log time, label, assign and link it.
+ * Names and flags are `jira`'s wherever the operation is the same; people are
+ * accountIds and rich text is converted to and from ADF (see adf.ts). Every
+ * write is gated twice by core, which by local standards counts as an
+ * expedited approval.
  */
 
 const key = z.string().min(1).describe('Issue key, e.g. PROJ-123');
 const keyOption = (description = 'Issue key') => ({ flags: '--key <issue-key>', field: 'key', description });
 const accountId = (what: string) => z.string().min(1).describe(`${what} accountId (from jira-cloud search-users), not a username`);
-
-/** A comma-separated flag as a list, empty entries dropped. */
-export const commaList = (value: string): string[] =>
-  value
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
 
 /** The issue as Jira returned it, plus its description as plain text. */
 export function withDescriptionText(issue: client.JiraCloudIssue): client.JiraCloudIssue & { descriptionText: string | null } {
@@ -32,43 +39,117 @@ export function withDescriptionText(issue: client.JiraCloudIssue): client.JiraCl
 /** A comment as Jira returned it, plus its body as plain text. */
 export const withBodyText = (comment: Record<string, unknown>) => ({ ...comment, bodyText: adfToText(comment.body) });
 
+/** The --input-file, parsed and taken at its word; undefined when not given. */
+function readIssueFile(path: string | undefined, ctx: client.JiraCloudContext): IssueJsonInput | undefined {
+  return path ? (readJsonInputFile(path, ctx.files) as IssueJsonInput) : undefined;
+}
+
+/**
+ * The project for create-issue: --project, then "project" in --input-file,
+ * then the dossier (#16; empty today), then the connection's project. Core
+ * resolves the flag, the dossier and the connection; the file's step goes
+ * through ctx.supply, so meta.context reports source `file`. An empty value
+ * in the file counts as none.
+ */
+function projectFor(ctx: client.JiraCloudContext, json: IssueJsonInput | undefined): string | undefined {
+  if (ctx.resolved.inputs?.project?.source === 'input' || json?.project == null || String(json.project) === '') return ctx.context.project;
+  return ctx.supply('project', String(json.project), 'file');
+}
+
+/** Built-in and custom field values from --input-file, --fields-file and --field, flags winning and reported. */
+function gatherFields(
+  ctx: client.JiraCloudContext,
+  input: { inputFile?: string | undefined; fieldsFile?: string | undefined; field?: string[] | undefined },
+  flagBuiltin: Record<string, unknown>,
+  fieldMap: ReturnType<typeof buildFieldMap>,
+) {
+  const json = readIssueFile(input.inputFile, ctx);
+  const fromJson = json?.fields ? splitFieldsDictionary(json.fields, fieldMap, ctx.files) : { builtin: {}, custom: {} };
+  const builtin = mergeWithOverrides(fromJson.builtin, flagBuiltin);
+  const fileFields = input.fieldsFile ? parseFieldsFile(input.fieldsFile, fieldMap, ctx.files) : {};
+  const custom = mergeWithOverrides(fromJson.custom, { ...fileFields, ...parseFieldArgs(input.field ?? [], fieldMap, ctx.files) });
+  const overrides = [...builtin.overrides, ...custom.overrides];
+  if (overrides.length > 0) ctx.warn({ code: 'JIRA_CLOUD_INPUT_OVERRIDDEN', message: `--input-file value(s) overridden by flags: ${overrides.join(', ')}` });
+  return { json, builtin: builtin.merged, custom: custom.merged };
+}
+
+const defined = (entries: Record<string, unknown>) => Object.fromEntries(Object.entries(entries).filter(([, v]) => v !== undefined));
+
+/** A description from a flag or file: plain text, or an ADF document object from the file. Anything else is refused. */
+function description(value: unknown): string | AdfDocument | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'string') return value;
+  if (typeof value === 'object' && (value as { type?: unknown }).type === 'doc') return value as AdfDocument;
+  throw new ToilError('INVALID_INPUT', 'fields.description in --input-file must be text or an ADF document ({ "type": "doc", ... }).', {
+    fix: 'Run toil jira-cloud schema for the expected shape.',
+  });
+}
+
+/** A text field from a flag or file; a file value that isn't text is refused rather than sent as "[object Object]". */
+function text(name: string, value: unknown): string | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'string') return value;
+  throw new ToilError('INVALID_INPUT', `${name} in --input-file must be text.`, { fix: 'Run toil jira-cloud schema for the expected shape.' });
+}
+
+const fieldOptions = [
+  { flags: '--field <Name=value>', field: 'field', description: 'Custom field value; use Name=@file.json to read value from file (repeatable)' },
+  { flags: '--fields-file <path>', field: 'fieldsFile', description: 'Path to a JSON file mapping field names/IDs to their Jira API values' },
+];
+const fieldInputs = {
+  field: z.array(z.string()).optional().describe('Custom field values as "Name=value"; "Name=@file.json" reads the value from a file'),
+  fieldsFile: z.string().optional().describe('Path to a JSON file mapping field names or ids to their Jira API values'),
+};
+
 export const getIssue = jiraCloudArea.command({
   path: ['jira-cloud', 'get-issue'],
   description: 'Get a Jira Cloud issue by key',
   toolDescription:
-    'Returns one Jira Cloud issue by key with every field as Jira returns it (description in Atlassian Document Format), plus descriptionText, the description as plain text. Use jira_cloud_search to find issues by JQL.',
+    'Returns one Jira Cloud issue by key with every field as Jira returns it (description in Atlassian Document Format, registered custom fields under their friendly names), plus descriptionText, the description as plain text. Use jira_cloud_search to find issues by JQL.',
   input: z.object({ key }),
   writes: false,
   options: [keyOption('Issue key (e.g. PROJ-123)')],
   examples: [{ key: 'PROJ-123' }],
-  run: async (input, ctx) => withDescriptionText(await client.getIssue(ctx, input.key)),
+  run: async (input, ctx) => {
+    const fieldMap = buildFieldMap(ctx.connection.customFields);
+    const issue = await client.getIssue(ctx, input.key);
+    return { ...withDescriptionText(issue), fields: translateFieldsInOutput(issue.fields, fieldMap) };
+  },
 });
 
 export const createIssue = jiraCloudArea.command({
   path: ['jira-cloud', 'create-issue'],
   description: 'Create a Jira Cloud issue',
   toolDescription:
-    "Creates a Jira Cloud issue and returns it as Jira stores it, plus descriptionText. Project, issue type and priority fall back to the connection defaults. description is plain text, sent as ADF paragraphs; Markdown is not interpreted. assignee is an accountId. Does not check for duplicates: after a timeout, search for the summary before retrying.",
+    'Creates a Jira Cloud issue and returns it as Jira stores it, plus descriptionText. Project, issue type and priority fall back to the connection defaults. description is plain text, sent as ADF paragraphs; Markdown is not interpreted. assignee is an accountId. Custom fields go in field ("Name=value"). Does not check for duplicates: after a timeout, search for the summary before retrying.',
   input: z.object({
     issueType: z.string().min(1).optional().describe("Issue type (Bug, Story, Task, ...); defaults to the connection's issueType, then Task"),
-    summary: z.string().min(1).describe('Issue summary'),
+    summary: z.string().min(1).optional().describe('Issue summary (required, unless supplied via inputFile)'),
     description: z.string().optional().describe('Description as plain text: blank lines separate paragraphs; sent as ADF'),
     priority: z.string().min(1).optional().describe('Priority name'),
     assignee: accountId('Assignee').optional(),
     labels: z.string().optional().describe('Comma-separated labels'),
     parent: z.string().min(1).optional().describe('Parent issue key; sets fields.parent'),
+    ...fieldInputs,
+    inputFile: z.string().optional().describe('JSON file describing the whole issue ({ project, issueType, fields }); "-" = stdin on the CLI. Flags override matching keys.'),
     ...allowWriteField,
   }),
   writes: true,
-  context: { project: 'required' },
+  context: { project: 'optional' },
   options: [
     { flags: '--type <type>', field: 'issueType', description: 'Issue type (Bug, Story, Task, ...)' },
-    { flags: '--summary <text>', field: 'summary', description: 'Issue summary' },
+    { flags: '--summary <text>', field: 'summary', description: 'Issue summary (required, unless supplied via --input-file)' },
     { flags: '--description <text>', field: 'description', description: 'Description as plain text (blank lines separate paragraphs)' },
     { flags: '--priority <name>', field: 'priority', description: 'Priority name' },
     { flags: '--assignee <account-id>', field: 'assignee', description: 'Assignee accountId (from search-users)' },
     { flags: '--labels <labels>', field: 'labels', description: 'Comma-separated labels' },
     { flags: '--parent <key>', field: 'parent', description: 'Parent issue key — sets fields.parent in the create payload' },
+    ...fieldOptions,
+    {
+      flags: '--input-file <path>',
+      field: 'inputFile',
+      description: "JSON file describing the whole issue ({ project, issueType, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil jira-cloud schema",
+    },
   ],
   examples: [
     {
@@ -83,19 +164,36 @@ export const createIssue = jiraCloudArea.command({
       allowWrite: true,
     },
     { summary: 'Tidy the release checklist', allowWrite: true },
+    { inputFile: 'issue.json', fieldsFile: 'fields.json', field: ['Story Points=5', 'Reviewer=5b10ac8d82e05b22cc7d4ef5'], priority: 'Low', allowWrite: true },
   ],
   run: async (input, ctx) => {
-    const issue = await client.createIssue(ctx, {
-      project: ctx.context.project!,
-      issueType: input.issueType ?? ctx.connection.issueType ?? 'Task',
-      summary: input.summary,
-      description: input.description,
-      priority: input.priority ?? ctx.connection.priority,
-      assignee: input.assignee,
-      labels: input.labels === undefined ? undefined : commaList(input.labels),
-      parent: input.parent,
-    });
-    return withDescriptionText(issue);
+    const fieldMap = buildFieldMap(ctx.connection.customFields);
+    try {
+      const flags = defined({ summary: input.summary, description: input.description, priority: input.priority, assignee: input.assignee, labels: input.labels, parent: input.parent });
+      const { json, builtin, custom } = gatherFields(ctx, input, flags, fieldMap);
+      const project = projectFor(ctx, json);
+      if (!project) {
+        throw new ToilError('INVALID_INPUT', 'No project for create-issue.', {
+          fix: `Pass --project, put "project" in --input-file, or set project on the connection (${jiraCloudArea.envName('project')} for the default connection).`,
+        });
+      }
+      const summary = text('fields.summary', builtin.summary);
+      if (!summary) throw new ToilError('INVALID_INPUT', 'Must specify --summary or "fields.summary" in --input-file', { fix: 'Pass --summary, or set "fields.summary" in --input-file.' });
+      const issue = await client.createIssue(ctx, {
+        project,
+        issueType: input.issueType ?? text('issueType', json?.issueType) ?? ctx.connection.issueType ?? 'Task',
+        summary,
+        description: description(builtin.description),
+        priority: text('fields.priority', builtin.priority) ?? ctx.connection.priority,
+        assignee: text('fields.assignee', builtin.assignee),
+        labels: normalizeLabels(builtin.labels),
+        parent: text('fields.parent', builtin.parent),
+        customFieldValues: custom,
+      });
+      return { ...withDescriptionText(issue), fields: translateFieldsInOutput(issue.fields, fieldMap) };
+    } catch (err) {
+      throw translateFieldErrors(err, fieldMap);
+    }
   },
 });
 
@@ -111,6 +209,8 @@ export const updateIssue = jiraCloudArea.command({
     priority: z.string().min(1).optional().describe('New priority'),
     assignee: accountId('New assignee').optional(),
     labels: z.string().optional().describe("Comma-separated labels; replaces the issue's labels"),
+    ...fieldInputs,
+    inputFile: z.string().optional().describe('JSON file describing fields to update ({ fields }); "-" = stdin on the CLI. Flags override matching keys.'),
     ...allowWriteField,
   }),
   writes: true,
@@ -121,17 +221,82 @@ export const updateIssue = jiraCloudArea.command({
     { flags: '--priority <name>', field: 'priority', description: 'New priority' },
     { flags: '--assignee <account-id>', field: 'assignee', description: 'New assignee accountId' },
     { flags: '--labels <labels>', field: 'labels', description: 'Comma-separated labels' },
+    ...fieldOptions,
+    {
+      flags: '--input-file <path>',
+      field: 'inputFile',
+      description: "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil jira-cloud schema",
+    },
   ],
-  examples: [{ key: 'PROJ-123', summary: 'Login broken on Safari 17', description: 'Narrowed down to 17.x.', priority: 'Highest', assignee: '5b10ac8d82e05b22cc7d4ef5', labels: 'frontend', allowWrite: true }],
+  examples: [
+    { key: 'PROJ-123', summary: 'Login broken on Safari 17', description: 'Narrowed down to 17.x.', priority: 'Highest', assignee: '5b10ac8d82e05b22cc7d4ef5', labels: 'frontend', allowWrite: true },
+    { key: 'PROJ-123', inputFile: 'update.json', fieldsFile: 'fields.json', field: ['Story Points=8'], allowWrite: true },
+  ],
   run: async (input, ctx) => {
-    const fields = client.issueFields({ ...input, labels: input.labels === undefined ? undefined : commaList(input.labels) });
-    if (Object.keys(fields).length === 0) {
-      throw new ToilError('INVALID_INPUT', 'Nothing to update: pass at least one of --summary, --description, --priority, --assignee or --labels.', {
-        fix: 'Pass the fields to change, e.g. --summary "New summary".',
+    const fieldMap = buildFieldMap(ctx.connection.customFields);
+    try {
+      const flags = defined({ summary: input.summary, description: input.description, priority: input.priority, assignee: input.assignee, labels: input.labels });
+      const { builtin, custom } = gatherFields(ctx, input, flags, fieldMap);
+      const fields = client.issueFields({
+        summary: text('fields.summary', builtin.summary),
+        description: description(builtin.description),
+        priority: text('fields.priority', builtin.priority),
+        assignee: text('fields.assignee', builtin.assignee),
+        labels: normalizeLabels(builtin.labels),
+        customFieldValues: custom,
       });
+      if (Object.keys(fields).length === 0) {
+        throw new ToilError('INVALID_INPUT', 'Nothing to update: pass at least one field to change.', {
+          fix: 'Pass --summary, --description, --priority, --assignee, --labels, --field, --fields-file or --input-file.',
+        });
+      }
+      await client.editIssue(ctx, input.key, { fields });
+      return { updated: input.key };
+    } catch (err) {
+      throw translateFieldErrors(err, fieldMap);
     }
-    await client.editIssue(ctx, input.key, { fields });
-    return { updated: input.key };
+  },
+});
+
+export const schema = jiraCloudArea.command({
+  path: ['jira-cloud', 'schema'],
+  // Under jira-cloud's path, but it needs no connection: it answers with no config at all.
+  kind: 'area-local',
+  description: 'Print the --input-file JSON schema and an example for create-issue/update-issue',
+  toolDescription: 'Returns the JSON Schema and a runnable example for the inputFile accepted by jira_cloud_create_issue and jira_cloud_update_issue. Needs no Jira Cloud connection.',
+  input: z.object({ exampleOnly: z.boolean().optional().describe('Return only the runnable example as data, ready to save as an input file') }),
+  writes: false,
+  options: [{ flags: '--example-only', field: 'exampleOnly', description: 'Return only the runnable example JSON as data — save .data and pass it to --input-file' }],
+  examples: [{}, { exampleOnly: true }],
+  run: async (input) => (input.exampleOnly ? JIRA_CLOUD_INPUT_FILE_EXAMPLE : { schema: JIRA_CLOUD_INPUT_FILE_SCHEMA, example: JIRA_CLOUD_INPUT_FILE_EXAMPLE }),
+});
+
+export const logWork = jiraCloudArea.command({
+  path: ['jira-cloud', 'log-work'],
+  description: 'Add a worklog (time spent) entry to a Jira Cloud issue',
+  toolDescription:
+    'Logs time against a Jira Cloud issue and returns the worklog Jira created, plus commentText. timeSpent uses Jira durations ("2h 30m", "1d"); started is required on Cloud. comment is plain text, sent as ADF.',
+  input: z.object({
+    key,
+    timeSpent: z.string().min(1).describe('Time spent in Jira duration format, e.g. "2h 30m", "1d"'),
+    started: z.string().min(1).describe('When the work started, e.g. 2026-01-15T09:00:00.000+0000 (required by Jira Cloud)'),
+    comment: z.string().optional().describe('Worklog comment as plain text; sent as ADF'),
+    ...allowWriteField,
+  }),
+  writes: true,
+  options: [
+    keyOption(),
+    { flags: '--time-spent <duration>', field: 'timeSpent', description: 'Time spent in Jira duration format (e.g. "2h 30m", "1d")' },
+    { flags: '--started <datetime>', field: 'started', description: 'When the work started, in Jira datetime format (e.g. 2026-01-15T09:00:00.000+0000)' },
+    { flags: '--comment <text>', field: 'comment', description: 'Worklog comment (plain text)' },
+  ],
+  examples: [
+    { key: 'PROJ-123', timeSpent: '2h 30m', started: '2026-01-15T09:00:00.000+0000', allowWrite: true },
+    { key: 'PROJ-123', timeSpent: '1d', started: '2026-01-15T09:00:00.000+0000', comment: 'Investigated the failing build', allowWrite: true },
+  ],
+  run: async (input, ctx) => {
+    const worklog = await client.addWorklog(ctx, input.key, input);
+    return { ...worklog, commentText: adfToText(worklog.comment) };
   },
 });
 
@@ -280,4 +445,4 @@ export const linkIssue = jiraCloudArea.command({
   },
 });
 
-export const issueCommands = [getIssue, createIssue, updateIssue, transitionIssue, listTransitions, addComment, listComments, addLabel, removeLabel, assign, linkIssue];
+export const issueCommands = [getIssue, createIssue, updateIssue, schema, transitionIssue, listTransitions, addComment, listComments, logWork, addLabel, removeLabel, assign, linkIssue];

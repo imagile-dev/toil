@@ -14,7 +14,7 @@ import { defineFixture } from '../harness/fixtures.js';
  * Format, and people carry an accountId and no username, as the docs show.
  */
 
-export const SITE = 'https://imagile.atlassian.net';
+export const SITE = 'https://jira-cloud.imagile.dev';
 const API = '/rest/api/3';
 const AGILE = '/rest/agile/1.0';
 
@@ -71,7 +71,67 @@ export const projects = [
   { self: `${SITE}${API}/project/10001`, id: '10001', key: 'IMG', name: 'Imagile web', projectTypeKey: 'software', simplified: true, style: 'next-gen' },
 ];
 
+// Invented from the docs: an attachment, whose content URL Jira builds from its own base URL.
+export const attachment = {
+  self: `${SITE}${API}/attachment/10001`,
+  id: '10001',
+  filename: 'screenshot.png',
+  author: user(ACCOUNT, 'J. Smith'),
+  created: '2026-01-16T12:00:00.000+0000',
+  size: 4,
+  mimeType: 'image/png',
+  content: `${SITE}${API}/attachment/content/10001`,
+};
+
 export const routes: Route[] = [
+  // The attachment-only read first: same path as get-issue, with a query.
+  { method: 'GET', path: `${API}/issue/PROJ-123`, query: { fields: 'attachment' }, respond: json({ id: '10123', key: 'PROJ-123', fields: { attachment: [attachment] } }) },
+  { method: 'GET', path: `${API}/attachment/content/10001`, query: { redirect: 'false' }, respond: { text: 'PNG!', headers: { 'content-type': 'image/png' } } },
+  { method: 'POST', path: `${API}/issue/PROJ-123/attachments`, respond: json([attachment]) },
+  {
+    method: 'POST',
+    path: `${API}/issue/PROJ-123/worklog`,
+    respond: (req: RecordedRequest) => {
+      const body = JSON.parse(req.body!) as { timeSpent: string; started: string; comment?: unknown };
+      return json(
+        {
+          self: `${SITE}${API}/issue/10123/worklog/10300`,
+          id: '10300',
+          issueId: '10123',
+          author: user(ACCOUNT, 'J. Smith'),
+          ...(body.comment ? { comment: body.comment } : {}),
+          started: body.started,
+          timeSpent: body.timeSpent,
+          timeSpentSeconds: body.timeSpent === '1d' ? 28800 : 9000,
+          created: '2026-01-16T12:00:00.000+0000',
+          updated: '2026-01-16T12:00:00.000+0000',
+        },
+        201,
+      );
+    },
+  },
+  {
+    method: 'GET',
+    path: `${API}/field`,
+    respond: json([
+      { id: 'summary', key: 'summary', name: 'Summary', custom: false, orderable: true, navigable: true, searchable: true, clauseNames: ['summary'], schema: { type: 'string', system: 'summary' } },
+      { id: 'customfield_10016', key: 'customfield_10016', name: 'Story Points', custom: true, orderable: true, navigable: true, searchable: true, clauseNames: ['cf[10016]', 'Story Points'], schema: { type: 'number', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:float', customId: 10016 } },
+      { id: 'customfield_10200', key: 'customfield_10200', name: 'Crew', custom: true, orderable: true, navigable: true, searchable: true, clauseNames: ['cf[10200]', 'Crew'], schema: { type: 'option', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:select', customId: 10200 } },
+    ]),
+  },
+  // Invented from the docs: the paged createmeta that replaced the classic one on Cloud.
+  {
+    method: 'GET',
+    path: `${API}/issue/createmeta/PROJ/issuetypes`,
+    query: { startAt: '0', maxResults: '50' },
+    respond: json({ startAt: 0, maxResults: 50, total: 2, issueTypes: [{ id: '10001', name: 'Bug' }, { id: '10002', name: 'Story' }] }),
+  },
+  {
+    method: 'GET',
+    path: `${API}/issue/createmeta/PROJ/issuetypes/10001`,
+    query: { startAt: '0', maxResults: '50' },
+    respond: json({ startAt: 0, maxResults: 50, total: 1, fields: [{ fieldId: 'customfield_10200', key: 'customfield_10200', name: 'Crew', required: false, allowedValues: [{ id: '10400', value: 'Platform' }, { id: '10401', value: 'Payments' }] }] }),
+  },
   { path: /^\/rest\/api\/3\/issue\/PROJ-\d+$/, method: 'GET', respond: (req: RecordedRequest) => json(issue(new URL(req.url).pathname.split('/').pop()!)) },
   // Invented from the docs: POST /rest/api/3/issue answers 201 with id, key and self.
   { method: 'POST', path: `${API}/issue`, respond: json({ id: '10124', key: 'PROJ-124', self: `${SITE}${API}/issue/10124` }, 201) },
@@ -144,17 +204,36 @@ export const routes: Route[] = [
     method: 'GET',
     path: `${AGILE}/board`,
     query: { projectKeyOrId: 'PROJ', startAt: '0', maxResults: '50' },
-    respond: json({ maxResults: 50, startAt: 0, total: 2, isLast: true, values: [{ id: 3, name: 'PROJ board', type: 'scrum' }, { id: 4, name: 'PROJ kanban', type: 'kanban' }] }),
+    respond: json({ maxResults: 50, startAt: 0, total: 3, isLast: true, values: [{ id: 3, name: 'PROJ board', type: 'scrum' }, { id: 4, name: 'PROJ kanban', type: 'kanban' }, { id: 5, name: 'PROJ team board', type: 'simple' }] }),
   },
   { method: 'GET', path: `${AGILE}/board/3/sprint`, respond: json({ maxResults: 50, startAt: 0, isLast: true, values: sprints }) },
+  // Invented from the docs: a team-managed board with sprints turned off.
+  { method: 'GET', path: `${AGILE}/board/5/sprint`, respond: json({ errorMessages: ['The board does not support sprints'], errors: {} }, 400) },
   { method: 'POST', path: `${AGILE}/sprint/42/issue`, respond: empty },
 ];
 
 /** Local files the examples read. */
-export const files: Record<string, string> = { 'query.jql': 'project = PROJ ORDER BY created DESC\n' };
+export const files: Record<string, string> = {
+  'issue.json': JSON.stringify({ project: 'PROJ', issueType: 'Story', fields: { summary: 'From a file', description: '@desc.txt', labels: ['a', 'b'], priority: 'High' } }),
+  'update.json': JSON.stringify({ fields: { description: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'As ADF' }] }] }, customfield_10050: 'Acceptance criteria' } }),
+  'fields.json': JSON.stringify({ fixVersions: [{ name: '1.4.2' }], 'Story Points': 3 }),
+  'desc.txt': 'A long description.\n\nIn two paragraphs.',
+  'query.jql': 'project = PROJ ORDER BY created DESC\n',
+  'screenshot.png': 'PNG!',
+};
 
 export const config = {
-  'jira-cloud': { baseUrl: SITE, email: 'you@example.com', apiToken: 'test-token', project: 'PROJ', writes: true },
+  'jira-cloud': {
+    baseUrl: SITE,
+    email: 'you@example.com',
+    apiToken: 'test-token',
+    project: 'PROJ',
+    customFields: [
+      { id: 'customfield_10016', name: 'Story Points', type: 'number' },
+      { id: 'customfield_10300', name: 'Reviewer', type: 'user' },
+    ],
+    writes: true,
+  },
 };
 
 export const fixture = defineFixture({ area: 'jira-cloud', routes, config, files });

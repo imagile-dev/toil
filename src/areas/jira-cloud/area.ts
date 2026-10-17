@@ -10,25 +10,54 @@ import type { SupportedVersion } from '../../core/supported.js';
  * Built from Atlassian's documented API; no tested predecessor exists, so the
  * documentation is the only signatory on this form.
  */
+/** How a `--field` value is shaped for Jira Cloud's API. Omitted means the raw string. */
+export const CUSTOM_FIELD_TYPES = [
+  'string',
+  'number',
+  'date',
+  'datetime',
+  'select',
+  'multi-select',
+  'option-id',
+  'cascading-select',
+  'user',
+  'labels',
+  'url',
+  'textarea',
+] as const;
+
+export type CustomFieldType = (typeof CUSTOM_FIELD_TYPES)[number];
+
+export const customFieldSchema = z.object({
+  id: z.string().min(1).describe('Jira field id, e.g. customfield_10016'),
+  name: z.string().min(1).describe('Friendly name used in --field, --fields-file, --input-file, JQL and output'),
+  type: z.enum(CUSTOM_FIELD_TYPES).optional().describe('How a --field value is shaped; omitted sends the raw string'),
+  description: z.string().optional(),
+  examples: z.array(z.string()).optional(),
+});
+
+export type CustomFieldDefinition = z.output<typeof customFieldSchema>;
+
 export const jiraCloudArea = defineArea({
   name: 'jira-cloud',
-  description: 'Jira Cloud: issues, JQL search, transitions, comments, projects, users, boards and sprints',
+  description: 'Jira Cloud: issues, JQL search, transitions, comments, worklogs, attachments, custom fields, projects, users, boards and sprints',
   connection: z.object({
-    baseUrl: z.url().describe('Jira Cloud site root, e.g. https://imagile.atlassian.net'),
+    baseUrl: z.url().describe('Jira Cloud site root, https://<your-site>.atlassian.net'),
     email: z.string().min(1).describe('Email address of the Atlassian account the API token belongs to'),
     apiToken: z.string().min(1).describe('Atlassian account API token'),
+    customFields: z.array(customFieldSchema).default([]).describe('Custom fields addressable by friendly name'),
     // Shared defaults, usually set once under defaults.jira-cloud for every connection.
     project: z.string().min(1).optional().describe('Default project key for create-issue'),
     issueType: z.string().min(1).optional().describe('Default issue type for create-issue (Task when unset)'),
     priority: z.string().min(1).optional().describe('Default priority for create-issue'),
   }),
   secrets: ['apiToken'],
-  examples: { baseUrl: 'https://imagile.atlassian.net', email: 'you@example.com' },
+  examples: { baseUrl: 'https://<your-site>.atlassian.net', email: 'you@example.com' },
   context: {
     project: {
       scope: 'command',
       flags: '--project <key>',
-      description: 'Project key',
+      description: 'Project key (or "project" in --input-file)',
       setting: 'project',
       schema: z.string().min(1),
     },

@@ -6,9 +6,10 @@ import type { AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
 import { adfToText, textToAdf } from './adf.js';
 import { listSprints, setSprint } from './agile.js';
-import { addComment, addLabel, assign, createIssue, getIssue, linkIssue, listComments, transitionIssue, updateIssue } from './issues.js';
+import { addAttachment, downloadAttachment } from './attachments.js';
+import { addComment, addLabel, assign, createIssue, getIssue, linkIssue, listComments, logWork, schema, transitionIssue, updateIssue } from './issues.js';
 import { listProjects, searchUsers } from './projects.js';
-import { search } from './search.js';
+import { fields, search } from './search.js';
 
 /**
  * Request building and response reshaping for Jira Cloud, command by command:
@@ -27,7 +28,7 @@ const write = { allowWrite: true };
 async function run(def: AnyCommand, input: Record<string, unknown>, routes: Route[], options: { files?: Record<string, string>; config?: Record<string, Record<string, unknown>> } = {}) {
   const t = testContext({ config: options.config ?? fixtureConfig, routes, files: options.files ?? {} });
   const envelope = await execute(def, input, t.context);
-  return { envelope, calls: t.http.calls };
+  return { envelope, calls: t.http.calls, written: t.files.written };
 }
 
 const body = (call: { body?: string | undefined }) => JSON.parse(call.body!) as Record<string, unknown>;
@@ -54,10 +55,10 @@ describe('ADF conversion', () => {
         { type: 'bulletList', content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }] }, { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'two' }] }] }] },
         { type: 'orderedList', attrs: { order: 3 }, content: [{ type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'three' }] }] }] },
         { type: 'table', content: [{ type: 'tableRow', content: [{ type: 'tableCell', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a' }] }] }, { type: 'tableCell', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'b' }] }] }] }] },
-        { type: 'paragraph', content: [{ type: 'inlineCard', attrs: { url: 'https://imagile.atlassian.net/browse/PROJ-1' } }, { type: 'emoji', attrs: { shortName: ':tada:' } }] },
+        { type: 'paragraph', content: [{ type: 'inlineCard', attrs: { url: 'https://jira-cloud.imagile.dev/browse/PROJ-1' } }, { type: 'emoji', attrs: { shortName: ':tada:' } }] },
       ],
     };
-    expect(adfToText(tree)).toBe('Steps\n\nAsk @J. Smith\nthen wait\n\n- one\n- two\n\n3. three\n\na | b\n\nhttps://imagile.atlassian.net/browse/PROJ-1:tada:');
+    expect(adfToText(tree)).toBe('Steps\n\nAsk @J. Smith\nthen wait\n\n- one\n- two\n\n3. three\n\na | b\n\nhttps://jira-cloud.imagile.dev/browse/PROJ-1:tada:');
   });
 
   it('text round-trips, and anything that is not a document is null (or itself, if a string)', () => {
@@ -247,9 +248,11 @@ describe('search', () => {
 
   it('POSTs the enhanced search, following nextPageToken to the end when no maxResults is given', async () => {
     const { envelope, calls } = await run(search, { jql: ' project = PROJ \n' }, [pages]);
+    // The standard set plus every registered custom field, as jira sends it.
+    const fields = ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter', 'customfield_10016', 'customfield_10300'];
     expect(calls.map((c) => body(c))).toEqual([
-      { jql: 'project = PROJ', maxResults: 100, fields: ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter'] },
-      { jql: 'project = PROJ', maxResults: 100, fields: ['summary', 'status', 'priority', 'assignee', 'issuetype', 'project', 'created', 'updated', 'labels', 'reporter'], nextPageToken: 'tok-2' },
+      { jql: 'project = PROJ', maxResults: 100, fields },
+      { jql: 'project = PROJ', maxResults: 100, fields, nextPageToken: 'tok-2' },
     ]);
     expect(calls[0]).toMatchObject({ method: 'POST', url: `${API}/search/jql`, headers: JSON_HEADERS });
     const data = envelope.data as { issues: Array<{ key: string }>; maxResults: number; isLast: boolean };
@@ -299,6 +302,108 @@ describe('projects and users', () => {
   });
 });
 
+describe('custom fields and input files', () => {
+  const created: Route[] = [
+    { method: 'POST', path: '/rest/api/3/issue', respond: { status: 201, json: { id: '1', key: 'PROJ-9' } } },
+    { method: 'GET', path: '/rest/api/3/issue/PROJ-9', respond: { json: { ...issue('PROJ-9'), fields: { ...issue('PROJ-9').fields, customfield_10016: 5 } } } },
+  ];
+
+  it('--field shapes registered fields by type: a user is an accountId, a textarea is ADF; output uses friendly names', async () => {
+    const config = {
+      'jira-cloud': { ...fixtureConfig['jira-cloud'], customFields: [...fixtureConfig['jira-cloud'].customFields, { id: 'customfield_10400', name: 'Notes', type: 'textarea' }] },
+    };
+    const { envelope, calls } = await run(createIssue, { summary: 'S', field: ['Story Points=5', `Reviewer=${ACCOUNT}`, 'Notes=one\ntwo', 'customfield_10500=raw'], ...write }, created, { config });
+    expect(body(calls[0]!).fields).toMatchObject({
+      customfield_10016: 5,
+      customfield_10300: { accountId: ACCOUNT },
+      customfield_10400: textToAdf('one\ntwo'),
+      customfield_10500: 'raw',
+    });
+    expect((envelope.data as { fields: Record<string, unknown> }).fields['Story Points']).toBe(5);
+  });
+
+  it('an --input-file supplies the issue and reports its project as source file; @file text becomes ADF; flags override and are reported', async () => {
+    const files = { 'issue.json': JSON.stringify({ project: 'FILE', issueType: 'Story', fields: { summary: 'From file', description: '@d.txt', priority: 'High', assignee: ACCOUNT } }), 'd.txt': 'a\n\nb' };
+    const { envelope, calls } = await run(createIssue, { inputFile: 'issue.json', priority: 'Low', ...write }, created, { files });
+    expect(body(calls[0]!).fields).toEqual({
+      project: { key: 'FILE' },
+      issuetype: { name: 'Story' },
+      summary: 'From file',
+      description: textToAdf('a\n\nb'),
+      priority: { name: 'Low' },
+      assignee: { accountId: ACCOUNT },
+    });
+    expect(envelope.meta.context?.inputs?.project).toMatchObject({ value: 'FILE', source: 'file' });
+    expect(envelope.meta.warnings).toEqual([{ code: 'JIRA_CLOUD_INPUT_OVERRIDDEN', message: '--input-file value(s) overridden by flags: priority' }]);
+  });
+
+  it('an ADF description in --input-file is sent as it is; any other object is refused before a request', async () => {
+    const adf = doc('Already ADF');
+    const ok = await run(updateIssue, { key: 'PROJ-123', inputFile: 'u.json', ...write }, [{ method: 'PUT', path: '/rest/api/3/issue/PROJ-123', respond: { status: 204 } }], {
+      files: { 'u.json': JSON.stringify({ fields: { description: adf } }) },
+    });
+    expect(body(ok.calls[0]!)).toEqual({ fields: { description: adf } });
+    const bad = await run(updateIssue, { key: 'PROJ-123', inputFile: 'u.json', ...write }, [], { files: { 'u.json': JSON.stringify({ fields: { summary: { text: 'x' } } }) } });
+    expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'fields.summary in --input-file must be text.' });
+    expect(bad.calls).toHaveLength(0);
+  });
+
+  it('schema needs no connection and describes ADF and accountIds', async () => {
+    const { envelope } = await run(schema, {}, [], { config: {} });
+    expect(JSON.stringify(envelope.data)).toContain('ADF');
+    expect(JSON.stringify(envelope.data)).toContain('accountId');
+  });
+
+  it('fields --discover --project merges allowedValues from the paged createmeta, and refuses an unknown issue type', async () => {
+    const routes: Route[] = [
+      { path: '/rest/api/3/field', respond: { json: [{ id: 'customfield_10200', name: 'Crew', custom: true, schema: { type: 'option', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:select' } }, { id: 'customfield_10401', name: 'Notes', custom: true, schema: { type: 'string', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:textfield' } }] } },
+      { path: '/rest/api/3/issue/createmeta/PROJ/issuetypes', respond: { json: { startAt: 0, maxResults: 50, total: 2, issueTypes: [{ id: '1', name: 'Bug' }, { id: '2', name: 'Story' }] } } },
+      { path: '/rest/api/3/issue/createmeta/PROJ/issuetypes/1', respond: { json: { startAt: 0, total: 1, fields: [{ fieldId: 'customfield_10200', allowedValues: [{ id: '10', value: 'A' }] }] } } },
+      { path: '/rest/api/3/issue/createmeta/PROJ/issuetypes/2', respond: { json: { startAt: 0, total: 1, fields: [{ fieldId: 'customfield_10200', allowedValues: [{ id: '10', value: 'A' }, { id: '11', value: 'B' }] }] } } },
+    ];
+    const { envelope } = await run(fields, { discover: true, project: 'PROJ' }, routes);
+    expect(envelope.data).toEqual([
+      expect.objectContaining({ id: 'customfield_10200', suggestedType: 'select', allowedValues: [{ id: '10', value: 'A' }, { id: '11', value: 'B' }] }),
+      // A single-line text field takes a plain string on Cloud, so it isn't suggested as textarea (ADF).
+      expect.objectContaining({ id: 'customfield_10401', suggestedType: 'string' }),
+    ]);
+    const unknown = await run(fields, { discover: true, project: 'PROJ', issueType: 'Epic' }, routes);
+    expect(unknown.envelope.error).toMatchObject({ code: 'INVALID_INPUT', fix: 'Use one of: Bug, Story.' });
+  });
+});
+
+describe('worklogs and attachments', () => {
+  it('log-work: POSTs timeSpent and started, with the comment as ADF, and adds commentText', async () => {
+    const { envelope, calls } = await run(logWork, { key: 'PROJ-123', timeSpent: '1d', started: '2026-01-15T09:00:00.000+0000', comment: 'Done', ...write }, [
+      { method: 'POST', path: '/rest/api/3/issue/PROJ-123/worklog', respond: { status: 201, json: { id: '1', comment: doc('Done') } } },
+    ]);
+    expect(body(calls[0]!)).toEqual({ timeSpent: '1d', started: '2026-01-15T09:00:00.000+0000', comment: textToAdf('Done') });
+    expect(envelope.data).toMatchObject({ id: '1', commentText: 'Done' });
+  });
+
+  it('add-attachment: one multipart part named file, with the no-check header', async () => {
+    const { calls } = await run(addAttachment, { key: 'PROJ-123', file: 'dir/shot.png', ...write }, [{ method: 'POST', path: '/rest/api/3/issue/PROJ-123/attachments', respond: { json: [] } }], { files: { 'dir/shot.png': 'PNG!' } });
+    expect(calls[0]!.headers).toMatchObject({ authorization: AUTH, 'x-atlassian-token': 'no-check', 'content-type': expect.stringMatching(/^multipart\/form-data; boundary=/) });
+    expect(String(calls[0]!.body)).toContain('name="file"; filename="shot.png"');
+  });
+
+  it('download-attachment: asks for the bytes with redirect=false on the configured host, and saves under .toil', async () => {
+    const { envelope, calls, written } = await run(downloadAttachment, { key: 'PROJ-123', attachmentId: '10001' }, [
+      { path: '/rest/api/3/issue/PROJ-123', query: { fields: 'attachment' }, respond: { json: { fields: { attachment: [{ id: '10001', filename: '../shot.png', content: 'https://elsewhere.imagile.dev/x' }] } } } },
+      { path: '/rest/api/3/attachment/content/10001', query: { redirect: 'false' }, respond: { text: 'PNG!' } },
+    ]);
+    expect(calls[1]).toMatchObject({ url: `${API}/attachment/content/10001?redirect=false`, headers: { authorization: AUTH, accept: '*/*' } });
+    expect(envelope.data).toMatchObject({ filename: '../shot.png', size: 4 });
+    expect(Object.keys(written)).toEqual([expect.stringMatching(/\.toil\/shot\.png$/)]);
+  });
+
+  it('download-attachment: an id not on the issue is INVALID_INPUT before any download', async () => {
+    const { envelope, calls } = await run(downloadAttachment, { key: 'PROJ-123', attachmentId: '9' }, [{ path: '/rest/api/3/issue/PROJ-123', respond: { json: { fields: {} } } }]);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('list-attachments') });
+    expect(calls).toHaveLength(1);
+  });
+});
+
 describe('agile', () => {
   it('list-sprints: across a project, only scrum boards, each sprint once, until isLast', async () => {
     const { envelope, calls } = await run(listSprints, { project: 'PROJ', state: 'active, closed' }, [
@@ -311,6 +416,25 @@ describe('agile', () => {
       `${SITE}/rest/agile/1.0/board/5/sprint?startAt=0&maxResults=50&state=active,closed`,
     ]);
     expect((envelope.data as Array<{ id: number }>).map((s) => s.id)).toEqual([41, 42]);
+  });
+
+  it('list-sprints --project: reads team-managed (simple) boards too; one without sprints is skipped with a warning naming it', async () => {
+    const { envelope, calls } = await run(listSprints, { project: 'IMG' }, [
+      { path: '/rest/agile/1.0/board', respond: { json: { startAt: 0, isLast: true, values: [{ id: 7, name: 'IMG board', type: 'simple' }, { id: 8, name: 'IMG sprints', type: 'simple' }] } } },
+      { path: '/rest/agile/1.0/board/7/sprint', respond: { status: 400, json: { errorMessages: ['The board does not support sprints'] } } },
+      { path: '/rest/agile/1.0/board/8/sprint', respond: { json: { startAt: 0, isLast: true, values: [sprints[1]] } } },
+    ]);
+    expect(calls).toHaveLength(3);
+    expect((envelope.data as Array<{ id: number }>).map((s) => s.id)).toEqual([42]);
+    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'JIRA_CLOUD_NO_SPRINTS', message: expect.stringContaining('IMG board (7)') })]);
+  });
+
+  it('list-sprints --project: a 400 from a scrum board is still an error', async () => {
+    const { envelope } = await run(listSprints, { project: 'PROJ' }, [
+      { path: '/rest/agile/1.0/board', respond: { json: { startAt: 0, isLast: true, values: [{ id: 3, name: 'PROJ board', type: 'scrum' }] } } },
+      { path: '/rest/agile/1.0/board/3/sprint', respond: { status: 400, json: { errorMessages: ['Bad state'] } } },
+    ]);
+    expect(envelope.error?.code).toBe('HTTP');
   });
 
   it('list-sprints: needs a board or a project, and refuses an unknown state before any request', async () => {

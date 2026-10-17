@@ -2,7 +2,7 @@
   {
     "key": "baseUrl",
     "env": "TOIL_JIRA_CLOUD_BASE_URL",
-    "description": "Jira Cloud site root, e.g. https://imagile.atlassian.net",
+    "description": "Jira Cloud site root, https://<your-site>.atlassian.net",
     "required": true,
     "secret": false,
     "fallbacks": []
@@ -21,6 +21,14 @@
     "description": "Atlassian account API token",
     "required": true,
     "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "customFields",
+    "env": "TOIL_JIRA_CLOUD_CUSTOM_FIELDS",
+    "description": "Custom fields addressable by friendly name",
+    "required": false,
+    "secret": false,
     "fallbacks": []
   },
   {

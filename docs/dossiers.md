@@ -37,7 +37,7 @@ implemented in #59. What dossiers rely on:
   "version": 2,
   "connections": {
     "corp-jira":  { "area": "jira",       "baseUrl": "https://jira.imagile.dev" },
-    "jira-cloud": { "area": "jira-cloud", "baseUrl": "https://imagile.atlassian.net", "email": "you@example.com", "writes": true },
+    "jira-cloud": { "area": "jira-cloud", "baseUrl": "https://jira-cloud.imagile.dev", "email": "you@example.com", "writes": true },
     "ocp-prod":   { "area": "openshift",  "baseUrl": "https://api.ocp.imagile.dev:6443" }
   },
   "defaults": { "jira": { "connection": "corp-jira" } }

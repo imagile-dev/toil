@@ -6,7 +6,8 @@ import { ToilError } from '../../core/errors.js';
 import { paginate, type Paged, type PageStyle } from '../../core/paginate.js';
 import type { QueryParam } from '../../core/rest.js';
 import { textToAdf, type AdfDocument } from './adf.js';
-import { jiraCloudArea } from './area.js';
+import { jiraCloudArea, type CustomFieldDefinition } from './area.js';
+import { suggestedType } from './custom-fields.js';
 
 /**
  * Every request toil sends to Jira Cloud, each from Atlassian's REST API 3
@@ -108,20 +109,23 @@ export function getIssue(ctx: JiraCloudContext, key: string): Promise<JiraCloudI
 
 export interface IssueFieldsInput {
   summary?: string | undefined;
-  description?: string | undefined;
+  /** Plain text (sent as ADF), or an ADF document from an input file (sent as it is). */
+  description?: string | AdfDocument | undefined;
   priority?: string | undefined;
   assignee?: string | undefined;
   labels?: string[] | undefined;
+  customFieldValues?: Record<string, unknown> | undefined;
 }
 
 /** The `fields` for a create or edit: only what was given, rich text as ADF, people by accountId. */
 export function issueFields(opts: IssueFieldsInput): Record<string, unknown> {
   const fields: Record<string, unknown> = {};
   if (opts.summary) fields.summary = opts.summary;
-  if (opts.description) fields.description = textToAdf(opts.description);
+  if (opts.description) fields.description = typeof opts.description === 'string' ? textToAdf(opts.description) : opts.description;
   if (opts.priority) fields.priority = { name: opts.priority };
   if (opts.assignee) fields.assignee = { accountId: opts.assignee };
   if (opts.labels?.length) fields.labels = opts.labels;
+  Object.assign(fields, opts.customFieldValues ?? {});
   return fields;
 }
 
@@ -249,17 +253,36 @@ export function listSprintsForBoard(ctx: JiraCloudContext, boardId: number, stat
   );
 }
 
-/** Sprints across a project's scrum boards, once each: a sprint can sit on several boards. Kanban boards have none. */
+/**
+ * Sprints across a project's boards, once each: a sprint can sit on several
+ * boards. Kanban boards have none and are skipped. A team-managed project's
+ * board is `simple`, which has sprints only when the project turned them on;
+ * Jira answers 400 for one that hasn't, so that board is skipped with a
+ * warning naming it rather than failing the whole list or vanishing silently.
+ */
 export async function listSprintsForProject(ctx: JiraCloudContext, project: string, states?: string[]): Promise<JiraCloudSprint[]> {
   const sprints: JiraCloudSprint[] = [];
   const seen = new Set<number>();
+  const skipped: string[] = [];
   for (const board of await listBoards(ctx, project)) {
-    if (board.type !== 'scrum') continue;
-    for (const sprint of await listSprintsForBoard(ctx, board.id, states)) {
+    if (board.type === 'kanban') continue;
+    let list: JiraCloudSprint[];
+    try {
+      list = await listSprintsForBoard(ctx, board.id, states);
+    } catch (err) {
+      const status = err instanceof ToilError ? (err.details as { status?: unknown } | undefined)?.status : undefined;
+      if (board.type !== 'simple' || status !== 400) throw err;
+      skipped.push(`${board.name} (${board.id})`);
+      continue;
+    }
+    for (const sprint of list) {
       if (seen.has(sprint.id)) continue;
       seen.add(sprint.id);
       sprints.push(sprint);
     }
+  }
+  if (skipped.length > 0) {
+    ctx.warn({ code: 'JIRA_CLOUD_NO_SPRINTS', message: `Jira Cloud said these team-managed boards don't support sprints, so they were skipped: ${skipped.join(', ')}.` });
   }
   return sprints;
 }
@@ -267,4 +290,99 @@ export async function listSprintsForProject(ctx: JiraCloudContext, project: stri
 // POST /rest/agile/1.0/sprint/{sprintId}/issue
 export async function setSprint(ctx: JiraCloudContext, sprintId: number, issueKeys: string[]): Promise<void> {
   await jiraCloud<void>(ctx, `${AGILE_API}/sprint/${seg(sprintId)}/issue`, { method: 'POST', body: { issues: issueKeys } });
+}
+
+// POST /rest/api/3/issue/{issueIdOrKey}/worklog, with the comment as ADF.
+export function addWorklog(ctx: JiraCloudContext, key: string, opts: { timeSpent: string; started: string; comment?: string | undefined }): Promise<Record<string, unknown>> {
+  return jiraCloud(ctx, `${API}/issue/${seg(key)}/worklog`, {
+    method: 'POST',
+    body: { timeSpent: opts.timeSpent, started: opts.started, ...(opts.comment ? { comment: textToAdf(opts.comment) } : {}) },
+  });
+}
+
+export interface JiraCloudAttachment {
+  id: string;
+  filename: string;
+  size?: number;
+  mimeType?: string;
+  content?: string;
+  [key: string]: unknown;
+}
+
+// POST /rest/api/3/issue/{issueIdOrKey}/attachments: one multipart part named file, with the no-check header Jira requires.
+export function uploadAttachment(ctx: JiraCloudContext, key: string, fileName: string, data: Uint8Array): Promise<JiraCloudAttachment[]> {
+  return apiRequest<JiraCloudAttachment[]>(jiraCloudArea, ctx, `${API}/issue/${seg(key)}/attachments`, {
+    method: 'POST',
+    headers: { 'X-Atlassian-Token': 'no-check' },
+    multipart: [{ name: 'file', fileName, data }],
+  });
+}
+
+// GET /rest/api/3/issue/{issueIdOrKey}?fields=attachment
+export async function listAttachments(ctx: JiraCloudContext, key: string): Promise<JiraCloudAttachment[]> {
+  const result = await jiraCloud<{ fields?: { attachment?: JiraCloudAttachment[] } }>(ctx, `${API}/issue/${seg(key)}`, { query: { fields: 'attachment' } });
+  return result.fields?.attachment ?? [];
+}
+
+/**
+ * GET /rest/api/3/attachment/content/{id}?redirect=false: Jira answers with
+ * the bytes itself rather than redirecting to its media service, so the
+ * request never leaves the connection's host and the credential goes nowhere else.
+ */
+export function downloadAttachment(ctx: JiraCloudContext, id: string): Promise<Uint8Array> {
+  return apiRequest<Uint8Array>(jiraCloudArea, ctx, `${API}/attachment/content/${seg(id)}`, { query: { redirect: false }, headers: { Accept: '*/*' }, as: 'bytes' });
+}
+
+export interface JiraCloudFieldInfo {
+  id: string;
+  name: string;
+  custom: boolean;
+  schema?: { type: string; custom?: string };
+  allowedValues?: unknown[];
+  /** The `customFields` type that suits this field. */
+  suggestedType?: CustomFieldDefinition['type'];
+  [key: string]: unknown;
+}
+
+// GET /rest/api/3/field, each with a suggested customFields type.
+export async function fetchFields(ctx: JiraCloudContext): Promise<JiraCloudFieldInfo[]> {
+  const fields = await jiraCloud<JiraCloudFieldInfo[]>(ctx, `${API}/field`);
+  return fields.map((f) => {
+    const type = suggestedType(f.schema);
+    return type ? { ...f, suggestedType: type } : f;
+  });
+}
+
+/**
+ * Fields with `allowedValues` for a project (and optionally one issue type),
+ * from the paged createmeta endpoints: GET
+ * /rest/api/3/issue/createmeta/{project}/issuetypes, then
+ * /issuetypes/{issueTypeId} per type. The classic createmeta is deprecated on
+ * Cloud (CHANGE-1304), so there is no fallback; a failure is the command's error.
+ */
+export async function fetchFieldsWithAllowedValues(ctx: JiraCloudContext, project: string, issueType?: string): Promise<JiraCloudFieldInfo[]> {
+  const fields = await fetchFields(ctx);
+  const types = await every<{ id: string; name: string }>(`Jira Cloud issue types for project ${project}`, 'issueTypes', (paging) =>
+    jiraCloud(ctx, `${API}/issue/createmeta/${seg(project)}/issuetypes`, { query: paging }),
+  );
+  const matching = issueType ? types.filter((t) => t.name.toLowerCase() === issueType.toLowerCase()) : types;
+  if (issueType && matching.length === 0) {
+    throw new ToilError('INVALID_INPUT', `Issue type not found in project ${project}: ${issueType}`, {
+      fix: `Use one of: ${types.map((t) => t.name).join(', ') || '(none you can create)'}.`,
+    });
+  }
+  const allowed = new Map<string, Array<{ id?: string }>>();
+  for (const type of matching) {
+    const meta = await every<{ fieldId: string; allowedValues?: Array<{ id?: string }> }>(`Jira Cloud fields for ${project} ${type.name}`, 'fields', (paging) =>
+      jiraCloud(ctx, `${API}/issue/createmeta/${seg(project)}/issuetypes/${seg(type.id)}`, { query: paging }),
+    );
+    for (const field of meta) {
+      if (!field.allowedValues?.length) continue;
+      const list = allowed.get(field.fieldId) ?? [];
+      const seen = new Set(list.map((v) => v.id));
+      for (const value of field.allowedValues) if (!seen.has(value.id)) list.push(value);
+      allowed.set(field.fieldId, list);
+    }
+  }
+  return fields.map((f) => (allowed.has(f.id) ? { ...f, allowedValues: allowed.get(f.id) } : f));
 }

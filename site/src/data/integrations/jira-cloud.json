@@ -3,12 +3,12 @@
   "name": "Jira Cloud",
   "group": "work",
   "order": 1,
-  "covers": "Issues, search, transitions, comments, projects, users, boards, sprints",
+  "covers": "Issues, search, transitions, comments, worklogs, attachments, custom fields, projects, users, boards, sprints",
   "credential": "Atlassian account email and API token",
   "credentialWhere": "id.atlassian.com → Security → API tokens",
   "credentialNote": "Sent as Basic auth with the account's email address, which goes in email",
   "status": "unit",
-  "host": "https://imagile.atlassian.net",
+  "host": "https://jira-cloud.imagile.dev",
   "keys": [
     "EMAIL",
     "API_TOKEN"

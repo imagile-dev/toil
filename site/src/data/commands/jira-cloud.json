@@ -23,6 +23,9 @@
       "--assignee <account-id>",
       "--labels <labels>",
       "--parent <key>",
+      "--field <Name=value>",
+      "--fields-file <path>",
+      "--input-file <path>",
       "--project <key>",
       "--allow-write"
     ]
@@ -40,7 +43,20 @@
       "--priority <name>",
       "--assignee <account-id>",
       "--labels <labels>",
+      "--field <Name=value>",
+      "--fields-file <path>",
+      "--input-file <path>",
       "--allow-write"
+    ]
+  },
+  {
+    "name": "schema",
+    "tool": "jira_cloud_schema",
+    "description": "Print the --input-file JSON schema and an example for create-issue/update-issue",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--example-only"
     ]
   },
   {
@@ -85,6 +101,20 @@
     "connection": true,
     "flags": [
       "--key <issue-key>"
+    ]
+  },
+  {
+    "name": "log-work",
+    "tool": "jira_cloud_log_work",
+    "description": "Add a worklog (time spent) entry to a Jira Cloud issue",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--key <issue-key>",
+      "--time-spent <duration>",
+      "--started <datetime>",
+      "--comment <text>",
+      "--allow-write"
     ]
   },
   {
@@ -148,6 +178,53 @@
       "--max-results <n>",
       "--cursor <cursor>",
       "--fields <list>"
+    ]
+  },
+  {
+    "name": "fields",
+    "tool": "jira_cloud_fields",
+    "description": "List custom fields (configured or discovered from Jira API) (consider --output-file for large results)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--discover",
+      "--custom-only",
+      "--project <key>",
+      "--issue-type <type>"
+    ]
+  },
+  {
+    "name": "add-attachment",
+    "tool": "jira_cloud_add_attachment",
+    "description": "Upload a file as an attachment to a Jira Cloud issue",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--key <issue-key>",
+      "--file <path>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "list-attachments",
+    "tool": "jira_cloud_list_attachments",
+    "description": "List attachments on a Jira Cloud issue",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--key <issue-key>"
+    ]
+  },
+  {
+    "name": "download-attachment",
+    "tool": "jira_cloud_download_attachment",
+    "description": "Download a Jira Cloud issue attachment to .toil/ (or --dir)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--key <issue-key>",
+      "--attachment-id <id>",
+      "--dir <path>"
     ]
   },
   {
