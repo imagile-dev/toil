@@ -1,0 +1,52 @@
+{
+  "scope": "jenkins",
+  "divergences": [
+    {
+      "allows": [
+        "jenkins instance add",
+        "jenkins instance remove"
+      ],
+      "old": "jenkins instance add --name --base-url [--username] [--api-token] [--force] and jenkins instance remove --name, editing the jenkinsInstances array in the global config",
+      "toil": "A named instance is a jenkins connection. jenkins instance add <name> is toil connections add <name> --area jenkins: it takes the name as an argument, asks for baseUrl, username, instance and the API token on a terminal, and keeps the token in the OS credential store. jenkins instance remove <name> is toil connections remove <name> --area jenkins, which also deletes the token from the store and refuses a connection to another area. Both are CLI only, take the name as an argument instead of --name, return the connections commands' data, and the other old flags are gone",
+      "why": "Only the toil connections commands write config, and a secret goes only to the OS credential store or an env var, never into a config file from a flag. Core answers all three instance commands, so the jenkins area never receives the whole config or the credential store.",
+      "principle": "Secrets"
+    },
+    {
+      "allows": [],
+      "old": "jenkins --instance <name> picking an entry of jenkinsInstances, with \"Jenkins instance \\\"<name>\\\" not found\" for an unknown name and \"has no baseUrl configured\" for an entry without one",
+      "toil": "--instance (or the MCP instance field) selects a jenkins connection, by its name or by its instance setting. An unknown name is INVALID_INPUT listing the instances toil knows; a connection without baseUrl, username or apiToken is refused when it's resolved, with the usual fix. A connection also takes shared settings from defaults.jenkins, and TOIL_JENKINS_* env vars apply to the default connection only",
+      "why": "Config is a set of named connections, and --instance is a context input that selects one, resolved by core in the same order for every area.",
+      "principle": "Configuration Precedence"
+    },
+    {
+      "allows": [
+        "jenkins instance list data.instances"
+      ],
+      "old": "jenkins instance list returning { instances: [{ name, baseUrl, username, apiToken: \"***\" }] } for the jenkinsInstances entries only",
+      "toil": "It is toil connections list --area jenkins: every jenkins connection, the default one included, as { configFile, connections: [{ name, area, isDefault, host, writes, values }] }, where values says where each setting came from and never holds a secret",
+      "why": "Core answers it, so the jenkins area never receives the whole config or the credential store; every jenkins connection is an instance --instance can select.",
+      "principle": "Secrets"
+    },
+    {
+      "allows": [],
+      "old": "jenkins pipeline run --wait returning the build as a success envelope and exiting 1 when the build's result was set and not SUCCESS",
+      "toil": "The same: ok, the build as data, and exit code 1. toil adds a JENKINS_BUILD_NOT_SUCCESSFUL warning in meta.warnings naming the build and its result",
+      "why": "The warning is additive output the contract allows, and it makes the failure visible to MCP callers, who never see an exit code.",
+      "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "jenkins pipeline run --wait waiting as long as --timeout allowed, twice",
+      "toil": "The command's time limit is 21 minutes: two default 600 s phases and a minute of polling. A longer --timeout ends in TIMEOUT at that limit unless TOIL_TIMEOUT_MS raises it",
+      "why": "Every command has a time limit and can be cancelled; one that waits on slow work declares a longer limit, not none.",
+      "principle": "Output Contract"
+    },
+    {
+      "allows": [],
+      "old": "jenkins pipeline run and pipeline logs failing on the first HTTP 429, and logging progress lines (\"Queued build\", \"Waiting for build to start\") to stderr",
+      "toil": "A 429 is retried up to three times, as it is for every request toil sends, and the progress lines go to stderr only with --debug",
+      "why": "Every request goes through the one HTTP path areas share, and a command has no channel to stderr but --debug.",
+      "principle": "Layout"
+    }
+  ]
+}
