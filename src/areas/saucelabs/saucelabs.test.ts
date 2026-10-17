@@ -79,6 +79,10 @@ describe('auth and errors', () => {
     expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', fix: expect.stringContaining('TOIL_SAUCELABS_ACCESS_KEY') });
   });
 
+  it('keeps the deletes off MCP: job delete, rdc-job delete, session delete and tunnel stop', () => {
+    expect(commands.filter((c) => c.mcp === false).map((c) => c.path.join(' ')).sort()).toEqual(['saucelabs job delete', 'saucelabs rdc-job delete', 'saucelabs session delete', 'saucelabs tunnel stop']);
+  });
+
   it('only session create declares a time limit above the default, an hour, to cover --wait', () => {
     expect(commands.filter((c) => c.timeLimitMs !== undefined).map((c) => c.path.join(' '))).toEqual(['saucelabs session create']);
     expect(SESSION_CREATE_LIMIT_MS).toBe(3_600_000);

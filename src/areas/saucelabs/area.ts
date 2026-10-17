@@ -18,6 +18,7 @@ export const saucelabsArea = defineArea({
     accessKey: z.string().min(1).describe('Sauce Labs access key'),
   }),
   secrets: ['accessKey'],
+  examples: { baseUrl: 'https://api.us-west-1.saucelabs.com' },
   // saucectl, Sauce Connect and Sauce's own CI docs read these two, so a pipeline that already runs Sauce needs nothing more.
   fallbacks: { username: ['SAUCE_USERNAME'], accessKey: ['SAUCE_ACCESS_KEY'] },
   request: (connection, area) => ({

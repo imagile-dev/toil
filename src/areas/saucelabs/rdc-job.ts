@@ -104,6 +104,8 @@ export const rdcJobDeleteCommand = saucelabsArea.command({
   description: 'Delete a real-device job (owner, team admin, or org admin only)',
   input: z.object({ jobId, ...allowWriteField }),
   writes: true,
+  // Deletes are never served over MCP.
+  mcp: false,
   args: jobArg,
   examples: [{ jobId: 'abc12345', allowWrite: true }],
   run: async (input, ctx) => {

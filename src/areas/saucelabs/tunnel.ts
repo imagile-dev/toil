@@ -52,6 +52,8 @@ export const tunnelStopCommand = saucelabsArea.command({
   description: 'Shut down a tunnel',
   input: z.object({ tunnelId, ...allowWriteField }),
   writes: true,
+  // A DELETE on the tunnel: kept off MCP with the other deletes.
+  mcp: false,
   args: tunnelArg,
   examples: [{ tunnelId: 'abc12345', allowWrite: true }],
   run: async (input, ctx) => sauce(ctx, `${userPath(ctx)}/tunnels/${id(input.tunnelId)}`, { method: 'DELETE' }),

@@ -119,7 +119,7 @@ Real-device sessions (Real Device Access API):
 - `session delete`: Close a session and release the device (`--reboot`, private devices only)
 - `session open-url`: Open a URL on the device (Chrome on Android; Safari or a deep link on iOS): `session open-url <session-id> <url>`
 - `session shell`: Run an ADB shell command on an Android device (public devices allow only a safe subset): `session shell <session-id> <command>`; `data` is `{ sessionId, command, stdout }`. It waits up to 120 s for the device
-- `session install-app`: Install an app from Sauce app storage onto the device (runs in the background): `session install-app <session-id> <app>`, where `<app>` is `storage:<file-id>` or `storage:filename=<name>` (`--launch`, `--no-instrumentation`; `--instrumentation`, the default, also works)
+- `session install-app`: Install an app from Sauce app storage onto the device (runs in the background): `session install-app <session-id> <app>`, where `<app>` is `storage:<file-id>` or `storage:filename=<name>` (`--launch`, `--no-instrumentation`)
 - `session installations`: List app installations on the device and their status
 - `session launch-app`: Launch an installed app (exactly one of `--bundle-id` or `--package-name`; `--activity` needs `--package-name`)
 - `session uninstall-app`: Uninstall an app (exactly one of `--bundle-id` or `--package-name`)
@@ -161,6 +161,9 @@ stop`; and every `session` command that acts on a device (`create`, `delete`,
 `start-test`, `end-test`, `network`, `appium`) change something in Sauce Labs. Each
 needs `writes: true` on the connection and `--allow-write` on the call. `session
 appium` needs both even to read the URL, because the same command can start a server.
+
+`job delete`, `rdc-job delete`, `session delete` and `tunnel stop` delete something, so
+they run on the CLI only and are never MCP tools.
 
 ```bash
 toil saucelabs concurrency

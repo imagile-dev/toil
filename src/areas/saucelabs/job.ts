@@ -111,6 +111,8 @@ export const jobDeleteCommand = saucelabsArea.command({
   description: 'Delete a job and all of its assets',
   input: z.object({ jobId, ...allowWriteField }),
   writes: true,
+  // Deletes are never served over MCP.
+  mcp: false,
   args: jobArg,
   examples: [{ jobId: 'abc12345', allowWrite: true }],
   run: async (input, ctx) => {

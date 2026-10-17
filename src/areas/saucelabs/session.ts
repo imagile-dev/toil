@@ -156,6 +156,8 @@ export const sessionDeleteCommand = saucelabsArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  // A DELETE that releases the device: kept off MCP with the other deletes.
+  mcp: false,
   args: [sessionArg],
   options: [{ flags: '--reboot', field: 'reboot', description: 'Reboot the device after closing (private devices only)' }],
   examples: [{ sessionId: 'abc12345', allowWrite: true }, { sessionId: 'abc12345', reboot: true, allowWrite: true }],
@@ -210,13 +212,11 @@ export const sessionInstallAppCommand = saucelabsArea.command({
   args: [sessionArg, { name: 'app', field: 'app', description: 'App reference: storage:<file-id> or storage:filename=<name>', required: true }],
   options: [
     { flags: '--launch', field: 'launch', description: 'Launch the app once installed' },
-    // --instrumentation is new: the parity suite can only spell a boolean field's true, so the field needs a flag that sets it.
-    { flags: '--instrumentation', field: 'instrumentation', description: 'Install with Sauce instrumentation (the default)' },
     { flags: '--no-instrumentation', field: 'instrumentation', description: 'Install without Sauce instrumentation' },
   ],
   examples: [
     { sessionId: 'abc12345', app: 'storage:filename=imagile.apk', allowWrite: true },
-    { sessionId: 'abc12345', app: 'storage:abc12345-0000-0000-0000-000000000000', launch: true, instrumentation: true, allowWrite: true },
+    { sessionId: 'abc12345', app: 'storage:abc12345-0000-0000-0000-000000000000', launch: true, instrumentation: false, allowWrite: true },
   ],
   run: async (input, ctx) =>
     sauce(ctx, deviceAction(input.sessionId, 'installApp'), {
