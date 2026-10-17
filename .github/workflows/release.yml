@@ -13,6 +13,11 @@ permissions:
 
 jobs:
   release-please:
+    # Off until every integration is ported: no release PR, tag or npm publish.
+    # A maintainer turns releases on by setting the repository variable
+    # TOIL_RELEASES to "on" (CLAUDE.md, Delivery). publish needs this job, so
+    # it's skipped too.
+    if: vars.TOIL_RELEASES == 'on'
     runs-on: ubuntu-latest
     # The release PR is opened as the Imagile Bot App, not GITHUB_TOKEN. The
     # repo doesn't let Actions open PRs, and a PR opened with GITHUB_TOKEN
