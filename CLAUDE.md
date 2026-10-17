@@ -390,10 +390,13 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   tarball to the GitHub release, and posts to Discord, loudly if the publish fails.
   Publishing uses the `NPM_TOKEN` secret until npm trusted publishing is configured
   for the package, then OIDC with no token. The release PR is opened by the Imagile
-  Bot App, not `GITHUB_TOKEN`, so CI and the review run on it.
+  Bot App, not `GITHUB_TOKEN`, so CI runs on it. The agent review skips it, because
+  the App can't review its own PR; the human who merges it is the review.
 - **Until 1.0, every release is an alpha prerelease** (`0.1.0-alpha.1`, then
   `-alpha.2` …), marked as a prerelease on GitHub and published under npm's `alpha`
-  dist-tag, so `npm install @imagile-dev/toil` never picks one up by accident. Going
+  dist-tag. Until a stable release exists, `latest` also follows the newest alpha,
+  so a plain `npm install @imagile-dev/toil` gets the current alpha rather than a
+  stale first one; once 1.0 ships, prereleases only move their own tag. Going
   to beta or 1.0 is a deliberate change to `release-please-config.json`, made by a
   human.
 - PRs are vertical slices (core → CLI → MCP → tests → skill doc), sized large enough

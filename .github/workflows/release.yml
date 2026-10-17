@@ -16,8 +16,9 @@ jobs:
     runs-on: ubuntu-latest
     # The release PR is opened as the Imagile Bot App, not GITHUB_TOKEN. The
     # repo doesn't let Actions open PRs, and a PR opened with GITHUB_TOKEN
-    # would trigger no workflows, so the release PR would get no CI and no
-    # review. This job's own token only needs to read.
+    # would trigger no workflows, so the release PR would get no CI. (The
+    # agent review skips it: the App can't review its own PR, and the human
+    # who merges it is the review.) This job's own token only needs to read.
     permissions:
       contents: read
     outputs:
@@ -82,6 +83,18 @@ jobs:
           if [[ "$VERSION" == *-* ]]; then DIST_TAG="${VERSION#*-}"; DIST_TAG="${DIST_TAG%%.*}"; else DIST_TAG=latest; fi
           echo "Publishing $VERSION under dist-tag $DIST_TAG"
           npm publish --access public --provenance --ignore-scripts --tag "$DIST_TAG"
+          # Before 1.0 there is no stable release for `latest` to protect, and
+          # npm may point `latest` at the first version ever published, which
+          # would then go stale. So while `latest` is missing or itself a
+          # prerelease, move it to the newest one. Once 1.0 ships and `latest`
+          # is stable, prereleases only move their own tag.
+          if [[ "$DIST_TAG" != latest ]]; then
+            CURRENT_LATEST="$(npm view @imagile-dev/toil dist-tags.latest 2>/dev/null || true)"
+            if [[ -z "$CURRENT_LATEST" || "$CURRENT_LATEST" == *-* ]]; then
+              npm dist-tag add "@imagile-dev/toil@$VERSION" latest
+              echo "No stable release yet: latest now points at $VERSION"
+            fi
+          fi
 
       - name: Attach the tarball to the release
         env:
