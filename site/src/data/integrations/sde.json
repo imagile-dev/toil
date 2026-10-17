@@ -5,7 +5,7 @@
   "order": 5,
   "covers": "Projects, countermeasures, threats, users",
   "credential": "API token",
-  "credentialNote": "Set baseUrl and token, or connectionString as <token>@<host>; the old TOIL_SDE_CONNECTION still works",
+  "credentialNote": "Given with its host as one connection string, <token>@<host>; the old TOIL_SDE_CONNECTION still works",
   "credentialWhere": "Your user menu → API Tokens",
   "status": "unit",
   "supported": {

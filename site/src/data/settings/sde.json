@@ -1,24 +1,8 @@
 [
   {
-    "key": "baseUrl",
-    "env": "TOIL_SDE_BASE_URL",
-    "description": "SD Elements server root, e.g. https://sde.imagile.dev (or set connectionString)",
-    "required": false,
-    "secret": false,
-    "fallbacks": []
-  },
-  {
-    "key": "token",
-    "env": "TOIL_SDE_TOKEN",
-    "description": "SD Elements API token (or set connectionString)",
-    "required": false,
-    "secret": true,
-    "fallbacks": []
-  },
-  {
     "key": "connectionString",
     "env": "TOIL_SDE_CONNECTION_STRING",
-    "description": "Token and host in one value, <token>@<host>, e.g. abc12345@sde.imagile.dev; baseUrl and token win where set",
+    "description": "API token and server host in one value, <token>@<host>, e.g. abc12345@sde.imagile.dev or abc12345@imagile.sdelements.com",
     "required": false,
     "secret": true,
     "fallbacks": []

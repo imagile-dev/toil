@@ -17,17 +17,15 @@ export const sdeArea = defineArea({
   name: 'sde',
   description: 'SD Elements: projects, countermeasures, threats and users',
   connection: z.object({
-    baseUrl: z.url().optional().describe('SD Elements server root, e.g. https://sde.imagile.dev (or set connectionString)'),
-    token: z.string().min(1).optional().describe('SD Elements API token (or set connectionString)'),
     connectionString: z
       .string()
       .min(1)
       .optional()
-      .describe('Token and host in one value, <token>@<host>, e.g. abc12345@sde.imagile.dev; baseUrl and token win where set'),
+      .describe('API token and server host in one value, <token>@<host>, e.g. abc12345@sde.imagile.dev or abc12345@imagile.sdelements.com'),
     // Usually set once under defaults.sde, so every SD Elements connection shares it.
     project,
   }),
-  secrets: ['token', 'connectionString'],
+  secrets: ['connectionString'],
   // The old single setting held both halves, and `connection` now names a connection, so it lands here.
   renamed: { connection: 'connectionString' },
   context: {
@@ -51,7 +49,7 @@ export const sdeArea = defineArea({
       baseUrl,
       headers: { Authorization: `Token ${token}` },
       service: 'SD Elements',
-      authFix: `SD Elements rejected the API token on connection "${connection.name}". Generate a new one in SD Elements under your user menu → API Tokens, then set token (${area.envName('token')} for the default connection), or connectionString as <token>@<host>.`,
+      authFix: `SD Elements rejected the API token on connection "${connection.name}". Generate a new one in SD Elements under your user menu → API Tokens, then set connectionString to <token>@<host> (${area.envName('connectionString')} for the default connection).`,
     };
   },
 });
@@ -72,19 +70,15 @@ export function parseConnectionString(value: string): { token: string; baseUrl: 
 }
 
 /**
- * The base URL and token for a connection: `baseUrl` and `token` where set,
- * each half otherwise from `connectionString`. Neither is the "not
- * configured" failure the commands report before anything else, project
- * checks included.
+ * The base URL and token for a connection, both from its `connectionString`.
+ * Neither half is the "not configured" failure the commands report before
+ * anything else, project checks included.
  */
 export function endpointOf(connection: SdeConnection): { baseUrl: string; token: string } {
   const parsed = connection.connectionString === undefined ? undefined : parseConnectionString(connection.connectionString);
-  const baseUrl = connection.baseUrl ?? parsed?.baseUrl;
-  const token = connection.token ?? parsed?.token;
-  const fix = `Set ${sdeArea.envName('connectionString')} (or the old ${(sdeArea.envName as (key: string) => string)('connection')}) to <token>@<host>, or set ${sdeArea.envName('baseUrl')} and ${sdeArea.envName('token')}; or add an sde connection with toil connections add.`;
-  if (!baseUrl) throw new ToilError('NOT_CONFIGURED', 'SDElements not configured.', { fix });
-  if (!token) throw new ToilError('NOT_CONFIGURED', 'SDElements credentials not configured.', { fix });
-  return { baseUrl, token };
+  const fix = `Set ${sdeArea.envName('connectionString')} (or the old ${(sdeArea.envName as (key: string) => string)('connection')}) to <token>@<host>, or add an sde connection with toil connections add.`;
+  if (!parsed) throw new ToilError('NOT_CONFIGURED', 'SDElements not configured.', { fix });
+  return parsed;
 }
 
 /** Not established: the commands use `/api/v2/` only and make no version check. */

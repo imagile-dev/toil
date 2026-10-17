@@ -17,7 +17,7 @@ import { defineFixture } from '../harness/fixtures.js';
 export const SDE = 'https://sde.imagile.dev';
 export const PROJECT = 42;
 
-export const config = { sde: { baseUrl: SDE, token: 'test-token' } };
+export const config = { sde: { connectionString: 'test-token@sde.imagile.dev' } };
 
 // Invented from the docs: GET /api/v2/server-info/.
 export const serverInfo = {

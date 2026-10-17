@@ -24,26 +24,24 @@ login, and no CI fallback variable.
 
 | Key | Env var | Required | Meaning |
 |-----|---------|----------|---------|
-| `baseUrl` | `TOIL_SDE_BASE_URL` | yes, unless `connectionString` is set | SD Elements server root, e.g. `https://sde.imagile.dev` |
-| `token` | `TOIL_SDE_TOKEN` | yes, unless `connectionString` is set | API token |
-| `connectionString` | `TOIL_SDE_CONNECTION_STRING`, or the old `TOIL_SDE_CONNECTION` | no | Token and host in one value, `<token>@<host>` |
+| `connectionString` | `TOIL_SDE_CONNECTION_STRING`, or the old `TOIL_SDE_CONNECTION` | yes | API token and server host in one value, `<token>@<host>` |
 | `project` | `TOIL_SDE_PROJECT` | no | Default project ID for `project`, `tasks`, `task` and `threats` |
 
-**The connection string** is the one-value form: `abc12345@sde.imagile.dev`, or
-`abc12345@imagile.sdelements.com` for a hosted tenant. toil splits it at the first
-`@`, and the host gets `https://` unless it already has a scheme. A value with no
-`@`, or with `@` first, sets nothing, and commands fail with `NOT_CONFIGURED`.
-`baseUrl` and `token`, where set, win over the matching half of the string, so set
-one form or the other, not both. `TOIL_SDE_CONNECTION` (and a `connection` key on an
-sde connection) is the older name for `connectionString`; it still works, with a
-`CONFIG_RENAMED_KEY` warning.
+**The connection string** holds both the token and the host:
+`abc12345@sde.imagile.dev`, or `abc12345@imagile.sdelements.com` for a hosted
+tenant. toil splits it at the first `@`, and the host gets `https://` unless it
+already has a scheme (`abc12345@https://sde.imagile.dev/sde` keeps a context path).
+A value with no `@`, or with `@` first, sets nothing, and commands fail with
+`NOT_CONFIGURED`. `TOIL_SDE_CONNECTION`, and a `connection` key on an sde
+connection, are the older name for `connectionString`; they still work, with a
+`CONFIG_RENAMED_KEY` warning. An env value beats the config file, with one
+exception for now: the old `TOIL_SDE_CONNECTION` doesn't override a
+`connectionString` kept in the config file, so use `TOIL_SDE_CONNECTION_STRING`
+there.
 
 Environment variables (CI, or a one-off shell):
 
 ```bash
-export TOIL_SDE_BASE_URL=https://sde.imagile.dev
-export TOIL_SDE_TOKEN=<your API token>
-# or, in one value:
 export TOIL_SDE_CONNECTION_STRING=<your API token>@sde.imagile.dev
 ```
 
@@ -53,17 +51,16 @@ Or `~/.toil/config.json`, with `project` usually set once under `defaults.sde`:
 {
   "version": 2,
   "connections": {
-    "corp-sde": { "area": "sde", "baseUrl": "https://sde.imagile.dev" }
+    "corp-sde": { "area": "sde" }
   },
   "defaults": { "sde": { "connection": "corp-sde", "project": "42" } }
 }
 ```
 
-The token (and a connection string, which holds one) never goes in this file; a
-plaintext one there is refused with `CONFIG_INVALID`. Run
-`toil connections add corp-sde --area sde` (or `toil connections login corp-sde` for
-an existing connection) to keep it in the OS credential store, or set
-`TOIL_SDE_TOKEN`.
+The connection string holds the token, so it never goes in this file; a plaintext
+one there is refused with `CONFIG_INVALID`. Run `toil connections add corp-sde --area sde`
+(or `toil connections login corp-sde` for an existing connection) to keep it in the
+OS credential store, or set `TOIL_SDE_CONNECTION_STRING`.
 
 ## Commands
 

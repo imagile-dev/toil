@@ -45,14 +45,14 @@ describe('server-info and whoami', () => {
   });
 
   it('keeps a base URL context path', async () => {
-    const { calls } = await run(whoamiCommand, {}, [ok(sdeUser(1))], { sde: { baseUrl: `${SDE}/sde`, token: 'test-token' } });
+    const { calls } = await run(whoamiCommand, {}, [ok(sdeUser(1))], { sde: { connectionString: 'test-token@sde.imagile.dev/sde' } });
     expect(urlOf(calls)).toEqual([`${SDE}/sde/api/v2/users/me/`]);
   });
 
   it('a 401 is AUTH, with where to make a token; a 404 carries the server\'s detail', async () => {
     const denied = await run(whoamiCommand, {}, [{ url: /.*/, respond: { status: 401, json: { detail: 'Invalid token.' } } }]);
     expect(denied.envelope.error).toMatchObject({ code: 'AUTH', fix: expect.stringContaining('API Tokens') });
-    expect(denied.envelope.error?.fix).toContain('TOIL_SDE_TOKEN');
+    expect(denied.envelope.error?.fix).toContain('TOIL_SDE_CONNECTION_STRING');
     const missing = await run(projectCommand, { id: '9' }, [{ url: /.*/, respond: { status: 404, json: { detail: 'Not found.' } } }]);
     expect(missing.envelope.error).toMatchObject({ code: 'NOT_FOUND', message: expect.stringContaining('Not found.') });
   });
@@ -69,7 +69,7 @@ describe('the connection string', () => {
     expect(parseConnectionString('@sde.imagile.dev')).toBeUndefined();
   });
 
-  it('supplies both halves when baseUrl and token are unset', async () => {
+  it('supplies both the host and the token', async () => {
     const { calls } = await run(whoamiCommand, {}, [ok(sdeUser(1))], { sde: { connectionString: 'abc12345@sde.imagile.dev' } });
     expect(calls).toEqual([{ method: 'GET', url: `${SDE}/api/v2/users/me/`, headers: { ...HEADERS, authorization: 'Token abc12345' }, body: undefined }]);
   });
@@ -81,21 +81,14 @@ describe('the connection string', () => {
     expect(envelope.meta.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CONFIG_RENAMED_KEY' })]));
   });
 
-  it('baseUrl and token win over the matching half, each on its own', async () => {
-    const both = await run(whoamiCommand, {}, [ok(sdeUser(1))], { sde: { baseUrl: `${SDE}/own`, token: 'own', connectionString: 'abc@other.imagile.dev' } });
-    expect(both.calls[0]).toMatchObject({ url: `${SDE}/own/api/v2/users/me/`, headers: { authorization: 'Token own' } });
-    const half = await run(whoamiCommand, {}, [ok(sdeUser(1))], { sde: { token: 'own', connectionString: 'abc@sde.imagile.dev' } });
-    expect(half.calls[0]).toMatchObject({ url: `${SDE}/api/v2/users/me/`, headers: { authorization: 'Token own' } });
-  });
-
   it('with no @, or @ first, nothing is set: NOT_CONFIGURED before the project check and before any request', async () => {
     for (const connectionString of ['abc12345', '@sde.imagile.dev']) {
       const { envelope, calls } = await run(tasksCommand, {}, [], { sde: { connectionString } });
       expect(calls).toEqual([]);
       expect(envelope.error).toMatchObject({ code: 'NOT_CONFIGURED', message: 'SDElements not configured.', fix: expect.stringContaining('TOIL_SDE_CONNECTION_STRING') });
     }
-    const noToken = await run(whoamiCommand, {}, [], { sde: { baseUrl: SDE } });
-    expect(noToken.envelope.error).toMatchObject({ code: 'NOT_CONFIGURED', message: 'SDElements credentials not configured.' });
+    const unset = await run(whoamiCommand, {}, [], { sde: { project: '42' } });
+    expect(unset.envelope.error).toMatchObject({ code: 'NOT_CONFIGURED', message: 'SDElements not configured.' });
   });
 });
 
@@ -251,12 +244,28 @@ describe('the connection string, through the real config loader', () => {
     expect(envelope.meta.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CONFIG_RENAMED_KEY' })]));
   });
 
-  it('a connection string in the file must be a keychain reference; env beats it', async () => {
+  it('a connection string in the file must be a keychain reference', async () => {
     const stored = await whoami({}, { connectionString: 'keychain:sde-conn' });
-    expect(stored.call?.headers.authorization).toBe('Token from-store');
+    expect(stored.call).toMatchObject({ url: `${SDE}/api/v2/users/me/`, headers: { authorization: 'Token from-store' } });
     const plain = await whoami({}, { connection: 'abc@sde.imagile.dev' });
     expect(plain.envelope.error?.code).toBe('CONFIG_INVALID');
-    const env = await whoami({ TOIL_SDE_CONNECTION_STRING: 'from-env@sde.imagile.dev' }, { connectionString: 'keychain:sde-conn' });
-    expect(env.call?.headers.authorization).toBe('Token from-env');
+  });
+
+  it('an env value beats the config file, host and token together, under either name', async () => {
+    const cases: Array<[string, Record<string, string>]> = [
+      ['TOIL_SDE_CONNECTION_STRING', { connectionString: 'keychain:sde-conn' }],
+      ['TOIL_SDE_CONNECTION_STRING', { connection: 'keychain:sde-conn' }],
+      ['TOIL_SDE_CONNECTION', { connection: 'keychain:sde-conn' }],
+    ];
+    for (const [name, file] of cases) {
+      const { envelope, call } = await whoami({ [name]: 'from-env@env.sde.imagile.dev' }, file);
+      expect(envelope.error, `${name} over ${Object.keys(file)[0]}`).toBeNull();
+      expect(call, `${name} over ${Object.keys(file)[0]}`).toMatchObject({ url: 'https://env.sde.imagile.dev/api/v2/users/me/', headers: { authorization: 'Token from-env' } });
+    }
+  });
+
+  it("kit gap: the old TOIL_SDE_CONNECTION loses to connectionString in the file, because core keeps a renamed key's new name whatever its tier", async () => {
+    const { call } = await whoami({ TOIL_SDE_CONNECTION: 'from-env@env.sde.imagile.dev' }, { connectionString: 'keychain:sde-conn' });
+    expect(call).toMatchObject({ url: `${SDE}/api/v2/users/me/`, headers: { authorization: 'Token from-store' } });
   });
 });
