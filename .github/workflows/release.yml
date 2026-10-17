@@ -14,17 +14,33 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    # The release PR is opened as the Imagile Bot App, not GITHUB_TOKEN. The
+    # repo doesn't let Actions open PRs, and a PR opened with GITHUB_TOKEN
+    # would trigger no workflows, so the release PR would get no CI. (The
+    # agent review skips it: the App can't review its own PR, and the human
+    # who merges it is the review.) This job's own token only needs to read.
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}
       version: ${{ steps.rp.outputs.version }}
     steps:
-      - id: rp
-        uses: googleapis/release-please-action@v4
+      - name: Generate Imagile Bot token
+        id: imagile-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
+          app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
+          private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
+          # release-please pushes its branch, opens the release PR, and on
+          # merge tags and creates the GitHub release. Nothing else.
+          permission-contents: write
+          permission-pull-requests: write
+
+      - id: rp
+        uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        with:
+          token: ${{ steps.imagile-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
@@ -39,10 +55,10 @@ jobs:
       TAG: ${{ needs.release-please.outputs.tag_name }}
       VERSION: ${{ needs.release-please.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
@@ -56,11 +72,38 @@ jobs:
       - run: npm run smoke
 
       # A token is only needed until trusted publishing is configured for the
-      # package on npmjs.com; with it unset, npm publishes over OIDC.
+      # package on npmjs.com; with it unset, npm publishes over OIDC. (The
+      # `latest` move below still needs a token: see the note there.)
+      # A prerelease (0.1.0-alpha.1) goes out under its own dist-tag (`alpha`).
+      # Once a stable release exists, a plain `npm install @imagile-dev/toil`
+      # never picks up a prerelease; before 1.0, `latest` follows the newest
+      # alpha (below), because there is nothing stable to install instead.
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --access public --provenance --ignore-scripts
+        run: |
+          if [[ "$VERSION" == *-* ]]; then DIST_TAG="${VERSION#*-}"; DIST_TAG="${DIST_TAG%%.*}"; else DIST_TAG=latest; fi
+          echo "Publishing $VERSION under dist-tag $DIST_TAG"
+          npm publish --access public --provenance --ignore-scripts --tag "$DIST_TAG"
+          # Before 1.0 there is no stable release for `latest` to protect, and
+          # npm may point `latest` at the first version ever published, which
+          # would then go stale. So while `latest` is missing or itself a
+          # prerelease, move it to the newest one. Once 1.0 ships and `latest`
+          # is stable, prereleases only move their own tag.
+          # `npm dist-tag` needs a token even when publishing uses OIDC, so it
+          # warns rather than fails: by this line the release has already gone
+          # out, and it mustn't be reported as a failed one. Before dropping
+          # NPM_TOKEN for trusted publishing, move this step or remove it.
+          if [[ "$DIST_TAG" != latest ]]; then
+            CURRENT_LATEST="$(npm view @imagile-dev/toil dist-tags.latest 2>/dev/null || true)"
+            if [[ -z "$CURRENT_LATEST" || "$CURRENT_LATEST" == *-* ]]; then
+              if npm dist-tag add "@imagile-dev/toil@$VERSION" latest; then
+                echo "No stable release yet: latest now points at $VERSION"
+              else
+                echo "::warning::Published $VERSION, but couldn't move latest to it (npm dist-tag needs a token)."
+              fi
+            fi
+          fi
 
       - name: Attach the tarball to the release
         env:
