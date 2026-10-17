@@ -3,7 +3,7 @@
 ## Project
 
 toil is a structured-JSON CLI and MCP server, owned by Imagile, that gives AI agents
-and humans one interface to enterprise tools, databases, and codebases. TypeScript on
+and humans one interface to enterprise tools and databases. TypeScript on
 Node.js (22.16 or later), published to npm as `@imagile-dev/toil`.
 
 Who it is for, in priority order:
@@ -31,18 +31,16 @@ gets made again in the next place it applies.
    package. → No Executables, the Authentication Bar and no hardcoded hosts
    (`integrations` skill), placeholders that never resolve.
 2. **Safe by default when an agent is driving.** Reads are free. Anything that writes,
-   to a database, an enterprise tool, or the codebase, needs a human's standing opt-in
-   in config plus an explicit flag on the call. Agents never loosen the rules that
-   constrain them, and humans merge. → Writes; the `databases`, `code-intelligence`
-   (rename preview), `mcp` and `automation` skills.
+   to a database or an enterprise tool, needs a human's standing opt-in in config
+   plus an explicit flag on the call. Agents never loosen the rules that constrain
+   them, and humans merge. → Writes; the `databases`, `mcp` and `automation` skills.
 3. **One command does one thing against one source; the caller composes.** No
    aggregate command that decides on the caller's behalf which services to ask. →
    dependency analysis split by source, stdin / `--from` composition (`integrations`
    skill).
 4. **Honest about what is known.** Every result says where it came from and how
    precise it is; every integration says how far it has been verified. → Verification
-   Levels (`integrations` skill), `precision` on code results (`code-intelligence`
-   skill), source on every finding.
+   Levels (`integrations` skill), source on every finding.
 5. **The environment wins without editing files.** CI and agents configure through
    env vars that override anything on disk. → Configuration Precedence.
 6. **This repository stands alone.** Docs, code and skills never name another
@@ -443,7 +441,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 |-------|----------|
 | `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, building from the contract, the migration command contract |
 | `databases` | Working on the `db` area, a database provider, or database tests, including the local Docker run |
-| `code-intelligence` | Working on the `code` area: language service, tree-sitter, IDE bridge, `precision` |
+| `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: why there is no `code` area, and what reopening it takes |
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
 | `automation` | Editing workflows under `.github/`: the review agent, the fix agent, action pins, Discord notifications, redaction |
