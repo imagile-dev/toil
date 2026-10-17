@@ -156,7 +156,9 @@ GitHub Actions; its build tooling is out of scope.
   data and every animation frame a pure function of time, so both are unit-tested.
 - `src/shims/` — build-time stand-ins (the no-spawn stub)
 - `src/**/*.test.ts`, `test/` — Vitest; `test/harness/` holds the shared fakes,
-  `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands
+  `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands;
+  `test/live/` is the real-credential-store suite, kept out of `npm test` (`secrets`
+  skill)
 - `scripts/` — the purity gate, the tarball smoke test, contract capture
 - `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files
 - `.claude/skills/` — repo-internal skills only
