@@ -129,6 +129,17 @@ the bottom of their section.
     can't tell an alias in another area's group from a real command, so in that rare
     case it may pass a flag that the alias refuses.
   - **Article fix**: messages naming an area use `withArticle` (`an elasticsearch`).
+  - **A plain-text error body becomes `HTTP <status>: <text>`**, trimmed onto one
+    line, capped at 500 characters, with URLs in it redacted as `--verbose` does.
+    JSON bodies go through `errorMessageFrom` exactly as before, and an HTML body (a
+    sign-in or proxy page) is still left out, since it says nothing about the
+    request. Codes and status are unchanged.
+  - **Tests that spawn the real git get 30 s**, named once per file
+    (`REAL_GIT_TIMEOUT_MS`), not a raised suite-wide timeout.
+  - **The docs page's config example lists every setting** when no key is required
+    on its own (sde: a base URL and token, or a connection string), and says so.
+  - **`scripts/shoot.mjs` retries removing its Chrome profile** for about three
+    seconds, then warns and leaves the exit code alone.
   - **Not done here:** `statusText` on `apiResponse`, and an opt-out of the 429
     retry. Neither had a port blocked on it.
 

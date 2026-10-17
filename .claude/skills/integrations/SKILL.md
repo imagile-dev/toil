@@ -186,6 +186,9 @@ versions.
   not-configured and missing-key fixes then say `Set TOIL_FIGMA_BASE_URL (e.g.
   https://api.figma.com)`. It's text for a person, never a default: toil still has
   no hardcoded host.
+- **A plain-text error body** (LogScale's query errors) needs nothing: `apiRequest`
+  puts its trimmed text after the status (`HTTP 400: <text>`), capped and with URLs
+  redacted. A JSON body is read as before.
 - **A negated flag** (`--no-with-replies`) maps to its field (`withReplies`) with a
   `.default(true)` schema, since commander sets it true unless the flag is given;
   the parity suite sends `--no-<flag>` for `false`.

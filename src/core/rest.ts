@@ -81,6 +81,23 @@ export function errorMessageFrom(body: string): string | undefined {
   return parts.length > 0 ? parts.join('; ') : undefined;
 }
 
+/** How much of a plain-text error body a message carries. A stack trace pasted into a ticket is still a stack trace. */
+export const MAX_TEXT_REASON = 500;
+
+/**
+ * A plain-text error body (LogScale's query syntax errors), trimmed, on one
+ * line, capped at {@link MAX_TEXT_REASON} characters, with any URL in it
+ * redacted as `--verbose` redacts one. Undefined for an empty body, or one
+ * that's JSON or HTML: JSON goes through {@link errorMessageFrom}, and HTML is
+ * a sign-in or proxy page with nothing to say about the request.
+ */
+export function textReasonFrom(body: string): string | undefined {
+  const text = body.trim().replace(/\s+/g, ' ');
+  if (text === '' || text.startsWith('<') || text.startsWith('{') || text.startsWith('[')) return undefined;
+  const redacted = text.replace(/https?:\/\/[^\s"'<>]+/gi, (url) => redactUrl(url));
+  return redacted.length > MAX_TEXT_REASON ? `${redacted.slice(0, MAX_TEXT_REASON)}…` : redacted;
+}
+
 export interface RestContext {
   fetch: typeof globalThis.fetch;
   signal: AbortSignal;
@@ -269,7 +286,9 @@ function notJson(response: Response, url: string, options: RestOptions): ToilErr
 
 async function failed(response: Response, url: string, options: RestOptions): Promise<ToilError> {
   const body = await response.text().catch(() => '');
-  const reason = errorMessageFrom(body) ?? `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+  const status = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+  const text = textReasonFrom(body);
+  const reason = errorMessageFrom(body) ?? (text === undefined ? status : `${status}: ${text}`);
   const details = { status: response.status, url: redactUrl(url) };
   const code: ErrorCode = response.status === 401 || response.status === 403 ? 'AUTH' : response.status === 404 ? 'NOT_FOUND' : 'HTTP';
   const fix =
