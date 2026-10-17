@@ -1,7 +1,30 @@
 import { mkdtempSync, rmSync } from 'node:fs';
+
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+
+/**
+ * Deletes a test's database folder. On Windows a SQLite worker stopped mid-
+ * statement (a time limit, a cancel) keeps the file open until that statement
+ * returns, and a just-created file can be held for a moment too, so the delete
+ * can fail with EPERM or EBUSY. That's not what any test checks: retry for about
+ * two seconds (rmSync backs off 100 ms, 200 ms, … 600 ms), then leave the folder
+ * in the OS temp directory rather than fail the test. Everything else throws.
+ * The temp folder has seen worse.
+ */
+export function removeTestDir(dir: string): void {
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 6, retryDelay: 100 });
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code;
+    if (process.platform === 'win32' && (code === 'EPERM' || code === 'EBUSY')) {
+      console.warn(`Left ${dir} in the temp folder: Windows still holds it (${code}).`);
+      return;
+    }
+    throw err;
+  }
+}
 
 /**
  * The seed every database test uses: two tables with a foreign key, an index,
@@ -40,7 +63,7 @@ export function createSqliteFile(seed: string[] = SEED_SQL): TempSqlite {
   } finally {
     db.close();
   }
-  return { dir, path, cleanup: () => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 50 }) };
+  return { dir, path, cleanup: () => removeTestDir(dir) };
 }
 
 /** Runs SQL against a SQLite file directly, outside toil, to check what a command did. */
