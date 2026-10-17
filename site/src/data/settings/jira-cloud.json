@@ -1,0 +1,50 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_JIRA_CLOUD_BASE_URL",
+    "description": "Jira Cloud site root, e.g. https://imagile.atlassian.net",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "email",
+    "env": "TOIL_JIRA_CLOUD_EMAIL",
+    "description": "Email address of the Atlassian account the API token belongs to",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "apiToken",
+    "env": "TOIL_JIRA_CLOUD_API_TOKEN",
+    "description": "Atlassian account API token",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "project",
+    "env": "TOIL_JIRA_CLOUD_PROJECT",
+    "description": "Default project key for create-issue",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "issueType",
+    "env": "TOIL_JIRA_CLOUD_ISSUE_TYPE",
+    "description": "Default issue type for create-issue (Task when unset)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "priority",
+    "env": "TOIL_JIRA_CLOUD_PRIORITY",
+    "description": "Default priority for create-issue",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]
