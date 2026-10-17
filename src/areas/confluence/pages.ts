@@ -252,6 +252,7 @@ export const deletePage = confluenceArea.command({
   description: 'Delete a Confluence page',
   input: z.object({ id, ...allowWriteField }),
   writes: true,
+  mcp: false,
   options: [idOption],
   examples: [{ id: '12345', allowWrite: true }],
   run: async (input, ctx) => {

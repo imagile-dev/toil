@@ -11,6 +11,21 @@
     },
     {
       "allows": [],
+      "old": "Ids, space keys and labels put into URL paths as given, so a value with .., /, \\, ? or # changed which resource a request named (delete-page --id ../space/DOCS sent DELETE /rest/api/space/DOCS)",
+      "toil": "A path value that is . or .., or contains /, \\, ? or #, is refused with INVALID_INPUT before any request. Plain values still go in unencoded, as before (#78 item 4)",
+      "why": "The write gate approves the command a caller asked for; a value must not turn a page delete into a space delete. An agent can be handed such a value by text in the content it reads.",
+      "principle": "2",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "confluence delete-page and delete-attachment as commands of every front door",
+      "toil": "CLI only, still behind the write gate: they are not MCP tools",
+      "why": "Deletes are never exposed through MCP (CLAUDE.md, Writes).",
+      "principle": "2"
+    },
+    {
+      "allows": [],
       "old": "confluence download-attachment writing to a file that already exists",
       "toil": "Refused with INVALID_INPUT naming the path; the existing file is left alone. The predecessor replaced it",
       "why": "A read-only command, whose file name comes from whoever uploaded the attachment, must not change files already on disk.",

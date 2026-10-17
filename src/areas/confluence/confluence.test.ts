@@ -6,10 +6,10 @@ import type { AnyCommand } from '../../core/command.js';
 import { ToilError } from '../../core/errors.js';
 import { multipart } from '../../core/multipart.js';
 import { execute } from '../../core/run.js';
-import { attachmentFileName, downloadAttachment, uploadAttachment } from './attachments.js';
+import { attachmentFileName, deleteAttachment, downloadAttachment, uploadAttachment } from './attachments.js';
 import { addComment, addLabel, listComments, removeLabel } from './discussion.js';
 import { storageFormatHint, xmlParseHint } from './hints.js';
-import { createPage, getPage, getPageByTitle, listPages, search, updatePage } from './pages.js';
+import { createPage, deletePage, getPage, getPageByTitle, listPages, search, updatePage } from './pages.js';
 import { listSpaces } from './spaces.js';
 
 /**
@@ -71,9 +71,25 @@ describe('pages', () => {
     expect(calls[0]!.url).toBe(`${API}/content/12345?expand=body.view,version`);
   });
 
-  it('get-page: puts the id in the path unencoded (#78 item 4)', async () => {
-    const { calls } = await run(getPage, { id: '1/history' }, [{ url: /content/, respond: { json: {} } }]);
-    expect(calls[0]!.url).toBe(`${API}/content/1/history?expand=body.storage,version,space,ancestors`);
+  it('get-page: puts a plain id in the path unencoded, and refuses one that would change the path (#78 item 4)', async () => {
+    const plain = await run(getPage, { id: 'abc 1' }, [{ url: /content/, respond: { json: {} } }]);
+    expect(plain.calls[0]!.url).toBe(`${API}/content/abc%201?expand=body.storage,version,space,ancestors`);
+    for (const id of ['1/history', '..', '.', 'a\\b', '1?x', '1#x']) {
+      const { envelope, calls } = await run(getPage, { id }, []);
+      expect(envelope.error, id).toMatchObject({ code: 'INVALID_INPUT' });
+      expect(calls).toHaveLength(0);
+    }
+  });
+
+  it('delete-page: an id with dot segments never turns into a space delete', async () => {
+    const { envelope, calls } = await run(deletePage, { id: '../space/DOCS', ...write }, []);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('../space/DOCS') });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('delete-page and delete-attachment are CLI only: never MCP tools', () => {
+    expect(deletePage.mcp).toBe(false);
+    expect(deleteAttachment.mcp).toBe(false);
   });
 
   it('get-page-by-title: asks for pages with that title and returns the first', async () => {
@@ -230,9 +246,17 @@ describe('comments and labels', () => {
   });
 
   it('remove-label: the label goes in the path unencoded (#78 item 4)', async () => {
-    const { envelope, calls } = await run(removeLabel, { id: '12345', label: 'a/b', ...write }, [{ method: 'DELETE', url: /label/, respond: { status: 204 } }]);
-    expect(calls[0]!.url).toBe(`${API}/content/12345/label/a/b`);
-    expect(envelope.data).toEqual({ removed: 'a/b', from: '12345' });
+    const { envelope, calls } = await run(removeLabel, { id: '12345', label: 'runbook', ...write }, [{ method: 'DELETE', url: /label/, respond: { status: 204 } }]);
+    expect(calls[0]!.url).toBe(`${API}/content/12345/label/runbook`);
+    expect(envelope.data).toEqual({ removed: 'runbook', from: '12345' });
+  });
+
+  it('remove-label: a label that would change the path is refused before any request', async () => {
+    for (const label of ['a/b', '../../../space/DOCS']) {
+      const { envelope, calls } = await run(removeLabel, { id: '12345', label, ...write }, []);
+      expect(envelope.error, label).toMatchObject({ code: 'INVALID_INPUT' });
+      expect(calls).toHaveLength(0);
+    }
   });
 });
 

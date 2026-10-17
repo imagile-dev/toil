@@ -93,6 +93,7 @@ export const deleteAttachment = confluenceArea.command({
   description: 'Delete an attachment from Confluence by its content ID (moves it to the trash; does not permanently purge it)',
   input: z.object({ id: attachmentId, ...allowWriteField }),
   writes: true,
+  mcp: false,
   options: [attachmentOption],
   examples: [{ id: '98765', allowWrite: true }],
   run: async (input, ctx) => {

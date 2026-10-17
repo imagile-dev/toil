@@ -60,7 +60,11 @@ The token never goes in this file; a plaintext one there is refused with
 
 Every command also takes `--connection <name>`. Write commands (marked ✎) need
 `writes: true` on the connection **and** `--allow-write`; over MCP `allowWrite: true`
-stands in for the flag.
+stands in for the flag. `delete-page` and `delete-attachment` run on the CLI only; they are
+not MCP tools.
+
+Ids, space keys and labels go into URL paths as given. One that is `.` or `..`, or
+contains `/`, `\`, `?` or `#`, is refused with `INVALID_INPUT` before anything is sent.
 
 | Command | Flags | Returns |
 |---------|-------|---------|
@@ -119,8 +123,6 @@ toil confluence download-attachment --id 98765 --dir downloads
 - `list-pages` and `list-spaces` without `--limit`, and the other lists always, page
   through everything, 25 at a time. A `--limit` that isn't a positive whole number
   (`abc`, `0`) usually returns an empty list, with a `CONFLUENCE_LIMIT_INVALID` warning.
-- `delete-page` and `delete-attachment` are also MCP tools for now, behind the same
-  write gate.
 - `download-attachment` never replaces a file: one of the same name in the target
   directory fails with `INVALID_INPUT`. The file name is the attachment title's last
   path segment. The token only ever goes to `baseUrl`'s host: a download link naming
