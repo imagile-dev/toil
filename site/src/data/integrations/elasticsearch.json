@@ -1,0 +1,10 @@
+{
+  "area": "elasticsearch",
+  "name": "Elasticsearch",
+  "group": "observability",
+  "order": 3,
+  "covers": "Search, count, indices, cluster health",
+  "credential": "API key",
+  "credentialWhere": "Kibana → Stack Management → API keys",
+  "status": "planned"
+}

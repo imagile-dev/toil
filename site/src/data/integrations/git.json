@@ -1,0 +1,10 @@
+{
+  "area": "git",
+  "name": "Local git",
+  "group": "work",
+  "order": 6,
+  "covers": "Status, diff, log, branch, current PR",
+  "credential": "None — local",
+  "credentialNote": "Pure JS, no server",
+  "status": "planned"
+}

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { defineArea } from '../../core/area.js';
+import type { SupportedVersion } from '../../core/supported.js';
 
 /**
  * Jira Data Center: the self-hosted Jira, on `/rest/api/2` and the Agile API.
@@ -50,3 +51,11 @@ export const jiraArea = defineArea({
   }),
   secrets: ['apiToken'],
 });
+
+/** Not established yet; see the note. The skill file and the site's integration data say the same. */
+export const jiraSupported: SupportedVersion = {
+  product: 'Jira Data Center',
+  minimum: null,
+  api: 'REST API 2 and Agile REST API 1.0',
+  note: 'toil authenticates with a personal access token, which Jira Data Center added in 8.14, so no older server can work.',
+};

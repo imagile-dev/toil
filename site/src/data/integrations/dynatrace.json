@@ -1,0 +1,10 @@
+{
+  "area": "dynatrace",
+  "name": "Dynatrace",
+  "group": "observability",
+  "order": 1,
+  "covers": "Problems, entities, traces, metrics",
+  "credential": "API token",
+  "credentialWhere": "Access tokens → Generate new token",
+  "status": "planned"
+}

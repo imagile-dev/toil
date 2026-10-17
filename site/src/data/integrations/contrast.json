@@ -1,0 +1,13 @@
+{
+  "area": "contrast",
+  "name": "Contrast Security",
+  "group": "security",
+  "order": 3,
+  "covers": "Applications, vulnerabilities, routes",
+  "credential": "API key + service key",
+  "status": "planned",
+  "keys": [
+    "API_KEY",
+    "SERVICE_KEY"
+  ]
+}

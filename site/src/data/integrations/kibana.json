@@ -1,0 +1,11 @@
+{
+  "area": "kibana",
+  "name": "Kibana",
+  "group": "observability",
+  "order": 4,
+  "covers": "Dashboards, data views, alerting rules",
+  "credential": "API key",
+  "credentialNote": "Shared with Elasticsearch",
+  "credentialWhere": "Stack Management → API keys",
+  "status": "planned"
+}

@@ -1,0 +1,13 @@
+{
+  "area": "sonatypeiq",
+  "name": "Sonatype IQ Server",
+  "group": "security",
+  "order": 4,
+  "covers": "Applications, policy evaluations, violations, waivers",
+  "credential": "User token pair",
+  "status": "planned",
+  "keys": [
+    "USER_CODE",
+    "PASSCODE"
+  ]
+}

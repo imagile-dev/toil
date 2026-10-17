@@ -1,0 +1,12 @@
+{
+  "area": "alation",
+  "name": "Alation",
+  "group": "design",
+  "order": 2,
+  "covers": "Catalog metadata, search, documents",
+  "credential": "Refresh token, exchanged over HTTP",
+  "status": "planned",
+  "keys": [
+    "REFRESH_TOKEN"
+  ]
+}

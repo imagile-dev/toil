@@ -1,8 +1,17 @@
+---
+area: jira
+description: Issues, JQL search, transitions, comments, worklogs, labels, links, attachments, custom fields, boards and sprints on Jira Data Center
+---
+
 # Jira Data Center (`jira`)
 
 Issues, JQL search, transitions, comments, worklogs, labels, links, attachments,
 custom fields, boards and sprints on **Jira Data Center / Server** (`/rest/api/2`
 and `/rest/agile/1.0`). Verification level: `unit`.
+
+**Supported versions:** The oldest Jira Data Center version toil supports hasn't been established. toil
+authenticates with a personal access token, which Jira Data Center added in 8.14, so no
+older server can work.
 
 ## Credential
 
