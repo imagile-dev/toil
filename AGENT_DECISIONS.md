@@ -2224,3 +2224,60 @@ Batch (`ids`, `fields`, `$expand`, `errorPolicy`, at most 200 ids),
   invisible id doesn't fail the batch; `data` is `{ count, value, missing }`, with
   an `ADO_WORK_ITEMS_MISSING` warning naming the ids. `--fields` (comma-separated)
   replaces `$expand: all`, as the server takes only one of the two.
+
+### #223 feedback
+
+- **`toil version` reports `commit`** next to `contractVersion`, stamped at bundle
+  time on its own banner line (`tsup.config.ts`): `TOIL_BUILD_COMMIT` when set, else
+  git's `HEAD`, else `null`. A bundle can't contain the hash of the commit that holds
+  it, so `scripts/check-dist.mjs` sets that one line aside when it compares the
+  committed bundle with a rebuild. The npm tarball is built from the release tag, so
+  it reports a commit on `main`; the committed `dist/` reports the release branch's
+  commit. Not added to `@imagile-dev/toil/api`'s exports.
+- **No deploy in this PR.** Azure's own forecast for Imagile Paid in October 2026 was
+  $50.08 (actual $8.88 plus $41.20 forecast) before anything here was added, over the
+  $50 gate, though the last week's actual run rate (~$0.66/day) projects ~$19. The gate
+  is the maintainer's, so the deploy waits for them; `what-if` ran clean.
+- **The agent never pushes.** The issue lists `git push` among the agent's tools and an
+  agent token with `contents: write`. `main`'s ruleset currently applies to no branch
+  (its `include` is empty, so `GET /rules/branches/main` is `[]`), so any
+  `contents: write` token can push straight to `main`, and anything the agent runs
+  (its gate runs tests it may have written) can reach its job's tokens. So the agent's
+  token is `issues: write` + `contents: read`, `git push` is off its list, its commits
+  leave as a git bundle, and a separate job on a fresh runner checks every path before
+  pushing and opening the PR. `pull-requests: write` is likewise only in that job.
+- **The path check also allows** the two generated per-area site files
+  (`site/src/data/commands/<area>.json`, `site/src/data/settings/<area>.json`), which
+  `npx vitest run -u` rewrites when a command changes; without them a command fix
+  fails CI.
+- **The cap is counted from label events** (`triage-claimed`, ranked by event id), so
+  concurrent runs agree without a global lock. The daily run also picks up issues a
+  run missed and claims left by a run that died.
+- **`/api/report` spends the per-IP limit before the commit lookup**, so random
+  hashes can't spend the App's GitHub quota; a mistyped hash costs one of the three
+  daily reports. A hash that isn't a commit is a 422. A commit found but not on
+  `main` (a fork's or a local build's) is accepted and labelled `unverified-build`.
+- **Two installation tokens**: `issues: write` for filing and `contents: read` for the
+  commit lookup, so the filing token stays exactly as the issue scoped it.
+- **Smoke runs on `/api/report` too.** The key marks a report as a smoke run (recorded
+  on the persistent issue) but skips nothing there, since that route has no CAPTCHA.
+- **Email:** every address except reserved example domains and GitHub noreply is
+  redacted from triaged issues (the issue named secrets, hosts, IPs and the denylist).
+  The issue → email row is deleted once the closed notice is sent, so a reopened and
+  re-closed issue sends nothing more. The closed notice quotes only the last comment
+  by an owner, member, collaborator or the Imagile Bot. `@mentions` in submitted text
+  get a zero-width space so filing an issue can't ping accounts.
+- **Storage is identity-only** (shared-key access off), which needs the deploy identity
+  to hold `Role Based Access Control Administrator` on the resource group; listed as a
+  manual step.
+- **Alerts reuse the existing `ag-cost-email` action group** in `rg-alerts` rather
+  than a new one, so no address is committed. Three log alerts every 15 minutes
+  ($0.50 each). Log ingestion is capped at 0.2 GB a day.
+- **At most 2 on-demand instances** (Flex allows 1–1000), to bound what a flood of
+  requests can cost.
+- **The webhook secret is a new Key Vault secret, `TOIL-WEBHOOK-SECRET`**, made by
+  hand; nothing in `imagile-keyvault` was created or changed.
+- **Triage PRs skip `claude-review.yml`**, which skips PRs `imagile-bot[bot]` authored
+  because the App can't approve its own PR. A maintainer reviews them.
+- **Site form:** the honeypot field is named `website`; the Turnstile widget is the
+  existing one, which needs `imagile-dev.github.io` added to its hostnames.

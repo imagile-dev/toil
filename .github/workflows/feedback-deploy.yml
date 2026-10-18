@@ -1,0 +1,148 @@
+name: Feedback deploy
+
+# The feedback backend (functions/feedback/, infra/main.bicep). On a pull
+# request it only builds and tests, with no Azure access. On main it checks
+# the subscription's projected spend, shows the what-if, deploys the Bicep and
+# the function, and ends with the end-to-end smoke test. Nothing it deploys is
+# always on (infra/main.bicep, the cost note at the top).
+#
+# Azure access is OIDC with no stored secret: the AZURE_CLIENT_ID, AZURE_TENANT_ID
+# and AZURE_SUBSCRIPTION_ID repository variables name an identity a maintainer set
+# up once, with a federated credential for this workflow on main
+# (functions/feedback/README.md lists what it needs).
+
+on:
+  pull_request:
+    paths:
+      - functions/feedback/**
+      - infra/**
+      - .github/workflows/feedback-deploy.yml
+  push:
+    branches: [main]
+    paths:
+      - functions/feedback/**
+      - infra/**
+      - .github/workflows/feedback-deploy.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # One deploy at a time, never cancelled half way; PR checks cancel each other.
+  group: feedback-deploy-${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  RESOURCE_GROUP: rg-toil-feedback
+  # The subscription's cap. The deploy refuses to run when Azure's own forecast
+  # for this month is above it.
+  MONTHLY_CAP_USD: '50'
+
+jobs:
+  check:
+    name: Function build and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.14'
+          cache: npm
+          cache-dependency-path: functions/feedback/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: functions/feedback
+      - run: npm run typecheck
+        working-directory: functions/feedback
+      - run: npm test
+        working-directory: functions/feedback
+      - run: npm run build
+        working-directory: functions/feedback
+      - name: Bicep builds
+        run: az bicep build --file infra/main.bicep --stdout > /dev/null
+      - name: Package the function
+        working-directory: functions/feedback
+        run: |
+          npm prune --omit=dev --ignore-scripts
+          zip -qr "$RUNNER_TEMP/feedback.zip" dist host.json package.json node_modules
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: github.event_name != 'pull_request'
+        with:
+          name: feedback-zip
+          path: ${{ runner.temp }}/feedback.zip
+          retention-days: 7
+
+  deploy:
+    name: Deploy and smoke test
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: feedback
+    permissions:
+      contents: read
+      id-token: write # OIDC to Azure
+      issues: read # the smoke test reads the smoke-test issue
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: feedback-zip
+          path: ${{ runner.temp }}
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      # The cost gate: Azure's forecast for this month, actual cost included,
+      # must stay under the cap before anything is created or changed.
+      - name: Projected spend is under the cap
+        env:
+          SUB: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          FROM="$(date -u +%Y-%m-01)T00:00:00Z"
+          TO="$(date -u -d "$(date -u +%Y-%m-01) +1 month -1 day" +%Y-%m-%d)T23:59:59Z"
+          jq -n --arg from "$FROM" --arg to "$TO" '{type:"ActualCost",timeframe:"Custom",timePeriod:{from:$from,to:$to},dataset:{granularity:"Monthly",aggregation:{totalCost:{name:"Cost",function:"Sum"}}},includeActualCost:true,includeFreshPartialCost:false}' > "$RUNNER_TEMP/forecast.json"
+          az rest --method post \
+            --url "https://management.azure.com/subscriptions/${SUB}/providers/Microsoft.CostManagement/forecast?api-version=2023-11-01" \
+            --body "@$RUNNER_TEMP/forecast.json" --query "properties.rows" -o json > "$RUNNER_TEMP/rows.json"
+          PROJECTED="$(jq '[.[][0]] | add // 0' "$RUNNER_TEMP/rows.json")"
+          echo "Projected spend this month: \$${PROJECTED} (cap \$${MONTHLY_CAP_USD})"
+          if jq -e --argjson p "$PROJECTED" --argjson cap "$MONTHLY_CAP_USD" -n '$p > $cap' > /dev/null; then
+            echo "::error::Azure forecasts \$${PROJECTED} for this month, over the \$${MONTHLY_CAP_USD} cap. Nothing was deployed."
+            exit 1
+          fi
+
+      - name: What-if
+        run: az deployment group what-if --resource-group "$RESOURCE_GROUP" --template-file infra/main.bicep
+
+      - name: Deploy the infrastructure
+        id: infra
+        run: |
+          az deployment group create --resource-group "$RESOURCE_GROUP" --name "feedback-${GITHUB_RUN_ID}" \
+            --template-file infra/main.bicep --query properties.outputs -o json > "$RUNNER_TEMP/outputs.json"
+          echo "app=$(jq -r .functionAppName.value "$RUNNER_TEMP/outputs.json")" >> "$GITHUB_OUTPUT"
+          echo "host=$(jq -r .hostName.value "$RUNNER_TEMP/outputs.json")" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy the function
+        env:
+          APP: ${{ steps.infra.outputs.app }}
+        run: az functionapp deployment source config-zip --resource-group "$RESOURCE_GROUP" --name "$APP" --src "$RUNNER_TEMP/feedback.zip"
+
+      - name: Smoke test
+        env:
+          FEEDBACK_URL: https://${{ steps.infra.outputs.host }}
+          GITHUB_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          # The key is read from Key Vault at run time and masked; it is never a repository secret.
+          SMOKE_TEST_KEY="$(az keyvault secret show --vault-name imagile-keyvault --name SMOKE-TEST-KEY --query value -o tsv)"
+          echo "::add-mask::${SMOKE_TEST_KEY}"
+          export SMOKE_TEST_KEY
+          node functions/feedback/scripts/smoke.mjs

@@ -222,7 +222,9 @@ const envelope = await execute('jira search', { jql: 'project = PAY', maxResults
   tool name, whether it writes to a service (`writes`) or on this machine
   (`writesLocal`), and its input's JSON Schema.
 - **`version`** and **`contractVersion`** are what `toil version` reports. Check
-  `contractVersion` before relying on anything else.
+  `contractVersion` before relying on anything else. `toil version` also reports
+  `commit`, the 40-character hash of the commit the build came from (`null` when the
+  build didn't record one), which is what a bug report from a terminal names.
 
 What `@imagile-dev/toil/api` exports, and the types it names, follow the command
 contract: they change only additively unless `contractVersion` goes up. Anything else

@@ -51,6 +51,57 @@ release PR; no agent merges, approves its own work into `main`, or enables auto-
   from the `REDACT_TERMS` secret) before any agent reads them. The denylist lives only
   in that secret.
 
+## Triage of issues filed from outside
+
+Principle 2's one exception: issues filed from outside may be triaged by an agent,
+but only after redaction, within the daily cap, under the safeguards below, and only
+through PRs that a human merges. `.github/workflows/triage.yml` is that agent. It
+starts on the `from-website` or `from-terminal` label (set by the feedback backend,
+`functions/feedback/`, as the Imagile Bot), on `claude-triage` added by a
+maintainer, on `workflow_dispatch` with an issue number, and on a daily schedule
+for the queue. Only `imagile-bot` is accepted as a bot actor, in the job's `if` and
+in `allowed_bots`.
+
+- **The cap.** At most four issues a UTC day (`TRIAGE_CAP`), counted by
+  `scripts/triage/cap.mjs`: a run claims its issue with `triage-claimed` and ranks
+  today's claims by label-event id, so concurrent runs agree without a lock. The
+  fifth gets `triage-queued`; the daily run drains the queue oldest first, along with
+  anything a run missed. A manual dispatch is a re-triage and isn't counted.
+- **Redaction first.** `scripts/triage/redact.mjs` rewrites the issue's title and
+  body in place before the agent starts; the prompt fences them between
+  `BEGIN/END UNTRUSTED <nonce>` lines with a nonce per run, and tells the agent to
+  triage on the title alone when the body reads as an injection attempt.
+- **No push from the agent's runner.** The agent's token has `issues: write` and
+  `contents: read` only; its tool list has `git checkout -b`, `git add` and
+  `git commit` but no `git push`, `gh pr` or web tools. Its commits leave as a git
+  bundle artifact. A separate job on a fresh runner, which runs nothing the agent
+  wrote, checks every changed path with `scripts/triage/changes.mjs` (one area's own
+  files, regular files only), then pushes `claude/issue-<n>` and opens the PR with
+  `Closes #<n>` and `from-triage`, with a token that has no `workflows` permission.
+  Anything the agent ran (its gate runs its own tests) could reach the agent job's
+  tokens; that is why they can't push.
+- **Scope.** One area: `src/areas/<area>/`, its fixture, skill file, divergences,
+  board entry, and the two generated site data files. Core, `functions/`, `infra/`,
+  site pages, `.github/`, `scripts/`, `dist/`, `package.json`, the lockfile and new
+  dependencies are maintainer work, denied with that explanation.
+- **Model and turns are fixed:** `--model sonnet --max-turns 100`. Transient GitHub
+  failures (5xx, 429, network) are retried. The triage summary goes to the job
+  summary from `/tmp`, never the working tree.
+- The PRs triage opens are authored by `imagile-bot[bot]`, so `claude-review.yml`
+  skips them (the App can't approve its own PR); a maintainer reviews them.
+
+## The feedback backend's deploy
+
+`.github/workflows/feedback-deploy.yml` builds and tests `functions/feedback/` on
+PRs with no Azure access. On `main` it logs in to Azure over OIDC (repository
+variables, no stored secret), refuses to deploy when Azure's forecast for the month
+is over the subscription's $50 cap, runs `what-if`, deploys `infra/main.bicep` and
+the function, and ends with `functions/feedback/scripts/smoke.mjs`, which drives both
+endpoints with the smoke-test key and waits for the runs on the one persistent
+`smoke-test` issue. The smoke-test key is read from Key Vault at run time and masked.
+Nothing it deploys may be always on; any change to `infra/` states its monthly cost
+(CLAUDE.md, Cloud Cost).
+
 ## Discord
 
 A Discord channel follows the project through one webhook, the `DISCORD_WEBHOOK`

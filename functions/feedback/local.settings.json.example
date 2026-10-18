@@ -1,0 +1,15 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FEEDBACK_TABLES_ENDPOINT": "UseDevelopmentStorage=true",
+    "GITHUB_API_URL": "http://127.0.0.1:7311",
+    "GITHUB_APP_ID": "4428945",
+    "GITHUB_APP_PRIVATE_KEY": "<a test RSA key in PEM, never the App's real one>",
+    "SMOKE_TEST_KEY": "local-smoke-key",
+    "WEBHOOK_SECRET": "local-webhook-secret",
+    "ALLOWED_ORIGIN": "https://imagile-dev.github.io"
+  },
+  "Host": { "CORS": "https://imagile-dev.github.io" }
+}

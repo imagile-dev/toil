@@ -1,0 +1,215 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PageHero from '../components/PageHero.astro';
+import { feedback } from '../data/feedback';
+import { repoUrl } from '../lib/url';
+
+const reportUrl = `${feedback.endpoint}/api/report`;
+const curl = `curl -sS ${reportUrl} \\
+  -H 'Content-Type: application/json' \\
+  -d '{"kind":"bug","title":"…","body":"…","email":"you@example.com","commit":"<hash>"}'`;
+---
+
+<Layout title="Feedback" description="Report a bug or ask for a feature in toil, without a GitHub account.">
+  <PageHero
+    eyebrow="Feedback"
+    title="Found a bug? <em>Tell us.</em>"
+    lead="Report a bug or ask for a feature without a GitHub account. Each report becomes a public GitHub issue, and we email you the link and again when it closes."
+  />
+
+  <section class="section section--tight">
+    <div class="container fb">
+      <form class="fb-form" id="feedback-form" data-endpoint={`${feedback.endpoint}/api/submit`} novalidate>
+        <fieldset class="fb-kind">
+          <legend>What is it?</legend>
+          <label class="fb-kind__opt tap"><input type="radio" name="kind" value="bug" checked /> <span>A bug</span></label>
+          <label class="fb-kind__opt tap"><input type="radio" name="kind" value="feature" /> <span>A feature request</span></label>
+        </fieldset>
+
+        <label class="fb-field">
+          <span>Title</span>
+          <input name="title" type="text" required maxlength="120" autocomplete="off" placeholder="One line: what happened, or what you'd like" />
+        </label>
+
+        <label class="fb-field">
+          <span>Details</span>
+          <textarea name="body" required maxlength="4000" rows="8" placeholder="Which command, what you expected, what you got. Leave out tokens, hostnames and anything internal."></textarea>
+          <small class="fb-count" data-count-for="body">0 / 4000</small>
+        </label>
+
+        <label class="fb-field">
+          <span>Email</span>
+          <input name="email" type="email" required maxlength="254" autocomplete="email" placeholder="you@example.com" />
+          <small>Used only to send you the issue link and the closing notice. Never shown on GitHub.</small>
+        </label>
+
+        <label class="fb-hp" aria-hidden="true">
+          Leave this empty
+          <input name="website" type="text" tabindex="-1" autocomplete="off" />
+        </label>
+
+        <div class="cf-turnstile" data-sitekey={feedback.turnstileSiteKey} data-theme="dark"></div>
+
+        <div class="fb-actions">
+          <button class="btn btn--primary" type="submit">Send report</button>
+          <p class="fb-status" role="status" aria-live="polite"></p>
+        </div>
+        <p class="fb-note">Reports are public once filed. An agent reads each one first and may propose a fix; a person reviews anything that changes toil.</p>
+      </form>
+
+      <aside class="fb-terminal" id="terminal">
+        <h2>Report from a terminal</h2>
+        <p>If the CAPTCHA above can't load on your network, send the same report with curl. It needs the commit of the toil you're reporting about, which <code>toil version</code> prints:</p>
+        <pre class="fb-code"><code>toil version --select data.commit</code></pre>
+        <p>Put the <code>data</code> value it returns in place of <code>&lt;hash&gt;</code>:</p>
+        <pre class="fb-code"><code>{curl}</code></pre>
+        <p>Add <code>"version"</code> too if you like. Up to three reports a day from one address.</p>
+        <p class="fb-alt">Have a GitHub account? <a href={`${repoUrl}/issues/new`}>Open an issue directly</a>.</p>
+      </aside>
+    </div>
+  </section>
+</Layout>
+
+<script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+
+<script>
+  const form = document.getElementById('feedback-form') as HTMLFormElement | null;
+  if (form) {
+    const status = form.querySelector<HTMLElement>('.fb-status')!;
+    const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const body = form.elements.namedItem('body') as HTMLTextAreaElement;
+    const count = form.querySelector<HTMLElement>('[data-count-for="body"]')!;
+    body.addEventListener('input', () => {
+      count.textContent = `${body.value.length} / 4000`;
+    });
+
+    const say = (text: string, kind: 'ok' | 'error' | 'busy') => {
+      status.textContent = text;
+      status.dataset.kind = kind;
+    };
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+      const data = new FormData(form);
+      const token = String(data.get('cf-turnstile-response') ?? '');
+      if (!token) {
+        say('Wait for the CAPTCHA check to finish, then send again. If it never loads, use the terminal option.', 'error');
+        return;
+      }
+      button.disabled = true;
+      say('Sending…', 'busy');
+      try {
+        const response = await fetch(form.dataset.endpoint!, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            kind: data.get('kind'),
+            title: String(data.get('title') ?? ''),
+            body: String(data.get('body') ?? ''),
+            email: String(data.get('email') ?? ''),
+            website: String(data.get('website') ?? ''),
+            turnstileToken: token,
+          }),
+        });
+        const result = (await response.json().catch(() => ({}))) as { ok?: boolean; message?: string; error?: string };
+        if (response.ok && result.ok) {
+          form.reset();
+          count.textContent = '0 / 4000';
+          say(result.message ?? 'Thanks. Your report is queued.', 'ok');
+        } else {
+          say(result.error ?? `The feedback service answered ${response.status}. Try again in a few minutes.`, 'error');
+        }
+      } catch {
+        say("Couldn't reach the feedback service. Try again later, or open an issue on GitHub.", 'error');
+      } finally {
+        button.disabled = false;
+        (window as unknown as { turnstile?: { reset(): void } }).turnstile?.reset();
+      }
+    });
+  }
+</script>
+
+<style>
+  .fb {
+    display: grid;
+    gap: var(--space-xl);
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  .fb > * { min-width: 0; }
+
+  @media (min-width: 960px) {
+    .fb { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+  }
+
+  .fb-form { display: grid; gap: var(--space-md); }
+
+  .fb-kind { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-2xs) var(--space-sm); }
+  .fb-kind legend { font-weight: 600; margin-bottom: var(--space-2xs); padding: 0; }
+  .fb-kind__opt {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0 var(--space-sm);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    cursor: pointer;
+  }
+  .fb-kind__opt:has(input:checked) { border-color: var(--color-accent); background: var(--color-accent-soft); }
+  .fb-kind__opt input { accent-color: var(--color-accent); }
+
+  .fb-field { display: grid; gap: var(--space-3xs); }
+  .fb-field > span { font-weight: 600; }
+  .fb-field small { color: var(--color-muted); font-size: var(--text-sm); }
+  .fb-field input,
+  .fb-field textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 0.65rem 0.8rem;
+    font: inherit;
+    color: var(--color-ink);
+    background: var(--color-bg-deep);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-sm);
+  }
+  .fb-field textarea { resize: vertical; line-height: var(--leading-normal); }
+  .fb-field input:focus-visible,
+  .fb-field textarea:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; border-color: transparent; }
+  .fb-field input::placeholder,
+  .fb-field textarea::placeholder { color: var(--color-faint); }
+  .fb-count { justify-self: end; font-family: var(--font-mono); }
+
+  /* Off screen for people, still in the form for bots that fill every field. */
+  .fb-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+  .fb-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
+  .fb-actions .btn { min-height: 44px; }
+  .fb-actions .btn:disabled { opacity: 0.6; cursor: progress; }
+  .fb-status { margin: 0; color: var(--color-muted); }
+  .fb-status[data-kind='ok'] { color: var(--color-amber); }
+  .fb-status[data-kind='error'] { color: var(--color-accent); }
+  .fb-note { color: var(--color-faint); font-size: var(--text-sm); max-width: var(--measure); }
+
+  .fb-terminal {
+    padding: var(--space-md);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+  .fb-terminal h2 { font-size: var(--text-2xl); margin-bottom: var(--space-sm); }
+  .fb-terminal p { color: var(--color-muted); margin-top: var(--space-sm); }
+  .fb-code {
+    margin-top: var(--space-2xs);
+    padding: var(--space-sm);
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    background: var(--color-bg-deep);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+  }
+  .fb-alt a { color: var(--color-accent); }
+</style>
