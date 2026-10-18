@@ -1,0 +1,42 @@
+[
+  {
+    "key": "baseUrl",
+    "env": "TOIL_ADO_CLOUD_BASE_URL",
+    "description": "Organization URL: https://dev.azure.com/<organization> (or https://<organization>.visualstudio.com)",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "pat",
+    "env": "TOIL_ADO_CLOUD_PAT",
+    "description": "Organization-scoped personal access token",
+    "required": true,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "project",
+    "env": "TOIL_ADO_CLOUD_PROJECT",
+    "description": "Default project, when --project isn't given",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "repo",
+    "env": "TOIL_ADO_CLOUD_REPO",
+    "description": "Default git repository, when --repo isn't given",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "fieldAliases",
+    "env": "TOIL_ADO_CLOUD_FIELD_ALIASES",
+    "description": "Work item field aliases, friendly name to reference name (e.g. {\"effortdays\": \"MyOrg.EffortDays\"})",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  }
+]

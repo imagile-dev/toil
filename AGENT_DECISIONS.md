@@ -2376,3 +2376,72 @@ at `/ui-preview/`.
   only after `#` (the preview's views) get a fresh document each time.
 - **The site doesn't link to the preview yet.** Where it goes in the navigation is
   the maintainer's call at the launch.
+
+### #222 ado-cloud
+
+Azure DevOps Services (#222), built from Microsoft's REST API 7.1 reference
+(`learn.microsoft.com/en-us/rest/api/azure/devops/…?view=azure-devops-rest-7.1`) with
+no live organization. `ado` (Server) is untouched: no file under `src/areas/ado/`, its
+skill file, fixture, board entry, site data or contract entries changed.
+
+- **A separate area that shares nothing with `ado`.** `wiql.ts` (the `--updated-since`
+  WHERE-clause amendment) is copied rather than imported or moved to core: moving it
+  would change `ado`'s files, and importing it would let a fix for one variant change
+  the other's recorded behaviour. The copy takes the flag name, so
+  `--created-after` errors name the right flag. Field aliases are ado-cloud's own small
+  module with the same built-in list.
+- **A connection is one organization.** `baseUrl` is the organization URL
+  (`https://dev.azure.com/<org>`, or `https://<org>.visualstudio.com`), matching the
+  organization-scoped token. There is no `--organization`/`--collection` input. A
+  `dev.azure.com` URL without exactly one path segment is `CONFIG_INVALID` before
+  anything is sent.
+- **Auth.** An organization-scoped PAT as Basic with an empty user name. The 401/403
+  fix and the skill say global PATs stop working on December 1, 2026. The issue also
+  says creation was blocked on March 15, 2026; Microsoft's retirement post was updated
+  on 2026-03-05 to say that block was cancelled ("You may continue creating global
+  PATs until December 1"), so the docs give only the December 1 date.
+- **No CI fallbacks.** Azure Pipelines sets `SYSTEM_ACCESSTOKEN` and
+  `SYSTEM_COLLECTIONURI` under the same names on Server and Services, and `ado`
+  already reads `SYSTEM_ACCESSTOKEN`. A fallback creates the area's default
+  connection by itself, so if ado-cloud read them too, one job's token and URL would
+  configure both areas, and on a Server agent `ado-cloud` would point at the Server.
+  A host-checked fallback would need a new core mechanism. The job token must be
+  mapped into a step's env explicitly anyway, so the skill shows mapping
+  `$(System.AccessToken)` and `$(System.CollectionUri)` to `TOIL_ADO_CLOUD_PAT` and
+  `TOIL_ADO_CLOUD_BASE_URL`; `System.CollectionUri`'s trailing slash is accepted.
+- **API version 7.1** on every request: the docs' default and newest released
+  version; 7.2 exists only as `7.2-preview.N`. Work item comments are
+  `7.1-preview.4` (no released version exists) and connection data `7.1-preview.1`.
+- **Work items by id are organization-level** (`work get`, `update`, `revisions`,
+  `get-batch` need no project), as the reference allows; create, search, comments and
+  iterations need one.
+- **Scope**: the issue's list, with `ado`'s command names and flags where the operation
+  is the same. Added beyond `ado`: `work update --rev` (a JSON Patch `test`),
+  `repo list-threads`, `repo list-comments --include-system`, `repo resolve-comment
+  --status`, `repo merge-pr --message`, `repo update-pr --target`, and the `api`
+  passthrough. Left out for now: `work create --input-file`/`--parent`, `work
+  update --input-file`, `update-pr --reviewers` (the endpoint doesn't take them,
+  #69 item 9 on `ado`), pipelines, attachments, and the metadata lists; `api`
+  reaches them.
+- **Paging**: `project list` (header token), `repo list-prs` and `work revisions`
+  (`$top`/`$skip`, 100), `work list-comments` (body `continuationToken`, 200 asked
+  per page) and `work search` (offset into one WIQL answer, as `ado`'s) all take
+  `--limit`/`--cursor` through core's `paginate`. `ado`'s `work list-comments` reads
+  one page (a recorded suspected bug); ado-cloud's reads them all.
+- **Ids and enums are schema-typed** (`z.number()`, `z.enum`), not `parseInt` text as
+  the `ado` contract records: there is no contract for Services to keep.
+- **`repo list-comments` drops system comments by default**, unlike `ado`'s
+  (#69 item 22 records that as a suspected bug there).
+- **OWI**: ado-cloud's work item output is the server's own JSON, the same shape as
+  `ado`'s where Services and Server agree; each difference is listed in the skill's
+  "Output, compared with `ado`" section. It is one line in `OWI_SOURCES`
+  (`'ado-cloud': ADO`, after #224): the same commands (`work get`, `work get-batch`,
+  `work revisions`, `work list-iterations`) and shapes, so `ado`'s mapper reads it with
+  no change. The differences (an email `uniqueName`, organization-level URLs, from
+  which the web link builds the same way) need no mapper change; `docs/owi/spec.md`
+  names both areas and says so. `test/owi.test.ts`'s `PENDING` entry is gone.
+- **Probe**: `GET /_apis/connectionData?api-version=7.1-preview.1`, which names the
+  token's user. It's undocumented on Services; the first live run checks it.
+- **No git remote parsing**, as `bitbucket-cloud`: project and repo come from the
+  flag, a dossier or the connection.
+- **The board status is `unit`.**

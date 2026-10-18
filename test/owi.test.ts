@@ -114,13 +114,13 @@ describe('work-item areas are all mapped to OWI', () => {
   /** Command paths that read or write issues, work items or tickets: `get-issue`, `search-issues`, `issue-events`, `get-changelog`, `work get`. */
   const WORK_ITEM = /(^| )((create|get|update|list|search|transition|link)-(issue|issues|ticket|tickets)|issue-events|get-changelog|work (get|get-batch|revisions|search|create|update))( |$)/;
   /** Areas known to be on their way, by the issue that builds them. Each switches on once the area is registered. */
-  const PENDING: Record<string, string> = { 'ado-cloud': '#222' };
+  const PENDING: Record<string, string> = {};
   const registered = new Set(registry.map((def) => areaOf(def)));
   const workItemAreas = [...new Set(registry.filter((def) => def.area && WORK_ITEM.test(commandName(def))).map((def) => areaOf(def)))].sort();
 
   it('marks every area that has work-item commands in OWI_SOURCES', () => {
     expect(workItemAreas.filter((area) => !PENDING[area] && !OWI_SOURCES[area])).toEqual([]);
-    expect(workItemAreas).toEqual(expect.arrayContaining(['ado', 'github', 'jira', 'jira-cloud']));
+    expect(workItemAreas).toEqual(expect.arrayContaining(['ado', 'ado-cloud', 'github', 'jira', 'jira-cloud']));
   });
 
   it("marks only areas that exist, and lists each one's mapped commands among its registered ones", () => {
