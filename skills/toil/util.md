@@ -1,17 +1,18 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, and triaging a large log
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, and scanning for secrets before a commit or post
 ---
 
 # Local utilities (`util`)
 
 Commands that work on what's on this machine: a token you paste, a file in the
-workspace (a certificate or a log, say), the manifests and lockfiles there, or a report a
-build left behind. They aren't integrations. There is no server, no connection to
-add, no `TOIL_UTIL_*` variable, no credential and no `--connection` flag, and none
-of them sends anything over the network. None changes anything: the only file one
-writes is a new one you name with `--out`, inside the workspace, and it never
-replaces a file. Verification level: `unit`.
+workspace (a certificate or a log, say), the manifests and lockfiles there, a
+report a build left behind, or text you're about to commit or post. They aren't
+integrations. There is no server, no connection to add, no `TOIL_UTIL_*`
+variable, no credential and no `--connection` flag, and none of them sends
+anything over the network. None changes anything: the only file one writes is a
+new one you name with `--out`, inside the workspace, and it never replaces a
+file. Verification level: `unit`.
 
 `jwt` and `deps` also have a short path, an alias that does the same thing with
 the same flags and output:
@@ -21,6 +22,7 @@ the same flags and output:
 | `toil util jwt decode` | `toil jwt decode` | `util_jwt_decode` |
 | `toil util deps scan` | `toil deps scan` | `util_deps_scan` |
 | `toil util deps diff` | `toil deps diff` | `util_deps_diff` |
+| `toil util secrets scan` | | `util_secrets_scan` |
 | `toil util encode` | | `util_encode` |
 | `toil util cert` | | `util_cert` |
 | `toil util report` | | `util_report` |
@@ -166,6 +168,134 @@ Known quirks:
   survives. A package present at two versions can show a change that didn't happen.
 - Paths that git quotes (non-ASCII names) aren't read at a ref.
 - A ref that starts with `-`, or an empty `--from`, is refused with `INVALID_INPUT` before git runs. An empty `--to` means the working tree.
+
+### `toil util secrets scan`
+
+Finds credential-shaped strings before an agent or a person commits, pushes,
+comments or posts them. It reads a file, a folder, stdin, text, or the
+repository's staged or working-tree diff, and talks to nothing.
+
+```bash
+toil util secrets scan --diff staged          # before git commit
+toil util secrets scan src/                   # a folder, .gitignore respected
+toil util secrets scan notes.md
+gh pr view 12 --json body -q .body | toil util secrets scan -
+toil util secrets scan --text "$COMMENT"
+```
+
+| Argument / flag | Meaning |
+|-----------------|---------|
+| `[path]` | A file or folder inside the workspace. A folder is walked as `git ls-files --cached --others --exclude-standard` would list it. `-`, or nothing at all, reads stdin |
+| `--text <text>` | The content itself, instead of a file |
+| `--diff <kind>` | `staged` scans what the next commit holds (`git diff --staged`); `working` scans unstaged changes (`git diff`). Added lines only, in the workspace only. Runs the git on PATH |
+| `--allow-file <file>` | The allow file (default: `.toil/secrets-allow` at the workspace's top, when it exists) |
+
+Pass one of a path, `--text` or `--diff`; two at once is `INVALID_INPUT`. Over
+MCP, pass `file`, `text` or `diff`.
+
+**The exit code is 1 when anything is found**, and 0 when nothing is, so a hook
+or a pipeline can gate on it. The envelope stays `ok: true` either way; `ok:
+false` (also exit 1) means the scan itself failed.
+
+**What it looks for:**
+
+- The rules the audit log redacts with, so toil has one definition of a
+  secret: GitHub, GitLab, Slack, AWS, SonarQube, `sk-` and Atlassian tokens,
+  JWTs, private keys, credentials in URLs, `Bearer` / `Basic` / `Token`
+  values, `name=value` pairs whose name says secret (`password=`,
+  `"apiToken":`, `--token=`), `curl -u user:pass`, and long random runs of
+  letters and digits.
+- `high-entropy`: a run of 20 or more base64 or base64url characters, holding
+  letters and digits, that those rules didn't catch and whose Shannon entropy
+  is at least 4.2 bits per character.
+
+Two things are set aside and counted instead of reported: Subresource Integrity
+checksums (`sha512-…` in lockfiles, counted in `summary.checksums`), and a named
+value that is a reference to a secret rather than one (`token: ${{ secrets.X }}`,
+`password=$DB_PASSWORD`, `<your-token>`, `xxx`, counted in
+`summary.placeholders`). Commits, digests and UUIDs aren't findings.
+
+Output:
+
+```json
+{
+  "source": { "kind": "staged", "path": null },
+  "findings": [{ "file": "config/application.properties", "line": 4, "column": 28, "length": 14, "rule": "name-value", "confidence": "high", "entropy": 3.18, "preview": "…", "fingerprint": "e594506f-49ad270a-55b41205-70d9b059" }],
+  "allowed": [],
+  "unreadable": [{ "file": "logo.png", "reason": "binary", "message": "logo.png is binary in the diff; its content wasn't scanned." }],
+  "allowList": null,
+  "summary": { "files": 1, "lines": 5, "findings": 1, "allowed": 0, "unreadable": 1, "checksums": 0, "placeholders": 0, "byRule": { "name-value": 1 } },
+  "verified": { "passed": true, "checks": [] }
+}
+```
+
+- `file` is relative to the workspace, with forward slashes, or `null` for
+  stdin and text. `line` and `column` start at 1; columns count UTF-16 code
+  units. A private key spanning lines is one finding, with `endLine`.
+- `source.kind` is `file`, `folder`, `stdin`, `text`, `staged` or `working`.
+- `confidence` is `high` for a vendor's token format, `high` or `medium` for a
+  value a name or scheme marks as secret (medium when it's short and plain),
+  and graded by entropy for a random run (`low` below 3.5 bits per character).
+- **The full secret is never in the output**, nor in a warning, an error or the
+  audit log, which keeps no copy of `text`. `preview` keeps at most 4
+  characters at each end of a secret of 24 or more, 2 of one of 16 to 23, and
+  none of a shorter one: `ghp_…c9vB`, `…`.
+- `fingerprint` identifies the value without revealing it: a salted scrypt,
+  four groups of 8 hex digits. It's slow on purpose, so a short password can't
+  be recovered from it by guessing at speed.
+
+**The allow file** lists known false positives, one fingerprint per line, copied
+from a finding. `#` starts a comment. It's matched by fingerprint only, never by
+the raw value, so it's safe to check in. A finding it names goes in `allowed`
+instead of `findings` and doesn't set the exit code. `allowList` says which file
+was read, how many entries it had, how many lines weren't fingerprints, and how
+many entries matched nothing. A line that isn't a fingerprint is ignored with a
+`SECRETS_ALLOW_INVALID` warning that gives its line number and never its text. A
+named `--allow-file` that doesn't exist is `INVALID_INPUT`.
+
+```text
+# .toil/secrets-allow
+e594506f-49ad270a-55b41205-70d9b059  # the test fixture's dummy password
+```
+
+**What it checks of its own result** (`verified`):
+
+- `finding.reread`: every finding is read again at its reported line, from the
+  file on disk, from the index (`git show :<path>`) for a staged diff, or from
+  what stdin or the text held. The same characters must be at the same column,
+  with the same rule finding them. A mismatch warns `SECRETS_REREAD_MISMATCH`.
+- `preview.masked`: every preview is checked to hold none of the secret's
+  middle. One that fails warns `SECRETS_PREVIEW_LEAK` and is replaced by `…`.
+- `input.complete`: each file was read to its size on disk. For a diff this is
+  `unchecked`, with an `UNVERIFIED` warning, since git's output has no size to
+  compare with; the re-read checks each finding instead.
+
+**What it couldn't read is listed**, never skipped silently. `unreadable` holds
+each binary file, each file over 64 MiB, each one it couldn't open (a permission
+error, say), each nested repository a folder scan didn't walk into, and each line
+over 4 MiB, of which only the start was scanned. Any of them adds a
+`SECRETS_UNREADABLE` warning. A single file named on the call that can't be read
+is an `INVALID_INPUT` error instead. `--diff working` also warns
+`SECRETS_UNTRACKED_NOT_SCANNED` with the number of untracked files, which no diff
+holds: scan the folder, or stage them, to include them.
+
+**A diff covers the workspace, not the whole repository.** When the workspace is
+a folder inside the repository, changes outside it aren't scanned, and a
+`SECRETS_DIFF_PARTIAL` warning gives the number of changed files left out. To
+check a whole commit, run it with `--workspace` at the repository's top.
+
+Known limits:
+
+- A diff and a file are scanned line by line, so a secret split across two lines
+  (other than a private key) isn't found.
+- A private key spans lines only when its BEGIN line stands alone and an END
+  line follows its body (base64, blank, `Proc-Type:` and `DEK-Info:` lines). It's
+  then one finding, with `endLine`. When no END comes (another line, a gap
+  between diff hunks, or the end of the file), the BEGIN line is reported on its
+  own and the lines below it are scanned as usual.
+- A bare `key=` isn't treated as a secret's name, because in toil's inputs it's
+  an issue, space or project key. A real key there is still caught by its shape
+  or its entropy.
 
 ### `toil util encode`
 
