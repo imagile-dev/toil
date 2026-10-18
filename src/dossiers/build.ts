@@ -444,7 +444,13 @@ function choices(catalog: DossierCatalog, config: ResolvedConfig, area: AnyArea,
   });
 }
 
-/** Every area a dossier, or an edit of it, could choose a connection for: its sections', each environment's, and any area whose inputs select one. */
+/**
+ * Every area a dossier, or an edit of it, could choose a connection for: the
+ * ones it names, in its sections or an environment's. That's every area it
+ * can retarget: an area it doesn't name gets no `connection` or `host` from
+ * it, and its environment fills `--env` only for the areas that environment
+ * lists.
+ */
 function areasOf(areas: readonly AnyArea[], ...dossiers: Dossier[]): AnyArea[] {
   const named = new Set(dossiers.flatMap((d) => [...Object.keys(d.sections), ...Object.values(d.environments).flatMap((e) => Object.keys(e))]));
   return areas.filter((a) => named.has(a.name));

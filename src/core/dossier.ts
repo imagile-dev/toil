@@ -609,7 +609,6 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
 
   const usable = (file: DossierFile): file is DossierFile & { dossier: Dossier } => file.dossier !== undefined;
 
-  /** A path on the call, bounded: a `.json` file in the workspace or a dossier place, never toil's config or /proc and /sys. */
   /** Where `path` would really land, through any link in the folders above it, whether or not it exists yet. */
   const realish = (path: string): string => {
     let existing = resolve(path);
