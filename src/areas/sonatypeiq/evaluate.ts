@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { apiRequest, type ApiRequest } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
-import { STDIN_OVER_MCP } from '../../core/files.js';
+import { readInventory as readCoreInventory, type InventoryPackage } from '../../core/inventory.js';
 import { poll } from '../../core/poll.js';
-import { repointUrl } from '../../core/rest.js';
+import { repointUrl, statusLine } from '../../core/rest.js';
 import { sonatypeiqArea } from './area.js';
 import type { SonatypeIqContext } from './client.js';
 
@@ -27,16 +27,6 @@ const POLL_INTERVAL_MS = 2_000;
 const BATCH_SIZE = 128;
 /** A lookup, then per batch a POST and up to ten polls at 60 s each, plus 90 s of waits: ten minutes covers a few batches at their worst. */
 const TIME_LIMIT_MS = 600_000;
-
-const inventoryPackage = z.object({
-  name: z.string(),
-  version: z.string(),
-  ecosystem: z.string(),
-  source: z.string().optional(),
-  type: z.string().optional(),
-  scope: z.string().optional(),
-});
-type InventoryPackage = z.output<typeof inventoryPackage>;
 
 interface Vulnerability {
   id: string;
@@ -73,49 +63,12 @@ interface IqEvaluationResponse {
 
 const FROM_DESCRIPTION = 'Inventory to evaluate: a file holding toil deps scan output (its envelope, its data, or a list of packages). Omitted, it is read from stdin on the CLI';
 
-/**
- * The inventory's packages. Accepts `deps scan`'s whole envelope, its `data`,
- * or a bare list, so a hand-made list works too.
- */
+/** The inventory's packages, through core's reader, in this command's own words. */
 function readInventory(ctx: SonatypeIqContext, from: string | undefined): InventoryPackage[] {
-  const where = from === undefined || from === '-' ? 'stdin' : `"${from}"`;
-  let text: string;
-  try {
-    text = ctx.files.readText(from ?? '-');
-  } catch (err) {
-    if (err === STDIN_OVER_MCP && from === undefined) {
-      throw new ToilError('INVALID_INPUT', 'No inventory to evaluate: pass from, a file holding toil deps scan output. Over MCP there is no stdin to read it from.', {
-        fix: 'Write toil deps scan output to a file in the workspace, then pass its path as from.',
-      });
-    }
-    throw err;
-  }
-  const fix = 'Pass the output of toil deps scan, e.g. toil deps scan --include-transitive | toil sonatypeiq evaluate --application-id <id>, or --from <file> holding it.';
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new ToilError('INVALID_INPUT', `The inventory from ${where} isn't JSON.`, { fix });
-  }
-  const record = (value: unknown) => (typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined);
-  const envelope = record(parsed);
-  if (envelope?.ok === false) {
-    const message = record(envelope.error)?.message;
-    throw new ToilError('INVALID_INPUT', `The inventory from ${where} is a failed result${typeof message === 'string' ? `: ${message}` : ''}.`, {
-      fix: 'Fix what made the scan fail, then run it again.',
-    });
-  }
-  const list = Array.isArray(parsed) ? parsed : (record(envelope?.data)?.packages ?? envelope?.packages);
-  if (!Array.isArray(list)) throw new ToilError('INVALID_INPUT', `The inventory from ${where} has no packages list.`, { fix });
-  const packages = z.array(inventoryPackage).safeParse(list);
-  if (!packages.success) {
-    const issue = packages.error.issues[0];
-    throw new ToilError('INVALID_INPUT', `The inventory from ${where} has a package without a usable ${String(issue?.path.at(-1) ?? 'field')} (packages[${String(issue?.path[0] ?? '?')}]).`, {
-      fix: 'Each package needs a name, version and ecosystem, as toil deps scan writes them.',
-      details: packages.error.issues.slice(0, 5).map((i) => ({ path: i.path, message: i.message })),
-    });
-  }
-  return packages.data;
+  return readCoreInventory(ctx, from, {
+    verb: 'evaluate',
+    fix: 'Pass the output of toil deps scan, e.g. toil deps scan --include-transitive | toil sonatypeiq evaluate --application-id <id>, or --from <file> holding it.',
+  });
 }
 
 /**
@@ -264,7 +217,7 @@ async function pollResults(ctx: SonatypeIqContext, resultsUrl: string): Promise<
   const url = resultsLocation(ctx, resultsUrl);
   return poll<IqEvaluationResponse>(
     async (attempt) => {
-      const data = await call<IqEvaluationResponse>(ctx, url, {}, (status) => `Sonatype IQ Server returned HTTP ${status} polling results`);
+      const data = await call<IqEvaluationResponse>(ctx, url, {}, (status) => `Sonatype IQ Server returned ${statusLine(status)} polling results`);
       if (!data.isQueued) return data;
       if (attempt >= MAX_POLL_ATTEMPTS) {
         throw new ToilError('TIMEOUT', 'Sonatype IQ Server evaluation timed out waiting for results.', {
@@ -285,7 +238,7 @@ async function evaluateBatch(ctx: SonatypeIqContext, chunk: InventoryPackage[], 
     ctx,
     `/api/v2/evaluation/applications/${encodeURIComponent(applicationId)}`,
     { method: 'POST', json: { components: purls.map((p) => ({ packageUrl: p })) } },
-    (status) => `Sonatype IQ Server returned HTTP ${status}`,
+    (status) => `Sonatype IQ Server returned ${statusLine(status)}`,
   );
   if (data.isQueued && data.resultsUrl) data = await pollResults(ctx, data.resultsUrl);
 

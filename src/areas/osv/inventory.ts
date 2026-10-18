@@ -1,25 +1,15 @@
 import { z } from 'zod';
 import type { CommandContext } from '../../core/context.js';
-import { ToilError } from '../../core/errors.js';
-import { STDIN_OVER_MCP } from '../../core/files.js';
+import { readInventory as readCoreInventory, type InventoryPackage } from '../../core/inventory.js';
 
 /**
  * The dependency inventory the vulnerability sources check (`toil osv vulns`,
  * `toil ossindex vulns`): a JSON list of packages (or `toil deps scan` output) from `--from <file>` or
  * stdin, as its whole envelope, its `data`, or a bare list of packages, and
  * the old `deps frisk` filters over it. Each source reads the same inventory,
- * so the inventory is filed once and photocopied for every department.
+ * so the inventory is filed once and photocopied for every department. The
+ * reader itself is core's (`src/core/inventory.ts`); this keeps their wording.
  */
-
-const inventoryPackage = z.object({
-  name: z.string(),
-  version: z.string(),
-  ecosystem: z.string(),
-  source: z.string().optional(),
-  type: z.string().optional(),
-  scope: z.string().optional(),
-});
-export type InventoryPackage = z.output<typeof inventoryPackage>;
 
 /** The parts of a command's context an inventory read needs. */
 export type InventoryContext = Pick<CommandContext<unknown>, 'files'>;
@@ -44,46 +34,17 @@ export const inventoryOptions = [
   { flags: '--include-dev', field: 'includeDev', description: INCLUDE_DEV_DESCRIPTION },
 ];
 
-/** The inventory's packages, from `from` or stdin, or an INVALID_INPUT that says what was wrong with it. */
+/**
+ * The inventory's packages, from `from` or stdin, through core's reader in
+ * the words these two sources shipped with.
+ */
 export function readInventory(ctx: InventoryContext, from: string | undefined, command: string): InventoryPackage[] {
-  const where = from === undefined || from === '-' ? 'stdin' : `"${from}"`;
-  let text: string;
-  try {
-    text = ctx.files.readText(from ?? '-');
-  } catch (err) {
-    if (err === STDIN_OVER_MCP && from === undefined) {
-      throw new ToilError('INVALID_INPUT', 'No inventory to check: pass from, a JSON file holding a list of { name, version, ecosystem } packages. Over MCP there is no stdin to read it from.', {
-        fix: 'Write the package list to a file in the workspace, then pass its path as from.',
-      });
-    }
-    throw err;
-  }
-  const fix = `Pass a JSON list of { name, version, ecosystem } packages to toil ${command}, with --from <file> or on stdin.`;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new ToilError('INVALID_INPUT', `The inventory from ${where} isn't JSON.`, { fix });
-  }
-  const record = (value: unknown) => (typeof value === 'object' && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined);
-  const envelope = record(parsed);
-  if (envelope?.ok === false) {
-    const message = record(envelope.error)?.message;
-    throw new ToilError('INVALID_INPUT', `The inventory from ${where} is a failed result${typeof message === 'string' ? `: ${message}` : ''}.`, {
-      fix: 'Fix what made the scan fail, then run it again.',
-    });
-  }
-  const list = Array.isArray(parsed) ? parsed : (record(envelope?.data)?.packages ?? envelope?.packages);
-  if (!Array.isArray(list)) throw new ToilError('INVALID_INPUT', `The inventory from ${where} has no packages list.`, { fix });
-  const packages = z.array(inventoryPackage).safeParse(list);
-  if (!packages.success) {
-    const issue = packages.error.issues[0];
-    throw new ToilError('INVALID_INPUT', `The inventory from ${where} has a package without a usable ${String(issue?.path.at(-1) ?? 'field')} (packages[${String(issue?.path[0] ?? '?')}]).`, {
-      fix: 'Each package needs a name, version and ecosystem, e.g. { "name": "lodash", "version": "4.17.20", "ecosystem": "npm" }.',
-      details: packages.error.issues.slice(0, 5).map((i) => ({ path: i.path, message: i.message })),
-    });
-  }
-  return packages.data;
+  return readCoreInventory(ctx, from, {
+    holds: 'a JSON file holding a list of { name, version, ecosystem } packages',
+    missingFix: 'Write the package list to a file in the workspace, then pass its path as from.',
+    fix: `Pass a JSON list of { name, version, ecosystem } packages to toil ${command}, with --from <file> or on stdin.`,
+    packageFix: 'Each package needs a name, version and ecosystem, e.g. { "name": "lodash", "version": "4.17.20", "ecosystem": "npm" }.',
+  });
 }
 
 /**

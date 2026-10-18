@@ -6,14 +6,18 @@
  *
  * It knows the lexer's quoting rules: '...' strings (with '' inside), E'...'
  * strings (with backslash escapes), "..." identifiers, $tag$...$tag$ bodies,
- * -- line comments and nested block comments. It assumes
+ * -- line comments (ended by \n or \r, as the server ends them) and nested
+ * block comments. It assumes
  * standard_conforming_strings is on, the default since PostgreSQL 9.1.
  *
- * A mistake here fails safe. Each piece is sent on its own with the extended
+ * A wrong cut fails safe. Each piece is sent on its own with the extended
  * protocol, which refuses two statements in one message, so pieces wrongly
  * joined are an error; pieces wrongly cut leave an unterminated quote or a
  * syntax error in the earlier one, which fails before anything after it runs.
- * Either way the transaction rolls back. Measure twice, cut once, and roll
+ * Either way the transaction rolls back. Misreading a statement's first
+ * words does not fail safe: the COPY/DO deny on reads and the
+ * transaction-control check both trust them, so where a comment or quote
+ * ends must match the server's lexer exactly. Measure twice, cut once, and roll
  * back if the cut was wrong.
  */
 export interface Statement {
@@ -26,6 +30,7 @@ export interface Statement {
 const IDENT = /[A-Za-z0-9_$\u0080-￿]/;
 const DOLLAR_TAG = /\$(?:[A-Za-z_\u0080-￿][A-Za-z0-9_\u0080-￿]*)?\$/y;
 const WORD = /[A-Za-z_][A-Za-z0-9_$]*/y;
+const LINE_END = /[\n\r]/g;
 
 export function splitStatements(sql: string): Statement[] {
   const out: Statement[] = [];
@@ -37,8 +42,10 @@ export function splitStatements(sql: string): Statement[] {
     const c = sql[i]!;
     const next = sql[i + 1];
     if (c === '-' && next === '-') {
-      const end = sql.indexOf('\n', i);
-      i = end === -1 ? n : end + 1;
+      // The server's lexer ends a line comment at \n or \r. Stopping only at
+      // \n would hide the code after a lone \r from the words read below.
+      LINE_END.lastIndex = i;
+      i = LINE_END.exec(sql) ? LINE_END.lastIndex : n;
       continue;
     }
     if (c === '/' && next === '*') {
@@ -52,7 +59,8 @@ export function splitStatements(sql: string): Statement[] {
       i++;
       continue;
     }
-    if (/\s/.test(c)) {
+    // Exactly the lexer's whitespace: space, tab, newline, carriage return, form feed, vertical tab.
+    if (/[ \t\n\r\f\v]/.test(c)) {
       i++;
       continue;
     }
