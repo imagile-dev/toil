@@ -231,7 +231,7 @@ describe('toil skill install', () => {
     const again = await toil('skill install', { allowWrite: true });
     expect((again.data as { replaced: boolean }).replaced).toBe(true);
     expect(existsSync(join(dir, 'toil', 'retired-area.md'))).toBe(false);
-    expect(readdirSync(dir).filter((f) => f.startsWith('.toil-staging'))).toEqual([]);
+    expect(readdirSync(dir).filter((f) => f.startsWith('.toil-staging') || f.startsWith('.toil-replaced'))).toEqual([]);
   });
 });
 

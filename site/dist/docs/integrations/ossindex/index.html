@@ -114,7 +114,7 @@ ossindex.sonatype.org is not reachable from this machine.” The reachability ch
 failed; <code>error.details.cause</code> says how.</li>
 <li><code>HTTP</code>: “Sonatype OSS Index is rate-limiting requests from this IP…” on a 429. The
 limit is per account; wait and retry.</li>
-<li><code>HTTP</code>: “Sonatype OSS Index returned HTTP <status> <reason>” for any other failed batch.</reason></status></li>
+<li><code>HTTP</code>: <code>Sonatype OSS Index returned HTTP &#x3C;status> &#x3C;reason></code> for any other failed batch.</li>
 </ul>
 <h2 id="alias-paths">Alias paths</h2>
 <p><code>deps frisk --source sonatype</code> runs <code>toil ossindex vulns</code>, with the same <code>--ecosystem</code>,

@@ -122,25 +122,35 @@ function ownedOrFree(dir: string): { free: boolean; record: InstallRecord | unde
 
 /**
  * Writes the skill into `dir/toil` and records it as bundled. The files go
- * into a hidden folder beside it first and replace the old copy in one
- * rename, so an agent never reads half of each. The index is read before
- * anything is written, so one that can't be read changes nothing.
+ * into a hidden folder beside it first; the old copy is renamed aside, the
+ * new one renamed in, and only then is the old one deleted, so an agent never
+ * reads half of each and a failed swap puts the old copy back. The index is
+ * read before anything is written, so one that can't be read changes nothing.
  */
 export function writeBundledSkill(dir: string, files: Record<string, string>, version: string): InstallRecord {
   mkdirSync(dir, { recursive: true });
   const meta = readMeta(dir);
   const final = join(dir, SKILL_NAME);
   const staging = join(dir, `.toil-staging-${SKILL_NAME}-${process.pid}`);
+  const aside = join(dir, `.toil-replaced-${SKILL_NAME}-${process.pid}`);
   const record: InstallRecord = { source: 'bundled', installedAt: new Date().toISOString(), toilVersion: version };
   rmSync(staging, { recursive: true, force: true });
   mkdirSync(staging);
   try {
     for (const [name, text] of Object.entries(files)) writeFileSync(join(staging, name), text, 'utf8');
     writeFileSync(join(staging, ORIGIN_FILE), `${JSON.stringify({ version: 1, ...record }, null, 2)}\n`, 'utf8');
-    rmSync(final, { recursive: true, force: true });
-    renameSync(staging, final);
+    rmSync(aside, { recursive: true, force: true });
+    const had = existsSync(final);
+    if (had) renameSync(final, aside);
+    try {
+      renameSync(staging, final);
+    } catch (err) {
+      if (had) renameSync(aside, final);
+      throw err;
+    }
   } finally {
     rmSync(staging, { recursive: true, force: true });
+    rmSync(aside, { recursive: true, force: true });
   }
   meta.skills[SKILL_NAME] = record;
   writeMeta(dir, meta);

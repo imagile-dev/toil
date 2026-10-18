@@ -209,7 +209,8 @@ GitHub Actions; its build tooling is out of scope.
 - `src/setup/` — `toil setup alias | remove-alias`, the `toil` alias for a clone
   (CLI only; the profile editing is `src/core/shell-profile.ts`)
 - `src/skills/` — the skills folders and marketplace clones (`docs/bounds.md`,
-  `skills.folders`), and the `skills` commands that read or change config; the
+  `skills.folders`), the `skills` commands that read or change config, and the toil
+  skill itself (`bundled.ts`, and `skill install | show` in `skill-commands.ts`); the
   `skills` area's own commands are in `src/areas/skills/`
 - `src/dossiers/` — `toil dossiers list | show | check | context` (`commands.ts`) and
   `init | add-repo | link | env | field | export | import | unlink | remove` (`build.ts`); the

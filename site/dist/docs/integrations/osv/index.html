@@ -72,9 +72,9 @@ and <code>severity</code> is the record’s <code>database_specific.severity</co
 list, or has a package without a name, version or ecosystem. Nothing is sent.</li>
 <li><code>NETWORK</code>: “toil osv vulns requires OSV.dev access but api.osv.dev is not reachable
 from this machine.” The reachability check failed; <code>error.details.cause</code> says how.</li>
-<li><code>HTTP</code>: “OSV.dev returned HTTP <status> <reason>” for a batch that failed, and “OSV.dev
-returned HTTP <status> <reason> for <id>” (<code>NOT_FOUND</code> for a 404) for a record that couldn’t
-be fetched.</id></reason></status></reason></status></li>
+<li><code>HTTP</code>: <code>OSV.dev returned HTTP &#x3C;status> &#x3C;reason></code> for a batch that failed, and
+<code>OSV.dev returned HTTP &#x3C;status> &#x3C;reason> for &#x3C;id></code> (<code>NOT_FOUND</code> for a 404) for a record that couldn’t
+be fetched.</li>
 </ul>
 <h2 id="alias-paths">Alias paths</h2>
 <p><code>deps frisk</code> (the default source) and <code>deps frisk --source osv</code> run <code>toil osv vulns</code>, with the same
