@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { allowWriteField } from '../../core/run.js';
 import { githubArea } from './area.js';
-import { github, githubAll, githubText, target, type GitHubContext } from './client.js';
-import { bodyOf, inDateRange, parseDateOption, parseIntText, prNumber, prNumberOption } from './input.js';
+import { exampleCursor, github, githubList, githubText, target, type GitHubContext } from './client.js';
+import { bodyOf, inDateRange, pageFields, pageOptions, parseDateOption, parseIntText, prNumber, prNumberOption } from './input.js';
 
 /**
  * Pull requests themselves: list, read, open, edit, merge, close, reopen, and
@@ -28,6 +28,7 @@ export const listPrsCommand = githubArea.command({
     author: z.string().optional().describe('Filter by author login'),
     createdAfter: z.string().optional().describe('Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)'),
     createdBefore: z.string().optional().describe('Only PRs created before this ISO 8601 date'),
+    ...pageFields('pull requests'),
   }),
   writes: false,
   options: [
@@ -37,24 +38,28 @@ export const listPrsCommand = githubArea.command({
     { flags: '--author <login>', field: 'author', description: 'Filter by author login' },
     { flags: '--created-after <date>', field: 'createdAfter', description: 'Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)' },
     { flags: '--created-before <date>', field: 'createdBefore', description: 'Only PRs created before this ISO 8601 date' },
+    ...pageOptions('pull requests'),
   ],
   examples: [
     { owner: 'imagile', repo: 'toil-probe' },
     { owner: 'imagile', repo: 'toil-probe', state: 'all', head: 'imagile:feature', base: 'main', author: 'OCTO-DEV', createdAfter: '2025-01-01', createdBefore: '2025-02-01T00:00:00Z' },
+    { owner: 'imagile', repo: 'toil-probe', limit: 1, cursor: exampleCursor() },
   ],
   run: async (input, ctx) => {
     // Dates are checked before anything else, so a bad date fails even with no repo.
     const createdAfter = input.createdAfter ? parseDateOption('--created-after', input.createdAfter) : undefined;
     const createdBefore = input.createdBefore ? parseDateOption('--created-before', input.createdBefore) : undefined;
     const { owner, repo } = target(ctx);
-    const prs = await githubAll<PullRequest>(ctx, `/repos/${owner}/${repo}/pulls`, `GitHub pull requests in ${owner}/${repo}`, {
-      state: input.state ?? 'open',
-      ...(input.head ? { head: input.head } : {}),
-      ...(input.base ? { base: input.base } : {}),
-    });
-    // The pulls endpoint has no author or date filter, so both apply after every page is in.
+    // The pulls endpoint has no author or date filter, so both apply to each page as it
+    // comes in, and --limit counts the pull requests that pass them.
     const author = input.author?.toLowerCase();
-    return prs.filter((pr) => (!author || pr.user?.login?.toLowerCase() === author) && inDateRange(Date.parse(pr.created_at), createdAfter, createdBefore));
+    return githubList<PullRequest>(
+      ctx,
+      `/repos/${owner}/${repo}/pulls`,
+      `GitHub pull requests in ${owner}/${repo}`,
+      { state: input.state ?? 'open', ...(input.head ? { head: input.head } : {}), ...(input.base ? { base: input.base } : {}) },
+      { limit: input.limit, cursor: input.cursor, keep: (pr) => (!author || pr.user?.login?.toLowerCase() === author) && inDateRange(Date.parse(pr.created_at), createdAfter, createdBefore) },
+    );
   },
 });
 
@@ -211,14 +216,17 @@ export const diffCommand = githubArea.command({
 export const listFilesCommand = githubArea.command({
   path: ['github', 'list-files'],
   description: 'List files changed in a pull request',
-  input: z.object({ number: prNumber }),
+  input: z.object({ number: prNumber, ...pageFields('files') }),
   writes: false,
-  options: [prNumberOption],
-  examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7' }],
+  options: [prNumberOption, ...pageOptions('files')],
+  examples: [
+    { owner: 'imagile', repo: 'toil-probe', number: '7' },
+    { owner: 'imagile', repo: 'toil-probe', number: '7', limit: 1, cursor: exampleCursor() },
+  ],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     const number = parseIntText(input.number);
-    return githubAll(ctx, `${prPath(owner, repo, number)}/files`, `files in GitHub PR #${number}`);
+    return githubList(ctx, `${prPath(owner, repo, number)}/files`, `files in GitHub PR #${number}`, {}, { limit: input.limit, cursor: input.cursor });
   },
 });
 

@@ -25,7 +25,7 @@ const fromRemote =
 
 export const githubArea = defineArea({
   name: 'github',
-  description: 'GitHub and GitHub Enterprise Server: pull requests, reviews, comments, checks, labels, assignees and issues',
+  description: 'GitHub and GitHub Enterprise Server: pull requests, reviews, comments, checks, labels, assignees, issues and projects',
   connection: z.object({
     baseUrl: z.url().describe('REST API root: https://api.github.com, or https://ghe.imagile.dev/api/v3 for Enterprise Server'),
     token: z.string().min(1).describe('Fine-grained personal access token'),
@@ -68,5 +68,5 @@ export const githubSupported: SupportedVersion = {
   product: 'GitHub Enterprise Server',
   minimum: null,
   api: 'REST API 2022-11-28 and the GraphQL API',
-  note: 'toil pins REST API version 2022-11-28 and uses GraphQL for review threads, PR status, auto-merge, the merge queue and drafts. GitHub.com is always current; no Enterprise Server release has been verified yet, and the auto-merge and merge-queue commands need a release that has those features.',
+  note: 'toil pins REST API version 2022-11-28 and uses GraphQL for review threads, PR status, auto-merge, the merge queue, drafts and Projects. GitHub.com is always current; no Enterprise Server release has been verified yet. The auto-merge and merge-queue commands need a release that has those features, and so do issue types, sub-issues and Projects (v2); a release without sub-issues or Projects gets UNSUPPORTED.',
 };
