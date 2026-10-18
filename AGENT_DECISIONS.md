@@ -636,19 +636,40 @@ Added as each integration lands.
   header dropped** (core's `follow-without-auth`), so the credential stays on the
   configured site.
 
-### Brick breaker
+### Two Weeks' Notice
 
-- **It runs on a fixed 33 ms tick, not wall-clock time** (`src/welcome/brick/play.ts`),
-  so a slow machine plays slower rather than skipping frames, and tests are
-  deterministic.
-- **Ctrl+C pauses the game and counts as the first press of the menu's
-  two-press exit**, so Ctrl+C means the same thing everywhere in the menu.
-- **It plays only on a window of at least 46 by 23 and a console that can redraw
-  in place** (`movesCursor`: a TTY, not the legacy Windows console, not
-  `TERM=dumb`); anything less gets a polite refusal. `NO_COLOR` and
-  `TOIL_NO_ANIMATION` only change how it looks.
-- **A lobby screen comes before the game**, with the keys, the size it needs and
-  the session's scores, which live in memory only.
+The welcome menu's game (#198), which replaced brick breaker. A turn-based roguelike:
+a developer climbs five floors of bureaucrats and MUNDANE's robots to hand in their
+notice. `src/welcome/rogue/`.
+
+- **Brick breaker is gone, not kept beside it.** Real-time play in a terminal is a
+  coarse grid with key-repeat lag, so the paddle never felt good. A turn-based game
+  avoids all of that, and one game is enough for a menu.
+- **It is hidden.** No menu row: typing `resign` on the home screen opens it. The
+  site's welcome page says only that there may be something else in the menu.
+- **Rules are pure and seeded** (`start`, `act` in `game.ts`), with every random draw
+  from a seed the game carries, so a run replays from its seed and keys. Two bots in
+  the tests play whole runs. The balance test pins the spread: careless wins about
+  6 in 30, careful about 18, careful with every benefit about 26.
+- **Effects are data, not timers.** `act` lists what happened (`fx`) and queues cards;
+  the renderer animates them as pure functions of a tick count, and the loop only
+  advances a 30 ms clock. Nothing in the game moves on its own.
+- **Progress is sealed in the user's config**, under `"game"`, with AES-256-GCM and a
+  key derived from the account name and home folder. That is tamper-evidence, not
+  secrecy, and the code says so. A save that fails to open starts fresh with a notice;
+  an older (version 1) config file is never rewritten for a game, so progress isn't
+  kept there and the lobby says why. `"game"` is a reserved config key, so loading
+  config elsewhere never warns about it.
+- **Benefits Enrollment opens on "Take the stairs again"**, selected, so Enter starts
+  the next run; the perks sit below it. A first playtest found the way on from the
+  shop hard to see when starting a run was only a key named in the footer.
+- **Quitting mid-run forfeits it.** PTO is booked when a run ends, win or lose, and
+  saved at once, so closing the menu loses nothing already earned.
+- **The cast is context-overflow.dev's**: MUNDANE, MAVERICK and the five robots, used
+  with the maintainer's blessing, since both sites are imagile's.
+- **Playtested in a real console**, through ConPTY with a screen-reading bot, not only
+  through the fake terminal in the tests; that found the overlapping card border and
+  the robots named with "the".
 
 ### Welcome: dossiers
 
