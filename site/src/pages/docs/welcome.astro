@@ -186,7 +186,9 @@ const keys = [
           <p>
             Brick breaker has been retired: a paddle on a character grid never felt right. There may be something else in the menu for the minutes a build takes. It is not listed, it is not a command or an MCP
             tool, and HR has asked us not to say how to find it. If your config file grows a sealed <code>"game"</code> entry, that's
-            the menu's doing: it holds nothing but a game's progress, no command reads it, and deleting it only starts the game over.
+            the menu's doing: it holds nothing but a game's progress, sealed so it can't be edited by hand or copied to another account. That
+            guards against tampering, not prying: anyone who can read your files can open it. No command reads it, and deleting it only starts
+            the game over.
           </p>
         </section>
 
