@@ -69,6 +69,12 @@ one they got.
   because core has already answered `TIMEOUT` or `CANCELLED`. SQL Server sends a TDS
   attention on the same connection (tedious's `cancel()`), and also once a page is
   full, so the server stops producing rows nobody reads.
+- **SQL Server's Windows authentication** (`auth: "windows"`) gets its SSPI tokens
+  from `src/os/windows-sspi.ts`, a Windows PowerShell helper (CLAUDE.md, No
+  Executables), and `src/core/db/sqlserver/windows-login.ts` wraps two of tedious's
+  private login methods so its NTLM path carries them; a test fails if a tedious
+  upgrade renames them. Its tests that need Windows say "windows only" in their
+  names. The live handshake against a domain is `untested`.
 
 ## Testing
 

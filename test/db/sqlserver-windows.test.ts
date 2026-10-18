@@ -37,8 +37,11 @@ describe('sqlserver windows authentication: connection rules', () => {
   it('refuses auth windows on macOS and Linux before connecting, naming the SQL login alternative', async () => {
     vi.spyOn(process, 'platform', 'get').mockReturnValue('linux');
     const envelope = await run({ engine: 'sqlserver', host: '127.0.0.1', port: 1, database: 'app', auth: 'windows' });
-    expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('only on Windows'), fix: expect.stringContaining('TOIL_DB_AUTH') });
-    expect(envelope.error?.message).toContain('SQL Server login');
+    expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', fix: expect.stringContaining('TOIL_DB_AUTH') });
+    // Core names the key in the message; the reason, and the alternative, are in details.
+    const details = JSON.stringify((envelope.error as { details?: unknown }).details);
+    expect(details).toContain('only on Windows');
+    expect(details).toContain('SQL Server login');
   });
 
   it('needs user for a SQL login, and not for Windows authentication', async () => {
@@ -124,7 +127,7 @@ describe('sqlserver windows authentication: the SSPI helper protocol', () => {
     await expect(startSspi('db', { spn: 's' }, signal(), refused.spawner, 'win32')).rejects.toMatchObject({ code: 'AUTH', message: expect.stringContaining('0x80090311') });
     const silent = fakeHelper(() => undefined);
     const pending = startSspi('db', { spn: 's' }, signal(), silent.spawner, 'win32');
-    silent.spawner({}).stdout.end();
+    (silent.spawner({}).stdout as PassThrough).end();
     await expect(pending).rejects.toMatchObject({ code: 'AUTH', message: expect.stringContaining('stopped without answering') });
   });
 
@@ -227,9 +230,12 @@ describe.skipIf(!onWindows)('sqlserver windows authentication: the real helper (
   }, 60_000);
 
   it('windows only: refuses to run in Constrained Language Mode, saying so', async () => {
-    // __PSLockdownPolicy=4 starts Windows PowerShell in Constrained Language Mode, as a WDAC or AppLocker policy would.
-    const constrained: HelperSpawner = (env) =>
-      spawn(powershellPath(env), ['-NoProfile', '-NonInteractive', '-Command', '-'], { windowsHide: true, env: { ...env, __PSLockdownPolicy: '4' } });
+    // A session switched to Constrained Language Mode before the helper's line arrives, as a WDAC or AppLocker policy would start it.
+    const constrained: HelperSpawner = (env) => {
+      const child = spawn(powershellPath(env), ['-NoProfile', '-NonInteractive', '-Command', '-'], { windowsHide: true, env });
+      child.stdin.write("$ExecutionContext.SessionState.LanguageMode = 'ConstrainedLanguage'\n");
+      return child;
+    };
     await expect(startSspi('db', { spn: 'MSSQLSvc/localhost:1433' }, new AbortController().signal, constrained)).rejects.toMatchObject({
       code: 'AUTH',
       message: expect.stringContaining('ConstrainedLanguage'),
