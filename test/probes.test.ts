@@ -29,6 +29,7 @@ const EXPECTED: Record<string, Expected> = {
   alation: { path: '/integration/v1/datasource/', query: { limit: '1' } },
   artifactory: { path: '/api/repositories' },
   bitbucket: { path: '/rest/api/1.0/profile/recent/repos', query: { limit: '1' } },
+  'bitbucket-cloud': { path: '/user' },
   checkmarx: { path: '/projects', query: { limit: '1' } },
   confluence: { path: '/rest/api/user/current', accepted: { type: 'known', username: 'you' }, anonymous: { type: 'anonymous' } },
   'confluence-cloud': { path: '/wiki/rest/api/user/current', accepted: { type: 'known', accountId: 'abc12345' }, anonymous: { type: 'anonymous' } },
