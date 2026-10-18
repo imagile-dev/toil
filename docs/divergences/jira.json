@@ -43,6 +43,15 @@
       "toil": "Paging stops after 1,000 pages (100,000 items at 100 a page) with an HTTP error naming the list, e.g. \"Paging Jira search didn't end after 1000 pages\", and a fix to narrow the request",
       "why": "A server that ignores startAt hands back the same page forever; the bound turns a hang into an error that says what happened. A list that size is far past anything a caller can use in one envelope.",
       "principle": "4"
+    },
+    {
+      "allows": [
+        "jira fields data.[].toilType"
+      ],
+      "old": "jira fields --discover typing each field with toilType, the customFields type that suits it",
+      "toil": "Each field carries that type as suggestedType, and no second type-hint key. Read suggestedType where toilType was read; the value is the same",
+      "why": "One name for one fact: the same type under two keys leaves a caller guessing which one is authoritative, and the two can drift apart. suggestedType says what the value is, a suggestion for a customFields entry.",
+      "principle": "decision"
     }
   ]
 }
