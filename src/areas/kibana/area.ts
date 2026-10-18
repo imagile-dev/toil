@@ -31,7 +31,8 @@ export const kibanaArea = defineArea({
       setting: 'space',
     },
   },
-  probe: () => ({ path: '/api/status' }),
+  // The status page can be public; the spaces list needs a user.
+  probe: () => ({ path: '/api/spaces/space' }),
   request: (connection, area) => {
     if (!connection.apiKey) {
       throw new ToilError('NOT_CONFIGURED', `Kibana credentials not configured on connection "${connection.name}".`, {

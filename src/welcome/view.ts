@@ -14,7 +14,7 @@ import type { TermCaps } from './term.js';
 export type Caps = Pick<TermCaps, 'colorDepth' | 'unicode'>;
 
 /** What `toil connections test` said about a connection, this session. */
-export type Health = { ok: true; live: boolean } | { ok: false; code: string; message: string; fix?: string };
+export type Health = { ok: true; live: boolean; authenticated?: boolean } | { ok: false; code: string; message: string; fix?: string };
 
 /** What the menu has learned since it opened. Nothing here is saved. */
 export interface Session {
@@ -117,6 +117,9 @@ export function shellQuote(arg: string): string {
 
 /** The health a finished `connections test` step reports. */
 export function healthOf(envelope: Envelope): Health {
-  if (envelope.ok) return { ok: true, live: (envelope.data as { live?: unknown } | null)?.live === true };
+  if (envelope.ok) {
+    const d = envelope.data as { live?: unknown; authenticated?: unknown } | null;
+    return { ok: true, live: d?.live === true, authenticated: d?.authenticated !== false };
+  }
   return { ok: false, code: envelope.error.code, message: envelope.error.message, ...(envelope.error.fix ? { fix: envelope.error.fix } : {}) };
 }

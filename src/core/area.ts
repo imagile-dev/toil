@@ -113,10 +113,26 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string 
   probe?(connection: Connection<z.output<S>>): Probe | undefined;
 }
 
-/** See {@link AreaSpec.probe}. */
+/**
+ * See {@link AreaSpec.probe}. Pick a read the service refuses without a valid
+ * credential (the current user, as a rule), so a revoked token fails the
+ * test. A ping that answers anyone proves only that the host is up.
+ */
 export interface Probe {
   path: string;
   query?: Record<string, QueryParam>;
+  /**
+   * For a service that answers an anonymous caller with a 200 rather than a
+   * 401 (Confluence's current user, SonarQube's validate): whether the JSON
+   * answer shows the credential was accepted. False fails the test as AUTH.
+   */
+  accepts?(body: unknown): boolean;
+  /**
+   * False when the service has no cheap read that needs the credential, so a
+   * success proves only that the host answers. The test then says
+   * `authenticated: false`. Defaults to true.
+   */
+  authenticated?: boolean;
 }
 
 /** See {@link AreaSpec.shares}. */
