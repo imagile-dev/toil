@@ -28,6 +28,16 @@ import { makeChain } from '../harness/x509.js';
  * VSTest JUnit logger Azure DevOps publishes, `dotnet test --logger trx`,
  * CodeQL 2.19 SARIF, c8's lcov, coverlet and coverage.py Cobertura), with
  * placeholder names, hosts and ids.
+ *
+ * The OpenAPI samples (test/fixtures/openapi/) are the vendors' own published
+ * documents, trimmed: Atlassian's Jira platform REST API (OpenAPI 3.0.1, the
+ * /rest/api/2 paths, Apache-2.0), GitHub's REST API description (OpenAPI 3.1.0,
+ * MIT, as YAML, which GitHub also publishes) and Bitbucket's (Swagger 2.0).
+ * Each keeps a handful of operations exactly as published plus every component
+ * they reach; descriptions are cut to their first sentence, examples and x-*
+ * extensions dropped, the Jira tenant host replaced with jira.imagile.dev and
+ * contact addresses with you@example.com. Each still validates against its
+ * version's schema.
  */
 
 export const PACKAGE_JSON = JSON.stringify({
@@ -166,6 +176,14 @@ export const LOGS = Object.fromEntries(
   ['jenkins', 'maven', 'npm', 'dotnet'].map((name) => [name, readFileSync(new URL(`./util/log/${name}.log`, import.meta.url), 'utf8')]),
 ) as Record<'jenkins' | 'maven' | 'npm' | 'dotnet', string>;
 
+const openapiSample = (name: string) => readFileSync(new URL(`./openapi/${name}`, import.meta.url), 'utf8');
+/** The OpenAPI samples, by the workspace path the examples read them from. */
+export const openapiSamples = {
+  'specs/jira-platform.json': openapiSample('jira-platform.json'),
+  'specs/github.yaml': openapiSample('github.yaml'),
+  'specs/bitbucket.json': openapiSample('bitbucket.json'),
+};
+
 /**
  * The `util md` corpus (test/fixtures/util-md/): a bug report, a runbook and
  * a story in Markdown, a Jira Data Center ticket in wiki markup, a Jira Cloud
@@ -177,7 +195,7 @@ export const MD_CORPUS: Record<string, string> = Object.fromEntries(
   ['bug-report.md', 'runbook.md', 'story.md', 'PROJ-142.wiki', 'PROJ-142.adf.json', 'release-notes.storage.xml'].map((name) => [name, readFileSync(new URL(`./util-md/${name}`, import.meta.url), 'utf8')]),
 );
 
-/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, and the encode, cert, log and size samples. */
+/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, the encode, cert, log and size samples, the md corpus, and three OpenAPI documents. */
 export const files: Record<string, string | Uint8Array> = {
   '.gitignore': 'vendor/\n',
   'package.json': PACKAGE_JSON,
@@ -197,6 +215,7 @@ export const files: Record<string, string | Uint8Array> = {
   'certs/chain.pem': chain.pem,
   'certs/leaf.der': chain.leaf.der,
   ...reportFiles,
+  ...openapiSamples,
 };
 
 /** Every file the examples read: the tree above, plus `secrets scan`'s samples. */

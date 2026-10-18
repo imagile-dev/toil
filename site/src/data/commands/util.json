@@ -255,5 +255,49 @@
       "--from <format>",
       "--to <format>"
     ]
+  },
+  {
+    "name": "openapi list",
+    "tool": "util_openapi_list",
+    "description": "List the operations in an OpenAPI or Swagger document, filtered by tag or path (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--tag <tag>",
+      "--path <text>"
+    ]
+  },
+  {
+    "name": "openapi show",
+    "tool": "util_openapi_show",
+    "description": "Show one operation: its parameters and where each goes, its request and response bodies, and how to call it with <area> api (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--operation <operationId>",
+      "--method <method>",
+      "--path <path>",
+      "--depth <n>"
+    ]
+  },
+  {
+    "name": "openapi example",
+    "tool": "util_openapi_example",
+    "description": "Generate a minimal valid example body for an operation's request or a response, checked against its schema (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--operation <operationId>",
+      "--method <method>",
+      "--path <path>",
+      "--response <status>",
+      "--content-type <type>"
+    ]
   }
 ]
