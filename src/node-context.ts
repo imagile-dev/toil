@@ -2,6 +2,7 @@ import { join, resolve } from 'node:path';
 import { commandName, needsConfig, type AnyCommand } from './core/command.js';
 import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
+import { createDossierCatalog } from './core/dossier.js';
 import { alreadyExists, nodeFiles, resolveWorkspace } from './core/files.js';
 import { createGitRunner } from './core/git.js';
 import { findGitRepo, readGitContext, readGitRemotes } from './core/git-repo.js';
@@ -81,6 +82,23 @@ export function createNodeContext(o: NodeContextOptions): Context {
   const debug = o.globals.debug ? (message: string) => o.stderr(`[toil] ${message}\n`) : () => {};
   return {
     config,
+    // Dossiers: your own, listed folders, and the repository's, read fresh on
+    // every call, so an edit made while toil mcp runs applies from the next one.
+    // A relative cwd or dossier path means the CLI's working directory; under
+    // MCP, whose own working directory means nothing, the workspace.
+    ...(o.def && !needsConfig(o.def)
+      ? {}
+      : {
+          dossiers: createDossierCatalog({
+            home: o.home,
+            env: o.env,
+            config,
+            areas: o.areas.map((a) => ({ name: a.name, context: a.context ?? [] })),
+            workspace,
+            base: mcp ? workspace.dir : o.cwd,
+            protect: ownFiles(o.home, o.cwd, o.globals.config),
+          }),
+        }),
     // The OS certificate store and HTTPS_PROXY / NO_PROXY, set up on the first request.
     fetch: networkFetch(globalThis.fetch, o.env, debug),
     // Every path lands in the workspace unless the user's config relaxed that,

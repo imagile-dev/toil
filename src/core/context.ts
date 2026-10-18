@@ -1,5 +1,6 @@
 import type { DossierLookup, GitRemoteReader, SuppliedSource } from './call-context.js';
 import type { ResolvedConfig } from './config.js';
+import type { DossierCatalog } from './dossier.js';
 import type { ContextReport, Page, Warning } from './envelope.js';
 import type { FileAccess } from './files.js';
 import type { GitRunner } from './git.js';
@@ -44,7 +45,14 @@ export interface Context {
   secrets?: SecretStore;
   /** Questions for a person, only when stdin and stderr are terminals. Never set under MCP. */
   prompt?: Prompter;
-  /** Context values from the dossier (#16). Absent means none, as today. */
+  /**
+   * The dossiers toil can see (src/core/dossier.ts). execute() asks it, with the
+   * call's `dossier` and `cwd` inputs, which one applies, and that one's lookup
+   * replaces `dossier` for the call. Absent means no dossiers: tests that want
+   * one give a `dossier` lookup directly.
+   */
+  dossiers?: DossierCatalog;
+  /** Context values from a dossier, for a test that supplies one without files. `dossiers` overrides it per call. */
   dossier?: DossierLookup;
   /** The working folder's git remote, for areas that read context from it. Absent means no git step. */
   gitRemote?: GitRemoteReader;
@@ -52,10 +60,11 @@ export interface Context {
   repo?: () => GitContext | undefined;
   /**
    * Whether the user has adopted a dossier's or the git remote's choice of
-   * this connection, so writes may use it (#16 supplies this, with `toil
-   * dossiers import`). Absent means nothing is adopted: such writes are refused.
+   * this connection, so writes may use it: a dossier in your own folder is
+   * yours (`toil dossiers import` puts one there). Absent means nothing is
+   * adopted: such writes are refused.
    */
-  adopted?: (area: string, connection: string) => boolean;
+  adopted?: (area: string, connection: string, by: 'dossier' | 'git') => boolean;
 }
 
 /**
@@ -67,6 +76,8 @@ export interface ConfigAccess {
   config: ResolvedConfig;
   secrets: SecretStore | undefined;
   prompt: Prompter | undefined;
+  /** The dossiers toil can see, for `toil dossiers ...`. Undefined where there are none (tests). */
+  dossiers: DossierCatalog | undefined;
 }
 
 /**
@@ -80,7 +91,7 @@ export interface ConfigAccess {
  * connection's, on its own.
  */
 export interface CommandContext<C = undefined, X = Record<string, string | undefined>>
-  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossier' | 'gitRemote' | 'adopted' | 'repo'> {
+  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo'> {
   connection: C;
   /** The area's context inputs, resolved (`ctx.context.project`). Unset ones are absent. */
   context: X;
