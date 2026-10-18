@@ -204,10 +204,10 @@ describe('POST /api/webhook/issue', () => {
 describe('GitHub App auth and the emails', () => {
   it('signs an RS256 JWT for the App that GitHub would accept: backdated, under ten minutes', () => {
     const now = new Date('2026-10-18T12:00:00Z');
-    const [h, p, s] = appJwt('4428945', TEST_KEY, now).split('.') as [string, string, string];
+    const [h, p, s] = appJwt('123456', TEST_KEY, now).split('.') as [string, string, string];
     expect(JSON.parse(Buffer.from(h, 'base64url').toString())).toEqual({ alg: 'RS256', typ: 'JWT' });
     const payload = JSON.parse(Buffer.from(p, 'base64url').toString());
-    expect(payload).toEqual({ iss: '4428945', iat: now.getTime() / 1000 - 60, exp: now.getTime() / 1000 + 540 });
+    expect(payload).toEqual({ iss: '123456', iat: now.getTime() / 1000 - 60, exp: now.getTime() / 1000 + 540 });
     expect(createVerify('RSA-SHA256').update(`${h}.${p}`).verify(TEST_PUBLIC_KEY, Buffer.from(s, 'base64url'))).toBe(true);
     expect(appJwt('1', TEST_KEY.replace(/\n/g, '\\n'), now).split('.')[2]).toBe(appJwt('1', TEST_KEY, now).split('.')[2]);
   });

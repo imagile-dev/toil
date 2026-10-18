@@ -31,8 +31,8 @@ param repo string = 'imagile-dev/toil'
 @description('The site origin /api/submit accepts and CORS allows.')
 param siteOrigin string = 'https://imagile-dev.github.io'
 
-@description('The Imagile Bot GitHub App id.')
-param githubAppId string = '4428945'
+@description('The Imagile Bot GitHub App id: the IMAGILE_BOT_APP_ID repository variable, passed by the deploy.')
+param githubAppId string
 
 @description('The existing Key Vault holding the secrets.')
 param keyVaultName string = 'imagile-keyvault'

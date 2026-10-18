@@ -19,11 +19,11 @@ import { parseTerms, redact } from '../scripts/triage/redact.mjs';
  */
 
 describe('redact', () => {
-  const terms = parseTerms(['# fictional names only', 'acmebank', 'acme-int.net', 're:/initech[- ]?corp/i', 'org', 'jira', 'imagile.dev', 're:/(/'].join('\n'));
+  const terms = parseTerms(['# fictional names only', 'acmebank', 'acme-int.example', 're:/initech[- ]?corp/i', 'org', 'jira', 'imagile.dev', 're:/(/'].join('\n'));
 
   it('refuses denylist entries that would match its own markers, and broken patterns', () => {
     expect(terms.words).toEqual(['acmebank']);
-    expect(terms.domains).toEqual(['acme-int.net']);
+    expect(terms.domains).toEqual(['acme-int.example']);
     expect(terms.patterns).toHaveLength(1);
     expect(terms.invalid).toBe(4);
   });
@@ -45,13 +45,13 @@ describe('redact', () => {
   });
 
   it('removes email addresses but keeps placeholders, GitHub noreply and git@ remotes', () => {
-    expect(redact('mail jane.doe@acmebank.com or bob@mail.imagile.dev', terms)).toBe('mail [redacted-email] or [redacted-email]');
+    expect(redact('mail jane.doe@acmebank.example or bob@mail.imagile.dev', terms)).toBe('mail [redacted-email] or [redacted-email]');
     expect(redact('you@example.com, 1+x@users.noreply.github.com, git@github.com:o/r.git', terms)).toBe('you@example.com, 1+x@users.noreply.github.com, git@github.com:o/r.git');
-    expect(redact('git@git.acme-int.net:team/repo.git', terms)).toBe('[redacted-email]:team/repo.git');
+    expect(redact('git@git.acme-int.example:team/repo.git', terms)).toBe('[redacted-email]:team/repo.git');
   });
 
   it('replaces internal and denylisted hosts, keeping a known service name', () => {
-    expect(redact('https://jira.acme-int.net/browse/X-1 and http://build7.corp:8080 and wiki.acmebank.local', terms)).toBe(
+    expect(redact('https://jira.acme-int.example/browse/X-1 and http://build7.corp:8080 and wiki.acmebank.local', terms)).toBe(
       'https://jira.imagile.dev/browse/X-1 and http://redacted.imagile.dev:8080 and redacted.imagile.dev',
     );
     expect(redact('https://jira.imagile.dev and https://github.com', terms)).toBe('https://jira.imagile.dev and https://github.com');
@@ -68,7 +68,7 @@ describe('redact', () => {
   });
 
   it('is idempotent', () => {
-    const once = redact('ghp_abcdefghijklmnopqrstuvwxyz0123456789 jane@acmebank.com https://jira.acme-int.net 10.0.0.1 AcmeBank password=hunter22', terms);
+    const once = redact('ghp_abcdefghijklmnopqrstuvwxyz0123456789 jane@acmebank.example https://jira.acme-int.example 10.0.0.1 AcmeBank password=hunter22', terms);
     expect(redact(once, terms)).toBe(once);
   });
 

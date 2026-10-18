@@ -118,13 +118,17 @@ jobs:
           fi
 
       - name: What-if
-        run: az deployment group what-if --resource-group "$RESOURCE_GROUP" --template-file infra/main.bicep
+        env:
+          APP_ID: ${{ vars.IMAGILE_BOT_APP_ID }}
+        run: az deployment group what-if --resource-group "$RESOURCE_GROUP" --template-file infra/main.bicep --parameters githubAppId="$APP_ID"
 
       - name: Deploy the infrastructure
         id: infra
+        env:
+          APP_ID: ${{ vars.IMAGILE_BOT_APP_ID }}
         run: |
           az deployment group create --resource-group "$RESOURCE_GROUP" --name "feedback-${GITHUB_RUN_ID}" \
-            --template-file infra/main.bicep --query properties.outputs -o json > "$RUNNER_TEMP/outputs.json"
+            --template-file infra/main.bicep --parameters githubAppId="$APP_ID" --query properties.outputs -o json > "$RUNNER_TEMP/outputs.json"
           echo "app=$(jq -r .functionAppName.value "$RUNNER_TEMP/outputs.json")" >> "$GITHUB_OUTPUT"
           echo "host=$(jq -r .hostName.value "$RUNNER_TEMP/outputs.json")" >> "$GITHUB_OUTPUT"
 

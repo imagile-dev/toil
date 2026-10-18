@@ -13,7 +13,6 @@
 # Permits are filed once, in order, and the clerk checks the drawer before filing.
 set -euo pipefail
 
-SUBSCRIPTION=3d0b1b83-8540-44c5-97af-fa338056f73a
 LOCATION=eastus2
 RG="rg-toil-feedback"
 REPO=imagile-dev/toil
@@ -33,6 +32,14 @@ TABLE_DATA_CONTRIBUTOR=0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3
 
 # Git Bash on Windows rewrites arguments that look like paths (/subscriptions/...).
 export MSYS_NO_PATHCONV=1
+
+# The subscription is found by name, so no id lives in the repository;
+# TOIL_FEEDBACK_SUBSCRIPTION (an id or a name) overrides it.
+SUBSCRIPTION="$(az account show --subscription "${TOIL_FEEDBACK_SUBSCRIPTION:-Imagile Paid}" --query id -o tsv)"
+if [ -z "$SUBSCRIPTION" ]; then
+  echo "No subscription named ${TOIL_FEEDBACK_SUBSCRIPTION:-Imagile Paid} is visible to az. Sign in, or set TOIL_FEEDBACK_SUBSCRIPTION." >&2
+  exit 1
+fi
 CHANGED=0
 did() { echo "  + $*"; CHANGED=$((CHANGED + 1)); }
 had() { echo "  = $*"; }
@@ -56,7 +63,7 @@ step "0. Signed in where expected"
 [ "$(az account show --query id -o tsv)" = "$SUBSCRIPTION" ] || az account set --subscription "$SUBSCRIPTION"
 TENANT="$(az account show --query tenantId -o tsv)"
 gh api "repos/${REPO}" --jq .full_name > /dev/null
-had "az on Imagile Paid ($SUBSCRIPTION), gh on $REPO"
+had "az on ${TOIL_FEEDBACK_SUBSCRIPTION:-Imagile Paid}, gh on $REPO"
 
 step "1. Resource group"
 if [ "$(az group exists --name "$RG")" = "true" ]; then had "$RG exists"; else
@@ -137,13 +144,32 @@ if az keyvault secret show --vault-name "$VAULT" --name TOIL-WEBHOOK-SECRET --qu
   az keyvault secret set --vault-name "$VAULT" --name TOIL-WEBHOOK-SECRET --file "$(new_secret webhook)" --output none
   did "created TOIL-WEBHOOK-SECRET (a random 64-character value, not shown)"
 fi
+# The value goes from Key Vault into a variable, then through env to jq and as JSON
+# to gh on stdin: never argv, never a log. A read that comes back empty stops the run
+# rather than make a webhook nobody can verify.
+webhook_secret() {
+  local value
+  value="$(az keyvault secret show --vault-name "$VAULT" --name TOIL-WEBHOOK-SECRET --query value -o tsv)"
+  value="${value%$'\r'}"
+  if [ -z "$value" ]; then echo "Couldn't read TOIL-WEBHOOK-SECRET from $VAULT; the webhook was left alone." >&2; exit 1; fi
+  HOOK_SECRET="$value"
+}
 HOOK_ID="$(gh api "repos/${REPO}/hooks" --jq ".[] | select(.config.url == \"$WEBHOOK_URL\") | .id" | head -n 1)"
-if [ -n "$HOOK_ID" ]; then had "webhook $HOOK_ID to $WEBHOOK_URL; left as it is"; else
-  # The value goes from Key Vault into env for jq, and the JSON to gh on stdin: never argv, never a log.
-  HOOK_SECRET="$(az keyvault secret show --vault-name "$VAULT" --name TOIL-WEBHOOK-SECRET --query value -o tsv)" \
-    HOOK_URL="$WEBHOOK_URL" jq -n '{name: "web", active: true, events: ["issues"], config: {url: env.HOOK_URL, content_type: "json", insecure_ssl: "0", secret: env.HOOK_SECRET}}' \
-    | gh api -X POST "repos/${REPO}/hooks" --input - --jq .id > "$PRIVATE/hook-id"
-  did "created webhook $(cat "$PRIVATE/hook-id") to $WEBHOOK_URL (Issues only, JSON, signed with TOIL-WEBHOOK-SECRET)"
+if [ -z "$HOOK_ID" ]; then
+  webhook_secret
+  HOOK_SECRET="$HOOK_SECRET" HOOK_URL="$WEBHOOK_URL" jq -n '{name: "web", active: true, events: ["issues"], config: {url: env.HOOK_URL, content_type: "json", insecure_ssl: "0", secret: env.HOOK_SECRET}}' \
+    | gh api -X POST "repos/${REPO}/hooks" --input - --silent
+  unset HOOK_SECRET
+  did "created the webhook to $WEBHOOK_URL (Issues only, JSON, signed with TOIL-WEBHOOK-SECRET)"
+elif [ "$(gh api "repos/${REPO}/hooks/${HOOK_ID}" --jq '.config | has("secret")')" != "true" ]; then
+  # Only whether a secret is set is read here, never the (masked) value.
+  webhook_secret
+  HOOK_SECRET="$HOOK_SECRET" HOOK_URL="$WEBHOOK_URL" jq -n '{config: {url: env.HOOK_URL, content_type: "json", insecure_ssl: "0", secret: env.HOOK_SECRET}}' \
+    | gh api -X PATCH "repos/${REPO}/hooks/${HOOK_ID}" --input - --silent
+  unset HOOK_SECRET
+  did "the webhook to $WEBHOOK_URL had no secret; signed it with TOIL-WEBHOOK-SECRET"
+else
+  had "the webhook to $WEBHOOK_URL exists and is signed; left as it is"
 fi
 
 step "7. Imagile Bot App (read only)"

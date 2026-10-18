@@ -117,7 +117,7 @@ export function logger(): Log & { lines: string[] } {
 export function settings(overrides: Partial<Settings> = {}): Settings {
   return {
     ...readSettings({
-      GITHUB_APP_ID: '4428945',
+      GITHUB_APP_ID: '123456',
       GITHUB_APP_PRIVATE_KEY: TEST_KEY,
       TURNSTILE_SECRET: 'turnstile-test-secret',
       SMOKE_TEST_KEY: 'smoke-test-key',
