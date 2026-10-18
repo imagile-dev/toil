@@ -48,7 +48,6 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@hpcc-js/wasm-graphviz": "1.29.2",
     "@modelcontextprotocol/sdk": "1.31.0",
     "@types/node": "24.19.0",
     "@types/oracledb": "7.0.3",

@@ -14,13 +14,3 @@ test/fixtures/jmespath/, as distributed with jmespath.py
 (https://github.com/jmespath/jmespath.py), Copyright (c) 2013 Amazon.com, Inc.
 or its affiliates, licensed under the MIT License (see
 test/fixtures/jmespath/LICENSE). It is not part of the published package.
-
-This product includes @hpcc-js/wasm-graphviz
-(https://github.com/hpcc-systems/hpcc-js-wasm), Copyright HPCC Systems,
-licensed under the Apache License, Version 2.0, bundled into dist/toil.js for
-the util c4 render command. It embeds a WebAssembly build of Graphviz
-(https://graphviz.org), Copyright AT&T and the Graphviz contributors, licensed
-under the Eclipse Public License 1.0, which links Expat
-(https://libexpat.github.io), Copyright Thai Open Source Software Center Ltd
-and Clark Cooper and the Expat maintainers, licensed under the MIT License.
-The source of Graphviz is available from https://gitlab.com/graphviz/graphviz.

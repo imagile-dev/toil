@@ -1,21 +1,21 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { BOOKSHOP_C4 } from '../../../test/fixtures/util.fixture.js';
-import { runCli } from '../../../test/harness/cli.js';
-import { testContext } from '../../../test/harness/context.js';
-import { execute } from '../../core/run.js';
-import type { Warning } from '../../core/envelope.js';
-import { c4D2Command, c4MermaidCommand, c4RenderCommand, EXAMPLE_MODEL } from './c4.js';
-import { checkModel, computeView, loadModel, type C4Model } from './c4-model.js';
-import { toDot, wrap } from './c4-svg.js';
-import { toD2, toMermaid } from './c4-text.js';
-import { commands } from './index.js';
+import { BOOKSHOP_C4 } from '../../../../test/fixtures/util.fixture.js';
+import { runCli } from '../../../../test/harness/cli.js';
+import { testContext } from '../../../../test/harness/context.js';
+import { execute } from '../../../core/run.js';
+import type { Warning } from '../../../core/envelope.js';
+import { c4D2Command, c4MermaidCommand, c4RenderCommand, EXAMPLE_MODEL } from './commands.js';
+import { checkModel, computeView, loadModel, type C4Model } from './model.js';
+import { layoutView } from './layout.js';
+import { toSvg } from './svg.js';
+import { toD2, toMermaid } from './text.js';
+import { commands } from '../index.js';
 
 /**
  * The C4 commands end to end through execute() and the real CLI, and the
- * model, view and text renderers on their own. The SVG tests run the real
- * Graphviz WASM, since that is the part most worth knowing still loads; it
- * is local, so no network is involved, only a short wait for the compiler.
+ * model, view and text renderers on their own. The layout's own steps and its
+ * self-check are in layout.test.ts.
  * An architecture diagram nobody has rendered is, for audit purposes, a plan.
  */
 
@@ -24,8 +24,9 @@ const view = (model: C4Model, key: string, warn?: (w: Warning) => void) => compu
 const files = { 'bookshop.c4.json': BOOKSHOP_C4 };
 
 describe('the sample model', () => {
-  it('is the same file in docs/c4/ and the test fixtures', () => {
-    expect(readFileSync(new URL('../../../docs/c4/bookshop.c4.json', import.meta.url), 'utf8')).toBe(BOOKSHOP_C4);
+  it.each(['bookshop', 'busy'])('%s is the same file in docs/c4/ and the test fixtures', (name) => {
+    const read = (dir: string) => readFileSync(new URL(`../../../../${dir}/${name}.c4.json`, import.meta.url), 'utf8');
+    expect(read('docs/c4')).toBe(read('test/fixtures/c4'));
   });
 
   it('is valid, and uses only placeholder hosts', () => {
@@ -162,26 +163,26 @@ describe('text output', () => {
   });
 });
 
-describe('DOT', () => {
-  it('wraps descriptions on word boundaries', () => {
-    expect(wrap('Catalogue, basket and order logic over JSON/HTTPS', 20)).toEqual(['Catalogue, basket', 'and order logic over', 'JSON/HTTPS']);
-  });
-
-  it('escapes HTML in labels and draws a database as a cylinder inside the boundary cluster', () => {
+describe('SVG', () => {
+  it('escapes text, and draws a database with its cap and the boundary dashed', () => {
     const model = bookshop();
     model.systems[0]!.containers![0]!.name = 'Web <shop> & co';
-    const dot = toDot(view(model, 'containers'));
-    expect(dot).toContain('<b>Web &lt;shop&gt; &amp; co</b>');
-    expect(dot).toMatch(/subgraph "cluster_bookshop" \{[\s\S]*\n {4}"db" \[.*shape=cylinder/);
+    const svg = toSvg(layoutView(view(model, 'containers')));
+    expect(svg).toContain('>Web &lt;shop&gt; &amp; co</text>');
+    expect(svg).toContain('<g id="db" class="c4-container"><path ');
+    expect(svg).toMatch(/<g id="db" class="c4-container"><path [^>]*><ellipse /);
+    expect(svg).toContain('stroke-dasharray="8 5"');
+    expect(svg).not.toMatch(/<script|href=/);
   });
 });
 
 describe('util c4 commands', () => {
-  it('render returns the SVG, laid out by Graphviz, with what it drew', async () => {
+  it('render returns the SVG, laid out by toil, with what it drew and what it checked', async () => {
     const envelope = await execute(c4RenderCommand, { modelFile: 'bookshop.c4.json', view: 'context' }, testContext({ files }).context);
     expect(envelope.ok).toBe(true);
     const data = envelope.data as { svg: string; elements: string[]; relationships: number; format: string };
-    expect(data).toMatchObject({ view: 'context', type: 'systemContext', title: 'System context: Online Bookshop', format: 'svg', relationships: 6 });
+    expect(data).toMatchObject({ view: 'context', type: 'systemContext', title: 'System context: Online Bookshop', format: 'svg', relationships: 6, verified: { boxesApart: true, childrenInBoundary: true, edgesTouchBoxes: true, labelsClearOfBoxes: true } });
+    expect(envelope.meta.warnings).toBeUndefined();
     expect(data.svg).toContain('<svg');
     expect(data.svg).toContain('Online Bookshop');
     expect(data.svg).toContain('[Software System]');

@@ -169,9 +169,10 @@ Known quirks:
 
 One view of a C4 architecture model: `render` draws it as SVG, `mermaid` writes it
 as Mermaid's C4 syntax (GitHub draws a ```` ```mermaid ```` block inline), and `d2`
-writes it as D2 text. `render` lays the diagram out with Graphviz compiled to
-WebAssembly, inside toil: nothing is installed or run, and nothing goes over the
-network. The Graphviz module loads only when `render` runs.
+writes it as D2 text. `render` lays the diagram out itself, with a layered layout
+made for C4 views: people on the top row, the scope's children together inside
+their dashed boundary, and each relationship's label placed clear of the boxes.
+Nothing is installed or run, and nothing goes over the network.
 
 ```bash
 toil util c4 render --model docs/c4/bookshop.c4.json --view containers --out containers.svg
@@ -231,8 +232,14 @@ The model:
   in `meta.warnings` names it, unless that outside element already has a drawn
   relationship into the boundary.
 
-Output: `{ view, type, title, elements, relationships, format, svg }` for `render`,
-where `elements` lists the ids drawn and `relationships` counts the arrows. With
+Output: `{ view, type, title, elements, relationships, verified, format, svg }` for
+`render`, where `elements` lists the ids drawn and `relationships` counts the arrows.
+`render` checks its own drawing before returning it, and `verified` says what held:
+`{ boxesApart, childrenInBoundary, edgesTouchBoxes, labelsClearOfBoxes }`. Each
+check that fails is a `C4_LAYOUT_CHECK` warning in `meta.warnings` naming the boxes
+or arrow involved, so a bad drawing is never returned without saying so. The
+layout is meant for C4-sized views; past about 25 boxes, arrows start to cross more
+often and can pass behind boxes, which no check covers. With
 `--out`, `{ file, bytes }` take the place of `svg`, and `file` is the absolute path
 written. `mermaid` and `d2` return `text` in place of `svg`.
 
@@ -242,4 +249,5 @@ message names each problem by its path in the model, such as
 `error.details` lists them all. An unknown `--view` lists the keys the model has.
 
 A sample model, an online bookshop with all three views, is
-`docs/c4/bookshop.c4.json` in toil's source.
+`docs/c4/bookshop.c4.json` in toil's source, and `docs/c4/busy.c4.json` is a busier
+view of 25 boxes.

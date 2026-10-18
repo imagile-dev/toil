@@ -1,14 +1,16 @@
 import { z } from 'zod';
-import { defineCommand } from '../../core/command.js';
-import type { CommandContext } from '../../core/context.js';
-import { ToilError } from '../../core/errors.js';
-import { c4ModelSchema, computeView, loadModel, pickView, type C4Model, type ComputedView } from './c4-model.js';
-import { renderSvg } from './c4-svg.js';
-import { toD2, toMermaid } from './c4-text.js';
+import { defineCommand } from '../../../core/command.js';
+import type { CommandContext } from '../../../core/context.js';
+import { ToilError } from '../../../core/errors.js';
+import { c4ModelSchema, computeView, loadModel, pickView, type C4Model, type ComputedView } from './model.js';
+import { layoutView } from './layout.js';
+import { toSvg } from './svg.js';
+import { verifyLayout } from './verify.js';
+import { toD2, toMermaid } from './text.js';
 
 /**
  * `util c4 render | mermaid | d2`: one view of a C4 model, as SVG laid out by
- * Graphviz (WASM, loaded only here), or as Mermaid or D2 text. Local only: no
+ * toil's own layered layout (./layout.ts), or as Mermaid or D2 text. Local only: no
  * connection, no host, no network. The model comes from a file in the
  * workspace (`--model`, `-` for stdin on the CLI) or, over MCP, as the JSON
  * itself (`model`). Every model is checked in full before anything is drawn,
@@ -68,7 +70,7 @@ const SHAPE = 'The model is { title?, people[], systems[] (each with containers[
 export const c4RenderCommand = defineCommand({
   path: ['util', 'c4', 'render'],
   description: 'Draw one view of a C4 model as SVG (local only, no network)',
-  toolDescription: `Draws one view of a C4 architecture model as an SVG diagram, laid out by Graphviz (WebAssembly, in process) in the C4 notation: people, software systems, containers and components as coloured boxes with name, type, technology and description, the scope as a dashed boundary, and labelled relationships. Returns { view, type, title, elements[], relationships, format: "svg", svg }, or with out the SVG is saved to that new file in the workspace and { file, bytes } replace svg. ${SHAPE} Local only: no connection and no network. For the same view as text use util_c4_mermaid or util_c4_d2.`,
+  toolDescription: `Draws one view of a C4 architecture model as an SVG diagram, laid out in process by toil's own layered layout, in the C4 notation: people, software systems, containers and components as coloured boxes with name, type, technology and description, the scope as a dashed boundary, and labelled relationships. The drawing checks itself before it is returned: verified is { boxesApart, childrenInBoundary, edgesTouchBoxes, labelsClearOfBoxes }, and each failed check is a C4_LAYOUT_CHECK warning. Returns { view, type, title, elements[], relationships, verified, format: "svg", svg }, or with out the SVG is saved to that new file in the workspace and { file, bytes } replace svg. ${SHAPE} Local only: no connection and no network. For the same view as text use util_c4_mermaid or util_c4_d2.`,
   input: z.object({
     ...modelInput,
     out: z.string().optional().describe('Write the SVG to this new file inside the workspace instead of returning it; it must not exist yet'),
@@ -78,10 +80,14 @@ export const c4RenderCommand = defineCommand({
   examples: [{ model: EXAMPLE_MODEL }, { modelFile: 'bookshop.c4.json', view: 'containers' }, { modelFile: 'bookshop.c4.json', view: 'components', out: 'components.svg' }],
   run: async (input, ctx) => {
     const view = viewOf(input, ctx);
-    const svg = await renderSvg(view);
-    if (input.out === undefined) return { ...summary(view), format: 'svg', svg };
+    const layout = layoutView(view);
+    // The drawing is checked before anyone sees it; a failed check is said aloud, never drawn quietly.
+    const { verified, problems } = verifyLayout(layout);
+    for (const message of problems) ctx.warn({ code: 'C4_LAYOUT_CHECK', message: `View "${view.key}": ${message}.` });
+    const svg = toSvg(layout);
+    if (input.out === undefined) return { ...summary(view), verified, format: 'svg', svg };
     const bytes = Buffer.from(svg, 'utf8');
-    return { ...summary(view), format: 'svg', file: ctx.files.writeBytes(input.out, bytes), bytes: bytes.length };
+    return { ...summary(view), verified, format: 'svg', file: ctx.files.writeBytes(input.out, bytes), bytes: bytes.length };
   },
 });
 

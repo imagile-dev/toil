@@ -1,4 +1,4 @@
-import { typeLine, type ComputedView, type Element, type ViewType } from './c4-model.js';
+import { typeLine, type ComputedView, type Element, type ViewType } from './model.js';
 
 /**
  * A computed C4 view as diagram text, for places that render it themselves:

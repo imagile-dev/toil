@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import type { Warning } from '../../core/envelope.js';
+import { ToilError } from '../../../core/errors.js';
+import type { Warning } from '../../../core/envelope.js';
 
 /**
  * The C4 model the `util c4` commands draw: people and software systems at

@@ -1,4 +1,4 @@
-import { c4Commands } from './c4.js';
+import { c4Commands } from './c4/commands.js';
 import { depsCommands } from './deps.js';
 import { jwtCommands } from './jwt.js';
 
