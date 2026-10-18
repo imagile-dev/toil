@@ -109,17 +109,17 @@ describe('util size: outlines of real files', () => {
   it('outlines Go: types and functions, each to its closing brace', async () => {
     const { data } = await fileOf({ file: 'samples/size/flatted.go' });
     expect(short(data.outline!.symbols)).toEqual([
-      'type flattedIndex 13-13', 'function Stringify 16-143', 'function Parse 146-206', 'function revive 208-225',
-      'function loop 227-247', 'function ref 249-259', 'function ToJSON 262-270', 'function FromJSON 273-279',
+      'type flattedIndex 30-30', 'function Stringify 33-160', 'function Parse 163-223', 'function revive 225-242',
+      'function loop 244-264', 'function ref 266-276', 'function ToJSON 279-287', 'function FromJSON 290-296',
     ]);
   });
 
   it('outlines Java: the class, its constructor and methods, past annotations with arguments', async () => {
     const { data } = await fileOf({ file: 'samples/size/CategoryService.java' });
     expect(short(data.outline!.symbols)).toEqual([
-      'class CategoryService 16-194', 'constructor CategoryService.CategoryService 23-25', 'method CategoryService.resolveGuildId 27-32',
-      'method CategoryService.createCategory 42-58', 'method CategoryService.deleteCategory 68-88', 'method CategoryService.editCategory 98-127',
-      'method CategoryService.findCategory 130-157', 'method CategoryService.listChannelsInCategory 167-193',
+      'class CategoryService 39-217', 'constructor CategoryService.CategoryService 46-48', 'method CategoryService.resolveGuildId 50-55',
+      'method CategoryService.createCategory 65-81', 'method CategoryService.deleteCategory 91-111', 'method CategoryService.editCategory 121-150',
+      'method CategoryService.findCategory 153-180', 'method CategoryService.listChannelsInCategory 190-216',
     ]);
   });
 
@@ -128,8 +128,8 @@ describe('util size: outlines of real files', () => {
     const ns = 'Imagile.Framework.Configuration';
     const cls = `${ns}.FrameworkConfigurationBuilder`;
     expect(short(data.outline!.symbols)).toEqual([
-      `namespace ${ns} 8-193`, `class ${cls} 31-193`, `constructor ${cls}.FrameworkConfigurationBuilder 42-47`,
-      `method ${cls}.WithKeyVault 88-97`, `method ${cls}.WithKeyVault 118-123`, `method ${cls}.WithValidation 156-160`, `method ${cls}.Build 169-192`,
+      `namespace ${ns} 31-216`, `class ${cls} 54-216`, `constructor ${cls}.FrameworkConfigurationBuilder 65-70`,
+      `method ${cls}.WithKeyVault 111-120`, `method ${cls}.WithKeyVault 141-146`, `method ${cls}.WithValidation 179-183`, `method ${cls}.Build 192-215`,
     ]);
   });
 
@@ -369,6 +369,14 @@ describe('util size: the lexer', () => {
     expect(() => outlineCode(text, 'javascript')).toThrow(new OutlineError(message));
   });
 
+  it.each([
+    ['JavaScript', "const a = 'abc\\\r\ndef';\r\nfunction f() {\r\n  return 1;\r\n}\r\n", 'javascript', ['function f 3-5']],
+    ['Python', "a = 'abc\\\r\ndef'\r\ndef f():\r\n    return 1\r\n", 'python', ['function f 3-4']],
+  ])('reads a %s string continued with a backslash before CRLF as it does before LF', (_name, crlf, lang, expected) => {
+    expect(short(outlineCode(crlf, lang as never))).toEqual(expected);
+    expect(short(outlineCode(crlf.replace(/\r\n/g, '\n'), lang as never))).toEqual(expected);
+  });
+
   it('keeps the text of string tokens, so a quoted method name is named', () => {
     expect(lex("x = 'a'", 'javascript').map((t) => t.v)).toEqual(['x', '=', "'a'"]);
     expect(short(outlineCode("class A {\n  'odd name'() {}\n}\n", 'typescript'))).toEqual(['class A 1-3', 'method A.odd name 2-2']);
@@ -388,6 +396,13 @@ describe('util size: data outlines', () => {
       { name: 'a', startLine: 3, endLine: 3 },
     ]);
     expect(scanJsonKeys('[1, 2]')).toEqual([]);
+  });
+
+  it('reads # inside a plain YAML key as part of it, and # after a space as a comment', async () => {
+    expect(scanYamlKeys('a#b: 1\nc: 2 # note\nd #e: 3\n').map((k) => k.name)).toEqual(['a#b', 'c']);
+    const { data } = await fileOf({ text: 'a#b: 1\nc: 2\n', language: 'yaml' });
+    expect(short(data.outline!.symbols)).toEqual(['key a#b 1-1', 'key c 2-2']);
+    expect(data.verified.passed).toBe(true);
   });
 
   it('finds YAML keys at column 0, quoted or plain, and trims trailing comments', () => {

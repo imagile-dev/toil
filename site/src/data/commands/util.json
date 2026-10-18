@@ -74,6 +74,22 @@
     ]
   },
   {
+    "name": "log",
+    "tool": "util_log",
+    "description": "Triage a large log into grouped errors and warnings, with counts, line numbers, samples and stack traces",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--since <timestamp>",
+      "--level <level>",
+      "--grep <regex>",
+      "--max-groups <n>",
+      "--context <n>"
+    ]
+  },
+  {
     "name": "size",
     "tool": "util_size",
     "description": "Count bytes, lines and estimated tokens for a file or folder, and outline a file (local only)",

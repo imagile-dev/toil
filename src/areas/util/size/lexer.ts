@@ -64,6 +64,18 @@ export function lex(src: string, lang: CodeLanguage): Token[] {
     throw new OutlineError(`${what} opened on line ${at} is never closed`);
   };
 
+  /** Steps over a backslash and what it escapes. A line ending after it, LF or CRLF, continues the string on the next line. */
+  const escape = () => {
+    const crlf = src[i + 1] === '\r' && src[i + 2] === '\n';
+    if (src[i + 1] === '\n' || crlf) {
+      i += crlf ? 2 : 1;
+      newline();
+      i++;
+      return;
+    }
+    i += 2;
+  };
+
   /** A string closed by `quote` on the same line, with backslash escapes. */
   const quoted = (quote: string, what: string) => {
     const at = line;
@@ -71,11 +83,7 @@ export function lex(src: string, lang: CodeLanguage): Token[] {
     while (i < src.length) {
       const c = src[i]!;
       if (c === '\\') {
-        if (src[i + 1] === '\n') {
-          i++;
-          newline();
-        }
-        i += 2;
+        escape();
         continue;
       }
       if (c === quote) {
@@ -134,11 +142,7 @@ export function lex(src: string, lang: CodeLanguage): Token[] {
     while (i < src.length) {
       const c = src[i]!;
       if (c === '\\') {
-        if (src[i + 1] === '\n') {
-          i++;
-          newline();
-        }
-        i += 2;
+        escape();
         continue;
       }
       if (c === '`') {

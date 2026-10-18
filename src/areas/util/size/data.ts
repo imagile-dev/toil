@@ -191,7 +191,8 @@ export function scanYamlKeys(text: string): ScannedKey[] {
       found.push({ name: raw.startsWith('"') ? (JSON.parse(raw) as string) : raw.slice(1, -1).replace(/''/g, "'"), line: n + 1 });
       continue;
     }
-    const plain = /^([^\s#:\-?[\]{},&*!|>'"%@`][^#]*?|[-?:][^\s#][^#]*?)\s*:(\s|$)/.exec(line);
+    // `#` starts a comment only after whitespace, so `a#b` is a key.
+    const plain = /^([^\s#:\-?[\]{},&*!|>'"%@`](?:\S|\s(?!#))*?|[-?:][^\s#](?:\S|\s(?!#))*?)\s*:(\s|$)/.exec(line);
     if (plain) found.push({ name: plain[1]!, line: n + 1 });
   }
   return found.map((k, idx) => {
