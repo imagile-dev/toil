@@ -78,7 +78,7 @@ export function clientConfig(conn: DbConnection, debug: (message: string) => voi
   };
 }
 
-type Mode = 'read' | 'write';
+export type Mode = 'read' | 'write';
 
 /**
  * One connection, one transaction, one call. Reads begin read-only and roll
@@ -138,8 +138,8 @@ interface PgFailure {
 
 const NETWORK_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT', 'ECONNRESET', 'EHOSTUNREACH', 'ENETUNREACH', 'EPIPE']);
 
-/** PostgreSQL's SQLSTATEs and Node's network errors to toil's codes. */
-function toToilError(err: unknown, conn: DbConnection, mode: Mode): unknown {
+/** PostgreSQL's SQLSTATEs and Node's network errors to toil's codes. Exported for tests. */
+export function toToilError(err: unknown, conn: DbConnection, mode: Mode): unknown {
   if (err instanceof ToilError) return err;
   const f = (err ?? {}) as PgFailure;
   const message = String(f.message ?? err);
