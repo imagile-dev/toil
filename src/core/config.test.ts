@@ -307,3 +307,30 @@ describe('bounds in the config file', () => {
     expect(readConfigForEdit(file()).bounds).toEqual({ files: 'unbounded' });
   });
 });
+
+describe('dossierPaths in the config file', () => {
+  it('reads absolute folders from a version 2 file, and is never read as an area', () => {
+    const folder = join(home, 'team-dossiers');
+    writeJson(file(), { version: 2, connections: {}, dossierPaths: [folder] });
+    const config = load();
+    expect(config.dossierPaths).toEqual([folder]);
+    expect(config.connections).toEqual({});
+    expect(config.warnings).toEqual([]);
+  });
+
+  it('refuses anything but a list of absolute paths', () => {
+    for (const bad of ['C:/x', ['relative/dir'], [1]]) {
+      writeJson(file(), { version: 2, connections: {}, dossierPaths: bad });
+      expect(() => load(), JSON.stringify(bad)).toThrow(/"dossierPaths" .* must be a list of absolute folder paths/);
+    }
+  });
+
+  it('ignores it in a version 1 file with a warning, and refuses to upgrade such a file silently', () => {
+    writeJson(file(), { jira: { baseUrl: 'https://jira.imagile.dev' }, dossierPaths: [join(home, 'x')] });
+    const config = load();
+    expect(config.dossierPaths).toBeUndefined();
+    expect(Object.keys(config.connections)).toEqual(['jira']);
+    expect(config.warnings.map((w) => w.code)).toEqual(['CONFIG_RESERVED_KEY']);
+    expect(() => readConfigForEdit(file())).toThrow(/"dossierPaths" key, which version 1 ignores/);
+  });
+});

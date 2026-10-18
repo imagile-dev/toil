@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import mysql from 'mysql2/promise';
 import pg from 'pg';
 import { Connection, Request } from 'tedious';
 import type { Settings } from '../../src/core/config.js';
@@ -19,12 +20,14 @@ import { createSqliteFile, SEED_SQL, sqliteRows } from '../harness/db.js';
  */
 export interface DbTarget {
   engine: string;
+  /** The suite's name for this target, when one engine has several (MySQL and MariaDB). Defaults to `engine`. */
+  name?: string;
   /** A reason to skip this target in this run, or undefined to run it. Throws when the run was asked for and can't happen. */
   skip?: () => Promise<string | undefined> | string | undefined;
   /** A fresh, seeded database, and the connection settings that reach it (without `writes`). */
   setup: () => Promise<TargetDatabase>;
-  /** The schema commands use when none is named. */
-  defaultSchema: string;
+  /** The schema commands use when none is named, unless the database says (`TargetDatabase.schema`). */
+  defaultSchema?: string;
   /** A connection key this engine requires, to check the "missing key" error names it. */
   requiredKey: string;
   sql: {
@@ -41,6 +44,8 @@ export interface DbTarget {
 
 export interface TargetDatabase {
   settings: Settings;
+  /** The schema commands use when none is named, where it depends on the database (MySQL's is the database itself). */
+  schema?: string;
   /** Reads the database directly, outside toil, to check what a command did or didn't change. */
   rows: (sql: string) => Promise<unknown[]>;
   /**
@@ -124,6 +129,78 @@ function withMssql(database: string | undefined, sql: string): Promise<Array<Rec
   });
 }
 
+const MYSQL_ENV = 'TOIL_TEST_MYSQL_URL';
+const MARIADB_ENV = 'TOIL_TEST_MARIADB_URL';
+
+/** The MySQL or MariaDB server a URL names, as mysql2 options; `database` overrides the URL's path. */
+function mysqlOptions(url: URL, database?: string): mysql.ConnectionOptions {
+  const name = database ?? url.pathname.slice(1);
+  return {
+    host: url.hostname,
+    port: Number(url.port || 3306),
+    user: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    ...(name ? { database: name } : {}),
+    connectTimeout: 3000,
+  };
+}
+
+async function withMysql<T>(url: URL, database: string | undefined, work: (c: mysql.Connection) => Promise<T>): Promise<T> {
+  const client = await mysql.createConnection(mysqlOptions(url, database));
+  try {
+    return await work(client);
+  } finally {
+    await client.end();
+  }
+}
+
+/**
+ * One target per server: MySQL and MariaDB share the `mysql` engine, and
+ * the suite runs once against each. `running` counts statements executing
+ * against the test database; the counting connection names no database, so
+ * it never counts itself.
+ */
+function mysqlTarget(name: string, envVar: string, ciDefault: string): DbTarget {
+  const server = serverUrl(envVar, ciDefault);
+  return {
+    engine: 'mysql',
+    name,
+    requiredKey: 'host',
+    skip: () => probe(name, envVar, server.explicit, () => withMysql(server.url, '', async (c) => void (await c.query('SELECT 1')))),
+    setup: async () => {
+      const database = `toil_test_${randomBytes(6).toString('hex')}`;
+      await withMysql(server.url, '', (c) => c.query(`CREATE DATABASE ${database}`));
+      await withMysql(server.url, database, async (c) => {
+        for (const sql of SEED_SQL) await c.query(sql);
+      });
+      const { url } = server;
+      return {
+        settings: {
+          engine: 'mysql',
+          host: url.hostname,
+          port: Number(url.port || 3306),
+          database,
+          user: decodeURIComponent(url.username),
+          password: decodeURIComponent(url.password),
+        },
+        schema: database,
+        rows: (sql) => withMysql(server.url, database, async (c) => (await c.query(sql))[0] as unknown[]),
+        running: () =>
+          withMysql(server.url, '', async (c) => {
+            const [rows] = await c.query("SELECT COUNT(*) AS n FROM information_schema.PROCESSLIST WHERE DB = ? AND COMMAND = 'Query'", [database]);
+            return Number((rows as Array<{ n: number }>)[0]!.n);
+          }),
+        cleanup: () => withMysql(server.url, '', async (c) => void (await c.query(`DROP DATABASE IF EXISTS ${database}`))),
+      };
+    },
+    sql: {
+      series: (n) => `WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < ${n}) SELECT x FROM n`,
+      // Sleeps on the server without producing a row, so only a server-side KILL stops it.
+      slow: () => ({ sql: 'SELECT SLEEP(60) AS x' }),
+    },
+  };
+}
+
 const INFINITE = 'WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n) SELECT x FROM n';
 
 export const targets: DbTarget[] = [
@@ -183,6 +260,8 @@ export const targets: DbTarget[] = [
       slow: () => ({ sql: 'SELECT pg_sleep(60) AS x' }),
     },
   },
+  mysqlTarget('MySQL', MYSQL_ENV, 'mysql://root:mysql@localhost:3306/'),
+  mysqlTarget('MariaDB', MARIADB_ENV, 'mysql://root:mysql@localhost:3307/'),
   {
     engine: 'sqlserver',
     defaultSchema: 'dbo',

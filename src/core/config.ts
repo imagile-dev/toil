@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { ToilError, withArticle } from './errors.js';
 
 /**
@@ -38,6 +38,8 @@ export interface ResolvedConfig {
   warnings: Array<{ code: string; message: string }>;
   /** Bounds the user relaxed in the config file (docs/bounds.md). Absent means every bound holds. */
   bounds?: Bounds;
+  /** Folders of shared dossiers the user listed (`"dossierPaths"`, version 2); TOIL_DOSSIER_PATHS replaces them (src/core/dossier.ts). */
+  dossierPaths?: string[];
 }
 
 /**
@@ -54,13 +56,15 @@ export interface AreaInfo {
   name: string;
   /** Key to the CI variables that stand in for it, in order. */
   fallbacks?: Record<string, string[] | undefined>;
+  /** Its context inputs' names: the keys a dossier section may supply (src/core/dossier.ts). */
+  contextInputs?: readonly string[];
 }
 
 /** The config file format this toil writes. It reads every version up to this one. */
 export const CONFIG_VERSION = 2;
 
 /** Top-level keys that are never areas, in any version. */
-const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds']);
+const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds', 'dossierPaths']);
 
 /** Connection names map one-to-one onto env names: lowercase, digits, single hyphens. */
 export const CONNECTION_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -83,6 +87,7 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
   const config = emptyConfig(globalPath);
   const file = readConfigFile(globalPath, config.warnings);
   config.defaults = file.defaults;
+  if (file.dossierPaths) config.dossierPaths = file.dossierPaths;
   if (file.bounds) {
     config.bounds = file.bounds;
     if (file.bounds.files === 'unbounded') {
@@ -148,7 +153,7 @@ export function anyWrites(config: ResolvedConfig, area: string): boolean {
   return connectionsOf(config, area).some((name) => connectionWrites(config.connections[name]));
 }
 
-function readConfigFile(path: string, warnings: ResolvedConfig['warnings']): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds } {
+function readConfigFile(path: string, warnings: ResolvedConfig['warnings']): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds; dossierPaths?: string[] } {
   if (!existsSync(path)) return { connections: {}, defaults: {} };
   return migrateConfig(readJson(path), path, warnings);
 }
@@ -189,8 +194,8 @@ export function readConfigForEdit(path: string): EditableConfig {
   const raw = readJson(path);
   const { connections, defaults } = migrateConfig(raw, path, []);
   if ((raw.version ?? 1) !== 1) return { ...raw, version: CONFIG_VERSION, connections: { ...connections }, defaults: { ...defaults } };
-  // In version 1 these two keys were ignored; upgrading would give them meaning.
-  for (const key of ['connections', 'defaults']) {
+  // In version 1 these keys were ignored; upgrading would give them meaning.
+  for (const key of ['connections', 'defaults', 'dossierPaths']) {
     if (key in raw) {
       throw new ToilError('CONFIG_INVALID', `${path} is a version 1 file with a "${key}" key, which version 1 ignores, so toil won't upgrade it automatically.`, {
         fix: `Remove "${key}" from ${path}, or add "version": ${CONFIG_VERSION} and check it reads as you intend.`,
@@ -231,7 +236,7 @@ export function migrateConfig(
   raw: Record<string, unknown>,
   path: string,
   warnings: ResolvedConfig['warnings'],
-): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds } {
+): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds; dossierPaths?: string[] } {
   // Absent means version 1; present-but-null is a mistake, not a default.
   const version = 'version' in raw ? raw.version : 1;
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
@@ -246,7 +251,19 @@ export function migrateConfig(
   }
   const read = version === 1 ? fromVersion1(raw, path, warnings) : fromVersion2(raw, path, warnings);
   const bounds = readBounds(raw.bounds, path);
-  return bounds ? { ...read, bounds } : read;
+  const dossierPaths = version === 1 ? undefined : readDossierPaths(raw.dossierPaths, path);
+  return { ...read, ...(bounds ? { bounds } : {}), ...(dossierPaths ? { dossierPaths } : {}) };
+}
+
+/** `"dossierPaths"`: folders of shared dossiers, each absolute. Only folders listed here are read; toil never searches for them. */
+function readDossierPaths(raw: unknown, path: string): string[] | undefined {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw) || !raw.every((p) => typeof p === 'string' && isAbsolute(p))) {
+    throw new ToilError('CONFIG_INVALID', `"dossierPaths" in ${path} must be a list of absolute folder paths.`, {
+      fix: `Make it look like "dossierPaths": ["C:/Code/team-dossiers/.toil/dossiers"], or remove it from ${path}.`,
+    });
+  }
+  return raw as string[];
 }
 
 const RELAXABLE: Record<keyof Bounds, readonly string[]> = { files: ['workspace', 'unbounded'] };
@@ -277,7 +294,7 @@ function fromVersion1(raw: Record<string, unknown>, path: string, warnings: Reso
   const defaults: Record<string, Settings> = {};
   for (const [key, settings] of Object.entries(raw)) {
     if (RESERVED_KEYS.has(key)) {
-      if (key === 'connections' || key === 'defaults') {
+      if (key === 'connections' || key === 'defaults' || key === 'dossierPaths') {
         warnings.push({ code: 'CONFIG_RESERVED_KEY', message: `"${key}" in ${path} needs "version": ${CONFIG_VERSION} and was ignored.` });
       }
       continue;

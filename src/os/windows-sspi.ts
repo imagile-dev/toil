@@ -175,7 +175,9 @@ try {
     [Console]::Out.WriteLine('TOKEN ' + [Convert]::ToBase64String($sspi.Step([Convert]::FromBase64String($line))))
   }
 } catch {
-  [Console]::Out.WriteLine('ERR SSPI ' + ($_.Exception.Message -replace '\s+', ' '))
+  # A .NET exception thrown inside a method call arrives wrapped; the inner one says what SSPI said.
+  $e = $_.Exception; if ($e.InnerException) { $e = $e.InnerException }
+  [Console]::Out.WriteLine('ERR SSPI ' + ($e.Message -replace '\s+', ' '))
   exit 1
 } finally {
   if ($sspi -ne $null) { $sspi.Close() }
@@ -215,7 +217,7 @@ function failure(connection: string, kind: string, detail: string): ToilError {
       fix: `Windows PowerShell compiles the helper with Add-Type, which needs a writable TEMP folder and must not be blocked by policy. Or sign in with a SQL Server login on connection ${connection}.`,
     });
   }
-  return new ToilError('AUTH', `Windows refused to start the sign-in for connection ${connection}: ${detail}`, {
+  return new ToilError('AUTH', `Windows refused the sign-in for connection ${connection}: ${detail}`, {
     fix: `Check that this Windows user (or the domain account set on connection ${connection}) can reach a domain controller, and that the server's SPN is registered for its service account. toil connections login ${connection} stores another account's password.`,
   });
 }

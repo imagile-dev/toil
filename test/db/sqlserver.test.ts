@@ -6,6 +6,7 @@ import type { Settings } from '../../src/core/config.js';
 import { connectionConfig } from '../../src/core/db/sqlserver/index.js';
 import { scanScript } from '../../src/core/db/sqlserver/script.js';
 import type { DbConnection } from '../../src/core/db/provider.js';
+import type { NetworkApis } from '../../src/core/network.js';
 import { execute } from '../../src/core/run.js';
 import { testContext } from '../harness/context.js';
 import { targets, type TargetDatabase } from './targets.js';
@@ -72,7 +73,25 @@ describe('sqlserver connection settings', () => {
     const plain = connectionConfig(conn);
     expect(plain).toMatchObject({ server: 'db.imagile.dev', authentication: { type: 'default', options: { userName: 'reader', password: 'from-toil' } } });
     expect(plain.options).toMatchObject({ port: 1433, database: 'app', encrypt: false, trustServerCertificate: false, appName: 'toil', requestTimeout: 0 });
-    expect(connectionConfig({ ...conn, ssl: true, port: 14330 } as DbConnection).options).toMatchObject({ encrypt: true, trustServerCertificate: false, port: 14330 });
+    expect(connectionConfig({ ...conn, ssl: true, port: 14330 } as DbConnection, () => {}, caApis(['CORP-ROOT'])).options).toMatchObject({ encrypt: true, trustServerCertificate: false, port: 14330 });
+  });
+
+  // tedious opens its own socket, so core's HTTP setup never loads the OS store for it.
+  const caApis = (system: string[] | Error): NetworkApis => ({
+    getCACertificates: ((type?: string) => {
+      if (system instanceof Error) throw system;
+      return type === 'system' ? system : ['BUNDLED-1'];
+    }) as NetworkApis['getCACertificates'],
+    setDefaultCACertificates: () => {},
+    setGlobalProxyFromEnv: () => () => {},
+  });
+
+  it("verifies TLS against Node's CAs plus the OS store when ssl is on, and reads nothing without it", () => {
+    expect(connectionConfig({ ...conn, ssl: true } as DbConnection, () => {}, caApis(['CORP-ROOT'])).options?.cryptoCredentialsDetails).toEqual({ ca: ['BUNDLED-1', 'CORP-ROOT'] });
+    const debug: string[] = [];
+    expect(connectionConfig({ ...conn, ssl: true } as DbConnection, (m) => debug.push(m), caApis(new Error('store locked'))).options?.cryptoCredentialsDetails).toBeUndefined();
+    expect(debug.join()).toContain('store locked');
+    expect(connectionConfig(conn, () => {}, caApis(new Error('never read'))).options?.cryptoCredentialsDetails).toBeUndefined();
   });
 });
 
@@ -265,6 +284,6 @@ describe.skipIf(skip !== undefined)(`sqlserver server${skip ? ` (skipped: ${skip
     expect((await run(listSchemas, {}, { ...db.settings, host: '127.0.0.1', port: 1 })).error?.code).toBe('NETWORK');
     // The test server's certificate is self-signed, so verifying it fails, and toil has no switch to skip that.
     const tls = await run(listSchemas, {}, { ...db.settings, ssl: true });
-    expect(tls.error).toMatchObject({ code: 'NETWORK', fix: expect.stringContaining('certificate store') });
+    expect(tls.error).toMatchObject({ code: 'NETWORK', fix: expect.stringContaining('NODE_EXTRA_CA_CERTS') });
   });
 });

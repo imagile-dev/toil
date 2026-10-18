@@ -64,6 +64,27 @@ jobs:
           --health-interval 2s
           --health-timeout 5s
           --health-retries 30
+      # One provider (engine `mysql`) for both, so the suite runs against each.
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: mysql
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -pmysql --silent"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 60
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MARIADB_ROOT_PASSWORD: mysql
+        ports: ['3307:3306']
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 60
       # A throwaway server for this job only; its SA password is a test value, in env, not argv.
       # SQLCMDPASSWORD is the same value for the health check's sqlcmd.
       sqlserver:
@@ -81,6 +102,8 @@ jobs:
           --health-start-period 20s
     env:
       TOIL_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/postgres
+      TOIL_TEST_MYSQL_URL: mysql://root:mysql@localhost:3306/
+      TOIL_TEST_MARIADB_URL: mysql://root:mysql@localhost:3307/
       TOIL_TEST_SQLSERVER_URL: mssql://sa:Toil-test-Pa55word@localhost:1433/master
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

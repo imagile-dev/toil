@@ -119,8 +119,8 @@ versions.
 - **Where a command acts** (`--project`, `--repo`, `--owner`, `--instance`, `--env`)
   is a context input in `defineArea({ context })`, never an ordinary flag, so core
   resolves it from the call, the dossier, the git remote and the connection in one
-  order (the dossier step is empty until #16, and the git step needs the git reader,
-  which isn't wired in yet). The predecessor's group-level flags (`bitbucket --project --repo`, `github
+  order. A dossier section supplies it by the input's name, so a context input is
+  also what makes a key usable from a dossier. The predecessor's group-level flags (`bitbucket --project --repo`, `github
   --owner --repo`, `ado --collection --organization --project --repo`, `jenkins
   --instance`, `openshift --env --instance`, `dynatrace --env`) are `group` inputs,
   with the contract's spelling in `flags`; a per-command one (`jira --project`) is a
@@ -169,6 +169,13 @@ versions.
   connection, context, write gate and time limit on the CLI, is never an MCP tool,
   and its docs page marks it CLI only. The parity suite runs its examples and write
   gate on the CLI.
+- **Raw API passthrough** (`<area> api`): an HTTP area adds
+  `apiCommand(area, { service, examplePath, examples })` from
+  `src/core/passthrough.ts` to its `commands`. Give it a read example, one with a
+  `query`, and a write with `bodyFile`, `contentType` and `allowWrite: true`; the
+  fixture answers each, and the parity suite proves the write gate. Copy the **Any
+  endpoint** section of `skills/toil/jira.md` into the area's skill file, with its
+  own paths. Don't add one to an area that isn't HTTP (`db`, `git`).
 - **A command the old CLI ran with the service unconfigured** (`git current-pr`
   answering that Bitbucket isn't set up) sets `connectionOptional: true`. When the
   area has no connection and the call names none, `run` gets `ctx.connection`
@@ -242,9 +249,11 @@ versions.
   which were invented from the vendor's docs.
 - After registering, run `npx vitest run -u` once to write the site's command list.
 
-Once dossiers are built (`docs/dossiers.md`), an area also declares the zod schema
-of its dossier section and a read-only `toil <area> check-dossier` command, and its
-section selects a connection by `connection` name or `host`, never by anything else.
+An area's dossier section (`docs/dossiers.md`) needs nothing from the area: its keys
+are the area's context inputs, plus `connection` or `host` to select a connection
+(never anything else) and `fields`. Any other key is kept as reference data. A
+read-only `toil <area> check-dossier`, which checks a section against the service,
+is still to come with #16.
 
 **Every change to an integration reviews its site documentation in the same PR.**
 That covers a new integration, a new or changed command, a changed credential or
