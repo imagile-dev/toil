@@ -1,0 +1,40 @@
+h2. Problem
+
+Nightly export to the data warehouse fails with a *timeout* after the _October_ schema change. Reported by [~jdoe] in the ops channel.
+
+h2. Steps
+
+# Trigger the job from [Jenkins|https://jenkins.imagile.dev/job/warehouse-export/]
+# Wait for the {{extract}} stage
+#* It hangs at 63%
+#* The worker logs show the query below
+# Kill the job after 30 minutes
+
+{code:sql}
+SELECT o.id, o.total, c.region
+FROM orders o
+JOIN customers c ON c.id = o.customer_id
+WHERE o.updated_at > :since;
+{code}
+
+h3. Affected tables
+
+||Table||Rows||Index on updated_at||
+|orders|48,200,113|no|
+|customers|1,902,554|yes|
+
+{panel:title=Workaround}
+Run the export with {{--since}} set to yesterday; it finishes in about 12 minutes.
+{panel}
+
+bq. Adding the index needs a maintenance window: -approved for Saturday- pending DBA sign-off.
+
+{color:red}Do not{color} rerun the full backfill without checking disk space first.
+
+Screenshot of the stuck stage: !stage-hang.png|thumbnail!
+
+----
+
+{noformat}
+2026-10-15T02:14:07Z WARN extract: batch 63 of 100 exceeded 600s
+{noformat}

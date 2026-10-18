@@ -242,5 +242,18 @@
       "--ecosystem <ecosystem>",
       "--preid <id>"
     ]
+  },
+  {
+    "name": "md",
+    "tool": "util_md",
+    "description": "Convert Markdown to or from Jira wiki markup, ADF or Confluence storage format, checking the result by converting it back",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--from <format>",
+      "--to <format>"
+    ]
   }
 ]

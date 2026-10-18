@@ -1,0 +1,40 @@
+<ac:structured-macro ac:name="toc" ac:schema-version="1" ac:macro-id="abc12345-0000-0000-0000-000000000010"><ac:parameter ac:name="maxLevel">2</ac:parameter></ac:structured-macro>
+<h1>Release 4.12 &mdash; October 2026</h1>
+<p>This release ships the <strong>invoice export</strong> and retires the <em>old</em> PDF renderer. Owners: <ac:link><ri:user ri:userkey="abc12345" /></ac:link> and the billing team.</p>
+<ac:structured-macro ac:name="info" ac:schema-version="1"><ac:rich-text-body><p>Customers on the Enterprise plan get the export a week early.</p></ac:rich-text-body></ac:structured-macro>
+<h2>What's new</h2>
+<ul>
+  <li><p>CSV export of invoices (<a href="https://jira.imagile.dev/browse/PAY-311">PAY-311</a>)</p></li>
+  <li><p>Faster search:</p>
+    <ul>
+      <li>results in under 200&nbsp;ms for 95% of queries</li>
+      <li>typo tolerance for customer names</li>
+    </ul>
+  </li>
+  <li><span style="text-decoration: line-through;">Dark mode</span> moved to 4.13</li>
+</ul>
+<h2>Upgrade steps</h2>
+<ol>
+  <li>Back up the database</li>
+  <li>Run the upgrade script:
+    <ac:structured-macro ac:name="code" ac:schema-version="1"><ac:parameter ac:name="language">bash</ac:parameter><ac:parameter ac:name="linenumbers">true</ac:parameter><ac:plain-text-body><![CDATA[./bin/upgrade --to 4.12 --dry-run
+./bin/upgrade --to 4.12]]></ac:plain-text-body></ac:structured-macro>
+  </li>
+  <li>Restart the workers</li>
+</ol>
+<h2>Known issues</h2>
+<table class="wrapped"><colgroup><col /><col /><col /></colgroup>
+<tbody>
+<tr><th><p>Issue</p></th><th><p>Impact</p></th><th style="text-align: center;"><p>Fix version</p></th></tr>
+<tr><td><p>Export times out over 50k rows</p></td><td><p>Large tenants</p></td><td style="text-align: center;"><p>4.12.1</p></td></tr>
+<tr><td colspan="2"><p><span style="color: rgb(255,86,48);">Search ignores accents</span></p></td><td style="text-align: center;"><p>4.13</p></td></tr>
+</tbody></table>
+<h2>Sign-off</h2>
+<ac:task-list>
+<ac:task><ac:task-id>1</ac:task-id><ac:task-status>complete</ac:task-status><ac:task-body>QA sign-off</ac:task-body></ac:task>
+<ac:task><ac:task-id>2</ac:task-id><ac:task-status>incomplete</ac:task-status><ac:task-body>Security review of the <code>export</code> endpoint</ac:task-body></ac:task>
+</ac:task-list>
+<p><ac:image ac:alt="Export dialog"><ri:url ri:value="https://wiki.imagile.dev/download/attachments/5678/export-dialog.png" /></ac:image></p>
+<p>See also <ac:link><ri:page ri:content-title="Release 4.11" /><ac:plain-text-link-body><![CDATA[last month's notes]]></ac:plain-text-link-body></ac:link>.</p>
+<hr />
+<p>Questions? Ask in <code>#billing-releases</code>.</p>
