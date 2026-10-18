@@ -241,8 +241,7 @@ GitHub Actions; its build tooling is out of scope.
   `test/live/` is the real-credential-store suite, kept out of `npm test` (`secrets`
   skill)
 - `scripts/` — area registration, the purity gate, the committed-bundle check
-  (`check-dist.mjs`), the tarball and clone smoke test, contract capture (`capture-command-contract.mjs`, with output fields from
-  `contract-output.mjs`), the area stub generator (`stub-area.mjs`), the divergence
+  (`check-dist.mjs`), the tarball and clone smoke test, the area stub generator (`stub-area.mjs`), the divergence
   table (`divergences.mjs`), PR screenshots (`shoot.mjs`), and the PR watcher the
   `ship` skill runs (dev tooling; none of it ships)
 - `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files,

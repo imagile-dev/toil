@@ -356,9 +356,8 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
   - Cloud variants have no tested contract. They're built against the vendor's
     documented API, and the PR says what they were run against.
 - **The documented surface is frozen** in `docs/command-contract.json`: every command path,
-  its arguments and its flags, captured from the contract's own help output, and the
-  field names of each command's `data`, read from its source by the TypeScript
-  checker. That
+  its arguments and its flags, and the field names of each command's `data`, kept by
+  hand. That
   file is the only place the contract is named in the repository; issues may name
   it, because building an integration needs the source location.
 - **Every integration command in the contract exists in toil at the same path**,

@@ -1,9 +1,8 @@
 # Command contract
 
-`command-contract.json` freezes the command surface of the CLI toil succeeds, captured
-from that CLI's own `--help` output (version 6.3.0: 443 commands, 368 of them leaves),
-and the field names of the `data` each command returns, read from its TypeScript
-source by the type checker.
+`command-contract.json` is toil's hand-maintained record of its command surface (443
+commands, 368 of them leaves): each command's path, arguments and flags, and the field
+names of the `data` it returns.
 The rule it backs, from **Compatibility** in the `integrations` skill
 (`.claude/skills/integrations/SKILL.md`): moving a skill, script
 or pipeline to toil takes one case-insensitive find-and-replace of the old name with
@@ -67,14 +66,7 @@ checked that way, so an integration still compares those with the contract by ha
 
 To read them all as a table: `node scripts/divergences.mjs`.
 
-## Recapturing
+## Changing the contract
 
-The contract changes only on purpose, when a newer version of the contract shipped
-commands toil should also cover. Recapture from a checkout of that version, built and
-with its dependencies installed, so the checker can resolve its types:
-
-```bash
-node scripts/capture-command-contract.mjs <repo>/dist/cli.js --source <repo> > docs/command-contract.json
-```
-
-Review the diff like any other contract change.
+The contract is edited by hand and changes only on purpose, in the same change as the
+commands it records. Review the diff like any other contract change.
