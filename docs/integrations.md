@@ -57,6 +57,7 @@ The `util` group holds commands with no connection, no credential and no network
 |---------|--------|
 | `toil util jwt decode` (also `toil jwt decode`) | Decode a JWT's header and claims without verifying |
 | `toil util secrets scan` | Find credential-shaped strings in a file, a folder, stdin or the staged diff before they're committed or posted |
+| `toil util cert` | Decode certificates (PEM or DER) and check a chain's order, signatures, validity and host |
 | `toil doctor` | Config, credential and reachability report across every configured area |
 | `toil config` | `init`, `set`, `check`, `test`, keychain references |
 | `toil skills` | Install the user-facing skill for an agent |
