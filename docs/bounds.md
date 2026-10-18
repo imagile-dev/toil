@@ -49,6 +49,8 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 |-----------|----------|-------------|----------------|
 | `git.read-up` | `files.workspace` | `src/core/git-repo.ts`, `src/core/git-config.ts`, `src/core/files.ts` | Reading git metadata above or beside the workspace, to find the repository root, branch and remotes, and what a listing skips. Anything under `~/.toil`, the `--config` file, `/proc` or `/sys` is refused: a global config or `include`/`includeIf` naming one is skipped with a `GIT_INCLUDE_REFUSED` warning in `meta.warnings`, and a `gitdir:` pointing at one is not a repository. |
 | `output-file` | `files.workspace` | `src/node-context.ts`, `src/program.ts` | The global `--output-file` flag writing the envelope outside the workspace. |
+| `shell-profile` | `files.workspace` | `src/core/shell-profile.ts`, `src/setup/commands.ts` | `toil setup alias` and `remove-alias` reading and writing the shell profile they name, outside the workspace. |
+| `shell-profile.edit` | `files.no-overwrite` | `src/core/shell-profile.ts` | Those two commands changing that existing file, only between their own marker lines. |
 
 `git.read-up` is metadata only, and read only. It covers exactly these, and nothing
 else:
@@ -72,7 +74,16 @@ this way is returned as file content: it yields a root path, a branch name, remo
 URLs, and the decision to skip a path. The files a command reads or writes stay
 inside the workspace (#68 decision 2).
 
-`output-file` is the one file flag outside the workspace. `--output-file` is a CLI
+`shell-profile` is how a clone gets a `toil` command with no npm install. `toil setup
+alias` and `toil setup remove-alias` are CLI only, never MCP tools, and the person
+running them names the shell or the file (`--shell`, `--profile`; the default is
+`~/.bashrc` or `~/.zshrc`). They touch only the lines between `# >>> toil alias >>>`
+and `# <<< toil alias <<<`, leave every other byte of the file as it was, and write
+through a symlink rather than replacing it. A profile with an unmatched marker, or
+saved as UTF-16, is refused rather than guessed at. They still refuse toil's own files
+and `/proc` and `/sys`.
+
+`output-file` is the one global flag that writes outside the workspace. `--output-file` is a CLI
 flag, never an MCP input, so the person running the command chose the path. It may
 write anywhere except toil's own files and `/proc` and `/sys`, and it never
 overwrites a file. The path is checked before the command runs, so a refused path

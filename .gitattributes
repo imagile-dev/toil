@@ -1,3 +1,6 @@
 * text=auto eol=lf
 *.png binary
 *.wasm binary
+# The committed bundle is generated: collapsed in PR diffs and never diffed line
+# by line. `npm run build` is the only way it changes.
+dist/toil.js linguist-generated=true -diff

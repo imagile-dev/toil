@@ -41,8 +41,43 @@ jobs:
       - run: npm run build
       # No runtime deps, no install scripts, only Node built-ins, no spawning.
       - run: npm run check:pure
+      # The committed dist/toil.js, which a clone runs with no npm install, is
+      # exactly what the build just produced, on every OS.
+      - run: npm run check:dist
       # Install the packed tarball with scripts off; drive the CLI and MCP.
+      # Then clone the checkout and run the committed bundle with no install.
       - run: npm run smoke
+
+  # The skill installs through a real skill manager on every OS: Claude Code
+  # validates the marketplace in the repository and installs the toil plugin
+  # from it, with a throwaway config folder and no login. (The .agents/skills
+  # path is a folder copy; test/skills.test.ts checks the folder stands alone.)
+  # Optional rather than part of CI ok, because it downloads a third-party CLI.
+  skill-install:
+    name: skill install / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.14'
+      - name: Claude Code validates the marketplace and installs the skill from it
+        shell: bash
+        env:
+          CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-config
+          DISABLE_TELEMETRY: '1'
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+        run: |
+          claude() { npx --yes @anthropic-ai/claude-code@2.1.289 "$@"; }
+          claude plugin validate "$GITHUB_WORKSPACE"
+          claude plugin marketplace add "$GITHUB_WORKSPACE"
+          claude plugin install toil@toil
+          claude plugin details toil@toil | tee "$RUNNER_TEMP/details.txt"
+          grep -q 'Skills (1)' "$RUNNER_TEMP/details.txt"
 
   # The one check the ruleset on main requires. The gate's job names include the
   # Node version, so requiring them by name would silently stop requiring them the

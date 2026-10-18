@@ -187,6 +187,8 @@ GitHub Actions; its build tooling is out of scope.
   envelope), errors, config loading and
   writing, the OS credential store (`keychain.ts`) and the terminal prompter
 - `src/connections/` — `toil connections add | login | list | remove`
+- `src/setup/` — `toil setup alias | remove-alias`, the `toil` alias for a clone
+  (CLI only; the profile editing is `src/core/shell-profile.ts`)
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
   `commands` (standalone commands export only `commands`)
 - `src/registry.ts` — every shipped area and command, read by both front doors. It
@@ -335,8 +337,9 @@ what it protects, where it's enforced, its error and whether it can be relaxed;
 in step. A new bound, or a change to one, updates both. Only a setting in the user's
 own config file relaxes a bound (today only `"bounds": { "files": "unbounded" }`),
 security-class bounds never, and every envelope says so in `meta.warnings` while
-one is relaxed. Reading git metadata above the workspace is the one documented
-exception.
+one is relaxed. The documented exceptions are reading git metadata above the
+workspace, `--output-file`, and the shell profile `toil setup alias` edits
+(`docs/bounds.md`).
 
 **The file workspace.** Every path a command reads or writes resolves inside one
 folder: `--workspace <dir>`, else `TOIL_WORKSPACE`, else the CLI's working
@@ -359,10 +362,15 @@ npm run lint        # ESLint
 npm test            # Vitest
 npm run build       # tsup → dist/toil.js, single bundle
 npm run check:pure  # the No Executables gate (after build)
-npm run smoke       # install the tarball with scripts off; drive CLI and MCP (after build)
+npm run check:dist  # the committed dist/toil.js is what the build made (after build)
+npm run smoke       # install the tarball with scripts off; drive CLI and MCP; run a clone (after build)
 ```
 
-All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 24.14
+`dist/toil.js` is committed, so a clone runs with no `npm install`. Commit the rebuilt
+bundle with every change to `src/`; after merging `main`, run `npm run build` and commit
+it rather than resolving a conflict in it by hand.
+
+All seven pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 24.14
 and 26. Its `CI ok` job passes only when every one of those passed, and it's the one
 check `main`'s ruleset requires, so nothing merges on a red gate. Other checks stay
 optional: the review job (approval is required separately, and it skips the release
@@ -704,7 +712,7 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 - **Every PR carries proof a human can check of how it was verified locally**, not
   just the claim "tests pass". Include:
   - **The gate results**: the summary lines from typecheck, lint, test, build,
-    `check:pure` and `smoke`, with the OS and Node version.
+    `check:pure`, `check:dist` and `smoke`, with the OS and Node version.
   - **Real runs**: the commands you ran against real things, with their output.
     That means the CLI, and the MCP server driven by a real agent client (the
     local Codex CLI), with the envelopes they returned, sanitized to placeholders.

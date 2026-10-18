@@ -5,16 +5,21 @@ description: Use toil, a structured-JSON CLI and MCP server, to read from and (w
 
 # toil
 
+If `toil version` doesn't print an envelope, toil isn't installed yet: `install.md`,
+beside this file, says how, from npm or from a clone with no npm install. Running toil
+as an MCP server, and registering it with an agent client, is in `mcp.md`.
+
 Every command prints one JSON envelope on stdout: `{ ok, data, error, meta }`.
 Check `ok`; on failure, `error.code` says what kind of failure it was and `error.fix`
 says what to do about it. Paged results put the next page's cursor in
-`meta.page.nextCursor` (null on the last page). `meta.context` says which connection
-a call used and how it was chosen, and where any project, repo or environment it
-resolved came from. `--pretty` formats the output for people.
+`meta.page.nextCursor` (null on the last page). `meta.warnings` lists anything worth
+knowing that isn't a failure, such as a truncated result. `meta.context` says which
+connection a call used and how it was chosen, and where any project, repo or
+environment it resolved came from. `--pretty` formats the output for people.
 
 Each area is reachable two ways with identical inputs and output: on the command
 line as `toil <area> <command>`, and as MCP tools from `toil mcp --areas <area>`
-(tool names are the command path with underscores, e.g. `db_query`).
+(tool names are the command path with underscores, e.g. `db_query`; see `mcp.md`).
 
 Reads are always allowed. A command that changes data needs `writes: true` on the
 connection, set by a person in their own config or environment, and `--allow-write`
@@ -36,6 +41,11 @@ slashes. Commands that run git need git on PATH and say
 Configuration comes from environment variables, which always win, or from
 `~/.toil/config.json` (or the file passed with `--config`). A connection is one
 instance of an area; `--connection <name>` picks one when there are several.
+
+Global flags go before or after the command: `--pretty`, `--verbose` (adds every
+request to `meta.requests`, credentials redacted), `--debug` (traces on stderr),
+`--config <file>`, `--output-file <file>` and `--workspace <dir>`. `--help` on any
+command lists its own flags.
 
 toil trusts the OS certificate store and Node's bundled CAs, and uses `HTTPS_PROXY` /
 `HTTP_PROXY` / `NO_PROXY` when they're set. A `NETWORK` error about an untrusted

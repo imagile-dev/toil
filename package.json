@@ -42,6 +42,7 @@
     "test": "vitest run",
     "test:keychain-live": "vitest run --config vitest.live.config.ts",
     "check:pure": "node scripts/check-pure.mjs",
+    "check:dist": "node scripts/check-dist.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {

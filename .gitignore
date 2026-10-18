@@ -1,6 +1,9 @@
 # Node build output
 node_modules/
-dist/
+# dist/toil.js is committed, so a clone runs with no npm install, and CI checks
+# it matches its source (scripts/check-dist.mjs). The rest of dist/ is build output.
+dist/*
+!dist/toil.js
 coverage/
 *.tgz
 *.tsbuildinfo
