@@ -1,20 +1,33 @@
 ---
 name: code-intelligence
-description: Why toil has no `code` area (symbol search, definitions, references, call hierarchy, diagnostics, rename), and what it would take to reopen that. Use when someone proposes code navigation or analysis in toil, asks to add the TypeScript language service, tree-sitter WebAssembly grammars, ast-grep, Pyright or a JetBrains IDE bridge as a dependency, or asks why the `code` area went away.
+description: What code intelligence toil may have (small, pure-JS features such as util size's outlines) and what's ruled out (heavy analysis dependencies: the TypeScript language service or compiler at runtime, tree-sitter WebAssembly grammars, ast-grep, Pyright, IDE bridges), and what reopening that takes. Use when someone proposes code navigation or analysis in toil, asks to add one of those dependencies, or asks why there's no `code` area.
 ---
 
-# Code Intelligence (deferred)
+# Code Intelligence: small and pure-JS only
 
-toil does not answer questions about a codebase. There is no `code` area, and none
-is planned. Symbol search, definitions, references, call hierarchy, diagnostics and
-rename belong to language servers, which engineers already get from their IDE or
-can install for their agent. toil's job is the work *around* the code: enterprise
-tools and databases.
+The decision is about dependencies, not about code intelligence. toil's job is the
+work *around* the code, enterprise tools and databases, and the one thing ruled out
+is making every user carry a heavy analysis stack for it.
 
-Don't add a code-navigation command, and don't add a language-analysis library as a
-dependency, until this decision is reopened with a GitHub issue.
+- **Welcome:** code intelligence built small and in pure JavaScript, inside toil's
+  own source, loaded only when its command runs, and honest about its precision
+  (*principle 4*). `util size`'s outliner (#184) is the example: a lexer per
+  language plus brace or indentation matching gives functions, classes and methods
+  with line ranges for six languages, says `precision: "syntactic"`, re-reads each
+  symbol's line to check it, and adds about 50 KB to the bundle.
+- **Ruled out:** heavy dependencies. The TypeScript language service or compiler as
+  a runtime dependency, tree-sitter WebAssembly grammars, ast-grep, Pyright, a
+  JetBrains or other IDE bridge, and anything of that weight. Their size and
+  maintenance story are below.
+- **Reopening** this decision, with a GitHub issue, is needed only to add one of
+  those dependencies. A small pure-JS feature needs no reopening; it goes through
+  the usual review.
 
-## Why it was deferred
+Precise semantic answers (references, call hierarchy, rename, diagnostics) still
+belong to language servers, which engineers already get from their IDE or can
+install for their agent; nothing pure-JS answers them reliably for Java or C#.
+
+## Why heavy dependencies were ruled out
 
 These are findings from October 2026. Re-check them before reopening this decision.
 
@@ -37,7 +50,7 @@ These are findings from October 2026. Re-check them before reopening this decisi
   Precise answers come from language servers and IDEs, which are better installed
   separately on machines that allow it.
 
-## If it is reopened
+## If adding a heavy dependency is reopened
 
 The smallest version worth building:
 
