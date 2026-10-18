@@ -347,5 +347,16 @@
       "--project <key>",
       "--repo <slug>"
     ]
+  },
+  {
+    "name": "check-dossier",
+    "tool": "bitbucket_check_dossier",
+    "description": "Check the call's dossier against Bitbucket: its projects and repositories exist",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--project <key>",
+      "--repo <slug>"
+    ]
   }
 ]

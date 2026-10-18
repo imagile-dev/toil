@@ -127,3 +127,7 @@ toil openshift --env prod --instance east events --namespace payments --all
 toil openshift logs --namespace payments --pod api-7d9f8b6c5-abcde --container api --lines 50
 toil openshift resource-usage --namespace payments --csv --out usage.csv
 ```
+
+## Checking a dossier
+
+`check-dossier` checks the call's dossier for the call's environment (`--env`, else the dossier's own) against that environment's cluster: each namespace it names (`namespace`, `namespaces`) is a project the token can see, and each deployment in `deployments` exists in its section's namespace. It's `toil openshift check-dossier` (`--dossier <name|file>`, or the dossier the folder resolves to), and it returns `{ dossier, connection, env, ok, checked, checks }`, one check per value with its key path. The CLI exits 1 when one is missing. A failure other than not-found (a bad token, an unreachable host) fails the command. Read only.

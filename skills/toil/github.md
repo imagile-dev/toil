@@ -138,3 +138,7 @@ toil github list-prs --state all --author octo-dev
 toil github --owner imagile --repo toil-probe pr-status --number 7
 toil github create-pr --title "Add the probe" --head feature --body-file pr.md --allow-write
 ```
+
+## Checking a dossier
+
+`check-dossier` checks the call's dossier: each owner it names (`owner`, per repo or not, and `owners`) is a user or organization, and each repository (`repo`) exists under its owner. It's `toil github check-dossier` (`--dossier <name|file>`, or the dossier the folder resolves to), and it returns `{ dossier, connection, env, ok, checked, checks }`, one check per value with its key path. The CLI exits 1 when one is missing. A failure other than not-found (a bad token, an unreachable host) fails the command. Read only.

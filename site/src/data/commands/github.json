@@ -527,5 +527,16 @@
       "--owner <owner>",
       "--repo <repo>"
     ]
+  },
+  {
+    "name": "check-dossier",
+    "tool": "github_check_dossier",
+    "description": "Check the call's dossier against GitHub: its owners and repositories exist",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
   }
 ]

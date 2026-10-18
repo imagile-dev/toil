@@ -16,7 +16,8 @@ export const checkDossier = bitbucketArea.command({
     'Checks the Bitbucket sections of the dossier that applies to this call (or the one named in dossier): each project key it names exists, and each repository in its project. Returns ok and one check per value, with its key path; the CLI exits 1 when one is missing. Read only.',
   input: z.object({}),
   writes: false,
-  examples: [{}],
+  // The second sets the area's own inputs, which choose the connection and (ado) the fallback collection; the dossier is checked either way.
+  examples: [{}, { project: 'PROJ', repo: 'imagile-api' }],
   run: async (_input, ctx) => {
     const view = dossierToCheck(ctx, 'bitbucket');
     const enc = encodeURIComponent;

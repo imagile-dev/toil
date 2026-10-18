@@ -221,3 +221,7 @@ keeping only the file name, and never replaces a file that's already there.
 - An issue key or id is sent as one URL path segment, encoded, so it can't change the
   endpoint called.
 - A 429 is retried after the delay Jira asks for, as in every area.
+
+## Checking a dossier
+
+`check-dossier` checks the call's dossier: each project key it names (`project`, `projects`) exists, and each field alias in `fields` names a field id the site has. It's `toil jira-cloud check-dossier` (`--dossier <name|file>`, or the dossier the folder resolves to), and it returns `{ dossier, connection, env, ok, checked, checks }`, one check per value with its key path. The CLI exits 1 when one is missing. A failure other than not-found (a bad token, an unreachable host) fails the command. Read only.

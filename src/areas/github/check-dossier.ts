@@ -16,7 +16,8 @@ export const checkDossier = githubArea.command({
     'Checks the GitHub sections of the dossier that applies to this call (or the one named in dossier): each owner it names is a user or organization, and each repository exists under its owner. Returns ok and one check per value, with its key path; the CLI exits 1 when one is missing. Read only.',
   input: z.object({}),
   writes: false,
-  examples: [{}],
+  // The second sets the area's own inputs, which choose the connection and (ado) the fallback collection; the dossier is checked either way.
+  examples: [{}, { owner: 'imagile', repo: 'toil-probe' }],
   run: async (_input, ctx) => {
     const view = dossierToCheck(ctx, 'github');
     const enc = encodeURIComponent;

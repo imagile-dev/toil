@@ -16,7 +16,8 @@ export const checkDossier = dynatraceArea.command({
     "Checks the Dynatrace sections of the dossier that applies to this call, for the call's environment (env, else the dossier's own): each entity id it names exists. Returns ok and one check per id, with its key path; the CLI exits 1 when one is missing. Read only.",
   input: z.object({}),
   writes: false,
-  examples: [{}],
+  // The second sets the area's own inputs, which choose the connection and (ado) the fallback collection; the dossier is checked either way.
+  examples: [{}, { env: 'prod' }],
   run: async (_input, ctx) => {
     const view = dossierToCheck(ctx, 'dynatrace');
     const checks: DossierCheck[] = await checkEach(viewValues(view, ['entity', 'entities']), 'entity', (id) => exists(() => dynatrace(ctx, `/api/v2/entities/${encodeURIComponent(id)}`)));

@@ -118,6 +118,9 @@ export const diff = { fromHash: SHA, toHash: SHA, contextLines: 10, whitespace: 
 const json = (body: unknown) => ({ json: body });
 
 export const routes: Route[] = [
+  // check-dossier's lookups: the project, and the repository in it.
+  { path: `${API}/projects/PROJ`, respond: json({ key: 'PROJ', id: 1, name: 'Project' }) },
+  { path: REPO, respond: json(repository('imagile-api')) },
   { method: 'POST', path: `${API}/projects/PROJ/repos`, respond: (req) => json(repository(JSON.parse(req.body!).name)) },
   // Two pages of OPEN pull requests, then the filtered query in one.
   { path: `${REPO}/pull-requests`, query: { state: 'OPEN', start: '0', limit: '100' }, respond: json(page([pr(41, { fromRef: ref('feature/other') })], 1)) },
@@ -167,4 +170,10 @@ export const routes: Route[] = [
 /** The workspace's repository for current-pr: on PR 42's source branch. */
 export const repo = { root: 'C:/work/imagile-api', branch: 'feature/retries', remotes: ['https://bitbucket.imagile.dev/scm/PROJ/imagile-api.git'] };
 
-export const fixture = defineFixture({ area: 'bitbucket', routes, config, repo });
+/**
+ * The dossier the examples run with, for check-dossier. Its context inputs are
+ * per repo, and no example's folder is that repo, so no other example reads them.
+ */
+export const dossier = { name: 'payments', bitbucket: { project: { 'imagile-api': 'PROJ' }, repo: { 'imagile-api': 'imagile-api' } } };
+
+export const fixture = defineFixture({ area: 'bitbucket', routes, config, repo, dossier });
