@@ -37,6 +37,29 @@ const facts = [
   },
 ];
 
+const lean = [
+  {
+    title: 'Compact envelopes',
+    body: 'Every command prints one JSON envelope: ok, data, error, meta. One shape to read, on every call.',
+    icon: '<path d="M11 5c-3 0-3 2-3 5s-2 6-4 6c2 0 4 3 4 6s0 5 3 5M21 5c3 0 3 2 3 5s2 6 4 6c-2 0-4 3-4 6s0 5-3 5"/><path d="M13 16h6" class="accent"/>',
+  },
+  {
+    title: 'Only the fields asked for',
+    body: '--select keeps the fields a task names and drops the rest before anything reaches the agent.',
+    icon: '<path d="M5 7h22M8 13h16M11 19h10"/><path d="M14 25h4" class="accent"/>',
+  },
+  {
+    title: 'Wait, don\'t poll',
+    body: 'toil wait repeats a read until a condition is true and answers once, instead of the agent asking again and again.',
+    icon: '<circle cx="16" cy="17" r="11"/><path d="M16 10v7l4 3"/><path d="M13 3h6" class="accent"/>',
+  },
+  {
+    title: 'A skill, read as needed',
+    body: 'The toil skill is a short index. The agent opens one page when a task needs it, instead of every tool schema loaded up front.',
+    icon: '<path d="M6 5h14l6 6v16H6z"/><path d="M20 5v6h6"/><path d="M10 17h12M10 22h8" class="accent"/>',
+  },
+];
+
 const areas = [
   {
     tag: 'db',
@@ -64,13 +87,14 @@ const teaser = principles.slice(0, 3);
       <div class="hero__copy">
         <p class="eyebrow hero__in" style="--i: 0"><span><b>Pre-release</b> · Open source · By <a class="hero__imagile" href="https://www.imagile.dev">Imagile</a></span></p>
         <h1 class="hero__title">
-          <span class="hero__in" style="--i: 1">The work around the code,</span>
-          <span class="hero__in" style="--i: 2"><em class="hero__mark text-gradient">one npm install</em> away.</span>
+          <span class="hero__in" style="--i: 1">The <em class="hero__mark text-gradient">token-efficient</em></span>
+          <span class="hero__in" style="--i: 2">alternative to MCP.</span>
         </h1>
         <p class="hero__subtitle hero__in" style="--i: 3">
-          toil is the central integrator between your agents and your enterprise: one CLI
-          and MCP server for the tools and databases they need. Plain JavaScript on
-          Node, so it runs where executables are blocked.
+          toil gives your agents your enterprise tools and databases through one CLI,
+          and spends as little of their context as it can: compact JSON, only the
+          fields asked for, and docs read a page at a time instead of every tool
+          schema up front.
         </p>
         <div class="hero__actions hero__in" style="--i: 4">
           <a href="#demo" class="btn btn--primary">See it work</a>
@@ -91,7 +115,6 @@ const teaser = principles.slice(0, 3);
           data-parallax="-0.06"
         />
         <span class="hero__pulse"></span>
-        <span class="hero__scan"></span>
       </div>
     </div>
   </section>
@@ -106,6 +129,28 @@ const teaser = principles.slice(0, 3);
           <li data-reveal style={`--d: ${n * 90}ms`}>
             <strong data-count={s.value}>{s.value}</strong>
             <span>{s.label}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ Token-efficient ============ -->
+  <section class="section section--rule">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">Token-efficient by design</p>
+        <h2>Less of the context window, more of the work.</h2>
+        <p>Many MCP clients put every tool's schema in context before the first question. toil is a CLI the agent already knows how to call, so the context goes on answers instead.</p>
+      </div>
+      <ul class="facts facts--four">
+        {lean.map((f, n) => (
+          <li class="fact" data-reveal style={`--d: ${n * 100}ms`}>
+            <svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={f.icon} />
+            <div>
+              <h3>{f.title}</h3>
+              <p>{f.body}</p>
+            </div>
           </li>
         ))}
       </ul>
@@ -208,9 +253,9 @@ const teaser = principles.slice(0, 3);
     <div class="container mcp__inner">
       <div>
         <div class="section-head" data-reveal>
-          <p class="eyebrow">MCP, without the approval queue</p>
-          <h2>Stand in for the server you can't install.</h2>
-          <p>Vendor MCP servers are often blocked, need a browser login, or don't exist. Scope toil to the areas you need and point your agent at it: one config entry, a small, focused tool list, and write tools that only exist if you've turned them on.</p>
+          <p class="eyebrow">Still speaks MCP</p>
+          <h2>When a client wants MCP, toil serves it.</h2>
+          <p><code>toil mcp</code> serves the same commands as MCP tools. Vendor servers are often blocked, need a browser login, or don't exist; scope toil to the areas you need and point your agent at it: one config entry, a small, focused tool list, and write tools that only exist if you've turned them on.</p>
         </div>
         <div class="toon mcp__art" data-reveal style="--d: 80ms">
           <img
@@ -264,6 +309,18 @@ const teaser = principles.slice(0, 3);
     </div>
   </section>
 
+  <!-- ============ Feedback ============ -->
+  <section class="section section--rule">
+    <div class="container feedback" data-reveal>
+      <div class="section-head">
+        <p class="eyebrow">Feedback</p>
+        <h2>Found a bug? Tell us.</h2>
+        <p>Report a bug or ask for a feature without a GitHub account. Each report becomes a public GitHub issue, and we email you the link.</p>
+      </div>
+      <a class="btn btn--primary" href={url('/feedback/')}>Send feedback <span aria-hidden="true">→</span></a>
+    </div>
+  </section>
+
   <!-- ============ CTA ============ -->
   <section class="cta grid-ground">
     <div class="cta__glow" aria-hidden="true"></div>
@@ -307,7 +364,9 @@ const teaser = principles.slice(0, 3);
 
 <style>
   /* ---------- Hero ---------- */
-  .hero { position: relative; overflow: clip; padding-block: var(--space-xl) var(--space-2xl); }
+  /* Below 980px the drawing is the last thing in the hero, so the hero needs
+     almost no bottom padding of its own. */
+  .hero { position: relative; overflow: clip; padding-block: var(--space-xl) var(--space-sm); }
 
   .hero__glow {
     position: absolute;
@@ -415,6 +474,15 @@ const teaser = principles.slice(0, 3);
 
   .hero__art img { width: 100%; height: auto; }
 
+  /* Stacked on phones and tablets, trim the drawing's empty lower strip (its
+     lines end about 86% of the way down) so no blank band sits above the
+     ticker. */
+  @media (max-width: 979px) {
+    .hero__inner { gap: var(--space-md); }
+    .hero__art img { aspect-ratio: 960 / 560; object-fit: cover; object-position: 50% 0; }
+    .hero__pulse { top: 71%; }
+  }
+
   /* A soft beacon behind the crate, roughly where it sits in the drawing. */
   .hero__pulse {
     position: absolute;
@@ -427,17 +495,6 @@ const teaser = principles.slice(0, 3);
     background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.28), transparent);
     mix-blend-mode: screen;
     pointer-events: none;
-  }
-
-  /* A thin scan line sweeping the drawing, like a plotter head. */
-  .hero__scan {
-    position: absolute;
-    inset: 8% 6%;
-    pointer-events: none;
-    background: linear-gradient(90deg, transparent, rgba(var(--rgb-accent), 0.5), transparent) no-repeat;
-    background-size: 1px 100%;
-    background-position: -10% 0;
-    opacity: 0;
   }
 
   @media (prefers-reduced-motion: no-preference) {
@@ -460,8 +517,6 @@ const teaser = principles.slice(0, 3);
 
     .hero__pulse { animation: pulse 3.2s ease-in-out 1.6s infinite; }
 
-    .hero__scan { animation: scan 7s ease-in-out 2.4s infinite; }
-
     .hero__glow { animation: glow 12s ease-in-out infinite alternate; }
   }
 
@@ -470,12 +525,6 @@ const teaser = principles.slice(0, 3);
   @keyframes art-in { from { opacity: 0; transform: scale(0.96); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
   @keyframes float { 50% { translate: 0 -10px; } }
   @keyframes pulse { 0%, 100% { opacity: 0.35; scale: 0.85; } 50% { opacity: 1; scale: 1.15; } }
-  @keyframes scan {
-    0% { opacity: 0; background-position: 0% 0; }
-    10% { opacity: 1; }
-    60% { opacity: 1; background-position: 100% 0; }
-    70%, 100% { opacity: 0; background-position: 100% 0; }
-  }
   @keyframes glow { to { transform: translate(-6%, 8%) scale(1.08); } }
 
   @media (min-width: 980px) {
@@ -590,6 +639,13 @@ const teaser = principles.slice(0, 3);
   }
 
   @media (min-width: 560px) { .facts { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 980px) { .facts--four { grid-template-columns: repeat(4, 1fr); gap: var(--space-lg); } }
+
+  /* ---------- Feedback ---------- */
+  .feedback { display: grid; gap: var(--space-sm) var(--space-lg); align-items: center; }
+  .feedback .section-head { margin-bottom: 0; }
+  .feedback .btn { justify-self: start; }
+  @media (min-width: 860px) { .feedback { grid-template-columns: minmax(0, 1fr) auto; } }
 
   @media (min-width: 980px) {
     .locked__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }

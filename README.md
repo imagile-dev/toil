@@ -1,8 +1,19 @@
 # toil
 
-One CLI and MCP server for the work around the code: your enterprise tools and your
-databases. Every command returns one structured JSON envelope, so agents and scripts
-can use it as easily as people.
+The token-efficient alternative to MCP: one CLI that gives agents your enterprise
+tools and your databases while spending as little of their context as it can.
+
+- **Compact JSON envelopes.** Every command returns one `{ ok, data, error, meta }`
+  envelope, so agents and scripts can use it as easily as people.
+- **Only the fields you need.** `--select` trims a result to the fields a task
+  names before it reaches the agent.
+- **No polling loops.** `toil wait --until <expression> -- <read>` repeats a read
+  until it's true and returns once.
+- **A skill, not a tool list.** The `toil` skill is an index the agent reads a page
+  at a time, as a task needs it, instead of every tool schema loaded up front.
+
+`toil mcp` serves the same commands as MCP tools for clients that want them. toil is
+plain JavaScript on Node, so it also runs where executables are blocked.
 
 > **Status:** Alpha: APIs and flags may change before 1.0
 
