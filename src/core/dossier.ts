@@ -208,6 +208,10 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
     for (const [key, entry] of Object.entries(value)) {
       if (CORE_SECTION_KEYS.has(key)) continue;
       const where = at(path, key);
+      if (key === 'env' && known?.context.includes('env')) {
+        warn('DOSSIER_UNUSED_KEY', where, `"env" in a section isn't used: the environment is the dossier's own "env", or the call's --env. Set it with toil dossiers env <dossier> <env> ${area} --default.`);
+        continue;
+      }
       if (known?.context.includes(key)) {
         // A context input: one value, or one per repo (`{ "payments-api": "PAY" }`).
         const ok = (typeof entry === 'string' && entry !== '') || (isRecord(entry) && Object.values(entry).every((v) => typeof v === 'string' && v !== ''));
@@ -444,6 +448,14 @@ export interface DossierCatalog {
   binding(dossier: Dossier, area: string, env: string | undefined): { connection?: string; host?: string; section?: Section };
   /** Where your own dossier named `name` lives: `~/.toil/dossiers/<name>.json`. */
   userFile(name: string): string;
+  /** The lookup a call would get from `dossier`, as if the folder were its repo `repo`: for judging a change before it's saved. */
+  lookupOf(dossier: Dossier, repo?: string): DossierLookup;
+  /**
+   * The dossier files an import reads from `value`: the file, or every `.json`
+   * in the folder. The bounds are checked before anything is looked at, so a
+   * path outside them can't be probed for whether it exists.
+   */
+  importFiles(value: string): { folder: boolean; files: string[] };
   /** A path a call gave, absolute: relative to the CLI's working directory, or under MCP the workspace. */
   pathFor(value: string, what: string): string;
   /** A folder on this machine and the repository it's in, for `add-repo`; INVALID_INPUT when it isn't there. */
@@ -598,38 +610,82 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
   const usable = (file: DossierFile): file is DossierFile & { dossier: Dossier } => file.dossier !== undefined;
 
   /** A path on the call, bounded: a `.json` file in the workspace or a dossier place, never toil's config or /proc and /sys. */
-  const readPath = (value: string, cwd?: string): DossierFile => {
-    const path = fromBase(value, 'The dossier file');
-    const refuse = (why: string, fix: string) => new ToilError('INVALID_INPUT', `${forwardSlashes(path)} can't be read as a dossier: ${why}`, { fix });
-    if (!path.toLowerCase().endsWith('.json')) throw refuse('a dossier file ends in .json.', 'Pass a dossier file, or a dossier by name.');
-    let realPath: string;
-    try {
-      realPath = realpathSync.native(path);
-      if (!statSync(realPath).isFile()) throw new Error('not a file');
-    } catch {
-      throw new ToilError('INVALID_INPUT', `The dossier file ${forwardSlashes(path)} doesn't exist where toil is running.`, {
-        fix: "Check the path. If toil runs somewhere else (a container, WSL, another host), its paths aren't yours: pass the dossier by name instead.",
-      });
+  /** Where `path` would really land, through any link in the folders above it, whether or not it exists yet. */
+  const realish = (path: string): string => {
+    let existing = resolve(path);
+    const rest: string[] = [];
+    for (;;) {
+      try {
+        return join(realpathSync.native(existing), ...rest);
+      } catch {
+        const parent = resolve(existing, '..');
+        if (parent === existing) return resolve(path);
+        rest.unshift(basename(existing));
+        existing = parent;
+      }
     }
+  };
+
+  /**
+   * Where a path a call names may be read from, decided before anything is
+   * looked at: not toil's own files or a system path, and inside a dossier
+   * folder or the workspace (anywhere, with the workspace bound relaxed).
+   * Checking first means a path outside can't be probed for whether it exists.
+   * Returns where it lies, as a source.
+   */
+  const bounded = (path: string, cwd: string | undefined, refuse: (why: string, fix: string) => ToilError): DossierSource => {
+    const target = realish(path);
+    if (forbidden(target)) throw refuse("that's one of toil's own files, or a system path.", 'Pass a dossier file, or a dossier by name.');
     const where = places(cwd);
     // ~/.toil/dossiers is the one part of toil's own folder a dossier path may name.
-    const inUser = inside(realPath, real(user));
-    if (forbidden(realPath)) throw refuse("that's one of toil's own files, or a system path.", 'Pass a dossier file, or a dossier by name.');
-    const source: DossierSource = inUser
+    const source: DossierSource = inside(target, real(user))
       ? 'user'
-      : where.listed.some((d) => inside(realPath, real(d)))
+      : where.listed.some((d) => inside(target, real(d)))
         ? 'listed'
-        : where.repo && inside(realPath, real(where.repo))
+        : where.repo && inside(target, real(where.repo))
           ? 'repo'
           : 'file';
-    const unbounded = o.config.bounds?.files === 'unbounded';
-    if (source === 'file' && !unbounded && !(o.workspace.dir && inside(realPath, real(o.workspace.dir)))) {
+    if (source === 'file' && o.config.bounds?.files !== 'unbounded' && !(o.workspace.dir && inside(target, real(o.workspace.dir)))) {
       throw refuse(
         `it's outside the workspace${o.workspace.dir ? ` (${forwardSlashes(o.workspace.dir)})` : ''} and outside every dossier folder.`,
         'Move it into the workspace, list its folder in dossierPaths (or TOIL_DOSSIER_PATHS), copy it in with toil dossiers import, or pass the dossier by name.',
       );
     }
+    return source;
+  };
+
+  const missing = (path: string) =>
+    new ToilError('INVALID_INPUT', `${forwardSlashes(path)} doesn't exist where toil is running.`, {
+      fix: "Check the path. If toil runs somewhere else (a container, WSL, another host), its paths aren't yours: pass the dossier by name instead.",
+    });
+
+  /** A path on the call, bounded: a `.json` file in the workspace or a dossier place, never toil's config or /proc and /sys. */
+  const readPath = (value: string, cwd?: string): DossierFile => {
+    const path = fromBase(value, 'The dossier file');
+    const refuse = (why: string, fix: string) => new ToilError('INVALID_INPUT', `${forwardSlashes(path)} can't be read as a dossier: ${why}`, { fix });
+    if (!path.toLowerCase().endsWith('.json')) throw refuse('a dossier file ends in .json.', 'Pass a dossier file, or a dossier by name.');
+    const source = bounded(path, cwd, refuse);
+    let realPath: string;
+    try {
+      realPath = realpathSync.native(path);
+      if (!statSync(realPath).isFile()) throw new Error('not a file');
+    } catch {
+      throw missing(path);
+    }
     return readDossierFile(realPath, source, o.areas);
+  };
+
+  const importFiles: DossierCatalog['importFiles'] = (value) => {
+    const path = fromBase(value, 'The import source');
+    bounded(path, undefined, (why, fix) => new ToilError('INVALID_INPUT', `toil won't import from ${forwardSlashes(path)}: ${why}`, { fix }));
+    let folder: boolean;
+    try {
+      folder = statSync(path).isDirectory();
+    } catch {
+      throw missing(path);
+    }
+    if (!folder) return { folder, files: [path] };
+    return { folder, files: readdirSync(path).filter((n) => n.toLowerCase().endsWith('.json')).sort().map((n) => join(path, n)) };
   };
 
   const find = (nameOrPath: string, cwd?: string): DossierFile & { dossier: Dossier } => {
@@ -862,20 +918,7 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
     const refuse = (why: string, fix: string) => new ToilError('INVALID_INPUT', `toil won't write a dossier to ${forwardSlashes(target)}: ${why}`, { fix });
     if (!target.toLowerCase().endsWith('.json')) throw refuse('a dossier file ends in .json.', 'Name a .json file.');
     // Judged where it would really land, through any link in the folders above it.
-    const realTarget = (() => {
-      let existing = target;
-      const rest: string[] = [];
-      for (;;) {
-        try {
-          return join(realpathSync.native(existing), ...rest);
-        } catch {
-          const parent = resolve(existing, '..');
-          if (parent === existing) return target;
-          rest.unshift(basename(existing));
-          existing = parent;
-        }
-      }
-    })();
+    const realTarget = realish(target);
     if (forbidden(realTarget)) throw refuse("that's one of toil's own files, or a system path.", 'Write it to your dossier folder, a repository, or the workspace.');
     const where = places();
     // A repository's dossier folder: `.toil/dossiers/` right under a working tree's root.
@@ -969,6 +1012,8 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
     return { folder: forwardSlashes(root), repos, truncated };
   };
 
-  return { places, scan, find, select, place, binding, userFile, pathFor: fromBase, inspect, scanRepos, repoFolder, save };
+  const lookupOf: DossierCatalog['lookupOf'] = (dossier, repo) => lookupFor({ file: { file: '', source: 'user', problems: [], dossier }, by: 'input', ...(repo !== undefined ? { repo } : {}) });
+
+  return { places, scan, find, select, place, binding, userFile, lookupOf, importFiles, pathFor: fromBase, inspect, scanRepos, repoFolder, save };
 }
 

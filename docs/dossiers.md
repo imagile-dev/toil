@@ -368,6 +368,8 @@ files directly:
     section. `--set` sets one of the area's context inputs, or reference data, and
     `--for-repo` makes the value that one repo's. `--add` appends to a reference list.
     A context input's value is checked against the area's own rule first.
+    `--set env=` is refused: the environment is the dossier's `env` (set with
+    `dossiers env ... --default`) or the call's `--env`, never a section's.
   - `toil dossiers env <dossier> <env> <area> [--default] ...` does the same for
     `environments.<env>.<area>`. `--default` makes it the dossier's `env`.
   - `toil dossiers field <dossier> <area> <alias> <field-id>` names a field.
@@ -460,6 +462,12 @@ exporting it into a repository for the team.
   - changing or clearing a binding when the result is a writes-enabled connection,
     including a fall-back to the area's default
   - importing or exporting a dossier with such a binding
+
+  A change is judged by the call's own resolver (`dossierConnection` in
+  `src/core/call-context.ts`): what a call with no input of its own would choose,
+  through `connection`, `host` and every input that selects a connection. So making
+  an environment the dossier's default is refused when that environment selects a
+  writes-enabled connection, just as a `connection` would be.
 
   Binding a dossier to a writes-enabled connection is done on the CLI, by a human.
   **Checked-in and listed-folder dossiers** follow the same rule when they're read: a

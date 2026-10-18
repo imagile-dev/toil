@@ -155,6 +155,27 @@ export async function resolveCall(
   return { connection, context: Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, v.value])), report };
 }
 
+/**
+ * The connection a dossier would choose for a call to `area` that gives no
+ * input of its own: the same choice resolveCall makes at its dossier step,
+ * from the dossier's `connection` (or host) and every input that selects a
+ * connection (`env`, `instance`). Undefined when the dossier chooses nothing,
+ * so the call would use the area's default. Throws what the call would throw
+ * (a host matching none). The dossier commands judge a change by this, so the
+ * rule on writes sees exactly what a call would do, not a copy of it.
+ */
+export function dossierConnection(config: ResolvedConfig, area: AnyArea, dossier: DossierLookup): ContextValue | undefined {
+  const declared = area.context as Record<string, ContextInput>;
+  const early: Record<string, ContextValue> = {};
+  for (const [name, spec] of Object.entries(declared)) {
+    if (!spec.selectsConnection) continue;
+    const found = checked(area, name, spec, dossier(area.name, name, {}), 'dossier');
+    if (found) early[name] = found;
+  }
+  const def = { path: [area.name, 'dossier'], area } as unknown as AnyCommand;
+  return chooseConnection(config, area, def, {}, early, dossier);
+}
+
 /** How the area's default connection was found: named in `defaults`, named after the area, or the only one. */
 function defaultKind(config: ResolvedConfig, area: AnyArea, name: string): 'named' | 'area-name' | 'only' {
   if (typeof config.defaults[area.name]?.connection === 'string') return 'named';
