@@ -84,5 +84,16 @@
       "--env <name>",
       "--instance <name>"
     ]
+  },
+  {
+    "name": "check-dossier",
+    "tool": "openshift_check_dossier",
+    "description": "Check the call's dossier against OpenShift: its namespaces and deployments exist",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--env <name>",
+      "--instance <name>"
+    ]
   }
 ]

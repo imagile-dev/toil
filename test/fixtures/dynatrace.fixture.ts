@@ -59,6 +59,8 @@ export const traceResult = {
 const json = (body: unknown) => ({ json: body });
 
 export const routes: Route[] = [
+  // check-dossier's lookup of one entity by id.
+  { path: '/api/v2/entities/SERVICE-ABC12345', respond: json(entity('SERVICE', 1)) },
   // entities list: two pages, the second asked for with nextPageKey alone.
   { path: '/api/v2/entities', query: { entitySelector: 'type("HOST")', pageSize: '500' }, respond: json(entityPage([entity('HOST', 1), entity('HOST', 2)], 'page-2-of-host')) },
   { path: '/api/v2/entities', query: { nextPageKey: 'page-2-of-host' }, respond: json(entityPage([entity('HOST', 3)])) },
@@ -96,4 +98,7 @@ export const routes: Route[] = [
   },
 ];
 
-export const fixture = defineFixture({ area: 'dynatrace', routes, config });
+/** The dossier the examples run with, for check-dossier: reference data only, so no other example changes. */
+export const dossier = { name: 'payments', dynatrace: { entities: ['SERVICE-ABC12345'] } };
+
+export const fixture = defineFixture({ area: 'dynatrace', routes, config, dossier });

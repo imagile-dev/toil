@@ -855,5 +855,18 @@
       "--project <name>",
       "--repo <name>"
     ]
+  },
+  {
+    "name": "check-dossier",
+    "tool": "ado_check_dossier",
+    "description": "Check the call's dossier against Azure DevOps: its projects and repositories exist",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>"
+    ]
   }
 ]
