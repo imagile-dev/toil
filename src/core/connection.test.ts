@@ -80,6 +80,17 @@ describe('resolveConnection', async () => {
     expect(warnings.map((w) => w.code)).toEqual(['CONFIG_UNKNOWN_KEY']);
   });
 
+  it('says why a value that is set is invalid, not only which key, and keeps a missing key plain', async () => {
+    const wrong = await resolve(config({ a: { area: 'db', host: 'h', port: 'not a port' } })).catch((e: unknown) => e);
+    expect(wrong).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringMatching(/^Connection a \(db\) is missing or has invalid port\. port: .+\.$/) });
+    // A custom message that already ends in a full stop gets exactly one.
+    const sentence = defineArea({ name: 'db', description: '', connection: z.object({ host: z.string().refine((h) => h !== 'x', 'host must not be x.') }) });
+    const ended = await resolveConnection(config({ a: { area: 'db', host: 'x' } }), sentence, undefined, () => {}).catch((e: unknown) => e);
+    expect(ended).toMatchObject({ message: 'Connection a (db) is missing or has invalid host. host: host must not be x.' });
+    const missing = await resolve(config({ db: { area: 'db' } }, { db: { connection: 'db' } })).catch((e: unknown) => e);
+    expect(missing).toMatchObject({ code: 'CONFIG_INVALID', message: 'Connection db (db) is missing or has invalid host.' });
+  });
+
   it('names the variable to set when a required key is missing', async () => {
     await expect(resolve(config({ db: { area: 'db' } }, { db: { connection: 'db' } }))).rejects.toEqual(
       expect.objectContaining({ code: 'CONFIG_INVALID', fix: expect.stringContaining('TOIL_DB_HOST') }),
