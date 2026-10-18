@@ -1,4 +1,4 @@
-import { aliasPaths, commandName, type AnyCommand } from './command.js';
+import { aliasPaths, commandName, takesAllowWrite, type AnyCommand } from './command.js';
 
 /**
  * An old CLI path that ran one of several sources depending on a flag's
@@ -54,7 +54,7 @@ export function resolveRoutedAliases(table: readonly RoutedAlias[], commands: re
     for (const [value, target] of Object.entries(alias.routes)) {
       const def = commands.find((d) => commandName(d) === target);
       if (def) {
-        if (def.writes) throw new Error(`Routed alias ${name}: ${target} writes, and a write is never picked by a flag's value.`);
+        if (takesAllowWrite(def)) throw new Error(`Routed alias ${name}: ${target} writes, and a write is never picked by a flag's value.`);
         if ((def.args ?? []).length > 0) throw new Error(`Routed alias ${name}: ${target} takes positional arguments, which a routed path can't share.`);
         if ((def.options ?? []).some((o) => longFlag(o.flags) === longFlag(alias.flag))) throw new Error(`Routed alias ${name}: ${target} has its own ${longFlag(alias.flag)}.`);
       }
