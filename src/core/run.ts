@@ -31,6 +31,13 @@ export async function runCommand(def: AnyCommand, rawInput: unknown, makeContext
 }
 
 /**
+ * A CLI command line quoted in an error: `toil …` in backticks, or plain text
+ * from `toil ` to the end of its clause (a `,` or `;`, a `.` that ends a
+ * sentence, a backtick, or the end). The capture keeps it in `split`'s output.
+ */
+const COMMAND_LINE = /(`toil [^`]*`|\btoil [^,;`]*?(?=[,;`]|\.(?:\s|$)|$))/;
+
+/**
  * An INVALID_INPUT envelope reworded for an MCP caller: each of the
  * command's flags (`--max-results`) becomes its field (`maxResults`), in the
  * message and the fix. Areas word their input errors once, for the CLI; this
@@ -38,13 +45,6 @@ export async function runCommand(def: AnyCommand, rawInput: unknown, makeContext
  * stay as they were. A form that cites the wrong form's field numbers is
  * still technically a form, which is the standard this replaces.
  */
-/**
- * A CLI command line quoted in an error: `toil …` in backticks, or plain text
- * from `toil ` to the end of its clause (a `,` or `;`, a `.` that ends a
- * sentence, a backtick, or the end). The capture keeps it in `split`'s output.
- */
-const COMMAND_LINE = /(`toil [^`]*`|\btoil [^,;`]*?(?=[,;`]|\.(?:\s|$)|$))/;
-
 export function inFieldNames(def: AnyCommand, envelope: Envelope): Envelope {
   if (envelope.ok || envelope.error.code !== 'INVALID_INPUT') return envelope;
   const flags: Array<[string, string]> = (def.options ?? []).flatMap((o) => {
