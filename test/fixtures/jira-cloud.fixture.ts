@@ -83,6 +83,18 @@ export const attachment = {
   content: `${SITE}${API}/attachment/content/10001`,
 };
 
+/** startAt and maxResults from a request's query, with the documented defaults. */
+const paging = (req: RecordedRequest) => {
+  const params = new URL(req.url).searchParams;
+  return { startAt: Number(params.get('startAt') ?? 0), maxResults: Number(params.get('maxResults') ?? 50) };
+};
+
+// Invented from the docs: changelog entries, as the Get changelogs example shows them.
+const histories = [
+  { id: '10500', author: user('abc12345-0000-0000-0000-000000000000', 'Alice'), created: '2026-01-15T10:00:00.000+0000', items: [{ field: 'status', fieldtype: 'jira', fieldId: 'status', from: '10000', fromString: 'To Do', to: '3', toString: 'In Progress' }] },
+  { id: '10501', author: user(ACCOUNT, 'J. Smith'), created: '2026-01-16T11:30:00.000+0000', items: [{ field: 'labels', fieldtype: 'jira', fieldId: 'labels', from: null, fromString: '', to: null, toString: 'frontend' }] },
+];
+
 export const routes: Route[] = [
   // check-dossier's project lookup. Invented from the docs: GET /rest/api/3/project/{key}.
   { method: 'GET', path: `${API}/project/PROJ`, respond: json({ id: '10000', key: 'PROJ', name: 'Project' }) },
@@ -158,16 +170,38 @@ export const routes: Route[] = [
     respond: (req: RecordedRequest) => json(comment('10200', user(ACCOUNT, 'J. Smith'), (JSON.parse(req.body!) as { body: unknown }).body), 201),
   },
   {
+    // Answers the page startAt asks for, so --cursor resumes.
     method: 'GET',
     path: `${API}/issue/PROJ-123/comment`,
-    query: { startAt: '0', maxResults: '50' },
-    respond: json({
-      startAt: 0,
-      maxResults: 50,
-      total: 2,
-      comments: [comment('10200', user(ACCOUNT, 'J. Smith'), doc('Reproduced on staging.')), comment('10201', user('abc12345-0000-0000-0000-000000000000', 'Alice'), doc('Fixed in 1.4.2.'))],
-    }),
+    respond: (req: RecordedRequest) => {
+      const { startAt, maxResults } = paging(req);
+      const comments = [comment('10200', user(ACCOUNT, 'J. Smith'), doc('Reproduced on staging.')), comment('10201', user('abc12345-0000-0000-0000-000000000000', 'Alice'), doc('Fixed in 1.4.2.'))];
+      return json({ startAt, maxResults, total: comments.length, comments: comments.slice(startAt, startAt + maxResults) });
+    },
   },
+  // Invented from the docs: GET /rest/api/3/issue/{issueIdOrKey}/changelog, a PageBeanChangelog.
+  {
+    method: 'GET',
+    path: `${API}/issue/PROJ-123/changelog`,
+    respond: (req: RecordedRequest) => {
+      const { startAt, maxResults } = paging(req);
+      const values = histories.slice(startAt, startAt + maxResults);
+      return json({ self: `${SITE}${API}/issue/PROJ-123/changelog?startAt=${startAt}&maxResults=${maxResults}`, maxResults, startAt, total: histories.length, isLast: startAt + values.length >= histories.length, values });
+    },
+  },
+  // Invented from the docs: POST /rest/api/3/issue/bulkfetch. Issues come back in id order, and a key
+  // that doesn't exist is simply absent (it isn't an issueError, which is for retriable failures).
+  {
+    method: 'POST',
+    path: `${API}/issue/bulkfetch`,
+    respond: (req: RecordedRequest) => {
+      const asked = (JSON.parse(req.body!) as { issueIdsOrKeys: string[] }).issueIdsOrKeys;
+      const found = asked.filter((k) => /^PROJ-[1-9]\d{0,2}$/.test(k) && k !== 'PROJ-404').map((k) => issue(k, String(10100 + Number(k.slice(5)))));
+      return json({ expand: 'schema,names', issueErrors: [], issues: found.sort((a, b) => Number(a.id) - Number(b.id)) });
+    },
+  },
+  // Invented from the docs: GET /rest/api/3/myself, for --updated-since's time zone.
+  { method: 'GET', path: `${API}/myself`, respond: json({ ...user(ACCOUNT, 'J. Smith'), emailAddress: 'you@example.com', timeZone: 'Australia/Sydney' }) },
 
   // The enhanced search: a token per page and no total. Three issues, then no token.
   {
@@ -194,21 +228,45 @@ export const routes: Route[] = [
     path: `${API}/project/search`,
     respond: (req: RecordedRequest) => {
       const query = new URL(req.url).searchParams.get('query');
-      const values = query ? projects.filter((p) => `${p.key} ${p.name}`.toLowerCase().includes(query.toLowerCase())) : projects;
-      return json({ self: `${SITE}${API}/project/search`, maxResults: 50, startAt: 0, total: values.length, isLast: true, values });
+      const { startAt, maxResults } = paging(req);
+      const matching = query ? projects.filter((p) => `${p.key} ${p.name}`.toLowerCase().includes(query.toLowerCase())) : projects;
+      const values = matching.slice(startAt, startAt + maxResults);
+      return json({ self: `${SITE}${API}/project/search`, maxResults, startAt, total: matching.length, isLast: startAt + values.length >= matching.length, values });
     },
   },
   { method: 'GET', path: `${API}/project/PROJ`, respond: json({ ...projects[0], description: '', lead: user(ACCOUNT, 'J. Smith'), issueTypes: [{ id: '10001', name: 'Bug' }] }) },
-  { method: 'GET', path: `${API}/user/search`, respond: json([{ ...user(ACCOUNT, 'J. Smith'), emailAddress: 'you@example.com' }]) },
+  // A bare list, as the docs show. Answers from startAt, so --cursor resumes.
+  {
+    method: 'GET',
+    path: `${API}/user/search`,
+    respond: (req: RecordedRequest) => {
+      const { startAt, maxResults } = paging(req);
+      const users = [{ ...user(ACCOUNT, 'J. Smith'), emailAddress: 'you@example.com' }, user('abc12345-0000-0000-0000-000000000000', 'Alice Smith')];
+      return json(users.slice(startAt, startAt + maxResults));
+    },
+  },
 
-  // Agile.
+  // Agile. Board lists answer the page startAt asks for.
   {
     method: 'GET',
     path: `${AGILE}/board`,
-    query: { projectKeyOrId: 'PROJ', startAt: '0', maxResults: '50' },
-    respond: json({ maxResults: 50, startAt: 0, total: 3, isLast: true, values: [{ id: 3, name: 'PROJ board', type: 'scrum' }, { id: 4, name: 'PROJ kanban', type: 'kanban' }, { id: 5, name: 'PROJ team board', type: 'simple' }] }),
+    respond: (req: RecordedRequest) => {
+      const { startAt, maxResults } = paging(req);
+      const boards = [{ id: 3, name: 'PROJ board', type: 'scrum' }, { id: 4, name: 'PROJ kanban', type: 'kanban' }, { id: 5, name: 'PROJ team board', type: 'simple' }];
+      const values = boards.slice(startAt, startAt + maxResults);
+      return json({ maxResults, startAt, total: boards.length, isLast: startAt + values.length >= boards.length, values });
+    },
   },
   { method: 'GET', path: `${AGILE}/board/3/sprint`, respond: json({ maxResults: 50, startAt: 0, isLast: true, values: sprints }) },
+  {
+    method: 'GET',
+    path: `${AGILE}/board/1/sprint`,
+    respond: (req: RecordedRequest) => {
+      const { startAt, maxResults } = paging(req);
+      const values = sprints.slice(startAt, startAt + maxResults);
+      return json({ maxResults, startAt, isLast: startAt + values.length >= sprints.length, values });
+    },
+  },
   // Invented from the docs: a team-managed board with sprints turned off.
   { method: 'GET', path: `${AGILE}/board/5/sprint`, respond: json({ errorMessages: ['The board does not support sprints'], errors: {} }, 400) },
   { method: 'POST', path: `${AGILE}/sprint/42/issue`, respond: empty },
