@@ -111,7 +111,7 @@ describe('the Agent skills module', () => {
 
   it('labels marketplace plugins as skill plugins on every screen that lists them', () => {
     const d = data();
-    const screen = (s: MenuState) => render(s, { colorDepth: 0, unicode: true, columns: 120, rows: 40, animate: false }, d).join('\n');
+    const screen = (s: MenuState) => render(s, { colorDepth: 1, unicode: true, columns: 120, rows: 40 }, d).join('\n');
     const shown = [press(settled, d), press(settled, d, '4'), press(settled, d, ...SKILL_PLUGINS), press(settled, d, ...SKILL_PLUGINS, 'return'), press(settled, d, ...SWITCH)].map(screen);
     for (const text of shown) expect(text).not.toMatch(/\b(?<!skill )plugins?\b(?! on and off)/i);
     expect(shown.join('\n')).toContain('Install a skill plugin');
