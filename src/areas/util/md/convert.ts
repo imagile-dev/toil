@@ -233,20 +233,30 @@ export async function convertMarkdown(
   const differences: Difference[] = [];
   const diff = hunks(before, after);
   const changed = new Set<number>();
-  for (const h of diff) {
-    // A block that appeared from nowhere belongs to the block before it.
-    const blocks = h.a[0] === h.a[1] ? [Math.max(0, h.a[0] - 1)] : Array.from({ length: h.a[1] - h.a[0] }, (_, k) => h.a[0] + k);
+  let judged = 0;
+  const judge = (aFrom: number, aTo: number, bFrom: number, bTo: number) => {
+    const blocks = Array.from({ length: aTo - aFrom }, (_, k) => aFrom + k);
     for (const k of blocks) changed.add(k);
-    const explained = blocks.some((k) => lostIn.has(k));
-    const at = read.at[blocks[0]!] ?? read.at.at(-1) ?? 'the end';
-    const expected = before.slice(h.a[0], h.a[1]).join('\n\n');
-    const actual = after.slice(h.b[0], h.b[1]).join('\n\n');
+    // Only a block's own loss explains it. A run that gained or lost blocks is
+    // explained only if every block in it had one; a block from nowhere never is.
+    const explained = blocks.length > 0 && blocks.every((k) => lostIn.has(k));
+    const at = read.at[aFrom] ?? read.at.at(-1) ?? 'the end';
+    const expected = before.slice(aFrom, aTo).join('\n\n');
+    const actual = after.slice(bFrom, bTo).join('\n\n');
     v.expect('roundTrip.blocks', explained, { at, expected, actual }, { code: 'MD_ROUNDTRIP_MISMATCH' });
+    judged++;
     if (differences.length < MAX_DIFFERENCES) differences.push({ at, expected, actual, explained });
+  };
+  for (const h of diff) {
+    const [a0, a1] = h.a;
+    const [b0, b1] = h.b;
+    // The same number of blocks on both sides: each changed into its counterpart, judged on its own.
+    if (a1 - a0 === b1 - b0) for (let k = 0; k < a1 - a0; k++) judge(a0 + k, a0 + k + 1, b0 + k, b0 + k + 1);
+    else judge(a0, a1, b0, b1);
   }
   for (let k = 0; k < before.length; k++) if (!changed.has(k)) v.pass('roundTrip.blocks');
   if (before.length === 0 && diff.length === 0) v.pass('roundTrip.blocks');
-  if (diff.length > MAX_DIFFERENCES) ctx.warn({ code: 'MD_DIFFERENCES_CUT', message: `${diff.length} blocks differ after the round trip; the first ${MAX_DIFFERENCES} are listed.` });
+  if (judged > MAX_DIFFERENCES) ctx.warn({ code: 'MD_DIFFERENCES_CUT', message: `${judged} blocks differ after the round trip; the first ${MAX_DIFFERENCES} are listed.` });
 
   reportLosses(losses, ctx.warn);
   return {

@@ -88,8 +88,9 @@ class AdfReader {
       if (!Array.isArray(node.content)) {
         this.lose('malformed ADF', 'content is not an array and was ignored', ptr);
         delete node.content;
-      } else node.content = node.content// A dropped node keeps its place, so the pointers after it still name the right node.
-        .map((c, k) => this.sane(c, `${ptr}/content/${k}`) ?? DROPPED);
+      }
+      // A dropped node keeps its place, so the pointers after it still name the right node.
+      else node.content = node.content.map((c, k) => this.sane(c, `${ptr}/content/${k}`) ?? DROPPED);
     }
     return node;
   }

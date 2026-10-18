@@ -222,6 +222,21 @@ describe('util md: the self-checks catch a broken result', () => {
     expect(data.verified.passed).toBe(false);
   });
 
+  it.each(['[r]: http://x.imagile.dev\n\nhello', 'hello\n\n[r]: http://x.imagile.dev'])('a lossy block next to a changed one excuses only itself: %j', async (text) => {
+    const { data } = await convert(text, 'md', 'wiki', { tamper: (out) => (out as string).replace('hello', 'help') });
+    expect(data.roundTrip.differences.filter((d) => d.explained).length).toBeGreaterThan(0);
+    expect(unexplained(data)).toEqual([expect.objectContaining({ expected: 'hello', actual: 'help' })]);
+    expect(data.verified.passed).toBe(false);
+  });
+
+  it('a block that appears after a lossy block, or one that vanishes beside it, is unexplained', async () => {
+    const added = await convert('- [ ] a', 'md', 'wiki', { tamper: (out) => `${out as string}\n\nextra` });
+    expect(unexplained(added.data)).toMatchObject([{ actual: expect.stringContaining('extra') }]);
+    const removed = await convert('- [ ] a\n\nb', 'md', 'wiki', { tamper: (out) => (out as string).replace(/\n\nb$/, '').replace('\\[ \\]', '\\[x\\]') });
+    expect(unexplained(removed.data)).toMatchObject([{ expected: expect.stringContaining('b') }]);
+    expect(removed.data.verified.passed).toBe(false);
+  });
+
   it('schema-invalid ADF is never returned: the conversion fails instead', async () => {
     const broken = (out: unknown) => ({ ...(out as object), content: [{ type: 'paragraph', content: [{ type: 'text', text: '' }] }] }) as never;
     await expect(convert('hello', 'md', 'adf', { tamper: broken })).rejects.toMatchObject({ code: 'INTERNAL', message: expect.stringContaining("doesn't match the ADF schema") });

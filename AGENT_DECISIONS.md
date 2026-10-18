@@ -1406,6 +1406,11 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   one without fails `roundTrip.blocks` (`MD_ROUNDTRIP_MISMATCH`). `lossless` is
   true only when nothing was lost and nothing changed: a wiki task list comes back
   as a task list, but Jira shows `[ ]` text, so it still counts as a loss.
+- **A loss explains only its own block.** Where a run of changed blocks has as many
+  blocks after the round trip as before, each is judged against its counterpart on
+  its own. A run that gained or lost blocks is explained only if every block in it
+  had a loss, and a block from nowhere never is. A loss in a block that produced
+  nothing, or that became an empty paragraph, stays in `losses` but explains none.
 - **Normalization:** whitespace runs are one space, a soft line break is a space,
   `_x_` is `*x*`, list markers and numbering are canonical, empty paragraphs go.
   None of these show when the document is rendered.
