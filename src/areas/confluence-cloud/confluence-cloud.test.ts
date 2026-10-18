@@ -26,8 +26,8 @@ const V2 = `${SITE}/wiki/api/v2`;
 const V1 = `${SITE}/wiki/rest/api`;
 const write = { allowWrite: true };
 
-async function run(def: AnyCommand, input: Record<string, unknown>, routes: Route[] = fixtureRoutes, options: { files?: Record<string, string> } = {}) {
-  const t = testContext({ config: fixtureConfig, routes, files: options.files ?? {} });
+async function run(def: AnyCommand, input: Record<string, unknown>, routes: Route[] = fixtureRoutes, options: { files?: Record<string, string>; config?: Record<string, Record<string, unknown>> } = {}) {
+  const t = testContext({ config: options.config ?? fixtureConfig, routes, files: options.files ?? {} });
   const envelope = await execute(def, input, t.context);
   return { envelope, calls: t.http.calls, written: t.files.written };
 }
@@ -49,6 +49,41 @@ describe('storage format as plain text', () => {
     expect(storageToText(undefined)).toBeNull();
     expect(storageToText(null)).toBeNull();
     expect(storageToText('')).toBe('');
+  });
+});
+
+describe('connection', () => {
+  const own = fixtureConfig['confluence-cloud'];
+  const noToken = { baseUrl: own.baseUrl, email: own.email, writes: true };
+  const jira = { baseUrl: 'https://jira-cloud.imagile.dev', email: 'you@example.com', apiToken: 'jira-token' };
+  const JIRA_AUTH = `Basic ${Buffer.from('you@example.com:jira-token').toString('base64')}`;
+
+  it('a baseUrl ending in /wiki is CONFIG_INVALID, saying to drop it, before anything is sent', async () => {
+    for (const baseUrl of [`${SITE}/wiki`, `${SITE}/wiki/`, `${SITE}/WIKI`]) {
+      const { envelope, calls } = await run(getPage, { id: '12345' }, fixtureRoutes, { config: { 'confluence-cloud': { ...own, baseUrl } } });
+      expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('ends in /wiki'), fix: expect.stringContaining('Drop the trailing /wiki') });
+      expect(envelope.error?.fix).toContain('TOIL_CONFLUENCE_CLOUD_BASE_URL');
+      expect(calls).toHaveLength(0);
+    }
+  });
+
+  it('a site under a context path that merely contains wiki is left alone', async () => {
+    const { calls } = await run(getPage, { id: '12345' }, [{ method: 'GET', path: '/wikis/wiki/api/v2/pages/12345', respond: { json: page('12345') } }], { config: { 'confluence-cloud': { ...own, baseUrl: `${SITE}/wikis` } } });
+    expect(calls[0]!.url).toBe(`${SITE}/wikis/wiki/api/v2/pages/12345?body-format=storage`);
+  });
+
+  it('with no token of its own, the default connection uses the jira-cloud token from env, and says so', async () => {
+    const { envelope, calls } = await run(getPage, { id: '12345' }, fixtureRoutes, { config: { 'confluence-cloud': noToken, 'jira-cloud': jira } });
+    expect(calls[0]!.headers.authorization).toBe(JIRA_AUTH);
+    expect(envelope.meta.context?.shared).toEqual({ apiToken: { area: 'jira-cloud', connection: 'jira-cloud', source: 'env', via: 'env-fallback' } });
+  });
+
+  it('apiTokenFrom names the jira-cloud connection to borrow from; its own token wins otherwise', async () => {
+    const paired = await run(getPage, { id: '12345' }, fixtureRoutes, { config: { 'confluence-cloud': { ...noToken, apiTokenFrom: 'jira-cloud' }, 'jira-cloud': jira } });
+    expect(paired.calls[0]!.headers.authorization).toBe(JIRA_AUTH);
+    expect(paired.envelope.meta.context?.shared).toMatchObject({ apiToken: { area: 'jira-cloud', connection: 'jira-cloud' } });
+    const mine = await run(getPage, { id: '12345' }, fixtureRoutes, { config: { 'confluence-cloud': own, 'jira-cloud': jira } });
+    expect(mine.calls[0]!.headers.authorization).toBe(AUTH);
   });
 });
 

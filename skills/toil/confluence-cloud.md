@@ -30,8 +30,13 @@ account → Security → API tokens → Create API token). toil sends
 scripts. There is no password, OAuth app or browser login. The token acts with the
 account's own permissions, so a read sees what that account can see.
 
-The same account token works for Jira Cloud on the same site, but this area never
-borrows one: give each connection its own `email` and `apiToken`.
+The same account token works for Jira Cloud. With no token of its own, the default
+connection uses `TOIL_JIRA_CLOUD_API_TOKEN` (the default `jira-cloud` connection's env
+value). Any other connection borrows a `jira-cloud` connection's token, env or stored,
+only by naming it: `"apiTokenFrom": "imagile-cloud"`. Its own token always wins, and
+`meta.context.shared` says when the token came from Jira Cloud. Only the token is
+borrowed: `email` is always this connection's own, and must be the address the token
+belongs to.
 
 ## Configuration
 
@@ -39,10 +44,13 @@ borrows one: give each connection its own `email` and `apiToken`.
 |-----|---------|----------|---------|
 | `baseUrl` | `TOIL_CONFLUENCE_CLOUD_BASE_URL` | yes | Confluence Cloud site root, without `/wiki`: `https://<your-site>.atlassian.net` |
 | `email` | `TOIL_CONFLUENCE_CLOUD_EMAIL` | yes | Email address of the Atlassian account the token belongs to |
-| `apiToken` | `TOIL_CONFLUENCE_CLOUD_API_TOKEN` | yes | Atlassian account API token (a secret) |
+| `apiToken` | `TOIL_CONFLUENCE_CLOUD_API_TOKEN` | yes | Atlassian account API token (a secret), unless borrowed from Jira Cloud |
+| `apiTokenFrom` | `TOIL_CONFLUENCE_CLOUD_API_TOKEN_FROM` | no | A `jira-cloud` connection whose token this connection uses |
 | `writes` | `TOIL_CONFLUENCE_CLOUD_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
 
-toil adds `/wiki/api/v2` and `/wiki/rest/api` itself, so `baseUrl` is the site root.
+toil adds `/wiki/api/v2` and `/wiki/rest/api` itself, so `baseUrl` is the site root. A
+`baseUrl` ending in `/wiki` (as the browser shows it) is refused with `CONFIG_INVALID`
+before anything is sent: drop the `/wiki`.
 There is no CI fallback variable. The examples use the placeholder
 `https://confluence-cloud.imagile.dev`, which never resolves; your own site is
 `https://<your-site>.atlassian.net`.
@@ -156,7 +164,7 @@ search pages by cursor.
   title unless `--title` is given. Confluence Cloud requires a body on every update,
   so with no `--body` or `--body-file` the current storage body is sent back
   unchanged (a rename). `--status draft` sends version 1, as Atlassian documents for
-  a change to draft. `--representation` without a body is `INVALID_INPUT`.
+  a change to draft, and deletes any draft the page already has. `--representation` without a body is `INVALID_INPUT`.
 - `create-page` without `--parent-id` puts the page under the space's homepage, as
   the API does.
 - `get-page-children` uses v2's direct children, which lists folders, whiteboards,

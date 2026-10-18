@@ -188,13 +188,13 @@ export const updatePage = confluenceCloudArea.command({
   path: ['confluence-cloud', 'update-page'],
   description: 'Update a Confluence Cloud page (fetches the current version automatically)',
   toolDescription:
-    "Updates a page's title, body or status. Reads the page first and sends the next version number, keeping the title unless one is given. Confluence Cloud requires a body on every update, so with no body the current one is sent back unchanged.",
+    "Updates a page's title, body or status. Reads the page first and sends the next version number, keeping the title unless one is given. Confluence Cloud requires a body on every update, so with no body the current one is sent back unchanged. status draft turns the page into a draft and deletes any draft it already has.",
   input: z.object({
     id,
     title: z.string().min(1).optional().describe('New page title'),
     body: z.string().optional().describe('New page body (storage-format XHTML, or wiki markup with --representation wiki)'),
     bodyFile: z.string().optional().describe("Path to a file containing the new page body ('-' = stdin)"),
-    status: z.enum(['current', 'draft']).optional().describe('Page status: current (default) or draft'),
+    status: z.enum(['current', 'draft']).optional().describe('Page status: current (default) or draft, which deletes any draft the page already has'),
     representation,
     ...allowWriteField,
   }),
@@ -204,7 +204,7 @@ export const updatePage = confluenceCloudArea.command({
     { flags: '--title <title>', field: 'title', description: 'New page title' },
     { flags: '--body <html>', field: 'body', description: 'New page body (storage-format XHTML, or wiki markup with --representation wiki)' },
     { flags: '--body-file <path>', field: 'bodyFile', description: "Path to a file containing the new page body ('-' = stdin)" },
-    { flags: '--status <status>', field: 'status', description: 'Page status: current (default) or draft' },
+    { flags: '--status <status>', field: 'status', description: 'Page status: current (default) or draft, which deletes any draft the page already has' },
     representationOption,
   ],
   examples: [
