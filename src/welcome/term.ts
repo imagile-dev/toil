@@ -156,6 +156,11 @@ export function wrapLine(text: string, width: number): string[] {
       if (shown + length < width) {
         line += token;
         shown += length;
+      } else if (shown > indent.length) {
+        // No room for the space: break here, or the next word would be glued to this one.
+        lines.push(active ? `${line.trimEnd()}\x1b[0m` : line.trimEnd());
+        line = `${indent}${active}`;
+        shown = indent.length;
       }
       continue;
     }

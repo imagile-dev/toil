@@ -7,7 +7,7 @@ import { finish, initialState, reduce, render, top, type MenuState } from '../sr
 import { agentScreen, connectionsScreen, healthScreen, type WelcomeData } from '../src/welcome/screens.js';
 import { launchCommand } from '../src/welcome/data.js';
 import { playSplash, SPEED, splashFrame, TAGLINE } from '../src/welcome/splash.js';
-import { detectCaps, fitLine, PALETTE, visibleLength } from '../src/welcome/term.js';
+import { detectCaps, fitLine, PALETTE, visibleLength, wrapLine } from '../src/welcome/term.js';
 import { CTRL_C_WINDOW_MS, doubleTap, runWelcome, wantsWelcome } from '../src/welcome/index.js';
 import { testConfig } from './harness/context.js';
 
@@ -436,6 +436,17 @@ describe('the screens', () => {
     expect(visibleLength(fitLine(line, 8))).toBe(8);
     expect(fitLine(line, 8).endsWith('\x1b[0m')).toBe(true);
     expect(fitLine('short', 8)).toBe('short');
+  });
+
+  it('wrap a line at a space on the window edge without gluing the next word on', () => {
+    // Regression: a space landing exactly on the edge was dropped, giving "tallerand".
+    const text = `  ${'x'.repeat(70)} taller and a little more`;
+    const lines = wrapLine(text, 80);
+    expect(lines.join(' ')).not.toMatch(/tallerand|anda/);
+    expect(lines.map((l) => l.trim().split(/\s+/)).flat()).toEqual(text.trim().split(/\s+/));
+    for (const line of lines) expect(visibleLength(line)).toBeLessThanOrEqual(80);
+    // Every width around the edge keeps every word whole.
+    for (let width = 75; width <= 85; width++) expect(wrapLine(text, width).map((l) => l.trim()).join(' ')).toBe(text.trim());
   });
 });
 
