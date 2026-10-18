@@ -309,9 +309,10 @@ describe('attachments', () => {
     expect(again.envelope.error?.code).toBe('INVALID_INPUT');
   });
 
-  it('download-attachment reports a relative --dir as given, not as the absolute path written (#233)', async () => {
+  it('download-attachment: saved is absolute with forward slashes even when --dir is relative (#233, a listed divergence)', async () => {
     const { data } = await run('work download-attachment', { ...AT, id: '42', attachmentId: ATTACHMENT, dir: 'downloads' });
-    expect(data).toEqual({ saved: 'downloads/screenshot.png', name: 'screenshot.png', size: 5 });
+    expect(data).toEqual({ saved: expect.stringMatching(/^(\/|[A-Za-z]:\/).*\/downloads\/screenshot\.png$/), name: 'screenshot.png', size: 5 });
+    expect((data as { saved: string }).saved).not.toContain('\\');
   });
 
   it('download-attachment never sends the PAT to another host: the URL is re-pointed, with a warning (#69 item 1)', async () => {

@@ -26,8 +26,15 @@
       "allows": [],
       "old": "jira download-attachment reporting saved with the platform's separator",
       "toil": "saved uses forward slashes on every platform; the file lands in the same place",
-      "why": "Paths in JSON output are identical on Windows, macOS and Linux (CLAUDE.md, Cross-Platform). On macOS and Linux the output is unchanged.",
+      "why": "Paths in JSON output are identical on Windows, macOS and Linux (CLAUDE.md, Cross-Platform). On macOS and Linux the separator is unchanged.",
       "principle": "8"
+    },
+    {
+      "allows": [],
+      "old": "jira download-attachment reporting saved as --dir joined with the file name, so a relative --dir gives a relative path",
+      "toil": "saved is always the absolute path written, with forward slashes, even when --dir is relative. The file lands in the same place (#233)",
+      "why": "A relative --dir resolves against the workspace, which over MCP is not the caller's working directory, so a relative saved would point somewhere else. The absolute path says exactly where the file is.",
+      "principle": "4"
     },
     {
       "allows": [],

@@ -86,7 +86,7 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `link-issue` ✎ | `--key --link-type --target` | `{ linked, to, type }` |
 | `add-attachment` ✎ | `--key --file` | The attachments created |
 | `list-attachments` | `--key` | Attachments (id, filename, size, mimeType, content) |
-| `download-attachment` | `--key --attachment-id --dir` | `{ saved, filename, size }`; saves to `.toil/` by default; `saved` is `--dir` joined with the file name as given, or the absolute path by default |
+| `download-attachment` | `--key --attachment-id --dir` | `{ saved, filename, size }`; saves to `.toil/` by default |
 | `fields` | `--discover --custom-only --project --issue-type` | Registered fields, or Jira's field list with `suggestedType` and `allowedValues` |
 | `list-boards` | `--project --limit --cursor` | Boards (id, name, scrum or kanban) |
 | `list-sprints` | `--board` or `--project`, `--state active,future,closed`, `--limit --cursor` (with `--board`) | Sprints with dates and goal |

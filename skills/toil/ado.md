@@ -140,8 +140,7 @@ Work items (`--id <n>`):
   (`--comment` optional). Returns the uploaded attachment's `{ id, url }`. If the link
   fails, the upload stays on the server.
 - `work download-attachment`: Save `--attachment-id` to `--dir` (default `.toil`) in
-  the workspace; returns `{ saved, name, size }`, where `saved` is `--dir` joined
-  with the file name as you gave it, or the absolute path by default. It never overwrites a file. The
+  the workspace; returns `{ saved, name, size }`. It never overwrites a file. The
   token only goes to the configured host: an attachment URL naming another host is
   fetched from the configured one, with an `ADO_ATTACHMENT_HOST` warning.
 - `work list-areas`, `work list-iterations`: The area or iteration tree, `--depth`

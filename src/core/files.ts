@@ -78,16 +78,6 @@ export function forwardSlashes(path: string): string {
   return path.replace(/\\/g, '/');
 }
 
-/**
- * The `saved` path a download reports, as the command contract specifies: the
- * directory the caller named joined with the file name, so a relative `--dir`
- * gives a relative path. With no directory named, the absolute path that was
- * written. Forward slashes either way; the file lands in the same place.
- */
-export function savedPath(dir: string | undefined, name: string, written: string): string {
-  return dir === undefined ? written : forwardSlashes(join(dir, name));
-}
-
 /** The error for a file that couldn't be read, shared by every FileAccess. */
 export function readFailed(path: string, err: unknown): ToilError {
   const reason = (err as NodeJS.ErrnoException).code === 'ENOENT' ? 'it does not exist' : (err as Error).message;

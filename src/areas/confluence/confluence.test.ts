@@ -316,13 +316,13 @@ describe('attachments', () => {
     expect(Object.keys(written)).toHaveLength(1);
   });
 
-  it('download-attachment: a relative --dir is reported as given, not as the absolute path written (#233)', async () => {
-    const { envelope, written } = await run(downloadAttachment, { id: '98765', dir: 'downloads' }, [
+  it('download-attachment: saved is absolute with forward slashes even when --dir is relative (#233, a listed divergence)', async () => {
+    const { envelope } = await run(downloadAttachment, { id: '98765', dir: 'downloads' }, [
       { url: `${API}/content/98765`, respond: { json: attachment() } },
       { url: /download/, respond: { text: 'PNG!' } },
     ]);
-    expect(envelope.data).toEqual({ saved: 'downloads/diagram.png', filename: 'diagram.png', size: 4 });
-    expect(Object.keys(written)).toEqual([expect.stringMatching(/\/downloads\/diagram\.png$/)]);
+    expect(envelope.data).toEqual({ saved: expect.stringMatching(/^(\/|[A-Za-z]:\/).*\/downloads\/diagram\.png$/), filename: 'diagram.png', size: 4 });
+    expect((envelope.data as { saved: string }).saved).not.toContain('\\');
   });
 
   it('download-attachment: an absolute link on another host is re-pointed at baseUrl, with a warning (#78 item 1)', async () => {

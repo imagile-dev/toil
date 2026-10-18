@@ -87,7 +87,7 @@ with `INVALID_INPUT` before anything is sent.
 | `get-space` | `--key` | The space, with its plain-text description |
 | `list-attachments` | `--id` | Every attachment on the page |
 | `upload-attachment` ✎ | `--id --file --comment` | The attachments created |
-| `download-attachment` | `--id --dir` | `{ saved, filename, size }`; saves to `.toil/` by default; `saved` is `--dir` joined with the file name as given, or the absolute path by default |
+| `download-attachment` | `--id --dir` | `{ saved, filename, size }`; saves to `.toil/` by default |
 | `delete-attachment` ✎ | `--id` | `{ deleted }`; the attachment goes to the trash |
 | `check-dossier` | `--dossier <name\|file>` (or the folder's dossier) | `{ dossier, connection, env, ok, checked, checks, unchecked }`: each space the dossier names (`space`, `spaces`), found or not; exit 1 when one is missing |
 
