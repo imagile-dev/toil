@@ -1,6 +1,6 @@
 ---
 name: integrations
-description: Rules for toil's enterprise-tool integrations (Jira, Confluence, Bitbucket, SonarQube and every other service area). Use when adding, changing or reviewing an integration or one of its commands, judging whether a requested service can be supported (its authentication), recording or raising a verification level, adding a vendor's Cloud variant (each variant is its own area), reviewing an integration's site documentation page, or touching anything covered by the migration command contract (docs/command-contract.json, docs/command-contract.md, docs/divergences/, `toil config import`, command paths, flags, env var and config key names). Not needed for databases or the MCP server alone.
+description: Rules for toil's enterprise-tool integrations (Jira, Confluence, Bitbucket, SonarQube and every other service area). Use when adding, changing or reviewing an integration or one of its commands, judging whether a requested service can be supported (its authentication), recording or raising a verification level, adding a vendor's Cloud variant (each variant is its own area), reviewing an integration's site documentation page, or touching anything covered by the command contract (docs/command-contract.json, docs/command-contract.md, docs/divergences/, `toil config import`, command paths, flags, env var and config key names). Not needed for databases or the MCP server alone.
 ---
 
 # Integrations
@@ -36,8 +36,8 @@ versions.
 
 1. **Read the brief**, `docs/briefs/<area>.md`: auth, paging, special HTTP needs,
    context inputs, the suspected-bug issue and the supported version. Then read the
-   contract, which the brief summarizes and which wins
-   where they disagree.
+   reference material the area's issue points at, which the brief summarizes and
+   which wins where they disagree.
 2. **Stub it**: `node scripts/stub-area.mjs <area>` writes `src/areas/<area>/` with
    a `defineArea` with a `request` hook to fill in, one `area.command()` per
    contract command (exact path, arguments and flags, each `run` throwing until built), plus the fixture and skill file. It never
@@ -47,16 +47,16 @@ versions.
    An area with no contract entry (a Cloud variant, with no contract) is stubbed
    from command names given after it, `node scripts/stub-area.mjs jira-cloud search
    "issue get"`, each with no flags yet, or with none named, one `example` command.
-3. **Build each command**: request, paging, errors and `data` exactly as the
-   contract had them, through `ctx.fetch` and core's helpers. Set `writes`
-   from what the contract does; the stub only guessed from the verb.
+3. **Build each command**: request, paging, errors and `data` exactly as
+   recorded, through `ctx.fetch` and core's helpers. Set `writes`
+   from what the command does to the service; the stub only guessed from the verb.
    - **Paging** goes through `paginate`. A `p`/`ps`/`total` API (SonarQube) is
      the `page` style with a `total` callback: it stops once the items read reach
      the total or a page is empty, never on a short page. The result's `total` is
      the last one the server reported, an empty page's included, so a command
      asked for zero items (`--max-results 0`) still returns the count.
-   - **The 1,000-page bound** (`MAX_PAGES`) is new to toil, and the contract
-     had none: list it in the area's `docs/divergences/<area>.json` (principle 4)
+   - **The 1,000-page bound** (`MAX_PAGES`) isn't in the contract,
+     which records none: list it in the area's `docs/divergences/<area>.json` (principle 4)
      for every area that pages, and pass `what` so the error names the list.
    - **A context value read from a file** (Jira's `project` in `--input-file`)
      goes through `ctx.supply('project', value, 'file')`. It ranks below the
@@ -91,8 +91,8 @@ versions.
    with `node scripts/shoot.mjs docs/integrations/<area>/` (the `site` skill).
 9. **Suspected bugs** go in the area's issue, never fixed in the integration (below).
 10. **Delete the brief**, `docs/briefs/<area>.md`, in the same PR. Briefs are the only
-   docs that point at the contract's source; shipped docs, code and skills never
-   do, so a brief goes once its area is built.
+   docs that point at reference material outside this repository; shipped docs,
+   code and skills never do, so a brief goes once its area is built.
 
 `src/areas/jira/` is the reference integration. Follow its shape:
 
@@ -113,8 +113,8 @@ versions.
   kind: 'area-local', ... })`; it works with no config.
 - Files through `ctx.files`, never `node:fs`. Numbers, booleans, enums, JSON objects
   and repeatable flags come from the schema (`z.number()`, `z.boolean()`,
-  `z.object()`, `z.array()`); don't parse argv by hand. Where the contract read a
-  number with `parseInt`, keep the field a `z.union([z.number(), z.string()])` so it
+  `z.object()`, `z.array()`); don't parse argv by hand. Where the contract records a
+  number read with `parseInt`, keep the field a `z.union([z.number(), z.string()])` so it
   stays text, and keep the `parseInt`.
 - **Where a command acts** (`--project`, `--repo`, `--owner`, `--instance`, `--env`)
   is a context input in `defineArea({ context })`, never an ordinary flag, so core
@@ -125,14 +125,14 @@ versions.
   --instance`, `openshift --env --instance`, `dynatrace --env`) are `group` inputs,
   with the contract's spelling in `flags`; a per-command one (`jira --project`) is a
   `command` input the command lists in its `context`, marked `required` where the
-  contract failed without it, unless the command has its own fallback (a project in
+  contract records a failure without it, unless the command has its own fallback (a project in
   `--input-file`); then keep it optional and fill that step with `ctx.supply` (step 3).
-  A flag that names a target but never fell back to a setting stays an ordinary
+  A flag that names a target but doesn't fall back to a setting stays an ordinary
   option (Jira's `fields`, `list-boards`, `list-sprints`); a context input always
   falls back. Give it a `setting` when the connection can hold a
   default, `git` when the remote names it, and `selectsConnection` when the contract
-  picked an instance or environment by it. Read it from `ctx.context`. When the
-  contract had its own wording for a missing one ("No project specified. Use
+  records it picking an instance or environment. Read it from `ctx.context`. When the
+  contract records its own wording for a missing one ("No project specified. Use
   --project or set defaults.sonar.project in config."), keep it with the input's
   `missing: { message, fix? }`; the fix defaults to core's, which names the flag,
   the setting and its env var.
@@ -140,15 +140,15 @@ versions.
   shares: { area, keys } })`. It declares which keys a connection may pair, nothing
   more: the user pairs one with `<key>From` (`"apiKeyFrom": "es-prod"`), and the
   area's default connection alone also takes the other area's default env value, as
-  the documented env chain did. Document the `<key>From` setting in the area's skill file.
+  the env chain the contract records does. Document the `<key>From` setting in the area's skill file.
   `ctx.resolved.shared` says whether the key came from the other area, for an auth
   error that names which key was sent.
 - **`--env` means which environment**, and it's the same input the dossier supplies.
   Name it `env`, give it `selectsConnection` (or an enum schema), and never add a
   second environment flag.
-- **A path the contract had in another group** (`deps outdated`, now `artifactory
-  outdated`) is an `aliases` entry on the new command; the contract test checks the
-  old row against it.
+- **A path the contract records in another group** (`deps outdated`, served by
+  `artifactory outdated`) is an `aliases` entry on the command that serves it; the
+  contract test checks the contract's row against it.
 - **A path in the area that a core command answers** (`jenkins instance list`, which
   lists the area's connections) is `defineArea({ coreAliases: { 'instance list':
   'connections list' } })`. Core registers it as an alias of `connections list
@@ -161,7 +161,7 @@ versions.
   `DATABASE` and `GIT_NOT_FOUND` did. Codes are an open set to callers, not to the
   type: the list keeps a misspelt code a type error, so there's no cast and no
   escape hatch. Prefer an existing code when one fits.
-- **A success the contract exited non-zero on** (`jenkins pipeline run --wait` on a
+- **A success the contract records with a non-zero exit** (`jenkins pipeline run --wait` on a
   failed build) calls `ctx.setExitCode(1)` and returns its data. The envelope stays
   `ok: true` with the same `data`; the CLI exits 1; MCP returns the same envelope and
   doesn't mark it as an error. Never turn such a success into an error envelope.
@@ -176,7 +176,7 @@ versions.
   fixture answers each, and the parity suite proves the write gate. Copy the **Any
   endpoint** section of `skills/toil/jira.md` into the area's skill file, with its
   own paths. Don't add one to an area that isn't HTTP (`db`, `git`).
-- **A command the contract ran with the service unconfigured** (`git current-pr`
+- **A command the contract records answering with the service unconfigured** (`git current-pr`
   answering that Bitbucket isn't set up) sets `connectionOptional: true`. When the
   area has no connection and the call names none, `run` gets `ctx.connection`
   undefined and no context inputs, and answers itself; any other connection problem
@@ -199,7 +199,7 @@ versions.
   no hardcoded host.
 - **A plain-text error body** (LogScale's query errors) needs nothing: `apiRequest`
   puts its trimmed text after the status (`HTTP 400: <text>`), capped and with URLs
-  redacted. A JSON body is read as before.
+  redacted. A JSON body is still parsed for its message.
 - **A negated flag** (`--no-with-replies`) maps to its field (`withReplies`) with a
   `.default(true)` schema, since commander sets it true unless the flag is given;
   the parity suite sends `--no-<flag>` for `false`.
@@ -219,7 +219,7 @@ versions.
 - **A key the area no longer accepts** (checkmarx's `clientId`) is `defineArea({
   removed: { clientId: '<what to do instead>' } })`: a `CONFIG_REMOVED_KEY` warning
   in the area's words, and the value is dropped.
-- **An old path whose flag value picks the command** (`deps frisk --source <x>`) is
+- **A contract path whose flag value picks the command** (`deps frisk --source <x>`) is
   a row in `ROUTED_ALIASES` in `src/registry.ts`, never an area's own alias. A
   route whose command isn't on `main` yet is skipped; the contract test checks
   the row once every route is registered.
@@ -227,7 +227,7 @@ versions.
   `readInventory` from `src/core/inventory.ts`, never parsed in the area.
 - **A wait that grows by a fixed step** (`2 s × attempt`) is `poll` with
   `backoff: 'linear'`.
-- **A 429 the contract returned at once** is `apiRequest(..., {
+- **A 429 the contract records as returned at once** is `apiRequest(..., {
   retryRateLimit: false })`, with `accept: [429]` if it's an answer.
 - **A request path never takes a `.` or `..` segment**: core refuses one with
   `INVALID_INPUT` before sending (`requests.path` in `docs/bounds.md`), so an
@@ -242,10 +242,10 @@ versions.
   matching both when each alone matches several.
 - `jenkins instance remove`-style paths are `coreAliases` onto `connections
   remove`, which takes `--area`.
-- Every connection key keeps the contract's name, so its env var does too
+- Every connection key keeps the name the contract records, so its env var does too
   (`apiToken` is `TOIL_JIRA_API_TOKEN`).
 - Unit tests assert exact requests through `execute()` and `testContext()`; the
-  fixture's canned responses say which shapes came from the contract's tests and
+  fixture's canned responses say which shapes came from recorded responses and
   which were invented from the vendor's docs.
 - After registering, run `npx vitest run -u` once to write the site's command list.
 
@@ -306,8 +306,8 @@ breaking the other.
 - Each variant has its own module, config section, credentials, commands, MCP tools
   (`jira_get_issue`, `jira_cloud_get_issue`), skill file, site page and verification
   level. They share only generic HTTP helpers.
-- The unsuffixed area is the self-hosted variant, matching the migration command
-  contract, so the find-and-replace migration keeps working.
+- The unsuffixed area is the self-hosted variant, the one the command contract
+  records, so its commands keep the contract's paths.
 - A Cloud area reuses command names and flags where the operation is the same, and
   differs where the API does (for example, `accountId` where Data Center uses a
   username).
@@ -317,31 +317,31 @@ breaking the other.
 
 ## Compatibility
 
-This is a requirement, not a principle. toil succeeds an earlier CLI, and people have
-skills, scripts and pipelines built on it. Moving them to toil must take **one
-case-insensitive find-and-replace** of the contract's name with `toil`. That same
-replace also turns its `<OLD>_*` env vars into `TOIL_*`.
+This is a requirement, not a principle. People build skills, scripts and pipelines on
+toil's commands, so every integration implements the command surface the contract
+records (`docs/command-contract.json`, described in `docs/command-contract.md`), and
+anything it does differently is a listed divergence.
 
-- **The contract's implementation is canonical for behavior.** It has been run
-  against real systems; toil's unit suite hasn't. Its source is the package named in
-  `docs/command-contract.json` (`source.package`), and each integration's issue points
-  at the exact directory.
-  - **Match, don't reinvent.** Keep its requests, payloads, response shaping and
-    edge-case handling.
-  - **Rewrite it for toil's style and flow:** one `area.command` per command,
+- **The recorded behavior is the specification.** For each command that's the
+  contract plus the area's brief, issue, docs and tests; each integration's issue
+  points at the reference material for its area. toil's unit suite has never met a
+  real server, so it can't overrule them.
+  - **Implement, don't reinvent.** Keep the recorded requests, payloads, response
+    shaping and edge-case handling.
+  - **Write it in toil's style and flow:** one `area.command` per command,
     `ctx.fetch`, `ToilError` with a fix, examples for the parity suite, and HTTP
     mocked with `fakeFetch`. Comments use the deadpan voice in CLAUDE.md's Code
     Comments section.
-  - **Match its bugs too, until a live instance proves them** (*principles 4 and 7*;
-    **Matching the contract** in CLAUDE.md). Its observable behavior, meaning
+  - **Keep the recorded bugs too, until a live instance proves them** (*principles 4
+    and 7*; **The command contract** in CLAUDE.md). The recorded behavior, meaning
     requests, success or failure, the error and `data`, is the specification while
     toil has no live instance, because the unit suite can't tell a bug from a server
-    quirk the contract was written around. Validation, defaults, paging, id-or-name
-    detection and encoding stay exactly as they were.
+    quirk the recorded behavior accounts for. Validation, defaults, paging, id-or-name
+    detection and encoding stay exactly as recorded.
   - **Record each suspected bug** in the area's one `suspected-bug` issue (template:
     title `Suspected bugs to verify: <name> (`<area>`)`, label `suspected-bug`),
     appending to it if it exists: where, what, why, confidence, the observable change
-    if fixed, and a live check. The test that covers it pins the documented behavior and
+    if fixed, and a live check. The test that covers it pins the recorded behavior and
     says so.
   - **The only changes allowed** are a change another principle or the Output
     Contract requires, such as a credential reaching a host the user didn't configure
@@ -351,24 +351,22 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
     allows, such as `meta.warnings`.
   - **The first live run checks every item.** A confirmed bug is fixed as a declared
     change; a refuted one is closed.
-  - Its verification level there is context, not a level here. A new integration still
-    starts at `unit`.
-  - Cloud variants have no tested contract. They're built against the vendor's
+  - A verification level recorded anywhere outside toil is context, not a level here.
+    A new integration still starts at `unit`.
+  - Cloud variants aren't in the contract. They're built against the vendor's
     documented API, and the PR says what they were run against.
-- **The documented surface is frozen** in `docs/command-contract.json`: every command path,
-  its arguments and its flags, captured from the contract's own help output, and the
-  field names of each command's `data`, read from its source by the TypeScript
-  checker. That
-  file is the only place the contract is named in the repository; issues may name
-  it, because building an integration needs the source location.
+- **The command surface is recorded** in `docs/command-contract.json`: every command
+  path, its arguments and its flags, and the field names of each command's `data`,
+  kept by hand. Briefs and issues may point at reference material outside this
+  repository, because building an integration needs it; shipped docs, code and skills
+  never do.
 - **Every integration command in the contract exists in toil at the same path**,
   with the same positional arguments, the same long and short flags, and the same
   accepted values. Output uses the same envelope with the same `data` field names.
-  Global flags (`--pretty`, `--verbose`, `--debug`, `--config`,
-  `--output-file`) carry over too.
-- **Env vars and config keys keep their names** apart from the prefix:
-  `<OLD>_JIRA_BASE_URL` becomes `TOIL_JIRA_BASE_URL`, and `jira.baseUrl` stays
-  `jira.baseUrl`.
+  The global flags (`--pretty`, `--verbose`, `--debug`, `--config`,
+  `--output-file`) are recorded too.
+- **Env vars and config keys keep the names the contract records**:
+  `TOIL_JIRA_BASE_URL`, and `jira.baseUrl`.
 - **toil may add** commands, flags and output fields freely. It may drop or change a
   contract command only where a principle requires it. Each such divergence is listed
   in `docs/divergences/<area>.json` with what to use instead (the format is in
@@ -377,12 +375,13 @@ replace also turns its `<OLD>_*` env vars into `TOIL_*`.
 - **A test enforces this.** `test/contract.test.ts` diffs every registered area's
   command paths, aliases, positional arguments and flag spellings against the
   contract, runs every example in the area's fixture and checks the `data` has the
-  old command's required field names, and fails on any divergence no file in
-  `docs/divergences/` allows. Optional fields and output the contract typed as
-  `any` can't be checked that way: compare those with the contract's code by
-  hand, and keep its names even where they're awkward (jira's
-  `fields --discover` keeps the contract-named `toilType` beside `suggestedType`).
-- **Config is rebuilt, not copied.** `toil config import` reads the documented global config
-  once, writes toil's config, and moves every secret into the OS credential store
-  (see the `secrets` skill). It never modifies or deletes the old files, and it leaves
-  repository config files from the contract alone.
+  recorded command's required field names, and fails on any divergence no file in
+  `docs/divergences/` allows. Optional fields and output the contract types as
+  `any` can't be checked that way: compare those by hand with the area's brief and
+  issue, and keep the recorded names even where they're awkward (jira's
+  `fields --discover` keeps the contract's `toilType` beside `suggestedType`).
+- **Config is built, not copied.** `toil config import` reads a global config file
+  in the shape the contract records, once, writes toil's config, and moves every
+  secret into the OS credential store (see the `secrets` skill). It never modifies or
+  deletes the file it reads, and it leaves repository config files of that shape
+  alone.

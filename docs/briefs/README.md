@@ -1,14 +1,13 @@
 # Integration briefs
 
-One short page per area still to build, distilled from the contract
-(the package named in `docs/command-contract.json` under `source`; each area's code is
-in the contract) and from the integration kit's audit (#68). A brief is
-where an integration starts: it says what the area needs from core before anyone reads
-the contract line by line. The source stays the specification (CLAUDE.md, Matching the
-contract), and a brief that disagrees with it is wrong.
+One short page per area still to build, distilled from the command contract, the
+area's issues and the integration kit's audit (#68). A brief is where an integration
+starts: it says what the area needs from core before anyone works through the area's
+reference material line by line. That material stays the specification (CLAUDE.md,
+The command contract), and a brief that disagrees with it is wrong.
 
-Briefs are the one place outside `docs/command-contract.*` and issues that may point at
-the contract's source, because an integration needs it
+Briefs are the one place outside `docs/command-contract.*` and issues that may point
+at reference material outside this repository, because an integration needs it
 (maintainer decision, #68). Shipped docs, code and skills never do. **The PR that
 builds an area deletes its brief.**
 

@@ -18,7 +18,7 @@ without echo and put it in the store, writing only `keychain:<connection>.<key>`
 to the config file. There is no `--plaintext`. Env vars are the path for CI,
 containers and machines with no store (headless Linux without `secret-tool`).
 Anything added later that writes secrets (`config init`, `config set`) does the
-same, and a future `config import` must move every old token into the store.
+same, and a future `config import` must move every token it reads into the store.
 
 ## The store
 

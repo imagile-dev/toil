@@ -135,7 +135,7 @@ Work items (`--id <n>`):
   returns just the example as `data`. Needs no connection.
 
 `work types` and `work fields` have no `--save`; passing it is an unknown option.
-The aliases it used to save were the built-in ones below, which apply anyway.
+The aliases `--save` would store are the built-in ones below, which apply anyway.
 `--discover` is accepted and changes nothing.
 
 Field names in `--field` and `--input-file` resolve through the connection's

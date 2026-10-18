@@ -18,11 +18,11 @@ interface to the work around the code: enterprise tools and databases. The princ
 - **MCP gateway, later and separate.** A shared Streamable HTTP endpoint with mandatory
   auth, shipped as its own opt-in package on the same core
   ([design note](mcp-gateway.md), issue #4). Not v1.
-- **Migration by find-and-replace.** Integration commands, flags, envelope fields
-  and env var names match the command contract's frozen surface
-  ([command contract](command-contract.md)), so moving a skill or script is one
-  case-insensitive replace. A test diffs the two. Config is rebuilt keychain-first and
-  imported once with `toil config import`.
+- **A recorded command surface.** Integration commands, flags, envelope fields
+  and env var names are recorded in the command contract
+  ([command contract](command-contract.md)), so skills and scripts built on them
+  keep working. A test diffs the CLI against it. Config is built keychain-first, and
+  `toil config import` reads a config file in the shape the contract records, once.
 - **Enterprise tools behind one auth bar.** Long-lived token pasted once, header or a
   plain-HTTP exchange, no interactive login. Env vars beat config files, always.
 - **Databases, read-only by default.** Pure-JS drivers for PostgreSQL, MySQL, SQL

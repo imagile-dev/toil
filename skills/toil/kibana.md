@@ -72,8 +72,8 @@ One key often serves both. A Kibana connection uses an Elasticsearch connection'
 }
 ```
 
-An unpaired connection never gets another area's key, with one exception that keeps
-the documented env chain: Kibana's default connection takes `TOIL_ELASTICSEARCH_API_KEY`
+An unpaired connection never gets another area's key, with one exception, an env
+fallback the contract specifies: Kibana's default connection takes `TOIL_ELASTICSEARCH_API_KEY`
 when `TOIL_KIBANA_API_KEY` isn't set. Which key wins: an env value beats a stored
 one, and within a tier Kibana's own key wins. The borrowed key is still sent only to
 Kibana's `baseUrl`, never to Elasticsearch's. `meta.context.shared` says when the key

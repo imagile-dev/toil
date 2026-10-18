@@ -103,7 +103,7 @@
       "old": "ado work add-attachment typing its data as an attachment with a name",
       "toil": "data is the server's answer passed through unchanged, as the contract specifies. The upload endpoint answers with an AttachmentReference, { id, url }, so the typed field the contract records never exists at run time",
       "why": "Nothing changes; the recorded field comes from a declared type, not from what the server returns, and a fixture shaped like the documented API can't carry it.",
-      "principle": "Matching the contract"
+      "principle": "The command contract"
     },
     {
       "allows": [
@@ -115,7 +115,7 @@
       "old": "ado work fields --type typing each field with a type",
       "toil": "Unchanged: the type-scoped endpoint returns no type or readOnly, so both come out undefined and leave the JSON, as the contract records (#69 item 18, pinned)",
       "why": "A suspected bug is kept until a live run confirms it (CLAUDE.md, The command contract); the field is excused only for calls with --type.",
-      "principle": "Matching the contract"
+      "principle": "The command contract"
     }
   ]
 }

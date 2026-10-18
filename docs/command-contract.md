@@ -1,8 +1,8 @@
 # Command contract
 
-`command-contract.json` is toil's record of its command surface: every command path
-and alias, each command's positional arguments and flags with their accepted values and
-defaults, and the field names of the `data` each command returns. It holds 443
+`command-contract.json` is toil's hand-maintained record of its command surface: every
+command path and alias, each command's positional arguments and flags with their
+accepted values and defaults, and the field names of the `data` each command returns. It holds 443
 commands, 368 of them leaves. `test/contract.test.ts` checks the registered CLI against
 it on every run, so a command, flag or output field can't change or disappear without
 someone noticing. Each difference toil makes on purpose is a divergence, listed with its
@@ -71,15 +71,7 @@ checked that way, so an integration still compares those with the contract by ha
 
 To read them all as a table: `node scripts/divergences.mjs`.
 
-## Recapturing
+## Changing the contract
 
-The contract changes only on purpose, when the command surface it records should grow.
-`scripts/capture-command-contract.mjs` writes it from a built CLI: the command surface
-from a recursive `--help` walk, and the output fields from the TypeScript checker over
-that build's source, so the checkout must be built and have its dependencies installed:
-
-```bash
-node scripts/capture-command-contract.mjs <repo>/dist/cli.js --source <repo> > docs/command-contract.json
-```
-
-Review the diff like any other contract change.
+The contract is edited by hand and changes only on purpose, in the same change as the
+commands it records. Review the diff like any other contract change.

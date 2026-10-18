@@ -73,10 +73,10 @@ unknown name is an `INVALID_INPUT` listing the clusters toil knows. With neither
 flag, the default connection is used (`defaults.openshift.connection`, else the one
 named `openshift`, else the only one).
 
-The documented nested `openshift.environments.<env>.instances.<instance>` map becomes one
-connection per cluster with `env` and `instance` set; `defaultEnvironment` and
-`defaultInstance` become `defaults.openshift.connection`; the flat `baseUrl` and
-`token` become a connection with neither set.
+Where the contract nests clusters in an `openshift.environments.<env>.instances.<instance>`
+map, toil has one connection per cluster with `env` and `instance` set. The contract's
+`defaultEnvironment` and `defaultInstance` are `defaults.openshift.connection`, and its
+flat `baseUrl` and `token` are a connection with neither set.
 
 A cluster with `env` and `instance` set reports a missing `baseUrl` or token as
 `OpenShift cluster "<env>/<instance>" is not configured or missing baseUrl.` or

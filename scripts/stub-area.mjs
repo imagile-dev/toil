@@ -16,8 +16,8 @@
 //
 //   node scripts/stub-area.mjs jira-cloud search "issue get"
 //
-// It never overwrites a file. Take behavior from the contract's source
-// (the area's brief in docs/briefs/ says where), not from these stubs.
+// It never overwrites a file. Take behavior from the contract and the
+// sources the area's brief in docs/briefs/ names, not from these stubs.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -43,7 +43,7 @@ export function argsOf(usage) {
     });
 }
 
-// A guess from the verb, to be checked against the contract: does the contract change anything?
+// A guess from the verb, to be checked against the contract: does the command change anything?
 export const WRITE_VERBS =
   /^(create|update|delete|remove|add|set|merge|decline|approve|unapprove|needs|transition|assign|link|log-work|upload|run|cancel|stop|toggle|kill|restore|archive|reply|resolve|enable|disable|enqueue|close|reopen|convert|ready|request|abandon|wait|install|uninstall|launch|start|end|batch|properties-set|forget|purge|sync)(?:-|$)/;
 
@@ -92,7 +92,7 @@ function commandSource(entry, area, contextFields = new Set()) {
     ...fields,
     ...(writes ? ['    ...allowWriteField,'] : []),
     `  }),`,
-    `  // TODO: ${writes ? 'guessed from the verb' : 'a read, guessed from the verb'}; check what the contract's command does.`,
+    `  // TODO: ${writes ? 'guessed from the verb' : 'a read, guessed from the verb'}; check what the contract says the command does.`,
     `  writes: ${writes},`,
     ...(args.length
       ? [
@@ -167,13 +167,13 @@ import type { SupportedVersion } from '${core}/supported.js';
 export const ${AreaVar} = defineArea({
   name: ${quote(area)},
   description: 'TODO: what this area covers, in one line',
-  // TODO: the contract's config keys, with the same names, so the env vars match (TOIL_${area.toUpperCase().replace(/-/g, '_')}_*).
+  // TODO: the config keys the contract names, with the same names, so the env vars match (TOIL_${area.toUpperCase().replace(/-/g, '_')}_*).
   connection: z.object({
     baseUrl: z.url().describe('Server root, e.g. https://${area}.imagile.dev'),
     token: z.string().min(1).describe('TODO: the credential the Authentication Bar allows'),
   }),
   secrets: ['token'],
-  // TODO: the contract's auth headers exactly; a token exchange goes in \`token\` (src/core/api.ts).
+  // TODO: the auth headers exactly as the contract specifies; a token exchange goes in \`token\` (src/core/api.ts).
   // Commands send through apiRequest, which builds every request from this.
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
@@ -224,8 +224,8 @@ export function notBuilt(command: string): never {
 
 /**
  * Canned ${area} responses for every request the examples send. Say which
- * shapes came from the contract's tests and which were invented from the
- * vendor's docs. Routes match on method, path and query.
+ * shapes came from the contract and its tests and which were invented from
+ * the vendor's docs. Routes match on method, path and query.
  */
 export const fixture = defineFixture({
   area: ${quote(area)},

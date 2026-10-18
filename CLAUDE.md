@@ -58,8 +58,8 @@ gets made again in the next place it applies.
    env vars that override anything on disk. → Configuration Precedence.
 6. **This repository stands alone.** Docs, code and skills never name another
    repository or another CLI as a reference or comparison. The command contract
-   (**The command contract**, below) is toil's own record, and it says how it was
-   captured so it can be checked.
+   (**The command contract**, below) is toil's own record, kept by hand in this
+   repository.
 7. **Never break what users already rely on silently.** Config on disk, flags, the
    JSON envelope and precedence are contracts; changing them is a declared,
    documented breaking change. → Output Contract, Delivery. **This starts at toil's
@@ -241,8 +241,7 @@ GitHub Actions; its build tooling is out of scope.
   `test/live/` is the real-credential-store suite, kept out of `npm test` (`secrets`
   skill)
 - `scripts/` — area registration, the purity gate, the committed-bundle check
-  (`check-dist.mjs`), the tarball and clone smoke test, contract capture (`capture-command-contract.mjs`, with output fields from
-  `contract-output.mjs`), the area stub generator (`stub-area.mjs`), the divergence
+  (`check-dist.mjs`), the tarball and clone smoke test, the area stub generator (`stub-area.mjs`), the divergence
   table (`divergences.mjs`), PR screenshots (`shoot.mjs`), and the PR watcher the
   `ship` skill runs (dev tooling; none of it ships)
 - `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files,

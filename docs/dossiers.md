@@ -184,7 +184,7 @@ prompts. The names are used through **one fixed input**, never through generated
   connection's meaning, and output keeps the connection's names.
 - Aliases live in their own namespace, so `--field project=...` can never collide with
   `--project`. An alias is a camelCase identifier; anything else fails `dossiers check`.
-- An unknown name gets the area's own unknown-field error, as before.
+- An unknown name gets the area's own unknown-field error, the same as without a dossier.
 
 ## Where dossiers live
 

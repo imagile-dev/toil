@@ -51,7 +51,7 @@
       "old": "github add-labels typing its data as { labels: [...] }",
       "toil": "data is GitHub's answer passed through unchanged, as the contract specifies. GitHub answers with a bare array of labels, so the typed field the contract records never exists at run time",
       "why": "Nothing changes; the recorded field comes from a declared type, not from what GitHub returns, and a fixture shaped like the real API can't carry it.",
-      "principle": "Matching the contract"
+      "principle": "The command contract"
     },
     {
       "allows": [
@@ -61,7 +61,7 @@
       "old": "github add-reviewers typing its data as { url, users, teams }",
       "toil": "data is GitHub's answer passed through unchanged, as the contract specifies. GitHub answers a reviewer request with the pull request, which has url and requested_reviewers but no users or teams",
       "why": "Nothing changes; the recorded fields come from a declared type, not from what GitHub returns, and a fixture shaped like the real API can't carry them.",
-      "principle": "Matching the contract"
+      "principle": "The command contract"
     }
   ]
 }

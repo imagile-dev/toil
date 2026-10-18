@@ -101,7 +101,7 @@ found in its name, title and description. OSS Index gives no fixed versions, so
   limit is per account; wait and retry.
 - `HTTP`: "Sonatype OSS Index returned HTTP <status> <reason>" for any other failed batch.
 
-## Old paths
+## Alias paths
 
 `deps frisk --source sonatype` runs `toil ossindex vulns`, with the same `--ecosystem`,
 `--direct-only`, `--include-dev` and `--from` flags.
