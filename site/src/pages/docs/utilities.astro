@@ -10,13 +10,15 @@ import { url, repoUrl } from '../../lib/url';
 type SiteCommand = { name: string; tool: string | null; description: string; writes: boolean; connection: boolean; flags: string[] };
 const generated = import.meta.glob<SiteCommand[]>('../../data/commands/util.json', { eager: true, import: 'default' });
 const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
+// The commands that kept a short path from before the util group existed; newer ones have only theirs.
+const shortPaths = new Set(['jwt', 'deps']);
 ---
 
-<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies, compare that inventory between two git refs, and summarise test, SARIF and coverage reports, with no connection and no network.">
+<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, and summarise test, SARIF and coverage reports, with no connection and no network.">
   <PageHero
     eyebrow="<b>Docs</b> · Utilities"
     title="Local utilities, <em>no network.</em>"
-    lead="Commands that work on what's on your machine: a token you paste, the manifests and lockfiles in your workspace, or the reports a build leaves behind. No connection, no credential, nothing sent anywhere."
+    lead="Commands that work on what's on your machine: a token you paste, a file in your workspace, its manifests and lockfiles, or the reports a build leaves behind. No connection, no credential, nothing sent anywhere."
   >
     <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <span>Utilities</span></p>
   </PageHero>
@@ -38,13 +40,13 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
           <h2>What these are</h2>
           <p>
             These aren't integrations. There's no server, no connection to add, no <code>TOIL_UTIL_*</code> variable and no credential, and
-            none of them sends anything over the network. Every one of them only reads. Their tests run against in-memory files and a stubbed
-            git, so they're verified at the <code>unit</code> level.
+            none of them sends anything over the network. None changes anything: the only file one writes is a new one you name with
+            <code>--out</code>, inside your workspace, and it never replaces a file. Their tests run against in-memory files and a stubbed git,
+            so they're verified at the <code>unit</code> level.
           </p>
           <p>
-            <code>jwt decode</code>, <code>deps scan</code> and <code>deps diff</code> also answer at a short path, with the same flags and
-            output: <code>toil util jwt decode</code> is also <code>toil jwt decode</code>. <code>util report</code> has only its
-            <code>util</code> path.
+            The <code>jwt</code> and <code>deps</code> commands also have a short path, which does the same thing with the same flags and output:
+            <code>toil util jwt decode</code> is also <code>toil jwt decode</code>.
           </p>
         </section>
 
@@ -61,6 +63,7 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
               <li class="cmd">
                 <div class="cmd__head">
                   <code class="cmd__name">toil util {c.name}</code>
+                  {shortPaths.has(c.name.split(' ')[0]!) && <span class="cmd__alias">also <code>toil {c.name}</code></span>}
                 </div>
                 <p class="cmd__desc">{c.description}</p>
                 <p class="cmd__meta">
@@ -134,6 +137,23 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
             <code>skipped</code>. XML and lcov stream, so a large report is read in constant memory up to the 64 MiB cap.
           </p>
         </section>
+
+        <section data-reveal>
+          <h2>Encoding, decoding and hashing</h2>
+          <p>
+            <code>encode</code> handles base64, base64url, hex, URL components and form bodies in either direction, and hashes a file with
+            SHA-256, SHA-1 or MD5. It checks its own work: every encode is decoded back and must give your input, every decode is encoded
+            again and must give your input apart from padding, case and line breaks, and a file's hash counts the bytes it read against the
+            file's size, so a read that stopped short can't pass.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util encode base64 --decode mail-part.b64 --out logo.png</span><span class="line"><span class="p">$</span> toil util encode sha256 release.tgz</span></pre>
+          </div>
+          <p>
+            Decoded bytes that aren't text (an image, say) never come back as mangled text in the JSON: they need <code>--out</code>, a new
+            file inside your workspace. Text that isn't the encoding it claims is refused with the offset of the first wrong character.
+          </p>
+        </section>
       </article>
     </div>
   </section>
@@ -174,6 +194,8 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
   .cmd { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-sm); min-width: 0; }
   .cmd__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
   .cmd__name { color: var(--color-accent) !important; font-size: var(--text-sm); overflow-wrap: anywhere; }
+  .cmd__alias { font-size: var(--text-sm); color: var(--color-faint); }
+  .cmd__alias code { color: var(--color-muted) !important; }
   .cmd__desc { margin-top: 0.3rem; font-size: var(--text-sm); }
   .cmd__meta { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem !important; }
   .cmd__meta code { font-size: 0.72rem; overflow-wrap: anywhere; }
