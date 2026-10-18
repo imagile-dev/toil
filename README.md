@@ -37,6 +37,7 @@ Each [release](https://github.com/imagile-dev/toil/releases) also carries the pa
 
 ```bash
 toil db query --connection reporting "select top 10 * from orders"
+toil jira search --jql "project = PAY" --select "issues[].key"   # keep only part of data (JMESPath)
 toil mcp            # run as an MCP server over stdio
 ```
 
