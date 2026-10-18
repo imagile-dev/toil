@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { AnyArea } from './area.js';
 import type { CommandContext } from './context.js';
+import { SELECT_FIELD } from './query/select.js';
 
 /** A positional CLI argument, mapped onto one input field. */
 export interface CliArgument {
@@ -128,7 +129,13 @@ type CoreSet = 'area' | 'kind' | 'context';
 
 /** A standalone command: no area, no connection, no config. Area commands use `area.command()`. */
 export function defineCommand<S extends z.ZodObject>(def: Omit<CommandDefinition<S>, CoreSet>): CommandDefinition<S> {
+  assertNoCoreFields(def);
   return { ...def, kind: 'standalone' };
+}
+
+/** `select` is core's on every command (`--select`), so no command may declare a field of that name. */
+export function assertNoCoreFields(def: { path: string[]; input: z.ZodObject }): void {
+  if (SELECT_FIELD in def.input.shape) throw new Error(`Command ${def.path.join(' ')}: "${SELECT_FIELD}" is added by core to every command.`);
 }
 
 /**
@@ -139,6 +146,7 @@ export function defineCommand<S extends z.ZodObject>(def: Omit<CommandDefinition
  * keeps it off MCP.
  */
 export function defineConfigCommand<S extends z.ZodObject>(def: Omit<CommandDefinition<S>, CoreSet> & { kind?: 'config' | 'cli-only' }): CommandDefinition<S> {
+  assertNoCoreFields(def);
   return { ...def, kind: def.kind ?? 'config' };
 }
 
