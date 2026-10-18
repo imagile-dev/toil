@@ -1770,8 +1770,8 @@ workspace. `bitbucket` (Data Center) is untouched.
 - **Kept under `util`, not a new `c4` group**: it's local and has no connection,
   like the other util commands, so it shares their fixture, skill page and site
   data. Three commands, `render` (SVG), `mermaid` and `d2` (text).
-- **toil's own layered layout, no Graphviz** (the maintainer's decision on the
-  trial). No new dependency, nothing in `NOTICE`.
+- **toil's own layered layout, no layout library** (the maintainer's decision on
+  the trial). No new dependency, nothing in `NOTICE`.
 - **The model is read through the kit's input reader**: `[file]`, stdin or
   `--text` on the CLI, `file` or `text` over MCP, like every util command. The
   trial's `--model`, `--model-json` and MCP `model` object are gone: one reader,

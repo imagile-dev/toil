@@ -1264,7 +1264,7 @@ and `data.verified` lists each check:
 |-------|-----------|
 | `input.complete` | The whole file was read (unchecked for stdin and `--text`) |
 | `boxes.apart` | No two boxes overlap |
-| `children.inBoundary` | Every child is inside its dashed boundary, and nothing else is drawn over it |
+| `children.inBoundary` | Every child is inside its dashed boundary, and nothing else is drawn over it (views with a boundary only) |
 | `edges.touchBoxes` | Every arrow starts on its source's border and ends on its target's |
 | `edges.clearOfBoxes` | No arrow passes behind a box it doesn't join |
 | `labels.clearOfBoxes` | No label covers a box |

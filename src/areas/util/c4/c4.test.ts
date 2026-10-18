@@ -252,7 +252,7 @@ describe('bounds', () => {
   it('stops a layout that passes its deadline with TIMEOUT, and a cancelled one with CANCELLED', async () => {
     const model = chain(100, 250);
     const computed = computeView(model, model.views[0]!);
-    await expect(draw(computed, undefined, 1)).rejects.toMatchObject({ code: 'TIMEOUT', message: expect.stringContaining('Laying out view "v" was stopped') });
+    await expect(draw(computed, undefined, 1)).rejects.toMatchObject({ code: 'TIMEOUT', message: 'Laying out view "v" took longer than the 0.001 s it may run, so it was stopped.' });
     const controller = new AbortController();
     controller.abort();
     await expect(draw(computed, controller.signal)).rejects.toMatchObject({ code: 'CANCELLED' });

@@ -80,12 +80,12 @@ export function checkText(v: Verifier, view: ComputedView, text: string, languag
 
 /** The drawing from the bounded worker, or a plain error saying why there isn't one. `timeoutMs` is the worker's deadline (default 2 s), shorter only in tests. */
 export async function draw(view: ComputedView, signal: AbortSignal | undefined, timeoutMs?: number): Promise<Drawing> {
-  const { runBounded } = await import('../kit/bounded.js');
+  const { BOUNDED_TIMEOUT_MS, runBounded } = await import('../kit/bounded.js');
   const outcome = await runBounded<Drawing>({ kind: 'c4-draw', view }, { signal, ...(timeoutMs === undefined ? {} : { timeoutMs }) });
   if (outcome.ok) return outcome.value;
   const fix = 'Draw fewer elements in this view with its include list, or split it into several views.';
   if (outcome.cause === 'cancelled') throw new ToilError('CANCELLED', `Drawing view "${view.key}" was cancelled.`);
-  if (outcome.cause === 'timeout') throw new ToilError('TIMEOUT', `Laying out view "${view.key}" was stopped: ${outcome.reason}.`, { fix });
+  if (outcome.cause === 'timeout') throw new ToilError('TIMEOUT', `Laying out view "${view.key}" took longer than the ${(timeoutMs ?? BOUNDED_TIMEOUT_MS) / 1000} s it may run, so it was stopped.`, { fix });
   throw new ToilError('INTERNAL', `View "${view.key}" couldn't be laid out: ${outcome.reason}.`, { fix: outcome.cause === 'denied' ? 'Run Node with --allow-worker, or without the permission model.' : fix });
 }
 
