@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { GitResult, GitRunner } from '../../src/core/git.js';
 import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
@@ -68,6 +69,17 @@ export const POM = `<project>
 </project>
 `;
 
+/**
+ * The `util md` corpus (test/fixtures/util-md/): a bug report, a runbook and
+ * a story in Markdown, a Jira Data Center ticket in wiki markup, a Jira Cloud
+ * ticket in ADF and a Confluence release-notes page in storage format. Each is
+ * shaped like the real thing, with every host a placeholder and every name
+ * invented.
+ */
+export const MD_CORPUS: Record<string, string> = Object.fromEntries(
+  ['bug-report.md', 'runbook.md', 'story.md', 'PROJ-142.wiki', 'PROJ-142.adf.json', 'release-notes.storage.xml'].map((name) => [name, readFileSync(new URL(`./util-md/${name}`, import.meta.url), 'utf8')]),
+);
+
 /** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
 export const files: Record<string, string> = {
   '.gitignore': 'vendor/\n',
@@ -76,6 +88,7 @@ export const files: Record<string, string> = {
   'Directory.Packages.props': PROPS,
   'src/Api/Api.csproj': CSPROJ,
   'pom.xml': POM,
+  ...Object.fromEntries(Object.entries(MD_CORPUS).map(([name, text]) => [`docs/${name}`, text])),
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
 };
 

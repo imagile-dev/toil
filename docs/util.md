@@ -130,3 +130,9 @@ that it is evaluated on first use, not at startup. A static import anywhere undo
 that, so ESLint refuses a static import of `js-yaml`, `@cfworker/json-schema`,
 `kit/yaml` and `kit/json-schema` outside those wrappers and tests. A type-only import
 is allowed, since it's erased. Treat a command's own heavy module the same way.
+
+A lazily loaded module must not import zod, directly or through `kit/input.ts`:
+the built bundle breaks on every command when it does, though every unit test
+still passes, and only `npm run smoke` shows it. Read the input in the command's
+own module, which is loaded statically, and pass the text to the lazy one, as
+`util md` does (`src/areas/util/md.ts`).

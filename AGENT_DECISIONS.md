@@ -1076,3 +1076,45 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   refuses a document where that passes 1,000,000 values (`INVALID_INPUT`). A
   document without aliases is held by the input cap alone. js-yaml has no switch
   to reject aliases, and the count also stops a cycle.
+
+### util md (#177)
+
+- **One command, `util md`, with `--to` or `--from`**, one of them Markdown: four
+  formats, three directions each way, and no Markdown-free pair (wiki to ADF),
+  which the issue doesn't ask for. No `--out`: the result is in `data.output`,
+  and `--select output` gives it alone, so no write rules apply.
+- **The Markdown reader is written here**, a focused CommonMark plus GFM subset
+  (tables, task lists, strikethrough, bare URLs), not a dependency. Converting
+  needs one tree that all four formats share, with positions; a library's tree
+  would still need its own conversion, and its HTML output nothing. Raw HTML
+  other than `<br>`, link reference definitions and footnotes aren't read; each
+  is kept as text and reported as a loss.
+- **The round trip compares canonical Markdown, block by block** (an LCS over
+  top-level blocks). A block that changed with a loss reported in it is expected;
+  one without fails `roundTrip.blocks` (`MD_ROUNDTRIP_MISMATCH`). `lossless` is
+  true only when nothing was lost and nothing changed: a wiki task list comes back
+  as a task list, but Jira shows `[ ]` text, so it still counts as a loss.
+- **Normalization:** whitespace runs are one space, a soft line break is a space,
+  `_x_` is `*x*`, list markers and numbering are canonical, empty paragraphs go.
+  None of these show when the document is rendered.
+- **Positions:** `line N` in Markdown, wiki markup and storage format; a JSON
+  pointer in ADF.
+- **The ADF schema is vendored**, `@atlaskit/adf-schema` 57.6.21's `full.json`
+  (Apache-2.0, 74 KB, published 2026-10-02), loaded with the JSON Schema helper
+  only when ADF is read or written. ADF output the schema refuses is never
+  returned: the command fails with `INTERNAL`, since it's a bug. ADF input it
+  refuses is converted with an `ADF_INPUT_INVALID` failed check, because Jira
+  returns documents newer than any bundled schema.
+- **Wiki markup:** a single line break is a break, as Jira renders it; a task is
+  `[ ]` / `[x]` text; a literal backslash is `&#92;` (two are Jira's line break);
+  emphasis inside a word uses the braced `{*}` form. How Jira's renderer treats
+  each escape is unverified.
+- **Storage format** is read with the kit's XML reader in fragment mode, with
+  HTML's common named entities; any other entity is `INVALID_INPUT`. A code block
+  is written as the code macro, strikethrough as the line-through span.
+- **Reuse:** the ADF node types are jira-cloud's (`src/areas/jira-cloud/adf.ts`);
+  `textToAdf` / `adfToText` and confluence-cloud's `storageToText` stay as they
+  are, since they're the plain-text forms those areas' fields promise. The area
+  flags (`--markdown` on create commands) are not part of this.
+- **The input is read in `md.ts`**, which loads statically; only the converters
+  load lazily, so zod stays out of the lazy module (the encode build's finding).
