@@ -77,10 +77,27 @@ afterEach(async () => {
 async function mcpFor(list: AnyCommand[], cfg: Record<string, Settings>, routes: Route[], files: Files = {}, local: Local = {}) {
   // The MCP run exchanges its own token, as the CLI run before it did, so both send the same requests.
   clearTokenCache();
-  const { context, http } = testContext({ config: cfg, routes, files, ...local });
+  const { context, http, audit } = testContext({ config: cfg, routes, files, ...local });
   const session = await connectMcp({ commands: list, context });
   sessions.push(session);
-  return { session, http };
+  return { session, http, audit };
+}
+
+/**
+ * An audit line with what may differ between the two doors taken out: when,
+ * how long, which door, and the input, which is kept as each door sent it
+ * (the CLI's `--line 3` is the text "3" where a union keeps text, and a
+ * `--no-` flag sends its default).
+ */
+function sameCall(line: string | undefined): unknown {
+  const entry = JSON.parse(line ?? 'null') as Record<string, unknown> | null;
+  if (!entry) return entry;
+  const rest = { ...entry };
+  delete rest.time;
+  delete rest.durationMs;
+  delete rest.via;
+  delete rest.input;
+  return rest;
 }
 
 /** Timing is the only field allowed to differ between two runs of the same call. */
@@ -171,8 +188,14 @@ for (const suite of suites) {
           const exchanges = watchTokenExchanges();
           const { result: viaCli, operations: cliOps } = await recordOperations(() => runCli(argvFor(def, example), { commands: suite.commands, context: cli.context })).finally(exchanges.stop);
 
-          const { session, http } = await mcpFor(suite.commands, suite.fixture.config, suite.fixture.routes, suite.fixture.files, localOf(suite.fixture));
+          const { session, http, audit } = await mcpFor(suite.commands, suite.fixture.config, suite.fixture.routes, suite.fixture.files, localOf(suite.fixture));
           const { result: viaMcp, operations: mcpOps } = await recordOperations(() => session.call(toolName(def), example));
+          // Exactly one audit line per call through each door, recording the same call.
+          expect(cli.audit.lines, 'one audit line from the CLI').toHaveLength(1);
+          expect(audit.lines, 'one audit line from MCP').toHaveLength(1);
+          expect(cli.audit.entries()[0]!.via).toBe('cli');
+          expect(audit.entries()[0]!.via).toBe('mcp');
+          expect(sameCall(audit.lines[0]), 'the same audit line through both doors').toEqual(sameCall(cli.audit.lines[0]));
 
           expect(viaCli.envelope?.ok, viaCli.stdout + viaCli.stderr).toBe(true);
           expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));

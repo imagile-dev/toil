@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { parseAuditSettings } from './audit.js';
 import { ToilError, withArticle } from './errors.js';
 
 /**
@@ -64,7 +65,7 @@ export interface AreaInfo {
 export const CONFIG_VERSION = 2;
 
 /** Top-level keys that are never areas, in any version. */
-const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds', 'dossierPaths']);
+const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds', 'dossierPaths', 'audit']);
 
 /** Connection names map one-to-one onto env names: lowercase, digits, single hyphens. */
 export const CONNECTION_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -96,6 +97,16 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
         message: `The file workspace bound is off ("bounds": { "files": "unbounded" } in ${globalPath.replace(/\\/g, '/')}): commands may read and write files anywhere you can, except toil's own files.`,
       });
     }
+  }
+  // The audit log's settings count only from the user's own file (src/core/audit.ts):
+  // a --config file is something an agent can name, so it can't switch the log off.
+  const ownFile = join(options.home, '.toil', 'config.json');
+  if (file.audit && globalPath !== ownFile) {
+    const slashes = (p: string) => p.replace(/\\/g, '/');
+    config.warnings.push({
+      code: 'AUDIT_SETTING_IGNORED',
+      message: `"audit" in ${slashes(globalPath)} was ignored: the audit log is set only in ${slashes(ownFile)}.`,
+    });
   }
   for (const [name, conn] of Object.entries(file.connections)) {
     config.connections[name] = { ...conn };
@@ -153,7 +164,7 @@ export function anyWrites(config: ResolvedConfig, area: string): boolean {
   return connectionsOf(config, area).some((name) => connectionWrites(config.connections[name]));
 }
 
-function readConfigFile(path: string, warnings: ResolvedConfig['warnings']): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds; dossierPaths?: string[] } {
+function readConfigFile(path: string, warnings: ResolvedConfig['warnings']): ReturnType<typeof migrateConfig> {
   if (!existsSync(path)) return { connections: {}, defaults: {} };
   return migrateConfig(readJson(path), path, warnings);
 }
@@ -202,7 +213,14 @@ export function readConfigForEdit(path: string): EditableConfig {
       });
     }
   }
-  return { ...('$schema' in raw ? { $schema: raw.$schema } : {}), ...('bounds' in raw ? { bounds: raw.bounds } : {}), version: CONFIG_VERSION, connections, defaults };
+  return {
+    ...('$schema' in raw ? { $schema: raw.$schema } : {}),
+    ...('bounds' in raw ? { bounds: raw.bounds } : {}),
+    ...('audit' in raw ? { audit: raw.audit } : {}),
+    version: CONFIG_VERSION,
+    connections,
+    defaults,
+  };
 }
 
 /**
@@ -236,7 +254,7 @@ export function migrateConfig(
   raw: Record<string, unknown>,
   path: string,
   warnings: ResolvedConfig['warnings'],
-): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds; dossierPaths?: string[] } {
+): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds; dossierPaths?: string[]; audit?: true } {
   // Absent means version 1; present-but-null is a mistake, not a default.
   const version = 'version' in raw ? raw.version : 1;
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
@@ -252,7 +270,9 @@ export function migrateConfig(
   const read = version === 1 ? fromVersion1(raw, path, warnings) : fromVersion2(raw, path, warnings);
   const bounds = readBounds(raw.bounds, path);
   const dossierPaths = version === 1 ? undefined : readDossierPaths(raw.dossierPaths, path);
-  return { ...read, ...(bounds ? { bounds } : {}), ...(dossierPaths ? { dossierPaths } : {}) };
+  // Checked here so a typo is loud on every command; read from the user's own file only (src/core/audit.ts).
+  if (raw.audit !== undefined) parseAuditSettings(raw.audit, path);
+  return { ...read, ...(bounds ? { bounds } : {}), ...(dossierPaths ? { dossierPaths } : {}), ...(raw.audit !== undefined ? { audit: true as const } : {}) };
 }
 
 /** `"dossierPaths"`: folders of shared dossiers, each absolute. Only folders listed here are read; toil never searches for them. */

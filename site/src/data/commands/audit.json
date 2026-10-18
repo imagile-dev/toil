@@ -1,0 +1,24 @@
+[
+  {
+    "name": "list",
+    "tool": "audit_list",
+    "description": "List the commands toil has run, newest first, from its local audit log",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--since <time>",
+      "--command <name>",
+      "--connection <name>",
+      "--writes-only",
+      "--limit <n>"
+    ]
+  },
+  {
+    "name": "path",
+    "tool": "audit_path",
+    "description": "Show where the audit log is kept, and whether it is on",
+    "writes": false,
+    "connection": false,
+    "flags": []
+  }
+]

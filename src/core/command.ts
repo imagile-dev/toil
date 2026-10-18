@@ -87,6 +87,13 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
    * nothing else that reads.
    */
   queryByPost?: boolean;
+  /**
+   * Input fields the audit log can't keep as they are (src/core/audit.ts):
+   * `drop` leaves the field out of the line, `hash` keeps only its SHA-256.
+   * Every other field is kept, redacted. `db query` hashes its SQL, which is
+   * the most useful thing in the line and the likeliest to hold data.
+   */
+  auditInput?: Record<string, 'drop' | 'hash'>;
   kind: CommandKind;
   /**
    * `false` keeps an area command off MCP while it keeps its connection, its

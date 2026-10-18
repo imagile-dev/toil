@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path';
+import { fileAuditLog } from './core/audit.js';
 import { commandName, needsConfig, type AnyCommand } from './core/command.js';
 import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
@@ -154,6 +155,9 @@ export function createNodeContext(o: NodeContextOptions): Context {
     debug,
     signal: o.signal,
     timeoutMs: timeoutFromEnv(o.env),
+    // Every command, standalone ones included: the log's settings come from
+    // ~/.toil/config.json alone, so a command that skips config still records.
+    audit: fileAuditLog({ home: o.home }),
     ...(o.secrets ? { secrets: o.secrets } : {}),
     ...(o.prompt ? { prompt: o.prompt } : {}),
   };
