@@ -91,10 +91,12 @@ const APPLICATORS = new Set(['$ref', '$dynamicRef', 'properties', 'additionalPro
 /**
  * The problems that say what is actually wrong: a validator also reports
  * every enclosing keyword that failed because of a deeper one ("A subschema
- * had errors" at the root). This keeps a problem only when nothing deeper
- * failed, and at one pointer drops the applicators (`$ref`, `properties`,
- * `allOf`) and a `false` schema when a keyword that checks the value itself
- * (`type`, `required`) failed there too.
+ * had errors" at the root). This drops an applicator (`$ref`, `properties`,
+ * `allOf`) or a `false` schema when something deeper failed, or when a
+ * keyword that checks the value itself (`type`, `required`) failed at the
+ * same pointer. A keyword that checks the value itself is always kept, even
+ * when its children fail too: a missing property and a wrong-typed one are
+ * two problems.
  * Pass every problem (`maxProblems: Infinity`), then cap what this returns.
  */
 export function leafProblems(problems: SchemaProblem[]): SchemaProblem[] {
@@ -104,8 +106,7 @@ export function leafProblems(problems: SchemaProblem[]): SchemaProblem[] {
     const tokens = pointer.split('/');
     for (let n = 1; n < tokens.length; n++) enclosing.add(tokens.slice(0, n).join('/'));
   }
-  const leaves = problems.filter((p) => !enclosing.has(p.pointer));
   const secondary = (p: SchemaProblem) => APPLICATORS.has(p.keyword) || p.keyword === 'false';
-  const direct = new Set(leaves.filter((p) => !secondary(p)).map((p) => p.pointer));
-  return leaves.filter((p) => !secondary(p) || !direct.has(p.pointer));
+  const direct = new Set(problems.filter((p) => !secondary(p)).map((p) => p.pointer));
+  return problems.filter((p) => !secondary(p) || (!enclosing.has(p.pointer) && !direct.has(p.pointer)));
 }

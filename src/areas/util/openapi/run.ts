@@ -2,8 +2,8 @@ import { ToilError } from '../../../core/errors.js';
 import type { InputContext, UtilInput } from '../kit/input.js';
 import { Verifier, type Verified } from '../kit/verify.js';
 import { atPointer, checkDocument, isObject, type DocumentReport, type JsonObject, type LoadedDocument, loadDocument, type Spec } from './document.js';
-import { checkExample, generateExample, type Direction } from './example.js';
-import { checkOperations, findOperation, operations, requestBody, responses, showOperation, summarise, type Operation, type OperationSummary, type ShownOperation } from './operations.js';
+import { checkExample, generateExample, MAX_FOLLOWED, type Direction } from './example.js';
+import { checkOperations, findOperation, MAX_EXPANDED, operations, requestBody, responses, showOperation, summarise, type Operation, type OperationSummary, type ShownOperation } from './operations.js';
 
 /**
  * What the three `util openapi` commands run, loaded only when one of them
@@ -65,6 +65,12 @@ export async function showOne(ctx: InputContext, source: UtilInput, input: Selec
   const v = new Verifier(ctx.warn);
   const { loaded, document, ops } = await open(source, v);
   const shown = showOperation(loaded, findOperation(ops, input), input.depth ?? 3);
+  if (shown.expansion.truncated) {
+    ctx.warn({
+      code: 'OPENAPI_EXPANSION_TRUNCATED',
+      message: `Expanding $refs stopped after ${MAX_EXPANDED}; every ref after that is left in place with x-toil-stop "depth". Pass a smaller depth to see the whole operation at that depth.`,
+    });
+  }
   return { document, ...shown, verified: v.done() };
 }
 
@@ -106,7 +112,10 @@ export async function exampleBody(ctx: InputContext, source: UtilInput, input: S
     });
   }
   const schema = body.formSchema ?? atPointer(doc, body.schemaPointer!)!;
-  const example = generateExample(doc, spec, schema, direction);
+  const { example, truncated } = generateExample(doc, spec, schema, direction);
+  if (truncated) {
+    ctx.warn({ code: 'OPENAPI_EXAMPLE_TRUNCATED', message: `Building the example stopped after following ${MAX_FOLLOWED} $refs; the values past that are null, and example.valid says where they don't fit.` });
+  }
   const check = await checkExample(doc, spec, direction, example, body.formSchema ? { inline: body.formSchema } : { pointer: body.schemaPointer! });
   if (check.result) {
     if (check.result.valid) v.pass('example.valid');

@@ -112,6 +112,12 @@ describe('validateSchema', () => {
     expect(leafProblems(result.problems).map((p) => `${p.pointer} ${p.keyword}`).sort()).toEqual(['/content/0/text minLength', '/content/1 required']);
   });
 
+  it('leafProblems keeps a failure at a node whose child fails too: a missing property and a wrong type are two problems', () => {
+    const schema: Schema = { type: 'object', properties: { owner: { type: 'object', required: ['id', 'name'], properties: { id: { type: 'string' } } } } };
+    const result = validateSchema(schema, { owner: { id: 7 } }, { maxProblems: Infinity });
+    expect(leafProblems(result.problems).map((p) => `${p.pointer} ${p.keyword}`).sort()).toEqual(['/owner required', '/owner/id type']);
+  });
+
   it('caps the problems it lists and says how many there were', () => {
     const many = validateSchema({ type: 'array', items: { type: 'string' } }, Array.from({ length: 80 }, (_, i) => i), { maxProblems: 10 });
     expect(many.problems).toHaveLength(10);

@@ -130,10 +130,21 @@ function parameters(doc: Json, o: Operation): RawParameter[] {
 }
 
 /** How far to expand, and what expansion left as a `$ref`. */
+/**
+ * The most `$ref`s one `show` expands. Refs fan out: a schema whose three
+ * properties each refer to the next one, twenty deep, is 3^20 expansions,
+ * which would hold the MCP server until the heat death of the change board.
+ */
+export const MAX_EXPANDED = 50_000;
+
 export interface Expansion {
   depth: number;
   /** `$ref`s left in place, by why: the depth was reached, the ref loops back on itself, it points outside the document, or at nothing. */
   stopped: { depth: number; circular: number; external: number; broken: number };
+  /** How many `$ref`s were expanded, at most {@link MAX_EXPANDED}. */
+  expanded: number;
+  /** Set when the budget ran out: every ref after that was left in place, counted under `stopped.depth`. */
+  truncated: boolean;
 }
 
 /**
@@ -156,8 +167,13 @@ export function expand(doc: Json, spec: Spec, node: Json, expansion: Expansion, 
     if (target === undefined) return stop('external');
     if (trail.includes(target)) return stop('circular');
     if (trail.length >= expansion.depth) return stop('depth');
+    if (expansion.expanded >= MAX_EXPANDED) {
+      expansion.truncated = true;
+      return stop('depth');
+    }
     const value = atPointer(doc, target);
     if (value === undefined) return stop('broken');
+    expansion.expanded++;
     const expanded = expand(doc, spec, value, expansion, [...trail, target]);
     const siblings = without(node, '$ref');
     const keep = spec === 'openapi-3.1' || spec === 'openapi-3.2' ? expand(doc, spec, siblings, expansion, trail) : {};
@@ -346,7 +362,7 @@ export function apiCall(doc: JsonObject, spec: Spec, o: Operation, params: Param
 /** One operation, laid out with its refs expanded `depth` deep. */
 export function showOperation(loaded: LoadedDocument, o: Operation, depth: number): ShownOperation {
   const { doc, spec } = loaded;
-  const expansion: Expansion = { depth, stopped: { depth: 0, circular: 0, external: 0, broken: 0 } };
+  const expansion: Expansion = { depth, stopped: { depth: 0, circular: 0, external: 0, broken: 0 }, expanded: 0, truncated: false };
   const schemaAt = (pointer: string | null) => (pointer === null ? null : expand(doc, spec, atPointer(doc, pointer) ?? null, expansion));
   const params: Parameter[] = parameters(doc, o)
     .filter((p) => spec !== 'swagger-2.0' || (p.in !== 'body' && p.in !== 'formData'))
