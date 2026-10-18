@@ -72,7 +72,8 @@ credential store, or set `TOIL_ADO_PAT`.
 `--collection <name>` (or its alias `--organization <name>`), `--project <name>` and
 `--repo <name>` are group flags, accepted before or after the command
 (`toil ado --project Imagile work get --id 42`). Without them, toil reads them from
-the workspace's `origin` remote when it's on the connection's host
+the first of the workspace's remotes on the connection's host, of any name, trying
+`origin` first
 (`https://<host>[/tfs]/<collection>/<project>/_git/<repo>`, or the `_ssh` forms with
 `ssh://git@<host>` or `git@<host>:`), then the connection's `collection`, `project`
 and `repo` settings. `--collection` beats `--organization`, which beats the remote and

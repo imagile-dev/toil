@@ -34,7 +34,7 @@ async function run(name: string, input: Record<string, unknown>, extra: Route[] 
 }
 
 const body = (call: { body: string | undefined }) => JSON.parse(call.body!) as unknown;
-const remote = (url: string): Partial<Context> => ({ gitRemote: async () => ({ name: 'origin', url }) });
+const remote = (url: string): Partial<Context> => ({ gitRemote: async () => [{ name: 'origin', url }] });
 
 describe('requests', () => {
   it('sends the PAT as Basic with an empty user and JSON headers, even on a GET, keeping a /tfs context path', async () => {
@@ -103,6 +103,12 @@ describe('collection, project and repo', () => {
   it('come from an origin remote on the connection host, ignoring a /tfs prefix', async () => {
     const { calls, envelope } = await run('repo get', {}, [{ url: /.*/, respond: { json: {} } }], {}, remote(`${ADO}/tfs/Coll/Proj/_git/repo-x`));
     expect(calls[0]!.url).toBe(`${ADO}/Coll/Proj/_apis/git/repositories/repo-x?api-version=7.1`);
+    expect(envelope.meta.context?.inputs?.collection).toEqual({ value: 'Coll', source: 'git' });
+  });
+
+  it("come from a remote of any name on the connection host when origin is elsewhere, as the predecessor took them", async () => {
+    const remotes: Partial<Context> = { gitRemote: async () => [{ name: 'origin', url: 'git@github.com:me/repo-x.git' }, { name: 'upstream', url: `${ADO}/tfs/Coll/Proj/_git/repo-x` }] };
+    const { envelope } = await run('repo get', {}, [{ url: /.*/, respond: { json: {} } }], {}, remotes);
     expect(envelope.meta.context?.inputs?.collection).toEqual({ value: 'Coll', source: 'git' });
   });
 

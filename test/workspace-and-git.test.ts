@@ -195,14 +195,17 @@ describe('which folder is the workspace', () => {
 });
 
 describe('the git remote for area context', () => {
-  it("reads the workspace's origin from .git with PATH emptied, nothing spawned", async () => {
+  it("reads the workspace's remotes from .git with PATH emptied, origin first, nothing spawned", async () => {
     const repo = join(root, 'remote-repo');
     mkdirSync(join(repo, '.git', 'refs', 'heads'), { recursive: true });
     writeFileSync(join(repo, '.git', 'HEAD'), 'ref: refs/heads/main\n');
     writeFileSync(join(repo, '.git', 'config'), '[remote "upstream"]\n\turl = git@github.com:imagile/other.git\n[remote "origin"]\n\turl = https://bitbucket.imagile.dev/scm/PROJ/widgets.git\n');
     const ctx = nodeContext({ env: { PATH: '' }, globals: { workspace: repo } });
-    expect(await ctx.gitRemote!(new AbortController().signal)).toEqual({ name: 'origin', url: 'https://bitbucket.imagile.dev/scm/PROJ/widgets.git' });
-    expect(await nodeContext({ env: { PATH: '' }, globals: { workspace: other } }).gitRemote!(new AbortController().signal)).toBeUndefined();
+    expect(await ctx.gitRemote!(new AbortController().signal)).toEqual([
+      { name: 'origin', url: 'https://bitbucket.imagile.dev/scm/PROJ/widgets.git' },
+      { name: 'upstream', url: 'git@github.com:imagile/other.git' },
+    ]);
+    expect(await nodeContext({ env: { PATH: '' }, globals: { workspace: other } }).gitRemote!(new AbortController().signal)).toEqual([]);
   });
 });
 
