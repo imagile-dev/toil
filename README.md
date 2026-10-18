@@ -99,8 +99,9 @@ reads `.agents/skills`, copy `skills/toil` to `.agents/skills/toil` in a reposit
 | [Observability](https://imagile-dev.github.io/toil/integrations/) (4) | Dynatrace, Elasticsearch, Kibana, Falcon LogScale |
 | [Design and data](https://imagile-dev.github.io/toil/integrations/) (2) | Figma, Alation |
 
-Every integration signs in with a long-lived token you generate once in the vendor's
-UI, and records how far it has been verified: `unit`, `live` or `stable`. Each one's
+Every integration that needs a credential signs in with a long-lived token you
+generate once in the vendor's UI. Every integration records how far it has been
+verified: `unit`, `live` or `stable`. Each one's
 page on the [integrations board](https://imagile-dev.github.io/toil/integrations/)
 says what its level means.
 
