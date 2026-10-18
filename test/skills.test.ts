@@ -161,8 +161,8 @@ function checkInvocation(args: string[]): string | undefined {
     if (PLACEHOLDER.test(word)) return undefined;
     // `toil wait … -- <command>`: what follows is a toil command line of its own, checked the same way.
     if (word === '--') return checkInvocation(args.slice(i + 1));
-    // A lone `-` is stdin, an argument rather than a flag.
-    if (word.startsWith('-') && word !== '-') {
+    // A lone `-` is stdin, and `-1` a negative number, as commander reads them: arguments rather than flags.
+    if (word.startsWith('-') && word !== '-' && !/^-\d/.test(word)) {
       const name = word.split('=')[0]!;
       const flags = flagsOf(cmd);
       if (!flags.has(name)) return `${name} (not a flag of toil ${commandPath(cmd)})`;
