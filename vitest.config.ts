@@ -8,7 +8,8 @@ export default defineConfig({
     // test:keychain-live` (vitest.live.config.ts) runs it.
     exclude: ['test/live/**', '**/node_modules/**'],
     // Builds src/areas.generated.ts before any test imports the registry.
-    globalSetup: ['scripts/gen-areas.mjs'],
+    // The second fails the run if a test wrote to the real ~/.toil/audit/.
+    globalSetup: ['scripts/gen-areas.mjs', 'test/harness/home-guard.ts'],
     environment: 'node',
     // A test that reaches the real network is a bug; fakeFetch makes that loud.
     unstubGlobals: true,

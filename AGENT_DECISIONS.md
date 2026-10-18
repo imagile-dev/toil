@@ -981,3 +981,64 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   - `AUDIT` isn't denied, because the escape can't be proven without audit
     privileges.
   - Only 23ai has been run.
+
+### toil wait and MCP resources (#97)
+
+- **A wait isn't a command `execute()` runs; its attempts are.** `runCommand()` hands
+  a command marked `dispatches` to `runWait()` (`src/core/wait.ts`), which checks the
+  wait's own input and then calls `execute()` for the read once per attempt. So each
+  attempt has its own validation, connection, time limit, cancel and audit line, and
+  the wait itself writes no line of its own (a refused wait, like a refused argv,
+  records nothing). The envelope is the last attempt's, with `meta.wait` (`until`,
+  `attempts`, `elapsedMs`) added and `durationMs` covering the whole wait, so
+  `meta.command` names the read and `meta.context`, warnings and `--verbose` requests
+  are the read's. A refusal before the first attempt has `meta.command: "wait"`.
+- **Defaults and limits:** `--interval` 15s, floor 5s; `--timeout` floor 5s (an
+  explicit one under it is `INVALID_INPUT`), default 30m, or
+  `TOIL_TIMEOUT_MS` when it's set and `--timeout` isn't; the maximum is
+  `"wait": { "maxTimeout": "<duration>" }` in the config file (default 1h, allowed 1m
+  to 24h), read from whichever file loaded, like `bounds`, with no env var: it limits
+  how long a caller may keep asking a service, so it is a person's setting, as a
+  relaxed bound is (principle 5 still holds for `TOIL_TIMEOUT_MS`, which sets the
+  default). A `TOIL_TIMEOUT_MS` above the maximum is cut to it with a
+  `WAIT_TIMEOUT_CAPPED` warning naming both, not refused, since it's every command's
+  default rather than this wait's request. A `--timeout` over the maximum is
+  `INVALID_INPUT` naming the setting. Durations are `<n>ms|s|m|h` text on both doors.
+- **Each attempt keeps its own limit** (the read's `timeLimitMs` or 120 s), cut to the
+  time the wait has left. An attempt that times out while the wait still has time is
+  retried like `NETWORK`; one cut off by the wait's deadline ends it as the wait's
+  `TIMEOUT`.
+- **Transient means** `NETWORK`, `HTTP` with status 429 or 5xx, and that attempt
+  timeout. There's no `RATE_LIMITED` code; a 429 that outlasts `restRequest`'s own
+  retries is `HTTP` 429. Backoff doubles the interval per consecutive transient
+  failure, capped at the larger of the interval and 5 minutes, and resets on success.
+- **`TIMEOUT` and `CANCELLED` carry the last data in `error.details.data`**, since a
+  failure envelope's `data` is always null.
+- **Writes are refused by definition and by input**: a `writes` command, or a
+  `writesWhen` command whose input writes (`<area> api POST`), is `INVALID_INPUT`. A
+  passthrough GET can be waited on.
+- **What a wait can repeat:** on the CLI any command but a CLI-only one or another
+  wait; over MCP only the tools that server lists, so `--areas` scopes it. The MCP
+  `wait` tool is served whenever a read tool is, `--areas` or not.
+- **CLI shape:** the command after `--` is parsed by the same program in a capture
+  mode, so it takes exactly its own flags and reaches core as `{ tool, input }`, as
+  MCP sends it. `--select` after `--` is the read's (so `--until` sees it); before
+  `wait` it applies to the final data. Other global flags after `--` are
+  `INVALID_INPUT` ("goes before wait"), never ignored. The parity suite maps
+  `tool`/`input` through `argvFor`'s wait form rather than flags.
+- **Progress:** MCP sends `notifications/progress` after each attempt that doesn't end
+  the wait, only when the call carried a progress token; the CLI writes the same line
+  to stderr.
+- **Resources:** `toil://connections` is name, area, `isDefault` and `writes` (no host:
+  a host isn't a secret, but the issue asked for names and areas, and less is safer).
+  `toil://dossiers[/<name>]` run the `dossiers list` / `show` commands through
+  `runCommand()`, so they match the tools exactly and are served only when those
+  tools are; reading one writes an audit line, as the tool would. A dossier resource
+  takes a name only, checked against the dossier-name rule (`CONNECTION_NAME`) before
+  the catalog sees it, so no spelling of a path (`x.JSON`) is ever read as a file. `toil://skill/<area>` serves `skills/toil/<area>.md`,
+  built into the bundle as `src/skill-pages.generated.ts` by `scripts/gen-areas.mjs`
+  (gitignored, about 220 KB), for each area the server has a tool for, or exactly
+  `--areas`. A resource that fails or doesn't exist is an MCP `InvalidParams` /
+  `InternalError` with toil's message and fix.
+- **`dossiers` commands already on main** cover the dossiers resources, so nothing
+  waited on #164.

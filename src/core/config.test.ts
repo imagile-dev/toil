@@ -308,6 +308,24 @@ describe('bounds in the config file', () => {
   });
 });
 
+describe('wait in the config file', () => {
+  it('reads "wait": { "maxTimeout" } as milliseconds, in version 1 and 2 files, and keeps it through an edit', () => {
+    writeJson(file(), { version: 2, connections: {}, wait: { maxTimeout: '2h' } });
+    expect(load().wait).toEqual({ maxTimeoutMs: 7_200_000 });
+    writeJson(file(), { jira: { baseUrl: 'https://jira.imagile.dev' }, wait: { maxTimeout: '90m' } });
+    expect(load().wait).toEqual({ maxTimeoutMs: 5_400_000 });
+    expect(Object.keys(load().connections)).toEqual(['jira']);
+    expect(readConfigForEdit(file()).wait).toEqual({ maxTimeout: '90m' });
+  });
+
+  it('refuses a wrong shape, an unknown key and a duration outside 1m to 24h', () => {
+    for (const wait of ['2h', { maxTimeout: 7200 }, { maxTimeout: '30s' }, { maxTimeout: '25h' }, { maxTimout: '2h' }]) {
+      writeJson(file(), { version: 2, connections: {}, wait });
+      expect(() => load(), JSON.stringify(wait)).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', fix: expect.stringContaining('"wait": { "maxTimeout": "2h" }') }));
+    }
+  });
+});
+
 describe('dossierPaths in the config file', () => {
   it('reads absolute folders from a version 2 file, and is never read as an area', () => {
     const folder = join(home, 'team-dossiers');

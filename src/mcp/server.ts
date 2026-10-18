@@ -1,6 +1,15 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { fileURLToPath } from 'node:url';
-import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError, RootsListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
+import {
+  CallToolRequestSchema,
+  ErrorCode,
+  ListResourcesRequestSchema,
+  ListResourceTemplatesRequestSchema,
+  ListToolsRequestSchema,
+  McpError,
+  ReadResourceRequestSchema,
+  RootsListChangedNotificationSchema,
+} from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { areaOf, commandName, servedOverMcp, takesAllowWrite, toolName, usesConnection, type AnyCommand } from '../core/command.js';
 import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
@@ -8,6 +17,8 @@ import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
 import { SELECT_DESCRIPTION, SELECT_FIELD } from '../core/query/select.js';
 import { runCommand } from '../core/run.js';
+import { waitable } from '../core/wait.js';
+import { listResources, listTemplates, readResource, ResourceError, type ResourceHost } from './resources.js';
 
 /**
  * Which commands become tools. With --areas, exactly the named areas. Without
@@ -38,7 +49,10 @@ export function selectCommands(commands: AnyCommand[], areas: string[] | undefin
   // A command with no connection (version, connections list, jira schema), or
   // one that answers for an unconfigured area itself, needs no area set up.
   const inScope = (def: AnyCommand) => (areas ? areas.includes(areaOf(def)) : !usesConnection(def) || def.connectionOptional === true || hasConfig(config, areaOf(def)));
-  return commands.filter((def) => servedOverMcp(def) && inScope(def) && (!def.writes || anyWrites(config, areaOf(def))));
+  const tools = commands.filter((def) => !def.dispatches && servedOverMcp(def) && inScope(def) && (!def.writes || anyWrites(config, areaOf(def))));
+  // `wait` repeats one of these tools, so it's served whenever one of them is a read it can repeat, --areas or not.
+  const canWait = tools.some((def) => waitable(def) && !def.writes);
+  return [...tools, ...(canWait ? commands.filter((def) => def.dispatches && servedOverMcp(def)) : [])];
 }
 
 /**
@@ -70,7 +84,7 @@ export function createMcpServer(options: {
   const startup = options.context();
   const selected = selectCommands(options.commands, options.areas, startup.config);
   const byName = new Map(selected.map((def) => [toolName(def), def]));
-  const server = new Server({ name: 'toil', version: startup.version }, { capabilities: { tools: {} } });
+  const server = new Server({ name: 'toil', version: startup.version }, { capabilities: { tools: {}, resources: {} } });
 
   let roots: Promise<string[] | undefined> | undefined;
   server.setNotificationHandler(RootsListChangedNotificationSchema, () => {
@@ -113,13 +127,37 @@ export function createMcpServer(options: {
     const def = byName.get(request.params.name);
     if (!def) throw new McpError(ErrorCode.InvalidParams, `Unknown tool: ${request.params.name}`);
     const shared = await clientRoots();
-    const envelope = await runCommand(def, request.params.arguments ?? {}, () => options.context(def, extra.signal, shared), startup.version, 'mcp');
+    // A client that sent a progress token hears after every attempt of a wait, which keeps a short tool-call timeout from ending it.
+    const token = request.params._meta?.progressToken;
+    const progress =
+      token === undefined
+        ? undefined
+        : (p: { attempt: number; message: string }) => {
+            void extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token, progress: p.attempt, message: p.message } }).catch(() => {});
+          };
+    const envelope = await runCommand(def, request.params.arguments ?? {}, (d) => options.context(d, extra.signal, shared), startup.version, 'mcp', {
+      targets: selected,
+      ...(progress ? { progress } : {}),
+    });
     return {
       content: [{ type: 'text' as const, text: JSON.stringify(envelope) }],
       structuredContent: envelope as unknown as Record<string, unknown>,
       isError: !envelope.ok,
     };
   });
+  // Resources describe toil's own context (src/mcp/resources.ts): read-only, scoped like the tools, never a secret.
+  const host = async (): Promise<ResourceHost> => {
+    const shared = await clientRoots();
+    return { selected, areas: options.areas, context: (def) => options.context(def, undefined, shared), version: startup.version };
+  };
+  const asMcpError = (err: unknown): never => {
+    if (err instanceof ResourceError) throw new McpError(err.notFound ? ErrorCode.InvalidParams : ErrorCode.InternalError, err.message);
+    if (err instanceof ToilError) throw new McpError(ErrorCode.InternalError, `${err.message}${err.fix ? ` ${err.fix}` : ''}`);
+    throw err;
+  };
+  server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: await listResources(await host()).catch(asMcpError) }));
+  server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({ resourceTemplates: listTemplates(await host()) }));
+  server.setRequestHandler(ReadResourceRequestSchema, async (request) => ({ contents: [await readResource(await host(), request.params.uri).catch(asMcpError)] }));
   return server;
 }
 

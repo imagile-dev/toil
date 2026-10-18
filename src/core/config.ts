@@ -41,6 +41,13 @@ export interface ResolvedConfig {
   bounds?: Bounds;
   /** Folders of shared dossiers the user listed (`"dossierPaths"`, version 2); TOIL_DOSSIER_PATHS replaces them (src/core/dossier.ts). */
   dossierPaths?: string[];
+  /** `"wait": { "maxTimeout": "2h" }`: the longest `toil wait --timeout` may be (src/core/wait.ts). Absent means the default. */
+  wait?: WaitSettings;
+}
+
+/** The settings `toil wait` reads from the config file. */
+export interface WaitSettings {
+  maxTimeoutMs: number;
 }
 
 /**
@@ -65,7 +72,7 @@ export interface AreaInfo {
 export const CONFIG_VERSION = 2;
 
 /** Top-level keys that are never areas, in any version. */
-const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds', 'dossierPaths', 'audit']);
+const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds', 'dossierPaths', 'audit', 'wait']);
 
 /** Connection names map one-to-one onto env names: lowercase, digits, single hyphens. */
 export const CONNECTION_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -89,6 +96,7 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
   const file = readConfigFile(globalPath, config.warnings);
   config.defaults = file.defaults;
   if (file.dossierPaths) config.dossierPaths = file.dossierPaths;
+  if (file.wait) config.wait = file.wait;
   if (file.bounds) {
     config.bounds = file.bounds;
     if (file.bounds.files === 'unbounded') {
@@ -217,6 +225,7 @@ export function readConfigForEdit(path: string): EditableConfig {
     ...('$schema' in raw ? { $schema: raw.$schema } : {}),
     ...('bounds' in raw ? { bounds: raw.bounds } : {}),
     ...('audit' in raw ? { audit: raw.audit } : {}),
+    ...('wait' in raw ? { wait: raw.wait } : {}),
     version: CONFIG_VERSION,
     connections,
     defaults,
@@ -254,7 +263,7 @@ export function migrateConfig(
   raw: Record<string, unknown>,
   path: string,
   warnings: ResolvedConfig['warnings'],
-): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds; dossierPaths?: string[]; audit?: true } {
+): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds; dossierPaths?: string[]; audit?: true; wait?: WaitSettings } {
   // Absent means version 1; present-but-null is a mistake, not a default.
   const version = 'version' in raw ? raw.version : 1;
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
@@ -272,7 +281,43 @@ export function migrateConfig(
   const dossierPaths = version === 1 ? undefined : readDossierPaths(raw.dossierPaths, path);
   // Checked here so a typo is loud on every command; read from the user's own file only (src/core/audit.ts).
   if (raw.audit !== undefined) parseAuditSettings(raw.audit, path);
-  return { ...read, ...(bounds ? { bounds } : {}), ...(dossierPaths ? { dossierPaths } : {}), ...(raw.audit !== undefined ? { audit: true as const } : {}) };
+  const wait = readWait(raw.wait, path);
+  return { ...read, ...(bounds ? { bounds } : {}), ...(dossierPaths ? { dossierPaths } : {}), ...(raw.audit !== undefined ? { audit: true as const } : {}), ...(wait ? { wait } : {}) };
+}
+
+/**
+ * `"wait": { "maxTimeout": "2h" }`: how long `toil wait --timeout` may be. A
+ * duration as the flag takes it, from a minute to a day, since a wait that
+ * outlives the working day is a vigil.
+ */
+function readWait(raw: unknown, path: string): WaitSettings | undefined {
+  if (raw === undefined) return undefined;
+  const fix = `Make it look like "wait": { "maxTimeout": "2h" } (a duration from 1m to 24h), or remove "wait" from ${path}.`;
+  if (!isRecord(raw)) throw new ToilError('CONFIG_INVALID', `"wait" in ${path} must be an object.`, { fix });
+  const settings: WaitSettings = { maxTimeoutMs: DEFAULT_MAX_WAIT_MS };
+  for (const [key, value] of Object.entries(raw)) {
+    if (key !== 'maxTimeout') throw new ToilError('CONFIG_INVALID', `"wait.${key}" in ${path} isn't a wait setting.`, { fix });
+    const ms = typeof value === 'string' ? parseDuration(value) : undefined;
+    if (ms === undefined || ms < 60_000 || ms > 24 * 3_600_000) {
+      throw new ToilError('CONFIG_INVALID', `"wait.maxTimeout" in ${path} must be a duration from 1m to 24h, such as "2h", found ${JSON.stringify(value)}.`, { fix });
+    }
+    settings.maxTimeoutMs = ms;
+  }
+  return settings;
+}
+
+/** The longest `toil wait --timeout` when the config file doesn't say: one hour. */
+export const DEFAULT_MAX_WAIT_MS = 3_600_000;
+
+const DURATION = /^(\d+)(ms|s|m|h)$/;
+const UNIT_MS = { ms: 1, s: 1000, m: 60_000, h: 3_600_000 } as const;
+
+/** `500ms`, `15s`, `30m`, `2h` in milliseconds; undefined for anything else. */
+export function parseDuration(text: string): number | undefined {
+  const m = DURATION.exec(text.trim());
+  if (!m) return undefined;
+  const ms = Number(m[1]) * UNIT_MS[m[2] as keyof typeof UNIT_MS];
+  return Number.isSafeInteger(ms) ? ms : undefined;
 }
 
 /** `"dossierPaths"`: folders of shared dossiers, each absolute. Only folders listed here are read; toil never searches for them. */

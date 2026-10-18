@@ -202,7 +202,8 @@ GitHub Actions; its build tooling is out of scope.
   (validation, connection and context resolution in `call-context.ts`, write gate,
   envelope), errors, config loading and
   writing, the OS credential store (`keychain.ts`), the terminal prompter, and
-  JMESPath (`query/`, behind `--select`)
+  JMESPath (`query/`, behind `--select` and `toil wait --until`), and `toil wait`
+  (`wait.ts`), which runs a read through `execute()` once per attempt
 - `src/connections/` — `toil connections add | login | list | remove | test | writes | default`
 - `src/setup/` — `toil setup alias | remove-alias`, the `toil` alias for a clone
   (CLI only; the profile editing is `src/core/shell-profile.ts`)
@@ -223,7 +224,9 @@ GitHub Actions; its build tooling is out of scope.
   one never edits a shared list, so parallel area PRs don't conflict.
 - `src/program.ts` — builds the CLI from the registry; `src/cli.ts` is the bundle
   entry that wires it to the real process
-- `src/mcp/` — the MCP server (`toil mcp`, stdio); tools generated from the registry
+- `src/mcp/` — the MCP server (`toil mcp`, stdio); tools generated from the registry,
+  and the read-only resources (`resources.ts`): connections, dossiers and each area's
+  skill page, which `scripts/gen-areas.mjs` builds into `src/skill-pages.generated.ts`
 - `src/welcome/` — the splash and menu that bare `toil` opens on an interactive
   terminal. Plain ANSI over Node's own `readline`, no package. Anything else (args,
   a pipe, CI, MCP) gets the JSON CLI untouched. Every screen is a pure function of
@@ -509,7 +512,10 @@ a breaking change.
   `ctx.fetch` (which already carries it). Aborting stops toil waiting, not the
   server: for a write command both errors say the change may already have been
   applied, and to check before retrying. Never word them as "stopped" for a write.
-  `toil mcp` exits on the first Ctrl+C.
+  `toil mcp` exits on the first Ctrl+C. **`toil wait`** is the one command whose
+  limit is its own `--timeout` (default 30 m, or `TOIL_TIMEOUT_MS`), capped by
+  `"wait": { "maxTimeout" }` in config (default 1 h); it repeats only reads, at
+  least 5 s apart, and each attempt is its own `execute()` with its own audit line.
 - **Error codes are an open set.** New codes may appear in any release; callers
   branch on the ones they know and treat the rest as a generic failure. Removing or
   repurposing a code is breaking.
