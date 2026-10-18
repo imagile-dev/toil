@@ -45,6 +45,8 @@
     "writes": false,
     "connection": true,
     "flags": [
+      "--limit <n>",
+      "--cursor <cursor>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -175,6 +177,40 @@
     "connection": true,
     "flags": [
       "--wiql <query>",
+      "--updated-since <iso>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>"
+    ]
+  },
+  {
+    "name": "work revisions",
+    "tool": "ado_work_revisions",
+    "description": "List the revisions of a work item, oldest first",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--id <n>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>"
+    ]
+  },
+  {
+    "name": "work get-batch",
+    "tool": "ado_work_get_batch",
+    "description": "Get several work items by ID in one call",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--id <n>",
+      "--fields <names>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -425,6 +461,8 @@
       "--reviewer <alias>",
       "--created-after <date>",
       "--created-before <date>",
+      "--limit <n>",
+      "--cursor <cursor>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -639,6 +677,8 @@
     "connection": true,
     "flags": [
       "--pr <n>",
+      "--limit <n>",
+      "--cursor <cursor>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -753,6 +793,8 @@
     "writes": false,
     "connection": true,
     "flags": [
+      "--limit <n>",
+      "--cursor <cursor>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -805,6 +847,8 @@
       "--branch <ref>",
       "--status <filter>",
       "--top <n>",
+      "--limit <n>",
+      "--cursor <cursor>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
