@@ -1,8 +1,9 @@
-import { readdirSync, rmSync, statSync } from 'node:fs';
+import { rmSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { z } from 'zod';
 import type { AnyArea, ContextInput } from '../core/area.js';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
+import { dossierConnection } from '../core/call-context.js';
 import { CONNECTION_NAME, connectionWrites, defaultConnectionName, type ResolvedConfig } from '../core/config.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
 import { dossierContent, hasSecretUserinfo, normalizeRemote, samePath, stripUserinfo, type Dossier, type DossierCatalog, type DossierFile, type Section } from '../core/dossier.js';
@@ -239,7 +240,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       const { catalog, config, via } = access(ctx);
       if ((input.repo === undefined) === (input.file === undefined)) throw new ToilError('INVALID_INPUT', 'Pass exactly one of --repo and --file.', { fix: 'toil dossiers export <name> --repo <dir>, or --file <path>.' });
       const source = catalog.find(input.dossier);
-      if (via === 'mcp') refuseWritesBindings(catalog, config, source.dossier, 'export');
+      if (via === 'mcp') refuseWritesBindings(catalog, config, areas, source.dossier, 'export');
       const { dossier, hosts, droppedPaths } = forSharing(source.dossier, config);
       const target = input.repo !== undefined ? join(catalog.repoFolder(input.repo), `${dossier.name}.json`) : catalog.pathFor(input.file!, 'The export file');
       const file = catalog.save(target, dossier, input.replace ? 'replace' : 'create');
@@ -263,14 +264,8 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     examples: [{ source: '.toil/dossiers/team.json' }, { source: '.toil/dossiers', name: undefined, replace: true }, { source: '.toil/dossiers/team.json', name: 'team-mine', replace: true }],
     run: async (input, ctx) => {
       const { catalog, config, via } = access(ctx);
-      const path = catalog.pathFor(input.source, 'The import source');
-      let isDir = false;
-      try {
-        isDir = statSync(path).isDirectory();
-      } catch {
-        // a file, or nothing: find() says which
-      }
-      const files = isDir ? readdirSync(path).filter((n) => n.toLowerCase().endsWith('.json')).sort().map((n) => join(path, n)) : [path];
+      // Bounded before it's looked at, so over MCP a folder outside them can't be probed (docs/bounds.md, dossiers.read).
+      const { folder: isDir, files } = catalog.importFiles(input.source);
       if (isDir && input.name !== undefined) throw new ToilError('INVALID_INPUT', '--name renames one dossier, and a folder may hold several.', { fix: 'Import the one file with --name, or the folder without it.' });
       const found: Array<DossierFile & { dossier: Dossier }> = [];
       const failed: Array<{ file: string; problems: Array<{ path: string; message: string }> }> = [];
@@ -288,7 +283,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
         if (f.source === 'user') throw new ToilError('INVALID_INPUT', `${forwardSlashes(f.file)} is already in your own folder.`, { fix: 'It is yours already; change it with toil dossiers link.' });
         const dossier = { ...structuredClone(f.dossier), ...(input.name !== undefined ? { name: input.name } : {}) };
         if (!CONNECTION_NAME.test(dossier.name)) throw new ToilError('INVALID_INPUT', `"${dossier.name}" isn't a valid dossier name.`, { fix: 'Use lowercase letters, digits and single hyphens, starting with a letter.' });
-        if (via === 'mcp') refuseWritesBindings(catalog, config, dossier, 'import');
+        if (via === 'mcp') refuseWritesBindings(catalog, config, areas, dossier, 'import');
         return { from: f.file, dossier, target: catalog.userFile(dossier.name) };
       });
       // Everything is checked before anything is written, so a refusal leaves your folder as it was.
@@ -365,6 +360,8 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     for (const pair of input.set ?? []) {
       const [key, value] = keyValue(pair, '--set');
       if (['connection', 'host', 'fields'].includes(key)) throw refuse(`"${key}" isn't set with --set`, key === 'fields' ? 'Use toil dossiers field.' : `Use --${key}.`);
+      // A section's own env would never be read: the environment is the dossier's, or the call's --env.
+      if (key === 'env' && 'env' in context) throw refuse('The environment isn\'t set with --set', `Use toil dossiers env ${dossier.name} <env> ${area.name} --default to make it the dossier's environment.`);
       const spec = context[key];
       const parsed = spec?.schema?.safeParse(value);
       if (parsed && !parsed.success) throw refuse(`"${value}" isn't a valid ${key}: ${parsed.error.issues.map((i) => i.message).join('; ')}`, 'Correct the value.');
@@ -394,7 +391,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     if (envName === undefined) dossier.sections[area.name] = section;
     else dossier.environments[envName] = { ...(dossier.environments[envName] ?? {}), [area.name]: section };
     if (makeDefault) dossier.env = envName;
-    if (via === 'mcp') refuseNewWritesTarget(catalog, config, before, dossier, area.name);
+    if (via === 'mcp') refuseNewWritesTarget(catalog, config, areas, before, dossier);
     for (const w of hostWarnings(catalog, dossier, area.name, envName)) ctx.warn(w);
     return saved(catalog, file, dossier, JSON.stringify(dossierContent(before)) !== JSON.stringify(dossierContent(dossier)), { area: area.name, env: envName ?? null, section });
   }
@@ -428,49 +425,58 @@ function lastPart(remote: string): string {
   return normalizeRemote(remote).split('/').filter(Boolean).pop() ?? remote;
 }
 
-/** Every environment a call could be in for these purposes: none (the area's own section), and each the dossier names. */
-const envsOf = (d: Dossier): Array<string | undefined> => [undefined, ...Object.keys(d.environments)];
+/**
+ * The connection a call to `area` with no input of its own would use under
+ * `dossier`, from each of the folders the dossier knows (no repo, and each
+ * repo, since a value may be per repo): the call's own resolver decides
+ * (`dossierConnection`), through the dossier's `connection` or host and every
+ * input that selects a connection (`env` included). Undefined from the
+ * dossier means the area's default. One that can't resolve selects nothing.
+ */
+function choices(catalog: DossierCatalog, config: ResolvedConfig, area: AnyArea, dossier: Dossier): Array<{ repo: string | undefined; chosen: string | undefined; byDossier: boolean }> {
+  return [undefined, ...dossier.repos.map((r) => r.name)].map((repo) => {
+    try {
+      const found = dossierConnection(config, area, catalog.lookupOf(dossier, repo));
+      return { repo, chosen: found?.value ?? defaultConnectionName(config, area.name), byDossier: found !== undefined };
+    } catch {
+      return { repo, chosen: undefined, byDossier: false };
+    }
+  });
+}
 
-/** The connection a call would use for `area`: the dossier's binding, else your default. A selector that can't resolve selects nothing. */
-function selectedBy(catalog: DossierCatalog, config: ResolvedConfig, dossier: Dossier, area: string, env: string | undefined): string | undefined {
-  try {
-    return catalog.binding(dossier, area, env).connection ?? defaultConnectionName(config, area);
-  } catch {
-    return undefined;
-  }
+/** Every area a dossier, or an edit of it, could choose a connection for: its sections', each environment's, and any area whose inputs select one. */
+function areasOf(areas: readonly AnyArea[], ...dossiers: Dossier[]): AnyArea[] {
+  const named = new Set(dossiers.flatMap((d) => [...Object.keys(d.sections), ...Object.values(d.environments).flatMap((e) => Object.keys(e))]));
+  return areas.filter((a) => named.has(a.name));
 }
 
 /**
- * Over MCP, a change may not make `area` select a connection with writes on
- * that it didn't select before, in any environment: that's how a dossier
- * would silently point a write somewhere new (docs/dossiers.md).
+ * Over MCP, a change may not make a call select a connection with writes on
+ * that it didn't select before: that's how a dossier would silently point a
+ * write somewhere new (docs/dossiers.md). Judged by the call's own resolver,
+ * so a `--default` environment that selects a connection is caught as surely
+ * as a `connection`.
  */
-function refuseNewWritesTarget(catalog: DossierCatalog, config: ResolvedConfig, before: Dossier, after: Dossier, area: string): void {
-  for (const env of new Set([...envsOf(before), ...envsOf(after)])) {
-    const now = selectedBy(catalog, config, after, area, env);
-    if (now !== undefined && connectionWrites(config.connections[now]) && now !== selectedBy(catalog, config, before, area, env)) {
-      throw new ToilError('WRITE_DISABLED', `Over MCP, a dossier can't be made to select connection ${now}, which has writes on: that binding is a person's decision, made on the CLI.`, {
+function refuseNewWritesTarget(catalog: DossierCatalog, config: ResolvedConfig, areas: readonly AnyArea[], before: Dossier, after: Dossier): void {
+  for (const area of areasOf(areas, before, after)) {
+    const was = choices(catalog, config, area, before);
+    for (const [i, now] of choices(catalog, config, area, after).entries()) {
+      if (now.chosen === undefined || !connectionWrites(config.connections[now.chosen]) || now.chosen === was[i]?.chosen) continue;
+      throw new ToilError('WRITE_DISABLED', `Over MCP, a dossier can't be made to select connection ${now.chosen}, which has writes on: that binding is a person's decision, made on the CLI.`, {
         fix: `Ask the user to make this change with toil dossiers on the command line, or select a connection with writes off.`,
       });
     }
   }
 }
 
-/** Over MCP, import and export refuse a dossier any of whose bindings select a connection with writes on. */
-function refuseWritesBindings(catalog: DossierCatalog, config: ResolvedConfig, dossier: Dossier, what: 'import' | 'export'): void {
-  for (const area of new Set([...Object.keys(dossier.sections), ...Object.values(dossier.environments).flatMap((e) => Object.keys(e))])) {
-    for (const env of envsOf(dossier)) {
-      let bound: string | undefined;
-      try {
-        bound = catalog.binding(dossier, area, env).connection;
-      } catch {
-        continue;
-      }
-      if (bound !== undefined && connectionWrites(config.connections[bound])) {
-        throw new ToilError('WRITE_DISABLED', `Over MCP, toil won't ${what} dossier ${dossier.name}: its ${area} section selects connection ${bound}, which has writes on. That's a person's decision, made on the CLI.`, {
-          fix: `Ask the user to run toil dossiers ${what} on the command line.`,
-        });
-      }
+/** Over MCP, import and export refuse a dossier that chooses a connection with writes on, by any binding or selecting input. */
+function refuseWritesBindings(catalog: DossierCatalog, config: ResolvedConfig, areas: readonly AnyArea[], dossier: Dossier, what: 'import' | 'export'): void {
+  for (const area of areasOf(areas, dossier)) {
+    const hit = choices(catalog, config, area, dossier).find((c) => c.byDossier && c.chosen !== undefined && connectionWrites(config.connections[c.chosen]));
+    if (hit) {
+      throw new ToilError('WRITE_DISABLED', `Over MCP, toil won't ${what} dossier ${dossier.name}: it makes ${area.name} calls use connection ${hit.chosen}, which has writes on. That's a person's decision, made on the CLI.`, {
+        fix: `Ask the user to run toil dossiers ${what} on the command line.`,
+      });
     }
   }
 }

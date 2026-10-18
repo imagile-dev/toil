@@ -202,9 +202,53 @@ describe('an agent never points a dossier at a connection with writes on', () =>
       const refused = await mcp(d, 'dossiers_link', { dossier: 'payments', area: 'demo-context', ...args });
       expect(refused.envelope.error, JSON.stringify(args)).toMatchObject({ code: 'WRITE_DISABLED', message: expect.stringContaining('connection prod, which has writes on') });
     }
-    const viaEnv = await mcp(d, 'dossiers_env', { dossier: 'payments', env: 'prod', area: 'demo-context', connection: 'prod' });
-    expect(viaEnv.envelope.error?.code).toBe('WRITE_DISABLED');
+    // A non-default environment's binding never decides a call: one with --env picks its connection by that input itself.
+    ok(await mcp(d, 'dossiers_env', { dossier: 'payments', env: 'prod', area: 'demo-context', connection: 'prod' }));
+    // Making it the default would: refused.
+    expect((await mcp(d, 'dossiers_env', { dossier: 'payments', env: 'prod', area: 'demo-context', default: true })).envelope.error?.code).toBe('WRITE_DISABLED');
     expect(ok(await cli(d, ['dossiers', 'link', 'payments', 'demo-context', '--connection', 'prod', '--replace']))).toMatchObject({ changed: true });
+  });
+
+  it("judges a change by the call's own resolver, so an environment that selects a connection with writes on is refused too", async () => {
+    // stage (writes off) is the default here, and prod (writes on) is the one whose env is "production".
+    const config = configOf();
+    config.defaults['demo-context'] = { connection: 'stage' };
+    const d = disk();
+    ok(await mcp(d, 'dossiers_init', { name: 'payments' }, { config }));
+    ok(await mcp(d, 'dossiers_env', { dossier: 'payments', env: 'production', area: 'demo-context', set: ['project=PRD'] }, { config }));
+    // The reviewer's bypass: making that environment the dossier's default retargets every call, and writes, to prod.
+    const bypass = await mcp(d, 'dossiers_env', { dossier: 'payments', env: 'production', area: 'demo-context', default: true }, { config });
+    expect(bypass.envelope.error).toMatchObject({ code: 'WRITE_DISABLED', message: expect.stringContaining('connection prod, which has writes on') });
+    // A person can, on the CLI; then import and export of it over MCP are refused for the same reason.
+    ok(await cli(d, ['dossiers', 'env', 'payments', 'production', 'demo-context', '--default'], { config }));
+    const exported = await mcp(d, 'dossiers_export', { dossier: 'payments', file: 'payments.json' }, { config });
+    expect(exported.envelope.error).toMatchObject({ code: 'WRITE_DISABLED', message: expect.stringContaining('makes demo-context calls use connection prod') });
+    // And a call from that dossier really does go to prod, so the rule judged what a call does.
+    const used = await cli(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments'], { config });
+    expect(used.envelope.meta.context?.connection).toEqual({ value: 'prod', source: 'dossier', via: 'env' });
+  });
+
+  it('refuses --set env, which a call would never read, and says how to set the environment', async () => {
+    const d = disk();
+    ok(await cli(d, ['dossiers', 'init', 'payments']));
+    const run = await cli(d, ['dossiers', 'link', 'payments', 'demo-context', '--set', 'env=staging']);
+    expect(run.envelope.error).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('toil dossiers env payments <env> demo-context --default') });
+    d.write('home/.toil/dossiers/hand.json', { name: 'hand', 'demo-context': { env: 'staging' } });
+    const shown = ok(await cli(d, ['dossiers', 'check', 'hand'])) as { problems: Array<{ code: string; path: string }> };
+    expect(shown.problems).toEqual([expect.objectContaining({ code: 'DOSSIER_UNUSED_KEY', path: 'demo-context.env' })]);
+  });
+
+  it("checks an import source's bounds before looking at it, so MCP can't probe whether a folder exists", async () => {
+    const d = disk();
+    mkdirSync(join(d.root, 'there'));
+    for (const source of [join(d.root, 'there'), join(d.root, 'not-there')]) {
+      const run = await mcp(d, 'dossiers_import', { source });
+      expect(run.envelope.error, source).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("it's outside the workspace") });
+    }
+    const missingInside = await mcp(d, 'dossiers_import', { source: 'not-there' });
+    expect(missingInside.envelope.error?.message).toContain("doesn't exist where toil is running");
+    const dossierPath = await cli(d, ['demo-context', 'get-widget', 'W-1', '--dossier', join(d.root, 'nope.json')]);
+    expect(dossierPath.envelope.error?.message).toContain("it's outside the workspace");
   });
 
   it('adopts with import on the CLI, after which a write follows the binding; MCP refuses that import', async () => {
