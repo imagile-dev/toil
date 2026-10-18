@@ -25,6 +25,12 @@ export interface Context {
    */
   git?: GitRunner;
   env: NodeJS.ProcessEnv;
+  /**
+   * The user's home folder, where agent skill folders (`~/.agents/skills`)
+   * and skills marketplace clones live (docs/bounds.md, `skills.folders`).
+   * Tests point it at a temp folder. Absent, the skills commands refuse.
+   */
+  home?: string;
   version: string;
   /** Add the request log to meta. */
   verbose: boolean;
@@ -76,6 +82,13 @@ export interface ConfigAccess {
   config: ResolvedConfig;
   secrets: SecretStore | undefined;
   prompt: Prompter | undefined;
+  /**
+   * The caller's env, so a command that changes connections can resolve one
+   * it just wrote the way the next call will (`skills marketplace add`
+   * reporting `writes`). Only these commands, which already see the whole
+   * config and the credential store, get it.
+   */
+  env: NodeJS.ProcessEnv;
   /** The dossiers toil can see, for `toil dossiers ...`. Undefined where there are none (tests). */
   dossiers: DossierCatalog | undefined;
 }
