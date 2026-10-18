@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { included, mentioned } from '../src/model/delivery.ts';
+import { BITBUCKET_PRS, GITHUB_CHECKS, GITHUB_PRS, OPENSHIFT } from '../src/fixtures/delivery.ts';
+import { showData } from '../src/fixtures/dossiers.ts';
+import { fixtureExecute, type Canned } from '../src/fixtures/execute.ts';
+import { dateTime } from '../src/format.ts';
+import { loadDossier } from '../src/load.ts';
+import { adoDeployments, bitbucketPrs, included, iso, mentioned } from '../src/model/delivery.ts';
 import { entry } from '../src/model/sprint.ts';
 import { trace } from '../src/model/trace.ts';
 import { healthOf, loaded } from './harness.ts';
@@ -126,5 +131,54 @@ describe('the delivery rules', () => {
   it('calls a commit no merged pull request made unknown, rather than guessing', async () => {
     const { data } = await loaded('card-payments');
     expect(included('deadbee', data.changes)).toEqual({ includes: [], items: [], unknownCommit: true });
+  });
+});
+
+describe('review round 1 (#229)', () => {
+  it('calls a deploy run with no sourceVersion unknown, never the oldest merge', async () => {
+    const { data } = await loaded('settlement');
+    const prs = data.changes.filter((c) => c.kind === 'pull-request');
+    const run = { id: 9, buildNumber: '1', status: 'completed', result: 'succeeded', templateParameters: { environment: 'test' }, finishTime: '2026-10-09T00:00:00Z' };
+    expect(adoDeployments([run], 'corp-ado', prs)).toMatchObject([{ environment: 'test', includes: [], items: [], unknownCommit: true }]);
+    expect(included('', prs).unknownCommit).toBe(true);
+    expect(included(undefined, prs).unknownCommit).toBe(true);
+  });
+
+  it('keeps an unparsable date on its own row as unknown', async () => {
+    expect(iso('not a date')).toBe('');
+    expect(iso('')).toBe('');
+    const raw = { ...(BITBUCKET_PRS[0] as Record<string, unknown>), createdDate: 'garbage' };
+    const [pr] = bitbucketPrs([raw, BITBUCKET_PRS[1]], 'corp-bitbucket', []);
+    expect(pr!.at).toBe('');
+    expect(dateTime(pr!.at)).toBe('at an unknown time');
+  });
+
+  it('reads OpenShift once for a dossier with two code hosts, matching each deployment to its own repository', async () => {
+    const mixed = {
+      name: 'mixed',
+      description: 'Two code hosts, one cluster.',
+      repos: [{ name: 'payments-core', remotes: [] }, { name: 'payments-web', remotes: [] }],
+      bitbucket: { connection: 'corp-bitbucket', project: 'PAY', repo: 'payments-core' },
+      github: { connection: 'github', owner: 'imagile', repo: 'payments-web' },
+      environments: { dev: { openshift: { connection: 'ocp-nonprod', namespace: 'mixed-dev' } } },
+    };
+    const ns = (OPENSHIFT['payments-dev'] as { deployments: unknown[] }).deployments;
+    const staging = (OPENSHIFT['checkout-staging'] as { deployments: unknown[] }).deployments;
+    const base = { dossier: 'mixed' };
+    const canned: Canned[] = [
+      { command: 'dossiers show', input: base, data: showData(mixed) },
+      { command: 'bitbucket list-prs', input: { ...base, state: 'ALL' }, data: BITBUCKET_PRS },
+      { command: 'github list-prs', input: { ...base, state: 'all' }, data: GITHUB_PRS },
+      ...Object.keys(GITHUB_CHECKS).map((ref) => ({ command: 'github list-checks', input: { ...base, ref }, data: GITHUB_CHECKS[ref] })),
+      { command: 'openshift deployments', input: { ...base, env: 'dev', namespace: 'mixed-dev' }, data: { namespace: 'mixed-dev', kind: 'Deployment', count: 2, deployments: [...ns, ...staging] } },
+    ];
+    const fixture = fixtureExecute(canned);
+    const data = await loadDossier(fixture.execute, 'mixed');
+    expect(fixture.calls.filter((c) => !c.ok)).toEqual([]);
+    expect(fixture.calls.filter((c) => c.command === 'openshift deployments')).toHaveLength(1);
+    expect(data.deployments.map((d) => [d.name, d.commit, d.includes])).toEqual([
+      ['payments-core in mixed-dev', '4e1d2a9', ['bitbucket:PAY/payments-core#290', 'bitbucket:PAY/payments-core#296', 'bitbucket:PAY/payments-core#298']],
+      ['payments-web in mixed-dev', '5a7e3f1', ['github:imagile/payments-web#48', 'github:imagile/payments-web#50']],
+    ]);
   });
 });

@@ -16,9 +16,12 @@
  * - **A deployment names a commit**: the image tag's trailing hex on an
  *   OpenShift Deployment (`payments-core:1.14.0-4e1d2a9`), or a deploy run's
  *   `sourceVersion`. It includes the merged pull request whose merge commit
- *   that is, and every one merged before it, since the target branch is
- *   linear. A commit no listed pull request merged as is shown as unknown,
- *   never guessed.
+ *   that is, and every one merged before it into the same repository (an
+ *   OpenShift Deployment is matched to its repository by name), since the
+ *   target branch is linear. A missing commit, or one no listed pull request
+ *   merged as, is shown as unknown, never guessed.
+ * - **A date that's missing or won't parse is unknown** (`''`), on its own
+ *   row, rather than failing the whole dashboard.
  */
 
 import type { ChangeRef, Deployment, WorkItem } from '../toil.ts';
@@ -27,7 +30,12 @@ type Rec = Record<string, unknown>;
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
 const recs = (v: unknown): Rec[] => (Array.isArray(v) ? v.filter(isRec) : []);
 const str = (v: unknown): string | null => (typeof v === 'string' && v !== '' ? v : null);
-const iso = (v: unknown): string => (typeof v === 'number' ? new Date(v).toISOString() : typeof v === 'string' ? new Date(v).toISOString() : '');
+/** An instant as ISO 8601, or '' (shown as unknown) when it's missing or unparsable: one bad date stays on its own row. */
+export const iso = (v: unknown): string => {
+  if (typeof v !== 'number' && typeof v !== 'string') return '';
+  const t = new Date(v).getTime();
+  return Number.isNaN(t) ? '' : new Date(t).toISOString();
+};
 
 /** The OWI ids of the dossier's items a pull request's text names. */
 export function mentioned(text: string, items: WorkItem[], repo?: string): string[] {
@@ -195,7 +203,9 @@ export function githubBuild(data: unknown, connection: string, pr: ChangeRef): C
 // Deployments ------------------------------------------------------------------------
 
 /** What a deployed commit includes: its own pull request and every one merged before it. */
-export function included(commit: string, prs: ChangeRef[]): { includes: string[]; items: string[]; unknownCommit: boolean } {
+export function included(commit: string | null | undefined, prs: ChangeRef[]): { includes: string[]; items: string[]; unknownCommit: boolean } {
+  // An empty commit would prefix-match every merge commit; with no commit there is nothing to match.
+  if (!commit) return { includes: [], items: [], unknownCommit: true };
   const merged = prs.filter((p) => p.outcome === 'merged' && p.mergeCommit).sort((a, b) => (a.at < b.at ? -1 : 1));
   const at = merged.findIndex((p) => p.mergeCommit!.startsWith(commit) || commit.startsWith(p.mergeCommit!));
   if (at < 0) return { includes: [], items: [], unknownCommit: true };
@@ -226,7 +236,8 @@ export function openshiftDeployments(data: unknown, environment: string, repos: 
         state: `${ready} ready`,
         outcome: unavailable > 0 ? ('failed' as const) : ('passed' as const),
         url: null,
-        ...(commit ? included(commit, prs) : { includes: [], items: [], unknownCommit: true }),
+        // Only the deployment's own repository's merges: a dossier may have several code hosts.
+        ...included(commit, prs.filter((p) => p.id.includes(`/${d.name}#`))),
       };
     });
 }

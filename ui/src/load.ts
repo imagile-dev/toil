@@ -184,7 +184,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
         }
       }
       return out;
-    }, () => onOpenShift(prs));
+    }, async () => []);
   }
   if (areas.ado) {
     const list = await run('prs', 'ado repo list-prs', { ...base, state: 'all' });
@@ -203,7 +203,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
         const runs = await run('deployments', 'ado pipeline list-runs', { ...base, name: pipeline, top: 20 });
         if (runs) out.push(...adoDeployments(runs.data, connection, prs));
       }
-      return [...out, ...(await onOpenShift(prs))];
+      return out;
     });
   }
   if (areas.github) {
@@ -222,8 +222,12 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
         if (build) out.push(build);
       }
       return out;
-    }, () => onOpenShift(prs));
+    }, async () => []);
   }
+
+  // OpenShift once per dossier, after every code host's pull requests are in, so a
+  // dossier with two code hosts reads each namespace once (#229 review).
+  if (namespaces.length) deployments.push(...(await onOpenShift(changes.filter((c) => c.kind === 'pull-request'))));
 
   return { ...summary, items, changes, deployments: deployments.sort(byEnvironment), calls };
 }

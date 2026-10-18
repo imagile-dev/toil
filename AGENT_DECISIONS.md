@@ -2444,8 +2444,11 @@ board, the separate health and traceability views).
   checks on the PR's head. A GitHub head's checks count as one build: failed if any
   check failed. A deployment names a commit: the trailing hex of the image tag, or a
   deploy run's `sourceVersion`. It includes the merged PR with that merge commit and
-  every PR merged before it, assuming a linear target branch. A commit no listed PR
-  merged as is shown as unknown, not guessed. An ADO environment is a deploy run's
+  every PR merged before it into the same repository, assuming a linear target
+  branch. A missing commit, or one no listed PR merged as, is shown as unknown, not
+  guessed. OpenShift is read once per dossier, after every code host's PRs are in.
+  A date that's missing or won't parse shows as unknown on its own row, and the rest
+  of the dashboard still loads. An ADO environment is a deploy run's
   `templateParameters.environment`, and the dashboard shows the newest successful
   run for each environment.
 - **What was folded in and what was removed.** Sprint health is now the dashboard's
