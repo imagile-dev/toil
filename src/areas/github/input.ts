@@ -51,5 +51,20 @@ export async function prNodeId(ctx: GitHubContext, owner: string, repo: string, 
 /** A merge method as GraphQL spells it: `--method squash` is `SQUASH`. */
 export const graphqlMethod = (method: string | undefined) => method?.toUpperCase();
 
+/** `--limit` and `--cursor`, for every list: the same fields and flags on each, read by `githubList`. */
+export const pageFields = (what: string) => ({
+  limit: z.number().int().positive().optional().describe(`Max total ${what} to return (default: all)`),
+  cursor: z.string().min(1).optional().describe('meta.page.nextCursor from the previous call, to carry on from there (with limit)'),
+});
+export const pageOptions = (what: string) =>
+  [
+    { flags: '--limit <n>', field: 'limit', description: `Max total ${what} to return (default: all)` },
+    { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous call (with --limit)' },
+  ] as const;
+
+/** `--updated-since`, read as the other date flags are, then sent as GitHub's UTC form. */
+export const updatedSinceField = z.string().optional().describe('Only issues updated at or after this ISO 8601 date-time (e.g. 2025-01-31T09:00:00Z)');
+export const updatedSinceOption = { flags: '--updated-since <iso>', field: 'updatedSince', description: 'Only issues updated at or after this ISO 8601 date-time (e.g. 2025-01-31T09:00:00Z)' } as const;
+
 /** A list flag the user may repeat; empty means "not given", as with the contract's `[]` default. */
 export const repeatable = (description: string) => z.array(z.string()).optional().describe(description);

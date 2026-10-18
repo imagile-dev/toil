@@ -89,6 +89,111 @@
     ]
   },
   {
+    "name": "list-issues",
+    "tool": "github_list_issues",
+    "description": "List issues in a repository (pull requests left out)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--state <state>",
+      "--label <label>",
+      "--assignee <login>",
+      "--type <type>",
+      "--sort <field>",
+      "--direction <dir>",
+      "--updated-since <iso>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "search-issues",
+    "tool": "github_search_issues",
+    "description": "Search issues with GitHub search syntax (is:issue is added)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--query <q>",
+      "--sort <field>",
+      "--order <order>",
+      "--updated-since <iso>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "get-issue",
+    "tool": "github_get_issue",
+    "description": "Get one or more issues by number (repeat --number), with issue type and, on request, sub-issues",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--sub-issues",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "issue-events",
+    "tool": "github_issue_events",
+    "description": "List an issue's timeline: state changes, labels, assignments, issue types, sub-issues, cross-references and comments",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--number <n>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "projects list",
+    "tool": "github_projects_list",
+    "description": "List an owner's projects (v2)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "projects fields",
+    "tool": "github_projects_fields",
+    "description": "List a project's fields, with single-select options and iterations",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--project <number>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
+    "name": "projects list-items",
+    "tool": "github_projects_list_items",
+    "description": "List a project's items (issues, pull requests, drafts) with their field values",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--project <number>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
     "name": "list-prs",
     "tool": "github_list_prs",
     "description": "List pull requests",
@@ -101,6 +206,8 @@
       "--author <login>",
       "--created-after <date>",
       "--created-before <date>",
+      "--limit <n>",
+      "--cursor <cursor>",
       "--owner <owner>",
       "--repo <repo>"
     ]
@@ -215,6 +322,8 @@
     "connection": true,
     "flags": [
       "--number <n>",
+      "--limit <n>",
+      "--cursor <cursor>",
       "--owner <owner>",
       "--repo <repo>"
     ]
@@ -308,6 +417,8 @@
     "connection": true,
     "flags": [
       "--number <n>",
+      "--limit <n>",
+      "--cursor <cursor>",
       "--owner <owner>",
       "--repo <repo>"
     ]
@@ -334,6 +445,8 @@
     "connection": true,
     "flags": [
       "--number <n>",
+      "--limit <n>",
+      "--cursor <cursor>",
       "--owner <owner>",
       "--repo <repo>"
     ]
@@ -405,6 +518,8 @@
     "connection": true,
     "flags": [
       "--number <n>",
+      "--limit <n>",
+      "--cursor <cursor>",
       "--owner <owner>",
       "--repo <repo>"
     ]
@@ -524,6 +639,8 @@
     "connection": true,
     "flags": [
       "--ref <ref>",
+      "--limit <n>",
+      "--cursor <cursor>",
       "--owner <owner>",
       "--repo <repo>"
     ]
