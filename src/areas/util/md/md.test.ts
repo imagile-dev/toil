@@ -103,15 +103,23 @@ describe('util md: the corpus round-trips', () => {
     expect(md.losses.find((l) => l.construct === 'nested quote')?.at).toBe('line 27');
   });
 
-  it('converting the Markdown it wrote back to each format and back again changes nothing more', async () => {
-    for (const [file, from] of [['PROJ-142.wiki', 'wiki'], ['PROJ-142.adf.json', 'adf'], ['release-notes.storage.xml', 'storage']] as const) {
-      const first = (await convert(MD_CORPUS[file]!, from, 'md')).data.output as string;
-      for (const to of ['wiki', 'adf', 'storage'] as const) {
-        const { data } = await convert(first, 'md', to);
-        expect(unexplained(data), `${file} -> md -> ${to}`).toEqual([]);
-      }
+  // One test per sample: the whole corpus in one test took 4,421 ms (Node 24.14) and 4,560 ms (Node 26) on
+  // windows-latest against the 5 s default, about 1.2 s locally, so no single test carries all of it.
+  const roundTrip = async (file: string, from: Format) => {
+    const first = (await convert(MD_CORPUS[file]!, from, 'md')).data.output as string;
+    for (const to of ['wiki', 'adf', 'storage'] as const) {
+      const { data } = await convert(first, 'md', to);
+      expect(unexplained(data), `${file} -> md -> ${to}`).toEqual([]);
     }
-  });
+  };
+  it.each([
+    ['PROJ-142.wiki', 'wiki'],
+    ['release-notes.storage.xml', 'storage'],
+  ] as const)('converting the Markdown it wrote from %s back to each format and back again changes nothing more', roundTrip);
+
+  // The ADF sample is the heaviest: about 560 ms here, so a Windows runner about four times slower (the
+  // 4,421 ms and 4,560 ms above, against 1.2 s locally) would put it past 2 s. It gets room of its own.
+  it('converting the Markdown it wrote from PROJ-142.adf.json back to each format and back again changes nothing more', () => roundTrip('PROJ-142.adf.json', 'adf'), 15_000);
 });
 
 describe('util md: each known lossy construct is reported', () => {

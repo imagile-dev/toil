@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig } from 'tsup';
-import { SPAWNERS } from './scripts/spawners.mjs';
+import { noSpawn } from './scripts/no-spawn.mjs';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string };
 
@@ -17,7 +17,8 @@ export default defineConfig({
   noExternal: [/.*/],
   splitting: false,
   sourcemap: false,
-  clean: true,
+  // Everything but the worker's metafile, which scripts/gen-worker.mjs writes before tsup runs.
+  clean: ['**/*', '!metafile-worker.json'],
   shims: false,
   // The purity gate reads real imports from here rather than scanning text.
   metafile: true,
@@ -25,21 +26,8 @@ export default defineConfig({
   // externals in its first plugin, before the no-spawn stub below can see them.
   removeNodeProtocol: false,
   esbuildPlugins: [
-    {
-      // Commander imports child_process for external subcommands toil never
-      // uses; resolve it to a stub that refuses, so the bundle can't spawn.
-      // The exceptions are the reviewed list in scripts/spawners.mjs (the OS
-      // credential store, git, and Windows authentication's SSPI helper),
-      // decided by the importing file's path, so nothing else gets the real
-      // module by importing it. check:pure verifies the same from the metafile.
-      name: 'no-spawn',
-      setup(build) {
-        const spawners = new Set(SPAWNERS.map((file) => resolve(file)));
-        build.onResolve({ filter: /^(node:)?child_process$/ }, (args) =>
-          spawners.has(resolve(args.importer)) ? { path: 'node:child_process', external: true } : { path: resolve('src/shims/no-spawn.ts') },
-        );
-      },
-    },
+    // child_process resolves to a stub that refuses, except in the reviewed spawners (scripts/no-spawn.mjs).
+    noSpawn,
     {
       // tedious (SQL Server) imports the Azure SDK for Entra sign-in and
       // Always Encrypted key vaults, which toil never uses; a stub keeps that

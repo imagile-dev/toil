@@ -7,7 +7,7 @@ import { SPAWNERS } from './scripts/spawners.mjs';
 // import() is what the rule allows; a type-only import is erased and allowed.
 // The regex catches the wrappers in src/areas/util/kit/ however the path is spelt.
 const LAZY_ONLY = {
-  regex: '^(js-yaml|@cfworker/json-schema)$|(^|/)(yaml|json-schema)(\\.js)?$',
+  regex: '^(js-yaml|@cfworker/json-schema)$|(^|/)(yaml|json-schema|bounded)(\\.js)?$',
   allowTypeImports: true,
   message: 'Load it with await import() inside run(), so it costs nothing at startup (docs/util.md, Lazy loading).',
 };
@@ -52,7 +52,8 @@ export default tseslint.config(
   },
   {
     // The lazy modules' own wrappers, and tests, which never ship, may import them statically.
-    files: ['src/areas/util/kit/yaml.ts', 'src/areas/util/kit/json-schema.ts', 'src/areas/**/*.test.ts'],
+    // bounded-task.ts is the worker's own entry, bundled into a string by scripts/gen-worker.mjs and never into the CLI.
+    files: ['src/areas/util/kit/yaml.ts', 'src/areas/util/kit/json-schema.ts', 'src/areas/util/kit/bounded.ts', 'src/areas/util/kit/bounded-task.ts', 'src/areas/**/*.test.ts'],
     rules: { 'no-restricted-imports': ['error', { paths: NO_SPAWN, patterns: AREA_PATTERNS }] },
   },
   {
