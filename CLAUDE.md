@@ -213,6 +213,8 @@ GitHub Actions; its build tooling is out of scope.
   `init | add-repo | link | env | field | export | import | unlink | remove` (`build.ts`); the
   model, resolution and writing are `src/core/dossier.ts`
 - `src/repos/` — `toil repos scan`, discovery for dossiers
+- `src/audit/` — `toil audit list | path`, reading the audit log `src/core/audit.ts`
+  keeps
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
   `commands` (standalone commands export only `commands`)
 - `src/registry.ts` — every shipped area and command, read by both front doors. It
@@ -460,6 +462,20 @@ a breaking change.
 - `--verbose` lives in core: `execute()` hands every command an instrumented
   `ctx.fetch`, so no command implements it and no front door can forget it. Commands
   under `src/areas/` may not call `fetch` directly, and ESLint enforces it.
+- **Every call `execute()` runs appends one line to the audit log**,
+  `~/.toil/audit/<yyyy-mm>.jsonl` (`src/core/audit.ts`): front door, command,
+  area, connection, whether it wrote and had `--allow-write`, outcome, duration,
+  the input and every request's method, redacted URL and status, `--verbose` or
+  not. Never a header, body or row. Input goes through `--verbose`'s name rule,
+  `redactUrl` and a token-shape check, and a command's `auditInput` drops a field
+  or keeps only its SHA-256 (`db` hashes its SQL). One write per line to a file
+  opened for append keeps concurrent writers apart; a failed write is an
+  `AUDIT_WRITE_FAILED` warning, never a failed command. Months older than
+  `"audit": { "keepMonths" }` (default 6) are deleted as it writes, and
+  `"audit": { "enabled": false }` turns it off, read only from
+  `~/.toil/config.json`: never a flag, env var, MCP field or `--config` file.
+  A call refused by the CLI's argument parser, or whose config couldn't load,
+  never reaches `execute()` and isn't recorded.
 - **Input is strict.** `execute()` parses with the schema's `.strict()`, so an
   unknown or misspelt field is `INVALID_INPUT` through MCP exactly as an unknown flag
   is on the CLI. Never silently ignore a field.

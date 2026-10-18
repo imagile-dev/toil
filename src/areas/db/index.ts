@@ -137,6 +137,8 @@ export const query = area.command({
   toolDescription: `Run one SQL statement read-only: the engine itself refuses any write, which comes back as WRITE_DISABLED. Returns { columns: [{ name, type }], rows: [[...]] } with rows as arrays in column order, ${DEFAULT_LIMIT} per page by default; meta.page.nextCursor fetches the next page of the same SQL. To change data, use db_execute.`,
   input: z.object({ sql: z.string().min(1).describe('One SQL statement'), limit: limitField, cursor: cursorField }),
   writes: false,
+  // The audit log keeps which SQL ran, never the SQL: it may hold the data.
+  auditInput: { sql: 'hash' },
   args: [{ name: 'sql', field: 'sql', description: 'One SQL statement, quoted' }],
   options: pageOptions,
   examples: [{ sql: EXAMPLE_SQL }, { sql: EXAMPLE_SQL, limit: 2, cursor: encodeCursor(2, pageKey('db query', EXAMPLE_SQL)) }],
@@ -158,6 +160,7 @@ export const execute = area.command({
     'Run one or more SQL statements that change data (INSERT, UPDATE, DELETE, DDL), in one transaction that commits only if every statement succeeds; leave out BEGIN, COMMIT and ROLLBACK. Returns { changes }: rows inserted, updated or deleted. Only for a change the user asked for; to read, use db_query.',
   input: z.object({ sql: z.string().min(1).describe('SQL to run; several statements separated by semicolons run as one transaction'), ...allowWriteField }),
   writes: true,
+  auditInput: { sql: 'hash' },
   args: [{ name: 'sql', field: 'sql', description: 'SQL to run, quoted' }],
   examples: [{ sql: "UPDATE people SET active = 1 WHERE name = 'Ada'", allowWrite: true }],
   run: async (input, ctx) => {

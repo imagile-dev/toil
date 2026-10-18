@@ -1,4 +1,5 @@
 import { modules } from './areas.generated.js';
+import { auditCommands } from './audit/commands.js';
 import { connectionsCommands } from './connections/commands.js';
 import { dossierBuildCommands } from './dossiers/build.js';
 import { dossiersCommands } from './dossiers/commands.js';
@@ -23,7 +24,7 @@ export const areas: AnyArea[] = modules.flatMap((m) => (m.area ? [m.area] : []))
  * `remove`, `skills status`) are core's, beside `connections`; the ones that
  * use one marketplace's connection are the `skills` area's.
  */
-export const commands: AnyCommand[] = withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...dossiersCommands(areas), ...dossierBuildCommands(areas), ...reposCommands(), ...skillsConfigCommands(), ...setupCommands()], areas);
+export const commands: AnyCommand[] = withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...dossiersCommands(areas), ...dossierBuildCommands(areas), ...reposCommands(), ...skillsConfigCommands(), ...setupCommands(), ...auditCommands()], areas);
 
 // An alias in another group (`deps outdated` for `artifactory outdated`) can
 // collide with a command there; better a failed start than a silent winner.

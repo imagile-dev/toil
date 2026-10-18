@@ -32,7 +32,7 @@ const SECRET_PART = /token|secret|passw|pwd|signature|credential/;
 const SECRET_EXACT = new Set(['sig', 'jwt', 'key', 'code']);
 const IDENTIFIER_KEY = /(project|component|metric|issue|rule|branch|repo|space|board|sprint|file|entity)key$/;
 
-function isSecretParam(name: string): boolean {
+export function isSecretParam(name: string): boolean {
   let decoded = name;
   try {
     decoded = decodeURIComponent(name.replace(/\+/g, ' '));

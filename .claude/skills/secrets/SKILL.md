@@ -90,6 +90,13 @@ It runs only what the OS ships, each behind a platform check, under the service
   folder where the platform has POSIX modes.
 - `toil connections list` never prints a value except the host. It reports where
   each value came from: `env`, `ci`, `file`, `store` or `defaults`.
+- The audit log (`src/core/audit.ts`) records every call's input and requests, so
+  it redacts harder than `--verbose`: field names by the same rule `redactUrl` uses
+  for parameters (except a bare `key`), every URL in a value through `redactUrl`, and
+  every token-shaped run in any string. A field a command can't afford to keep goes
+  in its `auditInput` (`drop`, or `hash` for SHA-256 only). `test/audit.test.ts`
+  sends a token-shaped value through every input of every registered command and
+  fails on any line that still holds it; keep it passing when adding a field.
 
 ## Prompting
 

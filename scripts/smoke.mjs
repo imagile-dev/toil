@@ -4,7 +4,7 @@
 // the bundle from the clone with no install, through `setup alias` and a real
 // shell. Run after `npm run build`.
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -16,6 +16,10 @@ const runNpm = (args) =>
     ? spawnSync(process.execPath, [npmCli, ...args], { encoding: 'utf8' })
     : spawnSync('npm', args, { encoding: 'utf8' });
 const work = mkdtempSync(join(tmpdir(), 'toil-smoke-'));
+// A home of its own, so the installed toil's config and audit log land here,
+// not in the home of whoever runs the smoke test.
+const home = join(work, 'home');
+const env = { ...process.env, HOME: home, USERPROFILE: home };
 const fail = (message) => {
   console.error(`smoke: ${message}`);
   process.exitCode = 1;
@@ -31,12 +35,12 @@ try {
   if (installed.status !== 0) throw new Error(`npm install failed: ${installed.stderr}`);
   const bin = join(prefix, 'node_modules', '@imagile-dev', 'toil', 'dist', 'toil.js');
 
-  const envelope = JSON.parse(execFileSync(process.execPath, [bin, 'version'], { encoding: 'utf8' }));
+  const envelope = JSON.parse(execFileSync(process.execPath, [bin, 'version'], { encoding: 'utf8', env }));
   if (!envelope.ok || typeof envelope.data?.version !== 'string') fail(`toil version returned ${JSON.stringify(envelope)}`);
 
   // Setup commands from a pipe: no prompt, no hang, an envelope with the env-var fix.
   const configFile = join(work, 'config.json');
-  const toil = (...args) => JSON.parse(spawnSync(process.execPath, [bin, '--config', configFile, ...args], { encoding: 'utf8', input: '', timeout: 15000 }).stdout);
+  const toil = (...args) => JSON.parse(spawnSync(process.execPath, [bin, '--config', configFile, ...args], { encoding: 'utf8', input: '', timeout: 15000, env }).stdout);
   const added = toil('connections', 'add', 'smoke');
   if (added.error?.code !== 'INVALID_INPUT' || !added.error.fix?.includes('TOIL_CONN_SMOKE_AREA')) fail(`connections add without a terminal returned ${JSON.stringify(added)}`);
   const listed = toil('connections', 'list');
@@ -44,7 +48,7 @@ try {
 
   // No git on PATH (CLAUDE.md, No Executables): toil still starts, and a command
   // that runs git answers GIT_NOT_FOUND, exit 1, rather than hanging or crashing.
-  const stripped = { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH')), PATH: '' };
+  const stripped = { ...Object.fromEntries(Object.entries(env).filter(([key]) => key.toUpperCase() !== 'PATH')), PATH: '' };
   const bare = (...args) => spawnSync(process.execPath, [bin, ...args], { encoding: 'utf8', input: '', timeout: 15000, env: stripped, cwd: work });
   const started = bare('version');
   if (started.status !== 0 || JSON.parse(started.stdout).ok !== true) fail(`toil version with PATH stripped returned ${started.stdout || started.stderr}`);
@@ -63,9 +67,15 @@ try {
   if (reply?.structuredContent?.ok !== true) fail(`MCP tools/call version returned ${JSON.stringify(reply)}`);
   if (!stoppedOnSigint) fail('toil mcp was still running 3s after SIGINT; the first Ctrl+C must stop it.');
 
+  // Every call above, through both front doors, left one line in the audit log.
+  const auditDir = join(home, '.toil', 'audit');
+  const lines = readdirSync(auditDir).flatMap((f) => readFileSync(join(auditDir, f), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)));
+  const doors = lines.map((l) => `${l.via} ${l.command}`);
+  if (!doors.includes('cli version') || !doors.includes('mcp version') || !doors.includes('cli connections list')) fail(`the audit log holds ${JSON.stringify(doors)}`);
+
   const cloneStep = await fromClone(envelope.data.version);
 
-  if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI, connections and MCP all answered on Node ${process.versions.node} (${process.platform}); ${gitStep}; ${cloneStep}.`);
+  if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI, connections and MCP all answered, ${lines.length} audit lines written, on Node ${process.versions.node} (${process.platform}); ${gitStep}; ${cloneStep}.`);
 } catch (err) {
   fail(err.message);
 } finally {
@@ -90,7 +100,7 @@ async function fromClone(installedVersion) {
   copyFileSync(join(process.cwd(), 'dist', 'toil.js'), bundle);
   if (existsSync(join(clone, 'node_modules'))) throw new Error('the clone has a node_modules folder, so it would not prove a run with no npm install.');
 
-  const run = (args, options = {}) => spawnSync(process.execPath, [bundle, ...args], { encoding: 'utf8', input: '', timeout: 15000, cwd: clone, ...options });
+  const run = (args, options = {}) => spawnSync(process.execPath, [bundle, ...args], { encoding: 'utf8', input: '', timeout: 15000, cwd: clone, env, ...options });
   const version = JSON.parse(run(['version']).stdout || '{}');
   if (!version.ok || version.data?.version !== installedVersion) fail(`node <clone>/dist/toil.js version returned ${JSON.stringify(version)}, not version ${installedVersion}`);
   const { reply } = await mcpVersion(bundle);
@@ -106,10 +116,10 @@ async function fromClone(installedVersion) {
   const bash = onPath('bash');
   const zsh = onPath('zsh');
   if (bash) {
-    shellRuns.push({ shell: 'bash', profile: join(work, 'bashrc'), run: (p) => spawnSync(bash, ['--noprofile', '--norc', '-c', '. "$1" && toil version', 'smoke', p], { encoding: 'utf8', timeout: 15000 }) });
+    shellRuns.push({ shell: 'bash', profile: join(work, 'bashrc'), run: (p) => spawnSync(bash, ['--noprofile', '--norc', '-c', '. "$1" && toil version', 'smoke', p], { encoding: 'utf8', timeout: 15000, env }) });
   }
   if (process.platform === 'darwin' && zsh) {
-    shellRuns.push({ shell: 'zsh', profile: join(work, 'zshrc'), run: (p) => spawnSync(zsh, ['-f', '-c', '. "$1" && toil version', 'smoke', p], { encoding: 'utf8', timeout: 15000 }) });
+    shellRuns.push({ shell: 'zsh', profile: join(work, 'zshrc'), run: (p) => spawnSync(zsh, ['-f', '-c', '. "$1" && toil version', 'smoke', p], { encoding: 'utf8', timeout: 15000, env }) });
   }
   if (process.platform === 'win32') {
     // Invoke-Expression reads the profile's text, so the machine's execution
@@ -117,7 +127,7 @@ async function fromClone(installedVersion) {
     shellRuns.push({
       shell: 'powershell',
       profile: join(work, 'Microsoft.PowerShell_profile.ps1'),
-      run: (p) => spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Invoke-Expression (Get-Content -Raw -LiteralPath '${p.replace(/'/g, "''")}'); toil version`], { encoding: 'utf8', timeout: 30000 }),
+      run: (p) => spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Invoke-Expression (Get-Content -Raw -LiteralPath '${p.replace(/'/g, "''")}'); toil version`], { encoding: 'utf8', timeout: 30000, env }),
     });
   }
   for (const s of shellRuns) {
@@ -163,7 +173,7 @@ function onPath(name) {
  */
 function mcpVersion(bin) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [bin, 'mcp'], { stdio: ['pipe', 'pipe', 'inherit'] });
+    const child = spawn(process.execPath, [bin, 'mcp'], { stdio: ['pipe', 'pipe', 'inherit'], env });
     const timer = setTimeout(() => {
       child.kill();
       reject(new Error('MCP server did not answer within 15s'));
