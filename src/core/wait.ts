@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { commandName, defineConfigCommand, isCliOnly, takesAllowWrite, toolName, writesFor, type AnyCommand } from './command.js';
 import { DEFAULT_MAX_WAIT_MS, parseDuration } from './config.js';
 import type { Context } from './context.js';
-import { failure, type Envelope, type Meta } from './envelope.js';
+import { failure, type Envelope, type Meta, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
 import { compileQuery, isFalse, pointAt, QueryError, type Query } from './query/index.js';
 import { applySelect, takeSelect } from './query/select.js';
@@ -117,17 +117,19 @@ export async function runWait(def: AnyCommand, rawInput: unknown, makeContext: (
   } catch (err) {
     return refuse(err);
   }
-  const { target, until, select, intervalMs, timeoutMs, signal } = prepared;
+  const { target, until, select, intervalMs, timeoutMs, signal, notes } = prepared;
+  // The wait's own warnings (a TOIL_TIMEOUT_MS it cut to the maximum) go after the read's.
+  const withNotes = (meta: Meta): Meta => (notes.length > 0 ? { ...meta, warnings: [...(meta.warnings ?? []), ...notes] } : meta);
   const deadline = started + timeoutMs;
   const report = (attempts: number): WaitReport => ({ until: until.expression, attempts, elapsedMs: Date.now() - started });
   // The read's own envelope, so its meta (context, warnings, requests) says what it did, plus where the wait got to.
   // A read that asked for an exit code (a build that ran and failed) still gets it.
-  const finish = (envelope: Envelope, attempts: number): Envelope => keepExitCode(envelope, { ...envelope, meta: { ...envelope.meta, durationMs: Date.now() - started, wait: report(attempts) } });
+  const finish = (envelope: Envelope, attempts: number): Envelope => keepExitCode(envelope, { ...envelope, meta: withNotes({ ...envelope.meta, durationMs: Date.now() - started, wait: report(attempts) }) });
   let last: Envelope | undefined;
   let lastData: unknown = null;
   let failures = 0;
   const stopped = (err: ToilError, attempts: number): Envelope => {
-    const meta: Meta = { ...(last?.meta ?? { command: commandName(target.def), version }), durationMs: Date.now() - started, wait: report(attempts) };
+    const meta: Meta = withNotes({ ...(last?.meta ?? { command: commandName(target.def), version }), durationMs: Date.now() - started, wait: report(attempts) });
     return failure(err, meta);
   };
 
@@ -198,6 +200,8 @@ interface Prepared {
   intervalMs: number;
   timeoutMs: number;
   signal: AbortSignal | undefined;
+  /** Warnings about the wait itself, for meta.warnings. */
+  notes: Warning[];
 }
 
 /** Everything a wait can refuse, refused before the first attempt sends anything. */
@@ -243,13 +247,21 @@ function prepare(def: AnyCommand, rawInput: unknown, ctx: Context, targets: read
   }
   const max = ctx.config.wait?.maxTimeoutMs ?? DEFAULT_MAX_WAIT_MS;
   // --timeout replaces TOIL_TIMEOUT_MS for this one command; without it, TOIL_TIMEOUT_MS, else the default.
+  const notes: Warning[] = [];
   const timeoutMs = wait.timeout === undefined ? Math.min(ctx.timeoutMs ?? DEFAULT_WAIT_MS, max) : parseDuration(wait.timeout)!;
+  // TOIL_TIMEOUT_MS is a default for every command, so a value above the wait maximum is cut rather than refused, and says so.
+  if (wait.timeout === undefined && ctx.timeoutMs !== undefined && ctx.timeoutMs > max) {
+    notes.push({
+      code: 'WAIT_TIMEOUT_CAPPED',
+      message: `TOIL_TIMEOUT_MS is ${ctx.timeoutMs} ms (${formatMs(ctx.timeoutMs)}), longer than the ${formatMs(max)} wait maximum ("wait": { "maxTimeout" } in config), so this wait stops at ${formatMs(max)}.`,
+    });
+  }
   if (timeoutMs > max) {
     throw new ToilError('INVALID_INPUT', `toil wait --timeout ${wait.timeout} is longer than the ${formatMs(max)} this config allows.`, {
       fix: `Pass a shorter --timeout, or ask the person who owns this config to raise "wait": { "maxTimeout": "<duration>" } in ${ctx.config.files.global.replace(/\\/g, '/') || 'their toil config'}.`,
     });
   }
-  return { target: { def: found, input: targetInput }, until, select, intervalMs, timeoutMs, signal: ctx.signal };
+  return { target: { def: found, input: targetInput }, until, select, intervalMs, timeoutMs, signal: ctx.signal, notes };
 }
 
 /**

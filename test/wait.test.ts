@@ -83,15 +83,15 @@ afterEach(async () => {
 });
 
 /** Runs the CLI with fake timers advancing until it settles. */
-async function cli(argv: string[], routes: Route[], extra: { signal?: AbortSignal; wait?: { maxTimeoutMs: number } } = {}) {
+async function cli(argv: string[], routes: Route[], extra: { signal?: AbortSignal; wait?: { maxTimeoutMs: number }; timeoutMs?: number } = {}) {
   vi.useFakeTimers();
   const t = testContext({ config, routes: [...routes, ...demoRoutes] });
   if (extra.wait) t.context.config.wait = extra.wait;
-  const context = { ...t.context, ...(extra.signal ? { signal: extra.signal } : {}) };
+  const context = { ...t.context, ...(extra.signal ? { signal: extra.signal } : {}), ...(extra.timeoutMs !== undefined ? { timeoutMs: extra.timeoutMs } : {}) };
   const run = runCli(argv, { commands, context });
   let settled = false;
   void run.finally(() => (settled = true));
-  for (let i = 0; i < 2000 && !settled; i++) await vi.advanceTimersByTimeAsync(1000);
+  for (let i = 0; i < 2000 && !settled; i++) await vi.advanceTimersByTimeAsync(10_000);
   return { ...(await run), http: t.http, audit: t.audit };
 }
 
@@ -245,6 +245,18 @@ describe('toil wait', () => {
     const badMcp = await mcp({ tool: 'ci_get_build', input: { number: 7 }, until: 'result ==' }, []);
     expect(badMcp.envelope?.error?.code).toBe('INVALID_INPUT');
     expect([...fast.http.calls, ...long.http.calls, ...bad.http.calls, ...badMcp.http.calls]).toEqual([]);
+  });
+
+  it('cuts a TOIL_TIMEOUT_MS above the maximum to it, with a warning naming both', async () => {
+    const run = await cli(['wait', '--until', 'result != null', '--interval', '5m', '--', 'ci', 'get-build', '7'], build(1000), { timeoutMs: 7_200_000 });
+    expect(run.envelope?.error?.code).toBe('TIMEOUT');
+    expect(run.envelope?.error?.message).toContain('after 1h');
+    expect(run.envelope?.meta.warnings).toEqual([
+      { code: 'WAIT_TIMEOUT_CAPPED', message: 'TOIL_TIMEOUT_MS is 7200000 ms (2h), longer than the 1h wait maximum ("wait": { "maxTimeout" } in config), so this wait stops at 1h.' },
+    ]);
+    // Under the maximum, nothing to say.
+    const within = await cli(['wait', '--until', 'result', '--', 'ci', 'get-build', '7'], build(1), { timeoutMs: 600_000 });
+    expect(within.envelope?.meta.warnings).toBeUndefined();
   });
 
   it('applies --select after the condition, and a --select after -- before it', async () => {

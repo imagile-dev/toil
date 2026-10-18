@@ -1,5 +1,5 @@
 import { areaOf, commandName, type AnyCommand } from '../core/command.js';
-import { connectionWrites, defaultConnectionName } from '../core/config.js';
+import { CONNECTION_NAME, connectionWrites, defaultConnectionName } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { runCommand } from '../core/run.js';
 import { skillPages } from '../skill-pages.generated.js';
@@ -102,9 +102,18 @@ export async function readResource(host: ResourceHost, uri: string): Promise<{ u
   if (uri === CONNECTIONS_URI) return json(connections(host));
   if (uri === DOSSIERS_URI && byName(host, 'dossiers list')) return json(await viaCommand(host, 'dossiers list', {}));
   if (uri.startsWith(DOSSIER_PREFIX) && byName(host, 'dossiers show')) {
-    const name = decodeURIComponent(uri.slice(DOSSIER_PREFIX.length));
-    // A name, never a path: a resource URI is no way to point toil at a file.
-    if (name === '' || /[\\/]/.test(name) || name.endsWith('.json')) throw new ResourceError(`${uri} doesn't name a dossier; use ${DOSSIER_PREFIX}<name>.`, true);
+    let name = '';
+    try {
+      name = decodeURIComponent(uri.slice(DOSSIER_PREFIX.length));
+    } catch {
+      // A malformed escape names nothing; refused below like any other non-name.
+    }
+    // A name, never a path: a resource URI is no way to point toil at a file. Dossier names
+    // follow the connection-name rule (src/core/dossier.ts), so anything else is refused here,
+    // before the dossier catalog could read it as a file.
+    if (!CONNECTION_NAME.test(name)) {
+      throw new ResourceError(`${uri} doesn't name a dossier: a dossier name is lowercase letters, digits and single hyphens, starting with a letter. Use ${DOSSIER_PREFIX}<name>.`, true);
+    }
     return json(await viaCommand(host, 'dossiers show', { dossier: name }));
   }
   if (uri.startsWith(SKILL_PREFIX)) {

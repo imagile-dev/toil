@@ -64,7 +64,17 @@ describe('MCP resources', () => {
     const viaTool = (await client.callTool({ name: 'dossiers_show', arguments: { dossier: 'payments' } })).structuredContent as { data: unknown };
     expect(JSON.parse(text(await client.readResource({ uri: 'toil://dossiers/payments' })))).toEqual(viaTool.data);
     await expect(client.readResource({ uri: 'toil://dossiers/nope' })).rejects.toThrow(/nope/);
-    await expect(client.readResource({ uri: 'toil://dossiers/..%2Fsecrets.json' })).rejects.toThrow(/doesn't name a dossier/);
+  });
+
+  it('refuses anything but a dossier name in toil://dossiers/<name>, before the dossiers command runs', async () => {
+    const { client, audit } = await session();
+    const before = audit.lines.length;
+    // Paths in any case or spelling, and names that break the dossier-name rule.
+    for (const name of ['..%2Fsecrets.json', 'x.JSON', 'x.json', 'payments.Json', '%2Fetc%2Fpasswd', 'C%3A%5Cdossier.json', '..', '.', 'Payments', 'pay--ments', 'pay_ments', '-pay', '9pay', 'pay%20ments', '%E0%A4%A', '']) {
+      await expect(client.readResource({ uri: `toil://dossiers/${name}` }), name).rejects.toThrow(/doesn't name a dossier/);
+    }
+    // Nothing ran: dossiers show would have written an audit line.
+    expect(audit.lines).toHaveLength(before);
   });
 
   it("toil://skill/<area> is the distributed skill's page", async () => {

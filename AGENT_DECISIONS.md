@@ -919,7 +919,9 @@ Added as each integration lands.
   to 24h), read from whichever file loaded, like `bounds`, with no env var: it limits
   how long a caller may keep asking a service, so it is a person's setting, as a
   relaxed bound is (principle 5 still holds for `TOIL_TIMEOUT_MS`, which sets the
-  default). Over the maximum is
+  default). A `TOIL_TIMEOUT_MS` above the maximum is cut to it with a
+  `WAIT_TIMEOUT_CAPPED` warning naming both, not refused, since it's every command's
+  default rather than this wait's request. A `--timeout` over the maximum is
   `INVALID_INPUT` naming the setting. Durations are `<n>ms|s|m|h` text on both doors.
 - **Each attempt keeps its own limit** (the read's `timeLimitMs` or 120 s), cut to the
   time the wait has left. An attempt that times out while the wait still has time is
@@ -951,7 +953,8 @@ Added as each integration lands.
   `toil://dossiers[/<name>]` run the `dossiers list` / `show` commands through
   `runCommand()`, so they match the tools exactly and are served only when those
   tools are; reading one writes an audit line, as the tool would. A dossier resource
-  takes a name only, never a path. `toil://skill/<area>` serves `skills/toil/<area>.md`,
+  takes a name only, checked against the dossier-name rule (`CONNECTION_NAME`) before
+  the catalog sees it, so no spelling of a path (`x.JSON`) is ever read as a file. `toil://skill/<area>` serves `skills/toil/<area>.md`,
   built into the bundle as `src/skill-pages.generated.ts` by `scripts/gen-areas.mjs`
   (gitignored, about 220 KB), for each area the server has a tool for, or exactly
   `--areas`. A resource that fails or doesn't exist is an MCP `InvalidParams` /
