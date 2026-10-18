@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { GitResult, GitRunner } from '../../src/core/git.js';
 import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
@@ -68,6 +69,9 @@ export const POM = `<project>
 </project>
 `;
 
+/** The sample C4 model: an online bookshop with a system context, a container and a component view. Written by hand; every host is a placeholder. */
+export const BOOKSHOP_C4 = readFileSync(new URL('./c4/bookshop.c4.json', import.meta.url), 'utf8');
+
 /** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
 export const files: Record<string, string> = {
   '.gitignore': 'vendor/\n',
@@ -77,6 +81,8 @@ export const files: Record<string, string> = {
   'src/Api/Api.csproj': CSPROJ,
   'pom.xml': POM,
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
+  // The sample C4 model the util c4 examples draw, the same file as docs/c4/bookshop.c4.json.
+  'bookshop.c4.json': BOOKSHOP_C4,
 };
 
 /** What each ref holds, path by path. */

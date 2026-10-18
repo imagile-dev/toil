@@ -1,24 +1,28 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT and inventorying dependencies from manifests and lockfiles
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, and drawing C4 architecture diagrams from a JSON model
 ---
 
 # Local utilities (`util`)
 
-Commands that work on what's on this machine: a token you paste, or the
-manifests and lockfiles in the workspace. They aren't integrations. There is no
+Commands that work on what's on this machine: a token you paste, the
+manifests and lockfiles in the workspace, or a C4 model you describe in JSON. They aren't integrations. There is no
 server, no connection to add, no `TOIL_UTIL_*` variable, no credential and no
 `--connection` flag, and none of them sends anything over the network. Every
 command reads; none changes anything. Verification level: `unit`.
 
-Each command has two paths that do the same thing, with the same flags and
-output. The `util` path is the main one, and the short path is an alias:
+The older commands have two paths that do the same thing, with the same flags
+and output. The `util` path is the main one, and the short path is an alias.
+The `util c4` commands have only the `util` path:
 
 | Command | Alias | MCP tool |
 |---------|-------|----------|
 | `toil util jwt decode` | `toil jwt decode` | `util_jwt_decode` |
 | `toil util deps scan` | `toil deps scan` | `util_deps_scan` |
 | `toil util deps diff` | `toil deps diff` | `util_deps_diff` |
+| `toil util c4 render` | | `util_c4_render` |
+| `toil util c4 mermaid` | | `util_c4_mermaid` |
+| `toil util c4 d2` | | `util_c4_d2` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
@@ -160,3 +164,82 @@ Known quirks:
   survives. A package present at two versions can show a change that didn't happen.
 - Paths that git quotes (non-ASCII names) aren't read at a ref.
 - A ref that starts with `-`, or an empty `--from`, is refused with `INVALID_INPUT` before git runs. An empty `--to` means the working tree.
+
+### `toil util c4 render`, `toil util c4 mermaid`, `toil util c4 d2`
+
+One view of a C4 architecture model: `render` draws it as SVG, `mermaid` writes it
+as Mermaid's C4 syntax (GitHub draws a ```` ```mermaid ```` block inline), and `d2`
+writes it as D2 text. `render` lays the diagram out with Graphviz compiled to
+WebAssembly, inside toil: nothing is installed or run, and nothing goes over the
+network. The Graphviz module loads only when `render` runs.
+
+```bash
+toil util c4 render --model docs/c4/bookshop.c4.json --view containers --out containers.svg
+toil util c4 mermaid --model docs/c4/bookshop.c4.json --view context
+cat model.json | toil util c4 d2 --model - --view components
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--model <file>` | A JSON file holding the model, inside the workspace. `-` reads it from stdin |
+| `--model-json <json>` | The model itself, as a JSON string, instead of `--model`. Over MCP this is the `model` field, which takes the JSON object |
+| `--view <key>` | The view to draw. It can be left out when the model has only one |
+| `--out <file>` | `render` only: write the SVG to this new file inside the workspace instead of returning it. toil never overwrites a file |
+
+The model:
+
+```json
+{
+  "title": "Online bookshop",
+  "people": [{ "id": "customer", "name": "Customer", "description": "Buys books" }],
+  "systems": [{
+    "id": "bookshop", "name": "Online Bookshop", "description": "Sells books at bookshop.imagile.dev",
+    "containers": [
+      { "id": "web", "name": "Web shop", "technology": "React",
+        "components": [{ "id": "cart", "name": "Cart", "technology": "TypeScript" }] },
+      { "id": "db", "name": "Database", "technology": "PostgreSQL", "database": true }
+    ]
+  }, { "id": "payments", "name": "Payment provider", "external": true }],
+  "relationships": [{ "source": "customer", "destination": "web", "description": "Buys books using", "technology": "HTTPS" }],
+  "views": [
+    { "key": "context", "type": "systemContext", "scope": "bookshop" },
+    { "key": "containers", "type": "container", "scope": "bookshop" },
+    { "key": "components", "type": "component", "scope": "web", "include": ["*", "payments"] }
+  ]
+}
+```
+
+- **Elements** are people and software systems at the top, containers inside a
+  system, and components inside a container. Each has an `id`, a `name`, and
+  optionally a `description`, a `technology` (containers and components) and
+  `external: true`, which draws it grey. A container with `database: true` is drawn
+  as a cylinder. Ids start with a letter and hold only letters, digits and
+  underscores, and are unique across the whole model.
+- **Relationships** join any two elements, at any level: `source`, `destination`,
+  and optionally `description` and `technology`.
+- **Views** have a `key`, a `type` (`systemContext`, `container` or `component`), a
+  `scope` (a system for the first two, a container for `component`), an optional
+  `title`, and an optional `include` list of ids. `"*"` in it stands for the default
+  set, which is also what you get with no `include`: for `systemContext`, the scope
+  and every person and system related to it; for `container`, the scope's
+  containers inside a dashed boundary and what they relate to; for `component`, the
+  scope's components and what they relate to.
+- A relationship is drawn between the nearest elements a view shows, so one between
+  two containers shows up between their systems in a system context view. Model
+  relationships at the most detailed level you know. One that ends on a view's own
+  boundary from outside can't be drawn there; a `C4_RELATIONSHIP_NOT_DRAWN` warning
+  in `meta.warnings` names it, unless that outside element already has a drawn
+  relationship into the boundary.
+
+Output: `{ view, type, title, elements, relationships, format, svg }` for `render`,
+where `elements` lists the ids drawn and `relationships` counts the arrows. With
+`--out`, `{ file, bytes }` take the place of `svg`, and `file` is the absolute path
+written. `mermaid` and `d2` return `text` in place of `svg`.
+
+A model with mistakes fails with `INVALID_INPUT` before anything is drawn. The
+message names each problem by its path in the model, such as
+`relationships[2].destination: no element has the id "warehose"`, and
+`error.details` lists them all. An unknown `--view` lists the keys the model has.
+
+A sample model, an online bookshop with all three views, is
+`docs/c4/bookshop.c4.json` in toil's source.
