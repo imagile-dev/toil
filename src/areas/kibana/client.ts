@@ -4,6 +4,7 @@ import type { CommandContext } from '../../core/context.js';
 import { apiRequest, apiResponse, type ApiRequest } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
 import { redactUrl } from '../../core/http.js';
+import { statusLine } from '../../core/rest.js';
 import { kibanaArea } from './area.js';
 
 /**
@@ -71,7 +72,7 @@ export async function kibanaStatus<T>(ctx: KibanaContext): Promise<T> {
     const overall = (parsed as { status?: { overall?: unknown } } | undefined)?.status?.overall;
     if (typeof overall !== 'object' || overall === null) {
       const message = (parsed as { message?: unknown } | undefined)?.message;
-      throw new ToilError('HTTP', message !== undefined && message !== null && message !== '' ? String(message) : 'HTTP 503', {
+      throw new ToilError('HTTP', message !== undefined && message !== null && message !== '' ? String(message) : statusLine(503, res.statusText), {
         fix: 'Kibana, or a proxy in front of it, is unavailable. Check baseUrl points at Kibana itself, and try again once it is up.',
         details: { status: 503, url: redactUrl(res.url) },
       });

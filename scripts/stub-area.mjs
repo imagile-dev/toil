@@ -9,6 +9,13 @@
 //   node scripts/stub-area.mjs <area>        # writes into this checkout
 //   node scripts/stub-area.mjs <area> --dry  # lists what it would write
 //
+// An area with no contract entry (a new integration with no predecessor, such
+// as a Cloud variant) is stubbed from command names given after it, each a
+// path under the area ("search", "issue get"), with no flags; given none, it
+// gets one `example` command to copy from.
+//
+//   node scripts/stub-area.mjs jira-cloud search "issue get"
+//
 // It never overwrites a file. Take behavior from the predecessor's source
 // (the area's brief in docs/briefs/ says where), not from these stubs.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -113,12 +120,15 @@ export function removedPaths(dir) {
  * Every file the stub for `area` needs, keyed by path from the repo root.
  * `core` is how area files import src/core (a test points it elsewhere).
  * `removed` holds command paths a divergence drops (`git credentials`); their
- * commands, and everything under them, are left out.
+ * commands, and everything under them, are left out. `commands` names the
+ * commands of an area the contract doesn't have (`['search', 'issue get']`),
+ * each with no flags yet; with none, such an area gets one `example` command.
  */
-export function stubFiles(contract, area, { core = '../../core', removed = [] } = {}) {
+export function stubFiles(contract, area, { core = '../../core', removed = [], commands = [] } = {}) {
   const gone = (command) => removed.some((path) => command === path || command.startsWith(`${path} `));
-  const entries = contract.commands.filter((c) => c.leaf && c.command.split(' ')[0] === area && !gone(c.command));
-  if (entries.length === 0) throw new Error(`docs/command-contract.json has no commands under "${area}".`);
+  const inContract = contract.commands.filter((c) => c.leaf && c.command.split(' ')[0] === area && !gone(c.command));
+  if (inContract.length > 0 && commands.length > 0) throw new Error(`"${area}" is in docs/command-contract.json, so its commands come from there; name commands only for an area it doesn't have.`);
+  const entries = inContract.length > 0 ? inContract : (commands.length > 0 ? commands : ['example']).map((name) => ({ command: `${area} ${name.trim()}`, leaf: true, usage: '', options: [], description: '' }));
   // Nested commands (`ado repo list`) go in one file per group; a flat area gets commands.ts.
   // A group can't take the name of the area's own files.
   const groupOf = (c) => {
@@ -152,7 +162,7 @@ import type { SupportedVersion } from '${core}/supported.js';
 
 /**
  * TODO: one line on what ${area} is, and a dry one about what it replaces
- * (CLAUDE.md, Code Comments). Stubbed from docs/command-contract.json.
+ * (CLAUDE.md, Code Comments). Stubbed ${inContract.length > 0 ? 'from docs/command-contract.json' : 'from a list of command names'}.
  */
 export const ${AreaVar} = defineArea({
   name: ${quote(area)},
@@ -190,7 +200,7 @@ export function notBuilt(command: string): never {
       ...(anyWrites ? [`import { allowWriteField } from '${core}/run.js';`] : []),
       `import { ${AreaVar}, notBuilt } from './area.js';`,
       ``,
-      `/** TODO: what these commands share, and one dry line. Stubbed from docs/command-contract.json. */`,
+      `/** TODO: what these commands share, and one dry line. Stubbed ${inContract.length > 0 ? 'from docs/command-contract.json' : 'from a list of command names'}. */`,
       ``,
       list.map((c) => commandSource(c, area, new Set(groupOptions.map((o) => fieldOf(o.flags))))).join('\n\n'),
       ``,
@@ -255,13 +265,21 @@ ${entries.map((c) => `- \`${c.command.split(' ').slice(1).join(' ')}\`: ${c.desc
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [area, flag] = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const flag = args.find((a) => a === '--dry');
+  const [area, ...names] = args.filter((a) => a !== '--dry');
   if (!area) {
-    console.error('usage: node scripts/stub-area.mjs <area> [--dry]');
+    console.error('usage: node scripts/stub-area.mjs <area> [command...] [--dry]');
     process.exit(2);
   }
   const contract = JSON.parse(readFileSync(join(root, 'docs', 'command-contract.json'), 'utf8'));
-  const files = stubFiles(contract, area, { removed: removedPaths(join(root, 'docs', 'divergences')) });
+  let files;
+  try {
+    files = stubFiles(contract, area, { removed: removedPaths(join(root, 'docs', 'divergences')), commands: names });
+  } catch (err) {
+    console.error(err.message);
+    process.exit(2);
+  }
   const clash = Object.keys(files).filter((p) => existsSync(join(root, p)));
   if (clash.length > 0) {
     console.error(`Refusing to overwrite: ${clash.join(', ')}`);
@@ -277,6 +295,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.log(`wrote ${path}`);
   }
   if (flag !== '--dry') {
-    console.log(`\nNext: read docs/briefs/${area}.md, set status "unit" in site/src/data/integrations/${area}.json, then build each command (integrations skill).`);
+    const source = existsSync(join(root, 'docs', 'briefs', `${area}.md`)) ? `docs/briefs/${area}.md` : "the vendor's API docs";
+    console.log(`\nNext: read ${source}, set status "unit" in site/src/data/integrations/${area}.json, then build each command (integrations skill).`);
   }
 }

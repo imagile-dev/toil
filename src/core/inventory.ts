@@ -26,9 +26,24 @@ export type InventoryPackage = z.output<typeof inventoryPackage>;
 export const INVENTORY_FROM_DESCRIPTION =
   'Inventory to check: a file holding toil deps scan output (its envelope, its data, or a list of packages). Omitted, it is read from stdin on the CLI';
 
+/**
+ * How a source words the reader's refusals. Each defaults to core's own
+ * words; a source that shipped with its own keeps them, so its messages
+ * don't change when it moves onto this reader.
+ */
 export interface InventoryOptions {
   /** The command to pipe into, for the fix: `toil artifactory <command>`. Defaults to `toil <command>`. */
   pipeTo?: string;
+  /** The verb in "No inventory to <verb>". Defaults to `check`. */
+  verb?: string;
+  /** What `from` should name, over MCP with no stdin. Defaults to `a file holding toil deps scan output`. */
+  holds?: string;
+  /** The fix for that. */
+  missingFix?: string;
+  /** The fix for input that isn't JSON or has no packages list; replaces the one `pipeTo` builds. */
+  fix?: string;
+  /** The fix for a package missing its name, version or ecosystem. */
+  packageFix?: string;
 }
 
 /**
@@ -44,13 +59,13 @@ export function readInventory(ctx: { files: FileAccess }, from: string | undefin
     text = ctx.files.readText(from ?? '-');
   } catch (err) {
     if (err === STDIN_OVER_MCP && from === undefined) {
-      throw new ToilError('INVALID_INPUT', 'No inventory to check: pass from, a file holding toil deps scan output. Over MCP there is no stdin to read it from.', {
-        fix: 'Write toil deps scan output to a file in the workspace, then pass its path as from.',
+      throw new ToilError('INVALID_INPUT', `No inventory to ${options.verb ?? 'check'}: pass from, ${options.holds ?? 'a file holding toil deps scan output'}. Over MCP there is no stdin to read it from.`, {
+        fix: options.missingFix ?? 'Write toil deps scan output to a file in the workspace, then pass its path as from.',
       });
     }
     throw err;
   }
-  const fix = `Pass the output of toil deps scan, e.g. toil deps scan | ${options.pipeTo ?? 'toil <command>'}, or --from <file> holding it.`;
+  const fix = options.fix ?? `Pass the output of toil deps scan, e.g. toil deps scan | ${options.pipeTo ?? 'toil <command>'}, or --from <file> holding it.`;
   let parsed: unknown;
   try {
     parsed = JSON.parse(text);
@@ -73,7 +88,7 @@ export function readInventory(ctx: { files: FileAccess }, from: string | undefin
   if (!packages.success) {
     const issue = packages.error.issues[0];
     throw new ToilError('INVALID_INPUT', `The inventory from ${where} has a package without a usable ${String(issue?.path.at(-1) ?? 'field')} (packages[${String(issue?.path[0] ?? '?')}]).`, {
-      fix: 'Each package needs a name, version and ecosystem, as toil deps scan writes them.',
+      fix: options.packageFix ?? 'Each package needs a name, version and ecosystem, as toil deps scan writes them.',
       details: packages.error.issues.slice(0, 5).map((i) => ({ path: i.path, message: i.message })),
     });
   }
