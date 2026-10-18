@@ -354,3 +354,34 @@ button { font: inherit; color: inherit; }
   transform: translate3d(0, var(--parallax-y, 0), 0);
   will-change: transform;
 }
+
+/* The docs pages render the toil skill's Markdown (src/components/SkillPage.astro). */
+.skill-doc { min-width: 0; color: var(--color-muted); }
+.skill-doc > * { min-width: 0; }
+.skill-doc > * + * { margin-top: var(--space-sm); }
+.skill-doc h2 { font-size: var(--text-2xl); color: var(--color-ink); margin-top: var(--space-lg); scroll-margin-top: 88px; }
+.skill-doc h3 { font-size: var(--text-xl); color: var(--color-ink); margin-top: var(--space-md); scroll-margin-top: 88px; }
+.skill-doc h4 { font-size: var(--text-lg); color: var(--color-ink); margin-top: var(--space-md); scroll-margin-top: 88px; }
+.skill-doc > h2:first-child { margin-top: 0; }
+.skill-doc strong { color: var(--color-ink); font-weight: 600; }
+.skill-doc code { color: var(--color-ink); overflow-wrap: anywhere; }
+.skill-doc a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 3px; }
+.skill-doc a code { color: inherit; }
+.skill-doc ul, .skill-doc ol { padding-left: 1.25rem; display: grid; gap: var(--space-3xs); }
+.skill-doc ul { list-style: disc; }
+.skill-doc ol { list-style: decimal; }
+.skill-doc li > ul, .skill-doc li > ol { margin-top: var(--space-3xs); }
+.skill-doc pre {
+  overflow-x: auto; max-width: 100%; padding: var(--space-sm);
+  border: 1px solid var(--color-line); border-radius: var(--radius-md);
+  background: var(--color-bg-deep) !important; font-size: 0.8rem; line-height: 1.6;
+}
+.skill-doc pre code { overflow-wrap: normal; color: inherit; }
+.skill-doc table {
+  display: block; overflow-x: auto; max-width: 100%; border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.skill-doc th, .skill-doc td { border: 1px solid var(--color-line); padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; min-width: 8rem; }
+.skill-doc th { color: var(--color-ink); background: var(--color-surface); font-weight: 600; }
+.skill-doc blockquote { border-left: 2px solid var(--color-accent); padding-left: var(--space-sm); }
+.skill-doc hr { border: 0; border-top: 1px solid var(--color-line); }

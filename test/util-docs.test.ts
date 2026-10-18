@@ -182,7 +182,7 @@ describe('util docs coverage catches a broken copy', () => {
 
   it('unbalanced tags in the template', () => {
     const page = read(pageFile);
-    expect(tagProblems(page.replace('</section>', ''))).not.toEqual([]);
+    expect(tagProblems(page.replace('</SkillPage>', ''))).not.toEqual([]);
     expect(tagProblems('---\nconst a = 1;\n---\n<section><p>x</p>\n<section></section>')).toEqual(['line 4: <section> is never closed']);
     expect(tagProblems('<div><p></div>')).toEqual(['line 1: </div> closes <p> from line 1', 'line 1: <div> is never closed']);
   });
