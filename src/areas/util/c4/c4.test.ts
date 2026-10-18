@@ -197,7 +197,7 @@ describe('SVG', () => {
   });
 
   it('turns characters XML forbids into U+FFFD, so a name holding \\u0001 still renders a file that parses', async () => {
-    const model: C4Model = { ...EXAMPLE_MODEL, people: [{ id: 'reader', name: 'Read\u0001er ￾\uD800', description: 'Tab\tstays' }] };
+    const model: C4Model = { ...EXAMPLE_MODEL, people: [{ id: 'reader', name: 'Read\u0001er \uFFFE\uD800', description: 'Tab\tstays' }] };
     const envelope = await execute(c4RenderCommand, { text: JSON.stringify(model) }, testContext().context);
     const data = envelope.data as { svg: string; verified: Verified };
     expect(data.svg).not.toMatch(new RegExp(XML_FORBIDDEN.source));
