@@ -1,5 +1,6 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import { SPAWNERS } from './scripts/spawners.mjs';
 
 export default tseslint.config(
   { ignores: ['dist/', 'site/', 'node_modules/', 'coverage/'] },
@@ -7,7 +8,7 @@ export default tseslint.config(
   ...tseslint.configs.recommended,
   {
     rules: {
-      // Spawning is allowed only for the OS credential stores and git (CLAUDE.md, No Executables).
+      // Spawning is allowed only for the reviewed modules in scripts/spawners.mjs (CLAUDE.md, No Executables).
       'no-restricted-imports': ['error', {
         paths: [
           { name: 'child_process', message: 'No spawning: toil runs no executables (CLAUDE.md, No Executables).' },
@@ -59,8 +60,8 @@ export default tseslint.config(
     },
   },
   {
-    // The two modules allowed to spawn: the OS credential store and git (CLAUDE.md, No Executables).
-    files: ['src/core/keychain.ts', 'src/core/git.ts'],
+    // The reviewed modules allowed to spawn (scripts/spawners.mjs; CLAUDE.md, No Executables).
+    files: SPAWNERS,
     rules: { 'no-restricted-imports': 'off' },
   },
   {

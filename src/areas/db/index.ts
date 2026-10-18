@@ -30,10 +30,17 @@ export const area = defineArea({
     host: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle: server host name or address'),
     port: z.number().int().min(1).max(65535).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle: TCP port (default 5432 for PostgreSQL, 3306 for MySQL, 1433 for SQL Server, 1521 for Oracle)'),
     database: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server: database to connect to (for MySQL, also the default schema). Oracle: the service name (FREEPDB1, ORCLPDB1)'),
-    user: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle: login role, account or user (for SQL Server, a SQL Server login)'),
+    user: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle: login role, account or user (for SQL Server, a SQL Server login, or with auth windows another domain account)'),
     password: z.string().optional().describe("PostgreSQL, MySQL, SQL Server, Oracle: the login's password (a secret: env var or OS credential store)"),
     ssl: z.boolean().optional().describe("PostgreSQL, MySQL, SQL Server, Oracle: connect over TLS (Oracle: TCPS), verifying the server's certificate against the OS store"),
-  }),
+    auth: z.enum(['sql', 'windows']).optional().describe('SQL Server: sql (a SQL Server login, the default) or windows (Windows authentication, Windows only)'),
+    domain: z.string().min(1).optional().describe("SQL Server with auth windows: the domain of the account in user, to sign in as someone other than the current Windows user"),
+  })
+    // Rules only one engine has, such as SQL Server's sign-in, come from that engine's provider.
+    .superRefine((conn, check) => {
+      const provider = providers.find((p) => p.engine === conn.engine);
+      for (const issue of provider?.check?.(conn) ?? []) check.addIssue({ code: 'custom', path: [issue.key], message: issue.message });
+    }),
   secrets: { password: 'password' },
   // Each engine names the keys its connections need; core checks them.
   variants: { by: 'engine', of: Object.fromEntries(providers.map((p) => [p.engine, { label: p.label, requires: [...p.requires] }])) },

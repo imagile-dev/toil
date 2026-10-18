@@ -42,7 +42,7 @@
   {
     "key": "user",
     "env": "TOIL_DB_USER",
-    "description": "PostgreSQL, MySQL, SQL Server, Oracle: login role, account or user (for SQL Server, a SQL Server login)",
+    "description": "PostgreSQL, MySQL, SQL Server, Oracle: login role, account or user (for SQL Server, a SQL Server login, or with auth windows another domain account)",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -59,6 +59,22 @@
     "key": "ssl",
     "env": "TOIL_DB_SSL",
     "description": "PostgreSQL, MySQL, SQL Server, Oracle: connect over TLS (Oracle: TCPS), verifying the server's certificate against the OS store",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "auth",
+    "env": "TOIL_DB_AUTH",
+    "description": "SQL Server: sql (a SQL Server login, the default) or windows (Windows authentication, Windows only)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "domain",
+    "env": "TOIL_DB_DOMAIN",
+    "description": "SQL Server with auth windows: the domain of the account in user, to sign in as someone other than the current Windows user",
     "required": false,
     "secret": false,
     "fallbacks": []

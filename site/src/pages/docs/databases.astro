@@ -144,6 +144,11 @@ const commands = [
 <span class="p">$</span> export TOIL_DB_SSL=<span class="s">true</span></pre>
           </div>
           <p>
+            On Windows, <code>"auth": "windows"</code> signs in as you, with the ticket Windows already holds and no password stored; toil
+            asks Windows for it through one Windows PowerShell per connection. It's Windows only: on macOS and Linux the connection is refused
+            and you use a SQL Server login. Windows authentication hasn't yet been run against a server on a domain.
+          </p>
+          <p>
             SQL Server has no read-only transaction, so connect with a read-only login: one whose database user is only in
             <code>db_datareader</code>. That's what makes the server itself refuse a write. Keep a second connection, with a login that may
             write, for <code>db execute</code>.

@@ -86,11 +86,12 @@ gets made again in the next place it applies.
   separator, a drive letter, or `~`. Paths in JSON output use forward slashes;
   paths on disk use the platform's own form.
 - Never spawn through a shell (`shell: true`, `exec`), and never assume bash,
-  PowerShell, or a POSIX utility. toil itself runs only git and the OS credential
-  stores; repo tooling may also run tools developers already have (git, gh, a
-  browser, node), never through a shell. The credential stores are in
-  `src/core/keychain.ts`, each behind a platform check (`secrets` skill), and git
-  is in `src/core/git.ts` (No Executables).
+  PowerShell, or a POSIX utility. toil itself runs only git and programs the OS
+  ships to hand over what it already holds for the user (No Executables); repo
+  tooling may also run tools developers already have (git, gh, a browser, node),
+  never through a shell. The credential stores are in `src/core/keychain.ts`, each
+  behind a platform check (`secrets` skill), Windows authentication's SSPI helper is
+  in `src/os/windows-sspi.ts`, and git is in `src/core/git.ts`.
 - Read files as UTF-8 and accept both CRLF and LF; write LF. `.gitattributes` keeps
   the repo LF so Windows checkouts produce identical bundles.
 - Config lives in `~/.toil/` on every platform, so instructions are identical.
@@ -111,16 +112,20 @@ Node, and toil has to work there. This is the most important rule in the repo.
   files), no `node-gyp`, no `prebuild`, no package that downloads a binary on install,
   no `install` / `postinstall` scripts.
 - toil never spawns a bundled or downloaded binary. Spawning a program the OS already
-  ships is allowed only for credential storage (see the `secrets` skill). The one
-  other program toil may run is git, below.
+  ships is allowed only to **ask the OS for something it already holds for the
+  user**: a stored secret (the credential store, see the `secrets` skill) or a logon
+  ticket (Windows authentication's SSPI handshake). toil never collects a credential
+  to do this; it collects credentials only in an explicit setup command on a
+  terminal (`toil connections login`, #51), which hands them straight to the OS
+  store. The one other program toil may run is git, below.
 - The published package is one bundled JS file plus `package.json`, with no runtime
   `dependencies`. It installs with `npm install --ignore-scripts` and runs offline.
 - CI enforces it on what ships, not on the dev toolchain:
   - `npm run check:pure` fails if `package.json` has runtime `dependencies` or any
     install/prepare script, or if the bundle imports anything but Node built-ins.
     That's read from esbuild's metafile, never by scanning text. It also fails on
-    a native addon, on `child_process` imported by any file but
-    `src/core/keychain.ts` and `src/core/git.ts` (stubbed or not), or if the
+    a native addon, on `child_process` imported by any file but the reviewed
+    spawners in `scripts/spawners.mjs` (stubbed or not), or if the
     tarball holds anything beyond `dist/toil.js`, `package.json`, `README.md`,
     `LICENSE` and `NOTICE`.
   - `npm run smoke` installs the packed tarball with `--ignore-scripts` into a
@@ -128,14 +133,24 @@ Node, and toil has to work there. This is the most important rule in the repo.
 - Bundled dependencies can drag in a spawning API (commander imports `child_process`
   for subcommands toil never uses). The build resolves `child_process` to
   `src/shims/no-spawn.ts`, a stub that throws, for every importer but one.
-- **There are two exceptions, and only two files get the real
-  `node:child_process`** (the tsup `no-spawn` plugin decides by importer path,
+- **Only the files in `scripts/spawners.mjs` get the real `node:child_process`**,
+  a reviewed allowlist: the tsup `no-spawn` plugin decides by importer path,
   `check:pure` verifies it from the metafile, and ESLint allows the import in those
-  files only, apart from repo tooling and tests, which never ship). Any other spawn, or a third file allowed to spawn, needs this section
-  changed first.
+  files only, apart from repo tooling and tests, which never ship. Dependencies
+  always get the stub. Any other spawn, or another file on the list, needs this
+  section changed first.
   - **The OS credential store**, `src/core/keychain.ts`. It runs only what the OS
     ships (`security`, Windows PowerShell, `secret-tool`), never through a shell,
     with secrets on stdin.
+  - **Windows authentication**, `src/os/windows-sspi.ts`, for SQL Server's
+    `auth: "windows"` (#49). One Windows PowerShell (`powershell.exe` by absolute
+    path under the system root, `-NoProfile -NonInteractive`) per connection, its
+    script on stdin and never argv, calls SSPI's Negotiate package for the
+    server's SPN; tokens pass base64 over stdin and stdout, and a password for
+    another account, read from the credential store, goes on stdin too. It gets
+    only an allowlist of the caller's env, refuses to run in Constrained Language
+    Mode with an error saying so, and on any other OS the connection is refused
+    before anything runs.
   - **git**, `src/core/git.ts`, the one optional exception to principle 1 (#68,
     decision 1). Only the commands that are git (the `git` area, `util deps diff`,
     and the `skills` marketplace commands, which clone and pull over https or from
@@ -370,7 +385,7 @@ not make sets `offMcpWhen`, which execute() refuses over MCP before anything run
 A bound is a limit every command is held to, whoever drives it: the file
 workspace, toil's own files, credentials only to their host, secrets only in the
 store or env, CLI-only commands, time limits, read-only commands staying read-only,
-and spawning only the credential store and git. `docs/bounds.md` lists each one,
+and spawning only git and the programs the OS ships to hand over what it already holds (the credential store, Windows authentication). `docs/bounds.md` lists each one,
 what it protects, where it's enforced, its error and whether it can be relaxed;
 `src/core/bounds.ts` is the same list in code, and `test/bounds.test.ts` keeps them
 in step. A new bound, or a change to one, updates both. Only a setting in the user's
