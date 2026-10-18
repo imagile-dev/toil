@@ -913,7 +913,8 @@ Added as each integration lands.
   `attempts`, `elapsedMs`) added and `durationMs` covering the whole wait, so
   `meta.command` names the read and `meta.context`, warnings and `--verbose` requests
   are the read's. A refusal before the first attempt has `meta.command: "wait"`.
-- **Defaults and limits:** `--interval` 15s, floor 5s; `--timeout` 30m, or
+- **Defaults and limits:** `--interval` 15s, floor 5s; `--timeout` floor 5s (an
+  explicit one under it is `INVALID_INPUT`), default 30m, or
   `TOIL_TIMEOUT_MS` when it's set and `--timeout` isn't; the maximum is
   `"wait": { "maxTimeout": "<duration>" }` in the config file (default 1h, allowed 1m
   to 24h), read from whichever file loaded, like `bounds`, with no env var: it limits

@@ -34,7 +34,7 @@ Over MCP it's the `wait` tool, with `tool` (the read's tool name), `input` (that
 input) and the same `until`, `interval` and `timeout`. It returns the read's last
 envelope plus `meta.wait` (`until`, `attempts`, `elapsedMs`). `NETWORK` errors and
 `HTTP` 5xx or 429 answers are retried with backoff; any other error ends the wait with
-that error. Past `--timeout` (default 30m, or `TOIL_TIMEOUT_MS`, cut to the maximum
+that error. Past `--timeout` (at least 5s; default 30m, or `TOIL_TIMEOUT_MS`, cut to the maximum
 with a `WAIT_TIMEOUT_CAPPED` warning when it is longer; at most the
 `"wait": { "maxTimeout" }` in config, default 1h) it's `TIMEOUT`, with the last `data`
 in `error.details.data`. Only reads can be waited on: a write is `INVALID_INPUT`.

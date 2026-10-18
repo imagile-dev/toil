@@ -58,7 +58,7 @@ const input = z.object({
     .min(1)
     .describe("A JMESPath expression over the tool's data; the wait ends when it is true (not null, false or empty), e.g. \"result != null\" or \"status == 'OK'\"."),
   interval: duration('interval').describe(`How long to wait between attempts, e.g. 30s. Default 15s, at least 5s.`),
-  timeout: duration('timeout').describe('How long to keep trying, e.g. 30m, before TIMEOUT with the last data. Default 30m, or TOIL_TIMEOUT_MS; at most the "wait.maxTimeout" in config (default 1h).'),
+  timeout: duration('timeout').describe('How long to keep trying, e.g. 30m, before TIMEOUT with the last data. At least 5s. Default 30m, or TOIL_TIMEOUT_MS; at most the "wait.maxTimeout" in config (default 1h).'),
 });
 
 /**
@@ -78,7 +78,7 @@ export const waitCommand: AnyCommand = {
     options: [
       { flags: '--until <expression>', field: 'until', description: "A JMESPath condition over the command's data; the wait ends when it is true" },
       { flags: '--interval <duration>', field: 'interval', description: 'Time between attempts, e.g. 30s (default 15s, at least 5s)' },
-      { flags: '--timeout <duration>', field: 'timeout', description: 'How long to keep trying, e.g. 30m (default 30m or TOIL_TIMEOUT_MS; at most "wait.maxTimeout" in config, default 1h)' },
+      { flags: '--timeout <duration>', field: 'timeout', description: 'How long to keep trying, e.g. 30m (at least 5s; default 30m or TOIL_TIMEOUT_MS; at most "wait.maxTimeout" in config, default 1h)' },
     ],
     examples: [{ tool: 'version', input: {}, until: 'version != null', interval: '5s', timeout: '1m' }],
     run: () => Promise.reject(new Error('toil wait runs through runCommand(), never execute() on its own.')),
