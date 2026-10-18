@@ -1,6 +1,6 @@
-import type { z } from 'zod';
+import { z } from 'zod';
 
-type Def = { type: string; innerType?: z.ZodType; element?: z.ZodType };
+type Def = { type: string; innerType?: z.ZodType; element?: z.ZodType; options?: readonly z.ZodType[] };
 const defOf = (schema: z.ZodType): Def => (schema as unknown as { _zod: { def: Def } })._zod.def;
 
 /** The schema underneath optional/default/nullable wrappers. */
@@ -30,10 +30,35 @@ export function fieldSchema(schema: z.ZodObject, field: string): z.ZodType | und
   return (schema.shape as Record<string, z.ZodType>)[field];
 }
 
-/** An array field's element schema. */
-export function elementSchema(schema: z.ZodType): z.ZodType | undefined {
+/**
+ * The two shapes of a repeatable flag, so every area builds them the same way
+ * and `flagRepeats` below is the one rule that reads them:
+ *
+ * - `repeatedFlag`: always a list (`github create-issue --label a --label b`);
+ *   empty or absent means not given
+ * - `oneOrMany`: one value, or a list when the flag is repeated (`jira
+ *   get-issue --key A --key B`), for a command whose single form must keep its
+ *   own input and output
+ */
+export const repeatedFlag = (description: string) => z.array(z.string()).optional().describe(description);
+export const oneOrMany = (description: string) => z.union([z.string(), z.array(z.string())]).describe(description);
+
+/**
+ * How a field's flag repeats, if it does: an array field always collects a
+ * list, and a union of one value or an array of them stays a single value when
+ * the flag is given once and becomes the list when it's given again. `single`
+ * says which; `element` is what each use is typed as.
+ */
+export function flagRepeats(schema: z.ZodType): { element: z.ZodType; single: boolean } | undefined {
   const inner = unwrap(schema);
-  return defOf(inner).type === 'array' ? defOf(inner).element : undefined;
+  const def = defOf(inner);
+  if (def.type === 'array' && def.element) return { element: def.element, single: false };
+  if (def.type !== 'union' || def.options?.length !== 2) return undefined;
+  const [a, b] = def.options.map(unwrap) as [z.ZodType, z.ZodType];
+  const [one, many] = defOf(a).type === 'array' ? [b, a] : [a, b];
+  const element = defOf(many).element;
+  if (defOf(many).type !== 'array' || !element || defOf(one).type === 'array' || defOf(unwrap(element)).type !== defOf(one).type) return undefined;
+  return { element: one, single: true };
 }
 
 /**

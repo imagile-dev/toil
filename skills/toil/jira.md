@@ -70,16 +70,17 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 
 | Command | Flags | Returns |
 |---------|-------|---------|
-| `get-issue` | `--key` | The issue; registered custom fields under their friendly names |
+| `get-issue` | `--key` (repeat for up to 100) | The issue; registered custom fields under their friendly names. With several keys, `{ issues, errors }` |
+| `get-changelog` | `--key --limit --cursor` | The issue's change history: `id`, `author`, `created`, `items` |
 | `create-issue` ✎ | `--project --type --summary --description --priority --assignee --labels --parent --field (repeatable) --fields-file --input-file` | The created issue, read back |
 | `update-issue` ✎ | `--key --summary --description --priority --assignee --labels --field --fields-file --input-file` | `{ updated }` |
 | `schema` | `--example-only` | `{ schema, example }` for `--input-file`, or just the example |
 | `transition-issue` ✎ | `--key --transition <name-or-id>` | `{ transitioned, transition }` |
 | `list-transitions` | `--key` | Transitions available now |
 | `add-comment` ✎ | `--key --body` | The comment |
-| `list-comments` | `--key` | Every comment |
+| `list-comments` | `--key --limit --cursor` | Every comment, or a page of them |
 | `log-work` ✎ | `--key --time-spent --comment --started` | The worklog |
-| `search` | `--jql` or `--jql-file`, `--max-results --start-at --fields` | `{ issues, total, startAt, maxResults }` |
+| `search` | `--jql` or `--jql-file`, `--max-results --start-at --cursor --updated-since --fields` | `{ issues, total, startAt, maxResults }` |
 | `add-label` ✎ / `remove-label` ✎ | `--key --labels a,b` | `{ updated, labelsAdded }` / `{ updated, labelsRemoved }` |
 | `assign` ✎ | `--key --assignee <username>` | `{ assigned, assignee }` |
 | `link-issue` ✎ | `--key --link-type --target` | `{ linked, to, type }` |
@@ -87,8 +88,8 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `list-attachments` | `--key` | Attachments (id, filename, size, mimeType, content) |
 | `download-attachment` | `--key --attachment-id --dir` | `{ saved, filename, size }`; saves to `.toil/` by default |
 | `fields` | `--discover --custom-only --project --issue-type` | Registered fields, or Jira's field list with `suggestedType` and `allowedValues` |
-| `list-boards` | `--project` | Boards (id, name, scrum or kanban) |
-| `list-sprints` | `--board` or `--project`, `--state active,future,closed` | Sprints with dates and goal |
+| `list-boards` | `--project --limit --cursor` | Boards (id, name, scrum or kanban) |
+| `list-sprints` | `--board` or `--project`, `--state active,future,closed`, `--limit --cursor` (with `--board`) | Sprints with dates and goal |
 | `set-sprint` ✎ | `--key --sprint <id>` | `{ updated, sprint }` |
 | `api` | `<method> <path> --query key=value (repeatable) --body-file --content-type` | The response body; see **Any endpoint** below. ✎ for `POST`, `PUT`, `PATCH`, `DELETE` |
 | `check-dossier` | `--dossier <name\|file>` (or the folder's dossier) | `{ dossier, connection, env, ok, checked, checks, unchecked }`: each project and field id the dossier names, found or not; exit 1 when one is missing |
@@ -114,6 +115,47 @@ toil jira download-attachment --key ABC-123 --attachment-id 10001 --dir download
 
 `search` without `--max-results` pages through every match, so bound broad
 queries. `meta.page.nextCursor` is the `--start-at` for the next page (or `null`).
+
+## Paging, changes since, history and several issues
+
+These are what a sync needs: read everything once, then only what changed.
+
+```bash
+toil jira search --jql 'project = ABC' --max-results 100
+toil jira search --jql 'project = ABC' --max-results 100 --cursor 100
+toil jira search --jql 'project = ABC ORDER BY updated' --updated-since 2026-10-01T09:30:00Z
+toil jira get-changelog --key ABC-123
+toil jira get-issue --key ABC-1 --key ABC-2 --key ABC-7
+toil jira list-comments --key ABC-123 --limit 50
+```
+
+- **Paging.** Every list and search pages the same way. Without `--limit`
+  (`--max-results` on `search`), it returns every item. With one, it returns that
+  many and `meta.page.nextCursor` says where the next page starts; pass it back as
+  `--cursor`, unchanged. `null` means that was the last page. `list-transitions`,
+  `list-attachments` and `fields` have no paging, because Jira sends each of them
+  whole. `list-sprints` pages only with `--board`, since `--project` gathers sprints
+  from several boards.
+- **`--updated-since <iso>`** on `search` adds `updated >= "<instant>"` to the JQL,
+  before any `ORDER BY`, with your JQL in parentheses. The instant is an ISO 8601
+  date (`2026-10-01`, read as midnight UTC) or a date and time with a zone
+  (`2026-10-01T09:30:00Z`). JQL has no time zones, so toil reads your profile's
+  zone from `/rest/api/2/myself` and writes the instant in it, rounded down to the
+  minute; an issue near the boundary can come back twice, never not at all. If Jira
+  names no zone it knows, toil writes UTC and warns with `JIRA_TIME_ZONE`. On its
+  own, `--updated-since` is the whole query.
+- **`get-changelog`** returns the history entries Jira records for an issue, each
+  with `id`, `author`, `created` and `items` (`field`, `fieldtype`, `from`,
+  `fromString`, `to`, `toString`). Data Center sends the history with the issue
+  (`expand=changelog`), all at once, and `--limit` / `--cursor` page it. If Jira
+  reports more entries than it sent, a `JIRA_CHANGELOG_TRUNCATED` warning says so.
+- **Several issues.** Repeat `--key` (up to 100) and `get-issue` returns
+  `{ issues, errors }`: the issues in the order you asked, and each key that couldn't
+  be read as `{ key, code, message }` (`NOT_FOUND`, or `HTTP` for another refusal),
+  with a `JIRA_BULK_PARTIAL` warning. A rejected token or a network failure fails the
+  whole call. Data Center has no bulk endpoint, so toil sends one request per key,
+  five at a time. One `--key` returns the issue itself, as before. Over MCP, `key`
+  takes a string or a list.
 `create-issue` takes its project from `--project`, then `project` in `--input-file`, then
 the connection's `project`, and `meta.context.inputs.project` says which: `input` for
 the flag or the file, `connection` for the setting (`TOIL_JIRA_PROJECT` and
@@ -130,7 +172,7 @@ to a path under the connection's `baseUrl`:
 
 ```bash
 toil jira api GET /rest/api/2/myself
-toil jira api GET /rest/api/2/issue/ABC-123/changelog --query maxResults=50
+toil jira api GET /rest/api/2/issue/ABC-123/remotelink
 toil jira api GET /rest/agile/1.0/board/12/backlog --query fields=summary --query maxResults=20
 toil jira api POST /rest/api/2/version --body-file version.json --allow-write
 toil jira api PUT /rest/api/2/issue/ABC-123/watchers --body-file user.json --content-type application/json --allow-write

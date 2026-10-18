@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { jiraCloudArea } from './area.js';
 import * as client from './client.js';
+import { pagingFields, pagingOptions } from '../jira/paging.js';
 
 /**
  * Projects, and the people in them. Cloud names a person by an opaque
@@ -12,12 +13,12 @@ export const listProjects = jiraCloudArea.command({
   path: ['jira-cloud', 'list-projects'],
   description: 'List Jira Cloud projects visible to you',
   toolDescription:
-    'Returns every Jira Cloud project the account can see (id, key, name, projectTypeKey, ...), optionally filtered by query, a case-insensitive match on key or name.',
-  input: z.object({ query: z.string().min(1).optional().describe('Only projects whose key or name contains this text') }),
+    'Returns the Jira Cloud projects the account can see (id, key, name, projectTypeKey, ...), optionally filtered by query, a case-insensitive match on key or name. Without limit it returns every one; with limit, pass meta.page.nextCursor as cursor for the next page.',
+  input: z.object({ query: z.string().min(1).optional().describe('Only projects whose key or name contains this text'), ...pagingFields('projects') }),
   writes: false,
-  options: [{ flags: '--query <text>', field: 'query', description: 'Only projects whose key or name contains this text' }],
-  examples: [{}, { query: 'imagile' }],
-  run: (input, ctx) => client.listProjects(ctx, input.query),
+  options: [{ flags: '--query <text>', field: 'query', description: 'Only projects whose key or name contains this text' }, ...pagingOptions('projects')],
+  examples: [{}, { query: 'imagile' }, { limit: 1 }, { limit: 1, cursor: '1' }],
+  run: (input, ctx) => client.listProjects(ctx, input.query, input),
 });
 
 export const getProject = jiraCloudArea.command({
@@ -35,18 +36,20 @@ export const searchUsers = jiraCloudArea.command({
   path: ['jira-cloud', 'search-users'],
   description: 'Find Jira Cloud users and their accountIds',
   toolDescription:
-    'Returns active Jira Cloud users matching query (display name or email address), each with accountId, displayName and accountType. Use the accountId as assignee in jira_cloud_assign, jira_cloud_create_issue and jira_cloud_update_issue.',
+    'Returns active Jira Cloud users matching query (display name or email address), each with accountId, displayName and accountType, one page of maxResults (default 50). A full page sets meta.page.nextCursor: pass it as cursor for the next. Use the accountId as assignee in jira_cloud_assign, jira_cloud_create_issue and jira_cloud_update_issue.',
   input: z.object({
     query: z.string().min(1).describe('Text to match against display name and email address'),
     maxResults: z.number().int().positive().max(1000).optional().describe('Most users to return (default 50)'),
+    cursor: z.string().min(1).optional().describe('meta.page.nextCursor from the previous page, to carry on from there'),
   }),
   writes: false,
   options: [
     { flags: '--query <text>', field: 'query', description: 'Text to match against display name and email address' },
     { flags: '--max-results <n>', field: 'maxResults', description: 'Most users to return (default 50)' },
+    { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous page' },
   ],
-  examples: [{ query: 'smith' }, { query: 'you@example.com', maxResults: 5 }],
-  run: (input, ctx) => client.searchUsers(ctx, input.query, input.maxResults ?? 50),
+  examples: [{ query: 'smith' }, { query: 'you@example.com', maxResults: 5 }, { query: 'smith', maxResults: 1, cursor: '1' }],
+  run: (input, ctx) => client.searchUsers(ctx, input.query, input.maxResults ?? 50, input.cursor),
 });
 
 export const projectCommands = [listProjects, getProject, searchUsers];

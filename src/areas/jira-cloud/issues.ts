@@ -17,6 +17,8 @@ import {
   type IssueJsonInput,
 } from './input.js';
 import { JIRA_CLOUD_INPUT_FILE_EXAMPLE, JIRA_CLOUD_INPUT_FILE_SCHEMA } from './input-schema.js';
+import { bulkKeys, bulkWarning, keyOrKeys, MAX_BULK_KEYS } from '../jira/bulk.js';
+import { pagingFields, pagingOptions } from '../jira/paging.js';
 
 /**
  * Commands on one Jira Cloud issue: read it, create it, change it, move it
@@ -104,17 +106,35 @@ const fieldInputs = {
 export const getIssue = jiraCloudArea.command({
   path: ['jira-cloud', 'get-issue'],
   description: 'Get a Jira Cloud issue by key',
-  toolDescription:
-    'Returns one Jira Cloud issue by key with every field as Jira returns it (description in Atlassian Document Format, registered custom fields under their friendly names), plus descriptionText, the description as plain text. Use jira_cloud_search to find issues by JQL.',
-  input: z.object({ key }),
+  toolDescription: `Returns one Jira Cloud issue by key with every field as Jira returns it (description in Atlassian Document Format, registered custom fields under their friendly names), plus descriptionText, the description as plain text. With a list of up to ${MAX_BULK_KEYS} keys it reads them in one bulk request and returns { issues, errors } instead: the issues in the order asked, and each key that couldn't be read with its code and message. Use jira_cloud_search to find issues by JQL.`,
+  input: z.object({ key: keyOrKeys }),
   writes: false,
-  options: [keyOption('Issue key (e.g. PROJ-123)')],
-  examples: [{ key: 'PROJ-123' }],
+  // Several keys go to POST /rest/api/3/issue/bulkfetch, which only reads.
+  queryByPost: true,
+  options: [keyOption(`Issue key (e.g. PROJ-123); repeat for up to ${MAX_BULK_KEYS} issues`)],
+  examples: [{ key: 'PROJ-123' }, { key: ['PROJ-1', 'PROJ-2', 'PROJ-404'] }],
   run: async (input, ctx) => {
     const fieldMap = buildFieldMap(ctx.connection.customFields);
-    const issue = await client.getIssue(ctx, input.key);
-    return { ...withDescriptionText(issue), fields: translateFieldsInOutput(issue.fields, fieldMap) };
+    const translate = (issue: client.JiraCloudIssue) => ({ ...withDescriptionText(issue), fields: translateFieldsInOutput(issue.fields, fieldMap) });
+    if (!Array.isArray(input.key)) return translate(await client.getIssue(ctx, input.key));
+    const keys = bulkKeys(input.key);
+    const { issues, errors } = await client.getIssues(ctx, keys);
+    const warning = bulkWarning('JIRA_CLOUD_BULK_PARTIAL', errors, keys.length);
+    if (warning) ctx.warn(warning);
+    return { issues: issues.map(translate), errors };
   },
+});
+
+export const getChangelog = jiraCloudArea.command({
+  path: ['jira-cloud', 'get-changelog'],
+  description: 'Get the change history of a Jira Cloud issue',
+  toolDescription:
+    "Returns a Jira Cloud issue's change history, oldest first, as Jira records it: each entry with id, author (accountId), created and items (field, fieldtype, fieldId, from, fromString, to, toString), so status transitions and field changes can be replayed. Without limit it returns every entry; with limit, pass meta.page.nextCursor as cursor for the next page.",
+  input: z.object({ key, ...pagingFields('history entries') }),
+  writes: false,
+  options: [keyOption(), ...pagingOptions('history entries')],
+  examples: [{ key: 'PROJ-123' }, { key: 'PROJ-123', limit: 1 }, { key: 'PROJ-123', limit: 1, cursor: '1' }],
+  run: (input, ctx) => client.getChangelog(ctx, input.key, input),
 });
 
 export const createIssue = jiraCloudArea.command({
@@ -359,12 +379,13 @@ export const addComment = jiraCloudArea.command({
 export const listComments = jiraCloudArea.command({
   path: ['jira-cloud', 'list-comments'],
   description: 'List comments on a Jira Cloud issue',
-  toolDescription: 'Returns every comment on a Jira Cloud issue, oldest first, each with its ADF body and bodyText, the body as plain text.',
-  input: z.object({ key }),
+  toolDescription:
+    'Returns the comments on a Jira Cloud issue, oldest first, each with its ADF body and bodyText, the body as plain text. Without limit it returns every comment; with limit, pass meta.page.nextCursor as cursor for the next page.',
+  input: z.object({ key, ...pagingFields('comments') }),
   writes: false,
-  options: [keyOption()],
-  examples: [{ key: 'PROJ-123' }],
-  run: async (input, ctx) => (await client.listComments(ctx, input.key)).map(withBodyText),
+  options: [keyOption(), ...pagingOptions('comments')],
+  examples: [{ key: 'PROJ-123' }, { key: 'PROJ-123', limit: 1 }, { key: 'PROJ-123', limit: 1, cursor: '1' }],
+  run: async (input, ctx) => (await client.listComments(ctx, input.key, input)).map(withBodyText),
 });
 
 const labelsInput = (verb: string) => z.string().describe(`Comma-separated labels to ${verb}`);
@@ -447,4 +468,4 @@ export const linkIssue = jiraCloudArea.command({
   },
 });
 
-export const issueCommands = [getIssue, createIssue, updateIssue, schema, transitionIssue, listTransitions, addComment, listComments, logWork, addLabel, removeLabel, assign, linkIssue];
+export const issueCommands = [getIssue, getChangelog, createIssue, updateIssue, schema, transitionIssue, listTransitions, addComment, listComments, logWork, addLabel, removeLabel, assign, linkIssue];
