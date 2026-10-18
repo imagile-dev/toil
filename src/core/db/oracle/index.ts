@@ -544,7 +544,7 @@ export const oracleProvider: DbProvider = {
     // What a failure report may claim. committedThrough: statements 1 to it
     // are known to be committed (DDL that ran, or a change followed by a
     // closed transaction). uncertain: something may have committed that toil
-    // can't see (a PL/SQL block ran, the failing one included, or the
+    // can't see (a PL/SQL block or a CALL ran, the failing one included, or the
     // transaction check itself failed). Only with neither is the rollback
     // stated; a wrong "nothing was applied" invites running the script twice.
     let committedThrough = 0;
@@ -555,7 +555,9 @@ export const oracleProvider: DbProvider = {
       return await session(conn, 'write', call, async (client) => {
         let changes = 0;
         for (const [i, statement] of statements.entries()) {
-          if (statement.plsql) uncertain = true;
+          // A block or a CALLed procedure can commit inside, and toil can't see whether it did.
+          // (EXEC and EXECUTE are SQL*Plus commands the server refuses, so they never run.)
+          if (statement.plsql || statement.words[0] === 'CALL') uncertain = true;
           try {
             const result = await client.execute(statement.text, {}, { resultSet: true });
             await result.resultSet?.close();
@@ -585,7 +587,7 @@ export const oracleProvider: DbProvider = {
       const total = statements.length;
       if (uncertain) {
         const known = committedThrough > 0 ? ` Statements 1 to ${committedThrough} are known to be committed.` : '';
-        throw new ToilError(err.code, `${err.message} Some of statements 1 to ${failedAt} of ${total} may have committed: a PL/SQL block can commit inside, and toil can't tell whether one did.${known}`, {
+        throw new ToilError(err.code, `${err.message} Some of statements 1 to ${failedAt} of ${total} may have committed: a PL/SQL block or a called procedure can commit inside, and toil can't tell whether one did.${known}`, {
           fix: `${err.fix ? `${err.fix} ` : ''}Check what statements 1 to ${failedAt} changed before running the script again.`,
         });
       }

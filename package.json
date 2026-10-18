@@ -58,6 +58,7 @@
     "oracledb": "7.0.1",
     "pg": "8.23.1",
     "pg-cursor": "2.22.1",
+    "tedious": "20.3.3",
     "tsup": "8.5.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.0",

@@ -48,7 +48,7 @@ one they got.
   creates its target file before the read-only refusal, so SQLite reads refuse any
   statement whose first keyword is `VACUUM` (`INVALID_INPUT`, pointing at
   `db execute`), and PostgreSQL reads refuse `COPY` and `DO`: `COPY ... TO '<file>'` and `TO PROGRAM`
-  write a server file or run a program inside a read-only transaction, and a `DO` block can run that `COPY`. MySQL reads refuse `SELECT ... INTO OUTFILE` / `INTO DUMPFILE` (a server file) and any `SET` (`SET GLOBAL` and `SET PERSIST` change the server), checked with and without backslash escapes so `NO_BACKSLASH_ESCAPES` can't hide one.
+  write a server file or run a program inside a read-only transaction, and a `DO` block can run that `COPY`. MySQL reads refuse `SELECT ... INTO OUTFILE` / `INTO DUMPFILE` (a server file) and any `SET` (`SET GLOBAL` and `SET PERSIST` change the server), checked with and without backslash escapes so `NO_BACKSLASH_ESCAPES` can't hide one. SQL Server has no read-only transaction at all: reads always roll back, a statement the server's DONE token reports as a write is `WRITE_DISABLED`, and reads refuse `COMMIT`, `ROLLBACK`, `BEGIN TRANSACTION` and `SAVE TRANSACTION`, which would end that transaction, and `OUTPUT`, whose rows arrive before the server reports the write (`src/core/db/sqlserver/script.ts`).
   Oracle reads refuse DDL (`WRITE_DISABLED`), because Oracle commits DDL inside a
   read-only transaction, and PL/SQL (`BEGIN`, `DECLARE`, `CALL`, `WITH FUNCTION`;
   `INVALID_INPUT`), because a block can commit, run DDL or an autonomous transaction;
@@ -56,7 +56,7 @@ one they got.
   writes, and everything else still relies on the engine. Add another such deny only
   for a statement proven to escape the engine's read-only mode, with a test showing
   the escape. A hole that can't be closed (SQLite's read-only `ATTACH` of other
-  files, PostgreSQL's server-side functions such as `lo_export` for a privileged role, a MySQL procedure that commits and turns read-write itself,
+  files, PostgreSQL's server-side functions such as `lo_export` for a privileged role, a MySQL procedure that commits and turns read-write itself, SQL Server's `COMMIT` inside dynamic SQL, which toil detects from the transaction ending and reports, and which a read-only login is what stops),
   an Oracle stored function with an autonomous transaction called from a `SELECT`) is
   pinned with a test and documented as a known limit.
 - **`execute` is all or nothing.** A script that starts or ends its own transaction
@@ -83,7 +83,11 @@ one they got.
   statements would stop nothing and the rest would commit. It also checks the
   signal before each statement and before `COMMIT`. MySQL sets the session as
   well as the transaction read-only, because DDL commits implicitly and would
-  otherwise run in autocommit. Oracle sends
+  otherwise run in autocommit.
+  SQL Server sends a TDS
+  attention on the same connection (tedious's `cancel()`), and also once a page is
+  full, so the server stops producing rows nobody reads.
+  Oracle sends
   `connection.break()` on the call's own connection (`src/core/db/oracle/index.ts`).
   Thin mode's break is in band, so the server hears it at its next check: a working
   statement stops at once, but `DBMS_SESSION.SLEEP` only when it wakes. Oracle's
@@ -129,7 +133,7 @@ one they got.
   conformance suite is what proves read-only.
 - **Before opening a PR that touches a database provider, run it against the real
   engine locally in Docker.** Pull the same official image CI uses (`postgres`,
-  `mysql`/`mariadb`, `mcr.microsoft.com/mssql/server`, `gvenzl/oracle-free`), seed
+  `mysql`/`mariadb`, `mcr.microsoft.com/mssql/server` at a dated cumulative-update tag such as `2022-CU27-ubuntu-22.04`, never `2022-latest`, `gvenzl/oracle-free`), seed
   it, and drive the actual `toil db` commands through both the CLI and MCP. Remove
   the containers afterwards. The PR names the image and tag and shows the output.
   Docker is a development tool here, never a runtime dependency: No Executables

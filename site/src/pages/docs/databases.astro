@@ -9,8 +9,8 @@ const engines = [
   { name: 'SQLite', status: 'integration', note: 'Built into Node. Tested against the real engine.' },
   { name: 'PostgreSQL', status: 'integration', note: 'Pure-JS driver, bundled. Tested against PostgreSQL 17.' },
   { name: 'MySQL / MariaDB', status: 'integration', note: 'Pure-JS driver, bundled. Tested against MySQL 8.4 and MariaDB 11.8.' },
+  { name: 'SQL Server', status: 'integration', note: 'Pure-JS driver, bundled. Tested against SQL Server 2022; connect with a read-only login.' },
   { name: 'Oracle', status: 'integration', note: 'Thin mode, no Oracle client. Tested against Oracle Database 23ai Free.' },
-  { name: 'SQL Server', status: 'planned', note: 'Pure-JS driver; connect with a read-only login.' },
 ];
 
 const commands = [
@@ -23,7 +23,7 @@ const commands = [
 ];
 ---
 
-<Layout title="Databases" description="toil's db area: list schemas and tables, describe a table, preview rows and run read-only queries with paging, on SQLite, PostgreSQL, MySQL / MariaDB and Oracle.">
+<Layout title="Databases" description="toil's db area: list schemas and tables, describe a table, preview rows and run read-only queries with paging, on SQLite, PostgreSQL, MySQL / MariaDB, SQL Server and Oracle.">
   <PageHero
     eyebrow="<b>Docs</b> · Databases"
     title="Databases, <em>read-only by default.</em>"
@@ -37,7 +37,7 @@ const commands = [
       <aside class="doc__facts" data-reveal>
         <dl>
           <div><dt>Area</dt><dd><code>toil db</code></dd></div>
-          <div><dt>Engines</dt><dd>SQLite, PostgreSQL, MySQL / MariaDB and Oracle now; SQL Server planned</dd></div>
+          <div><dt>Engines</dt><dd>SQLite, PostgreSQL, MySQL / MariaDB, SQL Server and Oracle</dd></div>
           <div><dt>Env prefix</dt><dd><code>TOIL_DB_</code></dd></div>
           <div><dt>Needs</dt><dd>Node 24.14 or later</dd></div>
         </dl>
@@ -48,7 +48,7 @@ const commands = [
           <h2>Engines</h2>
           <p>
             Each connection names its <code>engine</code>, and the commands work the same way on all of them. toil is pre-release: SQLite,
-            PostgreSQL, MySQL / MariaDB and Oracle are built and their tests run against the real engines, but nothing is on npm yet.
+            PostgreSQL, MySQL / MariaDB, SQL Server and Oracle are built and their tests run against the real engines, but nothing is on npm yet.
           </p>
           <ul class="engines">
             {engines.map((e) => (
@@ -128,6 +128,29 @@ const commands = [
         </section>
 
         <section data-reveal>
+          <h2>Connecting to SQL Server</h2>
+          <p>
+            toil speaks SQL Server's wire protocol in plain JavaScript, so there's no ODBC driver or <code>sqlcmd</code> to install. It signs in
+            with a SQL Server login. A connection needs <code>host</code>, <code>database</code> and <code>user</code>; <code>port</code>
+            defaults to 1433, and <code>"ssl": true</code> encrypts the connection, checking the server's certificate against your operating
+            system's store. Without it the login and results cross the network unencrypted.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="p">$</span> export TOIL_DB_ENGINE=<span class="s">sqlserver</span>
+<span class="p">$</span> export TOIL_DB_HOST=<span class="s">sql.imagile.dev</span>
+<span class="p">$</span> export TOIL_DB_DATABASE=<span class="s">app</span>
+<span class="p">$</span> export TOIL_DB_USER=<span class="s">toil_reader</span>
+<span class="p">$</span> export TOIL_DB_PASSWORD=<span class="s">&lt;the login's password&gt;</span>
+<span class="p">$</span> export TOIL_DB_SSL=<span class="s">true</span></pre>
+          </div>
+          <p>
+            SQL Server has no read-only transaction, so connect with a read-only login: one whose database user is only in
+            <code>db_datareader</code>. That's what makes the server itself refuse a write. Keep a second connection, with a login that may
+            write, for <code>db execute</code>.
+          </p>
+        </section>
+
+        <section data-reveal>
           <h2>Connecting to Oracle</h2>
           <p>
             toil uses the Oracle driver in Thin mode, plain JavaScript, so there's no Instant Client or <code>sqlplus</code> to install. A
@@ -183,7 +206,10 @@ const commands = [
             open another existing SQLite file the process can read. On PostgreSQL, <code>COPY</code> and <code>DO</code> are refused on reads, since
             <code>COPY ... TO</code> can write server files; functions such as <code>lo_export</code> still run for a role allowed to call
             them, which is why the role should be an ordinary one. On MySQL and MariaDB, the session and the transaction are both read-only, so DDL is
-            refused too; <code>INTO OUTFILE</code> and <code>SET</code> are refused on reads, since they write server files or change the server. On Oracle, every read is a read-only transaction too, and DDL and PL/SQL are refused
+            refused too; <code>INTO OUTFILE</code> and <code>SET</code> are refused on reads, since they write server files or change the server. On SQL Server,
+            every read runs in a transaction that's always rolled back, and a statement the server reports as a write is refused; <code>COMMIT</code>,
+            <code>ROLLBACK</code> and <code>OUTPUT</code> are refused on reads outright. A <code>COMMIT</code> hidden in dynamic SQL can still save a write,
+            which toil reports but can't undo, so the login should be read-only. On Oracle, every read is a read-only transaction too, and DDL and PL/SQL are refused, and it needs <code>"writes": true</code> on the connection in your own config
             on reads, because Oracle commits DDL and a block can commit inside one; a stored function with an autonomous transaction still
             writes when a query calls it, which is why the account shouldn't be able to write. Only <code>db execute</code> writes, and it needs <code>"writes": true</code> on the connection in your own config
             and <code>--allow-write</code> on the call. Over MCP, the write tool doesn't exist until writes are on.{' '}
@@ -195,8 +221,8 @@ const commands = [
           <h2>Time limits</h2>
           <p>
             Every command stops at <code>TOIL_TIMEOUT_MS</code> (two minutes by default) and on Ctrl+C or an MCP cancel. SQLite can only be stopped
-            between rows, so a statement that works a long time before its first row finishes in the background. PostgreSQL and MySQL are told to cancel
-            the statement on the server, and Oracle is sent a break, which stops a working statement at once. Prefer <code>LIMIT</code> and indexed filters on large tables.
+            between rows, so a statement that works a long time before its first row finishes in the background. PostgreSQL, MySQL and SQL Server
+            are told to cancel the statement on the server, and Oracle is sent a break, which stops a working statement at once. Prefer <code>LIMIT</code> and indexed filters on large tables.
           </p>
         </section>
       </article>

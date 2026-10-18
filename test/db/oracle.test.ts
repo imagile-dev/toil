@@ -375,6 +375,18 @@ describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})`
     expect(raises.error?.message).toContain('Some of statements 1 to 1 of 1 may have committed');
     expect(await direct('SELECT active FROM people WHERE id = 8')).toEqual([[0]]);
 
+    // A CALLed procedure that commits is the same risk as a block.
+    await write('CREATE PROCEDURE commit_work IS BEGIN UPDATE people SET active = 0 WHERE id = 10; COMMIT; END;');
+    for (const [sql, upTo] of [
+      ['CALL commit_work(); UPDATE no_such_table SET x = 1', '1 to 2 of 2'],
+      ['CALL commit_work(); UPDATE people SET active = 1 WHERE id = 1; UPDATE no_such_table SET x = 1', '1 to 3 of 3'],
+    ] as const) {
+      const envelope = await write(sql);
+      expect(envelope.error?.message, sql).toContain(`Some of statements ${upTo} may have committed`);
+      expect(envelope.error?.message, sql).not.toContain('Nothing was applied');
+    }
+    expect(await direct('SELECT active FROM people WHERE id = 10')).toEqual([[0]]);
+
     // A DDL statement Oracle refuses while parsing commits nothing, and the error says so.
     const parse = await write('UPDATE people SET active = 0 WHERE id = 4; CREATE TABLEX notes');
     expect(parse.error?.code).toBe('DATABASE');
