@@ -34,7 +34,7 @@ async function run(name: string, input: Record<string, unknown>, extra: Route[] 
 }
 
 const body = (call: { body: string | undefined }) => JSON.parse(call.body!) as unknown;
-const remote = (url: string): Partial<Context> => ({ gitRemote: async () => ({ name: 'origin', url }) });
+const remote = (url: string): Partial<Context> => ({ gitRemote: async () => [{ name: 'origin', url }] });
 
 describe('requests', () => {
   it('sends the PAT as Basic with an empty user and JSON headers, even on a GET, keeping a /tfs context path', async () => {
@@ -103,6 +103,12 @@ describe('collection, project and repo', () => {
   it('come from an origin remote on the connection host, ignoring a /tfs prefix', async () => {
     const { calls, envelope } = await run('repo get', {}, [{ url: /.*/, respond: { json: {} } }], {}, remote(`${ADO}/tfs/Coll/Proj/_git/repo-x`));
     expect(calls[0]!.url).toBe(`${ADO}/Coll/Proj/_apis/git/repositories/repo-x?api-version=7.1`);
+    expect(envelope.meta.context?.inputs?.collection).toEqual({ value: 'Coll', source: 'git' });
+  });
+
+  it("come from a remote of any name on the connection host when origin is elsewhere, as the predecessor took them", async () => {
+    const remotes: Partial<Context> = { gitRemote: async () => [{ name: 'origin', url: 'git@github.com:me/repo-x.git' }, { name: 'upstream', url: `${ADO}/tfs/Coll/Proj/_git/repo-x` }] };
+    const { envelope } = await run('repo get', {}, [{ url: /.*/, respond: { json: {} } }], {}, remotes);
     expect(envelope.meta.context?.inputs?.collection).toEqual({ value: 'Coll', source: 'git' });
   });
 
@@ -237,6 +243,14 @@ describe('work items', () => {
     expect(envelope.meta.warnings).toEqual([{ code: 'ADO_PARENT_LINK_FAILED', message: 'Created #43 but failed to link to parent 999: TF401232: Work item 999 does not exist' }]);
   });
 
+  it('work update resolves the built-in aliases with no fieldAliases on the connection', async () => {
+    const { calls } = await run('work update', { ...W, id: '42', field: ['Story Points=5', 'title=T'] });
+    expect(body(calls[0]!)).toEqual([
+      { op: 'add', path: '/fields/Microsoft.VSTS.Scheduling.StoryPoints', value: '5' },
+      { op: 'add', path: '/fields/System.Title', value: 'T' },
+    ]);
+  });
+
   it("work update resolves names through the connection's fieldAliases over the built-in ones", async () => {
     const { calls } = await run('work update', { ...W, id: '42', field: ['Effort Days=3', 'state=Active', 'Custom.X=1'] }, [], { fieldAliases: { effortdays: 'MyOrg.EffortDays', state: 'MyOrg.State' } });
     expect(calls[0]).toMatchObject({ method: 'PATCH', url: `${ADO}${COLL}/_apis/wit/workitems/42?api-version=7.1` });
@@ -331,11 +345,12 @@ describe('discovery', () => {
     ]);
   });
 
-  it('--save writes nothing and says so; the result is unchanged', async () => {
-    const { envelope } = await run('work fields', { ...AT, save: true });
-    expect((envelope.data as unknown[]).length).toBe(3);
-    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'ADO_SAVE_UNAVAILABLE', message: expect.stringContaining('3 fields and 3 aliases were not written') })]);
-    expect((await run('work types', { ...AT, save: true })).envelope.meta.warnings?.[0]?.code).toBe('ADO_SAVE_UNAVAILABLE');
+  it('work fields and work types take no --save (KF6): it is an unknown input, refused before any request', async () => {
+    for (const command of ['work fields', 'work types']) {
+      const { envelope, calls } = await run(command, { ...AT, save: true });
+      expect(envelope.error?.code, command).toBe('INVALID_INPUT');
+      expect(calls, command).toEqual([]);
+    }
   });
 
   it('work schema needs no connection; --example-only returns the example as data', async () => {

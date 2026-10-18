@@ -99,7 +99,7 @@ found in its name, title and description. OSS Index gives no fixed versions, so
   failed; `error.details.cause` says how.
 - `HTTP`: "Sonatype OSS Index is rate-limiting requests from this IP…" on a 429. The
   limit is per account; wait and retry.
-- `HTTP`: "Sonatype OSS Index returned HTTP <status>" for any other failed batch.
+- `HTTP`: "Sonatype OSS Index returned HTTP <status> <reason>" for any other failed batch.
 
 ## Old paths
 

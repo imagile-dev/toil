@@ -72,7 +72,8 @@ credential store, or set `TOIL_ADO_PAT`.
 `--collection <name>` (or its alias `--organization <name>`), `--project <name>` and
 `--repo <name>` are group flags, accepted before or after the command
 (`toil ado --project Imagile work get --id 42`). Without them, toil reads them from
-the workspace's `origin` remote when it's on the connection's host
+the first of the workspace's remotes on the connection's host, of any name, trying
+`origin` first
 (`https://<host>[/tfs]/<collection>/<project>/_git/<repo>`, or the `_ssh` forms with
 `ssh://git@<host>` or `git@<host>:`), then the connection's `collection`, `project`
 and `repo` settings. `--collection` beats `--organization`, which beats the remote and
@@ -133,14 +134,19 @@ Work items (`--id <n>`):
 - `work schema`: The `--input-file` JSON schema and an example; `--example-only`
   returns just the example as `data`. Needs no connection.
 
-`work types --save` and `work fields --save` don't write config yet: the result is the
-same, with an `ADO_SAVE_UNAVAILABLE` warning. Set `fieldAliases` on the connection
-instead. `--discover` is accepted and changes nothing.
+`work types` and `work fields` have no `--save`; passing it is an unknown option.
+The aliases it used to save were the built-in ones below, which apply anyway.
+`--discover` is accepted and changes nothing.
 
-Field names in `--field` and `--input-file` resolve through `fieldAliases` and the
-built-in aliases (`title`, `state`, `description`, `priority`, `storypoints`,
-`acceptancecriteria`, `reprosteps` and others), matched ignoring case, spaces and
-dashes; anything else is sent as a reference name (`MyOrg.Team`). An `--input-file` is
+Field names in `--field` and `--input-file` resolve through the connection's
+`fieldAliases`, then the built-in aliases (`title`, `state`, `description`,
+`priority`, `storypoints`, `acceptancecriteria`, `reprosteps` and others), matched
+ignoring case, spaces and dashes; anything else is sent as a reference name
+(`MyOrg.Team`). To add your own alias, set `fieldAliases` as a JSON object:
+`toil connections add <name> --area ado` asks for it when setting up a connection;
+on one that exists, add `"fieldAliases": { "effortdays": "MyOrg.EffortDays" }` to it
+in `~/.toil/config.json`, or set `TOIL_ADO_FIELD_ALIASES` (or
+`TOIL_CONN_<NAME>_FIELD_ALIASES`) to the JSON. An `--input-file` is
 `{ "type": "Bug", "fields": { "Title": "...", "Description": "@desc.html" } }`: a value
 starting with `@` is read from that file. Flags win over the file, with an
 `ADO_INPUT_OVERRIDDEN` warning naming the keys.

@@ -78,7 +78,7 @@ LogScale recommends this synchronous search for filter queries over short window
 An aggregate (`| count()`) works, but blocks until the whole window is searched.
 
 A query LogScale rejects (a syntax error) is `HTTP`, with LogScale's explanation
-after the status, such as `HTTP 400: Unexpected end of input at 1:7`.
+after the status, such as `HTTP 400 Bad Request: Unexpected end of input at 1:7`.
 
 ```bash
 toil logscale repositories list

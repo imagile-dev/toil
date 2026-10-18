@@ -42,11 +42,12 @@ one they got.
   statement that gets around the engine's own read-only mode: SQLite's `VACUUM INTO`
   creates its target file before the read-only refusal, so SQLite reads refuse any
   statement whose first keyword is `VACUUM` (`INVALID_INPUT`, pointing at
-  `db execute`). That denies one statement by name; it does not decide whether SQL
+  `db execute`), and PostgreSQL reads refuse `COPY` and `DO`: `COPY ... TO '<file>'` and `TO PROGRAM`
+  write a server file or run a program inside a read-only transaction, and a `DO` block can run that `COPY`. Each denies one statement by name; it does not decide whether SQL
   writes, and everything else still relies on the engine. Add another such deny only
   for a statement proven to escape the engine's read-only mode, with a test showing
   the escape. A hole that can't be closed (SQLite's read-only `ATTACH` of other
-  files) is pinned with a test and documented as a known limit.
+  files, PostgreSQL's server-side functions such as `lo_export` for a privileged role) is pinned with a test and documented as a known limit.
 - **`execute` is all or nothing.** A script that starts or ends its own transaction
   is refused before any of it runs, so a mid-script `COMMIT` can't leave half a
   change applied.
@@ -62,6 +63,10 @@ one they got.
   next row. A statement that computes for a long time before producing a row keeps
   the thread busy until it finishes. Server engines should cancel on the server
   (`pg_cancel_backend`, a TDS attention, `KILL QUERY`), not just stop reading.
+  PostgreSQL opens one connection per call and, on abort, sends
+  `pg_cancel_backend(<pid>)` from a second short-lived one
+  (`src/core/db/postgres/index.ts`); the abandoned call's own error is dropped,
+  because core has already answered `TIMEOUT` or `CANCELLED`.
 
 ## Testing
 
@@ -75,6 +80,22 @@ one they got.
   `test/db/targets.ts`; a server engine's target seeds `SEED_SQL` into a fresh
   database and returns `skip` when its container isn't reachable. Engine-only
   behaviour (value conversion, file handling) goes in `test/db/<engine>.test.ts`.
+- **A server engine's target** (PostgreSQL's is the one to copy) reads one URL
+  from `TOIL_TEST_<ENGINE>_URL` (`TOIL_TEST_PG_URL`), defaulting to the CI service
+  container's. `skip` probes it: unset and unreachable skips, so offline
+  `npm test` stays green; set and unreachable throws, so a run someone asked for
+  can't pass by skipping. `setup` creates a fresh database per test and seeds
+  `SEED_SQL`; `cleanup` drops it. The target also returns `running()`, the count of
+  toil's statements still executing on the server against that database, and the
+  conformance suite polls it to 0 after a cancel and a time limit. That is how a
+  server-side cancel is tested: the slow statement sleeps on the server without
+  producing a row (`pg_sleep`, `SLEEP`, `WAITFOR DELAY`, `DBMS_SESSION.SLEEP`), so
+  only a real cancel stops it. Break the cancel on purpose once and watch both
+  tests fail.
+- **`npm run test:integration`** is `vitest run test/db/`. CI's `integration` job
+  (`.github/workflows/ci.yml`) runs it on Linux with each server engine as a
+  service container from its official image at a pinned tag, and sets each URL
+  variable. A new engine adds its service and its variable to that job.
 - The parity suite runs the `db` examples against a seeded SQLite file made by
   `test/fixtures/db.fixture.ts` (removed by its `cleanup`). The examples name the
   seed's tables (`people`, `teams`), so keep them in step with `SEED_SQL`. Parity
@@ -86,6 +107,19 @@ one they got.
   it, and drive the actual `toil db` commands through both the CLI and MCP. Remove
   the containers afterwards. The PR names the image and tag and shows the output.
   Docker is a development tool here, never a runtime dependency: No Executables
-  governs what toil ships, not how it's tested.
+  governs what toil ships, not how it's tested. The steps, with PostgreSQL:
+
+  ```bash
+  name=toil-test-postgres-$RANDOM   # unique, so parallel runs never collide
+  docker run -d --name $name -e POSTGRES_PASSWORD=postgres -p 55437:5432 \
+    --health-cmd "pg_isready -U postgres" --health-interval 2s postgres:17
+  until [ "$(docker inspect -f '{{.State.Health.Status}}' $name)" = healthy ]; do sleep 1; done
+  TOIL_TEST_PG_URL=postgres://postgres:postgres@localhost:55437/postgres npm run test:integration
+  # ...then seed a database and drive node dist/toil.js db ... and toil mcp against it
+  docker rm -f $name; docker ps -a --filter name=toil-test-postgres   # must list nothing
+  ```
+
+  Use a host port other than the engine's default, and remove the container even
+  when something failed.
   SQLite has no server to run: `node:sqlite` is the real engine, so its in-process
   tests plus the built CLI and MCP driven against a real file stand in for this step.
