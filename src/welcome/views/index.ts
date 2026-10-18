@@ -1,6 +1,7 @@
 import type { View } from '../view.js';
 import { agentAreas, agentsView, agentView } from './agents.js';
 import { addArea, addName, connectionsList, connectionView, makeDefault, removeView } from './connections.js';
+import * as dossiers from './dossiers.js';
 import { healthView, helpView } from './health.js';
 import { homeView, type HomeEntry } from './home.js';
 import { resultView } from './result.js';
@@ -18,6 +19,7 @@ export const HOME_ENTRIES: HomeEntry[] = [
   { label: 'Connect an agent', hint: 'Pick areas and get the MCP config snippet', view: 'agents' },
   { label: 'Skills', hint: 'Marketplaces of agent skills: add one, install a plugin', view: 'skills' },
   { label: 'Plugins', hint: 'Switch installed plugins on and off', view: 'plugins' },
+  { label: 'Dossiers', hint: 'This folder, create, review, edit, export and import', view: 'dossiers' },
   { label: 'Help', hint: 'How toil works, a command cheatsheet, the docs', view: 'help' },
 ];
 
@@ -45,5 +47,40 @@ export const VIEWS: Record<string, View> = {
   plugins: pluginsView,
   'plugins-toggle': toggleView,
   'plugins-review': reviewView,
+  dossiers: dossiers.dossiersView,
+  'dossier-folder': dossiers.folderView,
+  'dossier-list': dossiers.listView,
+  dossier: dossiers.dossierView,
+  'dossier-review': dossiers.reviewView,
+  'dossier-service': dossiers.serviceView,
+  'dossier-edit': dossiers.editView,
+  'dossier-repos-edit': dossiers.reposEditView,
+  'dossier-area': dossiers.areaView,
+  'dossier-area-pick': dossiers.areaPickView,
+  'dossier-connection': dossiers.connectionView,
+  'dossier-host': dossiers.hostView,
+  'dossier-confirm': dossiers.confirmView,
+  'dossier-set': dossiers.setView,
+  'dossier-repo-pick': dossiers.repoPickView,
+  'dossier-field': dossiers.fieldView,
+  'dossier-discover-start': dossiers.discoverStartView,
+  'dossier-discover': dossiers.discoverView,
+  'dossier-save': dossiers.saveView,
+  'dossier-scan': dossiers.scanView,
+  'dossier-repos': dossiers.reposChecklist,
+  'dossier-remote': dossiers.remoteView,
+  'dossier-new': dossiers.newView,
+  'dossier-new-areas': dossiers.newAreasView,
+  'dossier-new-envs': dossiers.newEnvsView,
+  'dossier-env-name': dossiers.envNameView,
+  'dossier-export': dossiers.exportView,
+  'dossier-export-file': dossiers.exportFileView,
+  'dossier-export-replace': dossiers.exportReplaceView,
+  'dossier-import': dossiers.importView,
+  'dossier-import-check': dossiers.importCheckView,
+  'dossier-import-confirm': dossiers.importConfirmView,
+  'dossier-import-done': dossiers.importDoneView,
+  'dossier-delete': dossiers.deleteView,
+  'dossier-agent': dossiers.agentView,
   result: resultView,
 };

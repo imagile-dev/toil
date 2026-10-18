@@ -53,6 +53,8 @@ interface Shown {
 /** `toil dossiers check`. */
 interface Checked {
   name: string | null;
+  /** Null when the file is too broken to load. */
+  file: string | null;
   ok: boolean;
   problems: Problem[];
   message?: string;
@@ -1112,7 +1114,7 @@ export const importCheckView: View = {
   body: (caps, p) => {
     const c = checkedOf(p, p.frame.params.source);
     if (!c) return [];
-    const lines = [c.ok ? ok(caps, true, `${c.name} reads cleanly.`) : ok(caps, false, `${c.name ?? 'It'} has errors, so it can't be imported as it is.`)];
+    const lines = [c.file === null ? ok(caps, false, "It doesn't load as a dossier, so it can't be imported as it is.") : c.ok ? ok(caps, true, `${c.name} reads cleanly.`) : ok(caps, false, `${c.name} has errors. A connection or host you don't have can be added after importing; anything else needs fixing in the file first.`)];
     for (const x of c.problems) lines.push(`  ${x.level === 'error' ? ok(caps, false, x.code) : muted(caps, x.code)}  ${faint(caps, x.path || '(file)')}`, muted(caps, `    ${x.message}`));
     const writes = writesBindings(c);
     if (writes.length) lines.push('', ok(caps, false, `Its bindings select ${writes.join(', ')}, which ${writes.length === 1 ? 'has' : 'have'} writes on. Importing makes those bindings yours, so you'll be asked to confirm.`));
@@ -1121,7 +1123,7 @@ export const importCheckView: View = {
   items: (p) => {
     const source = p.frame.params.source!;
     const c = checkedOf(p, source);
-    if (!c?.ok) return [{ label: 'Back', hint: '', action: { back: true } }];
+    if (!c || c.file === null) return [{ label: 'Back', hint: '', action: { back: true } }];
     const writes = writesBindings(c);
     return [
       writes.length
