@@ -380,21 +380,10 @@ the bottom of their section.
   section says. For a while the coordinator kept this file to itself to avoid merge
   conflicts; review (#160) caught that this broke the rule. A conflict in this file
   keeps both sides.
-- **`dist/toil.js` is committed, and rebuilt only by release PRs** (maintainer,
-  2026-10-17, #58). A clone runs without `npm install`. PRs never touch `dist/` (a CI
-  guard fails one that does), so parallel PRs don't conflict on the bundle; the
-  bundle on `main` is the one built when #158 merged until the first release, then
-  the last release.
-- **The database `integration` job runs in parallel and `CI ok` requires it**
-  (maintainer, 2026-10-17): CI stays as fast as before, and a database regression
-  blocks a merge.
-- **Database providers are run against the real engine in Docker before their PR**,
-  each in a uniquely named container on its own port so parallel builds never
-  collide, and removed afterwards (maintainer, 2026-10-17).
-- **`jwt` and `deps` live under a `util` group** (`toil util jwt decode`, `toil util
-  deps scan|diff`), on the maintainer's instruction of 2026-10-17; the contract paths
-  `toil jwt decode` and `toil deps …` stay as aliases. The group's name, `util`, was
-  the coordinator's pick.
+- **The utility group is named `util`** (`toil util jwt decode`, `toil util deps
+  scan|diff`), the coordinator's pick when the maintainer asked for one.
+- **Each database provider's local Docker run uses a uniquely named container on its
+  own port**, removed afterwards, so parallel builds never collide.
 - **Scratch files shared by parallel agents are named after their branch**, after one
   agent's PR description was overwritten by another's (#158).
 
@@ -731,7 +720,7 @@ Added as each integration lands.
   a marketplace and grant itself installs. Writes are turned on the same way as for
   any connection; `add` reports the value the write gate will resolve.
 
-### Welcome menu (#52, #53, #54, #55, #154)
+### Welcome menu (#52, #53, #54, #55)
 
 - **Every menu action runs a real command in-process and shows the line it ran.**
   The menu needed `connections test`, `connections writes` and `connections
@@ -741,9 +730,6 @@ Added as each integration lands.
   through core, so a revoked token or an SSO page served with a 200 is not "healthy".
   Where no cheap authenticated read exists, `authenticated: false` says so.
 - **Opening the menu sends nothing over the network.**
-- **The brick breaker is a menu entry only on a TTY**, never a command or an MCP tool.
-  Its logic runs on a fixed tick, and every exit, Ctrl+C included, restores the
-  terminal.
 
 ### The toil skill (#58)
 
@@ -759,6 +745,3 @@ Added as each integration lands.
 - **Selecting a dossier is lazy for a folder match and strict for an explicit one**:
   a folder matching two dossiers never fails a call that doesn't consult one, while
   `--dossier` or `TOIL_DOSSIER` is always checked.
-- **Over MCP, binding a dossier to a connection with writes on is refused**, judged
-  by the same resolution a call uses, so an environment that selects a connection
-  can't route around it.
