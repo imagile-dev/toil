@@ -201,6 +201,34 @@ describe('util deps scan', () => {
     expect(names(result.packages)).toEqual(['Serilog@3.1.1', 'System.Memory@4.5.5', 'jQuery@3.7.1']);
   });
 
+  it('reads CRLF files exactly as LF ones: yarn.lock, pnpm-lock.yaml and gradle.lockfile', async () => {
+    const crlf = (text: string) => text.replace(/\n/g, '\r\n');
+    const pkg = JSON.stringify({ dependencies: { express: '^4.21.0' } });
+    const all = { includeTransitive: true, includeDev: true };
+    const yarn = 'express@^4.21.0:\n  version "4.21.0"\n\nqs@6.13.0:\n  version "6.13.0"\n';
+    const pnpm = 'packages:\n\n  /express@4.21.0:\n    resolution: {integrity: x}\n    dev: false\n\n  /chalk@5.3.0:\n    resolution: {integrity: y}\n    dev: true\n';
+    const gradleLock = 'junit:junit:4.13.2=testCompileClasspath\ncom.google.guava:guava:33.0.0-jre=compileClasspath\n';
+    for (const [tree, opts] of [
+      [{ 'package.json': pkg, 'yarn.lock': yarn }, all],
+      [{ 'package.json': pkg, 'pnpm-lock.yaml': pnpm }, all],
+      [{ 'build.gradle': 'plugins {}', 'gradle.lockfile': gradleLock }, {}],
+    ] as Array<[Record<string, string>, ScanOptions]>) {
+      const lf = await scan(tree, opts);
+      expect(lf.packages.length).toBeGreaterThan(0);
+      const asCrlf = Object.fromEntries(Object.entries(tree).map(([path, text]) => [path, crlf(text)]));
+      expect(await scan(asCrlf, opts)).toEqual(lf);
+    }
+  });
+
+  it('diff sees no change between a CRLF working tree and the LF blob at a ref', async () => {
+    const yarn = 'express@^4.21.0:\n  version "4.21.0"\n';
+    const pkg = JSON.stringify({ dependencies: { express: '^4.21.0' } });
+    const runner = git({ [lsTree('main')]: 'package.json\nyarn.lock\n', [show('main', 'package.json')]: pkg, [show('main', 'yarn.lock')]: yarn });
+    const tree = { 'package.json': pkg, 'yarn.lock': yarn.replace(/\n/g, '\r\n') };
+    const envelope = await execute(depsDiffCommand, { from: 'main' }, testContext({ files: tree, repo: REPO, git: runner }).context);
+    expect(envelope.data).toMatchObject({ changes: [], summary: { unchanged: 1 } });
+  });
+
   it('finds Directory.Packages.props in a parent folder', async () => {
     const result = await scan({ 'Directory.Packages.props': PROPS, 'src/deep/App/App.csproj': '<PackageReference Include="Newtonsoft.Json" Version="$(NewtonsoftVersion)" />' }, { ecosystem: 'nuget' });
     expect(result.packages.filter((p) => p.source.endsWith('App.csproj')).map((p) => p.version)).toEqual(['12.0.1']);

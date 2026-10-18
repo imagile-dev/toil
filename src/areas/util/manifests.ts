@@ -517,13 +517,16 @@ async function parseManifests(manifests: ManifestInfo[], opts: ScanOptions, read
 
 /** The inventory of `files` (forward-slash paths relative to the scan's top), read through `read`. */
 export async function scanFiles(files: string[], opts: ScanOptions, read: ReadFile): Promise<ScanData> {
+  // CRLF and LF alike (principle 8): every parser, and a working tree checked out
+  // with autocrlf against the LF blob git show returns, sees one form.
+  const readLf: ReadFile = async (path) => (await read(path))?.replace(/\r\n/g, '\n') ?? null;
   const eco = opts.ecosystem ?? 'all';
   const manifests = [
     ...(eco === 'all' || eco === 'npm' ? findNpmManifests(files) : []),
     ...(eco === 'all' || eco === 'nuget' ? findNugetManifests(files) : []),
     ...(eco === 'all' || eco === 'maven' ? findMavenManifests(files) : []),
   ];
-  return buildScanData(manifests, await parseManifests(manifests, opts, read));
+  return buildScanData(manifests, await parseManifests(manifests, opts, readLf));
 }
 
 export function buildScanData(manifests: ManifestInfo[], packages: Package[]): ScanData {

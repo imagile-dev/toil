@@ -54,7 +54,7 @@ function treeReader(ctx: Ctx): ReadFile {
 
 /** The workspace's inventory, from every file the `.gitignore`-aware listing returns. */
 function scanTree(ctx: Ctx, opts: ScanOptions): Promise<ScanData> {
-  return scanFiles(ctx.files.list(), opts, treeReader(ctx));
+  return scanFiles(ctx.files.list('.', { warn: (w) => ctx.warn(w) }), opts, treeReader(ctx));
 }
 
 /**

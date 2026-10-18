@@ -6,9 +6,8 @@ import { callKey } from './git.fixture.js';
  * The `util` group's commands are standalone and local: jwt decode reads only
  * its input, deps scan reads the workspace's files, and deps diff reads files
  * at a git ref through a canned git. There are no routes, because nothing
- * here talks to a network. The git runner isn't traced: the suite would then
- * expect every example to run git, and jwt decode and deps scan never do.
- * util.test.ts checks the exact git calls instead.
+ * here talks to a network. The git runner is traced, so the parity suite
+ * compares every git call `deps diff` makes through both front doors.
  *
  * Provenance: written by hand. The lockfile follows npm's documented v3
  * format, the project files MSBuild's and Maven's, and the git output is the
@@ -108,4 +107,5 @@ export const fixture = defineFixture({
   files,
   repo: { root: '/work', branch: 'main', remotes: [] },
   git: cannedGit,
+  trace: [{ label: 'git', target: cannedGit }],
 });

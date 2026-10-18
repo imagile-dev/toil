@@ -48,6 +48,13 @@
       "why": "A value starting with - would reach git as an option; core refuses it for every command that runs git (CLAUDE.md, No Executables).",
       "principle": "1",
       "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "deps scan and deps diff reading a CRLF yarn.lock as written, so it gave no packages (its pattern needs a bare LF after each header). On Windows with core.autocrlf, deps diff then compared an empty working-tree yarn inventory with the LF blob at a ref and reported every yarn package removed",
+      "toil": "Every file the scan reads has CRLF turned into LF first, so a CRLF yarn.lock gives the same inventory as an LF one, and both sides of a diff read alike. The other parsers already gave the same result either way",
+      "why": "Files are read as UTF-8 with CRLF and LF both accepted, on every platform.",
+      "principle": "8"
     }
   ]
 }

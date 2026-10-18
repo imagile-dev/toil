@@ -169,7 +169,8 @@ for (const suite of suites) {
           expect(viaMcp.isError).toBe(false);
           expect(http.calls, 'same HTTP requests').toEqual(cli.http.calls);
           expect(mcpOps, 'same operations').toEqual(cliOps);
-          if (suite.fixture.trace.length > 0) expect(cliOps.length, `${commandName(def)}: the fixture traces this area, so its examples should log operations`).toBeGreaterThan(0);
+          // A traced fixture may hold commands that log nothing (`util jwt decode` beside `util deps diff`);
+          // the comparison above still holds every call either door makes to the same account.
           expect(viaCli.exitCode).toBe(0);
           if (!def.writes) {
             const allowed = def.queryByPost ? new Set([...READ_METHODS, 'POST']) : READ_METHODS;
