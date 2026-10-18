@@ -27,6 +27,8 @@ async function run(input: ReportInput, files: Record<string, string> = reportFil
   return { envelope, data: envelope.data as ReportData, warnings: envelope.meta.warnings ?? [] };
 }
 
+const run_ = run;
+
 /** Calls the work directly, with a chosen read cap and chunk size. */
 async function summarise(input: ReportInput, files: Record<string, string>, options: { maxBytes?: number; chunkSize?: number } = {}) {
   const warnings: Warning[] = [];
@@ -260,6 +262,16 @@ describe('util report: coverage', () => {
     expect(warnings).toContainEqual({ code: 'REPORT_COVERAGE_MISMATCH', message: 'The record for src/cart.ts at line 2 states LH:11, but its lines count 10. (1 of 3 checks failed)' });
   });
 
+  it('counts FNH as distinct functions hit: an lcov 2 alias, and a repeated FNDA, count once', async () => {
+    const lcov = ['SF:a.c', 'FNL:0,1,5', 'FNA:0,3,foo', 'FNA:0,3,foo_alias', 'FN:7,bar', 'FNDA:2,bar', 'FNDA:2,bar', 'FNF:2', 'FNH:2', 'DA:1,3', 'LF:1', 'LH:1', 'end_of_record', ''].join('\n');
+    const { data } = await run({ text: lcov });
+    expect(check(data, 'coverage.functionsHit')).toMatchObject({ status: 'passed', checked: 1 });
+    expect(check(data, 'coverage.functionsFound')).toMatchObject({ status: 'passed', checked: 1 });
+    expect(data.verified.passed).toBe(true);
+    const broken = await run({ text: lcov.replace('FNH:2', 'FNH:3') });
+    expect(check(broken.data, 'coverage.functionsHit')).toMatchObject({ status: 'failed', failures: [{ expected: 3, actual: 2 }] });
+  });
+
   it('merges a file that appears in two records: a line is covered when either hit it', async () => {
     const lcov = 'TN:unit\nSF:a.ts\nDA:1,1\nDA:2,0\nLF:2\nLH:1\nend_of_record\nTN:e2e\nSF:a.ts\nDA:1,0\nDA:2,3\nLF:2\nLH:1\nend_of_record\n';
     const { data } = await run({ text: lcov });
@@ -320,6 +332,26 @@ describe('util report: SARIF', () => {
     expect(data.skipped).toEqual({ count: 1, elements: [{ element: 'result', count: 1, reason: 'not an object' }] });
     expect(codes(warnings)).toEqual(expect.arrayContaining(['APPROXIMATED', 'REPORT_TOOL_FAILED', 'REPORT_ELEMENTS_SKIPPED']));
     expect(check(data, 'sarif.version')).toMatchObject({ status: 'approximated', detail: 'the file says SARIF version "2.0.0"; it was read as 2.1.0' });
+  });
+
+  it('looks a rule up in the extension its toolComponent names, as CodeQL query packs write it', async () => {
+    const run = (component: unknown) => ({
+      tool: { driver: { name: 'CodeQL', rules: [] }, extensions: [{ name: 'codeql/javascript-queries', rules: [{ id: 'js/xss', defaultConfiguration: { level: 'error' } }] }] },
+      results: [{ ruleId: 'js/xss', ruleIndex: 0, rule: { id: 'js/xss', index: 0, toolComponent: component }, message: { text: 'x' } }],
+    });
+    const found = await run_({ text: JSON.stringify({ version: '2.1.0', runs: [run({ index: 0 })] }) });
+    expect(found.data.findings?.results[0]).toMatchObject({ rule: 'js/xss', level: 'error' });
+    expect(check(found.data, 'sarif.ruleIndex')).toMatchObject({ status: 'passed', checked: 1 });
+    expect(found.data.verified.passed).toBe(true);
+    // A component named only by guid can't be found: the check is unverified, not failed.
+    const byGuid = await run_({ text: JSON.stringify({ version: '2.1.0', runs: [run({ guid: 'abc12345-0000-0000-0000-000000000000' })] }) });
+    expect(byGuid.data.verified.passed).toBe(true);
+    expect(check(byGuid.data, 'sarif.ruleIndex')).toMatchObject({ status: 'unchecked', checked: 0 });
+    expect(byGuid.warnings).toContainEqual({
+      code: 'UNVERIFIED',
+      message: "sarif.ruleIndex was not checked: 1 result names its rule through a toolComponent that isn't found by index in tool.extensions, so the rule, its ruleIndex and its default level weren't looked up.",
+    });
+    expect(byGuid.data.findings?.results[0]).toMatchObject({ rule: 'js/xss', level: 'warning' });
   });
 
   it('refuses JSON that is not SARIF, and text that is not JSON', async () => {

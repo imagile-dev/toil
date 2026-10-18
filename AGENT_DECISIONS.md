@@ -1173,3 +1173,6 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   may be a credential on its way into a header.
 - **The utilities page shows a short path only for `jwt` and `deps`,** the commands
   that have one, instead of assuming every `util` command does.
+- **A SARIF rule reference whose `toolComponent` can't be found by index** (named
+  only by `guid`) leaves `sarif.ruleIndex` `UNVERIFIED` and the level at the spec's
+  fallback, rather than guessing which component it means (review of #191).

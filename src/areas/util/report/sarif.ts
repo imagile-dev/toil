@@ -61,6 +61,7 @@ export async function readSarif(input: UtilInput, v: Verifier, skips: Skips, ctx
   const runs: FindingsSummary['runs'] = [];
   const results: Finding[] = [];
   const byLevel: Record<string, number> = {};
+  let unresolved = 0;
   doc.runs.forEach((run, r) => {
     if (!isObject(run)) {
       skips.add('run', 'not an object');
@@ -70,6 +71,7 @@ export async function readSarif(input: UtilInput, v: Verifier, skips: Skips, ctx
     const version = str(get(run, 'tool', 'driver', 'semanticVersion')) ?? str(get(run, 'tool', 'driver', 'version'));
     const rulesRaw = get(run, 'tool', 'driver', 'rules');
     const rules = Array.isArray(rulesRaw) ? rulesRaw : [];
+    const extensions = get(run, 'tool', 'extensions');
     const artifacts = Array.isArray(run.artifacts) ? run.artifacts : [];
     const invocations = Array.isArray(run.invocations) ? run.invocations : [];
     if (invocations.some((i) => get(i, 'executionSuccessful') === false)) {
@@ -83,10 +85,20 @@ export async function readSarif(input: UtilInput, v: Verifier, skips: Skips, ctx
         return;
       }
       const index = typeof result.ruleIndex === 'number' ? result.ruleIndex : typeof get(result, 'rule', 'index') === 'number' ? (get(result, 'rule', 'index') as number) : undefined;
-      const indexed = index === undefined ? undefined : rules[index];
+      // A rule reference with a toolComponent points into that component's rules (SARIF 3.52.7):
+      // an extension, such as a CodeQL query pack, by its index. One named only by guid can't be found.
+      const component = get(result, 'rule', 'toolComponent');
+      const componentIndex = get(component, 'index');
+      let componentRules: unknown[] | undefined = rules;
+      if (component !== undefined) {
+        const extRules = typeof componentIndex === 'number' && Array.isArray(extensions) ? get(extensions[componentIndex], 'rules') : undefined;
+        componentRules = Array.isArray(extRules) ? extRules : undefined;
+        if (componentRules === undefined) unresolved++;
+      }
+      const indexed = index === undefined || componentRules === undefined ? undefined : componentRules[index];
       const ruleObj = isObject(indexed) ? indexed : undefined;
       const ruleId = str(result.ruleId) ?? str(get(result, 'rule', 'id'));
-      if (index !== undefined && ruleId !== null) {
+      if (index !== undefined && ruleId !== null && componentRules !== undefined) {
         const id = str(ruleObj?.id);
         // A ruleId may be hierarchical ("js/rule/sub"), naming a sub-rule of the indexed one.
         v.expect('sarif.ruleIndex', id !== null && (ruleId === id || ruleId.startsWith(`${id}/`)), { at: `runs[${r}].results[${i}]`, expected: ruleId, actual: id }, {
@@ -116,5 +128,8 @@ export async function readSarif(input: UtilInput, v: Verifier, skips: Skips, ctx
       });
     });
   });
+  if (unresolved > 0) {
+    v.unchecked('sarif.ruleIndex', `${unresolved} result${unresolved === 1 ? ' names its rule' : 's name their rule'} through a toolComponent that isn't found by index in tool.extensions, so the rule, its ruleIndex and its default level weren't looked up`);
+  }
   return { runs, total: results.length, byLevel, results };
 }

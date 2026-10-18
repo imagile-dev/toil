@@ -19,7 +19,8 @@ interface RecordState {
   da: Map<number, number>;
   brda: Map<string, number>;
   functions: number;
-  functionsHit: number;
+  /** Distinct functions hit: FNDA by name, FNA by index, since lcov 2 lists each alias of one function. */
+  functionsHit: Set<string>;
   stated: Partial<Record<'LF' | 'LH' | 'BRF' | 'BRH' | 'FNF' | 'FNH', number>>;
 }
 
@@ -46,7 +47,7 @@ export async function readLcov(input: UtilInput, v: Verifier, skips: Skips, lowe
     for (const h of r.da.values()) if (h > 0) hit++;
     let branchesHit = 0;
     for (const t of r.brda.values()) if (t > 0) branchesHit++;
-    const counted = { LF: lines, LH: hit, BRF: r.brda.size, BRH: branchesHit, FNF: r.functions, FNH: r.functionsHit };
+    const counted = { LF: lines, LH: hit, BRF: r.brda.size, BRH: branchesHit, FNF: r.functions, FNH: r.functionsHit.size };
     const where = `SF:${r.file} at line ${r.line}`;
     for (const key of Object.keys(CHECKS) as Array<keyof typeof CHECKS>) {
       const stated = r.stated[key];
@@ -82,7 +83,7 @@ export async function readLcov(input: UtilInput, v: Verifier, skips: Skips, lowe
         skips.add('SF', 'a record with no end_of_record before the next SF; its counts were kept');
         finish(record);
       }
-      record = { file: value, line: number, da: new Map(), brda: new Map(), functions: 0, functionsHit: 0, stated: {} };
+      record = { file: value, line: number, da: new Map(), brda: new Map(), functions: 0, functionsHit: new Set(), stated: {} };
       sawRecord = true;
       continue;
     }
@@ -116,10 +117,10 @@ export async function readLcov(input: UtilInput, v: Verifier, skips: Skips, lowe
         record.functions++;
         break;
       case 'FNDA':
-        if (COUNT.test(parts[0] ?? '') && Number(parts[0]) > 0) record.functionsHit++;
+        if (COUNT.test(parts[0] ?? '') && Number(parts[0]) > 0) record.functionsHit.add(`name:${parts.slice(1).join(',')}`);
         break;
       case 'FNA':
-        if (COUNT.test(parts[1] ?? '') && Number(parts[1]) > 0) record.functionsHit++;
+        if (COUNT.test(parts[1] ?? '') && Number(parts[1]) > 0) record.functionsHit.add(`index:${parts[0]}`);
         break;
       default: {
         const stated = key as keyof RecordState['stated'];
