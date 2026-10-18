@@ -24,7 +24,8 @@ GitHub release also carries the packed `.tgz` for offline or mirrored installs:
 `npm install -g ./imagile-dev-toil-<version>.tgz`.
 
 **toil is alpha: APIs and flags may change before 1.0.** Releases are published under
-npm's `alpha` tag, which `latest` follows until 1.0.
+npm's `alpha` tag, which `latest` follows until 1.0. The first alpha is being
+published; until it is, these return 404, so install from a clone meanwhile.
 
 ## From a clone, with no npm install
 

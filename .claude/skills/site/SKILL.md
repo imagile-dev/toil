@@ -30,7 +30,7 @@ from `main`).
 - **Honest about status** (*principle 4*). Until 1.0, the site says **Alpha**
   ("Alpha: APIs and flags may change before 1.0", the README's wording) by the
   install commands and in the hero, and labels sample output as planned. The
-  homepage's two ways to start come from `site/src/data/start.ts`, copied from the
+  homepage's two ways to start come from `site/src/data/start.json`, copied from the
   README; `test/start-commands.test.ts` fails when they drift. An integration is on the board
   only once its code is on `main`, and shows its verification level: `unit`,
   `live` or `stable` (**Verification Levels**, `integrations` skill). Their

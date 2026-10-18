@@ -5,6 +5,9 @@
 //   --skip-build   use the committed dist/toil.js (the last release) as it is:
 //                  no npm install, no build
 //   --no-alias     don't touch the shell profile
+//   --profile <f>  the profile file setup alias edits, passed through to it
+//                  (otherwise setup alias picks; PowerShell's $PROFILE is
+//                  looked up only when setup alias asks for it)
 //
 // It checks Node, builds what's on this checkout (npm ci --ignore-scripts, then
 // npm run build), adds the `toil` alias with `toil setup alias`, and prints
@@ -12,7 +15,10 @@
 // alias is updated in place.
 //
 // Repo tooling only. It spawns npm and node, so it lives in scripts/, which is
-// neither in package.json `files` nor in the bundle check:pure inspects.
+// neither in package.json `files` nor in the bundle check:pure inspects. npm
+// runs as its own JS entry under this node, never through a shell, the way
+// scripts/smoke.mjs runs it. Four onboarding steps, one command: the form has
+// been pre-filled on your behalf.
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -22,9 +28,6 @@ const MIN = [24, 14];
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const bundle = join(root, 'dist', 'toil.js');
 const args = process.argv.slice(2);
-const unknown = args.filter((a) => a !== '--skip-build' && a !== '--no-alias');
-const skipBuild = args.includes('--skip-build');
-const noAlias = args.includes('--no-alias');
 
 function fail(message, fix) {
   console.error(`\nsetup failed: ${message}`);
@@ -32,7 +35,14 @@ function fail(message, fix) {
   process.exit(1);
 }
 
-if (unknown.length > 0) fail(`unknown option ${unknown.join(' ')}.`, 'Use --skip-build, --no-alias, both, or neither.');
+const profileAt = args.indexOf('--profile');
+const profile = profileAt >= 0 ? args.splice(profileAt, 2)[1] : undefined;
+if (profileAt >= 0 && !profile) fail('--profile needs a file.', 'Pass the profile to edit, for example --profile $PROFILE in PowerShell.');
+const unknown = args.filter((a) => a !== '--skip-build' && a !== '--no-alias');
+const skipBuild = args.includes('--skip-build');
+const noAlias = args.includes('--no-alias');
+
+if (unknown.length > 0) fail(`unknown option ${unknown.join(' ')}.`, 'Use --skip-build, --no-alias and --profile <file>, or none of them.');
 
 // 1. Node.
 const [major, minor] = process.versions.node.split('.').map(Number);
@@ -40,14 +50,21 @@ if (major < MIN[0] || (major === MIN[0] && minor < MIN[1])) {
   fail(`toil needs Node.js ${MIN.join('.')} or later, and this is ${process.versions.node}.`, `Install Node.js ${MIN.join('.')} or later from https://nodejs.org, then run node scripts/setup.mjs again.`);
 }
 
-// Runs a step with its output streamed. npm is npm.cmd on Windows, which only a shell runs;
-// every argument here is fixed, so the shell sees nothing from outside.
-function run(label, command, commandArgs, { shell = false } = {}) {
-  console.log(`\n> ${[command, ...commandArgs].join(' ')}`);
-  const result = shell
-    ? spawnSync([command, ...commandArgs].join(' '), { cwd: root, stdio: 'inherit', shell: true })
-    : spawnSync(command, commandArgs, { cwd: root, stdio: 'inherit' });
-  if (result.error) fail(`${label} didn't start (${result.error.message}).`, `Check that ${command} is on PATH.`);
+// Runs npm with its output streamed. npm is npm.cmd on Windows, which only a shell
+// runs, so this runs npm's own JS entry under this node instead. npm ships beside
+// node: <dir>/node_modules/npm on Windows, <prefix>/lib/node_modules/npm elsewhere.
+const npmCli =
+  process.env.npm_execpath ??
+  (process.platform === 'win32'
+    ? join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
+    : join(dirname(process.execPath), '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'));
+
+function npm(npmArgs) {
+  const label = `npm ${npmArgs.join(' ')}`;
+  if (!existsSync(npmCli)) fail(`npm isn't where this node keeps it (${npmCli}).`, `Reinstall Node.js ${MIN.join('.')} or later with its bundled npm, or set npm_execpath to npm's bin/npm-cli.js, then run node scripts/setup.mjs again.`);
+  console.log(`\n> ${label}`);
+  const result = spawnSync(process.execPath, [npmCli, ...npmArgs], { cwd: root, stdio: 'inherit' });
+  if (result.error) fail(`${label} didn't start (${result.error.message}).`, `Check that ${npmCli} is npm's bin/npm-cli.js.`);
   if (result.status !== 0) fail(`${label} exited with code ${result.status}.`, 'Read the output above, fix what it names, and run node scripts/setup.mjs again.');
 }
 
@@ -62,12 +79,11 @@ function toil(toilArgs) {
 }
 
 // 2. Build.
-const win = process.platform === 'win32';
 if (skipBuild) {
   console.log('Skipping the build: using the committed dist/toil.js, the last released toil.');
 } else {
-  run('npm ci', 'npm', ['ci', '--ignore-scripts'], { shell: win });
-  run('npm run build', 'npm', ['run', 'build'], { shell: win });
+  npm(['ci', '--ignore-scripts']);
+  npm(['run', 'build']);
 }
 if (!existsSync(bundle)) fail('dist/toil.js is missing.', 'Run this from a clone of https://github.com/imagile-dev/toil, without --skip-build.');
 
@@ -86,12 +102,13 @@ function powershellProfile() {
 if (noAlias) {
   console.log('\nSkipping the alias (--no-alias).');
 } else {
-  console.log('\n> node dist/toil.js setup alias');
-  let out = toil(['setup', 'alias']);
-  if (!out.ok && /PowerShell/.test(out.error?.message ?? '')) {
-    const profile = powershellProfile();
-    console.log(`> node dist/toil.js setup alias --profile ${profile}`);
-    out = toil(['setup', 'alias', '--profile', profile]);
+  const aliasArgs = profile ? ['setup', 'alias', '--profile', profile] : ['setup', 'alias'];
+  console.log(`\n> node dist/toil.js ${aliasArgs.join(' ')}`);
+  let out = toil(aliasArgs);
+  if (!profile && !out.ok && /PowerShell/.test(out.error?.message ?? '')) {
+    const found = powershellProfile();
+    console.log(`> node dist/toil.js setup alias --profile ${found}`);
+    out = toil(['setup', 'alias', '--profile', found]);
   }
   if (!out.ok) fail(out.error?.message ?? 'setup alias failed.', out.error?.fix);
   console.log(JSON.stringify(out.data, null, 2));

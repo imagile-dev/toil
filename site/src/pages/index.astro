@@ -6,7 +6,10 @@ import Logo from '../components/Logo.astro';
 import { integrationCount } from '../data/integrations';
 import { principles } from '../data/principles';
 import { url, repoUrl } from '../lib/url';
-import { cloneBuild, cloneManual, cloneQuick, npmCommands, npmPackageUrl } from '../data/start';
+// The two ways to start, copied from README.md; test/start-commands.test.ts keeps them identical.
+import start from '../data/start.json';
+
+const { cloneBuild, cloneManual, cloneQuick, npmCommands, npmPackageUrl } = start;
 
 const stats = [
   { value: integrationCount, label: integrationCount === 1 ? 'Integration shipped' : 'Integrations shipped' },

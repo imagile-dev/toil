@@ -2698,7 +2698,8 @@ skill file, fixture, board entry, site data or contract entries changed.
   clients that want it; "runs where executables are blocked" stays in the
   locked-down section and the README, below the new lead.
 - **Two ways to start, from one list.** The homepage's npm and clone cards render
-  `site/src/data/start.ts`; the README stays the prose source, and
+  `site/src/data/start.json` (JSON, so the root test suite never loads `site/`'s
+  tsconfig, which needs `site/node_modules`); the README stays the prose source, and
   `test/start-commands.test.ts` fails when a line there isn't in README.md word for
   word. A test rather than one shared file, because the README is plain Markdown.
 - **Alpha, not pre-release.** The hero eyebrow, the start section's badge, the
