@@ -34,6 +34,9 @@ export function frontmatter(text: string): Record<string, string> | undefined {
   return out;
 }
 
+/** Groups of standalone commands, `util` for `toil util jwt decode`; a lone standalone command (`version`) has none. */
+const standaloneGroups = [...new Set(commands.filter((d) => d.kind === 'standalone' && d.path.length > 1).map((d) => d.path[0]))];
+
 const supportedOf = new Map(modules.flatMap((m) => (m.area ? [[m.area.name, m.supported] as const] : [])));
 
 describe('shipped skill', () => {
@@ -44,10 +47,26 @@ describe('shipped skill', () => {
     expect(index).toContain('named after it');
   });
 
-  it('every reference file belongs to a registered area', () => {
+  it('every reference file belongs to a registered area or group of standalone commands', () => {
     const files = readdirSync(dir).filter((f) => f.endsWith('.md') && !GENERAL.includes(f));
-    expect(files.filter((f) => !areas.some((a) => `${a.name}.md` === f))).toEqual([]);
+    expect(files.filter((f) => ![...areas.map((a) => a.name), ...standaloneGroups].some((name) => `${name}.md` === f))).toEqual([]);
   });
+
+  // A group of standalone commands (`toil util ...`) has no connection, so no
+  // keys or supported versions to document, but agents still need its file.
+  for (const group of standaloneGroups) {
+    it(`${group}: has skills/toil/${group}.md with frontmatter, naming every command`, () => {
+      expect(existsSync(join(dir, `${group}.md`)), `add skills/toil/${group}.md`).toBe(true);
+      const doc = readFileSync(join(dir, `${group}.md`), 'utf8');
+      const meta = frontmatter(doc);
+      expect(meta?.area, `start skills/toil/${group}.md with ---\\narea: ${group}\\ndescription: ...\\n---`).toBe(group);
+      expect(meta?.description ?? '').not.toBe('');
+      expect(meta?.description ?? '', 'no ": " inside the description').not.toContain(': ');
+      for (const def of commands.filter((d) => d.kind === 'standalone' && d.path[0] === group)) {
+        expect(doc.includes(`\`toil ${def.path.join(' ')}`), `${commandName(def)} is not named in skills/toil/${group}.md`).toBe(true);
+      }
+    });
+  }
 
   for (const area of areas) {
     it(`${area.name}: has skills/toil/${area.name}.md with frontmatter naming the area and what it covers`, () => {
