@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -39,7 +39,8 @@ let home: string;
 let repo: string;
 let configFile: string;
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'toil-skill-'));
+  // Real path: the repository root comes back realpath'd (/private/var on macOS, no 8.3 names on Windows).
+  root = realpathSync.native(mkdtempSync(join(tmpdir(), 'toil-skill-')));
   home = join(root, 'home');
   repo = join(root, 'repo');
   configFile = join(home, '.toil', 'config.json');
