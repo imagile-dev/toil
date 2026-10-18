@@ -211,7 +211,7 @@ GitHub Actions; its build tooling is out of scope.
   `skills.folders`), and the `skills` commands that read or change config; the
   `skills` area's own commands are in `src/areas/skills/`
 - `src/dossiers/` — `toil dossiers list | show | check | context` (`commands.ts`) and
-  `init | add-repo | link | env | field | export | import | remove` (`build.ts`); the
+  `init | add-repo | link | env | field | export | import | unlink | remove` (`build.ts`); the
   model, resolution and writing are `src/core/dossier.ts`
 - `src/repos/` — `toil repos scan`, discovery for dossiers
 - `src/audit/` — `toil audit list | path`, reading the audit log `src/core/audit.ts`

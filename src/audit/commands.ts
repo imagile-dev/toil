@@ -87,7 +87,7 @@ function parseSince(text: string): Date {
   const zoned = /(?:Z|[+-]\d{2}:?\d{2})$/.test(text) || !text.includes(':') ? text : `${text}Z`;
   const time = ISO.test(text) ? Date.parse(text.includes(':') ? zoned.replace(' ', 'T') : `${text}T00:00:00Z`) : NaN;
   if (Number.isNaN(time)) {
-    throw new ToilError('INVALID_INPUT', `--since "${text}" isn't an ISO 8601 date or date-time.`, { fix: 'Use a date such as 2026-10-01, or a date-time such as 2026-10-01T09:00:00Z.' });
+    throw new ToilError('INVALID_INPUT', `since "${text}" isn't an ISO 8601 date or date-time.`, { fix: 'Use a date such as 2026-10-01, or a date-time such as 2026-10-01T09:00:00Z.' });
   }
   return new Date(time);
 }

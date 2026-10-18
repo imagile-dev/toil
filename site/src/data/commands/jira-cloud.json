@@ -291,5 +291,13 @@
       "--sprint <id>",
       "--allow-write"
     ]
+  },
+  {
+    "name": "check-dossier",
+    "tool": "jira_cloud_check_dossier",
+    "description": "Check the call's dossier against Jira Cloud: its projects and field ids exist",
+    "writes": false,
+    "connection": true,
+    "flags": []
   }
 ]

@@ -342,8 +342,8 @@ describe('brick breaker: in the menu', () => {
   it('has a row on the home screen that opens the lobby, and Play hands over to the game', () => {
     const home = render(initialState, { ...plain, columns: 120, rows: 40 }, data()).join('\n');
     expect(home).toContain('Play brick breaker');
-    // Row 1 is "Test your connections" on an untested home, so the game is row 8.
-    const lobby = reduce(initialState, k('8'), data());
+    // Row 1 is "Test your connections" on an untested home, so the game is row 9.
+    const lobby = reduce(initialState, k('9'), data());
     expect(render(lobby, { ...plain, columns: 120, rows: 40 }, data()).join('\n')).toContain('toil › Brick breaker');
     const playing = reduce(lobby, k('return'), data());
     expect(playing.playing).toBe('brick');
@@ -372,7 +372,7 @@ describe('brick breaker: the terminal is put back on every exit', () => {
   async function intoGame(t: ReturnType<typeof fakeTerminal>) {
     const ended = runWelcome({ input: t.input as never, output: t.output as never, env: { TOIL_NO_ANIMATION: '1', TERM: 'xterm' }, signals: t.signals as never }, data());
     await vi.advanceTimersByTimeAsync(10);
-    t.key('8');
+    t.key('9');
     t.key('return');
     await vi.advanceTimersByTimeAsync(10);
     expect(t.screen()).toContain('Score 0');

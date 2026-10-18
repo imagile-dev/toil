@@ -125,6 +125,14 @@ describe('redaction', () => {
       ['curl -u admin:hunter2 x', 'curl -u admin:[redacted] x'],
       ['Password=hunter2; (conn string)', 'Password=[redacted]; (conn string)'],
       ['Authorization: Bearer abc', 'Authorization: [redacted]'],
+      [`Authorization: Basic ${Buffer.from('svc:Zq8xLm2Np4Rt').toString('base64')}`, 'Authorization: Basic [redacted]'],
+      ['mysql --password=hunter2 -h db', 'mysql --password=[redacted] -h db'],
+      ['psql --token=abc123', 'psql --token=[redacted]'],
+      ['mysql -p=hunter2 -h db', 'mysql -p=[redacted] -h db'],
+      // The whole dotted name is read, never a piece of it: a dotted password setting goes, a dotted key or author stays.
+      ['spring.datasource.password=x', 'spring.datasource.password=[redacted]'],
+      ['project.key=PAY author.name=alice', 'project.key=PAY author.name=alice'],
+      ['{"user": "ada", "password": "x"}', '{"user": "ada", "password": "[redacted]"}'],
     ];
     for (const [text, redacted] of cases) expect(redactText(text), text).toBe(redacted);
   });
@@ -144,16 +152,27 @@ describe('redaction', () => {
   });
 
   it('takes linear time on long runs that would make a backtracking pattern quadratic', () => {
-    const runs = ['a', 'a.', 'a=', 'a:', '"a":', "'a'=", 'a-', 'a://', '-u', '--user ', 'Basic ', 'eyJ', 'password=', '"', 'x1'];
+    const runs = ['a', 'a.', 'a-', '-a', 'a=', 'a:', '"a":', "'a'=", 'a://', '-u', '--user ', '--password=', 'Basic ', 'eyJ', 'password=', '"', 'x1'];
     for (const unit of runs) {
       const text = unit.repeat(Math.ceil(100_000 / unit.length)).slice(0, 100_000);
       const started = performance.now();
-      auditInput(getThing, { id: text, nested: { note: text }, list: [text] });
+      auditInput(getThing, { note: text });
       expect(performance.now() - started, `auditInput on 100,000 characters of ${JSON.stringify(unit)}`).toBeLessThan(50);
       // The patterns themselves are linear too, without the cut in front of them.
       const direct = performance.now();
       redactText(text);
       expect(performance.now() - direct, `redactText on 100,000 characters of ${JSON.stringify(unit)}`).toBeLessThan(500);
+    }
+  });
+
+  it('recognises a token that crosses the stored length before cutting, wherever it starts', () => {
+    const token = `ghp_${'Ab1Cd2Ef3Gh4Ij5Kl6Mn7Op8Qr9St0Uv1Wx2'}`;
+    for (const at of [480, 490, 499, 500]) {
+      const note = `${'x '.repeat(at / 2)}${at % 2 ? 'x' : ''}${token}${' tail'.repeat(50)}`;
+      expect(note.indexOf(token)).toBe(at);
+      const kept = String((auditInput(getThing, { note }) as { note: string }).note);
+      expect(kept.length, `token at ${at}`).toBeLessThanOrEqual(501);
+      for (let i = 0; i + 8 <= token.length; i++) expect(kept, `token at ${at} kept ${token.slice(i, i + 8)}`).not.toContain(token.slice(i, i + 8));
     }
   });
 

@@ -127,14 +127,20 @@ export function apply(state: MenuState, action: Action): MenuState {
   return { ...state, stack };
 }
 
-/** Records what a run returned: the health of every connection it tested, and a result screen. */
+/** Records what a run returned: the health of every connection it tested, each dossier it read, and a result screen. */
 export function finish(state: MenuState, results: StepResult[]): MenuState {
   const health = { ...state.session.health };
   for (const r of results) if (r.args[0] === 'connections' && r.args[1] === 'test' && r.args[2]) health[r.args[2]] = healthOf(r.envelope);
+  const dossiers = { ...state.session.dossiers };
+  for (const r of results) {
+    const [group, verb, ref] = r.args;
+    if (group === 'dossiers' && (verb === 'show' || verb === 'check') && ref && r.envelope.ok) dossiers[ref] = { ...dossiers[ref], [verb]: r.envelope.data };
+  }
   const run = state.pending;
   const rest = { ...state };
   delete rest.pending;
-  return { ...rest, session: { ...state.session, health }, stack: [...state.stack, { ...frame('result'), ...(run ? { run } : {}), results }] };
+  const session = { ...state.session, health, ...(Object.keys(dossiers).length ? { dossiers } : {}) };
+  return { ...rest, session, stack: [...state.stack, { ...frame('result'), ...(run ? { run } : {}), results }] };
 }
 
 /** Records a finished game: its score, and the best this session. */
