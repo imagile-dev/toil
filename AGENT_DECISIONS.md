@@ -1110,5 +1110,9 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   Node's bundled roots: public CA certificates, with no host of anyone's. The text
   example is a self-signed Ed25519 certificate for `example.imagile.dev`, valid to
   9999-12-31, whose key was discarded.
+- **The lazy module stays free of zod.** `cert/decode.ts` and what it loads
+  (`core/errors`, `kit/verify`, `cert/der`) import no zod; it takes `UtilInput` as a
+  type only, and `cert.ts`, which imports `kit/input`, is static. A lazily loaded
+  module that reaches zod breaks the built bundle, which only `npm run smoke` shows.
 - **Kit:** `binary: 'allow'` also drops the `INPUT_NOT_UTF8` warning, since a
   command that takes bytes (DER) expects them not to be text.
