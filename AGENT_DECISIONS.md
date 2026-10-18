@@ -1488,6 +1488,12 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   flags (`--markdown` on create commands) are not part of this.
 - **The input is read in `md.ts`**, which loads statically; only the converters
   load lazily, so zod stays out of the lazy module (the encode build's finding).
+- **The corpus round-trip test is split, one test per sample** (#195). As a single
+  test it took 4,421 ms (Node 24.14) and 4,560 ms (Node 26) on windows-latest against
+  vitest's 5 s default, about 1.2 s locally, and the bounded worker's small cost
+  tipped it over. The ADF sample, about 560 ms locally and so past 2 s on that runner,
+  has an explicit 15 s timeout with a comment giving those numbers; the code wasn't
+  changed to fit the test.
 
 ### util docs and coverage (#186)
 
