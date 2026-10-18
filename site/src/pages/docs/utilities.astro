@@ -13,14 +13,14 @@ import { codeSpans, utilityCommands, utilityGroups } from '../../data/utilities'
 // by three merges once lost track of where its sections ended.
 const byName = new Map(utilityCommands.map((c) => [c.name, c]));
 const aliased = utilityCommands.filter((c) => c.aliases?.length);
-const description = `toil's local utilities, grouped by job: ${utilityGroups.map((g) => g.title.toLowerCase()).join(', ')}. ${utilityCommands.length} commands with no connection and no network, each checking its own answer.`;
+const description = `toil's local utilities, grouped by job: ${utilityGroups.map((g) => g.title.toLowerCase()).join(', ')}. ${utilityCommands.length} commands with no connection and no network, each checking its own answer wherever it can.`;
 ---
 
 <Layout title="Local utilities" description={description}>
   <PageHero
     eyebrow="<b>Docs</b> · Utilities"
     title="Local utilities, <em>no network.</em>"
-    lead="Commands that work on what's on your machine: a report or log a build left behind, a document to send, a change you're about to commit, a certificate, a token, a version, a time and a time zone. No connection, no credential, nothing sent anywhere, and every answer checked before you get it."
+    lead="Commands that work on what's on your machine: a report or log a build left behind, a document to send, a change you're about to commit, a certificate, a token, a version, a time and a time zone. No connection, no credential, nothing sent anywhere, and every answer that can be checked is checked before you get it."
   >
     <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <span>Utilities</span></p>
   </PageHero>
