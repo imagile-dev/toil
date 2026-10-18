@@ -210,7 +210,9 @@ describe('the Plugins module', () => {
       { marketplace: 'm', plugin: 'b', on: 0, off: 2 },
       { marketplace: 'm', plugin: 'c', on: 1, off: 1 },
     ];
-    expect(toggleChanges(states, ['m/a', 'm/c'])).toEqual([{ marketplace: 'm', plugin: 'c', on: true }]);
+    // Opened as ticked (a and c, which is partly on), left alone: nothing to write.
+    expect(toggleChanges(states, ['m/a', 'm/c'])).toEqual([]);
+    expect(toggleChanges([{ marketplace: 'm', plugin: 'p', on: 1, off: 1 }], ['m/p'])).toEqual([]);
     expect(toggleChanges(states, ['m/b'])).toEqual([
       { marketplace: 'm', plugin: 'a', on: false },
       { marketplace: 'm', plugin: 'b', on: true },

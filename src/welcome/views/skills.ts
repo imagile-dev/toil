@@ -329,14 +329,19 @@ export interface ToggleChange {
   on: boolean;
 }
 
-/** What the ticks change: a plugin ticked that was off goes on, and one unticked that was on goes off. Nothing else. */
+/**
+ * What the ticks change, compared with how the checkboxes opened (ticked when
+ * any of a plugin's skills is on): ticked that opened unticked goes on, unticked
+ * that opened ticked goes off. A tick left alone writes nothing, a partly-on
+ * plugin included.
+ */
 export function toggleChanges(states: readonly PluginState[], checked: readonly string[]): ToggleChange[] {
   const want = new Set(checked);
   const out: ToggleChange[] = [];
   for (const s of states) {
     const id = pluginId(s.marketplace, s.plugin);
-    if (want.has(id) && s.off > 0) out.push({ marketplace: s.marketplace, plugin: s.plugin, on: true });
-    else if (!want.has(id) && s.on > 0) out.push({ marketplace: s.marketplace, plugin: s.plugin, on: false });
+    if (want.has(id) && !isOn(s)) out.push({ marketplace: s.marketplace, plugin: s.plugin, on: true });
+    else if (!want.has(id) && isOn(s)) out.push({ marketplace: s.marketplace, plugin: s.plugin, on: false });
   }
   return out;
 }
