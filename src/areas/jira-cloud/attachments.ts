@@ -53,6 +53,7 @@ export const downloadAttachment = jiraCloudArea.command({
     dir: z.string().optional().describe('Output directory; defaults to .toil in the working directory'),
   }),
   writes: false,
+  writesLocal: true,
   options: [
     keyOption,
     { flags: '--attachment-id <id>', field: 'attachmentId', description: 'Attachment ID from list-attachments output' },

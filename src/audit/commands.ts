@@ -27,6 +27,7 @@ export function auditCommands(): AnyCommand[] {
       limit: z.number().int().min(1).max(1000).optional().describe('Most entries to return (default 100)'),
     }),
     writes: false,
+    writesLocal: false,
     options: [
       { flags: '--since <time>', field: 'since', description: 'Only calls at or after this ISO 8601 date or date-time' },
       { flags: '--command <name>', field: 'command', description: 'Only this command, or every command under an area or group' },
@@ -64,6 +65,7 @@ export function auditCommands(): AnyCommand[] {
       "Returns where toil keeps its local audit log (the folder of monthly <yyyy-mm>.jsonl files), whether it's on, how many months it keeps, and the config file those settings are read from. Reads local files only.",
     input: z.object({}),
     writes: false,
+    writesLocal: false,
     examples: [{}],
     run: async (_input, ctx) => {
       const log = logOf(ctx);

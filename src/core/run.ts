@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { areaOf, commandName, isCliOnly, managesConfig, takesAllowWrite, usesConnection, writesFor, type AnyCommand } from './command.js';
+import { areaOf, changesAnythingFor, commandName, isCliOnly, managesConfig, takesAllowWrite, usesConnection, writesFor, type AnyCommand } from './command.js';
 import type { Connection } from './area.js';
 import { recordAudit } from './audit.js';
 import { resolveCall, supplyContext, type ResolvedCall } from './call-context.js';
@@ -196,8 +196,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
   };
 
   try {
-    // Read-only: a command that always writes is refused before its input is even read.
-    if (how.readOnly && def.writes) throw readOnlyRefusal(def);
+    // Read-only: a command that always writes, in a service or on this machine, is refused before its input is even read.
+    if (how.readOnly && (def.writes || def.writesLocal === true)) throw readOnlyRefusal(def);
     // Strict: an unknown or misspelt field is an error through MCP exactly as an
     // unknown flag is on the CLI, never a field silently ignored.
     // --select is core's, not the command's: compiled here, before anything runs, and applied to data below.
@@ -222,7 +222,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     const input = parsed.data as Record<string, unknown>;
     writing = writesFor(def, input);
     // One whose input makes it write (the passthrough's POST) is refused once that's known, still before anything resolves.
-    if (how.readOnly && writing) throw readOnlyRefusal(def);
+    if (how.readOnly && changesAnythingFor(def, input)) throw readOnlyRefusal(def);
     // A tool MCP serves, asked for a call it mustn't make (a DELETE through the passthrough). The API is held to the same.
     const offMcp = via !== 'cli' ? def.offMcpWhen?.(input) : undefined;
     if (offMcp) throw new ToilError('INVALID_INPUT', `${commandName(def)}: ${offMcp}`, { fix: `Only a person can make this call, on the CLI with toil ${commandName(def)}.` });
@@ -325,7 +325,14 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
       // A listing's warnings (a refused git include) land in meta.warnings without the command passing anything.
-      files: { ...ctx.files, list: (dir, options) => ctx.files.list(dir, { ...options, warn: options?.warn ?? ((w) => warnings.push(w)) }) },
+      files: {
+        ...ctx.files,
+        list: (dir, options) => ctx.files.list(dir, { ...options, warn: options?.warn ?? ((w) => warnings.push(w)) }),
+        // Read-only means nothing local changes either. A command that writes a
+        // file declares it (`writesLocal`) and is refused before it runs; this
+        // catches one that didn't, loudly, before a byte lands.
+        ...(how.readOnly ? { writeBytes: () => refuseLocalWrite(def), writeCsv: () => refuseLocalWrite(def) } : {}),
+      },
       // git stops with the command, as fetch does, without the command passing anything.
       ...(ctx.git ? { git: { run: (call) => ctx.git!.run(call, controller.signal) } } : {}),
       // A call's `cwd` names the folder its repository is read from; otherwise the workspace's.
@@ -361,6 +368,13 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     clearTimeout(timer);
     ctx.signal?.removeEventListener('abort', onCallerAbort);
   }
+}
+
+/** A file write from a command that didn't declare one, in a read-only call: refused, and a bug in its definition. */
+function refuseLocalWrite(def: AnyCommand): never {
+  throw new ToilError('WRITE_DISABLED', `${commandName(def)} tried to write a file, and this call was made read-only, so the write was refused.`, {
+    fix: 'Make the call without readOnly to write the file. This command should declare writesLocal; report it at https://github.com/imagile-dev/toil/issues.',
+  });
 }
 
 /** The refusal a read-only call gets for a command that would write. */

@@ -75,6 +75,7 @@ export const waitCommand: AnyCommand = {
       "Runs one read tool again and again until a JMESPath condition over its data is true, then returns that tool's last result with meta.wait (until, attempts, elapsedMs). Use it instead of calling a tool in a loop while a build, scan, job or deployment finishes. Network errors, 5xx and 429 responses are retried with backoff; any other error ends the wait with that error. Past the timeout it's TIMEOUT, with the last data in error.details.data. Write tools can't be waited on. Sends a progress notification after every attempt.",
     input,
     writes: false,
+    writesLocal: false,
     options: [
       { flags: '--until <expression>', field: 'until', description: "A JMESPath condition over the command's data; the wait ends when it is true" },
       { flags: '--interval <duration>', field: 'interval', description: 'Time between attempts, e.g. 30s (default 15s, at least 5s)' },

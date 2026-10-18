@@ -49,6 +49,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       description: z.string().min(1).optional().describe('One line saying what the body of work is'),
     }),
     writes: false,
+    writesLocal: true,
     args: [{ name: 'name', field: 'name', description: 'The dossier name, e.g. payments' }],
     options: [{ flags: '--description <text>', field: 'description', description: 'One line saying what it covers' }],
     examples: [{ name: 'billing' }, { name: 'billing', description: 'Billing platform' }],
@@ -79,6 +80,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       replace: replaceField,
     }),
     writes: false,
+    writesLocal: true,
     args: [dossierArg, { name: 'location', field: 'location', description: 'A folder in the repository, or its remote URL' }],
     options: [{ flags: '--name <name>', field: 'name', description: "The repo's name in the dossier" }, replaceOption],
     examples: [
@@ -148,6 +150,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       "Attaches an area to a dossier, or changes its section: the connection it selects (connection for a private dossier, host for a shared one, or neither for the default), the area's context inputs it supplies (set project=PAY, per repo with forRepo), and reference data (add projects=PAY). Over MCP, a change that would make the section select a connection with writes on is refused: a person does that on the CLI. A local write: no allowWrite.",
     input: z.object({ dossier: dossierField, area: z.string().min(1).describe('The area, e.g. jira'), ...bindingFields }),
     writes: false,
+    writesLocal: true,
     args: [dossierArg, { name: 'area', field: 'area', description: 'The area, e.g. jira' }],
     options: bindingOptions,
     examples: [
@@ -174,6 +177,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       ...bindingFields,
     }),
     writes: false,
+    writesLocal: true,
     args: [dossierArg, { name: 'env', field: 'env', description: 'The environment, e.g. prod' }, { name: 'area', field: 'area', description: 'The area, e.g. openshift' }],
     options: [{ flags: '--default', field: 'default', description: "Make this the dossier's default environment" }, ...bindingOptions],
     examples: [
@@ -199,6 +203,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       replace: replaceField,
     }),
     writes: false,
+    writesLocal: true,
     args: [dossierArg, { name: 'area', field: 'area', description: 'The area' }, { name: 'alias', field: 'alias', description: 'The friendly name' }, { name: 'field-id', field: 'id', description: "The service's field id" }],
     options: [replaceOption],
     examples: [{ dossier: 'payments', area: 'jira', alias: 'storyPoints', id: 'customfield_10002' }, { dossier: 'payments', area: 'jira', alias: 'acceptanceCriteria', id: 'customfield_10234', replace: true }],
@@ -234,6 +239,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       replace: replaceField,
     }),
     writes: false,
+    writesLocal: true,
     args: [dossierArg],
     options: [
       { flags: '--repo <dir>', field: 'repo', description: "A working tree's root; writes .toil/dossiers/<name>.json there" },
@@ -264,6 +270,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       replace: replaceField,
     }),
     writes: false,
+    writesLocal: true,
     args: [{ name: 'source', field: 'source', description: 'A dossier file, or a folder of them' }],
     options: [{ flags: '--name <name>', field: 'name', description: 'A new name for it (a single file only)' }, replaceOption],
     examples: [{ source: '.toil/dossiers/team.json' }, { source: '.toil/dossiers', name: undefined, replace: true }, { source: '.toil/dossiers/team.json', name: 'team-mine', replace: true }],
@@ -314,6 +321,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       env: z.string().min(1).optional().describe("Remove environments.<env>.<area> instead of the area's own section"),
     }),
     writes: false,
+    writesLocal: true,
     // Taking a section out is a delete, and a delete is never an MCP tool (CLAUDE.md, Writes).
     kind: 'cli-only',
     args: [dossierArg],
@@ -348,6 +356,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     description: 'Delete one of your own dossiers',
     input: z.object({ name: z.string().min(1).describe('The name of a dossier in your own folder') }),
     writes: false,
+    writesLocal: true,
     // A delete is never an MCP tool (CLAUDE.md, Writes); a person removes a dossier.
     kind: 'cli-only',
     args: [{ name: 'name', field: 'name', description: 'The name of a dossier in your own folder' }],
