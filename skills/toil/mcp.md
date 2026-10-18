@@ -1,3 +1,7 @@
+---
+description: Running toil as an MCP server over stdio, the tools and resources it serves, and registering it with Claude Code, Codex, VS Code and other clients
+---
+
 # toil as an MCP server
 
 `toil mcp` serves every toil command as an MCP tool over stdio. It's the same core as

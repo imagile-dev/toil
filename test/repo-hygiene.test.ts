@@ -37,6 +37,25 @@ const ROOT = new Set([
 const WILDCARD_TENANT = /\b[a-z0-9-]+\.(?:atlassian\.net|live\.dynatrace\.com|apps\.dynatrace\.com)\b/i;
 const BINARY = /\.(?:png|jpe?g|webp|avif|gif|ico|woff2?)$/i;
 
+/**
+ * A scripted edit that hands String.replace a replacement holding `$` followed by a
+ * backtick or a quote expands it into the text before or after the match, and a
+ * document quietly gains a second copy of itself (#205 did, to CLAUDE.md). These
+ * are the occurrences that are meant: a regex's end anchor or a bash quote inside
+ * code. A new one is added here on purpose.
+ */
+const DOLLAR_PATTERNS: Record<string, number> = { 'CLAUDE.md': 1, 'skills/toil/jira-cloud.md': 1, 'skills/toil/util.md': 1 };
+const DOLLAR = /\$[`']/g;
+
+/** Level-one headings outside fenced code; a document has one title. */
+function titles(text: string): string[] {
+  let fenced = false;
+  return text.split(/\r?\n/).filter((line) => {
+    if (/^(```|~~~)/.test(line)) fenced = !fenced;
+    return !fenced && /^# /.test(line);
+  });
+}
+
 describe.skipIf(!tracked)('tracked files', () => {
   it('has nothing unexpected at the repo root', () => {
     const top = [...new Set(tracked!.map((f) => f.split('/')[0]!))];
@@ -64,5 +83,35 @@ describe.skipIf(!tracked)('tracked files', () => {
       }
     });
     expect(found).toEqual([]);
+  });
+
+  it('has no Markdown file with two titles, the mark of a document pasted into itself', () => {
+    const doubled = tracked!.filter((f) => f.endsWith('.md')).flatMap((f) => {
+      try {
+        const found = titles(readFileSync(join(root, f), 'utf8'));
+        return found.length > 1 ? [`${f}: ${found.join(' | ')}`] : [];
+      } catch {
+        return [];
+      }
+    });
+    expect(doubled).toEqual([]);
+  });
+
+  it('has a dollar sign before a backtick or a quote in Markdown only where one is meant', () => {
+    const counts: Record<string, number> = {};
+    for (const f of tracked!.filter((x) => x.endsWith('.md'))) {
+      try {
+        const n = [...readFileSync(join(root, f), 'utf8').matchAll(DOLLAR)].length;
+        if (n) counts[f] = n;
+      } catch {
+        // Deleted in the working tree.
+      }
+    }
+    expect(counts).toEqual(DOLLAR_PATTERNS);
+  });
+
+  it('the title check counts only headings outside code', () => {
+    expect(titles('# One\n\n```bash\n# a comment\n```\n')).toEqual(['# One']);
+    expect(titles('# One\ntext\n# One\n')).toHaveLength(2);
   });
 });

@@ -153,6 +153,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
   else ctx.signal?.addEventListener('abort', onCallerAbort, { once: true });
   // One audit line per call, success or failure, with the input as the caller
   // sent it and every request, --verbose or not (src/core/audit.ts).
+  // A config change or another toil version rewrites the installed toil skill, said in meta.warnings.
+  const upkeep = () => ctx.skillUpkeep?.((w) => warnings.push(w));
   const audited = (envelope: Envelope) => recordAudit(ctx.audit, { def, input: rawInput, via, writes: writing, requests, envelope });
 
   try {
@@ -240,7 +242,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     // enforced rather than requested in a policy nobody reads.
     // The credential store and the prompter go only to commands that manage
     // connections, which get them through ctx.manage.
-    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo' | 'audit'> & {
+    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo' | 'audit' | 'skillUpkeep'> & {
+      skillUpkeep?: unknown;
       audit?: unknown;
       repo?: unknown;
       dossiers?: unknown;
@@ -262,6 +265,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     delete rest.adopted;
     delete rest.repo;
     delete rest.audit;
+    delete rest.skillUpkeep;
     const context = call?.context ?? {};
     const resolved = call?.report ?? {};
     const commandCtx: CommandContext<Connection | undefined> = {
@@ -300,12 +304,14 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     }
     const result = await Promise.race([def.run(forRun, commandCtx), aborted]);
     const data = query ? applySelect(query, result, commandName(def), writing, (w) => warnings.push(w)) : result;
+    upkeep();
     const envelope = success(data, meta());
     if (exitCode !== undefined) exitCodes.set(envelope, exitCode);
     return audited(envelope);
   } catch (err) {
     // A request aborted by our signal surfaces as an AbortError; report why it was aborted.
     const reason = controller.signal.aborted ? controller.signal.reason : err;
+    upkeep();
     return audited(failure(toToilError(reason), meta()));
   } finally {
     clearTimeout(timer);

@@ -95,9 +95,9 @@ async function perform(state: MenuState, d: DossierDisk, config: ResolvedConfig,
 const file = (d: DossierDisk, name: string) => JSON.parse(readFileSync(join(d.home, '.toil', 'dossiers', `${name}.json`), 'utf8')) as Record<string, unknown>;
 
 describe('the Dossiers module', () => {
-  it('sits on home after Plugins', () => {
+  it('sits on home after Agent skills', () => {
     const c = configOf();
-    expect(where(press(settled, data(c), '6'))).toBe('dossiers');
+    expect(where(press(settled, data(c), '5'))).toBe('dossiers');
   });
 
   it('creates a multi-repo dossier through the six steps, every one a real command, and asks before binding to a connection with writes on', async () => {
@@ -108,7 +108,7 @@ describe('the Dossiers module', () => {
     const w = data(c);
 
     // Step 1: the name, prefilled from the folder.
-    let s = press(settled, w, '6', '3');
+    let s = press(settled, w, '5', '3');
     expect(where(s)).toBe('dossier-new');
     expect(screen(s, w)).toMatch(/Step 1 of 6: name[\s\S]*Dossier name: work/);
     s = press(type(clear(s, w), w, 'payments'), w, 'return');
@@ -198,7 +198,7 @@ describe('the Dossiers module', () => {
     const d = disk({ 'home/.toil/dossiers/team.json': { name: 'team', repos: [], sonar: { connection: 'old-sonar' }, wiki: { space: 'X' } } });
     const c = configOf();
     const w = data(c);
-    let s = press(settled, w, '6', '2');
+    let s = press(settled, w, '5', '2');
     s = press(await perform(s, d, c), w, 'return', 'return');
     expect(steps(s)).toEqual([['dossiers', 'show', 'team']]);
     s = press(await perform(s, d, c), w, 'return');
@@ -235,7 +235,7 @@ describe('the Dossiers module', () => {
     const d = disk({ 'home/.toil/dossiers/team.json': { name: 'team', repos: [{ name: 'api', remotes: ['https://git.imagile.dev/pay/api.git', 'https://ci:t0ken@git.imagile.dev/pay/api-mirror.git'] }], wiki: { space: 'X' } } });
     const c = configOf();
     const w = data(c);
-    let s = press(settled, w, '6', '2');
+    let s = press(settled, w, '5', '2');
     s = press(await perform(s, d, c), w, 'return', 'return');
     s = press(await perform(s, d, c), w, 'return', 'return');
     s = press(await perform(s, d, c), w, 'return');
@@ -265,7 +265,7 @@ describe('the Dossiers module', () => {
     const d = disk({ 'home/.toil/dossiers/team.json': { name: 'team', repos: [], jira: { project: 'OLD' } } });
     const c = configOf();
     const w = data(c);
-    let s = press(settled, w, '6', '2');
+    let s = press(settled, w, '5', '2');
     s = press(await perform(s, d, c), w, 'return', 'return');
     s = press(await perform(s, d, c), w, 'return', '2');
     expect(where(s)).toBe('dossier-edit');
@@ -289,7 +289,7 @@ describe('the Dossiers module', () => {
     });
     const c = configOf();
     const w = data(c);
-    let s = press(settled, w, '6', '2');
+    let s = press(settled, w, '5', '2');
     s = press(await perform(s, d, c), w, 'return', 'return');
     s = press(await perform(s, d, c), w, 'return', '3', '1', 'return');
     expect(steps(s)).toEqual([['dossiers', 'export', 'team', '--file', 'team.json']]);
@@ -302,7 +302,7 @@ describe('the Dossiers module', () => {
     expect(steps(press(s, w, 'return'))?.[0]).toEqual(['dossiers', 'export', 'team', '--file', 'team.json', '--replace']);
 
     // Import: checked first; jira's binding lands on a connection with writes on, so the name is typed.
-    let i = press(settled, w, '6', '4');
+    let i = press(settled, w, '5', '4');
     expect(top(press(type(i, w, 'shared'), w, 'return')).error).toContain('.json');
     i = press(type(i, w, '.toil/dossiers/shared.json'), w, 'return');
     expect(steps(i)).toEqual([['dossiers', 'check', '.toil/dossiers/shared.json']]);
@@ -326,7 +326,7 @@ describe('the Dossiers module', () => {
     d.write('home/.toil/dossiers/payments.json', { name: 'payments', repos: [{ name: 'payments-api', remotes: ['https://git.imagile.dev/pay/payments-api.git'] }] });
     const c = configOf();
     const w = data(c, { cwd: forwardSlashes(api), repo: { root: forwardSlashes(api), branch: 'main' } });
-    let s = press(settled, w, '6', '1');
+    let s = press(settled, w, '5', '1');
     expect(steps(s)).toEqual([['dossiers', 'context']]);
     s = await perform(s, d, c, api);
     expect(screen(s, w)).toContain('This folder resolves to payments');
@@ -336,7 +336,7 @@ describe('the Dossiers module', () => {
 
     const other = disk();
     const lone = clone(other, 'lone');
-    let n = press(settled, data(c, { cwd: forwardSlashes(lone), repo: { root: forwardSlashes(lone), branch: 'main' } }), '6', '1');
+    let n = press(settled, data(c, { cwd: forwardSlashes(lone), repo: { root: forwardSlashes(lone), branch: 'main' } }), '5', '1');
     n = press(await perform(n, other, c, lone), w, 'return');
     expect(screen(n, w)).toMatch(/No dossier applies here[\s\S]*Create a dossier for this repo[\s\S]*Add this repo to a dossier/);
     expect(top(press(n, w, 'return'))).toMatchObject({ view: 'dossier-new', params: { repo: forwardSlashes(lone) } });
@@ -347,7 +347,7 @@ describe('the Dossiers module', () => {
     const d = disk({ 'home/.toil/dossiers/team.json': { name: 'team', repos: [], jira: {} } });
     const c = configOf();
     const w = data(c);
-    let s = press(settled, w, '6', '2');
+    let s = press(settled, w, '5', '2');
     s = press(await perform(s, d, c), w, 'return', 'return');
     s = press(await perform(s, d, c), w, 'return');
     const agent = press(s, w, '4');

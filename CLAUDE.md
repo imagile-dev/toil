@@ -209,7 +209,8 @@ GitHub Actions; its build tooling is out of scope.
 - `src/setup/` — `toil setup alias | remove-alias`, the `toil` alias for a clone
   (CLI only; the profile editing is `src/core/shell-profile.ts`)
 - `src/skills/` — the skills folders and marketplace clones (`docs/bounds.md`,
-  `skills.folders`), and the `skills` commands that read or change config; the
+  `skills.folders`), the `skills` commands that read or change config, and the toil
+  skill itself (`bundled.ts`, and `skill install | show` in `skill-commands.ts`); the
   `skills` area's own commands are in `src/areas/skills/`
 - `src/dossiers/` — `toil dossiers list | show | check | context` (`commands.ts`) and
   `init | add-repo | link | env | field | export | import | unlink | remove` (`build.ts`); the
@@ -251,8 +252,12 @@ GitHub Actions; its build tooling is out of scope.
   (`check-dist.mjs`), the tarball and clone smoke test, the area stub generator (`stub-area.mjs`), the divergence
   table (`divergences.mjs`), PR screenshots (`shoot.mjs`), and the PR watcher the
   `ship` skill runs (dev tooling; none of it ships)
-- `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files,
-  `install.md` and `mcp.md`. `.claude-plugin/` lists it as a Claude Code plugin
+- `skills/toil/` — the one skill shipped to users, and the site's docs: `SKILL.md` is a
+  small index (a test caps it) of `core.md`, the per-area files, `install.md` and
+  `mcp.md`. `scripts/gen-areas.mjs` embeds every file in the bundle, `toil skill
+  install` writes it into an agent's skills folder (`src/skills/bundled.ts`), and toil
+  rewrites that copy, and only that copy, when a command changes the config file or
+  another toil version runs. `.claude-plugin/` lists it as a Claude Code plugin
   marketplace, so the repository installs as one
 - `dist/toil.js` — the last released bundle, committed so a clone runs with no
   `npm install`; only the release PR rebuilds it (Build & Test)
@@ -621,11 +626,33 @@ write (`skills marketplace add`, which clones) has no connection yet, so it need
 so `add` leaves writes off and installs nothing. Writes go on the way every
 connection's do (`docs/bounds.md`, `skills.folders`).
 
-toil's own config file is written only by the commands that manage it, with one
-exception: the welcome menu's game saves its progress under the reserved `"game"`
-key (`src/welcome/rogue/save.ts`), keeping every other key as it was, and touching
-nothing else. No other code writes the config outside a command; a second exception
-needs this rule changed first.
+The one exception to "`add` installs nothing" is `toil skill install` (the
+maintainer's decision on #205): CLI only, with `--allow-write` alone, it installs
+the toil skill into one agent's skills folder. That is safe to allow without a
+connection's standing opt-in because its contents are fixed, the files embedded in
+the bundle, with no third-party code, and it replaces only a `toil/` folder recorded
+as `bundled`; any other folder of that name is refused.
+
+toil writes outside a command's own gate in exactly two places, both the
+maintainer's decisions:
+
+1. **The welcome menu's game save.** toil's own config file is written only by the
+   commands that manage it, except that the game saves its progress under the
+   reserved `"game"` key (`src/welcome/rogue/save.ts`), keeping every other key as it
+   was, and touching nothing else.
+2. **The bundled toil skill's rewrite** (#205, `src/skills/bundled.ts`). It writes
+   only a `toil/` folder recorded as `bundled` in an agent's skills folder, never a
+   marketplace or untracked skill; only when the config file changed during the
+   command, or the bundled copy was written by another toil version; from any
+   command that loads config, on the CLI or over MCP, with no `--allow-write`. It's
+   safe because the contents are fixed, the files embedded in the bundle; the only
+   generated part, the description, holds area and engine names checked against the
+   registry and `^[a-z0-9-]+$`, never a host or a credential; and a failure is a
+   warning, never a failed command.
+
+No other code writes outside a command's gate; a third exception needs this rule
+changed first. The user-facing statement of the exceptions, with how to avoid each,
+is `skills/toil/core.md`, **Writes**.
 
 Anything toil encrypts says what the encryption protects against, in the code and
 the docs: the game's save is sealed against tampering, not kept secret, and says so.
@@ -726,7 +753,7 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   `site/src/data/settings/<area>.json` for the docs pages (`npx vitest run -u` after
   changing a command or a connection key) and checks the board's
   `site/src/data/integrations/<area>.json`.
-- **`test/util-docs.test.ts`** holds `/docs/utilities/` and `skills/toil/util.md` to the registry: a `util` command added or changed updates both in the same PR (`docs/util.md`).
+- **`test/util-docs.test.ts`** holds `skills/toil/util.md`, which `/docs/utilities/` renders, to the registry: a `util` command added or changed updates it in the same PR (`docs/util.md`). **`test/site-docs.test.ts`** fails when a docs page carries reference prose that isn't rendered from `skills/toil/`.
 - **No file every integration edits.** Each area has its own fixture, skill file, divergence
   file, board entry and command list; the lists that span areas (the registry, the
   areas in `SKILL.md`, the CLI-only commands) are derived or generic. A change that
