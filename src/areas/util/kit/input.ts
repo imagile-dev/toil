@@ -61,6 +61,12 @@ export interface ReadOptions {
   binary?: 'refuse' | 'allow';
   /** See {@link DEFAULT_MAX_LINE}. */
   maxLineLength?: number;
+  /**
+   * `check` (the default): bytes that aren't valid UTF-8 set `invalidUtf8` and warn INPUT_NOT_UTF8.
+   * `skip`, for a command that treats the content as bytes and never as text (hashing, encoding):
+   * no warning, since nothing is shown as U+FFFD, and `invalidUtf8` stays false.
+   */
+  utf8?: 'check' | 'skip';
   signal?: AbortSignal;
 }
 
@@ -75,7 +81,7 @@ export interface UtilInput {
   readonly bytesRead: number;
   /** Whether the latest pass stopped at `maxBytes`. */
   readonly truncated: boolean;
-  /** Whether any pass found bytes that aren't valid UTF-8 (shown as U+FFFD in text). */
+  /** Whether any pass found bytes that aren't valid UTF-8 (shown as U+FFFD in text). Always false with `utf8: 'skip'`. */
   readonly invalidUtf8: boolean;
   bytes(): Promise<Uint8Array>;
   text(): Promise<string>;
@@ -186,7 +192,7 @@ export async function openInput(ctx: InputContext, fields: { file?: string | und
     }
   };
   const noteInvalid = () => {
-    if (state.invalidUtf8) return;
+    if (state.invalidUtf8 || options.utf8 === 'skip') return;
     state.invalidUtf8 = true;
     ctx.warn({ code: 'INPUT_NOT_UTF8', message: `${capital(label)} isn't valid UTF-8; the bytes that aren't are shown as U+FFFD.` });
   };
