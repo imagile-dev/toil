@@ -142,8 +142,10 @@ export const addName: View = {
   ],
   input: {
     label: () => 'Connection name',
-    initial: (p) => suggestName(p.data, p.frame.params.area!),
+    // Another module that sends someone here may suggest the name (one a dossier names), and say where to go after.
+    initial: (p) => (p.frame.params.suggest && !connectionNames(p.data).includes(p.frame.params.suggest) ? p.frame.params.suggest : suggestName(p.data, p.frame.params.area!)),
     submit: (text, p): Action | { error: string } => {
+      const then = p.frame.params.then ? (JSON.parse(p.frame.params.then) as Action) : undefined;
       const area = p.frame.params.area!;
       if (!CONNECTION_NAME.test(text)) return { error: 'Use lowercase letters, digits and single hyphens, starting with a letter.' };
       if (connectionNames(p.data).includes(text)) return { error: `There's already a connection named ${text}.` };
@@ -158,6 +160,10 @@ export const addName: View = {
           ],
           next: (results): Action | undefined => {
             if (!results[0]?.envelope.ok) return undefined;
+            // Another module may ask for its own commands first (a dossier's check), then where to go.
+            const thenRun = p.frame.params.thenRun ? (JSON.parse(p.frame.params.thenRun) as string[][]) : undefined;
+            if (then && thenRun) return { run: { title: 'Check again', steps: thenRun.map((args) => ({ args })), next: () => then } };
+            if (then) return then;
             // The first connection to an area becomes its default on its own; a second one asks.
             return others.length ? { go: 'make-default', params: { name: text, area }, root: 'connections' } : { go: 'connection', params: { name: text }, root: 'connections' };
           },

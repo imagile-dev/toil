@@ -660,6 +660,79 @@ Added as each integration lands.
   `TOIL_NO_ANIMATION` only change how it looks.
 - **A lobby screen comes before the game**, with the keys, the size it needs and
   the session's scores, which live in memory only.
+
+### Welcome: dossiers
+
+The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
+
+- **The create wizard saves as it goes.** Each step runs its own `toil dossiers`
+  command (`init`, `add-repo`, `link`, `field`, `env`), and step 6 reviews the
+  whole dossier with `dossiers show` and `check`. Holding everything in memory to
+  write at the end would mean the menu building a dossier the commands never
+  checked step by step. A wizard left halfway leaves a valid, smaller dossier,
+  which Edit or Delete can finish.
+- **Edit shows the section and the exact commands before saving**; that's its
+  "review the diff". The create wizard and the fixes in Review run at once.
+- **Binding to a connection with writes on asks for the connection's name typed**,
+  as turning writes on does, for a `--connection` and for a `--host` that matches
+  one of yours with writes on. **Importing a dossier whose bindings land on writes
+  asks for the dossier's name**, found from `dossiers check`'s
+  `DOSSIER_WRITES_BINDING` warnings, which runs before every import. Unbinding to
+  your default asks nothing: your default was always yours.
+- **The menu imports one `.json` file at a time.** `check` takes a file, not a
+  folder, and the writes question needs it first. A folder stays `toil dossiers
+  import <folder>` on the CLI.
+- **A dossier's screens read the last `show` and `check` from the session**
+  (`Session.dossiers`, recorded by `finish` in `menu.ts`), and every edit runs `show`
+  again after it, so screens never show a stale file. One-off reads (context, list,
+  scan, discovery) go to the next screen as a parameter, as the Skills module does.
+- **Discovery runs the area's own read with `--dossier <name>`**, so the dossier's
+  binding picks the connection: `jira fields --discover --custom-only` (ticked
+  fields become `dossiers field` aliases named from the field, `Story Points` to
+  `storyPoints`), `confluence list-spaces`, `sonar projects` and `ado project list`
+  (ticked values added with `link --add spaces=` or `projects=`). Values already
+  there start ticked and are never added twice. Jira has no project-list command
+  and ADO no boards command, so those are a typed `project=PAY`, through Set a value.
+- **"Add a connection" reuses the connections wizard's name step** with two new
+  optional parameters, `suggest` (the name a dossier expects) and `then` (where to
+  go after), so it returns to the picker, the review or the import. It then skips
+  the "make it the default?" question, which isn't what the user came for.
+- **The first environment added becomes the dossier's default** (`dossiers env
+  --default`), so calls without `--env` have one.
+- **Review offers a fix for every finding a command can fix:** relink, add the
+  connection, adopt, set a value after `<area> check-dossier`, remove a section
+  (`dossiers unlink`, after typing the area's name), and take a credential out of a
+  stored remote (re-add the repo as it is). A duplicate key or a broken file still
+  needs the file edited by hand, and Review says so.
+- **`toil dossiers unlink <dossier> --area <area> [--env <env>]` removes a section**
+  (round 1). It's CLI only, as `remove` is, because taking something out is a
+  delete; the menu asks for the area's name typed first. It accepts a section for an
+  area toil doesn't have, which is the case Review needs. An environment left with
+  no areas is removed too, and stops being the dossier's default, so the file never
+  names a default that isn't there.
+- **Every dossier write says when it took a credential out of the file** (round 1).
+  Remotes are read with userinfo stripped, so any save already wrote them clean,
+  silently; now the result carries `credentialsRemoved` (the key paths) and a
+  `DOSSIER_REMOTE_USERINFO` warning. Any edit that reaches the save writes the file
+  when it holds a credential, even one that changes nothing else, and reports
+  `changed: true`. `add-repo` with a remote the repo already lists (and its path, or
+  none) adds nothing and needs no `--replace`, so re-adding a repo by its first remote
+  cleans a credential in any of them and keeps them all; Review's fix runs exactly
+  that. A credential is never written back.
+- **The menu matches host selectors with core's own `hostMatches`** (now exported
+  from `src/core/dossier.ts`), so `jira.imagile.dev:443` finds a connection with
+  writes on exactly as the resolver does and the typed confirmation can't be
+  skipped by spelling the default port (round 1, review).
+- **The import confirmation is decided by the `DOSSIER_WRITES_BINDING` code alone**;
+  the connection names on screen come from its message and fall back to "a
+  connection", so rewording the message can't drop the question (round 1, review).
+- **Adding a connection from Review runs `dossiers check` and `show` before
+  returning**, through a `thenRun` parameter on the connections wizard's name step,
+  so Review never shows the finding it just fixed (round 1, review).
+- **Dossiers sits after Plugins on home**, so the existing rows keep their numbers.
+- **AreaSummary gains `context` and `checksDossier`**, derived in `cli.ts` from the
+  registry, so the screens name an area's context inputs and offer `check-dossier`
+  only where it exists.
 ### Databases: PostgreSQL
 
 - **`pg` with `pg-cursor`**, so the row cap stops the server producing rows, not
@@ -829,6 +902,13 @@ Added as each integration lands.
   - **`repos scan` is a `config` command on the dossier catalog**, capped at 20,000 folders, saying `truncated` past that.
   - **Field aliases go through the area's existing `--field`** (Jira, Jira Cloud), asked for only when the call names a field; a name the connection already uses keeps the connection's meaning.
   - **A fixture can carry a `dossier`** for its area's `check-dossier`, holding only keys the other examples don't read.
+- **Checks for every area (the last #16 PR):**
+  - **`check-dossier` reads values as a call does**: the area's own section and the call's environment's only (`--env`, else the dossier's `env`), with a key the environment sets shadowing the area's own. Another environment's section may select another connection, so it's checked by a call in that environment. The result names the environment it checked.
+  - **Values that belong together pair up per repo, across sections** (`viewScopes`): a repo with its project (bitbucket, ado) or owner (github), the environment's section first.
+  - **A value that can't be looked up is `unchecked`**, with a `DOSSIER_UNCHECKED` warning and `ok` false: a repo with no project or owner, a deployment with no namespace, an ado value with no collection (the dossier's, else the call's). Never skipped (principle 4), and not a refusal, which would block checking the rest.
+  - **openshift checks a namespace as a project** (`project.openshift.io`), which an ordinary token can read; the namespace object needs cluster rights. Deployments take their namespace as a call finds it.
+  - **Only not-found counts as missing**, in every area. Any other failure (a bad token, an unreachable host) fails the command, rather than reporting every value missing.
+  - **Fixtures keep the dossier out of other examples** by giving context inputs per repo: no example's folder is that repo, so only `check-dossier` sees them.
 - **Windows authentication** (`auth: "windows"`, #165): the alternate account reuses
   `user` with a new `domain` key, not a separate `username`. A provider `check` hook
   (run by the area schema's `superRefine`) requires `user` for SQL logins and refuses

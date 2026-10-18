@@ -91,17 +91,21 @@ workspace. Then:
 - `toil dossiers env <name> <env> <area> --set namespace=...` adds an environment.
 - `toil dossiers field <name> jira storyPoints customfield_10002` names a field, so
   `--field storyPoints=5` works.
-- `toil <area> check-dossier` checks a section against the service (jira, sonar and
-  confluence so far).
+- `toil <area> check-dossier` checks a section against the service, for the call's
+  environment (jira, jira-cloud, confluence, sonar, ado, bitbucket, github, openshift,
+  dynatrace).
 - `toil dossiers export <name> --repo <root>` writes a shareable copy into a
   repository's `.toil/dossiers/`. It uses host selectors and no local paths, and toil
   never commits it.
+- `toil dossiers unlink <name> --area <area> [--env <env>]` removes a section (CLI only).
 - `toil dossiers import <file>` copies a teammate's into your own folder. A connection
   or host you lack is listed under `toSetUp`; toil never creates one.
 
 These are local writes and need no `--allow-write`. Each refuses a value that's already
 set unless `--replace`. Over MCP they refuse to make a dossier select a connection
-with writes on; the user does that on the command line.
+with writes on; the user does that on the command line, or under **Dossiers** in the
+menu bare `toil` opens, which runs these same commands and asks them to type the
+connection's name first.
 
 toil keeps a local audit log of every command it runs, through the CLI and MCP:
 one JSON line per call in `~/.toil/audit/<yyyy-mm>.jsonl`, with the command, front

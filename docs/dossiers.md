@@ -9,15 +9,15 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
 - host selectors, environments and the write rule
 - `meta.context.dossier`
 - `toil dossiers list | show | check | context`, which read
-- `toil dossiers init | add-repo | link | env | field | export | import | remove`, which
+- `toil dossiers init | add-repo | link | env | field | export | import | unlink | remove`, which
   build and share (`src/core/dossier.ts`, `src/dossiers/`)
 - field aliases on Jira's and Jira Cloud's `--field`
 - `toil repos scan` (`src/repos/`)
-- `toil <area> check-dossier` for `jira`, `sonar` and `confluence` (`src/core/check-dossier.ts`)
+- `toil <area> check-dossier` for every area a dossier describes: `jira`, `jira-cloud`,
+  `confluence`, `sonar`, `ado`, `bitbucket`, `github`, `openshift` and `dynatrace`
+  (`src/core/check-dossier.ts`)
 
-**Still to come:** `check-dossier` for the other areas a dossier can describe (ado,
-openshift, dynatrace, bitbucket, github), each an area command on the same helper. The
-commands are `toil dossiers`, plural, like `toil connections`.
+The commands are `toil dossiers`, plural, like `toil connections`.
 
 A **dossier** is everything toil needs to work on one body of work, whether that's
 one service or fifty microservices: its repositories, issue-tracker keys and field
@@ -373,11 +373,20 @@ files directly:
   - `toil dossiers env <dossier> <env> <area> [--default] ...` does the same for
     `environments.<env>.<area>`. `--default` makes it the dossier's `env`.
   - `toil dossiers field <dossier> <area> <alias> <field-id>` names a field.
+  - `toil dossiers unlink <dossier> --area <area> [--env <env>]` removes a section, an
+    area's own or one environment's, including one for an area toil doesn't have. An
+    environment left with no areas goes too, and stops being the default. CLI only, like
+    `remove`.
   - `toil dossiers remove <name>` deletes one of your own dossiers. It runs on the CLI
     only, since a delete is never an MCP tool.
 
   Each refuses a value already there, naming it, unless `--replace`. The file is
-  checked with the reader that will load it before anything is written.
+  checked with the reader that will load it before anything is written. Remotes are
+  read with any credential stripped, so every write leaves the file without one; the
+  result names each remote it cleaned (`credentialsRemoved`, and a
+  `DOSSIER_REMOTE_USERINFO` warning). Re-adding a repo by a remote it already lists
+  (`add-repo <dossier> <remote> --name <repo>`) adds nothing, needs no `--replace`, and
+  is the way to clean one on its own.
 - **Reading and checking** (built; all served over MCP, all local reads):
   - `toil dossiers list [--cwd <dir>]` lists every dossier toil can see, with its
     `source`, the file that shadows it when two share a name, and broken files with
@@ -400,12 +409,31 @@ files directly:
 - **Checking against the services** is one area at a time, because a command talks to
   one service. `toil <area> check-dossier [--dossier <name|file>]` looks every value
   the call's dossier gives that area up on the service, using and reporting the
-  connection it resolved. An agent or a script composes them. Built so far:
-  - `jira`: projects (`project`, `projects`) and field ids
-  - `sonar`: project keys (`project`, `projectKeys`, `projects`)
+  connection it resolved. An agent or a script composes them:
+  - `jira`, `jira-cloud`: projects (`project`, `projects`) and field ids
   - `confluence`: spaces (`space`, `spaces`)
+  - `sonar`: project keys (`project`, `projectKeys`, `projects`)
+  - `ado`: team projects in their collection, and repos in their project. The
+    collection is the section's, else the call's; none at all is `INVALID_INPUT`.
+  - `bitbucket`: projects, and repos in their project
+  - `github`: owners, and repos under their owner
+  - `openshift`: namespaces (as projects the token can see), and `deployments` in
+    their namespace. With several namespaces (one per repo), a deployment passes
+    when any of them has it, and its check's `note` says where it was looked for,
+    since a `deployments` list doesn't say which repo each belongs to.
+  - `dynatrace`: entity ids (`entity`, `entities`)
 
-  Each returns `{ dossier, connection, ok, checked, checks }`, one check per value with
+  A repo and its project (or owner) pair up per repo: `"project": { "api": "PAY" }`
+  with `"repo": { "api": "payments-api" }` checks `PAY/payments-api`. Only the area's
+  own section and the call's environment's (`--env`, else the dossier's `env`) are
+  checked, because another environment's section may select another connection:
+  check it with a call in that environment. Values are read as a call reads them: a
+  key the environment's section sets shadows the area's own, and keys pair across
+  the two. A value that can't be looked up (a repo with no project or owner, a
+  deployment with no namespace, an ado project with no collection) is listed under
+  `unchecked`, with a `DOSSIER_UNCHECKED` warning, and makes `ok` false.
+
+  Each returns `{ dossier, connection, env, ok, checked, checks, unchecked }`, one check per value with
   its key path. The CLI exits 1 when one is missing. A failure that isn't "not found"
   (a bad token, an unreachable host) fails the command. An area adds one with
   `src/core/check-dossier.ts` and `ctx.dossierView()`.

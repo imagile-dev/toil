@@ -19,6 +19,10 @@ export interface AreaSummary {
   live: boolean;
   /** Whether a connection to it has settings at all (local git has none). */
   configurable: boolean;
+  /** Its context inputs (project, owner, env), which a dossier section can supply. */
+  context?: string[];
+  /** Whether it has `toil <area> check-dossier`, which looks a dossier's values up on the service. */
+  checksDossier?: boolean;
 }
 
 export interface WelcomeData {

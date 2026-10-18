@@ -116,6 +116,9 @@ export const LOG = '2024-01-01T00:00:00Z started\n2024-01-01T00:00:01Z listening
 export const fixture = defineFixture({
   area: 'openshift',
   routes: [
+    // check-dossier's lookups. Invented from the docs: a project, and one deployment.
+    { path: `/apis/project.openshift.io/v1/projects/${NAMESPACE}`, respond: { json: { kind: 'Project', metadata: { name: NAMESPACE } } } },
+    { path: `/apis/apps/v1/namespaces/${NAMESPACE}/deployments/api`, respond: { json: deployment } },
     { path: `/api/v1/namespaces/${NAMESPACE}/pods`, respond: { json: podList } },
     { path: `/apis/apps/v1/namespaces/${NAMESPACE}/deployments`, respond: { json: { kind: 'DeploymentList', items: [deployment] } } },
     { path: `/apis/apps.openshift.io/v1/namespaces/${NAMESPACE}/deploymentconfigs`, respond: { json: { kind: 'DeploymentConfigList', items: [deploymentConfig] } } },
@@ -124,4 +127,6 @@ export const fixture = defineFixture({
     { path: `/apis/metrics.k8s.io/v1beta1/namespaces/${NAMESPACE}/pods`, respond: { json: podMetrics } },
   ],
   config,
+  // Reference data only (openshift's context inputs are env and instance), so no other example changes.
+  dossier: { name: 'payments', openshift: { namespace: NAMESPACE, deployments: ['api'] } },
 });

@@ -87,5 +87,15 @@
       "--id <trace-id>",
       "--env <name>"
     ]
+  },
+  {
+    "name": "check-dossier",
+    "tool": "dynatrace_check_dossier",
+    "description": "Check the call's dossier against Dynatrace: its entities exist",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--env <name>"
+    ]
   }
 ]
