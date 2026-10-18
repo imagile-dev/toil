@@ -72,7 +72,7 @@ export interface AreaInfo {
 export const CONFIG_VERSION = 2;
 
 /** Top-level keys that are never areas, in any version. */
-const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds', 'dossierPaths', 'audit', 'wait']);
+const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds', 'dossierPaths', 'audit', 'wait', 'game']);
 
 /** Connection names map one-to-one onto env names: lowercase, digits, single hyphens. */
 export const CONNECTION_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;

@@ -1,4 +1,4 @@
-import { homedir } from 'node:os';
+import { homedir, userInfo } from 'node:os';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { areaOf, servedOverMcp, type AnyCommand } from './core/command.js';
 import type { Envelope } from './core/envelope.js';
@@ -14,6 +14,7 @@ import { areas, commands, routedAliases } from './registry.js';
 import { VERSION } from './version.js';
 import { gatherWelcomeData } from './welcome/data.js';
 import { runWelcome, wantsWelcome } from './welcome/index.js';
+import { saveFor } from './welcome/rogue/save.js';
 
 const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context) }));
 
@@ -110,6 +111,15 @@ const welcomeData = () =>
     script: process.argv[1],
   });
 
+/** The account name the game's save key is derived from. `userInfo()` throws for a user ID with no account entry, as in some containers. */
+const accountName = (): string => {
+  try {
+    return userInfo().username;
+  } catch {
+    return process.env.USER ?? process.env.USERNAME ?? '';
+  }
+};
+
 const tooOld = unsupportedNode(process.versions.node, VERSION);
 
 try {
@@ -118,7 +128,9 @@ try {
     process.stdout.write(`${JSON.stringify(tooOld)}\n`);
     process.exitCode = 1;
   } else if (wantsWelcome(process.argv.slice(2), process.stdin, process.stdout, process.env)) {
-    const ended = await runWelcome({ input: process.stdin, output: process.stdout, env: process.env, run: runForMenu, reload: welcomeData }, welcomeData());
+    const data = welcomeData();
+    const save = saveFor(data.configPath, { user: accountName(), home: homedir() });
+    const ended = await runWelcome({ input: process.stdin, output: process.stdout, env: process.env, run: runForMenu, reload: welcomeData, save }, data);
     if (ended === 'interrupted') process.exitCode = 130;
   } else {
     process.exitCode = await runProgram(program(), process.argv);

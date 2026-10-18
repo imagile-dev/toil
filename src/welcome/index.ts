@@ -1,6 +1,6 @@
 import { emitKeypressEvents } from 'node:readline';
 import type { Envelope } from '../core/envelope.js';
-import { playBrick } from './brick/play.js';
+import { playRogue, type SaveIO } from './rogue/play.js';
 import { breadcrumb, finish, initialState, type Key, type MenuState, played, reduce, render } from './menu.js';
 import type { WelcomeData } from './screens.js';
 import { playSplash } from './splash.js';
@@ -29,9 +29,11 @@ export interface WelcomeIO {
   /**
    * Runs one real toil command (`['connections', 'test', 'corp-jira']`) in this
    * process, prompting on this terminal, and returns the envelope it printed.
-   * The menu does nothing else to config or connections.
+   * The menu does nothing else to config or connections, apart from `save`.
    */
   run?: (args: string[], signal: AbortSignal) => Promise<Envelope>;
+  /** Where the game keeps its progress: under "game" in the user's config, sealed (src/welcome/rogue/save.ts). */
+  save?: SaveIO;
   /** Reads everything the screens show again, after a command may have changed it. */
   reload?: () => WelcomeData;
 }
@@ -202,19 +204,21 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
 
     // The game gets the screen and the keyboard until q brings it back here.
     const game = async () => {
-      const scores = await playBrick({
+      const which = state.playing ?? 'rogue';
+      const terminal = {
         write,
-        onKey: (handler) => {
+        onKey: (handler: (key: Key) => void) => {
           keyListeners.add(handler);
           return () => keyListeners.delete(handler);
         },
         caps: () => detectCaps(output, io.env),
         movesCursor: movesCursor(output, io.env),
-        best: state.session.brick?.best ?? 0,
+        best: state.session[which]?.best ?? 0,
         notice: () => notice,
         signal: exiting.signal,
-      });
-      state = played(state, scores.best, scores.last);
+      };
+      const scores = await playRogue({ ...terminal, ...(io.save ? { save: io.save } : {}) });
+      state = played(state, scores.best, scores.last, which);
     };
 
     await Promise.race([
