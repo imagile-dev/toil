@@ -1,24 +1,25 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT and inventorying dependencies from manifests and lockfiles
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, and triaging a large log
 ---
 
 # Local utilities (`util`)
 
-Commands that work on what's on this machine: a token you paste, or the
-manifests and lockfiles in the workspace. They aren't integrations. There is no
+Commands that work on what's on this machine: a token you paste, the
+manifests and lockfiles in the workspace, or a log file. They aren't integrations. There is no
 server, no connection to add, no `TOIL_UTIL_*` variable, no credential and no
 `--connection` flag, and none of them sends anything over the network. Every
 command reads; none changes anything. Verification level: `unit`.
 
-Each command has two paths that do the same thing, with the same flags and
-output. The `util` path is the main one, and the short path is an alias:
+The older commands have two paths that do the same thing, with the same flags
+and output. The `util` path is the main one, and the short path is an alias:
 
 | Command | Alias | MCP tool |
 |---------|-------|----------|
 | `toil util jwt decode` | `toil jwt decode` | `util_jwt_decode` |
 | `toil util deps scan` | `toil deps scan` | `util_deps_scan` |
 | `toil util deps diff` | `toil deps diff` | `util_deps_diff` |
+| `toil util log` | none | `util_log` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
@@ -160,3 +161,97 @@ Known quirks:
   survives. A package present at two versions can show a change that didn't happen.
 - Paths that git quotes (non-ASCII names) aren't read at a ref.
 - A ref that starts with `-`, or an empty `--from`, is refused with `INVALID_INPUT` before git runs. An empty `--to` means the working tree.
+
+### `toil util log`
+
+Triages a large log (a CI console, a Maven, npm or dotnet build, a test run) into
+what's worth reading: its error and warning lines grouped by signature, each with the
+stack trace that follows it. It reads the file only, streams it, and holds memory
+constant however large the log is.
+
+```bash
+toil util log build.log
+toil util log console.log --level error --context 3
+toil util log console.log --since 2026-10-14T09:12:00Z --grep 'Failed to execute'
+some-build 2>&1 | toil util log -
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `[file]` | The log, inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--text <text>` | The log itself, instead of a file |
+| `--since <timestamp>` | Only lines dated at or after this ISO 8601 time (`2026-10-14`, `2026-10-14T09:12:00Z`, `"2026-10-14 09:12:00"`). A line with no date takes the date of the last dated line before it. Without a zone, a time is read as UTC |
+| `--level <level>` | `warning` (default) reports errors and warnings; `error` reports errors only |
+| `--grep <regex>` | Only error and warning lines matching this JavaScript regular expression (case-sensitive, no slashes or flags) |
+| `--max-groups <n>` | The most groups to return, default 50, up to 1000 |
+| `--context <n>` | Lines to show before and after each group's sample, default 0, up to 20 |
+
+Over MCP the tool is `util_log`, with `file` (a path in the workspace) or `text`, and
+the same fields: `since`, `level`, `grep`, `maxGroups`, `context`.
+
+How it reads a log:
+
+- **Timestamps:** a leading timestamp, bracketed (Jenkins' timestamper) or bare (CI
+  runners, log4j, Serilog), is set aside before anything else, so it never splits a
+  group.
+- **Levels:** the first level word decides (`ERROR`, `FATAL`, `SEVERE`, `WARN`,
+  `WARNING`, `INFO`, `DEBUG` …, and npm's `npm error` / `npm warn`). A line tagged
+  `INFO`, or with no tag, is still an error by its shape: `BUILD FAILURE`, `FAILED`,
+  `error CS0246:`, `error TS2322:`, `TypeError: …`, `Unhandled exception.`, an eslint
+  or vstest failure line. A tag with nothing after it (`[ERROR] `) is not a group.
+- **Signatures:** dates and times, UUIDs, hex and every number are replaced, and
+  spaces collapsed. Codes such as `CS0246` and `TS2322` keep their digits, and paths
+  and quoted names stay, so two different errors stay apart.
+- **Stack traces:** Java (`at …(File.java:12)`, `Caused by:`, `... 14 more`), .NET
+  (`at … in file:line 9`, `--->`, `--- End of inner exception stack trace ---`), Node
+  (`at fn (file:12:3)`) and Python (`Traceback (most recent call last):`, printed
+  before its exception) are joined to the error they belong to, with the exception
+  line that heads one. A trace is reported for each group's first occurrence, up to
+  50 lines.
+
+Output:
+
+```json
+{
+  "lines": { "total": 76, "error": 20, "warning": 5, "other": 35, "stack": 12, "unclassified": 4 },
+  "matched": 25, "filtered": 0, "groupsTotal": 18, "truncated": false, "ungrouped": 0, "unjoinedFrames": 0,
+  "groups": [{
+    "level": "error",
+    "signature": "[ERROR] /build/ledger/Reconciler.java:[<n>] cannot find symbol",
+    "count": 4, "firstLine": 27, "lastLine": 52,
+    "sample": "[ERROR] /build/ledger/Reconciler.java:[54,38] cannot find symbol",
+    "trace": { "kind": "java", "firstLine": 57, "lastLine": 68, "frames": 12, "lines": ["…"] },
+    "context": { "before": [{ "line": 26, "text": "…" }], "after": [{ "line": 28, "text": "…" }] }
+  }],
+  "verified": { "passed": true, "checks": [{ "check": "lines.reread", "status": "passed", "checked": 36, "failed": 0 }] }
+}
+```
+
+Groups are errors first, then warnings, each in order of first appearance. `lines`
+classes every line once: `other` is a level below warning, `stack` a trace line, and
+`unclassified` a line with no level at all. `filtered` counts the error and warning
+lines `--since`, `--level` or `--grep` left out.
+
+It checks its own answer, in `data.verified`:
+
+- **`lines.reread`:** every group's first line is read again from the file and must
+  be its sample, and its last line must still have its signature. `trace.reread`
+  does the same for every trace line shown. A mismatch is `LOG_LINE_MISMATCH`, which
+  usually means the file changed while it was read.
+- **`groups.sum`, `lines.sum`, `filter.sum`:** the group counts add up to the matched
+  lines, the line classes to the lines read, and matched plus filtered to the error
+  and warning lines. A mismatch is `LOG_COUNT_MISMATCH`.
+- **`input.complete`:** the bytes read equal the file's size. It's `unchecked` for
+  stdin and text.
+
+What it reports in `meta.warnings` rather than leave out: `LOG_UNCLASSIFIED` (lines
+with no level, in no group), `LOG_GROUPS_TRUNCATED` (more groups than
+`--max-groups`), `LOG_UNGROUPED` (matched lines whose signature came after the first
+2,000 distinct ones, counted but not grouped, which is what keeps memory constant),
+`LOG_TRACE_UNJOINED` (trace lines with no error before them), `LOG_SINCE_UNDATED`
+(lines `--since` couldn't date, kept), and `APPROXIMATED` for a line longer than
+4,096 characters (grouped by its start) or a `--since` compared with times that had
+no zone.
+
+A file streams with no size limit. stdin and `--text` are held in memory, up to
+64 MiB, so pass a file for anything bigger.

@@ -1076,3 +1076,36 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   refuses a document where that passes 1,000,000 values (`INVALID_INPUT`). A
   document without aliases is held by the input cap alone. js-yaml has no switch
   to reject aliases, and the count also stops a cycle.
+
+### util log (#176)
+
+- **Lines with no level are counted, not grouped.** "Couldn't classify" means a line
+  with no level word and no error or warning shape (a `[Pipeline]` step, a shell
+  echo). They're `lines.unclassified` in `data` and one `LOG_UNCLASSIFIED` warning;
+  `--context` shows the ones around each sample.
+- **Signatures keep paths, quoted names and error codes.** Only dates, times, UUIDs,
+  hex and numbers are replaced, as the issue lists. `CS0246` and `TS2322` keep their
+  digits (no word boundary before them), so two compiler errors in one file stay two
+  groups; the same warning on two properties stays two groups as well.
+- **A trace is reported for each group's first occurrence**, up to 50 lines, and its
+  text comes from the re-read pass, so the streaming pass holds only line ranges. A
+  later occurrence's trace is counted as stack lines.
+- **An exception line directly after an error joins that error's trace** (Maven's `-e`
+  trace under `[ERROR] -> [Help 1]`, a JUnit failure under surefire's `<<< FAILURE!`);
+  with no error just before it, it's an error of its own. Up to 8 lines with no level
+  may sit between an error and its first frame, for vstest's message block.
+- **Memory is bounded by a cap on distinct signatures (2,000), not by the log.** Matched
+  lines past it are counted as `ungrouped` with `LOG_UNGROUPED`, and the sum check
+  includes them. Lines are cut at 4,096 characters for grouping (`APPROXIMATED`).
+- **A file streams with no size cap**; stdin and text keep the reader's 64 MiB cap,
+  since they're held in memory for the re-read.
+- **Order:** errors first, then warnings, each by first appearance, because the first
+  error is usually the cause. `--max-groups` defaults to 50.
+- **`--since`:** a line with no date takes the last date before it; lines before any
+  date are kept and counted (`LOG_SINCE_UNDATED`). Times without a zone are read as
+  UTC and marked `APPROXIMATED`. Time-only prefixes (`09:12:01`) carry no date and
+  don't count.
+- **`--level` is a floor** (`warning`, the default, or `error`), and **`--grep` is a
+  case-sensitive JavaScript regex** on the whole line, with no flag syntax.
+- **No short alias.** `util log` is new, so it has only its `util` path; the site's
+  utilities page now shows the "also" path only for the three commands that have one.

@@ -130,3 +130,11 @@ that it is evaluated on first use, not at startup. A static import anywhere undo
 that, so ESLint refuses a static import of `js-yaml`, `@cfworker/json-schema`,
 `kit/yaml` and `kit/json-schema` outside those wrappers and tests. A type-only import
 is allowed, since it's erased. Treat a command's own heavy module the same way.
+
+**The lazily loaded module must not import zod, even indirectly.** Everything a
+module reached through `import()` imports is wrapped for lazy evaluation too, and a
+wrapped zod is no longer initialised before the MCP SDK uses it at startup: every
+command, `toil version` included, then fails with `Class2 is not a constructor`.
+`kit/input.ts` imports zod (for `inputFields`), so open the input in the definition
+module and pass the `UtilInput` in, importing only its types in the heavy module
+(`util log` does this in `runLog`). `npm run smoke` catches a bundle that breaks.

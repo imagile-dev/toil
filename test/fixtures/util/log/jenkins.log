@@ -1,0 +1,97 @@
+[2026-10-14T09:12:01.114Z] Started by GitHub push by imagile-bot
+[2026-10-14T09:12:01.120Z] Obtained Jenkinsfile from git https://bitbucket.imagile.dev/scm/pay/payments-api.git
+[2026-10-14T09:12:01.402Z] [Pipeline] Start of Pipeline
+[2026-10-14T09:12:01.590Z] [Pipeline] node
+[2026-10-14T09:12:01.601Z] Running on build-agent-07 in /var/lib/jenkins/workspace/payments-api_main
+[2026-10-14T09:12:01.610Z] [Pipeline] {
+[2026-10-14T09:12:01.633Z] [Pipeline] stage
+[2026-10-14T09:12:01.634Z] [Pipeline] { (Checkout)
+[2026-10-14T09:12:01.702Z] [Pipeline] checkout
+[2026-10-14T09:12:01.715Z] The recommended git tool is: NONE
+[2026-10-14T09:12:01.722Z] using credential bitbucket-ci
+[2026-10-14T09:12:01.755Z]  > git rev-parse --resolve-git-dir /var/lib/jenkins/workspace/payments-api_main/.git # timeout=10
+[2026-10-14T09:12:01.810Z] Fetching changes from the remote Git repository
+[2026-10-14T09:12:02.944Z] Checking out Revision 3f9c2a1b7e4d5c6a8b9f0e1d2c3b4a5f6e7d8c9b (refs/remotes/origin/main)
+[2026-10-14T09:12:02.990Z] Commit message: "Add tax rounding to order totals"
+[2026-10-14T09:12:03.011Z] [Pipeline] }
+[2026-10-14T09:12:03.020Z] [Pipeline] // stage
+[2026-10-14T09:12:03.031Z] [Pipeline] stage
+[2026-10-14T09:12:03.032Z] [Pipeline] { (Build)
+[2026-10-14T09:12:03.050Z] [Pipeline] withMaven
+[2026-10-14T09:12:03.101Z] [withMaven] Options: []
+[2026-10-14T09:12:03.104Z] [withMaven] Available options: Artifacts Fingerprinter, Generated Artifact Publisher, Junit Publisher
+[2026-10-14T09:12:03.140Z] WARNING: Unknown parameter(s) found for class type 'org.jenkinsci.plugins.pipeline.maven.publishers.JunitTestsPublisher': keepLongStdio
+[2026-10-14T09:12:03.211Z] [Pipeline] {
+[2026-10-14T09:12:03.230Z] [Pipeline] sh
+[2026-10-14T09:12:03.402Z] + mvn -B -e clean verify
+[2026-10-14T09:12:05.880Z] [INFO] Scanning for projects...
+[2026-10-14T09:12:06.112Z] [INFO]
+[2026-10-14T09:12:06.113Z] [INFO] -------------------< com.imagile:payments-api >--------------------
+[2026-10-14T09:12:06.113Z] [INFO] Building payments-api 2.4.0-SNAPSHOT
+[2026-10-14T09:12:06.114Z] [INFO] --------------------------------[ jar ]---------------------------------
+[2026-10-14T09:12:09.501Z] [WARNING] The requested profile "nexus" could not be activated because it does not exist.
+[2026-10-14T09:12:11.820Z] [INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ payments-api ---
+[2026-10-14T09:12:12.034Z] [INFO] Compiling 84 source files to /var/lib/jenkins/workspace/payments-api_main/target/classes
+[2026-10-14T09:12:18.660Z] [INFO] --- maven-surefire-plugin:3.2.2:test (default-test) @ payments-api ---
+[2026-10-14T09:12:19.003Z] [INFO] Running com.imagile.payments.OrderServiceTest
+[2026-10-14T09:12:20.411Z] [ERROR] Tests run: 6, Failures: 1, Errors: 0, Skipped: 0, Time elapsed: 1.391 s <<< FAILURE! -- in com.imagile.payments.OrderServiceTest
+[2026-10-14T09:12:20.412Z] [ERROR] com.imagile.payments.OrderServiceTest.totalIncludesRoundedTax -- Time elapsed: 0.042 s <<< FAILURE!
+[2026-10-14T09:12:20.412Z] org.opentest4j.AssertionFailedError: expected: <110.25> but was: <110.24>
+[2026-10-14T09:12:20.412Z] 	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+[2026-10-14T09:12:20.412Z] 	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+[2026-10-14T09:12:20.412Z] 	at org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+[2026-10-14T09:12:20.412Z] 	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+[2026-10-14T09:12:20.412Z] 	at com.imagile.payments.OrderServiceTest.totalIncludesRoundedTax(OrderServiceTest.java:58)
+[2026-10-14T09:12:20.412Z] 	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+[2026-10-14T09:12:20.412Z] 	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+[2026-10-14T09:12:20.413Z]
+[2026-10-14T09:12:20.415Z] [INFO] Running com.imagile.payments.RefundServiceTest
+[2026-10-14T09:12:21.002Z] [WARNING] Tests run: 4, Failures: 0, Errors: 0, Skipped: 1, Time elapsed: 0.581 s -- in com.imagile.payments.RefundServiceTest
+[2026-10-14T09:12:21.640Z] [INFO]
+[2026-10-14T09:12:21.640Z] [INFO] Results:
+[2026-10-14T09:12:21.640Z] [INFO]
+[2026-10-14T09:12:21.641Z] [ERROR] Failures:
+[2026-10-14T09:12:21.641Z] [ERROR]   OrderServiceTest.totalIncludesRoundedTax:58 expected: <110.25> but was: <110.24>
+[2026-10-14T09:12:21.641Z] [INFO]
+[2026-10-14T09:12:21.641Z] [ERROR] Tests run: 10, Failures: 1, Errors: 0, Skipped: 1
+[2026-10-14T09:12:21.642Z] [INFO]
+[2026-10-14T09:12:21.650Z] [INFO] ------------------------------------------------------------------------
+[2026-10-14T09:12:21.650Z] [INFO] BUILD FAILURE
+[2026-10-14T09:12:21.650Z] [INFO] ------------------------------------------------------------------------
+[2026-10-14T09:12:21.651Z] [INFO] Total time:  16.104 s
+[2026-10-14T09:12:21.651Z] [INFO] Finished at: 2026-10-14T09:12:21Z
+[2026-10-14T09:12:21.651Z] [INFO] ------------------------------------------------------------------------
+[2026-10-14T09:12:21.660Z] [ERROR] Failed to execute goal org.apache.maven.plugins:maven-surefire-plugin:3.2.2:test (default-test) on project payments-api: There are test failures.
+[2026-10-14T09:12:21.660Z] [ERROR]
+[2026-10-14T09:12:21.660Z] [ERROR] Please refer to /var/lib/jenkins/workspace/payments-api_main/target/surefire-reports for the individual test results.
+[2026-10-14T09:12:21.700Z] [Pipeline] }
+[2026-10-14T09:12:21.912Z] [withMaven] junitPublisher - Archive test results for Maven artifact com.imagile:payments-api:jar:2.4.0-SNAPSHOT generated by maven-surefire-plugin:test (default-test): target/surefire-reports/*.xml
+[2026-10-14T09:12:22.104Z] [Pipeline] // withMaven
+[2026-10-14T09:12:22.120Z] [Pipeline] }
+[2026-10-14T09:12:22.131Z] [Pipeline] // stage
+[2026-10-14T09:12:22.140Z] [Pipeline] stage
+[2026-10-14T09:12:22.141Z] [Pipeline] { (Publish)
+[2026-10-14T09:12:22.150Z] Stage "Publish" skipped due to earlier failure(s)
+[2026-10-14T09:12:22.160Z] [Pipeline] }
+[2026-10-14T09:12:22.170Z] [Pipeline] // stage
+[2026-10-14T09:12:22.180Z] [Pipeline] stage
+[2026-10-14T09:12:22.181Z] [Pipeline] { (Declarative: Post Actions)
+[2026-10-14T09:12:22.190Z] [Pipeline] archiveArtifacts
+[2026-10-14T09:12:22.201Z] Archiving artifacts
+[2026-10-14T09:12:22.244Z] ERROR: No artifacts found that match the file pattern "target/*.jar". Configuration error?
+[2026-10-14T09:12:22.301Z] [Pipeline] slackSend
+[2026-10-14T09:12:22.910Z] FATAL: Failed to notify https://hooks.imagile.dev/services/abc12345
+[2026-10-14T09:12:22.910Z] java.io.IOException: Server returned HTTP response code: 503 for URL: https://hooks.imagile.dev/services/abc12345
+[2026-10-14T09:12:22.910Z] 	at java.base/sun.net.www.protocol.http.HttpURLConnection.getInputStream0(HttpURLConnection.java:2000)
+[2026-10-14T09:12:22.910Z] 	at java.base/sun.net.www.protocol.http.HttpURLConnection.getInputStream(HttpURLConnection.java:1589)
+[2026-10-14T09:12:22.910Z] 	at jenkins.plugins.slack.StandardSlackService.publish(StandardSlackService.java:218)
+[2026-10-14T09:12:22.910Z] Caused by: java.net.SocketTimeoutException: Read timed out
+[2026-10-14T09:12:22.910Z] 	at java.base/sun.nio.ch.NioSocketImpl.timedRead(NioSocketImpl.java:288)
+[2026-10-14T09:12:22.910Z] 	... 14 more
+[2026-10-14T09:12:22.990Z] [Pipeline] }
+[2026-10-14T09:12:23.001Z] [Pipeline] // stage
+[2026-10-14T09:12:23.010Z] [Pipeline] }
+[2026-10-14T09:12:23.020Z] [Pipeline] // node
+[2026-10-14T09:12:23.031Z] [Pipeline] End of Pipeline
+[2026-10-14T09:12:23.044Z] ERROR: script returned exit code 1
+[2026-10-14T09:12:23.050Z] Finished: FAILURE

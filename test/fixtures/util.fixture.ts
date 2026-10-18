@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { GitResult, GitRunner } from '../../src/core/git.js';
 import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
@@ -68,6 +69,16 @@ export const POM = `<project>
 </project>
 `;
 
+/**
+ * Build logs for `util log`, in test/fixtures/util/log/: a Jenkins pipeline
+ * console running Maven, a Maven reactor build, an npm build and test run, and
+ * a dotnet build and test run. Each follows its tool's real output, with
+ * hosts, paths and names replaced by placeholders.
+ */
+export const LOGS = Object.fromEntries(
+  ['jenkins', 'maven', 'npm', 'dotnet'].map((name) => [name, readFileSync(new URL(`./util/log/${name}.log`, import.meta.url), 'utf8')]),
+) as Record<'jenkins' | 'maven' | 'npm' | 'dotnet', string>;
+
 /** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
 export const files: Record<string, string> = {
   '.gitignore': 'vendor/\n',
@@ -76,6 +87,7 @@ export const files: Record<string, string> = {
   'Directory.Packages.props': PROPS,
   'src/Api/Api.csproj': CSPROJ,
   'pom.xml': POM,
+  ...Object.fromEntries(Object.entries(LOGS).map(([name, text]) => [`logs/${name}.log`, text])),
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
 };
 
