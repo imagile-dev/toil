@@ -1076,3 +1076,43 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   refuses a document where that passes 1,000,000 values (`INVALID_INPUT`). A
   document without aliases is held by the input cap alone. js-yaml has no switch
   to reject aliases, and the count also stops a cycle.
+
+### util size (#184)
+
+- **Code outlines are a pure-JS syntactic scan, not the TypeScript compiler.**
+  `typescript.js` is 9.1 MB unminified, more than the whole bundle today, and the
+  `code-intelligence` skill defers bundling a language-analysis library. A small
+  lexer per language (comments and every string form skipped) plus brace matching,
+  or indentation for Python, finds functions, classes, types, methods and exported
+  names. The tests hold the TypeScript and JavaScript outlines to the compiler's
+  syntax tree (a devDependency, never shipped); on toil's 424 own source files they
+  agree on every symbol and line, and on 1,500 random `node_modules` JavaScript
+  files they differ on 6 symbols in 5 files, all compiled or minified code (mostly a
+  constant set to an immediately invoked function, which the scan calls a function). Each result
+  says `precision: "syntactic"` and warns `APPROXIMATED`.
+- **Tokens are `ceil(characters / 4)`** in Unicode code points, the simplest
+  estimate, stated in `tokenMethod` and warned `APPROXIMATED`. No tokenizer is
+  bundled.
+- **Folders get counts, not outlines.** A per-file outline of a whole tree would be
+  larger than reading it. `largest` gives each file's language, and one `size` call
+  on a file outlines it.
+- **The folder tree stops at `--depth` (default 3)**, with deeper folders still in
+  their parent's totals and `foldersHidden` counting them, so a large repository
+  doesn't produce a tree bigger than its files. `--top` defaults to 10.
+- **One input field, `file`, takes a file or a folder**, so the kit's input reader
+  (`file`, `text`, stdin) is reused unchanged. `language` with a folder, and `top` or
+  `depth` with a file, are `INVALID_INPUT` rather than ignored.
+- **A binary file in a folder is sniffed, not read**: the first 8,000 bytes through
+  `ctx.files.readStream`. It counts in files and bytes (from its size), with null
+  lines and tokens, and isn't sent through the reader, which would warn
+  `INPUT_NOT_UTF8` for every image in the tree.
+- **Files are counted with no size cap** (counting streams); only stdin keeps the
+  reader's 64 MiB cap. Outlines skip files over 8 MiB with `too-large`.
+- **A parse error is a reason, not a failure**: the counts still come back, with
+  `notOutlined.reason: "parse-error"`, the line, and a `SIZE_PARSE_ERROR` warning.
+  A JSON error gives line and column only, never V8's quote of the text.
+- **The measuring module is imported statically**, since it reads input through
+  `kit/input.ts` and so zod (#188's finding); the outliners load through `import()`.
+- **The utilities page shows a short path only for the three commands that have
+  one** (`jwt decode`, `deps scan`, `deps diff`); it used to assume every command did.
+- No kit additions.

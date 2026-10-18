@@ -33,5 +33,19 @@
       "--ecosystem <ecosystem>",
       "--include-dev"
     ]
+  },
+  {
+    "name": "size",
+    "tool": "util_size",
+    "description": "Count bytes, lines and estimated tokens for a file or folder, and outline a file (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--language <language>",
+      "--top <n>",
+      "--depth <n>"
+    ]
   }
 ]

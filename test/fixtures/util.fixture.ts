@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { GitResult, GitRunner } from '../../src/core/git.js';
 import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
@@ -68,8 +70,37 @@ export const POM = `<project>
 </project>
 `;
 
-/** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
-export const files: Record<string, string> = {
+/**
+ * Real files for `util size`, one per language it outlines, kept in
+ * test/fixtures/util-size/ with a .txt suffix so the repo's own lint and
+ * typecheck leave them alone. Provenance: verify.ts and util.md are toil's
+ * own (src/areas/util/kit/verify.ts, docs/util.md), as are package.json and
+ * pages.yml; flatted.js, .py and .go are flatted 3.4.4 by Andrea Giammarchi
+ * (ISC); CategoryService.java is from saseq/discord-mcp (MIT); and
+ * FrameworkConfigurationBuilder.cs is from Imagile's imagile-framework (MIT),
+ * with its Key Vault host sanitized to vault.imagile.dev.
+ */
+const sample = (name: string) => readFileSync(join(import.meta.dirname, 'util-size', `${name}.txt`), 'utf8');
+
+/** The `util size` sample folder: every outlined language, a binary file, an unsupported one, and an ignored folder. */
+export const sizeSamples: Record<string, string | Uint8Array> = {
+  'samples/size/.gitignore': 'build/\n',
+  'samples/size/verify.ts': sample('verify.ts'),
+  'samples/size/flatted.js': sample('flatted.js'),
+  'samples/size/flatted.py': sample('flatted.py'),
+  'samples/size/flatted.go': sample('flatted.go'),
+  'samples/size/CategoryService.java': sample('CategoryService.java'),
+  'samples/size/FrameworkConfigurationBuilder.cs': sample('FrameworkConfigurationBuilder.cs'),
+  'samples/size/docs/util.md': sample('util.md'),
+  'samples/size/data/sample.json': sample('package.json'),
+  'samples/size/data/pages.yml': sample('pages.yml'),
+  'samples/size/data/logo.png': new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52]),
+  'samples/size/notes.txt': 'Counted, not outlined.\n',
+  'samples/size/build/bundle.js': 'export const ignored = true;\n',
+};
+
+/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, and the size samples. */
+export const files: Record<string, string | Uint8Array> = {
   '.gitignore': 'vendor/\n',
   'package.json': PACKAGE_JSON,
   'package-lock.json': lock('4.17.21'),
@@ -77,6 +108,7 @@ export const files: Record<string, string> = {
   'src/Api/Api.csproj': CSPROJ,
   'pom.xml': POM,
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
+  ...sizeSamples,
 };
 
 /** What each ref holds, path by path. */

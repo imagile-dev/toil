@@ -1,0 +1,70 @@
+{
+  "name": "@imagile-dev/toil",
+  "version": "0.0.0",
+  "description": "The central integrator between AI agents and the enterprise: one CLI and MCP server for enterprise tools and databases. Plain JavaScript on Node, no executables.",
+  "license": "Apache-2.0",
+  "author": "Imagile",
+  "homepage": "https://imagile-dev.github.io/toil/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imagile-dev/toil.git"
+  },
+  "bugs": "https://github.com/imagile-dev/toil/issues",
+  "keywords": [
+    "cli",
+    "mcp",
+    "agents",
+    "enterprise",
+    "integrations"
+  ],
+  "type": "module",
+  "bin": {
+    "toil": "dist/toil.js"
+  },
+  "files": [
+    "dist/toil.js",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=24.14"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "gen": "node scripts/gen-areas.mjs",
+    "build": "node scripts/gen-areas.mjs && tsup",
+    "typecheck": "node scripts/gen-areas.mjs && tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:keychain-live": "vitest run --config vitest.live.config.ts",
+    "test:integration": "vitest run test/db/",
+    "check:pure": "node scripts/check-pure.mjs",
+    "check:dist": "node scripts/check-dist.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "@cfworker/json-schema": "4.1.1",
+    "@eslint/js": "10.0.1",
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "@types/node": "24.19.0",
+    "@types/oracledb": "7.0.3",
+    "@types/pg": "8.23.1",
+    "commander": "15.0.0",
+    "eslint": "10.11.0",
+    "js-yaml": "5.4.2",
+    "mysql2": "3.24.5",
+    "oracledb": "7.0.1",
+    "pg": "8.23.1",
+    "pg-cursor": "2.22.1",
+    "tedious": "20.3.3",
+    "tsup": "8.5.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0",
+    "vitest": "4.1.11",
+    "zod": "4.6.5"
+  }
+}
