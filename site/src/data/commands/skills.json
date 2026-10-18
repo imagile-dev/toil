@@ -49,7 +49,7 @@
   {
     "name": "marketplace add",
     "tool": null,
-    "description": "Register a marketplace, clone it, and install all its plugins; asks for a token on the terminal (setup is an alias)",
+    "description": "Register a marketplace and clone it, with writes off; asks for a token on the terminal (setup is an alias). Install from it with marketplace sync once writes are on",
     "writes": true,
     "connection": false,
     "flags": [
@@ -59,10 +59,6 @@
       "--branch <branch>",
       "--username <username>",
       "--provider <provider>",
-      "--agent <agent>",
-      "--claude",
-      "--all-agents",
-      "--scope <scope>",
       "--allow-write"
     ]
   },
