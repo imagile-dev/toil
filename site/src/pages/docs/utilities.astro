@@ -7,18 +7,17 @@ import { url, repoUrl } from '../../lib/url';
 // not on the board and get no page from it; their list comes from the same
 // registry-written file the integration pages read (data/commands/util.json),
 // so it can't drift from the CLI. Kept in step with skills/toil/util.md.
-type SiteCommand = { name: string; tool: string | null; description: string; writes: boolean; connection: boolean; flags: string[] };
+// `aliases` are the other paths a command answers at, from the registry: `jwt decode` for `util jwt decode`.
+type SiteCommand = { name: string; tool: string | null; description: string; writes: boolean; connection: boolean; flags: string[]; aliases?: string[] };
 const generated = import.meta.glob<SiteCommand[]>('../../data/commands/util.json', { eager: true, import: 'default' });
 const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
-// The commands that kept a short path from before the util group existed; newer ones have only theirs.
-const shortPaths = new Set(['jwt', 'deps']);
 ---
 
-<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, summarise test, SARIF and coverage reports, triage a large log, scan for secrets before a commit, size files and folders before reading them, and work out time zones, durations, business days and cron run times, with no connection and no network.">
+<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, summarise test, SARIF and coverage reports, triage a large log, scan for secrets before a commit, size files and folders before reading them, work out time zones, durations, business days and cron run times, and compare, sort and bump npm, NuGet and Maven versions, with no connection and no network.">
   <PageHero
     eyebrow="<b>Docs</b> · Utilities"
     title="Local utilities, <em>no network.</em>"
-    lead="Commands that work on what's on your machine: a token you paste, a file, folder or log in your workspace, its manifests and lockfiles, the reports a build leaves behind, a change you're about to commit, or a time and a time zone. No connection, no credential, nothing sent anywhere."
+    lead="Commands that work on what's on your machine: a token or version you paste, a file, folder or log in your workspace, its manifests and lockfiles, the reports a build leaves behind, a change you're about to commit, or a time and a time zone. No connection, no credential, nothing sent anywhere."
   >
     <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <span>Utilities</span></p>
   </PageHero>
@@ -63,7 +62,7 @@ const shortPaths = new Set(['jwt', 'deps']);
               <li class="cmd">
                 <div class="cmd__head">
                   <code class="cmd__name">toil util {c.name}</code>
-                  {shortPaths.has(c.name.split(' ')[0]!) && <span class="cmd__alias">also <code>toil {c.name}</code></span>}
+                  {c.aliases?.map((alias) => <span class="cmd__alias">also <code>toil {alias}</code></span>)}
                 </div>
                 <p class="cmd__desc">{c.description}</p>
                 <p class="cmd__meta">
@@ -155,7 +154,26 @@ const shortPaths = new Set(['jwt', 'deps']);
             A known false positive goes in <code>.toil/secrets-allow</code> by its fingerprint, which names the value without revealing it,
             so the file is safe to check in. Every finding is read again at the position reported to confirm it, and files it couldn't read
             (binary, too large, no permission) are listed rather than skipped.
+          </p>
+        </section>
 
+        <section data-reveal>
+          <h2>Comparing versions</h2>
+          <p>
+            The <code>semver</code> commands compare, sort and bump versions, and check them against ranges, in the grammar of the ecosystem
+            they come from: <code>--ecosystem npm</code> (the default, SemVer 2.0.0 and npm's ranges), <code>nuget</code> (up to four parts,
+            interval notation) or <code>maven</code> (Maven's own ordering, where <code>1.0.0.Final</code> is <code>1</code> and
+            <code>SNAPSHOT</code> comes before the release).
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util semver satisfies 1.3.0-rc.1 '^1.2.0'</span><span class="line"><span class="p">$</span> toil util semver sort versions.txt --range '[12.0,13.0)' --ecosystem nuget</span></pre>
+          </div>
+          <p>
+            A version that doesn't fit the grammar is reported with the reason, never guessed at. Each command also checks its own answer: a
+            sort is checked pair by pair for a consistent order, and a range answer against the range's boundary versions. What it checked
+            is in <code>verified</code> in the output.
+          </p>
+        </section>
 
         <section data-reveal>
           <h2>Summarising a report</h2>

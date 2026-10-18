@@ -113,6 +113,9 @@
       "--major",
       "--minor",
       "--patch"
+    ],
+    "aliases": [
+      "deps outdated"
     ]
   },
   {
@@ -125,6 +128,9 @@
       "--from <file>",
       "--ecosystem <ecosystem>",
       "--include-dev"
+    ],
+    "aliases": [
+      "deps license-check"
     ]
   }
 ]

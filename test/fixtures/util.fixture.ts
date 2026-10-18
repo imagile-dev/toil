@@ -8,8 +8,8 @@ import { canned as secretsGit, files as secretsFiles } from './util-secrets.js';
 import { makeChain } from '../harness/x509.js';
 
 /**
- * The `util` group's commands are standalone and local: jwt decode reads only
- * its input, deps scan reads the workspace's files, and deps diff reads files
+ * The `util` group's commands are standalone and local: jwt decode and semver read only
+ * their input, deps scan reads the workspace's files, and deps diff reads files
  * at a git ref through a canned git. There are no routes, because nothing
  * here talks to a network. The git runner is traced, so the parity suite
  * compares every git call `deps diff` makes through both front doors.
@@ -82,6 +82,15 @@ export const POM = `<project>
   </dependencies>
 </project>
 `;
+
+/**
+ * Version lists for `util semver sort`: real releases of TypeScript (npm)
+ * and Newtonsoft.Json (NuGet). The npm list also has a dist-tag and a
+ * two-part version, the kind of thing a list copied from a registry page
+ * picks up, which the sort reports rather than orders.
+ */
+export const NPM_VERSIONS = ['5.4.2', '4.9.5', '5.4.0-beta 5.4.1-rc', '5.0.4', 'latest', '5.5.0-dev.20240308', '5.3.3', '5.4.5', '5.4', ''].join('\n');
+export const NUGET_VERSIONS = ['13.0.3', '12.0.1', '13.0.1-beta1', '9.0.1', '12.0.3', '13.0.1', '11.0.2', '10.0.3', '12.0.2', '13.0.2', ''].join('\n');
 
 /**
  * A holiday list for `util time business-days`: the US federal holidays for
@@ -165,6 +174,8 @@ export const files: Record<string, string | Uint8Array> = {
   'Directory.Packages.props': PROPS,
   'src/Api/Api.csproj': CSPROJ,
   'pom.xml': POM,
+  'versions/npm.txt': NPM_VERSIONS,
+  'versions/nuget.txt': NUGET_VERSIONS,
   'holidays-2026.txt': HOLIDAYS_2026,
   'encode/pixel.png': PIXEL_PNG,
   'encode/pixel.b64': PIXEL_B64,
