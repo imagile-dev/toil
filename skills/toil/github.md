@@ -1,21 +1,23 @@
 ---
 area: github
-description: Pull requests, reviews, comments, checks, labels, assignees and issues on GitHub and GitHub Enterprise Server
+description: Pull requests, reviews, comments, checks, labels, assignees, issues and projects on GitHub and GitHub Enterprise Server
 ---
 
 # GitHub and GitHub Enterprise Server (`github`)
 
-Pull requests, reviews, comments, checks, labels, assignees and issues on
+Pull requests, reviews, comments, checks, labels, assignees, issues and Projects on
 **GitHub.com** and **GitHub Enterprise Server**, through the REST API and, for
-review threads, PR status, auto-merge, the merge queue and drafts, the GraphQL API.
-The two differ only in host, so they're one area with a configurable `baseUrl`.
-Verification level: `unit`.
+review threads, PR status, auto-merge, the merge queue, drafts and Projects, the
+GraphQL API. The two differ only in host, so they're one area with a configurable
+`baseUrl`. Verification level: `unit`.
 
 **Supported versions:** The oldest GitHub Enterprise Server version toil supports hasn't been established. toil pins
 REST API version 2022-11-28 and uses GraphQL for review threads, PR status, auto-merge,
-the merge queue and drafts. GitHub.com is always current; no Enterprise Server release
-has been verified yet, and the auto-merge and merge-queue commands need a release that
-has those features.
+the merge queue, drafts and Projects. GitHub.com is always current; no Enterprise Server
+release has been verified yet. The auto-merge and merge-queue commands need a release
+that has those features, and so do issue types, sub-issues and Projects (v2). A release
+without issue types just leaves `type` off each issue; one without sub-issues
+(`get-issue --sub-issues`) or Projects (`projects …`) gets `UNSUPPORTED`, saying so.
 
 ## Credential
 
@@ -25,6 +27,17 @@ access tokens → Fine-grained tokens, with access to the repositories you work 
 `Authorization: Bearer <token>`, with `Accept: application/vnd.github+json` and
 `X-GitHub-Api-Version: 2022-11-28`. There is no OAuth app, username, password or
 browser login.
+
+What each group of commands needs from the token:
+
+| Commands | Fine-grained token | Classic token |
+|----------|--------------------|---------------|
+| `list-issues`, `search-issues`, `get-issue`, `issue-events` | Issues: read, on the repository | `repo` (`public_repo` for public repositories only) |
+| `projects list`, `projects fields`, `projects list-items` | Projects: read, under the organization's permissions. A fine-grained token can't read a user's own projects | `read:project` (plus `repo` to see items from private repositories) |
+| Pull request, review, comment and check commands | Pull requests, contents and checks, read or write as needed | `repo` |
+
+A token without the Projects permission gets `AUTH` from the `projects` commands,
+naming the scope.
 
 ## Configuration
 
@@ -102,9 +115,47 @@ that would make a `.` or `..` path segment is refused with `INVALID_INPUT`.
 - **Repositories and issues:** `create-repo` (`--name`, `--description`, `--private`,
   `--auto-init`); `create-issue` (`--title`, `--body` or `--body-file <path>` with `-`
   for stdin, repeatable `--label` and `--assignee`).
+- **Issues as work items:** each issue is GitHub's own, with the issue type in `type`,
+  sub-issue counts in `sub_issues_summary` and the parent in `parent_issue_url`, where
+  the server has them.
+  - `list-issues` (`--state open|closed|all`, default `open`; repeatable `--label`, all
+    of which must match; `--assignee`, `--type` with `none` or `*` too; `--sort
+    created|updated|comments`, `--direction asc|desc`; `--updated-since <iso>`,
+    GitHub's `since`). The issues endpoint mixes pull requests in; toil leaves them out
+    (`list-prs` has them).
+  - `search-issues --query <q>` (GitHub search syntax; `--sort`, `--order`,
+    `--updated-since`). toil adds `is:issue`, and `updated:>=<iso>` with
+    `--updated-since`, but not `--owner` or `--repo`: scope the query with `repo:`,
+    `org:` or `user:`. GitHub serves only the first 1,000 results of a search, so past
+    that toil stops with a `GITHUB_SEARCH_CAPPED` warning; a search GitHub timed out
+    part of gets `GITHUB_SEARCH_INCOMPLETE`.
+  - `get-issue --number <n>`, repeatable up to 100. One number returns the issue
+    itself. Several return `{ issues, errors }`, read four at a time, where an issue
+    GitHub can't find or answers with an error goes into `errors` as `{ number, code,
+    message }`, with a `GITHUB_ISSUES_FAILED` warning; a bad token or a timeout still
+    fails the call. `--sub-issues` adds `sub_issues`, each issue's sub-issues, one more
+    request per issue.
+  - `issue-events --number <n>`: the issue's timeline, oldest first, as GitHub returns
+    it: `closed` and `reopened` (with `state_reason`), `labeled`, `assigned`,
+    `issue_type_added` and `issue_type_changed`, `sub_issue_added`,
+    `cross-referenced` (the PRs that mention it), `commented` and the rest.
+  - `--updated-since` reads a date the way `--created-after` does (a date alone is UTC
+    midnight) and sends it as UTC to the second, `2025-01-31T00:00:00Z`.
+- **Projects (v2):** GitHub's boards, read over GraphQL. They belong to an owner, so
+  only `--owner` is read; `--project` is the number in the project's URL.
+  - `projects list`: the owner's projects (`id`, `number`, `title`, `url`, `closed`, …).
+  - `projects fields --project <n>`: each field's `id`, `name` and `dataType`, a
+    single-select field's `options` (Status), and an iteration field's
+    `configuration` with its `iterations` and `completedIterations`.
+  - `projects list-items --project <n>`: each item's `id`, `type` (`ISSUE`,
+    `PULL_REQUEST`, `DRAFT_ISSUE`), `content` (number, title, state, url and
+    repository) and `fieldValues`, each with its `field.name` and value (`text`,
+    `number`, `date`, a single-select `name`, or an iteration's `title` and
+    `startDate`). An item's first 100 values are read, with a
+    `GITHUB_PROJECT_VALUES_TRUNCATED` warning past that.
 - **Pull requests:** `list-prs` (`--state open|closed|all`, default `open`; `--head
   user:branch`, `--base`; `--author` and `--created-after`/`--created-before`, ISO 8601,
-  are filtered after every page is in, the author case-insensitively; a date alone is
+  are filtered as each page comes in, the author case-insensitively; a date alone is
   UTC midnight, a date-time with no zone local time), `get-pr`, `create-pr` (`--title`,
   `--head`, `--base` defaulting to `targetBranch` then `main`, `--body`/`--body-file`,
   `--draft`), `update-pr` (`--title`, `--body`, `--base`), `merge-pr` (`--method
@@ -132,8 +183,17 @@ that would make a `.` or `..` path segment is refused with `INVALID_INPUT`.
   --label`, `add-assignees` and `remove-assignees` (repeatable `--assignee`).
 
 Lists page 100 at a time until a short page, and stop with an error after 1,000 pages.
+Every list (`list-prs`, `list-files`, `list-comments`, `list-review-comments`,
+`list-reviews`, `list-checks`, `list-issues`, `search-issues`, `issue-events` and the
+three `projects` lists) reads every page by default. `--limit <n>` stops after `n`
+items and sets `meta.page.nextCursor`; pass it back as `--cursor` with the same
+`--limit` for the next `n`, until `nextCursor` is `null`. On `list-prs`, `--limit`
+counts the pull requests that pass `--author` and the date filters.
 
 ```bash
+toil github list-issues --state all --sort updated --direction asc --updated-since 2025-01-31T00:00:00Z --limit 100
+toil github get-issue --number 9 --number 10 --sub-issues
+toil github --owner imagile projects list-items --project 3
 toil github list-prs --state all --author octo-dev
 toil github --owner imagile --repo toil-probe pr-status --number 7
 toil github create-pr --title "Add the probe" --head feature --body-file pr.md --allow-write

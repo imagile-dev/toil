@@ -89,13 +89,111 @@ export function githubGraphql<T>(ctx: GitHubContext, query: string, variables?: 
  * still applies). `items` picks the list out of a wrapper (`check_runs`).
  */
 export async function githubAll<T>(ctx: GitHubContext, path: string, what: string, query: Record<string, QueryValue> = {}, items: (body: unknown) => T[] = (body) => (Array.isArray(body) ? (body as T[]) : [])): Promise<T[]> {
+  return githubList<T>(ctx, path, what, query, { items });
+}
+
+/** What a list command passes on from its `--limit` and `--cursor`, plus how to read and filter a page. */
+export interface ListOptions<T> {
+  limit?: number | undefined;
+  cursor?: string | undefined;
+  items?: (body: unknown) => T[];
+  /** Applied to each page after the short-page check, so a filter never ends paging early. */
+  keep?: (item: T) => boolean;
+  /** Page size; 100 unless an endpoint has a lower ceiling. */
+  pageSize?: number;
+  /** Answers a page without a request (search past its 1,000th result); undefined sends the request. */
+  before?: (page: number) => unknown;
+}
+
+/**
+ * `githubAll` with a cap: with `limit`, stops once that many items are in and
+ * sets `meta.page.nextCursor`; with `cursor` as well, carries on from where
+ * that call stopped. Without `limit`, every page, as before.
+ */
+export async function githubList<T>(ctx: GitHubContext, path: string, what: string, query: Record<string, QueryValue>, opts: ListOptions<T> = {}): Promise<T[]> {
+  needLimitForCursor(opts);
+  const items = opts.items ?? ((body: unknown) => (Array.isArray(body) ? (body as T[]) : []));
   const paged = await paginate<T>(
-    { kind: 'page', pageParam: 'page', sizeParam: 'per_page', pageSize: PER_PAGE, items },
+    { kind: 'page', pageParam: 'page', sizeParam: 'per_page', pageSize: opts.pageSize ?? PER_PAGE, items },
     // per_page before page, in the order the contract specifies.
-    async (p) => ({ body: await github<unknown>(ctx, path, { query: { ...query, per_page: p.per_page, page: p.page } }) }),
-    { what },
+    async (p) => ({ body: opts.before?.(Number(p.page)) ?? (await github<unknown>(ctx, path, { query: { ...query, per_page: p.per_page, page: p.page } })) }),
+    {
+      what,
+      ...(opts.keep ? { keep: opts.keep } : {}),
+      ...(opts.limit !== undefined ? { cap: opts.limit, setPage: ctx.setPage } : {}),
+      ...(opts.cursor !== undefined ? { cursor: opts.cursor } : {}),
+    },
   );
   return paged.items;
+}
+
+/** A GraphQL connection as GitHub answers one: nodes plus where the next page starts. */
+export interface GraphqlConnection<T> {
+  nodes: T[];
+  pageInfo: { hasNextPage: boolean; endCursor: string | null };
+}
+
+/**
+ * Every node of a GraphQL connection, 100 at a time through `$after`, with
+ * the same `limit` and `cursor` as the REST lists. `connection` picks the
+ * connection out of `data`; null means the thing it hangs off wasn't found.
+ */
+export async function githubGraphqlList<T>(
+  ctx: GitHubContext,
+  query: string,
+  variables: Record<string, unknown>,
+  connection: (data: unknown) => GraphqlConnection<T> | null | undefined,
+  what: string,
+  opts: { limit?: number | undefined; cursor?: string | undefined } = {},
+): Promise<T[]> {
+  needLimitForCursor(opts);
+  const page = (body: unknown) => {
+    const found = connection(body);
+    if (!found) throw new ToilError('NOT_FOUND', `GitHub found no ${what}.`, { fix: 'Check --owner and --project: the owner must exist and the token must be able to see the project.' });
+    return found;
+  };
+  const paged = await paginate<T>(
+    { kind: 'nextPageKey', param: 'after', items: (body) => page(body).nodes, key: (body) => (page(body).pageInfo.hasNextPage ? (page(body).pageInfo.endCursor ?? undefined) : undefined) },
+    async (p) => ({ body: await githubGraphql<unknown>(ctx, query, { ...variables, first: PER_PAGE, after: p.after ?? null }) }),
+    { what, ...(opts.limit !== undefined ? { cap: opts.limit, setPage: ctx.setPage } : {}), ...(opts.cursor !== undefined ? { cursor: opts.cursor } : {}) },
+  );
+  return paged.items;
+}
+
+/**
+ * Cursors as meta.page.nextCursor carries them, for the commands' examples:
+ * page 2 of a REST list with none of it returned yet (`n` is the items read
+ * before it), and a GraphQL list resuming after `endCursor`.
+ */
+export const exampleCursor = (page = 2): string => Buffer.from(JSON.stringify({ c: String(page), s: 0, n: (page - 1) * PER_PAGE })).toString('base64url');
+export const exampleGraphqlCursor = (endCursor = 'Y3Vyc29yOjEwMA'): string => Buffer.from(JSON.stringify({ c: endCursor, s: 0 })).toString('base64url');
+
+/** A cursor only makes sense with the limit that produced it. */
+export function needLimitForCursor(input: { limit?: number | undefined; cursor?: string | undefined }): void {
+  if (input.cursor !== undefined && input.limit === undefined) {
+    throw new ToilError('INVALID_INPUT', '--cursor needs --limit', {
+      fix: 'Pass --limit with --cursor (the limit of the call that gave you the cursor), or leave out --cursor to read everything.',
+    });
+  }
+}
+
+/** An ISO 8601 date as GitHub's `since` and search qualifiers take it: UTC, whole seconds, `Z`. */
+export const isoSeconds = (date: Date): string => date.toISOString().replace(/\.\d{3}Z$/, 'Z');
+
+/**
+ * The owner alone, for commands that act on an owner rather than a repository
+ * (Projects): a flag, the remote, then the connection. Any repo core resolved
+ * is dropped from `meta.context`, since nothing uses it.
+ */
+export function targetOwner(ctx: GitHubContext): string {
+  delete ctx.resolved.inputs?.repo;
+  const { owner } = ctx.context;
+  if (!owner) {
+    throw new ToilError('INVALID_INPUT', 'Could not determine the GitHub owner. Pass --owner, or set owner under defaults.github in your toil config.', {
+      fix: `Pass --owner <owner>, run inside a clone with a remote on this GitHub host, or set owner under defaults.github (${githubArea.envName('owner')} for the default connection).`,
+    });
+  }
+  return owner;
 }
 
 /**

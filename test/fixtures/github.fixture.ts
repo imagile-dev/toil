@@ -50,9 +50,48 @@ export const issue = (number = 9) => ({
   user: user('octo-dev'),
   labels: [label('bug')],
   assignees: [user('octo-dev')],
+  // The issue type and sub-issue fields, as GitHub's Issue schema lists them.
+  type: { id: 41, node_id: 'IT_kwDOabc12345', name: 'Bug', description: 'An unexpected problem or behavior', color: 'red' },
+  sub_issues_summary: { total: 2, completed: 1, percent_completed: 50 },
+  parent_issue_url: number === 10 ? `${API}/repos/imagile/toil-probe/issues/9` : null,
   created_at: '2025-01-15T10:00:00Z',
   updated_at: '2025-01-15T10:00:00Z',
 });
+
+/** What the issues endpoint mixes in for a pull request: an issue with a pull_request key. */
+export const prAsIssue = (number = 7) => ({ ...issue(number), title: 'Add the probe', type: null, pull_request: { url: `${API}/repos/imagile/toil-probe/pulls/${number}`, html_url: `${GHE}/imagile/toil-probe/pull/${number}` } });
+
+export const timelineEvent = (event = 'labeled', id = 601) => ({ id, node_id: `LE_kwDOabc12345${id}`, event, actor: user('octo-dev'), created_at: '2025-01-16T10:00:00Z', ...(event === 'labeled' ? { label: { name: 'bug', color: 'd73a4a' } } : {}), ...(event === 'closed' ? { state_reason: 'completed', commit_id: null } : {}) });
+
+export const project = (number = 3) => ({ id: `PVT_kwDOabc12345${number}`, number, title: 'Roadmap', shortDescription: 'What ships when', url: `${GHE}/orgs/imagile/projects/${number}`, public: false, closed: false, createdAt: '2025-01-15T10:00:00Z', updatedAt: '2025-01-16T10:00:00Z' });
+
+export const projectField = () => ({ __typename: 'ProjectV2SingleSelectField', id: 'PVTSSF_abc12345', name: 'Status', dataType: 'SINGLE_SELECT', options: [{ id: 'f75ad846', name: 'Todo' }, { id: '47fc9ee4', name: 'In Progress' }, { id: '98236657', name: 'Done' }] });
+export const iterationField = () => ({
+  __typename: 'ProjectV2IterationField',
+  id: 'PVTIF_abc12345',
+  name: 'Sprint',
+  dataType: 'ITERATION',
+  configuration: { duration: 14, startDay: 1, iterations: [{ id: 'cfc16e4d', title: 'Sprint 2', startDate: '2025-01-27', duration: 14 }], completedIterations: [{ id: 'abc12345', title: 'Sprint 1', startDate: '2025-01-13', duration: 14 }] },
+});
+
+export const projectItem = (more = false) => ({
+  id: 'PVTI_abc12345',
+  type: 'ISSUE',
+  isArchived: false,
+  createdAt: '2025-01-15T10:00:00Z',
+  updatedAt: '2025-01-16T10:00:00Z',
+  content: { __typename: 'Issue', number: 9, title: 'Probe failed', state: 'OPEN', url: `${GHE}/imagile/toil-probe/issues/9`, updatedAt: '2025-01-16T10:00:00Z', repository: { nameWithOwner: 'imagile/toil-probe' } },
+  fieldValues: {
+    pageInfo: { hasNextPage: more },
+    nodes: [
+      { __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'In Progress', optionId: '47fc9ee4', field: { id: 'PVTSSF_abc12345', name: 'Status' } },
+      { __typename: 'ProjectV2ItemFieldNumberValue', number: 3, field: { id: 'PVTF_abc12345', name: 'Estimate' } },
+      { __typename: 'ProjectV2ItemFieldIterationValue', title: 'Sprint 2', iterationId: 'cfc16e4d', startDate: '2025-01-27', duration: 14, field: { id: 'PVTIF_abc12345', name: 'Sprint' } },
+    ],
+  },
+});
+
+const lastPage = { hasNextPage: false, endCursor: 'Y3Vyc29yOjE=' };
 
 export const comment = (id = 401) => ({ id, body: 'Looks right.', html_url: `${GHE}/imagile/toil-probe/pull/7#issuecomment-${id}`, user: user('octo-dev'), created_at: '2025-01-15T10:00:00Z', updated_at: '2025-01-15T10:00:00Z' });
 export const review = (state = 'APPROVED') => ({ id: 80, state, body: '', commit_id: 'abc1234', html_url: `${GHE}/imagile/toil-probe/pull/7#pullrequestreview-80`, user: user('octo-rev', 3) });
@@ -75,6 +114,9 @@ function graphql(body: string | undefined) {
   if (query.includes('convertPullRequestToDraft')) return { data: { convertPullRequestToDraft: { pullRequest: { number: 7, isDraft: true } } } };
   if (query.includes('markPullRequestReadyForReview')) return { data: { markPullRequestReadyForReview: { pullRequest: { number: 7, isDraft: false } } } };
   if (query.includes('resolveReviewThread')) return { data: { resolveReviewThread: { thread: { ...thread(), isResolved: true } } } };
+  if (query.includes('projectsV2(')) return { data: { repositoryOwner: { projectsV2: { pageInfo: lastPage, nodes: [project()] } } } };
+  if (query.includes('fields(first')) return { data: { repositoryOwner: { projectV2: { fields: { pageInfo: lastPage, nodes: [{ __typename: 'ProjectV2Field', id: 'PVTF_abc12345', name: 'Estimate', dataType: 'NUMBER' }, projectField(), iterationField()] } } } } };
+  if (query.includes('items(first')) return { data: { repositoryOwner: { projectV2: { items: { pageInfo: lastPage, nodes: [projectItem()] } } } } };
   if (query.includes('reviewThreads')) return { data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: false }, nodes: [thread()] } } } } };
   return { data: { repository: { pullRequest: prStatusNode() } } };
 }
@@ -99,6 +141,14 @@ const routes: Route[] = [
   { method: 'POST', path: '/api/v3/user/repos', respond: { status: 201, json: repository() } },
   { method: 'POST', path: '/api/v3/orgs/imagile/repos', respond: { status: 201, json: repository() } },
   { method: 'POST', path: `${REPO}/issues`, respond: { status: 201, json: issue() } },
+  // The issues endpoint answers with pull requests mixed in; list-issues drops them.
+  { path: `${REPO}/issues`, respond: { json: [issue(9), prAsIssue(7)] } },
+  { path: `${REPO}/issues/9`, respond: { json: issue(9) } },
+  { path: `${REPO}/issues/10`, respond: { json: issue(10) } },
+  { path: `${REPO}/issues/9/sub_issues`, respond: { json: [issue(10)] } },
+  { path: `${REPO}/issues/10/sub_issues`, respond: { json: [] } },
+  { path: `${REPO}/issues/9/timeline`, respond: { json: [timelineEvent('labeled'), timelineEvent('closed', 602)] } },
+  { path: '/api/v3/search/issues', respond: { json: { total_count: 1, incomplete_results: false, items: [issue(9)] } } },
   { path: `${REPO}/pulls`, respond: { json: [pullRequest(7), pullRequest(8, { user: user('someone-else', 4), created_at: '2024-12-01T00:00:00Z' })] } },
   { method: 'POST', path: `${REPO}/pulls`, respond: { status: 201, json: pullRequest(7) } },
   { method: 'PATCH', path: pr, respond: { json: pullRequest(7) } },

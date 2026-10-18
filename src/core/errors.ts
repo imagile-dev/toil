@@ -27,6 +27,8 @@ export type ErrorCode =
   | 'UNSUPPORTED_NODE'
   /** A command that runs git found no usable git on PATH. Nothing else needs git. */
   | 'GIT_NOT_FOUND'
+  /** The server is a release without an API the command needs (sub-issues or Projects on an older GitHub Enterprise Server). */
+  | 'UNSUPPORTED'
   | 'INTERNAL';
 
 export class ToilError extends Error {
