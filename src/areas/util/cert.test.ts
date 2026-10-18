@@ -266,6 +266,23 @@ describe('util cert: what it could not read, by position', () => {
     expect(JSON.stringify({ data, warnings })).not.toContain(body);
   });
 
+  it('names a block whose label has a hyphen, rather than dropping it', () => {
+    const crl = '-----BEGIN X509-CRL-----\nMIIB\n-----END X509-CRL-----\n';
+    const { data, warnings } = decode(chain.leaf.pem + crl);
+    expect(data.skipped).toEqual([{ position: 2, line: chain.leaf.pem.split('\n').length, offset: null, reason: 'it is a X509-CRL block, not a certificate' }]);
+    expect(warnings.find((w) => w.code === 'CERT_BLOCK_SKIPPED')?.message).toContain('#2');
+  });
+
+  it('still recognises a private key cut short, and does not call it a damaged certificate', () => {
+    const key = testKey().privateKey.export({ type: 'pkcs8', format: 'pem' }) as string;
+    const cut = key.slice(0, key.indexOf('-----END'));
+    const { data, codes } = decode(chain.leaf.pem + cut);
+    expect(data.skipped[0]).toMatchObject({ position: 2, reason: expect.stringContaining('PRIVATE KEY block, not a certificate') });
+    expect(codes).toContain('CERT_PRIVATE_KEY_IN_INPUT');
+    expect(codes).not.toContain('CERT_UNREADABLE');
+    expect(check(data, 'bundle.readable')).toMatchObject({ status: 'passed' });
+  });
+
   it('reports a DER certificate cut short at its byte offset', () => {
     const cut = Buffer.concat([chain.leaf.der, chain.intermediate.der.subarray(0, 40)]);
     const { data } = decode(cut);

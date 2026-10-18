@@ -90,7 +90,7 @@ const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
 /** Every `-----BEGIN …-----` block, certificate or not, in order. */
 function pemBlocks(text: string): Block[] {
   const blocks: Block[] = [];
-  const begins = [...text.matchAll(/-----BEGIN ([^\r\n-]*)-----/g)];
+  const begins = [...text.matchAll(/-----BEGIN ([^\r\n]*?)-----/g)];
   // Lines are counted as the blocks go, once over the text, however many blocks it holds.
   let line = 1;
   let counted = 0;
@@ -101,12 +101,7 @@ function pemBlocks(text: string): Block[] {
     counted = begin.index;
     const bodyStart = begin.index + begin[0].length;
     const limit = begins[i + 1]?.index ?? text.length;
-    const endMarker = `-----END ${label}-----`;
-    const endAt = text.indexOf(endMarker, bodyStart);
-    if (endAt === -1 || endAt > limit) {
-      blocks.push({ position, line, offset: null, skip: { reason: `its ${label} block has no "${endMarker}" line`, damaged: true } });
-      return;
-    }
+    // What a block is comes from its label, before anything else: a private key cut short is still a private key.
     if (!CERT_LABELS.has(label)) {
       const privateKey = /PRIVATE KEY/.test(label);
       blocks.push({
@@ -115,6 +110,12 @@ function pemBlocks(text: string): Block[] {
         offset: null,
         skip: { reason: `it is a ${label} block, not a certificate${privateKey ? '; it was not read, and nothing from it is in the output' : ''}`, damaged: false, ...(privateKey ? { privateKey: true as const } : {}) },
       });
+      return;
+    }
+    const endMarker = `-----END ${label}-----`;
+    const endAt = text.indexOf(endMarker, bodyStart);
+    if (endAt === -1 || endAt > limit) {
+      blocks.push({ position, line, offset: null, skip: { reason: `its ${label} block has no "${endMarker}" line`, damaged: true } });
       return;
     }
     const body = text.slice(bodyStart, endAt).replace(/\s+/g, '');
