@@ -61,11 +61,20 @@ describe('credentials and the organization URL', () => {
     expect(bad.envelope.error).toMatchObject({ code: 'HTTP', message: expect.stringContaining('TF51006') });
   });
 
-  it('a bare https://dev.azure.com, with no organization, is CONFIG_INVALID before anything is sent', async () => {
-    for (const baseUrl of ['https://dev.azure.com', 'https://dev.azure.com/imagile/Imagile']) {
+  it('an organization URL without exactly one organization is CONFIG_INVALID before anything is sent, on both hosts', async () => {
+    for (const baseUrl of ['https://dev.azure.com', 'https://dev.azure.com/imagile/Imagile', 'https://imagile.visualstudio.com/Imagile', 'https://imagile.visualstudio.com/DefaultCollection/Imagile']) {
       const { envelope, calls } = await run('work get', { id: 42 }, [], { 'ado-cloud': { baseUrl, pat: 'test-pat' } });
       expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', fix: expect.stringContaining('https://dev.azure.com/<organization>') });
       expect(calls).toHaveLength(0);
+    }
+  });
+
+  it('a visualstudio.com organization URL is accepted bare or with the legacy /DefaultCollection, in any case', async () => {
+    for (const baseUrl of ['https://imagile.visualstudio.com', 'https://imagile.visualstudio.com/DefaultCollection', 'https://imagile.visualstudio.com/defaultcollection/']) {
+      const prefix = baseUrl.replace(/\/$/, '');
+      const routes: Route[] = [{ url: `${prefix}/_apis/wit/workitems/42?api-version=7.1&%24expand=all`, respond: { json: workItem(42) } }];
+      const { envelope } = await run('work get', { id: 42 }, routes, { 'ado-cloud': { baseUrl, pat: 'test-pat' } });
+      expect(envelope.ok, baseUrl).toBe(true);
     }
   });
 
@@ -245,6 +254,17 @@ describe('pull requests', () => {
       lastMergeSourceCommit: { commitId: 'abc12345def67890abc12345def67890abc12345' },
       completionOptions: { mergeStrategy: 'squash', deleteSourceBranch: true, mergeCommitMessage: 'm' },
     });
+  });
+
+  it('merge-pr on a pull request with no source commit yet is INVALID_INPUT, and nothing is patched', async () => {
+    const routes: Route[] = [{ path: '/imagile/Imagile/_apis/git/repositories/imagile-api/pullrequests/42', respond: { json: { pullRequestId: 42, status: 'active', mergeStatus: 'queued' } } }];
+    const { envelope, calls } = await run('repo merge-pr', { ...inRepo, id: 42, ...write }, routes);
+    expect(envelope.error).toMatchObject({
+      code: 'INVALID_INPUT',
+      message: 'Pull request 42 has no source commit to complete yet.',
+      fix: 'Check data.mergeStatus with ado-cloud repo get-pr, and retry once the server has merged the source branch.',
+    });
+    expect(calls.map((c) => c.method)).toEqual(['GET']);
   });
 
   it('an unknown merge strategy is refused before anything is sent', async () => {

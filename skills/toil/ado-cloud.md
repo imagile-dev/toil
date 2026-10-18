@@ -50,8 +50,10 @@ browser login or an app registration, and toil takes only a token you create onc
 | `fieldAliases` | `TOIL_ADO_CLOUD_FIELD_ALIASES` | no | Work item field aliases as a JSON object, friendly name to reference name, e.g. `{"effortdays": "MyOrg.EffortDays"}` |
 | `writes` | `TOIL_ADO_CLOUD_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
 
-A `baseUrl` of `https://dev.azure.com` with no organization, or with more than one
-path segment, is refused with `CONFIG_INVALID` before anything is sent.
+A `baseUrl` that doesn't name exactly one organization is refused with
+`CONFIG_INVALID` before anything is sent: `https://dev.azure.com` with no organization
+or with more after it (a project), or a `visualstudio.com` URL with any path other
+than the legacy `/DefaultCollection`.
 
 ```bash
 export TOIL_ADO_CLOUD_BASE_URL=https://dev.azure.com/imagile
@@ -206,7 +208,8 @@ naming the list.
   with its zone, as `--updated-since` does.
 - `merge-pr` reads the pull request for its source commit, then asks the server to
   complete it with `--strategy noFastForward` (default), `squash`, `rebase` or
-  `rebaseMerge`. Completion is asynchronous: check `data.status` and
+  `rebaseMerge`. A pull request with no source commit yet is refused with
+  `INVALID_INPUT` before anything is changed. Completion is asynchronous: check `data.status` and
   `data.mergeStatus`, which stay `active` and `queued` while policies or conflicts
   hold it.
 - `update-pr` doesn't change reviewers: the API doesn't take them on that call.

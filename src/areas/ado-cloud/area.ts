@@ -37,9 +37,18 @@ export const PAT_HELP =
 function organizationUrl(conn: Connection<AdoCloudSettings>, area: HookArea): string {
   const url = new URL(conn.baseUrl);
   const segments = url.pathname.split('/').filter(Boolean);
-  if (url.hostname.toLowerCase() === 'dev.azure.com' && segments.length !== 1) {
+  // URL lower-cases the host already. On visualstudio.com the organization is the host, and
+  // the legacy /DefaultCollection is the one path segment that belongs there; a project doesn't.
+  const host = url.hostname;
+  const extra =
+    host === 'dev.azure.com'
+      ? segments.length !== 1
+      : host.endsWith('.visualstudio.com')
+        ? segments.length > 1 || (segments.length === 1 && segments[0]!.toLowerCase() !== 'defaultcollection')
+        : false;
+  if (extra) {
     throw new ToilError('CONFIG_INVALID', `Connection "${conn.name}" has baseUrl ${conn.baseUrl}, which doesn't name one organization.`, {
-      fix: `Set baseUrl to the organization URL, https://dev.azure.com/<organization> (${area.envName('baseUrl')} for the default connection).`,
+      fix: `Set baseUrl to the organization URL, https://dev.azure.com/<organization> or https://<organization>.visualstudio.com, with no project in it (${area.envName('baseUrl')} for the default connection).`,
     });
   }
   return conn.baseUrl;

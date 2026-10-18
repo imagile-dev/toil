@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { adoCloudArea } from './area.js';
 import { IN_REPO, adoc, connectionData, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, repoPath, skipPages, type AdoCloudContext } from './client.js';
@@ -206,9 +207,15 @@ export const repoMergePrCommand = adoCloudArea.command({
   ],
   run: async (input, ctx) => {
     const pr = await getPR(ctx, input.id);
+    const commitId = pr.lastMergeSourceCommit?.commitId;
+    if (!commitId) {
+      throw new ToilError('INVALID_INPUT', `Pull request ${input.id} has no source commit to complete yet.`, {
+        fix: 'Check data.mergeStatus with ado-cloud repo get-pr, and retry once the server has merged the source branch.',
+      });
+    }
     const body = {
       status: 'completed',
-      lastMergeSourceCommit: { commitId: pr.lastMergeSourceCommit?.commitId ?? '' },
+      lastMergeSourceCommit: { commitId },
       completionOptions: { mergeStrategy: input.strategy ?? 'noFastForward', deleteSourceBranch: input.deleteSource ?? false, ...(input.message !== undefined ? { mergeCommitMessage: input.message } : {}) },
     };
     return adoc(ctx, prPath(ctx, input.id), { method: 'PATCH', json: body });
