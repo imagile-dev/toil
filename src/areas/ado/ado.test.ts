@@ -4,6 +4,9 @@ import { testContext } from '../../../test/harness/context.js';
 import type { Route } from '../../../test/harness/fake-fetch.js';
 import { ADO, ATTACHMENT, COLL, config as fixtureConfig, files as fixtureFiles, ME, PROJ, pr, REPO, routes, workItem, build } from '../../../test/fixtures/ado.fixture.js';
 import { commandName, type AnyCommand } from '../../core/command.js';
+import { loadConfig } from '../../core/config.js';
+import { resolveConnection } from '../../core/connection.js';
+import { adoArea } from './area.js';
 import type { Context } from '../../core/context.js';
 import { execute } from '../../core/run.js';
 import { commands } from './index.js';
@@ -243,6 +246,21 @@ describe('work items', () => {
     expect(envelope.meta.warnings).toEqual([{ code: 'ADO_PARENT_LINK_FAILED', message: 'Created #43 but failed to link to parent 999: TF401232: Work item 999 does not exist' }]);
   });
 
+  it('work update resolves the built-in aliases with no fieldAliases on the connection', async () => {
+    const { calls } = await run('work update', { ...W, id: '42', field: ['Story Points=5', 'title=T'] });
+    expect(body(calls[0]!)).toEqual([
+      { op: 'add', path: '/fields/Microsoft.VSTS.Scheduling.StoryPoints', value: '5' },
+      { op: 'add', path: '/fields/System.Title', value: 'T' },
+    ]);
+  });
+
+  it('reads fieldAliases from TOIL_ADO_FIELD_ALIASES as a JSON object', async () => {
+    const env = { TOIL_ADO_BASE_URL: ADO, TOIL_ADO_PAT: 'p', TOIL_ADO_FIELD_ALIASES: '{"effortdays":"MyOrg.EffortDays"}' };
+    const config = loadConfig({ env, cwd: '/nowhere', home: '/nowhere', areas: [adoArea] });
+    const connection = await resolveConnection(config, adoArea, undefined, () => {});
+    expect(connection.fieldAliases).toEqual({ effortdays: 'MyOrg.EffortDays' });
+  });
+
   it("work update resolves names through the connection's fieldAliases over the built-in ones", async () => {
     const { calls } = await run('work update', { ...W, id: '42', field: ['Effort Days=3', 'state=Active', 'Custom.X=1'] }, [], { fieldAliases: { effortdays: 'MyOrg.EffortDays', state: 'MyOrg.State' } });
     expect(calls[0]).toMatchObject({ method: 'PATCH', url: `${ADO}${COLL}/_apis/wit/workitems/42?api-version=7.1` });
@@ -337,11 +355,12 @@ describe('discovery', () => {
     ]);
   });
 
-  it('--save writes nothing and says so; the result is unchanged', async () => {
-    const { envelope } = await run('work fields', { ...AT, save: true });
-    expect((envelope.data as unknown[]).length).toBe(3);
-    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'ADO_SAVE_UNAVAILABLE', message: expect.stringContaining('3 fields and 3 aliases were not written') })]);
-    expect((await run('work types', { ...AT, save: true })).envelope.meta.warnings?.[0]?.code).toBe('ADO_SAVE_UNAVAILABLE');
+  it('work fields and work types take no --save (KF6): it is an unknown input, refused before any request', async () => {
+    for (const command of ['work fields', 'work types']) {
+      const { envelope, calls } = await run(command, { ...AT, save: true });
+      expect(envelope.error?.code, command).toBe('INVALID_INPUT');
+      expect(calls, command).toEqual([]);
+    }
   });
 
   it('work schema needs no connection; --example-only returns the example as data', async () => {
