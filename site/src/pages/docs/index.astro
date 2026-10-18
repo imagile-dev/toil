@@ -23,7 +23,7 @@ const start = [
 ];
 ---
 
-<Layout title="Docs" description="Documentation for toil: installing, configuring, connecting an agent, and databases, and every integration in detail.">
+<Layout title="Docs" description="Documentation for toil: installing, configuring, connecting an agent, databases, the local utilities, and every integration in detail.">
   <PageHero
     eyebrow="Documentation"
     title="Everything in <em>detail.</em>"
@@ -58,6 +58,17 @@ const start = [
         <p>List schemas and tables, describe a table, preview rows and run read-only queries with paging. SQLite, PostgreSQL and Oracle now; MySQL and SQL Server follow.</p>
       </div>
       <p class="more more--flush" data-reveal><a class="tap" href={url('/docs/databases/')}>Databases in detail <span aria-hidden="true">→</span></a></p>
+    </div>
+  </section>
+
+  <section class="section section--rule">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">Utilities</p>
+        <h2>Local tools, no network.</h2>
+        <p>Decode a JWT without verifying it, inventory a repository's npm, NuGet and Maven dependencies, and compare that inventory between two git refs. No connection and no credential.</p>
+      </div>
+      <p class="more more--flush" data-reveal><a class="tap" href={url('/docs/utilities/')}>Utilities in detail <span aria-hidden="true">→</span></a></p>
     </div>
   </section>
 
