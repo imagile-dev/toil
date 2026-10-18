@@ -3,9 +3,11 @@ name: Pages
 on:
   push:
     branches: [main]
-    paths: ['site/**', '.github/workflows/pages.yml']
+    # The site serves the Toil UI preview (ui/), built from the OWI types and fixture.
+    paths: ['site/**', 'ui/**', 'src/core/owi/**', 'test/fixtures/owi/**', '.github/workflows/pages.yml']
   pull_request:
-    paths: ['site/**', '.github/workflows/pages.yml']
+    # The site serves the Toil UI preview (ui/), built from the OWI types and fixture.
+    paths: ['site/**', 'ui/**', 'src/core/owi/**', 'test/fixtures/owi/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -24,7 +26,12 @@ jobs:
         with:
           node-version: '24.14'
           cache: npm
-          cache-dependency-path: site/package-lock.json
+          cache-dependency-path: |
+            site/package-lock.json
+            ui/package-lock.json
+      # The site build builds the Toil UI preview into /ui-preview/ (site/scripts/ui-preview.mjs).
+      - run: npm ci --ignore-scripts
+        working-directory: ui
       - run: npm ci
         working-directory: site
       - run: npm run build

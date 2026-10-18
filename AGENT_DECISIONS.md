@@ -2315,3 +2315,64 @@ Research notes on #212 and #206, checked against the vendors' docs on 2026-10-18
   the vocabulary beside it). The mapping maps `closed` and `inProgress` and says why
   the other four are left out.
 - **Preview fixtures: done** as `test/fixtures/owi/` (spec, **The sprint fixture**).
+
+### #206 preview
+
+Milestones 3 and 4: the `ui/` workspace (`@imagile-dev/toil-ui`, private, its own
+package and lockfile like `site/`), a fixture `Store` and a scripted `Agent`, the
+board, sprint health and traceability views in Plain and Crate, served by the site
+at `/ui-preview/`.
+
+- **Stack: React 19 + Vite + TypeScript, no component library yet.** It is #206's
+  recommendation minus React Aria: the three views need only native elements
+  (links, checkboxes, buttons, selects, tables), which are accessible as they come,
+  so React Aria waits for the first widget that needs it (the board's drag and drop,
+  a dialog). React stays because the theming design's skins are a slot registry in
+  context, and the dependency graph and board libraries #206 names are React-first.
+  Everything is a dev dependency of `ui/`, built into static files; the CLI package
+  gains nothing (`check:pure` is untouched). No Tailwind, as #206 says.
+- **Hash routes and relative asset URLs** (`base: './'`), so the same build works at
+  `/toil/ui-preview/` on Pages and at whatever base path the local app gets, with no
+  rewrite rule.
+- **The site builds the preview itself.** `site/scripts/ui-preview.mjs` runs `vite
+  build` in `ui/` (through node, no shell) and copies `ui/dist` into
+  `site/public/ui-preview/` (git-ignored) before `astro dev` and `astro build`. A
+  site build without `npm --prefix ui ci` fails saying so. A small Vite middleware in
+  `astro.config.mjs` serves the folder's `index.html` in dev, as Pages does.
+- **CI:** the `gate` job runs `ui/`'s `npm ci --ignore-scripts`, typecheck, lint,
+  test and build on all three OSes and both Node versions, so it is inside `CI ok`;
+  `pages.yml` also triggers on `ui/**`, `src/core/owi/**` and `test/fixtures/owi/**`.
+- **One source for OWI.** `ui/` imports the types from `src/core/owi/types.ts`, the
+  sprint from `test/fixtures/owi/sprint-42.owi.json` and the schema from
+  `docs/owi/schema.json` by relative path; `ui/test/store.test.ts` validates every
+  item the fixture Store serves against the schema.
+- **`ChangeRef` is the UI's own shape for now.** OWI 0.1 leaves pull requests and
+  builds out, so the traceability view's changes are a UI fixture
+  (`ui/src/fixtures/changes.ts`: Bitbucket and Jenkins for Jira, Azure Repos and
+  Pipelines, GitHub PRs and checks). It moves into OWI when the spec carries it.
+- **Sprint health rules** (`ui/src/model/sprint.ts`): a sprint is matched across
+  trackers by name, its range the earliest start to the latest end. An iteration
+  change whose `from` names another sprint (not a parent area path) is a carry-over;
+  one after the item's own sprint start is scope added. GitHub Projects keeps no
+  iteration history, so the board item's `createdAt` from `native` stands in and the
+  view names it as the source. That makes `payments-web#45` (added 11:05 on day one)
+  scope added as well as `#43`, which the data supports. Points totals count only
+  `points` estimates and list the rest. A blocked item is one with an inward
+  `blocks` link from an unfinished item.
+- **OWI 0.1 has no "removed" category.** Azure DevOps' Removed maps to `DONE`, so
+  2307 counts as done in the totals (1 point) and traceability flags it "Done with no
+  linked change", with its own status word beside it. Worth a look for OWI 0.2.
+- **The scripted Agent's figures are tested against the model**
+  (`ui/test/agent.test.ts`): every number and citation in its three answers is
+  recomputed from the fixture, so the script can't drift from the data.
+- **Themes are JSON tokens plus scoped CSS and assets**; tokens become custom
+  properties at runtime (`tokenCss`). Skins (script) live in `ui/src/skins/`, built-in
+  only. Crate reuses the site's 404 cartoon (`crate-lost.webp`) for empty and loading
+  states and the site's fonts through Fontsource; `test/brand-sync.test.ts` holds its
+  colours and fonts to `global.css`. Its `line` token is the UI's own (the site's is
+  translucent). The theme choice is remembered in `localStorage` and can be set with
+  `?theme=` and `?scheme=`.
+- **`scripts/shoot.mjs` loads `about:blank` before each shot**, so pages that differ
+  only after `#` (the preview's views) get a fresh document each time.
+- **The site doesn't link to the preview yet.** Where it goes in the navigation is
+  the maintainer's call at the launch.
