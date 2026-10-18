@@ -90,6 +90,19 @@
     ]
   },
   {
+    "name": "secrets scan",
+    "tool": "util_secrets_scan",
+    "description": "Find credential-shaped strings in a file, folder, stdin or the staged diff (local only; exit 1 on findings)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[path]",
+      "--text <text>",
+      "--diff <kind>",
+      "--allow-file <file>"
+    ]
+  },
+  {
     "name": "time convert",
     "tool": "util_time_convert",
     "description": "Convert a time between time zones, reporting DST gaps and overlaps",
