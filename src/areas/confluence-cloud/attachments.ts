@@ -1,0 +1,103 @@
+import { z } from 'zod';
+import { ToilError } from '../../core/errors.js';
+import { allowWriteField } from '../../core/run.js';
+import { confluenceCloudArea } from './area.js';
+import * as client from './client.js';
+
+/**
+ * Attachments: list a page's, upload one, save one locally, or move one to
+ * the trash. Files move through `ctx.files`, so paths stay inside the
+ * workspace on both front doors and a download never replaces a file.
+ * Emptying the trash is an administrator's job, and stays one.
+ */
+
+const attachmentId = z.string().min(1).describe('Attachment ID (e.g. att98765)');
+const attachmentOption = { flags: '--id <attachment-id>', field: 'id', description: 'Attachment ID (e.g. att98765)' };
+
+/**
+ * The last segment of a path or title, splitting on both `/` and `\` whatever
+ * the platform, with `.` and `..` dropped, and `attachment` when nothing is
+ * left. A title comes from the server, so it never picks the directory.
+ */
+export function attachmentFileName(title: string): string {
+  const segments = title.split(/[\\/]/).filter((s) => s !== '' && s !== '.' && s !== '..');
+  return segments.pop() ?? 'attachment';
+}
+
+export const listAttachments = confluenceCloudArea.command({
+  path: ['confluence-cloud', 'list-attachments'],
+  description: 'List attachments on a Confluence Cloud page',
+  toolDescription: 'Returns every attachment on a page (id, title, mediaType, fileSize, downloadLink). Use confluence_cloud_download_attachment with an id to save one.',
+  input: z.object({ id: z.string().min(1).describe('Page ID') }),
+  writes: false,
+  options: [{ flags: '--id <page-id>', field: 'id', description: 'Page ID' }],
+  examples: [{ id: '12345' }],
+  run: (input, ctx) => client.listAttachments(ctx, input.id),
+});
+
+export const uploadAttachment = confluenceCloudArea.command({
+  path: ['confluence-cloud', 'upload-attachment'],
+  description: 'Upload a file as an attachment to a Confluence Cloud page',
+  toolDescription:
+    'Uploads a local file to a page as a new attachment and returns what Confluence created. file is a path inside the workspace. A file name already on the page is refused by Confluence, not versioned.',
+  input: z.object({
+    id: z.string().min(1).describe('Page ID'),
+    file: z.string().min(1).describe('Path to the file to upload'),
+    comment: z.string().optional().describe('Optional comment to attach to the file version'),
+    ...allowWriteField,
+  }),
+  writes: true,
+  options: [
+    { flags: '--id <page-id>', field: 'id', description: 'Page ID' },
+    { flags: '--file <path>', field: 'file', description: 'Path to the file to upload' },
+    { flags: '--comment <text>', field: 'comment', description: 'Optional comment to attach to the file version' },
+  ],
+  examples: [
+    { id: '12345', file: 'diagram.png', allowWrite: true },
+    { id: '12345', file: 'notes.txt', comment: 'First draft', allowWrite: true },
+  ],
+  run: async (input, ctx) => {
+    if (!ctx.files.exists(input.file)) {
+      throw new ToilError('INVALID_INPUT', `File not found: ${input.file}`, { fix: 'Check the path. Relative paths resolve against the workspace.' });
+    }
+    const data = ctx.files.readBytes(input.file);
+    // The same file name on every platform: a backslash separates, as on Windows.
+    return client.uploadAttachment(ctx, input.id, attachmentFileName(input.file), data, input.comment);
+  },
+});
+
+export const downloadAttachment = confluenceCloudArea.command({
+  path: ['confluence-cloud', 'download-attachment'],
+  description: 'Download a Confluence Cloud attachment to .toil/ (or --dir)',
+  toolDescription:
+    'Saves one Confluence Cloud attachment to a directory inside the workspace (default .toil) and returns { saved, filename, size }. Never replaces an existing file. Get the id from confluence_cloud_list_attachments.',
+  input: z.object({
+    id: attachmentId,
+    dir: z.string().optional().describe('Output directory; defaults to .toil in the workspace'),
+  }),
+  writes: false,
+  options: [attachmentOption, { flags: '--dir <path>', field: 'dir', description: 'Output directory (default: .toil in the workspace)' }],
+  examples: [{ id: 'att98765' }, { id: 'att98765', dir: 'downloads' }],
+  run: async (input, ctx) => {
+    const attachment = await client.getAttachment(ctx, input.id);
+    const data = await client.downloadAttachment(ctx, attachment);
+    const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${attachmentFileName(attachment.title)}`, data);
+    return { saved, filename: attachment.title, size: data.length };
+  },
+});
+
+export const deleteAttachment = confluenceCloudArea.command({
+  path: ['confluence-cloud', 'delete-attachment'],
+  description: 'Delete a Confluence Cloud attachment by its ID (moves it to the trash; does not purge it)',
+  input: z.object({ id: attachmentId, ...allowWriteField }),
+  writes: true,
+  mcp: false,
+  options: [attachmentOption],
+  examples: [{ id: 'att98765', allowWrite: true }],
+  run: async (input, ctx) => {
+    await client.deleteAttachment(ctx, input.id);
+    return { deleted: input.id };
+  },
+});
+
+export const attachmentCommands = [listAttachments, uploadAttachment, downloadAttachment, deleteAttachment];
