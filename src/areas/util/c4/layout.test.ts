@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { BOOKSHOP_C4 } from '../../../../test/fixtures/util.fixture.js';
-import { assignLayers, BLOCK, breakCycles, clipToRect, countCrossings, layoutView, orderLayers, placeRow, textWidth, wrapText, type Layout, type Ordering } from './layout.js';
+import { assignLayers, BLOCK, breakCycles, countCrossings, layoutView, orderLayers, placeRow, textWidth, wrapText, type Layout, type Ordering } from './layout.js';
 import { computeView, loadModel, type C4Model } from './model.js';
-import { onBorder, verifyLayout } from './verify.js';
+import { LAYOUT_CHECKS, onBorder, segmentCrosses, verifyLayout, type CheckRun } from './verify.js';
 
 /**
  * The layout one step at a time, then whole, then its self-check fed layouts
@@ -17,6 +17,10 @@ const views = (text: string) => {
   return model.views.map((v) => computeView(model, v));
 };
 const e = (from: string, to: string) => ({ from, to });
+/** Every failure the self-check found, by message. */
+const problems = (runs: CheckRun[]) => runs.flatMap((r) => r.failures.map((f) => f.message));
+/** The checks that failed. */
+const failed = (runs: CheckRun[]) => runs.filter((r) => r.failed > 0).map((r) => r.check);
 
 describe('text metrics', () => {
   it('measures from Helvetica widths, bold wider than regular', () => {
@@ -101,12 +105,28 @@ describe('4. placeRow', () => {
 });
 
 describe('5. routes', () => {
-  it('clips a line from inside a box to its border', () => {
-    const r = { x: 0, y: 0, width: 100, height: 50 };
-    expect(clipToRect(r, { x: 50, y: 25 }, { x: 50, y: 200 })).toEqual({ x: 50, y: 50 });
-    expect(clipToRect(r, { x: 50, y: 25 }, { x: 300, y: 25 })).toEqual({ x: 100, y: 25 });
+  const r = { x: 0, y: 0, width: 100, height: 50 };
+
+  it('knows a point on a border from one inside the box', () => {
     expect(onBorder(r, { x: 100, y: 25 })).toBe(true);
+    expect(onBorder(r, { x: 50, y: 50 })).toBe(true);
     expect(onBorder(r, { x: 50, y: 25 })).toBe(false);
+  });
+
+  it('knows a segment through a box from one that touches it, runs along it or misses it', () => {
+    expect(segmentCrosses(r, { x: -10, y: 25 }, { x: 110, y: 25 })).toBe(true);
+    expect(segmentCrosses(r, { x: 50, y: -40 }, { x: 60, y: 10 })).toBe(true);
+    expect(segmentCrosses(r, { x: 50, y: 50 }, { x: 50, y: 200 })).toBe(false);
+    expect(segmentCrosses(r, { x: 0, y: -10 }, { x: 0, y: 60 })).toBe(false);
+    expect(segmentCrosses(r, { x: -10, y: -10 }, { x: -1, y: 60 })).toBe(false);
+  });
+
+  it('routes long edges straight through the rows they pass, bending only between rows', () => {
+    const layout = layoutView(views(BUSY_C4)[0]!);
+    const bends = layout.edges.flatMap((edge) => edge.points.slice(1).filter((p, k) => p.x !== edge.points[k]!.x && p.y !== edge.points[k]!.y).length);
+    expect(bends.length).toBeGreaterThan(0);
+    for (const edge of layout.edges)
+      for (const n of layout.nodes) if (n.id !== edge.from && n.id !== edge.to) expect(edge.points.slice(1).some((p, k) => segmentCrosses(n, edge.points[k]!, p))).toBe(false);
   });
 });
 
@@ -116,7 +136,10 @@ describe('the whole layout', () => {
     ...views(BUSY_C4).map((v) => [`busy ${v.key}`, v] as const),
   ])('passes its own checks: %s', (_name, view) => {
     const layout = layoutView(view);
-    expect(verifyLayout(layout)).toEqual({ verified: { boxesApart: true, childrenInBoundary: true, edgesTouchBoxes: true, labelsClearOfBoxes: true }, problems: [] });
+    const runs = verifyLayout(layout);
+    expect(problems(runs)).toEqual([]);
+    expect(runs.map((r) => r.check)).toEqual([...LAYOUT_CHECKS]);
+    expect(runs.find((r) => r.check === 'edges.clearOfBoxes')!.checked).toBe(view.edges.length * (layout.nodes.length - 2));
     expect(layout.nodes).toHaveLength(view.inside.length + view.outside.length);
     expect(layout.edges).toHaveLength(view.edges.length);
   });
@@ -145,7 +168,7 @@ describe('the whole layout', () => {
       views: [{ key: 'v', type: 'systemContext', scope: 's', include: ['*', 'b'] }],
     };
     const layout = layoutView(computeView(model, model.views[0]!));
-    expect(verifyLayout(layout).problems).toEqual([]);
+    expect(problems(verifyLayout(layout))).toEqual([]);
   });
 });
 
@@ -156,9 +179,9 @@ describe('the self-check catches a broken layout', () => {
     const layout = good();
     layout.nodes[1]!.x = layout.nodes[0]!.x + 10;
     layout.nodes[1]!.y = layout.nodes[0]!.y + 10;
-    const { verified, problems } = verifyLayout(layout);
-    expect(verified.boxesApart).toBe(false);
-    expect(problems).toContain(`boxes "${layout.nodes[0]!.id}" and "${layout.nodes[1]!.id}" overlap`);
+    const runs = verifyLayout(layout);
+    expect(failed(runs)).toContain('boxes.apart');
+    expect(problems(runs)).toContain(`boxes "${layout.nodes[0]!.id}" and "${layout.nodes[1]!.id}" overlap`);
   });
 
   it('a child outside its boundary, and an outsider drawn over it', () => {
@@ -168,10 +191,10 @@ describe('the self-check catches a broken layout', () => {
     const outsider = layout.nodes.find((n) => !n.inside)!;
     outsider.x = layout.boundary!.rect.x + 1;
     outsider.y = layout.boundary!.rect.y + 1;
-    const { verified, problems } = verifyLayout(layout);
-    expect(verified.childrenInBoundary).toBe(false);
-    expect(problems).toContain(`"${child.id}" belongs inside the boundary "bookshop" and is drawn outside it`);
-    expect(problems).toContain(`"${outsider.id}" is outside the boundary "bookshop" and is drawn over it`);
+    const runs = verifyLayout(layout);
+    expect(failed(runs)).toContain('children.inBoundary');
+    expect(problems(runs)).toContain(`"${child.id}" belongs inside the boundary "bookshop" and is drawn outside it`);
+    expect(problems(runs)).toContain(`"${outsider.id}" is outside the boundary "bookshop" and is drawn over it`);
   });
 
   it('an arrow that stops short of its box, or starts inside one', () => {
@@ -181,10 +204,10 @@ describe('the self-check catches a broken layout', () => {
     const other = layout.edges[1]!;
     const src = layout.nodes.find((n) => n.id === other.from)!;
     other.points[0] = { x: src.x + src.width / 2, y: src.y + src.height / 2 };
-    const { verified, problems } = verifyLayout(layout);
-    expect(verified.edgesTouchBoxes).toBe(false);
-    expect(problems).toContain(`the arrow ${edge.from} -> ${edge.to} doesn't end on "${edge.to}"`);
-    expect(problems).toContain(`the arrow ${other.from} -> ${other.to} doesn't start on "${other.from}"`);
+    const runs = verifyLayout(layout);
+    expect(failed(runs)).toContain('edges.touchBoxes');
+    expect(problems(runs)).toContain(`the arrow ${edge.from} -> ${edge.to} doesn't end on "${edge.to}"`);
+    expect(problems(runs)).toContain(`the arrow ${other.from} -> ${other.to} doesn't start on "${other.from}"`);
   });
 
   it('a label over a box', () => {
@@ -193,8 +216,20 @@ describe('the self-check catches a broken layout', () => {
     const box = layout.nodes[3]!;
     edge.label!.rect.x = box.x + 5;
     edge.label!.rect.y = box.y + 5;
-    const { verified, problems } = verifyLayout(layout);
-    expect(verified.labelsClearOfBoxes).toBe(false);
-    expect(problems).toContain(`the label of ${edge.from} -> ${edge.to} covers "${box.id}"`);
+    const runs = verifyLayout(layout);
+    expect(failed(runs)).toEqual(['labels.clearOfBoxes']);
+    expect(problems(runs)).toEqual([`the label of ${edge.from} -> ${edge.to} covers "${box.id}"`]);
+  });
+
+  it('an arrow routed behind a box it does not join', () => {
+    const layout = good();
+    const edge = layout.edges[0]!;
+    const box = layout.nodes.find((n) => n.id !== edge.from && n.id !== edge.to)!;
+    // A detour through the middle of an unrelated box, ends untouched.
+    edge.points.splice(1, 0, { x: box.x + box.width / 2, y: box.y + box.height / 2 });
+    const runs = verifyLayout(layout);
+    expect(failed(runs)).toEqual(['edges.clearOfBoxes']);
+    expect(problems(runs)).toEqual([`the arrow ${edge.from} -> ${edge.to} passes behind "${box.id}"`]);
+    expect(runs.find((r) => r.check === 'edges.clearOfBoxes')!.failures[0]!.at).toBe(`${edge.from} -> ${edge.to}, ${box.id}`);
   });
 });

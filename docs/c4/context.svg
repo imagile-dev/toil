@@ -4,12 +4,12 @@
 <rect width="100%" height="100%" fill="#ffffff"/>
 <text x="425" y="32" font-size="20" font-weight="bold" text-anchor="middle" fill="#000000">System context: Online Bookshop</text>
 <g class="c4-relationships">
-<path d="M275.6,151 L376.8,272" fill="none" stroke="#707070" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
-<path d="M494.3,152 L448.6,272" fill="none" stroke="#707070" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
-<path d="M425.9,390 L425.3,510" fill="none" stroke="#707070" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
-<path d="M353.7,390 L206.4,510" fill="none" stroke="#707070" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
-<path d="M498,390 L644.1,510" fill="none" stroke="#707070" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
-<path d="M160.6,510 L188.5,420.5 Q216.5,331 223.2,241 L230,151" fill="none" stroke="#707070" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<path d="M233.7,151 L233.7,151.5 Q233.7,152 330,212 L426.2,272" fill="none" stroke="#707070" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<path d="M513.7,152 L426.2,272" fill="none" stroke="#707070" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<path d="M426.2,390 L425,510" fill="none" stroke="#707070" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<path d="M426.2,390 L145,510" fill="none" stroke="#707070" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<path d="M426.2,390 L705,510" fill="none" stroke="#707070" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+<path d="M145,510 L180.7,450 Q216.5,390 216.5,331 L216.5,331 Q216.5,272 225.1,212 L225.1,212 Q233.7,152 233.7,151.5 L233.7,151" fill="none" stroke="#707070" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
 </g>
 <g id="customer" class="c4-person"><rect x="118.7" y="51" width="230" height="100" rx="28" fill="#08427b" stroke="#073b6f" stroke-width="1.5"/><text x="233.7" y="87.6" font-size="15" font-weight="bold" text-anchor="middle" fill="#ffffff">Customer</text><text x="233.7" y="102.9" font-size="11" text-anchor="middle" fill="#ffffff">[Person]</text><text x="233.7" y="126.5" font-size="12" text-anchor="middle" fill="#ffffff">Browses and buys books online</text></g>
 <g id="staff" class="c4-person"><rect x="398.7" y="50" width="230" height="102" rx="28" fill="#08427b" stroke="#073b6f" stroke-width="1.5"/><text x="513.7" y="79.6" font-size="15" font-weight="bold" text-anchor="middle" fill="#ffffff">Bookshop staff</text><text x="513.7" y="94.9" font-size="11" text-anchor="middle" fill="#ffffff">[Person]</text><text x="513.7" y="118.5" font-size="12" text-anchor="middle" fill="#ffffff">Keeps the catalogue and handles</text><text x="513.7" y="134.5" font-size="12" text-anchor="middle" fill="#ffffff">orders</text></g>
@@ -18,17 +18,17 @@
 <g id="email" class="c4-system"><rect x="30" y="510" width="230" height="100" rx="10" fill="#999999" stroke="#8a8a8a" stroke-width="1.5"/><text x="145" y="546.6" font-size="15" font-weight="bold" text-anchor="middle" fill="#ffffff">Email service</text><text x="145" y="561.9" font-size="11" text-anchor="middle" fill="#ffffff">[Software System]</text><text x="145" y="585.5" font-size="12" text-anchor="middle" fill="#ffffff">Delivers transactional email</text></g>
 <g id="warehouse" class="c4-system"><rect x="590" y="510" width="230" height="100" rx="10" fill="#999999" stroke="#8a8a8a" stroke-width="1.5"/><text x="705" y="546.6" font-size="15" font-weight="bold" text-anchor="middle" fill="#ffffff">Warehouse system</text><text x="705" y="561.9" font-size="11" text-anchor="middle" fill="#ffffff">[Software System]</text><text x="705" y="585.5" font-size="12" text-anchor="middle" fill="#ffffff">Picks, packs and ships orders</text></g>
 <g class="c4-labels">
-<rect x="262.1" y="189" width="128.3" height="45" fill="#ffffff" fill-opacity="0.85"/>
-<text x="326.2" y="201.9" font-size="11" text-anchor="middle" fill="#444444">Browses and buys books</text><text x="326.2" y="215.9" font-size="11" text-anchor="middle" fill="#444444">using</text><text x="326.2" y="229.1" font-size="10" text-anchor="middle" fill="#444444">[HTTPS]</text>
-<rect x="408.6" y="196.5" width="125.8" height="31" fill="#ffffff" fill-opacity="0.85"/>
-<text x="471.5" y="209.4" font-size="11" text-anchor="middle" fill="#444444">Manages the shop using</text><text x="471.5" y="222.6" font-size="10" text-anchor="middle" fill="#444444">[HTTPS]</text>
+<rect x="265.4" y="189.2" width="128.3" height="45" fill="#ffffff" fill-opacity="0.85"/>
+<text x="329.5" y="202.2" font-size="11" text-anchor="middle" fill="#444444">Browses and buys books</text><text x="329.5" y="216.2" font-size="11" text-anchor="middle" fill="#444444">using</text><text x="329.5" y="229.4" font-size="10" text-anchor="middle" fill="#444444">[HTTPS]</text>
+<rect x="407" y="196.5" width="125.8" height="31" fill="#ffffff" fill-opacity="0.85"/>
+<text x="470" y="209.4" font-size="11" text-anchor="middle" fill="#444444">Manages the shop using</text><text x="470" y="222.6" font-size="10" text-anchor="middle" fill="#444444">[HTTPS]</text>
 <rect x="375.5" y="434.5" width="100.1" height="31" fill="#ffffff" fill-opacity="0.85"/>
 <text x="425.6" y="447.4" font-size="11" text-anchor="middle" fill="#444444">Charges cards with</text><text x="425.6" y="460.6" font-size="10" text-anchor="middle" fill="#444444">[JSON/HTTPS]</text>
-<rect x="207.1" y="434.5" width="146" height="31" fill="#ffffff" fill-opacity="0.85"/>
-<text x="280.1" y="447.4" font-size="11" text-anchor="middle" fill="#444444">Sends confirmations through</text><text x="280.1" y="460.6" font-size="10" text-anchor="middle" fill="#444444">[SMTP]</text>
-<rect x="511.5" y="434.5" width="119.1" height="31" fill="#ffffff" fill-opacity="0.85"/>
-<text x="571.1" y="447.4" font-size="11" text-anchor="middle" fill="#444444">Sends orders to ship to</text><text x="571.1" y="460.6" font-size="10" text-anchor="middle" fill="#444444">[AMQP]</text>
-<rect x="141.2" y="325.3" width="148.4" height="18" fill="#ffffff" fill-opacity="0.85"/>
-<text x="215.4" y="338.3" font-size="11" text-anchor="middle" fill="#444444">Emails order confirmations to</text>
+<rect x="212.6" y="434.5" width="146" height="31" fill="#ffffff" fill-opacity="0.85"/>
+<text x="285.6" y="447.4" font-size="11" text-anchor="middle" fill="#444444">Sends confirmations through</text><text x="285.6" y="460.6" font-size="10" text-anchor="middle" fill="#444444">[SMTP]</text>
+<rect x="506" y="434.5" width="119.1" height="31" fill="#ffffff" fill-opacity="0.85"/>
+<text x="565.6" y="447.4" font-size="11" text-anchor="middle" fill="#444444">Sends orders to ship to</text><text x="565.6" y="460.6" font-size="10" text-anchor="middle" fill="#444444">[AMQP]</text>
+<rect x="142.3" y="330.7" width="148.4" height="18" fill="#ffffff" fill-opacity="0.85"/>
+<text x="216.5" y="343.6" font-size="11" text-anchor="middle" fill="#444444">Emails order confirmations to</text>
 </g>
 </svg>

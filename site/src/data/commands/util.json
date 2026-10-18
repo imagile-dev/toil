@@ -307,8 +307,8 @@
     "writes": false,
     "connection": false,
     "flags": [
-      "--model <file>",
-      "--model-json <json>",
+      "[file]",
+      "--text <text>",
       "--view <key>",
       "--out <file>"
     ]
@@ -320,8 +320,8 @@
     "writes": false,
     "connection": false,
     "flags": [
-      "--model <file>",
-      "--model-json <json>",
+      "[file]",
+      "--text <text>",
       "--view <key>"
     ]
   },
@@ -332,8 +332,8 @@
     "writes": false,
     "connection": false,
     "flags": [
-      "--model <file>",
-      "--model-json <json>",
+      "[file]",
+      "--text <text>",
       "--view <key>"
     ]
   }

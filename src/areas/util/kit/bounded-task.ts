@@ -1,11 +1,13 @@
 import { parentPort } from 'node:worker_threads';
 import { compileSchema, validateWith, type Validator } from './json-schema.js';
 import type { BoundedTask } from './bounded.js';
+import { drawView } from '../c4/draw.js';
 
 /**
- * The code a bounded worker runs (kit/bounded.ts): JSON Schema validation, and
- * matching a document's own regular expressions against candidate strings.
- * scripts/gen-worker.mjs bundles this file, the validator and nothing else
+ * The code a bounded worker runs (kit/bounded.ts): JSON Schema validation,
+ * matching a document's own regular expressions against candidate strings, and
+ * laying out a C4 view (c4/draw.ts).
+ * scripts/gen-worker.mjs bundles this file, the validator, the C4 layout and nothing else
  * into one string, which runBounded evaluates in a worker thread with a
  * deadline and a memory limit. Nothing here is imported by the CLI itself.
  * The work that might never finish is done in a room with a clock on the wall.
@@ -15,6 +17,7 @@ import type { BoundedTask } from './bounded.js';
 const compiled = new Map<string, Validator>();
 
 function run(task: BoundedTask): unknown {
+  if (task.kind === 'c4-draw') return drawView(task.view);
   if (task.kind === 'validate') {
     let validator = task.key === undefined ? undefined : compiled.get(task.key);
     if (!validator) {

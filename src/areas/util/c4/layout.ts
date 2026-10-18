@@ -1,4 +1,4 @@
-import { typeLine, type ComputedView, type Element } from './model.js';
+import { typeLine, type ComputedView, type Element } from './view.js';
 
 /**
  * toil's own layout for one C4 view: a cut-down Sugiyama layered layout,
@@ -12,8 +12,10 @@ import { typeLine, type ComputedView, type Element } from './model.js';
  *    boundary's children kept together as one block in every layer.
  * 4. `placeRow`: even spacing, each box pulled toward the centre of what it
  *    connects to (an isotonic fit, so order and spacing always hold).
- * 5. Routing through the dummy points long edges were given, and a label spot
- *    on each edge that keeps clear of boxes where one exists.
+ * 5. Routing: down out of the source, straight through each row a long edge
+ *    passes at its dummy's place, and into the target, so arrows bend only in
+ *    the gaps between rows; then a label spot on each edge that keeps clear of
+ *    boxes where one exists.
  *
  * Text is sized from fixed per-character widths for Helvetica (Arial has the
  * same metrics), the one font the SVG asks for, so a layout is the same on
@@ -144,6 +146,8 @@ const TITLE = 20;
 const LABEL_WIDTH = 150;
 const EDGE_LABEL = 11;
 const EDGE_TECH = 10;
+/** How far in from a box's corner an arrow may leave or enter it. */
+const PORT_INSET = 12;
 
 /** The text lines in an element's box: bold name, type line, then the description, each wrapped to the box. */
 export function nodeLines(el: Element): TextLine[] {
@@ -288,7 +292,8 @@ export function orderLayers(start: Ordering, edges: ReadonlyArray<[string, strin
   const current = copy(start);
   let best = copy(start);
   let bestCrossings = countCrossings(best, edges, layerOf);
-  const neighbours = (id: string, layer: number) => edges.flatMap(([a, b]) => (a === id && layerOf.get(b) === layer ? [b] : b === id && layerOf.get(a) === layer ? [a] : []));
+  const adjacent = adjacency(edges);
+  const neighbours = (id: string, layer: number) => (adjacent.get(id) ?? []).filter((n) => layerOf.get(n) === layer);
   for (let sweep = 0; sweep < sweeps; sweep++) {
     const down = sweep % 2 === 0;
     const layers = [...current.items.keys()];
@@ -316,6 +321,16 @@ export function orderLayers(start: Ordering, edges: ReadonlyArray<[string, strin
     }
   }
   return best;
+}
+
+/** Each node's neighbours, either direction, built once: looked up per node per sweep, which a scan of every edge made quadratic. */
+function adjacency(edges: ReadonlyArray<[string, string]>): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const [a, b] of edges) {
+    (out.get(a) ?? out.set(a, []).get(a)!).push(b);
+    (out.get(b) ?? out.set(b, []).get(b)!).push(a);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------- 4. positions
@@ -442,8 +457,9 @@ export function layoutView(view: ComputedView): Layout {
       ix += nodes.get(id)!.width + NODE_GAP;
     }
   });
+  const linked = adjacency(adjacent);
   const neighbourMean = (id: string, layers: number[]) => {
-    const xs = adjacent.flatMap(([a, b]) => (a === id && layers.includes(layerOf.get(b)!) ? [nodes.get(b)!.x] : b === id && layers.includes(layerOf.get(a)!) ? [nodes.get(a)!.x] : []));
+    const xs = (linked.get(id) ?? []).filter((n) => layers.includes(layerOf.get(n)!)).map((n) => nodes.get(n)!.x);
     return xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : nodes.get(id)!.x;
   };
   for (let pass = 0; pass < 12; pass++) {
@@ -529,11 +545,20 @@ export function layoutView(view: ComputedView): Layout {
         { x: b.x + shift / 2, y: b.y + b.height },
       ];
     } else {
-      const middle = chain.slice(1, -1).map((id) => ({ x: nodes.get(id)!.x + shift, y: rowTop[nodes.get(id)!.layer]! + rowHeight[nodes.get(id)!.layer]! / 2 }));
-      const centre = (n: LNode) => ({ x: n.x + shift, y: n.y + n.height / 2 });
-      const first = clipToRect(rectOf(a), centre(a), middle[0] ?? centre(b));
-      const last = clipToRect(rectOf(b), centre(b), middle.at(-1) ?? centre(a));
-      points = [first, ...middle, last];
+      // Down out of the source's bottom, straight through every row it passes at its dummy's
+      // place, and into the target's top. Diagonals only cross the gaps between rows, where
+      // there are no boxes, so an arrow never runs behind one (verify.ts checks it).
+      const bottom = (l: number) => rowTop[l]! + rowHeight[l]!;
+      const across = (n: LNode, x: number) => Math.min(Math.max(x, n.x - n.width / 2 + PORT_INSET), n.x + n.width / 2 - PORT_INSET);
+      const ax = across(a, a.x + shift);
+      const bx = across(b, b.x + shift);
+      points = [{ x: ax, y: a.y + a.height }, { x: ax, y: bottom(a.layer) }];
+      for (const id of chain.slice(1, -1)) {
+        const dummy = nodes.get(id)!;
+        points.push({ x: dummy.x + shift, y: rowTop[dummy.layer]! }, { x: dummy.x + shift, y: bottom(dummy.layer) });
+      }
+      points.push({ x: bx, y: rowTop[b.layer]! }, { x: bx, y: b.y });
+      points = points.filter((p, k) => k === 0 || p.x !== points[k - 1]!.x || p.y !== points[k - 1]!.y);
     }
     // Drawn in the relationship's own direction, whatever the layering did to it.
     if (chain[0] !== e.from) points.reverse();
@@ -574,19 +599,6 @@ function boundaryLines(el: Element): TextLine[] {
     { text: el.name, size: 14, bold: true },
     { text: typeLine(el), size: 11, bold: false },
   ];
-}
-
-/** Where the segment from `inside` (a point in the box) toward `toward` leaves the box's border. */
-export function clipToRect(r: Rect, inside: Point, toward: Point): Point {
-  const dx = toward.x - inside.x;
-  const dy = toward.y - inside.y;
-  let t = Infinity;
-  if (dx > 0) t = Math.min(t, (r.x + r.width - inside.x) / dx);
-  if (dx < 0) t = Math.min(t, (r.x - inside.x) / dx);
-  if (dy > 0) t = Math.min(t, (r.y + r.height - inside.y) / dy);
-  if (dy < 0) t = Math.min(t, (r.y - inside.y) / dy);
-  if (!Number.isFinite(t)) return { ...inside };
-  return { x: inside.x + dx * t, y: inside.y + dy * t };
 }
 
 export function intersects(a: Rect, b: Rect, margin = 0): boolean {

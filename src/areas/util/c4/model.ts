@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { ToilError } from '../../../core/errors.js';
 import type { Warning } from '../../../core/envelope.js';
+import { KIND_LABEL, VIEW_TYPES, type ComputedView, type Element, type ElementKind, type ViewEdge, type ViewType } from './view.js';
+
+export { typeLine, VIEW_TYPES, type ComputedView, type Element, type ElementKind, type ViewEdge, type ViewType } from './view.js';
 
 /**
  * The C4 model the `util c4` commands draw: people and software systems at
@@ -58,9 +61,6 @@ const relationship = z
   .strict()
   .describe('A relationship between two elements, at any level');
 
-export const VIEW_TYPES = ['systemContext', 'container', 'component'] as const;
-export type ViewType = (typeof VIEW_TYPES)[number];
-
 const view = z
   .object({
     key: id.describe(`The view's name, passed as --view; ${ID_RULE}`),
@@ -88,51 +88,6 @@ export const c4ModelSchema = z
 
 export type C4Model = z.infer<typeof c4ModelSchema>;
 export type C4View = C4Model['views'][number];
-
-export type ElementKind = 'person' | 'system' | 'container' | 'component';
-
-export interface Element {
-  id: string;
-  kind: ElementKind;
-  name: string;
-  description?: string | undefined;
-  technology?: string | undefined;
-  external: boolean;
-  database: boolean;
-  /** The id of the system or container it sits in. */
-  parent?: string | undefined;
-  /** Where it is in the model, for error messages: `systems[0].containers[1]`. */
-  path: string;
-}
-
-export interface ViewEdge {
-  from: string;
-  to: string;
-  description?: string | undefined;
-  technology?: string | undefined;
-}
-
-/** What one view draws, in model order, the same for every renderer. */
-export interface ComputedView {
-  key: string;
-  type: ViewType;
-  title: string;
-  /** The system (container view) or container (component view) drawn as a dashed boundary; none for system context. */
-  boundary?: Element | undefined;
-  /** Elements inside the boundary. */
-  inside: Element[];
-  /** Every other element drawn. */
-  outside: Element[];
-  edges: ViewEdge[];
-}
-
-const KIND_LABEL: Record<ElementKind, string> = { person: 'Person', system: 'Software System', container: 'Container', component: 'Component' };
-
-/** `[Container: React]`, the C4 type line under a box's name. */
-export function typeLine(el: Element): string {
-  const kind = el.kind === 'container' && el.database ? 'Container' : KIND_LABEL[el.kind];
-  return el.technology ? `[${kind}: ${el.technology}]` : `[${kind}]`;
-}
 
 /** Every element by id, nested ones included. */
 export function indexElements(model: C4Model): Map<string, Element> {
@@ -210,20 +165,57 @@ export function checkModel(model: C4Model): Array<{ path: string; message: strin
 
 const MODEL_FIX = 'Fix each path listed. The model holds people, systems (with containers and their components), relationships and views; ids are unique across the whole model.';
 
-/**
- * A parsed, checked model. `raw` is either the object MCP sent (already
- * through the input schema) or the text of a --model file, which goes through
- * the same schema here so a file's mistakes are named by path too.
- */
-export function loadModel(raw: unknown, where: string): C4Model {
-  let value = raw;
-  if (typeof raw === 'string') {
-    try {
-      value = JSON.parse(raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw);
-    } catch (err) {
-      throw new ToilError('INVALID_INPUT', `${where} is not valid JSON: ${(err as Error).message}`, { fix: 'Pass a file holding one JSON object, the C4 model.' });
+/** The most a model may hold: elements (people, systems, containers and components together), relationships and views. Past any of them it's INVALID_INPUT. */
+export const MODEL_LIMITS = { elements: 1_000, relationships: 2_000, views: 100 } as const;
+/** The most one drawn view may hold, for `render`: boxes and arrows. The layout is superlinear, so this is what keeps it in milliseconds. */
+export const VIEW_LIMITS = { boxes: 100, arrows: 250 } as const;
+
+const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+const field = (value: unknown, key: string): unknown => (value !== null && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined);
+
+/** Counts what a parsed but unchecked model holds, before the schema walks it, so an oversized one is refused before any work grows with it. */
+function checkSize(value: unknown, where: string): void {
+  const systems = list(field(value, 'systems'));
+  const containers = systems.flatMap((s) => list(field(s, 'containers')));
+  const components = containers.flatMap((c) => list(field(c, 'components')));
+  const counts = {
+    elements: list(field(value, 'people')).length + systems.length + containers.length + components.length,
+    relationships: list(field(value, 'relationships')).length,
+    views: list(field(value, 'views')).length,
+  };
+  for (const key of ['elements', 'relationships', 'views'] as const) {
+    if (counts[key] > MODEL_LIMITS[key]) {
+      throw new ToilError('INVALID_INPUT', `The C4 model in ${where} has ${counts[key]} ${key}, and a model may have at most ${MODEL_LIMITS[key]}.`, {
+        fix: `Split the model into smaller ones, each with at most ${MODEL_LIMITS.elements} elements, ${MODEL_LIMITS.relationships} relationships and ${MODEL_LIMITS.views} views.`,
+      });
     }
   }
+}
+
+/**
+ * Whether `render` may draw a view: at most {@link VIEW_LIMITS} boxes and
+ * arrows. Mermaid and D2 text is written in one linear pass and has no such
+ * limit beyond the model's own.
+ */
+export function checkDrawable(view: ComputedView): void {
+  const boxes = view.inside.length + view.outside.length;
+  const arrows = view.edges.length;
+  if (boxes > VIEW_LIMITS.boxes || arrows > VIEW_LIMITS.arrows) {
+    throw new ToilError('INVALID_INPUT', `View "${view.key}" has ${boxes} boxes and ${arrows} arrows, and render draws at most ${VIEW_LIMITS.boxes} boxes and ${VIEW_LIMITS.arrows} arrows.`, {
+      fix: 'Draw fewer elements in this view with its include list, or split it into several views. util c4 mermaid and util c4 d2 write views of any size the model allows.',
+    });
+  }
+}
+
+/** A parsed, checked model, from the text of the input: its mistakes are all named by path. */
+export function loadModel(raw: string, where: string): C4Model {
+  let value: unknown;
+  try {
+    value = JSON.parse(raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw);
+  } catch (err) {
+    throw new ToilError('INVALID_INPUT', `${where} is not valid JSON: ${(err as Error).message}`, { fix: 'Pass one JSON object, the C4 model.' });
+  }
+  checkSize(value, where);
   const parsed = c4ModelSchema.safeParse(value);
   if (!parsed.success) {
     const problems = parsed.error.issues.map((i) => ({ path: i.path.map((p) => (typeof p === 'number' ? `[${p}]` : `.${String(p)}`)).join('').replace(/^\./, '') || '(the model)', message: i.message }));

@@ -5,7 +5,8 @@ import { runCli } from '../../../../test/harness/cli.js';
 import { testContext } from '../../../../test/harness/context.js';
 import { execute } from '../../../core/run.js';
 import type { Warning } from '../../../core/envelope.js';
-import { c4D2Command, c4MermaidCommand, c4RenderCommand, EXAMPLE_MODEL } from './commands.js';
+import { c4D2Command, c4MermaidCommand, c4RenderCommand, checkText, draw, EXAMPLE_MODEL } from './commands.js';
+import { Verifier, type Verified } from '../kit/verify.js';
 import { checkModel, computeView, loadModel, type C4Model } from './model.js';
 import { layoutView } from './layout.js';
 import { toSvg } from './svg.js';
@@ -95,7 +96,7 @@ describe('checking a model', () => {
     model.relationships![0]!.destination = 'warehose';
     model.views[2]!.scope = 'bookshop';
     model.views[1]!.include = ['nope'];
-    expect(() => loadModel(model, 'the model input')).toThrow(
+    expect(() => loadModel(JSON.stringify(model), 'the model input')).toThrow(
       expect.objectContaining({
         code: 'INVALID_INPUT',
         message: expect.stringContaining('has 4 problems: systems[0].containers[5].id: "customer" is already the id of people[0]'),
@@ -176,21 +177,118 @@ describe('SVG', () => {
   });
 });
 
+describe('the text renders check themselves', () => {
+  const run = (text: string, language: 'Mermaid' | 'D2') => {
+    const warnings: Warning[] = [];
+    const v = new Verifier((w) => warnings.push(w));
+    checkText(v, view(bookshop(), 'containers'), text, language);
+    return { verified: v.done(), codes: warnings.map((w) => w.code) };
+  };
+
+  it.each([['Mermaid', toMermaid] as const, ['D2', toD2] as const])('%s: every element declared once and one line per arrow, and rendering reported unchecked', (language, render) => {
+    const { verified, codes } = run(render(view(bookshop(), 'containers')), language);
+    expect(verified.passed).toBe(true);
+    expect(verified.checks.map((c) => [c.check, c.status])).toEqual([
+      ['text.elements', 'passed'],
+      ['text.relationships', 'passed'],
+      ['text.renders', 'unchecked'],
+    ]);
+    expect(codes).toEqual(['UNVERIFIED']);
+  });
+
+  it.each([
+    ['Mermaid', toMermaid, 'ContainerDb(db,', 'Rel(web, api,'] as const,
+    ['D2', toD2, 'db: "', 'bookshop.web -> bookshop.api'] as const,
+  ])('%s: catches a text that lost an element and an arrow', (language, render, element, arrow) => {
+    const broken = render(view(bookshop(), 'containers'))
+      .split('\n')
+      .filter((line) => !line.trimStart().startsWith(element) && !line.startsWith(arrow))
+      .join('\n');
+    const { verified, codes } = run(broken, language);
+    expect(verified.passed).toBe(false);
+    expect(verified.checks.filter((c) => c.status === 'failed').map((c) => c.check)).toEqual(['text.elements', 'text.relationships']);
+    expect(codes).toEqual(['UNVERIFIED', 'C4_TEXT_CHECK', 'C4_TEXT_CHECK']);
+  });
+});
+
+describe('bounds', () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `s${i}`, name: `System ${i}` }));
+
+  it.each([
+    ['elements', { systems: many(1001), views: [{ key: 'v', type: 'systemContext', scope: 's0' }] }, 'has 1001 elements, and a model may have at most 1000'],
+    [
+      'relationships',
+      { systems: many(2), relationships: Array.from({ length: 2001 }, () => ({ source: 's0', destination: 's1' })), views: [{ key: 'v', type: 'systemContext', scope: 's0' }] },
+      'has 2001 relationships, and a model may have at most 2000',
+    ],
+    ['views', { systems: many(1), views: Array.from({ length: 101 }, (_, i) => ({ key: `v${i}`, type: 'systemContext', scope: 's0' })) }, 'has 101 views, and a model may have at most 100'],
+  ])('refuses a model with too many %s before checking it', (_what, model, message) => {
+    expect(() => loadModel(JSON.stringify(model), 'model.json')).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining(message) }));
+  });
+
+  /** A view of systems in a chain plus long edges across it, the layout's worst shape: every long edge passes every row. */
+  const chain = (boxes: number, arrows: number): C4Model => {
+    const systems = many(boxes);
+    const relationships = systems.slice(1).map((s, i) => ({ source: `s${i}`, destination: s.id }));
+    for (let i = 0; relationships.length < arrows; i++) relationships.push({ source: `s${i % 30}`, destination: `s${boxes - 1 - Math.floor(i / 30)}` });
+    return { systems, relationships, views: [{ key: 'v', type: 'systemContext', scope: 's0', include: systems.map((s) => s.id) }] };
+  };
+
+  it('render refuses a view past 100 boxes or 250 arrows, and the text renders still write it', async () => {
+    const big = JSON.stringify(chain(101, 120));
+    const refused = await execute(c4RenderCommand, { text: big }, testContext().context);
+    expect(refused.error).toMatchObject({ code: 'INVALID_INPUT', message: 'View "v" has 101 boxes and 120 arrows, and render draws at most 100 boxes and 250 arrows.' });
+    expect((await execute(c4RenderCommand, { text: JSON.stringify(chain(60, 251)) }, testContext().context)).error?.code).toBe('INVALID_INPUT');
+    expect((await execute(c4MermaidCommand, { text: big }, testContext().context)).ok).toBe(true);
+  });
+
+  it('draws the worst view the limits allow in the bounded worker, and every check holds', async () => {
+    const model = chain(100, 250);
+    const drawing = await draw(computeView(model, model.views[0]!), undefined);
+    expect(drawing.runs.filter((r) => r.failed)).toEqual([]);
+    expect(drawing.svg.startsWith('<svg')).toBe(true);
+  });
+
+  it('stops a layout that passes its deadline with TIMEOUT, and a cancelled one with CANCELLED', async () => {
+    const model = chain(100, 250);
+    const computed = computeView(model, model.views[0]!);
+    await expect(draw(computed, undefined, 1)).rejects.toMatchObject({ code: 'TIMEOUT', message: expect.stringContaining('Laying out view "v" was stopped') });
+    const controller = new AbortController();
+    controller.abort();
+    await expect(draw(computed, controller.signal)).rejects.toMatchObject({ code: 'CANCELLED' });
+  });
+});
+
 describe('util c4 commands', () => {
   it('render returns the SVG, laid out by toil, with what it drew and what it checked', async () => {
-    const envelope = await execute(c4RenderCommand, { modelFile: 'bookshop.c4.json', view: 'context' }, testContext({ files }).context);
+    const envelope = await execute(c4RenderCommand, { file: 'bookshop.c4.json', view: 'context' }, testContext({ files }).context);
     expect(envelope.ok).toBe(true);
-    const data = envelope.data as { svg: string; elements: string[]; relationships: number; format: string };
-    expect(data).toMatchObject({ view: 'context', type: 'systemContext', title: 'System context: Online Bookshop', format: 'svg', relationships: 6, verified: { boxesApart: true, childrenInBoundary: true, edgesTouchBoxes: true, labelsClearOfBoxes: true } });
-    expect(envelope.meta.warnings).toBeUndefined();
+    const data = envelope.data as { svg: string; verified: Verified };
+    expect(data).toMatchObject({ view: 'context', type: 'systemContext', title: 'System context: Online Bookshop', format: 'svg', relationships: 6 });
+    expect(data.verified.passed).toBe(true);
+    expect(data.verified.checks.map((c) => [c.check, c.status])).toEqual([
+      ['input.complete', 'passed'],
+      ['boxes.apart', 'passed'],
+      ['edges.touchBoxes', 'passed'],
+      ['edges.clearOfBoxes', 'passed'],
+      ['labels.clearOfBoxes', 'passed'],
+      ['text.width', 'approximated'],
+    ]);
+    expect(envelope.meta.warnings).toEqual([{ code: 'APPROXIMATED', message: expect.stringContaining("text.width is approximate: text is measured with Helvetica's character widths") }]);
     expect(data.svg).toContain('<svg');
     expect(data.svg).toContain('Online Bookshop');
     expect(data.svg).toContain('[Software System]');
   });
 
+  it('render checks the boundary too in a container view', async () => {
+    const envelope = await execute(c4RenderCommand, { file: 'bookshop.c4.json', view: 'containers' }, testContext({ files }).context);
+    const checks = (envelope.data as { verified: Verified }).verified.checks;
+    expect(checks.find((c) => c.check === 'children.inBoundary')).toMatchObject({ status: 'passed', checked: 10 });
+  });
+
   it('render --out writes a new file in the workspace and returns its path and size instead of the SVG', async () => {
     const { context, files: written } = testContext({ files });
-    const envelope = await execute(c4RenderCommand, { modelFile: 'bookshop.c4.json', view: 'containers', out: 'out/containers.svg' }, context);
+    const envelope = await execute(c4RenderCommand, { file: 'bookshop.c4.json', view: 'containers', out: 'out/containers.svg' }, context);
     expect(envelope.ok).toBe(true);
     const data = envelope.data as { file: string; bytes: number; svg?: string };
     expect(data.svg).toBeUndefined();
@@ -201,30 +299,29 @@ describe('util c4 commands', () => {
   });
 
   it('reads the model from stdin on the CLI', async () => {
-    const run = await runCli(['util', 'c4', 'mermaid', '--model', '-', '--view', 'components'], { commands, context: testContext({ stdin: BOOKSHOP_C4 }).context });
+    const run = await runCli(['util', 'c4', 'mermaid', '-', '--view', 'components'], { commands, context: testContext({ stdin: BOOKSHOP_C4 }).context });
     expect(run.envelope?.ok).toBe(true);
     expect((run.envelope?.data as { text: string }).text.startsWith('C4Component\n')).toBe(true);
   });
 
-  it('takes the model as JSON on the CLI with --model-json', async () => {
-    const run = await runCli(['util', 'c4', 'd2', '--model-json', JSON.stringify(EXAMPLE_MODEL)], { commands, context: testContext().context });
-    expect(run.envelope?.data).toMatchObject({ view: 'context', format: 'd2', elements: ['reader', 'status'], relationships: 1 });
+  it('takes the model as JSON on the CLI with --text', async () => {
+    const run = await runCli(['util', 'c4', 'd2', '--text', JSON.stringify(EXAMPLE_MODEL)], { commands, context: testContext().context });
+    expect(run.envelope?.data).toMatchObject({ view: 'context', format: 'd2', elements: ['reader', 'status'], relationships: 1, verified: { passed: true } });
   });
 
   it.each([
-    [{}, 'No C4 model was given.'],
-    [{ model: EXAMPLE_MODEL, modelFile: 'bookshop.c4.json' }, 'Both a model file and a model were given'],
-    [{ modelFile: 'bookshop.c4.json' }, 'The model has 3 views, and no --view said which to draw.'],
-    [{ modelFile: 'bookshop.c4.json', view: 'deployment' }, 'The model has no view "deployment".'],
+    [{ text: JSON.stringify(EXAMPLE_MODEL), file: 'bookshop.c4.json' }, 'both'],
+    [{ file: 'bookshop.c4.json' }, 'The model has 3 views, and no --view said which to draw.'],
+    [{ file: 'bookshop.c4.json', view: 'deployment' }, 'The model has no view "deployment".'],
   ])('refuses %j with INVALID_INPUT', async (input, message) => {
     const envelope = await execute(c4MermaidCommand, input, testContext({ files }).context);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining(message) });
     if (message.startsWith('The model has')) expect(envelope.error?.fix).toBe('Pass --view <key>, one of: context, containers, components.');
   });
 
-  it('refuses a bad model over the input schema with the path that is wrong', async () => {
-    const envelope = await execute(c4D2Command, { model: { ...EXAMPLE_MODEL, views: [{ key: 'v', type: 'deployment', scope: 'status' }] } }, testContext().context);
+  it('refuses a bad model with the path that is wrong', async () => {
+    const envelope = await execute(c4D2Command, { text: JSON.stringify({ ...EXAMPLE_MODEL, views: [{ key: 'v', type: 'deployment', scope: 'status' }] }) }, testContext().context);
     expect(envelope.error?.code).toBe('INVALID_INPUT');
-    expect(envelope.error?.message).toContain('model.views[0].type');
+    expect(envelope.error?.message).toContain('views[0].type');
   });
 });

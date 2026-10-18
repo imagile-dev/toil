@@ -1193,15 +1193,15 @@ their dashed boundary, and each relationship's label placed clear of the boxes.
 Nothing is installed or run, and nothing goes over the network.
 
 ```bash
-toil util c4 render --model docs/c4/bookshop.c4.json --view containers --out containers.svg
-toil util c4 mermaid --model docs/c4/bookshop.c4.json --view context
-cat model.json | toil util c4 d2 --model - --view components
+toil util c4 render docs/c4/bookshop.c4.json --view containers --out containers.svg
+toil util c4 mermaid docs/c4/bookshop.c4.json --view context
+cat model.json | toil util c4 d2 - --view components
 ```
 
 | Flag | Meaning |
 |------|---------|
-| `--model <file>` | A JSON file holding the model, inside the workspace. `-` reads it from stdin |
-| `--model-json <json>` | The model itself, as a JSON string, instead of `--model`. Over MCP this is the `model` field, which takes the JSON object |
+| `[file]` | A JSON file holding the model, inside the workspace, or `-` (or nothing) for stdin |
+| `--text <text>` | The model itself, as a JSON string, instead of a file. Over MCP, `file` or `text` |
 | `--view <key>` | The view to draw. It can be left out when the model has only one |
 | `--out <file>` | `render` only: write the SVG to this new file inside the workspace instead of returning it. toil never overwrites a file |
 
@@ -1252,14 +1252,44 @@ The model:
 
 Output: `{ view, type, title, elements, relationships, verified, format, svg }` for
 `render`, where `elements` lists the ids drawn and `relationships` counts the arrows.
-`render` checks its own drawing before returning it, and `verified` says what held:
-`{ boxesApart, childrenInBoundary, edgesTouchBoxes, labelsClearOfBoxes }`. Each
-check that fails is a `C4_LAYOUT_CHECK` warning in `meta.warnings` naming the boxes
-or arrow involved, so a bad drawing is never returned without saying so. The
-layout is meant for C4-sized views; past about 25 boxes, arrows start to cross more
-often and can pass behind boxes, which no check covers. With
-`--out`, `{ file, bytes }` take the place of `svg`, and `file` is the absolute path
-written. `mermaid` and `d2` return `text` in place of `svg`.
+With `--out`, `{ file, bytes }` take the place of `svg`, and `file` is the absolute
+path written. `mermaid` and `d2` return `text` in place of `svg`.
+
+`render` lays the view out down the page: arrows leave a box from its bottom, run
+straight through any row they pass, and enter their target from the top, so they
+bend only in the gaps between rows. It checks its own drawing before returning it,
+and `data.verified` lists each check:
+
+| Check | What held |
+|-------|-----------|
+| `input.complete` | The whole file was read (unchecked for stdin and `--text`) |
+| `boxes.apart` | No two boxes overlap |
+| `children.inBoundary` | Every child is inside its dashed boundary, and nothing else is drawn over it |
+| `edges.touchBoxes` | Every arrow starts on its source's border and ends on its target's |
+| `edges.clearOfBoxes` | No arrow passes behind a box it doesn't join |
+| `labels.clearOfBoxes` | No label covers a box |
+| `text.width` | Always `approximated`: text is measured with Helvetica's widths, which Arial shares |
+
+Each check that fails is one `C4_LAYOUT_CHECK` warning in `meta.warnings` naming
+the first boxes or arrow involved and how many failed, and the first five are in
+`verified`, so a bad drawing is never returned without saying so. `mermaid` and
+`d2` check their own text instead: every element declared once (`text.elements`)
+and one line per arrow (`text.relationships`), failing as `C4_TEXT_CHECK`. Whether
+the text draws is up to whatever renders it, and is reported as unchecked
+(`text.renders`, `UNVERIFIED`).
+
+Limits, each an `INVALID_INPUT` past it, before any work grows with it:
+
+- The model's JSON is at most 4 MiB.
+- A model holds at most 1,000 elements (people, systems, containers and components
+  together), 2,000 relationships and 100 views.
+- `render` draws at most 100 boxes and 250 arrows in one view. Draw fewer with the
+  view's `include` list, or split the view; `mermaid` and `d2` write a view of any
+  size the model allows.
+
+The layout runs in a worker thread with a 2 s deadline, past which it's stopped
+with `TIMEOUT`; at the limits above it takes well under half a second. Past about
+25 boxes, arrows cross more often and the drawing grows tall.
 
 A model with mistakes fails with `INVALID_INPUT` before anything is drawn. The
 message names each problem by its path in the model, such as

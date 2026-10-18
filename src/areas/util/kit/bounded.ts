@@ -1,10 +1,11 @@
 import { Worker } from 'node:worker_threads';
 import type { Schema, SchemaDraft, SchemaResult } from './json-schema.js';
+import type { ComputedView } from '../c4/view.js';
 import { WORKER_SOURCE } from './bounded-worker.generated.js';
 
 /**
  * Work whose cost depends on what a document asks for, run where it can be
- * stopped: JSON Schema validation (a validator tries every anyOf and oneOf
+ * stopped: laying out a C4 view (superlinear in its boxes and arrows), JSON Schema validation (a validator tries every anyOf and oneOf
  * branch, so a schema can ask for 2^n checks) and a document's own regular
  * expressions (a backtracking engine can take exponential time on a short
  * string). Neither has a timeout in JavaScript, and guessing their cost from
@@ -30,7 +31,9 @@ export const BOUNDED_MEMORY_MB = 256;
 export type BoundedTask =
   /** `key` names the schema: the worker builds it once and keeps it, so the schema is sent to each worker once. Leave it out for a schema used once. */
   | { kind: 'validate'; schema?: unknown; value: unknown; draft?: SchemaDraft; references?: Array<{ schema: unknown; id?: string }>; key?: string }
-  | { kind: 'match'; patterns: Array<{ pattern: string; candidates: string[] }> };
+  | { kind: 'match'; patterns: Array<{ pattern: string; candidates: string[] }> }
+  /** One C4 view laid out, checked and drawn as SVG (c4/draw.ts): the layout's cost grows faster than the view. */
+  | { kind: 'c4-draw'; view: ComputedView };
 
 export type BoundedOutcome<T> = { ok: true; value: T } | { ok: false; cause: 'timeout' | 'memory' | 'stack' | 'denied' | 'cancelled' | 'failed'; reason: string };
 

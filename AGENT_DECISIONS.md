@@ -1764,3 +1764,50 @@ workspace. `bitbucket` (Data Center) is untouched.
   `type` is kept, since those are two problems (review round 1).
 - **The input is opened in the command's small module** and handed to the lazy
   one, which keeps zod out of everything loaded through `import()` (docs/util.md).
+
+### util c4 (#174)
+
+- **Kept under `util`, not a new `c4` group**: it's local and has no connection,
+  like the other util commands, so it shares their fixture, skill page and site
+  data. Three commands, `render` (SVG), `mermaid` and `d2` (text).
+- **toil's own layered layout, no Graphviz** (the maintainer's decision on the
+  trial). No new dependency, nothing in `NOTICE`.
+- **The model is read through the kit's input reader**: `[file]`, stdin or
+  `--text` on the CLI, `file` or `text` over MCP, like every util command. The
+  trial's `--model`, `--model-json` and MCP `model` object are gone: one reader,
+  one set of refusals, and the JSON is parsed and checked by path either way.
+- **Self-check through the kit's `Verifier`.** `render` reports `input.complete`,
+  `boxes.apart`, `children.inBoundary`, `edges.touchBoxes`,
+  `edges.clearOfBoxes`, `labels.clearOfBoxes` and `text.width` (always
+  `approximated`, since text is sized from Helvetica's widths), each failure as one
+  `C4_LAYOUT_CHECK` warning. A check with nothing to check (no boundary, one box)
+  is left out rather than reported as passed. `mermaid` and `d2` re-read their own
+  text: each element declared once and one line per arrow (`C4_TEXT_CHECK`), and
+  `text.renders` `UNVERIFIED`, since toil runs neither renderer.
+- **Edges behind boxes: checked, and the routing changed so they don't happen.**
+  `edges.clearOfBoxes` tests every segment of every arrow against every box it
+  doesn't join. Run on the trial's routing it found five (four in the busy view, one
+  in the bookshop container view). Arrows now leave a box from its bottom, run
+  straight down through every row they pass at their dummy's place, and enter the
+  target from the top, so they bend only in the gaps between rows, where there are
+  no boxes. Every sample view and the worst case at the limits pass. Many parallel
+  arrows between one pair (six or more) can still fan out into a neighbour; the
+  check reports it.
+- **Bounds, one per phase:**
+
+  | Phase | What bounds it |
+  |---|---|
+  | Read | The kit's reader, capped at 4 MiB |
+  | Parse and check | `JSON.parse`, then a count before the schema walks it: at most 1,000 elements, 2,000 relationships and 100 views, else `INVALID_INPUT`. Schema and reference checks are linear |
+  | Compute a view | Linear in relationships, times a nesting depth of at most three |
+  | Mermaid, D2 | One linear pass over the view |
+  | Layout, check and SVG (`render`) | At most 100 boxes and 250 arrows in the view, else `INVALID_INPUT` naming both. Then the bounded worker (`runBounded`, 2 s, 256 MB): a long edge gets a dummy per row it passes, so the layout grows with arrows × rows, and crossing counts are quadratic per row. Past the deadline it's `TIMEOUT`, a cancel is `CANCELLED`, and the worker is terminated, so `toil mcp` can't hang. The worst view at the limits (a 100-box chain with 250 long arrows) lays out in about 0.4 s |
+
+- **Kit addition:** `runBounded` takes a `c4-draw` task, and the worker script
+  bundles the C4 layout (`c4/draw.ts`): the worker string grows from 24 KB to
+  41 KB. The layout's types moved to `c4/view.ts`, which has no zod, so the worker
+  carries no schema library.
+- **The neighbour lookups in ordering and placement use an adjacency map** built
+  once, instead of scanning every edge for every node, which was quadratic in the
+  edges once long edges add their dummies.
+- **No PNG.** A WASM rasterizer and a font would outweigh everything else here.
