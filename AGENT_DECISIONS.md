@@ -1130,6 +1130,48 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   Maven's parse nests one list per letter-digit switch, so a long `1a1a…` would
   otherwise recurse past the stack when compared.
 
+### util secrets scan (#178)
+
+- **One input field for a file or a folder.** The path argument (`file` over
+  MCP, the kit's field) takes either; a folder is walked with `ctx.files.list`.
+  `--diff staged|working` is the third input, and two at once is refused.
+- **"Working tree" means `git diff`**, the unstaged changes, as git uses the
+  words; `staged` is `git diff --staged`. Both run with `--unified=0
+  --relative` and fixed prefixes, and only added lines are scanned. Untracked
+  files aren't in either, so `working` counts them in a warning rather than
+  scan them.
+- **Findings exit 1 with `ok: true`** (`ctx.setExitCode`), as a failed build
+  does, so the findings stay in `data`. The parity examples allow-list every
+  sample secret so they exit 0, which the suite requires; the tests with
+  findings cover exit 1 through both doors.
+- **Fingerprints are a salted scrypt** (N 2^14, 16 bytes, four groups of 8
+  hex), not a SHA-256: a hash of a short password in a CI log is a lookup
+  away from the password. About 20 ms per distinct value. The value alone is
+  hashed, not its path, so one allow entry covers a test value wherever it
+  appears. Four hex groups don't look like a secret to the shared rules, so the
+  allow file scans clean.
+- **The allow file defaults to `.toil/secrets-allow`**, beside `.toil/dossiers/`,
+  one fingerprint per line. A line that isn't one is reported by number only.
+- **Previews keep 4 characters at each end from 24 characters, 2 from 16, none
+  below**, and a preview that fails its own check is replaced by `…`.
+- **Set aside and counted, not reported:** SRI checksums (`sha512-…`), which
+  every npm lockfile is full of, and values that are references
+  (`${{ secrets.X }}`, `$VAR`, `<token>`, `xxx`), which every CI workflow is.
+  Without both, a staged lockfile or workflow change would always fail the gate.
+- **Entropy stays in this command** (per the kit decision): a `high-entropy`
+  rule for base64 runs of 20 or more the shared rules don't reach (they stop
+  at `/` and `-`), at 4.2 bits per character, and a `confidence` on every
+  finding. `findSecrets` itself is unchanged.
+- **Line by line**, with 4 MiB lines and 64 MiB files; a private key whose END
+  is on a later line is one finding with `endLine`. Longer lines and files are
+  listed in `unreadable`.
+- **A single named file that can't be read fails the call** (`INVALID_INPUT`, as
+  every kit reader does); inside a folder it's listed in `unreadable` instead.
+- **Planted test tokens are joined from pieces** (`plant('AKIA', '…')`) in the
+  tests and samples. GitHub's push protection refuses a commit holding a whole
+  vendor-shaped token, invented or not, and bypassing it is a human's call.
+
+
 ### util report (#175)
 
 - **One of `tests`, `findings` and `coverage` is filled in, the other two are

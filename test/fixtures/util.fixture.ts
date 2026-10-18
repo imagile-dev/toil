@@ -3,6 +3,7 @@ import type { GitResult, GitRunner } from '../../src/core/git.js';
 import { SAMPLE_PNG_BASE64 } from '../../src/areas/util/encode.js';
 import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
+import { canned as secretsGit, files as secretsFiles } from './util-secrets.js';
 import { makeChain } from '../harness/x509.js';
 
 /**
@@ -132,6 +133,9 @@ export const files: Record<string, string | Uint8Array> = {
   ...reportFiles,
 };
 
+/** Every file the examples read: the tree above, plus `secrets scan`'s samples. */
+const exampleFiles: Record<string, string | Uint8Array> = { ...files, ...secretsFiles };
+
 /** What each ref holds, path by path. */
 const refs: Record<string, Record<string, string>> = {
   main: { 'package.json': PACKAGE_JSON, 'package-lock.json': lock('4.17.21'), 'pom.xml': POM },
@@ -149,15 +153,18 @@ for (const [ref, tree] of Object.entries(refs)) {
 /** A git that answers the calls above and fails anything else loudly. */
 export const cannedGit: GitRunner = {
   run: async (call) => {
-    const out = canned.get(callKey(call));
-    if (out === undefined) throw new Error(`util fixture: no canned git output for ${callKey(call)}`);
-    return ok(out);
+    const key = callKey(call);
+    const out = canned.get(key);
+    if (out !== undefined) return ok(out);
+    const secrets = secretsGit.get(key);
+    if (secrets !== undefined) return secrets;
+    throw new Error(`util fixture: no canned git output for ${key}`);
   },
 };
 
 export const fixture = defineFixture({
   area: 'util',
-  files,
+  files: exampleFiles,
   repo: { root: '/work', branch: 'main', remotes: [] },
   git: cannedGit,
   trace: [{ label: 'git', target: cannedGit }],
