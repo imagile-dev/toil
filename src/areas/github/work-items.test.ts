@@ -21,7 +21,7 @@ import { getIssueCommand, issueEventsCommand, listIssuesCommand, searchIssuesCom
 const BASE = { owner: 'imagile', repo: 'toil-probe' };
 
 async function run(def: AnyCommand, input: Record<string, unknown>, routes: Route[] = fixture.routes!) {
-  const t = testContext({ config: { github: fixture.config!.github }, routes });
+  const t = testContext({ config: { github: fixture.config!.github! }, routes });
   const envelope = await execute(def, input, t.context);
   return { envelope, calls: t.http.calls };
 }
