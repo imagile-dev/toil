@@ -90,6 +90,20 @@ describe('openInput', () => {
     expect([...(await (await open({ file: 'a.png' }, { binary: 'allow' })).bytes())]).toEqual([...bin]);
   });
 
+  it("keeps the two switches apart: binary: 'allow' lifts only the NUL check, utf8: 'skip' only the UTF-8 one", async () => {
+    const der = new Uint8Array([0x30, 0x82, 0x00, 0xff, 0xfe]);
+    const binaryOnly = setup({ 'a.der': der });
+    const allowed = await binaryOnly.open({ file: 'a.der' }, { binary: 'allow' });
+    expect([...(await allowed.bytes())]).toEqual([...der]);
+    expect([allowed.invalidUtf8, binaryOnly.warnings.map((w) => w.code)]).toEqual([true, ['INPUT_NOT_UTF8']]);
+    // Both, as util cert reads DER and util encode reads bytes: no refusal and no warning.
+    const both = setup({ 'a.der': der });
+    const quiet = await both.open({ file: 'a.der' }, { binary: 'allow', utf8: 'skip' });
+    expect([...(await quiet.bytes())]).toEqual([...der]);
+    expect([quiet.invalidUtf8, both.warnings]).toEqual([false, []]);
+    await expect((await both.open({ file: 'a.der' }, { utf8: 'skip' })).bytes()).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('looks binary') });
+  });
+
   it('warns once when the bytes are not valid UTF-8, and not for a character split across chunks', async () => {
     const { open, warnings } = setup({ 'bad.txt': new Uint8Array([0x61, 0xff, 0x62, 0x0a, 0x63, 0xfe]) });
     const lines = await all((await open({ file: 'bad.txt' })).lines());
