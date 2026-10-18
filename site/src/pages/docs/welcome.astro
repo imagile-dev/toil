@@ -192,13 +192,13 @@ const keys = [
         </section>
 
         <section data-reveal>
-          <h2>Brick breaker</h2>
+          <h2>Brick breaker, retired</h2>
           <p>
-            For the minutes a build takes, <b>Play brick breaker</b> on the home screen opens a small game: one wall of amber bricks, a paddle and
-            three lives. Each wall you clear comes back a row taller and a little faster. Left and right, or <code>a</code> and <code>d</code>, move
-            the paddle, space launches, <code>p</code> pauses, and <code>q</code> or Esc returns to the menu. It needs a window of at least 46 by 23 and
-            a terminal that can redraw in place, and says so when it doesn't have one. Scores last only as long as the menu; nothing is saved or sent.
-            It isn't a command or an MCP tool, so agents never see it.
+            Brick breaker has been retired: a paddle on a character grid never felt right. There may be something else in the menu for the minutes a build takes. It is not listed, it is not a command or an MCP
+            tool, and HR has asked us not to say how to find it. If your config file grows a sealed <code>"game"</code> entry, that's
+            the menu's doing: it holds nothing but a game's progress, sealed so it can't be edited by hand or copied to another account. That
+            guards against tampering, not prying: anyone who can read your files can open it. No command reads it, and deleting it only starts
+            the game over.
           </p>
         </section>
 

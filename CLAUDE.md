@@ -52,8 +52,9 @@ gets made again in the next place it applies.
 4. **Honest and obvious.** Every result says where it came from and how precise it
    is; every integration says how far it has been verified. Errors are unmistakable:
    they say plainly what went wrong and what to do about it. Nothing fails silently,
-   and nothing important hides behind `--debug`. → Verification Levels
-   (`integrations` skill), source on every finding, the fix on every error.
+   and nothing important hides behind `--debug`. Jokes live in the copy, never in an
+   error or failure notice. → Verification Levels (`integrations` skill), source on
+   every finding, the fix on every error.
 5. **The environment wins without editing files.** CI and agents configure through
    env vars that override anything on disk. → Configuration Precedence.
 6. **This repository stands alone.** Docs, code and skills never name another
@@ -235,8 +236,12 @@ GitHub Actions; its build tooling is out of scope.
   data and every animation frame a pure function of time, so both are unit-tested.
   One file of views per menu module under `views/`, registered in `views/index.ts`;
   every action runs a real `toil` command in-process and shows the line it ran.
-  The one exception is brick breaker, a game for the wait on a build: its rules are
-  pure functions in `brick/`, and the loop hands it the screen until q.
+  The one exception is Two Weeks' Notice, a roguelike for the wait on a build,
+  reached by typing `resign` on the home screen and listed nowhere: its rules are
+  pure functions in `rogue/`, the loop hands it the screen until q, and its progress
+  is sealed under `"game"` in the user's config (`rogue/save.ts`), the only write
+  the menu makes without a command. Without a config file, the first save creates
+  one holding only that key.
 - `src/shims/` — build-time stand-ins (the no-spawn stub, and the Azure SDK stub that keeps tedious's cloud sign-in out of the bundle)
 - `src/**/*.test.ts`, `test/` — Vitest; `test/harness/` holds the shared fakes,
   `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands;
@@ -619,6 +624,15 @@ write (`skills marketplace add`, which clones) has no connection yet, so it need
 `--allow-write` alone. CLI only isn't human only: an agent with a shell can run it,
 so `add` leaves writes off and installs nothing. Writes go on the way every
 connection's do (`docs/bounds.md`, `skills.folders`).
+
+toil's own config file is written only by the commands that manage it, with one
+exception: the welcome menu's game saves its progress under the reserved `"game"`
+key (`src/welcome/rogue/save.ts`), keeping every other key as it was, and touching
+nothing else. No other code writes the config outside a command; a second exception
+needs this rule changed first.
+
+Anything toil encrypts says what the encryption protects against, in the code and
+the docs: the game's save is sealed against tampering, not kept secret, and says so.
 
 ## The command contract
 

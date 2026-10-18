@@ -636,19 +636,40 @@ Added as each integration lands.
   header dropped** (core's `follow-without-auth`), so the credential stays on the
   configured site.
 
-### Brick breaker
+### Two Weeks' Notice
 
-- **It runs on a fixed 33 ms tick, not wall-clock time** (`src/welcome/brick/play.ts`),
-  so a slow machine plays slower rather than skipping frames, and tests are
-  deterministic.
-- **Ctrl+C pauses the game and counts as the first press of the menu's
-  two-press exit**, so Ctrl+C means the same thing everywhere in the menu.
-- **It plays only on a window of at least 46 by 23 and a console that can redraw
-  in place** (`movesCursor`: a TTY, not the legacy Windows console, not
-  `TERM=dumb`); anything less gets a polite refusal. `NO_COLOR` and
-  `TOIL_NO_ANIMATION` only change how it looks.
-- **A lobby screen comes before the game**, with the keys, the size it needs and
-  the session's scores, which live in memory only.
+The welcome menu's game (#198), which replaced brick breaker. A turn-based roguelike:
+a developer climbs five floors of bureaucrats and MUNDANE's robots to hand in their
+notice. `src/welcome/rogue/`.
+
+- **Brick breaker is gone, not kept beside it.** Real-time play in a terminal is a
+  coarse grid with key-repeat lag, so the paddle never felt good. A turn-based game
+  avoids all of that, and one game is enough for a menu.
+- **It is hidden.** No menu row: typing `resign` on the home screen opens it. The
+  site's welcome page says only that there may be something else in the menu.
+- **Rules are pure and seeded** (`start`, `act` in `game.ts`), with every random draw
+  from a seed the game carries, so a run replays from its seed and keys. Two bots in
+  the tests play whole runs. The balance test pins the spread: careless wins about
+  6 in 30, careful about 18, careful with every benefit about 26.
+- **Effects are data, not timers.** `act` lists what happened (`fx`) and queues cards;
+  the renderer animates them as pure functions of a tick count, and the loop only
+  advances a 30 ms clock. Nothing in the game moves on its own.
+- **Progress is sealed in the user's config**, under `"game"`, with AES-256-GCM and a
+  key derived from the account name and home folder. That is tamper-evidence, not
+  secrecy, and the code says so. A save that fails to open starts fresh with a notice;
+  an older (version 1) config file is never rewritten for a game, so progress isn't
+  kept there and the lobby says why. `"game"` is a reserved config key, so loading
+  config elsewhere never warns about it.
+- **Benefits Enrollment opens on "Take the stairs again"**, selected, so Enter starts
+  the next run; the perks sit below it. A first playtest found the way on from the
+  shop hard to see when starting a run was only a key named in the footer.
+- **Quitting mid-run forfeits it.** PTO is booked when a run ends, win or lose, and
+  saved at once, so closing the menu loses nothing already earned.
+- **The cast is context-overflow.dev's**: MUNDANE, MAVERICK and the five robots, used
+  with the maintainer's blessing, since both sites are imagile's.
+- **Playtested in a real console**, through ConPTY with a screen-reading bot, not only
+  through the fake terminal in the tests; that found the overlapping card border and
+  the robots named with "the".
 
 ### Welcome: dossiers
 
@@ -865,6 +886,55 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   lost; the docs say to CAST to varchar).
 - **The test image is pinned to `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04`**
   in CI and the databases skill, never `2022-latest`.
+
+### bitbucket-cloud
+
+Bitbucket Cloud (#201), built from Atlassian's REST API 2.0 reference with no live
+workspace. `bitbucket` (Data Center) is untouched.
+
+- **Credentials: one per connection.** `apiToken` with `email` (Basic) or
+  `accessToken` (Bearer); both set is `CONFIG_INVALID`, rather than toil picking one.
+  The API token isn't shared with `jira-cloud`/`confluence-cloud`: a Bitbucket API
+  token is created with Bitbucket scopes, so pairing would mostly pair the wrong token.
+- **410 is AUTH, and Bitbucket's error body is read**, through two additive request
+  hook options in core (`authStatuses`, `errorMessage` on `AreaEndpoint` and
+  `RestOptions`). Unset, nothing changes for any other area; the obvious fix of
+  teaching core's common error reader `{ error: { message } }` would have changed
+  Dynatrace's recorded behaviour (#83 item 1). The passthrough gets both too.
+- **`baseUrl` is required and includes `/2.0`** (`https://api.bitbucket.org/2.0`),
+  given as an example, never a default: no hardcoded hosts.
+- **Workspace is `--ws`**, as `splitio` does, because `--workspace` is core's.
+- **CI fallbacks are `BITBUCKET_WORKSPACE` and `BITBUCKET_REPO_SLUG`**, which Pipelines
+  sets on every step. Pipelines sets no API credential, so the tokens have none.
+- **No git remote parsing.** Workspace and repo come from the flag, a dossier or the
+  connection. A parser for `bitbucket.org` remotes would mean a host mapping
+  (`api.bitbucket.org` to `bitbucket.org`) for one convenience; left out as the
+  simpler option. `current-pr` reads only the branch from `.git`.
+- **No `check-dossier`, `create-prs` or `add-reviewer`.** Cloud has no single-reviewer
+  endpoint (`update-pr --reviewers` replaces the list), and the batch and dossier
+  commands weren't in the issue's list. `list-default-reviewers` returns Cloud's plain
+  list of users, since Cloud has no default-reviewer conditions.
+- **`needs-work` is `request-changes`**, Cloud's name, with no alias.
+- **Paging follows the `next` link**, which Atlassian calls opaque, but only when it's
+  on the connection's origin and the same path as the first request; the same check
+  applies to a `--cursor`. Lists read everything by default, as `confluence-cloud`'s
+  do, except `list-commits` and `list-pipelines`, which default to the newest 100.
+- **`diff --pr` and `list-files` build the spec from the PR** (`source..destination`,
+  `topic=true`) instead of following `/pullrequests/{id}/diff`'s redirect, which may
+  drop `path` and `context`. A fork's PR isn't covered; the skill says so.
+- **`get-file` and `list-dir` resolve a branch or tag to a hash** with
+  `commits?include=<ref>&pagelen=1`, because a branch name with `/` can't go in the
+  `src/{commit}` segment. `list-commits` sends the branch as `include` for the same
+  reason.
+- **`update-pr` resends the current title, description and reviewers**, since it's
+  unclear whether Cloud's PUT clears what's left out.
+- **`merge-pr`** maps `--delete-branch` to `close_source_branch`, takes Cloud's
+  strategy names only, sends no `type` field, and answers a 202 with
+  `{ pending, taskStatus }` and a warning instead of polling.
+- **The board status is `unit`**, toil's lowest shipped level, which is what "untested"
+  means here: no live instance.
+- **The fixture serves two items a page** whatever `pagelen` asks, so the parity
+  suite follows `next` links on every list with more than two items.
 
 ## Dossiers (#16)
 

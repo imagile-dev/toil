@@ -189,6 +189,14 @@ export interface RestOptions {
    * straight away.
    */
   retryRateLimit?: false;
+  /**
+   * The service's own error shape, read from a failed response's body before
+   * the common shapes are tried (Bitbucket Cloud's `{ error: { message } }`).
+   * Undefined falls through to them.
+   */
+  errorMessage?: (body: string) => string | undefined;
+  /** Statuses besides 401 and 403 that mean the credential was refused, so they're AUTH with `authFix` (Bitbucket Cloud's 410). */
+  authStatuses?: readonly number[];
 }
 
 /**
@@ -357,9 +365,10 @@ async function failed(response: Response, url: string, options: RestOptions): Pr
   const body = await response.text().catch(() => '');
   const status = statusLine(response.status, response.statusText);
   const text = textReasonFrom(body);
-  const reason = errorMessageFrom(body) ?? (text === undefined ? status : `${status}: ${text}`);
+  const reason = options.errorMessage?.(body) ?? errorMessageFrom(body) ?? (text === undefined ? status : `${status}: ${text}`);
   const details = { status: response.status, url: redactUrl(url) };
-  const code: ErrorCode = response.status === 401 || response.status === 403 ? 'AUTH' : response.status === 404 ? 'NOT_FOUND' : 'HTTP';
+  const refused = response.status === 401 || response.status === 403 || options.authStatuses?.includes(response.status) === true;
+  const code: ErrorCode = refused ? 'AUTH' : response.status === 404 ? 'NOT_FOUND' : 'HTTP';
   const fix =
     code === 'AUTH'
       ? options.authFix
