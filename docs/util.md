@@ -20,6 +20,23 @@ machine and talk to nothing else. Each one follows the same rules, which are on 
 - **Proof in the PR:** fixtures built from real-world samples, sanitized to
   placeholder hosts; a test that the self-check catches a deliberately broken input
   or result; and a run of the built CLI and MCP on the samples.
+- **Documented in the same PR.** Adding or changing a command updates `/docs/utilities/`
+  and `skills/toil/util.md` together:
+  - **The page** is generated. Each family of commands has its own file,
+    `site/src/data/utilities/<family>.json`: `commands` (the paths under `toil util`
+    it covers), `purpose`, `inputs`, `examples` (at least one per command),
+    `verifies`, `limits`, and `group` and `order`, in one of the groups in
+    `site/src/data/utility-groups.json` (reading CI output, writing for the tools,
+    safety, arithmetic models get wrong). Backticks in the prose become code.
+    Flags, aliases and MCP tool names come from `site/src/data/commands/util.json`,
+    which the registry writes, so they're never written by hand.
+  - **The skill file** gives each command a section with examples in a shell block,
+    and a row in its command table (aliases, or `none`, and the MCP tool).
+  - `test/util-docs.test.ts` fails on a command with no page entry, no example or
+    no table row; an entry or row for a command that doesn't exist; an example or
+    `--flag` the command doesn't have, so a flag change turns up as a stale example;
+    a table cell that disagrees with the registry; and unbalanced tags in
+    `site/src/pages/docs/utilities.astro`.
 
 ## Reading input: `kit/input.ts`
 

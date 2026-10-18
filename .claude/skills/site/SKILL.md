@@ -96,6 +96,7 @@ from `main`).
   level. Add a `credentialWhere` entry only when the menu path is certain; a wrong
   path costs users more than a generic one. Pages for `planned` integrations say so
   and describe the plan, never invented details.
+- **`/docs/utilities/` is generated** from `site/src/data/utilities/<family>.json` and the registry; what each file holds, and the rule that a `util` change updates it, are in `docs/util.md`.
 - Internal links go through `url()` in `site/src/lib/url.ts` because the site is
   served under `/toil/`.
 - **Phones get a menu.** The header shows its links inline on desktop, drops the

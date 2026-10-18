@@ -1488,6 +1488,31 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   flags (`--markdown` on create commands) are not part of this.
 - **The input is read in `md.ts`**, which loads statically; only the converters
   load lazily, so zod stays out of the lazy module (the encode build's finding).
+
+### util docs and coverage (#186)
+
+- **`deps` goes under Safety.** Its inventory is what the vulnerability and licence
+  commands read, so it sits with the other checks made before something is trusted
+  (secrets, certificates, tokens), not with CI output or arithmetic.
+- **One page entry per family, not per command.** `site/src/data/utilities/<family>.json`
+  covers `time`'s five commands, `semver`'s four and `deps`' two in one entry each,
+  with an example for every command, so the page doesn't repeat the same paragraph
+  per subcommand. One file per family keeps parallel util PRs off a shared list.
+- **The page is data plus the registry.** The prose is in the family files; flags,
+  aliases, MCP tools and the command count come from `data/commands/util.json`.
+  Prose is plain text with backticks for code; nothing else is rendered as markup.
+- **The tag check is a small stack parser** over the template, skipping
+  frontmatter, `<style>`, `<script>` and attribute values, rather than a
+  `<section>` count, so a misplaced `</div>` is caught too.
+- **The example check reuses the skill test's command-line walker**, moved to
+  `test/harness/cli-lines.ts`, so the page, util.md and the rest of the skill hold
+  examples to one definition of a real flag. A `--flag` in an entry's prose must be
+  a flag of one of the entry's own commands.
+- **util.md's command table is checked against the registry** (one row per
+  command, its aliases or `none`, its MCP tool), and every command needs an example
+  in a shell block, not only a mention.
+- **Fixed on the way:** util.md's `md` section carried a copy of `log`'s output and
+  checks from a merge, and the `md` row had an empty alias cell.
 ### util openapi (#183)
 
 - **Three commands, `list`, `show` and `example`**, one per operation the issue

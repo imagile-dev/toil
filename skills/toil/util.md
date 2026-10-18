@@ -37,7 +37,7 @@ the same flags and output:
 | `toil util semver satisfies` | none | `util_semver_satisfies` |
 | `toil util semver sort` | none | `util_semver_sort` |
 | `toil util semver bump` | none | `util_semver_bump` |
-| `toil util md` | | `util_md` |
+| `toil util md` | none | `util_md` |
 | `toil util openapi list` | none | `util_openapi_list` |
 | `toil util openapi show` | none | `util_openapi_show` |
 | `toil util openapi example` | none | `util_openapi_example` |
@@ -114,7 +114,9 @@ Which files it reads:
 A lockfile wins over its manifest. Packages are de-duplicated on ecosystem, name,
 version and source file. A manifest that can't be read is skipped. One that exists
 but can't be read (a link out of the workspace, say) also gets a
-`DEPS_FILE_SKIPPED` warning in `meta.warnings`.
+`DEPS_FILE_SKIPPED` warning in `meta.warnings`. That warning is the only check it
+makes of its own result: the `deps` commands have no `verified` block, so treat the
+quirks below as unchecked.
 
 Output:
 
@@ -988,50 +990,6 @@ Output:
 
 ```json
 {
-  "lines": { "total": 76, "error": 20, "warning": 5, "other": 35, "stack": 12, "unclassified": 4 },
-  "matched": 25, "filtered": 0, "groupsTotal": 18, "truncated": false, "ungrouped": 0, "unjoinedFrames": 0,
-  "groups": [{
-    "level": "error",
-    "signature": "[ERROR] /build/ledger/Reconciler.java:[<n>] cannot find symbol",
-    "count": 4, "firstLine": 27, "lastLine": 52,
-    "sample": "[ERROR] /build/ledger/Reconciler.java:[54,38] cannot find symbol",
-    "trace": { "kind": "java", "firstLine": 57, "lastLine": 68, "frames": 12, "lines": ["…"] },
-    "context": { "before": [{ "line": 26, "text": "…" }], "after": [{ "line": 28, "text": "…" }] }
-  }],
-  "verified": { "passed": true, "checks": [{ "check": "lines.reread", "status": "passed", "checked": 36, "failed": 0 }] }
-}
-```
-
-Groups are errors first, then warnings, each in order of first appearance. `lines`
-classes every line once: `other` is a level below warning, `stack` a trace line, and
-`unclassified` a line with no level at all. `filtered` counts the error and warning
-lines `--since`, `--level` or `--grep` left out.
-
-It checks its own answer, in `data.verified`:
-
-- **`lines.reread`:** every group's first line is read again from the file and must
-  be its sample, and its last line must still have its signature. `trace.reread`
-  does the same for every trace line shown. A mismatch is `LOG_LINE_MISMATCH`, which
-  usually means the file changed while it was read.
-- **`groups.sum`, `lines.sum`, `filter.sum`:** the group counts add up to the matched
-  lines, the line classes to the lines read, and matched plus filtered to the error
-  and warning lines. A mismatch is `LOG_COUNT_MISMATCH`.
-- **`input.complete`:** the bytes read equal the file's size. It's `unchecked` for
-  stdin and text.
-
-What it reports in `meta.warnings` rather than leave out: `LOG_UNCLASSIFIED` (lines
-with no level, in no group), `LOG_GROUPS_TRUNCATED` (more groups than
-`--max-groups`), `LOG_UNGROUPED` (matched lines whose signature came after the first
-2,000 distinct ones, counted but not grouped, which is what keeps memory constant),
-`LOG_TRACE_UNJOINED` (trace lines with no error before them), `LOG_GREP_STACK_ONLY`
-(`--grep` matched only stack trace lines), `LOG_SINCE_UNDATED`
-(lines `--since` couldn't date, kept), and `APPROXIMATED` for a line longer than
-4,096 characters (grouped by its start) or a `--since` compared with times that had
-no zone.
-
-A file streams with no size limit. stdin and `--text` are held in memory, up to
-64 MiB, so pass a file for anything bigger.
-
   "from": "md",
   "to": "wiki",
   "output": "h2. Steps\n\n# Open the login page\n...",

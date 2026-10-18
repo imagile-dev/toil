@@ -712,6 +712,7 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   `site/src/data/settings/<area>.json` for the docs pages (`npx vitest run -u` after
   changing a command or a connection key) and checks the board's
   `site/src/data/integrations/<area>.json`.
+- **`test/util-docs.test.ts`** holds `/docs/utilities/` and `skills/toil/util.md` to the registry: a `util` command added or changed updates both in the same PR (`docs/util.md`).
 - **No file every integration edits.** Each area has its own fixture, skill file, divergence
   file, board entry and command list; the lists that span areas (the registry, the
   areas in `SKILL.md`, the CLI-only commands) are derived or generic. A change that
