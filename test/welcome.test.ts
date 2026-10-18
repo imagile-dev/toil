@@ -223,8 +223,8 @@ describe('the menu', () => {
 
   it('moves with arrows or j/k, wrapping at both ends', () => {
     expect(top(press(settled, data(), 'down', 'down')).selected).toBe(2);
-    expect(top(press(settled, data(), 'up')).selected).toBe(8);
-    expect(top(press(settled, data(), 'j', 'k', 'k')).selected).toBe(8);
+    expect(top(press(settled, data(), 'up')).selected).toBe(7);
+    expect(top(press(settled, data(), 'j', 'k', 'k')).selected).toBe(7);
   });
 
   it('opens a screen with enter or its number, and goes back with esc to where it was', () => {
@@ -238,7 +238,7 @@ describe('the menu', () => {
   it('quits with q or the Quit entry; Ctrl+C is left to the loop, which wants it twice', () => {
     expect(press(settled, data(), 'q').quit).toBe(true);
     expect(press(settled, data(), { name: 'c', ctrl: true }).quit).toBeUndefined();
-    expect(press(settled, data(), '9').quit).toBe(true);
+    expect(press(settled, data(), '8').quit).toBe(true);
     expect(press(settled, data(), '0').quit).toBeUndefined();
   });
 
