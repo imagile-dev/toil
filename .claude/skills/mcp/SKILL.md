@@ -43,7 +43,9 @@ signal; never share one context across calls. Both front doors run commands thro
 the server was up) into an envelope too. Tool descriptions are written for a model
 choosing between tools: what it returns, when to use it, and which sibling tool to use
 instead. A field's description is the same text on both front doors, so it never names a
-CLI-only flag (`--output-file`, `--config`).
+CLI-only flag (`--output-file`, `--config`). Every tool also takes core's `select`
+(`--select` on the CLI): `inputSchemaFor` adds it to each schema and `execute()` takes it
+off before the command's own strict parse, so no command declares it.
 
 **The base package never opens a port** (*principle 1*: a listening socket is the
 other thing locked-down machines block). Stdio is the only transport in
