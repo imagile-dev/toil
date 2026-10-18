@@ -1811,3 +1811,8 @@ workspace. `bitbucket` (Data Center) is untouched.
   once, instead of scanning every edge for every node, which was quadratic in the
   edges once long edges add their dummies.
 - **No PNG.** A WASM rasterizer and a font would outweigh everything else here.
+- **Review round 1.** Characters XML 1.0 forbids (C0 controls other than tab, LF
+  and CR; U+FFFE, U+FFFF; lone surrogates) become U+FFFD before escaping, and
+  `svg.wellFormed` checks the output itself: it parses with the kit's XML reader,
+  plus a scan for those characters, since that reader doesn't refuse them. D2 keys
+  and paths are always quoted, so there's no keyword list to keep in step with D2.

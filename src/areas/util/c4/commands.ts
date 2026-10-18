@@ -69,7 +69,7 @@ const summary = (view: ComputedView) => ({
  * neither Mermaid nor D2, so that's reported as unchecked.
  */
 export function checkText(v: Verifier, view: ComputedView, text: string, language: 'Mermaid' | 'D2'): void {
-  const declared = language === 'Mermaid' ? /^\s*(?:Person|System|Container|Component)\w*\((\w+),/gm : /^\s*"?(\w+)"?: "/gm;
+  const declared = language === 'Mermaid' ? /^\s*(?:Person|System|Container|Component)\w*\((\w+),/gm : /^\s*"(\w+)": "/gm;
   const arrow = language === 'Mermaid' ? (line: string) => line.startsWith('Rel(') : (line: string) => line.includes(' -> ');
   const expected = summary(view).elements.sort();
   const found = [...text.matchAll(declared)].map((m) => m[1]!).sort();
@@ -94,7 +94,7 @@ const SHAPE = `The model is JSON: { title?, people[], systems[] (each with conta
 export const c4RenderCommand = defineCommand({
   path: ['util', 'c4', 'render'],
   description: 'Draw one view of a C4 model as SVG (local only, no network)',
-  toolDescription: `Draws one view of a C4 architecture model as an SVG diagram, laid out in process by toil's own layered layout, in the C4 notation: people, software systems, containers and components as coloured boxes with name, type, technology and description, the scope as a dashed boundary, and labelled relationships. The drawing checks itself before it is returned: data.verified holds boxes.apart, children.inBoundary, edges.touchBoxes, edges.clearOfBoxes (no arrow passes behind a box) and labels.clearOfBoxes, and each failed check is a C4_LAYOUT_CHECK warning. Returns { view, type, title, elements[], relationships, verified, format: "svg", svg }, or with out the SVG is saved to that new file in the workspace and { file, bytes } replace svg. A view may draw at most ${VIEW_LIMITS.boxes} boxes and ${VIEW_LIMITS.arrows} arrows. ${SHAPE} Local only: no connection and no network. For the same view as text use util_c4_mermaid or util_c4_d2.`,
+  toolDescription: `Draws one view of a C4 architecture model as an SVG diagram, laid out in process by toil's own layered layout, in the C4 notation: people, software systems, containers and components as coloured boxes with name, type, technology and description, the scope as a dashed boundary, and labelled relationships. The drawing checks itself before it is returned: data.verified holds boxes.apart, children.inBoundary, edges.touchBoxes, edges.clearOfBoxes (no arrow passes behind a box), labels.clearOfBoxes and svg.wellFormed (the SVG parses as XML), and each failed check is a C4_LAYOUT_CHECK warning. Returns { view, type, title, elements[], relationships, verified, format: "svg", svg }, or with out the SVG is saved to that new file in the workspace and { file, bytes } replace svg. A view may draw at most ${VIEW_LIMITS.boxes} boxes and ${VIEW_LIMITS.arrows} arrows. ${SHAPE} Local only: no connection and no network. For the same view as text use util_c4_mermaid or util_c4_d2.`,
   input: z.object({
     ...modelInput,
     out: z.string().optional().describe('Write the SVG to this new file inside the workspace instead of returning it; it must not exist yet'),

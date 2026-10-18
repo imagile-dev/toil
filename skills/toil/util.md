@@ -1268,6 +1268,7 @@ and `data.verified` lists each check:
 | `edges.touchBoxes` | Every arrow starts on its source's border and ends on its target's |
 | `edges.clearOfBoxes` | No arrow passes behind a box it doesn't join |
 | `labels.clearOfBoxes` | No label covers a box |
+| `svg.wellFormed` | The SVG parses as XML and holds no character XML forbids. A control character in the model's text (other than tab and line breaks), U+FFFE, U+FFFF or a lone surrogate is drawn as U+FFFD |
 | `text.width` | Always `approximated`: text is measured with Helvetica's widths, which Arial shares |
 
 Each check that fails is one `C4_LAYOUT_CHECK` warning in `meta.warnings` naming

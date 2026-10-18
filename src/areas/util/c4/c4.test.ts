@@ -9,8 +9,10 @@ import { c4D2Command, c4MermaidCommand, c4RenderCommand, checkText, draw, EXAMPL
 import { Verifier, type Verified } from '../kit/verify.js';
 import { checkModel, computeView, loadModel, type C4Model } from './model.js';
 import { layoutView } from './layout.js';
-import { toSvg } from './svg.js';
+import { toSvg, XML_FORBIDDEN } from './svg.js';
 import { toD2, toMermaid } from './text.js';
+import { checkSvg } from './verify.js';
+import { parseXml } from '../kit/xml.js';
 import { commands } from '../index.js';
 
 /**
@@ -153,14 +155,32 @@ describe('text output', () => {
     expect(toMermaid(computeView(model, model.views[0]!))).toContain("Person(reader, \"The 'reader'\", \"\")");
   });
 
-  it('D2 nests the boundary, addresses inside elements by path, and quotes reserved words and quotes', () => {
+  it('D2 nests the boundary, addresses inside elements by path, and quotes every key and quotes in text', () => {
     const text = toD2(view(bookshop(), 'containers'));
-    expect(text).toContain('customer -> bookshop.web: "Browses and buys books using\\n[HTTPS]"');
-    expect(text).toContain('  db: "Shop database\\n[Container: PostgreSQL]\\n\\nBooks, customers, baskets and orders" {\n    shape: cylinder');
+    expect(text).toContain('"customer" -> "bookshop"."web": "Browses and buys books using\\n[HTTPS]"');
+    expect(text).toContain('  "db": "Shop database\\n[Container: PostgreSQL]\\n\\nBooks, customers, baskets and orders" {\n    shape: cylinder');
     const model: C4Model = { ...EXAMPLE_MODEL, people: [{ id: 'label', name: 'Say "hi"' }], relationships: [{ source: 'label', destination: 'status' }] };
     const d2 = toD2(computeView(model, model.views[0]!));
     expect(d2).toContain('"label": "Say \\"hi\\"\\n[Person]" {');
-    expect(d2).toContain('"label" -> status { style');
+    expect(d2).toContain('"label" -> "status" { style');
+  });
+
+  it('D2 quotes ids that spell a keyword in any case, and the self-check still finds each one', () => {
+    const model: C4Model = {
+      people: [{ id: 'Label', name: 'L' }],
+      systems: [{ id: 'Shape', name: 'S', containers: [{ id: 'desc', name: 'D' }] }],
+      relationships: [{ source: 'Label', destination: 'desc', description: 'Uses' }],
+      views: [{ key: 'v', type: 'container', scope: 'Shape' }],
+    };
+    const computed = computeView(model, model.views[0]!);
+    const d2 = toD2(computed);
+    expect(d2).toContain('"Label": "L\\n[Person]" {');
+    expect(d2).toContain('"Shape": "S\\n[Software System]" {');
+    expect(d2).toContain('  "desc": "D\\n[Container]" {');
+    expect(d2).toContain('"Label" -> "Shape"."desc": "Uses"');
+    const v = new Verifier(() => {});
+    checkText(v, computed, d2, 'D2');
+    expect(v.done().checks.filter((c) => c.status === 'passed').map((c) => c.check)).toEqual(['text.elements', 'text.relationships']);
   });
 });
 
@@ -174,6 +194,27 @@ describe('SVG', () => {
     expect(svg).toMatch(/<g id="db" class="c4-container"><path [^>]*><ellipse /);
     expect(svg).toContain('stroke-dasharray="8 5"');
     expect(svg).not.toMatch(/<script|href=/);
+  });
+
+  it('turns characters XML forbids into U+FFFD, so a name holding \\u0001 still renders a file that parses', async () => {
+    const model: C4Model = { ...EXAMPLE_MODEL, people: [{ id: 'reader', name: 'Read\u0001er ￾\uD800', description: 'Tab\tstays' }] };
+    const envelope = await execute(c4RenderCommand, { text: JSON.stringify(model) }, testContext().context);
+    const data = envelope.data as { svg: string; verified: Verified };
+    expect(data.svg).not.toMatch(new RegExp(XML_FORBIDDEN.source));
+    expect(data.svg).toContain('>Read�er ��</text>');
+    expect(data.verified.checks.find((c) => c.check === 'svg.wellFormed')).toMatchObject({ status: 'passed', checked: 1 });
+    expect(() => parseXml(data.svg)).not.toThrow();
+  });
+
+  it('the well-formed check catches a forbidden character and a broken tag', () => {
+    const svg = toSvg(layoutView(view(bookshop(), 'context')));
+    expect(checkSvg(svg)).toEqual({ check: 'svg.wellFormed', checked: 1, failed: 0, failures: [] });
+    const control = checkSvg(svg.replace('Online Bookshop</text>', () => 'Online\u0001Bookshop</text>'));
+    expect(control.failed).toBe(1);
+    expect(control.failures[0]!.message).toMatch(/^the SVG holds U\+0001 at offset \d+, a character XML forbids/);
+    const broken = checkSvg(svg.replace('</title>', () => ''));
+    expect(broken.failed).toBe(1);
+    expect(broken.failures[0]!.message).toMatch(/^the SVG is not well-formed XML: /);
   });
 });
 
@@ -198,7 +239,7 @@ describe('the text renders check themselves', () => {
 
   it.each([
     ['Mermaid', toMermaid, 'ContainerDb(db,', 'Rel(web, api,'] as const,
-    ['D2', toD2, 'db: "', 'bookshop.web -> bookshop.api'] as const,
+    ['D2', toD2, '"db": "', '"bookshop"."web" -> "bookshop"."api"'] as const,
   ])('%s: catches a text that lost an element and an arrow', (language, render, element, arrow) => {
     const broken = render(view(bookshop(), 'containers'))
       .split('\n')
@@ -272,6 +313,7 @@ describe('util c4 commands', () => {
       ['edges.touchBoxes', 'passed'],
       ['edges.clearOfBoxes', 'passed'],
       ['labels.clearOfBoxes', 'passed'],
+      ['svg.wellFormed', 'passed'],
       ['text.width', 'approximated'],
     ]);
     expect(envelope.meta.warnings).toEqual([{ code: 'APPROXIMATED', message: expect.stringContaining("text.width is approximate: text is measured with Helvetica's character widths") }]);

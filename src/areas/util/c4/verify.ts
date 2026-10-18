@@ -1,4 +1,6 @@
+import { parseXml, XmlSyntaxError } from '../kit/xml.js';
 import { intersects, type Layout, type Point, type Rect } from './layout.js';
+import { XML_FORBIDDEN } from './svg.js';
 
 /**
  * The renderer checks its own drawing before handing it over: no two boxes
@@ -17,7 +19,7 @@ export type LayoutCheck = (typeof LAYOUT_CHECKS)[number];
 
 /** One check over the whole drawing: how many times it ran, how many failed, and the first few failures. */
 export interface CheckRun {
-  check: LayoutCheck;
+  check: LayoutCheck | 'svg.wellFormed';
   checked: number;
   failed: number;
   failures: Array<{ at: string; message: string }>;
@@ -118,4 +120,28 @@ export function verifyLayout(layout: Layout): CheckRun[] {
     for (const n of nodes) record('labels.clearOfBoxes', !intersects(e.label.rect, n), `${e.from} -> ${e.to}, ${n.id}`, () => `the label of ${e.from} -> ${e.to} covers "${n.id}"`);
   }
   return [...runs.values()];
+}
+
+/**
+ * That the SVG written is well-formed XML a viewer will open: it parses with
+ * the kit's XML reader, and holds no character XML 1.0 forbids (which that
+ * reader doesn't refuse). Checked on the output, not the input, so any way a
+ * bad character or a broken tag gets in is caught, not only the ones known.
+ */
+export function checkSvg(svg: string): CheckRun {
+  const fail = (at: string, message: string): CheckRun => ({ check: 'svg.wellFormed', checked: 1, failed: 1, failures: [{ at, message }] });
+  XML_FORBIDDEN.lastIndex = 0;
+  const bad = XML_FORBIDDEN.exec(svg);
+  XML_FORBIDDEN.lastIndex = 0;
+  if (bad) {
+    const code = `U+${bad[0].charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`;
+    return fail(`offset ${bad.index}`, `the SVG holds ${code} at offset ${bad.index}, a character XML forbids, so it won't open`);
+  }
+  try {
+    parseXml(svg);
+  } catch (err) {
+    if (!(err instanceof XmlSyntaxError)) throw err;
+    return fail(`line ${err.line}, column ${err.column}`, `the SVG is not well-formed XML: ${err.message}`);
+  }
+  return { check: 'svg.wellFormed', checked: 1, failed: 0, failures: [] };
 }

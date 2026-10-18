@@ -15,6 +15,6 @@
     "toil util c4 mermaid bookshop.c4.json --view context",
     "toil util c4 d2 bookshop.c4.json --view components"
   ],
-  "verifies": "The whole model is checked before anything is drawn, with every problem named by its path. `render` then checks its own drawing: no two boxes overlap, every child sits inside its boundary and nothing else does, every arrow starts and ends on its boxes, no arrow passes behind a box it doesn't join, and no label covers a box. The text renders check that every element is declared once and every arrow has its line. Layout runs in a worker thread with a deadline.",
+  "verifies": "The whole model is checked before anything is drawn, with every problem named by its path. `render` then checks its own drawing: no two boxes overlap, every child sits inside its boundary and nothing else does, every arrow starts and ends on its boxes, no arrow passes behind a box it doesn't join, no label covers a box, and the SVG parses as XML. The text renders check that every element is declared once and every arrow has its line. Layout runs in a worker thread with a deadline.",
   "limits": "Text is measured with Helvetica's widths, so a much wider substitute font can overflow a box. toil doesn't run Mermaid or D2, so whether their text draws is unchecked. A model holds at most 1,000 elements, 2,000 relationships and 100 views, and `render` draws at most 100 boxes and 250 arrows in one view. No PNG."
 }

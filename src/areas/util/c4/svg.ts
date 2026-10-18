@@ -18,7 +18,17 @@ const EXTERNAL_PERSON = { fill: '#686868', stroke: '#5d5d5d', font: '#ffffff' };
 const EXTERNAL = { fill: '#999999', stroke: '#8a8a8a', font: '#ffffff' };
 const EDGE = '#707070';
 
-const xml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+/**
+ * Characters XML 1.0 forbids anywhere, even as a character reference: C0
+ * controls other than tab, LF and CR, U+FFFE, U+FFFF, and a surrogate without
+ * its pair. A model's JSON can carry any of them in a name, so they become
+ * U+FFFD before escaping, or the file wouldn't parse.
+ */
+// Matching control characters is the point here.
+// eslint-disable-next-line no-control-regex
+export const XML_FORBIDDEN = /[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;
+
+const xml = (text: string) => text.replace(XML_FORBIDDEN, '�').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const n = (v: number) => String(Math.round(v * 10) / 10);
 
 /** Lines of text centred on `cx`, starting at `top`. */

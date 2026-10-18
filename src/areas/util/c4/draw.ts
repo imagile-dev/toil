@@ -1,6 +1,6 @@
 import { layoutView } from './layout.js';
 import { toSvg } from './svg.js';
-import { verifyLayout, type CheckRun } from './verify.js';
+import { checkSvg, verifyLayout, type CheckRun } from './verify.js';
 import type { ComputedView } from './view.js';
 
 /**
@@ -19,5 +19,6 @@ export interface Drawing {
 
 export function drawView(view: ComputedView): Drawing {
   const layout = layoutView(view);
-  return { svg: toSvg(layout), width: layout.width, height: layout.height, runs: verifyLayout(layout) };
+  const svg = toSvg(layout);
+  return { svg, width: layout.width, height: layout.height, runs: [...verifyLayout(layout), checkSvg(svg)] };
 }

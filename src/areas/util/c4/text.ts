@@ -5,7 +5,8 @@ import { typeLine, type ComputedView, type Element, type ViewType } from './view
  * Mermaid's C4 syntax (GitHub renders it inline in markdown) and D2. Both are
  * plain string building; no renderer is loaded. Ids pass through unchanged,
  * since the model's id rule (a letter, then letters, digits and underscores)
- * is already valid in both languages. The text is the diagram; the rendering
+ * is already valid in both languages; D2 keys are quoted besides, so none is
+ * read as a keyword. The text is the diagram; the rendering
  * is somebody else's department.
  */
 
@@ -50,9 +51,8 @@ const D2_STYLE: Record<Element['kind'], { fill: string; stroke: string; font: st
   component: { fill: '#85bbf0', stroke: '#78a8d8', font: '#000000' },
 };
 
-/** D2's reserved words that a model id can spell; quoted as keys so D2 reads them as names. */
-const D2_RESERVED = new Set(['label', 'shape', 'icon', 'style', 'near', 'tooltip', 'link', 'width', 'height', 'direction', 'constraint', 'class', 'classes', 'vars', 'top', 'left', 'layers', 'scenarios', 'steps', 'filled']);
-const key = (elId: string) => (D2_RESERVED.has(elId) ? d(elId) : elId);
+/** Every element key is quoted, so no id can be read as one of D2's keywords (`label`, `Shape`, in any case), and no list of them needs keeping. */
+const key = (elId: string) => d(elId);
 
 function d2Element(el: Element, indent: string): string[] {
   const colour = el.external ? { fill: el.kind === 'person' ? '#686868' : '#999999', stroke: '#8a8a8a', font: '#ffffff' } : D2_STYLE[el.kind];
