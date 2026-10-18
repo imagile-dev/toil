@@ -30,8 +30,8 @@ export const BOUNDS: readonly Bound[] = [
   { id: 'requests.path', enforcedIn: ['src/core/api.ts', 'src/core/rest.ts'], errors: ['INVALID_INPUT'], securityClass: true },
   { id: 'secrets.storage', enforcedIn: ['src/core/connection.ts'], errors: ['CONFIG_INVALID'], securityClass: true },
   { id: 'commands.cli-only', enforcedIn: ['src/mcp/server.ts', 'src/core/run.ts'], errors: ['INVALID_INPUT'], securityClass: true },
-  { id: 'commands.time-limit', enforcedIn: ['src/core/run.ts'], errors: ['TIMEOUT', 'CANCELLED'], securityClass: false },
-  { id: 'commands.read-only', enforcedIn: ['src/core/run.ts', 'src/core/git.ts'], errors: ['WRITE_DISABLED'], securityClass: true },
+  { id: 'commands.time-limit', enforcedIn: ['src/core/run.ts', 'src/core/wait.ts'], errors: ['TIMEOUT', 'CANCELLED'], securityClass: false },
+  { id: 'commands.read-only', enforcedIn: ['src/core/run.ts', 'src/core/wait.ts', 'src/core/git.ts'], errors: ['WRITE_DISABLED', 'INVALID_INPUT'], securityClass: true },
   { id: 'process.spawn', enforcedIn: ['src/core/git.ts', 'src/core/keychain.ts', 'src/os/windows-sspi.ts', 'scripts/spawners.mjs', 'scripts/check-pure.mjs'], errors: ['GIT_NOT_FOUND'], securityClass: true },
 ];
 

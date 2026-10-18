@@ -29,6 +29,11 @@ export interface Meta {
    * since `data` is the body as the service sent it. Set with `ctx.setResponse`.
    */
   response?: ApiAnswer;
+  /**
+   * For `toil wait`: the condition, how many times the read ran, and how
+   * long the whole wait took. The rest of meta is the last attempt's.
+   */
+  wait?: { until: string; attempts: number; elapsedMs: number };
 }
 
 /** The status and content type of the response a raw API call returned. */

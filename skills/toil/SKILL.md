@@ -24,6 +24,23 @@ MCP), a [JMESPath](https://jmespath.org/specification.html) expression applied t
 before the command runs, with its position in `error.fix`; one that selects nothing
 gives `data: null` and a `SELECT_EMPTY` warning.
 
+To wait for a build, a scan or a deployment to finish, don't call a read in a loop:
+`toil wait --until "<expression>" -- <read command>` runs it again every `--interval`
+(default 15s, at least 5s) until the JMESPath expression over its `data` is true (not
+null, false or empty), for example
+`toil wait --until "result != null" -- jenkins pipeline get-run --name my-job --number 42` or
+`toil wait --until "projectStatus.status != 'NONE'" --timeout 10m -- sonar quality-gate --project my-app`.
+Over MCP it's the `wait` tool, with `tool` (the read's tool name), `input` (that tool's
+input) and the same `until`, `interval` and `timeout`. It returns the read's last
+envelope plus `meta.wait` (`until`, `attempts`, `elapsedMs`). `NETWORK` errors and
+`HTTP` 5xx or 429 answers are retried with backoff; any other error ends the wait with
+that error. Past `--timeout` (at least 5s; default 30m, or `TOIL_TIMEOUT_MS`, cut to the maximum
+with a `WAIT_TIMEOUT_CAPPED` warning when it is longer; at most the
+`"wait": { "maxTimeout" }` in config, default 1h) it's `TIMEOUT`, with the last `data`
+in `error.details.data`. Only reads can be waited on: a write is `INVALID_INPUT`.
+`--select` before `wait` applies to the final `data`; a `--select` after `--` belongs
+to the read, so `--until` sees what it selected. Other global flags go before `wait`.
+
 Each area is reachable two ways with identical inputs and output: on the command
 line as `toil <area> <command>`, and as MCP tools from `toil mcp --areas <area>`
 (tool names are the command path with underscores, e.g. `db_query`; see `mcp.md`).

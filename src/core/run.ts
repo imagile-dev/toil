@@ -11,6 +11,7 @@ import { failure, success, type ApiAnswer, type ContextReport, type Envelope, ty
 import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
 import { applySelect, takeSelect } from './query/select.js';
+import { runWait, type WaitOptions } from './wait.js';
 
 /** Which front door a call came in by: the CLI's flags, or MCP's fields. */
 export type FrontDoor = 'cli' | 'mcp';
@@ -22,11 +23,19 @@ export type FrontDoor = 'cli' | 'mcp';
  * Both front doors call this; neither calls execute() directly. Over MCP, an
  * input error names the tool's fields rather than the CLI's flags.
  */
-export async function runCommand(def: AnyCommand, rawInput: unknown, makeContext: () => Context, version: string, via: FrontDoor = 'cli'): Promise<Envelope> {
+export async function runCommand(
+  def: AnyCommand,
+  rawInput: unknown,
+  makeContext: (def: AnyCommand) => Context,
+  version: string,
+  via: FrontDoor = 'cli',
+  wait?: WaitOptions,
+): Promise<Envelope> {
   let envelope: Envelope;
   try {
-    const ctx = makeContext();
-    envelope = await execute(def, rawInput, ctx, via);
+    // `toil wait` runs the read it names once per attempt, each through execute() (src/core/wait.ts).
+    if (def.dispatches) envelope = await runWait(def, rawInput, makeContext, version, via, wait ?? { targets: [] });
+    else envelope = await execute(def, rawInput, makeContext(def), via);
   } catch (err) {
     envelope = failure(toToilError(err), { command: commandName(def), durationMs: 0, version });
   }
@@ -76,6 +85,13 @@ const exitCodes = new WeakMap<Envelope, number>();
 /** The exit code for an envelope: 1 for a failure, else what the command asked for, else 0. */
 export function exitCodeOf(envelope: Envelope): number {
   return envelope.ok ? (exitCodes.get(envelope) ?? 0) : 1;
+}
+
+/** `to`, a copy of `from` with more in it (a wait's `meta.wait`), keeping the exit code `from` asked for. */
+export function keepExitCode(from: Envelope, to: Envelope): Envelope {
+  const code = exitCodes.get(from);
+  if (code !== undefined) exitCodes.set(to, code);
+  return to;
 }
 
 /** Two minutes: long enough for a slow report, short enough that a hung server isn't forever. */

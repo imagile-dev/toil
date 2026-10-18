@@ -137,6 +137,12 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
    * shorter one. TOIL_TIMEOUT_MS still overrides it, as it does the default.
    */
   timeLimitMs?: number;
+  /**
+   * The command runs another command rather than doing anything itself:
+   * `toil wait`, which runCommand() hands to runWait() (src/core/wait.ts), so
+   * each attempt is its own execute() of the read it names.
+   */
+  dispatches?: true;
   args?: CliArgument[];
   options?: CliOption[];
   examples: Array<z.input<S>>;
