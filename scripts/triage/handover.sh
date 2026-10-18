@@ -5,11 +5,14 @@
 # the agent started, after checking its hash (scripts/triage/steps.mjs, prepare).
 #
 # Env: AGENT (the agent step's outcome), PRISTINE (the tree before the agent),
-# WORKSPACE (the tree after), OUT (the handover folder). Writes to OUT:
+# WORKSPACE (the tree after), OUT (the handover folder), and SECRET_1, SECRET_2
+# (the agent job's OAuth and workflow tokens, masked by the runner). Writes to OUT:
 #   changes.tar   every added or changed regular file, ustar
 #   deleted.txt   every path removed
 #   agent-ok      only when the agent step succeeded
 #   decision.json, comment.md, pr-title.txt, pr-body.md   as the agent wrote them
+#   secret-match  when any of those holds a SECRET_* value verbatim; then the
+#                 texts and the archive are emptied, so the artifact never carries it
 #
 # The diff of two folders, done by hand with checksums, as the file room would.
 set -euo pipefail
@@ -34,5 +37,12 @@ tar --format=ustar --no-recursion -cf "$OUT/changes.tar" -C "$WORKSPACE" --files
 for f in decision.json comment.md pr-title.txt pr-body.md; do
   if [ -f "$WORKSPACE/.triage-out/$f" ] && [ ! -L "$WORKSPACE/.triage-out/$f" ]; then head -c 100000 "$WORKSPACE/.triage-out/$f" > "$OUT/$f"; fi
 done
+# The job's own secret values, compared byte for byte. They reach grep through a
+# process substitution, never argv, and nothing here prints them.
+if grep -rqaF -f <(for v in "${SECRET_1:-}" "${SECRET_2:-}"; do [ -n "$v" ] && printf '%s\n' "$v"; done) "$OUT" 2>/dev/null; then
+  for f in changes.tar decision.json comment.md pr-title.txt pr-body.md; do [ -f "$OUT/$f" ] && : > "$OUT/$f"; done
+  echo match > "$OUT/secret-match"
+  echo "::error::The agent's output holds one of this job's secret values. It was emptied; nothing will be posted."
+fi
 echo "Changed: $(wc -l < "$TMP/changed.txt" | tr -d ' ') file(s); deleted: $(wc -l < "$OUT/deleted.txt" | tr -d ' ')."
 rm -rf "$TMP"

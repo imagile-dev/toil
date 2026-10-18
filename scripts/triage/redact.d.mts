@@ -7,4 +7,4 @@ export interface Terms {
 export const SERVICES: string[];
 export function parseTerms(raw?: string): Terms;
 export function redact(text: string, terms?: Terms): string;
-export function secretShaped(text: string): boolean;
+export function tokenShaped(text: string): boolean;

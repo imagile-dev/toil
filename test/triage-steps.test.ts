@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { inspect } from '../scripts/triage/archive.mjs';
+import { tokenShaped } from '../scripts/triage/redact.mjs';
 import { ustar } from './harness/ustar.js';
 import { CLAIMED, FAILED, NEEDS_HUMAN, QUEUED } from '../scripts/triage/cap.mjs';
 import { apply, decideStep, hold, openPr, prepare, readOutputs, redactIssues, requeue, select, writeOutputs, type Outputs } from '../scripts/triage/steps.mjs';
@@ -355,5 +356,57 @@ describe('triage steps: secrets and repeated failures', () => {
     expect(gh.byNumber.get(5)!.labels).toEqual(['bug', FAILED]);
     await requeue({ env: { ...base, NUMBER: '5', EVENT: 'workflow_dispatch' }, fetcher: gh.fetcher, log: quiet });
     expect(gh.byNumber.get(5)!.labels).toEqual(['bug', FAILED, NEEDS_HUMAN]);
+  });
+});
+
+describe('the leak check flags token shapes and the job secrets, not code that names a credential', () => {
+  const FAKE = ['sk', 'ant', 'api03', 'Zm9vYmFyYmF6cXV4cXV1eDEyMzQ1Njc4OTA'].join('-');
+
+  it.each([
+    '  token: z.string().optional(),',
+    'const token = ctx.connection.token;',
+    '  password: z.string(),',
+    "config: { jira: { baseUrl: 'https://jira.imagile.dev', token: 'test-token' } },",
+    'headers: { authorization: `Bearer ${ctx.connection.token}` },',
+  ])('passes %s', (line) => {
+    expect(tokenShaped(line)).toBe(false);
+  });
+
+  it('flags a planted token by its shape alone', () => {
+    expect(tokenShaped(`const key = '${FAKE}';`)).toBe(true);
+    expect(tokenShaped(['xoxb', '123456789012', 'abcdefghijkl'].join('-'))).toBe(true);
+  });
+
+  it('a fix adding ordinary credential-field code is a fix, not a leak', async () => {
+    const work = checkout();
+    const handover = temp('toil-handover-');
+    writeFileSync(join(handover, 'agent-ok'), 'ok');
+    writeFileSync(join(handover, 'decision.json'), '{"decision":"fix","areas":["jira"]}');
+    writeFileSync(join(handover, 'changes.tar'), ustar([{ path: 'src/areas/jira/index.ts', data: "export const area = 'jira';\nconst token = ctx.connection.token;\n  password: z.string(),\n" }]));
+    expect((await decideStep({ env: { NUMBER: '5', HANDOVER: handover }, cwd: work, log: quiet })).decision).toBe('fix');
+  });
+
+  it('a secret value the agent job found in its own output is a leak, whatever its shape', async () => {
+    const handover = temp('toil-handover-');
+    writeFileSync(join(handover, 'agent-ok'), 'ok');
+    writeFileSync(join(handover, 'decision.json'), '{"decision":"deny","areas":[]}');
+    writeFileSync(join(handover, 'secret-match'), 'match');
+    expect(await decideStep({ env: { NUMBER: '5', HANDOVER: handover }, cwd: checkout(), log: quiet })).toEqual({ decision: 'leak' });
+  });
+});
+
+describe.skipIf(process.platform !== 'linux')('handover.sh and the job secrets (Linux only: it runs on ubuntu-latest and needs GNU coreutils)', () => {
+  it('empties the handover and marks it when the agent output holds a secret value verbatim', () => {
+    const pristine = temp('toil-pristine-');
+    const workspace = temp('toil-workspace-');
+    mkdirSync(join(workspace, '.triage-out'));
+    const value = 'opaque-secret-value-with-no-known-shape';
+    writeFileSync(join(workspace, '.triage-out', 'comment.md'), `quoted: ${value}`);
+    const out = temp('toil-out-');
+    const run = spawnSync('bash', [join(process.cwd(), 'scripts', 'triage', 'handover.sh')], { env: { ...process.env, AGENT: 'success', PRISTINE: pristine, WORKSPACE: workspace, OUT: out, SECRET_1: value, SECRET_2: '' }, encoding: 'utf8' });
+    expect(run.status, run.stderr).toBe(0);
+    expect(run.stdout).not.toContain(value);
+    expect(existsSync(join(out, 'secret-match'))).toBe(true);
+    expect(readFileSync(join(out, 'comment.md'), 'utf8')).toBe('');
   });
 });

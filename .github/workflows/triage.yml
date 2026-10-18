@@ -228,6 +228,9 @@ jobs:
         env:
           AGENT: ${{ steps.agent.outcome }}
           HANDOVER_SHA: ${{ steps.prep.outputs.handover_sha }}
+          # Compared against the agent's output, byte for byte; masked, never printed.
+          SECRET_1: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          SECRET_2: ${{ github.token }}
         run: |
           echo "${HANDOVER_SHA}  ${RUNNER_TEMP}/handover.sh" | sha256sum --check --quiet
           PRISTINE="$RUNNER_TEMP/pristine" WORKSPACE="$GITHUB_WORKSPACE" OUT="$RUNNER_TEMP/handover" bash "$RUNNER_TEMP/handover.sh"

@@ -87,10 +87,14 @@ in the PR text).
   have it quote one. Its `Read`, `Edit` and `Write` are allowed under the checkout only
   (`Read(./**)`), and denied outright on `/proc`, `/sys`, `/etc`, the runner's temp
   folder (`GITHUB_ENV`, `GITHUB_OUTPUT`), downloaded actions and dot-folders in the
-  runner's home. Its step holds one secret, the OAuth token. Then `decision.mjs`
-  checks the comment, the PR title and body, and every line the fix adds (against
-  main) with the redactor's credential patterns (`secretShaped`). A hit is `leak`:
-  nothing is posted, the issue gets `needs-human`, and the run fails.
+  runner's home. Its step holds one secret, the OAuth token. The handover compares
+  the agent's output byte for byte with that job's OAuth and workflow tokens (masked,
+  passed to grep without argv) and empties it on a match. Then `decision.mjs` checks
+  the comment, the PR title and body, and every line the fix adds (against main) for
+  token shapes alone (`tokenShaped`: prefixed formats, JWTs, private keys), never the
+  key-name rules, which would flag ordinary code like `token: z.string()`; those stay
+  for redacting incoming issue text. A hit is `leak`: nothing is posted, the issue
+  gets `needs-human`, and the run fails.
 - **A failed agent run is not a decision** (`agent-ok` or `decision.json` missing):
   nothing is said on the issue and the run fails. The first time, the issue gets
   `triage-failed` and goes back in the queue; the second time it gets `needs-human`

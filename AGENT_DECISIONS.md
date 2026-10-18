@@ -2548,3 +2548,9 @@ skill file, fixture, board entry, site data or contract entries changed.
   is never queued. The scoped `Read(./**)` rule follows Claude Code's documented
   permission syntax; it wasn't run locally (the local CLI's sign-in had expired), so the
   first triage run confirms the agent can still read the checkout.
+- **The leak check matches token shapes and the job's own secret values, not key
+  names** (review round 5): `tokenShaped` applies only the prefixed-token, JWT and
+  private-key patterns, so code such as `token: z.string()` passes, and the handover
+  compares the agent's output byte for byte with the agent job's OAuth and workflow
+  tokens, emptying it and marking `secret-match` on a hit. The key-name rules stay in
+  the redactor for incoming issue text. `xox…` tokens joined the shape list.

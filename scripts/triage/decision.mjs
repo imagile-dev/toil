@@ -12,7 +12,7 @@ import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readUstar } from './archive.mjs';
-import { secretShaped } from './redact.mjs';
+import { tokenShaped } from './redact.mjs';
 
 const MAX_COMMENT = 8000;
 const MAX_BODY = 60000;
@@ -84,13 +84,15 @@ const readText = (path) => (existsSync(path) ? readFileSync(path, 'utf8').replac
  */
 export function leaks(dir, root) {
   const found = [];
-  for (const name of ['comment.md', 'pr-title.txt', 'pr-body.md']) if (secretShaped(readText(join(dir, name)))) found.push(name);
+  // The agent job's own handover found one of its secret values verbatim (handover.sh).
+  if (existsSync(join(dir, 'secret-match'))) found.push('a secret value from the agent job');
+  for (const name of ['comment.md', 'pr-title.txt', 'pr-body.md']) if (tokenShaped(readText(join(dir, name)))) found.push(name);
   const tar = join(dir, 'changes.tar');
   if (existsSync(tar)) {
     for (const file of readUstar(readFileSync(tar)).files) {
       const before = root && existsSync(join(root, file.path)) ? new Set(readText(join(root, file.path)).split('\n')) : new Set();
       const added = file.data.toString('utf8').replace(/\r\n/g, '\n').split('\n').filter((line) => !before.has(line));
-      if (secretShaped(added.join('\n'))) found.push(file.path);
+      if (tokenShaped(added.join('\n'))) found.push(file.path);
     }
   }
   return found;

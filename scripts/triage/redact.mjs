@@ -82,6 +82,7 @@ const SECRET_PATTERNS = [
   /\bsk-ant-[A-Za-z0-9_-]{16,}/g,
   /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}/g,
   /\bAKIA[0-9A-Z]{16}\b/g,
+  /\bxox[abposr]-[A-Za-z0-9-]{10,}/g,
   /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
 ];
 
@@ -153,12 +154,16 @@ function redactWords(text, terms) {
 }
 
 /**
- * Whether a text holds anything credential-shaped (step 1 above): what the
- * triage workflow checks every agent-written text and every added line for
- * before posting any of it.
+ * Whether a text holds a token by its shape alone: the prefixed formats, JWTs
+ * and private keys in SECRET_PATTERNS, never the key-name rules, which flag
+ * ordinary code such as `token: z.string()`. What the triage workflow checks
+ * every agent-written text and every added line for before posting any of it;
+ * a `/proc/self/environ` dump is caught because every token it could hold has
+ * a known prefix.
  */
-export function secretShaped(text) {
-  return typeof text === 'string' && text !== '' && redactSecrets(text) !== text;
+export function tokenShaped(text) {
+  if (typeof text !== 'string' || text === '') return false;
+  return SECRET_PATTERNS.some((pattern) => new RegExp(pattern.source, pattern.flags.replace('g', '')).test(text));
 }
 
 /** Redacts one string with terms from parseTerms(). */
