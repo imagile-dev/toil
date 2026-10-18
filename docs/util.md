@@ -20,6 +20,14 @@ machine and talk to nothing else. Each one follows the same rules, which are on 
 - **Proof in the PR:** fixtures built from real-world samples, sanitized to
   placeholder hosts; a test that the self-check catches a deliberately broken input
   or result; and a run of the built CLI and MCP on the samples.
+- **Documented in the same PR.** Adding or changing a command updates its entry for
+  `/docs/utilities/` (`site/src/data/utilities/<family>.json`: what it's for, its
+  inputs, examples, what it checks of itself and its limits, in one of the groups in
+  `site/src/data/utility-groups.json`) and its section in `skills/toil/util.md`
+  (examples in a shell block, and its row in the command table).
+  `test/util-docs.test.ts` fails until both cover it, and on any example or
+  `--flag` the command doesn't have. Flags, aliases and MCP tool names on the page
+  come from the registry, so they're never written by hand.
 
 ## Reading input: `kit/input.ts`
 

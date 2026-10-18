@@ -1,0 +1,24 @@
+{
+  "id": "time",
+  "group": "arithmetic",
+  "order": 1,
+  "title": "Time zones, durations, business days and cron",
+  "commands": [
+    "time convert",
+    "time duration",
+    "time business-days add",
+    "time business-days diff",
+    "time cron"
+  ],
+  "purpose": "Date arithmetic on the time zone data Node already ships: convert a time between zones, read or write an ISO 8601 duration, add or count business days, and list a cron schedule's next run times.",
+  "inputs": "ISO 8601 times (`2026-03-08T02:30`, an instant with `Z` or an offset, `@` epoch seconds, or `now`) and IANA zone names. Business days take holidays as `--holiday` dates or a `--holidays` file. Cron reads standard five-field, Quartz and Jenkins `H` expressions, with `--job` for `H`.",
+  "examples": [
+    "toil util time convert 2026-03-08T02:30 --zone America/New_York --to Europe/London",
+    "toil util time duration P1DT2H30M",
+    "toil util time business-days add 2026-12-23 3 --holiday 2026-12-25",
+    "toil util time business-days diff 2026-12-24T15:00 2026-12-29T10:00 --zone America/Chicago",
+    "toil util time cron 'H H(0-7) * * 1-5' --dialect jenkins --job platform/api-build"
+  ],
+  "verifies": "Each answer is checked a second way: a conversion is read back as the same instant, a duration's canonical text as the same parts, business days are counted again day by day, and each cron run is matched against every field of the expression.",
+  "limits": "A clock time that a daylight saving change skipped or showed twice is always pointed out, never quietly picked. No country's holidays are built in. Years and months have no fixed length, so a duration with them has no total in seconds."
+}

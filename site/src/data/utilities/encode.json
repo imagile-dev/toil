@@ -1,0 +1,17 @@
+{
+  "id": "encode",
+  "group": "arithmetic",
+  "order": 3,
+  "title": "Encoding, decoding and hashing",
+  "commands": [
+    "encode"
+  ],
+  "purpose": "Base64, base64url, hex, URL components and form values, in either direction, and a file's SHA-256, SHA-1 or MD5 hash.",
+  "inputs": "The scheme, then a file in the workspace, stdin, or `--text`. `--decode` decodes, and `--out` writes the result to a new file inside the workspace.",
+  "examples": [
+    "toil util encode base64 --decode mail-part.b64 --out logo.png",
+    "toil util encode sha256 release.tgz"
+  ],
+  "verifies": "Every encode is decoded back and must give your input; every decode is encoded again and must give your input apart from padding, case and line breaks; a hash counts the bytes it read against the file's size; and a file written is read back.",
+  "limits": "Decoded bytes that aren't text (an image, say) never come back as mangled text in the JSON: they need `--out`. Text that isn't the encoding it claims is refused with the offset of the first wrong character, never the character. Encoding and decoding read at most 64 MiB; a file's hash streams with no limit. MD5 and SHA-1 are for matching published checksums, not for protecting anything."
+}

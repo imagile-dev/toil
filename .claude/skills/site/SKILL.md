@@ -96,6 +96,18 @@ from `main`).
   level. Add a `credentialWhere` entry only when the menu path is certain; a wrong
   path costs users more than a generic one. Pages for `planned` integrations say so
   and describe the plan, never invented details.
+- **Every new or changed `util` command updates `/docs/utilities/` and
+  `skills/toil/util.md` in the same PR.** The page is generated: each family of
+  commands has its own file, `site/src/data/utilities/<family>.json` (`commands`,
+  the paths under `toil util` it covers; `purpose`, `inputs`, `examples`,
+  `verifies`, `limits`; `group` and `order`), in one of the four groups in
+  `site/src/data/utility-groups.json` (reading CI output, writing for the tools,
+  safety, arithmetic models get wrong). Backticks in the prose become code. Flags,
+  aliases and MCP tool names come from `data/commands/util.json`, never by hand, so
+  don't write them in the template. `test/util-docs.test.ts` fails on a command
+  with no entry or no example, an entry for a command that doesn't exist, an example
+  or `--flag` the command doesn't have, a missing row in util.md's command table,
+  and unbalanced tags in `utilities.astro`.
 - Internal links go through `url()` in `site/src/lib/url.ts` because the site is
   served under `/toil/`.
 - **Phones get a menu.** The header shows its links inline on desktop, drops the

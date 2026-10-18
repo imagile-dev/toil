@@ -712,6 +712,13 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   `site/src/data/settings/<area>.json` for the docs pages (`npx vitest run -u` after
   changing a command or a connection key) and checks the board's
   `site/src/data/integrations/<area>.json`.
+- **Adding or changing a `util` command updates `/docs/utilities/` and
+  `skills/toil/util.md` in the same PR** (`docs/util.md`, the `site` skill).
+  `test/util-docs.test.ts` enforces it: it fails when a registered `util` command
+  has no entry on the page (`site/src/data/utilities/<family>.json`) or in the skill
+  file, when either lists a command that doesn't exist, when an example or `--flag`
+  either shows isn't a flag of the command (so a flag change turns up as a stale
+  example), and when the page template's tags are unbalanced.
 - **No file every integration edits.** Each area has its own fixture, skill file, divergence
   file, board entry and command list; the lists that span areas (the registry, the
   areas in `SKILL.md`, the CLI-only commands) are derived or generic. A change that
