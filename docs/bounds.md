@@ -51,8 +51,8 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | `output-file` | `files.workspace` | `src/node-context.ts`, `src/program.ts` | The global `--output-file` flag writing the envelope outside the workspace. |
 | `shell-profile` | `files.workspace` | `src/core/shell-profile.ts`, `src/setup/commands.ts` | `toil setup alias` and `remove-alias` reading and writing the shell profile they name, outside the workspace. |
 | `shell-profile.edit` | `files.no-overwrite` | `src/core/shell-profile.ts` | Those two commands changing that existing file, only between their own marker lines. |
-| `skills.folders` | `files.workspace` | `src/skills/folders.ts`, `src/skills/marketplace.ts` | The `skills` commands reading and writing the agent hosts' skills folders and marketplace clones, which live outside the workspace. Only fixed places, listed below; never anything under `~/.toil`. |
-| `skills.reinstall` | `files.no-overwrite` | `src/skills/folders.ts` | `skills marketplace add` and `sync` replacing a skill folder that toil itself installed from the same marketplace and plugin, which is what refreshing it means. Any other folder is left as found. |
+| `skills.folders` | `files.workspace` | `src/skills/folders.ts`, `src/skills/marketplace.ts`, `src/skills/bundled.ts` | The `skills` and `skill` commands reading and writing the agent hosts' skills folders and marketplace clones, which live outside the workspace, and toil keeping the toil skill it installed current. Only fixed places, listed below; never anything under `~/.toil`. |
+| `skills.reinstall` | `files.no-overwrite` | `src/skills/folders.ts`, `src/skills/bundled.ts` | `skills marketplace add` and `sync` replacing a skill folder that toil itself installed from the same marketplace and plugin, which is what refreshing it means, and `skill install` and the automatic rewrite replacing the `toil` folder toil recorded as `bundled`. Any other folder is left as found. |
 | `dossiers.read` | `files.workspace` | `src/core/dossier.ts` | Reading dossier files (`docs/dossiers.md`) from your own folder (`~/.toil/dossiers/`), the folders you list in `dossierPaths` or `TOIL_DOSSIER_PATHS`, and `.toil/dossiers/` at the root of the repository the call's folder is in. A dossier file named on the call (`--dossier <file>`) must be one of those, or inside the workspace. |
 | `dossiers.write` | `files.workspace` | `src/core/dossier.ts` | The `toil dossiers` commands writing a dossier to your own folder, a listed folder, or `.toil/dossiers/` at the root of a git working tree (`export --repo`). Anywhere else, the file must be inside the workspace. |
 | `dossiers.replace` | `files.no-overwrite` | `src/core/dossier.ts` | Rewriting a dossier: an edit (`link`, `field`, `add-repo`, `env`) rewrites the file it read, and `export`/`import` with `--replace` replace one. Only a file that is already a valid dossier is ever replaced. |
@@ -107,6 +107,18 @@ Skills are copied without symlinks, and a skill name that would leave its folder
 (`..`, a separator) is refused. These writes are writes: `sync`, `enable` and
 `disable` need `"writes": true` on the marketplace's connection and `--allow-write`,
 and `add`, which is CLI only and only clones, needs `--allow-write` and leaves writes off on the marketplace it adds, so adding one grants nothing.
+
+`skill install`, which writes the toil skill toil carries into one of these folders as
+`toil/`, is CLI only too and needs `--allow-write`; there is no connection to hold a
+standing opt-in, so that install is the opt-in. From then on toil rewrites that
+folder itself, and only that folder: after a command that changed the config file,
+and on any run that finds it was written by another toil version, reported in
+`meta.warnings` as `SKILL_REWRITTEN` (or `SKILL_REWRITE_FAILED`, never a failed
+command). It writes the new copy beside the old one and swaps it in with one
+rename. A `toil` folder that toil didn't record as `bundled` (made by hand, or
+installed from a marketplace) is never rewritten, and `skill install` refuses to
+replace it. A call with `--config` never rewrites it, since the skill describes the
+user's own config.
 
 `output-file` is the one global flag that writes outside the workspace. `--output-file` is a CLI
 flag, never an MCP input, so the person running the command chose the path. It may

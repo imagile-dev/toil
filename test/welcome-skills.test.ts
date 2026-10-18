@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Settings } from '../src/core/config.js';
 import { commands } from '../src/registry.js';
-import { finish, initialState, reduce, top, type MenuState } from '../src/welcome/menu.js';
+import { finish, initialState, reduce, render, top, type MenuState } from '../src/welcome/menu.js';
 import type { WelcomeData } from '../src/welcome/screens.js';
 import type { Run, StepResult } from '../src/welcome/view.js';
 import { checkUrl, toggleChanges } from '../src/welcome/views/skills.js';
@@ -13,7 +13,8 @@ import { runCli } from './harness/cli.js';
 import { testConfig, testContext } from './harness/context.js';
 
 /**
- * The Skills and Plugins menu modules (#54, #55), driven as data through the
+ * The Agent skills menu module (#54, #55, #202): skill plugins, installed
+ * skills and the toil skill, driven as data through the
  * menu's reducer, with every command they ask for run for real against a
  * temp home seeded like the skills fixture: a marketplace `skills` with
  * plugin `review` on and `docs` switched off, in Codex's and Claude Code's
@@ -83,15 +84,42 @@ async function perform(state: MenuState, home: string): Promise<MenuState> {
 
 const steps = (s: MenuState) => s.pending?.steps.map((x) => x.args);
 
-describe('the Skills module', () => {
-  it('sits on home after Connect an agent, with Plugins after it', () => {
-    expect(where(press(settled, data(), '4'))).toBe('skills');
-    expect(where(press(settled, data(), '5'))).toBe('plugins');
+/** Home → Agent skills → Skill plugins. */
+const SKILL_PLUGINS = ['4', '1'];
+/** … → Switch skill plugins on and off, after the one marketplace and Add. */
+const SWITCH = [...SKILL_PLUGINS, '3'];
+
+describe('the Agent skills module', () => {
+  it('sits on home after Connect an agent, holding Skill plugins, View installed skills and Install the toil skill', () => {
+    const d = data();
+    const module = press(settled, d, '4');
+    expect(where(module)).toBe('agent-skills');
+    expect(where(press(module, d, '1'))).toBe('skills');
+    expect(steps(press(module, d, '2'))).toEqual([['skills', 'status']]);
+    expect(where(press(module, d, '3'))).toBe('skills-agent');
+    expect(where(press(settled, d, ...SWITCH))).toBe('plugins');
+  });
+
+  it('installs the toil skill for one agent and place, the default first, with the real command', () => {
+    const d = data();
+    const agents = press(settled, d, '4', '3');
+    // One agent at a time: toil skill install takes no --all-agents.
+    expect(press(agents, d, 'up').stack.at(-1)?.selected).toBe(2);
+    expect(steps(press(agents, d, 'return', 'return'))).toEqual([['skill', 'install', '--agent', 'codex', '--scope', 'user', '--allow-write']]);
+    expect(steps(press(agents, d, 'down', 'down', 'return', 'down', 'return'))).toEqual([['skill', 'install', '--agent', 'claude-code', '--scope', 'project', '--allow-write']]);
+  });
+
+  it('labels marketplace plugins as skill plugins on every screen that lists them', () => {
+    const d = data();
+    const screen = (s: MenuState) => render(s, { colorDepth: 0, unicode: true, columns: 120, rows: 40, animate: false }, d).join('\n');
+    const shown = [press(settled, d), press(settled, d, '4'), press(settled, d, ...SKILL_PLUGINS), press(settled, d, ...SKILL_PLUGINS, 'return'), press(settled, d, ...SWITCH)].map(screen);
+    for (const text of shown) expect(text).not.toMatch(/\b(?<!skill )plugins?\b(?! on and off)/i);
+    expect(shown.join('\n')).toContain('Install a skill plugin');
   });
 
   it('adds a marketplace: refuses ssh, suggests a name, and runs add, which asks for the token itself', () => {
     const d = data();
-    const url = press(press(settled, d, '4'), d, 'down', 'return');
+    const url = press(press(settled, d, ...SKILL_PLUGINS), d, 'down', 'return');
     expect(where(url)).toBe('skills-add-url');
     const ssh = press(type(url, d, 'git@bitbucket.imagile.dev:ai/team.git'), d, 'return');
     expect(top(ssh).error).toContain('https only');
@@ -112,7 +140,7 @@ describe('the Skills module', () => {
 
   it('offers writes on first when they are off, through connections writes, which confirms on the terminal', () => {
     const d = data({ repoUrl: REPO });
-    const mk = press(press(settled, d, '4'), d, 'return');
+    const mk = press(press(settled, d, ...SKILL_PLUGINS), d, 'return');
     expect(where(mk)).toBe('marketplace');
     expect(steps(press(mk, d, 'return'))).toEqual([['connections', 'writes', 'skills', 'on']]);
   });
@@ -120,7 +148,7 @@ describe('the Skills module', () => {
   it('installs a plugin: lists plugins with the real command, then agent and place with the defaults preselected', async () => {
     const home = seeded();
     const d = data();
-    const mk = press(press(settled, d, '4'), d, 'return');
+    const mk = press(press(settled, d, ...SKILL_PLUGINS), d, 'return');
     const listing = press(mk, d, 'return');
     expect(steps(listing)).toEqual([['skills', 'marketplace', 'plugins', 'skills']]);
     const listed = await perform(listing, home);
@@ -143,11 +171,11 @@ describe('the Skills module', () => {
   });
 });
 
-describe('the Plugins module', () => {
-  /** Plugins → agent → place → status, run for real, then Continue: the checkbox screen. */
+describe('switching skill plugins', () => {
+  /** Switch skill plugins → agent → place → status, run for real, then Continue: the checkbox screen. */
   async function checkboxes(home: string, agentKeys: K[] = []): Promise<MenuState> {
     const d = data();
-    const status = press(press(settled, d, '5'), d, 'return', ...agentKeys, 'return', 'return');
+    const status = press(press(settled, d, ...SWITCH), d, 'return', ...agentKeys, 'return', 'return');
     expect(steps(status)?.[0]?.slice(0, 2)).toEqual(['skills', 'status']);
     return press(await perform(status, home), d, 'return');
   }
@@ -200,7 +228,7 @@ describe('the Plugins module', () => {
     const reopened = press(await perform(again, viaMenu), d, 'return');
     expect(where(reopened)).toBe('plugins-toggle');
     // Saving and looking again replaces the checkbox screen rather than stacking another.
-    expect(reopened.stack.map((f) => f.view)).toEqual(['home', 'plugins', 'skills-agent', 'skills-scope', 'plugins-toggle']);
+    expect(reopened.stack.map((f) => f.view)).toEqual(['home', 'agent-skills', 'skills', 'plugins', 'skills-agent', 'skills-scope', 'plugins-toggle']);
     expect(JSON.parse(top(reopened).params.plugins!).find((s: { plugin: string }) => s.plugin === 'review')).toMatchObject({ on: 0, off: 1 });
   });
 
