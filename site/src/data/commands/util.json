@@ -7,6 +7,9 @@
     "connection": false,
     "flags": [
       "<token>"
+    ],
+    "aliases": [
+      "jwt decode"
     ]
   },
   {
@@ -19,6 +22,9 @@
       "--ecosystem <ecosystem>",
       "--include-transitive",
       "--include-dev"
+    ],
+    "aliases": [
+      "deps scan"
     ]
   },
   {
@@ -32,6 +38,9 @@
       "--to <ref>",
       "--ecosystem <ecosystem>",
       "--include-dev"
+    ],
+    "aliases": [
+      "deps diff"
     ]
   },
   {
@@ -87,6 +96,164 @@
       "--grep <regex>",
       "--max-groups <n>",
       "--context <n>"
+    ]
+  },
+  {
+    "name": "secrets scan",
+    "tool": "util_secrets_scan",
+    "description": "Find credential-shaped strings in a file, folder, stdin or the staged diff (local only; exit 1 on findings)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[path]",
+      "--text <text>",
+      "--diff <kind>",
+      "--allow-file <file>"
+    ]
+  },
+  {
+    "name": "size",
+    "tool": "util_size",
+    "description": "Count bytes, lines and estimated tokens for a file or folder, and outline a file (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--language <language>",
+      "--top <n>",
+      "--depth <n>"
+    ]
+  },
+  {
+    "name": "time convert",
+    "tool": "util_time_convert",
+    "description": "Convert a time between time zones, reporting DST gaps and overlaps",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<time>",
+      "--zone <zone>",
+      "--to <zone>"
+    ]
+  },
+  {
+    "name": "time duration",
+    "tool": "util_time_duration",
+    "description": "Read an ISO 8601 duration, or write a number of seconds as one",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[duration]",
+      "--seconds <seconds>"
+    ]
+  },
+  {
+    "name": "time business-days add",
+    "tool": "util_time_business_days_add",
+    "description": "Add or subtract business days, skipping weekends and listed holidays",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<start>",
+      "<days>",
+      "--zone <zone>",
+      "--holidays <file>",
+      "--holiday <date>"
+    ]
+  },
+  {
+    "name": "time business-days diff",
+    "tool": "util_time_business_days_diff",
+    "description": "The business time between two times, in business days and hours",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<start>",
+      "<end>",
+      "--zone <zone>",
+      "--holidays <file>",
+      "--holiday <date>"
+    ]
+  },
+  {
+    "name": "time cron",
+    "tool": "util_time_cron",
+    "description": "Explain a cron expression and list its next run times in a zone",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<expression>",
+      "--dialect <dialect>",
+      "--zone <zone>",
+      "--from <time>",
+      "--count <n>",
+      "--job <name>"
+    ]
+  },
+  {
+    "name": "semver compare",
+    "tool": "util_semver_compare",
+    "description": "Compare two versions and name the part they differ in (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<a>",
+      "<b>",
+      "--ecosystem <ecosystem>"
+    ]
+  },
+  {
+    "name": "semver satisfies",
+    "tool": "util_semver_satisfies",
+    "description": "Check whether a version satisfies a range (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<version>",
+      "<range>",
+      "--ecosystem <ecosystem>",
+      "--include-prerelease"
+    ]
+  },
+  {
+    "name": "semver sort",
+    "tool": "util_semver_sort",
+    "description": "Sort versions, and find the highest that satisfies a range (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--ecosystem <ecosystem>",
+      "--range <range>",
+      "--include-prerelease"
+    ]
+  },
+  {
+    "name": "semver bump",
+    "tool": "util_semver_bump",
+    "description": "Bump a version: the next major, minor, patch or prerelease (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<version>",
+      "<release>",
+      "--ecosystem <ecosystem>",
+      "--preid <id>"
+    ]
+  },
+  {
+    "name": "md",
+    "tool": "util_md",
+    "description": "Convert Markdown to or from Jira wiki markup, ADF or Confluence storage format, checking the result by converting it back",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--from <format>",
+      "--to <format>"
     ]
   }
 ]

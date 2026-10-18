@@ -1,0 +1,216 @@
+// From kolatts/imagile-framework, src/Imagile.Framework.Configuration/FrameworkConfigurationBuilder.cs (https://github.com/kolatts/imagile-framework), under this licence; its Key Vault host is replaced with vault.imagile.dev:
+//
+// MIT License
+//
+// Copyright (c) 2026 Sunny Kolattukudy
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+using Azure.Core;
+using Azure.Security.KeyVault.Secrets;
+using Imagile.Framework.Configuration.Azure;
+using Imagile.Framework.Configuration.Extensions;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Imagile.Framework.Configuration;
+
+/// <summary>
+/// Fluent builder for configuring Framework Configuration features in a .NET application.
+/// </summary>
+/// <remarks>
+/// <para>
+/// This builder provides a discoverable API for configuring Key Vault integration, configuration validation,
+/// and other framework configuration features. Use the <see cref="Extensions.ServiceCollectionExtensions.AddFrameworkConfiguration"/>
+/// extension method to create an instance of this builder.
+/// </para>
+/// <para>
+/// The builder follows the fluent API pattern, allowing multiple configuration methods to be chained together
+/// before finalizing the configuration.
+/// </para>
+/// </remarks>
+/// <example>
+/// <code>
+/// services.AddFrameworkConfiguration(configuration, builder => builder
+///     .WithKeyVault(new Uri("https://vault.imagile.dev/"))
+///     .WithValidation());
+/// </code>
+/// </example>
+public class FrameworkConfigurationBuilder
+{
+    private readonly IServiceCollection _services;
+    private readonly IConfiguration _configuration;
+    private readonly ConfigurationOptions _options;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FrameworkConfigurationBuilder"/> class.
+    /// </summary>
+    /// <param name="services">The service collection to configure.</param>
+    /// <param name="configuration">The application configuration.</param>
+    internal FrameworkConfigurationBuilder(IServiceCollection services, IConfiguration configuration)
+    {
+        _services = services;
+        _configuration = configuration;
+        _options = new ConfigurationOptions();
+    }
+
+    /// <summary>
+    /// Enables Azure Key Vault integration with automatic Key Vault reference replacement.
+    /// </summary>
+    /// <param name="keyVaultUri">The URI of the Azure Key Vault instance.</param>
+    /// <param name="managedIdentityClientId">
+    /// Optional client ID of the user-assigned managed identity to use for authentication.
+    /// If not provided, local development credentials (Azure CLI or Visual Studio) will be used.
+    /// </param>
+    /// <returns>This builder instance for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method configures the application to:
+    /// <list type="bullet">
+    /// <item><description>Register <see cref="AppTokenCredential"/> with the specified managed identity client ID (if provided)</description></item>
+    /// <item><description>Register <see cref="SecretClient"/> for the specified Key Vault</description></item>
+    /// <item><description>Replace all <c>@KeyVault(SecretName)</c> references in configuration with actual secret values</description></item>
+    /// </list>
+    /// </para>
+    /// <para>
+    /// Key Vault references in configuration use the syntax: <c>@KeyVault(SecretName)</c>
+    /// </para>
+    /// <para>
+    /// Authentication is handled by <see cref="AppTokenCredential"/>, which automatically selects the appropriate
+    /// credential based on the environment (WorkloadIdentity/ManagedIdentity in cloud, AzureCli/VisualStudio locally).
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Cloud environment with user-assigned managed identity
+    /// services.AddFrameworkConfiguration(configuration, builder => builder
+    ///     .WithKeyVault(
+    ///         new Uri("https://vault.imagile.dev/"),
+    ///         configuration["AzureManagedIdentityClientId"]));
+    ///
+    /// // Local development (uses Azure CLI or Visual Studio credentials)
+    /// services.AddFrameworkConfiguration(configuration, builder => builder
+    ///     .WithKeyVault(new Uri("https://vault.imagile.dev/")));
+    /// </code>
+    /// </example>
+    public FrameworkConfigurationBuilder WithKeyVault(Uri keyVaultUri, string? managedIdentityClientId = null)
+    {
+        ArgumentNullException.ThrowIfNull(keyVaultUri);
+
+        _options.EnableKeyVault = true;
+        _options.KeyVaultUri = keyVaultUri;
+        _options.ManagedIdentityClientId = managedIdentityClientId;
+
+        return this;
+    }
+
+    /// <summary>
+    /// Enables Azure Key Vault integration with automatic Key Vault reference replacement.
+    /// </summary>
+    /// <param name="keyVaultUrl">The URL of the Azure Key Vault instance.</param>
+    /// <param name="managedIdentityClientId">
+    /// Optional client ID of the user-assigned managed identity to use for authentication.
+    /// If not provided, local development credentials (Azure CLI or Visual Studio) will be used.
+    /// </param>
+    /// <returns>This builder instance for method chaining.</returns>
+    /// <remarks>
+    /// This is a convenience overload that accepts a string URL and converts it to a <see cref="Uri"/>.
+    /// See <see cref="WithKeyVault(Uri, string?)"/> for detailed documentation.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// services.AddFrameworkConfiguration(configuration, builder => builder
+    ///     .WithKeyVault("https://vault.imagile.dev/"));
+    /// </code>
+    /// </example>
+    public FrameworkConfigurationBuilder WithKeyVault(string keyVaultUrl, string? managedIdentityClientId = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(keyVaultUrl);
+
+        return WithKeyVault(new Uri(keyVaultUrl), managedIdentityClientId);
+    }
+
+    /// <summary>
+    /// Enables configuration validation using data annotations.
+    /// </summary>
+    /// <returns>This builder instance for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method enables <c>ValidateOnStart</c> for all options registered in the service collection
+    /// that have data annotation attributes. When the application starts, all registered options will be
+    /// validated, and the application will fail to start if any validation errors are found.
+    /// </para>
+    /// <para>
+    /// Validation uses the <see cref="ConfigurationValidationExtensions.ValidateRecursively"/> method, which
+    /// performs deep validation of nested configuration objects and aggregates all errors into a single exception.
+    /// </para>
+    /// <para>
+    /// This provides fail-fast behavior for configuration errors, ensuring that invalid configuration is
+    /// detected at startup rather than at runtime.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Register options with validation
+    /// services.AddFrameworkConfiguration(configuration, builder => builder
+    ///     .WithValidation());
+    ///
+    /// services.Configure&lt;DatabaseSettings&gt;(configuration.GetSection("Database"));
+    ///
+    /// // At startup, DatabaseSettings will be validated using data annotations
+    /// // Application will fail to start if validation fails
+    /// </code>
+    /// </example>
+    public FrameworkConfigurationBuilder WithValidation()
+    {
+        _options.EnableValidation = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Finalizes the configuration and applies all configured features.
+    /// </summary>
+    /// <remarks>
+    /// This method is called internally by <see cref="Extensions.ServiceCollectionExtensions.AddFrameworkConfiguration"/>
+    /// after the configuration action has been executed. It should not be called directly.
+    /// </remarks>
+    internal void Build()
+    {
+        if (_options.EnableKeyVault)
+        {
+            // Create and register AppTokenCredential
+            var credential = new AppTokenCredential(_options.ManagedIdentityClientId);
+            _services.AddSingleton<TokenCredential>(credential);
+
+            // Create and register SecretClient
+            var secretClient = new SecretClient(_options.KeyVaultUri!, credential);
+            _services.AddSingleton(secretClient);
+
+            // Replace Key Vault references in configuration
+            _configuration.ReplaceKeyVaultReferences(secretClient);
+        }
+
+        if (_options.EnableValidation)
+        {
+            // Enable ValidateOnStart for all registered options
+            // Note: This requires that options are configured with services.AddOptions<T>().ValidateOnStart()
+            // or by adding a validation configuration after this builder runs
+            _services.AddOptions();
+        }
+    }
+}

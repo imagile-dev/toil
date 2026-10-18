@@ -54,3 +54,93 @@ export function updateType(current: string, latest: string): 'major' | 'minor' |
   if (lv.minor > cv.minor) return 'minor';
   return 'patch';
 }
+
+// ---------------------------------------------------------------------------
+// The ecosystems' own grammars: npm's semver, NuGet's and Maven's.
+//
+// The comparison above is pinned to what its callers recorded, quirks and
+// all, so it stays exactly as it is. What `util semver` (#180) needs is each
+// ecosystem's real rules: SemVer 2.0.0 precedence and npm's ranges for
+// npm, NuGet's four-part versions and interval notation, and Maven's
+// ordering and version ranges. Each is one module
+// under ./versions/, loaded only when asked for, so `artifactory outdated`
+// pays nothing for grammars it never reads. A version comparison is one of
+// the few things in an enterprise that has a written standard; there are
+// three of them.
+// ---------------------------------------------------------------------------
+
+export const ECOSYSTEMS = ['npm', 'nuget', 'maven'] as const;
+export type VersionEcosystem = (typeof ECOSYSTEMS)[number];
+
+/** A parse that worked, or why it didn't. Nothing is ever coerced into a version. */
+export type Parsed<T> = { ok: true; value: T } | { ok: false; reason: string };
+
+/** One end of an interval of versions. */
+export interface Bound<V> {
+  version: V;
+  inclusive: boolean;
+}
+
+/**
+ * A range as the plain intervals it covers, for the cross-check: no bound is
+ * open on that side. `prereleaseOf` (npm only) lists the `major.minor.patch`
+ * whose prereleases the interval admits; every other prerelease is outside
+ * it unless prereleases are included.
+ */
+export interface Interval<V> {
+  lower?: Bound<V>;
+  upper?: Bound<V>;
+  prereleaseOf?: string[];
+}
+
+export interface RangeOptions {
+  /** npm only: let prereleases of any version match, as npm's `includePrerelease`. */
+  includePrerelease?: boolean;
+}
+
+export const RELEASES = ['major', 'minor', 'patch', 'premajor', 'preminor', 'prepatch', 'prerelease', 'release'] as const;
+export type Release = (typeof RELEASES)[number];
+
+/** The most significant part two versions differ in. */
+export type Difference = 'major' | 'minor' | 'patch' | 'revision' | 'prerelease' | 'qualifier';
+
+/**
+ * One ecosystem's versions and ranges. The methods are written as methods so
+ * a grammar typed for its own version shape is usable where the version is
+ * opaque (`VersionGrammar<unknown, unknown>`), which is how `util semver`
+ * holds whichever one was asked for.
+ */
+export interface VersionGrammar<V, R> {
+  ecosystem: VersionEcosystem;
+  parse(text: string): Parsed<V>;
+  /** The version as the ecosystem normalises it. */
+  format(version: V): string;
+  /** Negative, zero or positive, like an Array.sort comparator. */
+  compare(a: V, b: V): number;
+  parseRange(text: string, options: RangeOptions): Parsed<R>;
+  /** The range as the ecosystem normalises it. */
+  formatRange(range: R): string;
+  satisfies(range: R, version: V, options: RangeOptions): boolean;
+  intervals(range: R): Interval<V>[];
+  /** Whether `version` lies in `interval`, by comparison alone: the cross-check for {@link satisfies}. */
+  inInterval(interval: Interval<V>, version: V, options: RangeOptions): boolean;
+  /** The bumps this ecosystem has. */
+  releases: readonly Release[];
+  bump(version: V, release: Release, preid?: string): Parsed<V>;
+  /** The most significant part `a` and `b` differ in, or null when they're equal. */
+  diff(a: V, b: V): Difference | null;
+}
+
+export type AnyGrammar = VersionGrammar<unknown, unknown>;
+
+/** The grammar for `ecosystem`, loaded on first use. */
+export async function grammarFor(ecosystem: VersionEcosystem): Promise<AnyGrammar> {
+  switch (ecosystem) {
+    case 'npm':
+      return (await import('./versions/npm.js')).npmGrammar;
+    case 'nuget':
+      return (await import('./versions/nuget.js')).nugetGrammar;
+    case 'maven':
+      return (await import('./versions/maven.js')).mavenGrammar;
+  }
+}

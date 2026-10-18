@@ -726,6 +726,7 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   `site/src/data/settings/<area>.json` for the docs pages (`npx vitest run -u` after
   changing a command or a connection key) and checks the board's
   `site/src/data/integrations/<area>.json`.
+- **`test/util-docs.test.ts`** holds `/docs/utilities/` and `skills/toil/util.md` to the registry: a `util` command added or changed updates both in the same PR (`docs/util.md`).
 - **No file every integration edits.** Each area has its own fixture, skill file, divergence
   file, board entry and command list; the lists that span areas (the registry, the
   areas in `SKILL.md`, the CLI-only commands) are derived or generic. A change that
@@ -873,7 +874,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 |-------|----------|
 | `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, the command contract and its divergences |
 | `databases` | Working on the `db` area, a database provider, or database tests, including the local Docker run |
-| `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: why there is no `code` area, and what reopening it takes |
+| `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: small pure-JS code intelligence is welcome, heavy analysis dependencies are ruled out, and what reopening that takes |
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
 | `automation` | Editing workflows under `.github/`: the review agent, the fix agent, action pins, Discord notifications, redaction |

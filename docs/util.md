@@ -20,6 +20,23 @@ machine and talk to nothing else. Each one follows the same rules, which are on 
 - **Proof in the PR:** fixtures built from real-world samples, sanitized to
   placeholder hosts; a test that the self-check catches a deliberately broken input
   or result; and a run of the built CLI and MCP on the samples.
+- **Documented in the same PR.** Adding or changing a command updates `/docs/utilities/`
+  and `skills/toil/util.md` together:
+  - **The page** is generated. Each family of commands has its own file,
+    `site/src/data/utilities/<family>.json`: `commands` (the paths under `toil util`
+    it covers), `purpose`, `inputs`, `examples` (at least one per command),
+    `verifies`, `limits`, and `group` and `order`, in one of the groups in
+    `site/src/data/utility-groups.json` (reading CI output, writing for the tools,
+    safety, arithmetic models get wrong). Backticks in the prose become code.
+    Flags, aliases and MCP tool names come from `site/src/data/commands/util.json`,
+    which the registry writes, so they're never written by hand.
+  - **The skill file** gives each command a section with examples in a shell block,
+    and a row in its command table (aliases, or `none`, and the MCP tool).
+  - `test/util-docs.test.ts` fails on a command with no page entry, no example or
+    no table row; an entry or row for a command that doesn't exist; an example or
+    `--flag` the command doesn't have, so a flag change turns up as a stale example;
+    a table cell that disagrees with the registry; and unbalanced tags in
+    `site/src/pages/docs/utilities.astro`.
 
 ## Reading input: `kit/input.ts`
 
@@ -107,7 +124,7 @@ classify, a file it couldn't read) is counted and reported in `data` and
 | YAML | `kit/yaml.ts` | js-yaml, YAML 1.2 core schema (no timestamps), duplicate keys refused, one document, and aliases may add at most 1,000,000 values beyond the document as written (`INVALID_INPUT` past it, so a "billion laughs" document is refused; a document without aliases is held only by the input cap). Errors give line and column, never the text. Lazy only |
 | JSON Schema | `kit/json-schema.ts` | @cfworker/json-schema, drafts 4, 7, 2019-09 and 2020-12, chosen from `$schema`. Problems by JSON pointer, deepest first, capped. For ADF, OpenAPI and generated examples. Lazy only |
 | Secrets | `src/core/secret-shapes.ts` | toil's one definition of a secret. The audit log redacts with `redactText`; `findSecrets(text)` returns each secret's rule and position (the secret alone, never the name around it), from the same rules |
-| Versions | `src/core/versions.ts` | The comparison `artifactory outdated` and `util deps diff` use, exactly as recorded. An ecosystem's own grammar goes beside it, not in place of it |
+| Versions | `src/core/versions.ts` | The comparison `artifactory outdated` and `util deps diff` use, exactly as recorded, and beside it each ecosystem's own grammar: `grammarFor(ecosystem)` loads npm's, NuGet's or Maven's (`src/core/versions/`, lazily) with parse, compare, ranges, bump and the intervals a range covers. `util semver` is built on it; use it rather than a second comparison |
 
 Folder walking is `ctx.files.list(dir)`: what `git ls-files --cached --others
 --exclude-standard` would list, `.gitignore` respected, with `stat` for sizes. There's
@@ -136,6 +153,13 @@ that, so ESLint refuses a static import of `js-yaml`, `@cfworker/json-schema`,
 `kit/yaml` and `kit/json-schema` outside those wrappers and tests. A type-only import
 is allowed, since it's erased. Treat a command's own heavy module the same way.
 
+**A module reached through `import()` must not import zod**, directly or through
+something that does (`kit/input.ts` does, for `inputFields`). esbuild then wraps
+zod to be evaluated lazily too, and the MCP SDK's own top-level zod calls run
+before it is, so the bundle fails at startup with `Class2 is not a constructor`.
+Unit tests don't see it; `npm run smoke` does. A command whose work needs the
+input reader and has no heavy dependency (`secrets scan`) imports it statically.
+
 A module loaded through `import()` must not import zod, directly or through
 `kit/input.ts`. esbuild then defers zod's own setup too, the MCP SDK's schemas hit
 it at startup, and the bundle fails on every command, `toil version` included, with
@@ -143,4 +167,4 @@ it at startup, and the bundle fails on every command, `toil version` included, w
 Keep the reading in the command's small module and hand the lazy one what it read:
 bytes, text, or the opened `UtilInput`, importing only the reader's types there
 (`util log` does this in `runLog`). A small module may simply be a static import, as
-`util encode` is.
+`util encode` is. `util md` reads its input in `src/areas/util/md.ts` and hands the text on.

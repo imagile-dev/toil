@@ -1098,6 +1098,101 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   document without aliases is held by the input cap alone. js-yaml has no switch
   to reject aliases, and the count also stops a cycle.
 
+### util semver (#180)
+
+- **Four commands, not six:** `compare` (which also answers "diff two", as
+  `difference`), `satisfies`, `sort` (which, with `--range`, also gives the
+  versions that satisfy it and the highest), and `bump`.
+- **One home for comparisons, two behaviours:** `compareSemver` in
+  `src/core/versions.ts` stays exactly as `artifactory outdated` and
+  `util deps diff` recorded it (prereleases as plain text, quirks included).
+  The ecosystems' own grammars sit beside it behind one interface,
+  `VersionGrammar`, in `src/core/versions/` (npm, NuGet, Maven), loaded only
+  through `grammarFor`. No dependency: node-semver is ISC (outside the
+  MIT/Apache/BSD list), and NuGet and Maven have no JavaScript library at all.
+- **npm follows node-semver's strict mode exactly**, desugaring included, and
+  passes its range-include, range-exclude, range-parse, comparison, equality,
+  valid, invalid and increment tables. Loose mode (73 rows across the tables)
+  is left out on purpose, since it coerces text into versions; so is `inc`'s
+  identifier base (34 rows). `includePrerelease` is offered as
+  `--include-prerelease`. One deliberate difference: numeric prerelease
+  identifiers compare by value at any size, as SemVer 2.0.0 says, where
+  node-semver stops at 2^53.
+- **NuGet follows NuGet.Versioning** (`NuGetVersion.TryParse`,
+  `VersionComparer.Default`, `VersionRange.TryParse` and `Satisfies`).
+  Floating versions (`1.*`) are refused: their meaning depends on a feed. A
+  prerelease inside a range's bounds satisfies it, as `Satisfies` has it; the
+  restore-time rule that skips prereleases is resolution, not a range.
+- **Maven follows Maven 3.9's ComparableVersion and VersionRange**, but
+  ComparableVersion orders any string, so here a version is letters, digits,
+  `.`, `-`, `_` and `+` with at least one digit. A bare version is a soft
+  requirement any version satisfies (as Maven has it), with a
+  `MAVEN_SOFT_REQUIREMENT` warning.
+- **`difference` uses one rule everywhere:** the most significant part that
+  differs (`major`, `minor`, `patch`, `revision`, then `prerelease` or
+  `qualifier`), not node-semver's `premajor`-style answers.
+- **Bump:** npm is `inc` without the identifier base. NuGet and Maven take
+  major, minor and patch only; NuGet drops the revision and labels, Maven
+  bumps the leading numbers and drops the qualifier.
+- **Self-checks:** `sort.transitive` checks every pair of the sorted list up
+  to 2,000 versions (about 2 million comparisons), and neighbours only past
+  that, reported as `APPROXIMATED`. Range answers are checked against the
+  range's intervals, which each grammar works out by comparison alone, at
+  the boundary versions and at every version asked about. For NuGet and
+  Maven, whose ranges are intervals already, that check is close to the
+  computation itself; it's still run, and a test shows it catching a broken
+  `satisfies`.
+- **The run module is a static import** (#188: a lazy module that imports
+  zod breaks the bundle). Only the grammars, which import nothing, are lazy.
+- **The utilities page** shows each command's short paths from the registry:
+  the generated `site/src/data/commands/<area>.json` gains an `aliases` field,
+  present only on commands that have one.
+- **A Maven or NuGet version is at most 256 characters**, as an npm one is.
+  Maven's parse nests one list per letter-digit switch, so a long `1a1a…` would
+  otherwise recurse past the stack when compared.
+
+### util secrets scan (#178)
+
+- **One input field for a file or a folder.** The path argument (`file` over
+  MCP, the kit's field) takes either; a folder is walked with `ctx.files.list`.
+  `--diff staged|working` is the third input, and two at once is refused.
+- **"Working tree" means `git diff`**, the unstaged changes, as git uses the
+  words; `staged` is `git diff --staged`. Both run with `--unified=0
+  --relative` and fixed prefixes, and only added lines are scanned. Untracked
+  files aren't in either, so `working` counts them in a warning rather than
+  scan them.
+- **Findings exit 1 with `ok: true`** (`ctx.setExitCode`), as a failed build
+  does, so the findings stay in `data`. The parity examples allow-list every
+  sample secret so they exit 0, which the suite requires; the tests with
+  findings cover exit 1 through both doors.
+- **Fingerprints are a salted scrypt** (N 2^14, 16 bytes, four groups of 8
+  hex), not a SHA-256: a hash of a short password in a CI log is a lookup
+  away from the password. About 20 ms per distinct value. The value alone is
+  hashed, not its path, so one allow entry covers a test value wherever it
+  appears. Four hex groups don't look like a secret to the shared rules, so the
+  allow file scans clean.
+- **The allow file defaults to `.toil/secrets-allow`**, beside `.toil/dossiers/`,
+  one fingerprint per line. A line that isn't one is reported by number only.
+- **Previews keep 4 characters at each end from 24 characters, 2 from 16, none
+  below**, and a preview that fails its own check is replaced by `…`.
+- **Set aside and counted, not reported:** SRI checksums (`sha512-…`), which
+  every npm lockfile is full of, and values that are references
+  (`${{ secrets.X }}`, `$VAR`, `<token>`, `xxx`), which every CI workflow is.
+  Without both, a staged lockfile or workflow change would always fail the gate.
+- **Entropy stays in this command** (per the kit decision): a `high-entropy`
+  rule for base64 runs of 20 or more the shared rules don't reach (they stop
+  at `/` and `-`), at 4.2 bits per character, and a `confidence` on every
+  finding. `findSecrets` itself is unchanged.
+- **Line by line**, with 4 MiB lines and 64 MiB files; a private key whose END
+  is on a later line is one finding with `endLine`. Longer lines and files are
+  listed in `unreadable`.
+- **A single named file that can't be read fails the call** (`INVALID_INPUT`, as
+  every kit reader does); inside a folder it's listed in `unreadable` instead.
+- **Planted test tokens are joined from pieces** (`plant('AKIA', '…')`) in the
+  tests and samples. GitHub's push protection refuses a commit holding a whole
+  vendor-shaped token, invented or not, and bypassing it is a human's call.
+
+
 ### util report (#175)
 
 - **One of `tests`, `findings` and `coverage` is filled in, the other two are
@@ -1189,6 +1284,7 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
 - **Kit:** none in the end. DER input is read with `binary: 'allow'` and
   `utf8: 'skip'`, the switch `util encode` added, rather than making `binary`
   silence the UTF-8 warning too: one switch per check.
+
 ### util encode (#182)
 
 - **One command, the scheme as its first argument:** `toil util encode <scheme>`,
@@ -1275,3 +1371,166 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
 - **The work is lazily loaded, with zod kept out of it:** `log.ts` opens the input
   (`runLog`) and `log/triage.ts` imports only types from `kit/input.ts`, so the
   triage code stays out of startup without tripping the trap #188 found.
+
+### util size (#184)
+
+- **Code intelligence: the maintainer's framing (2026-10-18).** The
+  `code-intelligence` decision is about heavy dependencies, not code intelligence:
+  small pure-JS code intelligence is welcome, and the TypeScript language service
+  or compiler at runtime, tree-sitter WASM grammars, ast-grep, Pyright and IDE
+  bridges are what's ruled out. Reopening is needed only to add one of those. The
+  skill now says so and cites this outliner as an example that fits.
+- **Code outlines are a pure-JS syntactic scan, not the TypeScript compiler.**
+  `typescript.js` is 9.1 MB unminified, more than the whole bundle today, and is
+  one of the heavy dependencies the `code-intelligence` skill rules out. A small
+  lexer per language (comments and every string form skipped) plus brace matching,
+  or indentation for Python, finds functions, classes, types, methods and exported
+  names. The tests hold the TypeScript and JavaScript outlines to the compiler's
+  syntax tree (a devDependency, never shipped); on toil's 424 own source files they
+  agree on every symbol and line, and on 1,500 random `node_modules` JavaScript
+  files they differ on 6 symbols in 5 files, all compiled or minified code (mostly a
+  constant set to an immediately invoked function, which the scan calls a function). Each result
+  says `precision: "syntactic"` and warns `APPROXIMATED`.
+- **Tokens are `ceil(characters / 4)`** in Unicode code points, the simplest
+  estimate, stated in `tokenMethod` and warned `APPROXIMATED`. No tokenizer is
+  bundled.
+- **Folders get counts, not outlines.** A per-file outline of a whole tree would be
+  larger than reading it. `largest` gives each file's language, and one `size` call
+  on a file outlines it.
+- **The folder tree stops at `--depth` (default 3)**, with deeper folders still in
+  their parent's totals and `foldersHidden` counting them, so a large repository
+  doesn't produce a tree bigger than its files. `--top` defaults to 10.
+- **One input field, `file`, takes a file or a folder**, so the kit's input reader
+  (`file`, `text`, stdin) is reused unchanged. `language` with a folder, and `top` or
+  `depth` with a file, are `INVALID_INPUT` rather than ignored.
+- **A binary file in a folder is sniffed, not read**: the first 8,000 bytes through
+  `ctx.files.readStream`. It counts in files and bytes (from its size), with null
+  lines and tokens, and isn't sent through the reader, which would warn
+  `INPUT_NOT_UTF8` for every image in the tree.
+- **Files are counted with no size cap** (counting streams); only stdin keeps the
+  reader's 64 MiB cap. Outlines skip files over 8 MiB with `too-large`.
+- **A parse error is a reason, not a failure**: the counts still come back, with
+  `notOutlined.reason: "parse-error"`, the line, and a `SIZE_PARSE_ERROR` warning.
+  A JSON error gives line and column only, never V8's quote of the text.
+- **The measuring module is imported statically**, since it reads input through
+  `kit/input.ts` and so zod (#188's finding); the outliners load through `import()`.
+- No kit additions.
+
+### util time (#179)
+
+- **Intl only, not Temporal.** Node 24.14 has no `Temporal`, and using it only where
+  it exists would let the same call answer differently on Node 24 and 26. Every
+  zone operation is `Intl.DateTimeFormat` over the IANA data Node ships.
+- **Five commands under `util time`:** `convert`, `duration`, `business-days add`,
+  `business-days diff` and `cron`, one MCP tool each, with no short alias.
+- **A DST gap resolves forward and an overlap to the earlier instant**, Temporal's
+  "compatible" choice, always with a `TIME_DST_GAP` / `TIME_DST_OVERLAP` warning and
+  a `dst` object in `data`. There's no flag to choose otherwise; an offset does that.
+- **Cron lists a skipped run time in `skipped`, not as a run**, and a repeated one
+  once, at its first occurrence. Schedulers differ on both, and the warnings say so.
+- **A time without an offset needs `zone` in `convert`**, and is refused without
+  one. The other commands' `zone` defaults to UTC, which `data.zone` reports.
+- **Durations from seconds are written in hours** (`PT26H`), never days, so they
+  stay exact. A day in a parsed duration counts as 24 hours, flagged `APPROXIMATED`;
+  years and months give `totalSeconds: null`, flagged `UNVERIFIED`.
+- **Business days are Monday to Friday**, with no configurable weekend and no
+  built-in holidays; the caller lists holidays (a file or `--holiday`). `add`
+  counts as a spreadsheet's WORKDAY does. `diff` reports business time as whole
+  24-hour days plus hours, with no working-hours window.
+- **Cron dialects:** standard follows the classic crontab's OR rule for the two day fields (AND
+  when either starts with `*`); Jenkins ANDs them, as its `CronTab.check` does;
+  Quartz requires `?` in one. Detected when not given; a detected standard
+  expression with both day fields set warns `CRON_DIALECT_ASSUMED`.
+- **Jenkins `H` needs `--job`** and is otherwise `INVALID_INPUT`, rather than
+  explaining an expression it can't place. Only one expression line is read: no
+  `TZ=` line and no multi-line specs.
+- **Quartz `nW` in a month without day n doesn't run that month**, as plain `31`
+  doesn't.
+- **The cron explanation is reported `unchecked`** on every call: its wording is
+  built from the same fields as the run times, which are what's checked.
+- **The search horizon is 100 years** (or Quartz's last listed year), with
+  `CRON_FEW_RUNS` when fewer runs than asked are found.
+- **Skipped run times are capped** (review of #194): `skipped` lists the first 100
+  and `skippedTotal` counts every one, and the walk stops after 5,000 skipped run
+  times with `CRON_SEARCH_STOPPED`. 5,000 covers a whole every-second gap hour
+  (3,600), and a schedule that only ever lands in gaps ends at once.
+- **The reference table is computed in Java** (`test/fixtures/util-time/CronReference.java`),
+  with java.time, its own zone data and the real `java.util.Random`, and committed
+  as JSON, so `npm test` needs no JDK.
+- **The holiday file is read in `time.ts`, not in the lazily loaded engine**,
+  following #188: lazily loaded code must not import zod, and `kit/input.ts` does.
+  No kit change.
+- **The skill checker reads `-1` as an argument, not a flag**, as commander 15 does,
+  so `toil util time business-days add 2026-12-28 -1` passes `test/skills.test.ts`.
+
+### util md (#177)
+
+- **One command, `util md`, with `--to` or `--from`**, one of them Markdown: four
+  formats, three directions each way, and no Markdown-free pair (wiki to ADF),
+  which the issue doesn't ask for. No `--out`: the result is in `data.output`,
+  and `--select output` gives it alone, so no write rules apply.
+- **The Markdown reader is written here**, a focused CommonMark plus GFM subset
+  (tables, task lists, strikethrough, bare URLs), not a dependency. Converting
+  needs one tree that all four formats share, with positions; a library's tree
+  would still need its own conversion, and its HTML output nothing. Raw HTML
+  other than `<br>`, link reference definitions and footnotes aren't read; each
+  is kept as text and reported as a loss.
+- **The round trip compares canonical Markdown, block by block** (an LCS over
+  top-level blocks). A block that changed with a loss reported in it is expected;
+  one without fails `roundTrip.blocks` (`MD_ROUNDTRIP_MISMATCH`). `lossless` is
+  true only when nothing was lost and nothing changed: a wiki task list comes back
+  as a task list, but Jira shows `[ ]` text, so it still counts as a loss.
+- **A loss explains only its own block.** Where a run of changed blocks has as many
+  blocks after the round trip as before, each is judged against its counterpart on
+  its own. A run that gained or lost blocks is explained only if every block in it
+  had a loss, and a block from nowhere never is. A loss in a block that produced
+  nothing, or that became an empty paragraph, stays in `losses` but explains none.
+- **Normalization:** whitespace runs are one space, a soft line break is a space,
+  `_x_` is `*x*`, list markers and numbering are canonical, empty paragraphs go.
+  None of these show when the document is rendered.
+- **Positions:** `line N` in Markdown, wiki markup and storage format; a JSON
+  pointer in ADF.
+- **The ADF schema is vendored**, `@atlaskit/adf-schema` 57.6.21's `full.json`
+  (Apache-2.0, 74 KB, published 2026-10-02), loaded with the JSON Schema helper
+  only when ADF is read or written. ADF output the schema refuses is never
+  returned: the command fails with `INTERNAL`, since it's a bug. ADF input it
+  refuses is converted with an `ADF_INPUT_INVALID` failed check, because Jira
+  returns documents newer than any bundled schema.
+- **Wiki markup:** a single line break is a break, as Jira renders it; a task is
+  `[ ]` / `[x]` text; a literal backslash is `&#92;` (two are Jira's line break);
+  emphasis inside a word uses the braced `{*}` form. How Jira's renderer treats
+  each escape is unverified.
+- **Storage format** is read with the kit's XML reader in fragment mode, with
+  HTML's common named entities; any other entity is `INVALID_INPUT`. A code block
+  is written as the code macro, strikethrough as the line-through span.
+- **Reuse:** the ADF node types are jira-cloud's (`src/areas/jira-cloud/adf.ts`);
+  `textToAdf` / `adfToText` and confluence-cloud's `storageToText` stay as they
+  are, since they're the plain-text forms those areas' fields promise. The area
+  flags (`--markdown` on create commands) are not part of this.
+- **The input is read in `md.ts`**, which loads statically; only the converters
+  load lazily, so zod stays out of the lazy module (the encode build's finding).
+
+### util docs and coverage (#186)
+
+- **`deps` goes under Safety.** Its inventory is what the vulnerability and licence
+  commands read, so it sits with the other checks made before something is trusted
+  (secrets, certificates, tokens), not with CI output or arithmetic.
+- **One page entry per family, not per command.** `site/src/data/utilities/<family>.json`
+  covers `time`'s five commands, `semver`'s four and `deps`' two in one entry each,
+  with an example for every command, so the page doesn't repeat the same paragraph
+  per subcommand. One file per family keeps parallel util PRs off a shared list.
+- **The page is data plus the registry.** The prose is in the family files; flags,
+  aliases, MCP tools and the command count come from `data/commands/util.json`.
+  Prose is plain text with backticks for code; nothing else is rendered as markup.
+- **The tag check is a small stack parser** over the template, skipping
+  frontmatter, `<style>`, `<script>` and attribute values, rather than a
+  `<section>` count, so a misplaced `</div>` is caught too.
+- **The example check reuses the skill test's command-line walker**, moved to
+  `test/harness/cli-lines.ts`, so the page, util.md and the rest of the skill hold
+  examples to one definition of a real flag. A `--flag` in an entry's prose must be
+  a flag of one of the entry's own commands.
+- **util.md's command table is checked against the registry** (one row per
+  command, its aliases or `none`, its MCP tool), and every command needs an example
+  in a shell block, not only a mention.
+- **Fixed on the way:** util.md's `md` section carried a copy of `log`'s output and
+  checks from a merge, and the `md` row had an empty alias cell.

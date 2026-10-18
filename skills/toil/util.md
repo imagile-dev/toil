@@ -1,17 +1,18 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, and triaging a large log
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, and converting Markdown to and from Jira and Confluence formats
 ---
 
 # Local utilities (`util`)
 
-Commands that work on what's on this machine: a token you paste, a file in the
-workspace (a certificate or a log, say), the manifests and lockfiles there, or a report a
-build left behind. They aren't integrations. There is no server, no connection to
-add, no `TOIL_UTIL_*` variable, no credential and no `--connection` flag, and none
-of them sends anything over the network. None changes anything: the only file one
-writes is a new one you name with `--out`, inside the workspace, and it never
-replaces a file. Verification level: `unit`.
+Commands that work on what's on this machine: a token or version you paste, a file or
+folder in the workspace (a certificate or a log, say), the manifests and lockfiles there, a
+report a build left behind, text you're about to commit or post, or a time and a time zone. They aren't
+integrations. There is no server, no connection to add, no `TOIL_UTIL_*`
+variable, no credential and no `--connection` flag, and none of them sends
+anything over the network. None changes anything: the only file one writes is a
+new one you name with `--out`, inside the workspace, and it never replaces a
+file. Verification level: `unit`.
 
 `jwt` and `deps` also have a short path, an alias that does the same thing with
 the same flags and output:
@@ -21,10 +22,22 @@ the same flags and output:
 | `toil util jwt decode` | `toil jwt decode` | `util_jwt_decode` |
 | `toil util deps scan` | `toil deps scan` | `util_deps_scan` |
 | `toil util deps diff` | `toil deps diff` | `util_deps_diff` |
-| `toil util encode` | | `util_encode` |
-| `toil util cert` | | `util_cert` |
-| `toil util report` | | `util_report` |
-| `toil util log` | | `util_log` |
+| `toil util secrets scan` | none | `util_secrets_scan` |
+| `toil util encode` | none | `util_encode` |
+| `toil util cert` | none | `util_cert` |
+| `toil util report` | none | `util_report` |
+| `toil util log` | none | `util_log` |
+| `toil util size` | none | `util_size` |
+| `toil util time convert` | none | `util_time_convert` |
+| `toil util time duration` | none | `util_time_duration` |
+| `toil util time business-days add` | none | `util_time_business_days_add` |
+| `toil util time business-days diff` | none | `util_time_business_days_diff` |
+| `toil util time cron` | none | `util_time_cron` |
+| `toil util semver compare` | none | `util_semver_compare` |
+| `toil util semver satisfies` | none | `util_semver_satisfies` |
+| `toil util semver sort` | none | `util_semver_sort` |
+| `toil util semver bump` | none | `util_semver_bump` |
+| `toil util md` | none | `util_md` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
@@ -98,7 +111,9 @@ Which files it reads:
 A lockfile wins over its manifest. Packages are de-duplicated on ecosystem, name,
 version and source file. A manifest that can't be read is skipped. One that exists
 but can't be read (a link out of the workspace, say) also gets a
-`DEPS_FILE_SKIPPED` warning in `meta.warnings`.
+`DEPS_FILE_SKIPPED` warning in `meta.warnings`. That warning is the only check it
+makes of its own result: the `deps` commands have no `verified` block, so treat the
+quirks below as unchecked.
 
 Output:
 
@@ -166,6 +181,134 @@ Known quirks:
   survives. A package present at two versions can show a change that didn't happen.
 - Paths that git quotes (non-ASCII names) aren't read at a ref.
 - A ref that starts with `-`, or an empty `--from`, is refused with `INVALID_INPUT` before git runs. An empty `--to` means the working tree.
+
+### `toil util secrets scan`
+
+Finds credential-shaped strings before an agent or a person commits, pushes,
+comments or posts them. It reads a file, a folder, stdin, text, or the
+repository's staged or working-tree diff, and talks to nothing.
+
+```bash
+toil util secrets scan --diff staged          # before git commit
+toil util secrets scan src/                   # a folder, .gitignore respected
+toil util secrets scan notes.md
+gh pr view 12 --json body -q .body | toil util secrets scan -
+toil util secrets scan --text "$COMMENT"
+```
+
+| Argument / flag | Meaning |
+|-----------------|---------|
+| `[path]` | A file or folder inside the workspace. A folder is walked as `git ls-files --cached --others --exclude-standard` would list it. `-`, or nothing at all, reads stdin |
+| `--text <text>` | The content itself, instead of a file |
+| `--diff <kind>` | `staged` scans what the next commit holds (`git diff --staged`); `working` scans unstaged changes (`git diff`). Added lines only, in the workspace only. Runs the git on PATH |
+| `--allow-file <file>` | The allow file (default: `.toil/secrets-allow` at the workspace's top, when it exists) |
+
+Pass one of a path, `--text` or `--diff`; two at once is `INVALID_INPUT`. Over
+MCP, pass `file`, `text` or `diff`.
+
+**The exit code is 1 when anything is found**, and 0 when nothing is, so a hook
+or a pipeline can gate on it. The envelope stays `ok: true` either way; `ok:
+false` (also exit 1) means the scan itself failed.
+
+**What it looks for:**
+
+- The rules the audit log redacts with, so toil has one definition of a
+  secret: GitHub, GitLab, Slack, AWS, SonarQube, `sk-` and Atlassian tokens,
+  JWTs, private keys, credentials in URLs, `Bearer` / `Basic` / `Token`
+  values, `name=value` pairs whose name says secret (`password=`,
+  `"apiToken":`, `--token=`), `curl -u user:pass`, and long random runs of
+  letters and digits.
+- `high-entropy`: a run of 20 or more base64 or base64url characters, holding
+  letters and digits, that those rules didn't catch and whose Shannon entropy
+  is at least 4.2 bits per character.
+
+Two things are set aside and counted instead of reported: Subresource Integrity
+checksums (`sha512-…` in lockfiles, counted in `summary.checksums`), and a named
+value that is a reference to a secret rather than one (`token: ${{ secrets.X }}`,
+`password=$DB_PASSWORD`, `<your-token>`, `xxx`, counted in
+`summary.placeholders`). Commits, digests and UUIDs aren't findings.
+
+Output:
+
+```json
+{
+  "source": { "kind": "staged", "path": null },
+  "findings": [{ "file": "config/application.properties", "line": 4, "column": 28, "length": 14, "rule": "name-value", "confidence": "high", "entropy": 3.18, "preview": "…", "fingerprint": "e594506f-49ad270a-55b41205-70d9b059" }],
+  "allowed": [],
+  "unreadable": [{ "file": "logo.png", "reason": "binary", "message": "logo.png is binary in the diff; its content wasn't scanned." }],
+  "allowList": null,
+  "summary": { "files": 1, "lines": 5, "findings": 1, "allowed": 0, "unreadable": 1, "checksums": 0, "placeholders": 0, "byRule": { "name-value": 1 } },
+  "verified": { "passed": true, "checks": [] }
+}
+```
+
+- `file` is relative to the workspace, with forward slashes, or `null` for
+  stdin and text. `line` and `column` start at 1; columns count UTF-16 code
+  units. A private key spanning lines is one finding, with `endLine`.
+- `source.kind` is `file`, `folder`, `stdin`, `text`, `staged` or `working`.
+- `confidence` is `high` for a vendor's token format, `high` or `medium` for a
+  value a name or scheme marks as secret (medium when it's short and plain),
+  and graded by entropy for a random run (`low` below 3.5 bits per character).
+- **The full secret is never in the output**, nor in a warning, an error or the
+  audit log, which keeps no copy of `text`. `preview` keeps at most 4
+  characters at each end of a secret of 24 or more, 2 of one of 16 to 23, and
+  none of a shorter one: `ghp_…c9vB`, `…`.
+- `fingerprint` identifies the value without revealing it: a salted scrypt,
+  four groups of 8 hex digits. It's slow on purpose, so a short password can't
+  be recovered from it by guessing at speed.
+
+**The allow file** lists known false positives, one fingerprint per line, copied
+from a finding. `#` starts a comment. It's matched by fingerprint only, never by
+the raw value, so it's safe to check in. A finding it names goes in `allowed`
+instead of `findings` and doesn't set the exit code. `allowList` says which file
+was read, how many entries it had, how many lines weren't fingerprints, and how
+many entries matched nothing. A line that isn't a fingerprint is ignored with a
+`SECRETS_ALLOW_INVALID` warning that gives its line number and never its text. A
+named `--allow-file` that doesn't exist is `INVALID_INPUT`.
+
+```text
+# .toil/secrets-allow
+e594506f-49ad270a-55b41205-70d9b059  # the test fixture's dummy password
+```
+
+**What it checks of its own result** (`verified`):
+
+- `finding.reread`: every finding is read again at its reported line, from the
+  file on disk, from the index (`git show :<path>`) for a staged diff, or from
+  what stdin or the text held. The same characters must be at the same column,
+  with the same rule finding them. A mismatch warns `SECRETS_REREAD_MISMATCH`.
+- `preview.masked`: every preview is checked to hold none of the secret's
+  middle. One that fails warns `SECRETS_PREVIEW_LEAK` and is replaced by `…`.
+- `input.complete`: each file was read to its size on disk. For a diff this is
+  `unchecked`, with an `UNVERIFIED` warning, since git's output has no size to
+  compare with; the re-read checks each finding instead.
+
+**What it couldn't read is listed**, never skipped silently. `unreadable` holds
+each binary file, each file over 64 MiB, each one it couldn't open (a permission
+error, say), each nested repository a folder scan didn't walk into, and each line
+over 4 MiB, of which only the start was scanned. Any of them adds a
+`SECRETS_UNREADABLE` warning. A single file named on the call that can't be read
+is an `INVALID_INPUT` error instead. `--diff working` also warns
+`SECRETS_UNTRACKED_NOT_SCANNED` with the number of untracked files, which no diff
+holds: scan the folder, or stage them, to include them.
+
+**A diff covers the workspace, not the whole repository.** When the workspace is
+a folder inside the repository, changes outside it aren't scanned, and a
+`SECRETS_DIFF_PARTIAL` warning gives the number of changed files left out. To
+check a whole commit, run it with `--workspace` at the repository's top.
+
+Known limits:
+
+- A diff and a file are scanned line by line, so a secret split across two lines
+  (other than a private key) isn't found.
+- A private key spans lines only when its BEGIN line stands alone and an END
+  line follows its body (base64, blank, `Proc-Type:` and `DEK-Info:` lines). It's
+  then one finding, with `endLine`. When no END comes (another line, a gap
+  between diff hunks, or the end of the file), the BEGIN line is reported on its
+  own and the lines below it are scanned as usual.
+- A bare `key=` isn't treated as a secret's name, because in toil's inputs it's
+  an issue, space or project key. A real key there is still caught by its shape
+  or its entropy.
 
 ### `toil util encode`
 
@@ -316,6 +459,79 @@ What it checks, in `data.verified` (a failure also warns under its code):
   next one starts; it's reported at its byte offset.
 - Input with no certificate that can be read fails with `INVALID_INPUT`, naming
   each block and why.
+
+### `toil util semver`
+
+Versions and ranges in the grammar of the ecosystem they come from. Pick it with
+`--ecosystem`: `npm` (the default), `nuget` or `maven`.
+
+- **npm:** SemVer 2.0.0 versions (`1.2.3`, `1.2.3-rc.1+build.5`; a leading `v` is
+  allowed) and npm's ranges, as `package.json` takes them: `^1.2.3`, `~1.2`, `1.x`, `>=1.0.0 <2.0.0`,
+  `1.0.0 - 2.0.0`, joined with `||`. A prerelease satisfies a range only when the
+  range names a prerelease of the same `major.minor.patch`, unless you pass
+  `--include-prerelease`. There's no loose mode that turns text that isn't a
+  version into one.
+- **nuget:** one to four numbers (`1`, `1.0` and `1.0.0.0` are one version), then
+  an optional `-prerelease` and `+metadata`. Labels compare case-insensitively.
+  Ranges are interval notation: `1.0` (at least 1.0), `[1.0]`, `[1.0,2.0)`,
+  `(,2.0]`. A prerelease inside the bounds satisfies the range. Floating versions
+  (`1.*`, `1.0.0-*`) are refused, because what one picks depends on the feed.
+- **maven:** Maven's own ordering: `alpha < beta < milestone < rc < snapshot <
+  release < sp`, `1`, `1.0` and `1.0.0.Final` are one version, and `1a1` is
+  `1-alpha-1`. A version is letters, digits, `.`, `-`, `_` and `+` with at least
+  one digit, so an unresolved `${property}` is reported, not ordered. Ranges are
+  `[1.0,2.0)`, `[1.0]` and `(,1.0],[1.2,)`. A bare version is a soft requirement
+  that any version satisfies, and says so in a `MAVEN_SOFT_REQUIREMENT` warning.
+
+A version or range that doesn't parse in the chosen grammar is `INVALID_INPUT`,
+with the reason and an example of what fits. Build metadata never affects order.
+
+```bash
+toil util semver compare 1.0.0-rc.10 1.0.0-rc.9
+toil util semver satisfies 1.3.0-rc.1 '^1.2.0' --include-prerelease
+toil util semver satisfies 5.3.39 '[5.0,6.0)' --ecosystem maven
+toil util semver sort versions.txt --range '^5.0.0'
+toil util semver bump 1.2.3 prerelease --preid rc
+```
+
+| Command | Arguments and flags | Output |
+|---------|---------------------|--------|
+| `compare <a> <b>` | `--ecosystem <ecosystem>` | `{ ecosystem, a, b, order, higher, difference, normalized: { a, b }, verified }`. `order` is -1, 0 or 1 for a against b, `higher` is `a`, `b` or null, and `difference` is the most significant part they differ in: `major`, `minor`, `patch`, `revision` (NuGet's fourth part, or Maven's), `prerelease`, `qualifier` (Maven) or null |
+| `satisfies <version> <range>` | `--ecosystem <ecosystem>`, `--include-prerelease` | `{ ecosystem, version, range, normalizedRange, satisfies, verified }` |
+| `sort [file]` | `--text <text>`, `--ecosystem <ecosystem>`, `--range <range>`, `--include-prerelease` | `{ ecosystem, count, sorted, invalid, verified }`, lowest first, plus `{ range, normalizedRange, satisfying, highest }` with `--range` |
+| `bump <version> <release>` | `--ecosystem <ecosystem>`, `--preid <id>` | `{ ecosystem, version, release, preid, result, verified }` |
+
+- **`sort`** reads a file in the workspace, stdin (`-`, or no file), or `--text`.
+  Versions go one per line or separated by spaces. An entry that doesn't parse is
+  left out of the sort and listed in `invalid` with its line and the reason, with a
+  `SEMVER_INVALID_VERSION` warning.
+- **`bump`** takes `major`, `minor` or `patch` in every ecosystem. npm also takes
+  `premajor`, `preminor`, `prepatch`, `prerelease` and `release`, the bumps npm
+  publishes with, and `--preid` names the prerelease (`1.2.3` `prerelease --preid rc` is
+  `1.2.4-rc.0`). A NuGet result has three parts, with the revision and labels
+  dropped. Maven bumps the leading numbers and drops the qualifier
+  (`1.2.3-SNAPSHOT` `minor` is `1.3.0`).
+
+**What it checks** (`verified`, with failures as warnings):
+
+- `sort.transitive`: every pair in the sorted list is in order, so a comparison
+  where a < b and b < c but not a < c can't hide. Up to 2,000 versions; past that,
+  each against its neighbour, reported as `APPROXIMATED`.
+- `sort.antisymmetric`, `sort.complete`: each neighbouring pair compares the same
+  both ways round, and every entry is either sorted or listed as invalid.
+- `range.boundaries`, `range.answers`: each answer agrees with the range's
+  intervals, worked out by comparison alone, at the range's boundary versions and
+  at every version asked about. A range with no bounds (`*`) has none to test, and
+  says so with `UNVERIFIED`.
+- `compare.antisymmetric`, `diff.consistent`, `bump.increases`,
+  `version.normalized`: b against a is the reverse of a against b, a difference is
+  named exactly when the versions differ, a bump goes up, and a normalised version
+  reads back as the same version.
+- `input.complete`: the whole file was read. stdin has no size to compare with, so
+  it's `UNVERIFIED`.
+
+`diff` names the most significant part that changed, the same rule in every
+ecosystem; it never answers `premajor` or the like.
 
 ### `toil util report`
 
@@ -513,3 +729,321 @@ no zone.
 
 A file streams with no size limit. stdin and `--text` are held in memory, up to
 64 MiB, so pass a file for anything bigger.
+
+### `toil util size`
+
+How big a file or folder is before you read it, so an agent can budget its
+context: bytes, lines and an estimated token count, and for one file an outline
+with line ranges, so you can read just the part you need.
+
+```bash
+toil util size src/areas/util/size.ts
+toil util size src --depth 2 --top 5
+git show HEAD:README.md | toil util size - --language markdown
+```
+
+| Argument / flag | Meaning |
+|-----------------|---------|
+| `[file]` | A file or folder inside the workspace. `-` (or nothing) reads stdin |
+| `--text <text>` | The content itself, instead of a file |
+| `--language <language>` | Outline it as this language: `typescript`, `javascript`, `python`, `csharp`, `java`, `go`, `markdown`, `json` or `yaml`. Needed for stdin and `--text`; for a file it overrides the extension |
+| `--top <n>` | For a folder: how many of the largest files to list (default 10) |
+| `--depth <n>` | For a folder: how many levels of subfolders the tree shows (default 3). Deeper folders still count in their parent's totals, and `foldersHidden` says how many were left out |
+
+**Tokens are an estimate**: `ceil(characters / 4)` per file, counting Unicode code
+points. No model's tokenizer is bundled, and real counts vary by model and
+content. Every result says so in `tokenMethod` and with an `APPROXIMATED` warning.
+
+**For a file**: `{ kind: "file", path, language, bytes, lines, tokens, tokenMethod,
+outline, notOutlined, verified }`. `outline` is `{ precision, method, symbols }`,
+each symbol `{ name, kind, startLine, endLine, container }` (headings add `level`):
+
+- **Code** (`precision: "syntactic"`): TypeScript and JavaScript (`.ts`, `.tsx`,
+  `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`), Python, C#, Java and Go. Functions,
+  classes, interfaces, types, enums, namespaces, methods, constructors, C#
+  properties and exported names. It's a pure-JavaScript scan that skips comments
+  and strings and matches braces (indentation for Python), not a compiler, so
+  `method` says what each language covers. Function bodies aren't searched, and
+  fields aren't listed. `container` is the enclosing class or namespace.
+- **Markdown**: ATX and setext headings, outside code fences and front matter.
+- **JSON and YAML** (`precision: "parsed"`): the top-level keys, found by scanning
+  and held against what the parser returns.
+
+When there's no outline, `outline` is null and `notOutlined` says why: `binary` (a
+NUL byte in the first 8,000 bytes; lines and tokens are null too),
+`unsupported-language`, `parse-error` (with the line, never the text; also a
+`SIZE_PARSE_ERROR` warning) or `too-large` (over 8 MiB; it's still counted).
+
+**For a folder**: `{ kind: "folder", path, tokenMethod, totals, tree, largest,
+skipped, verified }`. It lists files the way `deps scan` does, skipping what
+`.gitignore` ignores. `totals` and every `tree` node hold `files`, `bytes`, `lines`,
+`tokens` and `binaryFiles`; binary files count in files and bytes only. Folders are
+sorted largest first. `largest` names the biggest files with their language.
+`skipped` lists what wasn't counted, with the reason: `unreadable` (with a
+`SIZE_FILES_SKIPPED` warning), `not-a-file` or `nested-repository`.
+
+**What it checks**, in `data.verified`:
+
+- `outline.start`: each symbol's start line, re-read from the input, names it.
+- `outline.range` and `outline.nesting`: each range is inside the file and in
+  order, and a member sits inside its container.
+- `outline.keys`: JSON and YAML keys match the parser's.
+- `counts.reread`: the outline's full read gives the same bytes and lines.
+- `totals.sum` and `tree.sum`: the totals equal the files added up, and each
+  folder equals its own files plus its subfolders.
+- `input.complete`: every file was read to its size on disk.
+
+A failed check sets `verified.passed` to false and warns `SIZE_OUTLINE_MISMATCH`,
+`SIZE_TOTALS_MISMATCH` or `SIZE_COUNTS_MISMATCH`.
+
+### Time: `toil util time`
+
+Date and time arithmetic on the time zone data Node ships (IANA, through `Intl`);
+toil bundles no zone database of its own, and nothing reads the network. Each
+command checks its own answer a second way and reports the checks in
+`data.verified` (`{ passed, checks }`), with anything it couldn't check or had to
+approximate in `meta.warnings` as `UNVERIFIED` or `APPROXIMATED`.
+
+Times are ISO 8601: a date (`2026-03-08`), a wall clock (`2026-03-08T02:30`), or an
+instant with `Z` or an offset (`2026-03-08T07:30:00Z`, `2026-03-08T02:30:00-05:00`).
+`@1760000000` is epoch seconds, and `now` is the current time, read once per call.
+Fields out of range (`2026-02-29`, `24:00`, a leap second) are `INVALID_INPUT`,
+never rolled over. Digits below a millisecond are dropped with an `APPROXIMATED`
+warning. Zones are IANA names (`America/New_York`); an unknown one is
+`INVALID_INPUT`.
+
+**DST.** A wall clock a zone skipped (spring forward) or showed twice (fall back) is
+always reported, in `data` as a `dst` object and in `meta.warnings` as
+`TIME_DST_GAP` or `TIME_DST_OVERLAP`. A gap is read as the time the clocks showed
+after the jump (02:30 becomes 03:30) and an overlap as the earlier of the two. Give
+the time an offset to choose otherwise.
+
+#### `toil util time convert`
+
+```bash
+toil util time convert 2026-03-08T02:30 --zone America/New_York --to UTC --to Europe/London
+toil util time convert now --to Asia/Kolkata
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `<time>` | The time to convert |
+| `--zone <zone>` | The zone of a time written without an offset. Required for one; refused for a time that has an offset |
+| `--to <zone>` | A zone to convert to (repeatable; default `UTC`) |
+
+Output: `{ input, instant, epochMs, source: { kind, zone, offset, dst? }, results:
+[{ zone, local, offset, offsetSeconds, dst? }], verified }`. `local` is the time in
+that zone with its offset. Checks: each result reads back as the same instant
+(`convert.roundtrip`), the zone shows that wall clock then (`convert.zone`), and a
+wall-clock input is what its zone shows at the instant found (`convert.source`). A
+failure warns `TIME_ROUNDTRIP_MISMATCH`.
+
+#### `toil util time duration`
+
+```bash
+toil util time duration P1DT2H30M
+toil util time duration --seconds 93784.5
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `<duration>` | An ISO 8601 duration to read: `PT1H30M`, `P1Y2M10DT2H`, `PT0.5S`, `-PT15M`. Only the last part may have a fraction |
+| `--seconds <seconds>` | Instead, a number of seconds to write as a duration |
+
+Output: `{ input, iso, negative, parts: { years, months, weeks, days, hours,
+minutes, seconds }, totalSeconds, text, verified }`. `iso` is the canonical text.
+Seconds are written in hours, minutes and seconds only (`PT26H3M4.5S`), since a day
+isn't always 24 hours. Years and months have no fixed length, so `totalSeconds` is
+`null` with an `UNVERIFIED` warning; days and weeks count as 24 hours and 7 days,
+with an `APPROXIMATED` warning. Check: the canonical text reads back as the same
+parts (`duration.roundtrip`, warning `DURATION_ROUNDTRIP_MISMATCH`).
+
+#### `toil util time business-days add` and `diff`
+
+```bash
+toil util time business-days add 2026-12-23 3 --holidays holidays-2026.txt
+toil util time business-days add 2026-12-28 -1
+toil util time business-days diff 2026-12-24T15:00 2026-12-29T10:00 --zone America/Chicago --holiday 2026-12-25
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `<start>` | The start time or date |
+| `<days>` | `add`: business days to add; negative subtracts |
+| `<end>` | `diff`: the end time or date |
+| `--zone <zone>` | The zone whose calendar days count, and the zone of a time without an offset (default `UTC`) |
+| `--holidays <file>` | A file in the workspace: one `YYYY-MM-DD` per line, optionally followed by a name; `#` lines are comments. Any other line is `INVALID_INPUT` naming it |
+| `--holiday <date>` | A holiday as `YYYY-MM-DD` (repeatable) |
+
+Business days are Monday to Friday, less the holidays given. No country's holidays
+are built in: list the dates the office is actually shut (the observed Friday, not
+the Saturday it stands in for).
+
+`add` counts as a spreadsheet's `WORKDAY` does: the start never counts, each step
+lands on the next business day, and `0` returns the start unchanged. A time of day
+is kept, and a result in a DST gap or overlap is warned about. Output: `{ start,
+days, zone, result, weekday, skipped: { weekendDays, holidays }, holidaysListed,
+dst?, verified }`. Checks: the business days between start and result, counted
+again day by day, number `days` (`business.count`); the result is a business day
+(`business.landing`); and it's on the right side of the start
+(`business.direction`). A failure warns `BUSINESS_DAYS_MISMATCH`.
+
+`diff` measures the time between two times that falls on business days in the
+zone. A date means midnight. Output: `{ start, end, zone, negative, businessDays,
+hours, duration, totalBusinessSeconds, elapsedSeconds, holidays, verified }`:
+`businessDays` is whole 24-hour days of business time, `hours` what's left over,
+and `duration` the same, exactly (`PT43H`). DST days count as the 23 or 25 hours
+they are. Checks: business time plus the rest adds up to the elapsed time
+(`business.partition`), and the days and hours make the business time
+(`business.total`), warning `BUSINESS_TIME_MISMATCH`.
+
+#### `toil util time cron`
+
+```bash
+toil util time cron "*/15 9-17 * * 1-5" --zone Europe/London --count 10
+toil util time cron "0 0 12 ? * MON#2" --dialect quartz
+toil util time cron "H H(0-7) * * 1-5" --dialect jenkins --job platform/api-build
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `<expression>` | The cron expression, quoted |
+| `--dialect <dialect>` | `standard`, `quartz` or `jenkins` (default: detected: 6 or 7 fields is `quartz`, an `H` is `jenkins`, otherwise `standard`) |
+| `--zone <zone>` | The zone the schedule runs in (default `UTC`) |
+| `--from <time>` | List runs after this time (default `now`) |
+| `--count <n>` | How many run times to list, 1 to 100 (default 5) |
+| `--job <name>` | The Jenkins job's full name (`folder/job`), which `H` is hashed from. Required when the expression uses `H` |
+
+The dialects:
+
+- **standard**: five fields, minute hour day-of-month month day-of-week, as the classic
+  crontab reads them. Names (`JAN`, `MON`), ranges, lists and steps (`*/15`,
+  `1-30/5`, `5/15`); day-of-week 0 to 7, with 0 and 7 both Sunday. Macros `@yearly`,
+  `@annually`, `@monthly`, `@weekly`, `@daily`, `@midnight` and `@hourly`; `@reboot`
+  is refused, since it has no times. When neither day field starts with `*`, a day
+  matching **either** runs. A detected standard expression with both day fields set
+  warns `CRON_DIALECT_ASSUMED`, since Jenkins reads it differently.
+- **quartz**: six or seven fields, second first and an optional year (1970 to 2099)
+  last. Day-of-week is 1 to 7 from Sunday. One of the day fields must be `?`.
+  Day-of-month takes `L`, `L-3`, `15W` (the weekday nearest the 15th, inside the
+  month) and `LW`; day-of-week takes `6L` (the last Friday) and `6#3` (the third
+  Friday). A backwards range wraps (`FRI-MON`, `22-2`).
+- **jenkins**: five fields like standard, plus `H`, `H(0-7)` and `H/15`, placed as
+  Jenkins places them from the job's full name. An unbounded `H` in day-of-month
+  stays within 1 to 28. Both day fields must match. The macros use `H` (`@daily` is
+  `H H * * *`, `@midnight` is `H H(0-2) * * *`), so pass `--dialect jenkins` for a
+  Jenkins macro: a bare macro is detected as standard.
+
+Output: `{ expression, dialect, dialectSource, zone, from, explanation, fields,
+runs: [{ instant, local, offset, dst? }], skipped, skippedTotal, verified }`. `fields` holds what
+each field expanded to, with day-of-week 0 for Sunday in every dialect.
+
+DST: a run time the zone skipped isn't listed as a run; it's in `skipped`, with a
+`CRON_DST_GAP` warning giving the total. `skipped` lists the first 100 and
+`skippedTotal` counts them all. The walk stops after 5,000 skipped run times (more
+than one every-second gap hour), warning `CRON_SEARCH_STOPPED` with the last one
+reached, so a schedule that only lands in gaps (`* * 2 ? 3 1#2` in New York) answers
+at once; pass a later `--from` to look further. A run time that happened twice is listed once, at the first,
+with a `dst` object and a `CRON_DST_OVERLAP` warning. Schedulers differ on both, so
+check yours. Fewer runs than `--count` in the next 100 years (or in Quartz's listed
+years) warns `CRON_FEW_RUNS`; `0 0 30 2 *` never runs.
+
+Checks: each run, read back as the wall clock its zone shows then, matches every
+field again (`cron.rematch`); the runs come after `--from` and in order
+(`cron.order`); `local` is the same instant (`cron.local`); and each skipped time
+really is in a gap (`cron.gap`). A failure warns `CRON_RUN_MISMATCH`. The
+explanation's wording isn't checked, and says so (`UNVERIFIED`): it's built from the
+same fields the run times come from, and the run times are what's checked.
+
+### `toil util md`
+
+Converts a document between Markdown and the rich-text formats the Atlassian
+areas send: Jira wiki markup (Jira Data Center), Atlassian Document Format
+(Jira Cloud, Confluence Cloud) and Confluence storage format (Confluence Data
+Center). One side is always Markdown. Every result is checked by converting it
+back, so you're told exactly what didn't survive.
+
+```bash
+toil util md description.md --to wiki
+toil util md page.md --to storage
+toil util md description.md --to adf --select output
+toil util md PROJ-142.wiki --from wiki
+toil util md description.adf.json --from adf
+```
+
+ADF input is the document itself, `{ "type": "doc", "version": 1, "content": [...] }`:
+an issue's `fields.description` or a comment's `body`, not the issue around it.
+
+| Argument / flag | Meaning |
+|-----------------|---------|
+| `[file]` | A file inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--text <text>` | The document itself, instead of a file |
+| `--to <format>` | `wiki`, `adf` or `storage`, to convert Markdown into it |
+| `--from <format>` | `wiki`, `adf` or `storage`, to convert it into Markdown |
+
+Over MCP the tool is `util_md`, with `file` or `text` plus `from` or `to`.
+
+Output:
+
+```json
+{
+  "from": "md",
+  "to": "wiki",
+  "output": "h2. Steps\n\n# Open the login page\n...",
+  "lossless": false,
+  "losses": [{ "construct": "task list", "at": "line 12", "detail": "Jira wiki markup has no task lists; each task is written as [ ] or [x] text" }],
+  "roundTrip": { "blocks": 9, "differences": [] },
+  "verified": { "passed": true, "checks": [{ "check": "roundTrip.blocks", "status": "passed", "checked": 9, "failed": 0 }] }
+}
+```
+
+- **`output`** is the converted document: an ADF document object for `adf`,
+  text for the others. Markdown output is in one canonical spelling (`-` bullets,
+  `*emphasis*`, `**strong**`, fenced code, one line per paragraph).
+- **`losses`** lists every construct that has no equivalent in the target, with
+  its position: `line N` in Markdown, wiki markup and storage format, a JSON
+  pointer (`/content/6/content/2`) in ADF. Each kind is also an `MD_LOSSY`
+  warning. Words are kept wherever there are words to keep: a panel becomes a
+  quote, a mention becomes `@name` text, a merged cell is unmerged with the cells
+  it covered left empty.
+- **`roundTrip`**: the output is read back and compared with the input, block by
+  block, as canonical Markdown. `differences` shows each block that changed, and
+  whether a loss explains it. A change no loss explains fails the
+  `roundTrip.blocks` check and warns `MD_ROUNDTRIP_MISMATCH`: that's a bug in the
+  converter, so check the output before you send it.
+- **`lossless`** is true only when nothing was lost and every block came back the same.
+- **ADF output is validated against the ADF JSON schema** (Atlassian's
+  `@atlaskit/adf-schema`, bundled) before it's returned, and storage output is
+  read back as XML. Output that fails either is never returned; the command fails
+  instead. ADF input the schema refuses is converted as far as it reads, with an
+  `ADF_INPUT_INVALID` warning.
+
+What Markdown means here: CommonMark plus GFM tables, task lists, strikethrough
+and bare-URL links. Raw HTML (other than `<br>`), link reference definitions and
+footnotes aren't read; they're kept as text and reported as losses.
+
+Known losses, by format:
+
+- **Wiki markup:** no task lists (written as `[ ]` / `[x]` text), no table
+  alignment, no link or image titles, lists always start at 1, and a list item is
+  one line, so a code block or second paragraph in one is joined with line breaks.
+  Underline, colour, sub/superscript, citations, panels, mentions, attachments and
+  other macros don't come back into Markdown. Text such as `(y)` that Jira shows as
+  an emoticon, and a URL written as text, which Jira links, are reported too.
+- **ADF:** a quote can't hold a heading, table, task list or another quote, and a
+  list item can't hold a heading, quote or table, so those are brought down and
+  reported. Inline images become links; explicit left alignment is the default.
+  Panels, expands, mentions, emoji, dates, statuses, smart links, decisions,
+  attachments, layouts, extensions and merged cells don't come back.
+- **Storage format:** a list mixing tasks and ordinary items becomes a task list.
+  Info, note, tip and warning panels, expand, layouts, page and user links,
+  attachments, emoticons, colour, merged cells and other macros don't come back.
+  Only XML's entities and HTML's common named ones (`&nbsp;`, `&mdash;` and so on)
+  are read; any other is refused with `INVALID_INPUT`, as is XML that isn't
+  well-formed, with its line and column.
+
+To send the result, pass it to the area's own command: wiki markup as
+`toil jira create-issue --description`, storage format as
+`toil confluence create-page --body` (or `confluence-cloud`), and ADF as
+`fields.description` in a `toil jira-cloud create-issue --input-file`. How each product's own renderer displays it hasn't
+been checked against a live instance.
