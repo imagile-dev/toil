@@ -225,7 +225,9 @@ naming the list.
 ## Output, compared with `ado`
 
 `data` is the server's own JSON, so where Services and Server agree it has the same
-shape as `ado`'s. The differences, for anything that reads both:
+shape as `ado`'s, and `toil util owi map` reads `work get`, `work get-batch`,
+`work revisions` and `work list-iterations` output from either area into Open Work
+Items. The differences, for anything that reads both:
 
 - **Work items** (`work get`, `work get-batch`, `work revisions`, `work search`) have
   the same shape: `id`, `rev`, `fields` keyed by reference name, `relations`, `url`.

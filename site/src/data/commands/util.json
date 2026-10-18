@@ -336,5 +336,19 @@
       "--text <text>",
       "--view <key>"
     ]
+  },
+  {
+    "name": "owi map",
+    "tool": "util_owi_map",
+    "description": "Map Jira, Azure DevOps and GitHub command output to Open Work Items, checked against the OWI schema (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--command <name>",
+      "--key <key>",
+      "--field <name=field>"
+    ]
   }
 ]
