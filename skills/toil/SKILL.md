@@ -91,8 +91,9 @@ workspace. Then:
 - `toil dossiers env <name> <env> <area> --set namespace=...` adds an environment.
 - `toil dossiers field <name> jira storyPoints customfield_10002` names a field, so
   `--field storyPoints=5` works.
-- `toil <area> check-dossier` checks a section against the service (jira, sonar and
-  confluence so far).
+- `toil <area> check-dossier` checks a section against the service, for the call's
+  environment (jira, jira-cloud, confluence, sonar, ado, bitbucket, github, openshift,
+  dynatrace).
 - `toil dossiers export <name> --repo <root>` writes a shareable copy into a
   repository's `.toil/dossiers/`. It uses host selectors and no local paths, and toil
   never commits it.
