@@ -1,0 +1,112 @@
+---
+/**
+ * The welcome splash, replayed from frames recorded off the terminal's own
+ * drawing code. The finished frame is server-rendered, so without JS or with
+ * reduced motion the reader sees the still the terminal settles on. With
+ * motion allowed it plays once when scrolled into view, and Replay plays it
+ * again.
+ */
+import { recording, screenHtml, type Run } from '../lib/terminal';
+
+interface Props {
+  label?: string;
+}
+const { label = 'Recorded from toil’s splash' } = Astro.props;
+
+const used = [...new Set([...recording.splash.frames.flat(), ...recording.splash.still])];
+const lines = Object.fromEntries(used.map((id) => [id, (recording.lines as Run[][])[id]]));
+const payload = JSON.stringify({ fps: recording.fps, colors: recording.colors, lines, frames: recording.splash.frames, still: recording.splash.still });
+---
+
+<figure class="rec" data-rec>
+  <div class="rec__bar" aria-hidden="true">
+    <i></i><i></i><i></i>
+    <span>toil</span>
+  </div>
+  <div class="rec__screen">
+    <pre class="rec__pre" data-rec-pre aria-label="The toil splash: the terminal-hub logo beside the toil wordmark and the tagline, Let your agents handle the toil." set:html={screenHtml(recording.splash.still)} />
+  </div>
+  <figcaption class="rec__caption">
+    <span>{label}</span>
+    <button type="button" class="rec__replay" data-rec-replay hidden>Replay</button>
+  </figcaption>
+  <script type="application/json" data-rec-data set:html={payload} />
+</figure>
+
+<script>
+  type Data = { fps: number; colors: string[]; lines: Record<string, Array<[string, number]>>; frames: number[][]; still: number[] };
+  const escape = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[^\x00-\x7f]/g, (ch) => `<i class="cell">${ch}</i>`);
+
+  for (const root of document.querySelectorAll<HTMLElement>('[data-rec]')) {
+    const pre = root.querySelector<HTMLElement>('[data-rec-pre]')!;
+    const replay = root.querySelector<HTMLButtonElement>('[data-rec-replay]')!;
+    const data = JSON.parse(root.querySelector('[data-rec-data]')!.textContent!) as Data;
+    const html = (ids: number[]) =>
+      ids.map((id) => (data.lines[id] ?? []).map(([t, c]) => (c < 0 ? escape(t) : `<span style="color:${data.colors[c]}">${escape(t)}</span>`)).join('')).join('\n');
+    const frames = data.frames.map(html);
+    const still = html(data.still);
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let timer: number | undefined;
+
+    const play = () => {
+      window.clearInterval(timer);
+      let i = 0;
+      timer = window.setInterval(() => {
+        if (i >= frames.length) {
+          window.clearInterval(timer);
+          pre.innerHTML = still;
+          return;
+        }
+        pre.innerHTML = frames[i++]!;
+      }, 1000 / data.fps);
+    };
+
+    if (!reduced.matches) {
+      replay.hidden = false;
+      replay.addEventListener('click', play);
+      const seen = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          seen.disconnect();
+          play();
+        }
+      }, { threshold: 0.4 });
+      seen.observe(root);
+    }
+  }
+</script>
+
+<style>
+  .rec {
+    margin: 0;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-deep);
+    box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.7);
+    min-width: 0;
+  }
+  .rec__bar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--color-line);
+    color: var(--color-faint); font-family: var(--font-mono); font-size: 0.7rem;
+  }
+  .rec__bar i { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--color-line-strong); }
+  .rec__bar span { margin-left: auto; }
+  .rec__screen { overflow-x: auto; padding: 0.6rem 1rem 0.9rem; }
+  .rec__pre {
+    margin: 0; white-space: pre; color: var(--color-ink);
+    font-family: 'Cascadia Mono', 'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    font-size: clamp(0.42rem, 0.2rem + 0.9vw, 0.82rem); line-height: 1.18;
+  }
+  .rec__pre :global(.cell) { display: inline-block; width: 1ch; font-style: normal; overflow: hidden; vertical-align: top; }
+  .rec__caption {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm);
+    padding: 0.4rem 0.9rem 0.6rem; border-top: 1px solid var(--color-line);
+    color: var(--color-faint); font-size: var(--text-sm);
+  }
+  .rec__replay {
+    min-height: 44px; padding: 0 1rem; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--color-line-strong); background: transparent; color: var(--color-ink);
+    font: inherit;
+  }
+  .rec__replay:hover { border-color: var(--color-accent); color: var(--color-accent); }
+</style>

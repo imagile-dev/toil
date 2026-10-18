@@ -49,9 +49,13 @@ export default defineConfig({
       },
     },
   ],
-  define: { __TOIL_VERSION__: JSON.stringify(version) },
   banner: {
     // Bundled CommonJS dependencies still call require(); give them one.
-    js: "#!/usr/bin/env node\nimport { createRequire as __toilCreateRequire } from 'node:module';\nconst require = __toilCreateRequire(import.meta.url);",
+    // The version is a banner constant rather than a `define`, on one line
+    // marked for release-please, because dist/toil.js is committed: the
+    // release PR bumps package.json and this line together (extra-files in
+    // release-please-config.json), so the bundle still matches its source and
+    // check:dist passes on the release PR without anyone rebuilding it.
+    js: `#!/usr/bin/env node\nimport { createRequire as __toilCreateRequire } from 'node:module';\nconst require = __toilCreateRequire(import.meta.url);\nconst __TOIL_VERSION__ = ${JSON.stringify(version)}; // x-release-please-version`,
   },
 });

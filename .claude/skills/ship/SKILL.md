@@ -42,7 +42,8 @@ number if one exists. Each finding needs `file:line`, what's wrong, why (the rul
 principle), and the simplest fix.
 
 - **Gate.** Run the six commands under CLAUDE.md, Build & Test, in order: typecheck,
-  lint, test, build, `check:pure` and `smoke`. Report each one's summary line, with
+  lint, test, build, `check:pure` and `smoke`. Never commit `dist/`: only the release PR
+  rebuilds it. Report each one's summary line, with
   the OS and Node version, and every failure in full.
 - **Code review.** Read `git diff origin/main...HEAD` and every changed file in full.
   Check:
