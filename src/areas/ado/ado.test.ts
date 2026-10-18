@@ -309,6 +309,11 @@ describe('attachments', () => {
     expect(again.envelope.error?.code).toBe('INVALID_INPUT');
   });
 
+  it('download-attachment reports a relative --dir as given, not as the absolute path written (#233)', async () => {
+    const { data } = await run('work download-attachment', { ...AT, id: '42', attachmentId: ATTACHMENT, dir: 'downloads' });
+    expect(data).toEqual({ saved: 'downloads/screenshot.png', name: 'screenshot.png', size: 5 });
+  });
+
   it('download-attachment never sends the PAT to another host: the URL is re-pointed, with a warning (#69 item 1)', async () => {
     const elsewhere = workItem(42, { relations: [{ rel: 'AttachedFile', url: `https://evil.example.com${COLL}/_apis/wit/attachments/${ATTACHMENT}`, attributes: { name: 'x.txt' } }] });
     const { calls, envelope } = await run('work download-attachment', { ...AT, id: '42', attachmentId: ATTACHMENT }, [{ path: `${COLL}/_apis/wit/workitems/42`, respond: { json: elsewhere } }]);

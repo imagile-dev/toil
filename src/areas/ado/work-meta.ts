@@ -1,6 +1,7 @@
 import { basename } from 'node:path';
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
+import { savedPath } from '../../core/files.js';
 import { allowWriteField } from '../../core/run.js';
 import { adoArea } from './area.js';
 import { API, PATCH, ado, adoDownload, adoUpload, enc, projectPath, toInt, where, type AdoContext } from './client.js';
@@ -112,8 +113,9 @@ export const workDownloadAttachmentCommand = adoArea.command({
       throw new ToilError('INVALID_INPUT', `Attachment not found: ${input.attachmentId}`, { fix: `Run toil ado work list-attachments --id ${String(input.id)} for the ids it has.` });
     }
     const data = await adoDownload(ctx, attachment.url);
-    const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${basename(attachment.name)}`, data);
-    return { saved, name: attachment.name, size: data.length };
+    const name = basename(attachment.name);
+    const written = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${name}`, data);
+    return { saved: savedPath(input.dir, name, written), name: attachment.name, size: data.length };
   },
 });
 

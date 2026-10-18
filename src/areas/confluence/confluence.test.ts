@@ -316,6 +316,15 @@ describe('attachments', () => {
     expect(Object.keys(written)).toHaveLength(1);
   });
 
+  it('download-attachment: a relative --dir is reported as given, not as the absolute path written (#233)', async () => {
+    const { envelope, written } = await run(downloadAttachment, { id: '98765', dir: 'downloads' }, [
+      { url: `${API}/content/98765`, respond: { json: attachment() } },
+      { url: /download/, respond: { text: 'PNG!' } },
+    ]);
+    expect(envelope.data).toEqual({ saved: 'downloads/diagram.png', filename: 'diagram.png', size: 4 });
+    expect(Object.keys(written)).toEqual([expect.stringMatching(/\/downloads\/diagram\.png$/)]);
+  });
+
   it('download-attachment: an absolute link on another host is re-pointed at baseUrl, with a warning (#78 item 1)', async () => {
     const elsewhere = { ...attachment(), _links: { download: 'https://other.imagile.dev/download/attachments/1/x.png?api=v2' } };
     const { envelope, calls } = await run(downloadAttachment, { id: '98765', dir: 'out' }, [

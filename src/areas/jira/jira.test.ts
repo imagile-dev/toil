@@ -407,7 +407,16 @@ describe('attachments', () => {
     ]);
     expect(calls[1]!.url).toBe(`${JIRA}/secure/attachment/7/shot.png?x=1`);
     expect(envelope.meta.warnings?.[0]).toMatchObject({ code: 'JIRA_ATTACHMENT_HOST' });
-    expect(envelope.data).toMatchObject({ saved: '/work/out/shot.png' });
+    expect(envelope.data).toMatchObject({ saved: 'out/shot.png' });
+  });
+
+  it('download-attachment: a relative --dir is reported as given, where the file is written under the working directory (#233)', async () => {
+    const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7', dir: './downloads' }, [
+      listing(`${JIRA}/secure/attachment/7/shot.png`),
+      { url: `${JIRA}/secure/attachment/7/shot.png`, respond: { text: 'PNG' } },
+    ]);
+    expect(envelope.data).toEqual({ saved: 'downloads/shot.png', filename: 'shot.png', size: 3 });
+    expect(Object.keys(written)).toEqual(['/work/downloads/shot.png']);
   });
 
   it('download-attachment: never replaces a file already there (#70 item 8, a listed divergence)', async () => {

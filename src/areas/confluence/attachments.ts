@@ -1,6 +1,7 @@
 import { basename } from 'node:path';
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
+import { savedPath } from '../../core/files.js';
 import { allowWriteField } from '../../core/run.js';
 import { confluenceArea } from './area.js';
 import * as client from './client.js';
@@ -84,8 +85,9 @@ export const downloadAttachment = confluenceArea.command({
   run: async (input, ctx) => {
     const attachment = await client.getAttachment(ctx, input.id);
     const data = await client.downloadAttachment(ctx, attachment);
-    const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${attachmentFileName(attachment.title)}`, data);
-    return { saved, filename: attachment.title, size: data.length };
+    const name = attachmentFileName(attachment.title);
+    const written = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${name}`, data);
+    return { saved: savedPath(input.dir, name, written), filename: attachment.title, size: data.length };
   },
 });
 

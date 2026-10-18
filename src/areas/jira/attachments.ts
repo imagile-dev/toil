@@ -1,6 +1,7 @@
 import { basename } from 'node:path';
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
+import { savedPath } from '../../core/files.js';
 import { allowWriteField } from '../../core/run.js';
 import { jiraArea } from './area.js';
 import * as client from './client.js';
@@ -73,8 +74,9 @@ export const downloadAttachment = jiraArea.command({
       });
     }
     const data = await client.downloadAttachment(ctx, attachment.content);
-    const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${baseName(attachment.filename)}`, data);
-    return { saved, filename: attachment.filename, size: data.length };
+    const name = baseName(attachment.filename);
+    const written = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${name}`, data);
+    return { saved: savedPath(input.dir, name, written), filename: attachment.filename, size: data.length };
   },
 });
 
