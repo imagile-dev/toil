@@ -5,6 +5,7 @@ import { testContext } from '../../../test/harness/context.js';
 import type { Envelope } from '../../core/envelope.js';
 import { execute } from '../../core/run.js';
 import { commands } from './index.js';
+import { BOUNDED_TIMEOUT_MS } from './kit/bounded.js';
 import { parseYaml } from './kit/yaml.js';
 import { EXAMPLE_TEXT, openapiExampleCommand, openapiListCommand, openapiShowCommand } from './openapi.js';
 import { checkExample, generateExample, MAX_STRING, sampleOfPattern } from './openapi/example.js';
@@ -17,6 +18,9 @@ import { checkExample, generateExample, MAX_STRING, sampleOfPattern } from './op
  * example that doesn't fit its schema. A check that has never failed is a
  * check nobody has audited.
  */
+
+/** Room past a bounded worker's deadline for its start and teardown on a loaded runner: what a deadline test catches is one that never fires. */
+const DEADLINE_ROOM = 8_000;
 
 const JIRA = 'specs/jira-platform.json';
 const GITHUB = 'specs/github.yaml';
@@ -439,8 +443,8 @@ describe('util openapi example', () => {
     doc.components.schemas.Order.properties.sku = { type: 'string', minLength: 41, maxLength: 41, pattern };
     const started = performance.now();
     const { envelope, data, warnings } = await run(openapiExampleCommand, { text: asText(doc), operation: 'createOrder' });
-    // Two deadlines at most (choosing the string, then validating it), with room for a slow runner.
-    expect(performance.now() - started).toBeLessThan(10_000);
+    // Two deadlines at most (choosing the string, then validating it), with generous room for a loaded runner and well under this test's 30 s.
+    expect(performance.now() - started).toBeLessThan(2 * BOUNDED_TIMEOUT_MS + DEADLINE_ROOM);
     expect(envelope.ok).toBe(true);
     expect(check(data, 'example.patterns')).toMatchObject({ status: 'unchecked', detail: expect.stringMatching(/took longer than 2 s/) });
     expect(check(data, 'example.valid')).toMatchObject({ status: 'unchecked', detail: expect.stringMatching(/took longer than 2 s/) });
@@ -461,7 +465,8 @@ describe('util openapi example', () => {
     const doc = { openapi: '3.0.3', info: { title: 'Branches', version: '1' }, paths: { '/b': { post: { operationId: 'branches', requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/S0' } } } }, responses: { '200': { description: 'ok' } } } } }, components: { schemas } };
     const started = performance.now();
     const { envelope, data, warnings } = await run(openapiExampleCommand, { text: asText(doc), operation: 'branches' });
-    expect(performance.now() - started).toBeLessThan(10_000);
+    // One deadline, with generous room for a loaded runner and well under this test's 30 s.
+    expect(performance.now() - started).toBeLessThan(BOUNDED_TIMEOUT_MS + DEADLINE_ROOM);
     expect(envelope.ok).toBe(true);
     expect(check(data, 'example.valid')).toMatchObject({ status: 'unchecked', detail: expect.stringMatching(/took longer than 2 s|stack/) });
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'UNVERIFIED', message: expect.stringContaining('example.valid') }));

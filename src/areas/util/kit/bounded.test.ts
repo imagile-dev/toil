@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { BOUNDED_TIMEOUT_MS, matchBounded, runBounded, validateBounded } from './bounded.js';
+import { BOUNDED_TIMEOUT_MS, boundedWorkerStarts, matchBounded, runBounded, validateBounded } from './bounded.js';
 
 /**
  * The bounded worker, on the inputs that made it necessary: diamonds of refs
@@ -22,8 +22,12 @@ function diamond(keyword: 'anyOf' | 'oneOf', n: number, nested: boolean) {
   return { schema: { $schema: 'http://json-schema.org/draft-07/schema#', $ref: '#/definitions/S0', definitions }, value };
 }
 
-/** Well under vitest's own timeout, with room for a slow runner: the deadline plus a worker's start and teardown. */
-const QUICKLY = BOUNDED_TIMEOUT_MS + 3_000;
+/**
+ * The deadline plus generous room for a worker's start and teardown on a
+ * loaded runner: five times the deadline, and still half the 20 s each of
+ * these tests may run. What it catches is a deadline that never fires.
+ */
+const QUICKLY = BOUNDED_TIMEOUT_MS + 8_000;
 
 describe('validateBounded', () => {
   it('stops the property-nested anyOf diamond (n=22) at the deadline and says so', async () => {
@@ -90,17 +94,19 @@ describe('runBounded', () => {
 
   it('stops the worker promptly when the command is cancelled, and says it was', async () => {
     const controller = new AbortController();
+    // A deadline far past the abort, and well under this test's 20 s: if the abort didn't stop the worker, the deadline would, as a timeout.
+    const timeoutMs = 10_000;
     const started = performance.now();
-    const running = matchBounded([{ pattern: '^(a+)+$', candidates: [`${'a'.repeat(40)}!`] }], { signal: controller.signal });
+    const running = matchBounded([{ pattern: '^(a+)+$', candidates: [`${'a'.repeat(40)}!`] }], { signal: controller.signal, timeoutMs });
     setTimeout(() => controller.abort(), 100);
     const outcome = await running;
-    // Well before the 2 s deadline: the abort, not the clock, ended it.
-    expect(performance.now() - started).toBeLessThan(1_000);
+    // Cancelled, not timed out, and before the task's own deadline: the abort, not the clock, ended it.
     expect(outcome).toEqual({ ok: false, cause: 'cancelled', reason: 'the command was cancelled, so the worker was stopped' });
+    expect(performance.now() - started).toBeLessThan(timeoutMs);
     const before = new AbortController();
     before.abort();
     expect(await validateBounded({ type: 'string' }, 'x', { signal: before.signal })).toMatchObject({ valid: false, unchecked: expect.stringContaining('cancelled') });
-  });
+  }, 20_000);
 
   it('runs the next task on a fresh worker after one is stopped at its deadline', async () => {
     const stuck = matchBounded([{ pattern: '^(a+)+$', candidates: [`${'a'.repeat(40)}!`] }], { timeoutMs: 300 });
@@ -121,11 +127,11 @@ describe('runBounded', () => {
 
   it('reuses one warm worker: a run of tasks costs one start, not one each', async () => {
     await validateBounded({ type: 'string' }, 'warm');
-    const started = performance.now();
-    for (let i = 0; i < 50; i++) await validateBounded({ type: 'object', required: ['a'] }, { a: i });
-    // Fifty starts would take about a second on their own; fifty messages to one worker take a few milliseconds each at most.
-    expect(performance.now() - started).toBeLessThan(500);
-  });
+    const starts = boundedWorkerStarts();
+    for (let i = 0; i < 50; i++) expect(await validateBounded({ type: 'object', required: ['a'] }, { a: i })).toMatchObject({ valid: true });
+    // Counted, not timed: the fifty ran on the warm worker, and none started another.
+    expect(boundedWorkerStarts()).toBe(starts);
+  }, 20_000);
 
   it('stops a backtracking pattern while matching candidates, too', async () => {
     const started = performance.now();

@@ -73,6 +73,12 @@ const queue: Job[] = [];
 let busy: Job | undefined;
 let nextId = 1;
 let exitHook = false;
+let starts = 0;
+
+/** How many workers this process has started: for tests, which count starts rather than time them. */
+export function boundedWorkerStarts(): number {
+  return starts;
+}
 
 function finish(job: Job, outcome: BoundedOutcome<unknown>): void {
   clearTimeout(job.timer);
@@ -108,6 +114,7 @@ function workerFor(maxMemoryMb: number): Worker {
     void old.terminate();
   }
   const worker = new Worker(WORKER_SOURCE, { eval: true, resourceLimits: { maxOldGenerationSizeMb: maxMemoryMb, maxYoungGenerationSizeMb: Math.min(64, maxMemoryMb) } });
+  starts++;
   worker.unref();
   worker.on('message', (reply: Reply) => {
     const job = busy;
