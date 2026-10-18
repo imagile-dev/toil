@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { adoArea } from './area.js';
-import { API, API_CONNECTION, adoAll, ado, enc, where, type AdoContext } from './client.js';
+import { API, API_CONNECTION, adoAll, ado, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, where, type AdoContext } from './client.js';
 
 /**
  * The server-level reads: who the token belongs to, the collections, and the
@@ -53,13 +53,15 @@ export const projectListCollectionsCommand = adoArea.command({
 export const projectListCommand = adoArea.command({
   path: ['ado', 'project', 'list'],
   description: 'List team projects in a collection',
-  toolDescription: 'Lists every team project in the collection (id, name, state, visibility), following continuation tokens to the end.',
-  input: z.object({}),
+  toolDescription: 'Lists every team project in the collection (id, name, state, visibility), following continuation tokens to the end. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.',
+  input: z.object({ limit: limitField('projects'), cursor: cursorField }),
   writes: false,
-  examples: [AT],
-  run: async (_input, ctx) => {
+  options: pageOptions('projects'),
+  examples: [AT, { ...AT, limit: 1 }, { ...AT, limit: 1, cursor: exampleCursor('abc12345') }],
+  run: async (input, ctx) => {
+    const page = pageOf(input);
     const { collection } = where(ctx);
-    return adoAll(ctx, `/${enc(collection)}/_apis/projects`, { 'api-version': API }, `Azure DevOps projects in ${collection}`);
+    return adoAll(ctx, `/${enc(collection)}/_apis/projects`, { 'api-version': API }, `Azure DevOps projects in ${collection}`, page);
   },
 });
 

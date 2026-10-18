@@ -3,7 +3,7 @@ import { ToilError } from '../../core/errors.js';
 import { sleep } from '../../core/rest.js';
 import { allowWriteField } from '../../core/run.js';
 import { adoArea } from './area.js';
-import { API, ado, adoAll, adoText, projectPath, toInt, where, type AdoContext, type Where } from './client.js';
+import { API, ado, adoAll, adoText, cursorField, exampleCursor, limitField, pageOf, pageOptions, projectPath, toInt, where, type AdoContext, type PageRequest, type Where } from './client.js';
 import { listBuilds } from './repo.js';
 import { AT, intText } from './work.js';
 
@@ -30,16 +30,21 @@ interface Build {
 
 const buildPath = (w: Where, id: number) => `${projectPath(w)}/_apis/build/builds/${id}?api-version=${API}`;
 const getBuild = (ctx: AdoContext, w: Where, id: number) => ado<Build>(ctx, buildPath(w, id));
-const listDefinitions = (ctx: AdoContext, w: Where) => adoAll<{ id: number; name: string }>(ctx, `${projectPath(w)}/_apis/build/definitions`, { 'api-version': API }, `Azure DevOps pipelines in ${w.project}`);
+const listDefinitions = (ctx: AdoContext, w: Where, page: PageRequest = {}) =>
+  adoAll<{ id: number; name: string }>(ctx, `${projectPath(w)}/_apis/build/definitions`, { 'api-version': API }, `Azure DevOps pipelines in ${w.project}`, page);
 
 export const pipelineListCommand = adoArea.command({
   path: ['ado', 'pipeline', 'list'],
   description: 'List pipeline definitions',
-  toolDescription: 'Lists every pipeline (build definition) in the project, following continuation tokens to the end.',
-  input: z.object({}),
+  toolDescription: 'Lists every pipeline (build definition) in the project, following continuation tokens to the end. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.',
+  input: z.object({ limit: limitField('pipelines'), cursor: cursorField }),
   writes: false,
-  examples: [AT],
-  run: async (_input, ctx) => listDefinitions(ctx, where(ctx)),
+  options: pageOptions('pipelines'),
+  examples: [AT, { ...AT, limit: 1 }, { ...AT, limit: 1, cursor: exampleCursor('abc12345') }],
+  run: async (input, ctx) => {
+    const page = pageOf(input);
+    return listDefinitions(ctx, where(ctx), page);
+  },
 });
 
 export const pipelineGetCommand = adoArea.command({
@@ -135,13 +140,15 @@ export const pipelineListRunsCommand = adoArea.command({
   path: ['ado', 'pipeline', 'list-runs'],
   description: 'List pipeline runs',
   toolDescription:
-    "Lists the project's builds (runs), newest first as the server orders them, optionally for one pipeline (definition id, or name looked up in the pipeline list), a branch name as given, and a status. top caps the count (50 by default); top 0 lists every run.",
+    "Lists the project's builds (runs), newest first as the server orders them, optionally for one pipeline (definition id, or name looked up in the pipeline list), a branch name as given, and a status. top caps the count (50 by default); top 0 lists every run. limit instead pages: at most that many, with meta.page.nextCursor to pass as cursor for the next page (not with top).",
   input: z.object({
     definition: z.string().optional().describe('Filter by definition ID'),
     name: z.string().optional().describe('Filter by pipeline name (resolved to definition ID; use pipeline list to see names)'),
     branch: z.string().optional().describe('Filter by branch name'),
     status: z.string().optional().describe('Filter by status (inProgress|completed|cancelling|...)'),
     top: intText.optional().describe(TOP),
+    limit: limitField('runs'),
+    cursor: cursorField,
   }),
   writes: false,
   options: [
@@ -150,14 +157,21 @@ export const pipelineListRunsCommand = adoArea.command({
     { flags: '--branch <ref>', field: 'branch', description: 'Filter by branch name' },
     { flags: '--status <filter>', field: 'status', description: 'Filter by status (inProgress|completed|cancelling|...)' },
     { flags: '--top <n>', field: 'top', description: TOP },
+    ...pageOptions('runs'),
   ],
   examples: [
     AT,
     { ...AT, definition: '5', branch: 'refs/heads/main', status: 'completed', top: '10' },
     { ...AT, name: 'imagile-api-ci' },
     { ...AT, definition: '5', top: '0' },
+    { ...AT, definition: '5', limit: 1 },
+    { ...AT, limit: 1, cursor: exampleCursor('abc12345') },
   ],
   run: async (input, ctx) => {
+    const page = pageOf(input);
+    if (page.cap !== undefined && input.top !== undefined) {
+      throw new ToilError('INVALID_INPUT', 'Cannot specify both --top and --limit. Use one or the other.', { fix: 'Pass --limit (with --cursor for later pages) to page through runs, or --top for one request of at most that many.' });
+    }
     const w = where(ctx);
     if (input.definition && input.name) throw new ToilError('INVALID_INPUT', 'Cannot specify both --definition and --name. Use one or the other.', { fix: 'Pass --definition <id> or --name <pipeline>, not both.' });
     let definitionId: number | undefined;
@@ -175,7 +189,9 @@ export const pipelineListRunsCommand = adoArea.command({
       definitionId = match.id;
     }
     // Suspected bugs (#69 items 12 and 28): the branch isn't normalised, and --top 0 lists every run.
-    return listBuilds(ctx, w, { definitionIds: definitionId !== undefined ? [definitionId] : undefined, branchName: input.branch, statusFilter: input.status, top: toInt(input.top, '50') });
+    const filters = { definitionIds: definitionId !== undefined ? [definitionId] : undefined, branchName: input.branch, statusFilter: input.status };
+    // With --limit, continuation tokens page the runs; --top's one request (default 50) is otherwise unchanged.
+    return listBuilds(ctx, w, page.cap !== undefined ? { ...filters, page } : { ...filters, top: toInt(input.top, '50') });
   },
 });
 
