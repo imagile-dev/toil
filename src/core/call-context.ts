@@ -12,7 +12,7 @@ import type { SecretStore } from './keychain.js';
  * (`--project`, `--repo`, `--instance`) resolves in this order:
  *
  *   1. the call's own value: a CLI flag or an MCP field
- *   2. the dossier (#16; until then, nothing)
+ *   2. the dossier that applies to the call (src/core/dossier.ts)
  *   3. the working folder's git remote, where the area declares how to read it
  *      (handed the resolved connection, so it can check the remote's host)
  *   4. the connection's setting, then the area's default
@@ -30,7 +30,7 @@ import type { SecretStore } from './keychain.js';
  *
  * The git step runs only where a reader is supplied (`Context.gitRemote`);
  * the shipped CLI supplies one that reads `.git` in pure JS (src/core/git-repo.ts).
- * The dossier step is empty until #16.
+ * The dossier step runs where a dossier applies (`Context.dossiers`).
  */
 
 /** A git remote as the reader hands it over: the area parses the URL. */
@@ -48,11 +48,11 @@ export interface GitRemote {
 export type GitRemoteReader = (signal: AbortSignal) => Promise<readonly GitRemote[]>;
 
 /**
- * A dossier's value for one area's key (`connection`, or a context input).
- * This is the seam #16 fills; today nothing supplies one, so the step is
- * always empty.
+ * A dossier's value for one area's key (`connection`, or a context input),
+ * given the call's own input, since an explicit `--env` decides which of the
+ * dossier's environments the rest comes from (src/core/dossier.ts).
  */
-export type DossierLookup = (area: string, key: string) => string | undefined;
+export type DossierLookup = (area: string, key: string, input?: Record<string, unknown>) => string | undefined;
 
 export const noDossier: DossierLookup = () => undefined;
 
@@ -109,7 +109,9 @@ export async function resolveCall(
       early[name] = { value: explicit, source: 'input' };
       continue;
     }
-    const found = checked(area, name, spec, dossier(area.name, name), 'dossier') ?? (spec.selectsConnection ? checked(area, name, spec, await fromGit(spec, undefined), 'git') : undefined);
+    // With --connection named, an input that selects one can only agree with it or give way, so the dossier isn't asked for it.
+    const fromDossier = spec.selectsConnection && typeof input.connection === 'string' ? undefined : dossier(area.name, name, input);
+    const found = checked(area, name, spec, fromDossier, 'dossier') ?? (spec.selectsConnection ? checked(area, name, spec, await fromGit(spec, undefined), 'git') : undefined);
     if (found) early[name] = found;
   }
 
@@ -169,14 +171,15 @@ function chooseConnection(
   dossier: DossierLookup,
 ): ContextValue | undefined {
   const declared = area.context as Record<string, ContextInput>;
-  const named: Partial<Record<ContextSource, string>> = {
-    input: typeof input.connection === 'string' ? input.connection : undefined,
-    dossier: dossier(area.name, 'connection'),
-  };
+  // The dossier is asked only when the call itself didn't decide, so a call
+  // that names its connection never depends on which dossier would apply.
+  const named = (source: ContextSource): string | undefined =>
+    source === 'input' ? (typeof input.connection === 'string' ? input.connection : undefined) : source === 'dossier' ? dossier(area.name, 'connection', input) : undefined;
   // Source by source: at each step, a connection named outright and one an
   // input selects must agree, and the first step with either decides.
   for (const source of ['input', 'dossier', 'git'] as const) {
-    let pick: ContextValue | undefined = named[source] === undefined ? undefined : { value: named[source]!, source };
+    const name = named(source);
+    let pick: ContextValue | undefined = name === undefined ? undefined : { value: name, source };
     const joint = jointSelection(config, area, early, source);
     for (const [name, found] of Object.entries(early)) {
       const spec = declared[name]!;

@@ -119,8 +119,8 @@ versions.
 - **Where a command acts** (`--project`, `--repo`, `--owner`, `--instance`, `--env`)
   is a context input in `defineArea({ context })`, never an ordinary flag, so core
   resolves it from the call, the dossier, the git remote and the connection in one
-  order (the dossier step is empty until #16, and the git step needs the git reader,
-  which isn't wired in yet). The predecessor's group-level flags (`bitbucket --project --repo`, `github
+  order. A dossier section supplies it by the input's name, so a context input is
+  also what makes a key usable from a dossier. The predecessor's group-level flags (`bitbucket --project --repo`, `github
   --owner --repo`, `ado --collection --organization --project --repo`, `jenkins
   --instance`, `openshift --env --instance`, `dynatrace --env`) are `group` inputs,
   with the contract's spelling in `flags`; a per-command one (`jira --project`) is a
@@ -242,9 +242,11 @@ versions.
   which were invented from the vendor's docs.
 - After registering, run `npx vitest run -u` once to write the site's command list.
 
-Once dossiers are built (`docs/dossiers.md`), an area also declares the zod schema
-of its dossier section and a read-only `toil <area> check-dossier` command, and its
-section selects a connection by `connection` name or `host`, never by anything else.
+An area's dossier section (`docs/dossiers.md`) needs nothing from the area: its keys
+are the area's context inputs, plus `connection` or `host` to select a connection
+(never anything else) and `fields`. Any other key is kept as reference data. A
+read-only `toil <area> check-dossier`, which checks a section against the service,
+is still to come with #16.
 
 **Every change to an integration reviews its site documentation in the same PR.**
 That covers a new integration, a new or changed command, a changed credential or

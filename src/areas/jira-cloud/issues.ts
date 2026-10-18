@@ -46,7 +46,7 @@ function readIssueFile(path: string | undefined, ctx: client.JiraCloudContext): 
 
 /**
  * The project for create-issue: --project, then "project" in --input-file,
- * then the dossier (#16; empty today), then the connection's project. Core
+ * then the dossier, then the connection's project. Core
  * resolves the flag, the dossier and the connection; the file's step goes
  * through ctx.supply, so meta.context reports source `file`. An empty value
  * in the file counts as none.

@@ -1,0 +1,44 @@
+[
+  {
+    "name": "list",
+    "tool": "dossiers_list",
+    "description": "List every dossier toil can see, where each lives, and any that are broken",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "show",
+    "tool": "dossiers_show",
+    "description": "Print a dossier, and the connection, environment and inputs it gives each area",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[dossier]",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "check",
+    "tool": "dossiers_check",
+    "description": "Check a dossier locally: its schema, its connections and hosts, its remotes. Contacts no service.",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[dossier]",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "context",
+    "tool": "dossiers_context",
+    "description": "Show which dossier a folder resolves to, and why",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--cwd <dir>"
+    ]
+  }
+]
