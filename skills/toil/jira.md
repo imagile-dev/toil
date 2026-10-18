@@ -148,8 +148,11 @@ toil jira api PUT /rest/api/2/issue/ABC-123/watchers --body-file user.json --con
   a key. **`--body-file <path>`** sends that file (inside the workspace, or `-` for
   stdin) as the body, as `application/json` unless `--content-type` says
   otherwise.
-- **Output:** a JSON body is `data`, parsed. Any other body is `data` as text, up to
-  1 MB, with an `API_TRUNCATED` warning when it was longer. An empty body (a `204`,
+- **Output:** a JSON body is `data`, parsed. A text body (`text/*`, XML, or no content
+  type) is `data` as text. Any other body is binary: `data` is its bytes as base64,
+  with an `API_BINARY` warning (use `download-attachment` to save an attachment).
+  Text and binary are capped at 1 MB, with an `API_TRUNCATED` warning when the body
+  was longer. An empty body (a `204`,
   a `HEAD`) is `null`. `meta.response` is `{ status, contentType }`. Errors use the
   usual codes (`AUTH`, `NOT_FOUND`, `HTTP`, `NETWORK`) with Jira's own message. A
   body labelled JSON that doesn't parse comes back as text, with an `API_NOT_JSON`

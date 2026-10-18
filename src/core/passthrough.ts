@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { z } from 'zod';
 import { apiResponse } from './api.js';
 import type { Area } from './area.js';
@@ -37,7 +38,13 @@ const passthroughInput = z.object({
   path: z.string().min(1).describe("Path under the connection's base URL, with or without a leading slash; never a full URL"),
   query: z.array(z.string()).optional().describe('Query parameters, each as key=value'),
   bodyFile: z.string().min(1).optional().describe('File holding the request body, inside the workspace'),
-  contentType: z.string().min(1).optional().describe("The body's content type (default application/json)"),
+  // A header value is one line: a CR, LF or NUL would make fetch refuse it, which would read as a bug in toil.
+  contentType: z
+    .string()
+    .min(1)
+    .regex(/^[^\r\n\0]+$/, 'a content type is one line with no control characters, e.g. application/json')
+    .optional()
+    .describe("The body's content type (default application/json)"),
   ...allowWriteField,
 });
 
@@ -54,6 +61,8 @@ export interface ApiCommandSpec<K extends string = never> {
    * area's fixture answers each one.
    */
   examples: Array<z.input<typeof passthroughInput> & Partial<Record<K, string>>>;
+  /** The area's own way to save a file, named when a response is binary: `toil jira download-attachment`. */
+  download?: string;
 }
 
 /**
@@ -86,7 +95,7 @@ export function apiCommand<K extends string>(area: Area<any, K>, spec: ApiComman
       { flags: '--content-type <type>', field: 'contentType', description: "The body's content type (default application/json)" },
     ],
     examples: spec.examples,
-    run: (input: PassthroughInput, ctx) => passthrough(area, name, input, ctx),
+    run: (input: PassthroughInput, ctx) => passthrough(area, name, input, ctx, spec.download),
   });
 }
 
@@ -97,6 +106,7 @@ async function passthrough(
   input: PassthroughInput,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ctx: CommandContext<any>,
+  download: string | undefined,
 ): Promise<unknown> {
   assertRelativePath(input.path, name);
   const query = queryOf(input.query ?? [], name);
@@ -115,7 +125,7 @@ async function passthrough(
   });
   const contentType = response.headers.get('content-type');
   ctx.setResponse({ status: response.status, contentType });
-  return answer(response.data, contentType, name, ctx.warn);
+  return answer(response.data, contentType, name, ctx.warn, download);
 }
 
 /**
@@ -157,8 +167,16 @@ function queryOf(pairs: readonly string[], name: string): Record<string, string[
 
 const isJson = (contentType: string | null) => contentType !== null && /^application\/(?:[\w.+-]+\+)?json\b/i.test(contentType.trim());
 
-/** The body as data: JSON parsed, anything else as text up to the cap, an empty one as null. */
-function answer(bytes: Uint8Array, contentType: string | null, name: string, warn: CommandContext['warn']): unknown {
+/** Text is `text/*`, XML or JSON, or a body with no content type at all; anything else is bytes. */
+const isText = (contentType: string | null) =>
+  contentType === null || /^(?:text\/|application\/(?:[\w.+-]+\+)?(?:json|xml)\b)/i.test(contentType.trim());
+
+/**
+ * The body as data: JSON parsed, text as text, binary as base64 (as the db
+ * layer returns a binary column), each up to the cap, and an empty one as
+ * null. Binary decoded as UTF-8 would come back quietly mangled, so it never is.
+ */
+function answer(bytes: Uint8Array, contentType: string | null, name: string, warn: CommandContext['warn'], download: string | undefined): unknown {
   if (bytes.length === 0) return null;
   if (isJson(contentType)) {
     try {
@@ -167,10 +185,19 @@ function answer(bytes: Uint8Array, contentType: string | null, name: string, war
       warn({ code: 'API_NOT_JSON', message: `${name}: the response said ${contentType} but isn't valid JSON, so data is the body as text.` });
     }
   }
-  if (bytes.length <= MAX_TEXT_BYTES) return new TextDecoder().decode(bytes);
-  warn({
-    code: 'API_TRUNCATED',
-    message: `${name}: the response body was ${bytes.length} bytes, so data holds only its first ${MAX_TEXT_BYTES} as text. Narrow the request to get all of it.`,
-  });
-  return new TextDecoder().decode(bytes.subarray(0, MAX_TEXT_BYTES));
+  const binary = !isText(contentType);
+  const kept = bytes.length > MAX_TEXT_BYTES ? bytes.subarray(0, MAX_TEXT_BYTES) : bytes;
+  if (binary) {
+    warn({
+      code: 'API_BINARY',
+      message: `${name}: the response is ${contentType}, not text, so data is its bytes as base64.${download ? ` To save a file, use ${download}.` : ''}`,
+    });
+  }
+  if (kept !== bytes) {
+    warn({
+      code: 'API_TRUNCATED',
+      message: `${name}: the response body was ${bytes.length} bytes, so data holds only its first ${MAX_TEXT_BYTES}${binary ? ', as base64' : ' as text'}. Narrow the request to get all of it.`,
+    });
+  }
+  return binary ? Buffer.from(kept).toString('base64') : new TextDecoder().decode(kept);
 }

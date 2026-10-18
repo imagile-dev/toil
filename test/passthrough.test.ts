@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { afterEach, describe, expect, it } from 'vitest';
 import { commands as jiraCommands } from '../src/areas/jira/index.js';
 import { commandName } from '../src/core/command.js';
@@ -129,6 +130,33 @@ describe('jira api', () => {
     expect(vendor.envelope?.data).toEqual({ ok: 1 });
   });
 
+  it('refuses a content type with a line break as INVALID_INPUT on both doors, naming the problem, before anything is sent', async () => {
+    const { context, http } = cli([]);
+    const viaCli = await runCli(['jira', 'api', 'POST', '/x', '--body-file', 'body.json', '--content-type', 'application/json\r\nX-Evil: 1', '--allow-write'], { commands, context });
+    expect(viaCli.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('one line with no control characters') });
+    const { session, http: mcpHttp } = await mcp([]);
+    const viaMcp = await session.call('jira_api', { method: 'POST', path: '/x', bodyFile: 'body.json', contentType: 'text/plain\n', allowWrite: true });
+    expect(viaMcp.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('one line with no control characters') });
+    expect([...http.calls, ...mcpHttp.calls]).toHaveLength(0);
+  });
+
+  it('returns a binary body as base64 with an API_BINARY warning naming the download command, never as mangled text', async () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xff, 0x00]);
+    const { context } = cli([
+      { path: '/jira/secure/useravatar', respond: { text: String.fromCharCode(...png), headers: { 'content-type': 'image/png' } } },
+      { path: '/jira/rest/api/2/feed', respond: { text: '<feed/>', headers: { 'content-type': 'application/atom+xml' } } },
+    ]);
+    const run = await runCli(['jira', 'api', 'GET', '/secure/useravatar'], { commands, context });
+    // The fake server sends the text as UTF-8; data is exactly those bytes, round-tripped, not a lossy decode.
+    const sent = new TextEncoder().encode(String.fromCharCode(...png));
+    expect(new Uint8Array(Buffer.from(run.envelope?.data as string, 'base64'))).toEqual(sent);
+    expect(run.envelope?.meta.warnings).toContainEqual(expect.objectContaining({ code: 'API_BINARY', message: expect.stringContaining('toil jira download-attachment') }));
+    expect(run.envelope?.meta.response?.contentType).toBe('image/png');
+    const xml = await runCli(['jira', 'api', 'GET', '/rest/api/2/feed'], { commands, context });
+    expect(xml.envelope?.data).toBe('<feed/>');
+    expect(xml.envelope?.meta.warnings).toBeUndefined();
+  });
+
   it('caps a text body, and says so', async () => {
     const big = 'x'.repeat(MAX_TEXT_BYTES + 10);
     const { context } = cli([{ path: '/jira/secure/big.log', respond: { text: big, headers: { 'content-type': 'text/plain' } } }]);
@@ -156,6 +184,7 @@ describe('jira api', () => {
       ['jira', 'api', 'GET', '/x', '--body-file', 'body.json'],
       ['jira', 'api', 'POST', '/x', '--content-type', 'text/plain', '--allow-write'],
       ['jira', 'api', 'get', '/x'],
+      ['jira', 'api', 'POST', '/x', '--body-file', 'body.json', '--content-type', 'application/json\r\nX-Evil: 1', '--allow-write'],
     ]) {
       const run = await runCli(argv, { commands, context });
       expect(run.envelope?.error?.code, argv.join(' ')).toBe('INVALID_INPUT');

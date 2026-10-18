@@ -315,7 +315,7 @@ gets `toil <area> api <METHOD> <path>` (`<area>_api` over MCP) on the same reque
 hook, so it can't drift from the wrapped commands. The path stays under `baseUrl`
 (a scheme, `//host` or a leading backslash is `INVALID_INPUT`), the method decides
 the write gate (`writesWhen`), a `DELETE` is refused over MCP (`offMcpWhen`), JSON
-comes back parsed and anything else as text up to 1 MB, and `meta.response` carries
+comes back parsed, text as text and binary as base64 (with `API_BINARY`), up to 1 MB, and `meta.response` carries
 the status and content type. Non-HTTP areas (`db`, `git`) don't have one.
 
 **Commands never read config or env.** `run` gets `ctx.connection`, the one
