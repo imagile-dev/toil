@@ -119,7 +119,8 @@ classify, a file it couldn't read) is counted and reported in `data` and
 |-------|-------|------------|
 | XML | `kit/xml.ts` | Built in. `XmlTokenizer` streams events from chunks of any size; `parseXml` builds a tree. Well-formed or `XmlSyntaxError` with line and column. No DTD processing, so nothing expands or is fetched; extra entities (HTML's, for storage format) come from the caller, and `fragment: true` reads a fragment. For JUnit, TRX, Cobertura and Confluence storage format |
 | YAML | `kit/yaml.ts` | js-yaml, YAML 1.2 core schema (no timestamps), duplicate keys refused, one document, and aliases may add at most 1,000,000 values beyond the document as written (`INVALID_INPUT` past it, so a "billion laughs" document is refused; a document without aliases is held only by the input cap). Errors give line and column, never the text. Lazy only |
-| JSON Schema | `kit/json-schema.ts` | @cfworker/json-schema, drafts 4, 7, 2019-09 and 2020-12, chosen from `$schema`. Problems by JSON pointer, deepest first, capped. For ADF, OpenAPI and generated examples. Lazy only |
+| JSON Schema | `kit/json-schema.ts` | @cfworker/json-schema, drafts 4, 7, 2019-09 and 2020-12, chosen from `$schema`. Problems by JSON pointer, deepest first, capped; `leafProblems` keeps the ones that say what is wrong. A validation that runs out of stack comes back `unchecked` with the reason. For ADF, OpenAPI and generated examples, through `kit/bounded.ts`. Lazy only |
+| Bounded work | `kit/bounded.ts` | `runBounded`: work whose cost an input controls (JSON Schema validation, an input's own regexes) in a worker thread with a deadline (2 s) and a heap limit (256 MB). One worker per process, reused: tasks queue, each with its own deadline, and one that passes a limit or is cancelled takes the worker with it, so the next starts fresh. Pass a `key` with a schema used repeatedly, so each worker builds it once. `validateBounded` and `matchBounded` wrap it. Pass the command's `ctx.signal` as `signal`, so a cancel terminates the worker at once. A timeout, memory limit, stack overflow or Node's permission model denying workers is an outcome with a plain reason: report it as unchecked, never a crash. The worker evaluates `kit/bounded-task.ts`, bundled with the validator into a string by `scripts/gen-worker.mjs`, not the CLI, with the same no-spawn plugin; `check:pure` checks its metafile (`dist/metafile-worker.json`) like the bundle's. Lazy only |
 | Secrets | `src/core/secret-shapes.ts` | toil's one definition of a secret. The audit log redacts with `redactText`; `findSecrets(text)` returns each secret's rule and position (the secret alone, never the name around it), from the same rules |
 | Versions | `src/core/versions.ts` | The comparison `artifactory outdated` and `util deps diff` use, exactly as recorded, and beside it each ecosystem's own grammar: `grammarFor(ecosystem)` loads npm's, NuGet's or Maven's (`src/core/versions/`, lazily) with parse, compare, ranges, bump and the intervals a range covers. `util semver` is built on it; use it rather than a second comparison |
 
@@ -147,7 +148,7 @@ run: async (input, ctx) => {
 The bundle stays one file. esbuild wraps a module reached only through `import()` so
 that it is evaluated on first use, not at startup. A static import anywhere undoes
 that, so ESLint refuses a static import of `js-yaml`, `@cfworker/json-schema`,
-`kit/yaml` and `kit/json-schema` outside those wrappers and tests. A type-only import
+`kit/yaml`, `kit/json-schema` and `kit/bounded` outside those wrappers and tests. A type-only import
 is allowed, since it's erased. Treat a command's own heavy module the same way.
 
 **A module reached through `import()` must not import zod**, directly or through
@@ -165,3 +166,9 @@ Keep the reading in the command's small module and hand the lazy one what it rea
 bytes, text, or the opened `UtilInput`, importing only the reader's types there
 (`util log` does this in `runLog`). A small module may simply be a static import, as
 `util encode` is. `util md` reads its input in `src/areas/util/md.ts` and hands the text on.
+
+Data a command bundles (the OpenAPI schemas `util openapi` validates against, in
+`src/areas/util/openapi/schemas/`) is vendored as published, with its source and
+licence in `NOTICE`, and imported as JSON from inside the lazy module
+(`await import('./schemas/x.json', { with: { type: 'json' } })`), so it loads with
+the command and nothing is fetched.

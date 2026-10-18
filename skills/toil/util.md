@@ -1,12 +1,12 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, and converting Markdown to and from Jira and Confluence formats
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, converting Markdown to and from Jira and Confluence formats, and reading OpenAPI documents
 ---
 
 # Local utilities (`util`)
 
 Commands that work on what's on this machine: a token or version you paste, a file or
-folder in the workspace (a certificate or a log, say), the manifests and lockfiles there, a
+folder in the workspace (a certificate, a log or an API description), the manifests and lockfiles there, a
 report a build left behind, text you're about to commit or post, or a time and a time zone. They aren't
 integrations. There is no server, no connection to add, no `TOIL_UTIL_*`
 variable, no credential and no `--connection` flag, and none of them sends
@@ -38,6 +38,9 @@ the same flags and output:
 | `toil util semver sort` | none | `util_semver_sort` |
 | `toil util semver bump` | none | `util_semver_bump` |
 | `toil util md` | none | `util_md` |
+| `toil util openapi list` | none | `util_openapi_list` |
+| `toil util openapi show` | none | `util_openapi_show` |
+| `toil util openapi example` | none | `util_openapi_example` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
@@ -58,6 +61,7 @@ What a build or a scanner leaves behind, turned into something short enough to r
 Getting text into the shape an enterprise tool expects before it's sent, so a description, a page or a request arrives the way it was meant.
 
 - **Converting Markdown** (`toil util md`): Turns Markdown into Jira wiki markup (Jira Data Center), Atlassian Document Format (Jira Cloud and Confluence Cloud) or Confluence storage format (Confluence Data Center), and any of those back into Markdown.
+- **Reading an OpenAPI document** (`toil util openapi list`, `toil util openapi show`, `toil util openapi example`): Reads an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, so an agent calls an endpoint right the first time: `list` gives every operation, `show` lays one out with each parameter and where it goes, its request and response bodies with `$ref`s expanded, and the exact inputs for `toil <area> api`, and `example` builds the smallest body its schema accepts.
 
 ### Safety
 
@@ -1082,3 +1086,132 @@ To send the result, pass it to the area's own command: wiki markup as
 `toil confluence create-page --body` (or `confluence-cloud`), and ADF as
 `fields.description` in a `toil jira-cloud create-issue --input-file`. How each product's own renderer displays it hasn't
 been checked against a live instance.
+### `toil util openapi`: read an API description before calling it
+
+Three commands that read an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, in JSON
+or YAML, so you can call an endpoint right the first time, usually through
+`toil <area> api`. The document is a file in the workspace, `-` for stdin, or
+`--text` (`file` or `text` over MCP). Nothing is fetched: the official schemas
+each version is checked against are bundled.
+
+```bash
+toil util openapi list jira-platform.json --tag Issues
+toil util openapi list github.yaml --path pulls
+toil util openapi show jira-platform.json --operation createIssue
+toil util openapi show bitbucket.json --method POST --path /repositories/{workspace}/{repo_slug}/pullrequests --depth 1
+toil util openapi example jira-platform.json --operation createIssue
+toil util openapi example github.yaml --operation pulls/get --response 200
+```
+
+| Flag | Meaning |
+|------|---------|
+| `[file]` | The document: a file in the workspace, or `-` (or nothing) for stdin |
+| `--text <text>` | The document itself, instead of a file |
+| `--tag <tag>` | `list`: only operations with this tag (any case) |
+| `--path <text>` | `list`: only operations whose path contains this text. `show` and `example`: the path exactly as the document writes it, with `--method` |
+| `--operation <operationId>` | `show`, `example`: the operation, by its operationId |
+| `--method <method>` | `show`, `example`: the method, with `--path`, for an operation with no operationId |
+| `--depth <n>` | `show`: how many `$ref`s deep to expand schemas (default 3, at most 20) |
+| `--response <status>` | `example`: build that response's body (`200`, `201`, `default`) instead of the request body |
+| `--content-type <type>` | `example`: which of the body's content types (default: the first JSON one) |
+
+In Git Bash on Windows, leave the leading `/` off `--path`
+(`--path repos/{owner}/{repo}/pulls`): the shell rewrites `/repos/...` into a file
+path. Both forms match.
+
+- **`list`** returns `{ document, count, operations: [{ method, path, operationId,
+  summary, tags, deprecated }] }`.
+- **`show`** returns `{ document, operation, parameters, requestBody, responses,
+  call, expansion }`. Each parameter has `name`, `in` (path, query, header, cookie),
+  `required` and `schema`. The request body and each response have `contentTypes`,
+  the `contentType` the `schema` is for (the first JSON one), and `schemaPointer`.
+  Swagger 2.0's `body` and `formData` parameters come out as the request body, so
+  both versions have one shape.
+- **Expanded schemas:** `$ref`s are replaced by what they point at, `--depth` refs
+  deep, and an expanded one says where it came from in `x-toil-ref`. One left in
+  place says why in `x-toil-stop`: `depth`, `circular` (it loops back), `external`
+  (another file or a URL) or `broken`. `expansion.stopped` counts each. Expansion
+  builds at most 250,000 objects and arrays per call (`expansion.nodes`) and copies
+  at most 4,000,000 characters of the document's text (`expansion.chars`), since refs
+  can fan out and each copies its whole target (three properties each referring to
+  the next, twenty deep, is 3^20 copies). Past that, the rest stay in place as
+  `depth`, `expansion.truncated` is true and an `OPENAPI_EXPANSION_TRUNCATED` warning
+  says so. `example` generates at most 250,000 values, no more array items than
+  that leaves room for, strings of at most 10,000 characters each, and at most 1,000,000
+  characters in all, a document's own `const` and `enum` values included (a
+  `minLength` or a pattern's `{n}` past that is cut; any value past the total is null). A cut-short example fails `example.valid` with
+  `OPENAPI_EXAMPLE_TRUNCATED` and isn't validated. In 3.0 and
+  Swagger 2.0 a `$ref`'s sibling keys are dropped, as the spec says. From 3.1
+  they're kept, over the target's keys.
+- **`example`** returns `{ document, operation, body, status, contentType,
+  schemaPointer, example }`. The example is the smallest body the schema accepts:
+  required properties only (read-only ones left out of a request, write-only ones
+  out of a response), the first enum value, the lowest number in range, a string in
+  the right format with placeholder values (`you@example.com`, `api.imagile.dev`),
+  the first branch of a `oneOf`. It's minimal, not complete: Jira's `createIssue`
+  gives `{}`, because its schema requires nothing. Use `show` to see the fields you
+  want to add.
+
+#### Calling the endpoint with `<area> api`
+
+`show`'s `call` is the operation as `<area> api` takes it: `method`, `path` (the
+server's base path plus the operation's, with `{name}` for each of
+`pathParameters`), `query` (each required query parameter as `name=<name>`),
+`bodyFile`, `contentType` (set only when it isn't `application/json`), whether it
+`writes`, and the CLI line. Over MCP the same fields are `<area>_api`'s inputs.
+
+```bash
+toil util openapi show jira-platform.json --operation editIssue --select call
+# { "method": "PUT", "path": "/rest/api/2/issue/{issueIdOrKey}", "bodyFile": "body.json", "writes": true,
+#   "cli": "toil <area> api PUT /rest/api/2/issue/{issueIdOrKey} --body-file body.json --allow-write", ... }
+toil util openapi example jira-platform.json --operation editIssue --select example
+toil jira api PUT /rest/api/2/issue/ABC-123 --body-file body.json --allow-write
+```
+
+Save the example as `body.json`, fill in the placeholders, and put the area the
+document describes for `<area>`. The path is relative to the connection's
+`baseUrl`: when `baseUrl` already ends with the server's base path (`/2.0` for
+Bitbucket Cloud's), leave that part off. `call.unsupported` lists required header and
+cookie parameters, which `<area> api` doesn't send. `call` is null for a method it
+doesn't send (OPTIONS, TRACE, QUERY).
+
+#### What every command checks
+
+Each one reads the whole document and checks it before answering, and
+`data.verified` says what it checked:
+
+| Check | What it is | Warning when it fails |
+|-------|------------|-----------------------|
+| `document.schema` | The document against the official schema for its version (Swagger 2.0, OpenAPI 3.0, 3.1 or 3.2), bundled. Every problem is in `document.problems` by JSON pointer (`/paths/~1pets/get/responses`), at most 50, with `problemCount` | `OPENAPI_INVALID` |
+| `refs.resolve` | Every local `$ref` points at something. Broken ones are in `document.refs.broken` as `{ at, ref }`, `at` being where the `$ref` sits | `OPENAPI_REF_BROKEN` |
+| `operations.uniqueIds` | No operationId is used twice | `OPENAPI_DUPLICATE_OPERATION_ID` |
+| `operations.pathParameters` | Every `{name}` in a path is declared as a path parameter | `OPENAPI_PATH_PARAMETER_MISSING` |
+| `example.valid` | `example` only: the generated body validates against its own schema, `$ref`s and all, before it's returned | `OPENAPI_EXAMPLE_INVALID` |
+| `input.complete` | The whole file was read | `INPUT_INCOMPLETE` |
+
+An invalid document is still listed and shown, since real vendor documents aren't
+always valid, but `verified.passed` is false. `document.refs.circular` lists each
+loop of references (a recursive schema), which is legal; nothing follows one
+forever. What can't be checked is reported, never assumed:
+
+- Validation, and running the document's own `pattern`s, each get 2 seconds and 256 MB.
+  A schema that branches too much to finish (a diamond of `anyOf`s), a pattern that
+  backtracks without end (`^(a+)+$`), or a document too deep for the stack leaves
+  `document.schema`, `example.valid` or `example.patterns` unchecked, with which limit
+  it hit (`UNVERIFIED`). So does a Node run with `--permission` and no `--allow-worker`.
+  A document nested more than 256 levels is refused (`INVALID_INPUT`).
+- A `$ref` to another file or a URL isn't followed (`refs.external`, `UNVERIFIED`),
+  and an example whose schema reaches one isn't validated.
+- The 3.1 and 3.2 schemas leave Schema Objects to the JSON Schema 2020-12 dialect,
+  which isn't checked (`document.schemaObjects`, `UNVERIFIED`). Swagger 2.0 and 3.0
+  documents are checked all the way down.
+- Some schemas have no value that satisfies them (two `allOf` branches that
+  disagree, a property required and forbidden at once). The example is returned
+  anyway, with `example.valid` failed at the pointer that doesn't fit, so you fill
+  that value in by hand.
+
+A document that isn't an object, has no `openapi` or `swagger` field, declares a
+version these commands don't read (OpenAPI 4, Swagger 1.2), or isn't valid JSON or
+YAML fails with `INVALID_INPUT`. So does an operation that isn't there (the fix names
+close operationIds), `example` on an operation with no request body (pass
+`--response`), and a status or content type the operation doesn't list.

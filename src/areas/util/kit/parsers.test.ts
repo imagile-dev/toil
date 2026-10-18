@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { schemaDraft, validateSchema, type Schema } from './json-schema.js';
+import { leafProblems, schemaDraft, validateSchema, type Schema } from './json-schema.js';
 import { MAX_YAML_NODES, parseYaml } from './yaml.js';
 
 /** An OpenAPI 3.0 fragment in YAML, the way vendors publish them, with a placeholder server. */
@@ -98,6 +98,31 @@ describe('validateSchema', () => {
     const minLength = result.problems.find((p) => p.keyword === 'minLength')!;
     expect(minLength.schemaPointer).toBe('/properties/content/items/$ref/properties/text/minLength');
     expect(result.total).toBe(result.problems.length);
+  });
+
+  it('gives pointers as JSON pointers, not URI fragments: braces, spaces and percent signs as written', () => {
+    const schema: Schema = { type: 'object', additionalProperties: { type: 'object', required: ['get'] } };
+    const result = validateSchema(schema, { '/pets/{id}': {}, 'a b': {}, '100%': {} });
+    expect(result.problems.map((p) => p.pointer).filter(Boolean).sort()).toEqual(['/100%', '/a b', '/~1pets~1{id}']);
+  });
+
+  it('leafProblems keeps what is wrong and drops the enclosing keywords that failed because of it', () => {
+    const result = validateSchema(DRAFT4, { type: 'doc', version: 1, content: [{ type: 'text', text: '' }, {}] }, { maxProblems: Infinity });
+    expect(result.problems.some((p) => p.pointer === '' || p.keyword === 'items' || p.keyword === '$ref')).toBe(true);
+    expect(leafProblems(result.problems).map((p) => `${p.pointer} ${p.keyword}`).sort()).toEqual(['/content/0/text minLength', '/content/1 required']);
+  });
+
+  it('leafProblems keeps a failure at a node whose child fails too: a missing property and a wrong type are two problems', () => {
+    const schema: Schema = { type: 'object', properties: { owner: { type: 'object', required: ['id', 'name'], properties: { id: { type: 'string' } } } } };
+    const result = validateSchema(schema, { owner: { id: 7 } }, { maxProblems: Infinity });
+    expect(leafProblems(result.problems).map((p) => `${p.pointer} ${p.keyword}`).sort()).toEqual(['/owner required', '/owner/id type']);
+  });
+
+  it('turns a validator that runs out of stack into unchecked, never a crash', () => {
+    let deep: unknown = 'x';
+    for (let i = 0; i < 50_000; i++) deep = [deep];
+    const result = validateSchema({ $schema: 'http://json-schema.org/draft-07/schema#', items: { $ref: '#' } }, deep);
+    expect(result).toMatchObject({ valid: false, unchecked: expect.stringMatching(/^validation ran out of room/) });
   });
 
   it('caps the problems it lists and says how many there were', () => {

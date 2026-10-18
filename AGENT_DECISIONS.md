@@ -1558,6 +1558,12 @@ workspace. `bitbucket` (Data Center) is untouched.
   flags (`--markdown` on create commands) are not part of this.
 - **The input is read in `md.ts`**, which loads statically; only the converters
   load lazily, so zod stays out of the lazy module (the encode build's finding).
+- **The corpus round-trip test is split, one test per sample** (#195). As a single
+  test it took 4,421 ms (Node 24.14) and 4,560 ms (Node 26) on windows-latest against
+  vitest's 5 s default, about 1.2 s locally, and the bounded worker's small cost
+  tipped it over. The ADF sample, about 560 ms locally and so past 2 s on that runner,
+  has an explicit 15 s timeout with a comment giving those numbers; the code wasn't
+  changed to fit the test.
 
 ### util docs and coverage (#186)
 
@@ -1583,6 +1589,182 @@ workspace. `bitbucket` (Data Center) is untouched.
   in a shell block, not only a mention.
 - **Fixed on the way:** util.md's `md` section carried a copy of `log`'s output and
   checks from a merge, and the `md` row had an empty alias cell.
+### util openapi (#183)
+
+- **Three commands, `list`, `show` and `example`**, one per operation the issue
+  names, each reading and checking the whole document before it answers, so all
+  three carry the same `verified`. No short path: these have no earlier one.
+- **An invalid document is still listed and shown**, with every problem by
+  pointer and `verified.passed` false (`OPENAPI_INVALID`). Real vendor documents
+  aren't always valid; refusing them would leave the agent with nothing.
+- **Schemas bundled:** OpenAPI 3.0 (2024-10-18), 3.1 and 3.2 (2025-11-23),
+  Swagger 2.0, and the draft-04 meta-schema Swagger 2.0 refers to, as published
+  (NOTICE). cfworker doesn't implement `$dynamicRef`, which the 3.1 and 3.2
+  schemas use to hand Schema Objects to the 2020-12 dialect, so that part is
+  `document.schemaObjects`, `UNVERIFIED`, not a pass. An unknown version (3.3,
+  4.0) is refused rather than checked against a near one.
+- **`$ref` expansion:** `--depth` counts ref hops along a branch (default 3, at
+  most 20). Expanded nodes say `x-toil-ref`; kept ones `x-toil-stop` (`depth`,
+  `circular`, `external`, `broken`). In 3.0 and 2.0 a ref's siblings are dropped,
+  as the spec says; from 3.1 they're merged over the target, not wrapped in
+  `allOf`. A path item or parameter `$ref` is always followed, whatever the depth.
+  A budget of 250,000 objects and arrays built per `show` (and 250,000 values
+  generated per `example`) stops a fan-out from hanging the MCP server. It
+  counts nodes, not refs, because each ref copies its whole target, so a fan-out
+  of wide schemas blew past a ref count (review rounds 1 and 2). Past it the rest
+  stay in place as `depth`, with `expansion.truncated` and a warning. A cut-short
+  example fails `example.valid` without being validated, since its nulls can't be
+  valid and validating 250,000 values only costs time. `minItems` builds no more
+  items than the budget has left, and a string is at most 10,000 characters: a
+  longer `minLength` is cut (and the example marked cut short), and a pattern's
+  `{n}` past 10,000 isn't read (review round 3). The two caps multiply, so all of one
+  example's strings share a total of 1,000,000 characters too (review round 4).
+- **A fourth review round**, past the usual three, at the coordinator's call: each
+  round found a narrower way round the same budget (refs, then nodes, then
+  items and string length, then the product of the caps), so the loop was
+  converging rather than circling.
+- **Round 5 fixed the class, not the keyword.** `const` and `enum` returned the
+  document's own value uncharged, the fourth budget bypass in a row. Every value
+  an example holds now passes one choke point, `emit`, which charges its
+  serialised length (plus each property name and each array's brackets) to the
+  1,000,000-character budget and returns null past it. A `default`, `example` or
+  `examples` is never copied into an example at all. The sweep found the same
+  hole in `show`: a description, `example`, `default` or `enum` is copied whole
+  wherever its schema is expanded, so `expand` charges every copied value the
+  same way against 4,000,000 characters, and past it stops refs and nulls the
+  rest (the largest real operation, GitHub's issue timeline at depth 20, is
+  about 470,000). Validator messages, which quote a whole `enum`, are cut to 300
+  characters in `document.problems` and `example.valid`.
+- **Round 6: the budget is checked before anything is serialised.** `emit` and
+  `show`'s `spend` used to stringify a value to price it and then find the budget
+  already spent, so an `allOf` diamond reaching a 1 MB `const` 250,000 times
+  took 65 s. Both now check first, and `spend` takes the cost as a function, so
+  a spent budget serialises nothing.
+- **Round 7: every phase has a stated bound.** Validating an example had none:
+  cfworker tries every `anyOf`/`oneOf` branch, so a diamond of refs validated in
+  2^n time (an hour at n=30), and a `oneOf` diamond overflowed the stack into
+  `INTERNAL`. (Replaced in round 9 by a worker with a deadline, below.) The kit's `validateSchema` measured the schema's fan-out first
+  (`schemaFanOut`: memoised, iterative, counting every path through `$ref`,
+  allOf, anyOf, oneOf, not and if/then/else, a loop back counting 1). Past
+  100,000 it returns `unchecked` with the reason instead of running. A
+  `RangeError` from the validator also becomes `unchecked`, never a crash.
+  `document.schema`, `example.valid` and util md's ADF checks all report it as
+  `UNVERIFIED`. The official OpenAPI schemas fan out to at most 31, and ADF's to
+  90. None of the 3,713 bodies across the full Jira, GitHub and Bitbucket specs
+  hits the guard. After six rounds on one class (work that grows faster than
+  its input, run synchronously), every phase was gone through deliberately for
+  what bounds it:
+
+  | Phase | What bounds it | Test |
+  |---|---|---|
+  | Parse | Input at most 64 MiB (kit). JSON.parse is linear. YAML aliases add at most 1,000,000 values (kit). Nesting is at most 256 levels, checked iteratively, else `INVALID_INPUT`, so no later recursion can go deeper | 10,000-deep document refused in under 5 s |
+  | `$ref` resolution | Iterative walk, `O(nodes + refs × depth)`. Tarjan's cycle search is iterative, `O(V + E)` | 200,000 refs in 20,000 operations in about 2 s |
+  | Document validation | Runs in a bounded worker: 2 s and 256 MB, then terminated and reported unchecked with the reason (deadline, memory, stack, or worker threads not allowed). Nesting is at most 256 levels. 50 problems listed, each message at most 300 characters | Kit worker tests; invalid-document tests; smoke runs it from the built bundle |
+  | List | `O(operations × parameters)`; output is never more than the document | Listing tests, the 200,000-ref document |
+  | Show | `--depth` at most 20. 250,000 nodes, 4,000,000 characters and 1,000 levels of nesting, all checked before work is done | Diamond, wide diamond, long text, deep nesting |
+  | Example generation | In-process: 250,000 values, 1,000,000 characters through one choke point, strings of 10,000 characters, items limited to the budget left, 1,000 levels, a ref repeated at most twice on a path. A document's patterns are never run in-process: candidate strings are matched in one bounded worker beforehand (2 s, at most 5,000 patterns and 5,000,000 characters of candidates) | `it.each` of bypasses, diamonds, a 3,000-schema chain; backtracking patterns stopped at the deadline |
+  | Example validation | Copies only what the schema reaches, then validates in a bounded worker (2 s, 256 MB). A cut-short example isn't validated | anyOf diamond stopped at the deadline; oneOf diamond out of stack reported unchecked |
+
+  **Round 9: a deadline instead of guesses (the maintainer's decision).** Rounds 7 and 8
+  guessed what validation and a regex would cost from their shape (`schemaFanOut`,
+  `regexRisk`). Each guess missed cases, so both are gone, and everything whose cost a
+  document controls runs in a worker thread with a deadline instead: `kit/bounded.ts`,
+  `runBounded`. That covers every JSON Schema validation (the document, the example,
+  util md's ADF) and every run of a document's own `pattern`.
+
+  - **The worker** evaluates a small script, `kit/bounded-task.ts` bundled with the
+    validator by `scripts/gen-worker.mjs` (about 30 KB), not the CLI.
+  - **Limits:** 2 s by default (`BOUNDED_TIMEOUT_MS`) and 256 MB of heap
+    (`BOUNDED_MEMORY_MB`, through `resourceLimits`). Past either, the worker is
+    terminated.
+  - **Failures:** a timeout, memory limit, stack overflow or `ERR_ACCESS_DENIED` (Node
+    run with `--permission` and no `--allow-worker`) comes back `unchecked`, with a reason
+    naming which. It is never `INTERNAL`.
+  - **Not spawning:** a worker thread is part of this process, so No Executables holds;
+    `check:pure` passes, and the bundle imports only `node:worker_threads` for it.
+  - **Generation stays in-process**, keeping its value, character, node and nesting
+    budgets. It no longer runs a pattern itself: it sends each pattern's candidate
+    strings to one bounded worker first and uses the first that matches.
+  - **Measured on this Windows laptop:**
+    - a worker round trip takes 19 ms
+    - terminating a busy worker takes about 10 ms
+    - the full GitHub description (13 MB) validates in 735 ms in a worker, Jira in
+      241 ms, Bitbucket in 118 ms
+    - an example is generated and validated in about 18 ms
+    - 811 of 812, 1316 of 1317, 1309 of 1317 and 263 of 267 bodies still validate, as
+      before
+  - **Smoke** runs a validation, a backtracking pattern and a worker-denied Node through
+    the installed bundle.
+  - **Nothing is left unbounded.**
+- **Round 10: the worker script is gated, and cancellable.** It ships as a string
+  inside the bundle, so `check:pure` couldn't see its imports. `scripts/gen-worker.mjs`
+  now builds it with the CLI's no-spawn plugin (moved to `scripts/no-spawn.mjs` so
+  both builds share one) and writes `dist/metafile-worker.json`, which `check:pure`
+  holds to the same rules with no spawner allowed: built-ins only, no
+  `child_process`, no `.node` file. Tried on purpose: an `execSync` import added to
+  `bounded-task.ts` failed `check:pure`, naming the file; then it was reverted. tsup
+  cleans `dist/` except that metafile. `runBounded` takes the command's `signal`:
+  a cancel terminates the worker at once, as `cancelled` (`util openapi` and `util md`
+  pass `ctx.signal`).
+- **Round 11: one warm worker, not one per task.** CI on windows-latest / Node 26
+  timed out util md's corpus round trip at 5 s. Each validation had started its
+  own worker, sent the whole ADF schema and built a validator from it again.
+  `runBounded` now keeps one worker per process, made on first use: tasks queue
+  and run one at a time, each with its own deadline. A timeout, memory limit,
+  crash or cancel terminates that worker, and the next task starts a fresh one
+  (tested: a task stopped at its deadline, then the next passing). A cancel
+  removes a queued task without touching the running one. The worker is unref'd
+  while idle, so it never keeps a command's process alive, and is terminated on
+  exit. A schema used repeatedly is sent under a key (`adf`, the OpenAPI version)
+  and built once per worker. On this laptop, one ADF validation went from about
+  24 ms to about 1 ms once warm (the first, cold, about 60 ms). The corpus test
+  went from 1,256 ms to 1,232 ms: locally its time is the conversions, not the
+  validations, which are where the slow runner's cost was.
+- **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
+  Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
+  extension isn't a reference; under `properties` and the other name maps every
+  key is a name.
+- **One schema per body:** `show` lists every content type and expands the schema
+  of the first JSON one (`contentType` says which). Swagger 2.0's `body` and
+  `formData` parameters become `requestBody`, so both versions share one shape.
+- **`call`** maps the operation onto `<area> api`'s inputs: the first server's
+  path (Swagger `basePath`) plus the operation's, required query parameters as
+  `name=<name>`, `bodyFile: body.json`, a non-JSON content type, and `writes`. The
+  area is left as `<area>`: nothing in a document names a toil area. Required
+  header and cookie parameters, which the passthrough can't send, are listed in
+  `unsupported`. OPTIONS, TRACE and QUERY give `call: null`.
+- **The minimal example** takes required properties only, `const`, then the
+  first non-null `enum` value, then a value by type; it never copies a
+  document's own `example` or `default`, which may hold real data. A branch of
+  `oneOf`/`anyOf`/`allOf` may require a property its parent describes, so the
+  parent's properties are passed down. A `pattern` is met by reading the regex's
+  simplest path (`sampleOfPattern`), then a short list of candidates; lookaround
+  and backreferences give up. A schema that loops through required properties
+  stops after two turns, and validation reports it. Against the full published
+  documents: Jira 811 of 812 bodies validate, GitHub 3.0 1316 of 1317, GitHub 3.1
+  1309 of 1317, Bitbucket 263 of 267. The rest are schemas no value satisfies
+  (GitHub 3.1's `type: [null]` beside `allOf: [user]`, overlapping `oneOf`
+  branches, `additionalProperties: false` beside an `allOf`), reported as
+  `example.valid` failed, with the example still returned.
+- **The example is validated against the schema it came from**, by copying only
+  what the schema reaches to the same pointers in a small document, so its
+  `$ref`s resolve as in the original. 3.0 and 2.0 schemas become draft-04 with
+  `nullable` (and `x-nullable`) as a `null` type; a read-only property isn't
+  required in a request, nor a write-only one in a response.
+- **`--path` on `show` and `example` takes the path with or without its leading
+  slash**, since Git Bash rewrites `/repos/...` into a file path. On `list` it's a
+  substring filter, as the issue asks.
+- **Kit change:** `validateSchema` now returns JSON pointers decoded from
+  cfworker's URI-fragment form (`/paths/~1pets~1{id}`, not `%7Bid%7D`), so a
+  pointer can be followed into the document as written. A new
+  `leafProblems` keeps only what is wrong: cfworker also reports every enclosing
+  keyword that failed because of a deeper one ("A subschema had errors" at the
+  root), which buried the one real problem among twenty. It drops only
+  applicators and `false` schemas; a `required` at a node whose child fails
+  `type` is kept, since those are two problems (review round 1).
+- **The input is opened in the command's small module** and handed to the lazy
+  one, which keeps zod out of everything loaded through `import()` (docs/util.md).
+
 
 ### toil skill
 
