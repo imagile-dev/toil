@@ -64,6 +64,7 @@ install toil and register `toil mcp` with its client.
 ```bash
 toil db query --connection reporting "select top 10 * from orders"
 toil jira search --jql "project = PAY" --select "issues[].key"   # keep only part of data (JMESPath)
+toil wait --until "result != null" -- jenkins pipeline get-run --name api-build --number 42   # repeat a read until it holds
 toil mcp            # run as an MCP server over stdio
 ```
 

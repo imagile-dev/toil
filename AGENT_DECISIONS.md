@@ -831,7 +831,10 @@ Added as each integration lands.
 - **Defaults and limits:** `--interval` 15s, floor 5s; `--timeout` 30m, or
   `TOIL_TIMEOUT_MS` when it's set and `--timeout` isn't; the maximum is
   `"wait": { "maxTimeout": "<duration>" }` in the config file (default 1h, allowed 1m
-  to 24h), read from whichever file loaded, like `bounds`. Over the maximum is
+  to 24h), read from whichever file loaded, like `bounds`, with no env var: it limits
+  how long a caller may keep asking a service, so it is a person's setting, as a
+  relaxed bound is (principle 5 still holds for `TOIL_TIMEOUT_MS`, which sets the
+  default). Over the maximum is
   `INVALID_INPUT` naming the setting. Durations are `<n>ms|s|m|h` text on both doors.
 - **Each attempt keeps its own limit** (the read's `timeLimitMs` or 120 s), cut to the
   time the wait has left. An attempt that times out while the wait still has time is

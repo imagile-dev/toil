@@ -4,6 +4,7 @@ import { defineArea } from '../src/core/area.js';
 import type { AnyCommand } from '../src/core/command.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
+import { allowWriteField } from '../src/core/run.js';
 import { waitCommand } from '../src/core/wait.js';
 import { commands as registered } from '../src/registry.js';
 import { demoCommands, demoRoutes } from './fixtures/demo-commands.js';
@@ -36,12 +37,27 @@ const getBuild = ci.command({
     const res = await ctx.fetch(new URL(`/builds/${input.number}`, ctx.connection.baseUrl));
     if (res.status === 404) throw new ToilError('NOT_FOUND', `No build ${input.number}.`, { fix: 'Check the number.' });
     if (res.status >= 400) throw new ToilError('HTTP', `HTTP ${res.status}`, { details: { status: res.status } });
-    return res.json();
+    const body = (await res.json()) as { result?: string };
+    // A build that ran and failed: the envelope succeeds and the CLI exits 1.
+    if (body.result === 'FAILURE') ctx.setExitCode(1);
+    return body;
   },
 });
 
 const versionCommand = registered.find((def) => def.path.join(' ') === 'version')!;
-const commands: AnyCommand[] = [getBuild, ...demoCommands, versionCommand, waitCommand];
+/** A read or a write by its input, as the raw API passthrough is. */
+const call = ci.command({
+  path: ['ci', 'call'],
+  description: 'GET reads, POST writes',
+  input: z.object({ method: z.enum(['GET', 'POST']).describe('Method'), ...allowWriteField }),
+  writes: false,
+  writesWhen: (input) => input.method !== 'GET',
+  args: [{ name: 'method', field: 'method', description: 'Method' }],
+  examples: [{ method: 'GET' }],
+  run: async (input, ctx) => (await ctx.fetch(new URL('/builds/7', ctx.connection.baseUrl), { method: input.method })).json(),
+});
+
+const commands: AnyCommand[] = [getBuild, call, ...demoCommands, versionCommand, waitCommand];
 const config = { ci: { baseUrl: 'https://ci.imagile.dev', token: 't0ken-abc12345' }, demo: { token: 't', writes: true } };
 
 /** A build that answers `building` until the `done`th request, with `failures` status codes first. */
@@ -177,6 +193,20 @@ describe('toil wait', () => {
     expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));
     expect([...viaCli.http.calls, ...viaMcp.http.calls]).toEqual([]);
     expect([...viaCli.audit.lines, ...viaMcp.audit.lines]).toEqual([]);
+  });
+
+  it('keeps the exit code the read asked for', async () => {
+    const failed = await cli(['wait', '--until', 'result', '--', 'ci', 'get-build', '7'], [{ url: 'https://ci.imagile.dev/builds/7', respond: { json: { number: 7, result: 'FAILURE' } } }]);
+    expect(failed.envelope?.ok).toBe(true);
+    expect(failed.exitCode).toBe(1);
+  });
+
+  it('waits on a read of a command whose input decides, and refuses its writing call', async () => {
+    const read = await cli(['wait', '--until', 'result', '--', 'ci', 'call', 'GET'], build(1));
+    expect(read.envelope?.ok, read.stdout).toBe(true);
+    const write = await mcp({ tool: 'ci_call', input: { method: 'POST', allowWrite: true }, until: 'result' }, build(1));
+    expect(write.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('changes data with this input') });
+    expect(write.http.calls).toEqual([]);
   });
 
   it('stops with CANCELLED when the caller cancels, on the CLI and over MCP', async () => {

@@ -7,7 +7,7 @@ import { ToilError, toToilError } from './errors.js';
 import { compileQuery, isFalse, pointAt, QueryError, type Query } from './query/index.js';
 import { applySelect, takeSelect } from './query/select.js';
 import { sleep } from './rest.js';
-import { DEFAULT_TIMEOUT_MS, execute, inFieldNames, type FrontDoor } from './run.js';
+import { DEFAULT_TIMEOUT_MS, execute, inFieldNames, keepExitCode, type FrontDoor } from './run.js';
 
 /**
  * `toil wait`: run one read again and again until a JMESPath condition holds
@@ -121,7 +121,8 @@ export async function runWait(def: AnyCommand, rawInput: unknown, makeContext: (
   const deadline = started + timeoutMs;
   const report = (attempts: number): WaitReport => ({ until: until.expression, attempts, elapsedMs: Date.now() - started });
   // The read's own envelope, so its meta (context, warnings, requests) says what it did, plus where the wait got to.
-  const finish = (envelope: Envelope, attempts: number): Envelope => ({ ...envelope, meta: { ...envelope.meta, durationMs: Date.now() - started, wait: report(attempts) } });
+  // A read that asked for an exit code (a build that ran and failed) still gets it.
+  const finish = (envelope: Envelope, attempts: number): Envelope => keepExitCode(envelope, { ...envelope, meta: { ...envelope.meta, durationMs: Date.now() - started, wait: report(attempts) } });
   let last: Envelope | undefined;
   let lastData: unknown = null;
   let failures = 0;
@@ -137,7 +138,7 @@ export async function runWait(def: AnyCommand, rawInput: unknown, makeContext: (
     const limit = Math.max(1, Math.min(target.def.timeLimitMs ?? DEFAULT_TIMEOUT_MS, left));
     const ctx = makeContext(target.def);
     const envelope = await execute(target.def, target.input, { ...ctx, timeoutMs: limit }, via);
-    last = via === 'mcp' ? inFieldNames(target.def, envelope) : envelope;
+    last = via === 'mcp' ? keepExitCode(envelope, inFieldNames(target.def, envelope)) : envelope;
     if (signal?.aborted) return stopped(cancelled(target.def, attempt, lastData), attempt);
     let message: string;
     if (last.ok) {
@@ -161,7 +162,7 @@ export async function runWait(def: AnyCommand, rawInput: unknown, makeContext: (
         const warnings = [...(last.meta.warnings ?? [])];
         try {
           const data = applySelect(select, last.data, commandName(target.def), false, (w) => warnings.push(w));
-          return finish({ ...last, data, meta: { ...last.meta, ...(warnings.length > 0 ? { warnings } : {}) } }, attempt);
+          return finish(keepExitCode(last, { ...last, data, meta: { ...last.meta, ...(warnings.length > 0 ? { warnings } : {}) } }), attempt);
         } catch (err) {
           return stopped(toToilError(err), attempt);
         }
@@ -219,9 +220,9 @@ function prepare(def: AnyCommand, rawInput: unknown, ctx: Context, targets: read
   }
   const targetInput = wait.input ?? {};
   // The write check reads the input as the command will (`writesWhen` looks at a parsed method).
-  const own2 = takeSelect(commandName(found), targetInput).input;
-  const asParsed = found.input.strict().safeParse(own2 ?? {});
-  if (found.writes || (takesAllowWrite(found) && writesFor(found, asParsed.success ? asParsed.data : own2))) {
+  const targetOwn = takeSelect(commandName(found), targetInput).input;
+  const asParsed = found.input.strict().safeParse(targetOwn ?? {});
+  if (found.writes || (takesAllowWrite(found) && writesFor(found, asParsed.success ? asParsed.data : targetOwn))) {
     throw new ToilError('INVALID_INPUT', `toil wait only repeats reads, and ${commandName(found)} ${found.writes ? 'changes data' : 'changes data with this input'}; repeating it would make the change again on every attempt.`, {
       fix: `Make the change once with toil ${commandName(found)}, then wait on a read that shows its result.`,
     });

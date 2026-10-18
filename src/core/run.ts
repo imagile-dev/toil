@@ -87,6 +87,13 @@ export function exitCodeOf(envelope: Envelope): number {
   return envelope.ok ? (exitCodes.get(envelope) ?? 0) : 1;
 }
 
+/** `to`, a copy of `from` with more in it (a wait's `meta.wait`), keeping the exit code `from` asked for. */
+export function keepExitCode(from: Envelope, to: Envelope): Envelope {
+  const code = exitCodes.get(from);
+  if (code !== undefined) exitCodes.set(to, code);
+  return to;
+}
+
 /** Two minutes: long enough for a slow report, short enough that a hung server isn't forever. */
 export const DEFAULT_TIMEOUT_MS = 120_000;
 
