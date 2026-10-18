@@ -740,11 +740,6 @@ Added as each integration lands.
   profile, with documented exceptions to the `files.no-overwrite` and
   `files.workspace` bounds.
 
-### Dossiers (#16)
-
-- **Selecting a dossier is lazy for a folder match and strict for an explicit one**:
-  a folder matching two dossiers never fails a call that doesn't consult one, while
-  `--dossier` or `TOIL_DOSSIER` is always checked.
 
 ### SQL Server
 
@@ -795,6 +790,32 @@ Added as each integration lands.
   lost; the docs say to CAST to varchar).
 - **The test image is pinned to `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04`**
   in CI and the databases skill, never `2022-latest`.
+
+## Dossiers (#16)
+
+- **The model and resolution (#152):**
+  - **The commands are `toil dossiers`, plural**, like `toil connections`, as the maintainer's `toil dossiers import` and `show` are.
+  - **No area declares a section schema.** A section's keys are the area's context inputs, plus `connection`, `host` and `fields`; any other key is reference data, kept but never applied. `host` and `fields` are reserved as context-input names.
+  - **Adopted means "in your own folder"** (`~/.toil/dossiers/`). A loose file named by path never is, so CI passes `--connection` to write.
+  - **A dossier's environment fills `--env` only for the areas it lists**, so a default environment can't fail an area that has none by that name.
+  - **The default folder is the workspace**, the folder the git step already read.
+  - **Remotes are matched without scheme, userinfo or port.**
+  - **A dossier naming a connection you don't have is a hard error**, as an unknown `--connection` is (the design's open question 1).
+  - **Choosing the dossier is lazy for a folder match only.** The ambiguity of two matches is raised only when the resolver reaches the dossier step. A dossier named by `--dossier` or `TOIL_DOSSIER` is chosen at once, so a bad one fails the call that named it.
+  - **With `--connection` named, an input that selects a connection isn't looked up in the dossier**: it could only agree or give way.
+  - **A path a call names is bounds-checked before it's looked at**, so over MCP it can't probe whether a file or folder exists.
+- **Building and sharing (#164):**
+  - **`link` takes context inputs as `--set key=value`**, repeatable, so tool schemas stay fixed; `--add` builds reference lists, and `--for-repo` makes a value one repo's.
+  - **`--set env` is refused**, pointing at `dossiers env … --default`: a call never reads a section's own `env`, and a hand-written one is a `DOSSIER_UNUSED_KEY` warning.
+  - **`dossiers env` takes `link`'s flags plus `--default`.**
+  - **`dossiers remove` exists for #56's Delete**, CLI only, and only touches your own folder.
+  - **The MCP write rule asks the call's own resolver** (`dossierConnection`), through `connection`, `host` and every input that selects a connection, for no repo and each of the dossier's repos. A non-default environment's binding is allowed, since a call reaches it only with an explicit `--env`, which picks the connection itself.
+  - **`dossiers.replace` is kept as an exception to `files.no-overwrite`** (the maintainer's condition: only where a person asked to replace a file). An edit rewrites the dossier it read. `import --replace` and `export --replace` replace a dossier only with the flag. A file that isn't a valid dossier is never replaced.
+  - **Export to `--file` stays inside the workspace or a dossier folder**; `--repo` must be a working tree's root.
+  - **Your own copy of a checked-in dossier wins wherever the checked-in one applies**, even when it lists no repos, so `import` adopts in the repository it came from.
+  - **`repos scan` is a `config` command on the dossier catalog**, capped at 20,000 folders, saying `truncated` past that.
+  - **Field aliases go through the area's existing `--field`** (Jira, Jira Cloud), asked for only when the call names a field; a name the connection already uses keeps the connection's meaning.
+  - **A fixture can carry a `dossier`** for its area's `check-dossier`, holding only keys the other examples don't read.
 - **Windows authentication** (`auth: "windows"`, #165): the alternate account reuses
   `user` with a new `domain` key, not a separate `username`. A provider `check` hook
   (run by the area schema's `superRefine`) requires `user` for SQL logins and refuses

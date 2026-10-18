@@ -40,5 +40,116 @@
     "flags": [
       "--cwd <dir>"
     ]
+  },
+  {
+    "name": "init",
+    "tool": "dossiers_init",
+    "description": "Create a dossier in your own folder (~/.toil/dossiers)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>",
+      "--description <text>"
+    ]
+  },
+  {
+    "name": "add-repo",
+    "tool": "dossiers_add_repo",
+    "description": "Add a repository to a dossier, by its folder or its remote URL",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<dossier>",
+      "<location>",
+      "--name <name>",
+      "--replace"
+    ]
+  },
+  {
+    "name": "link",
+    "tool": "dossiers_link",
+    "description": "Attach an area to a dossier: which connection it uses, and its keys",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<dossier>",
+      "<area>",
+      "--connection <name>",
+      "--host <host>",
+      "--unbind",
+      "--set <key=value>",
+      "--add <key=value>",
+      "--for-repo <name>",
+      "--replace"
+    ]
+  },
+  {
+    "name": "env",
+    "tool": "dossiers_env",
+    "description": "Add an environment's resources for an area to a dossier",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<dossier>",
+      "<env>",
+      "<area>",
+      "--default",
+      "--connection <name>",
+      "--host <host>",
+      "--unbind",
+      "--set <key=value>",
+      "--add <key=value>",
+      "--for-repo <name>",
+      "--replace"
+    ]
+  },
+  {
+    "name": "field",
+    "tool": "dossiers_field",
+    "description": "Name one of an area's fields in a dossier, so prompts use the name",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<dossier>",
+      "<area>",
+      "<alias>",
+      "<field-id>",
+      "--replace"
+    ]
+  },
+  {
+    "name": "export",
+    "tool": "dossiers_export",
+    "description": "Write a dossier for sharing: into a repository's .toil/dossiers, or to one file",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<dossier>",
+      "--repo <dir>",
+      "--file <path>",
+      "--replace"
+    ]
+  },
+  {
+    "name": "import",
+    "tool": "dossiers_import",
+    "description": "Copy a dossier into your own folder, adopting its bindings",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<source>",
+      "--name <name>",
+      "--replace"
+    ]
+  },
+  {
+    "name": "remove",
+    "tool": null,
+    "description": "Delete one of your own dossiers",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>"
+    ]
   }
 ]
