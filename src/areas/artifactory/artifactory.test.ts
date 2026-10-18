@@ -11,7 +11,7 @@ import { licenseCheckCommand, outdatedCommand } from './dependencies.js';
  * Request building and response reshaping, command by command: the exact
  * request toil sends to Artifactory and what it makes of the answer. The
  * parity suite proves both front doors agree; this proves they agree on what
- * the command contract sent. Suspected bugs (#82, and #91 for the
+ * the command contract specifies. Suspected bugs (#82, and #91 for the
  * dependency lookups) are pinned here rather than fixed, pending a hearing.
  */
 
@@ -250,12 +250,11 @@ describe('outdated', () => {
     expect((major.envelope.data as { summary: unknown }).summary).toEqual({ total: 2, major: 2, minor: 0, patch: 0 });
   });
 
-  it('lists ecosystems with no repository key as unchecked, and reads the old REPO_<ECOSYSTEM> names with a warning', async () => {
-    const config = { artifactory: { baseUrl: ARTIFACTORY, token: 'test-token', repoNpm: 'npm-remote' } };
+  it('lists ecosystems with no repository key as unchecked', async () => {
+    const config = { artifactory: { baseUrl: ARTIFACTORY, token: 'test-token', npmRepo: 'npm-remote' } };
     const { envelope, calls } = await run(outdatedCommand, { from: 'inventory.json' }, fixtureRoutes, { config });
     expect(calls.map((c) => new URL(c.url).pathname)).toEqual(['/api/system/ping', '/api/npm/npm-remote/express', '/api/npm/npm-remote/@types%2Fnode']);
     expect(envelope.data).toMatchObject({ uncheckedEcosystems: ['nuget', 'maven'], summary: { total: 2 } });
-    expect(envelope.meta.warnings).toContainEqual(expect.objectContaining({ code: 'CONFIG_RENAMED_KEY' }));
   });
 
   it('suspected bug #91 item 23: a lookup that fails for any reason drops the package, and the command succeeds', async () => {
@@ -270,7 +269,7 @@ describe('outdated', () => {
     expect(calls.map((c) => new URL(c.url).pathname)).toEqual(['/api/system/ping']);
   });
 
-  it('stops when the ping fails, with the documented message pointing at ping', async () => {
+  it('stops when the ping fails, with its documented message pointing at ping', async () => {
     const denied = await run(outdatedCommand, { from: 'inventory.json' }, [{ url: /.*/, respond: { status: 401, text: '' } }]);
     expect(denied.calls).toHaveLength(1);
     expect(denied.envelope.error).toMatchObject({

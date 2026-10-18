@@ -20,7 +20,7 @@ import { parseStatus } from './status.js';
 
 /**
  * The git area against a fake git that records every call, pinning the
- * contract's behaviour item by item from #74, then once against the real
+ * behaviour the contract specifies, item by item from #74, then once against the real
  * binary. Two witnesses, as the procedure requires.
  */
 const cmd = (name: string) => commands.find((c) => c.path.join(' ') === `git ${name}`)! as AnyCommand;
@@ -89,12 +89,12 @@ describe('git status', () => {
     expect(parseStatus('R  a.txt -> b c.txt\n?? "caf\\303\\251.txt"')).toEqual({ staged: ['a.txt -> b c.txt'], unstaged: [], untracked: ['"caf\\303\\251.txt"'] });
   });
 
-  it("fails with git's own message when git does, as the contract never caught it", async () => {
+  it("fails with git's own message when git does, uncaught, as specified", async () => {
     const { envelope } = await run('status', {}, fakeGit(() => failed('fatal: not a git repository (or any of the parent directories): .git\n')));
     expect(envelope).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: 'Command failed: git status --porcelain\nfatal: not a git repository (or any of the parent directories): .git' } });
   });
 
-  it("fails past execSync's 1 MB, as the contract did with ENOBUFS", async () => {
+  it("fails past execSync's 1 MB, as specified (execSync's ENOBUFS)", async () => {
     const { envelope } = await run('status', {}, fakeGit(() => ok(`?? ${'x'.repeat(1024 * 1024)}`)));
     expect(envelope).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: expect.stringContaining('printed more than 1 MB') } });
   });
@@ -162,7 +162,7 @@ describe('git diff', () => {
     expect(parseDiff('diff --git a/x b/y b/x b/y b/z').files[0]!.path).toBe('x b/y b/x b/y');
   });
 
-  it("returns an empty diff when git fails, as the contract did (#74 item 3's swallow)", async () => {
+  it("returns an empty diff when git fails, as specified (#74 item 3's swallow)", async () => {
     const { envelope } = await run('diff', { file: 'nope' }, fakeGit(() => failed('fatal: bad revision')));
     expect(envelope).toEqual(expect.objectContaining({ ok: true, data: { files: [], truncated: false } }));
   });

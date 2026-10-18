@@ -17,7 +17,7 @@ import { isNewer, updateType } from './semver.js';
  * package was checked, which is true, in the sense that it was asked.
  */
 
-/** The contract's per-request timeout for these lookups. */
+/** The per-request timeout the contract specifies for these lookups. */
 const LOOKUP_TIMEOUT_MS = 15_000;
 /** One request per package, sequentially: ten minutes covers several hundred direct dependencies at the lookup timeout's worst. */
 const TIME_LIMIT_MS = 600_000;
@@ -30,13 +30,13 @@ const FROM_DESCRIPTION = INVENTORY_FROM_DESCRIPTION;
 const fromField = z.string().optional().describe(FROM_DESCRIPTION);
 const ecosystemField = z.string().optional().describe(ECOSYSTEM_DESCRIPTION);
 
-/** The inventory, read by core's shared reader, with the fix naming this area's commands as before. */
+/** The inventory, read by core's shared reader, with the fix naming this area's commands. */
 function readInventory(ctx: ArtifactoryContext, from: string | undefined): InventoryPackage[] {
   return readSharedInventory(ctx, from, { pipeTo: 'toil artifactory <command>' });
 }
 
 /**
- * What the contracts scanned: the chosen ecosystem (`all`, or one; any
+ * What is scanned: the chosen ecosystem (`all`, or one; any
  * other value matches nothing, suspected bug #91 item 24), direct
  * dependencies only, and production ones unless dev was asked for.
  */
@@ -46,8 +46,8 @@ function direct(packages: InventoryPackage[], ecosystem: string | undefined, inc
 }
 
 /**
- * The ping the contracts sent first, with only the token and the lookup
- * timeout. Anything but a success stops the command, as before.
+ * The ping sent first, with only the token and the lookup timeout.
+ * Anything but a success stops the command.
  */
 async function requireReachable(ctx: ArtifactoryContext): Promise<void> {
   try {
@@ -69,7 +69,7 @@ function repoFor(connection: ArtifactoryConnection, ecosystem: string): string |
   return undefined;
 }
 
-/** One lookup: its answer, or null for any failure at all, as before. A cancelled command still stops. */
+/** One lookup: its answer, or null for any failure at all. A cancelled command still stops. */
 async function lookup<T>(ctx: ArtifactoryContext, path: string, as: 'json' | 'text' = 'json'): Promise<T | null> {
   try {
     return await apiRequest<T>(artifactoryArea, ctx, path, { as, timeoutMs: LOOKUP_TIMEOUT_MS });

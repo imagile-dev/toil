@@ -20,7 +20,7 @@ import { gitBool, lastValue, readGitConfigFiles, refusedGitRead, type GitConfigE
  *
  * Results match `git rev-parse --show-toplevel`, `git rev-parse --abbrev-ref
  * HEAD` and the `(fetch)` lines of `git remote -v`, bugs included, because
- * area context used to come from exactly those. Not read: the system config,
+ * the contract specifies area context as exactly what those print. Not read: the system config,
  * GIT_DIR and GIT_WORK_TREE, `core.worktree`, the legacy `.git/remotes` and
  * `.git/branches` files, reftable refs, and `safe.directory`.
  *

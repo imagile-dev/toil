@@ -28,7 +28,7 @@ const setHint = (conn: Connection<DynatraceSettings>, area: HookArea, key: keyof
 
 /** The classic environment API: every command but trace. */
 function classicEndpoint(conn: Connection<DynatraceSettings>, area: HookArea): AreaEndpoint {
-  // The contract checked the URL before the token, so a connection missing both names the URL.
+  // The contract checks the URL before the token, so a connection missing both names the URL.
   if (!conn.baseUrl) throw new ToilError('NOT_CONFIGURED', 'Dynatrace baseUrl not configured.', { fix: setHint(conn, area, 'baseUrl') });
   if (!conn.apiToken) throw new ToilError('NOT_CONFIGURED', 'Dynatrace credentials not configured.', { fix: setHint(conn, area, 'apiToken') });
   return {

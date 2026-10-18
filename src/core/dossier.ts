@@ -389,7 +389,7 @@ export interface Place {
   fields: (area: string, input: Record<string, unknown>) => Record<string, string>;
   /** Every section the dossier has for an area, for `<area> check-dossier`; asking consults the dossier. */
   view: (area: string) => DossierView | undefined;
-  /** The folder's git, when the call named a `cwd`; otherwise the workspace's, as before. */
+  /** The folder's git, when the call named a `cwd`; otherwise the workspace's. */
   gitRemote?: GitRemoteReader;
   repo?: () => GitContext | undefined;
 }

@@ -11,12 +11,12 @@ import { API, IN_REPO, bb, bbAll, commaList, createPR, getPR, prPath, projectOf,
  * is a sign-off sheet that at least checks whether anyone else signed first.
  */
 
-/** A number the contract read with parseInt: text stays text until then. */
+/** A number read with parseInt, as the contract specifies: text stays text until then. */
 const intText = z.union([z.number(), z.string()]);
 const idInput = intText.describe('Pull request ID');
 const idOption = { flags: '--id <pr-id>', field: 'id', description: 'Pull request ID' };
 
-/** An ISO 8601 date flag, read with `new Date()` as the contract read it. Suspected bug (#76 item 17): a date-time without a zone is local time. */
+/** An ISO 8601 date flag, read with `new Date()` as the contract specifies. Suspected bug (#76 item 17): a date-time without a zone is local time. */
 function parseDate(flag: string, value: string): Date {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -349,7 +349,7 @@ export const currentPrCommand = bitbucketArea.command({
     if (!ctx.connection) return { message: 'Requires Bitbucket config. Available after toil connections add.' };
     const repository = ctx.repo();
     if (!repository) throw new ToilError('INVALID_INPUT', 'Not a git repository', { fix: 'Run it inside a git clone, or point --workspace at one.' });
-    // `unknown` is the reader's word for a HEAD it couldn't resolve (no commits yet), where the documented lookup gave nothing.
+    // `unknown` is the reader's word for a HEAD it couldn't resolve (no commits yet), where the specified lookup gives nothing.
     if (repository.branch === 'unknown') throw new ToilError('INVALID_INPUT', 'Could not determine current branch', { fix: 'Check out a branch with at least one commit, then try again.' });
     const { project, repo } = ctx.context;
     if (!project || !repo) {

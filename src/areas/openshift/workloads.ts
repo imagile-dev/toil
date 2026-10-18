@@ -188,7 +188,7 @@ export const logsCommand = openshiftArea.command({
     namespace,
     pod: z.string().describe('Pod name'),
     container: z.string().optional().describe('Container name (defaults to first container)'),
-    // Read with parseInt, as the contract did, so text stays text until then.
+    // Read with parseInt, as the contract specifies, so text stays text until then.
     lines: z.union([z.number(), z.string()]).optional().describe('Number of most-recent lines to return (default: "100")'),
     previous: z.boolean().optional().describe('Return logs from the previous container instance (default: false)'),
   }),

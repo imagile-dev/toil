@@ -20,12 +20,12 @@ export type BitbucketConnection = Connection<z.output<typeof bitbucketArea.conne
 export type BitbucketContext = CommandContext<BitbucketConnection, { project?: string; repo?: string }>;
 
 export const API = '/rest/api/1.0';
-/** The contract's per-request timeout. */
+/** The per-request timeout the contract specifies. */
 const TIMEOUT_MS = 30_000;
-/** The contract's page size for every paged list. */
+/** The page size the contract specifies for every paged list. */
 const PAGE_SIZE = 100;
 
-/** What every call sends besides the hook's token, exactly as the contract sent it. */
+/** What every call sends besides the hook's token, exactly as the contract specifies. */
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
 
 export type Request = Pick<ApiRequest, 'method' | 'query' | 'json'>;
@@ -56,7 +56,7 @@ export async function bbAll<T>(ctx: BitbucketContext, path: string, query: Recor
 export const repoPath = (project: string, repo: string) => `${API}/projects/${project}/repos/${repo}`;
 export const prPath = (project: string, repo: string, id: number) => `${repoPath(project, repo)}/pull-requests/${id}`;
 
-/** A number the contract read with parseInt, as it read it: `12abc` is 12, `abc` is NaN. */
+/** A number read with parseInt, as the contract specifies: `12abc` is 12, `abc` is NaN. */
 export const toInt = (value: number | string | undefined, fallback?: string): number => parseInt(String(value ?? fallback), 10);
 
 /** What a command that acts on one repository lists as its context. */
@@ -65,7 +65,7 @@ export const IN_REPO = { project: 'required', repo: 'required' } as const;
 /**
  * The project and repo a command acts on. Commands that need both list them
  * as required, so core has already refused the call, in the contract's
- * words, when either is missing.
+ * specified wording, when either is missing.
  */
 export function where(ctx: BitbucketContext): { project: string; repo: string } {
   return { project: ctx.context.project!, repo: ctx.context.repo! };
@@ -73,7 +73,7 @@ export function where(ctx: BitbucketContext): { project: string; repo: string } 
 
 /**
  * The project alone, for create-repo and create-prs, with the contract's
- * own wording for those two; the area-wide wording names the repo as well.
+ * specified wording for those two; the area-wide wording names the repo as well.
  */
 export function projectOf(ctx: BitbucketContext): string {
   const { project } = ctx.context;
@@ -85,7 +85,7 @@ export function projectOf(ctx: BitbucketContext): string {
   return project;
 }
 
-/** A comma list split as the contract split it: trimmed, empty entries kept. */
+/** A comma list split as the contract specifies: trimmed, empty entries kept. */
 export const commaList = (value: string) => value.split(',').map((s) => s.trim());
 
 export interface BitbucketUser {
@@ -131,7 +131,7 @@ export function createPR(ctx: BitbucketContext, opts: CreatePR): Promise<Bitbuck
 
 /**
  * The caller, from the `X-AUSERNAME` header Bitbucket stamps on every
- * authenticated response, then `/users/{username}`. The contract chose the
+ * authenticated response, then `/users/{username}`. The contract specifies the
  * header over the applinks whoami servlet, which answers PAT requests with an
  * empty body on some servers. Suspected bug (#76 item 13): the username is
  * used where the endpoint expects a slug.

@@ -7,7 +7,7 @@ import type { Route } from '../harness/fake-fetch.js';
  * (`/api/graphql`) is exercised too. Shapes are trimmed from GitHub's REST and
  * GraphQL reference docs (invented from the docs, not captured live), with
  * placeholder hosts and ids. The PR and issue shapes follow the fields the
- * contract's tests used.
+ * contract's recorded examples use.
  */
 
 export const GHE = 'https://ghe.imagile.dev';

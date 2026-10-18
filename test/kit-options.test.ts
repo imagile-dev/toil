@@ -169,7 +169,7 @@ describe('a command that handles an unconfigured area itself', () => {
     expect(envelope).toMatchObject({ ok: true, data: { configured: false } });
     expect(envelope.meta.warnings).toEqual([{ code: 'CONFIG_INCOMPLETE', message: expect.stringContaining('Connection demo (demo) is missing or has invalid token.') }]);
     expect(http.calls).toHaveLength(0);
-    // Named outright, the same connection is the caller's to fix: CONFIG_INVALID as before.
+    // Named outright, the same connection is the caller's to fix: CONFIG_INVALID, as for any named connection.
     expect((await execute(thingStatus, { connection: 'demo' }, context)).error?.code).toBe('CONFIG_INVALID');
     // And a command without connectionOptional never gets this.
     expect((await execute(getThing, { id: 'THING-1' }, context)).error?.code).toBe('CONFIG_INVALID');

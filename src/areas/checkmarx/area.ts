@@ -16,7 +16,7 @@ export const FALLBACK_CLIENT_ID = 'ast-app';
 
 /**
  * The `azp` claim of the API key's JWT payload, or `ast-app`. Read exactly as
- * the contract read it: base64url swapped to base64 by hand, any failure
+ * the contract specifies: base64url swapped to base64 by hand, any failure
  * (not a JWT, not JSON, no `azp`, an empty one) falling back.
  */
 export function apiKeyClientId(apiKey: string): string {
@@ -56,11 +56,6 @@ export const checkmarxArea = defineArea({
   }),
   secrets: ['apiKey'],
   examples: { baseUrl: 'https://eu.ast.checkmarx.net/api' },
-  // Client credentials need an OAuth client registered for toil, which the Authentication Bar rules out.
-  removed: {
-    clientId: 'Checkmarx One client credentials are no longer supported, so clientId is ignored. Set apiKey to a Checkmarx One API key instead.',
-    clientSecret: 'Checkmarx One client credentials are no longer supported, so clientSecret is ignored. Set apiKey to a Checkmarx One API key instead.',
-  },
   probe: () => ({ path: 'projects', query: { limit: 1 } }),
   request: (connection, area) => {
     const exchange: TokenExchange = {
@@ -71,7 +66,7 @@ export const checkmarxArea = defineArea({
         body: new URLSearchParams({ grant_type: 'refresh_token', client_id: apiKeyClientId(connection.apiKey), refresh_token: connection.apiKey }).toString(),
       },
       credential: connection.apiKey,
-      // Number(), as the contract's `expires_in * 1000` coerced: a missing
+      // Number(), as the contract's `expires_in * 1000` coerces: a missing
       // expires_in is NaN, so the token is never reused (#89 item 5).
       read: (body) => ({ token: obj(body).access_token as string | undefined, expiresInSeconds: Number(obj(body).expires_in) }),
     };

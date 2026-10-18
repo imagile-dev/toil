@@ -6,7 +6,7 @@ import { defineFixture } from '../harness/fixtures.js';
  * examples send, so the parity suite runs every command offline through both
  * front doors.
  *
- * Provenance: the command contract's tests cover only its error hints
+ * Provenance: the command contract's recorded examples cover only its error hints
  * and attachment-name handling, not response shapes, so every shape here is
  * invented from Atlassian's documented Server REST API (/rest/api content,
  * child content, labels, space, search, attachments, contentbody/convert),

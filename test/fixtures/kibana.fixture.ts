@@ -6,7 +6,7 @@ import { defineFixture } from '../harness/fixtures.js';
  * match on method, path and the whole query.
  *
  * Provenance: the status, find, data-view, rule and export bodies follow the
- * shapes in the contract's tests, checked against Elastic's Kibana API
+ * shapes in the contract's recorded examples, checked against Elastic's Kibana API
  * reference (https://www.elastic.co/docs/api/doc/kibana); the spaces list is
  * invented from that reference. None was captured from a live Kibana; the
  * capture is scheduled for the quarter after the one it was scheduled for.
@@ -16,7 +16,7 @@ export const KIBANA = 'https://kibana.imagile.dev';
 
 export const config = { kibana: { baseUrl: KIBANA, apiKey: 'test-api-key' } };
 
-// From the contract's tests: GET /api/status, the 8.x shape.
+// From the contract's recorded examples: GET /api/status, the 8.x shape.
 export const status = {
   name: 'kb',
   uuid: 'abc12345-0000-0000-0000-000000000000',
@@ -30,7 +30,7 @@ export const spaces = [
   { id: 'ops', name: 'Ops', description: 'Operations dashboards', disabledFeatures: ['dev_tools'] },
 ];
 
-// From the contract's tests: GET /api/saved_objects/_find?type=dashboard.
+// From the contract's recorded examples: GET /api/saved_objects/_find?type=dashboard.
 export const find = (page: number, perPage: number) => ({
   page,
   per_page: perPage,
@@ -41,7 +41,7 @@ export const find = (page: number, perPage: number) => ({
   ],
 });
 
-// From the contract's tests: the NDJSON from POST /api/saved_objects/_export, export details last.
+// From the contract's recorded examples: the NDJSON from POST /api/saved_objects/_export, export details last.
 export const exportNdjson = [
   '{"id":"dv1","type":"index-pattern","attributes":{"title":"logs-*"}}',
   '{"id":"abc12345","type":"dashboard","attributes":{"title":"Payments"}}',
@@ -49,10 +49,10 @@ export const exportNdjson = [
   '',
 ].join('\n');
 
-// From the contract's tests: GET /api/data_views.
+// From the contract's recorded examples: GET /api/data_views.
 export const dataViews = { data_view: [{ id: 'dv1', name: 'Logs', title: 'logs-*', namespaces: ['default'] }, { id: 'dv2', title: 'metrics-*', namespaces: ['ops'] }] };
 
-// From the contract's tests: one rule, as GET /api/alerting/rule/{id} and each _find entry return it.
+// From the contract's recorded examples: one rule, as GET /api/alerting/rule/{id} and each _find entry return it.
 export const rule = {
   id: 'abc12345-0000-0000-0000-000000000000',
   name: 'High error rate',

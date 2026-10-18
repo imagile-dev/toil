@@ -9,8 +9,8 @@ import { hotspotsCommand, issuesCommand, measuresCommand, projectsCommand, quali
 /**
  * Request building and response reshaping, command by command: the exact
  * request toil sends and what it makes of the answer. The parity suite proves
- * both front doors agree; this proves what they agree on is what SonarQube
- * Server was sent by the command contract. Suspected bugs (#92) are
+ * both front doors agree; this proves what they agree on is what the command
+ * contract specifies sending SonarQube Server. Suspected bugs (#92) are
  * pinned here, not fixed, which is the usual fate of a reported defect.
  */
 
@@ -44,7 +44,7 @@ describe('quality-gate', () => {
     expect(envelope.meta.context?.inputs?.project).toEqual({ value: 'from-defaults', source: 'connection' });
   });
 
-  it('fails with the contract\'s message, before any request, when there is no project', async () => {
+  it('fails with the contract\'s specified message, before any request, when there is no project', async () => {
     const { envelope, calls } = await run(qualityGateCommand, {}, []);
     expect(calls).toEqual([]);
     expect(envelope.error).toMatchObject({

@@ -34,7 +34,7 @@ export const findingsListCommand = contrastArea.command({
   run: async (input, ctx) => {
     const params = {
       ...limitOffset(input.limit, input.offset),
-      // An empty value is left out, as the contract's truthiness check did.
+      // An empty value is left out, by the truthiness check the contract specifies.
       ...(input.severity ? { severities: input.severity } : {}),
       // Suspected bug (#87 item 2): Contrast's SDK sends `status`, not `statuses`.
       ...(input.status ? { statuses: input.status } : {}),

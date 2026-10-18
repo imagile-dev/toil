@@ -1,7 +1,7 @@
 /**
  * The Kubernetes response shapes the commands read, and the helpers that
  * reshape them: container state, age, and CPU and memory quantities in
- * millicores and mebibytes. Kept exactly as the command contract had
+ * millicores and mebibytes. Exactly as the command contract specifies
  * them, including the quantities it can't read (#88 item 4), which come back
  * as null and are reported, like most capacity questions, as "no limit set".
  */

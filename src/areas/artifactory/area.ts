@@ -21,10 +21,6 @@ export const artifactoryArea = defineArea({
     mavenRepo: z.string().min(1).optional().describe('Maven repository key that outdated looks packages up in'),
   }),
   secrets: ['token'],
-  // The repository keys' old env vars were TOIL_ARTIFACTORY_REPO_<ECOSYSTEM>,
-  // which core reads as repoNpm and so on. Renaming them onto the real keys
-  // keeps those variables working after the find-and-replace.
-  renamed: { repoNpm: 'npmRepo', repoNuget: 'nugetRepo', repoMaven: 'mavenRepo' },
   // The ping answers anyone; the repository list needs a user, and a bad token is a 401 even where anonymous access is on.
   probe: () => ({ path: '/api/repositories' }),
   request: (connection, area) => ({

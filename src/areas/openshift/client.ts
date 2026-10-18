@@ -6,14 +6,14 @@ import { openshiftArea, type OpenShiftSettings } from './area.js';
 
 /**
  * Every request toil sends to the API server, with the headers, timeout and
- * query exactly as the command contract sent them. List calls send
+ * query exactly as the command contract specifies them. List calls send
  * no `limit`, so the server returns the whole list in one answer and nobody
  * has to sign off on page two.
  */
 
 export type OpenShiftContext = CommandContext<Connection<OpenShiftSettings>, Partial<Record<'env' | 'instance', string>>>;
 
-/** The contract's per-request timeout. */
+/** The per-request timeout the contract specifies. */
 const TIMEOUT_MS = 30_000;
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
 const TEXT_HEADERS = { Accept: '*/*', Connection: 'close' };

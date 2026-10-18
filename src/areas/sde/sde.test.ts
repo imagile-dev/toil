@@ -19,7 +19,7 @@ import { area } from './index.js';
  * Request building and response reshaping, command by command: the exact
  * request toil sends to SD Elements and what it makes of the answer. The
  * parity suite proves both front doors agree; this proves what they agree
- * on is what the command contract sent. Suspected bugs (#86) are
+ * on is what the command contract specifies. Suspected bugs (#86) are
  * pinned here, not fixed, pending the usual review by a live server.
  */
 
@@ -35,7 +35,7 @@ const ok = (body: unknown): Route => ({ url: /.*/, respond: { json: body } });
 const urlOf = (calls: Array<{ url: string }>) => calls.map((c) => c.url);
 
 describe('server-info and whoami', () => {
-  it('GET their endpoints with the Token header and the contract\'s JSON headers, and return the body as data', async () => {
+  it('GET their endpoints with the Token header and the JSON headers the contract specifies, and return the body as data', async () => {
     const info = await run(serverInfoCommand, {}, [ok(serverInfo)]);
     expect(info.calls).toEqual([{ method: 'GET', url: `${SDE}/api/v2/server-info/`, headers: HEADERS, body: undefined }]);
     expect(info.envelope.data).toEqual(serverInfo);
@@ -74,13 +74,6 @@ describe('the connection string', () => {
     expect(calls).toEqual([{ method: 'GET', url: `${SDE}/api/v2/users/me/`, headers: { ...HEADERS, authorization: 'Token abc12345' }, body: undefined }]);
   });
 
-  it('the old key, connection, still works, with a renamed-key warning', async () => {
-    const { envelope, calls } = await run(whoamiCommand, {}, [ok(sdeUser(1))], { sde: { connection: 'abc12345@sde.imagile.dev' } });
-    expect(envelope.ok).toBe(true);
-    expect(calls[0]!.headers.authorization).toBe('Token abc12345');
-    expect(envelope.meta.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CONFIG_RENAMED_KEY' })]));
-  });
-
   it('with no @, or @ first, nothing is set: NOT_CONFIGURED before the project check and before any request', async () => {
     for (const connectionString of ['abc12345', '@sde.imagile.dev']) {
       const { envelope, calls } = await run(tasksCommand, {}, [], { sde: { connectionString } });
@@ -105,7 +98,7 @@ describe('the project ID', () => {
     expect(urlOf(flag.calls)).toEqual([`${SDE}/api/v2/projects/9/`]);
   });
 
-  it('missing or not a positive whole number fails with the contract\'s wording before any request', async () => {
+  it('missing or not a positive whole number fails with the contract\'s specified wording before any request', async () => {
     const none = await run(threatsCommand, {}, []);
     expect(none.calls).toEqual([]);
     expect(none.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'No project specified. Use --project or set defaults.sde.project in config.', fix: expect.stringContaining('TOIL_SDE_PROJECT') });
@@ -237,40 +230,20 @@ describe('the connection string, through the real config loader', () => {
     return { envelope, call: http.calls[0] };
   }
 
-  it('the old TOIL_SDE_CONNECTION env var works, with a renamed-key warning', async () => {
-    const { envelope, call } = await whoami({ TOIL_SDE_CONNECTION: 'from-env@sde.imagile.dev' });
-    expect(envelope.error).toBeNull();
-    expect(call).toMatchObject({ url: `${SDE}/api/v2/users/me/`, headers: { authorization: 'Token from-env' } });
-    expect(envelope.meta.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'CONFIG_RENAMED_KEY' })]));
-  });
-
   it('a connection string in the file must be a keychain reference', async () => {
     const stored = await whoami({}, { connectionString: 'keychain:sde-conn' });
     expect(stored.call).toMatchObject({ url: `${SDE}/api/v2/users/me/`, headers: { authorization: 'Token from-store' } });
-    const plain = await whoami({}, { connection: 'abc@sde.imagile.dev' });
+    const plain = await whoami({}, { connectionString: 'abc@sde.imagile.dev' });
     expect(plain.envelope.error?.code).toBe('CONFIG_INVALID');
   });
 
-  it('an env value beats the config file, host and token together, under either name', async () => {
-    const cases: Array<[string, Record<string, string>]> = [
-      ['TOIL_SDE_CONNECTION_STRING', { connectionString: 'keychain:sde-conn' }],
-      ['TOIL_SDE_CONNECTION_STRING', { connection: 'keychain:sde-conn' }],
-      ['TOIL_SDE_CONNECTION', { connection: 'keychain:sde-conn' }],
-    ];
-    for (const [name, file] of cases) {
-      const { envelope, call } = await whoami({ [name]: 'from-env@env.sde.imagile.dev' }, file);
-      expect(envelope.error, `${name} over ${Object.keys(file)[0]}`).toBeNull();
-      expect(call, `${name} over ${Object.keys(file)[0]}`).toMatchObject({ url: 'https://env.sde.imagile.dev/api/v2/users/me/', headers: { authorization: 'Token from-env' } });
-    }
-  });
-
-  it('the old TOIL_SDE_CONNECTION beats a connectionString in the file too: core ranks a renamed key by tier (#128 item 20)', async () => {
-    const { envelope, call } = await whoami({ TOIL_SDE_CONNECTION: 'from-env@env.sde.imagile.dev' }, { connectionString: 'keychain:sde-conn' });
+  it('an env value beats the config file, host and token together', async () => {
+    const { envelope, call } = await whoami({ TOIL_SDE_CONNECTION_STRING: 'from-env@env.sde.imagile.dev' }, { connectionString: 'keychain:sde-conn' });
     expect(envelope.error).toBeNull();
     expect(call).toMatchObject({ url: 'https://env.sde.imagile.dev/api/v2/users/me/', headers: { authorization: 'Token from-env' } });
   });
 
-  it('no sde connection at all is NOT_CONFIGURED in the documented wording, with what to set', async () => {
+  it('no sde connection at all is NOT_CONFIGURED in the wording the contract specifies, with what to set', async () => {
     const http = fakeFetch([]);
     const home = mkdtempSync(join(root, 'home-'));
     const ctx = createNodeContext({ globals: {}, def: whoamiCommand, signal: new AbortController().signal, env: {}, cwd: home, home, areas: [{ name: area.name, fallbacks: area.fallbacks }], version: '0.0.0-test', stderr: () => {} });

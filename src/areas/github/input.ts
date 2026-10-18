@@ -3,13 +3,13 @@ import { ToilError } from '../../core/errors.js';
 import { github, type GitHubContext } from './client.js';
 
 /**
- * Inputs several GitHub commands share, read the way the contract read
- * them. Numbers stay text until `parseInt`, so `12abc` is PR 12 and `abc` is
+ * Inputs several GitHub commands share, read the way the contract specifies.
+ * Numbers stay text until `parseInt`, so `12abc` is PR 12 and `abc` is
  * `NaN` in the path (suspected bug, #72 item 9). The form accepts whatever is
  * written in the box; the department behind it decides what it meant.
  */
 
-/** A number the contract read with parseInt: text stays text until then. */
+/** A number read with parseInt: text stays text until then. */
 export const intText = z.union([z.number(), z.string()]);
 export const parseIntText = (value: number | string): number => parseInt(String(value), 10);
 
@@ -51,5 +51,5 @@ export async function prNodeId(ctx: GitHubContext, owner: string, repo: string, 
 /** A merge method as GraphQL spells it: `--method squash` is `SQUASH`. */
 export const graphqlMethod = (method: string | undefined) => method?.toUpperCase();
 
-/** A list flag the user may repeat; empty means "not given", as the contract's `[]` default did. */
+/** A list flag the user may repeat; empty means "not given", as with the contract's `[]` default. */
 export const repeatable = (description: string) => z.array(z.string()).optional().describe(description);

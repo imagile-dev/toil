@@ -39,7 +39,7 @@ export async function requestJson<T>(ctx: PublicContext, req: PublicPost): Promi
       service: req.service,
       authFix: `${req.service} refused the request. toil sends it no credential; check whether ${new URL(req.url).host} still answers anonymous requests.`,
       timeoutMs: REQUEST_TIMEOUT_MS,
-      // The contract answered a 429 at once; so does this.
+      // The contract specifies answering a 429 at once; so does this.
       retryRateLimit: false,
       ...(req.accept ? { accept: req.accept } : {}),
       ...(req.text ? { as: 'text' as const } : {}),
@@ -55,9 +55,9 @@ export function statusOf(err: unknown): number | undefined {
 }
 
 /**
- * The reachability check the contract made before every run: the endpoint
+ * The reachability check the contract specifies before every run: the endpoint
  * with an empty batch, where a 2xx or a 400 means it's up. Anything else
- * (a 401 included) is "not reachable", as before. The reason is returned for
+ * (a 401 included) is "not reachable". The reason is returned for
  * the error's details.
  */
 export async function probe(ctx: PublicContext, req: PublicPost): Promise<{ reachable: true } | { reachable: false; reason: string }> {

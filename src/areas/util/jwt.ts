@@ -7,9 +7,9 @@ import { ToilError } from '../../core/errors.js';
  * signature. No key, no network, no connection. The token is a credential,
  * so it goes nowhere but the decoder: it isn't logged, and no error message
  * repeats it. `-` reads it from stdin, which keeps it out of the process list
- * and the shell history; the old `jwt decode` path stays as an alias.
+ * and the shell history; the contract's `jwt decode` path stays as an alias.
  *
- * The decoding is the long-established behaviour exactly (#75): a segment that
+ * The decoding is exactly as the contract specifies (#75): a segment that
  * decodes to JSON other than an object is accepted (item 1), Node's lenient
  * base64 skips stray characters (item 2), invalid UTF-8 becomes U+FFFD (item
  * 3), and nothing is trimmed (item 4). Verifying the signature would need the

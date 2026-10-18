@@ -44,7 +44,7 @@ export interface ProgramOptions {
   /** Builds the context for one command. `def` lets standalone and area-local commands skip loading config. */
   createContext: (globals: GlobalOptions, def?: AnyCommand) => Context;
   startMcp: (options: { areas: string[] | undefined; globals: GlobalOptions }) => Promise<void>;
-  /** Old paths that route to a command by a flag's value (`deps frisk --source osv`); see src/core/routed-alias.ts. */
+  /** Alias paths that route to a command by a flag's value (`deps frisk --source osv`); see src/core/routed-alias.ts. */
   routed?: readonly ResolvedRoutedAlias[];
   /**
    * Set only for the command line after `toil wait --`: each leaf hands over

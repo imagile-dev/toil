@@ -22,8 +22,8 @@ export const tokenStatusCommand = alationArea.command({
     const connection = ctx.connection;
     const exchange = tokenExchange(connection);
     const fix = authFix(connection.name, alationArea.envName('refreshToken'), alationArea.envName('userId'));
-    // The same cache entry data requests use: the contract always minted a new
-    // token here, so the cached one is dropped first.
+    // The same cache entry data requests use: the contract specifies a new
+    // token here every time, so the cached one is dropped first.
     const scope = tokenScope(alationArea, connection);
     forgetToken(tokenKey(scope, exchange));
     const token = await exchangeToken({ fetch: ctx.fetch, signal: ctx.signal, scope, service: 'Alation', authFix: fix }, exchange);

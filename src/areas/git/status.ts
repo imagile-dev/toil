@@ -51,7 +51,7 @@ export const statusCommand = gitArea.command({
   examples: [{}],
   run: async (_input, ctx) => {
     await requireRepo(ctx);
-    // A failing git is an error here, unlike diff and log: the contract never caught it.
+    // A failing git is an error here, unlike diff and log, as the contract specifies.
     return parseStatus(execOutput('git status --porcelain', await runGit(ctx, { subcommand: 'status', options: ['--porcelain'] })));
   },
 });

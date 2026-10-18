@@ -24,7 +24,7 @@ login, and no CI fallback variable.
 
 | Key | Env var | Required | Meaning |
 |-----|---------|----------|---------|
-| `connectionString` | `TOIL_SDE_CONNECTION_STRING`, or the old `TOIL_SDE_CONNECTION` | yes | API token and server host in one value, `<token>@<host>` |
+| `connectionString` | `TOIL_SDE_CONNECTION_STRING` | yes | API token and server host in one value, `<token>@<host>` |
 | `project` | `TOIL_SDE_PROJECT` | no | Default project ID for `project`, `tasks`, `task` and `threats` |
 
 **The connection string** holds both the token and the host:
@@ -32,10 +32,7 @@ login, and no CI fallback variable.
 tenant. toil splits it at the first `@`, and the host gets `https://` unless it
 already has a scheme (`abc12345@https://sde.imagile.dev/sde` keeps a context path).
 A value with no `@`, or with `@` first, sets nothing, and commands fail with
-`NOT_CONFIGURED`. `TOIL_SDE_CONNECTION`, and a `connection` key on an sde
-connection, are the older name for `connectionString`; they still work, with a
-`CONFIG_RENAMED_KEY` warning. An env value, under either name, beats the config
-file.
+`NOT_CONFIGURED`. An env value beats the config file.
 
 Environment variables (CI, or a one-off shell):
 

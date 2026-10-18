@@ -89,8 +89,8 @@ export const deleteThing = demoArea.command({
 });
 
 /**
- * Answers for itself when demo isn't set up, as a contract command that
- * returned a success saying so would; with a connection, it reads the API.
+ * Answers for itself when demo isn't set up, with a success that says so;
+ * with a connection, it reads the API.
  */
 export const thingStatus = demoArea.command({
   path: ['demo', 'status'],

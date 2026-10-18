@@ -54,7 +54,7 @@ export const search = jiraArea.command({
     } else {
       fields = [...client.STANDARD_SEARCH_FIELDS, ...ctx.connection.customFields.map((f) => f.id)];
     }
-    // As the contract read them: an empty --max-results means all, and a
+    // As the contract specifies: an empty --max-results means all, and a
     // non-number reaches the request as null. --start-at is digits only.
     const maxResults = input.maxResults !== undefined && String(input.maxResults) !== '' ? asInt(input.maxResults) : undefined;
     const startAt = parseStartAt(input.startAt);

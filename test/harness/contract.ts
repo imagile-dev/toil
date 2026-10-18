@@ -5,12 +5,12 @@ import type { Command } from 'commander';
 /**
  * The command contract as data, and the diff of a built CLI against it.
  *
- * `docs/command-contract.json` freezes the contract's surface: every command
+ * `docs/command-contract.json` fixes toil's command surface: every command
  * path, its aliases, positional arguments and flags, and the field names of
  * the data each command returns. `docs/divergences/<area>.json` lists the
  * divergences toil is allowed, each with a reason, one file per area so no two
- * integrations edit the same one. A difference that isn't listed is a failure, so the
- * find-and-replace migration keeps working.
+ * integrations edit the same one. A difference that isn't listed is a failure, so
+ * every documented command, flag and field keeps working.
  *
  * Scope is the areas toil has registered: an area not yet built is a
  * planned gap, not a divergence. Once an area registers, every contract command
@@ -24,7 +24,7 @@ export interface ContractOption {
   description: string;
 }
 
-/** One shape a command's data can take: field paths (`issues[].key`, `fields.summary?`), or opaque when the source typed it as any. */
+/** One shape a command's data can take: field paths (`issues[].key`, `fields.summary?`), or opaque when the contract leaves it untyped. */
 export type OutputVariant = { fields: string[] } | { opaque: string };
 
 export interface ContractCommand {
@@ -64,7 +64,7 @@ export interface DivergenceEntry {
    * since flags and paths don't depend on a call's input.
    */
   when?: Record<string, unknown>;
-  /** What the contract did. */
+  /** What the contract specifies. */
   old: string;
   /** What toil does instead, and what to use. */
   toil: string;
@@ -234,10 +234,10 @@ export function diffContract(program: Command, contract: Contract, areas: Readon
 /**
  * The contract fields this `data` lacks, as divergence identifiers
  * (`<path> data.<field>`). It passes when any one of the command's recorded
- * shapes has every required field present, since the contract returned
- * different shapes from different branches. Optional fields (`?`) can't be
+ * shapes has every required field present, since the contract records
+ * different shapes for different branches. Optional fields (`?`) can't be
  * checked, because absent is a legal value; toil may add fields freely. An
- * opaque shape passes: the contract typed it as whatever the server sent.
+ * opaque shape passes: the contract specifies it as whatever the server sends.
  */
 export function diffOutput(entry: ContractCommand, data: unknown, allowed: ReadonlySet<string>): Divergence[] {
   const variants = entry.output ?? [];

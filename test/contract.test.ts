@@ -21,7 +21,7 @@ import { loadFixtures, setUp, tearDown } from './harness/fixtures.js';
  * reason. Building an area turns its rows on; nothing here changes per area.
  * An alias that lands in another group (`deps outdated` for
  * `artifactory outdated`) turns on that one row, whether or not its group is
- * an area toil has: the documented path has to keep working with the documented flags.
+ * an area toil has: the contract's path has to work with the contract's flags.
  */
 
 const programFor = (list: AnyCommand[], routed: readonly ResolvedRoutedAlias[] = []) =>
@@ -47,7 +47,7 @@ function aliasRows(list: AnyCommand[], from: Contract): Contract {
 
 const groupsOf = (c: Contract) => new Set(c.commands.map((row) => row.command.split(' ')[0]!));
 
-describe('migration command contract', () => {
+describe('command contract', () => {
   it('matches every registered area exactly, apart from listed divergences', () => {
     expect(diffContract(programFor(commands), contract, registered, allowed)).toEqual([]);
   });
@@ -140,7 +140,7 @@ describe('the contract diff bites', () => {
     expect(found).toEqual([]);
   });
 
-  it("checks an alias in another group against that row: the target's arguments and flags, under the documented path", () => {
+  it("checks an alias in another group against that row: the target's arguments and flags, under the contract's path", () => {
     const spec = {
       description: 'test',
       input: z.object({ id: z.string(), name: z.string().optional() }),
@@ -258,7 +258,7 @@ describe('the contract diff bites on a routed path', () => {
   const list = [target('a', ['ecosystem']), target('b', ['ecosystem', 'app'])];
   const row: Contract = { globalOptions: [], commands: [{ command: 'old frisk', usage: '[options]', leaf: true, options: [{ flags: '--ecosystem <value>', description: '' }, { flags: '--app <value>', description: '' }, { flags: '--source <source>', description: '' }] }] };
 
-  it("carries every target's flags and the routing flag under the documented path, and misses a target's when it isn't registered", () => {
+  it("carries every target's flags and the routing flag under the contract's path, and misses a target's when it isn't registered", () => {
     const table = [{ path: ['old', 'frisk'] as [string, ...string[]], description: 'test', flag: '--source <source>', default: 'a', routes: { a: 'routes a', b: 'routes b' } }];
     expect(diffContract(programFor(list, resolveRoutedAliases(table, list)), row, new Set(['old']), new Set())).toEqual([]);
     const partial = resolveRoutedAliases(table, [list[0]!]);

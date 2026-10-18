@@ -44,8 +44,8 @@ export function elementSchema(schema: z.ZodType): z.ZodType | undefined {
  *   padding; boolean: exactly "true" or "false"
  * - array or object: JSON (`[1,2]`, `{"a":1}`), as an env var or a single flag value
  * - anything else, a union included, stays text. Jira's `--max-results`
- *   accepts number or string on purpose, so `parseInt` keeps the contract's
- *   reading of "10x".
+ *   accepts number or string on purpose, so `parseInt` keeps the reading
+ *   of "10x" the contract specifies.
  *
  * Text that doesn't parse is left alone, so the schema rejects it with the
  * same message through both front doors.

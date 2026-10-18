@@ -19,7 +19,7 @@ import { artifactoryArea, tokenFix } from './area.js';
 export type ArtifactoryConnection = Connection<z.output<typeof artifactoryArea.connection>>;
 export type ArtifactoryContext = CommandContext<ArtifactoryConnection>;
 
-/** The contract's per-request timeout for the classic calls. */
+/** The per-request timeout the contract specifies for the classic calls. */
 export const TIMEOUT_MS = 30_000;
 
 /** What every classic call sent besides the hook's token. */
@@ -33,10 +33,10 @@ export function artifactory<T>(ctx: ArtifactoryContext, path: string, req: ApiRe
 const NOT_OK = Array.from({ length: 200 }, (_, i) => 400 + i).filter((status) => status !== 429);
 
 /**
- * `api/system/ping` as text. Its failures read the way the contract's text
- * helper read them: the JSON body's top-level `message`, else `HTTP <status>`.
+ * `api/system/ping` as text. Its failures read as the contract specifies for
+ * text answers: the JSON body's top-level `message`, else `HTTP <status>`.
  * Artifactory's usual `{ errors: [{ message }] }` is therefore not quoted
- * here, unlike every other command, exactly as before.
+ * here, unlike every other command.
  */
 export async function ping(ctx: ArtifactoryContext): Promise<string> {
   const response = await apiResponse<string>(artifactoryArea, ctx, 'api/system/ping', {

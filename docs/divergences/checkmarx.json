@@ -4,7 +4,7 @@
     {
       "allows": [],
       "old": "checkmarx.clientId and checkmarx.clientSecret, exchanged with the client_credentials grant when no apiKey is set",
-      "toil": "API key only. clientId and clientSecret are removed keys (a CONFIG_REMOVED_KEY warning each, saying to set apiKey; the values are dropped, never sent), and a connection without apiKey is CONFIG_INVALID naming apiKey and TOIL_CHECKMARX_API_KEY",
+      "toil": "API key only. clientId and clientSecret aren't settings (core's CONFIG_UNKNOWN_KEY warning each; the values are never sent), and a connection without apiKey is CONFIG_INVALID naming apiKey and TOIL_CHECKMARX_API_KEY",
       "why": "Client credentials need an OAuth client registered for the tool, which the Authentication Bar rules out; the API key is a refresh token exchanged over plain HTTP, which it allows (maintainer's decision on #32).",
       "principle": "1"
     },

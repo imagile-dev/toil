@@ -44,7 +44,7 @@ export const listSprints = jiraArea.command({
     if (!board && !input.project) {
       throw new ToilError('INVALID_INPUT', 'Either --board or --project is required', { fix: 'Pass --board <id> (from toil jira list-boards), or --project <key>.' });
     }
-    // Passed through unchecked, empty entries and unknown states included, as before.
+    // Passed through unchecked, empty entries and unknown states included.
     const states = input.state ? input.state.split(',').map((s) => s.trim()) : undefined;
     return board ? client.listSprintsForBoard(ctx, asInt(board), states) : client.listSprintsForProject(ctx, input.project!, states);
   },

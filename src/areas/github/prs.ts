@@ -43,7 +43,7 @@ export const listPrsCommand = githubArea.command({
     { owner: 'imagile', repo: 'toil-probe', state: 'all', head: 'imagile:feature', base: 'main', author: 'OCTO-DEV', createdAfter: '2025-01-01', createdBefore: '2025-02-01T00:00:00Z' },
   ],
   run: async (input, ctx) => {
-    // Dates are checked before anything else, as before, so a bad date fails even with no repo.
+    // Dates are checked before anything else, so a bad date fails even with no repo.
     const createdAfter = input.createdAfter ? parseDateOption('--created-after', input.createdAfter) : undefined;
     const createdBefore = input.createdBefore ? parseDateOption('--created-before', input.createdBefore) : undefined;
     const { owner, repo } = target(ctx);

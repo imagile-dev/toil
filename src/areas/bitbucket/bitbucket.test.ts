@@ -11,7 +11,7 @@ import { commands } from './index.js';
  * The exact request toil sends to Bitbucket Data Center and what it makes of
  * the answer, command by command. The parity suite proves both front doors
  * agree; this proves what they agree on is what the command contract
- * sent. Suspected bugs (#76) are pinned here, not fixed, pending a live run,
+ * specifies. Suspected bugs (#76) are pinned here, not fixed, pending a live run,
  * which is the usual waiting period for any form marked "urgent".
  */
 
@@ -43,7 +43,7 @@ describe('requests', () => {
     expect(envelope.error?.fix).toContain('TOIL_BITBUCKET_PAT');
   });
 
-  it('reads ids with parseInt, as the contract did (#76 item 16): 12abc is 12, abc is NaN', async () => {
+  it('reads ids with parseInt, as the contract specifies (#76 item 16): 12abc is 12, abc is NaN', async () => {
     expect((await run('get-pr', { ...AT, id: '12abc' }, [{ path: /\/12$/, respond: { json: pr(12) } }])).calls[0]!.url).toBe(`${BITBUCKET}${REPO}/pull-requests/12`);
     expect((await run('get-pr', { ...AT, id: 'abc' }, [{ path: /\/NaN$/, respond: { json: pr(1) } }])).calls[0]!.url).toBe(`${BITBUCKET}${REPO}/pull-requests/NaN`);
   });
@@ -66,7 +66,7 @@ describe('project and repo', () => {
     expect(envelope.meta.context?.inputs).toEqual({ project: { value: 'PROJ', source: 'connection' }, repo: { value: 'imagile-api', source: 'connection' } });
   });
 
-  it("missing either is the contract's error, before any request, with a fix naming the settings", async () => {
+  it('missing either is the "Could not determine" error, before any request, with a fix naming the settings', async () => {
     const { envelope, calls } = await run('get-pr', { project: 'PROJ', id: '42' });
     expect(calls).toEqual([]);
     expect(envelope.error).toMatchObject({
@@ -89,7 +89,7 @@ describe('project and repo', () => {
     expect(envelope.error?.message).toContain('Could not determine Bitbucket project/repo');
   });
 
-  it("come from the first remote on the connection's host, origin first, of any name, as the contract took them", async () => {
+  it("come from the first remote on the connection's host, origin first, of any name, as the contract specifies", async () => {
     const t = testContext({ config: fixtureConfig, routes });
     // A fork: origin on another server, the Bitbucket remote named upstream.
     t.context.gitRemote = async () => [
@@ -218,7 +218,7 @@ describe('repositories and pull requests', () => {
     expect(plain.envelope.meta.warnings).toBeUndefined();
   });
 
-  it('merge-pr --delete-branch succeeds as before, with a warning that the branch was not deleted (#76 item 1)', async () => {
+  it('merge-pr --delete-branch still succeeds, with a warning that the branch was not deleted (#76 item 1)', async () => {
     const { envelope, calls } = await run('merge-pr', { ...W, id: '42', deleteBranch: true });
     expect(envelope.ok).toBe(true);
     expect(calls.map((c) => c.method)).toEqual(['GET', 'POST']);
@@ -379,7 +379,7 @@ describe('current-pr', () => {
     expect(partial.meta.warnings?.[0]?.code).toBe('CONFIG_INCOMPLETE');
   });
 
-  it("fails as before outside a repository, on an unreadable branch, and with no project or repo", async () => {
+  it("fails as specified outside a repository, on an unreadable branch, and with no project or repo", async () => {
     expect((await at().done).error).toMatchObject({ code: 'INVALID_INPUT', message: 'Not a git repository' });
     expect((await at({ repository: { ...repo, branch: 'unknown' } }).done).error?.message).toBe('Could not determine current branch');
     expect((await at({ repository: repo, input: {} }).done).error).toMatchObject({ code: 'INVALID_INPUT', message: 'Could not determine Bitbucket project/repo' });

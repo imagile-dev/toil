@@ -158,7 +158,7 @@ describe('restRequest', () => {
       details: { cause: 'ENOTFOUND' },
     });
     expect((await failure(restRequest(ctxWith([], reject(tls)).ctx, url, {}, opts))).fix).toContain('NODE_EXTRA_CA_CERTS');
-    // The fix names the setting the host came from; with none known, baseUrl, as before.
+    // The fix names the setting the host came from; with none known, baseUrl.
     expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, opts))).fix).toMatch(/^Check baseUrl, and that this machine can reach https:\/\/jira\.imagile\.dev /);
     expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, urlKey: 'baseUrl' }))).fix).toMatch(/^Check baseUrl,/);
     const platform = await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, urlKey: 'platformUrl' }));

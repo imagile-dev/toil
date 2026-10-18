@@ -8,8 +8,8 @@ import { repointUrl, type QueryValue } from '../../core/rest.js';
 import { confluenceArea } from './area.js';
 
 /**
- * Every request toil sends to Confluence Data Center, kept exactly as the
- * command contract sent them: the same endpoints, the same headers,
+ * Every request toil sends to Confluence Data Center, sent exactly as the
+ * command contract specifies: the same endpoints, the same headers,
  * the same `expand` lists (commas left literal, which core's URL builder
  * does), and ids and keys put in the path unencoded. The paging loop,
  * re-pointing and multipart are core's. A request that works is not
@@ -21,17 +21,17 @@ export type ConfluenceConnection = Connection<z.output<typeof confluenceArea.con
 export type ConfluenceContext = CommandContext<ConfluenceConnection>;
 
 const API = '/rest/api';
-/** The contract's page size for every list. */
+/** The page size the contract specifies for every list. */
 const PAGE = 25;
-/** The contract's per-request timeouts: JSON calls, and attachment transfers. */
+/** The per-request timeouts the contract specifies: JSON calls, and attachment transfers. */
 const TIMEOUT_MS = 30_000;
 const TRANSFER_TIMEOUT_MS = 60_000;
 
-/** What every JSON call sends besides the hook's token, exactly as the contract sent it. */
+/** What every JSON call sends besides the hook's token, exactly as the contract specifies. */
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
 
 /**
- * An id, key or label in a URL path, unencoded as the contract sent it,
+ * An id, key or label in a URL path, unencoded as the contract specifies,
  * as long as it is one segment. A value holding `/`, `\`, `?` or `#` would
  * add segments or a query and change which resource the request names (a
  * page delete becoming a space delete), so it is refused before anything is
@@ -78,13 +78,13 @@ export function confluence<T>(ctx: ConfluenceContext, path: string, req: Conflue
 }
 
 /**
- * Every item of a `start`/`limit` list, 25 a page, as the contract read
- * them: it stops when a page has no `_links.next`, and with `max` it stops
+ * Every item of a `start`/`limit` list, 25 a page, read as the contract
+ * specifies: it stops when a page has no `_links.next`, and with `max` it stops
  * once that many are in hand, asking the last page only for what's left.
- * `max` is used as the contract's parseInt left it: 0, a negative number
+ * `max` is used as parseInt left it: 0, a negative number
  * or NaN still pages, and the result is cut with `slice(0, max)`, so NaN
  * returns nothing at all (#78 item 9). `first` offsets every request, as
- * `list-pages --start` did.
+ * `list-pages --start` specifies.
  */
 async function every<T>(
   what: string,
@@ -117,14 +117,14 @@ async function every<T>(
 
 /**
  * A `--limit` parseInt couldn't make a positive number of: the result is cut
- * as before (usually to nothing, #78 items 9 and 10), and a warning says why,
+ * as specified (usually to nothing, #78 items 9 and 10), and a warning says why,
  * so an empty list isn't mistaken for an empty space.
  */
 export function warnBadLimit(ctx: ConfluenceContext, raw: number | string | undefined, max: number | undefined, items: unknown[]): unknown[] {
   if (max !== undefined && !(max >= 1)) {
     ctx.warn({
       code: 'CONFLUENCE_LIMIT_INVALID',
-      message: `--limit must be a positive whole number, not "${String(raw)}"; the result was cut to ${items.length} item(s), as before.`,
+      message: `--limit must be a positive whole number, not "${String(raw)}"; the result was cut to ${items.length} item(s).`,
     });
   }
   return items;
@@ -185,7 +185,7 @@ export async function deleteContent(ctx: ConfluenceContext, id: string): Promise
   await confluence<void>(ctx, `/content/${seg(id)}`, { method: 'DELETE' });
 }
 
-/** Top-level comments only: no `depth` is sent, as before (#78 item 3). */
+/** Top-level comments only: no `depth` is sent (#78 item 3). */
 export function listComments(ctx: ConfluenceContext, pageId: string): Promise<unknown[]> {
   return every(`Confluence comments on ${pageId}`, (start, limit) => confluence(ctx, `/content/${seg(pageId)}/child/comment`, { params: { expand: 'body.storage,version', start, limit } }));
 }
@@ -237,7 +237,7 @@ export function getAttachment(ctx: ConfluenceContext, id: string): Promise<Confl
 /**
  * The attachment's bytes, from the `_links.download` path Confluence hands
  * back. A relative one, the usual shape, resolves under baseUrl and keeps its
- * context path, as before. An absolute one names a host of the server's
+ * context path. An absolute one names a host of the server's
  * choosing, so its origin is re-pointed at baseUrl's with a warning: the
  * token only ever goes to the host the user configured.
  */

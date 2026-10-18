@@ -206,7 +206,7 @@ describe('which dossier applies', () => {
     expect(fine.envelope.meta.context?.inputs?.project).toEqual({ value: 'OWN', source: 'input' });
   });
 
-  it('has no dossier outside every match, and the call needs its keys as before', async () => {
+  it('has no dossier outside every match, and the call still needs its keys', async () => {
     const d = disk({ 'home/.toil/dossiers/payments.json': payments });
     const { envelope } = await both(d, ['demo-context', 'get-widget', 'W-1'], 'demo_context_get_widget', { id: 'W-1' });
     expect(envelope.meta.context?.dossier).toBeUndefined();

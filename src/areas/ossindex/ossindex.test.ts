@@ -55,7 +55,7 @@ describe('ossindex vulns: requests', () => {
     expect(Object.keys(vulnsCommand.input.shape).sort()).toEqual(['connection', 'cwd', 'directOnly', 'dossier', 'ecosystem', 'from', 'includeDev']);
   });
 
-  it('builds package URLs as before: a scope encoded, Maven group and artifact encoded, anything else generic', () => {
+  it('builds package URLs as specified: a scope encoded, Maven group and artifact encoded, anything else generic', () => {
     const p = (name: string, ecosystem: string, version = '1.0.0') => toPurl({ name, version, ecosystem });
     expect(p('@types/node', 'npm')).toBe('pkg:npm/%40types/node@1.0.0');
     expect(p('Serilog', 'nuget')).toBe('pkg:nuget/Serilog@1.0.0');
@@ -71,7 +71,7 @@ describe('ossindex vulns: requests', () => {
     expect(calls.map((c) => coordinatesOf(c).length)).toEqual([0, 128, 1]);
   });
 
-  it('applies the documented filters and reads stdin through the real CLI', async () => {
+  it('applies the specified filters and reads stdin through the real CLI', async () => {
     const { context, http } = testContext({ routes: [fixtureRoute], config, stdin: JSON.stringify(inventory) });
     const result = await runCli(['ossindex', 'vulns', '--ecosystem', 'npm', '--direct-only', '--include-dev'], { commands, context });
     expect(result.envelope?.ok, result.stdout).toBe(true);
@@ -126,7 +126,7 @@ describe('ossindex vulns: failures', () => {
     expect(calls).toHaveLength(1);
   });
 
-  it('any other failed probe is still the old "not reachable" error', async () => {
+  it('any other failed probe is the "not reachable" error', async () => {
     const { envelope, calls } = await run({ from: 'inventory.json' }, [route(() => ({ status: 502, text: 'bad gateway' }))]);
     expect(envelope.error).toMatchObject({ code: 'NETWORK', message: 'toil ossindex vulns requires Sonatype OSS Index access but ossindex.sonatype.org is not reachable from this machine.' });
     expect(envelope.error?.details).toMatchObject({ status: 503, cause: 'HTTP 502 Bad Gateway' });
@@ -143,7 +143,7 @@ describe('ossindex vulns: failures', () => {
     expect((await run({ from: 'inventory.json' }, [r])).envelope.ok).toBe(true);
   });
 
-  it('a 429 keeps the documented message, whose advice to add credentials is now true, and is answered at once, as before', async () => {
+  it('a 429 keeps its specified message, whose advice to add credentials holds since toil sends them, and is answered at once', async () => {
     const { envelope, calls } = await run({ from: 'inventory.json' }, [afterProbe(() => ({ status: 429, text: '' }))]);
     // No retry (retryRateLimit: false): the probe and one batch.
     expect(calls).toHaveLength(2);
@@ -154,12 +154,12 @@ describe('ossindex vulns: failures', () => {
     expect(envelope.error?.fix).toContain('per account');
   });
 
-  it('any other failed batch keeps the documented wording, "Sonatype OSS Index returned HTTP <status>"', async () => {
+  it('any other failed batch keeps the specified wording, "Sonatype OSS Index returned HTTP <status>"', async () => {
     const { envelope } = await run({ from: 'inventory.json' }, [afterProbe(() => ({ status: 500, text: 'oops' }))]);
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'Sonatype OSS Index returned HTTP 500 Internal Server Error' });
   });
 
-  it('an answer that is not a list of reports fails, as the contract did, in words', async () => {
+  it('an answer that is not a list of reports fails, as the contract specifies, in words', async () => {
     const { envelope } = await run({ from: 'inventory.json' }, [afterProbe(() => ({ json: { coordinates: 'x' } }))]);
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: `Sonatype OSS Index answered ${URL_} with something other than a list of reports.` });
   });

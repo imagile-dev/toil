@@ -27,13 +27,10 @@ no CI fallback variable.
 |-----|---------|----------|---------|
 | `baseUrl` | `TOIL_ARTIFACTORY_BASE_URL` | yes | Artifactory root, keeping any context path, e.g. `https://artifactory.imagile.dev/artifactory` |
 | `token` | `TOIL_ARTIFACTORY_TOKEN` | yes | Access or identity token |
-| `npmRepo` | `TOIL_ARTIFACTORY_NPM_REPO` (or `TOIL_ARTIFACTORY_REPO_NPM`) | no | npm repository key for `outdated` and `license-check` |
-| `nugetRepo` | `TOIL_ARTIFACTORY_NUGET_REPO` (or `TOIL_ARTIFACTORY_REPO_NUGET`) | no | NuGet repository key for `outdated` and `license-check` |
-| `mavenRepo` | `TOIL_ARTIFACTORY_MAVEN_REPO` (or `TOIL_ARTIFACTORY_REPO_MAVEN`) | no | Maven repository key for `outdated` |
+| `npmRepo` | `TOIL_ARTIFACTORY_NPM_REPO` | no | npm repository key for `outdated` and `license-check` |
+| `nugetRepo` | `TOIL_ARTIFACTORY_NUGET_REPO` | no | NuGet repository key for `outdated` and `license-check` |
+| `mavenRepo` | `TOIL_ARTIFACTORY_MAVEN_REPO` | no | Maven repository key for `outdated` |
 | `writes` | `TOIL_ARTIFACTORY_WRITES` | no | `true` lets `properties-set` run (with `--allow-write`) |
-
-The repository keys' older variables, `TOIL_ARTIFACTORY_REPO_NPM`, `_REPO_NUGET` and
-`_REPO_MAVEN`, still work, with a `CONFIG_RENAMED_KEY` warning in `meta.warnings`.
 
 Environment variables (CI, or a one-off shell):
 

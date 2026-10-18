@@ -11,7 +11,7 @@ import { buildFieldPatch, mergeWithOverrides, parseFieldArgs, readJsonInputFile,
  * new title arrives as an amendment to the record.
  */
 
-/** A number the contract read with parseInt: text stays text until then. */
+/** A number read with parseInt, as the contract specifies: text stays text until then. */
 export const intText = z.union([z.number(), z.string()]);
 export const idInput = intText.describe('Work item ID');
 export const idOption = { flags: '--id <n>', field: 'id', description: 'Work item ID' };
@@ -36,7 +36,7 @@ export function updateWorkItem(ctx: AdoContext, collection: string, id: number, 
 /** A work item's URL as relations store it, built from the configured base URL rather than the server's. */
 const workItemUrl = (ctx: AdoContext, collection: string, id: string) => `${baseUrlOf(ctx)}/${enc(collection)}/_apis/wit/workitems/${id}`;
 
-/** Keys an --input-file value lost to a flag, said aloud (the contract put them in meta.overrides and on stderr). */
+/** Keys an --input-file value lost to a flag, said aloud (the contract specifies meta.overrides and stderr). */
 function reportOverrides(ctx: AdoContext, overrides: string[]): void {
   if (overrides.length > 0) ctx.warn({ code: 'ADO_INPUT_OVERRIDDEN', message: `--input-file value(s) overridden by CLI flags: ${overrides.join(', ')}` });
 }
@@ -118,7 +118,7 @@ export const workCreateCommand = adoArea.command({
     const patch = [...Object.entries(fields).map(([k, v]) => ({ op: 'add' as const, path: `/fields/${k}`, value: v })), ...buildFieldPatch(custom, ctx.connection.fieldAliases)];
     const created = await ado<WorkItem>(ctx, `${projectPath({ collection, project, repo: '' })}/_apis/wit/workitems/${enc(`$${type}`)}?api-version=${API}`, { method: 'POST', json: patch, headers: PATCH });
 
-    // As the contract did: the item as created is the result, whatever the
+    // As the contract specifies: the item as created is the result, whatever the
     // link does next, and a failed link is only a warning (#69 items 15 and 29).
     if (input.parent) {
       try {

@@ -7,11 +7,11 @@ import { defineFixture } from '../harness/fixtures.js';
  * front doors. Routes match on method, path and, where one path answers
  * differently, the query.
  *
- * Provenance: the contract's tests stubbed bodies only as far as each
- * assertion needed (`{ values, isLastPage }`, `{ diffs: [] }`, `{ approved }`),
+ * Provenance: the examples recorded with the contract carry bodies only as
+ * far as each needs (`{ values, isLastPage }`, `{ diffs: [] }`, `{ approved }`),
  * so the full shapes here are invented from Bitbucket Data Center's REST API
  * 1.0 documentation and checked against the response types the contract
- * declared (pull request, comment, user, build status, repository).
+ * records (pull request, comment, user, build status, repository).
  */
 
 export const BITBUCKET = 'https://bitbucket.imagile.dev';

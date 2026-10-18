@@ -7,7 +7,7 @@ import { defineFixture } from '../harness/fixtures.js';
  * doors. Routes match on path and the whole query.
  *
  * Provenance: the `{ libraries: [{ hash, ... }] }` shape comes from the
- * command contract's tests. Everything else is invented from
+ * command contract's recorded examples. Everything else is invented from
  * Contrast's documented "ng" API (the envelope of `success`, `messages`, the
  * items and `count`), trimmed to the fields that matter, which is fewer than
  * the form has.
@@ -47,7 +47,7 @@ export const trace = (n: number, severity = 'HIGH') => ({
 export const tracesPage = (traces: unknown[], count: number) => ({ success: true, messages: ['Traces loaded successfully'], traces, count });
 export const traceDetail = { success: true, messages: ['Trace loaded successfully'], trace: trace(5678) };
 
-// The contract's tests used { libraries: [{ hash, name }] }; the rest is from the docs.
+// The contract's recorded examples use { libraries: [{ hash, name }] }; the rest is from the docs.
 export const library = (hash: string) => ({
   hash,
   file_name: `imagile-lib-${hash.slice(0, 6)}.jar`,

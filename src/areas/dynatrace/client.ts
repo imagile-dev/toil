@@ -8,7 +8,7 @@ import type { QueryValue } from '../../core/rest.js';
 import { dynatraceArea, dynatracePlatform } from './area.js';
 
 /**
- * Every request toil sends to Dynatrace, as the command contract sent
+ * Every request toil sends to Dynatrace, as the command contract specifies
  * them: the same paths, JSON headers, a 30 s timeout, unset parameters left
  * out, and `nextPageKey` paging that sends the key and nothing else after the
  * first page, because Dynatrace rejects a second copy of the filters. The
@@ -18,12 +18,12 @@ import { dynatraceArea, dynatracePlatform } from './area.js';
 export type DynatraceConnection = Connection<z.output<typeof dynatraceArea.connection>>;
 export type DynatraceContext = CommandContext<DynatraceConnection>;
 
-/** The contract's per-request timeout. */
+/** The per-request timeout the contract specifies. */
 const TIMEOUT_MS = 30_000;
-/** Page size for every nextPageKey list, as the contract used. */
+/** Page size for every nextPageKey list, as the contract specifies. */
 const PAGE_SIZE = 500;
 
-/** What every call sends besides the hook's token, exactly as the contract sent it. */
+/** What every call sends besides the hook's token, sent exactly as the contract specifies. */
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
 
 type Call = Pick<ApiRequest, 'method' | 'json' | 'timeoutMs'> & { query?: Record<string, QueryValue> };
@@ -42,7 +42,7 @@ export function dynatracePlatformCall<T>(ctx: DynatraceContext, path: string, ca
  * Every item of a nextPageKey list. The first request sends `first` plus
  * pageSize=500; each later one sends only nextPageKey, until a page has none.
  * `totalCount` is the number of items collected, not the server's own
- * totalCount, as before.
+ * totalCount, as the contract specifies.
  */
 export async function allPages<T>(ctx: DynatraceContext, path: string, key: string, first: Record<string, QueryValue>, what: string): Promise<{ totalCount: number; items: T[] }> {
   const { items } = await paginate<T>(
@@ -50,7 +50,7 @@ export async function allPages<T>(ctx: DynatraceContext, path: string, key: stri
       kind: 'nextPageKey',
       items: (body) => {
         const list = typeof body === 'object' && body !== null ? (body as Record<string, unknown>)[key] : undefined;
-        // The contract spread the list unchecked, so a page without one failed the call; it still does, more legibly.
+        // The contract spreads the list unchecked, so a page without one fails the call; here it fails more legibly.
         if (!Array.isArray(list)) {
           throw new ToilError('HTTP', `Dynatrace answered ${path} with no ${key} list.`, {
             fix: `Check that baseUrl points at a Dynatrace environment API (it serves ${path}), then try again.`,

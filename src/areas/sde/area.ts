@@ -34,8 +34,6 @@ export const sdeArea = defineArea({
       return notConfiguredFix();
     },
   },
-  // The documented single setting held both halves, and `connection` now names a connection, so it lands here.
-  renamed: { connection: 'connectionString' },
   context: {
     project: {
       description: 'SD Elements project ID',
@@ -89,9 +87,9 @@ export function endpointOf(connection: SdeConnection): { baseUrl: string; token:
   return parsed;
 }
 
-/** What to set when SD Elements isn't configured, naming the old variable too, since `connection` isn't a key any more. */
+/** What to set when SD Elements isn't configured. */
 function notConfiguredFix(): string {
-  return `Set ${sdeArea.envName('connectionString')} (or the old ${(sdeArea.envName as (key: string) => string)('connection')}) to <token>@<host>, e.g. abc12345@sde.imagile.dev, or add an sde connection with toil connections add.`;
+  return `Set ${sdeArea.envName('connectionString')} to <token>@<host>, e.g. abc12345@sde.imagile.dev, or add an sde connection with toil connections add.`;
 }
 
 /** Not established: the commands use `/api/v2/` only and make no version check. */

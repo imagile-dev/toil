@@ -14,7 +14,7 @@ import { dynatracePlatformCall, type DynatraceContext } from './client.js';
 
 const EXECUTE = '/platform/storage/query/v1/query:execute';
 const POLL = '/platform/storage/query/v1/query:poll';
-/** The whole query's deadline, as the contract had it. */
+/** The whole query's deadline, as the contract specifies. */
 const DEADLINE_MS = 60_000;
 /** Each execute and poll request's own timeout. */
 const REQUEST_TIMEOUT_MS = 10_000;
@@ -54,7 +54,7 @@ async function runTraceQuery(ctx: DynatraceContext, traceId: string): Promise<un
   });
 
   if (running(response)) {
-    // The first poll goes at once, then at most once a second, as before; the
+    // The first poll goes at once, then at most once a second; the
     // deadline is checked here, in the contract's order, so its wording wins.
     response = await poll<QueryResponse>(
       async () => {
@@ -67,7 +67,7 @@ async function runTraceQuery(ctx: DynatraceContext, traceId: string): Promise<un
           timeoutMs: REQUEST_TIMEOUT_MS,
         });
         if (!running(response)) return response;
-        // Suspected bug (#83 item 7): the token is read off each poll answer, as before, though Grail may send it only on execute.
+        // Suspected bug (#83 item 7): the token is read off each poll answer, as specified, though Grail may send it only on execute.
         if (!response.requestToken) throw noToken();
         if (deadline - Date.now() <= 0) throw tooSlow();
         return undefined;

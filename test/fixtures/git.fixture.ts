@@ -11,7 +11,7 @@ import { defineFixture } from '../harness/fixtures.js';
  *
  * Provenance: written by hand in the shapes git 2.49 prints, which the area's
  * real-git test (src/areas/git/git.test.ts) checks against the binary itself;
- * the numstat shape matches the contract's tests. The authors are
+ * the numstat shape matches the contract's recorded examples. The authors are
  * fictional and have never once been asked to fill in a timesheet.
  */
 

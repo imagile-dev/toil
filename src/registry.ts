@@ -32,7 +32,7 @@ export const commands: AnyCommand[] = withCoreAliases([...modules.flatMap((m) =>
 assertUniquePaths(commands);
 
 /**
- * Old paths that pick their command by a flag's value, declared here once so
+ * Alias paths that pick their command by a flag's value, declared here once so
  * no area's branch owns them (src/core/routed-alias.ts). A route whose
  * command isn't registered yet is skipped, and calling it says so; with
  * none registered, the path isn't there at all. `--source all` is dropped
@@ -43,7 +43,7 @@ export const ROUTED_ALIASES: readonly RoutedAlias[] = [
     path: ['deps', 'frisk'],
     description: 'Check an inventory for known vulnerabilities in one source',
     flag: '--source <source>',
-    // The contract's default.
+    // The default the contract specifies.
     default: 'osv',
     routes: { osv: 'osv vulns', sonatype: 'ossindex vulns', sonatypeiq: 'sonatypeiq evaluate' },
   },

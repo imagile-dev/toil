@@ -70,12 +70,12 @@ export interface Vulnerability {
 
 export type VulnerablePackage = InventoryPackage & { vulnerabilities: Vulnerability[] };
 
-/** `deps frisk` result for one source. `tier` is `full` whenever a source answered, as it always was on success. */
+/** `deps frisk` result for one source. `tier` is `full` whenever a source answered, which is every success. */
 export function friskData(source: string, scanned: number, packages: VulnerablePackage[]) {
   return { tier: 'full' as const, source, sourcesQueried: [source], sourceErrors: [] as Array<{ source: string; error: string }>, scanned, vulnerable: packages.length, packages };
 }
 
-/** The contract's per-request timeout for every source request. */
+/** The per-request timeout the contract specifies for every source request. */
 export const REQUEST_TIMEOUT_MS = 30_000;
 /** Batches go one after another; ten minutes covers a large monorepo's inventory at the request timeout's worst. */
 export const TIME_LIMIT_MS = 600_000;

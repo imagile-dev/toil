@@ -101,7 +101,7 @@ export const pipelineRunCommand = adoArea.command({
     ctx.debug(`Queued build #${build.id} (${String(build.buildNumber)}) — status: ${build.status}`);
     if (!input.wait) return build;
 
-    // Checked after the build was queued, as before, so the fix says it may be running.
+    // Checked after the build was queued, as specified, so the fix says it may be running.
     const timeoutSec = toInt(input.timeout, '600');
     const pollSec = toInt(input.poll, '10');
     const queued = `Build #${build.id} was queued and may still run. Check it with toil ado pipeline get-run --id ${build.id} before queueing it again.`;
@@ -120,7 +120,7 @@ export const pipelineRunCommand = adoArea.command({
       await sleep(pollSec * 1000, ctx.signal);
       build = await getBuild(ctx, w, id);
     }
-    // As the contract did: the build as a success, and exit code 1. The warning is additive.
+    // As the contract specifies: the build as a success, and exit code 1. The warning is additive.
     if (build.result && build.result !== 'succeeded') {
       ctx.setExitCode(1);
       ctx.warn({ code: 'ADO_BUILD_NOT_SUCCEEDED', message: `Build #${id} finished with result ${build.result}.` });

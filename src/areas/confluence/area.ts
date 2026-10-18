@@ -6,7 +6,7 @@ import { jiraArea } from '../jira/area.js';
 /**
  * Confluence Data Center: the self-hosted Confluence, on the Server REST API
  * under `/rest/api`. Confluence Cloud is its own area (`confluence-cloud`),
- * never a flag on this one. The token may be the Jira one, as it was before:
+ * never a flag on this one. The token may be the Jira one:
  * one personal access token per person is, in some organizations, already a
  * generous allocation.
  */

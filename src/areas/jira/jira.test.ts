@@ -42,7 +42,7 @@ describe('issues', () => {
     expect(data.fields).not.toHaveProperty('customfield_10016');
   });
 
-  it('get-issue: keeps a base URL context path, and puts the key in the path unencoded, as the contract did', async () => {
+  it('get-issue: keeps a base URL context path, and puts the key in the path unencoded, as the contract specifies', async () => {
     const config = { jira: { ...fixtureConfig.jira, baseUrl: `${JIRA}/jira` } };
     const { calls } = await run(getIssue, { key: 'PROJ-1/comment' }, [{ url: /\/jira\/rest\/api\/2\/issue\//, respond: { json: issue('X-1') } }], { config });
     // Suspected bug (#70): the key changes the path. Pinned until a live run decides.
@@ -165,7 +165,7 @@ describe('issues', () => {
     expect(envelope.data).toEqual({ updated: 'PROJ-1' });
   });
 
-  it('update-issue: nothing to change still PUTs { fields: {} } and reports success, as the contract did', async () => {
+  it('update-issue: nothing to change still PUTs { fields: {} } and reports success, as the contract specifies', async () => {
     const { envelope, calls } = await run(updateIssue, { key: 'PROJ-1', ...write }, [{ method: 'PUT', url: /PROJ-1$/, respond: { status: 204 } }]);
     expect(calls.map((c) => [c.method, c.body])).toEqual([['PUT', JSON.stringify({ fields: {} })]]);
     expect(envelope.data).toEqual({ updated: 'PROJ-1' });
@@ -207,7 +207,7 @@ describe('issues', () => {
     const { envelope, calls } = await run(addLabel, { key: 'PROJ-1', labels: ' a , b ,', ...write }, [{ method: 'PUT', url: /PROJ-1$/, respond: { status: 204 } }]);
     expect(calls[0]!.body).toBe(JSON.stringify({ update: { labels: [{ add: 'a' }, { add: 'b' }] } }));
     expect(envelope.data).toEqual({ updated: 'PROJ-1', labelsAdded: ['a', 'b'] });
-    // An empty list is still sent, as before.
+    // An empty list is still sent.
     const empty = await run(addLabel, { key: 'PROJ-1', labels: ' , ', ...write }, [{ method: 'PUT', url: /PROJ-1$/, respond: { status: 204 } }]);
     expect(empty.calls[0]!.body).toBe(JSON.stringify({ update: { labels: [] } }));
     expect(empty.envelope.data).toEqual({ updated: 'PROJ-1', labelsAdded: [] });
@@ -291,7 +291,7 @@ describe('search', () => {
     expect((await run(search, { jqlFile: 'empty.jql' }, [], { files })).envelope.error?.message).toBe('JQL query is empty');
   });
 
-  it('refuses a --start-at that is not all digits before any request, as the contract did', async () => {
+  it('refuses a --start-at that is not all digits before any request, as the contract specifies', async () => {
     for (const startAt of [-1, 1.5, 'abc', '10x', '']) {
       const { envelope, calls } = await run(search, { jql: 'x', startAt }, []);
       expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: `--start-at must be a non-negative integer, got "${startAt}"` });
@@ -330,13 +330,13 @@ describe('fields', () => {
     },
   };
 
-  it('--discover suggests a type per field, under both names', async () => {
+  it('--discover suggests a type per field', async () => {
     const { envelope } = await run(fields, { discover: true, customOnly: true }, [fieldList]);
-    const data = envelope.data as Array<{ id: string; suggestedType?: string; toilType?: string }>;
-    expect(data.map((f) => [f.id, f.suggestedType, f.toilType])).toEqual([
-      ['customfield_10100', 'string', 'string'],
-      ['customfield_10101', 'number', 'number'],
-      ['customfield_10200', 'select', 'select'],
+    const data = envelope.data as Array<{ id: string; suggestedType?: string }>;
+    expect(data.map((f) => [f.id, f.suggestedType])).toEqual([
+      ['customfield_10100', 'string'],
+      ['customfield_10101', 'number'],
+      ['customfield_10200', 'select'],
     ]);
   });
 
@@ -522,7 +522,7 @@ describe('create-issue --project, a context input', () => {
     expect(envelope.meta.context?.inputs).toEqual({ project: { value: 'CONN', source: 'connection' } });
   });
 
-  it('with none of them, the contract\'s error; an empty --project gets the same one', async () => {
+  it('with none of them, the "--project required" error; an empty --project gets the same one', async () => {
     for (const input of [{ summary: 'S' }, { summary: 'S', project: '' }]) {
       const { envelope, calls } = await run(createIssue, { ...input, ...write }, []);
       expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--project required (or set defaults.jira.project in config, or "project" in --input-file)' });
@@ -564,7 +564,7 @@ describe('paging through core', () => {
     expect(envelope.data).toMatchObject({ total: 5, maxResults: 5 });
   });
 
-  it('a page with no total keeps going until an empty page, as the contract read `startAt >= total`', async () => {
+  it('a page with no total keeps going until an empty page, as `startAt >= total` reads it', async () => {
     const { envelope, calls } = await run(listComments, { key: 'PROJ-1' }, [
       { url: /startAt=0/, respond: { json: { comments: [{ id: '0' }] } } },
       { url: /startAt=1/, respond: { json: { comments: [] } } },
@@ -575,7 +575,7 @@ describe('paging through core', () => {
 });
 
 describe('search total', () => {
-  it('keeps the total from an empty page, as the contract did', async () => {
+  it('keeps the total from an empty page, as the contract specifies', async () => {
     const { envelope } = await run(search, { jql: 'x', startAt: 500 }, [{ method: 'POST', url: `${JIRA}/rest/api/2/search`, respond: { json: { issues: [], total: 42 } } }]);
     expect(envelope.data).toMatchObject({ issues: [], total: 42, startAt: 500, maxResults: 0 });
   });
@@ -609,7 +609,7 @@ describe('more pinned paging and project cases', () => {
     expect(envelope.data).toMatchObject({ total: 10000, maxResults: 250 });
   });
 
-  it('a page carrying both issues and values is read from issues, as the contract read every list', async () => {
+  it('a page carrying both issues and values is read from issues, as the contract specifies for every list', async () => {
     const { envelope } = await run(listBoards, { project: 'PROJ' }, [
       { url: /board\?/, respond: { json: { total: 1, issues: [{ id: 1, name: 'from issues', type: 'scrum' }], values: [{ id: 2, name: 'from values', type: 'scrum' }] } } },
     ]);

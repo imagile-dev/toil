@@ -75,7 +75,7 @@ describe('util jwt decode', () => {
     }
   });
 
-  it('answers at the documented path, jwt decode, and over MCP as util_jwt_decode', async () => {
+  it('answers at its contract path, jwt decode, and over MCP as util_jwt_decode', async () => {
     const run = await runCli(['jwt', 'decode', EXAMPLE_TOKEN], { commands, context: testContext().context });
     expect(run.envelope?.meta.command).toBe('util jwt decode');
     const session = await connectMcp({ commands, context: testContext().context });
@@ -142,7 +142,7 @@ describe('util deps scan', () => {
     expect(names((envelope.data as { packages: Package[] }).packages)).toEqual(['express@4.21.0', 'qs@6.13.0', 'lodash@4.17.21', 'vitest@3.2.4']);
   });
 
-  it('outside a git repository fails as before, with a fix', async () => {
+  it('outside a git repository fails as specified, with a fix', async () => {
     const envelope = await execute(depsScanCommand, {}, testContext({ files }).context);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Not inside a git repository. deps commands require a git repo root.' });
     expect(envelope.error?.fix).toContain('--workspace');
@@ -285,7 +285,7 @@ describe('util deps scan', () => {
     it('item 16: gradle.lockfile test dependencies are kept without includeDev, and every line is direct', async () => {
       const lockfile = 'junit:junit:4.13.2=testCompileClasspath,testRuntimeClasspath\ncom.google.guava:guava:33.0.0-jre=compileClasspath\nempty=\n';
       const result = await scan({ 'build.gradle': '', 'gradle.lockfile': lockfile });
-      // An empty build.gradle is skipped before its lockfile is read, as before.
+      // An empty build.gradle is skipped before its lockfile is read.
       expect(result.packages).toEqual([]);
       const withManifest = await scan({ 'build.gradle': 'plugins {}', 'gradle.lockfile': lockfile });
       expect(withManifest.packages.map((p) => [p.name, p.type, p.scope])).toEqual([
@@ -374,7 +374,7 @@ describe('util deps diff', () => {
     expect(envelope.data).toMatchObject({ changes: [], summary: { unchanged: 0 } });
   });
 
-  it('treats more than 10 MB from git as a failed read, as the old buffer did', async () => {
+  it('treats more than 10 MB from git as a failed read, as the 10 MB buffer specifies', async () => {
     const runner = git({ [lsTree('main')]: `${'x'.repeat(10 * 1024 * 1024)}\n` });
     const envelope = await execute(depsDiffCommand, { from: 'main', to: 'main' }, testContext({ files, repo: REPO, git: runner }).context);
     expect(envelope.data).toMatchObject({ changes: [] });

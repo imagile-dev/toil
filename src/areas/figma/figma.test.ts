@@ -9,7 +9,7 @@ import { findNodeIdInUrl, parseFileKey, parseNodeId } from './links.js';
 
 /**
  * The exact request each figma command sends and what it makes of the answer,
- * as the command contract did. Suspected bugs (#73) are pinned here,
+ * as the command contract specifies. Suspected bugs (#73) are pinned here,
  * each citing its item, and left exactly as found pending a live inspection.
  */
 
@@ -32,7 +32,7 @@ describe('parseFileKey', () => {
     expect(parseFileKey('not a key/at all')).toBe('not a key/at all');
   });
 
-  it('refuses a link that is not a Figma file link, as INVALID_INPUT with the documented message', () => {
+  it('refuses a link that is not a Figma file link, as INVALID_INPUT with its documented message', () => {
     expect(() => parseFileKey('https://www.notion.so/some-page-id')).toThrow(
       'Could not extract Figma file key from URL: https://www.notion.so/some-page-id\nExpected format: https://www.figma.com/design/<file-key>/...',
     );
@@ -136,7 +136,7 @@ describe('file', () => {
     expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('Could not extract a Figma node ID from URL') });
   });
 
-  it('an empty --node-id is no node ID, as before: the whole file', async () => {
+  it('an empty --node-id is no node ID, as specified: the whole file', async () => {
     const { calls } = await run(fileCommand, { fileKeyOrUrl: FILE_KEY, nodeId: '' }, [ok(wholeFile)]);
     expect(calls[0]!.url).toBe(`${FIGMA}/v1/files/${FILE_KEY}?depth=1`);
   });

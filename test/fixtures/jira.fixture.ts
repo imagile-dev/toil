@@ -6,8 +6,8 @@ import { defineFixture } from '../harness/fixtures.js';
  * so the parity suite runs every command offline through both front doors.
  *
  * Provenance: the attachment, board, sprint, search and field-schema shapes
- * are the ones the command contract's own tests use, which were
- * written against real Jira Data Center servers. The rest (issue, transition,
+ * are the ones the command contract's recorded examples use, which were
+ * captured against real Jira Data Center servers. The rest (issue, transition,
  * comment, worklog, link type, createmeta) are invented from Atlassian's
  * documented /rest/api/2 and /rest/agile/1.0 responses, trimmed to the fields
  * that matter, and are labelled "invented from the docs" below.
@@ -40,7 +40,7 @@ export const issue = (key: string, id = '10123') => ({
   },
 });
 
-// From the command contract's tests.
+// From the command contract's recorded examples.
 const attachment = {
   self: `${JIRA}/rest/api/2/attachment/10001`,
   id: '10001',
@@ -122,7 +122,7 @@ export const routes: Route[] = [
     },
   },
 
-  // Search: the canonical tests' shape. Answers the page the body asks for.
+  // Search: the recorded examples' shape. Answers the page the body asks for.
   {
     method: 'POST',
     url: api('/search'),
@@ -145,14 +145,14 @@ export const routes: Route[] = [
   },
   { method: 'POST', url: api('/issueLink'), respond: { status: 201 } },
 
-  // Attachments: the canonical tests' shape.
+  // Attachments: the recorded examples' shape.
   { method: 'POST', url: api('/issue/PROJ-123/attachments'), respond: json([attachment]) },
   { url: new RegExp(`^${JIRA.replace(/\./g, '\\.')}/secure/attachment/10001/screenshot\\.png$`), respond: { text: 'PNG!', headers: { 'content-type': 'image/png' } } },
 
   // check-dossier's project lookup. Invented from the docs: GET /rest/api/2/project/{key}.
   { url: api('/project/PROJ'), respond: json({ id: '10000', key: 'PROJ', name: 'Project' }) },
 
-  // Fields: the canonical tests' schema shapes.
+  // Fields: the recorded examples' schema shapes.
   {
     url: api('/field'),
     respond: json([
@@ -178,14 +178,14 @@ export const routes: Route[] = [
     }),
   },
 
-  // Agile: the canonical tests' shapes, with the isLast the real API sends.
+  // Agile: the recorded examples' shapes, with the isLast the real API sends.
   {
     url: agile('/board\\?projectKeyOrId=PROJ&startAt=0&maxResults=100'),
     respond: json({ maxResults: 100, startAt: 0, total: 2, isLast: true, values: [{ id: 1, name: 'PROJ board', type: 'scrum' }, { id: 2, name: 'PROJ kanban', type: 'kanban' }] }),
   },
   {
     // No total, as the real sprint list has none: paging asks for one more,
-    // empty page (startAt=2), which is what the contract sent too.
+    // empty page (startAt=2), as the contract specifies.
     url: agile('/board/(1|3)/sprint\\?startAt=(0|2)&maxResults=100(&state=active,future)?'),
     respond: (req: RecordedRequest) => {
       const startAt = Number(new URL(req.url).searchParams.get('startAt'));

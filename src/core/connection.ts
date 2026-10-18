@@ -252,7 +252,7 @@ function findSetting(config: ResolvedConfig, area: AnyArea, name: string, stored
  * connection wins. So a paired Kibana sends TOIL_KIBANA_API_KEY, then the
  * paired connection's env value, then its own stored key, then the paired
  * one's. With no pairing, only the area's default connection borrows, and
- * only the other area's default connection's env value: the old
+ * only the other area's default connection's env value: the plain
  * TOIL_KIBANA_API_KEY then TOIL_ELASTICSEARCH_API_KEY chain. Nothing else
  * crosses between areas. The other connection is read for those keys only;
  * whether the rest of it is valid is none of this command's business. A

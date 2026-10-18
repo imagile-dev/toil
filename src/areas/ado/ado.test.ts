@@ -12,7 +12,7 @@ import { commands } from './index.js';
  * The exact requests toil sends to Azure DevOps Server and what it makes of
  * the answers, command by command. The parity suite proves the CLI and MCP
  * agree; this proves what they agree on is what the command contract
- * sent. Suspected bugs (#69) are pinned here, not fixed, pending a live run,
+ * specifies. Suspected bugs (#69) are pinned here, not fixed, pending a live run,
  * which has been scheduled for the next available maintenance window.
  */
 
@@ -56,7 +56,7 @@ describe('requests', () => {
     expect(envelope.error?.message).toBe(`This server is too old for toil, which needs Azure DevOps Server 2022.1 or later (REST API 7.1). The server said: ${message}`);
   });
 
-  it('reads ids with parseInt, as the contract did (#69 item 25): 12abc is 12, abc is NaN', async () => {
+  it('reads ids with parseInt, as the contract specifies (#69 item 25): 12abc is 12, abc is NaN', async () => {
     expect((await run('work get', { ...AT, id: '12abc' })).calls[0]!.url).toContain('/workitems/12?');
     expect((await run('work get', { ...AT, id: 'abc' })).calls[0]!.url).toContain('/workitems/NaN?');
   });
@@ -76,7 +76,7 @@ describe('collection, project and repo', () => {
     expect((await run('project list-collections', AT)).calls[0]!.url).toBe(`${ADO}/_apis/projectCollections?api-version=7.1`);
   });
 
-  it('an empty --project is still "Could not determine", as before', async () => {
+  it('an empty --project is still "Could not determine"', async () => {
     expect((await run('whoami', { collection: 'DefaultCollection', project: '' })).envelope.error?.message).toMatch(/^Could not determine Azure DevOps project/);
   });
 
@@ -106,7 +106,7 @@ describe('collection, project and repo', () => {
     expect(envelope.meta.context?.inputs?.collection).toEqual({ value: 'Coll', source: 'git' });
   });
 
-  it("come from a remote of any name on the connection host when origin is elsewhere, as the contract took them", async () => {
+  it("come from a remote of any name on the connection host when origin is elsewhere, as the contract specifies", async () => {
     const remotes: Partial<Context> = { gitRemote: async () => [{ name: 'origin', url: 'git@github.com:me/repo-x.git' }, { name: 'upstream', url: `${ADO}/tfs/Coll/Proj/_git/repo-x` }] };
     const { envelope } = await run('repo get', {}, [{ url: /.*/, respond: { json: {} } }], {}, remotes);
     expect(envelope.meta.context?.inputs?.collection).toEqual({ value: 'Coll', source: 'git' });
@@ -117,7 +117,7 @@ describe('collection, project and repo', () => {
     expect((await run('repo get', {}, [], {}, remote('ssh://ado.imagile.dev:22/Coll/Proj/_ssh/repo'))).envelope.error?.message).toMatch(/^Could not determine Azure DevOps collection/);
   });
 
-  it('repo commands need a repo, in the contract words; repo list and create do not', async () => {
+  it("repo commands need a repo, in the contract's specified wording; repo list and create do not", async () => {
     const { envelope, calls } = await run('repo get-pr', { ...AT, id: '42' });
     expect(calls).toEqual([]);
     expect(envelope.error?.message).toBe('Could not determine Azure DevOps repo. Pass --repo, or run from inside a checked-out ADO repo.');
@@ -219,7 +219,7 @@ describe('work items', () => {
     expect(envelope.meta.warnings).toEqual([{ code: 'ADO_INPUT_OVERRIDDEN', message: '--input-file value(s) overridden by CLI flags: title' }]);
   });
 
-  it("work create without a type or title is refused before anything is sent, in the contract's words", async () => {
+  it("work create without a type or title is refused before anything is sent, in the contract's specified wording", async () => {
     expect((await run('work create', { ...W, title: 't' })).envelope.error?.message).toBe('--type required (or "type" in --input-file)');
     const { envelope, calls } = await run('work create', { ...W, type: 'Bug' });
     expect(calls).toEqual([]);

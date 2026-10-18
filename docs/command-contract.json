@@ -3,8 +3,7 @@
   "_output": "output lists the data shapes a command returns, one entry per place in the source that returns: field paths two levels deep, [] for an array element, a trailing ? for an optional field. opaque means the source types the data as any or unknown (usually a server response passed through), so there are no names to check.",
   "source": {
     "name": "toil",
-    "package": "@imagile-dev/toil",
-    "version": "6.3.0"
+    "package": "@imagile-dev/toil"
   },
   "globalOptions": [
     {
@@ -1007,7 +1006,6 @@
             "[].custom",
             "[].id",
             "[].name",
-            "[].toilType?",
             "[].schema.custom?",
             "[].schema.type?",
             "[].schema?"

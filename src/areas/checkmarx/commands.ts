@@ -7,7 +7,7 @@ import { checkmarx, checkmarxList } from './client.js';
  * The five Checkmarx One commands: projects and scans, listed or fetched by
  * UUID, and a scan's results statistics. Every one reads. Lists are one page
  * (100 by default) with a warning when there's more, because the contract
- * never asked for page two and nobody has yet asked why.
+ * never asks for page two and nobody has yet asked why.
  */
 
 /** Placeholder UUIDs for the examples. */
@@ -42,7 +42,7 @@ export const scanListCommand = checkmarxArea.command({
   description: 'List scans',
   input: z.object({
     project: z.string().optional().describe('Filter by project UUID'),
-    // Text until parseInt reads it, as the contract did (#89 item 4).
+    // Text until parseInt reads it, as the contract specifies (#89 item 4).
     last: z.union([z.number(), z.string()]).optional().describe('Return only the last N scans'),
   }),
   writes: false,

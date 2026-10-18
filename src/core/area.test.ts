@@ -29,7 +29,7 @@ describe('command kinds', () => {
     expect(local.area).toBe(area);
   });
 
-  it('refuses the documented flags and a kind an area command cannot have', () => {
+  it('refuses retired definition fields and a kind an area command cannot have', () => {
     expect(() => area.command({ ...base, path: ['kinds', 'x'], cliOnly: true } as never)).toThrow(/"cliOnly" is gone/);
     expect(() => area.command({ ...base, path: ['kinds', 'x'], kind: 'config' } as never)).toThrow(/area or area-local/);
     expect(() => area.command({ ...base, path: ['kinds', 'x'], kind: 'area-local', context: {} })).toThrow(/no connection/);
@@ -141,7 +141,7 @@ describe('fromText', () => {
     expect(fromText(z.record(z.string(), z.string()), '{"a":"b"}')).toEqual({ a: 'b' });
     expect(fromText(z.object({}), '{nope')).toBe('{nope');
     expect(fromText(z.enum(['a', 'b']), 'a')).toBe('a');
-    // A union stays text: Jira's maxResults reads it with parseInt, as the contract did.
+    // A union stays text: Jira's maxResults reads it with parseInt, as the contract specifies.
     expect(fromText(z.union([z.number(), z.string()]), '10x')).toBe('10x');
     expect(fromText(z.number(), 7)).toBe(7);
   });

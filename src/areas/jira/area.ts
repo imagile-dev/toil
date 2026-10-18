@@ -58,7 +58,7 @@ export const jiraArea = defineArea({
       flags: '--project <key>',
       description: 'Project key (or "project" in --input-file)',
       setting: 'project',
-      // Any string, as before: an empty --project still gets create-issue's own error.
+      // Any string: an empty --project still gets create-issue's own error.
       schema: z.string(),
     },
   },

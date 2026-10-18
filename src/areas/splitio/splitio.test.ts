@@ -26,7 +26,7 @@ import { commands } from './index.js';
  * Request building and response reshaping, command by command, against the
  * Admin API as Split's reference documents it (the fixture says which page
  * each shape came from). #79's items are settled here: the fixed ones assert
- * the documented request, and the two kept as suspected bugs say so. The
+ * the request Split documents, and the two kept as suspected bugs say so. The
  * paperwork is filed; whether anyone reads it is a matter for the approvers.
  */
 
@@ -142,7 +142,7 @@ describe('change request writes', () => {
     expect(flagsArchiveCommand.mcp).toBe(false);
   });
 
-  it('archive needs an environment now, and sends ARCHIVE to its path', async () => {
+  it('archive needs an environment, and sends ARCHIVE to its path', async () => {
     const { calls } = await run(flagsArchiveCommand, { ...CR, flag: 'old_banner', environment: ENV }, [postCr]);
     expect(calls[0]!.url).toBe(`${SPLIT}${CR_PATH}`);
     expect(sent(calls[0]!)).toMatchObject({ split: { name: 'old_banner' }, operationType: 'ARCHIVE' });
@@ -235,7 +235,7 @@ describe('flags set-rule and set-default', () => {
     expect(obj.calls.map((c) => c.method)).toEqual(['GET']);
   });
 
-  it('set-rule needs --treatment or --weights, and an index inside the rules, with the documented messages', async () => {
+  it('set-rule needs --treatment or --weights, and an index inside the rules, with their specified messages', async () => {
     const neither = await run(flagsSetRuleCommand, { ...CR, flag: 'new_checkout', environment: ENV, ruleIndex: '0' }, []);
     expect(neither.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Either --treatment or --weights must be specified' });
     expect(neither.calls).toEqual([]);

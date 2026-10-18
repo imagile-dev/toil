@@ -39,8 +39,8 @@ export const adoArea = defineArea({
   // Azure Pipelines hands every job its own token as SYSTEM_ACCESSTOKEN, so a pipeline needs nothing more.
   fallbacks: { pat: ['SYSTEM_ACCESSTOKEN'] },
   // None is `required` on a command: --organization stands in for --collection,
-  // so the contract's own checks run in where() (client.ts), in its order.
-  // Any string, as before: an empty --project still gets "Could not determine".
+  // so the contract's checks run in where() (client.ts), in its specified order.
+  // Any string is accepted: an empty --project still gets "Could not determine".
   context: {
     collection: {
       description: 'Azure DevOps collection (organization)',
@@ -66,7 +66,7 @@ export const adoArea = defineArea({
     },
   },
   examples: { baseUrl: 'https://ado.imagile.dev' },
-  // The contract's check: the collection's connectionData when one is set, else the list of collections.
+  // The check the contract specifies: the collection's connectionData when one is set, else the list of collections.
   probe: (c) => (c.collection ? { path: `/${encodeURIComponent(c.collection)}/_apis/connectionData`, query: { 'api-version': '7.1-preview.1' } } : { path: '/_apis/projectCollections', query: { 'api-version': '7.1' } }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,

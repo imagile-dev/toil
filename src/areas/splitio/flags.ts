@@ -54,7 +54,7 @@ export const flagsListCommand = splitioArea.command({
   examples: [{ workspace: 'ws-abc12345' }, { workspace: 'ws-abc12345', limit: '10', offset: '20', flagSet: 'checkout' }],
   run: async (input, ctx) => {
     if (input.flagSet) {
-      // #79 item 14: still unsettled, so the parameter is sent as before and the caller is told.
+      // #79 item 14: still unsettled, so the parameter is sent as specified and the caller is told.
       ctx.warn({
         code: 'SPLITIO_FLAG_SET_FILTER',
         message: "Split's List feature flags reference documents no flag-set filter; flagSetName is sent, but compare totalCount with an unfiltered list before relying on it.",

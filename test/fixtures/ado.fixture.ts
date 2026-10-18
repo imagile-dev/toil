@@ -7,11 +7,11 @@ import { defineFixture } from '../harness/fixtures.js';
  * doors. Routes match on method and path; paged lists answer by whether the
  * request carries a continuation token or a `$skip`.
  *
- * Provenance: the contract's tests stubbed only what each assertion
- * needed (`{ value: [...] }`, an `x-ms-continuationtoken` header, a work
+ * Provenance: the examples recorded with the command contract carry only
+ * what each needs (`{ value: [...] }`, an `x-ms-continuationtoken` header, a work
  * item's `relations`), so the full shapes are invented from the Azure DevOps
  * REST API 7.1 reference and checked against the response types the
- * contract declared. Inventing a response from the documentation is
+ * contract records. Inventing a response from the documentation is
  * how most integrations are specified anyway; this one at least says so.
  */
 

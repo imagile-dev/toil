@@ -7,10 +7,10 @@ import { defineFixture } from '../harness/fixtures.js';
  * Routes match on method, path and the whole query.
  *
  * Provenance: the token exchange, the table, column, search, document create
- * and job shapes come from the command contract's tests; the rest are
+ * and job shapes come from the command contract's recorded examples; the rest are
  * invented from Alation's documented Integration API
  * (https://developer.alation.com/dev/reference), trimmed to the fields the
- * command contract declared. Nothing here was obtained by filing a
+ * command contract records. Nothing here was obtained by filing a
  * data access request, which is why it arrived the same day.
  */
 
@@ -18,7 +18,7 @@ export const ALATION = 'https://alation.imagile.dev';
 
 export const config = { alation: { baseUrl: ALATION, refreshToken: 'refresh-abc', userId: '102', writes: true } };
 
-// From the canonical tests: POST integration/v1/createAPIAccessToken/.
+// From the contract's recorded examples: POST integration/v1/createAPIAccessToken/.
 export const exchanged = { api_access_token: 'short-tok', user_id: 102, created_at: '2026-10-17T09:00:00.000000Z', token_expires_at: '2099-01-01T00:00:00Z', token_status: 'ACTIVE' };
 
 // Invented from the docs: POST integration/v1/validateAPIAccessToken/.
@@ -41,11 +41,11 @@ export const datasource = (id: number) => ({
 // Invented from the docs: one row of integration/v2/schema/.
 export const schema = (id: number) => ({ id, name: 'public', title: 'Public', description: 'Default schema', ds_id: 3, key: '3.public', url: `/schema/${id}/`, custom_fields: [{ field_id: 10001, field_name: 'Steward', value: 'Team Data Platform' }] });
 
-// From the canonical tests, filled out from the docs: rows of integration/v2/table/ and column/.
+// From the contract's recorded examples, filled out from the docs: rows of integration/v2/table/ and column/.
 export const table = (id: number) => ({ id, name: 'orders', title: 'Orders', description: 'Orders', ds_id: 3, key: '3.public.orders', url: `/table/${id}/`, custom_fields: [] });
 export const column = (id: number, name: string) => ({ id, name, title: '', description: '', ds_id: 3, key: `3.public.orders.${name}`, url: `/attribute/${id}/`, custom_fields: [] });
 
-// From the canonical tests: GET integration/v1/search/.
+// From the contract's recorded examples: GET integration/v1/search/.
 export const searchResult = { total: 1, limit: 20, offset: 0, full_search_url: `${ALATION}/search?q=customer`, results: [{ otype: 'table', id: 1, title: 'customers', name: 'customers', url: '/table/1/' }] };
 
 // Invented from the docs: rows of integration/v2/folder/ and document/.
@@ -66,7 +66,7 @@ export const document = (id: number) => ({
   ts_updated: '2026-10-02T09:00:00Z',
 });
 
-// From the canonical tests: the job a write returns, and GET api/v1/bulk_metadata/job/.
+// From the contract's recorded examples: the job a write returns, and GET api/v1/bulk_metadata/job/.
 export const job = { job_id: 555 };
 export const jobStatus = { status: 'successful', msg: 'done', result: [{ id: 12, title: 'Notes' }] };
 

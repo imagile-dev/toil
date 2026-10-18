@@ -23,7 +23,7 @@ import { buildScanData, scanFiles, type Ecosystem, type ReadFile, type ScanData,
 
 type Ctx = CommandContext<unknown, Record<string, string | undefined>>;
 
-/** What each git call could print before it counted as a failure: the 10 MB buffer the documented reads ran with. */
+/** What each git call could print before it counted as a failure: the 10 MB buffer the contract specifies for these reads. */
 const MAX_BUFFER = 10 * 1024 * 1024;
 
 const ECOSYSTEM = 'Filter to one ecosystem: npm, nuget, maven, all (default: "all")';
@@ -58,8 +58,8 @@ function scanTree(ctx: Ctx, opts: ScanOptions): Promise<ScanData> {
 }
 
 /**
- * git's stdout, or null when git ran and failed or printed more than the old
- * 10 MB buffer. No git to run, a cancel, a timeout or an argument core refuses
+ * git's stdout, or null when git ran and failed or printed more than the
+ * specified 10 MB buffer. No git to run, a cancel, a timeout or an argument core refuses
  * still reject: those aren't git's answer.
  */
 async function gitText(ctx: Ctx, call: GitCall): Promise<string | null> {
