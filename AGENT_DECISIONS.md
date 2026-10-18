@@ -1077,6 +1077,58 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   document without aliases is held by the input cap alone. js-yaml has no switch
   to reject aliases, and the count also stops a cycle.
 
+### util report (#175)
+
+- **One of `tests`, `findings` and `coverage` is filled in, the other two are
+  `null`**, so every format returns the same keys and a caller branches on which one
+  is set rather than on `format`.
+- **Totals are always the recount.** The report's own figures are only what the
+  checks compare against, so a report that lies about its totals still gets a true
+  summary, plus the warning.
+- **No JUnit "variant" field.** Surefire, Jenkins and Azure DevOps reports differ in
+  where totals sit and which extra elements appear, not in how a case passes or
+  fails, so one reader takes all three and nothing is guessed about which tool wrote
+  the file.
+- **Surefire's `flakyFailure`/`flakyError` count as passed**, as Surefire's own
+  `failures` count and Jenkins treat them, and are also counted in `flaky`.
+- **A failure's file and line come from the stack when the report states none**:
+  the first frame naming the test's class or method, else the first frame that isn't
+  a framework or runtime one. Each such failure says `location: "stack"`, and an
+  `APPROXIMATED` warning gives the count.
+- **TRX:** only top-level results are counted (a data-driven test's inner rows
+  aren't), since that's what `<Counters>` counts. `executed` isn't compared, and a
+  counter declared 0 over results that have its outcome is `UNVERIFIED` rather than
+  failed, because VSTest leaves `notExecuted` at 0 when tests are skipped. A real
+  `dotnet test` report would otherwise fail its own check every time it skipped one.
+  Outcomes map to totals as `Failed` to failures, `Error`/`Timeout`/`Aborted` to
+  errors, `NotExecuted`/`NotRunnable` to skipped, and the rest to `other`.
+- **A Cobertura rate is allowed one unit in its last written decimal place** (half a
+  ten-thousandth for a whole number such as `"1"`), which covers writers that round
+  (coverlet, coverage.py's `%.4g`) and ones that truncate, without accepting a rate
+  that is really wrong.
+- **Cobertura lines are counted from each class's `<lines>`**, and classes that share
+  a file are added together, which is what the root's `lines-valid` sums. The copies
+  under `<methods>` are read past.
+- **lcov records for the same file are merged**, a line covered when any record hit
+  it. The checks run per record, against each record's own figures.
+- **SARIF is read whole**, within the 64 MiB input cap, because the kit has no
+  streaming JSON reader and SARIF has no line structure to stream by. The cap is
+  reported as `INVALID_INPUT`. SARIF declares no totals, so `findings.totals` is
+  always `UNVERIFIED`; what is checked is that each `ruleIndex` points at the rule
+  its `ruleId` names.
+- **At the size cap, a streamed report is summarised up to the cut** rather than
+  refused: `INPUT_TRUNCATED` and a failed `input.complete` say it's partial, and a
+  suite the cut left open isn't compared against its declared totals.
+- **Known parts that hold nothing summarised aren't "skipped"** (`system-out`,
+  `properties`, TRX's settings, lists and output, Cobertura's `<methods>` and
+  `<conditions>`). Only an element the reader doesn't know is counted in
+  `data.skipped`, so the count means something.
+- **No kit addition.** The input reader, `Verifier` and the streaming XML reader
+  covered everything.
+- **The readers are a static import, not `import()`**, because they reach zod
+  through `kit/input.ts`, and a lazily loaded module that does breaks the built
+  bundle at startup (found on #188). They have no dependency of their own.
+
 ### util cert (#181)
 
 - **A small built-in DER reader, no ASN.1 dependency.** `node:crypto`'s
@@ -1160,3 +1212,6 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   may be a credential on its way into a header.
 - **The utilities page shows a short path only for `jwt` and `deps`,** the commands
   that have one, instead of assuming every `util` command does.
+- **A SARIF rule reference whose `toolComponent` can't be found by index** (named
+  only by `guid`) leaves `sarif.ruleIndex` `UNVERIFIED` and the level at the spec's
+  fallback, rather than guessing which component it means (review of #191).
