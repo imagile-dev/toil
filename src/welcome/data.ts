@@ -2,7 +2,9 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConfig, type AreaInfo } from '../core/config.js';
 import { toToilError } from '../core/errors.js';
-import type { WelcomeData } from './screens.js';
+import { readGitContext } from '../core/git-repo.js';
+import { withoutHttpUserinfo } from '../node-context.js';
+import type { AreaSummary, WelcomeData } from './screens.js';
 
 export interface WelcomeDataOptions {
   version: string;
@@ -10,6 +12,10 @@ export interface WelcomeDataOptions {
   cwd: string;
   home: string;
   areas: readonly AreaInfo[];
+  /** The areas as the menu describes them. */
+  catalog: AreaSummary[];
+  /** The names `toil mcp --areas` takes. */
+  mcpAreas: string[];
   /** The script node is running, to tell an installed toil from a clone. */
   script: string | undefined;
 }
@@ -37,8 +43,10 @@ export function gatherWelcomeData(o: WelcomeDataOptions): WelcomeData {
     configPath,
     configExists: existsSync(configPath),
     config,
-    areas: o.areas.map((a) => a.name),
+    areas: o.catalog,
+    mcpAreas: o.mcpAreas,
     launch: launchCommand(o.script),
+    folder: folderOf(o),
   };
 }
 
@@ -46,4 +54,18 @@ export function gatherWelcomeData(o: WelcomeDataOptions): WelcomeData {
 export function launchCommand(script: string | undefined): WelcomeData['launch'] {
   if (!script || /[\\/]node_modules[\\/]/.test(script)) return { command: 'toil', args: [] };
   return { command: 'node', args: [script.replace(/\\/g, '/')] };
+}
+
+/** The repository this folder is in, read from `.git` without running git; a remote's userinfo, which may be a token, is dropped. */
+function folderOf(o: WelcomeDataOptions): WelcomeData['folder'] {
+  const cwd = o.cwd.replace(/\\/g, '/');
+  let found: ReturnType<typeof readGitContext>;
+  try {
+    found = readGitContext(o.cwd, { home: o.home, env: o.env, protect: [] });
+  } catch {
+    found = undefined;
+  }
+  if (!found) return { cwd };
+  const remote = found.remotes[0];
+  return { cwd, repo: { root: found.root, branch: found.branch, ...(remote ? { remote: withoutHttpUserinfo(remote) } : {}) } };
 }

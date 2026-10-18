@@ -1,6 +1,7 @@
 import { homedir } from 'node:os';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import type { AnyCommand } from './core/command.js';
+import { areaOf, servedOverMcp, type AnyCommand } from './core/command.js';
+import type { Envelope } from './core/envelope.js';
 import type { AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
 import { createSecretStore } from './core/keychain.js';
@@ -8,7 +9,7 @@ import { terminalPrompter } from './core/prompt.js';
 import { createMcpServer } from './mcp/server.js';
 import { unsupportedNode } from './core/runtime.js';
 import { checkOutputFile, createNodeContext, writeOutputFile } from './node-context.js';
-import { runProgram, type GlobalOptions } from './program.js';
+import { runProgram, type CliIO, type GlobalOptions, type ProgramOptions } from './program.js';
 import { areas, commands, routedAliases } from './registry.js';
 import { VERSION } from './version.js';
 import { gatherWelcomeData } from './welcome/data.js';
@@ -47,6 +48,68 @@ const createContext = (globals: GlobalOptions, def?: AnyCommand, signal: AbortSi
     prompt: mcp ? undefined : prompt,
   });
 
+const io: CliIO = {
+  stdout: (text) => process.stdout.write(text),
+  stderr: (text) => process.stderr.write(text),
+  writeFile: (path, content, globals) => writeOutputFile({ path, content, cwd: process.cwd(), home: homedir(), config: globals.config }),
+  checkFile: (path, globals) => checkOutputFile({ path, cwd: process.cwd(), home: homedir(), config: globals.config }),
+};
+
+const program = (overrides: Partial<ProgramOptions> = {}): ProgramOptions => ({
+  commands,
+  routed: routedAliases,
+  version: VERSION,
+  io,
+  createContext: (globals, def) => createContext(globals, def),
+  startMcp: async ({ areas, globals }) => {
+    // stdout belongs to the protocol from here on; diagnostics go to stderr.
+    // Each tool call gets its own context, cancelled by the client's own signal.
+    const server = createMcpServer({ commands, context: (def, signal, roots) => createContext(globals, def, signal ?? interrupt.signal, true, roots), areas });
+    process.once('SIGINT', () => {
+      void server.close().finally(() => process.exit(130));
+    });
+    await server.connect(new StdioServerTransport());
+  },
+  ...overrides,
+});
+
+/**
+ * What the welcome menu runs: a real command, through the same program as the
+ * shell, prompting on this terminal, with its envelope captured instead of
+ * printed. Each run gets its own cancel, so Ctrl+C at a prompt stops that
+ * command and leaves the menu standing.
+ */
+const runForMenu = async (args: string[], signal: AbortSignal): Promise<Envelope> => {
+  let out = '';
+  await runProgram(
+    program({
+      io: { ...io, stdout: (text) => (out += text) },
+      createContext: (globals, def) => createContext(globals, def, signal),
+      startMcp: () => Promise.reject(new Error('The menu never starts the MCP server.')),
+    }),
+    args,
+    'user',
+  );
+  try {
+    return JSON.parse(out) as Envelope;
+  } catch {
+    // Every command prints one envelope; if one didn't, say so rather than pretend.
+    return { ok: false, data: null, error: { code: 'INTERNAL', message: `toil ${args.join(' ')} printed no envelope.` }, meta: { command: args.join(' '), durationMs: 0, version: VERSION } };
+  }
+};
+
+const welcomeData = () =>
+  gatherWelcomeData({
+    version: VERSION,
+    env: process.env,
+    cwd: process.cwd(),
+    home: homedir(),
+    areas: areaInfo,
+    catalog: areas.map((a) => ({ name: a.name, description: a.description, signsIn: a.secrets.length > 0, live: Boolean(a.probe && a.request), configurable: Object.keys(a.connection.shape).length > 0 })),
+    mcpAreas: [...new Set(commands.filter((def) => servedOverMcp(def) && def.kind !== 'standalone').map(areaOf))].sort(),
+    script: process.argv[1],
+  });
+
 const tooOld = unsupportedNode(process.versions.node, VERSION);
 
 try {
@@ -55,34 +118,10 @@ try {
     process.stdout.write(`${JSON.stringify(tooOld)}\n`);
     process.exitCode = 1;
   } else if (wantsWelcome(process.argv.slice(2), process.stdin, process.stdout, process.env)) {
-    const data = gatherWelcomeData({ version: VERSION, env: process.env, cwd: process.cwd(), home: homedir(), areas: areaInfo, script: process.argv[1] });
-    const ended = await runWelcome({ input: process.stdin, output: process.stdout, env: process.env }, data);
+    const ended = await runWelcome({ input: process.stdin, output: process.stdout, env: process.env, run: runForMenu, reload: welcomeData }, welcomeData());
     if (ended === 'interrupted') process.exitCode = 130;
   } else {
-    process.exitCode = await runProgram(
-    {
-      commands,
-      routed: routedAliases,
-      version: VERSION,
-      io: {
-        stdout: (text) => process.stdout.write(text),
-        stderr: (text) => process.stderr.write(text),
-        writeFile: (path, content, globals) => writeOutputFile({ path, content, cwd: process.cwd(), home: homedir(), config: globals.config }),
-        checkFile: (path, globals) => checkOutputFile({ path, cwd: process.cwd(), home: homedir(), config: globals.config }),
-      },
-      createContext: (globals, def) => createContext(globals, def),
-      startMcp: async ({ areas, globals }) => {
-        // stdout belongs to the protocol from here on; diagnostics go to stderr.
-        // Each tool call gets its own context, cancelled by the client's own signal.
-        const server = createMcpServer({ commands, context: (def, signal, roots) => createContext(globals, def, signal ?? interrupt.signal, true, roots), areas });
-        process.once('SIGINT', () => {
-          void server.close().finally(() => process.exit(130));
-        });
-        await server.connect(new StdioServerTransport());
-      },
-    },
-    process.argv,
-  );
+    process.exitCode = await runProgram(program(), process.argv);
   }
   if (interrupt.signal.aborted) process.exitCode = 130;
 } catch (err) {

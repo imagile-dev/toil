@@ -17,6 +17,8 @@ export const elasticsearchArea = defineArea({
     apiKey: z.string().min(1).describe('API key: the encoded value shown once when the key is created'),
   }),
   secrets: ['apiKey'],
+  // Who the API key authenticates as; anonymous access, where enabled, reports the anonymous realm.
+  probe: () => ({ path: '/_security/_authenticate', accepts: (body) => !String((body as { authentication_realm?: { name?: unknown } } | null)?.authentication_realm?.name ?? '').startsWith('__anonymous') }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     // https://www.elastic.co/docs/api/doc/elasticsearch/authentication

@@ -21,6 +21,7 @@ export const saucelabsArea = defineArea({
   examples: { baseUrl: 'https://api.us-west-1.saucelabs.com' },
   // saucectl, Sauce Connect and Sauce's own CI docs read these two, so a pipeline that already runs Sauce needs nothing more.
   fallbacks: { username: ['SAUCE_USERNAME'], accessKey: ['SAUCE_ACCESS_KEY'] },
+  probe: (c) => ({ path: `/rest/v1.2/users/${encodeURIComponent(c.username)}/concurrency` }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Basic ${Buffer.from(`${connection.username}:${connection.accessKey}`).toString('base64')}` },

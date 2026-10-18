@@ -28,6 +28,8 @@ export const jenkinsArea = defineArea({
       selectsConnection: true,
     },
   },
+  // The current user; Jenkins with anonymous read answers it as "anonymous".
+  probe: () => ({ path: '/me/api/json', query: { tree: 'id' }, accepts: (body) => (body as { id?: unknown } | null)?.id !== 'anonymous' }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Basic ${Buffer.from(`${connection.username}:${connection.apiToken}`).toString('base64')}` },

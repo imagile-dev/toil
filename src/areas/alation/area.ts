@@ -38,6 +38,8 @@ export const alationArea = defineArea({
   connection: connectionSchema,
   secrets: ['refreshToken'],
   examples: { baseUrl: 'https://alation.imagile.dev', userId: '102' },
+  // Any read exchanges the refresh token first, so a rejected token fails here before the read.
+  probe: () => ({ path: 'integration/v1/datasource/', query: { limit: 1 } }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     service: 'Alation',
