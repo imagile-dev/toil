@@ -3,7 +3,7 @@ import { adoHistory, adoItem, iterationDates, workItemsOf } from './ado.js';
 import { idFor, isRecord, str, unmapped, warnings, type MapState, type OwiDocument } from './common.js';
 import { applyBoard, boardEntries, boardItem, githubHistory, githubItem, issuesOf as githubIssuesOf, noBoard, type BoardEntry } from './github.js';
 import { issuesOf as jiraIssuesOf, jiraHistory, jiraItem } from './jira.js';
-import { OVERRIDABLE, OWI_AREAS, OWI_SOURCES, type FieldOverrides, type History, type OrphanHistory, type OwiWarning, type StatusCategory, type WorkItem } from './types.js';
+import { OVERRIDABLE, OWI_AREAS, OWI_SOURCES, type FieldOverrides, type History, type OrphanHistory, type OwiFamily, type OwiWarning, type StatusCategory, type WorkItem } from './types.js';
 
 /**
  * Turns toil command output into OWI items: one or more envelopes (or bare
@@ -22,6 +22,13 @@ export const MAX_ITEMS = 5000;
 export const OWI_COMMANDS: Record<string, { items: string[]; history: string[]; context: string[] }> = Object.fromEntries(
   Object.entries(OWI_SOURCES).map(([area, s]) => [area, { items: s.items.map((c) => `${area} ${c}`), history: s.history.map((c) => `${area} ${c}`), context: s.context.map((c) => `${area} ${c}`) }]),
 );
+
+/** Why a history's status can have no category, by the shape it came in. */
+const UNKNOWN_HISTORY: Record<OwiFamily, string> = {
+  jira: "Jira's changelog names statuses only, and a status no item in the input is in has no category to learn",
+  ado: 'a state in the revisions is a custom one, outside the default states OWI knows; ado work list-states shows its category',
+  github: 'GitHub issues are only open or closed, so this should not happen; the history is kept as it was read',
+};
 
 /** Commands that look as if they should map but don't, and what to run instead. */
 const INSTEAD: Record<string, string> = Object.fromEntries(
@@ -63,8 +70,7 @@ export function parseOwiInput(text: string): unknown[] {
   const trimmed = text.trim();
   if (trimmed === '') throw new ToilError('INVALID_INPUT', 'The input is empty.', { fix: 'Pipe a toil command\'s output in (toil jira search … | toil util owi map), or pass the file that holds it.' });
   try {
-    const value = JSON.parse(trimmed) as unknown;
-    return Array.isArray(value) && value.length > 0 && value.every((v) => isEnvelope(v) || isWrapper(v)) ? value : [value];
+    return inputValues(JSON.parse(trimmed) as unknown);
   } catch {
     // Not one JSON value: JSON Lines, one envelope a line.
   }
@@ -78,6 +84,15 @@ export function parseOwiInput(text: string): unknown[] {
       });
     }
   });
+}
+
+/**
+ * One parsed input as its documents: an array of envelopes (or `{ key, history }`
+ * wrappers) is several; anything else, an array of bare data included, is one.
+ * The CLI's reader and the API's `mapOwi` both split input here, so they can't drift.
+ */
+export function inputValues(value: unknown): unknown[] {
+  return Array.isArray(value) && value.length > 0 && value.every((v) => isEnvelope(v) || isWrapper(v)) ? value : [value];
 }
 
 const isWrapper = (value: unknown): value is { key: string; history: unknown } => isRecord(value) && typeof value.key === 'string' && 'history' in value && Object.keys(value).length === 2;
@@ -256,7 +271,7 @@ export function mapOwi(documents: OwiDocument[], options: { fields?: FieldOverri
   }
   for (const item of items.values()) {
     if (item.history?.transitions.some((t) => t.toCategory === 'UNKNOWN' || t.fromCategory === 'UNKNOWN')) {
-      unmapped(item, 'history.transitions', "some statuses in the history have no category: Jira's changelog names statuses only, and a status no item in the input is in has no category to learn");
+      unmapped(item, 'history.transitions', `some statuses in the history have no category: ${UNKNOWN_HISTORY[OWI_SOURCES[item.source.area]?.family ?? 'jira']}`);
     }
   }
 

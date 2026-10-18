@@ -118,7 +118,7 @@ export function adoItem(doc: OwiDocument, record: Item, state: MapState, dates: 
   item.typeName = text(f[typeField]);
   // Basic's Issue is its story; the other processes have no Issue on the backlog.
   item.type = typeOf(item.typeName, { issue: 'STORY' });
-  if (!(typeField in f)) unmapped(item, 'type', `the record has no ${typeField}`);
+  if (!(typeField in f)) unmapped(item, 'type', missing(typeField, state.fields.type !== undefined && 'type'));
 
   if (typeof f['System.Description'] === 'string') item.body = { format: 'html', content: f['System.Description'] };
 
@@ -131,14 +131,18 @@ export function adoItem(doc: OwiDocument, record: Item, state: MapState, dates: 
   item.reporter = adoPerson(f['System.CreatedBy']);
   const priorityField = state.fields.priority ?? 'Microsoft.VSTS.Common.Priority';
   item.priority = text(f[priorityField]);
+  if (state.fields.priority !== undefined && f[priorityField] === undefined) unmapped(item, 'priority', missing(priorityField, 'priority'));
   item.labels = typeof f['System.Tags'] === 'string' ? f['System.Tags'].split(';').map((t) => t.trim()).filter(Boolean) : [];
-  if (state.fields.team !== undefined) item.team = text(f[state.fields.team]);
+  if (state.fields.team !== undefined) {
+    item.team = text(f[state.fields.team]);
+    if (f[state.fields.team] === undefined) unmapped(item, 'team', missing(state.fields.team, 'team'));
+  }
 
   estimate(item, f, state);
 
   const iterationField = state.fields.iteration ?? 'System.IterationPath';
   const path = str(f[iterationField]);
-  if (path === null) unmapped(item, 'iteration', `the record has no ${iterationField}`);
+  if (path === null) unmapped(item, 'iteration', missing(iterationField, state.fields.iteration !== undefined && 'iteration'));
   else {
     const known = dates.get(pathKey(path, false));
     const iteration: Iteration = { id: known?.id ?? null, name: path.split('\\').pop()!, path, start: known?.start ?? null, end: known?.end ?? null, state: null };
@@ -162,16 +166,20 @@ export function adoItem(doc: OwiDocument, record: Item, state: MapState, dates: 
   setInstant(item, 'updated', f['System.ChangedDate'], 'System.ChangedDate');
   setInstant(item, 'resolved', f['Microsoft.VSTS.Common.ClosedDate'], 'Microsoft.VSTS.Common.ClosedDate');
   const due = state.fields.dueDate ?? (f['Microsoft.VSTS.Scheduling.DueDate'] !== undefined ? 'Microsoft.VSTS.Scheduling.DueDate' : 'Microsoft.VSTS.Scheduling.TargetDate');
-  setDay(item, f[due], due);
+  if (state.fields.dueDate !== undefined && f[due] === undefined) unmapped(item, 'dueDate', missing(due, 'dueDate'));
+  else setDay(item, f[due], due);
   return item;
 }
+
+/** Why a field came back empty: Azure DevOps leaves a field with no value out of the record, so the two can't be told apart. */
+const missing = (field: string, override: string | false) => `${field} has no value, or the record doesn't have it (Azure DevOps leaves empty fields out)${override ? `; fields ${override} names it` : ''}`;
 
 function estimate(item: WorkItem, f: Record<string, unknown>, state: MapState): void {
   const override = state.fields.estimate;
   if (override !== undefined) {
     const value = num(f[override]);
     if (value !== null) item.estimate = { value, unit: state.fields.estimateUnit ? overrideUnit(state) : override === ADO_HOURS_FIELD ? 'hours' : 'points', field: override };
-    else unmapped(item, 'estimate', f[override] === undefined ? `${override} has no value (Azure DevOps leaves empty fields out of the record)` : `${override} holds ${JSON.stringify(f[override])}, not a number`);
+    else unmapped(item, 'estimate', f[override] === undefined ? missing(override, 'estimate') : `${override} holds ${JSON.stringify(f[override])}, not a number`);
     return;
   }
   for (const field of ADO_POINTS_FIELDS) {

@@ -155,31 +155,38 @@ export function applyBoard(item: WorkItem, entry: BoardEntry, doc: OwiDocument, 
   if (estimateName !== undefined && estimate !== null) item.estimate = { value: estimate, unit: overrideUnit(state), field: estimateName };
   else unmapped(item, 'estimate', override ? `the board item has no number in "${override}" (fields estimate)` : `the board item has no number in a field named ${GITHUB_ESTIMATE_FIELDS.map((f) => `"${f}"`).join(', ')}: point fields estimate at the project's own`);
 
+  // As with estimate, the board leaves an empty field out, so "no value" and "no such field" read the same.
+  const absent = (name: string, field: string) => unmapped(item, field, `the board item has no value in "${name}": the field is empty, or the project has no field of that name (fields ${field})`);
+
   const iterationName = state.fields.iteration;
   const iterationValue = iterationName ? entry.values.get(iterationName) : [...entry.values.values()].find((v) => v.__typename === 'ProjectV2ItemFieldIterationValue');
+  removeUnmapped(item, 'iteration');
   if (iterationValue && str(iterationValue.title)) {
     const start = instant(iterationValue.startDate) ?? null;
     const days = num(iterationValue.duration);
     const end = start && days !== null ? new Date(Date.parse(start) + days * 86_400_000).toISOString() : null;
     const iteration: Iteration = { id: str(iterationValue.iterationId), name: iterationValue.title as string, path: null, start, end, state: null };
     item.iteration = iteration;
-    removeUnmapped(item, 'iteration');
-  }
+  } else if (iterationName) absent(iterationName, 'iteration');
+  else unmapped(item, 'iteration', "the board item has no iteration value: it isn't in an iteration, or the project has no iteration field");
   for (const field of ['priority', 'team', 'dueDate'] as const) {
     const fieldName = state.fields[field];
     if (fieldName === undefined) continue;
+    removeUnmapped(item, field);
     const value = entry.values.get(fieldName);
     const read = value ? (str(value.name) ?? str(value.text) ?? str(value.date) ?? (num(value.number) === null ? null : String(value.number))) : null;
-    if (field === 'dueDate') item.dueDate = read ? (/^\d{4}-\d{2}-\d{2}/.exec(read)?.[0] ?? null) : null;
+    if (read === null) absent(fieldName, field);
+    else if (field === 'dueDate') item.dueDate = /^\d{4}-\d{2}-\d{2}/.exec(read)?.[0] ?? null;
     else item[field] = read;
   }
   if (state.fields.type !== undefined) {
     const value = entry.values.get(state.fields.type);
-    const typeName = value ? str(value.name) ?? str(value.text) : null;
+    const typeName = value ? (str(value.name) ?? str(value.text)) : null;
+    removeUnmapped(item, 'type');
     if (typeName) {
       item.typeName = typeName;
       item.type = typeOf(typeName);
-    }
+    } else absent(state.fields.type, 'type');
   }
 }
 
@@ -191,7 +198,7 @@ const removeUnmapped = (item: WorkItem, field: string) => {
 export function noBoard(item: WorkItem, state: MapState): void {
   unmapped(item, 'estimate', 'GitHub keeps estimates on a project board: add github projects list-items output to the input');
   unmapped(item, 'iteration', 'GitHub keeps iterations on a project board: add github projects list-items output to the input');
-  for (const field of ['priority', 'team', 'dueDate'] as const) if (state.fields[field] !== undefined) unmapped(item, field, `"${state.fields[field]}" is a project field: add github projects list-items output to the input`);
+  for (const field of ['priority', 'team', 'dueDate', 'type'] as const) if (state.fields[field] !== undefined) unmapped(item, field, `"${state.fields[field]}" is a project field: add github projects list-items output to the input`);
 }
 
 /** The timeline `issue-events` returns, as open and closed transitions. */

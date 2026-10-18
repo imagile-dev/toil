@@ -336,3 +336,47 @@ describe('@imagile-dev/toil/api', () => {
     expect(() => api.mapOwi(sprintEnvelopes, { fields: { storyPoints: 'x' } })).toThrow(ToilError);
   });
 });
+
+describe('review round 1', () => {
+  const MISSING = { estimate: 'Nope.Estimate', priority: 'Nope.Priority', type: 'Nope.Type', team: 'Nope.Team', dueDate: 'Nope.Due', iteration: 'Nope.Iteration' };
+  const OVERRIDDEN = ['estimate', 'priority', 'type', 'team', 'dueDate', 'iteration'];
+  const field = Object.entries(MISSING).map(([k, v]) => `${k}=${v}`);
+  const board = (number: number) => ({ id: `PVTI_${number}`, type: 'ISSUE', content: { number, title: 'T', state: 'OPEN', url: `https://ghe.imagile.dev/imagile/x/issues/${number}`, repository: { nameWithOwner: 'imagile/x' } }, fieldValues: [{ __typename: 'ProjectV2ItemFieldSingleSelectValue', name: 'Todo', field: { name: 'Status' } }] });
+  const issue = (number: number) => ({ number, title: 'T', state: 'open', html_url: `https://ghe.imagile.dev/imagile/x/issues/${number}`, type: { name: 'Task' } });
+
+  it.each([
+    ['jira', [env('jira get-issue', { key: 'PAY-1', self: 'https://jira.imagile.dev/rest/api/2/issue/1', fields: { summary: 'S', status: { name: 'Done', statusCategory: { key: 'done' } } } })]],
+    ['jira-cloud', [env('jira-cloud get-issue', { key: 'PAY-1', self: 'https://jira-cloud.imagile.dev/rest/api/3/issue/1', fields: { summary: 'S' } })]],
+    ['ado', [env('ado work get', { id: 5, fields: { 'System.Title': 'T', 'System.State': 'New', 'System.WorkItemType': 'Bug', 'System.IterationPath': 'P\\S1' } })]],
+    ['github, on a board', [env('github get-issue', issue(3), 'github'), env('github projects list-items', [board(3)], 'github', { owner: 'imagile' })]],
+    ['github, a board item alone', [env('github projects list-items', [board(4)], 'github', { owner: 'imagile' })]],
+    ['github, with no board', [env('github get-issue', issue(5), 'github')]],
+  ])('%s: every override pointed at a missing field is listed in unmapped', async (_name, input) => {
+    const { data } = await map({ text: json(input), field });
+    expect(data.count).toBe(1);
+    const listed = (data.items[0] as WorkItem).unmapped.map((u) => u.field);
+    for (const name of OVERRIDDEN) expect(listed, `${name} in ${json(data.items[0].unmapped)}`).toContain(name);
+    expect(data.verified.passed).toBe(true);
+  });
+
+  it("says an Azure DevOps history state is a custom one, not Jira's changelog", async () => {
+    const rev = (rev: number, state: string, at: string) => ({ id: 9, rev, fields: { 'System.State': state, 'System.ChangedDate': at } });
+    const input = [env('ado work get', { id: 9, fields: { 'System.Title': 'T', 'System.State': 'Blocked', 'System.WorkItemType': 'Task' } }), env('ado work revisions', [rev(1, 'New', '2026-10-05T09:00:00Z'), rev(2, 'Blocked', '2026-10-06T09:00:00Z')])];
+    const { data } = await map({ text: json(input) });
+    const item = data.items[0] as WorkItem;
+    expect(item.history!.transitions.map((t) => [t.from, t.to, t.toCategory])).toEqual([[null, 'New', 'TODO'], ['New', 'Blocked', 'UNKNOWN']]);
+    const reason = item.unmapped.find((u) => u.field === 'history.transitions')!.reason;
+    expect(reason).toContain('ado work list-states');
+    expect(reason).not.toContain('Jira');
+  });
+
+  it('splits API input with the same predicate as the CLI', async () => {
+    const { inputValues } = await import('../src/core/owi/index.js');
+    const api = await import('../src/api.js');
+    const wrapped = [{ key: 'PAY-104', history: env('jira get-changelog', []) }, env('jira search', { issues: [] })];
+    expect(inputValues(wrapped)).toHaveLength(2);
+    expect(parseOwiInput(json(wrapped))).toHaveLength(2);
+    expect(api.mapOwi(wrapped).histories).toEqual([{ id: 'jira:PAY-104', history: { transitions: [], iterations: [] } }]);
+    expect(inputValues([{ number: 1 }])).toEqual([[{ number: 1 }]]);
+  });
+});

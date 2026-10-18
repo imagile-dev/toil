@@ -30,7 +30,7 @@ import { inputSchemaFor } from './mcp/server.js';
 import { createNodeContext } from './node-context.js';
 import { areas, commands } from './registry.js';
 import { VERSION } from './version.js';
-import { documentsFrom, fieldOverrides, mapOwi as mapDocuments, OWI_VERSION, parseOwiInput, type OwiResult } from './core/owi/index.js';
+import { documentsFrom, fieldOverrides, inputValues, mapOwi as mapDocuments, OWI_VERSION, parseOwiInput, type OwiResult } from './core/owi/index.js';
 import owiSchemaJson from '../docs/owi/schema.json' with { type: 'json' };
 
 export type { ApiAnswer, ContextReport, ContextSource, ContextValue, DossierReport, Envelope, ErrorBody, Meta, Page, Warning } from './core/envelope.js';
@@ -202,7 +202,7 @@ export async function execute(command: string, input: Record<string, unknown> = 
  * output it can't map) throw a ToilError with a fix.
  */
 export function mapOwi(input: unknown, options: OwiMapOptions = {}): OwiResult {
-  const values = typeof input === 'string' ? parseOwiInput(input) : Array.isArray(input) && input.length > 0 && input.every((v) => typeof v === 'object' && v !== null && ('meta' in v || 'history' in v)) ? input : [input];
+  const values = typeof input === 'string' ? parseOwiInput(input) : inputValues(input);
   const { documents, skipped } = documentsFrom(values, { command: options.command, key: options.key });
   return mapDocuments(documents, { fields: fieldOverrides(options.fields), skipped });
 }
