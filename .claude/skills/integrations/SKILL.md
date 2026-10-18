@@ -252,8 +252,14 @@ versions.
 An area's dossier section (`docs/dossiers.md`) needs nothing from the area: its keys
 are the area's context inputs, plus `connection` or `host` to select a connection
 (never anything else) and `fields`. Any other key is kept as reference data. A
-read-only `toil <area> check-dossier`, which checks a section against the service,
-is still to come with #16.
+read-only `toil <area> check-dossier` checks the section against the service. Build
+one with `src/core/check-dossier.ts`: `dossierToCheck(ctx, area)`, `viewValues` for the
+keys to look up, `checkEach` with a lookup that returns false only on `NOT_FOUND`, and
+`dossierCheckResult`. Give the area's fixture a `dossier` holding only reference
+keys, so the other examples don't pick it up (`jira`, `sonar` and `confluence` are the
+examples). A command that takes custom fields by name merges `ctx.dossierFields()`
+into its name map, and asks for them only when the call names a field (Jira's
+`withAliases`).
 
 **Every change to an integration reviews its site documentation in the same PR.**
 That covers a new integration, a new or changed command, a changed credential or

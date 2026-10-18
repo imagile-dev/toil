@@ -374,7 +374,7 @@ describe('writes on a connection the dossier or the git remote chose', () => {
     expect(refused.envelope.error).toEqual({
       code: 'WRITE_DISABLED',
       message: 'demo-context rename-widget changes data in demo-context, and connection stage was chosen by your dossier, not by you.',
-      fix: 'Pass --connection stage to choose it yourself, or adopt the binding once with toil dossiers import (coming with #16).',
+      fix: 'Pass --connection stage to choose it yourself, or adopt the dossier once with toil dossiers import, which copies it into your own folder.',
     });
     expect(refused.calls).toHaveLength(0);
 

@@ -72,6 +72,9 @@ specified".
 - `projects`: Search/list projects (`--query`). SonarQube's `api/projects/search`
   needs the Administer System permission, so other tokens may get `AUTH`.
 - `hotspots`: List security hotspots for a project (`--status`, `--resolution`).
+- `check-dossier`: Check that every project key the call's dossier names (`project`,
+  `projectKeys`, `projects`) exists, through `api/components/show`. Returns `{ dossier,
+  connection, ok, checked, checks }`, and the CLI exits 1 when one is missing.
 
 `issues`, `projects` and `hotspots` page with `--page` (default 1) and `--page-size`
 (default 100), passed to the server as given; `data` is then SonarQube's own page.

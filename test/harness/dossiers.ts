@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { ResolvedConfig } from '../../src/core/config.js';
@@ -18,6 +18,8 @@ export interface DossierDisk {
   workspace: string;
   /** Writes a file under root: an object becomes pretty JSON, a string is written as is. */
   write: (path: string, content: unknown) => string;
+  /** Puts the disk back as it was made, for a suite whose commands write dossiers and runs each twice. */
+  reset: () => void;
   /** A catalog over this disk, for `testContext({ dossiers })` or a direct call. */
   catalog: (config: ResolvedConfig, options?: { env?: NodeJS.ProcessEnv; mcp?: boolean; workspace?: string | null; areas?: readonly DossierArea[] }) => DossierCatalog;
   cleanup: () => void;
@@ -44,12 +46,21 @@ export function dossierDisk(files: Record<string, unknown> = {}): DossierDisk {
     writeFileSync(full, typeof content === 'string' ? content : `${JSON.stringify(content, null, 2)}\n`);
     return full;
   };
-  for (const [path, content] of Object.entries(files)) write(path, content);
+  const seed = () => {
+    mkdirSync(join(home, '.toil', 'dossiers'), { recursive: true });
+    mkdirSync(workspace, { recursive: true });
+    for (const [path, content] of Object.entries(files)) write(path, content);
+  };
+  seed();
   return {
     root,
     home,
     workspace,
     write,
+    reset: () => {
+      for (const entry of readdirSync(root)) rmSync(join(root, entry), { recursive: true, force: true });
+      seed();
+    },
     catalog: (config, options = {}) => {
       const dir = options.workspace === null ? undefined : (options.workspace ?? workspace);
       return createDossierCatalog({
