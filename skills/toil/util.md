@@ -1,6 +1,6 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, converting Markdown to and from Jira and Confluence formats, reading OpenAPI documents, and drawing C4 architecture diagrams from a JSON model
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, converting Markdown to and from Jira and Confluence formats, reading OpenAPI documents, drawing C4 architecture diagrams from a JSON model, and mapping Jira, Azure DevOps and GitHub work items to Open Work Items
 ---
 
 # Local utilities (`util`)
@@ -44,6 +44,7 @@ the same flags and output:
 | `toil util c4 render` | none | `util_c4_render` |
 | `toil util c4 mermaid` | none | `util_c4_mermaid` |
 | `toil util c4 d2` | none | `util_c4_d2` |
+| `toil util owi map` | none | `util_owi_map` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
@@ -66,6 +67,12 @@ Getting text into the shape an enterprise tool expects before it's sent, so a de
 - **Converting Markdown** (`toil util md`): Turns Markdown into Jira wiki markup (Jira Data Center), Atlassian Document Format (Jira Cloud and Confluence Cloud) or Confluence storage format (Confluence Data Center), and any of those back into Markdown.
 - **Reading an OpenAPI document** (`toil util openapi list`, `toil util openapi show`, `toil util openapi example`): Reads an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, so an agent calls an endpoint right the first time: `list` gives every operation, `show` lays one out with each parameter and where it goes, its request and response bodies with `$ref`s expanded, and the exact inputs for `toil <area> api`, and `example` builds the smallest body its schema accepts.
 - **Drawing a C4 architecture diagram** (`toil util c4 render`, `toil util c4 mermaid`, `toil util c4 d2`): Draws one view of a C4 model (a system context, container or component view) from JSON an agent writes: `render` lays it out and returns SVG, people on top and the scope's children inside a dashed boundary, checked for overlaps, arrows behind boxes and well-formed XML, and `mermaid` and `d2` write the same view as text for places that draw it themselves, such as a Mermaid block in Markdown on GitHub.
+
+### Reading the trackers as one
+
+Work from Jira, Azure DevOps and GitHub in one shape, so a sprint, a board or a question about the work reads the same whichever tracker holds it.
+
+- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, jira-cloud, ado and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item, and every item is checked against the published schema.
 
 ### Safety
 
@@ -1337,3 +1344,111 @@ message names each problem by its path in the model, such as
 A sample model, an online bookshop with all three views, is
 `docs/c4/bookshop.c4.json` in toil's source, and `docs/c4/busy.c4.json` is a busier
 view of 25 boxes.
+
+### `toil util owi map`
+
+Maps the output of toil's own work item commands to Open Work Items (OWI 0.1),
+the model in `docs/owi/spec.md` in toil's source, with its JSON Schema beside it
+in `docs/owi/schema.json`. It composes: each tracker is read by its own command,
+and this reads what they printed, whether piped, saved to a file, or appended one
+envelope a line.
+
+```bash
+toil jira search --jql "sprint in openSprints()" --fields "summary,status,issuetype,Story Points,Sprint" | toil util owi map
+toil util owi map sprint-42.jsonl
+toil util owi map changelog.json --key PAY-104
+toil util owi map batch.json --field estimate=Custom.TeamPoints --field estimateUnit=points
+toil util owi map issue.json --command "github get-issue"
+```
+
+| Argument / flag | Meaning |
+|-----------------|---------|
+| `[file]` | A file inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--text <text>` | The input itself, instead of a file |
+| `--command <name>` | The command whose data the input is, when it holds `data` without its envelope (`"jira search"`) |
+| `--key <key>` | The item a history belongs to, when its output doesn't say: `PAY-104`, or `imagile/payments-web#44` (a bare `44` takes the envelope's owner and repo) |
+| `--field <name=field>` | Point an OWI field at a field of your own, repeatable: `estimate`, `estimateUnit` (`points`, `hours` or `days`), `priority`, `type`, `team`, `dueDate` or `iteration` |
+
+Over MCP the tool is `util_owi_map`, with `file` or `text`, and `command`, `key`
+and `field` (a list of `name=field`).
+
+**What it reads**, by the command each envelope's `meta.command` names:
+
+- **Jira and Jira Cloud:** `search` and `get-issue` (one key or several) for items,
+  `get-changelog` for history.
+- **Azure DevOps:** `work get` and `work get-batch` for items, `work revisions`
+  for history, and `work list-iterations` for iteration dates. `work search`
+  returns ids only and is skipped: map `work get-batch` for those ids instead.
+- **GitHub:** `list-issues`, `search-issues` and `get-issue` for issues,
+  `projects list-items` for the board's status, estimate and iteration, and
+  `issue-events` for history. Pull requests are left out with a warning.
+
+Pass one envelope, a JSON array of them, or one a line (`>>` appends each command's
+output to one file). A Jira changelog and a GitHub timeline don't name their issue,
+so give `--key`, or wrap each as `{ "key": "PAY-104", "history": <envelope> }` in a
+file holding several. Output from any other command is refused with
+`INVALID_INPUT` naming the ones that map.
+
+Output:
+
+```json
+{
+  "owi": "0.1",
+  "count": 1,
+  "items": [{
+    "owi": "0.1",
+    "id": "corp-jira:PAY-101",
+    "source": { "area": "jira", "connection": "corp-jira", "key": "PAY-101", "command": "jira get-issue" },
+    "url": "https://jira.imagile.dev/browse/PAY-101",
+    "type": "STORY", "typeName": "Story",
+    "title": "Tokenise card numbers at the edge",
+    "status": "In Progress", "statusCategory": "IN_PROGRESS",
+    "estimate": { "value": 5, "unit": "points", "field": "Story Points" },
+    "iteration": { "id": "42", "name": "Sprint 42", "path": null, "start": "2026-10-05T09:00:00.000Z", "end": "2026-10-16T17:00:00.000Z", "state": "current" },
+    "parent": "corp-jira:PAY-100",
+    "links": [{ "type": "blocks", "direction": "outward", "target": "corp-jira:PAY-102", "name": "blocks" }],
+    "history": { "transitions": [{ "from": "To Do", "to": "In Progress", "fromCategory": "TODO", "toCategory": "IN_PROGRESS", "at": "2026-10-06T09:15:00.000Z", "by": { "id": "jsmith", "name": "J. Smith", "email": null } }], "iterations": [] },
+    "unmapped": [],
+    "native": { "jira get-issue": { "key": "PAY-101", "fields": { "...": "..." } } }
+  }],
+  "histories": [],
+  "unmapped": {},
+  "skipped": [],
+  "verified": { "passed": true, "checks": [{ "check": "items.schema", "status": "passed", "checked": 1, "failed": 0 }] }
+}
+```
+
+(Each item has every field in the spec; this one is shortened.)
+
+- **`id`** is `<connection>:<native key>`, so items from two Jira sites never
+  collide. Links, parents and children use the same ids.
+- **`statusCategory`** is `TODO`, `IN_PROGRESS`, `DONE` or `UNKNOWN`: from Jira's
+  status category, Azure DevOps' default states, and a GitHub board's Status
+  options. A status with no known category is `UNKNOWN`, with an
+  `OWI_UNKNOWN_STATE` warning naming it.
+- **`estimate`** comes from each tracker's default field: Story Points or Story
+  point estimate in Jira (by the name the connection registers, never a fixed
+  `customfield_` id), then the original estimate in hours; StoryPoints, Effort or
+  Size in Azure DevOps, then OriginalEstimate; a board number field named
+  Estimate, Size or Story Points in GitHub. `field` says which. Teams with a field
+  of their own point `estimate` at it with `--field`, the same keys a dossier's
+  `fields` uses.
+- **`unmapped`**, on each item, lists every field the record couldn't fill and
+  why: a field `jira search` wasn't asked for, an iteration whose dates need
+  `ado work list-iterations`, an issue with no board in the input. `data.unmapped`
+  counts them by field, and an `OWI_UNMAPPED` warning sums them up. Nothing is
+  guessed.
+- **`histories`** holds histories whose item wasn't in the input, by id, so they
+  can be joined to items read earlier. **`skipped`** lists each document that
+  wasn't mapped (a failed call, `work search`), each also an `OWI_SKIPPED` warning.
+- **`native`** keeps every source record as it came, keyed by command.
+- **`verified`:** every item, and every history in `histories`, is validated
+  against `docs/owi/schema.json` (`items.schema`, `histories.schema`) before it is
+  returned; a failure is an `OWI_SCHEMA_INVALID` warning naming the item and the
+  JSON pointer. The validation runs in a worker with a 2 s deadline per item, and
+  one that can't finish is unchecked, never passed. `input.complete` checks the
+  whole file was read.
+
+At most 5,000 items are mapped in one call; past that the rest are left out with
+an `OWI_ITEMS_CAPPED` warning, so map them in another call. Input is at most
+64 MiB.

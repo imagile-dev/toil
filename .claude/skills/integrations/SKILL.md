@@ -302,6 +302,29 @@ several sources; give each source its own area and let them compose through stdi
 group that holds only aliases onto other areas' commands (`deps outdated`) is a
 compatibility path, never a place for a command that calls more than one of them.
 
+### Open Work Items
+
+*Principles 3 and 4.* A work-item integration is any area that reads or writes
+issues, work items or tickets: today `jira`, `jira-cloud`, `ado` and `github`, then
+`ado-cloud` (#222) and any tracker after it. Adding or changing one means inspecting
+the Open Work Item mapping (`docs/owi/spec.md`) **in the same PR**:
+
+- Check the mapper still covers the area's output: a new or changed field, status,
+  link type, history entry or list shape the area now returns.
+- Update what the change makes stale: the area's entry in `OWI_SOURCES`
+  (`src/core/owi/types.ts`, the one place work-item areas are marked; an area
+  sending an existing shape is one line there), its mapper in `src/core/owi/`, the
+  spec and `docs/owi/schema.json` (additive only, as the spec says), and the sprint
+  fixture in `test/fixtures/owi/` when the change shows up in it.
+- Run `toil util owi map` on the new or changed fixtures and say in the PR what it
+  returned: `verified.passed`, and anything in `unmapped` or `skipped`.
+
+`test/owi.test.ts` enforces the mark: an area with issue- or work-item-shaped
+commands (`get-issue`, `search-issues`, `issue-events`, `get-changelog`, `work get`)
+that isn't in `OWI_SOURCES` fails CI, and so does a marked area without a fixture or
+whose mapped examples don't validate against the schema. An area that is on its way
+sits in that test's `PENDING` list, by its issue, and switches on once it registers.
+
 ### Deployment Variants
 
 **Each deployment variant whose API diverges is its own area.** Jira Data Center is
