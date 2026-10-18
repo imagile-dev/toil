@@ -52,8 +52,9 @@ gets made again in the next place it applies.
 4. **Honest and obvious.** Every result says where it came from and how precise it
    is; every integration says how far it has been verified. Errors are unmistakable:
    they say plainly what went wrong and what to do about it. Nothing fails silently,
-   and nothing important hides behind `--debug`. → Verification Levels
-   (`integrations` skill), source on every finding, the fix on every error.
+   and nothing important hides behind `--debug`. Jokes live in the copy, never in an
+   error or failure notice. → Verification Levels (`integrations` skill), source on
+   every finding, the fix on every error.
 5. **The environment wins without editing files.** CI and agents configure through
    env vars that override anything on disk. → Configuration Precedence.
 6. **This repository stands alone.** Docs, code and skills never name another
@@ -217,7 +218,9 @@ GitHub Actions; its build tooling is out of scope.
 - `src/audit/` — `toil audit list | path`, reading the audit log `src/core/audit.ts`
   keeps
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
-  `commands` (standalone commands export only `commands`)
+  `commands` (standalone commands export only `commands`). `src/areas/util/kit/`
+  is what the local `util` commands share: the input reader, self-verification,
+  and the XML, YAML and JSON Schema parsers (`docs/util.md`)
 - `src/registry.ts` — every shipped area and command, read by both front doors. It
   imports `src/areas.generated.ts`, which `scripts/gen-areas.mjs` writes before
   typecheck, build and tests and git ignores. **Areas register by existing:** adding
@@ -233,8 +236,12 @@ GitHub Actions; its build tooling is out of scope.
   data and every animation frame a pure function of time, so both are unit-tested.
   One file of views per menu module under `views/`, registered in `views/index.ts`;
   every action runs a real `toil` command in-process and shows the line it ran.
-  The one exception is brick breaker, a game for the wait on a build: its rules are
-  pure functions in `brick/`, and the loop hands it the screen until q.
+  The one exception is Two Weeks' Notice, a roguelike for the wait on a build,
+  reached by typing `resign` on the home screen and listed nowhere: its rules are
+  pure functions in `rogue/`, the loop hands it the screen until q, and its progress
+  is sealed under `"game"` in the user's config (`rogue/save.ts`), the only write
+  the menu makes without a command. Without a config file, the first save creates
+  one holding only that key.
 - `src/shims/` — build-time stand-ins (the no-spawn stub, and the Azure SDK stub that keeps tedious's cloud sign-in out of the bundle)
 - `src/**/*.test.ts`, `test/` — Vitest; `test/harness/` holds the shared fakes,
   `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands;
@@ -352,7 +359,7 @@ files, uploads, downloads and CSV reports resolve inside the workspace on both
 front doors (**Bounds**), `-` means stdin only on the CLI (over MCP stdin carries
 the protocol, and on an interactive terminal it refuses at once rather than wait), saved paths in output are absolute with forward slashes, and tests
 get an in-memory copy. It also answers `exists`, `stat`, a `.gitignore`-respecting
-`list` and `findUp`, and writes CSV with `writeCsv`. git runs only through `ctx.git` (`src/core/git.ts`). HTTP to a REST API
+`list` and `findUp`, streams a file of any size with `readStream`, and writes CSV with `writeCsv`. git runs only through `ctx.git` (`src/core/git.ts`). HTTP to a REST API
 goes through `apiRequest` in `src/core/api.ts`, built from the area's
 `defineArea({ request })` hook, on `restRequest` in `src/core/rest.ts`. Together they
 turn failures into `AUTH`, `NOT_FOUND`, `HTTP` or `NETWORK` errors with the server's
@@ -614,6 +621,15 @@ write (`skills marketplace add`, which clones) has no connection yet, so it need
 so `add` leaves writes off and installs nothing. Writes go on the way every
 connection's do (`docs/bounds.md`, `skills.folders`).
 
+toil's own config file is written only by the commands that manage it, with one
+exception: the welcome menu's game saves its progress under the reserved `"game"`
+key (`src/welcome/rogue/save.ts`), keeping every other key as it was, and touching
+nothing else. No other code writes the config outside a command; a second exception
+needs this rule changed first.
+
+Anything toil encrypts says what the encryption protects against, in the code and
+the docs: the game's save is sealed against tampering, not kept secret, and says so.
+
 ## The command contract
 
 *Principles 4 and 7.* `docs/command-contract.json` is toil's record of every
@@ -710,6 +726,7 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   `site/src/data/settings/<area>.json` for the docs pages (`npx vitest run -u` after
   changing a command or a connection key) and checks the board's
   `site/src/data/integrations/<area>.json`.
+- **`test/util-docs.test.ts`** holds `/docs/utilities/` and `skills/toil/util.md` to the registry: a `util` command added or changed updates both in the same PR (`docs/util.md`).
 - **No file every integration edits.** Each area has its own fixture, skill file, divergence
   file, board entry and command list; the lists that span areas (the registry, the
   areas in `SKILL.md`, the CLI-only commands) are derived or generic. A change that
@@ -857,7 +874,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 |-------|----------|
 | `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, the command contract and its divergences |
 | `databases` | Working on the `db` area, a database provider, or database tests, including the local Docker run |
-| `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: why there is no `code` area, and what reopening it takes |
+| `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: small pure-JS code intelligence is welcome, heavy analysis dependencies are ruled out, and what reopening that takes |
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
 | `automation` | Editing workflows under `.github/`: the review agent, the fix agent, action pins, Discord notifications, redaction |

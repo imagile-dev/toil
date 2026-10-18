@@ -8,6 +8,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { generateWorker } from './gen-worker.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const areasDir = join(root, 'src', 'areas');
@@ -15,7 +16,7 @@ const out = join(root, 'src', 'areas.generated.ts');
 const skillsDir = join(root, 'skills', 'toil');
 const pagesOut = join(root, 'src', 'skill-pages.generated.ts');
 
-export function generate() {
+export async function generate() {
   const dirs = readdirSync(areasDir, { withFileTypes: true })
     .filter((d) => d.isDirectory() && existsSync(join(areasDir, d.name, 'index.ts')))
     .map((d) => d.name)
@@ -31,6 +32,7 @@ export function generate() {
   const content = lines.join('\n');
   if (!existsSync(out) || readFileSync(out, 'utf8') !== content) writeFileSync(out, content);
   generateSkillPages();
+  await generateWorker();
   return dirs;
 }
 
@@ -57,8 +59,8 @@ function generateSkillPages() {
 }
 
 /** Vitest global setup: generate before any test file imports the registry. */
-export default function setup() {
-  generate();
+export default async function setup() {
+  await generate();
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) generate();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await generate();

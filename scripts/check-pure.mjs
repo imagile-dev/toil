@@ -53,6 +53,28 @@ for (const [file, input] of Object.entries(meta.inputs)) {
 for (const spec of specifiers) {
   if (isChildProcess(spec) && spawners.length === 0) problems.push('bundle imports child_process, but not from a reviewed spawner; the gate cannot tell who spawns.');
 }
+// The bounded worker's script (src/areas/util/kit/bounded-task.ts) ships inside the
+// bundle as a string, so esbuild's metafile for dist/toil.js can't see its imports.
+// scripts/gen-worker.mjs writes its own metafile; it gets the same rules, with no
+// spawner allowed at all: built-ins only, no child_process, no native addon.
+let workerMeta;
+try {
+  workerMeta = JSON.parse(readFileSync('dist/metafile-worker.json', 'utf8'));
+} catch {
+  problems.push('dist/metafile-worker.json is missing; run npm run build (scripts/gen-worker.mjs writes it).');
+}
+const workerSpecifiers = new Set();
+if (workerMeta) {
+  for (const out of Object.values(workerMeta.outputs)) for (const i of out.imports.filter((i) => i.external)) workerSpecifiers.add(i.path);
+  for (const spec of workerSpecifiers) if (!builtins.has(spec)) problems.push(`the worker script imports "${spec}", which is not a Node built-in; it must be bundled or removed.`);
+  for (const [file, input] of Object.entries(workerMeta.inputs)) {
+    if (file.endsWith('.node')) problems.push(`the worker script includes native addon ${file}.`);
+    for (const i of input.imports.filter((i) => isChildProcess(i.original ?? i.path))) {
+      if (file.startsWith('node_modules/') && i.path === SHIM) continue;
+      problems.push(`${file} imports child_process${i.external ? '' : ' (stubbed)'} into the worker script; the bounded worker may not spawn.`);
+    }
+  }
+}
 const bundle = readFileSync(pkg.bin.toil, 'utf8');
 if (bundle.includes('process.dlopen')) problems.push('bundle loads a native addon (process.dlopen).');
 for (const input of Object.keys(output?.inputs ?? {})) {
@@ -69,4 +91,4 @@ if (problems.length > 0) {
   console.error(`check:pure found ${problems.length} problem(s):\n${problems.map((p) => `  - ${p}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`check:pure ok: no runtime deps or install scripts; bundle imports only ${specifiers.size} Node built-in(s), child_process only from ${[...new Set(spawners)].join(', ') || 'nowhere'}; tarball is ${pack.files.length} files, ${(pack.unpackedSize / 1024).toFixed(0)} KB unpacked.`);
+console.log(`check:pure ok: no runtime deps or install scripts; bundle imports only ${specifiers.size} Node built-in(s), child_process only from ${[...new Set(spawners)].join(', ') || 'nowhere'}; the worker script imports only ${workerSpecifiers.size} Node built-in(s) and never child_process; tarball is ${pack.files.length} files, ${(pack.unpackedSize / 1024).toFixed(0)} KB unpacked.`);

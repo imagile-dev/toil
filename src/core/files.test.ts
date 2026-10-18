@@ -376,3 +376,45 @@ describe('list', () => {
     expect(nodeFiles({ cwd: root, stdin: false }).list()).toEqual(['.gitignore', 'b.txt']);
   });
 });
+
+describe('readStream', () => {
+  const collect = async (stream: AsyncIterable<Uint8Array>) => {
+    const parts: Uint8Array[] = [];
+    for await (const chunk of stream) parts.push(chunk);
+    return parts;
+  };
+
+  it('streams a file in chunks of the size asked for, and the bytes add up to the file', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'toil-stream-'));
+    dirs.push(cwd);
+    const bytes = new Uint8Array(10_000).map((_, i) => i % 251);
+    writeFileSync(join(cwd, 'big.bin'), bytes);
+    const parts = await collect(nodeFiles({ cwd, stdin: true }).readStream('big.bin', { chunkSize: 4096 }));
+    expect(parts.map((p) => p.length)).toEqual([4096, 4096, 1808]);
+    expect(Buffer.concat(parts).equals(Buffer.from(bytes))).toBe(true);
+  });
+
+  it('checks the bounds when called, before any chunk: outside the workspace, toil\'s own files and stdin over MCP', () => {
+    const root = mkdtempSync(join(tmpdir(), 'toil-stream-'));
+    dirs.push(root);
+    mkdirSync(join(root, 'ws'));
+    writeFileSync(join(root, 'outside.txt'), 'x');
+    writeFileSync(join(root, 'ws', 'config.json'), '{}');
+    const files = nodeFiles({ cwd: join(root, 'ws'), stdin: false, workspace: { dir: join(root, 'ws'), source: 'flag' }, protect: [join(root, 'ws', 'config.json')] });
+    expect(() => files.readStream('../outside.txt')).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('outside the workspace') }));
+    expect(() => files.readStream('config.json')).toThrow(expect.objectContaining({ message: expect.stringContaining("toil's own configuration") }));
+    expect(() => files.readStream('-')).toThrow(expect.objectContaining({ message: expect.stringContaining('not available over MCP') }));
+  });
+
+  it('turns a file that vanishes before it is read into INVALID_INPUT from the loop', async () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'toil-stream-'));
+    dirs.push(cwd);
+    const stream = nodeFiles({ cwd, stdin: true }).readStream('missing.txt');
+    await expect(collect(stream)).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('does not exist') });
+  });
+
+  it('memoryFiles streams the same way, so tests can choose chunk boundaries', async () => {
+    const parts = await collect(memoryFiles({ 'a.txt': 'abcdefg' }).readStream('a.txt', { chunkSize: 3 }));
+    expect(parts.map((p) => new TextDecoder().decode(p))).toEqual(['abc', 'def', 'g']);
+  });
+});

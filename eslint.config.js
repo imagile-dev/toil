@@ -2,6 +2,27 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import { SPAWNERS } from './scripts/spawners.mjs';
 
+// Heavy modules a util command loads only when it runs (docs/util.md, Lazy
+// loading): never a static import, so they cost nothing at startup. A dynamic
+// import() is what the rule allows; a type-only import is erased and allowed.
+// The regex catches the wrappers in src/areas/util/kit/ however the path is spelt.
+const LAZY_ONLY = {
+  regex: '^(js-yaml|@cfworker/json-schema)$|(^|/)(yaml|json-schema|bounded)(\\.js)?$',
+  allowTypeImports: true,
+  message: 'Load it with await import() inside run(), so it costs nothing at startup (docs/util.md, Lazy loading).',
+};
+const NO_SPAWN = [
+  { name: 'child_process', message: 'No spawning: toil runs no executables (CLAUDE.md, No Executables).' },
+  { name: 'node:child_process', message: 'No spawning: toil runs no executables (CLAUDE.md, No Executables).' },
+];
+const AREA_PATTERNS = [
+  { group: ['**/core/config', '**/core/config.js'], message: 'Areas read settings from ctx.connection, never from config.' },
+  {
+    group: ['**/core/keychain', '**/core/keychain.js', '**/core/prompt', '**/core/prompt.js'],
+    message: 'Areas get secrets already resolved on ctx.connection, never from the credential store.',
+  },
+];
+
 export default tseslint.config(
   { ignores: ['dist/', 'site/', 'node_modules/', 'coverage/'] },
   js.configs.recommended,
@@ -9,12 +30,7 @@ export default tseslint.config(
   {
     rules: {
       // Spawning is allowed only for the reviewed modules in scripts/spawners.mjs (CLAUDE.md, No Executables).
-      'no-restricted-imports': ['error', {
-        paths: [
-          { name: 'child_process', message: 'No spawning: toil runs no executables (CLAUDE.md, No Executables).' },
-          { name: 'node:child_process', message: 'No spawning: toil runs no executables (CLAUDE.md, No Executables).' },
-        ],
-      }],
+      'no-restricted-imports': ['error', { paths: NO_SPAWN, patterns: [LAZY_ONLY] }],
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
@@ -25,19 +41,7 @@ export default tseslint.config(
     // let one area read another's credentials.
     files: ['src/areas/**/*.ts'],
     rules: {
-      'no-restricted-imports': ['error', {
-        paths: [
-          { name: 'child_process', message: 'No spawning: toil runs no executables (CLAUDE.md, No Executables).' },
-          { name: 'node:child_process', message: 'No spawning: toil runs no executables (CLAUDE.md, No Executables).' },
-        ],
-        patterns: [
-          { group: ['**/core/config', '**/core/config.js'], message: 'Areas read settings from ctx.connection, never from config.' },
-          {
-            group: ['**/core/keychain', '**/core/keychain.js', '**/core/prompt', '**/core/prompt.js'],
-            message: 'Areas get secrets already resolved on ctx.connection, never from the credential store.',
-          },
-        ],
-      }],
+      'no-restricted-imports': ['error', { paths: NO_SPAWN, patterns: [...AREA_PATTERNS, LAZY_ONLY] }],
       'no-restricted-globals': ['error', { name: 'fetch', message: 'Use ctx.fetch: core records it for --verbose.' }],
       'no-restricted-properties': ['error',
         { object: 'globalThis', property: 'fetch', message: 'Use ctx.fetch: core records it for --verbose.' },
@@ -45,6 +49,12 @@ export default tseslint.config(
         { object: 'process', property: 'env', message: 'Areas read settings from ctx.connection, never from env.' },
       ],
     },
+  },
+  {
+    // The lazy modules' own wrappers, and tests, which never ship, may import them statically.
+    // bounded-task.ts is the worker's own entry, bundled into a string by scripts/gen-worker.mjs and never into the CLI.
+    files: ['src/areas/util/kit/yaml.ts', 'src/areas/util/kit/json-schema.ts', 'src/areas/util/kit/bounded.ts', 'src/areas/util/kit/bounded-task.ts', 'src/areas/**/*.test.ts'],
+    rules: { 'no-restricted-imports': ['error', { paths: NO_SPAWN, patterns: AREA_PATTERNS }] },
   },
   {
     // oracledb runs in Thin mode, pure JavaScript. initOracleClient is the only

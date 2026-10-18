@@ -1,7 +1,7 @@
 import type { WelcomeData } from './screens.js';
 import { wordmarkFrame } from './splash.js';
 import { fitLine, PALETTE, paint, type TermCaps, wrapLine } from './term.js';
-import { healthOf, type Action, type Frame, type Item, type Run, type Session, type StepResult, type View, type ViewProps } from './view.js';
+import { type Action, type Frame, type Game, healthOf, type Item, type Run, type Session, type StepResult, type View, type ViewProps } from './view.js';
 import { VIEWS } from './views/index.js';
 
 /**
@@ -23,8 +23,13 @@ export interface MenuState {
   /** Commands the loop should run next, then report with `finish`. */
   pending?: Run;
   /** The game the loop should hand the terminal to next, then report with `played`. */
-  playing?: 'brick';
+  playing?: Game;
+  /** The last letters typed on the home screen, for the word that isn't on the menu. */
+  typed?: string;
 }
+
+/** The word that opens Two Weeks' Notice from the home screen. It is not on the menu, and HR would rather you didn't know it. */
+export const SECRET = 'resign';
 
 export interface Key {
   name?: string | undefined;
@@ -58,6 +63,13 @@ export function reduce(state: MenuState, key: Key, data: WelcomeData): MenuState
   const f = top(state);
   const view = viewOf(f);
   const p = propsOf(state, data);
+
+  if (f.view === 'home') {
+    const ch = key.sequence && /^[a-z]$/.test(key.sequence) && !key.ctrl && !key.meta ? key.sequence : '';
+    const typed = ch ? ((state.typed ?? '') + ch).slice(-SECRET.length) : '';
+    if (typed === SECRET) return { ...state, typed: '', playing: 'rogue' };
+    state = { ...state, typed };
+  }
 
   // A text field takes every printable key, q included; esc still goes back.
   if (view.input) {
@@ -144,10 +156,10 @@ export function finish(state: MenuState, results: StepResult[]): MenuState {
 }
 
 /** Records a finished game: its score, and the best this session. */
-export function played(state: MenuState, best: number, last: number): MenuState {
+export function played(state: MenuState, best: number, last: number, game: Game = 'rogue'): MenuState {
   const rest = { ...state };
   delete rest.playing;
-  return { ...rest, session: { ...state.session, brick: { best: Math.max(best, state.session.brick?.best ?? 0), last } } };
+  return { ...rest, session: { ...state.session, [game]: { best: Math.max(best, state.session[game]?.best ?? 0), last } } };
 }
 
 type RenderCaps = Pick<TermCaps, 'colorDepth' | 'unicode'> & Partial<Pick<TermCaps, 'columns' | 'rows'>>;

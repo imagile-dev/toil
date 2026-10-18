@@ -636,19 +636,40 @@ Added as each integration lands.
   header dropped** (core's `follow-without-auth`), so the credential stays on the
   configured site.
 
-### Brick breaker
+### Two Weeks' Notice
 
-- **It runs on a fixed 33 ms tick, not wall-clock time** (`src/welcome/brick/play.ts`),
-  so a slow machine plays slower rather than skipping frames, and tests are
-  deterministic.
-- **Ctrl+C pauses the game and counts as the first press of the menu's
-  two-press exit**, so Ctrl+C means the same thing everywhere in the menu.
-- **It plays only on a window of at least 46 by 23 and a console that can redraw
-  in place** (`movesCursor`: a TTY, not the legacy Windows console, not
-  `TERM=dumb`); anything less gets a polite refusal. `NO_COLOR` and
-  `TOIL_NO_ANIMATION` only change how it looks.
-- **A lobby screen comes before the game**, with the keys, the size it needs and
-  the session's scores, which live in memory only.
+The welcome menu's game (#198), which replaced brick breaker. A turn-based roguelike:
+a developer climbs five floors of bureaucrats and MUNDANE's robots to hand in their
+notice. `src/welcome/rogue/`.
+
+- **Brick breaker is gone, not kept beside it.** Real-time play in a terminal is a
+  coarse grid with key-repeat lag, so the paddle never felt good. A turn-based game
+  avoids all of that, and one game is enough for a menu.
+- **It is hidden.** No menu row: typing `resign` on the home screen opens it. The
+  site's welcome page says only that there may be something else in the menu.
+- **Rules are pure and seeded** (`start`, `act` in `game.ts`), with every random draw
+  from a seed the game carries, so a run replays from its seed and keys. Two bots in
+  the tests play whole runs. The balance test pins the spread: careless wins about
+  6 in 30, careful about 18, careful with every benefit about 26.
+- **Effects are data, not timers.** `act` lists what happened (`fx`) and queues cards;
+  the renderer animates them as pure functions of a tick count, and the loop only
+  advances a 30 ms clock. Nothing in the game moves on its own.
+- **Progress is sealed in the user's config**, under `"game"`, with AES-256-GCM and a
+  key derived from the account name and home folder. That is tamper-evidence, not
+  secrecy, and the code says so. A save that fails to open starts fresh with a notice;
+  an older (version 1) config file is never rewritten for a game, so progress isn't
+  kept there and the lobby says why. `"game"` is a reserved config key, so loading
+  config elsewhere never warns about it.
+- **Benefits Enrollment opens on "Take the stairs again"**, selected, so Enter starts
+  the next run; the perks sit below it. A first playtest found the way on from the
+  shop hard to see when starting a run was only a key named in the footer.
+- **Quitting mid-run forfeits it.** PTO is booked when a run ends, win or lose, and
+  saved at once, so closing the menu loses nothing already earned.
+- **The cast is context-overflow.dev's**: MUNDANE, MAVERICK and the five robots, used
+  with the maintainer's blessing, since both sites are imagile's.
+- **Playtested in a real console**, through ConPTY with a screen-reading bot, not only
+  through the fake terminal in the tests; that found the overlapping card border and
+  the robots named with "the".
 
 ### Welcome: dossiers
 
@@ -866,6 +887,55 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
 - **The test image is pinned to `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04`**
   in CI and the databases skill, never `2022-latest`.
 
+### bitbucket-cloud
+
+Bitbucket Cloud (#201), built from Atlassian's REST API 2.0 reference with no live
+workspace. `bitbucket` (Data Center) is untouched.
+
+- **Credentials: one per connection.** `apiToken` with `email` (Basic) or
+  `accessToken` (Bearer); both set is `CONFIG_INVALID`, rather than toil picking one.
+  The API token isn't shared with `jira-cloud`/`confluence-cloud`: a Bitbucket API
+  token is created with Bitbucket scopes, so pairing would mostly pair the wrong token.
+- **410 is AUTH, and Bitbucket's error body is read**, through two additive request
+  hook options in core (`authStatuses`, `errorMessage` on `AreaEndpoint` and
+  `RestOptions`). Unset, nothing changes for any other area; the obvious fix of
+  teaching core's common error reader `{ error: { message } }` would have changed
+  Dynatrace's recorded behaviour (#83 item 1). The passthrough gets both too.
+- **`baseUrl` is required and includes `/2.0`** (`https://api.bitbucket.org/2.0`),
+  given as an example, never a default: no hardcoded hosts.
+- **Workspace is `--ws`**, as `splitio` does, because `--workspace` is core's.
+- **CI fallbacks are `BITBUCKET_WORKSPACE` and `BITBUCKET_REPO_SLUG`**, which Pipelines
+  sets on every step. Pipelines sets no API credential, so the tokens have none.
+- **No git remote parsing.** Workspace and repo come from the flag, a dossier or the
+  connection. A parser for `bitbucket.org` remotes would mean a host mapping
+  (`api.bitbucket.org` to `bitbucket.org`) for one convenience; left out as the
+  simpler option. `current-pr` reads only the branch from `.git`.
+- **No `check-dossier`, `create-prs` or `add-reviewer`.** Cloud has no single-reviewer
+  endpoint (`update-pr --reviewers` replaces the list), and the batch and dossier
+  commands weren't in the issue's list. `list-default-reviewers` returns Cloud's plain
+  list of users, since Cloud has no default-reviewer conditions.
+- **`needs-work` is `request-changes`**, Cloud's name, with no alias.
+- **Paging follows the `next` link**, which Atlassian calls opaque, but only when it's
+  on the connection's origin and the same path as the first request; the same check
+  applies to a `--cursor`. Lists read everything by default, as `confluence-cloud`'s
+  do, except `list-commits` and `list-pipelines`, which default to the newest 100.
+- **`diff --pr` and `list-files` build the spec from the PR** (`source..destination`,
+  `topic=true`) instead of following `/pullrequests/{id}/diff`'s redirect, which may
+  drop `path` and `context`. A fork's PR isn't covered; the skill says so.
+- **`get-file` and `list-dir` resolve a branch or tag to a hash** with
+  `commits?include=<ref>&pagelen=1`, because a branch name with `/` can't go in the
+  `src/{commit}` segment. `list-commits` sends the branch as `include` for the same
+  reason.
+- **`update-pr` resends the current title, description and reviewers**, since it's
+  unclear whether Cloud's PUT clears what's left out.
+- **`merge-pr`** maps `--delete-branch` to `close_source_branch`, takes Cloud's
+  strategy names only, sends no `type` field, and answers a 202 with
+  `{ pending, taskStatus }` and a warning instead of polling.
+- **The board status is `unit`**, toil's lowest shipped level, which is what "untested"
+  means here: no live instance.
+- **The fixture serves two items a page** whatever `pagelen` asks, so the parity
+  suite follows `next` links on every list with more than two items.
+
 ## Dossiers (#16)
 
 - **The model and resolution (#152):**
@@ -1031,3 +1101,666 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   `InternalError` with toil's message and fix.
 - **`dossiers` commands already on main** cover the dossiers resources, so nothing
   waited on #164.
+
+### The `util` kit (#175 to #184)
+
+- **What's shared, and only that:** a piece goes in the kit when two or more of
+  the ten `util` issues need it, or an issue asks to reuse it. The input reader
+  and self-verification serve all ten; XML serves `report` and `md`; YAML serves
+  `openapi` and `size`; JSON Schema serves `md` and `openapi`; the secret rules
+  serve the audit log and `secrets scan`; the version comparison serves
+  Artifactory, `deps diff` and `semver`. Entropy, time zones, cron, certificates,
+  hashing and code outlines stay with their one command.
+- **Where it lives:** what only `util` commands use is in `src/areas/util/kit/`;
+  what core or another area uses too is in `src/core/` (`secret-shapes.ts`,
+  `versions.ts`, `files.readStream`). Conventions are `docs/util.md`.
+- **XML is built in** rather than a dependency, as JMESPath and strict JSON are:
+  the reports and storage format need elements, attributes, text, CDATA and five
+  entities, streamed and with positions. The candidate library, fast-xml-parser,
+  now has six dependencies of its own and doesn't stream. Not processing DTDs at
+  all is what keeps entity expansion and external fetches out.
+- **YAML is js-yaml 5.4.2** (MIT, pure JS, about 95 KB in the bundle). 5.4.3 and
+  5.5.0 were under 14 days old. The `yaml` package is ISC, outside the
+  MIT/Apache/BSD list. js-yaml depends on argparse (Python-2.0) for its own
+  command-line tool only; nothing toil bundles imports it, which a build check
+  confirmed.
+- **JSON Schema is @cfworker/json-schema 4.1.1** (MIT, no dependencies, about
+  43 KB). zod can't validate a document against an arbitrary schema. ajv already
+  ships inside the MCP SDK, but it reads draft-07 only out of the box: ADF,
+  Swagger 2.0 and OpenAPI 3.0 are draft-04 and OpenAPI 3.1 is 2020-12, which
+  would take `ajv-draft-04` plus `Ajv2020` for about the same size. cfworker reads
+  all four drafts with one class and interprets schemas instead of generating
+  code.
+- **Lazy loading is a convention plus an ESLint rule**, not a build change: the
+  bundle stays one file, and esbuild evaluates a module reached only through
+  `import()` on first use. Neither library is in the bundle until a command
+  imports its wrapper, so this PR adds nothing to `dist/toil.js`.
+- **stdin is held in memory, capped**, because a self-check has to re-read it; a
+  file streams. A line longer than 64 KiB is cut and marked rather than held.
+- **`findSecrets` reads the original text** and reports each secret's own
+  characters; the long-random rule reads it with the other rules' matches blanked,
+  which is what `redactText`'s order amounts to. A test holds the two to the same
+  answer on every sample.
+- **YAML aliases are counted, not refused**: real OpenAPI documents reuse anchors,
+  so `parseYaml` counts only what aliases add beyond the document as written, and
+  refuses a document where that passes 1,000,000 values (`INVALID_INPUT`). A
+  document without aliases is held by the input cap alone. js-yaml has no switch
+  to reject aliases, and the count also stops a cycle.
+
+### util semver (#180)
+
+- **Four commands, not six:** `compare` (which also answers "diff two", as
+  `difference`), `satisfies`, `sort` (which, with `--range`, also gives the
+  versions that satisfy it and the highest), and `bump`.
+- **One home for comparisons, two behaviours:** `compareSemver` in
+  `src/core/versions.ts` stays exactly as `artifactory outdated` and
+  `util deps diff` recorded it (prereleases as plain text, quirks included).
+  The ecosystems' own grammars sit beside it behind one interface,
+  `VersionGrammar`, in `src/core/versions/` (npm, NuGet, Maven), loaded only
+  through `grammarFor`. No dependency: node-semver is ISC (outside the
+  MIT/Apache/BSD list), and NuGet and Maven have no JavaScript library at all.
+- **npm follows node-semver's strict mode exactly**, desugaring included, and
+  passes its range-include, range-exclude, range-parse, comparison, equality,
+  valid, invalid and increment tables. Loose mode (73 rows across the tables)
+  is left out on purpose, since it coerces text into versions; so is `inc`'s
+  identifier base (34 rows). `includePrerelease` is offered as
+  `--include-prerelease`. One deliberate difference: numeric prerelease
+  identifiers compare by value at any size, as SemVer 2.0.0 says, where
+  node-semver stops at 2^53.
+- **NuGet follows NuGet.Versioning** (`NuGetVersion.TryParse`,
+  `VersionComparer.Default`, `VersionRange.TryParse` and `Satisfies`).
+  Floating versions (`1.*`) are refused: their meaning depends on a feed. A
+  prerelease inside a range's bounds satisfies it, as `Satisfies` has it; the
+  restore-time rule that skips prereleases is resolution, not a range.
+- **Maven follows Maven 3.9's ComparableVersion and VersionRange**, but
+  ComparableVersion orders any string, so here a version is letters, digits,
+  `.`, `-`, `_` and `+` with at least one digit. A bare version is a soft
+  requirement any version satisfies (as Maven has it), with a
+  `MAVEN_SOFT_REQUIREMENT` warning.
+- **`difference` uses one rule everywhere:** the most significant part that
+  differs (`major`, `minor`, `patch`, `revision`, then `prerelease` or
+  `qualifier`), not node-semver's `premajor`-style answers.
+- **Bump:** npm is `inc` without the identifier base. NuGet and Maven take
+  major, minor and patch only; NuGet drops the revision and labels, Maven
+  bumps the leading numbers and drops the qualifier.
+- **Self-checks:** `sort.transitive` checks every pair of the sorted list up
+  to 2,000 versions (about 2 million comparisons), and neighbours only past
+  that, reported as `APPROXIMATED`. Range answers are checked against the
+  range's intervals, which each grammar works out by comparison alone, at
+  the boundary versions and at every version asked about. For NuGet and
+  Maven, whose ranges are intervals already, that check is close to the
+  computation itself; it's still run, and a test shows it catching a broken
+  `satisfies`.
+- **The run module is a static import** (#188: a lazy module that imports
+  zod breaks the bundle). Only the grammars, which import nothing, are lazy.
+- **The utilities page** shows each command's short paths from the registry:
+  the generated `site/src/data/commands/<area>.json` gains an `aliases` field,
+  present only on commands that have one.
+- **A Maven or NuGet version is at most 256 characters**, as an npm one is.
+  Maven's parse nests one list per letter-digit switch, so a long `1a1a…` would
+  otherwise recurse past the stack when compared.
+
+### util secrets scan (#178)
+
+- **One input field for a file or a folder.** The path argument (`file` over
+  MCP, the kit's field) takes either; a folder is walked with `ctx.files.list`.
+  `--diff staged|working` is the third input, and two at once is refused.
+- **"Working tree" means `git diff`**, the unstaged changes, as git uses the
+  words; `staged` is `git diff --staged`. Both run with `--unified=0
+  --relative` and fixed prefixes, and only added lines are scanned. Untracked
+  files aren't in either, so `working` counts them in a warning rather than
+  scan them.
+- **Findings exit 1 with `ok: true`** (`ctx.setExitCode`), as a failed build
+  does, so the findings stay in `data`. The parity examples allow-list every
+  sample secret so they exit 0, which the suite requires; the tests with
+  findings cover exit 1 through both doors.
+- **Fingerprints are a salted scrypt** (N 2^14, 16 bytes, four groups of 8
+  hex), not a SHA-256: a hash of a short password in a CI log is a lookup
+  away from the password. About 20 ms per distinct value. The value alone is
+  hashed, not its path, so one allow entry covers a test value wherever it
+  appears. Four hex groups don't look like a secret to the shared rules, so the
+  allow file scans clean.
+- **The allow file defaults to `.toil/secrets-allow`**, beside `.toil/dossiers/`,
+  one fingerprint per line. A line that isn't one is reported by number only.
+- **Previews keep 4 characters at each end from 24 characters, 2 from 16, none
+  below**, and a preview that fails its own check is replaced by `…`.
+- **Set aside and counted, not reported:** SRI checksums (`sha512-…`), which
+  every npm lockfile is full of, and values that are references
+  (`${{ secrets.X }}`, `$VAR`, `<token>`, `xxx`), which every CI workflow is.
+  Without both, a staged lockfile or workflow change would always fail the gate.
+- **Entropy stays in this command** (per the kit decision): a `high-entropy`
+  rule for base64 runs of 20 or more the shared rules don't reach (they stop
+  at `/` and `-`), at 4.2 bits per character, and a `confidence` on every
+  finding. `findSecrets` itself is unchanged.
+- **Line by line**, with 4 MiB lines and 64 MiB files; a private key whose END
+  is on a later line is one finding with `endLine`. Longer lines and files are
+  listed in `unreadable`.
+- **A single named file that can't be read fails the call** (`INVALID_INPUT`, as
+  every kit reader does); inside a folder it's listed in `unreadable` instead.
+- **Planted test tokens are joined from pieces** (`plant('AKIA', '…')`) in the
+  tests and samples. GitHub's push protection refuses a commit holding a whole
+  vendor-shaped token, invented or not, and bypassing it is a human's call.
+
+
+### util report (#175)
+
+- **One of `tests`, `findings` and `coverage` is filled in, the other two are
+  `null`**, so every format returns the same keys and a caller branches on which one
+  is set rather than on `format`.
+- **Totals are always the recount.** The report's own figures are only what the
+  checks compare against, so a report that lies about its totals still gets a true
+  summary, plus the warning.
+- **No JUnit "variant" field.** Surefire, Jenkins and Azure DevOps reports differ in
+  where totals sit and which extra elements appear, not in how a case passes or
+  fails, so one reader takes all three and nothing is guessed about which tool wrote
+  the file.
+- **Surefire's `flakyFailure`/`flakyError` count as passed**, as Surefire's own
+  `failures` count and Jenkins treat them, and are also counted in `flaky`.
+- **A failure's file and line come from the stack when the report states none**:
+  the first frame naming the test's class or method, else the first frame that isn't
+  a framework or runtime one. Each such failure says `location: "stack"`, and an
+  `APPROXIMATED` warning gives the count.
+- **TRX:** only top-level results are counted (a data-driven test's inner rows
+  aren't), since that's what `<Counters>` counts. `executed` isn't compared, and a
+  counter declared 0 over results that have its outcome is `UNVERIFIED` rather than
+  failed, because VSTest leaves `notExecuted` at 0 when tests are skipped. A real
+  `dotnet test` report would otherwise fail its own check every time it skipped one.
+  Outcomes map to totals as `Failed` to failures, `Error`/`Timeout`/`Aborted` to
+  errors, `NotExecuted`/`NotRunnable` to skipped, and the rest to `other`.
+- **A Cobertura rate is allowed one unit in its last written decimal place** (half a
+  ten-thousandth for a whole number such as `"1"`), which covers writers that round
+  (coverlet, coverage.py's `%.4g`) and ones that truncate, without accepting a rate
+  that is really wrong.
+- **Cobertura lines are counted from each class's `<lines>`**, and classes that share
+  a file are added together, which is what the root's `lines-valid` sums. The copies
+  under `<methods>` are read past.
+- **lcov records for the same file are merged**, a line covered when any record hit
+  it. The checks run per record, against each record's own figures.
+- **SARIF is read whole**, within the 64 MiB input cap, because the kit has no
+  streaming JSON reader and SARIF has no line structure to stream by. The cap is
+  reported as `INVALID_INPUT`. SARIF declares no totals, so `findings.totals` is
+  always `UNVERIFIED`; what is checked is that each `ruleIndex` points at the rule
+  its `ruleId` names.
+- **At the size cap, a streamed report is summarised up to the cut** rather than
+  refused: `INPUT_TRUNCATED` and a failed `input.complete` say it's partial, and a
+  suite the cut left open isn't compared against its declared totals.
+- **Known parts that hold nothing summarised aren't "skipped"** (`system-out`,
+  `properties`, TRX's settings, lists and output, Cobertura's `<methods>` and
+  `<conditions>`). Only an element the reader doesn't know is counted in
+  `data.skipped`, so the count means something.
+- **No kit addition.** The input reader, `Verifier` and the streaming XML reader
+  covered everything.
+- **The readers are a static import, not `import()`**, because they reach zod
+  through `kit/input.ts`, and a lazily loaded module that does breaks the built
+  bundle at startup (found on #188). They have no dependency of their own.
+
+### util cert (#181)
+
+- **A small built-in DER reader, no ASN.1 dependency.** `node:crypto`'s
+  `X509Certificate` gives every field the issue lists except two: the key usage
+  bits (its `keyUsage` is the extended key usage) and the basic constraints' path
+  length (it gives only `ca`). `src/areas/util/cert/der.ts` reads just the
+  certificate's outline, serial and extensions, about 150 lines, rather than adding
+  a library that reads all of ASN.1. It also splits DER bundles. Its serial and CA
+  flag are checked against Node's on every certificate (`decode.matchesNode`).
+- **The chain is checked in the order given, leaf first**, as servers send it. The
+  signature check runs only on links whose names match; a link whose names don't is
+  already a `chain.order` failure, and there's no issuer to verify against. When
+  the bundle is one chain in another order, the right order is suggested.
+- **No trust store.** A bundle whose last certificate is self-signed ends at its
+  root (`chain.root: included`); one whose last issuer isn't in the bundle is
+  `UNVERIFIED`, never assumed. Checking against the system's or Node's roots would
+  make the answer depend on the machine.
+- **`--host` matches SANs only, as browsers do**, never the subject CN, with
+  single-label wildcards and no partial ones (`f*.imagile.dev`). It checks the first
+  certificate.
+- **No alias.** The three older commands keep their top-level paths because they had
+  them; `cert` never did, so it's `toil util cert` only.
+- **A private key in the input is skipped unread**, with its own warning, and a PEM
+  block that isn't a certificate is skipped and named rather than refused, so a
+  `fullchain.pem` with a key beside it still decodes.
+- **Test certificates are made per run** (`test/harness/x509.ts`, a DER writer that
+  signs with keys generated in memory), so none expires and no key is committed. The
+  real public chains are two cross-signed CA certificates and the roots that signed
+  them (`test/fixtures/certs/`), exported from a Windows intermediate store and
+  Node's bundled roots: public CA certificates, with no host of anyone's. The text
+  example is a self-signed Ed25519 certificate for `example.imagile.dev`, valid to
+  9999-12-31, whose key was discarded.
+- **The lazy module stays free of zod.** `cert/decode.ts` and what it loads
+  (`core/errors`, `kit/verify`, `cert/der`) import no zod; it takes `UtilInput` as a
+  type only, and `cert.ts`, which imports `kit/input`, is static. A lazily loaded
+  module that reaches zod breaks the built bundle, which only `npm run smoke` shows.
+- **Kit:** none in the end. DER input is read with `binary: 'allow'` and
+  `utf8: 'skip'`, the switch `util encode` added, rather than making `binary`
+  silence the UTF-8 warning too: one switch per check.
+
+### util encode (#182)
+
+- **One command, the scheme as its first argument:** `toil util encode <scheme>`,
+  with `--decode`, and the three hashes as schemes too (`util encode sha256`), rather
+  than a command per scheme or a separate hash command. One MCP tool, `util_encode`.
+- **`--out` follows `git report --out` and the attachment downloads:** a new file
+  inside the workspace through `ctx.files.writeBytes`, which never overwrites, and
+  `writes: false`. It changes nothing outside this machine, which is what the
+  `--allow-write` gate is for, and a standalone command has no connection to hold
+  `writes`. The file is read back and compared (`output.file`).
+- **Decoded bytes that aren't valid UTF-8 are refused without `--out`**
+  (`INVALID_INPUT`, the fix naming `--out`), rather than returned as base64 or hex.
+  The caller asked for a decode; a second encoding they didn't ask for would be a
+  guess. Valid UTF-8, NUL bytes included, is returned as text, since JSON carries
+  it unchanged.
+- **The decoders are strict where Buffer is lenient:** a character outside the
+  alphabet, misplaced padding, an impossible length, an odd number of hex digits or
+  a `%` without two hex digits is `INVALID_INPUT`, naming the offset but never the
+  character. Whitespace is ignored in base64 and hex (MIME wraps lines), and one
+  trailing line ending is dropped before any decode.
+- **Normalization for the re-encode check** is whitespace, padding (base64 padded,
+  base64url not, as each is written), hex and `%XX` case, and `%20` for `+` in a
+  form. Anything else that decodes but doesn't re-encode the same (base64 `QR==`, a
+  raw space in a URL) fails `roundtrip.encode` and warns `ENCODE_ROUNDTRIP_MISMATCH`;
+  the decoded result is still returned, as the kit reports rather than refuses.
+- **`url` is `encodeURIComponent`'s set** (`-_.!~*'()` unescaped), so what
+  JavaScript writes reads back unchanged; **`form`** is the WHATWG
+  `application/x-www-form-urlencoded` set. Both work over bytes, so input that isn't
+  UTF-8 encodes too.
+- **A file hash has no size cap**, since it streams; stdin and encode/decode keep
+  the reader's 64 MiB. A hash whose read stopped short still returns its digest,
+  with `input.complete` failed, `verified.passed` false and `INPUT_INCOMPLETE`, as
+  the kit reports every failed check.
+- **Kit addition:** `utf8: 'skip'` on the input reader, so a command that treats
+  content as bytes doesn't warn `INPUT_NOT_UTF8` about bytes it never shows as text.
+- **The work isn't lazily loaded.** `encode/run.ts` reads through `kit/input.ts`,
+  which imports zod, and reaching zod through `import()` made esbuild defer zod's
+  setup, so the built bundle failed at startup (`toil version` included) while
+  every unit test passed. It's small and uses only Node built-ins, so it's a
+  static import; `docs/util.md` now warns about the trap under Lazy loading.
+- **The audit log keeps only a hash of `text`** (`auditInput`), since the content
+  may be a credential on its way into a header.
+- **The utilities page shows a short path only for `jwt` and `deps`,** the commands
+  that have one, instead of assuming every `util` command does.
+- **A SARIF rule reference whose `toolComponent` can't be found by index** (named
+  only by `guid`) leaves `sarif.ruleIndex` `UNVERIFIED` and the level at the spec's
+  fallback, rather than guessing which component it means (review of #191).
+
+### util log (#176)
+
+- **Lines with no level are counted, not grouped.** "Couldn't classify" means a line
+  with no level word and no error or warning shape (a `[Pipeline]` step, a shell
+  echo). They're `lines.unclassified` in `data` and one `LOG_UNCLASSIFIED` warning;
+  `--context` shows the ones around each sample.
+- **Signatures keep paths, quoted names and error codes.** Only dates, times, UUIDs,
+  hex and numbers are replaced, as the issue lists. `CS0246` and `TS2322` keep their
+  digits (no word boundary before them), so two compiler errors in one file stay two
+  groups; the same warning on two properties stays two groups as well.
+- **A trace is reported for each group's first occurrence**, up to 50 lines, and its
+  text comes from the re-read pass, so the streaming pass holds only line ranges. A
+  later occurrence's trace is counted as stack lines.
+- **An exception line directly after an error joins that error's trace** (Maven's `-e`
+  trace under `[ERROR] -> [Help 1]`, a JUnit failure under surefire's `<<< FAILURE!`);
+  with no error just before it, or after a warning, it's an error of its own (review
+  round 1 on #190). Up to 8 lines with no level
+  may sit between an error and its first frame, for vstest's message block.
+- **Memory is bounded by a cap on distinct signatures (2,000), not by the log.** Matched
+  lines past it are counted as `ungrouped` with `LOG_UNGROUPED`, and the sum check
+  includes them. Lines are cut at 4,096 characters for grouping (`APPROXIMATED`).
+- **A file streams with no size cap**; stdin and text keep the reader's 64 MiB cap,
+  since they're held in memory for the re-read.
+- **Order:** errors first, then warnings, each by first appearance, because the first
+  error is usually the cause. `--max-groups` defaults to 50.
+- **`--since`:** a line with no date takes the last date before it; lines before any
+  date are kept and counted (`LOG_SINCE_UNDATED`). Times without a zone are read as
+  UTC and marked `APPROXIMATED`. Time-only prefixes (`09:12:01`) carry no date and
+  don't count.
+- **`--level` is a floor** (`warning`, the default, or `error`), and **`--grep` is a
+  case-sensitive JavaScript regex** on the whole line, with no flag syntax. An error
+  line also matches by the exception line that heads its trace, since that's where
+  the exception's name is; frames aren't searched, and `LOG_GREP_STACK_ONLY` says
+  when only they matched (review round 1 on #190).
+- **No short alias.** `util log` is new, so it has only its `util` path.
+- **The work is lazily loaded, with zod kept out of it:** `log.ts` opens the input
+  (`runLog`) and `log/triage.ts` imports only types from `kit/input.ts`, so the
+  triage code stays out of startup without tripping the trap #188 found.
+
+### util size (#184)
+
+- **Code intelligence: the maintainer's framing (2026-10-18).** The
+  `code-intelligence` decision is about heavy dependencies, not code intelligence:
+  small pure-JS code intelligence is welcome, and the TypeScript language service
+  or compiler at runtime, tree-sitter WASM grammars, ast-grep, Pyright and IDE
+  bridges are what's ruled out. Reopening is needed only to add one of those. The
+  skill now says so and cites this outliner as an example that fits.
+- **Code outlines are a pure-JS syntactic scan, not the TypeScript compiler.**
+  `typescript.js` is 9.1 MB unminified, more than the whole bundle today, and is
+  one of the heavy dependencies the `code-intelligence` skill rules out. A small
+  lexer per language (comments and every string form skipped) plus brace matching,
+  or indentation for Python, finds functions, classes, types, methods and exported
+  names. The tests hold the TypeScript and JavaScript outlines to the compiler's
+  syntax tree (a devDependency, never shipped); on toil's 424 own source files they
+  agree on every symbol and line, and on 1,500 random `node_modules` JavaScript
+  files they differ on 6 symbols in 5 files, all compiled or minified code (mostly a
+  constant set to an immediately invoked function, which the scan calls a function). Each result
+  says `precision: "syntactic"` and warns `APPROXIMATED`.
+- **Tokens are `ceil(characters / 4)`** in Unicode code points, the simplest
+  estimate, stated in `tokenMethod` and warned `APPROXIMATED`. No tokenizer is
+  bundled.
+- **Folders get counts, not outlines.** A per-file outline of a whole tree would be
+  larger than reading it. `largest` gives each file's language, and one `size` call
+  on a file outlines it.
+- **The folder tree stops at `--depth` (default 3)**, with deeper folders still in
+  their parent's totals and `foldersHidden` counting them, so a large repository
+  doesn't produce a tree bigger than its files. `--top` defaults to 10.
+- **One input field, `file`, takes a file or a folder**, so the kit's input reader
+  (`file`, `text`, stdin) is reused unchanged. `language` with a folder, and `top` or
+  `depth` with a file, are `INVALID_INPUT` rather than ignored.
+- **A binary file in a folder is sniffed, not read**: the first 8,000 bytes through
+  `ctx.files.readStream`. It counts in files and bytes (from its size), with null
+  lines and tokens, and isn't sent through the reader, which would warn
+  `INPUT_NOT_UTF8` for every image in the tree.
+- **Files are counted with no size cap** (counting streams); only stdin keeps the
+  reader's 64 MiB cap. Outlines skip files over 8 MiB with `too-large`.
+- **A parse error is a reason, not a failure**: the counts still come back, with
+  `notOutlined.reason: "parse-error"`, the line, and a `SIZE_PARSE_ERROR` warning.
+  A JSON error gives line and column only, never V8's quote of the text.
+- **The measuring module is imported statically**, since it reads input through
+  `kit/input.ts` and so zod (#188's finding); the outliners load through `import()`.
+- No kit additions.
+
+### util time (#179)
+
+- **Intl only, not Temporal.** Node 24.14 has no `Temporal`, and using it only where
+  it exists would let the same call answer differently on Node 24 and 26. Every
+  zone operation is `Intl.DateTimeFormat` over the IANA data Node ships.
+- **Five commands under `util time`:** `convert`, `duration`, `business-days add`,
+  `business-days diff` and `cron`, one MCP tool each, with no short alias.
+- **A DST gap resolves forward and an overlap to the earlier instant**, Temporal's
+  "compatible" choice, always with a `TIME_DST_GAP` / `TIME_DST_OVERLAP` warning and
+  a `dst` object in `data`. There's no flag to choose otherwise; an offset does that.
+- **Cron lists a skipped run time in `skipped`, not as a run**, and a repeated one
+  once, at its first occurrence. Schedulers differ on both, and the warnings say so.
+- **A time without an offset needs `zone` in `convert`**, and is refused without
+  one. The other commands' `zone` defaults to UTC, which `data.zone` reports.
+- **Durations from seconds are written in hours** (`PT26H`), never days, so they
+  stay exact. A day in a parsed duration counts as 24 hours, flagged `APPROXIMATED`;
+  years and months give `totalSeconds: null`, flagged `UNVERIFIED`.
+- **Business days are Monday to Friday**, with no configurable weekend and no
+  built-in holidays; the caller lists holidays (a file or `--holiday`). `add`
+  counts as a spreadsheet's WORKDAY does. `diff` reports business time as whole
+  24-hour days plus hours, with no working-hours window.
+- **Cron dialects:** standard follows the classic crontab's OR rule for the two day fields (AND
+  when either starts with `*`); Jenkins ANDs them, as its `CronTab.check` does;
+  Quartz requires `?` in one. Detected when not given; a detected standard
+  expression with both day fields set warns `CRON_DIALECT_ASSUMED`.
+- **Jenkins `H` needs `--job`** and is otherwise `INVALID_INPUT`, rather than
+  explaining an expression it can't place. Only one expression line is read: no
+  `TZ=` line and no multi-line specs.
+- **Quartz `nW` in a month without day n doesn't run that month**, as plain `31`
+  doesn't.
+- **The cron explanation is reported `unchecked`** on every call: its wording is
+  built from the same fields as the run times, which are what's checked.
+- **The search horizon is 100 years** (or Quartz's last listed year), with
+  `CRON_FEW_RUNS` when fewer runs than asked are found.
+- **Skipped run times are capped** (review of #194): `skipped` lists the first 100
+  and `skippedTotal` counts every one, and the walk stops after 5,000 skipped run
+  times with `CRON_SEARCH_STOPPED`. 5,000 covers a whole every-second gap hour
+  (3,600), and a schedule that only ever lands in gaps ends at once.
+- **The reference table is computed in Java** (`test/fixtures/util-time/CronReference.java`),
+  with java.time, its own zone data and the real `java.util.Random`, and committed
+  as JSON, so `npm test` needs no JDK.
+- **The holiday file is read in `time.ts`, not in the lazily loaded engine**,
+  following #188: lazily loaded code must not import zod, and `kit/input.ts` does.
+  No kit change.
+- **The skill checker reads `-1` as an argument, not a flag**, as commander 15 does,
+  so `toil util time business-days add 2026-12-28 -1` passes `test/skills.test.ts`.
+
+### util md (#177)
+
+- **One command, `util md`, with `--to` or `--from`**, one of them Markdown: four
+  formats, three directions each way, and no Markdown-free pair (wiki to ADF),
+  which the issue doesn't ask for. No `--out`: the result is in `data.output`,
+  and `--select output` gives it alone, so no write rules apply.
+- **The Markdown reader is written here**, a focused CommonMark plus GFM subset
+  (tables, task lists, strikethrough, bare URLs), not a dependency. Converting
+  needs one tree that all four formats share, with positions; a library's tree
+  would still need its own conversion, and its HTML output nothing. Raw HTML
+  other than `<br>`, link reference definitions and footnotes aren't read; each
+  is kept as text and reported as a loss.
+- **The round trip compares canonical Markdown, block by block** (an LCS over
+  top-level blocks). A block that changed with a loss reported in it is expected;
+  one without fails `roundTrip.blocks` (`MD_ROUNDTRIP_MISMATCH`). `lossless` is
+  true only when nothing was lost and nothing changed: a wiki task list comes back
+  as a task list, but Jira shows `[ ]` text, so it still counts as a loss.
+- **A loss explains only its own block.** Where a run of changed blocks has as many
+  blocks after the round trip as before, each is judged against its counterpart on
+  its own. A run that gained or lost blocks is explained only if every block in it
+  had a loss, and a block from nowhere never is. A loss in a block that produced
+  nothing, or that became an empty paragraph, stays in `losses` but explains none.
+- **Normalization:** whitespace runs are one space, a soft line break is a space,
+  `_x_` is `*x*`, list markers and numbering are canonical, empty paragraphs go.
+  None of these show when the document is rendered.
+- **Positions:** `line N` in Markdown, wiki markup and storage format; a JSON
+  pointer in ADF.
+- **The ADF schema is vendored**, `@atlaskit/adf-schema` 57.6.21's `full.json`
+  (Apache-2.0, 74 KB, published 2026-10-02), loaded with the JSON Schema helper
+  only when ADF is read or written. ADF output the schema refuses is never
+  returned: the command fails with `INTERNAL`, since it's a bug. ADF input it
+  refuses is converted with an `ADF_INPUT_INVALID` failed check, because Jira
+  returns documents newer than any bundled schema.
+- **Wiki markup:** a single line break is a break, as Jira renders it; a task is
+  `[ ]` / `[x]` text; a literal backslash is `&#92;` (two are Jira's line break);
+  emphasis inside a word uses the braced `{*}` form. How Jira's renderer treats
+  each escape is unverified.
+- **Storage format** is read with the kit's XML reader in fragment mode, with
+  HTML's common named entities; any other entity is `INVALID_INPUT`. A code block
+  is written as the code macro, strikethrough as the line-through span.
+- **Reuse:** the ADF node types are jira-cloud's (`src/areas/jira-cloud/adf.ts`);
+  `textToAdf` / `adfToText` and confluence-cloud's `storageToText` stay as they
+  are, since they're the plain-text forms those areas' fields promise. The area
+  flags (`--markdown` on create commands) are not part of this.
+- **The input is read in `md.ts`**, which loads statically; only the converters
+  load lazily, so zod stays out of the lazy module (the encode build's finding).
+- **The corpus round-trip test is split, one test per sample** (#195). As a single
+  test it took 4,421 ms (Node 24.14) and 4,560 ms (Node 26) on windows-latest against
+  vitest's 5 s default, about 1.2 s locally, and the bounded worker's small cost
+  tipped it over. The ADF sample, about 560 ms locally and so past 2 s on that runner,
+  has an explicit 15 s timeout with a comment giving those numbers; the code wasn't
+  changed to fit the test.
+
+### util docs and coverage (#186)
+
+- **`deps` goes under Safety.** Its inventory is what the vulnerability and licence
+  commands read, so it sits with the other checks made before something is trusted
+  (secrets, certificates, tokens), not with CI output or arithmetic.
+- **One page entry per family, not per command.** `site/src/data/utilities/<family>.json`
+  covers `time`'s five commands, `semver`'s four and `deps`' two in one entry each,
+  with an example for every command, so the page doesn't repeat the same paragraph
+  per subcommand. One file per family keeps parallel util PRs off a shared list.
+- **The page is data plus the registry.** The prose is in the family files; flags,
+  aliases, MCP tools and the command count come from `data/commands/util.json`.
+  Prose is plain text with backticks for code; nothing else is rendered as markup.
+- **The tag check is a small stack parser** over the template, skipping
+  frontmatter, `<style>`, `<script>` and attribute values, rather than a
+  `<section>` count, so a misplaced `</div>` is caught too.
+- **The example check reuses the skill test's command-line walker**, moved to
+  `test/harness/cli-lines.ts`, so the page, util.md and the rest of the skill hold
+  examples to one definition of a real flag. A `--flag` in an entry's prose must be
+  a flag of one of the entry's own commands.
+- **util.md's command table is checked against the registry** (one row per
+  command, its aliases or `none`, its MCP tool), and every command needs an example
+  in a shell block, not only a mention.
+- **Fixed on the way:** util.md's `md` section carried a copy of `log`'s output and
+  checks from a merge, and the `md` row had an empty alias cell.
+### util openapi (#183)
+
+- **Three commands, `list`, `show` and `example`**, one per operation the issue
+  names, each reading and checking the whole document before it answers, so all
+  three carry the same `verified`. No short path: these have no earlier one.
+- **An invalid document is still listed and shown**, with every problem by
+  pointer and `verified.passed` false (`OPENAPI_INVALID`). Real vendor documents
+  aren't always valid; refusing them would leave the agent with nothing.
+- **Schemas bundled:** OpenAPI 3.0 (2024-10-18), 3.1 and 3.2 (2025-11-23),
+  Swagger 2.0, and the draft-04 meta-schema Swagger 2.0 refers to, as published
+  (NOTICE). cfworker doesn't implement `$dynamicRef`, which the 3.1 and 3.2
+  schemas use to hand Schema Objects to the 2020-12 dialect, so that part is
+  `document.schemaObjects`, `UNVERIFIED`, not a pass. An unknown version (3.3,
+  4.0) is refused rather than checked against a near one.
+- **`$ref` expansion:** `--depth` counts ref hops along a branch (default 3, at
+  most 20). Expanded nodes say `x-toil-ref`; kept ones `x-toil-stop` (`depth`,
+  `circular`, `external`, `broken`). In 3.0 and 2.0 a ref's siblings are dropped,
+  as the spec says; from 3.1 they're merged over the target, not wrapped in
+  `allOf`. A path item or parameter `$ref` is always followed, whatever the depth.
+  A budget of 250,000 objects and arrays built per `show` (and 250,000 values
+  generated per `example`) stops a fan-out from hanging the MCP server. It
+  counts nodes, not refs, because each ref copies its whole target, so a fan-out
+  of wide schemas blew past a ref count (review rounds 1 and 2). Past it the rest
+  stay in place as `depth`, with `expansion.truncated` and a warning. A cut-short
+  example fails `example.valid` without being validated, since its nulls can't be
+  valid and validating 250,000 values only costs time. `minItems` builds no more
+  items than the budget has left, and a string is at most 10,000 characters: a
+  longer `minLength` is cut (and the example marked cut short), and a pattern's
+  `{n}` past 10,000 isn't read (review round 3). The two caps multiply, so all of one
+  example's strings share a total of 1,000,000 characters too (review round 4).
+- **A fourth review round**, past the usual three, at the coordinator's call: each
+  round found a narrower way round the same budget (refs, then nodes, then
+  items and string length, then the product of the caps), so the loop was
+  converging rather than circling.
+- **Round 5 fixed the class, not the keyword.** `const` and `enum` returned the
+  document's own value uncharged, the fourth budget bypass in a row. Every value
+  an example holds now passes one choke point, `emit`, which charges its
+  serialised length (plus each property name and each array's brackets) to the
+  1,000,000-character budget and returns null past it. A `default`, `example` or
+  `examples` is never copied into an example at all. The sweep found the same
+  hole in `show`: a description, `example`, `default` or `enum` is copied whole
+  wherever its schema is expanded, so `expand` charges every copied value the
+  same way against 4,000,000 characters, and past it stops refs and nulls the
+  rest (the largest real operation, GitHub's issue timeline at depth 20, is
+  about 470,000). Validator messages, which quote a whole `enum`, are cut to 300
+  characters in `document.problems` and `example.valid`.
+- **Round 6: the budget is checked before anything is serialised.** `emit` and
+  `show`'s `spend` used to stringify a value to price it and then find the budget
+  already spent, so an `allOf` diamond reaching a 1 MB `const` 250,000 times
+  took 65 s. Both now check first, and `spend` takes the cost as a function, so
+  a spent budget serialises nothing.
+- **Round 7: every phase has a stated bound.** Validating an example had none:
+  cfworker tries every `anyOf`/`oneOf` branch, so a diamond of refs validated in
+  2^n time (an hour at n=30), and a `oneOf` diamond overflowed the stack into
+  `INTERNAL`. (Replaced in round 9 by a worker with a deadline, below.) The kit's `validateSchema` measured the schema's fan-out first
+  (`schemaFanOut`: memoised, iterative, counting every path through `$ref`,
+  allOf, anyOf, oneOf, not and if/then/else, a loop back counting 1). Past
+  100,000 it returns `unchecked` with the reason instead of running. A
+  `RangeError` from the validator also becomes `unchecked`, never a crash.
+  `document.schema`, `example.valid` and util md's ADF checks all report it as
+  `UNVERIFIED`. The official OpenAPI schemas fan out to at most 31, and ADF's to
+  90. None of the 3,713 bodies across the full Jira, GitHub and Bitbucket specs
+  hits the guard. After six rounds on one class (work that grows faster than
+  its input, run synchronously), every phase was gone through deliberately for
+  what bounds it:
+
+  | Phase | What bounds it | Test |
+  |---|---|---|
+  | Parse | Input at most 64 MiB (kit). JSON.parse is linear. YAML aliases add at most 1,000,000 values (kit). Nesting is at most 256 levels, checked iteratively, else `INVALID_INPUT`, so no later recursion can go deeper | 10,000-deep document refused in under 5 s |
+  | `$ref` resolution | Iterative walk, `O(nodes + refs × depth)`. Tarjan's cycle search is iterative, `O(V + E)` | 200,000 refs in 20,000 operations in about 2 s |
+  | Document validation | Runs in a bounded worker: 2 s and 256 MB, then terminated and reported unchecked with the reason (deadline, memory, stack, or worker threads not allowed). Nesting is at most 256 levels. 50 problems listed, each message at most 300 characters | Kit worker tests; invalid-document tests; smoke runs it from the built bundle |
+  | List | `O(operations × parameters)`; output is never more than the document | Listing tests, the 200,000-ref document |
+  | Show | `--depth` at most 20. 250,000 nodes, 4,000,000 characters and 1,000 levels of nesting, all checked before work is done | Diamond, wide diamond, long text, deep nesting |
+  | Example generation | In-process: 250,000 values, 1,000,000 characters through one choke point, strings of 10,000 characters, items limited to the budget left, 1,000 levels, a ref repeated at most twice on a path. A document's patterns are never run in-process: candidate strings are matched in one bounded worker beforehand (2 s, at most 5,000 patterns and 5,000,000 characters of candidates) | `it.each` of bypasses, diamonds, a 3,000-schema chain; backtracking patterns stopped at the deadline |
+  | Example validation | Copies only what the schema reaches, then validates in a bounded worker (2 s, 256 MB). A cut-short example isn't validated | anyOf diamond stopped at the deadline; oneOf diamond out of stack reported unchecked |
+
+  **Round 9: a deadline instead of guesses (the maintainer's decision).** Rounds 7 and 8
+  guessed what validation and a regex would cost from their shape (`schemaFanOut`,
+  `regexRisk`). Each guess missed cases, so both are gone, and everything whose cost a
+  document controls runs in a worker thread with a deadline instead: `kit/bounded.ts`,
+  `runBounded`. That covers every JSON Schema validation (the document, the example,
+  util md's ADF) and every run of a document's own `pattern`.
+
+  - **The worker** evaluates a small script, `kit/bounded-task.ts` bundled with the
+    validator by `scripts/gen-worker.mjs` (about 30 KB), not the CLI.
+  - **Limits:** 2 s by default (`BOUNDED_TIMEOUT_MS`) and 256 MB of heap
+    (`BOUNDED_MEMORY_MB`, through `resourceLimits`). Past either, the worker is
+    terminated.
+  - **Failures:** a timeout, memory limit, stack overflow or `ERR_ACCESS_DENIED` (Node
+    run with `--permission` and no `--allow-worker`) comes back `unchecked`, with a reason
+    naming which. It is never `INTERNAL`.
+  - **Not spawning:** a worker thread is part of this process, so No Executables holds;
+    `check:pure` passes, and the bundle imports only `node:worker_threads` for it.
+  - **Generation stays in-process**, keeping its value, character, node and nesting
+    budgets. It no longer runs a pattern itself: it sends each pattern's candidate
+    strings to one bounded worker first and uses the first that matches.
+  - **Measured on this Windows laptop:**
+    - a worker round trip takes 19 ms
+    - terminating a busy worker takes about 10 ms
+    - the full GitHub description (13 MB) validates in 735 ms in a worker, Jira in
+      241 ms, Bitbucket in 118 ms
+    - an example is generated and validated in about 18 ms
+    - 811 of 812, 1316 of 1317, 1309 of 1317 and 263 of 267 bodies still validate, as
+      before
+  - **Smoke** runs a validation, a backtracking pattern and a worker-denied Node through
+    the installed bundle.
+  - **Nothing is left unbounded.**
+- **Round 10: the worker script is gated, and cancellable.** It ships as a string
+  inside the bundle, so `check:pure` couldn't see its imports. `scripts/gen-worker.mjs`
+  now builds it with the CLI's no-spawn plugin (moved to `scripts/no-spawn.mjs` so
+  both builds share one) and writes `dist/metafile-worker.json`, which `check:pure`
+  holds to the same rules with no spawner allowed: built-ins only, no
+  `child_process`, no `.node` file. Tried on purpose: an `execSync` import added to
+  `bounded-task.ts` failed `check:pure`, naming the file; then it was reverted. tsup
+  cleans `dist/` except that metafile. `runBounded` takes the command's `signal`:
+  a cancel terminates the worker at once, as `cancelled` (`util openapi` and `util md`
+  pass `ctx.signal`).
+- **Round 11: one warm worker, not one per task.** CI on windows-latest / Node 26
+  timed out util md's corpus round trip at 5 s. Each validation had started its
+  own worker, sent the whole ADF schema and built a validator from it again.
+  `runBounded` now keeps one worker per process, made on first use: tasks queue
+  and run one at a time, each with its own deadline. A timeout, memory limit,
+  crash or cancel terminates that worker, and the next task starts a fresh one
+  (tested: a task stopped at its deadline, then the next passing). A cancel
+  removes a queued task without touching the running one. The worker is unref'd
+  while idle, so it never keeps a command's process alive, and is terminated on
+  exit. A schema used repeatedly is sent under a key (`adf`, the OpenAPI version)
+  and built once per worker. On this laptop, one ADF validation went from about
+  24 ms to about 1 ms once warm (the first, cold, about 60 ms). The corpus test
+  went from 1,256 ms to 1,232 ms: locally its time is the conversions, not the
+  validations, which are where the slow runner's cost was.
+- **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
+  Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
+  extension isn't a reference; under `properties` and the other name maps every
+  key is a name.
+- **One schema per body:** `show` lists every content type and expands the schema
+  of the first JSON one (`contentType` says which). Swagger 2.0's `body` and
+  `formData` parameters become `requestBody`, so both versions share one shape.
+- **`call`** maps the operation onto `<area> api`'s inputs: the first server's
+  path (Swagger `basePath`) plus the operation's, required query parameters as
+  `name=<name>`, `bodyFile: body.json`, a non-JSON content type, and `writes`. The
+  area is left as `<area>`: nothing in a document names a toil area. Required
+  header and cookie parameters, which the passthrough can't send, are listed in
+  `unsupported`. OPTIONS, TRACE and QUERY give `call: null`.
+- **The minimal example** takes required properties only, `const`, then the
+  first non-null `enum` value, then a value by type; it never copies a
+  document's own `example` or `default`, which may hold real data. A branch of
+  `oneOf`/`anyOf`/`allOf` may require a property its parent describes, so the
+  parent's properties are passed down. A `pattern` is met by reading the regex's
+  simplest path (`sampleOfPattern`), then a short list of candidates; lookaround
+  and backreferences give up. A schema that loops through required properties
+  stops after two turns, and validation reports it. Against the full published
+  documents: Jira 811 of 812 bodies validate, GitHub 3.0 1316 of 1317, GitHub 3.1
+  1309 of 1317, Bitbucket 263 of 267. The rest are schemas no value satisfies
+  (GitHub 3.1's `type: [null]` beside `allOf: [user]`, overlapping `oneOf`
+  branches, `additionalProperties: false` beside an `allOf`), reported as
+  `example.valid` failed, with the example still returned.
+- **The example is validated against the schema it came from**, by copying only
+  what the schema reaches to the same pointers in a small document, so its
+  `$ref`s resolve as in the original. 3.0 and 2.0 schemas become draft-04 with
+  `nullable` (and `x-nullable`) as a `null` type; a read-only property isn't
+  required in a request, nor a write-only one in a response.
+- **`--path` on `show` and `example` takes the path with or without its leading
+  slash**, since Git Bash rewrites `/repos/...` into a file path. On `list` it's a
+  substring filter, as the issue asks.
+- **Kit change:** `validateSchema` now returns JSON pointers decoded from
+  cfworker's URI-fragment form (`/paths/~1pets~1{id}`, not `%7Bid%7D`), so a
+  pointer can be followed into the document as written. A new
+  `leafProblems` keeps only what is wrong: cfworker also reports every enclosing
+  keyword that failed because of a deeper one ("A subschema had errors" at the
+  root), which buried the one real problem among twenty. It drops only
+  applicators and `false` schemas; a `required` at a node whose child fails
+  `type` is kept, since those are two problems (review round 1).
+- **The input is opened in the command's small module** and handed to the lazy
+  one, which keeps zod out of everything loaded through `import()` (docs/util.md).

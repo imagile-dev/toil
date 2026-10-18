@@ -1,19 +1,43 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { GitResult, GitRunner } from '../../src/core/git.js';
+import { SAMPLE_PNG_BASE64 } from '../../src/areas/util/encode.js';
 import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
+import { canned as secretsGit, files as secretsFiles } from './util-secrets.js';
+import { makeChain } from '../harness/x509.js';
 
 /**
- * The `util` group's commands are standalone and local: jwt decode reads only
- * its input, deps scan reads the workspace's files, and deps diff reads files
+ * The `util` group's commands are standalone and local: jwt decode and semver read only
+ * their input, deps scan reads the workspace's files, and deps diff reads files
  * at a git ref through a canned git. There are no routes, because nothing
  * here talks to a network. The git runner is traced, so the parity suite
  * compares every git call `deps diff` makes through both front doors.
+ *
+ * encode reads a real 1x1 transparent PNG, and its base64 wrapped as a MIME
+ * body wraps it.
  *
  * Provenance: written by hand. The lockfile follows npm's documented v3
  * format, the project files MSBuild's and Maven's, and the git output is the
  * shape `git ls-tree -r --name-only` prints. Every package is real and every
  * version an old one, which is how most dependency reviews find them.
+ *
+ * `reports/` holds one sample of each format `util report` reads, under
+ * test/fixtures/reports/. Each is written by hand to the exact shape its tool
+ * emits (Maven Surefire 3, the Jenkins JUnit schema around a Go test run, the
+ * VSTest JUnit logger Azure DevOps publishes, `dotnet test --logger trx`,
+ * CodeQL 2.19 SARIF, c8's lcov, coverlet and coverage.py Cobertura), with
+ * placeholder names, hosts and ids.
+ *
+ * The OpenAPI samples (test/fixtures/openapi/) are the vendors' own published
+ * documents, trimmed: Atlassian's Jira platform REST API (OpenAPI 3.0.1, the
+ * /rest/api/2 paths, Apache-2.0), GitHub's REST API description (OpenAPI 3.1.0,
+ * MIT, as YAML, which GitHub also publishes) and Bitbucket's (Swagger 2.0).
+ * Each keeps a handful of operations exactly as published plus every component
+ * they reach; descriptions are cut to their first sentence, examples and x-*
+ * extensions dropped, the Jira tenant host replaced with jira.imagile.dev and
+ * contact addresses with you@example.com. Each still validates against its
+ * version's schema.
  */
 
 export const PACKAGE_JSON = JSON.stringify({
@@ -69,21 +93,138 @@ export const POM = `<project>
 </project>
 `;
 
+/**
+ * Version lists for `util semver sort`: real releases of TypeScript (npm)
+ * and Newtonsoft.Json (NuGet). The npm list also has a dist-tag and a
+ * two-part version, the kind of thing a list copied from a registry page
+ * picks up, which the sort reports rather than orders.
+ */
+export const NPM_VERSIONS = ['5.4.2', '4.9.5', '5.4.0-beta 5.4.1-rc', '5.0.4', 'latest', '5.5.0-dev.20240308', '5.3.3', '5.4.5', '5.4', ''].join('\n');
+export const NUGET_VERSIONS = ['13.0.3', '12.0.1', '13.0.1-beta1', '9.0.1', '12.0.3', '13.0.1', '11.0.2', '10.0.3', '12.0.2', '13.0.2', ''].join('\n');
+
+/**
+ * A holiday list for `util time business-days`: the US federal holidays for
+ * 2026 as the Office of Personnel Management publishes them, observed dates
+ * (Independence Day falls on a Saturday, so it is observed on Friday 3 July).
+ */
+export const HOLIDAYS_2026 = `# US federal holidays, 2026 (observed dates)
+2026-01-01 New Year's Day
+2026-01-19 Birthday of Martin Luther King, Jr.
+2026-02-16 Washington's Birthday
+2026-05-25 Memorial Day
+2026-06-19 Juneteenth National Independence Day
+2026-07-03 Independence Day (observed)
+2026-09-07 Labor Day
+2026-10-12 Columbus Day
+2026-11-11 Veterans Day
+2026-11-26 Thanksgiving Day
+2026-12-25 Christmas Day
+`;
+
+/**
+ * Real files for `util size`, one per language it outlines, kept in
+ * test/fixtures/util-size/ with a .txt suffix so the repo's own lint and
+ * typecheck leave them alone. Provenance: verify.ts and util.md are toil's
+ * own (src/areas/util/kit/verify.ts, docs/util.md), as are package.json and
+ * pages.yml; flatted.js, .py and .go are flatted 3.4.4 by Andrea Giammarchi
+ * (ISC); CategoryService.java is from SaseQ/discord-mcp (MIT); and
+ * FrameworkConfigurationBuilder.cs is from kolatts/imagile-framework (MIT),
+ * with its Key Vault host sanitized to vault.imagile.dev, all public
+ * repositories. Each third-party file carries its upstream licence notice as
+ * a header comment (flatted.py has its own), which the pinned line numbers in
+ * size.test.ts account for.
+ */
+const sample = (name: string) => readFileSync(join(import.meta.dirname, 'util-size', `${name}.txt`), 'utf8');
+
+/** The `util size` sample folder: every outlined language, a binary file, an unsupported one, and an ignored folder. */
+export const sizeSamples: Record<string, string | Uint8Array> = {
+  'samples/size/.gitignore': 'build/\n',
+  'samples/size/verify.ts': sample('verify.ts'),
+  'samples/size/flatted.js': sample('flatted.js'),
+  'samples/size/flatted.py': sample('flatted.py'),
+  'samples/size/flatted.go': sample('flatted.go'),
+  'samples/size/CategoryService.java': sample('CategoryService.java'),
+  'samples/size/FrameworkConfigurationBuilder.cs': sample('FrameworkConfigurationBuilder.cs'),
+  'samples/size/docs/util.md': sample('util.md'),
+  'samples/size/data/sample.json': sample('package.json'),
+  'samples/size/data/pages.yml': sample('pages.yml'),
+  'samples/size/data/logo.png': new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52]),
+  'samples/size/notes.txt': 'Counted, not outlined.\n',
+  'samples/size/build/bundle.js': 'export const ignored = true;\n',
+};
+
+/**
+ * `util cert`'s chain: a test root, issuing CA and leaf for api.imagile.dev,
+ * made fresh for each run with keys that never leave memory (test/harness/x509.ts).
+ */
+const chain = makeChain();
+/** encode's samples: a real 1x1 PNG, and the same bytes as MIME writes base64, wrapped at 76 characters with CRLF. */
+export const PIXEL_PNG = new Uint8Array(Buffer.from(SAMPLE_PNG_BASE64, 'base64'));
+export const PIXEL_B64 = `${SAMPLE_PNG_BASE64.slice(0, 76)}\r\n${SAMPLE_PNG_BASE64.slice(76)}\r\n`;
+
+const REPORTS = new URL('./reports/', import.meta.url);
+/** The report samples, keyed by their path in the workspace. */
+export const reportFiles: Record<string, string> = Object.fromEntries(readdirSync(REPORTS).sort().map((name) => [`reports/${name}`, readFileSync(new URL(name, REPORTS), 'utf8')]));
+
+/**
+ * Build logs for `util log`, in test/fixtures/util/log/: a Jenkins pipeline
+ * console running Maven, a Maven reactor build, an npm build and test run, and
+ * a dotnet build and test run. Each follows its tool's real output, with
+ * hosts, paths and names replaced by placeholders.
+ */
+export const LOGS = Object.fromEntries(
+  ['jenkins', 'maven', 'npm', 'dotnet'].map((name) => [name, readFileSync(new URL(`./util/log/${name}.log`, import.meta.url), 'utf8')]),
+) as Record<'jenkins' | 'maven' | 'npm' | 'dotnet', string>;
+
+const openapiSample = (name: string) => readFileSync(new URL(`./openapi/${name}`, import.meta.url), 'utf8');
+/** The OpenAPI samples, by the workspace path the examples read them from. */
+export const openapiSamples = {
+  'specs/jira-platform.json': openapiSample('jira-platform.json'),
+  'specs/github.yaml': openapiSample('github.yaml'),
+  'specs/bitbucket.json': openapiSample('bitbucket.json'),
+};
+
+/**
+ * The `util md` corpus (test/fixtures/util-md/): a bug report, a runbook and
+ * a story in Markdown, a Jira Data Center ticket in wiki markup, a Jira Cloud
+ * ticket in ADF and a Confluence release-notes page in storage format. Each is
+ * shaped like the real thing, with every host a placeholder and every name
+ * invented.
+ */
+export const MD_CORPUS: Record<string, string> = Object.fromEntries(
+  ['bug-report.md', 'runbook.md', 'story.md', 'PROJ-142.wiki', 'PROJ-142.adf.json', 'release-notes.storage.xml'].map((name) => [name, readFileSync(new URL(`./util-md/${name}`, import.meta.url), 'utf8')]),
+);
+
 /** The sample C4 model: an online bookshop with a system context, a container and a component view. Written by hand; every host is a placeholder. */
 export const BOOKSHOP_C4 = readFileSync(new URL('./c4/bookshop.c4.json', import.meta.url), 'utf8');
 
-/** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
-export const files: Record<string, string> = {
+/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, the encode, cert, log and size samples, the md corpus, three OpenAPI documents and the C4 model. */
+export const files: Record<string, string | Uint8Array> = {
   '.gitignore': 'vendor/\n',
   'package.json': PACKAGE_JSON,
   'package-lock.json': lock('4.17.21'),
   'Directory.Packages.props': PROPS,
   'src/Api/Api.csproj': CSPROJ,
   'pom.xml': POM,
+  'versions/npm.txt': NPM_VERSIONS,
+  'versions/nuget.txt': NUGET_VERSIONS,
+  'holidays-2026.txt': HOLIDAYS_2026,
+  'encode/pixel.png': PIXEL_PNG,
+  'encode/pixel.b64': PIXEL_B64,
+  ...Object.fromEntries(Object.entries(LOGS).map(([name, text]) => [`logs/${name}.log`, text])),
+  ...Object.fromEntries(Object.entries(MD_CORPUS).map(([name, text]) => [`docs/${name}`, text])),
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
+  ...sizeSamples,
+  'certs/chain.pem': chain.pem,
+  'certs/leaf.der': chain.leaf.der,
+  ...reportFiles,
+  ...openapiSamples,
   // The sample C4 model the util c4 examples draw, the same file as docs/c4/bookshop.c4.json.
   'bookshop.c4.json': BOOKSHOP_C4,
 };
+
+/** Every file the examples read: the tree above, plus `secrets scan`'s samples. */
+const exampleFiles: Record<string, string | Uint8Array> = { ...files, ...secretsFiles };
 
 /** What each ref holds, path by path. */
 const refs: Record<string, Record<string, string>> = {
@@ -102,15 +243,18 @@ for (const [ref, tree] of Object.entries(refs)) {
 /** A git that answers the calls above and fails anything else loudly. */
 export const cannedGit: GitRunner = {
   run: async (call) => {
-    const out = canned.get(callKey(call));
-    if (out === undefined) throw new Error(`util fixture: no canned git output for ${callKey(call)}`);
-    return ok(out);
+    const key = callKey(call);
+    const out = canned.get(key);
+    if (out !== undefined) return ok(out);
+    const secrets = secretsGit.get(key);
+    if (secrets !== undefined) return secrets;
+    throw new Error(`util fixture: no canned git output for ${key}`);
   },
 };
 
 export const fixture = defineFixture({
   area: 'util',
-  files,
+  files: exampleFiles,
   repo: { root: '/work', branch: 'main', remotes: [] },
   git: cannedGit,
   trace: [{ label: 'git', target: cannedGit }],

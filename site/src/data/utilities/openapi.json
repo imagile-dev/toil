@@ -1,0 +1,20 @@
+{
+  "id": "openapi",
+  "group": "writing",
+  "order": 2,
+  "title": "Reading an OpenAPI document",
+  "commands": [
+    "openapi list",
+    "openapi show",
+    "openapi example"
+  ],
+  "purpose": "Reads an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, so an agent calls an endpoint right the first time: `list` gives every operation, `show` lays one out with each parameter and where it goes, its request and response bodies with `$ref`s expanded, and the exact inputs for `toil <area> api`, and `example` builds the smallest body its schema accepts.",
+  "inputs": "A document in JSON or YAML, from a file in the workspace, stdin, or `--text`. Name an operation with `--operation <operationId>`, or with `--method` and `--path`.",
+  "examples": [
+    "toil util openapi list jira-platform.json --tag Issues",
+    "toil util openapi show jira-platform.json --operation editIssue --depth 2",
+    "toil util openapi example github.yaml --operation pulls/create"
+  ],
+  "verifies": "Every answer is checked first: the document against the official schema for its version, which ships with toil, with each problem by JSON pointer; every `$ref` resolved, with loops reported rather than followed; operationIds unique and path parameters declared; and every generated example validated against its own schema before it's returned. Validation and the document's own patterns run in a worker thread with a deadline, so a schema built to take forever comes back unchecked instead.",
+  "limits": "A `$ref` to another file or a URL isn't followed. In 3.1 and 3.2 documents, Schema Objects aren't checked against the JSON Schema dialect. Some schemas have no value that satisfies them, and that example is returned with `example.valid` failed at the pointer that doesn't fit. The `call` inputs haven't been sent to a live server."
+}
