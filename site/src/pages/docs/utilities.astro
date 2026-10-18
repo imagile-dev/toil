@@ -14,7 +14,7 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
 const shortPaths = new Set(['jwt', 'deps']);
 ---
 
-<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, and read an OpenAPI document before calling the API, with no connection and no network.">
+<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, and read an OpenAPI document before calling the API, with no connection and no network.">
   <PageHero
     eyebrow="<b>Docs</b> · Utilities"
     title="Local utilities, <em>no network.</em>"
@@ -40,8 +40,9 @@ const shortPaths = new Set(['jwt', 'deps']);
           <h2>What these are</h2>
           <p>
             These aren't integrations. There's no server, no connection to add, no <code>TOIL_UTIL_*</code> variable and no credential, and
-            none of them sends anything over the network. Every one of them only reads. Their tests run against in-memory files and a stubbed
-            git, so they're verified at the <code>unit</code> level.
+            none of them sends anything over the network. None changes anything: the only file one writes is a new one you name with
+            <code>--out</code>, inside your workspace, and it never replaces a file. Their tests run against in-memory files and a stubbed git,
+            so they're verified at the <code>unit</code> level.
           </p>
           <p>
             The <code>jwt</code> and <code>deps</code> commands also have a short path, which does the same thing with the same flags and output:
@@ -133,6 +134,42 @@ const shortPaths = new Set(['jwt', 'deps']);
             <code>--to &lt;ref&gt;</code>, and lists what was added, removed, upgraded or downgraded. It runs the git on your PATH to read each
             ref, with toil's usual safeguards, and fails with <code>GIT_NOT_FOUND</code> when there's none. A ref git can't read gives an empty
             inventory for that side, so check a ref you've typed by hand.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Encoding, decoding and hashing</h2>
+          <p>
+            <code>encode</code> handles base64, base64url, hex, URL components and form bodies in either direction, and hashes a file with
+            SHA-256, SHA-1 or MD5. It checks its own work: every encode is decoded back and must give your input, every decode is encoded
+            again and must give your input apart from padding, case and line breaks, and a file's hash counts the bytes it read against the
+            file's size, so a read that stopped short can't pass.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util encode base64 --decode mail-part.b64 --out logo.png</span><span class="line"><span class="p">$</span> toil util encode sha256 release.tgz</span></pre>
+          </div>
+          <p>
+            Decoded bytes that aren't text (an image, say) never come back as mangled text in the JSON: they need <code>--out</code>, a new
+            file inside your workspace. Text that isn't the encoding it claims is refused with the offset of the first wrong character.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Decoding certificates</h2>
+          <p>
+            <code>cert</code> decodes a certificate or a chain bundle, PEM or DER, from a file or stdin: subject, issuer, SANs, serial, how many
+            days it has left, its key, its signature algorithm, its basic constraints and key usage, and its fingerprints. It
+            <strong>never connects to the host</strong>; pass the file the server is configured with.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util cert chain.pem --host api.imagile.dev</span></pre>
+          </div>
+          <p>
+            It checks the bundle as a chain in the order given: each certificate's issuer must be the next one's subject, and its signature
+            must verify with the next one's key. An out-of-order bundle gets the order that fixes it. Expired and not-yet-valid certificates
+            are flagged, <code>--host</code> says whether the SANs cover that host and why not, and a block it couldn't read is reported by
+            its position. What it checked is in <code>data.verified</code>; anything it couldn't check, such as a root that isn't in the
+            bundle, is a warning.
           </p>
         </section>
       </article>
