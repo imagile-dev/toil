@@ -14,7 +14,7 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
 const shortPaths = new Set(['jwt', 'deps']);
 ---
 
-<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, and encode, decode or hash with every result checked, with no connection and no network.">
+<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, and decode certificates and check a chain, with no connection and no network.">
   <PageHero
     eyebrow="<b>Docs</b> · Utilities"
     title="Local utilities, <em>no network.</em>"
@@ -132,6 +132,25 @@ const shortPaths = new Set(['jwt', 'deps']);
           <p>
             Decoded bytes that aren't text (an image, say) never come back as mangled text in the JSON: they need <code>--out</code>, a new
             file inside your workspace. Text that isn't the encoding it claims is refused with the offset of the first wrong character.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Decoding certificates</h2>
+          <p>
+            <code>cert</code> decodes a certificate or a chain bundle, PEM or DER, from a file or stdin: subject, issuer, SANs, serial, how many
+            days it has left, its key, its signature algorithm, its basic constraints and key usage, and its fingerprints. It
+            <strong>never connects to the host</strong>; pass the file the server is configured with.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util cert chain.pem --host api.imagile.dev</span></pre>
+          </div>
+          <p>
+            It checks the bundle as a chain in the order given: each certificate's issuer must be the next one's subject, and its signature
+            must verify with the next one's key. An out-of-order bundle gets the order that fixes it. Expired and not-yet-valid certificates
+            are flagged, <code>--host</code> says whether the SANs cover that host and why not, and a block it couldn't read is reported by
+            its position. What it checked is in <code>data.verified</code>; anything it couldn't check, such as a root that isn't in the
+            bundle, is a warning.
           </p>
         </section>
       </article>

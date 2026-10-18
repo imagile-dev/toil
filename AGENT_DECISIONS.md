@@ -1077,6 +1077,45 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   document without aliases is held by the input cap alone. js-yaml has no switch
   to reject aliases, and the count also stops a cycle.
 
+### util cert (#181)
+
+- **A small built-in DER reader, no ASN.1 dependency.** `node:crypto`'s
+  `X509Certificate` gives every field the issue lists except two: the key usage
+  bits (its `keyUsage` is the extended key usage) and the basic constraints' path
+  length (it gives only `ca`). `src/areas/util/cert/der.ts` reads just the
+  certificate's outline, serial and extensions, about 150 lines, rather than adding
+  a library that reads all of ASN.1. It also splits DER bundles. Its serial and CA
+  flag are checked against Node's on every certificate (`decode.matchesNode`).
+- **The chain is checked in the order given, leaf first**, as servers send it. The
+  signature check runs only on links whose names match; a link whose names don't is
+  already a `chain.order` failure, and there's no issuer to verify against. When
+  the bundle is one chain in another order, the right order is suggested.
+- **No trust store.** A bundle whose last certificate is self-signed ends at its
+  root (`chain.root: included`); one whose last issuer isn't in the bundle is
+  `UNVERIFIED`, never assumed. Checking against the system's or Node's roots would
+  make the answer depend on the machine.
+- **`--host` matches SANs only, as browsers do**, never the subject CN, with
+  single-label wildcards and no partial ones (`f*.imagile.dev`). It checks the first
+  certificate.
+- **No alias.** The three older commands keep their top-level paths because they had
+  them; `cert` never did, so it's `toil util cert` only.
+- **A private key in the input is skipped unread**, with its own warning, and a PEM
+  block that isn't a certificate is skipped and named rather than refused, so a
+  `fullchain.pem` with a key beside it still decodes.
+- **Test certificates are made per run** (`test/harness/x509.ts`, a DER writer that
+  signs with keys generated in memory), so none expires and no key is committed. The
+  real public chains are two cross-signed CA certificates and the roots that signed
+  them (`test/fixtures/certs/`), exported from a Windows intermediate store and
+  Node's bundled roots: public CA certificates, with no host of anyone's. The text
+  example is a self-signed Ed25519 certificate for `example.imagile.dev`, valid to
+  9999-12-31, whose key was discarded.
+- **The lazy module stays free of zod.** `cert/decode.ts` and what it loads
+  (`core/errors`, `kit/verify`, `cert/der`) import no zod; it takes `UtilInput` as a
+  type only, and `cert.ts`, which imports `kit/input`, is static. A lazily loaded
+  module that reaches zod breaks the built bundle, which only `npm run smoke` shows.
+- **Kit:** none in the end. DER input is read with `binary: 'allow'` and
+  `utf8: 'skip'`, the switch `util encode` added, rather than making `binary`
+  silence the UTF-8 warning too: one switch per check.
 ### util encode (#182)
 
 - **One command, the scheme as its first argument:** `toil util encode <scheme>`,
