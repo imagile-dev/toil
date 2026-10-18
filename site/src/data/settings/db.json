@@ -2,7 +2,7 @@
   {
     "key": "engine",
     "env": "TOIL_DB_ENGINE",
-    "description": "Database engine: sqlite, postgres",
+    "description": "Database engine: sqlite, postgres, oracle",
     "required": true,
     "secret": false,
     "fallbacks": []
@@ -18,7 +18,7 @@
   {
     "key": "host",
     "env": "TOIL_DB_HOST",
-    "description": "PostgreSQL: server host name or address",
+    "description": "PostgreSQL, Oracle: server host name or address",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -26,7 +26,7 @@
   {
     "key": "port",
     "env": "TOIL_DB_PORT",
-    "description": "PostgreSQL: TCP port (default 5432)",
+    "description": "PostgreSQL, Oracle: TCP port (default 5432; Oracle 1521)",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -34,7 +34,7 @@
   {
     "key": "database",
     "env": "TOIL_DB_DATABASE",
-    "description": "PostgreSQL: database to connect to",
+    "description": "PostgreSQL: database to connect to. Oracle: the service name (FREEPDB1, ORCLPDB1)",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -42,7 +42,7 @@
   {
     "key": "user",
     "env": "TOIL_DB_USER",
-    "description": "PostgreSQL: login role",
+    "description": "PostgreSQL: login role. Oracle: the user",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -50,7 +50,7 @@
   {
     "key": "password",
     "env": "TOIL_DB_PASSWORD",
-    "description": "PostgreSQL: the login's password (a secret: env var or OS credential store)",
+    "description": "PostgreSQL, Oracle: the login's password (a secret: env var or OS credential store)",
     "required": false,
     "secret": true,
     "fallbacks": []
@@ -58,7 +58,7 @@
   {
     "key": "ssl",
     "env": "TOIL_DB_SSL",
-    "description": "PostgreSQL: connect over TLS, verifying the server's certificate against the OS store",
+    "description": "PostgreSQL, Oracle: connect over TLS (Oracle: TCPS), verifying the server's certificate against the OS store",
     "required": false,
     "secret": false,
     "fallbacks": []

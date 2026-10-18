@@ -280,7 +280,7 @@ export const postgresProvider: DbProvider = {
   engine: 'postgres',
   label: 'PostgreSQL',
   requires: ['host', 'database', 'user'],
-  defaultSchema: 'public',
+  defaultSchema: () => 'public',
   verification: 'integration',
 
   listSchemas(conn, call) {

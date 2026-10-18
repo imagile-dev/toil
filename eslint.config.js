@@ -46,6 +46,19 @@ export default tseslint.config(
     },
   },
   {
+    // oracledb runs in Thin mode, pure JavaScript. initOracleClient is the only
+    // way into Thick mode, which loads the driver's native addon and Oracle's
+    // client libraries (CLAUDE.md, No Executables), so no source may name it.
+    files: ['src/**/*.ts'],
+    ignores: ['src/**/*.test.ts'],
+    rules: {
+      'no-restricted-syntax': ['error',
+        { selector: "MemberExpression[property.name='initOracleClient']", message: 'oracledb runs in Thin mode only: Thick mode loads a native addon.' },
+        { selector: "ImportSpecifier[imported.name='initOracleClient']", message: 'oracledb runs in Thin mode only: Thick mode loads a native addon.' },
+      ],
+    },
+  },
+  {
     // The two modules allowed to spawn: the OS credential store and git (CLAUDE.md, No Executables).
     files: ['src/core/keychain.ts', 'src/core/git.ts'],
     rules: { 'no-restricted-imports': 'off' },

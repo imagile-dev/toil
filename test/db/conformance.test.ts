@@ -40,6 +40,9 @@ for (const target of targets) {
       expect(envelope.error, JSON.stringify(envelope.error)).toBeNull();
       return envelope.data as Data;
     };
+    // Oracle stores an unquoted name in upper case, and reports it so.
+    const n = target.stored ?? ((name: string) => name);
+    const defaultSchema = (): string => db.defaultSchema ?? target.defaultSchema;
     const ids = async (sql = 'SELECT id FROM people ORDER BY id') => (await db.rows(sql)).map((r) => Number(Object.values(r as object)[0]));
     const activeOf = async (id: number) => Number(Object.values((await db.rows(`SELECT active FROM people WHERE id = ${id}`))[0] as object)[0]);
 
@@ -60,21 +63,21 @@ for (const target of targets) {
     describe('schemas and tables', () => {
       it('lists the default schema', async () => {
         const { schemas } = (await run(listSchemas, {})).data as { schemas: Array<{ name: string }> };
-        expect(schemas.map((s) => s.name)).toContain(target.defaultSchema);
+        expect(schemas.map((s) => s.name)).toContain(defaultSchema());
       });
 
       it('lists tables and views in the default schema, and nothing internal', async () => {
         const result = (await run(listTables, {})).data as { schema: string; tables: Array<{ name: string; type: string }> };
-        expect(result.schema).toBe(target.defaultSchema);
+        expect(result.schema).toBe(defaultSchema());
         expect(result.tables).toEqual([
-          { name: 'active_people', type: 'view' },
-          { name: 'people', type: 'table' },
-          { name: 'teams', type: 'table' },
+          { name: n('active_people'), type: 'view' },
+          { name: n('people'), type: 'table' },
+          { name: n('teams'), type: 'table' },
         ]);
       });
 
       it('gives the same tables when the default schema is named', async () => {
-        expect((await run(listTables, { schema: target.defaultSchema })).data).toEqual((await run(listTables, {})).data);
+        expect((await run(listTables, { schema: defaultSchema() })).data).toEqual((await run(listTables, {})).data);
       });
 
       it('answers an unknown schema with NOT_FOUND', async () => {
@@ -85,30 +88,30 @@ for (const target of targets) {
     describe('describe-table', () => {
       it('describes columns, primary key, indexes and foreign keys', async () => {
         const d = (await run(describeTable, { table: 'people' })).data as Record<string, unknown>;
-        expect(d).toMatchObject({ schema: target.defaultSchema, name: 'people', type: 'table', primaryKey: ['id'] });
+        expect(d).toMatchObject({ schema: defaultSchema(), name: n('people'), type: 'table', primaryKey: [n('id')] });
         const columns = d.columns as Array<{ name: string; nullable: boolean; primaryKey: number | null; default: string | null; type: string | null }>;
-        expect(columns.map((c) => c.name)).toEqual(['id', 'name', 'team_id', 'active']);
-        expect(columns.find((c) => c.name === 'id')).toMatchObject({ nullable: false, primaryKey: 1 });
-        expect(columns.find((c) => c.name === 'name')).toMatchObject({ nullable: false, primaryKey: null });
-        expect(columns.find((c) => c.name === 'team_id')).toMatchObject({ nullable: true });
-        expect(columns.find((c) => c.name === 'active')?.default).toMatch(/1/);
-        // VARCHAR(100) as declared (SQLite), or its standard name (PostgreSQL's character varying(100)).
-        expect(columns.find((c) => c.name === 'name')?.type?.toUpperCase()).toMatch(/VARCHAR|CHARACTER VARYING/);
-        expect(d.indexes).toContainEqual({ name: 'people_team', columns: ['team_id'], unique: false });
+        expect(columns.map((c) => c.name)).toEqual(['id', 'name', 'team_id', 'active'].map(n));
+        expect(columns.find((c) => c.name === n('id'))).toMatchObject({ nullable: false, primaryKey: 1 });
+        expect(columns.find((c) => c.name === n('name'))).toMatchObject({ nullable: false, primaryKey: null });
+        expect(columns.find((c) => c.name === n('team_id'))).toMatchObject({ nullable: true });
+        expect(columns.find((c) => c.name === n('active'))?.default).toMatch(/1/);
+        // VARCHAR(100) as declared (SQLite), its standard name (PostgreSQL's character varying(100)), or Oracle's VARCHAR2(100).
+        expect(columns.find((c) => c.name === n('name'))?.type?.toUpperCase()).toMatch(/VARCHAR|CHARACTER VARYING/);
+        expect(d.indexes).toContainEqual({ name: n('people_team'), columns: [n('team_id')], unique: false });
         expect(d.foreignKeys).toEqual([
-          { columns: ['team_id'], references: { schema: target.defaultSchema, table: 'teams', columns: ['id'] }, onUpdate: null, onDelete: null },
+          { columns: [n('team_id')], references: { schema: defaultSchema(), table: n('teams'), columns: [n('id')] }, onUpdate: null, onDelete: null },
         ]);
       });
 
       it('reports a unique constraint as a unique index', async () => {
         const d = (await run(describeTable, { table: 'teams' })).data as { indexes: Array<{ columns: string[]; unique: boolean }> };
-        expect(d.indexes.find((i) => i.columns.join() === 'name')?.unique).toBe(true);
+        expect(d.indexes.find((i) => i.columns.join() === n('name'))?.unique).toBe(true);
       });
 
       it('describes a view', async () => {
         const d = (await run(describeTable, { table: 'active_people' })).data as { type: string; columns: Array<{ name: string }> };
         expect(d.type).toBe('view');
-        expect(d.columns.map((c) => c.name)).toEqual(['id', 'name']);
+        expect(d.columns.map((c) => c.name)).toEqual([n('id'), n('name')]);
       });
 
       it('answers an unknown table with NOT_FOUND', async () => {
@@ -121,8 +124,8 @@ for (const target of targets) {
         const envelope = await run(previewTable, { table: 'teams' });
         expect(data(envelope)).toEqual({
           columns: [
-            { name: 'id', type: expect.any(String) },
-            { name: 'name', type: expect.any(String) },
+            { name: n('id'), type: expect.any(String) },
+            { name: n('name'), type: expect.any(String) },
           ],
           rows: [
             [1, 'Platform'],
@@ -160,7 +163,7 @@ for (const target of targets) {
     describe('query', () => {
       it('returns columns and rows', async () => {
         const result = data(await run(query, { sql: 'SELECT id, name FROM people WHERE id <= 2 ORDER BY id' }));
-        expect(result.columns.map((c) => c.name)).toEqual(['id', 'name']);
+        expect(result.columns.map((c) => c.name)).toEqual([n('id'), n('name')]);
         expect(result.rows).toEqual([
           [1, 'Ada'],
           [2, 'Grace'],
@@ -169,7 +172,7 @@ for (const target of targets) {
 
       it('keeps two result columns with the same name', async () => {
         const result = data(await run(query, { sql: 'SELECT p.id, t.id FROM people p JOIN teams t ON t.id = p.team_id WHERE p.id = 1' }));
-        expect(result.columns.map((c) => c.name)).toEqual(['id', 'id']);
+        expect(result.columns.map((c) => c.name)).toEqual([n('id'), n('id')]);
         expect(result.rows).toEqual([[1, 1]]);
       });
 
@@ -323,7 +326,7 @@ for (const target of targets) {
       });
 
       it("db execute refuses a script that ends the transaction itself, before running any of it", async () => {
-        for (const control of ['COMMIT', 'ROLLBACK', 'BEGIN', 'END']) {
+        for (const control of target.sql.transactionControl ?? ['COMMIT', 'ROLLBACK', 'BEGIN', 'END']) {
           const sql = `UPDATE people SET active = 0 WHERE id = 1; ${control}; UPDATE people SET active = 0 WHERE id = 2; SELECT * FROM no_such_table`;
           const envelope = await run(executeCmd, { sql, allowWrite: true }, { writes: true });
           expect(envelope.error?.code, control).toBe('INVALID_INPUT');
