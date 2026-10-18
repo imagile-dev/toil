@@ -1,3 +1,7 @@
+---
+description: Installing toil from npm or from a clone with no npm install, the toil alias for a clone, and installing this skill for Codex, GitHub Copilot or Claude Code
+---
+
 # Installing toil
 
 Check first: if `toil version` prints an envelope with `"ok": true`, toil is installed
@@ -62,18 +66,50 @@ flags, takes it out.
 
 ## Installing this skill
 
-The skill is the `skills/toil` folder of the repository, in the Agent Skills format, so
-any skill manager can install it:
+toil carries this skill inside itself, so the copy it installs always matches the
+toil that runs it. Install it once, for the agent you use:
+
+```bash
+toil skill install --allow-write
+toil skill install --agent github-copilot --scope project --allow-write
+toil skill install --claude --allow-write
+```
+
+| `--agent` | `--scope user` (the default) | `--scope project` |
+|-----------|------------------------------|-------------------|
+| `codex` (the default; GitHub Copilot reads it too) | `~/.agents/skills/toil` | `.agents/skills/toil` |
+| `github-copilot` | `~/.copilot/skills/toil` | `.github/skills/toil` |
+| `claude-code` (`--claude`) | `~/.claude/skills/toil` | `.claude/skills/toil` |
+
+Project scope is the root of the repository you're in. Installing writes files
+outside the workspace, so it's CLI only and needs `--allow-write`. Every reference
+file is installed, so an area you set up later is already documented.
+
+**There is nothing to update by hand.** The description in the installed `SKILL.md`
+names the areas and database engines you have connections for (names only, never a
+host or a credential), so an agent reaches for toil when a task touches one of them.
+toil rewrites every copy it installed when a connection is added, changed or
+removed, and when a toil of another version runs, and says so in `meta.warnings`
+(`SKILL_REWRITTEN`); a rewrite that fails is a `SKILL_REWRITE_FAILED` warning, never
+a failed command. Connections that only `TOIL_*` env vars define are named when
+they're set in the process that writes the skill, and the output says which. With no
+connections, the description is the general one.
+
+`toil skill show` (`skill_show` over MCP) prints the description toil would write now
+and every installed copy, with its version and whether it's current.
+
+toil only ever rewrites a `toil` folder it installed itself. One copied by hand, or
+installed by a marketplace, is left exactly as it is, and `toil skill install` refuses
+to replace it: move it aside first.
+
+Other ways in, for agents toil doesn't write to:
 
 - **Claude Code**, from the plugin marketplace in the repository:
   `claude plugin marketplace add imagile-dev/toil`, then
   `claude plugin install toil@toil` (or `/plugin marketplace add imagile-dev/toil` and
   `/plugin install toil@toil` in a session). From a clone, pass its path instead of
-  `imagile-dev/toil`.
-- **Codex, GitHub Copilot and other agents that read `.agents/skills`**: copy the folder
-  to `.agents/skills/toil` in a repository.
-- **Claude Code without a marketplace**: copy it to `.claude/skills/toil` in a
-  repository, or `~/.claude/skills/toil` for every project.
+  `imagile-dev/toil`. This copy carries the general description, and toil doesn't
+  keep it current.
 - **Any installer that reads `skills/<name>/SKILL.md` from a git repository**: point it
   at `https://github.com/imagile-dev/toil`.
 

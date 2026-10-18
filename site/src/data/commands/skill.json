@@ -1,0 +1,23 @@
+[
+  {
+    "name": "install",
+    "tool": null,
+    "description": "Install the toil skill into an agent's skills folder; toil keeps it current from then on",
+    "writes": true,
+    "connection": false,
+    "flags": [
+      "--agent <agent>",
+      "--claude",
+      "--scope <scope>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "show",
+    "tool": "skill_show",
+    "description": "Show the toil skill: the description toil writes for this config, and every installed copy and whether it is current",
+    "writes": false,
+    "connection": false,
+    "flags": []
+  }
+]

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileAuditLog } from './core/audit.js';
 import { commandName, needsConfig, type AnyCommand } from './core/command.js';
@@ -11,6 +12,7 @@ import type { SecretStore } from './core/keychain.js';
 import { networkFetch } from './core/network.js';
 import type { Prompter } from './core/prompt.js';
 import type { GlobalOptions } from './program.js';
+import { keepSkillCurrent } from './skills/bundled.js';
 
 export interface NodeContextOptions {
   globals: GlobalOptions;
@@ -61,6 +63,32 @@ export function checkOutputFile(o: { path: string; cwd: string; home: string; co
 /** `https://user:token@host/x` -> `https://host/x`. ssh remotes keep their user (`git@host`), which is a login name, not a secret. */
 export function withoutHttpUserinfo(url: string): string {
   return url.replace(/^(https?:\/\/)[^/@]*@/i, '$1');
+}
+
+function readText(path: string): string | undefined {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return undefined;
+  }
+}
+
+/** The bundled skill's upkeep for one call (src/skills/bundled.ts), with the config file as it was before the call. */
+function skillUpkeep(o: NodeContextOptions, config: Context['config'], workspace: string | undefined, guard: Parameters<typeof readGitContext>[1]): NonNullable<Context['skillUpkeep']> {
+  const path = config.files.global;
+  const before = readText(path);
+  return (warn) =>
+    keepSkillCurrent({
+      // Project scope is the workspace's repository root, as `toil skill install --scope project` uses.
+      roots: { home: o.home, project: (workspace ? readGitContext(workspace, guard)?.root : undefined) ?? workspace },
+      version: o.version,
+      areas: o.areas.map((a) => a.name),
+      config,
+      reload: () => loadConfig({ env: o.env, cwd: o.cwd, home: o.home, areas: o.areas }),
+      before,
+      read: () => readText(path),
+      warn,
+    });
 }
 
 /** TOIL_TIMEOUT_MS, when it's a positive number; otherwise execute()'s default. */
@@ -159,6 +187,10 @@ export function createNodeContext(o: NodeContextOptions): Context {
     // Every command, standalone ones included: the log's settings come from
     // ~/.toil/config.json alone, so a command that skips config still records.
     audit: fileAuditLog({ home: o.home }),
+    // The installed toil skill describes the user's own config, so only a call
+    // on that file (no --config) keeps it current. The file is read now, before
+    // the command runs, to tell afterwards whether the command changed it.
+    ...(o.def && needsConfig(o.def) && !o.globals.config ? { skillUpkeep: skillUpkeep(o, config, workspace.dir, guard) } : {}),
     ...(o.secrets ? { secrets: o.secrets } : {}),
     ...(o.prompt ? { prompt: o.prompt } : {}),
   };
