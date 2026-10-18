@@ -1,0 +1,103 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "organization": "GitHub",
+          "semanticVersion": "2.19.1",
+          "notifications": [],
+          "rules": [
+            {
+              "id": "js/sql-injection",
+              "name": "js/sql-injection",
+              "shortDescription": { "text": "Database query built from user-controlled sources" },
+              "fullDescription": { "text": "Building a database query from user-controlled sources is vulnerable to insertion of malicious code by the user." },
+              "defaultConfiguration": { "enabled": true, "level": "error" },
+              "properties": { "tags": ["security", "external/cwe/cwe-089"], "kind": "path-problem", "precision": "high", "security-severity": "8.8" }
+            },
+            {
+              "id": "js/unused-local-variable",
+              "name": "js/unused-local-variable",
+              "shortDescription": { "text": "Unused variable, import, function or class" },
+              "defaultConfiguration": { "enabled": true, "level": "note" },
+              "properties": { "tags": ["maintainability"], "kind": "problem", "precision": "very-high" }
+            },
+            {
+              "id": "js/missing-rate-limiting",
+              "name": "js/missing-rate-limiting",
+              "shortDescription": { "text": "Missing rate limiting" },
+              "defaultConfiguration": { "enabled": true, "level": "warning" },
+              "properties": { "tags": ["security", "external/cwe/cwe-770"], "kind": "problem", "precision": "high", "security-severity": "7.5" }
+            }
+          ]
+        }
+      },
+      "invocations": [{ "toolExecutionNotifications": [], "executionSuccessful": true }],
+      "artifacts": [
+        { "location": { "uri": "src/routes/orders.js", "uriBaseId": "%SRCROOT%", "index": 0 } },
+        { "location": { "uri": "src/app.js", "uriBaseId": "%SRCROOT%", "index": 1 } }
+      ],
+      "results": [
+        {
+          "ruleId": "js/sql-injection",
+          "ruleIndex": 0,
+          "rule": { "id": "js/sql-injection", "index": 0 },
+          "message": { "text": "This query string depends on a [user-provided value](1)." },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "src/routes/orders.js", "uriBaseId": "%SRCROOT%", "index": 0 },
+                "region": { "startLine": 42, "startColumn": 23, "endColumn": 61 }
+              }
+            }
+          ],
+          "partialFingerprints": { "primaryLocationLineHash": "abc12345abc12345:1", "primaryLocationStartColumnFingerprint": "18" },
+          "relatedLocations": [
+            {
+              "id": 1,
+              "physicalLocation": {
+                "artifactLocation": { "uri": "src/routes/orders.js", "uriBaseId": "%SRCROOT%", "index": 0 },
+                "region": { "startLine": 38, "startColumn": 18, "endColumn": 32 }
+              },
+              "message": { "text": "user-provided value" }
+            }
+          ]
+        },
+        {
+          "ruleId": "js/missing-rate-limiting",
+          "ruleIndex": 2,
+          "rule": { "id": "js/missing-rate-limiting", "index": 2 },
+          "message": { "text": "This route handler performs [a database access](1), but is not rate-limited." },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "src/app.js", "uriBaseId": "%SRCROOT%", "index": 1 },
+                "region": { "startLine": 17, "startColumn": 22, "endLine": 24, "endColumn": 2 }
+              }
+            }
+          ],
+          "partialFingerprints": { "primaryLocationLineHash": "abc12345abc12346:1", "primaryLocationStartColumnFingerprint": "21" }
+        },
+        {
+          "ruleId": "js/unused-local-variable",
+          "ruleIndex": 1,
+          "rule": { "id": "js/unused-local-variable", "index": 1 },
+          "message": { "text": "Unused variable retries." },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "src/routes/orders.js", "uriBaseId": "%SRCROOT%", "index": 0 },
+                "region": { "startLine": 12, "startColumn": 9, "endColumn": 20 }
+              }
+            }
+          ],
+          "partialFingerprints": { "primaryLocationLineHash": "abc12345abc12347:1", "primaryLocationStartColumnFingerprint": "4" }
+        }
+      ],
+      "columnKind": "utf16CodeUnits",
+      "properties": { "semmle.formatSpecifier": "sarif-latest" }
+    }
+  ]
+}

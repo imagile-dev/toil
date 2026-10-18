@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from 'node:fs';
 import type { GitResult, GitRunner } from '../../src/core/git.js';
 import { SAMPLE_PNG_BASE64 } from '../../src/areas/util/encode.js';
 import { defineFixture } from '../harness/fixtures.js';
@@ -19,6 +20,13 @@ import { makeChain } from '../harness/x509.js';
  * format, the project files MSBuild's and Maven's, and the git output is the
  * shape `git ls-tree -r --name-only` prints. Every package is real and every
  * version an old one, which is how most dependency reviews find them.
+ *
+ * `reports/` holds one sample of each format `util report` reads, under
+ * test/fixtures/reports/. Each is written by hand to the exact shape its tool
+ * emits (Maven Surefire 3, the Jenkins JUnit schema around a Go test run, the
+ * VSTest JUnit logger Azure DevOps publishes, `dotnet test --logger trx`,
+ * CodeQL 2.19 SARIF, c8's lcov, coverlet and coverage.py Cobertura), with
+ * placeholder names, hosts and ids.
  */
 
 export const PACKAGE_JSON = JSON.stringify({
@@ -83,6 +91,20 @@ const chain = makeChain();
 export const PIXEL_PNG = new Uint8Array(Buffer.from(SAMPLE_PNG_BASE64, 'base64'));
 export const PIXEL_B64 = `${SAMPLE_PNG_BASE64.slice(0, 76)}\r\n${SAMPLE_PNG_BASE64.slice(76)}\r\n`;
 
+const REPORTS = new URL('./reports/', import.meta.url);
+/** The report samples, keyed by their path in the workspace. */
+export const reportFiles: Record<string, string> = Object.fromEntries(readdirSync(REPORTS).sort().map((name) => [`reports/${name}`, readFileSync(new URL(name, REPORTS), 'utf8')]));
+
+/**
+ * Build logs for `util log`, in test/fixtures/util/log/: a Jenkins pipeline
+ * console running Maven, a Maven reactor build, an npm build and test run, and
+ * a dotnet build and test run. Each follows its tool's real output, with
+ * hosts, paths and names replaced by placeholders.
+ */
+export const LOGS = Object.fromEntries(
+  ['jenkins', 'maven', 'npm', 'dotnet'].map((name) => [name, readFileSync(new URL(`./util/log/${name}.log`, import.meta.url), 'utf8')]),
+) as Record<'jenkins' | 'maven' | 'npm' | 'dotnet', string>;
+
 /** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
 export const files: Record<string, string | Uint8Array> = {
   '.gitignore': 'vendor/\n',
@@ -93,9 +115,11 @@ export const files: Record<string, string | Uint8Array> = {
   'pom.xml': POM,
   'encode/pixel.png': PIXEL_PNG,
   'encode/pixel.b64': PIXEL_B64,
+  ...Object.fromEntries(Object.entries(LOGS).map(([name, text]) => [`logs/${name}.log`, text])),
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
   'certs/chain.pem': chain.pem,
   'certs/leaf.der': chain.leaf.der,
+  ...reportFiles,
 };
 
 /** Every file the examples read: the tree above, plus `secrets scan`'s samples. */

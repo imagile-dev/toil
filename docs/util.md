@@ -144,7 +144,10 @@ Unit tests don't see it; `npm run smoke` does. A command whose work needs the
 input reader and has no heavy dependency (`secrets scan`) imports it statically.
 
 A module loaded through `import()` must not import zod, directly or through
-`kit/input.ts`. esbuild then defers zod's own setup too, the MCP SDK's
-schemas hit it at startup, and the bundle fails on every command, `toil version`
-included; the unit suite doesn't notice, `npm run smoke` does. Keep the reading
-in the command's small module and hand the lazy one bytes or text.
+`kit/input.ts`. esbuild then defers zod's own setup too, the MCP SDK's schemas hit
+it at startup, and the bundle fails on every command, `toil version` included, with
+`Class2 is not a constructor`; the unit suite doesn't notice, `npm run smoke` does.
+Keep the reading in the command's small module and hand the lazy one what it read:
+bytes, text, or the opened `UtilInput`, importing only the reader's types there
+(`util log` does this in `runLog`). A small module may simply be a static import, as
+`util encode` is.

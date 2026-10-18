@@ -1,0 +1,76 @@
+[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO]
+[INFO] ledger-parent                                                      [pom]
+[INFO] ledger-core                                                        [jar]
+[INFO] ledger-api                                                         [jar]
+[INFO]
+[INFO] ----------------------< com.imagile:ledger-core >-----------------------
+[INFO] Building ledger-core 1.8.2                                         [2/3]
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] The POM for com.imagile:audit-client:jar:0.9.1 is missing, no dependency information available
+[INFO]
+[INFO] --- maven-resources-plugin:3.3.1:resources (default-resources) @ ledger-core ---
+[WARNING] Using platform encoding (Cp1252 actually) to copy filtered resources, i.e. build is platform dependent!
+[INFO] Copying 3 resources from src/main/resources to target/classes
+[INFO]
+[INFO] --- maven-compiler-plugin:3.11.0:compile (default-compile) @ ledger-core ---
+[INFO] Changes detected - recompiling the module! :source
+[INFO] Compiling 41 source files with javac [debug target 17] to target/classes
+[WARNING] /build/ledger/ledger-core/src/main/java/com/imagile/ledger/Posting.java:[27,16] [deprecation] BigDecimal.ROUND_HALF_UP in BigDecimal has been deprecated
+[WARNING] /build/ledger/ledger-core/src/main/java/com/imagile/ledger/Journal.java:[88,24] [deprecation] BigDecimal.ROUND_HALF_UP in BigDecimal has been deprecated
+[WARNING] /build/ledger/ledger-core/src/main/java/com/imagile/ledger/Journal.java:[131,24] [deprecation] BigDecimal.ROUND_HALF_UP in BigDecimal has been deprecated
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR :
+[INFO] -------------------------------------------------------------
+[ERROR] /build/ledger/ledger-core/src/main/java/com/imagile/ledger/Reconciler.java:[54,38] cannot find symbol
+  symbol:   method settle(com.imagile.ledger.Posting)
+  location: variable journal of type com.imagile.ledger.Journal
+[ERROR] /build/ledger/ledger-core/src/main/java/com/imagile/ledger/Reconciler.java:[71,38] cannot find symbol
+  symbol:   method settle(com.imagile.ledger.Posting)
+  location: variable journal of type com.imagile.ledger.Journal
+[ERROR] /build/ledger/ledger-core/src/main/java/com/imagile/ledger/Statement.java:[19,8] class StatementLine is public, should be declared in a file named StatementLine.java
+[INFO] 3 errors
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for ledger-parent 1.8.2:
+[INFO]
+[INFO] ledger-parent ...................................... SUCCESS [  0.211 s]
+[INFO] ledger-core ........................................ FAILURE [  4.903 s]
+[INFO] ledger-api ......................................... SKIPPED
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  5.844 s
+[INFO] Finished at: 2026-10-14T10:41:07+01:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.11.0:compile (default-compile) on project ledger-core: Compilation failure: Compilation failure:
+[ERROR] /build/ledger/ledger-core/src/main/java/com/imagile/ledger/Reconciler.java:[54,38] cannot find symbol
+[ERROR]   symbol:   method settle(com.imagile.ledger.Posting)
+[ERROR]   location: variable journal of type com.imagile.ledger.Journal
+[ERROR] /build/ledger/ledger-core/src/main/java/com/imagile/ledger/Reconciler.java:[71,38] cannot find symbol
+[ERROR]   symbol:   method settle(com.imagile.ledger.Posting)
+[ERROR]   location: variable journal of type com.imagile.ledger.Journal
+[ERROR] /build/ledger/ledger-core/src/main/java/com/imagile/ledger/Statement.java:[19,8] class StatementLine is public, should be declared in a file named StatementLine.java
+[ERROR] -> [Help 1]
+org.apache.maven.lifecycle.LifecycleExecutionException: Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.11.0:compile (default-compile) on project ledger-core: Compilation failure
+    at org.apache.maven.lifecycle.internal.MojoExecutor.doExecute2 (MojoExecutor.java:333)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.doExecute (MojoExecutor.java:316)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.execute (MojoExecutor.java:212)
+    at org.apache.maven.cli.MavenCli.main (MavenCli.java:206)
+    at jdk.internal.reflect.DirectMethodHandleAccessor.invoke (DirectMethodHandleAccessor.java:103)
+    at org.codehaus.plexus.classworlds.launcher.Launcher.main (Launcher.java:315)
+Caused by: org.apache.maven.plugin.compiler.CompilationFailureException: Compilation failure
+    at org.apache.maven.plugin.compiler.AbstractCompilerMojo.execute (AbstractCompilerMojo.java:1219)
+    at org.apache.maven.plugin.DefaultBuildPluginManager.executeMojo (DefaultBuildPluginManager.java:126)
+    at org.apache.maven.lifecycle.internal.MojoExecutor.doExecute2 (MojoExecutor.java:328)
+    at org.codehaus.plexus.classworlds.launcher.Launcher.main (Launcher.java:315)
+[ERROR]
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR]
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException
+[ERROR]
+[ERROR] After correcting the problems, you can resume the build with the command
+[ERROR]   mvn <args> -rf :ledger-core

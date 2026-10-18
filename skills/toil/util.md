@@ -1,17 +1,18 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, and scanning for secrets before a commit or post
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, and scanning for secrets before a commit or post
 ---
 
 # Local utilities (`util`)
 
 Commands that work on what's on this machine: a token you paste, a file in the
-workspace (a certificate, say), the manifests and lockfiles there, or text
-you're about to commit or post. They aren't integrations. There is no server, no
-connection to add, no `TOIL_UTIL_*` variable, no credential and no
-`--connection` flag, and none of them sends anything over the network. None
-changes anything: the only file one writes is a new one you name with `--out`,
-inside the workspace, and it never replaces a file. Verification level: `unit`.
+workspace (a certificate or a log, say), the manifests and lockfiles there, a
+report a build left behind, or text you're about to commit or post. They aren't
+integrations. There is no server, no connection to add, no `TOIL_UTIL_*`
+variable, no credential and no `--connection` flag, and none of them sends
+anything over the network. None changes anything: the only file one writes is a
+new one you name with `--out`, inside the workspace, and it never replaces a
+file. Verification level: `unit`.
 
 `jwt` and `deps` also have a short path, an alias that does the same thing with
 the same flags and output:
@@ -24,6 +25,8 @@ the same flags and output:
 | `toil util secrets scan` | | `util_secrets_scan` |
 | `toil util encode` | | `util_encode` |
 | `toil util cert` | | `util_cert` |
+| `toil util report` | | `util_report` |
+| `toil util log` | | `util_log` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
@@ -443,3 +446,200 @@ What it checks, in `data.verified` (a failure also warns under its code):
   next one starts; it's reported at its byte offset.
 - Input with no certificate that can be read fails with `INVALID_INPUT`, naming
   each block and why.
+
+### `toil util report`
+
+One JSON summary of a report that CI or a scanner wrote: JUnit XML, TRX, SARIF
+2.1.0, lcov or Cobertura. It reads the file and nothing else, and checks the report
+against its own declared totals.
+
+```bash
+toil util report target/surefire-reports/TEST-dev.imagile.OrderTest.xml
+toil util report TestResults/build.trx
+toil util report coverage/lcov.info --lowest 5
+toil util report results.sarif
+cat coverage.xml | toil util report --format cobertura
+```
+
+| Argument / flag | Meaning |
+|-----------------|---------|
+| `[file]` | The report, inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--text <text>` | The report itself, instead of a file |
+| `--format <format>` | `junit`, `trx`, `sarif`, `lcov` or `cobertura`. Left out, it's detected from the content: the root element for XML (`<testsuites>` or `<testsuite>`, `<TestRun>`, `<coverage>`), `"runs"` for SARIF, a first `TN:` or `SF:` line for lcov |
+| `--lowest <n>` | How many of the lowest-covered files to list (default 10, up to 1000) |
+
+Over MCP the tool is `util_report`, with `file` or `text`, `format` and `lowest`.
+
+Output: `{ format, formatFrom, tests, findings, coverage, skipped, verified }`.
+`formatFrom` is `content` or `flag`. One of `tests`, `findings` and `coverage` is
+filled in, by format, and the other two are `null`.
+
+- **`tests`** (JUnit, TRX): `{ suites, totals: { tests, passed, failures, errors,
+  skipped, flaky, other }, failures: [{ suite, name, className, kind, type,
+  message, file, line, location, stack, stackLines }] }`. The totals are recounted
+  from the cases, never copied from the report. `kind` is `failure` or `error`.
+  `stack` is the first 15 lines, and `stackLines` how many there were. `location` is
+  `report` when the report states `file` or `line`, and `stack` when they were read
+  from the first stack frame naming the test's class or method (an `APPROXIMATED`
+  warning says how many). It's `null` when neither has one.
+- **`findings`** (SARIF): `{ runs: [{ tool, version, results }], total, byLevel,
+  results: [{ tool, rule, level, kind, file, line, message, suppressed }] }`. `level`
+  follows the spec: the result's own, else its rule's default, else `warning` for a
+  failing result and `none` for any other. `file` is the first location's URI as
+  written, and `line` its `startLine`.
+- **`coverage`** (lcov, Cobertura): `{ sources, totals: { lines, branches }, files:
+  [{ file, lines, branches }], lowest }`. Each figure is `{ covered, total, percent }`,
+  with `percent` rounded to two places (`null` when there's nothing to cover).
+  `branches` is `null` where the report has no branch data. `lowest` lists the
+  `--lowest` files with the lowest line coverage, leaving out files with no lines.
+- **`skipped`**: `{ count, elements: [{ element, count, reason }] }`, every element
+  (or lcov record) the reader met and didn't read, also warned as
+  `REPORT_ELEMENTS_SKIPPED`. Known parts that hold nothing it summarises
+  (`system-out`, `properties`, TRX's settings and lists, Cobertura's per-method copies
+  of the lines) aren't counted.
+
+What `verified` checks:
+
+| Format | Check | Warning when it fails |
+|--------|-------|-----------------------|
+| JUnit | Each suite's (and `<testsuites>`') declared `tests`, `failures`, `errors` and `skipped`, recounted from its cases, nested suites included | `REPORT_TOTALS_MISMATCH`, naming both numbers |
+| TRX | `<Counters>`' `total` and each outcome counter, recounted from the results' `outcome` | `REPORT_TOTALS_MISMATCH` |
+| Cobertura | Every stated `line-rate` and `branch-rate` (class, package and root), to within one unit of its last written decimal, and the root's `lines-covered`, `lines-valid`, `branches-covered` and `branches-valid` | `REPORT_COVERAGE_MISMATCH` |
+| lcov | Each record's `LF`, `LH`, `BRF`, `BRH`, `FNF` and `FNH`, recounted from its `DA`, `BRDA`, `FN` and `FNDA` lines | `REPORT_COVERAGE_MISMATCH` |
+| SARIF | Each `ruleIndex` points at the rule its `ruleId` names | `REPORT_SARIF_INCONSISTENT` |
+| All | The whole input was read (`input.complete`) | `INPUT_INCOMPLETE`, or `INPUT_TRUNCATED` at the cap |
+
+What it can't check is reported as `UNVERIFIED`, never as passed: a JUnit report
+that declares no totals, SARIF (which declares none), a TRX counter left at `0` over
+results with that outcome (VSTest leaves `notExecuted` at 0, for one), and the size
+of stdin. TRX's `executed` isn't compared, because writers disagree on what it
+counts.
+
+Formats it reads:
+
+- **JUnit:** Maven Surefire's, the Jenkins shape (nested `<testsuite>`s, `status`,
+  `assertions`, `disabled`) and the Azure DevOps shape (the VSTest JUnit logger's).
+  Surefire's `flakyFailure` and `flakyError` mean a rerun passed: the case counts as
+  passed and in `flaky`. A case with `<error>` is an error, else one with
+  `<failure>` is a failure, else one with `<skipped>` is skipped.
+- **TRX:** `dotnet test --logger trx` and Visual Studio's. Top-level results are
+  counted, as the counters count them, and a data-driven test's inner rows aren't.
+  `failures` is `Failed`; `errors` is `Error`, `Timeout` and `Aborted`; `skipped` is
+  `NotExecuted` and `NotRunnable`; any other outcome is `other`. `suites` is the
+  number of test classes, and a failure's `suite` is its class.
+- **SARIF 2.1.0:** any tool's. A rule reference with a `toolComponent` index is
+  looked up in that entry of `tool.extensions` (CodeQL query packs); one that names
+  its component only by `guid` can't be found, so `sarif.ruleIndex` is `UNVERIFIED`
+  and the level falls back to `warning`. A file with another `version` is read as
+  2.1.0, with an `APPROXIMATED` warning. A run whose invocation says it failed warns
+  `REPORT_TOOL_FAILED`.
+- **lcov:** `SF` to `end_of_record` records, including lcov 2's `FNL` and `FNA`.
+  `FNH` is recounted as distinct functions hit: `FNA` by index, so a function's
+  aliases count once, and `FNDA` by name. A file in several records is merged, and a
+  line is covered when any record hit it.
+- **Cobertura:** coverlet's, coverage.py's and others'. Classes in the same file are
+  added together, and branch counts come from `condition-coverage="50% (1/2)"`.
+
+Limits: XML and lcov stream, so memory stays flat for a report of any size, apart
+from the failures it lists, up to the 64 MiB input cap. At the cap the read stops,
+`INPUT_TRUNCATED` says so, `input.complete` fails, and what came before the cut is
+summarised; a suite the cut left open isn't compared. SARIF is JSON and is read
+whole, so a SARIF file over the cap is `INVALID_INPUT`. Malformed XML or JSON is
+`INVALID_INPUT` with the line and column. So is a document whose format can't be
+detected, or whose root doesn't match `--format`, with a fix naming `--format`.
+
+### `toil util log`
+
+Triages a large log (a CI console, a Maven, npm or dotnet build, a test run) into
+what's worth reading: its error and warning lines grouped by signature, each with the
+stack trace that follows it. It reads the file only, streams it, and holds memory
+constant however large the log is.
+
+```bash
+toil util log build.log
+toil util log console.log --level error --context 3
+toil util log console.log --since 2026-10-14T09:12:00Z --grep 'Failed to execute'
+some-build 2>&1 | toil util log -
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `[file]` | The log, inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--text <text>` | The log itself, instead of a file |
+| `--since <timestamp>` | Only lines dated at or after this ISO 8601 time (`2026-10-14`, `2026-10-14T09:12:00Z`, `"2026-10-14 09:12:00"`). A line with no date takes the date of the last dated line before it. Without a zone, a time is read as UTC |
+| `--level <level>` | `warning` (default) reports errors and warnings; `error` reports errors only |
+| `--grep <regex>` | Only error and warning lines matching this JavaScript regular expression (case-sensitive, no slashes or flags). An error also matches when the exception line heading its trace does (`--grep IllegalStateException`). Frames aren't searched; `LOG_GREP_STACK_ONLY` says when only they matched |
+| `--max-groups <n>` | The most groups to return, default 50, up to 1000 |
+| `--context <n>` | Lines to show before and after each group's sample, default 0, up to 20 |
+
+Over MCP the tool is `util_log`, with `file` (a path in the workspace) or `text`, and
+the same fields: `since`, `level`, `grep`, `maxGroups`, `context`.
+
+How it reads a log:
+
+- **Timestamps:** a leading timestamp, bracketed (Jenkins' timestamper) or bare (CI
+  runners, log4j, Serilog), is set aside before anything else, so it never splits a
+  group.
+- **Levels:** the first level word decides (`ERROR`, `FATAL`, `SEVERE`, `WARN`,
+  `WARNING`, `INFO`, `DEBUG` …, and npm's `npm error` / `npm warn`). A line tagged
+  `INFO`, or with no tag, is still an error by its shape: `BUILD FAILURE`, `FAILED`,
+  `error CS0246:`, `error TS2322:`, `TypeError: …`, `Unhandled exception.`, an eslint
+  or vstest failure line. A tag with nothing after it (`[ERROR] `) is not a group.
+- **Signatures:** dates and times, UUIDs, hex and every number are replaced, and
+  spaces collapsed. Codes such as `CS0246` and `TS2322` keep their digits, and paths
+  and quoted names stay, so two different errors stay apart.
+- **Stack traces:** Java (`at …(File.java:12)`, `Caused by:`, `... 14 more`), .NET
+  (`at … in file:line 9`, `--->`, `--- End of inner exception stack trace ---`), Node
+  (`at fn (file:12:3)`) and Python (`Traceback (most recent call last):`, printed
+  before its exception) are joined to the error they belong to, with the exception
+  line that heads one. An exception line joins an error, never a warning: after a
+  warning it's an error of its own. A trace is reported for each group's first occurrence, up to
+  50 lines.
+
+Output:
+
+```json
+{
+  "lines": { "total": 76, "error": 20, "warning": 5, "other": 35, "stack": 12, "unclassified": 4 },
+  "matched": 25, "filtered": 0, "groupsTotal": 18, "truncated": false, "ungrouped": 0, "unjoinedFrames": 0,
+  "groups": [{
+    "level": "error",
+    "signature": "[ERROR] /build/ledger/Reconciler.java:[<n>] cannot find symbol",
+    "count": 4, "firstLine": 27, "lastLine": 52,
+    "sample": "[ERROR] /build/ledger/Reconciler.java:[54,38] cannot find symbol",
+    "trace": { "kind": "java", "firstLine": 57, "lastLine": 68, "frames": 12, "lines": ["…"] },
+    "context": { "before": [{ "line": 26, "text": "…" }], "after": [{ "line": 28, "text": "…" }] }
+  }],
+  "verified": { "passed": true, "checks": [{ "check": "lines.reread", "status": "passed", "checked": 36, "failed": 0 }] }
+}
+```
+
+Groups are errors first, then warnings, each in order of first appearance. `lines`
+classes every line once: `other` is a level below warning, `stack` a trace line, and
+`unclassified` a line with no level at all. `filtered` counts the error and warning
+lines `--since`, `--level` or `--grep` left out.
+
+It checks its own answer, in `data.verified`:
+
+- **`lines.reread`:** every group's first line is read again from the file and must
+  be its sample, and its last line must still have its signature. `trace.reread`
+  does the same for every trace line shown. A mismatch is `LOG_LINE_MISMATCH`, which
+  usually means the file changed while it was read.
+- **`groups.sum`, `lines.sum`, `filter.sum`:** the group counts add up to the matched
+  lines, the line classes to the lines read, and matched plus filtered to the error
+  and warning lines. A mismatch is `LOG_COUNT_MISMATCH`.
+- **`input.complete`:** the bytes read equal the file's size. It's `unchecked` for
+  stdin and text.
+
+What it reports in `meta.warnings` rather than leave out: `LOG_UNCLASSIFIED` (lines
+with no level, in no group), `LOG_GROUPS_TRUNCATED` (more groups than
+`--max-groups`), `LOG_UNGROUPED` (matched lines whose signature came after the first
+2,000 distinct ones, counted but not grouped, which is what keeps memory constant),
+`LOG_TRACE_UNJOINED` (trace lines with no error before them), `LOG_GREP_STACK_ONLY`
+(`--grep` matched only stack trace lines), `LOG_SINCE_UNDATED`
+(lines `--since` couldn't date, kept), and `APPROXIMATED` for a line longer than
+4,096 characters (grouped by its start) or a `--since` compared with times that had
+no zone.
+
+A file streams with no size limit. stdin and `--text` are held in memory, up to
+64 MiB, so pass a file for anything bigger.

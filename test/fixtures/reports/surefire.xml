@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite version="3.0" name="dev.imagile.orders.OrderServiceTest" time="1.284" tests="6" errors="1" skipped="1" failures="1">
+  <properties>
+    <property name="java.version" value="21.0.4"/>
+    <property name="java.vendor" value="Eclipse Adoptium"/>
+    <property name="user.dir" value="/home/jenkins/agent/workspace/orders-service"/>
+    <property name="maven.repo.local" value="/home/jenkins/.m2/repository"/>
+    <property name="surefire.test.class.path" value="/home/jenkins/agent/workspace/orders-service/target/test-classes:/home/jenkins/agent/workspace/orders-service/target/classes"/>
+  </properties>
+  <testcase name="createsOrderForKnownCustomer" classname="dev.imagile.orders.OrderServiceTest" time="0.112"/>
+  <testcase name="rejectsEmptyCart" classname="dev.imagile.orders.OrderServiceTest" time="0.034">
+    <failure message="expected: &lt;400&gt; but was: &lt;200&gt;" type="org.opentest4j.AssertionFailedError"><![CDATA[org.opentest4j.AssertionFailedError: expected: <400> but was: <200>
+	at org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+	at org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+	at org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+	at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:150)
+	at org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:145)
+	at org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:531)
+	at dev.imagile.orders.OrderServiceTest.rejectsEmptyCart(OrderServiceTest.java:58)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1596)
+]]></failure>
+    <system-out><![CDATA[12:01:44.210 [main] INFO dev.imagile.orders.OrderService -- cart abc12345 has no lines
+]]></system-out>
+  </testcase>
+  <testcase name="appliesDiscountCode" classname="dev.imagile.orders.OrderServiceTest" time="0.640">
+    <error message="Connection refused" type="java.net.ConnectException"><![CDATA[java.net.ConnectException: Connection refused
+	at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+	at java.base/sun.nio.ch.Net.pollConnectNow(Net.java:682)
+	at java.base/sun.nio.ch.NioSocketImpl.timedFinishConnect(NioSocketImpl.java:542)
+	at java.base/java.net.Socket.connect(Socket.java:751)
+	at dev.imagile.orders.PricingClient.quote(PricingClient.java:77)
+	at dev.imagile.orders.OrderService.price(OrderService.java:118)
+	at dev.imagile.orders.OrderServiceTest.appliesDiscountCode(OrderServiceTest.java:91)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+]]></error>
+    <system-err><![CDATA[WARN pricing.imagile.dev:8443 did not answer
+]]></system-err>
+  </testcase>
+  <testcase name="refundsCancelledOrder" classname="dev.imagile.orders.OrderServiceTest" time="0.001">
+    <skipped message="Refunds are off until the ledger rewrite lands"/>
+  </testcase>
+  <testcase name="reservesStock" classname="dev.imagile.orders.OrderServiceTest" time="0.402">
+    <flakyFailure message="Timed out after 200 ms" type="java.util.concurrent.TimeoutException">
+      <stackTrace><![CDATA[java.util.concurrent.TimeoutException: Timed out after 200 ms
+	at dev.imagile.orders.StockClient.reserve(StockClient.java:40)
+	at dev.imagile.orders.OrderServiceTest.reservesStock(OrderServiceTest.java:104)
+]]></stackTrace>
+      <system-out><![CDATA[retrying the reservation
+]]></system-out>
+    </flakyFailure>
+  </testcase>
+  <testcase name="emitsOrderPlacedEvent" classname="dev.imagile.orders.OrderServiceTest" time="0.020"/>
+</testsuite>
