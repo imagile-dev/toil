@@ -1,10 +1,12 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { extract, inspect } from '../scripts/triage/archive.mjs';
 import { CLAIMED, QUEUED, claim, claimRank, gh, waiting, type LabelEvent } from '../scripts/triage/cap.mjs';
 import { areaOf, check, parseRaw } from '../scripts/triage/changes.mjs';
+import { defuseClosingKeywords, parseDecision } from '../scripts/triage/decision.mjs';
 import { areas, labels } from '../scripts/triage/labels.mjs';
 import { parseTerms, redact } from '../scripts/triage/redact.mjs';
 
@@ -232,5 +234,116 @@ describe('the triage labels', () => {
     expect(areas()).not.toContain('kit');
     expect(names).toEqual(expect.arrayContaining(['area:jira', 'area:github', 'from-website', 'from-terminal', 'unverified-build', 'triaged', 'denied', 'triage-queued', 'triage-claimed', 'from-triage', 'smoke-test']));
     for (const label of labels()) expect(label.name.length).toBeLessThanOrEqual(50);
+  });
+});
+
+/** A ustar archive built by hand, so the reader is tested against the format, not one tar's output. */
+function ustar(entries: Array<{ path: string; data?: string; type?: string }>): Buffer {
+  const blocks: Buffer[] = [];
+  for (const entry of entries) {
+    const data = Buffer.from(entry.data ?? '');
+    const header = Buffer.alloc(512);
+    const put = (text: string, at: number, length: number) => header.write(text.slice(0, length), at, length, 'utf8');
+    const name = entry.path.length > 100 ? entry.path.slice(entry.path.lastIndexOf('/', entry.path.length - 1) + 1) : entry.path;
+    const prefix = entry.path.length > 100 ? entry.path.slice(0, entry.path.lastIndexOf('/')) : '';
+    put(name, 0, 100);
+    put('0000644\0', 100, 8);
+    put('0000000\0', 108, 8);
+    put('0000000\0', 116, 8);
+    put(`${data.length.toString(8).padStart(11, '0')}\0`, 124, 12);
+    put('00000000000\0', 136, 12);
+    header.write(entry.type ?? '0', 156, 1, 'latin1');
+    put('ustar\0', 257, 6);
+    put('00', 263, 2);
+    put(prefix, 345, 155);
+    header.fill(32, 148, 156);
+    let sum = 0;
+    for (const byte of header) sum += byte;
+    put(`${sum.toString(8).padStart(6, '0')}\0 `, 148, 8);
+    blocks.push(header, data, Buffer.alloc((512 - (data.length % 512)) % 512));
+  }
+  blocks.push(Buffer.alloc(1024));
+  return Buffer.concat(blocks);
+}
+
+describe('the handover archive', () => {
+  const known = ['jira', 'github'];
+
+  it('reads regular files under one area, deletions included', () => {
+    const result = inspect(ustar([{ path: './src/areas/jira/a.ts', data: 'export const a = 1;\n' }, { path: 'skills/toil/jira.md', data: '# Jira\n' }]), './src/areas/jira/old.ts\n', known);
+    expect(result).toMatchObject({ ok: true, area: 'jira', refused: [], deleted: ['src/areas/jira/old.ts'] });
+    expect(result.files.map((f) => [f.path, f.data.toString()])).toEqual([['src/areas/jira/a.ts', 'export const a = 1;\n'], ['skills/toil/jira.md', '# Jira\n']]);
+  });
+
+  it('reads a long path from the ustar prefix field', () => {
+    const long = `src/areas/jira/${'deep/'.repeat(20)}file.ts`;
+    expect(inspect(ustar([{ path: long, data: 'x' }]), '', known).files[0]!.path).toBe(long);
+  });
+
+  it.each([
+    [[{ path: 'src/areas/jira/link', type: '2' }], 'type 2: only regular files'],
+    [[{ path: 'src/areas/jira/hard', type: '1' }], 'type 1: only regular files'],
+    [[{ path: 'src/areas/jira/x', type: 'L' }], 'type L: only regular files'],
+    [[{ path: '.github/workflows/ci.yml', data: 'x' }], ".github/workflows/ci.yml (outside an area's own files)"],
+    [[{ path: 'src/areas/jira/../../core/x.ts', data: 'x' }], "outside an area's own files"],
+    [[{ path: 'src/areas/jira/a.ts', data: 'x' }, { path: 'src/areas/github/b.ts', data: 'y' }], 'more than one area'],
+  ])('refuses %j', (entries, reason) => {
+    const result = inspect(ustar(entries), '', known);
+    expect(result.ok).toBe(false);
+    expect(result.refused.join('\n')).toContain(reason);
+  });
+
+  it('refuses a deletion outside the area, a corrupt header, and an empty change', () => {
+    expect(inspect(ustar([{ path: 'src/areas/jira/a.ts', data: 'x' }]), 'package.json\n', known).ok).toBe(false);
+    const corrupt = ustar([{ path: 'src/areas/jira/a.ts', data: 'x' }]);
+    corrupt[0] = 'Z'.charCodeAt(0);
+    expect(inspect(corrupt, '', known).refused[0]).toContain('not a valid ustar header');
+    expect(inspect(Buffer.alloc(0), '', known).refused).toEqual(['no changes']);
+  });
+
+  it('extracts only inside the destination', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'toil-archive-'));
+    try {
+      mkdirSync(join(dir, 'src', 'areas', 'jira'), { recursive: true });
+      writeFileSync(join(dir, 'src', 'areas', 'jira', 'old.ts'), 'old');
+      const result = inspect(ustar([{ path: 'src/areas/jira/new.ts', data: 'new' }]), 'src/areas/jira/old.ts', known);
+      extract(result, dir);
+      expect(readFileSync(join(dir, 'src', 'areas', 'jira', 'new.ts'), 'utf8')).toBe('new');
+      expect(existsSync(join(dir, 'src', 'areas', 'jira', 'old.ts'))).toBe(false);
+      expect(() => extract({ files: [{ path: '../escape.ts', data: Buffer.from('x') }], deleted: [] }, dir)).toThrow('resolves outside');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('the agent decision', () => {
+  const known = ['jira', 'github'];
+
+  it('accepts fix, deny and duplicate with known areas', () => {
+    expect(parseDecision('{"decision":"fix","areas":["jira"]}', 7, known)).toMatchObject({ ok: true, decision: 'fix', areas: ['jira'] });
+    expect(parseDecision('{"decision":"duplicate","areas":[],"duplicateOf":3}', 7, known)).toMatchObject({ ok: true, duplicateOf: 3 });
+  });
+
+  it.each([
+    ['not json', 'missing or not JSON'],
+    ['{"decision":"merge","areas":[]}', 'decision must be fix, deny or duplicate'],
+    ['{"decision":"fix","areas":["jira","core"]}', 'unknown areas: core'],
+    ['{"decision":"duplicate","areas":[],"duplicateOf":7}', 'duplicateOf must be another issue number'],
+    ['{"decision":"fix"}', 'areas must be a list'],
+  ])('refuses %s', (raw, problem) => {
+    const result = parseDecision(raw, 7, known);
+    expect(result.ok).toBe(false);
+    expect(result.problems.join('; ')).toContain(problem);
+  });
+
+  it.each([
+    ['FIXES #12', 'FIXES (see #12)'],
+    ['Closes imagile-dev/toil#12', 'Closes (see imagile-dev/toil#12)'],
+    ['Resolves https://github.com/imagile-dev/toil/issues/12', 'Resolves (see https://github.com/imagile-dev/toil/issues/12)'],
+    ['fixed: #3 and close #4', 'fixed (see #3) and close (see #4)'],
+    ['This fixes the parser; see #5', 'This fixes the parser; see #5'],
+  ])('defuses the closing reference in %j', (input, output) => {
+    expect(defuseClosingKeywords(input)).toBe(output);
   });
 });

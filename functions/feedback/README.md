@@ -9,9 +9,20 @@ like `site/`, and is never published.
 | Function | Trigger | What it does |
 |---|---|---|
 | `Submit` | `POST /api/submit` | The site's form. Honeypot, then `Origin`, validation, Turnstile, and the per-IP daily limit (10), in that order. Stores a pending row. |
-| `Report` | `POST /api/report` | curl, for networks where Turnstile can't load. No CAPTCHA and no `Origin` check; instead `commit` must be a commit in the repository (checked through the GitHub API, cached in a table). Per-IP limit 3 a day, checked before the lookup. |
+| `Report` | `POST /api/report` | curl, for networks where Turnstile can't load. No CAPTCHA and no `Origin` check; instead `commit` must be a commit in the repository (checked through the GitHub API, cached in a table). Per-IP limit 3 a day, then a total of `REPORT_DAILY_LIMIT` (30) a day across every caller, both checked before the lookup; lookups themselves are capped at `COMMIT_LOOKUP_DAILY_LIMIT` (50) a day. |
 | `ProcessSubmissions` | timer, every minute | Files pending rows as issues, oldest first, at most `DAILY_SUBMISSION_LIMIT` (10) a UTC day. Labels: `bug` or `enhancement`; `from-website` or `from-terminal`; `unverified-build` when a reported commit isn't on `main`. Records issue → email, sends the confirmation, and retries failures on the next tick without filing twice. |
 | `IssueWebhook` | `POST /api/webhook/issue` | Verifies GitHub's HMAC signature. When a submitted issue closes, emails the submitter the close reason and the last maintainer comment, then forgets the address. |
+
+**Limits that hold whatever a caller claims.** The client address is the last
+`X-Forwarded-For` entry, the one Azure's front end appends to whatever the caller
+sent, so a forged header earns no fresh allowance (Microsoft Learn, "Protocol
+support for HTTP headers in Azure Front Door": "If there's an existing XFF header,
+then Front Door appends the client socket IP to it"). Confirm it on the first
+deploy: two reports with different forged `X-Forwarded-For` values from one machine
+must share one allowance. On top of the per-IP limits, nothing more is queued once
+`MAX_PENDING_SUBMISSIONS` (100) rows are waiting, `/api/report` takes at most
+`REPORT_DAILY_LIMIT` (30) a day in all, and GitHub commit lookups stop at
+`COMMIT_LOOKUP_DAILY_LIMIT` (50) a day. Each answers a plain 429.
 
 Submissions carrying the `X-Smoke-Test-Key` header (the key is in Key Vault) skip
 Turnstile and nothing else, and are recorded on one persistent, closed `smoke-test`
@@ -37,7 +48,7 @@ existing `imagile-keyvault`, never copied anywhere else.
 
 | Setting | Source |
 |---|---|
-| `GITHUB_REPO`, `GITHUB_APP_ID`, `ALLOWED_ORIGIN`, `DAILY_SUBMISSION_LIMIT`, `IP_DAILY_LIMIT`, `REPORT_IP_DAILY_LIMIT`, `STALE_SUBMISSION_MINUTES`, `EMAIL_FROM_ADDRESS`, `FEEDBACK_TABLES_ENDPOINT` | Bicep |
+| `GITHUB_REPO`, `GITHUB_APP_ID`, `ALLOWED_ORIGIN`, `DAILY_SUBMISSION_LIMIT`, `IP_DAILY_LIMIT`, `REPORT_IP_DAILY_LIMIT`, `REPORT_DAILY_LIMIT`, `COMMIT_LOOKUP_DAILY_LIMIT`, `MAX_PENDING_SUBMISSIONS`, `STALE_SUBMISSION_MINUTES`, `EMAIL_FROM_ADDRESS`, `FEEDBACK_TABLES_ENDPOINT` | Bicep |
 | `GITHUB_APP_PRIVATE_KEY` | Key Vault `GITHUB-APP-PRIVATE-KEY` (the Imagile Bot App) |
 | `TURNSTILE_SECRET` | Key Vault `TURNSTILE-SECRET` |
 | `SMOKE_TEST_KEY` | Key Vault `SMOKE-TEST-KEY` |

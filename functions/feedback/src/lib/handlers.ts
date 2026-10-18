@@ -60,14 +60,22 @@ const day = (date: Date): string => date.toISOString().slice(0, 10);
 const reply = (status: number, body: HttpOut['body']): HttpOut => ({ status, body });
 const fail = (status: number, error: string): HttpOut => reply(status, { ok: false, error });
 
-/** The caller's IP from the platform's X-Forwarded-For (first hop), without a port. */
+/**
+ * The caller's IP: the last X-Forwarded-For entry, without a port. Azure's front
+ * end appends the address of the connection it accepted to whatever
+ * X-Forwarded-For the client sent ("If there's an existing XFF header, then Front
+ * Door appends the client socket IP to it", Microsoft Learn, "Protocol support for
+ * HTTP headers in Azure Front Door"; App Service's front end does the same), so
+ * every entry before the last is the caller's own invention. The first deploy
+ * confirms this against the live platform (functions/feedback/README.md).
+ */
 export function clientIp(headers: HttpIn['headers']): string {
-  const first = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  if (!first) return 'unknown';
-  const bracketed = /^\[([^\]]+)\](?::\d+)?$/.exec(first);
+  const last = headers.get('x-forwarded-for')?.split(',').map((entry) => entry.trim()).filter(Boolean).at(-1);
+  if (!last) return 'unknown';
+  const bracketed = /^\[([^\]]+)\](?::\d+)?$/.exec(last);
   if (bracketed) return bracketed[1]!;
-  const v4 = /^(\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/.exec(first);
-  return v4 ? v4[1]! : first;
+  const v4 = /^(\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/.exec(last);
+  return v4 ? v4[1]! : last;
 }
 
 /** Fixed-time comparison, so a key can't be found one character at a time. */
@@ -143,6 +151,31 @@ export async function consumeIpLimit(table: Table, route: string, ip: string, li
   throw new Error('The per-IP limit could not be updated after 8 attempts.');
 }
 
+/** Counts one against a daily total that holds whoever sends it; false once it's reached. */
+export async function consumeDaily(table: Table, name: string, limit: number, now: Date): Promise<boolean> {
+  const partitionKey = name;
+  const rowKey = day(now);
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const row = await table.get(partitionKey, rowKey);
+    if (!row) {
+      if (limit < 1) return false;
+      if (await table.create({ partitionKey, rowKey, count: 1 })) return true;
+      continue;
+    }
+    const count = Number(row.count ?? 0);
+    if (count >= limit) return false;
+    if (await table.replace({ ...row, count: count + 1 })) return true;
+  }
+  throw new Error(`The ${name} limit could not be updated after 8 attempts.`);
+}
+
+/** True when the queue holds MAX_PENDING_SUBMISSIONS rows already; nothing more is queued until it drains. */
+async function queueFull(deps: Deps): Promise<boolean> {
+  return (await deps.tables.submissions.list('pending')).length >= deps.settings.maxPending;
+}
+
+const QUEUE_FULL = 'The feedback queue is full right now. Try again tomorrow (UTC).';
+
 async function increment(table: Table, partitionKey: string, rowKey: string): Promise<void> {
   for (let attempt = 0; attempt < 8; attempt++) {
     const row = await table.get(partitionKey, rowKey);
@@ -157,13 +190,16 @@ async function increment(table: Table, partitionKey: string, rowKey: string): Pr
 const MISS_TTL_MS = 60 * 60_000;
 
 /** What GitHub says about a commit, from the cache when it can't have changed (on main) or is recent. */
-export async function commitState(deps: Deps, sha: string): Promise<CommitState> {
+export async function commitState(deps: Deps, sha: string): Promise<CommitState | 'limited'> {
   const now = (deps.now ?? (() => new Date()))();
   const cached = await deps.tables.commits.get('commit', sha);
   if (cached) {
     const state = cached.state as CommitState;
     if (state === 'on-main' || now.getTime() - Date.parse(String(cached.checkedAt)) < MISS_TTL_MS) return state;
   }
+  // A daily ceiling on lookups, whoever asks, so the App's GitHub quota (the one
+  // filing issues uses) can't be spent by any number of callers.
+  if (!(await consumeDaily(deps.tables.counters, 'lookups', deps.settings.commitLookupDailyLimit, now))) return 'limited';
   const state = await deps.github().commitState(sha);
   await deps.tables.commits.upsert({ partitionKey: 'commit', rowKey: sha, state, checkedAt: now.toISOString() });
   return state;
@@ -213,6 +249,7 @@ export async function submit(request: HttpIn, deps: Deps): Promise<HttpOut> {
   if (!(await consumeIpLimit(deps.tables.ratelimits, 'submit', ip, deps.settings.submitIpDailyLimit, now))) {
     return fail(429, `This address has sent ${deps.settings.submitIpDailyLimit} reports today, the daily limit. Try again tomorrow (UTC).`);
   }
+  if (await queueFull(deps)) return fail(429, QUEUE_FULL);
   await enqueue(deps, valid.value, { source: 'website', smoke });
   deps.log.info(`Submit: queued a ${valid.value.kind}${smoke ? ' (smoke test)' : ''}.`);
   return reply(202, { ok: true, message: ACCEPTED });
@@ -237,7 +274,14 @@ export async function report(request: HttpIn, deps: Deps): Promise<HttpOut> {
   if (!(await consumeIpLimit(deps.tables.ratelimits, 'report', ip, deps.settings.reportIpDailyLimit, now))) {
     return fail(429, `This address has sent ${deps.settings.reportIpDailyLimit} reports today, the daily limit for /api/report. Try again tomorrow (UTC).`);
   }
+  // Limits that hold whatever address a caller claims: the queue's size, and
+  // /api/report's total for the day across every caller.
+  if (await queueFull(deps)) return fail(429, QUEUE_FULL);
+  if (!(await consumeDaily(deps.tables.counters, 'reports', deps.settings.reportDailyLimit, now))) {
+    return fail(429, '/api/report has taken its reports for today. Try again tomorrow (UTC), or use the form on the site.');
+  }
   const state = await commitState(deps, sha);
+  if (state === 'limited') return fail(429, 'Commit checks are at their limit for today. Try again tomorrow (UTC).');
   if (state === 'missing') {
     return fail(422, `${sha} isn't a commit in ${deps.settings.repo}. Send the hash \`toil version --select data.commit\` prints for the toil you're reporting about.`);
   }

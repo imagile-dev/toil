@@ -161,6 +161,10 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'DAILY_SUBMISSION_LIMIT', value: string(dailySubmissionLimit) }
         { name: 'IP_DAILY_LIMIT', value: '10' }
         { name: 'REPORT_IP_DAILY_LIMIT', value: '3' }
+        // Limits that hold whatever address a caller claims.
+        { name: 'REPORT_DAILY_LIMIT', value: '30' }
+        { name: 'COMMIT_LOOKUP_DAILY_LIMIT', value: '50' }
+        { name: 'MAX_PENDING_SUBMISSIONS', value: '100' }
         { name: 'STALE_SUBMISSION_MINUTES', value: '15' }
         { name: 'EMAIL_FROM_ADDRESS', value: 'no-reply@imagile.dev' }
         // Key Vault references to secrets that already exist (TOIL-WEBHOOK-SECRET is

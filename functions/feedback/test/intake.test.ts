@@ -6,6 +6,8 @@ import { API, ORIGIN, REPO, SHA, deps, json, request } from './helpers.js';
 
 const form = { kind: 'bug', title: 'jira get-issue drops the epic link', body: 'Steps: run it.', email: 'you@example.com', turnstileToken: 'cf-token', website: '' };
 const site = { origin: ORIGIN, 'x-forwarded-for': '203.0.113.7:51234' };
+/** What a caller forging X-Forwarded-For looks like by the time the platform has appended the real address. */
+const forged = (n: number, real = '198.51.100.4') => ({ 'x-forwarded-for': `10.9.8.${n}, ${real}:40000` });
 const turnstileOk = { [`POST ${TURNSTILE_VERIFY}`]: () => json(200, { success: true }) };
 const turnstileNo = { [`POST ${TURNSTILE_VERIFY}`]: () => json(200, { success: false }) };
 
@@ -23,8 +25,9 @@ describe('settings', () => {
 });
 
 describe('clientIp', () => {
-  it('takes the first hop and drops the port', () => {
-    expect(clientIp(new Headers({ 'x-forwarded-for': '203.0.113.7:51234, 10.0.0.1' }))).toBe('203.0.113.7');
+  it('takes the hop the platform appended (the last), never one the caller wrote, and drops the port', () => {
+    expect(clientIp(new Headers({ 'x-forwarded-for': '1.2.3.4, 203.0.113.7:51234' }))).toBe('203.0.113.7');
+    expect(clientIp(new Headers({ 'x-forwarded-for': '203.0.113.7:51234' }))).toBe('203.0.113.7');
     expect(clientIp(new Headers({ 'x-forwarded-for': '[2001:db8::1]:443' }))).toBe('2001:db8::1');
     expect(clientIp(new Headers({ 'x-forwarded-for': '2001:db8::1' }))).toBe('2001:db8::1');
     expect(clientIp(new Headers())).toBe('unknown');
@@ -38,6 +41,22 @@ describe('POST /api/submit', () => {
     expect(out).toEqual({ status: 202, body: { ok: true, message: expect.stringContaining('queued') } });
     const verify = t.calls.find((c) => c.url === TURNSTILE_VERIFY)!;
     expect(Object.fromEntries(new URLSearchParams(verify.body))).toEqual({ secret: 'turnstile-test-secret', response: 'cf-token', remoteip: '203.0.113.7' });
+  });
+
+  it('counts a forged X-Forwarded-For against the real address, and tells Turnstile the real one', async () => {
+    const t = deps({ routes: turnstileOk, settings: { submitIpDailyLimit: 1 } });
+    expect((await submit(request(form, { origin: ORIGIN, ...forged(1) }), t.deps)).status).toBe(202);
+    expect((await submit(request(form, { origin: ORIGIN, ...forged(2) }), t.deps)).status).toBe(429);
+    expect(new URLSearchParams(t.calls.find((c) => c.url === TURNSTILE_VERIFY)!.body).get('remoteip')).toBe('198.51.100.4');
+  });
+
+  it('queues nothing more once MAX_PENDING_SUBMISSIONS rows are waiting, from any address', async () => {
+    const t = deps({ routes: turnstileOk, settings: { maxPending: 2 } });
+    expect((await submit(request(form, { origin: ORIGIN, 'x-forwarded-for': '198.51.100.1' }), t.deps)).status).toBe(202);
+    expect((await submit(request(form, { origin: ORIGIN, 'x-forwarded-for': '198.51.100.2' }), t.deps)).status).toBe(202);
+    const full = await submit(request(form, { origin: ORIGIN, 'x-forwarded-for': '198.51.100.3' }), t.deps);
+    expect(full).toEqual({ status: 429, body: { ok: false, error: 'The feedback queue is full right now. Try again tomorrow (UTC).' } });
+    expect(t.tables.dump('submissions')).toHaveLength(2);
     const [row] = t.tables.dump('submissions');
     expect(row).toMatchObject({ partitionKey: 'pending', kind: 'bug', title: form.title, body: form.body, email: 'you@example.com', source: 'website', smoke: false, attempts: 0, submittedAt: '2026-10-18T12:00:00.000Z' });
     expect(row!.rowKey).toMatch(/^2026-10-18T12:00:00\.000Z-[0-9a-f]{32}$/);
@@ -162,6 +181,42 @@ describe('POST /api/report', () => {
     const t = deps();
     expect(await report(request({ ...body, ...change }, curl), t.deps)).toEqual({ status: 400, body: { ok: false, error } });
     expect(t.calls).toEqual([]);
+  });
+
+  it('holds a forger of X-Forwarded-For to the real address: 3 a day', async () => {
+    const t = deps({ routes: { [compare]: () => json(200, { status: 'ahead' }) } });
+    for (let i = 0; i < 3; i++) expect((await report(request(body, forged(i)), t.deps)).status).toBe(202);
+    expect((await report(request(body, forged(3)), t.deps)).status).toBe(429);
+    expect(t.tables.dump('submissions')).toHaveLength(3);
+  });
+
+  it('caps /api/report across every caller at REPORT_DAILY_LIMIT a day', async () => {
+    const t = deps({ routes: { [compare]: () => json(200, { status: 'ahead' }) }, settings: { reportDailyLimit: 2 } });
+    expect((await report(request(body, forged(1, '198.51.100.1')), t.deps)).status).toBe(202);
+    expect((await report(request(body, forged(2, '198.51.100.2')), t.deps)).status).toBe(202);
+    const third = await report(request(body, forged(3, '198.51.100.3')), t.deps);
+    expect(third).toEqual({ status: 429, body: { ok: false, error: expect.stringContaining('/api/report has taken its reports for today') } });
+    expect(t.tables.dump('submissions')).toHaveLength(2);
+  });
+
+  it('caps GitHub commit lookups across every caller at COMMIT_LOOKUP_DAILY_LIMIT a day; cached answers are free', async () => {
+    const other = 'dddd0000'.repeat(5);
+    const t = deps({
+      routes: { [compare]: () => json(200, { status: 'ahead' }), [`GET ${API}/repos/${REPO}/compare/${other}...main?per_page=1`]: () => json(200, { status: 'ahead' }) },
+      settings: { commitLookupDailyLimit: 1 },
+    });
+    expect((await report(request(body, forged(1, '198.51.100.1')), t.deps)).status).toBe(202);
+    expect((await report(request(body, forged(2, '198.51.100.2')), t.deps)).status).toBe(202);
+    const limited = await report(request({ ...body, commit: other }, forged(3, '198.51.100.3')), t.deps);
+    expect(limited).toEqual({ status: 429, body: { ok: false, error: 'Commit checks are at their limit for today. Try again tomorrow (UTC).' } });
+    expect(t.calls.filter((c) => c.url.includes('/compare/'))).toHaveLength(1);
+  });
+
+  it('refuses /api/report once the queue is full', async () => {
+    const t = deps({ routes: { [compare]: () => json(200, { status: 'ahead' }) }, settings: { maxPending: 1 } });
+    expect((await report(request(body, curl), t.deps)).status).toBe(202);
+    expect((await report(request(body, { 'x-forwarded-for': '198.51.100.9' }), t.deps)).body.error).toBe('The feedback queue is full right now. Try again tomorrow (UTC).');
+    expect(t.calls.filter((c) => c.url.includes('/compare/'))).toHaveLength(1);
   });
 
   it('spends the per-IP limit (3 a day) before the lookup, so random hashes cannot spend GitHub quota', async () => {

@@ -19,6 +19,7 @@
 // filing itself. Running it twice changes nothing the second time.
 //
 //   node scripts/triage/redact.mjs < {"title","body"}.json   → {"title","body","changed","invalidTerms"}
+//   node scripts/triage/redact.mjs --titles < [{"title",…}]     → the same list, titles redacted
 
 import { pathToFileURL } from 'node:url';
 
@@ -164,6 +165,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   for await (const chunk of process.stdin) chunks.push(chunk);
   const input = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
   const terms = parseTerms(process.env.REDACT_TERMS ?? '');
+  // --titles: a JSON array of issues in, the same array out with each title redacted.
+  if (process.argv.includes('--titles')) {
+    process.stdout.write(`${JSON.stringify(input.map((issue) => ({ ...issue, title: redact(issue.title ?? '', terms) })), null, 1)}
+`);
+    process.exit(0);
+  }
   const title = redact(input.title ?? '', terms);
   const body = redact(input.body ?? '', terms);
   const changed = title !== (input.title ?? '') || body !== (input.body ?? '');

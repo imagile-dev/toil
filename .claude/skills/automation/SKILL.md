@@ -60,33 +60,49 @@ starts on the `from-website` or `from-terminal` label (set by the feedback backe
 `functions/feedback/`, as the Imagile Bot), on `claude-triage` added by a
 maintainer, on `workflow_dispatch` with an issue number, and on a daily schedule
 for the queue. Only `imagile-bot` is accepted as a bot actor, in the job's `if` and
-in `allowed_bots`.
+in `allowed_bots`, and its `claude-triage` counts only on an issue it filed from
+outside, so nothing can pull in an issue nobody chose.
+
+**The boundary is the job, not the prompt.** Code the agent writes must never run
+where a credential is, and the credential that writes must never sit where agent
+code runs. So the work is split across jobs, each on its own fresh runner:
+
+| Job | Runs | Holds |
+|---|---|---|
+| `select` | main's scripts only: claim within the cap, redact the issue in place | an `issues: write` App token |
+| `triage` | the agent, with `Read`, `Glob`, `Grep`, `Edit` and `Write` only: no Bash, no `gh`, no `npm`, no web. Afterwards, shell utilities only (no `git`, no `node`), to hand its files over as a ustar archive | `contents: read` / `issues: read` workflow token; the OAuth token only inside its own step, with `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` set as well |
+| `gate` | the agent's code: typecheck, lint, test, build, check:pure, after main's scripts check every path | no secrets, `contents: read`, credentials not persisted, no npm cache |
+| `finish` | main's scripts only: checks the decision and every path again, applies labels, comment and close, and for a fix that passed the gate pushes `claude/issue-<n>` and opens the PR. Never runs the fix's code | an App token with contents, pull-request and issue writes and no `workflows` |
+
+The agent never writes to GitHub itself: it leaves `decision.json`, a comment and the
+PR text in `.triage-out/`, and `finish` applies them (`scripts/triage/decision.mjs`
+refuses an unknown area or decision and defuses every closing reference GitHub honours
+in the PR text). Changing this layout means re-checking that no job holding a write
+credential runs agent-written code, and that no job running it holds one.
 
 - **The cap.** At most four issues a UTC day (`TRIAGE_CAP`), counted by
   `scripts/triage/cap.mjs`: a run claims its issue with `triage-claimed` and ranks
   today's claims by label-event id, so concurrent runs agree without a lock. The
   fifth gets `triage-queued`; the daily run drains the queue oldest first, along with
-  anything a run missed. A manual dispatch is a re-triage and isn't counted.
+  anything a run missed, dispatching one run per issue. A manual dispatch is a
+  re-triage and isn't counted.
 - **Redaction first.** `scripts/triage/redact.mjs` rewrites the issue's title and
-  body in place before the agent starts; the prompt fences them between
-  `BEGIN/END UNTRUSTED <nonce>` lines with a nonce per run, and tells the agent to
-  triage on the title alone when the body reads as an injection attempt.
-- **No push from the agent's runner.** The agent's token has `issues: write` and
-  `contents: read` only; its tool list has `git checkout -b`, `git add` and
-  `git commit` but no `git push`, `gh pr` or web tools. Its commits leave as a git
-  bundle artifact. A separate job on a fresh runner, which runs nothing the agent
-  wrote, checks every changed path with `scripts/triage/changes.mjs` (one area's own
-  files, regular files only), then pushes `claude/issue-<n>` and opens the PR with
-  `Closes #<n>` and `from-triage`, with a token that has no `workflows` permission.
-  Anything the agent ran (its gate runs its own tests) could reach the agent job's
-  tokens; that is why they can't push.
+  body in place before the agent starts, and again on what the agent is shown; the
+  prompt fences them between `BEGIN/END UNTRUSTED <nonce>` lines with a nonce per
+  run, and tells the agent to triage on the title alone when the body reads as an
+  injection attempt.
+- **Paths.** `scripts/triage/archive.mjs` reads the handover archive itself (regular
+  files only, no links or extensions) and `scripts/triage/changes.mjs` holds every
+  path to one area's own files, in `gate` before the tests and again in `finish`
+  before the push.
 - **Scope.** One area: `src/areas/<area>/`, its fixture, skill file, divergences,
   board entry, and the two generated site data files. Core, `functions/`, `infra/`,
   site pages, `.github/`, `scripts/`, `dist/`, `package.json`, the lockfile and new
   dependencies are maintainer work, denied with that explanation.
 - **Model and turns are fixed:** `--model sonnet --max-turns 100`. Transient GitHub
-  failures (5xx, 429, network) are retried. The triage summary goes to the job
-  summary from `/tmp`, never the working tree.
+  failures (5xx, 429, network) are retried. The outcome goes to the job summary.
+  Jobs that run agent-written code never use `cache: npm`, so nothing they write
+  is restored by another workflow.
 - The PRs triage opens are authored by `imagile-bot[bot]`, so `claude-review.yml`
   skips them (the App can't approve its own PR); a maintainer reviews them.
 

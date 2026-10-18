@@ -2459,14 +2459,30 @@ skill file, fixture, board entry, site data or contract entries changed.
   $50.08 (actual $8.88 plus $41.20 forecast) before anything here was added, over the
   $50 gate, though the last week's actual run rate (~$0.66/day) projects ~$19. The gate
   is the maintainer's, so the deploy waits for them; `what-if` ran clean.
-- **The agent never pushes.** The issue lists `git push` among the agent's tools and an
-  agent token with `contents: write`. `main`'s ruleset currently applies to no branch
-  (its `include` is empty, so `GET /rules/branches/main` is `[]`), so any
-  `contents: write` token can push straight to `main`, and anything the agent runs
-  (its gate runs tests it may have written) can reach its job's tokens. So the agent's
-  token is `issues: write` + `contents: read`, `git push` is off its list, its commits
-  leave as a git bundle, and a separate job on a fresh runner checks every path before
-  pushing and opening the PR. `pull-requests: write` is likewise only in that job.
+- **The agent runs no code and holds no write credential** (review round 1). The issue
+  listed `git push`, `npm test` and `gh issue …` among the agent's tools. `main`'s
+  ruleset currently applies to no branch (its `include` is empty, so
+  `GET /rules/branches/main` is `[]`), so any `contents: write` token can push straight
+  to `main`, and anything the agent's tests ran would inherit its step's
+  `CLAUDE_CODE_OAUTH_TOKEN` and `GH_TOKEN`. So the agent has `Read`, `Glob`, `Grep`,
+  `Edit` and `Write` only (no Bash at all, so not even the scoped `gh issue` commands
+  the review allowed), and writes its decision, comment and PR text to `.triage-out/`.
+  Four jobs: `select` (claim, redact), `triage` (the agent; workflow token read-only;
+  handover by shell utilities only, as a ustar archive), `gate` (the agent's code, no
+  secrets, `contents: read`, no cache) and `finish` (main's scripts only; applies the
+  decision, and pushes and opens the PR for a fix that passed). The table is in the
+  `automation` skill.
+- **One issue per run.** The daily run dispatches a run per issue it claims, instead of
+  a matrix, so `needs.gate.result` in `finish` is that issue's alone.
+- **`claude-triage` from the Imagile Bot** counts only on an issue that already carries
+  `from-website` or `from-terminal`, and still goes through the cap.
+- **The client address is the last `X-Forwarded-For` entry** (review round 1), the hop
+  Azure's front end appends; Microsoft documents the append for Front Door, not in so
+  many words for App Service, so the first deploy confirms it. No platform-only header
+  (`X-Azure-ClientIP`, `X-Azure-SocketIP`) is documented for Flex Consumption itself, and
+  a client could send one directly, so neither is trusted. Limits that hold whatever a
+  caller claims: `MAX_PENDING_SUBMISSIONS` (100), `REPORT_DAILY_LIMIT` (30) and
+  `COMMIT_LOOKUP_DAILY_LIMIT` (50), each a plain 429.
 - **The path check also allows** the two generated per-area site files
   (`site/src/data/commands/<area>.json`, `site/src/data/settings/<area>.json`), which
   `npx vitest run -u` rewrites when a command changes; without them a command fix

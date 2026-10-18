@@ -18,6 +18,12 @@ export interface Settings {
   submitIpDailyLimit: number;
   /** Submissions per IP per UTC day through /api/report. */
   reportIpDailyLimit: number;
+  /** /api/report submissions per UTC day across every caller. */
+  reportDailyLimit: number;
+  /** GitHub commit lookups per UTC day across every caller (cache hits don't count). */
+  commitLookupDailyLimit: number;
+  /** Pending rows past which nothing more is queued. */
+  maxPending: number;
   /** Minutes an attempted submission may stay unconverted before it counts as stuck. */
   staleMinutes: number;
   emailFrom: string;
@@ -54,6 +60,9 @@ export function readSettings(env: Record<string, string | undefined> = process.e
     dailyIssueLimit: intSetting(env, 'DAILY_SUBMISSION_LIMIT', 10),
     submitIpDailyLimit: intSetting(env, 'IP_DAILY_LIMIT', 10),
     reportIpDailyLimit: intSetting(env, 'REPORT_IP_DAILY_LIMIT', 3),
+    reportDailyLimit: intSetting(env, 'REPORT_DAILY_LIMIT', 30),
+    commitLookupDailyLimit: intSetting(env, 'COMMIT_LOOKUP_DAILY_LIMIT', 50),
+    maxPending: intSetting(env, 'MAX_PENDING_SUBMISSIONS', 100),
     staleMinutes: intSetting(env, 'STALE_SUBMISSION_MINUTES', 15),
     emailFrom: text(env, 'EMAIL_FROM_ADDRESS') ?? 'no-reply@imagile.dev',
     githubAppId: text(env, 'GITHUB_APP_ID'),
