@@ -220,7 +220,8 @@ export const workLinkCommand = adoArea.command({
 
 /** The most work items one WIQL query returns; a query matching more is refused by the server. */
 export const WIQL_MAX = 20_000;
-const UPDATED_SINCE = 'Only work items changed at or after this ISO 8601 instant: a date (UTC midnight) or a date-time with its zone. ANDed onto the query as [System.ChangedDate] >= it';
+const UPDATED_SINCE =
+  'Only work items changed at or after this ISO 8601 instant: a date (UTC midnight) or a date-time with its zone. ANDed onto the query as [System.ChangedDate] >= it. Turns on time precision for the whole query, so = on a date field matches one exact instant: use >= and < instead';
 
 interface WiqlResult {
   workItems?: unknown[];
@@ -231,7 +232,7 @@ export const workSearchCommand = adoArea.command({
   path: ['ado', 'work', 'search'],
   description: 'Run a WIQL query (consider --output-file for large results)',
   toolDescription:
-    "Runs a WIQL query in the project and returns the server's answer: the matching work item ids and urls (workItems), not their fields. Fetch fields with ado_work_get_batch. updatedSince (an ISO 8601 date or zoned date-time) ANDs [System.ChangedDate] >= it onto a flat query. With limit, workItems holds at most that many; pass meta.page.nextCursor as cursor for the next page, which runs the query again.",
+    "Runs a WIQL query in the project and returns the server's answer: the matching work item ids and urls (workItems), not their fields. Fetch fields with ado_work_get_batch. updatedSince (an ISO 8601 date or zoned date-time) ANDs [System.ChangedDate] >= it onto a flat query and turns on time precision for the whole query, so = on any date field then matches one exact instant: write date conditions with >= and < instead. With limit, workItems holds at most that many; pass meta.page.nextCursor as cursor for the next page, which runs the query again.",
   input: z.object({
     wiql: z.string().describe('WIQL query string'),
     updatedSince: z.string().optional().describe(UPDATED_SINCE),

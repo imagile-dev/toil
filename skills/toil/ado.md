@@ -117,6 +117,9 @@ Work items (`--id <n>`):
   (`2026-10-01`, UTC midnight) or a date-time with its zone (`2026-10-01T09:00:00Z`).
   toil ANDs `[System.ChangedDate] >= '<instant>'` onto the query's own `WHERE`, in
   parentheses so an `OR` keeps its meaning, and asks the server for time precision.
+  Time precision applies to the whole query, so with `--updated-since` an `=` on a
+  date field (`[System.CreatedDate] = @Today`) matches one exact instant, not a day;
+  write date conditions with `>=` and `<` instead.
   It and `--limit` work on flat queries (`FROM WorkItems`) only; a link query is
   refused. With `--limit`, each page runs the query again, so an item changed in
   between can move. A query returns at most 20,000 items, so a page can't end past
