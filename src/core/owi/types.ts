@@ -27,12 +27,13 @@ const GITHUB: OwiSource = { family: 'github', items: ['list-issues', 'search-iss
 /**
  * The areas toil maps to OWI. An area that sends one of these shapes is one
  * line here: Data Center and Cloud variants share their family's mapper
- * (`jira-cloud`), and a cloud Azure DevOps area would be `'ado-cloud': ADO`.
+ * (`jira-cloud`, `ado-cloud`).
  */
 export const OWI_SOURCES: Record<string, OwiSource> = {
   jira: JIRA,
   'jira-cloud': JIRA,
   ado: ADO,
+  'ado-cloud': ADO,
   github: GITHUB,
 };
 export const OWI_AREAS = Object.keys(OWI_SOURCES);
