@@ -6,6 +6,7 @@ import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
 import { canned as secretsGit, files as secretsFiles } from './util-secrets.js';
 import { makeChain } from '../harness/x509.js';
+import { adoBatch, pay104Changelog, sprintJsonl } from './owi/sprint.js';
 
 /**
  * The `util` group's commands are standalone and local: jwt decode and semver read only
@@ -221,6 +222,10 @@ export const files: Record<string, string | Uint8Array> = {
   ...openapiSamples,
   // The sample C4 model the util c4 examples draw, the same file as docs/c4/bookshop.c4.json.
   'bookshop.c4.json': BOOKSHOP_C4,
+  // util owi map's input: one sprint across Jira, Azure DevOps and GitHub (test/fixtures/owi/sprint.ts).
+  'owi/sprint-42.jsonl': sprintJsonl,
+  'owi/jira-changelog.json': pay104Changelog,
+  'owi/ado-get-batch.json': adoBatch,
 };
 
 /** Every file the examples read: the tree above, plus `secrets scan`'s samples. */
