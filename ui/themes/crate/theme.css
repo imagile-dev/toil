@@ -30,7 +30,7 @@
   color: transparent;
 }
 
-[data-theme="crate"] .card {
+[data-theme="crate"] .dossier-card {
   border-left: 3px solid var(--accent);
 }
 
