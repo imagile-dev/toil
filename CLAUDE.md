@@ -228,6 +228,8 @@ GitHub Actions; its build tooling is out of scope.
   data and every animation frame a pure function of time, so both are unit-tested.
   One file of views per menu module under `views/`, registered in `views/index.ts`;
   every action runs a real `toil` command in-process and shows the line it ran.
+  The one exception is brick breaker, a game for the wait on a build: its rules are
+  pure functions in `brick/`, and the loop hands it the screen until q.
 - `src/shims/` — build-time stand-ins (the no-spawn stub, and the Azure SDK stub that keeps tedious's cloud sign-in out of the bundle)
 - `src/**/*.test.ts`, `test/` — Vitest; `test/harness/` holds the shared fakes,
   `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands;

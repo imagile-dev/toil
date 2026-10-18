@@ -19,6 +19,8 @@ export type Health = { ok: true; live: boolean; authenticated?: boolean } | { ok
 /** What the menu has learned since it opened. Nothing here is saved. */
 export interface Session {
   health: Record<string, Health>;
+  /** Brick breaker's scores: the best and the last game this session, never saved. */
+  brick?: { best: number; last: number };
 }
 
 /** One screen on the stack: which view, the highlighted row, and its own state. */
@@ -68,6 +70,8 @@ export type Action =
   /** Open a view; `root` first pops back to the nearest frame showing that view. */
   | { go: string; params?: Record<string, string>; root?: string }
   | { run: Run }
+  /** Hand the screen and keyboard to the game until it returns. */
+  | { play: 'brick' }
   | { back: true }
   | { quit: true };
 
