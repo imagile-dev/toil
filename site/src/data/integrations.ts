@@ -31,6 +31,8 @@ export interface Integration {
   credentialWhere?: string;
   /** One more sentence about the credential (a CI fallback, a shared key), shown under Credential on the docs page. No closing full stop. */
   credentialNote?: string;
+  /** No server at all: the area works on the local repository (git). Its page has no credential, configuration or connection to describe. */
+  local?: true;
   supported?: SupportedVersion;
 }
 
@@ -121,6 +123,9 @@ export const statusMeaning: Record<Status, string> = {
   integration: 'Automated tests pass against a real instance in CI.',
   live: "In day-to-day use against a real organization's instance.",
 };
+
+/** The `unit` status for an area with no server: its tests stub git, not HTTP. */
+export const localUnitMeaning = 'Shipped, with its logic tested against a stubbed git, and its parsers checked once against the real git in a scratch repository.';
 
 /** `Azure DevOps Server 2022.1 or later (REST API 7.1)`, or that the minimum isn't established. Worded as src/core/supported.ts words it. */
 export function supportedText(s: SupportedVersion): string {
