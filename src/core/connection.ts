@@ -113,9 +113,18 @@ export async function resolveConnection(
       fix: vars.length ? `Set ${vars.join(' and ')}, or fix ${keys.join(', ')} on "${name}" in your toil config.` : `Fix connection "${name}" in your toil config.`,
       details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
     };
-    const message = `Connection ${name} (${area.name}) is missing or has invalid ${keys.join(', ') || 'settings'}.`;
     // Only unset keys, nothing set wrong: a command that answers "not set up" itself may still run.
     const incomplete = keys.length > 0 && keys.every((k) => merged[k] === undefined);
+    // A value that is set but wrong says why, not only which key: the reason is the useful part.
+    const reasons = parsed.error.issues
+      .filter((i) => i.path.length === 0 || merged[String(i.path[0])] !== undefined)
+      .map((i) => {
+        // An area's own message may already end its sentence; the full stop is added once, below.
+        const reason = i.message.replace(/\.+$/, '');
+        return i.path.length ? `${i.path.join('.')}: ${reason}` : reason;
+      });
+    const why = !incomplete && reasons.length ? ` ${[...new Set(reasons)].join('; ')}.` : '';
+    const message = `Connection ${name} (${area.name}) is missing or has invalid ${keys.join(', ') || 'settings'}.${why}`;
     throw incomplete ? new IncompleteConnectionError(message, options) : new ToilError('CONFIG_INVALID', message, options);
   }
   return { ...(parsed.data as Record<string, unknown>), name, area: area.name, writes: connectionWrites(stored) };
