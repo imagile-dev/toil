@@ -1076,3 +1076,48 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   refuses a document where that passes 1,000,000 values (`INVALID_INPUT`). A
   document without aliases is held by the input cap alone. js-yaml has no switch
   to reject aliases, and the count also stops a cycle.
+
+### util encode (#182)
+
+- **One command, the scheme as its first argument:** `toil util encode <scheme>`,
+  with `--decode`, and the three hashes as schemes too (`util encode sha256`), rather
+  than a command per scheme or a separate hash command. One MCP tool, `util_encode`.
+- **`--out` follows `git report --out` and the attachment downloads:** a new file
+  inside the workspace through `ctx.files.writeBytes`, which never overwrites, and
+  `writes: false`. It changes nothing outside this machine, which is what the
+  `--allow-write` gate is for, and a standalone command has no connection to hold
+  `writes`. The file is read back and compared (`output.file`).
+- **Decoded bytes that aren't valid UTF-8 are refused without `--out`**
+  (`INVALID_INPUT`, the fix naming `--out`), rather than returned as base64 or hex.
+  The caller asked for a decode; a second encoding they didn't ask for would be a
+  guess. Valid UTF-8, NUL bytes included, is returned as text, since JSON carries
+  it unchanged.
+- **The decoders are strict where Buffer is lenient:** a character outside the
+  alphabet, misplaced padding, an impossible length, an odd number of hex digits or
+  a `%` without two hex digits is `INVALID_INPUT`, naming the offset but never the
+  character. Whitespace is ignored in base64 and hex (MIME wraps lines), and one
+  trailing line ending is dropped before any decode.
+- **Normalization for the re-encode check** is whitespace, padding (base64 padded,
+  base64url not, as each is written), hex and `%XX` case, and `%20` for `+` in a
+  form. Anything else that decodes but doesn't re-encode the same (base64 `QR==`, a
+  raw space in a URL) fails `roundtrip.encode` and warns `ENCODE_ROUNDTRIP_MISMATCH`;
+  the decoded result is still returned, as the kit reports rather than refuses.
+- **`url` is `encodeURIComponent`'s set** (`-_.!~*'()` unescaped), so what
+  JavaScript writes reads back unchanged; **`form`** is the WHATWG
+  `application/x-www-form-urlencoded` set. Both work over bytes, so input that isn't
+  UTF-8 encodes too.
+- **A file hash has no size cap**, since it streams; stdin and encode/decode keep
+  the reader's 64 MiB. A hash whose read stopped short still returns its digest,
+  with `input.complete` failed, `verified.passed` false and `INPUT_INCOMPLETE`, as
+  the kit reports every failed check.
+- **Kit addition:** `utf8: 'skip'` on the input reader, so a command that treats
+  content as bytes doesn't warn `INPUT_NOT_UTF8` about bytes it never shows as text.
+- **The work isn't lazily loaded.** `encode/run.ts` reads through `kit/input.ts`,
+  which imports zod, and reaching zod through `import()` made esbuild defer zod's
+  setup, so the built bundle failed at startup (`toil version` included) while
+  every unit test passed. It's small and uses only Node built-ins, so it's a
+  static import; `docs/util.md` now warns about the trap under Lazy loading.
+- **The audit log keeps only a hash of `text`** (`auditInput`), since the content
+  may be a credential on its way into a header.
+- **The utilities page shows a short path only for `jwt` and `deps`,** the commands
+  that have one, instead of assuming every `util` command does.
