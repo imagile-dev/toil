@@ -410,3 +410,18 @@ describe.skipIf(process.platform !== 'linux')('handover.sh and the job secrets (
     expect(readFileSync(join(out, 'comment.md'), 'utf8')).toBe('');
   });
 });
+
+describe('a decision clears the failure labels', () => {
+  it('a manual re-triage that succeeds takes off triage-queued and triage-failed as well as the claim', async () => {
+    const gh = fakeGitHub([issue(240, { labels: ['from-website', QUEUED, FAILED] })]);
+    // workflow_dispatch: the issue is selected without a claim.
+    expect(await select({ env: { ...base, EVENT: 'workflow_dispatch', DISPATCHED: '240' }, fetcher: gh.fetcher, log: quiet })).toEqual({ issues: '[240]' });
+    const handover = temp('toil-handover-');
+    writeFileSync(join(handover, 'agent-ok'), 'ok');
+    writeFileSync(join(handover, 'decision.json'), '{"decision":"deny","areas":["jira"]}');
+    writeFileSync(join(handover, 'comment.md'), 'Out of scope.');
+    const decided = await decideStep({ env: { NUMBER: '240', HANDOVER: handover }, cwd: checkout(), log: quiet });
+    await apply({ env: { ...base, NUMBER: '240', HANDOVER: handover, DECISION: decided.decision, LABELS: decided.labels }, fetcher: gh.fetcher });
+    expect(gh.byNumber.get(240)!.labels.sort()).toEqual(['area:jira', 'denied', 'from-website', 'triaged']);
+  });
+});

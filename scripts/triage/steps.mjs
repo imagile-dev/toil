@@ -246,7 +246,9 @@ export async function apply({ env, fetcher = fetch }) {
   const o = options(env, fetcher);
   await gh('POST', `/repos/${repo}/issues/${number}/comments`, { body: body.trim() || 'Triaged.' }, o);
   await gh('POST', `/repos/${repo}/issues/${number}/labels`, { labels }, o);
-  await gh('DELETE', `/repos/${repo}/issues/${number}/labels/${CLAIMED}`, undefined, o);
+  // A decision ends the issue's time in triage: the claim, the queue and an earlier
+  // failure all come off, whether it came from a label, the queue or a manual re-triage.
+  for (const label of [CLAIMED, QUEUED, FAILED]) await gh('DELETE', `/repos/${repo}/issues/${number}/labels/${label}`, undefined, o);
   if (decision === 'deny') await gh('PATCH', `/repos/${repo}/issues/${number}`, { state: 'closed', state_reason: 'not_planned' }, o);
   if (decision === 'duplicate') await gh('PATCH', `/repos/${repo}/issues/${number}`, { state: 'closed', state_reason: 'duplicate' }, o);
   return {};
