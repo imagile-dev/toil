@@ -24,21 +24,35 @@ in more depth.
 
 ## Quick start
 
-Node.js 24.14 or later, on Windows, macOS or Linux. There is no executable, no native
-module and no install script.
+There are two ways to run toil: install it from npm, or run it from a clone. Both
+need Node.js 24.14 or later, on Windows, macOS or Linux. There is no executable, no
+native module and no install script.
+
+### From npm
 
 ```bash
-npm i -g @imagile-dev/toil
+npm install -g @imagile-dev/toil
 toil version
 toil deps scan      # inventory the npm, Maven and NuGet packages in this folder
 toil mcp            # serve toil to an agent over stdio
 ```
 
-The first alpha isn't on npm yet; until it is, `npm i` fails with a 404, so run toil
-from a clone (below). Setup, connections and every command are on the
+Releases are alpha and published under npm's `alpha` tag, which `latest` follows
+until 1.0. Setup, connections and every command are on the
 [site](https://imagile-dev.github.io/toil/docs/).
 
 ## Running from a clone
+
+One command clones toil, builds it, adds a `toil` alias to your shell profile and
+prints `toil version`:
+
+```bash
+git clone https://github.com/imagile-dev/toil.git && cd toil && node scripts/setup.mjs
+```
+
+`node scripts/setup.mjs --skip-build` uses the committed bundle with no
+`npm install`, and `--no-alias` leaves your shell profile alone. Running it again is
+safe. The long form follows.
 
 `dist/toil.js` and the bundle it runs, `dist/toil-lib.js`, are committed, and they
 are the last released toil, so a clone runs as it is, with no `npm install`. They
@@ -68,6 +82,9 @@ npm ci
 npm run build       # writes dist/toil-lib.js, dist/toil.js, dist/api.js, dist/api.d.ts and the metafiles
 node dist/toil.js version
 ```
+
+A build rewrites the committed `dist/toil.js`, so run `git checkout -- dist/` before
+`git pull`, then build again (or run `node scripts/setup.mjs`).
 
 Don't commit the rebuilt `dist/`; `git checkout -- dist/` puts the released bundle
 back. Until the first release, `dist/toil-lib.js` isn't committed yet, so after a

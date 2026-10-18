@@ -6,6 +6,7 @@ import Logo from '../components/Logo.astro';
 import { integrationCount } from '../data/integrations';
 import { principles } from '../data/principles';
 import { url, repoUrl } from '../lib/url';
+import { cloneBuild, cloneManual, cloneQuick, npmCommands, npmPackageUrl } from '../data/start';
 
 const stats = [
   { value: integrationCount, label: integrationCount === 1 ? 'Integration shipped' : 'Integrations shipped' },
@@ -85,7 +86,7 @@ const teaser = principles.slice(0, 3);
     <div class="hero__glow hero__glow--warm" aria-hidden="true"></div>
     <div class="container hero__inner">
       <div class="hero__copy">
-        <p class="eyebrow hero__in" style="--i: 0"><span><b>Pre-release</b> · Open source · By <a class="hero__imagile" href="https://www.imagile.dev">Imagile</a></span></p>
+        <p class="eyebrow hero__in" style="--i: 0"><span><b>Alpha</b> · Open source · By <a class="hero__imagile" href="https://www.imagile.dev">Imagile</a></span></p>
         <h1 class="hero__title">
           <span class="hero__in" style="--i: 1">The <em class="hero__mark text-gradient">token-efficient</em></span>
           <span class="hero__in" style="--i: 2">alternative to MCP.</span>
@@ -97,11 +98,9 @@ const teaser = principles.slice(0, 3);
           schema up front.
         </p>
         <div class="hero__actions hero__in" style="--i: 4">
-          <a href="#demo" class="btn btn--primary">See it work</a>
-          <a href={repoUrl} class="btn btn--ghost">Follow on GitHub</a>
-        </div>
-        <p class="hero__install hero__in" style="--i: 5"><span>$</span> npm install -g @imagile-dev/toil <em>coming soon</em></p>
-      </div>
+          <a href="#start" class="btn btn--primary">Get started</a>
+          <a href="#demo" class="btn btn--ghost">See it work</a>
+        </div>      </div>
       <div class="hero__art" aria-hidden="true">
         <img
           src={url('/images/hero-diagram-1536.webp')}
@@ -120,6 +119,45 @@ const teaser = principles.slice(0, 3);
   </section>
 
   <Ticker />
+
+  <!-- ============ Get started ============ -->
+  <section class="section--tight start" id="start" aria-labelledby="start-title">
+    <div class="container">
+      <div class="section-head">
+        <p class="eyebrow">Get started</p>
+        <h2 id="start-title">Two ways to run it.</h2>
+        <p>Both need Node.js 24.14 or later, on Windows, macOS or Linux. <span class="start__alpha">Alpha</span> APIs and flags may change before 1.0.</p>
+      </div>
+      <div class="start__ways">
+        <article class="card start__way" aria-labelledby="start-npm">
+          <span class="card-tag">npm</span>
+          <h3 id="start-npm">Install from npm</h3>
+          <p>One global install puts <code>toil</code> on your PATH.</p>
+          <pre class="start__code"><code>{npmCommands.map((c) => <span class="start__line"><span class="start__prompt" aria-hidden="true">$ </span>{c}</span>)}</code></pre>
+          <p class="start__links">
+            <a class="tap" href={npmPackageUrl}>npm package <span aria-hidden="true">→</span></a>
+            <a class="tap" href={url('/docs/install/')}>Install docs <span aria-hidden="true">→</span></a>
+          </p>
+        </article>
+        <article class="card start__way" aria-labelledby="start-clone">
+          <span class="card-tag">git</span>
+          <h3 id="start-clone">Run from a clone</h3>
+          <p>Clones toil, builds it, adds a <code>toil</code> alias to your shell and prints <code>toil version</code>.</p>
+          <pre class="start__code"><code><span class="start__line"><span class="start__prompt" aria-hidden="true">$ </span>{cloneQuick}</span></code></pre>
+          <details class="start__more">
+            <summary class="tap">Step by step</summary>
+            <p>The committed bundle runs with no <code>npm install</code>:</p>
+            <pre class="start__code"><code>{cloneManual.map((c) => <span class="start__line"><span class="start__prompt" aria-hidden="true">$ </span>{c}</span>)}</code></pre>
+            <p>Or build what's on <code>main</code> now:</p>
+            <pre class="start__code"><code>{cloneBuild.map((c) => <span class="start__line"><span class="start__prompt" aria-hidden="true">$ </span>{c}</span>)}</code></pre>
+          </details>
+          <p class="start__links">
+            <a class="tap" href={`${repoUrl}#running-from-a-clone`}>README <span aria-hidden="true">→</span></a>
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
 
   <!-- ============ Stats ============ -->
   <section class="section--tight">
@@ -327,7 +365,7 @@ const teaser = principles.slice(0, 3);
     <div class="container cta__inner" data-reveal>
       <div class="cta__mark"><Logo height={128} /></div>
       <h2>Watch it get built.</h2>
-      <p>toil is pre-release and developed in the open. Star the repo or watch releases to hear when the first version lands on npm.</p>
+      <p>toil is alpha and developed in the open. Star the repo or watch releases to follow each one.</p>
       <div class="hero__actions">
         <a href={repoUrl} class="btn btn--primary">Star on GitHub</a>
         <a href={`${repoUrl}/releases`} class="btn btn--ghost">Watch releases</a>
@@ -442,25 +480,48 @@ const teaser = principles.slice(0, 3);
 
   .hero__actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 
-  .hero__install {
-    margin-top: var(--space-md);
+  /* The Alpha badge by the install commands; the hero's eyebrow says it too. */
+  .start__alpha {
     font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    color: var(--color-ink);
-  }
-  .hero__install span { color: var(--color-accent); }
-  .hero__install em {
     font-style: normal;
-    margin-left: 0.6rem;
+    margin-right: 0.5rem;
     font-size: 0.68rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--color-faint);
-    border: 1px dashed var(--color-line-strong);
+    color: var(--color-accent);
+    border: 1px solid color-mix(in oklab, var(--color-accent) 55%, transparent);
     border-radius: 999px;
     padding: 0.1rem 0.5rem;
     white-space: nowrap;
   }
+
+  /* ---------- Get started ---------- */
+  .start__ways { display: grid; gap: var(--space-md); }
+  .start__way { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
+  .start__way h3 { font-size: var(--text-xl); margin-top: var(--space-2xs); }
+  .start__way p { color: var(--color-muted); font-size: var(--text-sm); }
+  .start__way code { font-size: 0.9em; color: var(--color-ink); }
+  .start__code {
+    margin: 0;
+    padding: 0.7rem 0.8rem;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-deep);
+    border: 1px solid var(--color-line);
+    font-size: 0.75rem;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+  .start__code code { font-size: inherit; }
+  /* Long lines wrap with a hanging indent rather than hide off the edge. */
+  .start__line { display: block; white-space: pre-wrap; overflow-wrap: anywhere; padding-left: 1.2em; text-indent: -1.2em; }
+  .start__prompt { color: var(--color-accent); }
+  .start__more summary { cursor: pointer; color: var(--color-muted); font-size: var(--text-sm); }
+  .start__more[open] summary { color: var(--color-ink); }
+  .start__more { display: grid; gap: var(--space-xs); }
+  .start__more > p { margin-top: var(--space-2xs); }
+  .start__links { display: flex; flex-wrap: wrap; gap: 0 1.4rem; margin-top: auto; }
+  .start__links a { font-family: var(--font-action); font-weight: 500; color: var(--color-accent); }
+  @media (min-width: 860px) { .start__ways { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
   /* The drawing was generated on the page colour, so lighten lets the
      drafting grid show through exactly as a transparent PNG would. The blend

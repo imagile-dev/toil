@@ -2609,3 +2609,21 @@ skill file, fixture, board entry, site data or contract entries changed.
 - **The MCP section stays**, renamed "Still speaks MCP", since `toil mcp` remains for
   clients that want it; "runs where executables are blocked" stays in the
   locked-down section and the README, below the new lead.
+- **Two ways to start, from one list.** The homepage's npm and clone cards render
+  `site/src/data/start.ts`; the README stays the prose source, and
+  `test/start-commands.test.ts` fails when a line there isn't in README.md word for
+  word. A test rather than one shared file, because the README is plain Markdown.
+- **Alpha, not pre-release.** The hero eyebrow, the start section's badge, the
+  how-it-works note, the CTA, the README and `install.md` say "Alpha: APIs and flags
+  may change before 1.0". The hero's separate install line is gone (the eyebrow says
+  Alpha, and the commands moved to the start section). The terminal recording's
+  sample version is now `alpha`.
+- **`scripts/setup.mjs` keeps its build.** The request said to restore `dist/` after
+  building, but the build is the point: the alias runs `dist/toil.js`, so restoring it
+  would run the last release instead. The script leaves the build in place and says
+  plainly to run `git checkout -- dist/` before `git pull`; the README says the same.
+  `--skip-build` is the path that leaves the clone untouched.
+- **PowerShell profile:** the script runs `setup alias` as it is, so toil's own
+  `pickShell` decides the shell. Only when it answers that PowerShell needs a profile
+  does the script ask PowerShell for `$PROFILE` (`pwsh` when PSModulePath names
+  PowerShell 7, else Windows PowerShell) and run it again with `--profile`.
