@@ -285,7 +285,11 @@ describe("Two Weeks' Notice: the encrypted save", () => {
 
   it('seals and opens for the same account, and not for another or after an edit', () => {
     const sealed = seal(progress, who);
-    expect(sealed).not.toContain('77');
+    // The bytes under the base64url hold no readable save. Checking the encoded text for
+    // '77' failed by chance whenever random ciphertext happened to contain it.
+    const bytes = Buffer.from(sealed.slice(sealed.indexOf('.') + 1), 'base64url').toString('latin1');
+    expect(bytes).not.toContain('"pto"');
+    expect(bytes).not.toContain(JSON.stringify(progress));
     expect(unseal(sealed, who)).toEqual(progress);
     expect(unseal(sealed, { ...who, user: 'alex' })).toBeUndefined();
     const at = sealed.length - 5;
