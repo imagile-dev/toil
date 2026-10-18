@@ -46,8 +46,20 @@ export function schemaDraft(schema: unknown, fallback: SchemaDraft = '2020-12'):
   return fallback;
 }
 
-/** `#/a/b` (cfworker's form) -> `/a/b`. */
-const pointer = (location: string) => (location.startsWith('#') ? location.slice(1) : location);
+/**
+ * `#/a/b` (cfworker's form) -> `/a/b`. cfworker URI-encodes each token
+ * (`/paths/~1pets~1%7Bid%7D`); a JSON pointer has no encoding, so it's
+ * decoded back (`/paths/~1pets~1{id}`). decodeURI is the exact inverse of the
+ * encodeURI it used.
+ */
+const pointer = (location: string) => {
+  const raw = location.startsWith('#') ? location.slice(1) : location;
+  try {
+    return decodeURI(raw);
+  } catch {
+    return raw;
+  }
+};
 
 /**
  * Validates `value` against `schema`. `references` are further schemas a `$ref`
@@ -71,4 +83,29 @@ export function validateSchema(schema: Schema | boolean, value: unknown, options
   problems.sort((a, b) => b.pointer.split('/').length - a.pointer.split('/').length);
   const max = options.maxProblems ?? 50;
   return { valid: false, problems: problems.slice(0, max), total: problems.length };
+}
+
+/** Keywords that fail only because something inside them did. */
+const APPLICATORS = new Set(['$ref', '$dynamicRef', 'properties', 'additionalProperties', 'patternProperties', 'items', 'prefixItems', 'additionalItems', 'allOf', 'anyOf', 'oneOf', 'if', 'then', 'else', 'dependentSchemas', 'contains', 'unevaluatedProperties', 'unevaluatedItems', 'propertyNames']);
+
+/**
+ * The problems that say what is actually wrong: a validator also reports
+ * every enclosing keyword that failed because of a deeper one ("A subschema
+ * had errors" at the root). This keeps a problem only when nothing deeper
+ * failed, and at one pointer drops the applicators (`$ref`, `properties`,
+ * `allOf`) and a `false` schema when a keyword that checks the value itself
+ * (`type`, `required`) failed there too.
+ * Pass every problem (`maxProblems: Infinity`), then cap what this returns.
+ */
+export function leafProblems(problems: SchemaProblem[]): SchemaProblem[] {
+  // Every pointer that has a failing pointer below it.
+  const enclosing = new Set<string>();
+  for (const { pointer } of problems) {
+    const tokens = pointer.split('/');
+    for (let n = 1; n < tokens.length; n++) enclosing.add(tokens.slice(0, n).join('/'));
+  }
+  const leaves = problems.filter((p) => !enclosing.has(p.pointer));
+  const secondary = (p: SchemaProblem) => APPLICATORS.has(p.keyword) || p.keyword === 'false';
+  const direct = new Set(leaves.filter((p) => !secondary(p)).map((p) => p.pointer));
+  return leaves.filter((p) => !secondary(p) || !direct.has(p.pointer));
 }

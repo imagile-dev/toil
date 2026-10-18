@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { GitResult, GitRunner } from '../../src/core/git.js';
 import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
@@ -13,6 +14,16 @@ import { callKey } from './git.fixture.js';
  * format, the project files MSBuild's and Maven's, and the git output is the
  * shape `git ls-tree -r --name-only` prints. Every package is real and every
  * version an old one, which is how most dependency reviews find them.
+ *
+ * The OpenAPI samples (test/fixtures/openapi/) are the vendors' own published
+ * documents, trimmed: Atlassian's Jira platform REST API (OpenAPI 3.0.1, the
+ * /rest/api/2 paths, Apache-2.0), GitHub's REST API description (OpenAPI 3.1.0,
+ * MIT, as YAML, which GitHub also publishes) and Bitbucket's (Swagger 2.0).
+ * Each keeps a handful of operations exactly as published plus every component
+ * they reach; descriptions are cut to their first sentence, examples and x-*
+ * extensions dropped, the Jira tenant host replaced with jira.imagile.dev and
+ * contact addresses with you@example.com. Each still validates against its
+ * version's schema.
  */
 
 export const PACKAGE_JSON = JSON.stringify({
@@ -68,7 +79,15 @@ export const POM = `<project>
 </project>
 `;
 
-/** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
+const sample = (name: string) => readFileSync(new URL(`./openapi/${name}`, import.meta.url), 'utf8');
+/** The OpenAPI samples, by the workspace path the examples read them from. */
+export const openapiSamples = {
+  'specs/jira-platform.json': sample('jira-platform.json'),
+  'specs/github.yaml': sample('github.yaml'),
+  'specs/bitbucket.json': sample('bitbucket.json'),
+};
+
+/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, and three OpenAPI documents. */
 export const files: Record<string, string> = {
   '.gitignore': 'vendor/\n',
   'package.json': PACKAGE_JSON,
@@ -77,6 +96,7 @@ export const files: Record<string, string> = {
   'src/Api/Api.csproj': CSPROJ,
   'pom.xml': POM,
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
+  ...openapiSamples,
 };
 
 /** What each ref holds, path by path. */

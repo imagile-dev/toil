@@ -130,3 +130,15 @@ that it is evaluated on first use, not at startup. A static import anywhere undo
 that, so ESLint refuses a static import of `js-yaml`, `@cfworker/json-schema`,
 `kit/yaml` and `kit/json-schema` outside those wrappers and tests. A type-only import
 is allowed, since it's erased. Treat a command's own heavy module the same way.
+
+A module loaded through `import()` must not import zod, directly or through
+`kit/input.ts`. esbuild then defers zod's own setup too, the MCP SDK's
+schemas hit it at startup, and the bundle fails on every command, `toil version`
+included; the unit suite doesn't notice, `npm run smoke` does. Keep the reading
+in the command's small module and hand the lazy one bytes or text.
+
+Data a command bundles (the OpenAPI schemas `util openapi` validates against, in
+`src/areas/util/openapi/schemas/`) is vendored as published, with its source and
+licence in `NOTICE`, and imported as JSON from inside the lazy module
+(`await import('./schemas/x.json', { with: { type: 'json' } })`), so it loads with
+the command and nothing is fetched.

@@ -22,3 +22,43 @@ when such a command runs:
   Vitaly Puzrin, licensed under the MIT License.
 - @cfworker/json-schema (https://github.com/cfworker/cfworker), by Jeremy
   Danyow, licensed under the MIT License.
+
+`util openapi` bundles, as published and loaded only when it runs, the schemas it
+validates documents against (src/areas/util/openapi/schemas/):
+
+- The OpenAPI 3.0 (2024-10-18), 3.1 (2025-11-23) and 3.2 (2025-11-23) schemas and
+  the Swagger 2.0 schema (2017-08-27), from https://spec.openapis.org/oas/,
+  published by the OpenAPI Initiative (https://github.com/OAI/OpenAPI-Specification),
+  a Linux Foundation project, licensed under the Apache License, Version 2.0.
+- The JSON Schema draft-04 meta-schema (http://json-schema.org/draft-04/schema),
+  which the Swagger 2.0 schema refers to, offered under the Academic Free License
+  3.0 or the BSD 3-Clause License, used here under the BSD 3-Clause License:
+
+  Copyright (c) 2022 JSON Schema Specification Authors
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are
+  met:
+
+  1. Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer.
+
+  2. Redistributions in binary form must reproduce the above copyright
+  notice, this list of conditions and the following disclaimer in the
+  documentation and/or other materials provided with the distribution.
+
+  3. Neither the name of the copyright holder nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { schemaDraft, validateSchema, type Schema } from './json-schema.js';
+import { leafProblems, schemaDraft, validateSchema, type Schema } from './json-schema.js';
 import { MAX_YAML_NODES, parseYaml } from './yaml.js';
 
 /** An OpenAPI 3.0 fragment in YAML, the way vendors publish them, with a placeholder server. */
@@ -98,6 +98,18 @@ describe('validateSchema', () => {
     const minLength = result.problems.find((p) => p.keyword === 'minLength')!;
     expect(minLength.schemaPointer).toBe('/properties/content/items/$ref/properties/text/minLength');
     expect(result.total).toBe(result.problems.length);
+  });
+
+  it('gives pointers as JSON pointers, not URI fragments: braces, spaces and percent signs as written', () => {
+    const schema: Schema = { type: 'object', additionalProperties: { type: 'object', required: ['get'] } };
+    const result = validateSchema(schema, { '/pets/{id}': {}, 'a b': {}, '100%': {} });
+    expect(result.problems.map((p) => p.pointer).filter(Boolean).sort()).toEqual(['/100%', '/a b', '/~1pets~1{id}']);
+  });
+
+  it('leafProblems keeps what is wrong and drops the enclosing keywords that failed because of it', () => {
+    const result = validateSchema(DRAFT4, { type: 'doc', version: 1, content: [{ type: 'text', text: '' }, {}] }, { maxProblems: Infinity });
+    expect(result.problems.some((p) => p.pointer === '' || p.keyword === 'items' || p.keyword === '$ref')).toBe(true);
+    expect(leafProblems(result.problems).map((p) => `${p.pointer} ${p.keyword}`).sort()).toEqual(['/content/0/text minLength', '/content/1 required']);
   });
 
   it('caps the problems it lists and says how many there were', () => {

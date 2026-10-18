@@ -1076,3 +1076,65 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   refuses a document where that passes 1,000,000 values (`INVALID_INPUT`). A
   document without aliases is held by the input cap alone. js-yaml has no switch
   to reject aliases, and the count also stops a cycle.
+
+### util openapi (#183)
+
+- **Three commands, `list`, `show` and `example`**, one per operation the issue
+  names, each reading and checking the whole document before it answers, so all
+  three carry the same `verified`. No short path: these have no earlier one.
+- **An invalid document is still listed and shown**, with every problem by
+  pointer and `verified.passed` false (`OPENAPI_INVALID`). Real vendor documents
+  aren't always valid; refusing them would leave the agent with nothing.
+- **Schemas bundled:** OpenAPI 3.0 (2024-10-18), 3.1 and 3.2 (2025-11-23),
+  Swagger 2.0, and the draft-04 meta-schema Swagger 2.0 refers to, as published
+  (NOTICE). cfworker doesn't implement `$dynamicRef`, which the 3.1 and 3.2
+  schemas use to hand Schema Objects to the 2020-12 dialect, so that part is
+  `document.schemaObjects`, `UNVERIFIED`, not a pass. An unknown version (3.3,
+  4.0) is refused rather than checked against a near one.
+- **`$ref` expansion:** `--depth` counts ref hops along a branch (default 3, at
+  most 20). Expanded nodes say `x-toil-ref`; kept ones `x-toil-stop` (`depth`,
+  `circular`, `external`, `broken`). In 3.0 and 2.0 a ref's siblings are dropped,
+  as the spec says; from 3.1 they're merged over the target, not wrapped in
+  `allOf`. A path item or parameter `$ref` is always followed, whatever the depth.
+- **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
+  Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
+  extension isn't a reference; under `properties` and the other name maps every
+  key is a name.
+- **One schema per body:** `show` lists every content type and expands the schema
+  of the first JSON one (`contentType` says which). Swagger 2.0's `body` and
+  `formData` parameters become `requestBody`, so both versions share one shape.
+- **`call`** maps the operation onto `<area> api`'s inputs: the first server's
+  path (Swagger `basePath`) plus the operation's, required query parameters as
+  `name=<name>`, `bodyFile: body.json`, a non-JSON content type, and `writes`. The
+  area is left as `<area>`: nothing in a document names a toil area. Required
+  header and cookie parameters, which the passthrough can't send, are listed in
+  `unsupported`. OPTIONS, TRACE and QUERY give `call: null`.
+- **The minimal example** takes required properties only, `const`, then the
+  first non-null `enum` value, then a value by type; it never copies a
+  document's own `example` or `default`, which may hold real data. A branch of
+  `oneOf`/`anyOf`/`allOf` may require a property its parent describes, so the
+  parent's properties are passed down. A `pattern` is met by reading the regex's
+  simplest path (`sampleOfPattern`), then a short list of candidates; lookaround
+  and backreferences give up. A schema that loops through required properties
+  stops after two turns, and validation reports it. Against the full published
+  documents: Jira 811 of 812 bodies validate, GitHub 3.0 1316 of 1317, GitHub 3.1
+  1309 of 1317, Bitbucket 263 of 267. The rest are schemas no value satisfies
+  (GitHub 3.1's `type: [null]` beside `allOf: [user]`, overlapping `oneOf`
+  branches, `additionalProperties: false` beside an `allOf`), reported as
+  `example.valid` failed, with the example still returned.
+- **The example is validated against the schema it came from**, by copying only
+  what the schema reaches to the same pointers in a small document, so its
+  `$ref`s resolve as in the original. 3.0 and 2.0 schemas become draft-04 with
+  `nullable` (and `x-nullable`) as a `null` type; a read-only property isn't
+  required in a request, nor a write-only one in a response.
+- **`--path` on `show` and `example` takes the path with or without its leading
+  slash**, since Git Bash rewrites `/repos/...` into a file path. On `list` it's a
+  substring filter, as the issue asks.
+- **Kit change:** `validateSchema` now returns JSON pointers decoded from
+  cfworker's URI-fragment form (`/paths/~1pets~1{id}`, not `%7Bid%7D`), so a
+  pointer can be followed into the document as written. A new
+  `leafProblems` keeps only what is wrong: cfworker also reports every enclosing
+  keyword that failed because of a deeper one ("A subschema had errors" at the
+  root), which buried the one real problem among twenty.
+- **The input is opened in the command's small module** and handed to the lazy
+  one, which keeps zod out of everything loaded through `import()` (docs/util.md).
