@@ -1,0 +1,59 @@
+{
+  "title": "Online bookshop",
+  "people": [
+    { "id": "customer", "name": "Customer", "description": "Browses and buys books online" },
+    { "id": "staff", "name": "Bookshop staff", "description": "Keeps the catalogue and handles orders" }
+  ],
+  "systems": [
+    {
+      "id": "bookshop",
+      "name": "Online Bookshop",
+      "description": "Lets customers browse and buy books at bookshop.imagile.dev, and staff run the shop",
+      "containers": [
+        { "id": "web", "name": "Web shop", "technology": "TypeScript, React", "description": "The storefront customers browse and buy from" },
+        { "id": "admin", "name": "Back office", "technology": "TypeScript, React", "description": "Where staff edit the catalogue and review orders" },
+        {
+          "id": "api",
+          "name": "Shop API",
+          "technology": "Node.js, Fastify",
+          "description": "Catalogue, basket and order logic over JSON/HTTPS",
+          "components": [
+            { "id": "catalogue", "name": "Catalogue", "technology": "Fastify plugin", "description": "Books, authors, prices and stock" },
+            { "id": "basket", "name": "Basket", "technology": "Fastify plugin", "description": "What a customer is about to buy" },
+            { "id": "orders", "name": "Orders", "technology": "Fastify plugin", "description": "Turns a basket into a paid order" },
+            { "id": "payment_adapter", "name": "Payment adapter", "technology": "TypeScript", "description": "Wraps the payment provider's API" }
+          ]
+        },
+        { "id": "worker", "name": "Order worker", "technology": "Node.js", "description": "Sends confirmations and passes paid orders to the warehouse" },
+        { "id": "db", "name": "Shop database", "technology": "PostgreSQL", "database": true, "description": "Books, customers, baskets and orders" }
+      ]
+    },
+    { "id": "payments", "name": "Payment provider", "external": true, "description": "Takes card payments" },
+    { "id": "email", "name": "Email service", "external": true, "description": "Delivers transactional email" },
+    { "id": "warehouse", "name": "Warehouse system", "external": true, "description": "Picks, packs and ships orders" }
+  ],
+  "relationships": [
+    { "source": "customer", "destination": "web", "description": "Browses and buys books using", "technology": "HTTPS" },
+    { "source": "staff", "destination": "admin", "description": "Manages the shop using", "technology": "HTTPS" },
+    { "source": "web", "destination": "catalogue", "description": "Makes API calls to", "technology": "JSON/HTTPS" },
+    { "source": "web", "destination": "basket", "description": "Makes API calls to", "technology": "JSON/HTTPS" },
+    { "source": "web", "destination": "orders", "description": "Makes API calls to", "technology": "JSON/HTTPS" },
+    { "source": "admin", "destination": "catalogue", "description": "Makes API calls to", "technology": "JSON/HTTPS" },
+    { "source": "admin", "destination": "orders", "description": "Makes API calls to", "technology": "JSON/HTTPS" },
+    { "source": "catalogue", "destination": "db", "description": "Reads from and writes to", "technology": "SQL" },
+    { "source": "basket", "destination": "db", "description": "Reads from and writes to", "technology": "SQL" },
+    { "source": "orders", "destination": "db", "description": "Reads from and writes to", "technology": "SQL" },
+    { "source": "orders", "destination": "basket", "description": "Checks out" },
+    { "source": "orders", "destination": "payment_adapter", "description": "Takes payment through" },
+    { "source": "payment_adapter", "destination": "payments", "description": "Charges cards with", "technology": "JSON/HTTPS" },
+    { "source": "worker", "destination": "db", "description": "Polls for paid orders in", "technology": "SQL" },
+    { "source": "worker", "destination": "email", "description": "Sends confirmations through", "technology": "SMTP" },
+    { "source": "worker", "destination": "warehouse", "description": "Sends orders to ship to", "technology": "AMQP" },
+    { "source": "email", "destination": "customer", "description": "Emails order confirmations to" }
+  ],
+  "views": [
+    { "key": "context", "type": "systemContext", "scope": "bookshop", "title": "System context: Online Bookshop" },
+    { "key": "containers", "type": "container", "scope": "bookshop", "title": "Containers: Online Bookshop" },
+    { "key": "components", "type": "component", "scope": "api", "title": "Components: Shop API" }
+  ]
+}
