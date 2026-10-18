@@ -1,4 +1,16 @@
-toil
 Copyright 2026 Imagile
 
 This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This product includes software adapted from jmespath.js
+(https://github.com/jmespath/jmespath.js), the JMESPath reference
+implementation in JavaScript, Copyright 2014 James Saryerwinnie, licensed under
+the Apache License, Version 2.0. The lexer, parser and interpreter in
+src/core/query/ are a strict TypeScript adaptation of it, changed to pass the
+JMESPath compliance suite and to read only data's own keys.
+
+The repository's tests include the JMESPath compliance suite, in
+test/fixtures/jmespath/, as distributed with jmespath.py
+(https://github.com/jmespath/jmespath.py), Copyright (c) 2013 Amazon.com, Inc.
+or its affiliates, licensed under the MIT License (see
+test/fixtures/jmespath/LICENSE). It is not part of the published package.
