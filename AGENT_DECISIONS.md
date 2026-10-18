@@ -1561,15 +1561,22 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   | Document validation | Official schema fan-out is constant (31 at most) and guarded. Work is linear in the document. Nesting is at most 256. A `RangeError` becomes unchecked. 50 problems listed, each message at most 300 characters | Kit diamond tests, invalid-document tests |
   | List | `O(operations × parameters)`; output is never more than the document | Listing tests, the 200,000-ref document |
   | Show | `--depth` at most 20. 250,000 nodes, 4,000,000 characters and 1,000 levels of nesting, all checked before work is done | Diamond, wide diamond, long text, deep nesting |
-  | Example generation | 250,000 values, 1,000,000 characters through one choke point, strings of 10,000 characters, items limited to the budget left, 1,000 levels, a ref repeated at most twice on a path | `it.each` of bypasses, diamonds, a 3,000-schema chain |
-  | Example validation | Copies only what the schema reaches. Fan-out at most 100,000, else unchecked. A `RangeError` becomes unchecked. A cut-short example isn't validated | `anyOf` diamond reported unchecked in under 5 s |
+  | Example generation | Risky patterns are never run (`regexRisk`); 250,000 values, 1,000,000 characters through one choke point, strings of 10,000 characters, items limited to the budget left, 1,000 levels, a ref repeated at most twice on a path | `it.each` of bypasses, diamonds, a 3,000-schema chain |
+  | Example validation | Risky patterns are dropped from the copy validated and reported unchecked. Copies only what the schema reaches. Fan-out at most 100,000, else unchecked. A `RangeError` becomes unchecked. A cut-short example isn't validated | `anyOf` diamond reported unchecked in under 5 s |
 
-  **Still unbounded:** evaluating a document's own `pattern`. A regex with
-  catastrophic backtracking (`^(a+)+$`) is the document's, and V8 gives a
-  running regex no time limit. Patterns are only ever run on strings toil
-  generated, at most 10,000 characters, which keeps the exposure small but
-  doesn't bound it. Bounding it needs validation in a worker thread with a
-  timeout, which is a larger change than this PR.
+  **Regex patterns are checked before they're run.** JavaScript gives a running regex no
+  time limit, so the kit's `regexRisk` (`kit/regex.ts`) reads each pattern's shape first.
+  It flags backreferences, a repeated group holding a variable repetition (`(a+)+`,
+  `(.*a){12}`), a repeated alternation whose branches can start alike (`(a|aa)*`),
+  and three or more unbounded repetitions of a class. A flagged pattern is never run:
+  the example is built without it, validation runs on a copy without it, and
+  `example.patterns` or `document.patterns` reports it unchecked with the reason. A
+  flagged `patternProperties` name leaves the whole validation unchecked. No pattern in
+  the bundled OpenAPI, Swagger or ADF schemas is flagged. Across the full Jira, GitHub
+  and Bitbucket specs, none is either, since a fixed count like `{4}` inside a repeated
+  group isn't flagged. A run pattern's work is then at worst quadratic in a string of
+  at most 10,000 characters. Nothing in `util openapi` is left unbounded (round 8, ahead
+  of a review).
 - **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
   Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
   extension isn't a reference; under `properties` and the other name maps every

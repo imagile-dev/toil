@@ -1,4 +1,5 @@
 import { Validator, type Schema, type SchemaDraft } from '@cfworker/json-schema';
+import { regexRisk } from './regex.js';
 
 /**
  * JSON Schema validation for the `util` commands that need it: ADF output
@@ -36,6 +37,8 @@ export interface SchemaResult {
    * pass and never as a crash.
    */
   unchecked?: string;
+  /** Patterns in the schema that were not run, because their shape can make matching take exponential time (`regexRisk`), each with why. Validation went ahead without them, so a value is unchecked against each. */
+  skippedPatterns?: Array<{ pattern: string; reason: string }>;
   valid: boolean;
   /** The failures at the deepest locations first, one per pointer and keyword, at most `maxProblems`. */
   problems: SchemaProblem[];
@@ -84,17 +87,25 @@ export function validateSchema(schema: Schema | boolean, value: unknown, options
       unchecked: `the schema branches too much to validate: one value can be checked against more than ${MAX_SCHEMA_FAN_OUT} subschemas through $ref, allOf, anyOf and oneOf, and the validator tries every branch`,
     };
   }
+  // A pattern that could backtrack without end is never run: its `pattern` is dropped from a copy, and reported.
+  const risky = riskyPatterns([schema, ...(options.references ?? []).map((r) => r.schema)]);
+  if (risky.properties.length) {
+    const first = risky.properties[0]!;
+    return { valid: false, problems: [], total: 0, unchecked: `the schema matches property names against the pattern ${JSON.stringify(first.pattern)}, which is not run because ${first.reason}` };
+  }
+  const strip = <T>(s: T): T => (risky.patterns.length ? withoutPatterns(s, new Set(risky.patterns.map((p) => p.pattern))) : s);
   let result: ReturnType<Validator['validate']>;
   try {
-    const validator = new Validator(schema, options.draft ?? schemaDraft(schema), false);
-    for (const ref of options.references ?? []) validator.addSchema(ref.schema, ref.id);
+    const validator = new Validator(strip(schema), options.draft ?? schemaDraft(schema), false);
+    for (const ref of options.references ?? []) validator.addSchema(strip(ref.schema), ref.id);
     result = validator.validate(value);
   } catch (err) {
     // The validator recurses with the schema and the value; past the stack's depth that's a RangeError, which is a limit, not a bug.
     if (err instanceof RangeError) return { valid: false, problems: [], total: 0, unchecked: `validation ran out of room (${err.message}): the value or the schema nests too deep` };
     throw err;
   }
-  if (result.valid) return { valid: true, problems: [], total: 0 };
+  const skipped = risky.patterns.length ? { skippedPatterns: risky.patterns } : {};
+  if (result.valid) return { valid: true, problems: [], total: 0, ...skipped };
   // cfworker reports each failure and every enclosing keyword that failed because of it; keep one per place.
   const seen = new Set<string>();
   const problems: SchemaProblem[] = [];
@@ -106,8 +117,55 @@ export function validateSchema(schema: Schema | boolean, value: unknown, options
   }
   problems.sort((a, b) => b.pointer.split('/').length - a.pointer.split('/').length);
   const max = options.maxProblems ?? 50;
-  return { valid: false, problems: problems.slice(0, max), total: problems.length };
+  return { valid: false, problems: problems.slice(0, max), total: problems.length, ...skipped };
 }
+
+/** Keys whose values are data, not schemas: a `pattern` key inside them is a value, not a regex. */
+const DATA = new Set(['enum', 'const', 'default', 'example', 'examples']);
+
+/** Every risky `pattern` (and `patternProperties` name) in the schemas, by its regex, with why; iterative. */
+function riskyPatterns(schemas: unknown[]): { patterns: Array<{ pattern: string; reason: string }>; properties: Array<{ pattern: string; reason: string }> } {
+  const patterns = new Map<string, string>();
+  const properties = new Map<string, string>();
+  const seen = new Set<unknown>();
+  const stack = [...schemas];
+  while (stack.length) {
+    const node = stack.pop();
+    if (typeof node !== 'object' || node === null || seen.has(node)) continue;
+    seen.add(node);
+    const record = node as Record<string, unknown>;
+    if (!Array.isArray(node)) {
+      if (typeof record.pattern === 'string' && !patterns.has(record.pattern)) {
+        const reason = regexRisk(record.pattern);
+        if (reason) patterns.set(record.pattern, reason);
+      }
+      if (typeof record.patternProperties === 'object' && record.patternProperties !== null) {
+        for (const name of Object.keys(record.patternProperties)) {
+          const reason = regexRisk(name);
+          if (reason) properties.set(name, reason);
+        }
+      }
+    }
+    for (const [key, child] of Object.entries(record)) if (Array.isArray(node) || !DATA.has(key)) stack.push(child);
+  }
+  const list = (m: Map<string, string>) => [...m].map(([pattern, reason]) => ({ pattern, reason }));
+  return { patterns: list(patterns), properties: list(properties) };
+}
+
+/** A copy of a schema with every `pattern` whose regex is in `drop` removed; data keys are copied as they are. */
+function withoutPatterns<T>(schema: T, drop: Set<string>): T {
+  const copy = structuredClone(schema);
+  const stack: unknown[] = [copy];
+  while (stack.length) {
+    const node = stack.pop();
+    if (typeof node !== 'object' || node === null) continue;
+    const record = node as Record<string, unknown>;
+    if (!Array.isArray(node) && typeof record.pattern === 'string' && drop.has(record.pattern)) delete record.pattern;
+    for (const [key, child] of Object.entries(record)) if (Array.isArray(node) || !DATA.has(key)) stack.push(child);
+  }
+  return copy;
+}
+
 
 /** The most subschemas one value may be checked against before validation is refused as too costly. */
 export const MAX_SCHEMA_FAN_OUT = 100_000;

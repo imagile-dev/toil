@@ -1,7 +1,7 @@
 import { ToilError } from '../../../core/errors.js';
 import type { InputContext, UtilInput } from '../kit/input.js';
 import { Verifier, type Verified } from '../kit/verify.js';
-import { atPointer, checkDocument, isObject, type DocumentReport, type JsonObject, type LoadedDocument, loadDocument, type Spec } from './document.js';
+import { atPointer, checkDocument, skippedPatternsReason, isObject, type DocumentReport, type JsonObject, type LoadedDocument, loadDocument, type Spec } from './document.js';
 import { checkExample, generateExample, MAX_NODES as MAX_EXAMPLE_NODES, MAX_STRING, type Direction } from './example.js';
 import { checkOperations, findOperation, MAX_CHARS as MAX_SHOW_CHARS, MAX_NESTING, MAX_NODES, operations, requestBody, responses, showOperation, summarise, type Operation, type OperationSummary, type ShownOperation } from './operations.js';
 
@@ -112,7 +112,7 @@ export async function exampleBody(ctx: InputContext, source: UtilInput, input: S
     });
   }
   const schema = body.formSchema ?? atPointer(doc, body.schemaPointer!)!;
-  const { example, truncated } = generateExample(doc, spec, schema, direction);
+  const { example, truncated, skippedPatterns } = generateExample(doc, spec, schema, direction);
   // A cut-short example has nulls where values belong, so it can't be valid; validating 250,000 values to say so would only cost time.
   const check = truncated ? undefined : await checkExample(doc, spec, direction, example, body.formSchema ? { inline: body.formSchema } : { pointer: body.schemaPointer! });
   if (!check) {
@@ -126,6 +126,9 @@ export async function exampleBody(ctx: InputContext, source: UtilInput, input: S
       v.fail('example.valid', { at: p.pointer || '/', actual: p.message }, { code: 'OPENAPI_EXAMPLE_INVALID', message: `The generated example fails its own schema at ${p.pointer || '/'}: ${p.message} It is returned as generated; fill that value in by hand.` });
     }
   } else v.unchecked('example.valid', check.unchecked!);
+  // Patterns whose shape could backtrack without end were neither used to build the example nor run to check it.
+  const notRun = new Map([...skippedPatterns, ...(check?.skippedPatterns ?? [])].map((p) => [p.pattern, p]));
+  if (notRun.size) v.unchecked('example.patterns', skippedPatternsReason([...notRun.values()]));
   return {
     document,
     operation: summarise(o),

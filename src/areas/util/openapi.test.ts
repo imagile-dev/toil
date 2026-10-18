@@ -433,6 +433,17 @@ describe('util openapi example', () => {
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'OPENAPI_EXAMPLE_TRUNCATED' }));
   });
 
+  it.each(['^(a+)+$', '(a|aa)*', '(.*a){12}'])('never runs the backtracking pattern %s while building or checking an example, and says so', async (pattern) => {
+    const doc = JSON.parse(EXAMPLE_TEXT) as Data;
+    doc.components.schemas.Order.properties.sku = { type: 'string', minLength: 40, pattern };
+    const started = performance.now();
+    const { envelope, data, warnings } = await run(openapiExampleCommand, { text: asText(doc), operation: 'createOrder' });
+    expect(performance.now() - started).toBeLessThan(3_000);
+    expect(envelope.ok).toBe(true);
+    expect(check(data, 'example.patterns')).toMatchObject({ status: 'unchecked', detail: expect.stringContaining('was not run') });
+    expect(warnings).toContainEqual(expect.objectContaining({ code: 'UNVERIFIED', message: expect.stringContaining('example.patterns') }));
+  });
+
   it('reports example.valid as unchecked, quickly, when its schema branches too much to validate', async () => {
     // S0 to S21, each anyOf two refs to the next: validating one value would take 2^22 checks.
     const schemas: Data = { S22: { type: 'string' } };

@@ -58,6 +58,13 @@ function nesting(value: unknown): number {
   return deepest;
 }
 
+/** One unchecked line for patterns that weren't run: how many, the first, and why. */
+export function skippedPatternsReason(skipped: Array<{ pattern: string; reason: string }>): string {
+  const first = skipped[0]!;
+  const more = skipped.length > 1 ? ` (and ${skipped.length - 1} more)` : '';
+  return `the pattern ${JSON.stringify(first.pattern.length > 80 ? `${first.pattern.slice(0, 80)}…` : first.pattern)}${more} was not run, because ${first.reason}; values it applies to were not checked against it`;
+}
+
 export const isObject = (value: unknown): value is JsonObject => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** One JSON pointer token, escaped (`/` as `~1`, `~` as `~0`). */
@@ -331,6 +338,7 @@ export async function checkDocument(loaded: LoadedDocument, v: Verifier): Promis
   const result = validateSchema(schema, loaded.doc, { references, maxProblems: Infinity });
   const leaves = leafProblems(result.problems).map((p) => ({ ...p, message: brief(p.message) }));
   if (result.unchecked !== undefined) v.unchecked('document.schema', result.unchecked);
+  if (result.skippedPatterns?.length) v.unchecked('document.patterns', skippedPatternsReason(result.skippedPatterns));
   else if (result.valid) v.pass('document.schema');
   const against = loaded.spec === 'swagger-2.0' ? 'Swagger 2.0' : `OpenAPI ${loaded.spec.slice(8)}`;
   for (const p of leaves) {

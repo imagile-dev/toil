@@ -1203,7 +1203,9 @@ forever. What can't be checked is reported, never assumed:
 - A schema that branches too much to validate in reasonable time (more than 100,000
   subschemas per value through `$ref`, `allOf`, `anyOf` and `oneOf`), or that nests
   too deep, leaves `document.schema` or `example.valid` unchecked, with the reason
-  (`UNVERIFIED`). A document nested more than 256 levels is refused (`INVALID_INPUT`).
+  (`UNVERIFIED`). A `pattern` that could take exponential time to match
+  (`^(a+)+$`, `(a|aa)*`, a backreference) is never run: the example is built and
+  checked without it, and `example.patterns` or `document.patterns` says so. A document nested more than 256 levels is refused (`INVALID_INPUT`).
 - A `$ref` to another file or a URL isn't followed (`refs.external`, `UNVERIFIED`),
   and an example whose schema reaches one isn't validated.
 - The 3.1 and 3.2 schemas leave Schema Objects to the JSON Schema 2020-12 dialect,
