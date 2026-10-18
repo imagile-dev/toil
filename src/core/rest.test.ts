@@ -158,13 +158,13 @@ describe('restRequest', () => {
       details: { cause: 'ENOTFOUND' },
     });
     expect((await failure(restRequest(ctxWith([], reject(tls)).ctx, url, {}, opts))).fix).toContain('NODE_EXTRA_CA_CERTS');
-    // baseUrl is named only when it's the host that failed.
+    // The fix names the setting the host came from; with none known, baseUrl, as before.
     expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, opts))).fix).toMatch(/^Check baseUrl, and that this machine can reach https:\/\/jira\.imagile\.dev /);
-    expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, baseUrl: 'https://jira.imagile.dev/jira' }))).fix).toMatch(/^Check baseUrl,/);
-    const platform = await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, baseUrl: 'https://other.imagile.dev' }));
-    expect(platform.fix).toMatch(/^Check the connection's URL settings, and that this machine can reach https:\/\/jira\.imagile\.dev /);
+    expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, urlKey: 'baseUrl' }))).fix).toMatch(/^Check baseUrl,/);
+    const platform = await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, urlKey: 'platformUrl' }));
+    expect(platform.fix).toMatch(/^Check platformUrl, and that this machine can reach https:\/\/jira\.imagile\.dev /);
     expect(platform).toMatchObject({ code: 'NETWORK', details: { cause: 'ENOTFOUND' } });
-    expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, baseUrl: null }))).fix).toMatch(/^Check the connection's URL settings,/);
+    expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, urlKey: null }))).fix).toMatch(/^Check the connection's URL,/);
   });
 
   it('says so when a 200 is not JSON, as a sign-in page would be', async () => {

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { testContext } from '../../test/harness/context.js';
 import type { Route } from '../../test/harness/fake-fetch.js';
 import type { AnyCommand } from './command.js';
-import { apiGraphql, apiRequest, apiResponse, type ApiRequest } from './api.js';
+import { apiGraphql, apiRequest, apiResponse, urlKeyOf, type ApiRequest } from './api.js';
 import { defineArea } from './area.js';
 import { multipart } from './multipart.js';
 import { paginate } from './paginate.js';
@@ -176,6 +176,16 @@ describe('the request hook', () => {
   it('uses the hook auth fix and service name on a 401', async () => {
     const { envelope } = await run([{ url: `${HOST}/x`, respond: { status: 401, text: '' } }], { path: '/x' });
     expect(envelope.error).toMatchObject({ code: 'AUTH', fix: 'Probe rejected the key on connection "probe".' });
+  });
+});
+
+describe('the setting a network error names', () => {
+  const origin = 'https://sde.imagile.dev';
+  it('is baseUrl when it holds the host, else the setting that does, else none', () => {
+    expect(urlKeyOf({ name: 'x', area: 'sde', writes: false, baseUrl: 'https://sde.imagile.dev/api' }, origin)).toBe('baseUrl');
+    expect(urlKeyOf({ name: 'x', area: 'sde', writes: false, baseUrl: 'https://other.imagile.dev', platformUrl: 'https://sde.imagile.dev' }, origin)).toBe('platformUrl');
+    expect(urlKeyOf({ name: 'x', area: 'sde', writes: false, connectionString: 'secret-token@sde.imagile.dev' }, origin)).toBe('connectionString');
+    expect(urlKeyOf({ name: 'x', area: 'sde', writes: false, token: 't' }, origin)).toBeNull();
   });
 });
 
