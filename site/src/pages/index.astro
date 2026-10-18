@@ -480,7 +480,6 @@ const teaser = principles.slice(0, 3);
   @media (max-width: 979px) {
     .hero__inner { gap: var(--space-md); }
     .hero__art img { aspect-ratio: 960 / 560; object-fit: cover; object-position: 50% 0; }
-    .hero__pulse { top: 71%; }
   }
 
   /* A soft beacon behind the crate, roughly where it sits in the drawing. */
@@ -495,6 +494,11 @@ const teaser = principles.slice(0, 3);
     background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.28), transparent);
     mix-blend-mode: screen;
     pointer-events: none;
+  }
+
+  /* The cropped drawing above is shorter, so the crate sits lower in it. */
+  @media (max-width: 979px) {
+    .hero__pulse { top: 71%; }
   }
 
   @media (prefers-reduced-motion: no-preference) {
