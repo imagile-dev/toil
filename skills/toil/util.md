@@ -182,7 +182,7 @@ some-build 2>&1 | toil util log -
 | `--text <text>` | The log itself, instead of a file |
 | `--since <timestamp>` | Only lines dated at or after this ISO 8601 time (`2026-10-14`, `2026-10-14T09:12:00Z`, `"2026-10-14 09:12:00"`). A line with no date takes the date of the last dated line before it. Without a zone, a time is read as UTC |
 | `--level <level>` | `warning` (default) reports errors and warnings; `error` reports errors only |
-| `--grep <regex>` | Only error and warning lines matching this JavaScript regular expression (case-sensitive, no slashes or flags) |
+| `--grep <regex>` | Only error and warning lines matching this JavaScript regular expression (case-sensitive, no slashes or flags). An error also matches when the exception line heading its trace does (`--grep IllegalStateException`). Frames aren't searched; `LOG_GREP_STACK_ONLY` says when only they matched |
 | `--max-groups <n>` | The most groups to return, default 50, up to 1000 |
 | `--context <n>` | Lines to show before and after each group's sample, default 0, up to 20 |
 
@@ -206,7 +206,8 @@ How it reads a log:
   (`at … in file:line 9`, `--->`, `--- End of inner exception stack trace ---`), Node
   (`at fn (file:12:3)`) and Python (`Traceback (most recent call last):`, printed
   before its exception) are joined to the error they belong to, with the exception
-  line that heads one. A trace is reported for each group's first occurrence, up to
+  line that heads one. An exception line joins an error, never a warning: after a
+  warning it's an error of its own. A trace is reported for each group's first occurrence, up to
   50 lines.
 
 Output:
@@ -248,7 +249,8 @@ What it reports in `meta.warnings` rather than leave out: `LOG_UNCLASSIFIED` (li
 with no level, in no group), `LOG_GROUPS_TRUNCATED` (more groups than
 `--max-groups`), `LOG_UNGROUPED` (matched lines whose signature came after the first
 2,000 distinct ones, counted but not grouped, which is what keeps memory constant),
-`LOG_TRACE_UNJOINED` (trace lines with no error before them), `LOG_SINCE_UNDATED`
+`LOG_TRACE_UNJOINED` (trace lines with no error before them), `LOG_GREP_STACK_ONLY`
+(`--grep` matched only stack trace lines), `LOG_SINCE_UNDATED`
 (lines `--since` couldn't date, kept), and `APPROXIMATED` for a line longer than
 4,096 characters (grouped by its start) or a `--since` compared with times that had
 no zone.

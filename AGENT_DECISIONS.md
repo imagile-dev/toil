@@ -1092,7 +1092,8 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   later occurrence's trace is counted as stack lines.
 - **An exception line directly after an error joins that error's trace** (Maven's `-e`
   trace under `[ERROR] -> [Help 1]`, a JUnit failure under surefire's `<<< FAILURE!`);
-  with no error just before it, it's an error of its own. Up to 8 lines with no level
+  with no error just before it, or after a warning, it's an error of its own (review
+  round 1 on #190). Up to 8 lines with no level
   may sit between an error and its first frame, for vstest's message block.
 - **Memory is bounded by a cap on distinct signatures (2,000), not by the log.** Matched
   lines past it are counted as `ungrouped` with `LOG_UNGROUPED`, and the sum check
@@ -1106,6 +1107,9 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   UTC and marked `APPROXIMATED`. Time-only prefixes (`09:12:01`) carry no date and
   don't count.
 - **`--level` is a floor** (`warning`, the default, or `error`), and **`--grep` is a
-  case-sensitive JavaScript regex** on the whole line, with no flag syntax.
+  case-sensitive JavaScript regex** on the whole line, with no flag syntax. An error
+  line also matches by the exception line that heads its trace, since that's where
+  the exception's name is; frames aren't searched, and `LOG_GREP_STACK_ONLY` says
+  when only they matched (review round 1 on #190).
 - **No short alias.** `util log` is new, so it has only its `util` path; the site's
   utilities page now shows the "also" path only for the three commands that have one.

@@ -203,6 +203,8 @@ interface Tracked extends Omit<Group, 'trace' | 'context'> {
 interface Anchor {
   /** The group this occurrence belongs to, or null for a line that was filtered out or not grouped. */
   group: Tracked | null;
+  /** The anchor line's level. An exception line joins only an error's trace; after a warning it is an error of its own. */
+  level: Level;
   /** Whether this is the group's first occurrence, the one whose trace is reported. */
   record: boolean;
   gap: number;
@@ -218,6 +220,8 @@ export interface Scan {
   unjoinedFrames: number;
   cutLines: number;
   undated: number;
+  /** Stack lines `--grep` matches, to say so when it matched no error or warning line. */
+  grepStackHits: number;
   groups: Tracked[];
 }
 
@@ -252,11 +256,17 @@ export function parseFilters(options: LogOptions): Filters {
 export async function scan(input: UtilInput, filters: Filters, v: Verifier): Promise<Scan> {
   const lines = { total: 0, error: 0, warning: 0, other: 0, stack: 0, unclassified: 0 };
   const groups = new Map<string, Tracked>();
-  const out = { matched: 0, filtered: 0, ungrouped: 0, unjoinedFrames: 0, cutLines: 0, undated: 0 };
+  const out = { matched: 0, filtered: 0, ungrouped: 0, unjoinedFrames: 0, cutLines: 0, undated: 0, grepStackHits: 0 };
   let lastDate: { ms: number; naive: boolean } | undefined;
   let naiveCompared = false;
   let anchor: Anchor | undefined;
   let py: { start: number; end: number } | undefined;
+  /**
+   * An error line `--grep` didn't match, waiting one line: when the exception
+   * line that heads its trace matches, the error is kept, since that's where
+   * an exception's name usually is. Otherwise it's filtered out.
+   */
+  let pending: { number: number; text: string; rest: string } | undefined;
 
   const match = (number: number, text: string, rest: string, level: Level, pyTrace?: { start: number; end: number }) => {
     lines[level]++;
@@ -270,12 +280,20 @@ export async function scan(input: UtilInput, filters: Filters, v: Verifier): Pro
         keep = lastDate.ms >= since.ms;
       }
     }
-    if (keep && grep) keep = grep.test(text);
+    if (keep && grep && !grep.test(text)) {
+      keep = false;
+      if (level === 'error' && !pyTrace) pending = { number, text, rest };
+    }
     if (!keep) {
-      out.filtered++;
-      anchor = { group: null, record: false, gap: 0, inTrace: false };
+      if (!pending) out.filtered++;
+      anchor = { group: null, level, record: false, gap: 0, inTrace: false };
       return;
     }
+    admit(number, text, rest, level, pyTrace);
+  };
+
+  /** Groups a line that passed the filters. */
+  const admit = (number: number, text: string, rest: string, level: Level, pyTrace?: { start: number; end: number }) => {
     out.matched++;
     const sig = signature(rest);
     const key = `${level}\u0000${sig}`;
@@ -284,7 +302,7 @@ export async function scan(input: UtilInput, filters: Filters, v: Verifier): Pro
     if (!group) {
       if (groups.size >= MAX_TRACKED) {
         out.ungrouped++;
-        anchor = { group: null, record: false, gap: 0, inTrace: false };
+        anchor = { group: null, level, record: false, gap: 0, inTrace: false };
         return;
       }
       group = { level, signature: sig, count: 0, firstLine: number, lastLine: number, sample: text };
@@ -294,7 +312,7 @@ export async function scan(input: UtilInput, filters: Filters, v: Verifier): Pro
     }
     group.count++;
     group.lastLine = number;
-    if (!pyTrace) anchor = { group, record, gap: 0, inTrace: false };
+    if (!pyTrace) anchor = { group, level, record, gap: 0, inTrace: false };
   };
 
   for await (const line of input.lines()) {
@@ -303,9 +321,20 @@ export async function scan(input: UtilInput, filters: Filters, v: Verifier): Pro
     const { rest, stamp } = stripTimestamp(line.text);
     if (stamp !== undefined) lastDate = parseTimestamp(stamp) ?? lastDate;
 
+    const grepHit = filters.grep?.test(line.text) ?? false;
+
+    // An error held for --grep: kept if this line heads its trace and matches, else filtered out.
+    if (pending) {
+      const held = pending;
+      pending = undefined;
+      if (grepHit && anchor?.gap === 0 && frameKind(rest) === undefined && EXCEPTION.test(rest)) admit(held.number, held.text, held.rest, 'error');
+      else out.filtered++;
+    }
+
     // Python prints the trace first and the exception after it.
     if (py) {
       if (/^\s+\S/.test(rest)) {
+        if (grepHit) out.grepStackHits++;
         lines.stack++;
         py.end = line.number;
         continue;
@@ -320,6 +349,7 @@ export async function scan(input: UtilInput, filters: Filters, v: Verifier): Pro
       out.unjoinedFrames += block.end - block.start + 1;
     }
     if (PY_START.test(rest)) {
+      if (grepHit) out.grepStackHits++;
       lines.stack++;
       py = { start: line.number, end: line.number };
       anchor = undefined;
@@ -327,8 +357,9 @@ export async function scan(input: UtilInput, filters: Filters, v: Verifier): Pro
     }
 
     const kind = frameKind(rest);
-    const header = kind === undefined && anchor !== undefined && (anchor.inTrace || anchor.gap === 0) && EXCEPTION.test(rest);
+    const header = kind === undefined && anchor?.level === 'error' && (anchor.inTrace || anchor.gap === 0) && EXCEPTION.test(rest);
     if (kind !== undefined || header) {
+      if (grepHit) out.grepStackHits++;
       lines.stack++;
       if (!anchor) {
         out.unjoinedFrames++;
@@ -355,6 +386,7 @@ export async function scan(input: UtilInput, filters: Filters, v: Verifier): Pro
     else if (level === 'other') lines.other++;
     else match(line.number, line.text, rest, level);
   }
+  if (pending) out.filtered++;
   // A log that ends inside a Python traceback: its lines are counted as stack, with no exception to join.
   if (py) out.unjoinedFrames += py.end - py.start + 1;
 
@@ -440,6 +472,9 @@ export async function finish(found: Scan, input: UtilInput, options: LogOptions,
     warn({ code: 'LOG_UNGROUPED', message: `${found.ungrouped} matching lines had signatures beyond the first ${MAX_TRACKED} distinct ones, so they were counted but not grouped. Narrow the log with grep, level or since.` });
   }
   if (found.unjoinedFrames > 0) warn({ code: 'LOG_TRACE_UNJOINED', message: `${found.unjoinedFrames} stack trace lines had no error or warning line to join, so they are counted as stack but not reported.` });
+  if (found.matched === 0 && found.grepStackHits > 0) {
+    warn({ code: 'LOG_GREP_STACK_ONLY', message: `grep matched no error or warning line, but it matches ${found.grepStackHits} stack trace lines. It searches error and warning lines and the exception line that heads an error's trace, not the frames.` });
+  }
   if (found.undated > 0) warn({ code: 'LOG_SINCE_UNDATED', message: `${found.undated} error and warning lines had no dated line at or before them, so since couldn't apply and they were kept.` });
   if (chosen.length < found.groups.length) warn({ code: 'LOG_GROUPS_TRUNCATED', message: `Showing ${chosen.length} of ${found.groups.length} groups. Raise --max-groups (maxGroups over MCP, up to ${MAX_GROUPS}) to see more.` });
 

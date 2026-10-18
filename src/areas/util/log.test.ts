@@ -226,6 +226,33 @@ describe('util log options', () => {
     expect(grep.result.matched + grep.result.filtered).toBe(grep.result.lines.error + grep.result.lines.warning);
   });
 
+  it('joins an exception line only to an error: after a warning it is an error of its own, kept under --level error', async () => {
+    const log = '[WARN] slow\njava.lang.NullPointerException: x\n\tat a.b.C.d(C.java:1)\n';
+    const all = await triage(log);
+    expect(all.result.groups.map((g) => [g.level, g.signature, g.trace?.firstLine])).toEqual([
+      ['error', 'java.lang.NullPointerException: x', 3],
+      ['warning', '[WARN] slow', undefined],
+    ]);
+    const errors = await triage(log, { level: 'error' });
+    expect(errors.result.groups).toEqual([
+      { level: 'error', signature: 'java.lang.NullPointerException: x', count: 1, firstLine: 2, lastLine: 2, sample: 'java.lang.NullPointerException: x', trace: { kind: 'java', firstLine: 3, lastLine: 3, frames: 1, lines: ['\tat a.b.C.d(C.java:1)'] } },
+    ]);
+    expect([errors.result.matched, errors.result.filtered, errors.result.verified.passed]).toEqual([1, 1, true]);
+  });
+
+  it('--grep matches an error by the exception line heading its trace, and says when it matches only frames', async () => {
+    const { result } = await triage(SAMPLE_LOG, { grep: 'IllegalStateException' });
+    expect(result.groups.map((g) => [g.signature, g.count, g.trace?.frames])).toEqual([['[ERROR] Order <n> failed: tax total is negative', 1, 2]]);
+    // The second occurrence has no exception line after it, so it's filtered out; so is the warning.
+    expect([result.matched, result.filtered, result.verified.passed]).toEqual([1, 2, true]);
+
+    const frames = await triage(SAMPLE_LOG, { grep: 'Order[.]java' });
+    expect(frames.result.matched).toBe(0);
+    expect(frames.warnings.find((w) => w.code === 'LOG_GREP_STACK_ONLY')?.message).toBe(
+      "grep matched no error or warning line, but it matches 1 stack trace lines. It searches error and warning lines and the exception line that heads an error's trace, not the frames.",
+    );
+  });
+
   it('refuses a --since or --grep it cannot read', async () => {
     await expect(triage('x', { since: 'last tuesday' })).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--since "last tuesday"') });
     await expect(triage('x', { grep: '(' })).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--grep') });
