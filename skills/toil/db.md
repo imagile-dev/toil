@@ -179,8 +179,9 @@ the known limits under "Reads are read-only at the engine".
 
 toil speaks TDS, SQL Server's wire protocol, in plain JavaScript (the `tedious`
 driver, bundled into toil): no ODBC driver, no `sqlcmd`, nothing to install. It signs
-in with a SQL Server login (user name and password), so the server must allow SQL
-Server authentication (mixed mode).
+in with a SQL Server login (user name and password), which needs the server to allow
+SQL Server authentication (mixed mode), or, on Windows only, with Windows
+authentication (`"auth": "windows"`, below).
 
 | Key | Required | Meaning |
 |-----|----------|---------|
@@ -188,9 +189,11 @@ Server authentication (mixed mode).
 | `host` | yes | Server host name or address |
 | `port` | no | TCP port. Default `1433`. A named instance needs its own port here: toil doesn't ask the SQL Browser service. |
 | `database` | yes | The database to connect to |
-| `user` | yes | The SQL Server login |
+| `user` | for a SQL login | The SQL Server login; with `"auth": "windows"`, another domain account to sign in as |
 | `password` | no | The login's password. A secret: an env var or the OS credential store, never the config file. |
 | `ssl` | no | `true` encrypts the connection with TLS and verifies the server's certificate against the OS certificate store. Off by default, which sends the login and every result unencrypted, so turn it on unless the network is trusted. There is no setting to trust any certificate: add the server's certificate, or your organization's CA, to the OS store instead. |
+| `auth` | no | `sql` (a SQL Server login, the default) or `windows` (Windows authentication, Windows only) |
+| `domain` | no | With `"auth": "windows"` and `user`: the account's domain |
 | `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
 
 **Environment variables**, for the default `db` connection:
@@ -222,6 +225,59 @@ toil connections login app-sql   # prompts for the password and stores it
 ```
 
 A named connection's password can also come from `TOIL_CONN_APP_SQL_PASSWORD`.
+
+### Windows authentication (Windows only)
+
+`"auth": "windows"` signs in as the Windows user running toil, with no password
+stored anywhere: Windows proves who you are with the Kerberos ticket (or NTLM) it
+already holds from your logon.
+
+```json
+{
+  "version": 2,
+  "connections": {
+    "app-sql": { "area": "db", "engine": "sqlserver", "host": "sql.imagile.dev", "database": "app", "auth": "windows", "ssl": true }
+  }
+}
+```
+
+From the environment, for the default `db` connection, as the current Windows user:
+
+```bash
+export TOIL_DB_ENGINE=sqlserver
+export TOIL_DB_HOST=sql.imagile.dev
+export TOIL_DB_DATABASE=app
+export TOIL_DB_AUTH=windows
+```
+
+To sign in as a different domain account, add `domain` and `user` (`TOIL_DB_DOMAIN`,
+`TOIL_DB_USER`), and store that account's password with `toil connections login
+app-sql` (Windows Credential Manager), or set `TOIL_CONN_APP_SQL_PASSWORD`.
+
+| Platform | `"auth": "windows"` |
+|----------|---------------------|
+| Windows | Supported |
+| macOS, Linux | Refused before connecting (`CONFIG_INVALID`); use a SQL Server login |
+
+How it works: Node has no way to ask Windows for a sign-in token, so for each
+connection toil runs one Windows PowerShell (`powershell.exe` from the Windows
+folder, `-NoProfile -NonInteractive`), which asks Windows' SSPI `Negotiate` package
+for tokens for the server's SPN, `MSSQLSvc/<host>:<port>`. The script and every token
+pass over the process's stdin and stdout, never its command line. Use the server's
+fully qualified name in `host`, the name its SPN is registered under; with any other
+name Kerberos can't find the SPN, and Windows falls back to NTLM if the server and
+domain allow it.
+
+Windows PowerShell must run in Full Language mode. Where an AppLocker or WDAC
+policy puts it in Constrained Language mode, `Add-Type` is blocked, and toil says so
+with `AUTH` naming the mode instead of failing the login vaguely. Windows PowerShell
+5.1's `Add-Type` also compiles a small helper with `csc.exe` into `TEMP`, so `TEMP`
+must be writable.
+
+Windows authentication is `untested` against a real server: its tests run the
+helper against Windows' own SSPI, and a full multi-step handshake completes, but
+no run against SQL Server on a domain has happened yet, nor one under a
+Constrained Language Mode policy.
 
 **Connect with a read-only login.** SQL Server has no read-only transaction, so toil
 can't ask the server to refuse writes the way it does for PostgreSQL. It rolls back
@@ -462,8 +518,8 @@ Over MCP:
 | Code | Means |
 |------|-------|
 | `NOT_CONFIGURED` | No db connection set up |
-| `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`), `path` is relative, or the file isn't a SQLite database |
-| `AUTH` | The server refused the login: check `user` and `password` (and, for SQL Server, that SQL Server logins are allowed) |
+| `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`), `path` is relative, the file isn't a SQLite database, or `"auth": "windows"` is set off Windows |
+| `AUTH` | The server refused the login: check `user` and `password` (and, for SQL Server, that SQL Server logins are allowed); or Windows authentication couldn't start (Constrained Language mode, SSPI refused) |
 | `NETWORK` | The server couldn't be reached, didn't answer, or its TLS certificate wasn't trusted; or SQL Server requires encryption and `ssl` is off |
 | `NOT_FOUND` | The file, database, schema or table doesn't exist |
 | `WRITE_DISABLED` | A write was refused: by `db query`, or by the write gate on `db execute` |

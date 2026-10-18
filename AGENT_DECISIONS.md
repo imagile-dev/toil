@@ -376,6 +376,16 @@ the bottom of their section.
   control characters) and KF5 (#141, `..;x` path parameters that a servlet container
   resolves as `..`), each from a reviewer's run against confluence or github. The
   areas that had added a local check keep only what core doesn't cover.
+- **Each PR records its own decisions here**, under its own heading, as the Delivery
+  section says. For a while the coordinator kept this file to itself to avoid merge
+  conflicts; review (#160) caught that this broke the rule. A conflict in this file
+  keeps both sides.
+- **The utility group is named `util`** (`toil util jwt decode`, `toil util deps
+  scan|diff`), the coordinator's pick when the maintainer asked for one.
+- **Each database provider's local Docker run uses a uniquely named container on its
+  own port**, removed afterwards, so parallel builds never collide.
+- **Scratch files shared by parallel agents are named after their branch**, after one
+  agent's PR description was overwritten by another's (#158).
 
 ## Per-integration decisions
 
@@ -637,6 +647,100 @@ Added as each integration lands.
   header dropped** (core's `follow-without-auth`), so the credential stays on the
   configured site.
 
+### Databases: PostgreSQL
+
+- **`pg` with `pg-cursor`**, so the row cap stops the server producing rows, not
+  only toil reading them.
+- **Reads run in `SET TRANSACTION READ ONLY` and roll back**; SQLSTATE 25006 is
+  `WRITE_DISABLED`.
+- **`COPY` and `DO` are refused on reads**: in a read-only transaction a superuser
+  can still write server files with them, which a test shows. A `--` comment ending
+  in a carriage return can't hide them (#150's review).
+- **Functions such as `lo_export` are a documented known limit**, not refused by
+  name: connect with an ordinary role.
+- **Cancel is `pg_cancel_backend` from a second connection**; the conformance suite
+  checks no statement is still running on the server afterwards.
+- **toil ignores the `PG*` environment variables and `~/.pgpass`**, so a connection
+  is only what its toil config says.
+- **TLS trusts the OS certificate store** as HTTP does (#159), through
+  `trustedCertificates`; a certificate failure is `NETWORK`.
+
+### Databases: MySQL and MariaDB
+
+- **One engine, `mysql`, covers both.** `database` is required and is also the
+  default schema.
+- **Reads also set `SESSION TRANSACTION READ ONLY`**: DDL commits implicitly, so a
+  read-only transaction alone let `DROP TABLE` through.
+- **`SELECT … INTO OUTFILE/DUMPFILE` and any `SET` are refused on reads**, each with a
+  test proving it escapes; `LOAD DATA` is already refused by the engine.
+- **A stored procedure that commits and turns itself read-write** is a pinned,
+  documented known limit.
+- **`db execute` with DDL isn't all or nothing**, because MySQL commits DDL; that's
+  documented. A cancel or timeout checks before every statement and before
+  `COMMIT`, and sends `KILL <connection>`, so nothing after an abort commits.
+- **`preview-table` orders by the primary key**, so pages are stable.
+
+### `--select` and `<area> api` (#95)
+
+- **`--select` is JMESPath**, applied to `data` in `execute()`. All 908 cases of the
+  compliance suite pass; the suite is vendored from jmespath.py's MIT-licensed copy.
+  An expression nested deeper than 500 levels, or any error while applying one, is
+  `INVALID_INPUT`, never `INTERNAL`.
+- **`<area> api` is one generic command per HTTP area**, built by `apiCommand()` on
+  the area's request hook, starting with `jira api`. Writes are gated per method
+  (`writesWhen`), DELETE never goes over MCP (`offMcpWhen`), and `meta.response`
+  carries the status and content type.
+- **A header value with CR, LF or NUL is refused before sending.** A binary body comes
+  back as base64 with an `API_BINARY` warning, never as corrupted text.
+- **`jira_api` is marked not read-only over MCP**, because it can write, so MCP
+  clients ask before every call, a GET included. Recorded as a rough edge.
+
+### Utilities: `util jwt` and `util deps` (#42, #43)
+
+- **No connection, host or network**, and not on the integrations board.
+- **`jwt decode` keeps the contract's argument** and also reads `-` from stdin on the
+  CLI; `-` is refused over MCP.
+- **`deps scan` normalises CRLF once in its reader**, so every manifest parser and
+  `deps diff`'s `git show` blobs agree. A manifest that can't be read is a
+  `DEPS_FILE_SKIPPED` warning.
+- **`deps diff` reads files at a ref with `git show <ref>:./<path>`**, through core's
+  git.
+
+### `skills` commands (#54, #55)
+
+- **Only the commands the welcome menu needs are built**; the rest of the contract's
+  `skills` group is listed in `docs/divergences/skills.json` with a reason each.
+  `git-auth` is gone for good: it rewrote the user's global git config.
+- **A marketplace is a connection of the `skills` area**, so its token lives in the
+  OS store or a `TOIL_CONN_<NAME>_TOKEN` variable and reaches git only through git's
+  environment, scoped to that URL. Clones allow https and local paths only, with
+  hooks and submodules off.
+- **`skills marketplace add` registers a marketplace with writes off** (coordinator,
+  principle 2). CLI only isn't human only: an agent with a shell could otherwise add
+  a marketplace and grant itself installs. Writes are turned on the same way as for
+  any connection; `add` reports the value the write gate will resolve.
+
+### Welcome menu (#52, #53, #54, #55)
+
+- **Every menu action runs a real command in-process and shows the line it ran.**
+  The menu needed `connections test`, `connections writes` and `connections
+  default`, so #161 builds them as real `toil connections` commands; `writes` and
+  `default` are CLI only, and turning writes on needs the connection's name typed.
+- **`connections test` uses an area `probe` that needs the credential**, read as JSON
+  through core, so a revoked token or an SSO page served with a 200 is not "healthy".
+  Where no cheap authenticated read exists, `authenticated: false` says so.
+- **Opening the menu sends nothing over the network.**
+
+### The toil skill (#58)
+
+- **The skill installs from npm, a clone, or a skill manager**, with an MCP reference
+  and a check that every command and flag it names exists.
+- **Node 24.14, toil's floor**, not the issue's Node 22, which toil refuses.
+- **`toil setup alias`** adds a `toil` function to the bash, zsh or PowerShell
+  profile, with documented exceptions to the `files.no-overwrite` and
+  `files.workspace` bounds.
+
+
 ### SQL Server
 
 - **Read-only on an engine with no read-only transaction** (#49): every read runs in
@@ -686,6 +790,28 @@ Added as each integration lands.
   lost; the docs say to CAST to varchar).
 - **The test image is pinned to `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04`**
   in CI and the databases skill, never `2022-latest`.
+
+- **Windows authentication** (`auth: "windows"`, #165): the alternate account reuses
+  `user` with a new `domain` key, not a separate `username`. A provider `check` hook
+  (run by the area schema's `superRefine`) requires `user` for SQL logins and refuses
+  `auth: "windows"` off Windows; the reason is in the error's `details`, since core's
+  message names only the key.
+- **tedious is patched at runtime, not vendored or patched at bundle time**: a
+  marked connection is configured as `ntlm`, and `sendLogin7Packet`,
+  `performSentLogin7WithNTLMLogin` and the token parser are wrapped once, for marked
+  connections and short Negotiate tokens only. A test fails if a tedious upgrade
+  renames any of them. Where: `src/core/db/sqlserver/windows-login.ts`.
+- **The SSPI helper** (`src/os/windows-sspi.ts`) is Windows PowerShell 5.1 by absolute
+  path, with its script and every token on stdin, `ISC_REQ_CONNECTION` only (no
+  mutual authentication), an allowlisted env, and the SPN `MSSQLSvc/<host>:<port>`
+  as configured (the docs say to use the FQDN). It starts only after the
+  `Connection` is built.
+- **Constrained Language Mode is `AUTH` with a message naming the mode**, not a new
+  error code.
+- **Spawners are one reviewed list**, `scripts/spawners.mjs`, read by tsup, `check:pure`
+  and ESLint.
+- **Windows authentication is documented as `untested`** until it runs against a
+  domain; the provider stays at `integration` for SQL logins.
 
 ## Dossiers (#16)
 
