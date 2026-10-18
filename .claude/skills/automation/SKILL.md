@@ -87,6 +87,21 @@ in `triage-queued`, adds no label and no comment, and fails the run. Changing th
 layout means re-checking that no job holding a write credential runs agent-written
 code, and that nothing in this workflow runs it at all.
 
+**The YAML only wires.** Every step that does more than pass inputs to outputs is a
+function in `scripts/triage/steps.mjs` (`node scripts/triage/steps.mjs <step>`), with
+inputs as env vars, never `${{ }}` inside a script, and outputs written to
+`$GITHUB_OUTPUT`. A value one step hands the next goes through
+`steps.<id>.outputs.<name>`; a step never reads `$GITHUB_OUTPUT` back, because each
+step gets its own empty file. `test/triage-steps.test.ts` runs the steps in order
+through real `GITHUB_OUTPUT` files against a stateful fake GitHub (claim, redact,
+prepare, decide, apply, open-pr, requeue; the empty queue, the cap and a failed
+agent), and `test/workflow-wiring.test.ts` checks that every `steps.<id>.outputs.<name>`
+and `needs.<job>.outputs.<name>` in `triage.yml` and `feedback-deploy.yml` is written by
+that step or declared by that job. A new step adds its outputs to `OUTPUTS`, and a
+new workflow with handed-on outputs joins the wiring test. The one script after the
+agent, `scripts/triage/handover.sh`, is shell only and runs from a copy whose hash
+`prepare` took before the agent started.
+
 The actor the agent action sees is always a person (a maintainer's label or
 dispatch, or the schedule) or the Imagile Bot, the one name in `allowed_bots`. The
 daily run triages the queue itself as a matrix rather than dispatching runs: a run

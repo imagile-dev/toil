@@ -2529,3 +2529,12 @@ skill file, fixture, board entry, site data or contract entries changed.
   because the App can't approve its own PR. A maintainer reviews them.
 - **Site form:** the honeypot field is named `website`; the Turnstile widget is the
   existing one, which needs `imagile-dev.github.io` added to its hostnames.
+- **The triage steps live in `scripts/triage/steps.mjs`** (review round 3), next to
+  `redact.mjs` and the other triage scripts, rather than a new `.github/scripts/`
+  folder: `scripts/` is where this repository's tooling lives (CLAUDE.md, Layout), and
+  ESLint's tooling rules already cover it. The YAML passes inputs as env and reads
+  outputs from `steps.<id>.outputs`; `test/triage-steps.test.ts` runs the steps in
+  order through real `GITHUB_OUTPUT` files, and `test/workflow-wiring.test.ts` checks
+  every handed-on output in `triage.yml` and `feedback-deploy.yml`. `act` isn't
+  installed here, so the select job was not run through it; `handover.sh` was run in
+  `node:24.14.0-bookworm-slim` (Docker), since its test runs on Linux only.

@@ -69,6 +69,30 @@ export function parseDecision(raw, issue, knownAreas) {
 
 const readText = (path) => (existsSync(path) ? readFileSync(path, 'utf8').replace(/\r\n/g, '\n') : '');
 
+/**
+ * Reads the agent's handover in `dir` and returns the outputs finish acts on
+ * (`decision`, and for a decision `labels` and `duplicate_of`), writing the
+ * checked comment and PR text beside the inputs for --body-file.
+ */
+export function decide(dir, issue, areas, log = console.log) {
+  if (!agentRan(['agent-ok', 'decision.json'].filter((name) => existsSync(join(dir, name))))) {
+    log(`The agent didn't run to completion for #${issue}: there is no decision to apply.`);
+    return { decision: 'failed' };
+  }
+  const parsed = parseDecision(readText(join(dir, 'decision.json')), issue, areas);
+  if (!parsed.ok) log(`The agent's decision was refused: ${parsed.problems.join('; ')}`);
+  writeFileSync(join(dir, 'comment.checked.md'), quietMentions(readText(join(dir, 'comment.md')).slice(0, MAX_COMMENT)).trim() || 'Triaged.');
+  // eslint-disable-next-line no-control-regex
+  const title = readText(join(dir, 'pr-title.txt')).split('\n')[0].replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 120);
+  writeFileSync(join(dir, 'pr-title.checked.txt'), title || `Triage fix for #${issue}`);
+  writeFileSync(join(dir, 'pr-body.checked.md'), quietMentions(defuseClosingKeywords(readText(join(dir, 'pr-body.md')).slice(0, MAX_BODY))));
+  return {
+    decision: parsed.ok ? parsed.decision : 'invalid',
+    labels: ['triaged', ...(parsed.ok && parsed.decision !== 'fix' ? ['denied'] : []), ...(parsed.areas ?? []).map((a) => `area:${a}`)].join(','),
+    duplicate_of: parsed.ok && parsed.duplicateOf ? String(parsed.duplicateOf) : '',
+  };
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [dir, issueArg, ...areas] = process.argv.slice(2);
   const issue = Number(issueArg);
@@ -76,22 +100,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.error('Usage: decision.mjs <out-dir> <issue> <area>...');
     process.exit(1);
   }
-  const out = (line) => (process.env.GITHUB_OUTPUT ? appendFileSync(process.env.GITHUB_OUTPUT, `${line}\n`) : console.log(line));
-  if (!agentRan(['agent-ok', 'decision.json'].filter((name) => existsSync(join(dir, name))))) {
-    console.log(`The agent didn't run to completion for #${issue}: there is no decision to apply.`);
-    out('decision=failed');
-    process.exit(0);
+  const outputs = decide(dir, issue, areas);
+  for (const [key, value] of Object.entries(outputs)) {
+    const line = `${key}=${value}\n`;
+    if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, line);
+    else process.stdout.write(line);
   }
-  const parsed = parseDecision(readText(join(dir, 'decision.json')), issue, areas);
-  if (!parsed.ok) console.log(`The agent's decision was refused: ${parsed.problems.join('; ')}`);
-  out(`decision=${parsed.ok ? parsed.decision : 'invalid'}`);
-  out(`labels=${['triaged', ...(parsed.ok && parsed.decision !== 'fix' ? ['denied'] : []), ...(parsed.areas ?? []).map((a) => `area:${a}`)].join(',')}`);
-  out(`duplicate_of=${parsed.ok && parsed.duplicateOf ? parsed.duplicateOf : ''}`);
-  // Text goes to files beside the inputs, checked and defused, for --body-file.
-  writeFileSync(join(dir, 'comment.checked.md'), quietMentions(readText(join(dir, 'comment.md')).slice(0, MAX_COMMENT)).trim() || 'Triaged.');
-  // eslint-disable-next-line no-control-regex
-  const title = readText(join(dir, 'pr-title.txt')).split('\n')[0].replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 120);
-  writeFileSync(join(dir, 'pr-title.checked.txt'), title || `Triage fix for #${issue}`);
-  const body = quietMentions(defuseClosingKeywords(readText(join(dir, 'pr-body.md')).slice(0, MAX_BODY)));
-  writeFileSync(join(dir, 'pr-body.checked.md'), body);
 }

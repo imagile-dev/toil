@@ -77,7 +77,7 @@ jobs:
     permissions:
       contents: read
     outputs:
-      issues: ${{ steps.pick.outputs.issues }}
+      issues: ${{ steps.claim.outputs.issues }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -98,45 +98,19 @@ jobs:
           GH_TOKEN: ${{ steps.token.outputs.token }}
         run: node scripts/triage/labels.mjs
       - name: Claim within the cap
-        id: pick
+        id: claim
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           EVENT: ${{ github.event_name }}
           ISSUE: ${{ github.event.issue.number }}
           DISPATCHED: ${{ inputs.issue }}
-        run: |
-          # shellcheck disable=SC2153 # ISSUE comes from env.
-          case "$EVENT" in
-            issues)
-              node scripts/triage/cap.mjs claim "$ISSUE"
-              if grep -q '^run=true$' "$GITHUB_OUTPUT"; then echo "issues=[${ISSUE}]" >> "$GITHUB_OUTPUT"; else echo "issues=[]" >> "$GITHUB_OUTPUT"; fi
-              ;;
-            workflow_dispatch)
-              if ! [[ "$DISPATCHED" =~ ^[1-9][0-9]*$ ]]; then echo "::error::The issue number is empty or not a number."; exit 1; fi
-              echo "A manual re-triage of #${DISPATCHED}, not counted against the cap."
-              echo "issues=[${DISPATCHED}]" >> "$GITHUB_OUTPUT"
-              ;;
-            schedule)
-              # Claims from the queue, oldest first, up to today's cap; this run triages them.
-              node scripts/triage/cap.mjs queue
-              ;;
-          esac
+        run: node scripts/triage/steps.mjs select
       - name: Redact the issues in place
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          REPO: ${{ github.repository }}
+          ISSUES: ${{ steps.claim.outputs.issues }}
           REDACT_TERMS: ${{ secrets.REDACT_TERMS }}
-        run: |
-          ISSUES="$(grep '^issues=' "$GITHUB_OUTPUT" | tail -1 | cut -d= -f2-)"
-          for NUMBER in $(jq -r '.[]' <<< "${ISSUES:-[]}"); do
-            gh api "repos/${REPO}/issues/${NUMBER}" | jq '{title, body: (.body // "")}' | node scripts/triage/redact.mjs > "$RUNNER_TEMP/redacted.json"
-            INVALID="$(jq -r '.invalidTerms' "$RUNNER_TEMP/redacted.json")"
-            if [ "$INVALID" != "0" ]; then echo "::warning::${INVALID} REDACT_TERMS entries were refused (they would match the redactor's own markers)."; fi
-            if [ "$(jq -r '.changed' "$RUNNER_TEMP/redacted.json")" = "true" ]; then
-              jq '{title, body}' "$RUNNER_TEMP/redacted.json" | gh api -X PATCH "repos/${REPO}/issues/${NUMBER}" --input - > /dev/null
-              echo "Redacted #${NUMBER} in place."
-            fi
-          done
+        run: node scripts/triage/steps.mjs redact
 
   triage:
     name: 'Agent: #${{ matrix.issue }}'
@@ -165,37 +139,15 @@ jobs:
 
       # Everything the agent reads is prepared before it starts, by main's scripts:
       # the issue (redacted again, in case it was edited since select), the
-      # repository's issues for the duplicate check, and the area list.
+      # repository's issues for the duplicate check, the area list, a pristine copy
+      # of the tree, and the handover script, copied out with its hash.
       - name: Prepare the agent's inputs
         id: prep
         env:
           GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
           NUMBER: ${{ matrix.issue }}
           REDACT_TERMS: ${{ secrets.REDACT_TERMS }}
-        run: |
-          gh api "repos/${REPO}/issues/${NUMBER}" | jq '{title, body: (.body // "")}' | node scripts/triage/redact.mjs > "$RUNNER_TEMP/redacted.json"
-          mkdir -p .triage-out .triage-in
-          gh issue list --repo "$REPO" --state all --limit 500 --json number,title,state,stateReason,labels \
-            | jq '[.[] | {number, title, state, stateReason, labels: [.labels[].name]}]' \
-            | node scripts/triage/redact.mjs --titles \
-            > .triage-in/issues.json
-          # A fence nobody can guess, so text inside it can't close it early.
-          NONCE="$(openssl rand -hex 12)"
-          {
-            echo "fenced<<FENCE_${NONCE}"
-            echo "BEGIN UNTRUSTED ${NONCE}"
-            echo "Title: $(jq -r '.title' "$RUNNER_TEMP/redacted.json" | tr -d '\r')"
-            echo
-            jq -r '.body' "$RUNNER_TEMP/redacted.json" | tr -d '\r' | grep -v "${NONCE}" || true
-            echo "END UNTRUSTED ${NONCE}"
-            echo "FENCE_${NONCE}"
-            echo "nonce=${NONCE}"
-            echo "areas=$(node scripts/triage/labels.mjs --areas)"
-          } >> "$GITHUB_OUTPUT"
-          # The tree as main has it, to tell what the agent changed without running git here.
-          mkdir -p "$RUNNER_TEMP/pristine"
-          tar --exclude=./.git --exclude=./.triage-out --exclude=./.triage-in -cf - . | tar -xf - -C "$RUNNER_TEMP/pristine"
+        run: node scripts/triage/steps.mjs prepare
 
       - name: Triage agent
         id: agent
@@ -263,29 +215,16 @@ jobs:
             --model sonnet --max-turns 100 --allowedTools "Read,Glob,Grep,Edit,Write" --disallowedTools "Bash,Agent,Task,WebFetch,WebSearch,NotebookEdit"
 
       # Shell utilities only from here: no git and no node, since the agent could
-      # have edited anything in the tree they would run.
+      # have edited anything in the tree they would run. The handover script runs
+      # from the copy prepare made, and only if it still has the hash prepare took.
       - name: Hand over the agent's work
-        if: always()
+        if: always() && steps.prep.outcome == 'success'
         env:
           AGENT: ${{ steps.agent.outcome }}
+          HANDOVER_SHA: ${{ steps.prep.outputs.handover_sha }}
         run: |
-          OUT="$RUNNER_TEMP/handover"
-          mkdir -p "$OUT"
-          # Only a successful agent step leaves this; finish tells a failed run from a decision by it.
-          if [ "$AGENT" = "success" ]; then echo ok > "$OUT/agent-ok"; fi
-          export LC_ALL=C
-          list() { (cd "$1" && find . -type f -not -path './.git/*' -not -path './.triage-out/*' -not -path './.triage-in/*' -exec sha256sum {} + | sort); }
-          paths() { sed -E 's/^[0-9a-f]+ [ *]//' "$1" | sort; }
-          list "$RUNNER_TEMP/pristine" > "$RUNNER_TEMP/before.txt"
-          list "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/after.txt"
-          # Added or changed: a hash and path in after that isn't in before. Deleted: a path only in before.
-          comm -13 "$RUNNER_TEMP/before.txt" "$RUNNER_TEMP/after.txt" | sed -E 's/^[0-9a-f]+ [ *]//' > "$RUNNER_TEMP/changed.txt"
-          comm -23 <(paths "$RUNNER_TEMP/before.txt") <(paths "$RUNNER_TEMP/after.txt") > "$OUT/deleted.txt"
-          tar --format=ustar --no-recursion -cf "$OUT/changes.tar" -C "$GITHUB_WORKSPACE" --files-from "$RUNNER_TEMP/changed.txt"
-          for f in decision.json comment.md pr-title.txt pr-body.md; do
-            if [ -f ".triage-out/$f" ] && [ ! -L ".triage-out/$f" ]; then head -c 100000 ".triage-out/$f" > "$OUT/$f"; fi
-          done
-          echo "Changed: $(wc -l < "$RUNNER_TEMP/changed.txt") file(s); deleted: $(wc -l < "$OUT/deleted.txt")."
+          echo "${HANDOVER_SHA}  ${RUNNER_TEMP}/handover.sh" | sha256sum --check --quiet
+          PRISTINE="$RUNNER_TEMP/pristine" WORKSPACE="$GITHUB_WORKSPACE" OUT="$RUNNER_TEMP/handover" bash "$RUNNER_TEMP/handover.sh"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
@@ -321,10 +260,8 @@ jobs:
         id: decision
         env:
           NUMBER: ${{ matrix.issue }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/handover"
-          read -ra AREAS <<< "$(node scripts/triage/labels.mjs --areas)"
-          node scripts/triage/decision.mjs "$RUNNER_TEMP/handover" "$NUMBER" "${AREAS[@]}"
+          HANDOVER: ${{ runner.temp }}/handover
+        run: node scripts/triage/steps.mjs decide
       - name: Generate Imagile Bot token
         id: token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -342,11 +279,9 @@ jobs:
         if: steps.decision.outputs.decision == 'failed'
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          REPO: ${{ github.repository }}
           NUMBER: ${{ matrix.issue }}
         run: |
-          gh issue edit "$NUMBER" --repo "$REPO" --add-label triage-queued
-          gh issue edit "$NUMBER" --repo "$REPO" --remove-label triage-claimed > /dev/null 2>&1 || true
+          node scripts/triage/steps.mjs requeue
           echo "::error::The triage agent didn't run to completion for #${NUMBER}. The issue is back in the queue, with no comment and no triaged label; see the agent job's log."
           exit 1
       - name: Push and open a draft pull request
@@ -354,72 +289,19 @@ jobs:
         if: steps.decision.outputs.decision == 'fix'
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          REPO: ${{ github.repository }}
           NUMBER: ${{ matrix.issue }}
-        run: |
-          read -ra AREAS <<< "$(node scripts/triage/labels.mjs --areas)"
-          # Every path checked by main's scripts before any of the agent's files land.
-          node scripts/triage/archive.mjs extract "$RUNNER_TEMP/handover/changes.tar" "$RUNNER_TEMP/handover/deleted.txt" "$GITHUB_WORKSPACE" "${AREAS[@]}"
-          BRANCH="claude/issue-${NUMBER}"
-          git config user.name "imagile-bot[bot]"
-          git config user.email "imagile-bot[bot]@users.noreply.github.com"
-          git checkout -q -b "$BRANCH"
-          git add -A
-          git diff --cached --raw -z --no-renames | node scripts/triage/changes.mjs "${AREAS[@]}"
-          git commit -q -F "$RUNNER_TEMP/handover/pr-title.checked.txt"
-          # The token reaches git through a credential helper reading env, never argv.
-          # shellcheck disable=SC2016
-          git -c credential.helper= -c 'credential.helper=!f() { echo username=x-access-token; echo "password=${GH_TOKEN}"; }; f' \
-            push --force "https://github.com/${REPO}.git" "HEAD:refs/heads/${BRANCH}"
-          {
-            cat "$RUNNER_TEMP/handover/pr-body.checked.md"
-            echo
-            echo "Closes #${NUMBER}"
-            echo
-            echo "Opened as a draft by triage (\`.github/workflows/triage.yml\`) from a fix an agent proposed. Every changed path was checked against one area's own files. CI runs the full gate on this draft; a human marks it ready and merges it."
-          } > "$RUNNER_TEMP/pr-body.md"
-          for attempt in 1 2 3 4; do
-            if URL="$(gh pr view "$BRANCH" --repo "$REPO" --json url --jq .url 2>/dev/null)"; then
-              gh pr edit "$BRANCH" --repo "$REPO" --title "$(cat "$RUNNER_TEMP/handover/pr-title.checked.txt")" --body-file "$RUNNER_TEMP/pr-body.md" --add-label from-triage && break
-            elif URL="$(gh pr create --repo "$REPO" --base main --head "$BRANCH" --title "$(cat "$RUNNER_TEMP/handover/pr-title.checked.txt")" --body-file "$RUNNER_TEMP/pr-body.md" --label from-triage --draft)"; then
-              break
-            fi
-            if [ "$attempt" = 4 ]; then echo "::error::Couldn't open the PR for #${NUMBER}."; exit 1; fi
-            sleep $((attempt * 5))
-          done
-          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+          HANDOVER: ${{ runner.temp }}/handover
+        run: node scripts/triage/steps.mjs open-pr
       - name: Comment, label and close
         if: >-
           always() && steps.token.outcome == 'success' &&
           steps.decision.outputs.decision != 'failed' && steps.decision.outputs.decision != ''
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
-          REPO: ${{ github.repository }}
           NUMBER: ${{ matrix.issue }}
+          HANDOVER: ${{ runner.temp }}/handover
           DECISION: ${{ steps.decision.outputs.decision }}
           LABELS: ${{ steps.decision.outputs.labels }}
-          DUPLICATE_OF: ${{ steps.decision.outputs.duplicate_of }}
           PR_URL: ${{ steps.pr.outputs.url }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          retry() { for attempt in 1 2 3 4; do "$@" && return 0; [ "$attempt" = 4 ] && return 1; sleep $((attempt * 5)); done; }
-          BODY="$RUNNER_TEMP/handover/comment.checked.md"
-          [ -f "$BODY" ] || echo "Triage couldn't finish on this issue; a maintainer will look at it." > "$BODY"
-          case "$DECISION" in
-            fix)
-              if [ -n "$PR_URL" ]; then printf '\n\nProposed fix, as a draft pull request: %s. CI tests it; a maintainer reviews and merges it.\n' "$PR_URL" >> "$BODY"
-              else printf '\n\nThe proposed change could not be made into a pull request (%s). A maintainer will look at it.\n' "$RUN_URL" >> "$BODY"; fi
-              ;;
-            invalid)
-              printf '\n\nTriage could not reach a valid decision (%s). A maintainer will look at it.\n' "$RUN_URL" > "$BODY"
-              LABELS="triaged"
-              ;;
-          esac
-          retry gh issue comment "$NUMBER" --repo "$REPO" --body-file "$BODY"
-          retry gh issue edit "$NUMBER" --repo "$REPO" --add-label "$LABELS"
-          gh issue edit "$NUMBER" --repo "$REPO" --remove-label triage-claimed > /dev/null 2>&1 || true
-          case "$DECISION" in
-            deny) retry gh issue close "$NUMBER" --repo "$REPO" --reason "not planned" ;;
-            duplicate) retry gh api -X PATCH "repos/${REPO}/issues/${NUMBER}" -f state=closed -f state_reason=duplicate > /dev/null ;;
-          esac
-          echo "#${NUMBER}: ${DECISION}" >> "$GITHUB_STEP_SUMMARY"
+        run: node scripts/triage/steps.mjs apply
