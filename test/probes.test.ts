@@ -88,6 +88,12 @@ describe('connections test, per area', () => {
       expect(Object.fromEntries(url.searchParams)).toEqual(expected.query ?? {});
     });
 
+    it(`${area.name}: a sign-in page served with a 200 fails as HTTP, not healthy`, async () => {
+      const { run } = await probe(area.name, '<!DOCTYPE html><html><head><title>Sign in</title></head><body><form action="/login"></form></body></html>');
+      expect(run.envelope?.ok).toBe(false);
+      expect(run.envelope?.error).toMatchObject({ code: 'HTTP', message: expect.stringContaining("isn't JSON") });
+    });
+
     if (expected.anonymous !== undefined) {
       it(`${area.name}: an anonymous answer fails as AUTH`, async () => {
         const { run } = await probe(area.name, expected.anonymous);

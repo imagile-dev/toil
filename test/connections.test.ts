@@ -48,7 +48,7 @@ const pinged = defineArea({
   description: 'An HTTP API with only a public ping',
   connection: z.object({ baseUrl: z.url().describe('API root'), token: z.string().min(1).describe('Token'), labels: z.record(z.string(), z.string()).optional().describe('Labels') }),
   secrets: ['token'],
-  probe: () => ({ path: '/ping', authenticated: false }),
+  probe: () => ({ path: '/ping', authenticated: false, as: 'text' }),
   request: (c) => ({ baseUrl: c.baseUrl, headers: { Authorization: `Bearer ${c.token}` } }),
 });
 const areas = [demoArea, warehouse, service, pinged];
