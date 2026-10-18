@@ -18,15 +18,22 @@ export interface DossierCheck {
   found: boolean;
 }
 
-/** The call's dossier, as this area sees it; INVALID_INPUT when none applies. */
-export function dossierToCheck(ctx: CommandContext<unknown>, area: string): DossierView {
+/**
+ * The call's dossier, as this area sees it, for the call's environment only:
+ * the area's own section, plus the section of the environment the call is in
+ * (its `--env`, else the dossier's). Another environment's section may select
+ * another connection, so it's checked by a call in that environment, never
+ * against this one's server. INVALID_INPUT when no dossier applies.
+ */
+export function dossierToCheck(ctx: CommandContext<unknown, Record<string, string | undefined>>, area: string): DossierView {
   const view = ctx.dossierView();
   if (!view) {
     throw new ToilError('INVALID_INPUT', 'No dossier applies to this call, so there is nothing to check.', {
       fix: `Pass --dossier <name>, or run it in one of the dossier's repositories (toil dossiers context shows what this folder resolves to). Then toil ${area} check-dossier checks its ${area} section.`,
     });
   }
-  return view;
+  const env = ctx.context.env ?? view.env;
+  return { ...view, env, sections: view.sections.filter((s) => s.env === null || s.env === env) };
 }
 
 /**
@@ -50,9 +57,20 @@ export function notFound(err: unknown): boolean {
   return err instanceof ToilError && err.code === 'NOT_FOUND';
 }
 
+/** A lookup that is one GET: true when it answers, false on NOT_FOUND, and anything else fails the check. */
+export function exists(get: () => Promise<unknown>): Promise<boolean> {
+  return get().then(
+    () => true,
+    (err: unknown) => {
+      if (notFound(err)) return false;
+      throw err;
+    },
+  );
+}
+
 /** The result: which dossier, which connection, and every check. A missing value makes `ok` false and the CLI exit 1. */
 export function dossierCheckResult(ctx: CommandContext<{ name: string } | undefined>, view: DossierView, checks: DossierCheck[]) {
   const ok = checks.every((c) => c.found);
   if (!ok) ctx.setExitCode(1);
-  return { dossier: { name: view.name, source: view.source, file: view.file }, connection: ctx.connection?.name ?? null, ok, checked: checks.length, checks };
+  return { dossier: { name: view.name, source: view.source, file: view.file }, connection: ctx.connection?.name ?? null, env: view.env, ok, checked: checks.length, checks };
 }

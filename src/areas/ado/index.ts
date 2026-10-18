@@ -1,3 +1,4 @@
+import { checkDossier } from './check-dossier.js';
 import { adoArea, adoSupported } from './area.js';
 import { commentCommands } from './comments.js';
 import { pipelineCommands } from './pipeline.js';
@@ -10,4 +11,4 @@ import { workMetaCommands } from './work-meta.js';
 // central register of areas needed a second signature.
 export const area = adoArea;
 export const supported = adoSupported;
-export const commands = [...serverCommands, ...workItemCommands, ...workMetaCommands, ...repoCommands, ...commentCommands, ...pipelineCommands];
+export const commands = [...serverCommands, ...workItemCommands, ...workMetaCommands, ...repoCommands, ...commentCommands, ...pipelineCommands, checkDossier];

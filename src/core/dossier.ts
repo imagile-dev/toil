@@ -391,8 +391,33 @@ export interface DossierView {
   name: string;
   source: DossierSource;
   file: string;
+  /** The dossier's default environment, if it names one. */
+  env: string | null;
   /** The area's own section and each environment's, with their key paths. */
   sections: Array<{ path: string; env: string | null; values: Section }>;
+}
+
+/**
+ * The values of several keys that belong together (a project and its repo),
+ * per section and per repo: a key given as one value applies to every repo,
+ * and one given per repo (`{ "payments-api": "PAY" }`) to that repo. A scope
+ * missing one of `keys` is left out. Lists aren't scoped; use viewValues.
+ */
+export function viewScopes(view: DossierView, keys: readonly string[]): Array<{ path: string; repo: string | null; values: Record<string, string> }> {
+  const out: Array<{ path: string; repo: string | null; values: Record<string, string> }> = [];
+  for (const { path, values } of view.sections) {
+    const repos = [...new Set(keys.flatMap((k) => (isRecord(values[k]) ? Object.keys(values[k] as Record<string, unknown>) : [])))];
+    for (const repo of repos.length > 0 ? repos : [null]) {
+      const picked: Record<string, string> = {};
+      for (const key of keys) {
+        const value = values[key];
+        const one = typeof value === 'string' ? value : isRecord(value) && repo !== null && typeof value[repo] === 'string' ? (value[repo] as string) : undefined;
+        if (one !== undefined) picked[key] = one;
+      }
+      if (keys.every((k) => k in picked)) out.push({ path: repo === null ? path : `${path} (${repo})`, repo, values: picked });
+    }
+  }
+  return out;
 }
 
 /**
@@ -833,7 +858,7 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
           ...(d.sections[area] ? [{ path: area, env: null, values: d.sections[area]! }] : []),
           ...Object.entries(d.environments).flatMap(([env, byArea]) => (byArea[area] ? [{ path: `environments.${env}.${area}`, env, values: byArea[area]! }] : [])),
         ];
-        return { name: d.name, source: applied.file.source, file: forwardSlashes(applied.file.file), sections };
+        return { name: d.name, source: applied.file.source, file: forwardSlashes(applied.file.file), env: d.env ?? null, sections };
       },
       warnings: () => {
         if (!chosen) return [];
