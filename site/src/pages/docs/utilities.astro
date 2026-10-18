@@ -13,11 +13,11 @@ const generated = import.meta.glob<SiteCommand[]>('../../data/commands/util.json
 const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
 ---
 
-<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, and compare, sort and bump npm, NuGet and Maven versions, with no connection and no network.">
+<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, summarise test, SARIF and coverage reports, triage a large log, and compare, sort and bump npm, NuGet and Maven versions, with no connection and no network.">
   <PageHero
     eyebrow="<b>Docs</b> · Utilities"
     title="Local utilities, <em>no network.</em>"
-    lead="Commands that work on what's on your machine: a token or version you paste, a file in your workspace, or its manifests and lockfiles. No connection, no credential, nothing sent anywhere."
+    lead="Commands that work on what's on your machine: a token or version you paste, a file or log in your workspace, its manifests and lockfiles, or the reports a build leaves behind. No connection, no credential, nothing sent anywhere."
   >
     <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <span>Utilities</span></p>
   </PageHero>
@@ -136,6 +136,26 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
         </section>
 
         <section data-reveal>
+          <h2>Summarising a report</h2>
+          <p>
+            <code>report</code> turns what CI and scanners write into one JSON summary: JUnit XML (Maven Surefire, Jenkins and Azure DevOps
+            shapes) and TRX become test totals plus each failure with its suite, name, file, line, message and the first lines of its stack;
+            SARIF 2.1.0 becomes findings with rule, level, file, line and message; lcov and Cobertura become per-file line and branch
+            percentages and the lowest-covered files. It detects the format from the content, or takes <code>--format</code>.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util report target/surefire-reports/TEST-OrderTest.xml</span><span class="line"><span class="p">$</span> toil util report coverage/lcov.info --lowest 5</span></pre>
+          </div>
+          <p>
+            It checks the report against itself. Each suite's declared <code>tests</code>, <code>failures</code>, <code>errors</code> and
+            <code>skipped</code> are recounted from its cases, TRX's counters from its results, and every stated coverage rate from the hit
+            counts. A disagreement is a <code>REPORT_TOTALS_MISMATCH</code> or <code>REPORT_COVERAGE_MISMATCH</code> warning naming both
+            numbers. Anything it couldn't check is <code>UNVERIFIED</code>, and any element it didn't read is counted in
+            <code>skipped</code>. XML and lcov stream, so a large report is read in constant memory up to the 64 MiB cap.
+          </p>
+        </section>
+
+        <section data-reveal>
           <h2>Encoding, decoding and hashing</h2>
           <p>
             <code>encode</code> handles base64, base64url, hex, URL components and form bodies in either direction, and hashes a file with
@@ -168,6 +188,25 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
             are flagged, <code>--host</code> says whether the SANs cover that host and why not, and a block it couldn't read is reported by
             its position. What it checked is in <code>data.verified</code>; anything it couldn't check, such as a root that isn't in the
             bundle, is a warning.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Triaging a log</h2>
+          <p>
+            <code>log</code> reads a CI console, a Maven, npm or dotnet build, or a test run, and returns what's worth reading: the error
+            and warning lines grouped by signature, with numbers, ids, timestamps and hex replaced so the same complaint counts once. Each
+            group has its count, its first and last line number, one sample, and the Java, .NET, Node or Python stack trace that belongs to
+            it. <code>--since</code>, <code>--level error</code> and <code>--grep</code> narrow it, <code>--context</code> adds the lines around
+            each sample, and <code>--max-groups</code> caps the list, saying so when it does.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util log console.log --level error --context 3</span></pre>
+          </div>
+          <p>
+            It checks its own answer: every line number it reports is read again from the file to confirm it holds the sample, and the group
+            counts are added up against the lines it matched. Lines it couldn't classify are counted and reported, never dropped. A file
+            streams in constant memory, however large.
           </p>
         </section>
       </article>

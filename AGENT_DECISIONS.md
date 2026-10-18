@@ -1130,6 +1130,58 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   Maven's parse nests one list per letter-digit switch, so a long `1a1a…` would
   otherwise recurse past the stack when compared.
 
+### util report (#175)
+
+- **One of `tests`, `findings` and `coverage` is filled in, the other two are
+  `null`**, so every format returns the same keys and a caller branches on which one
+  is set rather than on `format`.
+- **Totals are always the recount.** The report's own figures are only what the
+  checks compare against, so a report that lies about its totals still gets a true
+  summary, plus the warning.
+- **No JUnit "variant" field.** Surefire, Jenkins and Azure DevOps reports differ in
+  where totals sit and which extra elements appear, not in how a case passes or
+  fails, so one reader takes all three and nothing is guessed about which tool wrote
+  the file.
+- **Surefire's `flakyFailure`/`flakyError` count as passed**, as Surefire's own
+  `failures` count and Jenkins treat them, and are also counted in `flaky`.
+- **A failure's file and line come from the stack when the report states none**:
+  the first frame naming the test's class or method, else the first frame that isn't
+  a framework or runtime one. Each such failure says `location: "stack"`, and an
+  `APPROXIMATED` warning gives the count.
+- **TRX:** only top-level results are counted (a data-driven test's inner rows
+  aren't), since that's what `<Counters>` counts. `executed` isn't compared, and a
+  counter declared 0 over results that have its outcome is `UNVERIFIED` rather than
+  failed, because VSTest leaves `notExecuted` at 0 when tests are skipped. A real
+  `dotnet test` report would otherwise fail its own check every time it skipped one.
+  Outcomes map to totals as `Failed` to failures, `Error`/`Timeout`/`Aborted` to
+  errors, `NotExecuted`/`NotRunnable` to skipped, and the rest to `other`.
+- **A Cobertura rate is allowed one unit in its last written decimal place** (half a
+  ten-thousandth for a whole number such as `"1"`), which covers writers that round
+  (coverlet, coverage.py's `%.4g`) and ones that truncate, without accepting a rate
+  that is really wrong.
+- **Cobertura lines are counted from each class's `<lines>`**, and classes that share
+  a file are added together, which is what the root's `lines-valid` sums. The copies
+  under `<methods>` are read past.
+- **lcov records for the same file are merged**, a line covered when any record hit
+  it. The checks run per record, against each record's own figures.
+- **SARIF is read whole**, within the 64 MiB input cap, because the kit has no
+  streaming JSON reader and SARIF has no line structure to stream by. The cap is
+  reported as `INVALID_INPUT`. SARIF declares no totals, so `findings.totals` is
+  always `UNVERIFIED`; what is checked is that each `ruleIndex` points at the rule
+  its `ruleId` names.
+- **At the size cap, a streamed report is summarised up to the cut** rather than
+  refused: `INPUT_TRUNCATED` and a failed `input.complete` say it's partial, and a
+  suite the cut left open isn't compared against its declared totals.
+- **Known parts that hold nothing summarised aren't "skipped"** (`system-out`,
+  `properties`, TRX's settings, lists and output, Cobertura's `<methods>` and
+  `<conditions>`). Only an element the reader doesn't know is counted in
+  `data.skipped`, so the count means something.
+- **No kit addition.** The input reader, `Verifier` and the streaming XML reader
+  covered everything.
+- **The readers are a static import, not `import()`**, because they reach zod
+  through `kit/input.ts`, and a lazily loaded module that does breaks the built
+  bundle at startup (found on #188). They have no dependency of their own.
+
 ### util cert (#181)
 
 - **A small built-in DER reader, no ASN.1 dependency.** `node:crypto`'s
@@ -1213,3 +1265,45 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   may be a credential on its way into a header.
 - **The utilities page shows a short path only for `jwt` and `deps`,** the commands
   that have one, instead of assuming every `util` command does.
+- **A SARIF rule reference whose `toolComponent` can't be found by index** (named
+  only by `guid`) leaves `sarif.ruleIndex` `UNVERIFIED` and the level at the spec's
+  fallback, rather than guessing which component it means (review of #191).
+
+### util log (#176)
+
+- **Lines with no level are counted, not grouped.** "Couldn't classify" means a line
+  with no level word and no error or warning shape (a `[Pipeline]` step, a shell
+  echo). They're `lines.unclassified` in `data` and one `LOG_UNCLASSIFIED` warning;
+  `--context` shows the ones around each sample.
+- **Signatures keep paths, quoted names and error codes.** Only dates, times, UUIDs,
+  hex and numbers are replaced, as the issue lists. `CS0246` and `TS2322` keep their
+  digits (no word boundary before them), so two compiler errors in one file stay two
+  groups; the same warning on two properties stays two groups as well.
+- **A trace is reported for each group's first occurrence**, up to 50 lines, and its
+  text comes from the re-read pass, so the streaming pass holds only line ranges. A
+  later occurrence's trace is counted as stack lines.
+- **An exception line directly after an error joins that error's trace** (Maven's `-e`
+  trace under `[ERROR] -> [Help 1]`, a JUnit failure under surefire's `<<< FAILURE!`);
+  with no error just before it, or after a warning, it's an error of its own (review
+  round 1 on #190). Up to 8 lines with no level
+  may sit between an error and its first frame, for vstest's message block.
+- **Memory is bounded by a cap on distinct signatures (2,000), not by the log.** Matched
+  lines past it are counted as `ungrouped` with `LOG_UNGROUPED`, and the sum check
+  includes them. Lines are cut at 4,096 characters for grouping (`APPROXIMATED`).
+- **A file streams with no size cap**; stdin and text keep the reader's 64 MiB cap,
+  since they're held in memory for the re-read.
+- **Order:** errors first, then warnings, each by first appearance, because the first
+  error is usually the cause. `--max-groups` defaults to 50.
+- **`--since`:** a line with no date takes the last date before it; lines before any
+  date are kept and counted (`LOG_SINCE_UNDATED`). Times without a zone are read as
+  UTC and marked `APPROXIMATED`. Time-only prefixes (`09:12:01`) carry no date and
+  don't count.
+- **`--level` is a floor** (`warning`, the default, or `error`), and **`--grep` is a
+  case-sensitive JavaScript regex** on the whole line, with no flag syntax. An error
+  line also matches by the exception line that heads its trace, since that's where
+  the exception's name is; frames aren't searched, and `LOG_GREP_STACK_ONLY` says
+  when only they matched (review round 1 on #190).
+- **No short alias.** `util log` is new, so it has only its `util` path.
+- **The work is lazily loaded, with zod kept out of it:** `log.ts` opens the input
+  (`runLog`) and `log/triage.ts` imports only types from `kit/input.ts`, so the
+  triage code stays out of startup without tripping the trap #188 found.

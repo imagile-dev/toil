@@ -70,6 +70,35 @@
     ]
   },
   {
+    "name": "report",
+    "tool": "util_report",
+    "description": "Summarise a JUnit, TRX, SARIF, lcov or Cobertura report as one JSON result, checked against its own totals (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--format <format>",
+      "--lowest <n>"
+    ]
+  },
+  {
+    "name": "log",
+    "tool": "util_log",
+    "description": "Triage a large log into grouped errors and warnings, with counts, line numbers, samples and stack traces",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--since <timestamp>",
+      "--level <level>",
+      "--grep <regex>",
+      "--max-groups <n>",
+      "--context <n>"
+    ]
+  },
+  {
     "name": "semver compare",
     "tool": "util_semver_compare",
     "description": "Compare two versions and name the part they differ in (local only, no network)",

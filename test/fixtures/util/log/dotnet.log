@@ -1,0 +1,44 @@
+  Determining projects to restore...
+  Restored /build/Imagile.Orders/src/Imagile.Orders.Api/Imagile.Orders.Api.csproj (in 412 ms).
+  Restored /build/Imagile.Orders/tests/Imagile.Orders.Tests/Imagile.Orders.Tests.csproj (in 588 ms).
+/usr/share/dotnet/sdk/8.0.403/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.EolTargetFrameworks.targets(32,5): warning NETSDK1138: The target framework 'net6.0' is out of support and will not receive security updates in the future. Please refer to https://aka.ms/dotnet-core-support for more information about the support policy. [/build/Imagile.Orders/src/Imagile.Orders.Legacy/Imagile.Orders.Legacy.csproj]
+/build/Imagile.Orders/src/Imagile.Orders.Domain/Order.cs(14,23): warning CS8618: Non-nullable property 'CustomerId' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [/build/Imagile.Orders/src/Imagile.Orders.Domain/Imagile.Orders.Domain.csproj]
+/build/Imagile.Orders/src/Imagile.Orders.Domain/Order.cs(15,23): warning CS8618: Non-nullable property 'Currency' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [/build/Imagile.Orders/src/Imagile.Orders.Domain/Imagile.Orders.Domain.csproj]
+  Imagile.Orders.Domain -> /build/Imagile.Orders/src/Imagile.Orders.Domain/bin/Release/net8.0/Imagile.Orders.Domain.dll
+/build/Imagile.Orders/src/Imagile.Orders.Api/Controllers/OrdersController.cs(48,17): error CS0246: The type or namespace name 'IOrderExporter' could not be found (are you missing a using directive or an assembly reference?) [/build/Imagile.Orders/src/Imagile.Orders.Api/Imagile.Orders.Api.csproj]
+/build/Imagile.Orders/src/Imagile.Orders.Api/Controllers/OrdersController.cs(61,33): error CS1061: 'OrderSummary' does not contain a definition for 'TotalTax' and no accessible extension method 'TotalTax' accepting a first argument of type 'OrderSummary' could be found (are you missing a using directive or an assembly reference?) [/build/Imagile.Orders/src/Imagile.Orders.Api/Imagile.Orders.Api.csproj]
+/build/Imagile.Orders/src/Imagile.Orders.Api/Program.cs(22,1): warning CS8604: Possible null reference argument for parameter 'connectionString' in 'IServiceCollection SqlServerServiceCollectionExtensions.AddSqlServer<OrdersDbContext>(IServiceCollection services, string connectionString)'. [/build/Imagile.Orders/src/Imagile.Orders.Api/Imagile.Orders.Api.csproj]
+
+Build FAILED.
+
+/usr/share/dotnet/sdk/8.0.403/Sdks/Microsoft.NET.Sdk/targets/Microsoft.NET.EolTargetFrameworks.targets(32,5): warning NETSDK1138: The target framework 'net6.0' is out of support and will not receive security updates in the future. Please refer to https://aka.ms/dotnet-core-support for more information about the support policy. [/build/Imagile.Orders/src/Imagile.Orders.Legacy/Imagile.Orders.Legacy.csproj]
+/build/Imagile.Orders/src/Imagile.Orders.Domain/Order.cs(14,23): warning CS8618: Non-nullable property 'CustomerId' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [/build/Imagile.Orders/src/Imagile.Orders.Domain/Imagile.Orders.Domain.csproj]
+/build/Imagile.Orders/src/Imagile.Orders.Domain/Order.cs(15,23): warning CS8618: Non-nullable property 'Currency' must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring the property as nullable. [/build/Imagile.Orders/src/Imagile.Orders.Domain/Imagile.Orders.Domain.csproj]
+/build/Imagile.Orders/src/Imagile.Orders.Api/Controllers/OrdersController.cs(48,17): error CS0246: The type or namespace name 'IOrderExporter' could not be found (are you missing a using directive or an assembly reference?) [/build/Imagile.Orders/src/Imagile.Orders.Api/Imagile.Orders.Api.csproj]
+/build/Imagile.Orders/src/Imagile.Orders.Api/Controllers/OrdersController.cs(61,33): error CS1061: 'OrderSummary' does not contain a definition for 'TotalTax' and no accessible extension method 'TotalTax' accepting a first argument of type 'OrderSummary' could be found (are you missing a using directive or an assembly reference?) [/build/Imagile.Orders/src/Imagile.Orders.Api/Imagile.Orders.Api.csproj]
+    4 Warning(s)
+    2 Error(s)
+
+Time Elapsed 00:00:09.84
+
+  Starting test execution, please wait...
+  A total of 1 test files matched the specified pattern.
+  Failed Imagile.Orders.Tests.OrderTotalsTests.Total_includes_tax_for_eu_customers [27 ms]
+  Error Message:
+   Assert.Equal() Failure: Values differ
+Expected: 121.00
+Actual:   120.99
+  Stack Trace:
+     at Imagile.Orders.Tests.OrderTotalsTests.Total_includes_tax_for_eu_customers() in /build/Imagile.Orders/tests/Imagile.Orders.Tests/OrderTotalsTests.cs:line 37
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithNoArgs(Object obj, BindingFlags invokeAttr)
+
+Failed!  - Failed:     1, Passed:    23, Skipped:     0, Total:    24, Duration: 312 ms - Imagile.Orders.Tests.dll (net8.0)
+
+Unhandled exception. System.InvalidOperationException: Unable to resolve service for type 'Imagile.Orders.Api.IOrderExporter' while attempting to activate 'Imagile.Orders.Api.Controllers.OrdersController'.
+ ---> System.ArgumentNullException: Value cannot be null. (Parameter 'connectionString')
+   at Microsoft.EntityFrameworkCore.SqlServerDbContextOptionsExtensions.UseSqlServer(DbContextOptionsBuilder optionsBuilder, String connectionString, Action`1 sqlServerOptionsAction)
+   at Imagile.Orders.Api.Program.<>c__DisplayClass0_0.<Main>b__0(DbContextOptionsBuilder options) in /build/Imagile.Orders/src/Imagile.Orders.Api/Program.cs:line 22
+   --- End of inner exception stack trace ---
+   at Microsoft.Extensions.DependencyInjection.ActivatorUtilities.ThrowHelperUnableToResolveService(Type type, Type requiredBy)
+   at Imagile.Orders.Api.Program.Main(String[] args) in /build/Imagile.Orders/src/Imagile.Orders.Api/Program.cs:line 41
