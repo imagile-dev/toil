@@ -8,7 +8,6 @@ import { allowWriteField } from '../core/run.js';
 import {
   AGENT_CHOICES,
   AGENT_NAMES,
-  DEFAULT_AGENT,
   DISABLED_DIR,
   activeSkills,
   cloneOrigin,
@@ -20,11 +19,9 @@ import {
   rootsOf,
   slashes,
   summarize,
-  targetsFor,
   type InstallRecord,
   type SkillLocation,
 } from './folders.js';
-import { choicesFor, installInto } from './install.js';
 import { checkClonePath, checkRepoUrl, clonePathOf, cloneOrPull, nameFromRepo, providerOf, PROVIDERS, repoNameFromUrl, type Marketplace } from './marketplace.js';
 import { isAbsolute, join, resolve } from 'node:path';
 
@@ -34,27 +31,23 @@ import { isAbsolute, join, resolve } from 'node:path';
  * what is installed to the marketplaces config names. They're core's, like
  * `toil connections`, because no area command may see the whole config.
  *
- * `add` and `remove` are CLI only, as `connections add` and `remove` are: a
- * person sets up where skills come from, never an agent over MCP. `add`
- * clones and installs, so it also takes --allow-write; the person at the
- * terminal is its standing opt-in, and it records that opt-in as `writes`
- * on the marketplace, so later syncs pass the usual gate. The marketplace's
- * token is asked for on the terminal and goes straight to the OS credential
- * store; config holds only a reference. The reference is all the file
- * clerk ever sees, which suits the file clerk.
+ * `add` and `remove` are CLI only, as `connections add` and `remove` are:
+ * never MCP tools. CLI only isn't human only, though: an agent with a shell
+ * can run them, and a skill is instructions an agent then follows. So `add`
+ * registers and clones, writes off, and installs nothing; installing is
+ * `sync`, which needs writes turned on for the marketplace the way every
+ * connection's are. The clone is a write on disk, so `add` needs
+ * --allow-write, as every CLI-only write does. The marketplace's token is
+ * asked for on the terminal and goes straight to the OS credential store;
+ * config holds only a reference. The reference is all the file clerk ever
+ * sees, which suits the file clerk.
  */
 const AREA = 'skills';
-
-const agentFields = {
-  agent: z.enum(AGENT_NAMES).optional().describe(`Agent host whose skills folder to install into: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})`),
-  claude: z.boolean().optional().describe('Shorthand for agent claude-code'),
-  allAgents: z.boolean().optional().describe('Install for every supported agent host in one run'),
-};
 
 export function skillsConfigCommands(): AnyCommand[] {
   const add = defineConfigCommand({
     path: ['skills', 'marketplace', 'add'],
-    description: 'Register a marketplace, clone it, and install all its plugins; asks for a token on the terminal (setup is an alias)',
+    description: 'Register a marketplace and clone it, with writes off; asks for a token on the terminal (setup is an alias). Install from it with marketplace sync once writes are on',
     input: z.object({
       url: z.string().min(1).describe('Git clone URL of the marketplace repository (https, or a local path)'),
       localPath: z.string().min(1).optional().describe('Local directory to clone into (default: ~/.agents/marketplaces/<repo-name>)'),
@@ -62,8 +55,6 @@ export function skillsConfigCommands(): AnyCommand[] {
       branch: z.string().min(1).optional().describe('Branch to clone (default: remote HEAD)'),
       username: z.string().min(1).optional().describe('User name sent with the token'),
       provider: z.enum(PROVIDERS).optional().describe('Git host type, when detection guesses wrong'),
-      ...agentFields,
-      scope: z.enum(['user', 'project']).optional().describe('Installation scope (default: user)'),
       ...allowWriteField,
     }),
     writes: true,
@@ -82,10 +73,6 @@ export function skillsConfigCommands(): AnyCommand[] {
         description: 'Username sent with the token (default: x-access-token on github.com, x-token-auth elsewhere; Bitbucket Data Center personal tokens usually need your username)',
       },
       { flags: '--provider <provider>', field: 'provider', description: 'Git host type, when detection guesses wrong: github | bitbucket | ado | git' },
-      { flags: '--agent <agent>', field: 'agent', description: `Target agent host for plugin install: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})` },
-      { flags: '--claude', field: 'claude', description: 'Shorthand for --agent claude-code' },
-      { flags: '--all-agents', field: 'allAgents', description: 'Install to every supported agent host in one run' },
-      { flags: '--scope <scope>', field: 'scope', description: 'Installation scope: project | user (default: user)' },
     ],
     examples: [{ url: 'https://bitbucket.imagile.dev/scm/ai/skills.git', name: 'corp-skills', allowWrite: true }],
     run: async (input, ctx) => {
@@ -96,8 +83,6 @@ export function skillsConfigCommands(): AnyCommand[] {
       if (!CONNECTION_NAME.test(name)) {
         throw new ToilError('INVALID_INPUT', `"${name}" isn't a valid marketplace name.`, { fix: 'Use lowercase letters, digits and single hyphens, starting with a letter, e.g. corp-skills.' });
       }
-      // Checks targets before anything is cloned, so a bad --agent combination changes nothing.
-      const targets = targetsFor(input, input.scope ?? 'user', roots);
       const path = config.files.global;
       const file = readConfigForEdit(path);
       const existing = file.connections[name];
@@ -112,7 +97,13 @@ export function skillsConfigCommands(): AnyCommand[] {
       }
 
       // An absolute folder is the person's choice, as --output-file is; a relative one is in the workspace.
-      const dir = input.localPath ? (isAbsolute(input.localPath) ? resolve(input.localPath) : ctx.files.resolve(input.localPath)) : clonePathOf({ name, repoUrl: input.url }, roots.home);
+      // Re-adding a marketplace starts from what's there: its clone, branch and every other setting.
+      const before = existing ? asMarketplace(name, existing) : undefined;
+      const dir = input.localPath
+        ? isAbsolute(input.localPath)
+          ? resolve(input.localPath)
+          : ctx.files.resolve(input.localPath)
+        : clonePathOf({ name, repoUrl: input.url, localPath: before?.localPath }, roots.home);
       checkClonePath(dir, roots.home, path);
 
       // A private marketplace's token, asked for without echo and never on argv.
@@ -124,7 +115,18 @@ export function skillsConfigCommands(): AnyCommand[] {
           message: `No terminal to ask for a token on, so marketplace ${name} has none. If it's private, run toil skills marketplace add in a terminal, or set TOIL_CONN_${name.toUpperCase().replace(/-/g, '_')}_TOKEN.`,
         });
       }
-      const m: Marketplace = { name, repoUrl: input.url, localPath: dir, branch: input.branch, username: input.username, provider: input.provider, ...(token ? { token } : {}) };
+      // Left empty on a re-add, the token already in the store is the one git gets.
+      const kept = !token && isKeychainRef(existing?.token) && secrets ? await secrets.get(refName(existing.token), ctx.signal) : undefined;
+      const cloneToken = token || kept;
+      const m: Marketplace = {
+        name,
+        repoUrl: input.url,
+        localPath: dir,
+        branch: input.branch ?? before?.branch,
+        username: input.username ?? before?.username,
+        provider: input.provider ?? before?.provider,
+        ...(cloneToken ? { token: cloneToken } : {}),
+      };
       const reused = isClone(dir);
       const synced = await cloneOrPull(ctx.git, m, dir, ctx.signal);
       if (reused) ctx.warn({ code: 'SKILLS_CLONE_REUSED', message: `${slashes(dir)} already held a clone, so it was pulled rather than cloned.` });
@@ -141,15 +143,17 @@ export function skillsConfigCommands(): AnyCommand[] {
         await storeVerified(secrets, ref, token, ctx.signal);
         tokenRef = `${KEYCHAIN_PREFIX}${ref}`;
       }
+      // Every key already on the connection is carried through, `writes` included;
+      // a new marketplace starts with writes off.
       const conn: ConnectionSettings = {
+        ...(existing ?? {}),
         area: AREA,
         repoUrl: input.url,
         localPath: dir,
-        ...(input.branch ? { branch: input.branch } : existing?.branch ? { branch: existing.branch } : {}),
-        ...(input.username ? { username: input.username } : existing?.username ? { username: existing.username } : {}),
-        ...(input.provider ? { provider: input.provider } : existing?.provider ? { provider: existing.provider } : {}),
+        ...(input.branch ? { branch: input.branch } : {}),
+        ...(input.username ? { username: input.username } : {}),
+        ...(input.provider ? { provider: input.provider } : {}),
         ...(tokenRef ? { token: tokenRef } : {}),
-        writes: true,
       };
       file.connections[name] = conn;
       // The first marketplace becomes the default, so sync needs no --marketplace.
@@ -158,8 +162,8 @@ export function skillsConfigCommands(): AnyCommand[] {
       writeConfigFile(path, file);
       if (existing?.token && token && isKeychainRef(existing.token) && existing.token !== tokenRef) await deleteUnreferenced(file, existing.token, ctx);
 
-      const choices = choicesFor(dir, name, 'all');
-      const results = targets.map((t) => installInto(t, choices, { marketplace: { name, repoUrl: input.url }, clone: dir, plugin: 'all', installedOnly: false, toilVersion: ctx.version, warn: ctx.warn }));
+      const available = pluginsIn(dir).map((p) => ({ name: p.name, description: p.description }));
+      const writes = conn.writes === true || conn.writes === 'true';
       return {
         name,
         repoUrl: input.url,
@@ -168,11 +172,13 @@ export function skillsConfigCommands(): AnyCommand[] {
         tokenConfigured: tokenRef !== undefined,
         tokenStorage: tokenRef === undefined ? null : 'keychain',
         provider: providerOf(m),
-        writes: true,
+        writes,
         cloned: synced.cloned,
-        ...(results.length === 1
-          ? { plugins: results[0]!.plugins, total: results[0]!.total, target: results[0]!.target }
-          : { targets: results, total: results.reduce((sum, r) => sum + r.total, 0) }),
+        available,
+        total: available.length,
+        next: writes
+          ? `Install from it with: toil skills marketplace sync all --marketplace ${name} --allow-write`
+          : `Writes are off for it, so nothing was installed. To install from it, set "writes": true on connection "${name}" in ${slashes(path)} (or TOIL_CONN_${name.toUpperCase().replace(/-/g, '_')}_WRITES=true), then run: toil skills marketplace sync all --marketplace ${name} --allow-write`,
       };
     },
   });

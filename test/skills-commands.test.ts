@@ -118,15 +118,23 @@ function context(o: { git?: GitRunner; secrets?: SecretStore; prompt?: Prompter;
 const cli = (argv: string[], ctx: Context): Promise<CliRun> => runCli(argv, { commands, context: ctx });
 const userSkills = (...p: string[]) => join(home, '.agents', 'skills', ...p);
 
-/** Adds the marketplace as `corp` with no token, through the real command. */
+/** Turns writes on for a marketplace the way a person does: `"writes": true` on its connection. */
+function turnOnWrites(name: string): void {
+  const config = readJson(file);
+  config.connections[name].writes = true;
+  writeConfig(config);
+}
+
+/** Adds the marketplace as `corp` with no token, turns its writes on, and installs every plugin, through the real commands. Returns the sync. */
 async function addCorp(git = fakeGit(), extra: string[] = []): Promise<CliRun> {
-  const run = await cli(['skills', 'marketplace', 'add', REPO, '--name', 'corp', '--allow-write', ...extra], context({ git, secrets: fakeStore(), prompt: terminal().prompt }));
-  expect(run.envelope?.ok, run.stdout).toBe(true);
-  return run;
+  const added = await cli(['skills', 'marketplace', 'add', REPO, '--name', 'corp', '--allow-write'], context({ git, secrets: fakeStore(), prompt: terminal().prompt }));
+  expect(added.envelope?.ok, added.stdout).toBe(true);
+  turnOnWrites('corp');
+  return cli(['skills', 'marketplace', 'sync', 'all', '--allow-write', ...extra], context({ git }));
 }
 
 describe('toil skills marketplace add', () => {
-  it('asks for the token hidden, keeps it only in the store, clones with it in git\'s environment, and installs every plugin', async () => {
+  it('asks for the token hidden, keeps it only in the store, clones with it in git\'s environment, and installs nothing, with writes off', async () => {
     const git = fakeGit();
     const store = fakeStore();
     const { prompt, asked } = terminal({ 'Access token': TOKEN });
@@ -138,7 +146,7 @@ describe('toil skills marketplace add', () => {
     const clone = join(home, '.agents', 'marketplaces', 'skills');
     expect(readJson(file)).toEqual({
       version: 2,
-      connections: { 'corp-skills': { area: 'skills', repoUrl: REPO, localPath: clone, token: 'keychain:corp-skills.token', writes: true } },
+      connections: { 'corp-skills': { area: 'skills', repoUrl: REPO, localPath: clone, token: 'keychain:corp-skills.token' } },
       defaults: { skills: { connection: 'corp-skills' } },
     });
     expect(readFileSync(file, 'utf8')).not.toContain(TOKEN);
@@ -159,12 +167,22 @@ describe('toil skills marketplace add', () => {
       tokenConfigured: true,
       tokenStorage: 'keychain',
       provider: 'bitbucket',
-      writes: true,
+      writes: false,
       cloned: true,
-      plugins: { review: { installed: ['code-review'], failed: [] }, docs: { installed: ['write-docs'], failed: [] } },
+      available: [{ name: 'review', description: 'Code review' }, { name: 'docs', description: 'Docs' }],
       total: 2,
-      target: userSkills().replace(/\\/g, '/'),
+      next: expect.stringContaining('set "writes": true on connection "corp-skills"'),
     });
+    // Adding grants nothing: no skill folder, and sync is refused until a person turns writes on.
+    expect(existsSync(userSkills())).toBe(false);
+    const refused = await cli(['skills', 'marketplace', 'sync', 'all', '--allow-write'], context({ git, secrets: store }));
+    expect(refused.envelope?.error?.code).toBe('WRITE_DISABLED');
+    expect(existsSync(userSkills())).toBe(false);
+
+    turnOnWrites('corp-skills');
+    const synced = await cli(['skills', 'marketplace', 'sync', 'all', '--allow-write'], context({ git, secrets: store }));
+    expect(synced.envelope?.data).toMatchObject({ plugins: { review: { installed: ['code-review'], failed: [] }, docs: { installed: ['write-docs'], failed: [] } }, total: 2, target: userSkills().replace(/\\/g, '/') });
+    expect(git.calls.filter((c) => c.subcommand === 'pull').every((c) => c.secretConfig?.length === 1)).toBe(true);
     expect(existsSync(userSkills('code-review', 'SKILL.md'))).toBe(true);
     expect(readJson(userSkills('code-review', 'toil-origin.json'))).toMatchObject({ version: 1, source: 'marketplace', marketplace: 'corp-skills', plugin: 'review', installedFrom: REPO, branch: 'main' });
     expect(readMeta(userSkills()).skills['write-docs']).toMatchObject({ plugin: 'docs', toilVersion: TEST_VERSION });
@@ -202,6 +220,34 @@ describe('toil skills marketplace add', () => {
     expect((await cli(['skills', 'marketplace', 'add', REPO, '--name', 'other', '--allow-write'], context({ git: fakeGit() }))).envelope?.ok).toBe(true);
     const again = await cli(['skills', 'marketplace', 'add', REPO, '--name', 'third', '--allow-write'], context({ git: fakeGit() }));
     expect(again.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('already registered as marketplace "other"') });
+  });
+
+  it('keeps the writes setting a person gave a marketplace when it is added again', async () => {
+    await cli(['skills', 'marketplace', 'add', REPO, '--name', 'corp', '--allow-write'], context({ git: fakeGit() }));
+    turnOnWrites('corp');
+    const again = await cli(['skills', 'marketplace', 'add', REPO, '--name', 'corp', '--allow-write'], context({ git: fakeGit() }));
+    expect(again.envelope?.data).toMatchObject({ writes: true, next: expect.stringContaining('toil skills marketplace sync all --marketplace corp') });
+    expect(readJson(file).connections.corp.writes).toBe(true);
+  });
+
+  it('re-added over a hand-edited connection, keeps its clone, branch, token, writes and every other key', async () => {
+    const custom = join(root, 'my-clone');
+    const store = fakeStore({ entries: { 'corp.token': TOKEN } });
+    writeConfig({
+      version: 2,
+      connections: { corp: { area: 'skills', repoUrl: REPO, localPath: custom, branch: 'dev', token: 'keychain:corp.token', writes: false, note: 'mine' } },
+      defaults: { skills: { connection: 'corp' } },
+    });
+    const git = fakeGit();
+    const run = await cli(['skills', 'marketplace', 'add', REPO, '--name', 'corp', '--allow-write'], context({ git, secrets: store, prompt: terminal().prompt }));
+    expect(run.envelope?.ok, run.stdout).toBe(true);
+    expect(readJson(file).connections.corp).toEqual({ area: 'skills', repoUrl: REPO, localPath: custom, branch: 'dev', token: 'keychain:corp.token', writes: false, note: 'mine' });
+    const clone = git.calls.find((c) => c.subcommand === 'clone')!;
+    expect(clone.paths).toEqual([REPO, custom]);
+    expect(clone.options).toEqual(['--no-recurse-submodules', '--branch=dev']);
+    expect(clone.secretConfig).toEqual([[`http.${REPO}.extraHeader`, `Authorization: Basic ${Buffer.from(`x-token-auth:${TOKEN}`).toString('base64')}`]]);
+    expect(existsSync(join(home, '.agents', 'marketplaces'))).toBe(false);
+    expect(store.entries.get('corp.token')).toBe(TOKEN);
   });
 
   it('installs for every agent at project scope, under the repository root', async () => {
@@ -282,12 +328,12 @@ describe('toil skills marketplace sync', () => {
   });
 
   it('refuses a plugin whose source or skill list leaves the clone', async () => {
-    for (const plugin of [{ name: 'out', source: '../..' }, { name: 'out', source: './', skills: ['../../outside'] }]) {
+    for (const plugin of [{ name: 'out', source: '../..' }, { name: 'out', source: './', skills: ['../../outside'] }, { name: 'out', source: './', skills: ['./'] }]) {
       rmSync(seed, { recursive: true, force: true });
       rmSync(home, { recursive: true, force: true });
       write(seed, { '.claude-plugin/marketplace.json': JSON.stringify({ plugins: [plugin] }) });
-      const run = await cli(['skills', 'marketplace', 'add', REPO, '--name', 'corp', '--allow-write'], context({ git: fakeGit() }));
-      expect(run.envelope?.error, JSON.stringify(plugin)).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("outside the marketplace's clone") });
+      const run = await addCorp();
+      expect(run.envelope?.error, JSON.stringify(plugin)).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringMatching(/outside the marketplace's clone|the clone itself/) });
     }
   });
 
@@ -409,7 +455,7 @@ describe('toil skills status, marketplace list, plugins and remove', () => {
       total: 2,
       marketplaces: [
         { name: 'ci', tokenConfigured: true, tokenStorage: 'env', provider: 'github', upstreamRemote: null, writes: false },
-        { name: 'corp', tokenConfigured: true, tokenStorage: 'keychain', provider: 'bitbucket', upstreamRemote: REPO, writes: true },
+        { name: 'corp', tokenConfigured: true, tokenStorage: 'keychain', provider: 'bitbucket', upstreamRemote: REPO, writes: false },
       ],
     });
     expect(run.stdout).not.toContain(TOKEN);
@@ -425,6 +471,8 @@ describe('toil skills status, marketplace list, plugins and remove', () => {
     const store = fakeStore();
     writeConfig({ version: 2, connections: { 'corp-jira': { area: 'jira', baseUrl: 'https://jira.imagile.dev' } }, defaults: {}, bounds: { files: 'workspace' } });
     await cli(['skills', 'marketplace', 'add', REPO, '--name', 'corp', '--allow-write'], context({ git: fakeGit(), secrets: store, prompt: terminal({ 'Access token': TOKEN }).prompt }));
+    turnOnWrites('corp');
+    expect((await cli(['skills', 'marketplace', 'sync', 'all', '--allow-write'], context({ git: fakeGit(), secrets: store }))).envelope?.ok).toBe(true);
     const run = await cli(['skills', 'marketplace', 'remove', 'corp'], context({ secrets: store }));
     expect(run.envelope?.data).toEqual({ removed: { name: 'corp', repoUrl: REPO, localPath: join(home, '.agents', 'marketplaces', 'skills').replace(/\\/g, '/') }, keychainEntryDeleted: true, remaining: 0 });
     expect(readJson(file)).toEqual({ version: 2, connections: { 'corp-jira': { area: 'jira', baseUrl: 'https://jira.imagile.dev' } }, defaults: {}, bounds: { files: 'workspace' } });
@@ -447,7 +495,10 @@ describe('against the real git', () => {
     const git = createGitRunner({ command: 'skills marketplace add', env: { PATH: join(realGit!, '..') }, workspace: () => project, exclude: [project], home });
     const added = await cli(['skills', 'marketplace', 'add', origin, '--name', 'local', '--allow-write'], context({ git }));
     expect(added.envelope?.ok, added.stdout).toBe(true);
-    expect(added.envelope?.data).toMatchObject({ name: 'local', cloned: true, tokenConfigured: false, total: 2 });
+    expect(added.envelope?.data).toMatchObject({ name: 'local', cloned: true, tokenConfigured: false, writes: false, total: 2 });
+    turnOnWrites('local');
+    const first = await cli(['skills', 'marketplace', 'sync', 'all', '--allow-write'], context({ git }));
+    expect(first.envelope?.data, first.stdout).toMatchObject({ total: 2, marketplaceUpdated: false });
 
     write(origin, { 'plugins/review/skills/code-review/notes.md': 'v2\n' });
     g('commit', '-q', '-am', 'two');

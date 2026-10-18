@@ -84,13 +84,15 @@ inside the workspace (#68 decision 2).
    (`.toil-installed.json`), the skills it installs, and the `.toil-disabled` stash.
 2. **A marketplace's clone**: the connection's `localPath`, from the user's config
    or env, or the folder a person passed to the CLI-only `skills marketplace add`,
-   else `~/.agents/marketplaces/<repo-name>`. One under `~/.toil`, or holding the
-   `--config` file, is refused.
+   else `~/.agents/marketplaces/<repo-name>`. One under `~/.toil` is refused by every
+   skills command; `add`, which knows the config file, also refuses one holding the
+   `--config` file. `sync` can't see that file's path (area commands never see config),
+   and the clone folder it uses comes from the user's own config or env.
 
 Skills are copied without symlinks, and a skill name that would leave its folder
 (`..`, a separator) is refused. These writes are writes: `sync`, `enable` and
 `disable` need `"writes": true` on the marketplace's connection and `--allow-write`,
-and `add`, which is CLI only, needs `--allow-write` and records `"writes": true` on the marketplace it adds.
+and `add`, which is CLI only and only clones, needs `--allow-write` and leaves writes off on the marketplace it adds, so adding one grants nothing.
 
 `output-file` is the one file flag outside the workspace. `--output-file` is a CLI
 flag, never an MCP input, so the person running the command chose the path. It may

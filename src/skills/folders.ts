@@ -383,7 +383,7 @@ export interface SkillSource {
  */
 export function skillSources(clone: string, choice: PluginChoice): SkillSource[] | 'remote' | undefined {
   const outside = (what: string) =>
-    new ToilError('INVALID_INPUT', `Plugin "${choice.name}" ${what}, outside the marketplace's clone, so toil didn't read it.`, {
+    new ToilError('INVALID_INPUT', `Plugin "${choice.name}" ${what}, so toil didn't read it.`, {
       fix: "Check the marketplace's .claude-plugin/marketplace.json.",
     });
   let root: string | undefined;
@@ -392,7 +392,7 @@ export function skillSources(clone: string, choice: PluginChoice): SkillSource[]
     if (!root) throw new ToilError('INVALID_INPUT', `"${choice.name}" isn't a plugin name.`, { fix: 'Pass a plugin name as toil skills marketplace plugins lists it.' });
   } else if (typeof choice.source === 'string') {
     root = under(clone, choice.source);
-    if (!root) throw outside(`names a source of ${JSON.stringify(choice.source)}`);
+    if (!root) throw outside(`names a source of ${JSON.stringify(choice.source)}, outside the marketplace's clone`);
   } else {
     return 'remote';
   }
@@ -401,7 +401,9 @@ export function skillSources(clone: string, choice: PluginChoice): SkillSource[]
     for (const rel of choice.skills) {
       if (typeof rel !== 'string') continue;
       const dir = under(root, rel);
-      if (!dir || !isWithin(dir, clone)) throw outside(`lists a skill at ${JSON.stringify(rel)}`);
+      if (!dir || !isWithin(dir, clone)) throw outside(`lists a skill at ${JSON.stringify(rel)}, outside the marketplace's clone`);
+      // The clone itself, or anything holding a .git, is a repository, not a skill.
+      if (isWithin(clone, dir) || existsSync(join(dir, '.git'))) throw outside(`lists ${JSON.stringify(rel)} as a skill, which is the clone itself`);
       if (isRealDir(dir, clone)) out.push({ name: basename(dir), dir });
     }
     return out.length > 0 ? out : undefined;

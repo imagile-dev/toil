@@ -504,9 +504,10 @@ Deletes are never exposed through MCP: a delete command sets `mcp: false`.
 Writing files on this machine outside toil's own config counts as a write too: the
 `skills` commands that install into or switch plugins in an agent's skills folder
 need `writes: true` on the marketplace's connection and `--allow-write`. A CLI-only
-write (`skills marketplace add`) has no connection yet, so it needs `--allow-write`
-alone; it's never an MCP tool, and it records `writes: true` on the marketplace it
-adds (`docs/bounds.md`, `skills.folders`).
+write (`skills marketplace add`, which clones) has no connection yet, so it needs
+`--allow-write` alone. CLI only isn't human only: an agent with a shell can run it,
+so `add` leaves writes off and installs nothing. Writes go on the way every
+connection's do (`docs/bounds.md`, `skills.folders`).
 
 ## Matching the predecessor
 

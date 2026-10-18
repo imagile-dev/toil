@@ -75,22 +75,24 @@ without it, the area's default (the first one added), else the only one.
 
 Installing, refreshing and switching plugins changes files on this machine, so `sync`,
 `enable` and `disable` need `"writes": true` on the marketplace and `--allow-write` on
-the call. `add` is CLI only and needs `--allow-write`; the person running it is the
-standing opt-in, so it records `"writes": true` on the new marketplace. Set it to
-`false` to keep agents from installing from it. `remove` is CLI only.
+the call. `add` is CLI only, needs `--allow-write` because it clones, and leaves writes
+off: adding a marketplace never grants installs from it. Turn them on as for any
+connection: `"writes": true` on it in `~/.toil/config.json`, or
+`TOIL_CONN_<NAME>_WRITES=true`. `remove` is CLI only.
 
 ## Commands
 
 ### `toil skills marketplace add <url> [localPath]`
 
-Registers a marketplace, clones it, and installs every plugin it offers. CLI only;
+Registers a marketplace and clones it, with writes off; it installs nothing. CLI only;
 `setup` is an alias. On a terminal it asks for an access token (leave it empty for a
 public repository) and keeps it in the OS credential store. The first marketplace
-becomes the default.
+becomes the default. Adding it again keeps whatever `writes` you set.
 
 ```bash
 toil skills marketplace add https://bitbucket.imagile.dev/scm/ai/skills.git --name corp-skills --allow-write
-toil skills marketplace add https://github.com/imagile/skills.git --claude --scope project --allow-write
+# then set "writes": true on corp-skills in ~/.toil/config.json, and:
+toil skills marketplace sync all --marketplace corp-skills --claude --scope project --allow-write
 ```
 
 | Flag | Meaning |
@@ -99,11 +101,10 @@ toil skills marketplace add https://github.com/imagile/skills.git --claude --sco
 | `--branch <branch>` | Branch to clone |
 | `--username <username>` | User name sent with the token |
 | `--provider <provider>` | `github`, `bitbucket`, `ado` or `git` |
-| `--agent <agent>`, `--claude`, `--all-agents` | Which agent hosts to install for |
-| `--scope <scope>` | `user` (default) or `project` |
 
 Output: `{ name, repoUrl, localPath, branch, tokenConfigured, tokenStorage, provider,
-writes, cloned, plugins, total, target }`, or `targets` for several agents.
+writes, cloned, available: [{ name, description }], total, next }`, `next` saying how
+to turn writes on and install.
 
 ### `toil skills marketplace list`
 

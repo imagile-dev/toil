@@ -49,15 +49,16 @@ const agents = [
           <p>Add a marketplace from a terminal. It asks for an access token, which you can leave empty for a public repository:</p>
           <div class="codeblock"><span class="card-tag">shell</span>
 <pre><span class="p">$</span> toil skills marketplace add <span class="s">https://bitbucket.imagile.dev/scm/ai/skills.git</span> --allow-write
-<span class="p">$</span> toil skills marketplace plugins <span class="s">skills</span>
-<span class="p">$</span> toil skills status</pre>
+<span class="p">$</span> toil skills marketplace plugins <span class="s">skills</span></pre>
           </div>
           <p>
-            <code>add</code> clones the marketplace and installs every plugin it offers for the default agent. After that, install one plugin
-            for another agent or into the current repository, and switch plugins off and on:
+            <code>add</code> clones the marketplace and installs nothing: writes start off, so adding a marketplace never lets anything
+            install from it. Turn them on as for any connection, with <code>"writes": true</code> on it in your toil config, then install
+            plugins for the agent and place you choose, and switch them off and on:
           </p>
           <div class="codeblock"><span class="card-tag">shell</span>
-<pre><span class="p">$</span> toil skills marketplace sync <span class="s">review</span> --claude --scope project --allow-write
+<pre><span class="p">$</span> toil skills marketplace sync <span class="s">all</span> --allow-write
+<span class="p">$</span> toil skills marketplace sync <span class="s">review</span> --claude --scope project --allow-write
 <span class="p">$</span> toil skills marketplace disable <span class="s">docs</span> --allow-write
 <span class="p">$</span> toil skills marketplace enable <span class="s">docs</span> --allow-write</pre>
           </div>
@@ -117,8 +118,8 @@ const agents = [
           <p>
             Installing and switching plugins changes files on your machine, so <code>sync</code>, <code>enable</code> and <code>disable</code> need
             <code>"writes": true</code> on the marketplace and <code>--allow-write</code> on the call. <code>add</code> runs only on the command
-            line, needs <code>--allow-write</code>, and turns writes on for the marketplace it adds; set <code>"writes": false</code> on it to keep
-            agents from installing from it. Removing a marketplace is command line only, and keeps its clone and the skills already
+            line and needs <code>--allow-write</code>, because it clones, but leaves writes off: running it, by you or by an agent with a shell,
+            never grants installs. Removing a marketplace is command line only, and keeps its clone and the skills already
             installed. <a href={url('/how-it-works/#safety')}>How writes are gated</a>.
           </p>
         </section>
