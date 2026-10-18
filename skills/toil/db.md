@@ -1,6 +1,6 @@
 ---
 area: db
-description: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite, PostgreSQL, MySQL/MariaDB)
+description: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite, PostgreSQL, MySQL/MariaDB, SQL Server)
 ---
 
 # toil db
@@ -13,13 +13,16 @@ uses, and the commands work the same way on all of them.
 | SQLite | `sqlite` | `integration`: automated tests run against the real engine (Node's built-in `node:sqlite`) |
 | PostgreSQL | `postgres` | `integration`: automated tests run against PostgreSQL 17 (the official `postgres:17` image) |
 | MySQL / MariaDB | `mysql` | `integration`: automated tests run against MySQL 8.4 and MariaDB 11.8 (the official `mysql:8.4` and `mariadb:11.8` images) |
-| SQL Server, Oracle | | Planned |
+| SQL Server | `sqlserver` | `integration`: automated tests run against SQL Server 2022 (the official `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04` image) |
+| Oracle | | Planned |
 
 **Supported versions:** The oldest SQLite version toil supports hasn't been established. toil
 uses the SQLite built into Node, so the version is whichever your Node ships.
 PostgreSQL is tested against 17; the catalog columns toil reads need 11 or later.
 MySQL is tested against 8.4 and MariaDB against 11.8; the oldest versions toil
 supports haven't been established.
+SQL Server is tested against 2022; the catalog views and `OFFSET ... FETCH` toil uses
+need 2012 or later. Azure SQL Database speaks the same protocol but hasn't been tested.
 
 ## SQLite connections
 
@@ -172,11 +175,131 @@ fails with `AUTH`), and it never uploads a local file: `LOAD DATA LOCAL` is off.
 **Connect with an account that has only `SELECT`** on what the agent should see. See
 the known limits under "Reads are read-only at the engine".
 
+## SQL Server connections
+
+toil speaks TDS, SQL Server's wire protocol, in plain JavaScript (the `tedious`
+driver, bundled into toil): no ODBC driver, no `sqlcmd`, nothing to install. It signs
+in with a SQL Server login (user name and password), which needs the server to allow
+SQL Server authentication (mixed mode), or, on Windows only, with Windows
+authentication (`"auth": "windows"`, below).
+
+| Key | Required | Meaning |
+|-----|----------|---------|
+| `engine` | yes | `sqlserver` |
+| `host` | yes | Server host name or address |
+| `port` | no | TCP port. Default `1433`. A named instance needs its own port here: toil doesn't ask the SQL Browser service. |
+| `database` | yes | The database to connect to |
+| `user` | for a SQL login | The SQL Server login; with `"auth": "windows"`, another domain account to sign in as |
+| `password` | no | The login's password. A secret: an env var or the OS credential store, never the config file. |
+| `ssl` | no | `true` encrypts the connection with TLS and verifies the server's certificate against the OS certificate store. Off by default, which sends the login and every result unencrypted, so turn it on unless the network is trusted. There is no setting to trust any certificate: add the server's certificate, or your organization's CA, to the OS store instead. |
+| `auth` | no | `sql` (a SQL Server login, the default) or `windows` (Windows authentication, Windows only) |
+| `domain` | no | With `"auth": "windows"` and `user`: the account's domain |
+| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
+
+**Environment variables**, for the default `db` connection:
+
+```bash
+export TOIL_DB_ENGINE=sqlserver
+export TOIL_DB_HOST=sql.imagile.dev
+export TOIL_DB_PORT=1433
+export TOIL_DB_DATABASE=app
+export TOIL_DB_USER=toil_reader
+export TOIL_DB_PASSWORD=<the login's password>
+export TOIL_DB_SSL=true
+```
+
+Or keep the connection in config and the password in the OS credential store:
+
+```json
+{
+  "version": 2,
+  "connections": {
+    "app-sql": { "area": "db", "engine": "sqlserver", "host": "sql.imagile.dev", "database": "app", "user": "toil_reader", "ssl": true }
+  },
+  "defaults": { "db": { "connection": "app-sql" } }
+}
+```
+
+```bash
+toil connections login app-sql   # prompts for the password and stores it
+```
+
+A named connection's password can also come from `TOIL_CONN_APP_SQL_PASSWORD`.
+
+### Windows authentication (Windows only)
+
+`"auth": "windows"` signs in as the Windows user running toil, with no password
+stored anywhere: Windows proves who you are with the Kerberos ticket (or NTLM) it
+already holds from your logon.
+
+```json
+{
+  "version": 2,
+  "connections": {
+    "app-sql": { "area": "db", "engine": "sqlserver", "host": "sql.imagile.dev", "database": "app", "auth": "windows", "ssl": true }
+  }
+}
+```
+
+From the environment, for the default `db` connection, as the current Windows user:
+
+```bash
+export TOIL_DB_ENGINE=sqlserver
+export TOIL_DB_HOST=sql.imagile.dev
+export TOIL_DB_DATABASE=app
+export TOIL_DB_AUTH=windows
+```
+
+To sign in as a different domain account, add `domain` and `user` (`TOIL_DB_DOMAIN`,
+`TOIL_DB_USER`), and store that account's password with `toil connections login
+app-sql` (Windows Credential Manager), or set `TOIL_CONN_APP_SQL_PASSWORD`.
+
+| Platform | `"auth": "windows"` |
+|----------|---------------------|
+| Windows | Supported |
+| macOS, Linux | Refused before connecting (`CONFIG_INVALID`); use a SQL Server login |
+
+How it works: Node has no way to ask Windows for a sign-in token, so for each
+connection toil runs one Windows PowerShell (`powershell.exe` from the Windows
+folder, `-NoProfile -NonInteractive`), which asks Windows' SSPI `Negotiate` package
+for tokens for the server's SPN, `MSSQLSvc/<host>:<port>`. The script and every token
+pass over the process's stdin and stdout, never its command line. Use the server's
+fully qualified name in `host`, the name its SPN is registered under; with any other
+name Kerberos can't find the SPN, and Windows falls back to NTLM if the server and
+domain allow it.
+
+Windows PowerShell must run in Full Language mode. Where an AppLocker or WDAC
+policy puts it in Constrained Language mode, `Add-Type` is blocked, and toil says so
+with `AUTH` naming the mode instead of failing the login vaguely. Windows PowerShell
+5.1's `Add-Type` also compiles a small helper with `csc.exe` into `TEMP`, so `TEMP`
+must be writable.
+
+Windows authentication is `untested` against a real server: its tests run the
+helper against Windows' own SSPI, and a full multi-step handshake completes, but
+no run against SQL Server on a domain has happened yet, nor one under a
+Constrained Language Mode policy.
+
+**Connect with a read-only login.** SQL Server has no read-only transaction, so toil
+can't ask the server to refuse writes the way it does for PostgreSQL. It rolls back
+every read instead (see "Reads are read-only at the engine"), and the login is what
+makes the server itself refuse a write. A login whose database user is only in
+`db_datareader` is enough:
+
+```sql
+CREATE LOGIN toil_reader WITH PASSWORD = '<a strong password>';
+USE app;
+CREATE USER toil_reader FOR LOGIN toil_reader;
+ALTER ROLE db_datareader ADD MEMBER toil_reader;
+```
+
+Use a second connection, with a login that may write and `writes: true`, for `db
+execute`.
+
 ## Commands
 
 | Command | MCP tool | Returns |
 |---------|----------|---------|
-| `toil db list-schemas` | `db_list_schemas` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`. |
+| `toil db list-schemas` | `db_list_schemas` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`; for SQL Server, the schemas, without `sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas. |
 | `toil db list-tables [--schema <name>]` | `db_list_tables` | `{ schema, tables: [{ name, type }] }`, `type` being `table` or `view` |
 | `toil db describe-table <table> [--schema <name>]` | `db_describe_table` | `{ schema, name, type, columns, primaryKey, indexes, foreignKeys }` |
 | `toil db preview-table <table> [--schema] [--limit] [--cursor]` | `db_preview_table` | A page of rows: `{ columns, rows }` |
@@ -185,7 +308,7 @@ the known limits under "Reads are read-only at the engine".
 
 Every command takes `--connection <name>`. `--schema` defaults to the engine's
 default schema (`main` for SQLite, `public` for PostgreSQL, the connection's database
-for MySQL, where a schema is a database). PostgreSQL names are
+for MySQL, where a schema is a database, `dbo` for SQL Server). PostgreSQL names are
 case-sensitive as stored: an unquoted `CREATE TABLE People` is stored as `people`.
 MySQL table names are case-sensitive on most Linux servers.
 
@@ -212,6 +335,18 @@ text the server sent; `JSON` as JSON; `BLOB`, `BINARY` and `BIT` as base64.
 `preview-table` orders a table by its primary key, so pages stay stable. In
 `describe-table`, a foreign key's `NO ACTION` and `RESTRICT` both read as null: InnoDB
 enforces them the same way, and MariaDB reports an unstated rule as `RESTRICT`.
+SQL Server names every result column's type as you'd write it in DDL (`int`,
+`varchar(100)`, `nvarchar(max)`, `decimal(10,2)`, `datetime2(7)`). `bigint` comes back
+as a number when it fits and a string when it doesn't; `bit` as true or false;
+`uniqueidentifier` as a string; binary as base64. `date`, `time`, `datetime`,
+`datetime2` and `smalldatetime` come back as the text of the value the server holds,
+never shifted into a time zone (`2026-01-02 03:04:05.123`), to the millisecond: digits
+past that are dropped. `datetimeoffset` comes back as the instant in UTC
+(`2026-01-02T01:04:05.000Z`), without its original offset. `decimal`, `numeric` and
+`money` come back as JSON numbers, so a value with more than about 15 significant
+digits loses the rest; `CAST` it to `varchar` in the query when every digit matters.
+`preview-table` pages in primary-key order, or in the engine's own order for a table
+without one.
 
 ### Paging and row caps
 
@@ -275,6 +410,35 @@ writes (`KILL`, `FLUSH`, `SHUTDOWN`) run for an account allowed to. Neither can 
 refused by name without refusing ordinary reads, so connect with an account that has
 `SELECT` only: no `FILE`, `SUPER`, `SYSTEM_VARIABLES_ADMIN` or `CONNECTION_ADMIN`, and no
 `EXECUTE` on procedures that change data.
+**SQL Server** has no read-only transaction. toil runs every read in a transaction,
+on a connection opened for that one call, and always rolls it back, so nothing a read
+does is kept. The server reports the type of every statement it runs, and a read whose
+statement the server reports as changing data or schema (`INSERT`, `UPDATE`,
+`DELETE`, `MERGE`, `SELECT INTO`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `UPDATE
+STATISTICS`, including inside `EXEC`) comes back as `WRITE_DISABLED`. With a
+read-only login the server refuses the write itself, which comes back as
+`WRITE_DISABLED` too. `db query` returns one result: SQL that returns a second result
+is `INVALID_INPUT`. When the first result fills the page, toil stops the batch there
+with a TDS attention, so anything after it in the same SQL never runs.
+
+`COMMIT`, `ROLLBACK`, `BEGIN TRANSACTION` and `SAVE TRANSACTION` are refused on every
+read with `INVALID_INPUT`, before they reach the server: a `COMMIT` would end the
+transaction toil rolls back, and keep the write before it. An `OUTPUT` clause is refused
+on reads too: an `INSERT`, `UPDATE`, `DELETE` or `MERGE` with `OUTPUT` sends its rows
+before the server reports the change, so a full page could stop it before toil learns it
+was a write. A column or alias named `output` in a plain `SELECT` is fine; in SQL that
+also holds one of those words, bracket-quote it as `[output]`. A read-only login's refusal of a permission that only reads (a `sys.dm_db_*`
+view needing `VIEW DATABASE STATE`, `SHOWPLAN`) comes back as `DATABASE`, naming the
+permission.
+
+Known limit: transaction control inside dynamic SQL or a procedure (an `EXEC` whose
+text holds a `COMMIT`) can't be refused by name, and neither can an `OUTPUT` clause
+there (`EXEC('UPDATE ... OUTPUT ...')`): its changed rows can fill a page and come back
+as an ordinary result, though the change is still rolled back. A write under `SET
+NOCOUNT ON` isn't reported by the server. toil notices the transaction ending and says so with
+`DATABASE` ("anything it changed may have been saved"), but by then the change is
+made. That is why a SQL Server connection for reads should use a read-only login:
+with one, the server refuses the write whatever the SQL does.
 
 ### Writes
 
@@ -296,6 +460,12 @@ so a script holding DDL isn't all or nothing: what ran before the DDL is committ
 even if a later statement fails. Keep DDL in a script of its own. A server running
 `read_only`, or an account whose transactions default to read-only, fails writes with
 `DATABASE`, saying so.
+On SQL Server that means `BEGIN TRANSACTION`, `COMMIT`, `ROLLBACK` and `SAVE
+TRANSACTION`; `BEGIN ... END` blocks, `TRY ... CATCH` and `CASE` are fine. A SQL
+Server script runs as one batch, so leave out `GO`, and a statement that must start a
+batch (`CREATE VIEW`, `CREATE PROCEDURE`) goes in a call of its own. `changes` counts
+the rows `INSERT`, `UPDATE`, `DELETE`, `MERGE` and `SELECT INTO` reported; under `SET
+NOCOUNT ON` the server reports none.
 
 On PostgreSQL, statements that can't run inside a transaction (`VACUUM`, `CREATE
 DATABASE`, `CREATE INDEX CONCURRENTLY`) fail with `DATABASE`; run those with your own
@@ -322,6 +492,9 @@ connection. That ends the whole session, so a cancelled `db execute` rolls back 
 runs none of its remaining statements. Its protocol has no portal, so `db query` reads rows as they stream and,
 once the page is full, drops the connection; the server stops at the next row it
 tries to send.
+SQL Server stops the statement on the server too: on a time limit or a cancel, toil
+sends a TDS attention, which ends the running batch, and the read's transaction is
+rolled back when its connection closes.
 
 ## Examples
 
@@ -345,11 +518,11 @@ Over MCP:
 | Code | Means |
 |------|-------|
 | `NOT_CONFIGURED` | No db connection set up |
-| `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`), `path` is relative, or the file isn't a SQLite database |
-| `AUTH` | PostgreSQL or MySQL refused the login: check `user` and `password` |
-| `NETWORK` | The PostgreSQL or MySQL server couldn't be reached, didn't answer, or its TLS certificate wasn't trusted |
+| `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`), `path` is relative, the file isn't a SQLite database, or `"auth": "windows"` is set off Windows |
+| `AUTH` | The server refused the login: check `user` and `password` (and, for SQL Server, that SQL Server logins are allowed); or Windows authentication couldn't start (Constrained Language mode, SSPI refused) |
+| `NETWORK` | The server couldn't be reached, didn't answer, or its TLS certificate wasn't trusted; or SQL Server requires encryption and `ssl` is off |
 | `NOT_FOUND` | The file, database, schema or table doesn't exist |
 | `WRITE_DISABLED` | A write was refused: by `db query`, or by the write gate on `db execute` |
-| `INVALID_INPUT` | Bad flags, a cursor from another query, several statements in `db query`, or `VACUUM` (SQLite) `COPY` and `DO` (PostgreSQL), or `INTO OUTFILE` and `SET` (MySQL) on a read |
-| `DATABASE` | The engine refused or failed the statement: bad SQL, a constraint, a lock |
+| `INVALID_INPUT` | Bad flags, a cursor from another query, several statements in `db query`, or on a read `VACUUM` (SQLite), `COPY` and `DO` (PostgreSQL), `INTO OUTFILE` and `SET` (MySQL), or transaction control and `OUTPUT` (SQL Server) |
+| `DATABASE` | The engine refused or failed the statement: bad SQL, a constraint, a lock, a permission; on SQL Server, also SQL that ended toil's transaction itself |
 | `TIMEOUT`, `CANCELLED` | Stopped waiting; for `db execute`, check whether the change was made before retrying |
