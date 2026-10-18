@@ -205,6 +205,15 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
  * actually read.
  */
 function assertWritesAllowed(def: AnyCommand, input: Record<string, unknown>, connection: Connection | undefined, report: ContextReport | undefined, ctx: Context): void {
+  // A CLI-only write (`skills marketplace add`) has no connection yet to hold
+  // a standing opt-in: it's never an MCP tool, so whoever types it is giving
+  // the opt-in there and then, and --allow-write is how they say so.
+  if (isCliOnly(def)) {
+    if (input.allowWrite === true) return;
+    throw new ToilError('WRITE_DISABLED', `${commandName(def)} changes files on this machine and needs --allow-write on the call.`, {
+      fix: 'Re-run with --allow-write if you mean to make this change.',
+    });
+  }
   const area = areaOf(def);
   // A connection the dossier or the git remote picked is a suggestion until
   // the user adopts it. Reads may follow a suggestion; a write waits for a yes,

@@ -45,14 +45,19 @@ type Files = Record<string, string | Uint8Array>;
 // Config, files and routes are read from the fixture when each test runs, after setup.
 const outside: LoadedFixture = { area: '', routes: [], config: {}, files: {}, commands: [], trace: [] };
 const suites: Array<{ name: string; commands: AnyCommand[]; fixture: LoadedFixture }> = [
-  { name: 'commands outside an area', commands: commands.filter((def) => !def.area && bothDoors(def)), fixture: outside },
+  // A core command under an area's path (`skills status`) runs with that area's fixture, below.
+  { name: 'commands outside an area', commands: commands.filter((def) => !def.area && bothDoors(def) && !fixtures.some((f) => f.area === areaOf(def))), fixture: outside },
   ...fixtures.map((f) => ({ name: `${f.area} area`, commands: f.commands.filter(bothDoors), fixture: f })),
 ];
 
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** What a fixture says the examples run in: the repository for `ctx.repo()`, and the git for `ctx.git`. */
-const localOf = (f: LoadedFixture): { repo?: GitContext; git?: GitRunner } => ({ ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}) });
+const localOf = (f: LoadedFixture): { repo?: GitContext; git?: GitRunner; home?: Record<string, string> } => ({
+  ...(f.repo ? { repo: f.repo } : {}),
+  ...(f.git ? { git: f.git } : {}),
+  ...(f.home ? { home: f.home } : {}),
+});
 
 
 // Each test's CLI run starts with no cached token, so it exchanges as a fresh process would.
@@ -63,7 +68,7 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((s) => s.close()));
 });
 
-async function mcpFor(list: AnyCommand[], cfg: Record<string, Settings>, routes: Route[], files: Files = {}, local: { repo?: GitContext; git?: GitRunner } = {}) {
+async function mcpFor(list: AnyCommand[], cfg: Record<string, Settings>, routes: Route[], files: Files = {}, local: { repo?: GitContext; git?: GitRunner; home?: Record<string, string> } = {}) {
   // The MCP run exchanges its own token, as the CLI run before it did, so both send the same requests.
   clearTokenCache();
   const { context, http } = testContext({ config: cfg, routes, files, ...local });

@@ -137,8 +137,9 @@ Node, and toil has to work there. This is the most important rule in the repo.
     ships (`security`, Windows PowerShell, `secret-tool`), never through a shell,
     with secrets on stdin.
   - **git**, `src/core/git.ts`, the one optional exception to principle 1 (#68,
-    decision 1). Only the commands that are git (the `git` area and `deps diff`, once
-    built) run it;
+    decision 1). Only the commands that are git (the `git` area, `deps diff` once
+    built, and the `skills` marketplace commands, which clone and pull over https
+    or from a local path only) run it;
     repository root, HEAD, branch and remotes are read from `.git` in pure JS
     (`src/core/git-repo.ts`), so area context needs no git. Without git on PATH those
     commands return `GIT_NOT_FOUND`, with a fix naming the PATH searched, and nothing
@@ -187,6 +188,9 @@ GitHub Actions; its build tooling is out of scope.
   envelope), errors, config loading and
   writing, the OS credential store (`keychain.ts`) and the terminal prompter
 - `src/connections/` — `toil connections add | login | list | remove`
+- `src/skills/` — the skills folders and marketplace clones (`docs/bounds.md`,
+  `skills.folders`), and the `skills` commands that read or change config; the
+  `skills` area's own commands are in `src/areas/skills/`
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
   `commands` (standalone commands export only `commands`)
 - `src/registry.ts` — every shipped area and command, read by both front doors. It
@@ -495,6 +499,13 @@ for production; it is never read from `defaults.<area>`. Env vars can enable wri
 for CI (`TOIL_CONN_<NAME>_WRITES=true`, or `TOIL_<AREA>_WRITES=true` for the
 default connection), following normal precedence.
 Deletes are never exposed through MCP: a delete command sets `mcp: false`.
+
+Writing files on this machine outside toil's own config counts as a write too: the
+`skills` commands that install into or switch plugins in an agent's skills folder
+need `writes: true` on the marketplace's connection and `--allow-write`. A CLI-only
+write (`skills marketplace add`) has no connection yet, so it needs `--allow-write`
+alone; it's never an MCP tool, and it records `writes: true` on the marketplace it
+adds (`docs/bounds.md`, `skills.folders`).
 
 ## Matching the predecessor
 

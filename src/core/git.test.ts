@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createGitRunner, findGit, GIT_SAFE_DIFF, GIT_SAFE_GLOBALS, GIT_SUBCOMMANDS, gitArgv, gitEnv, gitNotFound } from './git.js';
+import { createGitRunner, findGit, GIT_SAFE_DIFF, GIT_SAFE_GLOBALS, GIT_SAFE_NETWORK, GIT_SUBCOMMANDS, gitArgv, gitEnv, gitNotFound, parseGitVersion } from './git.js';
 
 // The spawner's safeguards, each pinned by a test, since a safeguard nobody
 // checks is only a recommendation with a confident tone.
@@ -42,10 +42,15 @@ describe('gitArgv: the safeguards are always there', () => {
     for (const subcommand of GIT_SUBCOMMANDS) {
       const argv = gitArgv({ subcommand });
       expect(argv.slice(0, GIT_SAFE_GLOBALS.length), subcommand).toEqual([...GIT_SAFE_GLOBALS]);
-      expect(argv[GIT_SAFE_GLOBALS.length], subcommand).toBe(subcommand);
+      // clone and pull talk to a remote, so they also get the transport and hook safeguards first.
+      const network = ['clone', 'pull'].includes(subcommand) ? GIT_SAFE_NETWORK : [];
+      expect(argv.slice(GIT_SAFE_GLOBALS.length, GIT_SAFE_GLOBALS.length + network.length), subcommand).toEqual([...network]);
+      const at = GIT_SAFE_GLOBALS.length + network.length;
+      expect(argv[at], subcommand).toBe(subcommand);
       const diffs = ['diff', 'log', 'show'].includes(subcommand);
-      expect(argv.slice(GIT_SAFE_GLOBALS.length + 1, GIT_SAFE_GLOBALS.length + 1 + GIT_SAFE_DIFF.length), subcommand).toEqual(diffs ? [...GIT_SAFE_DIFF] : []);
+      expect(argv.slice(at + 1, at + 1 + GIT_SAFE_DIFF.length), subcommand).toEqual(diffs ? [...GIT_SAFE_DIFF] : []);
     }
+    expect(GIT_SAFE_NETWORK).toEqual(['-c', 'protocol.allow=never', '-c', 'protocol.https.allow=always', '-c', 'protocol.file.allow=always', '-c', 'core.hooksPath=/dev/null', '-c', 'submodule.recurse=false']);
     expect(GIT_SAFE_GLOBALS).toEqual(['--no-pager', '-c', 'core.fsmonitor=', '-c', 'log.showSignature=false']);
     expect(GIT_SAFE_DIFF).toEqual(['--no-ext-diff', '--no-textconv']);
   });
@@ -80,6 +85,32 @@ describe('gitArgv: the safeguards are always there', () => {
       GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0',
     });
     expect(JSON.stringify(env)).not.toMatch(/secret|GITHUB_TOKEN|SYSTEM_ACCESSTOKEN/);
+  });
+
+  it('passes the proxy only to a call that talks to a remote, and keeps Git Credential Manager from opening a window', () => {
+    const env = { PATH: '/usr/bin', HTTPS_PROXY: 'http://proxy.imagile.dev:3128', no_proxy: 'localhost', GITHUB_TOKEN: 'ghp_secret' };
+    expect(gitEnv(env, { subcommand: 'status' })).toEqual({ PATH: '/usr/bin', GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0' });
+    expect(gitEnv(env, { subcommand: 'clone' })).toEqual({
+      PATH: '/usr/bin', HTTPS_PROXY: 'http://proxy.imagile.dev:3128', no_proxy: 'localhost', GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0', GCM_INTERACTIVE: 'never',
+    });
+  });
+
+  it('hands secretConfig to git as GIT_CONFIG_COUNT entries in its environment, never in argv', () => {
+    const call = { subcommand: 'pull' as const, secretConfig: [['http.https://bitbucket.imagile.dev/scm/ai/skills.git.extraHeader', 'Authorization: Basic c2VjcmV0'] as const] };
+    expect(gitEnv({ PATH: '/usr/bin' }, call)).toMatchObject({
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'http.https://bitbucket.imagile.dev/scm/ai/skills.git.extraHeader',
+      GIT_CONFIG_VALUE_0: 'Authorization: Basic c2VjcmV0',
+    });
+    expect(gitArgv(call).join(' ')).not.toContain('c2VjcmV0');
+    // An inherited GIT_CONFIG_COUNT is dropped with the rest of the caller's env.
+    expect(gitEnv({ GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'core.sshCommand', GIT_CONFIG_VALUE_0: 'x' })).toEqual({ GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0' });
+  });
+
+  it('reads the version git prints', () => {
+    expect(parseGitVersion('git version 2.49.0.windows.1\n')).toEqual([2, 49]);
+    expect(parseGitVersion('git version 2.30.2\n')).toEqual([2, 30]);
+    expect(parseGitVersion('nonsense')).toBeUndefined();
   });
 });
 
@@ -196,6 +227,38 @@ describe('createGitRunner', () => {
     expect(result.stdout).toMatch(/^git version /);
     const config = await runner({ PATH: realGitDir! }, ws).run({ subcommand: 'rev-parse', options: ['--is-inside-work-tree'] });
     expect(config.exitCode).not.toBe(0); // not a repository: git's own answer, passed back
+  }, REAL_GIT_TIMEOUT_MS);
+
+  it('refuses a cwd that is not absolute', async () => {
+    const ws = temp();
+    await expect(runner({ PATH: '' }, ws).run({ subcommand: 'pull', cwd: 'relative/clone' })).rejects.toMatchObject({ code: 'INTERNAL' });
+  });
+
+  it.skipIf(!realGitDir)('clones a local repository into a folder outside the workspace and pulls it there (skipped where git is not installed)', async () => {
+    const ws = temp();
+    const origin = temp();
+    execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: origin });
+    writeFileSync(join(origin, 'a.txt'), 'one\n');
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=you@example.com', 'add', '.'], { cwd: origin });
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=you@example.com', 'commit', '-q', '-m', 'one'], { cwd: origin });
+    const parent = temp();
+    const clone = join(parent, 'clone');
+    const git = runner({ PATH: realGitDir! }, ws);
+    const cloned = await git.run({ subcommand: 'clone', options: ['--no-recurse-submodules'], paths: [origin, clone], cwd: parent });
+    expect(cloned.exitCode, cloned.stderr).toBe(0);
+    expect(existsSync(join(clone, 'a.txt'))).toBe(true);
+    const pulled = await git.run({ subcommand: 'pull', options: ['--ff-only', '--no-rebase'], cwd: clone });
+    expect(pulled.exitCode, pulled.stderr).toBe(0);
+  }, REAL_GIT_TIMEOUT_MS);
+
+  it.skipIf(!realGitDir)('refuses a transport that runs a program, such as ext:: (skipped where git is not installed)', async () => {
+    const ws = temp();
+    const parent = temp();
+    const planted = join(parent, 'ran');
+    const result = await runner({ PATH: realGitDir! }, ws).run({ subcommand: 'clone', paths: [`ext::sh -c touch% ${planted.replace(/\\/g, '/')}`, join(parent, 'clone')], cwd: parent });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr).toMatch(/transport 'ext' not allowed/);
+    expect(existsSync(planted)).toBe(false);
   }, REAL_GIT_TIMEOUT_MS);
 
   it.skipIf(!realGitDir)('stops git when the command is cancelled', async () => {

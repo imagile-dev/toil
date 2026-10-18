@@ -36,7 +36,8 @@ toil may add commands, flags and output fields.
 | `jwt` | Yes | Exact match |
 | `deps` | Yes | Two divergences, below |
 | `config` | No | Rebuilt around the OS credential store. `config import` migrates the old global config once. |
-| `skills`, `doctor` | No | Rebuilt for toil's own skill and setup story |
+| `skills` | Yes | Marketplace add, list, plugins, remove, sync, enable and disable, and `skills status`, matched. The rest aren't built yet, or are gone for good (`skills git-auth`); each is a divergence in `docs/divergences/skills.json` |
+| `doctor` | No | Rebuilt for toil's own setup story |
 
 ## Divergences
 

@@ -24,6 +24,12 @@ export interface Context {
    */
   git?: GitRunner;
   env: NodeJS.ProcessEnv;
+  /**
+   * The user's home folder, where agent skill folders (`~/.agents/skills`)
+   * and skills marketplace clones live (docs/bounds.md, `skills.folders`).
+   * Tests point it at a temp folder. Absent, the skills commands refuse.
+   */
+  home?: string;
   version: string;
   /** Add the request log to meta. */
   verbose: boolean;
