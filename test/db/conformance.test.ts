@@ -22,8 +22,10 @@ type Data = { columns: Array<{ name: string; type: string | null }>; rows: Row[]
 
 for (const target of targets) {
   const skip = await target.skip?.();
-  describe.skipIf(skip !== undefined)(`db conformance: ${target.engine}${skip ? ` (skipped: ${skip})` : ''}`, () => {
+  describe.skipIf(skip !== undefined)(`db conformance: ${target.name ?? target.engine}${skip ? ` (skipped: ${skip})` : ''}`, () => {
     let db: TargetDatabase;
+    // MySQL's default schema is the connection's database, so it's known only once the database is.
+    const schema = () => (db.schema ?? target.defaultSchema)!;
     beforeEach(async () => {
       db = await target.setup();
     });
@@ -60,12 +62,12 @@ for (const target of targets) {
     describe('schemas and tables', () => {
       it('lists the default schema', async () => {
         const { schemas } = (await run(listSchemas, {})).data as { schemas: Array<{ name: string }> };
-        expect(schemas.map((s) => s.name)).toContain(target.defaultSchema);
+        expect(schemas.map((s) => s.name)).toContain(schema());
       });
 
       it('lists tables and views in the default schema, and nothing internal', async () => {
         const result = (await run(listTables, {})).data as { schema: string; tables: Array<{ name: string; type: string }> };
-        expect(result.schema).toBe(target.defaultSchema);
+        expect(result.schema).toBe(schema());
         expect(result.tables).toEqual([
           { name: 'active_people', type: 'view' },
           { name: 'people', type: 'table' },
@@ -74,7 +76,7 @@ for (const target of targets) {
       });
 
       it('gives the same tables when the default schema is named', async () => {
-        expect((await run(listTables, { schema: target.defaultSchema })).data).toEqual((await run(listTables, {})).data);
+        expect((await run(listTables, { schema: schema() })).data).toEqual((await run(listTables, {})).data);
       });
 
       it('answers an unknown schema with NOT_FOUND', async () => {
@@ -85,7 +87,7 @@ for (const target of targets) {
     describe('describe-table', () => {
       it('describes columns, primary key, indexes and foreign keys', async () => {
         const d = (await run(describeTable, { table: 'people' })).data as Record<string, unknown>;
-        expect(d).toMatchObject({ schema: target.defaultSchema, name: 'people', type: 'table', primaryKey: ['id'] });
+        expect(d).toMatchObject({ schema: schema(), name: 'people', type: 'table', primaryKey: ['id'] });
         const columns = d.columns as Array<{ name: string; nullable: boolean; primaryKey: number | null; default: string | null; type: string | null }>;
         expect(columns.map((c) => c.name)).toEqual(['id', 'name', 'team_id', 'active']);
         expect(columns.find((c) => c.name === 'id')).toMatchObject({ nullable: false, primaryKey: 1 });
@@ -96,7 +98,7 @@ for (const target of targets) {
         expect(columns.find((c) => c.name === 'name')?.type?.toUpperCase()).toMatch(/VARCHAR|CHARACTER VARYING/);
         expect(d.indexes).toContainEqual({ name: 'people_team', columns: ['team_id'], unique: false });
         expect(d.foreignKeys).toEqual([
-          { columns: ['team_id'], references: { schema: target.defaultSchema, table: 'teams', columns: ['id'] }, onUpdate: null, onDelete: null },
+          { columns: ['team_id'], references: { schema: schema(), table: 'teams', columns: ['id'] }, onUpdate: null, onDelete: null },
         ]);
       });
 

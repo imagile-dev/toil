@@ -43,11 +43,11 @@ one they got.
   creates its target file before the read-only refusal, so SQLite reads refuse any
   statement whose first keyword is `VACUUM` (`INVALID_INPUT`, pointing at
   `db execute`), and PostgreSQL reads refuse `COPY` and `DO`: `COPY ... TO '<file>'` and `TO PROGRAM`
-  write a server file or run a program inside a read-only transaction, and a `DO` block can run that `COPY`. Each denies one statement by name; it does not decide whether SQL
+  write a server file or run a program inside a read-only transaction, and a `DO` block can run that `COPY`. MySQL reads refuse `SELECT ... INTO OUTFILE` / `INTO DUMPFILE` (a server file) and any `SET` (`SET GLOBAL` and `SET PERSIST` change the server), checked with and without backslash escapes so `NO_BACKSLASH_ESCAPES` can't hide one. Each denies one statement by name; it does not decide whether SQL
   writes, and everything else still relies on the engine. Add another such deny only
   for a statement proven to escape the engine's read-only mode, with a test showing
   the escape. A hole that can't be closed (SQLite's read-only `ATTACH` of other
-  files, PostgreSQL's server-side functions such as `lo_export` for a privileged role) is pinned with a test and documented as a known limit.
+  files, PostgreSQL's server-side functions such as `lo_export` for a privileged role, a MySQL procedure that commits and turns read-write itself) is pinned with a test and documented as a known limit.
 - **`execute` is all or nothing.** A script that starts or ends its own transaction
   is refused before any of it runs, so a mid-script `COMMIT` can't leave half a
   change applied.
@@ -66,7 +66,10 @@ one they got.
   PostgreSQL opens one connection per call and, on abort, sends
   `pg_cancel_backend(<pid>)` from a second short-lived one
   (`src/core/db/postgres/index.ts`); the abandoned call's own error is dropped,
-  because core has already answered `TIMEOUT` or `CANCELLED`.
+  because core has already answered `TIMEOUT` or `CANCELLED`. MySQL does the same
+  with `KILL QUERY <id>` (`src/core/db/mysql/index.ts`), and sets the session as
+  well as the transaction read-only, because DDL commits implicitly and would
+  otherwise run in autocommit.
 
 ## Testing
 
@@ -117,6 +120,18 @@ one they got.
   TOIL_TEST_PG_URL=postgres://postgres:postgres@localhost:55437/postgres npm run test:integration
   # ...then seed a database and drive node dist/toil.js db ... and toil mcp against it
   docker rm -f $name; docker ps -a --filter name=toil-test-postgres   # must list nothing
+  ```
+
+  MySQL and MariaDB share the `mysql` engine, and each has its own target and URL
+  (`TOIL_TEST_MYSQL_URL`, `TOIL_TEST_MARIADB_URL`), so run both:
+
+  ```bash
+  r=$RANDOM
+  docker run -d --name toil-test-mysql-$r -e MYSQL_ROOT_PASSWORD=mysql -p 53316:3306 \n    --health-cmd "mysqladmin ping -h 127.0.0.1 -pmysql --silent" --health-interval 2s mysql:8.4
+  docker run -d --name toil-test-mariadb-$r -e MARIADB_ROOT_PASSWORD=mysql -p 53317:3306 \n    --health-cmd "healthcheck.sh --connect --innodb_initialized" --health-interval 2s mariadb:11.8
+  # wait for both to be healthy, as above
+  TOIL_TEST_MYSQL_URL=mysql://root:mysql@localhost:53316/ TOIL_TEST_MARIADB_URL=mysql://root:mysql@localhost:53317/ npm run test:integration
+  docker rm -f toil-test-mysql-$r toil-test-mariadb-$r; docker ps -a --filter name=toil-test-m   # must list nothing
   ```
 
   Use a host port other than the engine's default, and remove the container even

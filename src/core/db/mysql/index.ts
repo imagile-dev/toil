@@ -44,13 +44,14 @@ function trustedCas(): string[] {
  * (principle 9). LOCAL INFILE is turned off on our side too: a server that
  * asks for a local file would otherwise be asking toil to upload it.
  */
-export function connectionOptions(conn: DbConnection, database: string | undefined = conn.database): ConnectionOptions {
+/** `database: null` connects to no database, as the canceller does. */
+export function connectionOptions(conn: DbConnection, database: string | null = conn.database ?? null): ConnectionOptions {
   return {
     host: conn.host!,
     port: conn.port ?? DEFAULT_PORT,
     user: conn.user!,
     password: conn.password ?? '',
-    ...(database === undefined ? {} : { database }),
+    ...(database === null ? {} : { database }),
     ...(conn.ssl === true ? { ssl: { ca: trustedCas(), rejectUnauthorized: true, verifyIdentity: true } } : {}),
     connectTimeout: CONNECT_TIMEOUT_MS,
     connectAttributes: { program_name: 'toil' },
@@ -107,6 +108,7 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (w
   client.on('error', (err: Error) => call.debug(`mysql: connection ${conn.name}: ${err.message}`));
   let threadId: number | undefined;
   let abandoned = false;
+  let clean = false;
   const onAbort = () => {
     if (threadId) void cancelOnServer(conn, threadId, call);
     else client.destroy();
@@ -126,20 +128,23 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (w
     }
     const result = await work({ client, abandon: () => (abandoned = true) });
     if (!abandoned) await run(client, mode === 'read' ? 'ROLLBACK' : 'COMMIT');
+    clean = !abandoned;
     return result;
   } catch (err) {
     throw toToilError(err, conn, mode);
   } finally {
     call.signal.removeEventListener('abort', onAbort);
-    // Ending the session ends any transaction still open, rolling it back.
-    if (abandoned) client.destroy();
-    else await end(client);
+    // Ending the session ends any transaction still open, rolling it back. A
+    // connection that failed, never connected, or was left mid-result has
+    // nothing to say goodbye over, and a goodbye to a dead socket never returns.
+    if (clean) await end(client);
+    else client.destroy();
   }
 }
 
 /** Asks the server to stop the statement on connection `id`. Best effort: core has already answered the caller. */
 async function cancelOnServer(conn: DbConnection, id: number, call: DbCall): Promise<void> {
-  const killer = mysql.createConnection(connectionOptions(conn, undefined));
+  const killer = mysql.createConnection(connectionOptions(conn, null));
   killer.on('error', () => {});
   try {
     await connect(killer);
@@ -148,7 +153,8 @@ async function cancelOnServer(conn: DbConnection, id: number, call: DbCall): Pro
   } catch (err) {
     call.debug(`mysql: connection ${conn.name}: couldn't cancel the statement on the server (${(err as Error).message}); it may still be running`);
   } finally {
-    await end(killer);
+    if (killer.threadId) await end(killer);
+    else killer.destroy();
   }
 }
 
@@ -478,8 +484,17 @@ export const mysqlProvider: DbProvider = {
   previewTable(conn, ref, window, call) {
     return session(conn, 'read', call, async (w) => {
       const table = await requireTable(w.client, conn, ref);
+      // Without ORDER BY, InnoDB may read a covering secondary index, and the
+      // order (and so the pages) depends on the plan. The primary key is
+      // InnoDB's clustered order, so paging by it is both natural and stable.
+      const pk = await run<Array<{ column: string }>>(
+        w.client,
+        "SELECT COLUMN_NAME AS `column` FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND INDEX_NAME = 'PRIMARY' ORDER BY SEQ_IN_INDEX",
+        [ref.schema, table.name],
+      );
+      const order = pk.length > 0 ? ` ORDER BY ${pk.map((c) => quoteIdent(c.column)).join(', ')}` : '';
       // Both are integers from core's paging; inlined because a placeholder in LIMIT is a prepared-statement quirk on some servers.
-      const sql = `SELECT * FROM ${quoteIdent(ref.schema)}.${quoteIdent(table.name)} LIMIT ${Math.trunc(window.max)} OFFSET ${Math.trunc(window.offset)}`;
+      const sql = `SELECT * FROM ${quoteIdent(ref.schema)}.${quoteIdent(table.name)}${order} LIMIT ${Math.trunc(window.max)} OFFSET ${Math.trunc(window.offset)}`;
       // LIMIT already bounds it, so the result is read to its end and the session closes cleanly.
       return readWindow(w, sql, 0, Number.POSITIVE_INFINITY);
     });
