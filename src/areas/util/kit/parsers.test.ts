@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { schemaDraft, validateSchema, type Schema } from './json-schema.js';
-import { parseYaml } from './yaml.js';
+import { MAX_YAML_NODES, parseYaml } from './yaml.js';
 
 /** An OpenAPI 3.0 fragment in YAML, the way vendors publish them, with a placeholder server. */
 const OPENAPI_YAML = `openapi: 3.0.3
@@ -24,6 +24,19 @@ paths:
 `;
 
 describe('parseYaml', () => {
+  it("refuses alias fan-out past the node limit, the reviewer's seven-level document included, and keeps ordinary aliases", () => {
+    const levels = ['a0: &a0 ["lol"]'];
+    for (let i = 1; i <= 6; i++) levels.push(`a${i}: &a${i} [${Array(10).fill(`*a${i - 1}`).join(', ')}]`);
+    const laughs = levels.join('\n');
+    expect(laughs.length).toBeLessThan(400);
+    const started = performance.now();
+    expect(() => parseYaml(laughs, 'the file "laughs.yaml"')).toThrow(
+      expect.objectContaining({ code: 'INVALID_INPUT', message: `The file "laughs.yaml" expands its aliases past ${MAX_YAML_NODES} values, the most toil reads from one YAML document.` }),
+    );
+    expect(performance.now() - started).toBeLessThan(2000);
+    expect(parseYaml('base: &b { type: string }\nuse: [*b, *b]')).toEqual({ base: { type: 'string' }, use: [{ type: 'string' }, { type: 'string' }] });
+  });
+
   it('reads YAML 1.2 core types and keeps dates as the strings they were written as', () => {
     const doc = parseYaml(OPENAPI_YAML) as { openapi: string; info: { version: string }; paths: Record<string, { get: { responses: Record<string, { content: Record<string, { example: unknown }> }> } }> };
     expect(doc.openapi).toBe('3.0.3');

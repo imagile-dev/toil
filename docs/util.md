@@ -99,7 +99,7 @@ classify, a file it couldn't read) is counted and reported in `data` and
 | Piece | Where | What it is |
 |-------|-------|------------|
 | XML | `kit/xml.ts` | Built in. `XmlTokenizer` streams events from chunks of any size; `parseXml` builds a tree. Well-formed or `XmlSyntaxError` with line and column. No DTD processing, so nothing expands or is fetched; extra entities (HTML's, for storage format) come from the caller, and `fragment: true` reads a fragment. For JUnit, TRX, Cobertura and Confluence storage format |
-| YAML | `kit/yaml.ts` | js-yaml, YAML 1.2 core schema (no timestamps), duplicate keys refused, one document. Errors give line and column, never the text. Lazy only |
+| YAML | `kit/yaml.ts` | js-yaml, YAML 1.2 core schema (no timestamps), duplicate keys refused, one document, and at most 1,000,000 values with aliases expanded (`INVALID_INPUT` past it, so a "billion laughs" document is refused). Errors give line and column, never the text. Lazy only |
 | JSON Schema | `kit/json-schema.ts` | @cfworker/json-schema, drafts 4, 7, 2019-09 and 2020-12, chosen from `$schema`. Problems by JSON pointer, deepest first, capped. For ADF, OpenAPI and generated examples. Lazy only |
 | Secrets | `src/core/secret-shapes.ts` | toil's one definition of a secret. The audit log redacts with `redactText`; `findSecrets(text)` returns each secret's rule and position (the secret alone, never the name around it), from the same rules |
 | Versions | `src/core/versions.ts` | The comparison `artifactory outdated` and `util deps diff` use, exactly as recorded. An ecosystem's own grammar goes beside it, not in place of it |

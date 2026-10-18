@@ -117,4 +117,31 @@ describe('openInput', () => {
   it('declares the fields every reading command shares', () => {
     expect(Object.keys(inputFields)).toEqual(['file', 'text']);
   });
+
+  it('re-reads 200,000 chosen lines without overflowing the stack', async () => {
+    const text = Array.from({ length: 300_000 }, (_, i) => `line ${i + 1}`).join('\n');
+    const { open } = setup({ 'big.log': text });
+    const wanted = Array.from({ length: 200_000 }, (_, i) => i + 100_001);
+    const found = await (await open({ file: 'big.log' })).linesAt(wanted);
+    expect(found.size).toBe(200_000);
+    expect(found.get(300_000)).toBe('line 300000');
+  });
+
+  it('a cap inside a multi-byte character drops the half character and warns only INPUT_TRUNCATED', async () => {
+    for (const chunkSize of [1, 2, 64]) {
+      const warnings: Warning[] = [];
+      const input = await openInput({ files: chunked({ 'a.txt': 'abécd' }, chunkSize), warn: (w) => warnings.push(w) }, { file: 'a.txt' }, { maxBytes: 3 });
+      expect((await all(input.lines())).map((l) => l.text), `chunk ${chunkSize}`).toEqual(['ab']);
+      expect([input.truncated, input.invalidUtf8]).toEqual([true, false]);
+      expect(warnings.map((w) => w.code)).toEqual(['INPUT_TRUNCATED']);
+    }
+  });
+
+  it('finds a NUL anywhere in the first 8,000 bytes, however small the chunks', async () => {
+    const nul = String.fromCharCode(0);
+    const files = chunked({ 'a.bin': `${'a'.repeat(5000)}${nul}rest` }, 100);
+    await expect((await openInput({ files, warn: () => {} }, { file: 'a.bin' })).text()).rejects.toMatchObject({ message: 'The file "a.bin" looks binary: it has a NUL byte at offset 5000.' });
+    const late = chunked({ 'b.txt': `${'a'.repeat(9000)}${nul}` }, 100);
+    expect(await (await openInput({ files: late, warn: () => {} }, { file: 'b.txt' })).text()).toHaveLength(9001);
+  });
 });

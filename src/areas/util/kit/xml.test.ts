@@ -130,4 +130,25 @@ describe('xml', () => {
     expect(opened).toBe(40_000);
     expect(performance.now() - started, `${text.length} characters`).toBeLessThan(3000);
   });
+
+  it('gives the same events, or the same error, wherever the input is split in two', () => {
+    const split = (text: string, at: number) => {
+      const out: XmlEvent[] = [];
+      const tokenizer = new XmlTokenizer((e) => out.push(e));
+      tokenizer.write(text.slice(0, at));
+      tokenizer.write(text.slice(at));
+      tokenizer.end();
+      return out.reduce<XmlEvent[]>((joined, e) => {
+        const prev = joined.at(-1);
+        if (e.type === 'text' && prev?.type === 'text' && prev.cdata === e.cdata) prev.text += e.text;
+        else joined.push({ ...e });
+        return joined;
+      }, []);
+    };
+    const valid = '<a k="v">x] y]] z&amp;w\r\nq<![CDATA[c]]>]]<!-- n --><b/>&#65;</a>';
+    const whole = split(valid, valid.length);
+    for (let at = 0; at <= valid.length; at++) expect(split(valid, at), `split at ${at}`).toEqual(whole);
+    const invalid = '<a>x]]>y</a>';
+    for (let at = 0; at <= invalid.length; at++) expect(() => split(invalid, at), `split at ${at}`).toThrow('"]]>" is not allowed in text');
+  });
 });

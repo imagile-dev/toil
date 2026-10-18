@@ -135,6 +135,8 @@ export class XmlTokenizer {
           // Entities are short; past 32 characters an `&` is not the start of one, and holding text back would cost memory.
           const amp = this.buffer.lastIndexOf('&');
           if (amp !== -1 && this.buffer.length - amp <= 32 && this.buffer.indexOf(';', amp) === -1) end = amp;
+          // A trailing ] or ]] may be the start of a ]]> the next chunk finishes, which text may not hold.
+          while (end > 0 && end > this.buffer.length - 2 && this.buffer[end - 1] === ']') end--;
           // A CR may be half of a CRLF.
           if (end > 0 && this.buffer[end - 1] === '\r') end--;
         }

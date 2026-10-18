@@ -174,9 +174,11 @@ export async function openInput(ctx: InputContext, fields: { file?: string | und
   const label = source.kind === 'file' ? `the file "${source.path}"` : source.kind === 'stdin' ? 'stdin' : 'the text';
 
   const state = { bytesRead: 0, truncated: false, invalidUtf8: false };
-  const refuseBinary = (head: Uint8Array) => {
-    if (options.binary === 'allow') return;
-    const at = binaryAt(head);
+  /** Sniffs `piece`, which starts `offset` bytes in, for as much of the first BINARY_SNIFF bytes as it holds, however the input is chunked. */
+  const refuseBinary = (piece: Uint8Array, offset: number) => {
+    if (options.binary === 'allow' || offset >= BINARY_SNIFF) return;
+    const found = binaryAt(piece.subarray(0, BINARY_SNIFF - offset));
+    const at = found === -1 ? -1 : offset + found;
     if (at !== -1) {
       throw new ToilError('INVALID_INPUT', `${capital(label)} looks binary: it has a NUL byte at offset ${at}.`, {
         fix: 'Pass a text file. This command reads text, and binary content would come back mangled.',
@@ -199,7 +201,6 @@ export async function openInput(ctx: InputContext, fields: { file?: string | und
             yield held;
           })()
         : ctx.files.readStream((source as { path: string }).path, signal ? { signal } : {});
-    let first = true;
     let carry = new Uint8Array(0);
     for await (const chunk of raw) {
       let piece = chunk;
@@ -207,14 +208,23 @@ export async function openInput(ctx: InputContext, fields: { file?: string | und
         piece = piece.subarray(0, maxBytes - state.bytesRead);
         state.truncated = true;
       }
-      if (first) refuseBinary(piece);
-      first = false;
-      state.bytesRead += piece.length;
+      refuseBinary(piece, state.bytesRead);
       // UTF-8 is checked across chunk boundaries: a sequence a chunk starts is finished by the next.
-      const joined = carry.length ? concat([carry, piece], carry.length + piece.length) : piece;
-      const tail = state.truncated ? 0 : incompleteTail(joined);
-      if (!isUtf8(joined.subarray(0, joined.length - tail))) noteInvalid();
-      carry = joined.slice(joined.length - tail);
+      let joined = carry.length ? concat([carry, piece], carry.length + piece.length) : piece;
+      const tail = incompleteTail(joined);
+      if (state.truncated && tail > 0) {
+        // The cap fell inside a character. That half character isn't invalid UTF-8, it's
+        // the truncation INPUT_TRUNCATED already reports, so it's dropped rather than shown.
+        const drop = Math.min(tail, piece.length);
+        piece = piece.subarray(0, piece.length - drop);
+        joined = joined.subarray(0, joined.length - tail);
+        carry = new Uint8Array(0);
+      } else {
+        carry = joined.slice(joined.length - tail);
+        joined = joined.subarray(0, joined.length - tail);
+      }
+      if (!isUtf8(joined)) noteInvalid();
+      state.bytesRead += piece.length;
       if (piece.length) yield piece;
       if (state.truncated) break;
     }
@@ -252,7 +262,8 @@ export async function openInput(ctx: InputContext, fields: { file?: string | und
       }
       take(text.slice(start));
     }
-    take(decoder.decode());
+    // A pass cut at the cap may end inside a character; those bytes are the truncation, not text.
+    if (!state.truncated) take(decoder.decode());
     if (current !== '' || cut) yield finish();
   }
 
@@ -289,7 +300,9 @@ export async function openInput(ctx: InputContext, fields: { file?: string | und
       const wanted = new Set(numbers);
       const found = new Map<number, string>();
       if (wanted.size === 0) return found;
-      const last = Math.max(...wanted);
+      // A loop, not Math.max(...wanted): spreading a few hundred thousand numbers overflows the stack.
+      let last = 0;
+      for (const n of wanted) if (n > last) last = n;
       for await (const line of lines()) {
         if (wanted.has(line.number)) found.set(line.number, line.text);
         if (line.number >= last) break;
