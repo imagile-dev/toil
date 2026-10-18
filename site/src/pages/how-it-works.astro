@@ -76,9 +76,9 @@ const parts = [
 
   <section class="section--tight">
     <div class="container">
-      <p class="prerelease" data-reveal>
-        <strong>Pre-release.</strong> The core described here and every integration on the board are built and tested, but nothing is on
-        npm yet.
+      <p class="status" data-reveal>
+        <strong>Alpha:</strong> APIs and flags may change before 1.0. The core described here and every integration on the board are built
+        and tested.
       </p>
     </div>
   </section>
@@ -126,8 +126,8 @@ const parts = [
 
   .more a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
 
-  .prerelease { border: 1px solid var(--color-accent); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); color: var(--color-muted); max-width: 62ch; }
-  .prerelease strong { color: var(--color-accent); }
+  .status { border: 1px solid var(--color-accent); border-radius: var(--radius-md); padding: var(--space-sm) var(--space-md); color: var(--color-muted); max-width: 62ch; }
+  .status strong { color: var(--color-accent); }
 
   @media (min-width: 980px) {
     .hiw { grid-template-columns: 12rem minmax(0, 1fr); align-items: start; }

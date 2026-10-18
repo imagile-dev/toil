@@ -20,11 +20,11 @@ interface Props {
 
 const {
   title,
-  description = 'toil is the central integrator between AI agents and the enterprise: one CLI and MCP server for enterprise tools and databases. Plain JavaScript on Node, so it runs where executables are blocked.',
+  description = 'toil is the token-efficient alternative to MCP: one CLI for enterprise tools and databases, with compact JSON envelopes, --select for only the fields a task needs, and a skill the agent reads on demand instead of every tool schema up front. toil mcp stays available.',
 } = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
-const pageTitle = title === 'toil' ? 'toil — the central integrator for enterprise tools' : `${title} — toil`;
+const pageTitle = title === 'toil' ? 'toil — the token-efficient alternative to MCP' : `${title} — toil`;
 const ogImage = new URL(url('/og.png'), Astro.site);
 ---
 

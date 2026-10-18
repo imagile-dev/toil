@@ -640,15 +640,14 @@ describe("Two Weeks' Notice: the writing", () => {
     expect(called(BOSS)).toBe('MUNDANE');
   });
 
-  it('never says "the" in front of a robot anywhere in a played run', () => {
-    for (let seed = 1; seed <= 8; seed++) {
-      let g = start(seed, { skipIntro: true });
-      const said = new Set<string>();
-      for (let i = 0; i < 3000 && g.status === 'play'; i++) {
-        g = act(g, bot(g, true));
-        for (const l of g.log) said.add(l);
-      }
-      for (const l of said) for (const r of [...ROBOTS, BOSS]) expect(l.toLowerCase(), l).not.toContain(`the ${r.name.toLowerCase()}`);
+  // One test per seed: eight full runs in one test overran the 5 s limit on slow CI runners.
+  it.each([1, 2, 3, 4, 5, 6, 7, 8])('never says "the" in front of a robot anywhere in a played run (seed %i)', (seed) => {
+    let g = start(seed, { skipIntro: true });
+    const said = new Set<string>();
+    for (let i = 0; i < 3000 && g.status === 'play'; i++) {
+      g = act(g, bot(g, true));
+      for (const l of g.log) said.add(l);
     }
+    for (const l of said) for (const r of [...ROBOTS, BOSS]) expect(l.toLowerCase(), l).not.toContain(`the ${r.name.toLowerCase()}`);
   });
 });

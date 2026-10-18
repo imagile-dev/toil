@@ -39,6 +39,13 @@
     },
     {
       "allows": [],
+      "old": "ado work download-attachment reporting saved as --dir joined with the file name, so a relative --dir gives a relative path",
+      "toil": "saved is always the absolute path written, with forward slashes, even when --dir is relative. The file lands in the same place (#233)",
+      "why": "A relative --dir resolves against the workspace, which over MCP is not the caller's working directory, so a relative saved would point somewhere else. The absolute path says exactly where the file is.",
+      "principle": "4"
+    },
+    {
+      "allows": [],
       "old": "ado project list, pipeline list, pipeline list-runs (with no --top), repo list-builds and repo list-prs paging for as long as the server keeps answering",
       "toil": "The same stops (no continuation header, or a short $top/$skip page), plus a bound: after 1,000 pages the command fails with HTTP, naming the list, and a fix to narrow the request",
       "why": "A server that hands back a token or ignores $skip would otherwise be asked forever; the bound turns a hang into an error that says what happened.",

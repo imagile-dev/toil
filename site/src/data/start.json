@@ -1,0 +1,12 @@
+{
+  "npmCommands": ["npm install -g @imagile-dev/toil", "toil version"],
+  "cloneQuick": "git clone https://github.com/imagile-dev/toil.git && cd toil && node scripts/setup.mjs",
+  "cloneManual": [
+    "git clone https://github.com/imagile-dev/toil.git",
+    "node toil/dist/toil.js version",
+    "node toil/dist/toil.js setup alias                    # bash or zsh",
+    "node toil/dist/toil.js setup alias --profile $PROFILE # PowerShell"
+  ],
+  "cloneBuild": ["cd toil", "npm ci", "npm run build", "node dist/toil.js version"],
+  "npmPackageUrl": "https://www.npmjs.com/package/@imagile-dev/toil"
+}

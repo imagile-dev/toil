@@ -1,6 +1,7 @@
 /* Plain: the accessibility baseline. Tokens come from theme.json; this file
    adds only what the tokens can't say. It stays nearly empty on purpose. */
 
-[data-theme="plain"] .card {
+[data-theme="plain"] .dossier-card,
+[data-theme="plain"] .panel {
   box-shadow: 0 1px 0 var(--line);
 }

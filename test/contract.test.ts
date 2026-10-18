@@ -241,6 +241,22 @@ describe('command contract: output field names', async () => {
       expect([...new Set(found)], 'rename it back, or list it in docs/divergences/<area>.json').toEqual([]);
     });
   }
+
+  it('jira fields: suggestedType is the one type-hint key, and the toilType the contract records is excused only by its divergence', async () => {
+    const f = fixtures.find((x) => x.area === 'jira')!;
+    const def = f.commands.find((d) => commandName(d) === 'jira fields')!;
+    const examples = def.examples.filter((e) => (e as { discover?: boolean }).discover === true);
+    expect(examples.length).toBeGreaterThan(0);
+    for (const example of examples) {
+      const { context } = testContext({ config: f.config, routes: f.routes, files: f.files });
+      const envelope = await execute(def, example, context);
+      const data = envelope.data as Array<Record<string, unknown>>;
+      expect(data.some((field) => 'suggestedType' in field)).toBe(true);
+      expect(data.filter((field) => 'toilType' in field)).toEqual([]);
+      expect(loadDivergences(divergenceFiles, example as Record<string, unknown>).has('jira fields data.[].toilType')).toBe(true);
+    }
+    expect(byPath.get('jira fields')!.output!.some((v) => 'fields' in v && v.fields.includes('[].toilType?'))).toBe(true);
+  });
 });
 
 describe('the contract diff bites on a routed path', () => {

@@ -65,7 +65,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
 
   const program = quiet(
     new Command('toil')
-      .description('The central integrator between AI agents and the enterprise. Every command prints one JSON envelope.')
+      .description('The token-efficient alternative to MCP for enterprise tools and databases. Every command prints one JSON envelope.')
       .version(options.version, '-v, --version', 'output the version number')
       .option('--pretty', 'Human-readable formatted output', false)
       .option('--verbose', 'Add every request to meta.requests (credentials redacted)', false)

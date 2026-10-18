@@ -23,13 +23,23 @@ With no global install, `npx -y @imagile-dev/toil version` runs it on demand. Ea
 GitHub release also carries the packed `.tgz` for offline or mirrored installs:
 `npm install -g ./imagile-dev-toil-<version>.tgz`.
 
-**toil is not on npm yet.** Until its first release, these fail with a 404; install
-from a clone instead.
+**toil is alpha: APIs and flags may change before 1.0.** Releases are published under
+npm's `alpha` tag, which `latest` follows until 1.0. The first alpha is being
+published; until it is, these return 404, so install from a clone meanwhile.
 
 ## From a clone, with no npm install
 
 For a machine that can reach the git host but not the npm registry. Needs Node and
-git.
+git. A person setting up their own machine can do it all in one command, which
+builds the clone, adds the alias below and prints `toil version`
+(the build runs `npm ci`; with no registry, add `--skip-build` to use the committed
+bundle as it is):
+
+```bash
+git clone https://github.com/imagile-dev/toil.git && cd toil && node scripts/setup.mjs
+```
+
+Step by step:
 
 ```bash
 git clone https://github.com/imagile-dev/toil.git

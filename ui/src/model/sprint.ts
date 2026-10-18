@@ -10,7 +10,7 @@
  * ask for it as a slide.
  */
 
-import type { ChangeRef, WorkItem } from '../store.ts';
+import type { ChangeRef, WorkItem } from '../toil.ts';
 
 const DAY = 86_400_000;
 

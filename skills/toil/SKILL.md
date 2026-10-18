@@ -5,6 +5,11 @@ description: Use toil, a structured-JSON CLI and MCP server, to read from and (w
 
 # toil
 
+toil is the token-efficient alternative to MCP: the same commands as a CLI, each
+returning one compact envelope, with this skill read a file at a time rather than
+every tool schema up front. Keep it lean: `--select` the fields you need, and
+`toil wait` rather than polling.
+
 If `toil version` doesn't print an envelope, toil isn't installed yet: `install.md`,
 beside this file, says how.
 

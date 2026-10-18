@@ -1,0 +1,19 @@
+{
+  "//": "test/registry.test.ts loads toil's registry from source (src/api.ts), which is Node code: it is checked here, with the CLI's own module settings and ambient declarations, and left out of tsconfig.json.",
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["../src/**/*.d.ts", "test/registry.test.ts"]
+}
