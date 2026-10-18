@@ -2003,3 +2003,50 @@ payload shapes; nothing existing changed shape.
   `queryByPost`, since the bulk read is a POST that only reads.
 - **The contract gets a second output shape for `jira get-issue`**
   (`{ issues, errors }`), added, not replacing the recorded one.
+
+### #212 ado
+
+Items 5, 6, 7 and 9 for Azure DevOps Server, on REST 7.1 (Server 2022.1). Every
+endpoint used exists at 7.1 in the Server reference: Wiql - Query By Wiql (`$top`,
+`timePrecision`), Revisions - List (`$top`, `$skip`) and Work Items - Get Work Items
+Batch (`ids`, `fields`, `$expand`, `errorPolicy`, at most 200 ids),
+`learn.microsoft.com/en-us/rest/api/azure/devops/wit/…?view=azure-devops-server-rest-7.1`.
+
+- **Which lists page (item 5).** The ones that already read more than one page:
+  `project list`, `pipeline list`, `pipeline list-runs`, `repo list-prs`,
+  `repo list-builds`, plus `work search` and the new `work revisions`. Each gains
+  `--limit` and `--cursor` through core's `paginate` cap, so `meta.page.nextCursor`
+  is core's own cursor; core is unchanged. Without `--limit` each returns the whole
+  list as the contract records. The one-request lists (`repo list`, comments,
+  `list-files`, `list-default-reviewers`, the metadata lists) are left alone: several
+  are recorded suspected bugs (#69), and paging them changes behavior the contract
+  pins until a live run.
+- **`pipeline list-runs`:** `--limit` pages by continuation token; `--top` keeps its
+  one request (default 50). Both together is `INVALID_INPUT`, the simpler rule than
+  deciding which wins.
+- **`work search` paging.** WIQL has no continuation token, so the cursor is an
+  offset into the result and each page reruns the query with `$top` set to one past
+  the page end (to know whether more exist). Items that change between pages can
+  move; the skill page says so. A page ending past the server's 20,000-item limit is
+  refused with a fix to narrow the query. `--limit` needs a flat query, like
+  `--updated-since`.
+- **`--updated-since` (item 6).** A date (UTC midnight) or a date-time with Z or an
+  offset; a zoneless date-time or a calendar date that doesn't exist is refused, so
+  the flag means one instant everywhere. It is formatted by toil as
+  `'YYYY-MM-DDTHH:mm:ss.sssZ'` and ANDed as `[System.ChangedDate] >= …` onto the
+  query's top-level WHERE, wrapped in parentheses, found by a scan that steps over
+  string literals and brackets (`wiql.ts`). `timePrecision=true` is sent, since the
+  server refuses a time in a date literal without it. Link queries (`FROM
+  WorkItemLinks`) are refused rather than guessing which of `[Source]` or
+  `[Target]` the date belongs to.
+- **`work revisions` (item 7)** pages by `$top=100` and `$skip` under the project
+  path, returning every revision by default, bounded by core's 1,000-page limit
+  (an `HTTP` error naming the list). 100 stays under any server page maximum, so a
+  full page is never mistaken for the last.
+- **Bulk get (item 9)** is a new command, `work get-batch --id <n>` (repeatable),
+  rather than making `work get --id` repeatable, which would repurpose a recorded
+  flag. Ids are de-duplicated in order, sent 200 per request, at most 1,000 per
+  call (`INVALID_INPUT` above that). `errorPolicy: omit`, so a missing or
+  invisible id doesn't fail the batch; `data` is `{ count, value, missing }`, with
+  an `ADO_WORK_ITEMS_MISSING` warning naming the ids. `--fields` (comma-separated)
+  replaces `$expand: all`, as the server takes only one of the two.
