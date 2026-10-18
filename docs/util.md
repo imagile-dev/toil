@@ -49,7 +49,9 @@ both at once, stdin over MCP (naming `file` and `text`), a folder, and binary co
 - **Re-reading:** `linesAt([12, 40])` reads the input again and returns those lines,
   for a self-check that a reported line number holds what was reported.
 - **Encoding:** bytes that aren't valid UTF-8 are shown as U+FFFD, and the first pass
-  that meets them warns `INPUT_NOT_UTF8` once.
+  that meets them warns `INPUT_NOT_UTF8` once. A command that treats the content as bytes and
+  never shows it as text (`util encode` hashing or encoding a file) passes
+  `utf8: 'skip'`, which turns that check and its warning off.
 - **Size:** `expectedBytes` is a file's size on disk (or the text's length), and
   `bytesRead` what the latest pass read.
 
@@ -131,10 +133,11 @@ that, so ESLint refuses a static import of `js-yaml`, `@cfworker/json-schema`,
 `kit/yaml` and `kit/json-schema` outside those wrappers and tests. A type-only import
 is allowed, since it's erased. Treat a command's own heavy module the same way.
 
-**The lazily loaded module must not import zod, even indirectly.** Everything a
-module reached through `import()` imports is wrapped for lazy evaluation too, and a
-wrapped zod is no longer initialised before the MCP SDK uses it at startup: every
-command, `toil version` included, then fails with `Class2 is not a constructor`.
-`kit/input.ts` imports zod (for `inputFields`), so open the input in the definition
-module and pass the `UtilInput` in, importing only its types in the heavy module
-(`util log` does this in `runLog`). `npm run smoke` catches a bundle that breaks.
+A module loaded through `import()` must not import zod, directly or through
+`kit/input.ts`. esbuild then defers zod's own setup too, the MCP SDK's schemas hit
+it at startup, and the bundle fails on every command, `toil version` included, with
+`Class2 is not a constructor`; the unit suite doesn't notice, `npm run smoke` does.
+Keep the reading in the command's small module and hand the lazy one what it read:
+bytes, text, or the opened `UtilInput`, importing only the reader's types there
+(`util log` does this in `runLog`). A small module may simply be a static import, as
+`util encode` is.
