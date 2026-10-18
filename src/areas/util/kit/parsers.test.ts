@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { leafProblems, schemaDraft, validateSchema, type Schema } from './json-schema.js';
+import { leafProblems, MAX_SCHEMA_FAN_OUT, schemaDraft, schemaFanOut, validateSchema, type Schema } from './json-schema.js';
 import { MAX_YAML_NODES, parseYaml } from './yaml.js';
 
 /** An OpenAPI 3.0 fragment in YAML, the way vendors publish them, with a placeholder server. */
@@ -116,6 +116,33 @@ describe('validateSchema', () => {
     const schema: Schema = { type: 'object', properties: { owner: { type: 'object', required: ['id', 'name'], properties: { id: { type: 'string' } } } } };
     const result = validateSchema(schema, { owner: { id: 7 } }, { maxProblems: Infinity });
     expect(leafProblems(result.problems).map((p) => `${p.pointer} ${p.keyword}`).sort()).toEqual(['/owner required', '/owner/id type']);
+  });
+
+  it.each([
+    ['anyOf', 22],
+    ['oneOf', 18],
+  ])('refuses, quickly and as unchecked, a %s diamond of refs that would take 2^n checks', (keyword, levels) => {
+    const defs: Record<string, Schema> = { [`S${levels}`]: { type: 'string' } };
+    for (let i = 0; i < levels; i++) defs[`S${i}`] = { [keyword]: [{ $ref: `#/definitions/S${i + 1}` }, { $ref: `#/definitions/S${i + 1}` }] };
+    const schema: Schema = { $schema: 'http://json-schema.org/draft-07/schema#', $ref: '#/definitions/S0', definitions: defs };
+    const started = performance.now();
+    expect(schemaFanOut(schema)).toBeGreaterThan(MAX_SCHEMA_FAN_OUT);
+    const result = validateSchema(schema, 'x');
+    expect(performance.now() - started).toBeLessThan(2_000);
+    expect(result).toMatchObject({ valid: false, problems: [], unchecked: expect.stringMatching(/^the schema branches too much to validate/) });
+  });
+
+  it('turns a validator that runs out of stack into unchecked, never a crash', () => {
+    let deep: unknown = 'x';
+    for (let i = 0; i < 50_000; i++) deep = [deep];
+    const result = validateSchema({ $schema: 'http://json-schema.org/draft-07/schema#', items: { $ref: '#' } }, deep);
+    expect(result).toMatchObject({ valid: false, unchecked: expect.stringMatching(/^validation ran out of room/) });
+  });
+
+  it('keeps the fan-out of real schemas small: a loop back costs one visit', () => {
+    expect(schemaFanOut(DRAFT4)).toBeLessThan(100);
+    const tree: Schema = { $schema: 'http://json-schema.org/draft-07/schema#', type: 'object', properties: { children: { type: 'array', items: { $ref: '#' } } }, anyOf: [{ $ref: '#' }, { required: ['children'] }] };
+    expect(schemaFanOut(tree)).toBeLessThan(10);
   });
 
   it('caps the problems it lists and says how many there were', () => {

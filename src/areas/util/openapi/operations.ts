@@ -143,6 +143,8 @@ export const MAX_NODES = 250_000;
  * whole wherever its schema is expanded, and can be any size.
  */
 export const MAX_CHARS = 4_000_000;
+/** The deepest one `show`'s schemas nest, or one example does: past it a value is null and the result is cut short. */
+export const MAX_NESTING = 1_000;
 
 /** How far to expand, and what expansion left as a `$ref`. */
 export interface Expansion {
@@ -155,6 +157,8 @@ export interface Expansion {
   nodes: number;
   /** Characters copied so far, against {@link MAX_CHARS}. */
   chars: number;
+  /** How deep the expansion is right now, against {@link MAX_NESTING}. */
+  level: number;
   /** Set when a budget ran out: every ref after that was left in place, counted under `stopped.depth`, and every other value is null. */
   truncated: boolean;
 }
@@ -167,6 +171,20 @@ export interface Expansion {
  * spec says; from 3.1 they're kept, over the target's keys.
  */
 export function expand(doc: Json, spec: Spec, node: Json, expansion: Expansion, trail: string[] = [], names = false): Json {
+  // Output nested deeper than MAX_NESTING would overflow the stack here or when it's serialised; it's cut, like any other budget.
+  if (expansion.level >= MAX_NESTING) {
+    expansion.truncated = true;
+    return null;
+  }
+  expansion.level++;
+  try {
+    return expandNode(doc, spec, node, expansion, trail, names);
+  } finally {
+    expansion.level--;
+  }
+}
+
+function expandNode(doc: Json, spec: Spec, node: Json, expansion: Expansion, trail: string[], names: boolean): Json {
   // Every value copied into the output is paid for here, at its serialised length; past the budget it's null.
   // The budget is checked before the cost is worked out, so a spent budget never serialises anything.
   const spend = (cost: () => number) => {
@@ -391,7 +409,7 @@ export function apiCall(doc: JsonObject, spec: Spec, o: Operation, params: Param
 /** One operation, laid out with its refs expanded `depth` deep. */
 export function showOperation(loaded: LoadedDocument, o: Operation, depth: number): ShownOperation {
   const { doc, spec } = loaded;
-  const expansion: Expansion = { depth, stopped: { depth: 0, circular: 0, external: 0, broken: 0 }, expanded: 0, nodes: 0, chars: 0, truncated: false };
+  const expansion: Expansion = { depth, stopped: { depth: 0, circular: 0, external: 0, broken: 0 }, expanded: 0, nodes: 0, chars: 0, level: 0, truncated: false };
   const schemaAt = (pointer: string | null) => (pointer === null ? null : expand(doc, spec, atPointer(doc, pointer) ?? null, expansion));
   const params: Parameter[] = parameters(doc, o)
     .filter((p) => spec !== 'swagger-2.0' || (p.in !== 'body' && p.in !== 'formData'))

@@ -69,6 +69,42 @@ describe('util openapi list', () => {
     expect(data.document.refs.circular).toContainEqual(['#/definitions/branch', '#/definitions/commit', '#/definitions/ref', '#/definitions/repository']);
   });
 
+  it('checks a document with 200,000 refs and 20,000 operations in linear time', async () => {
+    const paths: Data = {};
+    for (let i = 0; i < 20_000; i++) paths[`/p${i}`] = { get: { operationId: `op${i}`, responses: Object.fromEntries(Array.from({ length: 10 }, (_, k) => [`${200 + k}`, { $ref: '#/components/responses/R' }])) } };
+    const doc = { openapi: '3.0.3', info: { title: 'Many', version: '1' }, paths, components: { responses: { R: { description: 'ok' } } } };
+    const started = performance.now();
+    const { data } = await run(openapiListCommand, { text: asText(doc), path: '/p19999' });
+    expect(performance.now() - started).toBeLessThan(15_000);
+    expect(data.document.refs).toMatchObject({ total: 200_000, broken: [] });
+    expect(data.count).toBe(1);
+  }, 30_000);
+
+  it('refuses a document nested deeper than it reads, as INVALID_INPUT and never a crash', async () => {
+    let deep = '"x"';
+    for (let i = 0; i < 10_000; i++) deep = `[${deep}]`;
+    const started = performance.now();
+    const { envelope } = await run(openapiListCommand, { text: `{"openapi":"3.0.3","info":{"title":"Deep","version":"1"},"paths":{},"x-deep":${deep}}` });
+    expect(performance.now() - started).toBeLessThan(5_000);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringMatching(/nests far more than 256 levels deep/) });
+  });
+
+  it('caps how deep show nests its output, so refs into deeply nested schemas are cut rather than overflowing', async () => {
+    // Twenty schemas, each 120 inline levels deep with a ref to the next at the bottom: 4,800 levels expanded.
+    const schemas: Data = { S20: { type: 'string' } };
+    for (let i = 0; i < 20; i++) {
+      let inner: Data = { $ref: `#/components/schemas/S${i + 1}` };
+      for (let level = 0; level < 120; level++) inner = { type: 'object', properties: { a: inner } };
+      schemas[`S${i}`] = inner;
+    }
+    const doc = { openapi: '3.0.3', info: { title: 'Nested', version: '1' }, paths: { '/n': { post: { operationId: 'nested', requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/S0' } } } }, responses: { '200': { description: 'ok' } } } } }, components: { schemas } };
+    const { envelope, data, warnings } = await run(openapiShowCommand, { text: asText(doc), operation: 'nested', depth: 20 });
+    expect(envelope.ok).toBe(true);
+    expect(data.expansion.truncated).toBe(true);
+    expect(warnings).toContainEqual(expect.objectContaining({ code: 'OPENAPI_EXPANSION_TRUNCATED' }));
+    expect(() => JSON.stringify(envelope)).not.toThrow();
+  });
+
   it('reports an invalid document by JSON pointer, still lists it, and fails the check', async () => {
     const doc = jira();
     doc.paths['/rest/api/2/myself'].get.responses = 'none';
@@ -395,6 +431,28 @@ describe('util openapi example', () => {
     expect(data.example.sku).toHaveLength(MAX_STRING);
     expect(check(data, 'example.valid')).toMatchObject({ status: 'failed' });
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'OPENAPI_EXAMPLE_TRUNCATED' }));
+  });
+
+  it('reports example.valid as unchecked, quickly, when its schema branches too much to validate', async () => {
+    // S0 to S21, each anyOf two refs to the next: validating one value would take 2^22 checks.
+    const schemas: Data = { S22: { type: 'string' } };
+    for (let i = 0; i < 22; i++) schemas[`S${i}`] = { anyOf: [{ $ref: `#/components/schemas/S${i + 1}` }, { $ref: `#/components/schemas/S${i + 1}` }] };
+    const doc = { openapi: '3.0.3', info: { title: 'Branches', version: '1' }, paths: { '/b': { post: { operationId: 'branches', requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/S0' } } } }, responses: { '200': { description: 'ok' } } } } }, components: { schemas } };
+    const started = performance.now();
+    const { envelope, data, warnings } = await run(openapiExampleCommand, { text: asText(doc), operation: 'branches' });
+    expect(performance.now() - started).toBeLessThan(5_000);
+    expect(envelope.ok).toBe(true);
+    expect(check(data, 'example.valid')).toMatchObject({ status: 'unchecked', detail: expect.stringMatching(/^the schema branches too much/) });
+    expect(warnings).toContainEqual(expect.objectContaining({ code: 'UNVERIFIED', message: expect.stringContaining('example.valid') }));
+  });
+
+  it('cuts an example short at the nesting limit instead of overflowing the stack', async () => {
+    // A chain of 3,000 schemas, each requiring the next: 3,000 levels deep if followed to the end.
+    const schemas: Data = { S3000: { type: 'string' } };
+    for (let i = 0; i < 3000; i++) schemas[`S${i}`] = { type: 'object', required: ['next'], properties: { next: { $ref: `#/components/schemas/S${i + 1}` } } };
+    const { example, truncated } = generateExample({ components: { schemas } }, 'openapi-3.0', { $ref: '#/components/schemas/S0' }, 'request');
+    expect(truncated).toBe(true);
+    expect(() => JSON.stringify(example)).not.toThrow();
   });
 
   it('terminates on a schema that requires itself, and reports that no finite example fits', async () => {

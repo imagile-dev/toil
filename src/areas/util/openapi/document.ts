@@ -41,6 +41,23 @@ export const without = (node: JsonObject, ...keys: string[]): JsonObject => Obje
  */
 export const brief = (message: string) => (message.length > 300 ? `${message.slice(0, 300)}…` : message);
 
+/** The deepest a document may nest: real API descriptions nest a few dozen levels, and everything after parsing recurses into it. */
+export const MAX_DOCUMENT_DEPTH = 256;
+
+/** How deep a parsed value nests, iteratively, stopping once past four times the limit. */
+function nesting(value: unknown): number {
+  let deepest = 0;
+  const stack: Array<[unknown, number]> = [[value, 1]];
+  while (stack.length) {
+    const [node, depth] = stack.pop()!;
+    if (typeof node !== 'object' || node === null) continue;
+    if (depth > deepest) deepest = depth;
+    if (deepest > MAX_DOCUMENT_DEPTH * 4) return deepest;
+    for (const child of Object.values(node)) if (typeof child === 'object' && child !== null) stack.push([child, depth + 1]);
+  }
+  return deepest;
+}
+
 export const isObject = (value: unknown): value is JsonObject => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** One JSON pointer token, escaped (`/` as `~1`, `~` as `~0`). */
@@ -98,6 +115,12 @@ export async function loadDocument(input: UtilInput): Promise<LoadedDocument> {
       fix: 'Pass an OpenAPI 3.x or Swagger 2.0 document, in JSON or YAML, with an "openapi" or "swagger" field at the top.',
     });
   if (!isObject(value)) throw notADocument('it is not an object');
+  const depth = nesting(value);
+  if (depth > MAX_DOCUMENT_DEPTH) {
+    throw new ToilError('INVALID_INPUT', `${input.label[0]!.toUpperCase()}${input.label.slice(1)} nests ${depth > MAX_DOCUMENT_DEPTH * 4 ? 'far ' : ''}more than ${MAX_DOCUMENT_DEPTH} levels deep, more than this command reads.`, {
+      fix: 'Pass a document whose objects and arrays nest at most 256 levels deep. Real API descriptions nest a few dozen.',
+    });
+  }
   const declared = value.openapi ?? value.swagger;
   if (declared === undefined) throw notADocument('it has no "openapi" or "swagger" field');
   if (typeof declared !== 'string') throw notADocument(`its ${value.openapi !== undefined ? '"openapi"' : '"swagger"'} field is ${JSON.stringify(declared)}, not a version string such as "3.0.3"`);
@@ -167,7 +190,8 @@ export interface DocumentReport {
   schema: string;
   title: string | null;
   apiVersion: string | null;
-  valid: boolean;
+  /** Null when the document couldn't be validated; `document.schema` in `verified` says why. */
+  valid: boolean | null;
   /** What is wrong, by JSON pointer into the document, deepest first, at most 50: each problem where it starts, not every enclosing keyword that failed because of it. */
   problems: Array<Pick<SchemaProblem, 'pointer' | 'keyword' | 'message'>>;
   problemCount: number;
@@ -306,7 +330,8 @@ export async function checkDocument(loaded: LoadedDocument, v: Verifier): Promis
   const { schema, references } = await officialSchema(loaded.spec);
   const result = validateSchema(schema, loaded.doc, { references, maxProblems: Infinity });
   const leaves = leafProblems(result.problems).map((p) => ({ ...p, message: brief(p.message) }));
-  if (result.valid) v.pass('document.schema');
+  if (result.unchecked !== undefined) v.unchecked('document.schema', result.unchecked);
+  else if (result.valid) v.pass('document.schema');
   const against = loaded.spec === 'swagger-2.0' ? 'Swagger 2.0' : `OpenAPI ${loaded.spec.slice(8)}`;
   for (const p of leaves) {
     v.fail('document.schema', { at: p.pointer || '/', actual: p.message }, { code: 'OPENAPI_INVALID', message: `The document fails the ${against} schema at ${p.pointer || '/'}: ${p.message}` });
@@ -324,7 +349,7 @@ export async function checkDocument(loaded: LoadedDocument, v: Verifier): Promis
     schema: String((schema as { $id?: unknown; id?: unknown }).$id ?? (schema as { id?: unknown }).id),
     title: typeof info.title === 'string' ? info.title : null,
     apiVersion: typeof info.version === 'string' ? info.version : null,
-    valid: result.valid,
+    valid: result.unchecked !== undefined ? null : result.valid,
     problems: leaves.slice(0, MAX_LISTED).map(({ pointer, keyword, message }) => ({ pointer, keyword, message })),
     problemCount: leaves.length,
     refs,

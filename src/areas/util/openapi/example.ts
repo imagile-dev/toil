@@ -1,6 +1,6 @@
 import type { Schema, SchemaDraft, SchemaProblem } from '../kit/json-schema.js';
 import { atPointer, brief, collectRefs, DATA_KEYS, isObject, without, NAME_MAPS, refPointer, type Json, type JsonObject, type Spec } from './document.js';
-import { follow } from './operations.js';
+import { follow, MAX_NESTING } from './operations.js';
 
 /**
  * The smallest body a schema accepts: required properties only, the first
@@ -22,6 +22,8 @@ interface Generator {
   nodes?: number;
   /** Characters the example holds so far, against {@link MAX_CHARS}: every value and the structure around it. */
   chars?: number;
+  /** How deep generation is right now, against {@link MAX_NESTING}. */
+  level?: number;
   /** Set when the budget ran out. */
   truncated?: boolean;
 }
@@ -272,6 +274,20 @@ function merge(a: Json, b: Json): Json {
  * describes (`required: [conclusion]` beside the parent's `properties`).
  */
 function generate(g: Generator, node: Json | undefined, trail: string[], outer: JsonObject = {}): Json {
+  // An example nested deeper than MAX_NESTING would overflow the stack here or when it's serialised.
+  if ((g.level ?? 0) >= MAX_NESTING) {
+    g.truncated = true;
+    return null;
+  }
+  g.level = (g.level ?? 0) + 1;
+  try {
+    return generateNode(g, node, trail, outer);
+  } finally {
+    g.level--;
+  }
+}
+
+function generateNode(g: Generator, node: Json | undefined, trail: string[], outer: JsonObject): Json {
   g.nodes = (g.nodes ?? 0) + 1;
   if (g.nodes > MAX_NODES) {
     g.truncated = true;
@@ -393,7 +409,7 @@ function asJsonSchema(g: Generator, node: Json, names = false): Json {
 const BASE = 'urn:toil:openapi';
 
 export interface ExampleCheck {
-  /** Undefined when the schema reaches outside the document, so it can't be checked; the reason is given. */
+  /** Undefined when the example couldn't be checked (its schema reaches outside the document, branches too much, or nests too deep); the reason is given. */
   result?: { valid: boolean; problems: SchemaProblem[]; total: number };
   unchecked?: string;
 }
@@ -441,5 +457,6 @@ export async function checkExample(doc: Json, spec: Spec, direction: Direction, 
   const draft: SchemaDraft = spec === 'openapi-3.0' || spec === 'swagger-2.0' ? '4' : '2020-12';
   const result = validateSchema({ $ref: `${BASE}#${asFragment(rootPointer)}` } as Schema, example, { draft, references: [{ schema: mini as Schema, id: BASE }], maxProblems: Infinity });
   const problems = leafProblems(result.problems).map((p) => ({ ...p, message: brief(p.message) }));
+  if (result.unchecked !== undefined) return { unchecked: result.unchecked };
   return { result: { valid: result.valid, problems: problems.slice(0, 50), total: problems.length } };
 }

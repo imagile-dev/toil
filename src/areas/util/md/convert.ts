@@ -195,7 +195,8 @@ export async function convertMarkdown(
   const read = canonical(parse(from, text, losses, source.label.replace(/^the /, 'The ')), losses);
   if (from === 'adf') {
     const schema = await validateAdf(JSON.parse(text));
-    v.expect('input.adf.schema', schema.valid, { at: schema.problems[0]?.pointer ?? '', expected: 'a document the ADF schema accepts', actual: schema.problems[0]?.message }, { code: 'ADF_INPUT_INVALID', message: `The input doesn't match the ADF schema at ${schema.problems[0]?.pointer || '/'}: ${schema.problems[0]?.message ?? ''} (${schema.total} problem(s)); it was converted as far as it could be read.` });
+    if (schema.unchecked !== undefined) v.unchecked('input.adf.schema', schema.unchecked);
+    else v.expect('input.adf.schema', schema.valid, { at: schema.problems[0]?.pointer ?? '', expected: 'a document the ADF schema accepts', actual: schema.problems[0]?.message }, { code: 'ADF_INPUT_INVALID', message: `The input doesn't match the ADF schema at ${schema.problems[0]?.pointer || '/'}: ${schema.problems[0]?.message ?? ''} (${schema.total} problem(s)); it was converted as far as it could be read.` });
   }
 
   let output = render(to, read, losses);
@@ -203,13 +204,13 @@ export async function convertMarkdown(
 
   if (to === 'adf') {
     const schema = await validateAdf(output);
-    if (!schema.valid) {
+    if (schema.unchecked !== undefined) v.unchecked('output.adf.schema', schema.unchecked);
+    else if (!schema.valid) {
       const where = schema.problems.slice(0, 3).map((p) => `${p.pointer || '/'}: ${p.message}`).join('; ');
       throw new ToilError('INTERNAL', `The ADF this produced doesn't match the ADF schema (${schema.total} problem(s): ${where}), so it isn't returned.`, {
         fix: 'This is a bug in util md: report it with the input that caused it. Converting to wiki or storage instead may work in the meantime.',
       });
-    }
-    v.pass('output.adf.schema');
+    } else v.pass('output.adf.schema');
   }
 
   // The round trip: read what was written, and compare it with what was read, block by block.

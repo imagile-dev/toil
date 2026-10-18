@@ -3,7 +3,7 @@ import type { InputContext, UtilInput } from '../kit/input.js';
 import { Verifier, type Verified } from '../kit/verify.js';
 import { atPointer, checkDocument, isObject, type DocumentReport, type JsonObject, type LoadedDocument, loadDocument, type Spec } from './document.js';
 import { checkExample, generateExample, MAX_NODES as MAX_EXAMPLE_NODES, MAX_STRING, type Direction } from './example.js';
-import { checkOperations, findOperation, MAX_CHARS as MAX_SHOW_CHARS, MAX_NODES, operations, requestBody, responses, showOperation, summarise, type Operation, type OperationSummary, type ShownOperation } from './operations.js';
+import { checkOperations, findOperation, MAX_CHARS as MAX_SHOW_CHARS, MAX_NESTING, MAX_NODES, operations, requestBody, responses, showOperation, summarise, type Operation, type OperationSummary, type ShownOperation } from './operations.js';
 
 /**
  * What the three `util openapi` commands run, loaded only when one of them
@@ -68,7 +68,7 @@ export async function showOne(ctx: InputContext, source: UtilInput, input: Selec
   if (shown.expansion.truncated) {
     ctx.warn({
       code: 'OPENAPI_EXPANSION_TRUNCATED',
-      message: `Expanding $refs stopped at its limits (${MAX_NODES} objects and arrays, ${MAX_SHOW_CHARS} characters); every ref after that is left in place with x-toil-stop "depth", and any other value past the limit is null. Pass a smaller depth to see the whole operation at that depth.`,
+      message: `Expanding $refs stopped at its limits (${MAX_NODES} objects and arrays, ${MAX_SHOW_CHARS} characters, ${MAX_NESTING} levels); every ref after that is left in place with x-toil-stop "depth", and any other value past the limit is null. Pass a smaller depth to see the whole operation at that depth.`,
     });
   }
   return { document, ...shown, verified: v.done() };

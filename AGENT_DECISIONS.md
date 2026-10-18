@@ -1539,6 +1539,37 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   already spent, so an `allOf` diamond reaching a 1 MB `const` 250,000 times
   took 65 s. Both now check first, and `spend` takes the cost as a function, so
   a spent budget serialises nothing.
+- **Round 7: every phase has a stated bound.** Validating an example had none:
+  cfworker tries every `anyOf`/`oneOf` branch, so a diamond of refs validated in
+  2^n time (an hour at n=30), and a `oneOf` diamond overflowed the stack into
+  `INTERNAL`. The kit's `validateSchema` now measures the schema's fan-out first
+  (`schemaFanOut`: memoised, iterative, counting every path through `$ref`,
+  allOf, anyOf, oneOf, not and if/then/else, a loop back counting 1). Past
+  100,000 it returns `unchecked` with the reason instead of running. A
+  `RangeError` from the validator also becomes `unchecked`, never a crash.
+  `document.schema`, `example.valid` and util md's ADF checks all report it as
+  `UNVERIFIED`. The official OpenAPI schemas fan out to at most 31, and ADF's to
+  90. None of the 3,713 bodies across the full Jira, GitHub and Bitbucket specs
+  hits the guard. After six rounds on one class (work that grows faster than
+  its input, run synchronously), every phase was gone through deliberately for
+  what bounds it:
+
+  | Phase | What bounds it | Test |
+  |---|---|---|
+  | Parse | Input at most 64 MiB (kit). JSON.parse is linear. YAML aliases add at most 1,000,000 values (kit). Nesting is at most 256 levels, checked iteratively, else `INVALID_INPUT`, so no later recursion can go deeper | 10,000-deep document refused in under 5 s |
+  | `$ref` resolution | Iterative walk, `O(nodes + refs × depth)`. Tarjan's cycle search is iterative, `O(V + E)` | 200,000 refs in 20,000 operations in about 2 s |
+  | Document validation | Official schema fan-out is constant (31 at most) and guarded. Work is linear in the document. Nesting is at most 256. A `RangeError` becomes unchecked. 50 problems listed, each message at most 300 characters | Kit diamond tests, invalid-document tests |
+  | List | `O(operations × parameters)`; output is never more than the document | Listing tests, the 200,000-ref document |
+  | Show | `--depth` at most 20. 250,000 nodes, 4,000,000 characters and 1,000 levels of nesting, all checked before work is done | Diamond, wide diamond, long text, deep nesting |
+  | Example generation | 250,000 values, 1,000,000 characters through one choke point, strings of 10,000 characters, items limited to the budget left, 1,000 levels, a ref repeated at most twice on a path | `it.each` of bypasses, diamonds, a 3,000-schema chain |
+  | Example validation | Copies only what the schema reaches. Fan-out at most 100,000, else unchecked. A `RangeError` becomes unchecked. A cut-short example isn't validated | `anyOf` diamond reported unchecked in under 5 s |
+
+  **Still unbounded:** evaluating a document's own `pattern`. A regex with
+  catastrophic backtracking (`^(a+)+$`) is the document's, and V8 gives a
+  running regex no time limit. Patterns are only ever run on strings toil
+  generated, at most 10,000 characters, which keeps the exposure small but
+  doesn't bound it. Bounding it needs validation in a worker thread with a
+  timeout, which is a larger change than this PR.
 - **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
   Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
   extension isn't a reference; under `properties` and the other name maps every
