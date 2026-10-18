@@ -84,7 +84,9 @@ export function outlineMarkdown(text: string): DataSymbol[] {
   const out: DataSymbol[] = [];
   const stack: number[] = [];
   found.forEach((h, k) => {
-    const next = found.slice(k + 1).find((o) => o.level <= h.level);
+    // A scan, not slice().find(): copying the rest of the list for every heading made 2 million headings quadratic. Only deeper headings are passed over, so this stays linear.
+    let next: (typeof found)[number] | undefined;
+    for (let j = k + 1; j < found.length && !next; j++) if (found[j]!.level <= h.level) next = found[j];
     const end = next ? next.line - 1 : lines.length;
     while (stack.length && out[stack[stack.length - 1]!]!.level! >= h.level) stack.pop();
     const parent = stack[stack.length - 1];

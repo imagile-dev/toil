@@ -1,5 +1,6 @@
-// Writes src/areas/util/kit/bounded-worker.generated.ts: kit/bounded-task.ts, the C4 layout and
-// the JSON Schema validator it uses, bundled into one CommonJS string that
+// Writes src/areas/util/kit/bounded-worker.generated.ts: kit/bounded-task.ts and what it runs
+// (the JSON Schema validator, the C4 layout, js-yaml, util size's outliners and util md's
+// readers and writers), bundled into one CommonJS string that
 // kit/bounded.ts evaluates in a worker thread. A worker gets this small script
 // rather than the whole CLI, so it starts in milliseconds and carries nothing
 // it doesn't run. It's built with the same no-spawn plugin as the CLI, and its

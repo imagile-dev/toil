@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { defineCommand, type CliOption } from '../../../core/command.js';
 import type { CommandContext } from '../../../core/context.js';
-import { ToilError } from '../../../core/errors.js';
 import { fileArgument, inputFields, openInput, textOption } from '../kit/input.js';
 import { Verifier } from '../kit/verify.js';
 import { checkDrawable, computeView, loadModel, MODEL_LIMITS, pickView, VIEW_LIMITS, type C4Model, type ComputedView } from './model.js';
@@ -80,13 +79,9 @@ export function checkText(v: Verifier, view: ComputedView, text: string, languag
 
 /** The drawing from the bounded worker, or a plain error saying why there isn't one. `timeoutMs` is the worker's deadline (default 2 s), shorter only in tests. */
 export async function draw(view: ComputedView, signal: AbortSignal | undefined, timeoutMs?: number): Promise<Drawing> {
-  const { BOUNDED_TIMEOUT_MS, runBounded } = await import('../kit/bounded.js');
-  const outcome = await runBounded<Drawing>({ kind: 'c4-draw', view }, { signal, ...(timeoutMs === undefined ? {} : { timeoutMs }) });
-  if (outcome.ok) return outcome.value;
-  const fix = 'Draw fewer elements in this view with its include list, or split it into several views.';
-  if (outcome.cause === 'cancelled') throw new ToilError('CANCELLED', `Drawing view "${view.key}" was cancelled.`);
-  if (outcome.cause === 'timeout') throw new ToilError('TIMEOUT', `Laying out view "${view.key}" took longer than the ${(timeoutMs ?? BOUNDED_TIMEOUT_MS) / 1000} s it may run, so it was stopped.`, { fix });
-  throw new ToilError('INTERNAL', `View "${view.key}" couldn't be laid out: ${outcome.reason}.`, { fix: outcome.cause === 'denied' ? 'Run Node with --allow-worker, or without the permission model.' : fix });
+  const { boundedStep } = await import('../kit/bounded.js');
+  // A timeout is TIMEOUT and a memory or stack limit INVALID_INPUT, each naming the view and the limit (kit/bounded.ts, boundedError).
+  return boundedStep<Drawing>(`Laying out view "${view.key}"`, { kind: 'c4-draw', view }, { signal, ...(timeoutMs === undefined ? {} : { timeoutMs }) }, 'Draw fewer elements in this view with its include list, or split it into several views.');
 }
 
 const SHAPE = `The model is JSON: { title?, people[], systems[] (each with containers[], each with components[]), relationships[] of { source, destination, description?, technology? }, views[] of { key, type: systemContext | container | component, scope, title?, include? } }; every id is unique across the model. A view shows its scope's children plus whatever they relate to, with relationships drawn between the nearest elements shown; include lists ids to show instead ("*" = the default set). Pass it as file (a file in the workspace) or text (the JSON itself). At most ${MODEL_LIMITS.elements} elements, ${MODEL_LIMITS.relationships} relationships and ${MODEL_LIMITS.views} views.`;

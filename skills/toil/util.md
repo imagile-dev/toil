@@ -780,6 +780,10 @@ no zone.
 A file streams with no size limit. stdin and `--text` are held in memory, up to
 64 MiB, so pass a file for anything bigger.
 
+`--grep` runs in a worker thread, a batch of up to 4,096 lines at a time, each batch
+with 2 seconds and 256 MB. A pattern that backtracks without end on some line, such as
+`(a+)+$`, fails the command with `TIMEOUT` naming the lines, rather than holding it.
+
 ### `toil util size`
 
 How big a file or folder is before you read it, so an agent can budget its
@@ -821,8 +825,13 @@ each symbol `{ name, kind, startLine, endLine, container }` (headings add `level
 
 When there's no outline, `outline` is null and `notOutlined` says why: `binary` (a
 NUL byte in the first 8,000 bytes; lines and tokens are null too),
-`unsupported-language`, `parse-error` (with the line, never the text; also a
-`SIZE_PARSE_ERROR` warning) or `too-large` (over 8 MiB; it's still counted).
+`unsupported-language`, `parse-error` (with the line, never the text, or that it
+nests too deep to outline; also a `SIZE_PARSE_ERROR` warning) or `too-large` (over
+8 MiB; it's still counted).
+
+The outline is made in a worker thread with 10 seconds and 512 MB; a file at the
+8 MiB limit takes under 2 seconds. Past either, the command fails with `TIMEOUT` or
+`INVALID_INPUT` naming the file and the limit.
 
 **For a folder**: `{ kind: "folder", path, tokenMethod, totals, tree, largest,
 skipped, verified }`. It lists files the way `deps scan` does, skipping what
@@ -1068,6 +1077,12 @@ Output:
   instead. ADF input the schema refuses is converted as far as it reads, with an
   `ADF_INPUT_INVALID` warning.
 
+Reading and writing run in a worker thread, the conversion and the read back each
+with 10 seconds and 1,024 MB; a 4 MiB document, the input limit, takes under
+4 seconds. A document whose emphasis or brackets would take far longer, or that
+nests past the stack, fails with `TIMEOUT` or `INVALID_INPUT` naming the step and
+the limit.
+
 What Markdown means here: CommonMark plus GFM tables, task lists, strikethrough
 and bare-URL links. Raw HTML (other than `<br>`), link reference definitions and
 footnotes aren't read; they're kept as text and reported as losses.
@@ -1205,12 +1220,19 @@ always valid, but `verified.passed` is false. `document.refs.circular` lists eac
 loop of references (a recursive schema), which is legal; nothing follows one
 forever. What can't be checked is reported, never assumed:
 
-- Validation, and running the document's own `pattern`s, each get 2 seconds and 256 MB.
-  A schema that branches too much to finish (a diamond of `anyOf`s), a pattern that
-  backtracks without end (`^(a+)+$`), or a document too deep for the stack leaves
-  `document.schema`, `example.valid` or `example.patterns` unchecked, with which limit
-  it hit (`UNVERIFIED`). So does a Node run with `--permission` and no `--allow-worker`.
+- Checking the document against its schema gets 15 seconds and 1,536 MB, enough for a
+  vendor spec of 13 MB, which takes about 4 seconds. Validating an example, and
+  running the document's own `pattern`s, each get 2 seconds and 256 MB.
+  A document too big to finish, a schema that branches too much (a diamond of
+  `anyOf`s), a pattern that backtracks without end (`^(a+)+$`), or a document too
+  deep for the stack leaves `document.schema`, `example.valid` or `example.patterns`
+  unchecked, with which limit it hit (`UNVERIFIED`). So does a Node run with
+  `--permission` and no `--allow-worker`.
   A document nested more than 256 levels is refused (`INVALID_INPUT`).
+- A YAML document is read in a worker thread with the same 15 seconds and 1,536 MB:
+  YAML takes several times JSON's memory. Past either limit the command fails with
+  `TIMEOUT` or `INVALID_INPUT` naming it; the same document as JSON reads in a fraction
+  of both.
 - A `$ref` to another file or a URL isn't followed (`refs.external`, `UNVERIFIED`),
   and an example whose schema reaches one isn't validated.
 - The 3.1 and 3.2 schemas leave Schema Objects to the JSON Schema 2020-12 dialect,
@@ -1332,8 +1354,9 @@ Limits, each an `INVALID_INPUT` past it, before any work grows with it:
   view's `include` list, or split the view; `mermaid` and `d2` write a view of any
   size the model allows.
 
-The layout runs in a worker thread with a 2 s deadline, past which it's stopped
-with `TIMEOUT`; at the limits above it takes well under half a second. Past about
+The layout runs in a worker thread with a 2 s deadline and 256 MB, past which it's
+stopped with `TIMEOUT`, or `INVALID_INPUT` for the memory; at the limits above it
+takes well under a second and about 40 MB. Past about
 25 boxes, arrows cross more often and the drawing grows tall.
 
 A model with mistakes fails with `INVALID_INPUT` before anything is drawn. The

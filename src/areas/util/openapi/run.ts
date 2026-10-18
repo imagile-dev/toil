@@ -32,7 +32,7 @@ function servers(doc: JsonObject, spec: Spec): string[] {
 
 /** Reads and checks the document: what every command starts with. */
 async function open(input: UtilInput, v: Verifier, signal?: AbortSignal): Promise<{ loaded: LoadedDocument; document: DocumentSummary; ops: Operation[] }> {
-  const loaded = await loadDocument(input);
+  const loaded = await loadDocument(input, { signal });
   v.inputComplete(input);
   const report = await checkDocument(loaded, v, signal);
   const ops = operations(loaded.doc);

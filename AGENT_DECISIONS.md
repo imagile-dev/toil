@@ -2588,3 +2588,44 @@ skill file, fixture, board entry, site data or contract entries changed.
   nothing and the create then hit RoleAssignmentExists. The script now builds that
   scope itself and filters assignments by scope in jq, case-insensitively.
   `MSYS_NO_PATHCONV=1` is set before the first az call, for Git Bash.
+
+### #200 bounded work
+
+Each CPU-heavy synchronous util step, measured on Node 24.14 on a Windows laptop
+against the 2 s / 256 MB defaults, with the realistic worst input and the input cap.
+"Worker heap" is the bounded worker's peak used heap; "RSS" is the whole process.
+
+| Step | Measured before | Outcome | Limits |
+|------|-----------------|---------|--------|
+| `util openapi`, JSON parse | 13 MB: 75 ms, 26 MB retained. 62 MB (cap 64 MiB): 330 ms, 124 MB | **Not moved.** JSON.parse is linear and bounded by the input cap, and the command needs the value on its own thread; a worker would add a clone that costs more than the parse | n/a |
+| `util openapi`, YAML parse | 18 MB YAML (the 13 MB spec): 0.7 s, needs >256 MB (305 MB worker heap). 58 MB: 2.3 s, 1.35 GB RSS, needs >512 MB | **Moved** (`parse` task). The bytes are copied once and moved to the worker; the value comes back | `DOCUMENT_LIMITS` 15 s / 1,536 MB |
+| `util openapi`, schema check | Already bounded (#195), but it cloned the parsed document into the worker: a 62 MB JSON spec crashed the whole process (`FATAL ERROR: Reached heap limit`, inside the worker's deserializer), and a 13 MB spec (3.7 s to validate) came back unchecked at 2 s | **Changed:** the document's bytes are moved to the worker (`source`, `transfer`), which parses its own copy. The 62 MB spec now ends unchecked at the deadline with the process alive; the 13 MB spec validates (4.2 s command, 119 MB worker heap; YAML 5.4 s, 521 MB) | `DOCUMENT_LIMITS`, shared with the parse so both use one warm worker |
+| `util report`, SARIF | 62 MB: JSON.parse 260 ms, 90 MB retained; whole command 0.7 s, 473 MB RSS | **Not moved.** Linear, bounded by the 64 MiB cap, and the summary needs the value here | n/a |
+| `util size`, one file's outline | 8 MiB (the cap): TS 0.8 s, Python 1.4 s, one-line functions 1.7 s / 611 MB RSS. Nested template literals: `INTERNAL` stack overflow. 8 MB of `# h` headings: never finished (quadratic `slice().find()`, 100 KB took 0.5 s) | **Moved** (`outline` task, `size/outline.ts`). A stack overflow is `parse-error` (counted, not outlined); a deadline or memory limit is an error. Worst real file now 1.8 s / 310 MB worker heap; 2M headings 6.6 s. The headings scan was made linear too | `OUTLINE_LIMITS` 10 s / 512 MB |
+| `util size`, outline check (main thread) | 4 MB one-line JSON, 2,000 keys: 15 s, all in `redactText` on every passing line. 600,000 keys on one line: 231 s (a RegExp per symbol over the line) | **Fixed, not moved:** redact only the failures the verifier keeps (5), and match identifiers against one word set per line. 0.39 s and 1.8 s | n/a |
+| `util size`, folder totals | 5,000 files, 41 MB: 5.9 s, 219 MB RSS | **Not moved.** Async reads file by file, so it never holds the thread for long; no outline is made | n/a |
+| `util md` conversion | 4 MiB (the cap) of ordinary Markdown: 2.3 s, 609 MB RSS. 600 KB of `*a `, `[`…`]`, `[a](` or `_a `: over 60 s each. 100,000 nested `>`: `INTERNAL` stack overflow | **Moved** (`md-convert` and `md-read`, `md/core.ts`): the conversion, then the read back, each sends back printed blocks, not trees. 4 MiB now peaks at 445 MB worker heap (storage), under 4 s; the pathological inputs stop at 10 s with `TIMEOUT`, the nesting is `INVALID_INPUT` | `MD_LIMITS` 10 s / 1,024 MB |
+| `util c4` layout | Already bounded (#174). Worst view the limits allow (100 boxes, 250 arrows): 0.54 s, 43 MB worker heap | **Confirmed;** a memory or stack limit was `INTERNAL`, now `INVALID_INPUT` through `boundedError` | defaults |
+| `util log --grep` | The only flag that compiles user input as a RegExp (audited: `new RegExp`, `RegExp(`, `.match`/`.search`/`matchAll` with a string, across `src/`). `(a+)+$` against 40 a's: never finished. 200 MB log with `TS\d+`: 3.8 s | **Moved** (`grep` task, `grepBounded`): lines go in batches of 4,096 (or 1 MiB of text), each batch under the deadline. `(a+)+$` now stops at 2 s with `TIMEOUT` naming the lines. 200 MB log: 4.8 s (+1 s), 390 MB RSS | defaults, per batch |
+
+Decisions:
+
+- **Errors.** `boundedError` / `boundedStep` in `kit/bounded.ts` turn a step that
+  couldn't finish into the error its command fails with, naming the step and the
+  limit: `TIMEOUT`, `INVALID_INPUT` (memory or stack: the input asked for more than
+  one step may use), `CANCELLED`, `NOT_CONFIGURED` (Node's permission model denying
+  workers). Only an unplanned failure is `INTERNAL`. A `ToilError` thrown inside the
+  worker (YAML's line and column, md's storage refusal) comes back as `refused` and is
+  rethrown as it was. No new error code.
+- **Per-step limits** are constants beside each step, with the measurements, rather
+  than options: the defaults stopped real input for YAML, md and outlines. Tests pass
+  shorter ones.
+- **New shared modules** `md/core.ts` and `size/outline.ts` hold the synchronous
+  halves the worker runs, so the worker bundle never reaches `kit/bounded.ts` (its own
+  source string) or zod. `check:pure` covers them through the worker's metafile, as
+  before; nothing changed in it.
+- **Out of scope, found:** `src/core/wildmatch.ts` compiles `.gitignore` globs to
+  backtracking regexes, so a line like `*a*a*a*a*a*a*b` in a repository's
+  `.gitignore` takes 0.6 s on a 50-character file name and over 20 s on 100, in any
+  command that walks files. It's core and runs per path, so a worker is the wrong
+  fix; a non-backtracking glob matcher is. Left for its own issue.

@@ -2,9 +2,10 @@ import { ToilError } from '../../../core/errors.js';
 import { forwardSlashes } from '../../../core/files.js';
 import { redactText } from '../../../core/secret-shapes.js';
 import { BINARY_SNIFF, binaryAt, openInput, type InputContext, type UtilInput } from '../kit/input.js';
-import { Verifier, type Verified } from '../kit/verify.js';
+import type { BoundedLimits } from '../kit/bounded.js';
+import { MAX_SAMPLES, Verifier, type Verified } from '../kit/verify.js';
 import type { SymbolKind } from './code.js';
-import type { CodeLanguage } from './lexer.js';
+import type { NotParsed, Outlined } from './outline.js';
 
 /**
  * The work behind `util size`, loaded only when the command runs: counts and
@@ -18,7 +19,8 @@ import type { CodeLanguage } from './lexer.js';
  * This module reads the input, so it imports zod through kit/input.ts and is
  * imported statically (docs/util.md, Lazy loading: a lazy module must not
  * reach zod). The outliners, which hold no zod and are the bulk of the code,
- * load through import() when a file is outlined.
+ * run in the bounded worker (size/outline.ts, kit/bounded.ts) under
+ * {@link OUTLINE_LIMITS}, and never load on this thread.
  */
 
 export const LANGUAGES = ['typescript', 'javascript', 'python', 'csharp', 'java', 'go', 'markdown', 'json', 'yaml'] as const;
@@ -181,8 +183,18 @@ async function count(input: UtilInput): Promise<Counts> {
   return { bytes, lines: bytes === 0 ? 0 : newlines + (last === 10 ? 0 : 1), tokens: Math.ceil(chars / 4), binary };
 }
 
-/** `size` on whatever the input names: a folder's totals, or one file's counts and outline. */
-export async function measure(input: SizeInput, ctx: InputContext): Promise<FileSize | FolderSize> {
+/**
+ * The deadline and memory one file's outline may use in the bounded worker:
+ * 10 s and 512 MB. At the 8 MiB outline cap, code took up to 1.8 s for the
+ * whole command and peaked at 310 MB in the worker (a file of one-line
+ * functions: a token and a symbol for every few bytes; #200), past the
+ * 256 MB default, so the defaults would stop files that outline fine.
+ * Past these, it's an error naming them.
+ */
+export const OUTLINE_LIMITS = { timeoutMs: 10_000, maxMemoryMb: 512 } as const;
+
+/** `size` on whatever the input names: a folder's totals, or one file's counts and outline. `limits` replaces OUTLINE_LIMITS only in tests. */
+export async function measure(input: SizeInput, ctx: InputContext, limits: BoundedLimits = OUTLINE_LIMITS): Promise<FileSize | FolderSize> {
   const named = input.text === undefined && input.file !== undefined && input.file !== '-' ? input.file : undefined;
   if (named !== undefined && ctx.files.stat(named).type === 'directory') {
     if (input.language !== undefined) {
@@ -193,13 +205,13 @@ export async function measure(input: SizeInput, ctx: InputContext): Promise<File
   for (const field of ['top', 'depth'] as const) {
     if (input[field] !== undefined) throw new ToilError('INVALID_INPUT', `${field} applies to a folder, and this is one file.`, { fix: `Leave out ${field}, or pass a folder.` });
   }
-  return measureFile(input, ctx);
+  return measureFile(input, ctx, limits);
 }
 
 /** A path as the output shows it: forward slashes, no `./` and no trailing slash. */
 const clean = (path: string) => forwardSlashes(path).replace(/^(\.\/)+/, '').replace(/\/+$/, '') || '.';
 
-async function measureFile(input: SizeInput, ctx: InputContext): Promise<FileSize> {
+async function measureFile(input: SizeInput, ctx: InputContext, limits: BoundedLimits): Promise<FileSize> {
   const v = new Verifier(ctx.warn);
   const isFile = input.text === undefined && input.file !== undefined && input.file !== '-';
   const opened = await openInput(ctx, input, { binary: 'allow', ...(isFile ? { maxBytes: COUNT_MAX_BYTES } : {}) });
@@ -224,13 +236,22 @@ async function measureFile(input: SizeInput, ctx: InputContext): Promise<FileSiz
   } else {
     const text = await opened.text();
     v.equal('counts.reread', { bytes: counts.bytes, lines: counts.lines }, { bytes: opened.bytesRead, lines: lineCount(text) }, { code: 'SIZE_COUNTS_MISMATCH' });
-    const { OutlineError } = await import('./lexer.js');
-    try {
-      outline = await outlineOf(language, text, v);
-    } catch (err) {
-      if (!(err instanceof OutlineError) && !(err instanceof ToilError)) throw err;
-      notOutlined = { reason: 'parse-error', detail: err.message };
-      ctx.warn({ code: 'SIZE_PARSE_ERROR', message: `No outline for ${opened.label}: ${err.message}. Its counts are still given.` });
+    // In the bounded worker (size/outline.ts): the outliners' cost is the file's to choose.
+    const { boundedError, runBounded } = await import('../kit/bounded.js');
+    const result = await runBounded<Outlined | NotParsed>({ kind: 'outline', language, text }, { ...limits, signal: ctx.signal });
+    let unreadable: string | undefined;
+    if (!result.ok) {
+      // A file nested past the stack is one this outliner can't read: counted, not outlined. A deadline or memory limit is said as an error.
+      if (result.cause !== 'stack') throw boundedError(`Outlining ${opened.label}`, result, limits, 'Size the file without an outline (pass a language it has none for), or outline a smaller part of it.');
+      unreadable = 'it nests too deep to outline';
+    } else if ('parseError' in result.value) unreadable = result.value.parseError;
+    else {
+      outline = result.value.outline as NonNullable<FileSize['outline']>;
+      if (result.value.parsedKeys) checkKeyNames(result.value.parsedKeys, outline.symbols.map((s) => s.name), v);
+    }
+    if (unreadable !== undefined) {
+      notOutlined = { reason: 'parse-error', detail: unreadable };
+      ctx.warn({ code: 'SIZE_PARSE_ERROR', message: `No outline for ${opened.label}: ${unreadable}. Its counts are still given.` });
     }
     if (outline) {
       if (outline.precision === 'syntactic') v.approximated('outline.symbols', `found by a syntactic scan, not a compiler or parser; outline.method says what it covers`);
@@ -253,62 +274,29 @@ async function measureFile(input: SizeInput, ctx: InputContext): Promise<FileSiz
   };
 }
 
-/** JSON.parse's complaint as a line and column, never the text it quotes. */
-function jsonError(err: Error, text: string, OutlineError: new (message: string) => Error): Error {
-  const at = /position (\d+)/.exec(err.message);
-  if (!at) return new OutlineError("it isn't valid JSON");
-  const before = text.slice(0, Number(at[1]));
-  const line = lineCount(before) || 1;
-  const column = before.length - before.lastIndexOf('\n');
-  return new OutlineError(`it isn't valid JSON at line ${line}, column ${column}`);
-}
-
-async function outlineOf(language: Language, text: string, v: Verifier): Promise<NonNullable<FileSize['outline']>> {
-  if (language === 'markdown') {
-    const { outlineMarkdown } = await import('./data.js');
-    return { precision: 'syntactic', method: 'ATX (#) and setext (underlined) headings, outside fenced code blocks and front matter. Each runs to the line before the next heading of the same or a higher level', symbols: outlineMarkdown(text) };
-  }
-  if (language === 'json' || language === 'yaml') {
-    let parsed: unknown;
-    if (language === 'json') {
-      try {
-        parsed = JSON.parse(text.replace(/^\ufeff/, ''));
-      } catch (err) {
-        const { OutlineError } = await import('./lexer.js');
-        throw jsonError(err as Error, text, OutlineError);
-      }
-    } else {
-      const { parseYaml } = await import('../kit/yaml.js');
-      parsed = parseYaml(text, 'it');
-    }
-    const { keySymbols, scanJsonKeys, scanYamlKeys } = await import('./data.js');
-    const keys = language === 'json' ? scanJsonKeys(text) : scanYamlKeys(text);
-    checkKeys(parsed, keys.map((k) => k.name), v);
-    return {
-      precision: 'parsed',
-      method: `Top-level keys, found by scanning the text and held against the keys ${language === 'json' ? 'JSON.parse' : 'the YAML parser'} returns. A document whose top level isn't a mapping has none`,
-      symbols: keySymbols(keys),
-    };
-  }
-  const { CODE_METHOD, outlineCode } = await import('./code.js');
-  return { precision: 'syntactic', method: CODE_METHOD[language as CodeLanguage], symbols: outlineCode(text, language as CodeLanguage) };
-}
-
 /** The scanned keys are the parser's keys: the same set, each found at least once. */
 export function checkKeys(parsed: unknown, scanned: string[], v: Verifier): void {
   const isMapping = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed);
-  const expected = isMapping ? [...new Set(Object.keys(parsed as object))].sort() : [];
+  checkKeyNames(isMapping ? [...new Set(Object.keys(parsed as object))].sort() : [], scanned, v);
+}
+
+/** checkKeys, given the parser's keys sorted and unique, as the outline worker returns them. */
+export function checkKeyNames(expected: string[], scanned: string[], v: Verifier): void {
   const actual = [...new Set(scanned)].sort();
   v.equal('outline.keys', expected, actual, { code: 'SIZE_OUTLINE_MISMATCH', at: 'the top-level keys' });
 }
 
 const IDENTIFIER = /^[\w$]+$/;
-const escapeRegex = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** Whether a line names `name`: as a whole word for an identifier, as written otherwise. */
-function names(line: string, name: string): boolean {
+/**
+ * Whether a line names `name`: as a whole word for an identifier, as written
+ * otherwise. `words` is the line's identifier-shaped words, made once per
+ * line: a minified file puts every symbol on one line, and a regex per symbol
+ * over it made 600,000 keys take minutes.
+ */
+function names(line: string, words: () => Set<string>, name: string): boolean {
   if (name === '') return true;
-  if (IDENTIFIER.test(name)) return new RegExp(`(^|[^\\w$])${escapeRegex(name)}($|[^\\w$])`).test(line);
+  if (IDENTIFIER.test(name)) return words().has(name);
   return line.includes(name) || line.includes(JSON.stringify(name).slice(1, -1));
 }
 
@@ -321,11 +309,21 @@ function names(line: string, name: string): boolean {
 export async function verifyOutline(symbols: (OutlineSymbol & { parent?: number })[], input: Pick<UtilInput, 'linesAt'>, lines: number, v: Verifier): Promise<void> {
   const reread = await input.linesAt(symbols.map((s) => s.startLine));
   const code = { code: 'SIZE_OUTLINE_MISMATCH' };
+  const wordsOf = new Map<number, Set<string>>();
+  let shown = 0;
   for (const s of symbols) {
     const label = `${s.kind} ${s.container ? `${s.container}.` : ''}${s.name}`;
     v.expect('outline.range', s.startLine >= 1 && s.startLine <= s.endLine && s.endLine <= lines, { at: label, expected: `1 <= start <= end <= ${lines}`, actual: `${s.startLine}-${s.endLine}` }, code);
     const found = reread.get(s.startLine);
-    v.expect('outline.start', found !== undefined && names(found, s.name), { at: `line ${s.startLine}`, expected: label, actual: found === undefined ? 'no such line' : redactText(found.trim()).slice(0, 120) }, code);
+    const words = () => {
+      let set = wordsOf.get(s.startLine);
+      if (!set) wordsOf.set(s.startLine, (set = new Set(found!.split(/[^\w$]+/))));
+      return set;
+    };
+    const named = found !== undefined && names(found, words, s.name);
+    // A line is redacted only for the failures the verifier keeps: redacting every line it checked took 15 s for 2,000 keys on one long line.
+    const show = !named && found !== undefined && shown++ < MAX_SAMPLES;
+    v.expect('outline.start', named, { at: `line ${s.startLine}`, expected: label, actual: found === undefined ? 'no such line' : show ? redactText(found.trim().slice(0, 4096)).slice(0, 120) : '(not shown)' }, code);
     if (s.parent !== undefined) {
       const p = symbols[s.parent];
       v.expect('outline.nesting', p !== undefined && p.startLine <= s.startLine && s.endLine <= p.endLine, { at: label, expected: p ? `inside ${p.startLine}-${p.endLine}` : 'a container', actual: `${s.startLine}-${s.endLine}` }, code);
