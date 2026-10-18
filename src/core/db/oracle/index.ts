@@ -2,6 +2,7 @@ import oracledb from 'oracledb';
 import type { Connection as OraConnection, FetchTypeResponse, Metadata, Result, ResultSet } from 'oracledb';
 import { ToilError } from '../../errors.js';
 import type { ColumnInfo, DbCall, DbConnection, DbProvider, ForeignKeyInfo, IndexInfo, ResultColumn, RowSet, TableRef } from '../provider.js';
+import { exactText } from './dates.js';
 import { controlsTransaction, splitStatements, type Statement } from './split.js';
 
 /**
@@ -80,16 +81,13 @@ function ownSchema(conn: DbConnection): string {
   return quoted ? quoted[1]! : user.toUpperCase();
 }
 
-const two = (n: number) => String(n).padStart(2, '0');
-
-/**
- * A DATE or TIMESTAMP as the server holds it, with no zone: the driver
- * builds a local Date from its fields, so the local fields read them back.
- */
-function wallClock(value: Date, fraction: boolean): string {
-  const date = `${String(value.getFullYear()).padStart(4, '0')}-${two(value.getMonth() + 1)}-${two(value.getDate())}`;
-  const time = `${two(value.getHours())}:${two(value.getMinutes())}:${two(value.getSeconds())}`;
-  return `${date}T${time}${fraction ? `.${String(value.getMilliseconds()).padStart(3, '0')}` : ''}`;
+/** A date or timestamp as the text of its wire bytes (dates.ts); never through the local time zone. */
+function dateText(value: unknown): unknown {
+  if (!(value instanceof Date)) return value;
+  const text = exactText(value);
+  // Every Date the driver decodes passes through dates.ts; one that didn't is a bug, not a value to guess at.
+  if (text === undefined) throw new ToilError('INTERNAL', 'toil could not read an Oracle date or timestamp exactly.');
+  return text;
 }
 
 /** Significant digits in a decimal string, ignoring sign, leading zeros and the exponent. */
@@ -117,9 +115,10 @@ function fetchTypeHandler(meta: Metadata<unknown>): FetchTypeResponse | undefine
     case oracledb.DB_TYPE_NUMBER:
       return { type: oracledb.STRING, converter: (v: unknown) => oracleNumber(v as string | null) };
     case oracledb.DB_TYPE_DATE:
-      return { converter: (v: unknown) => (v instanceof Date ? wallClock(v, false) : v) };
     case oracledb.DB_TYPE_TIMESTAMP:
-      return { converter: (v: unknown) => (v instanceof Date ? wallClock(v, true) : v) };
+    case oracledb.DB_TYPE_TIMESTAMP_TZ:
+    case oracledb.DB_TYPE_TIMESTAMP_LTZ:
+      return { converter: dateText };
     case oracledb.DB_TYPE_CLOB:
     case oracledb.DB_TYPE_NCLOB:
       return { type: oracledb.STRING };
@@ -232,7 +231,8 @@ export function toToilError(err: unknown, conn: DbConnection, mode: Mode): unkno
       fix: 'The server stopped it (a resource limit, or an administrator). Narrow the query, or ask the DBA about the limit.',
     });
   }
-  if (/^NJS-50[5-8]$/.test(code) || /certificate/i.test(message)) {
+  // The message match only for errors without a server code: a table named CERTIFICATES is not a TLS failure.
+  if (/^NJS-50[5-8]$/.test(code) || (!/^(ORA|PLS)-/.test(code) && /certificate/i.test(message))) {
     return new ToilError('NETWORK', `The TLS connection to Oracle at ${where} failed for connection ${conn.name}: ${message}`, {
       fix: `toil trusts the operating system's certificate store and checks the certificate's name against "host". Add your organization's CA there, or set "ssl" to false on connection ${conn.name} if the listener only speaks TCP.`,
     });
@@ -355,6 +355,17 @@ export function refusedOnRead(statement: Statement, conn: DbConnection): ToilErr
 
 function emptyStatement(): ToilError {
   return new ToilError('INVALID_INPUT', 'The SQL holds no statement, only comments, semicolons or "/" lines.', { fix: 'Pass the statement to run.' });
+}
+
+/** Whether the session has a transaction open: DBMS_TRANSACTION answers null once a commit has ended it. */
+async function transactionOpen(client: OraConnection): Promise<boolean> {
+  try {
+    const rows = await rowsOf<[string | null]>(client, 'SELECT DBMS_TRANSACTION.LOCAL_TRANSACTION_ID FROM dual', {});
+    return rows[0]?.[0] != null;
+  } catch {
+    // Can't tell: say nothing was committed rather than claim it was.
+    return true;
+  }
 }
 
 /** Rows from a result set: skip `offset`, then at most `max`. */
@@ -531,9 +542,18 @@ export const oracleProvider: DbProvider = {
       return await session(conn, 'write', call, async (client) => {
         let changes = 0;
         for (const [i, statement] of statements.entries()) {
-          const result = await client.execute(statement.text, {}, { resultSet: true });
-          await result.resultSet?.close();
-          changes += result.rowsAffected ?? 0;
+          try {
+            const result = await client.execute(statement.text, {}, { resultSet: true });
+            await result.resultSet?.close();
+            changes += result.rowsAffected ?? 0;
+          } catch (err) {
+            // A DDL statement that fails after parsing has already committed
+            // the work before it, and a PL/SQL block can commit inside. With
+            // no transaction open now, nothing before this statement is left
+            // to roll back.
+            if (i > 0 && !call.signal.aborted && !(await transactionOpen(client))) committedThrough = i;
+            throw err;
+          }
           // Oracle commits before and after DDL, so everything up to here is now permanent.
           if (DDL_ON_READ.has(statement.words[0] ?? '')) committedThrough = i + 1;
         }
@@ -541,7 +561,7 @@ export const oracleProvider: DbProvider = {
       });
     } catch (err) {
       if (committedThrough === 0 || !(err instanceof ToilError) || err.code === 'CANCELLED' || err.code === 'TIMEOUT') throw err;
-      throw new ToilError(err.code, `${err.message} Oracle commits DDL as it runs, so statements 1 to ${committedThrough} of ${statements.length} were committed and stay applied.`, {
+      throw new ToilError(err.code, `${err.message} Oracle committed statements 1 to ${committedThrough} of ${statements.length} as the script ran (DDL commits, and so can PL/SQL), so they stay applied.`, {
         ...(err.fix ? { fix: `${err.fix} Check what statements 1 to ${committedThrough} changed before running the script again.` } : {}),
       });
     }

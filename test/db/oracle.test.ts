@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { describeTable, execute as executeCmd, listSchemas, listTables, previewTable, query } from '../../src/areas/db/index.js';
 import type { AnyCommand } from '../../src/core/command.js';
 import type { Settings } from '../../src/core/config.js';
-import { connectDescriptor, oracleNumber } from '../../src/core/db/oracle/index.js';
+import { oracleDateText } from '../../src/core/db/oracle/dates.js';
+import { connectDescriptor, oracleNumber, toToilError } from '../../src/core/db/oracle/index.js';
 import { controlsTransaction, splitStatements } from '../../src/core/db/oracle/split.js';
 import type { DbConnection } from '../../src/core/db/provider.js';
 import { execute } from '../../src/core/run.js';
@@ -75,6 +76,27 @@ describe('oracle script splitting', () => {
     for (const sql of ['SELECT 1 AS commit FROM dual', "SELECT 'COMMIT' FROM dual", 'UPDATE t SET "COMMIT" = 1', 'SET ROLE NONE', 'BEGIN COMMIT; END;']) {
       expect(splitStatements(sql).some(controlsTransaction), sql).toBe(false);
     }
+  });
+});
+
+describe('oracle date bytes', () => {
+  const bytes = (...b: number[]) => Uint8Array.from(b);
+  it('reads the wire form without the local time zone', () => {
+    // 2026-03-08 02:30:00, then .000001 and +05:45.
+    expect(oracleDateText(bytes(120, 126, 3, 8, 3, 31, 1), false)).toBe('2026-03-08 02:30:00');
+    expect(oracleDateText(bytes(120, 126, 3, 8, 3, 31, 1, 0, 0, 3, 232), false)).toBe('2026-03-08 02:30:00.000001');
+    expect(oracleDateText(bytes(120, 126, 3, 8, 3, 31, 1, 0, 0, 0, 0, 25, 105), true)).toBe('2026-03-08 08:15:00+05:45');
+    expect(oracleDateText(bytes(120, 126, 1, 1, 1, 1, 1, 0, 0, 0, 0, 20 - 8, 60), true)).toBe('2025-12-31 16:00:00-08');
+  });
+});
+
+describe('oracle errors', () => {
+  const conn = { name: 'db', area: 'db', engine: 'oracle', host: 'db.imagile.dev', database: 'FREEPDB1', user: 'reader' } as unknown as DbConnection;
+  it('reads "certificate" in a message as TLS only when the server sent no error code', () => {
+    expect(toToilError({ code: 'ORA-00942', message: 'ORA-00942: table or view "TOIL"."CERTIFICATES" does not exist' }, conn, 'read')).toMatchObject({ code: 'DATABASE' });
+    expect(toToilError({ code: 'ORA-00904', message: 'ORA-00904: "CERTIFICATE_ID": invalid identifier' }, conn, 'read')).toMatchObject({ code: 'DATABASE' });
+    expect(toToilError({ code: 'NJS-506', message: 'NJS-506: TLS authentication failed' }, conn, 'read')).toMatchObject({ code: 'NETWORK' });
+    expect(toToilError({ message: 'unable to verify the first certificate' }, conn, 'read')).toMatchObject({ code: 'NETWORK' });
   });
 });
 
@@ -169,9 +191,33 @@ describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})`
     ]);
     expect(data.rows[0]).toEqual([
       42, '12345678901234567890', '.3333333333333333333333333333333333333333', 0.5, 2.5, 'NaN', true, 'x', null, 'AQL/', 'long text', 'Cgs=',
-      // As the server holds them, with no zone added; a zoned value as the instant it names.
-      '2026-01-02T01:02:03', '2026-01-02T03:04:05.678', '2026-01-02T01:04:05.000Z',
+      // As the server holds them, in the shape PostgreSQL and MySQL use: no zone added, and a zoned value with its own offset.
+      '2026-01-02 01:02:03', '2026-01-02 03:04:05.678', '2026-01-02 03:04:05+02',
     ]);
+  });
+
+  // The driver builds a local-time Date and keeps only milliseconds. Run in a
+  // zone with daylight saving, so a value in the gap would move an hour.
+  it('returns dates and timestamps exactly as stored: a daylight-saving gap, microseconds, offsets', async () => {
+    vi.stubEnv('TZ', 'America/New_York');
+    try {
+      const envelope = await run(query, {
+        sql: `SELECT DATE '2026-03-08' + 2.5/24 AS gap, TIMESTAMP '2026-03-08 02:30:00.123456' AS gap_micro, TIMESTAMP '2026-01-02 03:04:05.123456789' AS nanos,
+                  TIMESTAMP '2026-01-02 03:04:05.5 -03:30' AS west, TIMESTAMP '2026-07-01 12:00:00 Europe/Paris' AS region,
+                  CAST(TIMESTAMP '2026-01-02 03:04:05.25 +00:00' AS TIMESTAMP WITH LOCAL TIME ZONE) AS ltz, DATE '0099-12-31' AS old
+             FROM dual`,
+      });
+      expect(envelope.error).toBeNull();
+      expect((envelope.data as { rows: unknown[][] }).rows[0]).toEqual([
+        '2026-03-08 02:30:00', '2026-03-08 02:30:00.123456', '2026-01-02 03:04:05.123456789',
+        '2026-01-02 03:04:05.5-03:30',
+        // A named region needs Oracle's region table for its offset, so it reads as the same instant in UTC.
+        '2026-07-01 10:00:00+00',
+        '2026-01-02 03:04:05.25+00', '0099-12-31 00:00:00',
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it('describes column types as declared, and finds a table by its unquoted name', async () => {
@@ -297,10 +343,30 @@ describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})`
 
   it('says which statements stay committed when a script with DDL fails', async () => {
     const envelope = await write("UPDATE people SET active = 0 WHERE id = 1; CREATE TABLE notes (id INTEGER); UPDATE people SET active = 0 WHERE id = 2; INSERT INTO teams (id, name) VALUES (1, 'Duplicate')");
-    expect(envelope.error).toMatchObject({ code: 'DATABASE', message: expect.stringContaining('statements 1 to 2 of 4 were committed') });
+    expect(envelope.error).toMatchObject({ code: 'DATABASE', message: expect.stringContaining('committed statements 1 to 2 of 4') });
     // The DDL committed the first UPDATE; the second rolled back with the failure.
     expect(await direct('SELECT active FROM people WHERE id IN (1, 2) ORDER BY id')).toEqual([[0], [1]]);
     expect(await tables()).toContain('NOTES');
+  });
+
+  // Oracle commits before a DDL statement runs, so one that fails after
+  // parsing (a name already in use) has still committed the work before it.
+  it('says the work before a failing DDL statement stayed committed, and not when nothing was', async () => {
+    const failedDdl = await write('UPDATE people SET active = 0 WHERE id = 1; CREATE TABLE teams (id INTEGER)');
+    expect(failedDdl.error).toMatchObject({ code: 'DATABASE', message: expect.stringContaining('ORA-00955') });
+    expect(failedDdl.error?.message).toContain('committed statements 1 to 1 of 2');
+    expect(await direct('SELECT active FROM people WHERE id = 1')).toEqual([[0]]);
+
+    // A block that commits inside, then a failure: the same.
+    const block = await write("UPDATE people SET active = 0 WHERE id = 2; BEGIN COMMIT; END;\n/\nINSERT INTO teams (id, name) VALUES (1, 'Duplicate')");
+    expect(block.error?.message).toContain('committed statements 1 to 2 of 3');
+    expect(await direct('SELECT active FROM people WHERE id = 2')).toEqual([[0]]);
+
+    // A DDL statement Oracle refuses while parsing commits nothing, and the error says nothing about it.
+    const parse = await write('UPDATE people SET active = 0 WHERE id = 4; CREATE TABLEX notes');
+    expect(parse.error?.code).toBe('DATABASE');
+    expect(parse.error?.message).not.toContain('committed');
+    expect(await direct('SELECT active FROM people WHERE id = 4')).toEqual([[1]]);
   });
 
   it('refuses a script that ends the transaction, even after a comment, before running any of it', async () => {

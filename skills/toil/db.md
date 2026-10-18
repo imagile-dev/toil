@@ -208,12 +208,14 @@ Oracle names each result column's type (`NUMBER`, `VARCHAR2`, `DATE`), and
 `describe-table` gives the declared form (`NUMBER(10,2)`, `VARCHAR2(100)`). A `NUMBER`
 is a JSON number when that's exactly its value, and a string otherwise, so no digits
 are lost. `CLOB` comes back as text, `BLOB` and `RAW` as base64, `BOOLEAN` as a
-boolean, and `BINARY_DOUBLE`'s NaN and infinities as strings. `DATE` and `TIMESTAMP`
-come back as the server holds them, with no zone (`2026-01-02T03:04:05`, and a
-`TIMESTAMP` with milliseconds); `TIMESTAMP WITH TIME ZONE` as the instant it names, in
-UTC (`...Z`). Two limits come from the driver: fractional seconds keep only
-milliseconds, and a `DATE` or `TIMESTAMP` whose time falls in the daylight-saving gap
-of the machine running toil (02:30 on the spring-forward night) reads an hour later.
+boolean, and `BINARY_DOUBLE`'s NaN and infinities as strings. Dates and
+timestamps come back exactly as stored, in the shape PostgreSQL and MySQL use, never
+through the local time zone of the machine running toil: `DATE` as
+`2026-01-02 03:04:05`, `TIMESTAMP` with every fractional digit it holds
+(`2026-01-02 03:04:05.123456`), and `TIMESTAMP WITH TIME ZONE` with its offset
+(`2026-01-02 03:04:05+02`, `+05:30`). A value stored with a named region
+(`Europe/Paris`) and `TIMESTAMP WITH LOCAL TIME ZONE` come back as the same instant in
+UTC (`+00`).
 
 ### Paging and row caps
 
@@ -309,8 +311,10 @@ On Oracle, a script's statements are separated by semicolons, and a PL/SQL unit 
 `COMMIT`, `ROLLBACK`, `SAVEPOINT` and `SET TRANSACTION` are refused before any of it
 runs. Two things Oracle does break all-or-nothing, and toil can't stop them: **DDL
 commits** everything before it, and itself, as it runs, and a PL/SQL block can commit
-inside. When a script with DDL fails, the error says which statements stayed committed
-(`statements 1 to 2 of 4 were committed`). Keep DDL in a script of its own, or first.
+inside. When a script fails after Oracle has committed part of it (a DDL statement
+that ran, or failed after parsing, or a block that committed), the error says which
+statements stayed committed (`Oracle committed statements 1 to 2 of 4`). Keep DDL in a
+script of its own, or first.
 
 ### Time limits and cancelling
 
