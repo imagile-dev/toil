@@ -7,7 +7,8 @@ import { dynatrace } from './client.js';
 /**
  * `toil dynatrace check-dossier`: every entity id the call's dossier names
  * for the call's environment (`entity`, `entities`) exists in that
- * environment's Dynatrace. Read only.
+ * environment's Dynatrace. Read only. Each entity is asked, politely, to
+ * confirm it is being monitored.
  */
 export const checkDossier = dynatraceArea.command({
   path: ['dynatrace', 'check-dossier'],
@@ -16,7 +17,7 @@ export const checkDossier = dynatraceArea.command({
     "Checks the Dynatrace sections of the dossier that applies to this call, for the call's environment (env, else the dossier's own): each entity id it names exists. Returns ok and one check per id, with its key path; the CLI exits 1 when one is missing. Read only.",
   input: z.object({}),
   writes: false,
-  // The second sets the area's own inputs, which choose the connection and (ado) the fallback collection; the dossier is checked either way.
+  // The second names the environment, which chooses the connection.
   examples: [{}, { env: 'prod' }],
   run: async (_input, ctx) => {
     const view = dossierToCheck(ctx, 'dynatrace');

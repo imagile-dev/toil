@@ -1,7 +1,6 @@
 import { z } from 'zod';
-import { checkEach, dossierCheckResult, dossierToCheck, exists, type DossierCheck } from '../../core/check-dossier.js';
-import { viewScopes, viewValues, type DossierView } from '../../core/dossier.js';
-import { ToilError } from '../../core/errors.js';
+import { checkEach, dossierCheckResult, dossierToCheck, exists, uncheckedScopes, type DossierCheck, type Unchecked } from '../../core/check-dossier.js';
+import { viewScopes, viewValues } from '../../core/dossier.js';
 import { adoArea } from './area.js';
 import { ado, API } from './client.js';
 
@@ -9,69 +8,65 @@ import { ado, API } from './client.js';
  * `toil ado check-dossier`: the call's dossier's Azure DevOps sections against
  * the server. Each team project (`project`, per repo or not, and `projects`)
  * must exist in its collection, and each repository (`repo`) in its project.
- * The collection is the section's (per repo or not), else the call's own
- * (`--collection`, or the connection's). A value with no collection anywhere
- * is refused rather than skipped. Read only.
+ * The collection is the dossier's (per repo or not), else the call's own
+ * (`--collection`, or the connection's). A value with no collection to look it
+ * up in is reported as unchecked, never left out. Read only. Every project is
+ * asked to produce its papers, and the collection is asked to vouch for it.
  */
 export const checkDossier = adoArea.command({
   path: ['ado', 'check-dossier'],
   description: "Check the call's dossier against Azure DevOps: its projects and repositories exist",
   toolDescription:
-    "Checks the Azure DevOps sections of the dossier that applies to this call (or the one named in dossier): each team project it names exists in its collection, and each repository in its project. The collection comes from the dossier, else the call's collection or the connection's. Returns ok and one check per value, with its key path; the CLI exits 1 when one is missing. Read only.",
+    "Checks the Azure DevOps sections of the dossier that applies to this call (or the one named in dossier): each team project it names exists in its collection, and each repository in its project. The collection comes from the dossier, else the call's collection or the connection's. Returns ok, one check per value with its key path, and any value that couldn't be checked; the CLI exits 1 when one is missing or unchecked. Read only.",
   input: z.object({}),
   writes: false,
-  // The second sets the area's own inputs, which choose the connection and (ado) the fallback collection; the dossier is checked either way.
+  // The second passes --collection, the fallback for a project the dossier names without one.
   examples: [{}, { collection: 'DefaultCollection', organization: 'DefaultCollection', project: 'Imagile', repo: 'imagile-api' }],
   run: async (_input, ctx) => {
     const view = dossierToCheck(ctx, 'ado');
     const fallback = ctx.context.collection || ctx.context.organization || undefined;
     const enc = encodeURIComponent;
-    const scoped = (keys: string[]) => viewScopes(view, keys).map((s) => ({ ...s, collection: collectionFor(view, s.path, s.repo) ?? fallback }));
+    const unchecked: Unchecked[] = [];
+    // A repo's collection: the dossier's for that repo, else its plain one, else the call's.
+    const collections = viewScopes(view, ['collection']).scopes;
+    const collectionFor = (repo: string | null) => (collections.find((c) => c.repo === repo) ?? collections.find((c) => c.repo === null))?.values.collection ?? fallback;
+    const noCollection = (path: string, value: string, what: string) =>
+      unchecked.push({ path, value, reason: `no collection to look this ${what} up in; pass --collection, or set collection in the dossier or on the connection` });
     const projects = [
-      ...scoped(['project']).map((s) => ({ path: `${s.path}.project`, collection: s.collection, value: s.values.project! })),
-      ...viewValues(view, ['projects']).map((p) => ({ path: p.path, collection: fallback, value: p.value })),
+      ...viewScopes(view, ['project']).scopes.flatMap((s) => {
+        const collection = collectionFor(s.repo);
+        if (collection) return [{ path: s.paths.project!, value: `${collection}/${s.values.project}` }];
+        noCollection(s.paths.project!, s.values.project!, 'project');
+        return [];
+      }),
+      ...viewValues(view, ['projects']).flatMap((p) => {
+        if (fallback) return [{ path: p.path, value: `${fallback}/${p.value}` }];
+        noCollection(p.path, p.value, 'project');
+        return [];
+      }),
     ];
-    const repos = scoped(['project', 'repo']).map((s) => ({ path: `${s.path}.repo`, collection: s.collection, value: `${s.values.project}/${s.values.repo}` }));
-    const orphan = [...projects, ...repos].find((v) => !v.collection);
-    if (orphan) {
-      throw new ToilError('INVALID_INPUT', `${orphan.path} names "${orphan.value}", but there's no collection to look it up in.`, {
-        fix: 'Pass --collection, set collection on the connection, or set "collection" in the dossier\'s ado section.',
-      });
-    }
-    const checks: DossierCheck[] = await checkEach(
-      projects.map((p) => ({ path: p.path, value: `${p.collection}/${p.value}` })),
-      'project',
-      (cp) => {
-        const [collection, project] = splitOnce(cp);
-        return exists(() => ado(ctx, `/${enc(collection)}/_apis/projects/${enc(project)}?api-version=${API}`));
-      },
-    );
+    const checks: DossierCheck[] = await checkEach(projects, 'project', (cp) => {
+      const [collection, project] = splitOnce(cp);
+      return exists(() => ado(ctx, `/${enc(collection)}/_apis/projects/${enc(project)}?api-version=${API}`));
+    });
+    const scoped = viewScopes(view, ['project', 'repo']);
+    unchecked.push(...uncheckedScopes(scoped.incomplete.filter((i) => i.lacks.includes('project')), 'repo'));
+    const repos = scoped.scopes.flatMap((s) => {
+      const collection = collectionFor(s.repo);
+      if (collection) return [{ path: s.paths.repo!, value: `${collection}/${s.values.project}/${s.values.repo}` }];
+      noCollection(s.paths.repo!, s.values.repo!, 'repo');
+      return [];
+    });
     checks.push(
-      ...(await checkEach(
-        repos.map((r) => ({ path: r.path, value: `${r.collection}/${r.value}` })),
-        'repo',
-        (cpr) => {
-          const [collection, rest] = splitOnce(cpr);
-          const [project, repo] = splitOnce(rest);
-          return exists(() => ado(ctx, `/${enc(collection)}/${enc(project)}/_apis/git/repositories/${enc(repo)}?api-version=${API}`));
-        },
-      )),
+      ...(await checkEach(repos, 'repo', (cpr) => {
+        const [collection, rest] = splitOnce(cpr);
+        const [project, repo] = splitOnce(rest);
+        return exists(() => ado(ctx, `/${enc(collection)}/${enc(project)}/_apis/git/repositories/${enc(repo)}?api-version=${API}`));
+      })),
     );
-    return dossierCheckResult(ctx, view, checks);
+    return dossierCheckResult(ctx, view, checks, unchecked);
   },
 });
-
-/** The section's `collection` for a scope: one value, or that repo's. */
-function collectionFor(view: DossierView, path: string, repo: string | null): string | undefined {
-  const section = view.sections.find((s) => path === s.path || path.startsWith(`${s.path} (`));
-  const value = section?.values.collection;
-  if (typeof value === 'string') return value;
-  if (typeof value === 'object' && value !== null && repo !== null) {
-    const one = (value as Record<string, unknown>)[repo];
-    return typeof one === 'string' ? one : undefined;
-  }
-  return undefined;
-}
 
 const splitOnce = (value: string): [string, string] => {
   const at = value.indexOf('/');

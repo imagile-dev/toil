@@ -156,4 +156,4 @@ toil bitbucket list-comments --pr 42 --no-with-replies
 
 ## Checking a dossier
 
-`check-dossier` checks the call's dossier: each project key it names (`project`, per repo or not, and `projects`) exists, and each repository (`repo`) in its project. It's `toil bitbucket check-dossier` (`--dossier <name|file>`, or the dossier the folder resolves to), and it returns `{ dossier, connection, env, ok, checked, checks }`, one check per value with its key path. The CLI exits 1 when one is missing. A failure other than not-found (a bad token, an unreachable host) fails the command. Read only.
+`check-dossier` checks the call's dossier: each project key it names (`project`, per repo or not, and `projects`) exists, and each repository (`repo`) in its project. It's `toil bitbucket check-dossier` (`--dossier <name|file>`, or the dossier the folder resolves to), and it returns `{ dossier, connection, env, ok, checked, checks, unchecked }`, one check per value with its key path. The CLI exits 1 when one is missing. A failure other than not-found (a bad token, an unreachable host) fails the command. Read only.

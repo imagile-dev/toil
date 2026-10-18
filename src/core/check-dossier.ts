@@ -1,5 +1,5 @@
 import type { CommandContext } from './context.js';
-import type { DossierView } from './dossier.js';
+import type { DossierView, viewScopes } from './dossier.js';
 import { ToilError } from './errors.js';
 
 /**
@@ -33,7 +33,40 @@ export function dossierToCheck(ctx: CommandContext<unknown, Record<string, strin
     });
   }
   const env = ctx.context.env ?? view.env;
-  return { ...view, env, sections: view.sections.filter((s) => s.env === null || s.env === env) };
+  const own = view.sections.filter((s) => s.env !== null && s.env === env);
+  // A key the environment's section sets shadows the area's own, as it does when a call resolves it
+  // (sectionsFor), so a value only another environment uses is never looked up on this one's server.
+  // A per-repo value shadows only the repos it names.
+  const sections = view.sections
+    .filter((s) => s.env === null || s.env === env)
+    .map((s) => {
+      if (s.env !== null) return s;
+      const values: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(s.values)) {
+        const over = own.map((e) => e.values[key]).find((v) => v !== undefined);
+        if (over === undefined) values[key] = value;
+        else if (isRecord(over) && isRecord(value)) {
+          const left = Object.fromEntries(Object.entries(value).filter(([repo]) => !(repo in over)));
+          if (Object.keys(left).length > 0) values[key] = left;
+        } else if (isRecord(over) && typeof value === 'string') values[key] = value;
+      }
+      return { ...s, values };
+    });
+  return { ...view, env, sections };
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** A value the dossier names that couldn't be looked up, and why: a repo with no project to look it up in. */
+export interface Unchecked {
+  path: string;
+  value: string;
+  reason: string;
+}
+
+/** The incomplete scopes `viewScopes` found, as values that couldn't be checked. */
+export function uncheckedScopes(incomplete: ReturnType<typeof viewScopes>['incomplete'], what: string): Unchecked[] {
+  return incomplete.flatMap((i) => Object.entries(i.found).map(([path, value]) => ({ path, value, reason: `no ${i.lacks.join(' or ')} to look this ${what} up ${i.lacks.length > 1 ? 'with' : 'in'}${i.repo ? ` for repo ${i.repo}` : ''}` })));
 }
 
 /**
@@ -68,9 +101,15 @@ export function exists(get: () => Promise<unknown>): Promise<boolean> {
   );
 }
 
-/** The result: which dossier, which connection, and every check. A missing value makes `ok` false and the CLI exit 1. */
-export function dossierCheckResult(ctx: CommandContext<{ name: string } | undefined>, view: DossierView, checks: DossierCheck[]) {
-  const ok = checks.every((c) => c.found);
+/**
+ * The result: which dossier, which connection, every check, and every value
+ * that couldn't be checked. A missing value, or one that couldn't be checked,
+ * makes `ok` false and the CLI exit 1, and the unchecked ones are a warning
+ * too, so `ok` never stands for a value nobody looked at.
+ */
+export function dossierCheckResult(ctx: CommandContext<{ name: string } | undefined>, view: DossierView, checks: DossierCheck[], unchecked: Unchecked[] = []) {
+  for (const u of unchecked) ctx.warn({ code: 'DOSSIER_UNCHECKED', message: `${u.path} ("${u.value}") wasn't checked: ${u.reason}.` });
+  const ok = checks.every((c) => c.found) && unchecked.length === 0;
   if (!ok) ctx.setExitCode(1);
-  return { dossier: { name: view.name, source: view.source, file: view.file }, connection: ctx.connection?.name ?? null, env: view.env, ok, checked: checks.length, checks };
+  return { dossier: { name: view.name, source: view.source, file: view.file }, connection: ctx.connection?.name ?? null, env: view.env, ok, checked: checks.length, checks, unchecked };
 }

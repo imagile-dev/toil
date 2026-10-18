@@ -416,9 +416,13 @@ files directly:
   with `"repo": { "api": "payments-api" }` checks `PAY/payments-api`. Only the area's
   own section and the call's environment's (`--env`, else the dossier's `env`) are
   checked, because another environment's section may select another connection:
-  check it with a call in that environment.
+  check it with a call in that environment. Values are read as a call reads them: a
+  key the environment's section sets shadows the area's own, and keys pair across
+  the two. A value that can't be looked up (a repo with no project or owner, a
+  deployment with no namespace, an ado project with no collection) is listed under
+  `unchecked`, with a `DOSSIER_UNCHECKED` warning, and makes `ok` false.
 
-  Each returns `{ dossier, connection, env, ok, checked, checks }`, one check per value with
+  Each returns `{ dossier, connection, env, ok, checked, checks, unchecked }`, one check per value with
   its key path. The CLI exits 1 when one is missing. A failure that isn't "not found"
   (a bad token, an unreachable host) fails the command. An area adds one with
   `src/core/check-dossier.ts` and `ctx.dossierView()`.

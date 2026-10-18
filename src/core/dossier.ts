@@ -401,27 +401,50 @@ export interface DossierView {
   sections: Array<{ path: string; env: string | null; values: Section }>;
 }
 
+/** A group of values that belong together, as `viewScopes` finds them: each key's value and where in the dossier it came from. */
+export interface ViewScope {
+  repo: string | null;
+  values: Record<string, string>;
+  paths: Record<string, string>;
+}
+
 /**
  * The values of several keys that belong together (a project and its repo),
- * per section and per repo: a key given as one value applies to every repo,
- * and one given per repo (`{ "payments-api": "PAY" }`) to that repo. A scope
- * missing one of `keys` is left out. Lists aren't scoped; use viewValues.
+ * per repo, read the way the resolver reads them: for each key, the call's
+ * environment's section first, then the area's own, and in each a plain value
+ * for every repo or a per-repo one (`{ "payments-api": "PAY" }`) for its repo.
+ * A scope that finds some of `keys` but not all goes in `incomplete`, so the
+ * caller can say it couldn't be checked rather than leave it out.
  */
-export function viewScopes(view: DossierView, keys: readonly string[]): Array<{ path: string; repo: string | null; values: Record<string, string> }> {
-  const out: Array<{ path: string; repo: string | null; values: Record<string, string> }> = [];
-  for (const { path, values } of view.sections) {
-    const repos = [...new Set(keys.flatMap((k) => (isRecord(values[k]) ? Object.keys(values[k] as Record<string, unknown>) : [])))];
-    for (const repo of repos.length > 0 ? repos : [null]) {
-      const picked: Record<string, string> = {};
-      for (const key of keys) {
-        const value = values[key];
-        const one = typeof value === 'string' ? value : isRecord(value) && repo !== null && typeof value[repo] === 'string' ? (value[repo] as string) : undefined;
-        if (one !== undefined) picked[key] = one;
+export function viewScopes(view: DossierView, keys: readonly string[]): { scopes: ViewScope[]; incomplete: Array<{ repo: string | null; found: Record<string, string>; lacks: string[] }> } {
+  // The environment's section first, as the resolver reads it (sectionsFor).
+  const ordered = [...view.sections].sort((a, b) => Number(a.env === null) - Number(b.env === null));
+  const repos = [...new Set(ordered.flatMap((s) => keys.flatMap((k) => (isRecord(s.values[k]) ? Object.keys(s.values[k] as Record<string, unknown>) : []))))];
+  const scopes: ViewScope[] = [];
+  const incomplete: Array<{ repo: string | null; found: Record<string, string>; lacks: string[] }> = [];
+  for (const repo of repos.length > 0 ? repos : [null]) {
+    const values: Record<string, string> = {};
+    const paths: Record<string, string> = {};
+    for (const key of keys) {
+      for (const section of ordered) {
+        const value = section.values[key];
+        if (typeof value === 'string') {
+          values[key] = value;
+          paths[key] = `${section.path}.${key}`;
+          break;
+        }
+        if (isRecord(value) && repo !== null && typeof value[repo] === 'string') {
+          values[key] = value[repo] as string;
+          paths[key] = `${section.path}.${key}.${repo}`;
+          break;
+        }
       }
-      if (keys.every((k) => k in picked)) out.push({ path: repo === null ? path : `${path} (${repo})`, repo, values: picked });
     }
+    const lacks = keys.filter((k) => !(k in values));
+    if (lacks.length === 0) scopes.push({ repo, values, paths });
+    else if (lacks.length < keys.length) incomplete.push({ repo, found: Object.fromEntries(Object.entries(paths).map(([k, path]) => [path, values[k]!])), lacks });
   }
-  return out;
+  return { scopes, incomplete };
 }
 
 /**

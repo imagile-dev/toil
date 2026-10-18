@@ -7,7 +7,8 @@ import { jiraCloud } from './client.js';
 /**
  * `toil jira-cloud check-dossier`: as `jira check-dossier`, on Cloud's API.
  * Every project the call's dossier names exists, and every field alias names
- * a field id the site has. Read only.
+ * a field id the site has. Read only. The same audit as the data center's,
+ * conducted remotely, with the same form.
  */
 export const checkDossier = jiraCloudArea.command({
   path: ['jira-cloud', 'check-dossier'],
