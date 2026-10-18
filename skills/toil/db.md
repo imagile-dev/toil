@@ -367,10 +367,11 @@ with a TDS attention, so anything after it in the same SQL never runs.
 
 `COMMIT`, `ROLLBACK`, `BEGIN TRANSACTION` and `SAVE TRANSACTION` are refused on every
 read with `INVALID_INPUT`, before they reach the server: a `COMMIT` would end the
-transaction toil rolls back, and keep the write before it. `OUTPUT` is refused on reads
-too: an `INSERT`, `UPDATE`, `DELETE` or `MERGE` with `OUTPUT` sends its rows before the
-server reports the change, so a full page could stop it before toil learns it was a
-write. A read-only login's refusal of a permission that only reads (a `sys.dm_db_*`
+transaction toil rolls back, and keep the write before it. An `OUTPUT` clause is refused
+on reads too: an `INSERT`, `UPDATE`, `DELETE` or `MERGE` with `OUTPUT` sends its rows
+before the server reports the change, so a full page could stop it before toil learns it
+was a write. A column or alias named `output` in a plain `SELECT` is fine; in SQL that
+also holds one of those words, bracket-quote it as `[output]`. A read-only login's refusal of a permission that only reads (a `sys.dm_db_*`
 view needing `VIEW DATABASE STATE`, `SHOWPLAN`) comes back as `DATABASE`, naming the
 permission.
 
