@@ -2021,3 +2021,111 @@ shape; these are the calls made around that.
   imports `@imagile-dev/toil/api` by name from the install and runs against a stub
   Bitbucket on loopback (one 429, two pages); `consumer.ts` is type-checked, strict,
   against the installed `dist/api.d.ts`.
+### #212 github
+
+GitHub's slice of #212 (items 5 to 9): issue work items, issue timelines, Projects (v2),
+bulk get and paging on every GitHub list.
+
+- **Issues are read over REST, and `data` is GitHub's issue as it came.** `list-issues`,
+  `search-issues` and `get-issue` all return the REST Issue object, which carries
+  `type` (issue type), `sub_issues_summary` and `parent_issue_url`, so one OWI mapper
+  reads all three. GraphQL would have fetched issue type, parent and sub-issues in one
+  query, but in a second shape. Docs: https://docs.github.com/en/rest/issues/issues and
+  https://docs.github.com/en/rest/issues/sub-issues, checked 2026-10-18.
+- **`list-issues` leaves out pull requests.** The issues endpoint mixes them in, marked
+  by a `pull_request` key; `list-prs` already lists them. Dropping them needed a filter
+  that doesn't end paging early, which is the core change below.
+- **Core: `paginate` gained a general `keep` filter** (`src/core/paginate.ts`). It's
+  applied after the style reads a page, so the short-page stop still sees GitHub's own
+  page size, and `cap` and the cursor's skip count kept items. An offset style refuses
+  it, since its cursor counts the server's items. `list-prs` uses it too, so `--limit`
+  works with `--author` and the date filters and counts what passes them; without
+  `--limit` the result is the same as before.
+- **Paging (item 5) is `--limit` and `--cursor` on every GitHub list,** the same pair
+  and the same `--cursor needs --limit` rule Bitbucket Cloud and Confluence Cloud use.
+  The default stays every page, as the contract records, so the change is additive.
+  GraphQL lists (`projects …`) map `pageInfo.endCursor` into the same
+  `meta.page.nextCursor` through the `nextPageKey` style.
+- **`--updated-since` (item 6)** is on `list-issues` (GitHub's `since`) and
+  `search-issues` (`updated:>=`). It's read like the area's other date flags (a date
+  alone is UTC midnight) and sent as UTC to the second.
+- **`search-issues` adds `is:issue` and nothing else.** It doesn't add `repo:` from
+  `--owner`/`--repo` or the git remote: the query scopes itself, which is what makes it
+  useful across an org. The resolved owner and repo are dropped from `meta.context`, as
+  `create-repo` does. Past GitHub's 1,000-result ceiling it stops without asking for
+  page 11 (which GitHub answers with 422) and warns `GITHUB_SEARCH_CAPPED`;
+  `incomplete_results` warns `GITHUB_SEARCH_INCOMPLETE`. `advanced_search` isn't sent,
+  since an older Enterprise Server may not know it.
+- **`issue-events` (item 7) reads the timeline, not the events endpoint.** The timeline
+  has what the events endpoint has (closed, reopened, labeled, assigned) plus
+  `cross-referenced` (the PRs that mention the issue, OWI's `ChangeRef`), issue type and
+  sub-issue changes, and comments. Docs: https://docs.github.com/en/rest/issues/timeline.
+- **Bulk get (item 9) is a repeatable `--number` on `get-issue`, read four at a time.**
+  Bounded concurrency rather than GraphQL aliases, so the shape stays the REST issue.
+  One number returns the issue itself; several (up to 100) return `{ issues, errors }`
+  in the order asked, with `NOT_FOUND` and `HTTP` failures per item and a
+  `GITHUB_ISSUES_FAILED` warning. Anything else (AUTH, NETWORK, TIMEOUT, UNSUPPORTED)
+  fails the call, because it isn't one issue's problem.
+- **Sub-issues are on request** (`--sub-issues`, one more request per issue), since the
+  summary and parent are already on the issue.
+- **A new error code, `UNSUPPORTED`** (`src/core/errors.ts`), for a server release
+  without an API a command needs. `get-issue --sub-issues` raises it when `sub_issues`
+  is a 404 for an issue that exists; the `projects` commands raise it on a GraphQL
+  `undefinedField`/`undefinedType` error. Issue types need no error: an older server
+  just has no `type`. No Enterprise Server version numbers are named, because GitHub's
+  docs for the Enterprise Server releases don't document the sub-issues endpoints and
+  none has been checked live.
+- **Projects read only `--owner`,** through `repositoryOwner(login:) { ... on
+  ProjectV2Owner }`, so one query serves organizations and users. `INSUFFICIENT_SCOPES`
+  (a classic token) and `FORBIDDEN` (a fine-grained one, "Resource not accessible by
+  personal access token") both become `AUTH` naming `read:project` and the fine-grained Projects permission (which
+  covers organization projects only); a GraphQL `NOT_FOUND` stays `NOT_FOUND`.
+  `list-items` reads an item's first 100 field values and flattens `fieldValues` to
+  that list, warning `GITHUB_PROJECT_VALUES_TRUNCATED` past it.
+
+### #212 ado
+
+Items 5, 6, 7 and 9 for Azure DevOps Server, on REST 7.1 (Server 2022.1). Every
+endpoint used exists at 7.1 in the Server reference: Wiql - Query By Wiql (`$top`,
+`timePrecision`), Revisions - List (`$top`, `$skip`) and Work Items - Get Work Items
+Batch (`ids`, `fields`, `$expand`, `errorPolicy`, at most 200 ids),
+`learn.microsoft.com/en-us/rest/api/azure/devops/wit/…?view=azure-devops-server-rest-7.1`.
+
+- **Which lists page (item 5).** The ones that already read more than one page:
+  `project list`, `pipeline list`, `pipeline list-runs`, `repo list-prs`,
+  `repo list-builds`, plus `work search` and the new `work revisions`. Each gains
+  `--limit` and `--cursor` through core's `paginate` cap, so `meta.page.nextCursor`
+  is core's own cursor; core is unchanged. Without `--limit` each returns the whole
+  list as the contract records. The one-request lists (`repo list`, comments,
+  `list-files`, `list-default-reviewers`, the metadata lists) are left alone: several
+  are recorded suspected bugs (#69), and paging them changes behavior the contract
+  pins until a live run.
+- **`pipeline list-runs`:** `--limit` pages by continuation token; `--top` keeps its
+  one request (default 50). Both together is `INVALID_INPUT`, the simpler rule than
+  deciding which wins.
+- **`work search` paging.** WIQL has no continuation token, so the cursor is an
+  offset into the result and each page reruns the query with `$top` set to one past
+  the page end (to know whether more exist). Items that change between pages can
+  move; the skill page says so. A page ending past the server's 20,000-item limit is
+  refused with a fix to narrow the query. `--limit` needs a flat query, like
+  `--updated-since`.
+- **`--updated-since` (item 6).** A date (UTC midnight) or a date-time with Z or an
+  offset; a zoneless date-time or a calendar date that doesn't exist is refused, so
+  the flag means one instant everywhere. It is formatted by toil as
+  `'YYYY-MM-DDTHH:mm:ss.sssZ'` and ANDed as `[System.ChangedDate] >= …` onto the
+  query's top-level WHERE, wrapped in parentheses, found by a scan that steps over
+  string literals and brackets (`wiql.ts`). `timePrecision=true` is sent, since the
+  server refuses a time in a date literal without it. Link queries (`FROM
+  WorkItemLinks`) are refused rather than guessing which of `[Source]` or
+  `[Target]` the date belongs to.
+- **`work revisions` (item 7)** pages by `$top=100` and `$skip` under the project
+  path, returning every revision by default, bounded by core's 1,000-page limit
+  (an `HTTP` error naming the list). 100 stays under any server page maximum, so a
+  full page is never mistaken for the last.
+- **Bulk get (item 9)** is a new command, `work get-batch --id <n>` (repeatable),
+  rather than making `work get --id` repeatable, which would repurpose a recorded
+  flag. Ids are de-duplicated in order, sent 200 per request, at most 1,000 per
+  call (`INVALID_INPUT` above that). `errorPolicy: omit`, so a missing or
+  invisible id doesn't fail the batch; `data` is `{ count, value, missing }`, with
+  an `ADO_WORK_ITEMS_MISSING` warning naming the ids. `--fields` (comma-separated)
+  replaces `$expand: all`, as the server takes only one of the two.

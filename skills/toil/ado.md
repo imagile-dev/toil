@@ -113,6 +113,24 @@ Work items (`--id <n>`):
 - `work link`: Link `--id` to `--to`, `--type related` (default), `parent`, `child`,
   `duplicate`, `duplicate-of`, or a raw relation name.
 - `work search`: Run `--wiql`; returns the matching ids and urls, not their fields.
+  `--updated-since <iso>` keeps only items changed at or after that instant: a date
+  (`2026-10-01`, UTC midnight) or a date-time with its zone (`2026-10-01T09:00:00Z`).
+  toil ANDs `[System.ChangedDate] >= '<instant>'` onto the query's own `WHERE`, in
+  parentheses so an `OR` keeps its meaning, and asks the server for time precision.
+  Time precision applies to the whole query, so with `--updated-since` an `=` on a
+  date field (`[System.CreatedDate] = @Today`) matches one exact instant, not a day;
+  write date conditions with `>=` and `<` instead.
+  It and `--limit` work on flat queries (`FROM WorkItems`) only; a link query is
+  refused. With `--limit`, each page runs the query again, so an item changed in
+  between can move. A query returns at most 20,000 items, so a page can't end past
+  that.
+- `work get-batch --id <n> --id <n>`: Several work items through the batch endpoint,
+  200 ids per request, at most 1,000 per call. Returns `{ count, value, missing }`:
+  `value` holds the items found in the order asked, with every field and relation,
+  or only `--fields System.Title,System.State`; `missing` lists each id that doesn't
+  exist or the token can't see, with an `ADO_WORK_ITEMS_MISSING` warning.
+- `work revisions --id <n>`: Every revision of a work item, oldest first; each is the
+  whole item as it stood after that change, so neighbours show what changed and when.
 - `work list-comments`, `work add-comment` (`--body`): Comments; listing reads the
   first page only.
 - `work add-tag`, `work remove-tag`: `--tags a;b` or `a,b`, matched ignoring case. The
@@ -203,12 +221,22 @@ Pipelines:
 - `pipeline logs --build-id <n>` (or `--id`): The run's logs; with `--log-id`, that
   log's text as `{ "log": "..." }`.
 
+Paging: `project list`, `pipeline list`, `pipeline list-runs`, `repo list-prs`,
+`repo list-builds`, `work search` and `work revisions` return the whole list by
+default. With `--limit <n>` they return at most that many and set
+`meta.page.nextCursor`; pass it back as `--cursor`, with the same `--limit`, for the
+next page, until it's `null`. `pipeline list-runs` takes `--limit` or `--top`, not
+both. Every list except `work search` (one request) reads page by page and stops
+with an `HTTP` error after 1,000 pages, naming the list.
+
 Write commands need `writes: true` on the connection and `--allow-write` on the call.
 
 ```bash
 toil ado --collection DefaultCollection --project Imagile work get --id 42
 toil ado work create --type Bug --title "Login broken" --field "Story Points=3" --allow-write
 toil ado --repo imagile-api repo list-prs --state all
+toil ado work search --wiql "SELECT [System.Id] FROM WorkItems" --updated-since 2026-10-01 --limit 200
+toil ado work get-batch --id 42 --id 7 --fields System.Title,System.State
 toil ado pipeline run --id 5 --branch main --wait --allow-write
 ```
 

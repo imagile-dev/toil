@@ -101,6 +101,21 @@ describe('paginate', () => {
     ]);
   });
 
+  it('keep filters each page after the short-page check, and a capped cursor resumes in kept items', async () => {
+    const style: PageStyle<number> = { kind: 'page', pageParam: 'page', sizeParam: 'per_page', pageSize: 4, items: (b) => b as number[] };
+    const s = recorder((p) => ({ body: range((Number(p.page) - 1) * 4, 4, 10) }));
+    const even = (n: number) => n % 2 === 0;
+    // Page 1 is full though only two of its items are kept, so paging goes on.
+    expect((await paginate(style, s.fetchPage, { keep: even })).items).toEqual([0, 2, 4, 6, 8]);
+    expect(s.requests).toHaveLength(3);
+    const first = await paginate(style, s.fetchPage, { keep: even, cap: 3 });
+    expect(first.items).toEqual([0, 2, 4]);
+    const rest = await paginate(style, s.fetchPage, { keep: even, cursor: first.nextCursor as string });
+    expect(rest).toEqual({ items: [6, 8], nextCursor: null });
+    const offset: PageStyle<number> = { kind: 'offset', startParam: 's', limitParam: 'l', pageSize: 2, items: (b) => b as number[] };
+    await expect(paginate(offset, s.fetchPage, { keep: even })).rejects.toThrow(/keep needs/);
+  });
+
   it('isLastPage/nextPageStart, reading values by default', async () => {
     const style: PageStyle<number> = { kind: 'nextPageStart', startParam: 'start', limitParam: 'limit', pageSize: 2 };
     const s = recorder((p) => {
