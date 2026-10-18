@@ -43,11 +43,11 @@ one they got.
   creates its target file before the read-only refusal, so SQLite reads refuse any
   statement whose first keyword is `VACUUM` (`INVALID_INPUT`, pointing at
   `db execute`), and PostgreSQL reads refuse `COPY` and `DO`: `COPY ... TO '<file>'` and `TO PROGRAM`
-  write a server file or run a program inside a read-only transaction, and a `DO` block can run that `COPY`. Each denies one statement by name; it does not decide whether SQL
+  write a server file or run a program inside a read-only transaction, and a `DO` block can run that `COPY`. SQL Server has no read-only transaction at all: reads always roll back, a statement the server's DONE token reports as a write is `WRITE_DISABLED`, and reads refuse `COMMIT`, `ROLLBACK`, `BEGIN TRANSACTION` and `SAVE TRANSACTION`, which would end that transaction (`src/core/db/sqlserver/script.ts`). Each denies one statement by name; it does not decide whether SQL
   writes, and everything else still relies on the engine. Add another such deny only
   for a statement proven to escape the engine's read-only mode, with a test showing
   the escape. A hole that can't be closed (SQLite's read-only `ATTACH` of other
-  files, PostgreSQL's server-side functions such as `lo_export` for a privileged role) is pinned with a test and documented as a known limit.
+  files, PostgreSQL's server-side functions such as `lo_export` for a privileged role, SQL Server's `COMMIT` inside dynamic SQL, which toil detects from the transaction ending and reports, and which a read-only login is what stops) is pinned with a test and documented as a known limit.
 - **`execute` is all or nothing.** A script that starts or ends its own transaction
   is refused before any of it runs, so a mid-script `COMMIT` can't leave half a
   change applied.
@@ -66,7 +66,9 @@ one they got.
   PostgreSQL opens one connection per call and, on abort, sends
   `pg_cancel_backend(<pid>)` from a second short-lived one
   (`src/core/db/postgres/index.ts`); the abandoned call's own error is dropped,
-  because core has already answered `TIMEOUT` or `CANCELLED`.
+  because core has already answered `TIMEOUT` or `CANCELLED`. SQL Server sends a TDS
+  attention on the same connection (tedious's `cancel()`), and also once a page is
+  full, so the server stops producing rows nobody reads.
 
 ## Testing
 

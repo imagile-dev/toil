@@ -64,8 +64,24 @@ jobs:
           --health-interval 2s
           --health-timeout 5s
           --health-retries 30
+      # A throwaway server for this job only; its SA password is a test value, in env, not argv.
+      # SQLCMDPASSWORD is the same value for the health check's sqlcmd.
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: Toil-test-Pa55word
+          SQLCMDPASSWORD: Toil-test-Pa55word
+        ports: ['1433:1433']
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -b -S localhost -U sa -Q 'SELECT 1'"
+          --health-interval 5s
+          --health-timeout 10s
+          --health-retries 30
+          --health-start-period 20s
     env:
       TOIL_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/postgres
+      TOIL_TEST_SQLSERVER_URL: mssql://sa:Toil-test-Pa55word@localhost:1433/master
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0

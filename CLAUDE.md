@@ -200,7 +200,7 @@ GitHub Actions; its build tooling is out of scope.
   terminal. Plain ANSI over Node's own `readline`, no package. Anything else (args,
   a pipe, CI, MCP) gets the JSON CLI untouched. Every screen is a pure function of
   data and every animation frame a pure function of time, so both are unit-tested.
-- `src/shims/` — build-time stand-ins (the no-spawn stub)
+- `src/shims/` — build-time stand-ins (the no-spawn stub, and the Azure SDK stub that keeps tedious's cloud sign-in out of the bundle)
 - `src/**/*.test.ts`, `test/` — Vitest; `test/harness/` holds the shared fakes,
   `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands;
   `test/live/` is the real-credential-store suite, kept out of `npm test` (`secrets`

@@ -39,6 +39,15 @@ export default defineConfig({
         );
       },
     },
+    {
+      // tedious (SQL Server) imports the Azure SDK for Entra sign-in and
+      // Always Encrypted key vaults, which toil never uses; a stub keeps that
+      // SDK, and the processes its credential flows can start, out of the bundle.
+      name: 'no-azure',
+      setup(build) {
+        build.onResolve({ filter: /^@azure\/(identity|keyvault-keys)$/ }, () => ({ path: resolve('src/shims/no-azure.ts') }));
+      },
+    },
   ],
   define: { __TOIL_VERSION__: JSON.stringify(version) },
   banner: {
