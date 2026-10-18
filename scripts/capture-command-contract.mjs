@@ -1,15 +1,15 @@
-// Recapture docs/command-contract.json from a built copy of the command contract.
+// Recapture docs/command-contract.json from a built reference CLI.
 // Walks its --help output recursively, so it records what Commander actually
 // registered rather than what the source appears to say. With --source, it
-// also reads the contract's TypeScript and records each command's output
+// also reads the reference CLI's TypeScript and records each command's output
 // field names (contract-output.mjs), which --help can't show.
 //
 //   node scripts/capture-command-contract.mjs <repo>/dist/cli.js --source <repo> > docs/command-contract.json
 //
-// <repo> is a checkout of the contract at the captured version, built, with
-// its node_modules installed so the checker can resolve its types. The CLI's
-// name, package and version come from the package.json next to it, so the
-// contract is named only in the captured contract, never here.
+// <repo> is a checkout of the reference CLI at the captured version, built,
+// with its node_modules installed so the checker can resolve its types. The
+// CLI's name, package and version come from the package.json next to it, so
+// it's named only in the captured contract, never here.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -67,7 +67,7 @@ walk([]);
 const output = source ? captureOutput(source) : new Map();
 
 const contract = {
-  _readme: 'Frozen command surface of the command contract, captured from its own --help output. toil must match every integration command here; see docs/command-contract.md for scope and the listed divergences. Do not edit by hand; recapture instead.',
+  _readme: 'Frozen command surface: every command and its flags, captured from the --help output of the reference CLI. toil must match every integration command here; see docs/command-contract.md for scope and the listed divergences. Do not edit by hand; recapture instead.',
   _output:
     'output lists the data shapes a command returns, one entry per place in the source that returns: field paths two levels deep, [] for an array element, a trailing ? for an optional field. opaque means the source types the data as any or unknown (usually a server response passed through), so there are no names to check.',
   source: {

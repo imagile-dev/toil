@@ -71,11 +71,11 @@ and `_API_TOKEN`.
   call `connections_list` with `area: "jenkins"`.
 - `instance add <name>`: CLI only. It is `toil connections add <name> --area
   jenkins`, asking for each setting on a terminal and keeping the token in the OS
-  credential store. The documented `--name`, `--base-url`, `--username`, `--api-token` and
-  `--force` flags are gone.
+  credential store. It takes the name as an argument and accepts none of the
+  contract's `--name`, `--base-url`, `--username`, `--api-token` and `--force` flags.
 - `instance remove <name>`: CLI only. It is `toil connections remove <name> --area
   jenkins`, which also deletes the token from the OS credential store and refuses a
-  connection to another area. The documented `--name` flag is gone.
+  connection to another area. It takes the name as an argument, not `--name`.
 
 ## Commands
 

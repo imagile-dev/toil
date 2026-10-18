@@ -1,4 +1,4 @@
-// Reads the contract's TypeScript source and records, for each command, the
+// Reads the reference CLI's TypeScript source and records, for each command, the
 // field names of the `data` it returns. The --help walk in
 // capture-command-contract.mjs can see flags but not output, and a renamed
 // output field breaks a caller's script just as surely as a renamed flag.
@@ -23,7 +23,7 @@ const ts = require('typescript');
 const DEPTH = 2;
 
 /**
- * @param {string} repo the contract's checkout: tsconfig.json, src/ and node_modules/
+ * @param {string} repo the reference CLI's checkout: tsconfig.json, src/ and node_modules/
  * @returns {Map<string, Array<{ fields: string[] } | { opaque: string }>>} command path to its output variants
  */
 export function captureOutput(source) {
@@ -187,6 +187,6 @@ export function captureOutput(source) {
       out.set(path, list);
     }
   }
-  if (out.size === 0) throw new Error(`No success(...) calls found under ${join(repo, 'src')}; is --source the contract's checkout?`);
+  if (out.size === 0) throw new Error(`No success(...) calls found under ${join(repo, 'src')}; is --source the reference CLI's checkout?`);
   return out;
 }

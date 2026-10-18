@@ -110,7 +110,7 @@ Paths are relative to the workspace, with forward slashes. Maven names are
 workspace is scanned: run it from the root, or pass `--workspace <root>`, to scan
 everything.
 
-Known quirks, kept until a real repository shows otherwise:
+Known quirks, which stay until they're checked against real repositories:
 
 - In an npm v7+ lockfile, `direct` means hoisted to the top `node_modules`, so most
   transitive packages count as direct. Workspace folders show up as packages.

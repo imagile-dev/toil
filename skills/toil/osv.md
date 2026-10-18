@@ -75,7 +75,7 @@ and `severity` is the record's `database_specific.severity` as given (GHSA uses
   returned HTTP <status> <reason> for <id>" (`NOT_FOUND` for a 404) for a record that couldn't
   be fetched.
 
-## Old paths
+## Alias paths
 
 `deps frisk` (the default source) and `deps frisk --source osv` run `toil osv vulns`, with the same
 `--ecosystem`, `--direct-only`, `--include-dev` and `--from` flags.

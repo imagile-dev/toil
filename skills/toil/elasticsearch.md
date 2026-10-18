@@ -59,7 +59,7 @@ credential store, or set `TOIL_ELASTICSEARCH_API_KEY`.
 **Sharing the key with Kibana:** a Kibana connection can use this connection's key
 instead of its own, but only when you pair them on the Kibana side
 (`"apiKeyFrom": "es-prod"`). An unpaired Kibana connection never gets it. The one
-exception keeps the documented env chain: Kibana's default connection takes
+exception is an env fallback the contract specifies: Kibana's default connection takes
 `TOIL_ELASTICSEARCH_API_KEY` when `TOIL_KIBANA_API_KEY` isn't set. Either way the key
 is sent only to that Kibana connection's own host. See `kibana.md`.
 
