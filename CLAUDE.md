@@ -736,6 +736,8 @@ callers who rely on the recorded result.
 - **The first live run checks every item** in the area's issue. A confirmed bug is
   fixed as a declared change (`fix:` or `feat:`, and `feat!:` once toil has been
   released, per Delivery) and listed as a divergence; a refuted one is closed.
+- **A work-item integration's change inspects its Open Work Item mapping in the same
+  PR** (`integrations` skill, **Open Work Items**).
 
 ## Testing
 
@@ -946,7 +948,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 
 | Skill | Use when |
 |-------|----------|
-| `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, the command contract and its divergences |
+| `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, Open Work Item checks for work-item areas, the command contract and its divergences |
 | `databases` | Working on the `db` area, a database provider, or database tests, including the local Docker run |
 | `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: small pure-JS code intelligence is welcome, heavy analysis dependencies are ruled out, and what reopening that takes |
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |

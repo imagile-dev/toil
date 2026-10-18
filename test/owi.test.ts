@@ -3,13 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { owiMapCommand } from '../src/areas/util/owi.js';
 import { checkAgainstSchema } from '../src/areas/util/owi/run.js';
 import { Verifier } from '../src/areas/util/kit/verify.js';
-import { commandName } from '../src/core/command.js';
+import { areaOf, commandName } from '../src/core/command.js';
 import type { Envelope, Warning } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
 import { documentsFrom, fieldOverrides, mapOwi, OVERRIDABLE, OWI_COMMANDS, OWI_SOURCES, OWI_VERSION, parseOwiInput, type WorkItem } from '../src/core/owi/index.js';
 import { sprintOf } from '../src/core/owi/jira.js';
 import { execute } from '../src/core/run.js';
 import { argvFor } from '../src/program.js';
+import { commands as registry } from '../src/registry.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
 import { loadFixtures, setUp } from './harness/fixtures.js';
@@ -97,15 +98,51 @@ describe("every area's fixtures map to valid OWI", async () => {
     }
   }
 
-  // Azure DevOps Services (#222) sends the work item shape `ado` does; it maps once it is a line in OWI_SOURCES.
-  it.skip('ado-cloud (#222): its fixtures map through the ado mapper once it is registered in OWI_SOURCES', () => {
-    expect(OWI_SOURCES['ado-cloud']?.family).toBe('ado');
+  it('every area OWI maps has a fixture, so its output is mapped above', () => {
+    const withFixture = new Set(fixtures.map((f) => f.area));
+    for (const area of Object.keys(OWI_SOURCES)) expect(withFixture.has(area), `${area} is in OWI_SOURCES but has no test/fixtures/${area}.fixture.ts`).toBe(true);
   });
 });
 
+/**
+ * Work-item areas are marked in one place, OWI_SOURCES (src/core/owi/types.ts),
+ * and this keeps the mark honest: an area with issue- or work-item-shaped
+ * commands that OWI doesn't map fails here, so a new tracker can't ship without
+ * its mapper (the `integrations` skill, **Open Work Items**).
+ */
+describe('work-item areas are all mapped to OWI', () => {
+  /** Command paths that read or write issues, work items or tickets: `get-issue`, `search-issues`, `issue-events`, `get-changelog`, `work get`. */
+  const WORK_ITEM = /(^| )((create|get|update|list|search|transition|link)-(issue|issues|ticket|tickets)|issue-events|get-changelog|work (get|get-batch|revisions|search|create|update))( |$)/;
+  /** Areas known to be on their way, by the issue that builds them. Each switches on once the area is registered. */
+  const PENDING: Record<string, string> = { 'ado-cloud': '#222' };
+  const registered = new Set(registry.map((def) => areaOf(def)));
+  const workItemAreas = [...new Set(registry.filter((def) => def.area && WORK_ITEM.test(commandName(def))).map((def) => areaOf(def)))].sort();
+
+  it('marks every area that has work-item commands in OWI_SOURCES', () => {
+    expect(workItemAreas.filter((area) => !PENDING[area] && !OWI_SOURCES[area])).toEqual([]);
+    expect(workItemAreas).toEqual(expect.arrayContaining(['ado', 'github', 'jira', 'jira-cloud']));
+  });
+
+  it("marks only areas that exist, and lists each one's mapped commands among its registered ones", () => {
+    for (const [area, known] of Object.entries(OWI_COMMANDS)) {
+      expect(registered.has(area), `${area} is in OWI_SOURCES but isn't a registered area`).toBe(true);
+      const names = new Set(registry.filter((def) => areaOf(def) === area).map(commandName));
+      for (const c of [...known.items, ...known.history, ...known.context]) expect(names.has(c), `${c} is mapped but isn't registered`).toBe(true);
+    }
+  });
+
+  for (const [area, issue] of Object.entries(PENDING)) {
+    it.skipIf(!registered.has(area))(`${area} (${issue}) is mapped once it is registered: one line in OWI_SOURCES`, () => {
+      expect(OWI_SOURCES[area], `${area} is registered; add it to OWI_SOURCES in src/core/owi/types.ts and drop it from PENDING`).toBeDefined();
+    });
+  }
+});
+
 describe('the sprint fixture (test/fixtures/owi/)', async () => {
-  const { data, warnings } = await map({ file: 'owi/sprint-42.jsonl' }, { 'owi/sprint-42.jsonl': sprintJsonl });
-  const items = data.items as WorkItem[];
+  const { envelope, data, warnings } = await map({ file: 'owi/sprint-42.jsonl' }, { 'owi/sprint-42.jsonl': sprintJsonl });
+  // A refusal fails here, not at collection, so the rest of the file still reports.
+  const items = (data?.items ?? []) as WorkItem[];
+  it('maps without an error', () => expect(envelope.error).toBeNull());
 
   it('maps all twenty items, every one valid, with nothing skipped', () => {
     expect(data.count).toBe(20);

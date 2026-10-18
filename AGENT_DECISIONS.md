@@ -2264,6 +2264,22 @@ Items 10 and 11: the OWI spec (`docs/owi/spec.md`, v0.1) and its JSON Schema
   Services (#222, `ado-cloud`) is one line there once it lands; a skipped test in
   `test/owi.test.ts` names it. `source.area` in the schema is a pattern, not an
   enum, so a new area isn't a schema change.
+- **Work-item areas are marked in `OWI_SOURCES`, and a test keeps the mark
+  honest** (the maintainer's requirement: OWI is inspected whenever a work-item
+  integration is added or changed). The rule is written once, in the `integrations`
+  skill (**Open Work Items**), with a one-line pointer from CLAUDE.md. Rather than a
+  second flag on `defineArea`, the mapper's own registry is the mark, so there is
+  one list. `test/owi.test.ts` fails when an area has a command whose name is issue-
+  or work-item-shaped (`(create|get|update|list|search|transition|link)-issue(s)`,
+  `-ticket(s)`, `issue-events`, `get-changelog`, `work get|get-batch|revisions|search|create|update`)
+  and isn't marked, when a marked area isn't registered or has no fixture, or when a
+  marked command isn't registered; the mapped-examples test then validates each
+  marked area's fixture output against the schema. `sonar issues` (code findings) and
+  `bitbucket needs-work` don't match the pattern, on purpose. `ado-cloud` is in the
+  test's `PENDING` list citing #222: its test is skipped until the area registers,
+  then fails until it is a line in `OWI_SOURCES`. Proven by a scratch run with
+  `github` removed from `OWI_SOURCES`: the marking test failed (and so did every
+  sprint test that maps GitHub output), then passed again once restored.
 - **Schema validation is per item**, keyed, through `validateBounded`, so a 5,000-item
   call (the bound, `OWI_ITEMS_CAPPED`) never puts one large task past the 2 s
   deadline.
