@@ -414,10 +414,10 @@ describe('util openapi example', () => {
     ['a million items with a long default and example', { type: 'array', minItems: 1_000_000, items: { type: 'string', default: 'x'.repeat(4_000), example: 'y'.repeat(4_000), examples: ['z'.repeat(4_000)] } }],
     ['a flat array of unique long strings', { type: 'array', minItems: 200_000, uniqueItems: true, items: { type: 'string', minLength: 10_000 } }],
     ['an allOf diamond reaching a million-character const at every step', { $ref: '#/components/schemas/S0' }, diamondOfConsts()],
-  ])('cuts an example short instead of building %s, and says so', (_name, schema, doc: Data = {}) => {
+  ])('cuts an example short instead of building %s, and says so', async (_name, schema, doc: Data = {}) => {
     const started = performance.now();
-    const { example, truncated } = generateExample(doc, 'openapi-3.0', schema, 'request');
-    expect(performance.now() - started).toBeLessThan(2_000);
+    const { example, truncated } = await generateExample(doc, 'openapi-3.0', schema, 'request');
+    expect(performance.now() - started).toBeLessThan(4_000);
     expect(JSON.stringify(example).length).toBeLessThan(5_000_000);
     // The pattern's own count is refused, so the example is a short string validation then rejects.
     if (!('pattern' in schema)) expect(truncated).toBe(true);
@@ -433,35 +433,45 @@ describe('util openapi example', () => {
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'OPENAPI_EXAMPLE_TRUNCATED' }));
   });
 
-  it.each(['^(a+)+$', '(a|aa)*', '(.*a){12}'])('never runs the backtracking pattern %s while building or checking an example, and says so', async (pattern) => {
+  it.each(['x*x*x*x*x*x*x*x*x*x*y', '(x+)+y', '(x|xx)+y', '(.*x){12}y'])('stops the backtracking pattern %s at the deadline, building and checking alike, and says so', async (pattern) => {
     const doc = JSON.parse(EXAMPLE_TEXT) as Data;
-    doc.components.schemas.Order.properties.sku = { type: 'string', minLength: 40, pattern };
+    // The plain string is "string" padded with x to 41 characters: a long run of x and no y, the shape these backtrack on.
+    doc.components.schemas.Order.properties.sku = { type: 'string', minLength: 41, maxLength: 41, pattern };
     const started = performance.now();
     const { envelope, data, warnings } = await run(openapiExampleCommand, { text: asText(doc), operation: 'createOrder' });
-    expect(performance.now() - started).toBeLessThan(3_000);
+    // Two deadlines at most (choosing the string, then validating it), with room for a slow runner.
+    expect(performance.now() - started).toBeLessThan(10_000);
     expect(envelope.ok).toBe(true);
-    expect(check(data, 'example.patterns')).toMatchObject({ status: 'unchecked', detail: expect.stringContaining('was not run') });
+    expect(check(data, 'example.patterns')).toMatchObject({ status: 'unchecked', detail: expect.stringMatching(/took longer than 2 s/) });
+    expect(check(data, 'example.valid')).toMatchObject({ status: 'unchecked', detail: expect.stringMatching(/took longer than 2 s/) });
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'UNVERIFIED', message: expect.stringContaining('example.patterns') }));
+  }, 30_000);
+
+  it('still chooses a string an ordinary pattern accepts, in the worker, and validates it', async () => {
+    const { data } = await run(openapiExampleCommand, { text: EXAMPLE_TEXT, operation: 'createOrder' });
+    expect(data.example.sku).toBe('AAA-0');
+    expect(check(data, 'example.valid')).toMatchObject({ status: 'passed' });
+    expect(check(data, 'example.patterns')).toBeUndefined();
   });
 
-  it('reports example.valid as unchecked, quickly, when its schema branches too much to validate', async () => {
-    // S0 to S21, each anyOf two refs to the next: validating one value would take 2^22 checks.
+  it('reports example.valid as unchecked, at the deadline, when its schema branches too much to validate', async () => {
+    // S0 to S21, each with property a: anyOf two refs to the next, so the example nests 22 deep and validating it takes 2^22 checks.
     const schemas: Data = { S22: { type: 'string' } };
-    for (let i = 0; i < 22; i++) schemas[`S${i}`] = { anyOf: [{ $ref: `#/components/schemas/S${i + 1}` }, { $ref: `#/components/schemas/S${i + 1}` }] };
+    for (let i = 0; i < 22; i++) schemas[`S${i}`] = { type: 'object', required: ['a'], properties: { a: { anyOf: [{ $ref: `#/components/schemas/S${i + 1}` }, { $ref: `#/components/schemas/S${i + 1}` }] } } };
     const doc = { openapi: '3.0.3', info: { title: 'Branches', version: '1' }, paths: { '/b': { post: { operationId: 'branches', requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/S0' } } } }, responses: { '200': { description: 'ok' } } } } }, components: { schemas } };
     const started = performance.now();
     const { envelope, data, warnings } = await run(openapiExampleCommand, { text: asText(doc), operation: 'branches' });
-    expect(performance.now() - started).toBeLessThan(5_000);
+    expect(performance.now() - started).toBeLessThan(10_000);
     expect(envelope.ok).toBe(true);
-    expect(check(data, 'example.valid')).toMatchObject({ status: 'unchecked', detail: expect.stringMatching(/^the schema branches too much/) });
+    expect(check(data, 'example.valid')).toMatchObject({ status: 'unchecked', detail: expect.stringMatching(/took longer than 2 s|stack/) });
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'UNVERIFIED', message: expect.stringContaining('example.valid') }));
-  });
+  }, 30_000);
 
   it('cuts an example short at the nesting limit instead of overflowing the stack', async () => {
     // A chain of 3,000 schemas, each requiring the next: 3,000 levels deep if followed to the end.
     const schemas: Data = { S3000: { type: 'string' } };
     for (let i = 0; i < 3000; i++) schemas[`S${i}`] = { type: 'object', required: ['next'], properties: { next: { $ref: `#/components/schemas/S${i + 1}` } } };
-    const { example, truncated } = generateExample({ components: { schemas } }, 'openapi-3.0', { $ref: '#/components/schemas/S0' }, 'request');
+    const { example, truncated } = await generateExample({ components: { schemas } }, 'openapi-3.0', { $ref: '#/components/schemas/S0' }, 'request');
     expect(truncated).toBe(true);
     expect(() => JSON.stringify(example)).not.toThrow();
   });

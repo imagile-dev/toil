@@ -1567,7 +1567,7 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
 - **Round 7: every phase has a stated bound.** Validating an example had none:
   cfworker tries every `anyOf`/`oneOf` branch, so a diamond of refs validated in
   2^n time (an hour at n=30), and a `oneOf` diamond overflowed the stack into
-  `INTERNAL`. The kit's `validateSchema` now measures the schema's fan-out first
+  `INTERNAL`. (Replaced in round 9 by a worker with a deadline, below.) The kit's `validateSchema` measured the schema's fan-out first
   (`schemaFanOut`: memoised, iterative, counting every path through `$ref`,
   allOf, anyOf, oneOf, not and if/then/else, a loop back counting 1). Past
   100,000 it returns `unchecked` with the reason instead of running. A
@@ -1583,25 +1583,43 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   |---|---|---|
   | Parse | Input at most 64 MiB (kit). JSON.parse is linear. YAML aliases add at most 1,000,000 values (kit). Nesting is at most 256 levels, checked iteratively, else `INVALID_INPUT`, so no later recursion can go deeper | 10,000-deep document refused in under 5 s |
   | `$ref` resolution | Iterative walk, `O(nodes + refs × depth)`. Tarjan's cycle search is iterative, `O(V + E)` | 200,000 refs in 20,000 operations in about 2 s |
-  | Document validation | Official schema fan-out is constant (31 at most) and guarded. Work is linear in the document. Nesting is at most 256. A `RangeError` becomes unchecked. 50 problems listed, each message at most 300 characters | Kit diamond tests, invalid-document tests |
+  | Document validation | Runs in a bounded worker: 2 s and 256 MB, then terminated and reported unchecked with the reason (deadline, memory, stack, or worker threads not allowed). Nesting is at most 256 levels. 50 problems listed, each message at most 300 characters | Kit worker tests; invalid-document tests; smoke runs it from the built bundle |
   | List | `O(operations × parameters)`; output is never more than the document | Listing tests, the 200,000-ref document |
   | Show | `--depth` at most 20. 250,000 nodes, 4,000,000 characters and 1,000 levels of nesting, all checked before work is done | Diamond, wide diamond, long text, deep nesting |
-  | Example generation | Risky patterns are never run (`regexRisk`); 250,000 values, 1,000,000 characters through one choke point, strings of 10,000 characters, items limited to the budget left, 1,000 levels, a ref repeated at most twice on a path | `it.each` of bypasses, diamonds, a 3,000-schema chain |
-  | Example validation | Risky patterns are dropped from the copy validated and reported unchecked. Copies only what the schema reaches. Fan-out at most 100,000, else unchecked. A `RangeError` becomes unchecked. A cut-short example isn't validated | `anyOf` diamond reported unchecked in under 5 s |
+  | Example generation | In-process: 250,000 values, 1,000,000 characters through one choke point, strings of 10,000 characters, items limited to the budget left, 1,000 levels, a ref repeated at most twice on a path. A document's patterns are never run in-process: candidate strings are matched in one bounded worker beforehand (2 s, at most 5,000 patterns and 5,000,000 characters of candidates) | `it.each` of bypasses, diamonds, a 3,000-schema chain; backtracking patterns stopped at the deadline |
+  | Example validation | Copies only what the schema reaches, then validates in a bounded worker (2 s, 256 MB). A cut-short example isn't validated | anyOf diamond stopped at the deadline; oneOf diamond out of stack reported unchecked |
 
-  **Regex patterns are checked before they're run.** JavaScript gives a running regex no
-  time limit, so the kit's `regexRisk` (`kit/regex.ts`) reads each pattern's shape first.
-  It flags backreferences, a repeated group holding a variable repetition (`(a+)+`,
-  `(.*a){12}`), a repeated alternation whose branches can start alike (`(a|aa)*`),
-  and three or more unbounded repetitions of a class. A flagged pattern is never run:
-  the example is built without it, validation runs on a copy without it, and
-  `example.patterns` or `document.patterns` reports it unchecked with the reason. A
-  flagged `patternProperties` name leaves the whole validation unchecked. No pattern in
-  the bundled OpenAPI, Swagger or ADF schemas is flagged. Across the full Jira, GitHub
-  and Bitbucket specs, none is either, since a fixed count like `{4}` inside a repeated
-  group isn't flagged. A run pattern's work is then at worst quadratic in a string of
-  at most 10,000 characters. Nothing in `util openapi` is left unbounded (round 8, ahead
-  of a review).
+  **Round 9: a deadline instead of guesses (the maintainer's decision).** Rounds 7 and 8
+  guessed what validation and a regex would cost from their shape (`schemaFanOut`,
+  `regexRisk`). Each guess missed cases, so both are gone, and everything whose cost a
+  document controls runs in a worker thread with a deadline instead: `kit/bounded.ts`,
+  `runBounded`. That covers every JSON Schema validation (the document, the example,
+  util md's ADF) and every run of a document's own `pattern`.
+
+  - **The worker** evaluates a small script, `kit/bounded-task.ts` bundled with the
+    validator by `scripts/gen-worker.mjs` (about 30 KB), not the CLI.
+  - **Limits:** 2 s by default (`BOUNDED_TIMEOUT_MS`) and 256 MB of heap
+    (`BOUNDED_MEMORY_MB`, through `resourceLimits`). Past either, the worker is
+    terminated.
+  - **Failures:** a timeout, memory limit, stack overflow or `ERR_ACCESS_DENIED` (Node
+    run with `--permission` and no `--allow-worker`) comes back `unchecked`, with a reason
+    naming which. It is never `INTERNAL`.
+  - **Not spawning:** a worker thread is part of this process, so No Executables holds;
+    `check:pure` passes, and the bundle imports only `node:worker_threads` for it.
+  - **Generation stays in-process**, keeping its value, character, node and nesting
+    budgets. It no longer runs a pattern itself: it sends each pattern's candidate
+    strings to one bounded worker first and uses the first that matches.
+  - **Measured on this Windows laptop:**
+    - a worker round trip takes 19 ms
+    - terminating a busy worker takes about 10 ms
+    - the full GitHub description (13 MB) validates in 735 ms in a worker, Jira in
+      241 ms, Bitbucket in 118 ms
+    - an example is generated and validated in about 18 ms
+    - 811 of 812, 1316 of 1317, 1309 of 1317 and 263 of 267 bodies still validate, as
+      before
+  - **Smoke** runs a validation, a backtracking pattern and a worker-denied Node through
+    the installed bundle.
+  - **Nothing is left unbounded.**
 - **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
   Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
   extension isn't a reference; under `properties` and the other name maps every

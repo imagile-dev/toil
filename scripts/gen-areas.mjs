@@ -8,6 +8,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { generateWorker } from './gen-worker.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const areasDir = join(root, 'src', 'areas');
@@ -31,6 +32,7 @@ export function generate() {
   const content = lines.join('\n');
   if (!existsSync(out) || readFileSync(out, 'utf8') !== content) writeFileSync(out, content);
   generateSkillPages();
+  generateWorker();
   return dirs;
 }
 

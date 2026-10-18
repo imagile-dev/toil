@@ -291,8 +291,10 @@ let adfSchema: unknown;
 
 /** Validates against the bundled ADF schema (@atlaskit/adf-schema's full.json), loading both only when asked. */
 export async function validateAdf(value: unknown) {
-  const [{ validateSchema }, schema] = await Promise.all([import('../kit/json-schema.js'), adfSchema ?? import('./adf-schema.json', { with: { type: 'json' } }).then((m) => m.default)]);
+  const [{ validateBounded }, schema] = await Promise.all([import('../kit/bounded.js'), adfSchema ?? import('./adf-schema.json', { with: { type: 'json' } }).then((m) => m.default)]);
   adfSchema = schema;
-  return validateSchema(schema as never, value, { maxProblems: 20 });
+  // In a bounded worker: a document can make the ADF schema's anyOf branches cost more than any reply is worth.
+  const result = await validateBounded(schema as never, value);
+  return { ...result, problems: result.problems.slice(0, 20) };
 }
 

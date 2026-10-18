@@ -1158,12 +1158,12 @@ always valid, but `verified.passed` is false. `document.refs.circular` lists eac
 loop of references (a recursive schema), which is legal; nothing follows one
 forever. What can't be checked is reported, never assumed:
 
-- A schema that branches too much to validate in reasonable time (more than 100,000
-  subschemas per value through `$ref`, `allOf`, `anyOf` and `oneOf`), or that nests
-  too deep, leaves `document.schema` or `example.valid` unchecked, with the reason
-  (`UNVERIFIED`). A `pattern` that could take exponential time to match
-  (`^(a+)+$`, `(a|aa)*`, a backreference) is never run: the example is built and
-  checked without it, and `example.patterns` or `document.patterns` says so. A document nested more than 256 levels is refused (`INVALID_INPUT`).
+- Validation, and running the document's own `pattern`s, each get 2 seconds and 256 MB.
+  A schema that branches too much to finish (a diamond of `anyOf`s), a pattern that
+  backtracks without end (`^(a+)+$`), or a document too deep for the stack leaves
+  `document.schema`, `example.valid` or `example.patterns` unchecked, with which limit
+  it hit (`UNVERIFIED`). So does a Node run with `--permission` and no `--allow-worker`.
+  A document nested more than 256 levels is refused (`INVALID_INPUT`).
 - A `$ref` to another file or a URL isn't followed (`refs.external`, `UNVERIFIED`),
   and an example whose schema reaches one isn't validated.
 - The 3.1 and 3.2 schemas leave Schema Objects to the JSON Schema 2020-12 dialect,

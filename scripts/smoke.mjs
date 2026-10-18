@@ -46,6 +46,12 @@ try {
   const listed = toil('connections', 'list');
   if (!listed.ok || !Array.isArray(listed.data?.connections)) fail(`connections list returned ${JSON.stringify(listed)}`);
 
+  // The bounded worker (src/areas/util/kit/bounded.ts) from the installed bundle: a
+  // document validates in a real worker thread, a backtracking pattern is stopped at
+  // its deadline, and with worker threads denied by Node's permission model the
+  // check is unchecked with a reason, never a crash.
+  const workerStep = boundedWorker(bin);
+
   // No git on PATH (CLAUDE.md, No Executables): toil still starts, and a command
   // that runs git answers GIT_NOT_FOUND, exit 1, rather than hanging or crashing.
   const stripped = { ...Object.fromEntries(Object.entries(env).filter(([key]) => key.toUpperCase() !== 'PATH')), PATH: '' };
@@ -75,11 +81,43 @@ try {
 
   const cloneStep = await fromClone(envelope.data.version);
 
-  if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI, connections and MCP all answered, ${lines.length} audit lines written, on Node ${process.versions.node} (${process.platform}); ${gitStep}; ${cloneStep}.`);
+  if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI, connections and MCP all answered, ${lines.length} audit lines written, on Node ${process.versions.node} (${process.platform}); ${workerStep}; ${gitStep}; ${cloneStep}.`);
 } catch (err) {
   fail(err.message);
 } finally {
   rmSync(work, { recursive: true, force: true });
+}
+
+/**
+ * util openapi through the installed bundle, which runs JSON Schema validation
+ * and a document's own patterns in a worker thread evaluated from a string
+ * inside dist/toil.js. Proves the worker starts from the built bundle (not from
+ * source), that a deadline stops it, and that a Node which forbids workers gets
+ * an unchecked result rather than a crash.
+ */
+function boundedWorker(bin) {
+  const doc = (sku) => JSON.stringify({ openapi: '3.0.3', info: { title: 'Smoke', version: '1' }, paths: { '/o': { post: { operationId: 'o', requestBody: { content: { 'application/json': { schema: { type: 'object', required: ['sku'], properties: { sku } } } } }, responses: { 200: { description: 'ok' } } } } } });
+  const toil = (args, flags = []) => {
+    const ran = spawnSync(process.execPath, [...flags, bin, ...args], { encoding: 'utf8', input: '', timeout: 30000, env, cwd: work });
+    try {
+      return JSON.parse(ran.stdout);
+    } catch {
+      return { stdout: ran.stdout, stderr: ran.stderr };
+    }
+  };
+  const checkOf = (envelope, name) => envelope.data?.verified?.checks?.find((c) => c.check === name);
+
+  const plain = toil(['util', 'openapi', 'example', '--text', doc({ type: 'string', pattern: '^[A-Z]{3}-\\d+$' }), '--operation', 'o']);
+  if (checkOf(plain, 'document.schema')?.status !== 'passed' || checkOf(plain, 'example.valid')?.status !== 'passed' || plain.data?.example?.sku !== 'AAA-0') {
+    fail(`util openapi example in a worker returned ${JSON.stringify(plain).slice(0, 600)}`);
+  }
+  const started = Date.now();
+  const stuck = toil(['util', 'openapi', 'example', '--text', doc({ type: 'string', minLength: 41, maxLength: 41, pattern: '(x+)+y' }), '--operation', 'o']);
+  const took = Date.now() - started;
+  if (!/took longer than 2 s/.test(checkOf(stuck, 'example.patterns')?.detail ?? '') || took > 20000) fail(`a backtracking pattern returned ${JSON.stringify(stuck).slice(0, 600)} after ${took} ms`);
+  const denied = toil(['util', 'openapi', 'list', '--text', doc({ type: 'string' })], ['--permission', '--allow-fs-read=*']);
+  if (checkOf(denied, 'document.schema')?.status !== 'unchecked' || !/--allow-worker/.test(checkOf(denied, 'document.schema')?.detail ?? '')) fail(`util openapi list with workers denied returned ${JSON.stringify(denied).slice(0, 600)}`);
+  return `util openapi validated in a worker from the bundle, a backtracking pattern stopped in ${took} ms, and with workers denied the check came back unchecked`;
 }
 
 /**

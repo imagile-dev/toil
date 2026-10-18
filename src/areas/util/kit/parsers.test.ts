@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { regexRisk } from './regex.js';
-import { leafProblems, MAX_SCHEMA_FAN_OUT, schemaDraft, schemaFanOut, validateSchema, type Schema } from './json-schema.js';
+import { leafProblems, schemaDraft, validateSchema, type Schema } from './json-schema.js';
 import { MAX_YAML_NODES, parseYaml } from './yaml.js';
 
 /** An OpenAPI 3.0 fragment in YAML, the way vendors publish them, with a placeholder server. */
@@ -120,67 +118,11 @@ describe('validateSchema', () => {
     expect(leafProblems(result.problems).map((p) => `${p.pointer} ${p.keyword}`).sort()).toEqual(['/owner required', '/owner/id type']);
   });
 
-  it.each([
-    ['anyOf', 22],
-    ['oneOf', 18],
-  ])('refuses, quickly and as unchecked, a %s diamond of refs that would take 2^n checks', (keyword, levels) => {
-    const defs: Record<string, Schema> = { [`S${levels}`]: { type: 'string' } };
-    for (let i = 0; i < levels; i++) defs[`S${i}`] = { [keyword]: [{ $ref: `#/definitions/S${i + 1}` }, { $ref: `#/definitions/S${i + 1}` }] };
-    const schema: Schema = { $schema: 'http://json-schema.org/draft-07/schema#', $ref: '#/definitions/S0', definitions: defs };
-    const started = performance.now();
-    expect(schemaFanOut(schema)).toBeGreaterThan(MAX_SCHEMA_FAN_OUT);
-    const result = validateSchema(schema, 'x');
-    expect(performance.now() - started).toBeLessThan(2_000);
-    expect(result).toMatchObject({ valid: false, problems: [], unchecked: expect.stringMatching(/^the schema branches too much to validate/) });
-  });
-
   it('turns a validator that runs out of stack into unchecked, never a crash', () => {
     let deep: unknown = 'x';
     for (let i = 0; i < 50_000; i++) deep = [deep];
     const result = validateSchema({ $schema: 'http://json-schema.org/draft-07/schema#', items: { $ref: '#' } }, deep);
     expect(result).toMatchObject({ valid: false, unchecked: expect.stringMatching(/^validation ran out of room/) });
-  });
-
-  it('keeps the fan-out of real schemas small: a loop back costs one visit', () => {
-    expect(schemaFanOut(DRAFT4)).toBeLessThan(100);
-    const tree: Schema = { $schema: 'http://json-schema.org/draft-07/schema#', type: 'object', properties: { children: { type: 'array', items: { $ref: '#' } } }, anyOf: [{ $ref: '#' }, { required: ['children'] }] };
-    expect(schemaFanOut(tree)).toBeLessThan(10);
-  });
-
-  it.each([
-    ['^(a+)+$', /repeats a group that itself repeats/],
-    ['(a|aa)*', /alternation whose branches can match the same text/],
-    ['(.*a){12}', /repeats a group that itself repeats/],
-    ['^(\\w+\\s?)*$', /repeats a group that itself repeats/],
-    ['^(a|a?)+$', /repeats a group that itself repeats|alternation/],
-    ['^(\\d+)\\1$', /backreference/],
-    ['^.*,.*,.*$', /three or more character classes/],
-  ])('flags the backtracking shape of %s', (pattern, reason) => {
-    expect(regexRisk(pattern)).toMatch(reason);
-  });
-
-  it.each(['^[A-Z]{3}-\\d+$', '^sha256:[a-f0-9]{64}$', '^[a-zA-Z0-9\\.\\-_]+$', '^x-', '^[1-5](?:\\d{2}|XX)$', '^(ab)+$', '(a|b)*', '^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})$', '^[^@]+@[^@]+$', '^\\/'])('runs the ordinary pattern %s', (pattern) => {
-    expect(regexRisk(pattern)).toBeUndefined();
-  });
-
-  it('finds no risky pattern in the schemas toil bundles', () => {
-    for (const file of ['openapi/schemas/openapi-3.0.json', 'openapi/schemas/openapi-3.1.json', 'openapi/schemas/openapi-3.2.json', 'openapi/schemas/swagger-2.0.json', 'openapi/schemas/json-schema-draft-04.json', 'md/adf-schema.json']) {
-      const text = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
-      for (const [, pattern] of text.matchAll(/"pattern"\s*:\s*"((?:[^"\\]|\\.)*)"/g)) expect(regexRisk(JSON.parse(`"${pattern}"`)), `${file}: ${pattern}`).toBeUndefined();
-    }
-  });
-
-  it.each(['^(a+)+$', '(a|aa)*$', '^(.*a){12}$'])('never runs %s: validation skips it, fast, and says so', (pattern) => {
-    const started = performance.now();
-    const result = validateSchema({ $schema: 'http://json-schema.org/draft-07/schema#', type: 'string', pattern }, `${'a'.repeat(40)}!`);
-    expect(performance.now() - started).toBeLessThan(1_000);
-    expect(result).toMatchObject({ valid: true, skippedPatterns: [{ pattern, reason: expect.any(String) }] });
-  });
-
-  it('still runs an ordinary pattern, and fails a value that misses it', () => {
-    const result = validateSchema({ $schema: 'http://json-schema.org/draft-07/schema#', type: 'string', pattern: '^[A-Z]{3}-\\d+$' }, 'abc-1');
-    expect(result).toMatchObject({ valid: false, problems: [expect.objectContaining({ keyword: 'pattern' })] });
-    expect(result.skippedPatterns).toBeUndefined();
   });
 
   it('caps the problems it lists and says how many there were', () => {
