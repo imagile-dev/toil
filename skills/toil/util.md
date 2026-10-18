@@ -1,30 +1,35 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, and time zone, duration, business-day and cron arithmetic
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, and time zone, duration, business-day and cron arithmetic
 ---
 
 # Local utilities (`util`)
 
-Commands that work on what's on this machine: a token you paste, the manifests
-and lockfiles in the workspace, or a time and a time zone. They aren't integrations. There is no
-server, no connection to add, no `TOIL_UTIL_*` variable, no credential and no
-`--connection` flag, and none of them sends anything over the network. Every
-command reads; none changes anything. Verification level: `unit`.
+Commands that work on what's on this machine: a token you paste, a file in the
+workspace (a certificate or a log, say), the manifests and lockfiles there, a report a
+build left behind, or a time and a time zone. They aren't integrations. There is no server, no connection to
+add, no `TOIL_UTIL_*` variable, no credential and no `--connection` flag, and none
+of them sends anything over the network. None changes anything: the only file one
+writes is a new one you name with `--out`, inside the workspace, and it never
+replaces a file. Verification level: `unit`.
 
-The `jwt` and `deps` commands each have two paths that do the same thing, with the
-same flags and output. The `util` path is the main one, and the short path is an
-alias:
+`jwt` and `deps` also have a short path, an alias that does the same thing with
+the same flags and output:
 
 | Command | Alias | MCP tool |
 |---------|-------|----------|
 | `toil util jwt decode` | `toil jwt decode` | `util_jwt_decode` |
 | `toil util deps scan` | `toil deps scan` | `util_deps_scan` |
 | `toil util deps diff` | `toil deps diff` | `util_deps_diff` |
-| `toil util time convert` | none | `util_time_convert` |
-| `toil util time duration` | none | `util_time_duration` |
-| `toil util time business-days add` | none | `util_time_business_days_add` |
-| `toil util time business-days diff` | none | `util_time_business_days_diff` |
-| `toil util time cron` | none | `util_time_cron` |
+| `toil util encode` | | `util_encode` |
+| `toil util cert` | | `util_cert` |
+| `toil util report` | | `util_report` |
+| `toil util log` | | `util_log` |
+| `toil util time convert` | | `util_time_convert` |
+| `toil util time duration` | | `util_time_duration` |
+| `toil util time business-days add` | | `util_time_business_days_add` |
+| `toil util time business-days diff` | | `util_time_business_days_diff` |
+| `toil util time cron` | | `util_time_cron` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
@@ -166,6 +171,353 @@ Known quirks:
   survives. A package present at two versions can show a change that didn't happen.
 - Paths that git quotes (non-ASCII names) aren't read at a ref.
 - A ref that starts with `-`, or an empty `--from`, is refused with `INVALID_INPUT` before git runs. An empty `--to` means the working tree.
+
+### `toil util encode`
+
+Encodes or decodes base64, base64url, hex and URL percent-encoding, and hashes a
+file with SHA-256, SHA-1 or MD5. Each result is checked before it's returned, and
+`data.verified` says how.
+
+```bash
+toil util encode base64 --text 'you@example.com:abc12345'
+toil util encode base64 --decode mail-part.b64 --out logo.png
+toil util encode url --text 'project = PAY AND assignee = "you@example.com"'
+toil util encode form --decode --text 'project+%3D+PAY+AND+assignee+%3D+%22you%40example.com%22'
+printf 'hello' | toil util encode hex
+toil util encode sha256 release.tgz
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `<scheme>` | `base64`, `base64url`, `hex`, `url`, `form`, or a hash: `sha256`, `sha1`, `md5`. Required |
+| `[file]` | A file inside the workspace. `-`, or leaving out both the file and `--text`, reads stdin |
+| `--text <text>` | The content itself, instead of a file. It's encoded as UTF-8 |
+| `--decode` | Decode instead of encode. Not for a hash |
+| `--out <file>` | Write the result to this new file inside the workspace instead of returning it. Never replaces a file. Not for a hash |
+
+The schemes:
+
+- **`base64`** is written padded. Decoding accepts it with or without padding, and
+  ignores spaces and line breaks, so MIME-wrapped base64 reads as it is.
+- **`base64url`** (`-` and `_`) is written without padding, as JWTs use it, and
+  read with or without.
+- **`hex`** is written in lower case and read in either. Spaces and line breaks are
+  ignored; a `0x` prefix or `:` separators are not.
+- **`url`** is a URL component, written as JavaScript's `encodeURIComponent` writes
+  it: letters, digits and `-_.!~*'()` stay, every other byte becomes `%XX`.
+- **`form`** is one name or value of an `application/x-www-form-urlencoded` body:
+  letters, digits and `*-._` stay, a space becomes `+`, and every other byte becomes
+  `%XX`. Decode a body one field at a time. A whole body decodes, but its `=` and
+  `&` come back the same as an encoded `%3D` and `%26`, so `roundtrip.encode`
+  fails, as it should.
+
+Output:
+
+- **Encode:** `{ operation: "encode", scheme, inputBytes, outputBytes, output, verified }`.
+- **Decode:** `{ operation: "decode", scheme, inputBytes, outputBytes, utf8, output, verified }`.
+  `utf8` says whether the decoded bytes are valid UTF-8.
+- **Hash:** `{ operation: "hash", scheme, inputBytes, hex, base64, verified }`, the
+  digest both ways.
+- With `--out`, `file` (the absolute path written) replaces `output`.
+
+The input is bytes: a file or stdin is encoded or hashed exactly as it is, so
+`echo hello | toil util encode base64` includes the newline `echo` adds. Use
+`printf` or `--text` to leave it out. When decoding, one trailing line ending is
+dropped.
+
+**Decoded bytes that aren't valid UTF-8 are refused** with `INVALID_INPUT` unless
+`--out` names a file to write them to. JSON can only carry them as text, and any
+text would be different bytes. Valid UTF-8 comes back as the text it is.
+
+What `data.verified` checks:
+
+| Check | What it means |
+|-------|---------------|
+| `roundtrip.decode` | An encode was decoded back, and gave exactly the input |
+| `roundtrip.encode` | A decode was encoded again, and gave the input, allowing for whitespace, padding, the case of hex and `%XX`, and `%20` for `+` in a form |
+| `input.complete` | The bytes read equal the file's size on disk, so a read that stopped short can't pass. Unchecked for stdin, which has no size |
+| `output.file` | The file written was read back, and holds exactly the bytes written |
+
+A failed check sets `verified.passed` to `false` and adds a warning:
+`ENCODE_ROUNDTRIP_MISMATCH`, `INPUT_INCOMPLETE` or `ENCODE_OUTPUT_MISMATCH`. Input
+that decodes but fails `roundtrip.encode` isn't how the scheme writes those bytes.
+For example, base64 `QR==` decodes to `A`, but base64 writes `A` as `QQ==`, and a URL
+with a space left in it isn't encoded. Check that it wasn't changed on the way.
+
+Errors:
+
+- Text that isn't the scheme is `INVALID_INPUT`, naming the offset of the first
+  character that's wrong but never the character, in case the text is a credential.
+  A base64 character that only base64url uses (or the other way round) says to try
+  the other scheme.
+- A file to decode that looks binary (a NUL byte), `--decode` or `--out` with a hash,
+  and a scheme toil doesn't have are `INVALID_INPUT`.
+- Encoding or decoding reads at most 64 MiB. A hash of a file streams, with no
+  limit; stdin is held in memory, so it keeps the 64 MiB limit.
+
+MD5 and SHA-1 are here to match checksums that other tools publish, not to protect
+anything. The audit log keeps only a hash of `--text`.
+
+### `toil util cert`
+
+Decodes X.509 certificates, one or a chain bundle, in PEM or DER, so you can
+explain a TLS failure from the files. It never connects to the host the certificate
+is for: pass the file the server is configured with, or the chain a client saved.
+
+```bash
+toil util cert chain.pem
+toil util cert chain.pem --host api.imagile.dev
+toil util cert server.der
+cat chain.pem | toil util cert -
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `[file]` | A file in the workspace, PEM or DER. `-`, or leaving it out, reads stdin |
+| `--text <text>` | The PEM itself, instead of a file. Over MCP, `text` is read as UTF-8, so a DER certificate goes as `file` |
+| `--host <host>` | A host name or IP address: do the first certificate's SANs cover it? |
+
+Output: `{ format, certificates, skipped, chain, host, verified }`. Each
+certificate is `{ position, line, offset, subject, issuer, sans, serial, validity:
+{ notBefore, notAfter, daysLeft, status }, key: { type, bits, curve },
+signatureAlgorithm: { name, oid }, selfSigned, basicConstraints: { ca, pathLength },
+keyUsage, extendedKeyUsage, fingerprints: { sha1, sha256 } }`. `position` counts
+every block in a PEM bundle (or element in a DER one) from 1, `line` is where a PEM
+block starts and `offset` where a DER certificate does. `status` is `valid`,
+`expired` or `not-yet-valid`, and `daysLeft` is negative once expired.
+`basicConstraints`, `keyUsage` and `extendedKeyUsage` are null when the certificate
+doesn't have that extension.
+
+What it checks, in `data.verified` (a failure also warns under its code):
+
+| Check | Means | Fails with |
+|-------|-------|------------|
+| `bundle.readable` | Every block meant to be a certificate decodes | `CERT_UNREADABLE` |
+| `decode.matchesNode` | toil's DER reader and `node:crypto` agree on the serial and CA flag, and nothing follows the certificate in its block | `CERT_DECODE_MISMATCH` |
+| `validity.notExpired`, `validity.started` | Each certificate is inside its validity window now | `CERT_EXPIRED`, `CERT_NOT_YET_VALID` |
+| `chain.order` | Each certificate's issuer is the next one's subject | `CERT_CHAIN_ORDER` |
+| `chain.signature` | Where the names match, each signature verifies with the next certificate's key, and a self-issued last certificate with its own | `CERT_SIGNATURE_MISMATCH` |
+| `chain.root` | Unchecked (`UNVERIFIED`) when the last certificate isn't self-signed, so its issuer doesn't follow it: the chain is checked only as far as the bundle goes | |
+| `host.covered` | With `--host`, a DNS or IP SAN of the first certificate covers it | `CERT_HOST_MISMATCH` |
+| `input.complete` | The whole file was read (unchecked for stdin) | `INPUT_INCOMPLETE` |
+
+- The chain is checked in the order given, leaf first. When it's out of order but
+  is one chain in another order, `chain.suggestedOrder` lists the positions in the
+  right order and `CERT_CHAIN_REORDER` says so.
+- `chain.inOrder` is true when every link's names match and every signature
+  checked verifies. `chain.root` is `included` when the last certificate is
+  self-signed. Nothing is checked against a trust store: a chain that verifies to
+  a root in the bundle isn't thereby trusted.
+- `--host` follows what browsers do: SANs only, never the subject CN, and a
+  wildcard covers exactly one label (`*.imagile.dev` covers `api.imagile.dev`, not
+  `imagile.dev` or `a.api.imagile.dev`). `host.explanation` says why it's covered
+  or not.
+- A PEM block that isn't a certificate is skipped, listed in `skipped` and named in
+  a `CERT_BLOCK_SKIPPED` warning. A private key is never read, and
+  `CERT_PRIVATE_KEY_IN_INPUT` says one was there. `CERTIFICATE` and
+  `X509 CERTIFICATE` blocks are read; `TRUSTED CERTIFICATE`, PKCS#7 (`.p7b`) and
+  PKCS#12 (`.pfx`) are not.
+- In DER input a damaged certificate ends the reading, since nothing says where the
+  next one starts; it's reported at its byte offset.
+- Input with no certificate that can be read fails with `INVALID_INPUT`, naming
+  each block and why.
+
+### `toil util report`
+
+One JSON summary of a report that CI or a scanner wrote: JUnit XML, TRX, SARIF
+2.1.0, lcov or Cobertura. It reads the file and nothing else, and checks the report
+against its own declared totals.
+
+```bash
+toil util report target/surefire-reports/TEST-dev.imagile.OrderTest.xml
+toil util report TestResults/build.trx
+toil util report coverage/lcov.info --lowest 5
+toil util report results.sarif
+cat coverage.xml | toil util report --format cobertura
+```
+
+| Argument / flag | Meaning |
+|-----------------|---------|
+| `[file]` | The report, inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--text <text>` | The report itself, instead of a file |
+| `--format <format>` | `junit`, `trx`, `sarif`, `lcov` or `cobertura`. Left out, it's detected from the content: the root element for XML (`<testsuites>` or `<testsuite>`, `<TestRun>`, `<coverage>`), `"runs"` for SARIF, a first `TN:` or `SF:` line for lcov |
+| `--lowest <n>` | How many of the lowest-covered files to list (default 10, up to 1000) |
+
+Over MCP the tool is `util_report`, with `file` or `text`, `format` and `lowest`.
+
+Output: `{ format, formatFrom, tests, findings, coverage, skipped, verified }`.
+`formatFrom` is `content` or `flag`. One of `tests`, `findings` and `coverage` is
+filled in, by format, and the other two are `null`.
+
+- **`tests`** (JUnit, TRX): `{ suites, totals: { tests, passed, failures, errors,
+  skipped, flaky, other }, failures: [{ suite, name, className, kind, type,
+  message, file, line, location, stack, stackLines }] }`. The totals are recounted
+  from the cases, never copied from the report. `kind` is `failure` or `error`.
+  `stack` is the first 15 lines, and `stackLines` how many there were. `location` is
+  `report` when the report states `file` or `line`, and `stack` when they were read
+  from the first stack frame naming the test's class or method (an `APPROXIMATED`
+  warning says how many). It's `null` when neither has one.
+- **`findings`** (SARIF): `{ runs: [{ tool, version, results }], total, byLevel,
+  results: [{ tool, rule, level, kind, file, line, message, suppressed }] }`. `level`
+  follows the spec: the result's own, else its rule's default, else `warning` for a
+  failing result and `none` for any other. `file` is the first location's URI as
+  written, and `line` its `startLine`.
+- **`coverage`** (lcov, Cobertura): `{ sources, totals: { lines, branches }, files:
+  [{ file, lines, branches }], lowest }`. Each figure is `{ covered, total, percent }`,
+  with `percent` rounded to two places (`null` when there's nothing to cover).
+  `branches` is `null` where the report has no branch data. `lowest` lists the
+  `--lowest` files with the lowest line coverage, leaving out files with no lines.
+- **`skipped`**: `{ count, elements: [{ element, count, reason }] }`, every element
+  (or lcov record) the reader met and didn't read, also warned as
+  `REPORT_ELEMENTS_SKIPPED`. Known parts that hold nothing it summarises
+  (`system-out`, `properties`, TRX's settings and lists, Cobertura's per-method copies
+  of the lines) aren't counted.
+
+What `verified` checks:
+
+| Format | Check | Warning when it fails |
+|--------|-------|-----------------------|
+| JUnit | Each suite's (and `<testsuites>`') declared `tests`, `failures`, `errors` and `skipped`, recounted from its cases, nested suites included | `REPORT_TOTALS_MISMATCH`, naming both numbers |
+| TRX | `<Counters>`' `total` and each outcome counter, recounted from the results' `outcome` | `REPORT_TOTALS_MISMATCH` |
+| Cobertura | Every stated `line-rate` and `branch-rate` (class, package and root), to within one unit of its last written decimal, and the root's `lines-covered`, `lines-valid`, `branches-covered` and `branches-valid` | `REPORT_COVERAGE_MISMATCH` |
+| lcov | Each record's `LF`, `LH`, `BRF`, `BRH`, `FNF` and `FNH`, recounted from its `DA`, `BRDA`, `FN` and `FNDA` lines | `REPORT_COVERAGE_MISMATCH` |
+| SARIF | Each `ruleIndex` points at the rule its `ruleId` names | `REPORT_SARIF_INCONSISTENT` |
+| All | The whole input was read (`input.complete`) | `INPUT_INCOMPLETE`, or `INPUT_TRUNCATED` at the cap |
+
+What it can't check is reported as `UNVERIFIED`, never as passed: a JUnit report
+that declares no totals, SARIF (which declares none), a TRX counter left at `0` over
+results with that outcome (VSTest leaves `notExecuted` at 0, for one), and the size
+of stdin. TRX's `executed` isn't compared, because writers disagree on what it
+counts.
+
+Formats it reads:
+
+- **JUnit:** Maven Surefire's, the Jenkins shape (nested `<testsuite>`s, `status`,
+  `assertions`, `disabled`) and the Azure DevOps shape (the VSTest JUnit logger's).
+  Surefire's `flakyFailure` and `flakyError` mean a rerun passed: the case counts as
+  passed and in `flaky`. A case with `<error>` is an error, else one with
+  `<failure>` is a failure, else one with `<skipped>` is skipped.
+- **TRX:** `dotnet test --logger trx` and Visual Studio's. Top-level results are
+  counted, as the counters count them, and a data-driven test's inner rows aren't.
+  `failures` is `Failed`; `errors` is `Error`, `Timeout` and `Aborted`; `skipped` is
+  `NotExecuted` and `NotRunnable`; any other outcome is `other`. `suites` is the
+  number of test classes, and a failure's `suite` is its class.
+- **SARIF 2.1.0:** any tool's. A rule reference with a `toolComponent` index is
+  looked up in that entry of `tool.extensions` (CodeQL query packs); one that names
+  its component only by `guid` can't be found, so `sarif.ruleIndex` is `UNVERIFIED`
+  and the level falls back to `warning`. A file with another `version` is read as
+  2.1.0, with an `APPROXIMATED` warning. A run whose invocation says it failed warns
+  `REPORT_TOOL_FAILED`.
+- **lcov:** `SF` to `end_of_record` records, including lcov 2's `FNL` and `FNA`.
+  `FNH` is recounted as distinct functions hit: `FNA` by index, so a function's
+  aliases count once, and `FNDA` by name. A file in several records is merged, and a
+  line is covered when any record hit it.
+- **Cobertura:** coverlet's, coverage.py's and others'. Classes in the same file are
+  added together, and branch counts come from `condition-coverage="50% (1/2)"`.
+
+Limits: XML and lcov stream, so memory stays flat for a report of any size, apart
+from the failures it lists, up to the 64 MiB input cap. At the cap the read stops,
+`INPUT_TRUNCATED` says so, `input.complete` fails, and what came before the cut is
+summarised; a suite the cut left open isn't compared. SARIF is JSON and is read
+whole, so a SARIF file over the cap is `INVALID_INPUT`. Malformed XML or JSON is
+`INVALID_INPUT` with the line and column. So is a document whose format can't be
+detected, or whose root doesn't match `--format`, with a fix naming `--format`.
+
+### `toil util log`
+
+Triages a large log (a CI console, a Maven, npm or dotnet build, a test run) into
+what's worth reading: its error and warning lines grouped by signature, each with the
+stack trace that follows it. It reads the file only, streams it, and holds memory
+constant however large the log is.
+
+```bash
+toil util log build.log
+toil util log console.log --level error --context 3
+toil util log console.log --since 2026-10-14T09:12:00Z --grep 'Failed to execute'
+some-build 2>&1 | toil util log -
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `[file]` | The log, inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--text <text>` | The log itself, instead of a file |
+| `--since <timestamp>` | Only lines dated at or after this ISO 8601 time (`2026-10-14`, `2026-10-14T09:12:00Z`, `"2026-10-14 09:12:00"`). A line with no date takes the date of the last dated line before it. Without a zone, a time is read as UTC |
+| `--level <level>` | `warning` (default) reports errors and warnings; `error` reports errors only |
+| `--grep <regex>` | Only error and warning lines matching this JavaScript regular expression (case-sensitive, no slashes or flags). An error also matches when the exception line heading its trace does (`--grep IllegalStateException`). Frames aren't searched; `LOG_GREP_STACK_ONLY` says when only they matched |
+| `--max-groups <n>` | The most groups to return, default 50, up to 1000 |
+| `--context <n>` | Lines to show before and after each group's sample, default 0, up to 20 |
+
+Over MCP the tool is `util_log`, with `file` (a path in the workspace) or `text`, and
+the same fields: `since`, `level`, `grep`, `maxGroups`, `context`.
+
+How it reads a log:
+
+- **Timestamps:** a leading timestamp, bracketed (Jenkins' timestamper) or bare (CI
+  runners, log4j, Serilog), is set aside before anything else, so it never splits a
+  group.
+- **Levels:** the first level word decides (`ERROR`, `FATAL`, `SEVERE`, `WARN`,
+  `WARNING`, `INFO`, `DEBUG` …, and npm's `npm error` / `npm warn`). A line tagged
+  `INFO`, or with no tag, is still an error by its shape: `BUILD FAILURE`, `FAILED`,
+  `error CS0246:`, `error TS2322:`, `TypeError: …`, `Unhandled exception.`, an eslint
+  or vstest failure line. A tag with nothing after it (`[ERROR] `) is not a group.
+- **Signatures:** dates and times, UUIDs, hex and every number are replaced, and
+  spaces collapsed. Codes such as `CS0246` and `TS2322` keep their digits, and paths
+  and quoted names stay, so two different errors stay apart.
+- **Stack traces:** Java (`at …(File.java:12)`, `Caused by:`, `... 14 more`), .NET
+  (`at … in file:line 9`, `--->`, `--- End of inner exception stack trace ---`), Node
+  (`at fn (file:12:3)`) and Python (`Traceback (most recent call last):`, printed
+  before its exception) are joined to the error they belong to, with the exception
+  line that heads one. An exception line joins an error, never a warning: after a
+  warning it's an error of its own. A trace is reported for each group's first occurrence, up to
+  50 lines.
+
+Output:
+
+```json
+{
+  "lines": { "total": 76, "error": 20, "warning": 5, "other": 35, "stack": 12, "unclassified": 4 },
+  "matched": 25, "filtered": 0, "groupsTotal": 18, "truncated": false, "ungrouped": 0, "unjoinedFrames": 0,
+  "groups": [{
+    "level": "error",
+    "signature": "[ERROR] /build/ledger/Reconciler.java:[<n>] cannot find symbol",
+    "count": 4, "firstLine": 27, "lastLine": 52,
+    "sample": "[ERROR] /build/ledger/Reconciler.java:[54,38] cannot find symbol",
+    "trace": { "kind": "java", "firstLine": 57, "lastLine": 68, "frames": 12, "lines": ["…"] },
+    "context": { "before": [{ "line": 26, "text": "…" }], "after": [{ "line": 28, "text": "…" }] }
+  }],
+  "verified": { "passed": true, "checks": [{ "check": "lines.reread", "status": "passed", "checked": 36, "failed": 0 }] }
+}
+```
+
+Groups are errors first, then warnings, each in order of first appearance. `lines`
+classes every line once: `other` is a level below warning, `stack` a trace line, and
+`unclassified` a line with no level at all. `filtered` counts the error and warning
+lines `--since`, `--level` or `--grep` left out.
+
+It checks its own answer, in `data.verified`:
+
+- **`lines.reread`:** every group's first line is read again from the file and must
+  be its sample, and its last line must still have its signature. `trace.reread`
+  does the same for every trace line shown. A mismatch is `LOG_LINE_MISMATCH`, which
+  usually means the file changed while it was read.
+- **`groups.sum`, `lines.sum`, `filter.sum`:** the group counts add up to the matched
+  lines, the line classes to the lines read, and matched plus filtered to the error
+  and warning lines. A mismatch is `LOG_COUNT_MISMATCH`.
+- **`input.complete`:** the bytes read equal the file's size. It's `unchecked` for
+  stdin and text.
+
+What it reports in `meta.warnings` rather than leave out: `LOG_UNCLASSIFIED` (lines
+with no level, in no group), `LOG_GROUPS_TRUNCATED` (more groups than
+`--max-groups`), `LOG_UNGROUPED` (matched lines whose signature came after the first
+2,000 distinct ones, counted but not grouped, which is what keeps memory constant),
+`LOG_TRACE_UNJOINED` (trace lines with no error before them), `LOG_GREP_STACK_ONLY`
+(`--grep` matched only stack trace lines), `LOG_SINCE_UNDATED`
+(lines `--since` couldn't date, kept), and `APPROXIMATED` for a line longer than
+4,096 characters (grouped by its start) or a `--since` compared with times that had
+no zone.
+
+A file streams with no size limit. stdin and `--text` are held in memory, up to
+64 MiB, so pass a file for anything bigger.
 
 ### Time: `toil util time`
 

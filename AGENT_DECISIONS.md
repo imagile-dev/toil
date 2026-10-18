@@ -1077,6 +1077,184 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   document without aliases is held by the input cap alone. js-yaml has no switch
   to reject aliases, and the count also stops a cycle.
 
+### util report (#175)
+
+- **One of `tests`, `findings` and `coverage` is filled in, the other two are
+  `null`**, so every format returns the same keys and a caller branches on which one
+  is set rather than on `format`.
+- **Totals are always the recount.** The report's own figures are only what the
+  checks compare against, so a report that lies about its totals still gets a true
+  summary, plus the warning.
+- **No JUnit "variant" field.** Surefire, Jenkins and Azure DevOps reports differ in
+  where totals sit and which extra elements appear, not in how a case passes or
+  fails, so one reader takes all three and nothing is guessed about which tool wrote
+  the file.
+- **Surefire's `flakyFailure`/`flakyError` count as passed**, as Surefire's own
+  `failures` count and Jenkins treat them, and are also counted in `flaky`.
+- **A failure's file and line come from the stack when the report states none**:
+  the first frame naming the test's class or method, else the first frame that isn't
+  a framework or runtime one. Each such failure says `location: "stack"`, and an
+  `APPROXIMATED` warning gives the count.
+- **TRX:** only top-level results are counted (a data-driven test's inner rows
+  aren't), since that's what `<Counters>` counts. `executed` isn't compared, and a
+  counter declared 0 over results that have its outcome is `UNVERIFIED` rather than
+  failed, because VSTest leaves `notExecuted` at 0 when tests are skipped. A real
+  `dotnet test` report would otherwise fail its own check every time it skipped one.
+  Outcomes map to totals as `Failed` to failures, `Error`/`Timeout`/`Aborted` to
+  errors, `NotExecuted`/`NotRunnable` to skipped, and the rest to `other`.
+- **A Cobertura rate is allowed one unit in its last written decimal place** (half a
+  ten-thousandth for a whole number such as `"1"`), which covers writers that round
+  (coverlet, coverage.py's `%.4g`) and ones that truncate, without accepting a rate
+  that is really wrong.
+- **Cobertura lines are counted from each class's `<lines>`**, and classes that share
+  a file are added together, which is what the root's `lines-valid` sums. The copies
+  under `<methods>` are read past.
+- **lcov records for the same file are merged**, a line covered when any record hit
+  it. The checks run per record, against each record's own figures.
+- **SARIF is read whole**, within the 64 MiB input cap, because the kit has no
+  streaming JSON reader and SARIF has no line structure to stream by. The cap is
+  reported as `INVALID_INPUT`. SARIF declares no totals, so `findings.totals` is
+  always `UNVERIFIED`; what is checked is that each `ruleIndex` points at the rule
+  its `ruleId` names.
+- **At the size cap, a streamed report is summarised up to the cut** rather than
+  refused: `INPUT_TRUNCATED` and a failed `input.complete` say it's partial, and a
+  suite the cut left open isn't compared against its declared totals.
+- **Known parts that hold nothing summarised aren't "skipped"** (`system-out`,
+  `properties`, TRX's settings, lists and output, Cobertura's `<methods>` and
+  `<conditions>`). Only an element the reader doesn't know is counted in
+  `data.skipped`, so the count means something.
+- **No kit addition.** The input reader, `Verifier` and the streaming XML reader
+  covered everything.
+- **The readers are a static import, not `import()`**, because they reach zod
+  through `kit/input.ts`, and a lazily loaded module that does breaks the built
+  bundle at startup (found on #188). They have no dependency of their own.
+
+### util cert (#181)
+
+- **A small built-in DER reader, no ASN.1 dependency.** `node:crypto`'s
+  `X509Certificate` gives every field the issue lists except two: the key usage
+  bits (its `keyUsage` is the extended key usage) and the basic constraints' path
+  length (it gives only `ca`). `src/areas/util/cert/der.ts` reads just the
+  certificate's outline, serial and extensions, about 150 lines, rather than adding
+  a library that reads all of ASN.1. It also splits DER bundles. Its serial and CA
+  flag are checked against Node's on every certificate (`decode.matchesNode`).
+- **The chain is checked in the order given, leaf first**, as servers send it. The
+  signature check runs only on links whose names match; a link whose names don't is
+  already a `chain.order` failure, and there's no issuer to verify against. When
+  the bundle is one chain in another order, the right order is suggested.
+- **No trust store.** A bundle whose last certificate is self-signed ends at its
+  root (`chain.root: included`); one whose last issuer isn't in the bundle is
+  `UNVERIFIED`, never assumed. Checking against the system's or Node's roots would
+  make the answer depend on the machine.
+- **`--host` matches SANs only, as browsers do**, never the subject CN, with
+  single-label wildcards and no partial ones (`f*.imagile.dev`). It checks the first
+  certificate.
+- **No alias.** The three older commands keep their top-level paths because they had
+  them; `cert` never did, so it's `toil util cert` only.
+- **A private key in the input is skipped unread**, with its own warning, and a PEM
+  block that isn't a certificate is skipped and named rather than refused, so a
+  `fullchain.pem` with a key beside it still decodes.
+- **Test certificates are made per run** (`test/harness/x509.ts`, a DER writer that
+  signs with keys generated in memory), so none expires and no key is committed. The
+  real public chains are two cross-signed CA certificates and the roots that signed
+  them (`test/fixtures/certs/`), exported from a Windows intermediate store and
+  Node's bundled roots: public CA certificates, with no host of anyone's. The text
+  example is a self-signed Ed25519 certificate for `example.imagile.dev`, valid to
+  9999-12-31, whose key was discarded.
+- **The lazy module stays free of zod.** `cert/decode.ts` and what it loads
+  (`core/errors`, `kit/verify`, `cert/der`) import no zod; it takes `UtilInput` as a
+  type only, and `cert.ts`, which imports `kit/input`, is static. A lazily loaded
+  module that reaches zod breaks the built bundle, which only `npm run smoke` shows.
+- **Kit:** none in the end. DER input is read with `binary: 'allow'` and
+  `utf8: 'skip'`, the switch `util encode` added, rather than making `binary`
+  silence the UTF-8 warning too: one switch per check.
+### util encode (#182)
+
+- **One command, the scheme as its first argument:** `toil util encode <scheme>`,
+  with `--decode`, and the three hashes as schemes too (`util encode sha256`), rather
+  than a command per scheme or a separate hash command. One MCP tool, `util_encode`.
+- **`--out` follows `git report --out` and the attachment downloads:** a new file
+  inside the workspace through `ctx.files.writeBytes`, which never overwrites, and
+  `writes: false`. It changes nothing outside this machine, which is what the
+  `--allow-write` gate is for, and a standalone command has no connection to hold
+  `writes`. The file is read back and compared (`output.file`).
+- **Decoded bytes that aren't valid UTF-8 are refused without `--out`**
+  (`INVALID_INPUT`, the fix naming `--out`), rather than returned as base64 or hex.
+  The caller asked for a decode; a second encoding they didn't ask for would be a
+  guess. Valid UTF-8, NUL bytes included, is returned as text, since JSON carries
+  it unchanged.
+- **The decoders are strict where Buffer is lenient:** a character outside the
+  alphabet, misplaced padding, an impossible length, an odd number of hex digits or
+  a `%` without two hex digits is `INVALID_INPUT`, naming the offset but never the
+  character. Whitespace is ignored in base64 and hex (MIME wraps lines), and one
+  trailing line ending is dropped before any decode.
+- **Normalization for the re-encode check** is whitespace, padding (base64 padded,
+  base64url not, as each is written), hex and `%XX` case, and `%20` for `+` in a
+  form. Anything else that decodes but doesn't re-encode the same (base64 `QR==`, a
+  raw space in a URL) fails `roundtrip.encode` and warns `ENCODE_ROUNDTRIP_MISMATCH`;
+  the decoded result is still returned, as the kit reports rather than refuses.
+- **`url` is `encodeURIComponent`'s set** (`-_.!~*'()` unescaped), so what
+  JavaScript writes reads back unchanged; **`form`** is the WHATWG
+  `application/x-www-form-urlencoded` set. Both work over bytes, so input that isn't
+  UTF-8 encodes too.
+- **A file hash has no size cap**, since it streams; stdin and encode/decode keep
+  the reader's 64 MiB. A hash whose read stopped short still returns its digest,
+  with `input.complete` failed, `verified.passed` false and `INPUT_INCOMPLETE`, as
+  the kit reports every failed check.
+- **Kit addition:** `utf8: 'skip'` on the input reader, so a command that treats
+  content as bytes doesn't warn `INPUT_NOT_UTF8` about bytes it never shows as text.
+- **The work isn't lazily loaded.** `encode/run.ts` reads through `kit/input.ts`,
+  which imports zod, and reaching zod through `import()` made esbuild defer zod's
+  setup, so the built bundle failed at startup (`toil version` included) while
+  every unit test passed. It's small and uses only Node built-ins, so it's a
+  static import; `docs/util.md` now warns about the trap under Lazy loading.
+- **The audit log keeps only a hash of `text`** (`auditInput`), since the content
+  may be a credential on its way into a header.
+- **The utilities page shows a short path only for `jwt` and `deps`,** the commands
+  that have one, instead of assuming every `util` command does.
+- **A SARIF rule reference whose `toolComponent` can't be found by index** (named
+  only by `guid`) leaves `sarif.ruleIndex` `UNVERIFIED` and the level at the spec's
+  fallback, rather than guessing which component it means (review of #191).
+
+### util log (#176)
+
+- **Lines with no level are counted, not grouped.** "Couldn't classify" means a line
+  with no level word and no error or warning shape (a `[Pipeline]` step, a shell
+  echo). They're `lines.unclassified` in `data` and one `LOG_UNCLASSIFIED` warning;
+  `--context` shows the ones around each sample.
+- **Signatures keep paths, quoted names and error codes.** Only dates, times, UUIDs,
+  hex and numbers are replaced, as the issue lists. `CS0246` and `TS2322` keep their
+  digits (no word boundary before them), so two compiler errors in one file stay two
+  groups; the same warning on two properties stays two groups as well.
+- **A trace is reported for each group's first occurrence**, up to 50 lines, and its
+  text comes from the re-read pass, so the streaming pass holds only line ranges. A
+  later occurrence's trace is counted as stack lines.
+- **An exception line directly after an error joins that error's trace** (Maven's `-e`
+  trace under `[ERROR] -> [Help 1]`, a JUnit failure under surefire's `<<< FAILURE!`);
+  with no error just before it, or after a warning, it's an error of its own (review
+  round 1 on #190). Up to 8 lines with no level
+  may sit between an error and its first frame, for vstest's message block.
+- **Memory is bounded by a cap on distinct signatures (2,000), not by the log.** Matched
+  lines past it are counted as `ungrouped` with `LOG_UNGROUPED`, and the sum check
+  includes them. Lines are cut at 4,096 characters for grouping (`APPROXIMATED`).
+- **A file streams with no size cap**; stdin and text keep the reader's 64 MiB cap,
+  since they're held in memory for the re-read.
+- **Order:** errors first, then warnings, each by first appearance, because the first
+  error is usually the cause. `--max-groups` defaults to 50.
+- **`--since`:** a line with no date takes the last date before it; lines before any
+  date are kept and counted (`LOG_SINCE_UNDATED`). Times without a zone are read as
+  UTC and marked `APPROXIMATED`. Time-only prefixes (`09:12:01`) carry no date and
+  don't count.
+- **`--level` is a floor** (`warning`, the default, or `error`), and **`--grep` is a
+  case-sensitive JavaScript regex** on the whole line, with no flag syntax. An error
+  line also matches by the exception line that heads its trace, since that's where
+  the exception's name is; frames aren't searched, and `LOG_GREP_STACK_ONLY` says
+  when only they matched (review round 1 on #190).
+- **No short alias.** `util log` is new, so it has only its `util` path.
+- **The work is lazily loaded, with zod kept out of it:** `log.ts` opens the input
+  (`runLog`) and `log/triage.ts` imports only types from `kit/input.ts`, so the
+  triage code stays out of startup without tripping the trap #188 found.
+
 ### util time (#179)
 
 - **Intl only, not Temporal.** Node 24.14 has no `Temporal`, and using it only where
@@ -1119,5 +1297,3 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   No kit change.
 - **The skill checker reads `-1` as an argument, not a flag**, as commander 15 does,
   so `toil util time business-days add 2026-12-28 -1` passes `test/skills.test.ts`.
-- **The utilities page shows a short path only for `jwt` and `deps`**, the commands
-  that have one (the same change as #188).
