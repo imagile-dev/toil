@@ -19,6 +19,12 @@ export type Health = { ok: true; live: boolean; authenticated?: boolean } | { ok
 /** What the menu has learned since it opened. Nothing here is saved. */
 export interface Session {
   health: Record<string, Health>;
+  /**
+   * The last `toil dossiers show` and `check` data, by the dossier name or
+   * file the step named, so a dossier's screens show it as it is now after an
+   * edit reads it again.
+   */
+  dossiers?: Record<string, { show?: unknown; check?: unknown }>;
   /** Brick breaker's scores: the best and the last game this session, never saved. */
   brick?: { best: number; last: number };
 }
