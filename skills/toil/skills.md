@@ -80,6 +80,14 @@ off: adding a marketplace never grants installs from it. Turn them on as for any
 connection: `"writes": true` on it in `~/.toil/config.json`, or
 `TOIL_CONN_<NAME>_WRITES=true`. `remove` is CLI only.
 
+## From the menu
+
+Bare `toil` on a terminal opens a menu with **Skills** (add, update and remove a
+marketplace, turn its writes on, install a plugin for the agent and place you pick)
+and **Plugins** (tick what should be on; it shows the changes before running them).
+Every screen runs the commands below and prints each one, so the menu writes exactly
+what the command would.
+
 ## Commands
 
 ### `toil skills marketplace add <url> [localPath]`
