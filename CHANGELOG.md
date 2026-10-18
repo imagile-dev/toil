@@ -3,11 +3,6 @@
 ## 0.1.0-alpha.1 (2026-10-18)
 
 
-### ⚠ BREAKING CHANGES
-
-* **db:** toil now needs Node 22.16 or later; it previously declared 22.12. Anyone on Node 22.12 to 22.15 should upgrade Node within the 22 line. Nothing else changes: config, flags and the envelope are untouched.
-* the global --dry-run flag no longer exists; passing it is a usage error (INVALID_INPUT). Scripts that relied on it should run the command without --allow-write, which refuses the write.
-
 ### Features
 
 * **ado-cloud:** add Azure DevOps Services integration beside Azure DevOps Server ([#225](https://github.com/imagile-dev/toil/issues/225)) ([c9032e2](https://github.com/imagile-dev/toil/commit/c9032e2f9bc33566d8791c3977363eeb252ee961))
