@@ -230,6 +230,14 @@ describe('toil skills marketplace add', () => {
     expect(readJson(file).connections.corp.writes).toBe(true);
   });
 
+  it('reports writes as the gate resolves them, with an env var over the file', async () => {
+    writeConfig({ version: 2, connections: { corp: { area: 'skills', repoUrl: REPO, writes: false } }, defaults: {} });
+    const run = await cli(['skills', 'marketplace', 'add', REPO, '--name', 'corp', '--allow-write'], context({ git: fakeGit(), env: { TOIL_CONN_CORP_WRITES: 'true' } }));
+    expect(run.envelope?.data).toMatchObject({ writes: true, next: expect.stringMatching(/^Writes are on for it \(from an env var\)\. Install from it with: toil skills marketplace sync all --marketplace corp/) });
+    // The file keeps the person's own setting; only the env var turned it on.
+    expect(readJson(file).connections.corp.writes).toBe(false);
+  });
+
   it('re-added over a hand-edited connection, keeps its clone, branch, token, writes and every other key', async () => {
     const custom = join(root, 'my-clone');
     const store = fakeStore({ entries: { 'corp.token': TOKEN } });

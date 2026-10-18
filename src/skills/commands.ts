@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
-import { CONNECTION_NAME, readConfigForEdit, writeConfigFile, type ConnectionSettings, type EditableConfig, type ResolvedConfig } from '../core/config.js';
+import { CONNECTION_NAME, connectionWrites, readConfigForEdit, writeConfigFile, type ConnectionSettings, type EditableConfig, type ResolvedConfig } from '../core/config.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified } from '../core/keychain.js';
@@ -163,7 +163,10 @@ export function skillsConfigCommands(): AnyCommand[] {
       if (existing?.token && token && isKeychainRef(existing.token) && existing.token !== tokenRef) await deleteUnreferenced(file, existing.token, ctx);
 
       const available = pluginsIn(dir).map((p) => ({ name: p.name, description: p.description }));
-      const writes = conn.writes === true || conn.writes === 'true';
+      // The value the write gate will use: env over the file, as for every connection.
+      const resolved = config.connections[name];
+      const writes = connectionWrites(resolved?.area === AREA ? { ...conn, ...(config.sources[`${name}.writes`] === 'env' ? { writes: resolved.writes } : {}) } : conn);
+      const fromEnv = resolved?.area === AREA && config.sources[`${name}.writes`] === 'env';
       return {
         name,
         repoUrl: input.url,
@@ -177,8 +180,8 @@ export function skillsConfigCommands(): AnyCommand[] {
         available,
         total: available.length,
         next: writes
-          ? `Install from it with: toil skills marketplace sync all --marketplace ${name} --allow-write`
-          : `Writes are off for it, so nothing was installed. To install from it, set "writes": true on connection "${name}" in ${slashes(path)} (or TOIL_CONN_${name.toUpperCase().replace(/-/g, '_')}_WRITES=true), then run: toil skills marketplace sync all --marketplace ${name} --allow-write`,
+          ? `Writes are on for it${fromEnv ? ' (from an env var)' : ''}. Install from it with: toil skills marketplace sync all --marketplace ${name} --allow-write`
+          : `Writes are off for it${fromEnv ? ' (from an env var)' : ''}, so nothing was installed. To install from it, set "writes": true on connection "${name}" in ${slashes(path)} (or TOIL_CONN_${name.toUpperCase().replace(/-/g, '_')}_WRITES=true), then run: toil skills marketplace sync all --marketplace ${name} --allow-write`,
       };
     },
   });

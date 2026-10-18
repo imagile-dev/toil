@@ -220,8 +220,12 @@ describe('migration contract: output field names', async () => {
   beforeAll(() => setUp(fixtures));
   afterAll(() => tearDown(fixtures));
 
+  // A command answers for its own path's row, or for the row of an old path it
+  // keeps as an alias in another group (`deps scan` for `util deps scan`).
+  const rowOf = (def: AnyCommand) => [def.path, ...aliasPaths(def)].map((p) => byPath.get(p.join(' '))).find((row) => row?.output);
+
   for (const f of fixtures) {
-    const inContract = f.commands.filter((def) => !isCliOnly(def) && byPath.get(commandName(def))?.output);
+    const inContract = f.commands.filter((def) => !isCliOnly(def) && rowOf(def));
     if (inContract.length === 0) continue;
     it(`${f.area}: every example returns the contract's field names, apart from listed divergences`, async () => {
       const found: string[] = [];
@@ -231,7 +235,7 @@ describe('migration contract: output field names', async () => {
           const envelope = await execute(def, example, context);
           expect(envelope.ok, `${commandName(def)}: ${JSON.stringify(envelope.error)}`).toBe(true);
           const forThisCall = loadDivergences(divergenceFiles, example as Record<string, unknown>);
-          found.push(...diffOutput(byPath.get(commandName(def))!, envelope.data, forThisCall).map((d) => `${d.id}: ${d.problem}`));
+          found.push(...diffOutput(rowOf(def)!, envelope.data, forThisCall).map((d) => `${d.id}: ${d.problem}`));
         }
       }
       expect([...new Set(found)], 'rename it back, or list it in docs/divergences/<area>.json').toEqual([]);
