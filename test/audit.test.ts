@@ -152,16 +152,18 @@ describe('redaction', () => {
   });
 
   it('takes linear time on long runs that would make a backtracking pattern quadratic', () => {
+    // The limits only have to tell linear from quadratic: a quadratic pattern took
+    // about 17 s on 100,000 characters, so 1 s leaves slow CI runners plenty of room.
     const runs = ['a', 'a.', 'a-', '-a', 'a=', 'a:', '"a":', "'a'=", 'a://', '-u', '--user ', '--password=', 'Basic ', 'eyJ', 'password=', '"', 'x1'];
     for (const unit of runs) {
       const text = unit.repeat(Math.ceil(100_000 / unit.length)).slice(0, 100_000);
       const started = performance.now();
       auditInput(getThing, { note: text });
-      expect(performance.now() - started, `auditInput on 100,000 characters of ${JSON.stringify(unit)}`).toBeLessThan(50);
+      expect(performance.now() - started, `auditInput on 100,000 characters of ${JSON.stringify(unit)}`).toBeLessThan(1000);
       // The patterns themselves are linear too, without the cut in front of them.
       const direct = performance.now();
       redactText(text);
-      expect(performance.now() - direct, `redactText on 100,000 characters of ${JSON.stringify(unit)}`).toBeLessThan(500);
+      expect(performance.now() - direct, `redactText on 100,000 characters of ${JSON.stringify(unit)}`).toBeLessThan(2000);
     }
   });
 
