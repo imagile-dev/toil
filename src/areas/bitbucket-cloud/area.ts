@@ -34,11 +34,11 @@ const API_TOKENS = 'https://id.atlassian.com/manage-profile/security/api-tokens'
  * are named because a connection that still holds one fails exactly here.
  */
 function credentialFix(conn: Connection<BitbucketCloudSettings>, area: HookArea): string {
-  const appPasswords = 'App passwords no longer work and toil does not take them.';
+  const note = "App passwords no longer work and toil does not take them. A 410 means Bitbucket retired either this way of signing in or this endpoint; if the message says the API is no longer available, the endpoint is gone and a new credential won't help.";
   if (conn.accessToken) {
-    return `Bitbucket Cloud rejected the access token on connection "${conn.name}", or it lacks a scope this needs. Create a new access token in Bitbucket under Repository settings, Project settings or Workspace settings → Access tokens, with the repository, pullrequest and pipeline scopes (add pullrequest:write and repository:write for writes), then set accessToken (${area.envName('accessToken')} for the default connection). ${appPasswords}`;
+    return `Bitbucket Cloud rejected the access token on connection "${conn.name}", or it lacks a scope this needs. Create a new access token in Bitbucket under Repository settings, Project settings or Workspace settings → Access tokens, with the repository, pullrequest and pipeline scopes (add pullrequest:write and repository:write for writes), then set accessToken (${area.envName('accessToken')} for the default connection). ${note}`;
   }
-  return `Bitbucket Cloud rejected the email and API token on connection "${conn.name}", or the token lacks a scope this needs. Create an API token with scopes at ${API_TOKENS} (Create API token with scopes → Bitbucket), with read:repository:bitbucket, read:pullrequest:bitbucket, read:pipeline:bitbucket and read:user:bitbucket (add write:pullrequest:bitbucket and write:repository:bitbucket for writes), then set apiToken (${area.envName('apiToken')} for the default connection) and check email (${area.envName('email')}) is that account's address. ${appPasswords}`;
+  return `Bitbucket Cloud rejected the email and API token on connection "${conn.name}", or the token lacks a scope this needs. Create an API token with scopes at ${API_TOKENS} (Create API token with scopes → Bitbucket), with read:repository:bitbucket, read:pullrequest:bitbucket, read:pipeline:bitbucket and read:user:bitbucket (add write:pullrequest:bitbucket and write:repository:bitbucket for writes), then set apiToken (${area.envName('apiToken')} for the default connection) and check email (${area.envName('email')}) is that account's address. ${note}`;
 }
 
 /**

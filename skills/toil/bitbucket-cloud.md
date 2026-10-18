@@ -212,7 +212,7 @@ toil bitbucket-cloud api POST repositories/imagile/toil/pullrequests/42/comments
   `API_TRUNCATED` warning when the body was longer. An empty body (a `204`, a `HEAD`)
   is `null`. `meta.response` is `{ status, contentType }`. Errors use the usual codes
   (`AUTH`, `NOT_FOUND`, `HTTP`, `NETWORK`) with Bitbucket's own message; a `410` here
-  is `HTTP`, not `AUTH`. A body labelled JSON that doesn't parse comes back as text,
+  is `AUTH`, as it is on every other command. A body labelled JSON that doesn't parse comes back as text,
   with an `API_NOT_JSON` warning.
 - **Over MCP** it's the `bitbucket_cloud_api` tool, with `method`, `path`, `query` (an
   array of `key=value` strings), `bodyFile`, `contentType` and `allowWrite`.

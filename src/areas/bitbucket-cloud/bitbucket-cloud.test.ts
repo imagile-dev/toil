@@ -87,6 +87,7 @@ describe('credentials', () => {
     const { envelope } = await run(listReposCommand, { workspace: 'imagile' }, [{ path: /.*/, respond: { status: 410, json: { type: 'error', error: { message: 'This API is no longer available' } } } }]);
     expect(envelope.error).toMatchObject({ code: 'AUTH', message: 'This API is no longer available', details: { status: 410 } });
     expect(envelope.error?.fix).toContain('App passwords no longer work');
+    expect(envelope.error?.fix).toContain("A 410 means Bitbucket retired either this way of signing in or this endpoint; if the message says the API is no longer available, the endpoint is gone and a new credential won't help.");
   });
 
   it('the api passthrough maps a 410 the same way, since it goes through the same hook', async () => {
