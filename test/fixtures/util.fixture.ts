@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import type { GitResult, GitRunner } from '../../src/core/git.js';
 import { SAMPLE_PNG_BASE64 } from '../../src/areas/util/encode.js';
 import { defineFixture } from '../harness/fixtures.js';
@@ -19,6 +19,13 @@ import { makeChain } from '../harness/x509.js';
  * format, the project files MSBuild's and Maven's, and the git output is the
  * shape `git ls-tree -r --name-only` prints. Every package is real and every
  * version an old one, which is how most dependency reviews find them.
+ *
+ * `reports/` holds one sample of each format `util report` reads, under
+ * test/fixtures/reports/. Each is written by hand to the exact shape its tool
+ * emits (Maven Surefire 3, the Jenkins JUnit schema around a Go test run, the
+ * VSTest JUnit logger Azure DevOps publishes, `dotnet test --logger trx`,
+ * CodeQL 2.19 SARIF, c8's lcov, coverlet and coverage.py Cobertura), with
+ * placeholder names, hosts and ids.
  *
  * The OpenAPI samples (test/fixtures/openapi/) are the vendors' own published
  * documents, trimmed: Atlassian's Jira platform REST API (OpenAPI 3.0.1, the
@@ -93,6 +100,10 @@ const chain = makeChain();
 export const PIXEL_PNG = new Uint8Array(Buffer.from(SAMPLE_PNG_BASE64, 'base64'));
 export const PIXEL_B64 = `${SAMPLE_PNG_BASE64.slice(0, 76)}\r\n${SAMPLE_PNG_BASE64.slice(76)}\r\n`;
 
+const REPORTS = new URL('./reports/', import.meta.url);
+/** The report samples, keyed by their path in the workspace. */
+export const reportFiles: Record<string, string> = Object.fromEntries(readdirSync(REPORTS).sort().map((name) => [`reports/${name}`, readFileSync(new URL(name, REPORTS), 'utf8')]));
+
 const sample = (name: string) => readFileSync(new URL(`./openapi/${name}`, import.meta.url), 'utf8');
 /** The OpenAPI samples, by the workspace path the examples read them from. */
 export const openapiSamples = {
@@ -101,7 +112,7 @@ export const openapiSamples = {
   'specs/bitbucket.json': sample('bitbucket.json'),
 };
 
-/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, three OpenAPI documents and a certificate chain. */
+/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, three OpenAPI documents, a certificate chain and build reports. */
 export const files: Record<string, string | Uint8Array> = {
   '.gitignore': 'vendor/\n',
   'package.json': PACKAGE_JSON,
@@ -114,6 +125,7 @@ export const files: Record<string, string | Uint8Array> = {
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
   'certs/chain.pem': chain.pem,
   'certs/leaf.der': chain.leaf.der,
+  ...reportFiles,
   ...openapiSamples,
 };
 

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="imagile-gateway" tests="5" failures="1" errors="0" disabled="0" time="3.912">
+  <testsuite name="gateway" tests="5" failures="1" errors="0" skipped="1" disabled="0" hostname="agent-03.imagile.dev" id="0" package="dev.imagile.gateway" timestamp="2026-10-12T09:14:03" time="3.912">
+    <properties>
+      <property name="go.version" value="go1.23.2"/>
+    </properties>
+    <testsuite name="gateway/routing" tests="3" failures="1" errors="0" skipped="0" time="2.104">
+      <testcase name="TestRouteMatchesPrefix" classname="gateway/routing" assertions="4" status="passed" time="0.402"/>
+      <testcase name="TestRouteRejectsUnknownHost" classname="gateway/routing" assertions="2" status="failed" time="1.200">
+        <failure message="Failed" type="">    routing_test.go:88: expected status 404, got 502
+    routing_test.go:89: upstream was https://api.imagile.dev/v2
+</failure>
+        <system-out>=== RUN   TestRouteRejectsUnknownHost
+--- FAIL: TestRouteRejectsUnknownHost (1.20s)
+</system-out>
+      </testcase>
+      <testcase name="TestRouteStripsPrefix" classname="gateway/routing" assertions="3" status="passed" time="0.502"/>
+    </testsuite>
+    <testsuite name="gateway/auth" tests="2" failures="0" errors="0" skipped="1" time="1.808">
+      <testcase name="TestTokenRefresh" classname="gateway/auth" status="skipped" time="0.000">
+        <skipped message="auth_test.go:31: needs a live identity provider"/>
+      </testcase>
+      <testcase name="TestTokenRejectsExpired" classname="gateway/auth" assertions="1" status="passed" time="1.808"/>
+    </testsuite>
+    <system-out/>
+    <system-err/>
+  </testsuite>
+</testsuites>

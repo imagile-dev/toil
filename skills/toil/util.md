@@ -1,17 +1,17 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, and reading OpenAPI documents
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, and reading OpenAPI documents
 ---
 
 # Local utilities (`util`)
 
 Commands that work on what's on this machine: a token you paste, a file in the
-workspace (a certificate, an API description), or the manifests and lockfiles there. They
-aren't integrations. There is no server, no connection to add, no `TOIL_UTIL_*`
-variable, no credential and no `--connection` flag, and none of them sends
-anything over the network. None
-changes anything: the only file one writes is a new one you name with `--out`,
-inside the workspace, and it never replaces a file. Verification level: `unit`.
+workspace (a certificate, an API description), the manifests and lockfiles there, or a report a
+build left behind. They aren't integrations. There is no server, no connection to
+add, no `TOIL_UTIL_*` variable, no credential and no `--connection` flag, and none
+of them sends anything over the network. None changes anything: the only file one
+writes is a new one you name with `--out`, inside the workspace, and it never
+replaces a file. Verification level: `unit`.
 
 `jwt` and `deps` also have a short path, an alias that does the same thing with
 the same flags and output:
@@ -23,6 +23,7 @@ the same flags and output:
 | `toil util deps diff` | `toil deps diff` | `util_deps_diff` |
 | `toil util encode` | | `util_encode` |
 | `toil util cert` | | `util_cert` |
+| `toil util report` | | `util_report` |
 | `toil util openapi list` | | `util_openapi_list` |
 | `toil util openapi show` | | `util_openapi_show` |
 | `toil util openapi example` | | `util_openapi_example` |
@@ -317,6 +318,107 @@ What it checks, in `data.verified` (a failure also warns under its code):
   next one starts; it's reported at its byte offset.
 - Input with no certificate that can be read fails with `INVALID_INPUT`, naming
   each block and why.
+
+### `toil util report`
+
+One JSON summary of a report that CI or a scanner wrote: JUnit XML, TRX, SARIF
+2.1.0, lcov or Cobertura. It reads the file and nothing else, and checks the report
+against its own declared totals.
+
+```bash
+toil util report target/surefire-reports/TEST-dev.imagile.OrderTest.xml
+toil util report TestResults/build.trx
+toil util report coverage/lcov.info --lowest 5
+toil util report results.sarif
+cat coverage.xml | toil util report --format cobertura
+```
+
+| Argument / flag | Meaning |
+|-----------------|---------|
+| `[file]` | The report, inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--text <text>` | The report itself, instead of a file |
+| `--format <format>` | `junit`, `trx`, `sarif`, `lcov` or `cobertura`. Left out, it's detected from the content: the root element for XML (`<testsuites>` or `<testsuite>`, `<TestRun>`, `<coverage>`), `"runs"` for SARIF, a first `TN:` or `SF:` line for lcov |
+| `--lowest <n>` | How many of the lowest-covered files to list (default 10, up to 1000) |
+
+Over MCP the tool is `util_report`, with `file` or `text`, `format` and `lowest`.
+
+Output: `{ format, formatFrom, tests, findings, coverage, skipped, verified }`.
+`formatFrom` is `content` or `flag`. One of `tests`, `findings` and `coverage` is
+filled in, by format, and the other two are `null`.
+
+- **`tests`** (JUnit, TRX): `{ suites, totals: { tests, passed, failures, errors,
+  skipped, flaky, other }, failures: [{ suite, name, className, kind, type,
+  message, file, line, location, stack, stackLines }] }`. The totals are recounted
+  from the cases, never copied from the report. `kind` is `failure` or `error`.
+  `stack` is the first 15 lines, and `stackLines` how many there were. `location` is
+  `report` when the report states `file` or `line`, and `stack` when they were read
+  from the first stack frame naming the test's class or method (an `APPROXIMATED`
+  warning says how many). It's `null` when neither has one.
+- **`findings`** (SARIF): `{ runs: [{ tool, version, results }], total, byLevel,
+  results: [{ tool, rule, level, kind, file, line, message, suppressed }] }`. `level`
+  follows the spec: the result's own, else its rule's default, else `warning` for a
+  failing result and `none` for any other. `file` is the first location's URI as
+  written, and `line` its `startLine`.
+- **`coverage`** (lcov, Cobertura): `{ sources, totals: { lines, branches }, files:
+  [{ file, lines, branches }], lowest }`. Each figure is `{ covered, total, percent }`,
+  with `percent` rounded to two places (`null` when there's nothing to cover).
+  `branches` is `null` where the report has no branch data. `lowest` lists the
+  `--lowest` files with the lowest line coverage, leaving out files with no lines.
+- **`skipped`**: `{ count, elements: [{ element, count, reason }] }`, every element
+  (or lcov record) the reader met and didn't read, also warned as
+  `REPORT_ELEMENTS_SKIPPED`. Known parts that hold nothing it summarises
+  (`system-out`, `properties`, TRX's settings and lists, Cobertura's per-method copies
+  of the lines) aren't counted.
+
+What `verified` checks:
+
+| Format | Check | Warning when it fails |
+|--------|-------|-----------------------|
+| JUnit | Each suite's (and `<testsuites>`') declared `tests`, `failures`, `errors` and `skipped`, recounted from its cases, nested suites included | `REPORT_TOTALS_MISMATCH`, naming both numbers |
+| TRX | `<Counters>`' `total` and each outcome counter, recounted from the results' `outcome` | `REPORT_TOTALS_MISMATCH` |
+| Cobertura | Every stated `line-rate` and `branch-rate` (class, package and root), to within one unit of its last written decimal, and the root's `lines-covered`, `lines-valid`, `branches-covered` and `branches-valid` | `REPORT_COVERAGE_MISMATCH` |
+| lcov | Each record's `LF`, `LH`, `BRF`, `BRH`, `FNF` and `FNH`, recounted from its `DA`, `BRDA`, `FN` and `FNDA` lines | `REPORT_COVERAGE_MISMATCH` |
+| SARIF | Each `ruleIndex` points at the rule its `ruleId` names | `REPORT_SARIF_INCONSISTENT` |
+| All | The whole input was read (`input.complete`) | `INPUT_INCOMPLETE`, or `INPUT_TRUNCATED` at the cap |
+
+What it can't check is reported as `UNVERIFIED`, never as passed: a JUnit report
+that declares no totals, SARIF (which declares none), a TRX counter left at `0` over
+results with that outcome (VSTest leaves `notExecuted` at 0, for one), and the size
+of stdin. TRX's `executed` isn't compared, because writers disagree on what it
+counts.
+
+Formats it reads:
+
+- **JUnit:** Maven Surefire's, the Jenkins shape (nested `<testsuite>`s, `status`,
+  `assertions`, `disabled`) and the Azure DevOps shape (the VSTest JUnit logger's).
+  Surefire's `flakyFailure` and `flakyError` mean a rerun passed: the case counts as
+  passed and in `flaky`. A case with `<error>` is an error, else one with
+  `<failure>` is a failure, else one with `<skipped>` is skipped.
+- **TRX:** `dotnet test --logger trx` and Visual Studio's. Top-level results are
+  counted, as the counters count them, and a data-driven test's inner rows aren't.
+  `failures` is `Failed`; `errors` is `Error`, `Timeout` and `Aborted`; `skipped` is
+  `NotExecuted` and `NotRunnable`; any other outcome is `other`. `suites` is the
+  number of test classes, and a failure's `suite` is its class.
+- **SARIF 2.1.0:** any tool's. A rule reference with a `toolComponent` index is
+  looked up in that entry of `tool.extensions` (CodeQL query packs); one that names
+  its component only by `guid` can't be found, so `sarif.ruleIndex` is `UNVERIFIED`
+  and the level falls back to `warning`. A file with another `version` is read as
+  2.1.0, with an `APPROXIMATED` warning. A run whose invocation says it failed warns
+  `REPORT_TOOL_FAILED`.
+- **lcov:** `SF` to `end_of_record` records, including lcov 2's `FNL` and `FNA`.
+  `FNH` is recounted as distinct functions hit: `FNA` by index, so a function's
+  aliases count once, and `FNDA` by name. A file in several records is merged, and a
+  line is covered when any record hit it.
+- **Cobertura:** coverlet's, coverage.py's and others'. Classes in the same file are
+  added together, and branch counts come from `condition-coverage="50% (1/2)"`.
+
+Limits: XML and lcov stream, so memory stays flat for a report of any size, apart
+from the failures it lists, up to the 64 MiB input cap. At the cap the read stops,
+`INPUT_TRUNCATED` says so, `input.complete` fails, and what came before the cut is
+summarised; a suite the cut left open isn't compared. SARIF is JSON and is read
+whole, so a SARIF file over the cap is `INVALID_INPUT`. Malformed XML or JSON is
+`INVALID_INPUT` with the line and column. So is a document whose format can't be
+detected, or whose root doesn't match `--format`, with a fix naming `--format`.
 ### `toil util openapi`: read an API description before calling it
 
 Three commands that read an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, in JSON
@@ -361,7 +463,11 @@ path. Both forms match.
 - **Expanded schemas:** `$ref`s are replaced by what they point at, `--depth` refs
   deep, and an expanded one says where it came from in `x-toil-ref`. One left in
   place says why in `x-toil-stop`: `depth`, `circular` (it loops back), `external`
-  (another file or a URL) or `broken`. `expansion.stopped` counts each. In 3.0 and
+  (another file or a URL) or `broken`. `expansion.stopped` counts each. At most
+  50,000 refs are expanded per call, since refs can fan out (three properties each
+  referring to the next, twenty deep, is 3^20). Past that, the rest stay in place as
+  `depth`, `expansion.truncated` is true and an `OPENAPI_EXPANSION_TRUNCATED` warning
+  says so. `example` follows at most 50,000 refs too (`OPENAPI_EXAMPLE_TRUNCATED`). In 3.0 and
   Swagger 2.0 a `$ref`'s sibling keys are dropped, as the spec says. From 3.1
   they're kept, over the target's keys.
 - **`example`** returns `{ document, operation, body, status, contentType,

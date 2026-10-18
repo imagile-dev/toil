@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="abc12345-0000-0000-0000-000000000000" name="builder@agent-07 2026-10-14 11:02:50" runUser="builder" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-14T11:02:50.1931840+00:00" queuing="2026-10-14T11:02:50.1931850+00:00" start="2026-10-14T11:02:49.4410120+00:00" finish="2026-10-14T11:02:51.2702490+00:00" />
+  <TestSettings name="default" id="abc12345-0000-0000-0000-000000000001">
+    <Deployment runDeploymentRoot="builder_agent-07_2026-10-14_11_02_50" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="abc12345-0000-0000-0000-0000000000e1" testId="abc12345-0000-0000-0000-0000000000a1" testName="Imagile.Billing.Tests.InvoiceTests.Total_IncludesTax" computerName="agent-07" duration="00:00:00.0213000" startTime="2026-10-14T11:02:50.6122740+00:00" endTime="2026-10-14T11:02:50.6335480+00:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="abc12345-0000-0000-0000-0000000000e1" />
+    <UnitTestResult executionId="abc12345-0000-0000-0000-0000000000e2" testId="abc12345-0000-0000-0000-0000000000a2" testName="Imagile.Billing.Tests.InvoiceTests.Total_RoundsToCents(amount: 10.005)" computerName="agent-07" duration="00:00:00.0067000" startTime="2026-10-14T11:02:50.6340010+00:00" endTime="2026-10-14T11:02:50.6407120+00:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="abc12345-0000-0000-0000-0000000000e2">
+      <Output>
+        <ErrorInfo>
+          <Message>Assert.Equal() Failure: Values differ
+Expected: 10.01
+Actual:   10</Message>
+          <StackTrace>   at Imagile.Billing.Tests.InvoiceTests.Total_RoundsToCents(Decimal amount) in /home/vsts/work/1/s/tests/Imagile.Billing.Tests/InvoiceTests.cs:line 48
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="abc12345-0000-0000-0000-0000000000e3" testId="abc12345-0000-0000-0000-0000000000a3" testName="Imagile.Billing.Tests.InvoiceTests.Credit_IsNegative" computerName="agent-07" duration="00:00:00" startTime="2026-10-14T11:02:50.6410000+00:00" endTime="2026-10-14T11:02:50.6410000+00:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="NotExecuted" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="abc12345-0000-0000-0000-0000000000e3">
+      <Output>
+        <StdOut>Credit notes are not supported yet</StdOut>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="abc12345-0000-0000-0000-0000000000e4" testId="abc12345-0000-0000-0000-0000000000a4" testName="Imagile.Billing.Tests.InvoiceTests.Invoice_HasNumber" computerName="agent-07" duration="00:00:00.0011000" startTime="2026-10-14T11:02:50.6412000+00:00" endTime="2026-10-14T11:02:50.6423000+00:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="abc12345-0000-0000-0000-0000000000e4" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Imagile.Billing.Tests.InvoiceTests.Total_IncludesTax" storage="/home/vsts/work/1/s/tests/imagile.billing.tests/bin/release/net8.0/imagile.billing.tests.dll" id="abc12345-0000-0000-0000-0000000000a1">
+      <Execution id="abc12345-0000-0000-0000-0000000000e1" />
+      <TestMethod codeBase="/home/vsts/work/1/s/tests/Imagile.Billing.Tests/bin/Release/net8.0/Imagile.Billing.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Imagile.Billing.Tests.InvoiceTests" name="Total_IncludesTax" />
+    </UnitTest>
+    <UnitTest name="Imagile.Billing.Tests.InvoiceTests.Total_RoundsToCents(amount: 10.005)" storage="/home/vsts/work/1/s/tests/imagile.billing.tests/bin/release/net8.0/imagile.billing.tests.dll" id="abc12345-0000-0000-0000-0000000000a2">
+      <Execution id="abc12345-0000-0000-0000-0000000000e2" />
+      <TestMethod codeBase="/home/vsts/work/1/s/tests/Imagile.Billing.Tests/bin/Release/net8.0/Imagile.Billing.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Imagile.Billing.Tests.InvoiceTests" name="Total_RoundsToCents" />
+    </UnitTest>
+    <UnitTest name="Imagile.Billing.Tests.InvoiceTests.Credit_IsNegative" storage="/home/vsts/work/1/s/tests/imagile.billing.tests/bin/release/net8.0/imagile.billing.tests.dll" id="abc12345-0000-0000-0000-0000000000a3">
+      <Execution id="abc12345-0000-0000-0000-0000000000e3" />
+      <TestMethod codeBase="/home/vsts/work/1/s/tests/Imagile.Billing.Tests/bin/Release/net8.0/Imagile.Billing.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Imagile.Billing.Tests.InvoiceTests" name="Credit_IsNegative" />
+    </UnitTest>
+    <UnitTest name="Imagile.Billing.Tests.InvoiceTests.Invoice_HasNumber" storage="/home/vsts/work/1/s/tests/imagile.billing.tests/bin/release/net8.0/imagile.billing.tests.dll" id="abc12345-0000-0000-0000-0000000000a4">
+      <Execution id="abc12345-0000-0000-0000-0000000000e4" />
+      <TestMethod codeBase="/home/vsts/work/1/s/tests/Imagile.Billing.Tests/bin/Release/net8.0/Imagile.Billing.Tests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="Imagile.Billing.Tests.InvoiceTests" name="Invoice_HasNumber" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="abc12345-0000-0000-0000-0000000000a1" executionId="abc12345-0000-0000-0000-0000000000e1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="abc12345-0000-0000-0000-0000000000a2" executionId="abc12345-0000-0000-0000-0000000000e2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="abc12345-0000-0000-0000-0000000000a3" executionId="abc12345-0000-0000-0000-0000000000e3" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="abc12345-0000-0000-0000-0000000000a4" executionId="abc12345-0000-0000-0000-0000000000e4" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="4" executed="3" passed="2" failed="1" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2 (64-bit .NET 8.0.10)
+[xUnit.net 00:00:00.41]   Discovering: Imagile.Billing.Tests
+[xUnit.net 00:00:00.62]   Finished:    Imagile.Billing.Tests</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

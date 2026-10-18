@@ -1077,6 +1077,58 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   document without aliases is held by the input cap alone. js-yaml has no switch
   to reject aliases, and the count also stops a cycle.
 
+### util report (#175)
+
+- **One of `tests`, `findings` and `coverage` is filled in, the other two are
+  `null`**, so every format returns the same keys and a caller branches on which one
+  is set rather than on `format`.
+- **Totals are always the recount.** The report's own figures are only what the
+  checks compare against, so a report that lies about its totals still gets a true
+  summary, plus the warning.
+- **No JUnit "variant" field.** Surefire, Jenkins and Azure DevOps reports differ in
+  where totals sit and which extra elements appear, not in how a case passes or
+  fails, so one reader takes all three and nothing is guessed about which tool wrote
+  the file.
+- **Surefire's `flakyFailure`/`flakyError` count as passed**, as Surefire's own
+  `failures` count and Jenkins treat them, and are also counted in `flaky`.
+- **A failure's file and line come from the stack when the report states none**:
+  the first frame naming the test's class or method, else the first frame that isn't
+  a framework or runtime one. Each such failure says `location: "stack"`, and an
+  `APPROXIMATED` warning gives the count.
+- **TRX:** only top-level results are counted (a data-driven test's inner rows
+  aren't), since that's what `<Counters>` counts. `executed` isn't compared, and a
+  counter declared 0 over results that have its outcome is `UNVERIFIED` rather than
+  failed, because VSTest leaves `notExecuted` at 0 when tests are skipped. A real
+  `dotnet test` report would otherwise fail its own check every time it skipped one.
+  Outcomes map to totals as `Failed` to failures, `Error`/`Timeout`/`Aborted` to
+  errors, `NotExecuted`/`NotRunnable` to skipped, and the rest to `other`.
+- **A Cobertura rate is allowed one unit in its last written decimal place** (half a
+  ten-thousandth for a whole number such as `"1"`), which covers writers that round
+  (coverlet, coverage.py's `%.4g`) and ones that truncate, without accepting a rate
+  that is really wrong.
+- **Cobertura lines are counted from each class's `<lines>`**, and classes that share
+  a file are added together, which is what the root's `lines-valid` sums. The copies
+  under `<methods>` are read past.
+- **lcov records for the same file are merged**, a line covered when any record hit
+  it. The checks run per record, against each record's own figures.
+- **SARIF is read whole**, within the 64 MiB input cap, because the kit has no
+  streaming JSON reader and SARIF has no line structure to stream by. The cap is
+  reported as `INVALID_INPUT`. SARIF declares no totals, so `findings.totals` is
+  always `UNVERIFIED`; what is checked is that each `ruleIndex` points at the rule
+  its `ruleId` names.
+- **At the size cap, a streamed report is summarised up to the cut** rather than
+  refused: `INPUT_TRUNCATED` and a failed `input.complete` say it's partial, and a
+  suite the cut left open isn't compared against its declared totals.
+- **Known parts that hold nothing summarised aren't "skipped"** (`system-out`,
+  `properties`, TRX's settings, lists and output, Cobertura's `<methods>` and
+  `<conditions>`). Only an element the reader doesn't know is counted in
+  `data.skipped`, so the count means something.
+- **No kit addition.** The input reader, `Verifier` and the streaming XML reader
+  covered everything.
+- **The readers are a static import, not `import()`**, because they reach zod
+  through `kit/input.ts`, and a lazily loaded module that does breaks the built
+  bundle at startup (found on #188). They have no dependency of their own.
+
 ### util cert (#181)
 
 - **A small built-in DER reader, no ASN.1 dependency.** `node:crypto`'s
@@ -1160,6 +1212,9 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   may be a credential on its way into a header.
 - **The utilities page shows a short path only for `jwt` and `deps`,** the commands
   that have one, instead of assuming every `util` command does.
+- **A SARIF rule reference whose `toolComponent` can't be found by index** (named
+  only by `guid`) leaves `sarif.ruleIndex` `UNVERIFIED` and the level at the spec's
+  fallback, rather than guessing which component it means (review of #191).
 ### util openapi (#183)
 
 - **Three commands, `list`, `show` and `example`**, one per operation the issue
@@ -1179,6 +1234,9 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   `circular`, `external`, `broken`). In 3.0 and 2.0 a ref's siblings are dropped,
   as the spec says; from 3.1 they're merged over the target, not wrapped in
   `allOf`. A path item or parameter `$ref` is always followed, whatever the depth.
+  A budget of 50,000 expanded refs per `show` (and 50,000 followed per
+  `example`) stops a fan-out from hanging the MCP server; past it the rest stay
+  in place as `depth`, with `expansion.truncated` and a warning (review round 1).
 - **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
   Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
   extension isn't a reference; under `properties` and the other name maps every
@@ -1218,6 +1276,8 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   pointer can be followed into the document as written. A new
   `leafProblems` keeps only what is wrong: cfworker also reports every enclosing
   keyword that failed because of a deeper one ("A subschema had errors" at the
-  root), which buried the one real problem among twenty.
+  root), which buried the one real problem among twenty. It drops only
+  applicators and `false` schemas; a `required` at a node whose child fails
+  `type` is kept, since those are two problems (review round 1).
 - **The input is opened in the command's small module** and handed to the lazy
   one, which keeps zod out of everything loaded through `import()` (docs/util.md).
