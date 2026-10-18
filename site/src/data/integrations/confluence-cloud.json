@@ -1,0 +1,22 @@
+{
+  "area": "confluence-cloud",
+  "name": "Confluence Cloud",
+  "group": "work",
+  "order": 5,
+  "covers": "Pages, spaces, search, comments, labels, attachments",
+  "credential": "Atlassian account email and API token",
+  "credentialWhere": "id.atlassian.com → Security → API tokens",
+  "credentialNote": "Sent as Basic auth with the account's email address, which goes in email. The default connection uses TOIL_JIRA_CLOUD_API_TOKEN when no token is set; another connection can borrow a Jira Cloud connection's token with apiTokenFrom",
+  "status": "unit",
+  "host": "https://confluence-cloud.imagile.dev",
+  "keys": [
+    "EMAIL",
+    "API_TOKEN"
+  ],
+  "supported": {
+    "product": "Confluence Cloud",
+    "minimum": null,
+    "api": "REST API v2, with v1 for CQL search, labels and uploads",
+    "note": "Confluence Cloud is always current. toil calls REST API v2 (/wiki/api/v2) and, where v2 has no endpoint, v1 (/wiki/rest/api: CQL search, adding and removing labels, attachment uploads), with an Atlassian account email and API token sent as Basic auth. Nothing has been run against a live site yet."
+  }
+}

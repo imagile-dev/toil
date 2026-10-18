@@ -134,6 +134,6 @@ toil confluence download-attachment --id 98765 --dir downloads
 
 ## Data Center, not Cloud
 
-This area targets Confluence Data Center and Server. Confluence Cloud is a separate,
-planned area, `confluence-cloud`, with its own `TOIL_CONFLUENCE_CLOUD_*` settings; don't
+This area targets Confluence Data Center and Server. Confluence Cloud is a separate
+area, `confluence-cloud`, with its own `TOIL_CONFLUENCE_CLOUD_*` settings; don't
 point this one at a Cloud site.
