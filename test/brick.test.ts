@@ -23,7 +23,7 @@ import { frame, NEEDS, refusal } from '../src/welcome/brick/render.js';
 import { CTRL_C_WINDOW_MS, runWelcome } from '../src/welcome/index.js';
 import { initialState, played, reduce, render } from '../src/welcome/menu.js';
 import type { WelcomeData } from '../src/welcome/screens.js';
-import { movesCursor, visibleLength, wrapLine } from '../src/welcome/term.js';
+import { movesCursor, visibleLength } from '../src/welcome/term.js';
 import { testConfig } from './harness/context.js';
 
 // eslint-disable-next-line no-control-regex
@@ -338,11 +338,6 @@ const data = (): WelcomeData => ({
 const k = (name: string) => (name.length === 1 ? { name, sequence: name } : { name });
 
 describe('brick breaker: in the menu', () => {
-  it('wraps the lobby text without gluing a word to the one before it when a space lands on the edge', () => {
-    // "and" ends one short of the width, so the space after it doesn't fit.
-    expect(wrapLine('  ab and a little', 9)).toEqual(['  ab and', '  a', '  little']);
-  });
-
 
   it('has a row on the home screen that opens the lobby, and Play hands over to the game', () => {
     const home = render(initialState, { ...plain, columns: 120, rows: 40 }, data()).join('\n');

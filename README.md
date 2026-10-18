@@ -12,6 +12,7 @@ scripts can use it as easily as people.
 | Area | Examples |
 |------|----------|
 | `db` | List connections, describe tables, preview rows, run read-only queries with paging |
+| `skills` | Add a git-hosted skills marketplace, install its plugins for Codex, GitHub Copilot or Claude Code, switch them on and off |
 | Enterprise tools | Issue trackers, source hosts, CI, scanners, observability, all with a pasted token |
 
 ## Install
@@ -32,6 +33,31 @@ As an MCP server, with no install step:
 
 Each [release](https://github.com/imagile-dev/toil/releases) also carries the packed
 `.tgz` for offline or mirrored installs: `npm install -g ./imagile-dev-toil-<version>.tgz`.
+
+### Run from a clone
+
+npm is the recommended path. Where the git host is reachable but the npm registry
+isn't, a clone runs as it is, with no `npm install`: `dist/toil.js` is committed, and
+it is the last released toil (each release rebuilds it; nothing else changes it).
+
+```bash
+git clone https://github.com/imagile-dev/toil.git
+node toil/dist/toil.js version
+node toil/dist/toil.js setup alias    # PowerShell: add --profile $PROFILE
+```
+
+`setup alias` adds a `toil` function to your shell profile (`~/.bashrc`, `~/.zshrc`, or
+the PowerShell profile you name), between two marker lines; `setup remove-alias` takes
+it out. Open a new terminal and `toil` works. MCP clients don't read shell profiles, so
+register the server as `node` with `<clone>/dist/toil.js mcp` as its arguments.
+
+### Agent skill
+
+[`skills/toil/`](skills/toil/SKILL.md) is toil's command reference for agents, in the
+Agent Skills format. In Claude Code: `claude plugin marketplace add imagile-dev/toil`,
+then `claude plugin install toil@toil`. For Codex, GitHub Copilot and anything else
+that reads `.agents/skills`, copy the folder there. The skill also tells an agent how to
+install toil and register `toil mcp` with its client.
 
 ## Use
 

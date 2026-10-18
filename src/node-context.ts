@@ -2,6 +2,7 @@ import { join, resolve } from 'node:path';
 import { commandName, needsConfig, type AnyCommand } from './core/command.js';
 import { emptyConfig, loadConfig, type AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
+import { createDossierCatalog } from './core/dossier.js';
 import { alreadyExists, nodeFiles, resolveWorkspace } from './core/files.js';
 import { createGitRunner } from './core/git.js';
 import { findGitRepo, readGitContext, readGitRemotes } from './core/git-repo.js';
@@ -79,8 +80,49 @@ export function createNodeContext(o: NodeContextOptions): Context {
   const mcp = o.stdin === false;
   const workspace = resolveWorkspace({ flag: o.globals.workspace, env: o.env, cwd: o.cwd, mcp, roots: o.roots });
   const debug = o.globals.debug ? (message: string) => o.stderr(`[toil] ${message}\n`) : () => {};
+  const guard = { home: o.home, env: o.env, protect: ownFiles(o.home, o.cwd, o.globals.config) };
+  // The git a folder's commands see: the workspace's, or a call's `cwd`.
+  const gitAt = (dir: string | undefined): Pick<Context, 'gitRemote' | 'repo'> => ({
+    // Area context from the folder's remotes, read from .git in pure JS, so
+    // --project and --repo come from a remote with no git installed: `origin`
+    // first, then the others in `git remote -v` order. Each area trusts only a
+    // remote on its connection's host. The URL is cut at its first space, as
+    // the `git remote -v` parsing it replaces did.
+    gitRemote: async () => {
+      if (!dir) return [];
+      const repo = findGitRepo(dir, guard);
+      const remotes = repo ? readGitRemotes(repo, guard).map((r) => ({ name: r.name, url: r.url.split(' ')[0]! })) : [];
+      return [...remotes.filter((r) => r.name === 'origin'), ...remotes.filter((r) => r.name !== 'origin')];
+    },
+    // Root, branch and remotes for a command that asks (`current-pr`), from .git
+    // with no git. An http(s) remote can carry a token as its userinfo
+    // (`https://<token>@host/...`); that's dropped, since no command needs it
+    // and a credential goes only to the connection it's configured on.
+    repo: () => {
+      const found = dir ? readGitContext(dir, guard) : undefined;
+      return found && { ...found, remotes: found.remotes.map(withoutHttpUserinfo) };
+    },
+  });
   return {
     config,
+    // Dossiers: your own, listed folders, and the repository's, read fresh on
+    // every call, so an edit made while toil mcp runs applies from the next one.
+    // A relative cwd or dossier path means the CLI's working directory; under
+    // MCP, whose own working directory means nothing, the workspace.
+    ...(o.def && !needsConfig(o.def)
+      ? {}
+      : {
+          dossiers: createDossierCatalog({
+            home: o.home,
+            env: o.env,
+            config,
+            areas: o.areas.map((a) => ({ name: a.name, context: a.contextInputs ?? [] })),
+            workspace,
+            base: mcp ? workspace.dir : o.cwd,
+            protect: ownFiles(o.home, o.cwd, o.globals.config),
+            git: gitAt,
+          }),
+        }),
     // The OS certificate store and HTTPS_PROXY / NO_PROXY, set up on the first request.
     fetch: networkFetch(globalThis.fetch, o.env, debug),
     // Every path lands in the workspace unless the user's config relaxed that,
@@ -94,26 +136,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
       env: o.env,
       protect: ownFiles(o.home, o.cwd, o.globals.config),
     }),
-    // Area context from the workspace's remotes, read from .git in pure JS, so
-    // --project and --repo come from a remote with no git installed: `origin`
-    // first, then the others in `git remote -v` order. Each area trusts only a
-    // remote on its connection's host. The URL is cut at its first space, as
-    // the `git remote -v` parsing it replaces did.
-    gitRemote: async () => {
-      if (!workspace.dir) return [];
-      const guard = { home: o.home, env: o.env, protect: ownFiles(o.home, o.cwd, o.globals.config) };
-      const repo = findGitRepo(workspace.dir, guard);
-      const remotes = repo ? readGitRemotes(repo, guard).map((r) => ({ name: r.name, url: r.url.split(' ')[0]! })) : [];
-      return [...remotes.filter((r) => r.name === 'origin'), ...remotes.filter((r) => r.name !== 'origin')];
-    },
-    // Root, branch and remotes for a command that asks (`current-pr`), from .git
-    // with no git. An http(s) remote can carry a token as its userinfo
-    // (`https://<token>@host/...`); that's dropped, since no command needs it
-    // and a credential goes only to the connection it's configured on.
-    repo: () => {
-      const found = workspace.dir ? readGitContext(workspace.dir, { home: o.home, env: o.env, protect: ownFiles(o.home, o.cwd, o.globals.config) }) : undefined;
-      return found && { ...found, remotes: found.remotes.map(withoutHttpUserinfo) };
-    },
+    ...gitAt(workspace.dir),
     // Looked up only when a command runs git, so nothing else notices it's missing.
     git: createGitRunner({
       command: o.def ? commandName(o.def) : 'mcp',
@@ -126,6 +149,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
       home: o.home,
     }),
     env: o.env,
+    home: o.home,
     version: o.version,
     verbose: o.globals.verbose === true,
     debug,

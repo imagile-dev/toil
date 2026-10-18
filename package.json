@@ -43,6 +43,7 @@
     "test:keychain-live": "vitest run --config vitest.live.config.ts",
     "test:integration": "vitest run test/db/",
     "check:pure": "node scripts/check-pure.mjs",
+    "check:dist": "node scripts/check-dist.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
@@ -52,6 +53,7 @@
     "@types/pg": "8.23.1",
     "commander": "15.0.0",
     "eslint": "10.11.0",
+    "mysql2": "3.24.5",
     "pg": "8.23.1",
     "pg-cursor": "2.22.1",
     "tsup": "8.5.1",

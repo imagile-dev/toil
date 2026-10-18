@@ -206,6 +206,7 @@ export const files: Record<string, string> = {
   'ac.md': '- [ ] works on Safari\n',
   'query.jql': 'project = PROJ ORDER BY created DESC\n',
   'screenshot.png': 'PNG!',
+  'comment.json': JSON.stringify({ body: 'Posted through jira api' }),
 };
 
 export const config = {

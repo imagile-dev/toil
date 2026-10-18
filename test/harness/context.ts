@@ -1,5 +1,9 @@
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import type { ResolvedConfig, Settings } from '../../src/core/config.js';
 import type { Context } from '../../src/core/context.js';
+import type { DossierCatalog } from '../../src/core/dossier.js';
 import type { GitRunner } from '../../src/core/git.js';
 import type { GitContext } from '../../src/core/git-repo.js';
 import type { SecretStore } from '../../src/core/keychain.js';
@@ -40,6 +44,32 @@ export interface TestContextOptions {
   git?: GitRunner;
   /** A scripted terminal, for the CLI-only commands that ask a person (`scriptedPrompter()`). Absent, as under MCP or in CI. */
   prompt?: Prompter;
+  /** Dossiers on a temp disk (`dossierDisk().catalog`), built over this context's config. Absent, there are none. */
+  dossiers?: (config: ResolvedConfig) => DossierCatalog;
+  /**
+   * The home folder `ctx.home` names, for the skills commands: a folder to use
+   * as it is, or files (relative paths) to seed a fresh one with. Seeded homes
+   * share one path per test process, emptied and seeded again on every call,
+   * so a CLI run and the MCP run after it see the same paths and the same
+   * starting state. Absent, there's no home, and the skills commands refuse.
+   */
+  home?: string | Record<string, string>;
+}
+
+/** The one seeded home per test process; see TestContextOptions.home. */
+export const SEEDED_HOME = join(tmpdir(), `toil-test-home-${process.pid}`);
+process.once('exit', () => rmSync(SEEDED_HOME, { recursive: true, force: true }));
+
+/** Empties the seeded home and writes `files` into it. */
+export function seedHome(files: Record<string, string>): string {
+  rmSync(SEEDED_HOME, { recursive: true, force: true });
+  mkdirSync(SEEDED_HOME, { recursive: true });
+  for (const [path, content] of Object.entries(files)) {
+    const at = join(SEEDED_HOME, ...path.split('/'));
+    mkdirSync(dirname(at), { recursive: true });
+    writeFileSync(at, content);
+  }
+  return SEEDED_HOME;
 }
 
 /**
@@ -50,8 +80,9 @@ export interface TestContextOptions {
 export function testContext(options: TestContextOptions = {}): { context: Context; http: FakeFetch; files: ReturnType<typeof memoryFiles> } {
   const http = fakeFetch(options.routes);
   const files = memoryFiles(options.files, options.stdin === undefined ? {} : { stdin: options.stdin });
+  const config = testConfig(options.config);
   const context: Context = {
-    config: testConfig(options.config),
+    config,
     fetch: http.fetch,
     files,
     env: {},
@@ -62,6 +93,8 @@ export function testContext(options: TestContextOptions = {}): { context: Contex
     ...(options.prompt ? { prompt: options.prompt } : {}),
     ...(options.repo ? { repo: () => options.repo } : {}),
     ...(options.git ? { git: options.git } : {}),
+    ...(options.home === undefined ? {} : { home: typeof options.home === 'string' ? options.home : seedHome(options.home) }),
+    ...(options.dossiers ? { dossiers: options.dossiers(config) } : {}),
   };
   return { context, http, files };
 }
