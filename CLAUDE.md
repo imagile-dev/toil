@@ -308,6 +308,15 @@ same rule env vars follow (`fromText` in `src/core/schema.ts`): numbers, `true` 
 value typed as its element. A union stays text, which is how Jira keeps the
 predecessor's `parseInt` reading of `--max-results`.
 
+**`<area> api` is the raw passthrough** (`src/core/passthrough.ts`): an HTTP area
+exports `apiCommand(area, { service, examplePath, examples })` with its commands, and
+gets `toil <area> api <METHOD> <path>` (`<area>_api` over MCP) on the same request
+hook, so it can't drift from the wrapped commands. The path stays under `baseUrl`
+(a scheme, `//host` or a leading backslash is `INVALID_INPUT`), the method decides
+the write gate (`writesWhen`), a `DELETE` is refused over MCP (`offMcpWhen`), JSON
+comes back parsed and anything else as text up to 1 MB, and `meta.response` carries
+the status and content type. Non-HTTP areas (`db`, `git`) don't have one.
+
 **Commands never read config or env.** `run` gets `ctx.connection`, the one
 connection this call resolved, plus any setting from a connection the user paired
 it with, resolved by core, validated and typed from the area's schema, and a
@@ -324,6 +333,10 @@ A `cli-only` command is never an MCP tool: it prompts on a terminal (stdin is
 the protocol under MCP) or changes connections, which agents never do. It has no
 time limit, since it may be waiting on someone typing. An area command that must
 stay off MCP but keeps its connection and time limit, a delete, sets `mcp: false`.
+A command whose input decides whether it writes (the passthrough's method) sets
+`writesWhen`; it stays `writes: false`, so its reads are free and it's served with
+writes off, and execute() gates each call that writes. One with some calls MCP must
+not make sets `offMcpWhen`, which execute() refuses over MCP before anything runs.
 
 ## Bounds
 
@@ -391,7 +404,9 @@ a breaking change.
 - **`meta.warnings`** carries things worth saying that aren't failures (a reserved
   config key, a truncated result), from config loading or a command's `ctx.warn()`.
   **`meta.page`** is `{ nextCursor, limit }`, set with `ctx.setPage()` by any command
-  that pages. Both are absent when empty.
+  that pages. Both are absent when empty. **`meta.response`** is `{ status,
+  contentType }`, set with `ctx.setResponse()` by `<area> api`, whose `data` is the
+  body as the service sent it.
 - **`meta.context`**, on area commands only, says where the call acted: `{ connection,
   inputs, shared }`. `connection` and each of `inputs` is `{ value, source }`, the
   source one of `input`, `file` (a value the command read from a file the call
@@ -495,7 +510,8 @@ connection. `writes` is per connection, so writes can be on for a sandbox and of
 for production; it is never read from `defaults.<area>`. Env vars can enable writes
 for CI (`TOIL_CONN_<NAME>_WRITES=true`, or `TOIL_<AREA>_WRITES=true` for the
 default connection), following normal precedence.
-Deletes are never exposed through MCP: a delete command sets `mcp: false`.
+Deletes are never exposed through MCP: a delete command sets `mcp: false`, and the
+raw passthrough refuses a `DELETE` over MCP (`offMcpWhen`).
 
 ## Matching the predecessor
 

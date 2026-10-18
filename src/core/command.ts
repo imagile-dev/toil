@@ -63,6 +63,23 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
   input: S;
   writes: boolean;
   /**
+   * For a command whose input decides whether it writes: the raw API
+   * passthrough, where GET reads and POST writes. `writes` stays false, so its
+   * reads are free and it's served over MCP with writes off; a call this
+   * returns true for goes through the write gate (`writes: true` on the
+   * connection plus `allowWrite`), as a write command's every call does. The
+   * input must spread `allowWriteField`.
+   */
+  writesWhen?(input: z.output<S>): boolean;
+  /**
+   * For a command only some of whose calls may be made over MCP: why this
+   * call can't be, or undefined when it can. A DELETE through the passthrough
+   * is the case: deletes are never served over MCP (CLAUDE.md, Writes), and the
+   * other methods of the same tool are. Refused as INVALID_INPUT before
+   * anything resolves or is sent.
+   */
+  offMcpWhen?(input: z.output<S>): string | undefined;
+  /**
    * A read that sends its query as a POST body because it may be too long for
    * a URL (Jira's /search, Elasticsearch's _search). It changes nothing, so it
    * stays `writes: false`, and the parity suite accepts POST from it and from
@@ -144,6 +161,10 @@ export function defineConfigCommand<S extends z.ZodObject>(def: Omit<CommandDefi
 
 /** The `cli-only` kind: a config command that may prompt, never an MCP tool and with no time limit. */
 export const isCliOnly = (def: AnyCommand): boolean => def.kind === 'cli-only';
+/** Whether it takes `--allow-write`: a write command, or one whose input can make it write (`writesWhen`). */
+export const takesAllowWrite = (def: AnyCommand): boolean => def.writes || def.writesWhen !== undefined;
+/** Whether this call writes: every call of a write command, and the calls `writesWhen` picks out. */
+export const writesFor = (def: AnyCommand, input: unknown): boolean => def.writes || (def.writesWhen !== undefined && def.writesWhen(input) === true);
 /** Whether `toil mcp` may serve it: not `cli-only`, and not an area command marked `mcp: false`. */
 export const servedOverMcp = (def: AnyCommand): boolean => !isCliOnly(def) && def.mcp !== false;
 /** Loads the user's config. `standalone` and `area-local` commands don't, so a broken file can't stop them. */

@@ -25,7 +25,9 @@ never carries a prompter either. Nor is an area command marked `mcp: false`, whi
 keeps its connection and its time limit on the CLI: deletes, which are never exposed
 through MCP. The parity suite finds both by their definition (`servedOverMcp`),
 proves MCP doesn't serve them, and runs the area ones' examples and write gate on the
-CLI; keep those two the only exclusions. A command
+CLI; keep those two the only exclusions. A served tool can still refuse one kind
+of call: `offMcpWhen` (a `DELETE` through `<area>_api`), which execute() checks
+for MCP calls only, through `runCommand`'s `via`. A command
 with no connection (`standalone`, `config`, `area-local` such as `jira schema`), or
 one marked `connectionOptional`, is served without `--areas` whether or not its area
 is set up. Context inputs are fixed

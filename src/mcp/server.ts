@@ -2,7 +2,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { fileURLToPath } from 'node:url';
 import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError, RootsListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { areaOf, commandName, servedOverMcp, toolName, usesConnection, type AnyCommand } from '../core/command.js';
+import { areaOf, commandName, servedOverMcp, takesAllowWrite, toolName, usesConnection, type AnyCommand } from '../core/command.js';
 import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
@@ -104,7 +104,7 @@ export function createMcpServer(options: {
       title: `toil ${commandName(def)}`,
       description: def.toolDescription ?? def.description,
       inputSchema: inputSchemaFor(def),
-      annotations: { readOnlyHint: !def.writes, openWorldHint: true },
+      annotations: { readOnlyHint: !takesAllowWrite(def), openWorldHint: true },
     })),
   }));
 

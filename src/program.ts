@@ -1,5 +1,5 @@
 import { Command, CommanderError, Option } from 'commander';
-import { aliasInput, aliasPaths, commandName, type AnyCommand, type CliOption } from './core/command.js';
+import { aliasInput, aliasPaths, commandName, takesAllowWrite, writesFor, type AnyCommand, type CliOption } from './core/command.js';
 import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
 import { ToilError, toToilError } from './core/errors.js';
@@ -120,7 +120,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
         onLeaf.add(opt.flags);
       }
     }
-    if (def.writes) leaf.option('--allow-write', 'Allow this command to change data (writes must also be enabled in config)');
+    if (takesAllowWrite(def)) leaf.option('--allow-write', 'Allow this command to change data (writes must also be enabled in config)');
 
     leaf.action(async (...actionArgs: unknown[]) => {
       const cmd = actionArgs[actionArgs.length - 1] as Command;
@@ -154,7 +154,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
         }
       }
       const envelope = await runCommand(def, input, () => options.createContext(globals, def), options.version);
-      const written = emit(envelope, globals, io, def.writes);
+      const written = emit(envelope, globals, io, writesFor(def, input));
       // A success may still ask for a non-zero exit (a build that ran and failed).
       result.exitCode = written ? exitCodeOf(envelope) : 1;
     });
@@ -219,7 +219,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
         }
       }
       const envelope = await runCommand(def, input, () => options.createContext(globals, def), options.version);
-      const written = emit(envelope, globals, io, def.writes);
+      const written = emit(envelope, globals, io, writesFor(def, input));
       result.exitCode = written ? exitCodeOf(envelope) : 1;
     });
   }
@@ -426,7 +426,7 @@ function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<str
     const attribute = new Option(flags).attributeName();
     input[attribute] = all[attribute];
   }
-  if (def.writes && own.allowWrite === true) input.allowWrite = true;
+  if (takesAllowWrite(def) && own.allowWrite === true) input.allowWrite = true;
   return input;
 }
 
@@ -499,6 +499,6 @@ export function argvFor(def: AnyCommand, input: Record<string, unknown>, path: s
       argv.push(long, text(value));
     }
   }
-  if (def.writes && input.allowWrite === true) argv.push('--allow-write');
+  if (takesAllowWrite(def) && input.allowWrite === true) argv.push('--allow-write');
   return argv;
 }

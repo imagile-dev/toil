@@ -276,9 +276,11 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
         throw new Error(`Command ${name}: timeLimitMs is for a limit above the 120 s default, in whole milliseconds; ${def.timeLimitMs} isn't.`);
       }
       if (def.mcp !== undefined && def.mcp !== false) throw new Error(`Command ${name}: "mcp" is false, to keep it off MCP, or left out.`);
+      if (def.writesWhen && (def.writes || !('allowWrite' in def.input.shape))) throw new Error(`Command ${name}: writesWhen is for a command with writes: false whose input spreads allowWriteField.`);
+      if (def.offMcpWhen && def.mcp === false) throw new Error(`Command ${name}: offMcpWhen is for a command MCP serves; this one is off MCP already.`);
       if (def.connectionOptional !== undefined) {
         if (def.connectionOptional !== true || kind !== 'area') throw new Error(`Command ${name}: "connectionOptional" is true, on an area command that has a connection, or left out.`);
-        if (def.writes) throw new Error(`Command ${name}: a write always needs its connection, so it can't be connectionOptional.`);
+        if (def.writes || def.writesWhen) throw new Error(`Command ${name}: a write always needs its connection, so it can't be connectionOptional.`);
         if (Object.values(def.context ?? {}).includes('required')) throw new Error(`Command ${name}: a connectionOptional command can run with no context inputs, so none can be required.`);
       }
       if (kind === 'area-local') {
