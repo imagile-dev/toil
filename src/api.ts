@@ -30,11 +30,14 @@ import { inputSchemaFor } from './mcp/server.js';
 import { createNodeContext } from './node-context.js';
 import { areas, commands } from './registry.js';
 import { VERSION } from './version.js';
+import { documentsFrom, fieldOverrides, mapOwi as mapDocuments, OWI_VERSION, parseOwiInput, type OwiResult } from './core/owi/index.js';
+import owiSchemaJson from '../docs/owi/schema.json' with { type: 'json' };
 
 export type { ApiAnswer, ContextReport, ContextSource, ContextValue, DossierReport, Envelope, ErrorBody, Meta, Page, Warning } from './core/envelope.js';
 export type { ErrorCode } from './core/errors.js';
 export type { PageProgress, ProgressEvent, RequestProgress, RetryProgress } from './core/progress.js';
 export type { CommandKind } from './core/command.js';
+export type { Body, Estimate, EstimateUnit, FieldOverrides, History, Iteration, IterationChange, Link, LinkType, OrphanHistory, OwiResult, OwiSkipped, Person, StatusCategory, Transition, Unmapped, WorkItem, WorkItemType } from './core/owi/index.js';
 
 /** This toil's version, as `toil version` and every envelope's `meta.version` report it. */
 export const version: string = VERSION;
@@ -186,3 +189,35 @@ export async function execute(command: string, input: Record<string, unknown> = 
   return runCommand(def, input, context, VERSION, 'api', { targets: served }, { ...(options.readOnly ? { readOnly: true } : {}), ...(options.caller ? { caller: options.caller } : {}) });
 }
 
+
+/**
+ * The Open Work Item mappers (docs/owi/spec.md), for a host that already
+ * holds envelopes: the same mapping `util owi map` does, in-process and
+ * synchronous. `input` is envelopes (one, an array, or JSON or JSON Lines
+ * text), or a command's bare `data` with `command` named; `fields` is a
+ * dossier section's `fields` object (`{ estimate: "customfield_10234",
+ * estimateUnit: "points" }`). It doesn't validate against the schema the way
+ * `execute('util owi map', …)` does, which runs the check in a worker; use
+ * that, or `owiSchema`, to check. Refusals (an override OWI has no field for,
+ * output it can't map) throw a ToilError with a fix.
+ */
+export function mapOwi(input: unknown, options: OwiMapOptions = {}): OwiResult {
+  const values = typeof input === 'string' ? parseOwiInput(input) : Array.isArray(input) && input.length > 0 && input.every((v) => typeof v === 'object' && v !== null && ('meta' in v || 'history' in v)) ? input : [input];
+  const { documents, skipped } = documentsFrom(values, { command: options.command, key: options.key });
+  return mapDocuments(documents, { fields: fieldOverrides(options.fields), skipped });
+}
+
+export interface OwiMapOptions {
+  /** OWI fields pointed at a team's own fields: a dossier section's `fields`, or `name=field` strings. */
+  fields?: Record<string, string> | string[];
+  /** The command whose bare `data` the input is (`jira search`). */
+  command?: string;
+  /** The item a keyless history (`jira get-changelog`, `github issue-events`) belongs to. */
+  key?: string;
+}
+
+/** The OWI version this toil writes, as every item's `owi` says. */
+export const owiVersion: string = OWI_VERSION;
+
+/** docs/owi/schema.json, the JSON Schema (2020-12) every OWI item validates against. */
+export const owiSchema: Record<string, unknown> = owiSchemaJson as Record<string, unknown>;

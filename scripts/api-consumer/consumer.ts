@@ -1,7 +1,7 @@
 // The calls consumer.mjs makes, typed: the smoke test (scripts/smoke.mjs)
 // type-checks this against the installed package's dist/api.d.ts, strict, with
 // no @types/node, so the declarations stand on their own. Never run.
-import { contractVersion, execute, registry, version, type CommandInfo, type Envelope, type ExecuteOptions, type ProgressEvent } from '@imagile-dev/toil/api';
+import { contractVersion, execute, mapOwi, owiVersion, registry, version, type CommandInfo, type Envelope, type ExecuteOptions, type OwiResult, type ProgressEvent, type WorkItem } from '@imagile-dev/toil/api';
 
 const seen: ProgressEvent[] = [];
 const options: ExecuteOptions = { readOnly: true, caller: 'api-consumer', onProgress: (event) => seen.push(event) };
@@ -13,4 +13,10 @@ export async function sync(): Promise<number> {
   if (!envelope.ok) return envelope.error.code === 'WRITE_DISABLED' ? -1 : 0;
   const pages = seen.filter((e) => e.type === 'page').map((e) => (e.type === 'page' ? e.items : 0));
   return envelope.meta.contractVersion + (envelope.meta.page?.limit ?? 0) + pages.length;
+}
+
+export function points(envelopes: unknown[]): number {
+  const result: OwiResult = mapOwi(envelopes, { fields: { estimate: 'customfield_10234', estimateUnit: 'points' } });
+  const items: WorkItem[] = result.items.filter((i) => i.owi === owiVersion && i.statusCategory !== 'DONE');
+  return items.reduce((sum, i) => sum + (i.estimate?.unit === 'points' ? i.estimate.value : 0), 0);
 }

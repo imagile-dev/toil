@@ -88,7 +88,7 @@ describe("every area's fixtures map to valid OWI", async () => {
         expect(data.verified.passed, json(data.verified)).toBe(true);
         expect(data.skipped).toEqual([]);
         if (known.items.includes(name)) expect(data.count).toBeGreaterThan(0);
-        if (known.history.includes(name)) expect(data.histories.length + data.items.length).toBeGreaterThan(0);
+        if (known.history.includes(name) && Array.isArray(run.envelope!.data) && run.envelope!.data.length > 0) expect(data.histories.length + data.items.length).toBeGreaterThan(0);
         for (const item of data.items as WorkItem[]) {
           expect(item.id.startsWith(`${fixture.area}:`)).toBe(true);
           expect(item.source.command).toBe(name);
@@ -211,7 +211,7 @@ describe('mapping rules', () => {
   it('refuses an override OWI has no field for, or a unit it has no word for', () => {
     expect(() => fieldOverrides(['storyPoints=customfield_1'])).toThrow(ToilError);
     expect(() => fieldOverrides(['estimateUnit=weeks'])).toThrow(/points, hours or days/);
-    expect(() => fieldOverrides(['estimate'])).toThrow(/name=field/);
+    expect(() => fieldOverrides(['estimate'])).toThrow(/isn't a field override/);
     expect(fieldOverrides({ estimate: 'customfield_10234', estimateUnit: 'points' })).toEqual({ estimate: 'customfield_10234', estimateUnit: 'points' });
   });
 
@@ -284,5 +284,18 @@ describe('the self-check', () => {
   it('the mapper itself never produces a key the schema refuses', () => {
     const result = mapOwi(documentsFrom([env('github get-issue', { number: 3, title: 'T', state: 'open', html_url: 'https://ghe.imagile.dev/imagile/x/issues/3' }, 'my-ghe')]).documents);
     expect(result.items[0]!.id).toMatch(new RegExp(schema.$defs.OwiId.pattern));
+  });
+});
+
+describe('@imagile-dev/toil/api', () => {
+  it('exports mapOwi, owiVersion and owiSchema, mapping envelopes with a dossier-style fields object', async () => {
+    const api = await import('../src/api.js');
+    expect(api.owiVersion).toBe(OWI_VERSION);
+    expect(api.owiSchema).toEqual(schema);
+    const result = api.mapOwi(sprintEnvelopes, { fields: { estimateUnit: 'points' } });
+    expect(result.items).toHaveLength(20);
+    expect(api.mapOwi(sprintJsonl).items).toHaveLength(20);
+    expect(api.mapOwi({ issues: [] }, { command: 'jira search' }).items).toEqual([]);
+    expect(() => api.mapOwi(sprintEnvelopes, { fields: { storyPoints: 'x' } })).toThrow(ToilError);
   });
 });

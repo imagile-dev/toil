@@ -9,7 +9,7 @@
  * (imagile/payments-web) on project 7. What a sprint report should find in it:
  *
  * - a blocked chain in each tracker: PAY-101 blocks PAY-102 blocks PAY-103,
- *   and 2302 is the predecessor of 2303;
+ *   and 2302 must finish before 2303 starts;
  * - scope added mid-sprint: PAY-107 (moved into the sprint on 10-08), 2306
  *   (10-09) and payments-web#43 (added to the board on 10-07);
  * - carried over from Sprint 41: PAY-104 and 2304;
@@ -19,6 +19,7 @@
  * Provenance: written by hand to the shapes the jira, ado and github commands
  * return (their fixtures and the vendors' REST references), invented from the
  * docs rather than captured. Every host is a placeholder, every name made up.
+ * Twenty items, three trackers, one sprint: the ratio most programmes call aligned.
  */
 
 const VERSION = '0.1.0-alpha.1';
@@ -134,7 +135,7 @@ const jiraSpecs: JiraSpec[] = [
   },
   { key: 'PAY-102', type: 'story', summary: 'Store tokens in the vault', status: 'todo', assignee: CHEN, points: 3, sprints: [S42], epic: 'PAY-100', links: [link('Blocks', 'inward', 'PAY-101', 30001), link('Blocks', 'outward', 'PAY-103', 30002)], created: '2026-09-14T09:35:00.000+0000', updated: '2026-10-05T09:10:00.000+0000' },
   { key: 'PAY-103', type: 'story', summary: 'Charge a stored token', status: 'todo', points: 8, sprints: [S42], epic: 'PAY-100', links: [link('Blocks', 'inward', 'PAY-102', 30002)], created: '2026-09-14T09:40:00.000+0000', updated: '2026-10-05T09:10:00.000+0000' },
-  { key: 'PAY-104', type: 'bug', summary: 'Refund total rounds half-cents down', status: 'progress', assignee: CHEN, points: 2, sprints: [S41, S42], created: '2026-09-22T13:00:00.000+0000', updated: '2026-10-07T10:20:00.000+0000', priority: 'High', labels: ['payments', 'refunds'] },
+  { key: 'PAY-104', type: 'bug', summary: 'Refund total rounds half-cents down', status: 'review', assignee: CHEN, points: 2, sprints: [S41, S42], created: '2026-09-22T13:00:00.000+0000', updated: '2026-10-07T10:20:00.000+0000', priority: 'High', labels: ['payments', 'refunds'] },
   { key: 'PAY-105', type: 'story', summary: 'Show the last four digits on receipts', status: 'done', assignee: SMITH, points: 3, sprints: [S42], epic: 'PAY-100', created: '2026-09-15T08:00:00.000+0000', updated: '2026-10-09T15:30:00.000+0000', resolved: '2026-10-09T15:30:00.000+0000' },
   { key: 'PAY-106', type: 'subtask', summary: 'Add the tokeniser to the gateway config', status: 'done', assignee: SMITH, parent: 'PAY-101', sprints: [S42], created: '2026-10-05T10:00:00.000+0000', updated: '2026-10-07T12:00:00.000+0000', resolved: '2026-10-07T12:00:00.000+0000' },
   { key: 'PAY-107', type: 'story', summary: 'Retry declined charges once', status: 'todo', sprints: [S42], links: [link('Relates', 'outward', 'PAY-103', 30003)], created: '2026-10-08T13:45:00.000+0000', updated: '2026-10-08T14:00:00.000+0000' },
@@ -149,6 +150,7 @@ const changelogs: Record<string, unknown[]> = {
   'PAY-104': [
     history(40201, CHEN, '2026-09-29T10:00:00.000+0000', [status('todo', 'progress')]),
     history(40202, PATEL, '2026-10-05T09:05:00.000+0000', [sprintChange('Sprint 41', 'Sprint 41, Sprint 42')]),
+    history(40203, CHEN, '2026-10-07T10:20:00.000+0000', [status('progress', 'review')]),
   ],
   'PAY-105': [
     history(40301, SMITH, '2026-10-06T11:00:00.000+0000', [status('todo', 'progress')]),
