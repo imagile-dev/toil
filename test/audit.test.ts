@@ -143,6 +143,28 @@ describe('redaction', () => {
     expect(JSON.parse(line)).toMatchObject({ command: 'jira get-issue', outcome: 'ok', input: null, requests: [], requestsOmitted: 100, truncated: true });
   });
 
+  it('takes linear time on long runs that would make a backtracking pattern quadratic', () => {
+    const runs = ['a', 'a.', 'a=', 'a:', '"a":', "'a'=", 'a-', 'a://', '-u', '--user ', 'Basic ', 'eyJ', 'password=', '"', 'x1'];
+    for (const unit of runs) {
+      const text = unit.repeat(Math.ceil(100_000 / unit.length)).slice(0, 100_000);
+      const started = performance.now();
+      auditInput(getThing, { id: text, nested: { note: text }, list: [text] });
+      expect(performance.now() - started, `auditInput on 100,000 characters of ${JSON.stringify(unit)}`).toBeLessThan(50);
+      // The patterns themselves are linear too, without the cut in front of them.
+      const direct = performance.now();
+      redactText(text);
+      expect(performance.now() - direct, `redactText on 100,000 characters of ${JSON.stringify(unit)}`).toBeLessThan(500);
+    }
+  });
+
+  it('leaves an already-redacted value alone, scheme and all, so a second pass changes nothing', () => {
+    const basic = `Authorization: Basic ${Buffer.from('svc-jira:Zq8xLm2Np4Rt6Vw9Yb1C').toString('base64')}`;
+    const once = redactText(basic);
+    expect(once).toBe('Authorization: Basic [redacted]');
+    expect(redactText(once)).toBe(once);
+    for (const text of ['Authorization: Bearer [redacted]', 'token=[redacted]', '{"password":"[redacted]"}', 'curl -u admin:[redacted]']) expect(redactText(text), text).toBe(text);
+  });
+
   it('db query and db execute keep a hash of their SQL, never the SQL', () => {
     for (const name of ['db query', 'db execute']) {
       const def = registered.find((d) => commandName(d) === name)!;
