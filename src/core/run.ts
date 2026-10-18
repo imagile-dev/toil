@@ -211,7 +211,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
         if (!def.area || !call) throw new Error(`${commandName(def)} has no context inputs to supply.`);
         return supplyContext(def.area, def, context, resolved, name, value, source);
       },
-      ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt } } : {}),
+      ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt, env: ctx.env } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
       // A listing's warnings (a refused git include) land in meta.warnings without the command passing anything.

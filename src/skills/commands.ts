@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
-import { CONNECTION_NAME, connectionWrites, readConfigForEdit, writeConfigFile, type ConnectionSettings, type EditableConfig, type ResolvedConfig } from '../core/config.js';
+import { CONNECTION_NAME, connectionWrites, loadConfig, readConfigForEdit, writeConfigFile, type ConnectionSettings, type EditableConfig, type ResolvedConfig } from '../core/config.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified } from '../core/keychain.js';
@@ -163,10 +163,12 @@ export function skillsConfigCommands(): AnyCommand[] {
       if (existing?.token && token && isKeychainRef(existing.token) && existing.token !== tokenRef) await deleteUnreferenced(file, existing.token, ctx);
 
       const available = pluginsIn(dir).map((p) => ({ name: p.name, description: p.description }));
-      // The value the write gate will use: env over the file, as for every connection.
-      const resolved = config.connections[name];
-      const writes = connectionWrites(resolved?.area === AREA ? { ...conn, ...(config.sources[`${name}.writes`] === 'env' ? { writes: resolved.writes } : {}) } : conn);
-      const fromEnv = resolved?.area === AREA && config.sources[`${name}.writes`] === 'env';
+      // The value the write gate will use on the next call: the file just written,
+      // resolved with this call's env by the same loader, so a TOIL_CONN_<NAME>_WRITES
+      // for a connection that didn't exist when this call's config was loaded counts.
+      const after = loadConfig({ env: access(ctx).env, cwd: roots.home, home: roots.home, configPath: path, areas: [{ name: AREA }] });
+      const writes = connectionWrites(after.connections[name]);
+      const fromEnv = after.sources[`${name}.writes`] === 'env';
       return {
         name,
         repoUrl: input.url,

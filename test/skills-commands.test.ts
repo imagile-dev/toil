@@ -238,6 +238,15 @@ describe('toil skills marketplace add', () => {
     expect(readJson(file).connections.corp.writes).toBe(false);
   });
 
+  it('reports writes from an env var on the very first add, before the connection existed', async () => {
+    const run = await cli(['skills', 'marketplace', 'add', REPO, '--name', 'corp', '--allow-write'], context({ git: fakeGit(), env: { TOIL_CONN_CORP_WRITES: 'true' } }));
+    expect(run.envelope?.data).toMatchObject({ writes: true, next: expect.stringContaining('Writes are on for it (from an env var)') });
+    expect(readJson(file).connections.corp.writes).toBeUndefined();
+    // The next call's gate agrees: sync is allowed with the same env.
+    const synced = await cli(['skills', 'marketplace', 'sync', 'all', '--allow-write'], context({ git: fakeGit(), env: { TOIL_CONN_CORP_WRITES: 'true' } }));
+    expect(synced.envelope?.ok, synced.stdout).toBe(true);
+  });
+
   it('re-added over a hand-edited connection, keeps its clone, branch, token, writes and every other key', async () => {
     const custom = join(root, 'my-clone');
     const store = fakeStore({ entries: { 'corp.token': TOKEN } });

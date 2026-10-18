@@ -73,6 +73,13 @@ export interface ConfigAccess {
   config: ResolvedConfig;
   secrets: SecretStore | undefined;
   prompt: Prompter | undefined;
+  /**
+   * The caller's env, so a command that changes connections can resolve one
+   * it just wrote the way the next call will (`skills marketplace add`
+   * reporting `writes`). Only these commands, which already see the whole
+   * config and the credential store, get it.
+   */
+  env: NodeJS.ProcessEnv;
 }
 
 /**
