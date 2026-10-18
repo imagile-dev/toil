@@ -33,5 +33,18 @@
       "--ecosystem <ecosystem>",
       "--include-dev"
     ]
+  },
+  {
+    "name": "secrets scan",
+    "tool": "util_secrets_scan",
+    "description": "Find credential-shaped strings in a file, folder, stdin or the staged diff (local only; exit 1 on findings)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[path]",
+      "--text <text>",
+      "--diff <kind>",
+      "--allow-file <file>"
+    ]
   }
 ]
