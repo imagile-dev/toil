@@ -50,7 +50,7 @@ interface to the work around the code: enterprise tools and databases. The princ
   `code-intelligence`, `mcp`, `secrets`, `automation`. One distributed skill for users.
 - **Testing honesty.** Unit tests stub `fetch` and use `node:sqlite`; real database
   engines run as CI service containers. Each integration carries a verification level
-  (`unit` → `integration` → `live`) that the unit suite alone can never raise.
+  (`unit` → `live` → `stable`) that the unit suite alone can never raise.
 
 ## Start
 

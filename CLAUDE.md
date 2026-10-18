@@ -53,7 +53,8 @@ gets made again in the next place it applies.
    is; every integration says how far it has been verified. Errors are unmistakable:
    they say plainly what went wrong and what to do about it. Nothing fails silently,
    and nothing important hides behind `--debug`. Jokes live in the copy, never in an
-   error or failure notice. → Verification Levels (`integrations` skill), source on
+   error or failure notice. → Verification Levels (`unit`, `live`, `stable`, meant as
+   `site/src/data/levels.json` says; `integrations` skill), source on
    every finding, the fix on every error.
 5. **The environment wins without editing files.** CI and agents configure through
    env vars that override anything on disk. → Configuration Precedence.
@@ -725,7 +726,8 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   `test/site-commands.test.ts`, which writes `site/src/data/commands/<area>.json` and
   `site/src/data/settings/<area>.json` for the docs pages (`npx vitest run -u` after
   changing a command or a connection key) and checks the board's
-  `site/src/data/integrations/<area>.json`.
+  `site/src/data/integrations/<area>.json` and the levels in
+  `site/src/data/levels.json`.
 - **`test/util-docs.test.ts`** holds `/docs/utilities/` and `skills/toil/util.md` to the registry: a `util` command added or changed updates both in the same PR (`docs/util.md`).
 - **No file every integration edits.** Each area has its own fixture, skill file, divergence
   file, board entry and command list; the lists that span areas (the registry, the

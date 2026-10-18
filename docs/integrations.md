@@ -1,6 +1,6 @@
 # Integrations
 
-The enterprise services toil will cover. Each one is its own command area
+The enterprise services toil covers. Each one is its own command area
 (`toil <area> <verb>`) and must clear the Authentication Bar in the `integrations` skill
 (`.claude/skills/integrations/SKILL.md`). Every one starts at verification level
 `unit` (see the same skill).
@@ -8,8 +8,8 @@ The enterprise services toil will cover. Each one is its own command area
 ## Where each integration is recorded
 
 Each integration has one file, `site/src/data/integrations/<area>.json`: its service,
-what it covers, its credential and where to make it, its status (`planned`, then its
-verification level), and the oldest server version it supports. The site's
+what it covers, its credential and where to make it, its status (its verification
+level), and the oldest server version it supports. The site's
 [integrations board](https://imagile-dev.github.io/toil/integrations/) and each
 integration's docs page are built from those files, so there is no table here to keep
 in step. One file per area means an integration changes only its own row.
@@ -20,7 +20,7 @@ in step. One file per area means an integration changes only its own row.
 | `group`, `order` | Which board section it sits in (`work`, `build`, `security`, `observability`, `design`), and where |
 | `covers` | What the area reads and writes, in a line |
 | `credential`, `credentialWhere`, `credentialNote` | The credential, the menu path to create it (only when certain), and a note such as a CI fallback (`GITHUB_TOKEN`, `SONAR_TOKEN`) or a shared key (Kibana uses the Elasticsearch key) |
-| `status` | `planned` until its code is on `main`, then `unit`, `integration` or `live` |
+| `status` | Its verification level: `unit`, `live` or `stable`, with the meanings in `site/src/data/levels.json`. A file is added with the area's code, at `unit` |
 | `host`, `keys` | SaaS only: the vendor's API host for examples; the credential env keys when there's more than one token |
 | `local` | `true` for an area with no server (git): its page describes no credential, configuration or connection |
 | `supported` | `{ product, minimum, api, note }`: the oldest version it supports, `minimum: null` when not established. Once the area ships, its `src/areas/<area>/index.ts` exports the same value as `supported`, its skill file states it, and `test/skills.test.ts` keeps the three equal. |

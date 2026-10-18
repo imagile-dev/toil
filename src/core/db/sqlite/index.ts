@@ -147,7 +147,7 @@ export const sqliteProvider: DbProvider = {
   label: 'SQLite',
   requires: ['path'],
   defaultSchema: () => 'main',
-  verification: 'integration',
+  verification: 'live',
 
   async listSchemas(conn, call) {
     const [result] = await run(conn, { write: false, steps: [{ sql: "SELECT name FROM pragma_database_list WHERE name <> 'temp' ORDER BY seq", mode: 'rows' }] }, call);

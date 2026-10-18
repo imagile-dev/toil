@@ -25,8 +25,8 @@ export interface DbProvider {
    * MySQL's connection database, the Oracle login's own schema).
    */
   defaultSchema(conn: DbConnection): string;
-  /** How far this provider has been verified (the `integrations` skill's levels). */
-  readonly verification: 'unit' | 'integration' | 'live';
+  /** How far this provider has been verified: one of the levels in site/src/data/levels.json. */
+  readonly verification: 'unit' | 'live' | 'stable';
   /** Rules on this engine's connection keys beyond `requires`, checked when the connection resolves. */
   check?(settings: Partial<DbSettings>): Array<{ key: keyof DbSettings; message: string }>;
 

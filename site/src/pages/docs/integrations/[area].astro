@@ -1,7 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import PageHero from '../../../components/PageHero.astro';
-import { allIntegrations, credentialWhere, envPrefix, localUnitMeaning, statusMeaning, supportedText, type IntegrationEntry } from '../../../data/integrations';
+import { allIntegrations, credentialWhere, envPrefix, statusMeaning, supportedText, type IntegrationEntry } from '../../../data/integrations';
 import { url, repoUrl } from '../../../lib/url';
 
 // One page per integration, generated from the same data as the board, so an
@@ -25,13 +25,13 @@ const next = allIntegrations[index + 1];
 // say); `connection` is whether it takes --connection.
 type SiteCommand = { name: string; tool: string | null; description: string; writes: boolean; connection: boolean; flags: string[] };
 const generated = import.meta.glob<SiteCommand[]>('../../../data/commands/*.json', { eager: true, import: 'default' });
-const commandList: SiteCommand[] = integration.status === 'planned' ? [] : (generated[`../../../data/commands/${integration.area}.json`] ?? []);
+const commandList: SiteCommand[] = generated[`../../../data/commands/${integration.area}.json`] ?? [];
 const supported = integration.supported;
 // Every setting a connection takes, written from the area's connection schema
 // by the same test (data/settings/<area>.json): the credential and everything else.
 type SiteSetting = { key: string; env: string; description: string; required: boolean; secret: boolean; fallbacks: string[] };
 const settingFiles = import.meta.glob<SiteSetting[]>('../../../data/settings/*.json', { eager: true, import: 'default' });
-const settings: SiteSetting[] = integration.status === 'planned' ? [] : (settingFiles[`../../../data/settings/${integration.area}.json`] ?? []);
+const settings: SiteSetting[] = settingFiles[`../../../data/settings/${integration.area}.json`] ?? [];
 // The required keys; an area whose keys are required only in combination
 // (a base URL and token, or a connection string) has none, so it shows them all.
 const required = settings.filter((s) => s.required);
@@ -39,20 +39,18 @@ const exampleLines = settings.length
   ? (required.length ? required : settings).map((s) => ({ env: s.env, value: s.key === 'baseUrl' ? host : `<your ${s.description.toLowerCase() || s.key}>` }))
   : [{ env: `${prefix}BASE_URL`, value: host }, ...keyLines.map((k) => ({ env: `${prefix}${k.key}`, value: `<your ${k.label}>` }))];
 // A read-only area has nothing to gate, so its page doesn't explain the gate.
-const writes = commandList.length === 0 || commandList.some((c) => c.writes);
+const writes = commandList.some((c) => c.writes);
 const cliOnly = commandList.some((c) => c.tool === null);
 const allConnect = commandList.every((c) => c.connection);
-// What the page describes follows what the area has. A shipped area with no
+// What the page describes follows what the area has. An area with no
 // settings (osv) has no credential and nothing to configure; one with no
 // baseUrl (ossindex) calls a fixed host; one whose commands take no
-// connection (git, osv) has no --connection to mention. A planned area keeps
-// the generic text, since its keys aren't known yet.
-const shipped = integration.status !== 'planned';
-const configurable = !local && (!shipped || settings.length > 0);
-const credentialed = !local && (!shipped || settings.some((s) => s.secret));
-const fixedHost = shipped && configurable && integration.host !== undefined && !settings.some((s) => s.key === 'baseUrl');
+// connection (git, osv) has no --connection to mention.
+const configurable = !local && settings.length > 0;
+const credentialed = !local && settings.some((s) => s.secret);
+const fixedHost = configurable && integration.host !== undefined && !settings.some((s) => s.key === 'baseUrl');
 const connects = commandList.some((c) => c.connection);
-const status = local && integration.status === 'unit' ? localUnitMeaning : statusMeaning[integration.status];
+const status = statusMeaning(integration);
 ---
 
 <Layout title={`${integration.name} integration`} description={`toil's ${integration.name} integration: what it covers, the credential it uses, and how to configure it.`}>
@@ -164,38 +162,29 @@ const status = local && integration.status === 'unit' ? localUnitMeaning : statu
 
         <section data-reveal>
           <h2>Commands</h2>
-          {commandList.length === 0 ? (
-            <p>
-              The command reference appears here when the integration ships. Every command will be available both as{' '}
-              <code>toil {integration.area} &lt;command&gt;</code> on the command line and as an MCP tool, with identical inputs and output.
-            </p>
-          ) : (
-            <>
-              <p>
-                {commandList.length === 1 ? 'One command, on' : `${commandList.length} commands, each on`} the command line as <code>toil {integration.area} &lt;command&gt;</code> and over MCP as
-                the tool shown, with identical inputs and output{cliOnly ? <>, apart from ones marked <span class="cmd__cli">CLI only</span>, which have no MCP tool</> : null}. {connects ? (
-                  <>{allConnect ? 'Every command' : 'Every command that talks to the service'} also takes <code>--connection &lt;name&gt;</code>{writes ? <>; ones marked <span class="cmd__write">write</span> change data</> : <>, and every one of them only reads</>}.</>
-                ) : writes ? <>Ones marked <span class="cmd__write">write</span> change data.</> : commandList.length === 1 ? 'It only reads.' : 'Every one of them only reads.'} Run <code>toil {integration.area} &lt;command&gt; --help</code> for each flag's meaning, or read the{' '}
-                <a href={`${repoUrl}/blob/main/skills/toil/${integration.area}.md`}>{integration.name} reference</a>.
-              </p>
-              <ul class="cmds">
-                {commandList.map((c) => (
-                  <li class="cmd">
-                    <div class="cmd__head">
-                      <code class="cmd__name">toil {integration.area} {c.name}</code>
-                      {c.writes && <span class="cmd__write">write</span>}
-                      {c.tool === null && <span class="cmd__cli">CLI only</span>}
-                    </div>
-                    <p class="cmd__desc">{c.description}</p>
-                    <p class="cmd__meta">
-                      {c.tool !== null && <span class="cmd__tool">MCP <code>{c.tool}</code></span>}
-                      {c.flags.map((f) => <code class="cmd__flag">{f}</code>)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
+          <p>
+            {commandList.length === 1 ? 'One command, on' : `${commandList.length} commands, each on`} the command line as <code>toil {integration.area} &lt;command&gt;</code> and over MCP as
+            the tool shown, with identical inputs and output{cliOnly ? <>, apart from ones marked <span class="cmd__cli">CLI only</span>, which have no MCP tool</> : null}. {connects ? (
+              <>{allConnect ? 'Every command' : 'Every command that talks to the service'} also takes <code>--connection &lt;name&gt;</code>{writes ? <>; ones marked <span class="cmd__write">write</span> change data</> : <>, and every one of them only reads</>}.</>
+            ) : writes ? <>Ones marked <span class="cmd__write">write</span> change data.</> : commandList.length === 1 ? 'It only reads.' : 'Every one of them only reads.'} Run <code>toil {integration.area} &lt;command&gt; --help</code> for each flag's meaning, or read the{' '}
+            <a href={`${repoUrl}/blob/main/skills/toil/${integration.area}.md`}>{integration.name} reference</a>.
+          </p>
+          <ul class="cmds">
+            {commandList.map((c) => (
+              <li class="cmd">
+                <div class="cmd__head">
+                  <code class="cmd__name">toil {integration.area} {c.name}</code>
+                  {c.writes && <span class="cmd__write">write</span>}
+                  {c.tool === null && <span class="cmd__cli">CLI only</span>}
+                </div>
+                <p class="cmd__desc">{c.description}</p>
+                <p class="cmd__meta">
+                  {c.tool !== null && <span class="cmd__tool">MCP <code>{c.tool}</code></span>}
+                  {c.flags.map((f) => <code class="cmd__flag">{f}</code>)}
+                </p>
+              </li>
+            ))}
+          </ul>
         </section>
 
         {writes && <section data-reveal>
@@ -247,9 +236,8 @@ const status = local && integration.status === 'unit' ? localUnitMeaning : statu
     border-radius: 999px; padding: 0.1rem 0.55rem; border: 1px solid var(--color-line-strong); color: var(--color-muted);
   }
   .status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .status--planned { border-style: dashed; color: var(--color-faint); }
-  .status--integration { color: var(--color-accent); }
-  .status--live { color: var(--color-ok); }
+  .status--live { color: var(--color-accent); }
+  .status--stable { color: var(--color-ok); }
 
   .cmds { list-style: none; padding: 0; margin: var(--space-sm) 0 0; display: grid; gap: var(--space-xs); }
   .cmd { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-sm); min-width: 0; }

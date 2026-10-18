@@ -286,7 +286,7 @@ export const postgresProvider: DbProvider = {
   label: 'PostgreSQL',
   requires: ['host', 'database', 'user'],
   defaultSchema: () => 'public',
-  verification: 'integration',
+  verification: 'live',
 
   listSchemas(conn, call) {
     return session(conn, 'read', call, async (client) => {

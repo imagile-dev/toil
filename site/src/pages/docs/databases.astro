@@ -6,11 +6,11 @@ import { url } from '../../lib/url';
 // The db area's docs page: one set of commands, one provider per engine. Kept
 // in step with skills/toil/db.md, which is the same reference for agents.
 const engines = [
-  { name: 'SQLite', status: 'integration', note: 'Built into Node. Tested against the real engine.' },
-  { name: 'PostgreSQL', status: 'integration', note: 'Pure-JS driver, bundled. Tested against PostgreSQL 17.' },
-  { name: 'MySQL / MariaDB', status: 'integration', note: 'Pure-JS driver, bundled. Tested against MySQL 8.4 and MariaDB 11.8.' },
-  { name: 'SQL Server', status: 'integration', note: 'Pure-JS driver, bundled. Tested against SQL Server 2022; connect with a read-only login.' },
-  { name: 'Oracle', status: 'integration', note: 'Thin mode, no Oracle client. Tested against Oracle Database 23ai Free.' },
+  { name: 'SQLite', status: 'live', note: 'Built into Node. Tested against the real engine.' },
+  { name: 'PostgreSQL', status: 'live', note: 'Pure-JS driver, bundled. Tested against PostgreSQL 17.' },
+  { name: 'MySQL / MariaDB', status: 'live', note: 'Pure-JS driver, bundled. Tested against MySQL 8.4 and MariaDB 11.8.' },
+  { name: 'SQL Server', status: 'live', note: 'Pure-JS driver, bundled. Tested against SQL Server 2022; connect with a read-only login.' },
+  { name: 'Oracle', status: 'live', note: 'Thin mode, no Oracle client. Tested against Oracle Database 23ai Free.' },
 ];
 
 const commands = [
@@ -289,8 +289,8 @@ const commands = [
     border-radius: 999px; padding: 0.1rem 0.55rem; border: 1px solid var(--color-line-strong); color: var(--color-muted);
   }
   .status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .status--planned { border-style: dashed; color: var(--color-faint); }
-  .status--integration { color: var(--color-accent); }
+  .status--live { color: var(--color-accent); }
+  .status--stable { color: var(--color-ok); }
 
   @media (min-width: 900px) {
     .doc { grid-template-columns: 16rem minmax(0, 1fr); }

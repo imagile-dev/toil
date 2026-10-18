@@ -296,6 +296,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   }
   if (flag !== '--dry') {
     const source = existsSync(join(root, 'docs', 'briefs', `${area}.md`)) ? `docs/briefs/${area}.md` : "the vendor's API docs";
-    console.log(`\nNext: read ${source}, set status "unit" in site/src/data/integrations/${area}.json, then build each command (integrations skill).`);
+    console.log(`\nNext: read ${source}, add site/src/data/integrations/${area}.json at status "unit", then build each command (integrations skill).`);
   }
 }
