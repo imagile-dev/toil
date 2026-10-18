@@ -51,6 +51,12 @@ export interface AreaFixture {
    * which the fixture may also `trace`. Left out, a command that runs git gets none.
    */
   git?: GitRunner;
+  /**
+   * Files in the home folder the examples run against (`ctx.home`), relative
+   * paths with forward slashes: the skills area's agent folders and clones.
+   * Each run gets a fresh copy at the same path.
+   */
+  home?: Record<string, string>;
   /** Defaults to the area's registered commands. Only test-only areas set it. */
   commands?: AnyCommand[];
   /**
