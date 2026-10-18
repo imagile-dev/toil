@@ -4,9 +4,6 @@ import { testContext } from '../../../test/harness/context.js';
 import type { Route } from '../../../test/harness/fake-fetch.js';
 import { ADO, ATTACHMENT, COLL, config as fixtureConfig, files as fixtureFiles, ME, PROJ, pr, REPO, routes, workItem, build } from '../../../test/fixtures/ado.fixture.js';
 import { commandName, type AnyCommand } from '../../core/command.js';
-import { loadConfig } from '../../core/config.js';
-import { resolveConnection } from '../../core/connection.js';
-import { adoArea } from './area.js';
 import type { Context } from '../../core/context.js';
 import { execute } from '../../core/run.js';
 import { commands } from './index.js';
@@ -252,13 +249,6 @@ describe('work items', () => {
       { op: 'add', path: '/fields/Microsoft.VSTS.Scheduling.StoryPoints', value: '5' },
       { op: 'add', path: '/fields/System.Title', value: 'T' },
     ]);
-  });
-
-  it('reads fieldAliases from TOIL_ADO_FIELD_ALIASES as a JSON object', async () => {
-    const env = { TOIL_ADO_BASE_URL: ADO, TOIL_ADO_PAT: 'p', TOIL_ADO_FIELD_ALIASES: '{"effortdays":"MyOrg.EffortDays"}' };
-    const config = loadConfig({ env, cwd: '/nowhere', home: '/nowhere', areas: [adoArea] });
-    const connection = await resolveConnection(config, adoArea, undefined, () => {});
-    expect(connection.fieldAliases).toEqual({ effortdays: 'MyOrg.EffortDays' });
   });
 
   it("work update resolves names through the connection's fieldAliases over the built-in ones", async () => {

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { commands as alationCommands } from '../src/areas/alation/index.js';
+import { adoArea } from '../src/areas/ado/area.js';
+import { loadConfig } from '../src/core/config.js';
+import { resolveConnection } from '../src/core/connection.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
 import { connectMcp } from './harness/mcp.js';
@@ -33,5 +36,14 @@ describe('an input error over MCP names the field, on the CLI the flag', () => {
     } finally {
       await mcp.close();
     }
+  });
+});
+
+describe("ado's fieldAliases, now that --save is gone", () => {
+  it('come from TOIL_ADO_FIELD_ALIASES as a JSON object, the way a custom alias is set without a file', async () => {
+    const env = { TOIL_ADO_BASE_URL: 'https://ado.imagile.dev', TOIL_ADO_PAT: 'p', TOIL_ADO_FIELD_ALIASES: '{"effortdays":"MyOrg.EffortDays"}' };
+    const config = loadConfig({ env, cwd: '/nowhere', home: '/nowhere', areas: [adoArea] });
+    const connection = await resolveConnection(config, adoArea, undefined, () => {});
+    expect(connection.fieldAliases).toEqual({ effortdays: 'MyOrg.EffortDays' });
   });
 });
