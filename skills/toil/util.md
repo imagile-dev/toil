@@ -285,10 +285,11 @@ Known limits:
 
 - A diff and a file are scanned line by line, so a secret split across two lines
   (other than a private key) isn't found.
-- A private key spans lines only when its BEGIN line stands alone. The key then
-  runs over the body lines below it (base64, blank, `Proc-Type:` and
-  `DEK-Info:`) to its END, and the first other line ends it and is scanned as
-  usual.
+- A private key spans lines only when its BEGIN line stands alone and an END
+  line follows its body (base64, blank, `Proc-Type:` and `DEK-Info:` lines). It's
+  then one finding, with `endLine`. When no END comes (another line, a gap
+  between diff hunks, or the end of the file), the BEGIN line is reported on its
+  own and the lines below it are scanned as usual.
 - A bare `key=` isn't treated as a secret's name, because in toil's inputs it's
   an issue, space or project key. A real key there is still caught by its shape
   or its entropy.

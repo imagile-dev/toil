@@ -1,5 +1,4 @@
 import { createHash, scryptSync } from 'node:crypto';
-import { relative } from 'node:path';
 import type { CommandContext } from '../../../core/context.js';
 import { ToilError } from '../../../core/errors.js';
 import { findSecrets, TOKEN_SHAPES, type SecretMatch } from '../../../core/secret-shapes.js';
@@ -226,16 +225,23 @@ interface Held extends Finding {
 
 interface OpenKey {
   finding: Held;
+  /** The BEGIN line's match: the finding's secret if no END ever comes. */
+  header: string;
+  /** The header and every body line so far, for the fingerprint of a whole key. */
   text: string;
   lastLine: number;
+  /** The body lines taken so far, scanned after all if no END comes. */
+  held: Array<{ number: number; text: string }>;
 }
 
 /**
  * The scan over one file's lines, in order. A BEGIN line standing alone opens
- * a key that takes the body lines below it, up to its END, as part of the one
- * finding, so the body isn't reported again line by line as random runs. The
- * first line that isn't body ends the key and is scanned as any other line,
- * so a header mentioned in a document can't hide the secrets after it.
+ * a key, and the body lines below it are held. An END line closes it as one
+ * finding, so the body isn't reported again line by line as random runs.
+ * Anything else (a line that isn't body, a gap between hunks, the end of the
+ * file) means it wasn't a key after all: the header is reported alone, and
+ * each held line is scanned as if it had never been held, so a header in a
+ * document can't hide the secrets after it.
  */
 class FileScan {
   readonly found: Held[] = [];
@@ -252,17 +258,25 @@ class FileScan {
   line(number: number, text: string): void {
     this.lines++;
     let from = 0;
-    if (this.open) {
-      const end = number === this.open.lastLine + 1 ? KEY_END.exec(text) : null;
+    const open = this.open;
+    if (open) {
+      const next = number === open.lastLine + 1;
+      const end = next ? KEY_END.exec(text) : null;
       if (end) {
         from = end.index + end[0].length;
         this.append(text.slice(0, from), number);
-        this.close();
-      } else if (number === this.open.lastLine + 1 && KEY_BODY.test(text.trim())) {
+        this.closeKey();
+      } else if (next && KEY_BODY.test(text.trim())) {
         this.append(text, number);
+        open.held.push({ number, text });
         return;
       } else this.close();
     }
+    this.scan(number, text, from);
+  }
+
+  /** The matches on one line from `from` on, each reported, or held open when it's a bare BEGIN line. */
+  private scan(number: number, text: string, from: number): void {
     const { matches, checksums, placeholders } = detectLine(text);
     this.checksums += checksums;
     this.placeholders += placeholders;
@@ -283,7 +297,7 @@ class FileScan {
         firstLength: m.length,
       };
       if (m.rule === 'private-key' && KEY_HEADER.test(secret.trim())) {
-        this.open = { finding: held, text: secret, lastLine: number };
+        this.open = { finding: held, header: secret, text: secret, lastLine: number, held: [] };
       } else {
         this.finish(held, secret);
         this.found.push(held);
@@ -297,10 +311,9 @@ class FileScan {
     open.lastLine = number;
   }
 
-  /** Ends an open key at its END line, the first line that isn't key body, or the end of the file. */
-  close(): void {
-    const open = this.open;
-    if (!open) return;
+  /** An END line arrived: the header, body and END are one finding. */
+  private closeKey(): void {
+    const open = this.open!;
     this.open = undefined;
     const { finding, text } = open;
     if (open.lastLine !== finding.line) finding.endLine = open.lastLine;
@@ -308,6 +321,16 @@ class FileScan {
     finding.entropy = Math.round(entropy(text) * 100) / 100;
     this.finish(finding, text);
     this.found.push(finding);
+  }
+
+  /** No END came: the header is reported on its own line, and every held line is scanned. */
+  close(): void {
+    const open = this.open;
+    if (!open) return;
+    this.open = undefined;
+    this.finish(open.finding, open.header);
+    this.found.push(open.finding);
+    for (const { number, text } of open.held) this.scan(number, text, 0);
   }
 }
 
@@ -528,7 +551,7 @@ const splitLines = (text: string) => new Map(text.split('\n').map((l, i) => [i +
  */
 async function scanDiff(scan: Scan, kind: DiffKind): Promise<void> {
   const { ctx } = scan;
-  const repo = await requireRepo(ctx);
+  await requireRepo(ctx);
   const options = [...(kind === 'staged' ? ['--staged'] : []), '--no-color', '--unified=0', '--relative', '--src-prefix=a/', '--dst-prefix=b/'];
   const label = `git diff${kind === 'staged' ? ' --staged' : ''}`;
   const text = execOutput(label, await runGit(ctx, { subcommand: 'diff', options }), DEFAULT_MAX_BYTES);
@@ -548,7 +571,7 @@ async function scanDiff(scan: Scan, kind: DiffKind): Promise<void> {
         : async (lines) => (await openInput(ctx, { file: file.path }, { maxLineLength: MAX_LINE })).linesAt(lines);
     scan.done(fileScan, file.path, reread);
   }
-  await warnPartialDiff(scan, kind, repo.root);
+  await warnPartialDiff(scan, kind);
   scan.v.unchecked('input.complete', "git's diff has no size to compare the bytes read with; each finding is re-read from its source instead");
   if (kind === 'working') {
     const untracked = await runGit(ctx, { subcommand: 'ls-files', options: ['--others', '--exclude-standard'] });
@@ -569,18 +592,23 @@ async function scanDiff(scan: Scan, kind: DiffKind): Promise<void> {
  * repository, the changes outside it aren't scanned; this says how many files
  * that left out, so a clean result is never mistaken for a clean commit.
  */
-async function warnPartialDiff(scan: Scan, kind: DiffKind, root: string): Promise<void> {
+async function warnPartialDiff(scan: Scan, kind: DiffKind): Promise<void> {
   const { ctx } = scan;
-  const workspace = ctx.files.workspace;
-  if (workspace === undefined) return;
-  const inside = relative(root, workspace).replace(/\\/g, '/');
-  if (inside === '' || inside.startsWith('..')) return;
+  // git says where the workspace sits in the repository, as it resolves both: a workspace reached
+  // through a symlink or a junction gets the same answer as the real folder, which a path comparison wouldn't.
+  const shown = await runGit(ctx, { subcommand: 'rev-parse', options: ['--show-prefix'] });
+  if (shown.exitCode !== 0) {
+    scan.v.unchecked('diff.whole', "git couldn't say where the workspace sits in the repository");
+    return;
+  }
+  const prefix = shown.stdout.trim();
+  if (prefix === '') return;
+  const inside = prefix.replace(/\/$/, '');
   const listed = await runGit(ctx, { subcommand: 'diff', options: [...(kind === 'staged' ? ['--staged'] : []), '--name-only', '--no-relative'] });
   if (listed.exitCode !== 0) {
     scan.v.unchecked('diff.whole', "git couldn't list the changes outside the workspace");
     return;
   }
-  const prefix = `${inside}/`;
   const fold = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
   const outside = listed.stdout.split('\n').filter((p) => p !== '' && !fold(unquoteGitPath(p)).startsWith(fold(prefix))).length;
   if (outside > 0) {

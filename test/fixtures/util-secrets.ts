@@ -122,6 +122,8 @@ const ok = (stdout: string): GitResult => ({ exitCode: 0, stdout, stderr: '' });
 export const cannedCalls: Array<[GitCall, GitResult]> = [
   [{ subcommand: 'diff', options: ['--staged', ...DIFF_OPTIONS] }, ok(STAGED_DIFF)],
   [{ subcommand: 'show', revisions: [':./config/application.properties'] }, ok(PROPERTIES)],
+  // The workspace is the repository's top: nothing of the diff lies outside it.
+  [{ subcommand: 'rev-parse', options: ['--show-prefix'] }, ok('\n')],
 ];
 
 export const canned = new Map(cannedCalls.map(([call, result]) => [callKey(call), result]));

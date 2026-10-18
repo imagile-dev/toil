@@ -27,14 +27,20 @@ import { detectLine, entropy, fingerprintOf, keepFor, maskSecret, parseDiff, pre
 const REPO = { root: '/work', branch: 'main', remotes: [] };
 const ok = (stdout: string): GitResult => ({ exitCode: 0, stdout, stderr: '' });
 
-/** A git answering from a map of calls, recording each one, and failing anything else loudly. */
+const SHOW_PREFIX = callKey({ subcommand: 'rev-parse', options: ['--show-prefix'] });
+
+/**
+ * A git answering from a map of calls, recording each one, and failing
+ * anything else loudly. Unless the map says otherwise, the workspace is the
+ * repository's top (`rev-parse --show-prefix` prints an empty line).
+ */
 function gitOf(answers: Map<string, GitResult>): GitRunner & { calls: GitCall[] } {
   const calls: GitCall[] = [];
   return {
     calls,
     run: async (call) => {
       calls.push(call);
-      const found = answers.get(callKey(call));
+      const found = answers.get(callKey(call)) ?? (callKey(call) === SHOW_PREFIX ? ok('\n') : undefined);
       if (!found) throw new Error(`no canned git output for ${callKey(call)}`);
       return found;
     },
@@ -143,6 +149,26 @@ describe('util secrets scan: what it finds', () => {
     expect(prose.data.findings.map((f) => [at(f), f.rule])).toEqual([
       ['-:1:27', 'private-key'],
       ['-:2:10', 'name-value'],
+    ]);
+  });
+
+  it('a lone header followed by lines that only look like key body reports the header alone, then finds what those lines hold', async () => {
+    const header = plant('-----BEGIN RSA PRIVATE', ' KEY-----');
+    const aws = plant('AKIA', 'Q3WX7ZP2LM9NBV4C');
+    const { data } = await scan({ text: `${header}\nnotes\n${aws}\n` });
+    expect(data.findings.map((f) => [at(f), f.rule, f.endLine])).toEqual([
+      ['-:1:1', 'private-key', undefined],
+      ['-:3:1', 'aws-access-key', undefined],
+    ]);
+    expect(data.findings[0]!.length).toBe(header.length);
+    expect(data.verified.passed).toBe(true);
+    // In a diff, a gap between hunks ends the key the same way.
+    const diff = `diff --git a/k.txt b/k.txt\n--- a/k.txt\n+++ b/k.txt\n@@ -0,0 +1,2 @@\n+${header}\n+${aws}\n@@ -9,0 +12 @@\n+UGxhbnRlZA\n`;
+    const git = gitOf(new Map([[callKey({ subcommand: 'diff', options: ['--staged', ...DIFF_OPTIONS] }), ok(diff)], [callKey({ subcommand: 'show', revisions: [':./k.txt'] }), ok(`${header}\n${aws}\n`)]]));
+    const staged = await scan({ diff: 'staged' }, { git });
+    expect(staged.data.findings.map((f) => [at(f), f.rule])).toEqual([
+      ['k.txt:1:1', 'private-key'],
+      ['k.txt:2:1', 'aws-access-key'],
     ]);
   });
 
@@ -456,6 +482,7 @@ describe('util secrets scan: the diff', () => {
     const { data, envelope } = await scan({ diff: 'staged' }, { git, files: samples });
     expect(git.calls).toEqual([
       { subcommand: 'diff', options: ['--staged', ...DIFF_OPTIONS] },
+      { subcommand: 'rev-parse', options: ['--show-prefix'] },
       { subcommand: 'show', revisions: [':./config/application.properties'] },
     ]);
     expect(data.source).toEqual({ kind: 'staged', path: null });
@@ -491,10 +518,11 @@ describe('util secrets scan: the diff', () => {
       new Map([
         [callKey({ subcommand: 'diff', options: ['--staged', ...DIFF_OPTIONS] }), ok(inner)],
         [callKey({ subcommand: 'show', revisions: [':./a.env'] }), ok('password=Pl4ntedPassw0rd\n')],
+        [SHOW_PREFIX, ok('work/\n')],
         [callKey({ subcommand: 'diff', options: ['--staged', '--name-only', '--no-relative'] }), ok('work/a.env\nother/b.env\n"other/caf\\303\\251.env"\n')],
       ]),
     );
-    const { data, envelope } = await scan({ diff: 'staged' }, { git, repo: { root: '/', branch: 'main', remotes: [] } });
+    const { data, envelope } = await scan({ diff: 'staged' }, { git });
     expect(data.findings.map(at)).toEqual(['a.env:1:10']);
     expect(envelope.meta.warnings).toContainEqual({ code: 'SECRETS_DIFF_PARTIAL', message: expect.stringContaining('2 staged files are outside the workspace (work)') });
 
