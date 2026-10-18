@@ -5,6 +5,7 @@ import { aliasInput, aliasPaths, areaOf, commandName, isCliOnly, servedOverMcp, 
 import type { Settings } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
+import { SELECT_DESCRIPTION, SELECT_FIELD } from '../src/core/query/select.js';
 import type { GitRunner } from '../src/core/git.js';
 import type { GitContext } from '../src/core/git-repo.js';
 import { clearTokenCache, watchTokenExchanges } from '../src/core/token.js';
@@ -134,7 +135,8 @@ for (const suite of suites) {
       for (const def of suite.commands) {
         const tool = tools.find((t) => t.name === toolName(def))!;
         const expected = z.toJSONSchema(def.input, { target: 'draft-7' }) as { properties?: object; required?: string[] };
-        expect(tool.inputSchema.properties ?? {}, toolName(def)).toEqual(expected.properties ?? {});
+        // Plus core's select, which every tool takes and execute() applies to data.
+        expect(tool.inputSchema.properties ?? {}, toolName(def)).toEqual({ ...(expected.properties ?? {}), [SELECT_FIELD]: { type: 'string', minLength: 1, description: SELECT_DESCRIPTION } });
         expect([...(tool.inputSchema.required ?? [])].sort(), toolName(def)).toEqual([...(expected.required ?? [])].sort());
         expect(tool.inputSchema.additionalProperties, `${toolName(def)} advertises that unknown fields are refused`).toBe(false);
         expect(tool.annotations?.readOnlyHint, toolName(def)).toBe(!def.writes);
@@ -195,6 +197,28 @@ for (const suite of suites) {
           }
         });
       }
+
+      it(`${commandName(def)}: --select is applied the same way through both doors, and a bad one is refused before any request`, async () => {
+        const example = { ...(def.examples[0] as Record<string, unknown>), [SELECT_FIELD]: 'type(@)' };
+        const cli = testContext({ config: suite.fixture.config, routes: suite.fixture.routes, files: suite.fixture.files, ...localOf(suite.fixture) });
+        const viaCli = await runCli(argvFor(def, example), { commands: suite.commands, context: cli.context });
+        const { session, http } = await mcpFor(suite.commands, suite.fixture.config, suite.fixture.routes, suite.fixture.files, localOf(suite.fixture));
+        const viaMcp = await session.call(toolName(def), example);
+        expect(viaCli.envelope?.ok, viaCli.stdout + viaCli.stderr).toBe(true);
+        expect(['object', 'array', 'string', 'number', 'boolean', 'null']).toContain(viaCli.envelope?.data);
+        expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));
+        expect(http.calls).toEqual(cli.http.calls);
+
+        const bad = { ...example, [SELECT_FIELD]: 'items[?' };
+        const badCli = testContext({ config: suite.fixture.config, routes: suite.fixture.routes, files: suite.fixture.files, ...localOf(suite.fixture) });
+        const { result: refusedCli, operations: cliOps } = await recordOperations(() => runCli(argvFor(def, bad), { commands: suite.commands, context: badCli.context }));
+        const badMcp = await mcpFor(suite.commands, suite.fixture.config, suite.fixture.routes, suite.fixture.files, localOf(suite.fixture));
+        const { result: refusedMcp, operations: mcpOps } = await recordOperations(() => badMcp.session.call(toolName(def), bad));
+        expect(refusedCli.envelope?.error?.code).toBe('INVALID_INPUT');
+        expect(comparable(refusedMcp.envelope)).toEqual(comparable(refusedCli.envelope));
+        expect([...badCli.http.calls, ...badMcp.http.calls]).toHaveLength(0);
+        expect([...cliOps, ...mcpOps]).toHaveLength(0);
+      });
 
       it(`${commandName(def)}: an unknown field is INVALID_INPUT through both doors, before any request`, async () => {
         const example = def.examples[0] as Record<string, unknown>;
