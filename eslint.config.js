@@ -24,7 +24,7 @@ const AREA_PATTERNS = [
 ];
 
 export default tseslint.config(
-  { ignores: ['dist/', 'site/', 'node_modules/', 'coverage/'] },
+  { ignores: ['dist/', 'site/', 'node_modules/', 'coverage/', 'functions/feedback/dist/'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
