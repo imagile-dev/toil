@@ -65,7 +65,7 @@ describe('status', () => {
 
   it('keeps a non-JSON 503 as HTTP 503', async () => {
     const { envelope } = await run(statusCommand, {}, [text('<html>upstream down</html>', 503)]);
-    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'HTTP 503' });
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'HTTP 503 Service Unavailable' });
   });
 
   it('a 200 that is not JSON says baseUrl may not point at Kibana, quoting the start of the body', async () => {

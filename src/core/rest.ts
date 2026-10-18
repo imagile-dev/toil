@@ -1,3 +1,4 @@
+import { STATUS_CODES } from 'node:http';
 import { ToilError, type ErrorCode } from './errors.js';
 import { redactUrl } from './http.js';
 
@@ -115,6 +116,22 @@ export function errorMessageFrom(body: string): string | undefined {
   return parts.length > 0 ? parts.join('; ') : undefined;
 }
 
+/**
+ * `HTTP 503 Service Unavailable`: the status and the response's own reason
+ * phrase, or the standard one when the server sent none (HTTP/2 has no
+ * reason phrase at all). A bare number is a riddle; the phrase is the answer
+ * key, issued at no extra charge.
+ */
+export function statusLine(status: number, statusText?: string): string {
+  const phrase = reasonPhrase(status, statusText);
+  return `HTTP ${status}${phrase ? ` ${phrase}` : ''}`;
+}
+
+/** The response's reason phrase, else the standard one for the status, else empty. */
+export function reasonPhrase(status: number, statusText?: string): string {
+  return statusText || STATUS_CODES[status] || '';
+}
+
 /** How much of a plain-text error body a message carries. A stack trace pasted into a ticket is still a stack trace. */
 export const MAX_TEXT_REASON = 500;
 
@@ -182,6 +199,8 @@ export type RedirectPolicy = 'same-origin' | 'follow-without-auth';
 /** A response as the caller sees it: the status, every header, and the body read as asked. */
 export interface RestResponse<T> {
   status: number;
+  /** The reason phrase, or the standard one for the status when the server sent none. */
+  statusText: string;
   headers: Headers;
   data: T;
   /** The URL that answered, after any same-origin redirects. */
@@ -222,7 +241,7 @@ export async function restResponse<T>(ctx: RestContext, url: string, init: Reque
       }
       if (!response.ok && !options.accept?.includes(response.status)) throw await failed(response, finalUrl, options);
       const data = await readBody<T>(response, finalUrl, options);
-      return { status: response.status, headers: response.headers, data, url: finalUrl };
+      return { status: response.status, statusText: reasonPhrase(response.status, response.statusText), headers: response.headers, data, url: finalUrl };
     } catch (err) {
       if (err instanceof ToilError) throw err;
       // An abort is execute()'s to report (TIMEOUT or CANCELLED); anything else is the network.
@@ -335,7 +354,7 @@ function notJson(response: Response, url: string, options: RestOptions): ToilErr
 
 async function failed(response: Response, url: string, options: RestOptions): Promise<ToilError> {
   const body = await response.text().catch(() => '');
-  const status = `HTTP ${response.status}${response.statusText ? ` ${response.statusText}` : ''}`;
+  const status = statusLine(response.status, response.statusText);
   const text = textReasonFrom(body);
   const reason = errorMessageFrom(body) ?? (text === undefined ? status : `${status}: ${text}`);
   const details = { status: response.status, url: redactUrl(url) };

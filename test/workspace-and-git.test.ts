@@ -19,10 +19,10 @@ import { fixture } from './fixtures/demo.fixture.js';
 
 /**
  * The workspace and git, end to end through both front doors with the real
- * node context. No git area exists yet, so two test-only commands stand in:
- * one that runs `git version` through ctx.git, one that reads a file through
- * ctx.files. Neither is ever registered in the shipped CLI. Like a pilot
- * programme, they exist so the real thing can be approved later.
+ * node context. Two test-only commands keep the plumbing apart from the git
+ * area's own behaviour: one that runs `git version` through ctx.git, one that
+ * reads a file through ctx.files. Neither is ever registered in the shipped
+ * CLI. Like a control group, they exist so a failure can be blamed precisely.
  */
 const gitProbe = defineCommand({
   path: ['probe', 'git'],

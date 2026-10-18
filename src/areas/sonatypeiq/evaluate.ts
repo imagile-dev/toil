@@ -3,7 +3,7 @@ import { apiRequest, type ApiRequest } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
 import { STDIN_OVER_MCP } from '../../core/files.js';
 import { poll } from '../../core/poll.js';
-import { repointUrl } from '../../core/rest.js';
+import { repointUrl, statusLine } from '../../core/rest.js';
 import { sonatypeiqArea } from './area.js';
 import type { SonatypeIqContext } from './client.js';
 
@@ -264,7 +264,7 @@ async function pollResults(ctx: SonatypeIqContext, resultsUrl: string): Promise<
   const url = resultsLocation(ctx, resultsUrl);
   return poll<IqEvaluationResponse>(
     async (attempt) => {
-      const data = await call<IqEvaluationResponse>(ctx, url, {}, (status) => `Sonatype IQ Server returned HTTP ${status} polling results`);
+      const data = await call<IqEvaluationResponse>(ctx, url, {}, (status) => `Sonatype IQ Server returned ${statusLine(status)} polling results`);
       if (!data.isQueued) return data;
       if (attempt >= MAX_POLL_ATTEMPTS) {
         throw new ToilError('TIMEOUT', 'Sonatype IQ Server evaluation timed out waiting for results.', {
@@ -285,7 +285,7 @@ async function evaluateBatch(ctx: SonatypeIqContext, chunk: InventoryPackage[], 
     ctx,
     `/api/v2/evaluation/applications/${encodeURIComponent(applicationId)}`,
     { method: 'POST', json: { components: purls.map((p) => ({ packageUrl: p })) } },
-    (status) => `Sonatype IQ Server returned HTTP ${status}`,
+    (status) => `Sonatype IQ Server returned ${statusLine(status)}`,
   );
   if (data.isQueued && data.resultsUrl) data = await pollResults(ctx, data.resultsUrl);
 

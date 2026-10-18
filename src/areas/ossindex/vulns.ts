@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { apiResponse, type ApiContext } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
+import { statusLine } from '../../core/rest.js';
 import { friskData, inventoryFields, inventoryOptions, readInventory, REQUEST_TIMEOUT_MS, selectPackages, TIME_LIMIT_MS, type InventoryPackage, type Vulnerability, type VulnerablePackage } from '../osv/inventory.js';
 import { statusOf } from '../osv/public-api.js';
 import { OSSINDEX_URL, ossindexArea } from './area.js';
@@ -105,7 +106,7 @@ async function queryBatch(ctx: OssIndexContext, chunk: InventoryPackage[]): Prom
         { fix: 'Wait a while and try again with fewer packages. The limit is per account; check the username and token are your own.', details: err.details },
       );
     }
-    throw new ToilError(err.code, `Sonatype OSS Index returned HTTP ${status}`, { fix: err.fix ?? `Try again later; check ${OSSINDEX_URL} is up.`, details: { ...(err.details as object), message: err.message } });
+    throw new ToilError(err.code, `Sonatype OSS Index returned ${statusLine(status)}`, { fix: err.fix ?? `Try again later; check ${OSSINDEX_URL} is up.`, details: { ...(err.details as object), message: err.message } });
   }
   // The old code iterated the answer and failed on anything but a list; it still fails, in words.
   if (!Array.isArray(reports)) {
@@ -138,7 +139,7 @@ async function requireReachable(ctx: OssIndexContext): Promise<void> {
     const status = statusOf(err);
     throw new ToilError('NETWORK', 'toil ossindex vulns requires Sonatype OSS Index access but ossindex.sonatype.org is not reachable from this machine.', {
       fix: `Check this machine can reach ${OSSINDEX_URL} (VPN, proxy, DNS); toil uses HTTPS_PROXY, HTTP_PROXY and NO_PROXY when they're set. Run with --verbose to see the request.`,
-      details: { status: 503, url: COMPONENT_REPORT, cause: status !== undefined ? `HTTP ${status}` : err instanceof Error ? err.message : String(err) },
+      details: { status: 503, url: COMPONENT_REPORT, cause: status !== undefined ? statusLine(status) : err instanceof Error ? err.message : String(err) },
     });
   }
 }

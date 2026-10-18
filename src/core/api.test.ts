@@ -280,7 +280,7 @@ describe('token exchange', () => {
     const { envelope, calls } = await run([exchangeRoute({ status: 401, json: { message: 'refresh token expired' } }), api], { path: '/x' }, tokenConfig);
     expect(envelope.error).toEqual({
       code: 'AUTH',
-      message: `Probe token exchange at ${TOKENS} failed with HTTP 401: refresh token expired`,
+      message: `Probe token exchange at ${TOKENS} failed with HTTP 401 Unauthorized: refresh token expired`,
       fix: 'Make a new refresh token in Probe.',
       details: { status: 401, url: TOKENS },
     });
@@ -299,7 +299,7 @@ describe('token exchange', () => {
     const none = await run([exchangeRoute({ json: { nothing: true } }), api], { path: '/x' }, tokenConfig);
     expect(none.envelope.error).toMatchObject({ code: 'AUTH', message: `Probe token exchange at ${TOKENS} answered without an access token.` });
     const down = await run([exchangeRoute({ status: 502, text: '' }), api], { path: '/x' }, tokenConfig);
-    expect(down.envelope.error).toMatchObject({ code: 'HTTP', message: `Probe token exchange at ${TOKENS} failed with HTTP 502`, details: { status: 502 } });
+    expect(down.envelope.error).toMatchObject({ code: 'HTTP', message: `Probe token exchange at ${TOKENS} failed with HTTP 502 Bad Gateway`, details: { status: 502 } });
   });
 
   it('a token the API rejects early is exchanged once more, then the API is believed', async () => {

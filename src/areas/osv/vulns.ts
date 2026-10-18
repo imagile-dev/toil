@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
+import { statusLine } from '../../core/rest.js';
 import { OSV_URL, osvArea } from './area.js';
 import { friskData, inventoryFields, inventoryOptions, readInventory, selectPackages, TIME_LIMIT_MS, type InventoryPackage, type Vulnerability, type VulnerablePackage } from './inventory.js';
 import { probe, requestJson, statusOf, type PublicContext } from './public-api.js';
@@ -129,7 +130,7 @@ async function queryBatch(ctx: PublicContext, chunk: InventoryPackage[]): Promis
 function oldWording(err: unknown, suffix: string): unknown {
   const status = statusOf(err);
   if (!(err instanceof ToilError) || status === undefined) return err;
-  return new ToilError(err.code, `OSV.dev returned HTTP ${status}${suffix}`, { fix: err.fix ?? `Try again later; check ${OSV_URL} is up.`, details: { ...(err.details as object), message: err.message } });
+  return new ToilError(err.code, `OSV.dev returned ${statusLine(status)}${suffix}`, { fix: err.fix ?? `Try again later; check ${OSV_URL} is up.`, details: { ...(err.details as object), message: err.message } });
 }
 
 /** Every distinct id's full record, RECORD_CONCURRENCY at a time. One that can't be fetched fails the command, naming the id. */
