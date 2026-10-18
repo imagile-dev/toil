@@ -1,0 +1,225 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PageHero from '../../components/PageHero.astro';
+import TerminalRecording from '../../components/TerminalRecording.astro';
+import TerminalScreen from '../../components/TerminalScreen.astro';
+import { recording } from '../../lib/terminal';
+import { url } from '../../lib/url';
+
+// The welcome menu's docs page. The recording and every screen come from
+// site/src/data/welcome.json, which test/site-welcome.test.ts writes from the
+// terminal's own drawing code, so the pictures can't drift from the program.
+const actions = [
+  { action: 'Add a connection', cmd: 'toil connections add <name> --area <area>', then: 'then toil connections test <name>' },
+  { action: 'Test a connection, or all of them', cmd: 'toil connections test <name>', then: 'once per connection' },
+  { action: 'Sign in again', cmd: 'toil connections login <name>', then: 'then toil connections test <name>' },
+  { action: 'Turn writes on or off', cmd: 'toil connections writes <name> on', then: 'asks you to type the name' },
+  { action: "Make a connection its area's default", cmd: 'toil connections default <name>', then: '' },
+  { action: 'Remove a connection', cmd: 'toil connections remove <name>', then: 'after you type the name' },
+];
+
+const keys = [
+  ['Up / down, or j / k', 'Move'],
+  ['Enter, or 1 to 9', 'Choose'],
+  ['Space', 'Tick an area, when choosing areas for an agent'],
+  ['Esc', 'Back one screen, keeping your answers'],
+  ['q', 'Quit from anywhere but a text field'],
+  ['Ctrl+C', 'Cancels the command running; twice in two seconds leaves the menu'],
+];
+---
+
+<Layout title="The welcome menu" description="Bare toil on an interactive terminal opens a splash and a menu that sets up, tests and signs in to connections, turns writes on with a typed confirmation, and prints MCP config for an agent. Every step is a real command.">
+  <PageHero
+    eyebrow="<b>Docs</b> · The welcome menu"
+    title="Type <em>toil.</em> Get set up."
+    lead="Run toil with nothing after it, in a terminal, and it opens a menu that takes you from nothing to a tested connection without typing a command. Every step it takes is a plain toil command, shown as it runs, so the menu is a way in, never the only way."
+  >
+    <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <span>The welcome menu</span></p>
+  </PageHero>
+
+  <section class="section--tight">
+    <div class="container">
+      <div data-reveal>
+        <TerminalRecording />
+      </div>
+      <p class="note" data-reveal>
+        The splash draws toil's mark in the terminal: the branches draw out from the prompt to the ring, the tools pop on, a signal runs down the
+        branches twice, the ring spins, and it settles, in under four seconds. Any key skips it. This replay is recorded frame by frame from the
+        same code, so it is exactly what your terminal shows. toil is pre-release, so the version line reads as such.
+      </p>
+    </div>
+  </section>
+
+  <section class="section section--rule">
+    <div class="container doc">
+      <aside class="doc__facts" data-reveal>
+        <dl>
+          <div><dt>Opens with</dt><dd><code>toil</code>, alone, on a terminal</dd></div>
+          <div><dt>Never opens</dt><dd>With arguments, in a pipe, in CI or under MCP</dd></div>
+          <div><dt>Still frame</dt><dd><code>NO_COLOR</code>, <code>TOIL_NO_ANIMATION</code>, legacy console</dd></div>
+          <div><dt>ASCII</dt><dd><code>TOIL_ASCII</code>, or a console without Unicode</dd></div>
+        </dl>
+      </aside>
+
+      <article class="doc__body prose">
+        <section data-reveal>
+          <h2>Only for a person at a terminal</h2>
+          <p>
+            The menu opens only when you run <code>toil</code> with no arguments and both stdin and stdout are a terminal, outside CI. Anything else,
+            an agent, a script, a pipe or <code>toil mcp</code>, gets the JSON CLI exactly as before: one envelope on stdout. The menu can change your
+            connections and turn writes on, which agents over MCP never can.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Home</h2>
+          <p>
+            Home shows what this folder is (the repository, its branch and remote, read from <code>.git</code> without running git), how many
+            connections you have and how the last test of each went, and a <strong>needs attention</strong> list: a config file that won't load, its
+            warnings, a sign-in that was rejected, or no connections yet. Each of those rows opens the screen that fixes it.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Every step is a real command</h2>
+          <p>
+            The menu has no logic of its own. Each action runs a <code>toil connections</code> command in the same process, prompting on your terminal,
+            and the result screen shows the command line it ran and what came back. Run the same line yourself any time.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>In the menu</th><th>It runs</th></tr></thead>
+              <tbody>
+                {actions.map((a) => (
+                  <tr>
+                    <td>{a.action}</td>
+                    <td><code>{a.cmd}</code>{a.then && <span class="then">, {a.then}</span>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section data-reveal>
+          <h2>Adding a connection</h2>
+          <p>
+            Four steps: pick the service, name the connection (the area's own name is suggested), answer the questions that service needs, with its
+            defaults filled in and the secret read without echo, then a live test. Before anything is saved you see every setting and where the secret
+            goes. The secret goes to your operating system's credential store, with only a reference in your config. If there is already a default
+            connection for that area, you're asked whether this one should take over. Esc goes back a step without losing what you typed.
+          </p>
+          <p>
+            The test sends one cheap, authenticated read, such as Jira's <code>/rest/api/2/myself</code>, through the same code every command uses,
+            so a rejected token fails here the way it would later. For an area with no such check, the test confirms the settings and the secret and
+            says it sent nothing.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Writes need the name typed</h2>
+          <p>
+            Turning writes on for a connection asks you to type its name. There is no flag that skips the question, and without a terminal the command
+            refuses and tells you to set <code>"writes": true</code> yourself. Removing a connection asks for the name too. Even with writes on, every
+            write still needs <code>--allow-write</code> on the call. <a href={url('/how-it-works/#safety')}>How writes are gated</a>.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Connecting an agent</h2>
+          <p>
+            Pick Claude Code, Codex or VS Code, tick the areas it should see (none means every area), and the menu prints the snippet that registers
+            <code>toil mcp --areas …</code> with it. It never edits another program's config.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Terminals</h2>
+          <p>
+            The splash animates in Windows Terminal, macOS Terminal and Linux terminals. The legacy Windows console host, <code>NO_COLOR</code>,
+            <code>TOIL_NO_ANIMATION</code>, <code>TERM=dumb</code> and a window smaller than 40 by 12 get the still frame. Where Unicode isn't safe, the
+            legacy console host or <code>TOIL_ASCII</code>, everything is drawn in plain ASCII. Long lists scroll on a short window; on a narrow one, text
+            wraps and table rows are cut at the edge rather than wrapping into each other.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Key</th><th>Does</th></tr></thead>
+              <tbody>
+                {keys.map(([k, does]) => (
+                  <tr><td><code>{k}</code></td><td>{does}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </article>
+    </div>
+  </section>
+
+  <section class="section section--rule">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">Screens</p>
+        <h2>What you'll see.</h2>
+        <p>Drawn by the menu's own code, with placeholder hosts.</p>
+      </div>
+      <div class="shots">
+        {recording.screens.map((s) => (
+          <div data-reveal>
+            <TerminalScreen lines={s.lines} caption={s.caption} />
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .crumb { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-faint); }
+  .crumb a { color: var(--color-muted); }
+  .crumb a:hover { color: var(--color-accent); }
+
+  .note { margin-top: var(--space-sm); max-width: 68ch; color: var(--color-muted); }
+
+  .doc { display: grid; gap: var(--space-lg); align-items: start; }
+  .doc > * { min-width: 0; }
+  .doc__facts { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-md); }
+  .doc__facts dl { display: grid; gap: var(--space-sm); }
+  .doc__facts dt { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-faint); }
+  .doc__facts dd { margin: 0.2rem 0 0; color: var(--color-ink); font-size: var(--text-sm); overflow-wrap: anywhere; }
+  .doc__facts code { color: var(--color-accent); }
+
+  .doc__body { display: grid; gap: var(--space-lg); max-width: 68ch; }
+  .doc__body > *, .doc__body section > * { min-width: 0; }
+  .doc__body h2 { font-size: var(--text-2xl); margin-bottom: var(--space-xs); }
+  .doc__body p { color: var(--color-muted); }
+  .doc__body p + p { margin-top: var(--space-xs); }
+  .doc__body code { color: var(--color-ink); }
+
+  .table-wrap { overflow-x: auto; margin-block: var(--space-sm); border: 1px solid var(--color-line); border-radius: var(--radius-md); }
+  table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+  th, td { text-align: left; padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--color-line); vertical-align: top; }
+  th { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-faint); font-weight: 500; }
+  td { color: var(--color-muted); }
+  td code { overflow-wrap: anywhere; }
+  tr:last-child td { border-bottom: 0; }
+  .then { color: var(--color-faint); }
+  @media (max-width: 640px) {
+    thead { display: none; }
+    table, tbody, tr, td { display: block; }
+    tr { padding-block: 0.4rem; border-bottom: 1px solid var(--color-line); }
+    tr:last-child { border-bottom: 0; }
+    td { border-bottom: 0; padding-block: 0.15rem; }
+  }
+
+  .shots { display: grid; gap: var(--space-lg); }
+  .shots > * { min-width: 0; }
+  @media (min-width: 1100px) {
+    .shots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+
+  @media (min-width: 900px) {
+    .doc { grid-template-columns: 16rem minmax(0, 1fr); }
+    .doc__facts { position: sticky; top: 88px; }
+  }
+</style>

@@ -39,18 +39,20 @@ export interface TermLike {
  * Detects capabilities. NO_COLOR, TOIL_NO_ANIMATION, CI, TERM=dumb and a narrow
  * window all mean a still frame. Unicode is assumed except on a Windows
  * console that isn't Windows Terminal or another known modern host, where
- * braille may come out as boxes.
+ * braille may come out as boxes. That legacy console host also gets the still
+ * frame, because redrawing in place is the one thing it can't be trusted with.
  */
 export function detectCaps(out: TermLike, env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform): TermCaps {
   const noColor = env.NO_COLOR !== undefined && env.NO_COLOR !== '';
   const raw = noColor ? 1 : (out.getColorDepth?.(env) ?? 1);
   const colorDepth = raw >= 24 ? 24 : raw >= 8 ? 8 : raw >= 4 ? 4 : 1;
   const modernWindowsHost = Boolean(env.WT_SESSION || env.TERM_PROGRAM || env.ConEmuANSI === 'ON' || env.TERM);
-  const unicode = env.TOIL_ASCII ? false : platform !== 'win32' || modernWindowsHost;
+  const modernHost = platform !== 'win32' || modernWindowsHost;
+  const unicode = env.TOIL_ASCII ? false : modernHost;
   const columns = out.columns ?? 80;
   const rows = out.rows ?? 24;
   const animate =
-    out.isTTY === true && !noColor && !env.TOIL_NO_ANIMATION && !env.CI && env.TERM !== 'dumb' && columns >= 40 && rows >= 12;
+    out.isTTY === true && modernHost && !noColor && !env.TOIL_NO_ANIMATION && !env.CI && env.TERM !== 'dumb' && columns >= 40 && rows >= 12;
   return { colorDepth, unicode, animate, columns, rows };
 }
 
@@ -105,6 +107,73 @@ function to16(r: number, g: number, b: number): number {
 export function visibleLength(text: string): number {
   // eslint-disable-next-line no-control-regex
   return [...text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')].length;
+}
+
+/**
+ * A line cut to `width` printable characters, escape sequences kept, so a
+ * narrow window clips the screen instead of wrapping it into a different one.
+ */
+export function fitLine(text: string, width: number): string {
+  if (visibleLength(text) <= width) return text;
+  let out = '';
+  let shown = 0;
+  // eslint-disable-next-line no-control-regex
+  for (const part of text.split(/(\x1b\[[0-9;?]*[A-Za-z])/)) {
+    if (part.startsWith('\x1b[')) {
+      out += part;
+      continue;
+    }
+    const chars = [...part];
+    const room = Math.max(0, width - shown);
+    out += chars.slice(0, room).join('');
+    shown += Math.min(room, chars.length);
+  }
+  return out.includes('\x1b[') ? `${out}\x1b[0m` : out;
+}
+
+/**
+ * A line wrapped at spaces to `width` printable characters, keeping its
+ * indent and carrying an open colour onto the lines it continues on. A word
+ * longer than the width is left for fitLine to cut.
+ */
+export function wrapLine(text: string, width: number): string[] {
+  if (visibleLength(text) <= width) return [text];
+  const indent = /^ */.exec(text)![0];
+  // eslint-disable-next-line no-control-regex
+  const tokens = text.slice(indent.length).split(/(\x1b\[[0-9;?]*[A-Za-z]| +)/).filter(Boolean);
+  const lines: string[] = [];
+  let line = indent;
+  let shown = indent.length;
+  let active = '';
+  for (const token of tokens) {
+    if (token.startsWith('\x1b[')) {
+      line += token;
+      active = token === '\x1b[0m' ? '' : token;
+      continue;
+    }
+    const length = [...token].length;
+    if (token.startsWith(' ')) {
+      if (shown + length < width) {
+        line += token;
+        shown += length;
+      } else if (shown > indent.length) {
+        // No room for the space: break here, or the next word would be glued to this one.
+        lines.push(active ? `${line.trimEnd()}\x1b[0m` : line.trimEnd());
+        line = `${indent}${active}`;
+        shown = indent.length;
+      }
+      continue;
+    }
+    if (shown + length > width && shown > indent.length) {
+      lines.push(active ? `${line.trimEnd()}\x1b[0m` : line.trimEnd());
+      line = `${indent}${active}`;
+      shown = indent.length;
+    }
+    line += token;
+    shown += length;
+  }
+  lines.push(line);
+  return lines;
 }
 
 export const cursor = {

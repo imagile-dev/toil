@@ -1,122 +1,217 @@
-import { aboutScreen, AGENT_CLIENTS, agentScreen, type AgentClient, connectionsScreen, healthScreen, statusLine, type WelcomeData } from './screens.js';
+import type { WelcomeData } from './screens.js';
 import { wordmarkFrame } from './splash.js';
-import { PALETTE, paint, type TermCaps } from './term.js';
+import { fitLine, PALETTE, paint, type TermCaps, wrapLine } from './term.js';
+import { healthOf, type Action, type Frame, type Item, type Run, type Session, type StepResult, type View, type ViewProps } from './view.js';
+import { VIEWS } from './views/index.js';
 
 /**
- * The main menu as a small state machine: `reduce(state, key)` returns the
- * next state, and `render(state)` returns the lines to draw. Neither touches
- * the terminal, so the whole menu is testable as data, and the loop that does
- * touch the terminal stays a few lines long. Five numbered options on one
- * screen: the rare phone tree that never says "please listen carefully".
+ * The main menu as a small state machine: `reduce(state, key, data)` returns
+ * the next state, `finish(state, results)` records what a run returned, and
+ * `render(state, ...)` returns the lines to draw. None of them touch the
+ * terminal or run anything, so the whole menu is testable as data, and the
+ * loop that does touch the terminal (index.ts) only draws, reads keys and
+ * runs the commands a state asks for. The rare phone tree that never says
+ * "please listen carefully, as our options have changed".
  */
 
-export type View = 'home' | 'health' | 'connections' | 'agents' | 'agent' | 'about';
-
 export interface MenuState {
-  view: View;
-  /** Highlighted row on a list screen (home, agents). */
-  selected: number;
-  client?: AgentClient;
+  /** The screens open, home first; esc goes back one. */
+  stack: Frame[];
+  session: Session;
+  /** Set when the user quits. */
   quit?: boolean;
+  /** Commands the loop should run next, then report with `finish`. */
+  pending?: Run;
 }
 
 export interface Key {
   name?: string | undefined;
   sequence?: string | undefined;
   ctrl?: boolean | undefined;
+  meta?: boolean | undefined;
 }
 
-const HOME: Array<{ label: string; hint: string; go: View | 'quit' }> = [
-  { label: 'Health check', hint: 'Config file, connections and warnings', go: 'health' },
-  { label: 'Connections', hint: 'What toil can talk to, and with what', go: 'connections' },
-  { label: 'Connect an agent', hint: 'Register toil mcp with Claude Code, Codex or VS Code', go: 'agents' },
-  { label: 'About toil', hint: 'Version, docs, source', go: 'about' },
-  { label: 'Quit', hint: 'Back to your shell', go: 'quit' },
-];
+const frame = (view: string, params: Record<string, string> = {}): Frame => ({ view, selected: 0, params });
 
-export const initialState: MenuState = { view: 'home', selected: 0 };
+export const initialState: MenuState = { stack: [frame('home')], session: { health: {} } };
 
-const listLength = (view: View) => (view === 'home' ? HOME.length : view === 'agents' ? AGENT_CLIENTS.length : 0);
-const parentOf = (view: View): View => (view === 'agent' ? 'agents' : 'home');
+export const top = (state: MenuState): Frame => state.stack[state.stack.length - 1]!;
 
-export function reduce(state: MenuState, key: Key): MenuState {
-  const s: MenuState = { ...state };
-  // Ctrl+C is the loop's to handle (twice to exit); q quits from anywhere.
-  if (key.name === 'q' && !key.ctrl) return { ...s, quit: true };
-  if (key.name === 'escape' || key.name === 'backspace' || key.name === 'left') {
-    if (s.view === 'home') return s;
-    const parent = parentOf(s.view);
-    return { view: parent, selected: parent === 'home' ? HOME.findIndex((h) => h.go === s.view || (s.view === 'agent' && h.go === 'agents')) : 0 };
-  }
-  const n = listLength(s.view);
-  if (n === 0) return s;
-  if (key.name === 'up' || key.name === 'k') return { ...s, selected: (s.selected - 1 + n) % n };
-  if (key.name === 'down' || key.name === 'j') return { ...s, selected: (s.selected + 1) % n };
-  const digit = key.sequence && /^[1-9]$/.test(key.sequence) ? Number(key.sequence) - 1 : -1;
-  if (digit >= 0 && digit < n) return choose({ ...s, selected: digit });
-  if (key.name === 'return' || key.name === 'enter' || key.name === 'right') return choose(s);
-  return s;
-}
-
-function choose(s: MenuState): MenuState {
-  if (s.view === 'agents') return { view: 'agent', selected: 0, client: AGENT_CLIENTS[s.selected]!.id };
-  const target = HOME[s.selected]!.go;
-  if (target === 'quit') return { ...s, quit: true };
-  return { view: target, selected: 0 };
-}
-
-const CRUMB: Record<View, string> = {
-  home: '',
-  health: 'Health check',
-  connections: 'Connections',
-  agents: 'Connect an agent',
-  agent: 'Connect an agent',
-  about: 'About toil',
+const viewOf = (f: Frame): View => {
+  const view = VIEWS[f.view];
+  if (!view) throw new Error(`The menu has no view named "${f.view}".`);
+  return view;
 };
 
-export function render(state: MenuState, caps: Pick<TermCaps, 'colorDepth' | 'unicode'>, data: WelcomeData, notice = ''): string[] {
-  const arrow = caps.unicode ? '›' : '>';
-  const crumbs = ['toil', CRUMB[state.view], state.view === 'agent' ? AGENT_CLIENTS.find((c) => c.id === state.client)?.label : '']
-    .filter(Boolean)
-    .join(` ${arrow} `);
-  const lines: string[] = ['', ...wordmarkFrame(99, caps).map((l) => `  ${l}`), ''];
-  lines.push(`  ${paint(caps, PALETTE.amber, crumbs)}   ${statusLine(caps, data)}`, '');
+const propsOf = (state: MenuState, data: WelcomeData): ViewProps => ({ data, session: state.session, frame: top(state) });
 
-  let body: string[];
-  switch (state.view) {
-    case 'home':
-      body = list(caps, HOME.map((h) => [h.label, h.hint]), state.selected);
-      break;
-    case 'agents':
-      body = [paint(caps, PALETTE.muted, 'Which agent?'), '', ...list(caps, AGENT_CLIENTS.map((c) => [c.label, '']), state.selected)];
-      break;
-    case 'agent':
-      body = agentScreen(caps, data, state.client ?? 'claude');
-      break;
-    case 'health':
-      body = healthScreen(caps, data);
-      break;
-    case 'connections':
-      body = connectionsScreen(caps, data);
-      break;
-    case 'about':
-      body = aboutScreen(caps, data);
-      break;
+const replaceTop = (state: MenuState, f: Frame): MenuState => ({ ...state, stack: [...state.stack.slice(0, -1), f] });
+
+const pop = (state: MenuState): MenuState => (state.stack.length > 1 ? { ...state, stack: state.stack.slice(0, -1) } : state);
+
+const isBack = (key: Key) => key.name === 'escape' || key.name === 'left';
+const isEnter = (key: Key) => key.name === 'return' || key.name === 'enter';
+
+export function reduce(state: MenuState, key: Key, data: WelcomeData): MenuState {
+  const f = top(state);
+  const view = viewOf(f);
+  const p = propsOf(state, data);
+
+  // A text field takes every printable key, q included; esc still goes back.
+  if (view.input) {
+    const text = f.text ?? view.input.initial?.(p) ?? '';
+    if (key.name === 'escape') return pop(state);
+    if (isEnter(key)) {
+      const outcome = view.input.submit(text.trim(), p);
+      if ('error' in outcome) return replaceTop(state, { ...f, text, error: outcome.error });
+      return apply(replaceTop(state, { ...f, text, error: undefined }), outcome);
+    }
+    if (key.name === 'backspace') return replaceTop(state, { ...f, text: [...text].slice(0, -1).join(''), error: undefined });
+    const ch = key.sequence;
+    if (ch && !key.ctrl && !key.meta && [...ch].length === 1 && ch >= ' ' && ch !== '\x7f') return replaceTop(state, { ...f, text: text + ch, error: undefined });
+    return state;
   }
-  lines.push(...body.map((l) => `  ${l}`), '');
-  const keys = state.view === 'home' ? 'up/down move   enter select   1-5 jump   q quit' : listLength(state.view) ? 'up/down move   enter select   esc back   q quit' : 'esc back   q quit';
-  lines.push(notice ? `  ${paint(caps, PALETTE.accent, notice)}` : `  ${paint(caps, PALETTE.faint, keys)}`);
-  return lines;
+
+  // Ctrl+C is the loop's to handle (twice to exit); q quits from anywhere else.
+  if (key.name === 'q' && !key.ctrl) return { ...state, quit: true };
+  if (isBack(key) || key.name === 'backspace') return pop(state);
+
+  if (view.checklist) {
+    const options = view.checklist.options(p);
+    const n = options.length;
+    if (n === 0) return isEnter(key) ? apply(state, view.checklist.confirm([], p)) : state;
+    const checked = new Set(f.checked ?? []);
+    if (key.name === 'up' || key.name === 'k') return replaceTop(state, { ...f, selected: (f.selected - 1 + n) % n });
+    if (key.name === 'down' || key.name === 'j') return replaceTop(state, { ...f, selected: (f.selected + 1) % n });
+    if (key.name === 'space') {
+      const id = options[Math.min(f.selected, n - 1)]!.id;
+      if (checked.has(id)) checked.delete(id);
+      else checked.add(id);
+      return replaceTop(state, { ...f, checked: options.map((o) => o.id).filter((o) => checked.has(o)) });
+    }
+    if (isEnter(key) || key.name === 'right') return apply(state, view.checklist.confirm(options.map((o) => o.id).filter((o) => checked.has(o)), p));
+    return state;
+  }
+
+  const items = view.items?.(p) ?? [];
+  const n = items.length;
+  if (n === 0) return isEnter(key) ? pop(state) : state;
+  const selected = Math.min(f.selected, n - 1);
+  if (key.name === 'up' || key.name === 'k') return replaceTop(state, { ...f, selected: (selected - 1 + n) % n });
+  if (key.name === 'down' || key.name === 'j') return replaceTop(state, { ...f, selected: (selected + 1) % n });
+  const digit = key.sequence && /^[1-9]$/.test(key.sequence) ? Number(key.sequence) - 1 : -1;
+  if (digit >= 0 && digit < n) return choose(replaceTop(state, { ...f, selected: digit }), items[digit]!);
+  if (isEnter(key) || key.name === 'right') return choose(replaceTop(state, { ...f, selected }), items[selected]!);
+  return state;
 }
 
-function list(caps: Pick<TermCaps, 'colorDepth' | 'unicode'>, items: string[][], selected: number): string[] {
+function choose(state: MenuState, item: Item): MenuState {
+  // A result screen is read once: whatever comes next replaces it.
+  if (top(state).view === 'result') return item.action && 'back' in item.action ? pop(state) : apply(pop(state), item.action);
+  return apply(state, item.action);
+}
+
+export function apply(state: MenuState, action: Action): MenuState {
+  if ('quit' in action) return { ...state, quit: true };
+  if ('back' in action) return pop(state);
+  if ('run' in action) return { ...state, pending: action.run };
+  let stack = state.stack;
+  if (action.root) {
+    const at = stack.map((f) => f.view).lastIndexOf(action.root);
+    stack = at >= 0 ? stack.slice(0, at + 1) : [stack[0]!, frame(action.root)];
+  }
+  if (action.go !== action.root) stack = [...stack, frame(action.go, action.params)];
+  return { ...state, stack };
+}
+
+/** Records what a run returned: the health of every connection it tested, and a result screen. */
+export function finish(state: MenuState, results: StepResult[]): MenuState {
+  const health = { ...state.session.health };
+  for (const r of results) if (r.args[0] === 'connections' && r.args[1] === 'test' && r.args[2]) health[r.args[2]] = healthOf(r.envelope);
+  const run = state.pending;
+  const rest = { ...state };
+  delete rest.pending;
+  return { ...rest, session: { ...state.session, health }, stack: [...state.stack, { ...frame('result'), ...(run ? { run } : {}), results }] };
+}
+
+type RenderCaps = Pick<TermCaps, 'colorDepth' | 'unicode'> & Partial<Pick<TermCaps, 'columns' | 'rows'>>;
+
+/** The breadcrumb: `toil › Connections › corp-jira`. */
+export function breadcrumb(state: MenuState, caps: Pick<TermCaps, 'unicode'>, data: WelcomeData): string {
+  const arrow = caps.unicode ? '›' : '>';
+  const titles = state.stack.map((f) => viewOf(f).title({ data, session: state.session, frame: f })).filter(Boolean);
+  return ['toil', ...titles].join(` ${arrow} `);
+}
+
+export function render(state: MenuState, caps: RenderCaps, data: WelcomeData, notice = ''): string[] {
+  const f = top(state);
+  const view = viewOf(f);
+  const p = propsOf(state, data);
+  const rows = caps.rows ?? 40;
+  const columns = caps.columns ?? 100;
+  // The wordmark only where it leaves room for the screen itself.
+  const head = rows >= 30 && columns >= 40 ? ['', ...wordmarkFrame(99, caps).map((l) => `  ${l}`)] : [];
+  const lines: string[] = [...head, '', `  ${paint(caps, PALETTE.amber, breadcrumb(state, caps, data))}`, ''];
+  const body = view.body?.(caps, p) ?? [];
+  // Prose wraps to the window; tables and rows are cut at its edge below.
+  lines.push(...body.flatMap((l) => (l ? wrapLine(`  ${l}`, columns - 1) : [''])));
+
+  let keys: string;
+  if (view.input) {
+    const text = f.text ?? view.input.initial?.(p) ?? '';
+    const caret = paint(caps, PALETTE.accent, caps.unicode ? '▏' : '_');
+    lines.push('', `  ${paint(caps, PALETTE.muted, `${view.input.label(p)}:`)} ${paint(caps, PALETTE.ink, text)}${caret}`);
+    if (f.error) lines.push(...wrapLine(`  ${paint(caps, PALETTE.accent, f.error)}`, columns - 1));
+    keys = 'type   enter go on   esc back';
+  } else if (view.checklist) {
+    const options = view.checklist.options(p);
+    const checked = new Set(f.checked ?? []);
+    const rowsLeft = rows - lines.length - 4;
+    const width = Math.max(0, ...options.map((o) => [...o.label].length));
+    lines.push(
+      '',
+      ...windowed(caps, options, f.selected, rowsLeft, (o, index) => {
+        const on = index === f.selected;
+        const box = checked.has(o.id) ? '[x]' : '[ ]';
+        const pointer = on ? paint(caps, PALETTE.accent, caps.unicode ? '▸' : '>') : ' ';
+        return `${pointer} ${paint(caps, on ? PALETTE.ink : PALETTE.muted, `${box} ${o.label.padEnd(width)}`)}   ${o.hint ? paint(caps, PALETTE.faint, o.hint) : ''}`;
+      }).map((l) => `  ${l}`),
+    );
+    keys = 'up/down move   space tick   enter go on   esc back   q quit';
+  } else {
+    const items = view.items?.(p) ?? [];
+    if (items.length) {
+      const rowsLeft = rows - lines.length - 4;
+      lines.push('', ...list(caps, items, Math.min(f.selected, items.length - 1), rowsLeft).map((l) => `  ${l}`));
+      keys = state.stack.length === 1 ? `up/down move   enter select   1-${Math.min(9, items.length)} jump   q quit` : 'up/down move   enter select   esc back   q quit';
+    } else keys = 'esc back   q quit';
+  }
+  lines.push('', notice ? `  ${paint(caps, PALETTE.accent, notice)}` : `  ${paint(caps, PALETTE.faint, keys)}`);
+  return lines.map((l) => fitLine(l, columns - 1));
+}
+
+/** The slice of a long list that fits, with the selection in view, and markers where more is hidden. */
+function windowed<T>(caps: Pick<TermCaps, 'colorDepth' | 'unicode'>, items: T[], selected: number, room: number, draw: (item: T, index: number) => string): string[] {
+  const fit = Math.max(3, room);
+  if (items.length <= fit) return items.map(draw);
+  const size = fit - 2;
+  const start = Math.max(0, Math.min(selected - Math.floor(size / 2), items.length - size));
+  const out = items.slice(start, start + size).map((item, i) => draw(item, start + i));
+  const after = items.length - start - size;
+  if (start > 0) out.unshift(paint(caps, PALETTE.faint, `     ${caps.unicode ? '↑' : '^'} ${start} more`));
+  if (after > 0) out.push(paint(caps, PALETTE.faint, `     ${caps.unicode ? '↓' : 'v'} ${after} more`));
+  return out;
+}
+
+function list(caps: Pick<TermCaps, 'colorDepth' | 'unicode'>, items: Item[], selected: number, room: number): string[] {
   const pointer = caps.unicode ? '▸' : '>';
-  const width = Math.max(...items.map(([label]) => label!.length));
-  return items.map(([label, hint], i) => {
-    const on = i === selected;
+  const width = Math.max(...items.map((i) => [...i.label].length));
+  return windowed(caps, items, selected, room, (item, index) => {
+    const on = index === selected;
     const mark = on ? paint(caps, PALETTE.accent, pointer) : ' ';
-    const number = paint(caps, PALETTE.faint, `${i + 1}`);
-    const text = on ? paint(caps, PALETTE.ink, label!.padEnd(width)) : paint(caps, PALETTE.muted, label!.padEnd(width));
-    return `${mark} ${number}  ${text}   ${hint ? paint(caps, PALETTE.faint, hint) : ''}`;
+    const number = paint(caps, PALETTE.faint, index < 9 ? `${index + 1}` : ' ');
+    const color = item.attention ? PALETTE.accent : on ? PALETTE.ink : PALETTE.muted;
+    const text = paint(caps, color, item.label.padEnd(width));
+    return `${mark} ${number}  ${text}   ${item.hint ? paint(caps, PALETTE.faint, item.hint) : ''}`;
   });
 }

@@ -61,6 +61,7 @@ export const checkmarxArea = defineArea({
     clientId: 'Checkmarx One client credentials are no longer supported, so clientId is ignored. Set apiKey to a Checkmarx One API key instead.',
     clientSecret: 'Checkmarx One client credentials are no longer supported, so clientSecret is ignored. Set apiKey to a Checkmarx One API key instead.',
   },
+  probe: () => ({ path: 'projects', query: { limit: 1 } }),
   request: (connection, area) => {
     const exchange: TokenExchange = {
       url: tokenUrl(connection.baseUrl, connection.tenantName),

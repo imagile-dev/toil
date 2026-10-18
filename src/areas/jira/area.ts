@@ -62,6 +62,7 @@ export const jiraArea = defineArea({
       schema: z.string(),
     },
   },
+  probe: () => ({ path: '/rest/api/2/myself' }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Bearer ${connection.apiToken}` },

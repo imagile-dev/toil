@@ -22,6 +22,7 @@ export const contrastArea = defineArea({
   secrets: ['apiKey', 'serviceKey'],
   // Contrast's own format: base64(username:serviceKey) with no "Basic " scheme, plus the
   // org key in API-Key. Core refuses a cross-origin redirect, so API-Key stays on this host.
+  probe: (c) => ({ path: `/Contrast/api/ng/${c.orgUuid}/applications`, query: { limit: 1 } }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: {

@@ -5,6 +5,7 @@ import { envName } from './config.js';
 import type { GitRemote } from './call-context.js';
 import type { CommandContext } from './context.js';
 import type { RequestHook } from './api.js';
+import type { QueryParam } from './rest.js';
 
 /**
  * An area is one service, or one deployment variant of one (`jira`,
@@ -101,6 +102,43 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string 
    */
   // Method syntax, so a hook typed for one area's connection still fits AreaSpec's defaults.
   request?(...args: Parameters<RequestHook<z.output<S>>>): ReturnType<RequestHook<z.output<S>>>;
+  /**
+   * The one cheap, authenticated GET that `toil connections test` sends to
+   * check a connection, relative to the request hook's base URL. Return
+   * undefined when this connection can't be checked that way (a Dynatrace
+   * connection with only a platform URL). An area without one, or without a
+   * request hook, is checked as far as its settings and secret go, and the
+   * result says nothing was sent.
+   */
+  probe?(connection: Connection<z.output<S>>): Probe | undefined;
+}
+
+/**
+ * See {@link AreaSpec.probe}. Pick a read the service refuses without a valid
+ * credential (the current user, as a rule), so a revoked token fails the
+ * test. A ping that answers anyone proves only that the host is up.
+ */
+export interface Probe {
+  path: string;
+  query?: Record<string, QueryParam>;
+  /**
+   * For a service that answers an anonymous caller with a 200 rather than a
+   * 401 (Confluence's current user, SonarQube's validate): whether the JSON
+   * answer shows the credential was accepted. False fails the test as AUTH.
+   */
+  accepts?(body: unknown): boolean;
+  /**
+   * `text` only where the API really answers this read in plain text. The
+   * default reads JSON through core, so a sign-in or proxy page served with a
+   * 200 fails the test as it would fail a real command.
+   */
+  as?: 'json' | 'text';
+  /**
+   * False when the service has no cheap read that needs the credential, so a
+   * success proves only that the host answers. The test then says
+   * `authenticated: false`. Defaults to true.
+   */
+  authenticated?: boolean;
 }
 
 /** See {@link AreaSpec.shares}. */
