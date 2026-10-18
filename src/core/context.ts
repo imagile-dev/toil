@@ -1,6 +1,6 @@
 import type { DossierLookup, GitRemoteReader, SuppliedSource } from './call-context.js';
 import type { ResolvedConfig } from './config.js';
-import type { DossierCatalog } from './dossier.js';
+import type { DossierCatalog, DossierView } from './dossier.js';
 import type { ContextReport, Page, Warning } from './envelope.js';
 import type { FileAccess } from './files.js';
 import type { GitRunner } from './git.js';
@@ -121,6 +121,19 @@ export interface CommandContext<C = undefined, X = Record<string, string | undef
    * userinfo, which may be a token, is left out.
    */
   repo: () => GitContext | undefined;
+  /**
+   * The field aliases (`storyPoints` to `customfield_10002`) the call's dossier
+   * gives this area: its environment's section's, then its own. Empty with no
+   * dossier. Asking consults the dossier, so call it only when the call uses
+   * a field name (a `--field`), and the dossier is then reported in meta.context.
+   */
+  dossierFields: () => Record<string, string>;
+  /**
+   * Every section the call's dossier has for this area (its own, and each
+   * environment's), for `<area> check-dossier`. Undefined with no dossier.
+   * Asking consults the dossier.
+   */
+  dossierView: () => DossierView | undefined;
   /** Set only for defineConfigCommand commands. */
   manage?: ConfigAccess;
   signal: AbortSignal;

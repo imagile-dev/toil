@@ -81,7 +81,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     args: [dossierArg, { name: 'location', field: 'location', description: 'A folder in the repository, or its remote URL' }],
     options: [{ flags: '--name <name>', field: 'name', description: "The repo's name in the dossier" }, replaceOption],
     examples: [
-      { dossier: 'payments', location: 'git@git.imagile.dev:pay/ledger-svc.git' },
+      { dossier: 'payments', location: 'git@git.imagile.dev:pay/fees-svc.git' },
       { dossier: 'payments', location: 'https://git.imagile.dev/pay/payments-api.git', name: 'payments-api', replace: true },
     ],
     run: async (input, ctx) => {
@@ -145,7 +145,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     args: [dossierArg, { name: 'area', field: 'area', description: 'The area, e.g. jira' }],
     options: bindingOptions,
     examples: [
-      { dossier: 'payments', area: 'jira', host: 'jira.imagile.dev', set: ['project=PAY'], add: ['projects=PAY', 'projects=LEDG'] },
+      { dossier: 'payments', area: 'jira', host: 'jira.imagile.dev', set: ['project=PAY'], add: ['projects=FEES', 'projects=OPS'] },
       { dossier: 'payments', area: 'jira', unbind: true, set: ['project=LEDG'], forRepo: 'ledger-svc', replace: true },
       { dossier: 'payments', area: 'jira', connection: 'jira' },
     ],
@@ -260,7 +260,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     writes: false,
     args: [{ name: 'source', field: 'source', description: 'A dossier file, or a folder of them' }],
     options: [{ flags: '--name <name>', field: 'name', description: 'A new name for it (a single file only)' }, replaceOption],
-    examples: [{ source: '.toil/dossiers/payments.json' }, { source: '.toil/dossiers/payments.json', name: 'payments-mine', replace: true }],
+    examples: [{ source: '.toil/dossiers/team.json' }, { source: '.toil/dossiers', name: undefined, replace: true }, { source: '.toil/dossiers/team.json', name: 'team-mine', replace: true }],
     run: async (input, ctx) => {
       const { catalog, config, via } = access(ctx);
       const path = catalog.pathFor(input.source, 'The import source');

@@ -260,5 +260,13 @@
       "--sprint <id>",
       "--allow-write"
     ]
+  },
+  {
+    "name": "check-dossier",
+    "tool": "jira_check_dossier",
+    "description": "Check the call's dossier against Jira: its projects and field ids exist",
+    "writes": false,
+    "connection": true,
+    "flags": []
   }
 ]

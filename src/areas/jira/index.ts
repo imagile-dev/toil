@@ -1,3 +1,4 @@
+import { checkDossier } from './check-dossier.js';
 import { agileCommands } from './agile.js';
 import { jiraArea, jiraSupported } from './area.js';
 import { attachmentCommands } from './attachments.js';
@@ -8,4 +9,4 @@ import { searchCommands } from './search.js';
 // list was edited, and therefore no central list owner was consulted.
 export const area = jiraArea;
 export const supported = jiraSupported;
-export const commands = [...issueCommands, ...searchCommands, ...attachmentCommands, ...agileCommands];
+export const commands = [...issueCommands, ...searchCommands, ...attachmentCommands, ...agileCommands, checkDossier];

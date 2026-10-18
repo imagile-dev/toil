@@ -94,7 +94,10 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
   let page: Page | undefined;
   let report: ContextReport | undefined;
   let exitCode: number | undefined;
+  // Reports the dossier once it has been consulted, which may be as late as the command's own run.
+  let reportDossier: (() => void) | undefined;
   const meta = (): Meta => {
+    reportDossier?.();
     const m: Meta = { command: commandName(def), durationMs: Math.round(performance.now() - started), version: ctx.version };
     if (ctx.verbose) m.requests = requests;
     if (warnings.length > 0) m.warnings = warnings;
@@ -165,11 +168,14 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     // (src/core/dossier.ts). Which one applies is settled only if the resolver
     // reaches the dossier step, so a call that never does can't fail on one.
     const place: Place | undefined = usesConnection(def) && ctx.dossiers ? ctx.dossiers.place({ dossier: input.dossier as string | undefined, cwd: input.cwd as string | undefined }) : undefined;
-    const reportDossier = () => {
+    let warned = 0;
+    reportDossier = () => {
       if (!place) return;
-      warnings.push(...place.warnings());
+      const found = place.warnings();
+      warnings.push(...found.slice(warned));
+      warned = found.length;
       const used = place.report();
-      if (!used) return;
+      if (!used || partial.dossier) return;
       // First in meta.context, as it's where the rest came from.
       const rest = { ...partial };
       for (const key of Object.keys(partial) as Array<keyof ContextReport>) delete partial[key];
@@ -186,10 +192,11 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
           ]);
         } finally {
           reportDossier();
+          // Said even when resolution failed after choosing the connection (a required input missing).
+          const chosen = partial.connection;
+          const host = chosen?.source === 'dossier' ? place?.hostFor(areaOf(def), input) : undefined;
+          if (chosen && host) chosen.host = host;
         }
-        const chosen = call.report.connection;
-        const host = chosen?.source === 'dossier' ? place?.hostFor(areaOf(def), input) : undefined;
-        if (chosen && host) chosen.host = host;
       } catch (err) {
         // The default connection exists but lacks a key (a missing `pat`): the
         // command answers for that as it does for none, and the warning says what's missing.
@@ -245,6 +252,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       ...(ctx.git ? { git: { run: (call) => ctx.git!.run(call, controller.signal) } } : {}),
       // A call's `cwd` names the folder its repository is read from; otherwise the workspace's.
       repo: () => (place?.repo ?? ctx.repo)?.(),
+      dossierFields: () => (place && def.area ? place.fields(def.area.name, input) : {}),
+      dossierView: () => (place && def.area ? place.view(def.area.name) : undefined),
       warn: (warning) => warnings.push(warning),
       setPage: (p) => (page = p),
       setExitCode: (code) => {

@@ -68,5 +68,13 @@
       "--all",
       "--project <key>"
     ]
+  },
+  {
+    "name": "check-dossier",
+    "tool": "sonar_check_dossier",
+    "description": "Check the call's dossier against SonarQube: its project keys exist",
+    "writes": false,
+    "connection": true,
+    "flags": []
   }
 ]

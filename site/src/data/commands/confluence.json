@@ -233,5 +233,13 @@
       "--id <attachment-id>",
       "--allow-write"
     ]
+  },
+  {
+    "name": "check-dossier",
+    "tool": "confluence_check_dossier",
+    "description": "Check the call's dossier against Confluence: its spaces exist",
+    "writes": false,
+    "connection": true,
+    "flags": []
   }
 ]

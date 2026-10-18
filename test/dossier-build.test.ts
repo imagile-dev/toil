@@ -1,0 +1,336 @@
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { checkDossier as jiraCheckDossier } from '../src/areas/jira/check-dossier.js';
+import { createIssue } from '../src/areas/jira/issues.js';
+import type { AnyCommand } from '../src/core/command.js';
+import { toolName } from '../src/core/command.js';
+import type { ResolvedConfig, Settings, Source } from '../src/core/config.js';
+import type { Envelope } from '../src/core/envelope.js';
+import { forwardSlashes } from '../src/core/files.js';
+import { dossierBuildCommands } from '../src/dossiers/build.js';
+import { dossiersCommands } from '../src/dossiers/commands.js';
+import { areas } from '../src/registry.js';
+import { reposCommands } from '../src/repos/commands.js';
+import { demoContextArea, demoContextCommands } from './fixtures/demo-context-commands.js';
+import { demoArea, demoCommands } from './fixtures/demo-commands.js';
+import { JIRA, routes as jiraRoutes } from './fixtures/jira.fixture.js';
+import { runCli } from './harness/cli.js';
+import { testContext } from './harness/context.js';
+import { dossierDisk, type DossierDisk } from './harness/dossiers.js';
+import type { Route } from './harness/fake-fetch.js';
+import { connectMcp, type McpSession } from './harness/mcp.js';
+
+/**
+ * Building and sharing dossiers end to end, on real files: the issue's own
+ * "done when". Discovery finds a product's repositories, the dossier commands
+ * build a dossier from them and export it into one repository, and a command
+ * run inside one of them gets the dossier's keys, fields and connection with
+ * no flags. Around that: the duplicate refusals, the MCP rule on bindings to a
+ * connection with writes on, import as adoption, the bounds on export, field
+ * aliases on Jira, and Jira's check-dossier.
+ */
+
+const all = [...areas, demoContextArea, demoArea];
+const dossierAreas = all.map((a) => ({ name: a.name, context: Object.keys(a.context) }));
+const commands: AnyCommand[] = [...demoContextCommands, ...demoCommands, createIssue, jiraCheckDossier, ...dossiersCommands(all), ...dossierBuildCommands(all), ...reposCommands()];
+
+function configOf(extra: Record<string, Settings & { area: string }> = {}): ResolvedConfig {
+  const connections: Record<string, Settings & { area: string }> = {
+    prod: { area: 'demo-context', baseUrl: 'https://demo.imagile.dev', env: 'production', project: 'PRD', token: 'p', writes: true },
+    stage: { area: 'demo-context', baseUrl: 'https://demo-stage.imagile.dev', env: 'staging', project: 'STG', token: 's' },
+    demo: { area: 'demo', token: 't' },
+    jira: { area: 'jira', baseUrl: JIRA, apiToken: 'test-token', customFields: [{ id: 'customfield_10016', name: 'Story Points', type: 'number' }], writes: true },
+    ...extra,
+  };
+  const sources: Record<string, Source> = {};
+  for (const [name, conn] of Object.entries(connections)) for (const key of Object.keys(conn)) sources[`${name}.${key}`] = 'env';
+  return { connections, defaults: { 'demo-context': { connection: 'prod' }, demo: { connection: 'demo' }, jira: { connection: 'jira' } }, sources, files: { global: '/home/test/.toil/config.json' }, warnings: [] };
+}
+
+const routes: Route[] = [
+  { path: /^\/api\/projects\/[A-Z0-9]+\/widgets\/W-\d+$/, respond: (req) => ({ json: { id: new URL(req.url).pathname.split('/').pop(), name: 'Widget' } }) },
+  { method: 'PUT', path: /^\/api\/projects\/[A-Z0-9]+\/widgets\/W-\d+$/, respond: { json: { ok: true } } },
+  // Jira's answer for a project that doesn't exist.
+  { url: `${JIRA}/rest/api/2/project/GONE`, respond: { status: 404, json: { errorMessages: ["No project could be found with key 'GONE'."], errors: {} } } },
+  ...jiraRoutes,
+];
+
+const disks: DossierDisk[] = [];
+const sessions: McpSession[] = [];
+afterEach(async () => {
+  await Promise.all(sessions.splice(0).map((s) => s.close()));
+  for (const d of disks.splice(0)) d.cleanup();
+});
+
+function disk(files: Record<string, unknown> = {}): DossierDisk {
+  const d = dossierDisk(files);
+  disks.push(d);
+  return d;
+}
+
+/** A clone under the workspace, whose origin carries a token. */
+function clone(d: DossierDisk, name: string): string {
+  d.write(`work/${name}/.git/HEAD`, 'ref: refs/heads/main\n');
+  d.write(`work/${name}/.git/refs/heads/main`, `${'a'.repeat(40)}\n`);
+  d.write(`work/${name}/.git/config`, `[remote "origin"]\n\turl = https://ci:t0ken@git.imagile.dev/pay/${name}.git\n`);
+  return join(d.workspace, name);
+}
+
+interface Run {
+  envelope: Envelope;
+  calls: Array<{ method: string; url: string; body: string | undefined }>;
+  exitCode: number;
+}
+
+async function cli(d: DossierDisk, argv: string[], options: { config?: ResolvedConfig; base?: string } = {}): Promise<Run> {
+  const config = options.config ?? configOf();
+  const { context, http } = testContext({ routes });
+  const run = await runCli(argv, { commands, context: { ...context, config, dossiers: d.catalog(config, { areas: dossierAreas, ...(options.base ? { workspace: options.base } : {}) }) } });
+  return { envelope: run.envelope!, calls: http.calls, exitCode: run.exitCode };
+}
+
+async function mcp(d: DossierDisk, tool: string, args: Record<string, unknown>, options: { config?: ResolvedConfig } = {}): Promise<Run> {
+  const config = options.config ?? configOf();
+  const { context, http } = testContext({ routes });
+  const session = await connectMcp({ commands, context: { ...context, config, dossiers: d.catalog(config, { areas: dossierAreas, mcp: true }) }, areas: ['demo-context', 'jira', 'dossiers', 'repos'] });
+  sessions.push(session);
+  const result = await session.call(tool, args);
+  return { envelope: result.envelope, calls: http.calls, exitCode: result.envelope.ok ? 0 : 1 };
+}
+
+const ok = (run: Run) => {
+  expect(run.envelope.ok, JSON.stringify(run.envelope.error)).toBe(true);
+  return run.envelope.data as Record<string, unknown>;
+};
+
+describe('an agent building a dossier over MCP, from discovery to a shared file', () => {
+  it('scans, builds, exports into a repository, and a command in either repo then gets its keys and connection with no flags', async () => {
+    const d = disk();
+    const api = clone(d, 'payments-api');
+    const ledger = clone(d, 'ledger-svc');
+    d.write('work/payments-api/src/.keep', '');
+
+    // Discovery: the product's repositories, credentials stripped.
+    const scanned = ok(await mcp(d, 'repos_scan', {}));
+    expect(scanned.repos).toEqual([
+      { name: 'ledger-svc', path: forwardSlashes(ledger), branch: 'main', remotes: { origin: 'https://git.imagile.dev/pay/ledger-svc.git' } },
+      { name: 'payments-api', path: forwardSlashes(api), branch: 'main', remotes: { origin: 'https://git.imagile.dev/pay/payments-api.git' } },
+    ]);
+
+    // Build: every step a validated command; a host selector, since this one is for sharing.
+    ok(await mcp(d, 'dossiers_init', { name: 'payments', description: 'Payments platform' }));
+    for (const repo of scanned.repos as Array<{ path: string }>) ok(await mcp(d, 'dossiers_add_repo', { dossier: 'payments', location: repo.path }));
+    ok(await mcp(d, 'dossiers_link', { dossier: 'payments', area: 'demo-context', host: 'demo-stage.imagile.dev' }));
+    ok(await mcp(d, 'dossiers_link', { dossier: 'payments', area: 'demo-context', set: ['project=PAY'], forRepo: 'payments-api' }));
+    ok(await mcp(d, 'dossiers_link', { dossier: 'payments', area: 'demo-context', set: ['project=LEDG'], forRepo: 'ledger-svc', add: ['boards=Payments Team'] }));
+    ok(await mcp(d, 'dossiers_field', { dossier: 'payments', area: 'jira', alias: 'storyPoints', id: 'customfield_10016' }));
+    expect(ok(await mcp(d, 'dossiers_check', { dossier: 'payments' })).ok).toBe(true);
+
+    // Share: into one repository's .toil/dossiers, paths dropped, never committed.
+    const exported = ok(await mcp(d, 'dossiers_export', { dossier: 'payments', repo: api }));
+    expect(exported).toMatchObject({ file: forwardSlashes(join(api, '.toil', 'dossiers', 'payments.json')), droppedPaths: 2, hosts: [] });
+    const shared = JSON.parse(readFileSync(join(api, '.toil', 'dossiers', 'payments.json'), 'utf8')) as { repos: Array<Record<string, unknown>> };
+    expect(shared.repos).toEqual([
+      { name: 'ledger-svc', remotes: ['https://git.imagile.dev/pay/ledger-svc.git'] },
+      { name: 'payments-api', remotes: ['https://git.imagile.dev/pay/payments-api.git'] },
+    ]);
+    expect(JSON.stringify(shared)).not.toContain('t0ken');
+
+    // Use: inside each repo, no flags. Yours wins over the exported copy of the same name.
+    for (const [repo, project] of [[ledger, 'LEDG'], [api, 'PAY']] as const) {
+      const used = await cli(d, ['demo-context', 'get-widget', 'W-1', '--cwd', repo]);
+      expect(used.envelope.meta.context).toMatchObject({
+        dossier: { name: 'payments', source: 'user', match: 'path' },
+        connection: { value: 'stage', source: 'dossier', host: 'demo-stage.imagile.dev' },
+        inputs: { project: { value: project, source: 'dossier' } },
+      });
+      expect(used.calls[0]?.url).toBe(`https://demo-stage.imagile.dev/api/projects/${project}/widgets/W-1?board=main`);
+    }
+
+    // A teammate with only the exported file: matched by remote, from the checked-in copy.
+    const teammate = disk();
+    const theirs = clone(teammate, 'payments-api');
+    teammate.write('work/payments-api/.toil/dossiers/payments.json', readFileSync(join(api, '.toil', 'dossiers', 'payments.json'), 'utf8'));
+    const used = await cli(teammate, ['demo-context', 'get-widget', 'W-1', '--cwd', theirs]);
+    expect(used.envelope.meta.context).toMatchObject({ dossier: { source: 'repo', match: 'remote', repo: 'payments-api' }, inputs: { project: { value: 'PAY', source: 'dossier' } } });
+  });
+});
+
+describe('the dossier commands never add a duplicate', () => {
+  it('refuses a repo, a value, a list item or a field alias already there, naming it, unless --replace', async () => {
+    const d = disk();
+    ok(await cli(d, ['dossiers', 'init', 'payments']));
+    ok(await cli(d, ['dossiers', 'add-repo', 'payments', 'git@git.imagile.dev:pay/api.git', '--name', 'api']));
+    const sameRemote = await cli(d, ['dossiers', 'add-repo', 'payments', 'https://git.imagile.dev/pay/api', '--name', 'other']);
+    expect(sameRemote.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('already has https://git.imagile.dev/pay/api as repo "api"') });
+    ok(await cli(d, ['dossiers', 'link', 'payments', 'demo-context', '--set', 'project=PAY', '--add', 'boards=Ops']));
+    // The same value again changes nothing.
+    expect(ok(await cli(d, ['dossiers', 'link', 'payments', 'demo-context', '--set', 'project=PAY'])).changed).toBe(false);
+    const other = await cli(d, ['dossiers', 'link', 'payments', 'demo-context', '--set', 'project=LEDG']);
+    expect(other.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'project is already "PAY" (dossier payments, demo-context).', fix: 'Pass --replace to change it.' });
+    expect(ok(await cli(d, ['dossiers', 'link', 'payments', 'demo-context', '--set', 'project=LEDG', '--replace'])).changed).toBe(true);
+    expect((await cli(d, ['dossiers', 'link', 'payments', 'demo-context', '--add', 'boards=Ops'])).envelope.error?.message).toContain('boards already lists Ops');
+    ok(await cli(d, ['dossiers', 'field', 'payments', 'jira', 'storyPoints', 'customfield_10016']));
+    expect((await cli(d, ['dossiers', 'field', 'payments', 'jira', 'points', 'customfield_10016'])).envelope.error?.message).toContain('already has the alias "storyPoints"');
+    expect((await cli(d, ['dossiers', 'field', 'payments', 'jira', 'storyPoints', 'customfield_1'])).envelope.error?.message).toContain('"storyPoints" already names customfield_10016');
+    expect((await cli(d, ['dossiers', 'init', 'payments'])).envelope.error?.message).toContain('You already have a dossier named "payments"');
+  });
+
+  it('validates a value against the area before writing, and writes nothing when it fails', async () => {
+    const d = disk();
+    ok(await cli(d, ['dossiers', 'init', 'payments']));
+    const before = readFileSync(join(d.home, '.toil', 'dossiers', 'payments.json'), 'utf8');
+    const bad = await cli(d, ['dossiers', 'link', 'payments', 'demo-context', '--set', 'project=lower']);
+    expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('a project key is upper-case letters and digits') });
+    const badHost = await cli(d, ['dossiers', 'link', 'payments', 'demo-context', '--host', 'https://x.imagile.dev/path']);
+    expect(badHost.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('Nothing was written') });
+    expect(readFileSync(join(d.home, '.toil', 'dossiers', 'payments.json'), 'utf8')).toBe(before);
+    expect((await cli(d, ['dossiers', 'link', 'payments', 'nonesuch'])).envelope.error?.message).toBe('toil has no area named "nonesuch".');
+    expect((await cli(d, ['dossiers', 'link', 'payments', 'demo-context', '--connection', 'ghost'])).envelope.error?.message).toContain('You have no demo-context connection named "ghost"');
+  });
+});
+
+describe('an agent never points a dossier at a connection with writes on', () => {
+  it('refuses a binding that would select one over MCP, and lets a person make it on the CLI', async () => {
+    const d = disk();
+    ok(await mcp(d, 'dossiers_init', { name: 'payments' }));
+    // stage has writes off: fine over MCP.
+    ok(await mcp(d, 'dossiers_link', { dossier: 'payments', area: 'demo-context', connection: 'stage' }));
+    // prod has writes on, and is the default: unbinding would fall back to it.
+    for (const args of [{ connection: 'prod', replace: true }, { unbind: true }, { host: 'demo.imagile.dev', replace: true }]) {
+      const refused = await mcp(d, 'dossiers_link', { dossier: 'payments', area: 'demo-context', ...args });
+      expect(refused.envelope.error, JSON.stringify(args)).toMatchObject({ code: 'WRITE_DISABLED', message: expect.stringContaining('connection prod, which has writes on') });
+    }
+    const viaEnv = await mcp(d, 'dossiers_env', { dossier: 'payments', env: 'prod', area: 'demo-context', connection: 'prod' });
+    expect(viaEnv.envelope.error?.code).toBe('WRITE_DISABLED');
+    expect(ok(await cli(d, ['dossiers', 'link', 'payments', 'demo-context', '--connection', 'prod', '--replace']))).toMatchObject({ changed: true });
+  });
+
+  it('adopts with import on the CLI, after which a write follows the binding; MCP refuses that import', async () => {
+    const d = disk({ 'work/.toil/dossiers/payments.json': { name: 'payments', 'demo-context': { connection: 'prod', project: 'PRD' } } });
+    d.write('work/.git/HEAD', 'ref: refs/heads/main\n');
+    const write = ['demo-context', 'rename-widget', 'W-1', '--name', 'N', '--allow-write'];
+    expect((await cli(d, write)).envelope.error).toMatchObject({ code: 'WRITE_DISABLED', fix: expect.stringContaining('toil dossiers import') });
+
+    const refused = await mcp(d, 'dossiers_import', { source: '.toil/dossiers/payments.json' });
+    expect(refused.envelope.error).toMatchObject({ code: 'WRITE_DISABLED', message: expect.stringContaining("toil won't import dossier payments") });
+    expect(existsSync(join(d.home, '.toil', 'dossiers', 'payments.json'))).toBe(false);
+
+    const imported = ok(await cli(d, ['dossiers', 'import', '.toil/dossiers/payments.json']));
+    expect(imported).toMatchObject({ imported: [{ name: 'payments', file: forwardSlashes(join(d.home, '.toil', 'dossiers', 'payments.json')) }], toSetUp: [], failed: [] });
+    const now = await cli(d, write);
+    expect(now.envelope.ok, JSON.stringify(now.envelope.error)).toBe(true);
+    expect(now.envelope.meta.context?.dossier).toMatchObject({ source: 'user' });
+    expect((await cli(d, ['dossiers', 'import', '.toil/dossiers/payments.json'])).envelope.error?.message).toContain('Nothing was imported');
+  });
+
+  it('lists what an imported dossier names that you lack, and reports a broken file by key path only', async () => {
+    const d = disk({
+      'work/shared/team.json': { name: 'team', 'demo-context': { host: 'nowhere.imagile.dev' }, demo: { connection: 'ghost' } },
+      'work/shared/bad.json': '{"name": "bad", "repos": "s3cret-value"}',
+    });
+    const run = await cli(d, ['dossiers', 'import', 'shared']);
+    expect(run.exitCode).toBe(1);
+    const data = run.envelope.data as { imported: unknown[]; toSetUp: Array<{ area: string }>; failed: Array<{ problems: Array<{ path: string }> }> };
+    expect(data.imported).toHaveLength(1);
+    expect(data.toSetUp.map((t) => t.area).sort()).toEqual(['demo', 'demo-context']);
+    expect(data.failed[0]?.problems).toEqual([{ path: 'repos', message: '"repos" must be a list of repositories.' }]);
+    expect(JSON.stringify(run.envelope)).not.toContain('s3cret-value');
+  });
+});
+
+describe('meta.context on a call that fails after its connection is chosen', () => {
+  it('still names the host selector that chose it', async () => {
+    const d = disk({ 'home/.toil/dossiers/payments.json': { name: 'payments', 'demo-context': { host: 'demo-stage.imagile.dev' } } });
+    const config = configOf({ stage: { area: 'demo-context', baseUrl: 'https://demo-stage.imagile.dev', token: 's' } });
+    const run = await cli(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments'], { config });
+    expect(run.envelope.error?.code).toBe('INVALID_INPUT');
+    expect(run.envelope.meta.context?.connection).toEqual({ value: 'stage', source: 'dossier', host: 'demo-stage.imagile.dev' });
+  });
+});
+
+describe('where export may write', () => {
+  it('needs a repository root, never overwrites anything but a dossier, and replaces one only with --replace', async () => {
+    const d = disk({ 'work/notes.json': '{"not": "a dossier"}' });
+    const api = clone(d, 'payments-api');
+    ok(await cli(d, ['dossiers', 'init', 'payments']));
+    expect((await cli(d, ['dossiers', 'export', 'payments', '--repo', join(api, '.git', '..', '..')])).envelope.error?.message).toContain("isn't the root of a git repository");
+    expect((await cli(d, ['dossiers', 'export', 'payments', '--file', 'notes.json', '--replace'])).envelope.error?.message).toContain("isn't a valid dossier");
+    expect((await cli(d, ['dossiers', 'export', 'payments', '--file', join(d.home, '.toil', 'config.json')])).envelope.error?.message).toContain("one of toil's own files");
+    expect((await cli(d, ['dossiers', 'export', 'payments', '--file', join(d.root, 'elsewhere.json')])).envelope.error?.message).toContain('outside the workspace');
+    ok(await cli(d, ['dossiers', 'export', 'payments', '--repo', api]));
+    expect((await cli(d, ['dossiers', 'export', 'payments', '--repo', api])).envelope.error?.message).toContain('a file is already there');
+    ok(await cli(d, ['dossiers', 'export', 'payments', '--repo', api, '--replace']));
+  });
+
+  it("turns a connection name into that connection's host, so a teammate's own connection matches", async () => {
+    const d = disk();
+    ok(await cli(d, ['dossiers', 'init', 'payments']));
+    ok(await cli(d, ['dossiers', 'link', 'payments', 'demo-context', '--connection', 'stage']));
+    const out = ok(await cli(d, ['dossiers', 'export', 'payments', '--file', 'payments.json']));
+    expect(out.hosts).toEqual([{ area: 'demo-context', env: null, connection: 'stage', host: 'demo-stage.imagile.dev' }]);
+    expect(JSON.parse(readFileSync(join(d.workspace, 'payments.json'), 'utf8'))['demo-context']).toEqual({ host: 'demo-stage.imagile.dev' });
+  });
+});
+
+describe('field aliases and check-dossier on Jira', () => {
+  const jiraDossier = { name: 'payments', jira: { projects: ['PROJ', 'GONE'], fields: { storyPoints: 'customfield_10016', ghost: 'customfield_99999' } } };
+
+  it('lets --field use a dossier alias, typed as the connection registers the field', async () => {
+    const d = disk({ 'home/.toil/dossiers/payments.json': jiraDossier });
+    const run = await cli(d, ['jira', 'create-issue', '--project', 'PROJ', '--summary', 'S', '--field', 'storyPoints=5', '--dossier', 'payments', '--allow-write']);
+    expect(run.envelope.ok, JSON.stringify(run.envelope.error)).toBe(true);
+    const post = run.calls.find((c) => c.method === 'POST');
+    expect(JSON.parse(post!.body!).fields).toMatchObject({ customfield_10016: 5 });
+    expect(run.envelope.meta.context?.dossier).toMatchObject({ name: 'payments', by: 'input' });
+  });
+
+  it("checks each project and field id the dossier names, and exits 1 for the ones Jira hasn't got", async () => {
+    const d = disk({ 'home/.toil/dossiers/payments.json': jiraDossier });
+    const run = await cli(d, ['jira', 'check-dossier', '--dossier', 'payments']);
+    expect(run.exitCode).toBe(1);
+    expect(run.envelope.data).toMatchObject({
+      dossier: { name: 'payments', source: 'user' },
+      connection: 'jira',
+      ok: false,
+      checks: [
+        { path: 'jira.projects[0]', kind: 'project', value: 'PROJ', found: true },
+        { path: 'jira.projects[1]', kind: 'project', value: 'GONE', found: false },
+        { path: 'jira.fields.storyPoints', kind: 'field', value: 'customfield_10016', found: true },
+        { path: 'jira.fields.ghost', kind: 'field', value: 'customfield_99999', found: false },
+      ],
+    });
+    const none = await cli(disk(), ['jira', 'check-dossier']);
+    expect(none.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'No dossier applies to this call, so there is nothing to check.' });
+  });
+});
+
+describe('repos scan and remove', () => {
+  it("stays inside the workspace, doesn't enter a repository or follow skipped folders, and honours depth", async () => {
+    const d = disk();
+    clone(d, 'a');
+    d.write('work/deep/er/b/.git/HEAD', 'ref: refs/heads/main\n');
+    d.write('work/node_modules/c/.git/HEAD', 'ref: refs/heads/main\n');
+    d.write('work/a/nested/.git/HEAD', 'ref: refs/heads/main\n');
+    const all = ok(await cli(d, ['repos', 'scan'])) as { repos: Array<{ name: string }> };
+    expect(all.repos.map((r) => r.name)).toEqual(['a', 'b']);
+    expect((ok(await cli(d, ['repos', 'scan', '--depth', '1'])) as { repos: Array<{ name: string }> }).repos.map((r) => r.name)).toEqual(['a']);
+    mkdirSync(join(d.root, 'outside'));
+    expect((await cli(d, ['repos', 'scan', join(d.root, 'outside')])).envelope.error?.message).toContain('outside the workspace');
+  });
+
+  it('removes only your own dossier, on the CLI only', async () => {
+    const d = disk({ 'work/.toil/dossiers/team.json': { name: 'team' } });
+    d.write('work/.git/HEAD', 'ref: refs/heads/main\n');
+    ok(await cli(d, ['dossiers', 'init', 'payments']));
+    expect(ok(await cli(d, ['dossiers', 'remove', 'payments']))).toMatchObject({ deleted: true });
+    expect(existsSync(join(d.home, '.toil', 'dossiers', 'payments.json'))).toBe(false);
+    expect((await cli(d, ['dossiers', 'remove', 'team'])).envelope.error?.fix).toContain('Only your own dossiers can be removed here.');
+    const { context } = testContext();
+    const session = await connectMcp({ commands, context, areas: ['dossiers'] });
+    sessions.push(session);
+    expect((await session.client.listTools()).tools.map((t) => t.name)).not.toContain(toolName(commands.find((c) => c.path.join(' ') === 'dossiers remove')!));
+  });
+});
+

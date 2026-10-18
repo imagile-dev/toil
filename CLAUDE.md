@@ -188,8 +188,10 @@ GitHub Actions; its build tooling is out of scope.
   writing, the OS credential store (`keychain.ts`), the terminal prompter, and
   JMESPath (`query/`, behind `--select`)
 - `src/connections/` — `toil connections add | login | list | remove`
-- `src/dossiers/` — `toil dossiers list | show | check | context`; the model and
-  resolution are `src/core/dossier.ts`
+- `src/dossiers/` — `toil dossiers list | show | check | context` (`commands.ts`) and
+  `init | add-repo | link | env | field | export | import | remove` (`build.ts`); the
+  model, resolution and writing are `src/core/dossier.ts`
+- `src/repos/` — `toil repos scan`, discovery for dossiers
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
   `commands` (standalone commands export only `commands`)
 - `src/registry.ts` — every shipped area and command, read by both front doors. It
@@ -269,8 +271,8 @@ never a guess.
 **A write on a connection that the dossier or the git remote chose is refused** until
 the user adopts that binding (`WRITE_DISABLED`, naming the connection). A dossier in
 the user's own folder, `~/.toil/dossiers/`, is adopted; a checked-in, listed or loose
-one isn't, and adopting it means copying it there (`toil dossiers import`, still to
-come in #16; until then the fix says to pass `--connection`). Reads may follow the
+one isn't, and adopting it means copying it there (`toil dossiers import`, which the
+fix names along with `--connection`). Reads may follow the
 suggestion; once adopted, writes work normally. A connection the user named, selected
 with an explicit input, or set as the default is theirs already.
 
@@ -283,6 +285,12 @@ folder whose repository picks the dossier and the git context. `run` never sees
 either. A section supplies its area's context inputs by name, and picks the
 connection by `connection` or by `host`, a selector toil compares and never
 contacts. Every problem found reading one is in `meta.warnings`, by file and key path.
+An area command sees a dossier only through two read-only views: `ctx.dossierFields()`,
+its field aliases, for a `--field`, and `ctx.dossierView()`, its sections, for
+`<area> check-dossier` (`src/core/check-dossier.ts`). Asking either consults the dossier.
+Over MCP the dossier commands refuse any change that would make a section select a
+connection with writes on, and any import or export of a dossier that does: a person
+makes that binding on the CLI (`ConfigAccess.via` says which door).
 
 **Cross-area credentials are paired explicitly** (*principle 9*). `defineArea({
 shares: { area, keys } })` only declares which keys may be paired; core adds a

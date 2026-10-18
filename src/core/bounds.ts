@@ -47,4 +47,6 @@ export const BOUND_EXCEPTIONS: readonly BoundException[] = [
   { id: 'git.read-up', bound: 'files.workspace', enforcedIn: ['src/core/git-repo.ts', 'src/core/git-config.ts', 'src/core/files.ts'] },
   { id: 'output-file', bound: 'files.workspace', enforcedIn: ['src/node-context.ts', 'src/program.ts'] },
   { id: 'dossiers.read', bound: 'files.workspace', enforcedIn: ['src/core/dossier.ts'] },
+  { id: 'dossiers.write', bound: 'files.workspace', enforcedIn: ['src/core/dossier.ts'] },
+  { id: 'dossiers.replace', bound: 'files.no-overwrite', enforcedIn: ['src/core/dossier.ts'] },
 ];

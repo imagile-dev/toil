@@ -3,7 +3,7 @@ import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { jiraArea } from './area.js';
 import * as client from './client.js';
-import { buildFieldMap, translateFieldsInOutput } from './custom-fields.js';
+import { buildFieldMap, translateFieldsInOutput, withAliases } from './custom-fields.js';
 import {
   commaList,
   mergeWithOverrides,
@@ -146,7 +146,8 @@ export const createIssue = jiraArea.command({
     { inputFile: 'issue.json', fieldsFile: 'fields.json', field: ['Story Points=5', 'customfield_10050=@ac.md'], priority: 'Low', allowWrite: true },
   ],
   run: async (input, ctx) => {
-    const fieldMap = buildFieldMap(ctx.connection.customFields);
+    // A dossier's field aliases join the connection's names, only when the call names a field (src/core/dossier.ts).
+    const fieldMap = withAliases(buildFieldMap(ctx.connection.customFields), input.field?.length ? ctx.dossierFields() : {});
     try {
       const flags = defined({
         summary: input.summary,
@@ -219,7 +220,8 @@ export const updateIssue = jiraArea.command({
     { key: 'PROJ-123', inputFile: 'update.json', fieldsFile: 'fields.json', field: ['Story Points=8'], allowWrite: true },
   ],
   run: async (input, ctx) => {
-    const fieldMap = buildFieldMap(ctx.connection.customFields);
+    // A dossier's field aliases join the connection's names, only when the call names a field (src/core/dossier.ts).
+    const fieldMap = withAliases(buildFieldMap(ctx.connection.customFields), input.field?.length ? ctx.dossierFields() : {});
     try {
       const flags = defined({ summary: input.summary, description: input.description, priority: input.priority, assignee: input.assignee, labels: input.labels });
       const { builtin, custom } = gatherFields(ctx, input, flags, fieldMap);

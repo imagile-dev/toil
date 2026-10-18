@@ -10,7 +10,7 @@ import type { GitRunner } from '../src/core/git.js';
 import type { GitContext } from '../src/core/git-repo.js';
 import { clearTokenCache, watchTokenExchanges } from '../src/core/token.js';
 import { argvFor, routedArgvFor } from '../src/program.js';
-import { commands, routedAliases } from '../src/registry.js';
+import { areas as registeredAreas, commands, routedAliases } from '../src/registry.js';
 import { demoCommands } from './fixtures/demo-commands.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
@@ -45,7 +45,8 @@ beforeAll(() => setUp(fixtures));
 afterAll(() => tearDown(fixtures));
 type Files = Record<string, string | Uint8Array>;
 // Config, files and routes are read from the fixture when each test runs, after setup.
-const outside: LoadedFixture = { area: '', routes: [], config: {}, files: {}, commands: [], trace: [] };
+// Two connections the dossier build examples bind to, both with writes off.
+const outside: LoadedFixture = { area: '', routes: [], config: { jira: { baseUrl: 'https://jira.imagile.dev' }, openshift: { baseUrl: 'https://api.ocp.imagile.dev:6443' } }, files: {}, commands: [], trace: [] };
 // A group of standalone commands that read files or run git (`util`) brings
 // its own fixture, named after the group, and runs in that suite instead.
 const grouped = new Set(fixtures.map((f) => f.area));
@@ -56,15 +57,45 @@ const suites: Array<{ name: string; commands: AnyCommand[]; fixture: LoadedFixtu
 
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-/** What a fixture says the examples run in: the repository for `ctx.repo()`, and the git for `ctx.git`. */
-// The dossiers commands sit outside any area and read dossiers from disk: one, in a temp home, for their examples.
+/** The registry's areas as dossiers see them: each one's context inputs. */
+const dossierAreas = registeredAreas.map((a) => ({ name: a.name, context: Object.keys(a.context) }));
+
+// The dossiers and repos commands sit outside any area and read and write
+// dossiers on disk: a temp home and workspace, put back as made before each
+// run, so the CLI and MCP runs of a writing example start from the same files.
 const outsideDisk = dossierDisk({
-  'home/.toil/dossiers/payments.json': { name: 'payments', description: 'Payments platform', repos: [{ name: 'payments-api', remotes: ['https://bitbucket.imagile.dev/scm/pay/payments-api.git'] }], jira: { project: 'PAY', projects: ['PAY', 'LEDG'] } },
+  'home/.toil/dossiers/payments.json': {
+    name: 'payments',
+    description: 'Payments platform',
+    repos: [
+      { name: 'payments-api', remotes: ['https://bitbucket.imagile.dev/scm/pay/payments-api.git'] },
+      { name: 'ledger-svc', remotes: ['https://bitbucket.imagile.dev/scm/pay/ledger-svc.git'] },
+    ],
+    jira: { project: 'PAY', projects: ['PAY', 'LEDG'] },
+  },
+  'work/.git/HEAD': 'ref: refs/heads/main\n',
+  'work/.toil/dossiers/team.json': { name: 'team', description: 'Shared by the team', repos: [{ name: 'payments-api', remotes: ['https://bitbucket.imagile.dev/scm/pay/payments-api.git'] }] },
 });
 afterAll(() => outsideDisk.cleanup());
+// An area fixture's own dossier (`dossier`), as your own and named by TOIL_DOSSIER, for its check-dossier.
+const fixtureDisks = new Map<LoadedFixture, ReturnType<typeof dossierDisk>>();
+afterAll(() => fixtureDisks.forEach((d) => d.cleanup()));
 type Local = { repo?: GitContext; git?: GitRunner; dossiers?: ReturnType<typeof dossierDisk>['catalog'] };
-const localOf = (f: LoadedFixture): Local => ({ ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}), ...(f === outside ? { dossiers: outsideDisk.catalog } : {}) });
-
+function localOf(f: LoadedFixture): Local {
+  const local: Local = { ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}) };
+  if (f === outside) {
+    local.dossiers = (config) => {
+      outsideDisk.reset();
+      return outsideDisk.catalog(config, { areas: dossierAreas });
+    };
+  } else if (f.dossier) {
+    const name = String(f.dossier.name);
+    if (!fixtureDisks.has(f)) fixtureDisks.set(f, dossierDisk({ [`home/.toil/dossiers/${name}.json`]: f.dossier }));
+    const disk = fixtureDisks.get(f)!;
+    local.dossiers = (config) => disk.catalog(config, { areas: dossierAreas, env: { TOIL_DOSSIER: name } });
+  }
+  return local;
+}
 
 // Each test's CLI run starts with no cached token, so it exchanges as a fresh process would.
 beforeEach(() => clearTokenCache());
