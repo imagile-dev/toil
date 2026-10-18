@@ -40,7 +40,7 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | `secrets.storage` | Secrets sitting in a file. A secret comes from the OS credential store or an env var; a plaintext one in config is refused. | `src/core/connection.ts` | `CONFIG_INVALID` | No | Yes |
 | `commands.cli-only` | Commands that prompt a person or change connections, and area commands marked `mcp: false` (deletes). They're never MCP tools, so an agent can't call them. A call that a served tool marks CLI only (`offMcpWhen`: a `DELETE` through `<area> api`) is refused over MCP before anything resolves or is sent. | `src/mcp/server.ts`, `src/core/run.ts` | None (not listed); `INVALID_INPUT` (a CLI-only call to a served tool) | No | Yes |
 | `commands.time-limit` | A caller waiting forever. Every command stops at `TOIL_TIMEOUT_MS` (default 120 s, or a longer `timeLimitMs` the command declares) and on Ctrl+C or an MCP cancel. The limit can be set, not removed. | `src/core/run.ts` | `TIMEOUT`, `CANCELLED` | No | No |
-| `commands.read-only` | Data a read was never meant to change. A write needs `writes: true` on the connection and `--allow-write` on the call; reads send only GET/HEAD/OPTIONS (the parity suite checks); a command whose input decides (`writesWhen`, the raw API passthrough's method) is gated call by call, and git runs with optional index writes off. | `src/core/run.ts`, `src/core/git.ts` | `WRITE_DISABLED` | No | Yes |
+| `commands.read-only` | Data a read was never meant to change. A write needs `writes: true` on the connection and `--allow-write` on the call (a CLI-only write, which is never an MCP tool and has no connection yet to hold one, needs `--allow-write`); reads send only GET/HEAD/OPTIONS (the parity suite checks); a command whose input decides (`writesWhen`, the raw API passthrough's method) is gated call by call, and git runs with optional index writes off. | `src/core/run.ts`, `src/core/git.ts` | `WRITE_DISABLED` | No | Yes |
 | `process.spawn` | The machine's other programs. toil runs only the OS credential store and git (#68 decision 1): absolute path found by toil, no shell, fixed argv, the repository-config hooks that run code turned off. | `src/core/git.ts`, `src/core/keychain.ts`, `scripts/check-pure.mjs` | `GIT_NOT_FOUND` | No | Yes |
 
 ## Exceptions
@@ -51,6 +51,8 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | `output-file` | `files.workspace` | `src/node-context.ts`, `src/program.ts` | The global `--output-file` flag writing the envelope outside the workspace. |
 | `shell-profile` | `files.workspace` | `src/core/shell-profile.ts`, `src/setup/commands.ts` | `toil setup alias` and `remove-alias` reading and writing the shell profile they name, outside the workspace. |
 | `shell-profile.edit` | `files.no-overwrite` | `src/core/shell-profile.ts` | Those two commands changing that existing file, only between their own marker lines. |
+| `skills.folders` | `files.workspace` | `src/skills/folders.ts`, `src/skills/marketplace.ts` | The `skills` commands reading and writing the agent hosts' skills folders and marketplace clones, which live outside the workspace. Only fixed places, listed below; never anything under `~/.toil`. |
+| `skills.reinstall` | `files.no-overwrite` | `src/skills/folders.ts` | `skills marketplace add` and `sync` replacing a skill folder that toil itself installed from the same marketplace and plugin, which is what refreshing it means. Any other folder is left as found. |
 | `dossiers.read` | `files.workspace` | `src/core/dossier.ts` | Reading dossier files (`docs/dossiers.md`) from your own folder (`~/.toil/dossiers/`), the folders you list in `dossierPaths` or `TOIL_DOSSIER_PATHS`, and `.toil/dossiers/` at the root of the repository the call's folder is in. A dossier file named on the call (`--dossier <file>`) must be one of those, or inside the workspace. |
 
 `git.read-up` is metadata only, and read only. It covers exactly these, and nothing
@@ -83,6 +85,26 @@ and `# <<< toil alias <<<`, leave every other byte of the file as it was, and wr
 through a symlink rather than replacing it. A profile with an unmatched marker, or
 saved as UTF-16, is refused rather than guessed at. They still refuse toil's own files
 and `/proc` and `/sys`.
+
+`skills.folders` covers exactly these, and nothing else:
+
+1. **The agent skills folders**: `~/.agents/skills`, `~/.copilot/skills` and
+   `~/.claude/skills` at user scope, and `.agents/skills`, `.github/skills` and
+   `.claude/skills` under the repository root of the workspace (or the workspace
+   outside one) at project scope. A command picks one with `--agent` and `--scope`;
+   no input names any other folder. Inside one, toil writes its index
+   (`.toil-installed.json`), the skills it installs, and the `.toil-disabled` stash.
+2. **A marketplace's clone**: the connection's `localPath`, from the user's config
+   or env, or the folder a person passed to the CLI-only `skills marketplace add`,
+   else `~/.agents/marketplaces/<repo-name>`. One under `~/.toil` is refused by every
+   skills command; `add`, which knows the config file, also refuses one holding the
+   `--config` file. `sync` can't see that file's path (area commands never see config),
+   and the clone folder it uses comes from the user's own config or env.
+
+Skills are copied without symlinks, and a skill name that would leave its folder
+(`..`, a separator) is refused. These writes are writes: `sync`, `enable` and
+`disable` need `"writes": true` on the marketplace's connection and `--allow-write`,
+and `add`, which is CLI only and only clones, needs `--allow-write` and leaves writes off on the marketplace it adds, so adding one grants nothing.
 
 `output-file` is the one global flag that writes outside the workspace. `--output-file` is a CLI
 flag, never an MCP input, so the person running the command chose the path. It may
