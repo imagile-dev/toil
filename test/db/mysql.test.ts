@@ -230,6 +230,22 @@ for (const target of targets.filter((t) => t.engine === 'mysql')) {
       expect(await scalar('SELECT active FROM people WHERE id = 1')).toBe(1);
     });
 
+    // A script runs one statement per round trip. A kill that stopped only the
+    // statement in flight (KILL QUERY) let the loop go on to the next one and
+    // COMMIT, after core had already answered CANCELLED.
+    it('a cancelled db execute commits nothing, including what ran before the cancel', async () => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(), 300);
+      const { context } = testContext({ config: { db: writable() } });
+      const sql = 'UPDATE people SET active = 0 WHERE id = 1; SELECT SLEEP(3); UPDATE people SET active = 0 WHERE id = 2';
+      const envelope = await execute(executeCmd, { sql, allowWrite: true }, { ...context, signal: controller.signal });
+      expect(envelope.error?.code).toBe('CANCELLED');
+      await expect.poll(db.running!, { timeout: 5000 }).toBe(0);
+      // Long enough for the rest of the script and a COMMIT to have landed, had they been sent.
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      expect([await scalar('SELECT active FROM people WHERE id = 1'), await scalar('SELECT active FROM people WHERE id = 2')]).toEqual([1, 1]);
+    });
+
     it('answers a missing database with NOT_FOUND and a wrong password with AUTH, never echoing the password', async () => {
       expect((await run(listSchemas, {}, { ...db.settings, database: 'no_such_database' })).error?.code).toBe('NOT_FOUND');
       const debug: string[] = [];

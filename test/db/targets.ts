@@ -166,7 +166,7 @@ function mysqlTarget(name: string, envVar: string, ciDefault: string): DbTarget 
     },
     sql: {
       series: (n) => `WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < ${n}) SELECT x FROM n`,
-      // Sleeps on the server without producing a row, so only a server-side KILL QUERY stops it.
+      // Sleeps on the server without producing a row, so only a server-side KILL stops it.
       slow: () => ({ sql: 'SELECT SLEEP(60) AS x' }),
     },
   };

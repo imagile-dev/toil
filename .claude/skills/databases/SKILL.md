@@ -62,12 +62,15 @@ one they got.
   on a worker thread and terminates it on abort; that stops the statement at its
   next row. A statement that computes for a long time before producing a row keeps
   the thread busy until it finishes. Server engines should cancel on the server
-  (`pg_cancel_backend`, a TDS attention, `KILL QUERY`), not just stop reading.
+  (`pg_cancel_backend`, a TDS attention, `KILL`), not just stop reading.
   PostgreSQL opens one connection per call and, on abort, sends
   `pg_cancel_backend(<pid>)` from a second short-lived one
   (`src/core/db/postgres/index.ts`); the abandoned call's own error is dropped,
-  because core has already answered `TIMEOUT` or `CANCELLED`. MySQL does the same
-  with `KILL QUERY <id>` (`src/core/db/mysql/index.ts`), and sets the session as
+  because core has already answered `TIMEOUT` or `CANCELLED`. MySQL sends
+  `KILL <id>` (`src/core/db/mysql/index.ts`), ending the whole connection: a
+  script goes one statement per round trip, so a `KILL QUERY` landing between two
+  statements would stop nothing and the rest would commit. It also checks the
+  signal before each statement and before `COMMIT`. MySQL sets the session as
   well as the transaction read-only, because DDL commits implicitly and would
   otherwise run in autocommit.
 
@@ -127,8 +130,10 @@ one they got.
 
   ```bash
   r=$RANDOM
-  docker run -d --name toil-test-mysql-$r -e MYSQL_ROOT_PASSWORD=mysql -p 53316:3306 \n    --health-cmd "mysqladmin ping -h 127.0.0.1 -pmysql --silent" --health-interval 2s mysql:8.4
-  docker run -d --name toil-test-mariadb-$r -e MARIADB_ROOT_PASSWORD=mysql -p 53317:3306 \n    --health-cmd "healthcheck.sh --connect --innodb_initialized" --health-interval 2s mariadb:11.8
+  docker run -d --name toil-test-mysql-$r -e MYSQL_ROOT_PASSWORD=mysql -p 53316:3306 \
+    --health-cmd "mysqladmin ping -h 127.0.0.1 -pmysql --silent" --health-interval 2s mysql:8.4
+  docker run -d --name toil-test-mariadb-$r -e MARIADB_ROOT_PASSWORD=mysql -p 53317:3306 \
+    --health-cmd "healthcheck.sh --connect --innodb_initialized" --health-interval 2s mariadb:11.8
   # wait for both to be healthy, as above
   TOIL_TEST_MYSQL_URL=mysql://root:mysql@localhost:53316/ TOIL_TEST_MARIADB_URL=mysql://root:mysql@localhost:53317/ npm run test:integration
   docker rm -f toil-test-mysql-$r toil-test-mariadb-$r; docker ps -a --filter name=toil-test-m   # must list nothing

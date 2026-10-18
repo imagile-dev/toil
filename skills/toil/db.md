@@ -317,8 +317,9 @@ long sort or `pg_sleep` doesn't keep running after toil has answered. `db query`
 reads rows a batch at a time from a server-side portal, so the server stops
 producing rows once the page is full.
 
-MySQL stops the statement on the server too, with `KILL QUERY <id>` from a second short
-connection. Its protocol has no portal, so `db query` reads rows as they stream and,
+MySQL stops the statement on the server too, with `KILL <id>` from a second short
+connection. That ends the whole session, so a cancelled `db execute` rolls back and
+runs none of its remaining statements. Its protocol has no portal, so `db query` reads rows as they stream and,
 once the page is full, drops the connection; the server stops at the next row it
 tries to send.
 

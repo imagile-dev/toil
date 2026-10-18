@@ -16,9 +16,13 @@ import { controlsTransaction, splitStatements, writesServerFile, type Statement 
  * Nothing here inspects SQL to decide whether it writes.
  *
  * Each call opens its own connection and closes it at the end, so no session
- * state outlives the call. A cancel or time limit sends `KILL QUERY <id>` from
- * a second short-lived connection: a server busy in SLEEP() or a long sort
- * never reads the socket, so closing ours alone would leave it running.
+ * state outlives the call. A cancel or time limit sends `KILL <id>` from a
+ * second short-lived connection: a server busy in SLEEP() or a long sort never
+ * reads the socket, so closing ours alone would leave it running. It kills the
+ * whole connection, not just the statement (`KILL QUERY`): a script runs one
+ * statement per round trip, and a query-only kill landing between two of them
+ * finds nothing to stop, after which the rest of the script and its COMMIT
+ * would run. Ending the session rolls its transaction back wherever it was.
  *
  * Introspection reads information_schema through prepared statements, every
  * name a bound parameter. The one exception is preview's FROM clause, built
@@ -127,6 +131,8 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (w
       await run(client, 'START TRANSACTION');
     }
     const result = await work({ client, abandon: () => (abandoned = true) });
+    // Core may already have answered TIMEOUT or CANCELLED; a commit after that would be a change nobody was told about.
+    if (call.signal.aborted) throw call.signal.reason;
     if (!abandoned) await run(client, mode === 'read' ? 'ROLLBACK' : 'COMMIT');
     clean = !abandoned;
     return result;
@@ -142,13 +148,13 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (w
   }
 }
 
-/** Asks the server to stop the statement on connection `id`. Best effort: core has already answered the caller. */
+/** Asks the server to end connection `id`, stopping its statement and rolling back its transaction. Best effort: core has already answered the caller. */
 async function cancelOnServer(conn: DbConnection, id: number, call: DbCall): Promise<void> {
   const killer = mysql.createConnection(connectionOptions(conn, null));
   killer.on('error', () => {});
   try {
     await connect(killer);
-    await run(killer, `KILL QUERY ${Number(id)}`);
+    await run(killer, `KILL ${Number(id)}`);
     call.debug(`mysql: connection ${conn.name}: cancel sent`);
   } catch (err) {
     call.debug(`mysql: connection ${conn.name}: couldn't cancel the statement on the server (${(err as Error).message}); it may still be running`);
@@ -523,6 +529,8 @@ export const mysqlProvider: DbProvider = {
     return session(conn, 'write', call, async ({ client }) => {
       let changes = 0;
       for (const statement of statements) {
+        // The kill is on its way over a second connection; don't race it with the next statement.
+        if (call.signal.aborted) throw call.signal.reason;
         const result = await run<ResultSetHeader | unknown[]>(client, statement.text);
         if (!Array.isArray(result) && typeof result?.affectedRows === 'number') changes += result.affectedRows;
       }
