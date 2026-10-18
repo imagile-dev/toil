@@ -46,14 +46,27 @@ export function detectCaps(out: TermLike, env: NodeJS.ProcessEnv, platform: Node
   const noColor = env.NO_COLOR !== undefined && env.NO_COLOR !== '';
   const raw = noColor ? 1 : (out.getColorDepth?.(env) ?? 1);
   const colorDepth = raw >= 24 ? 24 : raw >= 8 ? 8 : raw >= 4 ? 4 : 1;
-  const modernWindowsHost = Boolean(env.WT_SESSION || env.TERM_PROGRAM || env.ConEmuANSI === 'ON' || env.TERM);
-  const modernHost = platform !== 'win32' || modernWindowsHost;
+  const modernHost = isModernHost(env, platform);
   const unicode = env.TOIL_ASCII ? false : modernHost;
   const columns = out.columns ?? 80;
   const rows = out.rows ?? 24;
   const animate =
     out.isTTY === true && modernHost && !noColor && !env.TOIL_NO_ANIMATION && !env.CI && env.TERM !== 'dumb' && columns >= 40 && rows >= 12;
   return { colorDepth, unicode, animate, columns, rows };
+}
+
+/** Anything but the legacy Windows console host, which can't be trusted to redraw in place or draw braille. */
+export function isModernHost(env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform): boolean {
+  return platform !== 'win32' || Boolean(env.WT_SESSION || env.TERM_PROGRAM || env.ConEmuANSI === 'ON' || env.TERM);
+}
+
+/**
+ * Whether a frame may be redrawn in place, whatever anyone thinks of
+ * animation: a TTY on a modern host that isn't TERM=dumb. The game needs
+ * this; NO_COLOR and TOIL_NO_ANIMATION only change how it looks.
+ */
+export function movesCursor(out: TermLike, env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform): boolean {
+  return out.isTTY === true && isModernHost(env, platform) && env.TERM !== 'dumb';
 }
 
 const ESC = '\x1b[';
