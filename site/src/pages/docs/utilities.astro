@@ -14,11 +14,11 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
 const shortPaths = new Set(['jwt', 'deps']);
 ---
 
-<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, summarise test, SARIF and coverage reports, triage a large log, scan for secrets before a commit, and work out time zones, durations, business days and cron run times, with no connection and no network.">
+<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, summarise test, SARIF and coverage reports, triage a large log, scan for secrets before a commit, size files and folders before reading them, and work out time zones, durations, business days and cron run times, with no connection and no network.">
   <PageHero
     eyebrow="<b>Docs</b> · Utilities"
     title="Local utilities, <em>no network.</em>"
-    lead="Commands that work on what's on your machine: a token you paste, a file or log in your workspace, its manifests and lockfiles, the reports a build leaves behind, a change you're about to commit, or a time and a time zone. No connection, no credential, nothing sent anywhere."
+    lead="Commands that work on what's on your machine: a token you paste, a file, folder or log in your workspace, its manifests and lockfiles, the reports a build leaves behind, a change you're about to commit, or a time and a time zone. No connection, no credential, nothing sent anywhere."
   >
     <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <span>Utilities</span></p>
   </PageHero>
@@ -229,6 +229,25 @@ const shortPaths = new Set(['jwt', 'deps']);
             It checks its own answer: every line number it reports is read again from the file to confirm it holds the sample, and the group
             counts are added up against the lines it matched. Lines it couldn't classify are counted and reported, never dropped. A file
             streams in constant memory, however large.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Sizing before reading</h2>
+          <p>
+            <code>size</code> tells an agent how much a file or folder will cost to read. For a file it gives bytes, lines, an estimated token
+            count, and an outline: functions, classes and methods with their line ranges for TypeScript, JavaScript, Python, C#, Java and Go,
+            headings for Markdown, and top-level keys for JSON and YAML. Then the agent reads only the lines it needs.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util size src/server.ts</span><span class="line"><span class="p">$</span> toil util size src --depth 2 --top 5</span></pre>
+          </div>
+          <p>
+            For a folder it gives a tree of totals, largest first, skipping what <code>.gitignore</code> ignores, and names the largest files.
+            Token counts are an estimate, a quarter of the characters, not any model's tokenizer, and the output says so. Code outlines come
+            from a quick scan of the source, not a compiler. Each symbol's first line is read again to confirm it names the symbol, and folder
+            totals are added up two ways, so <code>verified</code> in the output says what was checked. A file it can't outline (binary, an
+            unsupported type, or one it can't parse) is still counted, with the reason.
           </p>
         </section>
       </article>

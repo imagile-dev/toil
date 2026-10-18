@@ -1,12 +1,12 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, and time zone, duration, business-day and cron arithmetic
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, and time zone, duration, business-day and cron arithmetic
 ---
 
 # Local utilities (`util`)
 
-Commands that work on what's on this machine: a token you paste, a file in the
-workspace (a certificate or a log, say), the manifests and lockfiles there, a
+Commands that work on what's on this machine: a token you paste, a file or
+folder in the workspace (a certificate or a log, say), the manifests and lockfiles there, a
 report a build left behind, text you're about to commit or post, or a time and a time zone. They aren't
 integrations. There is no server, no connection to add, no `TOIL_UTIL_*`
 variable, no credential and no `--connection` flag, and none of them sends
@@ -27,6 +27,7 @@ the same flags and output:
 | `toil util cert` | | `util_cert` |
 | `toil util report` | | `util_report` |
 | `toil util log` | | `util_log` |
+| `toil util size` | | `util_size` |
 | `toil util time convert` | | `util_time_convert` |
 | `toil util time duration` | | `util_time_duration` |
 | `toil util time business-days add` | | `util_time_business_days_add` |
@@ -648,6 +649,72 @@ no zone.
 
 A file streams with no size limit. stdin and `--text` are held in memory, up to
 64 MiB, so pass a file for anything bigger.
+
+### `toil util size`
+
+How big a file or folder is before you read it, so an agent can budget its
+context: bytes, lines and an estimated token count, and for one file an outline
+with line ranges, so you can read just the part you need.
+
+```bash
+toil util size src/areas/util/size.ts
+toil util size src --depth 2 --top 5
+git show HEAD:README.md | toil util size - --language markdown
+```
+
+| Argument / flag | Meaning |
+|-----------------|---------|
+| `[file]` | A file or folder inside the workspace. `-` (or nothing) reads stdin |
+| `--text <text>` | The content itself, instead of a file |
+| `--language <language>` | Outline it as this language: `typescript`, `javascript`, `python`, `csharp`, `java`, `go`, `markdown`, `json` or `yaml`. Needed for stdin and `--text`; for a file it overrides the extension |
+| `--top <n>` | For a folder: how many of the largest files to list (default 10) |
+| `--depth <n>` | For a folder: how many levels of subfolders the tree shows (default 3). Deeper folders still count in their parent's totals, and `foldersHidden` says how many were left out |
+
+**Tokens are an estimate**: `ceil(characters / 4)` per file, counting Unicode code
+points. No model's tokenizer is bundled, and real counts vary by model and
+content. Every result says so in `tokenMethod` and with an `APPROXIMATED` warning.
+
+**For a file**: `{ kind: "file", path, language, bytes, lines, tokens, tokenMethod,
+outline, notOutlined, verified }`. `outline` is `{ precision, method, symbols }`,
+each symbol `{ name, kind, startLine, endLine, container }` (headings add `level`):
+
+- **Code** (`precision: "syntactic"`): TypeScript and JavaScript (`.ts`, `.tsx`,
+  `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`), Python, C#, Java and Go. Functions,
+  classes, interfaces, types, enums, namespaces, methods, constructors, C#
+  properties and exported names. It's a pure-JavaScript scan that skips comments
+  and strings and matches braces (indentation for Python), not a compiler, so
+  `method` says what each language covers. Function bodies aren't searched, and
+  fields aren't listed. `container` is the enclosing class or namespace.
+- **Markdown**: ATX and setext headings, outside code fences and front matter.
+- **JSON and YAML** (`precision: "parsed"`): the top-level keys, found by scanning
+  and held against what the parser returns.
+
+When there's no outline, `outline` is null and `notOutlined` says why: `binary` (a
+NUL byte in the first 8,000 bytes; lines and tokens are null too),
+`unsupported-language`, `parse-error` (with the line, never the text; also a
+`SIZE_PARSE_ERROR` warning) or `too-large` (over 8 MiB; it's still counted).
+
+**For a folder**: `{ kind: "folder", path, tokenMethod, totals, tree, largest,
+skipped, verified }`. It lists files the way `deps scan` does, skipping what
+`.gitignore` ignores. `totals` and every `tree` node hold `files`, `bytes`, `lines`,
+`tokens` and `binaryFiles`; binary files count in files and bytes only. Folders are
+sorted largest first. `largest` names the biggest files with their language.
+`skipped` lists what wasn't counted, with the reason: `unreadable` (with a
+`SIZE_FILES_SKIPPED` warning), `not-a-file` or `nested-repository`.
+
+**What it checks**, in `data.verified`:
+
+- `outline.start`: each symbol's start line, re-read from the input, names it.
+- `outline.range` and `outline.nesting`: each range is inside the file and in
+  order, and a member sits inside its container.
+- `outline.keys`: JSON and YAML keys match the parser's.
+- `counts.reread`: the outline's full read gives the same bytes and lines.
+- `totals.sum` and `tree.sum`: the totals equal the files added up, and each
+  folder equals its own files plus its subfolders.
+- `input.complete`: every file was read to its size on disk.
+
+A failed check sets `verified.passed` to false and warns `SIZE_OUTLINE_MISMATCH`,
+`SIZE_TOTALS_MISMATCH` or `SIZE_COUNTS_MISMATCH`.
 
 ### Time: `toil util time`
 
