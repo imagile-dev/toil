@@ -686,3 +686,24 @@ Added as each integration lands.
   lost; the docs say to CAST to varchar).
 - **The test image is pinned to `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04`**
   in CI and the databases skill, never `2022-latest`.
+- **Windows authentication** (`auth: "windows"`, #165): the alternate account reuses
+  `user` with a new `domain` key, not a separate `username`. A provider `check` hook
+  (run by the area schema's `superRefine`) requires `user` for SQL logins and refuses
+  `auth: "windows"` off Windows; the reason is in the error's `details`, since core's
+  message names only the key.
+- **tedious is patched at runtime, not vendored or patched at bundle time**: a
+  marked connection is configured as `ntlm`, and `sendLogin7Packet`,
+  `performSentLogin7WithNTLMLogin` and the token parser are wrapped once, for marked
+  connections and short Negotiate tokens only. A test fails if a tedious upgrade
+  renames any of them. Where: `src/core/db/sqlserver/windows-login.ts`.
+- **The SSPI helper** (`src/os/windows-sspi.ts`) is Windows PowerShell 5.1 by absolute
+  path, with its script and every token on stdin, `ISC_REQ_CONNECTION` only (no
+  mutual authentication), an allowlisted env, and the SPN `MSSQLSvc/<host>:<port>`
+  as configured (the docs say to use the FQDN). It starts only after the
+  `Connection` is built.
+- **Constrained Language Mode is `AUTH` with a message naming the mode**, not a new
+  error code.
+- **Spawners are one reviewed list**, `scripts/spawners.mjs`, read by tsup, `check:pure`
+  and ESLint.
+- **Windows authentication is documented as `untested`** until it runs against a
+  domain; the provider stays at `integration` for SQL logins.
