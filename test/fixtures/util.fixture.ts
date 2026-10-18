@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { GitResult, GitRunner } from '../../src/core/git.js';
 import { SAMPLE_PNG_BASE64 } from '../../src/areas/util/encode.js';
 import { defineFixture } from '../harness/fixtures.js';
@@ -93,6 +94,38 @@ export const POM = `<project>
 `;
 
 /**
+ * Real files for `util size`, one per language it outlines, kept in
+ * test/fixtures/util-size/ with a .txt suffix so the repo's own lint and
+ * typecheck leave them alone. Provenance: verify.ts and util.md are toil's
+ * own (src/areas/util/kit/verify.ts, docs/util.md), as are package.json and
+ * pages.yml; flatted.js, .py and .go are flatted 3.4.4 by Andrea Giammarchi
+ * (ISC); CategoryService.java is from SaseQ/discord-mcp (MIT); and
+ * FrameworkConfigurationBuilder.cs is from kolatts/imagile-framework (MIT),
+ * with its Key Vault host sanitized to vault.imagile.dev, all public
+ * repositories. Each third-party file carries its upstream licence notice as
+ * a header comment (flatted.py has its own), which the pinned line numbers in
+ * size.test.ts account for.
+ */
+const sample = (name: string) => readFileSync(join(import.meta.dirname, 'util-size', `${name}.txt`), 'utf8');
+
+/** The `util size` sample folder: every outlined language, a binary file, an unsupported one, and an ignored folder. */
+export const sizeSamples: Record<string, string | Uint8Array> = {
+  'samples/size/.gitignore': 'build/\n',
+  'samples/size/verify.ts': sample('verify.ts'),
+  'samples/size/flatted.js': sample('flatted.js'),
+  'samples/size/flatted.py': sample('flatted.py'),
+  'samples/size/flatted.go': sample('flatted.go'),
+  'samples/size/CategoryService.java': sample('CategoryService.java'),
+  'samples/size/FrameworkConfigurationBuilder.cs': sample('FrameworkConfigurationBuilder.cs'),
+  'samples/size/docs/util.md': sample('util.md'),
+  'samples/size/data/sample.json': sample('package.json'),
+  'samples/size/data/pages.yml': sample('pages.yml'),
+  'samples/size/data/logo.png': new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d, 0x49, 0x48, 0x44, 0x52]),
+  'samples/size/notes.txt': 'Counted, not outlined.\n',
+  'samples/size/build/bundle.js': 'export const ignored = true;\n',
+};
+
+/**
  * `util cert`'s chain: a test root, issuing CA and leaf for api.imagile.dev,
  * made fresh for each run with keys that never leave memory (test/harness/x509.ts).
  */
@@ -115,15 +148,15 @@ export const LOGS = Object.fromEntries(
   ['jenkins', 'maven', 'npm', 'dotnet'].map((name) => [name, readFileSync(new URL(`./util/log/${name}.log`, import.meta.url), 'utf8')]),
 ) as Record<'jenkins' | 'maven' | 'npm' | 'dotnet', string>;
 
-const sample = (name: string) => readFileSync(new URL(`./openapi/${name}`, import.meta.url), 'utf8');
+const openapiSample = (name: string) => readFileSync(new URL(`./openapi/${name}`, import.meta.url), 'utf8');
 /** The OpenAPI samples, by the workspace path the examples read them from. */
 export const openapiSamples = {
-  'specs/jira-platform.json': sample('jira-platform.json'),
-  'specs/github.yaml': sample('github.yaml'),
-  'specs/bitbucket.json': sample('bitbucket.json'),
+  'specs/jira-platform.json': openapiSample('jira-platform.json'),
+  'specs/github.yaml': openapiSample('github.yaml'),
+  'specs/bitbucket.json': openapiSample('bitbucket.json'),
 };
 
-/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, three OpenAPI documents, a certificate chain, build reports and build logs. */
+/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, the encode, cert, log and size samples, and three OpenAPI documents. */
 export const files: Record<string, string | Uint8Array> = {
   '.gitignore': 'vendor/\n',
   'package.json': PACKAGE_JSON,
@@ -135,6 +168,7 @@ export const files: Record<string, string | Uint8Array> = {
   'encode/pixel.b64': PIXEL_B64,
   ...Object.fromEntries(Object.entries(LOGS).map(([name, text]) => [`logs/${name}.log`, text])),
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
+  ...sizeSamples,
   'certs/chain.pem': chain.pem,
   'certs/leaf.der': chain.leaf.der,
   ...reportFiles,

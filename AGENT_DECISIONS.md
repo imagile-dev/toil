@@ -1210,6 +1210,7 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
 - **Kit:** none in the end. DER input is read with `binary: 'allow'` and
   `utf8: 'skip'`, the switch `util encode` added, rather than making `binary`
   silence the UTF-8 warning too: one switch per check.
+
 ### util encode (#182)
 
 - **One command, the scheme as its first argument:** `toil util encode <scheme>`,
@@ -1296,6 +1297,50 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
 - **The work is lazily loaded, with zod kept out of it:** `log.ts` opens the input
   (`runLog`) and `log/triage.ts` imports only types from `kit/input.ts`, so the
   triage code stays out of startup without tripping the trap #188 found.
+
+### util size (#184)
+
+- **Code intelligence: the maintainer's framing (2026-10-18).** The
+  `code-intelligence` decision is about heavy dependencies, not code intelligence:
+  small pure-JS code intelligence is welcome, and the TypeScript language service
+  or compiler at runtime, tree-sitter WASM grammars, ast-grep, Pyright and IDE
+  bridges are what's ruled out. Reopening is needed only to add one of those. The
+  skill now says so and cites this outliner as an example that fits.
+- **Code outlines are a pure-JS syntactic scan, not the TypeScript compiler.**
+  `typescript.js` is 9.1 MB unminified, more than the whole bundle today, and is
+  one of the heavy dependencies the `code-intelligence` skill rules out. A small
+  lexer per language (comments and every string form skipped) plus brace matching,
+  or indentation for Python, finds functions, classes, types, methods and exported
+  names. The tests hold the TypeScript and JavaScript outlines to the compiler's
+  syntax tree (a devDependency, never shipped); on toil's 424 own source files they
+  agree on every symbol and line, and on 1,500 random `node_modules` JavaScript
+  files they differ on 6 symbols in 5 files, all compiled or minified code (mostly a
+  constant set to an immediately invoked function, which the scan calls a function). Each result
+  says `precision: "syntactic"` and warns `APPROXIMATED`.
+- **Tokens are `ceil(characters / 4)`** in Unicode code points, the simplest
+  estimate, stated in `tokenMethod` and warned `APPROXIMATED`. No tokenizer is
+  bundled.
+- **Folders get counts, not outlines.** A per-file outline of a whole tree would be
+  larger than reading it. `largest` gives each file's language, and one `size` call
+  on a file outlines it.
+- **The folder tree stops at `--depth` (default 3)**, with deeper folders still in
+  their parent's totals and `foldersHidden` counting them, so a large repository
+  doesn't produce a tree bigger than its files. `--top` defaults to 10.
+- **One input field, `file`, takes a file or a folder**, so the kit's input reader
+  (`file`, `text`, stdin) is reused unchanged. `language` with a folder, and `top` or
+  `depth` with a file, are `INVALID_INPUT` rather than ignored.
+- **A binary file in a folder is sniffed, not read**: the first 8,000 bytes through
+  `ctx.files.readStream`. It counts in files and bytes (from its size), with null
+  lines and tokens, and isn't sent through the reader, which would warn
+  `INPUT_NOT_UTF8` for every image in the tree.
+- **Files are counted with no size cap** (counting streams); only stdin keeps the
+  reader's 64 MiB cap. Outlines skip files over 8 MiB with `too-large`.
+- **A parse error is a reason, not a failure**: the counts still come back, with
+  `notOutlined.reason: "parse-error"`, the line, and a `SIZE_PARSE_ERROR` warning.
+  A JSON error gives line and column only, never V8's quote of the text.
+- **The measuring module is imported statically**, since it reads input through
+  `kit/input.ts` and so zod (#188's finding); the outliners load through `import()`.
+- No kit additions.
 ### util openapi (#183)
 
 - **Three commands, `list`, `show` and `example`**, one per operation the issue
