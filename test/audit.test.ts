@@ -11,6 +11,7 @@ import { loadConfig } from '../src/core/config.js';
 import { execute } from '../src/core/run.js';
 import { createNodeContext } from '../src/node-context.js';
 import { commands as registered } from '../src/registry.js';
+import { setupCommands } from '../src/setup/commands.js';
 import { demoArea, demoCommands, demoRoutes, getThing, renameThing } from './fixtures/demo-commands.js';
 import { memoryAudit } from './harness/audit.js';
 import { runCli } from './harness/cli.js';
@@ -105,9 +106,12 @@ describe('a secret-shaped value through every input of every command', () => {
 
   it('never reaches the log, as a value, in a URL, or in a request', async () => {
     const home = tempHome();
+    // setup edits a real shell profile, so here it gets a machine that lives in the temp folder.
+    const local = setupCommands(() => ({ platform: process.platform, home, cwd: home, env: {}, bundle: join(home, 'toil.js') }));
+    const swept = registered.map((def) => local.find((d) => commandName(d) === commandName(def)) ?? def);
     const leaks: string[] = [];
     let calls = 0;
-    for (const def of registered) {
+    for (const def of swept) {
       const fixture = fixtures.find((f) => f.area === areaOf(def));
       for (const field of Object.keys(def.input.shape)) {
         for (const value of [SECRET, `https://${SECRET}@demo.imagile.dev/x?q=${SECRET}`, [SECRET]]) {

@@ -250,7 +250,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
         if (!def.area || !call) throw new Error(`${commandName(def)} has no context inputs to supply.`);
         return supplyContext(def.area, def, context, resolved, name, value, source);
       },
-      ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt, dossiers: ctx.dossiers, audit: ctx.audit } } : {}),
+      ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt, dossiers: ctx.dossiers, env: ctx.env, audit: ctx.audit } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
       // A listing's warnings (a refused git include) land in meta.warnings without the command passing anything.
@@ -301,6 +301,15 @@ function assertWritesAllowed(
   adopted: Context['adopted'],
   ctx: Context,
 ): void {
+  // A CLI-only write (`skills marketplace add`) has no connection yet to hold
+  // a standing opt-in: it's never an MCP tool, so whoever types it is giving
+  // the opt-in there and then, and --allow-write is how they say so.
+  if (isCliOnly(def)) {
+    if (input.allowWrite === true) return;
+    throw new ToilError('WRITE_DISABLED', `${commandName(def)} changes files on this machine and needs --allow-write on the call.`, {
+      fix: 'Re-run with --allow-write if you mean to make this change.',
+    });
+  }
   const area = areaOf(def);
   // A connection the dossier or the git remote picked is a suggestion until
   // the user adopts it. Reads may follow a suggestion; a write waits for a yes,

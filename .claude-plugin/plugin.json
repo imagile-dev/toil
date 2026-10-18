@@ -1,0 +1,9 @@
+{
+  "name": "toil",
+  "description": "The toil skill: how an agent installs toil, a structured-JSON CLI and MCP server for enterprise tools and databases, and the reference for every command it has.",
+  "author": { "name": "Imagile" },
+  "homepage": "https://imagile-dev.github.io/toil/",
+  "repository": "https://github.com/imagile-dev/toil",
+  "license": "Apache-2.0",
+  "keywords": ["cli", "mcp", "enterprise", "integrations", "databases"]
+}

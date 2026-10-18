@@ -1,10 +1,12 @@
 // Installs the packed tarball the way a locked-down user would (npm, scripts
 // off) into a throwaway prefix, then drives the installed bin through both
-// front doors: the CLI, and MCP over stdio. Run after `npm run build`.
+// front doors: the CLI, and MCP over stdio. Then it clones this checkout and runs
+// the bundle from the clone with no install, through `setup alias` and a real
+// shell. Run after `npm run build`.
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 
 // Run npm's own CLI through node: no shell, so nothing is string-concatenated,
 // and it works the same on Windows. npm sets npm_execpath under `npm run`.
@@ -71,11 +73,97 @@ try {
   const doors = lines.map((l) => `${l.via} ${l.command}`);
   if (!doors.includes('cli version') || !doors.includes('mcp version') || !doors.includes('cli connections list')) fail(`the audit log holds ${JSON.stringify(doors)}`);
 
-  if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI, connections and MCP all answered, ${lines.length} audit lines written, on Node ${process.versions.node} (${process.platform}); ${gitStep}.`);
+  const cloneStep = await fromClone(envelope.data.version);
+
+  if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI, connections and MCP all answered, ${lines.length} audit lines written, on Node ${process.versions.node} (${process.platform}); ${gitStep}; ${cloneStep}.`);
 } catch (err) {
   fail(err.message);
 } finally {
   rmSync(work, { recursive: true, force: true });
+}
+
+/**
+ * The clone path: a fresh clone of this checkout's HEAD has a committed
+ * dist/toil.js and no node_modules, and runs the bundle from there, CLI and
+ * MCP; then `setup alias` puts `toil` in a profile and a real shell runs
+ * `toil version` through it. The committed bundle is the last release (only
+ * the release PR rebuilds it), so the clone runs the bundle just built, put
+ * where the committed one sits: this checks the code under test along the
+ * path a clone takes. check:dist is what proves the release's own bundle.
+ */
+async function fromClone(installedVersion) {
+  const clone = join(work, 'clone');
+  const cloned = spawnSync('git', ['clone', '--quiet', '--no-hardlinks', '--', process.cwd(), clone], { encoding: 'utf8' });
+  if (cloned.status !== 0) throw new Error(`git clone of this checkout failed: ${cloned.stderr || cloned.error?.message}`);
+  const bundle = join(clone, 'dist', 'toil.js');
+  if (!existsSync(bundle)) throw new Error('the clone has no committed dist/toil.js, so a clone could not run toil.');
+  copyFileSync(join(process.cwd(), 'dist', 'toil.js'), bundle);
+  if (existsSync(join(clone, 'node_modules'))) throw new Error('the clone has a node_modules folder, so it would not prove a run with no npm install.');
+
+  const run = (args, options = {}) => spawnSync(process.execPath, [bundle, ...args], { encoding: 'utf8', input: '', timeout: 15000, cwd: clone, env, ...options });
+  const version = JSON.parse(run(['version']).stdout || '{}');
+  if (!version.ok || version.data?.version !== installedVersion) fail(`node <clone>/dist/toil.js version returned ${JSON.stringify(version)}, not version ${installedVersion}`);
+  const { reply } = await mcpVersion(bundle);
+  if (reply?.structuredContent?.ok !== true) fail(`MCP from the clone returned ${JSON.stringify(reply)}`);
+
+  // `setup alias` into a throwaway profile, then each shell this machine has
+  // reads that profile and runs `toil version` through the alias. Running the
+  // shell is the point here, so it's spawned as the program, with the profile
+  // path as an argument rather than spliced into a command string where the
+  // shell allows it.
+  const shells = [];
+  const shellRuns = [];
+  const bash = onPath('bash');
+  const zsh = onPath('zsh');
+  if (bash) {
+    shellRuns.push({ shell: 'bash', profile: join(work, 'bashrc'), run: (p) => spawnSync(bash, ['--noprofile', '--norc', '-c', '. "$1" && toil version', 'smoke', p], { encoding: 'utf8', timeout: 15000, env }) });
+  }
+  if (process.platform === 'darwin' && zsh) {
+    shellRuns.push({ shell: 'zsh', profile: join(work, 'zshrc'), run: (p) => spawnSync(zsh, ['-f', '-c', '. "$1" && toil version', 'smoke', p], { encoding: 'utf8', timeout: 15000, env }) });
+  }
+  if (process.platform === 'win32') {
+    // Invoke-Expression reads the profile's text, so the machine's execution
+    // policy, which governs script files, is neither needed nor changed.
+    shellRuns.push({
+      shell: 'powershell',
+      profile: join(work, 'Microsoft.PowerShell_profile.ps1'),
+      run: (p) => spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `Invoke-Expression (Get-Content -Raw -LiteralPath '${p.replace(/'/g, "''")}'); toil version`], { encoding: 'utf8', timeout: 30000, env }),
+    });
+  }
+  for (const s of shellRuns) {
+    const added = JSON.parse(run(['setup', 'alias', '--shell', s.shell, '--profile', s.profile]).stdout || '{}');
+    if (added.data?.change !== 'added') {
+      fail(`setup alias --shell ${s.shell} returned ${JSON.stringify(added)}`);
+      continue;
+    }
+    const through = s.run(s.profile);
+    let answered;
+    try {
+      answered = JSON.parse(through.stdout.trim().split(/\r?\n/).pop() || '{}');
+    } catch {
+      answered = undefined;
+    }
+    if (answered?.ok !== true) fail(`${s.shell} running toil version through the alias printed ${through.stdout || through.stderr || through.error?.message}`);
+    const removed = JSON.parse(run(['setup', 'remove-alias', '--shell', s.shell, '--profile', s.profile]).stdout || '{}');
+    if (removed.data?.removed !== true || readFileSync(s.profile, 'utf8') !== '') fail(`setup remove-alias --shell ${s.shell} returned ${JSON.stringify(removed)}`);
+    shells.push(s.shell);
+  }
+  if (!shells.length) fail('no shell was found to run the alias in');
+  return `a clone ran dist/toil.js with no npm install (CLI and MCP), and ${shells.join(', ')} ran toil through setup alias`;
+}
+
+/**
+ * The absolute path of `name` on PATH, found without running a shell to ask.
+ * On Windows, System32's bash.exe is the WSL launcher, not a bash that can read
+ * a Windows path, so it's skipped.
+ */
+function onPath(name) {
+  const exts = process.platform === 'win32' ? ['.exe'] : [''];
+  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
+    if (!dir || (process.platform === 'win32' && /[\\/]system32[\\/]?$/i.test(dir))) continue;
+    for (const ext of exts) if (existsSync(join(dir, name + ext))) return join(dir, name + ext);
+  }
+  return undefined;
 }
 
 /**

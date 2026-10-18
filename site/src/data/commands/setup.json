@@ -1,0 +1,24 @@
+[
+  {
+    "name": "alias",
+    "tool": null,
+    "description": "Add a toil alias for this clone to your shell profile, so `toil` runs it with no npm install",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--shell <shell>",
+      "--profile <file>"
+    ]
+  },
+  {
+    "name": "remove-alias",
+    "tool": null,
+    "description": "Take the toil alias that setup alias added out of your shell profile",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--shell <shell>",
+      "--profile <file>"
+    ]
+  }
+]

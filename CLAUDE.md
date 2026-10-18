@@ -137,8 +137,9 @@ Node, and toil has to work there. This is the most important rule in the repo.
     ships (`security`, Windows PowerShell, `secret-tool`), never through a shell,
     with secrets on stdin.
   - **git**, `src/core/git.ts`, the one optional exception to principle 1 (#68,
-    decision 1). Only the commands that are git (the `git` area and `util deps diff`)
-    run it;
+    decision 1). Only the commands that are git (the `git` area, `util deps diff`,
+    and the `skills` marketplace commands, which clone and pull over https or from
+    a local path only) run it;
     repository root, HEAD, branch and remotes are read from `.git` in pure JS
     (`src/core/git-repo.ts`), so area context needs no git. Without git on PATH those
     commands return `GIT_NOT_FOUND`, with a fix naming the PATH searched, and nothing
@@ -188,6 +189,11 @@ GitHub Actions; its build tooling is out of scope.
   writing, the OS credential store (`keychain.ts`), the terminal prompter, and
   JMESPath (`query/`, behind `--select`)
 - `src/connections/` — `toil connections add | login | list | remove`
+- `src/setup/` — `toil setup alias | remove-alias`, the `toil` alias for a clone
+  (CLI only; the profile editing is `src/core/shell-profile.ts`)
+- `src/skills/` — the skills folders and marketplace clones (`docs/bounds.md`,
+  `skills.folders`), and the `skills` commands that read or change config; the
+  `skills` area's own commands are in `src/areas/skills/`
 - `src/dossiers/` — `toil dossiers list | show | check | context`; the model and
   resolution are `src/core/dossier.ts`
 - `src/audit/` — `toil audit list | path`, reading the audit log `src/core/audit.ts`
@@ -210,12 +216,16 @@ GitHub Actions; its build tooling is out of scope.
   `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands;
   `test/live/` is the real-credential-store suite, kept out of `npm test` (`secrets`
   skill)
-- `scripts/` — area registration, the purity gate, the tarball smoke test, contract
-  capture (`capture-command-contract.mjs`, with output fields from
+- `scripts/` — area registration, the purity gate, the committed-bundle check
+  (`check-dist.mjs`), the tarball and clone smoke test, contract capture (`capture-command-contract.mjs`, with output fields from
   `contract-output.mjs`), the area stub generator (`stub-area.mjs`), the divergence
   table (`divergences.mjs`), PR screenshots (`shoot.mjs`), and the PR watcher the
   `ship` skill runs (dev tooling; none of it ships)
-- `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files
+- `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files,
+  `install.md` and `mcp.md`. `.claude-plugin/` lists it as a Claude Code plugin
+  marketplace, so the repository installs as one
+- `dist/toil.js` — the last released bundle, committed so a clone runs with no
+  `npm install`; only the release PR rebuilds it (Build & Test)
 - `.claude/skills/` — repo-internal skills only. They're for working in this
   repository; they're never published or installed by toil (that's `skills/toil/`)
 - `docs/` — plans and decisions; `docs/divergences/<area>.json` holds the migration
@@ -366,8 +376,9 @@ what it protects, where it's enforced, its error and whether it can be relaxed;
 in step. A new bound, or a change to one, updates both. Only a setting in the user's
 own config file relaxes a bound (today only `"bounds": { "files": "unbounded" }`),
 security-class bounds never, and every envelope says so in `meta.warnings` while
-one is relaxed. Reading git metadata above the workspace is the one documented
-exception.
+one is relaxed. The documented exceptions are reading git metadata above the
+workspace, `--output-file`, and the shell profile `toil setup alias` edits
+(`docs/bounds.md`).
 
 **The file workspace.** Every path a command reads or writes resolves inside one
 folder: `--workspace <dir>`, else `TOIL_WORKSPACE`, else the CLI's working
@@ -390,14 +401,23 @@ npm run lint        # ESLint
 npm test            # Vitest
 npm run build       # tsup → dist/toil.js, single bundle
 npm run check:pure  # the No Executables gate (after build)
-npm run smoke       # install the tarball with scripts off; drive CLI and MCP (after build)
+npm run smoke       # install the tarball with scripts off; drive CLI and MCP; run a clone (after build)
 ```
 
 All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 24.14
 and 26. Its `CI ok` job passes only when every one of those passed, and it's the one
-check `main`'s ruleset requires, so nothing merges on a red gate. Other checks stay
+check `main`'s ruleset requires, so nothing merges on a red gate. It also needs the
+`dist/` guard (below). Other checks stay
 optional: the review job (approval is required separately, and it skips the release
-PR) and path-filtered jobs, which would block PRs they never run on.
+PR), the skill-install job (it downloads Claude Code to install the skill on each OS),
+and path-filtered jobs, which would block PRs they never run on.
+
+**`dist/toil.js` is committed and is the last released toil** (the maintainer's
+decision, 2026-10-17), so a clone runs it with no `npm install`. A PR never changes
+it: the `dist/` guard in CI (`node scripts/check-dist.mjs --untouched`) fails any PR
+that touches `dist/` unless it is release-please's own (`release-please--…`). The
+release workflow rebuilds the bundle on the release PR and commits it there, and
+`npm run check:dist` verifies it on that PR on every OS.
 
 ## Output Contract
 
@@ -554,6 +574,14 @@ default connection), following normal precedence.
 Deletes are never exposed through MCP: a delete command sets `mcp: false`, and the
 raw passthrough refuses a `DELETE` over MCP (`offMcpWhen`).
 
+Writing files on this machine outside toil's own config counts as a write too: the
+`skills` commands that install into or switch plugins in an agent's skills folder
+need `writes: true` on the marketplace's connection and `--allow-write`. A CLI-only
+write (`skills marketplace add`, which clones) has no connection yet, so it needs
+`--allow-write` alone. CLI only isn't human only: an agent with a shell can run it,
+so `add` leaves writes off and installs nothing. Writes go on the way every
+connection's do (`docs/bounds.md`, `skills.folders`).
+
 ## Matching the predecessor
 
 *Principles 4 and 7.* Until toil has run an integration against a live instance, the
@@ -636,7 +664,8 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   (the migration contract's commands, flags and output field names, see the
   `integrations` skill), `test/skills.test.ts` (a `skills/toil/<area>.md` with
   frontmatter, naming every command, every env var, every CI fallback and the area's
-  supported versions), `test/fallbacks.test.ts` (each declared CI fallback in its
+  supported versions; and across the whole skill, every `toil …` it shows and every
+  flag in a command table row is real), `test/fallbacks.test.ts` (each declared CI fallback in its
   precedence position, through the real config loader), and
   `test/site-commands.test.ts`, which writes `site/src/data/commands/<area>.json` and
   `site/src/data/settings/<area>.json` for the docs pages (`npx vitest run -u` after

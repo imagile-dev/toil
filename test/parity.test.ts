@@ -62,8 +62,8 @@ const outsideDisk = dossierDisk({
   'home/.toil/dossiers/payments.json': { name: 'payments', description: 'Payments platform', repos: [{ name: 'payments-api', remotes: ['https://bitbucket.imagile.dev/scm/pay/payments-api.git'] }], jira: { project: 'PAY', projects: ['PAY', 'LEDG'] } },
 });
 afterAll(() => outsideDisk.cleanup());
-type Local = { repo?: GitContext; git?: GitRunner; dossiers?: ReturnType<typeof dossierDisk>['catalog'] };
-const localOf = (f: LoadedFixture): Local => ({ ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}), ...(f === outside ? { dossiers: outsideDisk.catalog } : {}) });
+type Local = { repo?: GitContext; git?: GitRunner; home?: Record<string, string>; dossiers?: ReturnType<typeof dossierDisk>['catalog'] };
+const localOf = (f: LoadedFixture): Local => ({ ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}), ...(f.home ? { home: f.home } : {}), ...(f === outside ? { dossiers: outsideDisk.catalog } : {}) });
 
 
 // Each test's CLI run starts with no cached token, so it exchanges as a fresh process would.
