@@ -712,3 +712,10 @@ Added as each integration lands.
   - **`repos scan` is a `config` command on the dossier catalog**, capped at 20,000 folders, saying `truncated` past that.
   - **Field aliases go through the area's existing `--field`** (Jira, Jira Cloud), asked for only when the call names a field; a name the connection already uses keeps the connection's meaning.
   - **A fixture can carry a `dossier`** for its area's `check-dossier`, holding only keys the other examples don't read.
+- **Checks for every area (the last #16 PR):**
+  - **`check-dossier` checks the area's own section and the call's environment's only** (`--env`, else the dossier's `env`). Another environment's section may select another connection, so it's checked by a call in that environment, never against this one's server. The result names the environment it checked.
+  - **Values that belong together pair up per repo** (`viewScopes`): a repo with its project (bitbucket, ado) or owner (github). A plain value applies to every repo, and a per-repo one to its repo only.
+  - **ado's collection is the section's (per repo or not), else the call's** (`--collection`, or the connection's). A value with no collection anywhere is `INVALID_INPUT`, never skipped (principle 4).
+  - **openshift checks a namespace as a project** (`project.openshift.io`), which an ordinary token can read; the namespace object needs cluster rights. `deployments` are checked in their section's `namespace`.
+  - **Only not-found counts as missing**, in every area. Any other failure (a bad token, an unreachable host) fails the command, rather than reporting every value missing.
+  - **Fixtures keep the dossier out of other examples** by giving context inputs per repo: no example's folder is that repo, so only `check-dossier` sees them.
