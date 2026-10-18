@@ -229,7 +229,7 @@ describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})`
     await write('CREATE TABLE "Mixed" (x INTEGER)');
     expect((await run(describeTable, { table: 'Mixed' })).data).toMatchObject({ name: 'Mixed' });
     expect((await run(describeTable, { table: 'MIXED' })).error?.code).toBe('NOT_FOUND');
-    expect((await run(listTables, { schema: String(db.defaultSchema).toLowerCase() })).data).toMatchObject({ tables: expect.arrayContaining([{ name: 'Mixed', type: 'table' }]) });
+    expect((await run(listTables, { schema: String(db.schema).toLowerCase() })).data).toMatchObject({ tables: expect.arrayContaining([{ name: 'Mixed', type: 'table' }]) });
   });
 
   it('describes a composite key, an expression index and a cascading foreign key', async () => {
@@ -237,7 +237,7 @@ describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})`
       CREATE INDEX badges_lower ON badges (LOWER(code))`);
     const d = (await run(describeTable, { table: 'badges' })).data as Record<string, unknown>;
     expect(d).toMatchObject({ name: 'BADGES', primaryKey: ['TEAM_ID', 'SEQ'] });
-    expect(d.foreignKeys).toEqual([{ columns: ['TEAM_ID'], references: { schema: db.defaultSchema, table: 'TEAMS', columns: ['ID'] }, onUpdate: null, onDelete: 'CASCADE' }]);
+    expect(d.foreignKeys).toEqual([{ columns: ['TEAM_ID'], references: { schema: db.schema, table: 'TEAMS', columns: ['ID'] }, onUpdate: null, onDelete: 'CASCADE' }]);
     expect(d.indexes).toContainEqual({ name: 'BADGES_LOWER', columns: ['<expression>'], unique: false });
     expect(d.indexes).toContainEqual({ name: 'BADGES_PK', columns: ['TEAM_ID', 'SEQ'], unique: true });
   });
@@ -377,7 +377,7 @@ describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})`
 
   it('lists its own schema, and not the ones Oracle maintains', async () => {
     const names = ((await run(listSchemas, {})).data as { schemas: Array<{ name: string }> }).schemas.map((s) => s.name);
-    expect(names).toContain(db.defaultSchema);
+    expect(names).toContain(db.schema);
     expect(names).not.toContain('SYS');
     expect(names).not.toContain('SYSTEM');
   });

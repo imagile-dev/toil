@@ -188,6 +188,8 @@ GitHub Actions; its build tooling is out of scope.
   writing, the OS credential store (`keychain.ts`), the terminal prompter, and
   JMESPath (`query/`, behind `--select`)
 - `src/connections/` — `toil connections add | login | list | remove`
+- `src/dossiers/` — `toil dossiers list | show | check | context`; the model and
+  resolution are `src/core/dossier.ts`
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
   `commands` (standalone commands export only `commands`)
 - `src/registry.ts` — every shipped area and command, read by both front doors. It
@@ -244,10 +246,10 @@ is a flag on the area's group (`toil github --owner o get-pr`, accepted before o
 after the leaf) and a field on every one of its MCP tools, and a `command` input
 belongs to the commands that list it in their own `context`, which also marks any
 input `required`. Core resolves each in one order: the call's own value, then the
-dossier (empty until #16), then the git remotes where the area declares how to read
-them (`origin` first, then the others; the first one on the connection's host that
-the area's parser accepts), then the
-connection's `setting`, then the area's `default`. A command that reads one from a
+dossier that applies to the call, then the git remotes where the area declares how
+to read them (`origin` first, then the others; the first one on the connection's host
+that the area's parser accepts), then the connection's `setting`, then the area's
+`default`. A command that reads one from a
 file the call named (an `--input-file`) reports it with `ctx.supply`, which ranks
 it just below the call's own value. An input with `selectsConnection`
 picks the connection (`--env staging` selects the one named `staging` or whose `env`
@@ -265,10 +267,22 @@ environment the area doesn't know is a loud `INVALID_INPUT` listing the ones it 
 never a guess.
 
 **A write on a connection that the dossier or the git remote chose is refused** until
-the user adopts that binding (`WRITE_DISABLED`, naming the connection; adopting is
-#16's `toil dossiers import`, and until then the fix says to pass `--connection`).
-Reads may follow the suggestion; once adopted, writes work normally. A connection the
-user named, selected with an explicit input, or set as the default is theirs already.
+the user adopts that binding (`WRITE_DISABLED`, naming the connection). A dossier in
+the user's own folder, `~/.toil/dossiers/`, is adopted; a checked-in, listed or loose
+one isn't, and adopting it means copying it there (`toil dossiers import`, still to
+come in #16; until then the fix says to pass `--connection`). Reads may follow the
+suggestion; once adopted, writes work normally. A connection the user named, selected
+with an explicit input, or set as the default is theirs already.
+
+**Dossiers** (`docs/dossiers.md`, `src/core/dossier.ts`) are read on every call to an
+area command, from `~/.toil/dossiers/`, the folders in `dossierPaths` or
+`TOIL_DOSSIER_PATHS`, and `.toil/dossiers/` in the call's repository. Core adds two
+inputs to every area command for them, after `connection`: `dossier` (`--dossier
+<name|file>`, else `TOIL_DOSSIER`) and `cwd` (`--cwd <dir>`, else the workspace), the
+folder whose repository picks the dossier and the git context. `run` never sees
+either. A section supplies its area's context inputs by name, and picks the
+connection by `connection` or by `host`, a selector toil compares and never
+contacts. Every problem found reading one is in `meta.warnings`, by file and key path.
 
 **Cross-area credentials are paired explicitly** (*principle 9*). `defineArea({
 shares: { area, keys } })` only declares which keys may be paired; core adds a
@@ -309,6 +323,15 @@ same rule env vars follow (`fromText` in `src/core/schema.ts`): numbers, `true` 
 value typed as its element. A union stays text, which is how Jira keeps the
 predecessor's `parseInt` reading of `--max-results`.
 
+**`<area> api` is the raw passthrough** (`src/core/passthrough.ts`): an HTTP area
+exports `apiCommand(area, { service, examplePath, examples })` with its commands, and
+gets `toil <area> api <METHOD> <path>` (`<area>_api` over MCP) on the same request
+hook, so it can't drift from the wrapped commands. The path stays under `baseUrl`
+(a scheme, `//host` or a leading backslash is `INVALID_INPUT`), the method decides
+the write gate (`writesWhen`), a `DELETE` is refused over MCP (`offMcpWhen`), JSON
+comes back parsed, text as text and binary as base64 (with `API_BINARY`), up to 1 MB, and `meta.response` carries
+the status and content type. Non-HTTP areas (`db`, `git`) don't have one.
+
 **Commands never read config or env.** `run` gets `ctx.connection`, the one
 connection this call resolved, plus any setting from a connection the user paired
 it with, resolved by core, validated and typed from the area's schema, and a
@@ -325,6 +348,10 @@ A `cli-only` command is never an MCP tool: it prompts on a terminal (stdin is
 the protocol under MCP) or changes connections, which agents never do. It has no
 time limit, since it may be waiting on someone typing. An area command that must
 stay off MCP but keeps its connection and time limit, a delete, sets `mcp: false`.
+A command whose input decides whether it writes (the passthrough's method) sets
+`writesWhen`; it stays `writes: false`, so its reads are free and it's served with
+writes off, and execute() gates each call that writes. One with some calls MCP must
+not make sets `offMcpWhen`, which execute() refuses over MCP before anything runs.
 
 ## Bounds
 
@@ -400,12 +427,16 @@ a breaking change.
 - **`meta.warnings`** carries things worth saying that aren't failures (a reserved
   config key, a truncated result), from config loading or a command's `ctx.warn()`.
   **`meta.page`** is `{ nextCursor, limit }`, set with `ctx.setPage()` by any command
-  that pages. Both are absent when empty.
-- **`meta.context`**, on area commands only, says where the call acted: `{ connection,
-  inputs, shared }`. `connection` and each of `inputs` is `{ value, source }`, the
+  that pages. Both are absent when empty. **`meta.response`** is `{ status,
+  contentType }`, set with `ctx.setResponse()` by `<area> api`, whose `data` is the
+  body as the service sent it.
+- **`meta.context`**, on area commands only, says where the call acted: `{ dossier,
+  connection, inputs, shared }`. `dossier`, when one applied, names it, where it
+  lives, what chose it and how the folder matched it. `connection` and each of `inputs` is `{ value, source }`, the
   source one of `input`, `file` (a value the command read from a file the call
   named, through `ctx.supply`), `dossier`, `git`, `connection` or `default`, plus `via` (the
-  input that selected the connection) or `default` (`named`, `area-name` or `only`).
+  input that selected the connection), `host` (the dossier's host selector that did)
+  or `default` (`named`, `area-name` or `only`).
   `shared` lists settings taken from another area's connection, with where each
   lived, never the value. It's set on a failure too, as far as resolution got.
 - **Every command has a time limit and can be cancelled.** `execute()` aborts at
@@ -504,7 +535,8 @@ connection. `writes` is per connection, so writes can be on for a sandbox and of
 for production; it is never read from `defaults.<area>`. Env vars can enable writes
 for CI (`TOIL_CONN_<NAME>_WRITES=true`, or `TOIL_<AREA>_WRITES=true` for the
 default connection), following normal precedence.
-Deletes are never exposed through MCP: a delete command sets `mcp: false`.
+Deletes are never exposed through MCP: a delete command sets `mcp: false`, and the
+raw passthrough refuses a `DELETE` over MCP (`offMcpWhen`).
 
 ## Matching the predecessor
 

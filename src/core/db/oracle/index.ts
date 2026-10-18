@@ -1,6 +1,7 @@
 import oracledb from 'oracledb';
 import type { Connection as OraConnection, FetchTypeResponse, Metadata, Result, ResultSet } from 'oracledb';
 import { ToilError } from '../../errors.js';
+import { trustOsStoreByDefault } from '../../network.js';
 import type { ColumnInfo, DbCall, DbConnection, DbProvider, ForeignKeyInfo, IndexInfo, ResultColumn, RowSet, TableRef } from '../provider.js';
 import { exactText } from './dates.js';
 import { controlsTransaction, splitStatements, type Statement } from './split.js';
@@ -155,6 +156,9 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (c
   call.signal.addEventListener('abort', onAbort, { once: true });
   call.debug(`oracle: connection ${conn.name}, ${mode === 'read' ? 'read-only' : 'read-write'}`);
   try {
+    // Thin mode builds its TLS context with no `ca`, so it uses Node's
+    // defaults: make those the CAs toil trusts, OS store included.
+    if (conn.ssl === true) trustOsStoreByDefault(call.debug);
     client = await oracledb.getConnection({
       user: conn.user!,
       password: conn.password ?? '',

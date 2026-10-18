@@ -5,9 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { describeTable, execute as executeCmd, listSchemas, query } from '../../src/areas/db/index.js';
 import type { AnyCommand } from '../../src/core/command.js';
 import type { Settings } from '../../src/core/config.js';
-import { clientConfig } from '../../src/core/db/postgres/index.js';
+import { clientConfig, toToilError } from '../../src/core/db/postgres/index.js';
 import { controlsTransaction, splitStatements } from '../../src/core/db/postgres/split.js';
 import type { DbConnection } from '../../src/core/db/provider.js';
+import type { NetworkApis } from '../../src/core/network.js';
 import { execute } from '../../src/core/run.js';
 import { testContext } from '../harness/context.js';
 import { targets, type TargetDatabase } from './targets.js';
@@ -92,8 +93,42 @@ describe('postgres connection settings', () => {
     }
   });
 
-  it('verifies TLS when ssl is on', () => {
-    expect(clientConfig({ ...conn, ssl: true } as DbConnection).ssl).toBe(true);
+  // pg opens its own socket, so core's HTTP setup never loads the OS store for it.
+  const caApis = (system: string[] | Error): NetworkApis => ({
+    getCACertificates: ((type?: string) => {
+      if (system instanceof Error) throw system;
+      return type === 'system' ? system : ['BUNDLED-1'];
+    }) as NetworkApis['getCACertificates'],
+    setDefaultCACertificates: () => {},
+    setGlobalProxyFromEnv: () => () => {},
+  });
+
+  it("verifies TLS against Node's CAs plus the OS store when ssl is on", () => {
+    const config = clientConfig({ ...conn, ssl: true } as DbConnection, () => {}, caApis(['CORP-ROOT']));
+    expect(config.ssl).toEqual({ ca: ['BUNDLED-1', 'CORP-ROOT'] });
+    // And pg carries it through to the socket's TLS options unchanged.
+    expect((new ConnectionParameters(config) as unknown as { ssl: unknown }).ssl).toEqual({ ca: ['BUNDLED-1', 'CORP-ROOT'] });
+  });
+
+  // Node's certificate failures carry these codes on the socket error pg rejects with.
+  it('answers an untrusted or mismatched server certificate with NETWORK, naming the code', () => {
+    const tlsConn = { ...conn, ssl: true } as DbConnection;
+    for (const code of ['UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'UNABLE_TO_GET_ISSUER_CERT_LOCALLY', 'SELF_SIGNED_CERT_IN_CHAIN', 'DEPTH_ZERO_SELF_SIGNED_CERT', 'CERT_HAS_EXPIRED', 'ERR_TLS_CERT_ALTNAME_INVALID']) {
+      const err = Object.assign(new Error('unable to verify the first certificate'), { code });
+      expect(toToilError(err, tlsConn, 'read'), code).toMatchObject({
+        code: 'NETWORK',
+        message: expect.stringContaining(`(${code})`),
+        fix: expect.stringContaining('NODE_EXTRA_CA_CERTS'),
+      });
+    }
+  });
+
+  it("keeps Node's own CAs when the OS store can't be read, and reads nothing without ssl", () => {
+    const debug = vi.fn();
+    expect(clientConfig({ ...conn, ssl: true } as DbConnection, debug, caApis(new Error('keychain locked'))).ssl).toBe(true);
+    expect(debug).toHaveBeenCalledWith(expect.stringContaining('keychain locked'));
+    const unread = caApis(new Error('must not be read'));
+    expect(clientConfig(conn, () => {}, unread).ssl).toBe(false);
   });
 });
 

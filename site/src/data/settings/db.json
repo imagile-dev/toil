@@ -2,7 +2,7 @@
   {
     "key": "engine",
     "env": "TOIL_DB_ENGINE",
-    "description": "Database engine: sqlite, postgres, oracle",
+    "description": "Database engine: sqlite, postgres, mysql, oracle",
     "required": true,
     "secret": false,
     "fallbacks": []
@@ -18,7 +18,7 @@
   {
     "key": "host",
     "env": "TOIL_DB_HOST",
-    "description": "PostgreSQL, Oracle: server host name or address",
+    "description": "PostgreSQL, MySQL, Oracle: server host name or address",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -26,7 +26,7 @@
   {
     "key": "port",
     "env": "TOIL_DB_PORT",
-    "description": "PostgreSQL, Oracle: TCP port (default 5432; Oracle 1521)",
+    "description": "PostgreSQL, MySQL, Oracle: TCP port (default 5432 for PostgreSQL, 3306 for MySQL, 1521 for Oracle)",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -34,7 +34,7 @@
   {
     "key": "database",
     "env": "TOIL_DB_DATABASE",
-    "description": "PostgreSQL: database to connect to. Oracle: the service name (FREEPDB1, ORCLPDB1)",
+    "description": "PostgreSQL, MySQL: database to connect to (for MySQL, also the default schema). Oracle: the service name (FREEPDB1, ORCLPDB1)",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -42,7 +42,7 @@
   {
     "key": "user",
     "env": "TOIL_DB_USER",
-    "description": "PostgreSQL: login role. Oracle: the user",
+    "description": "PostgreSQL, MySQL, Oracle: login role, account or user",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -50,7 +50,7 @@
   {
     "key": "password",
     "env": "TOIL_DB_PASSWORD",
-    "description": "PostgreSQL, Oracle: the login's password (a secret: env var or OS credential store)",
+    "description": "PostgreSQL, MySQL, Oracle: the login's password (a secret: env var or OS credential store)",
     "required": false,
     "secret": true,
     "fallbacks": []
@@ -58,7 +58,7 @@
   {
     "key": "ssl",
     "env": "TOIL_DB_SSL",
-    "description": "PostgreSQL, Oracle: connect over TLS (Oracle: TCPS), verifying the server's certificate against the OS store",
+    "description": "PostgreSQL, MySQL, Oracle: connect over TLS (Oracle: TCPS), verifying the server's certificate against the OS store",
     "required": false,
     "secret": false,
     "fallbacks": []

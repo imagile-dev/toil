@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { configureNetwork, networkFetch, proxyEnv, resetNetwork, type NetworkApis } from './network.js';
+import { configureNetwork, networkFetch, proxyEnv, resetNetwork, trustOsStoreByDefault, trustedCertificates, type NetworkApis } from './network.js';
 
 afterEach(() => resetNetwork());
 
@@ -52,6 +52,17 @@ describe('configureNetwork', () => {
   });
 });
 
+describe('trustOsStoreByDefault', () => {
+  it('adds the OS store to the defaults without touching the proxy, and does nothing for an empty store', () => {
+    const { apis, calls } = fakeApis();
+    trustOsStoreByDefault(() => {}, apis);
+    expect(calls).toEqual({ defaults: [['BUNDLED-1', 'EXTRA-1', 'SYS-1']], proxy: [] });
+    const empty = fakeApis([]);
+    trustOsStoreByDefault(() => {}, empty.apis);
+    expect(empty.calls.defaults).toEqual([]);
+  });
+});
+
 describe('networkFetch', () => {
   it('configures once, on the first request, then passes every request through', async () => {
     const { apis, calls } = fakeApis();
@@ -75,5 +86,20 @@ describe('networkFetch', () => {
       await expect(fetch('https://jira.imagile.dev/a')).rejects.toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('HTTPS_PROXY'), fix: expect.stringContaining('HTTPS_PROXY') });
     }
     expect(base).not.toHaveBeenCalled();
+  });
+});
+
+describe('trustedCertificates', () => {
+  it("lists Node's defaults then the OS store's, for drivers that take a ca option", () => {
+    const { apis } = fakeApis();
+    expect(trustedCertificates(() => {}, apis)).toEqual({ certificates: ['BUNDLED-1', 'EXTRA-1', 'SYS-1'], system: 1 });
+  });
+
+  it("returns no list when the store can't be read, so a driver keeps Node's defaults", () => {
+    const { apis } = fakeApis();
+    apis.getCACertificates = (() => {
+      throw new Error('keychain locked');
+    }) as NetworkApis['getCACertificates'];
+    expect(trustedCertificates(() => {}, apis)).toEqual({ certificates: undefined, system: 0 });
   });
 });

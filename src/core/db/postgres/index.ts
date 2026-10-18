@@ -3,6 +3,7 @@ import Client from 'pg/lib/client.js';
 import TypeOverrides from 'pg/lib/type-overrides.js';
 import Cursor from 'pg-cursor';
 import { ToilError } from '../../errors.js';
+import { trustedCertificates, type NetworkApis } from '../../network.js';
 import type { ColumnInfo, DbCall, DbConnection, DbProvider, ForeignKeyInfo, IndexInfo, ResultColumn, RowSet, TableRef } from '../provider.js';
 import { controlsTransaction, splitStatements } from './split.js';
 
@@ -55,15 +56,19 @@ function typeParsers(): TypeOverrides {
  * left unset would make pg read PGPASSWORD or ~/.pgpass and send it to this
  * host; as a function it can't fall through to either.
  */
-export function clientConfig(conn: DbConnection): ClientConfig {
+export function clientConfig(conn: DbConnection, debug: (message: string) => void = () => {}, apis?: NetworkApis): ClientConfig {
   const password = conn.password ?? '';
+  const ca = conn.ssl === true ? trustedCertificates(debug, apis).certificates : undefined;
   return {
     host: conn.host!,
     port: conn.port ?? DEFAULT_PORT,
     database: conn.database!,
     user: conn.user!,
     password: () => password,
-    ssl: conn.ssl === true,
+    // pg opens its own socket, so core's HTTP setup never reaches it: hand it
+    // the same CAs, OS store included. A `ca` replaces Node's list for this
+    // socket, which is why the defaults travel with it.
+    ssl: conn.ssl === true ? (ca ? { ca } : true) : false,
     application_name: 'toil',
     connectionTimeoutMillis: CONNECT_TIMEOUT_MS,
     keepAlive: true,
@@ -73,7 +78,7 @@ export function clientConfig(conn: DbConnection): ClientConfig {
   };
 }
 
-type Mode = 'read' | 'write';
+export type Mode = 'read' | 'write';
 
 /**
  * One connection, one transaction, one call. Reads begin read-only and roll
@@ -83,7 +88,7 @@ type Mode = 'read' | 'write';
  */
 async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (client: PgClient) => Promise<T>): Promise<T> {
   if (call.signal.aborted) throw call.signal.reason;
-  const client = new Client(clientConfig(conn));
+  const client = new Client(clientConfig(conn, call.debug));
   // An idle client still emits 'error' if the server drops it; without a listener that would crash the process.
   client.on('error', (err) => call.debug(`postgres: connection ${conn.name}: ${err.message}`));
   let connected = false;
@@ -112,7 +117,7 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (c
 
 /** Asks the server to stop the statement on backend `pid`. Best effort: core has already answered the caller. */
 async function cancelOnServer(conn: DbConnection, pid: number, call: DbCall): Promise<void> {
-  const canceller = new Client(clientConfig(conn));
+  const canceller = new Client(clientConfig(conn, call.debug));
   canceller.on('error', () => {});
   try {
     await canceller.connect();
@@ -133,8 +138,8 @@ interface PgFailure {
 
 const NETWORK_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'ETIMEDOUT', 'ECONNRESET', 'EHOSTUNREACH', 'ENETUNREACH', 'EPIPE']);
 
-/** PostgreSQL's SQLSTATEs and Node's network errors to toil's codes. */
-function toToilError(err: unknown, conn: DbConnection, mode: Mode): unknown {
+/** PostgreSQL's SQLSTATEs and Node's network errors to toil's codes. Exported for tests. */
+export function toToilError(err: unknown, conn: DbConnection, mode: Mode): unknown {
   if (err instanceof ToilError) return err;
   const f = (err ?? {}) as PgFailure;
   const message = String(f.message ?? err);
@@ -194,9 +199,9 @@ function toToilError(err: unknown, conn: DbConnection, mode: Mode): unknown {
       fix: `Set "ssl" to false on connection ${conn.name} only if the network between you and the server is trusted.`,
     });
   }
-  if (typeof f.code === 'string' && /CERT|SELF_SIGNED|ERR_TLS/.test(f.code)) {
+  if (typeof f.code === 'string' && /CERT|SELF_SIGNED|ERR_TLS|UNABLE_TO_/.test(f.code)) {
     return new ToilError('NETWORK', `The TLS certificate of PostgreSQL at ${where} wasn't trusted for connection ${conn.name} (${f.code}).`, {
-      fix: "toil trusts the operating system's certificate store. Add your organization's CA there, and check that \"host\" matches the certificate's name.",
+      fix: "toil trusts Node's CAs, NODE_EXTRA_CA_CERTS and the operating system's certificate store. Add your organization's CA to the OS store (or NODE_EXTRA_CA_CERTS), and check that \"host\" matches the certificate's name.",
     });
   }
   return new ToilError('DATABASE', `PostgreSQL: ${message}`, { fix: 'Check the connection settings and the SQL. If it persists, run with --debug and report it.' });

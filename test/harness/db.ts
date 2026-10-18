@@ -39,7 +39,7 @@ export const PEOPLE = ['Ada', 'Grace', 'Edsger', 'Barbara', 'Donald', 'Frances',
 
 export const SEED_SQL: string[] = [
   'CREATE TABLE teams (id INTEGER PRIMARY KEY, name VARCHAR(50) NOT NULL UNIQUE)',
-  'CREATE TABLE people (id INTEGER PRIMARY KEY, name VARCHAR(100) NOT NULL, team_id INTEGER REFERENCES teams (id), active INTEGER DEFAULT 1 NOT NULL)',
+  'CREATE TABLE people (id INTEGER PRIMARY KEY, name VARCHAR(100) NOT NULL, team_id INTEGER, active INTEGER DEFAULT 1 NOT NULL, FOREIGN KEY (team_id) REFERENCES teams (id))',
   'CREATE INDEX people_team ON people (team_id)',
   'CREATE VIEW active_people AS SELECT id, name FROM people WHERE active = 1',
   "INSERT INTO teams (id, name) VALUES (1, 'Platform'), (2, 'Data')",
