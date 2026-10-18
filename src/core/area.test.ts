@@ -73,7 +73,7 @@ describe('defineArea', () => {
 
     expect(plain.context).toEqual({ project: 'optional', instance: 'optional' });
     expect(board.context).toEqual({ project: 'required', instance: 'optional', boardId: 'required' });
-    expect(Object.keys(plain.input.shape).sort()).toEqual(['connection', 'instance', 'project']);
+    expect(Object.keys(plain.input.shape).sort()).toEqual(['connection', 'cwd', 'dossier', 'instance', 'project']);
     expect(board.options).toEqual(
       expect.arrayContaining([
         { flags: '--project <value>', field: 'project', description: "Project; defaults to your dossier's project, then the connection's project.", group: true },

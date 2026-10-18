@@ -34,7 +34,7 @@ function readIssueFile(path: string | undefined, ctx: client.JiraContext): Issue
 
 /**
  * The project for create-issue, in this order: --project, then "project" in
- * --input-file, then the dossier (#16; empty today), then the connection's
+ * --input-file, then the dossier, then the connection's
  * project, which is the contract's order with the dossier slotted in.
  * Core resolves the flag, the dossier and the connection; the file is read by
  * the command, so its step goes through ctx.supply, and meta.context reports

@@ -14,7 +14,7 @@ import { VERSION } from './version.js';
 import { gatherWelcomeData } from './welcome/data.js';
 import { runWelcome, wantsWelcome } from './welcome/index.js';
 
-const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks }));
+const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context) }));
 
 // Ctrl-C cancels the command in flight; execute() turns it into a CANCELLED
 // envelope. Installing this listener switches off Node's own exit on SIGINT,
