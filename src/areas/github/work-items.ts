@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
+import { repeatedFlag } from '../../core/schema.js';
 import { githubArea } from './area.js';
 import { exampleCursor, github, githubAll, githubList, isoSeconds, target, type GitHubContext } from './client.js';
 import { intText, pageFields, pageOptions, parseDateOption, parseIntText, updatedSinceField, updatedSinceOption } from './input.js';
@@ -38,7 +39,7 @@ export const listIssuesCommand = githubArea.command({
     'Lists the issues in a repository as GitHub returns them, with issue type (type), sub-issue counts (sub_issues_summary) and parent (parent_issue_url) where the server has them. Pull requests, which the endpoint mixes in, are left out. updatedSince is GitHub\'s since parameter, for incremental reads. With limit, pass meta.page.nextCursor as cursor for the next page.',
   input: z.object({
     state: z.enum(['open', 'closed', 'all']).optional().describe('Issue state (choices: "open", "closed", "all", default: "open")'),
-    label: z.array(z.string()).optional().describe('Only issues with this label (repeatable; all must match)'),
+    label: repeatedFlag('Only issues with this label (repeatable; all must match)'),
     assignee: z.string().optional().describe('Only issues assigned to this login (none for unassigned, * for any)'),
     type: z.string().optional().describe('Only issues of this issue type (none for no type, * for any)'),
     sort: z.enum(['created', 'updated', 'comments']).optional().describe('Sort by (choices: "created", "updated", "comments", default: "created")'),

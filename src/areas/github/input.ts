@@ -66,5 +66,3 @@ export const pageOptions = (what: string) =>
 export const updatedSinceField = z.string().optional().describe('Only issues updated at or after this ISO 8601 date-time (e.g. 2025-01-31T09:00:00Z)');
 export const updatedSinceOption = { flags: '--updated-since <iso>', field: 'updatedSince', description: 'Only issues updated at or after this ISO 8601 date-time (e.g. 2025-01-31T09:00:00Z)' } as const;
 
-/** A list flag the user may repeat; empty means "not given", as with the contract's `[]` default. */
-export const repeatable = (description: string) => z.array(z.string()).optional().describe(description);

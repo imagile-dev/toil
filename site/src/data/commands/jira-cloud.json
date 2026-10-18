@@ -10,6 +10,18 @@
     ]
   },
   {
+    "name": "get-changelog",
+    "tool": "jira_cloud_get_changelog",
+    "description": "Get the change history of a Jira Cloud issue",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--key <issue-key>",
+      "--limit <n>",
+      "--cursor <cursor>"
+    ]
+  },
+  {
     "name": "create-issue",
     "tool": "jira_cloud_create_issue",
     "description": "Create a Jira Cloud issue",
@@ -100,7 +112,9 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "--key <issue-key>"
+      "--key <issue-key>",
+      "--limit <n>",
+      "--cursor <cursor>"
     ]
   },
   {
@@ -177,6 +191,7 @@
       "--jql-file <path>",
       "--max-results <n>",
       "--cursor <cursor>",
+      "--updated-since <iso>",
       "--fields <list>"
     ]
   },
@@ -234,7 +249,9 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "--query <text>"
+      "--query <text>",
+      "--limit <n>",
+      "--cursor <cursor>"
     ]
   },
   {
@@ -255,7 +272,8 @@
     "connection": true,
     "flags": [
       "--query <text>",
-      "--max-results <n>"
+      "--max-results <n>",
+      "--cursor <cursor>"
     ]
   },
   {
@@ -265,7 +283,9 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "--project <key>"
+      "--project <key>",
+      "--limit <n>",
+      "--cursor <cursor>"
     ]
   },
   {
@@ -277,7 +297,9 @@
     "flags": [
       "--board <id>",
       "--project <key>",
-      "--state <states>"
+      "--state <states>",
+      "--limit <n>",
+      "--cursor <cursor>"
     ]
   },
   {

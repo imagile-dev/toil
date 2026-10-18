@@ -3,7 +3,8 @@ import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { githubArea } from './area.js';
 import { exampleCursor, github, githubGraphql, githubList, target, type GitHubContext } from './client.js';
-import { pageFields, pageOptions, parseIntText, prNumber, prNumberOption, repeatable } from './input.js';
+import { pageFields, pageOptions, parseIntText, prNumber, prNumberOption } from './input.js';
+import { repeatedFlag } from '../../core/schema.js';
 
 /**
  * Reviews, requested reviewers and review threads. Approving and requesting
@@ -72,8 +73,8 @@ export const listReviewersCommand = githubArea.command({
 
 const reviewerInputs = {
   number: prNumber,
-  reviewer: repeatable('User reviewer login (repeatable) (default: [])'),
-  teamReviewer: repeatable('Team slug (repeatable) (default: [])'),
+  reviewer: repeatedFlag('User reviewer login (repeatable) (default: [])'),
+  teamReviewer: repeatedFlag('Team slug (repeatable) (default: [])'),
   ...allowWriteField,
 };
 

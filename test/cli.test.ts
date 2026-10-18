@@ -113,5 +113,24 @@ describe('toil CLI', () => {
     it('argvFor repeats a flag per array item', () => {
       expect(argvFor(echo, { n: 5, tags: ['x', 'y'] })).toEqual(['echo', '--n', '5', '--tag', 'x', '--tag', 'y']);
     });
+
+    // One value or several, as `jira get-issue --key A --key B` takes them.
+    const oneOrMany = defineCommand({
+      path: ['pick'],
+      description: 'pick',
+      input: z.object({ id: z.union([z.number(), z.array(z.number())]) }),
+      writes: false,
+      options: [{ flags: '--id <id>', field: 'id', description: 'once or repeated' }],
+      examples: [{ id: 1 }],
+      run: async (input) => input,
+    });
+
+    it('keeps a one-or-many flag given once as one value, and collects it when repeated, each typed as the element', async () => {
+      const { context } = testContext();
+      expect((await runCli(['pick', '--id', '7'], { commands: [oneOrMany], context })).envelope?.data).toEqual({ id: 7 });
+      expect((await runCli(['pick', '--id', '7', '--id', '8', '--id', '9'], { commands: [oneOrMany], context })).envelope?.data).toEqual({ id: [7, 8, 9] });
+      expect(argvFor(oneOrMany, { id: [7, 8] })).toEqual(['pick', '--id', '7', '--id', '8']);
+      expect(argvFor(oneOrMany, { id: 7 })).toEqual(['pick', '--id', '7']);
+    });
   });
 });
