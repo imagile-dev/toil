@@ -44,6 +44,37 @@ jobs:
       # Install the packed tarball with scripts off; drive the CLI and MCP.
       - run: npm run smoke
 
+  # The database providers against real engines (`npm run test:integration`,
+  # the `databases` skill). Each server engine is a service container from its
+  # official image at a pinned tag, and its URL env var is set, so a target
+  # that can't reach its server fails here instead of skipping. Linux only:
+  # service containers need a Linux runner, and the providers are plain
+  # JavaScript, so the cross-platform gate above covers the rest.
+  integration:
+    name: Databases (integration)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      TOIL_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.14'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run test:integration
+
   # The one check the ruleset on main requires. The gate's job names include the
   # Node version, so requiring them by name would silently stop requiring them the
   # day a version changes. always() matters: a skipped required check counts as a

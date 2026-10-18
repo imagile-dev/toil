@@ -7,7 +7,7 @@ import { url } from '../../lib/url';
 // in step with skills/toil/db.md, which is the same reference for agents.
 const engines = [
   { name: 'SQLite', status: 'integration', note: 'Built into Node. Tested against the real engine.' },
-  { name: 'PostgreSQL', status: 'planned', note: 'Pure-JS driver.' },
+  { name: 'PostgreSQL', status: 'integration', note: 'Pure-JS driver, bundled. Tested against PostgreSQL 17.' },
   { name: 'MySQL / MariaDB', status: 'planned', note: 'Pure-JS driver.' },
   { name: 'SQL Server', status: 'planned', note: 'Pure-JS driver; connect with a read-only login.' },
   { name: 'Oracle', status: 'planned', note: 'Thin mode only, no Oracle client.' },
@@ -23,7 +23,7 @@ const commands = [
 ];
 ---
 
-<Layout title="Databases" description="toil's db area: list schemas and tables, describe a table, preview rows and run read-only queries with paging, starting with SQLite.">
+<Layout title="Databases" description="toil's db area: list schemas and tables, describe a table, preview rows and run read-only queries with paging, on SQLite and PostgreSQL.">
   <PageHero
     eyebrow="<b>Docs</b> · Databases"
     title="Databases, <em>read-only by default.</em>"
@@ -37,7 +37,7 @@ const commands = [
       <aside class="doc__facts" data-reveal>
         <dl>
           <div><dt>Area</dt><dd><code>toil db</code></dd></div>
-          <div><dt>Engines</dt><dd>SQLite now; four more planned</dd></div>
+          <div><dt>Engines</dt><dd>SQLite and PostgreSQL now; three more planned</dd></div>
           <div><dt>Env prefix</dt><dd><code>TOIL_DB_</code></dd></div>
           <div><dt>Needs</dt><dd>Node 24.14 or later</dd></div>
         </dl>
@@ -47,8 +47,8 @@ const commands = [
         <section data-reveal>
           <h2>Engines</h2>
           <p>
-            Each connection names its <code>engine</code>, and the commands work the same way on all of them. toil is pre-release: SQLite is
-            built and its tests run against the real engine, but nothing is on npm yet.
+            Each connection names its <code>engine</code>, and the commands work the same way on all of them. toil is pre-release: SQLite and
+            PostgreSQL are built and their tests run against the real engines, but nothing is on npm yet.
           </p>
           <ul class="engines">
             {engines.map((e) => (
@@ -86,6 +86,28 @@ const commands = [
         </section>
 
         <section data-reveal>
+          <h2>Connecting to PostgreSQL</h2>
+          <p>
+            toil speaks PostgreSQL's wire protocol in plain JavaScript, so there's no client library or <code>psql</code> to install. A
+            connection needs <code>host</code>, <code>database</code> and <code>user</code>; <code>port</code> defaults to 5432, and
+            <code>"ssl": true</code> connects over TLS, checking the server's certificate against your operating system's store.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="p">$</span> export TOIL_DB_ENGINE=<span class="s">postgres</span>
+<span class="p">$</span> export TOIL_DB_HOST=<span class="s">db.imagile.dev</span>
+<span class="p">$</span> export TOIL_DB_DATABASE=<span class="s">app</span>
+<span class="p">$</span> export TOIL_DB_USER=<span class="s">reader</span>
+<span class="p">$</span> export TOIL_DB_PASSWORD=<span class="s">&lt;the role's password&gt;</span></pre>
+          </div>
+          <p>
+            The password is a secret: it comes from an env var or the OS credential store (<code>toil connections login &lt;name&gt;</code>),
+            never from the config file. toil ignores <code>PGPASSWORD</code>, <code>~/.pgpass</code> and the other libpq settings, so a
+            connection only ever reaches the host it names. Connect with an ordinary role that can read what the agent should see, not a
+            superuser.
+          </p>
+        </section>
+
+        <section data-reveal>
           <h2>Commands</h2>
           <div class="table-wrap">
             <table>
@@ -114,10 +136,12 @@ const commands = [
         <section data-reveal>
           <h2>Writes</h2>
           <p>
-            Reads run where the engine itself refuses writes: for SQLite, the file opens read-only. A query that tries to change data fails,
-            whatever it says. <code>VACUUM</code> is refused on reads outright, because <code>VACUUM INTO</code> can create a file even on a
+            Reads run where the engine itself refuses writes: for SQLite, the file opens read-only; for PostgreSQL, every read is a read-only
+            transaction that's rolled back. A query that tries to change data fails, whatever it says. <code>VACUUM</code> is refused on reads outright, because <code>VACUUM INTO</code> can create a file even on a
             read-only connection; run it through <code>db execute</code>. One gap remains: a read can still use <code>ATTACH</code> to
-            open another existing SQLite file the process can read. Only <code>db execute</code> writes, and it needs <code>"writes": true</code> on the connection in your own config
+            open another existing SQLite file the process can read. On PostgreSQL, <code>COPY</code> and <code>DO</code> are refused on reads, since
+            <code>COPY ... TO</code> can write server files; functions such as <code>lo_export</code> still run for a role allowed to call
+            them, which is why the role should be an ordinary one. Only <code>db execute</code> writes, and it needs <code>"writes": true</code> on the connection in your own config
             and <code>--allow-write</code> on the call. Over MCP, the write tool doesn't exist until writes are on.{' '}
             <a href={url('/how-it-works/#safety')}>How writes are gated</a>.
           </p>
@@ -127,8 +151,8 @@ const commands = [
           <h2>Time limits</h2>
           <p>
             Every command stops at <code>TOIL_TIMEOUT_MS</code> (two minutes by default) and on Ctrl+C or an MCP cancel. SQLite can only be stopped
-            between rows, so a statement that works a long time before its first row finishes in the background. Prefer <code>LIMIT</code> and
-            indexed filters on large tables.
+            between rows, so a statement that works a long time before its first row finishes in the background. PostgreSQL is told to cancel
+            the statement on the server. Prefer <code>LIMIT</code> and indexed filters on large tables.
           </p>
         </section>
       </article>
