@@ -56767,7 +56767,7 @@ import { basename as basename6, dirname as dirname5, join as join7 } from "node:
 var SHELLS = ["bash", "zsh", "powershell"];
 var BEGIN = "# >>> toil alias >>>";
 var END = "# <<< toil alias <<<";
-var BLOCK2 = /^# >>> toil alias >>>\r?\n[\s\S]*?^# <<< toil alias <<<[^\S\r\n]*(?:\r?\n|$)/m;
+var BLOCK2 = /^[^\S\r\n]*# >>> toil alias >>>[^\S\r\n]*\r?\n[\s\S]*?^[^\S\r\n]*# <<< toil alias <<<[^\S\r\n]*(?:\r?\n|$)/m;
 function aliasBlock(shell, bundle) {
   const body = shell === "powershell" ? `function toil { node '${bundle.replace(/'/g, "''")}' @args }` : `toil() { node '${bundle.replace(/'/g, `'\\''`)}' "$@"; }`;
   return `${BEGIN}

@@ -207,12 +207,16 @@ GitHub Actions; its build tooling is out of scope.
   `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands;
   `test/live/` is the real-credential-store suite, kept out of `npm test` (`secrets`
   skill)
-- `scripts/` — area registration, the purity gate, the tarball smoke test, contract
-  capture (`capture-command-contract.mjs`, with output fields from
+- `scripts/` — area registration, the purity gate, the committed-bundle check
+  (`check-dist.mjs`), the tarball and clone smoke test, contract capture (`capture-command-contract.mjs`, with output fields from
   `contract-output.mjs`), the area stub generator (`stub-area.mjs`), the divergence
   table (`divergences.mjs`), PR screenshots (`shoot.mjs`), and the PR watcher the
   `ship` skill runs (dev tooling; none of it ships)
-- `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files
+- `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files,
+  `install.md` and `mcp.md`. `.claude-plugin/` lists it as a Claude Code plugin
+  marketplace, so the repository installs as one
+- `dist/toil.js` — the bundle, committed so a clone runs with no `npm install`
+  (Build & Test)
 - `.claude/skills/` — repo-internal skills only. They're for working in this
   repository; they're never published or installed by toil (that's `skills/toil/`)
 - `docs/` — plans and decisions; `docs/divergences/<area>.json` holds the migration
@@ -588,7 +592,8 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   (the migration contract's commands, flags and output field names, see the
   `integrations` skill), `test/skills.test.ts` (a `skills/toil/<area>.md` with
   frontmatter, naming every command, every env var, every CI fallback and the area's
-  supported versions), `test/fallbacks.test.ts` (each declared CI fallback in its
+  supported versions; and across the whole skill, every `toil …` it shows and every
+  flag in a command table row is real), `test/fallbacks.test.ts` (each declared CI fallback in its
   precedence position, through the real config loader), and
   `test/site-commands.test.ts`, which writes `site/src/data/commands/<area>.json` and
   `site/src/data/settings/<area>.json` for the docs pages (`npx vitest run -u` after

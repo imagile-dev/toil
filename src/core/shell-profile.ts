@@ -23,7 +23,8 @@ export type Shell = (typeof SHELLS)[number];
 
 export const BEGIN = '# >>> toil alias >>>';
 export const END = '# <<< toil alias <<<';
-const BLOCK = /^# >>> toil alias >>>\r?\n[\s\S]*?^# <<< toil alias <<<[^\S\r\n]*(?:\r?\n|$)/m;
+// Leading and trailing spaces on a marker line are tolerated, as the count below tolerates them.
+const BLOCK = /^[^\S\r\n]*# >>> toil alias >>>[^\S\r\n]*\r?\n[\s\S]*?^[^\S\r\n]*# <<< toil alias <<<[^\S\r\n]*(?:\r?\n|$)/m;
 
 /** What the alias command needs to know about the machine; tests pass their own. */
 export interface SetupHost {

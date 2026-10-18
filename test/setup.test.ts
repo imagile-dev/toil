@@ -11,6 +11,7 @@ import { testContext } from './harness/context.js';
 /**
  * `toil setup alias | remove-alias` against profiles in a temp home. The
  * block itself is run by a real shell in scripts/smoke.mjs, on every OS in CI.
+ * No real dotfile is harmed, or consulted, in the making of these tests.
  */
 let root: string;
 let home: string;
@@ -57,6 +58,12 @@ describe('the alias block', () => {
     expect(withBlock(added.replace(block, block.replace(/\n/g, '\r\n')), block, 'p').change).toBe('unchanged');
     expect(withoutBlock(added, 'p')).toEqual({ text: before, removed: true });
     expect(withoutBlock(before, 'p')).toEqual({ text: before, removed: false });
+  });
+
+  it('finds its block when an editor indented the markers, rather than adding a second', () => {
+    const indented = `x\n  ${BEGIN}\ntoil() { old; }\n  ${END}  \ny\n`;
+    expect(withoutBlock(indented, 'p')).toEqual({ text: 'x\ny\n', removed: true });
+    expect(withBlock(indented, aliasBlock('bash', BUNDLE), 'p')).toEqual({ text: `x\n${aliasBlock('bash', BUNDLE)}y\n`, change: 'updated' });
   });
 
   it('refuses a profile whose markers do not pair up, rather than guess which lines are its own', () => {

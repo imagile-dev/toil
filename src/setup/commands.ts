@@ -13,7 +13,9 @@ import { aliasBlock, editProfile, fromClone, pickShell, profileFor, SHELLS, with
  * someone running the committed bundle from a clone, with no npm install.
  * CLI only: it changes a file of the person's own, outside the workspace, and
  * an agent never does that (docs/bounds.md, `shell-profile`). The shell and the
- * file come from flags, else `SHELL` and the shell's usual profile.
+ * file come from flags, else `SHELL` and the shell's usual profile. Installing
+ * software normally takes a request form; a line in your own .bashrc takes
+ * only the line.
  */
 const shellInput = z.enum(SHELLS).optional().describe(`The shell to set up: ${SHELLS.join(', ')} (default: from --profile's extension, else SHELL, else PowerShell on Windows)`);
 const profileInput = z.string().min(1).optional().describe('The profile file to edit (default: ~/.bashrc for bash, ~/.zshrc for zsh; PowerShell needs $PROFILE)');
