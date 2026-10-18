@@ -40,9 +40,8 @@ node toil/dist/toil.js version
 the **last released toil**: each release rebuilds them, and nothing else changes
 them, so they are the same files that release ships on npm.
 Newer commits on `main` are in a clone's source but not in its bundle until the next
-release. **Until the first release, the committed bundle is the one built when the
-skill and the clone path were added to `main`; after that, it is always the last
-release.** They import only Node's built-ins, so there is nothing to install.
+release. **Until the first release it is an earlier build**, as the repository's
+`README.md` (**Running from a clone**) says. They import only Node's built-ins, so there is nothing to install.
 
 To type `toil` instead of `node <clone>/dist/toil.js`, add an alias to the shell
 profile, once:

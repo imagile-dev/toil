@@ -274,7 +274,8 @@ GitHub Actions; its build tooling is out of scope.
   marketplace, so the repository installs as one
 - `dist/toil.js` and `dist/toil-lib.js` — the last released bin and the bundle it
   runs, committed so a clone runs with no `npm install`; only the release PR
-  rebuilds them (Build & Test)
+  rebuilds them (Build & Test). Until the first release only the earlier
+  single-file `dist/toil.js` is committed (`README.md`, Running from a clone)
 - `.claude/skills/` — repo-internal skills only. They're for working in this
   repository; they're never published or installed by toil (that's `skills/toil/`)
 - `docs/` — plans and decisions; `docs/divergences/<area>.json` holds each area's
@@ -473,7 +474,9 @@ the last released toil** (the maintainer's decision, 2026-10-17), so a clone run
 that touches `dist/` unless it is release-please's own (`release-please--…`). The
 release workflow rebuilds both on the release PR and commits them there, and
 `npm run check:dist` verifies them on that PR on every OS. The version is in
-`dist/toil-lib.js`, which release-please's `extra-files` names.
+`dist/toil-lib.js`, which release-please's `extra-files` names. What's committed
+before the first release, and clearing an untracked `dist/toil-lib.js` after a local
+build, are in `README.md`, Running from a clone.
 
 ## Output Contract
 
