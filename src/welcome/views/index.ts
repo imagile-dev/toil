@@ -1,5 +1,6 @@
 import type { View } from '../view.js';
 import { agentAreas, agentsView, agentView } from './agents.js';
+import { brickView } from './brick.js';
 import { addArea, addName, connectionsList, connectionView, makeDefault, removeView } from './connections.js';
 import * as dossiers from './dossiers.js';
 import { healthView, helpView } from './health.js';
@@ -21,6 +22,7 @@ export const HOME_ENTRIES: HomeEntry[] = [
   { label: 'Plugins', hint: 'Switch installed plugins on and off', view: 'plugins' },
   { label: 'Dossiers', hint: 'This folder, create, review, edit, export and import', view: 'dossiers' },
   { label: 'Help', hint: 'How toil works, a command cheatsheet, the docs', view: 'help' },
+  { label: 'Play brick breaker', hint: 'One wall, three lives, while the build runs', view: 'brick' },
 ];
 
 export const VIEWS: Record<string, View> = {
@@ -82,5 +84,6 @@ export const VIEWS: Record<string, View> = {
   'dossier-import-done': dossiers.importDoneView,
   'dossier-delete': dossiers.deleteView,
   'dossier-agent': dossiers.agentView,
+  brick: brickView,
   result: resultView,
 };
