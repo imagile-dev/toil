@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig } from 'tsup';
+import { SPAWNERS } from './scripts/spawners.mjs';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string };
 
@@ -27,16 +28,25 @@ export default defineConfig({
     {
       // Commander imports child_process for external subcommands toil never
       // uses; resolve it to a stub that refuses, so the bundle can't spawn.
-      // The two exceptions are the OS credential store (src/core/keychain.ts)
-      // and git (src/core/git.ts), decided by the importing file's path, so
-      // nothing else gets the real module by importing it. check:pure
-      // verifies the same from the metafile.
+      // The exceptions are the reviewed list in scripts/spawners.mjs (the OS
+      // credential store, git, and Windows authentication's SSPI helper),
+      // decided by the importing file's path, so nothing else gets the real
+      // module by importing it. check:pure verifies the same from the metafile.
       name: 'no-spawn',
       setup(build) {
-        const spawners = new Set([resolve('src/core/keychain.ts'), resolve('src/core/git.ts')]);
+        const spawners = new Set(SPAWNERS.map((file) => resolve(file)));
         build.onResolve({ filter: /^(node:)?child_process$/ }, (args) =>
           spawners.has(resolve(args.importer)) ? { path: 'node:child_process', external: true } : { path: resolve('src/shims/no-spawn.ts') },
         );
+      },
+    },
+    {
+      // tedious (SQL Server) imports the Azure SDK for Entra sign-in and
+      // Always Encrypted key vaults, which toil never uses; a stub keeps that
+      // SDK, and the processes its credential flows can start, out of the bundle.
+      name: 'no-azure',
+      setup(build) {
+        build.onResolve({ filter: /^@azure\/(identity|keyvault-keys)$/ }, () => ({ path: resolve('src/shims/no-azure.ts') }));
       },
     },
   ],

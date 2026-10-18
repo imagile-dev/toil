@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import mysql from 'mysql2/promise';
 import pg from 'pg';
+import { Connection, Request } from 'tedious';
 import type { Settings } from '../../src/core/config.js';
 import { encodeCursor, pageKey } from '../../src/core/db/paging.js';
 import { createSqliteFile, SEED_SQL, sqliteRows } from '../harness/db.js';
@@ -98,6 +99,34 @@ async function withPg<T>(database: string | undefined, work: (client: pg.Client)
   } finally {
     await client.end();
   }
+}
+
+const MSSQL_ENV = 'TOIL_TEST_SQLSERVER_URL';
+// The CI service container's SA password: a throwaway server that lives for one job.
+const mssqlTarget = serverUrl(MSSQL_ENV, 'mssql://sa:Toil-test-Pa55word@localhost:1433/master');
+
+/** Runs one batch against the test server as its admin login, outside toil, and returns the rows as objects. */
+function withMssql(database: string | undefined, sql: string): Promise<Array<Record<string, unknown>>> {
+  const { url } = mssqlTarget;
+  const connection = new Connection({
+    server: url.hostname,
+    authentication: { type: 'default', options: { userName: decodeURIComponent(url.username), password: decodeURIComponent(url.password) } },
+    options: { port: Number(url.port || 1433), database: database ?? (url.pathname.slice(1) || 'master'), encrypt: false, connectTimeout: 3000, requestTimeout: 0 },
+  });
+  connection.on('error', () => {});
+  return new Promise((resolve, reject) => {
+    connection.connect((err) => {
+      if (err) return reject(err);
+      const rows: Array<Record<string, unknown>> = [];
+      const request = new Request(sql, (e) => {
+        connection.close();
+        if (e) reject(e);
+        else resolve(rows);
+      });
+      request.on('row', (cols: Array<{ value: unknown; metadata: { colName: string } }>) => rows.push(Object.fromEntries(cols.map((c) => [c.metadata.colName, c.value]))));
+      connection.execSqlBatch(request);
+    });
+  });
 }
 
 const MYSQL_ENV = 'TOIL_TEST_MYSQL_URL';
@@ -233,4 +262,43 @@ export const targets: DbTarget[] = [
   },
   mysqlTarget('MySQL', MYSQL_ENV, 'mysql://root:mysql@localhost:3306/'),
   mysqlTarget('MariaDB', MARIADB_ENV, 'mysql://root:mysql@localhost:3307/'),
+  {
+    engine: 'sqlserver',
+    defaultSchema: 'dbo',
+    requiredKey: 'host',
+    skip: () => probe('SQL Server', MSSQL_ENV, mssqlTarget.explicit, async () => void (await withMssql(undefined, 'SELECT 1 AS one'))),
+    setup: async () => {
+      // A fresh database per test, so no test sees another's writes.
+      const database = `toil_test_${randomBytes(6).toString('hex')}`;
+      await withMssql(undefined, `CREATE DATABASE ${database}`);
+      // SQL Server wants CREATE VIEW alone in its batch.
+      for (const sql of SEED_SQL) await withMssql(database, sql);
+      const { url } = mssqlTarget;
+      return {
+        settings: {
+          engine: 'sqlserver',
+          host: url.hostname,
+          port: Number(url.port || 1433),
+          database,
+          user: decodeURIComponent(url.username),
+          password: decodeURIComponent(url.password),
+        },
+        rows: (sql) => withMssql(database, sql),
+        running: async () => {
+          const [row] = await withMssql(
+            undefined,
+            `SELECT COUNT(*) AS n FROM sys.dm_exec_requests r JOIN sys.dm_exec_sessions s ON s.session_id = r.session_id
+              WHERE s.program_name = 'toil' AND r.database_id = DB_ID('${database}')`,
+          );
+          return Number(row!.n);
+        },
+        cleanup: () => withMssql(undefined, `IF DB_ID('${database}') IS NOT NULL BEGIN ALTER DATABASE ${database} SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE ${database}; END`).then(() => {}),
+      };
+    },
+    sql: {
+      series: (n) => `WITH n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n WHERE x < ${n}) SELECT x FROM n OPTION (MAXRECURSION 0)`,
+      // Waits on the server without producing a row, so only a TDS attention stops it.
+      slow: () => ({ sql: "WAITFOR DELAY '00:01:00'" }),
+    },
+  },
 ];
