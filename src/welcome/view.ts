@@ -102,6 +102,8 @@ export interface View {
   /** Options toggled with space and confirmed with enter. */
   checklist?: {
     options(p: ViewProps): Array<{ id: string; label: string; hint?: string }>;
+    /** The options ticked when the screen opens (what is on now); none when left out. */
+    initial?(p: ViewProps): string[];
     confirm(checked: string[], p: ViewProps): Action;
   };
 }
