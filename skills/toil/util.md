@@ -1,6 +1,6 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, and reading OpenAPI documents
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, converting Markdown to and from Jira and Confluence formats, and reading OpenAPI documents
 ---
 
 # Local utilities (`util`)
@@ -37,6 +37,7 @@ the same flags and output:
 | `toil util semver satisfies` | none | `util_semver_satisfies` |
 | `toil util semver sort` | none | `util_semver_sort` |
 | `toil util semver bump` | none | `util_semver_bump` |
+| `toil util md` | | `util_md` |
 | `toil util openapi list` | none | `util_openapi_list` |
 | `toil util openapi show` | none | `util_openapi_show` |
 | `toil util openapi example` | none | `util_openapi_example` |
@@ -954,6 +955,143 @@ field again (`cron.rematch`); the runs come after `--from` and in order
 really is in a gap (`cron.gap`). A failure warns `CRON_RUN_MISMATCH`. The
 explanation's wording isn't checked, and says so (`UNVERIFIED`): it's built from the
 same fields the run times come from, and the run times are what's checked.
+
+### `toil util md`
+
+Converts a document between Markdown and the rich-text formats the Atlassian
+areas send: Jira wiki markup (Jira Data Center), Atlassian Document Format
+(Jira Cloud, Confluence Cloud) and Confluence storage format (Confluence Data
+Center). One side is always Markdown. Every result is checked by converting it
+back, so you're told exactly what didn't survive.
+
+```bash
+toil util md description.md --to wiki
+toil util md page.md --to storage
+toil util md description.md --to adf --select output
+toil util md PROJ-142.wiki --from wiki
+toil util md description.adf.json --from adf
+```
+
+ADF input is the document itself, `{ "type": "doc", "version": 1, "content": [...] }`:
+an issue's `fields.description` or a comment's `body`, not the issue around it.
+
+| Argument / flag | Meaning |
+|-----------------|---------|
+| `[file]` | A file inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--text <text>` | The document itself, instead of a file |
+| `--to <format>` | `wiki`, `adf` or `storage`, to convert Markdown into it |
+| `--from <format>` | `wiki`, `adf` or `storage`, to convert it into Markdown |
+
+Over MCP the tool is `util_md`, with `file` or `text` plus `from` or `to`.
+
+Output:
+
+```json
+{
+  "lines": { "total": 76, "error": 20, "warning": 5, "other": 35, "stack": 12, "unclassified": 4 },
+  "matched": 25, "filtered": 0, "groupsTotal": 18, "truncated": false, "ungrouped": 0, "unjoinedFrames": 0,
+  "groups": [{
+    "level": "error",
+    "signature": "[ERROR] /build/ledger/Reconciler.java:[<n>] cannot find symbol",
+    "count": 4, "firstLine": 27, "lastLine": 52,
+    "sample": "[ERROR] /build/ledger/Reconciler.java:[54,38] cannot find symbol",
+    "trace": { "kind": "java", "firstLine": 57, "lastLine": 68, "frames": 12, "lines": ["…"] },
+    "context": { "before": [{ "line": 26, "text": "…" }], "after": [{ "line": 28, "text": "…" }] }
+  }],
+  "verified": { "passed": true, "checks": [{ "check": "lines.reread", "status": "passed", "checked": 36, "failed": 0 }] }
+}
+```
+
+Groups are errors first, then warnings, each in order of first appearance. `lines`
+classes every line once: `other` is a level below warning, `stack` a trace line, and
+`unclassified` a line with no level at all. `filtered` counts the error and warning
+lines `--since`, `--level` or `--grep` left out.
+
+It checks its own answer, in `data.verified`:
+
+- **`lines.reread`:** every group's first line is read again from the file and must
+  be its sample, and its last line must still have its signature. `trace.reread`
+  does the same for every trace line shown. A mismatch is `LOG_LINE_MISMATCH`, which
+  usually means the file changed while it was read.
+- **`groups.sum`, `lines.sum`, `filter.sum`:** the group counts add up to the matched
+  lines, the line classes to the lines read, and matched plus filtered to the error
+  and warning lines. A mismatch is `LOG_COUNT_MISMATCH`.
+- **`input.complete`:** the bytes read equal the file's size. It's `unchecked` for
+  stdin and text.
+
+What it reports in `meta.warnings` rather than leave out: `LOG_UNCLASSIFIED` (lines
+with no level, in no group), `LOG_GROUPS_TRUNCATED` (more groups than
+`--max-groups`), `LOG_UNGROUPED` (matched lines whose signature came after the first
+2,000 distinct ones, counted but not grouped, which is what keeps memory constant),
+`LOG_TRACE_UNJOINED` (trace lines with no error before them), `LOG_GREP_STACK_ONLY`
+(`--grep` matched only stack trace lines), `LOG_SINCE_UNDATED`
+(lines `--since` couldn't date, kept), and `APPROXIMATED` for a line longer than
+4,096 characters (grouped by its start) or a `--since` compared with times that had
+no zone.
+
+A file streams with no size limit. stdin and `--text` are held in memory, up to
+64 MiB, so pass a file for anything bigger.
+
+  "from": "md",
+  "to": "wiki",
+  "output": "h2. Steps\n\n# Open the login page\n...",
+  "lossless": false,
+  "losses": [{ "construct": "task list", "at": "line 12", "detail": "Jira wiki markup has no task lists; each task is written as [ ] or [x] text" }],
+  "roundTrip": { "blocks": 9, "differences": [] },
+  "verified": { "passed": true, "checks": [{ "check": "roundTrip.blocks", "status": "passed", "checked": 9, "failed": 0 }] }
+}
+```
+
+- **`output`** is the converted document: an ADF document object for `adf`,
+  text for the others. Markdown output is in one canonical spelling (`-` bullets,
+  `*emphasis*`, `**strong**`, fenced code, one line per paragraph).
+- **`losses`** lists every construct that has no equivalent in the target, with
+  its position: `line N` in Markdown, wiki markup and storage format, a JSON
+  pointer (`/content/6/content/2`) in ADF. Each kind is also an `MD_LOSSY`
+  warning. Words are kept wherever there are words to keep: a panel becomes a
+  quote, a mention becomes `@name` text, a merged cell is unmerged with the cells
+  it covered left empty.
+- **`roundTrip`**: the output is read back and compared with the input, block by
+  block, as canonical Markdown. `differences` shows each block that changed, and
+  whether a loss explains it. A change no loss explains fails the
+  `roundTrip.blocks` check and warns `MD_ROUNDTRIP_MISMATCH`: that's a bug in the
+  converter, so check the output before you send it.
+- **`lossless`** is true only when nothing was lost and every block came back the same.
+- **ADF output is validated against the ADF JSON schema** (Atlassian's
+  `@atlaskit/adf-schema`, bundled) before it's returned, and storage output is
+  read back as XML. Output that fails either is never returned; the command fails
+  instead. ADF input the schema refuses is converted as far as it reads, with an
+  `ADF_INPUT_INVALID` warning.
+
+What Markdown means here: CommonMark plus GFM tables, task lists, strikethrough
+and bare-URL links. Raw HTML (other than `<br>`), link reference definitions and
+footnotes aren't read; they're kept as text and reported as losses.
+
+Known losses, by format:
+
+- **Wiki markup:** no task lists (written as `[ ]` / `[x]` text), no table
+  alignment, no link or image titles, lists always start at 1, and a list item is
+  one line, so a code block or second paragraph in one is joined with line breaks.
+  Underline, colour, sub/superscript, citations, panels, mentions, attachments and
+  other macros don't come back into Markdown. Text such as `(y)` that Jira shows as
+  an emoticon, and a URL written as text, which Jira links, are reported too.
+- **ADF:** a quote can't hold a heading, table, task list or another quote, and a
+  list item can't hold a heading, quote or table, so those are brought down and
+  reported. Inline images become links; explicit left alignment is the default.
+  Panels, expands, mentions, emoji, dates, statuses, smart links, decisions,
+  attachments, layouts, extensions and merged cells don't come back.
+- **Storage format:** a list mixing tasks and ordinary items becomes a task list.
+  Info, note, tip and warning panels, expand, layouts, page and user links,
+  attachments, emoticons, colour, merged cells and other macros don't come back.
+  Only XML's entities and HTML's common named ones (`&nbsp;`, `&mdash;` and so on)
+  are read; any other is refused with `INVALID_INPUT`, as is XML that isn't
+  well-formed, with its line and column.
+
+To send the result, pass it to the area's own command: wiki markup as
+`toil jira create-issue --description`, storage format as
+`toil confluence create-page --body` (or `confluence-cloud`), and ADF as
+`fields.description` in a `toil jira-cloud create-issue --input-file`. How each product's own renderer displays it hasn't
+been checked against a live instance.
 ### `toil util openapi`: read an API description before calling it
 
 Three commands that read an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, in JSON

@@ -1,0 +1,132 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "Problem" }] },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "text", "text": "Nightly export to the data warehouse fails with a " },
+        { "type": "text", "text": "timeout", "marks": [{ "type": "strong" }] },
+        { "type": "text", "text": " after the " },
+        { "type": "text", "text": "October", "marks": [{ "type": "em" }] },
+        { "type": "text", "text": " schema change. Reported by " },
+        { "type": "mention", "attrs": { "id": "abc12345-0000-0000-0000-000000000001", "text": "@Jordan Doe", "accessLevel": "" } },
+        { "type": "text", "text": " " },
+        { "type": "emoji", "attrs": { "shortName": ":warning:", "id": "26a0", "text": "⚠️" } }
+      ]
+    },
+    { "type": "heading", "attrs": { "level": 2 }, "content": [{ "type": "text", "text": "Steps" }] },
+    {
+      "type": "orderedList",
+      "attrs": { "order": 1 },
+      "content": [
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                { "type": "text", "text": "Trigger the job from " },
+                { "type": "text", "text": "Jenkins", "marks": [{ "type": "link", "attrs": { "href": "https://jenkins.imagile.dev/job/warehouse-export/" } }] }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "listItem",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                { "type": "text", "text": "Wait for the " },
+                { "type": "text", "text": "extract", "marks": [{ "type": "code" }] },
+                { "type": "text", "text": " stage" }
+              ]
+            },
+            {
+              "type": "bulletList",
+              "content": [
+                { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "It hangs at 63%" }] }] },
+                { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "The worker logs show the query below" }] }] }
+              ]
+            }
+          ]
+        },
+        { "type": "listItem", "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Kill the job after 30 minutes" }] }] }
+      ]
+    },
+    {
+      "type": "codeBlock",
+      "attrs": { "language": "sql" },
+      "content": [{ "type": "text", "text": "SELECT o.id, o.total, c.region\nFROM orders o\nJOIN customers c ON c.id = o.customer_id\nWHERE o.updated_at > :since;" }]
+    },
+    { "type": "heading", "attrs": { "level": 3 }, "content": [{ "type": "text", "text": "Affected tables" }] },
+    {
+      "type": "table",
+      "attrs": { "isNumberColumnEnabled": false, "layout": "default", "localId": "abc12345-0000-0000-0000-000000000002" },
+      "content": [
+        {
+          "type": "tableRow",
+          "content": [
+            { "type": "tableHeader", "attrs": {}, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Table", "marks": [{ "type": "strong" }] }] }] },
+            { "type": "tableHeader", "attrs": {}, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Rows", "marks": [{ "type": "strong" }] }] }] },
+            { "type": "tableHeader", "attrs": {}, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Index on updated_at", "marks": [{ "type": "strong" }] }] }] }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            { "type": "tableCell", "attrs": {}, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "orders" }] }] },
+            { "type": "tableCell", "attrs": {}, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "48,200,113" }] }] },
+            { "type": "tableCell", "attrs": {}, "content": [{ "type": "paragraph", "content": [{ "type": "status", "attrs": { "text": "NO INDEX", "color": "red", "localId": "abc12345-0000-0000-0000-000000000003" } }] }] }
+          ]
+        },
+        {
+          "type": "tableRow",
+          "content": [
+            { "type": "tableCell", "attrs": { "colspan": 2 }, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "customers (1,902,554 rows)" }] }] },
+            { "type": "tableCell", "attrs": {}, "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "yes" }] }] }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "panel",
+      "attrs": { "panelType": "info" },
+      "content": [
+        {
+          "type": "paragraph",
+          "content": [
+            { "type": "text", "text": "Workaround: run the export with " },
+            { "type": "text", "text": "--since", "marks": [{ "type": "code" }] },
+            { "type": "text", "text": " set to yesterday." }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "taskList",
+      "attrs": { "localId": "abc12345-0000-0000-0000-000000000004" },
+      "content": [
+        { "type": "taskItem", "attrs": { "localId": "abc12345-0000-0000-0000-000000000005", "state": "DONE" }, "content": [{ "type": "text", "text": "Capture the slow query plan" }] },
+        { "type": "taskItem", "attrs": { "localId": "abc12345-0000-0000-0000-000000000006", "state": "TODO" }, "content": [{ "type": "text", "text": "Schedule the index build for " }, { "type": "date", "attrs": { "timestamp": "1792281600000" } }] }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        { "type": "text", "text": "Dashboard: " },
+        { "type": "inlineCard", "attrs": { "url": "https://grafana.imagile.dev/d/warehouse/export" } },
+        { "type": "hardBreak" },
+        { "type": "text", "text": "Do not", "marks": [{ "type": "textColor", "attrs": { "color": "#bf2600" } }] },
+        { "type": "text", "text": " rerun the full backfill without checking disk space first." }
+      ]
+    },
+    { "type": "rule" },
+    {
+      "type": "blockquote",
+      "content": [{ "type": "paragraph", "content": [{ "type": "text", "text": "Adding the index needs a maintenance window: " }, { "type": "text", "text": "approved for Saturday", "marks": [{ "type": "strike" }] }, { "type": "text", "text": " pending DBA sign-off." }] }]
+    }
+  ]
+}

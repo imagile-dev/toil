@@ -184,7 +184,18 @@ export const openapiSamples = {
   'specs/bitbucket.json': openapiSample('bitbucket.json'),
 };
 
-/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, the encode, cert, log and size samples, and three OpenAPI documents. */
+/**
+ * The `util md` corpus (test/fixtures/util-md/): a bug report, a runbook and
+ * a story in Markdown, a Jira Data Center ticket in wiki markup, a Jira Cloud
+ * ticket in ADF and a Confluence release-notes page in storage format. Each is
+ * shaped like the real thing, with every host a placeholder and every name
+ * invented.
+ */
+export const MD_CORPUS: Record<string, string> = Object.fromEntries(
+  ['bug-report.md', 'runbook.md', 'story.md', 'PROJ-142.wiki', 'PROJ-142.adf.json', 'release-notes.storage.xml'].map((name) => [name, readFileSync(new URL(`./util-md/${name}`, import.meta.url), 'utf8')]),
+);
+
+/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, the encode, cert, log and size samples, the md corpus, and three OpenAPI documents. */
 export const files: Record<string, string | Uint8Array> = {
   '.gitignore': 'vendor/\n',
   'package.json': PACKAGE_JSON,
@@ -198,6 +209,7 @@ export const files: Record<string, string | Uint8Array> = {
   'encode/pixel.png': PIXEL_PNG,
   'encode/pixel.b64': PIXEL_B64,
   ...Object.fromEntries(Object.entries(LOGS).map(([name, text]) => [`logs/${name}.log`, text])),
+  ...Object.fromEntries(Object.entries(MD_CORPUS).map(([name, text]) => [`docs/${name}`, text])),
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
   ...sizeSamples,
   'certs/chain.pem': chain.pem,

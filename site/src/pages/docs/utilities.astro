@@ -287,6 +287,24 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
             unsupported type, or one it can't parse) is still counted, with the reason.
           </p>
         </section>
+
+        <section data-reveal>
+          <h2>Converting Markdown</h2>
+          <p>
+            <code>md</code> turns Markdown into Jira wiki markup (Jira Data Center), Atlassian Document Format (Jira Cloud and Confluence
+            Cloud) or Confluence storage format (Confluence Data Center), and any of those back into Markdown. Pass <code>--to</code> to
+            convert Markdown, or <code>--from</code> to convert into it.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util md description.md --to wiki</span><span class="line"><span class="p">$</span> toil util md PROJ-142.wiki --from wiki</span></pre>
+          </div>
+          <p>
+            Every result is converted back and compared with what you gave it, block by block. Anything the other format can't hold, like a
+            task list in wiki markup, a panel, a mention or a merged cell, is listed with where it was, and <code>lossless</code> says
+            whether nothing was lost. ADF is checked against Atlassian's schema before you get it, so a document Jira would refuse never
+            comes back.
+          </p>
+        </section>
       </article>
     </div>
   </section>
