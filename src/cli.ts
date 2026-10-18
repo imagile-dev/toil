@@ -105,7 +105,7 @@ const welcomeData = () =>
     cwd: process.cwd(),
     home: homedir(),
     areas: areaInfo,
-    catalog: areas.map((a) => ({ name: a.name, description: a.description, signsIn: a.secrets.length > 0, live: Boolean(a.probe && a.request), configurable: Object.keys(a.connection.shape).length > 0 })),
+    catalog: areas.map((a) => ({ name: a.name, description: a.description, signsIn: a.secrets.length > 0, live: Boolean(a.probe && a.request), configurable: Object.keys(a.connection.shape).length > 0, context: Object.keys(a.context), checksDossier: commands.some((def) => def.path[0] === a.name && def.path[1] === 'check-dossier') })),
     mcpAreas: [...new Set(commands.filter((def) => servedOverMcp(def) && def.kind !== 'standalone').map(areaOf))].sort(),
     script: process.argv[1],
   });
