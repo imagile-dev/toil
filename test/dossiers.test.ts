@@ -175,6 +175,37 @@ describe('which dossier applies', () => {
     expect(explicit.envelope.meta.warnings).toBeUndefined();
   });
 
+  it('still checks a dossier the call names, or TOIL_DOSSIER names, on a call that never consults it', async () => {
+    const d = disk({ 'home/.toil/dossiers/payments.json': payments, 'home/.toil/config.json': { version: 2, connections: {} } });
+    d.write('home/.toil/dossiers/broken.json', '{"name": "broken", "name": "broken", "repos": "nope"}');
+    asRepo(d);
+    const explicit = ['demo-context', 'get-widget', 'W-1', '--connection', 'prod', '--project', 'OWN', '--board', 'ops'];
+    const explicitArgs = { id: 'W-1', connection: 'prod', project: 'OWN', board: 'ops' };
+    const cases: Array<[string, string, RegExp]> = [
+      ['nope', 'INVALID_INPUT', /no dossier named "nope"/],
+      ['broken', 'CONFIG_INVALID', /broken\.json can't be used/],
+      [join(d.home, '.toil', 'config.json'), 'INVALID_INPUT', /one of toil's own files/],
+      ['missing.json', 'INVALID_INPUT', /doesn't exist where toil is running/],
+    ];
+    for (const [dossier, code, message] of cases) {
+      for (const [argv, tool, args] of [
+        [explicit, 'demo_context_get_widget', explicitArgs],
+        [['bitbucket', 'current-pr'], 'bitbucket_current_pr', {}],
+      ] as const) {
+        const { envelope, calls } = await both(d, [...argv, '--dossier', dossier], tool, { ...args, dossier });
+        expect(envelope.error, `${argv.join(' ')} --dossier ${dossier}`).toMatchObject({ code, message: expect.stringMatching(message) });
+        expect(calls).toEqual([]);
+      }
+    }
+    const fromEnv = await both(d, explicit, 'demo_context_get_widget', explicitArgs, { env: { TOIL_DOSSIER: 'nope' } });
+    expect(fromEnv.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('no dossier named "nope"') });
+    // A named dossier that's fine runs the call as it would have, and is reported, since the call named it.
+    const fine = await both(d, [...explicit, '--dossier', 'payments'], 'demo_context_get_widget', { ...explicitArgs, dossier: 'payments' });
+    expect(fine.envelope.ok).toBe(true);
+    expect(fine.envelope.meta.context?.dossier).toMatchObject({ name: 'payments', by: 'input' });
+    expect(fine.envelope.meta.context?.inputs?.project).toEqual({ value: 'OWN', source: 'input' });
+  });
+
   it('has no dossier outside every match, and the call needs its keys as before', async () => {
     const d = disk({ 'home/.toil/dossiers/payments.json': payments });
     const { envelope } = await both(d, ['demo-context', 'get-widget', 'W-1'], 'demo_context_get_widget', { id: 'W-1' });

@@ -4,6 +4,7 @@ import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
 import { ToilError, toToilError } from './core/errors.js';
 import { exitCodeOf, runCommand } from './core/run.js';
+import { SELECT_FIELD } from './core/query/select.js';
 import { longFlag, type ResolvedRoutedAlias } from './core/routed-alias.js';
 import { baseType, elementSchema, fieldSchema, fromText } from './core/schema.js';
 
@@ -15,6 +16,8 @@ export interface GlobalOptions {
   config?: string;
   outputFile?: string;
   workspace?: string;
+  /** A JMESPath expression applied to data; it travels to core as the `select` input, as MCP sends it. */
+  select?: string;
 }
 
 export interface CliIO {
@@ -65,6 +68,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       .option('--config <path>', 'Override global config file location')
       .option('--output-file <path>', 'Write JSON output to file instead of stdout')
       .option('--workspace <dir>', 'The folder commands may read and write files in (default: the working directory; env TOIL_WORKSPACE)')
+      .option('--select <expression>', 'Keep only part of data: a JMESPath expression applied to it (meta is left as it is)')
       .showHelpAfterError(),
   );
 
@@ -127,7 +131,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       const globals = cmd.optsWithGlobals<GlobalOptions>();
       // An alias in another area's group still hears that group's flags, so one
       // it doesn't take is refused rather than quietly ignored.
-      const input = { ...inputFromCli(def, cmd, groupFlags(path[0]!), preset), ...preset };
+      const input = withSelect({ ...inputFromCli(def, cmd, groupFlags(path[0]!), preset), ...preset }, globals);
       // Through an alias in another group (`openshift cluster list` for
       // `connections list`), say so in the words the user typed, rather than
       // let strict parsing name a command and a field they never mentioned.
@@ -208,7 +212,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
         if (theirs.has(long) || cmd.getOptionValueSource(new Option(long).attributeName()) !== "cli") continue;
         return refuse(`${long} is for ${routing} ${values.join(' or ')}; ${routing} ${value} runs toil ${commandName(def)}, which doesn't take it.`, `Leave out ${long}, or pass ${routing} ${values[0]}.`);
       }
-      const input = inputFromCli(def, cmd, groupFlags(alias.path[0]!));
+      const input = withSelect(inputFromCli(def, cmd, groupFlags(alias.path[0]!)), globals);
       if (globals.outputFile && io.checkFile) {
         try {
           io.checkFile(globals.outputFile, globals);
@@ -333,7 +337,7 @@ function groupFlagBeforeAlias(args: string[], commands: AnyCommand[], rejected: 
   return undefined;
 }
 
-const VALUE_GLOBALS = new Set(['--config', '--output-file', '--workspace']);
+const VALUE_GLOBALS = new Set(['--config', '--output-file', '--workspace', '--select']);
 
 /**
  * The command the user meant, for meta.command on a usage error: the longest
@@ -430,6 +434,11 @@ function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<str
   return input;
 }
 
+/** --select is a global flag on the CLI and a field over MCP; either way it reaches core as the input's `select`. */
+function withSelect(input: Record<string, unknown>, globals: GlobalOptions): Record<string, unknown> {
+  return globals.select === undefined ? input : { ...input, [SELECT_FIELD]: globals.select };
+}
+
 /** The group flags given on this call that `def` doesn't map, by their `flags` text: one rule for both the refusal and strict parsing. */
 function strayGroupFlags(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<string>): string[] {
   const mapped = new Set((def.options ?? []).map((opt) => opt.flags));
@@ -500,5 +509,6 @@ export function argvFor(def: AnyCommand, input: Record<string, unknown>, path: s
     }
   }
   if (def.writes && input.allowWrite === true) argv.push('--allow-write');
+  if (typeof input[SELECT_FIELD] === 'string') argv.push('--select', input[SELECT_FIELD]);
   return argv;
 }
