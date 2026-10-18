@@ -175,6 +175,12 @@ export function normalizeInlines(nodes: Inline[], inside?: Inline['type']): Inli
         if (trail) push(out, { type: 'text', text: trail });
         continue;
       }
+      // Emphasis around a whole link is the link around the emphasis: ADF's flat marks can't tell them apart.
+      const sole = node.children.length === 1 ? node.children[0] : undefined;
+      if (sole?.type === 'link') {
+        push(out, { ...sole, children: normalizeInlines([{ type: node.type, children: sole.children }], 'link') });
+        continue;
+      }
       if (node.type === 'strong' && node.children.length === 1 && node.children[0]!.type === 'em') {
         const em = node.children[0] as { children: Inline[] };
         node = { type: 'em', children: [{ type: 'strong', children: em.children }] };

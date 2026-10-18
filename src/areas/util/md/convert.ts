@@ -112,9 +112,19 @@ function render(format: Format, doc: Doc, losses: Losses): string | AdfDocument 
 }
 
 /** The canonical form both sides of the round trip are compared in. */
-function canonical(doc: Doc): Doc {
+function canonical(doc: Doc, losses?: Losses): Doc {
   const blocks = normalizeBlocks(doc.blocks);
   const keep = new Set(dropEmpty(blocks));
+  // The losses noted while reading name blocks by their place before empty
+  // paragraphs went; renumber them, or a loss would explain a block it isn't in.
+  // A loss in a dropped block belongs to the next block that stays.
+  const index: number[] = [];
+  let kept = 0;
+  blocks.forEach((b, k) => {
+    index[k] = kept;
+    if (keep.has(b)) kept++;
+  });
+  for (const loss of losses?.list ?? []) loss.block = Math.min(index[loss.block] ?? kept, Math.max(0, kept - 1));
   return { blocks: blocks.filter((b) => keep.has(b)), at: doc.at.filter((_, k) => keep.has(blocks[k]!)) };
 }
 
@@ -182,7 +192,7 @@ export async function convertMarkdown(
   v.inputComplete(source);
 
   const losses = new Losses();
-  const read = canonical(parse(from, text, losses, source.label.replace(/^the /, 'The ')));
+  const read = canonical(parse(from, text, losses, source.label.replace(/^the /, 'The ')), losses);
   if (from === 'adf') {
     const schema = await validateAdf(JSON.parse(text));
     v.expect('input.adf.schema', schema.valid, { at: schema.problems[0]?.pointer ?? '', expected: 'a document the ADF schema accepts', actual: schema.problems[0]?.message }, { code: 'ADF_INPUT_INVALID', message: `The input doesn't match the ADF schema at ${schema.problems[0]?.pointer || '/'}: ${schema.problems[0]?.message ?? ''} (${schema.total} problem(s)); it was converted as far as it could be read.` });

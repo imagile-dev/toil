@@ -26,6 +26,9 @@ import { blockInlines, joinInlines, Losses } from './ast.js';
 // ---------------------------------------------------------------- reading
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
+/** What stands in for a node `sane` dropped; every reader skips it, the loss already said so. */
+const DROPPED: AdfNode = { type: 'dropped node' };
+
 const MARK_ORDER = ['link', 'strike', 'strong', 'em'] as const;
 type MarkName = (typeof MARK_ORDER)[number];
 
@@ -40,15 +43,54 @@ class AdfReader {
   doc(value: AdfNode): Doc {
     const blocks: Block[] = [];
     const at: string[] = [];
-    (value.content ?? []).forEach((node, k) => {
+    (value.content ?? []).forEach((raw, k) => {
       const ptr = `/content/${k}`;
       this.losses?.enter(blocks.length, ptr);
+      const node = this.sane(raw, ptr);
+      if (!node) return;
       for (const block of this.block(node, ptr)) {
         blocks.push(block);
         at.push(ptr);
       }
     });
     return { blocks, at };
+  }
+
+  /**
+   * The node as the reader expects it, or undefined: anything that isn't an
+   * object with a string `type` is dropped, and a `content`, `marks` or
+   * `attrs` of the wrong shape is set aside, each reported as a loss. The
+   * schema check says the same about the input; this keeps the reading going
+   * so it can, instead of failing as a bug.
+   */
+  private sane(value: unknown, ptr: string): AdfNode | undefined {
+    if (typeof value !== 'object' || value === null || Array.isArray(value) || typeof (value as AdfNode).type !== 'string') {
+      this.lose('malformed ADF', 'this is not an ADF node (an object with a type) and was dropped', ptr);
+      return undefined;
+    }
+    const node = { ...(value as AdfNode) };
+    if (node.attrs !== undefined && (typeof node.attrs !== 'object' || node.attrs === null || Array.isArray(node.attrs))) {
+      this.lose('malformed ADF', 'attrs is not an object and was ignored', ptr);
+      delete node.attrs;
+    }
+    if (node.text !== undefined && typeof node.text !== 'string') {
+      this.lose('malformed ADF', 'text is not a string and was ignored', ptr);
+      delete node.text;
+    }
+    if (node.marks !== undefined) {
+      if (!Array.isArray(node.marks)) {
+        this.lose('malformed ADF', 'marks is not an array and was ignored', ptr);
+        delete node.marks;
+      } else node.marks = node.marks.map((m: unknown, k: number) => this.sane(m, `${ptr}/marks/${k}`) ?? DROPPED);
+    }
+    if (node.content !== undefined) {
+      if (!Array.isArray(node.content)) {
+        this.lose('malformed ADF', 'content is not an array and was ignored', ptr);
+        delete node.content;
+      } else node.content = node.content// A dropped node keeps its place, so the pointers after it still name the right node.
+        .map((c, k) => this.sane(c, `${ptr}/content/${k}`) ?? DROPPED);
+    }
+    return node;
   }
 
   private blocks(nodes: AdfNode[] | undefined, ptr: string): Block[] {
@@ -60,6 +102,7 @@ class AdfReader {
   }
 
   private block(node: AdfNode, ptr: string): Block[] {
+    if (node === DROPPED) return [];
     const attrs = node.attrs ?? {};
     switch (node.type) {
       case 'paragraph':
@@ -96,6 +139,7 @@ class AdfReader {
       case 'mediaGroup': {
         const out: Block[] = [];
         (node.content ?? []).forEach((media, k) => {
+          if (media === DROPPED) return;
           const p = `${ptr}/content/${k}`;
           const a = media.attrs ?? {};
           if (media.type === 'media' && a.type === 'external' && typeof a.url === 'string') {
@@ -137,6 +181,7 @@ class AdfReader {
   private taskList(node: AdfNode, ptr: string): Block {
     const items: ListItem[] = [];
     (node.content ?? []).forEach((child, k) => {
+      if (child === DROPPED) return;
       const p = `${ptr}/content/${k}`;
       if (child.type === 'taskList' || child.type === 'decisionList') {
         // A nested task list belongs to the item before it.
@@ -161,6 +206,7 @@ class AdfReader {
     (node.content ?? []).forEach((row, r) => {
       const cells: Inline[][] = [];
       (row.content ?? []).forEach((cell, c) => {
+        if (cell === DROPPED) return;
         const p = `${ptr}/content/${r}/content/${c}`;
         const colspan = typeof cell.attrs?.colspan === 'number' ? cell.attrs.colspan : 1;
         const rowspan = typeof cell.attrs?.rowspan === 'number' ? cell.attrs.rowspan : 1;
@@ -185,11 +231,13 @@ class AdfReader {
   inline(nodes: AdfNode[] | undefined, ptr: string): Inline[] {
     const leaves: Leaf[] = [];
     (nodes ?? []).forEach((node, k) => {
+      if (node === DROPPED) return;
       const p = `${ptr}/content/${k}`;
       const attrs = node.attrs ?? {};
       const marks = new Map<MarkName, { href?: string; title?: string }>();
       let code = false;
       for (const mark of (node.marks as AdfNode[] | undefined) ?? []) {
+        if (mark === DROPPED) continue;
         const a = mark.attrs ?? {};
         if (mark.type === 'code') code = true;
         else if (mark.type === 'link') marks.set('link', { href: str(a.href), ...(typeof a.title === 'string' ? { title: a.title } : {}) });

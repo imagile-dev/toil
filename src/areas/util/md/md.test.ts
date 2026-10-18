@@ -81,6 +81,17 @@ describe('util md: the corpus round-trips', () => {
     await expect(data.output).toMatchFileSnapshot(`../../../../test/fixtures/util-md/expected/${expected}`);
   });
 
+  it.each(['**[PROJ-1](https://jira.imagile.dev/browse/PROJ-1)**', '*[a](https://imagile.dev)* and ~~[b](https://imagile.dev)~~', '[**a**](https://imagile.dev)'])(
+    'emphasis around a whole link round-trips through every format: %s',
+    async (text) => {
+      for (const to of ['wiki', 'adf', 'storage'] as const) {
+        const { data } = await convert(text, 'md', to);
+        expect(data.lossless, to).toBe(true);
+        expect(data.verified.passed).toBe(true);
+      }
+    },
+  );
+
   it('positions losses by line for text formats and by JSON pointer for ADF', async () => {
     const wiki = (await convert(MD_CORPUS['PROJ-142.wiki']!, 'wiki', 'md')).data;
     expect(wiki.losses.find((l) => l.construct === 'panel')?.at).toBe('line 26');
@@ -185,6 +196,20 @@ describe('util md: the self-checks catch a broken result', () => {
     expect(unexplained(data)).toMatchObject([{ at: 'line 3' }]);
   });
 
+  it('a loss noted while reading stays with its own block after an empty paragraph is dropped', async () => {
+    // The inline HTML loss is in "x <y>"; the change is in the paragraph after it. Without the empty
+    // paragraph first, or with it, the change is unexplained.
+    const tamper = (out: unknown) => JSON.parse(JSON.stringify(out).replace('"last"', '"lost"')) as never;
+    for (const text of ['x <y>\n\nlast', '[]()\n\nx <y>\n\nlast']) {
+      const { data } = await convert(text, 'md', 'adf', { tamper });
+      expect(unexplained(data), text).toMatchObject([{ expected: 'last', actual: 'lost' }]);
+      expect(data.verified.passed).toBe(false);
+    }
+    const adf = { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [] }, { type: 'paragraph', content: [{ type: 'mention', attrs: { id: 'abc12345', text: '@Ada' } }] }, { type: 'paragraph', content: [{ type: 'text', text: 'after' }] }] };
+    const { data } = await convert(JSON.stringify(adf), 'adf', 'md');
+    expect(data.losses).toMatchObject([{ construct: 'mention', at: '/content/1/content/0' }]);
+  });
+
   it('schema-invalid ADF is never returned: the conversion fails instead', async () => {
     const broken = (out: unknown) => ({ ...(out as object), content: [{ type: 'paragraph', content: [{ type: 'text', text: '' }] }] }) as never;
     await expect(convert('hello', 'md', 'adf', { tamper: broken })).rejects.toMatchObject({ code: 'INTERNAL', message: expect.stringContaining("doesn't match the ADF schema") });
@@ -213,6 +238,19 @@ describe('util md: broken input', () => {
   it('ADF input the schema refuses is converted as far as it reads, and the check fails with ADF_INPUT_INVALID', async () => {
     const { data, warnings } = await convert(JSON.stringify({ type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x', marks: [{ type: 'strong', attrs: { bogus: 1 } }] }] }] }), 'adf', 'md');
     expect(data.output).toBe('**x**\n');
+    expect(data.verified.passed).toBe(false);
+    expect(warnings.map((w) => w.code)).toContain('ADF_INPUT_INVALID');
+  });
+
+  it.each([
+    ['a null node', { type: 'doc', version: 1, content: [null, { type: 'paragraph', content: [{ type: 'text', text: 'kept' }] }] }, '/content/0'],
+    ['content that is not an array', { type: 'doc', version: 1, content: [{ type: 'paragraph', content: 'x' }, { type: 'paragraph', content: [{ type: 'text', text: 'kept' }] }] }, '/content/0'],
+    ['a mark that is not an object', { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'kept', marks: [7] }] }] }, '/content/0/content/0/marks/0'],
+    ['attrs that are not an object', { type: 'doc', version: 1, content: [{ type: 'heading', attrs: 'big', content: [{ type: 'text', text: 'kept' }] }] }, '/content/0'],
+  ])('badly shaped ADF (%s) is read around, reported where it is, and fails the schema check, never as a bug', async (_name, doc, at) => {
+    const { data, warnings } = await convert(JSON.stringify(doc), 'adf', 'md');
+    expect(data.output).toContain('kept');
+    expect(data.losses).toContainEqual(expect.objectContaining({ construct: 'malformed ADF', at }));
     expect(data.verified.passed).toBe(false);
     expect(warnings.map((w) => w.code)).toContain('ADF_INPUT_INVALID');
   });
