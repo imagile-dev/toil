@@ -9,6 +9,7 @@ import { assertUniquePaths, withCoreAliases, type AnyCommand } from './core/comm
 import { resolveRoutedAliases, type RoutedAlias } from './core/routed-alias.js';
 import { setupCommands } from './setup/commands.js';
 import { skillsConfigCommands } from './skills/commands.js';
+import { skillCommands } from './skills/skill-commands.js';
 import { waitCommand } from './core/wait.js';
 
 /**
@@ -23,9 +24,10 @@ export const areas: AnyArea[] = modules.flatMap((m) => (m.area ? [m.area] : []))
  * --area jenkins`) are added to the core command they name. The skills
  * commands that read or change config (`skills marketplace add`, `list`,
  * `remove`, `skills status`) are core's, beside `connections`; the ones that
- * use one marketplace's connection are the `skills` area's.
+ * use one marketplace's connection are the `skills` area's. `skill install`
+ * and `skill show` are the toil skill's own (src/skills/skill-commands.ts).
  */
-export const commands: AnyCommand[] = withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...dossiersCommands(areas), ...dossierBuildCommands(areas), ...reposCommands(), ...skillsConfigCommands(), ...setupCommands(), ...auditCommands(), waitCommand], areas);
+export const commands: AnyCommand[] = withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...dossiersCommands(areas), ...dossierBuildCommands(areas), ...reposCommands(), ...skillsConfigCommands(), ...skillCommands(areas), ...setupCommands(), ...auditCommands(), waitCommand], areas);
 
 // An alias in another group (`deps outdated` for `artifactory outdated`) can
 // collide with a command there; better a failed start than a silent winner.

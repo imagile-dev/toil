@@ -71,8 +71,8 @@ and `severity` is the record's `database_specific.severity` as given (GHSA uses
   list, or has a package without a name, version or ecosystem. Nothing is sent.
 - `NETWORK`: "toil osv vulns requires OSV.dev access but api.osv.dev is not reachable
   from this machine." The reachability check failed; `error.details.cause` says how.
-- `HTTP`: "OSV.dev returned HTTP <status> <reason>" for a batch that failed, and "OSV.dev
-  returned HTTP <status> <reason> for <id>" (`NOT_FOUND` for a 404) for a record that couldn't
+- `HTTP`: `OSV.dev returned HTTP <status> <reason>` for a batch that failed, and
+  `OSV.dev returned HTTP <status> <reason> for <id>` (`NOT_FOUND` for a 404) for a record that couldn't
   be fetched.
 
 ## Alias paths

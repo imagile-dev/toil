@@ -1,139 +1,61 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import PageHero from '../../components/PageHero.astro';
+import SkillPage from '../../components/SkillPage.astro';
 import { groups } from '../../data/integrations';
+import { allDocs, integrationDocs } from '../../lib/skill';
 import { url } from '../../lib/url';
 
-const start = [
-  {
-    title: 'Install',
-    body: 'toil is one npm package on Node 24.14 or later, with no executable and no install scripts.',
-    code: 'npm install -g @imagile-dev/toil',
-  },
-  {
-    title: 'Connect an agent',
-    body: 'Run toil as an MCP server over stdio, scoped to the areas you need.',
-    code: 'npx -y @imagile-dev/toil mcp --areas jira,confluence',
-  },
-  {
-    title: 'Configure',
-    body: 'Settings come from TOIL_* environment variables first, then your own config. Credentials live in the OS credential store or in environment variables, never in the config file.',
-    code: 'export TOIL_JIRA_BASE_URL=https://jira.imagile.dev',
-  },
-];
+// The docs index is the skill's own index, skills/toil/SKILL.md, rendered,
+// then every page: each file's title and frontmatter description, and the
+// integrations in board order. A file added to the skill shows up here with
+// no edit to this page.
+const general = allDocs.filter((d) => d.file !== 'SKILL.md' && !integrationDocs.some((i) => i.file === d.file));
+const onBoard = new Set(groups.flatMap((g) => g.items.map((i) => i.area)));
+const unlisted = integrationDocs.filter((d) => !onBoard.has(d.area!));
 ---
 
-<Layout title="Docs" description="Documentation for toil: installing, configuring, connecting an agent, databases, the local utilities, and every integration in detail.">
-  <PageHero
-    eyebrow="Documentation"
-    title="Everything in <em>detail.</em>"
-    lead="Start with the overview in How it works, then come here for specifics: setup, configuration and one page per integration. toil is pre-release, so integration pages describe the plan until each one ships."
-  />
-
-  <section class="section--tight">
-    <div class="container">
-      <div class="section-head" data-reveal>
-        <p class="eyebrow">Getting started</p>
-        <h2>Three steps, no installer.</h2>
-      </div>
-      <ol class="steps">
-        {start.map((s, n) => (
-          <li class="card" data-reveal style={`--d: ${n * 90}ms`}>
-            <span class="card-tag">step {n + 1}</span>
-            <h3>{s.title}</h3>
-            <p>{s.body}</p>
-            <code class="steps__code"><span>$</span> {s.code}</code>
-          </li>
-        ))}
-      </ol>
-      <p class="more" data-reveal><a class="tap" href={url('/how-it-works/')}>How toil works, at a high level <span aria-hidden="true">→</span></a></p>
-    </div>
+<SkillPage file="SKILL.md" title="Docs">
+  <section class="pages" id="every-page">
+    <h2>Every page</h2>
+    <ul class="pages__list">
+      {general.map((d) => (
+        <li><a class="tap" href={url(d.path!)}>{d.title}</a><p>{d.description}</p></li>
+      ))}
+      <li><a class="tap" href={url('/docs/welcome/')}>The welcome menu</a></li>
+    </ul>
   </section>
 
-  <section class="section section--rule">
-    <div class="container">
-      <div class="section-head" data-reveal>
-        <p class="eyebrow">Databases</p>
-        <h2>One set of commands for every engine.</h2>
-        <p>List schemas and tables, describe a table, preview rows and run read-only queries with paging. SQLite, PostgreSQL, MySQL / MariaDB, SQL Server and Oracle.</p>
-      </div>
-      <p class="more more--flush" data-reveal><a class="tap" href={url('/docs/databases/')}>Databases in detail <span aria-hidden="true">→</span></a></p>
+  <section class="pages" id="integrations">
+    <h2>Integrations</h2>
+    <div class="index">
+      {groups.map((g) => (
+        <section class="index__group">
+          <h3>{g.title}</h3>
+          <ul>
+            {g.items.map((i) => (
+              <li><a class="tap" href={url(`/docs/integrations/${i.area}/`)}>{i.name}<span class={`dot dot--${i.status}`} title={i.status}></span></a></li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      {unlisted.length > 0 && (
+        <section class="index__group">
+          <h3>More</h3>
+          <ul>
+            {unlisted.map((d) => <li><a class="tap" href={url(d.path!)}>{d.title}</a></li>)}
+          </ul>
+        </section>
+      )}
     </div>
   </section>
-
-  <section class="section section--rule">
-    <div class="container">
-      <div class="section-head" data-reveal>
-        <p class="eyebrow">Skills</p>
-        <h2>Your own skills marketplace, for every agent.</h2>
-        <p>Add a git repository of agent plugins, install its skills for Codex, GitHub Copilot or Claude Code, and switch them on and off without deleting anything.</p>
-      </div>
-      <p class="more more--flush" data-reveal><a class="tap" href={url('/docs/skills/')}>Skills marketplaces in detail <span aria-hidden="true">→</span></a></p>
-    </div>
-  </section>
-
-  <section class="section section--rule">
-    <div class="container">
-      <div class="section-head" data-reveal>
-        <p class="eyebrow">Utilities</p>
-        <h2>Local tools, no network.</h2>
-        <p>Decode a JWT without verifying it, inventory a repository's npm, NuGet and Maven dependencies, compare that inventory between two git refs, encode, decode or hash with every result checked, size a file or folder before reading it, compare, sort and bump npm, NuGet and Maven versions, and read an OpenAPI document before calling the API. No connection and no credential.</p>
-      </div>
-      <p class="more more--flush" data-reveal><a class="tap" href={url('/docs/utilities/')}>Utilities in detail <span aria-hidden="true">→</span></a></p>
-    </div>
-  </section>
-
-  <section class="section section--rule">
-    <div class="container">
-      <div class="section-head" data-reveal>
-        <p class="eyebrow">The welcome menu</p>
-        <h2>Type toil, get set up.</h2>
-        <p>Run toil with nothing after it, in a terminal, for a menu that adds, tests and signs in to connections and prints MCP config for an agent. Every step is a plain command, shown as it runs.</p>
-      </div>
-      <p class="more more--flush" data-reveal><a class="tap" href={url('/docs/welcome/')}>The welcome menu in detail <span aria-hidden="true">→</span></a></p>
-    </div>
-  </section>
-
-  <section class="section section--rule">
-    <div class="container">
-      <div class="section-head" data-reveal>
-        <p class="eyebrow">Integrations</p>
-        <h2>One page per integration.</h2>
-        <p>Each covers what it does, the credential it needs and where to create it, how to configure it, and how writes are gated.</p>
-      </div>
-      <div class="index">
-        {groups.map((g) => (
-          <section class="index__group" data-reveal>
-            <h3>{g.title}</h3>
-            <ul>
-              {g.items.map((i) => (
-                <li><a class="tap" href={url(`/docs/integrations/${i.area}/`)}>{i.name}<span class={`dot dot--${i.status}`} title={i.status}></span></a></li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
-    </div>
-  </section>
-</Layout>
+</SkillPage>
 
 <style>
-  .steps { display: grid; gap: var(--space-md); }
-  .steps > * { min-width: 0; }
-  .steps li { display: flex; flex-direction: column; gap: var(--space-2xs); }
-  .steps h3 { font-size: var(--text-xl); margin-top: var(--space-2xs); }
-  .steps p { color: var(--color-muted); font-size: var(--text-sm); flex: 1; }
-  .steps__code {
-    display: block; margin-top: var(--space-xs); padding: 0.6rem 0.75rem;
-    border-radius: var(--radius-sm); background: var(--color-bg-deep); border: 1px solid var(--color-line);
-    font-size: 0.75rem; white-space: normal; overflow-wrap: anywhere; line-height: 1.6;
-  }
-  .steps__code span { color: var(--color-accent); }
-  @media (min-width: 860px) { .steps { grid-template-columns: repeat(3, 1fr); } }
-
-  .more { margin-top: var(--space-lg); }
-  .more a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
-  .more--flush { margin-top: 0; }
+  .pages { border-top: 1px solid var(--color-line); padding-top: var(--space-md); }
+  .pages h2 { font-size: var(--text-2xl); margin-bottom: var(--space-sm); }
+  .pages__list { display: grid; gap: var(--space-xs); }
+  .pages__list li { min-width: 0; border-bottom: 1px solid var(--color-line); padding-bottom: var(--space-xs); }
+  .pages__list a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
+  .pages__list p { color: var(--color-muted); font-size: var(--text-sm); }
 
   .index { display: grid; gap: var(--space-lg); }
   .index > * { min-width: 0; }
@@ -150,5 +72,4 @@ const start = [
   .dot--integration { background: var(--color-accent); border: 0; }
   .dot--live { background: var(--color-ok); border: 0; }
   @media (min-width: 760px) { .index { grid-template-columns: repeat(2, 1fr); } }
-  @media (min-width: 1080px) { .index { grid-template-columns: repeat(3, 1fr); } }
 </style>

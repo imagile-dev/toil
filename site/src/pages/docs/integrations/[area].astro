@@ -1,246 +1,84 @@
 ---
-import Layout from '../../../layouts/Layout.astro';
-import PageHero from '../../../components/PageHero.astro';
-import { allIntegrations, credentialWhere, envPrefix, localUnitMeaning, statusMeaning, supportedText, type IntegrationEntry } from '../../../data/integrations';
-import { url, repoUrl } from '../../../lib/url';
+import SkillPage from '../../../components/SkillPage.astro';
+import CommandIndex from '../../../components/CommandIndex.astro';
+import { allIntegrations, envPrefix, type IntegrationEntry } from '../../../data/integrations';
+import { integrationDocs, type SkillDoc } from '../../../lib/skill';
+import { url } from '../../../lib/url';
 
-// One page per integration, generated from the same data as the board, so an
-// integration can't appear on the board without a page to link to.
+// One page per area file in skills/toil/, so a new area's file is its page
+// with no page code. The body is that file, rendered; the board entry
+// (data/integrations/<area>.json), where there is one, adds its name, status,
+// credential and supported version to the facts panel, and the registry's
+// own lists of commands and settings follow the body.
+const boardOrder = (area: string) => {
+  const at = allIntegrations.findIndex((i) => i.area === area);
+  return at < 0 ? allIntegrations.length : at;
+};
+const ordered = [...integrationDocs].sort((a, b) => boardOrder(a.area!) - boardOrder(b.area!) || a.area!.localeCompare(b.area!));
+
 export function getStaticPaths() {
-  return allIntegrations.map((integration) => ({ params: { area: integration.area }, props: { integration } }));
+  const order = (area: string) => {
+    const at = allIntegrations.findIndex((i) => i.area === area);
+    return at < 0 ? allIntegrations.length : at;
+  };
+  return [...integrationDocs]
+    .sort((a, b) => order(a.area!) - order(b.area!) || a.area!.localeCompare(b.area!))
+    .map((doc) => ({ params: { area: doc.area! }, props: { doc } }));
 }
 
-const { integration } = Astro.props as { integration: IntegrationEntry };
-const where = credentialWhere[integration.area];
-const prefix = envPrefix(integration.area);
-const local = integration.local === true;
-const host = integration.host ?? `https://${integration.area}.imagile.dev`;
-const keyLines = (integration.keys ?? ['TOKEN']).map((key) => ({ key, label: key.toLowerCase().split('_').join(' ') }));
-const index = allIntegrations.findIndex((i) => i.area === integration.area);
-const prev = allIntegrations[index - 1];
-const next = allIntegrations[index + 1];
-// The real command list, written from the CLI's own registry by a test (one
-// file per area, data/commands/<area>.json), so this page can't drift from it.
-// `tool` is null for a command that runs on the command line only (a delete,
-// say); `connection` is whether it takes --connection.
-type SiteCommand = { name: string; tool: string | null; description: string; writes: boolean; connection: boolean; flags: string[] };
-const generated = import.meta.glob<SiteCommand[]>('../../../data/commands/*.json', { eager: true, import: 'default' });
-const commandList: SiteCommand[] = integration.status === 'planned' ? [] : (generated[`../../../data/commands/${integration.area}.json`] ?? []);
-const supported = integration.supported;
-// Every setting a connection takes, written from the area's connection schema
-// by the same test (data/settings/<area>.json): the credential and everything else.
+const { doc } = Astro.props as { doc: SkillDoc };
+const area = doc.area!;
+const board: IntegrationEntry | undefined = allIntegrations.find((i) => i.area === area);
+const name = board?.name ?? doc.title;
 type SiteSetting = { key: string; env: string; description: string; required: boolean; secret: boolean; fallbacks: string[] };
 const settingFiles = import.meta.glob<SiteSetting[]>('../../../data/settings/*.json', { eager: true, import: 'default' });
-const settings: SiteSetting[] = integration.status === 'planned' ? [] : (settingFiles[`../../../data/settings/${integration.area}.json`] ?? []);
-// The required keys; an area whose keys are required only in combination
-// (a base URL and token, or a connection string) has none, so it shows them all.
-const required = settings.filter((s) => s.required);
-const exampleLines = settings.length
-  ? (required.length ? required : settings).map((s) => ({ env: s.env, value: s.key === 'baseUrl' ? host : `<your ${s.description.toLowerCase() || s.key}>` }))
-  : [{ env: `${prefix}BASE_URL`, value: host }, ...keyLines.map((k) => ({ env: `${prefix}${k.key}`, value: `<your ${k.label}>` }))];
-// A read-only area has nothing to gate, so its page doesn't explain the gate.
-const writes = commandList.length === 0 || commandList.some((c) => c.writes);
-const cliOnly = commandList.some((c) => c.tool === null);
-const allConnect = commandList.every((c) => c.connection);
-// What the page describes follows what the area has. A shipped area with no
-// settings (osv) has no credential and nothing to configure; one with no
-// baseUrl (ossindex) calls a fixed host; one whose commands take no
-// connection (git, osv) has no --connection to mention. A planned area keeps
-// the generic text, since its keys aren't known yet.
-const shipped = integration.status !== 'planned';
-const configurable = !local && (!shipped || settings.length > 0);
-const credentialed = !local && (!shipped || settings.some((s) => s.secret));
-const fixedHost = shipped && configurable && integration.host !== undefined && !settings.some((s) => s.key === 'baseUrl');
-const connects = commandList.some((c) => c.connection);
-const status = local && integration.status === 'unit' ? localUnitMeaning : statusMeaning[integration.status];
+const settings: SiteSetting[] = settingFiles[`../../../data/settings/${area}.json`] ?? [];
+const index = ordered.findIndex((d) => d.area === area);
+const prev = ordered[index - 1];
+const next = ordered[index + 1];
+const nameOf = (d: SkillDoc) => allIntegrations.find((i) => i.area === d.area)?.name ?? d.title;
 ---
 
-<Layout title={`${integration.name} integration`} description={`toil's ${integration.name} integration: what it covers, the credential it uses, and how to configure it.`}>
-  <PageHero
-    eyebrow={`<b>Docs</b> · Integrations · ${integration.group}`}
-    title={integration.name}
-    lead={integration.covers + '.'}
-  >
-    <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <a href={url('/integrations/')}>Integrations</a> <span aria-hidden="true">/</span> <span>{integration.name}</span></p>
-  </PageHero>
+<SkillPage file={doc.file} title={name} trail={['Integrations', ...(board ? [board.group] : [])]}>
+  <dl slot="facts">
+    <div><dt>Area</dt><dd><code>toil {area}</code></dd></div>
+    {board && <div><dt>Status</dt><dd><span class={`status status--${board.status}`}>{board.status}</span></dd></div>}
+    {board && <div><dt>Credential</dt><dd>{board.credential}</dd></div>}
+    {settings.length > 0 && <div><dt>Env prefix</dt><dd><code>{envPrefix(area)}</code></dd></div>}
+    {board?.supported && <div><dt>Supports</dt><dd>{board.supported.minimum === null ? 'Not yet established' : `${board.supported.product} ${board.supported.minimum}+`}</dd></div>}
+  </dl>
 
-  <section class="section--tight">
-    <div class="container doc">
-      <aside class="doc__facts" data-reveal>
-        <dl>
-          <div><dt>Area</dt><dd><code>toil {integration.area}</code></dd></div>
-          <div><dt>Status</dt><dd><span class={`status status--${integration.status}`}>{integration.status}</span></dd></div>
-          <div><dt>Credential</dt><dd>{integration.credential}</dd></div>
-          {configurable && <div><dt>Env prefix</dt><dd><code>{prefix}</code></dd></div>}
-          {supported && <div><dt>Supports</dt><dd>{supported.minimum === null ? 'Not yet established' : `${supported.product} ${supported.minimum}+`}</dd></div>}
-        </dl>
-      </aside>
-
-      <article class="doc__body prose">
-        <section data-reveal>
-          <h2>Status</h2>
-          <p>{status}</p>
-        </section>
-
-        {supported && (
-          <section data-reveal>
-            <h2>Supported versions</h2>
-            <p>{`${supportedText(supported)}.${supported.note ? ` ${supported.note}` : ''}`}</p>
-          </section>
-        )}
-
-        <section data-reveal>
-          <h2>Credential</h2>
-          {local ? (
-            <p>None. This area works on the repository you're in and talks to no server. Its commands run your installed git; the repository's root, branch and remotes are read directly.</p>
-          ) : !credentialed ? (
-            <>
-              <p>None. {integration.name} is a public API, so there's no account to make, no credential to keep and nothing to configure.</p>
-              {integration.credentialNote && <p>{integration.credentialNote}.</p>}
-            </>
-          ) : (
-            <>
-              <p>
-                Credential: <strong>{integration.credential}</strong>. You generate it once in {integration.name}'s own interface and give it to
-                toil. There's no browser login and nothing to approve at use time.
-              </p>
-              {where ? <p>In {integration.name}, it lives under <strong>{where}</strong>.</p> : <p>In {integration.name}, it lives under your user or account settings.</p>}
-              {integration.credentialNote && <p>{integration.credentialNote}.</p>}
-              <p>
-                Set it up with <code>toil connections add</code>, which keeps it in your operating system's credential store with only a reference
-                in your toil config, or pass it as an environment variable, which always wins and is the way in for CI. It is never kept in the
-                config file itself.
-              </p>
-            </>
-          )}
-        </section>
-
-        {configurable && (
-          <section data-reveal>
-            <h2>Configuration</h2>
-            <p>
-              Every setting can come from an environment variable, which always wins, or from your toil config. Variables for this area start
-              with <code>{prefix}</code>. For example:
-            </p>
-            <div class="codeblock"><span class="card-tag">shell</span>
-<pre>{exampleLines.map((l) => (
-  <span class="line"><span class="p">$</span> export {l.env}=<span class="s">{l.value}</span></span>
-))}</pre>
+  {settings.length > 0 && (
+    <section class="index" id="settings-at-a-glance">
+      <h2>Settings at a glance</h2>
+      <ul class="settings">
+        {settings.map((s) => (
+          <li class="setting">
+            <div class="setting__head">
+              <code class="setting__key">{s.key}</code>
+              {s.required && <span class="tag">required</span>}
+              {s.secret && <span class="tag">secret</span>}
             </div>
-            {fixedHost && (
-              <p>There's no base URL to set: toil calls {integration.host} and nothing else.</p>
-            )}
-            {settings.length === 0 ? (
-              <p class="note">The exact keys are published here when the integration ships. These show the naming pattern every area follows.</p>
-            ) : (
-              <>
-                <p>
-                  {required.length ? 'Those are the required ones.' : 'No one key is required on its own; set the ones your setup uses.'} Every key a {integration.name} connection reads, with its variable for the default connection
-                  (<code>TOIL_CONN_&lt;NAME&gt;_&lt;KEY&gt;</code> sets it on any named one):
-                </p>
-                <ul class="settings">
-                  {settings.map((s) => (
-                    <li class="setting">
-                      <div class="setting__head">
-                        <code class="setting__key">{s.key}</code>
-                        {s.required && <span class="tag">required</span>}
-                        {s.secret && <span class="tag">secret</span>}
-                      </div>
-                      {s.description && <p class="setting__desc">{s.description}</p>}
-                      <p class="setting__env">
-                        <code>{s.env}</code>
-                        {s.fallbacks.map((f) => <><span class="setting__or">or</span><code>{f}</code></>)}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-                {settings.some((s) => s.fallbacks.length > 0) && (
-                  <p class="note">A variable after "or" is one your CI or the vendor's own tooling already sets. It counts only when the toil variable is unset, and it still beats the config file.</p>
-                )}
-              </>
-            )}
-          </section>
-        )}
-
-        <section data-reveal>
-          <h2>Commands</h2>
-          {commandList.length === 0 ? (
-            <p>
-              The command reference appears here when the integration ships. Every command will be available both as{' '}
-              <code>toil {integration.area} &lt;command&gt;</code> on the command line and as an MCP tool, with identical inputs and output.
+            {s.description && <p class="setting__desc">{s.description}</p>}
+            <p class="setting__env">
+              <code>{s.env}</code>
+              {s.fallbacks.map((f) => <><span class="setting__or">or</span><code>{f}</code></>)}
             </p>
-          ) : (
-            <>
-              <p>
-                {commandList.length === 1 ? 'One command, on' : `${commandList.length} commands, each on`} the command line as <code>toil {integration.area} &lt;command&gt;</code> and over MCP as
-                the tool shown, with identical inputs and output{cliOnly ? <>, apart from ones marked <span class="cmd__cli">CLI only</span>, which have no MCP tool</> : null}. {connects ? (
-                  <>{allConnect ? 'Every command' : 'Every command that talks to the service'} also takes <code>--connection &lt;name&gt;</code>{writes ? <>; ones marked <span class="cmd__write">write</span> change data</> : <>, and every one of them only reads</>}.</>
-                ) : writes ? <>Ones marked <span class="cmd__write">write</span> change data.</> : commandList.length === 1 ? 'It only reads.' : 'Every one of them only reads.'} Run <code>toil {integration.area} &lt;command&gt; --help</code> for each flag's meaning, or read the{' '}
-                <a href={`${repoUrl}/blob/main/skills/toil/${integration.area}.md`}>{integration.name} reference</a>.
-              </p>
-              <ul class="cmds">
-                {commandList.map((c) => (
-                  <li class="cmd">
-                    <div class="cmd__head">
-                      <code class="cmd__name">toil {integration.area} {c.name}</code>
-                      {c.writes && <span class="cmd__write">write</span>}
-                      {c.tool === null && <span class="cmd__cli">CLI only</span>}
-                    </div>
-                    <p class="cmd__desc">{c.description}</p>
-                    <p class="cmd__meta">
-                      {c.tool !== null && <span class="cmd__tool">MCP <code>{c.tool}</code></span>}
-                      {c.flags.map((f) => <code class="cmd__flag">{f}</code>)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </section>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
 
-        {writes && <section data-reveal>
-          <h2>Writes</h2>
-          <p>
-            Reads are always allowed. Anything that changes data in {integration.name} needs two things: <code>writes</code> switched on for this
-            area in your own config, and <code>--allow-write</code> on the call. Over MCP, write tools don't exist until writes are on.{' '}
-            <a href={url('/how-it-works/#safety')}>How writes are gated</a>.
-          </p>
-        </section>}
+  <CommandIndex group={area} />
 
-        <nav class="pager" aria-label="Other integrations">
-          {prev ? <a class="tap" href={url(`/docs/integrations/${prev.area}/`)}>← {prev.name}</a> : <span></span>}
-          {next ? <a class="tap" href={url(`/docs/integrations/${next.area}/`)}>{next.name} →</a> : <span></span>}
-        </nav>
-      </article>
-    </div>
-  </section>
-</Layout>
+  <nav class="pager" aria-label="Other integrations">
+    {prev ? <a class="tap" href={url(`/docs/integrations/${prev.area}/`)}>← {nameOf(prev)}</a> : <span></span>}
+    {next ? <a class="tap" href={url(`/docs/integrations/${next.area}/`)}>{nameOf(next)} →</a> : <span></span>}
+  </nav>
+</SkillPage>
 
 <style>
-  .codeblock .line { display: block; }
-  .crumb { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-faint); }
-  .crumb a { color: var(--color-muted); }
-  .crumb a:hover { color: var(--color-accent); }
-
-  .doc { display: grid; gap: var(--space-lg); align-items: start; padding-block: var(--space-lg); }
-  .doc > * { min-width: 0; }
-
-  .doc__facts { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-md); }
-  .doc__facts dl { display: grid; gap: var(--space-sm); }
-  .doc__facts dt { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-faint); }
-  .doc__facts dd { margin: 0.2rem 0 0; color: var(--color-ink); font-size: var(--text-sm); overflow-wrap: anywhere; }
-  .doc__facts code { color: var(--color-accent); }
-
-  .doc__body { display: grid; gap: var(--space-lg); max-width: 68ch; }
-  .doc__body > *, .doc__body section > * { min-width: 0; }
-  .doc__body h2 { font-size: var(--text-2xl); margin-bottom: var(--space-xs); }
-  .doc__body p { color: var(--color-muted); }
-  .doc__body p + p { margin-top: var(--space-xs); }
-  .doc__body strong { color: var(--color-ink); font-weight: 600; }
-  .doc__body code { color: var(--color-ink); }
-  .doc__body .codeblock { margin-block: var(--space-sm); }
-  .note { font-size: var(--text-sm); color: var(--color-faint) !important; }
-
   .status {
     display: inline-flex; align-items: center; gap: 0.4em;
     font-family: var(--font-mono); font-size: 0.68rem; letter-spacing: 0.06em; text-transform: uppercase;
@@ -251,33 +89,14 @@ const status = local && integration.status === 'unit' ? localUnitMeaning : statu
   .status--integration { color: var(--color-accent); }
   .status--live { color: var(--color-ok); }
 
-  .cmds { list-style: none; padding: 0; margin: var(--space-sm) 0 0; display: grid; gap: var(--space-xs); }
-  .cmd { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-sm); min-width: 0; }
-  .cmd__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
-  .cmd__name { color: var(--color-accent) !important; font-size: var(--text-sm); overflow-wrap: anywhere; }
-  .cmd__desc { margin-top: 0.3rem; font-size: var(--text-sm); }
-  .cmd__meta { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem !important; }
-  .cmd__meta code { font-size: 0.72rem; overflow-wrap: anywhere; }
-  .cmd__tool { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-faint); margin-right: 0.35rem; }
-  .cmd__tool code { text-transform: none; letter-spacing: 0; color: var(--color-ink) !important; }
-  .cmd__flag { border: 1px solid var(--color-line); border-radius: 4px; padding: 0 0.3rem; color: var(--color-muted) !important; }
-  .cmd__write {
-    font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
-    border-radius: 999px; padding: 0.05rem 0.45rem; border: 1px solid color-mix(in oklab, var(--color-accent) 50%, transparent); color: var(--color-accent);
-    margin-inline: 0.25rem;
-  }
-  .cmd__cli {
-    font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
-    border-radius: 999px; padding: 0.05rem 0.45rem; border: 1px solid var(--color-line); color: var(--color-muted);
-    margin-inline: 0.25rem;
-  }
-
-  .settings { list-style: none; padding: 0; margin: var(--space-sm) 0 0; display: grid; gap: var(--space-xs); }
+  .index { border-top: 1px solid var(--color-line); padding-top: var(--space-md); }
+  .index h2 { font-size: var(--text-2xl); margin-bottom: var(--space-sm); scroll-margin-top: 88px; }
+  .settings { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-xs); }
   .setting { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-sm); min-width: 0; }
   .setting__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
-  .setting__key { color: var(--color-accent) !important; font-size: var(--text-sm); overflow-wrap: anywhere; }
-  .setting__desc { margin-top: 0.3rem; font-size: var(--text-sm); }
-  .setting__env { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-top: 0.4rem !important; }
+  .setting__key { color: var(--color-accent); font-size: var(--text-sm); overflow-wrap: anywhere; }
+  .setting__desc { margin-top: 0.3rem; font-size: var(--text-sm); color: var(--color-muted); }
+  .setting__env { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-top: 0.4rem; }
   .setting__env code { font-size: 0.72rem; overflow-wrap: anywhere; border: 1px solid var(--color-line); border-radius: 4px; padding: 0 0.3rem; }
   .setting__or { font-size: var(--text-sm); color: var(--color-faint); }
   .tag {
@@ -287,9 +106,4 @@ const status = local && integration.status === 'unit' ? localUnitMeaning : statu
 
   .pager { display: flex; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; padding-top: var(--space-md); border-top: 1px solid var(--color-line); }
   .pager a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
-
-  @media (min-width: 900px) {
-    .doc { grid-template-columns: 16rem minmax(0, 1fr); }
-    .doc__facts { position: sticky; top: 88px; }
-  }
 </style>

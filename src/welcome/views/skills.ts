@@ -6,12 +6,13 @@ import { PALETTE, paint } from '../term.js';
 import type { Action, Caps, Item, Run, StepResult, View, ViewProps } from '../view.js';
 
 /**
- * The Skills and Plugins modules: add, list and remove skills marketplaces,
- * install a plugin for the agent and place you pick, and switch installed
- * plugins on and off. Every action is a real `toil skills …` (or `toil
- * connections writes`) command, shown as it runs, so the menu writes exactly
- * what the command would. A checkbox is only ever a request; the command is
- * the one that files it.
+ * The Agent skills module: skill plugins (add, list and remove skills
+ * marketplaces, install a skill plugin for the agent and place you pick, and
+ * switch installed skill plugins on and off), every installed skill, and
+ * the toil skill itself. Every action is a real `toil skills …`, `toil skill
+ * install` (or `toil connections writes`) command, shown as it runs, so the
+ * menu writes exactly what the command would. A checkbox is only ever a
+ * request; the command is the one that files it.
  *
  * What a screen lists from disk (a marketplace's plugins, what's installed)
  * comes from the command that reads it: the run's result screen shows the
@@ -39,21 +40,46 @@ const agentLabel: Record<AgentName, string> = { codex: 'Codex', 'github-copilot'
 
 const agentArgs = (agent: string): string[] => (agent === 'all' ? ['--all-agents'] : ['--agent', agent]);
 
-// ─── Skills: marketplaces ──────────────────────────────────────────────────
+// ─── Agent skills: the module's own screen ────────────────────────────────
+
+/** The toil skill install a choice of agent and place comes to; it also rewrites the description now. */
+export function toilSkillRun(agent: string, scope: string): Run {
+  return {
+    title: `Install the toil skill for ${agentLabel[agent as AgentName] ?? agent}`,
+    steps: [{ args: ['skill', 'install', '--agent', agent, '--scope', scope, '--allow-write'] }],
+    next: (r) => (r[0]?.envelope.ok ? { go: 'agent-skills', root: 'agent-skills' } : undefined),
+  };
+}
+
+export const agentSkillsView: View = {
+  title: () => 'Agent skills',
+  body: (caps) => [
+    paint(caps, PALETTE.amber, 'Agent skills'),
+    '',
+    paint(caps, PALETTE.muted, 'Skill plugins come from marketplaces, git repositories of agent skills. The toil skill ships with toil, and toil keeps the copies it installed current.'),
+  ],
+  items: () => [
+    { label: 'Skill plugins', hint: 'Marketplaces: add, install, switch on and off', action: { go: 'skills' } },
+    { label: 'View installed skills', hint: 'Every skill in every agent folder', action: { run: { title: 'Installed skills', steps: [{ args: ['skills', 'status'] }] } } },
+    { label: 'Install the toil skill', hint: 'Or rewrite its description now; pick the agent and place', action: { go: 'skills-agent', params: { mode: 'toil' } } },
+  ],
+};
+
+// ─── Skill plugins: marketplaces ───────────────────────────────────────────
 
 export const skillsView: View = {
-  title: () => 'Skills',
+  title: () => 'Skill plugins',
   body: (caps, p) => {
     const names = marketplaceNames(p.data);
     if (names.length === 0) {
-      return [paint(caps, PALETTE.muted, 'No skills marketplace yet. A marketplace is a git repository of agent plugins; add one to install its skills for Codex, GitHub Copilot or Claude Code.')];
+      return [paint(caps, PALETTE.muted, 'No skills marketplace yet. A marketplace is a git repository of skill plugins; add one to install its skills for Codex, GitHub Copilot or Claude Code.')];
     }
     return [paint(caps, PALETTE.amber, 'Marketplaces'), ...names.map((name) => `  ${name}  ${writesOn(p.data, name) ? ok(caps, true, 'writes on') : paint(caps, PALETTE.faint, 'writes off')}`)];
   },
   items: (p) => [
     ...marketplaceNames(p.data).map((name): Item => ({ label: name, hint: String(config(p.data)!.connections[name]!.repoUrl ?? ''), action: { go: 'marketplace', params: { name } } })),
     { label: 'Add a marketplace', hint: 'Its git URL, and a token if it is private', action: { go: 'skills-add-url' } },
-    { label: "What's installed", hint: 'Every skill in every agent folder', action: { run: { title: 'Installed skills', steps: [{ args: ['skills', 'status'] }] } } },
+    { label: 'Switch skill plugins on and off', hint: 'Tick what should be on, for one agent and place', action: { go: 'plugins' } },
   ],
 };
 
@@ -70,7 +96,7 @@ export const marketplaceView: View = {
       `${paint(caps, PALETTE.muted, 'Clone URL ')} ${String(conn.repoUrl ?? '')}`,
       `${paint(caps, PALETTE.muted, 'Writes    ')} ${writes ? ok(caps, true, 'on') : 'off'}`,
     ];
-    if (!writes) lines.push('', paint(caps, PALETTE.muted, 'Writes are off, so nothing can be installed from it yet. Turning them on lets toil (and an agent you allow) install and switch its plugins.'));
+    if (!writes) lines.push('', paint(caps, PALETTE.muted, 'Writes are off, so nothing can be installed from it yet. Turning them on lets toil (and an agent you allow) install and switch its skill plugins.'));
     return lines;
   },
   items: (p) => {
@@ -78,7 +104,7 @@ export const marketplaceView: View = {
     const cfg = config(p.data);
     if (!cfg?.connections[name]) return [];
     const plugins: Run = {
-      title: `Plugins in ${name}`,
+      title: `Skill plugins in ${name}`,
       steps: [{ args: ['skills', 'marketplace', 'plugins', name] }],
       next: (r) => (r[0]?.envelope.ok ? { go: 'skills-plugin', params: { name, plugins: JSON.stringify(pluginNames(r[0])) } } : undefined),
     };
@@ -93,8 +119,8 @@ export const marketplaceView: View = {
       });
     }
     items.push(
-      { label: 'Install a plugin', hint: 'Pick a plugin, an agent and where', action: { run: plugins } },
-      { label: 'Update installed plugins', hint: 'Pull it and refresh what is installed', action: { go: 'skills-agent', params: { mode: 'sync', name } } },
+      { label: 'Install a skill plugin', hint: 'Pick a skill plugin, an agent and where', action: { run: plugins } },
+      { label: 'Update installed skill plugins', hint: 'Pull it and refresh what is installed', action: { go: 'skills-agent', params: { mode: 'sync', name } } },
     );
     if (writes && !envOnly(cfg, name)) {
       items.push({ label: 'Turn writes off', hint: 'Nothing more installs from it', action: { run: { title: `Writes off for ${name}`, steps: [{ args: ['connections', 'writes', name, 'off'] }] } } });
@@ -120,13 +146,13 @@ const parse = <T>(text: string | undefined, fallback: T): T => {
 
 export const pluginView: View = {
   title: () => 'Install',
-  body: (caps) => [paint(caps, PALETTE.amber, 'Which plugin?')],
+  body: (caps) => [paint(caps, PALETTE.amber, 'Which skill plugin?')],
   items: (p) => {
     const name = p.frame.params.name!;
     const plugins = parse<Array<{ name: string; description: string }>>(p.frame.params.plugins, []);
     return [
       ...plugins.map((x): Item => ({ label: x.name, hint: x.description, action: { go: 'skills-agent', params: { mode: 'install', name, plugin: x.name } } })),
-      ...(plugins.length > 1 ? [{ label: 'All plugins', hint: `Everything in ${name}`, action: { go: 'skills-agent', params: { mode: 'install', name, plugin: 'all' } } } as Item] : []),
+      ...(plugins.length > 1 ? [{ label: 'All skill plugins', hint: `Everything in ${name}`, action: { go: 'skills-agent', params: { mode: 'install', name, plugin: 'all' } } } as Item] : []),
     ];
   },
 };
@@ -136,7 +162,7 @@ export const pluginView: View = {
  * reads too) is first, so enter takes it.
  */
 export const agentView: View = {
-  title: (p) => (p.frame.params.mode === 'toggle' ? 'Agent' : (p.frame.params.plugin ?? 'Agent')),
+  title: (p) => (p.frame.params.mode === 'toggle' || p.frame.params.mode === 'toil' ? 'Agent' : (p.frame.params.plugin ?? 'Agent')),
   body: (caps) => [paint(caps, PALETTE.amber, 'For which agent?')],
   items: (p) => {
     const agents = [DEFAULT_AGENT, ...AGENT_NAMES.filter((a) => a !== DEFAULT_AGENT)];
@@ -145,7 +171,7 @@ export const agentView: View = {
       hint: `${agent === DEFAULT_AGENT ? 'the default; ' : ''}${AGENTS[agent].user === AGENTS[agent].project ? AGENTS[agent].project : `${AGENTS[agent].project} or ~/${AGENTS[agent].user}`}${agent === 'codex' ? ' (Copilot reads it too)' : ''}`,
       action: { go: 'skills-scope', params: { ...p.frame.params, agent } },
     }));
-    if (p.frame.params.mode !== 'toggle') rows.push({ label: 'Every agent', hint: 'All three folders', action: { go: 'skills-scope', params: { ...p.frame.params, agent: 'all' } } });
+    if (p.frame.params.mode !== 'toggle' && p.frame.params.mode !== 'toil') rows.push({ label: 'Every agent', hint: 'All three folders', action: { go: 'skills-scope', params: { ...p.frame.params, agent: 'all' } } });
     return rows;
   },
 };
@@ -164,7 +190,7 @@ export function installRun(params: Record<string, string>): Run {
 /** `skills status` for one folder; its result opens the checkbox screen. */
 export function statusRun(agent: string, scope: string): Run {
   return {
-    title: `Plugins for ${agentLabel[agent as AgentName] ?? agent}`,
+    title: `Skill plugins for ${agentLabel[agent as AgentName] ?? agent}`,
     steps: [{ args: ['skills', 'status', '--agent', agent, '--scope', scope] }],
     // Back to the place picker first, so saving and looking again doesn't stack screens.
     next: (r) => (r[0]?.envelope.ok ? { go: 'plugins-toggle', params: { agent, scope, plugins: JSON.stringify(pluginStates(r[0])) }, root: 'skills-scope' } : undefined),
@@ -181,7 +207,9 @@ export const scopeView: View = {
   ],
   items: (p) => {
     const agent = p.frame.params.agent as AgentName | 'all';
-    const pick = (scope: string): Action => (p.frame.params.mode === 'toggle' ? { run: statusRun(agent, scope) } : { run: installRun({ ...p.frame.params, scope }) });
+    const mode = p.frame.params.mode;
+    const pick = (scope: string): Action =>
+      mode === 'toggle' ? { run: statusRun(agent, scope) } : mode === 'toil' ? { run: toilSkillRun(agent, scope) } : { run: installRun({ ...p.frame.params, scope }) };
     return [
       { label: 'For you, in every repository', hint: `${folderHint(agent, 'user')} (the default)`, action: pick('user') },
       { label: 'In this repository', hint: folderHint(agent, 'project'), action: pick('project') },
@@ -258,7 +286,7 @@ export const removeMarketplaceView: View = {
   },
 };
 
-// ─── Plugins: switching them on and off ────────────────────────────────────
+// ─── Skill plugins: switching them on and off ──────────────────────────────
 
 /** One installed plugin in one folder, as the checkbox screen shows it. */
 export interface PluginState {
@@ -289,11 +317,11 @@ const pluginId = (marketplace: string, plugin: string) => `${marketplace}/${plug
 const isOn = (s: PluginState) => s.on > 0;
 
 export const pluginsView: View = {
-  title: () => 'Plugins',
+  title: () => 'Switch skill plugins',
   body: (caps) => [
-    paint(caps, PALETTE.amber, 'Switch installed plugins on and off'),
+    paint(caps, PALETTE.amber, 'Switch installed skill plugins on and off'),
     '',
-    paint(caps, PALETTE.muted, 'Switched off, a plugin\'s skills move to a hidden folder the agent doesn\'t read; nothing is deleted. Pick the agent and place first.'),
+    paint(caps, PALETTE.muted, 'Switched off, a skill plugin\'s skills move to a hidden folder the agent doesn\'t read; nothing is deleted. Pick the agent and place first.'),
   ],
   items: () => [{ label: 'Choose agent and place', hint: 'Then tick what should be on', action: { go: 'skills-agent', params: { mode: 'toggle' } } }],
 };
@@ -302,8 +330,8 @@ export const toggleView: View = {
   title: (p) => (p.frame.params.scope === 'project' ? 'This repository' : 'Your folder'),
   body: (caps, p) => {
     const states = parse<PluginState[]>(p.frame.params.plugins, []);
-    if (states.length === 0) return [paint(caps, PALETTE.muted, 'No plugins installed here from a marketplace. Install one from Skills first.')];
-    return [paint(caps, PALETTE.muted, 'Space switches a plugin, enter shows what will change before anything is written.')];
+    if (states.length === 0) return [paint(caps, PALETTE.muted, 'No skill plugins installed here from a marketplace. Install one from Skill plugins first.')];
+    return [paint(caps, PALETTE.muted, 'Space switches a skill plugin, enter shows what will change before anything is written.')];
   },
   checklist: {
     options: (p) =>
@@ -358,7 +386,7 @@ export const reviewView: View = {
     const lines = [paint(caps, PALETTE.amber, 'This will change:'), ''];
     for (const c of changes) lines.push(`  ${c.on ? ok(caps, true, 'on ') : ok(caps, false, 'off')}  ${c.plugin}  ${paint(caps, PALETTE.faint, c.marketplace)}`);
     const off = [...new Set(changes.map((c) => c.marketplace))].filter((m) => !writesOn(p.data, m));
-    if (off.length) lines.push('', ok(caps, false, `Writes are off for ${off.join(', ')}, so those changes will be refused. Turn them on from Skills first.`));
+    if (off.length) lines.push('', ok(caps, false, `Writes are off for ${off.join(', ')}, so those changes will be refused. Turn them on from Skill plugins first.`));
     lines.push('', paint(caps, PALETTE.muted, 'Each line runs one command; nothing else in the folder or its index changes.'));
     return lines;
   },
@@ -372,14 +400,18 @@ export const reviewView: View = {
   },
 };
 
-/** The result line for a `skills` command, from its envelope. */
+/** The result line for a `skills` or `skill` command, from its envelope. */
 export function skillsOutcome(result: StepResult): string {
   const d = (result.envelope.data ?? {}) as Record<string, unknown>;
-  const [, sub, verb] = result.args;
+  const [group, sub, verb] = result.args;
+  if (group === 'skill' && sub === 'install') {
+    const named = [...((d.areas as string[] | undefined) ?? []), ...((d.engines as string[] | undefined) ?? [])];
+    return `${d.replaced ? 'Rewrote' : 'Installed'} the toil skill in ${String(d.path)}; its description names ${named.length ? named.join(', ') : 'no connections yet, so it is the general one'}. toil keeps it current from now on.`;
+  }
   const list = (v: unknown) => (Array.isArray(v) && v.length ? v.join(', ') : 'nothing');
   if (sub === 'status') return `${String(d.total)} skill${d.total === 1 ? '' : 's'}: ${String(d.enabled)} on, ${String(d.disabled)} off, ${String(d.untracked)} not installed by toil.`;
-  if (verb === 'add') return `Added ${String(d.name)} with writes ${d.writes ? 'on' : 'off'}; ${String(d.total)} plugin${d.total === 1 ? '' : 's'} in it. ${String(d.next ?? '')}`.trim();
-  if (verb === 'plugins') return `${String(d.total)} plugin${d.total === 1 ? '' : 's'} in ${String(d.marketplace)}.`;
+  if (verb === 'add') return `Added ${String(d.name)} with writes ${d.writes ? 'on' : 'off'}; ${String(d.total)} skill plugin${d.total === 1 ? '' : 's'} in it. ${String(d.next ?? '')}`.trim();
+  if (verb === 'plugins') return `${String(d.total)} skill plugin${d.total === 1 ? '' : 's'} in ${String(d.marketplace)}.`;
   if (verb === 'remove') return `Removed ${String((d.removed as { name?: unknown } | undefined)?.name ?? '')}; its clone and installed skills stay.`;
   if (verb === 'enable') return `${String(d.plugin ?? '')}: switched on ${list(d.enabled)}.`;
   if (verb === 'disable') return `${String(d.plugin ?? '')}: switched off ${list(d.disabled)}${Array.isArray(d.alreadyDisabled) && d.alreadyDisabled.length ? ` (already off: ${d.alreadyDisabled.join(', ')})` : ''}.`;
