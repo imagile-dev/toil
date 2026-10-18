@@ -541,7 +541,11 @@ export const oracleProvider: DbProvider = {
         { fix: 'Remove the transaction statements and send the rest; toil commits only if every statement succeeds.' },
       );
     }
+    // Statements 1 to committedThrough are known to be committed; lastChange
+    // is the last statement that changed something (rows, DDL, or a PL/SQL block).
     let committedThrough = 0;
+    let lastChange = 0;
+    let statementFailed = false;
     try {
       return await session(conn, 'write', call, async (client) => {
         let changes = 0;
@@ -550,21 +554,26 @@ export const oracleProvider: DbProvider = {
             const result = await client.execute(statement.text, {}, { resultSet: true });
             await result.resultSet?.close();
             changes += result.rowsAffected ?? 0;
+            const ddl = DDL_ON_READ.has(statement.words[0] ?? '');
+            if ((result.rowsAffected ?? 0) > 0 || ddl || statement.plsql) lastChange = i + 1;
+            // Oracle commits before and after DDL, so everything up to here is now permanent.
+            if (ddl) committedThrough = i + 1;
           } catch (err) {
+            statementFailed = true;
             // A DDL statement that fails after parsing has already committed
-            // the work before it, and a PL/SQL block can commit inside. With
-            // no transaction open now, nothing before this statement is left
-            // to roll back.
-            if (i > 0 && !call.signal.aborted && !(await transactionOpen(client))) committedThrough = i;
+            // the work before it, and a PL/SQL block can commit inside. When
+            // something before this statement changed data and no transaction
+            // is open now, that change was committed, not rolled back. With
+            // nothing changed, there is nothing to report either way.
+            if (lastChange > committedThrough && !call.signal.aborted && !(await transactionOpen(client))) committedThrough = lastChange;
             throw err;
           }
-          // Oracle commits before and after DDL, so everything up to here is now permanent.
-          if (DDL_ON_READ.has(statement.words[0] ?? '')) committedThrough = i + 1;
         }
         return { changes };
       });
     } catch (err) {
-      if (committedThrough === 0 || !(err instanceof ToilError) || err.code === 'CANCELLED' || err.code === 'TIMEOUT') throw err;
+      if (!statementFailed || !(err instanceof ToilError) || err.code === 'CANCELLED' || err.code === 'TIMEOUT') throw err;
+      if (committedThrough === 0) throw new ToilError(err.code, `${err.message} Nothing was applied: the transaction rolled back.`, err.fix ? { fix: err.fix } : {});
       throw new ToilError(err.code, `${err.message} Oracle committed statements 1 to ${committedThrough} of ${statements.length} as the script ran (DDL commits, and so can PL/SQL), so they stay applied.`, {
         ...(err.fix ? { fix: `${err.fix} Check what statements 1 to ${committedThrough} changed before running the script again.` } : {}),
       });

@@ -18,6 +18,9 @@ import { BaseBuffer } from 'oracledb/lib/impl/datahandlers/buffer.js';
  * The text matches what PostgreSQL and MySQL return: `2026-01-02 03:04:05`,
  * a fraction only when there is one, with its trailing zeros trimmed, and a
  * zoned value's offset (`+02`, `+05:30`) as PostgreSQL writes it.
+ *
+ * A timestamp stored without a zone is not to be routed through one on its
+ * way out; it holds no travel authorization for the local time zone.
  */
 
 const exact = new WeakMap<Date, string>();

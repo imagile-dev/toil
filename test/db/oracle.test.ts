@@ -362,11 +362,20 @@ describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})`
     expect(block.error?.message).toContain('committed statements 1 to 2 of 3');
     expect(await direct('SELECT active FROM people WHERE id = 2')).toEqual([[0]]);
 
-    // A DDL statement Oracle refuses while parsing commits nothing, and the error says nothing about it.
+    // A DDL statement Oracle refuses while parsing commits nothing, and the error says so.
     const parse = await write('UPDATE people SET active = 0 WHERE id = 4; CREATE TABLEX notes');
     expect(parse.error?.code).toBe('DATABASE');
     expect(parse.error?.message).not.toContain('committed');
+    expect(parse.error?.message).toContain('Nothing was applied');
     expect(await direct('SELECT active FROM people WHERE id = 4')).toEqual([[1]]);
+
+    // No transaction open, but nothing before the failure changed anything: no commit is claimed.
+    for (const sql of ['SELECT count(*) FROM people; UPDATE no_such_table SET x = 1', 'UPDATE people SET active = 0 WHERE id = 999; CREATE TABLE teams (id INTEGER)']) {
+      const envelope = await write(sql);
+      expect(envelope.error?.code, sql).toBe('DATABASE');
+      expect(envelope.error?.message, sql).not.toContain('committed');
+      expect(envelope.error?.message, sql).toContain('Nothing was applied');
+    }
   });
 
   it('refuses a script that ends the transaction, even after a comment, before running any of it', async () => {

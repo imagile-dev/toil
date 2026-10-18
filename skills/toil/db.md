@@ -404,7 +404,8 @@ runs. Two things Oracle does break all-or-nothing, and toil can't stop them: **D
 commits** everything before it, and itself, as it runs, and a PL/SQL block can commit
 inside. When a script fails after Oracle has committed part of it (a DDL statement
 that ran, or failed after parsing, or a block that committed), the error says which
-statements stayed committed (`Oracle committed statements 1 to 2 of 4`). Keep DDL in a
+statements stayed committed (`Oracle committed statements 1 to 2 of 4`); otherwise
+it says nothing was applied. Keep DDL in a
 script of its own, or first.
 
 ### Time limits and cancelling
