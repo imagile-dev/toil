@@ -85,15 +85,18 @@ Project scope is the root of the repository you're in. Installing writes files
 outside the workspace, so it's CLI only and needs `--allow-write`. Every reference
 file is installed, so an area you set up later is already documented.
 
-**There is nothing to update by hand.** The description in the installed `SKILL.md`
-names the areas and database engines you have connections for (names only, never a
-host or a credential), so an agent reaches for toil when a task touches one of them.
-toil rewrites every copy it installed when a connection is added, changed or
-removed, and when a toil of another version runs, and says so in `meta.warnings`
-(`SKILL_REWRITTEN`); a rewrite that fails is a `SKILL_REWRITE_FAILED` warning, never
-a failed command. Connections that only `TOIL_*` env vars define are named when
-they're set in the process that writes the skill, and the output says which. With no
-connections, the description is the general one.
+**The installed skill keeps itself current; there is nothing to update by hand.** The
+description in the installed `SKILL.md` names the areas and database engines you have
+connections for (names only, never a host or a credential), so an agent reaches for
+toil when a task touches one of them. Any toil command that loads config, on the CLI
+or over MCP, rewrites every copy toil installed when that command changed the config
+file (`toil connections add`, `login`, `remove`, `writes`, `default`, `toil skills
+marketplace add` and `remove`), and when the copy was written by another toil
+version. Nothing else in a skills folder is ever touched. This is one of the writes
+that need no `--allow-write`: `core.md`, under **Writes**, says why, and how to avoid
+it. Connections that only `TOIL_*` env vars define are named when they're set in the
+process that writes the skill, and the output says which. With no connections, the
+description is the general one.
 
 `toil skill show` (`skill_show` over MCP) prints the description toil would write now
 and every installed copy, with its version and whether it's current.

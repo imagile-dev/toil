@@ -110,7 +110,9 @@ and `add`, which is CLI only and only clones, needs `--allow-write` and leaves w
 
 `skill install`, which writes the toil skill toil carries into one of these folders as
 `toil/`, is CLI only too and needs `--allow-write`; there is no connection to hold a
-standing opt-in, so that install is the opt-in. From then on toil rewrites that
+standing opt-in, so that install is the opt-in. Both it and the rewrite below are
+exceptions recorded in CLAUDE.md, **Writes**, and explained for users in
+`skills/toil/core.md`, **Writes**. From then on toil rewrites that
 folder itself, and only that folder: after a command that changed the config file,
 and on any run that finds it was written by another toil version, reported in
 `meta.warnings` as `SKILL_REWRITTEN` (or `SKILL_REWRITE_FAILED`, never a failed

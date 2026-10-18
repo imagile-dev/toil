@@ -19,7 +19,8 @@ beside this file, says how.
   identical inputs and output.
 - **Writes.** Reads are always allowed. A command that changes data needs
   `writes: true` on the connection, set by a person, and `--allow-write` on the call
-  (`allowWrite: true` over MCP). Only make a write the user asked for.
+  (`allowWrite: true` over MCP). Only make a write the user asked for. Three writes
+  differ, each listed in `core.md` under **Writes**.
 - **Connections.** Environment variables always win over `~/.toil/config.json`.
   `--connection <name>` picks one when an area has several; `toil connections list`
   names them, never a secret. Setting one up is for a person: a bare `toil` in a
@@ -36,7 +37,7 @@ Open only the file the task needs; each sits beside this one.
 
 | File | When |
 |------|------|
-| `core.md` | `--select`, `toil wait`, paging, errors, global flags, files, configuration, the raw `api` passthrough, dossiers, the audit log, certificates and proxies |
+| `core.md` | `--select`, `toil wait`, paging, errors, writes and their exceptions, global flags, files, configuration, the raw `api` passthrough, dossiers, the audit log, certificates and proxies |
 | `<area>.md` | One per area, named after it: `jira.md` for `toil jira …`. Its frontmatter says what the area covers; the file gives the oldest version it supports, its credential, its configuration keys and every command |
 | `db.md` | Databases: `toil db …` on every engine |
 | `util.md` | Local utilities with no connection or network: `toil util …` |

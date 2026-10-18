@@ -1,5 +1,5 @@
 ---
-description: What every toil command shares, in detail - the envelope and errors, --select, toil wait, paging, global flags, files and the workspace, configuration, the raw API passthrough, dossiers, the audit log, certificates and proxies
+description: What every toil command shares, in detail - the envelope and errors, --select, toil wait, paging, writes and their exceptions, global flags, files and the workspace, configuration, the raw API passthrough, dossiers, the audit log, certificates and proxies
 ---
 
 # Using toil
@@ -50,6 +50,28 @@ with a `WAIT_TIMEOUT_CAPPED` warning when it is longer; at most the
 in `error.details.data`. Only reads can be waited on: a write is `INVALID_INPUT`.
 `--select` before `wait` applies to the final `data`; a `--select` after `--` belongs
 to the read, so `--until` sees what it selected. Other global flags go before `wait`.
+
+## Writes
+
+Reads are always allowed. A command that changes something, in a service, a database
+or a file on this machine outside toil's own config, needs both `writes: true` on the
+connection it uses, set by a person in their config or with a
+`TOIL_CONN_<NAME>_WRITES` / `TOIL_<AREA>_WRITES` env var, and `--allow-write` on the
+call (`allowWrite: true` over MCP). Without either it fails with `WRITE_DISABLED`,
+naming what's missing. Over MCP a write tool isn't listed until writes are on, and
+deletes are never tools. A command that is CLI only and has no connection yet
+(`toil skills marketplace add`) needs `--allow-write` alone.
+
+### Exceptions
+
+Exactly three writes don't follow that rule. Each is the maintainer's choice, made
+deliberately, and is listed here with how to avoid it.
+
+| Write | What it writes, and when | Why | To avoid it |
+|-------|--------------------------|-----|-------------|
+| **`toil skill install`** | With `--allow-write` alone (CLI only, no connection): the toil skill, into one agent's skills folder as `toil/`, recorded as `bundled`. | Its contents are fixed: the files embedded in toil, no third-party code. It replaces only a `toil/` folder it recorded as `bundled` and refuses any other. | Don't run it. |
+| **The toil skill keeping itself current** | With no `--allow-write`: a `toil/` skill folder recorded as `bundled`, and nothing else in a skills folder (never a marketplace or hand-made skill). Rewritten by any command that loads config, on the CLI or over MCP, when that command changed the config file (a connection added, changed or removed) or when the copy was written by another toil version. Said in `meta.warnings` as `SKILL_REWRITTEN`. | So an installed skill never describes connections you no longer have, or a toil you no longer run, with no update command to forget. The contents are fixed; the description holds only area and engine names checked against toil's own list, never a host or a credential; and a rewrite that fails is a `SKILL_REWRITE_FAILED` warning, never a failed command. | Don't install the skill with `toil skill install` (copy `skills/toil` yourself, or use the Claude Code plugin marketplace), or delete the installed `toil/` folder. A call with `--config <file>` never rewrites it. |
+| **The welcome menu's game save** | With no `--allow-write`: the game's progress, under the `"game"` key of `~/.toil/config.json`, every other key kept as it was. Only while you play Two Weeks' Notice in the menu bare `toil` opens. | It's a game a person plays at a terminal, and its save touches nothing but its own key. The save is sealed against tampering, not kept secret. | Don't play it. There is no setting to turn the save off. |
 
 ## The raw API passthrough
 

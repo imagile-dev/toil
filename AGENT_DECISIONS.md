@@ -1768,6 +1768,15 @@ workspace. `bitbucket` (Data Center) is untouched.
 
 ### toil skill
 
+- **Both writes are recorded exceptions, by the maintainer's decision on #205**
+  ("agree with 1a and 2a", 2026-10-18): the automatic rewrite is the second
+  exception in CLAUDE.md, **Writes**, beside the welcome game save, and
+  `toil skill install` is the exception to "`add` installs nothing". The
+  maintainer also asked that the exceptions, and why they were chosen, be
+  documented where users read about writes: `skills/toil/core.md`, **Writes**,
+  **Exceptions** is that statement (also `/docs/core/` on the site), with how to
+  avoid each; `SKILL.md`, `install.md` and `docs/bounds.md` point to it.
+
 - **`toil skill install` is CLI only and needs `--allow-write`.** It writes outside
   the workspace and has no connection to hold a standing opt-in, so it follows the
   rule for CLI-only writes (`skills marketplace add`): the person typing it gives the
