@@ -17,6 +17,11 @@ description: Rules for toil's `db` area and its database providers (PostgreSQL, 
   Server), `node:sqlite` (built into Node), `oracledb` in Thin mode only (Oracle).
   SQL Server has no read-only transaction, so its queries always roll back, and its
   docs tell users to connect with a read-only login.
+- **TLS trusts what HTTP trusts.** Core loads the OS certificate store on the first
+  HTTP request, and a driver's own socket never makes one. A provider with TLS
+  passes `trustedCertificates(call.debug).certificates` from `src/core/network.ts`
+  (Node's defaults, `NODE_EXTRA_CA_CERTS`, then the OS store) as the driver's `ca`,
+  and keeps the driver's defaults when it's undefined (the store couldn't be read).
 - Providers live in `src/core/db/<engine>/`. Adding one follows this skill, and each
   provider records a verification level (see the `integrations` skill).
 

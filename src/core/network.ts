@@ -13,7 +13,9 @@ import { ToilError } from './errors.js';
  * unmanaged.
  *
  * It runs once, on the first request, so commands that never touch the
- * network (`version`, the db area) never read the store.
+ * network (`version`) never read the store. Database drivers open their own
+ * sockets rather than requests, so a TLS database connection asks
+ * `trustedCertificates` for the same list and passes it to the driver.
  */
 
 /** The proxy variables Node reads, in both cases. */
@@ -53,13 +55,8 @@ const node: NetworkApis = {
  * proxy setting Node can't use is CONFIG_INVALID, naming the variable.
  */
 export function configureNetwork(env: NodeJS.ProcessEnv, debug: (message: string) => void, apis: NetworkApis = node): void {
-  try {
-    const system = apis.getCACertificates('system');
-    if (system.length > 0) apis.setDefaultCACertificates([...apis.getCACertificates('default'), ...system]);
-    debug(`trusting ${system.length} certificate(s) from the OS store`);
-  } catch (err) {
-    debug(`couldn't read the OS certificate store: ${(err as Error).message}`);
-  }
+  const trusted = trustedCertificates(debug, apis);
+  if (trusted.certificates && trusted.system > 0) apis.setDefaultCACertificates(trusted.certificates);
   const proxy = proxyEnv(env);
   if (proxy) {
     try {
@@ -73,6 +70,37 @@ export function configureNetwork(env: NodeJS.ProcessEnv, debug: (message: string
     debug(`using the proxy settings from ${Object.keys(proxy).join(', ')}`);
   }
 }
+
+/**
+ * The CAs toil trusts: Node's defaults (its bundled CAs and
+ * NODE_EXTRA_CA_CERTS) followed by the OS store's. The one place that list is
+ * built, for HTTP (`configureNetwork`) and for database drivers that take a
+ * `ca` option. A store that can't be read leaves just the defaults, said
+ * under --debug. Read once per process; the store doesn't change mid-command,
+ * whatever the change calendar says.
+ */
+export function trustedCertificates(debug: (message: string) => void, apis: NetworkApis = node): TrustedCertificates {
+  if (apis === node && trustedCache) return trustedCache;
+  let trusted: TrustedCertificates;
+  try {
+    const system = apis.getCACertificates('system');
+    trusted = { certificates: [...apis.getCACertificates('default'), ...system], system: system.length };
+    debug(`trusting ${system.length} certificate(s) from the OS store`);
+  } catch (err) {
+    trusted = { certificates: undefined, system: 0 };
+    debug(`couldn't read the OS certificate store: ${(err as Error).message}`);
+  }
+  if (apis === node) trustedCache = trusted;
+  return trusted;
+}
+
+/** `certificates` is undefined when the store couldn't be read: keep Node's defaults. */
+export interface TrustedCertificates {
+  certificates: string[] | undefined;
+  system: number;
+}
+
+let trustedCache: TrustedCertificates | undefined;
 
 /**
  * A fetch that sets up the network the first time it's called, then defers
