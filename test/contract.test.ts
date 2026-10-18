@@ -231,7 +231,7 @@ describe('migration contract: output field names', async () => {
       const found: string[] = [];
       for (const def of inContract) {
         for (const example of def.examples) {
-          const { context } = testContext({ config: f.config, routes: f.routes, files: f.files, ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}) });
+          const { context } = testContext({ config: f.config, routes: f.routes, files: f.files, ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}), ...(f.home ? { home: f.home } : {}) });
           const envelope = await execute(def, example, context);
           expect(envelope.ok, `${commandName(def)}: ${JSON.stringify(envelope.error)}`).toBe(true);
           const forThisCall = loadDivergences(divergenceFiles, example as Record<string, unknown>);

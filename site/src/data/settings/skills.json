@@ -1,0 +1,50 @@
+[
+  {
+    "key": "repoUrl",
+    "env": "TOIL_SKILLS_REPO_URL",
+    "description": "Git clone URL of the marketplace: https, or a local path",
+    "required": true,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "localPath",
+    "env": "TOIL_SKILLS_LOCAL_PATH",
+    "description": "Where its clone lives (default: ~/.agents/marketplaces/<repo-name>)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "branch",
+    "env": "TOIL_SKILLS_BRANCH",
+    "description": "Branch to clone (default: the remote HEAD)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "username",
+    "env": "TOIL_SKILLS_USERNAME",
+    "description": "User name sent with the token (default: x-access-token on GitHub, x-token-auth elsewhere)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "provider",
+    "env": "TOIL_SKILLS_PROVIDER",
+    "description": "Git host type, when the URL does not say: github | bitbucket | ado | git",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "token",
+    "env": "TOIL_SKILLS_TOKEN",
+    "description": "HTTP access token for a private marketplace",
+    "required": false,
+    "secret": true,
+    "fallbacks": []
+  }
+]
