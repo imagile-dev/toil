@@ -14,3 +14,11 @@ test/fixtures/jmespath/, as distributed with jmespath.py
 (https://github.com/jmespath/jmespath.py), Copyright (c) 2013 Amazon.com, Inc.
 or its affiliates, licensed under the MIT License (see
 test/fixtures/jmespath/LICENSE). It is not part of the published package.
+
+The util commands that read YAML or validate JSON Schema bundle, loaded only
+when such a command runs:
+
+- js-yaml (https://github.com/nodeca/js-yaml), Copyright (C) 2011-2015 by
+  Vitaly Puzrin, licensed under the MIT License.
+- @cfworker/json-schema (https://github.com/cfworker/cfworker), by Jeremy
+  Danyow, licensed under the MIT License.

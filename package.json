@@ -47,6 +47,7 @@
     "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
+    "@cfworker/json-schema": "4.1.1",
     "@eslint/js": "10.0.1",
     "@modelcontextprotocol/sdk": "1.31.0",
     "@types/node": "24.19.0",
@@ -54,6 +55,7 @@
     "@types/pg": "8.23.1",
     "commander": "15.0.0",
     "eslint": "10.11.0",
+    "js-yaml": "5.4.2",
     "mysql2": "3.24.5",
     "oracledb": "7.0.1",
     "pg": "8.23.1",

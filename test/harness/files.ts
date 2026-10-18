@@ -1,4 +1,4 @@
-import { alreadyExists, DEFAULT_LIST_LIMIT, forwardSlashes, readFailed, STDIN_IS_TERMINAL, STDIN_OVER_MCP, toCsv, tooManyFiles, type FileAccess } from '../../src/core/files.js';
+import { alreadyExists, DEFAULT_LIST_LIMIT, forwardSlashes, readFailed, STDIN_IS_TERMINAL, STREAM_CHUNK, STDIN_OVER_MCP, toCsv, tooManyFiles, type FileAccess } from '../../src/core/files.js';
 import { isIgnored, parseIgnore, type IgnoreRule } from '../../src/core/gitignore.js';
 
 /**
@@ -41,6 +41,16 @@ export function memoryFiles(initial: Record<string, string | Uint8Array> = {}, o
     resolve: at,
     readText: (path) => new TextDecoder().decode(read(path)),
     readBytes: read,
+    readStream: (path, streamOptions = {}) => {
+      const bytes = read(path);
+      const size = streamOptions.chunkSize ?? STREAM_CHUNK;
+      return (async function* () {
+        for (let at = 0; at < bytes.length; at += size) {
+          streamOptions.signal?.throwIfAborted();
+          yield bytes.slice(at, at + size);
+        }
+      })();
+    },
     writeBytes,
     exists: (path) => store.has(at(path)) || isDir(at(path)),
     stat: (path) => {
