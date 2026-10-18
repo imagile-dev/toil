@@ -12,7 +12,8 @@ import { join } from 'node:path';
  */
 const dir = join(homedir(), '.toil', 'audit');
 
-function sizes(): Map<string, number> {
+/** The real audit log's files and their sizes; a test can compare two readings itself. */
+export function sizes(): Map<string, number> {
   if (!existsSync(dir)) return new Map();
   return new Map(readdirSync(dir).map((name) => [name, statSync(join(dir, name)).size]));
 }
