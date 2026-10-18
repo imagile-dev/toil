@@ -21,7 +21,7 @@ type Row = unknown[];
 type Data = { columns: Array<{ name: string; type: string | null }>; rows: Row[] };
 
 for (const target of targets) {
-  const skip = target.skip?.();
+  const skip = await target.skip?.();
   describe.skipIf(skip !== undefined)(`db conformance: ${target.engine}${skip ? ` (skipped: ${skip})` : ''}`, () => {
     let db: TargetDatabase;
     beforeEach(async () => {
@@ -92,7 +92,8 @@ for (const target of targets) {
         expect(columns.find((c) => c.name === 'name')).toMatchObject({ nullable: false, primaryKey: null });
         expect(columns.find((c) => c.name === 'team_id')).toMatchObject({ nullable: true });
         expect(columns.find((c) => c.name === 'active')?.default).toMatch(/1/);
-        expect(columns.find((c) => c.name === 'name')?.type?.toUpperCase()).toContain('VARCHAR');
+        // VARCHAR(100) as declared (SQLite), or its standard name (PostgreSQL's character varying(100)).
+        expect(columns.find((c) => c.name === 'name')?.type?.toUpperCase()).toMatch(/VARCHAR|CHARACTER VARYING/);
         expect(d.indexes).toContainEqual({ name: 'people_team', columns: ['team_id'], unique: false });
         expect(d.foreignKeys).toEqual([
           { columns: ['team_id'], references: { schema: target.defaultSchema, table: 'teams', columns: ['id'] }, onUpdate: null, onDelete: null },
@@ -214,6 +215,8 @@ for (const target of targets) {
         const envelope = await run(query, { sql, ...(cursor ? { cursor } : {}) }, { signal: controller.signal });
         expect(envelope.error?.code).toBe('CANCELLED');
         expect(Date.now() - started).toBeLessThan(5000);
+        // A server engine stops the statement on the server, not just toil's wait for it.
+        if (db.running) await expect.poll(db.running, { timeout: 5000 }).toBe(0);
         expect(data(await run(query, { sql: 'SELECT 1 AS one' })).rows).toEqual([[1]]);
       });
 
@@ -221,6 +224,7 @@ for (const target of targets) {
         const { sql, cursor } = target.sql.slow();
         const envelope = await run(query, { sql, ...(cursor ? { cursor } : {}) }, { timeoutMs: 300 });
         expect(envelope.error?.code).toBe('TIMEOUT');
+        if (db.running) await expect.poll(db.running, { timeout: 5000 }).toBe(0);
       });
     });
 
