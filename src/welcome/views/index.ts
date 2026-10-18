@@ -5,6 +5,7 @@ import { addArea, addName, connectionsList, connectionView, makeDefault, removeV
 import { healthView, helpView } from './health.js';
 import { homeView, type HomeEntry } from './home.js';
 import { resultView } from './result.js';
+import { addNameView, addUrlView, agentView as skillsAgentView, marketplaceView, pluginsView, pluginView, removeMarketplaceView, reviewView, scopeView, skillsView, toggleView } from './skills.js';
 
 /**
  * Every menu module, in home-screen order, and every view by id. A module
@@ -16,6 +17,8 @@ export const HOME_ENTRIES: HomeEntry[] = [
   { label: 'Health check', hint: 'Config file, this folder and every connection', view: 'health' },
   { label: 'Connections', hint: 'Add, test, sign in again, writes and defaults', view: 'connections' },
   { label: 'Connect an agent', hint: 'Pick areas and get the MCP config snippet', view: 'agents' },
+  { label: 'Skills', hint: 'Marketplaces of agent skills: add one, install a plugin', view: 'skills' },
+  { label: 'Plugins', hint: 'Switch installed plugins on and off', view: 'plugins' },
   { label: 'Help', hint: 'How toil works, a command cheatsheet, the docs', view: 'help' },
   { label: 'Play brick breaker', hint: 'One wall, three lives, while the build runs', view: 'brick' },
 ];
@@ -33,6 +36,17 @@ export const VIEWS: Record<string, View> = {
   'agent-areas': agentAreas,
   agent: agentView,
   help: helpView,
+  skills: skillsView,
+  marketplace: marketplaceView,
+  'skills-plugin': pluginView,
+  'skills-agent': skillsAgentView,
+  'skills-scope': scopeView,
+  'skills-add-url': addUrlView,
+  'skills-add-name': addNameView,
+  'skills-remove': removeMarketplaceView,
+  plugins: pluginsView,
+  'plugins-toggle': toggleView,
+  'plugins-review': reviewView,
   brick: brickView,
   result: resultView,
 };

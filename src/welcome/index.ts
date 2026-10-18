@@ -133,6 +133,8 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
   const restore = () => {
     clearTimeout(noticeTimer);
     signals.off('SIGINT', onSigint);
+    // Here rather than after the menu loop, so an error that skips the loop still removes it.
+    if (redraw) output.off('resize', redraw);
     if (altScreen) write(cursor.altScreenOff);
     write(cursor.show);
     input.off('keypress', onKeypress);
@@ -260,7 +262,6 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
         keyListeners.add(l);
       }),
     ]);
-    output.off('resize', redraw);
     return interrupted ? 'interrupted' : 'quit';
   } finally {
     restore();

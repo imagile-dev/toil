@@ -82,7 +82,7 @@ export function reduce(state: MenuState, key: Key, data: WelcomeData): MenuState
     const options = view.checklist.options(p);
     const n = options.length;
     if (n === 0) return isEnter(key) ? apply(state, view.checklist.confirm([], p)) : state;
-    const checked = new Set(f.checked ?? []);
+    const checked = new Set(f.checked ?? view.checklist.initial?.(p) ?? []);
     if (key.name === 'up' || key.name === 'k') return replaceTop(state, { ...f, selected: (f.selected - 1 + n) % n });
     if (key.name === 'down' || key.name === 'j') return replaceTop(state, { ...f, selected: (f.selected + 1) % n });
     if (key.name === 'space') {
@@ -175,7 +175,7 @@ export function render(state: MenuState, caps: RenderCaps, data: WelcomeData, no
     keys = 'type   enter go on   esc back';
   } else if (view.checklist) {
     const options = view.checklist.options(p);
-    const checked = new Set(f.checked ?? []);
+    const checked = new Set(f.checked ?? view.checklist.initial?.(p) ?? []);
     const rowsLeft = rows - lines.length - 4;
     const width = Math.max(0, ...options.map((o) => [...o.label].length));
     lines.push(
