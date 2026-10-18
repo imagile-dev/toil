@@ -24,6 +24,17 @@ export interface Meta {
    * another area's connection. Never a secret's value.
    */
   context?: ContextReport;
+  /**
+   * For a raw API call (`<area> api`): the answer's status and content type,
+   * since `data` is the body as the service sent it. Set with `ctx.setResponse`.
+   */
+  response?: ApiAnswer;
+}
+
+/** The status and content type of the response a raw API call returned. */
+export interface ApiAnswer {
+  status: number;
+  contentType: string | null;
 }
 
 /**

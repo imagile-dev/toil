@@ -169,6 +169,13 @@ versions.
   connection, context, write gate and time limit on the CLI, is never an MCP tool,
   and its docs page marks it CLI only. The parity suite runs its examples and write
   gate on the CLI.
+- **Raw API passthrough** (`<area> api`): an HTTP area adds
+  `apiCommand(area, { service, examplePath, examples })` from
+  `src/core/passthrough.ts` to its `commands`. Give it a read example, one with a
+  `query`, and a write with `bodyFile`, `contentType` and `allowWrite: true`; the
+  fixture answers each, and the parity suite proves the write gate. Copy the **Any
+  endpoint** section of `skills/toil/jira.md` into the area's skill file, with its
+  own paths. Don't add one to an area that isn't HTTP (`db`, `git`).
 - **A command the old CLI ran with the service unconfigured** (`git current-pr`
   answering that Bitbucket isn't set up) sets `connectionOptional: true`. When the
   area has no connection and the call names none, `run` gets `ctx.connection`

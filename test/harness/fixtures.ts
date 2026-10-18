@@ -52,6 +52,12 @@ export interface AreaFixture {
    */
   git?: GitRunner;
   /**
+   * Files in the home folder the examples run against (`ctx.home`), relative
+   * paths with forward slashes: the skills area's agent folders and clones.
+   * Each run gets a fresh copy at the same path.
+   */
+  home?: Record<string, string>;
+  /**
    * A dossier the examples run with: written to a temp home as your own, and
    * named by TOIL_DOSSIER, for an area's `check-dossier`. Keep context inputs
    * the other examples take out of it, or they'll pick them up.

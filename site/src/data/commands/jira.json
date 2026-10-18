@@ -262,6 +262,21 @@
     ]
   },
   {
+    "name": "api",
+    "tool": "jira_api",
+    "description": "Call any Jira Data Center REST endpoint on the connection, e.g. toil jira api GET /rest/api/2/issue/PAY-1042",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<method>",
+      "<path>",
+      "--query <key=value>",
+      "--body-file <path>",
+      "--content-type <type>",
+      "--allow-write"
+    ]
+  },
+  {
     "name": "check-dossier",
     "tool": "jira_check_dossier",
     "description": "Check the call's dossier against Jira: its projects and field ids exist",

@@ -36,7 +36,8 @@ toil may add commands, flags and output fields.
 | `jwt` | Yes | Built as `util jwt decode`, a local utility; `jwt decode` stays as its alias. One divergence, in `docs/divergences/jwt.json` |
 | `deps` | Yes | `scan` and `diff` are built as `util deps scan` and `util deps diff`, local utilities, with their old paths as aliases; `frisk`, `outdated` and `license-check` are aliases of the source commands that own them. Divergences in `docs/divergences/deps.json` |
 | `config` | No | Rebuilt around the OS credential store. `config import` migrates the old global config once. |
-| `skills`, `doctor` | No | Rebuilt for toil's own skill and setup story |
+| `skills` | Yes | Marketplace add, list, plugins, remove, sync, enable and disable, and `skills status`, matched. The rest aren't built yet, or are gone for good (`skills git-auth`); each is a divergence in `docs/divergences/skills.json` |
+| `doctor` | No | Rebuilt for toil's own setup story |
 
 ## Divergences
 
