@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { configureNetwork, networkFetch, proxyEnv, resetNetwork, trustedCertificates, type NetworkApis } from './network.js';
+import { configureNetwork, networkFetch, proxyEnv, resetNetwork, trustOsStoreByDefault, trustedCertificates, type NetworkApis } from './network.js';
 
 afterEach(() => resetNetwork());
 
@@ -49,6 +49,17 @@ describe('configureNetwork', () => {
     expect(broken.calls.defaults).toEqual([]);
     expect(broken.calls.proxy).toHaveLength(1);
     expect(debug).toHaveBeenCalledWith(expect.stringContaining('keychain locked'));
+  });
+});
+
+describe('trustOsStoreByDefault', () => {
+  it('adds the OS store to the defaults without touching the proxy, and does nothing for an empty store', () => {
+    const { apis, calls } = fakeApis();
+    trustOsStoreByDefault(() => {}, apis);
+    expect(calls).toEqual({ defaults: [['BUNDLED-1', 'EXTRA-1', 'SYS-1']], proxy: [] });
+    const empty = fakeApis([]);
+    trustOsStoreByDefault(() => {}, empty.apis);
+    expect(empty.calls.defaults).toEqual([]);
   });
 });
 

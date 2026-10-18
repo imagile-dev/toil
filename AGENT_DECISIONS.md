@@ -804,28 +804,6 @@ Added as each integration lands.
 - **The test image is pinned to `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04`**
   in CI and the databases skill, never `2022-latest`.
 
-- **Windows authentication** (`auth: "windows"`, #165): the alternate account reuses
-  `user` with a new `domain` key, not a separate `username`. A provider `check` hook
-  (run by the area schema's `superRefine`) requires `user` for SQL logins and refuses
-  `auth: "windows"` off Windows; the reason is in the error's `details`, since core's
-  message names only the key.
-- **tedious is patched at runtime, not vendored or patched at bundle time**: a
-  marked connection is configured as `ntlm`, and `sendLogin7Packet`,
-  `performSentLogin7WithNTLMLogin` and the token parser are wrapped once, for marked
-  connections and short Negotiate tokens only. A test fails if a tedious upgrade
-  renames any of them. Where: `src/core/db/sqlserver/windows-login.ts`.
-- **The SSPI helper** (`src/os/windows-sspi.ts`) is Windows PowerShell 5.1 by absolute
-  path, with its script and every token on stdin, `ISC_REQ_CONNECTION` only (no
-  mutual authentication), an allowlisted env, and the SPN `MSSQLSvc/<host>:<port>`
-  as configured (the docs say to use the FQDN). It starts only after the
-  `Connection` is built.
-- **Constrained Language Mode is `AUTH` with a message naming the mode**, not a new
-  error code.
-- **Spawners are one reviewed list**, `scripts/spawners.mjs`, read by tsup, `check:pure`
-  and ESLint.
-- **Windows authentication is documented as `untested`** until it runs against a
-  domain; the provider stays at `integration` for SQL logins.
-
 ## Dossiers (#16)
 
 - **The model and resolution (#152):**
@@ -852,9 +830,81 @@ Added as each integration lands.
   - **Field aliases go through the area's existing `--field`** (Jira, Jira Cloud), asked for only when the call names a field; a name the connection already uses keeps the connection's meaning.
   - **A fixture can carry a `dossier`** for its area's `check-dossier`, holding only keys the other examples don't read.
 - **Checks for every area (the last #16 PR):**
-  - **`check-dossier` checks the area's own section and the call's environment's only** (`--env`, else the dossier's `env`). Another environment's section may select another connection, so it's checked by a call in that environment, never against this one's server. The result names the environment it checked.
-  - **Values that belong together pair up per repo** (`viewScopes`): a repo with its project (bitbucket, ado) or owner (github). A plain value applies to every repo, and a per-repo one to its repo only.
-  - **ado's collection is the section's (per repo or not), else the call's** (`--collection`, or the connection's). A value with no collection anywhere is `INVALID_INPUT`, never skipped (principle 4).
-  - **openshift checks a namespace as a project** (`project.openshift.io`), which an ordinary token can read; the namespace object needs cluster rights. `deployments` are checked in their section's `namespace`.
+  - **`check-dossier` reads values as a call does**: the area's own section and the call's environment's only (`--env`, else the dossier's `env`), with a key the environment sets shadowing the area's own. Another environment's section may select another connection, so it's checked by a call in that environment. The result names the environment it checked.
+  - **Values that belong together pair up per repo, across sections** (`viewScopes`): a repo with its project (bitbucket, ado) or owner (github), the environment's section first.
+  - **A value that can't be looked up is `unchecked`**, with a `DOSSIER_UNCHECKED` warning and `ok` false: a repo with no project or owner, a deployment with no namespace, an ado value with no collection (the dossier's, else the call's). Never skipped (principle 4), and not a refusal, which would block checking the rest.
+  - **openshift checks a namespace as a project** (`project.openshift.io`), which an ordinary token can read; the namespace object needs cluster rights. Deployments take their namespace as a call finds it.
   - **Only not-found counts as missing**, in every area. Any other failure (a bad token, an unreachable host) fails the command, rather than reporting every value missing.
   - **Fixtures keep the dossier out of other examples** by giving context inputs per repo: no example's folder is that repo, so only `check-dossier` sees them.
+- **Windows authentication** (`auth: "windows"`, #165): the alternate account reuses
+  `user` with a new `domain` key, not a separate `username`. A provider `check` hook
+  (run by the area schema's `superRefine`) requires `user` for SQL logins and refuses
+  `auth: "windows"` off Windows; the reason is in the error's `details`, since core's
+  message names only the key.
+- **tedious is patched at runtime, not vendored or patched at bundle time**: a
+  marked connection is configured as `ntlm`, and `sendLogin7Packet`,
+  `performSentLogin7WithNTLMLogin` and the token parser are wrapped once, for marked
+  connections and short Negotiate tokens only. A test fails if a tedious upgrade
+  renames any of them. Where: `src/core/db/sqlserver/windows-login.ts`.
+- **The SSPI helper** (`src/os/windows-sspi.ts`) is Windows PowerShell 5.1 by absolute
+  path, with its script and every token on stdin, `ISC_REQ_CONNECTION` only (no
+  mutual authentication), an allowlisted env, and the SPN `MSSQLSvc/<host>:<port>`
+  as configured (the docs say to use the FQDN). It starts only after the
+  `Connection` is built.
+- **Constrained Language Mode is `AUTH` with a message naming the mode**, not a new
+  error code.
+- **Spawners are one reviewed list**, `scripts/spawners.mjs`, read by tsup, `check:pure`
+  and ESLint.
+- **Windows authentication is documented as `untested`** until it runs against a
+  domain; the provider stays at `integration` for SQL logins.
+
+
+### Oracle
+
+- **`oracledb` 7.0.1 in Thin mode only**, built from the driver's and Oracle's docs
+  with no predecessor, at verification level `integration`. ESLint refuses
+  `initOracleClient`, the one way into Thick mode, and a test shows no native addon
+  loads.
+- **`database` is the service name, and nothing else.** toil builds the connect
+  descriptor itself from `host`, `port` and `database`, so it reads no
+  `tnsnames.ora`, `sqlnet.ora`, `TNS_ADMIN`, wallet or config provider. SIDs and TNS
+  aliases aren't supported, and a host or service that could add a clause to the
+  descriptor is `CONFIG_INVALID`. TCPS gets the OS certificate store through
+  `trustOsStoreByDefault`, since Thin mode's TLS takes no `ca` option.
+- **`DbProvider.defaultSchema` is a function of the connection**, because Oracle's
+  default is the login's own schema. Names are reported as Oracle stores them
+  (upper case unless quoted), and a schema or table not found as typed is looked up
+  again in upper case.
+- **Reads run in `SET TRANSACTION READ ONLY`, rolled back.** ORA-01456, ORA-28193 and
+  ORA-16000 are `WRITE_DISABLED`. DDL on a read is refused as `WRITE_DISABLED`,
+  because Oracle commits DDL inside a read-only transaction. PL/SQL (`BEGIN`,
+  `DECLARE`, `CALL`, `WITH FUNCTION` / `WITH PROCEDURE`) is refused as
+  `INVALID_INPUT`, because a block can commit or run an autonomous transaction. Each
+  keyword is proven to write through a read-only transaction in
+  `test/db/oracle.test.ts`.
+- **No session-level read-only.** 23ai's `ALTER SESSION SET READ_ONLY` would close
+  more holes, but 19c, where most enterprises are, doesn't have it. One mechanism
+  plus the proven denies is the simpler choice.
+- **Dates are exact strings**, read from the wire bytes rather than the local-time
+  `Date` Thin mode builds. Thin mode formats dates on the client, so session NLS
+  formats can't apply. The shape is PostgreSQL's and MySQL's:
+  `2026-01-02 03:04:05.123456`, `+02` / `+05:30` for a zoned value, and `+00` for a
+  named region or `WITH LOCAL TIME ZONE`.
+- **The commit claim on a failed `db execute`:** toil names statements as committed
+  only when it knows they are: DDL that ran, or a change followed by a closed
+  transaction (`DBMS_TRANSACTION`). After any PL/SQL block or `CALL` ran, the
+  failing one included, or when that check fails, the error says the statements up to the
+  failure may have committed. "Nothing was applied" is said only when nothing could
+  have committed. `COMMIT`, `ROLLBACK`, `SAVEPOINT` and `SET TRANSACTION` are refused
+  before any of the script runs.
+- **The image is pinned to `gvenzl/oracle-free:23.26.3-slim-faststart`**, a CI
+  service in `Databases (integration)`. It is healthy in about a minute, and the
+  Oracle target sets a 30 s test and hook limit for slow runners.
+- **Known limits, pinned by tests and documented:**
+  - A stored function with an autonomous transaction still writes when a `SELECT`
+    calls it.
+  - DDL commits mid-script, and a block can commit inside one.
+  - Thin mode's in-band break can't wake `DBMS_SESSION.SLEEP`.
+  - `AUDIT` isn't denied, because the escape can't be proven without audit
+    privileges.
+  - Only 23ai has been run.

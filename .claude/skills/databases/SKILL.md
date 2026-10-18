@@ -48,11 +48,17 @@ one they got.
   creates its target file before the read-only refusal, so SQLite reads refuse any
   statement whose first keyword is `VACUUM` (`INVALID_INPUT`, pointing at
   `db execute`), and PostgreSQL reads refuse `COPY` and `DO`: `COPY ... TO '<file>'` and `TO PROGRAM`
-  write a server file or run a program inside a read-only transaction, and a `DO` block can run that `COPY`. MySQL reads refuse `SELECT ... INTO OUTFILE` / `INTO DUMPFILE` (a server file) and any `SET` (`SET GLOBAL` and `SET PERSIST` change the server), checked with and without backslash escapes so `NO_BACKSLASH_ESCAPES` can't hide one. SQL Server has no read-only transaction at all: reads always roll back, a statement the server's DONE token reports as a write is `WRITE_DISABLED`, and reads refuse `COMMIT`, `ROLLBACK`, `BEGIN TRANSACTION` and `SAVE TRANSACTION`, which would end that transaction, and `OUTPUT`, whose rows arrive before the server reports the write (`src/core/db/sqlserver/script.ts`). Each denies one statement by name; it does not decide whether SQL
+  write a server file or run a program inside a read-only transaction, and a `DO` block can run that `COPY`. MySQL reads refuse `SELECT ... INTO OUTFILE` / `INTO DUMPFILE` (a server file) and any `SET` (`SET GLOBAL` and `SET PERSIST` change the server), checked with and without backslash escapes so `NO_BACKSLASH_ESCAPES` can't hide one. SQL Server has no read-only transaction at all: reads always roll back, a statement the server's DONE token reports as a write is `WRITE_DISABLED`, and reads refuse `COMMIT`, `ROLLBACK`, `BEGIN TRANSACTION` and `SAVE TRANSACTION`, which would end that transaction, and `OUTPUT`, whose rows arrive before the server reports the write (`src/core/db/sqlserver/script.ts`).
+  Oracle reads refuse DDL (`WRITE_DISABLED`), because Oracle commits DDL inside a
+  read-only transaction, and PL/SQL (`BEGIN`, `DECLARE`, `CALL`, `WITH FUNCTION`;
+  `INVALID_INPUT`), because a block can commit, run DDL or an autonomous transaction;
+  `test/db/oracle.test.ts` proves each keyword writes through `SET TRANSACTION READ ONLY`. Each denies one statement by name; it does not decide whether SQL
   writes, and everything else still relies on the engine. Add another such deny only
   for a statement proven to escape the engine's read-only mode, with a test showing
   the escape. A hole that can't be closed (SQLite's read-only `ATTACH` of other
-  files, PostgreSQL's server-side functions such as `lo_export` for a privileged role, a MySQL procedure that commits and turns read-write itself, SQL Server's `COMMIT` inside dynamic SQL, which toil detects from the transaction ending and reports, and which a read-only login is what stops) is pinned with a test and documented as a known limit.
+  files, PostgreSQL's server-side functions such as `lo_export` for a privileged role, a MySQL procedure that commits and turns read-write itself, SQL Server's `COMMIT` inside dynamic SQL, which toil detects from the transaction ending and reports, and which a read-only login is what stops),
+  an Oracle stored function with an autonomous transaction called from a `SELECT`) is
+  pinned with a test and documented as a known limit.
 - **`execute` is all or nothing.** A script that starts or ends its own transaction
   is refused before any of it runs, so a mid-script `COMMIT` can't leave half a
   change applied.
@@ -81,6 +87,11 @@ one they got.
   SQL Server sends a TDS
   attention on the same connection (tedious's `cancel()`), and also once a page is
   full, so the server stops producing rows nobody reads.
+  Oracle sends
+  `connection.break()` on the call's own connection (`src/core/db/oracle/index.ts`).
+  Thin mode's break is in band, so the server hears it at its next check: a working
+  statement stops at once, but `DBMS_SESSION.SLEEP` only when it wakes. Oracle's
+  conformance target therefore uses a long cartesian count as its slow statement.
 - **SQL Server's Windows authentication** (`auth: "windows"`) gets its SSPI tokens
   from `src/os/windows-sspi.ts`, a Windows PowerShell helper (CLAUDE.md, No
   Executables), and `src/core/db/sqlserver/windows-login.ts` wraps two of tedious's
@@ -110,9 +121,14 @@ one they got.
   toil's statements still executing on the server against that database, and the
   conformance suite polls it to 0 after a cancel and a time limit. That is how a
   server-side cancel is tested: the slow statement sleeps on the server without
-  producing a row (`pg_sleep`, `SLEEP`, `WAITFOR DELAY`, `DBMS_SESSION.SLEEP`), so
+  producing a row (`pg_sleep`, `SLEEP`, `WAITFOR DELAY`; on Oracle a cartesian count,
+  since Thin mode's in-band break can't wake `DBMS_SESSION.SLEEP`), so
   only a real cancel stops it. Break the cancel on purpose once and watch both
   tests fail.
+- **Engines that fold names.** A target can set `stored` (how an unquoted name is
+  stored: Oracle upper-cases it), a per-database `defaultSchema` (Oracle's is the
+  test user, one per test), and `sql.transactionControl` (the engine's own
+  transaction statements); the suite reads expected names through them.
 - **`npm run test:integration`** is `vitest run test/db/`. CI's `integration` job
   (`.github/workflows/ci.yml`) runs it on Linux with each server engine as a
   service container from its official image at a pinned tag, and sets each URL
