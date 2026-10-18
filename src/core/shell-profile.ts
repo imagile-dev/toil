@@ -69,7 +69,7 @@ export function withoutBlock(text: string, profile: string): { text: string; rem
 function unterminated(text: string, profile: string): void {
   const begins = text.split(/\r?\n/).filter((line) => line.trim() === BEGIN).length;
   const ends = text.split(/\r?\n/).filter((line) => line.trim() === END).length;
-  if (begins !== ends || begins > 1) {
+  if (begins !== ends || begins > 1 || (begins === 1 && !BLOCK.test(text))) {
     throw new ToilError('INVALID_INPUT', `${forwardSlashes(profile)} has ${begins} "${BEGIN}" line(s) and ${ends} "${END}" line(s), so toil can't tell which lines are its own.`, {
       fix: 'Edit the profile by hand so it has at most one toil block, with both marker lines, then run the command again.',
     });

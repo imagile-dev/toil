@@ -41,12 +41,30 @@ jobs:
       - run: npm run build
       # No runtime deps, no install scripts, only Node built-ins, no spawning.
       - run: npm run check:pure
-      # The committed dist/toil.js, which a clone runs with no npm install, is
-      # exactly what the build just produced, on every OS.
-      - run: npm run check:dist
+      # On the release PR only, which rebuilds the committed dist/toil.js
+      # (release.yml): it is exactly what the build just produced, on every OS.
+      # Every other PR leaves dist/ alone (dist-guard below).
+      - if: startsWith(github.head_ref, 'release-please--')
+        run: npm run check:dist
       # Install the packed tarball with scripts off; drive the CLI and MCP.
-      # Then clone the checkout and run the committed bundle with no install.
+      # Then clone the checkout and run the build from the clone, no install.
       - run: npm run smoke
+
+  # The committed dist/toil.js is the last released toil, and only the release
+  # PR rebuilds it, so any other PR that changes dist/ fails here. The head
+  # branch name reaches the script through env, never the command line.
+  dist-guard:
+    name: dist/ left to the release PR
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - run: node scripts/check-dist.mjs --untouched
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_REF: ${{ github.head_ref }}
 
   # The skill installs through a real skill manager on every OS: Claude Code
   # validates the marketplace in the repository and installs the toil plugin
@@ -118,7 +136,7 @@ jobs:
   # of them fails.
   ci-ok:
     name: CI ok
-    needs: [gate, integration]
+    needs: [gate, integration, dist-guard]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -136,3 +154,11 @@ jobs:
             exit 1
           fi
           echo "The database integration job passed."
+      # Skipped on a push to main, where there is no base to compare with.
+      - name: The dist/ guard passed
+        run: |
+          if [ "${{ needs.dist-guard.result }}" != "success" ] && [ "${{ needs.dist-guard.result }}" != "skipped" ]; then
+            echo "::error::The dist/ guard finished as '${{ needs.dist-guard.result }}'."
+            exit 1
+          fi
+          echo "dist/ was left to the release PR."

@@ -216,8 +216,8 @@ GitHub Actions; its build tooling is out of scope.
 - `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files,
   `install.md` and `mcp.md`. `.claude-plugin/` lists it as a Claude Code plugin
   marketplace, so the repository installs as one
-- `dist/toil.js` — the bundle, committed so a clone runs with no `npm install`
-  (Build & Test)
+- `dist/toil.js` — the last released bundle, committed so a clone runs with no
+  `npm install`; only the release PR rebuilds it (Build & Test)
 - `.claude/skills/` — repo-internal skills only. They're for working in this
   repository; they're never published or installed by toil (that's `skills/toil/`)
 - `docs/` — plans and decisions; `docs/divergences/<area>.json` holds the migration
@@ -368,20 +368,23 @@ npm run lint        # ESLint
 npm test            # Vitest
 npm run build       # tsup → dist/toil.js, single bundle
 npm run check:pure  # the No Executables gate (after build)
-npm run check:dist  # the committed dist/toil.js is what the build made (after build)
 npm run smoke       # install the tarball with scripts off; drive CLI and MCP; run a clone (after build)
 ```
 
-`dist/toil.js` is committed, so a clone runs with no `npm install`. Commit the rebuilt
-bundle with every change to `src/`; after merging `main`, run `npm run build` and commit
-it rather than resolving a conflict in it by hand.
-
-All seven pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 24.14
+All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 24.14
 and 26. Its `CI ok` job passes only when every one of those passed, and it's the one
-check `main`'s ruleset requires, so nothing merges on a red gate. Other checks stay
+check `main`'s ruleset requires, so nothing merges on a red gate. It also needs the
+`dist/` guard (below). Other checks stay
 optional: the review job (approval is required separately, and it skips the release
 PR), the skill-install job (it downloads Claude Code to install the skill on each OS),
 and path-filtered jobs, which would block PRs they never run on.
+
+**`dist/toil.js` is committed and is the last released toil** (the maintainer's
+decision, 2026-10-17), so a clone runs it with no `npm install`. A PR never changes
+it: the `dist/` guard in CI (`node scripts/check-dist.mjs --untouched`) fails any PR
+that touches `dist/` unless it is release-please's own (`release-please--…`). The
+release workflow rebuilds the bundle on the release PR and commits it there, and
+`npm run check:dist` verifies it on that PR on every OS.
 
 ## Output Contract
 
@@ -728,7 +731,7 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 - **Every PR carries proof a human can check of how it was verified locally**, not
   just the claim "tests pass". Include:
   - **The gate results**: the summary lines from typecheck, lint, test, build,
-    `check:pure`, `check:dist` and `smoke`, with the OS and Node version.
+    `check:pure` and `smoke`, with the OS and Node version.
   - **Real runs**: the commands you ran against real things, with their output.
     That means the CLI, and the MCP server driven by a real agent client (the
     local Codex CLI), with the envelopes they returned, sanitized to placeholders.

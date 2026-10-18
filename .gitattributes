@@ -2,5 +2,5 @@
 *.png binary
 *.wasm binary
 # The committed bundle is generated: collapsed in PR diffs and never diffed line
-# by line. `npm run build` is the only way it changes.
+# by line. Only the release PR rebuilds it (CLAUDE.md, Build & Test).
 dist/toil.js linguist-generated=true -diff

@@ -1,10 +1,10 @@
 // Installs the packed tarball the way a locked-down user would (npm, scripts
 // off) into a throwaway prefix, then drives the installed bin through both
 // front doors: the CLI, and MCP over stdio. Then it clones this checkout and runs
-// the committed dist/toil.js with no install, through `setup alias` and a real
+// the bundle from the clone with no install, through `setup alias` and a real
 // shell. Run after `npm run build`.
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -73,18 +73,21 @@ try {
 }
 
 /**
- * The clone path: a fresh clone of this checkout's HEAD has no node_modules and
- * runs the committed dist/toil.js as it is, CLI and MCP, then `setup alias`
- * puts `toil` in a profile and a real shell runs `toil version` through it.
- * It clones the commit, not the working tree, so it tests what a user would
- * get; check:dist is what proves that commit's bundle matches its source.
+ * The clone path: a fresh clone of this checkout's HEAD has a committed
+ * dist/toil.js and no node_modules, and runs the bundle from there, CLI and
+ * MCP; then `setup alias` puts `toil` in a profile and a real shell runs
+ * `toil version` through it. The committed bundle is the last release (only
+ * the release PR rebuilds it), so the clone runs the bundle just built, put
+ * where the committed one sits: this checks the code under test along the
+ * path a clone takes. check:dist is what proves the release's own bundle.
  */
 async function fromClone(installedVersion) {
   const clone = join(work, 'clone');
   const cloned = spawnSync('git', ['clone', '--quiet', '--no-hardlinks', '--', process.cwd(), clone], { encoding: 'utf8' });
   if (cloned.status !== 0) throw new Error(`git clone of this checkout failed: ${cloned.stderr || cloned.error?.message}`);
   const bundle = join(clone, 'dist', 'toil.js');
-  if (!existsSync(bundle)) throw new Error('the clone has no dist/toil.js: commit it (npm run build, then git add dist/toil.js).');
+  if (!existsSync(bundle)) throw new Error('the clone has no committed dist/toil.js, so a clone could not run toil.');
+  copyFileSync(join(process.cwd(), 'dist', 'toil.js'), bundle);
   if (existsSync(join(clone, 'node_modules'))) throw new Error('the clone has a node_modules folder, so it would not prove a run with no npm install.');
 
   const run = (args, options = {}) => spawnSync(process.execPath, [bundle, ...args], { encoding: 'utf8', input: '', timeout: 15000, cwd: clone, ...options });

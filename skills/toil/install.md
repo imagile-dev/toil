@@ -24,16 +24,19 @@ from a clone instead.
 
 ## From a clone, with no npm install
 
-For a machine that can reach the git host but not the npm registry, or to run the
-newest `main`. Needs Node and git.
+For a machine that can reach the git host but not the npm registry. Needs Node and
+git.
 
 ```bash
 git clone https://github.com/imagile-dev/toil.git
 node toil/dist/toil.js version
 ```
 
-`dist/toil.js` is committed, kept identical to its source by CI, and is the same file
-the npm package ships. It imports only Node's built-ins, so there is nothing to install.
+`dist/toil.js` is committed, and it is the **last released toil**: each release rebuilds
+it, and nothing else changes it, so it is the same file that release ships on npm.
+Newer commits on `main` are in a clone's source but not in its bundle until the next
+release; before the first release, it is the bundle committed with this skill. It
+imports only Node's built-ins, so there is nothing to install.
 To type `toil` instead of `node <clone>/dist/toil.js`, add an alias to the shell
 profile, once:
 
@@ -52,7 +55,8 @@ flags, takes it out.
   `node <clone>/dist/toil.js` with the same arguments; it's the same command.
 - **Windows PowerShell's default execution policy runs no profile.** If `toil` isn't
   found after opening a new PowerShell, call `node <clone>/dist/toil.js` directly.
-- **Update** with `git -C toil pull`. There is nothing to rebuild.
+- **Update** with `git -C toil pull`, which brings the newest release. There is
+  nothing to rebuild.
 
 ## Installing this skill
 

@@ -68,6 +68,9 @@ describe('the alias block', () => {
 
   it('refuses a profile whose markers do not pair up, rather than guess which lines are its own', () => {
     expect(() => withBlock(`${BEGIN}\nsomething of yours\n`, aliasBlock('bash', BUNDLE), 'p')).toThrow(/can't tell which lines are its own/);
+    // One of each, end before start: no block, so adding one would leave two of each.
+    expect(() => withBlock(`${END}\nx\n${BEGIN}\n`, aliasBlock('bash', BUNDLE), 'p')).toThrow(/can't tell which lines are its own/);
+    expect(() => withoutBlock(`${END}\nx\n${BEGIN}\n`, 'p')).toThrow(/can't tell which lines are its own/);
     expect(() => withoutBlock(`${aliasBlock('bash', BUNDLE)}${aliasBlock('bash', BUNDLE)}`, 'p')).toThrow(/2 "# >>> toil alias >>>" line/);
   });
 });

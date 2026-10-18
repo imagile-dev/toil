@@ -2799,11 +2799,11 @@ var require_validate = __commonJS({
         jsonPointer = $data;
         data = names_1.default.rootData;
       } else {
-        const matches = RELATIVE_JSON_POINTER.exec($data);
-        if (!matches)
+        const matches2 = RELATIVE_JSON_POINTER.exec($data);
+        if (!matches2)
           throw new Error(`Invalid JSON-pointer: ${$data}`);
-        const up = +matches[1];
-        jsonPointer = matches[2];
+        const up = +matches2[1];
+        jsonPointer = matches2[2];
         if (jsonPointer === "#") {
           if (up >= dataLevel)
             throw new Error(errorMsg("property/index", up));
@@ -3690,11 +3690,11 @@ var require_schemes = __commonJS({
         urnComponent.error = "URN can not be parsed";
         return urnComponent;
       }
-      const matches = urnComponent.path.match(URN_REG);
-      if (matches && matches[0] === urnComponent.path) {
+      const matches2 = urnComponent.path.match(URN_REG);
+      if (matches2 && matches2[0] === urnComponent.path) {
         const scheme = options2.scheme || urnComponent.scheme || "urn";
-        urnComponent.nid = matches[1].toLowerCase();
-        urnComponent.nss = matches[2];
+        urnComponent.nid = matches2[1].toLowerCase();
+        urnComponent.nss = matches2[2];
         const urnScheme = `${scheme}:${options2.nid || urnComponent.nid}`;
         const schemeHandler = getSchemeHandler(urnScheme);
         urnComponent.path = void 0;
@@ -3842,7 +3842,7 @@ var require_fast_uri = __commonJS({
         normalizeString(uri, options2);
       } else if (typeof uri === "object") {
         uri = /** @type {T} */
-        parse4(serialize(uri, options2), options2);
+        parse5(serialize(uri, options2), options2);
       }
       return uri;
     }
@@ -3882,8 +3882,8 @@ var require_fast_uri = __commonJS({
     function resolveComponent(base, relative2, options2, skipNormalization) {
       const target2 = {};
       if (!skipNormalization) {
-        base = parse4(serialize(base, options2), options2);
-        relative2 = parse4(serialize(relative2, options2), options2);
+        base = parse5(serialize(base, options2), options2);
+        relative2 = parse5(serialize(relative2, options2), options2);
       }
       options2 = options2 || {};
       if (!options2.tolerant && relative2.scheme) {
@@ -4008,8 +4008,8 @@ var require_fast_uri = __commonJS({
     var URI_PARSE = /^(?:([^#/:?]+):)?(?:\/\/((?:([^#/?@]*)@)?(\[[^#/?\]]+\]|[^#/:?]*)(?::(\d*))?))?([^#?]*)(?:\?([^#]*))?(?:#((?:.|[\n\r])*))?/u;
     var AUTHORITY_PREFIX = /^(?:[^#/:?]+:)?\/\/([^/?#]*)/;
     var AUTHORITY_INTRODUCER_REGION = /^(?:[^#/:?]+:)?([/\\\t\n\r]*)/;
-    function getParseError(parsed, matches) {
-      if (matches[2] !== void 0 && parsed.path && parsed.path[0] !== "/") {
+    function getParseError(parsed, matches2) {
+      if (matches2[2] !== void 0 && parsed.path && parsed.path[0] !== "/") {
         return 'URI path must start with "/" when authority is present.';
       }
       if (typeof parsed.port === "number" && (parsed.port < 0 || parsed.port > 65535)) {
@@ -4031,9 +4031,9 @@ var require_fast_uri = __commonJS({
     function isIPLiteral(host) {
       return host[0] === "[" && host[host.length - 1] === "]";
     }
-    function hasMalformedComponentPercentEncoding(matches) {
-      const host = matches[4];
-      return hasMalformedPercentEncoding(matches[3]) || host !== void 0 && !isIPLiteral(host) && hasMalformedPercentEncoding(host) || hasMalformedPercentEncoding(matches[6]) || hasMalformedPercentEncoding(matches[7]) || hasMalformedPercentEncoding(matches[8]);
+    function hasMalformedComponentPercentEncoding(matches2) {
+      const host = matches2[4];
+      return hasMalformedPercentEncoding(matches2[3]) || host !== void 0 && !isIPLiteral(host) && hasMalformedPercentEncoding(host) || hasMalformedPercentEncoding(matches2[6]) || hasMalformedPercentEncoding(matches2[7]) || hasMalformedPercentEncoding(matches2[8]);
     }
     function canonicalizeHost(parsed, options2, schemeHandler, isIP) {
       if (!options2.unicodeSupport && (!schemeHandler || !schemeHandler.unicodeSupport) && parsed.host && !isIPLiteral(parsed.host) && (options2.domainHost || schemeHandler && schemeHandler.domainHost) && isIP === false && nonSimpleDomain(parsed.host)) {
@@ -4090,15 +4090,15 @@ var require_fast_uri = __commonJS({
           }
         }
       }
-      const matches = uri.match(URI_PARSE);
-      if (matches) {
-        parsed.scheme = matches[1];
-        parsed.userinfo = matches[3];
-        parsed.host = matches[4];
-        parsed.port = parseInt(matches[5], 10);
-        parsed.path = matches[6] || "";
-        parsed.query = matches[7];
-        parsed.fragment = matches[8];
+      const matches2 = uri.match(URI_PARSE);
+      if (matches2) {
+        parsed.scheme = matches2[1];
+        parsed.userinfo = matches2[3];
+        parsed.host = matches2[4];
+        parsed.port = parseInt(matches2[5], 10);
+        parsed.path = matches2[6] || "";
+        parsed.query = matches2[7];
+        parsed.fragment = matches2[8];
         if (parsed.scheme !== void 0) {
           const decodedScheme = unescape(parsed.scheme);
           if (VALID_SCHEME.test(decodedScheme)) {
@@ -4108,14 +4108,14 @@ var require_fast_uri = __commonJS({
             malformedScheme = true;
           }
         }
-        malformedPercentEncoding = hasMalformedComponentPercentEncoding(matches);
+        malformedPercentEncoding = hasMalformedComponentPercentEncoding(matches2);
         if (malformedPercentEncoding) {
           parsed.error = parsed.error || "URI contains malformed percent-encoding.";
         }
         if (isNaN(parsed.port)) {
-          parsed.port = matches[5];
+          parsed.port = matches2[5];
         }
-        const parseError = getParseError(parsed, matches);
+        const parseError = getParseError(parsed, matches2);
         if (parseError !== void 0) {
           parsed.error = parsed.error || parseError;
           malformedAuthorityOrPort = true;
@@ -4182,7 +4182,7 @@ var require_fast_uri = __commonJS({
       }
       return { parsed, malformedAuthorityOrPort, malformedPercentEncoding, malformedSchemeSpecific, malformedHost, malformedScheme };
     }
-    function parse4(uri, opts) {
+    function parse5(uri, opts) {
       return parseWithStatus(uri, opts).parsed;
     }
     function normalizeString(uri, opts) {
@@ -4219,7 +4219,7 @@ var require_fast_uri = __commonJS({
       resolveComponent,
       equal,
       serialize,
-      parse: parse4
+      parse: parse5
     };
     module.exports = fastUri;
     module.exports.default = fastUri;
@@ -6893,8 +6893,8 @@ var require_formats = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.formatNames = exports.fastFormats = exports.fullFormats = void 0;
-    function fmtDef(validate2, compare) {
-      return { validate: validate2, compare };
+    function fmtDef(validate2, compare2) {
+      return { validate: validate2, compare: compare2 };
     }
     exports.fullFormats = {
       // date: http://tools.ietf.org/html/rfc3339#section-5.6
@@ -6965,12 +6965,12 @@ var require_formats = __commonJS({
     var DATE = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
     var DAYS = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     function date5(str2) {
-      const matches = DATE.exec(str2);
-      if (!matches)
+      const matches2 = DATE.exec(str2);
+      if (!matches2)
         return false;
-      const year = +matches[1];
-      const month = +matches[2];
-      const day = +matches[3];
+      const year = +matches2[1];
+      const month = +matches2[2];
+      const day = +matches2[3];
       return month >= 1 && month <= 12 && day >= 1 && day <= (month === 2 && isLeapYear(year) ? 29 : DAYS[month]);
     }
     function compareDate(d1, d2) {
@@ -6985,16 +6985,16 @@ var require_formats = __commonJS({
     var TIME = /^(\d\d):(\d\d):(\d\d(?:\.\d+)?)(z|([+-])(\d\d)(?::?(\d\d))?)?$/i;
     function getTime(strictTimeZone) {
       return function time3(str2) {
-        const matches = TIME.exec(str2);
-        if (!matches)
+        const matches2 = TIME.exec(str2);
+        if (!matches2)
           return false;
-        const hr = +matches[1];
-        const min = +matches[2];
-        const sec = +matches[3];
-        const tz = matches[4];
-        const tzSign = matches[5] === "-" ? -1 : 1;
-        const tzH = +(matches[6] || 0);
-        const tzM = +(matches[7] || 0);
+        const hr = +matches2[1];
+        const min = +matches2[2];
+        const sec = +matches2[3];
+        const tz = matches2[4];
+        const tzSign = matches2[5] === "-" ? -1 : 1;
+        const tzH = +(matches2[6] || 0);
+        const tzM = +(matches2[7] || 0);
         if (tzH > 23 || tzM > 59 || strictTimeZone && !tz)
           return false;
         if (hr <= 23 && min <= 59 && sec < 60)
@@ -7327,21 +7327,21 @@ var require_postgres_date = __commonJS({
       if (INFINITY.test(isoDate)) {
         return Number(isoDate.replace("i", "I"));
       }
-      var matches = DATE_TIME.exec(isoDate);
-      if (!matches) {
+      var matches2 = DATE_TIME.exec(isoDate);
+      if (!matches2) {
         return getDate(isoDate) || null;
       }
-      var isBC = !!matches[8];
-      var year = parseInt(matches[1], 10);
+      var isBC = !!matches2[8];
+      var year = parseInt(matches2[1], 10);
       if (isBC) {
         year = bcYearToNegativeYear(year);
       }
-      var month = parseInt(matches[2], 10) - 1;
-      var day = matches[3];
-      var hour = parseInt(matches[4], 10);
-      var minute = parseInt(matches[5], 10);
-      var second = parseInt(matches[6], 10);
-      var ms = matches[7];
+      var month = parseInt(matches2[2], 10) - 1;
+      var day = matches2[3];
+      var hour = parseInt(matches2[4], 10);
+      var minute = parseInt(matches2[5], 10);
+      var second = parseInt(matches2[6], 10);
+      var ms = matches2[7];
       ms = ms ? 1e3 * parseFloat(ms) : 0;
       var date5;
       var offset = timeZoneOffset(isoDate);
@@ -7362,17 +7362,17 @@ var require_postgres_date = __commonJS({
       return date5;
     };
     function getDate(isoDate) {
-      var matches = DATE.exec(isoDate);
-      if (!matches) {
+      var matches2 = DATE.exec(isoDate);
+      if (!matches2) {
         return;
       }
-      var year = parseInt(matches[1], 10);
-      var isBC = !!matches[4];
+      var year = parseInt(matches2[1], 10);
+      var isBC = !!matches2[4];
       if (isBC) {
         year = bcYearToNegativeYear(year);
       }
-      var month = parseInt(matches[2], 10) - 1;
-      var day = matches[3];
+      var month = parseInt(matches2[2], 10) - 1;
+      var day = matches2[3];
       var date5 = new Date(year, month, day);
       if (is0To99(year)) {
         date5.setFullYear(year);
@@ -7432,7 +7432,7 @@ var require_postgres_interval = __commonJS({
       if (!(this instanceof PostgresInterval)) {
         return new PostgresInterval(raw2);
       }
-      extend2(this, parse4(raw2));
+      extend2(this, parse5(raw2));
     }
     var properties = ["seconds", "minutes", "hours", "days", "months", "years"];
     PostgresInterval.prototype.toPostgres = function() {
@@ -7493,13 +7493,13 @@ var require_postgres_interval = __commonJS({
       var microseconds = fraction + "000000".slice(fraction.length);
       return parseInt(microseconds, 10) / 1e3;
     }
-    function parse4(interval) {
+    function parse5(interval) {
       if (!interval) return {};
-      var matches = INTERVAL.exec(interval);
-      var isNegative = matches[8] === "-";
+      var matches2 = INTERVAL.exec(interval);
+      var isNegative = matches2[8] === "-";
       return Object.keys(positions).reduce(function(parsed, property) {
         var position = positions[property];
-        var value = matches[position];
+        var value = matches2[position];
         if (!value) return parsed;
         value = property === "milliseconds" ? parseMilliseconds(value) : parseInt(value, 10);
         if (!value) return parsed;
@@ -7982,13 +7982,13 @@ var require_binaryParsers = __commonJS({
           console.log("ERROR: ElementType not implemented: " + elementType2);
         }
       };
-      var parse4 = function(dimension, elementType2) {
+      var parse5 = function(dimension, elementType2) {
         var array2 = [];
         var i2;
         if (dimension.length > 1) {
           var count3 = dimension.shift();
           for (i2 = 0; i2 < count3; i2++) {
-            array2[i2] = parse4(dimension, elementType2);
+            array2[i2] = parse5(dimension, elementType2);
           }
           dimension.unshift(count3);
         } else {
@@ -7998,7 +7998,7 @@ var require_binaryParsers = __commonJS({
         }
         return array2;
       };
-      return parse4(dims, elementType);
+      return parse5(dims, elementType);
     };
     var parseText = function(value) {
       return value.toString("utf8");
@@ -8765,7 +8765,7 @@ var require_type_overrides = __commonJS({
 var require_pg_connection_string = __commonJS({
   "node_modules/pg-connection-string/index.js"(exports, module) {
     "use strict";
-    function parse4(str2, options2 = {}) {
+    function parse5(str2, options2 = {}) {
       if (str2.charAt(0) === "/") {
         const config3 = str2.split(" ");
         return { host: config3[0], database: config3[1] };
@@ -8927,7 +8927,7 @@ var require_pg_connection_string = __commonJS({
       return poolConfig;
     }
     function parseIntoClientConfig(str2) {
-      return toClientConfig(parse4(str2));
+      return toClientConfig(parse5(str2));
     }
     function deprecatedSslModeWarning(sslmode) {
       if (!deprecatedSslModeWarning.warned && typeof process !== "undefined" && process.emitWarning) {
@@ -8942,10 +8942,10 @@ To prepare for this change:
 See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.`);
       }
     }
-    module.exports = parse4;
-    parse4.parse = parse4;
-    parse4.toClientConfig = toClientConfig;
-    parse4.parseIntoClientConfig = parseIntoClientConfig;
+    module.exports = parse5;
+    parse5.parse = parse5;
+    parse5.toClientConfig = toClientConfig;
+    parse5.parseIntoClientConfig = parseIntoClientConfig;
   }
 });
 
@@ -8955,7 +8955,7 @@ var require_connection_parameters = __commonJS({
     "use strict";
     var dns = __require("dns");
     var defaults = require_defaults2();
-    var parse4 = require_pg_connection_string().parse;
+    var parse5 = require_pg_connection_string().parse;
     var val = function(key5, config2, envVar) {
       if (config2[key5]) {
         return config2[key5];
@@ -8993,9 +8993,9 @@ var require_connection_parameters = __commonJS({
     };
     var ConnectionParameters = class {
       constructor(config2) {
-        config2 = typeof config2 === "string" ? parse4(config2) : config2 || {};
+        config2 = typeof config2 === "string" ? parse5(config2) : config2 || {};
         if (config2.connectionString) {
-          config2 = Object.assign({}, config2, parse4(config2.connectionString));
+          config2 = Object.assign({}, config2, parse5(config2.connectionString));
         }
         this.user = val("user", config2);
         this.database = val("database", config2);
@@ -9156,12 +9156,12 @@ var require_result = __commonJS({
         const row = { ...this._prebuiltEmptyResultObject };
         for (let i = 0, len = rowData.length; i < len; i++) {
           const rawValue = rowData[i];
-          const field2 = this.fields[i].name;
+          const field3 = this.fields[i].name;
           if (rawValue !== null) {
             const v = this.fields[i].format === "binary" ? Buffer.from(rawValue) : rawValue;
-            row[field2] = this._parsers[i](v);
+            row[field3] = this._parsers[i](v);
           } else {
-            row[field2] = null;
+            row[field3] = null;
           }
         }
         return row;
@@ -9721,7 +9721,7 @@ var require_serializer = __commonJS({
       );
     };
     var emptyArray = [];
-    var parse4 = (query3) => {
+    var parse5 = (query3) => {
       const name2 = query3.name || "";
       if (name2.length > 63) {
         console.error("Warning! Postgres only supports 63 characters for query names.");
@@ -9828,7 +9828,7 @@ var require_serializer = __commonJS({
       68
       /* code.describe */
     );
-    var describe3 = (msg) => {
+    var describe4 = (msg) => {
       return msg.name ? cstringMessage(68, `${msg.type}${msg.name || ""}`) : msg.type === "P" ? emptyDescribePortal : emptyDescribeStatement;
     };
     var close = (msg) => {
@@ -9868,10 +9868,10 @@ var require_serializer = __commonJS({
       sendSASLInitialResponseMessage,
       sendSCRAMClientFinalMessage,
       query: query2,
-      parse: parse4,
+      parse: parse5,
       bind,
       execute: execute3,
-      describe: describe3,
+      describe: describe4,
       close,
       flush: () => flushBuffer,
       sync: () => syncBuffer,
@@ -9957,7 +9957,7 @@ var require_parser = __commonJS({
     var HEADER_LENGTH = CODE_LENGTH + LEN_LENGTH;
     var LATEINIT_LENGTH = -1;
     var emptyBuffer = Buffer.allocUnsafe(0);
-    var Parser = class {
+    var Parser2 = class {
       constructor(opts) {
         this.buffer = emptyBuffer;
         this.bufferLength = 0;
@@ -10099,7 +10099,7 @@ var require_parser = __commonJS({
         return message;
       }
     };
-    exports.Parser = Parser;
+    exports.Parser = Parser2;
     var parseReadyForQueryMessage = (reader) => {
       const status = reader.string(1);
       return new messages_1.ReadyForQueryMessage(LATEINIT_LENGTH, status);
@@ -10257,7 +10257,7 @@ var require_dist2 = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.DatabaseError = exports.serialize = void 0;
-    exports.parse = parse4;
+    exports.parse = parse5;
     var messages_1 = require_messages();
     Object.defineProperty(exports, "DatabaseError", { enumerable: true, get: function() {
       return messages_1.DatabaseError;
@@ -10267,7 +10267,7 @@ var require_dist2 = __commonJS({
       return serializer_1.serialize;
     } });
     var parser_1 = require_parser();
-    function parse4(stream, callback) {
+    function parse5(stream, callback) {
       const parser = new parser_1.Parser();
       stream.on("data", (buffer) => parser.parse(buffer, callback));
       return new Promise((resolve6) => stream.on("end", () => resolve6()));
@@ -10356,7 +10356,7 @@ var require_connection = __commonJS({
   "node_modules/pg/lib/connection.js"(exports, module) {
     "use strict";
     var EventEmitter2 = __require("events").EventEmitter;
-    var { parse: parse4, serialize } = require_dist2();
+    var { parse: parse5, serialize } = require_dist2();
     var stream = require_stream();
     var { getStream } = stream;
     var flushBuffer = serialize.flush();
@@ -10462,7 +10462,7 @@ var require_connection = __commonJS({
         self.emit("sslconnect");
       }
       attachListeners(stream2) {
-        parse4(stream2, (msg) => {
+        parse5(stream2, (msg) => {
           const eventName = msg.name === "error" ? "errorMessage" : msg.name;
           if (this._emitMessage) {
             this.emit("message", msg);
@@ -10719,13 +10719,13 @@ var require_helper = __commonJS({
       return true;
     };
     var matcher = module.exports.match = function(connInfo, entry) {
-      return fieldNames.slice(0, -1).reduce(function(prev, field2, idx) {
+      return fieldNames.slice(0, -1).reduce(function(prev, field3, idx) {
         if (idx == 1) {
-          if (Number(connInfo[field2] || defaultPort) === Number(entry[field2])) {
+          if (Number(connInfo[field3] || defaultPort) === Number(entry[field3])) {
             return prev && true;
           }
         }
-        return prev && (entry[field2] === "*" || entry[field2] === connInfo[field2]);
+        return prev && (entry[field3] === "*" || entry[field3] === connInfo[field3]);
       }, true);
     };
     module.exports.getPassword = function(connInfo, stream, cb) {
@@ -10762,11 +10762,11 @@ var require_helper = __commonJS({
       var obj6 = {};
       var isLastField = false;
       var addToObj = function(idx, i0, i1) {
-        var field2 = line.substring(i0, i1);
+        var field3 = line.substring(i0, i1);
         if (!Object.hasOwnProperty.call(process.env, "PGPASS_NO_DEESCAPE")) {
-          field2 = field2.replace(/\\([:\\])/g, "$1");
+          field3 = field3.replace(/\\([:\\])/g, "$1");
         }
-        obj6[fieldNames[idx]] = field2;
+        obj6[fieldNames[idx]] = field3;
       };
       for (var i = 0; i < line.length - 1; i += 1) {
         curChar = line.charAt(i + 1);
@@ -13609,18 +13609,18 @@ var validateAsync = async (schema3, value, _ctx) => {
   return result.issues.length === 0;
 };
 var _encode = (_Err) => {
-  const parse4 = _parse(_Err);
+  const parse5 = _parse(_Err);
   const fn = (schema3, value, _ctx, _params) => {
     const ctx = _ctx ? { ..._ctx, direction: "backward" } : { direction: "backward" };
-    return parse4(schema3, value, ctx, finalizeParams(fn, _params));
+    return parse5(schema3, value, ctx, finalizeParams(fn, _params));
   };
   return fn;
 };
 var encode = /* @__PURE__ */ _encode($ZodRealError);
 var _decode = (_Err) => {
-  const parse4 = _parse(_Err);
+  const parse5 = _parse(_Err);
   const fn = (schema3, value, _ctx, _params) => {
-    return parse4(schema3, value, _ctx, finalizeParams(fn, _params));
+    return parse5(schema3, value, _ctx, finalizeParams(fn, _params));
   };
   return fn;
 };
@@ -15274,20 +15274,20 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
     const shape = zod.def.shape;
     const propValues = {};
     for (const key5 in shape) {
-      const field2 = shape[key5]._zod;
-      if (field2.values) {
+      const field3 = shape[key5]._zod;
+      if (field3.values) {
         if (!Object.prototype.hasOwnProperty.call(propValues, key5)) {
           assignProp(propValues, key5, /* @__PURE__ */ new Set());
         }
-        for (const v of field2.values)
+        for (const v of field3.values)
           propValues[key5].add(v);
-        if (field2.optin !== void 0)
+        if (field3.optin !== void 0)
           propValues[key5].add(void 0);
       }
     }
     return propValues;
   });
-  const isObject2 = isObject;
+  const isObject3 = isObject;
   const catchall = def.catchall;
   let value;
   const memo2 = globalConfig.memoizer;
@@ -15295,7 +15295,7 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
   inst._zod.parse = (payload, ctx) => {
     value ?? (value = _normalized.value);
     const input2 = payload.value;
-    if (!isObject2(input2)) {
+    if (!isObject3(input2)) {
       payload.issues.push({
         expected: "object",
         code: "invalid_type",
@@ -15431,7 +15431,7 @@ var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) =>
     return doc.compile();
   };
   let fastpass;
-  const isObject2 = isObject;
+  const isObject3 = isObject;
   const jit = !globalConfig.jitless;
   const allowsEval2 = allowsEval;
   const fastEnabled = jit && allowsEval2.value;
@@ -15440,7 +15440,7 @@ var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) =>
   inst._zod.parse = (payload, ctx) => {
     value ?? (value = _normalized.value);
     const input2 = payload.value;
-    if (!isObject2(input2)) {
+    if (!isObject3(input2)) {
       payload.issues.push({
         expected: "object",
         code: "invalid_type",
@@ -15526,16 +15526,16 @@ var $ZodUnion = /* @__PURE__ */ $constructor("$ZodUnion", (inst, def) => {
   };
 });
 function handleExclusiveUnionResults(results, final, inst, ctx) {
-  const matches = [];
+  const matches2 = [];
   for (let i = 0; i < results.length; i++) {
     if (results[i].issues.length === 0)
-      matches.push(i);
+      matches2.push(i);
   }
-  if (matches.length === 1) {
-    final.value = results[matches[0]].value;
+  if (matches2.length === 1) {
+    final.value = results[matches2[0]].value;
     return final;
   }
-  if (matches.length === 0) {
+  if (matches2.length === 0) {
     final.issues.push({
       code: "invalid_union",
       input: final.value,
@@ -15549,7 +15549,7 @@ function handleExclusiveUnionResults(results, final, inst, ctx) {
       inst,
       errors: [],
       inclusive: false,
-      matches
+      matches: matches2
     });
   }
   return final;
@@ -19553,13 +19553,13 @@ var error20 = () => {
           return `${sizing?.longLabel ?? "\u05D0\u05E8\u05D5\u05DA"} \u05DE\u05D3\u05D9: ${subject} \u05E6\u05E8\u05D9\u05DB\u05D4 \u05DC\u05D4\u05DB\u05D9\u05DC ${issue2.maximum.toString()} ${sizing?.unit ?? ""} ${issue2.inclusive ? "\u05D0\u05D5 \u05E4\u05D7\u05D5\u05EA" : "\u05DC\u05DB\u05DC \u05D4\u05D9\u05D5\u05EA\u05E8"}`.trim();
         }
         if (issue2.origin === "number") {
-          const comparison = issue2.inclusive ? `\u05E7\u05D8\u05DF \u05D0\u05D5 \u05E9\u05D5\u05D5\u05D4 \u05DC-${issue2.maximum}` : `\u05E7\u05D8\u05DF \u05DE-${issue2.maximum}`;
-          return `\u05D2\u05D3\u05D5\u05DC \u05DE\u05D3\u05D9: ${subject} \u05E6\u05E8\u05D9\u05DA \u05DC\u05D4\u05D9\u05D5\u05EA ${comparison}`;
+          const comparison2 = issue2.inclusive ? `\u05E7\u05D8\u05DF \u05D0\u05D5 \u05E9\u05D5\u05D5\u05D4 \u05DC-${issue2.maximum}` : `\u05E7\u05D8\u05DF \u05DE-${issue2.maximum}`;
+          return `\u05D2\u05D3\u05D5\u05DC \u05DE\u05D3\u05D9: ${subject} \u05E6\u05E8\u05D9\u05DA \u05DC\u05D4\u05D9\u05D5\u05EA ${comparison2}`;
         }
         if (issue2.origin === "array" || issue2.origin === "set") {
           const verb = issue2.origin === "set" ? "\u05E6\u05E8\u05D9\u05DB\u05D4" : "\u05E6\u05E8\u05D9\u05DA";
-          const comparison = issue2.inclusive ? `${issue2.maximum} ${sizing?.unit ?? ""} \u05D0\u05D5 \u05E4\u05D7\u05D5\u05EA` : `\u05E4\u05D7\u05D5\u05EA \u05DE-${issue2.maximum} ${sizing?.unit ?? ""}`;
-          return `\u05D2\u05D3\u05D5\u05DC \u05DE\u05D3\u05D9: ${subject} ${verb} \u05DC\u05D4\u05DB\u05D9\u05DC ${comparison}`.trim();
+          const comparison2 = issue2.inclusive ? `${issue2.maximum} ${sizing?.unit ?? ""} \u05D0\u05D5 \u05E4\u05D7\u05D5\u05EA` : `\u05E4\u05D7\u05D5\u05EA \u05DE-${issue2.maximum} ${sizing?.unit ?? ""}`;
+          return `\u05D2\u05D3\u05D5\u05DC \u05DE\u05D3\u05D9: ${subject} ${verb} \u05DC\u05D4\u05DB\u05D9\u05DC ${comparison2}`.trim();
         }
         const adj = issue2.inclusive ? "<=" : "<";
         const be = verbFor(issue2.origin ?? "value");
@@ -19575,8 +19575,8 @@ var error20 = () => {
           return `${sizing?.shortLabel ?? "\u05E7\u05E6\u05E8"} \u05DE\u05D3\u05D9: ${subject} \u05E6\u05E8\u05D9\u05DB\u05D4 \u05DC\u05D4\u05DB\u05D9\u05DC ${issue2.minimum.toString()} ${sizing?.unit ?? ""} ${issue2.inclusive ? "\u05D0\u05D5 \u05D9\u05D5\u05EA\u05E8" : "\u05DC\u05E4\u05D7\u05D5\u05EA"}`.trim();
         }
         if (issue2.origin === "number") {
-          const comparison = issue2.inclusive ? `\u05D2\u05D3\u05D5\u05DC \u05D0\u05D5 \u05E9\u05D5\u05D5\u05D4 \u05DC-${issue2.minimum}` : `\u05D2\u05D3\u05D5\u05DC \u05DE-${issue2.minimum}`;
-          return `\u05E7\u05D8\u05DF \u05DE\u05D3\u05D9: ${subject} \u05E6\u05E8\u05D9\u05DA \u05DC\u05D4\u05D9\u05D5\u05EA ${comparison}`;
+          const comparison2 = issue2.inclusive ? `\u05D2\u05D3\u05D5\u05DC \u05D0\u05D5 \u05E9\u05D5\u05D5\u05D4 \u05DC-${issue2.minimum}` : `\u05D2\u05D3\u05D5\u05DC \u05DE-${issue2.minimum}`;
+          return `\u05E7\u05D8\u05DF \u05DE\u05D3\u05D9: ${subject} \u05E6\u05E8\u05D9\u05DA \u05DC\u05D4\u05D9\u05D5\u05EA ${comparison2}`;
         }
         if (issue2.origin === "array" || issue2.origin === "set") {
           const verb = issue2.origin === "set" ? "\u05E6\u05E8\u05D9\u05DB\u05D4" : "\u05E6\u05E8\u05D9\u05DA";
@@ -19584,8 +19584,8 @@ var error20 = () => {
             const singularPhrase = issue2.origin === "set" ? "\u05DC\u05E4\u05D7\u05D5\u05EA \u05E4\u05E8\u05D9\u05D8 \u05D0\u05D7\u05D3" : "\u05DC\u05E4\u05D7\u05D5\u05EA \u05E4\u05E8\u05D9\u05D8 \u05D0\u05D7\u05D3";
             return `\u05E7\u05D8\u05DF \u05DE\u05D3\u05D9: ${subject} ${verb} \u05DC\u05D4\u05DB\u05D9\u05DC ${singularPhrase}`;
           }
-          const comparison = issue2.inclusive ? `${issue2.minimum} ${sizing?.unit ?? ""} \u05D0\u05D5 \u05D9\u05D5\u05EA\u05E8` : `\u05D9\u05D5\u05EA\u05E8 \u05DE-${issue2.minimum} ${sizing?.unit ?? ""}`;
-          return `\u05E7\u05D8\u05DF \u05DE\u05D3\u05D9: ${subject} ${verb} \u05DC\u05D4\u05DB\u05D9\u05DC ${comparison}`.trim();
+          const comparison2 = issue2.inclusive ? `${issue2.minimum} ${sizing?.unit ?? ""} \u05D0\u05D5 \u05D9\u05D5\u05EA\u05E8` : `\u05D9\u05D5\u05EA\u05E8 \u05DE-${issue2.minimum} ${sizing?.unit ?? ""}`;
+          return `\u05E7\u05D8\u05DF \u05DE\u05D3\u05D9: ${subject} ${verb} \u05DC\u05D4\u05DB\u05D9\u05DC ${comparison2}`.trim();
         }
         const adj = issue2.inclusive ? ">=" : ">";
         const be = verbFor(issue2.origin ?? "value");
@@ -28209,8 +28209,8 @@ var objectProcessor = (schema3, ctx, _json, params2) => {
   }
   const requiredKeys2 = [];
   for (const key5 of Object.keys(shape)) {
-    const field2 = def.shape[key5];
-    if (ctx.io === "input" ? inputOptin(field2) === void 0 : field2._zod.optout === void 0) {
+    const field3 = def.shape[key5];
+    if (ctx.io === "input" ? inputOptin(field3) === void 0 : field3._zod.optout === void 0) {
       requiredKeys2.push(key5);
     }
   }
@@ -30748,20 +30748,20 @@ function checkArrayGuards(arraySchema, guards) {
     if (guards.containsSchema) {
       const minContains = guards.minContains ?? 1;
       const ceiling = guards.maxContains !== void 0 ? guards.maxContains + 1 : Number.POSITIVE_INFINITY;
-      let matches = 0;
+      let matches2 = 0;
       for (const item of items) {
-        if (guards.containsSchema.safeParse(item).success && ++matches >= ceiling)
+        if (guards.containsSchema.safeParse(item).success && ++matches2 >= ceiling)
           break;
       }
-      if (matches < minContains) {
+      if (matches2 < minContains) {
         payload.issues.push({
           code: "custom",
-          message: `Array must contain at least ${minContains} matching ${plural(minContains)}; found ${matches}`,
+          message: `Array must contain at least ${minContains} matching ${plural(minContains)}; found ${matches2}`,
           input: items,
           continue: true
         });
       }
-      if (guards.maxContains !== void 0 && matches > guards.maxContains) {
+      if (guards.maxContains !== void 0 && matches2 > guards.maxContains) {
         payload.issues.push({
           code: "custom",
           message: `Array must contain at most ${guards.maxContains} matching ${plural(guards.maxContains)}`,
@@ -35392,11 +35392,758 @@ var Server = class extends Protocol {
 // src/mcp/server.ts
 import { fileURLToPath } from "node:url";
 
+// src/core/query/errors.ts
+var QueryError = class extends Error {
+  constructor(kind, message, position) {
+    super(message);
+    this.kind = kind;
+    this.position = position;
+    this.name = "QueryError";
+  }
+  kind;
+  position;
+};
+
+// src/core/query/interpreter.ts
+var ExpressionReference = class {
+  constructor(node3) {
+    this.node = node3;
+  }
+  node;
+  /** Only a function can use one; anywhere else in a result it is null, never the parse tree. */
+  toJSON() {
+    return null;
+  }
+};
+var isObject2 = (value) => typeof value === "object" && value !== null && !Array.isArray(value) && !(value instanceof ExpressionReference);
+function typeOf(value) {
+  if (value === null || value === void 0) return "null";
+  if (typeof value === "string") return "string";
+  if (typeof value === "number") return "number";
+  if (typeof value === "boolean") return "boolean";
+  if (Array.isArray(value)) return "array";
+  if (value instanceof ExpressionReference) return "expref";
+  return "object";
+}
+function field(value, name2) {
+  if (!isObject2(value) || !Object.hasOwn(value, name2)) return null;
+  return value[name2] ?? null;
+}
+function isFalse(value) {
+  if (value === null || value === void 0 || value === false || value === "") return true;
+  if (Array.isArray(value)) return value.length === 0;
+  if (isObject2(value)) return Object.keys(value).length === 0;
+  return false;
+}
+function deepEqual(a, b) {
+  if (a === b) return true;
+  const type = typeOf(a);
+  if (type !== typeOf(b)) return false;
+  if (type === "null") return true;
+  if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((item, i) => deepEqual(item, b[i]));
+  if (isObject2(a) && isObject2(b)) {
+    const keys = Object.keys(a);
+    return keys.length === Object.keys(b).length && keys.every((key5) => Object.hasOwn(b, key5) && deepEqual(a[key5], b[key5]));
+  }
+  return false;
+}
+var objectOf = (entries) => Object.fromEntries(entries);
+function compareStrings(a, b) {
+  const x = Array.from(a);
+  const y = Array.from(b);
+  for (let i = 0; i < Math.min(x.length, y.length); i++) {
+    const d = x[i].codePointAt(0) - y[i].codePointAt(0);
+    if (d !== 0) return d;
+  }
+  return x.length - y.length;
+}
+function compare(a, b) {
+  return typeof a === "number" && typeof b === "number" ? a - b : compareStrings(a, b);
+}
+var JSON_NUMBER = /^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/;
+var FUNCTIONS = {
+  abs: { args: [["number"]], run: ([n]) => Math.abs(n) },
+  avg: {
+    args: [["array-number"]],
+    run: ([list4]) => {
+      const numbers = list4;
+      return numbers.length === 0 ? null : numbers.reduce((sum, n) => sum + n, 0) / numbers.length;
+    }
+  },
+  ceil: { args: [["number"]], run: ([n]) => Math.ceil(n) },
+  contains: {
+    args: [["array", "string"], ["any"]],
+    run: ([subject, search9]) => typeof subject === "string" ? typeof search9 === "string" && subject.includes(search9) : subject.some((item) => deepEqual(item, search9))
+  },
+  ends_with: { args: [["string"], ["string"]], run: ([s, suffix]) => s.endsWith(suffix) },
+  floor: { args: [["number"]], run: ([n]) => Math.floor(n) },
+  join: { args: [["string"], ["array-string"]], run: ([glue, list4]) => list4.join(glue) },
+  keys: { args: [["object"]], run: ([o]) => Object.keys(o) },
+  length: {
+    args: [["string", "array", "object"]],
+    run: ([v]) => typeof v === "string" ? Array.from(v).length : Array.isArray(v) ? v.length : Object.keys(v).length
+  },
+  map: {
+    args: [["expref"], ["array"]],
+    run: ([ref, list4], interpreter) => list4.map((item) => interpreter.visit(ref.node, item))
+  },
+  max: { args: [["array-number", "array-string"]], run: ([list4]) => extreme(list4, 1) },
+  max_by: { args: [["array"], ["expref"]], run: ([list4, ref], interpreter) => extremeBy(list4, ref, interpreter, 1, "max_by") },
+  merge: { args: [["object"]], variadic: true, run: (objects) => objectOf(objects.flatMap((o) => Object.entries(o))) },
+  min: { args: [["array-number", "array-string"]], run: ([list4]) => extreme(list4, -1) },
+  min_by: { args: [["array"], ["expref"]], run: ([list4, ref], interpreter) => extremeBy(list4, ref, interpreter, -1, "min_by") },
+  not_null: { args: [["any"]], variadic: true, run: (values2) => values2.find((v) => typeOf(v) !== "null") ?? null },
+  reverse: { args: [["string", "array"]], run: ([v]) => typeof v === "string" ? Array.from(v).reverse().join("") : [...v].reverse() },
+  sort: { args: [["array-number", "array-string"]], run: ([list4]) => [...list4].sort(compare) },
+  sort_by: { args: [["array"], ["expref"]], run: ([list4, ref], interpreter) => sortBy(list4, ref, interpreter) },
+  starts_with: { args: [["string"], ["string"]], run: ([s, prefix]) => s.startsWith(prefix) },
+  sum: { args: [["array-number"]], run: ([list4]) => list4.reduce((sum, n) => sum + n, 0) },
+  to_array: { args: [["any"]], run: ([v]) => Array.isArray(v) ? v : [v ?? null] },
+  to_number: {
+    args: [["any"]],
+    run: ([v]) => typeof v === "number" ? v : typeof v === "string" && JSON_NUMBER.test(v) ? Number(v) : null
+  },
+  to_string: { args: [["any"]], run: ([v]) => typeof v === "string" ? v : JSON.stringify(v ?? null) },
+  type: { args: [["any"]], run: ([v]) => typeOf(v) },
+  values: { args: [["object"]], run: ([o]) => Object.values(o) }
+};
+function extreme(list4, sign) {
+  if (list4.length === 0) return null;
+  return list4.reduce((best, item) => sign * compare(item, best) > 0 ? item : best);
+}
+function keysBy(list4, ref, interpreter, name2) {
+  const keys = list4.map((item) => interpreter.visit(ref.node, item));
+  const first = typeOf(keys[0]);
+  for (const key5 of keys) {
+    const type = typeOf(key5);
+    if (type !== "number" && type !== "string" || type !== first) {
+      throw new QueryError("invalid-type", `${name2}() needs its expression to give every element a number, or every element a string; one gave ${type}.`);
+    }
+  }
+  return keys;
+}
+function extremeBy(list4, ref, interpreter, sign, name2) {
+  if (list4.length === 0) return null;
+  const keys = keysBy(list4, ref, interpreter, name2);
+  let best = 0;
+  for (let i = 1; i < list4.length; i++) if (sign * compare(keys[i], keys[best]) > 0) best = i;
+  return list4[best];
+}
+function sortBy(list4, ref, interpreter) {
+  if (list4.length === 0) return [];
+  const keys = keysBy(list4, ref, interpreter, "sort_by");
+  return list4.map((item, i) => ({ item, key: keys[i] })).sort((a, b) => compare(a.key, b.key)).map((pair) => pair.item);
+}
+function matches(value, type) {
+  if (type === "any") return true;
+  const actual = typeOf(value);
+  if (type === "array-number" || type === "array-string") {
+    const element = type === "array-number" ? "number" : "string";
+    return actual === "array" && value.every((item) => typeOf(item) === element);
+  }
+  return actual === type;
+}
+function checkFunctions(node3) {
+  for (const child of children(node3)) checkFunctions(child);
+  if (node3.type !== "Function") return;
+  const spec = FUNCTIONS[node3.name];
+  if (!spec || !Object.hasOwn(FUNCTIONS, node3.name)) throw new QueryError("unknown-function", `There is no function ${node3.name}().`, node3.position);
+  const count3 = node3.args.length;
+  const ok2 = spec.variadic ? count3 >= spec.args.length : count3 === spec.args.length;
+  if (!ok2) {
+    const wanted = `${spec.variadic ? "at least " : ""}${spec.args.length} argument${spec.args.length === 1 ? "" : "s"}`;
+    throw new QueryError("invalid-arity", `${node3.name}() takes ${wanted}, and was given ${count3}.`, node3.position);
+  }
+}
+function checkDepth(root, max) {
+  const stack = [[root, 1]];
+  while (stack.length > 0) {
+    const [node3, depth] = stack.pop();
+    if (depth > max) throw new QueryError("syntax", `The expression nests more than ${max} levels deep.`);
+    for (const child of children(node3)) stack.push([child, depth + 1]);
+  }
+}
+function children(node3) {
+  switch (node3.type) {
+    case "Subexpression":
+    case "IndexExpression":
+    case "Projection":
+    case "ValueProjection":
+    case "Comparator":
+    case "Or":
+    case "And":
+    case "Pipe":
+      return [node3.left, node3.right];
+    case "FilterProjection":
+      return [node3.left, node3.right, node3.condition];
+    case "Flatten":
+    case "Not":
+    case "ExpressionReference":
+      return [node3.child];
+    case "MultiSelectList":
+      return node3.children;
+    case "MultiSelectHash":
+      return node3.pairs.map((pair) => pair.value);
+    case "Function":
+      return node3.args;
+    default:
+      return [];
+  }
+}
+var Interpreter = class {
+  visit(node3, value) {
+    switch (node3.type) {
+      case "Field":
+        return field(value, node3.name);
+      case "Subexpression": {
+        const left = this.visit(node3.left, value);
+        return left === null ? null : this.visit(node3.right, left);
+      }
+      case "IndexExpression":
+        return this.visit(node3.right, this.visit(node3.left, value));
+      case "Index": {
+        if (!Array.isArray(value)) return null;
+        const index2 = node3.value < 0 ? value.length + node3.value : node3.value;
+        return value[index2] ?? null;
+      }
+      case "Slice":
+        return Array.isArray(value) ? slice(value, node3.start, node3.stop, node3.step) : null;
+      case "Projection": {
+        const base = this.visit(node3.left, value);
+        if (!Array.isArray(base)) return null;
+        return this.project(base, node3.right);
+      }
+      case "ValueProjection": {
+        const base = this.visit(node3.left, value);
+        if (!isObject2(base)) return null;
+        return this.project(Object.values(base), node3.right);
+      }
+      case "FilterProjection": {
+        const base = this.visit(node3.left, value);
+        if (!Array.isArray(base)) return null;
+        return this.project(
+          base.filter((item) => !isFalse(this.visit(node3.condition, item))),
+          node3.right
+        );
+      }
+      case "Flatten": {
+        const base = this.visit(node3.child, value);
+        if (!Array.isArray(base)) return null;
+        return base.flatMap((item) => Array.isArray(item) ? item : [item]);
+      }
+      case "Identity":
+        return value ?? null;
+      case "Literal":
+        return node3.value;
+      case "MultiSelectList":
+        return value === null || value === void 0 ? null : node3.children.map((child) => this.visit(child, value));
+      case "MultiSelectHash":
+        return value === null || value === void 0 ? null : objectOf(node3.pairs.map((pair) => [pair.key, this.visit(pair.value, value)]));
+      case "Comparator":
+        return comparison(node3.op, this.visit(node3.left, value), this.visit(node3.right, value));
+      case "Or": {
+        const left = this.visit(node3.left, value);
+        return isFalse(left) ? this.visit(node3.right, value) : left;
+      }
+      case "And": {
+        const left = this.visit(node3.left, value);
+        return isFalse(left) ? left : this.visit(node3.right, value);
+      }
+      case "Not":
+        return isFalse(this.visit(node3.child, value));
+      case "Pipe":
+        return this.visit(node3.right, this.visit(node3.left, value));
+      case "Function":
+        return this.call(node3.name, node3.args.map((arg) => this.visit(arg, value)));
+      case "ExpressionReference":
+        return new ExpressionReference(node3.child);
+    }
+  }
+  /** A projection keeps each element's result, dropping the nulls. */
+  project(base, right) {
+    const out = [];
+    for (const item of base) {
+      const result = this.visit(right, item);
+      if (result !== null && result !== void 0) out.push(result);
+    }
+    return out;
+  }
+  call(name2, args) {
+    const spec = FUNCTIONS[name2];
+    args.forEach((arg, i) => {
+      const accepted = spec.args[Math.min(i, spec.args.length - 1)];
+      if (!accepted.some((type) => matches(arg, type))) {
+        throw new QueryError("invalid-type", `${name2}() expected argument ${i + 1} to be ${accepted.join(" or ")}, and got ${typeOf(arg)}.`);
+      }
+    });
+    return spec.run(args, this);
+  }
+};
+function comparison(op, left, right) {
+  if (op === "EQ") return deepEqual(left, right);
+  if (op === "NE") return !deepEqual(left, right);
+  if (typeof left !== "number" || typeof right !== "number") return null;
+  if (op === "LT") return left < right;
+  if (op === "LTE") return left <= right;
+  if (op === "GT") return left > right;
+  return left >= right;
+}
+function slice(list4, start, stop, step) {
+  const by = step ?? 1;
+  if (by === 0) throw new QueryError("invalid-value", "A slice step can't be 0.");
+  const length = list4.length;
+  const clamp3 = (value) => {
+    if (value < 0) {
+      const from2 = value + length;
+      return from2 < 0 ? by < 0 ? -1 : 0 : from2;
+    }
+    return value >= length ? by < 0 ? length - 1 : length : value;
+  };
+  const from = start === null ? by < 0 ? length - 1 : 0 : clamp3(start);
+  const to = stop === null ? by < 0 ? -1 : length : clamp3(stop);
+  const out = [];
+  if (by > 0) for (let i = from; i < to; i += by) out.push(list4[i]);
+  else for (let i = from; i > to; i += by) out.push(list4[i]);
+  return out;
+}
+
+// src/core/query/lexer.ts
+var SINGLE = {
+  ".": "Dot",
+  "*": "Star",
+  ",": "Comma",
+  ":": "Colon",
+  "{": "Lbrace",
+  "}": "Rbrace",
+  "]": "Rbracket",
+  "(": "Lparen",
+  ")": "Rparen",
+  "@": "Current"
+};
+var WHITESPACE = /* @__PURE__ */ new Set([" ", "	", "\n", "\r"]);
+var isAlpha = (ch) => ch !== void 0 && (ch >= "a" && ch <= "z" || ch >= "A" && ch <= "Z" || ch === "_");
+var isDigit = (ch) => ch !== void 0 && ch >= "0" && ch <= "9";
+var isAlphaNum = (ch) => isAlpha(ch) || isDigit(ch);
+function tokenize(expression) {
+  const tokens = [];
+  let at = 0;
+  const push = (type, value, start) => tokens.push({ type, value, start });
+  while (at < expression.length) {
+    const ch = expression[at];
+    const start = at;
+    if (isAlpha(ch)) {
+      at++;
+      while (isAlphaNum(expression[at])) at++;
+      push("UnquotedIdentifier", expression.slice(start, at), start);
+    } else if (SINGLE[ch] !== void 0) {
+      push(SINGLE[ch], ch, start);
+      at++;
+    } else if (isDigit(ch) || ch === "-") {
+      at++;
+      while (isDigit(expression[at])) at++;
+      const text2 = expression.slice(start, at);
+      if (text2 === "-") throw new QueryError("syntax", 'A "-" must be followed by digits.', start);
+      push("Number", Number.parseInt(text2, 10), start);
+    } else if (ch === "[") {
+      at++;
+      if (expression[at] === "?") {
+        at++;
+        push("Filter", "[?", start);
+      } else if (expression[at] === "]") {
+        at++;
+        push("Flatten", "[]", start);
+      } else {
+        push("Lbracket", "[", start);
+      }
+    } else if (ch === '"') {
+      at = delimited(expression, at, '"');
+      try {
+        push("QuotedIdentifier", JSON.parse(expression.slice(start, at)), start);
+      } catch {
+        throw new QueryError("syntax", `Invalid quoted identifier ${expression.slice(start, at)}.`, start);
+      }
+    } else if (ch === "'") {
+      at = delimited(expression, at, "'");
+      push("Literal", expression.slice(start + 1, at - 1).replaceAll("\\'", "'"), start);
+    } else if (ch === "`") {
+      at = delimited(expression, at, "`");
+      push("Literal", jsonLiteral(expression.slice(start + 1, at - 1).replaceAll("\\`", "`"), start), start);
+    } else if (ch === "<" || ch === ">" || ch === "!" || ch === "=") {
+      at++;
+      const equals = expression[at] === "=";
+      if (equals) at++;
+      if (ch === "=" && !equals) throw new QueryError("syntax", `A single "=" isn't an operator; compare with "==".`, start);
+      const type = ch === "<" ? equals ? "LTE" : "LT" : ch === ">" ? equals ? "GTE" : "GT" : ch === "!" ? equals ? "NE" : "Not" : "EQ";
+      push(type, expression.slice(start, at), start);
+    } else if (ch === "&" || ch === "|") {
+      at++;
+      if (expression[at] === ch) {
+        at++;
+        push(ch === "&" ? "And" : "Or", ch + ch, start);
+      } else {
+        push(ch === "&" ? "Expref" : "Pipe", ch, start);
+      }
+    } else if (WHITESPACE.has(ch)) {
+      at++;
+    } else {
+      throw new QueryError("syntax", `Unexpected character ${JSON.stringify(ch)}.`, start);
+    }
+  }
+  push("EOF", "", expression.length);
+  return tokens;
+}
+function delimited(expression, start, quote) {
+  let at = start + 1;
+  while (at < expression.length && expression[at] !== quote) at += expression[at] === "\\" && at + 1 < expression.length ? 2 : 1;
+  if (at >= expression.length) throw new QueryError("syntax", `Unterminated ${quote} starting here.`, start);
+  return at + 1;
+}
+function jsonLiteral(text2, start) {
+  try {
+    return JSON.parse(text2);
+  } catch {
+    try {
+      return JSON.parse(`"${text2.trimStart()}"`);
+    } catch {
+      throw new QueryError("syntax", `Invalid JSON literal \`${text2}\`.`, start);
+    }
+  }
+}
+
+// src/core/query/parser.ts
+var BINDING_POWER = {
+  EOF: 0,
+  UnquotedIdentifier: 0,
+  QuotedIdentifier: 0,
+  Literal: 0,
+  Rbracket: 0,
+  Rparen: 0,
+  Comma: 0,
+  Rbrace: 0,
+  Number: 0,
+  Current: 0,
+  Expref: 0,
+  Colon: 0,
+  Pipe: 1,
+  Or: 2,
+  And: 3,
+  EQ: 5,
+  GT: 5,
+  LT: 5,
+  GTE: 5,
+  LTE: 5,
+  NE: 5,
+  Flatten: 9,
+  Star: 20,
+  Filter: 21,
+  Dot: 40,
+  Not: 45,
+  Lbrace: 50,
+  Lbracket: 55,
+  Lparen: 60
+};
+var PROJECTION_STOP = 10;
+var MAX_DEPTH = 500;
+var IDENTITY = { type: "Identity" };
+var describe3 = (token) => token.type === "EOF" ? "the end of the expression" : `${JSON.stringify(String(token.value))}`;
+function parse3(expression) {
+  return new Parser(tokenize(expression)).parseAll();
+}
+var Parser = class {
+  constructor(tokens) {
+    this.tokens = tokens;
+  }
+  tokens;
+  index = 0;
+  /** The depth of the node being built: one per open expression, plus one per operator applied in it. */
+  depth = 0;
+  parseAll() {
+    const ast = this.expression(0);
+    if (this.token().type !== "EOF") this.fail(this.token(), `Unexpected ${describe3(this.token())}`);
+    return ast;
+  }
+  token(offset = 0) {
+    return this.tokens[Math.min(this.index + offset, this.tokens.length - 1)];
+  }
+  advance() {
+    this.index++;
+  }
+  fail(token, message) {
+    throw new QueryError("syntax", `${message}.`, token.start);
+  }
+  match(type) {
+    if (this.token().type !== type) this.fail(this.token(), `Expected ${type}, found ${describe3(this.token())}`);
+    this.advance();
+  }
+  expression(rbp) {
+    const entered = this.depth;
+    this.deeper();
+    const token = this.token();
+    this.advance();
+    let left = this.nud(token);
+    while (rbp < BINDING_POWER[this.token().type]) {
+      this.deeper();
+      const next = this.token();
+      this.advance();
+      left = this.led(next, left);
+    }
+    this.depth = entered;
+    return left;
+  }
+  deeper() {
+    if (++this.depth > MAX_DEPTH) this.fail(this.token(), `The expression nests more than ${MAX_DEPTH} levels deep`);
+  }
+  nud(token) {
+    switch (token.type) {
+      case "Literal":
+        return { type: "Literal", value: token.value };
+      case "UnquotedIdentifier":
+        return { type: "Field", name: token.value };
+      case "QuotedIdentifier":
+        if (this.token().type === "Lparen") this.fail(token, "A quoted identifier can't name a function");
+        return { type: "Field", name: token.value };
+      case "Not":
+        return { type: "Not", child: this.expression(BINDING_POWER.Not) };
+      case "Star":
+        return { type: "ValueProjection", left: IDENTITY, right: this.token().type === "Rbracket" ? IDENTITY : this.projectionRhs(BINDING_POWER.Star) };
+      case "Filter":
+        return this.led(token, IDENTITY);
+      case "Lbrace":
+        return this.multiSelectHash();
+      case "Flatten":
+        return { type: "Projection", left: { type: "Flatten", child: IDENTITY }, right: this.projectionRhs(BINDING_POWER.Flatten) };
+      case "Lbracket": {
+        const next = this.token().type;
+        if (next === "Number" || next === "Colon") return this.projectIfSlice(IDENTITY, this.indexExpression());
+        if (next === "Star" && this.token(1).type === "Rbracket") {
+          this.advance();
+          this.advance();
+          return { type: "Projection", left: IDENTITY, right: this.projectionRhs(BINDING_POWER.Star) };
+        }
+        return this.multiSelectList();
+      }
+      case "Current":
+        return IDENTITY;
+      case "Expref":
+        return { type: "ExpressionReference", child: this.expression(BINDING_POWER.Expref) };
+      case "Lparen": {
+        const inner = this.expression(0);
+        this.match("Rparen");
+        return inner;
+      }
+      case "EOF":
+        return this.fail(token, "The expression ends too soon");
+      default:
+        return this.fail(token, `Unexpected ${describe3(token)}`);
+    }
+  }
+  led(token, left) {
+    switch (token.type) {
+      case "Dot":
+        if (this.token().type === "Star") {
+          this.advance();
+          return { type: "ValueProjection", left, right: this.projectionRhs(BINDING_POWER.Dot) };
+        }
+        return { type: "Subexpression", left, right: this.dotRhs(BINDING_POWER.Dot) };
+      case "Pipe":
+        return { type: "Pipe", left, right: this.expression(BINDING_POWER.Pipe) };
+      case "Or":
+        return { type: "Or", left, right: this.expression(BINDING_POWER.Or) };
+      case "And":
+        return { type: "And", left, right: this.expression(BINDING_POWER.And) };
+      case "Lparen": {
+        if (left.type !== "Field") this.fail(token, "Only a name can be called as a function");
+        const args = [];
+        while (this.token().type !== "Rparen") {
+          args.push(this.expression(0));
+          if (this.token().type === "Comma") {
+            this.advance();
+            if (this.token().type === "Rparen") this.fail(this.token(), 'Expected an argument after ","');
+          } else if (this.token().type !== "Rparen") {
+            this.fail(this.token(), `Expected "," or ")", found ${describe3(this.token())}`);
+          }
+        }
+        this.match("Rparen");
+        return { type: "Function", name: left.name, args, position: token.start - left.name.length };
+      }
+      case "Filter": {
+        const condition = this.expression(0);
+        this.match("Rbracket");
+        const right = this.token().type === "Flatten" ? IDENTITY : this.projectionRhs(BINDING_POWER.Filter);
+        return { type: "FilterProjection", left, right, condition };
+      }
+      case "Flatten":
+        return { type: "Projection", left: { type: "Flatten", child: left }, right: this.projectionRhs(BINDING_POWER.Flatten) };
+      case "EQ":
+      case "NE":
+      case "GT":
+      case "GTE":
+      case "LT":
+      case "LTE":
+        return { type: "Comparator", op: token.type, left, right: this.expression(BINDING_POWER[token.type]) };
+      case "Lbracket": {
+        const next = this.token().type;
+        if (next === "Number" || next === "Colon") return this.projectIfSlice(left, this.indexExpression());
+        this.match("Star");
+        this.match("Rbracket");
+        return { type: "Projection", left, right: this.projectionRhs(BINDING_POWER.Star) };
+      }
+      default:
+        return this.fail(token, `Unexpected ${describe3(token)}`);
+    }
+  }
+  indexExpression() {
+    if (this.token().type === "Colon" || this.token(1).type === "Colon") return this.sliceExpression();
+    const token = this.token();
+    this.match("Number");
+    this.match("Rbracket");
+    return { type: "Index", value: token.value };
+  }
+  projectIfSlice(left, right) {
+    const indexed = { type: "IndexExpression", left, right };
+    return right.type === "Slice" ? { type: "Projection", left: indexed, right: this.projectionRhs(BINDING_POWER.Star) } : indexed;
+  }
+  /** `[start:stop:step]`, each part optional, as is the second colon. */
+  sliceExpression() {
+    const parts = [null, null, null];
+    let part = 0;
+    while (this.token().type !== "Rbracket") {
+      const token = this.token();
+      if (token.type === "Colon") {
+        part++;
+        if (part > 2) this.fail(token, 'A slice has at most two ":"');
+      } else if (token.type === "Number") {
+        if (parts[part] !== null) this.fail(token, 'Expected ":" or "]" in a slice');
+        parts[part] = token.value;
+      } else {
+        this.fail(token, `Unexpected ${describe3(token)} in a slice`);
+      }
+      this.advance();
+    }
+    this.match("Rbracket");
+    return { type: "Slice", start: parts[0], stop: parts[1], step: parts[2] };
+  }
+  dotRhs(rbp) {
+    const next = this.token().type;
+    if (next === "UnquotedIdentifier" || next === "QuotedIdentifier" || next === "Star") return this.expression(rbp);
+    if (next === "Lbracket") {
+      this.advance();
+      return this.multiSelectList();
+    }
+    if (next === "Lbrace") {
+      this.advance();
+      return this.multiSelectHash();
+    }
+    return this.fail(this.token(), `Expected a name, "*", "[" or "{" after ".", found ${describe3(this.token())}`);
+  }
+  projectionRhs(rbp) {
+    const next = this.token().type;
+    if (BINDING_POWER[next] < PROJECTION_STOP) return IDENTITY;
+    if (next === "Lbracket" || next === "Filter") return this.expression(rbp);
+    if (next === "Dot") {
+      this.advance();
+      return this.dotRhs(rbp);
+    }
+    return this.fail(this.token(), `Unexpected ${describe3(this.token())} after a projection`);
+  }
+  multiSelectList() {
+    const children3 = [];
+    for (; ; ) {
+      children3.push(this.expression(0));
+      if (this.token().type === "Rbracket") break;
+      this.match("Comma");
+    }
+    this.match("Rbracket");
+    return { type: "MultiSelectList", children: children3 };
+  }
+  multiSelectHash() {
+    const pairs = [];
+    for (; ; ) {
+      const key5 = this.token();
+      if (key5.type !== "UnquotedIdentifier" && key5.type !== "QuotedIdentifier") this.fail(key5, `Expected a key name, found ${describe3(key5)}`);
+      this.advance();
+      this.match("Colon");
+      pairs.push({ key: key5.value, value: this.expression(0) });
+      if (this.token().type === "Rbrace") break;
+      this.match("Comma");
+    }
+    this.match("Rbrace");
+    return { type: "MultiSelectHash", pairs };
+  }
+};
+
+// src/core/query/index.ts
+function compileQuery(expression) {
+  const ast = parse3(expression);
+  checkDepth(ast, MAX_DEPTH);
+  checkFunctions(ast);
+  const interpreter = new Interpreter();
+  return {
+    expression,
+    search: (data) => {
+      const result = interpreter.visit(ast, data);
+      return result instanceof ExpressionReference ? null : result;
+    }
+  };
+}
+function pointAt(expression, error62) {
+  if (error62.position === void 0) return error62.message;
+  return `${error62.message} At position ${error62.position}: ${expression.slice(0, error62.position)}>>>${expression.slice(error62.position)}`;
+}
+
+// src/core/query/select.ts
+var SELECT_FIELD = "select";
+var SELECT_DESCRIPTION = 'A JMESPath expression applied to the result before it is returned, keeping only what it selects (e.g. "issues[].{key: key, status: fields.status.name}"). meta is left as it is.';
+var docsFix = "See https://jmespath.org/specification.html for the expression language.";
+function takeSelect(command, raw2) {
+  if (typeof raw2 !== "object" || raw2 === null || !Object.hasOwn(raw2, SELECT_FIELD)) return { input: raw2 };
+  const { [SELECT_FIELD]: expression, ...input2 } = raw2;
+  if (expression === void 0) return { input: input2 };
+  if (typeof expression !== "string" || expression.trim() === "") {
+    throw new ToilError("INVALID_INPUT", `Invalid input for ${command}: select must be a non-empty JMESPath expression.`, {
+      fix: `Give select an expression (--select <expression> on the CLI), or leave it out. ${docsFix}`
+    });
+  }
+  try {
+    return { input: input2, query: compileQuery(expression) };
+  } catch (caught) {
+    const err = caught instanceof QueryError ? caught : new QueryError("syntax", caught instanceof Error ? caught.message : String(caught));
+    throw new ToilError("INVALID_INPUT", `Invalid select expression for ${command}: ${err.message}`, {
+      fix: `Fix the expression and run it again. ${pointAt(expression, err)} ${docsFix}`,
+      details: { expression, kind: err.kind, position: err.position }
+    });
+  }
+}
+function applySelect(query2, data, command, writes, warn) {
+  let selected2;
+  try {
+    selected2 = query2.search(data);
+  } catch (caught) {
+    const err = caught instanceof QueryError ? caught : new QueryError("invalid-value", caught instanceof Error ? caught.message : String(caught));
+    const message = writes ? `${command} ran and made its change, but the select expression couldn't be applied to its result: ${err.message}` : `The select expression couldn't be applied to the result of ${command}: ${err.message}`;
+    const fix = writes ? `Don't repeat the write. Change the expression to fit the data, and read the result back with a read command. ${docsFix}` : `Change the expression to fit the data, or leave select out to see its shape. ${docsFix}`;
+    throw new ToilError("INVALID_INPUT", message, {
+      fix,
+      details: { expression: query2.expression, kind: err.kind }
+    });
+  }
+  if (selected2 === null || selected2 === void 0) {
+    warn({ code: "SELECT_EMPTY", message: `select "${query2.expression}" selected nothing from the result of ${command}, so data is null. Leave select out to see what the result holds.` });
+    return null;
+  }
+  return selected2;
+}
+
 // src/core/command.ts
 function defineCommand(def) {
+  assertNoCoreFields(def);
   return { ...def, kind: "standalone" };
 }
+function assertNoCoreFields(def) {
+  if (SELECT_FIELD in def.input.shape) throw new Error(`Command ${def.path.join(" ")}: "${SELECT_FIELD}" is added by core to every command.`);
+}
 function defineConfigCommand(def) {
+  assertNoCoreFields(def);
   return { ...def, kind: def.kind ?? "config" };
 }
 var isCliOnly = (def) => def.kind === "cli-only";
@@ -35451,7 +36198,7 @@ function assertUniquePaths(commands30) {
 var pairingKey = (key5) => `${key5}From`;
 var CONNECTION_FIELD = "connection";
 var NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
-var RESERVED_INPUTS = /* @__PURE__ */ new Set([CONNECTION_FIELD, "allowWrite", "pretty", "verbose", "debug", "config", "outputFile", "version", "help", "dossier", "cwd"]);
+var RESERVED_INPUTS = /* @__PURE__ */ new Set([CONNECTION_FIELD, SELECT_FIELD, "allowWrite", "pretty", "verbose", "debug", "config", "outputFile", "version", "help", "dossier", "cwd"]);
 var kebab = (name2) => name2.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 function defineArea(spec) {
   if (!NAME.test(spec.name)) throw new Error(`Area name "${spec.name}" must be lowercase letters, digits and single hyphens.`);
@@ -35494,6 +36241,7 @@ function defineArea(spec) {
       const name2 = def.path.join(" ");
       if (def.path[0] !== spec.name) throw new Error(`Command ${name2} is defined in area ${spec.name}; its path must start with "${spec.name}".`);
       if (CONNECTION_FIELD in def.input.shape) throw new Error(`Command ${name2}: "${CONNECTION_FIELD}" is added by core.`);
+      assertNoCoreFields(def);
       for (const banned of ["managesConfig", "cliOnly", "standalone"]) {
         if (banned in def) throw new Error(`Command ${name2}: "${banned}" is gone; an area command's kind is area or area-local.`);
       }
@@ -35596,8 +36344,8 @@ function unwrap(schema3) {
 function baseType(schema3) {
   return defOf(unwrap(schema3)).type;
 }
-function fieldSchema(schema3, field2) {
-  return schema3.shape[field2];
+function fieldSchema(schema3, field3) {
+  return schema3.shape[field3];
 }
 function elementSchema(schema3) {
   const inner = unwrap(schema3);
@@ -35793,15 +36541,15 @@ function selectConnection(config2, area28, input2, setting, value, flag, source2
   const instead = source2 === "input" ? "" : `, or correct ${where3}`;
   const names = connectionsOf(config2, area28.name);
   if (names.includes(value)) return value;
-  const matches = names.filter((n) => config2.connections[n][setting] !== void 0 && String(config2.connections[n][setting]) === value);
-  if (matches.length === 1) return matches[0];
-  if (matches.length === 0) {
+  const matches2 = names.filter((n) => config2.connections[n][setting] !== void 0 && String(config2.connections[n][setting]) === value);
+  if (matches2.length === 1) return matches2[0];
+  if (matches2.length === 0) {
     const known = names.map((n) => config2.connections[n][setting] === void 0 ? n : `${String(config2.connections[n][setting])} (connection ${n})`);
     throw new ToilError("INVALID_INPUT", `${area28.name} has no ${input2} "${value}" (from ${where3}). It knows: ${known.join(", ") || "none"}.`, {
       fix: names.length ? `Pass ${flag} with one of those, or --connection <name>${instead}; or set ${setting} on the connection you mean.` : `Add ${withArticle(area28.name)} connection with ${setting} "${value}" to your toil config${instead}.`
     });
   }
-  throw new ToilError("INVALID_INPUT", `Several ${area28.name} connections have ${setting} "${value}" (from ${where3}): ${matches.join(", ")}.`, {
+  throw new ToilError("INVALID_INPUT", `Several ${area28.name} connections have ${setting} "${value}" (from ${where3}): ${matches2.join(", ")}.`, {
     fix: `Pass --connection <name> to choose one of them.`
   });
 }
@@ -35914,13 +36662,13 @@ function jointSelection(config2, area28, early, source2) {
   const declared = area28.context;
   const selecting = Object.entries(early).filter(([name2, found]) => declared[name2].selectsConnection && found.source === source2);
   if (selecting.length < 2) return void 0;
-  const matches = connectionsOf(config2, area28.name).filter(
+  const matches2 = connectionsOf(config2, area28.name).filter(
     (conn) => selecting.every(([name2, found]) => {
       const value = config2.connections[conn][declared[name2].setting ?? name2];
       return conn === found.value || value !== void 0 && value !== null && String(value) === found.value;
     })
   );
-  return matches.length === 1 ? matches[0] : void 0;
+  return matches2.length === 1 ? matches2[0] : void 0;
 }
 function checked(area28, name2, spec, value, source2) {
   if (value === void 0 || value === "") return void 0;
@@ -36047,7 +36795,7 @@ function inFieldNames(def, envelope) {
   });
   if (def.writes) flags.push(["--allow-write", "allowWrite"]);
   flags.sort((a, b) => b[0].length - a[0].length);
-  const swap = (text2) => flags.reduce((out, [flag, field2]) => out.replace(new RegExp(`(?<![\\w-])${flag}(?![\\w-])`, "g"), field2), text2);
+  const swap = (text2) => flags.reduce((out, [flag, field3]) => out.replace(new RegExp(`(?<![\\w-])${flag}(?![\\w-])`, "g"), field3), text2);
   const reword = (text2) => text2.split(COMMAND_LINE).map((part, i) => i % 2 === 1 ? part : swap(part)).join("");
   const error62 = { ...envelope.error, message: reword(envelope.error.message) };
   if (envelope.error.fix !== void 0) error62.fix = reword(envelope.error.fix);
@@ -36089,7 +36837,8 @@ async function execute(def, rawInput, ctx) {
   if (ctx.signal?.aborted) onCallerAbort();
   else ctx.signal?.addEventListener("abort", onCallerAbort, { once: true });
   try {
-    const parsed = def.input.strict().safeParse(rawInput ?? {});
+    const { input: own2, query: query2 } = takeSelect(commandName(def), rawInput);
+    const parsed = def.input.strict().safeParse(own2 ?? {});
     if (!parsed.success) {
       throw new ToilError("INVALID_INPUT", `Invalid input for ${commandName(def)}: ${external_exports.prettifyError(parsed.error)}`, {
         fix: `Run toil ${commandName(def)} --help to see the expected arguments.`,
@@ -36156,7 +36905,8 @@ async function execute(def, rawInput, ctx) {
         exitCode = code;
       }
     };
-    const data = await Promise.race([def.run(parsed.data, commandCtx), aborted2]);
+    const result = await Promise.race([def.run(parsed.data, commandCtx), aborted2]);
+    const data = query2 ? applySelect(query2, result, commandName(def), def.writes, (w) => warnings.push(w)) : result;
     const envelope = success2(data, meta3());
     if (exitCode !== void 0) exitCodes.set(envelope, exitCode);
     return envelope;
@@ -36262,15 +37012,16 @@ function createMcpServer(options2) {
 function inputSchemaFor(def) {
   const schema3 = external_exports.toJSONSchema(def.input.strict(), { target: "draft-7" });
   delete schema3.$schema;
-  return { ...schema3, type: "object" };
+  const properties = { ...schema3.properties, [SELECT_FIELD]: { type: "string", minLength: 1, description: SELECT_DESCRIPTION } };
+  return { ...schema3, type: "object", properties };
 }
 
 // src/core/runtime.ts
 var MIN_NODE = "24.14.0";
 function nodeTooOld(version2, min = MIN_NODE) {
-  const parse4 = (v) => v.replace(/^v/, "").split(".").map((n) => Number.parseInt(n, 10) || 0);
-  const have = parse4(version2);
-  const need = parse4(min);
+  const parse5 = (v) => v.replace(/^v/, "").split(".").map((n) => Number.parseInt(n, 10) || 0);
+  const have = parse5(version2);
+  const need = parse5(min);
   for (let i = 0; i < 3; i++) {
     if ((have[i] ?? 0) !== (need[i] ?? 0)) return (have[i] ?? 0) < (need[i] ?? 0);
   }
@@ -36456,12 +37207,12 @@ function refusedGitRead(path2, home, protect = []) {
 }
 function includeTarget(entry, ctx) {
   if (entry.value === null || entry.value === "") return void 0;
-  let matches = false;
-  if (entry.key === "include.path") matches = true;
+  let matches2 = false;
+  if (entry.key === "include.path") matches2 = true;
   else if (entry.key.startsWith("includeif.") && entry.key.endsWith(".path")) {
-    matches = conditionHolds(entry.key.slice("includeif.".length, -".path".length), entry.file, ctx);
+    matches2 = conditionHolds(entry.key.slice("includeif.".length, -".path".length), entry.file, ctx);
   }
-  if (!matches) return void 0;
+  if (!matches2) return void 0;
   const path2 = expandHome(entry.value, ctx.home);
   return isAbsolute(path2) ? path2 : resolve2(dirname2(entry.file), path2);
 }
@@ -36928,11 +37679,11 @@ function isSystemPath(realPath, platform = process.platform) {
 var comparable = (path2) => process.platform === "win32" ? path2.toLowerCase() : path2;
 var inside = (child, parent) => child === parent || child.startsWith(parent.endsWith(sep2) ? parent : parent + sep2);
 function toCsv(header, rows) {
-  const field2 = (value) => {
+  const field3 = (value) => {
     const text2 = value === null || value === void 0 ? "" : String(value);
     return /[",\r\n]/.test(text2) ? `"${text2.replace(/"/g, '""')}"` : text2;
   };
-  return [header, ...rows].map((row) => row.map(field2).join(",")).join("\n") + "\n";
+  return [header, ...rows].map((row) => row.map(field3).join(",")).join("\n") + "\n";
 }
 var DEFAULT_LIST_LIMIT = 1e5;
 function tooManyFiles(dir, limit2) {
@@ -40803,7 +41554,7 @@ function buildProgram(options2) {
   const result = { exitCode: 0 };
   const quiet = (cmd) => cmd.exitOverride().configureOutput({ writeOut: io.stdout, writeErr: io.stderr });
   const program2 = quiet(
-    new Command("toil").description("The central integrator between AI agents and the enterprise. Every command prints one JSON envelope.").version(options2.version, "-v, --version", "output the version number").option("--pretty", "Human-readable formatted output", false).option("--verbose", "Add every request to meta.requests (credentials redacted)", false).option("--debug", "Print diagnostic traces to stderr (never credentials)", false).option("--config <path>", "Override global config file location").option("--output-file <path>", "Write JSON output to file instead of stdout").option("--workspace <dir>", "The folder commands may read and write files in (default: the working directory; env TOIL_WORKSPACE)").showHelpAfterError()
+    new Command("toil").description("The central integrator between AI agents and the enterprise. Every command prints one JSON envelope.").version(options2.version, "-v, --version", "output the version number").option("--pretty", "Human-readable formatted output", false).option("--verbose", "Add every request to meta.requests (credentials redacted)", false).option("--debug", "Print diagnostic traces to stderr (never credentials)", false).option("--config <path>", "Override global config file location").option("--output-file <path>", "Write JSON output to file instead of stdout").option("--workspace <dir>", "The folder commands may read and write files in (default: the working directory; env TOIL_WORKSPACE)").option("--select <expression>", "Keep only part of data: a JMESPath expression applied to it (meta is left as it is)").showHelpAfterError()
   );
   const groups = /* @__PURE__ */ new Map();
   const groupFor = (segments) => {
@@ -40824,7 +41575,7 @@ function buildProgram(options2) {
   const register = (def, path2) => {
     const canonical = path2 === def.path;
     const preset = canonical ? {} : aliasInput(def, path2);
-    const fixed = Object.entries(preset).map(([field2, value]) => `${def.options?.find((o) => o.field === field2)?.flags.split(/[ ,]+/).find((p) => p.startsWith("--")) ?? field2} ${String(value)}`).join(" ");
+    const fixed = Object.entries(preset).map(([field3, value]) => `${def.options?.find((o) => o.field === field3)?.flags.split(/[ ,]+/).find((p) => p.startsWith("--")) ?? field3} ${String(value)}`).join(" ");
     const leaf = quiet(
       groupFor(path2.slice(0, -1)).command(path2[path2.length - 1]).description(canonical ? def.description : `${def.description} (same as toil ${commandName(def)}${fixed ? ` ${fixed}` : ""})`)
     );
@@ -40852,7 +41603,7 @@ function buildProgram(options2) {
     leaf.action(async (...actionArgs) => {
       const cmd = actionArgs[actionArgs.length - 1];
       const globals = cmd.optsWithGlobals();
-      const input2 = { ...inputFromCli(def, cmd, groupFlags(path2[0]), preset), ...preset };
+      const input2 = withSelect({ ...inputFromCli(def, cmd, groupFlags(path2[0]), preset), ...preset }, globals);
       if (!canonical) {
         const stray = strayGroupFlags(def, cmd, groupFlags(path2[0]))[0];
         if (stray) {
@@ -40921,7 +41672,7 @@ function buildProgram(options2) {
         if (theirs.has(long) || cmd.getOptionValueSource(new Option(long).attributeName()) !== "cli") continue;
         return refuse2(`${long} is for ${routing} ${values2.join(" or ")}; ${routing} ${value} runs toil ${commandName(def)}, which doesn't take it.`, `Leave out ${long}, or pass ${routing} ${values2[0]}.`);
       }
-      const input2 = inputFromCli(def, cmd, groupFlags(alias.path[0]));
+      const input2 = withSelect(inputFromCli(def, cmd, groupFlags(alias.path[0])), globals);
       if (globals.outputFile && io.checkFile) {
         try {
           io.checkFile(globals.outputFile, globals);
@@ -41014,7 +41765,7 @@ function groupFlagBeforeAlias(args, commands30, rejected) {
   }
   return void 0;
 }
-var VALUE_GLOBALS = /* @__PURE__ */ new Set(["--config", "--output-file", "--workspace"]);
+var VALUE_GLOBALS = /* @__PURE__ */ new Set(["--config", "--output-file", "--workspace", "--select"]);
 function commandFromArgv(args, commands30) {
   const words = [];
   for (let i = 0; i < args.length; i++) {
@@ -41033,8 +41784,8 @@ function commandFromArgv(args, commands30) {
   let best = { length: 0, name: "" };
   for (const def of commands30) {
     for (const path2 of [def.path, ...aliasPaths(def)]) {
-      const matches = path2.every((segment, i) => words[i] === segment);
-      if (matches && path2.length > best.length) best = { length: path2.length, name: commandName(def) };
+      const matches2 = path2.every((segment, i) => words[i] === segment);
+      if (matches2 && path2.length > best.length) best = { length: path2.length, name: commandName(def) };
     }
   }
   if (best.length === 0) {
@@ -41083,18 +41834,21 @@ function inputFromCli(def, cmd, groupFlags, preset = {}) {
   if (def.writes && own2.allowWrite === true) input2.allowWrite = true;
   return input2;
 }
+function withSelect(input2, globals) {
+  return globals.select === void 0 ? input2 : { ...input2, [SELECT_FIELD]: globals.select };
+}
 function strayGroupFlags(def, cmd, groupFlags) {
   const mapped = new Set((def.options ?? []).map((opt) => opt.flags));
   const all = cmd.optsWithGlobals();
   return [...groupFlags].filter((flags) => !mapped.has(flags) && all[new Option(flags).attributeName()] !== void 0);
 }
 var takesValue = (flags) => flags.includes("<") || flags.includes("[");
-function isArrayField(def, field2) {
-  const schema3 = fieldSchema(def.input, field2);
+function isArrayField(def, field3) {
+  const schema3 = fieldSchema(def.input, field3);
   return schema3 !== void 0 && baseType(schema3) === "array";
 }
-function typed(def, field2, value) {
-  const schema3 = fieldSchema(def.input, field2);
+function typed(def, field3, value) {
+  const schema3 = fieldSchema(def.input, field3);
   if (!schema3) return value;
   if (Array.isArray(value)) {
     const element = elementSchema(schema3);
@@ -41372,7 +42126,7 @@ function errorMessageFrom(body) {
   const parts = [];
   if (Array.isArray(p.errorMessages)) parts.push(...p.errorMessages.filter((m) => typeof m === "string" && m !== ""));
   if (p.errors && typeof p.errors === "object" && !Array.isArray(p.errors)) {
-    for (const [field2, message] of Object.entries(p.errors)) parts.push(`${field2}: ${String(message)}`);
+    for (const [field3, message] of Object.entries(p.errors)) parts.push(`${field3}: ${String(message)}`);
   }
   if (Array.isArray(p.errors)) {
     for (const e of p.errors) {
@@ -41758,8 +42512,8 @@ function assertTokenHost(url2, baseUrl, vendorDomain, service, connection3) {
 
 // src/core/paginate.ts
 var MAX_PAGES = 1e3;
-var field = (body, name2) => typeof body === "object" && body !== null ? body[name2] : void 0;
-var values = (body) => Array.isArray(field(body, "values")) ? field(body, "values") : [];
+var field2 = (body, name2) => typeof body === "object" && body !== null ? body[name2] : void 0;
+var values = (body) => Array.isArray(field2(body, "values")) ? field2(body, "values") : [];
 async function paginate(style, fetchPage, options2 = {}) {
   const { cap } = options2;
   if (cap !== void 0 && (!Number.isInteger(cap) || cap < 1)) throw new Error(`paginate: cap must be a positive whole number, not ${cap}.`);
@@ -41854,15 +42608,15 @@ function advance(style, cursor3, got, page, counted, total) {
       if (style.total) return typeof total === "number" && counted >= total ? null : String(Number(cursor3) + 1);
       return got.length < style.pageSize ? null : String(Number(cursor3) + 1);
     case "nextPageStart": {
-      const start = field(page.body, "nextPageStart");
-      return field(page.body, "isLastPage") === true || typeof start !== "number" ? null : String(start);
+      const start = field2(page.body, "nextPageStart");
+      return field2(page.body, "isLastPage") === true || typeof start !== "number" ? null : String(start);
     }
     case "header": {
       const token = page.headers?.get(style.header);
       return token ? token : null;
     }
     case "nextPageKey": {
-      const key5 = style.key ? style.key(page.body) : field(page.body, "nextPageKey");
+      const key5 = style.key ? style.key(page.body) : field2(page.body, "nextPageKey");
       return typeof key5 === "string" && key5 !== "" ? key5 : null;
     }
   }
@@ -44329,7 +45083,7 @@ function readInventory(ctx, from, options2 = {}) {
 }
 
 // src/areas/artifactory/semver.ts
-function parse3(v) {
+function parse4(v) {
   const clean = v.replace(/^[^0-9]*/, "");
   const dashIdx = clean.indexOf("-");
   const plusIdx = clean.indexOf("+");
@@ -44341,8 +45095,8 @@ function parse3(v) {
   return { major: parts[0] ?? 0, minor: parts[1] ?? 0, patch: parts[2] ?? 0, preRelease };
 }
 function compareSemver(a, b) {
-  const av = parse3(a);
-  const bv = parse3(b);
+  const av = parse4(a);
+  const bv = parse4(b);
   if (av.major !== bv.major) return av.major - bv.major;
   if (av.minor !== bv.minor) return av.minor - bv.minor;
   if (av.patch !== bv.patch) return av.patch - bv.patch;
@@ -44355,8 +45109,8 @@ function isNewer(current, latest) {
   return compareSemver(latest, current) > 0;
 }
 function updateType(current, latest) {
-  const cv = parse3(current);
-  const lv = parse3(latest);
+  const cv = parse4(current);
+  const lv = parse4(latest);
   if (lv.major > cv.major) return "major";
   if (lv.minor > cv.minor) return "minor";
   return "patch";
@@ -48370,14 +49124,14 @@ function errorReason(body) {
   const error62 = parsed?.error;
   if (typeof error62 === "string" && error62 !== "") return error62;
   if (typeof error62 !== "object" || error62 === null) return void 0;
-  const describe3 = (e) => {
+  const describe4 = (e) => {
     const { type, reason } = e ?? {};
     if (typeof reason !== "string") return typeof type === "string" ? type : void 0;
     return typeof type === "string" ? `${type}: ${reason}` : reason;
   };
-  const top = describe3(error62);
+  const top = describe4(error62);
   const rootCause = error62.root_cause;
-  const root = Array.isArray(rootCause) ? describe3(rootCause[0]) : void 0;
+  const root = Array.isArray(rootCause) ? describe4(rootCause[0]) : void 0;
   if (top === void 0) return root;
   return root !== void 0 && root !== top ? `${top} (root cause: ${root})` : top;
 }
@@ -50575,7 +51329,7 @@ function jira(ctx, path2, req = {}) {
     ...req.body !== void 0 ? { body: JSON.stringify(req.body) } : {}
   });
 }
-function offsetPages(field2) {
+function offsetPages(field3) {
   return {
     kind: "offset",
     startParam: "startAt",
@@ -50584,13 +51338,13 @@ function offsetPages(field2) {
     // `issues` first, as the predecessor's shared loop read every list.
     items: (body) => {
       const page = body;
-      return page.issues ?? page[field2] ?? [];
+      return page.issues ?? page[field3] ?? [];
     },
     total: (body) => Number(body.total)
   };
 }
-async function every3(what, field2, fetchPage) {
-  const { items } = await paginate(offsetPages(field2), async (paging3) => ({ body: await fetchPage(paging3) }), { what });
+async function every3(what, field3, fetchPage) {
+  const { items } = await paginate(offsetPages(field3), async (paging3) => ({ body: await fetchPage(paging3) }), { what });
   return items;
 }
 function getIssue(ctx, key5) {
@@ -50716,7 +51470,7 @@ async function createMetaViaIssueTypes(ctx, project2, issueType) {
   const result = {};
   for (const type of matching) {
     const list4 = await jira(ctx, `${API4}/issue/createmeta/${seg3(project2)}/issuetypes/${seg3(type.id)}`);
-    for (const field2 of list4.values) mergeAllowed(result, field2.fieldId, field2.allowedValues);
+    for (const field3 of list4.values) mergeAllowed(result, field3.fieldId, field3.allowedValues);
   }
   return result;
 }
@@ -51575,29 +52329,29 @@ function inline(node3) {
     case "date":
       return str(node3.attrs?.timestamp);
     default:
-      return children(node3.content);
+      return children2(node3.content);
   }
 }
 function block(node3) {
   switch (node3.type) {
     case "bulletList":
-      return (node3.content ?? []).map((item) => `- ${children(item.content)}`).join("\n");
+      return (node3.content ?? []).map((item) => `- ${children2(item.content)}`).join("\n");
     case "orderedList": {
       const start = typeof node3.attrs?.order === "number" ? node3.attrs.order : 1;
-      return (node3.content ?? []).map((item, i) => `${start + i}. ${children(item.content)}`).join("\n");
+      return (node3.content ?? []).map((item, i) => `${start + i}. ${children2(item.content)}`).join("\n");
     }
     case "table":
-      return (node3.content ?? []).map((row) => (row.content ?? []).map((cell) => children(cell.content)).join(" | ")).join("\n");
+      return (node3.content ?? []).map((row) => (row.content ?? []).map((cell) => children2(cell.content)).join(" | ")).join("\n");
     case "rule":
       return "---";
     case "blockCard":
     case "embedCard":
       return str(node3.attrs?.url);
     default:
-      return children(node3.content);
+      return children2(node3.content);
   }
 }
-function children(nodes) {
+function children2(nodes) {
   if (!nodes?.length) return "";
   const parts = [];
   let line = "";
@@ -51718,23 +52472,23 @@ function jiraCloud(ctx, path2, req = {}) {
     ...req.body !== void 0 ? { json: req.body } : {}
   });
 }
-function offsetPages2(field2) {
+function offsetPages2(field3) {
   return {
     kind: "offset",
     startParam: "startAt",
     limitParam: "maxResults",
     pageSize: PAGE4,
-    items: (body) => body[field2] ?? [],
+    items: (body) => body[field3] ?? [],
     total: (body) => {
       const page = body;
-      const got = Array.isArray(page[field2]) ? page[field2].length : 0;
+      const got = Array.isArray(page[field3]) ? page[field3].length : 0;
       if (page.isLast === true && typeof page.startAt === "number") return page.startAt + got;
       return typeof page.total === "number" ? page.total : void 0;
     }
   };
 }
-async function every4(what, field2, fetchPage) {
-  const { items } = await paginate(offsetPages2(field2), async (paging3) => ({ body: await fetchPage(paging3) }), { what });
+async function every4(what, field3, fetchPage) {
+  const { items } = await paginate(offsetPages2(field3), async (paging3) => ({ body: await fetchPage(paging3) }), { what });
   return items;
 }
 function getIssue3(ctx, key5) {
@@ -51905,12 +52659,12 @@ async function fetchFieldsWithAllowedValues2(ctx, project2, issueType) {
       "fields",
       (paging3) => jiraCloud(ctx, `${API5}/issue/createmeta/${seg4(project2)}/issuetypes/${seg4(type.id)}`, { query: paging3 })
     );
-    for (const field2 of meta3) {
-      if (!field2.allowedValues?.length) continue;
-      const list4 = allowed.get(field2.fieldId) ?? [];
+    for (const field3 of meta3) {
+      if (!field3.allowedValues?.length) continue;
+      const list4 = allowed.get(field3.fieldId) ?? [];
       const seen = new Set(list4.map((v) => v.id));
-      for (const value of field2.allowedValues) if (!seen.has(value.id)) list4.push(value);
-      allowed.set(field2.fieldId, list4);
+      for (const value of field3.allowedValues) if (!seen.has(value.id)) list4.push(value);
+      allowed.set(field3.fieldId, list4);
     }
   }
   return fields3.map((f) => allowed.has(f.id) ? { ...f, allowedValues: allowed.get(f.id) } : f);
@@ -56794,7 +57548,7 @@ function withoutBlock(text2, profile) {
 function unterminated(text2, profile) {
   const begins = text2.split(/\r?\n/).filter((line) => line.trim() === BEGIN).length;
   const ends = text2.split(/\r?\n/).filter((line) => line.trim() === END).length;
-  if (begins !== ends || begins > 1) {
+  if (begins !== ends || begins > 1 || begins === 1 && !BLOCK2.test(text2)) {
     throw new ToilError("INVALID_INPUT", `${forwardSlashes(profile)} has ${begins} "${BEGIN}" line(s) and ${ends} "${END}" line(s), so toil can't tell which lines are its own.`, {
       fix: "Edit the profile by hand so it has at most one toil block, with both marker lines, then run the command again."
     });

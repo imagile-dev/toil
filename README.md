@@ -36,8 +36,8 @@ Each [release](https://github.com/imagile-dev/toil/releases) also carries the pa
 ### Run from a clone
 
 npm is the recommended path. Where the git host is reachable but the npm registry
-isn't, or to try `main`, a clone runs as it is, with no `npm install`: `dist/toil.js`
-is committed, and CI checks it matches its source.
+isn't, a clone runs as it is, with no `npm install`: `dist/toil.js` is committed, and
+it is the last released toil (each release rebuilds it; nothing else changes it).
 
 ```bash
 git clone https://github.com/imagile-dev/toil.git

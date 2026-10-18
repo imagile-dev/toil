@@ -1,7 +1,7 @@
 # Node build output
 node_modules/
-# dist/toil.js is committed, so a clone runs with no npm install, and CI checks
-# it matches its source (scripts/check-dist.mjs). The rest of dist/ is build output.
+# dist/toil.js is committed, the last released toil, so a clone runs with no npm
+# install; only the release PR rebuilds it. The rest of dist/ is build output.
 dist/*
 !dist/toil.js
 coverage/
