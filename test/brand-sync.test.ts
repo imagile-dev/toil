@@ -59,3 +59,37 @@ describe('the terminal matches the site', () => {
     });
   });
 });
+
+/**
+ * Toil UI's Crate theme is toil's brand too (#206): its colour tokens are the
+ * site's, read from the same global.css, so a palette change that skips the UI
+ * fails here. The UI is its own package, so the theme is JSON this test reads,
+ * never code it imports. `line` is the UI's own: the site's is translucent.
+ */
+describe("the Toil UI Crate theme matches the site", () => {
+  const crate = JSON.parse(readFileSync(join(root, 'ui/themes/crate/theme.json'), 'utf8')) as {
+    schemes: { dark: Record<string, string> };
+    fonts: Record<string, string>;
+  };
+  const hex = (rgb: Rgb) => `#${rgb.map((n) => n.toString(16).padStart(2, '0')).join('')}`;
+  const font = (name: string) => css.match(new RegExp(`--font-${name}:\\s*([^;]+);`))?.[1]?.trim();
+
+  // The UI token, then the site token it must equal.
+  const SAME: [string, string][] = [
+    ['bg', 'bg'], ['surface', 'surface'], ['raised', 'surface-raised'], ['ink', 'ink'], ['muted', 'muted'],
+    ['accent', 'accent'], ['accentInk', 'accent-ink'], ['link', 'amber'], ['focus', 'focus'],
+    ['ok', 'amber'], ['warn', 'amber'], ['danger', 'accent'], ['bannerBg', 'surface-raised'], ['bannerInk', 'amber'],
+  ];
+
+  it.each(SAME)('uses the site colour for %s (--color-%s)', (ui, site) => {
+    expect(crate.schemes.dark[ui]?.toLowerCase()).toBe(hex(token(site)));
+  });
+
+  it('uses the site fonts', () => {
+    for (const name of ['body', 'display', 'mono']) expect(crate.fonts[name], name).toBe(font(name));
+  });
+
+  it('is dark only, like the site', () => {
+    expect(Object.keys(crate.schemes)).toEqual(['dark']);
+  });
+});

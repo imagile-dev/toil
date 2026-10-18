@@ -1,0 +1,35 @@
+{
+  "name": "crate",
+  "label": "Crate",
+  "description": "toil's own brand: the site's warm near-black, the flame-to-amber accent, and the crate in its hard hat when there's nothing to show yet.",
+  "schemes": {
+    "dark": {
+      "bg": "#16130f",
+      "surface": "#1f1a15",
+      "raised": "#2a231c",
+      "ink": "#f6f1e9",
+      "muted": "#b4a998",
+      "line": "#4a423a",
+      "accent": "#ff6a3d",
+      "accentInk": "#160b05",
+      "link": "#ffb84d",
+      "focus": "#6fb2ff",
+      "ok": "#ffb84d",
+      "warn": "#ffb84d",
+      "danger": "#ff6a3d",
+      "bannerBg": "#2a231c",
+      "bannerInk": "#ffb84d"
+    }
+  },
+  "fonts": {
+    "body": "'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    "display": "'Source Serif 4', Georgia, 'Times New Roman', serif",
+    "mono": "'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, monospace"
+  },
+  "radius": "8px",
+  "motion": "subtle",
+  "sounds": {},
+  "assets": {
+    "emptyState": "assets/crate-lost.webp"
+  }
+}

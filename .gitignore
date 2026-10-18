@@ -50,6 +50,10 @@ Thumbs.db
 # Astro
 site/.astro/
 
+# Toil UI build output, and the preview copy the site build makes of it
+ui/dist/
+site/public/ui-preview/
+
 # Local design labs, never shipped
 site/public/lab/
 

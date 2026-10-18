@@ -1,0 +1,49 @@
+/**
+ * Display helpers shared by the views: source names, item labels, dates.
+ * Dates are shown in UTC and say so, since the sprint's sources disagree about
+ * time zones as it is.
+ */
+
+import type { Person, SourceKind, WorkItem } from './store.ts';
+
+export const SOURCE_LABEL: Record<SourceKind, string> = {
+  jira: 'Jira',
+  ado: 'Azure DevOps',
+  github: 'GitHub',
+  bitbucket: 'Bitbucket',
+  jenkins: 'Jenkins',
+};
+
+/** `jira-cloud` reads as Jira: the family is what a person recognises. */
+export function sourceLabel(area: string): string {
+  const family = area.split('-')[0] as SourceKind;
+  return SOURCE_LABEL[family] ?? area;
+}
+
+/** The source's own key, shortened where the owner repeats on every item (`payments-web#41`). */
+export function shortKey(item: WorkItem): string {
+  return item.source.key.replace(/^[^/]+\//, '');
+}
+
+const DATE = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+const DATE_TIME = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC',
+});
+
+export const day = (iso: string) => DATE.format(new Date(iso));
+export const dateTime = (iso: string) => `${DATE_TIME.format(new Date(iso))} UTC`;
+
+/** A person by name, else by the id the source gave (GitHub gives only a login). */
+export const personText = (p: Person | null) => (p ? (p.name ?? p.id) : 'Unassigned');
+
+export const itemHref = (id: string) => `#/item/${encodeURIComponent(id)}`;
+
+export const STATUS_CATEGORY_LABEL = { TODO: 'To do', IN_PROGRESS: 'In progress', DONE: 'Done', UNKNOWN: 'Unknown' } as const;
+
+/** An estimate with the field it came from, which the UI always shows (#206). */
+export function estimateText(item: WorkItem): string {
+  const e = item.estimate;
+  if (!e) return 'No estimate';
+  const unit = e.unit === 'points' ? (e.value === 1 ? 'point' : 'points') : e.unit === 'hours' ? (e.value === 1 ? 'hour' : 'hours') : e.value === 1 ? 'day' : 'days';
+  return `${e.value} ${unit}`;
+}
