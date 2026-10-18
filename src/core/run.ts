@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { areaOf, commandName, isCliOnly, managesConfig, takesAllowWrite, usesConnection, writesFor, type AnyCommand } from './command.js';
+import { areaOf, changesAnythingFor, commandName, isCliOnly, managesConfig, takesAllowWrite, usesConnection, writesFor, type AnyCommand } from './command.js';
 import type { Connection } from './area.js';
 import { recordAudit } from './audit.js';
 import { resolveCall, supplyContext, type ResolvedCall } from './call-context.js';
@@ -7,14 +7,36 @@ import { connectionEnvName, connectionsOf, defaultConnectionName, envName } from
 import { IncompleteConnectionError } from './connection.js';
 import type { CommandContext, Context } from './context.js';
 import type { Place } from './dossier.js';
-import { failure, success, type ApiAnswer, type ContextReport, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
+import { CONTRACT_VERSION, failure, success, type ApiAnswer, type ContextReport, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
+import { progressMessage, withProgress, type ProgressBody } from './progress.js';
 import { applySelect, takeSelect } from './query/select.js';
 import { runWait, type WaitOptions } from './wait.js';
 
-/** Which front door a call came in by: the CLI's flags, or MCP's fields. */
-export type FrontDoor = 'cli' | 'mcp';
+/**
+ * Which front door a call came in by: the CLI's flags, MCP's fields, or a
+ * program calling `execute()` from `@imagile-dev/toil/api` (src/api.ts), which
+ * sends MCP's fields too and is held to MCP's rules.
+ */
+export type FrontDoor = 'cli' | 'mcp' | 'api';
+
+/**
+ * How one call is to be made, beyond its input. Front doors set it; a
+ * command never sees it. It is an object so that what a later host needs (an
+ * `actor` the call is made on behalf of) is a new field, not a new parameter.
+ */
+export interface CallOptions {
+  /**
+   * Refuse the call, before anything resolves or is sent, when it would
+   * change anything: `writes` / `writesWhen` (the passthrough's POST), or
+   * `writesLocal` / `writesLocalWhen` on this machine. Whatever the config says.
+   * `ctx.files` refuses a write the command didn't declare.
+   */
+  readOnly?: boolean;
+  /** Who is calling, as the caller names itself (`toil-ui`), for the audit log. Checked by the front door. */
+  caller?: string;
+}
 
 /**
  * Builds the context and runs the command, so a failure building the context
@@ -30,16 +52,18 @@ export async function runCommand(
   version: string,
   via: FrontDoor = 'cli',
   wait?: WaitOptions,
+  call: CallOptions = {},
 ): Promise<Envelope> {
   let envelope: Envelope;
   try {
     // `toil wait` runs the read it names once per attempt, each through execute() (src/core/wait.ts).
-    if (def.dispatches) envelope = await runWait(def, rawInput, makeContext, version, via, wait ?? { targets: [] });
-    else envelope = await execute(def, rawInput, makeContext(def), via);
+    if (def.dispatches) envelope = await runWait(def, rawInput, makeContext, version, via, wait ?? { targets: [] }, call);
+    else envelope = await execute(def, rawInput, makeContext(def), via, call);
   } catch (err) {
     envelope = failure(toToilError(err), { command: commandName(def), durationMs: 0, version });
   }
-  return via === 'mcp' ? inFieldNames(def, envelope) : envelope;
+  // MCP and the API both send fields, so their input errors name fields.
+  return via === 'cli' ? envelope : inFieldNames(def, envelope);
 }
 
 /**
@@ -104,7 +128,7 @@ export const DEFAULT_TIMEOUT_MS = 120_000;
  * --verbose, warnings, paging, timeouts, cancellation and the audit line all
  * live here, so no front door can forget them and no command has to remember them.
  */
-export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, via: FrontDoor = 'cli'): Promise<Envelope> {
+export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, via: FrontDoor = 'cli', how: CallOptions = {}): Promise<Envelope> {
   const started = performance.now();
   const requests: RequestLog[] = [];
   const warnings: Warning[] = [...ctx.config.warnings];
@@ -116,7 +140,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
   let reportDossier: (() => void) | undefined;
   const meta = (): Meta => {
     reportDossier?.();
-    const m: Meta = { command: commandName(def), durationMs: Math.round(performance.now() - started), version: ctx.version };
+    const m: Meta = { command: commandName(def), durationMs: Math.round(performance.now() - started), version: ctx.version, contractVersion: CONTRACT_VERSION };
     if (ctx.verbose) m.requests = requests;
     if (warnings.length > 0) m.warnings = warnings;
     if (page) m.page = page;
@@ -154,10 +178,27 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
   // One audit line per call, success or failure, with the input as the caller
   // sent it and every request, --verbose or not (src/core/audit.ts).
   // A config change or another toil version rewrites the installed toil skill, said in meta.warnings.
-  const upkeep = () => ctx.skillUpkeep?.((w) => warnings.push(w));
-  const audited = (envelope: Envelope) => recordAudit(ctx.audit, { def, input: rawInput, via, writes: writing, requests, envelope });
+  // A read-only call writes nothing outside the audit log, the skill's upkeep included.
+  const upkeep = () => (how.readOnly ? undefined : ctx.skillUpkeep?.((w) => warnings.push(w)));
+  const audited = (envelope: Envelope) => recordAudit(ctx.audit, { def, input: rawInput, via, writes: writing, requests, envelope, ...(how.caller ? { caller: how.caller } : {}) });
+  // Progress (src/core/progress.ts) goes to the front door's listener with the
+  // command's name and a line of text. A listener that throws loses its
+  // events, never the command, and the envelope says so once.
+  const listen = ctx.progress;
+  let listenerFailed = false;
+  const toListener = (body: ProgressBody) => {
+    if (!listen || listenerFailed) return;
+    try {
+      listen({ ...body, command: commandName(def), message: progressMessage(commandName(def), body) });
+    } catch (err) {
+      listenerFailed = true;
+      warnings.push({ code: 'PROGRESS_LISTENER_FAILED', message: `The progress listener threw (${(err as Error).message}), so no more progress was reported for this call. The command itself ran as reported.` });
+    }
+  };
 
   try {
+    // Read-only: a command that always writes, in a service or on this machine, is refused before its input is even read.
+    if (how.readOnly && (def.writes || def.writesLocal === true)) throw readOnlyRefusal(def);
     // Strict: an unknown or misspelt field is an error through MCP exactly as an
     // unknown flag is on the CLI, never a field silently ignored.
     // --select is core's, not the command's: compiled here, before anything runs, and applied to data below.
@@ -181,8 +222,10 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     // the same time limit and cancel as the command itself.
     const input = parsed.data as Record<string, unknown>;
     writing = writesFor(def, input);
-    // A tool MCP serves, asked for a call it mustn't make (a DELETE through the passthrough).
-    const offMcp = via === 'mcp' ? def.offMcpWhen?.(input) : undefined;
+    // One whose input makes it write (the passthrough's POST) is refused once that's known, still before anything resolves.
+    if (how.readOnly && changesAnythingFor(def, input)) throw readOnlyRefusal(def);
+    // A tool MCP serves, asked for a call it mustn't make (a DELETE through the passthrough). The API is held to the same.
+    const offMcp = via !== 'cli' ? def.offMcpWhen?.(input) : undefined;
     if (offMcp) throw new ToilError('INVALID_INPUT', `${commandName(def)}: ${offMcp}`, { fix: `Only a person can make this call, on the CLI with toil ${commandName(def)}.` });
     // Filled as it resolves, so a failure part-way still reports what was chosen.
     const partial: ContextReport = {};
@@ -242,7 +285,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     // enforced rather than requested in a policy nobody reads.
     // The credential store and the prompter go only to commands that manage
     // connections, which get them through ctx.manage.
-    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo' | 'audit' | 'skillUpkeep'> & {
+    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo' | 'audit' | 'skillUpkeep' | 'progress'> & {
+      progress?: unknown;
       skillUpkeep?: unknown;
       audit?: unknown;
       repo?: unknown;
@@ -266,6 +310,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     delete rest.repo;
     delete rest.audit;
     delete rest.skillUpkeep;
+    delete rest.progress;
     const context = call?.context ?? {};
     const resolved = call?.report ?? {};
     const commandCtx: CommandContext<Connection | undefined> = {
@@ -281,7 +326,14 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
       // A listing's warnings (a refused git include) land in meta.warnings without the command passing anything.
-      files: { ...ctx.files, list: (dir, options) => ctx.files.list(dir, { ...options, warn: options?.warn ?? ((w) => warnings.push(w)) }) },
+      files: {
+        ...ctx.files,
+        list: (dir, options) => ctx.files.list(dir, { ...options, warn: options?.warn ?? ((w) => warnings.push(w)) }),
+        // Read-only means nothing local changes either. A command that writes a
+        // file declares it (`writesLocal`) and is refused before it runs; this
+        // catches one that didn't, loudly, before a byte lands.
+        ...(how.readOnly ? { writeBytes: () => refuseLocalWrite(def), writeCsv: () => refuseLocalWrite(def) } : {}),
+      },
       // git stops with the command, as fetch does, without the command passing anything.
       ...(ctx.git ? { git: { run: (call) => ctx.git!.run(call, controller.signal) } } : {}),
       // A call's `cwd` names the folder its repository is read from; otherwise the workspace's.
@@ -302,7 +354,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       delete forRun.dossier;
       delete forRun.cwd;
     }
-    const result = await Promise.race([def.run(forRun, commandCtx), aborted]);
+    const result = await Promise.race([withProgress(toListener, () => def.run(forRun, commandCtx)), aborted]);
     const data = query ? applySelect(query, result, commandName(def), writing, (w) => warnings.push(w)) : result;
     upkeep();
     const envelope = success(data, meta());
@@ -317,6 +369,20 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     clearTimeout(timer);
     ctx.signal?.removeEventListener('abort', onCallerAbort);
   }
+}
+
+/** A file write from a command that didn't declare one, in a read-only call: refused, and a bug in its definition. */
+function refuseLocalWrite(def: AnyCommand): never {
+  throw new ToilError('WRITE_DISABLED', `${commandName(def)} tried to write a file, and this call was made read-only, so the write was refused.`, {
+    fix: 'Make the call without readOnly to write the file. This command should declare writesLocal; report it at https://github.com/imagile-dev/toil/issues.',
+  });
+}
+
+/** The refusal a read-only call gets for a command that would write. */
+function readOnlyRefusal(def: AnyCommand): ToilError {
+  return new ToilError('WRITE_DISABLED', `${commandName(def)} changes data, and this call was made read-only, so it was refused before anything ran.`, {
+    fix: 'Make the call without readOnly if you mean to make this change; it then goes through the write gate as usual.',
+  });
 }
 
 /**

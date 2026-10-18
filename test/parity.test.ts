@@ -1,13 +1,16 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { CORE_FIELDS } from '../src/core/area.js';
-import { aliasInput, aliasPaths, areaOf, commandName, isCliOnly, servedOverMcp, takesAllowWrite, toolName, usesConnection, writesFor, type AnyCommand } from '../src/core/command.js';
+import { aliasInput, aliasPaths, areaOf, changesAnythingFor, commandName, isCliOnly, servedOverMcp, takesAllowWrite, toolName, usesConnection, writesFor, type AnyCommand } from '../src/core/command.js';
 import type { Settings } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
 import { SELECT_DESCRIPTION, SELECT_FIELD } from '../src/core/query/select.js';
 import type { GitRunner } from '../src/core/git.js';
 import type { GitContext } from '../src/core/git-repo.js';
+import { runCommand } from '../src/core/run.js';
 import { clearTokenCache, watchTokenExchanges } from '../src/core/token.js';
 import { argvFor, routedArgvFor } from '../src/program.js';
 import { areas as registeredAreas, commands, routedAliases } from '../src/registry.js';
@@ -131,6 +134,16 @@ function sameCall(line: string | undefined): unknown {
   return rest;
 }
 
+/** Every file under `dir`, by path, with its content: what a read-only call must leave as it was. */
+function snapshot(dir: string, base = dir, out: Record<string, string> = {}): Record<string, string> {
+  for (const name of readdirSync(dir)) {
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) snapshot(full, base, out);
+    else out[full.slice(base.length).split('\\').join('/')] = readFileSync(full, 'utf8');
+  }
+  return out;
+}
+
 /** Timing is the only field allowed to differ between two runs of the same call. */
 function comparable(envelope: Envelope | undefined): unknown {
   if (!envelope) return envelope;
@@ -246,6 +259,27 @@ for (const suite of suites) {
             expect(methods, `${commandName(def)} is read-only but sent`).toEqual([]);
             const writing = writeOperations(suite.fixture);
             expect(cliOps.map((o) => o.op).filter((op) => writing.has(op)), `${commandName(def)} is read-only but called`).toEqual([]);
+          }
+        });
+
+        it(`${commandName(def)} example ${i + 1}: under readOnly, refused before anything runs if it writes anything, otherwise runs and changes nothing`, async () => {
+          const ro = testContext({ config: suite.fixture.config, routes: suite.fixture.routes, files: suite.fixture.files, ...localOf(suite.fixture) });
+          // The dossiers commands write straight to disk, where no guard sees: compare the disk itself.
+          const before = suite.fixture === outside ? snapshot(outsideDisk.root) : undefined;
+          const exchanges = watchTokenExchanges();
+          const { result: envelope, operations } = await recordOperations(() => runCommand(def, example, () => ro.context, ro.context.version, 'api', { targets: suite.commands }, { readOnly: true })).finally(exchanges.stop);
+          if (changesAnythingFor(def, example)) {
+            expect(envelope.error?.message, `${commandName(def)} writes, so readOnly refuses it`).toMatch(/this call was made read-only, so it was refused before anything ran/);
+            expect(ro.http.calls, 'nothing sent').toEqual([]);
+            expect(operations, 'nothing run').toEqual([]);
+          } else {
+            // An unmarked writer is caught here: ctx.files refuses its write, or the disk or an operation shows it.
+            expect(envelope.ok, `${commandName(def)} under readOnly: ${JSON.stringify(envelope.error)}`).toBe(true);
+            const allowed = def.queryByPost ? new Set([...READ_METHODS, 'POST']) : READ_METHODS;
+            expect(withoutExchanges(ro.http.calls, exchanges.sent).map((c) => c.method).filter((m) => !allowed.has(m)), `${commandName(def)} under readOnly sent`).toEqual([]);
+            const writing = writeOperations(suite.fixture);
+            expect(operations.map((o) => o.op).filter((op) => writing.has(op)), `${commandName(def)} under readOnly called`).toEqual([]);
+            if (before) expect(snapshot(outsideDisk.root), `${commandName(def)} under readOnly changed files on disk: mark it writesLocal`).toEqual(before);
           }
         });
       });

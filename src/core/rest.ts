@@ -1,6 +1,7 @@
 import { STATUS_CODES } from 'node:http';
 import { ToilError, type ErrorCode } from './errors.js';
 import { redactUrl } from './http.js';
+import { reportProgress } from './progress.js';
 
 /**
  * The HTTP plumbing every REST integration needs and none should rewrite:
@@ -245,7 +246,10 @@ export async function restResponse<T>(ctx: RestContext, url: string, init: Reque
             details: { status: 429, url: redactUrl(url), retryAfterSeconds: wait ?? null },
           });
         }
-        await sleep(wait !== undefined ? wait * 1000 : attempt * 1000, ctx.signal);
+        const waitMs = wait !== undefined ? wait * 1000 : attempt * 1000;
+        // Said while it happens (src/core/progress.ts): a wait of up to a minute shouldn't look like a hang.
+        reportProgress({ type: 'retry', attempt, waitMs, status: 429, url: redactUrl(url) });
+        await sleep(waitMs, ctx.signal);
         continue;
       }
       if (!response.ok && !options.accept?.includes(response.status)) throw await failed(response, finalUrl, options);

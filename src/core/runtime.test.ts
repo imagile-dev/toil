@@ -19,7 +19,7 @@ describe('the Node floor', () => {
         message: 'toil needs Node 24.14 or later; this is 22.23.3.',
         fix: expect.stringContaining('Install Node 24.14 or later'),
       },
-      meta: { command: 'toil', durationMs: 0, version: '0.0.0-test' },
+      meta: { command: 'toil', durationMs: 0, version: '0.0.0-test', contractVersion: 1 },
     });
     expect(unsupportedNode(process.versions.node, '0.0.0-test')).toBeUndefined();
   });

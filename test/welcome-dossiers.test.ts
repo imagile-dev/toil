@@ -399,7 +399,7 @@ describe('the dossier screens, as functions', () => {
   });
 
   it('reads a discovery list wherever the command puts it', () => {
-    const env = (data: unknown): StepResult => ({ args: [], envelope: { ok: true, data, error: null, meta: { command: 'x', durationMs: 0, version: '0' } } });
+    const env = (data: unknown): StepResult => ({ args: [], envelope: { ok: true, data, error: null, meta: { command: 'x', durationMs: 0, version: '0', contractVersion: 1 } } });
     expect(discovered(env({ paging: {}, components: [{ key: 'pay-api', name: 'Payments API' }] }), DISCOVERY.sonar!)).toEqual([{ id: 'pay-api', name: 'Payments API' }]);
     expect(discovered(env([{ key: 'PAY', name: 'Payments' }, { key: 'PAY', name: 'again' }]), DISCOVERY.confluence!)).toEqual([{ id: 'PAY', name: 'Payments' }]);
   });

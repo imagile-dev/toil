@@ -52,6 +52,7 @@ export function skillCommands(areas: readonly AnyArea[]): AnyCommand[] {
       ...allowWriteField,
     }),
     writes: true,
+    writesLocal: true,
     kind: 'cli-only',
     options: [
       { flags: '--agent <agent>', field: 'agent', description: `Target agent host: ${AGENT_CHOICES} (default: ${DEFAULT_AGENT})` },
@@ -93,6 +94,7 @@ export function skillCommands(areas: readonly AnyArea[]): AnyCommand[] {
       "Shows the bundled toil skill: the description toil generates from the configured areas and database engines (names only), the connections that come only from TOIL_* env vars, and every copy installed with toil skill install in the agent skills folders (path, toil version, whether it is current). Read-only; installing is toil skill install, on the CLI.",
     input: z.object({}),
     writes: false,
+    writesLocal: false,
     examples: [{}],
     run: async (_input, ctx) => {
       const d = describe(ctx, areas);

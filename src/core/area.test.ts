@@ -14,8 +14,8 @@ describe('command kinds', () => {
 
   it('gives each helper and area.command its kind, and only an area command a connection', () => {
     const standalone = defineCommand({ ...base, path: ['kinds-version'] });
-    const config = defineConfigCommand({ ...base, path: ['connections', 'look'] });
-    const cliOnly = defineConfigCommand({ ...base, path: ['connections', 'ask'], kind: 'cli-only' });
+    const config = defineConfigCommand({ ...base, writesLocal: false, path: ['connections', 'look'] });
+    const cliOnly = defineConfigCommand({ ...base, writesLocal: false, path: ['connections', 'ask'], kind: 'cli-only' });
     const withConnection = area.command({ ...base, path: ['kinds', 'get'] });
     const local = area.command({ ...base, path: ['kinds', 'schema'], kind: 'area-local' });
 

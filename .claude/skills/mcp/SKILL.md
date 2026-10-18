@@ -56,7 +56,9 @@ off before the command's own strict parse, so no command declares it.
 
 **`wait` and resources.** `wait` (`src/core/wait.ts`) is served whenever a read tool
 is, and repeats only the tools this server serves; it sends `notifications/progress`
-after each attempt when the call carried a progress token. `runCommand()` hands it
+after each attempt when the call carried a progress token, and every tool call with a
+token also gets the call's page and retry progress events (`src/core/progress.ts`),
+numbered from one counter per call so `progress` only goes up. `runCommand()` hands it
 the server's tool list as its targets. Resources (`src/mcp/resources.ts`) are
 descriptions, never data: `toil://connections` (name, area, default, writes, never a
 host or secret), `toil://dossiers[/<name>]` through the dossiers commands, served

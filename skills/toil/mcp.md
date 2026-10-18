@@ -32,6 +32,10 @@ port.
   Whether Claude Code, Codex or other clients reset their own tool-call timeout on
   progress hasn't been checked, so with those keep `timeout` under the client's
   tool-call limit.
+- **Progress**: any tool call that carried a progress token also gets a progress
+  notification for each page a listing reads and each rate-limited (429) request
+  toil waits to retry, with the same message the CLI writes to stderr
+  (`core.md`, **Progress**). The envelope is the same either way.
 - **Resources**: besides tools, the server serves read-only resources that describe
   toil's own context, so a client can read it without a tool call. None reads from a
   service, and none holds a secret. They follow `--areas` as the tools do.
