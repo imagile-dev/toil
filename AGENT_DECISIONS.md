@@ -564,6 +564,10 @@ Added as each integration lands.
 - **Bodies are storage format both ways**, with `--representation wiki` on writes
   and a plain-text `bodyText` added.
 - **`update-page` with no body resends the current one**, since v2 requires it.
+- **A `baseUrl` ending in `/wiki` is refused**, saying to drop it, since the area adds
+  `/wiki` itself.
+- **A Jira Cloud token is shared only through an explicit `apiTokenFrom: jira-cloud`
+  pairing** (token only), as `confluence` pairs with `jira`.
 - **`download-attachment` follows Atlassian's redirect to its media host with every
   header dropped** (core's `follow-without-auth`), so the credential stays on the
   configured site.
