@@ -43,7 +43,9 @@ signal; never share one context across calls. Both front doors run commands thro
 the server was up) into an envelope too. The MCP server passes `'mcp'` to it, and
 an `INVALID_INPUT` envelope then names each of the command's flags as its field
 (`--max-results` becomes `maxResults`) in the message and fix, so areas word their
-input errors once, for the CLI, and nothing else changes. Tool descriptions are written for a model
+input errors once, for the CLI, and nothing else changes. A quoted command line
+(`toil …` in backticks, or plain text up to the end of its clause) keeps its flags,
+since it's something to run on the CLI. Tool descriptions are written for a model
 choosing between tools: what it returns, when to use it, and which sibling tool to use
 instead. A field's description is the same text on both front doors, so it never names a
 CLI-only flag (`--output-file`, `--config`).

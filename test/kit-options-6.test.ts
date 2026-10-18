@@ -3,6 +3,12 @@ import { commands as alationCommands } from '../src/areas/alation/index.js';
 import { adoArea } from '../src/areas/ado/area.js';
 import { loadConfig } from '../src/core/config.js';
 import { resolveConnection } from '../src/core/connection.js';
+import { failure } from '../src/core/envelope.js';
+import { ToilError } from '../src/core/errors.js';
+import { inFieldNames } from '../src/core/run.js';
+import { evaluateCommand } from '../src/areas/sonatypeiq/evaluate.js';
+import { flagsSetRuleCommand } from '../src/areas/splitio/flags.js';
+import { config as iqConfig, fixture as iqFixture } from './fixtures/sonatypeiq.fixture.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
 import { connectMcp } from './harness/mcp.js';
@@ -36,6 +42,33 @@ describe('an input error over MCP names the field, on the CLI the flag', () => {
     } finally {
       await mcp.close();
     }
+  });
+});
+
+describe('a CLI command line quoted in an input error stays CLI-shaped over MCP', () => {
+  it('sonatypeiq: the piped example keeps --application-id; only the prose flag after it is reworded', async () => {
+    const { context } = testContext({ config: iqConfig, routes: iqFixture.routes!, files: { 'bad.json': 'not json' } });
+    const mcp = await connectMcp({ commands: [evaluateCommand], context });
+    try {
+      const { envelope } = await mcp.call('sonatypeiq_evaluate', { applicationId: 'app-1', from: 'bad.json' });
+      expect(envelope.error).toMatchObject({
+        code: 'INVALID_INPUT',
+        fix: 'Pass the output of toil deps scan, e.g. toil deps scan --include-transitive | toil sonatypeiq evaluate --application-id <id>, or from <file> holding it.',
+      });
+    } finally {
+      await mcp.close();
+    }
+  });
+
+  it('splitio: a command up to a semicolon keeps --environment, and the flag in the clause after it becomes its field', () => {
+    const envelope = failure(
+      new ToilError('INVALID_INPUT', 'Rule index 9 is out of range', { fix: 'Run toil splitio flags get --environment <id> to see the rules; --rule-index counts from 0.' }),
+      { command: 'splitio flags set-rule', durationMs: 0, version: '0.0.0' },
+    );
+    expect(inFieldNames(flagsSetRuleCommand, envelope).error?.fix).toBe('Run toil splitio flags get --environment <id> to see the rules; ruleIndex counts from 0.');
+    // In backticks, a command line ends at the closing backtick.
+    const ticked = failure(new ToilError('INVALID_INPUT', 'x', { fix: 'Run `toil splitio flags get --environment <id>`, then pass --environment.' }), { command: 'splitio flags set-rule', durationMs: 0, version: '0.0.0' });
+    expect(inFieldNames(flagsSetRuleCommand, ticked).error?.fix).toBe('Run `toil splitio flags get --environment <id>`, then pass environment.');
   });
 });
 

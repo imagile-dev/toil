@@ -264,7 +264,10 @@ the bottom of their section.
     passes `'mcp'`, and an `INVALID_INPUT` envelope's message and fix have each of
     the command's long flags (and `--allow-write` on a write) replaced by its field.
     A plain text swap over the declared flags, longest first, rather than a second
-    wording in every area; `--no-` flags are left alone. Code, details and `data`
+    wording in every area; `--no-` flags are left alone. A quoted command line
+    keeps its flags (review of #149): `toil …` in backticks, or plain text from
+    `toil ` to the next `,` or `;`, a sentence-ending `.`, a backtick or the end,
+    which covers every command line the areas' fixes quote today. Code, details and `data`
     don't change. Tested through alation over both front doors.
   - **The git reader hands over every remote, `origin` first**, then the rest in
     `git remote -v` order, and the first one the area's parser accepts wins; the

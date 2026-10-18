@@ -38,6 +38,13 @@ export async function runCommand(def: AnyCommand, rawInput: unknown, makeContext
  * stay as they were. A form that cites the wrong form's field numbers is
  * still technically a form, which is the standard this replaces.
  */
+/**
+ * A CLI command line quoted in an error: `toil …` in backticks, or plain text
+ * from `toil ` to the end of its clause (a `,` or `;`, a `.` that ends a
+ * sentence, a backtick, or the end). The capture keeps it in `split`'s output.
+ */
+const COMMAND_LINE = /(`toil [^`]*`|\btoil [^,;`]*?(?=[,;`]|\.(?:\s|$)|$))/;
+
 export function inFieldNames(def: AnyCommand, envelope: Envelope): Envelope {
   if (envelope.ok || envelope.error.code !== 'INVALID_INPUT') return envelope;
   const flags: Array<[string, string]> = (def.options ?? []).flatMap((o) => {
@@ -47,8 +54,10 @@ export function inFieldNames(def: AnyCommand, envelope: Envelope): Envelope {
   if (def.writes) flags.push(['--allow-write', 'allowWrite']);
   // Longest first, so `--max-results` isn't read as `--max` followed by text.
   flags.sort((a, b) => b[0].length - a[0].length);
-  const reword = (text: string) =>
-    flags.reduce((out, [flag, field]) => out.replace(new RegExp(`(?<![\\w-])${flag}(?![\\w-])`, 'g'), field), text);
+  const swap = (text: string) => flags.reduce((out, [flag, field]) => out.replace(new RegExp(`(?<![\\w-])${flag}(?![\\w-])`, 'g'), field), text);
+  // A quoted command line (`toil jira list-transitions --key X`) is something to
+  // run on the CLI, so it keeps its flags: only the prose between them is swapped.
+  const reword = (text: string) => text.split(COMMAND_LINE).map((part, i) => (i % 2 === 1 ? part : swap(part))).join('');
   const error = { ...envelope.error, message: reword(envelope.error.message) };
   if (envelope.error.fix !== undefined) error.fix = reword(envelope.error.fix);
   return { ...envelope, error };
