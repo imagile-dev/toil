@@ -3,14 +3,21 @@
 Tracking: [#16](https://github.com/imagile-dev/toil/issues/16). Builds on named
 connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
 
-**What's built:** reading dossiers from all three places, validation on every read,
-choosing the one that applies (by name, file, `TOIL_DOSSIER` or the folder), host
-selectors, environments, the write rule, `meta.context.dossier`, and the read
-commands `toil dossiers list | show | check | context` (`src/core/dossier.ts`,
-`src/dossiers/`). **Still to come in #16:** the commands that build and share one
-(`init`, `add-repo`, `link`, `field`, `env`, `export`, `import`), field aliases,
-`toil <area> check-dossier` and `toil repos scan`. The commands are `toil dossiers`,
-plural, like `toil connections`.
+**What's built:**
+- reading dossiers from all three places, with validation on every read
+- choosing the one that applies: by name, by file, from `TOIL_DOSSIER`, or from the folder
+- host selectors, environments and the write rule
+- `meta.context.dossier`
+- `toil dossiers list | show | check | context`, which read
+- `toil dossiers init | add-repo | link | env | field | export | import | remove`, which
+  build and share (`src/core/dossier.ts`, `src/dossiers/`)
+- field aliases on Jira's and Jira Cloud's `--field`
+- `toil repos scan` (`src/repos/`)
+- `toil <area> check-dossier` for `jira`, `sonar` and `confluence` (`src/core/check-dossier.ts`)
+
+**Still to come:** `check-dossier` for the other areas a dossier can describe (ado,
+openshift, dynatrace, bitbucket, github), each an area command on the same helper. The
+commands are `toil dossiers`, plural, like `toil connections`.
 
 A **dossier** is everything toil needs to work on one body of work, whether that's
 one service or fifty microservices: its repositories, issue-tracker keys and field
@@ -166,14 +173,18 @@ A `connection` that names no connection you have fails the call too, as an unkno
 `fields` maps friendly names to the service's field ids, so field ids never leak into
 prompts. The names are used through **one fixed input**, never through generated flags:
 
-- Commands that take custom fields have a `fields` input: an object of alias to value.
-  On the CLI it's `--field <alias>=<value>`, repeatable. The schema is the same
-  whichever dossier resolves, so MCP tool schemas stay fixed and the CLI and MCP stay
-  identical.
+- The commands that take custom fields already have one: Jira's and Jira Cloud's
+  `--field Name=value` (`field` over MCP), repeatable. An alias works there wherever
+  the dossier applies (`--field storyPoints=5`), so the schema is the same whichever
+  dossier resolves. MCP tool schemas stay fixed, and the CLI and MCP stay identical.
+  Core hands the area the aliases (`ctx.dossierFields()`) only when the call names a
+  field, so a call without one never consults the dossier for them.
+- An alias takes the type the connection registers for that field id (a number for
+  story points). A name the connection's `customFields` already uses keeps the
+  connection's meaning, and output keeps the connection's names.
 - Aliases live in their own namespace, so `--field project=...` can never collide with
   `--project`. An alias is a camelCase identifier; anything else fails `dossiers check`.
-- An alias the resolved dossier doesn't define is `INVALID_INPUT`, with a fix naming
-  the aliases it does define.
+- An unknown name gets the area's own unknown-field error, as before.
 
 ## Where dossiers live
 
@@ -345,13 +356,28 @@ files directly:
 
 ## Commands
 
-- **Building a dossier** (still to come):
-  - `toil dossiers init <name>` creates one.
-  - `toil dossiers add-repo <name> <path|remote>` adds a repo.
-  - `toil dossiers link <name> <area> [--connection <name> | --host <host>] [--project ...]`
-    attaches an area. Its inputs are the area's context inputs.
-  - `toil dossiers field <name> <area> <alias> <field-id>` names a field.
-  - `toil dossiers env <name> <env> <area> ...` adds an environment resource.
+- **Building a dossier** (all served over MCP, all local writes, none needs
+  `--allow-write`; each returns the change it made, and `changed: false` when there
+  was nothing to change):
+  - `toil dossiers init <name> [--description <text>]` creates `~/.toil/dossiers/<name>.json`.
+  - `toil dossiers add-repo <dossier> <folder|remote> [--name <repo>]` adds a repo. A
+    folder records its git root as the path, plus its origin with any credential
+    stripped. A remote URL records just the remote.
+  - `toil dossiers link <dossier> <area> [--connection <name> | --host <host> | --unbind]
+    [--set key=value ...] [--add key=value ...] [--for-repo <repo>]` changes an area's
+    section. `--set` sets one of the area's context inputs, or reference data, and
+    `--for-repo` makes the value that one repo's. `--add` appends to a reference list.
+    A context input's value is checked against the area's own rule first.
+    `--set env=` is refused: the environment is the dossier's `env` (set with
+    `dossiers env ... --default`) or the call's `--env`, never a section's.
+  - `toil dossiers env <dossier> <env> <area> [--default] ...` does the same for
+    `environments.<env>.<area>`. `--default` makes it the dossier's `env`.
+  - `toil dossiers field <dossier> <area> <alias> <field-id>` names a field.
+  - `toil dossiers remove <name>` deletes one of your own dossiers. It runs on the CLI
+    only, since a delete is never an MCP tool.
+
+  Each refuses a value already there, naming it, unless `--replace`. The file is
+  checked with the reader that will load it before anything is written.
 - **Reading and checking** (built; all served over MCP, all local reads):
   - `toil dossiers list [--cwd <dir>]` lists every dossier toil can see, with its
     `source`, the file that shadows it when two share a name, and broken files with
@@ -372,9 +398,17 @@ files directly:
     repository and origin (credentials stripped), the dossier and why, and every
     candidate when more than one matches.
 - **Checking against the services** is one area at a time, because a command talks to
-  one service: `toil <area> check-dossier <name>` verifies that area's section
-  (projects and fields exist in Jira, namespaces are reachable in OpenShift), using
-  and reporting the connection it resolved. An agent or a script composes them.
+  one service. `toil <area> check-dossier [--dossier <name|file>]` looks every value
+  the call's dossier gives that area up on the service, using and reporting the
+  connection it resolved. An agent or a script composes them. Built so far:
+  - `jira`: projects (`project`, `projects`) and field ids
+  - `sonar`: project keys (`project`, `projectKeys`, `projects`)
+  - `confluence`: spaces (`space`, `spaces`)
+
+  Each returns `{ dossier, connection, ok, checked, checks }`, one check per value with
+  its key path. The CLI exits 1 when one is missing. A failure that isn't "not found"
+  (a bad token, an unreachable host) fails the command. An area adds one with
+  `src/core/check-dossier.ts` and `ctx.dossierView()`.
 - **Sharing through a repository:**
   - `toil dossiers export <name> --repo <dir>` writes `.toil/dossiers/<name>.json`
     into that working tree. It's written for sharing: a `connection` name is replaced
@@ -383,23 +417,31 @@ files directly:
     stages or commits. Committing is the agent's or user's own git workflow.
   - `toil dossiers export <name> --file <path>` writes a single file, for any other kind
     of sharing.
-  - `toil dossiers import <file|dir>` copies a dossier into your own folder, so you
-    can adapt it. An import never creates connections; any connection or host it
-    can't resolve is reported as one to set up.
+  - `toil dossiers import <file|dir> [--name <new>]` copies a dossier into your own
+    folder, so you can adapt it. That's adoption: your copy wins wherever the original
+    applied, and writes may then follow its bindings. An import never creates
+    connections; any connection or host it can't resolve is listed under `toSetUp`.
+    Everything is checked before anything is written, and a name you already have
+    needs `--replace`.
 - **Where export may write.** Exports are bounded, because over MCP an agent chooses
-  the path:
+  the path (`dossiers.write` and `dossiers.replace` in `docs/bounds.md`):
   - `--repo` must be a git root, found the way **Reading git without git** finds one.
   - `--file` must end in `.json`, and may not be inside `~/.toil/` unless it's under
-    `~/.toil/dossiers/`, so an export can never replace the config.
+    `~/.toil/dossiers/`, so an export can never replace the config. It must also be
+    inside the workspace or a dossier folder, as every other file a command writes is.
   - Neither overwrites a file that isn't already a valid dossier. Replacing an
     existing dossier needs `--replace`.
 - **What import reveals.** An import that fails reports schema problems only, by key
   path, and never echoes the file's content. Pointing it at `config.json` can't read
   connections back out.
-- **Discovery** is read-only and runs through ordinary connections. It's ordinary area
-  commands, not dossier magic: `toil repos scan <folder>` (local git repos and their
-  remotes), `toil jira fields --project PAY`, `toil ado boards`,
-  `toil openshift namespaces`, `toil sonar projects --query payments`.
+- **Discovery** is read-only and runs through ordinary commands, not dossier magic.
+  `toil repos scan [<folder>] [--depth <n>]` lists the local git repos under a folder
+  inside the workspace, each with its root, branch and remotes (credentials stripped),
+  read from `.git` with no git installed. It walks 3 levels by default, never follows
+  links, and doesn't go into a repository or into folders like `node_modules`. The
+  rest is the areas' own reads: `toil jira fields --project PAY`, `toil jira
+  list-boards`, `toil confluence list-spaces`, `toil sonar projects --query payments`,
+  `toil openshift cluster list`.
 
 ## Agents and the write gate
 
@@ -420,6 +462,12 @@ exporting it into a repository for the team.
   - changing or clearing a binding when the result is a writes-enabled connection,
     including a fall-back to the area's default
   - importing or exporting a dossier with such a binding
+
+  A change is judged by the call's own resolver (`dossierConnection` in
+  `src/core/call-context.ts`): what a call with no input of its own would choose,
+  through `connection`, `host` and every input that selects a connection. So making
+  an environment the dossier's default is refused when that environment selects a
+  writes-enabled connection, just as a `connection` would be.
 
   Binding a dossier to a writes-enabled connection is done on the CLI, by a human.
   **Checked-in and listed-folder dossiers** follow the same rule when they're read: a

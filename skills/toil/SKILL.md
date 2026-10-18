@@ -98,6 +98,27 @@ resolves to and why), `toil dossiers show [name]` (per area: the connection and 
 whether writes are on, the environment and the inputs), `toil dossiers list`, and
 `toil dossiers check [name]`, which checks one locally and contacts no service.
 
+To build one for a product: `toil repos scan` lists the git repositories under the
+workspace. Then:
+- `toil dossiers init <name>` creates the dossier.
+- `toil dossiers add-repo <name> <folder|remote>` adds each repository.
+- `toil dossiers link <name> <area> --host <host> --set project=PAY [--for-repo <repo>]`
+  says which connection an area uses and the keys it supplies.
+- `toil dossiers env <name> <env> <area> --set namespace=...` adds an environment.
+- `toil dossiers field <name> jira storyPoints customfield_10002` names a field, so
+  `--field storyPoints=5` works.
+- `toil <area> check-dossier` checks a section against the service (jira, sonar and
+  confluence so far).
+- `toil dossiers export <name> --repo <root>` writes a shareable copy into a
+  repository's `.toil/dossiers/`. It uses host selectors and no local paths, and toil
+  never commits it.
+- `toil dossiers import <file>` copies a teammate's into your own folder. A connection
+  or host you lack is listed under `toSetUp`; toil never creates one.
+
+These are local writes and need no `--allow-write`. Each refuses a value that's already
+set unless `--replace`. Over MCP they refuse to make a dossier select a connection
+with writes on; the user does that on the command line.
+
 toil keeps a local audit log of every command it runs, through the CLI and MCP:
 one JSON line per call in `~/.toil/audit/<yyyy-mm>.jsonl`, with the command, front
 door, connection, whether it wrote, the outcome, the redacted input and each request's

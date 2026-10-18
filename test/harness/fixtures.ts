@@ -57,6 +57,12 @@ export interface AreaFixture {
    * Each run gets a fresh copy at the same path.
    */
   home?: Record<string, string>;
+  /**
+   * A dossier the examples run with: written to a temp home as your own, and
+   * named by TOIL_DOSSIER, for an area's `check-dossier`. Keep context inputs
+   * the other examples take out of it, or they'll pick them up.
+   */
+  dossier?: Record<string, unknown>;
   /** Defaults to the area's registered commands. Only test-only areas set it. */
   commands?: AnyCommand[];
   /**

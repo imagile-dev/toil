@@ -1,11 +1,11 @@
-import { readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, statSync, writeFileSync, type Dirent } from 'node:fs';
 import { basename, delimiter, isAbsolute, join, relative, resolve } from 'node:path';
 import type { DossierLookup, GitRemoteReader } from './call-context.js';
 import { CONNECTION_NAME, connectionsOf, type ResolvedConfig } from './config.js';
 import type { DossierReport, Warning } from './envelope.js';
 import { ToilError } from './errors.js';
 import { forwardSlashes, isSystemPath, type Workspace } from './files.js';
-import { findGitRepo, readGitRemotes, type GitContext } from './git-repo.js';
+import { findGitRepo, readGitBranch, readGitRemotes, type GitContext } from './git-repo.js';
 import { JsonSyntaxError, parseStrictJson } from './strict-json.js';
 
 /**
@@ -42,6 +42,8 @@ export interface DossierRepo {
 export type Section = Record<string, unknown>;
 
 export interface Dossier {
+  /** A JSON schema reference, kept as written. */
+  $schema?: string;
   name: string;
   description?: string;
   /** The environment the dossier works in by default; a key of `environments`. */
@@ -206,6 +208,10 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
     for (const [key, entry] of Object.entries(value)) {
       if (CORE_SECTION_KEYS.has(key)) continue;
       const where = at(path, key);
+      if (key === 'env' && known?.context.includes('env')) {
+        warn('DOSSIER_UNUSED_KEY', where, `"env" in a section isn't used: the environment is the dossier's own "env", or the call's --env. Set it with toil dossiers env <dossier> <env> ${area} --default.`);
+        continue;
+      }
       if (known?.context.includes(key)) {
         // A context input: one value, or one per repo (`{ "payments-api": "PAY" }`).
         const ok = (typeof entry === 'string' && entry !== '') || (isRecord(entry) && Object.values(entry).every((v) => typeof v === 'string' && v !== ''));
@@ -252,6 +258,7 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
   if (problems.some((p) => p.level === 'error')) return { problems };
   return {
     dossier: {
+      ...(typeof raw.$schema === 'string' ? { $schema: raw.$schema } : {}),
       name: raw.name as string,
       ...(typeof raw.description === 'string' ? { description: raw.description } : {}),
       ...(typeof raw.env === 'string' ? { env: raw.env } : {}),
@@ -260,6 +267,19 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
       environments,
     },
     problems,
+  };
+}
+
+/** The dossier as it's written to a file and shown: remotes without userinfo, every section and reference key kept. */
+export function dossierContent(dossier: Dossier): Record<string, unknown> {
+  return {
+    ...(dossier.$schema !== undefined ? { $schema: dossier.$schema } : {}),
+    name: dossier.name,
+    ...(dossier.description !== undefined ? { description: dossier.description } : {}),
+    ...(dossier.env !== undefined ? { env: dossier.env } : {}),
+    repos: dossier.repos,
+    ...dossier.sections,
+    ...(Object.keys(dossier.environments).length > 0 ? { environments: dossier.environments } : {}),
   };
 }
 
@@ -345,9 +365,57 @@ export interface Place {
   report: () => DossierReport | undefined;
   /** Problems found reading dossiers, once the lookup has been asked. */
   warnings: () => Warning[];
+  /** The dossier's field aliases for an area, alias to field id; asking consults the dossier, as the lookup does. */
+  fields: (area: string, input: Record<string, unknown>) => Record<string, string>;
+  /** Every section the dossier has for an area, for `<area> check-dossier`; asking consults the dossier. */
+  view: (area: string) => DossierView | undefined;
   /** The folder's git, when the call named a `cwd`; otherwise the workspace's, as before. */
   gitRemote?: GitRemoteReader;
   repo?: () => GitContext | undefined;
+}
+
+/** A repository `toil repos scan` found. */
+export interface ScannedRepo {
+  /** The folder's name, which `dossiers add-repo` uses as the repo's name too. */
+  name: string;
+  /** The work tree's root, absolute, forward slashes. */
+  path: string;
+  branch: string;
+  /** Fetch URLs by remote name, userinfo stripped. */
+  remotes: Record<string, string>;
+}
+
+/** The most folders one scan visits; past it the result says it's truncated. */
+const SCAN_LIMIT = 20_000;
+/** Folders no repository lives in, skipped by name. */
+const SCAN_SKIP = new Set(['node_modules', '.git', '.hg', '.svn', '.venv', 'venv', '__pycache__', 'target', 'dist', 'build', 'bin', 'obj']);
+
+/** One area's part of a dossier, as `<area> check-dossier` reads it: read-only, and never a connection's settings. */
+export interface DossierView {
+  name: string;
+  source: DossierSource;
+  file: string;
+  /** The area's own section and each environment's, with their key paths. */
+  sections: Array<{ path: string; env: string | null; values: Section }>;
+}
+
+/**
+ * Every text value a view holds under `keys`, with its key path: a plain
+ * value, each repo's value in a per-repo map, each item of a list. What a
+ * check-dossier command looks up on its service.
+ */
+export function viewValues(view: DossierView, keys: readonly string[]): Array<{ path: string; value: string }> {
+  const out: Array<{ path: string; value: string }> = [];
+  for (const { path, values } of view.sections) {
+    for (const key of keys) {
+      const value = values[key];
+      const at = `${path}.${key}`;
+      if (typeof value === 'string') out.push({ path: at, value });
+      else if (Array.isArray(value)) value.forEach((v, i) => typeof v === 'string' && out.push({ path: `${at}[${i}]`, value: v }));
+      else if (isRecord(value)) for (const [repo, v] of Object.entries(value)) if (typeof v === 'string') out.push({ path: `${at}.${repo}`, value: v });
+    }
+  }
+  return out;
 }
 
 export interface CatalogOptions {
@@ -378,6 +446,37 @@ export interface DossierCatalog {
   place(request: { dossier?: string | undefined; cwd?: string | undefined }): Place;
   /** The connection `area` uses under `dossier`'s binding, without a call: for `dossiers show` and `check`. */
   binding(dossier: Dossier, area: string, env: string | undefined): { connection?: string; host?: string; section?: Section };
+  /** Where your own dossier named `name` lives: `~/.toil/dossiers/<name>.json`. */
+  userFile(name: string): string;
+  /** The lookup a call would get from `dossier`, as if the folder were its repo `repo`: for judging a change before it's saved. */
+  lookupOf(dossier: Dossier, repo?: string): DossierLookup;
+  /**
+   * The dossier files an import reads from `value`: the file, or every `.json`
+   * in the folder. The bounds are checked before anything is looked at, so a
+   * path outside them can't be probed for whether it exists.
+   */
+  importFiles(value: string): { folder: boolean; files: string[] };
+  /** A path a call gave, absolute: relative to the CLI's working directory, or under MCP the workspace. */
+  pathFor(value: string, what: string): string;
+  /** A folder on this machine and the repository it's in, for `add-repo`; INVALID_INPUT when it isn't there. */
+  inspect(dir: string): { path: string; repo?: FolderRepo };
+  /**
+   * The git repositories under `dir` (default: the workspace), for `toil repos
+   * scan`: each one's root, branch and remotes, credentials stripped. `dir`
+   * must be inside the workspace. Folders are walked to `depth` levels below
+   * it, links aren't followed, and a repository's own folders aren't entered.
+   */
+  scanRepos(dir: string | undefined, depth: number): { folder: string; repos: ScannedRepo[]; truncated: boolean };
+  /** `.toil/dossiers/` in the repository whose root is `dir`; INVALID_INPUT when `dir` isn't a repository's root. */
+  repoFolder(dir: string): string;
+  /**
+   * Writes a dossier, validated, to `path`: `create` refuses a file that's
+   * there, `replace` replaces only a valid dossier, `edit` rewrites the one it
+   * was read from. The path must be a `.json` file in a dossier folder or the
+   * workspace, never toil's own files, /proc or /sys. Files in your own folder
+   * are readable by you only. Returns the absolute path written.
+   */
+  save(path: string, dossier: Dossier, mode: 'create' | 'replace' | 'edit'): string;
 }
 
 const FROM_WORKSPACE: Record<Workspace['source'], FolderSource> = { flag: 'flag', env: 'env', cwd: 'cwd', 'mcp-root': 'mcp-root', none: 'cwd' };
@@ -510,39 +609,82 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
 
   const usable = (file: DossierFile): file is DossierFile & { dossier: Dossier } => file.dossier !== undefined;
 
-  /** A path on the call, bounded: a `.json` file in the workspace or a dossier place, never toil's config or /proc and /sys. */
-  const readPath = (value: string, cwd?: string): DossierFile => {
-    const path = fromBase(value, 'The dossier file');
-    const refuse = (why: string, fix: string) => new ToilError('INVALID_INPUT', `${forwardSlashes(path)} can't be read as a dossier: ${why}`, { fix });
-    if (!path.toLowerCase().endsWith('.json')) throw refuse('a dossier file ends in .json.', 'Pass a dossier file, or a dossier by name.');
-    let realPath: string;
-    try {
-      realPath = realpathSync.native(path);
-      if (!statSync(realPath).isFile()) throw new Error('not a file');
-    } catch {
-      throw new ToilError('INVALID_INPUT', `The dossier file ${forwardSlashes(path)} doesn't exist where toil is running.`, {
-        fix: "Check the path. If toil runs somewhere else (a container, WSL, another host), its paths aren't yours: pass the dossier by name instead.",
-      });
+  /** Where `path` would really land, through any link in the folders above it, whether or not it exists yet. */
+  const realish = (path: string): string => {
+    let existing = resolve(path);
+    const rest: string[] = [];
+    for (;;) {
+      try {
+        return join(realpathSync.native(existing), ...rest);
+      } catch {
+        const parent = resolve(existing, '..');
+        if (parent === existing) return resolve(path);
+        rest.unshift(basename(existing));
+        existing = parent;
+      }
     }
+  };
+
+  /**
+   * Where a path a call names may be read from, decided before anything is
+   * looked at: not toil's own files or a system path, and inside a dossier
+   * folder or the workspace (anywhere, with the workspace bound relaxed).
+   * Checking first means a path outside can't be probed for whether it exists.
+   * Returns where it lies, as a source.
+   */
+  const bounded = (path: string, cwd: string | undefined, refuse: (why: string, fix: string) => ToilError): DossierSource => {
+    const target = realish(path);
+    if (forbidden(target)) throw refuse("that's one of toil's own files, or a system path.", 'Pass a dossier file, or a dossier by name.');
     const where = places(cwd);
     // ~/.toil/dossiers is the one part of toil's own folder a dossier path may name.
-    const inUser = inside(realPath, real(user));
-    if (forbidden(realPath)) throw refuse("that's one of toil's own files, or a system path.", 'Pass a dossier file, or a dossier by name.');
-    const source: DossierSource = inUser
+    const source: DossierSource = inside(target, real(user))
       ? 'user'
-      : where.listed.some((d) => inside(realPath, real(d)))
+      : where.listed.some((d) => inside(target, real(d)))
         ? 'listed'
-        : where.repo && inside(realPath, real(where.repo))
+        : where.repo && inside(target, real(where.repo))
           ? 'repo'
           : 'file';
-    const unbounded = o.config.bounds?.files === 'unbounded';
-    if (source === 'file' && !unbounded && !(o.workspace.dir && inside(realPath, real(o.workspace.dir)))) {
+    if (source === 'file' && o.config.bounds?.files !== 'unbounded' && !(o.workspace.dir && inside(target, real(o.workspace.dir)))) {
       throw refuse(
         `it's outside the workspace${o.workspace.dir ? ` (${forwardSlashes(o.workspace.dir)})` : ''} and outside every dossier folder.`,
         'Move it into the workspace, list its folder in dossierPaths (or TOIL_DOSSIER_PATHS), copy it in with toil dossiers import, or pass the dossier by name.',
       );
     }
+    return source;
+  };
+
+  const missing = (path: string) =>
+    new ToilError('INVALID_INPUT', `${forwardSlashes(path)} doesn't exist where toil is running.`, {
+      fix: "Check the path. If toil runs somewhere else (a container, WSL, another host), its paths aren't yours: pass the dossier by name instead.",
+    });
+
+  /** A path on the call, bounded: a `.json` file in the workspace or a dossier place, never toil's config or /proc and /sys. */
+  const readPath = (value: string, cwd?: string): DossierFile => {
+    const path = fromBase(value, 'The dossier file');
+    const refuse = (why: string, fix: string) => new ToilError('INVALID_INPUT', `${forwardSlashes(path)} can't be read as a dossier: ${why}`, { fix });
+    if (!path.toLowerCase().endsWith('.json')) throw refuse('a dossier file ends in .json.', 'Pass a dossier file, or a dossier by name.');
+    const source = bounded(path, cwd, refuse);
+    let realPath: string;
+    try {
+      realPath = realpathSync.native(path);
+      if (!statSync(realPath).isFile()) throw new Error('not a file');
+    } catch {
+      throw missing(path);
+    }
     return readDossierFile(realPath, source, o.areas);
+  };
+
+  const importFiles: DossierCatalog['importFiles'] = (value) => {
+    const path = fromBase(value, 'The import source');
+    bounded(path, undefined, (why, fix) => new ToilError('INVALID_INPUT', `toil won't import from ${forwardSlashes(path)}: ${why}`, { fix }));
+    let folder: boolean;
+    try {
+      folder = statSync(path).isDirectory();
+    } catch {
+      throw missing(path);
+    }
+    if (!folder) return { folder, files: [path] };
+    return { folder, files: readdirSync(path).filter((n) => n.toLowerCase().endsWith('.json')).sort().map((n) => join(path, n)) };
   };
 
   const find = (nameOrPath: string, cwd?: string): DossierFile & { dossier: Dossier } => {
@@ -593,13 +735,18 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
     }
     const candidates: Applied[] = [];
     const taken = new Set<string>();
-    for (const file of scanned.files.filter(usable)) {
-      const matched = matchRepo(file.dossier, f, repo);
+    const files = scanned.files.filter(usable);
+    for (const found of files) {
+      const matched = matchRepo(found.dossier, f, repo);
       // A dossier checked into the repository you're in applies there, listed repo or not.
-      if (!matched && file.source !== 'repo') continue;
-      if (taken.has(file.dossier.name)) continue;
-      taken.add(file.dossier.name);
-      candidates.push({ file, by: 'folder', match: matched?.by ?? 'checked-in', ...(matched ? { repo: matched.name } : {}) });
+      if (!matched && found.source !== 'repo') continue;
+      if (taken.has(found.dossier.name)) continue;
+      taken.add(found.dossier.name);
+      // Your own copy of a checked-in dossier (an import) wins wherever the checked-in one applies,
+      // then a listed folder's: same name, the scan's order.
+      const file = matched ? found : (files.find((x) => x.dossier.name === found.dossier.name) ?? found);
+      const own = file === found ? matched : matchRepo(file.dossier, f, repo);
+      candidates.push({ file, by: 'folder', match: own?.by ?? 'checked-in', ...(own ? { repo: own.name } : {}) });
     }
     const applied = candidates.length === 1 ? candidates[0] : undefined;
     if (applied) warnings.push(...sameName(scanned.files, applied.file.dossier.name));
@@ -725,6 +872,24 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
           ...folderReport,
         };
       },
+      fields: (area, input) => {
+        const { applied } = choose();
+        if (!applied) return {};
+        const dossier = applied.file.dossier;
+        const sections = sectionsFor(dossier, area, envOf(dossier, area, input));
+        // The environment's section first, so its aliases win.
+        return Object.assign({}, ...sections.map((s) => (isRecord(s.fields) ? s.fields : {})).reverse()) as Record<string, string>;
+      },
+      view: (area) => {
+        const { applied } = choose();
+        if (!applied) return undefined;
+        const d = applied.file.dossier;
+        const sections = [
+          ...(d.sections[area] ? [{ path: area, env: null, values: d.sections[area]! }] : []),
+          ...Object.entries(d.environments).flatMap(([env, byArea]) => (byArea[area] ? [{ path: `environments.${env}.${area}`, env, values: byArea[area]! }] : [])),
+        ];
+        return { name: d.name, source: applied.file.source, file: forwardSlashes(applied.file.file), sections };
+      },
       warnings: () => {
         if (!chosen) return [];
         const applied = chosen.applied;
@@ -734,6 +899,120 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
     };
   };
 
-  return { places, scan, find, select, place, binding };
+  const userFile = (name: string) => join(user, `${name}.json`);
+
+  const repoFolder = (dir: string): string => {
+    const path = fromBase(dir, 'The repository');
+    const repo = findGitRepo(path, guard);
+    if (!repo || !samePath(repo.root, path)) {
+      throw new ToilError('INVALID_INPUT', `${forwardSlashes(path)} isn't the root of a git repository${repo ? ` (its root is ${repo.root})` : ''}.`, {
+        fix: repo ? `Pass ${repo.root}.` : 'Pass the top folder of a working tree, the one that holds .git.',
+      });
+    }
+    return join(path, '.toil', 'dossiers');
+  };
+
+  const save: DossierCatalog['save'] = (path, dossier, mode) => {
+    const target = resolve(path);
+    const refuse = (why: string, fix: string) => new ToilError('INVALID_INPUT', `toil won't write a dossier to ${forwardSlashes(target)}: ${why}`, { fix });
+    if (!target.toLowerCase().endsWith('.json')) throw refuse('a dossier file ends in .json.', 'Name a .json file.');
+    // Judged where it would really land, through any link in the folders above it.
+    const realTarget = realish(target);
+    if (forbidden(realTarget)) throw refuse("that's one of toil's own files, or a system path.", 'Write it to your dossier folder, a repository, or the workspace.');
+    const where = places();
+    // A repository's dossier folder: `.toil/dossiers/` right under a working tree's root.
+    const folderOf = resolve(realTarget, '..');
+    const rootOf = resolve(folderOf, '..', '..');
+    const inRepoFolder = basename(folderOf) === 'dossiers' && basename(resolve(folderOf, '..')) === '.toil' && samePath(findGitRepo(rootOf, guard)?.root ?? '', rootOf);
+    const inPlace = [user, ...where.listed].some((d) => inside(realTarget, real(d))) || inRepoFolder;
+    const inWorkspace = o.workspace.dir !== undefined && inside(realTarget, real(o.workspace.dir));
+    if (!inPlace && !inWorkspace && o.config.bounds?.files !== 'unbounded') {
+      throw refuse(`it's outside the workspace${o.workspace.dir ? ` (${forwardSlashes(o.workspace.dir)})` : ''} and outside every dossier folder.`, 'Write it inside the workspace (--workspace <dir> chooses another), or to a repository with --repo.');
+    }
+    let exists = false;
+    try {
+      exists = statSync(realTarget).isFile();
+    } catch {
+      // nothing there yet
+    }
+    if (exists && mode === 'create') throw refuse('a file is already there.', 'Pass --replace to replace a dossier, or choose another name.');
+    if (exists && mode === 'replace' && !readDossierFile(realTarget, 'file', o.areas).dossier) {
+      throw refuse("the file there isn't a valid dossier, and toil only ever replaces a dossier.", 'Choose another path, or move that file aside.');
+    }
+    if (!exists && mode === 'edit') throw refuse('the dossier it was read from is gone.', 'Run the command again.');
+    const checked = validateDossier(dossierContent(dossier), o.areas);
+    const errors = checked.problems.filter((p) => p.level === 'error');
+    if (errors.length > 0) {
+      throw new ToilError('INVALID_INPUT', `That change would leave dossier ${dossier.name} invalid: ${errors[0]!.path ? `${errors[0]!.path}: ` : ''}${errors[0]!.message} Nothing was written.`, {
+        fix: 'Correct the value and run the command again.',
+        details: errors.map((p) => ({ path: p.path, message: p.message })),
+      });
+    }
+    // Your own folder is yours alone, as the config is; a repository's files take the repository's.
+    const yours = inside(realTarget, real(user));
+    mkdirSync(resolve(realTarget, '..'), { recursive: true, ...(yours ? { mode: 0o700 } : {}) });
+    // Written alongside and renamed into place, so a crash halfway leaves the old file, not half a new one.
+    const temp = `${realTarget}.${process.pid}.tmp`;
+    writeFileSync(temp, `${JSON.stringify(dossierContent(dossier), null, 2)}\n`, { encoding: 'utf8', ...(yours ? { mode: 0o600 } : {}) });
+    renameSync(temp, realTarget);
+    return forwardSlashes(realTarget);
+  };
+
+  const inspect = (dir: string) => {
+    const f = folder(dir);
+    const repo = repoOf(f.path);
+    return { path: f.path!, ...(repo ? { repo } : {}) };
+  };
+
+  const scanRepos: DossierCatalog['scanRepos'] = (dir, depth) => {
+    const start = dir === undefined ? o.workspace.dir : fromBase(dir, 'The folder');
+    if (start === undefined) {
+      throw new ToilError('NOT_CONFIGURED', "There's no folder to scan: no workspace is set and none was given.", { fix: 'Pass a folder, or give the MCP server a workspace with --workspace <dir>.' });
+    }
+    const root = folder(start).path!;
+    if (o.config.bounds?.files !== 'unbounded' && !(o.workspace.dir && inside(real(root), real(o.workspace.dir)))) {
+      throw new ToilError('INVALID_INPUT', `${forwardSlashes(root)} is outside the workspace${o.workspace.dir ? `, ${forwardSlashes(o.workspace.dir)}` : ''}. Scans stay inside it.`, {
+        fix: 'Scan a folder inside the workspace, or choose another workspace with --workspace <dir>.',
+      });
+    }
+    const repos: ScannedRepo[] = [];
+    let visited = 0;
+    let truncated = false;
+    const queue: Array<[string, number]> = [[root, 0]];
+    while (queue.length > 0) {
+      const [dir, level] = queue.shift()!;
+      if (++visited > SCAN_LIMIT) {
+        truncated = true;
+        break;
+      }
+      let entries: Dirent[];
+      try {
+        entries = readdirSync(dir, { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      if (entries.some((e) => e.name === '.git')) {
+        const repo = findGitRepo(dir, guard);
+        if (repo && samePath(repo.root, dir)) {
+          const branch = readGitBranch(repo) ?? 'unknown';
+          const remotes = Object.fromEntries(readGitRemotes(repo, guard).map((r) => [r.name, stripUserinfo(r.url.split(' ')[0]!)]));
+          repos.push({ name: basename(dir), path: repo.root, branch, remotes });
+          // A repository's own folders hold its files, not other repositories.
+          continue;
+        }
+      }
+      if (level >= depth) continue;
+      // Links aren't followed, so a scan can't wander out of the folder it was given.
+      for (const e of entries.filter((x) => x.isDirectory() && !x.isSymbolicLink() && !SCAN_SKIP.has(x.name)).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+        queue.push([join(dir, e.name), level + 1]);
+      }
+    }
+    repos.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+    return { folder: forwardSlashes(root), repos, truncated };
+  };
+
+  const lookupOf: DossierCatalog['lookupOf'] = (dossier, repo) => lookupFor({ file: { file: '', source: 'user', problems: [], dossier }, by: 'input', ...(repo !== undefined ? { repo } : {}) });
+
+  return { places, scan, find, select, place, binding, userFile, lookupOf, importFiles, pathFor: fromBase, inspect, scanRepos, repoFolder, save };
 }
 

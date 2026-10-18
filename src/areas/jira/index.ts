@@ -1,4 +1,5 @@
 import { apiCommand } from '../../core/passthrough.js';
+import { checkDossier } from './check-dossier.js';
 import { agileCommands } from './agile.js';
 import { jiraArea, jiraSupported } from './area.js';
 import { attachmentCommands } from './attachments.js';
@@ -21,4 +22,4 @@ const jiraApi = apiCommand(jiraArea, {
 // list was edited, and therefore no central list owner was consulted.
 export const area = jiraArea;
 export const supported = jiraSupported;
-export const commands = [...issueCommands, ...searchCommands, ...attachmentCommands, ...agileCommands, jiraApi];
+export const commands = [...issueCommands, ...searchCommands, ...attachmentCommands, ...agileCommands, jiraApi, checkDossier];

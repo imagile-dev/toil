@@ -54,6 +54,8 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | `skills.folders` | `files.workspace` | `src/skills/folders.ts`, `src/skills/marketplace.ts` | The `skills` commands reading and writing the agent hosts' skills folders and marketplace clones, which live outside the workspace. Only fixed places, listed below; never anything under `~/.toil`. |
 | `skills.reinstall` | `files.no-overwrite` | `src/skills/folders.ts` | `skills marketplace add` and `sync` replacing a skill folder that toil itself installed from the same marketplace and plugin, which is what refreshing it means. Any other folder is left as found. |
 | `dossiers.read` | `files.workspace` | `src/core/dossier.ts` | Reading dossier files (`docs/dossiers.md`) from your own folder (`~/.toil/dossiers/`), the folders you list in `dossierPaths` or `TOIL_DOSSIER_PATHS`, and `.toil/dossiers/` at the root of the repository the call's folder is in. A dossier file named on the call (`--dossier <file>`) must be one of those, or inside the workspace. |
+| `dossiers.write` | `files.workspace` | `src/core/dossier.ts` | The `toil dossiers` commands writing a dossier to your own folder, a listed folder, or `.toil/dossiers/` at the root of a git working tree (`export --repo`). Anywhere else, the file must be inside the workspace. |
+| `dossiers.replace` | `files.no-overwrite` | `src/core/dossier.ts` | Rewriting a dossier: an edit (`link`, `field`, `add-repo`, `env`) rewrites the file it read, and `export`/`import` with `--replace` replace one. Only a file that is already a valid dossier is ever replaced. |
 
 `git.read-up` is metadata only, and read only. It covers exactly these, and nothing
 else:
@@ -113,6 +115,15 @@ overwrites a file. The path is checked before the command runs, so a refused pat
 means nothing ran; the error envelope goes to stdout, with exit code 1. If the write
 still fails afterwards, a write command's error says it ran and the change may
 already have been applied.
+
+`dossiers.write` and `dossiers.replace` write only dossiers, in the JSON toil itself
+reads back. Each file is validated before it's written, and written alongside the old
+one, then renamed into place. The file must end in `.json`, and it may never be under
+`~/.toil` outside `~/.toil/dossiers/`, the `--config` file, `/proc` or `/sys`. A file
+that isn't already a valid dossier is never replaced, and an existing one needs
+`--replace` (except the one an edit read). Files in your own folder are written as
+user-only (`0600`, in a `0700` folder). A dossier holds no secret, and writing one
+contacts nothing.
 
 `dossiers.read` is read only, and only of dossier files: JSON that toil validates as a
 dossier before using or showing any of it. A dossier holds no secret and can't add a

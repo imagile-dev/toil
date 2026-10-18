@@ -51,4 +51,6 @@ export const BOUND_EXCEPTIONS: readonly BoundException[] = [
   { id: 'skills.folders', bound: 'files.workspace', enforcedIn: ['src/skills/folders.ts', 'src/skills/marketplace.ts'] },
   { id: 'skills.reinstall', bound: 'files.no-overwrite', enforcedIn: ['src/skills/folders.ts'] },
   { id: 'dossiers.read', bound: 'files.workspace', enforcedIn: ['src/core/dossier.ts'] },
+  { id: 'dossiers.write', bound: 'files.workspace', enforcedIn: ['src/core/dossier.ts'] },
+  { id: 'dossiers.replace', bound: 'files.no-overwrite', enforcedIn: ['src/core/dossier.ts'] },
 ];

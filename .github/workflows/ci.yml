@@ -153,11 +153,24 @@ jobs:
           --health-timeout 10s
           --health-retries 30
           --health-start-period 20s
+      # Oracle Database Free. The faststart image ships an already-created
+      # database, so it's healthy in about a minute instead of several.
+      oracle:
+        image: gvenzl/oracle-free:23.26.3-slim-faststart
+        env:
+          ORACLE_PASSWORD: toil_test_pw
+        ports: ['1521:1521']
+        options: >-
+          --health-cmd healthcheck.sh
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 60
     env:
       TOIL_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/postgres
       TOIL_TEST_MYSQL_URL: mysql://root:mysql@localhost:3306/
       TOIL_TEST_MARIADB_URL: mysql://root:mysql@localhost:3307/
       TOIL_TEST_SQLSERVER_URL: mssql://sa:Toil-test-Pa55word@localhost:1433/master
+      TOIL_TEST_ORACLE_URL: oracle://system:toil_test_pw@localhost:1521/FREEPDB1
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0

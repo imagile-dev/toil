@@ -4,7 +4,7 @@ import { allowWriteField } from '../../core/run.js';
 import { adfToText, textToAdf, type AdfDocument } from './adf.js';
 import { jiraCloudArea } from './area.js';
 import * as client from './client.js';
-import { buildFieldMap, translateFieldsInOutput } from './custom-fields.js';
+import { buildFieldMap, translateFieldsInOutput, withAliases } from './custom-fields.js';
 import {
   commaList,
   mergeWithOverrides,
@@ -167,7 +167,8 @@ export const createIssue = jiraCloudArea.command({
     { inputFile: 'issue.json', fieldsFile: 'fields.json', field: ['Story Points=5', 'Reviewer=5b10ac8d82e05b22cc7d4ef5'], priority: 'Low', allowWrite: true },
   ],
   run: async (input, ctx) => {
-    const fieldMap = buildFieldMap(ctx.connection.customFields);
+    // A dossier's field aliases join the connection's names, only when the call names a field (src/core/dossier.ts).
+    const fieldMap = withAliases(buildFieldMap(ctx.connection.customFields), input.field?.length ? ctx.dossierFields() : {});
     try {
       const flags = defined({ summary: input.summary, description: input.description, priority: input.priority, assignee: input.assignee, labels: input.labels, parent: input.parent });
       const { json, builtin, custom } = gatherFields(ctx, input, flags, fieldMap);
@@ -233,7 +234,8 @@ export const updateIssue = jiraCloudArea.command({
     { key: 'PROJ-123', inputFile: 'update.json', fieldsFile: 'fields.json', field: ['Story Points=8'], allowWrite: true },
   ],
   run: async (input, ctx) => {
-    const fieldMap = buildFieldMap(ctx.connection.customFields);
+    // A dossier's field aliases join the connection's names, only when the call names a field (src/core/dossier.ts).
+    const fieldMap = withAliases(buildFieldMap(ctx.connection.customFields), input.field?.length ? ctx.dossierFields() : {});
     try {
       const flags = defined({ summary: input.summary, description: input.description, priority: input.priority, assignee: input.assignee, labels: input.labels });
       const { builtin, custom } = gatherFields(ctx, input, flags, fieldMap);

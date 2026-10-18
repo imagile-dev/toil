@@ -24,6 +24,22 @@ export function buildFieldMap(fields: CustomFieldDefinition[]): CustomFieldMap {
 }
 
 /**
+ * The map with a dossier's field aliases added (`storyPoints` for
+ * `customfield_10002`), so `--field storyPoints=5` works. An alias names the
+ * field, with the type the connection gives it when it registers that id; a
+ * name the connection already uses keeps the connection's meaning. Aliases
+ * are input only: output keeps the connection's names.
+ */
+export function withAliases(map: CustomFieldMap, aliases: Record<string, string>): CustomFieldMap {
+  const byName = new Map(map.byName);
+  for (const [alias, id] of Object.entries(aliases)) {
+    if (byName.has(alias.toLowerCase())) continue;
+    byName.set(alias.toLowerCase(), map.byId.get(id) ?? ({ id, name: alias } as CustomFieldDefinition));
+  }
+  return { byName, byId: map.byId };
+}
+
+/**
  * The field id to send for a key from --field, --fields-file, --input-file or
  * --fields. A registered field resolves by friendly name (any case) or id. An
  * unregistered key with no whitespace is taken as a raw Jira field id or name

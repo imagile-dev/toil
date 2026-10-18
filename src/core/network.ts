@@ -15,7 +15,9 @@ import { ToilError } from './errors.js';
  * It runs once, on the first request, so commands that never touch the
  * network (`version`) never read the store. Database drivers open their own
  * sockets rather than requests, so a TLS database connection asks
- * `trustedCertificates` for the same list and passes it to the driver.
+ * `trustedCertificates` for the same list and passes it to the driver, or,
+ * for a driver that takes no `ca` option (Oracle's), calls
+ * `trustOsStoreByDefault` so its socket gets the same defaults.
  */
 
 /** The proxy variables Node reads, in both cases. */
@@ -55,8 +57,7 @@ const node: NetworkApis = {
  * proxy setting Node can't use is CONFIG_INVALID, naming the variable.
  */
 export function configureNetwork(env: NodeJS.ProcessEnv, debug: (message: string) => void, apis: NetworkApis = node): void {
-  const trusted = trustedCertificates(debug, apis);
-  if (trusted.certificates && trusted.system > 0) apis.setDefaultCACertificates(trusted.certificates);
+  trustOsStoreByDefault(debug, apis);
   const proxy = proxyEnv(env);
   if (proxy) {
     try {
@@ -69,6 +70,18 @@ export function configureNetwork(env: NodeJS.ProcessEnv, debug: (message: string
     }
     debug(`using the proxy settings from ${Object.keys(proxy).join(', ')}`);
   }
+}
+
+/**
+ * Makes Node's default CAs the list toil trusts (its own defaults plus the OS
+ * store's), for every TLS socket the process opens. HTTP gets this on its
+ * first request; a database driver that builds its own TLS context with no
+ * `ca` option calls it before connecting. Nothing changes when the store is
+ * empty or can't be read.
+ */
+export function trustOsStoreByDefault(debug: (message: string) => void, apis: NetworkApis = node): void {
+  const trusted = trustedCertificates(debug, apis);
+  if (trusted.certificates && trusted.system > 0) apis.setDefaultCACertificates(trusted.certificates);
 }
 
 /**

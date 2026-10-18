@@ -1,6 +1,6 @@
 ---
 area: db
-description: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite, PostgreSQL, MySQL/MariaDB, SQL Server)
+description: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite, PostgreSQL, MySQL/MariaDB, SQL Server, Oracle)
 ---
 
 # toil db
@@ -14,7 +14,7 @@ uses, and the commands work the same way on all of them.
 | PostgreSQL | `postgres` | `integration`: automated tests run against PostgreSQL 17 (the official `postgres:17` image) |
 | MySQL / MariaDB | `mysql` | `integration`: automated tests run against MySQL 8.4 and MariaDB 11.8 (the official `mysql:8.4` and `mariadb:11.8` images) |
 | SQL Server | `sqlserver` | `integration`: automated tests run against SQL Server 2022 (the official `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04` image) |
-| Oracle | | Planned |
+| Oracle | `oracle` | `integration`: automated tests run against Oracle Database 23ai Free (the `gvenzl/oracle-free:23.26.3-slim-faststart` image) |
 
 **Supported versions:** The oldest SQLite version toil supports hasn't been established. toil
 uses the SQLite built into Node, so the version is whichever your Node ships.
@@ -23,6 +23,8 @@ MySQL is tested against 8.4 and MariaDB against 11.8; the oldest versions toil
 supports haven't been established.
 SQL Server is tested against 2022; the catalog views and `OFFSET ... FETCH` toil uses
 need 2012 or later. Azure SQL Database speaks the same protocol but hasn't been tested.
+Oracle is tested against 23ai; Thin mode and the dictionary columns toil reads need
+12.1 or later. No release older than 23ai has been run.
 
 ## SQLite connections
 
@@ -295,11 +297,60 @@ ALTER ROLE db_datareader ADD MEMBER toil_reader;
 Use a second connection, with a login that may write and `writes: true`, for `db
 execute`.
 
+## Oracle connections
+
+toil speaks Oracle Net in plain JavaScript (the `oracledb` driver in Thin mode, bundled
+into toil): no Instant Client, no `sqlplus`, no native library, nothing to install.
+toil never switches the driver to Thick mode.
+
+| Key | Required | Meaning |
+|-----|----------|---------|
+| `engine` | yes | `oracle` |
+| `host` | yes | Listener host name or IP address. Nothing else: no port, scheme or descriptor. |
+| `port` | no | Listener port. Default `1521`. |
+| `database` | yes | The **service name** (`FREEPDB1`, `ORCLPDB1`). Not a SID, and not a TNS alias. |
+| `user` | yes | The user. Unquoted, it's read in upper case, as Oracle does; wrap it in double quotes for a case-sensitive one. |
+| `password` | no | The user's password. A secret: an env var or the OS credential store, never the config file. |
+| `ssl` | no | `true` connects over TCPS and verifies the server's certificate, and that its name matches `host`, against the OS certificate store. Off by default. |
+| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
+
+```bash
+export TOIL_DB_ENGINE=oracle
+export TOIL_DB_HOST=db.imagile.dev
+export TOIL_DB_PORT=1521
+export TOIL_DB_DATABASE=ORCLPDB1
+export TOIL_DB_USER=reader
+export TOIL_DB_PASSWORD=<the user's password>
+```
+
+```json
+{
+  "version": 2,
+  "connections": {
+    "app-ora": { "area": "db", "engine": "oracle", "host": "db.imagile.dev", "database": "ORCLPDB1", "user": "reader" }
+  },
+  "defaults": { "db": { "connection": "app-ora" } }
+}
+```
+
+```bash
+toil connections login app-ora   # prompts for the password and stores it
+```
+
+toil builds the connect descriptor itself from `host`, `port` and `database`, so it
+reads no `tnsnames.ora`, `sqlnet.ora`, `TNS_ADMIN` or wallet. Thin mode needs the
+user's password to have an 11G or 12C verifier; an older one fails with `AUTH`,
+saying so.
+
+**Connect with a read-only account**: a user granted `SELECT` (or `READ`) on what the
+agent should see, and nothing that writes. On Oracle this matters more than on the
+other engines; see the known limit under "Reads are read-only at the engine".
+
 ## Commands
 
 | Command | MCP tool | Returns |
 |---------|----------|---------|
-| `toil db list-schemas` | `db_list_schemas` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`; for SQL Server, the schemas, without `sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas. |
+| `toil db list-schemas` | `db_list_schemas` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`; for SQL Server, the schemas, without `sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas; for Oracle, the users the login can see that Oracle doesn't maintain. |
 | `toil db list-tables [--schema <name>]` | `db_list_tables` | `{ schema, tables: [{ name, type }] }`, `type` being `table` or `view` |
 | `toil db describe-table <table> [--schema <name>]` | `db_describe_table` | `{ schema, name, type, columns, primaryKey, indexes, foreignKeys }` |
 | `toil db preview-table <table> [--schema] [--limit] [--cursor]` | `db_preview_table` | A page of rows: `{ columns, rows }` |
@@ -308,9 +359,13 @@ execute`.
 
 Every command takes `--connection <name>`. `--schema` defaults to the engine's
 default schema (`main` for SQLite, `public` for PostgreSQL, the connection's database
-for MySQL, where a schema is a database, `dbo` for SQL Server). PostgreSQL names are
-case-sensitive as stored: an unquoted `CREATE TABLE People` is stored as `people`.
-MySQL table names are case-sensitive on most Linux servers.
+for MySQL, where a schema is a database, `dbo` for SQL Server, and the user's own
+schema for Oracle). PostgreSQL names are case-sensitive as stored: an unquoted
+`CREATE TABLE People` is stored as `people`. MySQL table names are case-sensitive on
+most Linux servers. Oracle stores an unquoted name in upper case and reports names as
+stored (`PEOPLE`, `ID`); a schema or table you name that doesn't exist as written is
+looked up again in upper case, so `describe-table people` finds `PEOPLE`. A quoted
+mixed-case name (`"People"`) must be typed exactly.
 
 Rows come back as arrays in the order of `columns`, so a join's two `id` columns both
 survive:
@@ -347,6 +402,19 @@ past that are dropped. `datetimeoffset` comes back as the instant in UTC
 digits loses the rest; `CAST` it to `varchar` in the query when every digit matters.
 `preview-table` pages in primary-key order, or in the engine's own order for a table
 without one.
+
+Oracle names each result column's type (`NUMBER`, `VARCHAR2`, `DATE`), and
+`describe-table` gives the declared form (`NUMBER(10,2)`, `VARCHAR2(100)`). A `NUMBER`
+is a JSON number when that's exactly its value, and a string otherwise, so no digits
+are lost. `CLOB` comes back as text, `BLOB` and `RAW` as base64, `BOOLEAN` as a
+boolean, and `BINARY_DOUBLE`'s NaN and infinities as strings. Dates and
+timestamps come back exactly as stored, in the shape PostgreSQL and MySQL use, never
+through the local time zone of the machine running toil: `DATE` as
+`2026-01-02 03:04:05`, `TIMESTAMP` with every fractional digit it holds
+(`2026-01-02 03:04:05.123456`), and `TIMESTAMP WITH TIME ZONE` with its offset
+(`2026-01-02 03:04:05+02`, `+05:30`). A value stored with a named region
+(`Europe/Paris`) and `TIMESTAMP WITH LOCAL TIME ZONE` come back as the same instant in
+UTC (`+00`).
 
 ### Paging and row caps
 
@@ -440,6 +508,33 @@ NOCOUNT ON` isn't reported by the server. toil notices the transaction ending an
 made. That is why a SQL Server connection for reads should use a read-only login:
 with one, the server refuses the write whatever the SQL does.
 
+**Oracle** runs every read in a transaction begun with `SET TRANSACTION READ ONLY` and
+rolled back, on a connection opened for that one call. The server refuses `INSERT`,
+`UPDATE`, `DELETE`, `MERGE` and `SELECT ... FOR UPDATE` with ORA-01456, which comes
+back as `WRITE_DISABLED`, as do a read-only user or session (ORA-28193) and a database
+open read-only (ORA-16000). `db query` runs one statement; several are `INVALID_INPUT`.
+
+That transaction doesn't hold everything, so some statements are refused on every read
+before they reach the server:
+
+- **DDL** (`CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `RENAME`, `GRANT`, `REVOKE`,
+  `COMMENT`, `ANALYZE`, `PURGE`, `FLASHBACK`, `NOAUDIT`, `ASSOCIATE`,
+  `DISASSOCIATE`) is `WRITE_DISABLED`: Oracle commits before and after DDL, so it runs,
+  and stays, inside a read-only transaction.
+- **PL/SQL** (`BEGIN`, `DECLARE`, `CALL`, and `WITH FUNCTION` or `WITH PROCEDURE`) is
+  `INVALID_INPUT`: a block can `COMMIT`, `EXECUTE IMMEDIATE` DDL, or run an autonomous
+  transaction, and `CALL` reaches built-ins such as `DBMS_UTILITY.EXEC_DDL_STATEMENT`.
+
+To run any of them, use `db execute`.
+
+Known limit: a stored function that runs an autonomous transaction (`PRAGMA
+AUTONOMOUS_TRANSACTION`) still writes when a `SELECT` calls it, and a function can't be
+refused by name. **Connect with an account that can't write**: then nothing a query
+calls can either. `AUDIT` isn't refused either: it needs the audit privileges an
+ordinary account doesn't have. A trigger or stored function with an autonomous
+transaction commits on its own; toil can't see it, so "nothing was applied" after a
+failed `db execute` covers only the script's own transaction.
+
 ### Writes
 
 `db execute` is the only command that changes data. It needs both:
@@ -472,6 +567,21 @@ DATABASE`, `CREATE INDEX CONCURRENTLY`) fail with `DATABASE`; run those with you
 tools. A connection that reaches a read-only standby, or a role whose transactions
 default to read-only, fails writes with `DATABASE`, saying so.
 
+On Oracle, a script's statements are separated by semicolons, and a PL/SQL unit (a
+`BEGIN` or `DECLARE` block, `CREATE FUNCTION`, `PROCEDURE`, `PACKAGE`, `TRIGGER` or
+`TYPE`) runs to a line holding only `/`, as in SQL*Plus, or to the end of the script.
+`COMMIT`, `ROLLBACK`, `SAVEPOINT` and `SET TRANSACTION` are refused before any of it
+runs. Two things Oracle does break all-or-nothing, and toil can't stop them: **DDL
+commits** everything before it, and itself, as it runs, and a PL/SQL block can commit
+inside. When a script fails after Oracle has committed part of it (a DDL statement
+that ran, or failed after parsing), the error says which
+statements stayed committed (`Oracle committed statements 1 to 2 of 4`). After a
+PL/SQL block or a `CALL` ran, toil can't see whether it committed, so the error says the statements
+up to the failure may have committed; check before running the script again. Only when
+nothing in the script could have committed does it say nothing was applied (an
+autonomous-transaction trigger or function is the exception; see the known limit above). Keep DDL in a
+script of its own, or first.
+
 ### Time limits and cancelling
 
 Every command stops at `TOIL_TIMEOUT_MS` (default 120000) with `TIMEOUT`, and on
@@ -496,6 +606,12 @@ SQL Server stops the statement on the server too: on a time limit or a cancel, t
 sends a TDS attention, which ends the running batch, and the read's transaction is
 rolled back when its connection closes.
 
+Oracle is sent a break (`connection.break()`) on a time limit or a cancel, which stops
+the statement on the server at its next check: a long join or sort stops at once.
+Thin mode's break travels in the data stream, so a session parked in
+`DBMS_SESSION.SLEEP` hears it only when the sleep ends; toil still answers straight
+away. `db query` reads rows a batch at a time from a server-side cursor.
+
 ## Examples
 
 ```bash
@@ -518,11 +634,11 @@ Over MCP:
 | Code | Means |
 |------|-------|
 | `NOT_CONFIGURED` | No db connection set up |
-| `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`), `path` is relative, the file isn't a SQLite database, or `"auth": "windows"` is set off Windows |
-| `AUTH` | The server refused the login: check `user` and `password` (and, for SQL Server, that SQL Server logins are allowed); or Windows authentication couldn't start (Constrained Language mode, SSPI refused) |
-| `NETWORK` | The server couldn't be reached, didn't answer, or its TLS certificate wasn't trusted; or SQL Server requires encryption and `ssl` is off |
-| `NOT_FOUND` | The file, database, schema or table doesn't exist |
-| `WRITE_DISABLED` | A write was refused: by `db query`, or by the write gate on `db execute` |
-| `INVALID_INPUT` | Bad flags, a cursor from another query, several statements in `db query`, or on a read `VACUUM` (SQLite), `COPY` and `DO` (PostgreSQL), `INTO OUTFILE` and `SET` (MySQL), or transaction control and `OUTPUT` (SQL Server) |
+| `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`), `path` is relative, the file isn't a SQLite database, `"auth": "windows"` is set off Windows, or an Oracle `host` or `database` holds more than a host name or service name |
+| `AUTH` | The server refused the login: check `user` and `password` (for SQL Server, also that SQL Server logins are allowed; for Oracle, also a locked or expired account, or a password verifier too old for Thin mode); or Windows authentication couldn't start (Constrained Language mode, SSPI refused) |
+| `NETWORK` | The server or listener couldn't be reached, didn't answer, or its TLS certificate wasn't trusted; or SQL Server requires encryption and `ssl` is off |
+| `NOT_FOUND` | The file, database, Oracle service, schema or table doesn't exist |
+| `WRITE_DISABLED` | A write was refused: by `db query` (DDL included, on Oracle), or by the write gate on `db execute` |
+| `INVALID_INPUT` | Bad flags, a cursor from another query, several statements in `db query`, or on a read `VACUUM` (SQLite), `COPY` and `DO` (PostgreSQL), `INTO OUTFILE` and `SET` (MySQL), transaction control and `OUTPUT` (SQL Server), or PL/SQL (Oracle) |
 | `DATABASE` | The engine refused or failed the statement: bad SQL, a constraint, a lock, a permission; on SQL Server, also SQL that ended toil's transaction itself |
 | `TIMEOUT`, `CANCELLED` | Stopped waiting; for `db execute`, check whether the change was made before retrying |
