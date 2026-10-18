@@ -326,7 +326,6 @@
     "connection": true,
     "flags": [
       "--discover",
-      "--save",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -357,7 +356,6 @@
       "--type <type>",
       "--custom-only",
       "--discover",
-      "--save",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",

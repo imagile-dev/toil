@@ -163,7 +163,7 @@ export function where(ctx: AdoContext, needRepo = false): Where {
   if (!project) throw missing(ctx, 'project', '--project');
   if (needRepo && !repo) {
     throw new ToilError('INVALID_INPUT', 'Could not determine Azure DevOps repo. Pass --repo, or run from inside a checked-out ADO repo.', {
-      fix: `Pass --repo <name>, run from a clone whose origin is on ${ctx.connection.baseUrl}, or set repo on connection ${ctx.connection.name} (${adoArea.envName('repo')} for the default connection).`,
+      fix: `Pass --repo <name>, run from a clone with a remote on ${ctx.connection.baseUrl}, or set repo on connection ${ctx.connection.name} (${adoArea.envName('repo')} for the default connection).`,
     });
   }
   return { collection, project, repo };

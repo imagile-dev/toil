@@ -94,16 +94,17 @@ export function createNodeContext(o: NodeContextOptions): Context {
       env: o.env,
       protect: ownFiles(o.home, o.cwd, o.globals.config),
     }),
-    // Area context from the workspace's `origin` remote, read from .git in pure
-    // JS, so --project and --repo come from the remote with no git installed.
-    // The URL is cut at its first space, as the `git remote -v` parsing it
-    // replaces did.
+    // Area context from the workspace's remotes, read from .git in pure JS, so
+    // --project and --repo come from a remote with no git installed: `origin`
+    // first, then the others in `git remote -v` order. Each area trusts only a
+    // remote on its connection's host. The URL is cut at its first space, as
+    // the `git remote -v` parsing it replaces did.
     gitRemote: async () => {
-      if (!workspace.dir) return undefined;
+      if (!workspace.dir) return [];
       const guard = { home: o.home, env: o.env, protect: ownFiles(o.home, o.cwd, o.globals.config) };
       const repo = findGitRepo(workspace.dir, guard);
-      const origin = repo ? readGitRemotes(repo, guard).find((r) => r.name === 'origin') : undefined;
-      return origin ? { name: origin.name, url: origin.url.split(' ')[0]! } : undefined;
+      const remotes = repo ? readGitRemotes(repo, guard).map((r) => ({ name: r.name, url: r.url.split(' ')[0]! })) : [];
+      return [...remotes.filter((r) => r.name === 'origin'), ...remotes.filter((r) => r.name !== 'origin')];
     },
     // Root, branch and remotes for a command that asks (`current-pr`), from .git
     // with no git. An http(s) remote can carry a token as its userinfo

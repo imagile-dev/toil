@@ -113,7 +113,7 @@ export function createMcpServer(options: {
     const def = byName.get(request.params.name);
     if (!def) throw new McpError(ErrorCode.InvalidParams, `Unknown tool: ${request.params.name}`);
     const shared = await clientRoots();
-    const envelope = await runCommand(def, request.params.arguments ?? {}, () => options.context(def, extra.signal, shared), startup.version);
+    const envelope = await runCommand(def, request.params.arguments ?? {}, () => options.context(def, extra.signal, shared), startup.version, 'mcp');
     return {
       content: [{ type: 'text' as const, text: JSON.stringify(envelope) }],
       structuredContent: envelope as unknown as Record<string, unknown>,

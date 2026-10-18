@@ -246,7 +246,7 @@ describe("a git reader and the call's connection", () => {
   });
   const where = repos.command({ path: ['repos', 'where'], description: 'test', input: z.object({}), writes: false, examples: [{}], run: async (_i, ctx) => ({ project: ctx.context.project ?? null }) });
   const run = (url: string) =>
-    execute(where, {}, { ...testContext({ config: { repos: { baseUrl: 'https://git.imagile.dev', token: 't' } } }).context, gitRemote: async () => ({ name: 'origin', url }) });
+    execute(where, {}, { ...testContext({ config: { repos: { baseUrl: 'https://git.imagile.dev', token: 't' } } }).context, gitRemote: async () => [{ name: 'origin', url }] });
 
   it('gets the resolved connection, so a remote on another host supplies nothing', async () => {
     expect((await run('https://git.imagile.dev/PRJ/repo.git')).data).toEqual({ project: 'PRJ' });

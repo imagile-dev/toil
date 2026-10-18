@@ -24,4 +24,13 @@ describe('the shared inventory reader', () => {
   it('says there is no stdin over MCP when from is left out', () => {
     expect(() => readInventory({ files: memoryFiles() }, undefined)).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('Over MCP there is no stdin') }));
   });
+
+  it("keeps a source's own wording when it gives one", () => {
+    const words = { verb: 'evaluate', holds: 'a package list', missingFix: 'Write one.', fix: 'Pipe one in.', packageFix: 'Name it.' };
+    expect(() => readInventory({ files: memoryFiles() }, undefined, words)).toThrow(
+      expect.objectContaining({ message: 'No inventory to evaluate: pass from, a package list. Over MCP there is no stdin to read it from.', fix: 'Write one.' }),
+    );
+    expect(() => readInventory({ files: memoryFiles({}, { stdin: 'nope' }) }, '-', words)).toThrow(expect.objectContaining({ fix: 'Pipe one in.' }));
+    expect(() => readInventory({ files: memoryFiles({}, { stdin: '[{"name":"x"}]' }) }, '-', words)).toThrow(expect.objectContaining({ fix: 'Name it.' }));
+  });
 });

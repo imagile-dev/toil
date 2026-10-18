@@ -137,8 +137,9 @@ export interface ContextInput {
   /** The area's own default, after the connection. */
   default?: string;
   /**
-   * Reads the value from the working folder's git remote; the reader is
-   * core's, the parsing is the area's. It gets the call's resolved
+   * Reads the value from one of the working folder's git remotes; the reader
+   * is core's, the parsing is the area's. Core offers `origin` first, then the
+   * other remotes, and takes the first value returned. It gets the call's resolved
    * connection too, so it can trust only a remote on the connection's own host
    * (`baseUrl`). An input that `selectsConnection` is read before there is a
    * connection, so it gets `undefined`.
