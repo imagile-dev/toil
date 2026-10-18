@@ -64,28 +64,41 @@ in `allowed_bots`, and its `claude-triage` counts only on an issue it filed from
 outside, so nothing can pull in an issue nobody chose.
 
 **The boundary is the job, not the prompt.** Code the agent writes must never run
-where a credential is, and the credential that writes must never sit where agent
-code runs. So the work is split across jobs, each on its own fresh runner:
+in this workflow at all, and the credential that writes must never sit where the
+agent works. So the work is split across jobs, each on its own fresh runner:
 
 | Job | Runs | Holds |
 |---|---|---|
-| `select` | main's scripts only: claim within the cap, redact the issue in place | an `issues: write` App token |
-| `triage` | the agent, with `Read`, `Glob`, `Grep`, `Edit` and `Write` only: no Bash, no `gh`, no `npm`, no web. Afterwards, shell utilities only (no `git`, no `node`), to hand its files over as a ustar archive | `contents: read` / `issues: read` workflow token; the OAuth token only inside its own step, with `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` set as well |
-| `gate` | the agent's code: typecheck, lint, test, build, check:pure, after main's scripts check every path | no secrets, `contents: read`, credentials not persisted, no npm cache |
-| `finish` | main's scripts only: checks the decision and every path again, applies labels, comment and close, and for a fix that passed the gate pushes `claude/issue-<n>` and opens the PR. Never runs the fix's code | an App token with contents, pull-request and issue writes and no `workflows` |
+| `select` | main's scripts only: claim within the cap, redact each issue in place | an `issues: write` App token |
+| `triage` | one per issue: the agent, with `Read`, `Glob`, `Grep`, `Edit` and `Write` only (no Bash, no `gh`, no `npm`, no web). Afterwards, shell utilities only (no `git`, no `node`), to hand its files over as a ustar archive | `contents: read` / `issues: read` workflow token; the OAuth token only inside its own step, with `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` set as well |
+| `finish` | one per issue: main's scripts only. Checks the decision and every path, applies labels, comment and close, and for a fix pushes `claude/issue-<n>` and opens a **draft** PR. Never runs the fix's code | an App token with contents, pull-request and issue writes and no `workflows` |
+
+The fix's code first runs in `ci.yml` on that draft PR, under `pull_request`: the
+full gate on all three OSes, in the PR's own cache scope, with no secrets. A human
+marks it ready and merges it. There is no in-workflow test job, so nothing agent-written
+ever runs in `main`'s cache scope.
 
 The agent never writes to GitHub itself: it leaves `decision.json`, a comment and the
 PR text in `.triage-out/`, and `finish` applies them (`scripts/triage/decision.mjs`
 refuses an unknown area or decision and defuses every closing reference GitHub honours
-in the PR text). Changing this layout means re-checking that no job holding a write
-credential runs agent-written code, and that no job running it holds one.
+in the PR text). An agent that didn't run, failed or was refused by the action
+(`agent-ok` or `decision.json` missing) is not a decision: `finish` puts the issue back
+in `triage-queued`, adds no label and no comment, and fails the run. Changing this
+layout means re-checking that no job holding a write credential runs agent-written
+code, and that nothing in this workflow runs it at all.
+
+The actor the agent action sees is always a person (a maintainer's label or
+dispatch, or the schedule) or the Imagile Bot, the one name in `allowed_bots`. The
+daily run triages the queue itself as a matrix rather than dispatching runs: a run
+started by `GITHUB_TOKEN` has `github-actions[bot]` as its actor, which the action
+refuses.
 
 - **The cap.** At most four issues a UTC day (`TRIAGE_CAP`), counted by
   `scripts/triage/cap.mjs`: a run claims its issue with `triage-claimed` and ranks
   today's claims by label-event id, so concurrent runs agree without a lock. The
   fifth gets `triage-queued`; the daily run drains the queue oldest first, along with
-  anything a run missed, dispatching one run per issue. A manual dispatch is a
-  re-triage and isn't counted.
+  anything a run missed, triaging them in the same run as a matrix. A manual dispatch
+  is a re-triage and isn't counted.
 - **Redaction first.** `scripts/triage/redact.mjs` rewrites the issue's title and
   body in place before the agent starts, and again on what the agent is shown; the
   prompt fences them between `BEGIN/END UNTRUSTED <nonce>` lines with a nonce per
@@ -93,16 +106,15 @@ credential runs agent-written code, and that no job running it holds one.
   injection attempt.
 - **Paths.** `scripts/triage/archive.mjs` reads the handover archive itself (regular
   files only, no links or extensions) and `scripts/triage/changes.mjs` holds every
-  path to one area's own files, in `gate` before the tests and again in `finish`
-  before the push.
+  path to one area's own files, in `finish` before anything lands, and again on the
+  commit before the push.
 - **Scope.** One area: `src/areas/<area>/`, its fixture, skill file, divergences,
   board entry, and the two generated site data files. Core, `functions/`, `infra/`,
   site pages, `.github/`, `scripts/`, `dist/`, `package.json`, the lockfile and new
   dependencies are maintainer work, denied with that explanation.
 - **Model and turns are fixed:** `--model sonnet --max-turns 100`. Transient GitHub
   failures (5xx, 429, network) are retried. The outcome goes to the job summary.
-  Jobs that run agent-written code never use `cache: npm`, so nothing they write
-  is restored by another workflow.
+  No triage job uses `cache: npm`.
 - The PRs triage opens are authored by `imagile-bot[bot]`, so `claude-review.yml`
   skips them (the App can't approve its own PR); a maintainer reviews them.
 

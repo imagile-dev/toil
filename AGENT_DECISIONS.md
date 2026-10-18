@@ -2467,13 +2467,24 @@ skill file, fixture, board entry, site data or contract entries changed.
   `CLAUDE_CODE_OAUTH_TOKEN` and `GH_TOKEN`. So the agent has `Read`, `Glob`, `Grep`,
   `Edit` and `Write` only (no Bash at all, so not even the scoped `gh issue` commands
   the review allowed), and writes its decision, comment and PR text to `.triage-out/`.
-  Four jobs: `select` (claim, redact), `triage` (the agent; workflow token read-only;
-  handover by shell utilities only, as a ustar archive), `gate` (the agent's code, no
-  secrets, `contents: read`, no cache) and `finish` (main's scripts only; applies the
-  decision, and pushes and opens the PR for a fix that passed). The table is in the
-  `automation` skill.
-- **One issue per run.** The daily run dispatches a run per issue it claims, instead of
-  a matrix, so `needs.gate.result` in `finish` is that issue's alone.
+  Three jobs: `select` (claim, redact), `triage` (the agent, one matrix job per issue;
+  workflow token read-only; handover by shell utilities only, as a ustar archive) and
+  `finish` (main's scripts only; applies the decision, and for a fix pushes and opens a
+  **draft** PR). The table is in the `automation` skill.
+- **No in-workflow test job** (review round 2). A `gate` job briefly ran the agent's
+  code with no secrets, but on a hosted runner that code could still reach the
+  runner's cache token in `main`'s scope. The draft PR gets the whole gate from
+  `ci.yml` under `pull_request` instead: all three OSes, the PR's own cache scope, no
+  secrets. A human marks it ready and merges it.
+- **The daily run triages the queue itself, as a matrix** (review round 2), rather than
+  dispatching a run per issue: a run dispatched with `GITHUB_TOKEN` has
+  `github-actions[bot]` as its actor, which claude-code-action refuses, so `allowed_bots`
+  stays `imagile-bot` alone.
+- **A failed agent run is not a decision** (review round 2). The agent job writes
+  `agent-ok` only when the agent step succeeded; with it or `decision.json` missing,
+  `finish` puts the issue back in `triage-queued`, adds no label and no comment, and
+  fails the run. A decision the agent made but `decision.mjs` refuses is `invalid`: a
+  comment for a maintainer and `triaged`, so it isn't retried forever.
 - **`claude-triage` from the Imagile Bot** counts only on an issue that already carries
   `from-website` or `from-terminal`, and still goes through the cap.
 - **The client address is the last `X-Forwarded-For` entry** (review round 1), the hop

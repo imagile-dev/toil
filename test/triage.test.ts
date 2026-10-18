@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { extract, inspect } from '../scripts/triage/archive.mjs';
 import { CLAIMED, QUEUED, claim, claimRank, gh, waiting, type LabelEvent } from '../scripts/triage/cap.mjs';
 import { areaOf, check, parseRaw } from '../scripts/triage/changes.mjs';
-import { defuseClosingKeywords, parseDecision } from '../scripts/triage/decision.mjs';
+import { agentRan, defuseClosingKeywords, parseDecision } from '../scripts/triage/decision.mjs';
 import { areas, labels } from '../scripts/triage/labels.mjs';
 import { parseTerms, redact } from '../scripts/triage/redact.mjs';
 
@@ -345,5 +345,41 @@ describe('the agent decision', () => {
     ['This fixes the parser; see #5', 'This fixes the parser; see #5'],
   ])('defuses the closing reference in %j', (input, output) => {
     expect(defuseClosingKeywords(input)).toBe(output);
+  });
+});
+
+describe('finish: a failed agent run is not a decision', () => {
+  const run = (files: Record<string, string>) => {
+    const dir = mkdtempSync(join(tmpdir(), 'toil-decision-'));
+    try {
+      for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
+      const output = join(dir, 'github-output.txt');
+      writeFileSync(output, '');
+      execFileSync(process.execPath, ['scripts/triage/decision.mjs', dir, '7', 'jira', 'github'], { env: { ...process.env, GITHUB_OUTPUT: output }, encoding: 'utf8' });
+      const out = Object.fromEntries(readFileSync(output, 'utf8').trim().split('\n').map((line) => line.split(/=(.*)/s).slice(0, 2) as [string, string]));
+      return { out, comment: existsSync(join(dir, 'comment.checked.md')) };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it('needs both the agent-ok marker and decision.json', () => {
+    expect(agentRan(['agent-ok', 'decision.json'])).toBe(true);
+    expect(agentRan(['decision.json'])).toBe(false);
+    expect(agentRan(['agent-ok'])).toBe(false);
+  });
+
+  it('reports failed, with nothing to comment, when the agent never ran or failed', () => {
+    expect(run({})).toEqual({ out: { decision: 'failed' }, comment: false });
+    expect(run({ 'decision.json': '{"decision":"deny","areas":[]}' })).toEqual({ out: { decision: 'failed' }, comment: false });
+    expect(run({ 'agent-ok': 'ok' })).toEqual({ out: { decision: 'failed' }, comment: false });
+  });
+
+  it('reports invalid, labelled triaged only, when the agent ran and decided something refused', () => {
+    expect(run({ 'agent-ok': 'ok', 'decision.json': '{"decision":"merge","areas":[]}' })).toEqual({ out: { decision: 'invalid', labels: 'triaged', duplicate_of: '' }, comment: true });
+  });
+
+  it('passes a valid decision through with its labels', () => {
+    expect(run({ 'agent-ok': 'ok', 'decision.json': '{"decision":"deny","areas":["jira"]}', 'comment.md': 'Out of scope.' }).out).toEqual({ decision: 'deny', labels: 'triaged,denied,area:jira', duplicate_of: '' });
   });
 });

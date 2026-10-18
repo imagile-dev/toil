@@ -5,3 +5,4 @@ export function parseDecision(
   issue: number,
   knownAreas: string[],
 ): { ok: boolean; decision?: string; areas?: string[]; duplicateOf?: number; problems: string[] };
+export function agentRan(files: string[]): boolean;

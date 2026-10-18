@@ -30,6 +30,18 @@ export function defuseClosingKeywords(text) {
 /** Stops agent-written text from pinging accounts. */
 export const quietMentions = (text) => text.replace(/(^|[^\w`])@(?=[A-Za-z0-9])/g, '$1@​');
 
+/**
+ * Whether the agent ran at all. The agent's job writes `agent-ok` beside its files
+ * only when the agent step succeeded; with that marker or decision.json missing,
+ * the agent didn't run, failed, or was refused by the action. That is no decision
+ * about the issue: the workflow leaves it queued, says nothing on it, and fails the
+ * run where a maintainer sees it. The output `decision` is then `failed`, as
+ * opposed to `invalid`, a decision the agent made that parseDecision refuses.
+ */
+export function agentRan(files) {
+  return files.includes('agent-ok') && files.includes('decision.json');
+}
+
 /** Checks the agent's decision; returns { ok, decision, areas, duplicateOf, problems }. */
 export function parseDecision(raw, issue, knownAreas) {
   const problems = [];
@@ -64,8 +76,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     console.error('Usage: decision.mjs <out-dir> <issue> <area>...');
     process.exit(1);
   }
-  const parsed = parseDecision(readText(join(dir, 'decision.json')), issue, areas);
   const out = (line) => (process.env.GITHUB_OUTPUT ? appendFileSync(process.env.GITHUB_OUTPUT, `${line}\n`) : console.log(line));
+  if (!agentRan(['agent-ok', 'decision.json'].filter((name) => existsSync(join(dir, name))))) {
+    console.log(`The agent didn't run to completion for #${issue}: there is no decision to apply.`);
+    out('decision=failed');
+    process.exit(0);
+  }
+  const parsed = parseDecision(readText(join(dir, 'decision.json')), issue, areas);
   if (!parsed.ok) console.log(`The agent's decision was refused: ${parsed.problems.join('; ')}`);
   out(`decision=${parsed.ok ? parsed.decision : 'invalid'}`);
   out(`labels=${['triaged', ...(parsed.ok && parsed.decision !== 'fix' ? ['denied'] : []), ...(parsed.areas ?? []).map((a) => `area:${a}`)].join(',')}`);
