@@ -2445,3 +2445,125 @@ skill file, fixture, board entry, site data or contract entries changed.
 - **No git remote parsing**, as `bitbucket-cloud`: project and repo come from the
   flag, a dossier or the connection.
 - **The board status is `unit`.**
+
+### #223 feedback
+
+- **`toil version` reports `commit`** next to `contractVersion`, stamped at bundle
+  time on its own banner line (`tsup.config.ts`): `TOIL_BUILD_COMMIT` when set, else
+  git's `HEAD`, else `null`. A bundle can't contain the hash of the commit that holds
+  it, so `scripts/check-dist.mjs` sets that one line aside when it compares the
+  committed bundle with a rebuild. The npm tarball is built from the release tag, so
+  it reports a commit on `main`; the committed `dist/` reports the release branch's
+  commit. Not added to `@imagile-dev/toil/api`'s exports.
+- **No deploy in this PR.** Azure's own forecast for Imagile Paid in October 2026 was
+  $50.08 (actual $8.88 plus $41.20 forecast) before anything here was added, over the
+  $50 gate, though the last week's actual run rate (~$0.66/day) projects ~$19. The gate
+  is the maintainer's, so the deploy waits for them; `what-if` ran clean.
+- **The agent runs no code and holds no write credential** (review round 1). The issue
+  listed `git push`, `npm test` and `gh issue …` among the agent's tools. `main`'s
+  ruleset currently applies to no branch (its `include` is empty, so
+  `GET /rules/branches/main` is `[]`), so any `contents: write` token can push straight
+  to `main`, and anything the agent's tests ran would inherit its step's
+  `CLAUDE_CODE_OAUTH_TOKEN` and `GH_TOKEN`. So the agent has `Read`, `Glob`, `Grep`,
+  `Edit` and `Write` only (no Bash at all, so not even the scoped `gh issue` commands
+  the review allowed), and writes its decision, comment and PR text to `.triage-out/`.
+  Three jobs: `select` (claim, redact), `triage` (the agent, one matrix job per issue;
+  workflow token read-only; handover by shell utilities only, as a ustar archive) and
+  `finish` (main's scripts only; applies the decision, and for a fix pushes and opens a
+  **draft** PR). The table is in the `automation` skill.
+- **No in-workflow test job** (review round 2). A `gate` job briefly ran the agent's
+  code with no secrets, but on a hosted runner that code could still reach the
+  runner's cache token in `main`'s scope. The draft PR gets the whole gate from
+  `ci.yml` under `pull_request` instead: all three OSes, the PR's own cache scope, no
+  secrets. A human marks it ready and merges it.
+- **The daily run triages the queue itself, as a matrix** (review round 2), rather than
+  dispatching a run per issue: a run dispatched with `GITHUB_TOKEN` has
+  `github-actions[bot]` as its actor, which claude-code-action refuses, so `allowed_bots`
+  stays `imagile-bot` alone.
+- **A failed agent run is not a decision** (review round 2). The agent job writes
+  `agent-ok` only when the agent step succeeded; with it or `decision.json` missing,
+  `finish` puts the issue back in `triage-queued`, adds no label and no comment, and
+  fails the run. A decision the agent made but `decision.mjs` refuses is `invalid`: a
+  comment for a maintainer and `triaged`, so it isn't retried forever.
+- **`claude-triage` from the Imagile Bot** counts only on an issue that already carries
+  `from-website` or `from-terminal`, and still goes through the cap.
+- **The client address is the last `X-Forwarded-For` entry** (review round 1), the hop
+  Azure's front end appends; Microsoft documents the append for Front Door, not in so
+  many words for App Service, so the first deploy confirms it. No platform-only header
+  (`X-Azure-ClientIP`, `X-Azure-SocketIP`) is documented for Flex Consumption itself, and
+  a client could send one directly, so neither is trusted. Limits that hold whatever a
+  caller claims: `MAX_PENDING_SUBMISSIONS` (100), `REPORT_DAILY_LIMIT` (30) and
+  `COMMIT_LOOKUP_DAILY_LIMIT` (50), each a plain 429.
+- **The path check also allows** the two generated per-area site files
+  (`site/src/data/commands/<area>.json`, `site/src/data/settings/<area>.json`), which
+  `npx vitest run -u` rewrites when a command changes; without them a command fix
+  fails CI.
+- **The cap is counted from label events** (`triage-claimed`, ranked by event id), so
+  concurrent runs agree without a global lock. The daily run also picks up issues a
+  run missed and claims left by a run that died.
+- **`/api/report` spends the per-IP limit before the commit lookup**, so random
+  hashes can't spend the App's GitHub quota; a mistyped hash costs one of the three
+  daily reports. A hash that isn't a commit is a 422. A commit found but not on
+  `main` (a fork's or a local build's) is accepted and labelled `unverified-build`.
+- **Two installation tokens**: `issues: write` for filing and `contents: read` for the
+  commit lookup, so the filing token stays exactly as the issue scoped it.
+- **Smoke runs on `/api/report` too.** The key marks a report as a smoke run (recorded
+  on the persistent issue) but skips nothing there, since that route has no CAPTCHA.
+- **Email:** every address except reserved example domains and GitHub noreply is
+  redacted from triaged issues (the issue named secrets, hosts, IPs and the denylist).
+  The issue → email row is deleted once the closed notice is sent, so a reopened and
+  re-closed issue sends nothing more. The closed notice quotes only the last comment
+  by an owner, member, collaborator or the Imagile Bot. `@mentions` in submitted text
+  get a zero-width space so filing an issue can't ping accounts.
+- **Storage is identity-only** (shared-key access off), which needs the deploy identity
+  to hold `Role Based Access Control Administrator` on the resource group; listed as a
+  manual step.
+- **Alerts reuse the existing `ag-cost-email` action group** in `rg-alerts` rather
+  than a new one, so no address is committed. Three log alerts every 15 minutes
+  ($0.50 each). Log ingestion is capped at 0.2 GB a day.
+- **At most 2 on-demand instances** (Flex allows 1–1000), to bound what a flood of
+  requests can cost.
+- **The webhook secret is a new Key Vault secret, `TOIL-WEBHOOK-SECRET`**, made by
+  hand; nothing in `imagile-keyvault` was created or changed.
+- **Triage PRs skip `claude-review.yml`**, which skips PRs `imagile-bot[bot]` authored
+  because the App can't approve its own PR. A maintainer reviews them.
+- **Site form:** the honeypot field is named `website`; the Turnstile widget is the
+  existing one, which needs `imagile-dev.github.io` added to its hostnames.
+- **The triage steps live in `scripts/triage/steps.mjs`** (review round 3), next to
+  `redact.mjs` and the other triage scripts, rather than a new `.github/scripts/`
+  folder: `scripts/` is where this repository's tooling lives (CLAUDE.md, Layout), and
+  ESLint's tooling rules already cover it. The YAML passes inputs as env and reads
+  outputs from `steps.<id>.outputs`; `test/triage-steps.test.ts` runs the steps in
+  order through real `GITHUB_OUTPUT` files, and `test/workflow-wiring.test.ts` checks
+  every handed-on output in `triage.yml` and `feedback-deploy.yml`. `act` isn't
+  installed here, so the select job was not run through it; `handover.sh` was run in
+  `node:24.14.0-bookworm-slim` (Docker), since its test runs on Linux only.
+- **Review round 4 went past the three-round limit** (the maintainer's coordinator
+  continued it because the rounds were converging: each found a narrower issue than the
+  last). Round 4: agent-written text and added lines are checked for anything
+  credential-shaped before posting (`leak`: nothing posted, `needs-human`, the run
+  fails); the agent's file tools are scoped to the checkout with deny rules for `/proc`,
+  `/sys`, `/etc` and the runner's temp and home dot-folders; a failed issue gets
+  `triage-failed` once and `needs-human` the second time, and a failed manual re-triage
+  is never queued. The scoped `Read(./**)` rule follows Claude Code's documented
+  permission syntax; it wasn't run locally (the local CLI's sign-in had expired), so the
+  first triage run confirms the agent can still read the checkout.
+- **The leak check matches token shapes and the job's own secret values, not key
+  names** (review round 5): `tokenShaped` applies only the prefixed-token, JWT and
+  private-key patterns, so code such as `token: z.string()` passes, and the handover
+  compares the agent's output byte for byte with the agent job's OAuth and workflow
+  tokens, emptying it and marking `secret-match` on a hit. The key-name rules stay in
+  the redactor for incoming issue text. `xox…` tokens joined the shape list.
+- **The one-time setup is `infra/bootstrap.sh`** (the maintainer's request, after review
+  round 5), run once for real and once more to show it changes nothing. Key Vault
+  references resolve through a user-assigned identity (`id-toil-feedback-kv`) the script
+  makes and grants Key Vault Secrets User before the first deploy, so the first smoke
+  test can pass; the system identity keeps the two storage roles, which needed no
+  change. The deploy identity's Role Based Access Control Administrator carries a
+  condition limiting it to Storage Blob Data Owner and Storage Table Data Contributor.
+  Generated secrets pass through a private temp file (az on Windows can't read
+  `/dev/stdin`), removed on exit. The first run stored `TOIL-WEBHOOK-SECRET` with a
+  trailing carriage return (Windows' openssl ends lines with CRLF); the webhook got the
+  value without it, and the function trims settings, so both sides sign with the same
+  64 characters. It was left as it is rather than rewriting a secret, and the script
+  now strips `\r` too. The deploy is approved past the $50 rule, to a $60 budget.

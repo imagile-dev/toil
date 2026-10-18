@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig } from 'tsup';
@@ -5,6 +6,19 @@ import { ENTRIES } from './scripts/entries.mjs';
 import { noSpawn } from './scripts/no-spawn.mjs';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string };
+
+// The commit this bundle is built from, for `toil version`'s `commit`: TOIL_BUILD_COMMIT
+// when CI names it, otherwise git's HEAD, otherwise null (no git, or not a checkout).
+// It sits on its own marked line because a bundle can't hold the hash of the commit
+// that contains it: check:dist compares the committed bundle with a rebuild, so it
+// sets that one line aside (scripts/check-dist.mjs, COMMIT_LINE).
+const commit = ((): string | null => {
+  const named = process.env.TOIL_BUILD_COMMIT?.trim().toLowerCase();
+  if (named) return /^[0-9a-f]{40}$/.test(named) ? named : null;
+  const head = spawnSync('git', ['rev-parse', '--verify', 'HEAD'], { encoding: 'utf8' });
+  const sha = head.status === 0 ? head.stdout.trim() : '';
+  return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
+})();
 
 // One self-contained ESM bundle of code, dist/toil-lib.js: every dependency is
 // bundled in, so the published package has no runtime dependencies and nothing
@@ -54,6 +68,6 @@ export default defineConfig({
     // release PR bumps package.json and this line together (extra-files in
     // release-please-config.json), so the bundle still matches its source and
     // check:dist passes on the release PR without anyone rebuilding it.
-    js: `import { createRequire as __toilCreateRequire } from 'node:module';\nconst require = __toilCreateRequire(import.meta.url);\nconst __TOIL_VERSION__ = ${JSON.stringify(version)}; // x-release-please-version`,
+    js: `import { createRequire as __toilCreateRequire } from 'node:module';\nconst require = __toilCreateRequire(import.meta.url);\nconst __TOIL_VERSION__ = ${JSON.stringify(version)}; // x-release-please-version\nconst __TOIL_COMMIT__ = ${JSON.stringify(commit)}; // toil-build-commit`,
   },
 });

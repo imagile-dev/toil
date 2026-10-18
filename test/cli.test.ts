@@ -16,6 +16,15 @@ describe('toil CLI', () => {
     expect(run.envelope).toMatchObject({ ok: true, error: null, data: { version: TEST_VERSION }, meta: { command: 'version', version: TEST_VERSION } });
   });
 
+  it('reports the build commit next to contractVersion, null when the build recorded none', async () => {
+    const { context } = testContext();
+    const run = await runCli(['version'], { commands, context });
+    const data = run.envelope!.data as Record<string, unknown>;
+    expect(Object.keys(data).slice(0, 3)).toEqual(['version', 'contractVersion', 'commit']);
+    // Tests run from source, where tsup's banner never declared __TOIL_COMMIT__.
+    expect(data.commit).toBeNull();
+  });
+
   it('indents with --pretty', async () => {
     const { context } = testContext();
     const run = await runCli(['--pretty', 'version'], { commands, context });
