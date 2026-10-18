@@ -123,7 +123,7 @@ one they got.
   conformance suite is what proves read-only.
 - **Before opening a PR that touches a database provider, run it against the real
   engine locally in Docker.** Pull the same official image CI uses (`postgres`,
-  `mysql`/`mariadb`, `mcr.microsoft.com/mssql/server`, `gvenzl/oracle-free`), seed
+  `mysql`/`mariadb`, `mcr.microsoft.com/mssql/server` at a dated cumulative-update tag such as `2022-CU27-ubuntu-22.04`, never `2022-latest`, `gvenzl/oracle-free`), seed
   it, and drive the actual `toil db` commands through both the CLI and MCP. Remove
   the containers afterwards. The PR names the image and tag and shows the output.
   Docker is a development tool here, never a runtime dependency: No Executables

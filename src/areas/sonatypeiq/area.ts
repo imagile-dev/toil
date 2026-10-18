@@ -17,6 +17,7 @@ export const sonatypeiqArea = defineArea({
     passcode: z.string().min(1).describe('User token passcode'),
   }),
   secrets: ['passcode'],
+  probe: () => ({ path: '/api/v2/applications' }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Basic ${Buffer.from(`${connection.userCode}:${connection.passcode}`).toString('base64')}` },

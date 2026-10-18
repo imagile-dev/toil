@@ -21,6 +21,8 @@ export const confluenceArea = defineArea({
   // The default connection falls back to TOIL_JIRA_API_TOKEN; any connection
   // can name a Jira connection to borrow from with apiTokenFrom.
   shares: { area: jiraArea, keys: ['apiToken'] },
+  // The current user; Confluence answers an anonymous caller with a 200 and type "anonymous".
+  probe: () => ({ path: '/rest/api/user/current', accepts: (body) => (body as { type?: unknown } | null)?.type !== 'anonymous' }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Bearer ${connection.apiToken}` },

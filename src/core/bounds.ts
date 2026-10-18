@@ -46,6 +46,8 @@ export interface BoundException {
 export const BOUND_EXCEPTIONS: readonly BoundException[] = [
   { id: 'git.read-up', bound: 'files.workspace', enforcedIn: ['src/core/git-repo.ts', 'src/core/git-config.ts', 'src/core/files.ts'] },
   { id: 'output-file', bound: 'files.workspace', enforcedIn: ['src/node-context.ts', 'src/program.ts'] },
+  { id: 'shell-profile', bound: 'files.workspace', enforcedIn: ['src/core/shell-profile.ts', 'src/setup/commands.ts'] },
+  { id: 'shell-profile.edit', bound: 'files.no-overwrite', enforcedIn: ['src/core/shell-profile.ts'] },
   { id: 'skills.folders', bound: 'files.workspace', enforcedIn: ['src/skills/folders.ts', 'src/skills/marketplace.ts'] },
   { id: 'skills.reinstall', bound: 'files.no-overwrite', enforcedIn: ['src/skills/folders.ts'] },
   { id: 'dossiers.read', bound: 'files.workspace', enforcedIn: ['src/core/dossier.ts'] },

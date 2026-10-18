@@ -17,6 +17,7 @@ export const figmaArea = defineArea({
     token: z.string().min(1).describe('Figma personal access token'),
   }),
   secrets: ['token'],
+  probe: () => ({ path: '/v1/me' }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { 'X-Figma-Token': connection.token },

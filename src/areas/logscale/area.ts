@@ -16,6 +16,7 @@ export const logscaleArea = defineArea({
     token: z.string().min(1).describe('LogScale personal API token'),
   }),
   secrets: ['token'],
+  probe: () => ({ path: '/api/v1/repositories' }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Bearer ${connection.token}` },

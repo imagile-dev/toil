@@ -34,6 +34,31 @@ As an MCP server, with no install step:
 Each [release](https://github.com/imagile-dev/toil/releases) also carries the packed
 `.tgz` for offline or mirrored installs: `npm install -g ./imagile-dev-toil-<version>.tgz`.
 
+### Run from a clone
+
+npm is the recommended path. Where the git host is reachable but the npm registry
+isn't, a clone runs as it is, with no `npm install`: `dist/toil.js` is committed, and
+it is the last released toil (each release rebuilds it; nothing else changes it).
+
+```bash
+git clone https://github.com/imagile-dev/toil.git
+node toil/dist/toil.js version
+node toil/dist/toil.js setup alias    # PowerShell: add --profile $PROFILE
+```
+
+`setup alias` adds a `toil` function to your shell profile (`~/.bashrc`, `~/.zshrc`, or
+the PowerShell profile you name), between two marker lines; `setup remove-alias` takes
+it out. Open a new terminal and `toil` works. MCP clients don't read shell profiles, so
+register the server as `node` with `<clone>/dist/toil.js mcp` as its arguments.
+
+### Agent skill
+
+[`skills/toil/`](skills/toil/SKILL.md) is toil's command reference for agents, in the
+Agent Skills format. In Claude Code: `claude plugin marketplace add imagile-dev/toil`,
+then `claude plugin install toil@toil`. For Codex, GitHub Copilot and anything else
+that reads `.agents/skills`, copy the folder there. The skill also tells an agent how to
+install toil and register `toil mcp` with its client.
+
 ## Use
 
 ```bash
@@ -53,10 +78,12 @@ Every command writes one JSON envelope to stdout:
 Settings resolve in this order: `TOIL_*` environment variables, then
 `~/.toil/config.json`. `toil connections add <name>` sets up a connection on a
 terminal and keeps its token in the OS credential store, with only a reference in
-config; `toil connections list` shows what's set up (`--area <name>` for one area). Tokens live in the OS
+config; `toil connections list` shows what's set up (`--area <name>` for one area), and
+`toil connections test <name>` checks one with a single read. Run `toil` on its own in a
+terminal for a menu that does all of this, and shows each command as it runs. Tokens live in the OS
 credential store or in environment variables, never in the config file; use
 environment variables in CI, containers and anywhere without a credential store. Nothing in a repository can change where your credentials go or
-switch on writes. Database connections are read-only unless you mark them otherwise.
+switch on writes; `toil connections writes <name> on` asks you to type the name. Database connections are read-only unless you mark them otherwise.
 
 Behind a corporate proxy or TLS inspection, nothing extra is needed: toil trusts the OS
 certificate store as well as Node's bundled CAs, and sends requests through
