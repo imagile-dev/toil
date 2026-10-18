@@ -24,7 +24,7 @@ export async function runCommand(def: AnyCommand, rawInput: unknown, makeContext
   let envelope: Envelope;
   try {
     const ctx = makeContext();
-    envelope = await execute(def, rawInput, ctx);
+    envelope = await execute(def, rawInput, ctx, via);
   } catch (err) {
     envelope = failure(toToilError(err), { command: commandName(def), durationMs: 0, version });
   }
@@ -86,7 +86,7 @@ export const DEFAULT_TIMEOUT_MS = 120_000;
  * --verbose, warnings, paging, timeouts and cancellation all live here, so no
  * front door can forget them and no command has to remember them.
  */
-export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context): Promise<Envelope> {
+export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, via: FrontDoor = 'cli'): Promise<Envelope> {
   const started = performance.now();
   const requests: RequestLog[] = [];
   const warnings: Warning[] = [...ctx.config.warnings];
@@ -223,7 +223,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
         if (!def.area || !call) throw new Error(`${commandName(def)} has no context inputs to supply.`);
         return supplyContext(def.area, def, context, resolved, name, value, source);
       },
-      ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt, dossiers: ctx.dossiers } } : {}),
+      ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt, dossiers: ctx.dossiers, via } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
       // A listing's warnings (a refused git include) land in meta.warnings without the command passing anything.
@@ -280,7 +280,7 @@ function assertWritesAllowed(
   if (connection && (chosenBy === 'dossier' || chosenBy === 'git') && !adopted?.(area, connection.name, chosenBy)) {
     const by = chosenBy === 'dossier' ? 'your dossier' : 'the git remote';
     throw new ToilError('WRITE_DISABLED', `${commandName(def)} changes data in ${area}, and connection ${connection.name} was chosen by ${by}, not by you.`, {
-      fix: `Pass --connection ${connection.name} to choose it yourself, or adopt the binding once with toil dossiers import (coming with #16).`,
+      fix: `Pass --connection ${connection.name} to choose it yourself${chosenBy === 'dossier' ? ', or adopt the dossier once with toil dossiers import, which copies it into your own folder' : ''}.`,
     });
   }
   if (!connection?.writes) {

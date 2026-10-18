@@ -78,6 +78,12 @@ export interface ConfigAccess {
   prompt: Prompter | undefined;
   /** The dossiers toil can see, for `toil dossiers ...`. Undefined where there are none (tests). */
   dossiers: DossierCatalog | undefined;
+  /**
+   * Which front door the call came through. Binding a dossier to a connection
+   * with writes on is done by a person on the CLI, so the dossier commands
+   * refuse it over MCP (docs/dossiers.md, Agents and the write gate).
+   */
+  via: 'cli' | 'mcp';
 }
 
 /**
