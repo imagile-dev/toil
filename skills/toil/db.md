@@ -76,7 +76,7 @@ into toil): no libpq, no `psql`, nothing to install.
 | `database` | yes | The database to connect to |
 | `user` | yes | The login role |
 | `password` | no | The role's password. A secret: an env var or the OS credential store, never the config file. |
-| `ssl` | no | `true` connects over TLS and verifies the server's certificate against the OS certificate store. Off by default. |
+| `ssl` | no | `true` connects over TLS and verifies the server's certificate against Node's CAs, `NODE_EXTRA_CA_CERTS` and the OS certificate store, so a corporate root in the OS store is trusted. Off by default. |
 | `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
 
 **Environment variables**, for the default `db` connection:
