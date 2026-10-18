@@ -55,6 +55,7 @@ export interface TestContextOptions {
 
 /** The one seeded home per test process; see TestContextOptions.home. */
 export const SEEDED_HOME = join(tmpdir(), `toil-test-home-${process.pid}`);
+process.once('exit', () => rmSync(SEEDED_HOME, { recursive: true, force: true }));
 
 /** Empties the seeded home and writes `files` into it. */
 export function seedHome(files: Record<string, string>): string {

@@ -12,6 +12,7 @@ scripts can use it as easily as people.
 | Area | Examples |
 |------|----------|
 | `db` | List connections, describe tables, preview rows, run read-only queries with paging |
+| `skills` | Add a git-hosted skills marketplace, install its plugins for Codex, GitHub Copilot or Claude Code, switch them on and off |
 | Enterprise tools | Issue trackers, source hosts, CI, scanners, observability, all with a pasted token |
 
 ## Install

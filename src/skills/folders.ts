@@ -568,9 +568,14 @@ export function summarize(agent: AgentName, scope: Scope, dir: string): SkillLoc
   return base;
 }
 
-/** Every built-in skills folder: each agent at project scope (when there is a project) and at user scope. */
+/**
+ * Every built-in skills folder: each agent at project scope (when there is a
+ * project) and at user scope. Run from the home folder, a project folder is
+ * the user one; it's listed once, at user scope, so no skill counts twice.
+ */
 export function knownFolders(roots: Roots): Target[] {
-  return AGENT_NAMES.flatMap((agent) =>
+  const all = AGENT_NAMES.flatMap((agent) =>
     (['project', 'user'] as const).filter((scope) => scope === 'user' || roots.project !== undefined).map((scope) => ({ agent, scope, dir: skillsDir(agent, scope, roots) })),
   );
+  return all.filter((f) => f.scope === 'user' || !all.some((u) => u.scope === 'user' && isWithin(u.dir, f.dir) && isWithin(f.dir, u.dir)));
 }

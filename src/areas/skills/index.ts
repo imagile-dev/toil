@@ -93,8 +93,8 @@ const sync = area.command({
     { flags: '--installed-only', field: 'installedOnly', description: 'Only sync plugins that are already installed — skip plugins newly added to the marketplace' },
   ],
   examples: [
-    { plugin: 'review', marketplace: 'skills', allowWrite: true },
-    { plugin: 'all', agent: 'github-copilot', scope: 'user', allowWrite: true },
+    { plugin: 'review', allowWrite: true },
+    { plugin: 'all', agent: 'github-copilot', scope: 'user', marketplace: 'skills', allowWrite: true },
     { plugin: 'all', claude: true, installedOnly: true, allowWrite: true },
     { allAgents: true, allowWrite: true },
   ],

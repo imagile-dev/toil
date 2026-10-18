@@ -391,6 +391,15 @@ describe('toil skills status, marketplace list, plugins and remove', () => {
     expect(data.locations).toEqual([expect.objectContaining({ agent: 'codex', scope: 'user', totalSkills: 2, marketplaceSkills: 1, untrackedSkills: 1, disabledSkills: 1 })]);
   });
 
+  it('lists a folder once when the project is the home folder', async () => {
+    await addCorp();
+    const ctx = context();
+    ctx.files = memoryFiles({}, { cwd: home });
+    const data = (await cli(['skills', 'status', '--agent', 'codex'], ctx)).envelope?.data as { total: number; locations: Array<{ scope: string }> };
+    expect(data.locations.map((l) => l.scope)).toEqual(['user']);
+    expect(data.total).toBe(2);
+  });
+
   it('lists marketplaces with where each token is kept, never the token', async () => {
     const store = fakeStore();
     await cli(['skills', 'marketplace', 'add', REPO, '--name', 'corp', '--allow-write'], context({ git: fakeGit(), secrets: store, prompt: terminal({ 'Access token': TOKEN }).prompt }));
