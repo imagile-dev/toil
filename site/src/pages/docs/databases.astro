@@ -10,7 +10,7 @@ const engines = [
   { name: 'PostgreSQL', status: 'integration', note: 'Pure-JS driver, bundled. Tested against PostgreSQL 17.' },
   { name: 'MySQL / MariaDB', status: 'integration', note: 'Pure-JS driver, bundled. Tested against MySQL 8.4 and MariaDB 11.8.' },
   { name: 'SQL Server', status: 'integration', note: 'Pure-JS driver, bundled. Tested against SQL Server 2022; connect with a read-only login.' },
-  { name: 'Oracle', status: 'planned', note: 'Thin mode only, no Oracle client.' },
+  { name: 'Oracle', status: 'integration', note: 'Thin mode, no Oracle client. Tested against Oracle Database 23ai Free.' },
 ];
 
 const commands = [
@@ -23,7 +23,7 @@ const commands = [
 ];
 ---
 
-<Layout title="Databases" description="toil's db area: list schemas and tables, describe a table, preview rows and run read-only queries with paging, on SQLite, PostgreSQL, MySQL / MariaDB and SQL Server.">
+<Layout title="Databases" description="toil's db area: list schemas and tables, describe a table, preview rows and run read-only queries with paging, on SQLite, PostgreSQL, MySQL / MariaDB, SQL Server and Oracle.">
   <PageHero
     eyebrow="<b>Docs</b> · Databases"
     title="Databases, <em>read-only by default.</em>"
@@ -37,7 +37,7 @@ const commands = [
       <aside class="doc__facts" data-reveal>
         <dl>
           <div><dt>Area</dt><dd><code>toil db</code></dd></div>
-          <div><dt>Engines</dt><dd>SQLite, PostgreSQL, MySQL / MariaDB and SQL Server now; Oracle planned</dd></div>
+          <div><dt>Engines</dt><dd>SQLite, PostgreSQL, MySQL / MariaDB, SQL Server and Oracle</dd></div>
           <div><dt>Env prefix</dt><dd><code>TOIL_DB_</code></dd></div>
           <div><dt>Needs</dt><dd>Node 24.14 or later</dd></div>
         </dl>
@@ -48,7 +48,7 @@ const commands = [
           <h2>Engines</h2>
           <p>
             Each connection names its <code>engine</code>, and the commands work the same way on all of them. toil is pre-release: SQLite,
-            PostgreSQL, MySQL / MariaDB and SQL Server are built and their tests run against the real engines, but nothing is on npm yet.
+            PostgreSQL, MySQL / MariaDB, SQL Server and Oracle are built and their tests run against the real engines, but nothing is on npm yet.
           </p>
           <ul class="engines">
             {engines.map((e) => (
@@ -156,6 +156,27 @@ const commands = [
         </section>
 
         <section data-reveal>
+          <h2>Connecting to Oracle</h2>
+          <p>
+            toil uses the Oracle driver in Thin mode, plain JavaScript, so there's no Instant Client or <code>sqlplus</code> to install. A
+            connection needs <code>host</code>, <code>database</code> (the service name, such as <code>ORCLPDB1</code>) and
+            <code>user</code>; <code>port</code> defaults to 1521, and <code>"ssl": true</code> connects over TCPS.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="p">$</span> export TOIL_DB_ENGINE=<span class="s">oracle</span>
+<span class="p">$</span> export TOIL_DB_HOST=<span class="s">db.imagile.dev</span>
+<span class="p">$</span> export TOIL_DB_DATABASE=<span class="s">ORCLPDB1</span>
+<span class="p">$</span> export TOIL_DB_USER=<span class="s">reader</span>
+<span class="p">$</span> export TOIL_DB_PASSWORD=<span class="s">&lt;the user's password&gt;</span></pre>
+          </div>
+          <p>
+            toil builds the connection from those keys alone and reads no <code>tnsnames.ora</code> or <code>TNS_ADMIN</code>. Oracle stores
+            unquoted names in upper case, and toil reports them that way (<code>PEOPLE</code>), but finds <code>people</code> when you type
+            it. Connect with an account that can't write: on Oracle, a stored function can still write from a read, as below.
+          </p>
+        </section>
+
+        <section data-reveal>
           <h2>Commands</h2>
           <div class="table-wrap">
             <table>
@@ -193,7 +214,9 @@ const commands = [
             refused too; <code>INTO OUTFILE</code> and <code>SET</code> are refused on reads, since they write server files or change the server. On SQL Server,
             every read runs in a transaction that's always rolled back, and a statement the server reports as a write is refused; <code>COMMIT</code>,
             <code>ROLLBACK</code> and <code>OUTPUT</code> are refused on reads outright. A <code>COMMIT</code> hidden in dynamic SQL can still save a write,
-            which toil reports but can't undo, so the login should be read-only. Only <code>db execute</code> writes, and it needs <code>"writes": true</code> on the connection in your own config
+            which toil reports but can't undo, so the login should be read-only. On Oracle, every read is a read-only transaction too, and DDL and PL/SQL are refused, and it needs <code>"writes": true</code> on the connection in your own config
+            on reads, because Oracle commits DDL and a block can commit inside one; a stored function with an autonomous transaction still
+            writes when a query calls it, which is why the account shouldn't be able to write. Only <code>db execute</code> writes, and it needs <code>"writes": true</code> on the connection in your own config
             and <code>--allow-write</code> on the call. Over MCP, the write tool doesn't exist until writes are on.{' '}
             <a href={url('/how-it-works/#safety')}>How writes are gated</a>.
           </p>
@@ -204,7 +227,7 @@ const commands = [
           <p>
             Every command stops at <code>TOIL_TIMEOUT_MS</code> (two minutes by default) and on Ctrl+C or an MCP cancel. SQLite can only be stopped
             between rows, so a statement that works a long time before its first row finishes in the background. PostgreSQL, MySQL and SQL Server
-            are told to cancel the statement on the server. Prefer <code>LIMIT</code> and indexed filters on large tables.
+            are told to cancel the statement on the server, and Oracle is sent a break, which stops a working statement at once. Prefer <code>LIMIT</code> and indexed filters on large tables.
           </p>
         </section>
       </article>
