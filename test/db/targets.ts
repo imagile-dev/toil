@@ -64,7 +64,7 @@ async function probe(engine: string, envVar: string, explicit: boolean, reach: (
     await reach();
     return undefined;
   } catch (err) {
-    const why = (err as Error).message || String(err);
+    const why = (err as Error).message || (err as { code?: string }).code || String(err);
     if (explicit) throw new Error(`${envVar} is set, but ${engine} isn't reachable there: ${why}`, { cause: err });
     return `no ${engine} server (${why}); set ${envVar} to run it`;
   }
