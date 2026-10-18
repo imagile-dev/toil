@@ -378,3 +378,61 @@ describe('repos scan and remove', () => {
   });
 });
 
+
+describe('credentials in stored remotes, and removing a section', () => {
+  const withToken = (extra: Record<string, unknown> = {}) => ({
+    'home/.toil/dossiers/pay.json': { name: 'pay', repos: [{ name: 'api', remotes: ['https://ci:t0ken@git.imagile.dev/pay/api.git'] }], ...extra },
+  });
+  const stored = (d: DossierDisk) => readFileSync(join(d.home, '.toil', 'dossiers', 'pay.json'), 'utf8');
+
+  it('re-adding a repo whose stored remote has a credential writes it out, and says so', async () => {
+    const d = disk(withToken());
+    const run = await cli(d, ['dossiers', 'add-repo', 'pay', 'https://git.imagile.dev/pay/api.git', '--name', 'api']);
+    expect(ok(run)).toMatchObject({ changed: true, credentialsRemoved: ['repos[0].remotes[0]'], repo: { name: 'api', remotes: ['https://git.imagile.dev/pay/api.git'] } });
+    expect(run.envelope.meta.warnings?.map((w) => w.message).join(' ')).toContain('Removed the credential from repos[0].remotes[0]');
+    expect(stored(d)).not.toContain('t0ken');
+    // Clean now: the same add changes nothing and says nothing about credentials.
+    const again = ok(await cli(d, ['dossiers', 'add-repo', 'pay', 'https://git.imagile.dev/pay/api.git', '--name', 'api']));
+    expect(again).toMatchObject({ changed: false });
+    expect(again).not.toHaveProperty('credentialsRemoved');
+  });
+
+  it('cleans a credential in a second remote when the repo is re-added by its first, keeping both remotes', async () => {
+    const d = disk({ 'home/.toil/dossiers/pay.json': { name: 'pay', repos: [{ name: 'api', remotes: ['https://git.imagile.dev/pay/api.git', 'https://ci:t0ken@git.imagile.dev/pay/api-mirror.git'] }] } });
+    const run = ok(await cli(d, ['dossiers', 'add-repo', 'pay', 'https://git.imagile.dev/pay/api.git', '--name', 'api']));
+    expect(run).toMatchObject({ changed: true, credentialsRemoved: ['repos[0].remotes[1]'], repo: { remotes: ['https://git.imagile.dev/pay/api.git', 'https://git.imagile.dev/pay/api-mirror.git'] } });
+    expect(JSON.parse(stored(d)).repos).toEqual([{ name: 'api', remotes: ['https://git.imagile.dev/pay/api.git', 'https://git.imagile.dev/pay/api-mirror.git'] }]);
+    // A remote it doesn't list is still a different repo, refused without --replace.
+    expect((await cli(d, ['dossiers', 'add-repo', 'pay', 'https://git.imagile.dev/pay/other.git', '--name', 'api'])).envelope.error?.code).toBe('INVALID_INPUT');
+  });
+
+  it('any edit that writes reports the credentials it took out of other repos', async () => {
+    const d = disk(withToken());
+    expect(ok(await cli(d, ['dossiers', 'link', 'pay', 'jira', '--set', 'project=PAY']))).toMatchObject({ changed: true, credentialsRemoved: ['repos[0].remotes[0]'] });
+    expect(stored(d)).not.toContain('t0ken');
+  });
+
+  it('unlink removes a section, an environment left empty, and that environment as the default; unknown areas too', async () => {
+    const d = disk(withToken({ jira: { project: 'PAY' }, wiki: { space: 'X' }, env: 'prod', environments: { prod: { openshift: { namespace: 'pay-prod' } }, test: { openshift: { namespace: 'pay-test' }, sonar: {} } } }));
+    expect(ok(await cli(d, ['dossiers', 'unlink', 'pay', '--area', 'jira']))).toMatchObject({ changed: true, area: 'jira', env: null, removed: { project: 'PAY' } });
+    ok(await cli(d, ['dossiers', 'unlink', 'pay', '--area', 'wiki']));
+    ok(await cli(d, ['dossiers', 'unlink', 'pay', '--area', 'openshift', '--env', 'prod']));
+    ok(await cli(d, ['dossiers', 'unlink', 'pay', '--area', 'openshift', '--env', 'test']));
+    const file = JSON.parse(stored(d)) as Record<string, unknown>;
+    expect(file).not.toHaveProperty('jira');
+    expect(file).not.toHaveProperty('wiki');
+    expect(file).not.toHaveProperty('env');
+    expect(file.environments).toEqual({ test: { sonar: {} } });
+    expect(stored(d)).not.toContain('t0ken');
+    const missing = await cli(d, ['dossiers', 'unlink', 'pay', '--area', 'jira']);
+    expect(missing.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Dossier pay has no jira section.' });
+    expect(missing.envelope.error?.fix).toContain('sonar --env test');
+  });
+
+  it('unlink is CLI only', async () => {
+    const { context } = testContext();
+    const session = await connectMcp({ commands, context, areas: ['dossiers'] });
+    sessions.push(session);
+    expect((await session.client.listTools()).tools.map((t) => t.name)).not.toContain(toolName(commands.find((c) => c.path.join(' ') === 'dossiers unlink')!));
+  });
+});

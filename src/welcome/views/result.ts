@@ -1,6 +1,7 @@
 import { ok } from '../screens.js';
 import { PALETTE, paint } from '../term.js';
 import { commandLine, type StepResult, type View } from '../view.js';
+import { dossiersOutcome } from './dossiers.js';
 import { skillsOutcome } from './skills.js';
 
 /**
@@ -14,6 +15,8 @@ export function outcome(result: StepResult): { good: boolean; text: string; fix?
   const e = result.envelope;
   const warnings = (e.meta.warnings ?? []).map((w) => w.message);
   if (!e.ok) return { good: false, text: `${e.error.code}: ${e.error.message}`, ...(e.error.fix ? { fix: e.error.fix } : {}), warnings };
+  const said = dossiersOutcome(result);
+  if (said) return { ...said, warnings };
   const d = (e.data ?? {}) as Record<string, unknown>;
   const [area, verb] = result.args;
   const name = String(d.name ?? '');
