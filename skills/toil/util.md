@@ -1,24 +1,27 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT and inventorying dependencies from manifests and lockfiles
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, and summarising test, SARIF and coverage reports
 ---
 
 # Local utilities (`util`)
 
-Commands that work on what's on this machine: a token you paste, or the
-manifests and lockfiles in the workspace. They aren't integrations. There is no
+Commands that work on what's on this machine: a token you paste, the manifests
+and lockfiles in the workspace, or a report a build left behind. They aren't
+integrations. There is no
 server, no connection to add, no `TOIL_UTIL_*` variable, no credential and no
 `--connection` flag, and none of them sends anything over the network. Every
 command reads; none changes anything. Verification level: `unit`.
 
-Each command has two paths that do the same thing, with the same flags and
-output. The `util` path is the main one, and the short path is an alias:
+`jwt decode`, `deps scan` and `deps diff` each have two paths that do the same
+thing, with the same flags and output. The `util` path is the main one, and the
+short path is an alias. `util report` has only its `util` path:
 
 | Command | Alias | MCP tool |
 |---------|-------|----------|
 | `toil util jwt decode` | `toil jwt decode` | `util_jwt_decode` |
 | `toil util deps scan` | `toil deps scan` | `util_deps_scan` |
 | `toil util deps diff` | `toil deps diff` | `util_deps_diff` |
+| `toil util report` | none | `util_report` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
@@ -160,3 +163,99 @@ Known quirks:
   survives. A package present at two versions can show a change that didn't happen.
 - Paths that git quotes (non-ASCII names) aren't read at a ref.
 - A ref that starts with `-`, or an empty `--from`, is refused with `INVALID_INPUT` before git runs. An empty `--to` means the working tree.
+
+### `toil util report`
+
+One JSON summary of a report that CI or a scanner wrote: JUnit XML, TRX, SARIF
+2.1.0, lcov or Cobertura. It reads the file and nothing else, and checks the report
+against its own declared totals.
+
+```bash
+toil util report target/surefire-reports/TEST-dev.imagile.OrderTest.xml
+toil util report TestResults/build.trx
+toil util report coverage/lcov.info --lowest 5
+toil util report results.sarif
+cat coverage.xml | toil util report --format cobertura
+```
+
+| Argument / flag | Meaning |
+|-----------------|---------|
+| `[file]` | The report, inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--text <text>` | The report itself, instead of a file |
+| `--format <format>` | `junit`, `trx`, `sarif`, `lcov` or `cobertura`. Left out, it's detected from the content: the root element for XML (`<testsuites>` or `<testsuite>`, `<TestRun>`, `<coverage>`), `"runs"` for SARIF, a first `TN:` or `SF:` line for lcov |
+| `--lowest <n>` | How many of the lowest-covered files to list (default 10, up to 1000) |
+
+Over MCP the tool is `util_report`, with `file` or `text`, `format` and `lowest`.
+
+Output: `{ format, formatFrom, tests, findings, coverage, skipped, verified }`.
+`formatFrom` is `content` or `flag`. One of `tests`, `findings` and `coverage` is
+filled in, by format, and the other two are `null`.
+
+- **`tests`** (JUnit, TRX): `{ suites, totals: { tests, passed, failures, errors,
+  skipped, flaky, other }, failures: [{ suite, name, className, kind, type,
+  message, file, line, location, stack, stackLines }] }`. The totals are recounted
+  from the cases, never copied from the report. `kind` is `failure` or `error`.
+  `stack` is the first 15 lines, and `stackLines` how many there were. `location` is
+  `report` when the report states `file` or `line`, and `stack` when they were read
+  from the first stack frame naming the test's class or method (an `APPROXIMATED`
+  warning says how many). It's `null` when neither has one.
+- **`findings`** (SARIF): `{ runs: [{ tool, version, results }], total, byLevel,
+  results: [{ tool, rule, level, kind, file, line, message, suppressed }] }`. `level`
+  follows the spec: the result's own, else its rule's default, else `warning` for a
+  failing result and `none` for any other. `file` is the first location's URI as
+  written, and `line` its `startLine`.
+- **`coverage`** (lcov, Cobertura): `{ sources, totals: { lines, branches }, files:
+  [{ file, lines, branches }], lowest }`. Each figure is `{ covered, total, percent }`,
+  with `percent` rounded to two places (`null` when there's nothing to cover).
+  `branches` is `null` where the report has no branch data. `lowest` lists the
+  `--lowest` files with the lowest line coverage, leaving out files with no lines.
+- **`skipped`**: `{ count, elements: [{ element, count, reason }] }`, every element
+  (or lcov record) the reader met and didn't read, also warned as
+  `REPORT_ELEMENTS_SKIPPED`. Known parts that hold nothing it summarises
+  (`system-out`, `properties`, TRX's settings and lists, Cobertura's per-method copies
+  of the lines) aren't counted.
+
+What `verified` checks:
+
+| Format | Check | Warning when it fails |
+|--------|-------|-----------------------|
+| JUnit | Each suite's (and `<testsuites>`') declared `tests`, `failures`, `errors` and `skipped`, recounted from its cases, nested suites included | `REPORT_TOTALS_MISMATCH`, naming both numbers |
+| TRX | `<Counters>`' `total` and each outcome counter, recounted from the results' `outcome` | `REPORT_TOTALS_MISMATCH` |
+| Cobertura | Every stated `line-rate` and `branch-rate` (class, package and root), to within one unit of its last written decimal, and the root's `lines-covered`, `lines-valid`, `branches-covered` and `branches-valid` | `REPORT_COVERAGE_MISMATCH` |
+| lcov | Each record's `LF`, `LH`, `BRF`, `BRH`, `FNF` and `FNH`, recounted from its `DA`, `BRDA`, `FN` and `FNDA` lines | `REPORT_COVERAGE_MISMATCH` |
+| SARIF | Each `ruleIndex` points at the rule its `ruleId` names | `REPORT_SARIF_INCONSISTENT` |
+| All | The whole input was read (`input.complete`) | `INPUT_INCOMPLETE`, or `INPUT_TRUNCATED` at the cap |
+
+What it can't check is reported as `UNVERIFIED`, never as passed: a JUnit report
+that declares no totals, SARIF (which declares none), a TRX counter left at `0` over
+results with that outcome (VSTest leaves `notExecuted` at 0, for one), and the size
+of stdin. TRX's `executed` isn't compared, because writers disagree on what it
+counts.
+
+Formats it reads:
+
+- **JUnit:** Maven Surefire's, the Jenkins shape (nested `<testsuite>`s, `status`,
+  `assertions`, `disabled`) and the Azure DevOps shape (the VSTest JUnit logger's).
+  Surefire's `flakyFailure` and `flakyError` mean a rerun passed: the case counts as
+  passed and in `flaky`. A case with `<error>` is an error, else one with
+  `<failure>` is a failure, else one with `<skipped>` is skipped.
+- **TRX:** `dotnet test --logger trx` and Visual Studio's. Top-level results are
+  counted, as the counters count them, and a data-driven test's inner rows aren't.
+  `failures` is `Failed`; `errors` is `Error`, `Timeout` and `Aborted`; `skipped` is
+  `NotExecuted` and `NotRunnable`; any other outcome is `other`. `suites` is the
+  number of test classes, and a failure's `suite` is its class.
+- **SARIF 2.1.0:** any tool's. A file with another `version` is read as 2.1.0, with
+  an `APPROXIMATED` warning. A run whose invocation says it failed warns
+  `REPORT_TOOL_FAILED`.
+- **lcov:** `SF` to `end_of_record` records, including lcov 2's `FNL` and `FNA`. A
+  file in several records is merged, and a line is covered when any record hit it.
+- **Cobertura:** coverlet's, coverage.py's and others'. Classes in the same file are
+  added together, and branch counts come from `condition-coverage="50% (1/2)"`.
+
+Limits: XML and lcov stream, so memory stays flat for a report of any size, apart
+from the failures it lists, up to the 64 MiB input cap. At the cap the read stops,
+`INPUT_TRUNCATED` says so, `input.complete` fails, and what came before the cut is
+summarised; a suite the cut left open isn't compared. SARIF is JSON and is read
+whole, so a SARIF file over the cap is `INVALID_INPUT`. Malformed XML or JSON is
+`INVALID_INPUT` with the line and column. So is a document whose format can't be
+detected, or whose root doesn't match `--format`, with a fix naming `--format`.

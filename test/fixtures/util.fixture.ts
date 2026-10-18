@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from 'node:fs';
 import type { GitResult, GitRunner } from '../../src/core/git.js';
 import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
@@ -13,6 +14,13 @@ import { callKey } from './git.fixture.js';
  * format, the project files MSBuild's and Maven's, and the git output is the
  * shape `git ls-tree -r --name-only` prints. Every package is real and every
  * version an old one, which is how most dependency reviews find them.
+ *
+ * `reports/` holds one sample of each format `util report` reads, under
+ * test/fixtures/reports/. Each is written by hand to the exact shape its tool
+ * emits (Maven Surefire 3, the Jenkins JUnit schema around a Go test run, the
+ * VSTest JUnit logger Azure DevOps publishes, `dotnet test --logger trx`,
+ * CodeQL 2.19 SARIF, c8's lcov, coverlet and coverage.py Cobertura), with
+ * placeholder names, hosts and ids.
  */
 
 export const PACKAGE_JSON = JSON.stringify({
@@ -68,6 +76,10 @@ export const POM = `<project>
 </project>
 `;
 
+const REPORTS = new URL('./reports/', import.meta.url);
+/** The report samples, keyed by their path in the workspace. */
+export const reportFiles: Record<string, string> = Object.fromEntries(readdirSync(REPORTS).sort().map((name) => [`reports/${name}`, readFileSync(new URL(name, REPORTS), 'utf8')]));
+
 /** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
 export const files: Record<string, string> = {
   '.gitignore': 'vendor/\n',
@@ -77,6 +89,7 @@ export const files: Record<string, string> = {
   'src/Api/Api.csproj': CSPROJ,
   'pom.xml': POM,
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
+  ...reportFiles,
 };
 
 /** What each ref holds, path by path. */

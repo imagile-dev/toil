@@ -56,6 +56,7 @@ The `util` group holds commands with no connection, no credential and no network
 | Command | Covers |
 |---------|--------|
 | `toil util jwt decode` (also `toil jwt decode`) | Decode a JWT's header and claims without verifying |
+| `toil util report` | Summarise a JUnit, TRX, SARIF, lcov or Cobertura report, checked against its own totals |
 | `toil doctor` | Config, credential and reachability report across every configured area |
 | `toil config` | `init`, `set`, `check`, `test`, keychain references |
 | `toil skills` | Install the user-facing skill for an agent |
