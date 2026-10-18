@@ -31,7 +31,16 @@ export type BoundedTask =
   | { kind: 'validate'; schema: unknown; value: unknown; draft?: SchemaDraft; references?: Array<{ schema: unknown; id?: string }> }
   | { kind: 'match'; patterns: Array<{ pattern: string; candidates: string[] }> };
 
-export type BoundedOutcome<T> = { ok: true; value: T } | { ok: false; cause: 'timeout' | 'memory' | 'stack' | 'denied' | 'failed'; reason: string };
+export type BoundedOutcome<T> = { ok: true; value: T } | { ok: false; cause: 'timeout' | 'memory' | 'stack' | 'denied' | 'cancelled' | 'failed'; reason: string };
+
+/** Limits and cancellation for one bounded task. `signal` is the command's: aborting it terminates the worker at once. */
+export interface BoundedOptions {
+  timeoutMs?: number;
+  maxMemoryMb?: number;
+  signal?: AbortSignal | undefined;
+}
+
+const CANCELLED = { ok: false as const, cause: 'cancelled' as const, reason: 'the command was cancelled, so the worker was stopped' };
 
 /**
  * Runs `task` in a worker thread, and resolves with its result, or with why
@@ -39,10 +48,15 @@ export type BoundedOutcome<T> = { ok: true; value: T } | { ok: false; cause: 'ti
  * memory or stack, worker threads aren't allowed (Node's permission model
  * without --allow-worker), or it failed.
  */
-export function runBounded<T>(task: BoundedTask, options: { timeoutMs?: number; maxMemoryMb?: number } = {}): Promise<BoundedOutcome<T>> {
+export function runBounded<T>(task: BoundedTask, options: BoundedOptions = {}): Promise<BoundedOutcome<T>> {
   const timeoutMs = options.timeoutMs ?? BOUNDED_TIMEOUT_MS;
   const maxMemoryMb = options.maxMemoryMb ?? BOUNDED_MEMORY_MB;
+  const { signal } = options;
   return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve(CANCELLED);
+      return;
+    }
     let worker: Worker;
     try {
       worker = new Worker(WORKER_SOURCE, { eval: true, workerData: task, resourceLimits: { maxOldGenerationSizeMb: maxMemoryMb, maxYoungGenerationSizeMb: Math.min(64, maxMemoryMb) } });
@@ -56,13 +70,16 @@ export function runBounded<T>(task: BoundedTask, options: { timeoutMs?: number; 
       return;
     }
     let settled = false;
+    const onAbort = () => settle(CANCELLED);
     const settle = (outcome: BoundedOutcome<T>) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
       void worker.terminate();
       resolve(outcome);
     };
+    signal?.addEventListener('abort', onAbort, { once: true });
     const timer = setTimeout(() => settle({ ok: false, cause: 'timeout', reason: `it took longer than ${timeoutMs / 1000} s, the most one check may run, and was stopped` }), timeoutMs);
     worker.once('message', (message: { ok: true; value: T } | { ok: false; stack: boolean; message: string }) => {
       if (message.ok) settle({ ok: true, value: message.value });
@@ -83,11 +100,9 @@ export function runBounded<T>(task: BoundedTask, options: { timeoutMs?: number; 
  * validateSchema, every problem returned (cap them with leafProblems and a
  * slice), or `unchecked` with the reason when the worker couldn't finish.
  */
-export async function validateBounded(schema: Schema | boolean, value: unknown, options: { draft?: SchemaDraft; references?: Array<{ schema: Schema; id?: string }>; timeoutMs?: number; maxMemoryMb?: number } = {}): Promise<SchemaResult> {
-  const outcome = await runBounded<SchemaResult>(
-    { kind: 'validate', schema, value, ...(options.draft ? { draft: options.draft } : {}), ...(options.references ? { references: options.references } : {}) },
-    options,
-  );
+export async function validateBounded(schema: Schema | boolean, value: unknown, options: BoundedOptions & { draft?: SchemaDraft; references?: Array<{ schema: Schema; id?: string }> } = {}): Promise<SchemaResult> {
+  const { draft, references, ...limits } = options;
+  const outcome = await runBounded<SchemaResult>({ kind: 'validate', schema, value, ...(draft ? { draft } : {}), ...(references ? { references } : {}) }, limits);
   if (outcome.ok) return outcome.value;
   return { valid: false, problems: [], total: 0, unchecked: `validation was not finished: ${outcome.reason}` };
 }
@@ -97,7 +112,7 @@ export async function validateBounded(schema: Schema | boolean, value: unknown, 
  * none, -2 for a pattern that doesn't compile), run in a bounded worker; or
  * why there's no answer.
  */
-export async function matchBounded(patterns: Array<{ pattern: string; candidates: string[] }>, options: { timeoutMs?: number; maxMemoryMb?: number } = {}): Promise<BoundedOutcome<number[]>> {
+export async function matchBounded(patterns: Array<{ pattern: string; candidates: string[] }>, options: BoundedOptions = {}): Promise<BoundedOutcome<number[]>> {
   if (!patterns.length) return { ok: true, value: [] };
   return runBounded<number[]>({ kind: 'match', patterns }, options);
 }

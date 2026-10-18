@@ -1620,6 +1620,16 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   - **Smoke** runs a validation, a backtracking pattern and a worker-denied Node through
     the installed bundle.
   - **Nothing is left unbounded.**
+- **Round 10: the worker script is gated, and cancellable.** It ships as a string
+  inside the bundle, so `check:pure` couldn't see its imports. `scripts/gen-worker.mjs`
+  now builds it with the CLI's no-spawn plugin (moved to `scripts/no-spawn.mjs` so
+  both builds share one) and writes `dist/metafile-worker.json`, which `check:pure`
+  holds to the same rules with no spawner allowed: built-ins only, no
+  `child_process`, no `.node` file. Tried on purpose: an `execSync` import added to
+  `bounded-task.ts` failed `check:pure`, naming the file; then it was reverted. tsup
+  cleans `dist/` except that metafile. `runBounded` takes the command's `signal`:
+  a cancel terminates the worker at once, as `cancelled` (`util openapi` and `util md`
+  pass `ctx.signal`).
 - **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
   Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
   extension isn't a reference; under `properties` and the other name maps every

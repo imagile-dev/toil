@@ -88,6 +88,20 @@ describe('runBounded', () => {
     ])).toEqual({ ok: true, value: [1, -1, -2] });
   });
 
+  it('stops the worker promptly when the command is cancelled, and says it was', async () => {
+    const controller = new AbortController();
+    const started = performance.now();
+    const running = matchBounded([{ pattern: '^(a+)+$', candidates: [`${'a'.repeat(40)}!`] }], { signal: controller.signal });
+    setTimeout(() => controller.abort(), 100);
+    const outcome = await running;
+    // Well before the 2 s deadline: the abort, not the clock, ended it.
+    expect(performance.now() - started).toBeLessThan(1_000);
+    expect(outcome).toEqual({ ok: false, cause: 'cancelled', reason: 'the command was cancelled, so the worker was stopped' });
+    const before = new AbortController();
+    before.abort();
+    expect(await validateBounded({ type: 'string' }, 'x', { signal: before.signal })).toMatchObject({ valid: false, unchecked: expect.stringContaining('cancelled') });
+  });
+
   it('stops a backtracking pattern while matching candidates, too', async () => {
     const started = performance.now();
     const outcome = await matchBounded([{ pattern: '^(a+)+$', candidates: [`${'a'.repeat(40)}!`] }]);

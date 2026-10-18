@@ -399,7 +399,7 @@ function patternSchemas(doc: Json, root: Json): JsonObject[] {
  * that matches. If the worker can't finish (a pattern that backtracks without
  * end, say), no pattern is used and `patterns` says why.
  */
-export async function generateExample(doc: Json, spec: Spec, schema: Json, direction: Direction): Promise<{ example: Json; truncated: boolean; patterns?: string }> {
+export async function generateExample(doc: Json, spec: Spec, schema: Json, direction: Direction, signal?: AbortSignal): Promise<{ example: Json; truncated: boolean; patterns?: string }> {
   const g: Generator = { doc, spec, direction, picks: new Map() };
   let patterns: string | undefined;
   const withPattern = patternSchemas(doc, schema);
@@ -413,7 +413,7 @@ export async function generateExample(doc: Json, spec: Spec, schema: Json, direc
       tasks.push({ node, pattern: node.pattern as string, candidates });
     }
     const { matchBounded } = await import('../kit/bounded.js');
-    const outcome = await matchBounded(tasks.map(({ pattern, candidates }) => ({ pattern, candidates })));
+    const outcome = await matchBounded(tasks.map(({ pattern, candidates }) => ({ pattern, candidates })), { signal });
     if (outcome.ok) outcome.value.forEach((index, i) => g.picks!.set(tasks[i]!.node, index >= 0 ? tasks[i]!.candidates[index]! : null));
     else patterns = `the schema's patterns were not run to choose matching strings, because ${outcome.reason}`;
     if (outcome.ok && tasks.length < withPattern.length) patterns = `only the first ${tasks.length} of ${withPattern.length} patterns were run to choose matching strings; the rest use a plain string`;
@@ -467,7 +467,7 @@ export interface ExampleCheck {
  * the schema reaches is copied, at the same pointers, so its `$ref`s resolve
  * as they do in the document.
  */
-export async function checkExample(doc: Json, spec: Spec, direction: Direction, example: Json, at: { pointer: string } | { inline: JsonObject }): Promise<ExampleCheck> {
+export async function checkExample(doc: Json, spec: Spec, direction: Direction, example: Json, at: { pointer: string } | { inline: JsonObject }, signal?: AbortSignal): Promise<ExampleCheck> {
   const g: Generator = { doc, spec, direction };
   const rootPointer = 'pointer' in at ? at.pointer : '/x-toil-inline';
   const root = 'pointer' in at ? atPointer(doc, at.pointer) : at.inline;
@@ -502,7 +502,7 @@ export async function checkExample(doc: Json, spec: Spec, direction: Direction, 
   place(rootPointer, root);
   const [{ leafProblems }, { validateBounded }] = await Promise.all([import('../kit/json-schema.js'), import('../kit/bounded.js')]);
   const draft: SchemaDraft = spec === 'openapi-3.0' || spec === 'swagger-2.0' ? '4' : '2020-12';
-  const result = await validateBounded({ $ref: `${BASE}#${asFragment(rootPointer)}` } as Schema, example, { draft, references: [{ schema: mini as Schema, id: BASE }] });
+  const result = await validateBounded({ $ref: `${BASE}#${asFragment(rootPointer)}` } as Schema, example, { draft, references: [{ schema: mini as Schema, id: BASE }], signal });
   const problems = leafProblems(result.problems).map((p) => ({ ...p, message: brief(p.message) }));
   if (result.unchecked !== undefined) return { unchecked: result.unchecked };
   return { result: { valid: result.valid, problems: problems.slice(0, 50), total: problems.length } };

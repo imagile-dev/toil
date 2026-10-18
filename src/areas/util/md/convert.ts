@@ -183,7 +183,7 @@ export function formats(input: Pick<MdInput, 'from' | 'to'>): { from: Format; to
  */
 export async function convertMarkdown(
   input: { from?: Format | undefined; to?: Format | undefined; text: string; source: Pick<UtilInput, 'source' | 'expectedBytes' | 'bytesRead' | 'truncated' | 'label'> },
-  ctx: { warn: (w: Warning) => void },
+  ctx: { warn: (w: Warning) => void; signal?: AbortSignal | undefined },
   hooks: Hooks = {},
 ): Promise<MdData> {
   const { from, to } = formats(input);
@@ -194,7 +194,7 @@ export async function convertMarkdown(
   const losses = new Losses();
   const read = canonical(parse(from, text, losses, source.label.replace(/^the /, 'The ')), losses);
   if (from === 'adf') {
-    const schema = await validateAdf(JSON.parse(text));
+    const schema = await validateAdf(JSON.parse(text), ctx.signal);
     if (schema.unchecked !== undefined) v.unchecked('input.adf.schema', schema.unchecked);
     else v.expect('input.adf.schema', schema.valid, { at: schema.problems[0]?.pointer ?? '', expected: 'a document the ADF schema accepts', actual: schema.problems[0]?.message }, { code: 'ADF_INPUT_INVALID', message: `The input doesn't match the ADF schema at ${schema.problems[0]?.pointer || '/'}: ${schema.problems[0]?.message ?? ''} (${schema.total} problem(s)); it was converted as far as it could be read.` });
   }
@@ -203,7 +203,7 @@ export async function convertMarkdown(
   if (hooks.tamper) output = hooks.tamper(output);
 
   if (to === 'adf') {
-    const schema = await validateAdf(output);
+    const schema = await validateAdf(output, ctx.signal);
     if (schema.unchecked !== undefined) v.unchecked('output.adf.schema', schema.unchecked);
     else if (!schema.valid) {
       const where = schema.problems.slice(0, 3).map((p) => `${p.pointer || '/'}: ${p.message}`).join('; ');
@@ -290,11 +290,11 @@ function reportLosses(losses: Losses, warn: (w: Warning) => void) {
 let adfSchema: unknown;
 
 /** Validates against the bundled ADF schema (@atlaskit/adf-schema's full.json), loading both only when asked. */
-export async function validateAdf(value: unknown) {
+export async function validateAdf(value: unknown, signal?: AbortSignal) {
   const [{ validateBounded }, schema] = await Promise.all([import('../kit/bounded.js'), adfSchema ?? import('./adf-schema.json', { with: { type: 'json' } }).then((m) => m.default)]);
   adfSchema = schema;
   // In a bounded worker: a document can make the ADF schema's anyOf branches cost more than any reply is worth.
-  const result = await validateBounded(schema as never, value);
+  const result = await validateBounded(schema as never, value, { signal });
   return { ...result, problems: result.problems.slice(0, 20) };
 }
 

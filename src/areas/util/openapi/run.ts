@@ -31,10 +31,10 @@ function servers(doc: JsonObject, spec: Spec): string[] {
 }
 
 /** Reads and checks the document: what every command starts with. */
-async function open(input: UtilInput, v: Verifier): Promise<{ loaded: LoadedDocument; document: DocumentSummary; ops: Operation[] }> {
+async function open(input: UtilInput, v: Verifier, signal?: AbortSignal): Promise<{ loaded: LoadedDocument; document: DocumentSummary; ops: Operation[] }> {
   const loaded = await loadDocument(input);
   v.inputComplete(input);
-  const report = await checkDocument(loaded, v);
+  const report = await checkDocument(loaded, v, signal);
   const ops = operations(loaded.doc);
   checkOperations(loaded.doc, ops, v);
   return { loaded, document: { ...report, servers: servers(loaded.doc, loaded.spec), operations: ops.length }, ops };
@@ -50,7 +50,7 @@ export interface ListData {
 
 export async function listOperations(ctx: InputContext, source: UtilInput, input: { tag?: string | undefined; path?: string | undefined }): Promise<ListData> {
   const v = new Verifier(ctx.warn);
-  const { document, ops } = await open(source, v);
+  const { document, ops } = await open(source, v, ctx.signal);
   const tag = input.tag?.toLowerCase();
   const path = input.path?.toLowerCase();
   const listed = ops
@@ -63,7 +63,7 @@ export type ShowData = { document: DocumentSummary } & ShownOperation & { verifi
 
 export async function showOne(ctx: InputContext, source: UtilInput, input: Selector & { depth?: number | undefined }): Promise<ShowData> {
   const v = new Verifier(ctx.warn);
-  const { loaded, document, ops } = await open(source, v);
+  const { loaded, document, ops } = await open(source, v, ctx.signal);
   const shown = showOperation(loaded, findOperation(ops, input), input.depth ?? 3);
   if (shown.expansion.truncated) {
     ctx.warn({
@@ -89,7 +89,7 @@ export interface ExampleData {
 
 export async function exampleBody(ctx: InputContext, source: UtilInput, input: Selector & { response?: string | undefined; contentType?: string | undefined }): Promise<ExampleData> {
   const v = new Verifier(ctx.warn);
-  const { loaded, document, ops } = await open(source, v);
+  const { loaded, document, ops } = await open(source, v, ctx.signal);
   const { doc, spec } = loaded;
   const o = findOperation(ops, input);
   const name = `${o.method} ${o.path}`;
@@ -112,9 +112,9 @@ export async function exampleBody(ctx: InputContext, source: UtilInput, input: S
     });
   }
   const schema = body.formSchema ?? atPointer(doc, body.schemaPointer!)!;
-  const { example, truncated, patterns } = await generateExample(doc, spec, schema, direction);
+  const { example, truncated, patterns } = await generateExample(doc, spec, schema, direction, ctx.signal);
   // A cut-short example has nulls where values belong, so it can't be valid; validating 250,000 values to say so would only cost time.
-  const check = truncated ? undefined : await checkExample(doc, spec, direction, example, body.formSchema ? { inline: body.formSchema } : { pointer: body.schemaPointer! });
+  const check = truncated ? undefined : await checkExample(doc, spec, direction, example, body.formSchema ? { inline: body.formSchema } : { pointer: body.schemaPointer! }, ctx.signal);
   if (!check) {
     v.fail('example.valid', { at: '/', actual: `cut short at ${MAX_EXAMPLE_NODES} values or ${MAX_STRING} characters a string` }, {
       code: 'OPENAPI_EXAMPLE_TRUNCATED',
