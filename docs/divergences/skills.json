@@ -1,0 +1,180 @@
+{
+  "scope": "skills",
+  "divergences": [
+    {
+      "allows": [
+        "skills install",
+        "skills list",
+        "skills uninstall",
+        "skills locations",
+        "skills forget-target",
+        "skills guide",
+        "skills purge-user"
+      ],
+      "old": "skills install (the bundled skill), skills list, uninstall, locations, forget-target, guide and purge-user",
+      "toil": "Not built yet. toil skills status lists every installed skill in every agent folder; toil skills marketplace disable switches a plugin off without deleting it. Installing toil's own skill comes with #58",
+      "why": "The welcome menu's skills screens (#54, #55) need marketplaces, installs from them, a status list and enable/disable, and nothing else. The package ships no skill files to install until #58, and the removes are deletes, which would be CLI only anyway.",
+      "principle": "decision",
+      "removed": true
+    },
+    {
+      "allows": [
+        "skills git-auth"
+      ],
+      "old": "skills git-auth enable | disable | status, which wrote credential.helper entries into the user's global git config that made git run the CLI (through a shell) to answer for a marketplace's host, or stored the token in git's own credential store",
+      "toil": "Removed. toil gives git a marketplace's token for its own clone and pull only, as an http.<url>.extraHeader in git's environment, scoped by git to that marketplace's URL. Agent hosts that fetch a marketplace themselves use git's own credential setup",
+      "why": "Writing the user's global git config so git spawns toil is a second spawning path and a change to the machine outside toil's files; toil runs git, and nothing runs toil (CLAUDE.md, No Executables).",
+      "principle": "1",
+      "class": "security",
+      "removed": true
+    },
+    {
+      "allows": [
+        "skills marketplace update"
+      ],
+      "old": "skills marketplace update <name> changing a marketplace's token, username or provider",
+      "toil": "Not built yet. Replace a marketplace's token with toil connections login <name> (it asks on the terminal and keeps the token in the OS credential store); change username or provider on its connection in ~/.toil/config.json",
+      "why": "A marketplace is a connection, so token rotation is the connections command every area already uses, and the menus don't edit marketplaces.",
+      "principle": "decision",
+      "removed": true
+    },
+    {
+      "allows": [
+        "skills marketplace instructions"
+      ],
+      "old": "skills marketplace instructions list | install | remove, and add and sync merging a marketplace's shipped AGENTS.md / CLAUDE.md into each agent's user-level instructions file",
+      "toil": "Not built yet. add and sync install skills only and never touch an agent's instructions files",
+      "why": "Not needed by the welcome menu (#54, #55); rewriting an agent's own instructions file is a larger write that deserves its own change.",
+      "principle": "decision",
+      "removed": true
+    },
+    {
+      "allows": [
+        "skills marketplace purge-plugin"
+      ],
+      "old": "skills marketplace purge-plugin <plugin> deleting a plugin's installed skills",
+      "toil": "Not built yet. toil skills marketplace disable <plugin> switches it off and keeps the files",
+      "why": "A delete, not needed by the menus; when built it is CLI only (CLAUDE.md, Writes).",
+      "principle": "decision",
+      "removed": true
+    },
+    {
+      "allows": [
+        "skills marketplace manage"
+      ],
+      "old": "skills marketplace manage, an interactive hub for toggling plugins and adding, removing and syncing marketplaces",
+      "toil": "Removed. Bare toil opens the welcome menu, whose skills screens (#54, #55) run the commands themselves and print each one",
+      "why": "Every command prints one envelope and prompts only where it must; the menus are the interactive front of the same commands (#52).",
+      "principle": "Output Contract",
+      "removed": true
+    },
+    {
+      "allows": [
+        "skills marketplace add --token",
+        "skills marketplace add --keychain"
+      ],
+      "old": "skills marketplace add --token <token>, keeping the token in plaintext config, or in the OS keychain with --keychain",
+      "toil": "add asks for the token on the terminal, without echo, and keeps it in the OS credential store with only a keychain: reference in config. Without a terminal it adds the marketplace with no token; set TOIL_CONN_<NAME>_TOKEN, or run toil connections login <name>",
+      "why": "A secret never goes on argv, where every process on the machine can read it, and never sits in a config file (CLAUDE.md, Secrets).",
+      "principle": "Secrets",
+      "class": "security"
+    },
+    {
+      "allows": [
+        "skills marketplace add --no-instructions",
+        "skills marketplace sync --no-instructions"
+      ],
+      "old": "--no-instructions, to skip merging the marketplace's shipped AGENTS.md / CLAUDE.md",
+      "toil": "Not accepted: add and sync never apply shipped instructions, so there is nothing to skip",
+      "why": "Shipped instructions aren't built (see skills marketplace instructions).",
+      "principle": "decision"
+    },
+    {
+      "allows": [
+        "skills marketplace add --agent",
+        "skills marketplace add --claude",
+        "skills marketplace add --all-agents"
+      ],
+      "old": "skills marketplace add cloning and then installing every plugin into the agent hosts --agent, --claude or --all-agents named, with no flag needed",
+      "toil": "add needs --allow-write, since it clones, and only registers and clones: writes stay off and nothing is installed, so it takes no agent flags. Turn writes on as for any connection (\"writes\": true on it, or TOIL_CONN_<NAME>_WRITES=true), then install with skills marketplace sync, which takes --agent, --claude, --all-agents and --scope",
+      "why": "CLI only is not human only: an agent with a shell could add any marketplace and install from it, and a skill is instructions an agent then follows. Adding grants nothing; writes are a separate, deliberate opt-in (CLAUDE.md, Writes).",
+      "principle": "2",
+      "class": "security"
+    },
+    {
+      "allows": [
+        "skills marketplace sync --force"
+      ],
+      "old": "skills marketplace sync --force, and sync with several marketplaces and no --marketplace, opening an interactive picker; --marketplace all syncing every marketplace",
+      "toil": "sync acts on one marketplace: --marketplace (by name or clone URL), else the default one, else the only one; several with no default is INVALID_INPUT naming them. Plugins are always refreshed from the clone, so --force has nothing left to do. Sync several marketplaces by calling it once for each",
+      "why": "One command does one thing against one source, and the caller composes; commands never prompt, and the welcome menu is the picker (principle 3, #54).",
+      "principle": "3"
+    },
+    {
+      "allows": [],
+      "old": "skills marketplace sync with no arguments refreshing the installed plugins of every marketplace",
+      "toil": "With no plugin, sync refreshes the installed plugins of one marketplace (the default, or --marketplace); \"all\" installs every plugin it offers",
+      "why": "One command, one source (principle 3).",
+      "principle": "3"
+    },
+    {
+      "allows": [
+        "skills marketplace enable --target",
+        "skills marketplace disable --target"
+      ],
+      "old": "--target <dir> on enable and disable, for a skills folder outside the agent hosts' own, remembered in config as skillsTargets",
+      "toil": "Not accepted: enable and disable act on an agent host's own folder, chosen with --agent (or --claude) and --scope",
+      "why": "The skills commands write outside the workspace only in the agent hosts' fixed folders (docs/bounds.md, skills.folders); an agent-supplied folder anywhere on disk would be a write anywhere.",
+      "principle": "2",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "skills marketplace enable and disable with no --marketplace acting on the plugin's skills from every marketplace",
+      "toil": "They act for one marketplace: --marketplace, else the default, else the only one. Its writes setting is the opt-in the call needs",
+      "why": "A write's opt-in is per connection, and each marketplace is one (CLAUDE.md, Writes).",
+      "principle": "2"
+    },
+    {
+      "allows": [],
+      "old": "Installing a plugin replaced any folder of the same name in the skills folder, including one the user wrote by hand",
+      "toil": "Only a folder toil installed from the same marketplace and plugin is replaced. Any other is left as found, listed in failed, with a SKILLS_NOT_REPLACED warning. Symlinks in a marketplace are never copied",
+      "why": "toil never overwrites what it didn't write (docs/bounds.md, files.no-overwrite), and a skill written by hand can't be recovered.",
+      "principle": "2",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "Marketplace clone URLs over ssh, http and any transport git supports, with a token injected into the URL",
+      "toil": "https and local paths only, with the token in git's environment, never in the URL, argv or the clone's .git/config; hooks and submodules off",
+      "why": "ssh would mean git running ssh, and other transports can run a program the URL names; a token in a URL or on argv is visible to other processes (CLAUDE.md, No Executables and Secrets).",
+      "principle": "1",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "A marketplace with no token of its own borrowing the GitHub, Bitbucket or Azure DevOps token configured for those integrations",
+      "toil": "A marketplace uses only its own token (its connection's token, from the OS credential store or TOIL_CONN_<NAME>_TOKEN), or git's own credentials when it has none",
+      "why": "A credential goes only to the connection it's configured on (principle 9).",
+      "principle": "9",
+      "class": "security"
+    },
+    {
+      "allows": [
+        "skills status data.toilVersion",
+        "skills status data.skills[].toilVersion"
+      ],
+      "old": "toilVersion in skills status, and in each skill's install record",
+      "toil": "toilVersion, the name the migration rule's find-and-replace gives it. The install index is .toil-installed.json, each skill's provenance toil-origin.json and the stash .toil-disabled",
+      "why": "Moving to toil is one find-and-replace of the old name (integrations skill, Compatibility); the files follow the same rule.",
+      "principle": "6"
+    },
+    {
+      "allows": [],
+      "old": "skills marketplace list reporting tokenStorage as keychain or config",
+      "toil": "tokenStorage is keychain, env (a TOIL_CONN_<NAME>_TOKEN variable) or null. A plaintext token in the file shows as config, and using it is refused",
+      "why": "A secret lives in the OS credential store or an env var, never the file (CLAUDE.md, Secrets).",
+      "principle": "Secrets"
+    }
+  ]
+}

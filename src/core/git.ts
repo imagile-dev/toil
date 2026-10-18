@@ -5,7 +5,8 @@ import { ToilError } from './errors.js';
 
 /**
  * The one program toil runs that the OS doesn't ship: git, and only for the
- * commands that are git (the `git` area, `deps diff`). Everything else that
+ * commands that are git (the `git` area, `deps diff`, and cloning and
+ * pulling skills marketplaces). Everything else that
  * needs repository facts (root, branch, remotes) reads `.git` in pure JS
  * (`git-repo.ts`), so area context works with no git installed. #68
  * decision 1 records the exception and CLAUDE.md, No Executables, the rule
@@ -26,7 +27,11 @@ import { ToilError } from './errors.js';
  *     (docs/bounds.md)
  *   - no prompts (GIT_TERMINAL_PROMPT=0, stdin closed), no optional index
  *     writes (GIT_OPTIONAL_LOCKS=0), and an allowlisted environment, so no
- *     token on the machine reaches git
+ *     token on the machine reaches git. The one token git is ever given is a
+ *     marketplace's own, as config in its environment (`secretConfig`),
+ *     scoped by git to that marketplace's URL
+ *   - `clone` and `pull` speak https or a local path only, with hooks and
+ *     submodules off (GIT_SAFE_NETWORK)
  *   - async, cancelled with the command's own signal
  *
  * One exception, approved in writing, reviewed annually, and scoped tighter
@@ -34,7 +39,7 @@ import { ToilError } from './errors.js';
  */
 
 /** The subcommands toil may run. Adding one is a core change, reviewed here. */
-export const GIT_SUBCOMMANDS = ['version', 'status', 'diff', 'log', 'show', 'branch', 'rev-parse', 'ls-files', 'ls-tree', 'for-each-ref', 'merge-base', 'rev-list'] as const;
+export const GIT_SUBCOMMANDS = ['version', 'status', 'diff', 'log', 'show', 'branch', 'rev-parse', 'ls-files', 'ls-tree', 'for-each-ref', 'merge-base', 'rev-list', 'clone', 'pull'] as const;
 export type GitSubcommand = (typeof GIT_SUBCOMMANDS)[number];
 
 /** Before every subcommand: no pager, and no fsmonitor hook from repository config. */
@@ -42,6 +47,22 @@ export const GIT_SAFE_GLOBALS: readonly string[] = ['--no-pager', '-c', 'core.fs
 /** After every subcommand that can produce a diff: no external diff driver, no textconv filter. */
 export const GIT_SAFE_DIFF: readonly string[] = ['--no-ext-diff', '--no-textconv'];
 const PRODUCES_DIFFS = new Set<GitSubcommand>(['diff', 'log', 'show']);
+/**
+ * Before every subcommand that talks to a remote (`clone`, `pull`, for skills
+ * marketplaces): https and local paths only, so no ssh and no `ext::`
+ * transport, which runs a program of the URL's choosing; no hooks, from the
+ * clone or the user's `core.hooksPath`; no submodules.
+ */
+export const GIT_SAFE_NETWORK: readonly string[] = [
+  '-c', 'protocol.allow=never',
+  '-c', 'protocol.https.allow=always',
+  '-c', 'protocol.file.allow=always',
+  '-c', 'core.hooksPath=/dev/null',
+  '-c', 'submodule.recurse=false',
+];
+const TALKS_TO_REMOTE = new Set<GitSubcommand>(['clone', 'pull']);
+/** The first git that reads config from GIT_CONFIG_COUNT, which `secretConfig` needs. */
+export const GIT_SECRET_CONFIG_MIN = [2, 31] as const;
 
 /** Options that write a file or run a program. Commands have no reason to pass them. */
 const FORBIDDEN_OPTION = /^--(output|ext-diff|textconv|exec|upload-pack|receive-pack|open-files-in-pager)\b|^-O/;
@@ -59,8 +80,17 @@ export interface GitCall {
   options?: readonly string[];
   /** Revisions (`main`, `HEAD~3..HEAD`, `v1.2:package.json`); user input is fine here. */
   revisions?: readonly string[];
-  /** Pathspecs, after `--`; user input is fine here too. */
+  /** Pathspecs, after `--`; user input is fine here too. `clone` takes its URL and folder here. */
   paths?: readonly string[];
+  /** An absolute folder to run in instead of the workspace: a marketplace clone, or the folder a clone goes into. */
+  cwd?: string;
+  /**
+   * Config for this call only, handed to git through its environment
+   * (GIT_CONFIG_COUNT, git 2.31 or later), never on the command line, which
+   * every process on the machine can read: an `http.<url>.extraHeader` that
+   * carries a marketplace's token, scoped by git to that URL.
+   */
+  secretConfig?: ReadonlyArray<readonly [string, string]>;
 }
 
 export interface GitResult {
@@ -95,7 +125,7 @@ export function gitArgv(call: GitCall): string[] {
       throw new ToilError('INVALID_INPUT', `${JSON.stringify(rev)} isn't a revision.`, { fix: 'Pass a branch, tag or commit, such as main or HEAD~1.' });
     }
   }
-  const argv = [...GIT_SAFE_GLOBALS, call.subcommand];
+  const argv = [...GIT_SAFE_GLOBALS, ...(TALKS_TO_REMOTE.has(call.subcommand) ? GIT_SAFE_NETWORK : []), call.subcommand];
   if (PRODUCES_DIFFS.has(call.subcommand)) argv.push(...GIT_SAFE_DIFF);
   argv.push(...(call.options ?? []));
   if (call.revisions?.length) {
@@ -115,13 +145,37 @@ export function gitArgv(call: GitCall): string[] {
  */
 const GIT_ENV_ALLOWED = /^(PATH|HOME|USERPROFILE|LANG|LC_[A-Z_]+|TMP|TEMP|TMPDIR|SYSTEMROOT|COMSPEC|PATHEXT|APPDATA|LOCALAPPDATA|HOMEDRIVE|HOMEPATH|XDG_CONFIG_HOME|GIT_CONFIG_GLOBAL)$/i;
 
-/** git's environment: the allowlist above, with prompts and optional locks off. */
-export function gitEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+/** The proxy the environment names (principle 9), for a call that talks to a remote. */
+const GIT_ENV_PROXY = /^(HTTPS_PROXY|HTTP_PROXY|ALL_PROXY|NO_PROXY)$/i;
+
+/**
+ * git's environment: the allowlist above, with prompts and optional locks off.
+ * A call that talks to a remote also gets the proxy variables, and Git
+ * Credential Manager is told not to open a window, since nobody may be there
+ * to close it. `secretConfig` goes in as GIT_CONFIG_COUNT entries.
+ */
+export function gitEnv(env: NodeJS.ProcessEnv, call?: Pick<GitCall, 'subcommand' | 'secretConfig'>): NodeJS.ProcessEnv {
+  const network = call !== undefined && TALKS_TO_REMOTE.has(call.subcommand);
   const out: NodeJS.ProcessEnv = {};
-  for (const [key, value] of Object.entries(env)) if (GIT_ENV_ALLOWED.test(key)) out[key] = value;
+  for (const [key, value] of Object.entries(env)) if (GIT_ENV_ALLOWED.test(key) || (network && GIT_ENV_PROXY.test(key))) out[key] = value;
   out.GIT_TERMINAL_PROMPT = '0';
   out.GIT_OPTIONAL_LOCKS = '0';
+  if (network) out.GCM_INTERACTIVE = 'never';
+  const config = call?.secretConfig ?? [];
+  if (config.length > 0) {
+    out.GIT_CONFIG_COUNT = String(config.length);
+    config.forEach(([key, value], i) => {
+      out[`GIT_CONFIG_KEY_${i}`] = key;
+      out[`GIT_CONFIG_VALUE_${i}`] = value;
+    });
+  }
   return out;
+}
+
+/** `git version 2.49.0.windows.1` -> [2, 49]; undefined when it isn't a version line. */
+export function parseGitVersion(stdout: string): [number, number] | undefined {
+  const match = /git version (\d+)\.(\d+)/.exec(stdout);
+  return match ? [Number(match[1]), Number(match[2])] : undefined;
 }
 
 /** An env lookup that ignores case on Windows, where `Path` and `PATH` are the same variable. */
@@ -243,13 +297,27 @@ export function createGitRunner(options: {
   platform?: NodeJS.Platform;
 }): GitRunner {
   let search: GitSearch | undefined;
+  let version: [number, number] | undefined;
   return {
     run: async (call, signal) => {
       const argv = gitArgv(call);
-      const cwd = options.workspace();
+      if (call.cwd !== undefined && !isAbsolute(call.cwd)) {
+        throw new ToilError('INTERNAL', `git was asked to run in ${JSON.stringify(call.cwd)}, which isn't an absolute folder.`, { fix: 'This is a bug in toil. Please report it at https://github.com/imagile-dev/toil/issues.' });
+      }
+      const cwd = call.cwd ?? options.workspace();
       search ??= findGit({ env: options.env, exclude: [...options.exclude, cwd], ...(options.home ? { home: options.home } : {}), ...(options.platform ? { platform: options.platform } : {}) });
       if (!search.found) throw gitNotFound(options.command, search);
-      return spawnGit(search.found, argv, cwd, gitEnv(options.env), options.command, signal);
+      if (call.secretConfig?.length) {
+        // An older git ignores GIT_CONFIG_COUNT, so the token would silently not be sent.
+        version ??= parseGitVersion((await spawnGit(search.found, ['version'], cwd, gitEnv(options.env), options.command, signal)).stdout);
+        const [major, minor] = GIT_SECRET_CONFIG_MIN;
+        if (!version || version[0] < major || (version[0] === major && version[1] < minor)) {
+          throw new ToilError('GIT_NOT_FOUND', `git at ${search.found.replace(/\\/g, '/')} is too old to be given a token without the command line; toil ${options.command} needs git ${major}.${minor} or later for that.`, {
+            fix: 'Upgrade git (https://git-scm.com/downloads), or put a newer git earlier on PATH.',
+          });
+        }
+      }
+      return spawnGit(search.found, argv, cwd, gitEnv(options.env, call), options.command, signal);
     },
   };
 }
