@@ -177,13 +177,20 @@ export function getIssue(ctx: JiraContext, key: string): Promise<JiraIssue> {
 export async function getIssues(ctx: JiraContext, keys: string[]): Promise<Array<{ key: string; issue?: JiraIssue; error?: BulkError }>> {
   const results: Array<{ key: string; issue?: JiraIssue; error?: BulkError }> = keys.map((key) => ({ key }));
   let next = 0;
+  // Once one failure has failed the call, the other workers stop taking keys.
+  let failed = false;
   const worker = async () => {
-    while (next < keys.length) {
+    while (next < keys.length && !failed) {
       const slot = results[next++]!;
       try {
         slot.issue = await getIssue(ctx, slot.key);
       } catch (err) {
-        slot.error = perKeyError(slot.key, err);
+        try {
+          slot.error = perKeyError(slot.key, err);
+        } catch (whole) {
+          failed = true;
+          throw whole;
+        }
       }
     }
   };

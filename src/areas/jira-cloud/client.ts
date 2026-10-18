@@ -8,7 +8,7 @@ import type { QueryParam } from '../../core/rest.js';
 import { textToAdf, type AdfDocument } from './adf.js';
 import { jiraCloudArea, type CustomFieldDefinition } from './area.js';
 import { suggestedType } from './custom-fields.js';
-import { perKeyError, type BulkError } from '../jira/bulk.js';
+import type { BulkError } from '../jira/bulk.js';
 import type { PageOpts } from '../jira/paging.js';
 
 /**
@@ -142,7 +142,7 @@ export async function getIssues(ctx: JiraCloudContext, keys: string[]): Promise<
     } else if (failed.has(key)) {
       errors.push({ key, code: 'HTTP', message: failed.get(key)! });
     } else {
-      errors.push(perKeyError(key, new ToilError('NOT_FOUND', `Jira Cloud returned no issue for ${key}: it doesn't exist, or this account can't see it.`)));
+      errors.push({ key, code: 'NOT_FOUND', message: `Jira Cloud returned no issue for ${key}: it doesn't exist, or this account can't see it.` });
     }
   }
   // An error Jira reported by the id of an issue that was asked for by key.

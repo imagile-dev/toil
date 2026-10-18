@@ -176,8 +176,11 @@ describe('get-issue with several keys', () => {
 
   it('one key is still the issue itself; a rejected token fails the whole call', async () => {
     expect((await run(getIssue, { key: 'PROJ-1' }, routes)).envelope.data).toMatchObject({ key: 'PROJ-1' });
-    const { envelope } = await run(getIssue, { key: ['PROJ-1', 'PROJ-2'] }, [{ url: /issue/, respond: { status: 401, text: '' } }]);
+    const keys = Array.from({ length: 8 }, (_, i) => `PROJ-${i + 1}`);
+    const { envelope, calls } = await run(getIssue, { key: keys }, [{ url: /issue/, respond: { status: 401, text: '' } }]);
     expect(envelope.error?.code).toBe('AUTH');
+    // The five already in flight, and no more after the first refusal.
+    expect(calls).toHaveLength(5);
   });
 
   it(`refuses more than ${MAX_BULK_KEYS} keys, or an empty one, before any request`, async () => {
