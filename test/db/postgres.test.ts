@@ -46,6 +46,16 @@ describe('postgres script splitting', () => {
     expect(words('SELECT $1; SELECT a$b$ FROM t; SELECT 2')).toEqual(['SELECT', 'SELECT', 'SELECT']);
   });
 
+  // PostgreSQL ends a -- comment at \r as well as \n. Reading past a lone \r
+  // would report the words after the next \n instead of the real first ones.
+  it('ends a line comment at a carriage return, as the server does', () => {
+    expect(splitStatements("-- x\rCOPY (SELECT 1) TO '/tmp/f'\nCSV")[0]!.words[0]).toBe('COPY');
+    expect(splitStatements('-- x\rDO $$BEGIN NULL; END$$\nLANGUAGE plpgsql')[0]!.words[0]).toBe('DO');
+    const script = splitStatements('UPDATE t SET a=1; -- x\rCOMMIT\nAND NO CHAIN; UPDATE t SET a=2');
+    expect(script.map((s) => s.words[0])).toEqual(['UPDATE', 'COMMIT', 'UPDATE']);
+    expect(script.some(controlsTransaction)).toBe(true);
+  });
+
   it('finds transaction control after leading and nested comments', () => {
     for (const sql of ['COMMIT', '  /* a /* b */ c */ commit', '-- x\nROLLBACK', 'BEGIN', 'START TRANSACTION', 'END', 'ABORT', 'SAVEPOINT s', 'RELEASE s', 'PREPARE TRANSACTION \'x\'', 'PREPARE /* c */ TRANSACTION \'x\'']) {
       expect(splitStatements(sql).some(controlsTransaction), sql).toBe(true);
@@ -169,6 +179,8 @@ describe.skipIf(skip !== undefined)(`postgres server${skip ? ` (skipped: ${skip}
       `/* c */ copy people TO PROGRAM 'true'`,
       'COPY people TO STDOUT',
       `DO $$ BEGIN EXECUTE 'COPY (SELECT 1) TO ''${file}-toil'''; END $$`,
+      `-- x\rCOPY (SELECT 1) TO '${file}-toil'\nCSV`,
+      '-- x\rDO $$BEGIN NULL; END$$\nLANGUAGE plpgsql',
     ]) {
       const envelope = await run(query, { sql });
       expect(envelope.error, sql).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('db execute') });
@@ -192,6 +204,13 @@ describe.skipIf(skip !== undefined)(`postgres server${skip ? ` (skipped: ${skip}
   it('runs a function body holding semicolons through db execute', async () => {
     const sql = 'CREATE FUNCTION two() RETURNS int AS $$ BEGIN RETURN 2; END $$ LANGUAGE plpgsql; UPDATE people SET active = two() WHERE id = 1';
     expect((await run(executeCmd, { sql, allowWrite: true }, { ...db.settings, writes: true })).data).toEqual({ changes: 1 });
+  });
+
+  it('refuses a COMMIT after a carriage-return comment, before running any of it', async () => {
+    const sql = 'UPDATE people SET active = 0 WHERE id = 1; -- x\rCOMMIT\nAND NO CHAIN; SELECT * FROM no_such_table';
+    const envelope = await run(executeCmd, { sql, allowWrite: true }, { ...db.settings, writes: true });
+    expect(envelope.error?.code).toBe('INVALID_INPUT');
+    expect((await direct('SELECT active FROM people WHERE id = 1')).rows[0].active).toBe(1);
   });
 
   it('refuses PREPARE TRANSACTION in a script before running any of it', async () => {

@@ -39,8 +39,13 @@ export interface GitRemote {
   url: string;
 }
 
-/** Reads the working folder's `origin` remote, or undefined outside a repository. Supplied by the git reader, faked in tests. */
-export type GitRemoteReader = (signal: AbortSignal) => Promise<GitRemote | undefined>;
+/**
+ * Reads the working folder's remotes: `origin` first, then the rest in `git
+ * remote -v` order; none outside a repository. Supplied by the git reader,
+ * faked in tests. An area's `git` parser takes the first remote it accepts,
+ * and it accepts only one on the connection's host.
+ */
+export type GitRemoteReader = (signal: AbortSignal) => Promise<readonly GitRemote[]>;
 
 /**
  * A dossier's value for one area's key (`connection`, or a context input).
@@ -81,11 +86,16 @@ export async function resolveCall(
   const needs = def.context ?? {};
   const dossier = sources.dossier ?? noDossier;
 
-  let remote: Promise<GitRemote | undefined> | undefined;
-  const fromGit = (spec: ContextInput, connection: Connection | undefined): Promise<string | undefined> => {
-    if (!spec.git || !sources.gitRemote) return Promise.resolve(undefined);
-    remote ??= sources.gitRemote(signal);
-    return remote.then((r) => (r ? spec.git!(r, connection) : undefined));
+  let remotes: Promise<readonly GitRemote[]> | undefined;
+  const fromGit = async (spec: ContextInput, connection: Connection | undefined): Promise<string | undefined> => {
+    if (!spec.git || !sources.gitRemote) return undefined;
+    remotes ??= sources.gitRemote(signal);
+    // A fork's checkout often has its server's remote as `upstream`: the first remote the parser accepts wins.
+    for (const remote of await remotes) {
+      const value = spec.git(remote, connection);
+      if (value !== undefined) return value;
+    }
+    return undefined;
   };
 
   // Steps 1 to 3 for an input that may pick the connection, so it can; steps

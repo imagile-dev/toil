@@ -6,6 +6,7 @@
   "covers": "Status, diff, log, branches, commit report",
   "credential": "None — local",
   "credentialNote": "No server. The commands run git, the one optional exception to running no other program; the repo root and branch are read in pure JS",
+  "local": true,
   "status": "unit",
   "supported": {
     "product": "git",

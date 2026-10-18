@@ -1,7 +1,7 @@
 ---
 import Layout from '../../../layouts/Layout.astro';
 import PageHero from '../../../components/PageHero.astro';
-import { allIntegrations, credentialWhere, envPrefix, statusMeaning, supportedText, type IntegrationEntry } from '../../../data/integrations';
+import { allIntegrations, credentialWhere, envPrefix, localUnitMeaning, statusMeaning, supportedText, type IntegrationEntry } from '../../../data/integrations';
 import { url, repoUrl } from '../../../lib/url';
 
 // One page per integration, generated from the same data as the board, so an
@@ -13,7 +13,7 @@ export function getStaticPaths() {
 const { integration } = Astro.props as { integration: IntegrationEntry };
 const where = credentialWhere[integration.area];
 const prefix = envPrefix(integration.area);
-const local = integration.area === 'git';
+const local = integration.local === true;
 const host = integration.host ?? `https://${integration.area}.imagile.dev`;
 const keyLines = (integration.keys ?? ['TOKEN']).map((key) => ({ key, label: key.toLowerCase().split('_').join(' ') }));
 const index = allIntegrations.findIndex((i) => i.area === integration.area);
@@ -42,6 +42,17 @@ const exampleLines = settings.length
 const writes = commandList.length === 0 || commandList.some((c) => c.writes);
 const cliOnly = commandList.some((c) => c.tool === null);
 const allConnect = commandList.every((c) => c.connection);
+// What the page describes follows what the area has. A shipped area with no
+// settings (osv) has no credential and nothing to configure; one with no
+// baseUrl (ossindex) calls a fixed host; one whose commands take no
+// connection (git, osv) has no --connection to mention. A planned area keeps
+// the generic text, since its keys aren't known yet.
+const shipped = integration.status !== 'planned';
+const configurable = !local && (!shipped || settings.length > 0);
+const credentialed = !local && (!shipped || settings.some((s) => s.secret));
+const fixedHost = shipped && configurable && integration.host !== undefined && !settings.some((s) => s.key === 'baseUrl');
+const connects = commandList.some((c) => c.connection);
+const status = local && integration.status === 'unit' ? localUnitMeaning : statusMeaning[integration.status];
 ---
 
 <Layout title={`${integration.name} integration`} description={`toil's ${integration.name} integration: what it covers, the credential it uses, and how to configure it.`}>
@@ -60,7 +71,7 @@ const allConnect = commandList.every((c) => c.connection);
           <div><dt>Area</dt><dd><code>toil {integration.area}</code></dd></div>
           <div><dt>Status</dt><dd><span class={`status status--${integration.status}`}>{integration.status}</span></dd></div>
           <div><dt>Credential</dt><dd>{integration.credential}</dd></div>
-          {!local && <div><dt>Env prefix</dt><dd><code>{prefix}</code></dd></div>}
+          {configurable && <div><dt>Env prefix</dt><dd><code>{prefix}</code></dd></div>}
           {supported && <div><dt>Supports</dt><dd>{supported.minimum === null ? 'Not yet established' : `${supported.product} ${supported.minimum}+`}</dd></div>}
         </dl>
       </aside>
@@ -68,7 +79,7 @@ const allConnect = commandList.every((c) => c.connection);
       <article class="doc__body prose">
         <section data-reveal>
           <h2>Status</h2>
-          <p>{statusMeaning[integration.status]}</p>
+          <p>{status}</p>
         </section>
 
         {supported && (
@@ -82,6 +93,11 @@ const allConnect = commandList.every((c) => c.connection);
           <h2>Credential</h2>
           {local ? (
             <p>None. This area works on the repository you're in and talks to no server. Its commands run your installed git; the repository's root, branch and remotes are read directly.</p>
+          ) : !credentialed ? (
+            <>
+              <p>None. {integration.name} is a public API, so there's no account to make, no credential to keep and nothing to configure.</p>
+              {integration.credentialNote && <p>{integration.credentialNote}.</p>}
+            </>
           ) : (
             <>
               <p>
@@ -99,7 +115,7 @@ const allConnect = commandList.every((c) => c.connection);
           )}
         </section>
 
-        {!local && (
+        {configurable && (
           <section data-reveal>
             <h2>Configuration</h2>
             <p>
@@ -111,6 +127,9 @@ const allConnect = commandList.every((c) => c.connection);
   <span class="line"><span class="p">$</span> export {l.env}=<span class="s">{l.value}</span></span>
 ))}</pre>
             </div>
+            {fixedHost && (
+              <p>There's no base URL to set: toil calls {integration.host} and nothing else.</p>
+            )}
             {settings.length === 0 ? (
               <p class="note">The exact keys are published here when the integration ships. These show the naming pattern every area follows.</p>
             ) : (
@@ -153,8 +172,10 @@ const allConnect = commandList.every((c) => c.connection);
           ) : (
             <>
               <p>
-                {commandList.length} commands, each on the command line as <code>toil {integration.area} &lt;command&gt;</code> and over MCP as
-                the tool shown, with identical inputs and output{cliOnly ? <>, apart from ones marked <span class="cmd__cli">CLI only</span>, which have no MCP tool</> : null}. {allConnect ? 'Every command' : 'Every command that talks to the service'} also takes <code>--connection &lt;name&gt;</code>{writes ? <>; ones marked <span class="cmd__write">write</span> change data</> : <>, and every one of them only reads</>}. Run <code>toil {integration.area} &lt;command&gt; --help</code> for each flag's meaning, or read the{' '}
+                {commandList.length === 1 ? 'One command, on' : `${commandList.length} commands, each on`} the command line as <code>toil {integration.area} &lt;command&gt;</code> and over MCP as
+                the tool shown, with identical inputs and output{cliOnly ? <>, apart from ones marked <span class="cmd__cli">CLI only</span>, which have no MCP tool</> : null}. {connects ? (
+                  <>{allConnect ? 'Every command' : 'Every command that talks to the service'} also takes <code>--connection &lt;name&gt;</code>{writes ? <>; ones marked <span class="cmd__write">write</span> change data</> : <>, and every one of them only reads</>}.</>
+                ) : writes ? <>Ones marked <span class="cmd__write">write</span> change data.</> : commandList.length === 1 ? 'It only reads.' : 'Every one of them only reads.'} Run <code>toil {integration.area} &lt;command&gt; --help</code> for each flag's meaning, or read the{' '}
                 <a href={`${repoUrl}/blob/main/skills/toil/${integration.area}.md`}>{integration.name} reference</a>.
               </p>
               <ul class="cmds">

@@ -26,10 +26,10 @@ const boardAreas = readdirSync(join(repo, 'site', 'src', 'data', 'integrations')
 
 afterAll(() => rmSync(out, { recursive: true, force: true }));
 
-async function load(area: string): Promise<{ commands: AnyCommand[]; files: Record<string, string> }> {
+async function load(area: string, names: string[] = []): Promise<{ commands: AnyCommand[]; files: Record<string, string> }> {
   const base = join(out, area);
   const core = relative(join(base, 'src', 'areas', area), join(repo, 'src', 'core')).replace(/\\/g, '/');
-  const files = stubFiles(contract, area, { core, removed }) as Record<string, string>;
+  const files = stubFiles(contract, area, { core, removed, commands: names }) as Record<string, string>;
   for (const [path, content] of Object.entries(files)) {
     mkdirSync(dirname(join(base, path)), { recursive: true });
     writeFileSync(join(base, path), content);
@@ -80,8 +80,25 @@ describe('stub generator', () => {
     expect(Object.values(files).join('\n')).not.toContain("'credentials'");
   });
 
-  it('refuses an area the contract does not have', () => {
-    expect(() => stubFiles(contract, 'no-such-area')).toThrow(/no commands under "no-such-area"/);
+  it('stubs an area the contract does not have from command names, or with one example command, and it typechecks', async () => {
+    const named = await load('acme-cloud', ['search', 'issue get', 'issue create']);
+    expect(named.commands.map((d) => d.path.join(' '))).toEqual(['acme-cloud search', 'acme-cloud issue get', 'acme-cloud issue create']);
+    expect(named.commands.map((d) => d.writes)).toEqual([false, false, true]);
+    expect(Object.keys(named.files)).toEqual(expect.arrayContaining(['src/areas/acme-cloud/commands.ts', 'src/areas/acme-cloud/issue.ts', 'test/fixtures/acme-cloud.fixture.ts', 'skills/toil/acme-cloud.md']));
+    for (const def of named.commands) await expect(def.run({}, {} as never)).rejects.toThrow(/stubbed and not built/);
+
+    const empty = await load('acme-empty');
+    expect(empty.commands.map((d) => d.path.join(' '))).toEqual(['acme-empty example']);
+
+    const base = join(out, 'acme-cloud');
+    const config = join(base, 'tsconfig.json');
+    writeFileSync(config, JSON.stringify({ extends: relative(base, join(repo, 'tsconfig.json')).replace(/\\/g, '/'), include: ['src/areas/acme-cloud/*.ts'], compilerOptions: { noEmit: true } }));
+    const run = spawnSync(process.execPath, [join(repo, 'node_modules', 'typescript', 'bin', 'tsc'), '-p', config], { encoding: 'utf8' });
+    expect(run.stdout + run.stderr).toBe('');
+  }, 60000);
+
+  it('refuses command names for an area the contract has', () => {
+    expect(() => stubFiles(contract, 'bitbucket', { commands: ['extra'] })).toThrow(/comes? from there/);
   });
 
   for (const area of boardAreas.filter((a) => contract.commands.some((c) => c.command.split(' ')[0] === a))) {
