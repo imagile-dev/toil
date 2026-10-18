@@ -317,9 +317,15 @@ function toToilError(err: unknown, conn: DbConnection, mode: Mode): unknown {
     });
   }
   // A read-only login's refusal of DDL, which the server reports without the statement's type:
-  // 262 (CREATE ... permission denied) and 3701 (can't DROP: missing, or no permission). Either
-  // way the statement was a write.
-  if (mode === 'read' && (number === 262 || number === 3701)) return writeDisabled(conn);
+  // 3701 (can't DROP: missing, or no permission), and 262 when the permission it names is one
+  // that changes schema. 262 also refuses reads (VIEW DATABASE STATE for a sys.dm_db_* view,
+  // SHOWPLAN), and those are a plain permission error.
+  if (mode === 'read' && (number === 3701 || (number === 262 && /^(CREATE|ALTER|DROP)\b/i.test(String(f.message))))) return writeDisabled(conn);
+  if (number === 262 || number === 229 || number === 230 || number === 297 || number === 300) {
+    return new ToilError('DATABASE', `SQL Server: ${message}`, {
+      fix: `The login on connection ${conn.name} lacks that permission. Ask the DBA to grant it, or read something the login can see.`,
+    });
+  }
   if (number === 3906) {
     if (mode === 'read') return writeDisabled(conn);
     return new ToilError('DATABASE', `SQL Server: ${message}`, {
@@ -614,6 +620,13 @@ export const sqlserverProvider: DbProvider = {
   query(conn, sql, window, call) {
     const scan = scanScript(sql);
     if (scan.empty) return Promise.reject(emptyStatement());
+    if (scan.output) {
+      return Promise.reject(
+        new ToilError('INVALID_INPUT', 'OUTPUT is refused on reads: an INSERT, UPDATE, DELETE or MERGE with OUTPUT returns its rows before the server reports the change, so a page could fill before toil learns it was a write.', {
+          fix: 'Use a SELECT to read. To change data, use toil db execute --allow-write on a connection with writes on.',
+        }),
+      );
+    }
     if (scan.transactionControl) {
       return Promise.reject(
         new ToilError('INVALID_INPUT', `${scan.transactionControl} is refused on reads: it would end the transaction that keeps a read from changing anything.`, {

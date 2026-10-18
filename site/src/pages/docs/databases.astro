@@ -165,8 +165,8 @@ const commands = [
             open another existing SQLite file the process can read. On PostgreSQL, <code>COPY</code> and <code>DO</code> are refused on reads, since
             <code>COPY ... TO</code> can write server files; functions such as <code>lo_export</code> still run for a role allowed to call
             them, which is why the role should be an ordinary one. On SQL Server, every read runs in a transaction that's always rolled back,
-            and a statement the server reports as a write is refused; <code>COMMIT</code> and <code>ROLLBACK</code> are refused on reads
-            outright. A <code>COMMIT</code> hidden in dynamic SQL can still save a write, which toil reports but can't undo, so the login should
+            and a statement the server reports as a write is refused; <code>COMMIT</code>, <code>ROLLBACK</code> and <code>OUTPUT</code> are refused
+            on reads outright. A <code>COMMIT</code> hidden in dynamic SQL can still save a write, which toil reports but can't undo, so the login should
             be read-only. Only <code>db execute</code> writes, and it needs <code>"writes": true</code> on the connection in your own config
             and <code>--allow-write</code> on the call. Over MCP, the write tool doesn't exist until writes are on.{' '}
             <a href={url('/how-it-works/#safety')}>How writes are gated</a>.
