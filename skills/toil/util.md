@@ -1,13 +1,13 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, converting Markdown to and from Jira and Confluence formats, and reading OpenAPI documents
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, converting Markdown to and from Jira and Confluence formats, reading OpenAPI documents, and drawing C4 architecture diagrams from a JSON model
 ---
 
 # Local utilities (`util`)
 
 Commands that work on what's on this machine: a token or version you paste, a file or
 folder in the workspace (a certificate, a log or an API description), the manifests and lockfiles there, a
-report a build left behind, text you're about to commit or post, or a time and a time zone. They aren't
+report a build left behind, a C4 model described in JSON, text you're about to commit or post, or a time and a time zone. They aren't
 integrations. There is no server, no connection to add, no `TOIL_UTIL_*`
 variable, no credential and no `--connection` flag, and none of them sends
 anything over the network. None changes anything: the only file one writes is a
@@ -41,6 +41,9 @@ the same flags and output:
 | `toil util openapi list` | none | `util_openapi_list` |
 | `toil util openapi show` | none | `util_openapi_show` |
 | `toil util openapi example` | none | `util_openapi_example` |
+| `toil util c4 render` | none | `util_c4_render` |
+| `toil util c4 mermaid` | none | `util_c4_mermaid` |
+| `toil util c4 d2` | none | `util_c4_d2` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
@@ -62,6 +65,7 @@ Getting text into the shape an enterprise tool expects before it's sent, so a de
 
 - **Converting Markdown** (`toil util md`): Turns Markdown into Jira wiki markup (Jira Data Center), Atlassian Document Format (Jira Cloud and Confluence Cloud) or Confluence storage format (Confluence Data Center), and any of those back into Markdown.
 - **Reading an OpenAPI document** (`toil util openapi list`, `toil util openapi show`, `toil util openapi example`): Reads an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, so an agent calls an endpoint right the first time: `list` gives every operation, `show` lays one out with each parameter and where it goes, its request and response bodies with `$ref`s expanded, and the exact inputs for `toil <area> api`, and `example` builds the smallest body its schema accepts.
+- **Drawing a C4 architecture diagram** (`toil util c4 render`, `toil util c4 mermaid`, `toil util c4 d2`): Draws one view of a C4 model (a system context, container or component view) from JSON an agent writes: `render` lays it out and returns SVG, people on top and the scope's children inside a dashed boundary, checked for overlaps, arrows behind boxes and well-formed XML, and `mermaid` and `d2` write the same view as text for places that draw it themselves, such as a Mermaid block in Markdown on GitHub.
 
 ### Safety
 
@@ -1215,3 +1219,121 @@ version these commands don't read (OpenAPI 4, Swagger 1.2), or isn't valid JSON 
 YAML fails with `INVALID_INPUT`. So does an operation that isn't there (the fix names
 close operationIds), `example` on an operation with no request body (pass
 `--response`), and a status or content type the operation doesn't list.
+
+### `toil util c4 render`, `toil util c4 mermaid`, `toil util c4 d2`
+
+One view of a C4 architecture model: `render` draws it as SVG, `mermaid` writes it
+as Mermaid's C4 syntax (GitHub draws a ```` ```mermaid ```` block inline), and `d2`
+writes it as D2 text. `render` lays the diagram out itself, with a layered layout
+made for C4 views: people on the top row, the scope's children together inside
+their dashed boundary, and each relationship's label placed clear of the boxes.
+Nothing is installed or run, and nothing goes over the network.
+
+```bash
+toil util c4 render docs/c4/bookshop.c4.json --view containers --out containers.svg
+toil util c4 mermaid docs/c4/bookshop.c4.json --view context
+cat model.json | toil util c4 d2 - --view components
+```
+
+| Flag | Meaning |
+|------|---------|
+| `[file]` | A JSON file holding the model, inside the workspace, or `-` (or nothing) for stdin |
+| `--text <text>` | The model itself, as a JSON string, instead of a file. Over MCP, `file` or `text` |
+| `--view <key>` | The view to draw. It can be left out when the model has only one |
+| `--out <file>` | `render` only: write the SVG to this new file inside the workspace instead of returning it. toil never overwrites a file |
+
+The model:
+
+```json
+{
+  "title": "Online bookshop",
+  "people": [{ "id": "customer", "name": "Customer", "description": "Buys books" }],
+  "systems": [{
+    "id": "bookshop", "name": "Online Bookshop", "description": "Sells books at bookshop.imagile.dev",
+    "containers": [
+      { "id": "web", "name": "Web shop", "technology": "React",
+        "components": [{ "id": "cart", "name": "Cart", "technology": "TypeScript" }] },
+      { "id": "db", "name": "Database", "technology": "PostgreSQL", "database": true }
+    ]
+  }, { "id": "payments", "name": "Payment provider", "external": true }],
+  "relationships": [{ "source": "customer", "destination": "web", "description": "Buys books using", "technology": "HTTPS" }],
+  "views": [
+    { "key": "context", "type": "systemContext", "scope": "bookshop" },
+    { "key": "containers", "type": "container", "scope": "bookshop" },
+    { "key": "components", "type": "component", "scope": "web", "include": ["*", "payments"] }
+  ]
+}
+```
+
+- **Elements** are people and software systems at the top, containers inside a
+  system, and components inside a container. Each has an `id`, a `name`, and
+  optionally a `description`, a `technology` (containers and components) and
+  `external: true`, which draws it grey. A container with `database: true` is drawn
+  as a cylinder. Ids start with a letter and hold only letters, digits and
+  underscores, and are unique across the whole model.
+- **Relationships** join any two elements, at any level: `source`, `destination`,
+  and optionally `description` and `technology`.
+- **Views** have a `key`, a `type` (`systemContext`, `container` or `component`), a
+  `scope` (a system for the first two, a container for `component`), an optional
+  `title`, and an optional `include` list of ids. `"*"` in it stands for the default
+  set, which is also what you get with no `include`: for `systemContext`, the scope
+  and every person and system related to it; for `container`, the scope's
+  containers inside a dashed boundary and what they relate to; for `component`, the
+  scope's components and what they relate to.
+- A relationship is drawn between the nearest elements a view shows, so one between
+  two containers shows up between their systems in a system context view. Model
+  relationships at the most detailed level you know. One that ends on a view's own
+  boundary from outside can't be drawn there; a `C4_RELATIONSHIP_NOT_DRAWN` warning
+  in `meta.warnings` names it, unless that outside element already has a drawn
+  relationship into the boundary.
+
+Output: `{ view, type, title, elements, relationships, verified, format, svg }` for
+`render`, where `elements` lists the ids drawn and `relationships` counts the arrows.
+With `--out`, `{ file, bytes }` take the place of `svg`, and `file` is the absolute
+path written. `mermaid` and `d2` return `text` in place of `svg`.
+
+`render` lays the view out down the page: arrows leave a box from its bottom, run
+straight through any row they pass, and enter their target from the top, so they
+bend only in the gaps between rows. It checks its own drawing before returning it,
+and `data.verified` lists each check:
+
+| Check | What held |
+|-------|-----------|
+| `input.complete` | The whole file was read (unchecked for stdin and `--text`) |
+| `boxes.apart` | No two boxes overlap |
+| `children.inBoundary` | Every child is inside its dashed boundary, and nothing else is drawn over it (views with a boundary only) |
+| `edges.touchBoxes` | Every arrow starts on its source's border and ends on its target's |
+| `edges.clearOfBoxes` | No arrow passes behind a box it doesn't join |
+| `labels.clearOfBoxes` | No label covers a box |
+| `svg.wellFormed` | The SVG parses as XML and holds no character XML forbids. A control character in the model's text (other than tab and line breaks), U+FFFE, U+FFFF or a lone surrogate is drawn as U+FFFD |
+| `text.width` | Always `approximated`: text is measured with Helvetica's widths, which Arial shares |
+
+Each check that fails is one `C4_LAYOUT_CHECK` warning in `meta.warnings` naming
+the first boxes or arrow involved and how many failed, and the first five are in
+`verified`, so a bad drawing is never returned without saying so. `mermaid` and
+`d2` check their own text instead: every element declared once (`text.elements`)
+and one line per arrow (`text.relationships`), failing as `C4_TEXT_CHECK`. Whether
+the text draws is up to whatever renders it, and is reported as unchecked
+(`text.renders`, `UNVERIFIED`).
+
+Limits, each an `INVALID_INPUT` past it, before any work grows with it:
+
+- The model's JSON is at most 4 MiB.
+- A model holds at most 1,000 elements (people, systems, containers and components
+  together), 2,000 relationships and 100 views.
+- `render` draws at most 100 boxes and 250 arrows in one view. Draw fewer with the
+  view's `include` list, or split the view; `mermaid` and `d2` write a view of any
+  size the model allows.
+
+The layout runs in a worker thread with a 2 s deadline, past which it's stopped
+with `TIMEOUT`; at the limits above it takes well under half a second. Past about
+25 boxes, arrows cross more often and the drawing grows tall.
+
+A model with mistakes fails with `INVALID_INPUT` before anything is drawn. The
+message names each problem by its path in the model, such as
+`relationships[2].destination: no element has the id "warehose"`, and
+`error.details` lists them all. An unknown `--view` lists the keys the model has.
+
+A sample model, an online bookshop with all three views, is
+`docs/c4/bookshop.c4.json` in toil's source, and `docs/c4/busy.c4.json` is a busier
+view of 25 boxes.

@@ -89,8 +89,8 @@ try {
 }
 
 /**
- * util openapi through the installed bundle, which runs JSON Schema validation
- * and a document's own patterns in a worker thread evaluated from a string
+ * util openapi and util c4 through the installed bundle, which run JSON Schema
+ * validation, a document's own patterns and a C4 layout in a worker thread evaluated from a string
  * inside dist/toil.js. Proves the worker starts from the built bundle (not from
  * source), that a deadline stops it, and that a Node which forbids workers gets
  * an unchecked result rather than a crash.
@@ -117,7 +117,11 @@ function boundedWorker(bin) {
   if (!/took longer than 2 s/.test(checkOf(stuck, 'example.patterns')?.detail ?? '') || took > 20000) fail(`a backtracking pattern returned ${JSON.stringify(stuck).slice(0, 600)} after ${took} ms`);
   const denied = toil(['util', 'openapi', 'list', '--text', doc({ type: 'string' })], ['--permission', '--allow-fs-read=*']);
   if (checkOf(denied, 'document.schema')?.status !== 'unchecked' || !/--allow-worker/.test(checkOf(denied, 'document.schema')?.detail ?? '')) fail(`util openapi list with workers denied returned ${JSON.stringify(denied).slice(0, 600)}`);
-  return `util openapi validated in a worker from the bundle, a backtracking pattern stopped in ${took} ms, and with workers denied the check came back unchecked`;
+  // util c4 render lays its view out in the same worker: the layout must be in the string too.
+  const model = { people: [{ id: 'reader', name: 'Reader' }], systems: [{ id: 'site', name: 'Site' }, { id: 'db', name: 'Store' }], relationships: [{ source: 'reader', destination: 'site', description: 'Reads' }, { source: 'site', destination: 'db' }], views: [{ key: 'v', type: 'systemContext', scope: 'site' }] };
+  const drawn = toil(['util', 'c4', 'render', '--text', JSON.stringify(model)]);
+  if (drawn.data?.verified?.passed !== true || checkOf(drawn, 'edges.clearOfBoxes')?.status !== 'passed' || !drawn.data?.svg?.startsWith('<svg')) fail(`util c4 render in a worker returned ${JSON.stringify(drawn).slice(0, 600)}`);
+  return `util openapi validated and util c4 laid out in a worker from the bundle, a backtracking pattern stopped in ${took} ms, and with workers denied the check came back unchecked`;
 }
 
 /**

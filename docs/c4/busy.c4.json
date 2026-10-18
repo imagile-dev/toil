@@ -1,0 +1,372 @@
+{
+  "title": "Market platform (busy test view)",
+  "people": [
+    {
+      "id": "buyer",
+      "name": "Buyer",
+      "description": "Buys from sellers"
+    },
+    {
+      "id": "seller",
+      "name": "Seller",
+      "description": "Lists and ships goods"
+    },
+    {
+      "id": "support",
+      "name": "Support agent",
+      "description": "Answers tickets"
+    },
+    {
+      "id": "analyst",
+      "name": "Analyst",
+      "description": "Reads the numbers"
+    }
+  ],
+  "systems": [
+    {
+      "id": "market",
+      "name": "Market platform",
+      "description": "The marketplace at market.imagile.dev",
+      "containers": [
+        {
+          "id": "web",
+          "name": "Buyer web app",
+          "technology": "React",
+          "description": "Browsing and checkout"
+        },
+        {
+          "id": "mobile",
+          "name": "Mobile app",
+          "technology": "Kotlin, Swift",
+          "description": "Browsing and checkout on phones"
+        },
+        {
+          "id": "seller_portal",
+          "name": "Seller portal",
+          "technology": "React",
+          "description": "Listings, stock and payouts"
+        },
+        {
+          "id": "support_desk",
+          "name": "Support desk",
+          "technology": "React",
+          "description": "Tickets and refunds"
+        },
+        {
+          "id": "gateway",
+          "name": "API gateway",
+          "technology": "Envoy",
+          "description": "Routes and rate-limits every call"
+        },
+        {
+          "id": "catalogue",
+          "name": "Catalogue service",
+          "technology": "Go",
+          "description": "Listings and search index"
+        },
+        {
+          "id": "search",
+          "name": "Search service",
+          "technology": "OpenSearch",
+          "description": "Full-text search"
+        },
+        {
+          "id": "cart",
+          "name": "Cart service",
+          "technology": "Node.js",
+          "description": "Baskets"
+        },
+        {
+          "id": "orders",
+          "name": "Order service",
+          "technology": "Java",
+          "description": "Orders and their states"
+        },
+        {
+          "id": "payments_svc",
+          "name": "Payment service",
+          "technology": "Java",
+          "description": "Charges and refunds"
+        },
+        {
+          "id": "payouts",
+          "name": "Payout service",
+          "technology": "Java",
+          "description": "Pays sellers"
+        },
+        {
+          "id": "notify",
+          "name": "Notification service",
+          "technology": "Node.js",
+          "description": "Email and push"
+        },
+        {
+          "id": "events",
+          "name": "Event bus",
+          "technology": "Kafka",
+          "description": "Domain events"
+        },
+        {
+          "id": "warehouse_db",
+          "name": "Analytics warehouse",
+          "technology": "BigQuery",
+          "description": "Reporting tables",
+          "database": true
+        },
+        {
+          "id": "main_db",
+          "name": "Main database",
+          "technology": "PostgreSQL",
+          "description": "Listings, carts, orders",
+          "database": true
+        },
+        {
+          "id": "reports",
+          "name": "Reporting app",
+          "technology": "Metabase",
+          "description": "Dashboards"
+        }
+      ]
+    },
+    {
+      "id": "psp",
+      "name": "Card processor",
+      "external": true,
+      "description": "Takes card payments"
+    },
+    {
+      "id": "bank",
+      "name": "Bank",
+      "external": true,
+      "description": "Sends payouts"
+    },
+    {
+      "id": "mailer",
+      "name": "Email provider",
+      "external": true,
+      "description": "Delivers email"
+    },
+    {
+      "id": "push",
+      "name": "Push provider",
+      "external": true,
+      "description": "Delivers phone notifications"
+    },
+    {
+      "id": "courier",
+      "name": "Courier",
+      "external": true,
+      "description": "Collects and delivers parcels"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "buyer",
+      "destination": "web",
+      "description": "Shops using",
+      "technology": "HTTPS"
+    },
+    {
+      "source": "buyer",
+      "destination": "mobile",
+      "description": "Shops using",
+      "technology": "HTTPS"
+    },
+    {
+      "source": "seller",
+      "destination": "seller_portal",
+      "description": "Manages listings using",
+      "technology": "HTTPS"
+    },
+    {
+      "source": "support",
+      "destination": "support_desk",
+      "description": "Handles tickets using",
+      "technology": "HTTPS"
+    },
+    {
+      "source": "analyst",
+      "destination": "reports",
+      "description": "Reads dashboards in",
+      "technology": "HTTPS"
+    },
+    {
+      "source": "web",
+      "destination": "gateway",
+      "description": "Calls",
+      "technology": "JSON/HTTPS"
+    },
+    {
+      "source": "mobile",
+      "destination": "gateway",
+      "description": "Calls",
+      "technology": "JSON/HTTPS"
+    },
+    {
+      "source": "seller_portal",
+      "destination": "gateway",
+      "description": "Calls",
+      "technology": "JSON/HTTPS"
+    },
+    {
+      "source": "support_desk",
+      "destination": "gateway",
+      "description": "Calls",
+      "technology": "JSON/HTTPS"
+    },
+    {
+      "source": "gateway",
+      "destination": "catalogue",
+      "description": "Routes to"
+    },
+    {
+      "source": "gateway",
+      "destination": "cart",
+      "description": "Routes to"
+    },
+    {
+      "source": "gateway",
+      "destination": "orders",
+      "description": "Routes to"
+    },
+    {
+      "source": "gateway",
+      "destination": "payouts",
+      "description": "Routes to"
+    },
+    {
+      "source": "gateway",
+      "destination": "search",
+      "description": "Routes to"
+    },
+    {
+      "source": "catalogue",
+      "destination": "main_db",
+      "description": "Reads and writes",
+      "technology": "SQL"
+    },
+    {
+      "source": "cart",
+      "destination": "main_db",
+      "description": "Reads and writes",
+      "technology": "SQL"
+    },
+    {
+      "source": "orders",
+      "destination": "main_db",
+      "description": "Reads and writes",
+      "technology": "SQL"
+    },
+    {
+      "source": "catalogue",
+      "destination": "search",
+      "description": "Indexes listings in"
+    },
+    {
+      "source": "orders",
+      "destination": "payments_svc",
+      "description": "Requests charges from",
+      "technology": "gRPC"
+    },
+    {
+      "source": "payments_svc",
+      "destination": "psp",
+      "description": "Charges cards with",
+      "technology": "HTTPS"
+    },
+    {
+      "source": "payouts",
+      "destination": "bank",
+      "description": "Sends payouts through",
+      "technology": "SFTP"
+    },
+    {
+      "source": "orders",
+      "destination": "events",
+      "description": "Publishes order events to"
+    },
+    {
+      "source": "payments_svc",
+      "destination": "events",
+      "description": "Publishes payment events to"
+    },
+    {
+      "source": "catalogue",
+      "destination": "events",
+      "description": "Publishes listing events to"
+    },
+    {
+      "source": "events",
+      "destination": "notify",
+      "description": "Delivers events to"
+    },
+    {
+      "source": "events",
+      "destination": "payouts",
+      "description": "Delivers events to"
+    },
+    {
+      "source": "events",
+      "destination": "warehouse_db",
+      "description": "Streams events to"
+    },
+    {
+      "source": "reports",
+      "destination": "warehouse_db",
+      "description": "Queries",
+      "technology": "SQL"
+    },
+    {
+      "source": "notify",
+      "destination": "mailer",
+      "description": "Sends email through",
+      "technology": "SMTP"
+    },
+    {
+      "source": "notify",
+      "destination": "push",
+      "description": "Sends pushes through",
+      "technology": "HTTPS"
+    },
+    {
+      "source": "orders",
+      "destination": "courier",
+      "description": "Books collections with",
+      "technology": "HTTPS"
+    },
+    {
+      "source": "courier",
+      "destination": "orders",
+      "description": "Posts tracking updates to",
+      "technology": "Webhook"
+    },
+    {
+      "source": "support_desk",
+      "destination": "orders",
+      "description": "Looks up orders in"
+    },
+    {
+      "source": "mailer",
+      "destination": "buyer",
+      "description": "Emails"
+    },
+    {
+      "source": "push",
+      "destination": "buyer",
+      "description": "Notifies"
+    },
+    {
+      "source": "bank",
+      "destination": "seller",
+      "description": "Pays"
+    }
+  ],
+  "views": [
+    {
+      "key": "containers",
+      "type": "container",
+      "scope": "market",
+      "title": "Containers: Market platform (busy)"
+    }
+  ]
+}

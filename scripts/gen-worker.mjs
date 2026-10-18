@@ -1,4 +1,4 @@
-// Writes src/areas/util/kit/bounded-worker.generated.ts: kit/bounded-task.ts and
+// Writes src/areas/util/kit/bounded-worker.generated.ts: kit/bounded-task.ts, the C4 layout and
 // the JSON Schema validator it uses, bundled into one CommonJS string that
 // kit/bounded.ts evaluates in a worker thread. A worker gets this small script
 // rather than the whole CLI, so it starts in milliseconds and carries nothing

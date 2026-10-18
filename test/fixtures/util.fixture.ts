@@ -195,7 +195,10 @@ export const MD_CORPUS: Record<string, string> = Object.fromEntries(
   ['bug-report.md', 'runbook.md', 'story.md', 'PROJ-142.wiki', 'PROJ-142.adf.json', 'release-notes.storage.xml'].map((name) => [name, readFileSync(new URL(`./util-md/${name}`, import.meta.url), 'utf8')]),
 );
 
-/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, the encode, cert, log and size samples, the md corpus, and three OpenAPI documents. */
+/** The sample C4 model: an online bookshop with a system context, a container and a component view. Written by hand; every host is a placeholder. */
+export const BOOKSHOP_C4 = readFileSync(new URL('./c4/bookshop.c4.json', import.meta.url), 'utf8');
+
+/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, the encode, cert, log and size samples, the md corpus, three OpenAPI documents and the C4 model. */
 export const files: Record<string, string | Uint8Array> = {
   '.gitignore': 'vendor/\n',
   'package.json': PACKAGE_JSON,
@@ -216,6 +219,8 @@ export const files: Record<string, string | Uint8Array> = {
   'certs/leaf.der': chain.leaf.der,
   ...reportFiles,
   ...openapiSamples,
+  // The sample C4 model the util c4 examples draw, the same file as docs/c4/bookshop.c4.json.
+  'bookshop.c4.json': BOOKSHOP_C4,
 };
 
 /** Every file the examples read: the tree above, plus `secrets scan`'s samples. */

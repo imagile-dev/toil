@@ -299,5 +299,42 @@
       "--response <status>",
       "--content-type <type>"
     ]
+  },
+  {
+    "name": "c4 render",
+    "tool": "util_c4_render",
+    "description": "Draw one view of a C4 model as SVG (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--view <key>",
+      "--out <file>"
+    ]
+  },
+  {
+    "name": "c4 mermaid",
+    "tool": "util_c4_mermaid",
+    "description": "Write one view of a C4 model as Mermaid C4 text (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--view <key>"
+    ]
+  },
+  {
+    "name": "c4 d2",
+    "tool": "util_c4_d2",
+    "description": "Write one view of a C4 model as D2 text (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--view <key>"
+    ]
   }
 ]
