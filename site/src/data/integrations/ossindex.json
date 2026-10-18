@@ -1,0 +1,20 @@
+{
+  "area": "ossindex",
+  "name": "Sonatype OSS Index",
+  "group": "security",
+  "order": 7,
+  "covers": "Known vulnerabilities for a dependency inventory, from Sonatype's public index",
+  "credential": "Account username and API token",
+  "credentialNote": "The account is free. The username and token go only to ossindex.sonatype.org, the one host this area calls",
+  "status": "unit",
+  "host": "https://ossindex.sonatype.org",
+  "keys": [
+    "USERNAME",
+    "TOKEN"
+  ],
+  "supported": {
+    "product": "OSS Index REST API",
+    "minimum": "v3",
+    "note": "A public hosted API at https://ossindex.sonatype.org, asked with a free account's username and API token."
+  }
+}

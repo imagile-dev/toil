@@ -75,13 +75,15 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run test:integration
 
-  # The one check the ruleset on main requires. The gate's job names include the
-  # Node version, so requiring them by name would silently stop requiring them the
-  # day a version changes. always() matters: a skipped required check counts as a
-  # pass, so this job must run, and fail, when the gate fails.
+  # The one check the ruleset on main requires, over the gate and the database
+  # integration job, so a database regression blocks a merge. The gate's job
+  # names include the Node version, so requiring them by name would silently stop
+  # requiring them the day a version changes. always() matters: a skipped
+  # required check counts as a pass, so this job must run, and fail, when either
+  # of them fails.
   ci-ok:
     name: CI ok
-    needs: gate
+    needs: [gate, integration]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -92,3 +94,10 @@ jobs:
             exit 1
           fi
           echo "All six gate jobs passed."
+      - name: The database integration job passed
+        run: |
+          if [ "${{ needs.integration.result }}" != "success" ]; then
+            echo "::error::The integration job finished as '${{ needs.integration.result }}', not 'success'."
+            exit 1
+          fi
+          echo "The database integration job passed."

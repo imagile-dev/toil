@@ -87,7 +87,7 @@ describe('entities list', () => {
   it("drops Dynatrace's nested error.message: the error is the bare status line (suspected bug, #83 item 1)", async () => {
     const body = { error: { code: 400, message: 'Constraints violated.', constraintViolations: [{ path: 'entitySelector', message: 'unbalanced parenthesis' }] } };
     const { envelope } = await run(entitiesListCommand, { selector: 'type(SERVICE' }, [status(400, body)]);
-    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'HTTP 400' });
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'HTTP 400 Bad Request' });
   });
 
   it('a 401 is AUTH, saying where to make an access token and which variable sets it', async () => {
