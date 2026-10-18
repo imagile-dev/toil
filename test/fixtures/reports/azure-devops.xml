@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites>
+  <testsuite name="Imagile.Billing.Tests.dll" tests="4" skipped="1" failures="1" errors="0" time="0.8231" timestamp="2026-10-14T11:02:51" hostname="agent-07.imagile.dev" id="0" package="Imagile.Billing.Tests.dll">
+    <properties />
+    <testcase classname="Imagile.Billing.Tests.InvoiceTests" name="Total_IncludesTax" time="0.0213" />
+    <testcase classname="Imagile.Billing.Tests.InvoiceTests" name="Total_RoundsToCents(amount: 10.005)" time="0.0067">
+      <failure type="failure" message="Assert.Equal() Failure: Values differ&#xD;&#xA;Expected: 10.01&#xD;&#xA;Actual:   10">   at Imagile.Billing.Tests.InvoiceTests.Total_RoundsToCents(Decimal amount) in /home/vsts/work/1/s/tests/Imagile.Billing.Tests/InvoiceTests.cs:line 48
+   at System.RuntimeMethodHandle.InvokeMethod(Object target, Void** arguments, Signature sig, Boolean isConstructor)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)</failure>
+    </testcase>
+    <testcase classname="Imagile.Billing.Tests.InvoiceTests" name="Credit_IsNegative" time="0.0004">
+      <skipped message="Credit notes are not supported yet" />
+    </testcase>
+    <testcase classname="Imagile.Billing.Tests.InvoiceTests" name="Invoice_HasNumber" time="0.0011" />
+    <system-out>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2 (64-bit .NET 8.0.10)
+[xUnit.net 00:00:00.41]   Discovering: Imagile.Billing.Tests
+[xUnit.net 00:00:00.62]   Finished:    Imagile.Billing.Tests
+</system-out>
+    <system-err></system-err>
+  </testsuite>
+</testsuites>

@@ -14,11 +14,11 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
 const shortPaths = new Set(['jwt', 'deps']);
 ---
 
-<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, and decode certificates and check a chain, with no connection and no network.">
+<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, and summarise test, SARIF and coverage reports, with no connection and no network.">
   <PageHero
     eyebrow="<b>Docs</b> · Utilities"
     title="Local utilities, <em>no network.</em>"
-    lead="Commands that work on what's on your machine: a token you paste, a file in your workspace, or its manifests and lockfiles. No connection, no credential, nothing sent anywhere."
+    lead="Commands that work on what's on your machine: a token you paste, a file in your workspace, its manifests and lockfiles, or the reports a build leaves behind. No connection, no credential, nothing sent anywhere."
   >
     <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <span>Utilities</span></p>
   </PageHero>
@@ -115,6 +115,26 @@ const shortPaths = new Set(['jwt', 'deps']);
             <code>--to &lt;ref&gt;</code>, and lists what was added, removed, upgraded or downgraded. It runs the git on your PATH to read each
             ref, with toil's usual safeguards, and fails with <code>GIT_NOT_FOUND</code> when there's none. A ref git can't read gives an empty
             inventory for that side, so check a ref you've typed by hand.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Summarising a report</h2>
+          <p>
+            <code>report</code> turns what CI and scanners write into one JSON summary: JUnit XML (Maven Surefire, Jenkins and Azure DevOps
+            shapes) and TRX become test totals plus each failure with its suite, name, file, line, message and the first lines of its stack;
+            SARIF 2.1.0 becomes findings with rule, level, file, line and message; lcov and Cobertura become per-file line and branch
+            percentages and the lowest-covered files. It detects the format from the content, or takes <code>--format</code>.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util report target/surefire-reports/TEST-OrderTest.xml</span><span class="line"><span class="p">$</span> toil util report coverage/lcov.info --lowest 5</span></pre>
+          </div>
+          <p>
+            It checks the report against itself. Each suite's declared <code>tests</code>, <code>failures</code>, <code>errors</code> and
+            <code>skipped</code> are recounted from its cases, TRX's counters from its results, and every stated coverage rate from the hit
+            counts. A disagreement is a <code>REPORT_TOTALS_MISMATCH</code> or <code>REPORT_COVERAGE_MISMATCH</code> warning naming both
+            numbers. Anything it couldn't check is <code>UNVERIFIED</code>, and any element it didn't read is counted in
+            <code>skipped</code>. XML and lcov stream, so a large report is read in constant memory up to the 64 MiB cap.
           </p>
         </section>
 
