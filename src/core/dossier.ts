@@ -270,6 +270,26 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
   };
 }
 
+/**
+ * Whether a connection is on a dossier host selector (`host` or `host:port`): its
+ * base URL's host, with the scheme's default port filled in, or its `host` setting.
+ * Exported so the menu asks about writes on exactly the connections a call would pick.
+ */
+export function hostMatches(settings: Record<string, unknown>, selector: string): boolean {
+  const [host, port] = selector.toLowerCase().split(':');
+  if (typeof settings.baseUrl === 'string') {
+    try {
+      const url = new URL(settings.baseUrl);
+      const actual = url.port || (url.protocol === 'https:' ? '443' : url.protocol === 'http:' ? '80' : '');
+      return url.hostname.toLowerCase() === host && (port === undefined || actual === port);
+    } catch {
+      return false;
+    }
+  }
+  if (typeof settings.host === 'string') return settings.host.toLowerCase() === host && (port === undefined || String(settings.port ?? '') === port);
+  return false;
+}
+
 /** The dossier as it's written to a file and shown: remotes without userinfo, every section and reference key kept. */
 export function dossierContent(dossier: Dossier): Record<string, unknown> {
   return {
@@ -751,21 +771,6 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
     const applied = candidates.length === 1 ? candidates[0] : undefined;
     if (applied) warnings.push(...sameName(scanned.files, applied.file.dossier.name));
     return { folder: f, ...(repo ? { repo } : {}), ...(applied ? { applied } : {}), candidates, warnings };
-  };
-
-  const hostMatches = (settings: Record<string, unknown>, selector: string): boolean => {
-    const [host, port] = selector.toLowerCase().split(':');
-    if (typeof settings.baseUrl === 'string') {
-      try {
-        const url = new URL(settings.baseUrl);
-        const actual = url.port || (url.protocol === 'https:' ? '443' : url.protocol === 'http:' ? '80' : '');
-        return url.hostname.toLowerCase() === host && (port === undefined || actual === port);
-      } catch {
-        return false;
-      }
-    }
-    if (typeof settings.host === 'string') return settings.host.toLowerCase() === host && (port === undefined || String(settings.port ?? '') === port);
-    return false;
   };
 
   /** The reader's connection that a host selector picks. Never a fallback to the default: that could point the dossier somewhere its author didn't mean. */

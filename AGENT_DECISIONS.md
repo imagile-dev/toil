@@ -717,6 +717,16 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   counts as a change when that repo's stored remote has a credential, so re-adding it
   cleans it instead of reporting `changed: false`; it needs no `--replace`, since the
   entry is otherwise identical. A credential is never written back.
+- **The menu matches host selectors with core's own `hostMatches`** (now exported
+  from `src/core/dossier.ts`), so `jira.imagile.dev:443` finds a connection with
+  writes on exactly as the resolver does and the typed confirmation can't be
+  skipped by spelling the default port (round 1, review).
+- **The import confirmation is decided by the `DOSSIER_WRITES_BINDING` code alone**;
+  the connection names on screen come from its message and fall back to "a
+  connection", so rewording the message can't drop the question (round 1, review).
+- **Adding a connection from Review runs `dossiers check` and `show` before
+  returning**, through a `thenRun` parameter on the connections wizard's name step,
+  so Review never shows the finding it just fixed (round 1, review).
 - **Dossiers sits after Plugins on home**, so the existing rows keep their numbers.
 - **AreaSummary gains `context` and `checksDossier`**, derived in `cli.ts` from the
   registry, so the screens name an area's context inputs and offer `check-dossier`

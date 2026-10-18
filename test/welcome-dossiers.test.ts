@@ -4,10 +4,10 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { ResolvedConfig, Settings, Source } from '../src/core/config.js';
 import { forwardSlashes } from '../src/core/files.js';
 import { commands, areas } from '../src/registry.js';
-import { finish, initialState, reduce, render, top, type MenuState } from '../src/welcome/menu.js';
+import { apply, finish, initialState, reduce, render, top, type MenuState } from '../src/welcome/menu.js';
 import type { WelcomeData } from '../src/welcome/screens.js';
 import type { Run, StepResult } from '../src/welcome/view.js';
-import { aliasFor, discovered, DISCOVERY, findingSection, groupFindings, handOffPrompt, nameFromFolder, onHost, whyApplies, writesTargets } from '../src/welcome/views/dossiers.js';
+import { aliasFor, discovered, writesBindings, DISCOVERY, findingSection, groupFindings, handOffPrompt, nameFromFolder, onHost, whyApplies, writesTargets } from '../src/welcome/views/dossiers.js';
 import { JIRA, routes as jiraRoutes } from './fixtures/jira.fixture.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
@@ -211,8 +211,9 @@ describe('the Dossiers module', () => {
     expect(text).toMatch(/Connections[\s\S]*DOSSIER_UNKNOWN_CONNECTION[\s\S]*Unknown sections[\s\S]*DOSSIER_UNKNOWN_SECTION/);
     expect(text).toContain('Remove the wiki section');
     expect(text).toMatch(/Relink sonar[\s\S]*Add a sonar connection[\s\S]*Check sonar on the service/);
-    // Add a connection suggests the name the dossier expects, and comes back here.
+    // Add a connection suggests the name the dossier expects, then checks again and comes back here.
     const add = press(s, w, 'down', 'return');
+    expect(JSON.parse(top(add).params.thenRun!)).toEqual([['dossiers', 'check', 'team'], ['dossiers', 'show', 'team']]);
     expect(top(add)).toMatchObject({ view: 'add-name', params: { area: 'sonar', suggest: 'old-sonar' } });
     expect(screen(add, w)).toContain('Connection name: old-sonar');
     expect(press(add, w, 'return').pending?.steps.map((x) => x.args)).toEqual([['connections', 'add', 'old-sonar', '--area', 'sonar'], ['connections', 'test', 'old-sonar']]);
@@ -223,6 +224,11 @@ describe('the Dossiers module', () => {
     expect(where(s)).toBe('dossier-review');
     expect(screen(s, w)).not.toContain('DOSSIER_UNKNOWN_CONNECTION');
     expect(file(d, 'team').sonar).toEqual({ connection: 'sonar' });
+    // By host, with the default port typed out, still finds jira's writes and asks for its name.
+    const byHost = apply(s, { go: 'dossier-host', params: { ref: 'team', area: 'jira', flow: 'edit', then: JSON.stringify({ go: 'dossier', root: 'dossier' }) } });
+    const host = press(type(byHost, w, 'jira.imagile.dev:443'), w, 'return');
+    expect(top(host)).toMatchObject({ view: 'dossier-confirm', params: { connection: 'jira' } });
+    expect(host.pending).toBeUndefined();
   });
 
   it('fixes a stale section and a stored credential from Review, with real commands', async () => {
@@ -301,7 +307,7 @@ describe('the Dossiers module', () => {
     expect(steps(i)).toEqual([['dossiers', 'check', '.toil/dossiers/shared.json']]);
     i = press(await perform(i, d, c), w, 'return');
     expect(where(i)).toBe('dossier-import-check');
-    expect(screen(i, w)).toContain('Its bindings select jira, which has writes on');
+    expect(screen(i, w)).toContain('Its bindings select jira, with writes on');
     i = press(i, w, 'return');
     expect(where(i)).toBe('dossier-import-confirm');
     i = press(type(i, w, 'shared'), w, 'return');
@@ -362,11 +368,21 @@ describe('the dossier screens, as functions', () => {
     expect(onHost({ baseUrl: 'https://jira.imagile.dev' }, 'JIRA.imagile.dev')).toBe(true);
     expect(onHost({ baseUrl: 'https://api.ocp.imagile.dev:6443' }, 'api.ocp.imagile.dev')).toBe(true);
     expect(onHost({ baseUrl: 'https://api.ocp.imagile.dev:6443' }, 'api.ocp.imagile.dev:443')).toBe(false);
+    // The scheme's default port counts, as core's resolver counts it.
+    expect(onHost({ baseUrl: 'https://jira.imagile.dev' }, 'jira.imagile.dev:443')).toBe(true);
+    expect(writesTargets(data(configOf()), 'jira', { host: 'jira.imagile.dev:443' })).toEqual(['jira']);
     expect(onHost({ host: 'db.imagile.dev', port: 5432 }, 'db.imagile.dev:5432')).toBe(true);
     const w = data(configOf());
     expect(writesTargets(w, 'jira', { host: 'jira.imagile.dev' })).toEqual(['jira']);
     expect(writesTargets(w, 'jira', { connection: 'jira' })).toEqual(['jira']);
     expect(writesTargets(w, 'sonar', { connection: 'sonar' })).toEqual([]);
+  });
+
+  it('asks before import on the warning code alone, whatever its message says', () => {
+    const c = (message: string) => ({ name: 'x', file: 'x.json', ok: true, problems: [{ level: 'warning' as const, code: 'DOSSIER_WRITES_BINDING', path: 'jira', message }] });
+    expect(writesBindings(c('This selects connection jira, which has writes on. Reads follow it.'))).toEqual({ any: true, names: 'jira' });
+    expect(writesBindings(c('Reworded entirely.'))).toEqual({ any: true, names: 'a connection' });
+    expect(writesBindings({ name: 'x', file: 'x.json', ok: true, problems: [] }).any).toBe(false);
   });
 
   it('names fields, folders and reasons plainly', () => {

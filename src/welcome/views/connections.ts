@@ -160,6 +160,9 @@ export const addName: View = {
           ],
           next: (results): Action | undefined => {
             if (!results[0]?.envelope.ok) return undefined;
+            // Another module may ask for its own commands first (a dossier's check), then where to go.
+            const thenRun = p.frame.params.thenRun ? (JSON.parse(p.frame.params.thenRun) as string[][]) : undefined;
+            if (then && thenRun) return { run: { title: 'Check again', steps: thenRun.map((args) => ({ args })), next: () => then } };
             if (then) return then;
             // The first connection to an area becomes its default on its own; a second one asks.
             return others.length ? { go: 'make-default', params: { name: text, area }, root: 'connections' } : { go: 'connection', params: { name: text }, root: 'connections' };

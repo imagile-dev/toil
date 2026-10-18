@@ -1,4 +1,5 @@
 import { CONNECTION_NAME, connectionsOf, connectionWrites, defaultConnectionName, type ResolvedConfig } from '../../core/config.js';
+import { hostMatches } from '../../core/dossier.js';
 import { hostOf, ok, type WelcomeData } from '../screens.js';
 import { PALETTE, paint } from '../term.js';
 import { commandLine, type Action, type Caps, type Item, type Run, type Step, type StepResult, type View, type ViewProps } from '../view.js';
@@ -193,20 +194,9 @@ function change(params: Record<string, string>, title: string, steps: Step[], th
   return { run: editRun(title, ref, steps, then, params.flow === 'fix') };
 }
 
-/** Whether a connection's base URL (or host setting) is on `host`, as a dossier's host selector compares it: port only when the selector has one. */
+/** Whether a connection is on a dossier host selector, by core's own matcher, so the menu asks about writes on exactly the connections a call would pick. */
 export function onHost(settings: Record<string, unknown> | undefined, host: string): boolean {
-  if (!settings) return false;
-  let have: string | undefined;
-  if (typeof settings.baseUrl === 'string') {
-    try {
-      have = new URL(settings.baseUrl).host.toLowerCase();
-    } catch {
-      have = undefined;
-    }
-  } else if (typeof settings.host === 'string') have = settings.host.toLowerCase() + (settings.port !== undefined ? `:${String(settings.port)}` : '');
-  if (!have) return false;
-  const want = host.trim().toLowerCase();
-  return want.includes(':') ? have === want : have.split(':')[0] === want;
+  return settings !== undefined && hostMatches(settings, host.trim());
 }
 
 /** The connections with writes on that a binding would select: the one named, or every one of the area's on the host. */
@@ -531,7 +521,8 @@ export const reviewView: View = {
           items.push({
             label: `Add a ${at.area} connection`,
             hint: typeof section.connection === 'string' ? `Named ${section.connection}, as the dossier expects` : `For ${String(section.host ?? 'its host')}`,
-            action: { go: 'add-name', params: { area: at.area, ...(typeof section.connection === 'string' ? { suggest: section.connection } : {}), then: json(backToReview()) } },
+            // Then check again, so Review shows the dossier with the new connection rather than the finding it just fixed.
+            action: { go: 'add-name', params: { area: at.area, ...(typeof section.connection === 'string' ? { suggest: section.connection } : {}), thenRun: json([checkStep(ref).args, showStep(ref).args]), then: json(backToReview()) } },
           });
         }
       } else if (x.code === 'DOSSIER_UNKNOWN_SECTION') {
@@ -1134,9 +1125,15 @@ const importRun = (source: string): Run => ({
   next: (r) => (r[0]?.envelope.ok ? { go: 'dossier-import-done', params: { result: json(r[0].envelope.data) } } : undefined),
 });
 
-/** The connections with writes on that a checked dossier's bindings land on, from its DOSSIER_WRITES_BINDING warnings. */
-export function writesBindings(c: Checked | undefined): string[] {
-  return [...new Set((c?.problems ?? []).filter((x) => x.code === 'DOSSIER_WRITES_BINDING').map((x) => /connection (\S+), which has writes on/.exec(x.message)?.[1]).filter((x): x is string => Boolean(x)))];
+/**
+ * Whether a checked dossier has a binding that lands on a connection with writes
+ * on, and, for the screen, which ones. The question is decided by the code alone;
+ * the names come from the message and fall back to "a connection" if it's reworded.
+ */
+export function writesBindings(c: Checked | undefined): { any: boolean; names: string } {
+  const found = (c?.problems ?? []).filter((x) => x.code === 'DOSSIER_WRITES_BINDING');
+  const names = [...new Set(found.map((x) => /connection (\S+), which has writes on/.exec(x.message)?.[1]).filter((x): x is string => Boolean(x)))];
+  return { any: found.length > 0, names: names.length ? names.join(', ') : 'a connection' };
 }
 
 export const importCheckView: View = {
@@ -1147,7 +1144,7 @@ export const importCheckView: View = {
     const lines = [c.file === null ? ok(caps, false, "It doesn't load as a dossier, so it can't be imported as it is.") : c.ok ? ok(caps, true, `${c.name} reads cleanly.`) : ok(caps, false, `${c.name} has errors. A connection or host you don't have can be added after importing; anything else needs fixing in the file first.`)];
     for (const x of c.problems) lines.push(`  ${x.level === 'error' ? ok(caps, false, x.code) : muted(caps, x.code)}  ${faint(caps, x.path || '(file)')}`, muted(caps, `    ${x.message}`));
     const writes = writesBindings(c);
-    if (writes.length) lines.push('', ok(caps, false, `Its bindings select ${writes.join(', ')}, which ${writes.length === 1 ? 'has' : 'have'} writes on. Importing makes those bindings yours, so you'll be asked to confirm.`));
+    if (writes.any) lines.push('', ok(caps, false, `Its bindings select ${writes.names}, with writes on. Importing makes those bindings yours, so you'll be asked to confirm.`));
     return lines;
   },
   items: (p) => {
@@ -1156,8 +1153,8 @@ export const importCheckView: View = {
     if (!c || c.file === null) return [{ label: 'Back', hint: '', action: { back: true } }];
     const writes = writesBindings(c);
     return [
-      writes.length
-        ? { label: 'Import it', hint: 'Asks you to type the dossier name', action: { go: 'dossier-import-confirm', params: { source, name: c.name ?? '', writes: writes.join(', ') } } }
+      writes.any
+        ? { label: 'Import it', hint: 'Asks you to type the dossier name', action: { go: 'dossier-import-confirm', params: { source, name: c.name ?? '', writes: writes.names } } }
         : { label: 'Import it', hint: `toil dossiers import ${source}`, action: { run: importRun(source) } },
       { label: 'Back', hint: 'Import nothing', action: { back: true } },
     ];
