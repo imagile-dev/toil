@@ -2,7 +2,8 @@
  * One sprint of placeholder work across Jira Data Center, Azure DevOps Server
  * and GitHub Enterprise, as the toil commands that read it print it: the
  * input `toil util owi map` turns into test/fixtures/owi/sprint-42.owi.json,
- * which the Toil UI preview reads as its fixture Store.
+ * and which the Toil UI preview's fixture `execute()` serves, split by dossier
+ * (ui/src/fixtures/work.ts).
  *
  * Sprint 42 runs 2026-10-05 to 2026-10-16. Twenty items: eight Jira issues
  * (PAY), seven Azure DevOps work items (Payments) and five GitHub issues

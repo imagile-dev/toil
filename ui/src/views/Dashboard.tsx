@@ -1,0 +1,325 @@
+/**
+ * One dossier's dashboard (#228): its sprint, its stories with their pull
+ * requests, builds and deployments side by side, and the agent pane. Every
+ * panel was filled by toil commands (src/load.ts) and says which ones. It
+ * folds in what #227 drew as separate views: sprint health is the first panel,
+ * traceability the second, and the board's status words and estimates are in
+ * the trace table. The one page the weekly status meeting was trying to be.
+ */
+
+import { useState } from 'react';
+import { Ask } from '../components/ask.tsx';
+import { Cited, ItemLink } from '../components/items.tsx';
+import { Panel, Sources } from '../components/panel.tsx';
+import { useData } from '../data.ts';
+import { SOURCE_LABEL, STATUS_CATEGORY_LABEL, day, dateTime, estimateText } from '../format.ts';
+import { describe, health, type Health } from '../model/sprint.ts';
+import { FLAG_TEXT, trace } from '../model/trace.ts';
+import { useSkins } from '../skins.tsx';
+import type { ChangeRef, Deployment, SourceKind } from '../toil.ts';
+
+const pts = (n: number) => `${n} ${n === 1 ? 'point' : 'points'}`;
+const area = (name: string) => SOURCE_LABEL[name as SourceKind] ?? name;
+/** `corp-bitbucket:PAY/payments-core#311` reads as `#311`; the panel already says where. */
+const short = (id: string) => id.slice(id.lastIndexOf('#'));
+
+function Outcome({ of }: { of: Pick<ChangeRef, 'state' | 'outcome'> }) {
+  return <span className={`outcome outcome--${of.outcome}`}>{of.state}</span>;
+}
+
+function ChangeLink({ change }: { change: ChangeRef }) {
+  const text = change.kind === 'pull-request' ? `${short(change.id)} ${change.title}` : change.title;
+  return change.url ? <a href={change.url}>{text}</a> : <span>{text}</span>;
+}
+
+function Items({ ids }: { ids: string[] }) {
+  if (!ids.length) return <span className="note">No work item named</span>;
+  return (
+    <span className="cites">
+      {ids.map((id, i) => (
+        <span key={id}>
+          {i > 0 && ', '}
+          <ItemLink id={id} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
+export function Dashboard() {
+  const { dossier, now } = useData();
+  const { EmptyState } = useSkins();
+  const [gapsOnly, setGapsOnly] = useState(false);
+  const h = health(dossier.items, dossier.changes, now);
+  const rows = trace(h?.items ?? dossier.items, dossier.changes, dossier.deployments);
+  const shown = gapsOnly ? rows.filter((r) => r.flags.length) : rows;
+  const prs = dossier.changes.filter((c) => c.kind === 'pull-request');
+  const builds = dossier.changes.filter((c) => c.kind === 'build');
+  const all = [...dossier.calls.work, ...dossier.calls.prs, ...dossier.calls.builds, ...dossier.calls.deployments];
+
+  return (
+    <>
+      <div className="view-head">
+        <p className="eyebrow">Dossier</p>
+        <h1 tabIndex={-1}>{dossier.name}</h1>
+        {dossier.description && <p className="lede">{dossier.description}</p>}
+        <ul className="sources" aria-label="Sources">
+          {dossier.sources.map((s) => (
+            <li key={s.area}>
+              {area(s.area)} {s.connection && <code>{s.connection}</code>}
+            </li>
+          ))}
+        </ul>
+        <Sources calls={dossier.calls.dossier} />
+      </div>
+
+      <div className="dashboard">
+        <div className="dash-main">
+          <Panel id="sprint" title={h ? `${h.sprint.name}: day ${h.days.gone} of ${h.days.total}` : 'Sprint'} calls={dossier.calls.work}>
+            {h ? <Sprint h={h} /> : <EmptyState message="No sprint is running in this dossier's work items." />}
+          </Panel>
+
+          <Panel id="trace" title="Stories, pull requests, builds and deployments" calls={all} alerts={false}>
+            <p className="note">Each work item with the pull requests that name it, their latest builds, and the environments running them.</p>
+            <label className="check">
+              <input type="checkbox" checked={gapsOnly} onChange={(e) => setGapsOnly(e.target.checked)} />
+              Only items with something to check
+            </label>
+            <div className="table-wrap" tabIndex={0} role="region" aria-label="Work items and their delivery">
+              <table className="trace">
+                <thead>
+                  <tr>
+                    <th scope="col">Work item</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Pull requests</th>
+                    <th scope="col">Builds</th>
+                    <th scope="col">Deployed to</th>
+                    <th scope="col">Check</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.map((r) => (
+                    <tr key={r.item.id}>
+                      <th scope="row">
+                        <ItemLink id={r.item.id} withTitle />
+                        <span className="field"> {estimateText(r.item)}</span>
+                      </th>
+                      <td>
+                        {r.item.status}
+                        {r.item.status?.toLowerCase() !== STATUS_CATEGORY_LABEL[r.item.statusCategory].toLowerCase() && (
+                          <span className="field"> ({STATUS_CATEGORY_LABEL[r.item.statusCategory]})</span>
+                        )}
+                      </td>
+                      <td>
+                        {r.changes.length ? (
+                          <ul className="plain">
+                            {r.changes.map((c) => (
+                              <li key={c.id}>
+                                <ChangeLink change={c} /> <Outcome of={c} />
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          'None linked'
+                        )}
+                      </td>
+                      <td>
+                        {r.changes.length ? (
+                          <ul className="plain">
+                            {r.changes.map((pr) => {
+                              const build = builds.filter((b) => b.builds === pr.id).sort((a, b) => (a.at < b.at ? 1 : -1))[0];
+                              return (
+                                <li key={pr.id}>
+                                  {build ? (
+                                    <>
+                                      <ChangeLink change={build} /> <Outcome of={build} />
+                                    </>
+                                  ) : (
+                                    <span className="note">No build for {short(pr.id)}</span>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : (
+                          'None'
+                        )}
+                      </td>
+                      <td>{r.deployedTo.length ? r.deployedTo.map((d) => d.environment).join(', ') : 'Not deployed'}</td>
+                      <td>{r.flags.length ? <ul className="plain flags">{r.flags.map((f) => <li key={f}>{FLAG_TEXT[f]}</li>)}</ul> : 'No gaps'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+
+          <div className="panel-grid">
+            <Panel id="prs" title="Pull requests" calls={dossier.calls.prs}>
+              {prs.length ? (
+                <ul className="rows">
+                  {prs.map((c) => (
+                    <li key={c.id}>
+                      <ChangeLink change={c} /> <Outcome of={c} />
+                      <p className="evidence">
+                        <Items ids={c.items} />. {c.outcome === 'merged' ? 'Merged' : 'Opened'} {dateTime(c.at)}.
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyState message="No pull requests for this dossier." />
+              )}
+            </Panel>
+
+            <Panel id="builds" title="Builds" calls={dossier.calls.builds}>
+              {builds.length ? (
+                <ul className="rows">
+                  {builds.map((c) => (
+                    <li key={c.id}>
+                      <ChangeLink change={c} /> <Outcome of={c} />
+                      <p className="evidence">
+                        For pull request {c.builds ? short(c.builds) : 'none'}, {dateTime(c.at)}.
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <EmptyState message="No builds for this dossier's pull requests." />
+              )}
+            </Panel>
+
+            <Panel id="deployments" title="Deployments" calls={dossier.calls.deployments}>
+              {dossier.deployments.length ? (
+                <ul className="rows">
+                  {dossier.deployments.map((d) => (
+                    <DeploymentRow key={d.id} d={d} />
+                  ))}
+                </ul>
+              ) : (
+                <EmptyState message="This dossier names no environment to read deployments from." />
+              )}
+            </Panel>
+          </div>
+        </div>
+        <Ask />
+      </div>
+    </>
+  );
+}
+
+function DeploymentRow({ d }: { d: Deployment }) {
+  const name = d.url ? <a href={d.url}>{d.name}</a> : <span>{d.name}</span>;
+  return (
+    <li>
+      <h3 className="env">{d.environment}</h3>
+      <p>
+        {name} <span className={`outcome outcome--${d.outcome}`}>{d.state}</span>
+      </p>
+      <p className="evidence">
+        {d.version ? `${d.version}, ` : ''}commit <code>{d.commit}</code>.{' '}
+        {d.unknownCommit ? (
+          <span className="failure">No listed pull request merged as this commit.</span>
+        ) : (
+          <>
+            Includes {d.includes.length} merged pull {d.includes.length === 1 ? 'request' : 'requests'}
+            {d.items.length ? (
+              <>
+                , for <Items ids={d.items} />
+              </>
+            ) : (
+              ', none for this sprint'
+            )}
+            .
+          </>
+        )}
+      </p>
+    </li>
+  );
+}
+
+function Sprint({ h }: { h: Health }) {
+  const total = h.done.points + h.remaining.points;
+  const listed = (kind: 'added' | 'carried') => h.items.filter((i) => h.entries.get(i.id)?.kind === kind);
+  return (
+    <>
+      <p className="note">
+        {day(h.sprint.start!)} to {day(h.sprint.end!)}, working days only.
+      </p>
+      <ul className="stats" aria-label="Sprint figures">
+        <Stat label="Done" value={`${h.done.points} of ${total}`} note={`points, ${h.done.count} items`} />
+        <Stat label="Planned" value={String(h.planned.points)} note={`points, ${h.planned.count} items`} />
+        <Stat label="Added mid-sprint" value={String(h.added.points)} note={`points, ${h.added.count} items`} />
+        <Stat label="Carried over" value={String(h.carried.points)} note={`points, ${h.carried.count} items`} />
+      </ul>
+      <div className="meter" role="img" aria-label={`${h.done.points} of ${total} points done`}>
+        <span style={{ width: `${total ? (100 * h.done.points) / total : 0}%` }} />
+      </div>
+      {h.otherUnits.length > 0 && (
+        <p className="note">
+          Points totals leave out items estimated in other units:{' '}
+          {h.otherUnits.map((id, i) => (
+            <span key={id}>
+              {i > 0 && ', '}
+              <ItemLink id={id} />
+            </span>
+          ))}
+          .
+        </p>
+      )}
+      <h3>At risk</h3>
+      {h.risks.length ? (
+        <ul className="rows">
+          {h.risks.map((r) => (
+            <li key={r.id}>
+              <ItemLink id={r.id} withTitle />
+              <ul className="reasons">
+                {r.reasons.map((reason, i) => (
+                  <li key={i}>
+                    <Cited text={describe(reason)} />
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>Nothing.</p>
+      )}
+      {(['added', 'carried'] as const).map((kind) => (
+        <div key={kind}>
+          <h3>{kind === 'added' ? 'Added after the sprint started' : 'Carried over'}</h3>
+          {listed(kind).length ? (
+            <ul className="rows">
+              {listed(kind).map((item) => {
+                const e = h.entries.get(item.id)!;
+                return (
+                  <li key={item.id}>
+                    <ItemLink id={item.id} withTitle />
+                    <p className="evidence">
+                      {e.from ? `From ${e.from}` : 'Added'}
+                      {e.at ? ` on ${dateTime(e.at)}` : ''}, {pts(item.estimate?.unit === 'points' ? item.estimate.value : 0)}
+                      {item.estimate ? '' : ' (no estimate)'}. Source: <code>{e.evidence}</code>
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p>None.</p>
+          )}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function Stat({ label, value, note }: { label: string; value: string; note: string }) {
+  return (
+    <li className="stat">
+      <span className="stat-label">{label}</span>
+      <span className="stat-value">{value}</span>
+      <span className="stat-note">{note}</span>
+    </li>
+  );
+}
