@@ -24,6 +24,8 @@ export interface DbProvider {
   readonly defaultSchema: string;
   /** How far this provider has been verified (the `integrations` skill's levels). */
   readonly verification: 'unit' | 'integration' | 'live';
+  /** Rules on this engine's connection keys beyond `requires`, checked when the connection resolves. */
+  check?(settings: Partial<DbSettings>): Array<{ key: keyof DbSettings; message: string }>;
 
   listSchemas(conn: DbConnection, call: DbCall): Promise<SchemaInfo[]>;
   /** Tables and views in one schema. NOT_FOUND when the schema doesn't exist. */
@@ -66,6 +68,10 @@ export interface DbSettings {
   password?: string;
   /** Server engines: connect over TLS, verifying the server's certificate. */
   ssl?: boolean;
+  /** SQL Server: `sql` (a SQL Server login, the default) or `windows` (Windows authentication). */
+  auth?: 'sql' | 'windows';
+  /** SQL Server with `auth: windows`: the domain of the account in `user`. */
+  domain?: string;
 }
 
 export type DbConnection = Connection<DbSettings>;

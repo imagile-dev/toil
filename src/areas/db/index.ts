@@ -33,7 +33,14 @@ export const area = defineArea({
     user: z.string().min(1).optional().describe('PostgreSQL, SQL Server: the login (a role for PostgreSQL, a SQL Server login)'),
     password: z.string().optional().describe("PostgreSQL, SQL Server: the login's password (a secret: env var or OS credential store)"),
     ssl: z.boolean().optional().describe("PostgreSQL, SQL Server: connect over TLS, verifying the server's certificate against the OS store"),
-  }),
+    auth: z.enum(['sql', 'windows']).optional().describe('SQL Server: sql (a SQL Server login, the default) or windows (Windows authentication, Windows only)'),
+    domain: z.string().min(1).optional().describe("SQL Server with auth windows: the domain of the account in user, to sign in as someone other than the current Windows user"),
+  })
+    // Rules only one engine has, such as SQL Server's sign-in, come from that engine's provider.
+    .superRefine((conn, check) => {
+      const provider = providers.find((p) => p.engine === conn.engine);
+      for (const issue of provider?.check?.(conn) ?? []) check.addIssue({ code: 'custom', path: [issue.key], message: issue.message });
+    }),
   secrets: { password: 'password' },
   // Each engine names the keys its connections need; core checks them.
   variants: { by: 'engine', of: Object.fromEntries(providers.map((p) => [p.engine, { label: p.label, requires: [...p.requires] }])) },

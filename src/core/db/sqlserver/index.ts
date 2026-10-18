@@ -5,7 +5,9 @@ import { RequestTokenHandler } from 'tedious/lib/token/handler.js';
 import type { DoneInProcToken, DoneToken } from 'tedious/lib/token/token.js';
 import { ToilError } from '../../errors.js';
 import type { ColumnInfo, DbCall, DbConnection, DbProvider, ForeignKeyInfo, IndexInfo, ResultColumn, RowSet, TableRef } from '../provider.js';
+import { notWindows, startSspi, type SspiExchange } from '../../../os/windows-sspi.js';
 import { scanScript } from './script.js';
+import { useExchange } from './windows-login.js';
 
 /**
  * SQL Server through `tedious`, pure JavaScript over TDS: no ODBC driver, no
@@ -97,7 +99,10 @@ function quoteIdent(name: string): string {
 export function connectionConfig(conn: DbConnection): ConnectionConfiguration {
   return {
     server: conn.host!,
-    authentication: { type: 'default', options: { userName: conn.user!, password: conn.password ?? '' } },
+    // Windows authentication rides tedious's NTLM path, with the tokens from Windows (windows-login.ts).
+    authentication: windowsAuth(conn)
+      ? { type: 'ntlm', options: { domain: '' } }
+      : { type: 'default', options: { userName: conn.user!, password: conn.password ?? '' } },
     options: {
       port: conn.port ?? DEFAULT_PORT,
       database: conn.database!,
@@ -116,6 +121,27 @@ export function connectionConfig(conn: DbConnection): ConnectionConfiguration {
 }
 
 type Mode = 'read' | 'write';
+
+function windowsAuth(conn: Pick<DbConnection, 'auth'>): boolean {
+  return conn.auth === 'windows';
+}
+
+/** DOMAIN\user, or the user alone. */
+function accountName(conn: DbConnection): string {
+  return conn.domain ? `${conn.domain}\\${conn.user}` : String(conn.user);
+}
+
+/** The SPN SQL Server registers for its service account: MSSQLSvc/<host>:<port>. */
+export function serverSpn(conn: DbConnection): string {
+  return `MSSQLSvc/${conn.host}:${conn.port ?? DEFAULT_PORT}`;
+}
+
+/** Starts the SSPI helper for a Windows sign-in: as the current Windows user, or as the account in user and domain. */
+function windowsExchange(conn: DbConnection, call: DbCall): Promise<SspiExchange> {
+  const account = conn.user ? { user: conn.user, password: conn.password ?? '', ...(conn.domain ? { domain: conn.domain } : {}) } : undefined;
+  call.debug(`sqlserver: connection ${conn.name}: Windows authentication for ${serverSpn(conn)}${account ? `, as ${accountName(conn)}` : ', as the current Windows user'}`);
+  return startSspi(conn.name, { spn: serverSpn(conn), ...(account ? { account } : {}) }, call.signal);
+}
 
 interface RunHandlers {
   columns?: (columns: ColumnMetadata[]) => void;
@@ -173,7 +199,9 @@ class Session {
  */
 async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (s: Session) => Promise<T>): Promise<T> {
   if (call.signal.aborted) throw call.signal.reason;
+  const exchange = windowsAuth(conn) ? await windowsExchange(conn, call) : undefined;
   const connection = new Connection(connectionConfig(conn));
+  if (exchange) useExchange(connection, exchange);
   // An idle connection still emits 'error' if the server drops it; without a listener that would crash the process.
   connection.on('error', (err) => call.debug(`sqlserver: connection ${conn.name}: ${err.message}`));
   const s = new Session(connection);
@@ -207,6 +235,7 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (s
     call.signal.removeEventListener('abort', onAbort);
     // Closing the connection rolls back whatever is still open: every read, and any write that didn't commit.
     connection.close();
+    exchange?.close();
   }
 }
 
@@ -275,6 +304,11 @@ function toToilError(err: unknown, conn: DbConnection, mode: Mode): unknown {
   if (number === 4060) {
     return new ToilError('NOT_FOUND', `SQL Server at ${where} has no database "${conn.database}" that connection ${conn.name}'s login can open.`, {
       fix: `Check "database" on connection ${conn.name}, and that the login has a user in that database.`,
+    });
+  }
+  if ((number === 18456 || f.code === 'ELOGIN') && windowsAuth(conn)) {
+    return new ToilError('AUTH', `SQL Server refused the Windows sign-in for connection ${conn.name}: ${message}`, {
+      fix: `Check that ${conn.user ? accountName(conn) : 'this Windows user'} has a login on the server, that "host" is the name the server's SPN (${serverSpn(conn)}) is registered under, usually its fully qualified name, and that the server allows Windows authentication.`,
     });
   }
   if (number === 18456 || f.code === 'ELOGIN') {
@@ -446,9 +480,22 @@ function grouped<K, V>(rows: Array<[K, V]>): Map<K, V[]> {
 export const sqlserverProvider: DbProvider = {
   engine: 'sqlserver',
   label: 'SQL Server',
-  requires: ['host', 'database', 'user'],
+  requires: ['host', 'database'],
   defaultSchema: 'dbo',
   verification: 'integration',
+
+  // A SQL login needs a user; Windows authentication needs Windows, and a domain only names whose user.
+  check(settings) {
+    if (settings.auth === 'windows') {
+      if (process.platform !== 'win32') return [{ key: 'auth', message: notWindows('this connection').message + ' Use a SQL Server login: remove "auth" and set "user" and "password".' }];
+      if (settings.domain && !settings.user) return [{ key: 'user', message: 'SQL Server connections with a domain need user, the account in that domain to sign in as.' }];
+      return [];
+    }
+    const issues: Array<{ key: 'user' | 'domain'; message: string }> = [];
+    if (!settings.user) issues.push({ key: 'user', message: 'SQL Server connections need user, the SQL Server login (or "auth": "windows" to sign in as the current Windows user).' });
+    if (settings.domain) issues.push({ key: 'domain', message: 'domain applies only with "auth": "windows"; a SQL Server login has none.' });
+    return issues;
+  },
 
   listSchemas(conn, call) {
     return session(conn, 'read', call, async (s) => {
