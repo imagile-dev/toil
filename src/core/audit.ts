@@ -119,11 +119,13 @@ export function redactText(text: string): string {
   let out = text.replace(URL_IN_TEXT, (url) => redactUrl(url));
   for (const shape of TOKEN_SHAPES) out = out.replace(shape, '[redacted]');
   out = out.replace(AUTH_VALUE, (_, scheme: string) => `${scheme} [redacted]`);
-  out = out.replace(PAIR, (whole, quote: string, name: string, sep: string, value: string) => {
+  out = out.replace(PAIR, (whole, dashes: string, quote: string, name: string, sep: string, value: string) => {
+    // `-p=x` is mysql's password flag; a bare `p` anywhere else is just a letter.
+    const secret = secretField(name) || (dashes === '-' && name === 'p');
     // Already redacted, scheme and all (`Basic [redacted]`): leave it, so a second pass changes nothing.
-    if (!secretField(name) || value.includes('[redacted')) return whole;
+    if (!secret || value.includes('[redacted')) return whole;
     const q = value[0] === '"' || value[0] === "'" ? value[0] : '';
-    return `${quote}${name}${quote}${sep}${q}[redacted]${q}`;
+    return `${dashes}${quote}${name}${quote}${sep}${q}[redacted]${q}`;
   });
   out = out.replace(USER_FLAG, (_, flag: string, user: string) => `${flag}${user}:[redacted]`);
   return out.replace(LONG_RUN, (run) => {
@@ -158,23 +160,21 @@ function secretField(name: string): boolean {
 const hidesValue = (name: string, value: unknown) => secretField(name) && (typeof value === 'string' ? value !== '' : value !== null && typeof value === 'object');
 
 /**
- * `password=hunter2`, `Password: "x"`, `Authorization: Bearer abc`, and JSON
+ * `password=hunter2`, `--password=hunter2`, `Password: "x"`, `Authorization: Bearer abc`, and JSON
  * pasted as text (`{"password":"hunter2"}`, `{'token': 'abc'}`): the name
  * and its quotes stay, the value goes, keeping a quoted value quoted.
  */
-const PAIR = /(?<![\w.-])(["']?)([A-Za-z_][\w.-]{0,63})\1(\s{0,8}[=:]\s{0,8})((?:(?:Bearer|Basic|Token)\s{1,8})?(?:"[^"]{0,512}"|'[^']{0,512}'|[^\s;&,"'}\]]{1,512}))/g;
+const PAIR = /(?<![\w.])(-{0,2})(["']?)([A-Za-z_][\w.-]{0,63})\2(\s{0,8}[=:]\s{0,8})((?:(?:Bearer|Basic|Token)\s{1,8})?(?:"[^"]{0,512}"|'[^']{0,512}'|[^\s;&,"'}\]]{1,512}))/g;
 /** `curl -u admin:hunter2`, `-uadmin:hunter2`, `--user admin:hunter2`, `--user=admin:hunter2`. */
 const USER_FLAG = /((?:^|\s)(?:-u\s{0,8}|--user[=\s]{1,8}))([^\s:]{1,256}):\S+/g;
+/** How much of a string redaction looks at: only there to bound the time, far past what is kept. */
+const REDACT_BOUND = 64 * 1024;
 /**
- * A string as the log keeps it: cut to MAX_STRING before any pattern runs, so
- * no input can make redaction slow, then redacted, then cut again in case a
- * replacement made it longer. A secret the first cut splits keeps no more
- * than its first MAX_STRING characters, and the shape check still sees them.
+ * A string as the log keeps it: bounded to REDACT_BOUND, redacted, and only
+ * then cut to MAX_STRING, so a token crossing the cut is recognised whole
+ * before any of it is kept. Every pattern is linear, so the bound is cheap.
  */
-const clip = (text: string) => {
-  const out = redactText(text.length > MAX_STRING ? text.slice(0, MAX_STRING) : text);
-  return text.length > MAX_STRING || out.length > MAX_STRING ? `${out.slice(0, MAX_STRING)}…` : out;
-};
+const clip = (text: string) => cut(redactText(text.length > REDACT_BOUND ? text.slice(0, REDACT_BOUND) : text));
 const cut = (text: string) => (text.length > MAX_STRING ? `${text.slice(0, MAX_STRING)}…` : text);
 
 function redactValue(value: unknown, depth: number): unknown {
