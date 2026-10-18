@@ -59,7 +59,9 @@ export interface CommandInfo {
   description: string;
   /** Every call writes: refused under `readOnly`, and gated by `writes` plus `allowWrite` otherwise. */
   writes: boolean;
-  /** Some calls write, depending on the input (the raw passthrough's POST); those are refused under `readOnly`. */
+  /** Every call changes something on this machine (toil's config or dossiers, a download): refused under `readOnly`. */
+  writesLocal: boolean;
+  /** Some calls write, depending on the input (the raw passthrough's POST, a file named with `out`); those are refused under `readOnly`. */
   writesDependOnInput: boolean;
   /** The JSON Schema of its input, strict, as MCP advertises it, `select` included. */
   inputSchema: Record<string, unknown>;
@@ -85,10 +87,11 @@ export interface Registry {
 /** Options for one call. More fields may be added; none will change meaning. */
 export interface ExecuteOptions {
   /**
-   * Refuse the call, before anything resolves or is sent, if it would write:
-   * a command that always writes, or a call whose input makes it write. The
-   * refusal is `WRITE_DISABLED`, whatever the config says. A read-only call
-   * writes nothing but its audit line.
+   * Refuse the call, before anything resolves or is sent, if it would change
+   * anything: a write to a service, or on this machine (toil's config or
+   * dossiers, a download, a file named with `out`). The refusal is
+   * `WRITE_DISABLED`, whatever the config says. A read-only call writes
+   * nothing but its audit line.
    */
   readOnly?: boolean;
   /**
@@ -131,7 +134,8 @@ export const registry: Registry = {
       kind: def.kind ?? 'area',
       description: def.description,
       writes: def.writes,
-      writesDependOnInput: def.writesWhen !== undefined,
+      writesLocal: def.writesLocal === true,
+      writesDependOnInput: def.writesWhen !== undefined || def.writesLocalWhen !== undefined,
       inputSchema: inputSchemaFor(def),
     }));
     return listed;

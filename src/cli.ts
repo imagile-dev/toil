@@ -7,7 +7,7 @@ import { CONTRACT_VERSION, type Envelope } from './core/envelope.js';
 import type { AreaInfo } from './core/config.js';
 import type { Context } from './core/context.js';
 import { createSecretStore } from './core/keychain.js';
-import { shownToPeople, type ProgressEvent } from './core/progress.js';
+import { cliProgress, type ProgressEvent } from './core/progress.js';
 import { terminalPrompter } from './core/prompt.js';
 import { createMcpServer } from './mcp/server.js';
 import { unsupportedNode } from './core/runtime.js';
@@ -58,15 +58,9 @@ async function main(): Promise<void> {
 
   // Nothing is spawned until a `keychain:` reference is actually read.
   const secrets = createSecretStore();
-  // Progress (src/core/progress.ts) goes to stderr for a person watching: on a
-  // terminal, or under --debug. Pages and retries only; requests are --debug's own
-  // traces and --verbose's. stdout keeps the one envelope either way.
-  const progressFor = (globals: GlobalOptions) =>
-    process.stderr.isTTY || globals.debug
-      ? (event: ProgressEvent) => {
-          if (shownToPeople(event)) process.stderr.write(`[toil] ${event.message}\n`);
-        }
-      : undefined;
+  // Progress (src/core/progress.ts) on stderr, never stdout: every retry, piped
+  // or not, and pages on a terminal only (cliProgress).
+  const toStderr = cliProgress(process.stderr);
   // Setup commands may ask questions, only of a person at a terminal. MCP never gets a prompter.
   const prompt = process.stdin.isTTY && process.stderr.isTTY ? terminalPrompter(process.stdin, process.stderr) : undefined;
 
@@ -90,7 +84,7 @@ async function main(): Promise<void> {
       stderr: (t) => process.stderr.write(t),
       secrets,
       prompt: mcp ? undefined : prompt,
-      ...progressOn(mcp ? mcpProgress : progressFor(globals)),
+      ...progressOn(mcp ? mcpProgress : toStderr),
     });
 
   const io: CliIO = {

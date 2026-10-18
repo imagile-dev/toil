@@ -1978,15 +1978,26 @@ shape; these are the calls made around that.
   process supplies those, as it does for the CLI, and each can be added later
   without changing a meaning. Internally `CallOptions` (`readOnly`, `caller`) is one
   object passed to `execute()`, which is where a later `actor` goes.
-- **`readOnly` is decided per call**: a `writes: true` command is refused before its
-  input is parsed, and a `writesWhen` command (the passthrough) once its input says
-  it writes, both before any connection resolves. A GET through the passthrough still
-  runs. The refusal reuses `WRITE_DISABLED`, which callers already handle, rather
-  than a new code. A read-only call also skips the bundled skill's upkeep, so it
-  writes nothing but its audit line. It doesn't refuse the config and dossier
-  commands that change `~/.toil/` without `writes: true` (`dossiers init`): the
-  issue defines read-only by `writes` / `writesWhen`, and there is no marker for
-  "changes local config" to refuse by. Recorded so the UI's sync doesn't call them.
+- **`readOnly` refuses every command that changes anything** (the coordinator's
+  decision on #219, overriding the first version, which refused only `writes` /
+  `writesWhen`). A UI in read-only mode must not change local state either. The
+  signal is a new pair beside `writes` / `writesWhen`: `writesLocal` (every call
+  changes something on this machine: toil's config, the credential store, dossiers,
+  a skills folder, a shell profile, a downloaded file) and `writesLocalWhen` (the
+  input decides: `--out`, `--csv`). `defineConfigCommand` requires `writesLocal`, so
+  every `config` and `cli-only` command declares it, `false` included, because those
+  write with node:fs where no guard can see. Area, area-local and standalone commands
+  reach files only through `ctx.files`, so their writers are marked (the five
+  `download-attachment`s, `git report`, `openshift resource-usage`, `util c4 render`,
+  `util encode`), and under readOnly `ctx.files.writeBytes` / `writeCsv` refuse as a
+  backstop, so an unmarked one fails loudly and never writes. The parity suite runs
+  every registered command's every example under readOnly: a marked one must be
+  refused before any request or operation; any other must succeed, send only reads,
+  call no traced write, and (for the dossiers commands) leave the disk as it was.
+  A `writes: true` or `writesLocal: true` command is refused before its input is
+  parsed, a `*When` one once its input says so; a GET through the passthrough
+  still runs. The refusal reuses `WRITE_DISABLED`. A read-only call also skips the
+  bundled skill's upkeep, so it writes nothing but its audit line.
 - **The caller label is 1 to 64 lowercase letters, digits, `.`, `_` and `-`,
   starting with a letter or digit** (`CALLER_LABEL`), checked by
   the API before the call runs and recorded as `caller` on the audit line, absent
@@ -2007,12 +2018,14 @@ shape; these are the calls made around that.
   the rest of the call with one `PROGRESS_LISTENER_FAILED` warning; the command
   isn't failed by a progress bar.
 - **Who hears what.** The API's `onProgress` hears every event. The CLI and MCP show
-  only pages and retries (requests are `--debug`'s and `--verbose`'s): the CLI writes
-  `[toil] <message>` to stderr when stderr is a terminal or under `--debug`, so an
-  agent piping the CLI isn't sent a line per page; MCP sends
-  `notifications/progress` only when the call carried a progress token, with the
-  same message, and one counter per call shared with `wait`'s attempts so
-  `progress` only goes up. `toil wait`'s own stderr line is unchanged.
+  only pages and retries (requests are `--debug`'s and `--verbose`'s). On the CLI
+  (`cliProgress`, the coordinator's decision on #219): every 429 retry, with how long
+  toil waits, is one plain `[toil] …` line on stderr, piped or not, so a run never
+  sits silent for a minute (principle 4); a page is said only when stderr is a
+  terminal, so an agent piping the CLI isn't sent a line per page. stdout is never
+  touched. MCP sends `notifications/progress` only when the call carried a progress
+  token, with the same messages, and one counter per call shared with `wait`'s
+  attempts so `progress` only goes up. `toil wait`'s own stderr line is unchanged.
 - **Docs: a section in `skills/toil/core.md`** (**Using toil from a program**, and
   **Progress**), not a new skill page, since a new page needs a site route, a nav
   entry and the general-pages list for one section's worth of text.

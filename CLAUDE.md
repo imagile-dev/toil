@@ -485,15 +485,20 @@ a breaking change.
   (`via: 'api'`, `src/api.ts`), which sends MCP's fields and is held to MCP's rules:
   it serves what MCP serves, applies `offMcpWhen`, words input errors in field names,
   and is refused what the dossier commands refuse over MCP. Its `readOnly` option
-  refuses any call that writes (`writes`, or `writesWhen` true for the input) before
-  anything resolves, and skips the skill's upkeep; its `caller` label is checked
+  refuses any call that changes anything before anything resolves: `writes` /
+  `writesWhen`, and `writesLocal` / `writesLocalWhen` for a local write (toil's config,
+  the store, dossiers, a skills folder, a profile, a workspace file). Every `config`
+  and `cli-only` command must declare `writesLocal` (`defineConfigCommand` requires
+  it, since they write with node:fs); any other command's `ctx.files` writes are
+  refused under readOnly as a backstop, and the parity suite runs every example under
+  readOnly to prove each is refused or changes nothing. It also skips the skill's upkeep; its `caller` label is checked
   (`CALLER_LABEL` in `src/core/audit.ts`) and recorded on the audit line.
   `CallOptions` in `src/core/run.ts` carries both, and is where a later `actor` goes.
 - **Progress events** (`src/core/progress.ts`): `execute()` runs each command under
   an AsyncLocalStorage listener, and core's own machinery reports to it, so no area
   does: every request (`instrumentFetch`), every page (`paginate()`), every 429 retry
-  (`restResponse`). The CLI writes pages and retries to stderr on a terminal or under
-  `--debug`, MCP sends them as progress notifications when the call has a progress
+  (`restResponse`). The CLI writes every retry to stderr, piped or not (a minute's
+  silent wait looks hung), and pages only on a terminal (`cliProgress`), MCP sends them as progress notifications when the call has a progress
   token, and the API hands every event to `onProgress`. A listener that throws loses
   its events, never the command (`PROGRESS_LISTENER_FAILED`). An area that pages or
   retries outside those helpers reports nothing, which is a reason to use them.

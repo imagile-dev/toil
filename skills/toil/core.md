@@ -32,8 +32,8 @@ command's own paging flag, which its reference names.
 
 While a command runs, toil says what it's doing: each page a listing reads, and each
 rate-limited (429) request it waits to retry. On the command line these go to stderr,
-one `[toil] …` line each, when stderr is a terminal or with `--debug`; stdout still
-holds only the envelope. Over MCP they're progress notifications, sent when the
+one plain `[toil] …` line each: a retry and how long toil waits always, piped or not,
+and pages only when stderr is a terminal. stdout still holds only the envelope. Over MCP they're progress notifications, sent when the
 client's call asks for progress. A program using toil's API gets them, and every
 request too, through `onProgress` (**Using toil from a program**). They never change
 the envelope.
@@ -211,13 +211,15 @@ const envelope = await execute('jira search', { jql: 'project = PAY', maxResults
   they do on the CLI. It serves what MCP serves: commands that prompt or change
   connections, and deletes, stay on the CLI.
 - **`options`**: `readOnly` refuses, with `WRITE_DISABLED` and before anything is sent,
-  any call that would write, whatever the config says, and writes nothing but the
-  audit line. `caller` names the program in the audit log (lowercase letters, digits,
+  any call that would change anything, whatever the config says: a write to a service,
+  and a local one too (toil's config or dossiers, a download, a file named with
+  `out`). A read-only call writes nothing but its audit line. `caller` names the program in the audit log (lowercase letters, digits,
   `.`, `_` and `-`, up to 64). `signal` cancels the call (`CANCELLED`). `onProgress`
   hears every request (redacted URL, status, time), page and retry. `config`,
   `workspace` and `verbose` match `--config`, `--workspace` and `--verbose`.
 - **`registry`** lists the areas and every command `execute()` serves: its name, MCP
-  tool name, whether it writes, and its input's JSON Schema.
+  tool name, whether it writes to a service (`writes`) or on this machine
+  (`writesLocal`), and its input's JSON Schema.
 - **`version`** and **`contractVersion`** are what `toil version` reports. Check
   `contractVersion` before relying on anything else.
 

@@ -73,3 +73,16 @@ export function progressMessage(command: string, body: ProgressBody): string {
 
 /** Whether a front door shows the event to a person. Requests are --verbose's and --debug's to show; pages and retries are progress. */
 export const shownToPeople = (event: ProgressEvent): boolean => event.type !== 'request';
+
+/**
+ * The CLI's listener: one plain `[toil] …` line on stderr per event worth a
+ * person's attention, never stdout. A retry is always said, piped or not,
+ * because a run that waits a minute in silence looks hung (principle 4). A
+ * page is said only on a terminal, where someone is watching; a pipe, usually
+ * an agent, isn't sent a line per page.
+ */
+export function cliProgress(stderr: { isTTY?: boolean; write: (text: string) => unknown }): (event: ProgressEvent) => void {
+  return (event) => {
+    if (event.type === 'retry' || (event.type === 'page' && stderr.isTTY === true)) stderr.write(`[toil] ${event.message}\n`);
+  };
+}

@@ -136,8 +136,8 @@ function boundedWorker(bin) {
  * answers 429 once and then two pages. It must page through a read-only call
  * with progress, refuse a write before sending anything, and name itself in the
  * audit log. consumer.ts is then type-checked, strict, against the installed
- * dist/api.d.ts. The CLI, against the same stub with --debug, writes the same
- * progress to stderr and keeps stdout one envelope.
+ * dist/api.d.ts. The CLI on a pipe, against the same stub, says the retry on
+ * stderr, sends no line per page, and keeps stdout one envelope.
  */
 async function apiConsumer(prefix, bin) {
   const sent = [];
@@ -198,18 +198,18 @@ async function apiConsumer(prefix, bin) {
     const tsc = spawnSync(process.execPath, [join(process.cwd(), 'node_modules', 'typescript', 'bin', 'tsc'), '-p', 'tsconfig.json'], { cwd: prefix, encoding: 'utf8', timeout: 60000 });
     if (tsc.status !== 0) fail(`consumer.ts didn't type-check against the installed dist/api.d.ts: ${tsc.stdout || tsc.stderr}`);
 
-    // The CLI: progress on stderr under --debug, and stdout still exactly one envelope.
-    const cli = await run([bin, '--debug', 'bitbucket', 'list-prs', '--project', 'PAY', '--repo', 'web'], work);
+    // The CLI on a pipe: the retry said on stderr, no line per page, and stdout still exactly one envelope.
+    const cli = await run([bin, 'bitbucket', 'list-prs', '--project', 'PAY', '--repo', 'web'], work);
     let envelope;
     try {
       envelope = JSON.parse(cli.stdout);
     } catch {
       envelope = undefined;
     }
-    if (envelope?.ok !== true || envelope.data.length !== 2) fail(`toil --debug bitbucket list-prs printed ${cli.stdout}`);
+    if (envelope?.ok !== true || envelope.data.length !== 2) fail(`toil bitbucket list-prs printed ${cli.stdout}`);
     const said = cli.stderr.split(/\r?\n/).filter((l) => l.startsWith('[toil] bitbucket list-prs: '));
-    if (said.filter((l) => l.includes('read page')).length !== 2 || !said.some((l) => l.includes('rate limited (429)'))) fail(`toil --debug bitbucket list-prs wrote progress ${JSON.stringify(said)}`);
-    return `the API consumer paged a read-only call with ${out.events.length} progress events, refused a write before sending it and type-checked against dist/api.d.ts, and the CLI wrote the same progress to stderr`;
+    if (said.some((l) => l.includes('read page')) || !said.some((l) => l.includes('rate limited (429)'))) fail(`toil bitbucket list-prs on a pipe wrote progress ${JSON.stringify(said)}`);
+    return `the API consumer paged a read-only call with ${out.events.length} progress events, refused a write before sending it and type-checked against dist/api.d.ts, and the CLI on a pipe said the retry on stderr`;
   } finally {
     server.close();
   }

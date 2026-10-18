@@ -29,8 +29,9 @@ export type FrontDoor = 'cli' | 'mcp' | 'api';
 export interface CallOptions {
   /**
    * Refuse the call, before anything resolves or is sent, when it would
-   * write: a command with `writes`, or one whose input makes it write
-   * (`writesWhen`, the passthrough's POST). Whatever the config says.
+   * change anything: `writes` / `writesWhen` (the passthrough's POST), or
+   * `writesLocal` / `writesLocalWhen` on this machine. Whatever the config says.
+   * `ctx.files` refuses a write the command didn't declare.
    */
   readOnly?: boolean;
   /** Who is calling, as the caller names itself (`toil-ui`), for the audit log. Checked by the front door. */

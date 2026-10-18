@@ -9,7 +9,7 @@ import { versionCommand } from '../src/areas/version/version.js';
 import { CONTRACT_VERSION, type Envelope } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
 import { paginate } from '../src/core/paginate.js';
-import type { ProgressEvent } from '../src/core/progress.js';
+import { cliProgress, progressMessage, type ProgressEvent } from '../src/core/progress.js';
 import { restRequest } from '../src/core/rest.js';
 import { allowWriteField, execute, runCommand } from '../src/core/run.js';
 import { demoArea, getThing, renameThing } from './fixtures/demo-commands.js';
@@ -160,6 +160,21 @@ describe('read-only calls', () => {
     expect(get.ok && get.data).toBe(200);
   });
 
+  it('refuse a local write too: a config command that writes, a download, and an undeclared file write as a backstop', async () => {
+    const { context, http } = testContext({ config });
+    const init = (await import('../src/registry.js')).commands.find((d) => d.path.join(' ') === 'dossiers init')!;
+    expect(init.writesLocal).toBe(true);
+    const refused = await runCommand(init, { name: 'payments' }, () => context, context.version, 'api', undefined, { readOnly: true });
+    expect(!refused.ok && refused.error.message).toBe('dossiers init changes data, and this call was made read-only, so it was refused before anything ran.');
+    // A command that writes a file without saying so is stopped at the write, never allowed through.
+    const sneaky = demoArea.command({ path: ['demo', 'sneaky'], description: 'Writes a file it never declared', input: z.object({}), writes: false, examples: [{}], run: async (_i, ctx) => ctx.files.writeBytes('x.txt', new Uint8Array([1])) });
+    const stopped = await execute(sneaky, {}, context, 'api', { readOnly: true });
+    expect(!stopped.ok && stopped.error).toMatchObject({ code: 'WRITE_DISABLED', message: 'demo sneaky tried to write a file, and this call was made read-only, so the write was refused.' });
+    expect(http.calls).toEqual([]);
+    expect(registry.commands.find((c) => c.name === 'dossiers init')).toMatchObject({ writes: false, writesLocal: true });
+    expect(registry.commands.find((c) => c.name === 'util encode')).toMatchObject({ writesLocal: false, writesDependOnInput: true });
+  });
+
   it("skip the bundled skill's upkeep, the one local write a read can otherwise make", async () => {
     const { context } = testContext({ config, routes: [{ path: '/api/things/THING-1', respond: { json: { id: 'THING-1', attributes: { name: 'n' } } } }] });
     const upkeep = vi.fn();
@@ -213,7 +228,7 @@ describe('@imagile-dev/toil/api (src/api.ts)', () => {
     // A person's commands stay on the CLI.
     expect(names).not.toContain('connections add');
     const listing = registry.commands.find((c) => c.name === 'connections list')!;
-    expect(listing).toMatchObject({ tool: 'connections_list', path: ['connections', 'list'], area: 'connections', kind: 'config', writes: false, writesDependOnInput: false });
+    expect(listing).toMatchObject({ tool: 'connections_list', path: ['connections', 'list'], area: 'connections', kind: 'config', writes: false, writesLocal: false, writesDependOnInput: false });
     expect(listing.inputSchema).toMatchObject({ type: 'object', additionalProperties: false });
     expect(registry.areas.map((a) => a.name)).toContain('jira');
   });
@@ -242,5 +257,26 @@ describe('@imagile-dev/toil/api (src/api.ts)', () => {
     isolatedHome();
     const envelope = await apiExecute('jira create-issue', { project: 'PAY', summary: 'x', allowWrite: true }, { readOnly: true });
     expect(envelope).toMatchObject({ ok: false, error: { code: 'WRITE_DISABLED' } });
+  });
+});
+
+describe('progress on the CLI (cliProgress)', () => {
+  const event = (body: Parameters<typeof progressMessage>[1]): ProgressEvent => ({ ...body, command: 'demo list-things', message: progressMessage('demo list-things', body) });
+  const retry = event({ type: 'retry', attempt: 1, waitMs: 30_000, status: 429, url: 'https://demo.imagile.dev/api/things' });
+  const page = event({ type: 'page', page: 1, items: 2 });
+  const request = event({ type: 'request', method: 'GET', url: 'https://demo.imagile.dev/api/things', status: 200, durationMs: 5 });
+
+  it('on a pipe, says every retry and its wait as one plain stderr line, and no page or request', () => {
+    const written: string[] = [];
+    const listen = cliProgress({ isTTY: false, write: (t) => written.push(t) });
+    [request, page, retry, page].forEach(listen);
+    expect(written).toEqual(['[toil] demo list-things: rate limited (429) on https://demo.imagile.dev/api/things; retrying in 30 s (attempt 2)\n']);
+  });
+
+  it('on a terminal, says pages too, and still never a request', () => {
+    const written: string[] = [];
+    const listen = cliProgress({ isTTY: true, write: (t) => written.push(t) });
+    [request, page, retry].forEach(listen);
+    expect(written).toEqual(['[toil] demo list-things: read page 1, 2 items so far\n', '[toil] demo list-things: rate limited (429) on https://demo.imagile.dev/api/things; retrying in 30 s (attempt 2)\n']);
   });
 });
