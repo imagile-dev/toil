@@ -68,6 +68,25 @@ export const POM = `<project>
 </project>
 `;
 
+/**
+ * A holiday list for `util time business-days`: the US federal holidays for
+ * 2026 as the Office of Personnel Management publishes them, observed dates
+ * (Independence Day falls on a Saturday, so it is observed on Friday 3 July).
+ */
+export const HOLIDAYS_2026 = `# US federal holidays, 2026 (observed dates)
+2026-01-01 New Year's Day
+2026-01-19 Birthday of Martin Luther King, Jr.
+2026-02-16 Washington's Birthday
+2026-05-25 Memorial Day
+2026-06-19 Juneteenth National Independence Day
+2026-07-03 Independence Day (observed)
+2026-09-07 Labor Day
+2026-10-12 Columbus Day
+2026-11-11 Veterans Day
+2026-11-26 Thanksgiving Day
+2026-12-25 Christmas Day
+`;
+
 /** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
 export const files: Record<string, string> = {
   '.gitignore': 'vendor/\n',
@@ -76,6 +95,7 @@ export const files: Record<string, string> = {
   'Directory.Packages.props': PROPS,
   'src/Api/Api.csproj': CSPROJ,
   'pom.xml': POM,
+  'holidays-2026.txt': HOLIDAYS_2026,
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
 };
 

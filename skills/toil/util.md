@@ -1,24 +1,30 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT and inventorying dependencies from manifests and lockfiles
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, and time zone, duration, business-day and cron arithmetic
 ---
 
 # Local utilities (`util`)
 
-Commands that work on what's on this machine: a token you paste, or the
-manifests and lockfiles in the workspace. They aren't integrations. There is no
+Commands that work on what's on this machine: a token you paste, the manifests
+and lockfiles in the workspace, or a time and a time zone. They aren't integrations. There is no
 server, no connection to add, no `TOIL_UTIL_*` variable, no credential and no
 `--connection` flag, and none of them sends anything over the network. Every
 command reads; none changes anything. Verification level: `unit`.
 
-Each command has two paths that do the same thing, with the same flags and
-output. The `util` path is the main one, and the short path is an alias:
+The `jwt` and `deps` commands each have two paths that do the same thing, with the
+same flags and output. The `util` path is the main one, and the short path is an
+alias:
 
 | Command | Alias | MCP tool |
 |---------|-------|----------|
 | `toil util jwt decode` | `toil jwt decode` | `util_jwt_decode` |
 | `toil util deps scan` | `toil deps scan` | `util_deps_scan` |
 | `toil util deps diff` | `toil deps diff` | `util_deps_diff` |
+| `toil util time convert` | none | `util_time_convert` |
+| `toil util time duration` | none | `util_time_duration` |
+| `toil util time business-days add` | none | `util_time_business_days_add` |
+| `toil util time business-days diff` | none | `util_time_business_days_diff` |
+| `toil util time cron` | none | `util_time_cron` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
@@ -160,3 +166,158 @@ Known quirks:
   survives. A package present at two versions can show a change that didn't happen.
 - Paths that git quotes (non-ASCII names) aren't read at a ref.
 - A ref that starts with `-`, or an empty `--from`, is refused with `INVALID_INPUT` before git runs. An empty `--to` means the working tree.
+
+### Time: `toil util time`
+
+Date and time arithmetic on the time zone data Node ships (IANA, through `Intl`);
+toil bundles no zone database of its own, and nothing reads the network. Each
+command checks its own answer a second way and reports the checks in
+`data.verified` (`{ passed, checks }`), with anything it couldn't check or had to
+approximate in `meta.warnings` as `UNVERIFIED` or `APPROXIMATED`.
+
+Times are ISO 8601: a date (`2026-03-08`), a wall clock (`2026-03-08T02:30`), or an
+instant with `Z` or an offset (`2026-03-08T07:30:00Z`, `2026-03-08T02:30:00-05:00`).
+`@1760000000` is epoch seconds, and `now` is the current time, read once per call.
+Fields out of range (`2026-02-29`, `24:00`, a leap second) are `INVALID_INPUT`,
+never rolled over. Digits below a millisecond are dropped with an `APPROXIMATED`
+warning. Zones are IANA names (`America/New_York`); an unknown one is
+`INVALID_INPUT`.
+
+**DST.** A wall clock a zone skipped (spring forward) or showed twice (fall back) is
+always reported, in `data` as a `dst` object and in `meta.warnings` as
+`TIME_DST_GAP` or `TIME_DST_OVERLAP`. A gap is read as the time the clocks showed
+after the jump (02:30 becomes 03:30) and an overlap as the earlier of the two. Give
+the time an offset to choose otherwise.
+
+#### `toil util time convert`
+
+```bash
+toil util time convert 2026-03-08T02:30 --zone America/New_York --to UTC --to Europe/London
+toil util time convert now --to Asia/Kolkata
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `<time>` | The time to convert |
+| `--zone <zone>` | The zone of a time written without an offset. Required for one; refused for a time that has an offset |
+| `--to <zone>` | A zone to convert to (repeatable; default `UTC`) |
+
+Output: `{ input, instant, epochMs, source: { kind, zone, offset, dst? }, results:
+[{ zone, local, offset, offsetSeconds, dst? }], verified }`. `local` is the time in
+that zone with its offset. Checks: each result reads back as the same instant
+(`convert.roundtrip`), the zone shows that wall clock then (`convert.zone`), and a
+wall-clock input is what its zone shows at the instant found (`convert.source`). A
+failure warns `TIME_ROUNDTRIP_MISMATCH`.
+
+#### `toil util time duration`
+
+```bash
+toil util time duration P1DT2H30M
+toil util time duration --seconds 93784.5
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `<duration>` | An ISO 8601 duration to read: `PT1H30M`, `P1Y2M10DT2H`, `PT0.5S`, `-PT15M`. Only the last part may have a fraction |
+| `--seconds <seconds>` | Instead, a number of seconds to write as a duration |
+
+Output: `{ input, iso, negative, parts: { years, months, weeks, days, hours,
+minutes, seconds }, totalSeconds, text, verified }`. `iso` is the canonical text.
+Seconds are written in hours, minutes and seconds only (`PT26H3M4.5S`), since a day
+isn't always 24 hours. Years and months have no fixed length, so `totalSeconds` is
+`null` with an `UNVERIFIED` warning; days and weeks count as 24 hours and 7 days,
+with an `APPROXIMATED` warning. Check: the canonical text reads back as the same
+parts (`duration.roundtrip`, warning `DURATION_ROUNDTRIP_MISMATCH`).
+
+#### `toil util time business-days add` and `diff`
+
+```bash
+toil util time business-days add 2026-12-23 3 --holidays holidays-2026.txt
+toil util time business-days add 2026-12-28 -1
+toil util time business-days diff 2026-12-24T15:00 2026-12-29T10:00 --zone America/Chicago --holiday 2026-12-25
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `<start>` | The start time or date |
+| `<days>` | `add`: business days to add; negative subtracts |
+| `<end>` | `diff`: the end time or date |
+| `--zone <zone>` | The zone whose calendar days count, and the zone of a time without an offset (default `UTC`) |
+| `--holidays <file>` | A file in the workspace: one `YYYY-MM-DD` per line, optionally followed by a name; `#` lines are comments. Any other line is `INVALID_INPUT` naming it |
+| `--holiday <date>` | A holiday as `YYYY-MM-DD` (repeatable) |
+
+Business days are Monday to Friday, less the holidays given. No country's holidays
+are built in: list the dates the office is actually shut (the observed Friday, not
+the Saturday it stands in for).
+
+`add` counts as a spreadsheet's `WORKDAY` does: the start never counts, each step
+lands on the next business day, and `0` returns the start unchanged. A time of day
+is kept, and a result in a DST gap or overlap is warned about. Output: `{ start,
+days, zone, result, weekday, skipped: { weekendDays, holidays }, holidaysListed,
+dst?, verified }`. Checks: the business days between start and result, counted
+again day by day, number `days` (`business.count`); the result is a business day
+(`business.landing`); and it's on the right side of the start
+(`business.direction`). A failure warns `BUSINESS_DAYS_MISMATCH`.
+
+`diff` measures the time between two times that falls on business days in the
+zone. A date means midnight. Output: `{ start, end, zone, negative, businessDays,
+hours, duration, totalBusinessSeconds, elapsedSeconds, holidays, verified }`:
+`businessDays` is whole 24-hour days of business time, `hours` what's left over,
+and `duration` the same, exactly (`PT43H`). DST days count as the 23 or 25 hours
+they are. Checks: business time plus the rest adds up to the elapsed time
+(`business.partition`), and the days and hours make the business time
+(`business.total`), warning `BUSINESS_TIME_MISMATCH`.
+
+#### `toil util time cron`
+
+```bash
+toil util time cron "*/15 9-17 * * 1-5" --zone Europe/London --count 10
+toil util time cron "0 0 12 ? * MON#2" --dialect quartz
+toil util time cron "H H(0-7) * * 1-5" --dialect jenkins --job platform/api-build
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `<expression>` | The cron expression, quoted |
+| `--dialect <dialect>` | `standard`, `quartz` or `jenkins` (default: detected: 6 or 7 fields is `quartz`, an `H` is `jenkins`, otherwise `standard`) |
+| `--zone <zone>` | The zone the schedule runs in (default `UTC`) |
+| `--from <time>` | List runs after this time (default `now`) |
+| `--count <n>` | How many run times to list, 1 to 100 (default 5) |
+| `--job <name>` | The Jenkins job's full name (`folder/job`), which `H` is hashed from. Required when the expression uses `H` |
+
+The dialects:
+
+- **standard**: five fields, minute hour day-of-month month day-of-week, as the classic
+  crontab reads them. Names (`JAN`, `MON`), ranges, lists and steps (`*/15`,
+  `1-30/5`, `5/15`); day-of-week 0 to 7, with 0 and 7 both Sunday. Macros `@yearly`,
+  `@annually`, `@monthly`, `@weekly`, `@daily`, `@midnight` and `@hourly`; `@reboot`
+  is refused, since it has no times. When neither day field starts with `*`, a day
+  matching **either** runs. A detected standard expression with both day fields set
+  warns `CRON_DIALECT_ASSUMED`, since Jenkins reads it differently.
+- **quartz**: six or seven fields, second first and an optional year (1970 to 2099)
+  last. Day-of-week is 1 to 7 from Sunday. One of the day fields must be `?`.
+  Day-of-month takes `L`, `L-3`, `15W` (the weekday nearest the 15th, inside the
+  month) and `LW`; day-of-week takes `6L` (the last Friday) and `6#3` (the third
+  Friday). A backwards range wraps (`FRI-MON`, `22-2`).
+- **jenkins**: five fields like standard, plus `H`, `H(0-7)` and `H/15`, placed as
+  Jenkins places them from the job's full name. An unbounded `H` in day-of-month
+  stays within 1 to 28. Both day fields must match. The macros use `H` (`@daily` is
+  `H H * * *`, `@midnight` is `H H(0-2) * * *`), so pass `--dialect jenkins` for a
+  Jenkins macro: a bare macro is detected as standard.
+
+Output: `{ expression, dialect, dialectSource, zone, from, explanation, fields,
+runs: [{ instant, local, offset, dst? }], skipped, verified }`. `fields` holds what
+each field expanded to, with day-of-week 0 for Sunday in every dialect.
+
+DST: a run time the zone skipped isn't listed; it's in `skipped`, with a
+`CRON_DST_GAP` warning. A run time that happened twice is listed once, at the first,
+with a `dst` object and a `CRON_DST_OVERLAP` warning. Schedulers differ on both, so
+check yours. Fewer runs than `--count` in the next 100 years (or in Quartz's listed
+years) warns `CRON_FEW_RUNS`; `0 0 30 2 *` never runs.
+
+Checks: each run, read back as the wall clock its zone shows then, matches every
+field again (`cron.rematch`); the runs come after `--from` and in order
+(`cron.order`); `local` is the same instant (`cron.local`); and each skipped time
+really is in a gap (`cron.gap`). A failure warns `CRON_RUN_MISMATCH`. The
+explanation's wording isn't checked, and says so (`UNVERIFIED`): it's built from the
+same fields the run times come from, and the run times are what's checked.
