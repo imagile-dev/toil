@@ -17,8 +17,8 @@
     },
     {
       "allows": [],
-      "old": "An absolute resultsUrl from the evaluation answer fetched as it was, on any host, with the IQ user token; a relative one glued onto baseUrl as text",
-      "toil": "The URL is built as before, then one on another host (a glued slash-less relative URL included) is re-pointed at the connection's host, keeping its path and query, with a SONATYPEIQ_RESULTS_HOST warning",
+      "old": "An absolute resultsUrl from the evaluation answer fetched as given, on any host, with the IQ user token; a relative one glued onto baseUrl as text",
+      "toil": "The URL is built as the contract records, then one on another host (a glued slash-less relative URL included) is re-pointed at the connection's host, keeping its path and query, with a SONATYPEIQ_RESULTS_HOST warning",
       "why": "The user token goes only to the host it's configured for (suspected bug #91 item 1).",
       "principle": "9",
       "class": "security"

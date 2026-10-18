@@ -13,13 +13,13 @@ the bottom of their section.
 
 - **Brief writers' open questions were settled from the maintainer's decisions**, not
   sent back to the maintainer:
-  - **`artifactory outdated` and `license-check` don't call OSV.** The contract pinged
-    OSV and never used the answer. Principle 9 allows public API traffic only when the
+  - **`artifactory outdated` and `license-check` don't call OSV.** The contract records a
+    ping to OSV whose answer is never used. Principle 9 allows public API traffic only when the
     command names the service, so the integration drops the call. It's a listed divergence.
-  - **`GIT_NOT_FOUND` overrides the contract's empty results.** The contract's
-    `git diff`, `log` and `report` swallowed every git failure and returned an empty
+  - **`GIT_NOT_FOUND` overrides the empty results the contract records.** There,
+    `git diff`, `log` and `report` swallow every git failure and return an empty
     result. A missing git is now `GIT_NOT_FOUND`, because the maintainer required it to
-    be unmistakable (principle 4). Other git failures keep the contract's behaviour.
+    be unmistakable (principle 4). Other git failures keep the recorded behaviour.
   - **The workspace limits `deps scan`.** When the repo root is above the workspace,
     only the workspace subtree is scanned. Decision 2 on #68 allows only `.git`
     metadata to be read above the workspace.
@@ -59,7 +59,7 @@ the bottom of their section.
     style's cap doesn't fit it.
   - **The stub generator** keeps making target flags ordinary options; the integration author
     decides which become context inputs.
-- **The 1,000-page paging cap stays** as a safety bound, though the contract had
+- **The 1,000-page paging cap stays** as a safety bound, though the contract records
   none. Each area lists it in `docs/divergences/<area>.json`, and the error names what
   was being paged.
 - **MCP field descriptions never mention CLI-only flags** (`--output-file`), since the
@@ -94,8 +94,8 @@ the bottom of their section.
     `GIT_NOT_FOUND` did, rather than a typed escape hatch. With `ctx.setExitCode`,
     Jenkins no longer needs one, and the list keeps a misspelt code a type error.
   - **The exit code is `ctx.setExitCode(n)`**, kept beside the envelope (a
-    `WeakMap` in `run.ts`) rather than in it, so `ok` and `data` stay exactly the
-    contract's. MCP has no exit code and doesn't flag the result as an error.
+    `WeakMap` in `run.ts`) rather than in it, so `ok` and `data` stay exactly as the
+    contract records them. MCP has no exit code and doesn't flag the result as an error.
   - **A core alias is declared by the area** (`defineArea({ coreAliases })`) and
     attached by the registry to the core command, which must take an `area` input.
     One generic mechanism, a preset alias (`{ path, input }`), carries the fixed
@@ -141,7 +141,7 @@ the bottom of their section.
   - **A network error names `baseUrl` only when its host failed.** `apiRequest`
     passes the connection's `baseUrl` setting to `restRequest`; another host
     (Dynatrace's `platformUrl`) gets "Check the connection's URL settings". A caller
-    with no connection (a token exchange) keeps the documented wording.
+    with no connection (a token exchange) keeps the recorded wording.
   - **A renamed key keeps its tier** (principle 5): with both names set, env, then CI,
     beat the connection in the file, which beats `defaults.<area>`, which beats
     provider defaults; a tie goes to the new name, as before. So SDE's old
@@ -272,8 +272,8 @@ the bottom of their section.
   - **The git reader hands over every remote, `origin` first**, then the rest in
     `git remote -v` order, and the first one the area's parser accepts wins; the
     parsers still trust only the connection's host. Bitbucket's "origin only"
-    divergence is gone (github and ado had no entry for it). The contract took
-    the first match in `git remote -v` order, which is sorted by name, so the two
+    divergence is gone (github and ado had no entry for it). In the contract,
+    the first match in `git remote -v` order wins, which is sorted by name, so the two
     differ only when `origin` and a remote sorting before it are both on the host;
     each of the three areas lists that one narrow case.
   - **osv, ossindex and sonatypeiq read inventories with core's reader.** Their
@@ -330,7 +330,7 @@ the bottom of their section.
   approval at the head commit, no open threads and `CI ok`.
 - **Envelope calls were reversed to match the maintainer's rule** that a proven
   envelope (`ok`, `data`, error code, exit code) never changes: where an agent had
-  chosen a better-looking error, the contract's envelope came back with an
+  chosen a better-looking error, the envelope the contract records came back with an
   additive warning instead (Jenkins below).
 - **Integration PRs blocked on a kit gap are held for the kit PR**, not given a workaround:
   checkmarx (#129) and alation (#133) for core's token exchange in the parity
@@ -349,13 +349,12 @@ the bottom of their section.
   a servlet container as `..`) moved into core (KF5) and the area only needs its
   tests. The cap is there to stop a reviewer and an agent going in circles; it
   isn't a reason to ship a known security gap or an unfinished sweep.
-- **"Build" in the sense of building software is dropped from history, issues and
-  docs** (#68), on the maintainer's instruction of 2026-10-17, so toil doesn't read
-  as derivative. Main's 12 affected commit messages were reworded and force-pushed
-  with identical content, and open branches were relinked with a merge commit. The
-  repository's own wording now says "integration", "build" or "match": the
-  integration kit, building an integration, matching the contract exactly, and
-  CLAUDE.md's **Matching the contract** section. Network ports keep their name.
+- **History, issues and docs describe integration work as "integration", "build"
+  or "match"** (#68), on the maintainer's instruction of 2026-10-17. Main's 12
+  affected commit messages were reworded and force-pushed with identical content,
+  and open branches were relinked with a merge commit. The wording gives the
+  integration kit, building an integration, implementing the contract exactly, and
+  CLAUDE.md's **The command contract** section. A network port is still a port.
   One later squash merge (#132) landed with a garbled subject from that rewording;
   on the maintainer's go-ahead, main was force-pushed once more to fix that one
   message, after a backup branch and a check that every commit's files were
@@ -396,13 +395,13 @@ Added as each integration lands.
 - **Jira and SonarQube adopt #113's kit** (pilot cleanup, #68):
   - Jira `create-issue` reports a project from `--input-file` through `ctx.supply`,
     source `file`. The file's value is still used as written, so an empty one gets
-    create-issue's own error, as the contract's `??` gave it.
+    create-issue's own error, as the contract records (a `??` fallback).
   - Jira `search` keeps its own `total`. `Paged.total` there is the end offset
     clamped to `--max-results`, and it drops a total the server left out, where the
-    contract returned the server's value as sent.
+    contract records the server's value as sent.
   - SonarQube `--all` uses the `page` style with `total`; its four project commands
-    mark `project` required, with the contract's message as `missing` and core's
-    fix. The hand-written `SONAR_TOKEN` precedence tests went, since
+    mark `project` required, with the message the contract records as `missing` and
+    core's fix. The hand-written `SONAR_TOKEN` precedence tests went, since
     `test/fallbacks.test.ts` covers them.
 
 ### Jira
@@ -414,7 +413,7 @@ Added as each integration lands.
 
 - **Deletes are CLI only**, never MCP tools (CLAUDE.md, Writes); the write gate
   still applies.
-- **An invalid `--limit` returns `[]` as before**, plus a `meta.warnings` entry
+- **An invalid `--limit` returns `[]`, as the contract records**, plus a `meta.warnings` entry
   (principle 4).
 - **A Jira token is reused only through an explicit `apiTokenFrom` pairing**
   (decision 7). `TOIL_JIRA_API_TOKEN` beating a stored Confluence token is a listed
@@ -425,12 +424,12 @@ Added as each integration lands.
 ### Figma
 
 - **An ignored `--as-of` and an unread later page of versions each get a
-  `meta.warnings` entry** (additive, principle 4). Behaviour stays exactly.
+  `meta.warnings` entry** (additive, principle 4). Behaviour otherwise matches the contract exactly.
 
 ### Jenkins
 
-- **`pipeline run --wait` on a failed build returns the contract's success
-  envelope and exits 1**, plus an additive warning. This reverses the agent's first
+- **`pipeline run --wait` on a failed build returns the success envelope
+  the contract records and exits 1**, plus an additive warning. This reverses the agent's first
   call, an error envelope, after the maintainer's envelope rule. It uses KF2's
   `ctx.setExitCode`.
 - **`instance list` is a core alias of `connections list --area jenkins`**, so the
@@ -443,7 +442,7 @@ Added as each integration lands.
 ### Artifactory
 
 - **The old `REPO_*` env names still work through `renamed`**, with its warning.
-- **The pre-lookup ping is sent on every call**, as before.
+- **The pre-lookup ping is sent on every call**, as the contract records.
 - **The inventory accepts `deps scan`'s envelope, its `data` or a bare list**; the
   reader is core's since KF3.
 
@@ -451,17 +450,17 @@ Added as each integration lands.
 
 - **`diff` retries a 429 like everything else**: core had no opt-out, so #72 item 11
   couldn't be kept, and it's listed. KF3 adds `retryRateLimit: false` should the
-  area want the documented behaviour back.
+  area want the recorded behaviour back.
 - **The review-thread truncation warning moved from stderr to `meta.warnings`**
   (additive).
 
 ### Bitbucket
 
-- **`create-prs` keeps the contract's per-repo error recording.** `create-prs`
+- **`create-prs` keeps per-repo error recording, as the contract records it.** `create-prs`
   with every repo failed, and `merge-pr` with the branch not deleted, each get a
   `meta.warnings` entry (additive).
 - **`create-prs` declares a long `timeLimitMs`** (about 30 minutes), so a batch run
-  keeps the contract's per-repo result instead of ending in core's 120 s
+  keeps the per-repo result the contract records instead of ending in core's 120 s
   `TIMEOUT`.
 
 ### Elasticsearch
@@ -501,13 +500,13 @@ Added as each integration lands.
   `connection`. The split `baseUrl`/`token` keys were dropped, so there is no
   mixed-form case and an env value always beats the file (principle 5), with no
   core change.
-- **The `TOIL_SDE_CONNECTION` tier gap** (the documented env name losing to a
+- **The `TOIL_SDE_CONNECTION` tier gap** (the old env name losing to a
   `connectionString` in the file) was tracked as KF2's #128 item 20; the pinned
   test in `src/areas/sde/sde.test.ts` flips once core ranks a renamed key by tier.
 
 ### Dynatrace
 
-- **Each old environment is a connection, selected by `--env`** (its name or an
+- **Each named environment the contract records is a connection, selected by `--env`** (its name or an
   `env` setting).
 - **#83 item 6 is not reproduced** (security): stored values over env, and a token
   sent to other connections.
@@ -536,7 +535,7 @@ Added as each integration lands.
 ### OSV and OSS Index
 
 - **#91 items 5 and 7 are fixed as declared changes**, since a live run confirmed
-  them (CLAUDE.md, Matching the contract): OSV fetches each full record, and OSS Index takes a
+  them (CLAUDE.md, The command contract): OSV fetches each full record, and OSS Index takes a
   username and token (Basic, sent only to `ossindex.sonatype.org`), with a plain
   error without them.
 - **`deps frisk --source osv` (and no `--source`) and `--source sonatype`** come
@@ -548,12 +547,12 @@ Added as each integration lands.
   (principle 9). The evaluation no longer contacts either, so no lower tier can
   arise; the field stays so the envelope keeps its shape.
 - **IDs stay ordinary flags** (`--organization-id`, `--public-id`,
-  `--application-id`), not context inputs, because the contract never filled
-  them from a setting (#131).
+  `--application-id`), not context inputs, because the contract records none of
+  them filled from a setting (#131).
 - **`SONATYPEIQ_NO_COMPONENTS` and `SONATYPEIQ_UNMATCHED_RESULT` warnings.**
 - **`resultsUrl` is re-pointed at the configured origin** (security).
 - **The evaluation polls with core's `poll`, `backoff: 'linear'`** (KF3): 10 tries,
-  waiting 2 s up to 18 s, as before.
+  waiting 2 s up to 18 s, as the contract records.
 
 ### OpenShift
 
@@ -570,7 +569,7 @@ Added as each integration lands.
 - **Warnings `ALATION_ID_MISMATCH`, `ALATION_COLUMNS_TRUNCATED` and
   `ALATION_INPUT_OVERRIDDEN`** move what went to stderr into `meta.warnings`
   (additive).
-- **The token is renewed 60 s before expiry**, as before.
+- **The token is renewed 60 s before expiry**, as the contract records.
 - **`token status` mints a new token on every run**, kept.
 - **Its cached token is dropped with KF3's `tokenScope()`**, not a copy of core's
   key format.
@@ -579,8 +578,8 @@ Added as each integration lands.
 
 - **An Elasticsearch key is shared only through an explicit `apiKeyFrom` pairing**,
   as confluence borrows a Jira token. The default connection still reads
-  `TOIL_ELASTICSEARCH_API_KEY`, as before; a stored Elasticsearch key is no longer
-  borrowed without the pairing (a principle 9 divergence).
+  `TOIL_ELASTICSEARCH_API_KEY`, as the contract records; a stored Elasticsearch key
+  isn't borrowed without the pairing (a principle 9 divergence).
 - **A missing key is `NOT_CONFIGURED`**, whose fix names `TOIL_KIBANA_API_KEY`,
   `toil connections login` and `apiKeyFrom`. A rejected borrowed key points at
   `toil connections login <name>`, never a plaintext `kibana.apiKey`, and names the
@@ -592,8 +591,8 @@ Added as each integration lands.
 ### Azure DevOps Server
 
 - **The self-hosted Server shape**, a PAT only. `--organization` is its own context
-  input; `where()` checks collection, then project, then repo, in the contract's
-  order, with `--collection` beating `--organization`, which beats the git remote and
+  input; `where()` checks collection, then project, then repo, in the order the
+  contract records, with `--collection` beating `--organization`, which beats the git remote and
   the connection setting.
 - **`work fields --save` and `work types --save` are gone** (KF6): they saved only
   the built-in aliases, so nothing needed writing. `fieldAliases` on the connection
@@ -610,7 +609,7 @@ Added as each integration lands.
 - **`report` reads the branch from `ctx.repo()`** rather than spawning `rev-parse`.
 - **Only a git that ran and failed becomes an empty result**; a cancel or an
   argument core refuses still errors.
-- **The contract's 1 MB output limit is kept**; core's 64 MB cap replaces
+- **The 1 MB output limit the contract records is kept**; core's 64 MB cap replaces
   report's 200 MB. `--file` stays relative to the repo root.
 - **`status`, `diff` and `:(top)` cover the whole repository** even when the
   workspace is below its root, as `docs/bounds.md` already says.
@@ -784,7 +783,7 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
 ### Utilities: `util jwt` and `util deps` (#42, #43)
 
 - **No connection, host or network**, and not on the integrations board.
-- **`jwt decode` keeps the contract's argument** and also reads `-` from stdin on the
+- **`jwt decode` keeps the argument the contract records** and also reads `-` from stdin on the
   CLI; `-` is refused over MCP.
 - **`deps scan` normalises CRLF once in its reader**, so every manifest parser and
   `deps diff`'s `git show` blobs agree. A manifest that can't be read is a
@@ -794,8 +793,8 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
 
 ### `skills` commands (#54, #55)
 
-- **Only the commands the welcome menu needs are built**; the rest of the contract's
-  `skills` group is listed in `docs/divergences/skills.json` with a reason each.
+- **Only the commands the welcome menu needs are built**; the rest of the `skills`
+  group the contract records is listed in `docs/divergences/skills.json` with a reason each.
   `git-auth` is gone for good: it rewrote the user's global git config.
 - **A marketplace is a connection of the `skills` area**, so its token lives in the
   OS store or a `TOIL_CONN_<NAME>_TOKEN` variable and reaches git only through git's

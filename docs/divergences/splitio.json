@@ -18,7 +18,7 @@
       ],
       "old": "splitio <command> --workspace <id> naming the Split workspace",
       "toil": "Split's workspace is --ws <id> (the MCP field is still workspace), or the connection's workspace setting (TOIL_SPLITIO_WORKSPACE). A command without one fails with INVALID_INPUT saying --workspace is toil's file-workspace flag and to pass --ws",
-      "why": "--workspace is toil's global flag for the folder commands may read files in, and the CLI parser takes it wherever it appears, so a leaf flag of the same name could never be reached. A find-and-replace migration keeps --workspace <id>, which sets the file workspace to the ID, and then gets the plain error telling it to use --ws.",
+      "why": "--workspace is toil's global flag for the folder commands may read files in, and the CLI parser takes it wherever it appears, so a leaf flag of the same name could never be reached. A call that passes --workspace <id>, as the contract records, sets the file workspace to the ID and then gets the plain error telling it to use --ws.",
       "principle": "Bounds"
     },
     {
@@ -32,7 +32,7 @@
         "splitio flags restore --yes",
         "splitio flags archive --yes"
       ],
-      "old": "Every write asking \"Submit Change Request ...?\" on the terminal unless --yes was given; declining ended with \"Aborted by user.\" and exit code 0",
+      "old": "Every write asking \"Submit Change Request ...?\" on the terminal unless --yes is given; declining ends with \"Aborted by user.\" and exit code 0",
       "toil": "No prompt and no --yes. A write needs writes: true on the connection and --allow-write on the call, and fails with WRITE_DISABLED naming the missing one",
       "why": "toil's write gate replaces per-command confirmation everywhere. It also settles #79 item 13: the prompt blocked --input-file - and unattended runs.",
       "principle": "2"
@@ -41,7 +41,7 @@
       "allows": [],
       "old": "flags get, set-rule and set-default reading /internal/api/v2/splits/ws/{ws}/name/{flag} and .../name/{flag}/environment/{env} (#79 item 1)",
       "toil": "GET /splits/ws/{ws}/{flag} and /splits/ws/{ws}/{flag}/environments/{env}, as Split documents them: https://docs.split.io/reference/get-feature-flag and https://docs.split.io/reference/get-feature-flag-definition-in-environment",
-      "why": "The integration was never run against a live account, so the maintainer had it rebuilt from the vendor docs (#29). The documented paths have a name/ segment and a singular environment that the reference has not.",
+      "why": "The recorded integration had never been run against a live account, so the maintainer had it rebuilt from the vendor docs (#29). The recorded paths have a name/ segment and a singular environment that the reference has not.",
       "principle": "decision"
     },
     {

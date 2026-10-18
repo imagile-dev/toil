@@ -18,7 +18,7 @@
       "allows": [],
       "old": "jira download-attachment fetching the attachment's content URL, with the token, from whatever host Jira names",
       "toil": "The token goes only to baseUrl's origin: a content URL on another host has its path and query re-pointed at baseUrl, with a JIRA_ATTACHMENT_HOST warning",
-      "why": "A server-supplied URL must not carry the user's credential to a host they didn't configure. A change a principle requires, so the integration makes it before a live run (CLAUDE.md, Matching the contract).",
+      "why": "A server-supplied URL must not carry the user's credential to a host they didn't configure. A change a principle requires, so the integration makes it before a live run (CLAUDE.md, The command contract).",
       "principle": "9",
       "class": "security"
     },
@@ -26,20 +26,20 @@
       "allows": [],
       "old": "jira download-attachment reporting saved with the platform's separator",
       "toil": "saved uses forward slashes on every platform; the file lands in the same place",
-      "why": "Paths in JSON output are identical on Windows, macOS and Linux (CLAUDE.md, Cross-Platform). Same on macOS and Linux as before.",
+      "why": "Paths in JSON output are identical on Windows, macOS and Linux (CLAUDE.md, Cross-Platform). On macOS and Linux the output is unchanged.",
       "principle": "8"
     },
     {
       "allows": [],
       "old": "jira download-attachment writing to a file that already exists",
-      "toil": "Refused with INVALID_INPUT naming the path; the existing file is left alone. The contract replaced it (#70 item 8)",
+      "toil": "Refused with INVALID_INPUT naming the path; the existing file is left alone. The contract records it being replaced (#70 item 8)",
       "why": "A read-only command, whose file name comes from whoever uploaded the attachment, must not change files already on disk.",
       "principle": "2",
       "class": "security"
     },
     {
       "allows": [],
-      "old": "jira search, list-comments, list-boards and list-sprints paging for as long as the server kept answering",
+      "old": "jira search, list-comments, list-boards and list-sprints paging for as long as the server keeps answering",
       "toil": "Paging stops after 1,000 pages (100,000 items at 100 a page) with an HTTP error naming the list, e.g. \"Paging Jira search didn't end after 1000 pages\", and a fix to narrow the request",
       "why": "A server that ignores startAt hands back the same page forever; the bound turns a hang into an error that says what happened. A list that size is far past anything a caller can use in one envelope.",
       "principle": "4"

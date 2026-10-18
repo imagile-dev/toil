@@ -10,16 +10,16 @@
     },
     {
       "allows": [],
-      "old": "Named environments as dynatrace.environments.<name>.{baseUrl, apiToken, platformUrl, platformToken} beside flat dynatrace.* keys, with dynatrace.defaultEnvironment picking one when --env was absent; an unknown name failed with a fix naming dynatrace.environments.<name>.baseUrl",
+      "old": "Named environments as dynatrace.environments.<name>.{baseUrl, apiToken, platformUrl, platformToken} beside flat dynatrace.* keys, with dynatrace.defaultEnvironment picking one when --env is absent; an unknown name fails with a fix naming dynatrace.environments.<name>.baseUrl",
       "toil": "Each environment is a dynatrace connection. --env selects the connection named <name>, or the one whose env setting is <name>; defaults.dynatrace.connection takes the place of defaultEnvironment, and keys every environment shares go under defaults.dynatrace, below each connection's own. An unknown --env is INVALID_INPUT listing the environments toil knows",
       "why": "toil's config is a set of named connections, and --env is the one environment concept that selects among them (decision 9 on #68), so it can't be a nested map inside one connection. The unknown-name error lists the valid ones, as decision 9 requires.",
       "principle": "decision"
     },
     {
       "allows": [],
-      "old": "With dynatrace.defaultEnvironment set, the stored environment's baseUrl, apiToken, platformUrl and platformToken won over the DYNATRACE_* env vars, which only filled fields the environment left out, also for an environment picked with --env (#83 item 6)",
+      "old": "With dynatrace.defaultEnvironment set, the stored environment's baseUrl, apiToken, platformUrl and platformToken winning over the DYNATRACE_* env vars, which only fill fields the environment leaves out, also for an environment picked with --env (#83 item 6)",
       "toil": "TOIL_DYNATRACE_* env vars configure the default connection and win over anything stored for it. Another connection takes only its own TOIL_CONN_<NAME>_* variables, then defaults.dynatrace; the TOIL_DYNATRACE_* token never fills a gap in it",
-      "why": "Env vars outrank every stored value, and a credential goes only to the connection it's configured on. The contract could send a CI job's token to a stored environment's host.",
+      "why": "Env vars outrank every stored value, and a credential goes only to the connection it's configured on. The recorded precedence could send a CI job's token to a stored environment's host.",
       "principle": "9",
       "class": "security"
     }

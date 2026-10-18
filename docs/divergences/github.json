@@ -10,8 +10,8 @@
     },
     {
       "allows": [],
-      "old": "github commands putting owner, repo, label and ref into request paths as typed, so a \".\" or \"..\" segment (or its %2e or backslash form) was collapsed by URL parsing and the request, a DELETE included, went to a different resource on the same host",
-      "toil": "A path with a \".\" or \"..\" segment is refused with INVALID_INPUT before anything is sent: core's requests.path bound for every area, plus a check here that first reads the path as the URL parser does (tab, LF and CR dropped, trailing C0 controls and spaces trimmed), so two dots with a tab between them or a trailing \".. \" can't become \"..\" afterwards. Every other character still goes in unencoded, as before (#72 item 4)",
+      "old": "github commands putting owner, repo, label and ref into request paths as typed, so a \".\" or \"..\" segment (or its %2e or backslash form) is collapsed by URL parsing and the request, a DELETE included, goes to a different resource on the same host",
+      "toil": "A path with a \".\" or \"..\" segment is refused with INVALID_INPUT before anything is sent: core's requests.path bound for every area, plus a check here that first reads the path as the URL parser does (tab, LF and CR dropped, trailing C0 controls and spaces trimmed), so two dots with a tab between them or a trailing \".. \" can't become \"..\" afterwards. Every other character still goes in unencoded (#72 item 4)",
       "why": "A write approved for one resource must not land on another: --label ../../../repos/o/r on remove-label would otherwise send DELETE /repos/o/r.",
       "principle": "2",
       "class": "security"
@@ -48,9 +48,9 @@
       "allows": [
         "github add-labels data.labels"
       ],
-      "old": "github add-labels typed its data as { labels: [...] }",
-      "toil": "data is GitHub's answer passed through unchanged, as before. GitHub answers with a bare array of labels, so the contract's typed field never existed at run time",
-      "why": "Nothing changes; the recorded field came from the contract's type, not from what GitHub returns, and a fixture shaped like the real API can't carry it.",
+      "old": "github add-labels typing its data as { labels: [...] }",
+      "toil": "data is GitHub's answer passed through unchanged, as the contract specifies. GitHub answers with a bare array of labels, so the typed field the contract records never exists at run time",
+      "why": "Nothing changes; the recorded field comes from a declared type, not from what GitHub returns, and a fixture shaped like the real API can't carry it.",
       "principle": "Matching the contract"
     },
     {
@@ -58,9 +58,9 @@
         "github add-reviewers data.users",
         "github add-reviewers data.teams"
       ],
-      "old": "github add-reviewers typed its data as { url, users, teams }",
-      "toil": "data is GitHub's answer passed through unchanged, as before. GitHub answers a reviewer request with the pull request, which has url and requested_reviewers but no users or teams",
-      "why": "Nothing changes; the recorded fields came from the contract's type, not from what GitHub returns, and a fixture shaped like the real API can't carry them.",
+      "old": "github add-reviewers typing its data as { url, users, teams }",
+      "toil": "data is GitHub's answer passed through unchanged, as the contract specifies. GitHub answers a reviewer request with the pull request, which has url and requested_reviewers but no users or teams",
+      "why": "Nothing changes; the recorded fields come from a declared type, not from what GitHub returns, and a fixture shaped like the real API can't carry them.",
       "principle": "Matching the contract"
     }
   ]

@@ -1,31 +1,35 @@
 # Command contract
 
-`command-contract.json` freezes the command surface of the CLI toil succeeds, captured
-from that CLI's own `--help` output (version 6.3.0: 443 commands, 368 of them leaves),
-and the field names of the `data` each command returns, read from its TypeScript
-source by the type checker.
-The rule it backs, from **Compatibility** in the `integrations` skill
-(`.claude/skills/integrations/SKILL.md`): moving a skill, script
-or pipeline to toil takes one case-insensitive find-and-replace of the old name with
-`toil`.
+`command-contract.json` is toil's record of its command surface: every command path
+and alias, each command's positional arguments and flags with their accepted values and
+defaults, and the field names of the `data` each command returns. It holds 443
+commands, 368 of them leaves. `test/contract.test.ts` checks the registered CLI against
+it on every run, so a command, flag or output field can't change or disappear without
+someone noticing. Each difference toil makes on purpose is a divergence, listed with its
+reason (below).
 
-## What has to match
+How integrations are held to it is **The command contract** in `CLAUDE.md`, and the
+working rules are **Compatibility** in the `integrations` skill
+(`.claude/skills/integrations/SKILL.md`).
+
+## What the contract records
 
 For every command in scope:
 
-- the same command path (`jira get-issue`, `ado pr list`, `dynatrace entities list`)
-  and the same aliases
-- the same positional arguments in the same order
-- the same long and short flags, the same accepted values, and the same defaults
-- group-level flags where the contract had them (`bitbucket --project --repo`,
-  `github --owner --repo`, `ado --collection --organization --project --repo`,
-  `jenkins --instance`, `openshift --env --instance`, `dynatrace --env`)
+- the command path (`jira get-issue`, `ado pr list`, `dynatrace entities list`) and its
+  aliases
+- the positional arguments, in order
+- the long and short flags, their accepted values and their defaults
+- group-level flags (`bitbucket --project --repo`, `github --owner --repo`,
+  `ado --collection --organization --project --repo`, `jenkins --instance`,
+  `openshift --env --instance`, `dynatrace --env`)
 - the global flags `--pretty`, `--verbose`, `--debug`, `--config <path>`,
   `--output-file <path>`, `-v/--version`
-- the JSON envelope, with the same `data` field names for the same command
-- env vars and config keys, apart from the `TOIL_` prefix
+- the JSON envelope, with the `data` field names each command returns
+- env var names, each with the `TOIL_` prefix, and config keys
 
-toil may add commands, flags and output fields.
+toil may add commands, flags and output fields; anything the contract records that toil
+changes or drops is a divergence.
 
 ## Scope
 
@@ -33,11 +37,11 @@ toil may add commands, flags and output fields.
 |------|----------|-------|
 | Every integration (`jira`, `bitbucket`, `github`, `confluence`, `sonar`, `sde`, `ado`, `jenkins`, `artifactory`, `checkmarx`, `contrast`, `sonatypeiq`, `openshift`, `dynatrace`, `logscale`, `elasticsearch`, `kibana`, `splitio`, `figma`, `alation`, `saucelabs`) | Yes | Exact match |
 | `git` | Yes | Exact match, apart from the divergences in `docs/divergences/git.json`. Repository facts (root, branch, remotes) are read from `.git` in pure JS; `status`, `diff`, `log`, `branch` and `report` run the git on PATH, the one program besides the OS credential store toil may run (#68 decision 1), and return `GIT_NOT_FOUND` without it |
-| `jwt` | Yes | Built as `util jwt decode`, a local utility; `jwt decode` stays as its alias. One divergence, in `docs/divergences/jwt.json` |
-| `deps` | Yes | `scan` and `diff` are built as `util deps scan` and `util deps diff`, local utilities, with their old paths as aliases; `frisk`, `outdated` and `license-check` are aliases of the source commands that own them. Divergences in `docs/divergences/deps.json` |
-| `config` | No | Rebuilt around the OS credential store. `config import` migrates the documented global config once. |
+| `jwt` | Yes | Built as `util jwt decode`, a local utility; `jwt decode` is its alias. One divergence, in `docs/divergences/jwt.json` |
+| `deps` | Yes | `scan` and `diff` are built as `util deps scan` and `util deps diff`, local utilities, with the contract's paths as aliases; `frisk`, `outdated` and `license-check` are aliases of the source commands that own them. Divergences in `docs/divergences/deps.json` |
+| `config` | No | Built around the OS credential store. `config import` reads a global config file in the shape the contract records, once. |
 | `skills` | Yes | Marketplace add, list, plugins, remove, sync, enable and disable, and `skills status`, matched. The rest aren't built yet, or are gone for good (`skills git-auth`); each is a divergence in `docs/divergences/skills.json` |
-| `doctor` | No | Rebuilt for toil's own setup story |
+| `doctor` | No | Built for toil's own setup story |
 
 ## Divergences
 
@@ -50,7 +54,7 @@ any difference none of them allows. An entry holds:
 |-----|---------|
 | `allows` | The identifiers it excuses: a command path (`git credentials`), a command and flag (`<area> <command> --<flag>`), a global flag (`--dry-run`), or a command and output field (`<area> <command> data.<field>`, such as `jira search data.issues[].key`). Empty for a divergence in behavior only, with the surface unchanged, so it can't excuse a missing command, flag or field. |
 | `when` | Optional. Input values a call must have for the entry to apply, such as `{ "exampleOnly": true }`. The output check applies it per example, so `jira schema`'s fields are excused only with `--example-only`. |
-| `old` | What the contract did |
+| `old` | What the contract records |
 | `toil` | What toil does instead, and what to use |
 | `why` | The reason, in a sentence or two |
 | `principle` | The principle's number, a CLAUDE.md section (`Output Contract`), or `decision` for a deliberate product call |
@@ -62,16 +66,17 @@ area, and the test checks both. The test covers paths, aliases, positional argum
 flag spellings and output field names; a flag on the command's group counts for a leaf
 flag of the same spelling, since the group accepts it after the leaf. For output, it runs every example in the area's
 fixture and requires every required field of one of the contract's recorded shapes;
-optional fields (`?` in the contract) and output the contract typed as `any` can't be
+optional fields (`?` in the contract) and output the contract types as `any` can't be
 checked that way, so an integration still compares those with the contract by hand.
 
 To read them all as a table: `node scripts/divergences.mjs`.
 
 ## Recapturing
 
-The contract changes only on purpose, when a newer version of the contract shipped
-commands toil should also cover. Recapture from a checkout of that version, built and
-with its dependencies installed, so the checker can resolve its types:
+The contract changes only on purpose, when the command surface it records should grow.
+`scripts/capture-command-contract.mjs` writes it from a built CLI: the command surface
+from a recursive `--help` walk, and the output fields from the TypeScript checker over
+that build's source, so the checkout must be built and have its dependencies installed:
 
 ```bash
 node scripts/capture-command-contract.mjs <repo>/dist/cli.js --source <repo> > docs/command-contract.json

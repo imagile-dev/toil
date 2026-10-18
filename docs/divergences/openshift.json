@@ -17,14 +17,14 @@
     },
     {
       "allows": [],
-      "old": "Named clusters as openshift.environments.<env>.instances.<instance>.{baseUrl, token} beside flat openshift.baseUrl and openshift.token, with openshift.defaultEnvironment and openshift.defaultInstance picking one; --env or a default environment with no instance (or the reverse) failed, naming the missing flag",
+      "old": "Named clusters as openshift.environments.<env>.instances.<instance>.{baseUrl, token} beside flat openshift.baseUrl and openshift.token, with openshift.defaultEnvironment and openshift.defaultInstance picking one; --env or a default environment with no instance (or the reverse) failing, naming the missing flag",
       "toil": "Each cluster is an openshift connection, with env and instance settings for a named one. --env and --instance each select the connection named <name>, or the one whose env (or instance) setting is <name>, and must agree when both are given; either alone is enough when it identifies one connection, the two together pick the one connection matching both when each alone matches several, and a value that still matches several is INVALID_INPUT naming them. defaults.openshift.connection takes the place of defaultEnvironment and defaultInstance. An unknown name is INVALID_INPUT listing the clusters toil knows",
       "why": "toil's config is a set of named connections, and --env is the one environment concept that selects among them (decision 9 on #68), so clusters can't be a nested map inside one connection.",
       "principle": "decision"
     },
     {
       "allows": [],
-      "old": "With openshift.defaultEnvironment and openshift.defaultInstance set, the stored cluster's baseUrl and token won over the OPENSHIFT_BASE_URL and OPENSHIFT_TOKEN env vars, which only set the flat cluster (#88 item 3)",
+      "old": "With openshift.defaultEnvironment and openshift.defaultInstance set, the stored cluster's baseUrl and token winning over the OPENSHIFT_BASE_URL and OPENSHIFT_TOKEN env vars, which only set the flat cluster (#88 item 3)",
       "toil": "TOIL_OPENSHIFT_* env vars configure the default connection and win over anything stored for it. Another connection takes only its own TOIL_CONN_<NAME>_* variables, then defaults.openshift; the TOIL_OPENSHIFT_* token never fills a gap in it",
       "why": "Env vars outrank every stored value, and a credential goes only to the connection it's configured on.",
       "principle": "9",

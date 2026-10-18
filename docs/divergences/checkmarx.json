@@ -3,14 +3,14 @@
   "divergences": [
     {
       "allows": [],
-      "old": "checkmarx.clientId and checkmarx.clientSecret, exchanged with the client_credentials grant when no apiKey was set",
+      "old": "checkmarx.clientId and checkmarx.clientSecret, exchanged with the client_credentials grant when no apiKey is set",
       "toil": "API key only. clientId and clientSecret are removed keys (a CONFIG_REMOVED_KEY warning each, saying to set apiKey; the values are dropped, never sent), and a connection without apiKey is CONFIG_INVALID naming apiKey and TOIL_CHECKMARX_API_KEY",
       "why": "Client credentials need an OAuth client registered for the tool, which the Authentication Bar rules out; the API key is a refresh token exchanged over plain HTTP, which it allows (maintainer's decision on #32).",
       "principle": "1"
     },
     {
       "allows": [],
-      "old": "The API key POSTed to whatever host the ast.-to-iam. rewrite of baseUrl produced, over https",
+      "old": "The API key POSTed to whatever host the ast.-to-iam. rewrite of baseUrl produces, over https",
       "toil": "The exchange goes only to a host under checkmarx.net over HTTPS, or to the connection's own origin; anything else is refused with AUTH before the key is sent",
       "why": "A long-lived credential goes only to the host it's configured for or a vendor domain written in the area's code, never to a host derived from a setting (#68 decision 1).",
       "principle": "9",
@@ -18,7 +18,7 @@
     },
     {
       "allows": [],
-      "old": "checkmarx project list and scan list writing \"warning: N projects found; only showing first M\" to stderr when the server counted more than one page",
+      "old": "checkmarx project list and scan list writing \"warning: N projects found; only showing first M\" to stderr when the server counts more than one page",
       "toil": "The same words in meta.warnings, code CHECKMARX_TRUNCATED, and nothing on stderr; data is unchanged",
       "why": "A JSON consumer never sees stderr, so a truncated result has to say so in the envelope it reads. Additive to data.",
       "principle": "4"

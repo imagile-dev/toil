@@ -21,7 +21,7 @@
       "allows": [
         "skills git-auth"
       ],
-      "old": "skills git-auth enable | disable | status, which wrote credential.helper entries into the user's global git config that made git run the CLI (through a shell) to answer for a marketplace's host, or stored the token in git's own credential store",
+      "old": "skills git-auth enable | disable | status, writing credential.helper entries into the user's global git config that make git run the CLI (through a shell) to answer for a marketplace's host, or storing the token in git's own credential store",
       "toil": "Removed. toil gives git a marketplace's token for its own clone and pull only, as an http.<url>.extraHeader in git's environment, scoped by git to that marketplace's URL. Agent hosts that fetch a marketplace themselves use git's own credential setup",
       "why": "Writing the user's global git config so git spawns toil is a second spawning path and a change to the machine outside toil's files; toil runs git, and nothing runs toil (CLAUDE.md, No Executables).",
       "principle": "1",
@@ -137,7 +137,7 @@
     },
     {
       "allows": [],
-      "old": "Installing a plugin replaced any folder of the same name in the skills folder, including one the user wrote by hand",
+      "old": "Installing a plugin replacing any folder of the same name in the skills folder, including one the user wrote by hand",
       "toil": "Only a folder toil installed from the same marketplace and plugin is replaced. Any other is left as found, listed in failed, with a SKILLS_NOT_REPLACED warning. Symlinks in a marketplace are never copied",
       "why": "toil never overwrites what it didn't write (docs/bounds.md, files.no-overwrite), and a skill written by hand can't be recovered.",
       "principle": "2",
@@ -165,8 +165,8 @@
         "skills status data.skills[].toilVersion"
       ],
       "old": "toilVersion in skills status, and in each skill's install record",
-      "toil": "toilVersion, the name the migration rule's find-and-replace gives it. The install index is .toil-installed.json, each skill's provenance toil-origin.json and the stash .toil-disabled",
-      "why": "Moving to toil is one find-and-replace of the old name (integrations skill, Compatibility); the files follow the same rule.",
+      "toil": "toilVersion. The install index is .toil-installed.json, each skill's provenance toil-origin.json and the stash .toil-disabled",
+      "why": "Field and file names that carry the tool's name use toil's own, and so do the files it writes (principle 6).",
       "principle": "6"
     },
     {

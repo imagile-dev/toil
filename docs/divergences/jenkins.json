@@ -7,7 +7,7 @@
         "jenkins instance remove"
       ],
       "old": "jenkins instance add --name --base-url [--username] [--api-token] [--force] and jenkins instance remove --name, editing the jenkinsInstances array in the global config",
-      "toil": "A named instance is a jenkins connection. jenkins instance add <name> is toil connections add <name> --area jenkins: it takes the name as an argument, asks for baseUrl, username, instance and the API token on a terminal, and keeps the token in the OS credential store. jenkins instance remove <name> is toil connections remove <name> --area jenkins, which also deletes the token from the store and refuses a connection to another area. Both are CLI only, take the name as an argument instead of --name, return the connections commands' data, and the other old flags are gone",
+      "toil": "A named instance is a jenkins connection. jenkins instance add <name> is toil connections add <name> --area jenkins: it takes the name as an argument, asks for baseUrl, username, instance and the API token on a terminal, and keeps the token in the OS credential store. jenkins instance remove <name> is toil connections remove <name> --area jenkins, which also deletes the token from the store and refuses a connection to another area. Both are CLI only, take the name as an argument instead of --name, return the connections commands' data, and the contract's other flags aren't accepted",
       "why": "Only the toil connections commands write config, and a secret goes only to the OS credential store or an env var, never into a config file from a flag. Core answers all three instance commands, so the jenkins area never receives the whole config or the credential store.",
       "principle": "Secrets"
     },
@@ -29,7 +29,7 @@
     },
     {
       "allows": [],
-      "old": "jenkins pipeline run --wait returning the build as a success envelope and exiting 1 when the build's result was set and not SUCCESS",
+      "old": "jenkins pipeline run --wait returning the build as a success envelope and exiting 1 when the build's result is set and not SUCCESS",
       "toil": "The same: ok, the build as data, and exit code 1. toil adds a JENKINS_BUILD_NOT_SUCCESSFUL warning in meta.warnings naming the build and its result",
       "why": "The warning is additive output the contract allows, and it makes the failure visible to MCP callers, who never see an exit code.",
       "principle": "4"

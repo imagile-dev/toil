@@ -5,7 +5,7 @@
       "allows": [],
       "old": "Every figma command following a redirect to any host and resending X-Figma-Token with it (#73 item 1): fetch strips only Authorization on a cross-origin hop, not a custom header",
       "toil": "A redirect to another origin is refused with HTTP, naming both hosts, and nothing is sent to the new one; redirects within the configured baseUrl's origin are still followed",
-      "why": "A server-supplied Location must not carry the user's personal access token to a host they didn't configure. A change a principle requires, so the integration makes it before a live run (CLAUDE.md, Matching the contract).",
+      "why": "A server-supplied Location must not carry the user's personal access token to a host they didn't configure. A change a principle requires, so the integration makes it before a live run (CLAUDE.md, The command contract).",
       "principle": "9",
       "class": "security"
     }

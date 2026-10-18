@@ -10,14 +10,14 @@
     },
     {
       "allows": [],
-      "old": "\"Could not determine Bitbucket project/repo. Pass --project and --repo, or run <contract> config init.\" (and the project-only form for create-repo and create-prs)",
+      "old": "\"Could not determine Bitbucket project/repo. Pass --project and --repo, or run config init.\" (and the project-only form for create-repo and create-prs)",
       "toil": "The same first sentence, then \"or set project and repo on the connection\", with a fix naming the env vars; checked by core before the command runs, so for list-prs it comes before a bad --created-after is reported",
       "why": "toil has no config init; an error must point at something the user can do.",
       "principle": "4"
     },
     {
       "allows": [],
-      "old": "git current-pr with no Bitbucket baseUrl or token returning { message: \"Requires Bitbucket config. Available after <contract> config init.\" }",
+      "old": "git current-pr with no Bitbucket baseUrl or token returning { message: \"Requires Bitbucket config. Available after config init.\" }",
       "toil": "The same success with a message, now \"Requires Bitbucket config. Available after toil connections add.\"; a connection that exists but lacks pat also adds a CONFIG_INCOMPLETE warning naming the key",
       "why": "toil has no config init, so the message names the command that sets a connection up.",
       "principle": "4"

@@ -11,15 +11,15 @@
     {
       "allows": [],
       "old": "deps frisk --source sonatype probing OSV.dev and Artifactory, as well as OSS Index, before every run",
-      "toil": "toil ossindex vulns probes OSS Index only, as before, and never contacts OSV.dev or Artifactory. tier is still \"full\" on every success, as it always was once OSS Index answered",
+      "toil": "toil ossindex vulns probes only OSS Index and never contacts OSV.dev or Artifactory. tier is \"full\" on every success once OSS Index answers, as the contract records",
       "why": "A command talks only to the public API it names in its own name.",
       "principle": "9"
     },
     {
       "allows": [],
-      "old": "deps frisk --source sonatype calling OSS Index anonymously, so a 401 read as \"ossindex.sonatype.org is not reachable\", and the 429 advice named credentials no config key held",
-      "toil": "toil ossindex vulns needs a connection with a free account's username and token (TOIL_OSSINDEX_USERNAME, TOIL_OSSINDEX_TOKEN), sent as Basic auth only to the fixed host https://ossindex.sonatype.org. With none set up it fails with NOT_CONFIGURED before any request; a rejected credential is AUTH. Other probe failures are still the old \"not reachable\" error",
-      "why": "Confirmed against the live OSS Index API on 2026-10-17 (PR #130's proof run: an anonymous component-report request got HTTP 401), so it is fixed as a declared change (#91 item 7; CLAUDE.md, Matching the contract).",
+      "old": "deps frisk --source sonatype calling OSS Index anonymously, so a 401 reads as \"ossindex.sonatype.org is not reachable\", and the 429 advice names credentials no config key holds",
+      "toil": "toil ossindex vulns needs a connection with a free account's username and token (TOIL_OSSINDEX_USERNAME, TOIL_OSSINDEX_TOKEN), sent as Basic auth only to the fixed host https://ossindex.sonatype.org. With none set up it fails with NOT_CONFIGURED before any request; a rejected credential is AUTH. Other probe failures keep the recorded \"not reachable\" error",
+      "why": "Confirmed against the live OSS Index API on 2026-10-17 (PR #130's proof run: an anonymous component-report request got HTTP 401), so it is fixed as a declared change (#91 item 7; CLAUDE.md, The command contract).",
       "principle": "4"
     }
   ]

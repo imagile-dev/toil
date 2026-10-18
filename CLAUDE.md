@@ -57,16 +57,16 @@ gets made again in the next place it applies.
 5. **The environment wins without editing files.** CI and agents configure through
    env vars that override anything on disk. → Configuration Precedence.
 6. **This repository stands alone.** Docs, code and skills never name another
-   repository or another CLI as a reference, ancestor or comparison. The one
-   exception is the frozen command contract (**Compatibility** in the
-   `integrations` skill), which must name its source to be checkable.
+   repository or another CLI as a reference or comparison. The command contract
+   (**The command contract**, below) is toil's own record, and it says how it was
+   captured so it can be checked.
 7. **Never break what users already rely on silently.** Config on disk, flags, the
    JSON envelope and precedence are contracts; changing them is a declared,
    documented breaking change. → Output Contract, Delivery. **This starts at toil's
    first npm release**, which waits until every integration is built. Until then
    no one can rely on anything, so contract changes need no breaking-change checks,
-   declarations or migration notes. Compatibility with the contract (the
-   `integrations` skill) is a separate requirement and still applies.
+   declarations or migration notes. Compatibility with the command contract
+   (the `integrations` skill) is a separate requirement and still applies.
 8. **Same behavior on Windows, macOS and Linux.** None is second-class; a feature
    that works on one and not the others is not done. → Cross-Platform; the site
    is mobile responsive for the same reason (`site` skill).
@@ -76,7 +76,7 @@ gets made again in the next place it applies.
    plus the proxy the environment names. A credential goes only to the connection
    it's configured on, or to one the user paired it with; the one exception is an
    area's default connection taking another area's default env value, which keeps
-   the documented env chain.
+   the env chain the contract records.
 
 ## Cross-Platform
 
@@ -252,8 +252,8 @@ GitHub Actions; its build tooling is out of scope.
   `npm install`; only the release PR rebuilds it (Build & Test)
 - `.claude/skills/` — repo-internal skills only. They're for working in this
   repository; they're never published or installed by toil (that's `skills/toil/`)
-- `docs/` — plans and decisions; `docs/divergences/<area>.json` holds the migration
-  contract's allowed divergences, and `docs/briefs/<area>.md` the integration brief for each
+- `docs/` — plans and decisions; `docs/divergences/<area>.json` holds each area's
+  divergences from the command contract, and `docs/briefs/<area>.md` the integration brief for each
   area still to build
 - `site/` — the GitHub Pages site (Astro), its own private package; see the `site`
   skill
@@ -331,7 +331,7 @@ shares: { area, keys } })` only declares which keys may be paired; core adds a
 `<key>From` setting, and a connection borrows only when the user set it (a Kibana
 connection with `"apiKeyFrom": "es-prod"`), and only from that connection. Between
 the two, the env tier beats the file tier, and the own connection wins a tie. With
-no pairing a connection uses only its own key, with one exception that keeps the old
+no pairing a connection uses only its own key, with one exception that keeps the contract's
 env chain: the area's default connection takes the other area's default
 connection's env value (`TOIL_KIBANA_API_KEY`, then `TOIL_ELASTICSEARCH_API_KEY`),
 matching precedence rule 2. A shared key is a secret in both areas or in neither.
@@ -342,7 +342,7 @@ value came from env or the store, never the value.
 may sit in another group (`deps outdated` for `artifactory outdated`); MCP still has
 one tool per command, and `meta.command` names the command. An area's `coreAliases`
 put a path in its group onto a core command fixed to that area (`jenkins instance
-list` is `connections list --area jenkins`). A **routed alias** is an old path
+list` is `connections list --area jenkins`). A **routed alias** is a contract path
 whose flag value picks the command (`deps frisk --source sonatype` runs `ossindex
 vulns`), declared once in `ROUTED_ALIASES` in `src/registry.ts`
 (`src/core/routed-alias.ts`); a route whose command isn't registered is skipped,
@@ -363,7 +363,7 @@ signed download URL with every header dropped. argv is typed from the schema by 
 same rule env vars follow (`fromText` in `src/core/schema.ts`): numbers, `true` and
 `false`, enums, JSON for an object, and an array field's flag is repeatable with each
 value typed as its element. A union stays text, which is how Jira keeps the
-contract's `parseInt` reading of `--max-results`.
+`parseInt` reading of `--max-results` that the contract records.
 
 **`<area> api` is the raw passthrough** (`src/core/passthrough.ts`): an HTTP area
 exports `apiCommand(area, { service, examplePath, examples })` with its commands, and
@@ -615,32 +615,39 @@ write (`skills marketplace add`, which clones) has no connection yet, so it need
 so `add` leaves writes off and installs nothing. Writes go on the way every
 connection's do (`docs/bounds.md`, `skills.folders`).
 
-## Matching the contract
+## The command contract
 
-*Principles 4 and 7.* Until toil has run an integration against a live instance, the
-contract's observable behavior **is** the specification: the requests it sends,
-whether a call succeeds or fails, the error, and the `data` it returns. Toil's unit
-suite has never met a real server, so an integration that "fixes" what looks wrong is
-guessing, and it silently breaks callers who rely on the documented result.
+*Principles 4 and 7.* `docs/command-contract.json` is toil's record of every
+integration command: its path and aliases, positional arguments, flags with their
+values and defaults, and the field names of the `data` it returns
+(`docs/command-contract.md`). With each area's brief, issue, docs and tests, it is the
+specification: the requests a command sends, whether a call succeeds or fails, the
+error, and the `data` it returns. Toil's unit suite has never met a real server, so
+an integration that "fixes" what looks wrong is guessing, and it silently breaks
+callers who rely on the recorded result.
 
-- **Match behavior exactly, bugs included,** until a live instance proves otherwise.
-  That covers validation, defaults, paging, id-or-name detection, encoding and error
-  messages too, not just the happy path.
+- **Implement the recorded behavior exactly, bugs included,** until a live instance
+  proves otherwise. That covers validation, defaults, paging, id-or-name detection,
+  encoding and error messages too, not just the happy path.
 - **Suspected bugs are recorded, not fixed.** Each integration has one issue labelled
   `suspected-bug` (`Suspected bugs to verify: <name> (`<area>`)`). The integration appends
   anything new it finds there, with where, what, why, confidence, the observable
-  change if fixed, and a live check. Tests pin the contract's behavior and say it's
+  change if fixed, and a live check. Tests pin the recorded behavior and say it's
   a suspected bug.
+- **A divergence is a documented difference from the contract.** Each one is an
+  entry in `docs/divergences/<area>.json`: what the contract records (`old`), what
+  toil does instead (`toil`), why, and the principle that requires it.
+  `test/contract.test.ts` checks every registered command against the contract and
+  fails on any difference no entry allows.
 - **Two kinds of change are allowed.** One is a change another principle or the
   Output Contract requires, such as a credential reaching a host the user didn't
   configure, or a path an agent passes reaching toil's own credentials. It's made at
-  once and listed as a divergence in `docs/divergences/<area>.json`, naming the
-  principle.
+  once and listed as a divergence, naming the principle.
   The other is additive output the contract already allows (a new `data` field,
   `meta.warnings`, `meta.page`).
 - **The first live run checks every item** in the area's issue. A confirmed bug is
   fixed as a declared change (`fix:` or `feat:`, and `feat!:` once toil has been
-  released, per Delivery); a refuted one is closed.
+  released, per Delivery) and listed as a divergence; a refuted one is closed.
 
 ## Testing
 
@@ -849,7 +856,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 
 | Skill | Use when |
 |-------|----------|
-| `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, matching the contract, the migration command contract |
+| `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, the command contract and its divergences |
 | `databases` | Working on the `db` area, a database provider, or database tests, including the local Docker run |
 | `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: why there is no `code` area, and what reopening it takes |
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |

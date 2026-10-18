@@ -14,7 +14,7 @@
     {
       "allows": [],
       "old": "git diff, git log and git report returning an empty result when git can't run at all",
-      "toil": "With no runnable git on PATH they fail with GIT_NOT_FOUND, exit code 1, and a fix saying to install git or put it on PATH. Any other git failure keeps the contract's behavior (an empty result where it gave one)",
+      "toil": "With no runnable git on PATH they fail with GIT_NOT_FOUND, exit code 1, and a fix saying to install git or put it on PATH. Any other git failure keeps the behavior the contract records (an empty result where it gave one)",
       "why": "A missing git has to be an unmistakable error, never an empty diff or history that reads as \"nothing changed\" (maintainer, 2026-10-17, #68).",
       "principle": "4"
     },
@@ -42,7 +42,7 @@
     },
     {
       "allows": [],
-      "old": "git diff building a shell command string, so --file with a space or a shell metacharacter became several pathspecs or shell syntax, and usually an empty diff (#74 item 3)",
+      "old": "git diff building a shell command string, so --file with a space or a shell metacharacter becoming several pathspecs or shell syntax, and usually an empty diff (#74 item 3)",
       "toil": "git runs with a fixed argument list and no shell, so --file is one pathspec after --: a path with a space gets its diff",
       "why": "toil never spawns through a shell (CLAUDE.md, Cross-Platform and No Executables; decision 1 on #68).",
       "principle": "1",
