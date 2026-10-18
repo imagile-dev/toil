@@ -139,30 +139,60 @@ export function writeBundledSkill(dir: string, files: Record<string, string>, ve
   try {
     for (const [name, text] of Object.entries(files)) writeFileSync(join(staging, name), text, 'utf8');
     writeFileSync(join(staging, ORIGIN_FILE), `${JSON.stringify({ version: 1, ...record }, null, 2)}\n`, 'utf8');
-    rmSync(aside, { recursive: true, force: true });
-    const had = existsSync(final);
-    if (had) renameSync(final, aside);
-    try {
-      renameSync(staging, final);
-    } catch (err) {
-      // If the old copy can't go back either, it stays aside rather than being deleted, and the first error is the one reported.
-      if (had) {
-        try {
-          renameSync(aside, final);
-        } catch {
-          // Left at `aside` on purpose: it is the only copy.
-        }
-      }
-      throw err;
-    }
-    // Only now, with the new copy in place, does the old one go.
-    rmSync(aside, { recursive: true, force: true });
+    swapIn(staging, final, aside);
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
   meta.skills[SKILL_NAME] = record;
   writeMeta(dir, meta);
   return record;
+}
+
+/**
+ * Moves `staging` to `final`, setting any old `final` aside first and deleting it
+ * only once the new copy is in place. A failed move puts the old copy back. If
+ * that fails too, the old copy is left at `aside`, the only copy there is, and the
+ * error is a `SkillAsideError` naming it, so whoever reports it can say where it is.
+ */
+export function swapIn(staging: string, final: string, aside: string, rename: (from: string, to: string) => void = renameSync): void {
+  rmSync(aside, { recursive: true, force: true });
+  const had = existsSync(final);
+  if (had) rename(final, aside);
+  try {
+    rename(staging, final);
+  } catch (err) {
+    if (had) {
+      try {
+        rename(aside, final);
+      } catch {
+        throw new SkillAsideError(err, aside);
+      }
+    }
+    throw err;
+  }
+  rmSync(aside, { recursive: true, force: true });
+}
+
+/** The swap failed and so did putting the old copy back: it is at `aside`. */
+export class SkillAsideError extends Error {
+  constructor(
+    readonly cause: unknown,
+    readonly aside: string,
+  ) {
+    super(`${cause instanceof Error ? cause.message : String(cause)}; the previous copy couldn't be put back either and is at ${slashes(aside)}`);
+  }
+}
+
+/** The warning for a rewrite that failed: the skill is missing, and where its old copy is, when the swap left it aside. */
+export function rewriteFailedWarning(skill: { path: string; agent: string; scope: string }, err: unknown): Warning {
+  const again = `toil skill install --agent ${skill.agent} --scope ${skill.scope} --allow-write`;
+  return {
+    code: 'SKILL_REWRITE_FAILED',
+    message:
+      err instanceof SkillAsideError
+        ? `The toil skill in ${skill.path} is missing until it's reinstalled: ${err.message}. Move ${slashes(err.aside)} back to ${skill.path}, or run ${again}.`
+        : `The toil skill in ${skill.path} couldn't be rewritten: ${err instanceof Error ? err.message : String(err)}. The previous copy is still in place; run ${again} to try again.`,
+  };
 }
 
 /** Installs into one target, refusing a `toil` folder toil didn't install. Returns whether one was replaced. */
@@ -279,10 +309,7 @@ export function keepSkillCurrent(o: UpkeepOptions): void {
         writeBundledSkill(join(skill.path, '..'), files, o.version);
         rewritten.push(changed ? skill.path : `${skill.path} (written by toil ${skill.toilVersion ?? 'of an unknown version'})`);
       } catch (err) {
-        o.warn({
-          code: 'SKILL_REWRITE_FAILED',
-          message: `The toil skill in ${skill.path} couldn't be rewritten: ${err instanceof Error ? err.message : String(err)}. It still works; run toil skill install --agent ${skill.agent} --scope ${skill.scope} --allow-write to try again.`,
-        });
+        o.warn(rewriteFailedWarning(skill, err));
       }
     }
     if (rewritten.length === 0) return;

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -8,7 +8,7 @@ import { runCommand } from '../src/core/run.js';
 import { createNodeContext } from '../src/node-context.js';
 import { areas, commands } from '../src/registry.js';
 import { skillFiles } from '../src/skill-pages.generated.js';
-import { describeConfig, GENERAL_DESCRIPTION, keepSkillCurrent, skillFilesFor, type SkillDescription } from '../src/skills/bundled.js';
+import { describeConfig, GENERAL_DESCRIPTION, keepSkillCurrent, rewriteFailedWarning, SkillAsideError, skillFilesFor, swapIn, type SkillDescription } from '../src/skills/bundled.js';
 import { readMeta } from '../src/skills/folders.js';
 import { testConfig } from './harness/context.js';
 
@@ -371,6 +371,49 @@ describe('the installed skill is kept current with no command to run', () => {
     );
     expect(warningCodes(result)).not.toContain('SKILL_REWRITTEN');
     expect(readMeta(dir).skills.toil?.toilVersion).toBe('1.0.0');
+  });
+});
+
+describe('the swap that replaces an installed copy', () => {
+  const failing = (fail: (from: string, to: string) => boolean) => (from: string, to: string) => {
+    if (fail(from, to)) throw new Error(`EPERM: rename ${from}`);
+    renameSync(from, to);
+  };
+  function folders() {
+    const staging = join(root, 'staging');
+    const final = join(root, 'toil');
+    const aside = join(root, 'aside');
+    write({ [join(staging, 'SKILL.md')]: 'new\n', [join(final, 'SKILL.md')]: 'old\n' });
+    return { staging, final, aside };
+  }
+
+  it('puts the old copy back when the new one cannot go in', () => {
+    const { staging, final, aside } = folders();
+    expect(() => swapIn(staging, final, aside, failing((from) => from === staging))).toThrow(/EPERM/);
+    expect(readFileSync(join(final, 'SKILL.md'), 'utf8')).toBe('old\n');
+    expect(existsSync(aside)).toBe(false);
+  });
+
+  it('when the old copy cannot go back either, leaves it aside and names where', () => {
+    const { staging, final, aside } = folders();
+    let error: unknown;
+    try {
+      swapIn(staging, final, aside, failing((from, to) => from === staging || to === final));
+    } catch (err) {
+      error = err;
+    }
+    expect(error).toBeInstanceOf(SkillAsideError);
+    expect((error as SkillAsideError).aside).toBe(aside);
+    expect((error as Error).message).toMatch(/EPERM: rename .*the previous copy couldn't be put back either and is at /);
+    expect(readFileSync(join(aside, 'SKILL.md'), 'utf8')).toBe('old\n');
+  });
+
+  it('a rewrite that ends that way warns that the skill is missing and where the old copy is', () => {
+    const skill = { path: 'C:/h/.agents/skills/toil', agent: 'codex', scope: 'user' as const };
+    const aside = rewriteFailedWarning(skill, new SkillAsideError(new Error('EPERM: busy'), 'C:/h/.agents/skills/.toil-replaced-toil-42'));
+    expect(aside.message).toMatch(/is missing until it.s reinstalled/);
+    expect(aside.message).toContain('Move C:/h/.agents/skills/.toil-replaced-toil-42 back to C:/h/.agents/skills/toil, or run toil skill install --agent codex --scope user --allow-write');
+    expect(rewriteFailedWarning(skill, new Error('EPERM: busy')).message).toMatch(/The previous copy is still in place/);
   });
 });
 
