@@ -2,8 +2,9 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { adoArea } from './area.js';
-import { API, API_COMMENTS, PATCH, ado, baseUrlOf, enc, projectPath, toInt, where, type AdoContext } from './client.js';
+import { API, API_COMMENTS, PATCH, ado, adoSkipPages, baseUrlOf, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, toInt, where, type AdoContext } from './client.js';
 import { buildFieldPatch, mergeWithOverrides, parseFieldArgs, readJsonInputFile, resolveAtFileRef, splitWorkFieldsDictionary, type JsonPatchOp } from './fields.js';
+import { andWhere, checkFlat, wiqlInstant } from './wiql.js';
 
 /**
  * Work items: read, create, update, move between states, assign, link,
@@ -217,17 +218,136 @@ export const workLinkCommand = adoArea.command({
   },
 });
 
+/** The most work items one WIQL query returns; a query matching more is refused by the server. */
+export const WIQL_MAX = 20_000;
+const UPDATED_SINCE =
+  'Only work items changed at or after this ISO 8601 instant: a date (UTC midnight) or a date-time with its zone. ANDed onto the query as [System.ChangedDate] >= it. Turns on time precision for the whole query, so = on a date field matches one exact instant: use >= and < instead';
+
+interface WiqlResult {
+  workItems?: unknown[];
+  [key: string]: unknown;
+}
+
 export const workSearchCommand = adoArea.command({
   path: ['ado', 'work', 'search'],
   description: 'Run a WIQL query (consider --output-file for large results)',
-  toolDescription: "Runs a WIQL query in the project and returns the server's answer: the matching work item ids and urls (workItems), not their fields. Fetch fields with ado_work_get.",
-  input: z.object({ wiql: z.string().describe('WIQL query string') }),
+  toolDescription:
+    "Runs a WIQL query in the project and returns the server's answer: the matching work item ids and urls (workItems), not their fields. Fetch fields with ado_work_get_batch. updatedSince (an ISO 8601 date or zoned date-time) ANDs [System.ChangedDate] >= it onto a flat query and turns on time precision for the whole query, so = on any date field then matches one exact instant: write date conditions with >= and < instead. With limit, workItems holds at most that many; pass meta.page.nextCursor as cursor for the next page, which runs the query again.",
+  input: z.object({
+    wiql: z.string().describe('WIQL query string'),
+    updatedSince: z.string().optional().describe(UPDATED_SINCE),
+    limit: limitField('work items'),
+    cursor: cursorField,
+  }),
   writes: false,
   // The query goes in a POST body, as WIQL's endpoint requires; nothing is written.
   queryByPost: true,
-  options: [{ flags: '--wiql <query>', field: 'wiql', description: 'WIQL query string' }],
-  examples: [{ ...AT, wiql: "SELECT [System.Id] FROM WorkItems WHERE [System.State] = 'Active'" }],
-  run: async (input, ctx) => ado(ctx, `${projectPath({ ...where(ctx) })}/_apis/wit/wiql?api-version=${API}`, { method: 'POST', json: { query: input.wiql } }),
+  options: [
+    { flags: '--wiql <query>', field: 'wiql', description: 'WIQL query string' },
+    { flags: '--updated-since <iso>', field: 'updatedSince', description: UPDATED_SINCE },
+    ...pageOptions('work items'),
+  ],
+  examples: [
+    { ...AT, wiql: "SELECT [System.Id] FROM WorkItems WHERE [System.State] = 'Active'" },
+    { ...AT, wiql: "SELECT [System.Id] FROM WorkItems WHERE [System.State] = 'Active' OR [System.State] = 'New' ORDER BY [System.ChangedDate]", updatedSince: '2026-10-01T09:00:00Z' },
+    { ...AT, wiql: 'SELECT [System.Id] FROM WorkItems', limit: 1 },
+    { ...AT, wiql: 'SELECT [System.Id] FROM WorkItems', limit: 1, cursor: '1' },
+  ],
+  run: async (input, ctx) => {
+    const page = pageOf(input);
+    const offset = page.cursor === undefined ? 0 : Number(page.cursor);
+    if (page.cursor !== undefined && !/^\d+$/.test(page.cursor)) {
+      throw new ToilError('INVALID_INPUT', `"${page.cursor}" isn't a cursor this command hands out.`, { fix: 'Pass meta.page.nextCursor from the previous page unchanged, or leave out --cursor to start at the beginning.' });
+    }
+    let wiql = input.wiql;
+    if (input.updatedSince !== undefined) wiql = andWhere(wiql, `[System.ChangedDate] >= '${wiqlInstant(input.updatedSince)}'`);
+    else if (page.cap !== undefined) checkFlat(wiql);
+    const query: string[] = [];
+    if (page.cap !== undefined) {
+      // One more than the page, so the answer says whether another page exists.
+      const top = offset + page.cap + 1;
+      if (top > WIQL_MAX) {
+        throw new ToilError('INVALID_INPUT', `A WIQL query returns at most ${WIQL_MAX} work items, and this page would end at ${offset + page.cap}.`, {
+          fix: 'Narrow the query (--updated-since, or a tighter WHERE clause) so it matches fewer work items.',
+        });
+      }
+      query.push(`$top=${top}`);
+    }
+    // A time in the literal needs time precision; without it the server refuses the query.
+    if (input.updatedSince !== undefined) query.push('timePrecision=true');
+    const result = await ado<WiqlResult>(ctx, `${projectPath({ ...where(ctx) })}/_apis/wit/wiql?${[...query, `api-version=${API}`].join('&')}`, { method: 'POST', json: { query: wiql } });
+    if (page.cap === undefined) return result;
+    const all = result.workItems ?? [];
+    ctx.setPage({ nextCursor: all.length > offset + page.cap ? String(offset + page.cap) : null, limit: page.cap });
+    return { ...result, workItems: all.slice(offset, offset + page.cap) };
+  },
+});
+
+const REVISIONS_PAGE = 100;
+
+export const workRevisionsCommand = adoArea.command({
+  path: ['ado', 'work', 'revisions'],
+  description: 'List the revisions of a work item, oldest first',
+  toolDescription:
+    "Lists every revision of a work item, oldest first: each is the whole work item as it stood after that change (id, rev, fields, url), so comparing neighbours gives the history of states, assignees and other fields. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.",
+  input: z.object({ id: idInput, limit: limitField('revisions'), cursor: cursorField }),
+  writes: false,
+  options: [idOption, ...pageOptions('revisions')],
+  examples: [
+    { ...AT, id: '42' },
+    { ...AT, id: '42', limit: 1 },
+    { ...AT, id: '42', limit: 1, cursor: exampleCursor('1', REVISIONS_PAGE) },
+  ],
+  run: async (input, ctx) => {
+    const page = pageOf(input);
+    const id = toInt(input.id);
+    return adoSkipPages(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${id}/revisions`, { 'api-version': API }, REVISIONS_PAGE, `revisions of Azure DevOps work item ${id}`, page);
+  },
+});
+
+/** The most ids the batch endpoint takes in one request. */
+export const BATCH_SIZE = 200;
+/** The most ids one get-batch call takes: five requests, then a bound rather than a loop. */
+export const BATCH_MAX = 1000;
+
+export const workGetBatchCommand = adoArea.command({
+  path: ['ado', 'work', 'get-batch'],
+  description: 'Get several work items by ID in one call',
+  toolDescription: `Returns several work items by id through the batch endpoint, ${BATCH_SIZE} per request, at most ${BATCH_MAX} ids: { count, value, missing }. value holds the items found, in the order asked, with every field and relation unless fields names the ones to return; missing lists each id that doesn't exist or the token can't see, with an ADO_WORK_ITEMS_MISSING warning.`,
+  input: z.object({
+    id: z.array(z.number().int().positive()).min(1).describe('Work item ID (repeatable)'),
+    fields: z.string().optional().describe('Comma-separated field reference names to return (default: every field, with relations)'),
+  }),
+  writes: false,
+  // The ids go in a POST body, as the batch endpoint requires; nothing is written.
+  queryByPost: true,
+  options: [
+    { flags: '--id <n>', field: 'id', description: 'Work item ID (repeatable)' },
+    { flags: '--fields <names>', field: 'fields', description: 'Comma-separated field reference names to return (default: every field, with relations)' },
+  ],
+  examples: [
+    { ...AT, id: [42, 7] },
+    { ...AT, id: [42, 404], fields: 'System.Title, System.State' },
+  ],
+  run: async (input, ctx) => {
+    const ids = [...new Set(input.id)];
+    if (ids.length > BATCH_MAX) {
+      throw new ToilError('INVALID_INPUT', `get-batch takes at most ${BATCH_MAX} work item ids in one call, and this one has ${ids.length}.`, { fix: `Split the ids into calls of ${BATCH_MAX} or fewer.` });
+    }
+    const fields = input.fields?.split(',').map((f) => f.trim()).filter(Boolean);
+    const path = `${projectPath(where(ctx))}/_apis/wit/workitemsbatch?api-version=${API}`;
+    const found = new Map<number, WorkItem>();
+    for (let start = 0; start < ids.length; start += BATCH_SIZE) {
+      // Omit: an id that doesn't exist or can't be seen comes back null (or not at all) rather than failing the whole batch.
+      const json = { ids: ids.slice(start, start + BATCH_SIZE), ...(fields?.length ? { fields } : { $expand: 'all' }), errorPolicy: 'omit' };
+      const result = await ado<{ value?: Array<WorkItem | null> }>(ctx, path, { method: 'POST', json });
+      for (const item of result.value ?? []) if (item && typeof item.id === 'number') found.set(item.id, item);
+    }
+    const value = ids.filter((id) => found.has(id)).map((id) => found.get(id)!);
+    const missing = ids.filter((id) => !found.has(id));
+    if (missing.length > 0) ctx.warn({ code: 'ADO_WORK_ITEMS_MISSING', message: `No work item with id ${missing.join(', ')}, or the token can't see ${missing.length === 1 ? 'it' : 'them'}.` });
+    return { count: value.length, value, missing };
+  },
 });
 
 export const workListCommentsCommand = adoArea.command({
@@ -307,6 +427,8 @@ export const workItemCommands = [
   workAssignCommand,
   workLinkCommand,
   workSearchCommand,
+  workRevisionsCommand,
+  workGetBatchCommand,
   workListCommentsCommand,
   workAddCommentCommand,
   workAddTagCommand,

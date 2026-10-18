@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { adoArea } from './area.js';
-import { API, ado, adoAll, adoSkipPages, adoValue, enc, projectPath, repoPath, toInt, where, type AdoContext, type Where } from './client.js';
+import { API, ado, adoAll, adoSkipPages, adoValue, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, repoPath, toInt, where, type AdoContext, type PageRequest, type Where } from './client.js';
 import { connectionData } from './server.js';
 import { AT, intText } from './work.js';
 
@@ -37,8 +37,12 @@ export function getPR(ctx: AdoContext, w: Where, id: number): Promise<PullReques
   return ado<PullRequest>(ctx, prUrl(w, id));
 }
 
-/** Builds in the project, all of them through continuation tokens, or one request when `top` is set. */
-export async function listBuilds(ctx: AdoContext, w: Where, opts: { definitionIds?: number[] | undefined; branchName?: string | undefined; statusFilter?: string | undefined; top?: number | undefined }): Promise<unknown[]> {
+/** Builds in the project, all of them (or `page.cap` of them) through continuation tokens, or one request when `top` is set. */
+export async function listBuilds(
+  ctx: AdoContext,
+  w: Where,
+  opts: { definitionIds?: number[] | undefined; branchName?: string | undefined; statusFilter?: string | undefined; top?: number | undefined; page?: PageRequest },
+): Promise<unknown[]> {
   const query: Record<string, string | number> = {
     'api-version': API,
     ...(opts.definitionIds?.length ? { definitions: opts.definitionIds.join(',') } : {}),
@@ -50,7 +54,7 @@ export async function listBuilds(ctx: AdoContext, w: Where, opts: { definitionId
   if (opts.top) {
     return (await adoValue(ctx, path, query)).slice(0, opts.top);
   }
-  return adoAll(ctx, path, query, `Azure DevOps builds in ${w.project}`);
+  return adoAll(ctx, path, query, `Azure DevOps builds in ${w.project}`, opts.page);
 }
 
 /** An ISO 8601 date flag, read with `new Date()`. Suspected bug (#69 item 26): a date-time without a zone is local time. */
@@ -102,13 +106,15 @@ export const repoListPrsCommand = adoArea.command({
   path: ['ado', 'repo', 'list-prs'],
   description: 'List pull requests',
   toolDescription:
-    'Lists every pull request in the repository in one state (active by default), optionally by creator or reviewer identity id (a GUID, from ado_whoami), and by creation date.',
+    'Lists every pull request in the repository in one state (active by default), optionally by creator or reviewer identity id (a GUID, from ado_whoami), and by creation date. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.',
   input: z.object({
     state: z.string().optional().describe(STATE),
     creator: z.string().optional().describe('Filter by creator (sent as the identity id filter)'),
     reviewer: z.string().optional().describe('Filter by reviewer (sent as the identity id filter)'),
     createdAfter: z.string().optional().describe('Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)'),
     createdBefore: z.string().optional().describe('Only PRs created before this ISO 8601 date'),
+    limit: limitField('pull requests'),
+    cursor: cursorField,
   }),
   writes: false,
   options: [
@@ -117,12 +123,16 @@ export const repoListPrsCommand = adoArea.command({
     { flags: '--reviewer <alias>', field: 'reviewer', description: 'Filter by reviewer' },
     { flags: '--created-after <date>', field: 'createdAfter', description: 'Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)' },
     { flags: '--created-before <date>', field: 'createdBefore', description: 'Only PRs created before this ISO 8601 date' },
+    ...pageOptions('pull requests'),
   ],
   examples: [
     IN_REPO,
     { ...IN_REPO, state: 'all', creator: 'abc12345-0000-0000-0000-000000000000', reviewer: 'abc12345-0000-0000-0000-000000000001', createdAfter: '2026-09-01', createdBefore: '2026-10-01' },
+    { ...IN_REPO, limit: 1 },
+    { ...IN_REPO, limit: 1, cursor: exampleCursor('1', 100) },
   ],
   run: async (input, ctx) => {
+    const page = pageOf(input);
     // Dates are checked before the context, as the contract specifies.
     const after = input.createdAfter ? parseDate('--created-after', input.createdAfter) : undefined;
     const before = input.createdBefore ? parseDate('--created-before', input.createdBefore) : undefined;
@@ -138,7 +148,7 @@ export const repoListPrsCommand = adoArea.command({
       ...(after ? { 'searchCriteria.minTime': after.toISOString() } : {}),
       ...(before ? { 'searchCriteria.maxTime': before.toISOString() } : {}),
     };
-    return adoSkipPages(ctx, `${repoPath(w)}/pullrequests`, query, 100, `Azure DevOps pull requests in ${w.repo}`);
+    return adoSkipPages(ctx, `${repoPath(w)}/pullrequests`, query, 100, `Azure DevOps pull requests in ${w.repo}`, page);
   },
 });
 
@@ -394,16 +404,18 @@ export const repoWaitForAuthorCommand = voteCommand('wait-for-author', 'Mark a p
 export const repoListBuildsCommand = adoArea.command({
   path: ['ado', 'repo', 'list-builds'],
   description: 'List builds associated with a pull request',
-  toolDescription: "Lists every build of the pull request's source branch (refs/heads/<source>), following continuation tokens. Builds of the PR merge ref (refs/pull/<id>/merge) aren't included.",
-  input: z.object({ pr: prInput }),
+  toolDescription:
+    "Lists every build of the pull request's source branch (refs/heads/<source>), following continuation tokens. Builds of the PR merge ref (refs/pull/<id>/merge) aren't included. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.",
+  input: z.object({ pr: prInput, limit: limitField('builds'), cursor: cursorField }),
   writes: false,
-  options: [prOption],
-  examples: [{ ...IN_REPO, pr: '42' }],
+  options: [prOption, ...pageOptions('builds')],
+  examples: [{ ...IN_REPO, pr: '42' }, { ...IN_REPO, pr: '42', limit: 1 }, { ...IN_REPO, pr: '42', limit: 1, cursor: exampleCursor('abc12345') }],
   run: async (input, ctx) => {
+    const page = pageOf(input);
     const w = where(ctx, true);
     const pr = await getPR(ctx, w, toInt(input.pr));
     // Suspected bug (#69 items 11 and 27): PR validation builds run on the merge ref and are missed.
-    return listBuilds(ctx, w, { branchName: pr.sourceRefName });
+    return listBuilds(ctx, w, { branchName: pr.sourceRefName, page });
   },
 });
 

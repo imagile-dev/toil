@@ -1,4 +1,4 @@
-import type { z } from 'zod';
+import { z } from 'zod';
 import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
 import { apiRequest, apiResponse, type ApiRequest } from '../../core/api.js';
@@ -82,25 +82,71 @@ async function raw(ctx: AdoContext, path: string, query: Record<string, string |
 const valueOf = <T>(body: unknown): T[] => ((body as { value?: T[] } | undefined)?.value ?? []);
 
 /**
- * Every item of a list paged by the `x-ms-continuationtoken` response header,
- * sent back as `continuationToken` until the header is absent.
+ * How much of a list one call returns: with `cap`, at most that many items,
+ * and meta.page.nextCursor says where the rest start; `cursor` carries on
+ * from a previous call's. Without either, the whole list, as before.
  */
-export async function adoAll<T>(ctx: AdoContext, path: string, query: Record<string, string | number>, what: string): Promise<T[]> {
+export interface PageRequest {
+  cap?: number | undefined;
+  cursor?: string | undefined;
+}
+
+/** The `--limit` field of a list that pages. */
+export const limitField = (what: string) =>
+  z.number().int().positive().optional().describe(`Return at most this many ${what}; meta.page.nextCursor then says where the rest start (default: all)`);
+/** The `--cursor` field of a list that pages. */
+export const cursorField = z.string().min(1).optional().describe('meta.page.nextCursor from the previous call, passed with the same limit, to carry on from there');
+/** `--limit` and `--cursor`, as every ado list that pages spells them. */
+export const pageOptions = (what: string) => [
+  { flags: '--limit <n>', field: 'limit', description: `Return at most this many ${what}; meta.page.nextCursor says where the rest start (default: all)` },
+  { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous call (with --limit)' },
+];
+
+/** A list's paging input, checked: a cursor only means something beside the limit that produced it. */
+export function pageOf(input: { limit?: number | undefined; cursor?: string | undefined }): PageRequest {
+  if (input.cursor !== undefined && input.limit === undefined) {
+    throw new ToilError('INVALID_INPUT', '--cursor needs --limit', {
+      fix: 'Pass --limit with --cursor (the limit of the call that gave you the cursor), or leave out --cursor to read everything.',
+    });
+  }
+  return { cap: input.limit, cursor: input.cursor };
+}
+
+const pageOptionsFor = (ctx: AdoContext, what: string, page: PageRequest) => ({
+  what,
+  ...(page.cap !== undefined ? { cap: page.cap, setPage: ctx.setPage } : {}),
+  ...(page.cursor !== undefined ? { cursor: page.cursor } : {}),
+});
+
+/**
+ * A cursor as meta.page.nextCursor carries one, for a command's examples:
+ * core's encoding of a continuation token or page number (`c`), the items of
+ * that page already returned (`s`) and, for a page number, the items before
+ * it (`n`). A real cursor comes from a real answer.
+ */
+export const exampleCursor = (c: string, n?: number): string => Buffer.from(JSON.stringify(n === undefined ? { c, s: 0 } : { c, s: 0, n })).toString('base64url');
+
+/**
+ * Every item of a list paged by the `x-ms-continuationtoken` response header,
+ * sent back as `continuationToken` until the header is absent; with
+ * `page.cap`, only that many, and meta.page says where to carry on.
+ */
+export async function adoAll<T>(ctx: AdoContext, path: string, query: Record<string, string | number>, what: string, page: PageRequest = {}): Promise<T[]> {
   const { items } = await paginate<T>(
     { kind: 'header', header: 'x-ms-continuationtoken', param: 'continuationToken', items: valueOf<T>, params: query },
     (params) => raw(ctx, path, params),
-    { what },
+    pageOptionsFor(ctx, what, page),
   );
   return items;
 }
 
-/** One page of a list, by `$top` and `$skip`, for an endpoint with no continuation token. */
-export async function adoSkipPages<T>(ctx: AdoContext, path: string, query: Record<string, string | number>, pageSize: number, what: string): Promise<T[]> {
+/** Every item of a list paged by `$top` and `$skip`, for an endpoint with no continuation token; with `page.cap`, only that many. */
+export async function adoSkipPages<T>(ctx: AdoContext, path: string, query: Record<string, string | number>, pageSize: number, what: string, page: PageRequest = {}): Promise<T[]> {
   // core's page style counts pages from 0 here; the API wants an item offset.
   const { items } = await paginate<T>(
     { kind: 'page', pageParam: 'page', sizeParam: 'size', pageSize, first: 0, items: valueOf<T> },
     (params) => raw(ctx, path, { ...query, $top: pageSize, $skip: Number(params.page) * pageSize }),
-    { what },
+    pageOptionsFor(ctx, what, page),
   );
   return items;
 }

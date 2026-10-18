@@ -53,6 +53,14 @@ export const workItem = (id: number, extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
+// Invented from the docs: one entry of GET .../workItems/{id}/revisions, the whole item as of that revision.
+const revision = (rev: number, state: string) => ({
+  id: 42,
+  rev,
+  fields: { 'System.WorkItemType': 'Bug', 'System.State': state, 'System.Title': 'Item 42', 'System.ChangedDate': `2026-09-0${rev}T12:00:00Z`, 'System.ChangedBy': identity(ME, 'Jane Doe') },
+  url: `${ADO}${COLL}/_apis/wit/workItems/42/revisions/${rev}`,
+});
+
 const comment = (id: number) => ({ id, workItemId: 42, version: 1, text: `Comment ${id}`, createdBy: identity(ME, 'Jane Doe'), createdDate: '2026-09-03T12:00:00Z', url: `${ADO}${PROJ}/_apis/wit/workItems/42/comments/${id}` });
 
 const node = (structureType: string, name: string, children: unknown[] = []) => ({
@@ -150,7 +158,28 @@ export const routes: Route[] = [
   { path: /^\/DefaultCollection\/_apis\/wit\/workitems\/\d+$/, respond: { json: workItem(42) } },
   { method: 'PATCH', path: /^\/DefaultCollection\/_apis\/wit\/workitems\/\d+$/, respond: { json: workItem(42, { rev: 4 }) } },
   { method: 'POST', path: /^\/DefaultCollection\/Imagile\/_apis\/wit\/workitems\/%24/, respond: { json: workItem(43, { rev: 1 }) } },
-  { method: 'POST', path: `${PROJ}/_apis/wit/wiql`, respond: { json: { queryType: 'flat', queryResultType: 'workItem', asOf: '2026-10-17T12:00:00Z', columns: [], workItems: [{ id: 42, url: `${ADO}${COLL}/_apis/wit/workItems/42` }] } } },
+  {
+    method: 'POST',
+    path: `${PROJ}/_apis/wit/wiql`,
+    respond: { json: { queryType: 'flat', queryResultType: 'workItem', asOf: '2026-10-17T12:00:00Z', columns: [], workItems: [42, 7].map((id) => ({ id, url: `${ADO}${COLL}/_apis/wit/workItems/${id}` })) } },
+  },
+  // Revisions, by $top and $skip: two on the first page, none after. The shape follows the Revisions - List reference
+  // (https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/revisions/list?view=azure-devops-server-rest-7.1).
+  {
+    path: `${PROJ}/_apis/wit/workItems/42/revisions`,
+    respond: (r) => ({ json: new URL(r.url).searchParams.get('$skip') === '0' ? { count: 2, value: [revision(1, 'New'), revision(2, 'Active')] } : { count: 0, value: [] } }),
+  },
+  // The batch endpoint with errorPolicy omit: an id that doesn't exist (404 here) comes back as null, in place.
+  // From the Get Work Items Batch reference (https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/work-items/get-work-items-batch?view=azure-devops-server-rest-7.1).
+  {
+    method: 'POST',
+    path: `${PROJ}/_apis/wit/workitemsbatch`,
+    respond: (r) => {
+      const ids = (JSON.parse(r.body ?? '{}') as { ids: number[] }).ids;
+      const value = ids.map((id) => (id === 404 ? null : workItem(id)));
+      return { json: { count: value.length, value } };
+    },
+  },
   { path: `${PROJ}/_apis/wit/workItems/42/comments`, respond: { json: { totalCount: 2, count: 2, comments: [comment(1), comment(2)] } } },
   { method: 'POST', path: `${PROJ}/_apis/wit/workItems/42/comments`, respond: { json: comment(3) } },
   { method: 'POST', path: `${COLL}/_apis/wit/attachments`, respond: { json: { id: ATTACHMENT, url: `${ADO}${COLL}/_apis/wit/attachments/${ATTACHMENT}` } } },
