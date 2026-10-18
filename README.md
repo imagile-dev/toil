@@ -54,10 +54,16 @@ register the server as `node` with `<clone>/dist/toil.js mcp` as its arguments.
 ### Agent skill
 
 [`skills/toil/`](skills/toil/SKILL.md) is toil's command reference for agents, in the
-Agent Skills format. In Claude Code: `claude plugin marketplace add imagile-dev/toil`,
-then `claude plugin install toil@toil`. For Codex, GitHub Copilot and anything else
-that reads `.agents/skills`, copy the folder there. The skill also tells an agent how to
-install toil and register `toil mcp` with its client.
+Agent Skills format, and the site's docs are the same files rendered. toil carries it
+inside itself: `toil skill install --allow-write` writes it to `~/.agents/skills/toil`
+(Codex, and GitHub Copilot), with `--agent github-copilot` or `--claude` for the
+others and `--scope project` for the repository. Its description names the areas and
+database engines you have connections for, and toil rewrites it when a connection
+changes or another toil version runs, so there is nothing to update by hand. In
+Claude Code it also installs from the repository's plugin marketplace:
+`claude plugin marketplace add imagile-dev/toil`, then `claude plugin install toil@toil`.
+The skill also tells an agent how to install toil and register `toil mcp` with its
+client.
 
 ## Use
 

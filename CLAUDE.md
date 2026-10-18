@@ -246,8 +246,12 @@ GitHub Actions; its build tooling is out of scope.
   (`check-dist.mjs`), the tarball and clone smoke test, the area stub generator (`stub-area.mjs`), the divergence
   table (`divergences.mjs`), PR screenshots (`shoot.mjs`), and the PR watcher the
   `ship` skill runs (dev tooling; none of it ships)
-- `skills/toil/` — the one skill shipped to users; `SKILL.md` indexes per-area files,
-  `install.md` and `mcp.md`. `.claude-plugin/` lists it as a Claude Code plugin
+- `skills/toil/` — the one skill shipped to users, and the site's docs: `SKILL.md` is a
+  small index (a test caps it) of `core.md`, the per-area files, `install.md` and
+  `mcp.md`. `scripts/gen-areas.mjs` embeds every file in the bundle, `toil skill
+  install` writes it into an agent's skills folder (`src/skills/bundled.ts`), and toil
+  rewrites that copy, and only that copy, when a command changes the config file or
+  another toil version runs. `.claude-plugin/` lists it as a Claude Code plugin
   marketplace, so the repository installs as one
 - `dist/toil.js` — the last released bundle, committed so a clone runs with no
   `npm install`; only the release PR rebuilds it (Build & Test)
@@ -712,7 +716,7 @@ Repository hygiene has its own suite, `test/repo-hygiene.test.ts` (see Delivery)
   `site/src/data/settings/<area>.json` for the docs pages (`npx vitest run -u` after
   changing a command or a connection key) and checks the board's
   `site/src/data/integrations/<area>.json`.
-- **`test/util-docs.test.ts`** holds `/docs/utilities/` and `skills/toil/util.md` to the registry: a `util` command added or changed updates both in the same PR (`docs/util.md`).
+- **`test/util-docs.test.ts`** holds `skills/toil/util.md`, which `/docs/utilities/` renders, to the registry: a `util` command added or changed updates it in the same PR (`docs/util.md`). **`test/site-docs.test.ts`** fails when a docs page carries reference prose that isn't rendered from `skills/toil/`.
 - **No file every integration edits.** Each area has its own fixture, skill file, divergence
   file, board entry and command list; the lists that span areas (the registry, the
   areas in `SKILL.md`, the CLI-only commands) are derived or generic. A change that
