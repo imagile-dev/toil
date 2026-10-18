@@ -10,15 +10,15 @@ import { url, repoUrl } from '../../lib/url';
 type SiteCommand = { name: string; tool: string | null; description: string; writes: boolean; connection: boolean; flags: string[] };
 const generated = import.meta.glob<SiteCommand[]>('../../data/commands/util.json', { eager: true, import: 'default' });
 const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
-// Only the commands that had a top-level path before the util group keep it as an alias.
-const hasAlias = (name: string) => /^(jwt|deps) /.test(name);
+// The commands that kept a short path from before the util group existed; newer ones have only theirs.
+const shortPaths = new Set(['jwt', 'deps']);
 ---
 
-<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies, compare that inventory between two git refs, and convert Markdown to and from Jira and Confluence formats, with no connection and no network.">
+<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, and convert Markdown to and from Jira and Confluence formats, with no connection and no network.">
   <PageHero
     eyebrow="<b>Docs</b> · Utilities"
     title="Local utilities, <em>no network.</em>"
-    lead="Commands that work on what's on your machine: a token you paste, a document to convert, or the manifests and lockfiles in your workspace. No connection, no credential, nothing sent anywhere."
+    lead="Commands that work on what's on your machine: a token you paste, a file in your workspace (a certificate, or a document to convert), or its manifests and lockfiles. No connection, no credential, nothing sent anywhere."
   >
     <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <span>Utilities</span></p>
   </PageHero>
@@ -40,11 +40,12 @@ const hasAlias = (name: string) => /^(jwt|deps) /.test(name);
           <h2>What these are</h2>
           <p>
             These aren't integrations. There's no server, no connection to add, no <code>TOIL_UTIL_*</code> variable and no credential, and
-            none of them sends anything over the network. Every one of them only reads. Their tests run against in-memory files and a stubbed
-            git, so they're verified at the <code>unit</code> level.
+            none of them sends anything over the network. None changes anything: the only file one writes is a new one you name with
+            <code>--out</code>, inside your workspace, and it never replaces a file. Their tests run against in-memory files and a stubbed git,
+            so they're verified at the <code>unit</code> level.
           </p>
           <p>
-            The JWT and dependency commands also keep their short path, which does the same thing with the same flags and output:
+            The <code>jwt</code> and <code>deps</code> commands also have a short path, which does the same thing with the same flags and output:
             <code>toil util jwt decode</code> is also <code>toil jwt decode</code>.
           </p>
         </section>
@@ -62,7 +63,7 @@ const hasAlias = (name: string) => /^(jwt|deps) /.test(name);
               <li class="cmd">
                 <div class="cmd__head">
                   <code class="cmd__name">toil util {c.name}</code>
-                  {hasAlias(c.name) && <span class="cmd__alias">also <code>toil {c.name}</code></span>}
+                  {shortPaths.has(c.name.split(' ')[0]!) && <span class="cmd__alias">also <code>toil {c.name}</code></span>}
                 </div>
                 <p class="cmd__desc">{c.description}</p>
                 <p class="cmd__meta">
@@ -116,6 +117,43 @@ const hasAlias = (name: string) => /^(jwt|deps) /.test(name);
             inventory for that side, so check a ref you've typed by hand.
           </p>
         </section>
+
+        <section data-reveal>
+          <h2>Encoding, decoding and hashing</h2>
+          <p>
+            <code>encode</code> handles base64, base64url, hex, URL components and form bodies in either direction, and hashes a file with
+            SHA-256, SHA-1 or MD5. It checks its own work: every encode is decoded back and must give your input, every decode is encoded
+            again and must give your input apart from padding, case and line breaks, and a file's hash counts the bytes it read against the
+            file's size, so a read that stopped short can't pass.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util encode base64 --decode mail-part.b64 --out logo.png</span><span class="line"><span class="p">$</span> toil util encode sha256 release.tgz</span></pre>
+          </div>
+          <p>
+            Decoded bytes that aren't text (an image, say) never come back as mangled text in the JSON: they need <code>--out</code>, a new
+            file inside your workspace. Text that isn't the encoding it claims is refused with the offset of the first wrong character.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Decoding certificates</h2>
+          <p>
+            <code>cert</code> decodes a certificate or a chain bundle, PEM or DER, from a file or stdin: subject, issuer, SANs, serial, how many
+            days it has left, its key, its signature algorithm, its basic constraints and key usage, and its fingerprints. It
+            <strong>never connects to the host</strong>; pass the file the server is configured with.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util cert chain.pem --host api.imagile.dev</span></pre>
+          </div>
+          <p>
+            It checks the bundle as a chain in the order given: each certificate's issuer must be the next one's subject, and its signature
+            must verify with the next one's key. An out-of-order bundle gets the order that fixes it. Expired and not-yet-valid certificates
+            are flagged, <code>--host</code> says whether the SANs cover that host and why not, and a block it couldn't read is reported by
+            its position. What it checked is in <code>data.verified</code>; anything it couldn't check, such as a root that isn't in the
+            bundle, is a warning.
+          </p>
+        </section>
+
         <section data-reveal>
           <h2>Converting Markdown</h2>
           <p>

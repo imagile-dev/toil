@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
 import type { GitResult, GitRunner } from '../../src/core/git.js';
+import { SAMPLE_PNG_BASE64 } from '../../src/areas/util/encode.js';
 import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
+import { makeChain } from '../harness/x509.js';
 
 /**
  * The `util` group's commands are standalone and local: jwt decode reads only
@@ -9,6 +11,9 @@ import { callKey } from './git.fixture.js';
  * at a git ref through a canned git. There are no routes, because nothing
  * here talks to a network. The git runner is traced, so the parity suite
  * compares every git call `deps diff` makes through both front doors.
+ *
+ * encode reads a real 1x1 transparent PNG, and its base64 wrapped as a MIME
+ * body wraps it.
  *
  * Provenance: written by hand. The lockfile follows npm's documented v3
  * format, the project files MSBuild's and Maven's, and the git output is the
@@ -80,8 +85,17 @@ export const MD_CORPUS: Record<string, string> = Object.fromEntries(
   ['bug-report.md', 'runbook.md', 'story.md', 'PROJ-142.wiki', 'PROJ-142.adf.json', 'release-notes.storage.xml'].map((name) => [name, readFileSync(new URL(`./util-md/${name}`, import.meta.url), 'utf8')]),
 );
 
+/**
+ * `util cert`'s chain: a test root, issuing CA and leaf for api.imagile.dev,
+ * made fresh for each run with keys that never leave memory (test/harness/x509.ts).
+ */
+const chain = makeChain();
+/** encode's samples: a real 1x1 PNG, and the same bytes as MIME writes base64, wrapped at 76 characters with CRLF. */
+export const PIXEL_PNG = new Uint8Array(Buffer.from(SAMPLE_PNG_BASE64, 'base64'));
+export const PIXEL_B64 = `${SAMPLE_PNG_BASE64.slice(0, 76)}\r\n${SAMPLE_PNG_BASE64.slice(76)}\r\n`;
+
 /** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
-export const files: Record<string, string> = {
+export const files: Record<string, string | Uint8Array> = {
   '.gitignore': 'vendor/\n',
   'package.json': PACKAGE_JSON,
   'package-lock.json': lock('4.17.21'),
@@ -89,7 +103,11 @@ export const files: Record<string, string> = {
   'src/Api/Api.csproj': CSPROJ,
   'pom.xml': POM,
   ...Object.fromEntries(Object.entries(MD_CORPUS).map(([name, text]) => [`docs/${name}`, text])),
+  'encode/pixel.png': PIXEL_PNG,
+  'encode/pixel.b64': PIXEL_B64,
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
+  'certs/chain.pem': chain.pem,
+  'certs/leaf.der': chain.leaf.der,
 };
 
 /** What each ref holds, path by path. */
