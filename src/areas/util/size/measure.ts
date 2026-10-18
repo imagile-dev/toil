@@ -238,7 +238,7 @@ async function measureFile(input: SizeInput, ctx: InputContext): Promise<FileSiz
       outline.symbols = outline.symbols.map(({ parent: _parent, ...s }: OutlineSymbol & { parent?: number }) => s);
     }
   }
-  v.approximated('tokens', TOKEN_METHOD);
+  if (!counts.binary) v.approximated('tokens', TOKEN_METHOD);
   return {
     kind: 'file',
     path,

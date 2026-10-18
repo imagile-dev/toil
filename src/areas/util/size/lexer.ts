@@ -103,6 +103,7 @@ export function lex(src: string, lang: CodeLanguage): Token[] {
 
   /** Code inside a `${…}` or C# `{…}` hole, up to and including its closing brace. Its tokens are part of the string. */
   const hole = () => {
+    const at = line;
     const keep = tokens.length;
     const saved = lastEnd;
     let depth = 0;
@@ -124,7 +125,7 @@ export function lex(src: string, lang: CodeLanguage): Token[] {
     }
     tokens.length = keep;
     lastEnd = saved;
-    throw new OutlineError(`an interpolation hole is never closed`);
+    throw new OutlineError(`an interpolation opened on line ${at} is never closed`);
   };
 
   const template = () => {
