@@ -90,6 +90,19 @@
     ]
   },
   {
+    "name": "secrets scan",
+    "tool": "util_secrets_scan",
+    "description": "Find credential-shaped strings in a file, folder, stdin or the staged diff (local only; exit 1 on findings)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[path]",
+      "--text <text>",
+      "--diff <kind>",
+      "--allow-file <file>"
+    ]
+  },
+  {
     "name": "openapi list",
     "tool": "util_openapi_list",
     "description": "List the operations in an OpenAPI or Swagger document, filtered by tag or path (local only)",

@@ -136,6 +136,13 @@ that, so ESLint refuses a static import of `js-yaml`, `@cfworker/json-schema`,
 `kit/yaml` and `kit/json-schema` outside those wrappers and tests. A type-only import
 is allowed, since it's erased. Treat a command's own heavy module the same way.
 
+**A module reached through `import()` must not import zod**, directly or through
+something that does (`kit/input.ts` does, for `inputFields`). esbuild then wraps
+zod to be evaluated lazily too, and the MCP SDK's own top-level zod calls run
+before it is, so the bundle fails at startup with `Class2 is not a constructor`.
+Unit tests don't see it; `npm run smoke` does. A command whose work needs the
+input reader and has no heavy dependency (`secrets scan`) imports it statically.
+
 A module loaded through `import()` must not import zod, directly or through
 `kit/input.ts`. esbuild then defers zod's own setup too, the MCP SDK's schemas hit
 it at startup, and the bundle fails on every command, `toil version` included, with
