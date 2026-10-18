@@ -49,6 +49,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       description: z.string().min(1).optional().describe('One line saying what the body of work is'),
     }),
     writes: false,
+    writesLocal: true,
     args: [{ name: 'name', field: 'name', description: 'The dossier name, e.g. payments' }],
     options: [{ flags: '--description <text>', field: 'description', description: 'One line saying what it covers' }],
     examples: [{ name: 'billing' }, { name: 'billing', description: 'Billing platform' }],
@@ -79,6 +80,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       replace: replaceField,
     }),
     writes: false,
+    writesLocal: true,
     args: [dossierArg, { name: 'location', field: 'location', description: 'A folder in the repository, or its remote URL' }],
     options: [{ flags: '--name <name>', field: 'name', description: "The repo's name in the dossier" }, replaceOption],
     examples: [
@@ -148,6 +150,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       "Attaches an area to a dossier, or changes its section: the connection it selects (connection for a private dossier, host for a shared one, or neither for the default), the area's context inputs it supplies (set project=PAY, per repo with forRepo), and reference data (add projects=PAY). Over MCP, a change that would make the section select a connection with writes on is refused: a person does that on the CLI. A local write: no allowWrite.",
     input: z.object({ dossier: dossierField, area: z.string().min(1).describe('The area, e.g. jira'), ...bindingFields }),
     writes: false,
+    writesLocal: true,
     args: [dossierArg, { name: 'area', field: 'area', description: 'The area, e.g. jira' }],
     options: bindingOptions,
     examples: [
@@ -174,6 +177,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       ...bindingFields,
     }),
     writes: false,
+    writesLocal: true,
     args: [dossierArg, { name: 'env', field: 'env', description: 'The environment, e.g. prod' }, { name: 'area', field: 'area', description: 'The area, e.g. openshift' }],
     options: [{ flags: '--default', field: 'default', description: "Make this the dossier's default environment" }, ...bindingOptions],
     examples: [
@@ -199,6 +203,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       replace: replaceField,
     }),
     writes: false,
+    writesLocal: true,
     args: [dossierArg, { name: 'area', field: 'area', description: 'The area' }, { name: 'alias', field: 'alias', description: 'The friendly name' }, { name: 'field-id', field: 'id', description: "The service's field id" }],
     options: [replaceOption],
     examples: [{ dossier: 'payments', area: 'jira', alias: 'storyPoints', id: 'customfield_10002' }, { dossier: 'payments', area: 'jira', alias: 'acceptanceCriteria', id: 'customfield_10234', replace: true }],
@@ -234,6 +239,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       replace: replaceField,
     }),
     writes: false,
+    writesLocal: true,
     args: [dossierArg],
     options: [
       { flags: '--repo <dir>', field: 'repo', description: "A working tree's root; writes .toil/dossiers/<name>.json there" },
@@ -245,7 +251,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       const { catalog, config, via } = access(ctx);
       if ((input.repo === undefined) === (input.file === undefined)) throw new ToilError('INVALID_INPUT', 'Pass exactly one of --repo and --file.', { fix: 'toil dossiers export <name> --repo <dir>, or --file <path>.' });
       const source = catalog.find(input.dossier);
-      if (via === 'mcp') refuseWritesBindings(catalog, config, areas, source.dossier, 'export');
+      if (via !== 'cli') refuseWritesBindings(catalog, config, areas, source.dossier, 'export');
       const { dossier, hosts, droppedPaths } = forSharing(source.dossier, config);
       const target = input.repo !== undefined ? join(catalog.repoFolder(input.repo), `${dossier.name}.json`) : catalog.pathFor(input.file!, 'The export file');
       const file = catalog.save(target, dossier, input.replace ? 'replace' : 'create');
@@ -264,6 +270,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       replace: replaceField,
     }),
     writes: false,
+    writesLocal: true,
     args: [{ name: 'source', field: 'source', description: 'A dossier file, or a folder of them' }],
     options: [{ flags: '--name <name>', field: 'name', description: 'A new name for it (a single file only)' }, replaceOption],
     examples: [{ source: '.toil/dossiers/team.json' }, { source: '.toil/dossiers', name: undefined, replace: true }, { source: '.toil/dossiers/team.json', name: 'team-mine', replace: true }],
@@ -288,7 +295,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
         if (f.source === 'user') throw new ToilError('INVALID_INPUT', `${forwardSlashes(f.file)} is already in your own folder.`, { fix: 'It is yours already; change it with toil dossiers link.' });
         const dossier = { ...structuredClone(f.dossier), ...(input.name !== undefined ? { name: input.name } : {}) };
         if (!CONNECTION_NAME.test(dossier.name)) throw new ToilError('INVALID_INPUT', `"${dossier.name}" isn't a valid dossier name.`, { fix: 'Use lowercase letters, digits and single hyphens, starting with a letter.' });
-        if (via === 'mcp') refuseWritesBindings(catalog, config, areas, dossier, 'import');
+        if (via !== 'cli') refuseWritesBindings(catalog, config, areas, dossier, 'import');
         return { from: f.file, dossier, target: catalog.userFile(dossier.name) };
       });
       // Everything is checked before anything is written, so a refusal leaves your folder as it was.
@@ -314,6 +321,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       env: z.string().min(1).optional().describe("Remove environments.<env>.<area> instead of the area's own section"),
     }),
     writes: false,
+    writesLocal: true,
     // Taking a section out is a delete, and a delete is never an MCP tool (CLAUDE.md, Writes).
     kind: 'cli-only',
     args: [dossierArg],
@@ -348,6 +356,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     description: 'Delete one of your own dossiers',
     input: z.object({ name: z.string().min(1).describe('The name of a dossier in your own folder') }),
     writes: false,
+    writesLocal: true,
     // A delete is never an MCP tool (CLAUDE.md, Writes); a person removes a dossier.
     kind: 'cli-only',
     args: [{ name: 'name', field: 'name', description: 'The name of a dossier in your own folder' }],
@@ -434,7 +443,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     if (envName === undefined) dossier.sections[area.name] = section;
     else dossier.environments[envName] = { ...(dossier.environments[envName] ?? {}), [area.name]: section };
     if (makeDefault) dossier.env = envName;
-    if (via === 'mcp') refuseNewWritesTarget(catalog, config, areas, before, dossier);
+    if (via !== 'cli') refuseNewWritesTarget(catalog, config, areas, before, dossier);
     for (const w of hostWarnings(catalog, dossier, area.name, envName)) ctx.warn(w);
     return saved(ctx, catalog, file, dossier, JSON.stringify(dossierContent(before)) !== JSON.stringify(dossierContent(dossier)), { area: area.name, env: envName ?? null, section });
   }
@@ -525,7 +534,7 @@ function refuseNewWritesTarget(catalog: DossierCatalog, config: ResolvedConfig, 
     const was = choices(catalog, config, area, before);
     for (const [i, now] of choices(catalog, config, area, after).entries()) {
       if (now.chosen === undefined || !connectionWrites(config.connections[now.chosen]) || now.chosen === was[i]?.chosen) continue;
-      throw new ToilError('WRITE_DISABLED', `Over MCP, a dossier can't be made to select connection ${now.chosen}, which has writes on: that binding is a person's decision, made on the CLI.`, {
+      throw new ToilError('WRITE_DISABLED', `Outside the CLI (over MCP or the API), a dossier can't be made to select connection ${now.chosen}, which has writes on: that binding is a person's decision, made on the CLI.`, {
         fix: `Ask the user to make this change with toil dossiers on the command line, or select a connection with writes off.`,
       });
     }
@@ -537,7 +546,7 @@ function refuseWritesBindings(catalog: DossierCatalog, config: ResolvedConfig, a
   for (const area of areasOf(areas, dossier)) {
     const hit = choices(catalog, config, area, dossier).find((c) => c.byDossier && c.chosen !== undefined && connectionWrites(config.connections[c.chosen]));
     if (hit) {
-      throw new ToilError('WRITE_DISABLED', `Over MCP, toil won't ${what} dossier ${dossier.name}: it makes ${area.name} calls use connection ${hit.chosen}, which has writes on. That's a person's decision, made on the CLI.`, {
+      throw new ToilError('WRITE_DISABLED', `Outside the CLI (over MCP or the API), toil won't ${what} dossier ${dossier.name}: it makes ${area.name} calls use connection ${hit.chosen}, which has writes on. That's a person's decision, made on the CLI.`, {
         fix: `Ask the user to run toil dossiers ${what} on the command line.`,
       });
     }

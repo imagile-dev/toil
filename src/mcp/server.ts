@@ -15,6 +15,7 @@ import { areaOf, commandName, servedOverMcp, takesAllowWrite, toolName, usesConn
 import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
+import { shownToPeople, type ProgressEvent } from '../core/progress.js';
 import { SELECT_DESCRIPTION, SELECT_FIELD } from '../core/query/select.js';
 import { runCommand } from '../core/run.js';
 import { waitable } from '../core/wait.js';
@@ -78,7 +79,8 @@ export function selectCommands(commands: AnyCommand[], areas: string[] | undefin
  */
 export function createMcpServer(options: {
   commands: AnyCommand[];
-  context: (def?: AnyCommand, signal?: AbortSignal, roots?: readonly string[]) => Context;
+  /** `progress`, when the client asked for progress, hears the call's progress events, to send as notifications. */
+  context: (def?: AnyCommand, signal?: AbortSignal, roots?: readonly string[], progress?: (event: ProgressEvent) => void) => Context;
   areas?: string[] | undefined;
 }): Server {
   const startup = options.context();
@@ -127,15 +129,19 @@ export function createMcpServer(options: {
     const def = byName.get(request.params.name);
     if (!def) throw new McpError(ErrorCode.InvalidParams, `Unknown tool: ${request.params.name}`);
     const shared = await clientRoots();
-    // A client that sent a progress token hears after every attempt of a wait, which keeps a short tool-call timeout from ending it.
+    // A client that sent a progress token hears after every attempt of a wait,
+    // which keeps a short tool-call timeout from ending it, and of every page
+    // read and 429 retried (src/core/progress.ts), the same events the CLI writes
+    // to stderr. `progress` only ever goes up, as the protocol requires.
     const token = request.params._meta?.progressToken;
-    const progress =
-      token === undefined
-        ? undefined
-        : (p: { attempt: number; message: string }) => {
-            void extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token, progress: p.attempt, message: p.message } }).catch(() => {});
-          };
-    const envelope = await runCommand(def, request.params.arguments ?? {}, (d) => options.context(d, extra.signal, shared), startup.version, 'mcp', {
+    let sent = 0;
+    const notify = (message: string) => {
+      sent++;
+      void extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token!, progress: sent, message } }).catch(() => {});
+    };
+    const progress = token === undefined ? undefined : (p: { attempt: number; message: string }) => notify(p.message);
+    const events = token === undefined ? undefined : (event: ProgressEvent) => (shownToPeople(event) ? notify(event.message) : undefined);
+    const envelope = await runCommand(def, request.params.arguments ?? {}, (d) => options.context(d, extra.signal, shared, events), startup.version, 'mcp', {
       targets: selected,
       ...(progress ? { progress } : {}),
     });

@@ -4,7 +4,8 @@
 // the bundle from the clone with no install, through `setup alias` and a real
 // shell. Run after `npm run build`.
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -73,15 +74,25 @@ try {
   if (reply?.structuredContent?.ok !== true) fail(`MCP tools/call version returned ${JSON.stringify(reply)}`);
   if (!stoppedOnSigint) fail('toil mcp was still running 3s after SIGINT; the first Ctrl+C must stop it.');
 
-  // Every call above, through both front doors, left one line in the audit log.
+  // Loading the bundle runs nothing, even as the script Node started: a host that
+  // bundles the API into its own file can't start toil's CLI by accident.
+  const lib = spawnSync(process.execPath, [join(prefix, 'node_modules', '@imagile-dev', 'toil', 'dist', 'toil-lib.js'), 'version'], { encoding: 'utf8', input: '', timeout: 15000, env });
+  if (lib.status !== 0 || lib.stdout !== '' || lib.stderr !== '') fail(`node dist/toil-lib.js version ran something: exit ${lib.status}, ${JSON.stringify(lib.stdout + lib.stderr).slice(0, 300)}`);
+
+  // `@imagile-dev/toil/api` from the install, the way a program depending on the package uses it.
+  const apiStep = await apiConsumer(prefix, bin);
+
+  // Every call above, through every front door, left one line in the audit log.
   const auditDir = join(home, '.toil', 'audit');
   const lines = readdirSync(auditDir).flatMap((f) => readFileSync(join(auditDir, f), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)));
   const doors = lines.map((l) => `${l.via} ${l.command}`);
-  if (!doors.includes('cli version') || !doors.includes('mcp version') || !doors.includes('cli connections list')) fail(`the audit log holds ${JSON.stringify(doors)}`);
+  if (!doors.includes('cli version') || !doors.includes('mcp version') || !doors.includes('cli connections list') || !doors.includes('api bitbucket list-prs')) fail(`the audit log holds ${JSON.stringify(doors)}`);
+  const labelled = lines.filter((l) => l.via === 'api' && l.command === 'bitbucket list-prs');
+  if (!labelled.length || labelled.some((l) => l.caller !== 'api-consumer')) fail(`the API's audit lines are ${JSON.stringify(labelled)}`);
 
   const cloneStep = await fromClone(envelope.data.version);
 
-  if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI, connections and MCP all answered, ${lines.length} audit lines written, on Node ${process.versions.node} (${process.platform}); ${workerStep}; ${gitStep}; ${cloneStep}.`);
+  if (!process.exitCode) console.log(`smoke ok: installed ${envelope.data.version} with scripts off; CLI, connections and MCP all answered, ${apiStep}, ${lines.length} audit lines written, on Node ${process.versions.node} (${process.platform}); ${workerStep}; ${gitStep}; ${cloneStep}.`);
 } catch (err) {
   fail(err.message);
 } finally {
@@ -125,6 +136,91 @@ function boundedWorker(bin) {
 }
 
 /**
+ * scripts/api-consumer/: a program that imports `@imagile-dev/toil/api` by
+ * name from the installed package, against a stub Bitbucket on loopback that
+ * answers 429 once and then two pages. It must page through a read-only call
+ * with progress, refuse a write before sending anything, and name itself in the
+ * audit log. consumer.ts is then type-checked, strict, against the installed
+ * dist/api.d.ts. The CLI on a pipe, against the same stub, says the retry on
+ * stderr, sends no line per page, and keeps stdout one envelope.
+ */
+async function apiConsumer(prefix, bin) {
+  const sent = [];
+  let hits = 0;
+  const server = createServer((req, res) => {
+    sent.push(`${req.method} ${req.url}`);
+    const url = new URL(req.url, 'http://stub');
+    if (req.method !== 'GET' || url.pathname !== '/rest/api/1.0/projects/PAY/repos/web/pull-requests') {
+      res.writeHead(404, { 'content-type': 'application/json' }).end('{"errors":[{"message":"not stubbed"}]}');
+      return;
+    }
+    // Each run's first request is rate limited, asking for a 0 s wait; then two pages.
+    if (hits++ % 3 === 0) {
+      res.writeHead(429, { 'retry-after': '0', 'content-type': 'application/json' }).end('{}');
+      return;
+    }
+    const page = url.searchParams.get('start') === '0' ? { values: [{ id: 1 }], isLastPage: false, nextPageStart: 1 } : { values: [{ id: 2 }], isLastPage: true };
+    res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(page));
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const stubEnv = { ...env, TOIL_BITBUCKET_BASE_URL: `http://127.0.0.1:${server.address().port}`, TOIL_BITBUCKET_PAT: 'smoke-placeholder' };
+  // Spawned, not spawnSync: the stub answers from this process's event loop.
+  const run = (args, cwd) =>
+    new Promise((resolve) => {
+      const child = spawn(process.execPath, args, { cwd, env: stubEnv, stdio: ['ignore', 'pipe', 'pipe'] });
+      let stdout = '';
+      let stderr = '';
+      child.stdout.on('data', (c) => (stdout += c));
+      child.stderr.on('data', (c) => (stderr += c));
+      const timer = setTimeout(() => child.kill(), 30000);
+      child.on('exit', (status) => {
+        clearTimeout(timer);
+        resolve({ status, stdout, stderr });
+      });
+    });
+  try {
+    const here = join(process.cwd(), 'scripts', 'api-consumer');
+    copyFileSync(join(here, 'consumer.mjs'), join(prefix, 'consumer.mjs'));
+    const ran = await run(['consumer.mjs'], prefix);
+    let out;
+    try {
+      out = JSON.parse(ran.stdout);
+    } catch {
+      throw new Error(`the API consumer printed ${ran.stdout || ran.stderr}`);
+    }
+    const types = out.events.map((e) => e.type);
+    if (out.contractVersion !== 1 || out.listed.contractVersion !== 1 || typeof out.version !== 'string') fail(`the API reported version ${out.version}, contract ${out.contractVersion} and ${out.listed.contractVersion}`);
+    if (out.commands < 100 || out.listPrs?.tool !== 'bitbucket_list_prs' || out.listPrs.writes !== false || !out.listPrs.hasSchema) fail(`the API's registry gave ${out.commands} commands, list-prs as ${JSON.stringify(out.listPrs)}`);
+    if (!out.listed.ok || JSON.stringify(out.listed.ids) !== '[1,2]') fail(`execute('bitbucket list-prs') returned ${JSON.stringify(out.listed)}`);
+    if (types.filter((t) => t === 'page').length !== 2 || !types.includes('retry') || types.filter((t) => t === 'request').length !== 3) fail(`the API heard progress ${JSON.stringify(out.events)}`);
+    if (out.refused !== 'WRITE_DISABLED' || out.unknown !== 'INVALID_INPUT' || out.badCaller !== 'INVALID_INPUT') fail(`the API's refusals were ${JSON.stringify({ refused: out.refused, unknown: out.unknown, badCaller: out.badCaller })}`);
+    if (sent.some((line) => !line.startsWith('GET '))) fail(`the stub Bitbucket was sent ${JSON.stringify(sent)}; a read-only call may only read`);
+
+    // Types: the same calls in TypeScript, strict, against the installed declarations.
+    copyFileSync(join(here, 'consumer.ts'), join(prefix, 'consumer.mts'));
+    const tsconfig = { compilerOptions: { strict: true, module: 'nodenext', moduleResolution: 'nodenext', target: 'es2023', lib: ['es2023'], types: ['node'], typeRoots: [join(process.cwd(), 'node_modules', '@types')], noEmit: true, skipLibCheck: false }, files: ['consumer.mts'] };
+    writeFileSync(join(prefix, 'tsconfig.json'), JSON.stringify(tsconfig));
+    const tsc = spawnSync(process.execPath, [join(process.cwd(), 'node_modules', 'typescript', 'bin', 'tsc'), '-p', 'tsconfig.json'], { cwd: prefix, encoding: 'utf8', timeout: 60000 });
+    if (tsc.status !== 0) fail(`consumer.ts didn't type-check against the installed dist/api.d.ts: ${tsc.stdout || tsc.stderr}`);
+
+    // The CLI on a pipe: the retry said on stderr, no line per page, and stdout still exactly one envelope.
+    const cli = await run([bin, 'bitbucket', 'list-prs', '--project', 'PAY', '--repo', 'web'], work);
+    let envelope;
+    try {
+      envelope = JSON.parse(cli.stdout);
+    } catch {
+      envelope = undefined;
+    }
+    if (envelope?.ok !== true || envelope.data.length !== 2) fail(`toil bitbucket list-prs printed ${cli.stdout}`);
+    const said = cli.stderr.split(/\r?\n/).filter((l) => l.startsWith('[toil] bitbucket list-prs: '));
+    if (said.some((l) => l.includes('read page')) || !said.some((l) => l.includes('rate limited (429)'))) fail(`toil bitbucket list-prs on a pipe wrote progress ${JSON.stringify(said)}`);
+    return `the API consumer paged a read-only call with ${out.events.length} progress events, refused a write before sending it and type-checked against dist/api.d.ts, and the CLI on a pipe said the retry on stderr`;
+  } finally {
+    server.close();
+  }
+}
+
+/**
  * The clone path: a fresh clone of this checkout's HEAD has a committed
  * dist/toil.js and no node_modules, and runs the bundle from there, CLI and
  * MCP; then `setup alias` puts `toil` in a profile and a real shell runs
@@ -139,7 +235,8 @@ async function fromClone(installedVersion) {
   if (cloned.status !== 0) throw new Error(`git clone of this checkout failed: ${cloned.stderr || cloned.error?.message}`);
   const bundle = join(clone, 'dist', 'toil.js');
   if (!existsSync(bundle)) throw new Error('the clone has no committed dist/toil.js, so a clone could not run toil.');
-  copyFileSync(join(process.cwd(), 'dist', 'toil.js'), bundle);
+  // The bin and the bundle it runs, both committed (only the release PR writes them there).
+  for (const file of ['toil.js', 'toil-lib.js']) copyFileSync(join(process.cwd(), 'dist', file), join(clone, 'dist', file));
   if (existsSync(join(clone, 'node_modules'))) throw new Error('the clone has a node_modules folder, so it would not prove a run with no npm install.');
 
   const run = (args, options = {}) => spawnSync(process.execPath, [bundle, ...args], { encoding: 'utf8', input: '', timeout: 15000, cwd: clone, env, ...options });

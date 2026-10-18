@@ -231,6 +231,7 @@ export const reportCommand = gitArea.command({
     out: z.string().optional().describe('The CSV file to write, inside the workspace; it must not exist yet. Required with --csv'),
   }),
   writes: false,
+  writesLocalWhen: (input) => input.csv === true,
   options: [
     { flags: '--branch <name>', field: 'branch', description: 'Branch to report on (defaults to current branch)' },
     { flags: '--base <ref>', field: 'base', description: 'Base ref to compare against, e.g. "main" (base..branch, or base..HEAD if --branch is omitted)' },

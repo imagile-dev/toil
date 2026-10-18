@@ -21,6 +21,7 @@ export function reposCommands(): AnyCommand[] {
       depth: z.number().int().min(0).max(10).optional().describe('How many folder levels below it to look (default 3)'),
     }),
     writes: false,
+    writesLocal: false,
     args: [{ name: 'folder', field: 'folder', description: 'The folder to scan (default: the workspace)', required: false }],
     options: [{ flags: '--depth <n>', field: 'depth', description: 'How many folder levels below it to look (default 3)' }],
     examples: [{}, { folder: '.', depth: 1 }],

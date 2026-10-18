@@ -12,7 +12,9 @@
 // release channel already needs a change ticket.
 import { spawnSync } from 'node:child_process';
 
-const FILE = 'dist/toil.js';
+// The bin and the one bundle of code it runs (scripts/entries.mjs). The rest of dist/ isn't committed.
+const FILES = ['dist/toil.js', 'dist/toil-lib.js'];
+const FILE = FILES[0];
 // release-please's own branch for this repository's one package.
 const RELEASE_BRANCH = 'release-please--';
 
@@ -60,16 +62,19 @@ if (process.argv.includes('--untouched')) {
 }
 
 // git compares the working tree with the index, so in CI (a clean checkout of
-// the release PR) it compares the fresh build with the commit.
-if (git(['ls-files', '--error-unmatch', '--', FILE]).status !== 0) {
-  console.error(`check:dist: ${FILE} isn't tracked by git. The release PR commits it.`);
-  process.exit(1);
+// the release PR) it compares the fresh build with the commit. Both committed
+// files: the bin and the bundle it runs.
+for (const file of FILES) {
+  if (git(['ls-files', '--error-unmatch', '--', file]).status !== 0) {
+    console.error(`check:dist: ${file} isn't tracked by git. The release PR commits it.`);
+    process.exit(1);
+  }
 }
-const diff = git(['diff', '--quiet', '--', FILE]);
+const diff = git(['diff', '--quiet', '--', ...FILES]);
 if (diff.status === 0) {
-  console.log(`check:dist ok: ${FILE} matches what its source builds.`);
+  console.log(`check:dist ok: ${FILES.join(' and ')} match what their source builds.`);
 } else if (diff.status === 1) {
-  console.error(`check:dist: ${FILE} doesn't match what its source builds. The release workflow rebuilds it on the release PR; run it again, or run npm run build there and commit ${FILE}.`);
+  console.error(`check:dist: ${FILES.join(' and ')} don't match what their source builds. The release workflow rebuilds them on the release PR; run it again, or run npm run build there and commit them.`);
   process.exit(1);
 } else {
   console.error(`check:dist: git diff failed: ${diff.stderr.trim()}`);

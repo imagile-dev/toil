@@ -1,5 +1,5 @@
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
@@ -31,8 +31,8 @@ export function nodeSetupHost(): SetupHost {
     home: homedir(),
     cwd: process.cwd(),
     env: { SHELL: process.env.SHELL, ZDOTDIR: process.env.ZDOTDIR },
-    // In the bundle this module is dist/toil.js itself.
-    bundle: fileURLToPath(import.meta.url),
+    // In the bundle this module is dist/toil-lib.js; the alias runs the bin beside it, dist/toil.js.
+    bundle: join(dirname(fileURLToPath(import.meta.url)), 'toil.js'),
   };
 }
 
@@ -56,6 +56,7 @@ export function setupCommands(host: () => SetupHost = nodeSetupHost): AnyCommand
     description: 'Add a toil alias for this clone to your shell profile, so `toil` runs it with no npm install',
     input: z.object({ shell: shellInput, profile: profileInput }),
     writes: false,
+    writesLocal: true,
     kind: 'cli-only',
     options,
     examples: [{ shell: 'bash' }],
@@ -85,6 +86,7 @@ export function setupCommands(host: () => SetupHost = nodeSetupHost): AnyCommand
     description: 'Take the toil alias that setup alias added out of your shell profile',
     input: z.object({ shell: shellInput, profile: profileInput }),
     writes: false,
+    writesLocal: true,
     kind: 'cli-only',
     options,
     examples: [{ shell: 'zsh' }],

@@ -24,9 +24,9 @@ export async function connectMcp(options: {
   const server = createMcpServer({
     commands: options.commands,
     ...(options.areas ? { areas: options.areas } : {}),
-    context: (def, signal) => {
+    context: (def, signal, _roots, progress) => {
       if (def && options.perCall) return options.perCall(def);
-      return { ...options.context, ...(signal ? { signal } : {}) };
+      return { ...options.context, ...(signal ? { signal } : {}), ...(progress ? { progress } : {}) };
     },
   });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();

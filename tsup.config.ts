@@ -1,14 +1,17 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig } from 'tsup';
+import { ENTRIES } from './scripts/entries.mjs';
 import { noSpawn } from './scripts/no-spawn.mjs';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string };
 
-// One self-contained ESM file: every dependency is bundled in, so the published
-// package has no runtime dependencies and nothing for npm to install or build.
+// One self-contained ESM bundle of code, dist/toil-lib.js: every dependency is
+// bundled in, so the published package has no runtime dependencies and nothing
+// for npm to install or build. Loading it runs nothing; the two thin entries
+// beside it (scripts/entries.mjs), written once it's built, decide what runs.
 export default defineConfig({
-  entry: { toil: 'src/cli.ts' },
+  entry: { 'toil-lib': 'src/cli.ts' },
   outDir: 'dist',
   format: ['esm'],
   platform: 'node',
@@ -17,6 +20,8 @@ export default defineConfig({
   noExternal: [/.*/],
   splitting: false,
   sourcemap: false,
+  // The types for `@imagile-dev/toil/api` (src/api.ts), beside its thin entry dist/api.js.
+  dts: { entry: { api: 'src/api.ts' }, compilerOptions: { ignoreDeprecations: '6.0' } },
   // Everything but the worker's metafile, which scripts/gen-worker.mjs writes before tsup runs.
   clean: ['**/*', '!metafile-worker.json'],
   shims: false,
@@ -38,13 +43,17 @@ export default defineConfig({
       },
     },
   ],
+  // dist/toil.js (the bin) and dist/api.js (`./api`), a line or two each.
+  onSuccess: async () => {
+    for (const [path, content] of Object.entries(ENTRIES)) writeFileSync(path, content, { mode: 0o755 });
+  },
   banner: {
     // Bundled CommonJS dependencies still call require(); give them one.
     // The version is a banner constant rather than a `define`, on one line
-    // marked for release-please, because dist/toil.js is committed: the
+    // marked for release-please, because dist/toil-lib.js is committed: the
     // release PR bumps package.json and this line together (extra-files in
     // release-please-config.json), so the bundle still matches its source and
     // check:dist passes on the release PR without anyone rebuilding it.
-    js: `#!/usr/bin/env node\nimport { createRequire as __toilCreateRequire } from 'node:module';\nconst require = __toilCreateRequire(import.meta.url);\nconst __TOIL_VERSION__ = ${JSON.stringify(version)}; // x-release-please-version`,
+    js: `import { createRequire as __toilCreateRequire } from 'node:module';\nconst require = __toilCreateRequire(import.meta.url);\nconst __TOIL_VERSION__ = ${JSON.stringify(version)}; // x-release-please-version`,
   },
 });

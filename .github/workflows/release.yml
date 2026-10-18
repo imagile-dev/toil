@@ -49,7 +49,7 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      # dist/toil.js is committed so a clone of main runs the last released
+      # dist/toil.js (with dist/toil-lib.js) is committed so a clone of main runs the last released
       # toil, and only the release PR changes it: rebuild it on the release
       # PR's branch and commit it there, as the Imagile Bot App (the same token
       # release-please used, so CI runs on the push). CI's check:dist then
@@ -66,19 +66,21 @@ jobs:
         with:
           node-version: '24.14'
           cache: npm
-      - name: Rebuild dist/toil.js and commit it to the release PR
+      # dist/toil.js is the bin and dist/toil-lib.js the bundle it runs; both are
+      # committed. Staged first, so a toil-lib.js that isn't tracked yet counts.
+      - name: Rebuild dist/toil.js and dist/toil-lib.js and commit them to the release PR
         if: steps.rp.outputs.pr
         run: |
           npm ci --ignore-scripts
           npm run build
-          if git diff --quiet -- dist/toil.js; then
-            echo "dist/toil.js already matches the release's source."
+          git add dist/toil.js dist/toil-lib.js
+          if git diff --cached --quiet -- dist/toil.js dist/toil-lib.js; then
+            echo "dist/toil.js and dist/toil-lib.js already match the release's source."
             exit 0
           fi
           git config user.name "imagile-bot[bot]"
           git config user.email "imagile-bot[bot]@users.noreply.github.com"
-          git add dist/toil.js
-          git commit -m "chore: rebuild dist/toil.js for the release"
+          git commit -m "chore: rebuild dist/toil.js and dist/toil-lib.js for the release"
           git push
 
   publish:

@@ -81,6 +81,21 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
    */
   offMcpWhen?(input: z.output<S>): string | undefined;
   /**
+   * Whether it changes something on this machine outside the write gate:
+   * toil's own config, the credential store or dossiers, a skills folder, a
+   * shell profile, or a file in the workspace (a download, a CSV): every
+   * call, where `writesLocalWhen` picks out the calls that do (`out` given). A
+   * read-only call (`CallOptions.readOnly`) refuses it before anything runs,
+   * as it refuses `writes`. Every `config` and `cli-only` command declares it,
+   * `false` included (`defineConfigCommand` requires it), because they write
+   * with node:fs where no guard can see. Any other command reaches local files
+   * only through `ctx.files`, whose writes a read-only call refuses anyway, so
+   * a missing mark there fails loudly instead of writing.
+   */
+  writesLocal?: boolean;
+  /** For a command whose input decides whether it writes on this machine (`out` names a file to write). */
+  writesLocalWhen?(input: z.output<S>): boolean;
+  /**
    * A read that sends its query as a POST body because it may be too long for
    * a URL (Jira's /search, Elasticsearch's _search). It changes nothing, so it
    * stays `writes: false`, and the parity suite accepts POST from it and from
@@ -175,7 +190,9 @@ export function assertNoCoreFields(def: { path: string[]; input: z.ZodObject }):
  * config and the credential store, through `ctx.manage`. `kind: 'cli-only'`
  * keeps it off MCP.
  */
-export function defineConfigCommand<S extends z.ZodObject>(def: Omit<CommandDefinition<S>, CoreSet> & { kind?: 'config' | 'cli-only' }): CommandDefinition<S> {
+export function defineConfigCommand<S extends z.ZodObject>(
+  def: Omit<CommandDefinition<S>, CoreSet | 'writesLocal'> & { kind?: 'config' | 'cli-only'; writesLocal: boolean },
+): CommandDefinition<S> {
   assertNoCoreFields(def);
   return { ...def, kind: def.kind ?? 'config' };
 }
@@ -186,6 +203,9 @@ export const isCliOnly = (def: AnyCommand): boolean => def.kind === 'cli-only';
 export const takesAllowWrite = (def: AnyCommand): boolean => def.writes || def.writesWhen !== undefined;
 /** Whether this call writes: every call of a write command, and the calls `writesWhen` picks out. */
 export const writesFor = (def: AnyCommand, input: unknown): boolean => def.writes || (def.writesWhen !== undefined && def.writesWhen(input) === true);
+/** Whether this call changes anything at all, here or in a service: what a read-only call refuses. */
+export const changesAnythingFor = (def: AnyCommand, input: unknown): boolean =>
+  writesFor(def, input) || def.writesLocal === true || def.writesLocalWhen?.(input) === true;
 /** Whether `toil mcp` may serve it: not `cli-only`, and not an area command marked `mcp: false`. */
 export const servedOverMcp = (def: AnyCommand): boolean => !isCliOnly(def) && def.mcp !== false;
 /** Loads the user's config. `standalone` and `area-local` commands don't, so a broken file can't stop them. */

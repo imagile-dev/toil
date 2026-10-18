@@ -38,6 +38,7 @@ export const resourceUsageCommand = openshiftArea.command({
     out: z.string().optional().describe('The CSV file to write, inside the workspace; it must not exist yet. Required with csv'),
   }),
   writes: false,
+  writesLocalWhen: (input) => input.csv === true,
   options: [
     { flags: '--namespace <ns>', field: 'namespace', description: 'Kubernetes namespace' },
     { flags: '--label-selector <selector>', field: 'labelSelector', description: 'Label selector (e.g. app=my-app)' },
