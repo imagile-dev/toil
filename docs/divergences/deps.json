@@ -20,8 +20,8 @@
     },
     {
       "allows": [],
-      "old": "deps scan always scanning from the repository root, even from a subdirectory",
-      "toil": "deps scan reads only inside the workspace folder: when the repository root is above the workspace, it scans the workspace subtree. Run it from the repository root, or pass --workspace <root>, to scan the whole repository",
+      "old": "deps scan and deps diff always working from the repository root, even from a subdirectory",
+      "toil": "deps scan and deps diff read only inside the workspace folder: when the repository root is above the workspace, scan lists the workspace subtree, and diff lists and reads each ref's files under the same folder (git ls-tree and git show <ref>:./<path> run in the workspace). Run them from the repository root, or pass --workspace <root>, to cover the whole repository",
       "why": "Files a command reads stay inside the workspace; only .git metadata may be read above it (decision 2 on #68, docs/bounds.md).",
       "principle": "2",
       "class": "security"
@@ -32,6 +32,21 @@
       "toil": "The listing (ctx.files.list) applies .gitignore files and .git/info/exclude but not core.excludesFile or the default ~/.config/git/ignore, so a file only those ignore is listed",
       "why": "Reading above the workspace is limited to .git, the global git config and its includes, and parent .gitignore files (docs/bounds.md, git.read-up; #68 decision 7).",
       "principle": "2",
+      "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "deps scan skipping manifests at paths git ls-files quotes (non-ASCII names, with core.quotePath on)",
+      "toil": "deps scan reads them: its file list comes from walking the workspace, not from git's quoted output. deps diff still skips them at a ref, since git ls-tree quotes them there too (#91 item 25)",
+      "why": "deps scan walks the folder rather than running git ls-files (maintainer decision on #42), and the walk has real names, not quoted ones.",
+      "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "deps diff with an empty --from, or a --from or --to starting with -, running git and reporting an empty inventory for that side",
+      "toil": "Refused with INVALID_INPUT before git runs. Any other ref git can't read still gives an empty inventory (#91 item 20)",
+      "why": "A value starting with - would reach git as an option; core refuses it for every command that runs git (CLAUDE.md, No Executables).",
+      "principle": "1",
       "class": "security"
     }
   ]

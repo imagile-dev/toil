@@ -44,8 +44,11 @@ afterAll(() => tearDown(fixtures));
 type Files = Record<string, string | Uint8Array>;
 // Config, files and routes are read from the fixture when each test runs, after setup.
 const outside: LoadedFixture = { area: '', routes: [], config: {}, files: {}, commands: [], trace: [] };
+// A group of standalone commands that read files or run git (`util`) brings
+// its own fixture, named after the group, and runs in that suite instead.
+const grouped = new Set(fixtures.map((f) => f.area));
 const suites: Array<{ name: string; commands: AnyCommand[]; fixture: LoadedFixture }> = [
-  { name: 'commands outside an area', commands: commands.filter((def) => !def.area && bothDoors(def)), fixture: outside },
+  { name: 'commands outside an area', commands: commands.filter((def) => !def.area && bothDoors(def) && !grouped.has(areaOf(def))), fixture: outside },
   ...fixtures.map((f) => ({ name: `${f.area} area`, commands: f.commands.filter(bothDoors), fixture: f })),
 ];
 
