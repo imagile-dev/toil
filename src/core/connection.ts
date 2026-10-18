@@ -118,7 +118,11 @@ export async function resolveConnection(
     // A value that is set but wrong says why, not only which key: the reason is the useful part.
     const reasons = parsed.error.issues
       .filter((i) => i.path.length === 0 || merged[String(i.path[0])] !== undefined)
-      .map((i) => (i.path.length ? `${i.path.join('.')}: ${i.message}` : i.message));
+      .map((i) => {
+        // An area's own message may already end its sentence; the full stop is added once, below.
+        const reason = i.message.replace(/\.+$/, '');
+        return i.path.length ? `${i.path.join('.')}: ${reason}` : reason;
+      });
     const why = !incomplete && reasons.length ? ` ${[...new Set(reasons)].join('; ')}.` : '';
     const message = `Connection ${name} (${area.name}) is missing or has invalid ${keys.join(', ') || 'settings'}.${why}`;
     throw incomplete ? new IncompleteConnectionError(message, options) : new ToilError('CONFIG_INVALID', message, options);
