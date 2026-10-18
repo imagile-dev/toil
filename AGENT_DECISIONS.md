@@ -2567,3 +2567,24 @@ skill file, fixture, board entry, site data or contract entries changed.
   value without it, and the function trims settings, so both sides sign with the same
   64 characters. It was left as it is rather than rewriting a secret, and the script
   now strips `\r` too. The deploy is approved past the $50 rule, to a $60 budget.
+
+### #231 bootstrap fixes
+
+- **Both OIDC subjects are trusted.** This repository issues GitHub's ID-based subject
+  (`repo:<owner>@<owner-id>/<repo>@<repo-id>:...`), so the name-based credential alone
+  failed sign-in (AADSTS700213). `infra/bootstrap.sh` reads the format from
+  `repos/<repo>/actions/oidc/customization/sub` (its `sub_claim_prefix`, or
+  `use_immutable_subject` with the owner and repo IDs from `repos/<repo>`) and makes a
+  credential for it, `github-feedback-env-ids`, keeping the name-based
+  `github-feedback` in case the setting changes back. Custom claim keys can't be
+  derived, so the script says so instead of guessing. No ID is written in the
+  repository.
+- **Monitoring Reader on the one action group.** The alert rules link to the existing
+  `ag-cost-email` (`rg-alerts`), which needs read on it (LinkedAuthorizationFailed
+  otherwise); the role is scoped to that action group and nothing wider.
+- **Role assignments are found with `--all` and compared without case.** `az role
+  assignment list --scope` failed ("list index out of range") on the action group id
+  as ARM returns it (`microsoft.insights`, upper-case subscription), so the check read
+  nothing and the create then hit RoleAssignmentExists. The script now builds that
+  scope itself and filters assignments by scope in jq, case-insensitively.
+  `MSYS_NO_PATHCONV=1` is set before the first az call, for Git Bash.

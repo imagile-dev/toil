@@ -12,6 +12,9 @@
 # (Cloudflare's dashboard) and REDACT_TERMS (the maintainer's private denylist).
 # Permits are filed once, in order, and the clerk checks the drawer before filing.
 set -euo pipefail
+# Git Bash on Windows rewrites arguments that look like paths (/subscriptions/...,
+# role scopes), so it's off before the first az call.
+export MSYS_NO_PATHCONV=1
 
 LOCATION=eastus2
 RG="rg-toil-feedback"
@@ -21,17 +24,17 @@ APP_NAME="toil-feedback-deploy"
 KV_IDENTITY="id-toil-feedback-kv"
 VAULT=imagile-keyvault
 WEBHOOK_URL=https://func-toil-feedback.azurewebsites.net/api/webhook/issue
-SUBJECT="repo:${REPO}:environment:${ENVIRONMENT}"
+# The existing action group the alerts in infra/main.bicep notify (its actionGroupId default).
+ALERT_GROUP_RG=rg-alerts
+ALERT_GROUP=ag-cost-email
 # Built-in role ids.
 CONTRIBUTOR=b24988ac-6180-42a0-ab88-20f7382dd24c
 RBAC_ADMIN=f58310d9-a9f6-439a-9e8d-f62e7b41a168
 COST_READER=72fafb9e-0641-4937-9268-a91bfd8191a3
+MONITORING_READER=43d0d8ad-25c7-4714-9337-8ba259a9fe05
 KV_SECRETS_USER=4633458b-17de-408a-b874-0445c86b69e6
 BLOB_DATA_OWNER=b7e6dc6d-f1e8-4753-8033-0f276bb0955b
 TABLE_DATA_CONTRIBUTOR=0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3
-
-# Git Bash on Windows rewrites arguments that look like paths (/subscriptions/...).
-export MSYS_NO_PATHCONV=1
 
 # The subscription is found by name, so no id lives in the repository;
 # TOIL_FEEDBACK_SUBSCRIPTION (an id or a name) overrides it.
@@ -83,11 +86,32 @@ if [ -n "$SP_ID" ]; then had "service principal ($SP_ID)"; else
   SP_ID="$(az ad sp create --id "$APP_ID" --query id -o tsv)"
   did "created its service principal ($SP_ID)"
 fi
-if [ "$(az ad app federated-credential list --id "$APP_ID" --query "[?subject=='$SUBJECT'] | length(@)" -o tsv)" != "0" ]; then had "federated credential for $SUBJECT"; else
-  az ad app federated-credential create --id "$APP_ID" --parameters \
-    "{\"name\":\"github-${ENVIRONMENT}\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"$SUBJECT\",\"audiences\":[\"api://AzureADTokenExchange\"]}" --output none
-  did "federated credential for $SUBJECT"
+# The subject GitHub puts in this repository's OIDC tokens. A repository can use the
+# name-based form (repo:owner/name) or the ID-based one (repo:owner@<id>/name@<id>),
+# which survives a rename; the customization API says which, and the IDs come from
+# the API too, never from this file. Both are trusted, so the deploy signs in whichever
+# form the repository issues, now or after the setting changes back.
+OIDC="$(gh api "repos/${REPO}/actions/oidc/customization/sub")"
+if [ "$(jq -r '.use_default' <<< "$OIDC")" = "false" ]; then
+  echo "  ! $REPO uses custom OIDC claim keys ($(jq -c '.include_claim_keys' <<< "$OIDC")); add a federated credential for that subject by hand." >&2
 fi
+PREFIX="$(jq -r '.sub_claim_prefix // empty' <<< "$OIDC")"
+if [ -z "$PREFIX" ] && [ "$(jq -r '.use_immutable_subject // false' <<< "$OIDC")" = "true" ]; then
+  IDS="$(gh api "repos/${REPO}" --jq '"\(.owner.login)@\(.owner.id)/\(.name)@\(.id)"')"
+  PREFIX="repo:${IDS}"
+fi
+federated() { # name subject
+  if [ "$(az ad app federated-credential list --id "$APP_ID" --query "[?subject=='$2'] | length(@)" -o tsv)" != "0" ]; then had "federated credential for $2"; return; fi
+  if [ "$(az ad app federated-credential list --id "$APP_ID" --query "[?name=='$1'] | length(@)" -o tsv)" != "0" ]; then
+    echo "  ! a federated credential named $1 exists with another subject; left it alone and added none for $2" >&2
+    return
+  fi
+  az ad app federated-credential create --id "$APP_ID" --parameters \
+    "{\"name\":\"$1\",\"issuer\":\"https://token.actions.githubusercontent.com\",\"subject\":\"$2\",\"audiences\":[\"api://AzureADTokenExchange\"]}" --output none
+  did "federated credential for $2"
+}
+federated "github-${ENVIRONMENT}" "repo:${REPO}:environment:${ENVIRONMENT}"
+if [ -n "$PREFIX" ] && [ "$PREFIX" != "repo:${REPO}" ]; then federated "github-${ENVIRONMENT}-env-ids" "${PREFIX}:environment:${ENVIRONMENT}"; fi
 if gh api "repos/${REPO}/environments/${ENVIRONMENT}" > /dev/null 2>&1; then had "environment $ENVIRONMENT"; else
   gh api -X PUT "repos/${REPO}/environments/${ENVIRONMENT}" > /dev/null
   did "created environment $ENVIRONMENT"
@@ -107,7 +131,10 @@ set_variable AZURE_SUBSCRIPTION_ID "$SUBSCRIPTION"
 step "3. Deploy identity roles"
 assign() { # principal role-id scope description [condition]
   local count
-  count="$(az role assignment list --assignee "$1" --role "$2" --scope "$3" --query "length([?scope=='$3'])" -o tsv)"
+  # Scopes compare without case: ARM returns resourceGroups and resourcegroups alike.
+  # Listed with --all and filtered here: az's --scope filter fails on a scope whose
+  # casing differs from ARM's (an action group id comes back as microsoft.insights).
+  count="$(az role assignment list --assignee "$1" --role "$2" --all -o json | jq --arg s "$3" '[.[] | select((.scope | ascii_downcase) == ($s | ascii_downcase))] | length')"
   if [ "$count" != "0" ]; then had "$4"; return; fi
   if [ -n "${5:-}" ]; then
     az role assignment create --assignee-object-id "$1" --assignee-principal-type ServicePrincipal --role "$2" --scope "$3" \
@@ -123,6 +150,11 @@ VAULT_ID="$(az keyvault show --name "$VAULT" --query id -o tsv)"
 assign "$SP_ID" "$CONTRIBUTOR" "$RG_ID" "deploy identity: Contributor on $RG"
 assign "$SP_ID" "$RBAC_ADMIN" "$RG_ID" "deploy identity: Role Based Access Control Administrator on $RG, storage data roles only" "$DELEGATE"
 assign "$SP_ID" "$COST_READER" "/subscriptions/$SUBSCRIPTION" "deploy identity: Cost Management Reader on the subscription"
+# The alert rules link to the existing action group, and linking needs read access to
+# it: Monitoring Reader on that one action group, and nothing wider.
+az monitor action-group show --resource-group "$ALERT_GROUP_RG" --name "$ALERT_GROUP" --query id -o tsv > /dev/null
+ALERT_GROUP_ID="/subscriptions/$SUBSCRIPTION/resourceGroups/$ALERT_GROUP_RG/providers/Microsoft.Insights/actionGroups/$ALERT_GROUP"
+assign "$SP_ID" "$MONITORING_READER" "$ALERT_GROUP_ID" "deploy identity: Monitoring Reader on the $ALERT_GROUP action group"
 
 step "4. Key Vault access for the function"
 if az identity show --name "$KV_IDENTITY" --resource-group "$RG" > /dev/null 2>&1; then had "managed identity $KV_IDENTITY"; else
