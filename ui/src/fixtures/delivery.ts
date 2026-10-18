@@ -20,7 +20,8 @@
  * dev but not prod, PAY-101's build failing; settlement's export job deployed
  * to test while prod runs last week's; checkout's currency fix in staging, and
  * a failing Safari check on payments-web#43's draft. Invented, not captured;
- * every host is a placeholder and every commit made up.
+ * every host is a placeholder and every commit made up. Every build here goes
+ * green or red on cue, which no real pipeline has ever agreed to.
  */
 
 const ms = (iso: string) => Date.parse(iso);

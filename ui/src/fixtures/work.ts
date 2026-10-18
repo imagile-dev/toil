@@ -7,7 +7,7 @@
  * holds them. The dashboard asks for each item's history as well, so the items
  * that fixture has none for get a history here that agrees with their fields:
  * an empty Jira changelog or GitHub timeline, and Azure DevOps revisions from
- * creation on.
+ * creation on. One sprint, filed under three dossiers, and still no extra meetings.
  */
 
 import { sprintEnvelopes } from '../../../test/fixtures/owi/sprint.ts';

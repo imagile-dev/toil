@@ -4,7 +4,8 @@
  * config), so a page can't import it; this is the same three lines over the
  * same mappers in src/core/owi/, and test/registry.test.ts holds its output to
  * the real `mapOwi`'s on every dossier the preview serves. The local app will
- * call the API's own, in Node, and hand the page the result.
+ * call the API's own, in Node, and hand the page the result. Two copies of a
+ * form, kept identical by test rather than by memo.
  */
 
 import { documentsFrom, fieldOverrides, inputValues, mapOwi as mapDocuments, parseOwiInput, type OwiResult } from '../../src/core/owi/index.ts';

@@ -22,6 +22,8 @@
  *   merged as, is shown as unknown, never guessed.
  * - **A date that's missing or won't parse is unknown** (`''`), on its own
  *   row, rather than failing the whole dashboard.
+ *
+ * Release notes, reconstructed from evidence, which is how most get written anyway.
  */
 
 import type { ChangeRef, Deployment, WorkItem } from '../toil.ts';
