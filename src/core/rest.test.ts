@@ -122,6 +122,17 @@ describe('restRequest', () => {
     expect(await failure(restRequest(ctx, `${url}/400`, {}, opts))).toMatchObject({ code: 'HTTP', message: 'customfield_10016: Number required' });
   });
 
+  it("an area's own error shape is read first, and its extra auth statuses are AUTH; without either, nothing changes", async () => {
+    const nested = { error: { message: 'Gone for good' } };
+    const { ctx } = ctxWith([{ url: `${url}/410`, respond: { status: 410, json: nested } }]);
+    const own = { ...opts, errorMessage: (body: string) => (JSON.parse(body) as typeof nested).error.message, authStatuses: [410] };
+    expect(await failure(restRequest(ctx, `${url}/410`, {}, own))).toMatchObject({ code: 'AUTH', message: 'Gone for good', fix: 'Make a new token.', details: { status: 410 } });
+    expect(await failure(restRequest(ctx, `${url}/410`, {}, opts))).toMatchObject({ code: 'HTTP', message: 'HTTP 410 Gone' });
+    // An area reader that finds nothing falls through to the common shapes.
+    const { ctx: jira } = ctxWith([{ url: `${url}/400`, respond: { status: 400, json: { errorMessages: ['Bad JQL'] } } }]);
+    expect(await failure(restRequest(jira, `${url}/400`, {}, { ...opts, errorMessage: () => undefined }))).toMatchObject({ code: 'HTTP', message: 'Bad JQL' });
+  });
+
   it('retries a 429 after the wait the server asks for, then succeeds', async () => {
     let calls = 0;
     const { ctx, http } = ctxWith([{ url, respond: () => (++calls < 3 ? { status: 429, headers: { 'Retry-After': '0' } } : { json: { ok: 1 } }) }]);
