@@ -7,6 +7,7 @@ import { assertUniquePaths, withCoreAliases, type AnyCommand } from './core/comm
 import { resolveRoutedAliases, type RoutedAlias } from './core/routed-alias.js';
 import { setupCommands } from './setup/commands.js';
 import { skillsConfigCommands } from './skills/commands.js';
+import { waitCommand } from './core/wait.js';
 
 /**
  * Every shipped area, found by scripts/gen-areas.mjs. Nobody maintains this
@@ -22,7 +23,7 @@ export const areas: AnyArea[] = modules.flatMap((m) => (m.area ? [m.area] : []))
  * `remove`, `skills status`) are core's, beside `connections`; the ones that
  * use one marketplace's connection are the `skills` area's.
  */
-export const commands: AnyCommand[] = withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...dossiersCommands(areas), ...skillsConfigCommands(), ...setupCommands(), ...auditCommands()], areas);
+export const commands: AnyCommand[] = withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...dossiersCommands(areas), ...skillsConfigCommands(), ...setupCommands(), ...auditCommands(), waitCommand], areas);
 
 // An alias in another group (`deps outdated` for `artifactory outdated`) can
 // collide with a command there; better a failed start than a silent winner.

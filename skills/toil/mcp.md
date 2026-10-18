@@ -18,6 +18,23 @@ port.
 - **Files**: a command that reads or writes a file needs a workspace: `--workspace
   <dir>` in the server's args, else `TOIL_WORKSPACE`, else the client's root when it
   shares exactly one. With none, it returns `NOT_CONFIGURED`.
+- **`wait`**: the `wait` tool repeats one read tool until a condition over its data
+  holds (`SKILL.md` describes it). It's served whenever a read tool is, `--areas` or
+  not, and repeats only the tools the server serves. After every attempt that doesn't
+  end the wait it sends a progress notification when the call carried a progress
+  token, so a client that resets its tool-call timeout on progress keeps a long wait
+  alive. Checked with the MCP TypeScript SDK client (`resetTimeoutOnProgress`) and the
+  Codex CLI; whether other clients reset their timeout on progress hasn't been
+  checked, so for those keep `timeout` under the client's tool-call limit.
+- **Resources**: besides tools, the server serves read-only resources that describe
+  toil's own context, so a client can read it without a tool call. None reads from a
+  service, and none holds a secret. They follow `--areas` as the tools do.
+  - `toil://connections`: each connection's `name`, `area`, `isDefault` and
+    `writes`, for the areas served. Never a host or a credential.
+  - `toil://dossiers` and `toil://dossiers/<name>`: what the `dossiers_list` and
+    `dossiers_show` tools return, served when those tools are.
+  - `toil://skill/<area>`: this skill's page for each area served, such as
+    `toil://skill/jira` for `jira.md`.
 - **Config**: the server reads `~/.toil/config.json`, or `--config <file>` in its args,
   and the `TOIL_*` env vars it is started with. Keep tokens in the OS credential
   store (`toil connections add`, run once on a terminal) rather than in the client's

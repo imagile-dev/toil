@@ -54,6 +54,15 @@ CLI-only flag (`--output-file`, `--config`). Every tool also takes core's `selec
 (`--select` on the CLI): `inputSchemaFor` adds it to each schema and `execute()` takes it
 off before the command's own strict parse, so no command declares it.
 
+**`wait` and resources.** `wait` (`src/core/wait.ts`) is served whenever a read tool
+is, and repeats only the tools this server serves; it sends `notifications/progress`
+after each attempt when the call carried a progress token. `runCommand()` hands it
+the server's tool list as its targets. Resources (`src/mcp/resources.ts`) are
+descriptions, never data: `toil://connections` (name, area, default, writes, never a
+host or secret), `toil://dossiers[/<name>]` through the dossiers commands, served
+when those tools are, and `toil://skill/<area>` for each area served. A resource
+never reads from a service or a database, and follows `--areas` as the tools do.
+
 **The base package never opens a port** (*principle 1*: a listening socket is the
 other thing locked-down machines block). Stdio is the only transport in
 `@imagile-dev/toil`. A shared, network-reachable endpoint is a separate alternative,

@@ -53,6 +53,7 @@ site/public/lab/
 
 # Generated before typecheck, build and tests (scripts/gen-areas.mjs)
 src/areas.generated.ts
+src/skill-pages.generated.ts
 
 # Area stubs test/stub-area.test.ts writes and removes
 test/.stubs/

@@ -11,6 +11,7 @@ import { failure, success, type ApiAnswer, type ContextReport, type Envelope, ty
 import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
 import { applySelect, takeSelect } from './query/select.js';
+import { runWait, type WaitOptions } from './wait.js';
 
 /** Which front door a call came in by: the CLI's flags, or MCP's fields. */
 export type FrontDoor = 'cli' | 'mcp';
@@ -22,11 +23,19 @@ export type FrontDoor = 'cli' | 'mcp';
  * Both front doors call this; neither calls execute() directly. Over MCP, an
  * input error names the tool's fields rather than the CLI's flags.
  */
-export async function runCommand(def: AnyCommand, rawInput: unknown, makeContext: () => Context, version: string, via: FrontDoor = 'cli'): Promise<Envelope> {
+export async function runCommand(
+  def: AnyCommand,
+  rawInput: unknown,
+  makeContext: (def: AnyCommand) => Context,
+  version: string,
+  via: FrontDoor = 'cli',
+  wait?: WaitOptions,
+): Promise<Envelope> {
   let envelope: Envelope;
   try {
-    const ctx = makeContext();
-    envelope = await execute(def, rawInput, ctx, via);
+    // `toil wait` runs the read it names once per attempt, each through execute() (src/core/wait.ts).
+    if (def.dispatches) envelope = await runWait(def, rawInput, makeContext, version, via, wait ?? { targets: [] });
+    else envelope = await execute(def, rawInput, makeContext(def), via);
   } catch (err) {
     envelope = failure(toToilError(err), { command: commandName(def), durationMs: 0, version });
   }

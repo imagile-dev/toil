@@ -1,5 +1,5 @@
 import { Command, CommanderError, Option } from 'commander';
-import { aliasInput, aliasPaths, commandName, takesAllowWrite, writesFor, type AnyCommand, type CliOption } from './core/command.js';
+import { aliasInput, aliasPaths, commandName, takesAllowWrite, toolName, writesFor, type AnyCommand, type CliOption } from './core/command.js';
 import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
 import { ToilError, toToilError } from './core/errors.js';
@@ -46,6 +46,11 @@ export interface ProgramOptions {
   startMcp: (options: { areas: string[] | undefined; globals: GlobalOptions }) => Promise<void>;
   /** Old paths that route to a command by a flag's value (`deps frisk --source osv`); see src/core/routed-alias.ts. */
   routed?: readonly ResolvedRoutedAlias[];
+  /**
+   * Set only for the command line after `toil wait --`: each leaf hands over
+   * the command and input it parsed instead of running it (parseCommandLine).
+   */
+  capture?: (call: { def: AnyCommand; input: Record<string, unknown>; globals: GlobalOptions }) => void;
 }
 
 /**
@@ -147,6 +152,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
           return;
         }
       }
+      if (options.capture) return options.capture({ def, input, globals });
       if (globals.outputFile && io.checkFile) {
         // Refuse a bad --output-file before anything runs, so nothing is changed for a result nobody can read.
         try {
@@ -157,14 +163,63 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
           return;
         }
       }
-      const envelope = await runCommand(def, input, () => options.createContext(globals, def), options.version);
+      const envelope = await runCommand(def, input, (d) => options.createContext(globals, d), options.version);
       const written = emit(envelope, globals, io, writesFor(def, input));
       // A success may still ask for a non-zero exit (a build that ran and failed).
       result.exitCode = written ? exitCodeOf(envelope) : 1;
     });
   };
 
-  for (const def of options.commands) register(def, def.path);
+  /**
+   * `toil wait --until <expression> -- <read command…>`: the command after --
+   * is parsed by this same program, so it takes exactly the flags it takes on
+   * its own, and reaches core as MCP sends it: a tool name and that tool's input.
+   */
+  const registerWait = (def: AnyCommand) => {
+    const leaf = quiet(program.command(def.path[0]!).description(def.description));
+    leaf.argument('[command...]', 'The read command to repeat, after --, with its own flags');
+    for (const opt of def.options ?? []) addOption(leaf, def, opt);
+    leaf.action(async (...actionArgs: unknown[]) => {
+      const cmd = actionArgs[actionArgs.length - 1] as Command;
+      const globals = cmd.optsWithGlobals<GlobalOptions>();
+      const refuse = (error: ToilError) => {
+        io.stdout(`${JSON.stringify(failure(error, { command: commandName(def), durationMs: 0, version: options.version }), null, globals.pretty ? 2 : undefined)}\n`);
+        result.exitCode = 1;
+      };
+      const words = (cmd.processedArgs[0] as string[] | undefined) ?? [];
+      if (words.length === 0) {
+        return refuse(new ToilError('INVALID_INPUT', 'toil wait needs the read command to repeat, after --.', { fix: 'Run toil wait --until "<expression>" -- <area> <command> [flags].' }));
+      }
+      const parsed = await parseCommandLine(options, words);
+      if ('help' in parsed) return;
+      if ('error' in parsed) return refuse(parsed.error);
+      const own = cmd.opts<Record<string, unknown>>();
+      const input: Record<string, unknown> = { tool: toolName(parsed.def), input: parsed.input };
+      for (const opt of def.options ?? []) {
+        const value = own[new Option(opt.flags).attributeName()];
+        if (value !== undefined) input[opt.field] = value;
+      }
+      if (globals.outputFile && io.checkFile) {
+        try {
+          io.checkFile(globals.outputFile, globals);
+        } catch (err) {
+          return refuse(toToilError(err));
+        }
+      }
+      const envelope = await runCommand(def, withSelect(input, globals), (d) => options.createContext(globals, d), options.version, 'cli', {
+        targets: options.commands,
+        progress: (p) => io.stderr(`toil wait: ${p.message} (${Math.round(p.elapsedMs / 1000)}s)\n`),
+      });
+      result.exitCode = emit(envelope, globals, io) ? exitCodeOf(envelope) : 1;
+    });
+  };
+
+  for (const def of options.commands) {
+    // `toil wait` takes a whole command line after --; it isn't one inside another.
+    if (def.dispatches) {
+      if (!options.capture) registerWait(def);
+    } else register(def, def.path);
+  }
   // A sibling alias is commander's own (`.alias()` above); a path elsewhere
   // gets a leaf of its own that runs the same definition.
   for (const def of options.commands) {
@@ -213,6 +268,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
         return refuse(`${long} is for ${routing} ${values.join(' or ')}; ${routing} ${value} runs toil ${commandName(def)}, which doesn't take it.`, `Leave out ${long}, or pass ${routing} ${values[0]}.`);
       }
       const input = withSelect(inputFromCli(def, cmd, groupFlags(alias.path[0]!)), globals);
+      if (options.capture) return options.capture({ def, input, globals });
       if (globals.outputFile && io.checkFile) {
         try {
           io.checkFile(globals.outputFile, globals);
@@ -222,13 +278,13 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
           return;
         }
       }
-      const envelope = await runCommand(def, input, () => options.createContext(globals, def), options.version);
+      const envelope = await runCommand(def, input, (d) => options.createContext(globals, d), options.version);
       const written = emit(envelope, globals, io, writesFor(def, input));
       result.exitCode = written ? exitCodeOf(envelope) : 1;
     });
   }
 
-  quiet(
+  if (!options.capture) quiet(
     program
       .command('mcp')
       .description('Serve toil as an MCP server over stdio')
@@ -270,6 +326,45 @@ function emit(envelope: Envelope, globals: GlobalOptions, io: CliIO, writes = fa
     io.stdout(json(failure(error, envelope.meta)));
     return false;
   }
+}
+
+/** Global flags that mean nothing inside `toil wait --`: they belong before `wait`, where they apply to the whole call. */
+const OUTER_GLOBALS: Array<[keyof GlobalOptions, string]> = [
+  ['pretty', '--pretty'],
+  ['verbose', '--verbose'],
+  ['debug', '--debug'],
+  ['config', '--config'],
+  ['outputFile', '--output-file'],
+  ['workspace', '--workspace'],
+];
+
+/**
+ * Parses the command line after `toil wait --` with the same program, so the
+ * read takes the flags it takes on its own, and returns the command and input
+ * it would have run, without running it. `--select` there is the read's own;
+ * the other global flags go before `wait`.
+ */
+async function parseCommandLine(options: ProgramOptions, words: string[]): Promise<{ def: AnyCommand; input: Record<string, unknown> } | { error: ToilError } | { help: true }> {
+  let captured: { def: AnyCommand; input: Record<string, unknown>; globals: GlobalOptions } | undefined;
+  const { program } = buildProgram({ ...options, capture: (call) => (captured = call) });
+  const line = `toil ${words.join(' ')}`;
+  try {
+    await program.parseAsync(words, { from: 'user' });
+  } catch (err) {
+    if (!(err instanceof CommanderError)) throw err;
+    if (INFORMATIONAL.has(err.code)) return { help: true };
+    const message = err.message.replace(/^error:\s*/, '');
+    return { error: new ToilError('INVALID_INPUT', `The command after toil wait -- didn't parse: ${message}`, { fix: `Check that it runs on its own first: ${line}.` }) };
+  }
+  const call = captured as { def: AnyCommand; input: Record<string, unknown>; globals: GlobalOptions } | undefined;
+  if (!call) {
+    return { error: new ToilError('INVALID_INPUT', `${line} isn't a command toil wait can repeat.`, { fix: 'Name a read command after --, for example toil wait --until "result != null" -- jenkins pipeline get-run --name <job> --number <n>.' }) };
+  }
+  const outer = OUTER_GLOBALS.find(([key]) => call.globals[key] !== undefined && call.globals[key] !== false);
+  if (outer) {
+    return { error: new ToilError('INVALID_INPUT', `${outer[1]} goes before wait, not in the command after --.`, { fix: `Run toil ${outer[1]} ... wait --until <expression> -- <command>.` }) };
+  }
+  return { def: call.def, input: call.input };
 }
 
 /** Commander exits these ways on purpose; they are output, not errors. */
@@ -481,7 +576,8 @@ export function routedArgvFor(alias: Pick<ResolvedRoutedAlias, 'path' | 'flag'>,
  * it is checking an alias. Group flags go after the leaf, which commander
  * accepts, and a field mapped by two flags is sent once.
  */
-export function argvFor(def: AnyCommand, input: Record<string, unknown>, path: string[] = def.path): string[] {
+export function argvFor(def: AnyCommand, input: Record<string, unknown>, path: string[] = def.path, commands: readonly AnyCommand[] = []): string[] {
+  if (def.dispatches) return waitArgvFor(def, input, commands);
   const argv: string[] = [...path];
   // A preset alias sets those fields itself and has no flag to send them with.
   const preset = path === def.path ? {} : aliasInput(def, path);
@@ -511,4 +607,21 @@ export function argvFor(def: AnyCommand, input: Record<string, unknown>, path: s
   if (takesAllowWrite(def) && input.allowWrite === true) argv.push('--allow-write');
   if (typeof input[SELECT_FIELD] === 'string') argv.push('--select', input[SELECT_FIELD]);
   return argv;
+}
+
+/**
+ * The argv for a `toil wait` input: its own flags, then `--` and the command
+ * line that produces the read's tool and input, found among `commands`.
+ */
+function waitArgvFor(def: AnyCommand, input: Record<string, unknown>, commands: readonly AnyCommand[]): string[] {
+  const target = commands.find((c) => !c.dispatches && toolName(c) === input.tool);
+  if (!target) throw new Error(`No command among those given has the tool name ${String(input.tool)}.`);
+  const argv: string[] = [...def.path];
+  for (const opt of def.options ?? []) {
+    const value = input[opt.field];
+    const long = opt.flags.split(/[ ,]+/).find((part) => part.startsWith('--'));
+    if (value !== undefined && long) argv.push(long, String(value));
+  }
+  if (typeof input[SELECT_FIELD] === 'string') argv.push('--select', input[SELECT_FIELD]);
+  return [...argv, '--', ...argvFor(target, (input.input as Record<string, unknown> | undefined) ?? {})];
 }
