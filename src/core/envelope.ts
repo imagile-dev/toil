@@ -1,6 +1,22 @@
 import { ToilError, type ErrorCode } from './errors.js';
 
 /**
+ * The version of toil's command contract: the envelope, the commands, their
+ * flags and fields, and the error codes, as callers rely on them. It is
+ * `contractVersion` in docs/command-contract.json (test/api.test.ts
+ * holds the two together), in `toil version`, and on every envelope's meta.
+ *
+ * It goes up by one with every breaking change to the contract, the kind
+ * Delivery declares with `feat!:`: a command, flag, field or envelope key
+ * removed, renamed or repurposed, or an error code repurposed. Additive
+ * changes (a new command, flag, field or code) leave it alone, so a caller
+ * built against version N works with any toil that reports N. Before the first
+ * npm release nothing is relied on yet (principle 7), so it stays 1 until then.
+ * docs/command-contract.md, Changing the contract, says the same for people.
+ */
+export const CONTRACT_VERSION = 1;
+
+/**
  * The output contract: every command, through the CLI or MCP, produces exactly
  * one of these. Removing or renaming a field is a breaking change.
  */
@@ -8,6 +24,11 @@ export interface Meta {
   command: string;
   durationMs: number;
   version: string;
+  /**
+   * The command contract's version, CONTRACT_VERSION: what a caller checks
+   * to know it reads this toil's envelopes and commands as they are meant.
+   */
+  contractVersion: number;
   /** Under --verbose: every request the command made, credentials redacted. */
   requests?: Array<{ method: string; url: string; status: number | null; durationMs: number }>;
   /**
@@ -114,13 +135,25 @@ export type Envelope<T = unknown> =
   | { ok: true; data: T; error: null; meta: Meta }
   | { ok: false; data: null; error: ErrorBody; meta: Meta };
 
-export function success<T>(data: T, meta: Meta): Envelope<T> {
-  return { ok: true, data, error: null, meta };
+/** Meta as a builder hands it over: `contractVersion` is stamped here, so no envelope can leave without it. */
+export type MetaInput = Omit<Meta, 'contractVersion'> & { contractVersion?: number };
+
+/** `contractVersion` right after `version`, where a reader looks for it. */
+function stamp(meta: MetaInput): Meta {
+  const { command, durationMs, version, ...rest } = meta;
+  // A meta carried over from another envelope (a wait's last attempt) keeps its key in place; the value is always this toil's.
+  const stamped: Meta = { command, durationMs, version, contractVersion: CONTRACT_VERSION, ...rest };
+  stamped.contractVersion = CONTRACT_VERSION;
+  return stamped;
 }
 
-export function failure(err: ToilError, meta: Meta): Envelope<never> {
+export function success<T>(data: T, meta: MetaInput): Envelope<T> {
+  return { ok: true, data, error: null, meta: stamp(meta) };
+}
+
+export function failure(err: ToilError, meta: MetaInput): Envelope<never> {
   const error: ErrorBody = { code: err.code, message: err.message };
   if (err.fix !== undefined) error.fix = err.fix;
   if (err.details !== undefined) error.details = err.details;
-  return { ok: false, data: null, error, meta };
+  return { ok: false, data: null, error, meta: stamp(meta) };
 }

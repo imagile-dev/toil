@@ -6,7 +6,9 @@ import type { ApiAnswer, ContextReport, Page, Warning } from './envelope.js';
 import type { FileAccess } from './files.js';
 import type { GitRunner } from './git.js';
 import type { GitContext } from './git-repo.js';
+import type { FrontDoor } from './run.js';
 import type { SecretStore } from './keychain.js';
+import type { ProgressEvent } from './progress.js';
 import type { Prompter } from './prompt.js';
 
 /** Everything a command may touch. Tests build one with a fake fetch. */
@@ -86,6 +88,14 @@ export interface Context {
    * for commands that load no config, so nothing is checked.
    */
   skillUpkeep?: (warn: (warning: Warning) => void) => void;
+  /**
+   * Hears the call's progress events (src/core/progress.ts): every request,
+   * every page a listing reads, every 429 retry. The CLI writes pages and
+   * retries to stderr on a terminal or under --debug, MCP sends them as
+   * progress notifications when the client asked, and `./api` hands them to
+   * the caller's `onProgress`. Commands never get it; core reports for them.
+   */
+  progress?: (event: ProgressEvent) => void;
 }
 
 /**
@@ -113,7 +123,7 @@ export interface ConfigAccess {
    * with writes on is done by a person on the CLI, so the dossier commands
    * refuse it over MCP (docs/dossiers.md, Agents and the write gate).
    */
-  via: 'cli' | 'mcp';
+  via: FrontDoor;
 }
 
 /**
@@ -127,7 +137,7 @@ export interface ConfigAccess {
  * connection's, on its own.
  */
 export interface CommandContext<C = undefined, X = Record<string, string | undefined>>
-  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo' | 'audit' | 'skillUpkeep'> {
+  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo' | 'audit' | 'skillUpkeep' | 'progress'> {
   connection: C;
   /** The area's context inputs, resolved (`ctx.context.project`). Unset ones are absent. */
   context: X;

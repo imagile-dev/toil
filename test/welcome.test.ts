@@ -323,8 +323,8 @@ describe('the menu', () => {
   it('after a run, records the health it found, shows each command and its outcome, and goes where the run says', () => {
     const d = data();
     const started = press(settled, d, '2', 'down', 'return', '2', 'return');
-    const ok: Envelope = { ok: true, data: { name: 'confluence', area: 'confluence', configFile: '/home/test/.toil/config.json' }, error: null, meta: { command: 'connections add', durationMs: 1, version: '0' } };
-    const tested: Envelope = { ok: false, data: null, error: { code: 'AUTH', message: 'Confluence rejected the token.', fix: 'Make a new one.' }, meta: { command: 'connections test', durationMs: 1, version: '0' } };
+    const ok: Envelope = { ok: true, data: { name: 'confluence', area: 'confluence', configFile: '/home/test/.toil/config.json' }, error: null, meta: { command: 'connections add', durationMs: 1, version: '0', contractVersion: 1 } };
+    const tested: Envelope = { ok: false, data: null, error: { code: 'AUTH', message: 'Confluence rejected the token.', fix: 'Make a new one.' }, meta: { command: 'connections test', durationMs: 1, version: '0', contractVersion: 1 } };
     const done = finish(started, [
       { args: ['connections', 'add', 'confluence', '--area', 'confluence'], envelope: ok },
       { args: ['connections', 'test', 'confluence'], envelope: tested },
@@ -503,7 +503,7 @@ describe('the welcome loop', () => {
     ok: true,
     data: { name: 'jira', area: 'jira', host: 'jira.imagile.dev', live: true, request: 'GET /rest/api/2/myself' },
     error: null,
-    meta: { command: 'connections test', durationMs: 1, version: '0' },
+    meta: { command: 'connections test', durationMs: 1, version: '0', contractVersion: 1 },
   };
 
   it('runs a chosen command with the menu out of the way, then shows what it returned', async () => {
@@ -537,7 +537,7 @@ describe('the welcome loop', () => {
     const run = (_args: string[], s: AbortSignal) =>
       new Promise<Envelope>((resolve) => {
         signal = s;
-        s.addEventListener('abort', () => resolve({ ok: false, data: null, error: { code: 'CANCELLED', message: 'connections test was cancelled.' }, meta: { command: 'connections test', durationMs: 1, version: '0' } }));
+        s.addEventListener('abort', () => resolve({ ok: false, data: null, error: { code: 'CANCELLED', message: 'connections test was cancelled.' }, meta: { command: 'connections test', durationMs: 1, version: '0', contractVersion: 1 } }));
       });
     const ended = runWelcome({ input: t.input as never, output: t.output as never, env: { TOIL_NO_ANIMATION: '1' }, signals: t.signals as never, run, reload: () => data() }, data());
     await vi.advanceTimersByTimeAsync(10);

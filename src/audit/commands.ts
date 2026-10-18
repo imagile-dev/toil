@@ -18,7 +18,7 @@ export function auditCommands(): AnyCommand[] {
     path: ['audit', 'list'],
     description: 'List the commands toil has run, newest first, from its local audit log',
     toolDescription:
-      "Lists entries from toil's local audit log, newest first: for each call, the time, front door (cli or mcp), command, area, connection, whether it wrote and whether allowWrite was passed, the outcome (ok or the error code), the duration, the redacted input and each request's method, redacted URL and status. Filter by since (an ISO date or date-time), command (a command, or an area or group to match every command in it), connection and writesOnly. Reads local files only.",
+      "Lists entries from toil's local audit log, newest first: for each call, the time, front door (cli, mcp or api) and, for an API call that named itself, its caller, command, area, connection, whether it wrote and whether allowWrite was passed, the outcome (ok or the error code), the duration, the redacted input and each request's method, redacted URL and status. Filter by since (an ISO date or date-time), command (a command, or an area or group to match every command in it), connection and writesOnly. Reads local files only.",
     input: z.object({
       since: z.string().min(1).optional().describe('Only calls at or after this time: an ISO 8601 date (2026-10-01) or date-time (2026-10-01T09:00:00Z)'),
       command: z.string().min(1).optional().describe('Only this command (`jira get-issue`), or every command under an area or group (`jira`)'),

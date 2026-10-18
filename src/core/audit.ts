@@ -45,7 +45,10 @@ export const DEFAULT_AUDIT: AuditSettings = { enabled: true, keepMonths: 6 };
 export interface AuditEntry {
   /** When the command started, ISO 8601 in UTC. */
   time: string;
+  /** The front door: `cli`, `mcp`, or `api` for a program calling `execute()` from `@imagile-dev/toil/api`. */
   via: FrontDoor;
+  /** Who called through the API, as it named itself (`toil-ui`). Present only when it gave a name. */
+  caller?: string;
   command: string;
   /** The area the command belongs to; null for core commands (`connections list`). */
   area: string | null;
@@ -79,6 +82,14 @@ export interface AuditLog {
   /** Every line from `since`'s month on, oldest first, plus how many lines couldn't be read. */
   read(since?: Date): { entries: AuditEntry[]; unreadable: number };
 }
+
+/**
+ * What a caller label may be: a short name of lowercase letters, digits, `.`,
+ * `_` and `-`, starting with a letter or digit (`toil-ui`, `nightly-sync`).
+ * Narrow on purpose: it's a name for a person reading the log, never a place to
+ * put a value, so nothing shaped like a token or a path fits.
+ */
+export const CALLER_LABEL = /^[a-z0-9][a-z0-9._-]{0,63}$/;
 
 const MONTH_FILE = /^(\d{4})-(\d{2})\.jsonl$/;
 const MAX_STRING = 500;
@@ -134,7 +145,7 @@ export function auditInput(def: AnyCommand, input: unknown): unknown {
 }
 
 /** The line execute() writes for one finished command. */
-export function auditEntry(o: { def: AnyCommand; input: unknown; via: FrontDoor; writes: boolean; requests: readonly RequestLog[]; envelope: Envelope; now?: Date }): AuditEntry {
+export function auditEntry(o: { def: AnyCommand; input: unknown; via: FrontDoor; caller?: string; writes: boolean; requests: readonly RequestLog[]; envelope: Envelope; now?: Date }): AuditEntry {
   const now = o.now ?? new Date();
   const { envelope } = o;
   const requests = o.requests.slice(0, MAX_REQUESTS).map((r) => ({ method: r.method, url: clip(r.url), status: r.status }));
@@ -142,6 +153,8 @@ export function auditEntry(o: { def: AnyCommand; input: unknown; via: FrontDoor;
   return {
     time: new Date(now.getTime() - envelope.meta.durationMs).toISOString(),
     via: o.via,
+    // Checked against CALLER_LABEL by the API before the call ran; clipped anyway, as everything else here is.
+    ...(o.caller ? { caller: clip(o.caller) } : {}),
     command: envelope.meta.command,
     area: o.def.area?.name ?? null,
     connection: envelope.meta.context?.connection?.value ?? null,

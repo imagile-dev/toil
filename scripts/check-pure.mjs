@@ -75,6 +75,15 @@ if (workerMeta) {
     }
   }
 }
+// `@imagile-dev/toil/api` is the bundle itself, so the package stays one file of code, and its types are declarations only.
+const api = pkg.exports?.['./api'];
+if (api?.default !== `./${pkg.bin.toil}`) problems.push(`package.json exports "./api" must be ./${pkg.bin.toil}, the one bundle, not ${JSON.stringify(api?.default)}.`);
+if (api?.types !== './dist/api.d.ts') problems.push(`package.json exports "./api" must give its types as ./dist/api.d.ts, not ${JSON.stringify(api?.types)}.`);
+try {
+  if (/^\s*(import|export)\s[^;]*\bfrom\s|\bimport\(|\brequire\(/m.test(readFileSync('dist/api.d.ts', 'utf8'))) problems.push('dist/api.d.ts imports another module; its types must stand alone, since the package has no dependencies to supply them.');
+} catch {
+  problems.push('dist/api.d.ts is missing; run npm run build.');
+}
 const bundle = readFileSync(pkg.bin.toil, 'utf8');
 if (bundle.includes('process.dlopen')) problems.push('bundle loads a native addon (process.dlopen).');
 for (const input of Object.keys(output?.inputs ?? {})) {
@@ -82,7 +91,8 @@ for (const input of Object.keys(output?.inputs ?? {})) {
 }
 
 const [pack] = JSON.parse(execSync('npm pack --dry-run --json --ignore-scripts', { encoding: 'utf8' }));
-const allowed = new Set(['package.json', 'README.md', 'LICENSE', 'NOTICE', pkg.bin.toil]);
+// dist/api.d.ts is the types for `@imagile-dev/toil/api`; its code is the bundle itself (src/cli.ts).
+const allowed = new Set(['package.json', 'README.md', 'LICENSE', 'NOTICE', pkg.bin.toil, 'dist/api.d.ts']);
 for (const file of pack.files.map((f) => f.path.replace(/\\/g, '/'))) {
   if (!allowed.has(file)) problems.push(`tarball contains ${file}; only ${[...allowed].join(', ')} may ship.`);
 }

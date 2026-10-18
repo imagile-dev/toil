@@ -245,7 +245,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       const { catalog, config, via } = access(ctx);
       if ((input.repo === undefined) === (input.file === undefined)) throw new ToilError('INVALID_INPUT', 'Pass exactly one of --repo and --file.', { fix: 'toil dossiers export <name> --repo <dir>, or --file <path>.' });
       const source = catalog.find(input.dossier);
-      if (via === 'mcp') refuseWritesBindings(catalog, config, areas, source.dossier, 'export');
+      if (via !== 'cli') refuseWritesBindings(catalog, config, areas, source.dossier, 'export');
       const { dossier, hosts, droppedPaths } = forSharing(source.dossier, config);
       const target = input.repo !== undefined ? join(catalog.repoFolder(input.repo), `${dossier.name}.json`) : catalog.pathFor(input.file!, 'The export file');
       const file = catalog.save(target, dossier, input.replace ? 'replace' : 'create');
@@ -288,7 +288,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
         if (f.source === 'user') throw new ToilError('INVALID_INPUT', `${forwardSlashes(f.file)} is already in your own folder.`, { fix: 'It is yours already; change it with toil dossiers link.' });
         const dossier = { ...structuredClone(f.dossier), ...(input.name !== undefined ? { name: input.name } : {}) };
         if (!CONNECTION_NAME.test(dossier.name)) throw new ToilError('INVALID_INPUT', `"${dossier.name}" isn't a valid dossier name.`, { fix: 'Use lowercase letters, digits and single hyphens, starting with a letter.' });
-        if (via === 'mcp') refuseWritesBindings(catalog, config, areas, dossier, 'import');
+        if (via !== 'cli') refuseWritesBindings(catalog, config, areas, dossier, 'import');
         return { from: f.file, dossier, target: catalog.userFile(dossier.name) };
       });
       // Everything is checked before anything is written, so a refusal leaves your folder as it was.
@@ -434,7 +434,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     if (envName === undefined) dossier.sections[area.name] = section;
     else dossier.environments[envName] = { ...(dossier.environments[envName] ?? {}), [area.name]: section };
     if (makeDefault) dossier.env = envName;
-    if (via === 'mcp') refuseNewWritesTarget(catalog, config, areas, before, dossier);
+    if (via !== 'cli') refuseNewWritesTarget(catalog, config, areas, before, dossier);
     for (const w of hostWarnings(catalog, dossier, area.name, envName)) ctx.warn(w);
     return saved(ctx, catalog, file, dossier, JSON.stringify(dossierContent(before)) !== JSON.stringify(dossierContent(dossier)), { area: area.name, env: envName ?? null, section });
   }
@@ -525,7 +525,7 @@ function refuseNewWritesTarget(catalog: DossierCatalog, config: ResolvedConfig, 
     const was = choices(catalog, config, area, before);
     for (const [i, now] of choices(catalog, config, area, after).entries()) {
       if (now.chosen === undefined || !connectionWrites(config.connections[now.chosen]) || now.chosen === was[i]?.chosen) continue;
-      throw new ToilError('WRITE_DISABLED', `Over MCP, a dossier can't be made to select connection ${now.chosen}, which has writes on: that binding is a person's decision, made on the CLI.`, {
+      throw new ToilError('WRITE_DISABLED', `Outside the CLI (over MCP or the API), a dossier can't be made to select connection ${now.chosen}, which has writes on: that binding is a person's decision, made on the CLI.`, {
         fix: `Ask the user to make this change with toil dossiers on the command line, or select a connection with writes off.`,
       });
     }
@@ -537,7 +537,7 @@ function refuseWritesBindings(catalog: DossierCatalog, config: ResolvedConfig, a
   for (const area of areasOf(areas, dossier)) {
     const hit = choices(catalog, config, area, dossier).find((c) => c.byDossier && c.chosen !== undefined && connectionWrites(config.connections[c.chosen]));
     if (hit) {
-      throw new ToilError('WRITE_DISABLED', `Over MCP, toil won't ${what} dossier ${dossier.name}: it makes ${area.name} calls use connection ${hit.chosen}, which has writes on. That's a person's decision, made on the CLI.`, {
+      throw new ToilError('WRITE_DISABLED', `Outside the CLI (over MCP or the API), toil won't ${what} dossier ${dossier.name}: it makes ${area.name} calls use connection ${hit.chosen}, which has writes on. That's a person's decision, made on the CLI.`, {
         fix: `Ask the user to run toil dossiers ${what} on the command line.`,
       });
     }

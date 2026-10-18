@@ -1939,3 +1939,85 @@ shape; these are the calls made around that.
   `svg.wellFormed` checks the output itself: it parses with the kit's XML reader,
   plus a scan for those characters, since that reader doesn't refuse them. D2 keys
   and paths are always quoted, so there's no keyword list to keep in step with D2.
+
+### #212 core
+
+- **`./api` is the bundle itself, not a second file of code.** `package.json`
+  `exports["./api"]` points at `dist/toil.js`, which exports the API and runs the CLI
+  only when it is the script Node started (`process.argv[1]` and the module compared
+  after realpath, case-insensitively on Windows; `<script>.js` too). A second entry
+  would have doubled the 8 MB package, and code splitting would have made it several
+  files. Nothing in `src/cli.ts` runs at import, so a host's own SIGINT handling is
+  left alone. Types are `dist/api.d.ts`, built by tsup's `dts` (with
+  `ignoreDeprecations: "6.0"`, since tsup still sets `baseUrl`); they import nothing,
+  and `check:pure` fails if they do, if the export points anywhere else, or if the
+  tarball holds anything beyond the six allowed files.
+- **No release-please change is needed for `./api`** (checked, as the research note on
+  #212 said without verifying). `release-please-config.json`'s `extra-files` lists
+  only `dist/toil.js`, for the version banner, and the new files carry no version.
+  The release PR's rebuild step commits only `dist/toil.js`; `dist/api.d.ts` is
+  ignored by `.gitignore` (`dist/*`, `!dist/toil.js`) like the metafiles, so a clone
+  has the code but not the declarations, which only an npm install needs. The
+  publish job runs `npm run build` at the tag before `npm publish`, so the tarball
+  gets a fresh `dist/api.d.ts`, and its `check:pure` and `smoke` steps check it.
+- **`execute(command, input, options)` takes the command's name and its MCP
+  fields**, the same strict input MCP sends, and always returns an envelope: an
+  unknown command, a person-only command or a bad caller label is `INVALID_INPUT`,
+  never a throw, and isn't audited (like a call the CLI parser refuses).
+- **The API serves exactly what MCP would with every area set up**: no `cli-only`
+  commands (they prompt, or change connections) and no `mcp: false` deletes;
+  `offMcpWhen` applies; the dossier commands refuse over the API what they refuse
+  over MCP. Its caller is a program, which an agent may be driving, so it gets the
+  agent's rules. Unlike MCP, its workspace is the working directory, as on the CLI.
+- **The registry is a stable descriptor, not the internal command objects**: name,
+  tool name, path, area, kind, description, `writes`, `writesDependOnInput` and the
+  input's JSON Schema (as MCP advertises it), built on first read. Exposing the zod
+  definitions would have made every internal field part of the contract.
+- **The options are `readOnly`, `caller`, `signal`, `onProgress`, `config`,
+  `workspace` and `verbose`.** No `env`, `cwd`, `home` or `fetch`: the program's own
+  process supplies those, as it does for the CLI, and each can be added later
+  without changing a meaning. Internally `CallOptions` (`readOnly`, `caller`) is one
+  object passed to `execute()`, which is where a later `actor` goes.
+- **`readOnly` is decided per call**: a `writes: true` command is refused before its
+  input is parsed, and a `writesWhen` command (the passthrough) once its input says
+  it writes, both before any connection resolves. A GET through the passthrough still
+  runs. The refusal reuses `WRITE_DISABLED`, which callers already handle, rather
+  than a new code. A read-only call also skips the bundled skill's upkeep, so it
+  writes nothing but its audit line. It doesn't refuse the config and dossier
+  commands that change `~/.toil/` without `writes: true` (`dossiers init`): the
+  issue defines read-only by `writes` / `writesWhen`, and there is no marker for
+  "changes local config" to refuse by. Recorded so the UI's sync doesn't call them.
+- **The caller label is 1 to 64 lowercase letters, digits, `.`, `_` and `-`,
+  starting with a letter or digit** (`CALLER_LABEL`), checked by
+  the API before the call runs and recorded as `caller` on the audit line, absent
+  when not given. Narrow so it can't carry a token or a path. `toil audit list` shows
+  it but has no filter for it yet.
+- **`contractVersion` is a whole number, 1 until the first release**, in
+  `CONTRACT_VERSION` (`src/core/envelope.ts`) and `docs/command-contract.json`, held
+  equal by `test/api.test.ts`. It's bumped by one with every breaking change, never
+  for an additive one (`docs/command-contract.md`). It's stamped by `success()` /
+  `failure()`, so every envelope builder gets it, and sits right after `version`.
+  Tied to the contract by an equality test rather than by fingerprinting the file:
+  a fingerprint would fail on every additive edit, which mustn't bump it.
+- **Progress through AsyncLocalStorage, so no area changes.** `execute()` runs
+  `def.run` under a listener; `instrumentFetch` reports each request, `paginate()`
+  each page and `restResponse` each 429 retry. Areas that page inside a command
+  without `paginate()` (Jira's own loops today) still report their requests, and
+  report pages once they move to `paginate()`. A listener that throws is dropped for
+  the rest of the call with one `PROGRESS_LISTENER_FAILED` warning; the command
+  isn't failed by a progress bar.
+- **Who hears what.** The API's `onProgress` hears every event. The CLI and MCP show
+  only pages and retries (requests are `--debug`'s and `--verbose`'s): the CLI writes
+  `[toil] <message>` to stderr when stderr is a terminal or under `--debug`, so an
+  agent piping the CLI isn't sent a line per page; MCP sends
+  `notifications/progress` only when the call carried a progress token, with the
+  same message, and one counter per call shared with `wait`'s attempts so
+  `progress` only goes up. `toil wait`'s own stderr line is unchanged.
+- **Docs: a section in `skills/toil/core.md`** (**Using toil from a program**, and
+  **Progress**), not a new skill page, since a new page needs a site route, a nav
+  entry and the general-pages list for one section's worth of text.
+- **The example consumer runs in `npm run smoke`**, not Vitest: it needs the packed
+  tarball installed, which only smoke has. `scripts/api-consumer/consumer.mjs`
+  imports `@imagile-dev/toil/api` by name from the install and runs against a stub
+  Bitbucket on loopback (one 429, two pages); `consumer.ts` is type-checked, strict,
+  against the installed `dist/api.d.ts`.

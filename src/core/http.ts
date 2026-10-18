@@ -1,3 +1,5 @@
+import { reportProgress } from './progress.js';
+
 /**
  * The fetch a command actually gets. It wraps the context's fetch so that
  * every front door records requests the same way, for --verbose, without any
@@ -95,6 +97,7 @@ export function instrumentFetch(base: typeof globalThis.fetch, log: RequestLog[]
       return response;
     } finally {
       entry.durationMs = Math.round(performance.now() - started);
+      reportProgress({ type: 'request', ...entry });
     }
   }) as typeof globalThis.fetch;
 }

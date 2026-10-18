@@ -1,5 +1,5 @@
 ---
-description: What every toil command shares, in detail - the envelope and errors, --select, toil wait, paging, writes and their exceptions, global flags, files and the workspace, configuration, the raw API passthrough, dossiers, the audit log, certificates and proxies
+description: What every toil command shares, in detail - the envelope and errors, the contract version, --select, toil wait, paging and progress, writes and their exceptions, global flags, files and the workspace, configuration, the raw API passthrough, dossiers, the audit log, using toil from a program (@imagile-dev/toil/api), certificates and proxies
 ---
 
 # Using toil
@@ -17,11 +17,26 @@ isn't a failure, such as a truncated result. `meta.context` says which connectio
 call used and how it was chosen, and where any project, repo or environment it
 resolved came from. `--pretty` formats the output for people.
 
+`meta.contractVersion` (also in `toil version`) is the version of toil's command
+contract: its commands, flags, `data` fields, envelope and error codes. It goes up only
+with a breaking change, so a script or program built against one version works with
+every toil that reports it.
+
 ## Paging
 
 Paged results put the next page's cursor in `meta.page.nextCursor` (null on the last
 page) and the page size in `meta.page.limit`. Pass the cursor back with the
 command's own paging flag, which its reference names.
+
+## Progress
+
+While a command runs, toil says what it's doing: each page a listing reads, and each
+rate-limited (429) request it waits to retry. On the command line these go to stderr,
+one `[toil] …` line each, when stderr is a terminal or with `--debug`; stdout still
+holds only the envelope. Over MCP they're progress notifications, sent when the
+client's call asks for progress. A program using toil's API gets them, and every
+request too, through `onProgress` (**Using toil from a program**). They never change
+the envelope.
 
 ## Selecting fields
 
@@ -159,9 +174,9 @@ connection's name first.
 
 ## The audit log
 
-toil keeps a local audit log of every command it runs, through the CLI and MCP:
-one JSON line per call in `~/.toil/audit/<yyyy-mm>.jsonl`, with the command, front
-door, connection, whether it wrote, the outcome, the redacted input and each request's
+toil keeps a local audit log of every command it runs, through the CLI, MCP and the
+API: one JSON line per call in `~/.toil/audit/<yyyy-mm>.jsonl`, with the command, front
+door (`via`: `cli`, `mcp` or `api`, plus `caller` when a program named itself), connection, whether it wrote, the outcome, the redacted input and each request's
 method, URL and status. It never holds a secret, a header, a body or a row, and `db`
 SQL is kept only as a SHA-256 hash. `toil audit list` reads it back, newest first,
 with `--since <date>`, `--command <name|area>`, `--connection <name>` and
@@ -169,6 +184,46 @@ with `--since <date>`, `--command <name|area>`, `--connection <name>` and
 kept by default (`"audit": { "keepMonths": 12 }` changes that), and only a person can
 turn it off, with `"audit": { "enabled": false }` in `~/.toil/config.json`. A call
 whose line couldn't be written still succeeds, with an `AUDIT_WRITE_FAILED` warning.
+
+## Using toil from a program
+
+A Node program can call toil in-process instead of running `toil` and parsing stdout.
+`@imagile-dev/toil/api` is a supported entry point of the same package, with its own
+types, and it adds no dependency: it is the same single file as the CLI.
+
+```js
+import { contractVersion, execute, registry, version } from '@imagile-dev/toil/api';
+
+if (contractVersion !== 1) throw new Error(`Needs toil's contract 1; toil ${version} has ${contractVersion}.`);
+const envelope = await execute('jira search', { jql: 'project = PAY', maxResults: 50 }, {
+  readOnly: true,
+  caller: 'nightly-sync',
+  onProgress: (event) => console.error(event.message),
+});
+```
+
+- **`execute(command, input, options)`** runs one command and returns its envelope,
+  exactly as the CLI prints it. `command` is the name `meta.command` reports
+  (`jira search`); `input` is the command's MCP fields, checked strictly. It never
+  throws: an unknown command or a bad option is an `INVALID_INPUT` envelope.
+  Connections, env vars, the credential store, dossiers, the workspace (the program's
+  working directory, else `workspace`), the write gate and the audit log all apply as
+  they do on the CLI. It serves what MCP serves: commands that prompt or change
+  connections, and deletes, stay on the CLI.
+- **`options`**: `readOnly` refuses, with `WRITE_DISABLED` and before anything is sent,
+  any call that would write, whatever the config says, and writes nothing but the
+  audit line. `caller` names the program in the audit log (lowercase letters, digits,
+  `.`, `_` and `-`, up to 64). `signal` cancels the call (`CANCELLED`). `onProgress`
+  hears every request (redacted URL, status, time), page and retry. `config`,
+  `workspace` and `verbose` match `--config`, `--workspace` and `--verbose`.
+- **`registry`** lists the areas and every command `execute()` serves: its name, MCP
+  tool name, whether it writes, and its input's JSON Schema.
+- **`version`** and **`contractVersion`** are what `toil version` reports. Check
+  `contractVersion` before relying on anything else.
+
+What `@imagile-dev/toil/api` exports, and the types it names, follow the command
+contract: they change only additively unless `contractVersion` goes up. Anything else
+in the package is internal.
 
 ## Certificates and proxies
 

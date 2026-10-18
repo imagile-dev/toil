@@ -120,7 +120,8 @@ Node, and toil has to work there. This is the most important rule in the repo.
   to do this; it collects credentials only in an explicit setup command on a
   terminal (`toil connections login`, #51), which hands them straight to the OS
   store. The one other program toil may run is git, below.
-- The published package is one bundled JS file plus `package.json`, with no runtime
+- The published package is one bundled JS file plus `package.json` (and
+  `dist/api.d.ts`, declarations only, for `@imagile-dev/toil/api`), with no runtime
   `dependencies`. It installs with `npm install --ignore-scripts` and runs offline.
 - CI enforces it on what ships, not on the dev toolchain:
   - `npm run check:pure` fails if `package.json` has runtime `dependencies` or any
@@ -128,8 +129,9 @@ Node, and toil has to work there. This is the most important rule in the repo.
     That's read from esbuild's metafile, never by scanning text. It also fails on
     a native addon, on `child_process` imported by any file but the reviewed
     spawners in `scripts/spawners.mjs` (stubbed or not), or if the
-    tarball holds anything beyond `dist/toil.js`, `package.json`, `README.md`,
-    `LICENSE` and `NOTICE`.
+    tarball holds anything beyond `dist/toil.js`, `dist/api.d.ts`, `package.json`,
+    `README.md`, `LICENSE` and `NOTICE`, or if `exports["./api"]` points anywhere
+    but the bundle, or the declarations import another module.
   - `npm run smoke` installs the packed tarball with `--ignore-scripts` into a
     throwaway prefix and drives the installed bin through the CLI and MCP.
 - Bundled dependencies can drag in a spawning API (commander imports `child_process`
@@ -228,7 +230,13 @@ GitHub Actions; its build tooling is out of scope.
   typecheck, build and tests and git ignores. **Areas register by existing:** adding
   one never edits a shared list, so parallel area PRs don't conflict.
 - `src/program.ts` — builds the CLI from the registry; `src/cli.ts` is the bundle
-  entry that wires it to the real process
+  entry that wires it to the real process, and runs only when started as the script:
+  imported, it exports the API and does nothing else
+- `src/api.ts` — `@imagile-dev/toil/api`, the third front door: `execute()` for a
+  program in-process, the registry, the envelope types, `version` and
+  `contractVersion`. It's the same bundle (`package.json` `exports` points at
+  `dist/toil.js`), with its types in `dist/api.d.ts`; what it exports follows the
+  command contract (`skills/toil/core.md`, **Using toil from a program**)
 - `src/mcp/` — the MCP server (`toil mcp`, stdio); tools generated from the registry,
   and the read-only resources (`resources.ts`): connections, dossiers and each area's
   skill page, which `scripts/gen-areas.mjs` builds into `src/skill-pages.generated.ts`
@@ -468,6 +476,28 @@ Errors are a `ToilError` with a code and a fix the user can act on, never a raw
 stack trace. Logs and progress go to stderr. Removing or renaming a field in `data` is
 a breaking change.
 
+- **`meta.contractVersion`** is on every envelope and in `toil version`: `CONTRACT_VERSION`
+  in `src/core/envelope.ts`, equal to `contractVersion` in `docs/command-contract.json`
+  (a test holds them together). It goes up by one with every breaking change to the
+  contract and never for an additive one; it stays 1 until the first release
+  (`docs/command-contract.md`, The contract version).
+- **Three front doors, one `execute()`.** The CLI, MCP, and `@imagile-dev/toil/api`
+  (`via: 'api'`, `src/api.ts`), which sends MCP's fields and is held to MCP's rules:
+  it serves what MCP serves, applies `offMcpWhen`, words input errors in field names,
+  and is refused what the dossier commands refuse over MCP. Its `readOnly` option
+  refuses any call that writes (`writes`, or `writesWhen` true for the input) before
+  anything resolves, and skips the skill's upkeep; its `caller` label is checked
+  (`CALLER_LABEL` in `src/core/audit.ts`) and recorded on the audit line.
+  `CallOptions` in `src/core/run.ts` carries both, and is where a later `actor` goes.
+- **Progress events** (`src/core/progress.ts`): `execute()` runs each command under
+  an AsyncLocalStorage listener, and core's own machinery reports to it, so no area
+  does: every request (`instrumentFetch`), every page (`paginate()`), every 429 retry
+  (`restResponse`). The CLI writes pages and retries to stderr on a terminal or under
+  `--debug`, MCP sends them as progress notifications when the call has a progress
+  token, and the API hands every event to `onProgress`. A listener that throws loses
+  its events, never the command (`PROGRESS_LISTENER_FAILED`). An area that pages or
+  retries outside those helpers reports nothing, which is a reason to use them.
+
 - **Usage errors are envelopes too.** An unknown command or flag, or a missing
   argument, gets an `INVALID_INPUT` envelope on stdout (`runProgram` in
   `src/program.ts`). Only `--help` and `--version` print plain text.
@@ -478,7 +508,8 @@ a breaking change.
   `ctx.fetch`, so no command implements it and no front door can forget it. Commands
   under `src/areas/` may not call `fetch` directly, and ESLint enforces it.
 - **Every call `execute()` runs appends one line to the audit log**,
-  `~/.toil/audit/<yyyy-mm>.jsonl` (`src/core/audit.ts`): front door, command,
+  `~/.toil/audit/<yyyy-mm>.jsonl` (`src/core/audit.ts`): front door (and an API
+  caller's label), command,
   area, connection, whether it wrote and had `--allow-write`, outcome, duration,
   the input and every request's method, redacted URL and status, `--verbose` or
   not. Never a header, body or row. Input goes through `--verbose`'s name rule,

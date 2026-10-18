@@ -17,6 +17,10 @@ export default defineConfig({
   noExternal: [/.*/],
   splitting: false,
   sourcemap: false,
+  // The types for `@imagile-dev/toil/api` (src/api.ts), the one other file the
+  // package ships. The code is in dist/toil.js, which exports the API when
+  // imported and runs the CLI only when started as a script (src/cli.ts).
+  dts: { entry: { api: 'src/api.ts' }, compilerOptions: { ignoreDeprecations: '6.0' } },
   // Everything but the worker's metafile, which scripts/gen-worker.mjs writes before tsup runs.
   clean: ['**/*', '!metafile-worker.json'],
   shims: false,

@@ -2,12 +2,12 @@ import { z } from 'zod';
 import { commandName, defineConfigCommand, isCliOnly, takesAllowWrite, toolName, writesFor, type AnyCommand } from './command.js';
 import { DEFAULT_MAX_WAIT_MS, parseDuration } from './config.js';
 import type { Context } from './context.js';
-import { failure, type Envelope, type Meta, type Warning } from './envelope.js';
+import { failure, type Envelope, type MetaInput, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
 import { compileQuery, isFalse, pointAt, QueryError, type Query } from './query/index.js';
 import { applySelect, takeSelect } from './query/select.js';
 import { sleep } from './rest.js';
-import { DEFAULT_TIMEOUT_MS, execute, inFieldNames, keepExitCode, type FrontDoor } from './run.js';
+import { DEFAULT_TIMEOUT_MS, execute, inFieldNames, keepExitCode, type CallOptions, type FrontDoor } from './run.js';
 
 /**
  * `toil wait`: run one read again and again until a JMESPath condition holds
@@ -107,7 +107,7 @@ export interface WaitOptions {
  * error, the timeout, or a cancel. `makeContext` builds a fresh context for
  * each attempt, as each call through a front door gets one.
  */
-export async function runWait(def: AnyCommand, rawInput: unknown, makeContext: (def: AnyCommand) => Context, version: string, via: FrontDoor, options: WaitOptions): Promise<Envelope> {
+export async function runWait(def: AnyCommand, rawInput: unknown, makeContext: (def: AnyCommand) => Context, version: string, via: FrontDoor, options: WaitOptions, call: CallOptions = {}): Promise<Envelope> {
   const started = Date.now();
   const name = commandName(def);
   const refuse = (err: unknown): Envelope => failure(toToilError(err), { command: name, durationMs: Date.now() - started, version });
@@ -119,7 +119,7 @@ export async function runWait(def: AnyCommand, rawInput: unknown, makeContext: (
   }
   const { target, until, select, intervalMs, timeoutMs, signal, notes } = prepared;
   // The wait's own warnings (a TOIL_TIMEOUT_MS it cut to the maximum) go after the read's.
-  const withNotes = (meta: Meta): Meta => (notes.length > 0 ? { ...meta, warnings: [...(meta.warnings ?? []), ...notes] } : meta);
+  const withNotes = <M extends MetaInput>(meta: M): M => (notes.length > 0 ? { ...meta, warnings: [...(meta.warnings ?? []), ...notes] } : meta);
   const deadline = started + timeoutMs;
   const report = (attempts: number): WaitReport => ({ until: until.expression, attempts, elapsedMs: Date.now() - started });
   // The read's own envelope, so its meta (context, warnings, requests) says what it did, plus where the wait got to.
@@ -129,7 +129,7 @@ export async function runWait(def: AnyCommand, rawInput: unknown, makeContext: (
   let lastData: unknown = null;
   let failures = 0;
   const stopped = (err: ToilError, attempts: number): Envelope => {
-    const meta: Meta = withNotes({ ...(last?.meta ?? { command: commandName(target.def), version }), durationMs: Date.now() - started, wait: report(attempts) });
+    const meta: MetaInput = withNotes({ ...(last?.meta ?? { command: commandName(target.def), version }), durationMs: Date.now() - started, wait: report(attempts) });
     return failure(err, meta);
   };
 
@@ -139,8 +139,8 @@ export async function runWait(def: AnyCommand, rawInput: unknown, makeContext: (
     // Each attempt keeps its own limit, and never runs past the wait's.
     const limit = Math.max(1, Math.min(target.def.timeLimitMs ?? DEFAULT_TIMEOUT_MS, left));
     const ctx = makeContext(target.def);
-    const envelope = await execute(target.def, target.input, { ...ctx, timeoutMs: limit }, via);
-    last = via === 'mcp' ? keepExitCode(envelope, inFieldNames(target.def, envelope)) : envelope;
+    const envelope = await execute(target.def, target.input, { ...ctx, timeoutMs: limit }, via, call);
+    last = via === 'cli' ? envelope : keepExitCode(envelope, inFieldNames(target.def, envelope));
     if (signal?.aborted) return stopped(cancelled(target.def, attempt, lastData), attempt);
     let message: string;
     if (last.ok) {
