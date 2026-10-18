@@ -165,10 +165,17 @@ function Ask() {
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const [failed, setFailed] = useState<string | null>(null);
+
+  // An agent that fails says so in the pane, never only in the console.
   const ask = async (prompt: string) => {
     setBusy(true);
+    setFailed(null);
     try {
       setAnswer(await agent.ask(prompt));
+    } catch (e: unknown) {
+      setAnswer(null);
+      setFailed(`The agent couldn't answer: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setBusy(false);
     }
@@ -186,7 +193,11 @@ function Ask() {
         ))}
       </div>
       <div className="answer" aria-live="polite">
-        {answer ? (
+        {failed ? (
+          <p role="alert" className="failure">
+            {failed}
+          </p>
+        ) : answer ? (
           <>
             <h3>{answer.prompt}</h3>
             {answer.parts.map((p, i) => (

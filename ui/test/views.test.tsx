@@ -108,6 +108,27 @@ describe('sprint health', () => {
   });
 });
 
+describe('a failing Store or Agent', () => {
+  it('says the agent failed, in the answer pane, when ask() rejects', async () => {
+    const agent = { ...scriptedAgent(), ask: () => Promise.reject(new Error('model endpoint unreachable')) };
+    window.location.hash = '#/health';
+    render(<App store={fixtureStore()} agent={agent} preview />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Why is this sprint at risk?' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe("The agent couldn't answer: model endpoint unreachable");
+    expect(screen.getByRole('button', { name: 'Why is this sprint at risk?' }).hasAttribute('disabled')).toBe(false);
+  });
+
+  it('says the data did not load when the Store rejects', async () => {
+    const store = { ...fixtureStore(), items: () => Promise.reject(new Error('cache unreadable')) };
+    window.location.hash = '#/board';
+    render(<App store={store} agent={scriptedAgent()} preview />);
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain("The data didn't load");
+    expect(alert.textContent).toContain('cache unreadable');
+  });
+});
+
 describe('traceability', () => {
   it('flags the gaps between tickets, changes and builds', async () => {
     await open('#/trace');
