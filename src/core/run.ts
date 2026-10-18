@@ -8,6 +8,7 @@ import type { CommandContext, Context } from './context.js';
 import { failure, success, type ApiAnswer, type ContextReport, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
+import { applySelect, takeSelect } from './query/select.js';
 
 /** Which front door a call came in by: the CLI's flags, or MCP's fields. */
 export type FrontDoor = 'cli' | 'mcp';
@@ -133,7 +134,9 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
   try {
     // Strict: an unknown or misspelt field is an error through MCP exactly as an
     // unknown flag is on the CLI, never a field silently ignored.
-    const parsed = def.input.strict().safeParse(rawInput ?? {});
+    // --select is core's, not the command's: compiled here, before anything runs, and applied to data below.
+    const { input: own, query } = takeSelect(commandName(def), rawInput);
+    const parsed = def.input.strict().safeParse(own ?? {});
     if (!parsed.success) {
       throw new ToilError('INVALID_INPUT', `Invalid input for ${commandName(def)}: ${z.prettifyError(parsed.error)}`, {
         fix: `Run toil ${commandName(def)} --help to see the expected arguments.`,
@@ -232,7 +235,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
         exitCode = code;
       },
     };
-    const data = await Promise.race([def.run(parsed.data, commandCtx), aborted]);
+    const result = await Promise.race([def.run(parsed.data, commandCtx), aborted]);
+    const data = query ? applySelect(query, result, commandName(def), writing, (w) => warnings.push(w)) : result;
     const envelope = success(data, meta());
     if (exitCode !== undefined) exitCodes.set(envelope, exitCode);
     return envelope;

@@ -6,6 +6,7 @@ import { areaOf, commandName, servedOverMcp, takesAllowWrite, toolName, usesConn
 import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
+import { SELECT_DESCRIPTION, SELECT_FIELD } from '../core/query/select.js';
 import { runCommand } from '../core/run.js';
 
 /**
@@ -122,9 +123,13 @@ export function createMcpServer(options: {
   return server;
 }
 
-/** The JSON Schema an MCP client sees: the command's input, strict, as execute() parses it. */
+/**
+ * The JSON Schema an MCP client sees: the command's input, strict, as
+ * execute() parses it, plus core's `select`, which execute() takes off first.
+ */
 export function inputSchemaFor(def: AnyCommand): { type: 'object'; [key: string]: unknown } {
   const schema = z.toJSONSchema(def.input.strict(), { target: 'draft-7' }) as Record<string, unknown>;
   delete schema.$schema;
-  return { ...schema, type: 'object' };
+  const properties = { ...(schema.properties as Record<string, unknown> | undefined), [SELECT_FIELD]: { type: 'string', minLength: 1, description: SELECT_DESCRIPTION } };
+  return { ...schema, type: 'object', properties };
 }

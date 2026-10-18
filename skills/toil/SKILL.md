@@ -12,6 +12,13 @@ says what to do about it. Paged results put the next page's cursor in
 a call used and how it was chosen, and where any project, repo or environment it
 resolved came from. `--pretty` formats the output for people.
 
+To get back only the fields you need, pass `--select <expression>` (`select` over
+MCP), a [JMESPath](https://jmespath.org/specification.html) expression applied to
+`data`, for example `--select "issues[].{key: key, status: fields.status.name}"`.
+`meta`, including `meta.page`, is left as it is. A bad expression is `INVALID_INPUT`
+before the command runs, with its position in `error.fix`; one that selects nothing
+gives `data: null` and a `SELECT_EMPTY` warning.
+
 Each area is reachable two ways with identical inputs and output: on the command
 line as `toil <area> <command>`, and as MCP tools from `toil mcp --areas <area>`
 (tool names are the command path with underscores, e.g. `db_query`).
