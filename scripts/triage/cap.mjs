@@ -23,6 +23,8 @@ export const CLAIMED = 'triage-claimed';
 export const QUEUED = 'triage-queued';
 export const TRIAGED = 'triaged';
 export const DENIED = 'denied';
+export const FAILED = 'triage-failed';
+export const NEEDS_HUMAN = 'needs-human';
 export const SOURCES = ['from-website', 'from-terminal'];
 
 /** The UTC day of a timestamp, yyyy-mm-dd. */
@@ -50,7 +52,8 @@ export function waiting(issues) {
     .filter((issue) => !issue.pull_request && issue.state === 'open')
     .filter((issue) => {
       const labels = new Set(issue.labels.map((l) => (typeof l === 'string' ? l : l.name)));
-      if (labels.has(TRIAGED) || labels.has(DENIED)) return false;
+      // needs-human: triage failed on it twice, or held something secret-shaped; a person decides now.
+      if (labels.has(TRIAGED) || labels.has(DENIED) || labels.has(NEEDS_HUMAN)) return false;
       // A claim still open at the daily run is from a run that died; it's picked up again.
       return labels.has(QUEUED) || labels.has(CLAIMED) || SOURCES.some((s) => labels.has(s));
     })
@@ -108,6 +111,7 @@ export async function claim(repo, issue, cap, options = {}) {
   const current = await gh('GET', `/repos/${repo}/issues/${issue}`, undefined, options);
   const labels = new Set(current.labels.map((l) => l.name));
   if (current.state !== 'open' || labels.has(TRIAGED) || labels.has(DENIED)) return { run: false, reason: 'already triaged or closed' };
+  if (labels.has(NEEDS_HUMAN)) return { run: false, reason: 'labelled needs-human; a maintainer re-triages it by hand' };
   // A claim left from an earlier day (a run that failed) is renewed, so today has an event for it.
   if (labels.has(CLAIMED)) await gh('DELETE', `/repos/${repo}/issues/${issue}/labels/${CLAIMED}`, undefined, options);
   await gh('POST', `/repos/${repo}/issues/${issue}/labels`, { labels: [CLAIMED] }, options);

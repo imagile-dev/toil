@@ -2,6 +2,8 @@ export const CLAIMED: string;
 export const QUEUED: string;
 export const TRIAGED: string;
 export const DENIED: string;
+export const FAILED: string;
+export const NEEDS_HUMAN: string;
 export const SOURCES: string[];
 export interface LabelEvent {
   id: number;

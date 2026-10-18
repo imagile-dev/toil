@@ -23,6 +23,8 @@ export const FIXED = [
   { name: 'triage-claimed', color: 'bfdadc', description: 'Triage is running on this issue today' },
   { name: 'triage-queued', color: 'bfdadc', description: "Waiting for a triage slot; the daily run takes the queue oldest first" },
   { name: 'triaged', color: '0e8a16', description: 'An agent triaged this issue' },
+  { name: 'triage-failed', color: 'fbca04', description: 'Triage failed on this issue once; a second failure hands it to a maintainer' },
+  { name: 'needs-human', color: 'd93f0b', description: 'Automation stopped here; a maintainer takes it from this point' },
   { name: 'denied', color: 'b60205', description: 'Triage declined this request, with the reason in a comment' },
   { name: 'from-triage', color: '5319e7', description: 'A pull request opened by triage; a human reviews and merges it' },
 ];

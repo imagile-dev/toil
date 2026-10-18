@@ -2538,3 +2538,13 @@ skill file, fixture, board entry, site data or contract entries changed.
   every handed-on output in `triage.yml` and `feedback-deploy.yml`. `act` isn't
   installed here, so the select job was not run through it; `handover.sh` was run in
   `node:24.14.0-bookworm-slim` (Docker), since its test runs on Linux only.
+- **Review round 4 went past the three-round limit** (the maintainer's coordinator
+  continued it because the rounds were converging: each found a narrower issue than the
+  last). Round 4: agent-written text and added lines are checked for anything
+  credential-shaped before posting (`leak`: nothing posted, `needs-human`, the run
+  fails); the agent's file tools are scoped to the checkout with deny rules for `/proc`,
+  `/sys`, `/etc` and the runner's temp and home dot-folders; a failed issue gets
+  `triage-failed` once and `needs-human` the second time, and a failed manual re-triage
+  is never queued. The scoped `Read(./**)` rule follows Claude Code's documented
+  permission syntax; it wasn't run locally (the local CLI's sign-in had expired), so the
+  first triage run confirms the agent can still read the checkout.

@@ -17,7 +17,7 @@ import { join, relative, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { extract, inspect } from './archive.mjs';
-import { CLAIMED, QUEUED, claim, drain, gh } from './cap.mjs';
+import { CLAIMED, FAILED, NEEDS_HUMAN, QUEUED, claim, drain, gh } from './cap.mjs';
 import { check } from './changes.mjs';
 import { decide } from './decision.mjs';
 import { areas } from './labels.mjs';
@@ -30,6 +30,7 @@ export const OUTPUTS = {
   prepare: ['fenced', 'nonce', 'areas', 'handover_sha'],
   decide: ['decision', 'labels', 'duplicate_of'],
   requeue: [],
+  hold: [],
   'open-pr': ['url'],
   apply: [],
 };
@@ -137,15 +138,42 @@ export async function decideStep({ env, cwd = process.cwd(), log = console.log }
   const dir = env.HANDOVER;
   if (!dir) throw new Error('HANDOVER is not set.');
   mkdirSync(dir, { recursive: true });
-  return decide(dir, issueOf(env.NUMBER, 'NUMBER'), areas(join(cwd, 'src', 'areas')), log);
+  return decide(dir, issueOf(env.NUMBER, 'NUMBER'), areas(join(cwd, 'src', 'areas')), log, cwd);
 }
 
-/** requeue: the agent never decided, so the issue goes back in the queue with no comment and no label. */
-export async function requeue({ env, fetcher = fetch }) {
+/**
+ * requeue: the agent never decided. The first time, the issue is labelled
+ * `triage-failed` and goes back in the queue; the second time it's labelled
+ * `needs-human` and stays out, so one issue can't spend a slot every day. A
+ * manual re-triage (EVENT workflow_dispatch) was never queued, so it's never
+ * put in the queue. Nothing is said on the issue either way.
+ */
+export async function requeue({ env, fetcher = fetch, log = console.log }) {
   const repo = repoOf(env);
   const number = issueOf(env.NUMBER, 'NUMBER');
-  await gh('POST', `/repos/${repo}/issues/${number}/labels`, { labels: [QUEUED] }, options(env, fetcher));
-  await gh('DELETE', `/repos/${repo}/issues/${number}/labels/${CLAIMED}`, undefined, options(env, fetcher));
+  const o = options(env, fetcher);
+  const current = await gh('GET', `/repos/${repo}/issues/${number}`, undefined, o);
+  const failedBefore = (current.labels ?? []).some((l) => l.name === FAILED);
+  await gh('DELETE', `/repos/${repo}/issues/${number}/labels/${CLAIMED}`, undefined, o);
+  if (failedBefore) {
+    await gh('DELETE', `/repos/${repo}/issues/${number}/labels/${QUEUED}`, undefined, o);
+    await gh('POST', `/repos/${repo}/issues/${number}/labels`, { labels: [NEEDS_HUMAN] }, o);
+    log(`#${number} failed triage twice; labelled ${NEEDS_HUMAN} and left out of the queue.`);
+    return {};
+  }
+  const manual = env.EVENT === 'workflow_dispatch';
+  await gh('POST', `/repos/${repo}/issues/${number}/labels`, { labels: manual ? [FAILED] : [FAILED, QUEUED] }, o);
+  log(manual ? `#${number}: the manual re-triage failed; labelled ${FAILED}.` : `#${number} failed triage once; labelled ${FAILED} and queued again.`);
+  return {};
+}
+
+/** hold: something credential-shaped was found in what the agent wrote, so nothing is posted and a person looks. */
+export async function hold({ env, fetcher = fetch }) {
+  const repo = repoOf(env);
+  const number = issueOf(env.NUMBER, 'NUMBER');
+  const o = options(env, fetcher);
+  await gh('DELETE', `/repos/${repo}/issues/${number}/labels/${CLAIMED}`, undefined, o);
+  await gh('POST', `/repos/${repo}/issues/${number}/labels`, { labels: [NEEDS_HUMAN] }, o);
   return {};
 }
 
@@ -224,7 +252,7 @@ export async function apply({ env, fetcher = fetch }) {
   return {};
 }
 
-export const STEPS = { select, redact: redactIssues, prepare, decide: decideStep, requeue, 'open-pr': openPr, apply };
+export const STEPS = { select, redact: redactIssues, prepare, decide: decideStep, requeue, hold, 'open-pr': openPr, apply };
 
 /** Writes outputs to a GITHUB_OUTPUT file, multi-line values with a delimiter nothing in them can contain. */
 export function writeOutputs(file, outputs) {

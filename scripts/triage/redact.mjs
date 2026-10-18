@@ -152,6 +152,15 @@ function redactWords(text, terms) {
   return out;
 }
 
+/**
+ * Whether a text holds anything credential-shaped (step 1 above): what the
+ * triage workflow checks every agent-written text and every added line for
+ * before posting any of it.
+ */
+export function secretShaped(text) {
+  return typeof text === 'string' && text !== '' && redactSecrets(text) !== text;
+}
+
 /** Redacts one string with terms from parseTerms(). */
 export function redact(text, terms = parseTerms('')) {
   if (typeof text !== 'string' || text === '') return '';

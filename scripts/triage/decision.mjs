@@ -11,6 +11,8 @@
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { readUstar } from './archive.mjs';
+import { secretShaped } from './redact.mjs';
 
 const MAX_COMMENT = 8000;
 const MAX_BODY = 60000;
@@ -74,10 +76,35 @@ const readText = (path) => (existsSync(path) ? readFileSync(path, 'utf8').replac
  * (`decision`, and for a decision `labels` and `duplicate_of`), writing the
  * checked comment and PR text beside the inputs for --body-file.
  */
-export function decide(dir, issue, areas, log = console.log) {
+/**
+ * The agent-written texts and the lines its files add (against `root`, main's
+ * checkout) that hold something credential-shaped, by name only, never the value.
+ * The agent can read files, so a successful injection could have it quote one;
+ * anything found here stops the run before a word is posted.
+ */
+export function leaks(dir, root) {
+  const found = [];
+  for (const name of ['comment.md', 'pr-title.txt', 'pr-body.md']) if (secretShaped(readText(join(dir, name)))) found.push(name);
+  const tar = join(dir, 'changes.tar');
+  if (existsSync(tar)) {
+    for (const file of readUstar(readFileSync(tar)).files) {
+      const before = root && existsSync(join(root, file.path)) ? new Set(readText(join(root, file.path)).split('\n')) : new Set();
+      const added = file.data.toString('utf8').replace(/\r\n/g, '\n').split('\n').filter((line) => !before.has(line));
+      if (secretShaped(added.join('\n'))) found.push(file.path);
+    }
+  }
+  return found;
+}
+
+export function decide(dir, issue, areas, log = console.log, root = undefined) {
   if (!agentRan(['agent-ok', 'decision.json'].filter((name) => existsSync(join(dir, name))))) {
     log(`The agent didn't run to completion for #${issue}: there is no decision to apply.`);
     return { decision: 'failed' };
+  }
+  const leaked = leaks(dir, root);
+  if (leaked.length) {
+    log(`Something credential-shaped is in ${leaked.join(', ')}; nothing will be posted.`);
+    return { decision: 'leak' };
   }
   const parsed = parseDecision(readText(join(dir, 'decision.json')), issue, areas);
   if (!parsed.ok) log(`The agent's decision was refused: ${parsed.problems.join('; ')}`);

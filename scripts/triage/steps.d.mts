@@ -12,6 +12,7 @@ export function redactIssues(input: StepInput): Promise<Outputs>;
 export function prepare(input: StepInput): Promise<Outputs>;
 export function decideStep(input: StepInput): Promise<Outputs>;
 export function requeue(input: StepInput): Promise<Outputs>;
+export function hold(input: StepInput): Promise<Outputs>;
 export function openPr(input: StepInput): Promise<Outputs>;
 export function apply(input: StepInput): Promise<Outputs>;
 export const STEPS: Record<string, (input: StepInput) => Promise<Outputs>>;

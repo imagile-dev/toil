@@ -81,9 +81,22 @@ ever runs in `main`'s cache scope.
 The agent never writes to GitHub itself: it leaves `decision.json`, a comment and the
 PR text in `.triage-out/`, and `finish` applies them (`scripts/triage/decision.mjs`
 refuses an unknown area or decision and defuses every closing reference GitHub honours
-in the PR text). An agent that didn't run, failed or was refused by the action
-(`agent-ok` or `decision.json` missing) is not a decision: `finish` puts the issue back
-in `triage-queued`, adds no label and no comment, and fails the run. Changing this
+in the PR text).
+
+- **Nothing secret-shaped is posted.** The agent can read files, so an injection could
+  have it quote one. Its `Read`, `Edit` and `Write` are allowed under the checkout only
+  (`Read(./**)`), and denied outright on `/proc`, `/sys`, `/etc`, the runner's temp
+  folder (`GITHUB_ENV`, `GITHUB_OUTPUT`), downloaded actions and dot-folders in the
+  runner's home. Its step holds one secret, the OAuth token. Then `decision.mjs`
+  checks the comment, the PR title and body, and every line the fix adds (against
+  main) with the redactor's credential patterns (`secretShaped`). A hit is `leak`:
+  nothing is posted, the issue gets `needs-human`, and the run fails.
+- **A failed agent run is not a decision** (`agent-ok` or `decision.json` missing):
+  nothing is said on the issue and the run fails. The first time, the issue gets
+  `triage-failed` and goes back in the queue; the second time it gets `needs-human`
+  and stays out, so no issue can spend a slot every day. A failed manual re-triage is
+  never queued. `needs-human` keeps an issue out of the cap's claims and the queue
+  until a maintainer re-triages it by hand. Changing this
 layout means re-checking that no job holding a write credential runs agent-written
 code, and that nothing in this workflow runs it at all.
 

@@ -154,7 +154,8 @@ jobs:
         uses: anthropics/claude-code-action@97c53473391bff1901034d4b454b5bac7ab7a029 # v1.0.239
         env:
           # Defence in depth: nothing here runs subprocesses, and if anything did,
-          # it would get no secrets.
+          # it would get no secrets. The only secret this step holds is the OAuth
+          # token (the action's input); the workflow token reads, and dies with the job.
           CLAUDE_CODE_SUBPROCESS_ENV_SCRUB: '1'
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -209,10 +210,15 @@ jobs:
             6. Write nothing outside the fix and `.triage-out/`.
 
             Work entirely in this session. When your turn ends, the job ends.
-          # Files only. No Bash at all, so nothing the agent writes is ever run on
-          # this runner, and no GitHub or web tools.
+          # Files only, and only the checkout's. No Bash at all, so nothing the agent
+          # writes is ever run on this runner, and no GitHub or web tools. Read, Edit
+          # and Write are allowed under the working directory alone (Glob and Grep
+          # follow the Read rules), and denied outright where a secret or the
+          # runner's own files live: /proc (a process's environment), /sys, /etc,
+          # the runner's temp folder (its GITHUB_ENV and GITHUB_OUTPUT files) and
+          # the actions it downloaded.
           claude_args: |
-            --model sonnet --max-turns 100 --allowedTools "Read,Glob,Grep,Edit,Write" --disallowedTools "Bash,Agent,Task,WebFetch,WebSearch,NotebookEdit"
+            --model sonnet --max-turns 100 --allowedTools "Read(./**),Edit(./**),Write(./**),Glob,Grep" --disallowedTools "Bash,Agent,Task,WebFetch,WebSearch,NotebookEdit,Read(//proc/**),Read(//sys/**),Read(//etc/**),Read(//home/runner/work/_temp/**),Read(//home/runner/work/_actions/**),Read(//home/runner/.*/**),Edit(//home/runner/work/_temp/**),Write(//home/runner/work/_temp/**),Edit(//home/runner/.*/**),Write(//home/runner/.*/**)"
 
       # Shell utilities only from here: no git and no node, since the agent could
       # have edited anything in the tree they would run. The handover script runs
@@ -280,9 +286,20 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           NUMBER: ${{ matrix.issue }}
+          EVENT: ${{ github.event_name }}
         run: |
           node scripts/triage/steps.mjs requeue
-          echo "::error::The triage agent didn't run to completion for #${NUMBER}. The issue is back in the queue, with no comment and no triaged label; see the agent job's log."
+          echo "::error::The triage agent didn't run to completion for #${NUMBER}. Nothing was said on the issue; see the agent job's log."
+          exit 1
+      # Something credential-shaped in what the agent wrote: post nothing, hand it to a person.
+      - name: Hold anything secret-shaped
+        if: steps.decision.outputs.decision == 'leak'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          NUMBER: ${{ matrix.issue }}
+        run: |
+          node scripts/triage/steps.mjs hold
+          echo "::error::The agent's text or files for #${NUMBER} hold something credential-shaped. Nothing was posted; the issue is labelled needs-human. Check the handover artifact by hand, and rotate anything real."
           exit 1
       - name: Push and open a draft pull request
         id: pr
@@ -295,7 +312,8 @@ jobs:
       - name: Comment, label and close
         if: >-
           always() && steps.token.outcome == 'success' &&
-          steps.decision.outputs.decision != 'failed' && steps.decision.outputs.decision != ''
+          steps.decision.outputs.decision != 'failed' && steps.decision.outputs.decision != 'leak' &&
+          steps.decision.outputs.decision != ''
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           NUMBER: ${{ matrix.issue }}

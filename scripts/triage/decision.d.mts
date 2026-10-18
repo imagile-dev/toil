@@ -6,4 +6,5 @@ export function parseDecision(
   knownAreas: string[],
 ): { ok: boolean; decision?: string; areas?: string[]; duplicateOf?: number; problems: string[] };
 export function agentRan(files: string[]): boolean;
-export function decide(dir: string, issue: number, areas: string[], log?: (message: string) => void): Record<string, string>;
+export function decide(dir: string, issue: number, areas: string[], log?: (message: string) => void, root?: string): Record<string, string>;
+export function leaks(dir: string, root?: string): string[];

@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { inspect } from '../scripts/triage/archive.mjs';
 import { ustar } from './harness/ustar.js';
-import { CLAIMED, QUEUED } from '../scripts/triage/cap.mjs';
-import { apply, decideStep, openPr, prepare, readOutputs, redactIssues, requeue, select, writeOutputs, type Outputs } from '../scripts/triage/steps.mjs';
+import { CLAIMED, FAILED, NEEDS_HUMAN, QUEUED } from '../scripts/triage/cap.mjs';
+import { apply, decideStep, hold, openPr, prepare, readOutputs, redactIssues, requeue, select, writeOutputs, type Outputs } from '../scripts/triage/steps.mjs';
 
 /**
  * triage.yml's steps run in order, the way the workflow wires them: each step's
@@ -205,7 +205,7 @@ describe('triage steps, wired as the workflow wires them', () => {
     const decided = await viaOutputFile(() => decideStep({ env: { NUMBER: '5', HANDOVER: handover }, cwd: work, log: quiet }));
     expect(decided).toEqual({ decision: 'failed' });
     await requeue({ env: { ...base, NUMBER: '5' }, fetcher: gh.fetcher });
-    expect(gh.byNumber.get(5)).toMatchObject({ labels: ['from-website', QUEUED], comments: [], state: 'open' });
+    expect(gh.byNumber.get(5)).toMatchObject({ labels: ['from-website', FAILED, QUEUED], comments: [], state: 'open' });
     // A missing handover entirely (the agent job never uploaded) is the same.
     expect(await decideStep({ env: { NUMBER: '5', HANDOVER: join(temp('toil-empty-'), 'none') }, cwd: work, log: quiet })).toEqual({ decision: 'failed' });
   });
@@ -293,5 +293,67 @@ describe.skipIf(!linux)('handover.sh (Linux only: it runs on ubuntu-latest and n
     expect(result).toMatchObject({ ok: true, area: 'jira', deleted: ['src/areas/jira/gone.ts'] });
     expect(result.files.map((f) => f.path).sort()).toEqual(['src/areas/jira/a.ts', 'src/areas/jira/new file.ts']);
     expect(existsSync(join(run('failure'), 'agent-ok'))).toBe(false);
+  });
+});
+
+describe('triage steps: secrets and repeated failures', () => {
+  // A token-shaped string assembled at run time, so this file never holds one whole.
+  const FAKE = ['sk', 'ant', 'api03', 'Zm9vYmFyYmF6cXV4cXV1eDEyMzQ1Njc4OTA'].join('-');
+
+  const agentDone = (files: Record<string, string>, archive?: Buffer) => {
+    const dir = temp('toil-handover-');
+    writeFileSync(join(dir, 'agent-ok'), 'ok');
+    for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
+    if (archive) writeFileSync(join(dir, 'changes.tar'), archive);
+    return dir;
+  };
+
+  it('a token in the agent comment is never posted: decide says leak, hold labels needs-human, nothing is said', async () => {
+    const gh = fakeGitHub([issue(5, { labels: ['from-website', CLAIMED] })]);
+    const handover = agentDone({ 'decision.json': '{"decision":"deny","areas":["jira"]}', 'comment.md': `Here is what I found: ${FAKE}` });
+    const decided = await viaOutputFile(() => decideStep({ env: { NUMBER: '5', HANDOVER: handover }, cwd: checkout(), log: quiet }));
+    expect(decided).toEqual({ decision: 'leak' });
+    expect(existsSync(join(handover, 'comment.checked.md'))).toBe(false);
+    await hold({ env: { ...base, NUMBER: '5' }, fetcher: gh.fetcher });
+    expect(gh.byNumber.get(5)).toMatchObject({ labels: ['from-website', NEEDS_HUMAN], comments: [], state: 'open' });
+  });
+
+  it('a token in a line the fix adds is a leak too; one already in main is not', async () => {
+    const work = checkout();
+    const fixture = join(work, 'src', 'areas', 'jira', 'index.ts');
+    writeFileSync(fixture, `export const area = 'jira';\nconst sample = 'password=hunter22';\n`);
+    const added = agentDone({ 'decision.json': '{"decision":"fix","areas":["jira"]}' }, ustar([{ path: 'src/areas/jira/index.ts', data: `export const area = 'jira';\nconst key = '${FAKE}';\n` }]));
+    expect(await decideStep({ env: { NUMBER: '5', HANDOVER: added }, cwd: work, log: quiet })).toEqual({ decision: 'leak' });
+    const kept = agentDone({ 'decision.json': '{"decision":"fix","areas":["jira"]}' }, ustar([{ path: 'src/areas/jira/index.ts', data: `export const area = 'jira'; // fixed\nconst sample = 'password=hunter22';\n` }]));
+    expect((await decideStep({ env: { NUMBER: '5', HANDOVER: kept }, cwd: work, log: quiet })).decision).toBe('fix');
+  });
+
+  it('a token in the PR title or body is a leak', async () => {
+    for (const name of ['pr-title.txt', 'pr-body.md']) {
+      const handover = agentDone({ 'decision.json': '{"decision":"fix","areas":["jira"]}', [name]: `see ${FAKE}` });
+      expect((await decideStep({ env: { NUMBER: '5', HANDOVER: handover }, cwd: checkout(), log: quiet })).decision).toBe('leak');
+    }
+  });
+
+  it('first failure: triage-failed and back in the queue; second: needs-human, out of the queue for good', async () => {
+    const gh = fakeGitHub([issue(5, { labels: ['from-website', CLAIMED] })]);
+    await requeue({ env: { ...base, NUMBER: '5', EVENT: 'issues' }, fetcher: gh.fetcher, log: quiet });
+    expect(gh.byNumber.get(5)!.labels).toEqual(['from-website', FAILED, QUEUED]);
+    // The daily run claims it again, and it fails again.
+    expect(await select({ env: { ...base, EVENT: 'schedule' }, fetcher: gh.fetcher, log: quiet })).toEqual({ issues: '[5]' });
+    await requeue({ env: { ...base, NUMBER: '5', EVENT: 'schedule' }, fetcher: gh.fetcher, log: quiet });
+    expect(gh.byNumber.get(5)!.labels).toEqual(['from-website', FAILED, NEEDS_HUMAN]);
+    expect(gh.byNumber.get(5)!.comments).toEqual([]);
+    // From now on neither the queue nor a new label event picks it up.
+    expect(await select({ env: { ...base, EVENT: 'schedule' }, fetcher: gh.fetcher, log: quiet })).toEqual({ issues: '[]' });
+    expect(await select({ env: { ...base, EVENT: 'issues', ISSUE: '5' }, fetcher: gh.fetcher, log: quiet })).toEqual({ issues: '[]' });
+  });
+
+  it('a failed manual re-triage never puts the issue in the queue', async () => {
+    const gh = fakeGitHub([issue(5, { labels: ['bug'] })]);
+    await requeue({ env: { ...base, NUMBER: '5', EVENT: 'workflow_dispatch' }, fetcher: gh.fetcher, log: quiet });
+    expect(gh.byNumber.get(5)!.labels).toEqual(['bug', FAILED]);
+    await requeue({ env: { ...base, NUMBER: '5', EVENT: 'workflow_dispatch' }, fetcher: gh.fetcher, log: quiet });
+    expect(gh.byNumber.get(5)!.labels).toEqual(['bug', FAILED, NEEDS_HUMAN]);
   });
 });

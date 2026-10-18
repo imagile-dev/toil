@@ -355,3 +355,10 @@ describe('finish: a failed agent run is not a decision', () => {
     expect(run({ 'agent-ok': 'ok', 'decision.json': '{"decision":"deny","areas":["jira"]}', 'comment.md': 'Out of scope.' }).out).toEqual({ decision: 'deny', labels: 'triaged,denied,area:jira', duplicate_of: '' });
   });
 });
+
+describe('waiting() and needs-human', () => {
+  it('never picks an issue a person has to look at', () => {
+    const list = [{ number: 3, state: 'open', labels: [{ name: QUEUED }, { name: 'needs-human' }] }, { number: 4, state: 'open', labels: [{ name: QUEUED }] }];
+    expect(waiting(list).map((i) => i.number)).toEqual([4]);
+  });
+});
