@@ -78,7 +78,8 @@ from, in order:
 
 1. `--owner` and `--repo`, before or after the command (`toil github --owner imagile
    --repo toil-probe get-pr --number 7`); on `create-pr` the ones after the command win
-2. the working folder's `origin` remote, when its host is this connection's host
+2. the first of the working folder's remotes whose host is this connection's host,
+   of any name, trying `origin` first (so a fork's `upstream` counts)
    (`api.github.com` counts as `github.com`). `git@host:o/r`, `ssh://git@host[:port]/o/r`
    and `https://host[:port]/o/r` remotes are read, each with or without `.git`; an
    HTTPS remote with a user name in it isn't

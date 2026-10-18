@@ -13,7 +13,7 @@ import type { SupportedVersion } from '../../core/supported.js';
  */
 
 /**
- * owner or repo from the working folder's origin remote, only when the
+ * owner or repo from one of the working folder's remotes (origin first), only when the
  * remote is on this connection's host (`api.github.com` counts as
  * `github.com`), by core's GitHub remote parser. An HTTPS remote with
  * userinfo matches nothing, as before (#72 item 10).

@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import type { CommandDefinition, CliOption, ContextNeed } from './command.js';
+import { assertNoCoreFields, type CommandDefinition, type CliOption, type ContextNeed } from './command.js';
+import { SELECT_FIELD } from './query/select.js';
 import { envName } from './config.js';
 import type { GitRemote } from './call-context.js';
 import type { CommandContext } from './context.js';
@@ -152,8 +153,9 @@ export interface ContextInput {
   /** The area's own default, after the connection. */
   default?: string;
   /**
-   * Reads the value from the working folder's git remote; the reader is
-   * core's, the parsing is the area's. It gets the call's resolved
+   * Reads the value from one of the working folder's git remotes; the reader
+   * is core's, the parsing is the area's. Core offers `origin` first, then the
+   * other remotes, and takes the first value returned. It gets the call's resolved
    * connection too, so it can trust only a remote on the connection's own host
    * (`baseUrl`). An input that `selectsConnection` is read before there is a
    * connection, so it gets `undefined`.
@@ -230,7 +232,7 @@ export type AnyArea = Area<any, string>;
 export const CONNECTION_FIELD = 'connection';
 const NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 /** Field names a context input can't take: core's own fields and the global flags. */
-const RESERVED_INPUTS = new Set([CONNECTION_FIELD, 'allowWrite', 'pretty', 'verbose', 'debug', 'config', 'outputFile', 'version', 'help', 'dossier', 'cwd']);
+const RESERVED_INPUTS = new Set([CONNECTION_FIELD, SELECT_FIELD, 'allowWrite', 'pretty', 'verbose', 'debug', 'config', 'outputFile', 'version', 'help', 'dossier', 'cwd']);
 
 const kebab = (name: string) => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
@@ -281,6 +283,7 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
       const name = def.path.join(' ');
       if (def.path[0] !== spec.name) throw new Error(`Command ${name} is defined in area ${spec.name}; its path must start with "${spec.name}".`);
       if (CONNECTION_FIELD in def.input.shape) throw new Error(`Command ${name}: "${CONNECTION_FIELD}" is added by core.`);
+      assertNoCoreFields(def);
       for (const banned of ['managesConfig', 'cliOnly', 'standalone']) {
         if (banned in def) throw new Error(`Command ${name}: "${banned}" is gone; an area command's kind is area or area-local.`);
       }

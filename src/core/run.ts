@@ -8,21 +8,60 @@ import type { CommandContext, Context } from './context.js';
 import { failure, success, type ContextReport, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
+import { applySelect, takeSelect } from './query/select.js';
+
+/** Which front door a call came in by: the CLI's flags, or MCP's fields. */
+export type FrontDoor = 'cli' | 'mcp';
 
 /**
  * Builds the context and runs the command, so a failure building the context
  * (a config file that stopped being JSON while the MCP server was up) is an
  * envelope too, not an exception for each front door to remember to catch.
- * Both front doors call this; neither calls execute() directly.
+ * Both front doors call this; neither calls execute() directly. Over MCP, an
+ * input error names the tool's fields rather than the CLI's flags.
  */
-export async function runCommand(def: AnyCommand, rawInput: unknown, makeContext: () => Context, version: string): Promise<Envelope> {
-  let ctx: Context;
+export async function runCommand(def: AnyCommand, rawInput: unknown, makeContext: () => Context, version: string, via: FrontDoor = 'cli'): Promise<Envelope> {
+  let envelope: Envelope;
   try {
-    ctx = makeContext();
+    const ctx = makeContext();
+    envelope = await execute(def, rawInput, ctx);
   } catch (err) {
-    return failure(toToilError(err), { command: commandName(def), durationMs: 0, version });
+    envelope = failure(toToilError(err), { command: commandName(def), durationMs: 0, version });
   }
-  return execute(def, rawInput, ctx);
+  return via === 'mcp' ? inFieldNames(def, envelope) : envelope;
+}
+
+/**
+ * A CLI command line quoted in an error: `toil …` in backticks, or plain text
+ * from `toil ` to the end of its clause (a `,` or `;`, a `.` that ends a
+ * sentence, a backtick, or the end). The capture keeps it in `split`'s output.
+ */
+const COMMAND_LINE = /(`toil [^`]*`|\btoil [^,;`]*?(?=[,;`]|\.(?:\s|$)|$))/;
+
+/**
+ * An INVALID_INPUT envelope reworded for an MCP caller: each of the
+ * command's flags (`--max-results`) becomes its field (`maxResults`), in the
+ * message and the fix. Areas word their input errors once, for the CLI; this
+ * translates them, so no area keeps two copies. The code and everything else
+ * stay as they were. A form that cites the wrong form's field numbers is
+ * still technically a form, which is the standard this replaces.
+ */
+export function inFieldNames(def: AnyCommand, envelope: Envelope): Envelope {
+  if (envelope.ok || envelope.error.code !== 'INVALID_INPUT') return envelope;
+  const flags: Array<[string, string]> = (def.options ?? []).flatMap((o) => {
+    const long = o.flags.split(/[\s,|]+/).find((p) => p.startsWith('--'));
+    return long && !long.startsWith('--no-') ? [[long, o.field] as [string, string]] : [];
+  });
+  if (def.writes) flags.push(['--allow-write', 'allowWrite']);
+  // Longest first, so `--max-results` isn't read as `--max` followed by text.
+  flags.sort((a, b) => b[0].length - a[0].length);
+  const swap = (text: string) => flags.reduce((out, [flag, field]) => out.replace(new RegExp(`(?<![\\w-])${flag}(?![\\w-])`, 'g'), field), text);
+  // A quoted command line (`toil jira list-transitions --key X`) is something to
+  // run on the CLI, so it keeps its flags: only the prose between them is swapped.
+  const reword = (text: string) => text.split(COMMAND_LINE).map((part, i) => (i % 2 === 1 ? part : swap(part))).join('');
+  const error = { ...envelope.error, message: reword(envelope.error.message) };
+  if (envelope.error.fix !== undefined) error.fix = reword(envelope.error.fix);
+  return { ...envelope, error };
 }
 
 /**
@@ -91,7 +130,9 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
   try {
     // Strict: an unknown or misspelt field is an error through MCP exactly as an
     // unknown flag is on the CLI, never a field silently ignored.
-    const parsed = def.input.strict().safeParse(rawInput ?? {});
+    // --select is core's, not the command's: compiled here, before anything runs, and applied to data below.
+    const { input: own, query } = takeSelect(commandName(def), rawInput);
+    const parsed = def.input.strict().safeParse(own ?? {});
     if (!parsed.success) {
       throw new ToilError('INVALID_INPUT', `Invalid input for ${commandName(def)}: ${z.prettifyError(parsed.error)}`, {
         fix: `Run toil ${commandName(def)} --help to see the expected arguments.`,
@@ -185,7 +226,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
         exitCode = code;
       },
     };
-    const data = await Promise.race([def.run(parsed.data, commandCtx), aborted]);
+    const result = await Promise.race([def.run(parsed.data, commandCtx), aborted]);
+    const data = query ? applySelect(query, result, commandName(def), def.writes, (w) => warnings.push(w)) : result;
     const envelope = success(data, meta());
     if (exitCode !== undefined) exitCodes.set(envelope, exitCode);
     return envelope;

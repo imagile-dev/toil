@@ -40,10 +40,17 @@ bad input gets the same envelope through MCP as on the CLI. The server takes a
 context *factory*, called per tool call with the command and that call's cancel
 signal; never share one context across calls. Both front doors run commands through
 `runCommand()`, which turns a failure building the context (config that broke while
-the server was up) into an envelope too. Tool descriptions are written for a model
+the server was up) into an envelope too. The MCP server passes `'mcp'` to it, and
+an `INVALID_INPUT` envelope then names each of the command's flags as its field
+(`--max-results` becomes `maxResults`) in the message and fix, so areas word their
+input errors once, for the CLI, and nothing else changes. A quoted command line
+(`toil …` in backticks, or plain text up to the end of its clause) keeps its flags,
+since it's something to run on the CLI. Tool descriptions are written for a model
 choosing between tools: what it returns, when to use it, and which sibling tool to use
 instead. A field's description is the same text on both front doors, so it never names a
-CLI-only flag (`--output-file`, `--config`).
+CLI-only flag (`--output-file`, `--config`). Every tool also takes core's `select`
+(`--select` on the CLI): `inputSchemaFor` adds it to each schema and `execute()` takes it
+off before the command's own strict parse, so no command declares it.
 
 **The base package never opens a port** (*principle 1*: a listening socket is the
 other thing locked-down machines block). Stdio is the only transport in

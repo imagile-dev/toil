@@ -185,7 +185,8 @@ GitHub Actions; its build tooling is out of scope.
 - `src/core/` — the machinery: `defineArea`, `defineCommand`, `execute`
   (validation, connection and context resolution in `call-context.ts`, write gate,
   envelope), errors, config loading and
-  writing, the OS credential store (`keychain.ts`) and the terminal prompter
+  writing, the OS credential store (`keychain.ts`), the terminal prompter, and
+  JMESPath (`query/`, behind `--select`)
 - `src/connections/` — `toil connections add | login | list | remove | test | writes | default`
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
   `commands` (standalone commands export only `commands`)
@@ -245,8 +246,9 @@ is a flag on the area's group (`toil github --owner o get-pr`, accepted before o
 after the leaf) and a field on every one of its MCP tools, and a `command` input
 belongs to the commands that list it in their own `context`, which also marks any
 input `required`. Core resolves each in one order: the call's own value, then the
-dossier (empty until #16), then the git remote where the area declares how to read
-it (no reader is wired into the CLI yet; the git reader supplies one), then the
+dossier (empty until #16), then the git remotes where the area declares how to read
+them (`origin` first, then the others; the first one on the connection's host that
+the area's parser accepts), then the
 connection's `setting`, then the area's `default`. A command that reads one from a
 file the call named (an `--input-file`) reports it with `ctx.supply`, which ranks
 it just below the call's own value. An input with `selectsConnection`
@@ -389,6 +391,14 @@ a breaking change.
 - **Input is strict.** `execute()` parses with the schema's `.strict()`, so an
   unknown or misspelt field is `INVALID_INPUT` through MCP exactly as an unknown flag
   is on the CLI. Never silently ignore a field.
+- **`--select <expression>`** (`select` in every MCP tool's input) is core's, on every
+  command: a JMESPath expression `execute()` compiles before anything runs and
+  applies to `data` after `run`, leaving `meta` alone. The language lives in
+  `src/core/query/`, built in rather than a dependency, and passes the official
+  compliance suite (`test/fixtures/jmespath/`). A bad expression, or one nested more
+  than 500 levels deep, is `INVALID_INPUT` with its position in the fix, and so is
+  any failure applying it; one that selects nothing is `data: null` plus a
+  `SELECT_EMPTY` warning. No command may declare a `select` field.
 - **`meta.warnings`** carries things worth saying that aren't failures (a reserved
   config key, a truncated result), from config loading or a command's `ctx.warn()`.
   **`meta.page`** is `{ nextCursor, limit }`, set with `ctx.setPage()` by any command
