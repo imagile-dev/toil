@@ -70,11 +70,11 @@ The commands whose output maps, and what each gives:
 | Area | Items | History | Context |
 |------|-------|---------|---------|
 | `jira`, `jira-cloud` | `jira search`, `jira get-issue`, `jira-cloud search`, `jira-cloud get-issue` | `jira get-changelog`, `jira-cloud get-changelog` | |
-| `ado` | `ado work get`, `ado work get-batch` | `ado work revisions` | `ado work list-iterations` (iteration dates) |
+| `ado`, `ado-cloud` | `ado work get`, `ado work get-batch`, `ado-cloud work get`, `ado-cloud work get-batch` | `ado work revisions`, `ado-cloud work revisions` | `ado work list-iterations`, `ado-cloud work list-iterations` (iteration dates) |
 | `github` | `github list-issues`, `github search-issues`, `github get-issue`, `github projects list-items` | `github issue-events` | |
 
-`ado work search` returns ids only, so it is skipped with a pointer to
-`ado work get-batch`. Pull requests (in GitHub's issue lists and on boards) are
+`ado work search` and `ado-cloud work search` return ids only, so they are skipped
+with a pointer to `work get-batch`. Pull requests (in GitHub's issue lists and on boards) are
 left out, with a warning: they are the changes that reference work, which a later
 version will carry. Any other command's output is refused.
 
@@ -99,7 +99,19 @@ version will carry. Any other command's output is refused.
   the connection registers; `get-issue` returns every field. A field missing from
   the record is listed in `unmapped`.
 
-### Azure DevOps
+### Azure DevOps (Server and Services)
+
+`ado` (Azure DevOps Server) and `ado-cloud` (Azure DevOps Services) send the same
+work item, revision and classification-node shapes, so one mapper reads both. Where
+Services differs, the mapping already holds:
+
+- **People**: on Services an identity's `uniqueName` is the sign-in email, so
+  `email` is set; on Server it is often `DOMAIN\user`, which has no `@`, so `email`
+  is null and `id` is that name.
+- **URL**: a Services work item's API `url` is under the organization
+  (`https://dev.azure.com/<org>/_apis/...`), with no collection segment, and the web
+  link is built from it the same way: `https://dev.azure.com/<org>/<project>/_workitems/edit/<id>`.
+- **Ids** are `<connection>:<id>` for both, so the two areas' items never collide.
 
 - **Type** from `System.WorkItemType`: User Story, Product Backlog Item and
   Requirement are `STORY`, and so is Basic's Issue; Feature is `OTHER`.
