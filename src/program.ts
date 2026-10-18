@@ -346,7 +346,8 @@ const OUTER_GLOBALS: Array<[keyof GlobalOptions, string]> = [
  */
 async function parseCommandLine(options: ProgramOptions, words: string[]): Promise<{ def: AnyCommand; input: Record<string, unknown> } | { error: ToilError } | { help: true }> {
   let captured: { def: AnyCommand; input: Record<string, unknown>; globals: GlobalOptions } | undefined;
-  const { program } = buildProgram({ ...options, capture: (call) => (captured = call) });
+  // The envelope carries a parse error; the help commander prints after one would only repeat it on stderr.
+  const { program } = buildProgram({ ...options, io: { ...options.io, stderr: () => {} }, capture: (call) => (captured = call) });
   const line = `toil ${words.join(' ')}`;
   try {
     await program.parseAsync(words, { from: 'user' });

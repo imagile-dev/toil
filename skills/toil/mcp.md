@@ -23,9 +23,11 @@ port.
   not, and repeats only the tools the server serves. After every attempt that doesn't
   end the wait it sends a progress notification when the call carried a progress
   token, so a client that resets its tool-call timeout on progress keeps a long wait
-  alive. Checked with the MCP TypeScript SDK client (`resetTimeoutOnProgress`) and the
-  Codex CLI; whether other clients reset their timeout on progress hasn't been
-  checked, so for those keep `timeout` under the client's tool-call limit.
+  alive. The notifications are checked with the MCP TypeScript SDK's client
+  (`resetTimeoutOnProgress`), and the Codex CLI ran a one-minute wait to its end.
+  Whether Claude Code, Codex or other clients reset their own tool-call timeout on
+  progress hasn't been checked, so with those keep `timeout` under the client's
+  tool-call limit.
 - **Resources**: besides tools, the server serves read-only resources that describe
   toil's own context, so a client can read it without a tool call. None reads from a
   service, and none holds a secret. They follow `--areas` as the tools do.
