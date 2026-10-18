@@ -158,22 +158,32 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
       typeof input.connection !== 'string' &&
       !Object.entries(def.area?.context ?? {}).some(([name, spec]) => spec?.selectsConnection && typeof input[name] === 'string');
     const unconfigured = optional && defaultConnectionName(ctx.config, areaOf(def)) === undefined && connectionsOf(ctx.config, areaOf(def)).length === 0;
-    // Which dossier applies, from the call's `dossier` and `cwd` (src/core/dossier.ts).
-    // Asked once, before the connection, because the dossier may choose it.
-    let place: Place | undefined;
-    if (usesConnection(def) && ctx.dossiers) {
-      place = ctx.dossiers.place({ dossier: input.dossier as string | undefined, cwd: input.cwd as string | undefined });
-      warnings.push(...place.warnings);
-      if (place.report) partial.dossier = place.report;
-    }
+    // Where the call's dossier would come from, from its `dossier` and `cwd`
+    // (src/core/dossier.ts). Which one applies is settled only if the resolver
+    // reaches the dossier step, so a call that never does can't fail on one.
+    const place: Place | undefined = usesConnection(def) && ctx.dossiers ? ctx.dossiers.place({ dossier: input.dossier as string | undefined, cwd: input.cwd as string | undefined }) : undefined;
+    const reportDossier = () => {
+      if (!place) return;
+      warnings.push(...place.warnings());
+      const used = place.report();
+      if (!used) return;
+      // First in meta.context, as it's where the rest came from.
+      const rest = { ...partial };
+      for (const key of Object.keys(partial) as Array<keyof ContextReport>) delete partial[key];
+      Object.assign(partial, { dossier: used }, rest);
+    };
     let call: ResolvedCall | undefined;
     if (usesConnection(def) && !unconfigured) {
       try {
         const dossier = ctx.dossiers ? place?.lookup : ctx.dossier;
-        call = await Promise.race([
-          resolveCall(def, input, { config: ctx.config, secrets: ctx.secrets, dossier, gitRemote: place?.gitRemote ?? ctx.gitRemote }, (w) => warnings.push(w), controller.signal, partial),
-          aborted,
-        ]);
+        try {
+          call = await Promise.race([
+            resolveCall(def, input, { config: ctx.config, secrets: ctx.secrets, dossier, gitRemote: place?.gitRemote ?? ctx.gitRemote }, (w) => warnings.push(w), controller.signal, partial),
+            aborted,
+          ]);
+        } finally {
+          reportDossier();
+        }
         const chosen = call.report.connection;
         const host = chosen?.source === 'dossier' ? place?.hostFor(areaOf(def), input) : undefined;
         if (chosen && host) chosen.host = host;
