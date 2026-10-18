@@ -6,7 +6,7 @@
 
 import { ItemLink, typeText } from '../components/items.tsx';
 import { useData } from '../data.ts';
-import { STATUS_CATEGORY_LABEL, dateTime, estimateText, personText, shortKey, sourceLabel } from '../format.ts';
+import { STATUS_CATEGORY_LABEL, dateTime, dossierHref, estimateText, personText, shortKey, sourceLabel } from '../format.ts';
 import { entry } from '../model/sprint.ts';
 import { useSkins } from '../skins.tsx';
 
@@ -20,22 +20,23 @@ const LINK_WORD: Record<string, [string, string]> = {
 };
 
 export function ItemView({ id }: { id: string }) {
-  const { byId, changes } = useData();
+  const { byId, dossier } = useData();
   const { EmptyState } = useSkins();
   const item = byId.get(id);
   if (!item) {
     return (
       <>
         <h1 tabIndex={-1}>No such item</h1>
-        <EmptyState message={`The synced data has no item ${id}.`}>
+        <EmptyState message={`The dossier has no item ${id}.`}>
           <p>
-            <a href="#/board">Back to the board</a>
+            <a href={dossierHref(dossier.name)}>Back to {dossier.name}</a>
           </p>
         </EmptyState>
       </>
     );
   }
-  const mine = changes.filter((c) => c.items.includes(id));
+  const mine = dossier.changes.filter((c) => c.items.includes(id));
+  const deployedTo = dossier.deployments.filter((d) => d.items.includes(id));
   const e = entry(item);
   const source = sourceLabel(item.source.area);
 
@@ -134,17 +135,35 @@ export function ItemView({ id }: { id: string }) {
           ) : (
             <p>None.</p>
           )}
-          <h3>Changes</h3>
+          <h3>Pull requests and builds</h3>
           {mine.length ? (
             <ul className="rows">
               {mine.map((c) => (
                 <li key={c.id}>
-                  <a href={c.url}>{c.title}</a> <span className={`outcome outcome--${c.outcome}`}>{c.state}</span>
+                  {c.url ? <a href={c.url}>{c.title}</a> : c.title} <span className={`outcome outcome--${c.outcome}`}>{c.state}</span>{' '}
+                  <span className="field">
+                    (<code>toil {c.command}</code>)
+                  </span>
                 </li>
               ))}
             </ul>
           ) : (
             <p>None linked.</p>
+          )}
+          <h3>Deployed to</h3>
+          {deployedTo.length ? (
+            <ul className="rows">
+              {deployedTo.map((d) => (
+                <li key={d.id}>
+                  {d.environment}: {d.name}, commit <code>{d.commit}</code>{' '}
+                  <span className="field">
+                    (<code>toil {d.command}</code>)
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>Not deployed anywhere the dossier names.</p>
           )}
         </section>
 

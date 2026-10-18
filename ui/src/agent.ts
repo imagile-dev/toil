@@ -1,7 +1,7 @@
 /**
  * The agent seam (#206, Reasoning on the subscription you already have). An
- * agent answers questions about the work in the Store and cites every item it
- * used; it never writes. Writes come back as proposals a human applies through
+ * agent answers questions about one dossier's work, as the dashboard read it
+ * through toil, and cites every item it used; it never writes. Writes come back as proposals a human applies through
  * toil's write gate, which arrives with milestone 7, so this interface has no
  * way to send one yet. A suggestion box that cannot be emptied, by design.
  */
@@ -27,9 +27,10 @@ export interface Starter {
 }
 
 export interface Agent {
-  /** The questions offered before anyone types. */
-  starters(): Starter[];
-  ask(prompt: string): Promise<Answer>;
+  /** The questions offered about a dossier before anyone types. */
+  starters(dossier: string): Starter[];
+  /** Answers about the named dossier only. */
+  ask(dossier: string, prompt: string): Promise<Answer>;
 }
 
 const CITE = /\[\[([^\]]+)\]\]/g;

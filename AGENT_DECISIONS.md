@@ -2377,6 +2377,91 @@ at `/ui-preview/`.
 - **The site doesn't link to the preview yet.** Where it goes in the navigation is
   the maintainer's call at the launch.
 
+### #228 dossier dashboard
+
+The preview reworked around dossiers: it opens on the dossier list, and each dossier
+has one dashboard with its stories, pull requests, builds and deployments together.
+Some of the #206 preview decisions above are replaced here (the fixture `Store`, the
+board, the separate health and traceability views).
+
+- **The seam is toil itself.** The `Store` interface is gone. The App takes an
+  `execute` with the signature of `@imagile-dev/toil/api`'s `execute()`
+  (`ui/src/toil.ts`), and calls it read-only with `caller: 'toil-ui'`. The local app
+  will pass the real one. The preview passes a **fixture `execute()`**
+  (`ui/src/fixtures/execute.ts`): canned, sanitized envelopes keyed by command and
+  input (key order ignored). It answers an unknown call or one without `readOnly`
+  with a refusal envelope and a fix, as the real one would, and never throws.
+- **Three dossiers, each with its own sources:** `card-payments` (Jira DC, Bitbucket
+  DC, Jenkins multibranch, OpenShift dev and prod); `settlement` (Azure DevOps Server
+  Boards, Repos, and Pipelines, one pipeline for CI and one for deploys); and
+  `checkout-web` (GitHub Enterprise, Projects, Actions checks, OpenShift staging and
+  prod). ado-cloud isn't used, because ADO Server covers the same commands and has
+  the pipeline ones.
+- **What a dashboard calls is decided by `dossiers show`.** The Jira project gives
+  the JQL (`jira search`), with `jira get-changelog` per issue. For ADO it's `ado work
+  list-iterations`, `ado work search` (WIQL), `ado work get-batch` and `ado work
+  revisions` per item. For GitHub, `github projects list-items` for each board in
+  the dossier's `projects`, then `github get-issue` and `github issue-events` per
+  issue. Pull requests come from `bitbucket list-prs`, `ado repo list-prs` and
+  `github list-prs`. Builds come from `jenkins pipeline list-runs` (`<job>/PR-<id>`
+  for each `jenkins.jobs` entry), `ado pipeline list-runs` (the `ado.builds`
+  pipelines) and `github list-checks` (each PR head). Deployments come from
+  `openshift deployments` (each environment's `openshift.namespace`) and `ado
+  pipeline list-runs` (the `ado.deployments` pipelines). `jobs`, `builds`,
+  `deployments` and `projects` are dossier reference data, which a dossier keeps as
+  written. Every call is kept with the panel it fed. A panel shows "Fed by" with each
+  command, how many calls, and their exact inputs. A failed call is a `role="alert"`
+  on its own panel with toil's message and fix, and the other panels still load.
+- **Tested against the registry.** `ui/test/registry.test.ts` imports `registry`
+  from `src/api.ts`, so the test reads the source. Every canned call must be a
+  command `execute()` serves that never writes (`writes`, `writesLocal` and
+  `writesDependOnInput` all false), and its input must validate against the
+  command's strict input schema. The test also checks that the dashboards ask only
+  for calls the fixture answers, ask for every one of them, and pass `{ readOnly:
+  true, caller: 'toil-ui' }`. It assigns the fixture to `typeof execute` and back,
+  so the two signatures can't drift apart. That file needs the CLI's Node-only
+  sources, so `ui/tsconfig.registry.json` type-checks it with the CLI's module
+  settings, and `ui/tsconfig.json` leaves it out. `npm run typecheck` in `ui/` runs
+  both.
+- **Work items go through `mapOwi`.** The API's entry loads Node-only code, so a
+  page can't import it. `ui/src/owi.ts` is the same three-line wrapper over
+  `src/core/owi/`, and the registry test checks that it maps each dossier exactly as
+  the API's `mapOwi` does. The canned work envelopes are the OWI sprint fixture's own
+  input (`test/fixtures/owi/sprint.ts`), read in place and split by dossier. The
+  three dossiers hold exactly the items of `sprint-42.owi.json`, and a test checks
+  that. Jira is read with `jira search` instead of `get-issue`, since a dashboard
+  queries a project.
+- **Every item's history is fetched, so the fixture adds the missing ones.** Where
+  the sprint fixture has no history, the fixture serves one that agrees with the
+  item: an empty Jira changelog or GitHub timeline, or Azure DevOps revisions from
+  creation onward. This changes one figure: 2305, a task created in the sprint on
+  day one, now counts as scope added.
+- **Pull requests, builds and deployments use small UI shapes** (`ChangeRef` and
+  `Deployment` in `ui/src/toil.ts`, mapped in `ui/src/model/delivery.ts`), until OWI
+  carries them. A PR names its items by Jira key, or by `#n` for an ADO work item or
+  a GitHub issue in the same repository. A build joins its PR by the Jenkins job
+  `PR-<id>`, by `triggerInfo["pr.number"]` (or `refs/pull/<id>/merge`), or by the
+  checks on the PR's head. A GitHub head's checks count as one build: failed if any
+  check failed. A deployment names a commit: the trailing hex of the image tag, or a
+  deploy run's `sourceVersion`. It includes the merged PR with that merge commit and
+  every PR merged before it, assuming a linear target branch. A commit no listed PR
+  merged as is shown as unknown, not guessed. An ADO environment is a deploy run's
+  `templateParameters.environment`, and the dashboard shows the newest successful
+  run for each environment.
+- **What was folded in and what was removed.** Sprint health is now the dashboard's
+  first panel, with its figures, risks, scope added and carry-over. Traceability is
+  the second panel, now with a "Deployed to" column. The item page stays, inside its
+  dossier (`#/dossier/<name>/item/<id>`). **Removed:** the board view, along with
+  its source filter and cards, since a dossier has one tracker. The trace table now
+  shows status words and estimates. Also removed: the "each tracker's sprint" table,
+  which has one row per dossier now, and the fixture `Store`, `changes.ts` and the
+  separate `#/board`, `#/health` and `#/trace` routes.
+- **The scripted Agent answers about the selected dossier.** `Agent.starters(dossier)`
+  and `ask(dossier, prompt)` each offer two starters per dossier: what's at risk, and
+  where the work is deployed. `ui/test/agent.test.ts` recomputes from the loaded
+  dossier every figure, every environment and commit, the items each environment
+  runs, and the items with open PRs.
+
 ### #222 ado-cloud
 
 Azure DevOps Services (#222), built from Microsoft's REST API 7.1 reference

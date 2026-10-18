@@ -1,38 +1,37 @@
 /**
- * The app shell: the preview banner, the views, the theme controls and the
- * sync line every view carries. It loads everything from the Store once and
- * hands the views plain arrays, so a view is a function of data and the tests
- * can render one against the fixture Store directly. Navigation is by hash, so
- * any static host can serve it at any path without a rewrite rule, which is
- * one fewer change request.
+ * The app shell: the preview banner, the theme controls, the line every view
+ * carries saying when and how its data was read, and the routes: the dossier
+ * list, one dashboard per dossier, and an item page inside each. Each view's
+ * data is loaded through `execute()` (src/load.ts) the first time it is
+ * opened and kept for the session, so a view is a function of data and the
+ * tests can render one against the fixture `execute()` directly. Navigation
+ * is by hash, so any static host can serve it at any path without a rewrite
+ * rule, which is one fewer change request.
  */
 
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import type { Agent } from './agent.ts';
 import { DataContext, type Data } from './data.ts';
-import { SOURCE_LABEL, dateTime } from './format.ts';
+import { dateTime, dossierHref } from './format.ts';
+import { loadDossier, loadDossiers, type DossierData, type DossierSummary } from './load.ts';
 import { SkinProvider, skinsFor } from './skins.tsx';
-import type { Store } from './store.ts';
 import { THEMES, themeNamed, tokenCss } from './themes.ts';
 import { useThemeChoice } from './theme-choice.ts';
-import { Board } from './views/Board.tsx';
-import { Health } from './views/Health.tsx';
+import type { Call, Execute } from './toil.ts';
+import { Dashboard } from './views/Dashboard.tsx';
+import { Dossiers } from './views/Dossiers.tsx';
 import { ItemView } from './views/Item.tsx';
-import { Trace } from './views/Trace.tsx';
 
-export type Route = { view: 'board' } | { view: 'health' } | { view: 'trace' } | { view: 'item'; id: string };
-
-const VIEWS = [
-  { view: 'board', label: 'Board' },
-  { view: 'health', label: 'Sprint health' },
-  { view: 'trace', label: 'Traceability' },
-] as const;
+export type Route = { view: 'dossiers' } | { view: 'dashboard'; dossier: string } | { view: 'item'; dossier: string; id: string };
 
 export function parseRoute(hash: string): Route {
-  const path = hash.replace(/^#\/?/, '');
-  if (path.startsWith('item/')) return { view: 'item', id: decodeURIComponent(path.slice(5)) };
-  if (path === 'health' || path === 'trace') return { view: path };
-  return { view: 'board' };
+  const parts = hash.replace(/^#\/?/, '').split('/');
+  if (parts[0] === 'dossier' && parts[1]) {
+    const dossier = decodeURIComponent(parts[1]);
+    if (parts[2] === 'item' && parts[3]) return { view: 'item', dossier, id: decodeURIComponent(parts.slice(3).join('/')) };
+    return { view: 'dashboard', dossier };
+  }
+  return { view: 'dossiers' };
 }
 
 function useRoute(): Route {
@@ -46,40 +45,71 @@ function useRoute(): Route {
 }
 
 export interface AppProps {
-  store: Store;
+  /** `execute()` from `@imagile-dev/toil/api`, or the preview's fixture one. */
+  execute: Execute;
   agent: Agent;
+  /** When the data is read; sprint figures are worked out at it. The preview's is fixed. */
+  now: string;
   /** The site preview: shows the unreleased-product banner on every view. */
   preview: boolean;
 }
 
-export function App({ store, agent, preview }: AppProps) {
+type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
+const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
+
+export function App({ execute, agent, now, preview }: AppProps) {
   const route = useRoute();
-  const [data, setData] = useState<Data | null>(null);
-  const [failed, setFailed] = useState<string | null>(null);
+  const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
+  const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
   const choice = useThemeChoice();
   const theme = themeNamed(choice.theme);
   const main = useRef<HTMLElement>(null);
   const first = useRef(true);
+  const wanted = route.view === 'dossiers' ? null : route.dossier;
 
   useEffect(() => {
+    if (route.view !== 'dossiers' || list) return;
     let live = true;
-    Promise.all([store.info(), store.items(), store.changes()])
-      .then(([info, items, changes]) => live && setData({ info, items, changes, byId: new Map(items.map((i) => [i.id, i])), agent }))
-      .catch((e: unknown) => live && setFailed(e instanceof Error ? e.message : String(e)));
+    loadDossiers(execute).then(
+      (value) => live && setList({ ok: true, value }),
+      (e: unknown) => live && setList(failed(e)),
+    );
     return () => {
       live = false;
     };
-  }, [store, agent]);
+  }, [route.view, list, execute]);
+
+  useEffect(() => {
+    if (!wanted || dossiers[wanted]) return;
+    let live = true;
+    loadDossier(execute, wanted).then(
+      (value) => live && setDossiers((d) => ({ ...d, [wanted]: { ok: true, value } })),
+      (e: unknown) => live && setDossiers((d) => ({ ...d, [wanted]: failed(e) })),
+    );
+    return () => {
+      live = false;
+    };
+  }, [wanted, dossiers, execute]);
 
   // A new view moves focus to its heading, so a screen reader hears where it
-  // landed and the next Tab starts from the top of the content.
+  // landed and the next Tab starts from the top of the content. A dashboard
+  // still loading has no heading yet, so the move waits until it renders one.
+  const routeKey = JSON.stringify(route);
+  const pending = useRef(false);
   useEffect(() => {
     if (first.current) {
       first.current = false;
       return;
     }
-    main.current?.querySelector<HTMLElement>('h1')?.focus();
-  }, [route]);
+    pending.current = true;
+  }, [routeKey]);
+  useEffect(() => {
+    const h1 = pending.current ? main.current?.querySelector<HTMLElement>('h1') : null;
+    if (h1) {
+      pending.current = false;
+      h1.focus();
+    }
+  });
 
   const skip = (e: MouseEvent) => {
     e.preventDefault();
@@ -87,7 +117,25 @@ export function App({ store, agent, preview }: AppProps) {
   };
 
   const skins = skinsFor(theme.name);
-  const current = route.view === 'item' ? null : route.view;
+  const current = wanted ? dossiers[wanted] : undefined;
+  const failure = (message: string) => (
+    <div role="alert" className="failure">
+      <h1 tabIndex={-1}>The data didn't load</h1>
+      <p>{message}</p>
+    </div>
+  );
+
+  let body;
+  if (route.view === 'dossiers') {
+    body = !list ? <skins.Loading message="Reading the dossiers…" /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} /> : failure(list.message);
+  } else if (!current) {
+    body = <skins.Loading message={`Reading ${route.dossier}…`} />;
+  } else if (!current.ok) {
+    body = failure(current.message);
+  } else {
+    const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), agent, now };
+    body = <DataContext value={data}>{route.view === 'item' ? <ItemView id={route.id} /> : <Dashboard />}</DataContext>;
+  }
 
   return (
     <SkinProvider value={skins}>
@@ -96,72 +144,60 @@ export function App({ store, agent, preview }: AppProps) {
         Skip to content
       </a>
       <header>
-      {preview && (
-        <p className="banner" role="note">
-          <strong>Preview of an unreleased product.</strong> Sample data only: nothing here connects to a tracker.
-        </p>
-      )}
-      <div className="top">
-        <a className="brand" href="#/board">
-          Toil UI
-        </a>
-        <nav aria-label="Views">
-          <ul>
-            {VIEWS.map((v) => (
-              <li key={v.view}>
-                <a href={`#/${v.view}`} aria-current={current === v.view ? 'page' : undefined}>
-                  {v.label}
+        {preview && (
+          <p className="banner" role="note">
+            <strong>Preview of an unreleased product.</strong> Sample data only: nothing here connects to a tracker.
+          </p>
+        )}
+        <div className="top">
+          <a className="brand" href="#/">
+            Toil UI
+          </a>
+          <nav aria-label="Views">
+            <ul>
+              <li>
+                <a href="#/" aria-current={route.view === 'dossiers' ? 'page' : undefined}>
+                  Dossiers
                 </a>
               </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="settings">
-          <label>
-            Theme
-            <select value={theme.name} onChange={(e) => choice.setTheme(e.target.value)}>
-              {THEMES.map((t) => (
-                <option key={t.name} value={t.name}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {Object.keys(theme.schemes).length > 1 && (
+              {wanted && (
+                <li>
+                  <a href={dossierHref(wanted)} aria-current={route.view === 'dashboard' ? 'page' : undefined}>
+                    {wanted}
+                  </a>
+                </li>
+              )}
+            </ul>
+          </nav>
+          <div className="settings">
             <label>
-              Appearance
-              <select value={choice.scheme} onChange={(e) => choice.setScheme(e.target.value as typeof choice.scheme)}>
-                <option value="system">System</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
+              Theme
+              <select value={theme.name} onChange={(e) => choice.setTheme(e.target.value)}>
+                {THEMES.map((t) => (
+                  <option key={t.name} value={t.name}>
+                    {t.label}
+                  </option>
+                ))}
               </select>
             </label>
-          )}
+            {Object.keys(theme.schemes).length > 1 && (
+              <label>
+                Appearance
+                <select value={choice.scheme} onChange={(e) => choice.setScheme(e.target.value as typeof choice.scheme)}>
+                  <option value="system">System</option>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                </select>
+              </label>
+            )}
+          </div>
         </div>
-      </div>
-      {data && (
         <p className="sync">
-          {data.info.sample ? 'Sample data' : 'Data'} synced {dateTime(data.info.syncedAt)} from{' '}
-          {[...new Set(data.info.sources.map((s) => SOURCE_LABEL[s.kind]))].join(', ')}.
+          {preview ? 'Sample data' : 'Data'} read {dateTime(now)} through toil, read-only.
         </p>
-      )}
       </header>
       <main id="main" ref={main}>
-        {failed ? (
-          <div role="alert" className="failure">
-            <h1 tabIndex={-1}>The data didn't load</h1>
-            <p>{failed}</p>
-          </div>
-        ) : !data ? (
-          <skins.Loading message="Loading the sprint…" />
-        ) : (
-          <DataContext value={data}>
-            {route.view === 'board' && <Board />}
-            {route.view === 'health' && <Health />}
-            {route.view === 'trace' && <Trace />}
-            {route.view === 'item' && <ItemView id={route.id} />}
-          </DataContext>
-        )}
+        {body}
       </main>
     </SkinProvider>
   );

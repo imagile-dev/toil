@@ -104,11 +104,13 @@ from `main`).
   path costs users more than a generic one. Never invent a detail the area's
   registry or board file doesn't hold.
 - **`/docs/utilities/` is `skills/toil/util.md`**, rendered, with each command's flags, aliases and MCP tool from the registry; the rule that a `util` change updates it is in `docs/util.md`.
-- **`/ui-preview/` is the Toil UI preview** (#206): the real `ui/` app on its fixture
-  Store and scripted Agent, labelled "Preview of an unreleased product" on every view
-  and with no install instructions. `npm run dev` and `npm run build` build it first
-  (`scripts/ui-preview.mjs`), so run `npm --prefix ui ci` once. Its views are hash
-  routes (`ui-preview/?theme=crate#/health`), which `scripts/shoot.mjs` can shoot.
+- **`/ui-preview/` is the Toil UI preview** (#206, #228): the real `ui/` app,
+  running on its fixture `execute()` and scripted Agent. It's labelled "Preview of
+  an unreleased product" on every view and has no install instructions. `npm run
+  dev` and `npm run build` build it first (`scripts/ui-preview.mjs`), so run `npm
+  --prefix ui ci` once. Its views are hash routes: the dossier list at `#/` and a
+  dashboard at `#/dossier/<name>` (`ui-preview/?theme=crate#/dossier/settlement`).
+  `scripts/shoot.mjs` can shoot them.
 - Internal links go through `url()` in `site/src/lib/url.ts` because the site is
   served under `/toil/`.
 - **Phones get a menu.** The header shows its links inline on desktop, drops the

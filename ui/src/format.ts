@@ -4,7 +4,7 @@
  * time zones as it is.
  */
 
-import type { Person, SourceKind, WorkItem } from './store.ts';
+import type { Person, SourceKind, WorkItem } from './toil.ts';
 
 export const SOURCE_LABEL: Record<SourceKind, string> = {
   jira: 'Jira',
@@ -12,6 +12,7 @@ export const SOURCE_LABEL: Record<SourceKind, string> = {
   github: 'GitHub',
   bitbucket: 'Bitbucket',
   jenkins: 'Jenkins',
+  openshift: 'OpenShift',
 };
 
 /** `jira-cloud` reads as Jira: the family is what a person recognises. */
@@ -36,7 +37,8 @@ export const dateTime = (iso: string) => `${DATE_TIME.format(new Date(iso))} UTC
 /** A person by name, else by the id the source gave (GitHub gives only a login). */
 export const personText = (p: Person | null) => (p ? (p.name ?? p.id) : 'Unassigned');
 
-export const itemHref = (id: string) => `#/item/${encodeURIComponent(id)}`;
+export const dossierHref = (dossier: string) => `#/dossier/${encodeURIComponent(dossier)}`;
+export const itemHref = (dossier: string, id: string) => `${dossierHref(dossier)}/item/${encodeURIComponent(id)}`;
 
 export const STATUS_CATEGORY_LABEL = { TODO: 'To do', IN_PROGRESS: 'In progress', DONE: 'Done', UNKNOWN: 'Unknown' } as const;
 
