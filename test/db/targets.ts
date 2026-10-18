@@ -30,6 +30,8 @@ export interface DbTarget {
   defaultSchema?: string;
   /** How the engine stores an unquoted name (Oracle upper-cases it). Identity when absent. */
   stored?: (name: string) => string;
+  /** Time limit in ms for each test and its setup and cleanup, for a slow engine (Oracle). Vitest's defaults when absent. */
+  timeout?: number;
   /** A connection key this engine requires, to check the "missing key" error names it. */
   requiredKey: string;
   sql: {
@@ -337,6 +339,8 @@ export const targets: DbTarget[] = [
     engine: 'oracle',
     requiredKey: 'host',
     stored: (name) => name.toUpperCase(),
+    // Creating and dropping a user per test is slow, and a shared CI runner is slower.
+    timeout: 30_000,
     skip: oracle.probe,
     setup: async () => {
       // A fresh user per test: in Oracle a schema is a user.

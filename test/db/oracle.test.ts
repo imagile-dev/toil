@@ -148,14 +148,17 @@ describe('oracle connection settings', () => {
 const target = targets.find((t) => t.engine === 'oracle')!;
 const skip = await target.skip?.();
 
-describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})` : ''}`, () => {
+// Oracle is slow to create and drop a user, and slower still on a shared CI
+// runner (one describe-table test took 6.8 s there): the target's one limit
+// covers every test here and the hooks that create and drop the user.
+describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})` : ''}`, { timeout: target.timeout }, () => {
   let db: TargetDatabase;
   beforeEach(async () => {
     db = await target.setup();
-  });
+  }, target.timeout);
   afterEach(async () => {
     await db.cleanup();
-  });
+  }, target.timeout);
 
   const user = () => ({ name: String(db.settings.user), password: String(db.settings.password) });
   const run = (def: AnyCommand, input: Record<string, unknown>, settings: Settings = db.settings, debug: (m: string) => void = () => {}) => {
@@ -357,10 +360,20 @@ describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})`
     expect(failedDdl.error?.message).toContain('committed statements 1 to 1 of 2');
     expect(await direct('SELECT active FROM people WHERE id = 1')).toEqual([[0]]);
 
-    // A block that commits inside, then a failure: the same.
+    // A PL/SQL block may have committed, and toil can't see whether it did: it never claims a rollback after one.
     const block = await write("UPDATE people SET active = 0 WHERE id = 2; BEGIN COMMIT; END;\n/\nINSERT INTO teams (id, name) VALUES (1, 'Duplicate')");
-    expect(block.error?.message).toContain('committed statements 1 to 2 of 3');
+    expect(block.error?.message).toContain('Some of statements 1 to 3 of 3 may have committed');
+    expect(block.error?.fix).toContain('before running the script again');
     expect(await direct('SELECT active FROM people WHERE id = 2')).toEqual([[0]]);
+
+    // The reviewer's two: a block commits and later DML opens a new transaction; a block commits, then raises.
+    const later = await write('BEGIN UPDATE people SET active = 0 WHERE id = 5; COMMIT; END;\n/\nUPDATE people SET active = 0 WHERE id = 7;\nUPDATE no_such_table SET x = 1');
+    expect(later.error?.message).toContain('Some of statements 1 to 3 of 3 may have committed');
+    expect(later.error?.message).not.toContain('Nothing was applied');
+    expect(await direct('SELECT active FROM people WHERE id IN (5, 7) ORDER BY id')).toEqual([[0], [1]]);
+    const raises = await write("BEGIN UPDATE people SET active = 0 WHERE id = 8; COMMIT; RAISE_APPLICATION_ERROR(-20001, 'after the commit'); END;");
+    expect(raises.error?.message).toContain('Some of statements 1 to 1 of 1 may have committed');
+    expect(await direct('SELECT active FROM people WHERE id = 8')).toEqual([[0]]);
 
     // A DDL statement Oracle refuses while parsing commits nothing, and the error says so.
     const parse = await write('UPDATE people SET active = 0 WHERE id = 4; CREATE TABLEX notes');

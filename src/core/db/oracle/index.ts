@@ -361,14 +361,14 @@ function emptyStatement(): ToilError {
   return new ToilError('INVALID_INPUT', 'The SQL holds no statement, only comments, semicolons or "/" lines.', { fix: 'Pass the statement to run.' });
 }
 
-/** Whether the session has a transaction open: DBMS_TRANSACTION answers null once a commit has ended it. */
-async function transactionOpen(client: OraConnection): Promise<boolean> {
+/** Whether the session has a transaction open: DBMS_TRANSACTION answers null once a commit has ended it. Undefined when it can't tell. */
+async function transactionOpen(client: OraConnection): Promise<boolean | undefined> {
   try {
     const rows = await rowsOf<[string | null]>(client, 'SELECT DBMS_TRANSACTION.LOCAL_TRANSACTION_ID FROM dual', {});
     return rows[0]?.[0] != null;
   } catch {
-    // Can't tell: say nothing was committed rather than claim it was.
-    return true;
+    // Can't tell, and the report must say so.
+    return undefined;
   }
 }
 
@@ -541,41 +541,57 @@ export const oracleProvider: DbProvider = {
         { fix: 'Remove the transaction statements and send the rest; toil commits only if every statement succeeds.' },
       );
     }
-    // Statements 1 to committedThrough are known to be committed; lastChange
-    // is the last statement that changed something (rows, DDL, or a PL/SQL block).
+    // What a failure report may claim. committedThrough: statements 1 to it
+    // are known to be committed (DDL that ran, or a change followed by a
+    // closed transaction). uncertain: something may have committed that toil
+    // can't see (a PL/SQL block ran, the failing one included, or the
+    // transaction check itself failed). Only with neither is the rollback
+    // stated; a wrong "nothing was applied" invites running the script twice.
     let committedThrough = 0;
     let lastChange = 0;
-    let statementFailed = false;
+    let uncertain = false;
+    let failedAt = 0;
     try {
       return await session(conn, 'write', call, async (client) => {
         let changes = 0;
         for (const [i, statement] of statements.entries()) {
+          if (statement.plsql) uncertain = true;
           try {
             const result = await client.execute(statement.text, {}, { resultSet: true });
             await result.resultSet?.close();
             changes += result.rowsAffected ?? 0;
             const ddl = DDL_ON_READ.has(statement.words[0] ?? '');
-            if ((result.rowsAffected ?? 0) > 0 || ddl || statement.plsql) lastChange = i + 1;
+            if ((result.rowsAffected ?? 0) > 0 || ddl) lastChange = i + 1;
             // Oracle commits before and after DDL, so everything up to here is now permanent.
             if (ddl) committedThrough = i + 1;
           } catch (err) {
-            statementFailed = true;
+            failedAt = i + 1;
             // A DDL statement that fails after parsing has already committed
-            // the work before it, and a PL/SQL block can commit inside. When
-            // something before this statement changed data and no transaction
-            // is open now, that change was committed, not rolled back. With
-            // nothing changed, there is nothing to report either way.
-            if (lastChange > committedThrough && !call.signal.aborted && !(await transactionOpen(client))) committedThrough = lastChange;
+            // the work before it. When something before this statement
+            // changed data and no transaction is open now, that change was
+            // committed, not rolled back.
+            if (lastChange > committedThrough && !call.signal.aborted) {
+              const open = await transactionOpen(client);
+              if (open === undefined) uncertain = true;
+              else if (!open) committedThrough = lastChange;
+            }
             throw err;
           }
         }
         return { changes };
       });
     } catch (err) {
-      if (!statementFailed || !(err instanceof ToilError) || err.code === 'CANCELLED' || err.code === 'TIMEOUT') throw err;
+      if (failedAt === 0 || !(err instanceof ToilError) || err.code === 'CANCELLED' || err.code === 'TIMEOUT') throw err;
+      const total = statements.length;
+      if (uncertain) {
+        const known = committedThrough > 0 ? ` Statements 1 to ${committedThrough} are known to be committed.` : '';
+        throw new ToilError(err.code, `${err.message} Some of statements 1 to ${failedAt} of ${total} may have committed: a PL/SQL block can commit inside, and toil can't tell whether one did.${known}`, {
+          fix: `${err.fix ? `${err.fix} ` : ''}Check what statements 1 to ${failedAt} changed before running the script again.`,
+        });
+      }
       if (committedThrough === 0) throw new ToilError(err.code, `${err.message} Nothing was applied: the transaction rolled back.`, err.fix ? { fix: err.fix } : {});
-      throw new ToilError(err.code, `${err.message} Oracle committed statements 1 to ${committedThrough} of ${statements.length} as the script ran (DDL commits, and so can PL/SQL), so they stay applied.`, {
-        ...(err.fix ? { fix: `${err.fix} Check what statements 1 to ${committedThrough} changed before running the script again.` } : {}),
+      throw new ToilError(err.code, `${err.message} Oracle committed statements 1 to ${committedThrough} of ${total} as the script ran (DDL commits), so they stay applied.`, {
+        fix: `${err.fix ? `${err.fix} ` : ''}Check what statements 1 to ${committedThrough} changed before running the script again.`,
       });
     }
   },

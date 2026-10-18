@@ -22,16 +22,16 @@ type Data = { columns: Array<{ name: string; type: string | null }>; rows: Row[]
 
 for (const target of targets) {
   const skip = await target.skip?.();
-  describe.skipIf(skip !== undefined)(`db conformance: ${target.name ?? target.engine}${skip ? ` (skipped: ${skip})` : ''}`, () => {
+  describe.skipIf(skip !== undefined)(`db conformance: ${target.name ?? target.engine}${skip ? ` (skipped: ${skip})` : ''}`, { timeout: target.timeout }, () => {
     let db: TargetDatabase;
     // MySQL's default schema is the connection's database, so it's known only once the database is.
     const schema = () => (db.schema ?? target.defaultSchema)!;
     beforeEach(async () => {
       db = await target.setup();
-    });
+    }, target.timeout);
     afterEach(async () => {
       await db.cleanup();
-    });
+    }, target.timeout);
 
     const run = (def: AnyCommand, input: Record<string, unknown>, opts: { writes?: boolean; settings?: Settings; signal?: AbortSignal; timeoutMs?: number } = {}): Promise<Envelope> => {
       const settings = { ...(opts.settings ?? db.settings), ...(opts.writes ? { writes: true } : {}) };
