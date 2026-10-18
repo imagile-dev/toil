@@ -107,7 +107,7 @@ classify, a file it couldn't read) is counted and reported in `data` and
 | YAML | `kit/yaml.ts` | js-yaml, YAML 1.2 core schema (no timestamps), duplicate keys refused, one document, and aliases may add at most 1,000,000 values beyond the document as written (`INVALID_INPUT` past it, so a "billion laughs" document is refused; a document without aliases is held only by the input cap). Errors give line and column, never the text. Lazy only |
 | JSON Schema | `kit/json-schema.ts` | @cfworker/json-schema, drafts 4, 7, 2019-09 and 2020-12, chosen from `$schema`. Problems by JSON pointer, deepest first, capped. For ADF, OpenAPI and generated examples. Lazy only |
 | Secrets | `src/core/secret-shapes.ts` | toil's one definition of a secret. The audit log redacts with `redactText`; `findSecrets(text)` returns each secret's rule and position (the secret alone, never the name around it), from the same rules |
-| Versions | `src/core/versions.ts` | The comparison `artifactory outdated` and `util deps diff` use, exactly as recorded. An ecosystem's own grammar goes beside it, not in place of it |
+| Versions | `src/core/versions.ts` | The comparison `artifactory outdated` and `util deps diff` use, exactly as recorded, and beside it each ecosystem's own grammar: `grammarFor(ecosystem)` loads npm's, NuGet's or Maven's (`src/core/versions/`, lazily) with parse, compare, ranges, bump and the intervals a range covers. `util semver` is built on it; use it rather than a second comparison |
 
 Folder walking is `ctx.files.list(dir)`: what `git ls-files --cached --others
 --exclude-standard` would list, `.gitignore` respected, with `stat` for sizes. There's
