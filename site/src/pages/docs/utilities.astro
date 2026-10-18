@@ -136,7 +136,8 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
             A known false positive goes in <code>.toil/secrets-allow</code> by its fingerprint, which names the value without revealing it,
             so the file is safe to check in. Every finding is read again at the position reported to confirm it, and files it couldn't read
             (binary, too large, no permission) are listed rather than skipped.
-
+          </p>
+        </section>
 
         <section data-reveal>
           <h2>Comparing versions</h2>
