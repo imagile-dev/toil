@@ -1,0 +1,58 @@
+---
+// Every command of one group, as the registry describes it: its path, MCP
+// tool, flags and aliases, from data/commands/<group>.json, which
+// test/site-commands.test.ts writes. Generated reference, so it sits under a
+// page's rendered skill file without being a second copy of it.
+interface Props {
+  group: string;
+}
+type SiteCommand = { name: string; tool: string | null; description: string; writes: boolean; connection: boolean; flags: string[]; aliases?: string[] };
+const files = import.meta.glob<SiteCommand[]>('../data/commands/*.json', { eager: true, import: 'default' });
+const { group } = Astro.props;
+const list = files[`../data/commands/${group}.json`] ?? [];
+---
+
+{list.length > 0 && (
+  <section class="index" id="commands-at-a-glance">
+    <h2>Commands at a glance</h2>
+    <ul class="cmds">
+      {list.map((c) => (
+        <li class="cmd">
+          <div class="cmd__head">
+            <code class="cmd__name">toil {group} {c.name}</code>
+            {c.writes && <span class="tag tag--write">write</span>}
+            {c.tool === null && <span class="tag">CLI only</span>}
+            {c.aliases?.map((alias) => <span class="cmd__alias">also <code>toil {alias}</code></span>)}
+          </div>
+          <p class="cmd__desc">{c.description}</p>
+          <p class="cmd__meta">
+            {c.tool !== null && <span class="cmd__tool">MCP <code>{c.tool}</code></span>}
+            {c.flags.map((f) => <code class="cmd__flag">{f}</code>)}
+          </p>
+        </li>
+      ))}
+    </ul>
+  </section>
+)}
+
+<style>
+  .index { border-top: 1px solid var(--color-line); padding-top: var(--space-md); }
+  .index h2 { font-size: var(--text-2xl); margin-bottom: var(--space-sm); scroll-margin-top: 88px; }
+  .cmds { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-xs); }
+  .cmd { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-sm); min-width: 0; }
+  .cmd__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+  .cmd__name { color: var(--color-accent); font-size: var(--text-sm); overflow-wrap: anywhere; }
+  .cmd__alias { font-size: var(--text-sm); color: var(--color-faint); }
+  .cmd__alias code { color: var(--color-muted); }
+  .cmd__desc { margin-top: 0.3rem; font-size: var(--text-sm); color: var(--color-muted); }
+  .cmd__meta { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem; }
+  .cmd__meta code { font-size: 0.72rem; overflow-wrap: anywhere; }
+  .cmd__tool { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-faint); margin-right: 0.35rem; }
+  .cmd__tool code { text-transform: none; letter-spacing: 0; color: var(--color-ink); }
+  .cmd__flag { border: 1px solid var(--color-line); border-radius: 4px; padding: 0 0.3rem; color: var(--color-muted); }
+  .tag {
+    font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+    border-radius: 999px; padding: 0.05rem 0.45rem; border: 1px solid var(--color-line-strong); color: var(--color-muted);
+  }
+  .tag--write { border-color: color-mix(in oklab, var(--color-accent) 50%, transparent); color: var(--color-accent); }
+</style>

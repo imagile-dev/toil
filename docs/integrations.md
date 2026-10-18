@@ -10,9 +10,9 @@ The enterprise services toil covers. Each one is its own command area
 Each integration has one file, `site/src/data/integrations/<area>.json`: its service,
 what it covers, its credential and where to make it, its status (its verification
 level), and the oldest server version it supports. The site's
-[integrations board](https://imagile-dev.github.io/toil/integrations/) and each
-integration's docs page are built from those files, so there is no table here to keep
-in step. One file per area means an integration changes only its own row.
+[integrations board](https://imagile-dev.github.io/toil/integrations/) is built from
+those files, and each integration's docs page is its `skills/toil/<area>.md`, rendered,
+with that file's facts beside it, so there is no table here to keep in step. One file per area means an integration changes only its own row.
 
 | Key | Meaning |
 |-----|---------|

@@ -45,6 +45,42 @@ the same flags and output:
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
 
+## By job
+
+The same commands, grouped by what you need them for.
+
+### Reading CI output
+
+What a build or a scanner leaves behind, turned into something short enough to read: totals and failures from a report, and the errors that matter from a log thousands of lines long.
+
+- **Summarising a report** (`toil util report`): Turns what CI and scanners write into one JSON summary. JUnit XML (Maven Surefire, Jenkins and Azure DevOps shapes) and TRX become test totals plus each failure with its suite, name, file, line, message and the first lines of its stack. SARIF 2.1.0 becomes findings with rule, level, file and line. lcov and Cobertura become per-file line and branch percentages and the lowest-covered files.
+- **Triaging a log** (`toil util log`): Reads a CI console, a Maven, npm or dotnet build, or a test run, and returns what's worth reading: the error and warning lines grouped by signature, with numbers, ids, timestamps and hex replaced so the same complaint counts once. Each group has its count, its first and last line, one sample, and the Java, .NET, Node or Python stack trace that belongs to it.
+
+### Writing for the tools
+
+Getting text into the shape an enterprise tool expects before it's sent, so a description, a page or a request arrives the way it was meant.
+
+- **Converting Markdown** (`toil util md`): Turns Markdown into Jira wiki markup (Jira Data Center), Atlassian Document Format (Jira Cloud and Confluence Cloud) or Confluence storage format (Confluence Data Center), and any of those back into Markdown.
+- **Reading an OpenAPI document** (`toil util openapi list`, `toil util openapi show`, `toil util openapi example`): Reads an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, so an agent calls an endpoint right the first time: `list` gives every operation, `show` lays one out with each parameter and where it goes, its request and response bodies with `$ref`s expanded, and the exact inputs for `toil <area> api`, and `example` builds the smallest body its schema accepts.
+
+### Safety
+
+Checks to run before something leaves the machine or gets trusted: a secret in a diff, a certificate chain that won't validate, a token's claims, and the dependencies a repository ships.
+
+- **Scanning for secrets** (`toil util secrets scan`): Looks for credential-shaped strings before you commit, push or post them: tokens, keys, `password=` values, credentials in URLs, private keys and long random strings. It uses the same rules toil's audit log redacts with, plus an entropy check, and exits with 1 when it finds anything, so a hook or a pipeline can stop on it.
+- **Decoding certificates** (`toil util cert`): Decodes a certificate or a chain bundle, PEM or DER: subject, issuer, SANs, serial, how many days it has left, its key, its signature algorithm, its basic constraints and key usage, and its fingerprints, so a TLS failure can be explained from the files. It never connects to the host.
+- **Decoding a JWT** (`toil util jwt decode`): Shows a token's header and claims, so you can see who it's for, what it grants and when it expires.
+- **Inventorying dependencies** (`toil util deps scan`, `toil util deps diff`): `deps scan` lists every package the workspace's npm, NuGet and Maven/Gradle manifests and lockfiles declare, with its version, the file it came from, and whether it's direct or transitive, production or dev. That inventory is what the vulnerability and licence commands read, one source per command, so you choose which service sees your dependency list. `deps diff` lists what was added, removed, upgraded or downgraded between two git refs.
+
+### Arithmetic models get wrong
+
+Work that looks simple and is easy to get subtly wrong by reasoning alone: time zones and DST, version ordering, encodings and hashes, and how big a file is before reading it. Each one works the answer out, then checks it a second way.
+
+- **Time zones, durations, business days and cron** (`toil util time convert`, `toil util time duration`, `toil util time business-days add`, `toil util time business-days diff`, `toil util time cron`): Date arithmetic on the time zone data Node already ships: convert a time between zones, read or write an ISO 8601 duration, add or count business days, and list a cron schedule's next run times.
+- **Comparing versions** (`toil util semver compare`, `toil util semver satisfies`, `toil util semver sort`, `toil util semver bump`): Compare, sort and bump versions, and check them against ranges, in the grammar of the ecosystem they come from: npm (SemVer 2.0.0 and npm's ranges, the default), NuGet (up to four parts, interval notation) or Maven (Maven's own ordering, where `1.0.0.Final` is `1` and `SNAPSHOT` comes before the release).
+- **Encoding, decoding and hashing** (`toil util encode`): Base64, base64url, hex, URL components and form values, in either direction, and a file's SHA-256, SHA-1 or MD5 hash.
+- **Sizing before reading** (`toil util size`): Tells an agent how much a file or folder will cost to read. For a file it gives bytes, lines, an estimated token count, and an outline: functions, classes and methods with their line ranges for TypeScript, JavaScript, Python, C#, Java and Go, headings for Markdown, and top-level keys for JSON and YAML, so the agent reads only the lines it needs. For a folder it gives a tree of totals, largest first, and names the largest files.
+
 ## Commands
 
 ### `toil util jwt decode`

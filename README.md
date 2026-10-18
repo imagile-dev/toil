@@ -79,11 +79,21 @@ with a connection set up. [`skills/toil/mcp.md`](skills/toil/mcp.md) covers VS C
 the rest.
 
 **The toil skill.** [`skills/toil/`](skills/toil/SKILL.md) is toil's command
-reference for agents, in the Agent Skills format. In Claude Code, the clone is a plugin
-marketplace: `claude plugin marketplace add /path/to/toil`, then
-`claude plugin install toil@toil`. For Codex, GitHub Copilot and anything else that
-reads `.agents/skills`, copy `skills/toil` to `.agents/skills/toil` in a repository.
-[`skills/toil/install.md`](skills/toil/install.md) has the other options.
+reference for agents, in the Agent Skills format, and the site's docs are the same
+files rendered. toil carries it inside itself and installs it for your agent:
+
+```bash
+toil skill install --allow-write                  # ~/.agents/skills/toil: Codex, GitHub Copilot
+toil skill install --claude --allow-write         # ~/.claude/skills/toil: Claude Code
+toil skill install --agent github-copilot --scope project --allow-write
+```
+
+The installed copy names the areas you have connections for and keeps itself
+current, so there is nothing to update by hand. `skill` is newer than the committed
+bundle, so until the next release run it from a bundle you built (above). In Claude
+Code the clone is also a plugin marketplace: `claude plugin marketplace add
+/path/to/toil`, then `claude plugin install toil@toil`.
+[`skills/toil/install.md`](skills/toil/install.md) has the rest.
 
 ## What it does
 

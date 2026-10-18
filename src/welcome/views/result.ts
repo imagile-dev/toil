@@ -21,7 +21,7 @@ export function outcome(result: StepResult): { good: boolean; text: string; fix?
   const [area, verb] = result.args;
   const name = String(d.name ?? '');
   const text =
-    area === 'skills'
+    area === 'skills' || area === 'skill'
       ? skillsOutcome(result)
       : verb === 'test'
       ? d.live

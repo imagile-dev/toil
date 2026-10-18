@@ -121,6 +121,7 @@ function screens(): Array<{ id: string; caption: string; state: MenuState }> {
     { id: 'added', caption: 'Every step shows the plain command it ran, and what came back.', state: added },
     { id: 'connection', caption: "One connection's actions; a rejected sign-in comes with its fix.", state: keys(home, '1') },
     { id: 'agent', caption: 'Pick the areas an agent should see, and copy its config snippet.', state: keys(home, '4', '1', 'down', 'down', 'down', 'down', 'space', 'return') },
+    { id: 'agent-skills', caption: 'Agent skills: skill plugins from marketplaces, what is installed, and the toil skill.', state: keys(home, '5') },
   ];
 }
 

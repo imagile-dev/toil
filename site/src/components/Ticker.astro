@@ -9,7 +9,7 @@ import { groups } from '../data/integrations';
 const names = groups.flatMap((g) => g.items.map((i) => i.name));
 ---
 
-<div class="ticker" aria-label="Planned integrations">
+<div class="ticker" aria-label="Integrations">
   <div class="ticker__track">
     <ul>{names.map((n) => <li>{n}</li>)}</ul>
     <ul aria-hidden="true">{names.map((n) => <li>{n}</li>)}</ul>
