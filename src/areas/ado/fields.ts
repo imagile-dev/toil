@@ -21,7 +21,7 @@ export interface WorkItemJsonInput {
   fields?: Record<string, unknown>;
 }
 
-/** Friendly name to reference name for the most common fields; also what `work fields --save` would record. */
+/** Friendly name to reference name for the most common fields, applied under the connection's own `fieldAliases`. */
 export const ADO_FIELD_ALIAS_CANDIDATES: Array<[string, string]> = [
   ['title', 'System.Title'],
   ['state', 'System.State'],
@@ -47,12 +47,6 @@ export const ADO_FIELD_ALIAS_CANDIDATES: Array<[string, string]> = [
 
 const DEFAULT_ALIASES: Record<string, string> = Object.fromEntries(ADO_FIELD_ALIAS_CANDIDATES);
 
-/** The default aliases whose reference names are among `referenceNames`, as `work fields --save` built them. */
-export function buildDefaultAliases(referenceNames: Iterable<string>): Record<string, string> {
-  const known = new Set(referenceNames);
-  return Object.fromEntries(ADO_FIELD_ALIAS_CANDIDATES.filter(([, ref]) => known.has(ref)));
-}
-
 const stripSeparators = (s: string): string => s.toLowerCase().replace(/[\s-]+/g, '');
 
 /**
@@ -70,8 +64,8 @@ export function parseFieldArgs(fields: readonly string[]): Record<string, string
 }
 
 /**
- * JSON Patch `add` ops for a field record. A key resolves through the saved
- * aliases over the built-in ones: as typed, lower-cased, then ignoring case,
+ * JSON Patch `add` ops for a field record. A key resolves through the
+ * connection's `fieldAliases` over the built-in ones: as typed, lower-cased, then ignoring case,
  * spaces and dashes. A key that matches none is sent as a reference name.
  */
 export function buildFieldPatch(fields: Record<string, unknown>, fieldAliases: Record<string, string> = {}): JsonPatchOp[] {

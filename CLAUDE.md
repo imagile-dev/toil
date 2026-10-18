@@ -245,8 +245,9 @@ is a flag on the area's group (`toil github --owner o get-pr`, accepted before o
 after the leaf) and a field on every one of its MCP tools, and a `command` input
 belongs to the commands that list it in their own `context`, which also marks any
 input `required`. Core resolves each in one order: the call's own value, then the
-dossier (empty until #16), then the git remote where the area declares how to read
-it (no reader is wired into the CLI yet; the git reader supplies one), then the
+dossier (empty until #16), then the git remotes where the area declares how to read
+them (`origin` first, then the others; the first one on the connection's host that
+the area's parser accepts), then the
 connection's `setting`, then the area's `default`. A command that reads one from a
 file the call named (an `--input-file`) reports it with `ctx.supply`, which ranks
 it just below the call's own value. An input with `selectsConnection`
@@ -374,7 +375,8 @@ All seven pass before a PR opens. CI runs them on Windows, macOS and Linux, on N
 and 26. Its `CI ok` job passes only when every one of those passed, and it's the one
 check `main`'s ruleset requires, so nothing merges on a red gate. Other checks stay
 optional: the review job (approval is required separately, and it skips the release
-PR) and path-filtered jobs, which would block PRs they never run on.
+PR), the skill-install job (it downloads Claude Code to install the skill on each OS),
+and path-filtered jobs, which would block PRs they never run on.
 
 ## Output Contract
 

@@ -114,7 +114,7 @@ describe('query', () => {
     const { envelope } = await run(queryCommand, { repository: 'imagile-app', query: 'count(' }, [
       { method: 'POST', url: /.*/, respond: { status: 400, text: 'Unexpected end of input at 1:7' } },
     ]);
-    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'HTTP 400: Unexpected end of input at 1:7' });
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'HTTP 400 Bad Request: Unexpected end of input at 1:7' });
   });
 
   it('a 401 is AUTH with where to make a personal API token and the env var', async () => {

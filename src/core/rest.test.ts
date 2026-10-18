@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { fakeFetch, type Route } from '../../test/harness/fake-fetch.js';
 import { ToilError } from './errors.js';
 import { redactUrl } from './http.js';
-import { buildUrl, errorMessageFrom, MAX_REDIRECTS, MAX_TEXT_REASON, textReasonFrom, parseRetryAfter, repointUrl, restRequest, restResponse } from './rest.js';
+import { buildUrl, errorMessageFrom, MAX_REDIRECTS, MAX_TEXT_REASON, textReasonFrom, parseRetryAfter, repointUrl, restRequest, restResponse, statusLine } from './rest.js';
 
 const opts = { service: 'Jira', authFix: 'Make a new token.' };
 const ctxWith = (routes: Route[], fetchImpl?: typeof fetch) => {
@@ -32,6 +32,21 @@ describe('buildUrl', () => {
 
   it('leaves an encoded comma in the path alone', () => {
     expect(buildUrl('https://jira.imagile.dev', '/a%2Cb')).toBe('https://jira.imagile.dev/a%2Cb');
+  });
+});
+
+describe('statusLine', () => {
+  it("carries the server's reason phrase, else the standard one, else the bare status", () => {
+    expect(statusLine(503, 'Down for maintenance')).toBe('HTTP 503 Down for maintenance');
+    expect(statusLine(503, '')).toBe('HTTP 503 Service Unavailable');
+    expect(statusLine(599)).toBe('HTTP 599');
+  });
+
+  it("puts the response's own statusText in an error with no body, and on a response read as an answer", async () => {
+    const answer = () => Promise.resolve(new Response('', { status: 503, statusText: 'Down for maintenance' }));
+    const { ctx } = ctxWith([], answer);
+    expect(await failure(restRequest(ctx, 'https://jira.imagile.dev/x', {}, opts))).toMatchObject({ code: 'HTTP', message: 'HTTP 503 Down for maintenance' });
+    expect(await restResponse(ctx, 'https://jira.imagile.dev/x', {}, { ...opts, as: 'text', accept: [503] })).toMatchObject({ status: 503, statusText: 'Down for maintenance' });
   });
 });
 
@@ -100,9 +115,9 @@ describe('restRequest', () => {
       fix: 'Make a new token.',
       details: { status: 401 },
     });
-    expect(await failure(restRequest(ctx, `${url}/403`, {}, opts))).toMatchObject({ code: 'AUTH', message: 'HTTP 403' });
+    expect(await failure(restRequest(ctx, `${url}/403`, {}, opts))).toMatchObject({ code: 'AUTH', message: 'HTTP 403 Forbidden' });
     // A plain-text body is the message's detail, after the status; code and status don't change.
-    expect(await failure(restRequest(ctx, `${url}/text`, {}, opts))).toMatchObject({ code: 'HTTP', message: 'HTTP 400: Syntax error: unexpected end of query', details: { status: 400 } });
+    expect(await failure(restRequest(ctx, `${url}/text`, {}, opts))).toMatchObject({ code: 'HTTP', message: 'HTTP 400 Bad Request: Syntax error: unexpected end of query', details: { status: 400 } });
     expect(await failure(restRequest(ctx, `${url}/404`, {}, opts))).toMatchObject({ code: 'NOT_FOUND', message: 'Issue Does Not Exist' });
     expect(await failure(restRequest(ctx, `${url}/400`, {}, opts))).toMatchObject({ code: 'HTTP', message: 'customfield_10016: Number required' });
   });
@@ -143,13 +158,13 @@ describe('restRequest', () => {
       details: { cause: 'ENOTFOUND' },
     });
     expect((await failure(restRequest(ctxWith([], reject(tls)).ctx, url, {}, opts))).fix).toContain('NODE_EXTRA_CA_CERTS');
-    // baseUrl is named only when it's the host that failed.
+    // The fix names the setting the host came from; with none known, baseUrl, as before.
     expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, opts))).fix).toMatch(/^Check baseUrl, and that this machine can reach https:\/\/jira\.imagile\.dev /);
-    expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, baseUrl: 'https://jira.imagile.dev/jira' }))).fix).toMatch(/^Check baseUrl,/);
-    const platform = await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, baseUrl: 'https://other.imagile.dev' }));
-    expect(platform.fix).toMatch(/^Check the connection's URL settings, and that this machine can reach https:\/\/jira\.imagile\.dev /);
+    expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, urlKey: 'baseUrl' }))).fix).toMatch(/^Check baseUrl,/);
+    const platform = await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, urlKey: 'platformUrl' }));
+    expect(platform.fix).toMatch(/^Check platformUrl, and that this machine can reach https:\/\/jira\.imagile\.dev /);
     expect(platform).toMatchObject({ code: 'NETWORK', details: { cause: 'ENOTFOUND' } });
-    expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, baseUrl: null }))).fix).toMatch(/^Check the connection's URL settings,/);
+    expect((await failure(restRequest(ctxWith([], reject(dns)).ctx, url, {}, { ...opts, urlKey: null }))).fix).toMatch(/^Check the connection's URL,/);
   });
 
   it('says so when a 200 is not JSON, as a sign-in page would be', async () => {

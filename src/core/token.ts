@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { ToilError } from './errors.js';
 import { redactUrl } from './http.js';
-import { restRequest, type RestContext } from './rest.js';
+import { restRequest, statusLine, type RestContext } from './rest.js';
 
 /**
  * Exchanging a long-lived credential for a short-lived token over plain HTTP
@@ -164,8 +164,8 @@ async function post(ctx: ExchangeContext, exchange: TokenExchange): Promise<unkn
     if (typeof status !== 'number' || status < 400) throw err;
     // 400 is how OAuth-style endpoints say "invalid_grant": the credential, not the request.
     const rejected = status === 400 || status === 401 || status === 403;
-    const reason = /^HTTP \d/.test(err.message) ? '' : `: ${err.message}`;
-    throw new ToilError(rejected ? 'AUTH' : 'HTTP', `${ctx.service} token exchange at ${redactUrl(exchange.url)} failed with HTTP ${status}${reason}`, {
+    const reason = /^HTTP \d/.test(err.message) ? err.message : `${statusLine(status)}: ${err.message}`;
+    throw new ToilError(rejected ? 'AUTH' : 'HTTP', `${ctx.service} token exchange at ${redactUrl(exchange.url)} failed with ${reason}`, {
       fix: rejected ? ctx.authFix : (err.fix ?? `Try again; if it keeps failing, check ${ctx.service} itself.`),
       details: { status, url: redactUrl(exchange.url) },
     });

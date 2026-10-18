@@ -1,6 +1,6 @@
 import type { CommandContext } from '../../core/context.js';
 import { ToilError } from '../../core/errors.js';
-import { restResponse } from '../../core/rest.js';
+import { restResponse, statusLine } from '../../core/rest.js';
 import { REQUEST_TIMEOUT_MS } from './inventory.js';
 
 /**
@@ -68,6 +68,6 @@ export async function probe(ctx: PublicContext, req: PublicPost): Promise<{ reac
   } catch (err) {
     if (ctx.signal.aborted) throw err;
     const status = statusOf(err);
-    return { reachable: false, reason: status !== undefined ? `HTTP ${status}` : err instanceof Error ? err.message : String(err) };
+    return { reachable: false, reason: status !== undefined ? statusLine(status) : err instanceof Error ? err.message : String(err) };
   }
 }
