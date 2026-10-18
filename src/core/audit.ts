@@ -58,6 +58,8 @@ export interface AuditEntry {
   requests: Array<{ method: string; url: string; status: number | null }>;
   /** Present when there were more requests than a line keeps. */
   requestsOmitted?: number;
+  /** Present when the line was too long for one write, so input and requests were left out to fit. */
+  truncated?: true;
 }
 
 /** Where the log lives and how it's set; the one view of it commands get, through `ctx.manage.audit`. */
@@ -113,6 +115,8 @@ export function redactText(text: string): string {
   let out = text.replace(URL_IN_TEXT, (url) => redactUrl(url));
   for (const shape of TOKEN_SHAPES) out = out.replace(shape, '[redacted]');
   out = out.replace(AUTH_VALUE, (_, scheme: string) => `${scheme} [redacted]`);
+  out = out.replace(PAIR, (whole, name: string, sep: string) => (secretField(name) ? `${name}${sep}[redacted]` : whole));
+  out = out.replace(USER_FLAG, (_, flag: string, user: string) => `${flag}${user}:[redacted]`);
   return out.replace(LONG_RUN, (run) => {
     if (!/[A-Za-z]/.test(run) || !/\d/.test(run)) return run;
     if (/^[0-9a-f]+$/i.test(run) && (run.length === 40 || run.length === 64)) return run;
@@ -121,19 +125,38 @@ export function redactText(text: string): string {
 }
 
 /**
- * Whether an input field's name says it holds a secret: `--verbose`'s rule
- * for query parameters, except a bare `key`, which in toil's inputs is an
- * issue, space or project key. A real key passed there is still caught by
- * its shape.
+ * Names the audit log treats as sensitive beyond `--verbose`'s rule, compared
+ * lowercased with `-`, `_` and `.` removed: anything with authorization,
+ * passphrase, cookie, session, credential or private in it, and `auth` or
+ * `pat` alone or at the end (`basicAuth`, `gitlabPat`). `author` stays.
+ */
+const SENSITIVE_PART = /authorization|passphrase|cookie|session|credential|private/;
+const SENSITIVE_END = /(?:auth|pat)$/;
+
+/**
+ * Whether a name says its value is a secret: `--verbose`'s rule for query
+ * parameters plus the names above, except a bare `key`, which in toil's
+ * inputs is an issue, space or project key. A real key passed there is still
+ * caught by its shape.
  */
 function secretField(name: string): boolean {
-  return name.toLowerCase() !== 'key' && isSecretParam(name);
+  const n = name.toLowerCase().replace(/[-_.\s]/g, '');
+  if (n === 'key') return false;
+  return isSecretParam(name) || SENSITIVE_PART.test(n) || SENSITIVE_END.test(n);
 }
+
+/** A name's value is replaced only when it could hold a secret: text, or something holding text. A flag such as `private: true` stays. */
+const hidesValue = (name: string, value: unknown) => secretField(name) && (typeof value === 'string' ? value !== '' : value !== null && typeof value === 'object');
+
+/** `password=hunter2`, `Password: "x"`, `Authorization: Bearer abc` inside text: the name stays, the value goes. */
+const PAIR = /([A-Za-z_][\w.-]*)(\s*[=:]\s*)((?:(?:Bearer|Basic|Token)\s+)?(?:"[^"]*"|'[^']*'|[^\s;&,"']+))/g;
+/** `curl -u admin:hunter2`, `--user admin:hunter2`. */
+const USER_FLAG = /((?:^|\s)(?:-u|--user)\s+)([^\s:]+):\S+/g;
+const cut = (text: string) => (text.length > MAX_STRING ? `${text.slice(0, MAX_STRING)}…` : text);
 
 function redactValue(value: unknown, depth: number): unknown {
   if (typeof value === 'string') {
-    const redacted = redactText(value);
-    return redacted.length > MAX_STRING ? `${redacted.slice(0, MAX_STRING)}…` : redacted;
+    return cut(redactText(value));
   }
   if (value === null || typeof value !== 'object') return typeof value === 'bigint' ? String(value) : value;
   if (depth >= MAX_DEPTH) return '[nested too deep]';
@@ -143,7 +166,7 @@ function redactValue(value: unknown, depth: number): unknown {
     return items;
   }
   const out: Record<string, unknown> = {};
-  for (const [name, v] of Object.entries(value)) out[name] = secretField(name) && v !== undefined && v !== null && v !== '' ? '[redacted]' : redactValue(v, depth + 1);
+  for (const [name, v] of Object.entries(value)) out[name] = hidesValue(name, v) ? '[redacted]' : redactValue(v, depth + 1);
   return out;
 }
 
@@ -158,7 +181,7 @@ export function auditInput(def: AnyCommand, input: unknown): unknown {
       out[name] = `sha256:${createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value)).digest('hex')}`;
       continue;
     }
-    out[name] = secretField(name) && value !== undefined && value !== null && value !== '' ? '[redacted]' : redactValue(value, 1);
+    out[name] = hidesValue(name, value) ? '[redacted]' : redactValue(value, 1);
   }
   return out;
 }
@@ -167,7 +190,7 @@ export function auditInput(def: AnyCommand, input: unknown): unknown {
 export function auditEntry(o: { def: AnyCommand; input: unknown; via: FrontDoor; writes: boolean; requests: readonly RequestLog[]; envelope: Envelope; now?: Date }): AuditEntry {
   const now = o.now ?? new Date();
   const { envelope } = o;
-  const requests = o.requests.slice(0, MAX_REQUESTS).map((r) => ({ method: r.method, url: redactText(r.url), status: r.status }));
+  const requests = o.requests.slice(0, MAX_REQUESTS).map((r) => ({ method: r.method, url: cut(redactText(r.url)), status: r.status }));
   const raw = o.input !== null && typeof o.input === 'object' ? (o.input as Record<string, unknown>) : {};
   return {
     time: new Date(now.getTime() - envelope.meta.durationMs).toISOString(),
@@ -189,7 +212,12 @@ export function auditEntry(o: { def: AnyCommand; input: unknown; via: FrontDoor;
 export function auditLine(entry: AuditEntry): string {
   const line = `${JSON.stringify(entry)}\n`;
   if (Buffer.byteLength(line) <= MAX_LINE) return line;
-  return `${JSON.stringify({ ...entry, input: null, requests: entry.requests.slice(0, 10), requestsOmitted: entry.requests.length - Math.min(10, entry.requests.length) + (entry.requestsOmitted ?? 0) })}\n`;
+  // Too long for one write: keep who, what and how it ended, and say what was left out.
+  const omitted = entry.requests.length + (entry.requestsOmitted ?? 0);
+  const trimmed: AuditEntry = { ...entry, command: cut(entry.command), connection: entry.connection && cut(entry.connection), outcome: cut(entry.outcome), input: null, requests: [], truncated: true };
+  if (omitted > 0) trimmed.requestsOmitted = omitted;
+  else delete trimmed.requestsOmitted;
+  return `${JSON.stringify(trimmed)}\n`;
 }
 
 /** Parses one line back, or undefined for a line that isn't an entry (a crash halfway through a write). */

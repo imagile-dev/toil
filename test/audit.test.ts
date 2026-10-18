@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { buildSync } from 'esbuild';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { auditCommands } from '../src/audit/commands.js';
-import { auditInput, auditLine, fileAuditLog, parseAuditSettings, redactText, type AuditEntry, type AuditLog } from '../src/core/audit.js';
+import { auditEntry, auditInput, auditLine, fileAuditLog, parseAuditSettings, redactText, type AuditEntry, type AuditLog } from '../src/core/audit.js';
 import { areaOf, commandName, toolName, type AnyCommand } from '../src/core/command.js';
 import { loadConfig } from '../src/core/config.js';
 import { execute } from '../src/core/run.js';
@@ -75,6 +75,58 @@ describe('redaction', () => {
     expect('fields' in out).toBe(false);
     expect(out).toMatchObject({ token: '[redacted]', apiKey: '[redacted]', key: 'PROJ-1', nested: { password: '[redacted]', list: ['ok'] } });
     expect(String(out.long)).toHaveLength(501);
+  });
+
+  it("catches the reviewer's credential names and name=value pairs inside text, and keeps author and flags", () => {
+    const out = auditInput(getThing, {
+      auth: 'user:pass',
+      nested: { authorization: 'Bearer abc' },
+      pat: 'shortpat',
+      passphrase: 'pp',
+      cookie: 'JSESSIONID=abc',
+      sessionId: 's1',
+      privateKey: 'pk',
+      gitlabPat: 'x',
+      connectionString: 'Server=h;User Id=u;Password=hunter2;',
+      command: 'curl -u admin:hunter2 https://jira.imagile.dev/',
+      header: 'Authorization: Bearer abc',
+      note: 'token=abc and secret: "s e" and api_key=k1',
+      author: 'alice',
+      private: true,
+      jql: 'key = PROJ-1 AND author = alice',
+    }) as Record<string, unknown>;
+    expect(out).toEqual({
+      auth: '[redacted]',
+      nested: { authorization: '[redacted]' },
+      pat: '[redacted]',
+      passphrase: '[redacted]',
+      cookie: '[redacted]',
+      sessionId: '[redacted]',
+      privateKey: '[redacted]',
+      gitlabPat: '[redacted]',
+      connectionString: 'Server=h;User Id=u;Password=[redacted];',
+      command: 'curl -u admin:[redacted] https://jira.imagile.dev/',
+      header: 'Authorization: [redacted]',
+      note: 'token=[redacted] and secret: [redacted] and api_key=[redacted]',
+      author: 'alice',
+      private: true,
+      jql: 'key = PROJ-1 AND author = alice',
+    });
+    expect(JSON.stringify(out)).not.toMatch(/hunter2|shortpat|JSESSIONID|Bearer abc/);
+  });
+
+  it('cuts every request URL, and a line too long for one write is trimmed hard and marked truncated', () => {
+    const longUrl = `https://jira.imagile.dev/rest/api/2/search?jql=${'project%20in%20(PAY)%20OR%20'.repeat(2000)}`;
+    const built = auditEntry({ def: getThing, input: {}, via: 'cli', writes: false, requests: Array.from({ length: 150 }, () => ({ method: 'GET', url: longUrl, status: 200, durationMs: 1 })), envelope: { ok: true, data: null, error: null, meta: { command: 'demo get-thing', durationMs: 1, version: 'x' } } });
+    expect(built.requests).toHaveLength(100);
+    expect(built.requestsOmitted).toBe(50);
+    for (const r of built.requests) expect(r.url.length).toBeLessThanOrEqual(501);
+    expect(Buffer.byteLength(auditLine(built))).toBeLessThanOrEqual(64 * 1024);
+    // Built by hand, past what auditEntry would ever make: the line builder still holds the cap.
+    const huge = entry({ requests: Array.from({ length: 100 }, () => ({ method: 'GET', url: longUrl, status: 200 })), input: { q: 'x'.repeat(100_000) } });
+    const line = auditLine(huge);
+    expect(Buffer.byteLength(line)).toBeLessThanOrEqual(64 * 1024);
+    expect(JSON.parse(line)).toMatchObject({ command: 'jira get-issue', outcome: 'ok', input: null, requests: [], requestsOmitted: 100, truncated: true });
   });
 
   it('db query and db execute keep a hash of their SQL, never the SQL', () => {
