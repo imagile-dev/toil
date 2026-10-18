@@ -922,13 +922,15 @@ path. Both forms match.
   deep, and an expanded one says where it came from in `x-toil-ref`. One left in
   place says why in `x-toil-stop`: `depth`, `circular` (it loops back), `external`
   (another file or a URL) or `broken`. `expansion.stopped` counts each. Expansion
-  builds at most 250,000 objects and arrays per call (`expansion.nodes`), since refs
+  builds at most 250,000 objects and arrays per call (`expansion.nodes`) and copies
+  at most 4,000,000 characters of the document's text (`expansion.chars`), since refs
   can fan out and each copies its whole target (three properties each referring to
   the next, twenty deep, is 3^20 copies). Past that, the rest stay in place as
   `depth`, `expansion.truncated` is true and an `OPENAPI_EXPANSION_TRUNCATED` warning
   says so. `example` generates at most 250,000 values, no more array items than
-  that leaves room for, and strings of at most 10,000 characters each and 1,000,000 in all
-  (a `minLength` or a pattern's `{n}` past that is cut). A cut-short example fails `example.valid` with
+  that leaves room for, strings of at most 10,000 characters each, and at most 1,000,000
+  characters in all, a document's own `const` and `enum` values included (a
+  `minLength` or a pattern's `{n}` past that is cut; any value past the total is null). A cut-short example fails `example.valid` with
   `OPENAPI_EXAMPLE_TRUNCATED` and isn't validated. In 3.0 and
   Swagger 2.0 a `$ref`'s sibling keys are dropped, as the spec says. From 3.1
   they're kept, over the target's keys.

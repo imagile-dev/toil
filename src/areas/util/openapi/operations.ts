@@ -137,6 +137,12 @@ function parameters(doc: Json, o: Operation): RawParameter[] {
  * refs also bounds a fan-out of wide schemas.
  */
 export const MAX_NODES = 250_000;
+/**
+ * The most characters one `show` copies into its schemas, serialised. Nodes
+ * alone don't bound it: a description, an `example` or an `enum` is copied
+ * whole wherever its schema is expanded, and can be any size.
+ */
+export const MAX_CHARS = 4_000_000;
 
 /** How far to expand, and what expansion left as a `$ref`. */
 export interface Expansion {
@@ -147,7 +153,9 @@ export interface Expansion {
   expanded: number;
   /** How many objects and arrays expansion built, held near {@link MAX_NODES}. */
   nodes: number;
-  /** Set when the node budget ran out: every ref after that was left in place, counted under `stopped.depth`. */
+  /** Characters copied so far, against {@link MAX_CHARS}. */
+  chars: number;
+  /** Set when a budget ran out: every ref after that was left in place, counted under `stopped.depth`, and every other value is null. */
   truncated: boolean;
 }
 
@@ -159,11 +167,21 @@ export interface Expansion {
  * spec says; from 3.1 they're kept, over the target's keys.
  */
 export function expand(doc: Json, spec: Spec, node: Json, expansion: Expansion, trail: string[] = [], names = false): Json {
+  // Every value copied into the output is paid for here, at its serialised length; past the budget it's null.
+  const spend = (cost: number) => {
+    if (expansion.chars > MAX_CHARS) {
+      expansion.truncated = true;
+      return false;
+    }
+    expansion.chars += cost;
+    return true;
+  };
   if (Array.isArray(node)) {
+    if (!spend(2 + node.length)) return null;
     expansion.nodes++;
     return node.map((child) => expand(doc, spec, child, expansion, trail));
   }
-  if (!isObject(node)) return node;
+  if (!isObject(node)) return spend(JSON.stringify(node).length) ? node : null;
   if (!names && typeof node.$ref === 'string') {
     const ref = node.$ref;
     const target = refPointer(ref);
@@ -174,7 +192,7 @@ export function expand(doc: Json, spec: Spec, node: Json, expansion: Expansion, 
     if (target === undefined) return stop('external');
     if (trail.includes(target)) return stop('circular');
     if (trail.length >= expansion.depth) return stop('depth');
-    if (expansion.nodes >= MAX_NODES) {
+    if (expansion.nodes >= MAX_NODES || expansion.chars > MAX_CHARS) {
       expansion.truncated = true;
       return stop('depth');
     }
@@ -186,12 +204,14 @@ export function expand(doc: Json, spec: Spec, node: Json, expansion: Expansion, 
     const keep = spec === 'openapi-3.1' || spec === 'openapi-3.2' ? expand(doc, spec, siblings, expansion, trail) : {};
     return isObject(expanded) ? { ...expanded, ...(keep as JsonObject), 'x-toil-ref': ref } : expanded;
   }
+  if (!spend(2)) return null;
   expansion.nodes++;
   const out: JsonObject = {};
   for (const [key, child] of Object.entries(node)) {
     // Examples, defaults and extensions are data, copied as written; under `properties` every key is a name.
     const data = !names && (DATA_KEYS.has(key) || key === 'examples' || key.startsWith('x-'));
-    out[key] = data ? child : expand(doc, spec, child, expansion, trail, !names && NAME_MAPS.has(key));
+    if (data) out[key] = spend(JSON.stringify(key).length + 2 + JSON.stringify(child).length) ? child : null;
+    else out[key] = spend(JSON.stringify(key).length + 2) ? expand(doc, spec, child, expansion, trail, !names && NAME_MAPS.has(key)) : null;
   }
   return out;
 }
@@ -370,7 +390,7 @@ export function apiCall(doc: JsonObject, spec: Spec, o: Operation, params: Param
 /** One operation, laid out with its refs expanded `depth` deep. */
 export function showOperation(loaded: LoadedDocument, o: Operation, depth: number): ShownOperation {
   const { doc, spec } = loaded;
-  const expansion: Expansion = { depth, stopped: { depth: 0, circular: 0, external: 0, broken: 0 }, expanded: 0, nodes: 0, truncated: false };
+  const expansion: Expansion = { depth, stopped: { depth: 0, circular: 0, external: 0, broken: 0 }, expanded: 0, nodes: 0, chars: 0, truncated: false };
   const schemaAt = (pointer: string | null) => (pointer === null ? null : expand(doc, spec, atPointer(doc, pointer) ?? null, expansion));
   const params: Parameter[] = parameters(doc, o)
     .filter((p) => spec !== 'swagger-2.0' || (p.in !== 'body' && p.in !== 'formData'))

@@ -35,6 +35,12 @@ export interface LoadedDocument {
 /** A copy of an object without some keys. */
 export const without = (node: JsonObject, ...keys: string[]): JsonObject => Object.fromEntries(Object.entries(node).filter(([k]) => !keys.includes(k)));
 
+/**
+ * A validator's message, cut to 300 characters: an `enum` failure quotes the
+ * whole list, and a document's list can be any size.
+ */
+export const brief = (message: string) => (message.length > 300 ? `${message.slice(0, 300)}…` : message);
+
 export const isObject = (value: unknown): value is JsonObject => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** One JSON pointer token, escaped (`/` as `~1`, `~` as `~0`). */
@@ -299,7 +305,7 @@ export async function checkDocument(loaded: LoadedDocument, v: Verifier): Promis
   const { leafProblems, validateSchema } = await import('../kit/json-schema.js');
   const { schema, references } = await officialSchema(loaded.spec);
   const result = validateSchema(schema, loaded.doc, { references, maxProblems: Infinity });
-  const leaves = leafProblems(result.problems);
+  const leaves = leafProblems(result.problems).map((p) => ({ ...p, message: brief(p.message) }));
   if (result.valid) v.pass('document.schema');
   const against = loaded.spec === 'swagger-2.0' ? 'Swagger 2.0' : `OpenAPI ${loaded.spec.slice(8)}`;
   for (const p of leaves) {

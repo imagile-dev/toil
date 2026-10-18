@@ -1422,6 +1422,18 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   round found a narrower way round the same budget (refs, then nodes, then
   items and string length, then the product of the caps), so the loop was
   converging rather than circling.
+- **Round 5 fixed the class, not the keyword.** `const` and `enum` returned the
+  document's own value uncharged, the fourth budget bypass in a row. Every value
+  an example holds now passes one choke point, `emit`, which charges its
+  serialised length (plus each property name and each array's brackets) to the
+  1,000,000-character budget and returns null past it. A `default`, `example` or
+  `examples` is never copied into an example at all. The sweep found the same
+  hole in `show`: a description, `example`, `default` or `enum` is copied whole
+  wherever its schema is expanded, so `expand` charges every copied value the
+  same way against 4,000,000 characters, and past it stops refs and nulls the
+  rest (the largest real operation, GitHub's issue timeline at depth 20, is
+  about 470,000). Validator messages, which quote a whole `enum`, are cut to 300
+  characters in `document.problems` and `example.valid`.
 - **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
   Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
   extension isn't a reference; under `properties` and the other name maps every

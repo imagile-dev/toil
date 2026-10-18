@@ -97,6 +97,17 @@ describe('util openapi list', () => {
     expect(data.document.problems.map((p: Data) => p.pointer)).toContain(pointer);
   });
 
+  it("cuts a validator message that quotes a huge enum, in the document's problems and in example.valid", async () => {
+    const doc = JSON.parse(EXAMPLE_TEXT) as Data;
+    const huge = Array.from({ length: 50_000 }, (_, i) => `value-${i}`);
+    doc.paths['/orders'].post.parameters = [{ name: 'mode', in: 'query', schema: { type: 'string' }, style: 'not-a-style', 'x-values': huge }];
+    doc.components.schemas.Order.properties.sku = { allOf: [{ enum: huge }, { enum: ['other'] }] };
+    const { envelope, data } = await run(openapiExampleCommand, { text: asText(doc), operation: 'createOrder' });
+    expect(data.document.problems.every((p: Data) => p.message.length <= 301)).toBe(true);
+    expect(check(data, 'example.valid')).toMatchObject({ status: 'failed' });
+    expect(JSON.stringify(envelope).length).toBeLessThan(100_000);
+  });
+
   it('reports a broken $ref by the pointer where it sits, and fails refs.resolve', async () => {
     const doc = jira();
     delete doc.components.schemas.IssueUpdateDetails;
@@ -229,6 +240,25 @@ describe('util openapi show', () => {
     expect(performance.now() - started).toBeLessThan(20_000);
   });
 
+  it.each([
+    ['long descriptions', { description: 'x'.repeat(5_000) }],
+    ['a long example, default and enum', { example: 'x'.repeat(5_000), default: 'y'.repeat(5_000), enum: ['z'.repeat(5_000)] }],
+  ])('caps the characters show copies from a fan-out of schemas with %s, and warns', async (_name, extra) => {
+    // Three properties each referring to the next, twenty deep, each schema carrying long document text.
+    const schemas: Data = {};
+    for (let i = 0; i <= 21; i++) {
+      const next = { $ref: `#/components/schemas/S${i + 1}` };
+      schemas[`S${i}`] = i === 21 ? { type: 'string', ...extra } : { type: 'object', ...extra, properties: { a: next, b: next, c: next } };
+    }
+    const doc = { openapi: '3.0.3', info: { title: 'Fan', version: '1' }, paths: { '/f': { post: { operationId: 'fan', requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/S0' } } } }, responses: { '200': { description: 'ok' } } } } }, components: { schemas } };
+    const started = performance.now();
+    const shown = await run(openapiShowCommand, { text: asText(doc), operation: 'fan', depth: 20 });
+    expect(shown.data.expansion.truncated).toBe(true);
+    expect(shown.warnings).toContainEqual(expect.objectContaining({ code: 'OPENAPI_EXPANSION_TRUNCATED' }));
+    expect(JSON.stringify(shown.envelope).length).toBeLessThan(5_000_000);
+    expect(performance.now() - started).toBeLessThan(10_000);
+  });
+
   it("turns Swagger 2.0's body parameter into a request body and puts basePath in the call's path", async () => {
     const { data } = await run(openapiShowCommand, { file: BITBUCKET, method: 'POST', path: '/repositories/{workspace}/{repo_slug}/pullrequests' });
     expect(data.parameters.map((p: Data) => `${p.in} ${p.name}`)).toEqual(['path repo_slug', 'path workspace']);
@@ -332,6 +362,10 @@ describe('util openapi example', () => {
     ['a 300-million-character string', { type: 'object', required: ['a', 'b'], properties: { a: { type: 'string', minLength: 300_000_000 }, b: { type: 'string', minLength: 300_000_000 } } }],
     ['a pattern that repeats 300 million times', { type: 'string', pattern: '^a{300000000}$' }],
     ['nested arrays of long strings', { type: 'array', minItems: 300_000, items: { type: 'array', minItems: 300_000, items: { type: 'string', minLength: 10_000 } } }],
+    ['a million copies of a long const', { type: 'array', minItems: 1_000_000, items: { const: 'x'.repeat(4_000) } }],
+    ['a million copies of a long enum value', { type: 'array', minItems: 1_000_000, items: { enum: ['x'.repeat(4_000)] } }],
+    ['a million copies of an object-valued const', { type: 'array', minItems: 1_000_000, items: { const: { note: 'x'.repeat(4_000), tags: ['y'.repeat(1_000)] } } }],
+    ['a million items with a long default and example', { type: 'array', minItems: 1_000_000, items: { type: 'string', default: 'x'.repeat(4_000), example: 'y'.repeat(4_000), examples: ['z'.repeat(4_000)] } }],
     ['a flat array of unique long strings', { type: 'array', minItems: 200_000, uniqueItems: true, items: { type: 'string', minLength: 10_000 } }],
   ])('cuts an example short instead of building %s, and says so', (_name, schema) => {
     const started = performance.now();

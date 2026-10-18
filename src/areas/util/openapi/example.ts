@@ -1,5 +1,5 @@
 import type { Schema, SchemaDraft, SchemaProblem } from '../kit/json-schema.js';
-import { atPointer, collectRefs, DATA_KEYS, isObject, without, NAME_MAPS, refPointer, type Json, type JsonObject, type Spec } from './document.js';
+import { atPointer, brief, collectRefs, DATA_KEYS, isObject, without, NAME_MAPS, refPointer, type Json, type JsonObject, type Spec } from './document.js';
 import { follow } from './operations.js';
 
 /**
@@ -20,7 +20,7 @@ interface Generator {
   direction: Direction;
   /** Values generated so far, against {@link MAX_NODES}. */
   nodes?: number;
-  /** Characters generated strings hold so far, against {@link MAX_CHARS}. */
+  /** Characters the example holds so far, against {@link MAX_CHARS}: every value and the structure around it. */
   chars?: number;
   /** Set when the budget ran out. */
   truncated?: boolean;
@@ -31,9 +31,10 @@ export const MAX_NODES = 250_000;
 /** The longest string one example holds, and the most repeats a pattern's {n} is read with. A schema can ask for more; the example is then cut short and says so. */
 export const MAX_STRING = 10_000;
 /**
- * The most characters all of one example's strings hold together. The value and
- * per-string caps multiply (250,000 values of 10,000 characters is 2.5 billion,
- * past what V8 can serialize), so the total is capped on its own.
+ * The most characters one example holds, serialised. The value and per-string
+ * caps multiply (250,000 values of 10,000 characters is 2.5 billion, past what
+ * V8 can serialize), and a document's own `const` or `enum` can be any size,
+ * so the total is capped on its own, at {@link emit}.
  */
 export const MAX_CHARS = 1_000_000;
 
@@ -170,19 +171,30 @@ export function sampleOfPattern(source: string): string | undefined {
   }
 }
 
-/** A string for the schema, charged to the example's character budget: once that's spent, strings come out shortened and the example is marked cut short. */
-function stringValue(g: Generator, node: JsonObject): string {
-  let value = rawString(g, node);
-  const left = MAX_CHARS - (g.chars ?? 0);
-  if (value.length > left) {
-    g.truncated = true;
-    value = value.slice(0, Math.max(0, left));
-  }
-  g.chars = (g.chars ?? 0) + value.length;
-  return value;
+/**
+ * Charges `cost` characters to the example's budget. False, with the example
+ * marked cut short, once the budget is spent.
+ */
+function charge(g: Generator, cost: number): boolean {
+  if ((g.chars ?? 0) > MAX_CHARS) return false;
+  g.chars = (g.chars ?? 0) + cost;
+  if (g.chars <= MAX_CHARS) return true;
+  g.truncated = true;
+  return false;
 }
 
-function rawString(g: Generator, node: JsonObject): string {
+/**
+ * The one way a value gets into an example: every leaf the generator makes,
+ * and every value it takes from the document (a `const`, an `enum` entry,
+ * however large), is charged at its serialised length. Past the budget it's
+ * null and the example is cut short. Per-keyword caps kept being outflanked
+ * by the next keyword; a turnstile at the only door is harder to walk round.
+ */
+function emit(g: Generator, value: Json): Json {
+  return charge(g, JSON.stringify(value).length) ? value : null;
+}
+
+function stringValue(g: Generator, node: JsonObject): string {
   let min = typeof node.minLength === 'number' ? node.minLength : 0;
   if (min > MAX_STRING) {
     g.truncated = true;
@@ -260,38 +272,43 @@ function generate(g: Generator, node: Json | undefined, trail: string[], outer: 
     g.truncated = true;
     return null;
   }
-  if (node === undefined || node === true) return {};
-  if (!isObject(node)) return null;
+  if (node === undefined || node === true) return emit(g, {});
+  if (!isObject(node)) return emit(g, null);
   if (typeof node.$ref === 'string') {
     const target = refPointer(node.$ref);
     // A ref that loops, required all the way round, has no finite example; null lets validation say so.
-    if (target === undefined || trail.filter((t) => t === target).length >= 2) return null;
+    if (target === undefined || trail.filter((t) => t === target).length >= 2) return emit(g, null);
     const value = atPointer(g.doc, target);
-    if (value === undefined) return null;
+    if (value === undefined) return emit(g, null);
     const siblings = without(node, '$ref');
     const own = generate(g, value, [...trail, target], outer);
     return (g.spec === 'openapi-3.1' || g.spec === 'openapi-3.2') && Object.keys(siblings).length ? merge(own, generate(g, siblings, trail, outer)) : own;
   }
-  if (node.const !== undefined) return node.const;
-  if (Array.isArray(node.enum) && node.enum.length) return node.enum.find((v) => v !== null) ?? node.enum[0]!;
+  if (node.const !== undefined) return emit(g, node.const);
+  if (Array.isArray(node.enum) && node.enum.length) return emit(g, node.enum.find((v) => v !== null) ?? node.enum[0]!);
   const type = typeOf(node);
   let value: Json | undefined;
-  if (type === 'null') value = null;
+  if (type === 'null') value = emit(g, null);
   else if (type === 'object') {
     // Looked up, not merged: copying a wide schema's properties for every object generated is where the time went.
     const own = isObject(node.properties) ? node.properties : {};
     const prop = (name: string) => (Object.hasOwn(own, name) ? own[name] : outer[name]);
     const required = Array.isArray(node.required) ? node.required.filter((r): r is string => typeof r === 'string') : [];
     const out: JsonObject = {};
+    // An object costs its braces, and each property its quoted name, colon and comma.
+    if (!charge(g, 2)) return null;
     for (const name of required) {
       if (leftOut(g, prop(name))) continue;
+      if (!charge(g, JSON.stringify(name).length + 2)) break;
       out[name] = generate(g, prop(name) ?? (isObject(node.additionalProperties) ? node.additionalProperties : true), trail);
     }
     const minProps = typeof node.minProperties === 'number' ? node.minProperties : 0;
     if (Object.keys(out).length < minProps) {
       for (const name of new Set([...Object.keys(outer), ...Object.keys(own)])) {
         if (Object.keys(out).length >= minProps) break;
-        if (!(name in out) && !leftOut(g, prop(name))) out[name] = generate(g, prop(name), trail);
+        if (name in out || leftOut(g, prop(name))) continue;
+        if (!charge(g, JSON.stringify(name).length + 2)) break;
+        out[name] = generate(g, prop(name), trail);
       }
     }
     value = out;
@@ -301,17 +318,23 @@ function generate(g: Generator, node: Json | undefined, trail: string[], outer: 
     const count = Math.min(wanted, Math.max(0, MAX_NODES - (g.nodes ?? 0)));
     const tuple = Array.isArray(node.items) ? node.items : undefined;
     const items: Json[] = [];
+    if (!charge(g, 2)) return null;
     for (let i = 0; i < count && !g.truncated; i++) {
-      const one = generate(g, tuple ? tuple[i] : (node.items as Json | undefined), trail);
-      // Unique items: vary the primitives so two placeholders don't collide.
-      items.push(node.uniqueItems === true && i > 0 ? (typeof one === 'string' ? `${one}${i}` : typeof one === 'number' ? one + i : one) : one);
+      let one = generate(g, tuple ? tuple[i] : (node.items as Json | undefined), trail);
+      // Unique items: vary the primitives so two placeholders don't collide, and pay for the suffix.
+      if (node.uniqueItems === true && i > 0 && (typeof one === 'string' || typeof one === 'number')) {
+        if (!charge(g, String(i).length)) break;
+        one = typeof one === 'string' ? `${one}${i}` : one + i;
+      }
+      if (!charge(g, 1)) break;
+      items.push(one);
     }
     if (items.length < wanted) g.truncated = true;
     value = items;
-  } else if (type === 'string') value = stringValue(g, node);
-  else if (type === 'integer' || type === 'number') value = numberValue(node, type === 'integer');
-  else if (type === 'boolean') value = true;
-  else if (type === 'file') value = 'string';
+  } else if (type === 'string') value = emit(g, stringValue(g, node));
+  else if (type === 'integer' || type === 'number') value = emit(g, numberValue(node, type === 'integer'));
+  else if (type === 'boolean') value = emit(g, true);
+  else if (type === 'file') value = emit(g, 'string');
   for (const key of ['allOf', 'oneOf', 'anyOf'] as const) {
     const branches = node[key];
     if (!Array.isArray(branches) || !branches.length) continue;
@@ -320,7 +343,7 @@ function generate(g: Generator, node: Json | undefined, trail: string[], outer: 
     const known = { ...outer, ...(isObject(node.properties) ? node.properties : {}) };
     for (const branch of chosen) value = value === undefined ? generate(g, branch, trail, known) : merge(value, generate(g, branch, trail, known));
   }
-  if (value === undefined) value = isNullable(node) ? null : {};
+  if (value === undefined) value = emit(g, isNullable(node) ? null : {});
   return value;
 }
 
@@ -412,6 +435,6 @@ export async function checkExample(doc: Json, spec: Spec, direction: Direction, 
   const { leafProblems, validateSchema } = await import('../kit/json-schema.js');
   const draft: SchemaDraft = spec === 'openapi-3.0' || spec === 'swagger-2.0' ? '4' : '2020-12';
   const result = validateSchema({ $ref: `${BASE}#${asFragment(rootPointer)}` } as Schema, example, { draft, references: [{ schema: mini as Schema, id: BASE }], maxProblems: Infinity });
-  const problems = leafProblems(result.problems);
+  const problems = leafProblems(result.problems).map((p) => ({ ...p, message: brief(p.message) }));
   return { result: { valid: result.valid, problems: problems.slice(0, 50), total: problems.length } };
 }
