@@ -660,6 +660,53 @@ Added as each integration lands.
   `TOIL_NO_ANIMATION` only change how it looks.
 - **A lobby screen comes before the game**, with the keys, the size it needs and
   the session's scores, which live in memory only.
+
+### Welcome: dossiers
+
+The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
+
+- **The create wizard saves as it goes.** Each step runs its own `toil dossiers`
+  command (`init`, `add-repo`, `link`, `field`, `env`), and step 6 reviews the
+  whole dossier with `dossiers show` and `check`. Holding everything in memory to
+  write at the end would mean the menu building a dossier the commands never
+  checked step by step. A wizard left halfway leaves a valid, smaller dossier,
+  which Edit or Delete can finish.
+- **Edit shows the section and the exact commands before saving**; that's its
+  "review the diff". The create wizard and the fixes in Review run at once.
+- **Binding to a connection with writes on asks for the connection's name typed**,
+  as turning writes on does, for a `--connection` and for a `--host` that matches
+  one of yours with writes on. **Importing a dossier whose bindings land on writes
+  asks for the dossier's name**, found from `dossiers check`'s
+  `DOSSIER_WRITES_BINDING` warnings, which runs before every import. Unbinding to
+  your default asks nothing: your default was always yours.
+- **The menu imports one `.json` file at a time.** `check` takes a file, not a
+  folder, and the writes question needs it first. A folder stays `toil dossiers
+  import <folder>` on the CLI.
+- **A dossier's screens read the last `show` and `check` from the session**
+  (`Session.dossiers`, recorded by `finish` in `menu.ts`), and every edit runs `show`
+  again after it, so screens never show a stale file. One-off reads (context, list,
+  scan, discovery) go to the next screen as a parameter, as the Skills module does.
+- **Discovery runs the area's own read with `--dossier <name>`**, so the dossier's
+  binding picks the connection: `jira fields --discover --custom-only` (ticked
+  fields become `dossiers field` aliases named from the field, `Story Points` to
+  `storyPoints`), `confluence list-spaces`, `sonar projects` and `ado project list`
+  (ticked values added with `link --add spaces=` or `projects=`). Values already
+  there start ticked and are never added twice. Jira has no project-list command
+  and ADO no boards command, so those are a typed `project=PAY`, through Set a value.
+- **"Add a connection" reuses the connections wizard's name step** with two new
+  optional parameters, `suggest` (the name a dossier expects) and `then` (where to
+  go after), so it returns to the picker, the review or the import. It then skips
+  the "make it the default?" question, which isn't what the user came for.
+- **The first environment added becomes the dossier's default** (`dossiers env
+  --default`), so calls without `--env` have one.
+- **Review offers a fix where a command exists:** relink, add the connection, adopt,
+  or set a value after `<area> check-dossier`. An unknown section, a remote with
+  userinfo or a duplicate key has no command that removes it, so Review says to edit
+  the file by hand and Check again.
+- **Dossiers sits after Plugins on home**, so the existing rows keep their numbers.
+- **AreaSummary gains `context` and `checksDossier`**, derived in `cli.ts` from the
+  registry, so the screens name an area's context inputs and offer `check-dossier`
+  only where it exists.
 ### Databases: PostgreSQL
 
 - **`pg` with `pg-cursor`**, so the row cap stops the server producing rows, not

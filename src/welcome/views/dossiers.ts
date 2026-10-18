@@ -112,7 +112,7 @@ const faint = (caps: Caps, text: string) => paint(caps, PALETTE.faint, text);
 const heading = (caps: Caps, text: string) => paint(caps, PALETTE.amber, text);
 const label = (caps: Caps, text: string) => muted(caps, text.padEnd(10));
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const plural = (n: number, word: string) => `${n} ${n === 1 ? word : word.endsWith('y') ? `${word.slice(0, -1)}ies` : `${word}s`}`;
 
 /** The dossier a screen is about: the name, or the file when another of the same name takes precedence. */
 const refOf = (p: ViewProps) => p.frame.params.ref!;
@@ -241,13 +241,16 @@ const firstEnv = (params: Record<string, string>): string[] => (params.env && pa
  * when it has some; otherwise where the frame says.
  */
 function thenFromPicker(params: Record<string, string>): Action {
+  // Back to the step the picker was opened from first, so the breadcrumb doesn't carry every screen on the way.
+  const root = parse<{ root?: string }>(params.then, {}).root;
+  const at = root ? { root } : {};
   if (params.setAfter === '1' && params.env) {
-    return { go: 'dossier-set', params: { ref: params.ref!, area: params.area!, env: params.env, flow: params.flow ?? 'create', skippable: '1', then: params.then ?? backTo('dossier-edit') } };
+    return { ...at, go: 'dossier-set', params: { ref: params.ref!, area: params.area!, env: params.env, flow: params.flow ?? 'create', skippable: '1', then: params.then ?? backTo('dossier-edit') } };
   }
   const then = thenOf(params);
   const d = DISCOVERY[params.area!];
   if (params.discover !== '1' || !d || params.env) return then;
-  return { go: 'dossier-discover-start', params: { ref: params.ref!, area: params.area!, flow: params.flow ?? 'create', then: json(then) } };
+  return { ...at, go: 'dossier-discover-start', params: { ref: params.ref!, area: params.area!, flow: params.flow ?? 'create', then: json(then) } };
 }
 
 // ─── Discovery ─────────────────────────────────────────────────────────────
@@ -817,7 +820,7 @@ export const discoverView: View = {
   body: (caps, p) => {
     const found = parse<Array<{ id: string; name: string }>>(p.frame.params.found, []);
     if (found.length === 0) return [muted(caps, 'Nothing found. Enter goes on.')];
-    return [muted(caps, `${found.length} found. Space ticks, enter goes on.${DISCOVERY[p.frame.params.area!]?.key ? '' : ' Each ticked field gets an alias from its name.'}`)];
+    return [muted(caps, `${found.length} found. Space ticks, enter adds the new ticks; what the dossier already names stays.${DISCOVERY[p.frame.params.area!]?.key ? '' : ' Each ticked field gets an alias from its name.'}`)];
   },
   checklist: {
     options: (p) => parse<Array<{ id: string; name: string }>>(p.frame.params.found, []).map((x) => ({ id: x.id, label: x.name || x.id, hint: x.name && x.name !== x.id ? x.id : '' })),

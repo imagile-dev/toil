@@ -101,7 +101,9 @@ workspace. Then:
 
 These are local writes and need no `--allow-write`. Each refuses a value that's already
 set unless `--replace`. Over MCP they refuse to make a dossier select a connection
-with writes on; the user does that on the command line.
+with writes on; the user does that on the command line, or under **Dossiers** in the
+menu bare `toil` opens, which runs these same commands and asks them to type the
+connection's name first.
 
 toil trusts the OS certificate store and Node's bundled CAs, and uses `HTTPS_PROXY` /
 `HTTP_PROXY` / `NO_PROXY` when they're set. A `NETWORK` error about an untrusted
