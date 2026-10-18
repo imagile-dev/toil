@@ -33,6 +33,9 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            ui/package-lock.json
       # Install scripts stay off even for the dev toolchain.
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
@@ -49,6 +52,18 @@ jobs:
       # Install the packed tarball with scripts off; drive the CLI and MCP.
       # Then clone the checkout and run the build from the clone, no install.
       - run: npm run smoke
+      # Toil UI (ui/), its own private package: never in toil's tarball, but
+      # held to the same gate on every OS, since the site serves its preview.
+      - run: npm ci --ignore-scripts
+        working-directory: ui
+      - run: npm run typecheck
+        working-directory: ui
+      - run: npm run lint
+        working-directory: ui
+      - run: npm test
+        working-directory: ui
+      - run: npm run build
+        working-directory: ui
 
   # The committed dist/toil.js is the last released toil, and only the release
   # PR rebuilds it, so any other PR that changes dist/ fails here. The head

@@ -1,0 +1,54 @@
+/* Crate: toil's own brand, from site/src/styles/global.css. Tokens come from
+   theme.json (test/brand-sync.test.ts in the repository root holds them to the
+   site); this file adds the site's fonts, its drafting grid and its accent
+   gradient. The same layout and click targets as Plain: only the look changes. */
+
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/source-serif-4/600.css';
+@import '@fontsource/fira-code/400.css';
+
+[data-theme="crate"] body {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(246, 241, 233, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(246, 241, 233, 0.045) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+[data-theme="crate"] h1,
+[data-theme="crate"] h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+[data-theme="crate"] .brand {
+  background: linear-gradient(100deg, var(--accent) 10%, var(--link) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+[data-theme="crate"] .card {
+  border-left: 3px solid var(--accent);
+}
+
+[data-theme="crate"] .meter > span {
+  background: linear-gradient(100deg, var(--accent) 10%, var(--link) 90%);
+}
+
+[data-theme="crate"] .banner {
+  border-bottom: 1px solid var(--line);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="crate"] .skin-loading img {
+    animation: crate-bob 1.2s ease-in-out infinite alternate;
+  }
+}
+
+@keyframes crate-bob {
+  from { transform: translateY(0); }
+  to { transform: translateY(-6px); }
+}

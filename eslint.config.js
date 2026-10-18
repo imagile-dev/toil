@@ -24,7 +24,8 @@ const AREA_PATTERNS = [
 ];
 
 export default tseslint.config(
-  { ignores: ['dist/', 'site/', 'node_modules/', 'coverage/'] },
+  // site/ and ui/ are their own packages, each linted by its own config.
+  { ignores: ['dist/', 'site/', 'ui/', 'node_modules/', 'coverage/'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
