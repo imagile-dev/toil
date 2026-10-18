@@ -88,7 +88,7 @@ jobs:
       # A throwaway server for this job only; its SA password is a test value, in env, not argv.
       # SQLCMDPASSWORD is the same value for the health check's sqlcmd.
       sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-latest
+        image: mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04
         env:
           ACCEPT_EULA: 'Y'
           MSSQL_SA_PASSWORD: Toil-test-Pa55word

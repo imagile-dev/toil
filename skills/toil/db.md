@@ -13,7 +13,7 @@ uses, and the commands work the same way on all of them.
 | SQLite | `sqlite` | `integration`: automated tests run against the real engine (Node's built-in `node:sqlite`) |
 | PostgreSQL | `postgres` | `integration`: automated tests run against PostgreSQL 17 (the official `postgres:17` image) |
 | MySQL / MariaDB | `mysql` | `integration`: automated tests run against MySQL 8.4 and MariaDB 11.8 (the official `mysql:8.4` and `mariadb:11.8` images) |
-| SQL Server | `sqlserver` | `integration`: automated tests run against SQL Server 2022 (the official `mcr.microsoft.com/mssql/server:2022-latest` image) |
+| SQL Server | `sqlserver` | `integration`: automated tests run against SQL Server 2022 (the official `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04` image) |
 | Oracle | | Planned |
 
 **Supported versions:** The oldest SQLite version toil supports hasn't been established. toil
@@ -376,8 +376,10 @@ view needing `VIEW DATABASE STATE`, `SHOWPLAN`) comes back as `DATABASE`, naming
 permission.
 
 Known limit: transaction control inside dynamic SQL or a procedure (an `EXEC` whose
-text holds a `COMMIT`) can't be refused by name, and a write under `SET NOCOUNT ON`
-isn't reported by the server. toil notices the transaction ending and says so with
+text holds a `COMMIT`) can't be refused by name, and neither can an `OUTPUT` clause
+there (`EXEC('UPDATE ... OUTPUT ...')`): its changed rows can fill a page and come back
+as an ordinary result, though the change is still rolled back. A write under `SET
+NOCOUNT ON` isn't reported by the server. toil notices the transaction ending and says so with
 `DATABASE` ("anything it changed may have been saved"), but by then the change is
 made. That is why a SQL Server connection for reads should use a read-only login:
 with one, the server refuses the write whatever the SQL does.
