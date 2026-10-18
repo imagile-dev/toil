@@ -10,11 +10,11 @@ uses, and the commands work the same way on all of them.
 
 | Engine | `engine` value | Status |
 |--------|----------------|--------|
-| SQLite | `sqlite` | `integration`: automated tests run against the real engine (Node's built-in `node:sqlite`) |
-| PostgreSQL | `postgres` | `integration`: automated tests run against PostgreSQL 17 (the official `postgres:17` image) |
-| MySQL / MariaDB | `mysql` | `integration`: automated tests run against MySQL 8.4 and MariaDB 11.8 (the official `mysql:8.4` and `mariadb:11.8` images) |
-| SQL Server | `sqlserver` | `integration`: automated tests run against SQL Server 2022 (the official `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04` image) |
-| Oracle | `oracle` | `integration`: automated tests run against Oracle Database 23ai Free (the `gvenzl/oracle-free:23.26.3-slim-faststart` image) |
+| SQLite | `sqlite` | `live`: automated tests run against the real engine (Node's built-in `node:sqlite`) |
+| PostgreSQL | `postgres` | `live`: automated tests run against PostgreSQL 17 (the official `postgres:17` image) |
+| MySQL / MariaDB | `mysql` | `live`: automated tests run against MySQL 8.4 and MariaDB 11.8 (the official `mysql:8.4` and `mariadb:11.8` images) |
+| SQL Server | `sqlserver` | `live`: automated tests run against SQL Server 2022 (the official `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04` image) |
+| Oracle | `oracle` | `live`: automated tests run against Oracle Database 23ai Free (the `gvenzl/oracle-free:23.26.3-slim-faststart` image) |
 
 **Supported versions:** The oldest SQLite version toil supports hasn't been established. toil
 uses the SQLite built into Node, so the version is whichever your Node ships.

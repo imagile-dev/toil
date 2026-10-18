@@ -3,9 +3,22 @@
 // row (status, supported version) without touching anyone else's. This module
 // gathers them into the board's groups. Command names follow
 // docs/command-contract.json. Each status is the integration's verification
-// level once its code is on main, and `planned` until then.
+// level, one of the three in levels.json.
 
-export type Status = 'planned' | 'unit' | 'integration' | 'live';
+import levelData from './levels.json';
+
+export type Status = 'unit' | 'live' | 'stable';
+
+export interface Level {
+  name: Status;
+  /** What the level means, shown on the board and on each integration's page. */
+  meaning: string;
+  /** The same level for an area with no server (git), whose tests stub git rather than HTTP. */
+  localMeaning?: string;
+}
+
+/** The verification levels, lowest first. levels.json is the one place their meanings are written. */
+export const levels = levelData as Level[];
 
 // Re-declared from src/core/supported.ts because the site is its own package and can't import toil's source; test/skills.test.ts keeps the values equal.
 /** The oldest server or API version an integration supports. `minimum: null` means it hasn't been established. */
@@ -95,9 +108,6 @@ export const notPlanned = [
 
 export const integrationCount = groups.reduce((n, g) => n + g.items.length, 0);
 
-/** Integrations whose code has shipped, at any verification level. */
-export const shippedCount = groups.reduce((n, g) => n + g.items.filter((i) => i.status !== 'planned').length, 0);
-
 /**
  * Where a user generates each integration's credential, for its docs page. Only
  * paths we're confident of; anything absent gets a generic line rather than a
@@ -117,15 +127,12 @@ export function envPrefix(area: string): string {
   return `TOIL_${area.toUpperCase().replace(/-/g, '_')}_`;
 }
 
-export const statusMeaning: Record<Status, string> = {
-  planned: 'Designed and scheduled. No code has shipped yet, so the details below describe the plan.',
-  unit: 'Shipped, with its logic tested against stubbed HTTP. Not yet run against a real instance in CI.',
-  integration: 'Automated tests pass against a real instance in CI.',
-  live: "In day-to-day use against a real organization's instance.",
-};
-
-/** The `unit` status for an area with no server: its tests stub git, not HTTP. */
-export const localUnitMeaning = 'Shipped, with its logic tested against a stubbed git, and its parsers checked once against the real git in a scratch repository.';
+/** What an integration's status means; a local area (git) gets its level's local wording where it has one. */
+export function statusMeaning(integration: Pick<Integration, 'status' | 'local'>): string {
+  const level = levels.find((l) => l.name === integration.status);
+  if (!level) throw new Error(`Unknown status "${integration.status}"; the levels are in site/src/data/levels.json.`);
+  return (integration.local && level.localMeaning) || level.meaning;
+}
 
 /** `Azure DevOps Server 2022.1 or later (REST API 7.1)`, or that the minimum isn't established. Worded as src/core/supported.ts words it. */
 export function supportedText(s: SupportedVersion): string {

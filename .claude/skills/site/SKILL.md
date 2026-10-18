@@ -28,10 +28,11 @@ from `main`).
   in the hero eyebrow, and a feature panel in the footer, all pointing to
   https://www.imagile.dev. Imagile's mark keeps its own colours.
 - **Honest about status** (*principle 4*). Until a version is on npm, the site says
-  pre-release and labels sample output as planned. An integration is `planned`
-  until its code is on `main`, then shows its verification level. Statuses on
-  `/integrations/` use the same levels as **Verification Levels** (`integrations`
-  skill), plus `planned`.
+  pre-release and labels sample output as planned. An integration is on the board
+  only once its code is on `main`, and shows its verification level: `unit`,
+  `live` or `stable` (**Verification Levels**, `integrations` skill). Their
+  meanings are rendered from `site/src/data/levels.json`, never written out in a
+  page.
 - **The docs are the toil skill, rendered.** `skills/toil/*.md` is the one copy of
   the reference: every page under `site/src/pages/docs/` but `/docs/welcome/` renders
   one of its files through `src/components/SkillPage.astro`, the file's own heading
@@ -100,8 +101,8 @@ from `main`).
 - **Every new or changed integration reviews its skill file, which is its docs
   page, in the same PR**: setup, credential and where to create it, config keys,
   commands, verification level. Add a `credentialWhere` entry only when the menu path is certain; a wrong
-  path costs users more than a generic one. Pages for `planned` integrations say so
-  and describe the plan, never invented details.
+  path costs users more than a generic one. Never invent a detail the area's
+  registry or board file doesn't hold.
 - **`/docs/utilities/` is `skills/toil/util.md`**, rendered, with each command's flags, aliases and MCP tool from the registry; the rule that a `util` change updates it is in `docs/util.md`.
 - Internal links go through `url()` in `site/src/lib/url.ts` because the site is
   served under `/toil/`.

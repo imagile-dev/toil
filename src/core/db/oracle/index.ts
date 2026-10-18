@@ -388,7 +388,7 @@ export const oracleProvider: DbProvider = {
   label: 'Oracle',
   requires: ['host', 'database', 'user'],
   defaultSchema: ownSchema,
-  verification: 'integration',
+  verification: 'live',
 
   listSchemas(conn, call) {
     return session(conn, 'read', call, async (client) => {

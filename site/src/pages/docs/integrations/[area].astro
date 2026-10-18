@@ -1,7 +1,7 @@
 ---
 import SkillPage from '../../../components/SkillPage.astro';
 import CommandIndex from '../../../components/CommandIndex.astro';
-import { allIntegrations, envPrefix, type IntegrationEntry } from '../../../data/integrations';
+import { allIntegrations, envPrefix, statusMeaning, type IntegrationEntry } from '../../../data/integrations';
 import { integrationDocs, type SkillDoc } from '../../../lib/skill';
 import { url } from '../../../lib/url';
 
@@ -42,7 +42,7 @@ const nameOf = (d: SkillDoc) => allIntegrations.find((i) => i.area === d.area)?.
 <SkillPage file={doc.file} title={name} trail={['Integrations', ...(board ? [board.group] : [])]}>
   <dl slot="facts">
     <div><dt>Area</dt><dd><code>toil {area}</code></dd></div>
-    {board && <div><dt>Status</dt><dd><span class={`status status--${board.status}`}>{board.status}</span></dd></div>}
+    {board && <div><dt>Status</dt><dd><span class={`status status--${board.status}`}>{board.status}</span><span class="status__meaning">{statusMeaning(board)}</span></dd></div>}
     {board && <div><dt>Credential</dt><dd>{board.credential}</dd></div>}
     {settings.length > 0 && <div><dt>Env prefix</dt><dd><code>{envPrefix(area)}</code></dd></div>}
     {board?.supported && <div><dt>Supports</dt><dd>{board.supported.minimum === null ? 'Not yet established' : `${board.supported.product} ${board.supported.minimum}+`}</dd></div>}
@@ -85,9 +85,9 @@ const nameOf = (d: SkillDoc) => allIntegrations.find((i) => i.area === d.area)?.
     border-radius: 999px; padding: 0.1rem 0.55rem; border: 1px solid var(--color-line-strong); color: var(--color-muted);
   }
   .status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .status--planned { border-style: dashed; color: var(--color-faint); }
-  .status--integration { color: var(--color-accent); }
-  .status--live { color: var(--color-ok); }
+  .status--live { color: var(--color-accent); }
+  .status--stable { color: var(--color-ok); }
+  .status__meaning { display: block; margin-top: 0.4rem; color: var(--color-muted); }
 
   .index { border-top: 1px solid var(--color-line); padding-top: var(--space-md); }
   .index h2 { font-size: var(--text-2xl); margin-bottom: var(--space-sm); scroll-margin-top: 88px; }

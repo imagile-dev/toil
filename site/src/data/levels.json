@@ -1,0 +1,15 @@
+[
+  {
+    "name": "unit",
+    "meaning": "Shipped, with its logic tested against stubbed HTTP. Never run against a real instance.",
+    "localMeaning": "Shipped, with its logic tested against a stubbed git, and its parsers checked once against the real git in a scratch repository."
+  },
+  {
+    "name": "live",
+    "meaning": "Run against a real instance; its common commands work there."
+  },
+  {
+    "name": "stable",
+    "meaning": "In routine use against real instances, with its commands and output settled."
+  }
+]

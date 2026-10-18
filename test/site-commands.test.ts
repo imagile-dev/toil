@@ -5,6 +5,7 @@ import type { z } from 'zod';
 import { CONNECTION_FIELD, CORE_FIELDS } from '../src/core/area.js';
 import { envName } from '../src/core/config.js';
 import { aliasPaths, servedOverMcp, takesAllowWrite, toolName } from '../src/core/command.js';
+import { providers } from '../src/core/db/engines.js';
 import { areas, commands } from '../src/registry.js';
 
 /**
@@ -68,7 +69,8 @@ const dir = join(import.meta.dirname, '..', 'site', 'src', 'data', 'commands');
 const settingsDir = join(import.meta.dirname, '..', 'site', 'src', 'data', 'settings');
 const boardDir = join(import.meta.dirname, '..', 'site', 'src', 'data', 'integrations');
 const GROUPS = ['work', 'build', 'security', 'observability', 'design'];
-const STATUSES = ['planned', 'unit', 'integration', 'live'];
+const levels = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'site', 'src', 'data', 'levels.json'), 'utf8')) as Array<{ name: string; meaning: string; localMeaning?: string }>;
+const STATUSES = levels.map((l) => l.name);
 const lists = siteCommands();
 const settings = siteSettings();
 
@@ -86,7 +88,25 @@ describe('site command reference', () => {
     });
   }
 
-  it('marks each integration planned exactly until its area is registered', () => {
+  it('defines exactly the three verification levels, each with its meaning', () => {
+    expect(STATUSES).toEqual(['unit', 'live', 'stable']);
+    for (const level of levels) expect(level.meaning, level.name).toMatch(/\S/);
+  });
+
+  it('gives every database provider one of the levels', () => {
+    for (const provider of providers) expect(STATUSES, provider.engine).toContain(provider.verification);
+  });
+
+  it("states each database provider's level in skills/toil/db.md", () => {
+    const skill = readFileSync(join(import.meta.dirname, '..', 'skills', 'toil', 'db.md'), 'utf8');
+    for (const provider of providers) {
+      const row = skill.split('\n').find((line) => line.startsWith('|') && line.includes(`| \`${provider.engine}\` |`));
+      expect(row, `db.md has no engine row for ${provider.engine}`).toBeDefined();
+      expect(row, provider.engine).toContain(`| \`${provider.verification}\`:`);
+    }
+  });
+
+  it('lists only registered areas on the board, each at a verification level', () => {
     const registered = new Set(areas.map((a) => a.name));
     const wrong: string[] = [];
     for (const file of readdirSync(boardDir).filter((f) => f.endsWith('.json'))) {
@@ -97,8 +117,7 @@ describe('site command reference', () => {
       if (!GROUPS.includes(entry.group as string)) wrong.push(`${where}: "group" is one of ${GROUPS.join(', ')}`);
       if (typeof entry.order !== 'number') wrong.push(`${where}: needs a numeric "order"`);
       if (!STATUSES.includes(entry.status as string)) wrong.push(`${where}: "status" is one of ${STATUSES.join(', ')}`);
-      const shipped = registered.has(String(entry.area));
-      if (shipped === (entry.status === 'planned')) wrong.push(`${where}: status is ${String(entry.status)} but the area is ${shipped ? '' : 'not '}registered`);
+      if (!registered.has(String(entry.area))) wrong.push(`${where}: the area is not registered`);
     }
     expect(wrong).toEqual([]);
   });
