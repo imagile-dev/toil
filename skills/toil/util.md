@@ -32,7 +32,7 @@ network call, and nothing here says whether the token is valid, expired or trust
 
 ```bash
 toil util jwt decode eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhYmMxMjM0NSJ9.c2ln
-pbpaste | toil util jwt decode -
+echo "$TOKEN" | toil util jwt decode -
 ```
 
 | Argument | Meaning |

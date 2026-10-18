@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, describe, expect, it } from 'vitest';
 import { routes as osvRoutes } from '../../../test/fixtures/osv.fixture.js';
 import { cannedGit, CSPROJ, files, lock, PACKAGE_JSON, POM, PROPS } from '../../../test/fixtures/util.fixture.js';
 import { callKey } from '../../../test/fixtures/git.fixture.js';
@@ -9,6 +12,7 @@ import type { GitCall, GitResult, GitRunner } from '../../core/git.js';
 import { ToilError } from '../../core/errors.js';
 import { readInventory } from '../../core/inventory.js';
 import { execute } from '../../core/run.js';
+import { createNodeContext } from '../../node-context.js';
 import { commands as registry } from '../../registry.js';
 import { depsDiffCommand, depsScanCommand, diffScans } from './deps.js';
 import { commands } from './index.js';
@@ -392,5 +396,50 @@ describe('util deps diff', () => {
       expect(envelope.data).toMatchObject({ changes: [] });
       expect(runner.calls).toEqual([lsTree('main'), lsTree('main')]);
     });
+  });
+});
+
+/**
+ * The same commands against real files and the real node context: the
+ * `.gitignore`-aware walk on disk, and git missing from PATH, through both
+ * front doors. The repository is a bare `.git/HEAD`, which is all the pure-JS
+ * reader asks of one.
+ */
+describe('util deps against a real folder', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'toil-util-'));
+  const home = mkdtempSync(join(tmpdir(), 'toil-util-home-'));
+  mkdirSync(join(dir, '.git'));
+  writeFileSync(join(dir, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+  writeFileSync(join(dir, '.gitignore'), 'vendor/\n');
+  writeFileSync(join(dir, 'package.json'), PACKAGE_JSON);
+  writeFileSync(join(dir, 'package-lock.json'), lock('4.17.21'));
+  mkdirSync(join(dir, 'vendor', 'left-pad'), { recursive: true });
+  writeFileSync(join(dir, 'vendor', 'left-pad', 'package.json'), JSON.stringify({ dependencies: { 'left-pad': '1.3.0' } }));
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  const context = (def: Parameters<typeof createNodeContext>[0]['def'], env: NodeJS.ProcessEnv, mcp = false) =>
+    createNodeContext({ globals: { workspace: dir }, def, signal: new AbortController().signal, env, cwd: dir, home, areas: [], version: '0.0.0-test', stderr: () => {}, stdin: !mcp });
+
+  it('scan walks the folder, skips what .gitignore ignores, and needs no git', async () => {
+    const envelope = await execute(depsScanCommand, {}, context(depsScanCommand, { PATH: '' }));
+    expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
+    expect(envelope.data).toMatchObject({ manifests: [{ file: 'package.json', ecosystem: 'npm', lockFile: 'package-lock.json' }], summary: { totalPackages: 2 } });
+  });
+
+  it('diff with no git on PATH is GIT_NOT_FOUND on the CLI, exit 1, and over MCP', async () => {
+    const run = await runCli(['util', 'deps', 'diff', '--from', 'main'], { commands, context: context(depsDiffCommand, { PATH: '' }) });
+    expect(run.exitCode).toBe(1);
+    expect(run.envelope?.error?.code).toBe('GIT_NOT_FOUND');
+    const session = await connectMcp({ commands, context: context(depsDiffCommand, { PATH: '' }, true) });
+    try {
+      const result = await session.call('util_deps_diff', { from: 'main' });
+      expect(result.isError).toBe(true);
+      expect(result.envelope.error?.code).toBe('GIT_NOT_FOUND');
+    } finally {
+      await session.close();
+    }
   });
 });
