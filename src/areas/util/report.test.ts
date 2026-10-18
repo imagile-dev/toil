@@ -122,6 +122,13 @@ describe('util report: JUnit', () => {
     expect(data.skipped.count).toBe(0);
   });
 
+  it('reports a case with both a failure and an error as the error it is counted as', async () => {
+    const { data } = await run({ text: '<testsuite name="s" tests="1" errors="1" failures="0"><testcase name="a"><failure message="first"/><error message="second"/></testcase></testsuite>' });
+    expect(data.tests?.totals).toMatchObject({ errors: 1, failures: 0 });
+    expect(data.tests?.failures).toEqual([expect.objectContaining({ name: 'a', kind: 'error', message: 'first' })]);
+    expect(data.verified.passed).toBe(true);
+  });
+
   it('trims a long stack to its first lines and says how many it had', async () => {
     const frames = Array.from({ length: 40 }, (_, i) => `\tat dev.imagile.Deep.call${i}(Deep.java:${i + 1})`).join('\n');
     const { data } = await run({ text: `<testsuite name="s"><testcase name="deep" classname="dev.imagile.DeepTest"><error type="java.lang.StackOverflowError">java.lang.StackOverflowError\n${frames}</error></testcase></testsuite>` });

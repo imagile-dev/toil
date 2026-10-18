@@ -107,7 +107,9 @@ export async function readJunit(input: UtilInput, v: Verifier, skips: Skips): Pr
     else if (c.skipped) counted.skipped++;
     else if (c.flaky) totals.flaky++;
     if (!c.problem || !(c.error || c.failure)) return;
-    const { kind, message, type, text } = c.problem;
+    // The first problem element supplies the text; the kind follows the count, where an error wins.
+    const { message, type, text } = c.problem;
+    const kind = c.error ? 'error' : 'failure';
     const trace = trimStack(text);
     let file = c.file;
     let line = c.line;
