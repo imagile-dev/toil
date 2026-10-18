@@ -2,7 +2,7 @@ import { ToilError } from '../../../core/errors.js';
 import type { InputContext, UtilInput } from '../kit/input.js';
 import { Verifier, type Verified } from '../kit/verify.js';
 import { atPointer, checkDocument, isObject, type DocumentReport, type JsonObject, type LoadedDocument, loadDocument, type Spec } from './document.js';
-import { checkExample, generateExample, MAX_NODES as MAX_EXAMPLE_NODES, type Direction } from './example.js';
+import { checkExample, generateExample, MAX_NODES as MAX_EXAMPLE_NODES, MAX_STRING, type Direction } from './example.js';
 import { checkOperations, findOperation, MAX_NODES, operations, requestBody, responses, showOperation, summarise, type Operation, type OperationSummary, type ShownOperation } from './operations.js';
 
 /**
@@ -116,9 +116,9 @@ export async function exampleBody(ctx: InputContext, source: UtilInput, input: S
   // A cut-short example has nulls where values belong, so it can't be valid; validating 250,000 values to say so would only cost time.
   const check = truncated ? undefined : await checkExample(doc, spec, direction, example, body.formSchema ? { inline: body.formSchema } : { pointer: body.schemaPointer! });
   if (!check) {
-    v.fail('example.valid', { at: '/', actual: `cut short at ${MAX_EXAMPLE_NODES} values` }, {
+    v.fail('example.valid', { at: '/', actual: `cut short at ${MAX_EXAMPLE_NODES} values or ${MAX_STRING} characters a string` }, {
       code: 'OPENAPI_EXAMPLE_TRUNCATED',
-      message: `Building the example stopped at ${MAX_EXAMPLE_NODES} values, so the values past that are null and it was not validated. Ask for a smaller body (another response or content type), or build that part by hand.`,
+      message: `Building the example hit its limits (${MAX_EXAMPLE_NODES} values in all, ${MAX_STRING} characters a string), so it was cut short and not validated. Ask for a smaller body (another response or content type), or build that part by hand.`,
     });
   } else if (check.result) {
     if (check.result.valid) v.pass('example.valid');

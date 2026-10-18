@@ -26,6 +26,8 @@ interface Generator {
 
 /** The most values one example generates: required properties can fan out as fast as any schema. */
 export const MAX_NODES = 250_000;
+/** The longest string one example holds, and the most repeats a pattern's {n} is read with. A schema can ask for more; the example is then cut short and says so. */
+export const MAX_STRING = 10_000;
 
 /** Placeholder values for the formats JSON Schema and OpenAPI name; hosts and addresses are placeholders that never resolve. */
 const FORMATS: Record<string, string> = {
@@ -93,7 +95,11 @@ export function sampleOfPattern(source: string): string | undefined {
     if (c === '*' || c === '?') return i++, 0;
     if (c === '+') return i++, 1;
     const m = /^\{(\d+)(,\d*)?\}/.exec(source.slice(i));
-    if (m) return (i += m[0].length), Number(m[1]);
+    if (m) {
+      i += m[0].length;
+      // A repeat count past MAX_STRING would build a string no example should hold.
+      return Number(m[1]) > MAX_STRING ? fail() : Number(m[1]);
+    }
     return 1;
   };
   const atom = (): string => {
@@ -135,6 +141,7 @@ export function sampleOfPattern(source: string): string | undefined {
       const one = atom();
       const times = quantity();
       if (source[i] === '?') i++; // lazy
+      if (out.length + one.length * times > MAX_STRING) fail();
       out += one.repeat(times);
     }
     return out;
@@ -155,8 +162,12 @@ export function sampleOfPattern(source: string): string | undefined {
   }
 }
 
-function stringValue(node: JsonObject): string {
-  const min = typeof node.minLength === 'number' ? node.minLength : 0;
+function stringValue(g: Generator, node: JsonObject): string {
+  let min = typeof node.minLength === 'number' ? node.minLength : 0;
+  if (min > MAX_STRING) {
+    g.truncated = true;
+    min = MAX_STRING;
+  }
   const max = typeof node.maxLength === 'number' ? node.maxLength : Infinity;
   const fit = (value: string) => (value.length < min ? value + 'x'.repeat(min - value.length) : value.length > max ? value.slice(0, max) : value);
   const base = fit(typeof node.format === 'string' && FORMATS[node.format] !== undefined ? FORMATS[node.format]! : 'string');
@@ -171,10 +182,18 @@ function stringValue(node: JsonObject): string {
       return base;
     }
   }
-  if (pattern.test(base)) return base;
+  // A pathological pattern can overflow the regex engine's stack; that is the schema's problem, and validation will say so.
+  const matches = (c: string) => {
+    try {
+      return pattern.test(c);
+    } catch {
+      return false;
+    }
+  };
+  if (matches(base)) return base;
   // The pattern's own simplest match first, then the stock candidates; validation says so if none fits.
   const read = sampleOfPattern(node.pattern);
-  return [...(read === undefined ? [] : [read, fit(read)]), ...PATTERN_CANDIDATES.map(fit)].find((c) => c.length >= min && c.length <= max && pattern.test(c)) ?? base;
+  return [...(read === undefined ? [] : [read, fit(read)]), ...PATTERN_CANDIDATES.map(fit)].find((c) => c.length >= min && c.length <= max && matches(c)) ?? base;
 }
 
 function numberValue(node: JsonObject, integer: boolean): number {
@@ -257,14 +276,19 @@ function generate(g: Generator, node: Json | undefined, trail: string[], outer: 
     }
     value = out;
   } else if (type === 'array') {
-    const count = typeof node.minItems === 'number' ? node.minItems : 0;
+    const wanted = typeof node.minItems === 'number' ? node.minItems : 0;
+    // Never more items than the budget has left: a minItems of a billion would otherwise allocate a billion.
+    const count = Math.min(wanted, Math.max(0, MAX_NODES - (g.nodes ?? 0)));
     const tuple = Array.isArray(node.items) ? node.items : undefined;
-    value = Array.from({ length: count }, (_, i) => {
+    const items: Json[] = [];
+    for (let i = 0; i < count && !g.truncated; i++) {
       const one = generate(g, tuple ? tuple[i] : (node.items as Json | undefined), trail);
       // Unique items: vary the primitives so two placeholders don't collide.
-      return node.uniqueItems === true && i > 0 ? (typeof one === 'string' ? `${one}${i}` : typeof one === 'number' ? one + i : one) : one;
-    });
-  } else if (type === 'string') value = stringValue(node);
+      items.push(node.uniqueItems === true && i > 0 ? (typeof one === 'string' ? `${one}${i}` : typeof one === 'number' ? one + i : one) : one);
+    }
+    if (items.length < wanted) g.truncated = true;
+    value = items;
+  } else if (type === 'string') value = stringValue(g, node);
   else if (type === 'integer' || type === 'number') value = numberValue(node, type === 'integer');
   else if (type === 'boolean') value = true;
   else if (type === 'file') value = 'string';

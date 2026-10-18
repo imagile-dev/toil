@@ -7,7 +7,7 @@ import { execute } from '../../core/run.js';
 import { commands } from './index.js';
 import { parseYaml } from './kit/yaml.js';
 import { EXAMPLE_TEXT, openapiExampleCommand, openapiListCommand, openapiShowCommand } from './openapi.js';
-import { checkExample, sampleOfPattern } from './openapi/example.js';
+import { checkExample, generateExample, MAX_STRING, sampleOfPattern } from './openapi/example.js';
 
 /**
  * `util openapi` end to end through execute(), on the vendors' own documents
@@ -327,6 +327,29 @@ describe('util openapi example', () => {
     expect(wrong.result?.problems.some((p) => p.pointer === '/note')).toBe(false);
   });
 
+  it.each([
+    ['a billion items', { type: 'array', minItems: 1_000_000_000, items: { type: 'string' } }],
+    ['a 300-million-character string', { type: 'object', required: ['a', 'b'], properties: { a: { type: 'string', minLength: 300_000_000 }, b: { type: 'string', minLength: 300_000_000 } } }],
+    ['a pattern that repeats 300 million times', { type: 'string', pattern: '^a{300000000}$' }],
+  ])('cuts an example short instead of building %s, and says so', (_name, schema) => {
+    const started = performance.now();
+    const { example, truncated } = generateExample({}, 'openapi-3.0', schema, 'request');
+    expect(performance.now() - started).toBeLessThan(2_000);
+    expect(JSON.stringify(example).length).toBeLessThan(5_000_000);
+    // The pattern's own count is refused, so the example is a short string validation then rejects.
+    if (!('pattern' in schema)) expect(truncated).toBe(true);
+  });
+
+  it('fails example.valid with OPENAPI_EXAMPLE_TRUNCATED when a body asks for more than an example holds', async () => {
+    const doc = JSON.parse(EXAMPLE_TEXT) as Data;
+    doc.components.schemas.Order.properties.sku = { type: 'string', minLength: MAX_STRING + 1 };
+    const { envelope, data, warnings } = await run(openapiExampleCommand, { text: asText(doc), operation: 'createOrder' });
+    expect(envelope.ok).toBe(true);
+    expect(data.example.sku).toHaveLength(MAX_STRING);
+    expect(check(data, 'example.valid')).toMatchObject({ status: 'failed' });
+    expect(warnings).toContainEqual(expect.objectContaining({ code: 'OPENAPI_EXAMPLE_TRUNCATED' }));
+  });
+
   it('terminates on a schema that requires itself, and reports that no finite example fits', async () => {
     const doc = JSON.parse(EXAMPLE_TEXT) as Data;
     doc.components.schemas.Order.required.push('parent');
@@ -362,7 +385,7 @@ describe('sampleOfPattern', () => {
     expect(new RegExp(pattern, 'u').test(sample)).toBe(true);
   });
 
-  it.each(['^(?=x).+$', '^(a)\\1$', '\\bword'])('gives up on %s rather than guess', (pattern) => {
+  it.each(['^(?=x).+$', '^(a)\\1$', '\\bword', '^a{300000000}$', '^(a{9999}){9999}$'])('gives up on %s rather than guess', (pattern) => {
     expect(sampleOfPattern(pattern)).toBeUndefined();
   });
 });

@@ -1321,7 +1321,10 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   of wide schemas blew past a ref count (review rounds 1 and 2). Past it the rest
   stay in place as `depth`, with `expansion.truncated` and a warning. A cut-short
   example fails `example.valid` without being validated, since its nulls can't be
-  valid and validating 250,000 values only costs time.
+  valid and validating 250,000 values only costs time. `minItems` builds no more
+  items than the budget has left, and a string is at most 10,000 characters: a
+  longer `minLength` is cut (and the example marked cut short), and a pattern's
+  `{n}` past 10,000 isn't read (review round 3).
 - **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
   Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
   extension isn't a reference; under `properties` and the other name maps every
