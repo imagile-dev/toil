@@ -36,7 +36,8 @@ That gives `toil util log build.log`, `toil util log - < build.log` (or no file 
 all, which also reads stdin) and `--text '…'`, and over MCP `{ file }` or
 `{ text }`. `openInput(ctx, input, options)` opens whichever was given. It refuses
 both at once, stdin over MCP (naming `file` and `text`), a folder, and binary content
-(a NUL byte in the first 8,000 bytes) unless `binary: 'allow'`.
+(a NUL byte in the first 8,000 bytes) unless `binary: 'allow'`, which a command that
+takes bytes (a DER certificate) sets; it also drops the `INPUT_NOT_UTF8` warning.
 
 - **Whole reads:** `bytes()` and `text()`, capped at `maxBytes` (64 MiB by default).
   Past the cap they're `INVALID_INPUT`, before reading when a file's size already

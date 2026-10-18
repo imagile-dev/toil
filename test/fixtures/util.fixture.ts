@@ -1,6 +1,7 @@
 import type { GitResult, GitRunner } from '../../src/core/git.js';
 import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
+import { makeChain } from '../harness/x509.js';
 
 /**
  * The `util` group's commands are standalone and local: jwt decode reads only
@@ -68,8 +69,14 @@ export const POM = `<project>
 </project>
 `;
 
+/**
+ * `util cert`'s chain: a test root, issuing CA and leaf for api.imagile.dev,
+ * made fresh for each run with keys that never leave memory (test/harness/x509.ts).
+ */
+const chain = makeChain();
+
 /** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
-export const files: Record<string, string> = {
+export const files: Record<string, string | Uint8Array> = {
   '.gitignore': 'vendor/\n',
   'package.json': PACKAGE_JSON,
   'package-lock.json': lock('4.17.21'),
@@ -77,6 +84,8 @@ export const files: Record<string, string> = {
   'src/Api/Api.csproj': CSPROJ,
   'pom.xml': POM,
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
+  'certs/chain.pem': chain.pem,
+  'certs/leaf.der': chain.leaf.der,
 };
 
 /** What each ref holds, path by path. */

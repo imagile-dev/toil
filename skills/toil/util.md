@@ -1,24 +1,25 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT and inventorying dependencies from manifests and lockfiles
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, and decoding certificates and checking a chain
 ---
 
 # Local utilities (`util`)
 
-Commands that work on what's on this machine: a token you paste, or the
-manifests and lockfiles in the workspace. They aren't integrations. There is no
+Commands that work on what's on this machine: a token you paste, the
+manifests and lockfiles in the workspace, or a certificate file. They aren't integrations. There is no
 server, no connection to add, no `TOIL_UTIL_*` variable, no credential and no
 `--connection` flag, and none of them sends anything over the network. Every
 command reads; none changes anything. Verification level: `unit`.
 
-Each command has two paths that do the same thing, with the same flags and
-output. The `util` path is the main one, and the short path is an alias:
+The first three commands have two paths that do the same thing, with the same
+flags and output. The `util` path is the main one, and the short path is an alias:
 
 | Command | Alias | MCP tool |
 |---------|-------|----------|
 | `toil util jwt decode` | `toil jwt decode` | `util_jwt_decode` |
 | `toil util deps scan` | `toil deps scan` | `util_deps_scan` |
 | `toil util deps diff` | `toil deps diff` | `util_deps_diff` |
+| `toil util cert` | none | `util_cert` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
@@ -160,3 +161,67 @@ Known quirks:
   survives. A package present at two versions can show a change that didn't happen.
 - Paths that git quotes (non-ASCII names) aren't read at a ref.
 - A ref that starts with `-`, or an empty `--from`, is refused with `INVALID_INPUT` before git runs. An empty `--to` means the working tree.
+
+### `toil util cert`
+
+Decodes X.509 certificates, one or a chain bundle, in PEM or DER, so you can
+explain a TLS failure from the files. It never connects to the host the certificate
+is for: pass the file the server is configured with, or the chain a client saved.
+
+```bash
+toil util cert chain.pem
+toil util cert chain.pem --host api.imagile.dev
+toil util cert server.der
+cat chain.pem | toil util cert -
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `[file]` | A file in the workspace, PEM or DER. `-`, or leaving it out, reads stdin |
+| `--text <text>` | The PEM itself, instead of a file. Over MCP, `text` is read as UTF-8, so a DER certificate goes as `file` |
+| `--host <host>` | A host name or IP address: do the first certificate's SANs cover it? |
+
+Output: `{ format, certificates, skipped, chain, host, verified }`. Each
+certificate is `{ position, line, offset, subject, issuer, sans, serial, validity:
+{ notBefore, notAfter, daysLeft, status }, key: { type, bits, curve },
+signatureAlgorithm: { name, oid }, selfSigned, basicConstraints: { ca, pathLength },
+keyUsage, extendedKeyUsage, fingerprints: { sha1, sha256 } }`. `position` counts
+every block in a PEM bundle (or element in a DER one) from 1, `line` is where a PEM
+block starts and `offset` where a DER certificate does. `status` is `valid`,
+`expired` or `not-yet-valid`, and `daysLeft` is negative once expired.
+`basicConstraints`, `keyUsage` and `extendedKeyUsage` are null when the certificate
+doesn't have that extension.
+
+What it checks, in `data.verified` (a failure also warns under its code):
+
+| Check | Means | Fails with |
+|-------|-------|------------|
+| `bundle.readable` | Every block meant to be a certificate decodes | `CERT_UNREADABLE` |
+| `decode.matchesNode` | toil's DER reader and `node:crypto` agree on the serial and CA flag, and nothing follows the certificate in its block | `CERT_DECODE_MISMATCH` |
+| `validity.notExpired`, `validity.started` | Each certificate is inside its validity window now | `CERT_EXPIRED`, `CERT_NOT_YET_VALID` |
+| `chain.order` | Each certificate's issuer is the next one's subject | `CERT_CHAIN_ORDER` |
+| `chain.signature` | Where the names match, each signature verifies with the next certificate's key, and a self-issued last certificate with its own | `CERT_SIGNATURE_MISMATCH` |
+| `chain.root` | Unchecked (`UNVERIFIED`) when the last certificate isn't self-signed, so its issuer doesn't follow it: the chain is checked only as far as the bundle goes | |
+| `host.covered` | With `--host`, a DNS or IP SAN of the first certificate covers it | `CERT_HOST_MISMATCH` |
+| `input.complete` | The whole file was read (unchecked for stdin) | `INPUT_INCOMPLETE` |
+
+- The chain is checked in the order given, leaf first. When it's out of order but
+  is one chain in another order, `chain.suggestedOrder` lists the positions in the
+  right order and `CERT_CHAIN_REORDER` says so.
+- `chain.inOrder` is true when every link's names match and every signature
+  checked verifies. `chain.root` is `included` when the last certificate is
+  self-signed. Nothing is checked against a trust store: a chain that verifies to
+  a root in the bundle isn't thereby trusted.
+- `--host` follows what browsers do: SANs only, never the subject CN, and a
+  wildcard covers exactly one label (`*.imagile.dev` covers `api.imagile.dev`, not
+  `imagile.dev` or `a.api.imagile.dev`). `host.explanation` says why it's covered
+  or not.
+- A PEM block that isn't a certificate is skipped, listed in `skipped` and named in
+  a `CERT_BLOCK_SKIPPED` warning. A private key is never read, and
+  `CERT_PRIVATE_KEY_IN_INPUT` says one was there. `CERTIFICATE` and
+  `X509 CERTIFICATE` blocks are read; `TRUSTED CERTIFICATE`, PKCS#7 (`.p7b`) and
+  PKCS#12 (`.pfx`) are not.
+- In DER input a damaged certificate ends the reading, since nothing says where the
+  next one starts; it's reported at its byte offset.
+- Input with no certificate that can be read fails with `INVALID_INPUT`, naming
+  each block and why.

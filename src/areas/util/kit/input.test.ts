@@ -90,6 +90,13 @@ describe('openInput', () => {
     expect([...(await (await open({ file: 'a.png' }, { binary: 'allow' })).bytes())]).toEqual([...bin]);
   });
 
+  it('takes bytes that are not UTF-8 without warning when the command takes bytes', async () => {
+    const { open, warnings } = setup({ 'a.der': new Uint8Array([0x30, 0x82, 0xff, 0xfe]) });
+    const input = await open({ file: 'a.der' }, { binary: 'allow' });
+    expect([...(await input.bytes())]).toEqual([0x30, 0x82, 0xff, 0xfe]);
+    expect([input.invalidUtf8, warnings]).toEqual([true, []]);
+  });
+
   it('warns once when the bytes are not valid UTF-8, and not for a character split across chunks', async () => {
     const { open, warnings } = setup({ 'bad.txt': new Uint8Array([0x61, 0xff, 0x62, 0x0a, 0x63, 0xfe]) });
     const lines = await all((await open({ file: 'bad.txt' })).lines());

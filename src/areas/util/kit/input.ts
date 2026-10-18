@@ -57,7 +57,7 @@ export interface ReadOptions {
    * stdin is always held to it, since it's held in memory.
    */
   maxBytes?: number;
-  /** `refuse` (the default): a NUL byte in the first 8,000 bytes is INVALID_INPUT. `allow`, for a command that takes bytes. */
+  /** `refuse` (the default): a NUL byte in the first 8,000 bytes is INVALID_INPUT. `allow`, for a command that takes bytes: no NUL check, and no INPUT_NOT_UTF8 warning (`invalidUtf8` is still set). */
   binary?: 'refuse' | 'allow';
   /** See {@link DEFAULT_MAX_LINE}. */
   maxLineLength?: number;
@@ -188,6 +188,8 @@ export async function openInput(ctx: InputContext, fields: { file?: string | und
   const noteInvalid = () => {
     if (state.invalidUtf8) return;
     state.invalidUtf8 = true;
+    // A command that takes bytes (a DER certificate, a file to hash) expects them not to be text.
+    if (options.binary === 'allow') return;
     ctx.warn({ code: 'INPUT_NOT_UTF8', message: `${capital(label)} isn't valid UTF-8; the bytes that aren't are shown as U+FFFD.` });
   };
 
