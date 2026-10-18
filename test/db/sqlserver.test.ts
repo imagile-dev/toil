@@ -55,9 +55,19 @@ describe('sqlserver script scanning', () => {
     }
   });
 
-  it('finds OUTPUT outside strings and quoted identifiers', () => {
-    expect(scanScript('UPDATE t SET x = 1 OUTPUT inserted.id').output).toBe(true);
-    expect(scanScript("SELECT [output], 'OUTPUT' FROM t -- output").output).toBe(false);
+  it('finds an OUTPUT clause on a data change, and leaves a column or alias named output alone', () => {
+    for (const sql of [
+      'UPDATE t SET x = 1 OUTPUT inserted.id',
+      'DELETE FROM t OUTPUT deleted.*',
+      'INSERT INTO t (x) OUTPUT inserted.x VALUES (1)',
+      'WITH c AS (SELECT 1 AS id) MERGE t USING c ON t.id = c.id WHEN MATCHED THEN DELETE OUTPUT deleted.id;',
+    ]) {
+      expect(scanScript(sql).output, sql).toBe(true);
+    }
+    // The reviewer's table: plain reads with a column or alias named output.
+    for (const sql of ['SELECT output FROM jobs', 'SELECT j.output FROM jobs j', 'SELECT name AS Output FROM t', 'SELECT [output] FROM jobs', "SELECT 'UPDATE' AS output FROM t -- delete"]) {
+      expect(scanScript(sql).output, sql).toBe(false);
+    }
   });
 
   it('knows SQL that holds no statement', () => {
@@ -239,6 +249,11 @@ describe.skipIf(skip !== undefined)(`sqlserver server${skip ? ` (skipped: ${skip
       const envelope = await run(query, { sql: 'UPDATE people SET active = 0 OUTPUT inserted.id', limit }, { ...db.settings, writes: true });
       expect(envelope.error, String(limit)).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('db execute') });
     }
+    expect((await run(query, { sql: 'UPDATE people SET active = 0 OUTPUT inserted.id' })).error?.fix).toContain('[output]');
+    // A column named output is an ordinary read.
+    await direct('CREATE TABLE jobs (id int, output varchar(20))');
+    await direct("INSERT INTO jobs VALUES (1, 'done')");
+    expect((await run(query, { sql: 'SELECT j.output FROM jobs j' })).data).toMatchObject({ rows: [['done']] });
     expect(await activeSum()).toBe(8);
   });
 

@@ -629,7 +629,7 @@ export const sqlserverProvider: DbProvider = {
     if (scan.output) {
       return Promise.reject(
         new ToilError('INVALID_INPUT', 'OUTPUT is refused on reads: an INSERT, UPDATE, DELETE or MERGE with OUTPUT returns its rows before the server reports the change, so a page could fill before toil learns it was a write.', {
-          fix: 'Use a SELECT to read. To change data, use toil db execute --allow-write on a connection with writes on.',
+          fix: 'To change data, use toil db execute --allow-write on a connection with writes on. If output is a column or alias here rather than an OUTPUT clause, bracket-quote it: [output].',
         }),
       );
     }

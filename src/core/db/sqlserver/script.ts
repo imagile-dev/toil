@@ -22,16 +22,22 @@ export interface ScriptScan {
   empty: boolean;
   /** The first transaction-control keyword found, upper-cased (`COMMIT`, `BEGIN TRANSACTION`), or undefined. */
   transactionControl?: string;
-  /** True when the reserved word OUTPUT appears: an INSERT, UPDATE, DELETE or MERGE returning rows, or a procedure's output parameter. */
+  /**
+   * True when OUTPUT appears alongside INSERT, UPDATE, DELETE or MERGE: a data change
+   * returning rows. OUTPUT isn't reserved, so in a plain SELECT it is just a column or
+   * alias (`SELECT output FROM jobs`), and that is left alone.
+   */
   output: boolean;
 }
 
 const WORD = /[A-Za-z_@#][A-Za-z0-9_@#$]*/y;
 const TRANSACTION_WORDS = new Set(['TRAN', 'TRANSACTION', 'DISTRIBUTED']);
+/** Reserved words that change data; with OUTPUT beside one, rows come back from the change. */
+const DML = new Set(['INSERT', 'UPDATE', 'DELETE', 'MERGE']);
 
 export function scanScript(sql: string): ScriptScan {
   const tokens = tokenize(sql);
-  const output = tokens.includes('OUTPUT');
+  const output = tokens.includes('OUTPUT') && tokens.some((t) => DML.has(t));
   let depth = 0;
   for (let i = 0; i < tokens.length; i++) {
     const word = tokens[i]!;
