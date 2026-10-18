@@ -8,6 +8,8 @@ import type { QueryParam } from '../../core/rest.js';
 import { textToAdf, type AdfDocument } from './adf.js';
 import { jiraCloudArea, type CustomFieldDefinition } from './area.js';
 import { suggestedType } from './custom-fields.js';
+import { perKeyError, type BulkError } from '../jira/bulk.js';
+import type { PageOpts } from '../jira/paging.js';
 
 /**
  * Every request toil sends to Jira Cloud, each from Atlassian's REST API 3
@@ -97,14 +99,71 @@ function offsetPages<T>(field: string): PageStyle<T> {
   };
 }
 
-async function every<T>(what: string, field: string, fetchPage: (paging: Record<string, string | number>) => Promise<unknown>): Promise<T[]> {
-  const { items } = await paginate<T>(offsetPages<T>(field), async (paging) => ({ body: await fetchPage(paging) }), { what });
+/** The items of a paged list. With a limit it stops there and meta.page.nextCursor is the startAt to carry on from; a cursor starts there. */
+async function every<T>(ctx: JiraCloudContext, what: string, field: string, fetchPage: (paging: Record<string, string | number>) => Promise<unknown>, page: PageOpts = {}): Promise<T[]> {
+  const { items } = await paginate<T>(offsetPages<T>(field), async (paging) => ({ body: await fetchPage(paging) }), {
+    what,
+    ...(page.limit !== undefined ? { cap: page.limit, setPage: ctx.setPage } : {}),
+    ...(page.cursor !== undefined ? { cursor: page.cursor } : {}),
+  });
   return items;
 }
 
 // GET /rest/api/3/issue/{issueIdOrKey}
 export function getIssue(ctx: JiraCloudContext, key: string): Promise<JiraCloudIssue> {
   return jiraCloud<JiraCloudIssue>(ctx, `${API}/issue/${seg(key)}`);
+}
+
+/**
+ * POST /rest/api/3/issue/bulkfetch
+ * (https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/#api-rest-api-3-issue-bulkfetch-post):
+ * up to 100 issues in one request, every field as GET issue returns them
+ * (`*all`). Jira answers in id order, leaves out a key it can't find or won't
+ * show, and lists one it couldn't fetch under issueErrors by id. So each issue
+ * is matched back to the key asked for (by key, case-insensitively, or by id),
+ * a key nothing matched gets NOT_FOUND, and an issue that matched no key (one
+ * that moved project and came back under its new key) is still returned, last.
+ */
+export async function getIssues(ctx: JiraCloudContext, keys: string[]): Promise<{ issues: JiraCloudIssue[]; errors: BulkError[] }> {
+  const body = await jiraCloud<{ issues?: JiraCloudIssue[]; issueErrors?: Array<{ id?: string; errorMessage?: string }> }>(ctx, `${API}/issue/bulkfetch`, {
+    method: 'POST',
+    body: { issueIdsOrKeys: keys, fields: ['*all'] },
+  });
+  const returned = body.issues ?? [];
+  const failed = new Map((body.issueErrors ?? []).map((e) => [String(e.id ?? ''), e.errorMessage ?? 'Jira Cloud could not fetch this issue.']));
+  const used = new Set<JiraCloudIssue>();
+  const issues: JiraCloudIssue[] = [];
+  const errors: BulkError[] = [];
+  for (const key of keys) {
+    const issue = returned.find((i) => !used.has(i) && (i.key.toLowerCase() === key.toLowerCase() || i.id === key));
+    if (issue) {
+      used.add(issue);
+      issues.push(issue);
+    } else if (failed.has(key)) {
+      errors.push({ key, code: 'HTTP', message: failed.get(key)! });
+    } else {
+      errors.push(perKeyError(key, new ToilError('NOT_FOUND', `Jira Cloud returned no issue for ${key}: it doesn't exist, or this account can't see it.`)));
+    }
+  }
+  // An error Jira reported by the id of an issue that was asked for by key.
+  for (const [id, message] of failed) if (!keys.includes(id)) errors.push({ key: id, code: 'HTTP', message });
+  issues.push(...returned.filter((i) => !used.has(i)));
+  return { issues, errors };
+}
+
+/**
+ * GET /rest/api/3/issue/{issueIdOrKey}/changelog: the change history, oldest
+ * first, paged by startAt/maxResults with isLast
+ * (https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/#api-rest-api-3-issue-issueidorkey-changelog-get).
+ */
+export function getChangelog(ctx: JiraCloudContext, key: string, page: PageOpts = {}): Promise<Array<Record<string, unknown>>> {
+  return every(ctx, `Jira Cloud changelog for ${key}`, 'values', (paging) => jiraCloud(ctx, `${API}/issue/${seg(key)}/changelog`, { query: paging }), page);
+}
+
+/** The time zone of the account, from GET /rest/api/3/myself, which JQL's absolute dates are read in. */
+export async function myTimeZone(ctx: JiraCloudContext): Promise<string | undefined> {
+  const me = await jiraCloud<{ timeZone?: unknown }>(ctx, `${API}/myself`);
+  return typeof me.timeZone === 'string' && me.timeZone !== '' ? me.timeZone : undefined;
 }
 
 export interface IssueFieldsInput {
@@ -170,8 +229,8 @@ export function addComment(ctx: JiraCloudContext, key: string, body: AdfDocument
 }
 
 // GET /rest/api/3/issue/{issueIdOrKey}/comment, every page.
-export function listComments(ctx: JiraCloudContext, key: string): Promise<Array<Record<string, unknown>>> {
-  return every(`Jira Cloud comments for ${key}`, 'comments', (paging) => jiraCloud(ctx, `${API}/issue/${seg(key)}/comment`, { query: paging }));
+export function listComments(ctx: JiraCloudContext, key: string, page: PageOpts = {}): Promise<Array<Record<string, unknown>>> {
+  return every(ctx, `Jira Cloud comments for ${key}`, 'comments', (paging) => jiraCloud(ctx, `${API}/issue/${seg(key)}/comment`, { query: paging }), page);
 }
 
 // PUT /rest/api/3/issue/{issueIdOrKey}/assignee
@@ -227,8 +286,8 @@ export async function changeLabels(ctx: JiraCloudContext, key: string, op: 'add'
 }
 
 // GET /rest/api/3/project/search, every page.
-export function listProjects(ctx: JiraCloudContext, query?: string): Promise<Array<Record<string, unknown>>> {
-  return every('Jira Cloud projects', 'values', (paging) => jiraCloud(ctx, `${API}/project/search`, { query: { ...(query ? { query } : {}), ...paging } }));
+export function listProjects(ctx: JiraCloudContext, query?: string, page: PageOpts = {}): Promise<Array<Record<string, unknown>>> {
+  return every(ctx, 'Jira Cloud projects', 'values', (paging) => jiraCloud(ctx, `${API}/project/search`, { query: { ...(query ? { query } : {}), ...paging } }), page);
 }
 
 // GET /rest/api/3/project/{projectIdOrKey}
@@ -236,20 +295,37 @@ export function getProject(ctx: JiraCloudContext, project: string): Promise<Reco
   return jiraCloud(ctx, `${API}/project/${seg(project)}`);
 }
 
-// GET /rest/api/3/user/search: one page, since the endpoint stops at the thousandth match anyway.
-export function searchUsers(ctx: JiraCloudContext, query: string, maxResults: number): Promise<Array<Record<string, unknown>>> {
-  return jiraCloud(ctx, `${API}/user/search`, { query: { query, maxResults } });
+/**
+ * GET /rest/api/3/user/search: one page, since the endpoint stops at the
+ * thousandth match anyway. It answers a bare list with no total, so a full
+ * page says there may be more: meta.page.nextCursor is the startAt after it,
+ * and a short page ends the list.
+ */
+export async function searchUsers(ctx: JiraCloudContext, query: string, maxResults: number, cursor?: string): Promise<Array<Record<string, unknown>>> {
+  if (cursor !== undefined && !/^\d+$/.test(cursor)) {
+    throw new ToilError('INVALID_INPUT', `"${cursor}" isn't a cursor this command hands out.`, {
+      fix: 'Pass meta.page.nextCursor from the previous page unchanged, or leave the cursor out to start at the beginning.',
+    });
+  }
+  const startAt = cursor === undefined ? 0 : Number(cursor);
+  const users = await jiraCloud<Array<Record<string, unknown>>>(ctx, `${API}/user/search`, { query: { query, maxResults, ...(cursor === undefined ? {} : { startAt }) } });
+  ctx.setPage({ nextCursor: Array.isArray(users) && users.length >= maxResults ? String(startAt + users.length) : null, limit: maxResults });
+  return users;
 }
 
 // GET /rest/agile/1.0/board?projectKeyOrId=, every page.
-export function listBoards(ctx: JiraCloudContext, project: string): Promise<JiraCloudBoard[]> {
-  return every(`Jira Cloud boards for project ${project}`, 'values', (paging) => jiraCloud(ctx, `${AGILE_API}/board`, { query: { projectKeyOrId: project, ...paging } }));
+export function listBoards(ctx: JiraCloudContext, project: string, page: PageOpts = {}): Promise<JiraCloudBoard[]> {
+  return every(ctx, `Jira Cloud boards for project ${project}`, 'values', (paging) => jiraCloud(ctx, `${AGILE_API}/board`, { query: { projectKeyOrId: project, ...paging } }), page);
 }
 
 // GET /rest/agile/1.0/board/{boardId}/sprint, every page.
-export function listSprintsForBoard(ctx: JiraCloudContext, boardId: number, states?: string[]): Promise<JiraCloudSprint[]> {
-  return every(`Jira Cloud sprints for board ${boardId}`, 'values', (paging) =>
-    jiraCloud(ctx, `${AGILE_API}/board/${seg(boardId)}/sprint`, { query: { ...paging, ...(states?.length ? { state: states.join(',') } : {}) } }),
+export function listSprintsForBoard(ctx: JiraCloudContext, boardId: number, states?: string[], page: PageOpts = {}): Promise<JiraCloudSprint[]> {
+  return every(
+    ctx,
+    `Jira Cloud sprints for board ${boardId}`,
+    'values',
+    (paging) => jiraCloud(ctx, `${AGILE_API}/board/${seg(boardId)}/sprint`, { query: { ...paging, ...(states?.length ? { state: states.join(',') } : {}) } }),
+    page,
   );
 }
 
@@ -362,7 +438,7 @@ export async function fetchFields(ctx: JiraCloudContext): Promise<JiraCloudField
  */
 export async function fetchFieldsWithAllowedValues(ctx: JiraCloudContext, project: string, issueType?: string): Promise<JiraCloudFieldInfo[]> {
   const fields = await fetchFields(ctx);
-  const types = await every<{ id: string; name: string }>(`Jira Cloud issue types for project ${project}`, 'issueTypes', (paging) =>
+  const types = await every<{ id: string; name: string }>(ctx, `Jira Cloud issue types for project ${project}`, 'issueTypes', (paging) =>
     jiraCloud(ctx, `${API}/issue/createmeta/${seg(project)}/issuetypes`, { query: paging }),
   );
   const matching = issueType ? types.filter((t) => t.name.toLowerCase() === issueType.toLowerCase()) : types;
@@ -373,7 +449,7 @@ export async function fetchFieldsWithAllowedValues(ctx: JiraCloudContext, projec
   }
   const allowed = new Map<string, Array<{ id?: string }>>();
   for (const type of matching) {
-    const meta = await every<{ fieldId: string; allowedValues?: Array<{ id?: string }> }>(`Jira Cloud fields for ${project} ${type.name}`, 'fields', (paging) =>
+    const meta = await every<{ fieldId: string; allowedValues?: Array<{ id?: string }> }>(ctx, `Jira Cloud fields for ${project} ${type.name}`, 'fields', (paging) =>
       jiraCloud(ctx, `${API}/issue/createmeta/${seg(project)}/issuetypes/${seg(type.id)}`, { query: paging }),
     );
     for (const field of meta) {

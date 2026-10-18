@@ -6,7 +6,9 @@ import { ToilError } from '../../core/errors.js';
 import { paginate, type PageStyle } from '../../core/paginate.js';
 import { repointUrl, type QueryValue } from '../../core/rest.js';
 import { jiraArea, type CustomFieldDefinition } from './area.js';
+import { BULK_CONCURRENCY, perKeyError, type BulkError } from './bulk.js';
 import { suggestedType } from './custom-fields.js';
+import type { PageOpts } from './paging.js';
 
 /**
  * Every request toil sends to Jira Data Center. Commands describe what they
@@ -149,14 +151,75 @@ function offsetPages<T>(field: string): PageStyle<T> {
   };
 }
 
-/** Every item of a paged list; `what` names it if paging never ends. */
-async function every<T>(what: string, field: string, fetchPage: (paging: Record<string, string | number>) => Promise<unknown>): Promise<T[]> {
-  const { items } = await paginate<T>(offsetPages<T>(field), async (paging) => ({ body: await fetchPage(paging) }), { what });
+/**
+ * The items of a paged list; `what` names it if paging never ends. With a
+ * limit it stops there and meta.page.nextCursor is the startAt to carry on
+ * from; a cursor starts there.
+ */
+async function every<T>(ctx: JiraContext, what: string, field: string, fetchPage: (paging: Record<string, string | number>) => Promise<unknown>, page: PageOpts = {}): Promise<T[]> {
+  const { items } = await paginate<T>(offsetPages<T>(field), async (paging) => ({ body: await fetchPage(paging) }), {
+    what,
+    ...(page.limit !== undefined ? { cap: page.limit, setPage: ctx.setPage } : {}),
+    ...(page.cursor !== undefined ? { cursor: page.cursor } : {}),
+  });
   return items;
 }
 
 export function getIssue(ctx: JiraContext, key: string): Promise<JiraIssue> {
   return jira<JiraIssue>(ctx, `${API}/issue/${seg(key)}`);
+}
+
+/**
+ * Several issues by key. Data Center has no bulk read, so it's one GET per
+ * key, BULK_CONCURRENCY at a time, each answer kept in the order asked. A key
+ * that failed on its own carries its error; anything else fails the call.
+ */
+export async function getIssues(ctx: JiraContext, keys: string[]): Promise<Array<{ key: string; issue?: JiraIssue; error?: BulkError }>> {
+  const results: Array<{ key: string; issue?: JiraIssue; error?: BulkError }> = keys.map((key) => ({ key }));
+  let next = 0;
+  const worker = async () => {
+    while (next < keys.length) {
+      const slot = results[next++]!;
+      try {
+        slot.issue = await getIssue(ctx, slot.key);
+      } catch (err) {
+        slot.error = perKeyError(slot.key, err);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(BULK_CONCURRENCY, keys.length) }, worker));
+  return results;
+}
+
+export interface JiraHistory {
+  id: string;
+  author?: JiraUser;
+  created: string;
+  items: Array<{ field: string; fieldtype?: string; from?: string | null; fromString?: string | null; to?: string | null; toString?: string | null }>;
+  [key: string]: unknown;
+}
+
+/**
+ * An issue's change history, from GET /rest/api/2/issue/{key}?expand=changelog
+ * (https://docs.atlassian.com/software/jira/docs/api/REST/9.12.0/#api/2/issue-getIssue):
+ * Data Center has no /changelog endpoint, so the history comes with the issue,
+ * all of it in one answer, and only `summary` is asked for besides. A
+ * changelog whose total says Jira sent fewer than it has gets a warning.
+ */
+export async function getChangelog(ctx: JiraContext, key: string): Promise<JiraHistory[]> {
+  const issue = await jira<{ changelog?: { total?: number; histories?: JiraHistory[] } }>(ctx, `${API}/issue/${seg(key)}`, { params: { expand: 'changelog', fields: 'summary' } });
+  const histories = issue.changelog?.histories ?? [];
+  const total = issue.changelog?.total;
+  if (typeof total === 'number' && total > histories.length) {
+    ctx.warn({ code: 'JIRA_CHANGELOG_TRUNCATED', message: `Jira reported ${total} changes on ${key} but sent ${histories.length}, so the rest are missing here.` });
+  }
+  return histories;
+}
+
+/** The time zone of the token's user, from GET /rest/api/2/myself, which JQL's absolute dates are read in. */
+export async function myTimeZone(ctx: JiraContext): Promise<string | undefined> {
+  const me = await jira<{ timeZone?: unknown }>(ctx, `${API}/myself`);
+  return typeof me.timeZone === 'string' && me.timeZone !== '' ? me.timeZone : undefined;
 }
 
 export interface CreateIssueOpts {
@@ -226,8 +289,8 @@ export function addComment(ctx: JiraContext, key: string, text: string): Promise
   return jira<unknown>(ctx, `${API}/issue/${seg(key)}/comment`, { method: 'POST', body: { body: text } });
 }
 
-export function listComments(ctx: JiraContext, key: string): Promise<unknown[]> {
-  return every(`Jira comments for ${key}`, 'comments', (paging) => jira(ctx, `${API}/issue/${seg(key)}/comment`, { params: paging }));
+export function listComments(ctx: JiraContext, key: string, page: PageOpts = {}): Promise<unknown[]> {
+  return every(ctx, `Jira comments for ${key}`, 'comments', (paging) => jira(ctx, `${API}/issue/${seg(key)}/comment`, { params: paging }), page);
 }
 
 export function addWorklog(ctx: JiraContext, key: string, opts: { timeSpent: string; comment?: string | undefined; started?: string | undefined }): Promise<unknown> {
@@ -435,12 +498,18 @@ export async function linkIssue(ctx: JiraContext, opts: { key: string; linkType:
   });
 }
 
-export function listBoards(ctx: JiraContext, project: string): Promise<JiraBoard[]> {
-  return every(`Jira boards for project ${project}`, 'values', (paging) => jira(ctx, `${AGILE_API}/board`, { params: { projectKeyOrId: project, ...paging } }));
+export function listBoards(ctx: JiraContext, project: string, page: PageOpts = {}): Promise<JiraBoard[]> {
+  return every(ctx, `Jira boards for project ${project}`, 'values', (paging) => jira(ctx, `${AGILE_API}/board`, { params: { projectKeyOrId: project, ...paging } }), page);
 }
 
-export function listSprintsForBoard(ctx: JiraContext, boardId: number, states?: string[]): Promise<JiraSprint[]> {
-  return every(`Jira sprints for board ${boardId}`, 'values', (paging) => jira(ctx, `${AGILE_API}/board/${seg(boardId)}/sprint`, { params: { ...paging, ...(states?.length ? { state: states.join(',') } : {}) } }));
+export function listSprintsForBoard(ctx: JiraContext, boardId: number, states?: string[], page: PageOpts = {}): Promise<JiraSprint[]> {
+  return every(
+    ctx,
+    `Jira sprints for board ${boardId}`,
+    'values',
+    (paging) => jira(ctx, `${AGILE_API}/board/${seg(boardId)}/sprint`, { params: { ...paging, ...(states?.length ? { state: states.join(',') } : {}) } }),
+    page,
+  );
 }
 
 /** Sprints across a project's scrum boards, once each: a sprint can sit on several boards. */

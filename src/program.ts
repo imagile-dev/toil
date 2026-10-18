@@ -6,7 +6,7 @@ import { ToilError, toToilError } from './core/errors.js';
 import { exitCodeOf, runCommand } from './core/run.js';
 import { SELECT_FIELD } from './core/query/select.js';
 import { longFlag, type ResolvedRoutedAlias } from './core/routed-alias.js';
-import { baseType, elementSchema, fieldSchema, fromText } from './core/schema.js';
+import { fieldSchema, fromText, repeatable } from './core/schema.js';
 
 /** Flags every command accepts. Names and meanings are part of the contract. */
 export interface GlobalOptions {
@@ -498,7 +498,13 @@ function globalsFromArgv(args: string[]): GlobalOptions {
  * a value may contain.
  */
 function addOption(cmd: Command, def: AnyCommand, opt: CliOption): void {
-  if (takesValue(opt.flags) && isArrayField(def, opt.field)) {
+  const repeats = takesValue(opt.flags) ? repeatsAs(def, opt.field) : undefined;
+  if (repeats?.single) {
+    // One value or a list of them: once is the value, twice is the list.
+    cmd.option(opt.flags, opt.description, (value: string, previous: string | string[] | undefined) =>
+      previous === undefined ? value : [...(Array.isArray(previous) ? previous : [previous]), value],
+    );
+  } else if (repeats) {
     cmd.option(opt.flags, opt.description, (value: string, previous: string[] | undefined) => [...(previous ?? []), value]);
   } else {
     cmd.option(opt.flags, opt.description);
@@ -549,10 +555,13 @@ function strayGroupFlags(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<
 
 const takesValue = (flags: string) => flags.includes('<') || flags.includes('[');
 
-function isArrayField(def: AnyCommand, field: string): boolean {
+/** How a field's flag repeats (`repeatable` in core/schema), or undefined when it doesn't. */
+function repeatsAs(def: AnyCommand, field: string): ReturnType<typeof repeatable> {
   const schema = fieldSchema(def.input, field);
-  return schema !== undefined && baseType(schema) === 'array';
+  return schema === undefined ? undefined : repeatable(schema);
 }
+
+const isArrayField = (def: AnyCommand, field: string): boolean => repeatsAs(def, field) !== undefined;
 
 /**
  * argv holds only text. Each value becomes the type its field's schema asks
@@ -564,11 +573,9 @@ function isArrayField(def: AnyCommand, field: string): boolean {
 function typed(def: AnyCommand, field: string, value: unknown): unknown {
   const schema = fieldSchema(def.input, field);
   if (!schema) return value;
-  if (Array.isArray(value)) {
-    const element = elementSchema(schema);
-    return element ? value.map((item) => fromText(element, item)) : value;
-  }
-  return fromText(schema, value);
+  const repeats = repeatable(schema);
+  if (Array.isArray(value)) return repeats ? value.map((item) => fromText(repeats.element, item)) : value;
+  return fromText(repeats?.single ? repeats.element : schema, value);
 }
 
 /** The argv that runs `def` with `input` through a routed alias, picking it with `value`. */

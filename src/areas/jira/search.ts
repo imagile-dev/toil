@@ -4,6 +4,7 @@ import { jiraArea } from './area.js';
 import * as client from './client.js';
 import { buildFieldMap, resolveFieldKey, translateFieldsInOutput, translateJql } from './custom-fields.js';
 import { asInt, commaList, parseStartAt, resolveJql } from './input.js';
+import { jqlInstant, parseUpdatedSince, updatedSinceField, updatedSinceOption, withUpdatedSince } from './since.js';
 
 /**
  * Finding issues with JQL, and finding out which fields exist to search on.
@@ -16,12 +17,14 @@ export const search = jiraArea.command({
   path: ['jira', 'search'],
   description: 'Search Jira issues with JQL (consider --output-file for large results)',
   toolDescription:
-    'Searches Jira issues with JQL and returns { issues, total, startAt, maxResults }. Without maxResults it pages through every match, so bound broad queries. meta.page.nextCursor is the startAt for the next page. Use jira_get_issue for one issue by key.',
+    'Searches Jira issues with JQL and returns { issues, total, startAt, maxResults }. Without maxResults it pages through every match, so bound broad queries. meta.page.nextCursor is where the next page starts: pass it back as cursor (or startAt). updatedSince adds updated >= that instant to the JQL, in the time zone of your Jira profile. Use jira_get_issue for one issue by key.',
   input: z.object({
     jql: z.string().optional().describe('JQL query, e.g. project = PROJ AND status = "In Progress"'),
     jqlFile: z.string().optional().describe('Path to a file holding the JQL query ("-" = stdin on the CLI)'),
     maxResults: z.union([z.number(), z.string()]).optional().describe('Maximum number of issues to return; all matches when omitted'),
     startAt: z.union([z.number(), z.string()]).optional().describe('Index of the first result to return (a non-negative integer), for resuming or paging'),
+    cursor: z.string().min(1).optional().describe('meta.page.nextCursor from the previous page, to carry on from there (the same as startAt)'),
+    updatedSince: updatedSinceField,
     fields: z.string().optional().describe('Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,"Story Points")'),
   }),
   writes: false,
@@ -32,15 +35,26 @@ export const search = jiraArea.command({
     { flags: '--jql-file <path>', field: 'jqlFile', description: "Path to a file containing the JQL query ('-' = stdin)" },
     { flags: '--max-results <n>', field: 'maxResults', description: 'Maximum number of results' },
     { flags: '--start-at <n>', field: 'startAt', description: 'Index of the first result to return (for resuming or paging)' },
+    { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous page (the same as --start-at)' },
+    updatedSinceOption,
     { flags: '--fields <list>', field: 'fields', description: 'Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,"Story Points")' },
   ],
   examples: [
     { jql: 'project = PROJ AND status = "In Progress"', maxResults: 2 },
     { jqlFile: 'query.jql', startAt: 1, fields: 'summary,status,Story Points' },
+    // The cursor the first example hands back.
+    { jql: 'project = PROJ AND status = "In Progress"', maxResults: 2, cursor: '2' },
+    { jqlFile: 'query.jql', updatedSince: '2026-10-01T09:30:00Z', maxResults: 2 },
+    { updatedSince: '2026-10-01' },
   ],
   run: async (input, ctx) => {
     const fieldMap = buildFieldMap(ctx.connection.customFields);
-    const jql = resolveJql(input.jql, input.jqlFile, ctx.files);
+    // With --updated-since alone, the instant is the whole query.
+    const jql = input.updatedSince !== undefined && input.jql === undefined && input.jqlFile === undefined ? undefined : resolveJql(input.jql, input.jqlFile, ctx.files);
+    const since = input.updatedSince === undefined ? undefined : parseUpdatedSince(input.updatedSince);
+    if (input.cursor !== undefined && input.startAt !== undefined) {
+      throw new ToilError('INVALID_INPUT', 'Cannot specify both --cursor and --start-at', { fix: 'Pass one of them: the cursor is the startAt of the next page.' });
+    }
     let fields: string[];
     if (input.fields !== undefined) {
       fields = commaList(input.fields).map((name) => {
@@ -57,13 +71,31 @@ export const search = jiraArea.command({
     // As the contract specifies: an empty --max-results means all, and a
     // non-number reaches the request as null. --start-at is digits only.
     const maxResults = input.maxResults !== undefined && String(input.maxResults) !== '' ? asInt(input.maxResults) : undefined;
-    const startAt = parseStartAt(input.startAt);
-    const result = await client.search(ctx, translateJql(jql, fieldMap), { maxResults, startAt, fields });
+    const startAt = input.cursor !== undefined ? parseCursor(input.cursor) : parseStartAt(input.startAt);
+    let query = jql === undefined ? undefined : translateJql(jql, fieldMap);
+    if (since) {
+      const zone = await client.myTimeZone(ctx);
+      const instant = jqlInstant(since, zone, (asked) =>
+        ctx.warn({ code: 'JIRA_TIME_ZONE', message: `Jira ${asked ? `named a time zone toil doesn't know (${asked})` : "didn't say which time zone your profile uses"}, so --updated-since was written in UTC.` }),
+      );
+      query = withUpdatedSince(query, instant);
+    }
+    const result = await client.search(ctx, query!, { maxResults, startAt, fields });
     const next = result.startAt + result.issues.length;
     ctx.setPage({ nextCursor: next < result.total ? String(next) : null, limit: maxResults ?? result.issues.length });
     return { ...result, issues: result.issues.map((issue) => ({ ...issue, fields: translateFieldsInOutput(issue.fields, fieldMap) })) };
   },
 });
+
+/** A cursor this command handed out: the startAt of the next page, digits only. */
+function parseCursor(cursor: string): number {
+  if (!/^\d+$/.test(cursor)) {
+    throw new ToilError('INVALID_INPUT', `"${cursor}" isn't a cursor this command hands out.`, {
+      fix: 'Pass meta.page.nextCursor from the previous page unchanged, or leave the cursor out to start at the beginning.',
+    });
+  }
+  return Number(cursor);
+}
 
 export const fields = jiraArea.command({
   path: ['jira', 'fields'],

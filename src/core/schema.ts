@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 
-type Def = { type: string; innerType?: z.ZodType; element?: z.ZodType };
+type Def = { type: string; innerType?: z.ZodType; element?: z.ZodType; options?: readonly z.ZodType[] };
 const defOf = (schema: z.ZodType): Def => (schema as unknown as { _zod: { def: Def } })._zod.def;
 
 /** The schema underneath optional/default/nullable wrappers. */
@@ -30,10 +30,23 @@ export function fieldSchema(schema: z.ZodObject, field: string): z.ZodType | und
   return (schema.shape as Record<string, z.ZodType>)[field];
 }
 
-/** An array field's element schema. */
-export function elementSchema(schema: z.ZodType): z.ZodType | undefined {
+/**
+ * How a field's flag repeats, if it does: an array field always collects a
+ * list, and a union of one value or an array of them (`jira get-issue --key A
+ * --key B`) stays a single value when the flag is given once and becomes the
+ * list when it's given again. `single` says which; `element` is what each use
+ * is typed as.
+ */
+export function repeatable(schema: z.ZodType): { element: z.ZodType; single: boolean } | undefined {
   const inner = unwrap(schema);
-  return defOf(inner).type === 'array' ? defOf(inner).element : undefined;
+  const def = defOf(inner);
+  if (def.type === 'array' && def.element) return { element: def.element, single: false };
+  if (def.type !== 'union' || def.options?.length !== 2) return undefined;
+  const [a, b] = def.options.map(unwrap) as [z.ZodType, z.ZodType];
+  const [one, many] = defOf(a).type === 'array' ? [b, a] : [a, b];
+  const element = defOf(many).element;
+  if (defOf(many).type !== 'array' || !element || defOf(one).type === 'array' || defOf(unwrap(element)).type !== defOf(one).type) return undefined;
+  return { element: one, single: true };
 }
 
 /**

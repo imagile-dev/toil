@@ -57,9 +57,31 @@ const searchIssues = Array.from({ length: 3 }, (_, i) => issue(`PROJ-${i + 1}`, 
 const json = (body: unknown, status = 200) => ({ status, json: body });
 const empty = { status: 204 };
 
+const comments = [
+  { id: '10200', author: user('jsmith', 'J. Smith'), body: 'Reproduced on staging.', created: '2024-01-16T12:00:00.000+0000', updated: '2024-01-16T12:00:00.000+0000' },
+  { id: '10201', author: user('alice', 'Alice'), body: 'Fixed in 1.4.2.', created: '2024-01-17T08:00:00.000+0000', updated: '2024-01-17T08:00:00.000+0000' },
+];
+
+const boards = [
+  { id: 1, name: 'PROJ board', type: 'scrum' },
+  { id: 2, name: 'PROJ kanban', type: 'kanban' },
+];
+
+// Invented from the docs: the changelog's histories, in the Change History schema of /rest/api/2/issue.
+const histories = [
+  { id: '10500', author: user('alice', 'Alice'), created: '2024-01-15T10:00:00.000+0000', items: [{ field: 'status', fieldtype: 'jira', from: '1', fromString: 'To Do', to: '3', toString: 'In Progress' }] },
+  { id: '10501', author: user('jsmith', 'J. Smith'), created: '2024-01-16T11:30:00.000+0000', items: [{ field: 'labels', fieldtype: 'jira', from: null, fromString: '', to: null, toString: 'frontend' }] },
+];
+
 export const routes: Route[] = [
   // Issue reads. The attachment-only read comes first: same path, with a query.
   { url: api('/issue/PROJ-123\\?fields=attachment'), respond: json({ id: '10123', key: 'PROJ-123', fields: { attachment: [attachment] } }) },
+  // Invented from the docs: Jira's 404 for a key that doesn't exist, for get-issue's bulk read.
+  { url: api('/issue/PROJ-404'), respond: json({ errorMessages: ['Issue Does Not Exist'], errors: {} }, 404) },
+  // Invented from the docs: GET /rest/api/2/issue/{key}?expand=changelog, the issue with its histories.
+  { url: api('/issue/PROJ-123\\?expand=changelog&fields=summary'), respond: json({ id: '10123', key: 'PROJ-123', fields: { summary: 'Login broken on Safari' }, changelog: { startAt: 0, maxResults: 2, total: 2, histories } }) },
+  // Invented from the docs: GET /rest/api/2/myself, for --updated-since's time zone.
+  { url: api('/myself'), respond: json({ ...user('jsmith', 'J. Smith'), emailAddress: 'you@example.com', timeZone: 'Europe/London' }) },
   { url: api('/issue/(PROJ-\\d+)'), respond: (req: RecordedRequest) => json(issue(new URL(req.url).pathname.split('/').pop()!)) },
   // Invented from the docs: POST /rest/api/2/issue answers 201 with id, key and self.
   { method: 'POST', url: api('/issue'), respond: json({ id: '10124', key: 'PROJ-124', self: `${JIRA}/rest/api/2/issue/10124` }, 201) },
@@ -88,16 +110,12 @@ export const routes: Route[] = [
       json({ self: `${JIRA}/rest/api/2/issue/10123/comment/10200`, id: '10200', author: user('jsmith', 'J. Smith'), body: JSON.parse(req.body!).body, created: '2024-01-16T12:00:00.000+0000', updated: '2024-01-16T12:00:00.000+0000' }, 201),
   },
   {
-    url: api('/issue/PROJ-123/comment\\?startAt=0&maxResults=100'),
-    respond: json({
-      startAt: 0,
-      maxResults: 100,
-      total: 2,
-      comments: [
-        { id: '10200', author: user('jsmith', 'J. Smith'), body: 'Reproduced on staging.', created: '2024-01-16T12:00:00.000+0000', updated: '2024-01-16T12:00:00.000+0000' },
-        { id: '10201', author: user('alice', 'Alice'), body: 'Fixed in 1.4.2.', created: '2024-01-17T08:00:00.000+0000', updated: '2024-01-17T08:00:00.000+0000' },
-      ],
-    }),
+    // Answers the page startAt asks for, so --cursor resumes.
+    url: api('/issue/PROJ-123/comment\\?startAt=(0|1)&maxResults=100'),
+    respond: (req: RecordedRequest) => {
+      const startAt = Number(new URL(req.url).searchParams.get('startAt'));
+      return json({ startAt, maxResults: 100, total: comments.length, comments: comments.slice(startAt) });
+    },
   },
   {
     method: 'POST',
@@ -180,16 +198,19 @@ export const routes: Route[] = [
 
   // Agile: the recorded examples' shapes, with the isLast the real API sends.
   {
-    url: agile('/board\\?projectKeyOrId=PROJ&startAt=0&maxResults=100'),
-    respond: json({ maxResults: 100, startAt: 0, total: 2, isLast: true, values: [{ id: 1, name: 'PROJ board', type: 'scrum' }, { id: 2, name: 'PROJ kanban', type: 'kanban' }] }),
+    url: agile('/board\\?projectKeyOrId=PROJ&startAt=(0|1)&maxResults=100'),
+    respond: (req: RecordedRequest) => {
+      const startAt = Number(new URL(req.url).searchParams.get('startAt'));
+      return json({ maxResults: 100, startAt, total: boards.length, isLast: true, values: boards.slice(startAt) });
+    },
   },
   {
     // No total, as the real sprint list has none: paging asks for one more,
     // empty page (startAt=2), as the contract specifies.
-    url: agile('/board/(1|3)/sprint\\?startAt=(0|2)&maxResults=100(&state=active,future)?'),
+    url: agile('/board/(1|3)/sprint\\?startAt=(0|1|2)&maxResults=100(&state=active,future)?'),
     respond: (req: RecordedRequest) => {
       const startAt = Number(new URL(req.url).searchParams.get('startAt'));
-      return json({ maxResults: 100, startAt, isLast: true, values: startAt > 0 ? [] : sprints });
+      return json({ maxResults: 100, startAt, isLast: true, values: sprints.slice(startAt) });
     },
   },
   { method: 'POST', url: agile('/sprint/42/issue'), respond: empty },

@@ -1939,3 +1939,67 @@ shape; these are the calls made around that.
   `svg.wellFormed` checks the output itself: it parses with the kit's XML reader,
   plus a scan for those characters, since that reader doesn't refuse them. D2 keys
   and paths are always quoted, so there's no keyword list to keep in step with D2.
+
+### #212 Jira
+
+Items 5, 6, 7 and 9 for `jira` (Data Center) and `jira-cloud`. Each area keeps its own
+payload shapes; nothing existing changed shape.
+
+- **Paging is `--limit` and `--cursor`, the house pattern** (as on `bitbucket-cloud`):
+  without a limit a list returns everything as before, with no `meta.page`; with one it
+  stops there and `meta.page.nextCursor` is the next `startAt`. Added to `list-comments`,
+  `list-boards`, `list-sprints` and the new `get-changelog` in both areas, and
+  `list-projects` on Cloud. Lists Jira sends whole (`list-transitions`,
+  `list-attachments`, `fields`) get no paging: a cursor over a list that is never paged
+  would only pretend.
+- **`list-sprints` pages only with `--board`.** With `--project` it merges and
+  de-duplicates sprints across boards, so no single startAt resumes it; `--limit` or
+  `--cursor` with `--project` is `INVALID_INPUT` saying so.
+- **DC `search` takes `--cursor` beside `--start-at`**, the same number, so a caller
+  pages every list one way. Both at once is `INVALID_INPUT`. Cloud `search` already
+  had `--cursor`.
+- **`search-users` (Cloud) always sets `meta.page`.** The endpoint answers a bare list
+  with no total, so a full page hands out the next startAt and a short page ends it; the
+  last full page can lead to one empty page. `startAt` is sent only with a cursor, so
+  the existing request is unchanged.
+- **`--updated-since` is written in the user's Jira time zone, read from `/myself`.**
+  JQL's absolute dates have no zone and are read in the profile's zone, so an instant
+  written in UTC would be hours off for most users. One extra GET, only when the flag is
+  given. Unknown or missing zone: UTC plus a `JIRA_TIME_ZONE` / `JIRA_CLOUD_TIME_ZONE`
+  warning. The instant is rounded down to the minute (JQL's finest), so a sync overlaps
+  rather than leaves a gap.
+- **`--updated-since` accepts a date (midnight UTC) or a date-time with a zone, nothing
+  else.** A zone-less date-time would mean the machine's zone, which differs between a
+  laptop and CI (principle 8).
+- **The clause goes before a top-level `ORDER BY`, and the caller's JQL is
+  parenthesised**, so `a OR b` can't swallow it. Quoted strings and parentheses are
+  skipped when looking for `ORDER BY`. With only `--updated-since`, the clause is the
+  whole query, rather than demanding `--jql`.
+- **DC `get-changelog` uses `GET /rest/api/2/issue/{key}?expand=changelog&fields=summary`.**
+  Data Center's REST API (checked against the 9.12 reference) has no
+  `/issue/{key}/changelog`; that is Cloud only. The history arrives whole, and
+  `--limit` / `--cursor` page it locally with the same cursor rules. If `changelog.total`
+  is larger than the histories sent, `JIRA_CHANGELOG_TRUNCATED` says so. The `jira api`
+  example in `skills/toil/jira.md` that called the Cloud-only changelog path on Data
+  Center now calls `/remotelink`.
+- **Bulk get is `--key` repeated, through a one-or-many field.** `key` is
+  `string | string[]`: a string returns the issue as before, a list returns
+  `{ issues, errors }`, decided by type so both front doors agree. Core gained one
+  general rule for it (`repeatable` in `src/core/schema.ts`): a union of a value and an
+  array of that value is a repeatable flag that stays a single value when given once.
+  So on the CLI one `--key` is the single read, and a one-element bulk read is MCP only.
+- **Bulk limits:** at most 100 keys (Cloud's bulkfetch ceiling with `*all` fields, used
+  for DC too), duplicates read once, `INVALID_INPUT` before any request beyond that. DC
+  sends one GET per key, 5 at a time.
+- **Per-key failures are `NOT_FOUND` and `HTTP` only.** `AUTH`, `NETWORK`, a time limit
+  or a cancel fail the whole call: a rejected token isn't a fact about one issue. Each
+  failed key is in `data.errors` as `{ key, code, message }` and a
+  `JIRA_BULK_PARTIAL` / `JIRA_CLOUD_BULK_PARTIAL` warning counts them.
+- **Cloud bulkfetch results are matched back to the keys asked** (by key,
+  case-insensitively, or by id), since Jira answers in id order and silently omits keys
+  it can't find or won't show. An unmatched key is `NOT_FOUND`; an `issueErrors` entry
+  is `HTTP` with Jira's message; an issue that matched no key (a moved issue under its
+  new key) is still returned, after the others. Cloud `get-issue` is marked
+  `queryByPost`, since the bulk read is a POST that only reads.
+- **The contract gets a second output shape for `jira get-issue`**
+  (`{ issues, errors }`), added, not replacing the recorded one.

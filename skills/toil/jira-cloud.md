@@ -85,29 +85,30 @@ Every command also takes `--connection <name>`. Write commands (marked ✎) need
 
 | Command | Flags | Returns |
 |---------|-------|---------|
-| `get-issue` | `--key` | The issue as Jira returns it, registered custom fields under their friendly names, plus `descriptionText` |
+| `get-issue` | `--key` (repeat for up to 100) | The issue as Jira returns it, registered custom fields under their friendly names, plus `descriptionText`. With several keys, `{ issues, errors }` |
+| `get-changelog` | `--key --limit --cursor` | The issue's change history, oldest first: `id`, `author`, `created`, `items` |
 | `create-issue` ✎ | `--project --type --summary --description --priority --assignee <account-id> --labels --parent --field (repeatable) --fields-file --input-file` | The created issue, read back, plus `descriptionText` |
 | `update-issue` ✎ | `--key --summary --description --priority --assignee <account-id> --labels --field --fields-file --input-file` | `{ updated }` |
 | `schema` | `--example-only` | `{ schema, example }` for `--input-file`, or just the example; needs no connection |
 | `transition-issue` ✎ | `--key --transition <name-or-id>` | `{ transitioned, transition }` |
 | `list-transitions` | `--key` | Transitions available now |
 | `add-comment` ✎ | `--key --body` | The comment, plus `bodyText` |
-| `list-comments` | `--key` | Every comment, each with `bodyText` |
+| `list-comments` | `--key --limit --cursor` | Every comment, or a page of them, each with `bodyText` |
 | `log-work` ✎ | `--key --time-spent --started --comment` | The worklog, plus `commentText` |
 | `add-label` ✎ | `--key --labels` | `{ updated, labelsAdded }` |
 | `remove-label` ✎ | `--key --labels` | `{ updated, labelsRemoved }` |
 | `assign` ✎ | `--key --assignee <account-id>` | `{ assigned, assignee }` |
 | `link-issue` ✎ | `--key --link-type --target` | `{ linked, to, type }` |
-| `search` | `--jql` or `--jql-file`, `--max-results --cursor --fields` | `{ issues, maxResults, isLast }` |
+| `search` | `--jql` or `--jql-file`, `--max-results --cursor --updated-since --fields` | `{ issues, maxResults, isLast }` |
 | `fields` | `--discover --custom-only --project --issue-type` | Registered custom fields, or Jira's field list with `suggestedType` (and `allowedValues` with `--project`) |
 | `add-attachment` ✎ | `--key --file` | The attachments Jira created |
 | `list-attachments` | `--key` | The issue's attachments |
 | `download-attachment` | `--key --attachment-id --dir` | `{ saved, filename, size }` |
-| `list-projects` | `--query` | Every visible project |
+| `list-projects` | `--query --limit --cursor` | Every visible project, or a page of them |
 | `get-project` | `--project` | The project |
-| `search-users` | `--query --max-results` | Matching users, with `accountId` |
-| `list-boards` | `--project` | Agile boards |
-| `list-sprints` | `--board` or `--project`, `--state` | Sprints, each once |
+| `search-users` | `--query --max-results --cursor` | One page of matching users, with `accountId` |
+| `list-boards` | `--project --limit --cursor` | Agile boards |
+| `list-sprints` | `--board` or `--project`, `--state`, `--limit --cursor` (with `--board`) | Sprints, each once |
 | `set-sprint` ✎ | `--key --sprint` | `{ updated, sprint }` |
 
 ```bash
@@ -155,6 +156,46 @@ is how many issues came back. `--fields` takes field ids or registered names; th
 default is summary, status, priority, assignee, issuetype, project, created, updated,
 labels, reporter and every registered custom field. `--start-at` from `jira` doesn't
 exist here, since the API has no offsets.
+
+### Paging, changes since, history and several issues
+
+These are what a sync needs: read everything once, then only what changed.
+
+```bash
+toil jira-cloud search --jql 'project = ABC' --max-results 100
+toil jira-cloud search --jql 'project = ABC ORDER BY updated' --updated-since 2026-10-01T09:30:00Z
+toil jira-cloud get-changelog --key ABC-123
+toil jira-cloud get-issue --key ABC-1 --key ABC-2 --key ABC-7
+toil jira-cloud list-projects --limit 50
+```
+
+- **Paging.** Every list and search pages the same way. Without `--limit`
+  (`--max-results` on `search` and `search-users`), a list returns every item. With
+  one, it returns that many and `meta.page.nextCursor` says where the next page
+  starts; pass it back as `--cursor`, unchanged. `null` means that was the last page.
+  `search-users` is always one page; a full page hands out a cursor, which may lead
+  to an empty one. `list-transitions`, `list-attachments` and `fields` have no
+  paging, because Jira sends each of them whole. `list-sprints` pages only with
+  `--board`, since `--project` gathers sprints from several boards.
+- **`--updated-since <iso>`** on `search` adds `updated >= "<instant>"` to the JQL,
+  before any `ORDER BY`, with your JQL in parentheses. The instant is an ISO 8601
+  date (`2026-10-01`, read as midnight UTC) or a date and time with a zone
+  (`2026-10-01T09:30:00Z`). JQL has no time zones, so toil reads your account's zone
+  from `/rest/api/3/myself` and writes the instant in it, rounded down to the minute;
+  an issue near the boundary can come back twice, never not at all. If Jira names no
+  zone it knows, toil writes UTC and warns with `JIRA_CLOUD_TIME_ZONE`. On its own,
+  `--updated-since` is the whole query.
+- **`get-changelog`** reads `/rest/api/3/issue/{key}/changelog`, oldest first, each
+  entry with `id`, `author` (an `accountId`), `created` and `items` (`field`,
+  `fieldtype`, `fieldId`, `from`, `fromString`, `to`, `toString`).
+- **Several issues.** Repeat `--key` (up to 100) and `get-issue` reads them in one
+  `POST /rest/api/3/issue/bulkfetch` and returns `{ issues, errors }`: the issues in
+  the order you asked, and each key that couldn't be read as `{ key, code, message }`,
+  with a `JIRA_CLOUD_BULK_PARTIAL` warning. Jira leaves out a key it can't find or
+  won't show, and toil reports each one as `NOT_FOUND`; a key Jira couldn't fetch is
+  `HTTP` with Jira's message. An issue that moved project comes back under its new
+  key, after the others, and its old key is listed as `NOT_FOUND` too. One `--key`
+  returns the issue itself, as before. Over MCP, `key` takes a string or a list.
 
 ## Large fields via --input-file
 

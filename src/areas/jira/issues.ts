@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { jiraArea } from './area.js';
+import { bulkKeys, bulkWarning, keyOrKeys, MAX_BULK_KEYS } from './bulk.js';
 import * as client from './client.js';
 import { buildFieldMap, translateFieldsInOutput, withAliases } from './custom-fields.js';
 import {
@@ -16,6 +17,7 @@ import {
   type IssueJsonInput,
 } from './input.js';
 import { JIRA_INPUT_FILE_EXAMPLE, JIRA_INPUT_FILE_SCHEMA } from './input-schema.js';
+import { pageOf, pagingFields, pagingOptions } from './paging.js';
 
 /**
  * Commands on one issue: read it, create it, change it, move it through its
@@ -84,17 +86,35 @@ const fieldInputs = {
 export const getIssue = jiraArea.command({
   path: ['jira', 'get-issue'],
   description: 'Get a Jira issue by key',
-  toolDescription:
-    'Returns one Jira issue by key: every field, with registered custom fields under their friendly names. Use jira_search to find issues by JQL instead.',
-  input: z.object({ key }),
+  toolDescription: `Returns one Jira issue by key: every field, with registered custom fields under their friendly names. With a list of up to ${MAX_BULK_KEYS} keys it returns { issues, errors } instead: the issues in the order asked, and each key that couldn't be read with its code and message. Use jira_search to find issues by JQL instead.`,
+  input: z.object({ key: keyOrKeys }),
   writes: false,
-  options: [keyOption('Issue key (e.g. PROJ-123)')],
-  examples: [{ key: 'PROJ-123' }],
+  options: [keyOption(`Issue key (e.g. PROJ-123); repeat for up to ${MAX_BULK_KEYS} issues`)],
+  examples: [{ key: 'PROJ-123' }, { key: ['PROJ-1', 'PROJ-2', 'PROJ-404'] }],
   run: async (input, ctx) => {
     const fieldMap = buildFieldMap(ctx.connection.customFields);
-    const issue = await client.getIssue(ctx, input.key);
-    return { ...issue, fields: translateFieldsInOutput(issue.fields, fieldMap) };
+    const translate = (issue: client.JiraIssue) => ({ ...issue, fields: translateFieldsInOutput(issue.fields, fieldMap) });
+    if (!Array.isArray(input.key)) return translate(await client.getIssue(ctx, input.key));
+    const keys = bulkKeys(input.key);
+    const results = await client.getIssues(ctx, keys);
+    const issues = results.flatMap((r) => (r.issue ? [translate(r.issue)] : []));
+    const errors = results.flatMap((r) => (r.error ? [r.error] : []));
+    const warning = bulkWarning('JIRA_BULK_PARTIAL', errors, keys.length);
+    if (warning) ctx.warn(warning);
+    return { issues, errors };
   },
+});
+
+export const getChangelog = jiraArea.command({
+  path: ['jira', 'get-changelog'],
+  description: 'Get the change history of a Jira issue',
+  toolDescription:
+    "Returns a Jira issue's change history as Jira records it: each entry with id, author, created and items (field, fieldtype, from, fromString, to, toString), so status transitions and field changes can be replayed. Without limit it returns every entry; with limit, pass meta.page.nextCursor as cursor for the next page.",
+  input: z.object({ key, ...pagingFields('history entries') }),
+  writes: false,
+  options: [keyOption(), ...pagingOptions('history entries')],
+  examples: [{ key: 'PROJ-123' }, { key: 'PROJ-123', limit: 1 }, { key: 'PROJ-123', limit: 1, cursor: '1' }],
+  run: async (input, ctx) => pageOf(await client.getChangelog(ctx, input.key), input, ctx.setPage),
 });
 
 export const createIssue = jiraArea.command({
@@ -344,12 +364,12 @@ export const logWork = jiraArea.command({
 export const listComments = jiraArea.command({
   path: ['jira', 'list-comments'],
   description: 'List comments on a Jira issue',
-  toolDescription: 'Returns every comment on a Jira issue, oldest first, paging through all of them.',
-  input: z.object({ key }),
+  toolDescription: 'Returns the comments on a Jira issue, oldest first. Without limit it pages through all of them; with limit, pass meta.page.nextCursor as cursor for the next page.',
+  input: z.object({ key, ...pagingFields('comments') }),
   writes: false,
-  options: [keyOption()],
-  examples: [{ key: 'PROJ-123' }],
-  run: (input, ctx) => client.listComments(ctx, input.key),
+  options: [keyOption(), ...pagingOptions('comments')],
+  examples: [{ key: 'PROJ-123' }, { key: 'PROJ-123', limit: 1 }, { key: 'PROJ-123', limit: 1, cursor: '1' }],
+  run: (input, ctx) => client.listComments(ctx, input.key, input),
 });
 
 const labelsInput = (verb: string) => z.string().describe(`Comma-separated labels to ${verb}`);
@@ -428,4 +448,4 @@ export const linkIssue = jiraArea.command({
   },
 });
 
-export const issueCommands = [getIssue, createIssue, updateIssue, schema, transitionIssue, listTransitions, addComment, logWork, listComments, addLabel, removeLabel, assign, linkIssue];
+export const issueCommands = [getIssue, getChangelog, createIssue, updateIssue, schema, transitionIssue, listTransitions, addComment, logWork, listComments, addLabel, removeLabel, assign, linkIssue];
