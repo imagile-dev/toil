@@ -78,10 +78,12 @@ Every command writes one JSON envelope to stdout:
 Settings resolve in this order: `TOIL_*` environment variables, then
 `~/.toil/config.json`. `toil connections add <name>` sets up a connection on a
 terminal and keeps its token in the OS credential store, with only a reference in
-config; `toil connections list` shows what's set up (`--area <name>` for one area). Tokens live in the OS
+config; `toil connections list` shows what's set up (`--area <name>` for one area), and
+`toil connections test <name>` checks one with a single read. Run `toil` on its own in a
+terminal for a menu that does all of this, and shows each command as it runs. Tokens live in the OS
 credential store or in environment variables, never in the config file; use
 environment variables in CI, containers and anywhere without a credential store. Nothing in a repository can change where your credentials go or
-switch on writes. Database connections are read-only unless you mark them otherwise.
+switch on writes; `toil connections writes <name> on` asks you to type the name. Database connections are read-only unless you mark them otherwise.
 
 Behind a corporate proxy or TLS inspection, nothing extra is needed: toil trusts the OS
 certificate store as well as Node's bundled CAs, and sends requests through

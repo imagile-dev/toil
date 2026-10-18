@@ -51,6 +51,7 @@ export const sdeArea = defineArea({
       setting: 'project',
     },
   },
+  probe: () => ({ path: '/api/v2/users/me/' }),
   request: (connection, area) => {
     const { baseUrl, token } = endpointOf(connection);
     return {

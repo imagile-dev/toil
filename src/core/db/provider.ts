@@ -1,8 +1,8 @@
 import type { Connection } from '../area.js';
 
 /**
- * The contract every database engine implements: SQLite, PostgreSQL and MySQL now,
- * SQL Server and Oracle later. The `db` area's commands call only this, so an
+ * The contract every database engine implements: SQLite, PostgreSQL, MySQL and
+ * SQL Server now, Oracle later. The `db` area's commands call only this, so an
  * engine is added by writing one provider and registering it in `engines.ts`,
  * never by touching a command.
  *

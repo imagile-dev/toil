@@ -1,8 +1,11 @@
 import { emitKeypressEvents } from 'node:readline';
-import { initialState, type Key, type MenuState, reduce, render } from './menu.js';
+import type { Envelope } from '../core/envelope.js';
+import { breadcrumb, finish, initialState, type Key, type MenuState, reduce, render } from './menu.js';
 import type { WelcomeData } from './screens.js';
 import { playSplash } from './splash.js';
 import { cursor, detectCaps, PALETTE, paint } from './term.js';
+import { commandLine, type Run, type StepResult } from './view.js';
+import { outcome } from './views/result.js';
 
 export type { WelcomeData } from './screens.js';
 
@@ -22,6 +25,14 @@ export interface WelcomeIO {
   env: NodeJS.ProcessEnv;
   /** Where SIGINT comes from; the process, except in tests. */
   signals?: Pick<NodeJS.Process, 'on' | 'off'>;
+  /**
+   * Runs one real toil command (`['connections', 'test', 'corp-jira']`) in this
+   * process, prompting on this terminal, and returns the envelope it printed.
+   * The menu does nothing else to config or connections.
+   */
+  run?: (args: string[], signal: AbortSignal) => Promise<Envelope>;
+  /** Reads everything the screens show again, after a command may have changed it. */
+  reload?: () => WelcomeData;
 }
 
 /** How long after a first Ctrl+C a second one exits. */
@@ -50,7 +61,8 @@ const NOTICE = 'Press Ctrl+C again to exit.';
  * Ctrl+C twice ('interrupted'). The terminal is put back the way it was found
  * on every way out, errors included.
  */
-export async function runWelcome(io: WelcomeIO, data: WelcomeData): Promise<'quit' | 'interrupted'> {
+export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'quit' | 'interrupted'> {
+  let data = initial;
   const { input, output } = io;
   const write = (text: string) => output.write(text);
   emitKeypressEvents(input);
@@ -73,8 +85,15 @@ export async function runWelcome(io: WelcomeIO, data: WelcomeData): Promise<'qui
   };
 
   const keyListeners = new Set<(key: Key) => void>();
+  // While a command runs, its own prompts own the keyboard; Ctrl+C cancels it.
+  let busy = false;
+  let running: AbortController | undefined;
   const onKeypress = (_: string, key: Key | undefined) => {
     const k = key ?? {};
+    if (busy) {
+      if (k.ctrl && k.name === 'c') running?.abort();
+      return;
+    }
     if (k.ctrl && k.name === 'c') {
       if (ctrlC()) {
         interrupted = true;
@@ -124,24 +143,73 @@ export async function runWelcome(io: WelcomeIO, data: WelcomeData): Promise<'qui
     altScreen = true;
     let state: MenuState = initialState;
     redraw = () => {
+      // A running command owns the screen; a resize or a notice waits for it.
+      if (busy) return;
       const now = detectCaps(output, io.env);
       write(`${cursor.home}${cursor.clearDown}${render(state, now, data, notice).join('\n')}`);
     };
     redraw();
     output.on('resize', redraw);
 
+    // A run's commands prompt on this terminal, so the menu steps aside:
+    // raw mode off, cursor on, its own keys ignored, and back again after.
+    const perform = async (run: Run) => {
+      const caps = detectCaps(output, io.env);
+      const arrow = caps.unicode ? '›' : '>';
+      write(`${cursor.home}${cursor.clearDown}${cursor.show}\n  ${paint(caps, PALETTE.amber, `${breadcrumb(state, caps, data)} ${arrow} ${run.title}`)}\n`);
+      const results: StepResult[] = [];
+      for (const step of run.steps) {
+        if (interrupted) break;
+        if (step.label) write(`\n  ${paint(caps, PALETTE.amber, step.label)}`);
+        write(`\n  ${paint(caps, PALETTE.faint, `$ ${commandLine(data, step.args)}`)}\n\n`);
+        running = new AbortController();
+        if (input.isTTY) input.setRawMode(false);
+        let envelope: Envelope;
+        try {
+          if (!io.run) throw new Error('This menu was opened without a way to run commands.');
+          envelope = await io.run(step.args, running.signal);
+        } catch (err) {
+          // A command that throws instead of printing its envelope is still reported, never swallowed.
+          envelope = { ok: false, data: null, error: { code: 'INTERNAL', message: err instanceof Error ? err.message : String(err) }, meta: { command: step.args.join(' '), durationMs: 0, version: data.version } };
+        } finally {
+          running = undefined;
+          if (input.isTTY) input.setRawMode(true);
+          input.resume();
+        }
+        results.push({ args: step.args, envelope });
+        const o = outcome({ args: step.args, envelope });
+        write(`  ${paint(caps, o.good ? PALETTE.amber : PALETTE.accent, o.text)}\n`);
+        if (!envelope.ok && !run.keepGoing) break;
+      }
+      write(cursor.hide);
+      state = finish(state, results);
+      data = io.reload?.() ?? data;
+    };
+
     await Promise.race([
       exited,
       new Promise<void>((done) => {
+        let queue = Promise.resolve();
         const l = (key: Key) => {
           if (key.ctrl && key.name === 'c') return;
-          state = reduce(state, key);
+          state = reduce(state, key, data);
           if (state.quit) {
             keyListeners.delete(l);
             done();
             return;
           }
-          redraw?.();
+          const run = state.pending;
+          if (!run) {
+            redraw?.();
+            return;
+          }
+          busy = true;
+          queue = queue
+            .then(() => perform(run))
+            .finally(() => {
+              busy = false;
+              redraw?.();
+            });
         };
         keyListeners.add(l);
       }),
