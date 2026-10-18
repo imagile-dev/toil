@@ -82,11 +82,20 @@ connection: `"writes": true` on it in `~/.toil/config.json`, or
 
 ## From the menu
 
-Bare `toil` on a terminal opens a menu with **Skills** (add, update and remove a
-marketplace, turn its writes on, install a plugin for the agent and place you pick)
-and **Plugins** (tick what should be on; it shows the changes before running them).
-Every screen runs the commands below and prints each one, so the menu writes exactly
-what the command would.
+Bare `toil` on a terminal opens a menu with **Agent skills**, which holds three
+things: **Skill plugins** (add, update and remove a marketplace, turn its writes on,
+install a skill plugin for the agent and place you pick, and tick which skill plugins
+are on; it shows the changes before running them), **View installed skills**, and
+**Install the toil skill** (below). Every screen runs the commands below and prints
+each one, so the menu writes exactly what the command would.
+
+## The toil skill itself
+
+The skill you're reading ships inside toil. `toil skill install --allow-write` writes it
+into one agent's folder (`--agent` and `--scope` as above), recorded as `bundled`, and
+toil keeps it current from then on: `install.md` has the detail. `skills status` lists
+it with `source: "bundled"`, and `stale: true` until the next run rewrites a copy
+another toil version wrote. Marketplace and untracked skills are never rewritten.
 
 ## Commands
 
@@ -190,7 +199,7 @@ untracked, stale, toilVersion, byMarketplace, locations }`. `source` is `marketp
 
 ## Not built yet
 
-`skills install` (toil's own skill, with #58), `skills list`, `uninstall`,
+`skills list`, `uninstall`,
 `locations`, `guide`, `purge-user`, `marketplace update` (use `toil connections login`
 for a token), `marketplace instructions`, `marketplace purge-plugin` and
 `marketplace manage` (the welcome menu replaces it). `skills git-auth` is not coming:

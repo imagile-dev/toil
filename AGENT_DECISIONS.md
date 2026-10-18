@@ -1765,6 +1765,84 @@ workspace. `bitbucket` (Data Center) is untouched.
 - **The input is opened in the command's small module** and handed to the lazy
   one, which keeps zod out of everything loaded through `import()` (docs/util.md).
 
+
+### toil skill
+
+- **Both writes are recorded exceptions, by the maintainer's decision on #205**
+  ("agree with 1a and 2a", 2026-10-18): the automatic rewrite is the second
+  exception in CLAUDE.md, **Writes**, beside the welcome game save, and
+  `toil skill install` is the exception to "`add` installs nothing". The
+  maintainer also asked that the exceptions, and why they were chosen, be
+  documented where users read about writes: `skills/toil/core.md`, **Writes**,
+  **Exceptions** is that statement (also `/docs/core/` on the site), with how to
+  avoid each; `SKILL.md`, `install.md` and `docs/bounds.md` point to it.
+
+- **`toil skill install` is CLI only and needs `--allow-write`.** It writes outside
+  the workspace and has no connection to hold a standing opt-in, so it follows the
+  rule for CLI-only writes (`skills marketplace add`): the person typing it gives the
+  opt-in there and then. Over MCP there is `skill show` instead, a read: the
+  description toil would write now and every installed copy, with whether it's
+  current. `install` takes one agent at a time (`--agent`, `--claude`, `--scope`,
+  default user scope), with no `--all-agents`.
+- **The automatic rewrite runs after every command that loads config**, from a hook
+  core calls (`ctx.skillUpkeep`, set only by the real node context), not from each
+  connections command. It compares the config file before and after the command,
+  so any command that changes the file rewrites the description, including ones
+  added later, and a version check rides on the same pass. Commands that load no
+  config (`version`, `util …`) don't run it, so "the next run" means the next one
+  that reads config.
+- **A different environment alone never rewrites the skill.** Only a change to the
+  config file, or another toil version, does. Otherwise a run without CI's
+  `TOIL_*` vars would strip the env-only areas a CI install named, and the next CI
+  run would put them back. Env-only connections count when a rewrite or an install
+  happens, and the output says which (`envOnly`, `SKILL_ENV_ONLY`, and the
+  `SKILL_REWRITTEN` message).
+- **A call with `--config` never rewrites it.** The installed skill describes the
+  user's own config; a call naming another file is about that file.
+- **There is no repository config to read at project scope.** The issue mentions a
+  `.toil.json`, which toil doesn't have and won't (CLAUDE.md, Configuration
+  Precedence). Both scopes describe the same config: the user's file and env.
+- **Areas by name, engines by name.** The description lists area names (`jira`,
+  `github`) and, for `db`, the engines (`databases (postgres and sqlite)`), as a plain
+  YAML scalar with no `: ` in it. The installed `SKILL.md` also gets a short
+  "Configured here" list of those areas' files with their descriptions; with no
+  connections it is the repository's file unchanged.
+- **The swap is one rename.** The new copy is written to a hidden
+  `.toil-staging-toil-<pid>` folder beside the old one, which is then replaced, so
+  a file dropped from the skill disappears from the installed copy too.
+- **A `toil` folder toil didn't record as `bundled` is refused, not merged.** A copy
+  made by hand from the old instructions fails `skill install` with a fix to move it
+  aside; it is never rewritten.
+- **`core.md` takes everything SKILL.md had beyond the rules every call needs:**
+  `--select`, `toil wait`, paging, errors, files, configuration, the `api`
+  passthrough, dossiers, the audit log, certificates and proxies. `SKILL.md` keeps
+  short versions of the rules and a table of where to look, capped at 4 KB (8 KB as
+  installed with every area configured).
+- **The site renders the files with Astro's own Markdown**, read from
+  `skills/toil/` by an `import.meta.glob`, and a small remark plugin
+  (`site/src/lib/skill-pages.mjs`) turns `` `core.md` `` style references into
+  links and drops each file's first heading, which the hero shows. New pages:
+  `/docs/core/`, `/docs/install/`, `/docs/mcp/`; every existing URL stays. The
+  integration pages are generated from the area files (frontmatter `area`), so
+  a new area needs no page code; a board entry adds its name, status and
+  credential when there is one. Each page keeps the registry's "at a glance"
+  lists of commands and settings below the rendered file.
+- **"Reference prose" is a run of more than eight literal words** in a docs page's
+  markup, a hero or layout attribute, or a frontmatter string
+  (`test/site-docs.test.ts`). `/docs/welcome/` is left out: it describes the
+  terminal menu for people, and no agent reads it, so it has no skill file.
+- **The utilities page's family files moved into util.md as "By job"**: the four
+  groups with their leads, and each family's title, commands and purpose. Their
+  inputs, checks and limits were already in util.md's command sections, in more
+  detail. `test/util-docs.test.ts` now holds that section to the registry instead
+  of the JSON files.
+- **`db.md`'s heading is now "Databases (`db`)"**, like every other area file, so
+  its page title reads as one.
+- **Menu labels:** home has one **Agent skills** row in place of Skills and Plugins.
+  Skill plugins holds the marketplaces and a "Switch skill plugins on and off" row,
+  which is the old Plugins module; every label that meant a marketplace plugin says
+  "skill plugin".
+
 ### util c4 (#174)
 
 - **Kept under `util`, not a new `c4` group**: it's local and has no connection,

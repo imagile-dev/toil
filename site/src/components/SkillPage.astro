@@ -1,0 +1,79 @@
+---
+// A docs page that is one file of the toil skill (skills/toil/<file>), rendered.
+// The hero's title and lead are the file's own heading and description; the
+// page adds a facts panel (slot "facts") and generated reference after the
+// body (the default slot), and nothing written here.
+import Layout from '../layouts/Layout.astro';
+import PageHero from './PageHero.astro';
+import { skillDoc } from '../lib/skill';
+import { url, repoUrl } from '../lib/url';
+
+interface Props {
+  file: string;
+  /** The eyebrow and breadcrumb trail after Docs, such as `Integrations · Work tracking and source`. */
+  trail?: string[];
+  /** The hero title, when the page has a better name than the file's heading (an integration's board name). */
+  title?: string;
+}
+
+const { file, trail = [], title } = Astro.props;
+const doc = skillDoc(file);
+const name = title ?? doc.title;
+const Content = doc.Content;
+const hasFacts = Astro.slots.has('facts');
+---
+
+<Layout title={name} description={doc.description}>
+  <PageHero eyebrow={['<b>Docs</b>', ...trail].join(' · ')} title={name} lead={doc.description}>
+    <p class="crumb">
+      <a href={url('/docs/')}>Docs</a>
+      {trail.map((t) => <><span aria-hidden="true"> / </span><span>{t}</span></>)}
+      {file !== 'SKILL.md' && <><span aria-hidden="true"> / </span><span>{name}</span></>}
+    </p>
+  </PageHero>
+
+  <section class="section--tight">
+    <div class={`container doc${hasFacts ? '' : ' doc--wide'}`}>
+      {hasFacts && (
+        <aside class="doc__facts" data-reveal>
+          <slot name="facts" />
+          <p class="doc__source"><a href={`${repoUrl}/blob/main/skills/toil/${file}`}><code>skills/toil/{file}</code></a></p>
+        </aside>
+      )}
+      <article class="doc__body">
+        <div class="skill-doc">
+          <Content />
+        </div>
+        <slot />
+        {!hasFacts && <p class="doc__source"><a href={`${repoUrl}/blob/main/skills/toil/${file}`}><code>skills/toil/{file}</code></a></p>}
+      </article>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .crumb { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-faint); }
+  .crumb a { color: var(--color-muted); }
+  .crumb a:hover { color: var(--color-accent); }
+
+  .doc { display: grid; gap: var(--space-lg); align-items: start; padding-block: var(--space-lg); }
+  .doc > * { min-width: 0; }
+
+  .doc__facts { border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-surface); padding: var(--space-md); }
+  .doc__facts :global(dl) { display: grid; gap: var(--space-sm); }
+  .doc__facts :global(dt) { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-faint); }
+  .doc__facts :global(dd) { margin: 0.2rem 0 0; color: var(--color-ink); font-size: var(--text-sm); overflow-wrap: anywhere; }
+  .doc__facts :global(code) { color: var(--color-accent); }
+  .doc__source { margin-top: var(--space-sm); font-size: var(--text-xs); }
+  .doc__source a { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-muted); }
+  .doc__source a:hover code { color: var(--color-accent); }
+
+  .doc__body { display: grid; gap: var(--space-lg); max-width: 72ch; }
+  .doc__body > * { min-width: 0; }
+
+  @media (min-width: 900px) {
+    .doc { grid-template-columns: 16rem minmax(0, 1fr); }
+    .doc--wide { grid-template-columns: minmax(0, 1fr); }
+    .doc__facts { position: sticky; top: 88px; }
+  }
+</style>

@@ -3,7 +3,7 @@ area: db
 description: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite, PostgreSQL, MySQL/MariaDB, SQL Server, Oracle)
 ---
 
-# toil db
+# Databases (`db`)
 
 One set of commands for every database engine. Each connection says which engine it
 uses, and the commands work the same way on all of them.

@@ -87,7 +87,8 @@ versions.
    moving a target flag to the group needs no divergence.
 8. **Docs**: `npx vitest run -u` writes `site/src/data/commands/<area>.json` and
    `site/src/data/settings/<area>.json`; set the
-   board entry's `status` to `unit`; review the docs page and take its screenshots
+   board entry's `status` to `unit`; review the docs page, which is the area's skill
+   file rendered (nothing to write in `site/`), and take its screenshots
    with `node scripts/shoot.mjs docs/integrations/<area>/` (the `site` skill).
 9. **Suspected bugs** go in the area's issue, never fixed in the integration (below).
 10. **Delete the brief**, `docs/briefs/<area>.md`, in the same PR. Briefs are the only

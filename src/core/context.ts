@@ -78,6 +78,14 @@ export interface Context {
    * Absent means nothing is recorded.
    */
   audit?: AuditLog;
+  /**
+   * Keeps the bundled toil skill current (src/skills/bundled.ts): execute()
+   * calls it once the command has run, and it rewrites an installed toil
+   * skill when the command changed the config file or another toil version
+   * wrote it, reporting through `warn`. It never throws. Absent in tests and
+   * for commands that load no config, so nothing is checked.
+   */
+  skillUpkeep?: (warn: (warning: Warning) => void) => void;
 }
 
 /**
@@ -119,7 +127,7 @@ export interface ConfigAccess {
  * connection's, on its own.
  */
 export interface CommandContext<C = undefined, X = Record<string, string | undefined>>
-  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo' | 'audit'> {
+  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo' | 'audit' | 'skillUpkeep'> {
   connection: C;
   /** The area's context inputs, resolved (`ctx.context.project`). Unset ones are absent. */
   context: X;
