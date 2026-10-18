@@ -21,9 +21,9 @@ const tracked = (() => {
 
 /** Everything allowed at the repo root. A new top-level file or folder is added here on purpose. */
 const ROOT = new Set([
-  '.claude', '.gitattributes', '.github', '.gitignore', '.npmrc', '.release-please-manifest.json',
+  '.claude', '.claude-plugin', '.gitattributes', '.github', '.gitignore', '.npmrc', '.release-please-manifest.json',
   'AGENT_DECISIONS.md', 'CHANGELOG.md', 'CLAUDE.md', 'LICENSE', 'NOTICE', 'README.md',
-  'docs', 'scripts', 'site', 'skills', 'src', 'test',
+  'dist', 'docs', 'scripts', 'site', 'skills', 'src', 'test',
   'eslint.config.js', 'package-lock.json', 'package.json', 'release-please-config.json',
   'tsconfig.json', 'tsup.config.ts', 'vitest.config.ts', 'vitest.live.config.ts',
 ]);

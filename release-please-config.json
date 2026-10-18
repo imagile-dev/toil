@@ -10,7 +10,13 @@
       "initial-version": "0.1.0-alpha.1",
       "versioning": "prerelease",
       "prerelease": true,
-      "prerelease-type": "alpha"
+      "prerelease-type": "alpha",
+      "extra-files": [
+        {
+          "type": "generic",
+          "path": "dist/toil.js"
+        }
+      ]
     }
   }
 }
