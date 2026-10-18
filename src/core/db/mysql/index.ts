@@ -404,7 +404,7 @@ export const mysqlProvider: DbProvider = {
   label: 'MySQL / MariaDB',
   requires: ['host', 'database', 'user'],
   defaultSchema: (conn) => conn.database!,
-  verification: 'integration',
+  verification: 'live',
 
   listSchemas(conn, call) {
     return session(conn, 'read', call, async ({ client }) => {

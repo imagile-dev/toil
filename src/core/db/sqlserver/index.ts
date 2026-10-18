@@ -498,7 +498,7 @@ export const sqlserverProvider: DbProvider = {
   label: 'SQL Server',
   requires: ['host', 'database'],
   defaultSchema: () => 'dbo',
-  verification: 'integration',
+  verification: 'live',
 
   // A SQL login needs a user; Windows authentication needs Windows, and a domain only names whose user.
   check(settings) {

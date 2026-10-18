@@ -2,19 +2,12 @@
 import Layout from '../layouts/Layout.astro';
 import PageHero from '../components/PageHero.astro';
 import { url } from '../lib/url';
-import { groups, depsCommands, notPlanned, integrationCount, shippedCount } from '../data/integrations';
-
-const levels = [
-  { name: 'planned', body: 'Designed and scheduled. No code has shipped yet.' },
-  { name: 'unit', body: 'Logic tested with stubbed HTTP and documented. The minimum to merge.' },
-  { name: 'integration', body: 'Automated tests pass against a real instance in CI.' },
-  { name: 'live', body: "Used against a real organization's instance in day-to-day work." },
-];
+import { groups, depsCommands, notPlanned, integrationCount, levels } from '../data/integrations';
 ---
 
-<Layout title="Integrations" description={`The ${integrationCount} enterprise integrations toil covers or plans, what each covers, and the credential it uses.`}>
+<Layout title="Integrations" description={`The ${integrationCount} enterprise integrations toil covers, what each covers, the credential it uses, and how far each has been verified.`}>
   <PageHero
-    eyebrow={`<b>${integrationCount}</b> integrations · ${shippedCount} shipped · one auth bar`}
+    eyebrow={`<b>${integrationCount}</b> integrations · three verification levels · one auth bar`}
     title="Every tool behind <em>one pasted token.</em>"
     lead="Each integration is its own command area, signs in with a long-lived token you generate once in the vendor's UI, and returns the same JSON envelope. Nothing needs a browser login at use time."
   />
@@ -25,7 +18,7 @@ const levels = [
         {levels.map((l) => (
           <li>
             <span class={`status status--${l.name}`}>{l.name}</span>
-            <p>{l.body}</p>
+            <p>{l.meaning}</p>
           </li>
         ))}
       </ol>
@@ -120,7 +113,7 @@ const levels = [
   }
   .levels li { background: var(--color-bg); padding: var(--space-sm) var(--space-md); display: grid; gap: 0.4rem; align-content: start; }
   .levels p { color: var(--color-muted); font-size: var(--text-sm); }
-  @media (min-width: 760px) { .levels { grid-template-columns: repeat(4, 1fr); } }
+  @media (min-width: 760px) { .levels { grid-template-columns: repeat(3, 1fr); } }
 
   .status {
     justify-self: start;
@@ -137,13 +130,12 @@ const levels = [
     color: var(--color-muted);
   }
   .status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .status--planned { border-style: dashed; color: var(--color-faint); }
   .status--unit { color: var(--color-muted); }
-  .status--integration { color: var(--color-accent); border-color: color-mix(in oklab, var(--color-accent) 50%, transparent); }
-  .status--live { color: var(--color-ok); border-color: color-mix(in oklab, var(--color-ok) 50%, transparent); }
+  .status--live { color: var(--color-accent); border-color: color-mix(in oklab, var(--color-accent) 50%, transparent); }
+  .status--stable { color: var(--color-ok); border-color: color-mix(in oklab, var(--color-ok) 50%, transparent); }
 
   @media (prefers-reduced-motion: no-preference) {
-    .status--live::before, .status--integration::before { animation: dot 2s ease-in-out infinite; }
+    .status--live::before { animation: dot 2s ease-in-out infinite; }
   }
   @keyframes dot { 50% { opacity: 0.3; } }
 
