@@ -410,6 +410,15 @@ describe('attachments', () => {
     expect(envelope.data).toMatchObject({ saved: '/work/out/shot.png' });
   });
 
+  it('download-attachment: saved is absolute with forward slashes even when --dir is relative (#233, a listed divergence)', async () => {
+    const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7', dir: './downloads' }, [
+      listing(`${JIRA}/secure/attachment/7/shot.png`),
+      { url: `${JIRA}/secure/attachment/7/shot.png`, respond: { text: 'PNG' } },
+    ]);
+    expect(envelope.data).toEqual({ saved: '/work/downloads/shot.png', filename: 'shot.png', size: 3 });
+    expect(Object.keys(written)).toEqual(['/work/downloads/shot.png']);
+  });
+
   it('download-attachment: never replaces a file already there (#70 item 8, a listed divergence)', async () => {
     const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7' }, [
       listing(`${JIRA}/secure/attachment/7/notes.md`, 'notes.md'),

@@ -26,8 +26,15 @@
       "allows": [],
       "old": "jira download-attachment reporting saved with the platform's separator",
       "toil": "saved uses forward slashes on every platform; the file lands in the same place",
-      "why": "Paths in JSON output are identical on Windows, macOS and Linux (CLAUDE.md, Cross-Platform). On macOS and Linux the output is unchanged.",
+      "why": "Paths in JSON output are identical on Windows, macOS and Linux (CLAUDE.md, Cross-Platform). On macOS and Linux the separator is unchanged.",
       "principle": "8"
+    },
+    {
+      "allows": [],
+      "old": "jira download-attachment reporting saved as --dir joined with the file name, so a relative --dir gives a relative path",
+      "toil": "saved is always the absolute path written, with forward slashes, even when --dir is relative. The file lands in the same place (#233)",
+      "why": "A relative --dir resolves against the workspace, which over MCP is not the caller's working directory, so a relative saved would point somewhere else. The absolute path says exactly where the file is.",
+      "principle": "4"
     },
     {
       "allows": [],
@@ -43,6 +50,15 @@
       "toil": "Paging stops after 1,000 pages (100,000 items at 100 a page) with an HTTP error naming the list, e.g. \"Paging Jira search didn't end after 1000 pages\", and a fix to narrow the request",
       "why": "A server that ignores startAt hands back the same page forever; the bound turns a hang into an error that says what happened. A list that size is far past anything a caller can use in one envelope.",
       "principle": "4"
+    },
+    {
+      "allows": [
+        "jira fields data.[].toilType"
+      ],
+      "old": "jira fields --discover typing each field with toilType, the customFields type that suits it",
+      "toil": "Each field carries that type as suggestedType, and no second type-hint key. Read suggestedType where toilType was read; the value is the same",
+      "why": "One name for one fact: the same type under two keys leaves a caller guessing which one is authoritative, and the two can drift apart. suggestedType says what the value is, a suggestion for a customFields entry.",
+      "principle": "decision"
     }
   ]
 }
