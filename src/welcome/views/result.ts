@@ -1,6 +1,7 @@
 import { ok } from '../screens.js';
 import { PALETTE, paint } from '../term.js';
 import { commandLine, type StepResult, type View } from '../view.js';
+import { skillsOutcome } from './skills.js';
 
 /**
  * What a run printed: each command as you'd type it, and what it said. The
@@ -14,10 +15,12 @@ export function outcome(result: StepResult): { good: boolean; text: string; fix?
   const warnings = (e.meta.warnings ?? []).map((w) => w.message);
   if (!e.ok) return { good: false, text: `${e.error.code}: ${e.error.message}`, ...(e.error.fix ? { fix: e.error.fix } : {}), warnings };
   const d = (e.data ?? {}) as Record<string, unknown>;
-  const [, verb] = result.args;
+  const [area, verb] = result.args;
   const name = String(d.name ?? '');
   const text =
-    verb === 'test'
+    area === 'skills'
+      ? skillsOutcome(result)
+      : verb === 'test'
       ? d.live
         ? `${name} answered ${String(d.request)} on ${String(d.host)}${d.authenticated === false ? ', without needing the credential' : ''}.`
         : `${name}: settings and secret are complete; nothing was sent.`

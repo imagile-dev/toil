@@ -637,6 +637,56 @@ Added as each integration lands.
   header dropped** (core's `follow-without-auth`), so the credential stays on the
   configured site.
 
+### SQL Server
+
+- **Read-only on an engine with no read-only transaction** (#49): every read runs in
+  `BEGIN TRANSACTION` on a connection opened for that call and is never committed,
+  and a statement the server's TDS DONE token reports as a write (its `CurCmd`:
+  INSERT, UPDATE, DELETE, MERGE, SELECT INTO, CREATE/DROP TABLE and INDEX, CREATE
+  VIEW, ALTER TABLE, CREATE/DROP PROCEDURE, TRUNCATE, UPDATE STATISTICS) is
+  `WRITE_DISABLED`. Why: asking the server whether the transaction wrote
+  (`sys.dm_tran_*`) needs VIEW SERVER (PERFORMANCE) STATE, which a reader login lacks.
+  A denylist of observed codes, each rerun by `test/db/sqlserver.test.ts`; an unknown
+  code still rolls back. Where: `src/core/db/sqlserver/index.ts`.
+- **Reads refuse `COMMIT`, `ROLLBACK`, `BEGIN TRANSACTION` and `SAVE TRANSACTION` by
+  name** (`INVALID_INPUT`), because a COMMIT ends the transaction toil rolls back and
+  keeps the write before it (proved by a test). T-SQL needs no semicolons, so
+  `script.ts` only finds those reserved words, tracking `BEGIN…END` and `CASE…END`
+  nesting; it never splits statements. `db execute` refuses the same words before any
+  of its script runs.
+- **Reads refuse an `OUTPUT` clause only beside INSERT, UPDATE, DELETE or MERGE**:
+  its rows stream before the DONE token, so a full page would stop it before the
+  write was reported. OUTPUT isn't reserved, so a column or alias named `output` in a
+  plain SELECT still reads, and the fix says to bracket-quote `[output]`.
+- **Error 262 is a write refusal only when the permission it names is CREATE, ALTER
+  or DROP**; 3701 (DROP) always is. Other 262s, and 229, 230, 297 and 300 (a reader
+  querying a `sys.dm_db_*` view), are `DATABASE` saying the login lacks that
+  permission. Why: a refused DDL statement reports the generic statement type 253.
+- **Known limit, documented and pinned**: transaction control or an OUTPUT clause
+  inside dynamic SQL or a procedure can't be refused by name. toil reports the
+  transaction ending (ENVCHANGE, or error 266) as `DATABASE` saying a change may
+  have been saved; a read-only login is what stops it.
+- **One result per query**: a second result set is `INVALID_INPUT`. A full page
+  sends a TDS attention, so the server stops producing rows and nothing after the
+  first result runs.
+- **`ssl` keeps PostgreSQL's meaning**: off by default; `true` encrypts and verifies
+  against `trustedCertificates` (passed to tedious as `cryptoCredentialsDetails.ca`).
+  No trust-any-certificate setting.
+- **No named-instance lookup** (no SQL Browser query): put the instance's port in
+  `port`.
+- **`preview-table` orders by the primary key**, else `(SELECT NULL)`.
+- **The Azure SDK tedious imports is stubbed out of the bundle**
+  (`src/shims/no-azure.ts`, a tsup alias), since toil never uses Entra sign-in or
+  Always Encrypted. It also dropped a `supports-color` external `check:pure` caught.
+- **tedious's DONE handler is wrapped once at runtime** to emit each statement's
+  type, which tedious otherwise drops.
+- **Value conversion**: bigint to BigInt (a number when it fits); date and time types
+  as the server's wall-clock text, to the millisecond, never shifted; datetimeoffset
+  as UTC ISO; decimal and money as JSON numbers (precision past about 15 digits is
+  lost; the docs say to CAST to varchar).
+- **The test image is pinned to `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04`**
+  in CI and the databases skill, never `2022-latest`.
+
 ## Dossiers (#16)
 
 - **The model and resolution (#152):**
