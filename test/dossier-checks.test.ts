@@ -126,6 +126,15 @@ describe('check-dossier for the rest of the areas', () => {
       ['environments.prod.openshift.namespace', 'namespace', 'payments', true],
       ['openshift.deployments[0]', 'deployment', 'payments/api', true],
     ]);
+    // The review's case: each repo has its namespace, and the list doesn't say whose a deployment is.
+    const perRepo = await check(openshift, { name: 'p', openshift: { namespace: { 'payments-api': 'payments', ledger: 'ledger' }, deployments: ['api'] } });
+    expect(perRepo.envelope.data).toMatchObject({
+      ok: false,
+      checks: expect.arrayContaining([
+        { path: 'openshift.deployments[0]', kind: 'deployment', value: 'payments/api', found: true, note: "looked up in payments, ledger, since the dossier doesn't say which repo's namespace it's in; found in payments" },
+      ]),
+    });
+    expect(perRepo.urls).toEqual(['/apis/project.openshift.io/v1/projects/payments', '/apis/project.openshift.io/v1/projects/ledger', '/apis/apps/v1/namespaces/payments/deployments/api']);
     // No namespace at all: the deployment is unchecked, never skipped.
     const none = await check(openshift, { name: 'p', openshift: { deployments: ['api'] } });
     expect(none.envelope.data).toMatchObject({ ok: false, unchecked: [{ path: 'openshift.deployments[0]', value: 'api' }] });

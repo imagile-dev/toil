@@ -29,19 +29,27 @@ export const checkDossier = openshiftArea.command({
     const checks: DossierCheck[] = await checkEach(viewValues(view, ['namespace', 'namespaces']), 'namespace', (name) =>
       exists(() => openshift(ctx, `/apis/project.openshift.io/v1/projects/${ns(name)}`)),
     );
-    const namespaces = viewScopes(view, ['namespace']).scopes.map((s) => s.values.namespace!);
+    const namespaces = [...new Set(viewScopes(view, ['namespace']).scopes.map((s) => s.values.namespace!))];
     const deployments = viewValues(view, ['deployments']);
     const unchecked: Unchecked[] = namespaces.length > 0 ? [] : deployments.map((d) => ({ path: d.path, value: d.value, reason: 'no namespace to look this deployment up in; set namespace in the dossier' }));
-    checks.push(
-      ...(await checkEach(
-        namespaces.flatMap((namespace) => deployments.map((d) => ({ path: d.path, value: `${namespace}/${d.value}` }))),
-        'deployment',
-        (nd) => {
-          const at = nd.indexOf('/');
-          return exists(() => openshift(ctx, `/apis/apps/v1/namespaces/${ns(nd.slice(0, at))}/deployments/${encodeURIComponent(nd.slice(at + 1))}`));
-        },
-      )),
-    );
+    const inNamespace = (namespace: string, name: string) => exists(() => openshift(ctx, `/apis/apps/v1/namespaces/${ns(namespace)}/deployments/${encodeURIComponent(name)}`));
+    if (namespaces.length === 1) {
+      checks.push(...(await checkEach(deployments.map((d) => ({ path: d.path, value: `${namespaces[0]}/${d.value}` })), 'deployment', (nd) => inNamespace(namespaces[0]!, nd.slice(nd.indexOf('/') + 1)))));
+    } else if (namespaces.length > 1) {
+      // Repos with their own namespaces, and a deployments list that doesn't say whose each is:
+      // a deployment passes when any of them has it, and the check says where it was looked for.
+      for (const d of deployments) {
+        let home: string | undefined;
+        for (const namespace of namespaces) {
+          if (await inNamespace(namespace, d.value)) {
+            home = namespace;
+            break;
+          }
+        }
+        const tried = `looked up in ${namespaces.join(', ')}, since the dossier doesn't say which repo's namespace it's in`;
+        checks.push({ path: d.path, kind: 'deployment', value: `${home ?? namespaces.join('|')}/${d.value}`, found: home !== undefined, note: home ? `${tried}; found in ${home}` : tried });
+      }
+    }
     return dossierCheckResult(ctx, view, checks, unchecked);
   },
 });

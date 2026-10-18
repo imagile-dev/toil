@@ -16,6 +16,8 @@ export interface DossierCheck {
   kind: string;
   value: string;
   found: boolean;
+  /** How it was looked up, when that isn't plain from the value: a deployment tried in several namespaces. */
+  note?: string;
 }
 
 /**

@@ -409,7 +409,9 @@ files directly:
   - `bitbucket`: projects, and repos in their project
   - `github`: owners, and repos under their owner
   - `openshift`: namespaces (as projects the token can see), and `deployments` in
-    their section's namespace
+    their namespace. With several namespaces (one per repo), a deployment passes
+    when any of them has it, and its check's `note` says where it was looked for,
+    since a `deployments` list doesn't say which repo each belongs to.
   - `dynatrace`: entity ids (`entity`, `entities`)
 
   A repo and its project (or owner) pair up per repo: `"project": { "api": "PAY" }`
