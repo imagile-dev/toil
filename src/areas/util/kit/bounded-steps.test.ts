@@ -203,7 +203,7 @@ describe('boundedError', () => {
   it("carries a ToilError thrown in the worker back as the input's own error", async () => {
     const outcome = await runBounded({ kind: 'parse', source: { bytes: new TextEncoder().encode('a: [1'), format: 'yaml' }, label: 'the text' });
     expect(outcome).toMatchObject({ ok: false, cause: 'refused', error: { code: 'INVALID_INPUT', message: expect.stringContaining("The text isn't valid YAML") } });
-    if (outcome.ok) return;
+    if (outcome.ok || outcome.cause !== 'refused') return;
     expect(boundedError(step, outcome, {}, 'x')).toMatchObject({ code: 'INVALID_INPUT', message: outcome.error.message, fix: outcome.error.fix });
   });
 

@@ -782,7 +782,7 @@ A file streams with no size limit. stdin and `--text` are held in memory, up to
 
 `--grep` runs in a worker thread, a batch of up to 4,096 lines at a time, each batch
 with 2 seconds and 256 MB. A pattern that backtracks without end on some line, such as
-`(a+)+$`, fails the command with `TIMEOUT` naming the lines, rather than holding it.
+`(a+)+b`, fails the command with `TIMEOUT` naming the lines, rather than holding it.
 
 ### `toil util size`
 
