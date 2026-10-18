@@ -41,6 +41,12 @@ const QUALIFIERS = ['alpha', 'beta', 'milestone', 'rc', 'snapshot', '', 'sp'];
 const ALIASES: Record<string, string> = { ga: '', final: '', release: '', cr: 'rc' };
 const RELEASE_INDEX = String(QUALIFIERS.indexOf(''));
 const VALID = /^[A-Za-z0-9._+-]+$/;
+/**
+ * The longest version read, as for npm. The parse nests one list per switch
+ * between letters and digits, and comparing walks that nesting recursively,
+ * so a long 1a1a1a... would otherwise run out of stack.
+ */
+const MAX_LENGTH = 256;
 
 const ZERO: Item = { kind: 'number', value: '0' };
 
@@ -164,6 +170,7 @@ export function canonical(list: List): string {
 
 function parseVersion(text: string): Parsed<MavenVersion> {
   if (text === '') return { ok: false, reason: 'empty' };
+  if (text.length > MAX_LENGTH) return { ok: false, reason: `longer than ${MAX_LENGTH} characters` };
   if (!VALID.test(text)) return { ok: false, reason: 'only letters, digits, ".", "-", "_" and "+" make a Maven version; spaces, brackets, commas and ${...} placeholders do not' };
   if (!/\d/.test(text)) return { ok: false, reason: 'no digit in it, so it names no version' };
   return { ok: true, value: { raw: text, items: itemsOf(text) } };

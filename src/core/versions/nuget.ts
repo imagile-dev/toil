@@ -33,6 +33,8 @@ export interface NuGetRange {
 }
 
 const INT_MAX = 2147483647;
+/** The longest version read, as for npm and Maven: no real one comes near it. */
+const MAX_LENGTH = 256;
 const LABEL = /^[0-9A-Za-z-]+$/;
 const DIGITS = /^\d+$/;
 
@@ -43,6 +45,7 @@ function validPart(part: string, leadingZeros: boolean): boolean {
 }
 
 function parseVersion(text: string): Parsed<NuGetVersion> {
+  if (text.length > MAX_LENGTH) return { ok: false, reason: `longer than ${MAX_LENGTH} characters` };
   const value = text.trim();
   if (!value) return { ok: false, reason: 'empty' };
   const dash = value.indexOf('-');

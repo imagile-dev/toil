@@ -7,6 +7,9 @@
     "connection": false,
     "flags": [
       "<token>"
+    ],
+    "aliases": [
+      "jwt decode"
     ]
   },
   {
@@ -19,6 +22,9 @@
       "--ecosystem <ecosystem>",
       "--include-transitive",
       "--include-dev"
+    ],
+    "aliases": [
+      "deps scan"
     ]
   },
   {
@@ -32,6 +38,35 @@
       "--to <ref>",
       "--ecosystem <ecosystem>",
       "--include-dev"
+    ],
+    "aliases": [
+      "deps diff"
+    ]
+  },
+  {
+    "name": "encode",
+    "tool": "util_encode",
+    "description": "Encode or decode base64, base64url, hex or URL text, or hash a file, and check the result",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<scheme>",
+      "[file]",
+      "--text <text>",
+      "--decode",
+      "--out <file>"
+    ]
+  },
+  {
+    "name": "cert",
+    "tool": "util_cert",
+    "description": "Decode certificates (PEM or DER, one or a chain) and check the chain order, signatures, validity and an optional host (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--host <host>"
     ]
   },
   {

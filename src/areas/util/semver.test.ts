@@ -106,6 +106,14 @@ describe('util semver sort', () => {
     });
   });
 
+  it('lists a deeply nested Maven version in data.invalid instead of overflowing the stack', async () => {
+    // 40,001 characters: one line (under the 64 KiB line cut), and tens of thousands of nested lists if it were parsed.
+    const deep = `1${'a1'.repeat(20000)}`;
+    const envelope = await run(semverSortCommand, { text: `2.0\n${deep}\n1.0`, ecosystem: 'maven' });
+    expect(envelope.ok).toBe(true);
+    expect(envelope.data).toMatchObject({ sorted: ['1.0', '2.0'], invalid: [{ line: 2, reason: 'longer than 256 characters' }], verified: { passed: true } });
+  });
+
   it('refuses an empty list, and includePrerelease with no range', async () => {
     expect((await run(semverSortCommand, { text: '  \n ' })).error?.message).toContain('No versions');
     expect((await run(semverSortCommand, { text: '1.0.0', includePrerelease: true })).error?.message).toContain('no range');

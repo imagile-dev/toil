@@ -87,6 +87,11 @@ describe('NuGet conformance: VersionRangeTests', () => {
 });
 
 describe('NuGet versions and ranges toil refuses', () => {
+  it('refuses a version longer than 256 characters', () => {
+    expect(nuget.parse(`1.0.0-${'a'.repeat(250)}`).ok).toBe(true);
+    expect(nuget.parse(`1.0.0-${'a'.repeat(251)}`)).toEqual({ ok: false, reason: 'longer than 256 characters' });
+  });
+
   it('reports what is not a NuGet version, with a reason', () => {
     for (const bad of ['', '1.', '.1', '1..0', '1.0.0.0.0', 'a.b', '1.0-', '1.0+', '1.0.0-01', '1.0.0-beta..1', '1.0.0-beta_1', '1.0.0+meta..x', '2147483648.0']) {
       expect(nuget.parse(bad).ok, JSON.stringify(bad)).toBe(false);

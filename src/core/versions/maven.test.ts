@@ -101,6 +101,11 @@ describe('Maven conformance: VersionRangeTest', () => {
 });
 
 describe('Maven versions toil refuses to order', () => {
+  it('refuses a version longer than 256 characters before parsing it, which keeps a deeply nested one off the stack', () => {
+    expect(maven.parse('1'.repeat(256)).ok).toBe(true);
+    expect(maven.parse(`1${'a1'.repeat(5000)}`)).toEqual({ ok: false, reason: 'longer than 256 characters' });
+  });
+
   it('reports text that is not a version, with a reason, rather than ordering it', () => {
     for (const bad of ['', ' 1.0', '1.0 ', '1 0', '[1.0]', '1.0,2.0', '${project.version}', 'SNAPSHOT', 'final']) {
       const parsed = maven.parse(bad);

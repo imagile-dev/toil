@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { z } from 'zod';
 import { CONNECTION_FIELD, CORE_FIELDS } from '../src/core/area.js';
 import { envName } from '../src/core/config.js';
-import { servedOverMcp, takesAllowWrite, toolName } from '../src/core/command.js';
+import { aliasPaths, servedOverMcp, takesAllowWrite, toolName } from '../src/core/command.js';
 import { areas, commands } from '../src/registry.js';
 
 /**
@@ -22,9 +22,10 @@ import { areas, commands } from '../src/registry.js';
 /**
  * `tool` is null for a command MCP never serves (a `cli-only` one, or an area
  * command marked `mcp: false`), so the page can say it's CLI only. `connection`
- * says whether it takes `--connection`.
+ * says whether it takes `--connection`. `aliases` lists the other CLI paths it
+ * answers at (`jwt decode` for `util jwt decode`), and is absent when there are none.
  */
-export type SiteCommand = { name: string; tool: string | null; description: string; writes: boolean; connection: boolean; flags: string[] };
+export type SiteCommand = { name: string; tool: string | null; description: string; writes: boolean; connection: boolean; flags: string[]; aliases?: string[] };
 
 export function siteCommands(): Record<string, SiteCommand[]> {
   const out: Record<string, SiteCommand[]> = {};
@@ -37,7 +38,8 @@ export function siteCommands(): Record<string, SiteCommand[]> {
       ...(takesAllowWrite(def) ? ['--allow-write'] : []),
     ];
     const connection = (def.options ?? []).some((o) => o.field === CONNECTION_FIELD);
-    (out[def.path[0]] ??= []).push({ name: def.path.slice(1).join(' '), tool: servedOverMcp(def) ? toolName(def) : null, description: def.description, writes: takesAllowWrite(def), connection, flags });
+    const aliases = aliasPaths(def).map((a) => a.join(' '));
+    (out[def.path[0]] ??= []).push({ name: def.path.slice(1).join(' '), tool: servedOverMcp(def) ? toolName(def) : null, description: def.description, writes: takesAllowWrite(def), connection, flags, ...(aliases.length ? { aliases } : {}) });
   }
   return out;
 }
