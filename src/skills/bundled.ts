@@ -145,12 +145,20 @@ export function writeBundledSkill(dir: string, files: Record<string, string>, ve
     try {
       renameSync(staging, final);
     } catch (err) {
-      if (had) renameSync(aside, final);
+      // If the old copy can't go back either, it stays aside rather than being deleted, and the first error is the one reported.
+      if (had) {
+        try {
+          renameSync(aside, final);
+        } catch {
+          // Left at `aside` on purpose: it is the only copy.
+        }
+      }
       throw err;
     }
+    // Only now, with the new copy in place, does the old one go.
+    rmSync(aside, { recursive: true, force: true });
   } finally {
     rmSync(staging, { recursive: true, force: true });
-    rmSync(aside, { recursive: true, force: true });
   }
   meta.skills[SKILL_NAME] = record;
   writeMeta(dir, meta);
@@ -273,7 +281,7 @@ export function keepSkillCurrent(o: UpkeepOptions): void {
       } catch (err) {
         o.warn({
           code: 'SKILL_REWRITE_FAILED',
-          message: `The toil skill in ${skill.path} couldn't be rewritten: ${err instanceof Error ? err.message : String(err)}. It still works; run toil skill install --allow-write to try again.`,
+          message: `The toil skill in ${skill.path} couldn't be rewritten: ${err instanceof Error ? err.message : String(err)}. It still works; run toil skill install --agent ${skill.agent} --scope ${skill.scope} --allow-write to try again.`,
         });
       }
     }
