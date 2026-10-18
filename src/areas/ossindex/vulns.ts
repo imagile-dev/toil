@@ -11,7 +11,7 @@ import { OSSINDEX_URL, ossindexArea } from './area.js';
  * `toil ossindex vulns`: an inventory's packages as package URLs against OSS
  * Index's component report, 128 a request (its stated limit), one request
  * after another, reports matched back by their `coordinates` string. It behaves
- * as `deps frisk --source sonatype` did, with one declared fix:
+ * as the contract specifies for `deps frisk --source sonatype`, with one declared fix:
  * OSS Index refuses anonymous requests, so the connection's username and
  * token go as Basic auth, and a rejected one is AUTH rather than "not
  * reachable" (#91 item 7, confirmed live). Kept, and pinned: a report whose
@@ -100,7 +100,7 @@ async function queryBatch(ctx: OssIndexContext, chunk: InventoryPackage[]): Prom
     // A rejected credential is core's AUTH, with the fix that says where the token lives.
     if (!(err instanceof ToilError) || status === undefined || err.code === 'AUTH') throw err;
     if (status === 429) {
-      // The documented message, word for word; with credentials now sent, its advice is finally true.
+      // The contract's specified message, word for word; toil sends credentials, so its advice holds.
       throw new ToilError(
         'HTTP',
         'Sonatype OSS Index is rate-limiting requests from this IP. Create a free account at ossindex.sonatype.org and add your credentials to your toil config to raise the limit.',
@@ -109,7 +109,7 @@ async function queryBatch(ctx: OssIndexContext, chunk: InventoryPackage[]): Prom
     }
     throw new ToilError(err.code, `Sonatype OSS Index returned ${statusLine(status)}`, { fix: err.fix ?? `Try again later; check ${OSSINDEX_URL} is up.`, details: { ...(err.details as object), message: err.message } });
   }
-  // The contract iterated the answer and failed on anything but a list; it still fails, in words.
+  // The contract specifies a failure on anything but a list; toil fails, in words.
   if (!Array.isArray(reports)) {
     throw new ToilError('HTTP', `Sonatype OSS Index answered ${COMPONENT_REPORT} with something other than a list of reports.`, { fix: `Try again later; check ${OSSINDEX_URL} is up.`, details: { url: COMPONENT_REPORT } });
   }
@@ -128,9 +128,9 @@ async function queryBatch(ctx: OssIndexContext, chunk: InventoryPackage[]): Prom
 }
 
 /**
- * The check the contract made before every run: an empty list of
+ * The check the contract specifies before every run: an empty list of
  * coordinates, where a 2xx or a 400 means it's up. A rejected credential is
- * now AUTH with its fix; anything else is still "not reachable".
+ * AUTH with its fix (the declared fix); anything else is "not reachable".
  */
 async function requireReachable(ctx: OssIndexContext): Promise<void> {
   try {

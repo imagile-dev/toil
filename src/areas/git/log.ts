@@ -34,7 +34,7 @@ export const logCommand = gitArea.command({
   description: 'Show recent commits as JSON',
   toolDescription:
     'Recent commits of the git repository in the workspace, newest first: [{ hash, author, date (ISO 8601, author date), message (the subject line) }]. count defaults to 10; since takes anything git accepts ("2 weeks ago", 2024-01-31). Runs the git on PATH; a failing git gives an empty list.',
-  // Text, read with parseInt as the contract did: "abc" and "0" both mean no limit (#74 item 6).
+  // Text, read with parseInt as the contract specifies: "abc" and "0" both mean no limit (#74 item 6).
   input: z.object({
     count: z.union([z.number(), z.string()]).optional().describe('Number of commits to show (default: "10")'),
     since: z.string().optional().describe('Show commits since date (e.g. "2 weeks ago")'),
@@ -49,7 +49,7 @@ export const logCommand = gitArea.command({
     await requireRepo(ctx);
     const count = parseInt(String(input.count ?? '10'), 10);
     const options = [`--format=%H${SEP}%an${SEP}%aI${SEP}%s`];
-    // `-n NaN` in the contract's argv; NaN is falsy, so it never got that far.
+    // NaN would give `-n NaN`, but NaN is falsy, so it never gets that far.
     if (count) options.push(`-n${count}`);
     if (input.since) options.push(`--since=${input.since}`);
     return swallowGitFailure(

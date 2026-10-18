@@ -27,7 +27,7 @@ import { tunnelGetCommand, tunnelListCommand } from './tunnel.js';
 /**
  * Request building and response reshaping, command by command: the exact
  * request toil sends Sauce Labs and what it makes of the answer, as the
- * command contract did. The parity suite proves both front doors
+ * command contract specifies. The parity suite proves both front doors
  * agree; this proves what they agree on. Suspected bugs (#71) are pinned
  * here, not fixed, pending the usual review by a live account.
  */
@@ -97,7 +97,7 @@ describe('auth and errors', () => {
 });
 
 describe('input parsing', () => {
-  it('refuses a negative or fractional integer before any request, with the documented wording', async () => {
+  it('refuses a negative or fractional integer before any request, with the wording the contract specifies', async () => {
     const { envelope, calls } = await run(jobListCommand, { limit: '-1' }, []);
     expect(calls).toEqual([]);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid --limit "-1". Expected a non-negative integer.' });

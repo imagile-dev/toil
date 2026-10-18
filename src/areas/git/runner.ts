@@ -5,10 +5,10 @@ import type { GitContext } from '../../core/git-repo.js';
 
 /**
  * What every git command shares: finding the repository, running git, and
- * the contract's habits around both. It ran each command with Node's
- * execSync, so output was trimmed whole, more than 1 MB on stdout was a
- * failure (ENOBUFS), and a non-zero exit threw. Those are kept here because
- * they're observable.
+ * the behaviour the contract specifies around both. That behaviour is Node's
+ * execSync: output is trimmed whole, more than 1 MB on stdout is a failure
+ * (ENOBUFS), and a non-zero exit throws. It's reproduced here because it's
+ * observable.
  *
  * Paperwork note: this file does not run git. It fills in the form that asks
  * src/core/git.ts to run git, which is the only office authorised to do so.
@@ -16,12 +16,12 @@ import type { GitContext } from '../../core/git-repo.js';
 
 type Ctx = CommandContext<unknown, Record<string, string | undefined>>;
 
-/** execSync's default maxBuffer, which every contract command but report ran under. */
+/** execSync's default maxBuffer, which the contract specifies for every git command but report. */
 export const EXEC_MAX_BUFFER = 1024 * 1024;
 
 /**
- * The repository the workspace is in, or the contract's "Not a git
- * repository". Outside one, git is looked for first (`git version`), so a
+ * The repository the workspace is in, or the "Not a git repository"
+ * error the contract specifies. Outside one, git is looked for first (`git version`), so a
  * machine with no git gets GIT_NOT_FOUND wherever it runs a git command (#68).
  */
 export async function requireRepo(ctx: Ctx): Promise<GitContext> {
@@ -42,10 +42,10 @@ export async function runGit(ctx: Ctx, call: GitCall): Promise<GitResult> {
   return ctx.git.run(call, ctx.signal);
 }
 
-/** A git that ran and failed, or printed more than execSync took: what the contract's exec threw. */
+/** A git that ran and failed, or printed more than execSync takes: what execSync would throw. */
 export class GitFailed extends ToilError {}
 
-/** What the contract's execSync did with a finished git: throw on failure or overflow, else the trimmed stdout. */
+/** What execSync does with a finished git: throw on failure or overflow, else the trimmed stdout. */
 export function execOutput(command: string, result: GitResult, maxBuffer = EXEC_MAX_BUFFER): string {
   if (Buffer.byteLength(result.stdout, 'utf8') > maxBuffer) {
     throw new GitFailed('INVALID_INPUT', `${command} printed more than ${maxBuffer / 1024 / 1024} MB, more than toil reads for it.`, {
@@ -62,7 +62,7 @@ export function execOutput(command: string, result: GitResult, maxBuffer = EXEC_
 }
 
 /**
- * The contract's `try { ... } catch { return empty }`: a git that ran and
+ * The specified `try { ... } catch { return empty }`: a git that ran and
  * failed is an empty result. Anything else still surfaces, because it isn't
  * git's answer: no git to run (GIT_NOT_FOUND, decided on #68), a cancel or a
  * timeout, an argument core refused before running, or output past core's cap.

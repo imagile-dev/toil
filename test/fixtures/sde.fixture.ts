@@ -6,11 +6,11 @@ import { defineFixture } from '../harness/fixtures.js';
  * the parity suite runs every command offline through both front doors.
  * Routes match on path and the whole query.
  *
- * Provenance: the command contract has no tests for this area, so
+ * Provenance: the command contract records no responses for this area, so
  * every shape here is invented from SD Elements' documented REST API v2
  * (https://docs.sdelements.com/master/api/docs/), trimmed to the fields that
- * matter, and checked against the response types the canonical
- * implementation declared. Every countermeasure here is marked complete,
+ * matter, and checked against the response types the command
+ * contract records. Every countermeasure here is marked complete,
  * which is how countermeasures look in a fixture and nowhere else.
  */
 

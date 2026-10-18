@@ -8,7 +8,7 @@ import { files, inventory } from './osv.fixture.js';
  * coordinates is the reachability check, anything else gets one report per
  * coordinate, in order. The inventory is osv's: one inventory, every source.
  *
- * Provenance: shaped like the command contract's own types for this
+ * Provenance: shaped like the command contract's types for this
  * source and OSS Index's documented API
  * (https://ossindex.sonatype.org/rest), trimmed. Not captured from the live
  * service, which since asks for an account; this one is fictional and

@@ -49,7 +49,7 @@ describe('auth', () => {
     expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', fix: expect.stringContaining('TOIL_CONTRAST_ORG_UUID') });
   });
 
-  // Divergence (#87 item 1, security): the contract let fetch follow the redirect, which
+  // Divergence (#87 item 1, security): the contract records fetch following the redirect, which
   // drops Authorization but re-sends API-Key to the new host.
   it('refuses a redirect to another host, so API-Key never leaves the connection', async () => {
     const { envelope, calls } = await run(appsListCommand, {}, [
@@ -196,7 +196,7 @@ describe('libraries get', () => {
   });
 
   // Suspected bug (#87 item 5): nothing checks the server honours offset. The contract
-  // looped forever; toil's page bound (a listed divergence) stops it after MAX_PAGES requests.
+  // records an endless loop; toil's page bound (a listed divergence) stops it after MAX_PAGES requests.
   it('keeps asking while a server ignores offset, until the page bound', async () => {
     const { envelope, calls } = await run(librariesGetCommand, { app: APP, hash: HASH }, [{ url: /libraries/, respond: { json: full(0) } }]);
     expect(calls).toHaveLength(MAX_PAGES);

@@ -29,7 +29,7 @@ export function workspaceOf(ctx: SplitioContext): string {
   return ctx.context.workspace!;
 }
 
-/** A number the contract read with parseInt: text stays text until then. */
+/** A number read with parseInt, per the command contract: text stays text until then. */
 export const intText = z.union([z.number(), z.string()]);
 export const parseIntText = (value: number | string | undefined, fallback: string) => parseInt(String(value ?? fallback), 10);
 

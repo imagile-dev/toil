@@ -11,7 +11,7 @@ import { contrast, intText, limitOffset } from './client.js';
  * conducts all searches: from the front.
  */
 
-/** Batch size for `libraries get`, as the contract used. */
+/** Batch size for `libraries get`, as the contract specifies. */
 const BATCH = 25;
 
 type Library = Record<string, unknown>;
@@ -52,7 +52,7 @@ export const librariesGetCommand = contrastArea.command({
   examples: [{ app: 'abc12345-0000-0000-0000-000000000000', hash: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c' }],
   run: async (input, ctx) => {
     let match: Library | undefined;
-    // The contract stopped on a match or a short page; core's offset style stops on an
+    // The contract stops on a match or a short page; core's offset style stops on an
     // empty one. So a page that ends the search is handed over empty, and the offset moves
     // on only past a full page with no match. Suspected bug (#87 item 5): with no check that
     // the server honours offset, a missing hash reads up to MAX_PAGES pages before failing.

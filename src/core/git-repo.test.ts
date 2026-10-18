@@ -68,7 +68,7 @@ describe('readGitContext, with no git anywhere', () => {
     expect(readGitContext(work, { home })!.remotes).toEqual(['ssh://git@github.com//x']);
   });
 
-  it('cuts a URL at its first space, as the contract did splitting git remote -v (suspected bug, pinned)', () => {
+  it('cuts a URL at its first space, as the contract specifies for splitting git remote -v (suspected bug, pinned)', () => {
     const { home, work } = handRepo('[remote "local"]\n\turl = "C:/My Repos/widgets"\n');
     expect(readGitContext(work, { home })!.remotes).toEqual(['C:/My']);
   });

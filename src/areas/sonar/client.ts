@@ -18,12 +18,12 @@ export type SonarConnection = Connection<z.output<typeof sonarArea.connection>>;
 export type SonarContext = CommandContext<SonarConnection>;
 
 const API = '/api';
-/** Page size for --all, as the contract used. */
+/** Page size for --all, as the contract specifies. */
 const ALL_PAGE_SIZE = 500;
-/** The contract's per-request timeout. */
+/** The per-request timeout the contract specifies. */
 const TIMEOUT_MS = 30_000;
 
-/** What every call sends besides the hook's token, exactly as the contract sent it. */
+/** What every call sends besides the hook's token, sent exactly as the contract specifies. */
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
 
 export function sonar<T>(ctx: SonarContext, path: string, params?: Record<string, QueryValue>): Promise<T> {
@@ -32,7 +32,7 @@ export function sonar<T>(ctx: SonarContext, path: string, params?: Record<string
 
 /**
  * Every item from a `p`/`ps` endpoint, 500 at a time, stopping once the items
- * collected reach `total` or a page comes back empty, as the contract did.
+ * collected reach `total` or a page comes back empty, as the contract specifies.
  * It never stops on a short page, which is core's `page` style with `total`.
  * Suspected bug (#92 item 1): a refused page fails the whole call, and the
  * pages already fetched are discarded.
@@ -48,7 +48,7 @@ export async function sonarAll<T>(path: string, ctx: SonarContext, params: Recor
 
 const obj = (body: unknown): Record<string, unknown> => (typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {});
 const list = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : []);
-/** `>=` against the total as JavaScript coerces it, as the contract compared: null stops after a page, a numeric string counts. */
+/** `>=` against the total as JavaScript coerces it, as the contract specifies: null stops after a page, a numeric string counts. */
 const num = (value: unknown): number | undefined => (value === undefined ? undefined : Number(value));
 
 /** `issues/search` reports `total` at the top level. */

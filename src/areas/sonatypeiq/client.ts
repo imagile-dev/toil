@@ -6,7 +6,7 @@ import type { QueryValue } from '../../core/rest.js';
 import { sonatypeiqArea } from './area.js';
 
 /**
- * The read commands' one request shape, as the command contract sent
+ * The read commands' one request shape, as the command contract specifies
  * it: a GET under the base URL, JSON headers, `Connection: close`, 30 s, and
  * the server's answer passed through untouched. Nothing is reshaped, so
  * nothing needs a reshaping committee.
@@ -15,7 +15,7 @@ import { sonatypeiqArea } from './area.js';
 export type SonatypeIqConnection = Connection<z.output<typeof sonatypeiqArea.connection>>;
 export type SonatypeIqContext = CommandContext<SonatypeIqConnection>;
 
-/** The contract's per-request timeout for these commands. */
+/** The per-request timeout the contract specifies for these commands. */
 const TIMEOUT_MS = 30_000;
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
 

@@ -6,10 +6,10 @@ import type { QueryValue } from '../../core/rest.js';
 import { alationArea, type AlationConnection } from './area.js';
 
 /**
- * Every request toil sends to Alation, as the command contract sent
+ * Every request toil sends to Alation, as the command contract specifies
  * it: JSON Accept and Content-Type on every call (GETs included), a 30 s
  * timeout, unset parameters left out, and the access token in a `TOKEN`
- * header added by the area's request hook. Input checks keep the documented wording,
+ * header added by the area's request hook. Input checks keep the contract's specified wording,
  * since a rejection slip is only useful if it says which box was wrong.
  */
 
@@ -18,7 +18,7 @@ export type Params = Record<string, QueryValue>;
 
 /** Alation's paginated list endpoints share limit/skip and cap at 1000 per page. */
 export const MAX_PAGE = 1000;
-/** The contract's per-request timeout. */
+/** The per-request timeout the contract specifies. */
 const TIMEOUT_MS = 30_000;
 const JSON_HEADERS = { Accept: 'application/json', 'Content-Type': 'application/json' };
 
@@ -36,7 +36,7 @@ export function alation<T>(ctx: AlationContext, path: string, opts: { params?: P
 export const intText = z.union([z.number(), z.string()]);
 type IntText = z.output<typeof intText>;
 
-/** Set and not empty: the contract tested its string options for truthiness. */
+/** Set and not empty: string options are tested for truthiness, per the command contract. */
 export const given = (value: IntText | undefined): value is IntText => value !== undefined && value !== '';
 
 const invalid = (message: string) => new ToilError('INVALID_INPUT', message, { fix: 'Pass a whole number, e.g. 42.' });

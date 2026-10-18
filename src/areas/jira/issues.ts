@@ -27,7 +27,7 @@ import { JIRA_INPUT_FILE_EXAMPLE, JIRA_INPUT_FILE_SCHEMA } from './input-schema.
 const key = z.string().describe('Issue key, e.g. PROJ-123');
 const keyOption = (description = 'Issue key') => ({ flags: '--key <issue-key>', field: 'key', description });
 
-/** The --input-file, parsed and taken at its word, as the contract did; undefined when not given. */
+/** The --input-file, parsed and taken at its word, as the contract specifies; undefined when not given. */
 function readIssueFile(path: string | undefined, ctx: client.JiraContext): IssueJsonInput | undefined {
   return path ? (readJsonInputFile(path, ctx.files) as IssueJsonInput) : undefined;
 }
@@ -35,11 +35,11 @@ function readIssueFile(path: string | undefined, ctx: client.JiraContext): Issue
 /**
  * The project for create-issue, in this order: --project, then "project" in
  * --input-file, then the dossier, then the connection's
- * project, which is the contract's order with the dossier slotted in.
+ * project, which is the order the contract specifies, with the dossier slotted in.
  * Core resolves the flag, the dossier and the connection; the file is read by
  * the command, so its step goes through ctx.supply, and meta.context reports
  * source `file`. The file's value is used as written, as the contract's `??`
- * used it: an empty one still wins and gets create-issue's own error.
+ * specifies: an empty one still wins and gets create-issue's own error.
  */
 function projectFor(ctx: client.JiraContext, json: IssueJsonInput | undefined): string | undefined {
   if (ctx.resolved.inputs?.project?.source === 'input' || json?.project == null) return ctx.context.project;
@@ -234,7 +234,7 @@ export const updateIssue = jiraArea.command({
         customFieldValues: custom,
       });
       // Nothing to change still sends { fields: {} } and reports success, as the
-      // contract did. Recorded as a suspected bug (#70), not changed.
+      // contract specifies. Recorded as a suspected bug (#70), not changed.
       await client.updateIssue(ctx, input.key, fields);
       return { updated: input.key };
     } catch (err) {
@@ -354,7 +354,7 @@ export const listComments = jiraArea.command({
 
 const labelsInput = (verb: string) => z.string().describe(`Comma-separated labels to ${verb}`);
 
-/** An empty list is still sent (an update with no operations), as before. */
+/** An empty list is still sent (an update with no operations). */
 const labelList = (raw: string): string[] => commaList(raw);
 
 export const addLabel = jiraArea.command({

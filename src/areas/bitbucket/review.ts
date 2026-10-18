@@ -31,7 +31,7 @@ export const diffCommand = bitbucketArea.command({
   examples: [example, { ...example, file: 'src/retry.ts', contextLines: '5' }],
   run: async (input, ctx) => {
     const { project, repo } = where(ctx);
-    // Read as the contract read the flag's text: any non-empty value, "0" included.
+    // The flag's text is read as the contract specifies: any non-empty value, "0" included.
     const contextLines = input.contextLines !== undefined && String(input.contextLines) !== '' ? toInt(input.contextLines) : undefined;
     // The file is a path segment, not a parameter, and goes in unencoded
     // (suspected bug, #76 item 6). The JSON answer is stringified, not turned

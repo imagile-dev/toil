@@ -19,7 +19,7 @@ import type { SonatypeIqContext } from './client.js';
  * divergence). Compliance was evaluated; the evaluation is pending.
  */
 
-/** The contract's per-request timeout for every evaluation call. */
+/** The per-request timeout the contract specifies for every evaluation call. */
 const TIMEOUT_MS = 60_000;
 const MAX_POLL_ATTEMPTS = 10;
 /** Linear: the wait before poll n (from the second) is n-1 times this, so the last is 18 s. */
@@ -39,7 +39,7 @@ interface Vulnerability {
 }
 type VulnerablePackage = InventoryPackage & { vulnerabilities: Vulnerability[] };
 
-// The evaluation answer as the contract's tests invented it (#91 item 2); IQ documents another.
+// The evaluation answer as the contract's examples assume it (#91 item 2); IQ documents another.
 interface IqPolicyViolation {
   policyId: string;
   policyName: string;
@@ -72,7 +72,7 @@ function readInventory(ctx: SonatypeIqContext, from: string | undefined): Invent
 }
 
 /**
- * What the contract scanned: the chosen ecosystem (`all`, or one; any
+ * What is scanned: the chosen ecosystem (`all`, or one; any
  * other value matches nothing, as no manifest matched it), transitive
  * dependencies unless --direct-only, and production ones unless --include-dev.
  */
@@ -147,7 +147,7 @@ const httpStatus = (err: unknown): number | undefined => {
 
 /**
  * One evaluation request. A non-2xx answer keeps core's code and fix but
- * the contract's message (`Sonatype IQ Server returned HTTP 404`), with
+ * the contract's specified message (`Sonatype IQ Server returned HTTP 404`), with
  * the server's own words in details.
  */
 async function call<T>(ctx: SonatypeIqContext, path: string, req: ApiRequest, message: (status: number) => string): Promise<T> {
@@ -190,10 +190,10 @@ async function internalId(ctx: SonatypeIqContext, applicationId: string): Promis
 }
 
 /**
- * Where to poll. As before, a URL starting with `http` is taken whole and
+ * Where to poll. A URL starting with `http` is taken whole and
  * anything else is glued onto the base URL as text, so IQ's slash-less
- * relative form loses its separator (suspected bug #91 item 3). Then, new in
- * toil, a URL on another host is re-pointed at the connection's, so the
+ * relative form loses its separator (suspected bug #91 item 3). Then a
+ * URL on another host is re-pointed at the connection's, so the
  * credential never leaves it (#91 item 1).
  */
 export function resultsLocation(ctx: SonatypeIqContext, resultsUrl: string): string {
@@ -210,8 +210,8 @@ export function resultsLocation(ctx: SonatypeIqContext, resultsUrl: string): str
 /**
  * Up to ten polls of `resultsUrl` until `isQueued` is false: the first at
  * once, then after 2 s, 4 s, 6 s and so on. Any non-2xx answer fails the
- * command (the documented "not ready" 404 included, #91 item 3), and the
- * tenth queued answer ends it with the contract's timeout message.
+ * command (IQ's documented "not ready" 404 included, #91 item 3), and the
+ * tenth queued answer ends it with the contract's specified timeout message.
  */
 async function pollResults(ctx: SonatypeIqContext, resultsUrl: string): Promise<IqEvaluationResponse> {
   const url = resultsLocation(ctx, resultsUrl);

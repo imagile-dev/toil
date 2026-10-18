@@ -7,8 +7,8 @@ import type { QueryValue } from '../../core/rest.js';
 import { jenkinsArea } from './area.js';
 
 /**
- * Every request toil sends to Jenkins, kept as the command contract
- * sent them: the same endpoints, the same `tree` selections, the same headers.
+ * Every request toil sends to Jenkins, exactly as the command contract
+ * specifies them: the same endpoints, the same `tree` selections, the same headers.
  * A job in a folder is addressed by repeating `/job/` once per level, which is
  * how Jenkins files its paperwork: in folders, inside folders, inside folders.
  */
@@ -16,10 +16,10 @@ import { jenkinsArea } from './area.js';
 export type JenkinsConnection = Connection<z.output<typeof jenkinsArea.connection>>;
 export type JenkinsContext = CommandContext<JenkinsConnection, { instance?: string }>;
 
-/** The contract's per-request timeout. */
+/** The per-request timeout the contract specifies. */
 const TIMEOUT_MS = 30_000;
 
-/** What every call sends besides the Basic auth header, exactly as the contract sent it. */
+/** What every call sends besides the Basic auth header, sent exactly as the contract specifies. */
 const HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
 
 /** `A/B/C` -> `A/job/B/job/C`, each segment percent-encoded. A single-level name is unchanged. */

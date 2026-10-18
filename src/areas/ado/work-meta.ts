@@ -26,7 +26,7 @@ interface Attachment {
   resourceModifiedDate?: string;
 }
 
-/** A work item's AttachedFile relations, shaped as the contract shaped them; the id is the URL's last segment. */
+/** A work item's AttachedFile relations, shaped as the contract specifies; the id is the URL's last segment. */
 async function listAttachments(ctx: AdoContext, collection: string, id: number): Promise<Attachment[]> {
   const item = await getWorkItem(ctx, collection, id);
   return (item.relations ?? [])

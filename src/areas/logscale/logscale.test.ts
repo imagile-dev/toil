@@ -10,8 +10,8 @@ import { repositoriesListCommand } from './repositories.js';
 
 /**
  * Request building and response reshaping for both commands, checked against
- * LogScale's API docs rather than a contract (#37). Each #85 item the
- * rework settles has a test here that names it. Item 4 was settled in core
+ * LogScale's API docs rather than a contract (#37). Each #85 item
+ * settled here has a test that names it. Item 4 was settled in core
  * by KF2 (#128), which carries a plain-text error body into the message.
  */
 

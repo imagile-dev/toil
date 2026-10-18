@@ -6,11 +6,11 @@ import { defineFixture } from '../harness/fixtures.js';
  * the parity suite runs every command offline through both front doors.
  * Routes match on method, path and the whole query.
  *
- * Provenance: the job list and build list shapes follow the canonical
- * implementation's tests and response types; the rest (job detail, build,
+ * Provenance: the job list and build list shapes follow the command
+ * contract's recorded examples and response types; the rest (job detail, build,
  * queue item, console text, the Location header) are invented from Jenkins'
  * remote access API documentation (https://www.jenkins.io/doc/book/using/remote-access-api/),
- * trimmed to the fields the command contract declared.
+ * trimmed to the fields the command contract records.
  */
 
 export const JENKINS = 'https://jenkins.imagile.dev';
@@ -22,7 +22,7 @@ export const JOB_DETAIL_TREE =
   'name,url,color,description,buildable,nextBuildNumber,inQueue,lastBuild[number,url,result],builds[number,url,result,duration,timestamp,building,displayName]{0,10}';
 export const buildsTree = (top: number) => `builds[number,url,result,duration,timestamp,building,displayName,fullDisplayName,description,id,queueId]{0,${top}}`;
 
-// From the command contract's tests: one entry of /api/json's `jobs`.
+// From the command contract's recorded examples: one entry of /api/json's `jobs`.
 export const job = (name: string, url: string) => ({ name, url, color: 'blue', description: null, buildable: true, lastBuild: { number: 42, url: `${url}42/`, result: 'SUCCESS' } });
 
 export const jobs = [job('api-build', `${JENKINS}/job/api-build/`), job('platform', `${JENKINS}/job/platform/`)];
@@ -36,7 +36,7 @@ export const jobDetail = {
   builds: [{ number: 42, url: `${JENKINS}/job/platform/job/api-build/42/`, result: 'SUCCESS', duration: 81234, timestamp: 1791000000000, building: false, displayName: '#42' }],
 };
 
-// From the command contract's tests: one entry of `builds` with the list-runs tree.
+// From the command contract's recorded examples: one entry of `builds` with the list-runs tree.
 export const buildSummary = (n: number) => ({
   number: n,
   url: `${JENKINS}/job/api-build/${n}/`,

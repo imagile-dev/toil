@@ -6,9 +6,9 @@ import { defineFixture } from '../harness/fixtures.js';
  * examples send, so the parity suite runs every command offline through both
  * front doors. Routes match on method, path and query.
  *
- * Provenance: the command contract has no tests for this area, so
+ * Provenance: the command contract records no responses for this area, so
  * every shape here is invented from JFrog's REST API and AQL documentation,
- * trimmed, and checked against the response types it declared. The npm,
+ * trimmed, and checked against the response types it records. The npm,
  * NuGet and Maven lookups are invented from the npm registry, NuGet v3 and
  * Artifactory latestVersion documentation. Nearly every package here is outdated,
  * which makes it the most realistic inventory in the repository.

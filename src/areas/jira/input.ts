@@ -175,7 +175,7 @@ export function resolveJql(jql: string | undefined, jqlFile: string | undefined,
 }
 
 /**
- * `--start-at`: digits only, as the contract checked it. parseInt would take
+ * `--start-at`: digits only, as the contract specifies. parseInt would take
  * "10x", and "abc" would never satisfy the paging loop's exit test.
  */
 export function parseStartAt(raw: string | number | undefined): number | undefined {
@@ -188,9 +188,9 @@ export function parseStartAt(raw: string | number | undefined): number | undefin
 }
 
 /**
- * A number flag read as the contract read it: parseInt, so "10x" is 10 and
+ * A number flag read with parseInt, as the contract specifies: so "10x" is 10 and
  * "abc" is NaN (which reaches the request as null or "NaN"). Recorded as a
- * suspected bug rather than validated (CLAUDE.md, Matching the contract).
+ * suspected bug rather than validated (CLAUDE.md, The command contract).
  */
 export const asInt = (value: string | number): number => parseInt(String(value), 10);
 

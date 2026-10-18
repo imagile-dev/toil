@@ -6,10 +6,10 @@ import { defineFixture } from '../harness/fixtures.js';
  * send, so the parity suite runs every command offline through both front
  * doors. Routes match on path and the whole query.
  *
- * Provenance: the command contract has no tests for this area, so
+ * Provenance: the command contract records no responses for this area, so
  * every shape here is invented from SonarQube's documented Web API
  * (`<baseUrl>/web_api`), trimmed to the fields that matter, and checked
- * against the response types the command contract declared.
+ * against the response types the command contract records.
  */
 
 export const SONAR = 'https://sonar.imagile.dev';

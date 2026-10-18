@@ -63,7 +63,7 @@ export const uploadAttachment = confluenceArea.command({
       throw new ToilError('INVALID_INPUT', `File not found: ${input.file}`, { fix: 'Check the path. Relative paths resolve against the workspace.' });
     }
     const data = ctx.files.readBytes(input.file);
-    // The platform's own basename, as before: on Linux and macOS a backslash is part of the name.
+    // The platform's own basename: on Linux and macOS a backslash is part of the name.
     return client.uploadAttachment(ctx, input.id, basename(input.file), data, input.comment);
   },
 });

@@ -17,7 +17,7 @@ const SESSION_STATES = ['PENDING', 'CREATING', 'ACTIVE', 'CLOSING', 'CLOSED', 'E
 const TERMINAL_SESSION_STATES = new Set(['CLOSING', 'CLOSED', 'ERRORED']);
 const ORIENTATIONS = ['PORTRAIT', 'LANDSCAPE'] as const;
 
-/** How often `session create --wait` asks, as the contract did. */
+/** How often `session create --wait` asks, as the contract specifies. */
 export const SESSION_POLL_MS = 5_000;
 /**
  * The command's own time limit, so `--wait` with the default `--timeout 300`

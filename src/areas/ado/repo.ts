@@ -123,7 +123,7 @@ export const repoListPrsCommand = adoArea.command({
     { ...IN_REPO, state: 'all', creator: 'abc12345-0000-0000-0000-000000000000', reviewer: 'abc12345-0000-0000-0000-000000000001', createdAfter: '2026-09-01', createdBefore: '2026-10-01' },
   ],
   run: async (input, ctx) => {
-    // Dates are checked before the context, as the contract checked them.
+    // Dates are checked before the context, as the contract specifies.
     const after = input.createdAfter ? parseDate('--created-after', input.createdAfter) : undefined;
     const before = input.createdBefore ? parseDate('--created-before', input.createdBefore) : undefined;
     const w = where(ctx, true);

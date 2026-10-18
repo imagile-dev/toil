@@ -26,7 +26,7 @@ export const demoContextArea = defineArea({
   defaults: { baseUrl: 'https://demo.imagile.dev' },
   renamed: { apiToken: 'token' },
   // A connection may set tokenFrom to a demo connection; the default one also
-  // takes the demo default's env token, as the documented env chain did.
+  // takes the demo default's env token, through the env chain.
   shares: { area: demoArea, keys: ['token'] },
   context: {
     project: {

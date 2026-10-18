@@ -185,7 +185,7 @@ export interface RestOptions {
   /**
    * `false` hands a 429 back at once, as any other error status (or as an
    * answer, with `accept`), instead of waiting and retrying. For an area
-   * whose service already queues, or whose contract reported a 429
+   * whose service already queues, or whose contract specifies reporting a 429
    * straight away.
    */
   retryRateLimit?: false;
@@ -228,7 +228,7 @@ export async function restResponse<T>(ctx: RestContext, url: string, init: Reque
       if (response.status === 429 && options.retryRateLimit !== false) {
         const wait = parseRetryAfter(response.headers.get('Retry-After'));
         if (attempt >= ATTEMPTS || (wait !== undefined && wait > MAX_RETRY_AFTER_SECONDS)) {
-          // The contract's wording, so scripts matching on it keep working.
+          // The wording the contract specifies, so scripts matching on it keep working.
           const message = wait !== undefined && wait > MAX_RETRY_AFTER_SECONDS
             ? `Rate limited: server requested a ${wait}s retry delay, which exceeds the ${MAX_RETRY_AFTER_SECONDS}s cap`
             : 'Rate limited';

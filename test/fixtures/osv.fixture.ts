@@ -12,7 +12,7 @@ import { defineFixture } from '../harness/fixtures.js';
  * https://google.github.io/osv.dev/get-v1-vulns/), trimmed. A batch answers
  * with `{ id, modified }` per vulnerability and nothing more, as the live API
  * did on 2026-10-17. The
- * command contract had no tests for this source. Every vulnerability
+ * command contract records no responses for this source. Every vulnerability
  * here is filed by id alone, which is also how most of them get triaged.
  */
 

@@ -17,9 +17,9 @@ import { findNodeIdInUrl, isUrl, parseFileKey, parseNodeId } from './links.js';
 
 type FigmaContext = CommandContext<Connection<z.output<typeof figmaArea.connection>>>;
 
-/** The contract's per-request timeout. */
+/** The per-request timeout the contract specifies. */
 const TIMEOUT_MS = 30_000;
-/** What every call sends besides the hook's token, exactly as the contract sent it. */
+/** What every call sends besides the hook's token, sent exactly as the contract specifies. */
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
 
 function figma<T>(ctx: FigmaContext, path: string, query?: Record<string, QueryValue>): Promise<T> {

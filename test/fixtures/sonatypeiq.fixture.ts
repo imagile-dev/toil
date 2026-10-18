@@ -4,11 +4,11 @@ import { defineFixture } from '../harness/fixtures.js';
  * Canned Sonatype IQ Server responses for every request the sonatypeiq
  * examples send. Routes match on method, path and query.
  *
- * Provenance: the command contract has no tests for the read
+ * Provenance: the command contract records no responses for the read
  * commands, so their shapes are invented from Sonatype's documented REST API
  * (help.sonatype.com, Application, Organization and Policies REST APIs). The
- * evaluation answer is the shape the command contract's own tests
- * invented, `{ isQueued, components[] }`, which IQ's documentation doesn't
+ * evaluation answer is the shape the command contract's recorded examples
+ * assume, `{ isQueued, components[] }`, which IQ's documentation doesn't
  * match (suspected bug #91 item 2); it is kept because the sonatypeiq area reads exactly
  * that.
  */
@@ -45,7 +45,7 @@ export const scanEnvelope = {
   meta: { command: 'deps scan' },
 };
 
-// The contract's tests' invented shape: a SECURITY violation with a CVE reference.
+// The shape the contract's recorded examples assume: a SECURITY violation with a CVE reference.
 export const evaluation = {
   isQueued: false,
   components: [

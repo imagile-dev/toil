@@ -38,7 +38,7 @@ export function kibana<T>(ctx: KibanaContext, path: string, req: Omit<ApiRequest
  * `POST /api/saved_objects/_export`, read as NDJSON: one saved object per
  * line, then an export-details line. Blank lines are dropped; a line that
  * isn't JSON (a proxy's sign-in page) is an error that quotes the start of it.
- * No 429 retry on this raw-text path, as before.
+ * No 429 retry on this raw-text path.
  * https://www.elastic.co/docs/api/doc/kibana/operation/operation-post-saved-objects-export
  */
 export async function kibanaNdjson(ctx: KibanaContext, path: string, json: unknown): Promise<unknown[]> {
@@ -55,7 +55,7 @@ export async function kibanaNdjson(ctx: KibanaContext, path: string, json: unkno
  * `GET /api/status`, read on a 503 too: an unhealthy Kibana reports its
  * status with that code. Only a 503 carrying Kibana's own `status.overall`
  * object counts; a proxy's or load balancer's 503 stays an error, with
- * Kibana's `message` when the body has one. No 429 retry, as before.
+ * Kibana's `message` when the body has one. No 429 retry.
  * https://www.elastic.co/docs/api/doc/kibana/operation/operation-get-status
  */
 export async function kibanaStatus<T>(ctx: KibanaContext): Promise<T> {

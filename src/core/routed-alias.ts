@@ -1,7 +1,7 @@
 import { aliasPaths, commandName, takesAllowWrite, type AnyCommand } from './command.js';
 
 /**
- * An contract path that ran one of several sources depending on a flag's
+ * A contract path that runs one of several sources depending on a flag's
  * value, kept as a path that routes to the command for that source: `toil
  * deps frisk --source sonatype` runs `toil ossindex vulns`. One command
  * still asks one source (principle 3); the flag only says which command.

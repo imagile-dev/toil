@@ -63,7 +63,7 @@ export function parseNodeId(input: string): string {
 /**
  * The node ID in a link, if it has one. No `node-id` means the whole file; a
  * `node-id` that's there but malformed still fails. A link the URL parser
- * can't read fails with its own message, as before.
+ * can't read fails with its own message.
  */
 export function findNodeIdInUrl(url: string): string | undefined {
   let parsed: URL;

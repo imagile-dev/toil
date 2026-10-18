@@ -59,7 +59,7 @@ describe('resolveConnection', async () => {
 
   it('lets an old name from a higher tier beat a new name from a lower one, and the new name win a tie', async () => {
     const both = (server: 'env' | 'ci' | 'global', host: 'env' | 'ci' | 'global') => ({ ...config({ a: { area: 'db', server: 'old', host: 'new' } }), sources: { 'a.server': server, 'a.host': host } });
-    // The documented env var (TOIL_DB_SERVER) over the new name in the file.
+    // The old name's env var (TOIL_DB_SERVER) over the new name in the file.
     const envOld = await resolve(both('env', 'global'));
     expect(envOld.connection.host).toBe('old');
     expect(envOld.warnings.map((w) => w.code)).toEqual(['CONFIG_RENAMED_KEY']);

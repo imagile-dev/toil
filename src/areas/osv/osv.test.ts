@@ -12,9 +12,8 @@ import { vulnsCommand } from './vulns.js';
  * The exact requests `toil osv vulns` sends to OSV.dev and what it makes of
  * the answers. #91 item 5, confirmed against the live API, is fixed: each
  * id's full record is fetched. Items 6 and 24 are pinned here, not fixed: the
- * old command's observable behaviour is the specification until a live run
- * says otherwise. A finding that says nothing used to be filed anyway; now it
- * has to say why.
+ * command contract is the specification until a live run says otherwise.
+ * A finding that says nothing is not worth filing; this one has to say why.
  */
 
 const URL_ = `${OSV}/v1/querybatch`;
@@ -218,13 +217,13 @@ describe('osv vulns: reshaping', () => {
 });
 
 describe('osv vulns: failures', () => {
-  it('a probe answered with 400 still counts as reachable, as before', async () => {
+  it('a probe answered with 400 counts as reachable', async () => {
     const r = route((request) => (isProbe(request) ? { status: 400, text: 'empty batch' } : querybatch(request)));
     const { envelope } = await run({ from: 'inventory.json' }, [r, fixtureRecords]);
     expect(envelope.ok).toBe(true);
   });
 
-  it('a failed probe is the old "not reachable" error, before any batch is sent', async () => {
+  it('a failed probe is the "not reachable" error, before any batch is sent', async () => {
     const { envelope, calls } = await run({ from: 'inventory.json' }, [route(() => ({ status: 503, text: 'down' }))]);
     expect(envelope.ok).toBe(false);
     expect(envelope.error).toMatchObject({ code: 'NETWORK', message: 'toil osv vulns requires OSV.dev access but api.osv.dev is not reachable from this machine.' });
@@ -238,13 +237,13 @@ describe('osv vulns: failures', () => {
     expect(calls).toHaveLength(1);
   });
 
-  it('a failed batch keeps the documented wording, "OSV.dev returned HTTP <status>"', async () => {
+  it('a failed batch keeps the specified wording, "OSV.dev returned HTTP <status>"', async () => {
     const r = route((request) => (isProbe(request) ? { json: { results: [] } } : { status: 500, json: { message: 'internal' } }));
     const { envelope } = await run({ from: 'inventory.json' }, [r]);
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'OSV.dev returned HTTP 500 Internal Server Error' });
   });
 
-  it('a 429 is answered at once with the documented wording, as before: no retry', async () => {
+  it('a 429 is answered at once with the specified wording: no retry', async () => {
     const { envelope, calls } = await run({ from: 'inventory.json' }, [route((request) => (isProbe(request) ? { json: { results: [] } } : { status: 429, text: '' }))]);
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'OSV.dev returned HTTP 429 Too Many Requests' });
     expect(calls).toHaveLength(2);
@@ -255,7 +254,7 @@ describe('osv vulns: failures', () => {
     expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'OSV.dev returned HTTP 404 Not Found for GHSA-jfh8-c2jp-5v3q' });
   });
 
-  it('an answer with no results list fails, as the contract did, in words', async () => {
+  it('an answer with no results list fails, as the contract specifies, in words', async () => {
     const r = route((request) => (isProbe(request) ? { json: { results: [] } } : { json: { nope: true } }));
     const { envelope } = await run({ from: 'inventory.json' }, [r]);
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: `OSV.dev answered ${URL_} without a results list.` });

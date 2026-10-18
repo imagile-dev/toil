@@ -43,7 +43,7 @@ function parseHunkHeader(header: string): Omit<DiffHunk, 'lines'> {
 }
 
 /**
- * The contract's parser, line for line. The path comes from `diff --git
+ * The parser the contract specifies, line for line. The path comes from `diff --git
  * a/(.+) b/.+$`, greedy, so a quoted path, `diff.noprefix`, `diff.mnemonicPrefix`
  * or ` b/` inside a name give a wrong or whole-line path (#74 item 5, pinned).
  * Inside a hunk only `+`, `-` and space lines are kept, which drops `\ No
@@ -94,8 +94,8 @@ const comparable = (path: string) => {
 };
 
 /**
- * `--file` as the contract meant it: relative to the repository root,
- * where it ran git. toil runs git in the workspace, so from a folder below
+ * `--file` as the contract specifies it: relative to the repository root,
+ * where git runs. toil runs git in the workspace, so from a folder below
  * the root a relative path gets git's `:(top)` magic to keep that meaning.
  */
 export function rootRelativePathspec(file: string, root: string, workspace: string | undefined): string {

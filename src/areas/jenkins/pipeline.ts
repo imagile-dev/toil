@@ -8,7 +8,7 @@ import { getBuild, getConsoleLog, getJob, getQueueItem, listBuilds, listJobs, tr
 /**
  * The six pipeline commands: jobs, builds, a build's console log, and
  * triggering a build, optionally waiting for it. Numbers are read with
- * parseInt, as the contract read them, so `12abc` is build 12 (#80 item
+ * parseInt, as the contract specifies, so `12abc` is build 12 (#80 item
  * 5). Waiting is two phases, each with its own budget: the queue, then the
  * build. Nobody likes a queue, but at least this one reports its position.
  */
@@ -17,7 +17,7 @@ const NAME_DESCRIPTION = 'Job name (use folder/job for folder-scoped jobs)';
 const name = z.string().describe(NAME_DESCRIPTION);
 const nameOption = { flags: '--name <job>', field: 'name', description: NAME_DESCRIPTION };
 
-/** A number the contract read with parseInt: text stays text until then. */
+/** A number read with parseInt, per the command contract: text stays text until then. */
 const intText = z.union([z.number(), z.string()]);
 const parseIntText = (value: number | string | undefined, fallback: string) => parseInt(String(value ?? fallback), 10);
 const shown = (value: number | string | undefined, fallback: string) => String(value ?? fallback);
@@ -113,7 +113,7 @@ export const pipelineRunCommand = jenkinsArea.command({
     const buildNumber = await waitForQueue(ctx, queueItemId, pollSec * 1000, timeoutSec * 1000, queued);
     ctx.debug(`Build #${buildNumber} started — waiting for completion...`);
     const build = await waitForBuild(ctx, input.name, buildNumber, pollSec * 1000, timeoutSec * 1000);
-    // As the contract did: the build as a success, and exit code 1. The warning is additive.
+    // As the contract specifies: the build as a success, and exit code 1. The warning is additive.
     if (build.result !== null && build.result !== 'SUCCESS') {
       ctx.setExitCode(1);
       ctx.warn({ code: 'JENKINS_BUILD_NOT_SUCCESSFUL', message: `Build #${buildNumber} of ${input.name} finished with result ${String(build.result)}.` });
@@ -122,7 +122,7 @@ export const pipelineRunCommand = jenkinsArea.command({
   },
 });
 
-/** Polls the queue item until it names a build number, as the contract did: check, then wait the full interval. */
+/** Polls the queue item until it names a build number, as the contract specifies: check, then wait the full interval. */
 async function waitForQueue(ctx: JenkinsContext, queueItemId: number, pollMs: number, timeoutMs: number, queued: string): Promise<number> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {

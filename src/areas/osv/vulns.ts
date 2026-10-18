@@ -11,10 +11,10 @@ import { probe, requestJson, statusOf, type PublicContext } from './public-api.j
  * 500 queries a request, one request after another, results matched back to
  * packages by position. querybatch answers with vulnerability ids only, so
  * each distinct id's full record is then fetched from `/v1/vulns/{id}`, eight
- * at a time. The old command never did, and every finding came back empty
- * (#91 item 5, confirmed against the live API, a declared fix). The rest
- * behaves as `deps frisk --source osv` did, bugs included (#91 item
- * 6). A finding now arrives with its paperwork attached, which is more than
+ * at a time. The contract records no such fetch, so every finding comes back
+ * empty there (#91 item 5, confirmed against the live API, a declared fix). The
+ * rest behaves as the contract specifies for `deps frisk --source osv`, bugs
+ * included (#91 item 6). A finding arrives with its paperwork attached, which is more than
  * most findings get.
  */
 
@@ -112,7 +112,7 @@ async function queryBatch(ctx: PublicContext, chunk: InventoryPackage[]): Promis
     throw oldWording(err, '');
   }
   const results = data?.results;
-  // The contract read data.results.length and failed on an answer without one; it still fails, in words.
+  // The contract specifies reading data.results.length, failing on an answer without one; toil fails, in words.
   if (!Array.isArray(results)) {
     throw new ToilError('HTTP', `OSV.dev answered ${QUERYBATCH} without a results list.`, { fix: `Try again later; check ${OSV_URL} is up.`, details: { url: QUERYBATCH } });
   }
@@ -127,7 +127,7 @@ async function queryBatch(ctx: PublicContext, chunk: InventoryPackage[]): Promis
   return found;
 }
 
-/** "OSV.dev returned HTTP <status>", the documented wording, with core's code and fix; anything without a status passes through. */
+/** "OSV.dev returned HTTP <status>", the contract's specified wording, with core's code and fix; anything without a status passes through. */
 function oldWording(err: unknown, suffix: string): unknown {
   const status = statusOf(err);
   if (!(err instanceof ToilError) || status === undefined) return err;

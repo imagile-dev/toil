@@ -16,7 +16,7 @@ import type { SupportedVersion } from '../../core/supported.js';
  * owner or repo from one of the working folder's remotes (origin first), only when the
  * remote is on this connection's host (`api.github.com` counts as
  * `github.com`), by core's GitHub remote parser. An HTTPS remote with
- * userinfo matches nothing, as before (#72 item 10).
+ * userinfo matches nothing (#72 item 10).
  */
 const fromRemote =
   (name: 'owner' | 'repo') =>
@@ -43,7 +43,7 @@ export const githubArea = defineArea({
       flags: '--owner <owner>',
       setting: 'owner',
       git: fromRemote('owner'),
-      // Any string, as before: an empty --owner still gets the "Could not determine" error.
+      // Any string: an empty --owner still gets the "Could not determine" error.
       schema: z.string(),
     },
     repo: {

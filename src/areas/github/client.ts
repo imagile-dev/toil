@@ -8,8 +8,8 @@ import type { QueryValue } from '../../core/rest.js';
 import { githubArea } from './area.js';
 
 /**
- * Every request toil sends to GitHub, kept as the command contract
- * sent them: the same headers on every call (the pinned API version, JSON
+ * Every request toil sends to GitHub, sent exactly as the command
+ * contract specifies: the same headers on every call (the pinned API version, JSON
  * content type, `Connection: close`), owner, repo and labels interpolated
  * into paths as given, page/per_page paging that stops on a short page, and
  * GraphQL at the endpoint derived from the REST root. One header set for
@@ -19,12 +19,12 @@ import { githubArea } from './area.js';
 export type GitHubConnection = Connection<z.output<typeof githubArea.connection>>;
 export type GitHubContext = CommandContext<GitHubConnection, Partial<Record<'owner' | 'repo', string>>>;
 
-/** The contract's per-request timeout. */
+/** The per-request timeout the contract specifies. */
 const TIMEOUT_MS = 30_000;
 /** GitHub's page-size maximum; a short page is the last one. */
 const PER_PAGE = 100;
 
-/** What every call sends besides the token, exactly as the contract sent it. */
+/** What every call sends besides the token, exactly as the contract specifies. */
 const HEADERS = { 'Content-Type': 'application/json', Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', Connection: 'close' };
 
 type Request = Pick<ApiRequest, 'method' | 'query' | 'json'>;
@@ -59,7 +59,7 @@ export function github<T>(ctx: GitHubContext, path: string, req: Request = {}): 
 /**
  * A text body (the unified diff), with Accept swapped for the diff media
  * type. A 429 fails at once with the server's `message`, as the
- * contract's text call did; it never retried (suspected bug, #72 item 11).
+ * contract specifies for text calls; it is never retried (suspected bug, #72 item 11).
  */
 export function githubText(ctx: GitHubContext, path: string): Promise<string> {
   assertNoDotSegments(path);
@@ -85,13 +85,13 @@ export function githubGraphql<T>(ctx: GitHubContext, query: string, variables?: 
 
 /**
  * Every item of a page/per_page list, 100 at a time from page 1, stopping on
- * a short page, with no cap of the contract's own (core's 1,000-page bound
+ * a short page, with no cap of its own (core's 1,000-page bound
  * still applies). `items` picks the list out of a wrapper (`check_runs`).
  */
 export async function githubAll<T>(ctx: GitHubContext, path: string, what: string, query: Record<string, QueryValue> = {}, items: (body: unknown) => T[] = (body) => (Array.isArray(body) ? (body as T[]) : [])): Promise<T[]> {
   const paged = await paginate<T>(
     { kind: 'page', pageParam: 'page', sizeParam: 'per_page', pageSize: PER_PAGE, items },
-    // per_page before page, in the contract's order.
+    // per_page before page, in the order the contract specifies.
     async (p) => ({ body: await github<unknown>(ctx, path, { query: { ...query, per_page: p.per_page, page: p.page } }) }),
     { what },
   );
@@ -101,8 +101,8 @@ export async function githubAll<T>(ctx: GitHubContext, path: string, what: strin
 /**
  * The owner and repo a command acts on: a flag, then the first remote (origin first) when
  * it's on this connection's host, then the connection's owner/repo (usually
- * defaults.github), as before. Core resolves all three; this only keeps the
- * contract's error when none of them has a value.
+ * defaults.github). Core resolves all three; this only raises the
+ * "Could not determine" error when none of them has a value.
  */
 export function target(ctx: GitHubContext): { owner: string; repo: string } {
   const { owner, repo } = ctx.context;

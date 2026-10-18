@@ -6,10 +6,10 @@ import { defineFixture } from '../harness/fixtures.js';
  * send, the token exchange included, so the parity suite runs each command
  * offline through both front doors.
  *
- * Provenance: the command contract's tests pinned only the null-list
+ * Provenance: the command contract's recorded examples pin only the null-list
  * case (`projects: null`, `scans: null`). Every other shape is invented from
  * Checkmarx One's REST API documentation and Keycloak's token endpoint,
- * trimmed to the fields the command contract's types declared.
+ * trimmed to the fields the command contract's types record.
  * Every scan here completed on time, which is how you can tell it's a fixture.
  */
 
@@ -50,7 +50,7 @@ export const cxScan = (n: number) => ({
   engines: { sast: { status: 'Completed' } },
 });
 
-// Invented from the docs: GET /api/results/summary, in the flat shape the command contract typed (#89 item 2).
+// Invented from the docs: GET /api/results/summary, in the flat shape the command contract specifies (#89 item 2).
 export const resultsSummary = { highSeverity: 2, mediumSeverity: 5, lowSeverity: 11, infoSeverity: 3, severitiesTotalCount: 21 };
 
 export const tokenRoute: Route = { method: 'POST', origin: IAM, path: TOKEN_PATH, respond: { json: tokenResponse } };

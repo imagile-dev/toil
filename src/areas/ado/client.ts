@@ -29,14 +29,14 @@ export const API_COMMENTS = '7.1-preview.4';
 const TIMEOUT_MS = 30_000;
 const FILE_TIMEOUT_MS = 60_000;
 
-/** What the contract's fetcher put on every request, under the caller's own headers. */
+/** What the contract specifies on every request, under the caller's own headers. */
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json' };
 /** The content type of every JSON Patch body. */
 export const PATCH = { 'Content-Type': 'application/json-patch+json' };
 
 export const enc = encodeURIComponent;
 
-/** A number the contract read with parseInt, as it read it: `12abc` is 12, `abc` is NaN (#69 item 25). */
+/** A number read with parseInt, as the contract specifies: `12abc` is 12, `abc` is NaN (#69 item 25). */
 export const toInt = (value: number | string | undefined, fallback?: string): number => parseInt(String(value ?? fallback), 10);
 
 /**
@@ -61,13 +61,13 @@ async function send<T>(ctx: AdoContext, path: string, req: ApiRequest): Promise<
 
 export type Request = Pick<ApiRequest, 'method' | 'json' | 'headers'>;
 
-/** One JSON request. `path` carries its own query string, as the contract wrote it. */
+/** One JSON request. `path` carries its own query string, as the contract specifies. */
 export function ado<T>(ctx: AdoContext, path: string, req: Request = {}): Promise<T> {
   return send<T>(ctx, path, req);
 }
 
 /**
- * One request of a list the contract read through its raw path, with the
+ * One request of a list the contract specifies through its raw path, with the
  * response headers: no 429 retry there (#69 item 4), so none here.
  */
 async function raw(ctx: AdoContext, path: string, query: Record<string, string | number>): Promise<{ body: unknown; headers: Headers }> {
@@ -149,7 +149,7 @@ function missing(ctx: AdoContext, key: 'collection' | 'project', flag: string): 
 
 /**
  * The collection, project and repo a command acts on, checked in the
- * contract's order. `--collection` beats `--organization`, which beats
+ * order the contract specifies. `--collection` beats `--organization`, which beats
  * the git remote and the connection. Every command needs a collection and a
  * project, even those whose request uses neither (#69 item 2); repo commands
  * pass `needRepo`.

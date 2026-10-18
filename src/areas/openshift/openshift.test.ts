@@ -28,7 +28,7 @@ import { deploymentsCommand, eventsCommand, logsCommand, podsCommand } from './w
 /**
  * The exact request toil sends to the API server for each command, and what
  * it makes of the answer. The parity suite proves the two front doors agree;
- * this proves they agree on what the command contract did. Suspected
+ * this proves they agree on what the command contract specifies. Suspected
  * bugs (#88) are pinned here, not fixed, pending a cluster willing to testify.
  */
 
@@ -343,7 +343,7 @@ describe('quantities', () => {
     expect([cpuMillicores('123456789n'), cpuMillicores('2500u'), cpuMillicores('250m'), cpuMillicores('1.5'), cpuMillicores(undefined), cpuMillicores('')]).toEqual([123, 3, 250, 1500, null, null]);
   });
 
-  it('memory: binary and decimal suffixes and bytes, in MiB, rounded as the contract rounded', () => {
+  it('memory: binary and decimal suffixes and bytes, in MiB, rounded as the contract specifies', () => {
     expect([memMiB('1536Ki'), memMiB('64Mi'), memMiB('1.5Gi'), memMiB('1Ti'), memMiB('500K'), memMiB('100M'), memMiB('1G'), memMiB('1048576')]).toEqual([1.5, 64, 1536, 1048576, 0.48, 95.37, 954, 1]);
   });
 
@@ -396,7 +396,7 @@ describe('choosing a cluster', () => {
     expect(calls).toEqual([]);
   });
 
-  it("keeps the contract's not-configured wording: a named cluster by env/instance, the flat one plainly; URL before token", async () => {
+  it("keeps the contract's specified not-configured wording: a named cluster by env/instance, the flat one plainly; URL before token", async () => {
     const named = (settings: Settings) => run(podMetricsCommand, { namespace: NAMESPACE }, [], { config: { openshift: { env: 'prod', instance: 'east', ...settings } } });
     expect((await named({ token: 't' })).envelope.error).toMatchObject({ code: 'NOT_CONFIGURED', message: 'OpenShift cluster "prod/east" is not configured or missing baseUrl.', fix: expect.stringContaining('TOIL_OPENSHIFT_BASE_URL') });
     expect((await named({})).envelope.error?.message).toBe('OpenShift cluster "prod/east" is not configured or missing baseUrl.');

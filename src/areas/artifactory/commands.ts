@@ -13,7 +13,7 @@ import { artifactory, ping } from './client.js';
  * live server rules on them, as rulings tend to be scheduled.
  */
 
-/** A number the contract read with parseInt: text stays text until then. */
+/** A number read with parseInt, as the contract specifies: text stays text until then. */
 const intText = z.union([z.number(), z.string()]);
 
 /** One leading slash goes; the rest of the path is sent as typed (suspected bug #82 item 4: no encoding). */
@@ -161,7 +161,7 @@ export const searchCommand = artifactoryArea.command({
 });
 
 /**
- * The AQL query, built as the contract built it. Suspected bugs (#82):
+ * The AQL query, built as the contract specifies. Suspected bugs (#82):
  * values are not escaped (item 5), `--properties` asks for a "properties"
  * include AQL may not know (item 3), and a limit of 0 means 100 (item 6).
  */

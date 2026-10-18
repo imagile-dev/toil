@@ -17,7 +17,7 @@ import { getStatusCommand, listChecksCommand } from './status.js';
 /**
  * The exact requests toil sends to GitHub and what it makes of the answers,
  * command by command. The parity suite proves the CLI and MCP agree; this
- * proves what they agree on is what the command contract sent.
+ * proves what they agree on is what the command contract specifies.
  * Suspected bugs (#72) are pinned here, not fixed, in keeping with the
  * longstanding practice of documenting a hazard instead of removing it.
  */
@@ -59,7 +59,7 @@ describe('requests', () => {
     expect(envelope.error).toMatchObject({ code: 'AUTH', message: 'Bad credentials', fix: expect.stringContaining('TOIL_GITHUB_TOKEN, or GITHUB_TOKEN') });
   });
 
-  it('derives the GraphQL endpoint from the REST root the contract\'s way', () => {
+  it('derives the GraphQL endpoint from the REST root as the contract specifies', () => {
     expect(graphqlUrl('https://api.github.com')).toBe('https://api.github.com/graphql');
     expect(graphqlUrl('https://api.github.com/')).toBe('https://api.github.com/graphql');
     expect(graphqlUrl(`${GHE}/api/v3`)).toBe(`${GHE}/api/graphql`);
@@ -76,11 +76,11 @@ describe('requests', () => {
 });
 
 describe('owner and repo', () => {
-  it('fails before any request with the contract\'s message when neither is found', async () => {
+  it('fails before any request with the "Could not determine" error when neither is found', async () => {
     const { envelope, calls } = await run(getPrCommand, { number: '7' });
     expect(calls).toEqual([]);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringMatching(/^Could not determine GitHub owner\/repo\. Pass --owner and --repo/), fix: expect.stringContaining('TOIL_GITHUB_OWNER') });
-    // An empty --owner is "not found", as before, not a validation error.
+    // An empty --owner is "not found", not a validation error.
     expect((await run(getPrCommand, { owner: '', repo: 'r', number: '7' })).envelope.error?.message).toMatch(/^Could not determine/);
   });
 
@@ -98,7 +98,7 @@ describe('owner and repo', () => {
     }
   });
 
-  it("reads a remote of any name on the connection's host when origin is elsewhere, as the contract did", async () => {
+  it("reads a remote of any name on the connection's host when origin is elsewhere, as the contract specifies", async () => {
     const remotes: Partial<Context> = { gitRemote: async () => [{ name: 'origin', url: 'git@github.com:me/toil-probe.git' }, { name: 'upstream', url: 'git@ghe.imagile.dev:imagile/toil-probe.git' }] };
     const { envelope, calls } = await run(getPrCommand, { number: '7' }, fixture.routes!, { owner: 'other', repo: 'other' }, remotes);
     expect(calls[0]!.url).toBe(`${API}/repos/imagile/toil-probe/pulls/7`);

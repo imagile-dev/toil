@@ -24,9 +24,9 @@ export const RDA = '/rdc/v2';
 /** Team Management API. Its routes are Django-style: keep the trailing slash. */
 export const TEAM_MGMT = '/team-management/v1';
 
-/** The contract's per-request timeout. */
+/** The per-request timeout the contract specifies. */
 const TIMEOUT_MS = 30_000;
-/** What every call sends besides the Basic header, exactly as the contract sent it. */
+/** What every call sends besides the Basic header, sent exactly as the contract specifies. */
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
 
 export interface SauceRequest {
@@ -46,7 +46,7 @@ export function sauce<T>(ctx: SauceContext, path: string, req: SauceRequest = {}
   });
 }
 
-/** A path segment: trimmed, then encoded, as the contract did for every id. */
+/** A path segment: trimmed, then encoded, as the contract specifies for every id. */
 export const id = (value: string): string => encodeURIComponent(value.trim());
 
 /** `/rest/v1/<username>`, the configured username's own corner of the v1 API. */
@@ -58,12 +58,12 @@ export function countOf(data: unknown, key?: string): number | undefined {
   return Array.isArray(list) ? list.length : undefined;
 }
 
-/** A usage error the contract raised before any request, with its wording. */
+/** A usage error the contract specifies before any request, with its specified wording. */
 export function invalid(message: string, fix = 'Correct the flag and run the command again.'): ToilError {
   return new ToilError('INVALID_INPUT', message, { fix });
 }
 
-/** A number the contract read as text: the CLI's string, or MCP's number, checked the same way. */
+/** A number the contract reads as text: the CLI's string, or MCP's number, checked the same way. */
 export const intText = z.union([z.number(), z.string()]);
 export type IntText = z.output<typeof intText>;
 

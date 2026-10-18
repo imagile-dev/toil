@@ -16,8 +16,8 @@ import { listSpaces } from './spaces.js';
  * Request building and response reshaping, command by command: the exact
  * request toil sends to Confluence Data Center and what it makes of the
  * answer. The parity suite proves both front doors agree; this proves what
- * they agree on is what the contract sent. Items from #78 are pinned as
- * they were, suspected bugs and all, until a live server rules on them.
+ * they agree on is what the contract specifies. Items from #78 are pinned
+ * as recorded, suspected bugs and all, until a live server rules on them.
  */
 
 const API = `${CONFLUENCE}/rest/api`;
@@ -41,7 +41,7 @@ async function run(
 const listOf = (results: unknown[], more = false) => ({ json: { results, size: results.length, _links: more ? { next: '/rest/api/next' } : {} } });
 
 describe('auth', () => {
-  it('sends the PAT as a Bearer header with the contract JSON headers, keeping a context path', async () => {
+  it('sends the PAT as a Bearer header with the JSON headers the contract specifies, keeping a context path', async () => {
     const config = { confluence: { ...fixtureConfig.confluence, baseUrl: `${CONFLUENCE}/confluence` } };
     const { calls } = await run(getPage, { id: '12345' }, [{ url: /content\/12345/, respond: { json: page('12345') } }], { config });
     expect(calls).toEqual([{ method: 'GET', url: `${CONFLUENCE}/confluence/rest/api/content/12345?expand=body.storage,version,space,ancestors`, headers: JSON_HEADERS, body: undefined }]);
@@ -106,7 +106,7 @@ describe('pages', () => {
     expect(envelope.data).toMatchObject({ id: '1' });
   });
 
-  it("get-page-by-title: no match is NOT_FOUND with the contract's message", async () => {
+  it("get-page-by-title: no match is NOT_FOUND with its documented message", async () => {
     const { envelope } = await run(getPageByTitle, { space: 'DOCS', title: 'Nope' }, [{ url: /content\?/, respond: listOf([]) }]);
     expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'Page not found: "Nope" in space DOCS' });
   });
@@ -133,19 +133,19 @@ describe('pages', () => {
     expect(envelope.data).toEqual([{ id: '1' }, { id: '2' }]);
   });
 
-  it('list-pages: --limit abc sends limit=NaN and returns nothing, as before (#78 item 9)', async () => {
+  it('list-pages: --limit abc sends limit=NaN and returns nothing (#78 item 9)', async () => {
     const { envelope, calls } = await run(listPages, { space: 'DOCS', limit: 'abc' }, [{ path: '/rest/api/content', respond: listOf([{ id: '1' }]) }]);
     expect(calls[0]!.url).toContain('&limit=NaN');
     expect(envelope.data).toEqual([]);
     // Additive: the empty result says why (principle 4).
-    expect(envelope.meta.warnings).toEqual([{ code: 'CONFLUENCE_LIMIT_INVALID', message: '--limit must be a positive whole number, not "abc"; the result was cut to 0 item(s), as before.' }]);
+    expect(envelope.meta.warnings).toEqual([{ code: 'CONFLUENCE_LIMIT_INVALID', message: '--limit must be a positive whole number, not "abc"; the result was cut to 0 item(s).' }]);
   });
 
   it('list-spaces: --limit 0 sends limit=0 once, returns nothing, and warns (#78 item 10)', async () => {
     const { envelope, calls } = await run(listSpaces, { limit: '0' }, [{ url: /space/, respond: listOf([{ key: 'A' }], true) }]);
     expect(calls.map((c) => c.url)).toEqual([`${API}/space?start=0&limit=0`]);
     expect(envelope.data).toEqual([]);
-    expect(envelope.meta.warnings).toEqual([{ code: 'CONFLUENCE_LIMIT_INVALID', message: '--limit must be a positive whole number, not "0"; the result was cut to 0 item(s), as before.' }]);
+    expect(envelope.meta.warnings).toEqual([{ code: 'CONFLUENCE_LIMIT_INVALID', message: '--limit must be a positive whole number, not "0"; the result was cut to 0 item(s).' }]);
   });
 
   it('a valid --limit carries no warning', async () => {
@@ -160,7 +160,7 @@ describe('pages', () => {
     expect(envelope.data).toEqual(body);
   });
 
-  it('search: parseInt as before, so --limit 10abc is 10 and --limit abc goes out as NaN (#78 item 9)', async () => {
+  it('search: parseInt, so --limit 10abc is 10 and --limit abc goes out as NaN (#78 item 9)', async () => {
     const r = await run(search, { cql: 'x', limit: '10abc', start: 'abc', expand: 'space' }, [{ url: /search/, respond: { json: {} } }]);
     expect(r.calls[0]!.url).toBe(`${API}/content/search?cql=x&start=NaN&limit=10&expand=space`);
   });
@@ -294,7 +294,7 @@ describe('attachments', () => {
     expect(envelope.data).toEqual([{ id: '1' }]);
   });
 
-  it("upload-attachment: a missing file is the contract's error, before any request", async () => {
+  it("upload-attachment: a missing file is INVALID_INPUT naming the path, before any request", async () => {
     const { envelope, calls } = await run(uploadAttachment, { id: '12345', file: 'gone.txt', ...write }, []);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'File not found: gone.txt' });
     expect(calls).toHaveLength(0);
@@ -348,7 +348,7 @@ describe('attachments', () => {
   });
 });
 
-describe('body hints, as the contract worded them', () => {
+describe('body hints, worded as the contract specifies', () => {
   const err500 = new ToilError('HTTP', 'HTTP 500 Internal Server Error', { details: { status: 500 } });
 
   it('xmlParseHint: null without a position or past the end; a pointer under the column', () => {

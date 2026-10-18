@@ -13,7 +13,7 @@ import { hotspotsPage, issuesPage, projectsPage, sonar, sonarAll } from './clien
 
 const DEFAULT_METRICS = 'coverage,duplicated_lines_density,bugs,vulnerabilities,code_smells,sqale_rating,reliability_rating,security_rating,ncloc';
 
-/** A number the contract read with parseInt: text stays text until then. */
+/** A number read with parseInt, per the command contract: text stays text until then. */
 const intText = z.union([z.number(), z.string()]);
 const parseIntText = (value: number | string | undefined, fallback: string) => parseInt(String(value ?? fallback), 10);
 

@@ -89,7 +89,7 @@ export function tokenExchange(connection: AlationConnection): TokenExchange {
 
 /**
  * The lifetime to report to core so it renews exactly 60 s before expiry, as
- * the contract did. Core renews a lifetime L at L - min(60 s, L / 10), so a
+ * the contract specifies. Core renews a lifetime L at L - min(60 s, L / 10), so a
  * token with under ten minutes left is reported a little longer than its
  * remainder minus a minute, and one with a minute or less as already due.
  */

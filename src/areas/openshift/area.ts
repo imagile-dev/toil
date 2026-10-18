@@ -38,7 +38,7 @@ export const openshiftArea = defineArea({
   // API discovery needs an authenticated user (system:authenticated); a revoked token is a 401.
   probe: () => ({ path: '/api/v1' }),
   request: (conn, area) => {
-    // The contract's wording, which differed for a named cluster and the flat one; the URL is checked before the token.
+    // The contract's specified wording, which differs for a named cluster and the flat one; the URL is checked before the token.
     const cluster = clusterName(conn);
     if (!conn.baseUrl) {
       throw new ToilError('NOT_CONFIGURED', cluster ? `OpenShift cluster "${cluster}" is not configured or missing baseUrl.` : 'OpenShift not configured.', { fix: setHint(conn, area, 'baseUrl') });

@@ -5,7 +5,7 @@ import { defineFixture } from '../harness/fixtures.js';
  * Routes match on path; the query is left open, since the examples vary only
  * the selectors.
  *
- * Provenance: the command contract has no tests for this area, so
+ * Provenance: the command contract records no responses for this area, so
  * every shape here is invented from the Kubernetes API reference (Pod,
  * Deployment, Event, PodMetrics) and OpenShift's DeploymentConfig, trimmed
  * to the fields the commands read. Timestamps are years old so `age` reads

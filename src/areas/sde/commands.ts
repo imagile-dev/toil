@@ -8,15 +8,15 @@ import { sde, sdeAll, type SdeContext } from './client.js';
  * The eight SD Elements commands. Four list a Django page: without --all,
  * `data` is the server's `{ count, next, previous, results }` as it came;
  * with --all, every page's `results` in one bare array. The two shapes differ
- * because they always did, and consistency was never in the requirements.
+ * because the contract says so, and consistency was never in the requirements.
  * Each command checks the connection first, then the project, then the
- * paging flags, in the order the contract did.
+ * paging flags, in the order the contract specifies.
  */
 
-/** A number the contract read with parseInt: text stays text until then. */
+/** A number the contract reads with parseInt: text stays text until then. */
 const intText = z.union([z.number(), z.string()]);
 
-/** The contract's `--page` / `--page-size` check: parseInt, then at least 1, so "10x" is 10. */
+/** The `--page` / `--page-size` check the contract specifies: parseInt, then at least 1, so "10x" is 10. */
 function positive(value: number | string | undefined, fallback: string, flag: string): number {
   const text = String(value ?? fallback);
   const n = parseInt(text, 10);
@@ -30,7 +30,7 @@ function oneOf(value: string | undefined, allowed: string[]): string | undefined
   return value;
 }
 
-/** The project ID from the flag or the connection's `project`, as a positive integer, with the contract's wording. */
+/** The project ID from the flag or the connection's `project`, as a positive integer, with the contract's specified wording. */
 function projectOf(value: string | undefined, flag: string): number {
   const fix = `Pass ${flag} <id>, or set project under defaults.sde in your toil config (${sdeArea.envName('project')} for the default connection).`;
   if (!value) throw new ToilError('INVALID_INPUT', 'No project specified. Use --project or set defaults.sde.project in config.', { fix });

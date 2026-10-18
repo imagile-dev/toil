@@ -15,7 +15,7 @@ import * as client from './client.js';
 const key = z.string().describe('Issue key, e.g. PROJ-123');
 const keyOption = { flags: '--key <issue-key>', field: 'key', description: 'Issue key (e.g. PROJ-123)' };
 
-/** The platform's own basename, as the contract used: on Linux and macOS a backslash is part of the name. */
+/** The platform's own basename, as the contract specifies: on Linux and macOS a backslash is part of the name. */
 export const baseName = (path: string): string => basename(path);
 
 export const addAttachment = jiraArea.command({

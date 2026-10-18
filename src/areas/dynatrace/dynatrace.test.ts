@@ -12,8 +12,8 @@ import { traceCommand } from './trace.js';
 /**
  * Request building and response reshaping, command by command: the exact
  * request toil sends and what it makes of the answer. The parity suite proves
- * both front doors agree; this proves what they agree on is what Dynatrace
- * was sent by the command contract. Suspected bugs (#83) are pinned
+ * both front doors agree; this proves what they agree on is what the command
+ * contract specifies for Dynatrace. Suspected bugs (#83) are pinned
  * here, not fixed, pending a live instance and a meeting about it.
  */
 
@@ -136,7 +136,7 @@ describe('problems', () => {
     expect(envelope.data).toEqual({ totalCount: 2, problems: [problem(1), problem(2)] });
   });
 
-  it('list sends the selectors in the contract\'s order, and an empty --from as given', async () => {
+  it('list sends the selectors in the order the contract specifies, and an empty --from as given', async () => {
     const { calls } = await run(problemsListCommand, { from: '', problemSelector: 'status("open")', entitySelector: 'type("SERVICE")' }, [ok(problemPage([]))]);
     expect(calls[0]!.url).toBe(`${CLASSIC}/api/v2/problems?from=&to=now&problemSelector=status%28%22open%22%29&entitySelector=type%28%22SERVICE%22%29&pageSize=500`);
   });
@@ -199,7 +199,7 @@ describe('trace', () => {
     expect(envelope.data).toEqual(traceResult);
   });
 
-  it('stops with the contract\'s wording once 60 seconds have passed', async () => {
+  it('stops with the contract\'s specified wording once 60 seconds have passed', async () => {
     let now = Date.now();
     vi.spyOn(Date, 'now').mockImplementation(() => now);
     const routes: Route[] = [

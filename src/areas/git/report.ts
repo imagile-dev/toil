@@ -58,7 +58,7 @@ export interface BranchReport {
 /** Starts each commit's line in git's output; internal, never shown. */
 const COMMIT_PREFIX = '__TOIL_COMMIT__';
 
-/** The contract read up to 200 MB here, against execSync's 1 MB elsewhere. */
+/** The contract specifies up to 200 MB here, against execSync's 1 MB elsewhere. */
 const REPORT_MAX_BUFFER = 200 * 1024 * 1024;
 
 /** The Monday of a date's week, by its UTC day (#74 item 10, pinned). */

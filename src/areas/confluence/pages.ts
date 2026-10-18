@@ -16,12 +16,12 @@ import { withBodyHints } from './hints.js';
 
 const id = z.string().describe('Page ID');
 const idOption = { flags: '--id <page-id>', field: 'id', description: 'Page ID' };
-/** A number the contract read with parseInt: text stays text until then. */
+/** A number read with parseInt: text stays text until then. */
 const intText = z.union([z.number(), z.string()]);
 
 const DEFAULT_EXPAND = 'body.storage,version,space,ancestors';
 
-/** `parseInt` of a flag that was only read when set (a non-empty string), as the contract did. */
+/** `parseInt` of a flag that was only read when set (a non-empty string), as the contract specifies. */
 const optionalInt = (value: number | string | undefined) => (value === undefined || value === '' ? undefined : parseInt(String(value), 10));
 
 export const getPage = confluenceArea.command({
@@ -134,7 +134,7 @@ const markdownOption = { flags: '--markdown', field: 'markdown', description: 'C
 /**
  * `--body` or the text of `--body-file` (`-` is stdin on the CLI), or
  * undefined for neither; both is refused. The file is read as it is, with no
- * trimming, as before.
+ * trimming.
  */
 function bodyOf(files: FileAccess, body: string | undefined, bodyFile: string | undefined): string | undefined {
   if (body !== undefined && bodyFile !== undefined) {

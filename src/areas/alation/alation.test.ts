@@ -180,7 +180,7 @@ describe('catalog', () => {
     expect(envelope.data).toEqual({ count: 1, limit: 50, skip: 10, tables: [table(1)] });
   });
 
-  it('checks --limit, --skip and IDs as the contract did, before any request', async () => {
+  it('checks --limit, --skip and IDs as the contract specifies, before any request', async () => {
     const cases: Array<[Record<string, unknown>, string]> = [
       [{ limit: '1001' }, "--limit must be between 1 and 1000 (Alation's per-request cap)."],
       [{ limit: '0' }, "--limit must be between 1 and 1000 (Alation's per-request cap)."],
@@ -197,7 +197,7 @@ describe('catalog', () => {
     expect(id.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid schema ID "x". Expected a positive integer ID.' });
   });
 
-  it('an empty filter is skipped, as the contract skipped an empty string', async () => {
+  it('an empty filter is skipped, as the contract specifies for an empty string', async () => {
     const { data } = await run(schemaListCommand, { ds: '', name: '' }, [get('/integration/v2/schema/', [])]);
     expect(data[0]!.url).toBe(`${ALATION}/integration/v2/schema/?limit=100&skip=0`);
   });

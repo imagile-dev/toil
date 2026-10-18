@@ -12,7 +12,7 @@ export const figmaArea = defineArea({
   name: 'figma',
   description: 'Figma: files and nodes from a link, comments, version history and project files',
   connection: z.object({
-    // No default host, as before: the user sets https://api.figma.com themselves.
+    // No default host: the user sets https://api.figma.com themselves.
     baseUrl: z.url().describe('Figma API root: https://api.figma.com'),
     token: z.string().min(1).describe('Figma personal access token'),
   }),

@@ -39,7 +39,7 @@ export const connectionDataCommand = adoArea.command({
 export const projectListCollectionsCommand = adoArea.command({
   path: ['ado', 'project', 'list-collections'],
   description: 'List all project collections on the server',
-  toolDescription: 'Lists the project collections on the server (id, name, url, state). Still needs a collection and project to be resolvable, as before.',
+  toolDescription: 'Lists the project collections on the server (id, name, url, state). Still needs a collection and project to be resolvable.',
   input: z.object({}),
   writes: false,
   examples: [AT],

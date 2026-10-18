@@ -3,7 +3,7 @@ import { defineArea } from '../../core/area.js';
 import { parseBitbucketRemote } from '../../core/git-remote.js';
 import type { SupportedVersion } from '../../core/supported.js';
 
-/** The contract's error when project or repo is nowhere, less its pointer to a setup command toil doesn't have. */
+/** The 'Could not determine' error when project or repo is nowhere, less its pointer to a setup command toil doesn't have. */
 const BOTH_MISSING = 'Could not determine Bitbucket project/repo. Pass --project and --repo, or set project and repo on the connection.';
 
 /**
@@ -23,7 +23,7 @@ export const bitbucketArea = defineArea({
     targetBranch: z.string().min(1).optional().describe('Default target branch for create-pr (main when unset)'),
   }),
   secrets: ['pat'],
-  // Most commands require both and say so in the contract's words; the
+  // Most commands require both and say so in the contract's specified wording; the
   // project-only commands check their own. The git remote counts only when
   // it's on the connection's own host, so a clone of something else never
   // names a Bitbucket project.

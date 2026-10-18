@@ -12,7 +12,7 @@ import { pipelineGetCommand, pipelineGetRunCommand, pipelineListCommand, pipelin
 /**
  * The exact requests toil sends Jenkins and what it makes of the answers,
  * command by command. The parity suite proves both front doors agree; this
- * proves what they agree on is what the command contract sent.
+ * proves what they agree on is what the command contract specifies.
  * Suspected bugs (#80) are pinned here, not fixed, and each says so.
  */
 
@@ -21,7 +21,7 @@ type Settings = Record<string, unknown> & { area: string };
 const basic = (user: string, token: string) => `Basic ${Buffer.from(`${user}:${token}`).toString('base64')}`;
 const HEADERS = { authorization: basic('ci-bot', 'test-token'), 'content-type': 'application/json', accept: 'application/json', connection: 'close' };
 
-/** Two connections, as the old `jenkins` plus one `jenkinsInstances` entry. */
+/** Two Jenkins connections, `jenkins` and `ephemeral`. */
 const twoInstances = (): Record<string, Settings> => ({
   jenkins: { area: 'jenkins', baseUrl: JENKINS, username: 'ci-bot', apiToken: 'test-token', writes: true },
   ephemeral: { area: 'jenkins', baseUrl: 'https://jenkins-tmp.imagile.dev', username: 'tmp-user', apiToken: 'tmp-token', instance: 'Ephemeral Box' },
@@ -94,7 +94,7 @@ describe('--instance', () => {
 
   it('refuses an instance with no baseUrl, before any request', async () => {
     const broken = twoInstances();
-    // A hand-edited entry with no host, as the old instance list allowed.
+    // A hand-edited entry with no host.
     delete broken.ephemeral!.baseUrl;
     const { calls, envelope } = await run(pipelineListCommand, { instance: 'ephemeral' }, [], broken);
     expect(calls).toEqual([]);
@@ -175,7 +175,7 @@ describe('pipeline run', () => {
     expect(envelope.ok).toBe(true);
   }, 10_000);
 
-  it('returns the build as a success with a warning when the build did not succeed, as the contract did', async () => {
+  it('returns the build as a success with a warning when the build did not succeed, as the contract specifies', async () => {
     const routes: Route[] = [
       trigger('/job/api-build/build', 501),
       { path: '/queue/item/501/api/json', respond: { json: queueItem(501, 42) } },
@@ -208,7 +208,7 @@ describe('pipeline run', () => {
     expect(envelope.error?.message).toBe('Build was cancelled while in queue');
   });
 
-  it('times out on the queue with the contract\'s message', async () => {
+  it('times out on the queue with the contract\'s specified message', async () => {
     const routes: Route[] = [trigger('/job/api-build/build', 501), { path: '/queue/item/501/api/json', respond: { json: queueItem(501) } }];
     const { envelope } = await run(pipelineRunCommand, { name: 'api-build', wait: true, timeout: '1', poll: '1', allowWrite: true }, routes);
     expect(envelope.error).toMatchObject({ code: 'TIMEOUT', message: 'Timed out waiting for build to leave queue after 1s' });

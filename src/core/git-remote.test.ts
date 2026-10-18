@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-// The contract's remote-parsing cases, carried over unchanged, plus the
+// The remote-parsing cases the contract specifies, unchanged, plus the
 // quirks they imply. Precedent is binding until a live run sets a new one.
 import { firstRemoteMatch, parseAdoRemote, parseBitbucketRemote, parseGitHubRemote } from './git-remote.js';
 
@@ -193,7 +193,7 @@ describe('parseGitHubRemote', () => {
   });
 });
 
-describe('quirks kept from the contract (suspected bugs, pinned until a live run)', () => {
+describe('quirks the contract specifies (suspected bugs, pinned until a live run)', () => {
   it('Bitbucket matches a host that is merely a substring of the base URL', () => {
     expect(parseBitbucketRemote('git@imagile.dev:PROJ/repo.git', 'https://bitbucket.imagile.dev')).toEqual({ project: 'PROJ', repo: 'repo' });
   });
