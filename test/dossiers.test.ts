@@ -6,6 +6,7 @@ import type { Envelope } from '../src/core/envelope.js';
 import { forwardSlashes } from '../src/core/files.js';
 import { toolName } from '../src/core/command.js';
 import { inFieldNames } from '../src/core/run.js';
+import { currentPrCommand } from '../src/areas/bitbucket/pull-requests.js';
 import { dossiersCommands } from '../src/dossiers/commands.js';
 import { demoCommands, demoArea } from './fixtures/demo-commands.js';
 import { demoContextArea, demoContextCommands } from './fixtures/demo-context-commands.js';
@@ -25,7 +26,7 @@ import { connectMcp, type McpSession } from './harness/mcp.js';
  * the point.
  */
 
-const commands = [...demoContextCommands, ...demoCommands, ...dossiersCommands([demoContextArea, demoArea])];
+const commands = [...demoContextCommands, ...demoCommands, currentPrCommand, ...dossiersCommands([demoContextArea, demoArea])];
 
 /** Two demo-context connections on different hosts, writes on for both, prod the default. */
 function configOf(extra: Partial<ResolvedConfig> = {}): ResolvedConfig {
@@ -73,7 +74,7 @@ async function both(d: DossierDisk, argv: string[], tool: string, args: Record<s
   const cli = make();
   const viaCli = await runCli(argv, { commands, context: cli.context });
   const mcp = make();
-  const session = await connectMcp({ commands, context: mcp.context, areas: ['demo-context', 'demo', 'dossiers'] });
+  const session = await connectMcp({ commands, context: mcp.context, areas: ['demo-context', 'demo', 'dossiers', 'bitbucket'] });
   sessions.push(session);
   const viaMcp = await session.call(tool, args);
   const strip = (e: Envelope | undefined) => e && { ...e, meta: { ...e.meta, durationMs: 0 } };
@@ -158,6 +159,20 @@ describe('which dossier applies', () => {
     expect(calls).toEqual([]);
     const chosen = await both(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments-team'], 'demo_context_get_widget', { id: 'W-1', dossier: 'payments-team' });
     expect(chosen.envelope.ok).toBe(true);
+  });
+
+  it("doesn't fail a call that never reaches the dossier step on an ambiguous folder, and reports no dossier", async () => {
+    const d = disk({ 'home/.toil/dossiers/payments.json': payments, 'work/.toil/dossiers/payments-team.json': { name: 'payments-team' } });
+    asRepo(d);
+    // An area with nothing set up, answered by the command itself.
+    const unconfigured = await both(d, ['bitbucket', 'current-pr'], 'bitbucket_current_pr', {});
+    expect(unconfigured.envelope).toMatchObject({ ok: true, data: { message: 'Requires Bitbucket config. Available after toil connections add.' } });
+    expect(unconfigured.envelope.meta.context?.dossier).toBeUndefined();
+    // Every input and the connection given: the dossier is never asked.
+    const explicit = await both(d, ['demo-context', 'get-widget', 'W-1', '--connection', 'prod', '--project', 'OWN', '--board', 'ops'], 'demo_context_get_widget', { id: 'W-1', connection: 'prod', project: 'OWN', board: 'ops' });
+    expect(explicit.envelope.ok).toBe(true);
+    expect(explicit.envelope.meta.context).toEqual({ connection: { value: 'prod', source: 'input' }, inputs: { project: { value: 'OWN', source: 'input' }, board: { value: 'ops', source: 'input' } } });
+    expect(explicit.envelope.meta.warnings).toBeUndefined();
   });
 
   it('has no dossier outside every match, and the call needs its keys as before', async () => {

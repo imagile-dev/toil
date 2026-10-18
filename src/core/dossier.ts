@@ -351,13 +351,16 @@ export interface Applied {
 
 /** What execute() gets for one call: the lookup for core's resolver, adoption, and the folder's git. */
 export interface Place {
-  lookup?: DossierLookup;
+  /** The dossier's values; the first call works out which dossier applies, and may fail (two match). */
+  lookup: DossierLookup;
   /** Whether a write may use a connection the dossier chose: only when the dossier is your own (`toil dossiers import`). */
   adopted: (area: string, connection: string, by: 'dossier' | 'git') => boolean;
   /** The host selector that picked `area`'s connection, for meta.context. */
   hostFor: (area: string, input: Record<string, unknown>) => string | undefined;
-  report?: DossierReport;
-  warnings: Warning[];
+  /** meta.context.dossier, once the lookup has been asked and a dossier applied; undefined before. */
+  report: () => DossierReport | undefined;
+  /** Problems found reading dossiers, once the lookup has been asked. */
+  warnings: () => Warning[];
   /** The folder's git, when the call named a `cwd`; otherwise the workspace's, as before. */
   gitRemote?: GitRemoteReader;
   repo?: () => GitContext | undefined;
@@ -699,33 +702,61 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
   };
 
   const place = (request: { dossier?: string | undefined; cwd?: string | undefined }): Place => {
-    const selection = select(request);
-    if (!selection.applied && selection.candidates.length > 1) {
-      throw new ToilError('INVALID_INPUT', `${selection.candidates.length} dossiers apply to ${forwardSlashes(selection.folder.path ?? '')}: ${selection.candidates.map((c) => `${c.file.dossier.name} (${forwardSlashes(c.file.file)})`).join(', ')}.`, {
-        fix: `Pass --dossier <name>, or set TOIL_DOSSIER, to pick one: ${selection.candidates.map((c) => c.file.dossier.name).join(', ')}.`,
-      });
-    }
-    const applied = selection.applied;
-    const git = request.cwd !== undefined && selection.folder.path ? o.git(selection.folder.path) : {};
-    const warnings = [...selection.warnings, ...(applied ? applied.file.problems.filter((p) => p.level === 'warning').map((p) => problemWarning(applied.file, p)) : [])];
-    if (!applied) return { adopted: () => false, hostFor: () => undefined, warnings, ...git };
-    const folderReport = (applied.by === 'folder' || request.cwd !== undefined) && selection.folder.path ? { folder: { path: forwardSlashes(selection.folder.path), from: selection.folder.from } } : {};
+    // The folder a call names is checked now: it's the call's own input, and
+    // its git applies whether or not any dossier does.
+    const named = request.cwd !== undefined ? folder(request.cwd) : undefined;
+    const git = named?.path ? o.git(named.path) : {};
+    // Which dossier applies is worked out only when the resolver first asks,
+    // so a call that never reaches the dossier step (every input given, or an
+    // area with nothing set up) can't fail on a dossier it doesn't use.
+    let chosen: { applied?: Applied; selection: Selection } | undefined;
+    const choose = () => {
+      if (chosen) return chosen;
+      const selection = select(request);
+      if (!selection.applied && selection.candidates.length > 1) {
+        throw new ToilError('INVALID_INPUT', `${selection.candidates.length} dossiers apply to ${forwardSlashes(selection.folder.path ?? '')}: ${selection.candidates.map((c) => `${c.file.dossier.name} (${forwardSlashes(c.file.file)})`).join(', ')}.`, {
+          fix: `Pass --dossier <name>, or set TOIL_DOSSIER, to pick one: ${selection.candidates.map((c) => c.file.dossier.name).join(', ')}.`,
+        });
+      }
+      chosen = { ...(selection.applied ? { applied: selection.applied } : {}), selection };
+      return chosen;
+    };
+    let lookup: DossierLookup | undefined;
     return {
-      lookup: lookupFor(applied),
+      lookup: (area, key, input) => {
+        const { applied } = choose();
+        if (!applied) return undefined;
+        lookup ??= lookupFor(applied);
+        return lookup(area, key, input);
+      },
       // Your own dossier's bindings are yours; a checked-in, listed or loose
       // file's are suggestions until you import it (docs/dossiers.md, Writes ask once).
-      adopted: (_area, _connection, by) => by === 'dossier' && applied.file.source === 'user',
-      hostFor: (area, input) => binding(applied.file.dossier, area, envOf(applied.file.dossier, area, input)).host,
-      report: {
-        name: applied.file.dossier.name,
-        source: applied.file.source,
-        file: forwardSlashes(applied.file.file),
-        by: applied.by,
-        ...(applied.match ? { match: applied.match } : {}),
-        ...(applied.repo ? { repo: applied.repo } : {}),
-        ...folderReport,
+      adopted: (_area, _connection, by) => by === 'dossier' && chosen?.applied?.file.source === 'user',
+      hostFor: (area, input) => {
+        const applied = chosen?.applied;
+        return applied ? binding(applied.file.dossier, area, envOf(applied.file.dossier, area, input)).host : undefined;
       },
-      warnings,
+      // Only once a dossier was consulted: one that never mattered isn't reported.
+      report: () => {
+        const applied = chosen?.applied;
+        if (!applied) return undefined;
+        const f = chosen!.selection.folder;
+        const folderReport = (applied.by === 'folder' || request.cwd !== undefined) && f.path ? { folder: { path: forwardSlashes(f.path), from: f.from } } : {};
+        return {
+          name: applied.file.dossier.name,
+          source: applied.file.source,
+          file: forwardSlashes(applied.file.file),
+          by: applied.by,
+          ...(applied.match ? { match: applied.match } : {}),
+          ...(applied.repo ? { repo: applied.repo } : {}),
+          ...folderReport,
+        };
+      },
+      warnings: () => {
+        if (!chosen) return [];
+        const applied = chosen.applied;
+        return [...chosen.selection.warnings, ...(applied ? applied.file.problems.filter((p) => p.level === 'warning').map((p) => problemWarning(applied.file, p)) : [])];
+      },
       ...git,
     };
   };

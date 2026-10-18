@@ -109,7 +109,9 @@ export async function resolveCall(
       early[name] = { value: explicit, source: 'input' };
       continue;
     }
-    const found = checked(area, name, spec, dossier(area.name, name, input), 'dossier') ?? (spec.selectsConnection ? checked(area, name, spec, await fromGit(spec, undefined), 'git') : undefined);
+    // With --connection named, an input that selects one can only agree with it or give way, so the dossier isn't asked for it.
+    const fromDossier = spec.selectsConnection && typeof input.connection === 'string' ? undefined : dossier(area.name, name, input);
+    const found = checked(area, name, spec, fromDossier, 'dossier') ?? (spec.selectsConnection ? checked(area, name, spec, await fromGit(spec, undefined), 'git') : undefined);
     if (found) early[name] = found;
   }
 
@@ -169,14 +171,15 @@ function chooseConnection(
   dossier: DossierLookup,
 ): ContextValue | undefined {
   const declared = area.context as Record<string, ContextInput>;
-  const named: Partial<Record<ContextSource, string>> = {
-    input: typeof input.connection === 'string' ? input.connection : undefined,
-    dossier: dossier(area.name, 'connection', input),
-  };
+  // The dossier is asked only when the call itself didn't decide, so a call
+  // that names its connection never depends on which dossier would apply.
+  const named = (source: ContextSource): string | undefined =>
+    source === 'input' ? (typeof input.connection === 'string' ? input.connection : undefined) : source === 'dossier' ? dossier(area.name, 'connection', input) : undefined;
   // Source by source: at each step, a connection named outright and one an
   // input selects must agree, and the first step with either decides.
   for (const source of ['input', 'dossier', 'git'] as const) {
-    let pick: ContextValue | undefined = named[source] === undefined ? undefined : { value: named[source]!, source };
+    const name = named(source);
+    let pick: ContextValue | undefined = name === undefined ? undefined : { value: name, source };
     const joint = jointSelection(config, area, early, source);
     for (const [name, found] of Object.entries(early)) {
       const spec = declared[name]!;
