@@ -149,6 +149,7 @@ class WikiReader {
       while (i < lines.length && lines[i]!.trim() !== '' && (body.length === 0 || !this.startsBlock(lines[i]!))) body.push(lines[i++]!);
       emit({ type: 'paragraph', content: this.inline(body.join('\n')) }, n);
     }
+    if (top) this.losses?.close(blocks.length);
     return { blocks, at };
   }
 

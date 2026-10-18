@@ -53,6 +53,7 @@ class AdfReader {
         at.push(ptr);
       }
     });
+    this.losses?.close(blocks.length);
     return { blocks, at };
   }
 

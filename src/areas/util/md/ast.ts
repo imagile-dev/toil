@@ -59,10 +59,32 @@ export class Losses {
   private block = 0;
   private at = '';
 
-  /** Every loss from here on belongs to top-level block `index`, which starts at `at`. */
+  /** Where the losses of the current source block start in `list`. */
+  private from = 0;
+
+  /**
+   * Every loss from here on belongs to top-level block `index`, which starts at
+   * `at`. A reader calls it with the number of blocks it has made so far, so
+   * when `index` hasn't moved, the source block before produced nothing (a
+   * dropped macro): its losses explain no block, and are marked -1.
+   */
   enter(index: number, at: string): void {
+    if (this.list.length > this.from && index === this.block) this.orphan();
     this.block = index;
     this.at = at;
+    this.from = this.list.length;
+  }
+
+  /** After the last source block: `count` is how many blocks were made. */
+  close(count: number): void {
+    if (count === this.block) this.orphan();
+    // A writer enters the blocks afresh; nothing it notes belongs to the reader's last block.
+    this.block = -2;
+    this.from = this.list.length;
+  }
+
+  private orphan() {
+    for (let k = this.from; k < this.list.length; k++) this.list[k]!.block = -1;
   }
 
   /** Records a loss, once: four tasks in one wiki list are one `task list` loss at the list. */

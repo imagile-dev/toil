@@ -117,14 +117,14 @@ function canonical(doc: Doc, losses?: Losses): Doc {
   const keep = new Set(dropEmpty(blocks));
   // The losses noted while reading name blocks by their place before empty
   // paragraphs went; renumber them, or a loss would explain a block it isn't in.
-  // A loss in a dropped block belongs to the next block that stays.
+  // A loss in a dropped block stays in the list but explains no block (-1):
+  // handing it to a neighbour would excuse a real change there.
   const index: number[] = [];
   let kept = 0;
   blocks.forEach((b, k) => {
-    index[k] = kept;
-    if (keep.has(b)) kept++;
+    index[k] = keep.has(b) ? kept++ : -1;
   });
-  for (const loss of losses?.list ?? []) loss.block = Math.min(index[loss.block] ?? kept, Math.max(0, kept - 1));
+  for (const loss of losses?.list ?? []) loss.block = loss.block < 0 ? -1 : (index[loss.block] ?? -1);
   return { blocks: blocks.filter((b) => keep.has(b)), at: doc.at.filter((_, k) => keep.has(blocks[k]!)) };
 }
 

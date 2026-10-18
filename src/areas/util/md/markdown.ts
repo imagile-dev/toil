@@ -218,6 +218,7 @@ class BlockReader {
       const content = this.inline(joined);
       emit(heading ? { type: 'heading', level: heading, content } : { type: 'paragraph', content }, line.n);
     }
+    if (top) this.losses?.close(blocks.length);
     return { blocks, at };
   }
 

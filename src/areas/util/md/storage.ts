@@ -69,6 +69,7 @@ class StorageReader {
         at.push(`line ${line}`);
       }
     }
+    this.losses?.close(blocks.length);
     return { blocks, at };
   }
 

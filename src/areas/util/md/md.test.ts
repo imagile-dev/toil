@@ -210,6 +210,18 @@ describe('util md: the self-checks catch a broken result', () => {
     expect(data.losses).toMatchObject([{ construct: 'mention', at: '/content/1/content/0' }]);
   });
 
+  it.each([
+    ['wiki', 'an anchor-only paragraph', '{anchor:top}\n\nlast'],
+    ['wiki', 'a macro on its own line', '{toc}\n\nlast'],
+    ['adf', 'an extension-only paragraph', JSON.stringify({ type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'inlineExtension', attrs: { extensionType: 'x', extensionKey: 'anchor' } }] }, { type: 'paragraph', content: [{ type: 'text', text: 'last' }] }] })],
+    ['adf', 'a dropped extension block', JSON.stringify({ type: 'doc', version: 1, content: [{ type: 'extension', attrs: { extensionType: 'x', extensionKey: 'toc' } }, { type: 'paragraph', content: [{ type: 'text', text: 'last' }] }] })],
+  ] as const)('a loss in a block that produced nothing (%s, %s) is kept but excuses no other block', async (from, _name, text) => {
+    const { data } = await convert(text, from, 'md', { tamper: (out) => (out as string).replace('last', 'lost') });
+    expect(data.losses.length).toBeGreaterThan(0);
+    expect(unexplained(data)).toMatchObject([{ expected: 'last', actual: 'lost' }]);
+    expect(data.verified.passed).toBe(false);
+  });
+
   it('schema-invalid ADF is never returned: the conversion fails instead', async () => {
     const broken = (out: unknown) => ({ ...(out as object), content: [{ type: 'paragraph', content: [{ type: 'text', text: '' }] }] }) as never;
     await expect(convert('hello', 'md', 'adf', { tamper: broken })).rejects.toMatchObject({ code: 'INTERNAL', message: expect.stringContaining("doesn't match the ADF schema") });
