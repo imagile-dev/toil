@@ -94,6 +94,16 @@ const REPORTS = new URL('./reports/', import.meta.url);
 /** The report samples, keyed by their path in the workspace. */
 export const reportFiles: Record<string, string> = Object.fromEntries(readdirSync(REPORTS).sort().map((name) => [`reports/${name}`, readFileSync(new URL(name, REPORTS), 'utf8')]));
 
+/**
+ * Build logs for `util log`, in test/fixtures/util/log/: a Jenkins pipeline
+ * console running Maven, a Maven reactor build, an npm build and test run, and
+ * a dotnet build and test run. Each follows its tool's real output, with
+ * hosts, paths and names replaced by placeholders.
+ */
+export const LOGS = Object.fromEntries(
+  ['jenkins', 'maven', 'npm', 'dotnet'].map((name) => [name, readFileSync(new URL(`./util/log/${name}.log`, import.meta.url), 'utf8')]),
+) as Record<'jenkins' | 'maven' | 'npm' | 'dotnet', string>;
+
 /** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
 export const files: Record<string, string | Uint8Array> = {
   '.gitignore': 'vendor/\n',
@@ -104,6 +114,7 @@ export const files: Record<string, string | Uint8Array> = {
   'pom.xml': POM,
   'encode/pixel.png': PIXEL_PNG,
   'encode/pixel.b64': PIXEL_B64,
+  ...Object.fromEntries(Object.entries(LOGS).map(([name, text]) => [`logs/${name}.log`, text])),
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
   'certs/chain.pem': chain.pem,
   'certs/leaf.der': chain.leaf.der,

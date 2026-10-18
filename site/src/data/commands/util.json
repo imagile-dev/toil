@@ -72,5 +72,21 @@
       "--format <format>",
       "--lowest <n>"
     ]
+  },
+  {
+    "name": "log",
+    "tool": "util_log",
+    "description": "Triage a large log into grouped errors and warnings, with counts, line numbers, samples and stack traces",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--since <timestamp>",
+      "--level <level>",
+      "--grep <regex>",
+      "--max-groups <n>",
+      "--context <n>"
+    ]
   }
 ]
