@@ -251,6 +251,11 @@ describe('util log options', () => {
     expect(frames.warnings.find((w) => w.code === 'LOG_GREP_STACK_ONLY')?.message).toBe(
       "grep matched no error or warning line, but it matches 1 stack trace lines. It searches error and warning lines and the exception line that heads an error's trace, not the frames.",
     );
+
+    // A trace under an error --since dropped is not grep's miss, so the warning doesn't blame grep.
+    const since = await triage('[2026-01-01T00:00:00Z] [ERROR] boom\njava.lang.IllegalStateException: x\n\tat a.b.C.d(C.java:1)\n', { since: '2026-06-01', grep: 'IllegalState' });
+    expect([since.result.matched, since.result.filtered]).toEqual([0, 1]);
+    expect(since.codes).not.toContain('LOG_GREP_STACK_ONLY');
   });
 
   it('refuses a --since or --grep it cannot read', async () => {

@@ -209,6 +209,8 @@ interface Anchor {
   record: boolean;
   gap: number;
   inTrace: boolean;
+  /** Set when `--since` or `--level` dropped the line, so a grep hit in its trace isn't grep's miss. */
+  dropped?: true;
 }
 
 /** What the streaming pass found, before the re-read. Exported so a test can break it and watch the check catch it. */
@@ -280,13 +282,14 @@ export async function scan(input: UtilInput, filters: Filters, v: Verifier): Pro
         keep = lastDate.ms >= since.ms;
       }
     }
+    const dropped = !keep;
     if (keep && grep && !grep.test(text)) {
       keep = false;
       if (level === 'error' && !pyTrace) pending = { number, text, rest };
     }
     if (!keep) {
       if (!pending) out.filtered++;
-      anchor = { group: null, level, record: false, gap: 0, inTrace: false };
+      anchor = { group: null, level, record: false, gap: 0, inTrace: false, ...(dropped ? { dropped: true as const } : {}) };
       return;
     }
     admit(number, text, rest, level, pyTrace);
@@ -359,7 +362,8 @@ export async function scan(input: UtilInput, filters: Filters, v: Verifier): Pro
     const kind = frameKind(rest);
     const header = kind === undefined && anchor?.level === 'error' && (anchor.inTrace || anchor.gap === 0) && EXCEPTION.test(rest);
     if (kind !== undefined || header) {
-      if (grepHit) out.grepStackHits++;
+      // A trace under a line --since or --level dropped isn't grep's miss, so it isn't counted for LOG_GREP_STACK_ONLY.
+      if (grepHit && !anchor?.dropped) out.grepStackHits++;
       lines.stack++;
       if (!anchor) {
         out.unjoinedFrames++;
