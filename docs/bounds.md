@@ -32,8 +32,8 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | Bound | Protects | Enforced in | Errors | Relaxed by | Security class |
 |-------|----------|-------------|--------|------------|----------------|
 | `files.workspace` | Files outside the folder the user chose. Every path a command reads, writes, lists or stats resolves inside one workspace, checked after realpath so `..`, symlinks and junctions can't leave it. | `src/core/files.ts` | `INVALID_INPUT` (outside the workspace), `NOT_CONFIGURED` (no workspace) | `"bounds": { "files": "unbounded" }` | No |
-| `files.own` | toil's own config and credentials: `~/.toil/` and the `--config` file. A command handed that path would otherwise send every connection's token to its own host. Holds with the workspace bound relaxed, for `--output-file`, and for git metadata read above the workspace. | `src/core/files.ts`, `src/node-context.ts`, `src/core/git-config.ts` | `INVALID_INPUT` | No | Yes |
-| `files.system` | `/proc` and `/sys`, where `/proc/<pid>/environ` holds the env vars that carry tokens. Holds everywhere `files.own` does. | `src/core/files.ts`, `src/core/git-config.ts` | `INVALID_INPUT` | No | Yes |
+| `files.own` | toil's own config and credentials: `~/.toil/` and the `--config` file. A command handed that path would otherwise send every connection's token to its own host. Holds with the workspace bound relaxed, for `--output-file`, for git metadata read above the workspace, and for a dossier file a call names (only `~/.toil/dossiers/` is open to that). | `src/core/files.ts`, `src/node-context.ts`, `src/core/git-config.ts`, `src/core/dossier.ts` | `INVALID_INPUT` | No | Yes |
+| `files.system` | `/proc` and `/sys`, where `/proc/<pid>/environ` holds the env vars that carry tokens. Holds everywhere `files.own` does. | `src/core/files.ts`, `src/core/git-config.ts`, `src/core/dossier.ts` | `INVALID_INPUT` | No | Yes |
 | `files.no-overwrite` | Files already on disk. A write to an existing file is refused, bound relaxed or not; a read-only command's file name often comes from whoever uploaded it. | `src/core/files.ts` | `INVALID_INPUT` | No | Yes |
 | `credentials.host` | Credentials reaching a host the user didn't configure. Every request is built from the area's request hook and the connection's `baseUrl`; a URL on another origin is refused before anything is sent. A redirect to another origin is refused, whatever the auth header; a GET may opt into following a signed download URL with every header dropped. A server-supplied URL on another host is re-pointed at the configured one with `repointUrl`, with a warning. A token exchange goes only to the connection's origin, or over HTTPS to a host under the vendor domain the area names in its code. A raw API call (`<area> api`) takes only a path: a full URL, a scheme, `//host` or a leading backslash is refused before anything is sent. | `src/core/api.ts`, `src/core/rest.ts`, `src/core/passthrough.ts` | `HTTP` (another origin, a redirect away), `AUTH` (a token host off the connection), `INVALID_INPUT` (a raw API path that names a host) | No | Yes |
 | `requests.path` | The endpoint a command names. A request path with a `.` or `..` segment, in any spelling the URL parser collapses (`%2e`, or one a tab, newline or trailing control character or space hides, which the parser drops first, or a `;params` suffix such as `..;x`, which servlet containers like Tomcat and Jetty strip before resolving dots), is refused before anything is sent, so an id of `..` can't turn `items/<id>/delete` into a request to another endpoint on the same host. A dot inside a segment (`v1.2`), or a `;` after anything else (`v1;rev=2`), is left alone. | `src/core/api.ts`, `src/core/rest.ts` | `INVALID_INPUT` | No | Yes |
@@ -49,6 +49,7 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 |-----------|----------|-------------|----------------|
 | `git.read-up` | `files.workspace` | `src/core/git-repo.ts`, `src/core/git-config.ts`, `src/core/files.ts` | Reading git metadata above or beside the workspace, to find the repository root, branch and remotes, and what a listing skips. Anything under `~/.toil`, the `--config` file, `/proc` or `/sys` is refused: a global config or `include`/`includeIf` naming one is skipped with a `GIT_INCLUDE_REFUSED` warning in `meta.warnings`, and a `gitdir:` pointing at one is not a repository. |
 | `output-file` | `files.workspace` | `src/node-context.ts`, `src/program.ts` | The global `--output-file` flag writing the envelope outside the workspace. |
+| `dossiers.read` | `files.workspace` | `src/core/dossier.ts` | Reading dossier files (`docs/dossiers.md`) from your own folder (`~/.toil/dossiers/`), the folders you list in `dossierPaths` or `TOIL_DOSSIER_PATHS`, and `.toil/dossiers/` at the root of the repository the call's folder is in. A dossier file named on the call (`--dossier <file>`) must be one of those, or inside the workspace. |
 
 `git.read-up` is metadata only, and read only. It covers exactly these, and nothing
 else:
@@ -79,6 +80,17 @@ overwrites a file. The path is checked before the command runs, so a refused pat
 means nothing ran; the error envelope goes to stdout, with exit code 1. If the write
 still fails afterwards, a write command's error says it ran and the change may
 already have been applied.
+
+`dossiers.read` is read only, and only of dossier files: JSON that toil validates as a
+dossier before using or showing any of it. A dossier holds no secret and can't add a
+host or a credential (`docs/dossiers.md`), so reading one from a shared folder can't
+change where anything is sent. A file named on the call, by an agent or a person, must
+end in `.json` and be in one of the dossier folders or inside the workspace (anywhere,
+with the workspace bound relaxed). It may never be under `~/.toil` outside
+`~/.toil/dossiers/`, the `--config` file, `/proc` or `/sys`. A file that fails to parse
+or validate is reported by key path and position, never by its content. `cwd` only
+chooses which repository's dossiers and git context apply; it never widens what a
+command may read or write.
 
 Over MCP, the config file, and so any relaxed bound, is the one `toil mcp` was
 started with (`toil mcp --config <file>` in the MCP client's settings, written by a
