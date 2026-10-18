@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { CONNECTION_FIELD } from '../src/core/area.js';
-import { aliasInput, aliasPaths, areaOf, commandName, isCliOnly, servedOverMcp, toolName, usesConnection, type AnyCommand } from '../src/core/command.js';
+import { CORE_FIELDS } from '../src/core/area.js';
+import { aliasInput, aliasPaths, areaOf, commandName, isCliOnly, servedOverMcp, takesAllowWrite, toolName, usesConnection, writesFor, type AnyCommand } from '../src/core/command.js';
 import type { Settings } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
@@ -16,6 +16,7 @@ import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
 import { withoutExchanges, type Route } from './harness/fake-fetch.js';
 import { loadFixtures, setUp, tearDown, writeOperations, type LoadedFixture } from './harness/fixtures.js';
+import { dossierDisk } from './harness/dossiers.js';
 import { connectMcp, type McpSession } from './harness/mcp.js';
 import { recordOperations } from './harness/operations.js';
 
@@ -56,7 +57,13 @@ const suites: Array<{ name: string; commands: AnyCommand[]; fixture: LoadedFixtu
 const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** What a fixture says the examples run in: the repository for `ctx.repo()`, and the git for `ctx.git`. */
-const localOf = (f: LoadedFixture): { repo?: GitContext; git?: GitRunner } => ({ ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}) });
+// The dossiers commands sit outside any area and read dossiers from disk: one, in a temp home, for their examples.
+const outsideDisk = dossierDisk({
+  'home/.toil/dossiers/payments.json': { name: 'payments', description: 'Payments platform', repos: [{ name: 'payments-api', remotes: ['https://bitbucket.imagile.dev/scm/pay/payments-api.git'] }], jira: { project: 'PAY', projects: ['PAY', 'LEDG'] } },
+});
+afterAll(() => outsideDisk.cleanup());
+type Local = { repo?: GitContext; git?: GitRunner; dossiers?: ReturnType<typeof dossierDisk>['catalog'] };
+const localOf = (f: LoadedFixture): Local => ({ ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}), ...(f === outside ? { dossiers: outsideDisk.catalog } : {}) });
 
 
 // Each test's CLI run starts with no cached token, so it exchanges as a fresh process would.
@@ -67,7 +74,7 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((s) => s.close()));
 });
 
-async function mcpFor(list: AnyCommand[], cfg: Record<string, Settings>, routes: Route[], files: Files = {}, local: { repo?: GitContext; git?: GitRunner } = {}) {
+async function mcpFor(list: AnyCommand[], cfg: Record<string, Settings>, routes: Route[], files: Files = {}, local: Local = {}) {
   // The MCP run exchanges its own token, as the CLI run before it did, so both send the same requests.
   clearTokenCache();
   const { context, http } = testContext({ config: cfg, routes, files, ...local });
@@ -129,7 +136,7 @@ for (const suite of suites) {
         const fields = Object.keys(def.input.shape).filter((f) => f !== 'allowWrite');
         const mapped = [...(def.args ?? []), ...(def.options ?? [])].map((x) => x.field);
         expect(new Set(mapped), `${commandName(def)}: CLI fields`).toEqual(new Set(fields));
-        if (def.writes) expect(def.input.shape, `${commandName(def)} must accept allowWrite`).toHaveProperty('allowWrite');
+        if (takesAllowWrite(def)) expect(def.input.shape, `${commandName(def)} must accept allowWrite`).toHaveProperty('allowWrite');
       }
     });
 
@@ -144,15 +151,15 @@ for (const suite of suites) {
         expect(tool.inputSchema.properties ?? {}, toolName(def)).toEqual({ ...(expected.properties ?? {}), [SELECT_FIELD]: { type: 'string', minLength: 1, description: SELECT_DESCRIPTION } });
         expect([...(tool.inputSchema.required ?? [])].sort(), toolName(def)).toEqual([...(expected.required ?? [])].sort());
         expect(tool.inputSchema.additionalProperties, `${toolName(def)} advertises that unknown fields are refused`).toBe(false);
-        expect(tool.annotations?.readOnlyHint, toolName(def)).toBe(!def.writes);
+        expect(tool.annotations?.readOnlyHint, toolName(def)).toBe(!takesAllowWrite(def));
       }
     });
 
     it('uses every input field in at least one example, so parity covers every flag', () => {
       for (const def of suite.commands) {
         const used = new Set(def.examples.flatMap((e) => Object.keys(e as object)));
-        // `connection` is added by core to every area command; the connection suite below covers it.
-        const unused = Object.keys(def.input.shape).filter((f) => !used.has(f) && f !== CONNECTION_FIELD);
+        // `connection`, `dossier` and `cwd` are added by core to every area command; the suites below cover them.
+        const unused = Object.keys(def.input.shape).filter((f) => !used.has(f) && !CORE_FIELDS.includes(f));
         expect(unused, `${commandName(def)}: fields no example sets`).toEqual([]);
       }
     });
@@ -178,7 +185,7 @@ for (const suite of suites) {
           // makes sure the trace records something at all.
           if (cliOps.length > 0) logged.add(commandName(def));
           expect(viaCli.exitCode).toBe(0);
-          if (!def.writes) {
+          if (!writesFor(def, example)) {
             const allowed = def.queryByPost ? new Set([...READ_METHODS, 'POST']) : READ_METHODS;
             const methods = withoutExchanges(cli.http.calls, exchanges.sent).map((c) => c.method).filter((m) => !allowed.has(m));
             expect(methods, `${commandName(def)} is read-only but sent`).toEqual([]);
@@ -259,16 +266,38 @@ for (const suite of suites) {
         expect(viaMcp.isError).toBe(true);
       });
 
-      if (def.writes) {
+      // A write command's first example, or the first example a `writesWhen` command writes with.
+      const writing = (def.examples as Array<Record<string, unknown>>).find((e) => writesFor(def, e));
+      if (takesAllowWrite(def)) {
+        it(`${commandName(def)}: has an example that writes, so the gate below is proven`, () => {
+          expect(writing).toBeDefined();
+        });
+      }
+      if (writing) {
         const area = areaOf(def);
-        const example = def.examples[0] as Record<string, unknown>;
+        const example = writing;
         const withoutFlag = { ...example };
         delete withoutFlag.allowWrite;
 
-        it(`${commandName(def)}: hidden from MCP when writes are off for ${area}`, async () => {
-          const { session } = await mcpFor(suite.commands, withoutWrites(suite.fixture.config, area), suite.fixture.routes, suite.fixture.files, localOf(suite.fixture));
-          expect((await session.client.listTools()).tools.map((t) => t.name)).not.toContain(toolName(def));
-        });
+        if (def.writes) {
+          it(`${commandName(def)}: hidden from MCP when writes are off for ${area}`, async () => {
+            const { session } = await mcpFor(suite.commands, withoutWrites(suite.fixture.config, area), suite.fixture.routes, suite.fixture.files, localOf(suite.fixture));
+            expect((await session.client.listTools()).tools.map((t) => t.name)).not.toContain(toolName(def));
+          });
+        } else {
+          // Its reads are free, so the tool stays listed; the writing call is what's refused.
+          it(`${commandName(def)}: served over MCP with writes off for ${area}, and its writing call refused through both doors, before any request`, async () => {
+            const off = withoutWrites(suite.fixture.config, area);
+            const cli = testContext({ config: off, routes: suite.fixture.routes, files: suite.fixture.files, ...localOf(suite.fixture) });
+            const viaCli = await runCli(argvFor(def, example), { commands: suite.commands, context: cli.context });
+            const { session, http } = await mcpFor(suite.commands, off, suite.fixture.routes, suite.fixture.files, localOf(suite.fixture));
+            expect((await session.client.listTools()).tools.map((t) => t.name)).toContain(toolName(def));
+            const viaMcp = await session.call(toolName(def), example);
+            expect(viaCli.envelope?.error?.code).toBe('WRITE_DISABLED');
+            expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));
+            expect([...cli.http.calls, ...http.calls]).toHaveLength(0);
+          });
+        }
 
         it(`${commandName(def)}: WRITE_DISABLED on the CLI when writes are off, before any request`, async () => {
           const { context, http } = testContext({ config: withoutWrites(suite.fixture.config, area), routes: suite.fixture.routes, files: suite.fixture.files, ...localOf(suite.fixture) });

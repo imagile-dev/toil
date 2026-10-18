@@ -64,8 +64,31 @@ jobs:
           --health-interval 2s
           --health-timeout 5s
           --health-retries 30
+      # One provider (engine `mysql`) for both, so the suite runs against each.
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: mysql
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -pmysql --silent"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 60
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MARIADB_ROOT_PASSWORD: mysql
+        ports: ['3307:3306']
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 60
     env:
       TOIL_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/postgres
+      TOIL_TEST_MYSQL_URL: mysql://root:mysql@localhost:3306/
+      TOIL_TEST_MARIADB_URL: mysql://root:mysql@localhost:3307/
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0

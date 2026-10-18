@@ -246,9 +246,15 @@ type OwnFields<T> = { [P in keyof T as string extends P ? never : P]: T[P] };
 export type AnyArea = Area<any, string>;
 
 export const CONNECTION_FIELD = 'connection';
+/** The inputs core adds to every area command for dossiers (docs/dossiers.md): which dossier, and which folder. */
+export const DOSSIER_FIELD = 'dossier';
+export const CWD_FIELD = 'cwd';
+/** Fields core adds to every area command and resolves itself; no command or context input may use these names. */
+export const CORE_FIELDS: readonly string[] = [CONNECTION_FIELD, DOSSIER_FIELD, CWD_FIELD];
 const NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 /** Field names a context input can't take: core's own fields and the global flags. */
-const RESERVED_INPUTS = new Set([CONNECTION_FIELD, SELECT_FIELD, 'allowWrite', 'pretty', 'verbose', 'debug', 'config', 'outputFile', 'version', 'help', 'dossier', 'cwd']);
+// `host` and `fields` are a dossier section's own keys (src/core/dossier.ts), so no context input can be called either.
+const RESERVED_INPUTS = new Set([...CORE_FIELDS, SELECT_FIELD, 'allowWrite', 'pretty', 'verbose', 'debug', 'config', 'outputFile', 'version', 'help', 'host', 'fields']);
 
 const kebab = (name: string) => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
@@ -298,7 +304,7 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
     command(def) {
       const name = def.path.join(' ');
       if (def.path[0] !== spec.name) throw new Error(`Command ${name} is defined in area ${spec.name}; its path must start with "${spec.name}".`);
-      if (CONNECTION_FIELD in def.input.shape) throw new Error(`Command ${name}: "${CONNECTION_FIELD}" is added by core.`);
+      for (const field of CORE_FIELDS) if (field in def.input.shape) throw new Error(`Command ${name}: "${field}" is added by core.`);
       assertNoCoreFields(def);
       for (const banned of ['managesConfig', 'cliOnly', 'standalone']) {
         if (banned in def) throw new Error(`Command ${name}: "${banned}" is gone; an area command's kind is area or area-local.`);
@@ -310,9 +316,11 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
         throw new Error(`Command ${name}: timeLimitMs is for a limit above the 120 s default, in whole milliseconds; ${def.timeLimitMs} isn't.`);
       }
       if (def.mcp !== undefined && def.mcp !== false) throw new Error(`Command ${name}: "mcp" is false, to keep it off MCP, or left out.`);
+      if (def.writesWhen && (def.writes || !('allowWrite' in def.input.shape))) throw new Error(`Command ${name}: writesWhen is for a command with writes: false whose input spreads allowWriteField.`);
+      if (def.offMcpWhen && def.mcp === false) throw new Error(`Command ${name}: offMcpWhen is for a command MCP serves; this one is off MCP already.`);
       if (def.connectionOptional !== undefined) {
         if (def.connectionOptional !== true || kind !== 'area') throw new Error(`Command ${name}: "connectionOptional" is true, on an area command that has a connection, or left out.`);
-        if (def.writes) throw new Error(`Command ${name}: a write always needs its connection, so it can't be connectionOptional.`);
+        if (def.writes || def.writesWhen) throw new Error(`Command ${name}: a write always needs its connection, so it can't be connectionOptional.`);
         if (Object.values(def.context ?? {}).includes('required')) throw new Error(`Command ${name}: a connectionOptional command can run with no context inputs, so none can be required.`);
       }
       if (kind === 'area-local') {
@@ -340,9 +348,25 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
           [CONNECTION_FIELD]: z
             .string()
             .optional()
-            .describe(`Which ${spec.name} connection to use. Defaults to the area's default connection.`),
+            .describe(`Which ${spec.name} connection to use. Defaults to your dossier's, then the area's default connection.`),
+          [DOSSIER_FIELD]: z
+            .string()
+            .min(1)
+            .optional()
+            .describe("The dossier that supplies this call's context: a dossier name, or the path to a dossier file. Defaults to TOIL_DOSSIER, then the dossier that matches the folder."),
+          [CWD_FIELD]: z
+            .string()
+            .min(1)
+            .optional()
+            .describe("The folder whose repository chooses the dossier and the git context. Defaults to the workspace. It doesn't change which files a command may read or write."),
         }) as unknown as typeof def.input,
-        options: [...(def.options ?? []), ...options, { flags: '--connection <name>', field: CONNECTION_FIELD, description: `Use this ${spec.name} connection instead of the default` }],
+        options: [
+          ...(def.options ?? []),
+          ...options,
+          { flags: '--connection <name>', field: CONNECTION_FIELD, description: `Use this ${spec.name} connection instead of the default` },
+          { flags: '--dossier <name|file>', field: DOSSIER_FIELD, description: 'Use this dossier (a name or a file) instead of the one the folder matches' },
+          { flags: '--cwd <dir>', field: CWD_FIELD, description: 'Choose the dossier and git context from this folder instead of the working directory' },
+        ],
         run: def.run as CommandDefinition['run'],
       } as CommandDefinition<typeof def.input>;
     },

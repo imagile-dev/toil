@@ -27,12 +27,12 @@ export const area = defineArea({
     // A relative path would resolve against wherever the process started,
     // which for an MCP server is wherever its client happened to be.
     path: z.string().min(1).refine(isAbsolute, 'path must be absolute.').optional().describe('SQLite: absolute path to the database file'),
-    host: z.string().min(1).optional().describe('PostgreSQL: server host name or address'),
-    port: z.number().int().min(1).max(65535).optional().describe('PostgreSQL: TCP port (default 5432)'),
-    database: z.string().min(1).optional().describe('PostgreSQL: database to connect to'),
-    user: z.string().min(1).optional().describe('PostgreSQL: login role'),
-    password: z.string().optional().describe("PostgreSQL: the login's password (a secret: env var or OS credential store)"),
-    ssl: z.boolean().optional().describe("PostgreSQL: connect over TLS, verifying the server's certificate against the OS store"),
+    host: z.string().min(1).optional().describe('PostgreSQL, MySQL: server host name or address'),
+    port: z.number().int().min(1).max(65535).optional().describe('PostgreSQL, MySQL: TCP port (default 5432 for PostgreSQL, 3306 for MySQL)'),
+    database: z.string().min(1).optional().describe('PostgreSQL, MySQL: database to connect to (for MySQL, also the default schema)'),
+    user: z.string().min(1).optional().describe('PostgreSQL, MySQL: login role or account'),
+    password: z.string().optional().describe("PostgreSQL, MySQL: the login's password (a secret: env var or OS credential store)"),
+    ssl: z.boolean().optional().describe("PostgreSQL, MySQL: connect over TLS, verifying the server's certificate against the OS store"),
   }),
   secrets: { password: 'password' },
   // Each engine names the keys its connections need; core checks them.
@@ -45,8 +45,8 @@ function using(ctx: DbContext): { provider: DbProvider; conn: DbConnection; call
   return { provider: providerFor(ctx.connection.engine), conn: ctx.connection, call: { signal: ctx.signal, debug: ctx.debug } };
 }
 
-const schemaField = z.string().min(1).optional().describe("Schema to read. Defaults to the engine's default schema (SQLite: main, PostgreSQL: public).");
-const schemaOption = { flags: '--schema <name>', field: 'schema', description: "Schema (default: the engine's default, main for SQLite, public for PostgreSQL)" };
+const schemaField = z.string().min(1).optional().describe("Schema to read. Defaults to the engine's default schema (SQLite: main, PostgreSQL: public, MySQL: the connection's database).");
+const schemaOption = { flags: '--schema <name>', field: 'schema', description: "Schema (default: the engine's default, main for SQLite, public for PostgreSQL, the connection's database for MySQL)" };
 const limitField = z.coerce.number().int().min(1).max(MAX_LIMIT).optional().describe(`Rows per page, 1 to ${MAX_LIMIT}. Default ${DEFAULT_LIMIT}.`);
 const cursorField = z.string().min(1).optional().describe('meta.page.nextCursor from the previous page, to fetch the next one');
 const pageOptions = [
@@ -81,7 +81,7 @@ export const listTables = area.command({
   examples: [{}, { schema: 'main' }],
   run: async (input, ctx) => {
     const { provider, conn, call } = using(ctx);
-    const schema = input.schema ?? provider.defaultSchema;
+    const schema = input.schema ?? provider.defaultSchema(conn);
     return { schema, tables: await provider.listTables(conn, schema, call) };
   },
 });
@@ -98,7 +98,7 @@ export const describeTable = area.command({
   examples: [{ table: 'people' }, { table: 'people', schema: 'main' }],
   run: async (input, ctx) => {
     const { provider, conn, call } = using(ctx);
-    return provider.describeTable(conn, { schema: input.schema ?? provider.defaultSchema, table: input.table }, call);
+    return provider.describeTable(conn, { schema: input.schema ?? provider.defaultSchema(conn), table: input.table }, call);
   },
 });
 
@@ -113,7 +113,7 @@ export const previewTable = area.command({
   examples: [{ table: 'people' }, { table: 'people', schema: 'main', limit: 2, cursor: encodeCursor(2, pageKey('db preview-table', 'main', 'people')) }],
   run: async (input, ctx) => {
     const { provider, conn, call } = using(ctx);
-    const schema = input.schema ?? provider.defaultSchema;
+    const schema = input.schema ?? provider.defaultSchema(conn);
     const limit = input.limit ?? DEFAULT_LIMIT;
     // Keyed on what the caller typed, so the same call always pages the same way.
     const key = pageKey('db preview-table', schema, input.table);
