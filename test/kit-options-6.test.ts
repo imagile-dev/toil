@@ -42,8 +42,8 @@ describe('an input error over MCP names the field, on the CLI the flag', () => {
 describe("ado's fieldAliases, now that --save is gone", () => {
   it('come from TOIL_ADO_FIELD_ALIASES as a JSON object, the way a custom alias is set without a file', async () => {
     const env = { TOIL_ADO_BASE_URL: 'https://ado.imagile.dev', TOIL_ADO_PAT: 'p', TOIL_ADO_FIELD_ALIASES: '{"effortdays":"MyOrg.EffortDays"}' };
-    const config = loadConfig({ env, cwd: '/nowhere', home: '/nowhere', areas: [adoArea] });
-    const connection = await resolveConnection(config, adoArea, undefined, () => {});
+    const loaded = loadConfig({ env, cwd: '/nowhere', home: '/nowhere', areas: [adoArea] });
+    const connection = await resolveConnection(loaded, adoArea, undefined, () => {});
     expect(connection.fieldAliases).toEqual({ effortdays: 'MyOrg.EffortDays' });
   });
 });
