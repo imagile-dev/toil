@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -190,6 +190,27 @@ describe('toil skill install', () => {
       });
     }
   }
+
+  it('reports real paths when the home and the project are reached through links, and show reports the same ones', async () => {
+    // A junction on Windows needs no privilege; a directory symlink elsewhere.
+    const link = (target: string, name: string) => {
+      const path = join(root, name);
+      symlinkSync(target, path, process.platform === 'win32' ? 'junction' : 'dir');
+      return path;
+    };
+    const linkedRepo = link(repo, 'linked-repo');
+    const linkedHome = link(home, 'linked-home');
+    const viaLinks = (d: AnyCommand, input: Record<string, unknown>) =>
+      runCommand(d, input, (c) => createNodeContext({ globals: { workspace: linkedRepo }, def: c, signal: new AbortController().signal, env: {}, cwd: linkedRepo, home: linkedHome, areas, version: '1.0.0', stderr: () => {} }), '1.0.0');
+    const real = (dir: string) => join(realpathSync.native(dir), '.agents', 'skills', 'toil').replace(/\\/g, '/');
+    for (const scope of ['user', 'project'] as const) {
+      const result = await viaLinks(byName('skill install'), { scope, allowWrite: true });
+      expect(result.ok, JSON.stringify(result.error)).toBe(true);
+      expect((result.data as { path: string }).path).toBe(real(scope === 'user' ? home : repo));
+    }
+    const shown = await viaLinks(byName('skill show'), {});
+    expect((shown.data as { installed: Array<{ path: string }> }).installed.map((s) => s.path).sort()).toEqual([real(home), real(repo)].sort());
+  });
 
   it('needs --allow-write, and is never an MCP tool', async () => {
     const result = await toil('skill install', {});

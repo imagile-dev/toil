@@ -3,7 +3,7 @@ import type { AnyArea } from '../core/area.js';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
 import { allowWriteField } from '../core/run.js';
-import { bundledSkills, connectionsInFile, describeConfig, installBundledSkill, SKILL_NAME, skillFilesFor, type SkillDescription } from './bundled.js';
+import { bundledSkills, connectionsInFile, describeConfig, installBundledSkill, realRoots, SKILL_NAME, skillFilesFor, type SkillDescription } from './bundled.js';
 import { AGENT_CHOICES, AGENT_NAMES, agentOf, DEFAULT_AGENT, rootsOf, skillsDir, slashes } from './folders.js';
 import { join } from 'node:path';
 
@@ -60,7 +60,7 @@ export function skillCommands(areas: readonly AnyArea[]): AnyCommand[] {
     ],
     examples: [{ allowWrite: true }, { agent: 'github-copilot', scope: 'project', allowWrite: true }, { claude: true, allowWrite: true }],
     run: async (input, ctx) => {
-      const roots = rootsOf(ctx);
+      const roots = realRoots(rootsOf(ctx));
       const agent = agentOf(input);
       const scope = input.scope ?? 'user';
       const dir = skillsDir(agent, scope, roots);

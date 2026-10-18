@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readConfigForEdit, type ResolvedConfig } from '../core/config.js';
 import type { Warning } from '../core/envelope.js';
@@ -169,6 +169,23 @@ export function installBundledSkill(target: Target, d: SkillDescription, version
   return { replaced: existing !== undefined, record: writeBundledSkill(target.dir, skillFilesFor(d), version) };
 }
 
+/** A folder's real path (symlinks, junctions and Windows 8.3 names resolved), or the path as given when it doesn't exist yet. */
+function real(path: string): string {
+  try {
+    return realpathSync.native(path);
+  } catch {
+    return path;
+  }
+}
+
+/**
+ * The roots as real paths, so `skill install`, `skill show` and the rewrite all
+ * report one form of a folder's path, however the home or the repository was reached.
+ */
+export function realRoots(roots: Roots): Roots {
+  return { home: real(roots.home), project: roots.project === undefined ? undefined : real(roots.project) };
+}
+
 /** One bundled toil skill on disk. */
 export interface InstalledSkill {
   agent: string;
@@ -186,7 +203,7 @@ export interface InstalledSkill {
 export function bundledSkills(roots: Roots, d: SkillDescription, version: string, warn: (w: Warning) => void): InstalledSkill[] {
   const want = skillFilesFor(d);
   const out: InstalledSkill[] = [];
-  for (const t of knownFolders(roots)) {
+  for (const t of knownFolders(realRoots(roots))) {
     const path = join(t.dir, SKILL_NAME);
     if (!existsSync(path)) continue;
     let record: InstallRecord | undefined;
