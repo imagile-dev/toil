@@ -31,6 +31,7 @@ export function dossiersCommands(areas: readonly AnyArea[]): AnyCommand[] {
       'Lists every dossier toil can read: your own (~/.toil/dossiers), the folders listed in dossierPaths or TOIL_DOSSIER_PATHS, and the ones checked into the repository the folder is in. Each has its name, description, source (user, listed or repo), file, and the file that takes precedence when two share a name. Broken files are listed with what is wrong. Reads local files only.',
     input: z.object({ cwd: cwdField }),
     writes: false,
+    writesLocal: false,
     options: [cwdOption],
     examples: [{}, { cwd: '.' }],
     run: async (input, ctx) => {
@@ -65,6 +66,7 @@ export function dossiersCommands(areas: readonly AnyArea[]): AnyCommand[] {
       "Prints one dossier (by name or file, or the one that applies to the folder) with, for each area it covers, the connection a call would use and why (the dossier's connection or host selector, or your default), whether writes are on for that connection, the environment, and the context inputs the dossier supplies. Use it before running area commands to see where their context will come from. Never prints a secret.",
     input: z.object({ dossier: nameField, cwd: cwdField }),
     writes: false,
+    writesLocal: false,
     args: [{ name: 'dossier', field: 'dossier', description: 'A dossier name or file (default: the one the folder matches)', required: false }],
     options: [cwdOption],
     examples: [{ dossier: 'payments' }, { dossier: 'payments', cwd: '.' }],
@@ -95,6 +97,7 @@ export function dossiersCommands(areas: readonly AnyArea[]): AnyCommand[] {
       'Checks one dossier without contacting any service: the schema, key paths given twice, unknown sections, that every "connection" exists and every "host" selects exactly one of your connections, that no remote carries a credential, and which bindings land on a connection with writes on. Returns ok and every problem with its level, code and key path; the CLI exits 1 when there is an error.',
     input: z.object({ dossier: nameField, cwd: cwdField }),
     writes: false,
+    writesLocal: false,
     args: [{ name: 'dossier', field: 'dossier', description: 'A dossier name or file (default: the one the folder matches)', required: false }],
     options: [cwdOption],
     examples: [{ dossier: 'payments' }, { dossier: 'payments', cwd: '.' }],
@@ -129,6 +132,7 @@ export function dossiersCommands(areas: readonly AnyArea[]): AnyCommand[] {
       "Shows what a folder resolves to: its repository (root and origin remote, credentials stripped), the dossier that applies and why (TOIL_DOSSIER, a repo's path, a repo's remote, or a dossier checked into the repository), and every candidate when more than one matches, in which case area commands need dossier set explicitly. Reads local files only.",
     input: z.object({ cwd: cwdField }),
     writes: false,
+    writesLocal: false,
     options: [cwdOption],
     examples: [{}, { cwd: '.' }],
     run: async (input, ctx) => {

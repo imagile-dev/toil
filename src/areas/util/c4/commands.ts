@@ -100,6 +100,7 @@ export const c4RenderCommand = defineCommand({
     out: z.string().optional().describe('Write the SVG to this new file inside the workspace instead of returning it; it must not exist yet'),
   }),
   writes: false,
+  writesLocalWhen: (input) => input.out !== undefined,
   args: [fileArgument],
   options: [...modelOptions, { flags: '--out <file>', field: 'out', description: 'Write the SVG to this new file inside the workspace instead of returning it in data' }],
   examples: [{ text: EXAMPLE_TEXT }, { file: 'bookshop.c4.json', view: 'containers' }, { file: 'bookshop.c4.json', view: 'components', out: 'components.svg' }],

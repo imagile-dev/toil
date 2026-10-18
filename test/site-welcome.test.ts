@@ -88,7 +88,7 @@ const sample: WelcomeData = {
   folder: { cwd: '/home/you/payments', repo: { root: '/home/you/payments', branch: 'main', remote: 'https://bitbucket.imagile.dev/scm/pay/payments.git' } },
 };
 
-const env = (data: unknown, command: string): Envelope => ({ ok: true, data, error: null, meta: { command, durationMs: 120, version: 'pre-release' } });
+const env = (data: unknown, command: string): Envelope => ({ ok: true, data, error: null, meta: { command, durationMs: 120, version: 'pre-release', contractVersion: 1 } });
 const keys = (state: MenuState, ...list: string[]) =>
   list.reduce((s, k) => reduce(s, (k.length === 1 ? { name: k, sequence: k } : { name: k }) satisfies Key, sample), state);
 
@@ -102,7 +102,7 @@ function screens(): Array<{ id: string; caption: string; state: MenuState }> {
         ok: false,
         data: null,
         error: { code: 'AUTH', message: 'Confluence rejected the personal access token on connection "wiki".', fix: 'Create a new token, then run toil connections login wiki.' },
-        meta: { command: 'connections test', durationMs: 90, version: 'pre-release' },
+        meta: { command: 'connections test', durationMs: 90, version: 'pre-release', contractVersion: 1 },
       },
     },
   ]);

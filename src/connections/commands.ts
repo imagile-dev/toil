@@ -52,6 +52,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       area: z.string().optional().describe('The area it connects to; asked for when left out'),
     }),
     writes: false,
+    writesLocal: true,
     kind: 'cli-only',
     args: [{ name: 'name', field: 'name', description: 'Connection name, e.g. corp-jira' }],
     options: [
@@ -111,6 +112,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       name: z.string().describe('Connection name'),
     }),
     writes: false,
+    writesLocal: true,
     kind: 'cli-only',
     args: [{ name: 'name', field: 'name', description: 'Connection name' }],
     examples: [{ name: 'corp-jira' }],
@@ -158,6 +160,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       area: z.string().optional().describe('Only connections to this area, e.g. jira'),
     }),
     writes: false,
+    writesLocal: false,
     options: [{ flags: '--area <area>', field: 'area', description: 'Only connections to this area' }],
     examples: [{}, { area: 'jira' }],
     run: async (input, ctx) => {
@@ -198,6 +201,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       area: z.string().optional().describe('Remove it only if it connects to this area, e.g. jenkins'),
     }),
     writes: false,
+    writesLocal: true,
     kind: 'cli-only',
     args: [{ name: 'name', field: 'name', description: 'Connection name' }],
     options: [{ flags: '--area <area>', field: 'area', description: 'Remove it only if it connects to this area' }],
@@ -238,6 +242,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       name: z.string().describe('Connection name'),
     }),
     writes: false,
+    writesLocal: false,
     args: [{ name: 'name', field: 'name', description: 'Connection name' }],
     examples: [{ name: 'jira' }],
     run: async (input, ctx) => {
@@ -279,6 +284,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       state: z.enum(['on', 'off']).describe('on or off'),
     }),
     writes: false,
+    writesLocal: true,
     kind: 'cli-only',
     args: [
       { name: 'name', field: 'name', description: 'Connection name' },
@@ -322,6 +328,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       name: z.string().describe('Connection name'),
     }),
     writes: false,
+    writesLocal: true,
     kind: 'cli-only',
     args: [{ name: 'name', field: 'name', description: 'Connection name' }],
     examples: [{ name: 'corp-jira' }],

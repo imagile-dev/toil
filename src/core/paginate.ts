@@ -1,5 +1,6 @@
 import type { Page } from './envelope.js';
 import { ToilError } from './errors.js';
+import { reportProgress } from './progress.js';
 
 /**
  * One paging loop for every REST convention toil's areas meet, so no area
@@ -139,9 +140,12 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
       items.push(...got.slice(0, take));
       if (take < got.length) nextCursor = exact ? String(Number(cursor) + take) : encodeCursor(cursor ?? null, skipped + take, counts ? before : undefined);
       else nextCursor = next === null ? null : exact ? next : encodeCursor(next, 0, counts ? counted : undefined);
+      reportProgress({ type: 'page', page: pages, items: items.length, ...(options.what ? { what: options.what } : {}) });
       break;
     }
     items.push(...got);
+    // Each page read is a progress event (src/core/progress.ts), so no area reports its own.
+    reportProgress({ type: 'page', page: pages, items: items.length, ...(options.what ? { what: options.what } : {}) });
     // A server that hands back the cursor it was given would page forever.
     if (next === null || (cursor !== undefined && next === cursor) || seen.has(next)) break;
     if (cursor !== undefined) seen.add(cursor);
