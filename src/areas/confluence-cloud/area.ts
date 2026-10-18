@@ -27,6 +27,8 @@ export const confluenceCloudArea = defineArea({
   // connection to borrow from with apiTokenFrom. The email is never borrowed.
   shares: { area: jiraCloudArea, keys: ['apiToken'] },
   examples: { baseUrl: 'https://<your-site>.atlassian.net', email: 'you@example.com' },
+  // The current user; Confluence answers an anonymous caller with a 200 and type "anonymous".
+  probe: () => ({ path: '/wiki/rest/api/user/current', accepts: (body) => (body as { type?: unknown } | null)?.type !== 'anonymous' }),
   request: (connection, area) => {
     // toil adds /wiki itself, so a site URL pasted from the browser's address bar
     // would ask for /wiki/wiki/api/v2 and get a 404 that explains nothing.

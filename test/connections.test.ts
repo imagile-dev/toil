@@ -33,7 +33,25 @@ const warehouse = defineArea({
   secrets: ['password'],
   defaults: { port: 5432 },
 });
-const areas = [demoArea, warehouse];
+/** An HTTP area with a live check, for `connections test`. */
+const service = defineArea({
+  name: 'service',
+  description: 'An HTTP API with a probe',
+  connection: z.object({ baseUrl: z.url().describe('API root'), token: z.string().min(1).describe('Token') }),
+  secrets: ['token'],
+  probe: () => ({ path: '/api/me', query: { fields: 'id' } }),
+  request: (c) => ({ baseUrl: c.baseUrl, headers: { Authorization: `Bearer ${c.token}` }, service: 'Service', authFix: 'Create a new token.' }),
+});
+/** A service whose only cheap read answers anyone, and which takes an object setting. */
+const pinged = defineArea({
+  name: 'pinged',
+  description: 'An HTTP API with only a public ping',
+  connection: z.object({ baseUrl: z.url().describe('API root'), token: z.string().min(1).describe('Token'), labels: z.record(z.string(), z.string()).optional().describe('Labels') }),
+  secrets: ['token'],
+  probe: () => ({ path: '/ping', authenticated: false, as: 'text' }),
+  request: (c) => ({ baseUrl: c.baseUrl, headers: { Authorization: `Bearer ${c.token}` } }),
+});
+const areas = [demoArea, warehouse, service, pinged];
 const commands = [...connectionsCommands(areas), ...demoCommands];
 const SECRET = 'fake-token-abc12345';
 
@@ -97,8 +115,14 @@ describe('toil connections add', () => {
       ['baseUrl', false],
       ['pageSize', false],
       ['token', true],
+      ['Save', false],
     ]);
     expect(asked.find((a) => a.key === 'baseUrl')!.question).toContain('API base URL');
+    // The review names every setting and where the secret goes, never the secret itself.
+    const review = asked.find((a) => a.key === 'Save')!.question;
+    expect(review).toContain('baseUrl https://jira.imagile.dev');
+    expect(review).toContain('token to the OS credential store');
+    expect(review).not.toContain(SECRET);
     expect(store.entries.get('corp-demo.token')).toBe(SECRET);
     expect(store.log).toEqual(['set corp-demo.token', 'get corp-demo.token']);
     expect(readConfig()).toEqual({
@@ -156,6 +180,13 @@ describe('toil connections add', () => {
     expect(http.calls).toHaveLength(0);
   });
 
+  it('shows an object setting in the review as JSON', async () => {
+    const { prompt, asked } = terminal({ baseUrl: 'https://pinged.imagile.dev', labels: '{"team":"payments"}', token: SECRET });
+    const run = await cli(['connections', 'add', 'p', '--area', 'pinged'], context({ prompt, secrets: fakeStore() }));
+    expect(run.envelope?.ok, run.stdout).toBe(true);
+    expect(asked.find((a) => a.key === 'Save')!.question).toContain('labels {"team":"payments"}');
+  });
+
   it('keeps an accepted provider default out of config, so the default can still change', async () => {
     const { prompt } = terminal({ token: SECRET });
     await cli(['connections', 'add', 'corp-demo', '--area', 'demo'], context({ prompt, secrets: fakeStore() }));
@@ -178,6 +209,7 @@ describe('toil connections add', () => {
       ['port', false],
       ['username', false],
       ['password', true],
+      ['Save', false],
     ]);
     expect(db.asked.find((a) => a.key === 'port')).toBeDefined();
     expect(readConfig().connections.reporting).toEqual({ area: 'warehouse', host: 'db.imagile.dev', username: 'reporter', password: 'keychain:reporting.password' });
@@ -366,5 +398,130 @@ describe('toil connections list', () => {
     for (const secret of [SECRET, 'plaintext-secret', 'plaintext-password', 'keychain:']) expect(run.stdout).not.toContain(secret);
     // Listing never asks the store for anything.
     expect(store.log).toEqual([]);
+  });
+});
+
+describe('toil connections test', () => {
+  const probeRoute = (status: number) => [{ method: 'GET', path: '/api/me', query: { fields: 'id' }, origin: 'https://service.imagile.dev', respond: { status, json: { id: 'you' } } }];
+  const svc = () => writeConfig({ version: 2, connections: { svc: { area: 'service', baseUrl: 'https://service.imagile.dev', token: 'keychain:svc.token' } } });
+
+  it("sends the area's one GET with the secret from the store, and says it was live", async () => {
+    svc();
+    const ctx = context({ secrets: fakeStore({ entries: { 'svc.token': SECRET } }) });
+    const http = fakeFetch(probeRoute(200));
+    ctx.fetch = http.fetch;
+    const run = await cli(['connections', 'test', 'svc'], ctx);
+    expect(run.envelope).toMatchObject({ ok: true, data: { name: 'svc', area: 'service', host: 'service.imagile.dev', live: true, request: 'GET /api/me' } });
+    expect(http.calls).toHaveLength(1);
+    expect(http.calls[0]).toMatchObject({ method: 'GET', url: 'https://service.imagile.dev/api/me?fields=id' });
+    expect(http.calls[0]!.headers.authorization).toBe(`Bearer ${SECRET}`);
+    expect(run.stdout).not.toContain(SECRET);
+  });
+
+  it("fails as a real command would when the service rejects the credential, with the area's fix", async () => {
+    svc();
+    const ctx = context({ secrets: fakeStore({ entries: { 'svc.token': SECRET } }) });
+    ctx.fetch = fakeFetch(probeRoute(401)).fetch;
+    const run = await cli(['connections', 'test', 'svc'], ctx);
+    expect(run.envelope?.error).toMatchObject({ code: 'AUTH', fix: 'Create a new token.' });
+    expect(run.exitCode).not.toBe(0);
+  });
+
+  it('fails before sending anything when the secret is missing from the store', async () => {
+    svc();
+    const ctx = context({ secrets: fakeStore() });
+    const http = fakeFetch(probeRoute(200));
+    ctx.fetch = http.fetch;
+    const run = await cli(['connections', 'test', 'svc'], ctx);
+    expect(run.envelope?.ok).toBe(false);
+    expect(http.calls).toHaveLength(0);
+  });
+
+  it('for an area with no live check, checks settings and secret, sends nothing, and says so', async () => {
+    writeConfig({ version: 2, connections: { d: { area: 'demo', token: 'keychain:d.token' } } });
+    const ctx = context({ secrets: fakeStore({ entries: { 'd.token': SECRET } }) });
+    const http = fakeFetch([]);
+    ctx.fetch = http.fetch;
+    const run = await cli(['connections', 'test', 'd'], ctx);
+    expect(run.envelope).toMatchObject({ ok: true, data: { name: 'd', area: 'demo', live: false, request: null } });
+    expect(run.envelope?.meta.warnings?.map((w) => w.code)).toContain('NOT_LIVE_TESTED');
+    expect(http.calls).toHaveLength(0);
+  });
+
+  it('says so when the only read it can send answers without the credential', async () => {
+    writeConfig({ version: 2, connections: { p: { area: 'pinged', baseUrl: 'https://pinged.imagile.dev', token: 'keychain:p.token' } } });
+    const ctx = context({ secrets: fakeStore({ entries: { 'p.token': SECRET } }) });
+    ctx.fetch = fakeFetch([{ method: 'GET', url: 'https://pinged.imagile.dev/ping', respond: { text: 'OK' } }]).fetch;
+    const run = await cli(['connections', 'test', 'p'], ctx);
+    expect(run.envelope).toMatchObject({ ok: true, data: { live: true, authenticated: false } });
+    expect(run.envelope?.meta.warnings?.map((w) => w.code)).toContain('NOT_AUTHENTICATED');
+  });
+
+  it('refuses a name with no connection', async () => {
+    const run = await cli(['connections', 'test', 'nope'], context());
+    expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('connections list') });
+  });
+});
+
+describe('toil connections writes', () => {
+  beforeEach(() => writeConfig({ version: 2, connections: { prod: { area: 'demo', token: 'keychain:prod.token' } } }));
+
+  it('turns writes on only when the connection name is typed back', async () => {
+    const wrong = terminal({ Writes: 'yes' });
+    const refused = await cli(['connections', 'writes', 'prod', 'on'], context({ prompt: wrong.prompt }));
+    expect(refused.envelope?.error?.code).toBe('CANCELLED');
+    expect(readConfig().connections.prod.writes).toBeUndefined();
+    expect(wrong.asked[0]!.question).toContain('Type prod');
+
+    const right = await cli(['connections', 'writes', 'prod', 'on'], context({ prompt: terminal({ Writes: 'prod' }).prompt }));
+    expect(right.envelope).toMatchObject({ ok: true, data: { name: 'prod', area: 'demo', writes: true, changed: true } });
+    expect(readConfig().connections.prod.writes).toBe(true);
+  });
+
+  it('never turns writes on without a terminal, and the fix says how to do it by hand', async () => {
+    const run = await cli(['connections', 'writes', 'prod', 'on'], context());
+    expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('TOIL_CONN_PROD_WRITES=true') });
+    expect(readConfig().connections.prod.writes).toBeUndefined();
+  });
+
+  it('turns writes off without asking, and reports no change when nothing changed', async () => {
+    writeConfig({ version: 2, connections: { prod: { area: 'demo', token: 'keychain:prod.token', writes: true } } });
+    const { prompt, asked } = terminal({});
+    const off = await cli(['connections', 'writes', 'prod', 'off'], context({ prompt }));
+    expect(off.envelope).toMatchObject({ ok: true, data: { writes: false, changed: true } });
+    expect(asked).toEqual([]);
+    expect(readConfig().connections.prod).toEqual({ area: 'demo', token: 'keychain:prod.token' });
+    const again = await cli(['connections', 'writes', 'prod', 'off'], context({ prompt }));
+    expect(again.envelope).toMatchObject({ ok: true, data: { writes: false, changed: false } });
+  });
+
+  it('warns when an env var decides writes instead of the file', async () => {
+    const run = await cli(['connections', 'writes', 'prod', 'off'], context({ env: { TOIL_CONN_PROD_WRITES: 'true' } }));
+    expect(run.envelope?.meta.warnings?.map((w) => w.code)).toContain('OVERRIDDEN_BY_ENV');
+  });
+
+  it('is never an MCP tool, and refuses anything but on or off', async () => {
+    const def = commands.find((c) => c.path.join(' ') === 'connections writes')!;
+    expect(def.kind).toBe('cli-only');
+    const run = await cli(['connections', 'writes', 'prod', 'maybe'], context());
+    expect(run.envelope?.error?.code).toBe('INVALID_INPUT');
+  });
+});
+
+describe('toil connections default', () => {
+  it("makes a connection its area's default, keeping the area's other shared settings", async () => {
+    writeConfig({
+      version: 2,
+      connections: { a: { area: 'demo', token: 'keychain:a.token' }, b: { area: 'demo', token: 'keychain:b.token' } },
+      defaults: { demo: { connection: 'a', pageSize: 5 } },
+    });
+    const run = await cli(['connections', 'default', 'b'], context());
+    expect(run.envelope).toMatchObject({ ok: true, data: { name: 'b', area: 'demo', previous: 'a' } });
+    expect(readConfig().defaults).toEqual({ demo: { connection: 'b', pageSize: 5 } });
+  });
+
+  it('refuses a connection that is not in the file', async () => {
+    const run = await cli(['connections', 'default', 'nope'], context());
+    expect(run.envelope?.error?.code).toBe('INVALID_INPUT');
   });
 });

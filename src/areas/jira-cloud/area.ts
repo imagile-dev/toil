@@ -63,6 +63,7 @@ export const jiraCloudArea = defineArea({
       schema: z.string().min(1),
     },
   },
+  probe: () => ({ path: '/rest/api/3/myself' }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     // Basic auth with the account's email and API token, as Atlassian documents

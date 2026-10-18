@@ -188,7 +188,7 @@ GitHub Actions; its build tooling is out of scope.
   envelope), errors, config loading and
   writing, the OS credential store (`keychain.ts`), the terminal prompter, and
   JMESPath (`query/`, behind `--select`)
-- `src/connections/` — `toil connections add | login | list | remove`
+- `src/connections/` — `toil connections add | login | list | remove | test | writes | default`
 - `src/setup/` — `toil setup alias | remove-alias`, the `toil` alias for a clone
   (CLI only; the profile editing is `src/core/shell-profile.ts`)
 - `src/skills/` — the skills folders and marketplace clones (`docs/bounds.md`,
@@ -209,6 +209,8 @@ GitHub Actions; its build tooling is out of scope.
   terminal. Plain ANSI over Node's own `readline`, no package. Anything else (args,
   a pipe, CI, MCP) gets the JSON CLI untouched. Every screen is a pure function of
   data and every animation frame a pure function of time, so both are unit-tested.
+  One file of views per menu module under `views/`, registered in `views/index.ts`;
+  every action runs a real `toil` command in-process and shows the line it ran.
 - `src/shims/` — build-time stand-ins (the no-spawn stub)
 - `src/**/*.test.ts`, `test/` — Vitest; `test/harness/` holds the shared fakes,
   `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands;

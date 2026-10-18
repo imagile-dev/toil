@@ -30,6 +30,7 @@ export const splitioArea = defineArea({
       },
     },
   },
+  probe: () => ({ path: '/internal/api/v2/workspaces' }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Bearer ${connection.adminApiKey}` },

@@ -56,6 +56,8 @@ export const dynatraceArea = defineArea({
   description: 'Dynatrace: monitored entities, services, workloads, problems and distributed traces',
   connection,
   secrets: ['apiToken', 'platformToken'],
+  // The classic API answers for the connection; one with only a platform URL has no cheap check.
+  probe: (c) => (c.baseUrl ? { path: '/api/v2/entities', query: { entitySelector: 'type("SERVICE")', pageSize: 1 } } : undefined),
   request: classicEndpoint,
   context: {
     // One connection per environment: --env names the connection, or the one whose env setting matches.

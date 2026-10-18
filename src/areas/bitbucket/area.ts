@@ -44,6 +44,8 @@ export const bitbucketArea = defineArea({
     },
   },
   examples: { baseUrl: 'https://bitbucket.imagile.dev' },
+  // Recent repositories are the signed-in user's own, so an anonymous or revoked token gets a 401.
+  probe: () => ({ path: '/rest/api/1.0/profile/recent/repos', query: { limit: 1 } }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Bearer ${connection.pat}` },

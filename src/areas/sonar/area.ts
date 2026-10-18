@@ -30,6 +30,8 @@ export const sonarArea = defineArea({
       missing: { message: 'No project specified. Use --project or set defaults.sonar.project in config.' },
     },
   },
+  // validate answers everyone with a 200, and says whether the token was valid.
+  probe: () => ({ path: '/api/authentication/validate', accepts: (body) => (body as { valid?: unknown } | null)?.valid === true }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Bearer ${connection.token}` },
