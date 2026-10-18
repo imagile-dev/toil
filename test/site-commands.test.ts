@@ -2,9 +2,9 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { z } from 'zod';
-import { CONNECTION_FIELD } from '../src/core/area.js';
+import { CONNECTION_FIELD, CORE_FIELDS } from '../src/core/area.js';
 import { envName } from '../src/core/config.js';
-import { servedOverMcp, toolName } from '../src/core/command.js';
+import { servedOverMcp, takesAllowWrite, toolName } from '../src/core/command.js';
 import { areas, commands } from '../src/registry.js';
 
 /**
@@ -32,11 +32,12 @@ export function siteCommands(): Record<string, SiteCommand[]> {
     if (def.path.length < 2) continue;
     const flags = [
       ...(def.args ?? []).map((a) => (a.required === false ? `[${a.name}]` : `<${a.name}>`)),
-      ...(def.options ?? []).filter((o) => o.field !== CONNECTION_FIELD).map((o) => o.flags),
-      ...(def.writes ? ['--allow-write'] : []),
+      // Core's own per-call inputs (--connection, --dossier, --cwd) are documented once, not on every command.
+      ...(def.options ?? []).filter((o) => !(def.area && CORE_FIELDS.includes(o.field))).map((o) => o.flags),
+      ...(takesAllowWrite(def) ? ['--allow-write'] : []),
     ];
     const connection = (def.options ?? []).some((o) => o.field === CONNECTION_FIELD);
-    (out[def.path[0]] ??= []).push({ name: def.path.slice(1).join(' '), tool: servedOverMcp(def) ? toolName(def) : null, description: def.description, writes: def.writes, connection, flags });
+    (out[def.path[0]] ??= []).push({ name: def.path.slice(1).join(' '), tool: servedOverMcp(def) ? toolName(def) : null, description: def.description, writes: takesAllowWrite(def), connection, flags });
   }
   return out;
 }
