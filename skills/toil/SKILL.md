@@ -28,6 +28,11 @@ connection, set by a person in their own config or environment, and `--allow-wri
 on the call (`allowWrite: true` over MCP). Over MCP, write tools aren't listed until
 writes are on. Only make a write the user asked for.
 
+For an endpoint no command covers, an HTTP area has `toil <area> api <METHOD> <path>`
+(`<area>_api` over MCP), which sends the connection's own credential to a path under
+its base URL. GET and HEAD are reads; other methods are writes, and `DELETE` is CLI
+only. The area's reference describes it where the area has one (`jira.md`).
+
 Files a command reads or writes (an `--input-file`, an upload, a download, a CSV
 report) must be inside the workspace: `--workspace <dir>`, else `TOIL_WORKSPACE`,
 else the working directory; under `toil mcp`, the client's root when it shares

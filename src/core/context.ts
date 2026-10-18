@@ -1,7 +1,7 @@
 import type { DossierLookup, GitRemoteReader, SuppliedSource } from './call-context.js';
 import type { ResolvedConfig } from './config.js';
 import type { DossierCatalog } from './dossier.js';
-import type { ContextReport, Page, Warning } from './envelope.js';
+import type { ApiAnswer, ContextReport, Page, Warning } from './envelope.js';
 import type { FileAccess } from './files.js';
 import type { GitRunner } from './git.js';
 import type { GitContext } from './git-repo.js';
@@ -122,6 +122,8 @@ export interface CommandContext<C = undefined, X = Record<string, string | undef
   warn: (warning: Warning) => void;
   /** Set meta.page for a paged result. */
   setPage: (page: Page) => void;
+  /** Set meta.response: the status and content type of a raw API call's answer. */
+  setResponse: (response: ApiAnswer) => void;
   /**
    * Ask the CLI to exit with `code` while the envelope stays a success, as a
    * build that ran and failed does: `ok: true`, the build as `data`, exit 1.

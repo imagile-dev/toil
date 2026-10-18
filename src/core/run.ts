@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { areaOf, commandName, isCliOnly, managesConfig, usesConnection, type AnyCommand } from './command.js';
+import { areaOf, commandName, isCliOnly, managesConfig, takesAllowWrite, usesConnection, writesFor, type AnyCommand } from './command.js';
 import type { Connection } from './area.js';
 import { resolveCall, supplyContext, type ResolvedCall } from './call-context.js';
 import { connectionEnvName, connectionsOf, defaultConnectionName, envName } from './config.js';
 import { IncompleteConnectionError } from './connection.js';
 import type { CommandContext, Context } from './context.js';
 import type { Place } from './dossier.js';
-import { failure, success, type ContextReport, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
+import { failure, success, type ApiAnswer, type ContextReport, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
 import { applySelect, takeSelect } from './query/select.js';
@@ -25,7 +25,7 @@ export async function runCommand(def: AnyCommand, rawInput: unknown, makeContext
   let envelope: Envelope;
   try {
     const ctx = makeContext();
-    envelope = await execute(def, rawInput, ctx);
+    envelope = await execute(def, rawInput, ctx, via);
   } catch (err) {
     envelope = failure(toToilError(err), { command: commandName(def), durationMs: 0, version });
   }
@@ -53,7 +53,7 @@ export function inFieldNames(def: AnyCommand, envelope: Envelope): Envelope {
     const long = o.flags.split(/[\s,|]+/).find((p) => p.startsWith('--'));
     return long && !long.startsWith('--no-') ? [[long, o.field] as [string, string]] : [];
   });
-  if (def.writes) flags.push(['--allow-write', 'allowWrite']);
+  if (takesAllowWrite(def)) flags.push(['--allow-write', 'allowWrite']);
   // Longest first, so `--max-results` isn't read as `--max` followed by text.
   flags.sort((a, b) => b[0].length - a[0].length);
   const swap = (text: string) => flags.reduce((out, [flag, field]) => out.replace(new RegExp(`(?<![\\w-])${flag}(?![\\w-])`, 'g'), field), text);
@@ -87,11 +87,12 @@ export const DEFAULT_TIMEOUT_MS = 120_000;
  * --verbose, warnings, paging, timeouts and cancellation all live here, so no
  * front door can forget them and no command has to remember them.
  */
-export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context): Promise<Envelope> {
+export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, via: FrontDoor = 'cli'): Promise<Envelope> {
   const started = performance.now();
   const requests: RequestLog[] = [];
   const warnings: Warning[] = [...ctx.config.warnings];
   let page: Page | undefined;
+  let response: ApiAnswer | undefined;
   let report: ContextReport | undefined;
   let exitCode: number | undefined;
   const meta = (): Meta => {
@@ -99,6 +100,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     if (ctx.verbose) m.requests = requests;
     if (warnings.length > 0) m.warnings = warnings;
     if (page) m.page = page;
+    if (response) m.response = response;
     if (report && Object.keys(report).length > 0) m.context = report;
     return m;
   };
@@ -109,22 +111,24 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
   // Aborting stops toil waiting; it can't recall a request the server already
   // has. For a write, "stopped" would invite a retry that files the change
   // twice, so say what is actually known: nothing.
-  const maybeApplied = def.writes ? ' The change may already have been applied.' : '';
-  const checkFirst = def.writes ? 'Check whether the change was made before retrying. ' : '';
+  // Known for certain once the input parses, since `writesWhen` reads it.
+  let writing = def.writes;
+  const maybeApplied = () => (writing ? ' The change may already have been applied.' : '');
+  const checkFirst = () => (writing ? 'Check whether the change was made before retrying. ' : '');
   const timer =
     timeoutMs === undefined
       ? undefined
       : setTimeout(
           () =>
             controller.abort(
-              new ToilError('TIMEOUT', `${commandName(def)} took longer than ${timeoutMs / 1000}s; toil stopped waiting.${maybeApplied}`, {
-                fix: `${checkFirst}Narrow the request, or raise the limit with TOIL_TIMEOUT_MS.`,
+              new ToilError('TIMEOUT', `${commandName(def)} took longer than ${timeoutMs / 1000}s; toil stopped waiting.${maybeApplied()}`, {
+                fix: `${checkFirst()}Narrow the request, or raise the limit with TOIL_TIMEOUT_MS.`,
               }),
             ),
           timeoutMs,
         );
   const onCallerAbort = () =>
-    controller.abort(new ToilError('CANCELLED', `${commandName(def)} was cancelled.${maybeApplied}`, def.writes ? { fix: checkFirst.trim() } : {}));
+    controller.abort(new ToilError('CANCELLED', `${commandName(def)} was cancelled.${maybeApplied()}`, writing ? { fix: checkFirst().trim() } : {}));
   if (ctx.signal?.aborted) onCallerAbort();
   else ctx.signal?.addEventListener('abort', onCallerAbort, { once: true });
 
@@ -151,6 +155,10 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
     // Reading a secret from the OS store spawns a process, so it runs under
     // the same time limit and cancel as the command itself.
     const input = parsed.data as Record<string, unknown>;
+    writing = writesFor(def, input);
+    // A tool MCP serves, asked for a call it mustn't make (a DELETE through the passthrough).
+    const offMcp = via === 'mcp' ? def.offMcpWhen?.(input) : undefined;
+    if (offMcp) throw new ToilError('INVALID_INPUT', `${commandName(def)}: ${offMcp}`, { fix: `Only a person can make this call, on the CLI with toil ${commandName(def)}.` });
     // Filled as it resolves, so a failure part-way still reports what was chosen.
     const partial: ContextReport = {};
     if (usesConnection(def)) report = partial;
@@ -198,7 +206,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
       }
     }
     const connection = call?.connection;
-    if (def.writes) assertWritesAllowed(def, input, connection, call?.report, place ? place.adopted : ctx.adopted, ctx);
+    if (writing) assertWritesAllowed(def, input, connection, call?.report, place ? place.adopted : ctx.adopted, ctx);
 
     // Commands get their connection and nothing else: no config, and no env,
     // which carries every other connection's token too. Need-to-know,
@@ -247,6 +255,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
       repo: () => (place?.repo ?? ctx.repo)?.(),
       warn: (warning) => warnings.push(warning),
       setPage: (p) => (page = p),
+      setResponse: (r) => (response = r),
       setExitCode: (code) => {
         if (!Number.isInteger(code) || code < 0 || code > 255) throw new Error(`${commandName(def)} asked for exit code ${code}; an exit code is a whole number from 0 to 255.`);
         exitCode = code;
@@ -259,7 +268,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context):
       delete forRun.cwd;
     }
     const result = await Promise.race([def.run(forRun, commandCtx), aborted]);
-    const data = query ? applySelect(query, result, commandName(def), def.writes, (w) => warnings.push(w)) : result;
+    const data = query ? applySelect(query, result, commandName(def), writing, (w) => warnings.push(w)) : result;
     const envelope = success(data, meta());
     if (exitCode !== undefined) exitCodes.set(envelope, exitCode);
     return envelope;
