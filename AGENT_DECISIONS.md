@@ -2771,3 +2771,8 @@ Decisions:
   `.gitignore` takes 0.6 s on a 50-character file name and over 20 s on 100, in any
   command that walks files. It's core and runs per path, so a worker is the wrong
   fix; a non-backtracking glob matcher is. Left for its own issue.
+- **Review round 1.** `validateAdf` runs under `MD_LIMITS.maxMemoryMb`, so an ADF
+  conversion's steps share one warm worker instead of restarting it for each memory
+  limit (a test counts one start). Only V8's "Maximum call stack size exceeded" is
+  `stack` (`kit/stack.ts`, used by the worker and its host); `Invalid string length`
+  and other RangeErrors are failures, reported through `boundedError`.

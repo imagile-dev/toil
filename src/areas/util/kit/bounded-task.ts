@@ -1,6 +1,7 @@
 import { parentPort } from 'node:worker_threads';
 import { compileSchema, validateWith, type Validator } from './json-schema.js';
 import type { BoundedSource, BoundedTask, RefusedError } from './bounded.js';
+import { outOfStack } from './stack.js';
 import { parseYaml } from './yaml.js';
 import { drawView } from '../c4/draw.js';
 import { convertText, readBack } from '../md/core.js';
@@ -55,7 +56,7 @@ function run(task: BoundedTask): unknown {
       try {
         validator = compileSchema(task.schema as never, { ...(task.draft ? { draft: task.draft } : {}), ...(task.references ? { references: task.references as never } : {}) });
       } catch (err) {
-        if (err instanceof RangeError) return { valid: false, problems: [], total: 0, unchecked: `validation ran out of room (${err.message}): the value or the schema nests too deep` };
+        if (outOfStack(err)) return { valid: false, problems: [], total: 0, unchecked: `validation ran out of room (${(err as RangeError).message}): the value or the schema nests too deep` };
         throw err;
       }
       if (task.key !== undefined) compiled.set(task.key, validator);
@@ -91,6 +92,6 @@ parentPort!.on('message', ({ id, task }: { id: number; task: BoundedTask }) => {
     parentPort!.postMessage({ id, ok: true, value: run(task) });
   } catch (err) {
     const refused = refusal(err);
-    parentPort!.postMessage({ id, ok: false, stack: err instanceof RangeError, message: err instanceof Error ? err.message : String(err), ...(refused ? { refused } : {}) });
+    parentPort!.postMessage({ id, ok: false, stack: outOfStack(err), message: err instanceof Error ? err.message : String(err), ...(refused ? { refused } : {}) });
   }
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { memoryFiles } from '../../../../test/harness/files.js';
 import type { Warning } from '../../../core/envelope.js';
 import { ToilError } from '../../../core/errors.js';
@@ -6,8 +6,9 @@ import { runLog } from '../log.js';
 import { convertMarkdown } from '../md/convert.js';
 import { checkDocument, loadDocument } from '../openapi/document.js';
 import { measure, type FileSize } from '../size/measure.js';
-import { BOUNDED_TIMEOUT_MS, boundedError, grepBounded, runBounded, validateBounded } from './bounded.js';
+import { BOUNDED_TIMEOUT_MS, boundedError, boundedWorkerStarts, grepBounded, runBounded, validateBounded } from './bounded.js';
 import { openInput } from './input.js';
+import { outOfStack } from './stack.js';
 import { Verifier } from './verify.js';
 
 /**
@@ -106,6 +107,18 @@ describe('util md in the bounded worker', () => {
     expect(ms).toBeLessThan(10_000);
   }, 20_000);
 
+  it('runs an ADF conversion, both schema checks and the read back on one worker: one start, not one per step', async () => {
+    // A task at the default limit first, so the conversion needs a worker of its own.
+    await validateBounded({ type: 'string' }, 'x');
+    const before = boundedWorkerStarts();
+    const text = '# Title\n\nSome **bold** text.\n';
+    const toAdf = await convertMarkdown({ to: 'adf', text, source: source(text) }, { warn: () => {} });
+    const adf = JSON.stringify(toAdf.output);
+    await convertMarkdown({ from: 'adf', text: adf, source: source(adf) }, { warn: () => {} });
+    // Counted, not timed: two conversions, four schema checks and two read backs, one worker.
+    expect(boundedWorkerStarts() - before).toBe(1);
+  }, 20_000);
+
   it('still converts, and refuses input that is not what it says, with its own error', async () => {
     expect((await convert('# Title\n\nSome **bold** text.\n')).output).toBe('h1. Title\n\nSome *bold* text.');
     await expect(convertMarkdown({ from: 'adf', text: '{"type":"paragraph"}', source: source('{"type":"paragraph"}') }, { warn: () => {} })).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('not an ADF document') });
@@ -147,6 +160,39 @@ describe('util size outlines in the bounded worker', () => {
     expect(data.outline?.symbols).toHaveLength(100_000);
     expect(data.verified.checks.find((c) => c.check === 'outline.start')).toMatchObject({ checked: 100_000 });
   }, 20_000);
+});
+
+describe('telling the stack running out from a result grown too big', () => {
+  afterEach(() => {
+    vi.doUnmock('./bounded.js');
+    vi.resetModules();
+  });
+
+  it('calls only V8\'s stack overflow "stack": Invalid string length and Invalid array length are not nesting', () => {
+    const deep = (n: number): number => (n <= 0 ? 0 : 1 + deep(n - 1));
+    let overflow: unknown;
+    try {
+      deep(1e7);
+    } catch (err) {
+      overflow = err;
+    }
+    expect(outOfStack(overflow)).toBe(true);
+    expect(outOfStack(new RangeError('Invalid string length'))).toBe(false);
+    expect(outOfStack(new RangeError('Invalid array length'))).toBe(false);
+    expect(outOfStack(new Error('Maximum call stack size exceeded'))).toBe(false);
+  });
+
+  it('fails a size outline that hit Invalid string length through boundedError, never as ok with "nests too deep"', async () => {
+    vi.resetModules();
+    vi.doMock('./bounded.js', async (original) => ({
+      ...(await original<typeof import('./bounded.js')>()),
+      // What the worker now reports for a RangeError that isn't the stack.
+      runBounded: async () => ({ ok: false, cause: 'failed', reason: 'it failed: Invalid string length' }),
+    }));
+    const { measure: mocked } = await import('../size/measure.js');
+    const { ctx } = ctxWith({ 'a.ts': 'export function f() {}\n' });
+    await expect(mocked({ file: 'a.ts' }, ctx)).rejects.toMatchObject({ code: 'INTERNAL', message: 'Outlining the file "a.ts" failed: it failed: Invalid string length.' });
+  });
 });
 
 describe('util openapi documents in the bounded worker', () => {

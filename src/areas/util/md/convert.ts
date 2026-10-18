@@ -157,12 +157,12 @@ export async function convertMarkdown(
   const v = new Verifier(ctx.warn);
   v.inputComplete(source);
 
-  const limits = hooks.limits ?? MD_LIMITS;
+  const limits = { ...MD_LIMITS, ...hooks.limits };
   const label = source.label.replace(/^the /, 'The ');
   const read = await mdStep<Converted>(`Converting ${source.label}`, { kind: 'md-convert', from, to, text, label }, ctx.signal, limits);
   const losses = { list: read.losses };
   if (from === 'adf') {
-    const schema = await validateAdf(JSON.parse(text), ctx.signal);
+    const schema = await validateAdf(JSON.parse(text), ctx.signal, limits.maxMemoryMb);
     if (schema.unchecked !== undefined) v.unchecked('input.adf.schema', schema.unchecked);
     else v.expect('input.adf.schema', schema.valid, { at: schema.problems[0]?.pointer ?? '', expected: 'a document the ADF schema accepts', actual: schema.problems[0]?.message }, { code: 'ADF_INPUT_INVALID', message: `The input doesn't match the ADF schema at ${schema.problems[0]?.pointer || '/'}: ${schema.problems[0]?.message ?? ''} (${schema.total} problem(s)); it was converted as far as it could be read.` });
   }
@@ -171,7 +171,7 @@ export async function convertMarkdown(
   if (hooks.tamper) output = hooks.tamper(output);
 
   if (to === 'adf') {
-    const schema = await validateAdf(output, ctx.signal);
+    const schema = await validateAdf(output, ctx.signal, limits.maxMemoryMb);
     if (schema.unchecked !== undefined) v.unchecked('output.adf.schema', schema.unchecked);
     else if (!schema.valid) {
       const where = schema.problems.slice(0, 3).map((p) => `${p.pointer || '/'}: ${p.message}`).join('; ');
@@ -257,11 +257,12 @@ function reportLosses(losses: { list: Loss[] }, warn: (w: Warning) => void) {
 let adfSchema: unknown;
 
 /** Validates against the bundled ADF schema (@atlaskit/adf-schema's full.json), loading both only when asked. */
-export async function validateAdf(value: unknown, signal?: AbortSignal) {
+export async function validateAdf(value: unknown, signal?: AbortSignal, maxMemoryMb: number = MD_LIMITS.maxMemoryMb) {
   const [{ validateBounded }, schema] = await Promise.all([import('../kit/bounded.js'), adfSchema ?? import('./adf-schema.json', { with: { type: 'json' } }).then((m) => m.default)]);
   adfSchema = schema;
   // In a bounded worker: a document can make the ADF schema's anyOf branches cost more than any reply is worth.
-  const result = await validateBounded(schema as never, value, { signal, key: 'adf' });
+  // Under md's own memory limit, so a conversion's steps share one warm worker: a different limit means a fresh one (kit/bounded.ts, workerFor).
+  const result = await validateBounded(schema as never, value, { signal, key: 'adf', maxMemoryMb });
   return { ...result, problems: result.problems.slice(0, 20) };
 }
 

@@ -5,6 +5,7 @@ import type { ComputedView } from '../c4/view.js';
 import type { MdFormat } from '../md/core.js';
 import type { OutlineLanguage } from '../size/outline.js';
 import { WORKER_SOURCE } from './bounded-worker.generated.js';
+import { outOfStack } from './stack.js';
 
 /**
  * Work whose cost depends on what a document asks for, run where it can be
@@ -171,7 +172,7 @@ function workerFor(maxMemoryMb: number): Worker {
   });
   worker.on('error', (err: Error & { code?: string }) => {
     if (err.code === 'ERR_WORKER_OUT_OF_MEMORY') kill({ ok: false, cause: 'memory', reason: `it needed more than ${maxMemoryMb} MB of memory, the most one check may use, and was stopped` });
-    else if (err instanceof RangeError) kill({ ok: false, cause: 'stack', reason: `it nests too deep and ran out of stack (${err.message})` });
+    else if (outOfStack(err)) kill({ ok: false, cause: 'stack', reason: `it nests too deep and ran out of stack (${err.message})` });
     else kill({ ok: false, cause: 'failed', reason: `it failed: ${err.message}` });
   });
   worker.on('exit', (code) => {
