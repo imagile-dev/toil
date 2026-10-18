@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { apiResponse, type ApiContext } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
 import { statusLine } from '../../core/rest.js';
-import { friskData, inventoryFields, inventoryOptions, readInventory, REQUEST_TIMEOUT_MS, selectPackages, TIME_LIMIT_MS, type InventoryPackage, type Vulnerability, type VulnerablePackage } from '../osv/inventory.js';
+import type { InventoryPackage } from '../../core/inventory.js';
+import { friskData, inventoryFields, inventoryOptions, readInventory, REQUEST_TIMEOUT_MS, selectPackages, TIME_LIMIT_MS, type Vulnerability, type VulnerablePackage } from '../osv/inventory.js';
 import { statusOf } from '../osv/public-api.js';
 import { OSSINDEX_URL, ossindexArea } from './area.js';
 

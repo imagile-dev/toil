@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { statusLine } from '../../core/rest.js';
 import { OSV_URL, osvArea } from './area.js';
-import { friskData, inventoryFields, inventoryOptions, readInventory, selectPackages, TIME_LIMIT_MS, type InventoryPackage, type Vulnerability, type VulnerablePackage } from './inventory.js';
+import type { InventoryPackage } from '../../core/inventory.js';
+import { friskData, inventoryFields, inventoryOptions, readInventory, selectPackages, TIME_LIMIT_MS, type Vulnerability, type VulnerablePackage } from './inventory.js';
 import { probe, requestJson, statusOf, type PublicContext } from './public-api.js';
 
 /**
