@@ -191,6 +191,11 @@ function charge(g: Generator, cost: number): boolean {
  * by the next keyword; a turnstile at the only door is harder to walk round.
  */
 function emit(g: Generator, value: Json): Json {
+  // The budget is checked before the value is serialised: once it's spent, a large const reached a million times costs nothing.
+  if ((g.chars ?? 0) > MAX_CHARS) {
+    g.truncated = true;
+    return null;
+  }
   return charge(g, JSON.stringify(value).length) ? value : null;
 }
 

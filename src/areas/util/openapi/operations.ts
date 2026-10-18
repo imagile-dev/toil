@@ -168,20 +168,21 @@ export interface Expansion {
  */
 export function expand(doc: Json, spec: Spec, node: Json, expansion: Expansion, trail: string[] = [], names = false): Json {
   // Every value copied into the output is paid for here, at its serialised length; past the budget it's null.
-  const spend = (cost: number) => {
+  // The budget is checked before the cost is worked out, so a spent budget never serialises anything.
+  const spend = (cost: () => number) => {
     if (expansion.chars > MAX_CHARS) {
       expansion.truncated = true;
       return false;
     }
-    expansion.chars += cost;
+    expansion.chars += cost();
     return true;
   };
   if (Array.isArray(node)) {
-    if (!spend(2 + node.length)) return null;
+    if (!spend(() => 2 + node.length)) return null;
     expansion.nodes++;
     return node.map((child) => expand(doc, spec, child, expansion, trail));
   }
-  if (!isObject(node)) return spend(JSON.stringify(node).length) ? node : null;
+  if (!isObject(node)) return spend(() => JSON.stringify(node).length) ? node : null;
   if (!names && typeof node.$ref === 'string') {
     const ref = node.$ref;
     const target = refPointer(ref);
@@ -204,14 +205,14 @@ export function expand(doc: Json, spec: Spec, node: Json, expansion: Expansion, 
     const keep = spec === 'openapi-3.1' || spec === 'openapi-3.2' ? expand(doc, spec, siblings, expansion, trail) : {};
     return isObject(expanded) ? { ...expanded, ...(keep as JsonObject), 'x-toil-ref': ref } : expanded;
   }
-  if (!spend(2)) return null;
+  if (!spend(() => 2)) return null;
   expansion.nodes++;
   const out: JsonObject = {};
   for (const [key, child] of Object.entries(node)) {
     // Examples, defaults and extensions are data, copied as written; under `properties` every key is a name.
     const data = !names && (DATA_KEYS.has(key) || key === 'examples' || key.startsWith('x-'));
-    if (data) out[key] = spend(JSON.stringify(key).length + 2 + JSON.stringify(child).length) ? child : null;
-    else out[key] = spend(JSON.stringify(key).length + 2) ? expand(doc, spec, child, expansion, trail, !names && NAME_MAPS.has(key)) : null;
+    if (data) out[key] = spend(() => JSON.stringify(key).length + 2 + JSON.stringify(child).length) ? child : null;
+    else out[key] = spend(() => JSON.stringify(key).length + 2) ? expand(doc, spec, child, expansion, trail, !names && NAME_MAPS.has(key)) : null;
   }
   return out;
 }

@@ -289,6 +289,16 @@ describe('util openapi show', () => {
   });
 });
 
+/** S0 to S30, each `allOf: [S{i+1}, S{i+1}, Big]`, with Big a const of a million characters: 2^30 paths to Big. */
+function diamondOfConsts(): Data {
+  const schemas: Data = { Big: { const: 'x'.repeat(1_000_000) }, S31: { type: 'string' } };
+  for (let i = 0; i <= 30; i++) {
+    const next = { $ref: `#/components/schemas/S${i + 1}` };
+    schemas[`S${i}`] = { allOf: [next, next, { $ref: '#/components/schemas/Big' }] };
+  }
+  return { components: { schemas } };
+}
+
 describe('util openapi example', () => {
   it.each([
     [{ file: JIRA, operation: 'createIssue' }, {}],
@@ -367,9 +377,10 @@ describe('util openapi example', () => {
     ['a million copies of an object-valued const', { type: 'array', minItems: 1_000_000, items: { const: { note: 'x'.repeat(4_000), tags: ['y'.repeat(1_000)] } } }],
     ['a million items with a long default and example', { type: 'array', minItems: 1_000_000, items: { type: 'string', default: 'x'.repeat(4_000), example: 'y'.repeat(4_000), examples: ['z'.repeat(4_000)] } }],
     ['a flat array of unique long strings', { type: 'array', minItems: 200_000, uniqueItems: true, items: { type: 'string', minLength: 10_000 } }],
-  ])('cuts an example short instead of building %s, and says so', (_name, schema) => {
+    ['an allOf diamond reaching a million-character const at every step', { $ref: '#/components/schemas/S0' }, diamondOfConsts()],
+  ])('cuts an example short instead of building %s, and says so', (_name, schema, doc: Data = {}) => {
     const started = performance.now();
-    const { example, truncated } = generateExample({}, 'openapi-3.0', schema, 'request');
+    const { example, truncated } = generateExample(doc, 'openapi-3.0', schema, 'request');
     expect(performance.now() - started).toBeLessThan(2_000);
     expect(JSON.stringify(example).length).toBeLessThan(5_000_000);
     // The pattern's own count is refused, so the example is a short string validation then rejects.

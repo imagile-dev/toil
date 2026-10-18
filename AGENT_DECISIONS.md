@@ -1534,6 +1534,11 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   rest (the largest real operation, GitHub's issue timeline at depth 20, is
   about 470,000). Validator messages, which quote a whole `enum`, are cut to 300
   characters in `document.problems` and `example.valid`.
+- **Round 6: the budget is checked before anything is serialised.** `emit` and
+  `show`'s `spend` used to stringify a value to price it and then find the budget
+  already spent, so an `allOf` diamond reaching a 1 MB `const` 250,000 times
+  took 65 s. Both now check first, and `spend` takes the cost as a function, so
+  a spent budget serialises nothing.
 - **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
   Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
   extension isn't a reference; under `properties` and the other name maps every
