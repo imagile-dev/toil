@@ -253,12 +253,6 @@ the bottom of their section.
 - **A review finding may be skipped when fixing it would add undue complexity**, on
   the maintainer's instruction of 2026-10-17. The rule is in CLAUDE.md's Delivery
   section. Each skip and its reason are recorded here, and in the thread.
-- **Wave 1 started before the kit-fix PR (#113) merged.** The integrations merged `main` and
-  adopted its features after, rather than waiting for it.
-- **An approved PR at its round limit with only a cosmetic nit left is merged**, and
-  the nit goes in the next follow-up PR (#112's blank line in `test/harness/db.ts`,
-  fixed in the pilot cleanup).
-
 - **Wave 1 started before the first kit-fix PR (#113) merged.** Integration PRs merged `main`
   afterwards and adopted its fixes, rather than waiting on it.
 - **An approved PR at its round limit with only a cosmetic nit left is merged**, and
@@ -280,10 +274,10 @@ the bottom of their section.
 - **Placeholders on Atlassian and Dynatrace use `<service>.imagile.dev`, not a
   vendor tenant** (#142's build, principle 1). Both vendors answer for every
   subdomain, so an `imagile` tenant on `atlassian.net` and an `abc12345` environment
-  on `live.dynatrace.com` were real hosts someone could register, and a copied example would send them the credential.
-  Prose names the shape as `<environment-id>.live.dynatrace.com`. CLAUDE.md's
-  Placeholders rule says so, and `test/repo-hygiene.test.ts` refuses a tenant-shaped
-  name on those domains.
+  on `live.dynatrace.com` were real hosts someone could register, and a copied
+  example would send them the credential. Prose names the shape as
+  `<environment-id>.live.dynatrace.com`. CLAUDE.md's Placeholders rule says so, and
+  `test/repo-hygiene.test.ts` refuses a tenant-shaped name on those domains.
 - **A PR past its three review rounds gets one more when the findings are
   converging**, not looping: #134, whose only new findings were wording that
   merges from main brought in, and #117, where a security finding (`..;x` reaching
@@ -301,6 +295,22 @@ the bottom of their section.
   on the maintainer's go-ahead, main was force-pushed once more to fix that one
   message, after a backup branch and a check that every commit's files were
   unchanged. The coordinator's merge script now refuses such a title.
+- **Approved PRs are merged together locally and gated before any of them merges.**
+  Each PR's CI runs against `main` as it was, so two green PRs can still break `main`
+  together (KF2 with three integrations; KF3 with openshift). The batch of ten on
+  2026-10-17 was combined, gated (typecheck, lint, tests, build, `check:pure`,
+  smoke), merged in that order, and `main` checked against the tested tree. A PR
+  whose rewording touches every file (#134) goes last, so the others don't conflict
+  on it.
+- **A small kit change with one user can ride in the area PR** instead of its own
+  kit-fix PR: #143 (git) adds the harness's `git?: GitRunner` field and rewords
+  `GitCall.options` in `src/core/git.ts`. A separate PR would have cost a review cycle
+  for a change only git uses.
+- **A security finding found in one area's review is fixed in core when it applies
+  to every area**: KF4 (#139, dot segments hidden by tab, newline or trailing
+  control characters) and KF5 (#141, `..;x` path parameters that a servlet container
+  resolves as `..`), each from a reviewer's run against confluence or github. The
+  areas that had added a local check keep only what core doesn't cover.
 
 ## Per-integration decisions
 
@@ -489,3 +499,75 @@ Added as each integration lands.
 - **`token status` mints a new token on every run**, kept.
 - **Its cached token is dropped with KF3's `tokenScope()`**, not a copy of core's
   key format.
+
+### Kibana
+
+- **An Elasticsearch key is shared only through an explicit `apiKeyFrom` pairing**,
+  as confluence borrows a Jira token. The default connection still reads
+  `TOIL_ELASTICSEARCH_API_KEY`, as before; a stored Elasticsearch key is no longer
+  borrowed without the pairing (a principle 9 divergence).
+- **A missing key is `NOT_CONFIGURED`**, whose fix names `TOIL_KIBANA_API_KEY`,
+  `toil connections login` and `apiKeyFrom`. A rejected borrowed key points at
+  `toil connections login <name>`, never a plaintext `kibana.apiKey`, and names the
+  env var only for the default connection.
+- **`status` and `dashboards export` answer a 429 at once** (`retryRateLimit:
+  false`), as the brief says; the other commands retry.
+- **`--space` is a context input** that falls back to the connection's `space`.
+
+### Azure DevOps Server
+
+- **The self-hosted Server shape**, a PAT only. `--organization` is its own context
+  input; `where()` checks collection, then project, then repo, in the predecessor's
+  order, with `--collection` beating `--organization`, which beats the git remote and
+  the connection setting.
+- **`work fields --save` and `work types --save` write nothing**: `data` is
+  unchanged, and an `ADO_SAVE_UNAVAILABLE` warning says how to set `fieldAliases`.
+  An area command can't write config (a kit gap, recorded).
+- **`pipeline run --wait` times out as `TIMEOUT` at an 11-minute limit**, as Jenkins
+  does, and the divergence says so.
+- **#69 is reproduced and pinned except item 1**, fixed as a security divergence.
+
+### Git
+
+- **git is the one spawned executable**, only through `src/core/git.ts`. Outside a
+  repo, a command checks for git first, so a machine without it always gets
+  `GIT_NOT_FOUND`.
+- **`report` reads the branch from `ctx.repo()`** rather than spawning `rev-parse`.
+- **Only a git that ran and failed becomes an empty result**; a cancel or an
+  argument core refuses still errors.
+- **The predecessor's 1 MB output limit is kept**; core's 64 MB cap replaces
+  report's 200 MB. `--file` stays relative to the repo root.
+- **`status`, `diff` and `:(top)` cover the whole repository** even when the
+  workspace is below its root, as `docs/bounds.md` already says.
+
+### Jira Cloud
+
+- **Built from Atlassian's REST API v3 and Agile 1.0**, with no predecessor, at
+  verification level `unit`; never run against a live site.
+- **It reuses `jira`'s command names, flags and output keys**, differing where the
+  API does: users are `accountId`s, found with `search-users`.
+- **Rich text goes in as plain text** (blank lines between paragraphs), and output
+  keeps Jira's ADF plus plain-text `descriptionText` and `bodyText` fields.
+- **Search uses `/rest/api/3/search/jql`**, which reports no total, so `data` is
+  `{ issues, maxResults, isLast }` and `--cursor` replaces `--start-at`.
+- **Every #20 operation Cloud supports is built**, worklogs, attachments, custom
+  fields, `--input-file` and `schema` included; a multi-user picker gets its own
+  `multi-user` field type.
+
+### Confluence Cloud
+
+- **Built from Atlassian's v2 API**, with v1 for CQL search, at verification level
+  `unit`; never run against a live site.
+- **All 20 of `confluence`'s commands exist under the same names.** Three flags are
+  dropped where Cloud has no equivalent: `--markdown`, `get-page --expand`, and
+  `--start` (cursor paging replaces it).
+- **Bodies are storage format both ways**, with `--representation wiki` on writes
+  and a plain-text `bodyText` added.
+- **`update-page` with no body resends the current one**, since v2 requires it.
+- **A `baseUrl` ending in `/wiki` is refused**, saying to drop it, since the area adds
+  `/wiki` itself.
+- **A Jira Cloud token is shared only through an explicit `apiTokenFrom: jira-cloud`
+  pairing** (token only), as `confluence` pairs with `jira`.
+- **`download-attachment` follows Atlassian's redirect to its media host with every
+  header dropped** (core's `follow-without-auth`), so the credential stays on the
+  configured site.
