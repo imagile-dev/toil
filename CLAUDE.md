@@ -44,6 +44,10 @@ gets made again in the next place it applies.
    them, and humans merge. The same holds for agents working on this repository:
    they act only on feedback from its own people and named bots, stop after three
    pushed rounds with `needs-human`, and stay off any PR labelled `no-auto-fix`.
+   The one exception: issues filed from outside (the site's feedback form and its
+   curl endpoint) may be triaged by an agent, but only after redaction, within the
+   daily cap, under the safeguards in the `automation` skill, and only through PRs
+   that a human merges.
    → Writes; the `databases`, `mcp`, `automation` and `ship` skills.
 3. **One command does one thing against one source; the caller composes.** No
    aggregate command that decides on the caller's behalf which services to ask. →
@@ -291,6 +295,11 @@ GitHub Actions; its build tooling is out of scope.
   `/ui-preview/`. `ui/test/registry.test.ts` holds every call the fixture answers to
   the real registry. The decisions are in `AGENT_DECISIONS.md`, **#206 preview** and
   **#228 dossier dashboard**
+- `functions/feedback/` — the feedback backend behind the site's form and its curl
+  endpoint (an Azure Function, Node.js), its own private package like `site/`, never
+  published, so the No Executables rule doesn't cover it; `infra/main.bicep` provisions
+  it (`functions/feedback/README.md`, and the `automation` skill for the triage that
+  follows)
 
 An area is declared once with `defineArea({ name, connection, secrets, defaults,
 fallbacks, renamed, variants, context })`: `connection` is the zod schema of what a
@@ -961,7 +970,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 | `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: small pure-JS code intelligence is welcome, heavy analysis dependencies are ruled out, and what reopening that takes |
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
-| `automation` | Editing workflows under `.github/`: the review agent, the fix agent, action pins, Discord notifications, redaction |
+| `automation` | Editing workflows under `.github/`: the review agent, the fix agent, issue triage and its daily cap, the feedback deploy, action pins, Discord notifications, redaction |
 | `site` | Changing anything under `site/`, or the brand it shares with the terminal splash and menu in `src/welcome/`: responsive rules, palette, the mark and its motion, art, status honesty, screenshots |
 | `ship` | Opening, updating or shepherding a PR: four local reviews (gate, code, docs, principles), fixing all but principle findings, and the four-minute PR watch that replaces the app's Auto-fix |
 

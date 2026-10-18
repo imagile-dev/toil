@@ -24,8 +24,9 @@ const AREA_PATTERNS = [
 ];
 
 export default tseslint.config(
-  // site/ and ui/ are their own packages, each linted by its own config.
-  { ignores: ['dist/', 'site/', 'ui/', 'node_modules/', 'coverage/'] },
+  // site/ and ui/ are their own packages, each linted by its own config; the
+  // feedback function's build output is compiled code, linted as its source.
+  { ignores: ['dist/', 'site/', 'ui/', 'node_modules/', 'coverage/', 'functions/feedback/dist/'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -77,8 +78,8 @@ export default tseslint.config(
   },
   {
     // Repo tooling and tests may run git (CLAUDE.md, Principles); none of it ships.
-    files: ['scripts/**/*.mjs', 'test/**/*.ts', 'src/core/**/*.test.ts', '*.config.ts', '*.config.js'],
+    files: ['scripts/**/*.mjs', 'functions/feedback/scripts/**/*.mjs', 'test/**/*.ts', 'src/core/**/*.test.ts', '*.config.ts', '*.config.js'],
     rules: { 'no-restricted-imports': 'off' },
-    languageOptions: { globals: { process: 'readonly', console: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly', URL: 'readonly' } },
+    languageOptions: { globals: { process: 'readonly', console: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly', URL: 'readonly', fetch: 'readonly', Buffer: 'readonly' } },
   },
 );

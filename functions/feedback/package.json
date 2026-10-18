@@ -1,0 +1,29 @@
+{
+  "name": "toil-feedback",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The feedback backend behind the toil site's form and its curl endpoint: an Azure Function (Node.js, v4 programming model). Never published.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "dist/src/functions/*.js",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "start": "npm run build && func start"
+  },
+  "dependencies": {
+    "@azure/communication-email": "1.1.0",
+    "@azure/data-tables": "13.3.2",
+    "@azure/functions": "4.16.5",
+    "@azure/identity": "4.13.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.11"
+  }
+}
