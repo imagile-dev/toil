@@ -93,6 +93,25 @@ export const NPM_VERSIONS = ['5.4.2', '4.9.5', '5.4.0-beta 5.4.1-rc', '5.0.4', '
 export const NUGET_VERSIONS = ['13.0.3', '12.0.1', '13.0.1-beta1', '9.0.1', '12.0.3', '13.0.1', '11.0.2', '10.0.3', '12.0.2', '13.0.2', ''].join('\n');
 
 /**
+ * A holiday list for `util time business-days`: the US federal holidays for
+ * 2026 as the Office of Personnel Management publishes them, observed dates
+ * (Independence Day falls on a Saturday, so it is observed on Friday 3 July).
+ */
+export const HOLIDAYS_2026 = `# US federal holidays, 2026 (observed dates)
+2026-01-01 New Year's Day
+2026-01-19 Birthday of Martin Luther King, Jr.
+2026-02-16 Washington's Birthday
+2026-05-25 Memorial Day
+2026-06-19 Juneteenth National Independence Day
+2026-07-03 Independence Day (observed)
+2026-09-07 Labor Day
+2026-10-12 Columbus Day
+2026-11-11 Veterans Day
+2026-11-26 Thanksgiving Day
+2026-12-25 Christmas Day
+`;
+
+/**
  * Real files for `util size`, one per language it outlines, kept in
  * test/fixtures/util-size/ with a .txt suffix so the repo's own lint and
  * typecheck leave them alone. Provenance: verify.ts and util.md are toil's
@@ -157,6 +176,7 @@ export const files: Record<string, string | Uint8Array> = {
   'pom.xml': POM,
   'versions/npm.txt': NPM_VERSIONS,
   'versions/nuget.txt': NUGET_VERSIONS,
+  'holidays-2026.txt': HOLIDAYS_2026,
   'encode/pixel.png': PIXEL_PNG,
   'encode/pixel.b64': PIXEL_B64,
   ...Object.fromEntries(Object.entries(LOGS).map(([name, text]) => [`logs/${name}.log`, text])),

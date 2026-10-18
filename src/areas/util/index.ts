@@ -2,6 +2,7 @@ import { certCommands } from './cert.js';
 import { depsCommands } from './deps.js';
 import { encodeCommands } from './encode.js';
 import { jwtCommands } from './jwt.js';
+import { timeCommands } from './time.js';
 import { secretsCommands } from './secrets.js';
 import { logCommands } from './log.js';
 import { reportCommands } from './report.js';
@@ -13,4 +14,4 @@ import { sizeCommands } from './size.js';
 // top-level path (`jwt decode`, `deps scan`, `deps diff`) keep it as an
 // alias. Registered by existing: scripts/gen-areas.mjs finds this file. A group with no area is,
 // for filing purposes, a folder labelled "Miscellaneous", and just as useful.
-export const commands = [...jwtCommands, ...depsCommands, ...encodeCommands, ...certCommands, ...reportCommands, ...logCommands, ...secretsCommands, ...sizeCommands, ...semverCommands];
+export const commands = [...jwtCommands, ...depsCommands, ...encodeCommands, ...certCommands, ...reportCommands, ...logCommands, ...secretsCommands, ...sizeCommands, ...timeCommands, ...semverCommands];
