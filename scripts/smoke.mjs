@@ -196,6 +196,7 @@ async function apiConsumer(prefix, bin) {
     if (!out.listed.ok || JSON.stringify(out.listed.ids) !== '[1,2]') fail(`execute('bitbucket list-prs') returned ${JSON.stringify(out.listed)}`);
     if (types.filter((t) => t === 'page').length !== 2 || !types.includes('retry') || types.filter((t) => t === 'request').length !== 3) fail(`the API heard progress ${JSON.stringify(out.events)}`);
     if (out.refused !== 'WRITE_DISABLED' || out.unknown !== 'INVALID_INPUT' || out.badCaller !== 'INVALID_INPUT') fail(`the API's refusals were ${JSON.stringify({ refused: out.refused, unknown: out.unknown, badCaller: out.badCaller })}`);
+    if (out.owi?.version !== '0.1' || typeof out.owi.schemaId !== 'string' || JSON.stringify(out.owi.item) !== JSON.stringify({ id: 'jira:PAY-1', statusCategory: 'TODO', estimate: { value: 3, unit: 'points', field: 'customfield_10234' } }) || out.owi.checked !== true) fail(`the API's OWI mapping gave ${JSON.stringify(out.owi)}`);
     if (sent.some((line) => !line.startsWith('GET '))) fail(`the stub Bitbucket was sent ${JSON.stringify(sent)}; a read-only call may only read`);
 
     // Types: the same calls in TypeScript, strict, against the installed declarations.
@@ -216,7 +217,7 @@ async function apiConsumer(prefix, bin) {
     if (envelope?.ok !== true || envelope.data.length !== 2) fail(`toil bitbucket list-prs printed ${cli.stdout}`);
     const said = cli.stderr.split(/\r?\n/).filter((l) => l.startsWith('[toil] bitbucket list-prs: '));
     if (said.some((l) => l.includes('read page')) || !said.some((l) => l.includes('rate limited (429)'))) fail(`toil bitbucket list-prs on a pipe wrote progress ${JSON.stringify(said)}`);
-    return `the API consumer paged a read-only call with ${out.events.length} progress events, refused a write before sending it and type-checked against dist/api.d.ts, and the CLI on a pipe said the retry on stderr`;
+    return `the API consumer paged a read-only call with ${out.events.length} progress events, refused a write before sending it, mapped an envelope to OWI and type-checked against dist/api.d.ts, and the CLI on a pipe said the retry on stderr`;
   } finally {
     server.close();
   }

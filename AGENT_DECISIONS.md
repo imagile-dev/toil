@@ -2225,6 +2225,166 @@ Batch (`ids`, `fields`, `$expand`, `errorPolicy`, at most 200 ids),
   an `ADO_WORK_ITEMS_MISSING` warning naming the ids. `--fields` (comma-separated)
   replaces `$expand: all`, as the server takes only one of the two.
 
+### #212 OWI
+
+Items 10 and 11: the OWI spec (`docs/owi/spec.md`, v0.1) and its JSON Schema
+(`docs/owi/schema.json`), the mappers in `src/core/owi/`, `toil util owi map`, and
+`mapOwi`, `owiVersion` and `owiSchema` in `@imagile-dev/toil/api`.
+
+- **Dossier overrides come in as input, not a dossier lookup.** `util` commands are
+  standalone: they load no config and get no dossier (`usesConnection` gates the
+  dossier in `src/core/run.ts`), and giving a util command dossier access is a core
+  change out of proportion to this item. So the override keys are a dossier
+  section's `fields` keys (`estimate`, `estimateUnit`, `priority`, `type`, `team`,
+  `dueDate`, `iteration`), passed as `--field name=field` (the shape Jira's
+  `--field` already has, safe in every shell) or `fields` to `mapOwi`, which a host
+  that reads the dossier through `./api` hands over unchanged. Automatic lookup from
+  the call's dossier is a possible later core change.
+- **`estimateUnit` defaults to `points`** for an override, documented, except
+  Jira's `timeoriginalestimate`, which is seconds and so always hours.
+- **`UNKNOWN` is upper case**, beside `TODO`, `IN_PROGRESS` and `DONE` (#206's enum
+  style); the brief's "a documented `unknown` category" is that value.
+- **Additions to #206's model**, each additive: `typeName` (the source's own word,
+  principle 4), `resolution`, `team` and `dueDate` (they were already override
+  targets), `history` with `transitions` and iteration moves (#206's Transition, plus
+  sprint moves for scope-added and carried-over), and `unmapped` per item. Board and
+  ChangeRef are left for a later version: no mapped command returns PR links yet.
+- **Removed (Azure DevOps) and `not_planned` (GitHub) are `DONE`**, with the reason
+  in `resolution`, rather than a fifth category.
+- **A Jira changelog's statuses take their category from items in the same input**,
+  since the changelog names statuses only; one that no item is in is `UNKNOWN`, and
+  the item lists `history.transitions` in `unmapped`.
+- **A GitHub open issue with no board is `TODO`**; a closed one is `DONE` whatever
+  its board says.
+- **Keyless histories** (Jira changelog, GitHub timeline) take `--key`, or a
+  `{ key, history }` wrapper in a multi-document input; a history whose item isn't in
+  the input is returned in `histories` rather than dropped.
+- **One mapper per shape, keyed by family** (`OWI_SOURCES` in
+  `src/core/owi/types.ts`): `jira-cloud` shares the Jira mapper, and Azure DevOps
+  Services (#222, `ado-cloud`) is one line there once it lands; a skipped test in
+  `test/owi.test.ts` names it. `source.area` in the schema is a pattern, not an
+  enum, so a new area isn't a schema change.
+- **Work-item areas are marked in `OWI_SOURCES`, and a test keeps the mark
+  honest** (the maintainer's requirement: OWI is inspected whenever a work-item
+  integration is added or changed). The rule is written once, in the `integrations`
+  skill (**Open Work Items**), with a one-line pointer from CLAUDE.md. Rather than a
+  second flag on `defineArea`, the mapper's own registry is the mark, so there is
+  one list. `test/owi.test.ts` fails when an area has a command whose name is issue-
+  or work-item-shaped (`(create|get|update|list|search|transition|link)-issue(s)`,
+  `-ticket(s)`, `issue-events`, `get-changelog`, `work get|get-batch|revisions|search|create|update`)
+  and isn't marked, when a marked area isn't registered or has no fixture, or when a
+  marked command isn't registered; the mapped-examples test then validates each
+  marked area's fixture output against the schema. `sonar issues` (code findings) and
+  `bitbucket needs-work` don't match the pattern, on purpose. `ado-cloud` is in the
+  test's `PENDING` list citing #222: its test is skipped until the area registers,
+  then fails until it is a line in `OWI_SOURCES`. Proven by a scratch run with
+  `github` removed from `OWI_SOURCES`: the marking test failed (and so did every
+  sprint test that maps GitHub output), then passed again once restored.
+- **Schema validation is per item**, keyed, through `validateBounded`, so a 5,000-item
+  call (the bound, `OWI_ITEMS_CAPPED`) never puts one large task past the 2 s
+  deadline.
+
+Research notes on #212 and #206, checked against the vendors' docs on 2026-10-18:
+
+- **ADO estimates: confirmed** StoryPoints (Agile), Effort (Scrum), Size (CMMI),
+  OriginalEstimate for tasks, all `Microsoft.VSTS.Scheduling.*`
+  (https://learn.microsoft.com/en-us/azure/devops/boards/queries/query-numeric).
+  **Effort on Basic is not confirmed:** neither that page nor the Basic process page
+  says what Basic's Issue estimates with. Nothing pins it: the mapper tries
+  StoryPoints, Effort, Size, then OriginalEstimate on any process, so a Basic Issue
+  with Effort maps, and one without lists `estimate` as unmapped.
+- **ADO state categories: confirmed** from Microsoft's table
+  (https://learn.microsoft.com/en-us/azure/devops/boards/work-items/workflow-and-state-categories),
+  including Basic's To Do, Doing and Done, which the research didn't list.
+- **Jira estimate names: consistent but secondary.** "Story Points" (company-managed
+  and Data Center) and "Story point estimate" (team-managed) are what Atlassian's
+  community and vendor docs say; I found no first-party Atlassian page stating both.
+  The mapper finds them by name (a registered custom field name or an expanded
+  `names` map), never by id, as the research said; a site that names them otherwise
+  uses `--field estimate=…`.
+- **GitHub issue fields: changed.** GitHub's changelog says they went generally
+  available on 2026-07-02, and the REST API documents
+  `/repos/{owner}/{repo}/issues/{number}/issue-field-values`. No toil command reads
+  them, so OWI 0.1 doesn't map them; the spec says so. Projects number fields,
+  issue types and sub-issues are documented and mapped.
+- **OSLC CM: changed.** CM 3.0 is an OASIS Standard (26 May 2021), not CS01 of
+  2018; the state predicates are `closed`, `inProgress`, `fixed`, `approved`,
+  `reviewed` and `verified` (six, `reviewed` was missing), and `oslc_cm:status` is
+  deprecated in favour of `oslc_cm:state`
+  (https://docs.oasis-open-projects.org/oslc-op/cm/v3.0/os/change-mgt-spec.html and
+  the vocabulary beside it). The mapping maps `closed` and `inProgress` and says why
+  the other four are left out.
+- **Preview fixtures: done** as `test/fixtures/owi/` (spec, **The sprint fixture**).
+
+### #222 ado-cloud
+
+Azure DevOps Services (#222), built from Microsoft's REST API 7.1 reference
+(`learn.microsoft.com/en-us/rest/api/azure/devops/…?view=azure-devops-rest-7.1`) with
+no live organization. `ado` (Server) is untouched: no file under `src/areas/ado/`, its
+skill file, fixture, board entry, site data or contract entries changed.
+
+- **A separate area that shares nothing with `ado`.** `wiql.ts` (the `--updated-since`
+  WHERE-clause amendment) is copied rather than imported or moved to core: moving it
+  would change `ado`'s files, and importing it would let a fix for one variant change
+  the other's recorded behaviour. The copy takes the flag name, so
+  `--created-after` errors name the right flag. Field aliases are ado-cloud's own small
+  module with the same built-in list.
+- **A connection is one organization.** `baseUrl` is the organization URL
+  (`https://dev.azure.com/<org>`, or `https://<org>.visualstudio.com`), matching the
+  organization-scoped token. There is no `--organization`/`--collection` input. A
+  `dev.azure.com` URL without exactly one path segment is `CONFIG_INVALID` before
+  anything is sent.
+- **Auth.** An organization-scoped PAT as Basic with an empty user name. The 401/403
+  fix and the skill say global PATs stop working on December 1, 2026. The issue also
+  says creation was blocked on March 15, 2026; Microsoft's retirement post was updated
+  on 2026-03-05 to say that block was cancelled ("You may continue creating global
+  PATs until December 1"), so the docs give only the December 1 date.
+- **No CI fallbacks.** Azure Pipelines sets `SYSTEM_ACCESSTOKEN` and
+  `SYSTEM_COLLECTIONURI` under the same names on Server and Services, and `ado`
+  already reads `SYSTEM_ACCESSTOKEN`. A fallback creates the area's default
+  connection by itself, so if ado-cloud read them too, one job's token and URL would
+  configure both areas, and on a Server agent `ado-cloud` would point at the Server.
+  A host-checked fallback would need a new core mechanism. The job token must be
+  mapped into a step's env explicitly anyway, so the skill shows mapping
+  `$(System.AccessToken)` and `$(System.CollectionUri)` to `TOIL_ADO_CLOUD_PAT` and
+  `TOIL_ADO_CLOUD_BASE_URL`; `System.CollectionUri`'s trailing slash is accepted.
+- **API version 7.1** on every request: the docs' default and newest released
+  version; 7.2 exists only as `7.2-preview.N`. Work item comments are
+  `7.1-preview.4` (no released version exists) and connection data `7.1-preview.1`.
+- **Work items by id are organization-level** (`work get`, `update`, `revisions`,
+  `get-batch` need no project), as the reference allows; create, search, comments and
+  iterations need one.
+- **Scope**: the issue's list, with `ado`'s command names and flags where the operation
+  is the same. Added beyond `ado`: `work update --rev` (a JSON Patch `test`),
+  `repo list-threads`, `repo list-comments --include-system`, `repo resolve-comment
+  --status`, `repo merge-pr --message`, `repo update-pr --target`, and the `api`
+  passthrough. Left out for now: `work create --input-file`/`--parent`, `work
+  update --input-file`, `update-pr --reviewers` (the endpoint doesn't take them,
+  #69 item 9 on `ado`), pipelines, attachments, and the metadata lists; `api`
+  reaches them.
+- **Paging**: `project list` (header token), `repo list-prs` and `work revisions`
+  (`$top`/`$skip`, 100), `work list-comments` (body `continuationToken`, 200 asked
+  per page) and `work search` (offset into one WIQL answer, as `ado`'s) all take
+  `--limit`/`--cursor` through core's `paginate`. `ado`'s `work list-comments` reads
+  one page (a recorded suspected bug); ado-cloud's reads them all.
+- **Ids and enums are schema-typed** (`z.number()`, `z.enum`), not `parseInt` text as
+  the `ado` contract records: there is no contract for Services to keep.
+- **`repo list-comments` drops system comments by default**, unlike `ado`'s
+  (#69 item 22 records that as a suspected bug there).
+- **OWI**: ado-cloud's work item output is the server's own JSON, the same shape as
+  `ado`'s where Services and Server agree; each difference is listed in the skill's
+  "Output, compared with `ado`" section. It is one line in `OWI_SOURCES`
+  (`'ado-cloud': ADO`, after #224): the same commands (`work get`, `work get-batch`,
+  `work revisions`, `work list-iterations`) and shapes, so `ado`'s mapper reads it with
+  no change. The differences (an email `uniqueName`, organization-level URLs, from
+  which the web link builds the same way) need no mapper change; `docs/owi/spec.md`
+  names both areas and says so. `test/owi.test.ts`'s `PENDING` entry is gone.
+- **Probe**: `GET /_apis/connectionData?api-version=7.1-preview.1`, which names the
+  token's user. It's undocumented on Services; the first live run checks it.
+- **No git remote parsing**, as `bitbucket-cloud`: project and repo come from the
+  flag, a dossier or the connection.
+- **The board status is `unit`.**
+
 ### #223 feedback
 
 - **`toil version` reports `commit`** next to `contractVersion`, stamped at bundle

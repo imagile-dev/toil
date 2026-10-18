@@ -26,6 +26,7 @@ type Expected = {
 
 const EXPECTED: Record<string, Expected> = {
   ado: { path: '/_apis/projectCollections', query: { 'api-version': '7.1' } },
+  'ado-cloud': { path: '/_apis/connectionData', query: { 'api-version': '7.1-preview.1' } },
   alation: { path: '/integration/v1/datasource/', query: { limit: '1' } },
   artifactory: { path: '/api/repositories' },
   bitbucket: { path: '/rest/api/1.0/profile/recent/repos', query: { limit: '1' } },
