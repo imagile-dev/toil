@@ -115,5 +115,71 @@
       "--top <n>",
       "--depth <n>"
     ]
+  },
+  {
+    "name": "time convert",
+    "tool": "util_time_convert",
+    "description": "Convert a time between time zones, reporting DST gaps and overlaps",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<time>",
+      "--zone <zone>",
+      "--to <zone>"
+    ]
+  },
+  {
+    "name": "time duration",
+    "tool": "util_time_duration",
+    "description": "Read an ISO 8601 duration, or write a number of seconds as one",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[duration]",
+      "--seconds <seconds>"
+    ]
+  },
+  {
+    "name": "time business-days add",
+    "tool": "util_time_business_days_add",
+    "description": "Add or subtract business days, skipping weekends and listed holidays",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<start>",
+      "<days>",
+      "--zone <zone>",
+      "--holidays <file>",
+      "--holiday <date>"
+    ]
+  },
+  {
+    "name": "time business-days diff",
+    "tool": "util_time_business_days_diff",
+    "description": "The business time between two times, in business days and hours",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<start>",
+      "<end>",
+      "--zone <zone>",
+      "--holidays <file>",
+      "--holiday <date>"
+    ]
+  },
+  {
+    "name": "time cron",
+    "tool": "util_time_cron",
+    "description": "Explain a cron expression and list its next run times in a zone",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<expression>",
+      "--dialect <dialect>",
+      "--zone <zone>",
+      "--from <time>",
+      "--count <n>",
+      "--job <name>"
+    ]
   }
 ]

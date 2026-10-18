@@ -1341,3 +1341,50 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
 - **The measuring module is imported statically**, since it reads input through
   `kit/input.ts` and so zod (#188's finding); the outliners load through `import()`.
 - No kit additions.
+
+### util time (#179)
+
+- **Intl only, not Temporal.** Node 24.14 has no `Temporal`, and using it only where
+  it exists would let the same call answer differently on Node 24 and 26. Every
+  zone operation is `Intl.DateTimeFormat` over the IANA data Node ships.
+- **Five commands under `util time`:** `convert`, `duration`, `business-days add`,
+  `business-days diff` and `cron`, one MCP tool each, with no short alias.
+- **A DST gap resolves forward and an overlap to the earlier instant**, Temporal's
+  "compatible" choice, always with a `TIME_DST_GAP` / `TIME_DST_OVERLAP` warning and
+  a `dst` object in `data`. There's no flag to choose otherwise; an offset does that.
+- **Cron lists a skipped run time in `skipped`, not as a run**, and a repeated one
+  once, at its first occurrence. Schedulers differ on both, and the warnings say so.
+- **A time without an offset needs `zone` in `convert`**, and is refused without
+  one. The other commands' `zone` defaults to UTC, which `data.zone` reports.
+- **Durations from seconds are written in hours** (`PT26H`), never days, so they
+  stay exact. A day in a parsed duration counts as 24 hours, flagged `APPROXIMATED`;
+  years and months give `totalSeconds: null`, flagged `UNVERIFIED`.
+- **Business days are Monday to Friday**, with no configurable weekend and no
+  built-in holidays; the caller lists holidays (a file or `--holiday`). `add`
+  counts as a spreadsheet's WORKDAY does. `diff` reports business time as whole
+  24-hour days plus hours, with no working-hours window.
+- **Cron dialects:** standard follows the classic crontab's OR rule for the two day fields (AND
+  when either starts with `*`); Jenkins ANDs them, as its `CronTab.check` does;
+  Quartz requires `?` in one. Detected when not given; a detected standard
+  expression with both day fields set warns `CRON_DIALECT_ASSUMED`.
+- **Jenkins `H` needs `--job`** and is otherwise `INVALID_INPUT`, rather than
+  explaining an expression it can't place. Only one expression line is read: no
+  `TZ=` line and no multi-line specs.
+- **Quartz `nW` in a month without day n doesn't run that month**, as plain `31`
+  doesn't.
+- **The cron explanation is reported `unchecked`** on every call: its wording is
+  built from the same fields as the run times, which are what's checked.
+- **The search horizon is 100 years** (or Quartz's last listed year), with
+  `CRON_FEW_RUNS` when fewer runs than asked are found.
+- **Skipped run times are capped** (review of #194): `skipped` lists the first 100
+  and `skippedTotal` counts every one, and the walk stops after 5,000 skipped run
+  times with `CRON_SEARCH_STOPPED`. 5,000 covers a whole every-second gap hour
+  (3,600), and a schedule that only ever lands in gaps ends at once.
+- **The reference table is computed in Java** (`test/fixtures/util-time/CronReference.java`),
+  with java.time, its own zone data and the real `java.util.Random`, and committed
+  as JSON, so `npm test` needs no JDK.
+- **The holiday file is read in `time.ts`, not in the lazily loaded engine**,
+  following #188: lazily loaded code must not import zod, and `kit/input.ts` does.
+  No kit change.
+- **The skill checker reads `-1` as an argument, not a flag**, as commander 15 does,
+  so `toil util time business-days add 2026-12-28 -1` passes `test/skills.test.ts`.

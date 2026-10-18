@@ -14,11 +14,11 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
 const shortPaths = new Set(['jwt', 'deps']);
 ---
 
-<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, summarise test, SARIF and coverage reports, triage a large log, scan for secrets before a commit, and size files and folders before reading them, with no connection and no network.">
+<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, summarise test, SARIF and coverage reports, triage a large log, scan for secrets before a commit, size files and folders before reading them, and work out time zones, durations, business days and cron run times, with no connection and no network.">
   <PageHero
     eyebrow="<b>Docs</b> · Utilities"
     title="Local utilities, <em>no network.</em>"
-    lead="Commands that work on what's on your machine: a token you paste, a file, folder or log in your workspace, its manifests and lockfiles, the reports a build leaves behind, or a change you're about to commit. No connection, no credential, nothing sent anywhere."
+    lead="Commands that work on what's on your machine: a token you paste, a file, folder or log in your workspace, its manifests and lockfiles, the reports a build leaves behind, a change you're about to commit, or a time and a time zone. No connection, no credential, nothing sent anywhere."
   >
     <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <span>Utilities</span></p>
   </PageHero>
@@ -105,6 +105,24 @@ const shortPaths = new Set(['jwt', 'deps']);
           </div>
           <p>
             Over MCP there's no stdin to pipe through, so an agent saves the scan to a file in the workspace and passes it as <code>from</code>.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Time zones, durations, business days and cron</h2>
+          <p>
+            <code>time convert</code>, <code>time duration</code>, <code>time business-days add</code> and <code>diff</code>, and
+            <code>time cron</code> do the date arithmetic that's easy to get subtly wrong, on the time zone data Node already ships. Each one
+            checks its own answer a second way, by converting back, counting again or matching each run time against the expression, and says
+            what it checked.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util time convert 2026-03-08T02:30 --zone America/New_York --to Europe/London</span><span class="line"><span class="p">$</span> toil util time cron "H H(0-7) * * 1-5" --dialect jenkins --job platform/api-build</span></pre>
+          </div>
+          <p>
+            A clock time that a daylight saving change skipped or showed twice is always pointed out, never quietly picked. Cron reads standard
+            five-field, Quartz and Jenkins <code>H</code> expressions, and business days skip weekends and the holidays you list. None are
+            built in.
           </p>
         </section>
 
