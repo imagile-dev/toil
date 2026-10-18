@@ -18,14 +18,14 @@ interface Generator {
   doc: Json;
   spec: Spec;
   direction: Direction;
-  /** `$ref`s followed so far, against {@link MAX_FOLLOWED}. */
-  followed?: number;
+  /** Values generated so far, against {@link MAX_NODES}. */
+  nodes?: number;
   /** Set when the budget ran out. */
   truncated?: boolean;
 }
 
-/** The most `$ref`s one example follows: required properties can fan out as fast as any schema. */
-export const MAX_FOLLOWED = 50_000;
+/** The most values one example generates: required properties can fan out as fast as any schema. */
+export const MAX_NODES = 250_000;
 
 /** Placeholder values for the formats JSON Schema and OpenAPI name; hosts and addresses are placeholders that never resolve. */
 const FORMATS: Record<string, string> = {
@@ -216,17 +216,17 @@ function merge(a: Json, b: Json): Json {
  * describes (`required: [conclusion]` beside the parent's `properties`).
  */
 function generate(g: Generator, node: Json | undefined, trail: string[], outer: JsonObject = {}): Json {
+  g.nodes = (g.nodes ?? 0) + 1;
+  if (g.nodes > MAX_NODES) {
+    g.truncated = true;
+    return null;
+  }
   if (node === undefined || node === true) return {};
   if (!isObject(node)) return null;
   if (typeof node.$ref === 'string') {
     const target = refPointer(node.$ref);
     // A ref that loops, required all the way round, has no finite example; null lets validation say so.
     if (target === undefined || trail.filter((t) => t === target).length >= 2) return null;
-    g.followed = (g.followed ?? 0) + 1;
-    if (g.followed > MAX_FOLLOWED) {
-      g.truncated = true;
-      return null;
-    }
     const value = atPointer(g.doc, target);
     if (value === undefined) return null;
     const siblings = without(node, '$ref');
@@ -239,17 +239,21 @@ function generate(g: Generator, node: Json | undefined, trail: string[], outer: 
   let value: Json | undefined;
   if (type === 'null') value = null;
   else if (type === 'object') {
-    const props = { ...outer, ...(isObject(node.properties) ? node.properties : {}) };
+    // Looked up, not merged: copying a wide schema's properties for every object generated is where the time went.
+    const own = isObject(node.properties) ? node.properties : {};
+    const prop = (name: string) => (Object.hasOwn(own, name) ? own[name] : outer[name]);
     const required = Array.isArray(node.required) ? node.required.filter((r): r is string => typeof r === 'string') : [];
     const out: JsonObject = {};
     for (const name of required) {
-      if (leftOut(g, props[name])) continue;
-      out[name] = generate(g, props[name] ?? (isObject(node.additionalProperties) ? node.additionalProperties : true), trail);
+      if (leftOut(g, prop(name))) continue;
+      out[name] = generate(g, prop(name) ?? (isObject(node.additionalProperties) ? node.additionalProperties : true), trail);
     }
     const minProps = typeof node.minProperties === 'number' ? node.minProperties : 0;
-    for (const name of Object.keys(props)) {
-      if (Object.keys(out).length >= minProps) break;
-      if (!(name in out) && !leftOut(g, props[name])) out[name] = generate(g, props[name], trail);
+    if (Object.keys(out).length < minProps) {
+      for (const name of new Set([...Object.keys(outer), ...Object.keys(own)])) {
+        if (Object.keys(out).length >= minProps) break;
+        if (!(name in out) && !leftOut(g, prop(name))) out[name] = generate(g, prop(name), trail);
+      }
     }
     value = out;
   } else if (type === 'array') {

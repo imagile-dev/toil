@@ -2,8 +2,8 @@ import { ToilError } from '../../../core/errors.js';
 import type { InputContext, UtilInput } from '../kit/input.js';
 import { Verifier, type Verified } from '../kit/verify.js';
 import { atPointer, checkDocument, isObject, type DocumentReport, type JsonObject, type LoadedDocument, loadDocument, type Spec } from './document.js';
-import { checkExample, generateExample, MAX_FOLLOWED, type Direction } from './example.js';
-import { checkOperations, findOperation, MAX_EXPANDED, operations, requestBody, responses, showOperation, summarise, type Operation, type OperationSummary, type ShownOperation } from './operations.js';
+import { checkExample, generateExample, MAX_NODES as MAX_EXAMPLE_NODES, type Direction } from './example.js';
+import { checkOperations, findOperation, MAX_NODES, operations, requestBody, responses, showOperation, summarise, type Operation, type OperationSummary, type ShownOperation } from './operations.js';
 
 /**
  * What the three `util openapi` commands run, loaded only when one of them
@@ -68,7 +68,7 @@ export async function showOne(ctx: InputContext, source: UtilInput, input: Selec
   if (shown.expansion.truncated) {
     ctx.warn({
       code: 'OPENAPI_EXPANSION_TRUNCATED',
-      message: `Expanding $refs stopped after ${MAX_EXPANDED}; every ref after that is left in place with x-toil-stop "depth". Pass a smaller depth to see the whole operation at that depth.`,
+      message: `Expanding $refs stopped at ${MAX_NODES} objects and arrays built; every ref after that is left in place with x-toil-stop "depth". Pass a smaller depth to see the whole operation at that depth.`,
     });
   }
   return { document, ...shown, verified: v.done() };
@@ -113,11 +113,14 @@ export async function exampleBody(ctx: InputContext, source: UtilInput, input: S
   }
   const schema = body.formSchema ?? atPointer(doc, body.schemaPointer!)!;
   const { example, truncated } = generateExample(doc, spec, schema, direction);
-  if (truncated) {
-    ctx.warn({ code: 'OPENAPI_EXAMPLE_TRUNCATED', message: `Building the example stopped after following ${MAX_FOLLOWED} $refs; the values past that are null, and example.valid says where they don't fit.` });
-  }
-  const check = await checkExample(doc, spec, direction, example, body.formSchema ? { inline: body.formSchema } : { pointer: body.schemaPointer! });
-  if (check.result) {
+  // A cut-short example has nulls where values belong, so it can't be valid; validating 250,000 values to say so would only cost time.
+  const check = truncated ? undefined : await checkExample(doc, spec, direction, example, body.formSchema ? { inline: body.formSchema } : { pointer: body.schemaPointer! });
+  if (!check) {
+    v.fail('example.valid', { at: '/', actual: `cut short at ${MAX_EXAMPLE_NODES} values` }, {
+      code: 'OPENAPI_EXAMPLE_TRUNCATED',
+      message: `Building the example stopped at ${MAX_EXAMPLE_NODES} values, so the values past that are null and it was not validated. Ask for a smaller body (another response or content type), or build that part by hand.`,
+    });
+  } else if (check.result) {
     if (check.result.valid) v.pass('example.valid');
     for (const p of check.result.problems) {
       v.fail('example.valid', { at: p.pointer || '/', actual: p.message }, { code: 'OPENAPI_EXAMPLE_INVALID', message: `The generated example fails its own schema at ${p.pointer || '/'}: ${p.message} It is returned as generated; fill that value in by hand.` });

@@ -203,22 +203,29 @@ describe('util openapi show', () => {
     expect(JSON.stringify(data.responses)).toContain('"x-toil-stop":"circular"');
   });
 
-  it('stops expanding a fan-out of refs at a budget, quickly, and warns that it did', async () => {
-    // The diamond: S0 to S21, each with three properties that all refer to the next, so depth 20 is 3^20 expansions.
+  it('stops expanding a fan-out of wide schemas at a node budget, quickly, and warns that it did', async () => {
+    // The diamond: S0 to S21, each with three properties that all refer to the next, so depth 20 is 3^20
+    // expansions, and 200 inline properties besides, so each copy is wide.
+    const wide = Object.fromEntries(Array.from({ length: 200 }, (_, i) => [`p${i}`, { type: 'string', description: 'filler' }]));
     const schemas: Data = {};
     for (let i = 0; i <= 21; i++) {
       const next = { $ref: `#/components/schemas/S${i + 1}` };
-      schemas[`S${i}`] = i === 21 ? { type: 'string' } : { type: 'object', required: ['a', 'b', 'c'], properties: { a: next, b: next, c: next } };
+      schemas[`S${i}`] = i === 21 ? { type: 'string' } : { type: 'object', required: ['a', 'b', 'c'], properties: { ...wide, a: next, b: next, c: next } };
     }
     const doc = { openapi: '3.0.3', info: { title: 'Diamond', version: '1' }, paths: { '/d': { post: { operationId: 'diamond', requestBody: { content: { 'application/json': { schema: { $ref: '#/components/schemas/S0' } } } }, responses: { '200': { description: 'ok' } } } } }, components: { schemas } };
     const started = performance.now();
     const shown = await run(openapiShowCommand, { text: asText(doc), operation: 'diamond', depth: 20 });
     expect(performance.now() - started).toBeLessThan(10_000);
-    expect(shown.data.expansion).toMatchObject({ expanded: 50_000, truncated: true });
+    expect(shown.data.expansion).toMatchObject({ truncated: true });
+    // One target's worth past the budget at most, never the whole fan-out.
+    expect(shown.data.expansion.nodes).toBeLessThan(250_000 + 1_000);
     expect(shown.warnings).toContainEqual(expect.objectContaining({ code: 'OPENAPI_EXPANSION_TRUNCATED' }));
+    expect(JSON.stringify(shown.envelope).length).toBeLessThan(100_000_000);
+    expect(performance.now() - started).toBeLessThan(10_000);
     const example = await run(openapiExampleCommand, { text: asText(doc), operation: 'diamond' });
     expect(example.warnings).toContainEqual(expect.objectContaining({ code: 'OPENAPI_EXAMPLE_TRUNCATED' }));
     expect(check(example.data, 'example.valid')).toMatchObject({ status: 'failed' });
+    expect(JSON.stringify(example.envelope).length).toBeLessThan(100_000_000);
     expect(performance.now() - started).toBeLessThan(20_000);
   });
 

@@ -129,21 +129,25 @@ function parameters(doc: Json, o: Operation): RawParameter[] {
   return [...merged.values()];
 }
 
-/** How far to expand, and what expansion left as a `$ref`. */
 /**
- * The most `$ref`s one `show` expands. Refs fan out: a schema whose three
- * properties each refer to the next one, twenty deep, is 3^20 expansions,
- * which would hold the MCP server until the heat death of the change board.
+ * The most objects and arrays one `show` builds while expanding. Refs fan
+ * out, and each copies its whole target: a schema whose three properties each
+ * refer to the next one, twenty deep, is 3^20 copies, which would hold the MCP
+ * server until the heat death of the change board. Counting nodes rather than
+ * refs also bounds a fan-out of wide schemas.
  */
-export const MAX_EXPANDED = 50_000;
+export const MAX_NODES = 250_000;
 
+/** How far to expand, and what expansion left as a `$ref`. */
 export interface Expansion {
   depth: number;
   /** `$ref`s left in place, by why: the depth was reached, the ref loops back on itself, it points outside the document, or at nothing. */
   stopped: { depth: number; circular: number; external: number; broken: number };
-  /** How many `$ref`s were expanded, at most {@link MAX_EXPANDED}. */
+  /** How many `$ref`s were expanded. */
   expanded: number;
-  /** Set when the budget ran out: every ref after that was left in place, counted under `stopped.depth`. */
+  /** How many objects and arrays expansion built, held near {@link MAX_NODES}. */
+  nodes: number;
+  /** Set when the node budget ran out: every ref after that was left in place, counted under `stopped.depth`. */
   truncated: boolean;
 }
 
@@ -155,7 +159,10 @@ export interface Expansion {
  * spec says; from 3.1 they're kept, over the target's keys.
  */
 export function expand(doc: Json, spec: Spec, node: Json, expansion: Expansion, trail: string[] = [], names = false): Json {
-  if (Array.isArray(node)) return node.map((child) => expand(doc, spec, child, expansion, trail));
+  if (Array.isArray(node)) {
+    expansion.nodes++;
+    return node.map((child) => expand(doc, spec, child, expansion, trail));
+  }
   if (!isObject(node)) return node;
   if (!names && typeof node.$ref === 'string') {
     const ref = node.$ref;
@@ -167,7 +174,7 @@ export function expand(doc: Json, spec: Spec, node: Json, expansion: Expansion, 
     if (target === undefined) return stop('external');
     if (trail.includes(target)) return stop('circular');
     if (trail.length >= expansion.depth) return stop('depth');
-    if (expansion.expanded >= MAX_EXPANDED) {
+    if (expansion.nodes >= MAX_NODES) {
       expansion.truncated = true;
       return stop('depth');
     }
@@ -179,6 +186,7 @@ export function expand(doc: Json, spec: Spec, node: Json, expansion: Expansion, 
     const keep = spec === 'openapi-3.1' || spec === 'openapi-3.2' ? expand(doc, spec, siblings, expansion, trail) : {};
     return isObject(expanded) ? { ...expanded, ...(keep as JsonObject), 'x-toil-ref': ref } : expanded;
   }
+  expansion.nodes++;
   const out: JsonObject = {};
   for (const [key, child] of Object.entries(node)) {
     // Examples, defaults and extensions are data, copied as written; under `properties` every key is a name.
@@ -362,7 +370,7 @@ export function apiCall(doc: JsonObject, spec: Spec, o: Operation, params: Param
 /** One operation, laid out with its refs expanded `depth` deep. */
 export function showOperation(loaded: LoadedDocument, o: Operation, depth: number): ShownOperation {
   const { doc, spec } = loaded;
-  const expansion: Expansion = { depth, stopped: { depth: 0, circular: 0, external: 0, broken: 0 }, expanded: 0, truncated: false };
+  const expansion: Expansion = { depth, stopped: { depth: 0, circular: 0, external: 0, broken: 0 }, expanded: 0, nodes: 0, truncated: false };
   const schemaAt = (pointer: string | null) => (pointer === null ? null : expand(doc, spec, atPointer(doc, pointer) ?? null, expansion));
   const params: Parameter[] = parameters(doc, o)
     .filter((p) => spec !== 'swagger-2.0' || (p.in !== 'body' && p.in !== 'formData'))
