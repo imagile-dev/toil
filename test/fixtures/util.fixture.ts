@@ -3,6 +3,7 @@ import type { GitResult, GitRunner } from '../../src/core/git.js';
 import { SAMPLE_PNG_BASE64 } from '../../src/areas/util/encode.js';
 import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
+import { makeChain } from '../harness/x509.js';
 
 /**
  * The `util` group's commands are standalone and local: jwt decode reads only
@@ -80,6 +81,11 @@ export const POM = `<project>
 </project>
 `;
 
+/**
+ * `util cert`'s chain: a test root, issuing CA and leaf for api.imagile.dev,
+ * made fresh for each run with keys that never leave memory (test/harness/x509.ts).
+ */
+const chain = makeChain();
 /** encode's samples: a real 1x1 PNG, and the same bytes as MIME writes base64, wrapped at 76 characters with CRLF. */
 export const PIXEL_PNG = new Uint8Array(Buffer.from(SAMPLE_PNG_BASE64, 'base64'));
 export const PIXEL_B64 = `${SAMPLE_PNG_BASE64.slice(0, 76)}\r\n${SAMPLE_PNG_BASE64.slice(76)}\r\n`;
@@ -99,6 +105,8 @@ export const files: Record<string, string | Uint8Array> = {
   'encode/pixel.png': PIXEL_PNG,
   'encode/pixel.b64': PIXEL_B64,
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
+  'certs/chain.pem': chain.pem,
+  'certs/leaf.der': chain.leaf.der,
   ...reportFiles,
 };
 

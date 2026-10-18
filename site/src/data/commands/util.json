@@ -49,6 +49,18 @@
     ]
   },
   {
+    "name": "cert",
+    "tool": "util_cert",
+    "description": "Decode certificates (PEM or DER, one or a chain) and check the chain order, signatures, validity and an optional host (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--host <host>"
+    ]
+  },
+  {
     "name": "report",
     "tool": "util_report",
     "description": "Summarise a JUnit, TRX, SARIF, lcov or Cobertura report as one JSON result, checked against its own totals (local only, no network)",

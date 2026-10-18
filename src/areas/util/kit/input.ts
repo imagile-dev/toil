@@ -57,7 +57,7 @@ export interface ReadOptions {
    * stdin is always held to it, since it's held in memory.
    */
   maxBytes?: number;
-  /** `refuse` (the default): a NUL byte in the first 8,000 bytes is INVALID_INPUT. `allow`, for a command that takes bytes. */
+  /** `refuse` (the default): a NUL byte in the first 8,000 bytes is INVALID_INPUT. `allow`, for a command that takes bytes. The UTF-8 check is `utf8`'s, not this. */
   binary?: 'refuse' | 'allow';
   /** See {@link DEFAULT_MAX_LINE}. */
   maxLineLength?: number;
