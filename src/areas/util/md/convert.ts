@@ -294,7 +294,7 @@ export async function validateAdf(value: unknown, signal?: AbortSignal) {
   const [{ validateBounded }, schema] = await Promise.all([import('../kit/bounded.js'), adfSchema ?? import('./adf-schema.json', { with: { type: 'json' } }).then((m) => m.default)]);
   adfSchema = schema;
   // In a bounded worker: a document can make the ADF schema's anyOf branches cost more than any reply is worth.
-  const result = await validateBounded(schema as never, value, { signal });
+  const result = await validateBounded(schema as never, value, { signal, key: 'adf' });
   return { ...result, problems: result.problems.slice(0, 20) };
 }
 

@@ -1630,6 +1630,20 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   cleans `dist/` except that metafile. `runBounded` takes the command's `signal`:
   a cancel terminates the worker at once, as `cancelled` (`util openapi` and `util md`
   pass `ctx.signal`).
+- **Round 11: one warm worker, not one per task.** CI on windows-latest / Node 26
+  timed out util md's corpus round trip at 5 s. Each validation had started its
+  own worker, sent the whole ADF schema and built a validator from it again.
+  `runBounded` now keeps one worker per process, made on first use: tasks queue
+  and run one at a time, each with its own deadline. A timeout, memory limit,
+  crash or cancel terminates that worker, and the next task starts a fresh one
+  (tested: a task stopped at its deadline, then the next passing). A cancel
+  removes a queued task without touching the running one. The worker is unref'd
+  while idle, so it never keeps a command's process alive, and is terminated on
+  exit. A schema used repeatedly is sent under a key (`adf`, the OpenAPI version)
+  and built once per worker. On this laptop, one ADF validation went from about
+  24 ms to about 1 ms once warm (the first, cold, about 60 ms). The corpus test
+  went from 1,256 ms to 1,232 ms: locally its time is the conversions, not the
+  validations, which are where the slow runner's cost was.
 - **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
   Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
   extension isn't a reference; under `properties` and the other name maps every

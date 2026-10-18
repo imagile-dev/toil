@@ -328,7 +328,7 @@ export function checkRefs(doc: Json, spec: Spec, v: Verifier): RefReport {
 export async function checkDocument(loaded: LoadedDocument, v: Verifier, signal?: AbortSignal): Promise<DocumentReport> {
   const [{ leafProblems }, { validateBounded }] = await Promise.all([import('../kit/json-schema.js'), import('../kit/bounded.js')]);
   const { schema, references } = await officialSchema(loaded.spec);
-  const result = await validateBounded(schema, loaded.doc, { references, signal });
+  const result = await validateBounded(schema, loaded.doc, { references, signal, key: loaded.spec });
   const leaves = leafProblems(result.problems).map((p) => ({ ...p, message: brief(p.message) }));
   if (result.unchecked !== undefined) v.unchecked('document.schema', result.unchecked);
   else if (result.valid) v.pass('document.schema');

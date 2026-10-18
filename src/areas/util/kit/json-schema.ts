@@ -17,7 +17,7 @@ import { Validator, type Schema, type SchemaDraft } from '@cfworker/json-schema'
  * approve a schema: governance, all the way down.
  */
 
-export type { Schema, SchemaDraft };
+export type { Schema, SchemaDraft, Validator };
 
 export interface SchemaProblem {
   /** JSON pointer into the validated value; `''` is the value itself. */
@@ -77,10 +77,31 @@ const pointer = (location: string) => {
  * the schema's `$schema`, else `draft`.
  */
 export function validateSchema(schema: Schema | boolean, value: unknown, options: { draft?: SchemaDraft; references?: Array<{ schema: Schema; id?: string }>; maxProblems?: number } = {}): SchemaResult {
+  let validator: Validator;
+  try {
+    validator = compileSchema(schema, options);
+  } catch (err) {
+    if (err instanceof RangeError) return { valid: false, problems: [], total: 0, unchecked: `validation ran out of room (${err.message}): the value or the schema nests too deep` };
+    throw err;
+  }
+  return validateWith(validator, value, options);
+}
+
+/**
+ * A validator for `schema` and its `references`, built once: building one
+ * reads the whole schema (ADF's is large), so a caller validating many values
+ * against one schema keeps it (kit/bounded-task.ts does, per schema key).
+ */
+export function compileSchema(schema: Schema | boolean, options: { draft?: SchemaDraft; references?: Array<{ schema: Schema; id?: string }> } = {}): Validator {
+  const validator = new Validator(schema, options.draft ?? schemaDraft(schema), false);
+  for (const ref of options.references ?? []) validator.addSchema(ref.schema, ref.id);
+  return validator;
+}
+
+/** Validates `value` with a validator from {@link compileSchema}; see {@link validateSchema}. */
+export function validateWith(validator: Validator, value: unknown, options: { maxProblems?: number } = {}): SchemaResult {
   let result: ReturnType<Validator['validate']>;
   try {
-    const validator = new Validator(schema, options.draft ?? schemaDraft(schema), false);
-    for (const ref of options.references ?? []) validator.addSchema(ref.schema, ref.id);
     result = validator.validate(value);
   } catch (err) {
     // The validator recurses with the schema and the value; past the stack's depth that's a RangeError, which is a limit, not a bug.

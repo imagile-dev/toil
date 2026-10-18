@@ -102,6 +102,31 @@ describe('runBounded', () => {
     expect(await validateBounded({ type: 'string' }, 'x', { signal: before.signal })).toMatchObject({ valid: false, unchecked: expect.stringContaining('cancelled') });
   });
 
+  it('runs the next task on a fresh worker after one is stopped at its deadline', async () => {
+    const stuck = matchBounded([{ pattern: '^(a+)+$', candidates: [`${'a'.repeat(40)}!`] }], { timeoutMs: 300 });
+    // Queued behind it: runs once the stuck task's worker is gone.
+    const next = validateBounded({ type: 'string' }, 'x');
+    expect(await stuck).toMatchObject({ ok: false, cause: 'timeout' });
+    expect(await next).toEqual({ valid: true, problems: [], total: 0 });
+  }, 20_000);
+
+  it('cancels a queued task without touching the one running ahead of it', async () => {
+    const controller = new AbortController();
+    const ahead = validateBounded({ type: 'string', pattern: '^[a-z]+$' }, 'abc');
+    const queued = validateBounded({ type: 'string' }, 'x', { signal: controller.signal });
+    controller.abort();
+    expect(await queued).toMatchObject({ unchecked: expect.stringContaining('cancelled') });
+    expect(await ahead).toEqual({ valid: true, problems: [], total: 0 });
+  });
+
+  it('reuses one warm worker: a run of tasks costs one start, not one each', async () => {
+    await validateBounded({ type: 'string' }, 'warm');
+    const started = performance.now();
+    for (let i = 0; i < 50; i++) await validateBounded({ type: 'object', required: ['a'] }, { a: i });
+    // Fifty starts would take about a second on their own; fifty messages to one worker take a few milliseconds each at most.
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
   it('stops a backtracking pattern while matching candidates, too', async () => {
     const started = performance.now();
     const outcome = await matchBounded([{ pattern: '^(a+)+$', candidates: [`${'a'.repeat(40)}!`] }]);
