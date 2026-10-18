@@ -505,8 +505,8 @@ export const reviewView: View = {
       const repo = x.code === 'DOSSIER_REMOTE_USERINFO' ? reposOf(s)[Number(x.path.slice('repos['.length, x.path.indexOf(']')))] : undefined;
       if (repo && !seen.has(`repo:${repo.name}`)) {
         seen.add(`repo:${repo.name}`);
-        // Re-adding the repo as it is writes the file again, and a write leaves every remote without its credential.
-        items.push({ label: `Remove the credential from ${repo.name}`, hint: 'Re-add it as it is; the file keeps no credential', attention: true, action: { run: editRun(`Clean ${repo.name}`, ref, [{ args: ['dossiers', 'add-repo', ref, repo.path ?? repo.remotes[0] ?? repo.name, '--name', repo.name] }], backToReview(), true) } });
+        // Re-adding one of the repo's own remotes adds nothing, and any dossier write leaves every stored remote without its credential.
+        items.push({ label: `Remove the credential from ${repo.name}`, hint: 'Re-add it as it is; the file keeps no credential', attention: true, action: { run: editRun(`Clean ${repo.name}`, ref, [{ args: ['dossiers', 'add-repo', ref, repo.remotes[0] ?? repo.path ?? repo.name, '--name', repo.name] }], backToReview(), true) } });
       }
       const at = findingSection(x.path);
       if (!at) continue;

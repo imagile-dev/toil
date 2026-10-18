@@ -713,10 +713,12 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
 - **Every dossier write says when it took a credential out of the file** (round 1).
   Remotes are read with userinfo stripped, so any save already wrote them clean,
   silently; now the result carries `credentialsRemoved` (the key paths) and a
-  `DOSSIER_REMOTE_USERINFO` warning. `add-repo` with the same repo as stored
-  counts as a change when that repo's stored remote has a credential, so re-adding it
-  cleans it instead of reporting `changed: false`; it needs no `--replace`, since the
-  entry is otherwise identical. A credential is never written back.
+  `DOSSIER_REMOTE_USERINFO` warning. Any edit that reaches the save writes the file
+  when it holds a credential, even one that changes nothing else, and reports
+  `changed: true`. `add-repo` with a remote the repo already lists (and its path, or
+  none) adds nothing and needs no `--replace`, so re-adding a repo by its first remote
+  cleans a credential in any of them and keeps them all; Review's fix runs exactly
+  that. A credential is never written back.
 - **The menu matches host selectors with core's own `hostMatches`** (now exported
   from `src/core/dossier.ts`), so `jira.imagile.dev:443` finds a connection with
   writes on exactly as the resolver does and the typed confirmation can't be

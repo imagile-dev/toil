@@ -397,6 +397,15 @@ describe('credentials in stored remotes, and removing a section', () => {
     expect(again).not.toHaveProperty('credentialsRemoved');
   });
 
+  it('cleans a credential in a second remote when the repo is re-added by its first, keeping both remotes', async () => {
+    const d = disk({ 'home/.toil/dossiers/pay.json': { name: 'pay', repos: [{ name: 'api', remotes: ['https://git.imagile.dev/pay/api.git', 'https://ci:t0ken@git.imagile.dev/pay/api-mirror.git'] }] } });
+    const run = ok(await cli(d, ['dossiers', 'add-repo', 'pay', 'https://git.imagile.dev/pay/api.git', '--name', 'api']));
+    expect(run).toMatchObject({ changed: true, credentialsRemoved: ['repos[0].remotes[1]'], repo: { remotes: ['https://git.imagile.dev/pay/api.git', 'https://git.imagile.dev/pay/api-mirror.git'] } });
+    expect(JSON.parse(stored(d)).repos).toEqual([{ name: 'api', remotes: ['https://git.imagile.dev/pay/api.git', 'https://git.imagile.dev/pay/api-mirror.git'] }]);
+    // A remote it doesn't list is still a different repo, refused without --replace.
+    expect((await cli(d, ['dossiers', 'add-repo', 'pay', 'https://git.imagile.dev/pay/other.git', '--name', 'api'])).envelope.error?.code).toBe('INVALID_INPUT');
+  });
+
   it('any edit that writes reports the credentials it took out of other repos', async () => {
     const d = disk(withToken());
     expect(ok(await cli(d, ['dossiers', 'link', 'pay', 'jira', '--set', 'project=PAY']))).toMatchObject({ changed: true, credentialsRemoved: ['repos[0].remotes[0]'] });

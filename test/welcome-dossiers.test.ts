@@ -232,7 +232,7 @@ describe('the Dossiers module', () => {
   });
 
   it('fixes a stale section and a stored credential from Review, with real commands', async () => {
-    const d = disk({ 'home/.toil/dossiers/team.json': { name: 'team', repos: [{ name: 'api', remotes: ['https://ci:t0ken@git.imagile.dev/pay/api.git'] }], wiki: { space: 'X' } } });
+    const d = disk({ 'home/.toil/dossiers/team.json': { name: 'team', repos: [{ name: 'api', remotes: ['https://git.imagile.dev/pay/api.git', 'https://ci:t0ken@git.imagile.dev/pay/api-mirror.git'] }], wiki: { space: 'X' } } });
     const c = configOf();
     const w = data(c);
     let s = press(settled, w, '6', '2');
@@ -247,6 +247,7 @@ describe('the Dossiers module', () => {
     expect(steps(clean)).toEqual([['dossiers', 'add-repo', 'team', 'https://git.imagile.dev/pay/api.git', '--name', 'api'], ['dossiers', 'show', 'team'], ['dossiers', 'check', 'team']]);
     s = press(await perform(clean, d, c), w, 'return');
     expect(readFileSync(join(d.home, '.toil', 'dossiers', 'team.json'), 'utf8')).not.toContain('t0ken');
+    expect(file(d, 'team').repos).toEqual([{ name: 'api', remotes: ['https://git.imagile.dev/pay/api.git', 'https://git.imagile.dev/pay/api-mirror.git'] }]);
     expect(screen(s, w)).not.toContain('Remove the credential');
     // The section: type its name, then unlink.
     s = press(s, w, '1');

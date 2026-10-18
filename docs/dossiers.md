@@ -384,8 +384,9 @@ files directly:
   checked with the reader that will load it before anything is written. Remotes are
   read with any credential stripped, so every write leaves the file without one; the
   result names each remote it cleaned (`credentialsRemoved`, and a
-  `DOSSIER_REMOTE_USERINFO` warning). Re-adding a repo as it is (`add-repo` with the
-  same folder or remote and `--name`) is the way to clean one on its own.
+  `DOSSIER_REMOTE_USERINFO` warning). Re-adding a repo by a remote it already lists
+  (`add-repo <dossier> <remote> --name <repo>`) adds nothing, needs no `--replace`, and
+  is the way to clean one on its own.
 - **Reading and checking** (built; all served over MCP, all local reads):
   - `toil dossiers list [--cwd <dir>]` lists every dossier toil can see, with its
     `source`, the file that shadows it when two share a name, and broken files with

@@ -108,14 +108,17 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
         if (entry.path && other.path && samePath(entry.path, other.path)) throw new ToilError('INVALID_INPUT', `Dossier ${dossier.name} already has ${entry.path} as repo "${other.name}".`, { fix: `Leave it as it is, or remove it from "${other.name}" first.` });
       }
       const existing = dossier.repos.find((r) => r.name === entry.name);
-      // A stored remote with a credential reads back without it, so re-adding the same repo is still a change: it writes the credential out of the file.
-      const differs = existing !== undefined && JSON.stringify(existing) !== JSON.stringify(entry);
-      const changed = existing === undefined || differs || credentialPaths(file, dossier.repos.indexOf(existing)).length > 0;
-      if (differs && !input.replace) {
+      // Already there: the same path (or none given) and remotes it already lists. Nothing to add, so no --replace needed.
+      const already =
+        existing !== undefined &&
+        (entry.path === undefined || (existing.path !== undefined && samePath(existing.path, entry.path))) &&
+        entry.remotes.every((r) => existing.remotes.some((x) => normalizeRemote(x) === normalizeRemote(r)));
+      if (existing && !already && !input.replace) {
         throw new ToilError('INVALID_INPUT', `Dossier ${dossier.name} already has a repo named "${entry.name}".`, { fix: `Pass --replace to replace it, or --name to add this one under another name.` });
       }
+      if (already && !input.replace) return saved(ctx, catalog, file, dossier, false, { repo: existing });
       dossier.repos = existing ? dossier.repos.map((r) => (r.name === entry.name ? entry : r)) : [...dossier.repos, entry];
-      return saved(ctx, catalog, file, dossier, changed, { repo: entry });
+      return saved(ctx, catalog, file, dossier, existing === undefined || JSON.stringify(existing) !== JSON.stringify(entry), { repo: entry });
     },
   });
 
@@ -451,20 +454,22 @@ function access(ctx: CommandContext<unknown>): Access {
 
 /**
  * Writes an edit back where it was read from; an edit that changes nothing
- * writes nothing. Remotes are read with any credential stripped, so a write
- * also takes every credential out of the file: that's said, in a warning and
- * in `credentialsRemoved`, never done quietly.
+ * writes nothing, unless the file holds a credential in a stored remote.
+ * Remotes are read with it stripped, so any write takes every credential out
+ * of the file, and an edit that reaches here always does: that's said, in a
+ * warning and in `credentialsRemoved`, and counts as a change.
  */
 function saved(ctx: CommandContext<unknown>, catalog: DossierCatalog, file: DossierFile & { dossier: Dossier }, dossier: Dossier, changed: boolean, extra: Record<string, unknown>) {
-  const written = changed ? catalog.save(file.file, dossier, 'edit') : forwardSlashes(file.file);
-  const removed = changed ? credentialPaths(file) : [];
+  const removed = credentialPaths(file);
+  const write = changed || removed.length > 0;
+  const written = write ? catalog.save(file.file, dossier, 'edit') : forwardSlashes(file.file);
   if (removed.length) ctx.warn({ code: 'DOSSIER_REMOTE_USERINFO', message: `Removed the credential from ${removed.join(', ')}; the file's remotes now carry none.` });
-  return { name: dossier.name, file: written, source: file.source, changed, ...extra, ...(removed.length ? { credentialsRemoved: removed } : {}) };
+  return { name: dossier.name, file: written, source: file.source, changed: write, ...extra, ...(removed.length ? { credentialsRemoved: removed } : {}) };
 }
 
-/** Key paths of stored remotes that carry a credential (`repos[0].remotes[1]`), for one repo by index or for all. */
-function credentialPaths(file: DossierFile, repo?: number): string[] {
-  return file.problems.filter((p) => p.code === 'DOSSIER_REMOTE_USERINFO' && (repo === undefined || p.path.startsWith(`repos[${repo}].`))).map((p) => p.path);
+/** Key paths of stored remotes that carry a credential, e.g. `repos[0].remotes[1]`. */
+function credentialPaths(file: DossierFile): string[] {
+  return file.problems.filter((p) => p.code === 'DOSSIER_REMOTE_USERINFO').map((p) => p.path);
 }
 
 function keyValue(pair: string, flag: string): [string, string] {
