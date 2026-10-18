@@ -41,7 +41,7 @@ export type PageStyle<T> =
   | { kind: 'header'; header: string; param: string; items: Items<T>; params?: Record<string, string | number> }
   | { kind: 'nextPageKey'; param?: string; items: Items<T>; key?: (body: unknown) => string | undefined; params?: Record<string, string | number> };
 
-export interface PaginateOptions {
+export interface PaginateOptions<T = unknown> {
   /** Stop after this many items and report the cursor in meta.page. Unset fetches every page. */
   cap?: number;
   /** A cursor from a previous meta.page.nextCursor, to carry on from there. */
@@ -50,6 +50,15 @@ export interface PaginateOptions {
   setPage?: (page: Page) => void;
   /** What is being listed, for messages: "Jira sprints for board 7". */
   what?: string;
+  /**
+   * Keeps only the items this returns true for, applied after the style has
+   * read the page, so paging still stops on the server's own page size and
+   * `cap` counts kept items only. A cursor's count of items already returned
+   * counts kept items too, so resuming skips exactly what was handed out. Page
+   * numbers and tokens only: an offset counts the server's items, which a
+   * filter would put out of step, so an offset style refuses it.
+   */
+  keep?: (item: T) => boolean;
 }
 
 /**
@@ -74,14 +83,15 @@ const values = <T>(body: unknown): T[] => (Array.isArray(field(body, 'values')) 
  * hand. `fetchPage` gets the paging parameters for one request and puts them
  * where the API wants them (a query string, or a POST body).
  */
-export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Record<string, string | number>) => Promise<FetchedPage>, options: PaginateOptions = {}): Promise<Paged<T>> {
-  const { cap } = options;
+export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Record<string, string | number>) => Promise<FetchedPage>, options: PaginateOptions<T> = {}): Promise<Paged<T>> {
+  const { cap, keep } = options;
   if (cap !== undefined && (!Number.isInteger(cap) || cap < 1)) throw new Error(`paginate: cap must be a positive whole number, not ${cap}.`);
   const items: T[] = [];
   // Offsets resume exactly as a plain number. Page numbers and tokens can only
   // name a whole page, so their cursor also says how many of its items were
   // already returned.
   const exact = style.kind === 'offset' || style.kind === 'nextPageStart';
+  if (keep && exact) throw new Error(`paginate: keep needs a page-number or token style, not ${style.kind}.`);
   let cursor: string | undefined = initial(style);
   let skip = 0;
   // Items the server has handed over before the current page, counting from
@@ -122,7 +132,7 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
     const next = advance(style, cursor, all, page, counted, reported);
     const skipped = skip;
     skip = 0;
-    const got = all.slice(skipped);
+    const got = (keep ? all.filter(keep) : all).slice(skipped);
 
     if (cap !== undefined && items.length + got.length >= cap) {
       const take = cap - items.length;

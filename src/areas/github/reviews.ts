@@ -2,8 +2,9 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { githubArea } from './area.js';
-import { github, githubAll, githubGraphql, target, type GitHubContext } from './client.js';
-import { parseIntText, prNumber, prNumberOption, repeatable } from './input.js';
+import { exampleCursor, github, githubGraphql, githubList, target, type GitHubContext } from './client.js';
+import { pageFields, pageOptions, parseIntText, prNumber, prNumberOption } from './input.js';
+import { repeatedFlag } from '../../core/schema.js';
 
 /**
  * Reviews, requested reviewers and review threads. Approving and requesting
@@ -15,14 +16,17 @@ import { parseIntText, prNumber, prNumberOption, repeatable } from './input.js';
 export const listReviewsCommand = githubArea.command({
   path: ['github', 'list-reviews'],
   description: 'List reviews on a pull request',
-  input: z.object({ number: prNumber }),
+  input: z.object({ number: prNumber, ...pageFields('reviews') }),
   writes: false,
-  options: [prNumberOption],
-  examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7' }],
+  options: [prNumberOption, ...pageOptions('reviews')],
+  examples: [
+    { owner: 'imagile', repo: 'toil-probe', number: '7' },
+    { owner: 'imagile', repo: 'toil-probe', number: '7', limit: 1, cursor: exampleCursor() },
+  ],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     const number = parseIntText(input.number);
-    return githubAll(ctx, `/repos/${owner}/${repo}/pulls/${number}/reviews`, `reviews on GitHub PR #${number}`);
+    return githubList(ctx, `/repos/${owner}/${repo}/pulls/${number}/reviews`, `reviews on GitHub PR #${number}`, {}, { limit: input.limit, cursor: input.cursor });
   },
 });
 
@@ -69,8 +73,8 @@ export const listReviewersCommand = githubArea.command({
 
 const reviewerInputs = {
   number: prNumber,
-  reviewer: repeatable('User reviewer login (repeatable) (default: [])'),
-  teamReviewer: repeatable('Team slug (repeatable) (default: [])'),
+  reviewer: repeatedFlag('User reviewer login (repeatable) (default: [])'),
+  teamReviewer: repeatedFlag('Team slug (repeatable) (default: [])'),
   ...allowWriteField,
 };
 

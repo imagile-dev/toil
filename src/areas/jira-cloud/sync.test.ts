@@ -38,19 +38,44 @@ describe('get-issue with several keys', () => {
     expect(envelope.meta.warnings).toBeUndefined();
   });
 
-  it('a key Jira left out is NOT_FOUND, an issueError is HTTP, and an issue that came back under a new key is still returned', async () => {
-    const { envelope } = await run(getIssue, { key: ['PROJ-1', 'PROJ-404', '10009', 'OLD-7'] }, [
-      bulk({ issueErrors: [{ id: '10009', errorMessage: 'Try again later' }], issues: [issue('PROJ-1', '10001'), issue('NEW-3', '10050')] }),
-    ]);
-    const data = envelope.data as { issues: Array<{ key: string }>; errors: Array<{ key: string; code: string }> };
-    expect(data.issues.map((i) => i.key)).toEqual(['PROJ-1', 'NEW-3']);
-    expect(data.errors).toEqual([
-      { key: 'PROJ-404', code: 'NOT_FOUND', message: expect.stringContaining("doesn't exist") },
-      { key: '10009', code: 'HTTP', message: 'Try again later' },
-      { key: 'OLD-7', code: 'NOT_FOUND', message: expect.any(String) },
-    ]);
-    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'JIRA_CLOUD_BULK_PARTIAL', message: expect.stringContaining('3 of 4') })]);
+  type Bulk = { issues: Array<{ key: string }>; errors: Array<{ key: string; code: string; message: string }> };
+
+  it('a key Jira left out is NOT_FOUND only when everything else in the answer is accounted for', async () => {
+    const { envelope } = await run(getIssue, { key: ['PROJ-1', 'PROJ-404'] }, [bulk({ issueErrors: [], issues: [issue('PROJ-1', '10001')] })]);
+    const data = envelope.data as Bulk;
+    expect(data.issues.map((i) => i.key)).toEqual(['PROJ-1']);
+    expect(data.errors).toEqual([{ key: 'PROJ-404', code: 'NOT_FOUND', message: expect.stringContaining("doesn't exist") }]);
+    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'JIRA_CLOUD_BULK_PARTIAL', message: expect.stringContaining('1 of 2') })]);
   });
+
+  it('a retryable error on a key asked for by key is one UNMATCHED error naming the id, never NOT_FOUND plus a second entry', async () => {
+    const { envelope } = await run(getIssue, { key: ['PROJ-1', 'PROJ-2'] }, [bulk({ issueErrors: [{ id: '10002', errorMessage: 'Try again later' }], issues: [issue('PROJ-1', '10001')] })]);
+    const data = envelope.data as Bulk;
+    expect(data.errors).toEqual([{ key: 'PROJ-2', code: 'UNMATCHED', message: expect.stringContaining('10002 (Try again later)') }]);
+    expect(data.errors.length).toBeLessThanOrEqual(2);
+  });
+
+  it('a retryable error on a key asked for by id is that key\'s HTTP error', async () => {
+    const { envelope } = await run(getIssue, { key: ['PROJ-1', '10009'] }, [bulk({ issueErrors: [{ id: '10009', errorMessage: 'Try again later' }], issues: [issue('PROJ-1', '10001')] })]);
+    expect((envelope.data as Bulk).errors).toEqual([{ key: '10009', code: 'HTTP', message: 'Try again later' }]);
+  });
+
+  it('a moved issue is returned under its new key, and the old key is UNMATCHED naming it, not NOT_FOUND', async () => {
+    const { envelope } = await run(getIssue, { key: ['PROJ-1', 'OLD-7'] }, [bulk({ issueErrors: [], issues: [issue('PROJ-1', '10001'), issue('NEW-3', '10050')] })]);
+    const data = envelope.data as Bulk;
+    expect(data.issues.map((i) => i.key)).toEqual(['PROJ-1', 'NEW-3']);
+    expect(data.errors).toEqual([{ key: 'OLD-7', code: 'UNMATCHED', message: expect.stringContaining('NEW-3') }]);
+  });
+
+  it('never reports more errors than keys asked for', async () => {
+    const { envelope } = await run(getIssue, { key: ['A-1', 'B-1'] }, [
+      bulk({ issueErrors: [{ id: '1', errorMessage: 'x' }, { id: '2', errorMessage: 'y' }, { id: '3', errorMessage: 'z' }], issues: [issue('C-1', '10070')] }),
+    ]);
+    const data = envelope.data as Bulk;
+    expect(data.errors.map((e) => [e.key, e.code])).toEqual([['A-1', 'UNMATCHED'], ['B-1', 'UNMATCHED']]);
+    expect(data.issues.map((i) => i.key)).toEqual(['C-1']);
+  });
+
 
   it('one key is still a GET of the issue itself', async () => {
     const { envelope, calls } = await run(getIssue, { key: 'PROJ-1' }, [{ method: 'GET', path: '/rest/api/3/issue/PROJ-1', respond: { json: issue('PROJ-1') } }]);

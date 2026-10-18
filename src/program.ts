@@ -6,7 +6,7 @@ import { ToilError, toToilError } from './core/errors.js';
 import { exitCodeOf, runCommand } from './core/run.js';
 import { SELECT_FIELD } from './core/query/select.js';
 import { longFlag, type ResolvedRoutedAlias } from './core/routed-alias.js';
-import { fieldSchema, fromText, repeatable } from './core/schema.js';
+import { fieldSchema, flagRepeats, fromText } from './core/schema.js';
 
 /** Flags every command accepts. Names and meanings are part of the contract. */
 export interface GlobalOptions {
@@ -555,10 +555,10 @@ function strayGroupFlags(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<
 
 const takesValue = (flags: string) => flags.includes('<') || flags.includes('[');
 
-/** How a field's flag repeats (`repeatable` in core/schema), or undefined when it doesn't. */
-function repeatsAs(def: AnyCommand, field: string): ReturnType<typeof repeatable> {
+/** How a field's flag repeats (`flagRepeats` in core/schema), or undefined when it doesn't. */
+function repeatsAs(def: AnyCommand, field: string): ReturnType<typeof flagRepeats> {
   const schema = fieldSchema(def.input, field);
-  return schema === undefined ? undefined : repeatable(schema);
+  return schema === undefined ? undefined : flagRepeats(schema);
 }
 
 const isArrayField = (def: AnyCommand, field: string): boolean => repeatsAs(def, field) !== undefined;
@@ -573,7 +573,7 @@ const isArrayField = (def: AnyCommand, field: string): boolean => repeatsAs(def,
 function typed(def: AnyCommand, field: string, value: unknown): unknown {
   const schema = fieldSchema(def.input, field);
   if (!schema) return value;
-  const repeats = repeatable(schema);
+  const repeats = flagRepeats(schema);
   if (Array.isArray(value)) return repeats ? value.map((item) => fromText(repeats.element, item)) : value;
   return fromText(repeats?.single ? repeats.element : schema, value);
 }

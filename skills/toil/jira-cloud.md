@@ -191,11 +191,15 @@ toil jira-cloud list-projects --limit 50
 - **Several issues.** Repeat `--key` (up to 100) and `get-issue` reads them in one
   `POST /rest/api/3/issue/bulkfetch` and returns `{ issues, errors }`: the issues in
   the order you asked, and each key that couldn't be read as `{ key, code, message }`,
-  with a `JIRA_CLOUD_BULK_PARTIAL` warning. Jira leaves out a key it can't find or
-  won't show, and toil reports each one as `NOT_FOUND`; a key Jira couldn't fetch is
-  `HTTP` with Jira's message. An issue that moved project comes back under its new
-  key, after the others, and its old key is listed as `NOT_FOUND` too. One `--key`
-  returns the issue itself, as before. Over MCP, `key` takes a string or a list.
+  with a `JIRA_CLOUD_BULK_PARTIAL` warning, and never more than one error per key.
+  Jira leaves out a key it can't find or won't show, returns a moved issue under its
+  new key, and names an issue it couldn't fetch only by id. A key asked for by id
+  that Jira couldn't fetch is `HTTP` with Jira's message. A key with no answer is
+  `NOT_FOUND` when everything else Jira sent is accounted for; otherwise it's
+  `UNMATCHED`, with a message naming the issues returned under other keys and the
+  ids Jira couldn't fetch, since the answer doesn't say which is which. Issues
+  returned under another key still come back, after the others. One `--key` returns
+  the issue itself, as before. Over MCP, `key` takes a string or a list.
 
 ## Large fields via --input-file
 

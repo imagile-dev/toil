@@ -119,10 +119,18 @@ export function getIssue(ctx: JiraCloudContext, key: string): Promise<JiraCloudI
  * (https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issues/#api-rest-api-3-issue-bulkfetch-post):
  * up to 100 issues in one request, every field as GET issue returns them
  * (`*all`). Jira answers in id order, leaves out a key it can't find or won't
- * show, and lists one it couldn't fetch under issueErrors by id. So each issue
- * is matched back to the key asked for (by key, case-insensitively, or by id),
- * a key nothing matched gets NOT_FOUND, and an issue that matched no key (one
- * that moved project and came back under its new key) is still returned, last.
+ * show, returns a moved issue under its new key, and lists one it couldn't
+ * fetch under issueErrors by id alone. So each answer is matched back to a
+ * key asked for, by key (case-insensitively) or by id.
+ *
+ * A key nothing matched is reported once, and only as honestly as the answer
+ * allows. When every returned issue and every issueError is accounted for, the
+ * key is NOT_FOUND. When some aren't, the answer doesn't say which belongs to
+ * which key (the response carries no key history to match a moved issue by,
+ * short of expanding every issue's changelog), so the key is UNMATCHED, with a
+ * message naming the issues and errors it may be. Unaccounted issues are still
+ * returned, after the rest, and unaccounted errors aren't counted again, so
+ * there is never more than one error per key asked for.
  */
 export async function getIssues(ctx: JiraCloudContext, keys: string[]): Promise<{ issues: JiraCloudIssue[]; errors: BulkError[] }> {
   const body = await jiraCloud<{ issues?: JiraCloudIssue[]; issueErrors?: Array<{ id?: string; errorMessage?: string }> }>(ctx, `${API}/issue/bulkfetch`, {
@@ -130,24 +138,40 @@ export async function getIssues(ctx: JiraCloudContext, keys: string[]): Promise<
     body: { issueIdsOrKeys: keys, fields: ['*all'] },
   });
   const returned = body.issues ?? [];
-  const failed = new Map((body.issueErrors ?? []).map((e) => [String(e.id ?? ''), e.errorMessage ?? 'Jira Cloud could not fetch this issue.']));
-  const used = new Set<JiraCloudIssue>();
+  const failed = (body.issueErrors ?? []).map((e) => ({ id: String(e.id ?? ''), message: e.errorMessage ?? 'Jira Cloud could not fetch this issue.' }));
+  const usedIssues = new Set<JiraCloudIssue>();
+  const usedErrors = new Set<(typeof failed)[number]>();
+  const matched = new Map<string, JiraCloudIssue | BulkError>();
+  for (const key of keys) {
+    const issue = returned.find((i) => !usedIssues.has(i) && (i.key.toLowerCase() === key.toLowerCase() || i.id === key));
+    if (issue) {
+      usedIssues.add(issue);
+      matched.set(key, issue);
+      continue;
+    }
+    // Asked for by id, so Jira's id-keyed error is this key's.
+    const error = failed.find((e) => !usedErrors.has(e) && e.id === key);
+    if (error) {
+      usedErrors.add(error);
+      matched.set(key, { key, code: 'HTTP', message: error.message });
+    }
+  }
+  const strayIssues = returned.filter((i) => !usedIssues.has(i));
+  const strayErrors = failed.filter((e) => !usedErrors.has(e));
+  const unaccounted = [
+    ...(strayIssues.length ? [`returned under another key: ${strayIssues.map((i) => i.key).join(', ')} (a moved issue comes back under its new key)`] : []),
+    ...(strayErrors.length ? [`couldn't fetch, by id: ${strayErrors.map((e) => `${e.id} (${e.message})`).join(', ')}`] : []),
+  ];
   const issues: JiraCloudIssue[] = [];
   const errors: BulkError[] = [];
   for (const key of keys) {
-    const issue = returned.find((i) => !used.has(i) && (i.key.toLowerCase() === key.toLowerCase() || i.id === key));
-    if (issue) {
-      used.add(issue);
-      issues.push(issue);
-    } else if (failed.has(key)) {
-      errors.push({ key, code: 'HTTP', message: failed.get(key)! });
-    } else {
-      errors.push({ key, code: 'NOT_FOUND', message: `Jira Cloud returned no issue for ${key}: it doesn't exist, or this account can't see it.` });
-    }
+    const found = matched.get(key);
+    if (found && 'fields' in found) issues.push(found);
+    else if (found) errors.push(found as BulkError);
+    else if (unaccounted.length === 0) errors.push({ key, code: 'NOT_FOUND', message: `Jira Cloud returned no issue for ${key}: it doesn't exist, or this account can't see it.` });
+    else errors.push({ key, code: 'UNMATCHED', message: `Jira Cloud returned no issue under ${key}, and its answer doesn't say which of these it is, if any: ${unaccounted.join('; ')}.` });
   }
-  // An error Jira reported by the id of an issue that was asked for by key.
-  for (const [id, message] of failed) if (!keys.includes(id)) errors.push({ key: id, code: 'HTTP', message });
-  issues.push(...returned.filter((i) => !used.has(i)));
+  issues.push(...strayIssues);
   return { issues, errors };
 }
 

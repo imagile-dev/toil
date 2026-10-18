@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { allowWriteField } from '../../core/run.js';
 import { githubArea } from './area.js';
-import { github, githubAll, target } from './client.js';
-import { intText, parseIntText, prNumber, prNumberOption } from './input.js';
+import { exampleCursor, github, githubList, target } from './client.js';
+import { intText, pageFields, pageOptions, parseIntText, prNumber, prNumberOption } from './input.js';
 
 /**
  * Comments on a pull request: the general ones (issue comments) and the
@@ -16,14 +16,17 @@ const commentId = intText.describe('Comment ID');
 export const listCommentsCommand = githubArea.command({
   path: ['github', 'list-comments'],
   description: 'List general comments on a pull request',
-  input: z.object({ number: prNumber }),
+  input: z.object({ number: prNumber, ...pageFields('comments') }),
   writes: false,
-  options: [prNumberOption],
-  examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7' }],
+  options: [prNumberOption, ...pageOptions('comments')],
+  examples: [
+    { owner: 'imagile', repo: 'toil-probe', number: '7' },
+    { owner: 'imagile', repo: 'toil-probe', number: '7', limit: 1, cursor: exampleCursor() },
+  ],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     const number = parseIntText(input.number);
-    return githubAll(ctx, `/repos/${owner}/${repo}/issues/${number}/comments`, `comments on GitHub PR #${number}`);
+    return githubList(ctx, `/repos/${owner}/${repo}/issues/${number}/comments`, `comments on GitHub PR #${number}`, {}, { limit: input.limit, cursor: input.cursor });
   },
 });
 
@@ -43,14 +46,17 @@ export const addCommentCommand = githubArea.command({
 export const listReviewCommentsCommand = githubArea.command({
   path: ['github', 'list-review-comments'],
   description: 'List inline review comments on a pull request',
-  input: z.object({ number: prNumber }),
+  input: z.object({ number: prNumber, ...pageFields('review comments') }),
   writes: false,
-  options: [prNumberOption],
-  examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7' }],
+  options: [prNumberOption, ...pageOptions('review comments')],
+  examples: [
+    { owner: 'imagile', repo: 'toil-probe', number: '7' },
+    { owner: 'imagile', repo: 'toil-probe', number: '7', limit: 1, cursor: exampleCursor() },
+  ],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     const number = parseIntText(input.number);
-    return githubAll(ctx, `/repos/${owner}/${repo}/pulls/${number}/comments`, `review comments on GitHub PR #${number}`);
+    return githubList(ctx, `/repos/${owner}/${repo}/pulls/${number}/comments`, `review comments on GitHub PR #${number}`, {}, { limit: input.limit, cursor: input.cursor });
   },
 });
 

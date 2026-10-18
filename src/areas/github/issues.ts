@@ -3,7 +3,8 @@ import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { githubArea } from './area.js';
 import { github, target, type GitHubContext } from './client.js';
-import { bodyOf, itemNumber, itemNumberOption, parseIntText, repeatable } from './input.js';
+import { bodyOf, itemNumber, itemNumberOption, parseIntText } from './input.js';
+import { repeatedFlag } from '../../core/schema.js';
 
 /**
  * Repositories, issues, and the labels and assignees GitHub shares between
@@ -59,8 +60,8 @@ export const createIssueCommand = githubArea.command({
     title: z.string().describe('Issue title'),
     body: z.string().optional().describe('Issue body (markdown)'),
     bodyFile: z.string().optional().describe('Read issue body from a file (use - for stdin); overridden by --body'),
-    label: repeatable('Label to apply (repeatable) (default: [])'),
-    assignee: repeatable('Assignee login (repeatable) (default: [])'),
+    label: repeatedFlag('Label to apply (repeatable) (default: [])'),
+    assignee: repeatedFlag('Assignee login (repeatable) (default: [])'),
     ...allowWriteField,
   }),
   writes: true,
@@ -93,7 +94,7 @@ export const createIssueCommand = githubArea.command({
 export const addLabelsCommand = githubArea.command({
   path: ['github', 'add-labels'],
   description: 'Add labels to a pull request or issue',
-  input: z.object({ number: itemNumber, label: repeatable('Label to add (repeatable) (default: [])'), ...allowWriteField }),
+  input: z.object({ number: itemNumber, label: repeatedFlag('Label to add (repeatable) (default: [])'), ...allowWriteField }),
   writes: true,
   options: [itemNumberOption, { flags: '--label <label>', field: 'label', description: 'Label to add (repeatable) (default: [])' }],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7', label: ['bug', 'needs-review'], allowWrite: true }],
@@ -131,7 +132,7 @@ function assignees(ctx: GitHubContext, number: number | string, assignee: string
 export const addAssigneesCommand = githubArea.command({
   path: ['github', 'add-assignees'],
   description: 'Add assignees to a pull request or issue',
-  input: z.object({ number: itemNumber, assignee: repeatable('Assignee login (repeatable) (default: [])'), ...allowWriteField }),
+  input: z.object({ number: itemNumber, assignee: repeatedFlag('Assignee login (repeatable) (default: [])'), ...allowWriteField }),
   writes: true,
   options: [itemNumberOption, { flags: '--assignee <login>', field: 'assignee', description: 'Assignee login (repeatable) (default: [])' }],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7', assignee: ['octo-dev', 'octo-ops'], allowWrite: true }],
@@ -141,7 +142,7 @@ export const addAssigneesCommand = githubArea.command({
 export const removeAssigneesCommand = githubArea.command({
   path: ['github', 'remove-assignees'],
   description: 'Remove assignees from a pull request or issue',
-  input: z.object({ number: itemNumber, assignee: repeatable('Assignee login to remove (repeatable) (default: [])'), ...allowWriteField }),
+  input: z.object({ number: itemNumber, assignee: repeatedFlag('Assignee login to remove (repeatable) (default: [])'), ...allowWriteField }),
   writes: true,
   // A delete: never served over MCP (CLAUDE.md, Writes).
   mcp: false,

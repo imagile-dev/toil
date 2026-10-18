@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { oneOrMany } from '../../core/schema.js';
 import { ToilError } from '../../core/errors.js';
 import type { Warning } from '../../core/envelope.js';
 
@@ -16,9 +16,7 @@ export const MAX_BULK_KEYS = 100;
 /** Requests in flight at once on Data Center, which has no bulk endpoint. */
 export const BULK_CONCURRENCY = 5;
 
-export const keyOrKeys = z
-  .union([z.string(), z.array(z.string())])
-  .describe(`Issue key, e.g. PROJ-123, or a list of up to ${MAX_BULK_KEYS} keys (repeat --key) to get { issues, errors } instead of one issue`);
+export const keyOrKeys = oneOrMany(`Issue key, e.g. PROJ-123, or a list of up to ${MAX_BULK_KEYS} keys (repeat --key) to get { issues, errors } instead of one issue`);
 
 export interface BulkError {
   key: string;
