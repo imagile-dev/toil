@@ -74,9 +74,7 @@ export const POM = `<project>
 
 /** encode's samples: a real 1x1 PNG, and the same bytes as MIME writes base64, wrapped at 76 characters with CRLF. */
 export const PIXEL_PNG = new Uint8Array(Buffer.from(SAMPLE_PNG_BASE64, 'base64'));
-export const PIXEL_B64 = `${SAMPLE_PNG_BASE64.slice(0, 76)}
-${SAMPLE_PNG_BASE64.slice(76)}
-`;
+export const PIXEL_B64 = `${SAMPLE_PNG_BASE64.slice(0, 76)}\r\n${SAMPLE_PNG_BASE64.slice(76)}\r\n`;
 
 /** The working tree: an npm project, a .NET project under central package management, a Maven pom, and an ignored folder. */
 export const files: Record<string, string | Uint8Array> = {

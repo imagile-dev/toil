@@ -147,6 +147,7 @@ describe('util encode: decoding padding, case and whitespace variants', () => {
   });
 
   it('reads MIME-wrapped base64 from a file, CRLF and all', async () => {
+    expect(PIXEL_B64.split('\r\n')).toHaveLength(3);
     const { data, files } = await run({ scheme: 'base64', decode: true, file: 'pixel.b64', out: 'pixel.png' }, { 'pixel.b64': PIXEL_B64 });
     expect(files.written['/work/pixel.png']).toEqual(PIXEL_PNG);
     expect(data).toMatchObject({ operation: 'decode', utf8: false, outputBytes: PIXEL_PNG.length, inputBytes: PIXEL_B64.length, file: '/work/pixel.png' });
