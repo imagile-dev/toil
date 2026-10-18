@@ -29,8 +29,11 @@ from a clone (below). Setup, connections and every command are on the
 
 ## Running from a clone
 
-`dist/toil.js` is committed, and it is the last released toil, so a clone runs as it
-is, with no `npm install`. It imports only Node's built-ins.
+`dist/toil.js` and the bundle it runs, `dist/toil-lib.js`, are committed, and they
+are the last released toil, so a clone runs as it is, with no `npm install`. They
+import only Node's built-ins. Until the first release, the committed dist/toil.js is
+the earlier single-file bundle; the release PR is the first to commit
+dist/toil-lib.js.
 
 ```bash
 git clone https://github.com/imagile-dev/toil.git
@@ -51,12 +54,14 @@ it:
 ```bash
 cd toil
 npm ci
-npm run build       # writes dist/toil.js
+npm run build       # writes dist/toil-lib.js, dist/toil.js, dist/api.js, dist/api.d.ts and the metafiles
 node dist/toil.js version
 ```
 
 Don't commit the rebuilt `dist/`; `git checkout -- dist/` puts the released bundle
-back. [CLAUDE.md](CLAUDE.md) has the rest of the gate (typecheck, lint, tests).
+back. Until the first release, `dist/toil-lib.js` isn't committed yet, so after a
+build it shows as untracked and `git checkout` leaves it: delete it
+(`rm dist/toil-lib.js`, or `git clean -f dist/`). [CLAUDE.md](CLAUDE.md) has the rest of the gate (typecheck, lint, tests).
 
 ### Pointing an agent at the clone
 

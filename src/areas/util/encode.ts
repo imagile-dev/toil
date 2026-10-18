@@ -44,6 +44,7 @@ export const encodeCommand = defineCommand({
     out: z.string().optional().describe(OUT),
   }),
   writes: false,
+  writesLocalWhen: (input) => input.out !== undefined,
   // The content may be a credential on its way into a header; the audit line keeps only its hash.
   auditInput: { text: 'hash' },
   args: [{ name: 'scheme', field: 'scheme', description: SCHEME, required: true }, fileArgument],

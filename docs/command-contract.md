@@ -75,3 +75,24 @@ To read them all as a table: `node scripts/divergences.mjs`.
 
 The contract is edited by hand and changes only on purpose, in the same change as the
 commands it records. Review the diff like any other contract change.
+
+## The contract version
+
+`contractVersion` at the top of `command-contract.json` is the version of the contract
+toil keeps with its callers: the commands, flags and `data` fields recorded here, the
+envelope, and the meaning of each error code. toil reports it in `toil version`
+(`data.contractVersion`), on every envelope (`meta.contractVersion`) and from
+`@imagile-dev/toil/api` (`contractVersion`), so a program can refuse a toil it
+wasn't built for instead of misreading its output. `CONTRACT_VERSION` in
+`src/core/envelope.ts` is the value in code, and `test/api.test.ts`
+fails when the two differ.
+
+It's a whole number, bumped by one, in the same change, whenever the contract breaks:
+a command, flag, `data` field or envelope key is removed, renamed or repurposed, or an
+error code changes meaning. Those are exactly the changes Delivery in `CLAUDE.md`
+declares with `feat!:` and a `BREAKING CHANGE:` footer. An additive change (a new
+command, flag, field, error code, warning or `meta` key) leaves it alone, so a
+caller built against version N works with every toil that reports N.
+
+Before the first npm release nothing is relied on yet (principle 7), so the version
+stays 1 until then, and the first release ships 1.

@@ -76,6 +76,7 @@ export const downloadAttachment = confluenceCloudArea.command({
     dir: z.string().optional().describe('Output directory; defaults to .toil in the workspace'),
   }),
   writes: false,
+  writesLocal: true,
   options: [attachmentOption, { flags: '--dir <path>', field: 'dir', description: 'Output directory (default: .toil in the workspace)' }],
   examples: [{ id: 'att98765' }, { id: 'att98765', dir: 'downloads' }],
   run: async (input, ctx) => {

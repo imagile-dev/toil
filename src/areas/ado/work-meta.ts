@@ -95,6 +95,7 @@ export const workDownloadAttachmentCommand = adoArea.command({
     dir: z.string().optional().describe('Output directory (default: .toil in the workspace)'),
   }),
   writes: false,
+  writesLocal: true,
   options: [
     idOption,
     { flags: '--attachment-id <guid>', field: 'attachmentId', description: 'Attachment ID from work list-attachments output' },

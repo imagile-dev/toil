@@ -31,6 +31,14 @@ export interface NodeContextOptions {
    * is an interactive terminal: `-` then refuses instead of waiting.
    */
   stdin?: boolean | 'terminal';
+  /**
+   * `api` for a program calling `execute()` from `@imagile-dev/toil/api`: with
+   * `stdin: false`, as MCP has, but the working directory is still the
+   * workspace, as on the CLI. Left out, `stdin: false` means MCP.
+   */
+  door?: 'api';
+  /** Hears the call's progress events (Context.progress). */
+  progress?: Context['progress'];
   /** Under `toil mcp`: the client's roots, as local paths. Exactly one makes it the workspace. */
   roots?: readonly string[] | undefined;
   /** The OS credential store, for `keychain:` references. */
@@ -106,7 +114,7 @@ export function timeoutFromEnv(env: NodeJS.ProcessEnv): number | undefined {
  */
 export function createNodeContext(o: NodeContextOptions): Context {
   const config = o.def && !needsConfig(o.def) ? emptyConfig() : loadConfig({ env: o.env, cwd: o.cwd, home: o.home, configPath: o.globals.config, areas: o.areas });
-  const mcp = o.stdin === false;
+  const mcp = o.stdin === false && o.door !== 'api';
   const workspace = resolveWorkspace({ flag: o.globals.workspace, env: o.env, cwd: o.cwd, mcp, roots: o.roots });
   const debug = o.globals.debug ? (message: string) => o.stderr(`[toil] ${message}\n`) : () => {};
   const guard = { home: o.home, env: o.env, protect: ownFiles(o.home, o.cwd, o.globals.config) };
@@ -158,7 +166,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
     // and toil's own config is off limits either way, whatever path it is given.
     files: nodeFiles({
       cwd: o.cwd,
-      stdin: mcp ? false : o.stdin === 'terminal' ? 'terminal' : true,
+      stdin: o.stdin === false ? false : o.stdin === 'terminal' ? 'terminal' : true,
       workspace,
       unbounded: config.bounds?.files === 'unbounded',
       home: o.home,
@@ -191,6 +199,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
     // on that file (no --config) keeps it current. The file is read now, before
     // the command runs, to tell afterwards whether the command changed it.
     ...(o.def && needsConfig(o.def) && !o.globals.config ? { skillUpkeep: skillUpkeep(o, config, workspace.dir, guard) } : {}),
+    ...(o.progress ? { progress: o.progress } : {}),
     ...(o.secrets ? { secrets: o.secrets } : {}),
     ...(o.prompt ? { prompt: o.prompt } : {}),
   };

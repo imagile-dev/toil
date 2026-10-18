@@ -58,6 +58,7 @@ export function skillsConfigCommands(): AnyCommand[] {
       ...allowWriteField,
     }),
     writes: true,
+    writesLocal: true,
     kind: 'cli-only',
     aliases: ['setup'],
     args: [
@@ -195,6 +196,7 @@ export function skillsConfigCommands(): AnyCommand[] {
       'Lists every registered skills marketplace: its name, clone URL, where the clone lives, whether a token is set and where it is kept (never the token), the provider, and whether writes are on. Use a name from it as marketplace on the other skills tools.',
     input: z.object({}),
     writes: false,
+    writesLocal: false,
     examples: [{}],
     run: async (_input, ctx) => {
       const { config } = access(ctx);
@@ -223,6 +225,7 @@ export function skillsConfigCommands(): AnyCommand[] {
     toolDescription: "Lists the plugins a registered skills marketplace offers, with each one's description, read from its local clone. Use it to choose what to install with skills_marketplace_sync.",
     input: z.object({ name: z.string().min(1).describe('Marketplace name (or repo URL) to inspect') }),
     writes: false,
+    writesLocal: false,
     args: [{ name: 'name', field: 'name', description: 'Marketplace name (or repo URL) to inspect' }],
     examples: [{ name: 'skills' }],
     run: async (input, ctx) => {
@@ -244,6 +247,7 @@ export function skillsConfigCommands(): AnyCommand[] {
     description: 'Remove a registered marketplace from the config, and its token from the OS credential store (the local clone and installed skills are kept)',
     input: z.object({ name: z.string().min(1).describe('Name (or repo URL) of the marketplace to remove') }),
     writes: false,
+    writesLocal: true,
     kind: 'cli-only',
     args: [{ name: 'name', field: 'name', description: 'Name of the marketplace to remove' }],
     examples: [{ name: 'corp-skills' }],
@@ -292,6 +296,7 @@ export function skillsConfigCommands(): AnyCommand[] {
       scope: z.enum(['project', 'user', 'custom']).optional().describe('Only this scope'),
     }),
     writes: false,
+    writesLocal: false,
     options: [
       { flags: '--marketplace <name>', field: 'marketplace', description: 'Only show skills installed from this marketplace (name or clone URL)' },
       { flags: '--plugin <name>', field: 'plugin', description: 'Only show skills belonging to this plugin' },

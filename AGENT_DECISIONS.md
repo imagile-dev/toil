@@ -1940,6 +1940,109 @@ shape; these are the calls made around that.
   plus a scan for those characters, since that reader doesn't refuse them. D2 keys
   and paths are always quoted, so there's no keyword list to keep in step with D2.
 
+### #212 core
+
+- **One bundle of code, two thin entries** (the coordinator's round-1 decision on
+  #219, replacing the first version's "run the CLI when `argv[1]` is this file",
+  which a host bundling the API into its own output would have tripped). The code is
+  `dist/toil-lib.js`, built from `src/cli.ts`, which exports the API and `main()` and
+  runs nothing when loaded. `dist/toil.js` (the bin, and what a clone runs) is two
+  lines that import it and call `main()`; `dist/api.js` (`exports["./api"]`)
+  re-exports the API and nothing else. Both entries are defined in
+  `scripts/entries.mjs`, written by tsup's `onSuccess`, and checked byte for byte by
+  `check:pure`, which also fails on a second emitted bundle, so it's still one bundle
+  of code in #212's sense. `test/api.test.ts` holds `API_EXPORTS` to `src/api.ts`, and
+  smoke runs `node dist/toil-lib.js version` to prove it prints nothing. Types are
+  `dist/api.d.ts`, built by tsup's `dts` (with `ignoreDeprecations: "6.0"`, since
+  tsup still sets `baseUrl`); they import nothing. Cost, all paid here:
+  `dist/toil-lib.js` is committed beside `dist/toil.js` (`.gitignore`), release-please's
+  `extra-files` moves to it (the version banner lives there), the release PR's rebuild
+  step commits both, `check:dist` checks both, smoke's clone run copies both, and
+  `setup alias` points at the `toil.js` beside the bundle. The committed `dist/` isn't
+  touched by this PR: the clone keeps running the last release's single file until the
+  release PR rebuilds both. A host may bundle the API: it runs nothing on import.
+- **release-please needs one change: `extra-files` now names `dist/toil-lib.js`**,
+  where the version banner moved. Nothing else: the research note's "no change" held
+  for the export itself. `dist/api.js` and `dist/api.d.ts` carry no version and stay
+  ignored build output, like the metafiles, so a clone has the CLI but not the API
+  entry, which only an npm install needs. The publish job runs `npm run build` at
+  the tag before `npm publish`, so the tarball gets fresh thin entries and
+  declarations, and its `check:pure` and `smoke` steps check them.
+- **`execute(command, input, options)` takes the command's name and its MCP
+  fields**, the same strict input MCP sends, and always returns an envelope: an
+  unknown command, a person-only command or a bad caller label is `INVALID_INPUT`,
+  never a throw, and isn't audited (like a call the CLI parser refuses).
+- **The API serves exactly what MCP would with every area set up**: no `cli-only`
+  commands (they prompt, or change connections) and no `mcp: false` deletes;
+  `offMcpWhen` applies; the dossier commands refuse over the API what they refuse
+  over MCP. Its caller is a program, which an agent may be driving, so it gets the
+  agent's rules. Unlike MCP, its workspace is the working directory, as on the CLI.
+- **The registry is a stable descriptor, not the internal command objects**: name,
+  tool name, path, area, kind, description, `writes`, `writesDependOnInput` and the
+  input's JSON Schema (as MCP advertises it), built on first read. Exposing the zod
+  definitions would have made every internal field part of the contract.
+- **The options are `readOnly`, `caller`, `signal`, `onProgress`, `config`,
+  `workspace` and `verbose`.** No `env`, `cwd`, `home` or `fetch`: the program's own
+  process supplies those, as it does for the CLI, and each can be added later
+  without changing a meaning. Internally `CallOptions` (`readOnly`, `caller`) is one
+  object passed to `execute()`, which is where a later `actor` goes.
+- **`readOnly` refuses every command that changes anything** (the coordinator's
+  decision on #219, overriding the first version, which refused only `writes` /
+  `writesWhen`). A UI in read-only mode must not change local state either. The
+  signal is a new pair beside `writes` / `writesWhen`: `writesLocal` (every call
+  changes something on this machine: toil's config, the credential store, dossiers,
+  a skills folder, a shell profile, a downloaded file) and `writesLocalWhen` (the
+  input decides: `--out`, `--csv`). `defineConfigCommand` requires `writesLocal`, so
+  every `config` and `cli-only` command declares it, `false` included, because those
+  write with node:fs where no guard can see. Area, area-local and standalone commands
+  reach files only through `ctx.files`, so their writers are marked (the five
+  `download-attachment`s, `git report`, `openshift resource-usage`, `util c4 render`,
+  `util encode`), and under readOnly `ctx.files.writeBytes` / `writeCsv` refuse as a
+  backstop, so an unmarked one fails loudly and never writes. The parity suite runs
+  every registered command's every example under readOnly: a marked one must be
+  refused before any request or operation; any other must succeed, send only reads,
+  call no traced write, and (for the dossiers commands) leave the disk as it was.
+  A `writes: true` or `writesLocal: true` command is refused before its input is
+  parsed, a `*When` one once its input says so; a GET through the passthrough
+  still runs. The refusal reuses `WRITE_DISABLED`. A read-only call also skips the
+  bundled skill's upkeep, so it writes nothing but its audit line.
+- **The caller label is 1 to 64 lowercase letters, digits, `.`, `_` and `-`,
+  starting with a letter or digit** (`CALLER_LABEL`), checked by
+  the API before the call runs and recorded as `caller` on the audit line, absent
+  when not given. Narrow so it can't carry a token or a path. `toil audit list` shows
+  it but has no filter for it yet.
+- **`contractVersion` is a whole number, 1 until the first release**, in
+  `CONTRACT_VERSION` (`src/core/envelope.ts`) and `docs/command-contract.json`, held
+  equal by `test/api.test.ts`. It's bumped by one with every breaking change, never
+  for an additive one (`docs/command-contract.md`). It's stamped by `success()` /
+  `failure()`, so every envelope builder gets it, and sits right after `version`.
+  Tied to the contract by an equality test rather than by fingerprinting the file:
+  a fingerprint would fail on every additive edit, which mustn't bump it.
+- **Progress through AsyncLocalStorage, so no area changes.** `execute()` runs
+  `def.run` under a listener; `instrumentFetch` reports each request, `paginate()`
+  each page and `restResponse` each 429 retry. Areas that page inside a command
+  without `paginate()` (Jira's own loops today) still report their requests, and
+  report pages once they move to `paginate()`. A listener that throws is dropped for
+  the rest of the call with one `PROGRESS_LISTENER_FAILED` warning; the command
+  isn't failed by a progress bar.
+- **Who hears what.** The API's `onProgress` hears every event. The CLI and MCP show
+  only pages and retries (requests are `--debug`'s and `--verbose`'s). On the CLI
+  (`cliProgress`, the coordinator's decision on #219): every 429 retry, with how long
+  toil waits, is one plain `[toil] …` line on stderr, piped or not, so a run never
+  sits silent for a minute (principle 4); a page is said only when stderr is a
+  terminal, so an agent piping the CLI isn't sent a line per page. stdout is never
+  touched. MCP sends `notifications/progress` only when the call carried a progress
+  token, with the same messages, and one counter per call shared with `wait`'s
+  attempts so `progress` only goes up. `toil wait`'s own stderr line is unchanged.
+- **Docs: a section in `skills/toil/core.md`** (**Using toil from a program**, and
+  **Progress**), not a new skill page, since a new page needs a site route, a nav
+  entry and the general-pages list for one section's worth of text.
+- **The example consumer runs in `npm run smoke`**, not Vitest: it needs the packed
+  tarball installed, which only smoke has. `scripts/api-consumer/consumer.mjs`
+  imports `@imagile-dev/toil/api` by name from the install and runs against a stub
+  Bitbucket on loopback (one 429, two pages); `consumer.ts` is type-checked, strict,
+  against the installed `dist/api.d.ts`.
+
 ### #212 Jira
 
 Items 5, 6, 7 and 9 for `jira` (Data Center) and `jira-cloud`. Each area keeps its own

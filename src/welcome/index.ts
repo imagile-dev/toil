@@ -1,5 +1,5 @@
 import { emitKeypressEvents } from 'node:readline';
-import type { Envelope } from '../core/envelope.js';
+import { CONTRACT_VERSION, type Envelope } from '../core/envelope.js';
 import { playRogue, type SaveIO } from './rogue/play.js';
 import { breadcrumb, finish, initialState, type Key, type MenuState, played, reduce, render } from './menu.js';
 import type { WelcomeData } from './screens.js';
@@ -186,7 +186,7 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
           envelope = await io.run(step.args, running.signal);
         } catch (err) {
           // A command that throws instead of printing its envelope is still reported, never swallowed.
-          envelope = { ok: false, data: null, error: { code: 'INTERNAL', message: err instanceof Error ? err.message : String(err) }, meta: { command: step.args.join(' '), durationMs: 0, version: data.version } };
+          envelope = { ok: false, data: null, error: { code: 'INTERNAL', message: err instanceof Error ? err.message : String(err) }, meta: { command: step.args.join(' '), durationMs: 0, version: data.version, contractVersion: CONTRACT_VERSION } };
         } finally {
           running = undefined;
           if (input.isTTY) input.setRawMode(true);

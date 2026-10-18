@@ -139,7 +139,7 @@ describe('redaction', () => {
 
   it('cuts every request URL, and a line too long for one write is trimmed hard and marked truncated', () => {
     const longUrl = `https://jira.imagile.dev/rest/api/2/search?jql=${'project%20in%20(PAY)%20OR%20'.repeat(2000)}`;
-    const built = auditEntry({ def: getThing, input: {}, via: 'cli', writes: false, requests: Array.from({ length: 150 }, () => ({ method: 'GET', url: longUrl, status: 200, durationMs: 1 })), envelope: { ok: true, data: null, error: null, meta: { command: 'demo get-thing', durationMs: 1, version: 'x' } } });
+    const built = auditEntry({ def: getThing, input: {}, via: 'cli', writes: false, requests: Array.from({ length: 150 }, () => ({ method: 'GET', url: longUrl, status: 200, durationMs: 1 })), envelope: { ok: true, data: null, error: null, meta: { command: 'demo get-thing', durationMs: 1, version: 'x', contractVersion: 1 } } });
     expect(built.requests).toHaveLength(100);
     expect(built.requestsOmitted).toBe(50);
     for (const r of built.requests) expect(r.url.length).toBeLessThanOrEqual(501);
