@@ -77,7 +77,7 @@ describe('context inputs', () => {
     let reads = 0;
     const gitRemote: GitRemoteReader = async () => {
       reads++;
-      return { name: 'origin', url: 'https://demo.imagile.dev/scm/GIT/widgets.git' };
+      return [{ name: 'origin', url: 'https://demo.imagile.dev/scm/GIT/widgets.git' }];
     };
     const noProject = { 'demo-context': {}, demo: { token: 't' } };
     const run = async (input: Record<string, unknown>, extra: object) => {
@@ -114,7 +114,7 @@ describe('context inputs', () => {
     const envelope = await execute(getWidget, { id: 'W-1' }, context);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining(`"lower" from the connection's project setting`) });
 
-    const viaGit = await execute(getWidget, { id: 'W-1' }, { ...context, gitRemote: async () => ({ name: 'origin', url: 'https://demo.imagile.dev/scm/bad/x.git' }) });
+    const viaGit = await execute(getWidget, { id: 'W-1' }, { ...context, gitRemote: async () => [{ name: 'origin', url: 'https://demo.imagile.dev/scm/bad/x.git' }] });
     // The git remote ranks above the connection, so its bad value is the one reported.
     expect(viaGit.error?.message).toContain('"bad" from the git remote');
   });
@@ -401,7 +401,7 @@ describe('writes on a connection the dossier or the git remote chose', () => {
     const change = gitArea.command({ path: ['git-picked', 'change'], description: 'test', input: z.object({ ...allowWriteField }), writes: true, examples: [{ allowWrite: true }], run: async () => ({ changed: true }) });
     const config = configOf({ alpha: { area: 'git-picked', writes: true }, beta: { area: 'git-picked', writes: true } }, { 'git-picked': { connection: 'alpha' } });
     const { context } = testContext();
-    const envelope = await execute(change, { allowWrite: true }, { ...context, config, gitRemote: async () => ({ name: 'origin', url: 'https://beta.imagile.dev/x.git' }) });
+    const envelope = await execute(change, { allowWrite: true }, { ...context, config, gitRemote: async () => [{ name: 'origin', url: 'https://beta.imagile.dev/x.git' }] });
     expect(envelope.error).toMatchObject({ code: 'WRITE_DISABLED', message: expect.stringContaining('connection beta was chosen by the git remote') });
   });
 });

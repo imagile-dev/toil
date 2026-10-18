@@ -4,6 +4,7 @@ import type { CommandContext } from '../../core/context.js';
 import { apiRequest, apiResponse, type ApiRequest } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
 import { redactUrl } from '../../core/http.js';
+import { statusLine } from '../../core/rest.js';
 import { artifactoryArea, tokenFix } from './area.js';
 
 /**
@@ -45,7 +46,7 @@ export async function ping(ctx: ArtifactoryContext): Promise<string> {
     accept: NOT_OK,
   });
   if (response.status < 400) return response.data;
-  let message = `HTTP ${response.status}`;
+  let message = statusLine(response.status, response.statusText);
   try {
     const parsed = JSON.parse(response.data) as { message?: unknown };
     if (parsed.message) message = String(parsed.message);

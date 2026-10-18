@@ -182,8 +182,8 @@ async function send<T>(area: AnyArea, ctx: ApiContext, path: string, req: ApiReq
         ...(req.timeoutMs !== undefined ? { timeoutMs: req.timeoutMs } : {}),
         ...(req.redirect ? { redirect: req.redirect } : {}),
         ...(req.retryRateLimit === false ? { retryRateLimit: false as const } : {}),
-        // So a network error names baseUrl only when that's the host that failed.
-        baseUrl: typeof ctx.connection.baseUrl === 'string' ? ctx.connection.baseUrl : null,
+        // So a network error names the setting the host came from, whatever it's called.
+        urlKey: urlKeyOf(ctx.connection, origin),
       };
       return { response: await restResponse<T>(ctx, url, init, options), service };
     } catch (err) {
@@ -196,6 +196,28 @@ async function send<T>(area: AnyArea, ctx: ApiContext, path: string, req: ApiReq
       throw err;
     }
   }
+}
+
+/**
+ * The connection setting holding `origin`'s host: `baseUrl` when it does,
+ * else the first other setting whose value names the host (Dynatrace's
+ * `platformUrl`, SDE's `<token>@<host>` `connectionString`), else null.
+ * Only the key is ever reported, never the value.
+ */
+export function urlKeyOf(connection: Connection, origin: string): string | null {
+  const host = new URL(origin).host;
+  const names = (value: unknown) => {
+    if (typeof value !== 'string') return false;
+    try {
+      if (new URL(value).host === host) return true;
+    } catch {
+      // not a URL on its own; it may still carry the host (`token@host`)
+    }
+    return value.toLowerCase().includes(host.toLowerCase());
+  };
+  if (names(connection.baseUrl)) return 'baseUrl';
+  const key = Object.keys(connection).find((k) => k !== 'name' && names(connection[k]));
+  return key ?? null;
 }
 
 function encode(req: ApiRequest): { body?: string | Uint8Array; contentType?: string } {

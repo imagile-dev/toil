@@ -57,7 +57,7 @@ export interface AreaInfo {
   /** Key to the CI variables that stand in for it, in order. */
   fallbacks?: Record<string, string[] | undefined>;
   /** Its context inputs' names: the keys a dossier section may supply (src/core/dossier.ts). */
-  context?: readonly string[];
+  contextInputs?: readonly string[];
 }
 
 /** The config file format this toil writes. It reads every version up to this one. */

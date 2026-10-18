@@ -5,7 +5,7 @@ import { CONNECTION_NAME, connectionsOf, type ResolvedConfig } from './config.js
 import type { DossierReport, Warning } from './envelope.js';
 import { ToilError } from './errors.js';
 import { forwardSlashes, isSystemPath, type Workspace } from './files.js';
-import { findGitRepo, readGitContext, readGitRemotes, type GitContext } from './git-repo.js';
+import { findGitRepo, readGitRemotes, type GitContext } from './git-repo.js';
 import { JsonSyntaxError, parseStrictJson } from './strict-json.js';
 
 /**
@@ -358,6 +358,8 @@ export interface CatalogOptions {
   base: string | undefined;
   /** toil's own files beyond `~/.toil` (the --config file), which a dossier path may not name. */
   protect: readonly string[];
+  /** The git context for a folder (its remotes for the git step, and `ctx.repo()`), used when a call names a `cwd`: the same readers the workspace gets. */
+  git: (dir: string) => Pick<Place, 'gitRemote' | 'repo'>;
 }
 
 export interface DossierCatalog {
@@ -664,27 +666,15 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
     };
   };
 
-  const folderGit = (dir: string): Pick<Place, 'gitRemote' | 'repo'> => ({
-    gitRemote: async () => {
-      const repo = findGitRepo(dir, guard);
-      const origin = repo ? readGitRemotes(repo, guard).find((r) => r.name === 'origin') : undefined;
-      return origin ? { name: origin.name, url: origin.url.split(' ')[0]! } : undefined;
-    },
-    repo: () => {
-      const found = readGitContext(dir, guard);
-      return found && { ...found, remotes: found.remotes.map(stripUserinfo) };
-    },
-  });
-
   const place = (request: { dossier?: string | undefined; cwd?: string | undefined }): Place => {
     const selection = select(request);
     if (!selection.applied && selection.candidates.length > 1) {
       throw new ToilError('INVALID_INPUT', `${selection.candidates.length} dossiers apply to ${forwardSlashes(selection.folder.path ?? '')}: ${selection.candidates.map((c) => `${c.file.dossier.name} (${forwardSlashes(c.file.file)})`).join(', ')}.`, {
-        fix: `Pass --dossier <name> (dossier over MCP), or set TOIL_DOSSIER, to pick one: ${selection.candidates.map((c) => c.file.dossier.name).join(', ')}.`,
+        fix: `Pass --dossier <name>, or set TOIL_DOSSIER, to pick one: ${selection.candidates.map((c) => c.file.dossier.name).join(', ')}.`,
       });
     }
     const applied = selection.applied;
-    const git = request.cwd !== undefined && selection.folder.path ? folderGit(selection.folder.path) : {};
+    const git = request.cwd !== undefined && selection.folder.path ? o.git(selection.folder.path) : {};
     const warnings = [...selection.warnings, ...(applied ? applied.file.problems.filter((p) => p.level === 'warning').map((p) => problemWarning(applied.file, p)) : [])];
     if (!applied) return { adopted: () => false, hostFor: () => undefined, warnings, ...git };
     const folderReport = (applied.by === 'folder' || request.cwd !== undefined) && selection.folder.path ? { folder: { path: forwardSlashes(selection.folder.path), from: selection.folder.from } } : {};

@@ -245,9 +245,10 @@ is a flag on the area's group (`toil github --owner o get-pr`, accepted before o
 after the leaf) and a field on every one of its MCP tools, and a `command` input
 belongs to the commands that list it in their own `context`, which also marks any
 input `required`. Core resolves each in one order: the call's own value, then the
-dossier that applies to the call, then the git remote where the area declares how to
-read it (read from `.git` in pure JS), then the connection's `setting`, then the
-area's `default`. A command that reads one from a
+dossier that applies to the call, then the git remotes where the area declares how
+to read them (`origin` first, then the others; the first one on the connection's host
+that the area's parser accepts), then the connection's `setting`, then the area's
+`default`. A command that reads one from a
 file the call named (an `--input-file`) reports it with `ctx.supply`, which ranks
 it just below the call's own value. An input with `selectsConnection`
 picks the connection (`--env staging` selects the one named `staging` or whose `env`

@@ -4,6 +4,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { ResolvedConfig, Settings, Source } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { forwardSlashes } from '../src/core/files.js';
+import { toolName } from '../src/core/command.js';
+import { inFieldNames } from '../src/core/run.js';
 import { dossiersCommands } from '../src/dossiers/commands.js';
 import { demoCommands, demoArea } from './fixtures/demo-commands.js';
 import { demoContextArea, demoContextCommands } from './fixtures/demo-context-commands.js';
@@ -75,7 +77,9 @@ async function both(d: DossierDisk, argv: string[], tool: string, args: Record<s
   sessions.push(session);
   const viaMcp = await session.call(tool, args);
   const strip = (e: Envelope | undefined) => e && { ...e, meta: { ...e.meta, durationMs: 0 } };
-  expect(strip(viaMcp.envelope), 'CLI and MCP resolve identically').toEqual(strip(viaCli.envelope));
+  // Over MCP an input error names fields rather than flags (inFieldNames); everything else is identical.
+  const def = commands.find((c) => toolName(c) === tool)!;
+  expect(strip(viaMcp.envelope), 'CLI and MCP resolve identically').toEqual(strip(viaCli.envelope && inFieldNames(def, viaCli.envelope)));
   expect(mcp.http.calls).toEqual(cli.http.calls);
   return { envelope: viaCli.envelope!, calls: cli.http.calls };
 }

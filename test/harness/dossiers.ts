@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { ResolvedConfig } from '../../src/core/config.js';
-import { createDossierCatalog, type DossierArea, type DossierCatalog } from '../../src/core/dossier.js';
+import { createDossierCatalog, stripUserinfo, type DossierArea, type DossierCatalog } from '../../src/core/dossier.js';
+import { findGitRepo, readGitContext, readGitRemotes } from '../../src/core/git-repo.js';
 
 /**
  * Dossiers on a real disk, in a temp folder: a home (with `~/.toil/dossiers`)
@@ -59,6 +60,18 @@ export function dossierDisk(files: Record<string, unknown> = {}): DossierDisk {
         workspace: dir ? { dir, source: options.mcp ? 'mcp-root' : 'cwd' } : { source: 'none' },
         base: dir,
         protect: [join(home, '.toil')],
+        // As the shipped context reads a folder's git: origin first, http(s) userinfo dropped.
+        git: (folder) => ({
+          gitRemote: async () => {
+            const repo = findGitRepo(folder, { home });
+            const remotes = repo ? readGitRemotes(repo, { home }) : [];
+            return [...remotes.filter((r) => r.name === 'origin'), ...remotes.filter((r) => r.name !== 'origin')];
+          },
+          repo: () => {
+            const found = readGitContext(folder, { home });
+            return found && { ...found, remotes: found.remotes.map(stripUserinfo) };
+          },
+        }),
       });
     },
     cleanup: () => rmSync(root, { recursive: true, force: true }),

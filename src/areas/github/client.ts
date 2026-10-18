@@ -99,7 +99,7 @@ export async function githubAll<T>(ctx: GitHubContext, path: string, what: strin
 }
 
 /**
- * The owner and repo a command acts on: a flag, then the origin remote when
+ * The owner and repo a command acts on: a flag, then the first remote (origin first) when
  * it's on this connection's host, then the connection's owner/repo (usually
  * defaults.github), as before. Core resolves all three; this only keeps the
  * predecessor's error when none of them has a value.
@@ -108,7 +108,7 @@ export function target(ctx: GitHubContext): { owner: string; repo: string } {
   const { owner, repo } = ctx.context;
   if (!owner || !repo) {
     throw new ToilError('INVALID_INPUT', 'Could not determine GitHub owner/repo. Pass --owner and --repo, or set owner and repo under defaults.github in your toil config.', {
-      fix: `Pass --owner <owner> and --repo <repo>, run inside a clone whose origin is on this GitHub host, or set owner and repo under defaults.github (${githubArea.envName('owner')} and ${githubArea.envName('repo')} for the default connection).`,
+      fix: `Pass --owner <owner> and --repo <repo>, run inside a clone with a remote on this GitHub host, or set owner and repo under defaults.github (${githubArea.envName('owner')} and ${githubArea.envName('repo')} for the default connection).`,
     });
   }
   return { owner, repo };

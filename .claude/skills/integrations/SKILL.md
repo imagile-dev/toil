@@ -44,6 +44,9 @@ versions.
    overwrites, and it leaves out commands a divergence removes. Group-level flags
    become the area's context inputs in `area.ts`, with a TODO for where each value
    comes from (a connection setting, the git remote, or selecting the connection).
+   An area with no contract entry (a Cloud variant, with no predecessor) is stubbed
+   from command names given after it, `node scripts/stub-area.mjs jira-cloud search
+   "issue get"`, each with no flags yet, or with none named, one `example` command.
 3. **Build each command**: request, paging, errors and `data` exactly as the
    predecessor had them, through `ctx.fetch` and core's helpers. Set `writes`
    from what the old command does; the stub only guessed from the verb.

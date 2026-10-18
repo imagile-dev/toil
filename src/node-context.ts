@@ -80,6 +80,29 @@ export function createNodeContext(o: NodeContextOptions): Context {
   const mcp = o.stdin === false;
   const workspace = resolveWorkspace({ flag: o.globals.workspace, env: o.env, cwd: o.cwd, mcp, roots: o.roots });
   const debug = o.globals.debug ? (message: string) => o.stderr(`[toil] ${message}\n`) : () => {};
+  const guard = { home: o.home, env: o.env, protect: ownFiles(o.home, o.cwd, o.globals.config) };
+  // The git a folder's commands see: the workspace's, or a call's `cwd`.
+  const gitAt = (dir: string | undefined): Pick<Context, 'gitRemote' | 'repo'> => ({
+    // Area context from the folder's remotes, read from .git in pure JS, so
+    // --project and --repo come from a remote with no git installed: `origin`
+    // first, then the others in `git remote -v` order. Each area trusts only a
+    // remote on its connection's host. The URL is cut at its first space, as
+    // the `git remote -v` parsing it replaces did.
+    gitRemote: async () => {
+      if (!dir) return [];
+      const repo = findGitRepo(dir, guard);
+      const remotes = repo ? readGitRemotes(repo, guard).map((r) => ({ name: r.name, url: r.url.split(' ')[0]! })) : [];
+      return [...remotes.filter((r) => r.name === 'origin'), ...remotes.filter((r) => r.name !== 'origin')];
+    },
+    // Root, branch and remotes for a command that asks (`current-pr`), from .git
+    // with no git. An http(s) remote can carry a token as its userinfo
+    // (`https://<token>@host/...`); that's dropped, since no command needs it
+    // and a credential goes only to the connection it's configured on.
+    repo: () => {
+      const found = dir ? readGitContext(dir, guard) : undefined;
+      return found && { ...found, remotes: found.remotes.map(withoutHttpUserinfo) };
+    },
+  });
   return {
     config,
     // Dossiers: your own, listed folders, and the repository's, read fresh on
@@ -93,10 +116,11 @@ export function createNodeContext(o: NodeContextOptions): Context {
             home: o.home,
             env: o.env,
             config,
-            areas: o.areas.map((a) => ({ name: a.name, context: a.context ?? [] })),
+            areas: o.areas.map((a) => ({ name: a.name, context: a.contextInputs ?? [] })),
             workspace,
             base: mcp ? workspace.dir : o.cwd,
             protect: ownFiles(o.home, o.cwd, o.globals.config),
+            git: gitAt,
           }),
         }),
     // The OS certificate store and HTTPS_PROXY / NO_PROXY, set up on the first request.
@@ -112,25 +136,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
       env: o.env,
       protect: ownFiles(o.home, o.cwd, o.globals.config),
     }),
-    // Area context from the workspace's `origin` remote, read from .git in pure
-    // JS, so --project and --repo come from the remote with no git installed.
-    // The URL is cut at its first space, as the `git remote -v` parsing it
-    // replaces did.
-    gitRemote: async () => {
-      if (!workspace.dir) return undefined;
-      const guard = { home: o.home, env: o.env, protect: ownFiles(o.home, o.cwd, o.globals.config) };
-      const repo = findGitRepo(workspace.dir, guard);
-      const origin = repo ? readGitRemotes(repo, guard).find((r) => r.name === 'origin') : undefined;
-      return origin ? { name: origin.name, url: origin.url.split(' ')[0]! } : undefined;
-    },
-    // Root, branch and remotes for a command that asks (`current-pr`), from .git
-    // with no git. An http(s) remote can carry a token as its userinfo
-    // (`https://<token>@host/...`); that's dropped, since no command needs it
-    // and a credential goes only to the connection it's configured on.
-    repo: () => {
-      const found = workspace.dir ? readGitContext(workspace.dir, { home: o.home, env: o.env, protect: ownFiles(o.home, o.cwd, o.globals.config) }) : undefined;
-      return found && { ...found, remotes: found.remotes.map(withoutHttpUserinfo) };
-    },
+    ...gitAt(workspace.dir),
     // Looked up only when a command runs git, so nothing else notices it's missing.
     git: createGitRunner({
       command: o.def ? commandName(o.def) : 'mcp',

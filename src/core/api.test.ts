@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { testContext } from '../../test/harness/context.js';
 import type { Route } from '../../test/harness/fake-fetch.js';
 import type { AnyCommand } from './command.js';
-import { apiGraphql, apiRequest, apiResponse, type ApiRequest } from './api.js';
+import { apiGraphql, apiRequest, apiResponse, urlKeyOf, type ApiRequest } from './api.js';
 import { defineArea } from './area.js';
 import { multipart } from './multipart.js';
 import { paginate } from './paginate.js';
@@ -179,6 +179,16 @@ describe('the request hook', () => {
   });
 });
 
+describe('the setting a network error names', () => {
+  const origin = 'https://sde.imagile.dev';
+  it('is baseUrl when it holds the host, else the setting that does, else none', () => {
+    expect(urlKeyOf({ name: 'x', area: 'sde', writes: false, baseUrl: 'https://sde.imagile.dev/api' }, origin)).toBe('baseUrl');
+    expect(urlKeyOf({ name: 'x', area: 'sde', writes: false, baseUrl: 'https://other.imagile.dev', platformUrl: 'https://sde.imagile.dev' }, origin)).toBe('platformUrl');
+    expect(urlKeyOf({ name: 'x', area: 'sde', writes: false, connectionString: 'secret-token@sde.imagile.dev' }, origin)).toBe('connectionString');
+    expect(urlKeyOf({ name: 'x', area: 'sde', writes: false, token: 't' }, origin)).toBeNull();
+  });
+});
+
 describe('response bodies and statuses', () => {
   it('reads text, NDJSON and bytes, and returns an accepted non-OK status instead of failing', async () => {
     const routes: Route[] = [
@@ -280,7 +290,7 @@ describe('token exchange', () => {
     const { envelope, calls } = await run([exchangeRoute({ status: 401, json: { message: 'refresh token expired' } }), api], { path: '/x' }, tokenConfig);
     expect(envelope.error).toEqual({
       code: 'AUTH',
-      message: `Probe token exchange at ${TOKENS} failed with HTTP 401: refresh token expired`,
+      message: `Probe token exchange at ${TOKENS} failed with HTTP 401 Unauthorized: refresh token expired`,
       fix: 'Make a new refresh token in Probe.',
       details: { status: 401, url: TOKENS },
     });
@@ -299,7 +309,7 @@ describe('token exchange', () => {
     const none = await run([exchangeRoute({ json: { nothing: true } }), api], { path: '/x' }, tokenConfig);
     expect(none.envelope.error).toMatchObject({ code: 'AUTH', message: `Probe token exchange at ${TOKENS} answered without an access token.` });
     const down = await run([exchangeRoute({ status: 502, text: '' }), api], { path: '/x' }, tokenConfig);
-    expect(down.envelope.error).toMatchObject({ code: 'HTTP', message: `Probe token exchange at ${TOKENS} failed with HTTP 502`, details: { status: 502 } });
+    expect(down.envelope.error).toMatchObject({ code: 'HTTP', message: `Probe token exchange at ${TOKENS} failed with HTTP 502 Bad Gateway`, details: { status: 502 } });
   });
 
   it('a token the API rejects early is exchanged once more, then the API is believed', async () => {
