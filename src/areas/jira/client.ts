@@ -13,7 +13,7 @@ import { suggestedType } from './custom-fields.js';
  * want; this module knows the endpoints, the headers, the paging and the odd
  * corners (createmeta moved in 8.4, attachments are fetched from a URL Jira
  * hands back). The paging loop, re-pointing and multipart are core's.
- * Requests are kept exactly as the command contract sent them,
+ * Requests are sent exactly as the command contract specifies,
  * because those are the ones known to work against real servers.
  * Altering a request that works would need a change request, and nobody has
  * yet found the form.
@@ -91,25 +91,23 @@ export interface JiraFieldInfo {
   allowedValues?: AllowedValue[];
   /** The `customFields` type that suits this field. */
   suggestedType?: CustomFieldDefinition['type'];
-  /** The same value under the name the command contract's output used. */
-  toilType?: CustomFieldDefinition['type'];
 }
 
 /**
- * A key or id in a URL path, unencoded, exactly as the contract sent it.
+ * A key or id in a URL path, unencoded, exactly as the contract specifies.
  * A key with `/` or `?` changes the path; recorded as a suspected bug (#70), not
- * changed (CLAUDE.md, Matching the contract). Precedent outranks preference until a live
+ * changed (CLAUDE.md, The command contract). Precedent outranks preference until a live
  * server rules otherwise.
  */
 const seg = (value: string | number) => String(value);
 
 /**
- * The contract's test for "an id, not a name": anything parseInt can read a
+ * The test the contract specifies for "an id, not a name": anything parseInt can read a
  * number from, so "2nd Review" counts as an id. Recorded as a suspected bug (#70).
  */
 export const looksNumeric = (value: string) => !isNaN(parseInt(value, 10));
 
-/** What every JSON call sends besides the hook's token, exactly as the contract sent it. */
+/** What every JSON call sends besides the hook's token, exactly as the contract specifies. */
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
 
 interface JiraRequest {
@@ -130,8 +128,8 @@ export function jira<T>(ctx: JiraContext, path: string, req: JiraRequest = {}): 
 /**
  * startAt/maxResults paging through core's loop, for a list kept under
  * `field`: it stops on an empty page or once `total` is reached, as the
- * contract did. `total` is read with Number(), which is how the
- * contract's `startAt >= total` coerced it, so a missing one never stops
+ * contract specifies. `total` is read with Number(), which is how the
+ * contract's `startAt >= total` coerces it, so a missing one never stops
  * the loop. An endpoint with no `total` (the Agile sprint list, which has
  * `isLast` instead) costs one extra empty-page request; recorded as a
  * suspected bug (#70).
@@ -142,7 +140,7 @@ function offsetPages<T>(field: string): PageStyle<T> {
     startParam: 'startAt',
     limitParam: 'maxResults',
     pageSize: PAGE,
-    // `issues` first, as the contract's shared loop read every list.
+    // `issues` first, as the contract specifies for every list.
     items: (body) => {
       const page = body as Record<string, T[] | undefined>;
       return page.issues ?? page[field] ?? [];
@@ -250,13 +248,13 @@ export const STANDARD_SEARCH_FIELDS = ['summary', 'status', 'priority', 'assigne
  * stopping at `maxResults` when given. Keeps the server's `total` so the
  * caller can tell whether the result was cut short.
  *
- * Core's loop, with the two things the contract did that its cap doesn't:
+ * Core's loop, with the two things the contract specifies that its cap doesn't do:
  * the last page asks only for what's left (`[200, 50]`, not `[200, 100]`),
  * and a `maxResults` that parseInt couldn't read (NaN) goes out as null and
  * pages through everything rather than being refused. So the page size is
  * worked out here, and the cap is folded into the end offset `total` reports:
  * stopping at the server's total or at startAt + maxResults, whichever comes
- * first, is exactly the contract's two exit tests.
+ * first, is exactly the two exit tests the contract specifies.
  */
 export async function search(
   ctx: JiraContext,
@@ -285,9 +283,9 @@ export async function search(
       const startAt = Number(params.startAt);
       const pageSize = max === undefined ? PAGE : Math.min(PAGE, max - (startAt - first));
       const page = await jira<JiraSearchResult>(ctx, `${API}/search`, { method: 'POST', body: { jql, startAt, maxResults: pageSize, fields: opts.fields } });
-      // Every page's total, the empty last one included, as the contract kept it.
+      // Every page's total, the empty last one included, as the contract specifies.
       // Not Paged.total: that's the clamped end offset above, and it drops a
-      // total the server left out, where the contract kept it as sent.
+      // total the server left out, where the contract keeps it as sent.
       total = page.total;
       return { body: page };
     },
@@ -300,7 +298,7 @@ export async function fetchFields(ctx: JiraContext): Promise<JiraFieldInfo[]> {
   const fields = await jira<JiraFieldInfo[]>(ctx, `${API}/field`);
   return fields.map((f) => {
     const type = suggestedType(f.schema);
-    return type ? { ...f, suggestedType: type, toilType: type } : f;
+    return type ? { ...f, suggestedType: type } : f;
   });
 }
 

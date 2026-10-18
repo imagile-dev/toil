@@ -4,7 +4,6 @@
   "source": {
     "name": "toil",
     "package": "@imagile-dev/toil",
-    "version": "6.3.0",
     "capturedAt": "2026-10-17",
     "method": "recursive --help walk of the built CLI; output fields from the TypeScript checker over its source"
   },
@@ -1009,7 +1008,6 @@
             "[].custom",
             "[].id",
             "[].name",
-            "[].toilType?",
             "[].schema.custom?",
             "[].schema.type?",
             "[].schema?"

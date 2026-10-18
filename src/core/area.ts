@@ -56,15 +56,14 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string 
   coreAliases?: Record<string, string>;
   /**
    * The error when no connection to this area is set up at all, in the
-   * area's own words, where the contract had them ("OSS Index needs an
+   * area's own words, where the contract specifies them ("OSS Index needs an
    * account token…"). `fix` defaults to core's, which names the variables
    * to set. Without it, core says "No <area> connection is set up."
    */
   notConfigured?: { message: string; fix?: string };
   /**
-   * Keys the area no longer accepts, each with what to say about it
-   * (checkmarx's `clientId`: "Client credentials are no longer supported;
-   * set apiKey."). A connection that still sets one gets that message as a
+   * Keys the area doesn't accept, each with what to say about it
+   * (e.g. "Client credentials aren't supported; set apiKey."). A connection that still sets one gets that message as a
    * `CONFIG_REMOVED_KEY` warning instead of core's unknown-key one, and the
    * value is dropped, never sent. A removed key can't be a connection key.
    */
@@ -89,7 +88,7 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string 
    * area, as Kibana takes Elasticsearch's API key. Declaring it pairs nothing:
    * core adds a `<key>From` setting, and only a connection whose user set it
    * (`"apiKeyFrom": "es-prod"`) borrows, from that connection. The one
-   * exception keeps the documented env chain: the area's default connection takes
+   * exception keeps the env chain the contract specifies: the area's default connection takes
    * the other area's `TOIL_<AREA>_<KEY>` env value when it has no env value
    * of its own.
    */
@@ -193,7 +192,7 @@ export interface ContextInput {
   selectsConnection?: boolean;
   /**
    * The error when a command that requires this input finds it nowhere, so an
-   * integration keeps the contract's wording ("No project specified…"). `fix`
+   * integration keeps the wording its contract specifies ("No project specified…"). `fix`
    * defaults to core's, which names the flag, the setting and its env var.
    */
   missing?: { message: string; fix?: string };

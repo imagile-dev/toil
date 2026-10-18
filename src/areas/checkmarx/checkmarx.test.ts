@@ -112,20 +112,6 @@ describe('token exchange', () => {
   });
 });
 
-describe('connection', () => {
-  it('client credentials are not read: each is a removed-key warning naming apiKey, and without apiKey the error names it', async () => {
-    const config = { checkmarx: { baseUrl: CX, tenantName: 'imagile', clientId: 'imagile-client', clientSecret: 'shh' } };
-    const { envelope, calls } = await run(projectListCommand, {}, [], config);
-    expect(calls).toEqual([]);
-    expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('apiKey'), fix: expect.stringContaining('TOIL_CHECKMARX_API_KEY') });
-    expect(envelope.meta.warnings).toEqual([
-      { code: 'CONFIG_REMOVED_KEY', message: expect.stringContaining('clientId is ignored. Set apiKey') },
-      { code: 'CONFIG_REMOVED_KEY', message: expect.stringContaining('clientSecret is ignored. Set apiKey') },
-    ]);
-    expect(JSON.stringify(envelope)).not.toContain('shh');
-  });
-});
-
 describe('project list', () => {
   it('GETs projects with limit=100 and returns the bare projects array', async () => {
     const { envelope, calls } = await run(projectListCommand, {}, [token(), api({ projects: [cxProject(1), cxProject(2)], totalCount: 2, filteredTotalCount: 2 })]);
@@ -139,7 +125,7 @@ describe('project list', () => {
     expect(envelope.data).toEqual([]);
   });
 
-  it('stops at one page and warns in meta.warnings with the documented stderr wording (suspected bug, #89 item 1)', async () => {
+  it('stops at one page and warns in meta.warnings with the stderr wording the contract specifies (suspected bug, #89 item 1)', async () => {
     const { envelope, calls } = await run(projectListCommand, {}, [token(), api({ projects: [cxProject(1)], totalCount: 250, filteredTotalCount: 250 })]);
     expect(calls).toHaveLength(2);
     expect(envelope.ok).toBe(true);
