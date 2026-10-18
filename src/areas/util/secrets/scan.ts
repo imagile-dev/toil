@@ -1,4 +1,5 @@
 import { createHash, scryptSync } from 'node:crypto';
+import { relative } from 'node:path';
 import type { CommandContext } from '../../../core/context.js';
 import { ToilError } from '../../../core/errors.js';
 import { findSecrets, TOKEN_SHAPES, type SecretMatch } from '../../../core/secret-shapes.js';
@@ -91,6 +92,10 @@ const MASK = '…';
 
 const SHAPE_RULES = new Set(TOKEN_SHAPES.map((s) => s.id));
 const KEY_END = /-----END [A-Z ]*PRIVATE KEY-----/;
+/** A BEGIN line and nothing else: the only start a key spread over the lines below it has. */
+const KEY_HEADER = /^-----BEGIN [A-Z ]*PRIVATE KEY-----$/;
+/** What a key's body is made of: base64 lines (`=` only as padding at the end), blank lines, and an encrypted PEM key's two headers. */
+const KEY_BODY = /^(?:[A-Za-z0-9+/]+={0,2}|\s*|Proc-Type:.*|DEK-Info:.*)$/;
 /** Subresource Integrity digests (`sha512-…` in lockfiles): random by design, and public. */
 const SRI = /\bsha(?:1|256|384|512)-[A-Za-z0-9+/]{16,}={0,2}/g;
 /** Candidates for the entropy rule: base64 and base64url runs, which `/`, `-` and `+` don't break. */
@@ -226,9 +231,11 @@ interface OpenKey {
 }
 
 /**
- * The scan over one file's lines, in order. A private key whose END isn't on
- * its BEGIN line takes every line up to the END as part of the one finding,
- * so a key's body isn't reported again line by line as random runs.
+ * The scan over one file's lines, in order. A BEGIN line standing alone opens
+ * a key that takes the body lines below it, up to its END, as part of the one
+ * finding, so the body isn't reported again line by line as random runs. The
+ * first line that isn't body ends the key and is scanned as any other line,
+ * so a header mentioned in a document can't hide the secrets after it.
  */
 class FileScan {
   readonly found: Held[] = [];
@@ -246,17 +253,15 @@ class FileScan {
     this.lines++;
     let from = 0;
     if (this.open) {
-      if (number !== this.open.lastLine + 1) this.close();
-      else {
-        const end = KEY_END.exec(text);
-        if (!end) {
-          this.append(text, number);
-          return;
-        }
+      const end = number === this.open.lastLine + 1 ? KEY_END.exec(text) : null;
+      if (end) {
         from = end.index + end[0].length;
         this.append(text.slice(0, from), number);
         this.close();
-      }
+      } else if (number === this.open.lastLine + 1 && KEY_BODY.test(text.trim())) {
+        this.append(text, number);
+        return;
+      } else this.close();
     }
     const { matches, checksums, placeholders } = detectLine(text);
     this.checksums += checksums;
@@ -277,7 +282,7 @@ class FileScan {
         check: digest(secret),
         firstLength: m.length,
       };
-      if (m.rule === 'private-key' && !KEY_END.test(secret) && m.index + m.length === text.length) {
+      if (m.rule === 'private-key' && KEY_HEADER.test(secret.trim())) {
         this.open = { finding: held, text: secret, lastLine: number };
       } else {
         this.finish(held, secret);
@@ -292,7 +297,7 @@ class FileScan {
     open.lastLine = number;
   }
 
-  /** Ends an open key at its END line, the end of a run of added lines, or the end of the file. */
+  /** Ends an open key at its END line, the first line that isn't key body, or the end of the file. */
   close(): void {
     const open = this.open;
     if (!open) return;
@@ -523,7 +528,7 @@ const splitLines = (text: string) => new Map(text.split('\n').map((l, i) => [i +
  */
 async function scanDiff(scan: Scan, kind: DiffKind): Promise<void> {
   const { ctx } = scan;
-  await requireRepo(ctx);
+  const repo = await requireRepo(ctx);
   const options = [...(kind === 'staged' ? ['--staged'] : []), '--no-color', '--unified=0', '--relative', '--src-prefix=a/', '--dst-prefix=b/'];
   const label = `git diff${kind === 'staged' ? ' --staged' : ''}`;
   const text = execOutput(label, await runGit(ctx, { subcommand: 'diff', options }), DEFAULT_MAX_BYTES);
@@ -543,6 +548,7 @@ async function scanDiff(scan: Scan, kind: DiffKind): Promise<void> {
         : async (lines) => (await openInput(ctx, { file: file.path }, { maxLineLength: MAX_LINE })).linesAt(lines);
     scan.done(fileScan, file.path, reread);
   }
+  await warnPartialDiff(scan, kind, repo.root);
   scan.v.unchecked('input.complete', "git's diff has no size to compare the bytes read with; each finding is re-read from its source instead");
   if (kind === 'working') {
     const untracked = await runGit(ctx, { subcommand: 'ls-files', options: ['--others', '--exclude-standard'] });
@@ -554,6 +560,35 @@ async function scanDiff(scan: Scan, kind: DiffKind): Promise<void> {
         message: `${count} untracked file${one ? " isn't" : "s aren't"} in the working-tree diff and ${one ? "wasn't" : "weren't"} scanned. Scan the folder to include ${one ? 'it' : 'them'}, or stage ${one ? 'it' : 'them'} and use --diff staged.`,
       });
     }
+  }
+}
+
+/**
+ * `--relative` keeps the diff to the workspace, which is what every path in
+ * the output is relative to. When the workspace is a folder inside the
+ * repository, the changes outside it aren't scanned; this says how many files
+ * that left out, so a clean result is never mistaken for a clean commit.
+ */
+async function warnPartialDiff(scan: Scan, kind: DiffKind, root: string): Promise<void> {
+  const { ctx } = scan;
+  const workspace = ctx.files.workspace;
+  if (workspace === undefined) return;
+  const inside = relative(root, workspace).replace(/\\/g, '/');
+  if (inside === '' || inside.startsWith('..')) return;
+  const listed = await runGit(ctx, { subcommand: 'diff', options: [...(kind === 'staged' ? ['--staged'] : []), '--name-only', '--no-relative'] });
+  if (listed.exitCode !== 0) {
+    scan.v.unchecked('diff.whole', "git couldn't list the changes outside the workspace");
+    return;
+  }
+  const prefix = `${inside}/`;
+  const fold = (p: string) => (process.platform === 'win32' ? p.toLowerCase() : p);
+  const outside = listed.stdout.split('\n').filter((p) => p !== '' && !fold(unquoteGitPath(p)).startsWith(fold(prefix))).length;
+  if (outside > 0) {
+    const what = kind === 'staged' ? 'staged' : 'changed';
+    ctx.warn({
+      code: 'SECRETS_DIFF_PARTIAL',
+      message: `${outside} ${what} file${outside === 1 ? ' is' : 's are'} outside the workspace (${inside}) and ${outside === 1 ? "wasn't" : "weren't"} scanned. Run it with --workspace at the repository's top to scan the whole ${kind === 'staged' ? 'commit' : 'working tree'}.`,
+    });
   }
 }
 
@@ -571,8 +606,17 @@ interface AllowList {
  */
 async function readAllowList(ctx: Ctx, named: string | undefined): Promise<AllowList | null> {
   const file = named ?? DEFAULT_ALLOW_FILE;
-  // With no workspace (MCP, no root) there's nowhere for the default to be, and text still scans.
-  if (named === undefined && (ctx.files.workspace === undefined || !ctx.files.exists(file))) return null;
+  // With no workspace (MCP, no root) there's nowhere for the default to be, and text still scans. A
+  // default the file bounds refuse (a workspace at home, where .toil/ is toil's own) counts as absent.
+  if (named === undefined) {
+    let present: boolean;
+    try {
+      present = ctx.files.workspace !== undefined && ctx.files.exists(file);
+    } catch {
+      present = false;
+    }
+    if (!present) return null;
+  }
   const input = await openInput(ctx, { file });
   const fingerprints = new Set<string>();
   let entries = 0;

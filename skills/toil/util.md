@@ -183,7 +183,7 @@ toil util secrets scan --text "$COMMENT"
 |-----------------|---------|
 | `[path]` | A file or folder inside the workspace. A folder is walked as `git ls-files --cached --others --exclude-standard` would list it. `-`, or nothing at all, reads stdin |
 | `--text <text>` | The content itself, instead of a file |
-| `--diff <kind>` | `staged` scans what the next commit holds (`git diff --staged`); `working` scans unstaged changes (`git diff`). Added lines only. Runs the git on PATH |
+| `--diff <kind>` | `staged` scans what the next commit holds (`git diff --staged`); `working` scans unstaged changes (`git diff`). Added lines only, in the workspace only. Runs the git on PATH |
 | `--allow-file <file>` | The allow file (default: `.toil/secrets-allow` at the workspace's top, when it exists) |
 
 Pass one of a path, `--text` or `--diff`; two at once is `INVALID_INPUT`. Over
@@ -275,10 +275,19 @@ is an `INVALID_INPUT` error instead. `--diff working` also warns
 `SECRETS_UNTRACKED_NOT_SCANNED` with the number of untracked files, which no diff
 holds: scan the folder, or stage them, to include them.
 
+**A diff covers the workspace, not the whole repository.** When the workspace is
+a folder inside the repository, changes outside it aren't scanned, and a
+`SECRETS_DIFF_PARTIAL` warning gives the number of changed files left out. To
+check a whole commit, run it with `--workspace` at the repository's top.
+
 Known limits:
 
 - A diff and a file are scanned line by line, so a secret split across two lines
   (other than a private key) isn't found.
+- A private key spans lines only when its BEGIN line stands alone. The key then
+  runs over the body lines below it (base64, blank, `Proc-Type:` and
+  `DEK-Info:`) to its END, and the first other line ends it and is scanned as
+  usual.
 - A bare `key=` isn't treated as a secret's name, because in toil's inputs it's
   an issue, space or project key. A real key there is still caught by its shape
   or its entropy.

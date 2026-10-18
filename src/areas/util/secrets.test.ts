@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { callKey } from '../../../test/fixtures/git.fixture.js';
 import { ALLOW, ENV, files as samples, PROPERTIES, SSH_KEY, STAGED_DIFF, DIFF_OPTIONS, canned } from '../../../test/fixtures/util-secrets.js';
@@ -8,6 +11,7 @@ import type { Context } from '../../core/context.js';
 import type { FileAccess } from '../../core/files.js';
 import type { GitCall, GitResult, GitRunner } from '../../core/git.js';
 import { execute } from '../../core/run.js';
+import { createNodeContext } from '../../node-context.js';
 import { SECRET_RULES } from '../../core/secret-shapes.js';
 import { commands } from './index.js';
 import { secretsScanCommand } from './secrets.js';
@@ -124,6 +128,31 @@ describe('util secrets scan: what it finds', () => {
         expect(data.findings.some((f) => f.column === column && f.length === secret.length), `${secret} in ${text}: ${JSON.stringify(data.findings)}`).toBe(true);
       }
     }
+  });
+
+  it('a lone BEGIN header ends at the first line that is not key body, and the secrets after it are still found', async () => {
+    const header = plant('-----BEGIN RSA PRIVATE', ' KEY-----');
+    const { data } = await scan({ text: `${header}\ntoken=Pl4ntedAfterHdr\nnotes\npassword=Pl4ntedPassw0rd\n` });
+    expect(data.findings.map((f) => [at(f), f.rule, f.endLine])).toEqual([
+      ['-:1:1', 'private-key', undefined],
+      ['-:2:7', 'name-value', undefined],
+      ['-:4:10', 'name-value', undefined],
+    ]);
+    // A header named in a sentence isn't a key's first line: the line is one finding, and the next is scanned.
+    const prose = await scan({ text: `Paste the key that starts ${header} here.\npassword=Pl4ntedPassw0rd\n` });
+    expect(prose.data.findings.map((f) => [at(f), f.rule])).toEqual([
+      ['-:1:27', 'private-key'],
+      ['-:2:10', 'name-value'],
+    ]);
+  });
+
+  it('an encrypted PEM key, with its Proc-Type and DEK-Info headers and a blank line, is still one finding', async () => {
+    const key = [plant('-----BEGIN RSA PRIVATE', ' KEY-----'), 'Proc-Type: 4,ENCRYPTED', 'DEK-Info: AES-128-CBC,0123456789ABCDEF0123456789ABCDEF', '', 'UGxhbnRlZEVuY3J5cHRlZEtleUJvZHlMaW5lT25l', 'UGxhbnRlZEVuY3J5cHRlZEtleUJvZHlMaW5lVHdv', plant('-----END RSA PRIVATE', ' KEY-----')];
+    const { data } = await scan({ text: `${key.join('\n')}\ntoken=Pl4ntedAfterKey\n` });
+    expect(data.findings.map((f) => [at(f), f.rule, f.endLine])).toEqual([
+      ['-:1:1', 'private-key', 7],
+      ['-:8:7', 'name-value', undefined],
+    ]);
   });
 
   it('reports a private key over several lines once, BEGIN to END, and not its body line by line', async () => {
@@ -380,6 +409,22 @@ describe('util secrets scan: the allow file', () => {
     expect(data.allowList).toMatchObject({ entries: 0, invalid: 1 });
   });
 
+  it('with the workspace at home, the default allow file is under toil\'s own folder: it counts as absent, and the scan runs', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'toil-secrets-home-'));
+    try {
+      writeFileSync(join(home, 'app.env'), 'password=Pl4ntedPassw0rd\n');
+      const ctx = createNodeContext({ globals: { workspace: home }, def: secretsScanCommand, signal: new AbortController().signal, env: {}, cwd: home, home, areas: [], version: '0.0.0-test', stderr: () => {}, stdin: false });
+      const envelope = await execute(secretsScanCommand, { file: 'app.env' }, ctx);
+      expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
+      expect(envelope.data).toMatchObject({ allowList: null, summary: { findings: 1 } });
+      // Named outright, the same file is refused by the bound, loudly.
+      const named = await execute(secretsScanCommand, { file: 'app.env', allowFile: '.toil/secrets-allow' }, ctx);
+      expect(named.ok).toBe(false);
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
   it('refuses an allow file that was named and is missing, and works without one when none was named', async () => {
     expect((await scan({ text: 'x', allowFile: 'nope' })).envelope.error?.code).toBe('INVALID_INPUT');
     expect((await scan({ text: 'x' })).data.allowList).toBeNull();
@@ -438,6 +483,26 @@ describe('util secrets scan: the diff', () => {
     ]);
     expect(data.verified.passed).toBe(true);
     expect(envelope.meta.warnings).toContainEqual(expect.objectContaining({ code: 'SECRETS_UNTRACKED_NOT_SCANNED', message: expect.stringContaining("2 untracked files aren't in the working-tree diff and weren't scanned") }));
+  });
+
+  it('with the workspace in a folder of the repository, warns SECRETS_DIFF_PARTIAL with the staged files left outside it', async () => {
+    const inner = `diff --git a/a.env b/a.env\n--- /dev/null\n+++ b/a.env\n@@ -0,0 +1 @@\n+password=Pl4ntedPassw0rd\n`;
+    const git = gitOf(
+      new Map([
+        [callKey({ subcommand: 'diff', options: ['--staged', ...DIFF_OPTIONS] }), ok(inner)],
+        [callKey({ subcommand: 'show', revisions: [':./a.env'] }), ok('password=Pl4ntedPassw0rd\n')],
+        [callKey({ subcommand: 'diff', options: ['--staged', '--name-only', '--no-relative'] }), ok('work/a.env\nother/b.env\n"other/caf\\303\\251.env"\n')],
+      ]),
+    );
+    const { data, envelope } = await scan({ diff: 'staged' }, { git, repo: { root: '/', branch: 'main', remotes: [] } });
+    expect(data.findings.map(at)).toEqual(['a.env:1:10']);
+    expect(envelope.meta.warnings).toContainEqual({ code: 'SECRETS_DIFF_PARTIAL', message: expect.stringContaining('2 staged files are outside the workspace (work)') });
+
+    // At the repository's top there's nothing outside, and git isn't asked.
+    const whole = gitOf(canned);
+    const top = await scan({ diff: 'staged' }, { git: whole, files: samples });
+    expect(top.envelope.meta.warnings?.map((w) => w.code)).not.toContain('SECRETS_DIFF_PARTIAL');
+    expect(whole.calls.some((c) => c.options?.includes('--name-only'))).toBe(false);
   });
 
   it('outside a repository is "Not a git repository", and a failing git is its own error with git\'s message', async () => {
