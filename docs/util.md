@@ -150,4 +150,4 @@ it at startup, and the bundle fails on every command, `toil version` included, w
 Keep the reading in the command's small module and hand the lazy one what it read:
 bytes, text, or the opened `UtilInput`, importing only the reader's types there
 (`util log` does this in `runLog`). A small module may simply be a static import, as
-`util encode` is.
+`util encode` is. `util md` reads its input in `src/areas/util/md.ts` and hands the text on.

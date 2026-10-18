@@ -22,3 +22,9 @@ when such a command runs:
   Vitaly Puzrin, licensed under the MIT License.
 - @cfworker/json-schema (https://github.com/cfworker/cfworker), by Jeremy
   Danyow, licensed under the MIT License.
+
+util md bundles, loaded only when it runs, the ADF JSON schema
+(src/areas/util/md/adf-schema.json), dist/json-schema/v1/full.json from
+@atlaskit/adf-schema 57.6.21 (https://www.npmjs.com/package/@atlaskit/adf-schema),
+Copyright Atlassian Pty Ltd, licensed under the Apache License, Version 2.0,
+unchanged.
