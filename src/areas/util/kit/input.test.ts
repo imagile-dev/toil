@@ -127,13 +127,26 @@ describe('openInput', () => {
     expect(found.get(300_000)).toBe('line 300000');
   });
 
-  it('a cap inside a multi-byte character drops the half character and warns only INPUT_TRUNCATED', async () => {
-    for (const chunkSize of [1, 2, 64]) {
+  it('a cap inside a multi-byte character drops the half character, the same for every chunk size, and warns only INPUT_TRUNCATED', async () => {
+    for (let chunkSize = 1; chunkSize <= 64; chunkSize++) {
       const warnings: Warning[] = [];
       const input = await openInput({ files: chunked({ 'a.txt': 'abécd' }, chunkSize), warn: (w) => warnings.push(w) }, { file: 'a.txt' }, { maxBytes: 3 });
-      expect((await all(input.lines())).map((l) => l.text), `chunk ${chunkSize}`).toEqual(['ab']);
-      expect([input.truncated, input.invalidUtf8]).toEqual([true, false]);
-      expect(warnings.map((w) => w.code)).toEqual(['INPUT_TRUNCATED']);
+      const bytes: number[] = [];
+      for await (const chunk of input.chunks()) bytes.push(...chunk);
+      expect([bytes, input.bytesRead, input.truncated, input.invalidUtf8], `chunk ${chunkSize}`).toEqual([[97, 98], 2, true, false]);
+      expect((await all(input.lines())).map((l) => l.text)).toEqual(['ab']);
+      expect(new Set(warnings.map((w) => w.code))).toEqual(new Set(['INPUT_TRUNCATED']));
+    }
+  });
+
+  it('yields whole characters and reads every byte for every chunk size, holding a partial one back only until it completes', async () => {
+    const text = 'aé€😀b';
+    for (let chunkSize = 1; chunkSize <= 64; chunkSize++) {
+      const quiet: Warning[] = [];
+      const input = await openInput({ files: chunked({ 'a.txt': text }, chunkSize), warn: (w) => quiet.push(w) }, { file: 'a.txt' });
+      const decoded: string[] = [];
+      for await (const chunk of input.chunks()) decoded.push(new TextDecoder('utf-8', { fatal: true }).decode(chunk));
+      expect([decoded.join(''), input.bytesRead, quiet], `chunk ${chunkSize}`).toEqual([text, Buffer.byteLength(text), []]);
     }
   });
 

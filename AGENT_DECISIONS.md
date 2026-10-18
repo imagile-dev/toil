@@ -1072,6 +1072,7 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   which is what `redactText`'s order amounts to. A test holds the two to the same
   answer on every sample.
 - **YAML aliases are counted, not refused**: real OpenAPI documents reuse anchors,
-  so `parseYaml` counts values as if every alias were expanded and refuses a
-  document past 1,000,000 (`INVALID_INPUT`). js-yaml has no switch to reject
-  aliases, and the count also stops a cycle.
+  so `parseYaml` counts only what aliases add beyond the document as written, and
+  refuses a document where that passes 1,000,000 values (`INVALID_INPUT`). A
+  document without aliases is held by the input cap alone. js-yaml has no switch
+  to reject aliases, and the count also stops a cycle.

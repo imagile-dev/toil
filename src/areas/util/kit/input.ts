@@ -201,34 +201,35 @@ export async function openInput(ctx: InputContext, fields: { file?: string | und
             yield held;
           })()
         : ctx.files.readStream((source as { path: string }).path, signal ? { signal } : {});
-    let carry = new Uint8Array(0);
+    // Bytes that may start a character the next chunk finishes are held back, at most 3, until
+    // it shows whether they do. So every pass yields whole characters at the same places
+    // whatever the chunk size, and a cap inside a character drops the half one unseen.
+    let pending = new Uint8Array(0);
+    let raw_ = 0;
     for await (const chunk of raw) {
       let piece = chunk;
-      if (state.bytesRead + piece.length > maxBytes) {
-        piece = piece.subarray(0, maxBytes - state.bytesRead);
+      if (raw_ + piece.length > maxBytes) {
+        piece = piece.subarray(0, maxBytes - raw_);
         state.truncated = true;
       }
-      refuseBinary(piece, state.bytesRead);
-      // UTF-8 is checked across chunk boundaries: a sequence a chunk starts is finished by the next.
-      let joined = carry.length ? concat([carry, piece], carry.length + piece.length) : piece;
+      refuseBinary(piece, raw_);
+      raw_ += piece.length;
+      const joined = pending.length ? concat([pending, piece], pending.length + piece.length) : piece;
       const tail = incompleteTail(joined);
-      if (state.truncated && tail > 0) {
-        // The cap fell inside a character. That half character isn't invalid UTF-8, it's
-        // the truncation INPUT_TRUNCATED already reports, so it's dropped rather than shown.
-        const drop = Math.min(tail, piece.length);
-        piece = piece.subarray(0, piece.length - drop);
-        joined = joined.subarray(0, joined.length - tail);
-        carry = new Uint8Array(0);
-      } else {
-        carry = joined.slice(joined.length - tail);
-        joined = joined.subarray(0, joined.length - tail);
-      }
-      if (!isUtf8(joined)) noteInvalid();
-      state.bytesRead += piece.length;
-      if (piece.length) yield piece;
+      // At the cap, the half character is the truncation INPUT_TRUNCATED reports, not invalid UTF-8.
+      const out = joined.subarray(0, joined.length - tail);
+      pending = state.truncated ? new Uint8Array(0) : joined.slice(joined.length - tail);
+      if (!isUtf8(out)) noteInvalid();
+      state.bytesRead += out.length;
+      if (out.length) yield out;
       if (state.truncated) break;
     }
-    if (carry.length && !isUtf8(carry)) noteInvalid();
+    if (pending.length) {
+      // The input ended inside a character: those bytes are invalid, and still part of it.
+      noteInvalid();
+      state.bytesRead += pending.length;
+      yield pending;
+    }
     if (state.truncated) ctx.warn({ code: 'INPUT_TRUNCATED', message: `Only the first ${maxBytes} bytes of ${label} were read; the rest was left out.` });
   }
 
@@ -262,8 +263,7 @@ export async function openInput(ctx: InputContext, fields: { file?: string | und
       }
       take(text.slice(start));
     }
-    // A pass cut at the cap may end inside a character; those bytes are the truncation, not text.
-    if (!state.truncated) take(decoder.decode());
+    take(decoder.decode());
     if (current !== '' || cut) yield finish();
   }
 

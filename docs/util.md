@@ -41,7 +41,7 @@ both at once, stdin over MCP (naming `file` and `text`), a folder, and binary co
 - **Whole reads:** `bytes()` and `text()`, capped at `maxBytes` (64 MiB by default).
   Past the cap they're `INVALID_INPUT`, before reading when a file's size already
   says so.
-- **Streaming:** `lines()` yields `{ number, text }` from 1, with LF and CRLF
+- **Streaming:** a pass yields whole characters only, holding back up to 3 bytes of one a chunk boundary splits, so `chunks()` and `bytesRead` are the same for any chunk size. `lines()` yields `{ number, text }` from 1, with LF and CRLF
   dropped, in constant memory for a file of any size. A line longer than
   `maxLineLength` (64 KiB) is cut and marked `cut: true`. With `maxBytes` set, a
   stream stops there, sets `truncated` and warns `INPUT_TRUNCATED`. `chunks()` is the
@@ -99,7 +99,7 @@ classify, a file it couldn't read) is counted and reported in `data` and
 | Piece | Where | What it is |
 |-------|-------|------------|
 | XML | `kit/xml.ts` | Built in. `XmlTokenizer` streams events from chunks of any size; `parseXml` builds a tree. Well-formed or `XmlSyntaxError` with line and column. No DTD processing, so nothing expands or is fetched; extra entities (HTML's, for storage format) come from the caller, and `fragment: true` reads a fragment. For JUnit, TRX, Cobertura and Confluence storage format |
-| YAML | `kit/yaml.ts` | js-yaml, YAML 1.2 core schema (no timestamps), duplicate keys refused, one document, and at most 1,000,000 values with aliases expanded (`INVALID_INPUT` past it, so a "billion laughs" document is refused). Errors give line and column, never the text. Lazy only |
+| YAML | `kit/yaml.ts` | js-yaml, YAML 1.2 core schema (no timestamps), duplicate keys refused, one document, and aliases may add at most 1,000,000 values beyond the document as written (`INVALID_INPUT` past it, so a "billion laughs" document is refused; a document without aliases is held only by the input cap). Errors give line and column, never the text. Lazy only |
 | JSON Schema | `kit/json-schema.ts` | @cfworker/json-schema, drafts 4, 7, 2019-09 and 2020-12, chosen from `$schema`. Problems by JSON pointer, deepest first, capped. For ADF, OpenAPI and generated examples. Lazy only |
 | Secrets | `src/core/secret-shapes.ts` | toil's one definition of a secret. The audit log redacts with `redactText`; `findSecrets(text)` returns each secret's rule and position (the secret alone, never the name around it), from the same rules |
 | Versions | `src/core/versions.ts` | The comparison `artifactory outdated` and `util deps diff` use, exactly as recorded. An ecosystem's own grammar goes beside it, not in place of it |

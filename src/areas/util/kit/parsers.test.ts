@@ -31,10 +31,17 @@ describe('parseYaml', () => {
     expect(laughs.length).toBeLessThan(400);
     const started = performance.now();
     expect(() => parseYaml(laughs, 'the file "laughs.yaml"')).toThrow(
-      expect.objectContaining({ code: 'INVALID_INPUT', message: `The file "laughs.yaml" expands its aliases past ${MAX_YAML_NODES} values, the most toil reads from one YAML document.` }),
+      expect.objectContaining({ code: 'INVALID_INPUT', message: `The file "laughs.yaml" uses aliases that add more than ${MAX_YAML_NODES} values to it once expanded, the most toil accepts.` }),
     );
     expect(performance.now() - started).toBeLessThan(2000);
     expect(parseYaml('base: &b { type: string }\nuse: [*b, *b]')).toEqual({ base: { type: 'string' }, use: [{ type: 'string' }, { type: 'string' }] });
+  });
+
+  it("reads a large document with no aliases, however many values it holds: the reviewer's 400,000 lines", () => {
+    const big = Array.from({ length: 400_000 }, (_, i) => `k${i}: [1, 2]`).join('\n');
+    const doc = parseYaml(big) as Record<string, number[]>;
+    expect(Object.keys(doc)).toHaveLength(400_000);
+    expect(doc.k399999).toEqual([1, 2]);
   });
 
   it('reads YAML 1.2 core types and keeps dates as the strings they were written as', () => {
