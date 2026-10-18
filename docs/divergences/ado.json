@@ -2,6 +2,13 @@
   "scope": "ado",
   "divergences": [
     {
+      "allows": [],
+      "old": "Reading --collection, --project and --repo context from the first git remote on the connection's host in `git remote -v` order, which is sorted by remote name",
+      "toil": "origin is offered first, then the other remotes in that order, and the first on the connection's host wins. The two differ only when origin and a remote whose name sorts before it (mirror, fork) are both on the host",
+      "why": "origin is the clone's own remote, so it's the least surprising one to act on when two remotes point at the same server.",
+      "principle": "4"
+    },
+    {
       "allows": [
         "ado work schema data.example",
         "ado work schema data.schema"
@@ -52,11 +59,14 @@
       "principle": "2"
     },
     {
-      "allows": [],
-      "old": "ado work fields --save and work types --save writing the discovery (discoveredFields, fieldAliases, discoveredTypes) into the global config file",
-      "toil": "The flags stay and the result is unchanged, but nothing is written: an ADO_SAVE_UNAVAILABLE warning says so and how to set fieldAliases on the connection. Saved fieldAliases are still read",
-      "why": "Area commands never read or write config, so a command an agent can call can't rewrite the user's connections; the core change that would let one save a setting doesn't exist yet.",
-      "principle": "2"
+      "allows": [
+        "ado work fields --save",
+        "ado work types --save"
+      ],
+      "old": "ado work fields --save and work types --save writing fieldAliases, discoveredFields and discoveredTypes into the global config file",
+      "toil": "There is no --save: passing it is the usual unknown-option INVALID_INPUT. Every call without it returns the same data as before. A custom alias is fieldAliases on the connection",
+      "why": "The saved fieldAliases were the built-in aliases filtered to fields the server has, and they were merged over those same built-ins when used, so saving never changed what a field name resolved to; nothing ever read discoveredFields or discoveredTypes. Removed on the maintainer's instruction of 2026-10-17 (KF6, #68), so no area command needs to write config.",
+      "principle": "decision"
     },
     {
       "allows": [],

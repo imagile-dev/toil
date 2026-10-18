@@ -45,7 +45,7 @@ async function run(def: AnyCommand, input: Record<string, unknown>, routes: Rout
 }
 
 const ok = (json: unknown): Route => ({ url: /.*/, method: 'GET', respond: { json } });
-const remote = (url: string): Partial<Context> => ({ gitRemote: async () => ({ name: 'origin', url }) });
+const remote = (url: string): Partial<Context> => ({ gitRemote: async () => [{ name: 'origin', url }] });
 
 describe('requests', () => {
   it('sends the token and the pinned headers to the REST root, keeping /api/v3', async () => {
@@ -96,6 +96,13 @@ describe('owner and repo', () => {
       expect(calls[0]!.url, url).toBe(`${API}/repos/imagile/toil-probe/pulls/7`);
       expect(envelope.meta.context?.inputs?.owner, url).toEqual({ value: 'imagile', source: 'git' });
     }
+  });
+
+  it("reads a remote of any name on the connection's host when origin is elsewhere, as the contract did", async () => {
+    const remotes: Partial<Context> = { gitRemote: async () => [{ name: 'origin', url: 'git@github.com:me/toil-probe.git' }, { name: 'upstream', url: 'git@ghe.imagile.dev:imagile/toil-probe.git' }] };
+    const { envelope, calls } = await run(getPrCommand, { number: '7' }, fixture.routes!, { owner: 'other', repo: 'other' }, remotes);
+    expect(calls[0]!.url).toBe(`${API}/repos/imagile/toil-probe/pulls/7`);
+    expect(envelope.meta.context?.inputs?.owner).toEqual({ value: 'imagile', source: 'git' });
   });
 
   it('maps an api.github.com base URL to github.com remotes', async () => {

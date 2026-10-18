@@ -15,8 +15,7 @@ export const environmentsListCommand = splitioArea.command({
   input: z.object({}),
   writes: false,
   context: { workspace: 'required' },
-  // An input with no fields of its own types its examples as empty, context inputs and all (a kit gap), hence the cast.
-  examples: [{ workspace: 'ws-abc12345' } as unknown as Record<string, never>],
+  examples: [{ workspace: 'ws-abc12345' }],
   run: async (_input, ctx) => {
     // GET /environments/ws/{workspace}, a bare JSON array. https://docs.split.io/reference/get-environments
     const body = await split<unknown>(ctx, `/environments/ws/${seg(workspaceOf(ctx))}`);

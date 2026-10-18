@@ -51,9 +51,9 @@ describe('ping', () => {
     const message = await run(pingCommand, {}, [{ url: /.*/, respond: { status: 503, json: { message: 'Service unavailable' } } }]);
     expect(message.envelope.error).toMatchObject({ code: 'HTTP', message: 'Service unavailable' });
     const errors = await run(pingCommand, {}, [{ url: /.*/, respond: { status: 401, json: { errors: [{ status: 401, message: 'Bad credentials' }] } } }]);
-    expect(errors.envelope.error).toMatchObject({ code: 'AUTH', message: 'HTTP 401', fix: expect.stringContaining('TOIL_ARTIFACTORY_TOKEN') });
+    expect(errors.envelope.error).toMatchObject({ code: 'AUTH', message: 'HTTP 401 Unauthorized', fix: expect.stringContaining('TOIL_ARTIFACTORY_TOKEN') });
     const text = await run(pingCommand, {}, [{ url: /.*/, respond: { status: 404, text: 'nope' } }]);
-    expect(text.envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'HTTP 404' });
+    expect(text.envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'HTTP 404 Not Found' });
   });
 });
 

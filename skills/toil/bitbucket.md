@@ -64,10 +64,10 @@ OS credential store, or set `TOIL_BITBUCKET_PAT`.
 `--project <key>` and `--repo <slug>` are group flags, accepted before or after the
 command (`toil bitbucket --project PROJ list-prs`, or
 `toil bitbucket create-pr --project ~jdoe --repo scratch ...` for a personal
-repository). Without them, toil reads them from the workspace's `origin` remote when
-it's on the connection's host (`git@<host>:PROJ/repo.git` or
+repository). Without them, toil reads them from the first of the workspace's remotes
+on the connection's host, of any name, trying `origin` first (`git@<host>:PROJ/repo.git` or
 `https://<host>/scm/PROJ/repo.git`; `ssh://` URLs and HTTPS with a user name aren't
-recognised; only `origin` is read, not other remotes), then the connection's
+recognised), so a fork whose Bitbucket remote is `upstream` works too, then the connection's
 `project` and `repo` settings. `create-repo` and `create-prs` need
 only a project; every other command needs both, and fails with "Could not determine
 Bitbucket project/repo" when either is missing. `meta.context` says where each came

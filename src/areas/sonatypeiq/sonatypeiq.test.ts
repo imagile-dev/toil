@@ -250,7 +250,7 @@ describe('evaluate: the internal ID lookup (suspected bug #91 item 4)', () => {
       { method: 'GET', path: '/api/v2/applications', respond: { json: { applications: [] } } },
       { method: 'POST', path: '/api/v2/evaluation/applications/does-not-exist', respond: { status: 404, json: { message: 'Application not found' } } },
     ], { files });
-    expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'Sonatype IQ Server returned HTTP 404', details: { status: 404, serverMessage: 'Application not found' } });
+    expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'Sonatype IQ Server returned HTTP 404 Not Found', details: { status: 404, serverMessage: 'Application not found' } });
   });
 
   it('encodes the public ID with encodeURIComponent, as before', async () => {
@@ -328,9 +328,9 @@ describe('evaluate: reading the answer', () => {
 
   it('a failed evaluation keeps the documented message and core\'s code: a 500 is HTTP, a 401 AUTH', async () => {
     const failed = await run(evaluateCommand, { from: 'inventory.json', applicationId: PUBLIC_ID }, [lookup(), { method: 'POST', url: /.*/, respond: { status: 500, text: '' } }], { files });
-    expect(failed.envelope.error).toMatchObject({ code: 'HTTP', message: 'Sonatype IQ Server returned HTTP 500' });
+    expect(failed.envelope.error).toMatchObject({ code: 'HTTP', message: 'Sonatype IQ Server returned HTTP 500 Internal Server Error' });
     const denied = await run(evaluateCommand, { from: 'inventory.json', applicationId: PUBLIC_ID }, [lookup(), { method: 'POST', url: /.*/, respond: { status: 401, text: '' } }], { files });
-    expect(denied.envelope.error).toMatchObject({ code: 'AUTH', message: 'Sonatype IQ Server returned HTTP 401', fix: expect.stringContaining('User Token') });
+    expect(denied.envelope.error).toMatchObject({ code: 'AUTH', message: 'Sonatype IQ Server returned HTTP 401 Unauthorized', fix: expect.stringContaining('User Token') });
   });
 });
 
@@ -370,7 +370,7 @@ describe('evaluate: polling a queued evaluation', () => {
 
   it('any non-2xx while polling fails, the documented "not ready" 404 included (suspected bug #91 item 3)', async () => {
     const { envelope } = await run(evaluateCommand, { from: 'inventory.json', applicationId: PUBLIC_ID }, [lookup(), queued('/api/v2/results/r1'), { method: 'GET', path: '/api/v2/results/r1', respond: { status: 404, text: '' } }], { files });
-    expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'Sonatype IQ Server returned HTTP 404 polling results' });
+    expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'Sonatype IQ Server returned HTTP 404 Not Found polling results' });
   });
 
   it('waits 2 s, 4 s, 6 s ... between polls and gives up after the tenth queued answer with the documented message', async () => {

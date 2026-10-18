@@ -3,9 +3,9 @@
   "divergences": [
     {
       "allows": [],
-      "old": "Reading --project and --repo from the first git remote, of any name, on the connection's host",
-      "toil": "Only the origin remote is read (when it's on the connection's host), then the connection's project and repo settings. A clone whose Bitbucket remote is named upstream, with origin elsewhere, needs --project and --repo or the settings",
-      "why": "Core's git reader hands an area the origin remote only; reading every remote is a core change.",
+      "old": "Reading --project and --repo context from the first git remote on the connection's host in `git remote -v` order, which is sorted by remote name",
+      "toil": "origin is offered first, then the other remotes in that order, and the first on the connection's host wins. The two differ only when origin and a remote whose name sorts before it (mirror, fork) are both on the host",
+      "why": "origin is the clone's own remote, so it's the least surprising one to act on when two remotes point at the same server.",
       "principle": "4"
     },
     {

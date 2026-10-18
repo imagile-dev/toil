@@ -12,7 +12,7 @@ import type { SupportedVersion } from '../../core/supported.js';
  */
 
 /**
- * collection, project or repo from the working folder's origin remote, only
+ * collection, project or repo from one of the working folder's remotes (origin first), only
  * when the remote is on this connection's host, by core's ADO remote parser.
  * Suspected bug (#69 item 5): three common remote shapes are misread.
  */

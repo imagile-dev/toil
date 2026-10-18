@@ -3,6 +3,13 @@
   "divergences": [
     {
       "allows": [],
+      "old": "Reading --owner and --repo context from the first git remote on the connection's host in `git remote -v` order, which is sorted by remote name",
+      "toil": "origin is offered first, then the other remotes in that order, and the first on the connection's host wins. The two differ only when origin and a remote whose name sorts before it (mirror, fork) are both on the host",
+      "why": "origin is the clone's own remote, so it's the least surprising one to act on when two remotes point at the same server.",
+      "principle": "4"
+    },
+    {
+      "allows": [],
       "old": "github commands putting owner, repo, label and ref into request paths as typed, so a \".\" or \"..\" segment (or its %2e or backslash form) was collapsed by URL parsing and the request, a DELETE included, went to a different resource on the same host",
       "toil": "A path with a \".\" or \"..\" segment is refused with INVALID_INPUT before anything is sent: core's requests.path bound for every area, plus a check here that first reads the path as the URL parser does (tab, LF and CR dropped, trailing C0 controls and spaces trimmed), so two dots with a tab between them or a trailing \".. \" can't become \"..\" afterwards. Every other character still goes in unencoded, as before (#72 item 4)",
       "why": "A write approved for one resource must not land on another: --label ../../../repos/o/r on remove-label would otherwise send DELETE /repos/o/r.",

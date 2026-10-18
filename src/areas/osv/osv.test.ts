@@ -241,18 +241,18 @@ describe('osv vulns: failures', () => {
   it('a failed batch keeps the documented wording, "OSV.dev returned HTTP <status>"', async () => {
     const r = route((request) => (isProbe(request) ? { json: { results: [] } } : { status: 500, json: { message: 'internal' } }));
     const { envelope } = await run({ from: 'inventory.json' }, [r]);
-    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'OSV.dev returned HTTP 500' });
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'OSV.dev returned HTTP 500 Internal Server Error' });
   });
 
   it('a 429 is answered at once with the documented wording, as before: no retry', async () => {
     const { envelope, calls } = await run({ from: 'inventory.json' }, [route((request) => (isProbe(request) ? { json: { results: [] } } : { status: 429, text: '' }))]);
-    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'OSV.dev returned HTTP 429' });
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'OSV.dev returned HTTP 429 Too Many Requests' });
     expect(calls).toHaveLength(2);
   });
 
   it('a record that cannot be fetched fails the command, naming the id', async () => {
     const { envelope } = await run({ from: 'inventory.json', ecosystem: 'maven' }, [fixtureRoute, recordRoute(() => ({ status: 404, json: { code: 5, message: 'Bug not found.' } }))]);
-    expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'OSV.dev returned HTTP 404 for GHSA-jfh8-c2jp-5v3q' });
+    expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'OSV.dev returned HTTP 404 Not Found for GHSA-jfh8-c2jp-5v3q' });
   });
 
   it('an answer with no results list fails, as the contract did, in words', async () => {

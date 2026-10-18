@@ -129,7 +129,7 @@ describe('ossindex vulns: failures', () => {
   it('any other failed probe is still the old "not reachable" error', async () => {
     const { envelope, calls } = await run({ from: 'inventory.json' }, [route(() => ({ status: 502, text: 'bad gateway' }))]);
     expect(envelope.error).toMatchObject({ code: 'NETWORK', message: 'toil ossindex vulns requires Sonatype OSS Index access but ossindex.sonatype.org is not reachable from this machine.' });
-    expect(envelope.error?.details).toMatchObject({ status: 503, cause: 'HTTP 502' });
+    expect(envelope.error?.details).toMatchObject({ status: 503, cause: 'HTTP 502 Bad Gateway' });
     expect(calls).toHaveLength(1);
   });
 
@@ -156,7 +156,7 @@ describe('ossindex vulns: failures', () => {
 
   it('any other failed batch keeps the documented wording, "Sonatype OSS Index returned HTTP <status>"', async () => {
     const { envelope } = await run({ from: 'inventory.json' }, [afterProbe(() => ({ status: 500, text: 'oops' }))]);
-    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'Sonatype OSS Index returned HTTP 500' });
+    expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'Sonatype OSS Index returned HTTP 500 Internal Server Error' });
   });
 
   it('an answer that is not a list of reports fails, as the contract did, in words', async () => {

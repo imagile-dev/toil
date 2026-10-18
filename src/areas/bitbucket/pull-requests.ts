@@ -354,7 +354,7 @@ export const currentPrCommand = bitbucketArea.command({
     const { project, repo } = ctx.context;
     if (!project || !repo) {
       throw new ToilError('INVALID_INPUT', 'Could not determine Bitbucket project/repo', {
-        fix: `Run it in a clone whose origin is on ${ctx.connection.baseUrl}, pass --project and --repo, or set project and repo on connection ${ctx.connection.name}.`,
+        fix: `Run it in a clone with a remote on ${ctx.connection.baseUrl}, pass --project and --repo, or set project and repo on connection ${ctx.connection.name}.`,
       });
     }
     const prs = await listPRs(ctx, project, repo, { state: 'OPEN' });

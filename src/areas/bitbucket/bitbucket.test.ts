@@ -89,10 +89,27 @@ describe('project and repo', () => {
     expect(envelope.error?.message).toContain('Could not determine Bitbucket project/repo');
   });
 
+  it("come from the first remote on the connection's host, origin first, of any name, as the contract took them", async () => {
+    const t = testContext({ config: fixtureConfig, routes });
+    // A fork: origin on another server, the Bitbucket remote named upstream.
+    t.context.gitRemote = async () => [
+      { name: 'origin', url: 'git@github.com:imagile/imagile-api.git' },
+      { name: 'upstream', url: 'https://bitbucket.imagile.dev/scm/UP/imagile-api.git' },
+    ];
+    const forked = await execute(cmd('get-pr'), { id: '42' }, t.context);
+    expect(forked.meta.context?.inputs).toEqual({ project: { value: 'UP', source: 'git' }, repo: { value: 'imagile-api', source: 'git' } });
+    // Both on the host: origin wins.
+    t.context.gitRemote = async () => [
+      { name: 'origin', url: 'https://bitbucket.imagile.dev/scm/MINE/imagile-api.git' },
+      { name: 'upstream', url: 'https://bitbucket.imagile.dev/scm/UP/imagile-api.git' },
+    ];
+    expect((await execute(cmd('get-pr'), { id: '42' }, t.context)).meta.context?.inputs?.project).toEqual({ value: 'MINE', source: 'git' });
+  });
+
   it("come from origin when it's on the connection's host, and never from a remote elsewhere", async () => {
     const at = async (url: string) => {
       const t = testContext({ config: fixtureConfig, routes });
-      t.context.gitRemote = async () => ({ name: 'origin', url });
+      t.context.gitRemote = async () => [{ name: 'origin', url }];
       return execute(cmd('get-pr'), { id: '42' }, t.context);
     };
     const ours = await at('git@bitbucket.imagile.dev:7999/PROJ/imagile-api.git');

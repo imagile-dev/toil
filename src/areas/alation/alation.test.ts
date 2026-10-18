@@ -91,7 +91,7 @@ describe('the token exchange', () => {
   it('a refused refresh token is AUTH naming the endpoint, with the 60-day fix', async () => {
     const t = testContext({ config: fixtureConfig, routes: [{ method: 'POST', path: '/integration/v1/createAPIAccessToken/', respond: { status: 401, json: { detail: 'Invalid refresh token' } } }] });
     const envelope = await execute(schemaListCommand, {}, t.context);
-    expect(envelope.error).toMatchObject({ code: 'AUTH', message: `Alation token exchange at ${EXCHANGE} failed with HTTP 401: Invalid refresh token` });
+    expect(envelope.error).toMatchObject({ code: 'AUTH', message: `Alation token exchange at ${EXCHANGE} failed with HTTP 401 Unauthorized: Invalid refresh token` });
     expect(envelope.error?.fix).toContain('TOIL_ALATION_REFRESH_TOKEN');
     expect(envelope.error?.fix).toContain('TOIL_ALATION_USER_ID');
     expect(envelope.error?.fix).toContain('60 days');
