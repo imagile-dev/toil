@@ -122,6 +122,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function shoot(cdp, sessionId, url, { width, mobile }, file) {
   await cdp.send('Emulation.setDeviceMetricsOverride', { width, height: 900, deviceScaleFactor: 1, mobile }, sessionId);
+  // A URL that differs from the last only after `#` (the Toil UI preview's
+  // views) would be a same-page jump with no new document, so start each shot
+  // from a blank page.
+  const blank = cdp.once('Page.loadEventFired', sessionId);
+  await cdp.send('Page.navigate', { url: 'about:blank' }, sessionId);
+  await blank;
   const loaded = cdp.once('Page.loadEventFired', sessionId);
   const response = cdp.once('Network.responseReceived', sessionId, (p) => p.type === 'Document');
   const nav = await cdp.send('Page.navigate', { url }, sessionId);

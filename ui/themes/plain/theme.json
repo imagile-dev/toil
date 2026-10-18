@@ -1,0 +1,50 @@
+{
+  "name": "plain",
+  "label": "Plain",
+  "description": "Light, quiet and built on system fonts, with a dark variant. The accessibility baseline every other theme is held to.",
+  "schemes": {
+    "light": {
+      "bg": "#ffffff",
+      "surface": "#f5f6f8",
+      "raised": "#ffffff",
+      "ink": "#1b1f24",
+      "muted": "#4f5863",
+      "line": "#c9d0d8",
+      "accent": "#0b5cad",
+      "accentInk": "#ffffff",
+      "link": "#0b5cad",
+      "focus": "#0b5cad",
+      "ok": "#116329",
+      "warn": "#7a4a00",
+      "danger": "#b42318",
+      "bannerBg": "#fff1c2",
+      "bannerInk": "#3d2c00"
+    },
+    "dark": {
+      "bg": "#0f1115",
+      "surface": "#171a21",
+      "raised": "#1e222b",
+      "ink": "#e8eaed",
+      "muted": "#a7afba",
+      "line": "#3a414d",
+      "accent": "#8cc4ff",
+      "accentInk": "#0b1220",
+      "link": "#8cc4ff",
+      "focus": "#8cc4ff",
+      "ok": "#6fd394",
+      "warn": "#f0b849",
+      "danger": "#ff8a80",
+      "bannerBg": "#3a2d07",
+      "bannerInk": "#ffe7a3"
+    }
+  },
+  "fonts": {
+    "body": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    "display": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    "mono": "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace"
+  },
+  "radius": "6px",
+  "motion": "none",
+  "sounds": {},
+  "assets": {}
+}

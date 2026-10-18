@@ -4,8 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "node scripts/ui-preview.mjs && astro dev",
+    "build": "node scripts/ui-preview.mjs && astro build",
     "preview": "astro preview",
     "check": "astro check"
   },

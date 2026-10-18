@@ -287,6 +287,11 @@ GitHub Actions; its build tooling is out of scope.
   area still to build
 - `site/` — the GitHub Pages site (Astro), its own private package; see the `site`
   skill
+- `ui/` — Toil UI (#206), its own private package (`@imagile-dev/toil-ui`, unreleased):
+  a React and Vite front end on a `Store` and an `Agent` interface, themes in
+  `ui/themes/` (CSS, JSON and assets only). Its fixture Store and scripted Agent are
+  its test harness and the site's `/ui-preview/`; the decisions are in
+  `AGENT_DECISIONS.md`, **#206 preview**
 - `functions/feedback/` — the feedback backend behind the site's form and its curl
   endpoint (an Azure Function, Node.js), its own private package like `site/`, never
   published, so the No Executables rule doesn't cover it; `infra/main.bicep` provisions
