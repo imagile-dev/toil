@@ -116,7 +116,8 @@ jobs:
     name: 'Agent: #${{ matrix.issue }}'
     needs: select
     if: needs.select.outputs.issues != '[]' && needs.select.outputs.issues != ''
-    runs-on: ubuntu-latest
+    # Pinned: the bubblewrap setup below is written for this image's AppArmor policy.
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -148,6 +149,23 @@ jobs:
           NUMBER: ${{ matrix.issue }}
           REDACT_TERMS: ${{ secrets.REDACT_TERMS }}
         run: node scripts/triage/steps.mjs prepare
+
+      # The agent step scrubs secrets from any subprocess's env and isolates it with
+      # bubblewrap (CLAUDE_CODE_SUBPROCESS_ENV_SCRUB), and refuses to start without
+      # it. The image has no bwrap, and Ubuntu 24.04's AppArmor policy stops
+      # unprivileged user namespaces, which bwrap needs; this runner is thrown away
+      # after the job, so lifting that for it costs nothing. The probe proves bwrap
+      # can make the namespaces before the agent depends on them.
+      - name: Install bubblewrap for the agent's isolation
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bubblewrap
+          if [ -e /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]; then
+            sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          fi
+          bwrap --ro-bind / / true
+          bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --unshare-user true
+          echo "bubblewrap $(bwrap --version | cut -d' ' -f2) works."
 
       - name: Triage agent
         id: agent

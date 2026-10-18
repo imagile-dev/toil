@@ -70,7 +70,7 @@ agent works. So the work is split across jobs, each on its own fresh runner:
 | Job | Runs | Holds |
 |---|---|---|
 | `select` | main's scripts only: claim within the cap, redact each issue in place | an `issues: write` App token |
-| `triage` | one per issue: the agent, with `Read`, `Glob`, `Grep`, `Edit` and `Write` only (no Bash, no `gh`, no `npm`, no web). Afterwards, shell utilities only (no `git`, no `node`), to hand its files over as a ustar archive | `contents: read` / `issues: read` workflow token; the OAuth token only inside its own step, with `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` set as well |
+| `triage` | one per issue: the agent, with `Read`, `Glob`, `Grep`, `Edit` and `Write` only (no Bash, no `gh`, no `npm`, no web). Afterwards, shell utilities only (no `git`, no `node`), to hand its files over as a ustar archive | `contents: read` / `issues: read` workflow token; the OAuth token only inside its own step, with `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` set as well. The scrub isolates subprocesses with bubblewrap and won't start without it, so the job (pinned to `ubuntu-24.04`) installs it, lifts that image's AppArmor block on unprivileged user namespaces for the throwaway runner, and runs `bwrap` once to prove it works before the agent |
 | `finish` | one per issue: main's scripts only. Checks the decision and every path, applies labels, comment and close, and for a fix pushes `claude/issue-<n>` and opens a **draft** PR. Never runs the fix's code | an App token with contents, pull-request and issue writes and no `workflows` |
 
 The fix's code first runs in `ci.yml` on that draft PR, under `pull_request`: the

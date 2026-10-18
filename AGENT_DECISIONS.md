@@ -2717,6 +2717,20 @@ skill file, fixture, board entry, site data or contract entries changed.
   does the script ask PowerShell for `$PROFILE` (`pwsh` when PSModulePath names
   PowerShell 7, else Windows PowerShell) and run it again with `--profile`.
 
+### #241 triage bubblewrap
+
+- **The scrub stays on, and the runner gets bubblewrap.** The agent step refused to
+  start on #240 because `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` needs bubblewrap. The agent
+  job now installs `bubblewrap` from Ubuntu's archive and sets
+  `kernel.apparmor_restrict_unprivileged_userns=0` for the runner. A probe on
+  `ubuntu-24.04` (run 39177581062, since removed from the branch) showed bwrap 0.9.0
+  failing with the restriction on and working with it off. The job then runs
+  `bwrap --ro-bind / / true`, and the same with new PID and user namespaces, before
+  the agent. The job is pinned to `ubuntu-24.04`, the image the setup was proven on.
+- **A decision clears the failure labels.** `apply` now takes off `triage-queued` and
+  `triage-failed` with the claim. A manual re-triage of an issue that failed earlier,
+  like #240, leaves neither label behind.
+
 ### #200 bounded work
 
 Each CPU-heavy synchronous util step, measured on Node 24.14 on a Windows laptop
