@@ -81,6 +81,9 @@ toil skill install --claude --allow-write
 | `github-copilot` | `~/.copilot/skills/toil` | `.github/skills/toil` |
 | `claude-code` (`--claude`) | `~/.claude/skills/toil` | `.claude/skills/toil` |
 
+A project-scope copy describes your own config, so add the folder (for example
+`.github/skills/toil/`) to `.gitignore`.
+
 Project scope is the root of the repository you're in. Installing writes files
 outside the workspace, so it's CLI only and needs `--allow-write`. Every reference
 file is installed, so an area you set up later is already documented.
