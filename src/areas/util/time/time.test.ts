@@ -13,7 +13,7 @@ import { timeBusinessAddCommand, timeBusinessDiffCommand, timeConvertCommand, ti
 import { addBusinessDays, countBusinessDays, type Holidays } from './business.js';
 import { detectDialect, explainCron, JavaRandom, jenkinsHash, parseCron, type Dialect } from './cron.js';
 import { parseDuration } from './duration.js';
-import { addDays, checkAdded, checkConversion, checkCronRuns, checkDuration, checkSpans, convertTime, cronRuns, diffDays, durationOf, type CronRun } from './run.js';
+import { addDays, checkAdded, checkConversion, checkCronRuns, checkDuration, checkSpans, convertTime, cronRuns, diffDays, durationOf, MAX_GAPS_WALKED, MAX_SKIPPED, type CronRun } from './run.js';
 import { checkZone, dayNumber, daysInMonth, formatLocal, isLeapYear, offsetAt, parseTime, resolveWall, wallAt, type Wall } from './zone.js';
 
 /**
@@ -546,6 +546,29 @@ describe('util time cron', () => {
     const quartz = cronRuns({ expression: '0 0 0 1 1 ? 2027', from, count: 3 }, 0, warn);
     expect(quartz.runs.map((r) => r.instant)).toEqual(['2027-01-01T00:00:00Z']);
     expect(codes(warnings).filter((c) => c === 'CRON_FEW_RUNS')).toHaveLength(2);
+  });
+
+  it('keeps a schedule that only ever lands in DST gaps small and quick, and says what it cut', () => {
+    const { warnings, warn } = collect();
+    const started = performance.now();
+    const data = cronRuns({ expression: '* * 2 ? 3 1#2', dialect: 'quartz', zone: 'America/New_York', from: '2026-01-01T00:00:00Z', count: 1 }, 0, warn);
+    const elapsed = performance.now() - started;
+    expect(data.runs).toEqual([]);
+    expect([data.skipped.length, data.skippedTotal]).toEqual([MAX_SKIPPED, MAX_GAPS_WALKED]);
+    expect(JSON.stringify(data).length).toBeLessThan(100_000);
+    // Generous for a slow CI runner: the unbounded walk took over 20 seconds.
+    expect(elapsed).toBeLessThan(5000);
+    expect(codes(warnings)).toEqual(['CRON_DST_GAP', 'CRON_SEARCH_STOPPED', 'UNVERIFIED']);
+    expect(warnings[0]!.message).toContain(`${MAX_GAPS_WALKED} run times did not exist in America/New_York`);
+    expect(warnings[0]!.message).toContain(`Only the first ${MAX_SKIPPED} are listed in skipped.`);
+    // 5,000 seconds of gap is the 2026 hour and 1,400 seconds of 2027's.
+    expect(warnings[1]!.message).toContain('pass a from after 2027-03-14T02:23:19');
+    expect(data.verified.passed).toBe(true);
+  });
+
+  it('lists every skipped run time when there are few, with the total', () => {
+    const data = cronRuns({ expression: '30 2 * * *', zone: 'America/New_York', from: '2026-03-07T00:00:00Z', count: 2 }, 0, () => {});
+    expect([data.skipped.length, data.skippedTotal]).toEqual([1, 1]);
   });
 
   it('takes a DST overlap from the second pass without listing a time already gone', () => {

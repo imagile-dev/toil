@@ -409,12 +409,24 @@ export interface CronData {
   explanation: string;
   fields: Omit<CronSchedule, 'dialect' | 'expression' | 'domStar' | 'dowStar' | 'hashed'>;
   runs: CronRun[];
-  /** Run times the zone skipped, which no run is listed for. */
+  /** Run times the zone skipped, which no run is listed for: the first {@link MAX_SKIPPED} of them. */
   skipped: GapNote[];
+  /** How many skipped run times the walk met, listed or not. */
+  skippedTotal: number;
   verified: Verified;
 }
 
 export const MAX_RUNS = 100;
+/** The most skipped run times listed in `skipped`; the rest are counted. */
+export const MAX_SKIPPED = 100;
+/**
+ * The most skipped run times the walk steps through before it stops. An
+ * every-second schedule meets 3,600 in one spring-forward hour, so this
+ * covers a whole gap, and a schedule that only ever lands in gaps (`* * 2 ?
+ * 3 1#2` in New York) ends in a fraction of a second instead of walking a
+ * century of them.
+ */
+export const MAX_GAPS_WALKED = 5000;
 
 export function cronRuns(input: CronInput, now: number, warn: Warn): CronData {
   const v = new Verifier(warn);
@@ -430,9 +442,16 @@ export function cronRuns(input: CronInput, now: number, warn: Warn): CronData {
   const from = toInstant(input.from ?? 'now', 'from', zone, now, v, warn).instant;
   const runs: CronRun[] = [];
   const skipped: GapNote[] = [];
+  let skippedTotal = 0;
+  /** The last skipped wall clock walked, when the walk stopped there. */
+  let stopped: string | undefined;
   for (const event of cronEvents(s, from, zone)) {
     if (event.kind === 'gap') {
-      skipped.push(dstNote(event.wall, zone, resolveWall(event.wall, zone)) as GapNote);
+      if (skippedTotal++ < MAX_SKIPPED) skipped.push(dstNote(event.wall, zone, resolveWall(event.wall, zone)) as GapNote);
+      if (skippedTotal >= MAX_GAPS_WALKED) {
+        stopped = formatWall(event.wall);
+        break;
+      }
       continue;
     }
     const f = formatLocal(event.instant, zone);
@@ -440,20 +459,24 @@ export function cronRuns(input: CronInput, now: number, warn: Warn): CronData {
     runs.push({ instant: formatInstant(event.instant), local: f.local, offset: f.offset, ...(note ? { dst: note } : {}) });
     if (runs.length === count) break;
   }
-  if (skipped.length) {
-    warn({ code: 'CRON_DST_GAP', message: `${skipped.length} run time${skipped.length > 1 ? 's' : ''} did not exist in ${zone}, first ${skipped[0]!.wall}, when the clocks jumped forward. No run is listed for ${skipped.length > 1 ? 'them' : 'it'}. Schedulers differ here: some run it when the clocks resume, at ${skipped[0]!.resolvedTo}, and some skip it.` });
+  if (skippedTotal) {
+    const cut = skippedTotal > skipped.length ? ` Only the first ${skipped.length} are listed in skipped.` : '';
+    warn({ code: 'CRON_DST_GAP', message: `${skippedTotal} run time${skippedTotal > 1 ? 's' : ''} did not exist in ${zone}, first ${skipped[0]!.wall}, when the clocks jumped forward. No run is listed for ${skippedTotal > 1 ? 'them' : 'it'}.${cut} Schedulers differ here: some run it when the clocks resume, at ${skipped[0]!.resolvedTo}, and some skip it.` });
+  }
+  if (stopped) {
+    warn({ code: 'CRON_SEARCH_STOPPED', message: `The search stopped after ${MAX_GAPS_WALKED} run times that fell in DST gaps, having found ${runs.length} of the ${count} runs asked for. Later runs may exist: pass a from after ${stopped} to look further.` });
   }
   const repeated = runs.filter((r) => r.dst);
   if (repeated.length) {
     const first = repeated[0]!.dst as Extract<DstNote, { kind: 'overlap' }>;
     warn({ code: 'CRON_DST_OVERLAP', message: `${repeated.length} run time${repeated.length > 1 ? 's' : ''} happened twice in ${zone}, first ${first.wall}, when the clocks went back. Each is listed once, at the first. Schedulers differ here: some run it again at ${first.later}.` });
   }
-  if (runs.length < count) {
+  if (runs.length < count && stopped === undefined) {
     warn({ code: 'CRON_FEW_RUNS', message: `The expression runs ${runs.length} time${runs.length === 1 ? '' : 's'} in the ${s.year ? 'years it lists' : `next ${HORIZON_YEARS} years`}, fewer than the ${count} asked for.` });
   }
   v.unchecked('cron.explanation', 'the wording is built from the same fields the run times come from; the run times are what is checked');
   const fields = { written: s.written, second: s.second, minute: s.minute, hour: s.hour, dayOfMonth: s.dayOfMonth, month: s.month, dayOfWeek: s.dayOfWeek, year: s.year };
-  const data = { expression: input.expression, dialect, dialectSource: input.dialect === undefined ? ('detected' as const) : ('input' as const), zone, from: formatLocal(from, zone).local, explanation: explainCron(s), fields, runs, skipped };
+  const data = { expression: input.expression, dialect, dialectSource: input.dialect === undefined ? ('detected' as const) : ('input' as const), zone, from: formatLocal(from, zone).local, explanation: explainCron(s), fields, runs, skipped, skippedTotal };
   checkCronRuns(v, s, zone, from, data.runs, data.skipped);
   return { ...data, verified: v.done() };
 }

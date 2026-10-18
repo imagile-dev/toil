@@ -1331,6 +1331,10 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   built from the same fields as the run times, which are what's checked.
 - **The search horizon is 100 years** (or Quartz's last listed year), with
   `CRON_FEW_RUNS` when fewer runs than asked are found.
+- **Skipped run times are capped** (review of #194): `skipped` lists the first 100
+  and `skippedTotal` counts every one, and the walk stops after 5,000 skipped run
+  times with `CRON_SEARCH_STOPPED`. 5,000 covers a whole every-second gap hour
+  (3,600), and a schedule that only ever lands in gaps ends at once.
 - **The reference table is computed in Java** (`test/fixtures/util-time/CronReference.java`),
   with java.time, its own zone data and the real `java.util.Random`, and committed
   as JSON, so `npm test` needs no JDK.

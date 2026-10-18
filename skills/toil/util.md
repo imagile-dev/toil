@@ -788,11 +788,15 @@ The dialects:
   Jenkins macro: a bare macro is detected as standard.
 
 Output: `{ expression, dialect, dialectSource, zone, from, explanation, fields,
-runs: [{ instant, local, offset, dst? }], skipped, verified }`. `fields` holds what
+runs: [{ instant, local, offset, dst? }], skipped, skippedTotal, verified }`. `fields` holds what
 each field expanded to, with day-of-week 0 for Sunday in every dialect.
 
-DST: a run time the zone skipped isn't listed; it's in `skipped`, with a
-`CRON_DST_GAP` warning. A run time that happened twice is listed once, at the first,
+DST: a run time the zone skipped isn't listed as a run; it's in `skipped`, with a
+`CRON_DST_GAP` warning giving the total. `skipped` lists the first 100 and
+`skippedTotal` counts them all. The walk stops after 5,000 skipped run times (more
+than one every-second gap hour), warning `CRON_SEARCH_STOPPED` with the last one
+reached, so a schedule that only lands in gaps (`* * 2 ? 3 1#2` in New York) answers
+at once; pass a later `--from` to look further. A run time that happened twice is listed once, at the first,
 with a `dst` object and a `CRON_DST_OVERLAP` warning. Schedulers differ on both, so
 check yours. Fewer runs than `--count` in the next 100 years (or in Quartz's listed
 years) warns `CRON_FEW_RUNS`; `0 0 30 2 *` never runs.
