@@ -149,6 +149,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
       home: o.home,
     }),
     env: o.env,
+    home: o.home,
     version: o.version,
     verbose: o.globals.verbose === true,
     debug,
