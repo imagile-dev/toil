@@ -4,7 +4,7 @@ import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { adoArea } from './area.js';
 import { API, PATCH, ado, adoDownload, adoUpload, enc, projectPath, toInt, where, type AdoContext } from './client.js';
-import { ADO_WORK_INPUT_FILE_EXAMPLE, ADO_WORK_INPUT_FILE_SCHEMA, buildDefaultAliases } from './fields.js';
+import { ADO_WORK_INPUT_FILE_EXAMPLE, ADO_WORK_INPUT_FILE_SCHEMA } from './fields.js';
 import { AT, getWorkItem, idInput, idOption, intText } from './work.js';
 
 /**
@@ -141,17 +141,9 @@ export const workListIterationsCommand = adoArea.command({
   run: async (input, ctx) => ado(ctx, `${projectPath(where(ctx))}/_apis/wit/classificationnodes/iterations?$depth=${depthOf(input.depth)}&api-version=${API}`),
 });
 
-/**
- * `--save` wrote the discovery into the predecessor's global config. An area
- * command can't write toil's config (CLAUDE.md, Commands never read config),
- * so the result is unchanged and a warning says nothing was saved.
- */
-function saveUnavailable(ctx: AdoContext, what: string): void {
-  ctx.warn({
-    code: 'ADO_SAVE_UNAVAILABLE',
-    message: `--save isn't available in this build of toil, so ${what} were not written to config. Set fieldAliases on the connection in ~/.toil/config.json, or ${adoArea.envName('fieldAliases')} as JSON, to use aliases.`,
-  });
-}
+// No --save on types or fields (KF6, #68): the aliases it saved were the
+// built-in ones toil already applies, and nothing read the saved type or field
+// lists. A filing cabinet for photocopies of the rulebook was declined.
 
 const DISCOVER = 'Fetch from server (always true for this command)';
 
@@ -161,14 +153,12 @@ export const workTypesCommand = adoArea.command({
   toolDescription: "Lists the project's work item types, each with its states and always-required fields. One extra request per type, for its states.",
   input: z.object({
     discover: z.boolean().optional().describe(DISCOVER),
-    save: z.boolean().optional().describe('Save discovered types to config (not available yet: warns and saves nothing)'),
   }),
   writes: false,
   options: [
     { flags: '--discover', field: 'discover', description: DISCOVER },
-    { flags: '--save', field: 'save', description: 'Save discovered types to ~/.toil/config.json (not available yet)' },
   ],
-  examples: [AT, { ...AT, discover: true, save: true }],
+  examples: [AT, { ...AT, discover: true }],
   run: async (input, ctx) => {
     const w = where(ctx);
     const types = await ado<{ value?: Array<{ name: string; fields?: Array<{ referenceName: string; alwaysRequired?: boolean }> }> }>(ctx, `${projectPath(w)}/_apis/wit/workitemtypes?api-version=${API}`);
@@ -177,7 +167,6 @@ export const workTypesCommand = adoArea.command({
       const states = await ado<{ value?: Array<{ name: string }> }>(ctx, `${projectPath(w)}/_apis/wit/workitemtypes/${enc(t.name)}/states?api-version=${API}`);
       result.push({ name: t.name, states: (states.value ?? []).map((s) => s.name), requiredFields: (t.fields ?? []).filter((f) => f.alwaysRequired).map((f) => f.referenceName) });
     }
-    if (input.save) saveUnavailable(ctx, `${result.length} types`);
     return result;
   },
 });
@@ -216,23 +205,20 @@ export const workFieldsCommand = adoArea.command({
     type: z.string().optional().describe('Scope to fields for a specific work item type (e.g. Bug)'),
     customOnly: z.boolean().optional().describe('Exclude System.* and Microsoft.VSTS.* fields'),
     discover: z.boolean().optional().describe(DISCOVER),
-    save: z.boolean().optional().describe('Save discovered fields and aliases to config (not available yet: warns and saves nothing)'),
   }),
   writes: false,
   options: [
     { flags: '--type <type>', field: 'type', description: 'Scope to fields for a specific work item type (e.g. Bug)' },
     { flags: '--custom-only', field: 'customOnly', description: 'Exclude System.* and Microsoft.VSTS.* fields' },
     { flags: '--discover', field: 'discover', description: DISCOVER },
-    { flags: '--save', field: 'save', description: 'Save discovered fields and aliases to ~/.toil/config.json (not available yet)' },
   ],
-  examples: [AT, { ...AT, type: 'Bug', customOnly: true }, { ...AT, discover: true, save: true }],
+  examples: [AT, { ...AT, type: 'Bug', customOnly: true }, { ...AT, discover: true }],
   run: async (input, ctx) => {
     const w = where(ctx);
     // Without --type the project is ignored: the collection's fields.
     const path = input.type ? `${projectPath(w)}/_apis/wit/workitemtypes/${enc(input.type)}/fields?api-version=${API}` : `/${enc(w.collection)}/_apis/wit/fields?api-version=${API}`;
     const all = ((await ado<{ value?: Field[] }>(ctx, path)).value ?? []).map(toFieldMeta);
     const fields = input.customOnly ? all.filter((f) => !f.referenceName.startsWith('System.') && !f.referenceName.startsWith('Microsoft.VSTS.')) : all;
-    if (input.save) saveUnavailable(ctx, `${all.length} fields and ${Object.keys(buildDefaultAliases(all.map((f) => f.referenceName))).length} aliases`);
     return fields;
   },
 });

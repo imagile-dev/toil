@@ -220,7 +220,7 @@ the bottom of their section.
   tested Windows' file locking, not toil.
 - **Over MCP, input errors still name CLI flags** (`--query`). A known limitation,
   recorded rather than fixed: rewording every area's input errors per front door
-  isn't worth its complexity yet.
+  isn't worth its complexity yet. Fixed once in core by KF6, below.
 
 - **The fourth kit-fix PR's choices** (KF4, #68):
   - **Dot segments are checked after the URL parser's own first step**: tabs, LF
@@ -241,6 +241,71 @@ the bottom of their section.
   delete (principles 2 and 9; found by #117's review). Only the part before the
   first `;` is checked, so `a;b` and `v1;rev=2` still pass. An encoded `%3b` isn't
   a separator to the container, so it isn't treated as one.
+
+- **The sixth kit-fix PR's choices (KF6, #68)**, closing the kit gaps the
+  integration builds reported. `ok`, `data`, the error code and the exit code stay
+  as they were for every command, with the one exception the maintainer approved
+  (ado `--save`, below).
+  - **Every status line carries its reason phrase** (`HTTP 503 Service
+    Unavailable`), through one helper, `statusLine()` in `src/core/rest.ts`: the
+    response's `statusText`, or Node's standard phrase when the server sent none
+    (HTTP/2 has none, and neither do the test fakes). `RestResponse` gains
+    `statusText`, so an area reading a status as an answer (kibana, artifactory's
+    ping) words it the same way. The areas that built `returned HTTP <n>` from an
+    error's status (osv, ossindex, sonatypeiq) use the helper too. Only message text
+    changes; 16 pinned tests were updated.
+  - **A network error's fix names the setting the host came from**: `baseUrl`
+    when it holds the host, else the first setting whose value names it
+    (Dynatrace's `platformUrl`, SDE's `<token>@<host>` `connectionString`), else
+    "the connection's URL". Found by matching the value, so no area declares
+    anything; only the key is ever printed. A caller with no connection keeps
+    `baseUrl`.
+  - **Input errors over MCP name fields, once, in `runCommand`**: the MCP server
+    passes `'mcp'`, and an `INVALID_INPUT` envelope's message and fix have each of
+    the command's long flags (and `--allow-write` on a write) replaced by its field.
+    A plain text swap over the declared flags, longest first, rather than a second
+    wording in every area; `--no-` flags are left alone. A quoted command line
+    keeps its flags (review of #149): `toil …` in backticks, or plain text from
+    `toil ` to the next `,` or `;`, a sentence-ending `.`, a backtick or the end,
+    which covers every command line the areas' fixes quote today. Code, details and `data`
+    don't change. Tested through alation over both front doors.
+  - **The git reader hands over every remote, `origin` first**, then the rest in
+    `git remote -v` order, and the first one the area's parser accepts wins; the
+    parsers still trust only the connection's host. Bitbucket's "origin only"
+    divergence is gone (github and ado had no entry for it). The predecessor took
+    the first match in `git remote -v` order, which is sorted by name, so the two
+    differ only when `origin` and a remote sorting before it are both on the host;
+    each of the three areas lists that one narrow case.
+  - **osv, ossindex and sonatypeiq read inventories with core's reader.** Their
+    own wording (the MCP hint, the fixes, sonatypeiq's "to evaluate") is kept
+    through optional `InventoryOptions` words, so every message stays identical and
+    their tests pass unchanged. osv's thin wrapper only supplies those words.
+  - **The splitio example cast was simply unneeded** since KF3's typed examples;
+    no other area had one.
+  - **`scripts/stub-area.mjs` stubs an area with no contract entry from command
+    names on the command line** (`node scripts/stub-area.mjs jira-cloud search
+    "issue get"`), each with no flags, or one `example` command when none are named.
+    Names on the command line over a list file: one fewer format. Naming commands
+    for an area the contract has is refused.
+  - **The docs page follows what an area has**: a board entry may say `"local":
+    true` (git), which replaces the hardcoded area check; a shipped area with no
+    settings shows no Configuration section and says it has no credential (osv); one
+    with no `baseUrl` says which fixed host it calls (ossindex); and the
+    `--connection` sentence appears only when a command takes it. git's status text
+    says its tests stub git, not HTTP. osv and ossindex got board entries in the
+    security group.
+  - **ado's `work fields --save` and `work types --save` are removed**, on the
+    maintainer's instruction of 2026-10-17. The saved `fieldAliases` were the
+    built-in aliases filtered to fields the server has, merged over those same
+    built-ins when used, so saving never changed what a name resolved to, and
+    nothing read `discoveredFields` or `discoveredTypes`. Passing `--save` is now
+    core's unknown-option `INVALID_INPUT` (an accepted envelope change, listed in
+    ado's divergence file with an `allows` entry); every call without it returns the
+    same `data`. No area writes config, and core gains no way to. A custom alias is
+    `fieldAliases` on the connection: asked for by `toil connections add`, or set in
+    the config file or `TOIL_ADO_FIELD_ALIASES` as JSON. There is no `toil
+    connections set`, so the skill names those three rather than an invented
+    command.
 
 ## Integration process
 
@@ -520,9 +585,9 @@ Added as each integration lands.
   input; `where()` checks collection, then project, then repo, in the predecessor's
   order, with `--collection` beating `--organization`, which beats the git remote and
   the connection setting.
-- **`work fields --save` and `work types --save` write nothing**: `data` is
-  unchanged, and an `ADO_SAVE_UNAVAILABLE` warning says how to set `fieldAliases`.
-  An area command can't write config (a kit gap, recorded).
+- **`work fields --save` and `work types --save` are gone** (KF6): they saved only
+  the built-in aliases, so nothing needed writing. `fieldAliases` on the connection
+  is how a custom alias is set.
 - **`pipeline run --wait` times out as `TIMEOUT` at an 11-minute limit**, as Jenkins
   does, and the divergence says so.
 - **#69 is reproduced and pinned except item 1**, fixed as a security divergence.

@@ -1,0 +1,16 @@
+{
+  "area": "osv",
+  "name": "OSV.dev",
+  "group": "security",
+  "order": 6,
+  "covers": "Known vulnerabilities for a dependency inventory, from the public OSV database",
+  "credential": "None — public API",
+  "credentialNote": "toil sends only the package list, and only to api.osv.dev",
+  "status": "unit",
+  "host": "https://api.osv.dev",
+  "supported": {
+    "product": "OSV API",
+    "minimum": "v1",
+    "note": "A public hosted API at https://api.osv.dev, not a server you run. No credential is sent."
+  }
+}

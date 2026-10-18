@@ -1,8 +1,8 @@
 import type { Connection } from '../area.js';
 
 /**
- * The contract every database engine implements: SQLite now, PostgreSQL, MySQL,
- * SQL Server and Oracle later. The `db` area's commands call only this, so an
+ * The contract every database engine implements: SQLite and PostgreSQL now,
+ * MySQL, SQL Server and Oracle later. The `db` area's commands call only this, so an
  * engine is added by writing one provider and registering it in `engines.ts`,
  * never by touching a command.
  *
@@ -54,6 +54,18 @@ export interface DbSettings {
   engine: string;
   /** SQLite: absolute path to the database file. */
   path?: string;
+  /** Server engines: host name or address. */
+  host?: string;
+  /** Server engines: TCP port; each engine has its own default. */
+  port?: number;
+  /** Server engines: the database to connect to. */
+  database?: string;
+  /** Server engines: the login. */
+  user?: string;
+  /** Server engines: the login's password. A secret: from env or the OS credential store, never a file. */
+  password?: string;
+  /** Server engines: connect over TLS, verifying the server's certificate. */
+  ssl?: boolean;
 }
 
 export type DbConnection = Connection<DbSettings>;

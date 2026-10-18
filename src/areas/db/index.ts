@@ -27,7 +27,14 @@ export const area = defineArea({
     // A relative path would resolve against wherever the process started,
     // which for an MCP server is wherever its client happened to be.
     path: z.string().min(1).refine(isAbsolute, 'path must be absolute.').optional().describe('SQLite: absolute path to the database file'),
+    host: z.string().min(1).optional().describe('PostgreSQL: server host name or address'),
+    port: z.number().int().min(1).max(65535).optional().describe('PostgreSQL: TCP port (default 5432)'),
+    database: z.string().min(1).optional().describe('PostgreSQL: database to connect to'),
+    user: z.string().min(1).optional().describe('PostgreSQL: login role'),
+    password: z.string().optional().describe("PostgreSQL: the login's password (a secret: env var or OS credential store)"),
+    ssl: z.boolean().optional().describe("PostgreSQL: connect over TLS, verifying the server's certificate against the OS store"),
   }),
+  secrets: { password: 'password' },
   // Each engine names the keys its connections need; core checks them.
   variants: { by: 'engine', of: Object.fromEntries(providers.map((p) => [p.engine, { label: p.label, requires: [...p.requires] }])) },
 });
@@ -38,8 +45,8 @@ function using(ctx: DbContext): { provider: DbProvider; conn: DbConnection; call
   return { provider: providerFor(ctx.connection.engine), conn: ctx.connection, call: { signal: ctx.signal, debug: ctx.debug } };
 }
 
-const schemaField = z.string().min(1).optional().describe("Schema to read. Defaults to the engine's default schema (SQLite: main).");
-const schemaOption = { flags: '--schema <name>', field: 'schema', description: "Schema (default: the engine's default, e.g. main for SQLite)" };
+const schemaField = z.string().min(1).optional().describe("Schema to read. Defaults to the engine's default schema (SQLite: main, PostgreSQL: public).");
+const schemaOption = { flags: '--schema <name>', field: 'schema', description: "Schema (default: the engine's default, main for SQLite, public for PostgreSQL)" };
 const limitField = z.coerce.number().int().min(1).max(MAX_LIMIT).optional().describe(`Rows per page, 1 to ${MAX_LIMIT}. Default ${DEFAULT_LIMIT}.`);
 const cursorField = z.string().min(1).optional().describe('meta.page.nextCursor from the previous page, to fetch the next one');
 const pageOptions = [
