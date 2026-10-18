@@ -1,0 +1,22 @@
+{
+  "id": "semver",
+  "group": "arithmetic",
+  "order": 2,
+  "title": "Comparing versions",
+  "commands": [
+    "semver compare",
+    "semver satisfies",
+    "semver sort",
+    "semver bump"
+  ],
+  "purpose": "Compare, sort and bump versions, and check them against ranges, in the grammar of the ecosystem they come from: npm (SemVer 2.0.0 and npm's ranges, the default), NuGet (up to four parts, interval notation) or Maven (Maven's own ordering, where `1.0.0.Final` is `1` and `SNAPSHOT` comes before the release).",
+  "inputs": "Versions and ranges as arguments, with `--ecosystem`. `sort` reads a list from a file, stdin or `--text`, and `--range` keeps the ones that satisfy it; `bump` takes the kind of release and `--preid`.",
+  "examples": [
+    "toil util semver compare 1.0.0-rc.10 1.0.0-rc.9",
+    "toil util semver satisfies 1.3.0-rc.1 '^1.2.0'",
+    "toil util semver sort versions.txt --range '[12.0,13.0)' --ecosystem nuget",
+    "toil util semver bump 1.2.3 prerelease --preid rc"
+  ],
+  "verifies": "A sort is checked pair by pair for a consistent order, a range answer against the range's boundary versions, a comparison both ways round, and a bump to see that it goes up.",
+  "limits": "A version that doesn't fit the grammar is reported with the reason, never guessed at. NuGet floating versions (`1.*`) are refused, since what one picks depends on the feed. Past 2,000 versions a sort is checked against its neighbours only, and says so."
+}
