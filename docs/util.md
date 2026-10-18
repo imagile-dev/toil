@@ -37,7 +37,8 @@ all, which also reads stdin) and `--text '…'`, and over MCP `{ file }` or
 `{ text }`. `openInput(ctx, input, options)` opens whichever was given. It refuses
 both at once, stdin over MCP (naming `file` and `text`), a folder, and binary content
 (a NUL byte in the first 8,000 bytes) unless `binary: 'allow'`, which a command that
-takes bytes (a DER certificate) sets; it also drops the `INPUT_NOT_UTF8` warning.
+takes bytes sets. That lifts only the NUL check; the UTF-8 warning is `utf8`'s
+(below), so a command reading bytes such as DER passes both.
 
 - **Whole reads:** `bytes()` and `text()`, capped at `maxBytes` (64 MiB by default).
   Past the cap they're `INVALID_INPUT`, before reading when a file's size already
@@ -50,7 +51,10 @@ takes bytes (a DER certificate) sets; it also drops the `INPUT_NOT_UTF8` warning
 - **Re-reading:** `linesAt([12, 40])` reads the input again and returns those lines,
   for a self-check that a reported line number holds what was reported.
 - **Encoding:** bytes that aren't valid UTF-8 are shown as U+FFFD, and the first pass
-  that meets them warns `INPUT_NOT_UTF8` once.
+  that meets them warns `INPUT_NOT_UTF8` once. A command that treats the content as bytes and
+  never shows it as text (`util encode` hashing or encoding a file, `util cert`
+  reading DER) passes
+  `utf8: 'skip'`, which turns that check and its warning off.
 - **Size:** `expectedBytes` is a file's size on disk (or the text's length), and
   `bytesRead` what the latest pass read.
 
@@ -131,3 +135,9 @@ that it is evaluated on first use, not at startup. A static import anywhere undo
 that, so ESLint refuses a static import of `js-yaml`, `@cfworker/json-schema`,
 `kit/yaml` and `kit/json-schema` outside those wrappers and tests. A type-only import
 is allowed, since it's erased. Treat a command's own heavy module the same way.
+
+A module loaded through `import()` must not import zod, directly or through
+`kit/input.ts`. esbuild then defers zod's own setup too, the MCP SDK's
+schemas hit it at startup, and the bundle fails on every command, `toil version`
+included; the unit suite doesn't notice, `npm run smoke` does. Keep the reading
+in the command's small module and hand the lazy one bytes or text.

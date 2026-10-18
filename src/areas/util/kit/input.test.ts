@@ -90,11 +90,18 @@ describe('openInput', () => {
     expect([...(await (await open({ file: 'a.png' }, { binary: 'allow' })).bytes())]).toEqual([...bin]);
   });
 
-  it('takes bytes that are not UTF-8 without warning when the command takes bytes', async () => {
-    const { open, warnings } = setup({ 'a.der': new Uint8Array([0x30, 0x82, 0xff, 0xfe]) });
-    const input = await open({ file: 'a.der' }, { binary: 'allow' });
-    expect([...(await input.bytes())]).toEqual([0x30, 0x82, 0xff, 0xfe]);
-    expect([input.invalidUtf8, warnings]).toEqual([true, []]);
+  it("keeps the two switches apart: binary: 'allow' lifts only the NUL check, utf8: 'skip' only the UTF-8 one", async () => {
+    const der = new Uint8Array([0x30, 0x82, 0x00, 0xff, 0xfe]);
+    const binaryOnly = setup({ 'a.der': der });
+    const allowed = await binaryOnly.open({ file: 'a.der' }, { binary: 'allow' });
+    expect([...(await allowed.bytes())]).toEqual([...der]);
+    expect([allowed.invalidUtf8, binaryOnly.warnings.map((w) => w.code)]).toEqual([true, ['INPUT_NOT_UTF8']]);
+    // Both, as util cert reads DER and util encode reads bytes: no refusal and no warning.
+    const both = setup({ 'a.der': der });
+    const quiet = await both.open({ file: 'a.der' }, { binary: 'allow', utf8: 'skip' });
+    expect([...(await quiet.bytes())]).toEqual([...der]);
+    expect([quiet.invalidUtf8, both.warnings]).toEqual([false, []]);
+    await expect((await both.open({ file: 'a.der' }, { utf8: 'skip' })).bytes()).rejects.toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('looks binary') });
   });
 
   it('warns once when the bytes are not valid UTF-8, and not for a character split across chunks', async () => {
@@ -106,6 +113,14 @@ describe('openInput', () => {
     const ok = await openInput({ files: chunked({ 'ok.txt': 'aé€😀' }, 2), warn: (w) => quiet.push(w) }, { file: 'ok.txt' });
     expect(await ok.text()).toBe('aé€😀');
     expect([ok.invalidUtf8, quiet]).toEqual([false, []]);
+  });
+
+  it("with utf8: 'skip', reads bytes that aren't UTF-8 without a warning, for a command that never shows them as text", async () => {
+    const bytes = new Uint8Array([0x61, 0xff, 0xc3]);
+    const { open, warnings } = setup({ 'raw.bin': bytes });
+    const input = await open({ file: 'raw.bin' }, { utf8: 'skip' });
+    expect([...(await input.bytes())]).toEqual([...bytes]);
+    expect([input.invalidUtf8, warnings]).toEqual([false, []]);
   });
 
   it('holds to the cap: a whole read refuses, a stream stops and says so', async () => {

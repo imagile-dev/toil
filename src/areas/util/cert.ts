@@ -44,7 +44,7 @@ export const certCommand = defineCommand({
   examples: [{ file: EXAMPLE_CHAIN }, { file: EXAMPLE_CHAIN, host: 'api.imagile.dev' }, { file: 'certs/leaf.der', host: 'imagile.dev' }, { text: EXAMPLE_PEM, host: 'example.imagile.dev' }],
   run: async (input, ctx) => {
     const { decodeCertInput } = await import('./cert/decode.js');
-    const opened = await openInput(ctx, input, { binary: 'allow' });
+    const opened = await openInput(ctx, input, { binary: 'allow', utf8: 'skip' });
     return decodeCertInput(opened, { host: input.host, now: Date.now(), warn: ctx.warn });
   },
 });
