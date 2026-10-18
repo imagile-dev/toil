@@ -6,6 +6,7 @@ import { testContext } from '../../../../test/harness/context.js';
 import { execute } from '../../../core/run.js';
 import type { Warning } from '../../../core/envelope.js';
 import { c4D2Command, c4MermaidCommand, c4RenderCommand, checkText, draw, EXAMPLE_MODEL } from './commands.js';
+import { BOUNDED_TIMEOUT_MS } from '../kit/bounded.js';
 import { Verifier, type Verified } from '../kit/verify.js';
 import { checkModel, computeView, loadModel, type C4Model } from './model.js';
 import { layoutView } from './layout.js';
@@ -285,10 +286,11 @@ describe('bounds', () => {
 
   it('draws the worst view the limits allow in the bounded worker, and every check holds', async () => {
     const model = chain(100, 250);
-    const drawing = await draw(computeView(model, model.views[0]!), undefined);
+    // About 0.9 s under a loaded full run, against the 2 s deadline: what this asserts is the drawing, so its deadline has generous room, well under this test's 30 s.
+    const drawing = await draw(computeView(model, model.views[0]!), undefined, BOUNDED_TIMEOUT_MS + 8_000);
     expect(drawing.runs.filter((r) => r.failed)).toEqual([]);
     expect(drawing.svg.startsWith('<svg')).toBe(true);
-  });
+  }, 30_000);
 
   it('stops a layout that passes its deadline with TIMEOUT, and a cancelled one with CANCELLED', async () => {
     const model = chain(100, 250);
