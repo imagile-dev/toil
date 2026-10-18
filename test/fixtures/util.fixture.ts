@@ -104,6 +104,16 @@ const REPORTS = new URL('./reports/', import.meta.url);
 /** The report samples, keyed by their path in the workspace. */
 export const reportFiles: Record<string, string> = Object.fromEntries(readdirSync(REPORTS).sort().map((name) => [`reports/${name}`, readFileSync(new URL(name, REPORTS), 'utf8')]));
 
+/**
+ * Build logs for `util log`, in test/fixtures/util/log/: a Jenkins pipeline
+ * console running Maven, a Maven reactor build, an npm build and test run, and
+ * a dotnet build and test run. Each follows its tool's real output, with
+ * hosts, paths and names replaced by placeholders.
+ */
+export const LOGS = Object.fromEntries(
+  ['jenkins', 'maven', 'npm', 'dotnet'].map((name) => [name, readFileSync(new URL(`./util/log/${name}.log`, import.meta.url), 'utf8')]),
+) as Record<'jenkins' | 'maven' | 'npm' | 'dotnet', string>;
+
 const sample = (name: string) => readFileSync(new URL(`./openapi/${name}`, import.meta.url), 'utf8');
 /** The OpenAPI samples, by the workspace path the examples read them from. */
 export const openapiSamples = {
@@ -112,7 +122,7 @@ export const openapiSamples = {
   'specs/bitbucket.json': sample('bitbucket.json'),
 };
 
-/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, three OpenAPI documents, a certificate chain and build reports. */
+/** The working tree: an npm project, a .NET project under central package management, a Maven pom, an ignored folder, three OpenAPI documents, a certificate chain, build reports and build logs. */
 export const files: Record<string, string | Uint8Array> = {
   '.gitignore': 'vendor/\n',
   'package.json': PACKAGE_JSON,
@@ -122,6 +132,7 @@ export const files: Record<string, string | Uint8Array> = {
   'pom.xml': POM,
   'encode/pixel.png': PIXEL_PNG,
   'encode/pixel.b64': PIXEL_B64,
+  ...Object.fromEntries(Object.entries(LOGS).map(([name, text]) => [`logs/${name}.log`, text])),
   'vendor/left-pad/package.json': JSON.stringify({ name: 'left-pad', dependencies: { 'left-pad': '1.3.0' } }),
   'certs/chain.pem': chain.pem,
   'certs/leaf.der': chain.leaf.der,

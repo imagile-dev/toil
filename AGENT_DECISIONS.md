@@ -1215,6 +1215,45 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
 - **A SARIF rule reference whose `toolComponent` can't be found by index** (named
   only by `guid`) leaves `sarif.ruleIndex` `UNVERIFIED` and the level at the spec's
   fallback, rather than guessing which component it means (review of #191).
+
+### util log (#176)
+
+- **Lines with no level are counted, not grouped.** "Couldn't classify" means a line
+  with no level word and no error or warning shape (a `[Pipeline]` step, a shell
+  echo). They're `lines.unclassified` in `data` and one `LOG_UNCLASSIFIED` warning;
+  `--context` shows the ones around each sample.
+- **Signatures keep paths, quoted names and error codes.** Only dates, times, UUIDs,
+  hex and numbers are replaced, as the issue lists. `CS0246` and `TS2322` keep their
+  digits (no word boundary before them), so two compiler errors in one file stay two
+  groups; the same warning on two properties stays two groups as well.
+- **A trace is reported for each group's first occurrence**, up to 50 lines, and its
+  text comes from the re-read pass, so the streaming pass holds only line ranges. A
+  later occurrence's trace is counted as stack lines.
+- **An exception line directly after an error joins that error's trace** (Maven's `-e`
+  trace under `[ERROR] -> [Help 1]`, a JUnit failure under surefire's `<<< FAILURE!`);
+  with no error just before it, or after a warning, it's an error of its own (review
+  round 1 on #190). Up to 8 lines with no level
+  may sit between an error and its first frame, for vstest's message block.
+- **Memory is bounded by a cap on distinct signatures (2,000), not by the log.** Matched
+  lines past it are counted as `ungrouped` with `LOG_UNGROUPED`, and the sum check
+  includes them. Lines are cut at 4,096 characters for grouping (`APPROXIMATED`).
+- **A file streams with no size cap**; stdin and text keep the reader's 64 MiB cap,
+  since they're held in memory for the re-read.
+- **Order:** errors first, then warnings, each by first appearance, because the first
+  error is usually the cause. `--max-groups` defaults to 50.
+- **`--since`:** a line with no date takes the last date before it; lines before any
+  date are kept and counted (`LOG_SINCE_UNDATED`). Times without a zone are read as
+  UTC and marked `APPROXIMATED`. Time-only prefixes (`09:12:01`) carry no date and
+  don't count.
+- **`--level` is a floor** (`warning`, the default, or `error`), and **`--grep` is a
+  case-sensitive JavaScript regex** on the whole line, with no flag syntax. An error
+  line also matches by the exception line that heads its trace, since that's where
+  the exception's name is; frames aren't searched, and `LOG_GREP_STACK_ONLY` says
+  when only they matched (review round 1 on #190).
+- **No short alias.** `util log` is new, so it has only its `util` path.
+- **The work is lazily loaded, with zod kept out of it:** `log.ts` opens the input
+  (`runLog`) and `log/triage.ts` imports only types from `kit/input.ts`, so the
+  triage code stays out of startup without tripping the trap #188 found.
 ### util openapi (#183)
 
 - **Three commands, `list`, `show` and `example`**, one per operation the issue
@@ -1234,9 +1273,13 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   `circular`, `external`, `broken`). In 3.0 and 2.0 a ref's siblings are dropped,
   as the spec says; from 3.1 they're merged over the target, not wrapped in
   `allOf`. A path item or parameter `$ref` is always followed, whatever the depth.
-  A budget of 50,000 expanded refs per `show` (and 50,000 followed per
-  `example`) stops a fan-out from hanging the MCP server; past it the rest stay
-  in place as `depth`, with `expansion.truncated` and a warning (review round 1).
+  A budget of 250,000 objects and arrays built per `show` (and 250,000 values
+  generated per `example`) stops a fan-out from hanging the MCP server. It
+  counts nodes, not refs, because each ref copies its whole target, so a fan-out
+  of wide schemas blew past a ref count (review rounds 1 and 2). Past it the rest
+  stay in place as `depth`, with `expansion.truncated` and a warning. A cut-short
+  example fails `example.valid` without being validated, since its nulls can't be
+  valid and validating 250,000 values only costs time.
 - **Not data:** a `$ref` under `example`, `default`, `enum`, `const`, an Example
   Object's `value`, a 3.1 `examples` array, Swagger's `examples` or an `x-*`
   extension isn't a reference; under `properties` and the other name maps every

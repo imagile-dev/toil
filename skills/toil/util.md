@@ -1,12 +1,12 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, and reading OpenAPI documents
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, and reading OpenAPI documents
 ---
 
 # Local utilities (`util`)
 
 Commands that work on what's on this machine: a token you paste, a file in the
-workspace (a certificate, an API description), the manifests and lockfiles there, or a report a
+workspace (a certificate, a log or an API description), the manifests and lockfiles there, or a report a
 build left behind. They aren't integrations. There is no server, no connection to
 add, no `TOIL_UTIL_*` variable, no credential and no `--connection` flag, and none
 of them sends anything over the network. None changes anything: the only file one
@@ -24,6 +24,7 @@ the same flags and output:
 | `toil util encode` | | `util_encode` |
 | `toil util cert` | | `util_cert` |
 | `toil util report` | | `util_report` |
+| `toil util log` | | `util_log` |
 | `toil util openapi list` | | `util_openapi_list` |
 | `toil util openapi show` | | `util_openapi_show` |
 | `toil util openapi example` | | `util_openapi_example` |
@@ -419,6 +420,102 @@ summarised; a suite the cut left open isn't compared. SARIF is JSON and is read
 whole, so a SARIF file over the cap is `INVALID_INPUT`. Malformed XML or JSON is
 `INVALID_INPUT` with the line and column. So is a document whose format can't be
 detected, or whose root doesn't match `--format`, with a fix naming `--format`.
+
+### `toil util log`
+
+Triages a large log (a CI console, a Maven, npm or dotnet build, a test run) into
+what's worth reading: its error and warning lines grouped by signature, each with the
+stack trace that follows it. It reads the file only, streams it, and holds memory
+constant however large the log is.
+
+```bash
+toil util log build.log
+toil util log console.log --level error --context 3
+toil util log console.log --since 2026-10-14T09:12:00Z --grep 'Failed to execute'
+some-build 2>&1 | toil util log -
+```
+
+| Argument or flag | Meaning |
+|------------------|---------|
+| `[file]` | The log, inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--text <text>` | The log itself, instead of a file |
+| `--since <timestamp>` | Only lines dated at or after this ISO 8601 time (`2026-10-14`, `2026-10-14T09:12:00Z`, `"2026-10-14 09:12:00"`). A line with no date takes the date of the last dated line before it. Without a zone, a time is read as UTC |
+| `--level <level>` | `warning` (default) reports errors and warnings; `error` reports errors only |
+| `--grep <regex>` | Only error and warning lines matching this JavaScript regular expression (case-sensitive, no slashes or flags). An error also matches when the exception line heading its trace does (`--grep IllegalStateException`). Frames aren't searched; `LOG_GREP_STACK_ONLY` says when only they matched |
+| `--max-groups <n>` | The most groups to return, default 50, up to 1000 |
+| `--context <n>` | Lines to show before and after each group's sample, default 0, up to 20 |
+
+Over MCP the tool is `util_log`, with `file` (a path in the workspace) or `text`, and
+the same fields: `since`, `level`, `grep`, `maxGroups`, `context`.
+
+How it reads a log:
+
+- **Timestamps:** a leading timestamp, bracketed (Jenkins' timestamper) or bare (CI
+  runners, log4j, Serilog), is set aside before anything else, so it never splits a
+  group.
+- **Levels:** the first level word decides (`ERROR`, `FATAL`, `SEVERE`, `WARN`,
+  `WARNING`, `INFO`, `DEBUG` …, and npm's `npm error` / `npm warn`). A line tagged
+  `INFO`, or with no tag, is still an error by its shape: `BUILD FAILURE`, `FAILED`,
+  `error CS0246:`, `error TS2322:`, `TypeError: …`, `Unhandled exception.`, an eslint
+  or vstest failure line. A tag with nothing after it (`[ERROR] `) is not a group.
+- **Signatures:** dates and times, UUIDs, hex and every number are replaced, and
+  spaces collapsed. Codes such as `CS0246` and `TS2322` keep their digits, and paths
+  and quoted names stay, so two different errors stay apart.
+- **Stack traces:** Java (`at …(File.java:12)`, `Caused by:`, `... 14 more`), .NET
+  (`at … in file:line 9`, `--->`, `--- End of inner exception stack trace ---`), Node
+  (`at fn (file:12:3)`) and Python (`Traceback (most recent call last):`, printed
+  before its exception) are joined to the error they belong to, with the exception
+  line that heads one. An exception line joins an error, never a warning: after a
+  warning it's an error of its own. A trace is reported for each group's first occurrence, up to
+  50 lines.
+
+Output:
+
+```json
+{
+  "lines": { "total": 76, "error": 20, "warning": 5, "other": 35, "stack": 12, "unclassified": 4 },
+  "matched": 25, "filtered": 0, "groupsTotal": 18, "truncated": false, "ungrouped": 0, "unjoinedFrames": 0,
+  "groups": [{
+    "level": "error",
+    "signature": "[ERROR] /build/ledger/Reconciler.java:[<n>] cannot find symbol",
+    "count": 4, "firstLine": 27, "lastLine": 52,
+    "sample": "[ERROR] /build/ledger/Reconciler.java:[54,38] cannot find symbol",
+    "trace": { "kind": "java", "firstLine": 57, "lastLine": 68, "frames": 12, "lines": ["…"] },
+    "context": { "before": [{ "line": 26, "text": "…" }], "after": [{ "line": 28, "text": "…" }] }
+  }],
+  "verified": { "passed": true, "checks": [{ "check": "lines.reread", "status": "passed", "checked": 36, "failed": 0 }] }
+}
+```
+
+Groups are errors first, then warnings, each in order of first appearance. `lines`
+classes every line once: `other` is a level below warning, `stack` a trace line, and
+`unclassified` a line with no level at all. `filtered` counts the error and warning
+lines `--since`, `--level` or `--grep` left out.
+
+It checks its own answer, in `data.verified`:
+
+- **`lines.reread`:** every group's first line is read again from the file and must
+  be its sample, and its last line must still have its signature. `trace.reread`
+  does the same for every trace line shown. A mismatch is `LOG_LINE_MISMATCH`, which
+  usually means the file changed while it was read.
+- **`groups.sum`, `lines.sum`, `filter.sum`:** the group counts add up to the matched
+  lines, the line classes to the lines read, and matched plus filtered to the error
+  and warning lines. A mismatch is `LOG_COUNT_MISMATCH`.
+- **`input.complete`:** the bytes read equal the file's size. It's `unchecked` for
+  stdin and text.
+
+What it reports in `meta.warnings` rather than leave out: `LOG_UNCLASSIFIED` (lines
+with no level, in no group), `LOG_GROUPS_TRUNCATED` (more groups than
+`--max-groups`), `LOG_UNGROUPED` (matched lines whose signature came after the first
+2,000 distinct ones, counted but not grouped, which is what keeps memory constant),
+`LOG_TRACE_UNJOINED` (trace lines with no error before them), `LOG_GREP_STACK_ONLY`
+(`--grep` matched only stack trace lines), `LOG_SINCE_UNDATED`
+(lines `--since` couldn't date, kept), and `APPROXIMATED` for a line longer than
+4,096 characters (grouped by its start) or a `--since` compared with times that had
+no zone.
+
+A file streams with no size limit. stdin and `--text` are held in memory, up to
+64 MiB, so pass a file for anything bigger.
 ### `toil util openapi`: read an API description before calling it
 
 Three commands that read an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, in JSON
@@ -463,11 +560,13 @@ path. Both forms match.
 - **Expanded schemas:** `$ref`s are replaced by what they point at, `--depth` refs
   deep, and an expanded one says where it came from in `x-toil-ref`. One left in
   place says why in `x-toil-stop`: `depth`, `circular` (it loops back), `external`
-  (another file or a URL) or `broken`. `expansion.stopped` counts each. At most
-  50,000 refs are expanded per call, since refs can fan out (three properties each
-  referring to the next, twenty deep, is 3^20). Past that, the rest stay in place as
+  (another file or a URL) or `broken`. `expansion.stopped` counts each. Expansion
+  builds at most 250,000 objects and arrays per call (`expansion.nodes`), since refs
+  can fan out and each copies its whole target (three properties each referring to
+  the next, twenty deep, is 3^20 copies). Past that, the rest stay in place as
   `depth`, `expansion.truncated` is true and an `OPENAPI_EXPANSION_TRUNCATED` warning
-  says so. `example` follows at most 50,000 refs too (`OPENAPI_EXAMPLE_TRUNCATED`). In 3.0 and
+  says so. `example` generates at most 250,000 values; past that it fails
+  `example.valid` with `OPENAPI_EXAMPLE_TRUNCATED` and isn't validated. In 3.0 and
   Swagger 2.0 a `$ref`'s sibling keys are dropped, as the spec says. From 3.1
   they're kept, over the target's keys.
 - **`example`** returns `{ document, operation, body, status, contentType,

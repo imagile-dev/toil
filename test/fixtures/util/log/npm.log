@@ -1,0 +1,73 @@
+> checkout-web@3.2.0 prebuild
+> npm ci --no-audit --no-fund
+
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated @humanwhocodes/config-array@0.11.14: Use @eslint/config-array instead
+
+added 912 packages in 31s
+
+> checkout-web@3.2.0 build
+> npm run lint && tsc -p tsconfig.build.json && vite build
+
+
+> checkout-web@3.2.0 lint
+> eslint src
+
+
+/build/checkout-web/src/cart/CartSummary.tsx
+  14:10  warning  'formatCurrency' is defined but never used  @typescript-eslint/no-unused-vars
+  52:7   warning  React Hook useEffect has a missing dependency: 'items'  react-hooks/exhaustive-deps
+
+/build/checkout-web/src/payment/CardForm.tsx
+  88:13  warning  'expiry' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+✖ 3 problems (0 errors, 3 warnings)
+
+src/payment/CardForm.tsx(41,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+src/payment/CardForm.tsx(102,19): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+src/cart/useCart.ts(23,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+npm error code 2
+npm error path /build/checkout-web
+npm error command failed
+npm error command sh -c npm run lint && tsc -p tsconfig.build.json && vite build
+npm error A complete log of this run can be found in: /home/ci/.npm/_logs/2026-10-14T11_02_44_118Z-debug-0.log
+
+> checkout-web@3.2.0 test
+> vitest run --reporter=dot
+
+ ❯ src/cart/useCart.test.ts (4 tests | 1 failed) 31ms
+   × useCart > applies the discount code once 9ms
+     → expected 90 to be 81 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/cart/useCart.test.ts > useCart > applies the discount code once
+AssertionError: expected 90 to be 81 // Object.is equality
+    at /build/checkout-web/src/cart/useCart.test.ts:44:27
+    at file:///build/checkout-web/node_modules/@vitest/runner/dist/index.js:146:14
+    at runTest (file:///build/checkout-web/node_modules/@vitest/runner/dist/index.js:784:11)
+    at async runSuite (file:///build/checkout-web/node_modules/@vitest/runner/dist/index.js:912:15)
+
+ Test Files  1 failed | 6 passed (7)
+      Tests  1 failed | 37 passed (38)
+
+> checkout-web@3.2.0 start:ssr
+> node dist/server/entry.js
+
+file:///build/checkout-web/dist/server/entry.js:12
+  const port = config.server.port;
+                             ^
+
+TypeError: Cannot read properties of undefined (reading 'port')
+    at createServer (file:///build/checkout-web/dist/server/entry.js:12:30)
+    at file:///build/checkout-web/dist/server/entry.js:40:1
+    at ModuleJob.run (node:internal/modules/esm/module_job:271:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:547:26)
+
+Node.js v22.11.0
+npm error code 1
+npm error path /build/checkout-web
+npm error command failed
+npm error command sh -c node dist/server/entry.js
