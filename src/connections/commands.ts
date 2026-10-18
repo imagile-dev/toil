@@ -256,8 +256,9 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
         });
         return { name: input.name, area: area.name, host, live: false, authenticated: false, request: null };
       }
-      // Only the status matters unless the probe has to read who answered.
-      const body = await apiRequest(area, { fetch: ctx.fetch, signal: ctx.signal, connection }, probe.path, { as: probe.accepts ? 'json' : 'text', ...(probe.query ? { query: probe.query } : {}) });
+      // JSON through core unless the area declares a text answer: a sign-in page served with a 200 is
+      // the same HTTP error here that a real command would get, never a healthy connection.
+      const body = await apiRequest(area, { fetch: ctx.fetch, signal: ctx.signal, connection }, probe.path, { as: probe.as ?? 'json', ...(probe.query ? { query: probe.query } : {}) });
       if (probe.accepts && !probe.accepts(body)) {
         throw new ToilError('AUTH', `${area.name} answered GET ${probe.path} for connection "${input.name}" as an anonymous user, so its credential wasn't accepted.`, {
           fix: `Run toil connections login ${input.name} with a new credential, or replace the one its env var sets.`,

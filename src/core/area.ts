@@ -128,6 +128,12 @@ export interface Probe {
    */
   accepts?(body: unknown): boolean;
   /**
+   * `text` only where the API really answers this read in plain text. The
+   * default reads JSON through core, so a sign-in or proxy page served with a
+   * 200 fails the test as it would fail a real command.
+   */
+  as?: 'json' | 'text';
+  /**
    * False when the service has no cheap read that needs the credential, so a
    * success proves only that the host answers. The test then says
    * `authenticated: false`. Defaults to true.
