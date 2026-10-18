@@ -51,14 +51,14 @@ existing `imagile-keyvault`, never copied anywhere else.
 | `GITHUB_REPO`, `GITHUB_APP_ID`, `ALLOWED_ORIGIN`, `DAILY_SUBMISSION_LIMIT`, `IP_DAILY_LIMIT`, `REPORT_IP_DAILY_LIMIT`, `REPORT_DAILY_LIMIT`, `COMMIT_LOOKUP_DAILY_LIMIT`, `MAX_PENDING_SUBMISSIONS`, `STALE_SUBMISSION_MINUTES`, `EMAIL_FROM_ADDRESS`, `FEEDBACK_TABLES_ENDPOINT` | Bicep |
 | `GITHUB_APP_PRIVATE_KEY` | Key Vault `GITHUB-APP-PRIVATE-KEY` (the Imagile Bot App) |
 | `TURNSTILE_SECRET` | Key Vault `TURNSTILE-SECRET` |
-| `SMOKE_TEST_KEY` | Key Vault `SMOKE-TEST-KEY` |
+| `SMOKE_TEST_KEY` | Key Vault `SMOKE-TEST-KEY` (made by `infra/bootstrap.sh` if missing) |
 | `ACS_CONNECTION_STRING` | Key Vault `ACS-CONNECTION-STRING` (`imagile-comms`, sending as `no-reply@imagile.dev`) |
-| `WEBHOOK_SECRET` | Key Vault `TOIL-WEBHOOK-SECRET` (made by hand, below) |
+| `WEBHOOK_SECRET` | Key Vault `TOIL-WEBHOOK-SECRET` (made by `infra/bootstrap.sh`, below) |
 
 ## Cost
 
 Everything is in its own resource group, `rg-toil-feedback`, in the Imagile Paid
-subscription (capped at $50 a month). Nothing is always on. Retail prices in
+subscription (budget $60 a month). Nothing is always on. Retail prices in
 eastus2 on 2026-10-18:
 
 | Item | Monthly |
@@ -70,44 +70,38 @@ eastus2 on 2026-10-18:
 | Three log alerts every 15 minutes, $0.50 each | $1.50 |
 | **Total** | **~$1.60–2.00** |
 
-The deploy workflow refuses to run when Azure's forecast for the month is over $50.
+The deploy workflow refuses to run when Azure's forecast for the month is over the $60 budget.
 
-## One-time manual steps
+## One-time setup
 
-These are deliberately not automated: each one grants access or creates a
-credential, and a maintainer does it once.
+`infra/bootstrap.sh` does it, signed in to `az` (an Owner on Imagile Paid) and `gh`
+(an admin of the repository). Every step checks first and does only what's missing,
+so it's safe to run again; it never prints a secret, never puts one on a command line,
+and never overwrites an existing Key Vault secret.
 
-1. **Resource group and deploy identity.** Create `rg-toil-feedback` (eastus2). Create
-   an Entra app registration (or user-assigned identity) for the deploy, with a
-   federated credential for `repo:imagile-dev/toil:environment:feedback`, and set the
-   repository variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and
-   `AZURE_SUBSCRIPTION_ID`. Create the `feedback` environment in the repository
-   settings. Give the identity:
-   - `Contributor` on `rg-toil-feedback`
-   - `Role Based Access Control Administrator` on `rg-toil-feedback`, so the template
-     can grant the function's identity its two storage roles (it can be limited to
-     `Storage Blob Data Owner` and `Storage Table Data Contributor`)
-   - `Cost Management Reader` on the subscription, for the deploy's cost gate
-   - `Key Vault Secrets User` on the `SMOKE-TEST-KEY` secret in `imagile-keyvault`,
-     for the smoke test
-2. **Key Vault access for the function.** After the first deploy creates
-   `func-toil-feedback`, grant its system-assigned identity `Key Vault Secrets User`
-   on `imagile-keyvault`. Until then its Key Vault references don't resolve.
-3. **The webhook secret.** Create the `TOIL-WEBHOOK-SECRET` secret in
-   `imagile-keyvault` with a long random value, and add a repository webhook to
-   `https://func-toil-feedback.azurewebsites.net/api/webhook/issue` with the same
-   secret, content type `application/json`, and only the **Issues** event.
-4. **The Imagile Bot App.** It's already installed on the repository. It needs
-   `Issues: write` (filing) and `Contents: read` (the commit lookup); the triage
-   workflow also uses `Contents: write` and `Pull requests: write`. It must not have
-   `Workflows`.
-5. **Turnstile.** Add `imagile-dev.github.io` to the hostnames of the existing
-   Turnstile widget in Cloudflare (the site key in `site/src/data/feedback.ts`).
-6. **The ACS domain.** `imagile.dev` is already verified on `imagile-email` and linked
-   to `imagile-comms`, with the `no-reply` sender. Nothing to do unless that changes.
-7. **Triage.** Set the `REDACT_TERMS` repository secret (one entry per line; see
-   `scripts/triage/redact.mjs`). The workflow runs without it, with only the built-in
-   rules.
+```bash
+bash infra/bootstrap.sh
+```
+
+| Step | What it makes or checks |
+|---|---|
+| 1 | Resource group `rg-toil-feedback` (eastus2) |
+| 2 | Deploy identity: the `toil-feedback-deploy` app registration and service principal, a federated credential for `repo:imagile-dev/toil:environment:feedback`, the `feedback` environment, and the `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID` repository variables |
+| 3 | Its roles: Contributor on the resource group; Role Based Access Control Administrator there, limited by a condition to granting or removing Storage Blob Data Owner and Storage Table Data Contributor; Cost Management Reader on the subscription (the deploy's cost gate) |
+| 4 | `id-toil-feedback-kv`, a user-assigned identity with Key Vault Secrets User on `imagile-keyvault`, which `infra/main.bicep` attaches to the app for its Key Vault references, so they resolve on the first deploy |
+| 5 | `SMOKE-TEST-KEY`, if missing (a random value), and Key Vault Secrets User on that one secret for the deploy identity (the smoke test reads it) |
+| 6 | `TOIL-WEBHOOK-SECRET`, if missing, and the repository webhook to `/api/webhook/issue` (Issues only, JSON) signed with it, if missing |
+| 7 | Read only: the Imagile Bot App has Issues, Contents and Pull requests write, and no Workflows |
+| 8 | Read only: `imagile.dev` is verified and linked to Communication Services |
+
+Two steps stay with the maintainer, and the script ends by printing them:
+
+1. **Turnstile hostname.** Add `imagile-dev.github.io` to the hostnames of the
+   existing Turnstile widget in Cloudflare (the site key in `site/src/data/feedback.ts`).
+2. **`REDACT_TERMS`.** The private denylist triage redacts, one entry per line (see
+   `scripts/triage/redact.mjs`):
+   `gh secret set REDACT_TERMS --repo imagile-dev/toil < terms.txt`. Triage runs
+   without it, with only the built-in rules.
 
 ## Develop
 

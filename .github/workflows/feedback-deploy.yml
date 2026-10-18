@@ -35,9 +35,9 @@ concurrency:
 
 env:
   RESOURCE_GROUP: rg-toil-feedback
-  # The subscription's cap. The deploy refuses to run when Azure's own forecast
-  # for this month is above it.
-  MONTHLY_CAP_USD: '50'
+  # The subscription's budget ($60, the maintainer's call on #223). The deploy
+  # refuses to run when Azure's own forecast for this month is above it.
+  MONTHLY_CAP_USD: '60'
 
 jobs:
   check:

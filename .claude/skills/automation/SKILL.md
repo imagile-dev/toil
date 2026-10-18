@@ -155,7 +155,9 @@ refuses.
 `.github/workflows/feedback-deploy.yml` builds and tests `functions/feedback/` on
 PRs with no Azure access. On `main` it logs in to Azure over OIDC (repository
 variables, no stored secret), refuses to deploy when Azure's forecast for the month
-is over the subscription's $50 cap, runs `what-if`, deploys `infra/main.bicep` and
+is over the subscription's $60 budget (`MONTHLY_CAP_USD`; the identity, its roles,
+the Key Vault identity and the secrets it uses come from `infra/bootstrap.sh`, run once
+by a maintainer and safe to re-run), runs `what-if`, deploys `infra/main.bicep` and
 the function, and ends with `functions/feedback/scripts/smoke.mjs`, which drives both
 endpoints with the smoke-test key and waits for the runs on the one persistent
 `smoke-test` issue. The smoke-test key is read from Key Vault at run time and masked.

@@ -13,9 +13,9 @@
 // is why there isn't one.
 //
 // Secrets stay in the existing imagile-keyvault and reach the app only as Key
-// Vault references. Granting the app's identity "Key Vault Secrets User" there
-// is a one-time manual step (functions/feedback/README.md), because that vault
-// lives in another resource group this template has no business changing.
+// Vault references, resolved by a user-assigned identity that infra/bootstrap.sh
+// creates and grants "Key Vault Secrets User" once, because that vault lives in
+// another resource group this template has no business changing.
 
 targetScope = 'resourceGroup'
 
@@ -43,6 +43,9 @@ param dailySubmissionLimit int = 10
 @description('Existing action group the alerts notify. Reused rather than created, so no address is written into this repository.')
 param actionGroupId string = resourceId('rg-alerts', 'Microsoft.Insights/actionGroups', 'ag-cost-email')
 
+@description('User-assigned identity, made by infra/bootstrap.sh with Key Vault Secrets User on the vault, that resolves the Key Vault references.')
+param keyVaultIdentityName string = 'id-${name}-kv'
+
 @description('Most on-demand instances per function group. Low on purpose: it bounds what a flood of requests can cost.')
 @minValue(1)
 param maximumInstanceCount int = 2
@@ -55,6 +58,13 @@ var kvRef = 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secret
 // Built-in role ids.
 var blobDataOwner = 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
 var tableDataContributor = '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
+
+// Made before the first deploy (infra/bootstrap.sh) and granted Key Vault Secrets User
+// on the vault there, so the references resolve on the first start and the deploy's
+// smoke test can pass. The system identity keeps the storage roles below.
+resource kvIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' existing = {
+  name: keyVaultIdentityName
+}
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: 'log-${name}'
@@ -129,10 +139,14 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
   name: appName
   location: location
   kind: 'functionapp,linux'
-  identity: { type: 'SystemAssigned' }
+  identity: {
+    type: 'SystemAssigned, UserAssigned'
+    userAssignedIdentities: { '${kvIdentity.id}': {} }
+  }
   properties: {
     serverFarmId: plan.id
     httpsOnly: true
+    keyVaultReferenceIdentity: kvIdentity.id
     functionAppConfig: {
       deployment: {
         storage: {
@@ -167,9 +181,8 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'MAX_PENDING_SUBMISSIONS', value: '100' }
         { name: 'STALE_SUBMISSION_MINUTES', value: '15' }
         { name: 'EMAIL_FROM_ADDRESS', value: 'no-reply@imagile.dev' }
-        // Key Vault references to secrets that already exist (TOIL-WEBHOOK-SECRET is
-        // made by hand once; see the README). They resolve once the app's identity
-        // has "Key Vault Secrets User" on the vault.
+        // Key Vault references, resolved by kvIdentity. SMOKE-TEST-KEY and
+        // TOIL-WEBHOOK-SECRET are made by infra/bootstrap.sh when missing.
         { name: 'GITHUB_APP_PRIVATE_KEY', value: '@Microsoft.KeyVault(SecretUri=${kvRef}/GITHUB-APP-PRIVATE-KEY)' }
         { name: 'TURNSTILE_SECRET', value: '@Microsoft.KeyVault(SecretUri=${kvRef}/TURNSTILE-SECRET)' }
         { name: 'SMOKE_TEST_KEY', value: '@Microsoft.KeyVault(SecretUri=${kvRef}/SMOKE-TEST-KEY)' }

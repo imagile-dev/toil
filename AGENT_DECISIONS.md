@@ -2554,3 +2554,16 @@ skill file, fixture, board entry, site data or contract entries changed.
   compares the agent's output byte for byte with the agent job's OAuth and workflow
   tokens, emptying it and marking `secret-match` on a hit. The key-name rules stay in
   the redactor for incoming issue text. `xox…` tokens joined the shape list.
+- **The one-time setup is `infra/bootstrap.sh`** (the maintainer's request, after review
+  round 5), run once for real and once more to show it changes nothing. Key Vault
+  references resolve through a user-assigned identity (`id-toil-feedback-kv`) the script
+  makes and grants Key Vault Secrets User before the first deploy, so the first smoke
+  test can pass; the system identity keeps the two storage roles, which needed no
+  change. The deploy identity's Role Based Access Control Administrator carries a
+  condition limiting it to Storage Blob Data Owner and Storage Table Data Contributor.
+  Generated secrets pass through a private temp file (az on Windows can't read
+  `/dev/stdin`), removed on exit. The first run stored `TOIL-WEBHOOK-SECRET` with a
+  trailing carriage return (Windows' openssl ends lines with CRLF); the webhook got the
+  value without it, and the function trims settings, so both sides sign with the same
+  64 characters. It was left as it is rather than rewriting a secret, and the script
+  now strips `\r` too. The deploy is approved past the $50 rule, to a $60 budget.
