@@ -14,11 +14,11 @@ const commandList: SiteCommand[] = Object.values(generated)[0] ?? [];
 const shortPaths = new Set(['jwt', 'deps']);
 ---
 
-<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, summarise test, SARIF and coverage reports, triage a large log, and size files and folders before reading them, with no connection and no network.">
+<Layout title="Local utilities" description="toil's local utilities: decode a JWT, inventory a repository's dependencies and compare it between two git refs, encode, decode or hash with every result checked, decode certificates and check a chain, summarise test, SARIF and coverage reports, triage a large log, scan for secrets before a commit, and size files and folders before reading them, with no connection and no network.">
   <PageHero
     eyebrow="<b>Docs</b> · Utilities"
     title="Local utilities, <em>no network.</em>"
-    lead="Commands that work on what's on your machine: a token you paste, a file, folder or log in your workspace, its manifests and lockfiles, or the reports a build leaves behind. No connection, no credential, nothing sent anywhere."
+    lead="Commands that work on what's on your machine: a token you paste, a file, folder or log in your workspace, its manifests and lockfiles, the reports a build leaves behind, or a change you're about to commit. No connection, no credential, nothing sent anywhere."
   >
     <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <span>Utilities</span></p>
   </PageHero>
@@ -31,7 +31,7 @@ const shortPaths = new Set(['jwt', 'deps']);
           <div><dt>Status</dt><dd><span class="status status--unit">unit</span></dd></div>
           <div><dt>Credential</dt><dd>None</dd></div>
           <div><dt>Network</dt><dd>None</dd></div>
-          <div><dt>Needs</dt><dd>Node 24.14 or later; git for <code>deps diff</code></dd></div>
+          <div><dt>Needs</dt><dd>Node 24.14 or later; git for <code>deps diff</code> and <code>secrets scan --diff</code></dd></div>
         </dl>
       </aside>
 
@@ -117,6 +117,27 @@ const shortPaths = new Set(['jwt', 'deps']);
             inventory for that side, so check a ref you've typed by hand.
           </p>
         </section>
+        <section data-reveal>
+          <h2>Scanning for secrets</h2>
+          <p>
+            <code>secrets scan</code> looks for credential-shaped strings before you commit, push or post them: tokens, keys,
+            <code>password=</code> values, credentials in URLs, private keys and long random strings. It uses the same rules toil's audit log
+            redacts with, plus an entropy check, and reads a file, a folder (skipping what <code>.gitignore</code> ignores), stdin, or your
+            staged or unstaged changes.
+          </p>
+          <div class="codeblock"><span class="card-tag">shell</span>
+<pre><span class="line"><span class="p">$</span> toil util secrets scan --diff staged</span></pre>
+          </div>
+          <p>
+            Each finding gives the file, line, column, the rule that matched, a confidence and a masked preview such as
+            <code>ghp_…c9vB</code>. The secret itself is never printed, logged or returned. It exits with 1 when it finds anything, so a
+            hook or a pipeline can stop on it.
+          </p>
+          <p>
+            A known false positive goes in <code>.toil/secrets-allow</code> by its fingerprint, which names the value without revealing it,
+            so the file is safe to check in. Every finding is read again at the position reported to confirm it, and files it couldn't read
+            (binary, too large, no permission) are listed rather than skipped.
+
 
         <section data-reveal>
           <h2>Summarising a report</h2>
