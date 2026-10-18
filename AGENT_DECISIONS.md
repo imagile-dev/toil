@@ -2224,3 +2224,94 @@ Batch (`ids`, `fields`, `$expand`, `errorPolicy`, at most 200 ids),
   invisible id doesn't fail the batch; `data` is `{ count, value, missing }`, with
   an `ADO_WORK_ITEMS_MISSING` warning naming the ids. `--fields` (comma-separated)
   replaces `$expand: all`, as the server takes only one of the two.
+
+### #212 OWI
+
+Items 10 and 11: the OWI spec (`docs/owi/spec.md`, v0.1) and its JSON Schema
+(`docs/owi/schema.json`), the mappers in `src/core/owi/`, `toil util owi map`, and
+`mapOwi`, `owiVersion` and `owiSchema` in `@imagile-dev/toil/api`.
+
+- **Dossier overrides come in as input, not a dossier lookup.** `util` commands are
+  standalone: they load no config and get no dossier (`usesConnection` gates the
+  dossier in `src/core/run.ts`), and giving a util command dossier access is a core
+  change out of proportion to this item. So the override keys are a dossier
+  section's `fields` keys (`estimate`, `estimateUnit`, `priority`, `type`, `team`,
+  `dueDate`, `iteration`), passed as `--field name=field` (the shape Jira's
+  `--field` already has, safe in every shell) or `fields` to `mapOwi`, which a host
+  that reads the dossier through `./api` hands over unchanged. Automatic lookup from
+  the call's dossier is a possible later core change.
+- **`estimateUnit` defaults to `points`** for an override, documented, except
+  Jira's `timeoriginalestimate`, which is seconds and so always hours.
+- **`UNKNOWN` is upper case**, beside `TODO`, `IN_PROGRESS` and `DONE` (#206's enum
+  style); the brief's "a documented `unknown` category" is that value.
+- **Additions to #206's model**, each additive: `typeName` (the source's own word,
+  principle 4), `resolution`, `team` and `dueDate` (they were already override
+  targets), `history` with `transitions` and iteration moves (#206's Transition, plus
+  sprint moves for scope-added and carried-over), and `unmapped` per item. Board and
+  ChangeRef are left for a later version: no mapped command returns PR links yet.
+- **Removed (Azure DevOps) and `not_planned` (GitHub) are `DONE`**, with the reason
+  in `resolution`, rather than a fifth category.
+- **A Jira changelog's statuses take their category from items in the same input**,
+  since the changelog names statuses only; one that no item is in is `UNKNOWN`, and
+  the item lists `history.transitions` in `unmapped`.
+- **A GitHub open issue with no board is `TODO`**; a closed one is `DONE` whatever
+  its board says.
+- **Keyless histories** (Jira changelog, GitHub timeline) take `--key`, or a
+  `{ key, history }` wrapper in a multi-document input; a history whose item isn't in
+  the input is returned in `histories` rather than dropped.
+- **One mapper per shape, keyed by family** (`OWI_SOURCES` in
+  `src/core/owi/types.ts`): `jira-cloud` shares the Jira mapper, and Azure DevOps
+  Services (#222, `ado-cloud`) is one line there once it lands; a skipped test in
+  `test/owi.test.ts` names it. `source.area` in the schema is a pattern, not an
+  enum, so a new area isn't a schema change.
+- **Work-item areas are marked in `OWI_SOURCES`, and a test keeps the mark
+  honest** (the maintainer's requirement: OWI is inspected whenever a work-item
+  integration is added or changed). The rule is written once, in the `integrations`
+  skill (**Open Work Items**), with a one-line pointer from CLAUDE.md. Rather than a
+  second flag on `defineArea`, the mapper's own registry is the mark, so there is
+  one list. `test/owi.test.ts` fails when an area has a command whose name is issue-
+  or work-item-shaped (`(create|get|update|list|search|transition|link)-issue(s)`,
+  `-ticket(s)`, `issue-events`, `get-changelog`, `work get|get-batch|revisions|search|create|update`)
+  and isn't marked, when a marked area isn't registered or has no fixture, or when a
+  marked command isn't registered; the mapped-examples test then validates each
+  marked area's fixture output against the schema. `sonar issues` (code findings) and
+  `bitbucket needs-work` don't match the pattern, on purpose. `ado-cloud` is in the
+  test's `PENDING` list citing #222: its test is skipped until the area registers,
+  then fails until it is a line in `OWI_SOURCES`. Proven by a scratch run with
+  `github` removed from `OWI_SOURCES`: the marking test failed (and so did every
+  sprint test that maps GitHub output), then passed again once restored.
+- **Schema validation is per item**, keyed, through `validateBounded`, so a 5,000-item
+  call (the bound, `OWI_ITEMS_CAPPED`) never puts one large task past the 2 s
+  deadline.
+
+Research notes on #212 and #206, checked against the vendors' docs on 2026-10-18:
+
+- **ADO estimates: confirmed** StoryPoints (Agile), Effort (Scrum), Size (CMMI),
+  OriginalEstimate for tasks, all `Microsoft.VSTS.Scheduling.*`
+  (https://learn.microsoft.com/en-us/azure/devops/boards/queries/query-numeric).
+  **Effort on Basic is not confirmed:** neither that page nor the Basic process page
+  says what Basic's Issue estimates with. Nothing pins it: the mapper tries
+  StoryPoints, Effort, Size, then OriginalEstimate on any process, so a Basic Issue
+  with Effort maps, and one without lists `estimate` as unmapped.
+- **ADO state categories: confirmed** from Microsoft's table
+  (https://learn.microsoft.com/en-us/azure/devops/boards/work-items/workflow-and-state-categories),
+  including Basic's To Do, Doing and Done, which the research didn't list.
+- **Jira estimate names: consistent but secondary.** "Story Points" (company-managed
+  and Data Center) and "Story point estimate" (team-managed) are what Atlassian's
+  community and vendor docs say; I found no first-party Atlassian page stating both.
+  The mapper finds them by name (a registered custom field name or an expanded
+  `names` map), never by id, as the research said; a site that names them otherwise
+  uses `--field estimate=…`.
+- **GitHub issue fields: changed.** GitHub's changelog says they went generally
+  available on 2026-07-02, and the REST API documents
+  `/repos/{owner}/{repo}/issues/{number}/issue-field-values`. No toil command reads
+  them, so OWI 0.1 doesn't map them; the spec says so. Projects number fields,
+  issue types and sub-issues are documented and mapped.
+- **OSLC CM: changed.** CM 3.0 is an OASIS Standard (26 May 2021), not CS01 of
+  2018; the state predicates are `closed`, `inProgress`, `fixed`, `approved`,
+  `reviewed` and `verified` (six, `reviewed` was missing), and `oslc_cm:status` is
+  deprecated in favour of `oslc_cm:state`
+  (https://docs.oasis-open-projects.org/oslc-op/cm/v3.0/os/change-mgt-spec.html and
+  the vocabulary beside it). The mapping maps `closed` and `inProgress` and says why
+  the other four are left out.
+- **Preview fixtures: done** as `test/fixtures/owi/` (spec, **The sprint fixture**).

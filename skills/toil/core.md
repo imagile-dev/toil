@@ -223,6 +223,15 @@ const envelope = await execute('jira search', { jql: 'project = PAY', maxResults
   (`writesLocal`), and its input's JSON Schema.
 - **`version`** and **`contractVersion`** are what `toil version` reports. Check
   `contractVersion` before relying on anything else.
+- **`mapOwi(input, options)`** maps envelopes you already hold (one, an array, or
+  JSON Lines text) to Open Work Items, the way `toil util owi map` does (`util.md`),
+  synchronously and without the schema check: `{ items, histories, skipped,
+  warnings }`. `options.fields` is a dossier section's `fields` object
+  (`{ estimate: 'customfield_10234', estimateUnit: 'points' }`), `command` names the
+  command for bare `data`, and `key` the item a keyless history belongs to. A
+  refused input throws, with a fix. **`owiVersion`** is the OWI version items carry,
+  and **`owiSchema`** their JSON Schema; `execute('util owi map', { text })` maps
+  and validates in one call.
 
 What `@imagile-dev/toil/api` exports, and the types it names, follow the command
 contract: they change only additively unless `contractVersion` goes up. Anything else
