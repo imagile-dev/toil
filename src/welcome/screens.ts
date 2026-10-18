@@ -71,7 +71,7 @@ export function envOnly(config: ResolvedConfig, name: string): boolean {
 /** A connection's health in a word or two, for tables and hints. */
 export function healthWord(caps: Caps, health: Health | undefined): string {
   if (!health) return faint(caps, 'not tested');
-  if (health.ok) return ok(caps, true, health.live ? 'healthy' : 'settings ok');
+  if (health.ok) return ok(caps, true, !health.live ? 'settings ok' : health.authenticated === false ? 'host answers' : 'healthy');
   return ok(caps, false, health.code === 'AUTH' ? 'sign-in rejected' : health.code);
 }
 

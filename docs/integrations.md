@@ -33,8 +33,8 @@ commands keep the shape listed in [command-contract.md](command-contract.md).
 
 | Command | Source | Covers | Network |
 |---------|--------|--------|---------|
-| `toil deps scan` | Local manifests | Package inventory for npm, Maven and NuGet | None |
-| `toil deps diff` | Local manifests | Packages added, removed or changed between two refs | None |
+| `toil util deps scan` (also `toil deps scan`) | Local manifests | Package inventory for npm, Maven and NuGet | None |
+| `toil util deps diff` (also `toil deps diff`) | Local manifests | Packages added, removed or changed between two refs | None |
 | `toil osv vulns` | OSV.dev | Known vulnerabilities for an inventory | Public API, no credential |
 | `toil ossindex vulns` | Sonatype OSS Index | Known vulnerabilities for an inventory | Public API, account username and token |
 | `toil sonatypeiq evaluate` | Sonatype IQ Server | Policy evaluation of an inventory against an application | User token pair |
@@ -51,9 +51,11 @@ belong to each source's `config test`, not to a separate connectivity command.
 
 ## Local utilities
 
+The `util` group holds commands with no connection, no credential and no network (`skills/toil/util.md`). They aren't integrations, so they're not on the board; the site documents them at `/docs/utilities/`. The inventory commands above are in it too.
+
 | Command | Covers |
 |---------|--------|
-| `toil jwt decode` | Decode a JWT's header and claims without verifying |
+| `toil util jwt decode` (also `toil jwt decode`) | Decode a JWT's header and claims without verifying |
 | `toil doctor` | Config, credential and reachability report across every configured area |
 | `toil config` | `init`, `set`, `check`, `test`, keychain references |
 | `toil skills` | Install the user-facing skill for an agent |

@@ -137,8 +137,8 @@ Node, and toil has to work there. This is the most important rule in the repo.
     ships (`security`, Windows PowerShell, `secret-tool`), never through a shell,
     with secrets on stdin.
   - **git**, `src/core/git.ts`, the one optional exception to principle 1 (#68,
-    decision 1). Only the commands that are git (the `git` area and `deps diff`, once
-    built) run it;
+    decision 1). Only the commands that are git (the `git` area and `util deps diff`)
+    run it;
     repository root, HEAD, branch and remotes are read from `.git` in pure JS
     (`src/core/git-repo.ts`), so area context needs no git. Without git on PATH those
     commands return `GIT_NOT_FOUND`, with a fix naming the PATH searched, and nothing

@@ -42,7 +42,16 @@ const service = defineArea({
   probe: () => ({ path: '/api/me', query: { fields: 'id' } }),
   request: (c) => ({ baseUrl: c.baseUrl, headers: { Authorization: `Bearer ${c.token}` }, service: 'Service', authFix: 'Create a new token.' }),
 });
-const areas = [demoArea, warehouse, service];
+/** A service whose only cheap read answers anyone, and which takes an object setting. */
+const pinged = defineArea({
+  name: 'pinged',
+  description: 'An HTTP API with only a public ping',
+  connection: z.object({ baseUrl: z.url().describe('API root'), token: z.string().min(1).describe('Token'), labels: z.record(z.string(), z.string()).optional().describe('Labels') }),
+  secrets: ['token'],
+  probe: () => ({ path: '/ping', authenticated: false }),
+  request: (c) => ({ baseUrl: c.baseUrl, headers: { Authorization: `Bearer ${c.token}` } }),
+});
+const areas = [demoArea, warehouse, service, pinged];
 const commands = [...connectionsCommands(areas), ...demoCommands];
 const SECRET = 'fake-token-abc12345';
 
@@ -169,6 +178,13 @@ describe('toil connections add', () => {
     expect(run.envelope?.error?.code).toBe('TIMEOUT');
     expect(signal?.aborted, 'the store read was handed the aborted signal').toBe(true);
     expect(http.calls).toHaveLength(0);
+  });
+
+  it('shows an object setting in the review as JSON', async () => {
+    const { prompt, asked } = terminal({ baseUrl: 'https://pinged.imagile.dev', labels: '{"team":"payments"}', token: SECRET });
+    const run = await cli(['connections', 'add', 'p', '--area', 'pinged'], context({ prompt, secrets: fakeStore() }));
+    expect(run.envelope?.ok, run.stdout).toBe(true);
+    expect(asked.find((a) => a.key === 'Save')!.question).toContain('labels {"team":"payments"}');
   });
 
   it('keeps an accepted provider default out of config, so the default can still change', async () => {
@@ -430,6 +446,15 @@ describe('toil connections test', () => {
     expect(run.envelope).toMatchObject({ ok: true, data: { name: 'd', area: 'demo', live: false, request: null } });
     expect(run.envelope?.meta.warnings?.map((w) => w.code)).toContain('NOT_LIVE_TESTED');
     expect(http.calls).toHaveLength(0);
+  });
+
+  it('says so when the only read it can send answers without the credential', async () => {
+    writeConfig({ version: 2, connections: { p: { area: 'pinged', baseUrl: 'https://pinged.imagile.dev', token: 'keychain:p.token' } } });
+    const ctx = context({ secrets: fakeStore({ entries: { 'p.token': SECRET } }) });
+    ctx.fetch = fakeFetch([{ method: 'GET', url: 'https://pinged.imagile.dev/ping', respond: { text: 'OK' } }]).fetch;
+    const run = await cli(['connections', 'test', 'p'], ctx);
+    expect(run.envelope).toMatchObject({ ok: true, data: { live: true, authenticated: false } });
+    expect(run.envelope?.meta.warnings?.map((w) => w.code)).toContain('NOT_AUTHENTICATED');
   });
 
   it('refuses a name with no connection', async () => {

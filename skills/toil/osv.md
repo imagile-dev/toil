@@ -32,7 +32,7 @@ toil osv vulns --from inventory.json --ecosystem npm --direct-only
 
 | Flag | Meaning |
 |------|---------|
-| `--from <file>` | A JSON file holding a list of `{ name, version, ecosystem }` packages (`ecosystem` is `npm`, `nuget` or `maven`; Maven names are `group:artifact`). Optional `type` (`direct`/`transitive`) and `scope` (`production`/`dev`) feed the filters below. `toil deps scan` output (its envelope or its `data`) is accepted too, once that command is available. Omitted, the inventory is read from stdin on the CLI. Over MCP pass `from`; there is no stdin |
+| `--from <file>` | A JSON file holding a list of `{ name, version, ecosystem }` packages (`ecosystem` is `npm`, `nuget` or `maven`; Maven names are `group:artifact`). Optional `type` (`direct`/`transitive`) and `scope` (`production`/`dev`) feed the filters below. `toil deps scan` output (its envelope or its `data`) is accepted too, so `toil deps scan | toil osv vulns` works. Omitted, the inventory is read from stdin on the CLI. Over MCP pass `from`; there is no stdin |
 | `--ecosystem <ecosystem>` | `npm`, `nuget`, `maven` or `all` (default). Any other value matches nothing and returns a clean result |
 | `--direct-only` | Leave out packages the inventory marks `transitive` |
 | `--include-dev` | Keep packages the inventory marks `dev` (left out by default) |

@@ -111,7 +111,7 @@ function screens(): Array<{ id: string; caption: string; state: MenuState }> {
     { ...keys(home, '3', '3', '5'), pending: { title: 'Add sonar', steps: [] } },
     [
       { args: ['connections', 'add', 'sonar', '--area', 'sonar'], envelope: env({ name: 'sonar', area: 'sonar', configFile: '/home/you/.toil/config.json' }, 'connections add') },
-      { args: ['connections', 'test', 'sonar'], envelope: env({ name: 'sonar', area: 'sonar', host: 'sonar.imagile.dev', live: true, request: 'GET /api/system/status' }, 'connections test') },
+      { args: ['connections', 'test', 'sonar'], envelope: env({ name: 'sonar', area: 'sonar', host: 'sonar.imagile.dev', live: true, request: 'GET /api/authentication/validate' }, 'connections test') },
     ],
   );
   return [

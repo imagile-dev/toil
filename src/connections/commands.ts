@@ -84,7 +84,8 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       // named, never shown: they were typed hidden and stay that way.
       const review = [
         `area ${area.name}`,
-        ...Object.entries(settings).map(([k, v]) => `${k} ${String(v)}`),
+        // An object or array setting (Jira's customFields) reads as JSON, not [object Object].
+        ...Object.entries(settings).map(([k, v]) => `${k} ${typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)}`),
         ...Object.keys(secretValues).map((k) => `${k} to the OS credential store`),
       ].join(', ');
       const answer = await prompt.ask(`Save ${input.name} (${review})? y/n`, 'y');
@@ -232,7 +233,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     path: ['connections', 'test'],
     description: "Check one connection: resolve its settings and secret, then send the area's one cheap authenticated read",
     toolDescription:
-      "Checks one toil connection: resolves its settings and reads its secret, then sends the area's one cheap authenticated GET (Jira's /rest/api/2/myself, for example). Fails with the same AUTH, NETWORK, CONFIG_INVALID or NOT_CONFIGURED error a real command would. `live` is false, with a warning, for an area toil has no such check for: then nothing was sent. Tests one connection per call; call it once per connection to test several.",
+      "Checks one toil connection: resolves its settings and reads its secret, then sends the area's one cheap authenticated GET (Jira's /rest/api/2/myself, for example). Fails with the same AUTH, NETWORK, CONFIG_INVALID or NOT_CONFIGURED error a real command would. `authenticated` says whether that read needs the credential, so a success also proves the credential works. `live` is false, with a warning, for an area toil has no such check for: then nothing was sent. Tests one connection per call; call it once per connection to test several.",
     input: z.object({
       name: z.string().describe('Connection name'),
     }),
@@ -253,11 +254,19 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
           code: 'NOT_LIVE_TESTED',
           message: `toil has no live check for ${area.name} connections${area.probe ? ' set up like this one' : ''}, so nothing was sent. The settings are complete and the secret was read.`,
         });
-        return { name: input.name, area: area.name, host, live: false, request: null };
+        return { name: input.name, area: area.name, host, live: false, authenticated: false, request: null };
       }
-      // Text, because only the status matters, and a ping that answers "OK" isn't JSON.
-      await apiRequest(area, { fetch: ctx.fetch, signal: ctx.signal, connection }, probe.path, { as: 'text', ...(probe.query ? { query: probe.query } : {}) });
-      return { name: input.name, area: area.name, host, live: true, request: `GET ${probe.path}` };
+      // Only the status matters unless the probe has to read who answered.
+      const body = await apiRequest(area, { fetch: ctx.fetch, signal: ctx.signal, connection }, probe.path, { as: probe.accepts ? 'json' : 'text', ...(probe.query ? { query: probe.query } : {}) });
+      if (probe.accepts && !probe.accepts(body)) {
+        throw new ToilError('AUTH', `${area.name} answered GET ${probe.path} for connection "${input.name}" as an anonymous user, so its credential wasn't accepted.`, {
+          fix: `Run toil connections login ${input.name} with a new credential, or replace the one its env var sets.`,
+        });
+      }
+      if (probe.authenticated === false) {
+        ctx.warn({ code: 'NOT_AUTHENTICATED', message: `${area.name} has no cheap read that needs the credential, so this test shows the host answers, not that the credential works.` });
+      }
+      return { name: input.name, area: area.name, host, live: true, authenticated: probe.authenticated !== false, request: `GET ${probe.path}` };
     },
   });
 

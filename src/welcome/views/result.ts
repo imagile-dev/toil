@@ -19,7 +19,7 @@ export function outcome(result: StepResult): { good: boolean; text: string; fix?
   const text =
     verb === 'test'
       ? d.live
-        ? `${name} answered ${String(d.request)} on ${String(d.host)}.`
+        ? `${name} answered ${String(d.request)} on ${String(d.host)}${d.authenticated === false ? ', without needing the credential' : ''}.`
         : `${name}: settings and secret are complete; nothing was sent.`
       : verb === 'add'
         ? `Saved ${name} (${String(d.area)}) to your config file.`
