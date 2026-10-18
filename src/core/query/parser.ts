@@ -69,6 +69,14 @@ const BINDING_POWER: Record<TokenType, number> = {
 /** Below this, a projection's right-hand side is empty: the projection stops there. */
 const PROJECTION_STOP = 10;
 
+/**
+ * How deeply an expression may nest. Parsing and evaluating both recurse once
+ * per level, so a few thousand levels would overflow the stack; 500 is far past
+ * anything a person writes and far short of that. Checked while parsing, so a
+ * too-deep expression is refused with a position before anything runs.
+ */
+export const MAX_DEPTH = 500;
+
 const IDENTITY: Node = { type: 'Identity' };
 
 const describe = (token: Token): string => (token.type === 'EOF' ? 'the end of the expression' : `${JSON.stringify(String(token.value))}`);
@@ -79,6 +87,8 @@ export function parse(expression: string): Node {
 
 class Parser {
   private index = 0;
+  /** The depth of the node being built: one per open expression, plus one per operator applied in it. */
+  private depth = 0;
 
   constructor(private readonly tokens: Token[]) {}
 
@@ -108,15 +118,24 @@ class Parser {
   }
 
   private expression(rbp: number): Node {
+    const entered = this.depth;
+    this.deeper();
     const token = this.token();
     this.advance();
     let left = this.nud(token);
     while (rbp < BINDING_POWER[this.token().type]) {
+      // Each operator wraps what came before, one level deeper: `a.b.c` nests as deeply as `((a).b).c`.
+      this.deeper();
       const next = this.token();
       this.advance();
       left = this.led(next, left);
     }
+    this.depth = entered;
     return left;
+  }
+
+  private deeper(): void {
+    if (++this.depth > MAX_DEPTH) this.fail(this.token(), `The expression nests more than ${MAX_DEPTH} levels deep`);
   }
 
   private nud(token: Token): Node {

@@ -35,8 +35,8 @@ export function takeSelect(command: string, raw: unknown): { input: unknown; que
   }
   try {
     return { input, query: compileQuery(expression) };
-  } catch (err) {
-    if (!(err instanceof QueryError)) throw err;
+  } catch (caught) {
+    const err = caught instanceof QueryError ? caught : new QueryError('syntax', caught instanceof Error ? caught.message : String(caught));
     throw new ToilError('INVALID_INPUT', `Invalid select expression for ${command}: ${err.message}`, {
       fix: `Fix the expression and run it again. ${pointAt(expression, err)} ${docsFix}`,
       details: { expression, kind: err.kind, position: err.position },
@@ -55,8 +55,10 @@ export function applySelect(query: Query, data: unknown, command: string, writes
   let selected: unknown;
   try {
     selected = query.search(data);
-  } catch (err) {
-    if (!(err instanceof QueryError)) throw err;
+  } catch (caught) {
+    // Anything else (a stack overflow on data nested thousands deep) is still
+    // this expression failing on this data, and says so, never a vague INTERNAL.
+    const err = caught instanceof QueryError ? caught : new QueryError('invalid-value', caught instanceof Error ? caught.message : String(caught));
     const message = writes
       ? `${command} ran and made its change, but the select expression couldn't be applied to its result: ${err.message}`
       : `The select expression couldn't be applied to the result of ${command}: ${err.message}`;

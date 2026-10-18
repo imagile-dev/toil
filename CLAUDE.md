@@ -393,8 +393,9 @@ a breaking change.
   command: a JMESPath expression `execute()` compiles before anything runs and
   applies to `data` after `run`, leaving `meta` alone. The language lives in
   `src/core/query/`, built in rather than a dependency, and passes the official
-  compliance suite (`test/fixtures/jmespath/`). A bad expression is `INVALID_INPUT`
-  with its position in the fix; one that selects nothing is `data: null` plus a
+  compliance suite (`test/fixtures/jmespath/`). A bad expression, or one nested more
+  than 500 levels deep, is `INVALID_INPUT` with its position in the fix, and so is
+  any failure applying it; one that selects nothing is `data: null` plus a
   `SELECT_EMPTY` warning. No command may declare a `select` field.
 - **`meta.warnings`** carries things worth saying that aren't failures (a reserved
   config key, a truncated result), from config loading or a command's `ctx.warn()`.

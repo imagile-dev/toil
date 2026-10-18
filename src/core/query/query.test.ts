@@ -84,6 +84,26 @@ describe('compileQuery', () => {
     expect(Object.keys(merged)).toEqual(['__proto__']);
   });
 
+  it('refuses an expression nested more than 500 levels deep, however it nests, before any data', () => {
+    const deep = [
+      '('.repeat(10_000) + 'a' + ')'.repeat(10_000),
+      'a' + '.b'.repeat(10_000),
+      '['.repeat(600) + 'a' + ']'.repeat(600),
+      '!'.repeat(600) + 'a',
+      '('.repeat(300) + 'a' + '.b'.repeat(300) + ')'.repeat(300),
+    ];
+    for (const expression of deep) {
+      expect(() => compileQuery(expression), expression.slice(0, 20)).toThrow(expect.objectContaining({ kind: 'syntax', message: expect.stringContaining('more than 500 levels') }));
+    }
+  });
+
+  it('still takes deep and wide expressions inside the limit', () => {
+    expect(search({ a: 1 }, '('.repeat(400) + 'a' + ')'.repeat(400))).toBe(1);
+    expect(search({ a: { a: 2 } }, 'a' + '.a'.repeat(400))).toBeNull();
+    const keys = Array.from({ length: 2000 }, (_, i) => `k${i}: a`).join(', ');
+    expect(Object.keys(search({ a: 1 }, `{${keys}}`) as object)).toHaveLength(2000);
+  });
+
   it('never hands back an expression reference, only data', () => {
     expect(search({ a: 1 }, '&a')).toBeNull();
     expect(JSON.stringify(search({ a: 1 }, '[&a]'))).toBe('[null]');

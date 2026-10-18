@@ -205,6 +205,21 @@ export function checkFunctions(node: Node): void {
   }
 }
 
+/**
+ * Refuses a tree deeper than `max`, walked with a list rather than recursion,
+ * so the check itself can't overflow. The parser bounds its own recursion; this
+ * bounds what it built, since `a.b.c...` nests one level per operator without
+ * recursing in the parser at all.
+ */
+export function checkDepth(root: Node, max: number): void {
+  const stack: Array<[Node, number]> = [[root, 1]];
+  while (stack.length > 0) {
+    const [node, depth] = stack.pop()!;
+    if (depth > max) throw new QueryError('syntax', `The expression nests more than ${max} levels deep.`);
+    for (const child of children(node)) stack.push([child, depth + 1]);
+  }
+}
+
 function children(node: Node): Node[] {
   switch (node.type) {
     case 'Subexpression':

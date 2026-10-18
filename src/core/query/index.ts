@@ -1,6 +1,6 @@
 import { QueryError } from './errors.js';
-import { checkFunctions, ExpressionReference, Interpreter } from './interpreter.js';
-import { parse, type Node } from './parser.js';
+import { checkDepth, checkFunctions, ExpressionReference, Interpreter } from './interpreter.js';
+import { MAX_DEPTH, parse, type Node } from './parser.js';
 
 /**
  * JMESPath, built into core rather than added as a dependency (CLAUDE.md, No
@@ -27,11 +27,13 @@ export interface Query {
 
 /**
  * Parses and checks an expression: syntax, function names and argument
- * counts. Throws a QueryError with the position of the problem, so a bad
- * expression is refused before any command runs.
+ * counts, and nesting no deeper than MAX_DEPTH (500). Throws a QueryError,
+ * with the position where the parser knows it, so a bad expression is refused
+ * before any command runs.
  */
 export function compileQuery(expression: string): Query {
   const ast: Node = parse(expression);
+  checkDepth(ast, MAX_DEPTH);
   checkFunctions(ast);
   const interpreter = new Interpreter();
   return {

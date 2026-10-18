@@ -71,6 +71,23 @@ describe('--select', () => {
     expect(ran).toBe(0);
   });
 
+  it('refuses an expression nested past the limit as INVALID_INPUT naming it, and data too deep to compare as INVALID_INPUT, never INTERNAL', async () => {
+    ran = 0;
+    const { context } = testContext();
+    const tooDeep = await execute(writer, { select: '('.repeat(5000) + 'id' + ')'.repeat(5000) }, context);
+    expect(tooDeep.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('more than 500 levels deep') });
+    expect(ran).toBe(0);
+
+    const nested = (n: number): unknown => {
+      let v: unknown = 0;
+      for (let i = 0; i < n; i++) v = [v];
+      return v;
+    };
+    const deepData = defineCommand({ path: ['demo', 'deep'], description: 'Return data nested very deep', input: z.object({}), writes: false, examples: [{}], run: async () => ({ x: nested(200_000), y: nested(200_000) }) });
+    const overflow = await execute(deepData, { select: 'x == y' }, context);
+    expect(overflow.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("couldn't be applied"), details: { kind: 'invalid-value' } });
+  });
+
   it('says a write was made when the expression fails on its result', async () => {
     const write = defineArea({ name: 'demo', description: 'd', connection: z.object({}) }).command({
       path: ['demo', 'make'],
