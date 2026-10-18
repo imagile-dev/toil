@@ -38,6 +38,8 @@ try {
 
   const envelope = JSON.parse(execFileSync(process.execPath, [bin, 'version'], { encoding: 'utf8', env }));
   if (!envelope.ok || typeof envelope.data?.version !== 'string') fail(`toil version returned ${JSON.stringify(envelope)}`);
+  // A build from a git checkout records its commit, which the terminal feedback endpoint asks for.
+  if (!/^[0-9a-f]{40}$/.test(envelope.data?.commit ?? '')) fail(`toil version reported commit ${JSON.stringify(envelope.data?.commit)}, not the 40-character hash of the commit it was built from`);
 
   // Setup commands from a pipe: no prompt, no hang, an envelope with the env-var fix.
   const configFile = join(work, 'config.json');

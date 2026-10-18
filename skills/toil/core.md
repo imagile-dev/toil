@@ -222,7 +222,9 @@ const envelope = await execute('jira search', { jql: 'project = PAY', maxResults
   tool name, whether it writes to a service (`writes`) or on this machine
   (`writesLocal`), and its input's JSON Schema.
 - **`version`** and **`contractVersion`** are what `toil version` reports. Check
-  `contractVersion` before relying on anything else.
+  `contractVersion` before relying on anything else. `toil version` also reports
+  `commit`, the 40-character hash of the commit the build came from (`null` when the
+  build didn't record one), which is what a bug report from a terminal names.
 - **`mapOwi(input, options)`** maps envelopes you already hold (one, an array, or
   JSON Lines text) to Open Work Items, the way `toil util owi map` does (`util.md`),
   synchronously and without the schema check: `{ items, histories, skipped,

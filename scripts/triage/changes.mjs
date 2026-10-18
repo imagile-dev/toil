@@ -1,0 +1,79 @@
+// What a triage fix may touch, checked by .github/workflows/triage.yml from a
+// fresh checkout after the agent has finished, before anything is pushed. The
+// agent's own prompt says the same, but a prompt is a request; this is the rule.
+//
+// One area, and only its own files:
+//   src/areas/<area>/**                     the code
+//   test/fixtures/<area>.fixture.ts         its fixture
+//   skills/toil/<area>.md                   its docs page
+//   docs/divergences/<area>.json            its divergences
+//   site/src/data/integrations/<area>.json  its board entry
+//   site/src/data/commands/<area>.json      generated from the registry by the tests
+//   site/src/data/settings/<area>.json      generated from the registry by the tests
+//
+// Everything else (core, the workflows and the rest of .github/, functions/,
+// infra/, site pages, dist/, package.json, the lockfile) is maintainer work.
+// Files only: no symlinks, no submodules, nothing outside the tree. A form
+// that lists the permitted fields is the one kind of form toil approves of.
+//
+//   git diff --raw -z --no-renames <base> <head> | node scripts/triage/changes.mjs <area>...
+//   → prints the one area changed and exits 0, or names every refused path and exits 1
+
+import { pathToFileURL } from 'node:url';
+
+const PER_AREA = [
+  (a) => (p) => p.startsWith(`src/areas/${a}/`),
+  (a) => (p) => p === `test/fixtures/${a}.fixture.ts`,
+  (a) => (p) => p === `skills/toil/${a}.md`,
+  (a) => (p) => p === `docs/divergences/${a}.json`,
+  (a) => (p) => p === `site/src/data/integrations/${a}.json`,
+  (a) => (p) => p === `site/src/data/commands/${a}.json`,
+  (a) => (p) => p === `site/src/data/settings/${a}.json`,
+];
+
+/** The area a path belongs to, or undefined when it isn't one any area may touch. */
+export function areaOf(path, areas) {
+  if (path.includes('\\') || path.split('/').some((part) => part === '..' || part === '.' || part === '') || path.startsWith('/')) return undefined;
+  return areas.find((area) => PER_AREA.some((rule) => rule(area)(path)));
+}
+
+/** Parses `git diff --raw -z` into { path, newMode } entries. */
+export function parseRaw(raw) {
+  const fields = raw.split('\0').filter((field, i, all) => field !== '' || i < all.length - 1);
+  const entries = [];
+  for (let i = 0; i + 1 < fields.length; i += 2) {
+    const meta = fields[i];
+    const path = fields[i + 1];
+    if (!meta.startsWith(':')) throw new Error(`Unexpected git diff --raw output near ${JSON.stringify(meta.slice(0, 40))}.`);
+    const [, newMode] = meta.slice(1).split(' ');
+    entries.push({ path, newMode });
+  }
+  return entries;
+}
+
+/** Checks a triage branch's changes: one area, its own files, regular files only. */
+export function check(entries, areas) {
+  const refused = [];
+  const touched = new Set();
+  for (const { path, newMode } of entries) {
+    const area = areaOf(path, areas);
+    if (!area) refused.push(`${path} (outside an area's own files)`);
+    else if (newMode !== '100644' && newMode !== '100755' && newMode !== '000000') refused.push(`${path} (mode ${newMode}: only regular files)`);
+    else touched.add(area);
+  }
+  if (touched.size > 1) refused.push(`more than one area: ${[...touched].sort().join(', ')}`);
+  if (entries.length === 0) refused.push('no changes');
+  return { ok: refused.length === 0, area: touched.size === 1 ? [...touched][0] : undefined, refused };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const areas = process.argv.slice(2);
+  const chunks = [];
+  for await (const chunk of process.stdin) chunks.push(chunk);
+  const result = check(parseRaw(Buffer.concat(chunks).toString('utf8')), areas);
+  if (!result.ok) {
+    console.error(`The triage branch changes files triage may not touch:\n${result.refused.map((r) => `  - ${r}`).join('\n')}`);
+    process.exit(1);
+  }
+  console.log(result.area);
+}

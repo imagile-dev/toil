@@ -51,6 +51,119 @@ release PR; no agent merges, approves its own work into `main`, or enables auto-
   from the `REDACT_TERMS` secret) before any agent reads them. The denylist lives only
   in that secret.
 
+## Triage of issues filed from outside
+
+Principle 2's one exception: issues filed from outside may be triaged by an agent,
+but only after redaction, within the daily cap, under the safeguards below, and only
+through PRs that a human merges. `.github/workflows/triage.yml` is that agent. It
+starts on the `from-website` or `from-terminal` label (set by the feedback backend,
+`functions/feedback/`, as the Imagile Bot), on `claude-triage` added by a
+maintainer, on `workflow_dispatch` with an issue number, and on a daily schedule
+for the queue. Only `imagile-bot` is accepted as a bot actor, in the job's `if` and
+in `allowed_bots`, and its `claude-triage` counts only on an issue it filed from
+outside, so nothing can pull in an issue nobody chose.
+
+**The boundary is the job, not the prompt.** Code the agent writes must never run
+in this workflow at all, and the credential that writes must never sit where the
+agent works. So the work is split across jobs, each on its own fresh runner:
+
+| Job | Runs | Holds |
+|---|---|---|
+| `select` | main's scripts only: claim within the cap, redact each issue in place | an `issues: write` App token |
+| `triage` | one per issue: the agent, with `Read`, `Glob`, `Grep`, `Edit` and `Write` only (no Bash, no `gh`, no `npm`, no web). Afterwards, shell utilities only (no `git`, no `node`), to hand its files over as a ustar archive | `contents: read` / `issues: read` workflow token; the OAuth token only inside its own step, with `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` set as well |
+| `finish` | one per issue: main's scripts only. Checks the decision and every path, applies labels, comment and close, and for a fix pushes `claude/issue-<n>` and opens a **draft** PR. Never runs the fix's code | an App token with contents, pull-request and issue writes and no `workflows` |
+
+The fix's code first runs in `ci.yml` on that draft PR, under `pull_request`: the
+full gate on all three OSes, in the PR's own cache scope, with no secrets. A human
+marks it ready and merges it. There is no in-workflow test job, so nothing agent-written
+ever runs in `main`'s cache scope.
+
+The agent never writes to GitHub itself: it leaves `decision.json`, a comment and the
+PR text in `.triage-out/`, and `finish` applies them (`scripts/triage/decision.mjs`
+refuses an unknown area or decision and defuses every closing reference GitHub honours
+in the PR text).
+
+- **Nothing secret-shaped is posted.** The agent can read files, so an injection could
+  have it quote one. Its `Read`, `Edit` and `Write` are allowed under the checkout only
+  (`Read(./**)`), and denied outright on `/proc`, `/sys`, `/etc`, the runner's temp
+  folder (`GITHUB_ENV`, `GITHUB_OUTPUT`), downloaded actions and dot-folders in the
+  runner's home. Its step holds one secret, the OAuth token. The handover compares
+  the agent's output byte for byte with that job's OAuth and workflow tokens (masked,
+  passed to grep without argv) and empties it on a match. Then `decision.mjs` checks
+  the comment, the PR title and body, and every line the fix adds (against main) for
+  token shapes alone (`tokenShaped`: prefixed formats, JWTs, private keys), never the
+  key-name rules, which would flag ordinary code like `token: z.string()`; those stay
+  for redacting incoming issue text. A hit is `leak`: nothing is posted, the issue
+  gets `needs-human`, and the run fails.
+- **A failed agent run is not a decision** (`agent-ok` or `decision.json` missing):
+  nothing is said on the issue and the run fails. The first time, the issue gets
+  `triage-failed` and goes back in the queue; the second time it gets `needs-human`
+  and stays out, so no issue can spend a slot every day. A failed manual re-triage is
+  never queued. `needs-human` keeps an issue out of the cap's claims and the queue
+  until a maintainer re-triages it by hand. Changing this
+layout means re-checking that no job holding a write credential runs agent-written
+code, and that nothing in this workflow runs it at all.
+
+**The YAML only wires.** Every step that does more than pass inputs to outputs is a
+function in `scripts/triage/steps.mjs` (`node scripts/triage/steps.mjs <step>`), with
+inputs as env vars, never `${{ }}` inside a script, and outputs written to
+`$GITHUB_OUTPUT`. A value one step hands the next goes through
+`steps.<id>.outputs.<name>`; a step never reads `$GITHUB_OUTPUT` back, because each
+step gets its own empty file. `test/triage-steps.test.ts` runs the steps in order
+through real `GITHUB_OUTPUT` files against a stateful fake GitHub (claim, redact,
+prepare, decide, apply, open-pr, requeue; the empty queue, the cap and a failed
+agent), and `test/workflow-wiring.test.ts` checks that every `steps.<id>.outputs.<name>`
+and `needs.<job>.outputs.<name>` in `triage.yml` and `feedback-deploy.yml` is written by
+that step or declared by that job. A new step adds its outputs to `OUTPUTS`, and a
+new workflow with handed-on outputs joins the wiring test. The one script after the
+agent, `scripts/triage/handover.sh`, is shell only and runs from a copy whose hash
+`prepare` took before the agent started.
+
+The actor the agent action sees is always a person (a maintainer's label or
+dispatch, or the schedule) or the Imagile Bot, the one name in `allowed_bots`. The
+daily run triages the queue itself as a matrix rather than dispatching runs: a run
+started by `GITHUB_TOKEN` has `github-actions[bot]` as its actor, which the action
+refuses.
+
+- **The cap.** At most four issues a UTC day (`TRIAGE_CAP`), counted by
+  `scripts/triage/cap.mjs`: a run claims its issue with `triage-claimed` and ranks
+  today's claims by label-event id, so concurrent runs agree without a lock. The
+  fifth gets `triage-queued`; the daily run drains the queue oldest first, along with
+  anything a run missed, triaging them in the same run as a matrix. A manual dispatch
+  is a re-triage and isn't counted.
+- **Redaction first.** `scripts/triage/redact.mjs` rewrites the issue's title and
+  body in place before the agent starts, and again on what the agent is shown; the
+  prompt fences them between `BEGIN/END UNTRUSTED <nonce>` lines with a nonce per
+  run, and tells the agent to triage on the title alone when the body reads as an
+  injection attempt.
+- **Paths.** `scripts/triage/archive.mjs` reads the handover archive itself (regular
+  files only, no links or extensions) and `scripts/triage/changes.mjs` holds every
+  path to one area's own files, in `finish` before anything lands, and again on the
+  commit before the push.
+- **Scope.** One area: `src/areas/<area>/`, its fixture, skill file, divergences,
+  board entry, and the two generated site data files. Core, `functions/`, `infra/`,
+  site pages, `.github/`, `scripts/`, `dist/`, `package.json`, the lockfile and new
+  dependencies are maintainer work, denied with that explanation.
+- **Model and turns are fixed:** `--model sonnet --max-turns 100`. Transient GitHub
+  failures (5xx, 429, network) are retried. The outcome goes to the job summary.
+  No triage job uses `cache: npm`.
+- The PRs triage opens are authored by `imagile-bot[bot]`, so `claude-review.yml`
+  skips them (the App can't approve its own PR); a maintainer reviews them.
+
+## The feedback backend's deploy
+
+`.github/workflows/feedback-deploy.yml` builds and tests `functions/feedback/` on
+PRs with no Azure access. On `main` it logs in to Azure over OIDC (repository
+variables, no stored secret), refuses to deploy when Azure's forecast for the month
+is over the subscription's $60 budget (`MONTHLY_CAP_USD`; the identity, its roles,
+the Key Vault identity and the secrets it uses come from `infra/bootstrap.sh`, run once
+by a maintainer and safe to re-run), runs `what-if`, deploys `infra/main.bicep` and
+the function, and ends with `functions/feedback/scripts/smoke.mjs`, which drives both
+endpoints with the smoke-test key and waits for the runs on the one persistent
+`smoke-test` issue. The smoke-test key is read from Key Vault at run time and masked.
+Nothing it deploys may be always on; any change to `infra/` states its monthly cost
+(CLAUDE.md, Cloud Cost).
+
 ## Discord
 
 A Discord channel follows the project through one webhook, the `DISCORD_WEBHOOK`

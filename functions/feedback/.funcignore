@@ -1,0 +1,9 @@
+*.ts
+!dist/**
+test/
+src/
+tsconfig*.json
+vitest.config.ts
+local.settings.json
+local.settings.json.example
+README.md
