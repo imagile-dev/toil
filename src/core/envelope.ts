@@ -24,6 +24,17 @@ export interface Meta {
    * another area's connection. Never a secret's value.
    */
   context?: ContextReport;
+  /**
+   * For a raw API call (`<area> api`): the answer's status and content type,
+   * since `data` is the body as the service sent it. Set with `ctx.setResponse`.
+   */
+  response?: ApiAnswer;
+}
+
+/** The status and content type of the response a raw API call returned. */
+export interface ApiAnswer {
+  status: number;
+  contentType: string | null;
 }
 
 /**
@@ -40,9 +51,30 @@ export interface ContextValue {
   via?: string;
   /** For `connection` from the default: named in `defaults.<area>`, named after the area, or the only one. */
   default?: 'named' | 'area-name' | 'only';
+  /** For `connection` from a dossier's host selector: the host it matched. A selector, never contacted. */
+  host?: string;
+}
+
+/** The dossier a call used (docs/dossiers.md), and how it was found. Never a value from a connection. */
+export interface DossierReport {
+  name: string;
+  /** Where it lives: your own folder, a listed folder, the repository you're in, or a file named on the call. */
+  source: 'user' | 'listed' | 'repo' | 'file';
+  /** The file, absolute, with forward slashes. */
+  file: string;
+  /** What chose it: the call's `dossier` input, TOIL_DOSSIER, or the folder. */
+  by: 'input' | 'env' | 'folder';
+  /** How the folder matched it: a repo's path, a repo's remote, or a dossier checked into the folder's repository. */
+  match?: 'path' | 'remote' | 'checked-in';
+  /** The dossier's repo the folder is, when one matched. */
+  repo?: string;
+  /** The folder, when it chose the dossier or the call named one: the `cwd` input, or where the workspace came from. */
+  folder?: { path: string; from: 'input' | 'flag' | 'env' | 'cwd' | 'mcp-root' };
 }
 
 export interface ContextReport {
+  /** The dossier that supplied context, when one applied. */
+  dossier?: DossierReport;
   connection?: ContextValue;
   /** Each context input that resolved. Absent when none did. */
   inputs?: Record<string, ContextValue>;

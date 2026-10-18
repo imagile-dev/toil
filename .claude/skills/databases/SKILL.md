@@ -17,6 +17,11 @@ description: Rules for toil's `db` area and its database providers (PostgreSQL, 
   Server), `node:sqlite` (built into Node), `oracledb` in Thin mode only (Oracle).
   SQL Server has no read-only transaction, so its queries always roll back, and its
   docs tell users to connect with a read-only login.
+- **TLS trusts what HTTP trusts.** Core loads the OS certificate store on the first
+  HTTP request, and a driver's own socket never makes one. A provider with TLS
+  passes `trustedCertificates(call.debug).certificates` from `src/core/network.ts`
+  (Node's defaults, `NODE_EXTRA_CA_CERTS`, then the OS store) as the driver's `ca`,
+  and keeps the driver's defaults when it's undefined (the store couldn't be read).
 - Providers live in `src/core/db/<engine>/`. Adding one follows this skill, and each
   provider records a verification level (see the `integrations` skill).
 
@@ -43,11 +48,11 @@ one they got.
   creates its target file before the read-only refusal, so SQLite reads refuse any
   statement whose first keyword is `VACUUM` (`INVALID_INPUT`, pointing at
   `db execute`), and PostgreSQL reads refuse `COPY` and `DO`: `COPY ... TO '<file>'` and `TO PROGRAM`
-  write a server file or run a program inside a read-only transaction, and a `DO` block can run that `COPY`. SQL Server has no read-only transaction at all: reads always roll back, a statement the server's DONE token reports as a write is `WRITE_DISABLED`, and reads refuse `COMMIT`, `ROLLBACK`, `BEGIN TRANSACTION` and `SAVE TRANSACTION`, which would end that transaction (`src/core/db/sqlserver/script.ts`). Each denies one statement by name; it does not decide whether SQL
+  write a server file or run a program inside a read-only transaction, and a `DO` block can run that `COPY`. MySQL reads refuse `SELECT ... INTO OUTFILE` / `INTO DUMPFILE` (a server file) and any `SET` (`SET GLOBAL` and `SET PERSIST` change the server), checked with and without backslash escapes so `NO_BACKSLASH_ESCAPES` can't hide one. SQL Server has no read-only transaction at all: reads always roll back, a statement the server's DONE token reports as a write is `WRITE_DISABLED`, and reads refuse `COMMIT`, `ROLLBACK`, `BEGIN TRANSACTION` and `SAVE TRANSACTION`, which would end that transaction, and `OUTPUT`, whose rows arrive before the server reports the write (`src/core/db/sqlserver/script.ts`). Each denies one statement by name; it does not decide whether SQL
   writes, and everything else still relies on the engine. Add another such deny only
   for a statement proven to escape the engine's read-only mode, with a test showing
   the escape. A hole that can't be closed (SQLite's read-only `ATTACH` of other
-  files, PostgreSQL's server-side functions such as `lo_export` for a privileged role, SQL Server's `COMMIT` inside dynamic SQL, which toil detects from the transaction ending and reports, and which a read-only login is what stops) is pinned with a test and documented as a known limit.
+  files, PostgreSQL's server-side functions such as `lo_export` for a privileged role, a MySQL procedure that commits and turns read-write itself, SQL Server's `COMMIT` inside dynamic SQL, which toil detects from the transaction ending and reports, and which a read-only login is what stops) is pinned with a test and documented as a known limit.
 - **`execute` is all or nothing.** A script that starts or ends its own transaction
   is refused before any of it runs, so a mid-script `COMMIT` can't leave half a
   change applied.
@@ -62,11 +67,18 @@ one they got.
   on a worker thread and terminates it on abort; that stops the statement at its
   next row. A statement that computes for a long time before producing a row keeps
   the thread busy until it finishes. Server engines should cancel on the server
-  (`pg_cancel_backend`, a TDS attention, `KILL QUERY`), not just stop reading.
+  (`pg_cancel_backend`, a TDS attention, `KILL`), not just stop reading.
   PostgreSQL opens one connection per call and, on abort, sends
   `pg_cancel_backend(<pid>)` from a second short-lived one
   (`src/core/db/postgres/index.ts`); the abandoned call's own error is dropped,
-  because core has already answered `TIMEOUT` or `CANCELLED`. SQL Server sends a TDS
+  because core has already answered `TIMEOUT` or `CANCELLED`. MySQL sends
+  `KILL <id>` (`src/core/db/mysql/index.ts`), ending the whole connection: a
+  script goes one statement per round trip, so a `KILL QUERY` landing between two
+  statements would stop nothing and the rest would commit. It also checks the
+  signal before each statement and before `COMMIT`. MySQL sets the session as
+  well as the transaction read-only, because DDL commits implicitly and would
+  otherwise run in autocommit.
+  SQL Server sends a TDS
   attention on the same connection (tedious's `cancel()`), and also once a page is
   full, so the server stops producing rows nobody reads.
 
@@ -119,6 +131,20 @@ one they got.
   TOIL_TEST_PG_URL=postgres://postgres:postgres@localhost:55437/postgres npm run test:integration
   # ...then seed a database and drive node dist/toil.js db ... and toil mcp against it
   docker rm -f $name; docker ps -a --filter name=toil-test-postgres   # must list nothing
+  ```
+
+  MySQL and MariaDB share the `mysql` engine, and each has its own target and URL
+  (`TOIL_TEST_MYSQL_URL`, `TOIL_TEST_MARIADB_URL`), so run both:
+
+  ```bash
+  r=$RANDOM
+  docker run -d --name toil-test-mysql-$r -e MYSQL_ROOT_PASSWORD=mysql -p 53316:3306 \
+    --health-cmd "mysqladmin ping -h 127.0.0.1 -pmysql --silent" --health-interval 2s mysql:8.4
+  docker run -d --name toil-test-mariadb-$r -e MARIADB_ROOT_PASSWORD=mysql -p 53317:3306 \
+    --health-cmd "healthcheck.sh --connect --innodb_initialized" --health-interval 2s mariadb:11.8
+  # wait for both to be healthy, as above
+  TOIL_TEST_MYSQL_URL=mysql://root:mysql@localhost:53316/ TOIL_TEST_MARIADB_URL=mysql://root:mysql@localhost:53317/ npm run test:integration
+  docker rm -f toil-test-mysql-$r toil-test-mariadb-$r; docker ps -a --filter name=toil-test-m   # must list nothing
   ```
 
   Use a host port other than the engine's default, and remove the container even

@@ -4,6 +4,7 @@ import type { ColumnMetadata } from 'tedious/lib/token/colmetadata-token-parser.
 import { RequestTokenHandler } from 'tedious/lib/token/handler.js';
 import type { DoneInProcToken, DoneToken } from 'tedious/lib/token/token.js';
 import { ToilError } from '../../errors.js';
+import { trustedCertificates, type NetworkApis } from '../../network.js';
 import type { ColumnInfo, DbCall, DbConnection, DbProvider, ForeignKeyInfo, IndexInfo, ResultColumn, RowSet, TableRef } from '../provider.js';
 import { scanScript } from './script.js';
 
@@ -94,7 +95,11 @@ function quoteIdent(name: string): string {
  * to trust any certificate. No request timeout: core owns the time limit and
  * cancels through the signal.
  */
-export function connectionConfig(conn: DbConnection): ConnectionConfiguration {
+export function connectionConfig(conn: DbConnection, debug: (message: string) => void = () => {}, apis?: NetworkApis): ConnectionConfiguration {
+  // tedious opens its own socket, so core's HTTP setup never reaches it: hand it the
+  // same CAs, OS store included. A `ca` replaces Node's list, which is why the defaults
+  // travel with it; an unreadable store leaves Node's defaults.
+  const ca = conn.ssl === true ? trustedCertificates(debug, apis).certificates : undefined;
   return {
     server: conn.host!,
     authentication: { type: 'default', options: { userName: conn.user!, password: conn.password ?? '' } },
@@ -111,6 +116,7 @@ export function connectionConfig(conn: DbConnection): ConnectionConfiguration {
       rowCollectionOnRequestCompletion: false,
       useColumnNames: false,
       useUTC: true,
+      ...(ca ? { cryptoCredentialsDetails: { ca } } : {}),
     },
   };
 }
@@ -173,7 +179,7 @@ class Session {
  */
 async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (s: Session) => Promise<T>): Promise<T> {
   if (call.signal.aborted) throw call.signal.reason;
-  const connection = new Connection(connectionConfig(conn));
+  const connection = new Connection(connectionConfig(conn, call.debug));
   // An idle connection still emits 'error' if the server drops it; without a listener that would crash the process.
   connection.on('error', (err) => call.debug(`sqlserver: connection ${conn.name}: ${err.message}`));
   const s = new Session(connection);
@@ -312,7 +318,7 @@ function toToilError(err: unknown, conn: DbConnection, mode: Mode): unknown {
   }
   if (/CERT|SELF_SIGNED|ERR_TLS|UNABLE_TO_VERIFY/.test(causeCode)) {
     return new ToilError('NETWORK', `The TLS certificate of SQL Server at ${where} wasn't trusted for connection ${conn.name} (${causeCode}).`, {
-      fix: "toil trusts the operating system's certificate store. Add your organization's CA, or the server's certificate, there, and check that \"host\" matches the certificate's name.",
+      fix: "toil trusts Node's certificates, NODE_EXTRA_CA_CERTS and the operating system's store. Add your organization's CA, or the server's certificate, to one of them, and check that \"host\" matches the certificate's name.",
     });
   }
   if (f.code === 'ETIMEOUT') {
@@ -453,7 +459,7 @@ export const sqlserverProvider: DbProvider = {
   engine: 'sqlserver',
   label: 'SQL Server',
   requires: ['host', 'database', 'user'],
-  defaultSchema: 'dbo',
+  defaultSchema: () => 'dbo',
   verification: 'integration',
 
   listSchemas(conn, call) {

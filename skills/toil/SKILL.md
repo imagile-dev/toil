@@ -28,6 +28,11 @@ connection, set by a person in their own config or environment, and `--allow-wri
 on the call (`allowWrite: true` over MCP). Over MCP, write tools aren't listed until
 writes are on. Only make a write the user asked for.
 
+For an endpoint no command covers, an HTTP area has `toil <area> api <METHOD> <path>`
+(`<area>_api` over MCP), which sends the connection's own credential to a path under
+its base URL. GET and HEAD are reads; other methods are writes, and `DELETE` is CLI
+only. The area's reference describes it where the area has one (`jira.md`).
+
 Files a command reads or writes (an `--input-file`, an upload, a download, a CSV
 report) must be inside the workspace: `--workspace <dir>`, else `TOIL_WORKSPACE`,
 else the working directory; under `toil mcp`, the client's root when it shares
@@ -43,6 +48,24 @@ slashes. Commands that run git need git on PATH and say
 Configuration comes from environment variables, which always win, or from
 `~/.toil/config.json` (or the file passed with `--config`). A connection is one
 instance of an area; `--connection <name>` picks one when there are several.
+
+A **dossier** holds what toil knows about one body of work: its repositories, and per
+area the keys a call needs (`project`, `owner`, a namespace per environment), which
+connection to use (by name, or by `host`), and reference data such as board lists.
+It holds no secret and can't add a host or turn on writes. toil reads dossiers on
+every area command from `~/.toil/dossiers/`, the folders in `dossierPaths` (or
+`TOIL_DOSSIER_PATHS`), and `.toil/dossiers/` in the repository you're in, and uses
+the one that applies: `--dossier <name|file>` (`dossier` over MCP, or
+`TOIL_DOSSIER`), else the one whose repo matches the folder by path or `origin`
+remote. `--cwd <dir>` (`cwd` over MCP) looks from another folder. A value you pass
+always beats the dossier's, and `meta.context.dossier` says which dossier applied and
+why. When two different dossiers match, the call fails with `INVALID_INPUT` until you
+pick one. A write on a connection a dossier chose is `WRITE_DISABLED` unless the
+dossier is in your own folder; pass `--connection` to choose it yourself. To see what
+a call will use before making it: `toil dossiers context` (which dossier a folder
+resolves to and why), `toil dossiers show [name]` (per area: the connection and why,
+whether writes are on, the environment and the inputs), `toil dossiers list`, and
+`toil dossiers check [name]`, which checks one locally and contacts no service.
 
 toil trusts the OS certificate store and Node's bundled CAs, and uses `HTTPS_PROXY` /
 `HTTP_PROXY` / `NO_PROXY` when they're set. A `NETWORK` error about an untrusted

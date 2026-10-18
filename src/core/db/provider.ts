@@ -1,8 +1,8 @@
 import type { Connection } from '../area.js';
 
 /**
- * The contract every database engine implements: SQLite, PostgreSQL and SQL
- * Server now, MySQL and Oracle later. The `db` area's commands call only this, so an
+ * The contract every database engine implements: SQLite, PostgreSQL, MySQL and
+ * SQL Server now, Oracle later. The `db` area's commands call only this, so an
  * engine is added by writing one provider and registering it in `engines.ts`,
  * never by touching a command.
  *
@@ -20,8 +20,8 @@ export interface DbProvider {
   readonly label: string;
   /** Connection keys this engine needs, besides `engine`. Checked when the connection resolves. */
   readonly requires: ReadonlyArray<keyof DbSettings>;
-  /** The schema commands use when the caller names none (`main`, `public`, `dbo`). */
-  readonly defaultSchema: string;
+  /** The schema commands use when the caller names none (`main`, `public`, MySQL's connection database). */
+  defaultSchema(conn: DbConnection): string;
   /** How far this provider has been verified (the `integrations` skill's levels). */
   readonly verification: 'unit' | 'integration' | 'live';
 

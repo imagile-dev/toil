@@ -90,6 +90,7 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `list-boards` | `--project` | Boards (id, name, scrum or kanban) |
 | `list-sprints` | `--board` or `--project`, `--state active,future,closed` | Sprints with dates and goal |
 | `set-sprint` ✎ | `--key --sprint <id>` | `{ updated, sprint }` |
+| `api` | `<method> <path> --query key=value (repeatable) --body-file --content-type` | The response body; see **Any endpoint** below. ✎ for `POST`, `PUT`, `PATCH`, `DELETE` |
 
 Over MCP the same commands are tools named `jira_<command>` with hyphens as
 underscores (`jira_get_issue`, `jira_list_sprints`), taking camelCase fields
@@ -119,6 +120,48 @@ the flag or the file, `connection` for the setting (`TOIL_JIRA_PROJECT` and
 `list-boards` and `list-sprints` never falls back to the connection.
 `--time-spent` takes Jira durations (`1d`, `2h 30m`); `--started` takes Jira's datetime
 format (`2024-01-15T09:00:00.000+0000`) and defaults to now.
+
+## Any endpoint: `jira api`
+
+When no command above covers an endpoint, `jira api` calls it directly. It sends
+the connection's own credential, the same way every other `jira` command does,
+to a path under the connection's `baseUrl`:
+
+```bash
+toil jira api GET /rest/api/2/myself
+toil jira api GET /rest/api/2/issue/ABC-123/changelog --query maxResults=50
+toil jira api GET /rest/agile/1.0/board/12/backlog --query fields=summary --query maxResults=20
+toil jira api POST /rest/api/2/version --body-file version.json --allow-write
+toil jira api PUT /rest/api/2/issue/ABC-123/watchers --body-file user.json --content-type application/json --allow-write
+```
+
+- **The path** is relative to `baseUrl` (a context path such as `/jira` is kept),
+  with or without a leading `/` (in Git Bash on Windows, leave it off: the shell
+  rewrites `/rest/...` into a file path, which is refused). A full URL, a scheme, `//host`, a leading
+  backslash or a `.` / `..` segment is refused with `INVALID_INPUT` before anything
+  is sent, so the token never leaves the connection's host.
+- **The method decides the gate.** `GET` and `HEAD` are reads. `POST`, `PUT`,
+  `PATCH` and `DELETE` are writes: they need `writes: true` on the connection
+  **and** `--allow-write`. `DELETE` works only on the CLI: over MCP, `jira_api`
+  refuses it with `INVALID_INPUT`.
+- **`--query key=value`** adds a query parameter; repeat it for more, or to repeat
+  a key. **`--body-file <path>`** sends that file (inside the workspace, or `-` for
+  stdin) as the body, as `application/json` unless `--content-type` says
+  otherwise.
+- **Output:** a JSON body is `data`, parsed. A text body (`text/*`, XML, or no content
+  type) is `data` as text. Any other body is binary: `data` is its bytes as base64,
+  with an `API_BINARY` warning (use `download-attachment` to save an attachment).
+  Text and binary are capped at 1 MB, with an `API_TRUNCATED` warning when the body
+  was longer. An empty body (a `204`,
+  a `HEAD`) is `null`. `meta.response` is `{ status, contentType }`. Errors use the
+  usual codes (`AUTH`, `NOT_FOUND`, `HTTP`, `NETWORK`) with Jira's own message. A
+  body labelled JSON that doesn't parse comes back as text, with an `API_NOT_JSON`
+  warning.
+- **Over MCP** it's the `jira_api` tool, with `method`, `path`, `query` (an array of
+  `key=value` strings), `bodyFile`, `contentType` and `allowWrite`.
+
+Prefer a wrapped command when one exists: it knows the endpoint's paging, custom
+fields and quirks, and `jira api` doesn't.
 
 ## Large fields via --input-file
 

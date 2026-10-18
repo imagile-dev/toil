@@ -25,7 +25,9 @@ never carries a prompter either. Nor is an area command marked `mcp: false`, whi
 keeps its connection and its time limit on the CLI: deletes, which are never exposed
 through MCP. The parity suite finds both by their definition (`servedOverMcp`),
 proves MCP doesn't serve them, and runs the area ones' examples and write gate on the
-CLI; keep those two the only exclusions. A command
+CLI; keep those two the only exclusions. A served tool can still refuse one kind
+of call: `offMcpWhen` (a `DELETE` through `<area>_api`), which execute() checks
+for MCP calls only, through `runCommand`'s `via`. A command
 with no connection (`standalone`, `config`, `area-local` such as `jira schema`), or
 one marked `connectionOptional`, is served without `--areas` whether or not its area
 is set up. Context inputs are fixed
@@ -74,12 +76,15 @@ unaffected.
 ## Dossier context over MCP
 
 A stdio server's own working directory means nothing, because it's wherever the
-client launched it. Commands that resolve dossier context (`docs/dossiers.md`) take
-a `cwd` input on both front doors. The CLI defaults it to its working directory;
-MCP defaults it to the client's MCP root when the client reports exactly one,
-converting the `file://` URI with Node's URL handling. Any other file location
-(a dossier file) is an explicit input too, so the two doors stay 1:1, and
-`meta.context` will say which default applied once dossiers (#16) bring `cwd`.
+client launched it. Every area command takes a `cwd` input on both front doors,
+which chooses the dossier (`docs/dossiers.md`) and the git context. Left out, it's
+the workspace: on the CLI the working directory, under MCP the client's root when the
+client reports exactly one, converted from its `file://` URI with Node's URL
+handling. A relative `cwd` resolves against the CLI's working directory, or the
+workspace under MCP. A dossier file is an explicit input too (`dossier`), so the two
+doors stay 1:1, and `meta.context.dossier.folder` says which default applied. A path
+that doesn't exist on the server's side is `INVALID_INPUT` saying so, never a
+silent "no dossier".
 
 ## Verifying with a real client
 
