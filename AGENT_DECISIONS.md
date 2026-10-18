@@ -1765,6 +1765,51 @@ workspace. `bitbucket` (Data Center) is untouched.
 - **The input is opened in the command's small module** and handed to the lazy
   one, which keeps zod out of everything loaded through `import()` (docs/util.md).
 
+### levels and README
+
+Issue #211. The maintainer set the three levels and their meanings, and the README's
+shape; these are the calls made around that.
+
+- **The meanings live in `site/src/data/levels.json`**, the one place they're
+  written. `site/src/data/integrations.ts` renders the board's legend and each
+  integration page's Status from it, and `test/site-commands.test.ts` reads it to
+  check that the levels are exactly `unit`, `live` and `stable` and that every board
+  entry and database provider uses one. JSON rather than TypeScript because the test
+  suite and the site are separate packages. The skills and docs name the levels and
+  point at the file instead of repeating the wording; the `integrations` skill keeps
+  only how each level is raised.
+- **git keeps its local `unit` wording** as `localMeaning` on the `unit` entry, and
+  `statusMeaning()` picks it for a `local` area.
+- **The five database providers moved from `integration` to `live`, not `unit`.**
+  Their tests run against the real engines in CI's service containers, so `unit`'s
+  new meaning ("Never run against a real instance") would be false for them, and
+  `live` ("Run against a real instance; its common commands work there") is what
+  was already true. No board integration changed level. The maintainer may prefer
+  `unit` here; it's a one-word change in each `src/core/db/<engine>/index.ts` and
+  `site/src/pages/docs/databases.astro`.
+- **`planned` went with every path that served it**: `shippedCount` (the homepage
+  stat and both "N shipped" lines now use the integration count), the docs page's
+  "appears when the integration ships" fallback and its `shipped` guards, and the
+  dashed badge style. The board test now fails a board file whose area isn't
+  registered, which is what `planned` used to allow.
+- **Colours:** `live` takes the accent and the pulsing dot that `integration` had;
+  `stable` takes the amber `--color-ok` that `live` had.
+- **`/how-it-works/`'s pre-release note said no integration had shipped and that
+  dossiers were still a design**; both were false, so it now says the core and every
+  integration on the board are built and tested, and nothing is on npm yet.
+- **The README's quick start says the first alpha isn't on npm yet** (the package
+  404s today), and sends the reader to the clone path until it is. Its example
+  command is `toil deps scan`, which the committed bundle has; newer `util`
+  commands aren't in it until a release rebuilds it.
+- **The README's agent setup** registers MCP as `node <clone>/dist/toil.js mcp` and
+  installs the skill with `toil skill install` (#205), with the Claude Code
+  marketplace as the other way in. The committed bundle predates `skill`, so the
+  README says to run it from a bundle built in the clone until the next release.
+- **After #205, integration pages are the skill files rendered**, so the level's
+  meaning sits under the badge in the facts panel, drawn from `levels.json` by
+  `statusMeaning()`. The meanings aren't copied into `skills/toil/`; each area file
+  names its level, and the site and board say what it means.
+
 
 ### toil skill
 

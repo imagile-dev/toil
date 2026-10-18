@@ -30,7 +30,7 @@ export const principles: Principle[] = [
   {
     n: '04',
     title: 'Honest about what is known',
-    body: 'Every result says where it came from and how precise it is. Every integration says how far it has been verified: unit, integration, or live.',
+    body: 'Every result says where it came from and how precise it is. Every integration says how far it has been verified: unit, live or stable.',
     forYou: 'A green check means something was actually run against a real system.',
   },
   {

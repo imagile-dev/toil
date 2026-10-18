@@ -86,10 +86,11 @@ versions.
    (`bitbucket --project`) satisfies a contract leaf flag of the same spelling, so
    moving a target flag to the group needs no divergence.
 8. **Docs**: `npx vitest run -u` writes `site/src/data/commands/<area>.json` and
-   `site/src/data/settings/<area>.json`; set the
-   board entry's `status` to `unit`; review the docs page, which is the area's skill
-   file rendered (nothing to write in `site/`), and take its screenshots
-   with `node scripts/shoot.mjs docs/integrations/<area>/` (the `site` skill).
+   `site/src/data/settings/<area>.json`; add the
+   board entry, `site/src/data/integrations/<area>.json`, at `status` `unit`; review
+   the docs page, which is the area's skill file rendered (nothing to write in
+   `site/`), and take its screenshots with
+   `node scripts/shoot.mjs docs/integrations/<area>/` (the `site` skill).
 9. **Suspected bugs** go in the area's issue, never fixed in the integration (below).
 10. **Delete the brief**, `docs/briefs/<area>.md`, in the same PR. Briefs are the only
    docs that point at reference material outside this repository; shipped docs,
@@ -279,15 +280,21 @@ explicitly rather than skipping the check.
 ### Verification Levels
 
 *Principle 4.* Every integration and database provider records how far it has been
-verified, shown in `toil config check` and the skill docs:
+verified: its board entry's `status`, its provider's `verification`, and its skill
+file. There are three levels, `unit`, `live` and `stable`. What each one means is
+written once, in `site/src/data/levels.json`, which the site renders on the board and
+every integration page and `test/site-commands.test.ts` checks the values against;
+change the wording there, never in a copy.
 
-| Level | Means | How it is raised |
-|-------|-------|------------------|
-| `unit` | Logic tested with stubbed `fetch`; skill doc written | The minimum to merge |
-| `integration` | Automated tests pass against a real instance (a CI service container or a sandbox tenant) | A PR adding those tests to `npm run test:integration` |
-| `live` | Used against a real organization's instance in day-to-day work | A PR saying what was run, against what kind of instance |
+| Level | How it is raised |
+|-------|------------------|
+| `unit` | The minimum to merge: logic tested with stubbed `fetch` (or a stubbed git, for a local area), skill doc written |
+| `live` | A PR saying what was run, against what kind of real instance, and that the common commands worked there |
+| `stable` | A PR saying how long it has been in routine use against real instances, with no command or output change pending |
 
-Never raise a level on the strength of the unit suite.
+Never raise a level on the strength of the unit suite. A database provider whose
+tests run against the real engine in CI's service containers (`npm run
+test:integration`) is `live`.
 
 A command talks to one service. Do not build an aggregate command that fans out to
 several sources; give each source its own area and let them compose through stdin or

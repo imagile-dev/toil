@@ -1,101 +1,119 @@
 # toil
 
 One CLI and MCP server for the work around the code: your enterprise tools and your
-databases. Every command returns structured JSON, so agents and
-scripts can use it as easily as people.
+databases. Every command returns one structured JSON envelope, so agents and scripts
+can use it as easily as people.
 
-> Status: early. Nothing is released yet. See [docs/plan.md](docs/plan.md) and
-> [docs/integrations.md](docs/integrations.md).
+> **Status:** Alpha: APIs and flags may change before 1.0
 
-## What it does
+toil is published to npm as [`@imagile-dev/toil`](https://www.npmjs.com/package/@imagile-dev/toil),
+and documented at [imagile-dev.github.io/toil](https://imagile-dev.github.io/toil/). This
+README is for working from a clone of this repository; the site covers everything else
+in more depth.
 
-| Area | Examples |
-|------|----------|
-| `db` | List connections, describe tables, preview rows, run read-only queries with paging |
-| `skills` | Add a git-hosted skills marketplace, install its plugins for Codex, GitHub Copilot or Claude Code, switch them on and off |
-| Enterprise tools | Issue trackers, source hosts, CI, scanners, observability, all with a pasted token |
+## Quick start
 
-## Install
-
-toil is plain JavaScript on Node 24.14 or later, on Windows, macOS and Linux. There is no
-executable, no native module, and no install script, so it runs where unapproved
-binaries are blocked.
+Node.js 24.14 or later, on Windows, macOS or Linux. There is no executable, no native
+module and no install script.
 
 ```bash
-npm install -g @imagile-dev/toil
+npm i -g @imagile-dev/toil
+toil version
+toil deps scan      # inventory the npm, Maven and NuGet packages in this folder
+toil mcp            # serve toil to an agent over stdio
 ```
 
-As an MCP server, with no install step:
+The first alpha isn't on npm yet; until it is, `npm i` fails with a 404, so run toil
+from a clone (below). Setup, connections and every command are on the
+[site](https://imagile-dev.github.io/toil/docs/).
 
-```json
-{ "command": "npx", "args": ["-y", "@imagile-dev/toil", "mcp"] }
-```
+## Running from a clone
 
-Each [release](https://github.com/imagile-dev/toil/releases) also carries the packed
-`.tgz` for offline or mirrored installs: `npm install -g ./imagile-dev-toil-<version>.tgz`.
-
-### Run from a clone
-
-npm is the recommended path. Where the git host is reachable but the npm registry
-isn't, a clone runs as it is, with no `npm install`: `dist/toil.js` is committed, and
-it is the last released toil (each release rebuilds it; nothing else changes it).
+`dist/toil.js` is committed, and it is the last released toil, so a clone runs as it
+is, with no `npm install`. It imports only Node's built-ins.
 
 ```bash
 git clone https://github.com/imagile-dev/toil.git
 node toil/dist/toil.js version
-node toil/dist/toil.js setup alias    # PowerShell: add --profile $PROFILE
+node toil/dist/toil.js setup alias                    # bash or zsh
+node toil/dist/toil.js setup alias --profile $PROFILE # PowerShell
 ```
 
-`setup alias` adds a `toil` function to your shell profile (`~/.bashrc`, `~/.zshrc`, or
-the PowerShell profile you name), between two marker lines; `setup remove-alias` takes
-it out. Open a new terminal and `toil` works. MCP clients don't read shell profiles, so
-register the server as `node` with `<clone>/dist/toil.js mcp` as its arguments.
+`setup alias` adds a `toil` function to your shell profile, between two marker lines;
+`setup remove-alias` takes it out. Open a new terminal and `toil version` works.
+`git -C toil pull` brings the newest release, with nothing to rebuild.
 
-### Agent skill
+### Building it yourself
 
-[`skills/toil/`](skills/toil/SKILL.md) is toil's command reference for agents, in the
-Agent Skills format, and the site's docs are the same files rendered. toil carries it
-inside itself: `toil skill install --allow-write` writes it to `~/.agents/skills/toil`
-(Codex, and GitHub Copilot), with `--agent github-copilot` or `--claude` for the
-others and `--scope project` for the repository. Its description names the areas and
-database engines you have connections for, and toil rewrites it when a connection
-changes or another toil version runs, so there is nothing to update by hand. In
-Claude Code it also installs from the repository's plugin marketplace:
-`claude plugin marketplace add imagile-dev/toil`, then `claude plugin install toil@toil`.
-The skill also tells an agent how to install toil and register `toil mcp` with its
-client.
-
-## Use
+The committed bundle changes only with a release. To run what's on `main` now, build
+it:
 
 ```bash
-toil db query --connection reporting "select top 10 * from orders"
-toil jira search --jql "project = PAY" --select "issues[].key"   # keep only part of data (JMESPath)
-toil wait --until "result != null" -- jenkins pipeline get-run --name api-build --number 42   # repeat a read until it holds
-toil mcp            # run as an MCP server over stdio
+cd toil
+npm ci
+npm run build       # writes dist/toil.js
+node dist/toil.js version
 ```
 
-Every command writes one JSON envelope to stdout:
+Don't commit the rebuilt `dist/`; `git checkout -- dist/` puts the released bundle
+back. [CLAUDE.md](CLAUDE.md) has the rest of the gate (typecheck, lint, tests).
+
+### Pointing an agent at the clone
+
+**MCP.** Clients start servers without a shell, so they don't see a `toil` alias.
+Register `node` with the clone's absolute path:
+
+```bash
+claude mcp add toil -- node /path/to/toil/dist/toil.js mcp --areas jira
+codex mcp add toil -- node /path/to/toil/dist/toil.js mcp --areas jira
+```
+
+or, for clients with an `mcpServers` file:
 
 ```json
-{ "ok": true, "data": { }, "meta": { "durationMs": 42, "context": { "connection": { "value": "corp-jira", "source": "default", "default": "named" } } } }
+{ "mcpServers": { "toil": { "command": "node", "args": ["/path/to/toil/dist/toil.js", "mcp", "--areas", "jira"] } } }
 ```
 
-## Configure
+`--areas` limits the tools to what the task needs; without it toil serves every area
+with a connection set up. [`skills/toil/mcp.md`](skills/toil/mcp.md) covers VS Code and
+the rest.
 
-Settings resolve in this order: `TOIL_*` environment variables, then
-`~/.toil/config.json`. `toil connections add <name>` sets up a connection on a
-terminal and keeps its token in the OS credential store, with only a reference in
-config; `toil connections list` shows what's set up (`--area <name>` for one area), and
-`toil connections test <name>` checks one with a single read. Run `toil` on its own in a
-terminal for a menu that does all of this, and shows each command as it runs. Tokens live in the OS
-credential store or in environment variables, never in the config file; use
-environment variables in CI, containers and anywhere without a credential store. Nothing in a repository can change where your credentials go or
-switch on writes; `toil connections writes <name> on` asks you to type the name. Database connections are read-only unless you mark them otherwise.
+**The toil skill.** [`skills/toil/`](skills/toil/SKILL.md) is toil's command
+reference for agents, in the Agent Skills format, and the site's docs are the same
+files rendered. toil carries it inside itself and installs it for your agent:
 
-Behind a corporate proxy or TLS inspection, nothing extra is needed: toil trusts the OS
-certificate store as well as Node's bundled CAs, and sends requests through
-`HTTPS_PROXY` / `HTTP_PROXY`, skipping hosts in `NO_PROXY`. If your organization's CA
-is in neither store, point `NODE_EXTRA_CA_CERTS` at its bundle.
+```bash
+toil skill install --allow-write                  # ~/.agents/skills/toil: Codex, GitHub Copilot
+toil skill install --claude --allow-write         # ~/.claude/skills/toil: Claude Code
+toil skill install --agent github-copilot --scope project --allow-write
+```
+
+The installed copy names the areas you have connections for and keeps itself
+current, so there is nothing to update by hand. `skill` is newer than the committed
+bundle, so until the next release run it from a bundle you built (above). In Claude
+Code the clone is also a plugin marketplace: `claude plugin marketplace add
+/path/to/toil`, then `claude plugin install toil@toil`.
+[`skills/toil/install.md`](skills/toil/install.md) has the rest.
+
+## What it does
+
+| Area | What it covers |
+|------|----------------|
+| [`db`](https://imagile-dev.github.io/toil/docs/databases/) | SQLite, PostgreSQL, MySQL / MariaDB, SQL Server and Oracle: list schemas and tables, describe a table, preview rows, read-only queries with paging |
+| [`util`](https://imagile-dev.github.io/toil/docs/utilities/) | Local commands with no connection or network: JWTs, dependency inventories, encodings and hashes, certificates, test and coverage reports, logs, secret scans, time and versions, Jira and Confluence markup, OpenAPI |
+| [`skills`](https://imagile-dev.github.io/toil/docs/skills/) | Add a git-hosted skills marketplace, install its plugins for Codex, GitHub Copilot or Claude Code, switch them on and off |
+| [The toil skill](https://imagile-dev.github.io/toil/docs/) | toil's own command reference for agents, one file per area |
+| [Work tracking and source](https://imagile-dev.github.io/toil/integrations/) (9) | Jira, Confluence and Bitbucket (Data Center and Cloud), GitHub & GitHub Enterprise, Azure DevOps Server, local git |
+| [Build, release and runtime](https://imagile-dev.github.io/toil/integrations/) (5) | JFrog Artifactory, Jenkins, OpenShift / Kubernetes, Sauce Labs, Split.IO |
+| [Security and quality](https://imagile-dev.github.io/toil/integrations/) (7) | Checkmarx One, Contrast Security, SD Elements, SonarQube, Sonatype IQ Server, Sonatype OSS Index, OSV.dev |
+| [Observability](https://imagile-dev.github.io/toil/integrations/) (4) | Dynatrace, Elasticsearch, Kibana, Falcon LogScale |
+| [Design and data](https://imagile-dev.github.io/toil/integrations/) (2) | Figma, Alation |
+
+Every integration that needs a credential signs in with a long-lived token you
+generate once in the vendor's UI. Every integration records how far it has been
+verified: `unit`, `live` or `stable`. Each one's
+page on the [integrations board](https://imagile-dev.github.io/toil/integrations/)
+says what its level means.
 
 ## Contributing
 
