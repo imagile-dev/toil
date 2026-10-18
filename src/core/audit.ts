@@ -108,7 +108,11 @@ const AUTH_VALUE = /\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{8,}/gi;
  * are hex too.
  */
 const LONG_RUN = /[A-Za-z0-9_+=]{24,}/g;
-const URL_IN_TEXT = /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/gi;
+// Every pattern below is bounded or anchored so it runs in linear time: a
+// scheme can start only where no scheme character precedes it, and is at
+// most 32 long. Regular expressions that backtrack are how an audit trail
+// becomes the outage it was meant to record.
+const URL_IN_TEXT = /(?<![a-z0-9+.-])[a-z][a-z0-9+.-]{0,31}:\/\/[^\s"'<>]+/gi;
 
 /** A string with every URL redacted as `--verbose` redacts one, and every token-shaped run replaced. */
 export function redactText(text: string): string {
@@ -116,7 +120,8 @@ export function redactText(text: string): string {
   for (const shape of TOKEN_SHAPES) out = out.replace(shape, '[redacted]');
   out = out.replace(AUTH_VALUE, (_, scheme: string) => `${scheme} [redacted]`);
   out = out.replace(PAIR, (whole, quote: string, name: string, sep: string, value: string) => {
-    if (!secretField(name) || /^["']?\[redacted/.test(value)) return whole;
+    // Already redacted, scheme and all (`Basic [redacted]`): leave it, so a second pass changes nothing.
+    if (!secretField(name) || value.includes('[redacted')) return whole;
     const q = value[0] === '"' || value[0] === "'" ? value[0] : '';
     return `${quote}${name}${quote}${sep}${q}[redacted]${q}`;
   });
@@ -157,14 +162,24 @@ const hidesValue = (name: string, value: unknown) => secretField(name) && (typeo
  * pasted as text (`{"password":"hunter2"}`, `{'token': 'abc'}`): the name
  * and its quotes stay, the value goes, keeping a quoted value quoted.
  */
-const PAIR = /(["']?)([A-Za-z_][\w.-]*)\1(\s*[=:]\s*)((?:(?:Bearer|Basic|Token)\s+)?(?:"[^"]*"|'[^']*'|[^\s;&,"'}\]]+))/g;
+const PAIR = /(?<![\w.-])(["']?)([A-Za-z_][\w.-]{0,63})\1(\s{0,8}[=:]\s{0,8})((?:(?:Bearer|Basic|Token)\s{1,8})?(?:"[^"]{0,512}"|'[^']{0,512}'|[^\s;&,"'}\]]{1,512}))/g;
 /** `curl -u admin:hunter2`, `-uadmin:hunter2`, `--user admin:hunter2`, `--user=admin:hunter2`. */
-const USER_FLAG = /((?:^|\s)(?:-u\s*|--user[=\s]+))([^\s:]+):\S+/g;
+const USER_FLAG = /((?:^|\s)(?:-u\s{0,8}|--user[=\s]{1,8}))([^\s:]{1,256}):\S+/g;
+/**
+ * A string as the log keeps it: cut to MAX_STRING before any pattern runs, so
+ * no input can make redaction slow, then redacted, then cut again in case a
+ * replacement made it longer. A secret the first cut splits keeps no more
+ * than its first MAX_STRING characters, and the shape check still sees them.
+ */
+const clip = (text: string) => {
+  const out = redactText(text.length > MAX_STRING ? text.slice(0, MAX_STRING) : text);
+  return text.length > MAX_STRING || out.length > MAX_STRING ? `${out.slice(0, MAX_STRING)}…` : out;
+};
 const cut = (text: string) => (text.length > MAX_STRING ? `${text.slice(0, MAX_STRING)}…` : text);
 
 function redactValue(value: unknown, depth: number): unknown {
   if (typeof value === 'string') {
-    return cut(redactText(value));
+    return clip(value);
   }
   if (value === null || typeof value !== 'object') return typeof value === 'bigint' ? String(value) : value;
   if (depth >= MAX_DEPTH) return '[nested too deep]';
@@ -198,7 +213,7 @@ export function auditInput(def: AnyCommand, input: unknown): unknown {
 export function auditEntry(o: { def: AnyCommand; input: unknown; via: FrontDoor; writes: boolean; requests: readonly RequestLog[]; envelope: Envelope; now?: Date }): AuditEntry {
   const now = o.now ?? new Date();
   const { envelope } = o;
-  const requests = o.requests.slice(0, MAX_REQUESTS).map((r) => ({ method: r.method, url: cut(redactText(r.url)), status: r.status }));
+  const requests = o.requests.slice(0, MAX_REQUESTS).map((r) => ({ method: r.method, url: clip(r.url), status: r.status }));
   const raw = o.input !== null && typeof o.input === 'object' ? (o.input as Record<string, unknown>) : {};
   return {
     time: new Date(now.getTime() - envelope.meta.durationMs).toISOString(),
