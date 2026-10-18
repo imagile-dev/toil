@@ -86,8 +86,8 @@ bash infra/bootstrap.sh
 | Step | What it makes or checks |
 |---|---|
 | 1 | Resource group `rg-toil-feedback` (eastus2) |
-| 2 | Deploy identity: the `toil-feedback-deploy` app registration and service principal, a federated credential for `repo:imagile-dev/toil:environment:feedback`, the `feedback` environment, and the `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID` repository variables |
-| 3 | Its roles: Contributor on the resource group; Role Based Access Control Administrator there, limited by a condition to granting or removing Storage Blob Data Owner and Storage Table Data Contributor; Cost Management Reader on the subscription (the deploy's cost gate) |
+| 2 | Deploy identity: the `toil-feedback-deploy` app registration and service principal; federated credentials for the `feedback` environment in both subject forms GitHub issues, the name-based `repo:imagile-dev/toil:environment:feedback` and the ID-based one this repository uses now (`repo:<owner>@<owner-id>/<repo>@<repo-id>:environment:feedback`), read at run time from the repository's OIDC customization API and its IDs from the API, never written here; the `feedback` environment; and the `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID` repository variables |
+| 3 | Its roles: Contributor on the resource group; Role Based Access Control Administrator there, limited by a condition to granting or removing Storage Blob Data Owner and Storage Table Data Contributor; Cost Management Reader on the subscription (the deploy's cost gate); Monitoring Reader on the `ag-cost-email` action group in `rg-alerts` alone, which the alert rules link to |
 | 4 | `id-toil-feedback-kv`, a user-assigned identity with Key Vault Secrets User on `imagile-keyvault`, which `infra/main.bicep` attaches to the app for its Key Vault references, so they resolve on the first deploy |
 | 5 | `SMOKE-TEST-KEY`, if missing (a random value), and Key Vault Secrets User on that one secret for the deploy identity (the smoke test reads it) |
 | 6 | `TOIL-WEBHOOK-SECRET`, if missing, and the repository webhook to `/api/webhook/issue` (Issues only, JSON) signed with it, if missing |
