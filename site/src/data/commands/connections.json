@@ -40,5 +40,36 @@
       "<name>",
       "--area <area>"
     ]
+  },
+  {
+    "name": "test",
+    "tool": "connections_test",
+    "description": "Check one connection: resolve its settings and secret, then send the area's one cheap authenticated read",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>"
+    ]
+  },
+  {
+    "name": "writes",
+    "tool": null,
+    "description": "Turn writes on or off for a connection; turning them on asks you to type its name",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>",
+      "<state>"
+    ]
+  },
+  {
+    "name": "default",
+    "tool": null,
+    "description": "Make a connection its area's default, the one used when a call names none",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>"
+    ]
   }
 ]

@@ -43,7 +43,15 @@ beforeAll(() => setUp(fixtures));
 afterAll(() => tearDown(fixtures));
 type Files = Record<string, string | Uint8Array>;
 // Config, files and routes are read from the fixture when each test runs, after setup.
-const outside: LoadedFixture = { area: '', routes: [], config: {}, files: {}, commands: [], trace: [] };
+// Commands outside an area run against one Jira connection, so `connections test` has something to check.
+const outside: LoadedFixture = {
+  area: '',
+  routes: [{ method: 'GET', url: 'https://jira.imagile.dev/rest/api/2/myself', respond: { json: { name: 'you' } } }],
+  config: { jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'fake-token-abc12345' } },
+  files: {},
+  commands: [],
+  trace: [],
+};
 const suites: Array<{ name: string; commands: AnyCommand[]; fixture: LoadedFixture }> = [
   { name: 'commands outside an area', commands: commands.filter((def) => !def.area && bothDoors(def)), fixture: outside },
   ...fixtures.map((f) => ({ name: `${f.area} area`, commands: f.commands.filter(bothDoors), fixture: f })),

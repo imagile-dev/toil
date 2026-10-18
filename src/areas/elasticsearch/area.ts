@@ -17,6 +17,7 @@ export const elasticsearchArea = defineArea({
     apiKey: z.string().min(1).describe('API key: the encoded value shown once when the key is created'),
   }),
   secrets: ['apiKey'],
+  probe: () => ({ path: '/_cluster/health' }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     // https://www.elastic.co/docs/api/doc/elasticsearch/authentication

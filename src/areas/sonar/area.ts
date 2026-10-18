@@ -30,6 +30,7 @@ export const sonarArea = defineArea({
       missing: { message: 'No project specified. Use --project or set defaults.sonar.project in config.' },
     },
   },
+  probe: () => ({ path: '/api/system/status' }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Bearer ${connection.token}` },

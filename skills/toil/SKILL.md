@@ -36,6 +36,11 @@ slashes. Commands that run git need git on PATH and say
 Configuration comes from environment variables, which always win, or from
 `~/.toil/config.json` (or the file passed with `--config`). A connection is one
 instance of an area; `--connection <name>` picks one when there are several.
+`toil connections list` names them (never a secret), and `toil connections test
+<name>` checks one with a single authenticated read, failing with the `AUTH`,
+`NETWORK` or config error a real command would. Setting up a connection, signing
+in, turning writes on and choosing a default are for a person: a bare `toil` in a
+terminal opens a menu for them.
 
 toil trusts the OS certificate store and Node's bundled CAs, and uses `HTTPS_PROXY` /
 `HTTP_PROXY` / `NO_PROXY` when they're set. A `NETWORK` error about an untrusted

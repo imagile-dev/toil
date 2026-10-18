@@ -186,7 +186,7 @@ GitHub Actions; its build tooling is out of scope.
   (validation, connection and context resolution in `call-context.ts`, write gate,
   envelope), errors, config loading and
   writing, the OS credential store (`keychain.ts`) and the terminal prompter
-- `src/connections/` — `toil connections add | login | list | remove`
+- `src/connections/` — `toil connections add | login | list | remove | test | writes | default`
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
   `commands` (standalone commands export only `commands`)
 - `src/registry.ts` — every shipped area and command, read by both front doors. It
@@ -200,6 +200,8 @@ GitHub Actions; its build tooling is out of scope.
   terminal. Plain ANSI over Node's own `readline`, no package. Anything else (args,
   a pipe, CI, MCP) gets the JSON CLI untouched. Every screen is a pure function of
   data and every animation frame a pure function of time, so both are unit-tested.
+  One file of views per menu module under `views/`, registered in `views/index.ts`;
+  every action runs a real `toil` command in-process and shows the line it ran.
 - `src/shims/` — build-time stand-ins (the no-spawn stub)
 - `src/**/*.test.ts`, `test/` — Vitest; `test/harness/` holds the shared fakes,
   `test/fixtures/` one `<area>.fixture.ts` per area plus the test-only demo commands;

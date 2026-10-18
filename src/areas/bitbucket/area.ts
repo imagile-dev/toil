@@ -44,6 +44,7 @@ export const bitbucketArea = defineArea({
     },
   },
   examples: { baseUrl: 'https://bitbucket.imagile.dev' },
+  probe: () => ({ path: '/rest/api/1.0/application-properties' }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Bearer ${connection.pat}` },

@@ -31,6 +31,7 @@ export const kibanaArea = defineArea({
       setting: 'space',
     },
   },
+  probe: () => ({ path: '/api/status' }),
   request: (connection, area) => {
     if (!connection.apiKey) {
       throw new ToilError('NOT_CONFIGURED', `Kibana credentials not configured on connection "${connection.name}".`, {

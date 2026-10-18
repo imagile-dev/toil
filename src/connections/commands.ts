@@ -11,22 +11,24 @@ import {
   type EditableConfig,
   type Settings,
 } from '../core/config.js';
-import { coerce } from '../core/connection.js';
+import { apiRequest } from '../core/api.js';
+import { coerce, resolveConnection } from '../core/connection.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
 import { ToilError, withArticle } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified, type SecretStore } from '../core/keychain.js';
 import type { Prompter } from '../core/prompt.js';
 
 /**
- * `toil connections add | login | list | remove`: setting up the connections
- * that every area command resolves. Secrets go straight to the OS credential
- * store and config holds only a `keychain:` reference; a secret never sits in
- * the file (env vars are the other place one may live). `login` is also how a
- * plaintext secret left in an old file moves into the store. `add`, `login`
- * and `remove` are CLI only: a person sets up
- * connections, never an agent over MCP. `list` is safe anywhere, because it
- * prints names, hosts and where each value came from, never a value that
- * could be a secret.
+ * `toil connections add | login | list | remove | test | writes | default`:
+ * setting up the connections that every area command resolves. Secrets go
+ * straight to the OS credential store and config holds only a `keychain:`
+ * reference; a secret never sits in the file (env vars are the other place one
+ * may live). `login` is also how a plaintext secret left in an old file moves
+ * into the store. `add`, `login`, `remove`, `writes` and `default` are CLI
+ * only: a person sets up and changes connections, never an agent over MCP.
+ * `list` and `test` are safe anywhere: `list` prints names, hosts and where
+ * each value came from, never a value that could be a secret, and `test`
+ * sends one read.
  *
  * Every step that moves a secret keeps it somewhere: it's stored and read
  * back, then config is rewritten, and only then is any old copy removed. The
@@ -78,6 +80,15 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
           details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
         });
       }
+      // Nothing is saved until the person has seen what will be. Secrets are
+      // named, never shown: they were typed hidden and stay that way.
+      const review = [
+        `area ${area.name}`,
+        ...Object.entries(settings).map(([k, v]) => `${k} ${String(v)}`),
+        ...Object.keys(secretValues).map((k) => `${k} to the OS credential store`),
+      ].join(', ');
+      const answer = await prompt.ask(`Save ${input.name} (${review})? y/n`, 'y');
+      if (!/^y(es)?$/i.test(answer)) throw new ToilError('CANCELLED', 'Nothing was saved.', { fix: `Run toil connections add ${input.name} again.` });
 
       const kept = await storeNew(secrets, input.name, secretValues, ctx.signal);
       file.connections[input.name] = { area: area.name, ...settings, ...kept };
@@ -217,7 +228,109 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     },
   });
 
-  return [add, login, list, remove];
+  const test = defineConfigCommand({
+    path: ['connections', 'test'],
+    description: "Check one connection: resolve its settings and secret, then send the area's one cheap authenticated read",
+    toolDescription:
+      "Checks one toil connection: resolves its settings and reads its secret, then sends the area's one cheap authenticated GET (Jira's /rest/api/2/myself, for example). Fails with the same AUTH, NETWORK, CONFIG_INVALID or NOT_CONFIGURED error a real command would. `live` is false, with a warning, for an area toil has no such check for: then nothing was sent. Tests one connection per call; call it once per connection to test several.",
+    input: z.object({
+      name: z.string().describe('Connection name'),
+    }),
+    writes: false,
+    args: [{ name: 'name', field: 'name', description: 'Connection name' }],
+    examples: [{ name: 'jira' }],
+    run: async (input, ctx) => {
+      const { config, secrets } = access(ctx);
+      const settings = config.connections[input.name];
+      if (!settings) throw new ToilError('INVALID_INPUT', `There's no connection named "${input.name}".`, { fix: 'Run toil connections list to see the names.' });
+      const area = areaNamed(settings.area);
+      // The same resolution every area command gets: defaults, env, the store, pairing and validation.
+      const connection = await resolveConnection(config, area, input.name, ctx.warn, secrets, ctx.signal);
+      const host = hostOf(connection, new Set(area.secrets));
+      const probe = area.request ? area.probe?.(connection) : undefined;
+      if (!probe) {
+        ctx.warn({
+          code: 'NOT_LIVE_TESTED',
+          message: `toil has no live check for ${area.name} connections${area.probe ? ' set up like this one' : ''}, so nothing was sent. The settings are complete and the secret was read.`,
+        });
+        return { name: input.name, area: area.name, host, live: false, request: null };
+      }
+      // Text, because only the status matters, and a ping that answers "OK" isn't JSON.
+      await apiRequest(area, { fetch: ctx.fetch, signal: ctx.signal, connection }, probe.path, { as: 'text', ...(probe.query ? { query: probe.query } : {}) });
+      return { name: input.name, area: area.name, host, live: true, request: `GET ${probe.path}` };
+    },
+  });
+
+  const writes = defineConfigCommand({
+    path: ['connections', 'writes'],
+    description: 'Turn writes on or off for a connection; turning them on asks you to type its name',
+    input: z.object({
+      name: z.string().describe('Connection name'),
+      state: z.enum(['on', 'off']).describe('on or off'),
+    }),
+    writes: false,
+    kind: 'cli-only',
+    args: [
+      { name: 'name', field: 'name', description: 'Connection name' },
+      { name: 'state', field: 'state', description: 'on or off' },
+    ],
+    examples: [{ name: 'corp-jira', state: 'off' }],
+    run: async (input, ctx) => {
+      const { config, prompt } = access(ctx);
+      const path = config.files.global;
+      const file = readConfigForEdit(path);
+      const conn = fileConnection(file, input.name, config);
+      const on = input.state === 'on';
+      const was = connectionWrites(conn);
+      if (on && !was) {
+        // A standing permission is granted by a person at a keyboard, never by a
+        // script or an agent: there is no flag that skips this question.
+        if (!prompt) {
+          throw new ToilError('INVALID_INPUT', 'Turning writes on asks you to type the connection name on a terminal, and this isn\'t one.', {
+            fix: `Run it in a terminal, or set "writes": true on connection "${input.name}" in ${slashes(path)} yourself (${connectionEnvName(input.name, 'writes')}=true for one process).`,
+          });
+        }
+        const typed = await prompt.ask(`Writes let commands change data in ${conn.area} through "${input.name}" when a call also passes --allow-write. Type ${input.name} to turn them on`);
+        if (typed !== input.name) throw new ToilError('CANCELLED', `Writes stay off for "${input.name}": what was typed didn't match the name.`, { fix: `Run toil connections writes ${input.name} on again.` });
+      }
+      if (on !== was) {
+        if (on) conn.writes = true;
+        else delete conn.writes;
+        writeConfigFile(path, file);
+      }
+      // An env var outranks the file (Configuration Precedence), so say when this change won't be what applies.
+      const fromEnv = config.sources[`${input.name}.writes`] === 'env';
+      if (fromEnv) ctx.warn({ code: 'OVERRIDDEN_BY_ENV', message: `An env var sets writes for "${input.name}" and wins over the file; unset ${connectionEnvName(input.name, 'writes')} for this change to apply.` });
+      return { name: input.name, area: conn.area, writes: on, changed: on !== was, configFile: slashes(path) };
+    },
+  });
+
+  const setDefault = defineConfigCommand({
+    path: ['connections', 'default'],
+    description: "Make a connection its area's default, the one used when a call names none",
+    input: z.object({
+      name: z.string().describe('Connection name'),
+    }),
+    writes: false,
+    kind: 'cli-only',
+    args: [{ name: 'name', field: 'name', description: 'Connection name' }],
+    examples: [{ name: 'corp-jira' }],
+    run: async (input, ctx) => {
+      const { config } = access(ctx);
+      const path = config.files.global;
+      const file = readConfigForEdit(path);
+      const conn = fileConnection(file, input.name, config);
+      areaNamed(conn.area);
+      const previous = typeof file.defaults[conn.area]?.connection === 'string' ? (file.defaults[conn.area]!.connection as string) : null;
+      if (previous !== input.name) {
+        file.defaults[conn.area] = { ...(file.defaults[conn.area] ?? {}), connection: input.name };
+        writeConfigFile(path, file);
+      }
+      return { name: input.name, area: conn.area, previous, configFile: slashes(path) };
+    },
+  });
+
+  return [add, login, list, remove, test, writes, setDefault];
 }
 
 function access(ctx: CommandContext<unknown>): ConfigAccess {

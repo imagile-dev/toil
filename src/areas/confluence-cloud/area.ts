@@ -27,6 +27,7 @@ export const confluenceCloudArea = defineArea({
   // connection to borrow from with apiTokenFrom. The email is never borrowed.
   shares: { area: jiraCloudArea, keys: ['apiToken'] },
   examples: { baseUrl: 'https://<your-site>.atlassian.net', email: 'you@example.com' },
+  probe: () => ({ path: '/wiki/api/v2/spaces', query: { limit: 1 } }),
   request: (connection, area) => {
     // toil adds /wiki itself, so a site URL pasted from the browser's address bar
     // would ask for /wiki/wiki/api/v2 and get a 404 that explains nothing.

@@ -4,6 +4,7 @@ import { envName } from './config.js';
 import type { GitRemote } from './call-context.js';
 import type { CommandContext } from './context.js';
 import type { RequestHook } from './api.js';
+import type { QueryParam } from './rest.js';
 
 /**
  * An area is one service, or one deployment variant of one (`jira`,
@@ -100,6 +101,21 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string 
    */
   // Method syntax, so a hook typed for one area's connection still fits AreaSpec's defaults.
   request?(...args: Parameters<RequestHook<z.output<S>>>): ReturnType<RequestHook<z.output<S>>>;
+  /**
+   * The one cheap, authenticated GET that `toil connections test` sends to
+   * check a connection, relative to the request hook's base URL. Return
+   * undefined when this connection can't be checked that way (a Dynatrace
+   * connection with only a platform URL). An area without one, or without a
+   * request hook, is checked as far as its settings and secret go, and the
+   * result says nothing was sent.
+   */
+  probe?(connection: Connection<z.output<S>>): Probe | undefined;
+}
+
+/** See {@link AreaSpec.probe}. */
+export interface Probe {
+  path: string;
+  query?: Record<string, QueryParam>;
 }
 
 /** See {@link AreaSpec.shares}. */

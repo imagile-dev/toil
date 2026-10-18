@@ -66,6 +66,8 @@ export const adoArea = defineArea({
     },
   },
   examples: { baseUrl: 'https://ado.imagile.dev' },
+  // The predecessor's check: the collection's connectionData when one is set, else the list of collections.
+  probe: (c) => (c.collection ? { path: `/${encodeURIComponent(c.collection)}/_apis/connectionData`, query: { 'api-version': '7.1-preview.1' } } : { path: '/_apis/projectCollections', query: { 'api-version': '7.1' } }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     // Basic auth with an empty user name: the PAT is the password and the whole of the login.

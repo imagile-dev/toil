@@ -54,6 +54,7 @@ export const githubArea = defineArea({
       schema: z.string(),
     },
   },
+  probe: () => ({ path: '/user' }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Bearer ${connection.token}` },

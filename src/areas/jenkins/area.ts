@@ -28,6 +28,7 @@ export const jenkinsArea = defineArea({
       selectsConnection: true,
     },
   },
+  probe: () => ({ path: '/api/json', query: { tree: 'nodeName' } }),
   request: (connection, area) => ({
     baseUrl: connection.baseUrl,
     headers: { Authorization: `Basic ${Buffer.from(`${connection.username}:${connection.apiToken}`).toString('base64')}` },
