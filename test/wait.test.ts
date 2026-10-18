@@ -5,7 +5,7 @@ import type { AnyCommand } from '../src/core/command.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
 import { allowWriteField } from '../src/core/run.js';
-import { waitCommand } from '../src/core/wait.js';
+import { formatMs, waitCommand } from '../src/core/wait.js';
 import { commands as registered } from '../src/registry.js';
 import { demoCommands, demoRoutes } from './fixtures/demo-commands.js';
 import { runCli } from './harness/cli.js';
@@ -121,6 +121,10 @@ async function mcp(args: Record<string, unknown>, routes: Route[], options: { si
 const comparable = (e: Envelope | undefined) => e && { ...e, meta: { ...e.meta, durationMs: 0, ...(e.meta.wait ? { wait: { ...e.meta.wait, elapsedMs: 0 } } : {}) } };
 
 describe('toil wait', () => {
+  it('formats durations as they read: never 0h or 0s for what was less', () => {
+    expect([0, 400, 999, 1000, 1500, 5000, 90_500, 120_000, 3_600_000, 5_400_000].map(formatMs)).toEqual(['0ms', '400ms', '999ms', '1s', '1.5s', '5s', '90.5s', '2m', '1h', '90m']);
+  });
+
   it('repeats the read until the condition holds, through both doors, with one audit line per attempt', async () => {
     const viaCli = await cli(['wait', '--until', 'result != null', '--interval', '5s', '--', 'ci', 'get-build', '7'], build(3));
     expect(viaCli.envelope?.ok, viaCli.stdout).toBe(true);
@@ -240,6 +244,17 @@ describe('toil wait', () => {
     expect(long.envelope?.error?.fix).toContain('"wait": { "maxTimeout"');
     const raised = await cli(['wait', '--until', 'result', '--timeout', '3h', '--', 'ci', 'get-build', '7'], build(1), { wait: { maxTimeoutMs: 4 * 3_600_000 } });
     expect(raised.envelope?.ok, raised.stdout).toBe(true);
+    const zeroInterval = await cli(['wait', '--until', 'result', '--interval', '0s', '--', 'ci', 'get-build', '7'], []);
+    expect(zeroInterval.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: 'toil wait --interval 0s is too short: attempts are at least 5s apart.' });
+    for (const timeout of ['0s', '0ms', '400ms', '4s']) {
+      const short = await cli(['wait', '--until', 'result', '--timeout', timeout, '--', 'ci', 'get-build', '7'], []);
+      expect(short.envelope?.error, timeout).toMatchObject({ code: 'INVALID_INPUT', message: `toil wait --timeout ${timeout} is too short: a wait lasts at least 5s.` });
+      const viaMcp = await mcp({ tool: 'ci_get_build', input: { number: 7 }, until: 'result', timeout }, []);
+      // MCP words the fix in field names (timeout for --timeout); the refusal itself is the same.
+      expect(viaMcp.envelope?.error?.code, timeout).toBe('INVALID_INPUT');
+      expect(viaMcp.envelope?.error?.message, timeout).toBe(short.envelope?.error?.message);
+      expect([...short.http.calls, ...viaMcp.http.calls]).toEqual([]);
+    }
     const bad = await cli(['wait', '--until', 'result ==', '--', 'ci', 'get-build', '7'], []);
     expect(bad.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('Invalid until expression') });
     const badMcp = await mcp({ tool: 'ci_get_build', input: { number: 7 }, until: 'result ==' }, []);
@@ -274,7 +289,10 @@ describe('toil wait', () => {
     const unknown = await cli(['wait', '--until', 'x', '--', 'ci', 'no-such'], []);
     expect(unknown.envelope?.error?.code).toBe('INVALID_INPUT');
     const nested = await cli(['wait', '--until', 'x', '--', 'wait', '--until', 'y', '--', 'version'], []);
-    expect(nested.envelope?.error?.code).toBe('INVALID_INPUT');
+    expect(nested.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: "toil wait can't wait on a wait: the command after -- must be a read." });
+    expect(nested.envelope?.error?.fix).not.toContain('toil wait --until "y"');
+    const flagged = await cli(['wait', '--until', 'x', '--', '--select', 'a', 'wait', '--until', 'y', '--', 'version'], []);
+    expect(flagged.envelope?.error?.message).toContain("can't wait on a wait");
     const viaMcp = await mcp({ tool: 'wait', input: {}, until: 'x' }, []);
     expect(viaMcp.envelope?.error?.message).toContain("can't wait on a wait");
   });

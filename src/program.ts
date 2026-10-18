@@ -349,6 +349,11 @@ async function parseCommandLine(options: ProgramOptions, words: string[]): Promi
   // The envelope carries a parse error; the help commander prints after one would only repeat it on stderr.
   const { program } = buildProgram({ ...options, io: { ...options.io, stderr: () => {} }, capture: (call) => (captured = call) });
   const line = `toil ${words.join(' ')}`;
+  // Said plainly before parsing, in MCP's words, rather than as an unknown command whose fix names one that works.
+  const named = commandFromArgv(words, options.commands);
+  if (options.commands.some((def) => def.dispatches && commandName(def) === named)) {
+    return { error: new ToilError('INVALID_INPUT', "toil wait can't wait on a wait: the command after -- must be a read.", { fix: 'Put the read itself after --, for example toil wait --until "result != null" -- jenkins pipeline get-run --name <job> --number <n>.' }) };
+  }
   try {
     await program.parseAsync(words, { from: 'user' });
   } catch (err) {

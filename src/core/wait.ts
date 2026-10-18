@@ -243,7 +243,7 @@ function prepare(def: AnyCommand, rawInput: unknown, ctx: Context, targets: read
   }
   const intervalMs = wait.interval === undefined ? DEFAULT_INTERVAL_MS : parseDuration(wait.interval)!;
   if (intervalMs < MIN_INTERVAL_MS) {
-    throw new ToilError('INVALID_INPUT', `toil wait --interval ${wait.interval} is too short: attempts are at least ${MIN_INTERVAL_MS / 1000}s apart.`, { fix: 'Pass --interval 5s or longer.' });
+    throw new ToilError('INVALID_INPUT', `toil wait --interval ${wait.interval} is too short: attempts are at least ${formatMs(MIN_INTERVAL_MS)} apart.`, { fix: `Pass --interval ${formatMs(MIN_INTERVAL_MS)} or longer.` });
   }
   const max = ctx.config.wait?.maxTimeoutMs ?? DEFAULT_MAX_WAIT_MS;
   // --timeout replaces TOIL_TIMEOUT_MS for this one command; without it, TOIL_TIMEOUT_MS, else the default.
@@ -255,6 +255,10 @@ function prepare(def: AnyCommand, rawInput: unknown, ctx: Context, targets: read
       code: 'WAIT_TIMEOUT_CAPPED',
       message: `TOIL_TIMEOUT_MS is ${ctx.timeoutMs} ms (${formatMs(ctx.timeoutMs)}), longer than the ${formatMs(max)} wait maximum ("wait": { "maxTimeout" } in config), so this wait stops at ${formatMs(max)}.`,
     });
+  }
+  // A --timeout shorter than the interval floor can't wait for anything; TOIL_TIMEOUT_MS, every command's default, isn't held to it.
+  if (wait.timeout !== undefined && timeoutMs < MIN_INTERVAL_MS) {
+    throw new ToilError('INVALID_INPUT', `toil wait --timeout ${wait.timeout} is too short: a wait lasts at least ${formatMs(MIN_INTERVAL_MS)}.`, { fix: `Pass --timeout ${formatMs(MIN_INTERVAL_MS)} or longer, or run the command once without wait.` });
   }
   if (timeoutMs > max) {
     throw new ToilError('INVALID_INPUT', `toil wait --timeout ${wait.timeout} is longer than the ${formatMs(max)} this config allows.`, {
@@ -287,8 +291,10 @@ function cancelled(def: AnyCommand, attempts: number, data: unknown): ToilError 
   return new ToilError('CANCELLED', `The wait on ${commandName(def)} was cancelled after ${attempts} attempt${attempts === 1 ? '' : 's'}.`, { details: { data } });
 }
 
-function formatMs(ms: number): string {
+/** A duration as people write it: `0ms`, `400ms`, `1.5s`, `2m`, `1h`. Rounding 400 ms to `0s` would be a minute taken at face value. */
+export function formatMs(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
   if (ms % 3_600_000 === 0) return `${ms / 3_600_000}h`;
   if (ms % 60_000 === 0) return `${ms / 60_000}m`;
-  return `${Math.round(ms / 1000)}s`;
+  return `${Number((ms / 1000).toFixed(1))}s`;
 }
