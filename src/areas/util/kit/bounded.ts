@@ -85,6 +85,8 @@ function kill(outcome: BoundedOutcome<unknown>): void {
     const { worker } = current;
     current = undefined;
     worker.removeAllListeners();
+    // A worker being torn down can still report an error (an out-of-memory racing the deadline); with no listener that would throw here.
+    worker.on('error', () => {});
     void worker.terminate();
   }
   if (job) finish(job, outcome);
@@ -98,6 +100,8 @@ function workerFor(maxMemoryMb: number): Worker {
     const old = current.worker;
     current = undefined;
     old.removeAllListeners();
+    // A worker being torn down can still report an error (an out-of-memory racing the deadline); with no listener that would throw here.
+    old.on('error', () => {});
     void old.terminate();
   }
   const worker = new Worker(WORKER_SOURCE, { eval: true, resourceLimits: { maxOldGenerationSizeMb: maxMemoryMb, maxYoungGenerationSizeMb: Math.min(64, maxMemoryMb) } });
