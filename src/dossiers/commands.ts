@@ -3,7 +3,7 @@ import type { AnyArea } from '../core/area.js';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
 import { connectionWrites, defaultConnectionName, type ResolvedConfig } from '../core/config.js';
 import type { CommandContext } from '../core/context.js';
-import { stripUserinfo, type Applied, type Dossier, type DossierCatalog, type DossierFile, type DossierProblem, type Selection } from '../core/dossier.js';
+import { dossierContent, stripUserinfo, type Applied, type Dossier, type DossierCatalog, type DossierFile, type DossierProblem, type Selection } from '../core/dossier.js';
 import { ToilError, toToilError } from '../core/errors.js';
 import { forwardSlashes } from '../core/files.js';
 
@@ -82,7 +82,7 @@ export function dossiersCommands(areas: readonly AnyArea[]): AnyCommand[] {
         // Your own dossier's bindings are yours; anyone else's need `toil dossiers import` before a write follows them.
         adopted: source === 'user',
         areas: resolvedAreas(catalog, ctx.manage!.config, areas, applied),
-        dossier: content(dossier),
+        dossier: dossierContent(dossier),
         problems: applied.file.problems.map(problemOut),
       };
     },
@@ -163,18 +163,6 @@ function chosen(catalog: DossierCatalog, input: { dossier?: string | undefined; 
 
 function problemOut(p: DossierProblem) {
   return { level: p.level, code: p.code, path: p.path, message: p.message };
-}
-
-/** The dossier as stored, remotes without userinfo: what an agent edits through the dossier commands. */
-function content(dossier: Dossier): Record<string, unknown> {
-  return {
-    name: dossier.name,
-    ...(dossier.description !== undefined ? { description: dossier.description } : {}),
-    ...(dossier.env !== undefined ? { env: dossier.env } : {}),
-    repos: dossier.repos,
-    ...dossier.sections,
-    ...(Object.keys(dossier.environments).length > 0 ? { environments: dossier.environments } : {}),
-  };
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);

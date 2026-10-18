@@ -1,0 +1,13 @@
+[
+  {
+    "name": "scan",
+    "tool": "repos_scan",
+    "description": "List the git repositories under a folder, with their branches and remotes",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[folder]",
+      "--depth <n>"
+    ]
+  }
+]

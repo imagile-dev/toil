@@ -1,9 +1,10 @@
 import { emitKeypressEvents } from 'node:readline';
 import type { Envelope } from '../core/envelope.js';
-import { breadcrumb, finish, initialState, type Key, type MenuState, reduce, render } from './menu.js';
+import { playBrick } from './brick/play.js';
+import { breadcrumb, finish, initialState, type Key, type MenuState, played, reduce, render } from './menu.js';
 import type { WelcomeData } from './screens.js';
 import { playSplash } from './splash.js';
-import { cursor, detectCaps, PALETTE, paint } from './term.js';
+import { cursor, detectCaps, movesCursor, PALETTE, paint } from './term.js';
 import { commandLine, type Run, type StepResult } from './view.js';
 import { outcome } from './views/result.js';
 
@@ -72,7 +73,15 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
   // One "exit now" signal that ends whichever phase is running.
   let interrupted = false;
   let exitNow = () => {};
-  const exited = new Promise<void>((resolve) => (exitNow = resolve));
+  // Aborted on the way out, so a game in progress stops drawing before the terminal is handed back.
+  const exiting = new AbortController();
+  const exited = new Promise<void>(
+    (resolve) =>
+      (exitNow = () => {
+        exiting.abort();
+        resolve();
+      }),
+  );
   const ctrlC = doubleTap(CTRL_C_WINDOW_MS, () => Date.now());
   let notice = '';
   let noticeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -88,6 +97,8 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
   // While a command runs, its own prompts own the keyboard; Ctrl+C cancels it.
   let busy = false;
   let running: AbortController | undefined;
+  // While the game runs it draws the screen and reads keys itself; Ctrl+C still counts toward exiting.
+  let gaming = false;
   const onKeypress = (_: string, key: Key | undefined) => {
     const k = key ?? {};
     if (busy) {
@@ -122,6 +133,8 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
   const restore = () => {
     clearTimeout(noticeTimer);
     signals.off('SIGINT', onSigint);
+    // Here rather than after the menu loop, so an error that skips the loop still removes it.
+    if (redraw) output.off('resize', redraw);
     if (altScreen) write(cursor.altScreenOff);
     write(cursor.show);
     input.off('keypress', onKeypress);
@@ -143,8 +156,9 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
     altScreen = true;
     let state: MenuState = initialState;
     redraw = () => {
-      // A running command owns the screen; a resize or a notice waits for it.
-      if (busy) return;
+      // A running command or the game owns the screen; a resize or a notice
+      // waits for it. Once exiting, nothing more is drawn.
+      if (busy || gaming || exiting.signal.aborted) return;
       const now = detectCaps(output, io.env);
       write(`${cursor.home}${cursor.clearDown}${render(state, now, data, notice).join('\n')}`);
     };
@@ -186,16 +200,50 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
       data = io.reload?.() ?? data;
     };
 
+    // The game gets the screen and the keyboard until q brings it back here.
+    const game = async () => {
+      const scores = await playBrick({
+        write,
+        onKey: (handler) => {
+          keyListeners.add(handler);
+          return () => keyListeners.delete(handler);
+        },
+        caps: () => detectCaps(output, io.env),
+        movesCursor: movesCursor(output, io.env),
+        best: state.session.brick?.best ?? 0,
+        notice: () => notice,
+        signal: exiting.signal,
+      });
+      state = played(state, scores.best, scores.last);
+    };
+
     await Promise.race([
       exited,
-      new Promise<void>((done) => {
+      new Promise<void>((done, fail) => {
         let queue = Promise.resolve();
         const l = (key: Key) => {
           if (key.ctrl && key.name === 'c') return;
+          if (gaming) return;
           state = reduce(state, key, data);
           if (state.quit) {
             keyListeners.delete(l);
             done();
+            return;
+          }
+          if (state.playing) {
+            gaming = true;
+            // Queued, so the key that chose Play isn't also the game's first key.
+            queue = queue
+              .then(game)
+              .catch((err: unknown) => {
+                // Nothing more is drawn; the finally below puts the terminal back, then the error surfaces.
+                exiting.abort();
+                fail(err);
+              })
+              .finally(() => {
+                gaming = false;
+                redraw?.();
+              });
             return;
           }
           const run = state.pending;
@@ -214,7 +262,6 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
         keyListeners.add(l);
       }),
     ]);
-    output.off('resize', redraw);
     return interrupted ? 'interrupted' : 'quit';
   } finally {
     restore();

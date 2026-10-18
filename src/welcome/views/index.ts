@@ -1,5 +1,6 @@
 import type { View } from '../view.js';
 import { agentAreas, agentsView, agentView } from './agents.js';
+import { brickView } from './brick.js';
 import { addArea, addName, connectionsList, connectionView, makeDefault, removeView } from './connections.js';
 import { healthView, helpView } from './health.js';
 import { homeView, type HomeEntry } from './home.js';
@@ -19,6 +20,7 @@ export const HOME_ENTRIES: HomeEntry[] = [
   { label: 'Skills', hint: 'Marketplaces of agent skills: add one, install a plugin', view: 'skills' },
   { label: 'Plugins', hint: 'Switch installed plugins on and off', view: 'plugins' },
   { label: 'Help', hint: 'How toil works, a command cheatsheet, the docs', view: 'help' },
+  { label: 'Play brick breaker', hint: 'One wall, three lives, while the build runs', view: 'brick' },
 ];
 
 export const VIEWS: Record<string, View> = {
@@ -45,5 +47,6 @@ export const VIEWS: Record<string, View> = {
   plugins: pluginsView,
   'plugins-toggle': toggleView,
   'plugins-review': reviewView,
+  brick: brickView,
   result: resultView,
 };

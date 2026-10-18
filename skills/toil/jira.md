@@ -91,6 +91,7 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `list-sprints` | `--board` or `--project`, `--state active,future,closed` | Sprints with dates and goal |
 | `set-sprint` ✎ | `--key --sprint <id>` | `{ updated, sprint }` |
 | `api` | `<method> <path> --query key=value (repeatable) --body-file --content-type` | The response body; see **Any endpoint** below. ✎ for `POST`, `PUT`, `PATCH`, `DELETE` |
+| `check-dossier` | `--dossier <name\|file>` (or the folder's dossier) | `{ dossier, connection, ok, checked, checks }`: each project and field id the dossier names, found or not; exit 1 when one is missing |
 
 Over MCP the same commands are tools named `jira_<command>` with hyphens as
 underscores (`jira_get_issue`, `jira_list_sprints`), taking camelCase fields
@@ -200,6 +201,12 @@ raw string. `toil jira fields --discover` lists Jira's fields with a `suggestedT
 `--project ABC` to see each select field's `allowedValues`. A select field that only
 accepts option ids needs `"type": "option-id"`. **Sprint is not a custom field**: use
 `set-sprint` after the issue exists.
+
+A **dossier** can name fields too (`"jira": { "fields": { "storyPoints": "customfield_10016" } }`,
+or `toil dossiers field <dossier> jira storyPoints customfield_10016`). Then
+`create-issue` and `update-issue` take `--field storyPoints=5` in any folder the dossier
+applies to. An alias takes the type the connection registers for that id. A name the
+connection already uses keeps the connection's meaning.
 
 ## Data Center, not Cloud
 

@@ -647,6 +647,19 @@ Added as each integration lands.
   header dropped** (core's `follow-without-auth`), so the credential stays on the
   configured site.
 
+### Brick breaker
+
+- **It runs on a fixed 33 ms tick, not wall-clock time** (`src/welcome/brick/play.ts`),
+  so a slow machine plays slower rather than skipping frames, and tests are
+  deterministic.
+- **Ctrl+C pauses the game and counts as the first press of the menu's
+  two-press exit**, so Ctrl+C means the same thing everywhere in the menu.
+- **It plays only on a window of at least 46 by 23 and a console that can redraw
+  in place** (`movesCursor`: a TTY, not the legacy Windows console, not
+  `TERM=dumb`); anything less gets a polite refusal. `NO_COLOR` and
+  `TOIL_NO_ANIMATION` only change how it looks.
+- **A lobby screen comes before the game**, with the keys, the size it needs and
+  the session's scores, which live in memory only.
 ### Databases: PostgreSQL
 
 - **`pg` with `pg-cursor`**, so the row cap stops the server producing rows, not
@@ -740,11 +753,6 @@ Added as each integration lands.
   profile, with documented exceptions to the `files.no-overwrite` and
   `files.workspace` bounds.
 
-### Dossiers (#16)
-
-- **Selecting a dossier is lazy for a folder match and strict for an explicit one**:
-  a folder matching two dossiers never fails a call that doesn't consult one, while
-  `--dossier` or `TOIL_DOSSIER` is always checked.
 
 ### SQL Server
 
@@ -795,6 +803,32 @@ Added as each integration lands.
   lost; the docs say to CAST to varchar).
 - **The test image is pinned to `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04`**
   in CI and the databases skill, never `2022-latest`.
+
+## Dossiers (#16)
+
+- **The model and resolution (#152):**
+  - **The commands are `toil dossiers`, plural**, like `toil connections`, as the maintainer's `toil dossiers import` and `show` are.
+  - **No area declares a section schema.** A section's keys are the area's context inputs, plus `connection`, `host` and `fields`; any other key is reference data, kept but never applied. `host` and `fields` are reserved as context-input names.
+  - **Adopted means "in your own folder"** (`~/.toil/dossiers/`). A loose file named by path never is, so CI passes `--connection` to write.
+  - **A dossier's environment fills `--env` only for the areas it lists**, so a default environment can't fail an area that has none by that name.
+  - **The default folder is the workspace**, the folder the git step already read.
+  - **Remotes are matched without scheme, userinfo or port.**
+  - **A dossier naming a connection you don't have is a hard error**, as an unknown `--connection` is (the design's open question 1).
+  - **Choosing the dossier is lazy for a folder match only.** The ambiguity of two matches is raised only when the resolver reaches the dossier step. A dossier named by `--dossier` or `TOIL_DOSSIER` is chosen at once, so a bad one fails the call that named it.
+  - **With `--connection` named, an input that selects a connection isn't looked up in the dossier**: it could only agree or give way.
+  - **A path a call names is bounds-checked before it's looked at**, so over MCP it can't probe whether a file or folder exists.
+- **Building and sharing (#164):**
+  - **`link` takes context inputs as `--set key=value`**, repeatable, so tool schemas stay fixed; `--add` builds reference lists, and `--for-repo` makes a value one repo's.
+  - **`--set env` is refused**, pointing at `dossiers env … --default`: a call never reads a section's own `env`, and a hand-written one is a `DOSSIER_UNUSED_KEY` warning.
+  - **`dossiers env` takes `link`'s flags plus `--default`.**
+  - **`dossiers remove` exists for #56's Delete**, CLI only, and only touches your own folder.
+  - **The MCP write rule asks the call's own resolver** (`dossierConnection`), through `connection`, `host` and every input that selects a connection, for no repo and each of the dossier's repos. A non-default environment's binding is allowed, since a call reaches it only with an explicit `--env`, which picks the connection itself.
+  - **`dossiers.replace` is kept as an exception to `files.no-overwrite`** (the maintainer's condition: only where a person asked to replace a file). An edit rewrites the dossier it read. `import --replace` and `export --replace` replace a dossier only with the flag. A file that isn't a valid dossier is never replaced.
+  - **Export to `--file` stays inside the workspace or a dossier folder**; `--repo` must be a working tree's root.
+  - **Your own copy of a checked-in dossier wins wherever the checked-in one applies**, even when it lists no repos, so `import` adopts in the repository it came from.
+  - **`repos scan` is a `config` command on the dossier catalog**, capped at 20,000 folders, saying `truncated` past that.
+  - **Field aliases go through the area's existing `--field`** (Jira, Jira Cloud), asked for only when the call names a field; a name the connection already uses keeps the connection's meaning.
+  - **A fixture can carry a `dossier`** for its area's `check-dossier`, holding only keys the other examples don't read.
 - **Windows authentication** (`auth: "windows"`, #165): the alternate account reuses
   `user` with a new `domain` key, not a separate `username`. A provider `check` hook
   (run by the area schema's `superRefine`) requires `user` for SQL logins and refuses
@@ -816,3 +850,54 @@ Added as each integration lands.
   and ESLint.
 - **Windows authentication is documented as `untested`** until it runs against a
   domain; the provider stays at `integration` for SQL logins.
+
+
+### Oracle
+
+- **`oracledb` 7.0.1 in Thin mode only**, built from the driver's and Oracle's docs
+  with no predecessor, at verification level `integration`. ESLint refuses
+  `initOracleClient`, the one way into Thick mode, and a test shows no native addon
+  loads.
+- **`database` is the service name, and nothing else.** toil builds the connect
+  descriptor itself from `host`, `port` and `database`, so it reads no
+  `tnsnames.ora`, `sqlnet.ora`, `TNS_ADMIN`, wallet or config provider. SIDs and TNS
+  aliases aren't supported, and a host or service that could add a clause to the
+  descriptor is `CONFIG_INVALID`. TCPS gets the OS certificate store through
+  `trustOsStoreByDefault`, since Thin mode's TLS takes no `ca` option.
+- **`DbProvider.defaultSchema` is a function of the connection**, because Oracle's
+  default is the login's own schema. Names are reported as Oracle stores them
+  (upper case unless quoted), and a schema or table not found as typed is looked up
+  again in upper case.
+- **Reads run in `SET TRANSACTION READ ONLY`, rolled back.** ORA-01456, ORA-28193 and
+  ORA-16000 are `WRITE_DISABLED`. DDL on a read is refused as `WRITE_DISABLED`,
+  because Oracle commits DDL inside a read-only transaction. PL/SQL (`BEGIN`,
+  `DECLARE`, `CALL`, `WITH FUNCTION` / `WITH PROCEDURE`) is refused as
+  `INVALID_INPUT`, because a block can commit or run an autonomous transaction. Each
+  keyword is proven to write through a read-only transaction in
+  `test/db/oracle.test.ts`.
+- **No session-level read-only.** 23ai's `ALTER SESSION SET READ_ONLY` would close
+  more holes, but 19c, where most enterprises are, doesn't have it. One mechanism
+  plus the proven denies is the simpler choice.
+- **Dates are exact strings**, read from the wire bytes rather than the local-time
+  `Date` Thin mode builds. Thin mode formats dates on the client, so session NLS
+  formats can't apply. The shape is PostgreSQL's and MySQL's:
+  `2026-01-02 03:04:05.123456`, `+02` / `+05:30` for a zoned value, and `+00` for a
+  named region or `WITH LOCAL TIME ZONE`.
+- **The commit claim on a failed `db execute`:** toil names statements as committed
+  only when it knows they are: DDL that ran, or a change followed by a closed
+  transaction (`DBMS_TRANSACTION`). After any PL/SQL block or `CALL` ran, the
+  failing one included, or when that check fails, the error says the statements up to the
+  failure may have committed. "Nothing was applied" is said only when nothing could
+  have committed. `COMMIT`, `ROLLBACK`, `SAVEPOINT` and `SET TRANSACTION` are refused
+  before any of the script runs.
+- **The image is pinned to `gvenzl/oracle-free:23.26.3-slim-faststart`**, a CI
+  service in `Databases (integration)`. It is healthy in about a minute, and the
+  Oracle target sets a 30 s test and hook limit for slow runners.
+- **Known limits, pinned by tests and documented:**
+  - A stored function with an autonomous transaction still writes when a `SELECT`
+    calls it.
+  - DDL commits mid-script, and a block can commit inside one.
+  - Thin mode's in-band break can't wake `DBMS_SESSION.SLEEP`.
+  - `AUDIT` isn't denied, because the escape can't be proven without audit
+    privileges.
+  - Only 23ai has been run.

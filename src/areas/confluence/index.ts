@@ -1,3 +1,4 @@
+import { checkDossier } from './check-dossier.js';
 import { confluenceArea, confluenceSupported } from './area.js';
 import { attachmentCommands } from './attachments.js';
 import { discussionCommands } from './discussion.js';
@@ -8,4 +9,4 @@ import { spaceCommands } from './spaces.js';
 // registration form was filed with nobody, and nobody has approved it.
 export const area = confluenceArea;
 export const supported = confluenceSupported;
-export const commands = [...pageCommands, ...discussionCommands, ...spaceCommands, ...attachmentCommands];
+export const commands = [...pageCommands, ...discussionCommands, ...spaceCommands, ...attachmentCommands, checkDossier];
