@@ -887,6 +887,55 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
 - **The test image is pinned to `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04`**
   in CI and the databases skill, never `2022-latest`.
 
+### bitbucket-cloud
+
+Bitbucket Cloud (#201), built from Atlassian's REST API 2.0 reference with no live
+workspace. `bitbucket` (Data Center) is untouched.
+
+- **Credentials: one per connection.** `apiToken` with `email` (Basic) or
+  `accessToken` (Bearer); both set is `CONFIG_INVALID`, rather than toil picking one.
+  The API token isn't shared with `jira-cloud`/`confluence-cloud`: a Bitbucket API
+  token is created with Bitbucket scopes, so pairing would mostly pair the wrong token.
+- **410 is AUTH, and Bitbucket's error body is read**, through two additive request
+  hook options in core (`authStatuses`, `errorMessage` on `AreaEndpoint` and
+  `RestOptions`). Unset, nothing changes for any other area; the obvious fix of
+  teaching core's common error reader `{ error: { message } }` would have changed
+  Dynatrace's recorded behaviour (#83 item 1). The passthrough gets both too.
+- **`baseUrl` is required and includes `/2.0`** (`https://api.bitbucket.org/2.0`),
+  given as an example, never a default: no hardcoded hosts.
+- **Workspace is `--ws`**, as `splitio` does, because `--workspace` is core's.
+- **CI fallbacks are `BITBUCKET_WORKSPACE` and `BITBUCKET_REPO_SLUG`**, which Pipelines
+  sets on every step. Pipelines sets no API credential, so the tokens have none.
+- **No git remote parsing.** Workspace and repo come from the flag, a dossier or the
+  connection. A parser for `bitbucket.org` remotes would mean a host mapping
+  (`api.bitbucket.org` to `bitbucket.org`) for one convenience; left out as the
+  simpler option. `current-pr` reads only the branch from `.git`.
+- **No `check-dossier`, `create-prs` or `add-reviewer`.** Cloud has no single-reviewer
+  endpoint (`update-pr --reviewers` replaces the list), and the batch and dossier
+  commands weren't in the issue's list. `list-default-reviewers` returns Cloud's plain
+  list of users, since Cloud has no default-reviewer conditions.
+- **`needs-work` is `request-changes`**, Cloud's name, with no alias.
+- **Paging follows the `next` link**, which Atlassian calls opaque, but only when it's
+  on the connection's origin and the same path as the first request; the same check
+  applies to a `--cursor`. Lists read everything by default, as `confluence-cloud`'s
+  do, except `list-commits` and `list-pipelines`, which default to the newest 100.
+- **`diff --pr` and `list-files` build the spec from the PR** (`source..destination`,
+  `topic=true`) instead of following `/pullrequests/{id}/diff`'s redirect, which may
+  drop `path` and `context`. A fork's PR isn't covered; the skill says so.
+- **`get-file` and `list-dir` resolve a branch or tag to a hash** with
+  `commits?include=<ref>&pagelen=1`, because a branch name with `/` can't go in the
+  `src/{commit}` segment. `list-commits` sends the branch as `include` for the same
+  reason.
+- **`update-pr` resends the current title, description and reviewers**, since it's
+  unclear whether Cloud's PUT clears what's left out.
+- **`merge-pr`** maps `--delete-branch` to `close_source_branch`, takes Cloud's
+  strategy names only, sends no `type` field, and answers a 202 with
+  `{ pending, taskStatus }` and a warning instead of polling.
+- **The board status is `unit`**, toil's lowest shipped level, which is what "untested"
+  means here: no live instance.
+- **The fixture serves two items a page** whatever `pagelen` asks, so the parity
+  suite follows `next` links on every list with more than two items.
+
 ## Dossiers (#16)
 
 - **The model and resolution (#152):**
