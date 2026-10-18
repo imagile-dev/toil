@@ -14,7 +14,7 @@ import { readInventory as readCoreInventory, type InventoryPackage } from '../..
 /** The parts of a command's context an inventory read needs. */
 export type InventoryContext = Pick<CommandContext<unknown>, 'files'>;
 
-export const FROM_DESCRIPTION = 'Inventory to check: a JSON file holding a list of { name, version, ecosystem } packages, or toil deps scan output (its envelope or its data) once that command is available. Omitted, it is read from stdin on the CLI';
+export const FROM_DESCRIPTION = 'Inventory to check: a JSON file holding a list of { name, version, ecosystem } packages, or toil deps scan output (its envelope or its data). Omitted, it is read from stdin on the CLI';
 export const ECOSYSTEM_DESCRIPTION = 'Filter to one ecosystem: npm, nuget, maven, all (default: "all")';
 export const DIRECT_ONLY_DESCRIPTION = 'Only scan direct dependencies (default: include transitive)';
 export const INCLUDE_DEV_DESCRIPTION = 'Include dev/test dependencies (default: false)';

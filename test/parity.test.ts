@@ -45,8 +45,11 @@ afterAll(() => tearDown(fixtures));
 type Files = Record<string, string | Uint8Array>;
 // Config, files and routes are read from the fixture when each test runs, after setup.
 const outside: LoadedFixture = { area: '', routes: [], config: {}, files: {}, commands: [], trace: [] };
+// A group of standalone commands that read files or run git (`util`) brings
+// its own fixture, named after the group, and runs in that suite instead.
+const grouped = new Set(fixtures.map((f) => f.area));
 const suites: Array<{ name: string; commands: AnyCommand[]; fixture: LoadedFixture }> = [
-  { name: 'commands outside an area', commands: commands.filter((def) => !def.area && bothDoors(def)), fixture: outside },
+  { name: 'commands outside an area', commands: commands.filter((def) => !def.area && bothDoors(def) && !grouped.has(areaOf(def))), fixture: outside },
   ...fixtures.map((f) => ({ name: `${f.area} area`, commands: f.commands.filter(bothDoors), fixture: f })),
 ];
 
@@ -110,6 +113,8 @@ describe('coverage', () => {
 
 for (const suite of suites) {
   describe(suite.name, () => {
+    // Commands whose examples logged a traced operation, filled in by the example tests below.
+    const logged = new Set<string>();
     it('has unique paths and tool names, a description and at least one example per command', () => {
       expect(new Set(suite.commands.map(commandName)).size).toBe(suite.commands.length);
       expect(new Set(suite.commands.map(toolName)).size).toBe(suite.commands.length);
@@ -168,7 +173,10 @@ for (const suite of suites) {
           expect(viaMcp.isError).toBe(false);
           expect(http.calls, 'same HTTP requests').toEqual(cli.http.calls);
           expect(mcpOps, 'same operations').toEqual(cliOps);
-          if (suite.fixture.trace.length > 0) expect(cliOps.length, `${commandName(def)}: the fixture traces this area, so its examples should log operations`).toBeGreaterThan(0);
+          // A traced fixture may hold commands that log nothing (`util jwt decode` beside `util deps diff`);
+          // the comparison above holds every call either door makes, and the check after the examples
+          // makes sure the trace records something at all.
+          if (cliOps.length > 0) logged.add(commandName(def));
           expect(viaCli.exitCode).toBe(0);
           if (!def.writes) {
             const allowed = def.queryByPost ? new Set([...READ_METHODS, 'POST']) : READ_METHODS;
@@ -284,6 +292,14 @@ for (const suite of suites) {
           expect([...cliOps, ...mcpOps]).toHaveLength(0);
         });
       }
+    }
+
+    // Runs after the example tests above, in file order. An empty trace would
+    // otherwise pass every comparison by comparing nothing with nothing.
+    if (suite.fixture.trace.length > 0) {
+      it('records at least one traced operation from its examples, so the trace is not empty', () => {
+        expect([...logged], `${suite.name}: the fixture traces ${suite.fixture.trace.map((t) => t.label).join(', ')}, but no example logged an operation`).not.toEqual([]);
+      });
     }
   });
 }

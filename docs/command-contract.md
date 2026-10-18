@@ -33,8 +33,8 @@ toil may add commands, flags and output fields.
 |------|----------|-------|
 | Every integration (`jira`, `bitbucket`, `github`, `confluence`, `sonar`, `sde`, `ado`, `jenkins`, `artifactory`, `checkmarx`, `contrast`, `sonatypeiq`, `openshift`, `dynatrace`, `logscale`, `elasticsearch`, `kibana`, `splitio`, `figma`, `alation`, `saucelabs`) | Yes | Exact match |
 | `git` | Yes | Exact match, apart from the divergences in `docs/divergences/git.json`. Repository facts (root, branch, remotes) are read from `.git` in pure JS; `status`, `diff`, `log`, `branch` and `report` run the git on PATH, the one program besides the OS credential store toil may run (#68 decision 1), and return `GIT_NOT_FOUND` without it |
-| `jwt` | Yes | Exact match |
-| `deps` | Yes | Two divergences, below |
+| `jwt` | Yes | Built as `util jwt decode`, a local utility; `jwt decode` stays as its alias. One divergence, in `docs/divergences/jwt.json` |
+| `deps` | Yes | `scan` and `diff` are built as `util deps scan` and `util deps diff`, local utilities, with their old paths as aliases; `frisk`, `outdated` and `license-check` are aliases of the source commands that own them. Divergences in `docs/divergences/deps.json` |
 | `config` | No | Rebuilt around the OS credential store. `config import` migrates the documented global config once. |
 | `skills`, `doctor` | No | Rebuilt for toil's own skill and setup story |
 

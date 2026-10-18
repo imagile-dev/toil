@@ -1,0 +1,12 @@
+{
+  "scope": "jwt",
+  "divergences": [
+    {
+      "allows": [],
+      "old": "jwt decode - failing with \"Invalid JWT: expected 3 dot-separated parts\"",
+      "toil": "- reads the token from stdin on the CLI, dropping one trailing line ending (echo $TOKEN | toil util jwt decode -), so the token stays out of the process list and shell history. Over MCP, - is INVALID_INPUT, since stdin is the protocol there",
+      "why": "A JWT is a credential, and argv is visible to every process on the machine; stdin is how toil takes one.",
+      "principle": "decision"
+    }
+  ]
+}
