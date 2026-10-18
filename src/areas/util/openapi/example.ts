@@ -20,6 +20,8 @@ interface Generator {
   direction: Direction;
   /** Values generated so far, against {@link MAX_NODES}. */
   nodes?: number;
+  /** Characters generated strings hold so far, against {@link MAX_CHARS}. */
+  chars?: number;
   /** Set when the budget ran out. */
   truncated?: boolean;
 }
@@ -28,6 +30,12 @@ interface Generator {
 export const MAX_NODES = 250_000;
 /** The longest string one example holds, and the most repeats a pattern's {n} is read with. A schema can ask for more; the example is then cut short and says so. */
 export const MAX_STRING = 10_000;
+/**
+ * The most characters all of one example's strings hold together. The value and
+ * per-string caps multiply (250,000 values of 10,000 characters is 2.5 billion,
+ * past what V8 can serialize), so the total is capped on its own.
+ */
+export const MAX_CHARS = 1_000_000;
 
 /** Placeholder values for the formats JSON Schema and OpenAPI name; hosts and addresses are placeholders that never resolve. */
 const FORMATS: Record<string, string> = {
@@ -162,7 +170,19 @@ export function sampleOfPattern(source: string): string | undefined {
   }
 }
 
+/** A string for the schema, charged to the example's character budget: once that's spent, strings come out shortened and the example is marked cut short. */
 function stringValue(g: Generator, node: JsonObject): string {
+  let value = rawString(g, node);
+  const left = MAX_CHARS - (g.chars ?? 0);
+  if (value.length > left) {
+    g.truncated = true;
+    value = value.slice(0, Math.max(0, left));
+  }
+  g.chars = (g.chars ?? 0) + value.length;
+  return value;
+}
+
+function rawString(g: Generator, node: JsonObject): string {
   let min = typeof node.minLength === 'number' ? node.minLength : 0;
   if (min > MAX_STRING) {
     g.truncated = true;

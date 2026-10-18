@@ -331,6 +331,8 @@ describe('util openapi example', () => {
     ['a billion items', { type: 'array', minItems: 1_000_000_000, items: { type: 'string' } }],
     ['a 300-million-character string', { type: 'object', required: ['a', 'b'], properties: { a: { type: 'string', minLength: 300_000_000 }, b: { type: 'string', minLength: 300_000_000 } } }],
     ['a pattern that repeats 300 million times', { type: 'string', pattern: '^a{300000000}$' }],
+    ['nested arrays of long strings', { type: 'array', minItems: 1_000, items: { type: 'array', minItems: 1_000, items: { type: 'string', minLength: 10_000 } } }],
+    ['a flat array of unique long strings', { type: 'array', minItems: 1_000_000, uniqueItems: true, items: { type: 'string', minLength: 10_000 } }],
   ])('cuts an example short instead of building %s, and says so', (_name, schema) => {
     const started = performance.now();
     const { example, truncated } = generateExample({}, 'openapi-3.0', schema, 'request');
