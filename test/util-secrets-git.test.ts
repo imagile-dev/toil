@@ -42,4 +42,5 @@ it('with the workspace reached through a symlink, git still places it inside the
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
-});
+  // Several git processes on Windows: under 1 s alone, but 1.4 s to 4.1 s in a full run, against vitest's 5 s default.
+}, 30_000);
