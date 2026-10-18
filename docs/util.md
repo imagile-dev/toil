@@ -137,7 +137,10 @@ that, so ESLint refuses a static import of `js-yaml`, `@cfworker/json-schema`,
 is allowed, since it's erased. Treat a command's own heavy module the same way.
 
 A module loaded through `import()` must not import zod, directly or through
-`kit/input.ts`. esbuild then defers zod's own setup too, the MCP SDK's
-schemas hit it at startup, and the bundle fails on every command, `toil version`
-included; the unit suite doesn't notice, `npm run smoke` does. Keep the reading
-in the command's small module and hand the lazy one bytes or text. `util md` does this (`src/areas/util/md.ts`).
+`kit/input.ts`. esbuild then defers zod's own setup too, the MCP SDK's schemas hit
+it at startup, and the bundle fails on every command, `toil version` included, with
+`Class2 is not a constructor`; the unit suite doesn't notice, `npm run smoke` does.
+Keep the reading in the command's small module and hand the lazy one what it read:
+bytes, text, or the opened `UtilInput`, importing only the reader's types there
+(`util log` does this in `runLog`). A small module may simply be a static import, as
+`util encode` is. `util md` reads its input in `src/areas/util/md.ts` and hands the text on.

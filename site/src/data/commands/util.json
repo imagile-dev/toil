@@ -61,6 +61,35 @@
     ]
   },
   {
+    "name": "report",
+    "tool": "util_report",
+    "description": "Summarise a JUnit, TRX, SARIF, lcov or Cobertura report as one JSON result, checked against its own totals (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--format <format>",
+      "--lowest <n>"
+    ]
+  },
+  {
+    "name": "log",
+    "tool": "util_log",
+    "description": "Triage a large log into grouped errors and warnings, with counts, line numbers, samples and stack traces",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--since <timestamp>",
+      "--level <level>",
+      "--grep <regex>",
+      "--max-groups <n>",
+      "--context <n>"
+    ]
+  },
+  {
     "name": "md",
     "tool": "util_md",
     "description": "Convert Markdown to or from Jira wiki markup, ADF or Confluence storage format, checking the result by converting it back",
