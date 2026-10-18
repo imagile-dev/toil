@@ -13,7 +13,8 @@ import { defineFixture } from '../harness/fixtures.js';
  * organization. The organization URL is a placeholder host with the
  * organization `imagile` as its first path segment, as on dev.azure.com.
  * Paged lists answer by whether the request carries a continuation token or
- * a `$skip` past the first page.
+ * a `$skip` past the first page. An organization that exists only on paper
+ * is, for once, exactly what the paperwork calls for.
  */
 
 export const ORG_URL = 'https://ado-cloud.imagile.dev/imagile';

@@ -13,7 +13,8 @@ import { commands } from './index.js';
  * answer, checked against Microsoft's REST API 7.1 reference
  * (learn.microsoft.com/en-us/rest/api/azure/devops/…?view=azure-devops-rest-7.1),
  * since no live organization has been consulted. The parity suite proves
- * both front doors agree; this proves they agree with the reference.
+ * both front doors agree; this proves they agree with the reference, which
+ * remains the only stakeholder to have attended every meeting.
  */
 
 const BASIC = `Basic ${Buffer.from(':test-pat').toString('base64')}`;

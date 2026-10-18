@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { adoCloudArea } from './area.js';
-import { API_COMMENTS, IN_PROJECT, PATCH, adoc, bodyTokenPages, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, skipPages, type AdoCloudContext } from './client.js';
+import { API_COMMENTS, IN_PROJECT, PATCH, adoc, bodyTokenPages, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, skipPages } from './client.js';
 import { fieldPatch, parseFieldArgs, type JsonPatchOp } from './fields.js';
 import { andWhere, checkFlat, wiqlInstant } from './wiql.js';
 
