@@ -146,13 +146,6 @@ function words(line: string): string[] {
   return [...line.matchAll(/(?:'[^']*'|"[^"]*"|<[^>]*>|[^\s'"<])+/g)].map((m) => m[0]);
 }
 
-/**
- * Commands the area files already describe as coming ("once that command is
- * available"), so their pipelines read right on the day it lands. The test
- * below fails once one is registered, so the entry can't outlive the reason.
- */
-const NOT_YET_BUILT: string[][] = [['deps', 'scan']];
-
 /** A word that stands for a value the reader fills in, past which nothing can be checked. */
 const PLACEHOLDER = /^[<[{…]|^\.\.\.|^\$/;
 
@@ -162,12 +155,12 @@ const PLACEHOLDER = /^[<[{…]|^\.\.\.|^\$/;
  * undefined when the whole line checks out.
  */
 function checkInvocation(args: string[]): string | undefined {
-  if (NOT_YET_BUILT.some((path) => args.slice(0, path.length).join(' ') === path.join(' '))) return undefined;
   let cmd: Command = program;
   for (let i = 0; i < args.length; i++) {
     const word = args[i]!;
     if (PLACEHOLDER.test(word)) return undefined;
-    if (word.startsWith('-')) {
+    // A lone `-` is stdin, an argument rather than a flag.
+    if (word.startsWith('-') && word !== '-') {
       const name = word.split('=')[0]!;
       const flags = flagsOf(cmd);
       if (!flags.has(name)) return `${name} (not a flag of toil ${commandPath(cmd)})`;
@@ -244,10 +237,6 @@ describe('commands and flags the skill names exist', () => {
     expect(checkInvocation(['jira', 'get-isue'])).toMatch(/get-isue/);
     expect(checkInvocation(['setup', 'alias', '--profile', '$PROFILE'])).toBeUndefined();
     expect(checkInvocation(['mcp', '--areas', 'jira'])).toBeUndefined();
-  });
-
-  it('lets through only commands that are still to be built', () => {
-    for (const path of NOT_YET_BUILT) expect(commands.some((d) => d.path.join(' ') === path.join(' ')), `toil ${path.join(' ')} is registered now; take it out of NOT_YET_BUILT`).toBe(false);
   });
 
   for (const file of files) {
