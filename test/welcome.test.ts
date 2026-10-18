@@ -218,13 +218,13 @@ describe('the menu', () => {
   const press = (state: MenuState, d: WelcomeData, ...keys: K[]) => keys.reduce((s, k) => reduce(s, keyOf(k), d), state);
   const type = (state: MenuState, d: WelcomeData, text: string) => press(state, d, ...[...text]);
   const where = (s: MenuState) => top(s).view;
-  // Home with one tested connection: no attention rows, so the modules are 1-4 and Quit is 5.
+  // Home with one tested connection: no attention rows, so the modules are 1-6 and Quit is 7.
   const settled = { ...initialState, session: { health: { jira: { ok: true as const, live: true } } } };
 
   it('moves with arrows or j/k, wrapping at both ends', () => {
     expect(top(press(settled, data(), 'down', 'down')).selected).toBe(2);
-    expect(top(press(settled, data(), 'up')).selected).toBe(4);
-    expect(top(press(settled, data(), 'j', 'k', 'k')).selected).toBe(4);
+    expect(top(press(settled, data(), 'up')).selected).toBe(6);
+    expect(top(press(settled, data(), 'j', 'k', 'k')).selected).toBe(6);
   });
 
   it('opens a screen with enter or its number, and goes back with esc to where it was', () => {
@@ -238,8 +238,8 @@ describe('the menu', () => {
   it('quits with q or the Quit entry; Ctrl+C is left to the loop, which wants it twice', () => {
     expect(press(settled, data(), 'q').quit).toBe(true);
     expect(press(settled, data(), { name: 'c', ctrl: true }).quit).toBeUndefined();
-    expect(press(settled, data(), '5').quit).toBe(true);
-    expect(press(settled, data(), '6').quit).toBeUndefined();
+    expect(press(settled, data(), '7').quit).toBe(true);
+    expect(press(settled, data(), '8').quit).toBeUndefined();
   });
 
   it('puts what needs attention first on home, each row jumping to its fix', () => {
