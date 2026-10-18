@@ -1,6 +1,6 @@
 ---
 area: db
-description: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite, PostgreSQL)
+description: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite, PostgreSQL, MySQL/MariaDB)
 ---
 
 # toil db
@@ -12,11 +12,14 @@ uses, and the commands work the same way on all of them.
 |--------|----------------|--------|
 | SQLite | `sqlite` | `integration`: automated tests run against the real engine (Node's built-in `node:sqlite`) |
 | PostgreSQL | `postgres` | `integration`: automated tests run against PostgreSQL 17 (the official `postgres:17` image) |
-| MySQL/MariaDB, SQL Server, Oracle | | Planned |
+| MySQL / MariaDB | `mysql` | `integration`: automated tests run against MySQL 8.4 and MariaDB 11.8 (the official `mysql:8.4` and `mariadb:11.8` images) |
+| SQL Server, Oracle | | Planned |
 
 **Supported versions:** The oldest SQLite version toil supports hasn't been established. toil
 uses the SQLite built into Node, so the version is whichever your Node ships.
 PostgreSQL is tested against 17; the catalog columns toil reads need 11 or later.
+MySQL is tested against 8.4 and MariaDB against 11.8; the oldest versions toil
+supports haven't been established.
 
 ## SQLite connections
 
@@ -117,11 +120,63 @@ settings name, with only its own password.
 one with only `SELECT` grants. See the known limit under "Reads are read-only at the
 engine".
 
+## MySQL and MariaDB connections
+
+One engine, `mysql`, covers both. toil speaks their wire protocol in plain
+JavaScript (the `mysql2` driver, bundled into toil): no client library, no `mysql`
+CLI, nothing to install.
+
+| Key | Required | Meaning |
+|-----|----------|---------|
+| `engine` | yes | `mysql` |
+| `host` | yes | Server host name or address |
+| `port` | no | TCP port. Default `3306`. |
+| `database` | yes | The database to connect to. It is also the default schema. |
+| `user` | yes | The account |
+| `password` | no | The account's password. A secret: an env var or the OS credential store, never the config file. |
+| `ssl` | no | `true` connects over TLS and verifies the server's certificate and host name against Node's and the OS's certificate stores. Off by default. |
+| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
+
+**Environment variables**, for the default `db` connection:
+
+```bash
+export TOIL_DB_ENGINE=mysql
+export TOIL_DB_HOST=db.imagile.dev
+export TOIL_DB_PORT=3306
+export TOIL_DB_DATABASE=app
+export TOIL_DB_USER=reader
+export TOIL_DB_PASSWORD=<the account's password>
+export TOIL_DB_SSL=true
+```
+
+Or in config, with the password in the OS credential store:
+
+```json
+{
+  "version": 2,
+  "connections": {
+    "app-mysql": { "area": "db", "engine": "mysql", "host": "db.imagile.dev", "database": "app", "user": "reader", "ssl": true }
+  },
+  "defaults": { "db": { "connection": "app-mysql" } }
+}
+```
+
+```bash
+toil connections login app-mysql   # prompts for the password and stores it
+```
+
+toil reads no option file (`my.cnf`, `~/.mylogin.cnf`) and no `MYSQL_*` variable. It
+never sends the password in clear text (an account using `mysql_clear_password`
+fails with `AUTH`), and it never uploads a local file: `LOAD DATA LOCAL` is off.
+
+**Connect with an account that has only `SELECT`** on what the agent should see. See
+the known limits under "Reads are read-only at the engine".
+
 ## Commands
 
 | Command | MCP tool | Returns |
 |---------|----------|---------|
-| `toil db list-schemas` | `db_list_schemas` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`. |
+| `toil db list-schemas` | `db_list_schemas` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`. |
 | `toil db list-tables [--schema <name>]` | `db_list_tables` | `{ schema, tables: [{ name, type }] }`, `type` being `table` or `view` |
 | `toil db describe-table <table> [--schema <name>]` | `db_describe_table` | `{ schema, name, type, columns, primaryKey, indexes, foreignKeys }` |
 | `toil db preview-table <table> [--schema] [--limit] [--cursor]` | `db_preview_table` | A page of rows: `{ columns, rows }` |
@@ -129,8 +184,10 @@ engine".
 | `toil db execute <sql> --allow-write` | `db_execute` | `{ changes }`: rows inserted, updated or deleted |
 
 Every command takes `--connection <name>`. `--schema` defaults to the engine's
-default schema (`main` for SQLite, `public` for PostgreSQL). PostgreSQL names are
+default schema (`main` for SQLite, `public` for PostgreSQL, the connection's database
+for MySQL, where a schema is a database). PostgreSQL names are
 case-sensitive as stored: an unquoted `CREATE TABLE People` is stored as `people`.
+MySQL table names are case-sensitive on most Linux servers.
 
 Rows come back as arrays in the order of `columns`, so a join's two `id` columns both
 survive:
@@ -147,6 +204,14 @@ PostgreSQL names every result column's type (`integer`, `character varying(100)`
 `timestamp with time zone`). `numeric` comes back as a string, so no digits are lost;
 `json` and `jsonb` as JSON; arrays as arrays. Dates, times, timestamps and intervals
 come back as the text the server sent, never shifted into the local time zone.
+
+MySQL names each result column's type from the protocol (`INT`, `BIGINT`, `VARCHAR`,
+`DECIMAL`, `DATETIME`), without lengths; `describe-table` gives the full column type
+(`varchar(100)`). `DECIMAL` comes back as a string; dates, times and timestamps as the
+text the server sent; `JSON` as JSON; `BLOB`, `BINARY` and `BIT` as base64.
+`preview-table` orders a table by its primary key, so pages stay stable. In
+`describe-table`, a foreign key's `NO ACTION` and `RESTRICT` both read as null: InnoDB
+enforces them the same way, and MariaDB reports an unstated rule as `RESTRICT`.
 
 ### Paging and row caps
 
@@ -192,6 +257,25 @@ and an extension such as `dblink` can reach another database. They can't be refu
 by name, so connect with an ordinary role: not a superuser, and not a member of
 `pg_write_server_files`, `pg_execute_server_program` or `pg_signal_backend`.
 
+**MySQL and MariaDB** run every read on a session set to `SET SESSION TRANSACTION READ
+ONLY`, inside `START TRANSACTION READ ONLY`, rolled back, on a connection opened for
+that one call. Both are needed: DDL commits the transaction implicitly, and the session
+setting makes the server refuse it all the same. Any write (`INSERT`, `UPDATE`, DDL,
+`LOAD DATA`) fails with error 1792, which comes back as `WRITE_DISABLED`. `db query`
+sends one statement with multi-statements off; several are `INVALID_INPUT`.
+
+`SELECT ... INTO OUTFILE`, `INTO DUMPFILE` and every `SET` are refused on reads with
+`INVALID_INPUT`, before they reach the server: `INTO OUTFILE` writes a server file even
+in a read-only transaction, for an account with `FILE`, and `SET GLOBAL` or `SET
+PERSIST` changes the server's configuration. To run them, use `db execute`.
+
+Known limits: a stored procedure that commits and switches its own session to read-write
+can still write when a read `CALL`s it, and administrative statements that aren't
+writes (`KILL`, `FLUSH`, `SHUTDOWN`) run for an account allowed to. Neither can be
+refused by name without refusing ordinary reads, so connect with an account that has
+`SELECT` only: no `FILE`, `SUPER`, `SYSTEM_VARIABLES_ADMIN` or `CONNECTION_ADMIN`, and no
+`EXECUTE` on procedures that change data.
+
 ### Writes
 
 `db execute` is the only command that changes data. It needs both:
@@ -204,7 +288,14 @@ Without either it fails with `WRITE_DISABLED` and changes nothing. It runs one o
 statements, separated by semicolons, in one transaction that commits only if every
 statement succeeds. A script that starts or ends a transaction of its own (`BEGIN`,
 `COMMIT`, `END`, `ROLLBACK`, `SAVEPOINT`, `RELEASE`, and for PostgreSQL also `START`,
-`ABORT` and `PREPARE TRANSACTION`) is refused with `INVALID_INPUT` before any of it runs.
+`ABORT` and `PREPARE TRANSACTION`; for MySQL also `START TRANSACTION`, `XA`, `LOCK` and
+`UNLOCK TABLES`, and `SET autocommit`) is refused with `INVALID_INPUT` before any of it runs.
+
+On MySQL and MariaDB, DDL (`CREATE`, `ALTER`, `DROP`, `TRUNCATE`) commits implicitly,
+so a script holding DDL isn't all or nothing: what ran before the DDL is committed
+even if a later statement fails. Keep DDL in a script of its own. A server running
+`read_only`, or an account whose transactions default to read-only, fails writes with
+`DATABASE`, saying so.
 
 On PostgreSQL, statements that can't run inside a transaction (`VACUUM`, `CREATE
 DATABASE`, `CREATE INDEX CONCURRENTLY`) fail with `DATABASE`; run those with your own
@@ -225,6 +316,12 @@ the server to cancel it (`pg_cancel_backend`, from a second short connection), s
 long sort or `pg_sleep` doesn't keep running after toil has answered. `db query`
 reads rows a batch at a time from a server-side portal, so the server stops
 producing rows once the page is full.
+
+MySQL stops the statement on the server too, with `KILL <id>` from a second short
+connection. That ends the whole session, so a cancelled `db execute` rolls back and
+runs none of its remaining statements. Its protocol has no portal, so `db query` reads rows as they stream and,
+once the page is full, drops the connection; the server stops at the next row it
+tries to send.
 
 ## Examples
 
@@ -249,10 +346,10 @@ Over MCP:
 |------|-------|
 | `NOT_CONFIGURED` | No db connection set up |
 | `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`), `path` is relative, or the file isn't a SQLite database |
-| `AUTH` | PostgreSQL refused the login: check `user` and `password` |
-| `NETWORK` | The PostgreSQL server couldn't be reached, didn't answer, or its TLS certificate wasn't trusted |
+| `AUTH` | PostgreSQL or MySQL refused the login: check `user` and `password` |
+| `NETWORK` | The PostgreSQL or MySQL server couldn't be reached, didn't answer, or its TLS certificate wasn't trusted |
 | `NOT_FOUND` | The file, database, schema or table doesn't exist |
 | `WRITE_DISABLED` | A write was refused: by `db query`, or by the write gate on `db execute` |
-| `INVALID_INPUT` | Bad flags, a cursor from another query, several statements in `db query`, or `VACUUM` (SQLite) or `COPY` and `DO` (PostgreSQL) on a read |
+| `INVALID_INPUT` | Bad flags, a cursor from another query, several statements in `db query`, or `VACUUM` (SQLite) `COPY` and `DO` (PostgreSQL), or `INTO OUTFILE` and `SET` (MySQL) on a read |
 | `DATABASE` | The engine refused or failed the statement: bad SQL, a constraint, a lock |
 | `TIMEOUT`, `CANCELLED` | Stopped waiting; for `db execute`, check whether the change was made before retrying |
