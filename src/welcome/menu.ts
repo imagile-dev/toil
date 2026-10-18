@@ -22,6 +22,8 @@ export interface MenuState {
   quit?: boolean;
   /** Commands the loop should run next, then report with `finish`. */
   pending?: Run;
+  /** The game the loop should hand the terminal to next, then report with `played`. */
+  playing?: 'brick';
 }
 
 export interface Key {
@@ -115,6 +117,7 @@ export function apply(state: MenuState, action: Action): MenuState {
   if ('quit' in action) return { ...state, quit: true };
   if ('back' in action) return pop(state);
   if ('run' in action) return { ...state, pending: action.run };
+  if ('play' in action) return { ...state, playing: action.play };
   let stack = state.stack;
   if (action.root) {
     const at = stack.map((f) => f.view).lastIndexOf(action.root);
@@ -132,6 +135,13 @@ export function finish(state: MenuState, results: StepResult[]): MenuState {
   const rest = { ...state };
   delete rest.pending;
   return { ...rest, session: { ...state.session, health }, stack: [...state.stack, { ...frame('result'), ...(run ? { run } : {}), results }] };
+}
+
+/** Records a finished game: its score, and the best this session. */
+export function played(state: MenuState, best: number, last: number): MenuState {
+  const rest = { ...state };
+  delete rest.playing;
+  return { ...rest, session: { ...state.session, brick: { best: Math.max(best, state.session.brick?.best ?? 0), last } } };
 }
 
 type RenderCaps = Pick<TermCaps, 'colorDepth' | 'unicode'> & Partial<Pick<TermCaps, 'columns' | 'rows'>>;

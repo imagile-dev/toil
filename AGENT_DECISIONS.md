@@ -647,6 +647,19 @@ Added as each integration lands.
   header dropped** (core's `follow-without-auth`), so the credential stays on the
   configured site.
 
+### Brick breaker
+
+- **It runs on a fixed 33 ms tick, not wall-clock time** (`src/welcome/brick/play.ts`),
+  so a slow machine plays slower rather than skipping frames, and tests are
+  deterministic.
+- **Ctrl+C pauses the game and counts as the first press of the menu's
+  two-press exit**, so Ctrl+C means the same thing everywhere in the menu.
+- **It plays only on a window of at least 46 by 23 and a console that can redraw
+  in place** (`movesCursor`: a TTY, not the legacy Windows console, not
+  `TERM=dumb`); anything less gets a polite refusal. `NO_COLOR` and
+  `TOIL_NO_ANIMATION` only change how it looks.
+- **A lobby screen comes before the game**, with the keys, the size it needs and
+  the session's scores, which live in memory only.
 ### Databases: PostgreSQL
 
 - **`pg` with `pg-cursor`**, so the row cap stops the server producing rows, not
