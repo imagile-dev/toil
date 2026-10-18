@@ -84,7 +84,7 @@ describe('resolveConnection', async () => {
     const wrong = await resolve(config({ a: { area: 'db', host: 'h', port: 'not a port' } })).catch((e: unknown) => e);
     expect(wrong).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringMatching(/^Connection a \(db\) is missing or has invalid port\. port: .+\.$/) });
     // A custom message that already ends in a full stop gets exactly one.
-    const sentence = defineArea({ name: 'db', connection: z.object({ host: z.string().refine((h) => h !== 'x', 'host must not be x.') }) });
+    const sentence = defineArea({ name: 'db', description: '', connection: z.object({ host: z.string().refine((h) => h !== 'x', 'host must not be x.') }) });
     const ended = await resolveConnection(config({ a: { area: 'db', host: 'x' } }), sentence, undefined, () => {}).catch((e: unknown) => e);
     expect(ended).toMatchObject({ message: 'Connection a (db) is missing or has invalid host. host: host must not be x.' });
     const missing = await resolve(config({ db: { area: 'db' } }, { db: { connection: 'db' } })).catch((e: unknown) => e);
