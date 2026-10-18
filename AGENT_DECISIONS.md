@@ -1942,24 +1942,32 @@ shape; these are the calls made around that.
 
 ### #212 core
 
-- **`./api` is the bundle itself, not a second file of code.** `package.json`
-  `exports["./api"]` points at `dist/toil.js`, which exports the API and runs the CLI
-  only when it is the script Node started (`process.argv[1]` and the module compared
-  after realpath, case-insensitively on Windows; `<script>.js` too). A second entry
-  would have doubled the 8 MB package, and code splitting would have made it several
-  files. Nothing in `src/cli.ts` runs at import, so a host's own SIGINT handling is
-  left alone. Types are `dist/api.d.ts`, built by tsup's `dts` (with
-  `ignoreDeprecations: "6.0"`, since tsup still sets `baseUrl`); they import nothing,
-  and `check:pure` fails if they do, if the export points anywhere else, or if the
-  tarball holds anything beyond the six allowed files.
-- **No release-please change is needed for `./api`** (checked, as the research note on
-  #212 said without verifying). `release-please-config.json`'s `extra-files` lists
-  only `dist/toil.js`, for the version banner, and the new files carry no version.
-  The release PR's rebuild step commits only `dist/toil.js`; `dist/api.d.ts` is
-  ignored by `.gitignore` (`dist/*`, `!dist/toil.js`) like the metafiles, so a clone
-  has the code but not the declarations, which only an npm install needs. The
-  publish job runs `npm run build` at the tag before `npm publish`, so the tarball
-  gets a fresh `dist/api.d.ts`, and its `check:pure` and `smoke` steps check it.
+- **One bundle of code, two thin entries** (the coordinator's round-1 decision on
+  #219, replacing the first version's "run the CLI when `argv[1]` is this file",
+  which a host bundling the API into its own output would have tripped). The code is
+  `dist/toil-lib.js`, built from `src/cli.ts`, which exports the API and `main()` and
+  runs nothing when loaded. `dist/toil.js` (the bin, and what a clone runs) is two
+  lines that import it and call `main()`; `dist/api.js` (`exports["./api"]`)
+  re-exports the API and nothing else. Both entries are defined in
+  `scripts/entries.mjs`, written by tsup's `onSuccess`, and checked byte for byte by
+  `check:pure`, which also fails on a second emitted bundle, so it's still one bundle
+  of code in #212's sense. `test/api.test.ts` holds `API_EXPORTS` to `src/api.ts`, and
+  smoke runs `node dist/toil-lib.js version` to prove it prints nothing. Types are
+  `dist/api.d.ts`, built by tsup's `dts` (with `ignoreDeprecations: "6.0"`, since
+  tsup still sets `baseUrl`); they import nothing. Cost, all paid here:
+  `dist/toil-lib.js` is committed beside `dist/toil.js` (`.gitignore`), release-please's
+  `extra-files` moves to it (the version banner lives there), the release PR's rebuild
+  step commits both, `check:dist` checks both, smoke's clone run copies both, and
+  `setup alias` points at the `toil.js` beside the bundle. The committed `dist/` isn't
+  touched by this PR: the clone keeps running the last release's single file until the
+  release PR rebuilds both. A host may bundle the API: it runs nothing on import.
+- **release-please needs one change: `extra-files` now names `dist/toil-lib.js`**,
+  where the version banner moved. Nothing else: the research note's "no change" held
+  for the export itself. `dist/api.js` and `dist/api.d.ts` carry no version and stay
+  ignored build output, like the metafiles, so a clone has the CLI but not the API
+  entry, which only an npm install needs. The publish job runs `npm run build` at
+  the tag before `npm publish`, so the tarball gets fresh thin entries and
+  declarations, and its `check:pure` and `smoke` steps check them.
 - **`execute(command, input, options)` takes the command's name and its MCP
   fields**, the same strict input MCP sends, and always returns an envelope: an
   unknown command, a person-only command or a bad caller label is `INVALID_INPUT`,

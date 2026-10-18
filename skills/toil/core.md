@@ -189,7 +189,8 @@ whose line couldn't be written still succeeds, with an `AUDIT_WRITE_FAILED` warn
 
 A Node program can call toil in-process instead of running `toil` and parsing stdout.
 `@imagile-dev/toil/api` is a supported entry point of the same package, with its own
-types, and it adds no dependency: it is the same single file as the CLI.
+types, and it adds no dependency: it is the same bundle as the CLI. Loading it runs nothing, even
+when your own build bundles it in: only toil's bin starts the CLI.
 
 ```js
 import { contractVersion, execute, registry, version } from '@imagile-dev/toil/api';

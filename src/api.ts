@@ -9,8 +9,9 @@
  * This file is the whole supported surface. What it exports, and the types
  * those exports name, follow the command contract's rules (additive only,
  * versioned by `contractVersion`); anything reached around it is internal and
- * may change in any release. It ships inside the one bundle, dist/toil.js, so
- * importing it adds no dependency; dist/api.d.ts carries its types.
+ * may change in any release. It ships inside the one bundle, dist/toil-lib.js,
+ * reached through the thin dist/api.js, so importing it adds no dependency and
+ * runs nothing; dist/api.d.ts carries its types.
  *
  * A third front door was approved on the understanding that it is the same
  * door with a different sign on it, which is the only kind the facilities

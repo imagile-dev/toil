@@ -13,6 +13,7 @@ import { cliProgress, progressMessage, type ProgressEvent } from '../src/core/pr
 import { restRequest } from '../src/core/rest.js';
 import { allowWriteField, execute, runCommand } from '../src/core/run.js';
 import { demoArea, getThing, renameThing } from './fixtures/demo-commands.js';
+import { API_EXPORTS } from '../scripts/entries.mjs';
 import { testContext } from './harness/context.js';
 import { connectMcp, type McpSession } from './harness/mcp.js';
 
@@ -218,6 +219,14 @@ describe('@imagile-dev/toil/api (src/api.ts)', () => {
     vi.stubEnv('USERPROFILE', home);
     return home;
   };
+
+  it('exports exactly what dist/api.js re-exports from the bundle (scripts/entries.mjs)', async () => {
+    const api = await import('../src/api.js');
+    expect(Object.keys(api).sort()).toEqual([...API_EXPORTS].sort());
+    // The bundle's entry exports the API plus main(), which only the bin calls; importing it runs nothing.
+    const lib = await import('../src/cli.js');
+    expect(Object.keys(lib).sort()).toEqual([...API_EXPORTS, 'main'].sort());
+  });
 
   it('exports the version, the contract version and a registry of what execute() serves', () => {
     expect(version).toBe('0.0.0-test');

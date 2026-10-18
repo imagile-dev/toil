@@ -74,6 +74,11 @@ try {
   if (reply?.structuredContent?.ok !== true) fail(`MCP tools/call version returned ${JSON.stringify(reply)}`);
   if (!stoppedOnSigint) fail('toil mcp was still running 3s after SIGINT; the first Ctrl+C must stop it.');
 
+  // Loading the bundle runs nothing, even as the script Node started: a host that
+  // bundles the API into its own file can't start toil's CLI by accident.
+  const lib = spawnSync(process.execPath, [join(prefix, 'node_modules', '@imagile-dev', 'toil', 'dist', 'toil-lib.js'), 'version'], { encoding: 'utf8', input: '', timeout: 15000, env });
+  if (lib.status !== 0 || lib.stdout !== '' || lib.stderr !== '') fail(`node dist/toil-lib.js version ran something: exit ${lib.status}, ${JSON.stringify(lib.stdout + lib.stderr).slice(0, 300)}`);
+
   // `@imagile-dev/toil/api` from the install, the way a program depending on the package uses it.
   const apiStep = await apiConsumer(prefix, bin);
 
@@ -230,7 +235,8 @@ async function fromClone(installedVersion) {
   if (cloned.status !== 0) throw new Error(`git clone of this checkout failed: ${cloned.stderr || cloned.error?.message}`);
   const bundle = join(clone, 'dist', 'toil.js');
   if (!existsSync(bundle)) throw new Error('the clone has no committed dist/toil.js, so a clone could not run toil.');
-  copyFileSync(join(process.cwd(), 'dist', 'toil.js'), bundle);
+  // The bin and the bundle it runs, both committed (only the release PR writes them there).
+  for (const file of ['toil.js', 'toil-lib.js']) copyFileSync(join(process.cwd(), 'dist', file), join(clone, 'dist', file));
   if (existsSync(join(clone, 'node_modules'))) throw new Error('the clone has a node_modules folder, so it would not prove a run with no npm install.');
 
   const run = (args, options = {}) => spawnSync(process.execPath, [bundle, ...args], { encoding: 'utf8', input: '', timeout: 15000, cwd: clone, env, ...options });

@@ -24,11 +24,13 @@
   "exports": {
     "./api": {
       "types": "./dist/api.d.ts",
-      "default": "./dist/toil.js"
+      "default": "./dist/api.js"
     }
   },
   "files": [
     "dist/toil.js",
+    "dist/toil-lib.js",
+    "dist/api.js",
     "dist/api.d.ts",
     "README.md",
     "LICENSE",

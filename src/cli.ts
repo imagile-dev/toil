@@ -1,6 +1,4 @@
-import { realpathSync } from 'node:fs';
 import { homedir, userInfo } from 'node:os';
-import { fileURLToPath } from 'node:url';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { areaOf, servedOverMcp, type AnyCommand } from './core/command.js';
 import { CONTRACT_VERSION, type Envelope } from './core/envelope.js';
@@ -20,34 +18,16 @@ import { runWelcome, wantsWelcome } from './welcome/index.js';
 import { saveFor } from './welcome/rogue/save.js';
 
 /**
- * The bundle is both the `toil` bin and `@imagile-dev/toil/api` (src/api.ts):
- * one file, so the published package stays one file. Imported by a program, it
- * exports the API and does nothing else, so nothing below may run at import:
- * not the CLI, not a SIGINT listener (which would switch off the host's own
- * exit on Ctrl+C), not a prompter. It runs as the CLI only when it is the
- * script Node was started with.
+ * The one bundle of code, dist/toil-lib.js. Loading it runs nothing: no CLI,
+ * no SIGINT listener (which would switch off a host's own exit on Ctrl+C), no
+ * prompter, however it's loaded or re-bundled. Two thin entries sit beside it,
+ * written by tsup.config.ts: dist/toil.js, the bin, which calls `main()`, and
+ * dist/api.js, `@imagile-dev/toil/api`, which re-exports the API and nothing else.
  */
 export * from './api.js';
 
-/** Whether this file is the script Node started (`node dist/toil.js`, or the bin npm links to it), compared after realpath. */
-function startedAsCli(): boolean {
-  const script = process.argv[1];
-  if (!script) return false;
-  const real = (path: string) => {
-    try {
-      const resolved = realpathSync.native(path);
-      return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
-    } catch {
-      return undefined;
-    }
-  };
-  const self = real(fileURLToPath(import.meta.url));
-  return self !== undefined && (real(script) === self || real(`${script}.js`) === self);
-}
-
-if (startedAsCli()) await main();
-
-async function main(): Promise<void> {
+/** Runs toil as the CLI on this process: argv, stdio, Ctrl+C, the exit code. Only dist/toil.js calls it. */
+export async function main(): Promise<void> {
   const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context) }));
 
   // Ctrl-C cancels the command in flight; execute() turns it into a CANCELLED

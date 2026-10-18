@@ -14,7 +14,7 @@
       "extra-files": [
         {
           "type": "generic",
-          "path": "dist/toil.js"
+          "path": "dist/toil-lib.js"
         }
       ]
     }

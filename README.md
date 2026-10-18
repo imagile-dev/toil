@@ -29,8 +29,9 @@ from a clone (below). Setup, connections and every command are on the
 
 ## Running from a clone
 
-`dist/toil.js` is committed, and it is the last released toil, so a clone runs as it
-is, with no `npm install`. It imports only Node's built-ins.
+`dist/toil.js` and the bundle it runs, `dist/toil-lib.js`, are committed, and they
+are the last released toil, so a clone runs as it is, with no `npm install`. They
+import only Node's built-ins.
 
 ```bash
 git clone https://github.com/imagile-dev/toil.git

@@ -12,6 +12,7 @@
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
+import { ENTRIES, LIB } from './entries.mjs';
 import { SPAWNERS as ALLOWED } from './spawners.mjs';
 
 const problems = [];
@@ -19,7 +20,7 @@ const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
 for (const field of ['dependencies', 'optionalDependencies', 'peerDependencies', 'bundleDependencies', 'bundledDependencies']) {
   if (pkg[field] && Object.keys(pkg[field]).length > 0) {
-    problems.push(`package.json has ${field}; everything must be bundled into dist/toil.js (move them to devDependencies).`);
+    problems.push(`package.json has ${field}; everything must be bundled into dist/toil-lib.js (move them to devDependencies).`);
   }
 }
 for (const script of ['preinstall', 'install', 'postinstall', 'prepare', 'prepack', 'postpack']) {
@@ -28,8 +29,10 @@ for (const script of ['preinstall', 'install', 'postinstall', 'prepare', 'prepac
 
 // esbuild's metafile lists the bundle's real imports; text in strings can't fool it.
 const meta = JSON.parse(readFileSync('dist/metafile-esm.json', 'utf8'));
-const output = meta.outputs[pkg.bin.toil];
-if (!output) problems.push(`dist/metafile-esm.json has no entry for ${pkg.bin.toil}; run npm run build first.`);
+// The one bundle of code; the bin and `./api` are thin entries beside it, checked below.
+const output = meta.outputs[LIB];
+if (!output) problems.push(`dist/metafile-esm.json has no entry for ${LIB}; run npm run build first.`);
+if (Object.keys(meta.outputs).some((out) => out.endsWith('.js') && out !== LIB)) problems.push(`the build emitted more than one bundle (${Object.keys(meta.outputs).join(', ')}); toil is one bundle of code (${LIB}).`);
 const builtins = new Set(builtinModules.flatMap((m) => [m, `node:${m}`]));
 const specifiers = new Set((output?.imports ?? []).filter((i) => i.external).map((i) => i.path));
 for (const spec of specifiers) {
@@ -75,24 +78,36 @@ if (workerMeta) {
     }
   }
 }
-// `@imagile-dev/toil/api` is the bundle itself, so the package stays one file of code, and its types are declarations only.
+// The thin entries (scripts/entries.mjs) must be exactly what the build writes: an
+// import of the bundle and nothing else, so no code ships outside the files checked above.
+for (const [file, content] of Object.entries(ENTRIES)) {
+  let actual;
+  try {
+    actual = readFileSync(file, 'utf8');
+  } catch {
+    actual = undefined;
+  }
+  if (actual !== content) problems.push(`${file} isn't the thin entry scripts/entries.mjs defines; run npm run build.`);
+}
+if (pkg.bin.toil !== 'dist/toil.js') problems.push(`package.json's bin must be dist/toil.js, the thin entry, not ${pkg.bin.toil}.`);
+// `@imagile-dev/toil/api` is a thin entry re-exporting the bundle, and its types are declarations only.
 const api = pkg.exports?.['./api'];
-if (api?.default !== `./${pkg.bin.toil}`) problems.push(`package.json exports "./api" must be ./${pkg.bin.toil}, the one bundle, not ${JSON.stringify(api?.default)}.`);
+if (api?.default !== './dist/api.js') problems.push(`package.json exports "./api" must be ./dist/api.js, the thin entry, not ${JSON.stringify(api?.default)}.`);
 if (api?.types !== './dist/api.d.ts') problems.push(`package.json exports "./api" must give its types as ./dist/api.d.ts, not ${JSON.stringify(api?.types)}.`);
 try {
   if (/^\s*(import|export)\s[^;]*\bfrom\s|\bimport\(|\brequire\(/m.test(readFileSync('dist/api.d.ts', 'utf8'))) problems.push('dist/api.d.ts imports another module; its types must stand alone, since the package has no dependencies to supply them.');
 } catch {
   problems.push('dist/api.d.ts is missing; run npm run build.');
 }
-const bundle = readFileSync(pkg.bin.toil, 'utf8');
+const bundle = readFileSync(LIB, 'utf8');
 if (bundle.includes('process.dlopen')) problems.push('bundle loads a native addon (process.dlopen).');
 for (const input of Object.keys(output?.inputs ?? {})) {
   if (input.endsWith('.node')) problems.push(`bundle includes native addon ${input}.`);
 }
 
 const [pack] = JSON.parse(execSync('npm pack --dry-run --json --ignore-scripts', { encoding: 'utf8' }));
-// dist/api.d.ts is the types for `@imagile-dev/toil/api`; its code is the bundle itself (src/cli.ts).
-const allowed = new Set(['package.json', 'README.md', 'LICENSE', 'NOTICE', pkg.bin.toil, 'dist/api.d.ts']);
+// The bundle, its two thin entries, and the API's declarations.
+const allowed = new Set(['package.json', 'README.md', 'LICENSE', 'NOTICE', LIB, ...Object.keys(ENTRIES), 'dist/api.d.ts']);
 for (const file of pack.files.map((f) => f.path.replace(/\\/g, '/'))) {
   if (!allowed.has(file)) problems.push(`tarball contains ${file}; only ${[...allowed].join(', ')} may ship.`);
 }

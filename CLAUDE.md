@@ -120,8 +120,10 @@ Node, and toil has to work there. This is the most important rule in the repo.
   to do this; it collects credentials only in an explicit setup command on a
   terminal (`toil connections login`, #51), which hands them straight to the OS
   store. The one other program toil may run is git, below.
-- The published package is one bundled JS file plus `package.json` (and
-  `dist/api.d.ts`, declarations only, for `@imagile-dev/toil/api`), with no runtime
+- The published package is one bundle of code, `dist/toil-lib.js`, which runs nothing
+  when loaded, plus two thin entries beside it (`scripts/entries.mjs`): the bin
+  `dist/toil.js`, which calls its `main()`, and `dist/api.js`, which re-exports the
+  API; `dist/api.d.ts`, declarations only; and `package.json`. No runtime
   `dependencies`. It installs with `npm install --ignore-scripts` and runs offline.
 - CI enforces it on what ships, not on the dev toolchain:
   - `npm run check:pure` fails if `package.json` has runtime `dependencies` or any
@@ -129,9 +131,10 @@ Node, and toil has to work there. This is the most important rule in the repo.
     That's read from esbuild's metafile, never by scanning text. It also fails on
     a native addon, on `child_process` imported by any file but the reviewed
     spawners in `scripts/spawners.mjs` (stubbed or not), or if the
-    tarball holds anything beyond `dist/toil.js`, `dist/api.d.ts`, `package.json`,
-    `README.md`, `LICENSE` and `NOTICE`, or if `exports["./api"]` points anywhere
-    but the bundle, or the declarations import another module.
+    tarball holds anything beyond those files, `README.md`, `LICENSE` and `NOTICE`,
+    if the build emits a second bundle, if a thin entry isn't exactly what
+    `scripts/entries.mjs` defines, if `bin` or `exports["./api"]` point anywhere
+    else, or if the declarations import another module.
   - `npm run smoke` installs the packed tarball with `--ignore-scripts` into a
     throwaway prefix and drives the installed bin through the CLI and MCP.
 - Bundled dependencies can drag in a spawning API (commander imports `child_process`
@@ -229,13 +232,14 @@ GitHub Actions; its build tooling is out of scope.
   imports `src/areas.generated.ts`, which `scripts/gen-areas.mjs` writes before
   typecheck, build and tests and git ignores. **Areas register by existing:** adding
   one never edits a shared list, so parallel area PRs don't conflict.
-- `src/program.ts` — builds the CLI from the registry; `src/cli.ts` is the bundle
-  entry that wires it to the real process, and runs only when started as the script:
-  imported, it exports the API and does nothing else
+- `src/program.ts` — builds the CLI from the registry; `src/cli.ts` is the bundle's
+  entry: it exports the API and `main()`, which wires the CLI to the real process,
+  and runs nothing when loaded. Only the bin, `dist/toil.js`, calls `main()`
 - `src/api.ts` — `@imagile-dev/toil/api`, the third front door: `execute()` for a
   program in-process, the registry, the envelope types, `version` and
-  `contractVersion`. It's the same bundle (`package.json` `exports` points at
-  `dist/toil.js`), with its types in `dist/api.d.ts`; what it exports follows the
+  `contractVersion`. It's the same bundle (`package.json` `exports` points at the
+  thin `dist/api.js`, which re-exports `dist/toil-lib.js`), with its types in
+  `dist/api.d.ts`; what it exports follows the
   command contract (`skills/toil/core.md`, **Using toil from a program**)
 - `src/mcp/` — the MCP server (`toil mcp`, stdio); tools generated from the registry,
   and the read-only resources (`resources.ts`): connections, dossiers and each area's
@@ -268,8 +272,9 @@ GitHub Actions; its build tooling is out of scope.
   rewrites that copy, and only that copy, when a command changes the config file or
   another toil version runs. `.claude-plugin/` lists it as a Claude Code plugin
   marketplace, so the repository installs as one
-- `dist/toil.js` — the last released bundle, committed so a clone runs with no
-  `npm install`; only the release PR rebuilds it (Build & Test)
+- `dist/toil.js` and `dist/toil-lib.js` — the last released bin and the bundle it
+  runs, committed so a clone runs with no `npm install`; only the release PR
+  rebuilds them (Build & Test)
 - `.claude/skills/` — repo-internal skills only. They're for working in this
   repository; they're never published or installed by toil (that's `skills/toil/`)
 - `docs/` — plans and decisions; `docs/divergences/<area>.json` holds each area's
@@ -449,7 +454,7 @@ that carry tokens.
 npm run typecheck   # tsc --noEmit
 npm run lint        # ESLint
 npm test            # Vitest
-npm run build       # tsup → dist/toil.js, single bundle
+npm run build       # tsup → dist/toil-lib.js, one bundle, plus the thin dist/toil.js and dist/api.js
 npm run check:pure  # the No Executables gate (after build)
 npm run smoke       # install the tarball with scripts off; drive CLI and MCP; run a clone (after build)
 ```
@@ -462,12 +467,13 @@ optional: the review job (approval is required separately, and it skips the rele
 PR), the skill-install job (it downloads Claude Code to install the skill on each OS),
 and path-filtered jobs, which would block PRs they never run on.
 
-**`dist/toil.js` is committed and is the last released toil** (the maintainer's
-decision, 2026-10-17), so a clone runs it with no `npm install`. A PR never changes
-it: the `dist/` guard in CI (`node scripts/check-dist.mjs --untouched`) fails any PR
+**`dist/toil.js` and the bundle it runs, `dist/toil-lib.js`, are committed and are
+the last released toil** (the maintainer's decision, 2026-10-17), so a clone runs
+`node dist/toil.js` with no `npm install`. A PR never changes them: the `dist/` guard in CI (`node scripts/check-dist.mjs --untouched`) fails any PR
 that touches `dist/` unless it is release-please's own (`release-please--…`). The
-release workflow rebuilds the bundle on the release PR and commits it there, and
-`npm run check:dist` verifies it on that PR on every OS.
+release workflow rebuilds both on the release PR and commits them there, and
+`npm run check:dist` verifies them on that PR on every OS. The version is in
+`dist/toil-lib.js`, which release-please's `extra-files` names.
 
 ## Output Contract
 

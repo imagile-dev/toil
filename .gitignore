@@ -1,9 +1,11 @@
 # Node build output
 node_modules/
-# dist/toil.js is committed, the last released toil, so a clone runs with no npm
-# install; only the release PR rebuilds it. The rest of dist/ is build output.
+# dist/toil.js and the bundle it runs, dist/toil-lib.js, are committed, the last
+# released toil, so a clone runs with no npm install; only the release PR rebuilds
+# them. The rest of dist/ (dist/api.js, dist/api.d.ts, the metafiles) is build output.
 dist/*
 !dist/toil.js
+!dist/toil-lib.js
 coverage/
 *.tgz
 *.tsbuildinfo
