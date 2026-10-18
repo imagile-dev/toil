@@ -1,0 +1,77 @@
+// dist/toil.js is committed, so a fresh clone runs `node dist/toil.js` with no
+// npm install, and it is the last released toil: only the release PR rebuilds
+// it (.github/workflows/release.yml). Two checks keep it that way:
+//
+//   node scripts/check-dist.mjs              after `npm run build` on the release
+//                                            PR: the committed bundle is what its
+//                                            source builds.
+//   node scripts/check-dist.mjs --untouched  on every other PR: nothing under
+//                                            dist/ changed against the base.
+//
+// A bundle edited by hand is a second, unreviewed release channel, and one
+// release channel already needs a change ticket.
+import { spawnSync } from 'node:child_process';
+
+const FILE = 'dist/toil.js';
+// release-please's own branch for this repository's one package.
+const RELEASE_BRANCH = 'release-please--';
+
+// No shell: every argument is fixed or comes from CI's env as one argv entry.
+const git = (args) => {
+  const run = spawnSync('git', args, { encoding: 'utf8' });
+  if (run.error) {
+    console.error(`check:dist: git didn't run (${run.error.message}). It needs git on PATH.`);
+    process.exit(1);
+  }
+  return run;
+};
+
+if (process.argv.includes('--untouched')) {
+  const base = process.env.BASE_SHA;
+  const branch = process.env.HEAD_REF ?? '';
+  if (!base) {
+    console.error('check:dist --untouched: set BASE_SHA to the pull request base commit.');
+    process.exit(1);
+  }
+  if (branch.startsWith(RELEASE_BRANCH)) {
+    console.log(`check:dist --untouched: ${branch} is the release PR, which rebuilds ${FILE}; skipped.`);
+    process.exit(0);
+  }
+  // The PR that first commits the bundle has nothing on its base to protect.
+  if (git(['cat-file', '-e', `${base}:${FILE}`]).status !== 0) {
+    console.log(`check:dist --untouched: the base has no ${FILE} yet, so this PR may add it.`);
+    process.exit(0);
+  }
+  const changed = git(['diff', '--name-only', `${base}...HEAD`, '--', 'dist/']);
+  if (changed.status !== 0) {
+    console.error(`check:dist --untouched: git diff failed: ${changed.stderr.trim()}`);
+    process.exit(1);
+  }
+  const files = changed.stdout.split('\n').filter(Boolean);
+  if (files.length) {
+    console.error(
+      `check:dist --untouched: this PR changes ${files.join(', ')}. Only the release PR rebuilds the committed bundle;` +
+        ` restore it with git checkout ${base} -- dist/ and commit that.`,
+    );
+    process.exit(1);
+  }
+  console.log('check:dist --untouched ok: nothing under dist/ changed.');
+  process.exit(0);
+}
+
+// git compares the working tree with the index, so in CI (a clean checkout of
+// the release PR) it compares the fresh build with the commit.
+if (git(['ls-files', '--error-unmatch', '--', FILE]).status !== 0) {
+  console.error(`check:dist: ${FILE} isn't tracked by git. The release PR commits it.`);
+  process.exit(1);
+}
+const diff = git(['diff', '--quiet', '--', FILE]);
+if (diff.status === 0) {
+  console.log(`check:dist ok: ${FILE} matches what its source builds.`);
+} else if (diff.status === 1) {
+  console.error(`check:dist: ${FILE} doesn't match what its source builds. The release workflow rebuilds it on the release PR; run it again, or run npm run build there and commit ${FILE}.`);
+  process.exit(1);
+} else {
+  console.error(`check:dist: git diff failed: ${diff.stderr.trim()}`);
+  process.exit(1);
+}
