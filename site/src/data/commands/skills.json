@@ -1,0 +1,107 @@
+[
+  {
+    "name": "marketplace sync",
+    "tool": "skills_marketplace_sync",
+    "description": "Clone or pull a marketplace and install its plugins into an agent skills folder: one plugin, \"all\", or with none the ones already installed",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "[plugin]",
+      "--agent <agent>",
+      "--claude",
+      "--all-agents",
+      "--scope <scope>",
+      "--installed-only",
+      "--marketplace <name>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "marketplace enable",
+    "tool": "skills_marketplace_enable",
+    "description": "Switch a disabled plugin's skills back on",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<plugin>",
+      "--agent <agent>",
+      "--claude",
+      "--scope <scope>",
+      "--marketplace <name>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "marketplace disable",
+    "tool": "skills_marketplace_disable",
+    "description": "Switch a plugin's skills off without deleting them: they move to a hidden stash (switch back on with marketplace enable)",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<plugin>",
+      "--agent <agent>",
+      "--claude",
+      "--scope <scope>",
+      "--marketplace <name>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "marketplace add",
+    "tool": null,
+    "description": "Register a marketplace and clone it, with writes off; asks for a token on the terminal (setup is an alias). Install from it with marketplace sync once writes are on",
+    "writes": true,
+    "connection": false,
+    "flags": [
+      "<url>",
+      "[localPath]",
+      "--name <name>",
+      "--branch <branch>",
+      "--username <username>",
+      "--provider <provider>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "marketplace list",
+    "tool": "skills_marketplace_list",
+    "description": "List all registered marketplaces",
+    "writes": false,
+    "connection": false,
+    "flags": []
+  },
+  {
+    "name": "marketplace plugins",
+    "tool": "skills_marketplace_plugins",
+    "description": "List the plugins available in a registered marketplace",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>"
+    ]
+  },
+  {
+    "name": "marketplace remove",
+    "tool": null,
+    "description": "Remove a registered marketplace from the config, and its token from the OS credential store (the local clone and installed skills are kept)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>"
+    ]
+  },
+  {
+    "name": "status",
+    "tool": "skills_status",
+    "description": "Show every installed skill with its plugin, marketplace, and upstream remote, and whether it is on",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--marketplace <name>",
+      "--plugin <name>",
+      "--source <source>",
+      "--agent <agent>",
+      "--scope <scope>"
+    ]
+  }
+]
