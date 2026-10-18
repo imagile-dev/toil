@@ -146,7 +146,7 @@ export const sqliteProvider: DbProvider = {
   engine: 'sqlite',
   label: 'SQLite',
   requires: ['path'],
-  defaultSchema: 'main',
+  defaultSchema: () => 'main',
   verification: 'integration',
 
   async listSchemas(conn, call) {
