@@ -107,12 +107,26 @@ describe('redaction', () => {
       connectionString: 'Server=h;User Id=u;Password=[redacted];',
       command: 'curl -u admin:[redacted] https://jira.imagile.dev/',
       header: 'Authorization: [redacted]',
-      note: 'token=[redacted] and secret: [redacted] and api_key=[redacted]',
+      note: 'token=[redacted] and secret: "[redacted]" and api_key=[redacted]',
       author: 'alice',
       private: true,
       jql: 'key = PROJ-1 AND author = alice',
     });
     expect(JSON.stringify(out)).not.toMatch(/hunter2|shortpat|JSESSIONID|Bearer abc/);
+  });
+
+  it('catches a quoted name, as in JSON pasted into a text field, and every form of curl --user', () => {
+    const cases: Array<[string, string]> = [
+      ['{"password":"hunter2"}', '{"password":"[redacted]"}'],
+      ["{'token': 'abc'}", "{'token': '[redacted]'}"],
+      ['{"user": "ada", "apiToken": "abc", "author": "alice"}', '{"user": "ada", "apiToken": "[redacted]", "author": "alice"}'],
+      ['curl --user=admin:hunter2 x', 'curl --user=admin:[redacted] x'],
+      ['curl -uadmin:hunter2', 'curl -uadmin:[redacted]'],
+      ['curl -u admin:hunter2 x', 'curl -u admin:[redacted] x'],
+      ['Password=hunter2; (conn string)', 'Password=[redacted]; (conn string)'],
+      ['Authorization: Bearer abc', 'Authorization: [redacted]'],
+    ];
+    for (const [text, redacted] of cases) expect(redactText(text), text).toBe(redacted);
   });
 
   it('cuts every request URL, and a line too long for one write is trimmed hard and marked truncated', () => {

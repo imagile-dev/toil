@@ -81,6 +81,13 @@ one they got.
   SQL Server sends a TDS
   attention on the same connection (tedious's `cancel()`), and also once a page is
   full, so the server stops producing rows nobody reads.
+- **SQL Server's Windows authentication** (`auth: "windows"`) gets its SSPI tokens
+  from `src/os/windows-sspi.ts`, a Windows PowerShell helper (CLAUDE.md, No
+  Executables), and `src/core/db/sqlserver/windows-login.ts` wraps two of tedious's
+  private login methods so its NTLM path carries them, and its token parser so a
+  short Negotiate token reaches the helper unparsed; a test fails if a tedious
+  upgrade renames any of them. Its tests that need Windows say "windows only" in their
+  names. The live handshake against a domain is `untested`.
 
 ## Testing
 

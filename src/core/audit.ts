@@ -115,7 +115,11 @@ export function redactText(text: string): string {
   let out = text.replace(URL_IN_TEXT, (url) => redactUrl(url));
   for (const shape of TOKEN_SHAPES) out = out.replace(shape, '[redacted]');
   out = out.replace(AUTH_VALUE, (_, scheme: string) => `${scheme} [redacted]`);
-  out = out.replace(PAIR, (whole, name: string, sep: string) => (secretField(name) ? `${name}${sep}[redacted]` : whole));
+  out = out.replace(PAIR, (whole, quote: string, name: string, sep: string, value: string) => {
+    if (!secretField(name) || /^["']?\[redacted/.test(value)) return whole;
+    const q = value[0] === '"' || value[0] === "'" ? value[0] : '';
+    return `${quote}${name}${quote}${sep}${q}[redacted]${q}`;
+  });
   out = out.replace(USER_FLAG, (_, flag: string, user: string) => `${flag}${user}:[redacted]`);
   return out.replace(LONG_RUN, (run) => {
     if (!/[A-Za-z]/.test(run) || !/\d/.test(run)) return run;
@@ -148,10 +152,14 @@ function secretField(name: string): boolean {
 /** A name's value is replaced only when it could hold a secret: text, or something holding text. A flag such as `private: true` stays. */
 const hidesValue = (name: string, value: unknown) => secretField(name) && (typeof value === 'string' ? value !== '' : value !== null && typeof value === 'object');
 
-/** `password=hunter2`, `Password: "x"`, `Authorization: Bearer abc` inside text: the name stays, the value goes. */
-const PAIR = /([A-Za-z_][\w.-]*)(\s*[=:]\s*)((?:(?:Bearer|Basic|Token)\s+)?(?:"[^"]*"|'[^']*'|[^\s;&,"']+))/g;
-/** `curl -u admin:hunter2`, `--user admin:hunter2`. */
-const USER_FLAG = /((?:^|\s)(?:-u|--user)\s+)([^\s:]+):\S+/g;
+/**
+ * `password=hunter2`, `Password: "x"`, `Authorization: Bearer abc`, and JSON
+ * pasted as text (`{"password":"hunter2"}`, `{'token': 'abc'}`): the name
+ * and its quotes stay, the value goes, keeping a quoted value quoted.
+ */
+const PAIR = /(["']?)([A-Za-z_][\w.-]*)\1(\s*[=:]\s*)((?:(?:Bearer|Basic|Token)\s+)?(?:"[^"]*"|'[^']*'|[^\s;&,"'}\]]+))/g;
+/** `curl -u admin:hunter2`, `-uadmin:hunter2`, `--user admin:hunter2`, `--user=admin:hunter2`. */
+const USER_FLAG = /((?:^|\s)(?:-u\s*|--user[=\s]+))([^\s:]+):\S+/g;
 const cut = (text: string) => (text.length > MAX_STRING ? `${text.slice(0, MAX_STRING)}…` : text);
 
 function redactValue(value: unknown, depth: number): unknown {
