@@ -4,8 +4,12 @@ import { join } from 'node:path';
 import type { AnyCommand } from './command.js';
 import type { Envelope, Warning } from './envelope.js';
 import { ToilError } from './errors.js';
-import { isSecretParam, redactUrl, type RequestLog } from './http.js';
+import type { RequestLog } from './http.js';
 import type { FrontDoor } from './run.js';
+import { redactText, secretField } from './secret-shapes.js';
+
+// The rules live in secret-shapes.ts, shared with anything that finds secrets; the log still answers for redactText.
+export { redactText };
 
 /**
  * The audit log: one JSON line per command toil runs, appended to
@@ -16,7 +20,8 @@ import type { FrontDoor } from './run.js';
  * What it never holds: a secret, a header, a body, a row. Input values go
  * through the same name rule `--verbose` uses for query parameters, every URL
  * in them through `redactUrl`, and every string through a shape check for
- * tokens, so a credential pasted into the wrong field is still caught.
+ * tokens (src/core/secret-shapes.ts, toil's one definition of a secret), so a
+ * credential pasted into the wrong field is still caught.
  * A command marks fields it can't afford to keep (`auditInput`): `drop`
  * leaves the field out, `hash` keeps only its SHA-256, which is how `db`
  * records which SQL ran without recording the SQL.
@@ -83,90 +88,9 @@ const MAX_REQUESTS = 100;
 /** Small enough to go to disk in one write, which is what keeps two writers' lines apart. */
 const MAX_LINE = 64 * 1024;
 
-/**
- * Tokens recognisable by their shape, wherever they appear. Each match is
- * replaced; the scheme word of an Authorization-style value is kept.
- */
-const TOKEN_SHAPES: RegExp[] = [
-  /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})/g,
-  /\bglpat-[A-Za-z0-9_-]{20,}/g,
-  /\bxox[abprs]-[A-Za-z0-9-]{10,}/g,
-  /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g,
-  /\bsq[uap]_[A-Za-z0-9]{20,}/g,
-  /\bsk-[A-Za-z0-9_-]{20,}/g,
-  /\bATATT[A-Za-z0-9_=-]{20,}/g,
-  /\beyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]*/g,
-  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g,
-];
-const AUTH_VALUE = /\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{8,}/gi;
-/**
- * Anything else long and random-looking: 24 or more letters, digits, `_`,
- * `+` or `=` in a row, with both a letter and a digit. `/`, `-` and `.` end a
- * run, so URL paths and hyphenated ids stay readable; a base64 token split by
- * a `/` still loses every long piece. A hex run of exactly 40 or 64 is a
- * commit or a digest and stays; every other hex run goes, since some tokens
- * are hex too.
- */
-const LONG_RUN = /[A-Za-z0-9_+=]{24,}/g;
-// Every pattern below is bounded or anchored so it runs in linear time: a
-// scheme can start only where no scheme character precedes it, and is at
-// most 32 long. Regular expressions that backtrack are how an audit trail
-// becomes the outage it was meant to record.
-const URL_IN_TEXT = /(?<![a-z0-9+.-])[a-z][a-z0-9+.-]{0,31}:\/\/[^\s"'<>]+/gi;
-
-/** A string with every URL redacted as `--verbose` redacts one, and every token-shaped run replaced. */
-export function redactText(text: string): string {
-  let out = text.replace(URL_IN_TEXT, (url) => redactUrl(url));
-  for (const shape of TOKEN_SHAPES) out = out.replace(shape, '[redacted]');
-  out = out.replace(AUTH_VALUE, (_, scheme: string) => `${scheme} [redacted]`);
-  out = out.replace(PAIR, (whole, dashes: string, quote: string, name: string, sep: string, value: string) => {
-    // `-p=x` is mysql's password flag; a bare `p` anywhere else is just a letter.
-    const secret = secretField(name) || (dashes === '-' && name === 'p');
-    // Already redacted, scheme and all (`Basic [redacted]`): leave it, so a second pass changes nothing.
-    if (!secret || value.includes('[redacted')) return whole;
-    const q = value[0] === '"' || value[0] === "'" ? value[0] : '';
-    return `${dashes}${quote}${name}${quote}${sep}${q}[redacted]${q}`;
-  });
-  out = out.replace(USER_FLAG, (_, flag: string, user: string) => `${flag}${user}:[redacted]`);
-  return out.replace(LONG_RUN, (run) => {
-    if (!/[A-Za-z]/.test(run) || !/\d/.test(run)) return run;
-    if (/^[0-9a-f]+$/i.test(run) && (run.length === 40 || run.length === 64)) return run;
-    return '[redacted]';
-  });
-}
-
-/**
- * Names the audit log treats as sensitive beyond `--verbose`'s rule, compared
- * lowercased with `-`, `_` and `.` removed: anything with authorization,
- * passphrase, cookie, session, credential or private in it, and `auth` or
- * `pat` alone or at the end (`basicAuth`, `gitlabPat`). `author` stays.
- */
-const SENSITIVE_PART = /authorization|passphrase|cookie|session|credential|private/;
-const SENSITIVE_END = /(?:auth|pat)$/;
-
-/**
- * Whether a name says its value is a secret: `--verbose`'s rule for query
- * parameters plus the names above, except a bare `key`, which in toil's
- * inputs is an issue, space or project key. A real key passed there is still
- * caught by its shape.
- */
-function secretField(name: string): boolean {
-  const n = name.toLowerCase().replace(/[-_.\s]/g, '');
-  if (n === 'key') return false;
-  return isSecretParam(name) || SENSITIVE_PART.test(n) || SENSITIVE_END.test(n);
-}
-
 /** A name's value is replaced only when it could hold a secret: text, or something holding text. A flag such as `private: true` stays. */
 const hidesValue = (name: string, value: unknown) => secretField(name) && (typeof value === 'string' ? value !== '' : value !== null && typeof value === 'object');
 
-/**
- * `password=hunter2`, `--password=hunter2`, `Password: "x"`, `Authorization: Bearer abc`, and JSON
- * pasted as text (`{"password":"hunter2"}`, `{'token': 'abc'}`): the name
- * and its quotes stay, the value goes, keeping a quoted value quoted.
- */
-const PAIR = /(?<![\w.])(-{0,2})(["']?)([A-Za-z_][\w.-]{0,63})\2(\s{0,8}[=:]\s{0,8})((?:(?:Bearer|Basic|Token)\s{1,8})?(?:"[^"]{0,512}"|'[^']{0,512}'|[^\s;&,"'}\]]{1,512}))/g;
-/** `curl -u admin:hunter2`, `-uadmin:hunter2`, `--user admin:hunter2`, `--user=admin:hunter2`. */
-const USER_FLAG = /((?:^|\s)(?:-u\s{0,8}|--user[=\s]{1,8}))([^\s:]{1,256}):\S+/g;
 /** How much of a string redaction looks at: only there to bound the time, far past what is kept. */
 const REDACT_BOUND = 64 * 1024;
 /**

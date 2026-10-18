@@ -3,7 +3,7 @@ import { defineCommand } from '../../core/command.js';
 import type { CommandContext } from '../../core/context.js';
 import { ToilError } from '../../core/errors.js';
 import type { GitCall } from '../../core/git.js';
-import { compareSemver } from '../artifactory/semver.js';
+import { compareSemver } from '../../core/versions.js';
 import { runGit } from '../git/runner.js';
 import { buildScanData, scanFiles, type Ecosystem, type ReadFile, type ScanData, type ScanOptions } from './manifests.js';
 

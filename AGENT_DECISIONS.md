@@ -1031,3 +1031,48 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   `InternalError` with toil's message and fix.
 - **`dossiers` commands already on main** cover the dossiers resources, so nothing
   waited on #164.
+
+### The `util` kit (#175 to #184)
+
+- **What's shared, and only that:** a piece goes in the kit when two or more of
+  the ten `util` issues need it, or an issue asks to reuse it. The input reader
+  and self-verification serve all ten; XML serves `report` and `md`; YAML serves
+  `openapi` and `size`; JSON Schema serves `md` and `openapi`; the secret rules
+  serve the audit log and `secrets scan`; the version comparison serves
+  Artifactory, `deps diff` and `semver`. Entropy, time zones, cron, certificates,
+  hashing and code outlines stay with their one command.
+- **Where it lives:** what only `util` commands use is in `src/areas/util/kit/`;
+  what core or another area uses too is in `src/core/` (`secret-shapes.ts`,
+  `versions.ts`, `files.readStream`). Conventions are `docs/util.md`.
+- **XML is built in** rather than a dependency, as JMESPath and strict JSON are:
+  the reports and storage format need elements, attributes, text, CDATA and five
+  entities, streamed and with positions. The candidate library, fast-xml-parser,
+  now has six dependencies of its own and doesn't stream. Not processing DTDs at
+  all is what keeps entity expansion and external fetches out.
+- **YAML is js-yaml 5.4.2** (MIT, pure JS, about 95 KB in the bundle). 5.4.3 and
+  5.5.0 were under 14 days old. The `yaml` package is ISC, outside the
+  MIT/Apache/BSD list. js-yaml depends on argparse (Python-2.0) for its own
+  command-line tool only; nothing toil bundles imports it, which a build check
+  confirmed.
+- **JSON Schema is @cfworker/json-schema 4.1.1** (MIT, no dependencies, about
+  43 KB). zod can't validate a document against an arbitrary schema. ajv already
+  ships inside the MCP SDK, but it reads draft-07 only out of the box: ADF,
+  Swagger 2.0 and OpenAPI 3.0 are draft-04 and OpenAPI 3.1 is 2020-12, which
+  would take `ajv-draft-04` plus `Ajv2020` for about the same size. cfworker reads
+  all four drafts with one class and interprets schemas instead of generating
+  code.
+- **Lazy loading is a convention plus an ESLint rule**, not a build change: the
+  bundle stays one file, and esbuild evaluates a module reached only through
+  `import()` on first use. Neither library is in the bundle until a command
+  imports its wrapper, so this PR adds nothing to `dist/toil.js`.
+- **stdin is held in memory, capped**, because a self-check has to re-read it; a
+  file streams. A line longer than 64 KiB is cut and marked rather than held.
+- **`findSecrets` reads the original text** and reports each secret's own
+  characters; the long-random rule reads it with the other rules' matches blanked,
+  which is what `redactText`'s order amounts to. A test holds the two to the same
+  answer on every sample.
+- **YAML aliases are counted, not refused**: real OpenAPI documents reuse anchors,
+  so `parseYaml` counts only what aliases add beyond the document as written, and
+  refuses a document where that passes 1,000,000 values (`INVALID_INPUT`). A
+  document without aliases is held by the input cap alone. js-yaml has no switch
+  to reject aliases, and the count also stops a cycle.

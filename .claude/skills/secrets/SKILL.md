@@ -93,7 +93,10 @@ It runs only what the OS ships, each behind a platform check, under the service
 - The audit log (`src/core/audit.ts`) records every call's input and requests, so
   it redacts harder than `--verbose`: field names by the same rule `redactUrl` uses
   for parameters (except a bare `key`), every URL in a value through `redactUrl`, and
-  every token-shaped run in any string. A field a command can't afford to keep goes
+  every token-shaped run in any string. Those rules are `src/core/secret-shapes.ts`,
+  toil's one definition of a secret: `redactText` hides what they match, and
+  `findSecrets` reports where, so redacting and finding can't disagree. A new
+  shape goes there, with a planted example in `src/core/secret-shapes.test.ts`. A field a command can't afford to keep goes
   in its `auditInput` (`drop`, or `hash` for SHA-256 only). `test/audit.test.ts`
   sends a token-shaped value through every input of every registered command and
   fails on any line that still holds it; keep it passing when adding a field.
