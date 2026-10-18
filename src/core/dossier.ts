@@ -721,6 +721,11 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
       chosen = { ...(selection.applied ? { applied: selection.applied } : {}), selection };
       return chosen;
     };
+    // A dossier the call or TOIL_DOSSIER names is checked now, as cwd is: it
+    // can't be ambiguous, and a mistyped, broken or out-of-bounds one must
+    // fail the call that named it, not wait for one that consults it. Only a
+    // match from the folder waits.
+    if (request.dossier !== undefined || o.env.TOIL_DOSSIER) choose();
     let lookup: DossierLookup | undefined;
     return {
       lookup: (area, key, input) => {

@@ -1,0 +1,37 @@
+[
+  {
+    "name": "jwt decode",
+    "tool": "util_jwt_decode",
+    "description": "Decode a JWT token and output header, payload, and signature as JSON",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<token>"
+    ]
+  },
+  {
+    "name": "deps scan",
+    "tool": "util_deps_scan",
+    "description": "Inventory all dependencies from manifest files (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--ecosystem <ecosystem>",
+      "--include-transitive",
+      "--include-dev"
+    ]
+  },
+  {
+    "name": "deps diff",
+    "tool": "util_deps_diff",
+    "description": "Show dependency changes between two git refs (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--from <ref>",
+      "--to <ref>",
+      "--ecosystem <ecosystem>",
+      "--include-dev"
+    ]
+  }
+]
