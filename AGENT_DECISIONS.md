@@ -349,22 +349,12 @@ the bottom of their section.
   a servlet container as `..`) moved into core (KF5) and the area only needs its
   tests. The cap is there to stop a reviewer and an agent going in circles; it
   isn't a reason to ship a known security gap or an unfinished sweep.
-- **History, issues and docs describe integration work as "integration", "build"
-  or "match"** (#68), on the maintainer's instruction of 2026-10-17. Main's 12
-  affected commit messages were reworded and force-pushed with identical content,
-  and open branches were relinked with a merge commit. The wording gives the
-  integration kit, building an integration, implementing the contract exactly, and
-  CLAUDE.md's **The command contract** section. A network port is still a port.
-  One later squash merge (#132) landed with a garbled subject from that rewording;
-  on the maintainer's go-ahead, main was force-pushed once more to fix that one
-  message, after a backup branch and a check that every commit's files were
-  unchanged. The coordinator's merge script now refuses such a title.
 - **Approved PRs are merged together locally and gated before any of them merges.**
   Each PR's CI runs against `main` as it was, so two green PRs can still break `main`
   together (KF2 with three integrations; KF3 with openshift). The batch of ten on
   2026-10-17 was combined, gated (typecheck, lint, tests, build, `check:pure`,
   smoke), merged in that order, and `main` checked against the tested tree. A PR
-  whose rewording touches every file (#134) goes last, so the others don't conflict
+  that touches every file (#134) goes last, so the others don't conflict
   on it.
 - **A small kit change with one user can ride in the area PR** instead of its own
   kit-fix PR: #143 (git) adds the harness's `git?: GitRunner` field and rewords
