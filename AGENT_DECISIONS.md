@@ -275,9 +275,9 @@ the bottom of their section.
   vendor tenant** (#142's build, principle 1). Both vendors answer for every
   subdomain, so an `imagile` tenant on `atlassian.net` and an `abc12345` environment
   on `live.dynatrace.com` were real hosts someone could register, and a copied
-  example would send them the credential. Prose names the shape as `<environment-id>.live.dynatrace.com`. CLAUDE.md's
-  Placeholders rule says so, and `test/repo-hygiene.test.ts` refuses a tenant-shaped
-  name on those domains.
+  example would send them the credential. Prose names the shape as
+  `<environment-id>.live.dynatrace.com`. CLAUDE.md's Placeholders rule says so, and
+  `test/repo-hygiene.test.ts` refuses a tenant-shaped name on those domains.
 - **A PR past its three review rounds gets one more when the findings are
   converging**, not looping: #134, whose only new findings were wording that
   merges from main brought in, and #117, where a security finding (`..;x` reaching
