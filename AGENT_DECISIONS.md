@@ -699,10 +699,24 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   the "make it the default?" question, which isn't what the user came for.
 - **The first environment added becomes the dossier's default** (`dossiers env
   --default`), so calls without `--env` have one.
-- **Review offers a fix where a command exists:** relink, add the connection, adopt,
-  or set a value after `<area> check-dossier`. An unknown section, a remote with
-  userinfo or a duplicate key has no command that removes it, so Review says to edit
-  the file by hand and Check again.
+- **Review offers a fix for every finding a command can fix:** relink, add the
+  connection, adopt, set a value after `<area> check-dossier`, remove a section
+  (`dossiers unlink`, after typing the area's name), and take a credential out of a
+  stored remote (re-add the repo as it is). A duplicate key or a broken file still
+  needs the file edited by hand, and Review says so.
+- **`toil dossiers unlink <dossier> --area <area> [--env <env>]` removes a section**
+  (round 1). It's CLI only, as `remove` is, because taking something out is a
+  delete; the menu asks for the area's name typed first. It accepts a section for an
+  area toil doesn't have, which is the case Review needs. An environment left with
+  no areas is removed too, and stops being the dossier's default, so the file never
+  names a default that isn't there.
+- **Every dossier write says when it took a credential out of the file** (round 1).
+  Remotes are read with userinfo stripped, so any save already wrote them clean,
+  silently; now the result carries `credentialsRemoved` (the key paths) and a
+  `DOSSIER_REMOTE_USERINFO` warning. `add-repo` with the same repo as stored
+  counts as a change when that repo's stored remote has a credential, so re-adding it
+  cleans it instead of reporting `changed: false`; it needs no `--replace`, since the
+  entry is otherwise identical. A credential is never written back.
 - **Dossiers sits after Plugins on home**, so the existing rows keep their numbers.
 - **AreaSummary gains `context` and `checksDossier`**, derived in `cli.ts` from the
   registry, so the screens name an area's context inputs and offer `check-dossier`

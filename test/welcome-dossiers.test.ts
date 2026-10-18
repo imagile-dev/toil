@@ -209,7 +209,7 @@ describe('the Dossiers module', () => {
     expect(where(s)).toBe('dossier-review');
     const text = screen(s, w);
     expect(text).toMatch(/Connections[\s\S]*DOSSIER_UNKNOWN_CONNECTION[\s\S]*Unknown sections[\s\S]*DOSSIER_UNKNOWN_SECTION/);
-    expect(text).toContain('edit');
+    expect(text).toContain('Remove the wiki section');
     expect(text).toMatch(/Relink sonar[\s\S]*Add a sonar connection[\s\S]*Check sonar on the service/);
     // Add a connection suggests the name the dossier expects, and comes back here.
     const add = press(s, w, 'down', 'return');
@@ -223,6 +223,35 @@ describe('the Dossiers module', () => {
     expect(where(s)).toBe('dossier-review');
     expect(screen(s, w)).not.toContain('DOSSIER_UNKNOWN_CONNECTION');
     expect(file(d, 'team').sonar).toEqual({ connection: 'sonar' });
+  });
+
+  it('fixes a stale section and a stored credential from Review, with real commands', async () => {
+    const d = disk({ 'home/.toil/dossiers/team.json': { name: 'team', repos: [{ name: 'api', remotes: ['https://ci:t0ken@git.imagile.dev/pay/api.git'] }], wiki: { space: 'X' } } });
+    const c = configOf();
+    const w = data(c);
+    let s = press(settled, w, '6', '2');
+    s = press(await perform(s, d, c), w, 'return', 'return');
+    s = press(await perform(s, d, c), w, 'return', 'return');
+    s = press(await perform(s, d, c), w, 'return');
+    expect(where(s)).toBe('dossier-review');
+    expect(screen(s, w).indexOf('Remove the wiki section')).toBeLessThan(screen(s, w).indexOf('Remove the credential from api'));
+    expect(screen(s, w)).not.toContain('by hand');
+    // The credential: re-add the repo as it is, then show and check.
+    const clean = press(s, w, '2');
+    expect(steps(clean)).toEqual([['dossiers', 'add-repo', 'team', 'https://git.imagile.dev/pay/api.git', '--name', 'api'], ['dossiers', 'show', 'team'], ['dossiers', 'check', 'team']]);
+    s = press(await perform(clean, d, c), w, 'return');
+    expect(readFileSync(join(d.home, '.toil', 'dossiers', 'team.json'), 'utf8')).not.toContain('t0ken');
+    expect(screen(s, w)).not.toContain('Remove the credential');
+    // The section: type its name, then unlink.
+    s = press(s, w, '1');
+    expect(where(s)).toBe('dossier-unlink');
+    expect(top(press(type(s, w, 'wik'), w, 'return')).error).toContain("isn't");
+    s = press(type(s, w, 'wiki'), w, 'return');
+    expect(steps(s)).toEqual([['dossiers', 'unlink', 'team', '--area', 'wiki'], ['dossiers', 'show', 'team'], ['dossiers', 'check', 'team']]);
+    s = press(await perform(s, d, c), w, 'return');
+    expect(where(s)).toBe('dossier-review');
+    expect(screen(s, w)).toContain('No errors');
+    expect(file(d, 'team')).not.toHaveProperty('wiki');
   });
 
   it('edits a section through a save screen that shows the commands before anything runs', async () => {

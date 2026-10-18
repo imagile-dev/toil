@@ -143,6 +143,18 @@
     ]
   },
   {
+    "name": "unlink",
+    "tool": null,
+    "description": "Remove an area's section from a dossier, or one environment's",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<dossier>",
+      "--area <area>",
+      "--env <env>"
+    ]
+  },
+  {
     "name": "remove",
     "tool": null,
     "description": "Delete one of your own dossiers",

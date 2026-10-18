@@ -500,7 +500,7 @@ export const reviewView: View = {
       lines.push('', heading(caps, g.title));
       for (const x of g.problems) lines.push(`  ${x.level === 'error' ? ok(caps, false, x.code) : muted(caps, x.code)}  ${faint(caps, x.path || '(file)')}`, muted(caps, `    ${x.message}`));
     }
-    const handOnly = c.problems.filter((x) => ['DOSSIER_UNKNOWN_SECTION', 'DOSSIER_REMOTE_USERINFO', 'DOSSIER_DUPLICATE_KEY', 'DOSSIER_INVALID', 'DOSSIER_UNKNOWN_KEY'].includes(x.code));
+    const handOnly = c.problems.filter((x) => ['DOSSIER_DUPLICATE_KEY', 'DOSSIER_INVALID', 'DOSSIER_UNKNOWN_KEY'].includes(x.code));
     if (handOnly.length && s) lines.push('', faint(caps, `No command removes ${handOnly.length === 1 ? 'that entry' : 'those entries'}; edit ${s.file} by hand, then Check again.`));
     return lines;
   },
@@ -510,7 +510,14 @@ export const reviewView: View = {
     const ref = refOf(p);
     const items: Item[] = [];
     const seen = new Set<string>();
-    for (const x of c?.problems ?? []) {
+    // In the order the screen groups them, so the fixes read top to bottom with the findings.
+    for (const x of groupFindings(c?.problems ?? []).flatMap((g) => g.problems)) {
+      const repo = x.code === 'DOSSIER_REMOTE_USERINFO' ? reposOf(s)[Number(x.path.slice('repos['.length, x.path.indexOf(']')))] : undefined;
+      if (repo && !seen.has(`repo:${repo.name}`)) {
+        seen.add(`repo:${repo.name}`);
+        // Re-adding the repo as it is writes the file again, and a write leaves every remote without its credential.
+        items.push({ label: `Remove the credential from ${repo.name}`, hint: 'Re-add it as it is; the file keeps no credential', attention: true, action: { run: editRun(`Clean ${repo.name}`, ref, [{ args: ['dossiers', 'add-repo', ref, repo.path ?? repo.remotes[0] ?? repo.name, '--name', repo.name] }], backToReview(), true) } });
+      }
       const at = findingSection(x.path);
       if (!at) continue;
       const key = `${x.code}:${at.env ?? ''}:${at.area}`;
@@ -527,6 +534,8 @@ export const reviewView: View = {
             action: { go: 'add-name', params: { area: at.area, ...(typeof section.connection === 'string' ? { suggest: section.connection } : {}), then: json(backToReview()) } },
           });
         }
+      } else if (x.code === 'DOSSIER_UNKNOWN_SECTION') {
+        items.push({ label: `Remove the ${where(at.area, at.env)} section`, hint: 'Asks you to type its name', attention: true, action: { go: 'dossier-unlink', params } });
       } else if (x.code === 'DOSSIER_WRITES_BINDING' && s && s.source !== 'user') {
         items.push({ label: 'Adopt it', hint: 'Copy it into your folder, so writes may follow its bindings', action: { run: importCheckRun(s.file) } });
       }
@@ -633,6 +642,7 @@ export const areaView: View = {
     if (reposOf(shownOf(p)).length > 1) items.push({ label: 'Set a value for one repo', hint: 'When repos use different keys', action: { go: 'dossier-repo-pick', params } });
     if (DISCOVERY[area!] && !env) items.push({ label: `Discover ${DISCOVERY[area!]!.what}`, hint: `toil ${DISCOVERY[area!]!.args.slice(0, -1).join(' ')} ..., then tick them`, action: { run: discoverRun(params) } });
     if (area === 'jira' || area === 'jira-cloud') items.push({ label: 'Name a field', hint: 'alias=field-id, e.g. storyPoints=customfield_10002', action: { go: 'dossier-field', params } });
+    items.push({ label: 'Remove this section', hint: 'Asks you to type its name', action: { go: 'dossier-unlink', params: { ...params, then: backTo('dossier-edit') } } });
     if (env && shownOf(p)?.dossier.env !== env) {
       items.push({ label: `Make ${env} the default environment`, hint: 'Calls with no --env use it', action: change(params, `Default environment ${env}`, [{ args: ['dossiers', 'env', ref!, env, area!, '--default'] }], thenOf(params)) });
     }
@@ -773,6 +783,23 @@ export const setView: View = {
       const replace = params.forRepo ? typeof current === 'string' || (isRecord(current) && current[params.forRepo] !== undefined) : current !== undefined;
       const flags = ['--set', `${key}=${value}`, ...(params.forRepo ? ['--for-repo', params.forRepo] : []), ...(replace ? ['--replace'] : [])];
       return change(params, `Set ${key} in ${where(params.area!, params.env)}`, [{ args: sectionArgs(params, flags) }], thenOf(params));
+    },
+  },
+};
+
+/** Removing a section: type the area's name, then `dossiers unlink`. */
+export const unlinkView: View = {
+  title: () => 'Remove',
+  body: (caps, p) => {
+    const { area, env } = p.frame.params;
+    return [ok(caps, false, `Remove the ${where(area!, env)} section from ${shownOf(p)?.name ?? refOf(p)}?`), '', ...sectionLines(caps, sectionOf(shownOf(p), area!, env)), '', muted(caps, 'Calls in its repositories stop getting these values from the dossier.')];
+  },
+  input: {
+    label: (p) => `Type ${p.frame.params.area} to remove it`,
+    submit: (text, p): Action | { error: string } => {
+      const { ref, area, env, flow } = p.frame.params as Record<string, string>;
+      if (text !== area) return { error: `That isn't "${area}", so nothing was removed.` };
+      return { run: editRun(`Remove ${where(area!, env)}`, ref!, [{ args: ['dossiers', 'unlink', ref!, '--area', area!, ...(env ? ['--env', env] : [])] }], thenOf(p.frame.params), flow === 'fix') };
     },
   },
 };
@@ -1293,7 +1320,7 @@ export function dossiersOutcome(result: StepResult): { good: boolean; text: stri
     case 'init':
       return said(`Created ${String(d.name)} in ${String(d.file)}.`);
     case 'add-repo':
-      return said(`Repo ${String((d.repo as { name?: unknown } | undefined)?.name ?? '')} is in ${String(d.name)}${unchanged}.`);
+      return said(`Repo ${String((d.repo as { name?: unknown } | undefined)?.name ?? '')} is in ${String(d.name)}${unchanged}${Array.isArray(d.credentialsRemoved) ? '; the credential in its stored remote is gone' : ''}.`);
     case 'link':
     case 'env':
       return said(`Saved ${d.env ? `${String(d.env)}: ` : ''}${String(d.area)} in ${String(d.name)}${unchanged}.`);
@@ -1305,6 +1332,8 @@ export function dossiersOutcome(result: StepResult): { good: boolean; text: stri
       const r = d as unknown as Imported & { failed?: unknown[] };
       return said(`Imported ${r.imported.map((x) => x.name).join(', ') || 'nothing'}${r.toSetUp.length ? `; ${plural(r.toSetUp.length, 'connection')} to set up` : ''}.`, !r.failed?.length);
     }
+    case 'unlink':
+      return said(`Removed ${d.env ? `${String(d.env)}: ` : ''}${String(d.area)} from ${String(d.name)}${Array.isArray(d.credentialsRemoved) ? ', and the credential from its stored remotes' : ''}.`);
     case 'remove':
       return said(`Deleted ${String(d.name)}.`);
     default:

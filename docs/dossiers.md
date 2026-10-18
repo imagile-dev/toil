@@ -9,7 +9,7 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
 - host selectors, environments and the write rule
 - `meta.context.dossier`
 - `toil dossiers list | show | check | context`, which read
-- `toil dossiers init | add-repo | link | env | field | export | import | remove`, which
+- `toil dossiers init | add-repo | link | env | field | export | import | unlink | remove`, which
   build and share (`src/core/dossier.ts`, `src/dossiers/`)
 - field aliases on Jira's and Jira Cloud's `--field`
 - `toil repos scan` (`src/repos/`)
@@ -373,11 +373,19 @@ files directly:
   - `toil dossiers env <dossier> <env> <area> [--default] ...` does the same for
     `environments.<env>.<area>`. `--default` makes it the dossier's `env`.
   - `toil dossiers field <dossier> <area> <alias> <field-id>` names a field.
+  - `toil dossiers unlink <dossier> --area <area> [--env <env>]` removes a section, an
+    area's own or one environment's, including one for an area toil doesn't have. An
+    environment left with no areas goes too, and stops being the default. CLI only, like
+    `remove`.
   - `toil dossiers remove <name>` deletes one of your own dossiers. It runs on the CLI
     only, since a delete is never an MCP tool.
 
   Each refuses a value already there, naming it, unless `--replace`. The file is
-  checked with the reader that will load it before anything is written.
+  checked with the reader that will load it before anything is written. Remotes are
+  read with any credential stripped, so every write leaves the file without one; the
+  result names each remote it cleaned (`credentialsRemoved`, and a
+  `DOSSIER_REMOTE_USERINFO` warning). Re-adding a repo as it is (`add-repo` with the
+  same folder or remote and `--name`) is the way to clean one on its own.
 - **Reading and checking** (built; all served over MCP, all local reads):
   - `toil dossiers list [--cwd <dir>]` lists every dossier toil can see, with its
     `source`, the file that shadows it when two share a name, and broken files with

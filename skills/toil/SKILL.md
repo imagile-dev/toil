@@ -96,6 +96,7 @@ workspace. Then:
 - `toil dossiers export <name> --repo <root>` writes a shareable copy into a
   repository's `.toil/dossiers/`. It uses host selectors and no local paths, and toil
   never commits it.
+- `toil dossiers unlink <name> --area <area> [--env <env>]` removes a section (CLI only).
 - `toil dossiers import <file>` copies a teammate's into your own folder. A connection
   or host you lack is listed under `toSetUp`; toil never creates one.
 

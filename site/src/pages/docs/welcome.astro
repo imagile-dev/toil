@@ -26,6 +26,7 @@ const dossierActions = [
   { action: 'Create: discovery', cmd: 'toil jira fields --discover --custom-only --dossier <name>', then: 'then toil dossiers field for each one ticked' },
   { action: 'Create: an environment', cmd: 'toil dossiers env <name> <env> <area> --connection <connection>', then: '' },
   { action: 'Review', cmd: 'toil dossiers check <name>', then: 'and toil <area> check-dossier' },
+  { action: 'Remove a section', cmd: 'toil dossiers unlink <name> --area <area>', then: 'after you type the area' },
   { action: 'Export', cmd: 'toil dossiers export <name> --repo <dir>', then: 'or --file <path>' },
   { action: 'Import', cmd: 'toil dossiers import <file>', then: 'after toil dossiers check <file>' },
   { action: 'Delete', cmd: 'toil dossiers remove <name>', then: 'after you type the name' },
@@ -157,7 +158,7 @@ const keys = [
             <strong>Create</strong> takes six steps: a name, the repositories from a scan (as checkboxes), each area with the connection it uses (or a
             new connection, through the same wizard as above), the Jira fields, Confluence spaces, Sonar or Azure DevOps projects found on that
             connection (as checkboxes), the environments and their resources, then a review that shows the whole dossier and checks it.
-            <strong>Review</strong> groups what the check finds and offers each fix in place: relink an area, add the connection it names, adopt it,
+            <strong>Review</strong> groups what the check finds and offers each fix in place: relink an area, add the connection it names, remove a section toil has no area for, take a credential out of a stored remote, adopt it,
             or look its values up on the service. <strong>Edit</strong> shows the commands a change runs before you save it.
           </p>
           <p>

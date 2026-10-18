@@ -83,6 +83,7 @@ export const VIEWS: Record<string, View> = {
   'dossier-import-confirm': dossiers.importConfirmView,
   'dossier-import-done': dossiers.importDoneView,
   'dossier-delete': dossiers.deleteView,
+  'dossier-unlink': dossiers.unlinkView,
   'dossier-agent': dossiers.agentView,
   brick: brickView,
   result: resultView,

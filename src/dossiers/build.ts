@@ -108,12 +108,14 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
         if (entry.path && other.path && samePath(entry.path, other.path)) throw new ToilError('INVALID_INPUT', `Dossier ${dossier.name} already has ${entry.path} as repo "${other.name}".`, { fix: `Leave it as it is, or remove it from "${other.name}" first.` });
       }
       const existing = dossier.repos.find((r) => r.name === entry.name);
-      const changed = existing === undefined || JSON.stringify(existing) !== JSON.stringify(entry);
-      if (existing && changed && !input.replace) {
+      // A stored remote with a credential reads back without it, so re-adding the same repo is still a change: it writes the credential out of the file.
+      const differs = existing !== undefined && JSON.stringify(existing) !== JSON.stringify(entry);
+      const changed = existing === undefined || differs || credentialPaths(file, dossier.repos.indexOf(existing)).length > 0;
+      if (differs && !input.replace) {
         throw new ToilError('INVALID_INPUT', `Dossier ${dossier.name} already has a repo named "${entry.name}".`, { fix: `Pass --replace to replace it, or --name to add this one under another name.` });
       }
       dossier.repos = existing ? dossier.repos.map((r) => (r.name === entry.name ? entry : r)) : [...dossier.repos, entry];
-      return saved(catalog, file, dossier, changed, { repo: entry });
+      return saved(ctx, catalog, file, dossier, changed, { repo: entry });
     },
   });
 
@@ -213,7 +215,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       fields[input.alias] = input.id;
       section.fields = fields;
       dossier.sections[input.area] = section;
-      return saved(catalog, file, dossier, current !== input.id, { area: input.area, fields });
+      return saved(ctx, catalog, file, dossier, current !== input.id, { area: input.area, fields });
     },
   });
 
@@ -300,6 +302,44 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     },
   });
 
+  const unlink = defineConfigCommand({
+    path: ['dossiers', 'unlink'],
+    description: "Remove an area's section from a dossier, or one environment's",
+    input: z.object({
+      dossier: dossierField,
+      area: z.string().min(1).describe('The section to remove, e.g. jira; one toil has no area for is accepted too'),
+      env: z.string().min(1).optional().describe("Remove environments.<env>.<area> instead of the area's own section"),
+    }),
+    writes: false,
+    // Taking a section out is a delete, and a delete is never an MCP tool (CLAUDE.md, Writes).
+    kind: 'cli-only',
+    args: [dossierArg],
+    options: [
+      { flags: '--area <area>', field: 'area', description: 'The section to remove, e.g. jira' },
+      { flags: '--env <env>', field: 'env', description: "Remove that environment's section for the area instead" },
+    ],
+    examples: [{ dossier: 'payments', area: 'jira' }, { dossier: 'payments', area: 'openshift', env: 'prod' }],
+    run: async (input, ctx) => {
+      const { catalog } = access(ctx);
+      const file = catalog.find(input.dossier);
+      const dossier = structuredClone(file.dossier);
+      const where = input.env === undefined ? input.area : `environments.${input.env}.${input.area}`;
+      const holder = input.env === undefined ? dossier.sections : dossier.environments[input.env];
+      const section = holder?.[input.area];
+      if (!holder || section === undefined) {
+        const have = [...Object.keys(dossier.sections), ...Object.entries(dossier.environments).flatMap(([env, byArea]) => Object.keys(byArea).map((area) => `${area} --env ${env}`))];
+        throw new ToilError('INVALID_INPUT', `Dossier ${dossier.name} has no ${where} section.`, { fix: have.length ? `It has: ${have.join(', ')}.` : 'It has no sections yet.' });
+      }
+      delete holder[input.area];
+      // An environment left with no areas goes too, and stops being the default.
+      if (input.env !== undefined && Object.keys(holder).length === 0) {
+        delete dossier.environments[input.env];
+        if (dossier.env === input.env) delete dossier.env;
+      }
+      return saved(ctx, catalog, file, dossier, true, { area: input.area, env: input.env ?? null, removed: section });
+    },
+  });
+
   const remove = defineConfigCommand({
     path: ['dossiers', 'remove'],
     description: 'Delete one of your own dossiers',
@@ -318,7 +358,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     },
   });
 
-  return [init, addRepo, link, env, field, exportCommand, importCommand, remove];
+  return [init, addRepo, link, env, field, exportCommand, importCommand, unlink, remove];
 
   /** link and env: one section's binding, context inputs and reference data. */
   async function changeSection(
@@ -393,7 +433,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     if (makeDefault) dossier.env = envName;
     if (via === 'mcp') refuseNewWritesTarget(catalog, config, areas, before, dossier);
     for (const w of hostWarnings(catalog, dossier, area.name, envName)) ctx.warn(w);
-    return saved(catalog, file, dossier, JSON.stringify(dossierContent(before)) !== JSON.stringify(dossierContent(dossier)), { area: area.name, env: envName ?? null, section });
+    return saved(ctx, catalog, file, dossier, JSON.stringify(dossierContent(before)) !== JSON.stringify(dossierContent(dossier)), { area: area.name, env: envName ?? null, section });
   }
 }
 
@@ -409,10 +449,22 @@ function access(ctx: CommandContext<unknown>): Access {
   return { catalog: ctx.manage.dossiers, config: ctx.manage.config, via: ctx.manage.via };
 }
 
-/** Writes an edit back where it was read from; an edit that changes nothing writes nothing. */
-function saved(catalog: DossierCatalog, file: DossierFile & { dossier: Dossier }, dossier: Dossier, changed: boolean, extra: Record<string, unknown>) {
+/**
+ * Writes an edit back where it was read from; an edit that changes nothing
+ * writes nothing. Remotes are read with any credential stripped, so a write
+ * also takes every credential out of the file: that's said, in a warning and
+ * in `credentialsRemoved`, never done quietly.
+ */
+function saved(ctx: CommandContext<unknown>, catalog: DossierCatalog, file: DossierFile & { dossier: Dossier }, dossier: Dossier, changed: boolean, extra: Record<string, unknown>) {
   const written = changed ? catalog.save(file.file, dossier, 'edit') : forwardSlashes(file.file);
-  return { name: dossier.name, file: written, source: file.source, changed, ...extra };
+  const removed = changed ? credentialPaths(file) : [];
+  if (removed.length) ctx.warn({ code: 'DOSSIER_REMOTE_USERINFO', message: `Removed the credential from ${removed.join(', ')}; the file's remotes now carry none.` });
+  return { name: dossier.name, file: written, source: file.source, changed, ...extra, ...(removed.length ? { credentialsRemoved: removed } : {}) };
+}
+
+/** Key paths of stored remotes that carry a credential (`repos[0].remotes[1]`), for one repo by index or for all. */
+function credentialPaths(file: DossierFile, repo?: number): string[] {
+  return file.problems.filter((p) => p.code === 'DOSSIER_REMOTE_USERINFO' && (repo === undefined || p.path.startsWith(`repos[${repo}].`))).map((p) => p.path);
 }
 
 function keyValue(pair: string, flag: string): [string, string] {
