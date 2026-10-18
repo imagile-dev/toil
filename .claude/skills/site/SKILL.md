@@ -27,8 +27,11 @@ from `main`).
 - **Imagile is credited prominently**: a byline in the header, a linked "By Imagile"
   in the hero eyebrow, and a feature panel in the footer, all pointing to
   https://www.imagile.dev. Imagile's mark keeps its own colours.
-- **Honest about status** (*principle 4*). Until a version is on npm, the site says
-  pre-release and labels sample output as planned. An integration is on the board
+- **Honest about status** (*principle 4*). Until 1.0, the site says **Alpha**
+  ("Alpha: APIs and flags may change before 1.0", the README's wording) by the
+  install commands and in the hero, and labels sample output as planned. The
+  homepage's two ways to start come from `site/src/data/start.json`, copied from the
+  README; `test/start-commands.test.ts` fails when they drift. An integration is on the board
   only once its code is on `main`, and shows its verification level: `unit`,
   `live` or `stable` (**Verification Levels**, `integrations` skill). Their
   meanings are rendered from `site/src/data/levels.json`, never written out in a

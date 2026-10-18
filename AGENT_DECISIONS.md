@@ -2676,3 +2676,43 @@ skill file, fixture, board entry, site data or contract entries changed.
   nothing and the create then hit RoleAssignmentExists. The script now builds that
   scope itself and filters assignments by scope in jq, case-insensitively.
   `MSYS_NO_PATHCONV=1` is set before the first az call, for Git Bash.
+
+### #236 rebrand
+
+- **No token numbers.** The positioning ("the token-efficient alternative to MCP") is
+  argued from mechanisms only: compact envelopes, `--select`, `toil wait`, and the
+  skill read a file at a time. Nothing was measured, so no figure appears anywhere;
+  a measured comparison (one task, CLI plus skill against the same tools over MCP)
+  can add one later with its method.
+- **The scan line is removed, not replaced.** The beacon behind the crate and the
+  drawing's float stay; that was enough motion.
+- **Mobile hero:** below 980px the hero's bottom padding drops to `--space-sm` and the
+  drawing is cropped to its lines (`aspect-ratio: 960 / 560`, `object-fit: cover`
+  from the top), which removes the blank band above the ticker.
+- **Feedback is a primary nav link**, not a `wide` one, so it stays inline from
+  720px up (measured: no overflow at 720 and 768) and is in the phone menu. The
+  footer already linked it.
+- **The CLI's own `--help` description** (`src/program.ts`) carries the new line too,
+  so the terminal and the site say the same thing.
+- **The MCP section stays**, renamed "Still speaks MCP", since `toil mcp` remains for
+  clients that want it; "runs where executables are blocked" stays in the
+  locked-down section and the README, below the new lead.
+- **Two ways to start, from one list.** The homepage's npm and clone cards render
+  `site/src/data/start.json` (JSON, so the root test suite never loads `site/`'s
+  tsconfig, which needs `site/node_modules`); the README stays the prose source, and
+  `test/start-commands.test.ts` fails when a line there isn't in README.md word for
+  word. A test rather than one shared file, because the README is plain Markdown.
+- **Alpha, not pre-release.** The hero eyebrow, the start section's badge, the
+  how-it-works note, the CTA, the README and `install.md` say "Alpha: APIs and flags
+  may change before 1.0". The hero's separate install line is gone (the eyebrow says
+  Alpha, and the commands moved to the start section). The terminal recording's
+  sample version is now `alpha`.
+- **`scripts/setup.mjs` keeps its build.** The request said to restore `dist/` after
+  building, but the build is the point: the alias runs `dist/toil.js`, so restoring it
+  would run the last release instead. The script leaves the build in place and says
+  plainly to run `git checkout -- dist/` before `git pull`; the README says the same.
+  `--skip-build` is the path that leaves the clone untouched.
+- **PowerShell profile:** the script runs `setup alias` as it is, so toil's own
+  `pickShell` decides the shell. Only when it answers that PowerShell needs a profile
+  does the script ask PowerShell for `$PROFILE` (`pwsh` when PSModulePath names
+  PowerShell 7, else Windows PowerShell) and run it again with `--profile`.
