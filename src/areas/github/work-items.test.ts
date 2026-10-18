@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { testContext } from '../../../test/harness/context.js';
 import type { Route } from '../../../test/harness/fake-fetch.js';
-import { API, fixture, issue, prAsIssue, project, projectItem, pullRequest, REPO, user } from '../../../test/fixtures/github.fixture.js';
+import { API, fixture, forbiddenProjects, issue, prAsIssue, project, projectItem, pullRequest, REPO, user } from '../../../test/fixtures/github.fixture.js';
 import type { AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
 import { projectFieldsCommand, projectItemsCommand, listProjectsCommand } from './projects.js';
@@ -169,9 +169,11 @@ describe('projects', () => {
 
   const failing = (errors: unknown[]): Route[] => [{ method: 'POST', path: '/api/graphql', respond: { json: { data: null, errors } } }];
 
-  it('a missing scope is AUTH naming read:project; a project that is not there is NOT_FOUND', async () => {
+  it('a missing scope or a FORBIDDEN permission is AUTH naming read:project; a project that is not there is NOT_FOUND', async () => {
     const scope = await run(projectFieldsCommand, { owner: 'imagile', project: '3' }, failing([{ type: 'INSUFFICIENT_SCOPES', message: "Your token has not been granted the required scopes to execute this query. The 'id' field requires one of the following scopes: ['read:project']" }]));
     expect(scope.envelope.error).toMatchObject({ code: 'AUTH', fix: expect.stringContaining('read:project') });
+    const forbidden = await run(listProjectsCommand, { owner: 'imagile' }, [{ method: 'POST', path: '/api/graphql', respond: { json: forbiddenProjects } }]);
+    expect(forbidden.envelope.error).toMatchObject({ code: 'AUTH', message: expect.stringContaining('Resource not accessible by personal access token'), fix: expect.stringContaining('Projects: read') });
     const missing = await run(projectFieldsCommand, { owner: 'imagile', project: '99' }, failing([{ type: 'NOT_FOUND', path: ['repositoryOwner', 'projectV2'], message: 'Could not resolve to a ProjectV2 with the number 99.' }]));
     expect(missing.envelope.error).toMatchObject({ code: 'NOT_FOUND', message: expect.stringContaining('number 99') });
     const noOwner = await run(listProjectsCommand, { owner: 'nobody' }, [{ method: 'POST', path: '/api/graphql', respond: { json: { data: { repositoryOwner: null } } } }]);

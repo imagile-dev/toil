@@ -120,7 +120,9 @@ async function projectsCall<T>(owner: string, what: string, call: () => Promise<
     if (!(err instanceof ToilError) || err.code !== 'HTTP') throw err;
     const errors = ((err.details as { errors?: unknown } | undefined)?.errors ?? []) as GraphqlError[];
     if (!Array.isArray(errors)) throw err;
-    if (errors.some((e) => e.type === 'INSUFFICIENT_SCOPES')) throw new ToilError('AUTH', `The GitHub token can't read ${what}: ${errors[0]?.message ?? 'missing scope'}`, { fix: SCOPES });
+    // A classic token short of a scope gets INSUFFICIENT_SCOPES; a fine-grained one short of a permission, FORBIDDEN.
+    const denied = errors.find((e) => e.type === 'INSUFFICIENT_SCOPES' || e.type === 'FORBIDDEN');
+    if (denied) throw new ToilError('AUTH', `The GitHub token can't read ${what}: ${denied.message ?? 'missing scope'}`, { fix: SCOPES });
     if (errors.some((e) => e.type === 'NOT_FOUND')) {
       throw new ToilError('NOT_FOUND', `GitHub found no ${what}: ${errors.find((e) => e.type === 'NOT_FOUND')?.message ?? ''}`.trim(), {
         fix: `Check --owner (${owner}) and --project, and that the token can see the project. ${SCOPES}`,

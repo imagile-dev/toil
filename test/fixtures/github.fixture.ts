@@ -93,6 +93,13 @@ export const projectItem = (more = false) => ({
 
 const lastPage = { hasNextPage: false, endCursor: 'Y3Vyc29yOjE=' };
 
+/**
+ * A fine-grained token without the Projects permission. Invented from the docs (GitHub's
+ * GraphQL error shape and its "Resource not accessible by personal access token" message),
+ * not captured live.
+ */
+export const forbiddenProjects = { data: { repositoryOwner: { projectsV2: null } }, errors: [{ type: 'FORBIDDEN', path: ['repositoryOwner', 'projectsV2'], locations: [{ line: 4, column: 9 }], message: 'Resource not accessible by personal access token' }] };
+
 export const comment = (id = 401) => ({ id, body: 'Looks right.', html_url: `${GHE}/imagile/toil-probe/pull/7#issuecomment-${id}`, user: user('octo-dev'), created_at: '2025-01-15T10:00:00Z', updated_at: '2025-01-15T10:00:00Z' });
 export const review = (state = 'APPROVED') => ({ id: 80, state, body: '', commit_id: 'abc1234', html_url: `${GHE}/imagile/toil-probe/pull/7#pullrequestreview-80`, user: user('octo-rev', 3) });
 export const file = (filename = 'src/probe.ts') => ({ sha: 'abc1234', filename, status: 'modified', additions: 3, deletions: 1, changes: 4 });
