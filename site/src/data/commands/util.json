@@ -7,6 +7,9 @@
     "connection": false,
     "flags": [
       "<token>"
+    ],
+    "aliases": [
+      "jwt decode"
     ]
   },
   {
@@ -19,6 +22,9 @@
       "--ecosystem <ecosystem>",
       "--include-transitive",
       "--include-dev"
+    ],
+    "aliases": [
+      "deps scan"
     ]
   },
   {
@@ -32,6 +38,9 @@
       "--to <ref>",
       "--ecosystem <ecosystem>",
       "--include-dev"
+    ],
+    "aliases": [
+      "deps diff"
     ]
   },
   {
@@ -180,6 +189,58 @@
       "--from <time>",
       "--count <n>",
       "--job <name>"
+    ]
+  },
+  {
+    "name": "semver compare",
+    "tool": "util_semver_compare",
+    "description": "Compare two versions and name the part they differ in (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<a>",
+      "<b>",
+      "--ecosystem <ecosystem>"
+    ]
+  },
+  {
+    "name": "semver satisfies",
+    "tool": "util_semver_satisfies",
+    "description": "Check whether a version satisfies a range (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<version>",
+      "<range>",
+      "--ecosystem <ecosystem>",
+      "--include-prerelease"
+    ]
+  },
+  {
+    "name": "semver sort",
+    "tool": "util_semver_sort",
+    "description": "Sort versions, and find the highest that satisfies a range (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--ecosystem <ecosystem>",
+      "--range <range>",
+      "--include-prerelease"
+    ]
+  },
+  {
+    "name": "semver bump",
+    "tool": "util_semver_bump",
+    "description": "Bump a version: the next major, minor, patch or prerelease (local only, no network)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<version>",
+      "<release>",
+      "--ecosystem <ecosystem>",
+      "--preid <id>"
     ]
   },
   {

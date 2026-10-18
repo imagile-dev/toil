@@ -1077,6 +1077,59 @@ The Dossiers module of the menu (#56), `src/welcome/views/dossiers.ts`.
   document without aliases is held by the input cap alone. js-yaml has no switch
   to reject aliases, and the count also stops a cycle.
 
+### util semver (#180)
+
+- **Four commands, not six:** `compare` (which also answers "diff two", as
+  `difference`), `satisfies`, `sort` (which, with `--range`, also gives the
+  versions that satisfy it and the highest), and `bump`.
+- **One home for comparisons, two behaviours:** `compareSemver` in
+  `src/core/versions.ts` stays exactly as `artifactory outdated` and
+  `util deps diff` recorded it (prereleases as plain text, quirks included).
+  The ecosystems' own grammars sit beside it behind one interface,
+  `VersionGrammar`, in `src/core/versions/` (npm, NuGet, Maven), loaded only
+  through `grammarFor`. No dependency: node-semver is ISC (outside the
+  MIT/Apache/BSD list), and NuGet and Maven have no JavaScript library at all.
+- **npm follows node-semver's strict mode exactly**, desugaring included, and
+  passes its range-include, range-exclude, range-parse, comparison, equality,
+  valid, invalid and increment tables. Loose mode (73 rows across the tables)
+  is left out on purpose, since it coerces text into versions; so is `inc`'s
+  identifier base (34 rows). `includePrerelease` is offered as
+  `--include-prerelease`. One deliberate difference: numeric prerelease
+  identifiers compare by value at any size, as SemVer 2.0.0 says, where
+  node-semver stops at 2^53.
+- **NuGet follows NuGet.Versioning** (`NuGetVersion.TryParse`,
+  `VersionComparer.Default`, `VersionRange.TryParse` and `Satisfies`).
+  Floating versions (`1.*`) are refused: their meaning depends on a feed. A
+  prerelease inside a range's bounds satisfies it, as `Satisfies` has it; the
+  restore-time rule that skips prereleases is resolution, not a range.
+- **Maven follows Maven 3.9's ComparableVersion and VersionRange**, but
+  ComparableVersion orders any string, so here a version is letters, digits,
+  `.`, `-`, `_` and `+` with at least one digit. A bare version is a soft
+  requirement any version satisfies (as Maven has it), with a
+  `MAVEN_SOFT_REQUIREMENT` warning.
+- **`difference` uses one rule everywhere:** the most significant part that
+  differs (`major`, `minor`, `patch`, `revision`, then `prerelease` or
+  `qualifier`), not node-semver's `premajor`-style answers.
+- **Bump:** npm is `inc` without the identifier base. NuGet and Maven take
+  major, minor and patch only; NuGet drops the revision and labels, Maven
+  bumps the leading numbers and drops the qualifier.
+- **Self-checks:** `sort.transitive` checks every pair of the sorted list up
+  to 2,000 versions (about 2 million comparisons), and neighbours only past
+  that, reported as `APPROXIMATED`. Range answers are checked against the
+  range's intervals, which each grammar works out by comparison alone, at
+  the boundary versions and at every version asked about. For NuGet and
+  Maven, whose ranges are intervals already, that check is close to the
+  computation itself; it's still run, and a test shows it catching a broken
+  `satisfies`.
+- **The run module is a static import** (#188: a lazy module that imports
+  zod breaks the bundle). Only the grammars, which import nothing, are lazy.
+- **The utilities page** shows each command's short paths from the registry:
+  the generated `site/src/data/commands/<area>.json` gains an `aliases` field,
+  present only on commands that have one.
+- **A Maven or NuGet version is at most 256 characters**, as an npm one is.
+  Maven's parse nests one list per letter-digit switch, so a long `1a1a…` would
+  otherwise recurse past the stack when compared.
+
 ### util secrets scan (#178)
 
 - **One input field for a file or a folder.** The path argument (`file` over

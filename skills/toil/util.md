@@ -1,11 +1,11 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, and converting Markdown to and from Jira and Confluence formats
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, and converting Markdown to and from Jira and Confluence formats
 ---
 
 # Local utilities (`util`)
 
-Commands that work on what's on this machine: a token you paste, a file or
+Commands that work on what's on this machine: a token or version you paste, a file or
 folder in the workspace (a certificate or a log, say), the manifests and lockfiles there, a
 report a build left behind, text you're about to commit or post, or a time and a time zone. They aren't
 integrations. There is no server, no connection to add, no `TOIL_UTIL_*`
@@ -22,17 +22,21 @@ the same flags and output:
 | `toil util jwt decode` | `toil jwt decode` | `util_jwt_decode` |
 | `toil util deps scan` | `toil deps scan` | `util_deps_scan` |
 | `toil util deps diff` | `toil deps diff` | `util_deps_diff` |
-| `toil util secrets scan` | | `util_secrets_scan` |
-| `toil util encode` | | `util_encode` |
-| `toil util cert` | | `util_cert` |
-| `toil util report` | | `util_report` |
-| `toil util log` | | `util_log` |
-| `toil util size` | | `util_size` |
-| `toil util time convert` | | `util_time_convert` |
-| `toil util time duration` | | `util_time_duration` |
-| `toil util time business-days add` | | `util_time_business_days_add` |
-| `toil util time business-days diff` | | `util_time_business_days_diff` |
-| `toil util time cron` | | `util_time_cron` |
+| `toil util secrets scan` | none | `util_secrets_scan` |
+| `toil util encode` | none | `util_encode` |
+| `toil util cert` | none | `util_cert` |
+| `toil util report` | none | `util_report` |
+| `toil util log` | none | `util_log` |
+| `toil util size` | none | `util_size` |
+| `toil util time convert` | none | `util_time_convert` |
+| `toil util time duration` | none | `util_time_duration` |
+| `toil util time business-days add` | none | `util_time_business_days_add` |
+| `toil util time business-days diff` | none | `util_time_business_days_diff` |
+| `toil util time cron` | none | `util_time_cron` |
+| `toil util semver compare` | none | `util_semver_compare` |
+| `toil util semver satisfies` | none | `util_semver_satisfies` |
+| `toil util semver sort` | none | `util_semver_sort` |
+| `toil util semver bump` | none | `util_semver_bump` |
 | `toil util md` | | `util_md` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
@@ -453,6 +457,79 @@ What it checks, in `data.verified` (a failure also warns under its code):
   next one starts; it's reported at its byte offset.
 - Input with no certificate that can be read fails with `INVALID_INPUT`, naming
   each block and why.
+
+### `toil util semver`
+
+Versions and ranges in the grammar of the ecosystem they come from. Pick it with
+`--ecosystem`: `npm` (the default), `nuget` or `maven`.
+
+- **npm:** SemVer 2.0.0 versions (`1.2.3`, `1.2.3-rc.1+build.5`; a leading `v` is
+  allowed) and npm's ranges, as `package.json` takes them: `^1.2.3`, `~1.2`, `1.x`, `>=1.0.0 <2.0.0`,
+  `1.0.0 - 2.0.0`, joined with `||`. A prerelease satisfies a range only when the
+  range names a prerelease of the same `major.minor.patch`, unless you pass
+  `--include-prerelease`. There's no loose mode that turns text that isn't a
+  version into one.
+- **nuget:** one to four numbers (`1`, `1.0` and `1.0.0.0` are one version), then
+  an optional `-prerelease` and `+metadata`. Labels compare case-insensitively.
+  Ranges are interval notation: `1.0` (at least 1.0), `[1.0]`, `[1.0,2.0)`,
+  `(,2.0]`. A prerelease inside the bounds satisfies the range. Floating versions
+  (`1.*`, `1.0.0-*`) are refused, because what one picks depends on the feed.
+- **maven:** Maven's own ordering: `alpha < beta < milestone < rc < snapshot <
+  release < sp`, `1`, `1.0` and `1.0.0.Final` are one version, and `1a1` is
+  `1-alpha-1`. A version is letters, digits, `.`, `-`, `_` and `+` with at least
+  one digit, so an unresolved `${property}` is reported, not ordered. Ranges are
+  `[1.0,2.0)`, `[1.0]` and `(,1.0],[1.2,)`. A bare version is a soft requirement
+  that any version satisfies, and says so in a `MAVEN_SOFT_REQUIREMENT` warning.
+
+A version or range that doesn't parse in the chosen grammar is `INVALID_INPUT`,
+with the reason and an example of what fits. Build metadata never affects order.
+
+```bash
+toil util semver compare 1.0.0-rc.10 1.0.0-rc.9
+toil util semver satisfies 1.3.0-rc.1 '^1.2.0' --include-prerelease
+toil util semver satisfies 5.3.39 '[5.0,6.0)' --ecosystem maven
+toil util semver sort versions.txt --range '^5.0.0'
+toil util semver bump 1.2.3 prerelease --preid rc
+```
+
+| Command | Arguments and flags | Output |
+|---------|---------------------|--------|
+| `compare <a> <b>` | `--ecosystem <ecosystem>` | `{ ecosystem, a, b, order, higher, difference, normalized: { a, b }, verified }`. `order` is -1, 0 or 1 for a against b, `higher` is `a`, `b` or null, and `difference` is the most significant part they differ in: `major`, `minor`, `patch`, `revision` (NuGet's fourth part, or Maven's), `prerelease`, `qualifier` (Maven) or null |
+| `satisfies <version> <range>` | `--ecosystem <ecosystem>`, `--include-prerelease` | `{ ecosystem, version, range, normalizedRange, satisfies, verified }` |
+| `sort [file]` | `--text <text>`, `--ecosystem <ecosystem>`, `--range <range>`, `--include-prerelease` | `{ ecosystem, count, sorted, invalid, verified }`, lowest first, plus `{ range, normalizedRange, satisfying, highest }` with `--range` |
+| `bump <version> <release>` | `--ecosystem <ecosystem>`, `--preid <id>` | `{ ecosystem, version, release, preid, result, verified }` |
+
+- **`sort`** reads a file in the workspace, stdin (`-`, or no file), or `--text`.
+  Versions go one per line or separated by spaces. An entry that doesn't parse is
+  left out of the sort and listed in `invalid` with its line and the reason, with a
+  `SEMVER_INVALID_VERSION` warning.
+- **`bump`** takes `major`, `minor` or `patch` in every ecosystem. npm also takes
+  `premajor`, `preminor`, `prepatch`, `prerelease` and `release`, the bumps npm
+  publishes with, and `--preid` names the prerelease (`1.2.3` `prerelease --preid rc` is
+  `1.2.4-rc.0`). A NuGet result has three parts, with the revision and labels
+  dropped. Maven bumps the leading numbers and drops the qualifier
+  (`1.2.3-SNAPSHOT` `minor` is `1.3.0`).
+
+**What it checks** (`verified`, with failures as warnings):
+
+- `sort.transitive`: every pair in the sorted list is in order, so a comparison
+  where a < b and b < c but not a < c can't hide. Up to 2,000 versions; past that,
+  each against its neighbour, reported as `APPROXIMATED`.
+- `sort.antisymmetric`, `sort.complete`: each neighbouring pair compares the same
+  both ways round, and every entry is either sorted or listed as invalid.
+- `range.boundaries`, `range.answers`: each answer agrees with the range's
+  intervals, worked out by comparison alone, at the range's boundary versions and
+  at every version asked about. A range with no bounds (`*`) has none to test, and
+  says so with `UNVERIFIED`.
+- `compare.antisymmetric`, `diff.consistent`, `bump.increases`,
+  `version.normalized`: b against a is the reverse of a against b, a difference is
+  named exactly when the versions differ, a bump goes up, and a normalised version
+  reads back as the same version.
+- `input.complete`: the whole file was read. stdin has no size to compare with, so
+  it's `UNVERIFIED`.
+
+`diff` names the most significant part that changed, the same rule in every
+ecosystem; it never answers `premajor` or the like.
 
 ### `toil util report`
 
