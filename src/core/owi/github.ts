@@ -1,4 +1,4 @@
-import { blank, idFor, instant, isRecord, num, overrideUnit, person, setInstant, str, typeOf, unknownState, unmapped, type MapState, type OwiDocument } from './common.js';
+import { blank, idFor, instant, isRecord, num, overrideUnit, person, setDay, setInstant, str, typeOf, unknownState, unmapped, type MapState, type OwiDocument } from './common.js';
 import type { History, Iteration, Person, StatusCategory, WorkItem } from './types.js';
 
 /**
@@ -176,7 +176,7 @@ export function applyBoard(item: WorkItem, entry: BoardEntry, doc: OwiDocument, 
     const value = entry.values.get(fieldName);
     const read = value ? (str(value.name) ?? str(value.text) ?? str(value.date) ?? (num(value.number) === null ? null : String(value.number))) : null;
     if (read === null) absent(fieldName, field);
-    else if (field === 'dueDate') item.dueDate = /^\d{4}-\d{2}-\d{2}/.exec(read)?.[0] ?? null;
+    else if (field === 'dueDate') setDay(item, read, fieldName);
     else item[field] = read;
   }
   if (state.fields.type !== undefined) {

@@ -359,6 +359,16 @@ describe('review round 1', () => {
     expect(data.verified.passed).toBe(true);
   });
 
+  it.each([
+    ['a Projects date field', { __typename: 'ProjectV2ItemFieldDateValue', date: '2026-10-20', field: { name: 'Due' } }, '2026-10-20', null],
+    ['text that is not a date', { __typename: 'ProjectV2ItemFieldTextValue', text: 'next sprint', field: { name: 'Due' } }, null, 'Due holds "next sprint", which isn\'t a date'],
+  ])('github: a board dueDate from %s', async (_name, value, dueDate, reason) => {
+    const item = { ...board(6), fieldValues: [...board(6).fieldValues, value] };
+    const { data } = await map({ text: json(env('github projects list-items', [item], 'github', { owner: 'imagile' })), field: ['dueDate=Due'] });
+    expect(data.items[0].dueDate).toBe(dueDate);
+    expect((data.items[0] as WorkItem).unmapped.find((u) => u.field === 'dueDate')?.reason ?? null).toBe(reason);
+  });
+
   it("says an Azure DevOps history state is a custom one, not Jira's changelog", async () => {
     const rev = (rev: number, state: string, at: string) => ({ id: 9, rev, fields: { 'System.State': state, 'System.ChangedDate': at } });
     const input = [env('ado work get', { id: 9, fields: { 'System.Title': 'T', 'System.State': 'Blocked', 'System.WorkItemType': 'Task' } }), env('ado work revisions', [rev(1, 'New', '2026-10-05T09:00:00Z'), rev(2, 'Blocked', '2026-10-06T09:00:00Z')])];
