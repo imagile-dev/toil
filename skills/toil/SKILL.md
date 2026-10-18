@@ -107,6 +107,17 @@ with writes on; the user does that on the command line, or under **Dossiers** in
 menu bare `toil` opens, which runs these same commands and asks them to type the
 connection's name first.
 
+toil keeps a local audit log of every command it runs, through the CLI and MCP:
+one JSON line per call in `~/.toil/audit/<yyyy-mm>.jsonl`, with the command, front
+door, connection, whether it wrote, the outcome, the redacted input and each request's
+method, URL and status. It never holds a secret, a header, a body or a row, and `db`
+SQL is kept only as a SHA-256 hash. `toil audit list` reads it back, newest first,
+with `--since <date>`, `--command <name|area>`, `--connection <name>` and
+`--writes-only`; `toil audit path` says where it is and whether it's on. Six months are
+kept by default (`"audit": { "keepMonths": 12 }` changes that), and only a person can
+turn it off, with `"audit": { "enabled": false }` in `~/.toil/config.json`. A call
+whose line couldn't be written still succeeds, with an `AUDIT_WRITE_FAILED` warning.
+
 toil trusts the OS certificate store and Node's bundled CAs, and uses `HTTPS_PROXY` /
 `HTTP_PROXY` / `NO_PROXY` when they're set. A `NETWORK` error about an untrusted
 certificate means the CA is in neither; `NODE_EXTRA_CA_CERTS` adds it.

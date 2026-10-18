@@ -1,3 +1,4 @@
+import type { AuditLog } from './audit.js';
 import type { DossierLookup, GitRemoteReader, SuppliedSource } from './call-context.js';
 import type { ResolvedConfig } from './config.js';
 import type { DossierCatalog, DossierView } from './dossier.js';
@@ -71,6 +72,12 @@ export interface Context {
    * adopted: such writes are refused.
    */
   adopted?: (area: string, connection: string, by: 'dossier' | 'git') => boolean;
+  /**
+   * The audit log (src/core/audit.ts): execute() appends one line per call.
+   * Commands never get it; `toil audit` reads it through `ctx.manage`.
+   * Absent means nothing is recorded.
+   */
+  audit?: AuditLog;
 }
 
 /**
@@ -91,6 +98,8 @@ export interface ConfigAccess {
   env: NodeJS.ProcessEnv;
   /** The dossiers toil can see, for `toil dossiers ...`. Undefined where there are none (tests). */
   dossiers: DossierCatalog | undefined;
+  /** The audit log, for `toil audit`. Undefined where there is none. */
+  audit: AuditLog | undefined;
   /**
    * Which front door the call came through. Binding a dossier to a connection
    * with writes on is done by a person on the CLI, so the dossier commands
@@ -110,7 +119,7 @@ export interface ConfigAccess {
  * connection's, on its own.
  */
 export interface CommandContext<C = undefined, X = Record<string, string | undefined>>
-  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo'> {
+  extends Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo' | 'audit'> {
   connection: C;
   /** The area's context inputs, resolved (`ctx.context.project`). Unset ones are absent. */
   context: X;

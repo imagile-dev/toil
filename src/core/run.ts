@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { areaOf, commandName, isCliOnly, managesConfig, takesAllowWrite, usesConnection, writesFor, type AnyCommand } from './command.js';
 import type { Connection } from './area.js';
+import { recordAudit } from './audit.js';
 import { resolveCall, supplyContext, type ResolvedCall } from './call-context.js';
 import { connectionEnvName, connectionsOf, defaultConnectionName, envName } from './config.js';
 import { IncompleteConnectionError } from './connection.js';
@@ -84,8 +85,8 @@ export const DEFAULT_TIMEOUT_MS = 120_000;
  * The one way any command runs, from either front door: validate the input
  * strictly, enforce the write gate, run with an instrumented, cancellable fetch
  * under a time limit, and wrap the result or failure in the envelope.
- * --verbose, warnings, paging, timeouts and cancellation all live here, so no
- * front door can forget them and no command has to remember them.
+ * --verbose, warnings, paging, timeouts, cancellation and the audit line all
+ * live here, so no front door can forget them and no command has to remember them.
  */
 export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, via: FrontDoor = 'cli'): Promise<Envelope> {
   const started = performance.now();
@@ -134,6 +135,9 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     controller.abort(new ToilError('CANCELLED', `${commandName(def)} was cancelled.${maybeApplied()}`, writing ? { fix: checkFirst().trim() } : {}));
   if (ctx.signal?.aborted) onCallerAbort();
   else ctx.signal?.addEventListener('abort', onCallerAbort, { once: true });
+  // One audit line per call, success or failure, with the input as the caller
+  // sent it and every request, --verbose or not (src/core/audit.ts).
+  const audited = (envelope: Envelope) => recordAudit(ctx.audit, { def, input: rawInput, via, writes: writing, requests, envelope });
 
   try {
     // Strict: an unknown or misspelt field is an error through MCP exactly as an
@@ -220,7 +224,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     // enforced rather than requested in a policy nobody reads.
     // The credential store and the prompter go only to commands that manage
     // connections, which get them through ctx.manage.
-    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo'> & {
+    const rest: Omit<Context, 'config' | 'env' | 'secrets' | 'prompt' | 'dossiers' | 'dossier' | 'gitRemote' | 'adopted' | 'repo' | 'audit'> & {
+      audit?: unknown;
       repo?: unknown;
       dossiers?: unknown;
       config?: unknown;
@@ -240,6 +245,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     delete rest.gitRemote;
     delete rest.adopted;
     delete rest.repo;
+    delete rest.audit;
     const context = call?.context ?? {};
     const resolved = call?.report ?? {};
     const commandCtx: CommandContext<Connection | undefined> = {
@@ -251,7 +257,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
         if (!def.area || !call) throw new Error(`${commandName(def)} has no context inputs to supply.`);
         return supplyContext(def.area, def, context, resolved, name, value, source);
       },
-      ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt, dossiers: ctx.dossiers, env: ctx.env, via } } : {}),
+      ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt, dossiers: ctx.dossiers, env: ctx.env, via, audit: ctx.audit } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
       // A listing's warnings (a refused git include) land in meta.warnings without the command passing anything.
@@ -280,11 +286,11 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     const data = query ? applySelect(query, result, commandName(def), writing, (w) => warnings.push(w)) : result;
     const envelope = success(data, meta());
     if (exitCode !== undefined) exitCodes.set(envelope, exitCode);
-    return envelope;
+    return audited(envelope);
   } catch (err) {
     // A request aborted by our signal surfaces as an AbortError; report why it was aborted.
     const reason = controller.signal.aborted ? controller.signal.reason : err;
-    return failure(toToilError(reason), meta());
+    return audited(failure(toToilError(reason), meta()));
   } finally {
     clearTimeout(timer);
     ctx.signal?.removeEventListener('abort', onCallerAbort);

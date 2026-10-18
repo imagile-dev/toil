@@ -8,6 +8,7 @@ import type { GitRunner } from '../../src/core/git.js';
 import type { GitContext } from '../../src/core/git-repo.js';
 import type { SecretStore } from '../../src/core/keychain.js';
 import type { Prompter } from '../../src/core/prompt.js';
+import { memoryAudit, type MemoryAudit } from './audit.js';
 import { fakeFetch, type FakeFetch, type Route } from './fake-fetch.js';
 import { memoryFiles } from './files.js';
 
@@ -46,6 +47,8 @@ export interface TestContextOptions {
   prompt?: Prompter;
   /** Dossiers on a temp disk (`dossierDisk().catalog`), built over this context's config. Absent, there are none. */
   dossiers?: (config: ResolvedConfig) => DossierCatalog;
+  /** The audit log execute() appends to; a fresh `memoryAudit()` by default, so no test writes to a home folder. */
+  audit?: MemoryAudit;
   /**
    * The home folder `ctx.home` names, for the skills commands: a folder to use
    * as it is, or files (relative paths) to seed a fresh one with. Seeded homes
@@ -77,8 +80,9 @@ export function seedHome(files: Record<string, string>): string {
  * and a prompter when the test gives them. Returns the fakes so tests can read
  * `calls` and `files.written`.
  */
-export function testContext(options: TestContextOptions = {}): { context: Context; http: FakeFetch; files: ReturnType<typeof memoryFiles> } {
+export function testContext(options: TestContextOptions = {}): { context: Context; http: FakeFetch; files: ReturnType<typeof memoryFiles>; audit: MemoryAudit } {
   const http = fakeFetch(options.routes);
+  const audit = options.audit ?? memoryAudit();
   const files = memoryFiles(options.files, options.stdin === undefined ? {} : { stdin: options.stdin });
   const config = testConfig(options.config);
   const context: Context = {
@@ -89,6 +93,7 @@ export function testContext(options: TestContextOptions = {}): { context: Contex
     version: TEST_VERSION,
     verbose: options.verbose ?? false,
     debug: () => {},
+    audit,
     ...(options.secrets ? { secrets: options.secrets } : {}),
     ...(options.prompt ? { prompt: options.prompt } : {}),
     ...(options.repo ? { repo: () => options.repo } : {}),
@@ -96,7 +101,7 @@ export function testContext(options: TestContextOptions = {}): { context: Contex
     ...(options.home === undefined ? {} : { home: typeof options.home === 'string' ? options.home : seedHome(options.home) }),
     ...(options.dossiers ? { dossiers: options.dossiers(config) } : {}),
   };
-  return { context, http, files };
+  return { context, http, files, audit };
 }
 
 /** What a scripted prompter was asked, in order, and whether the answer was read hidden. */
