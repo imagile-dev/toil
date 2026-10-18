@@ -101,6 +101,14 @@ describe('openInput', () => {
     expect([ok.invalidUtf8, quiet]).toEqual([false, []]);
   });
 
+  it("with utf8: 'skip', reads bytes that aren't UTF-8 without a warning, for a command that never shows them as text", async () => {
+    const bytes = new Uint8Array([0x61, 0xff, 0xc3]);
+    const { open, warnings } = setup({ 'raw.bin': bytes });
+    const input = await open({ file: 'raw.bin' }, { utf8: 'skip' });
+    expect([...(await input.bytes())]).toEqual([...bytes]);
+    expect([input.invalidUtf8, warnings]).toEqual([false, []]);
+  });
+
   it('holds to the cap: a whole read refuses, a stream stops and says so', async () => {
     const { open, warnings } = setup({ 'big.log': 'a\nb\nc\nd\n' }, 'more than ten bytes of stdin');
     await expect((await open({ file: 'big.log' }, { maxBytes: 4 })).text()).rejects.toMatchObject({

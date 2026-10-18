@@ -35,6 +35,20 @@
     ]
   },
   {
+    "name": "encode",
+    "tool": "util_encode",
+    "description": "Encode or decode base64, base64url, hex or URL text, or hash a file, and check the result",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<scheme>",
+      "[file]",
+      "--text <text>",
+      "--decode",
+      "--out <file>"
+    ]
+  },
+  {
     "name": "secrets scan",
     "tool": "util_secrets_scan",
     "description": "Find credential-shaped strings in a file, folder, stdin or the staged diff (local only; exit 1 on findings)",
