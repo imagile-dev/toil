@@ -6,7 +6,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { listSchemas } from '../../src/areas/db/index.js';
 import type { DbConnection } from '../../src/core/db/provider.js';
 import { connectionConfig, serverSpn } from '../../src/core/db/sqlserver/index.js';
-import { tediousSupportsSspi, useExchange } from '../../src/core/db/sqlserver/windows-login.js';
+import sspiTokenParser from 'tedious/lib/token/sspi-token-parser.js';
+import StreamParser from 'tedious/lib/token/stream-parser.js';
+import { readSspiTokenRaw, tediousSupportsSspi, useExchange } from '../../src/core/db/sqlserver/windows-login.js';
+import { sqlserverProvider } from '../../src/core/db/sqlserver/index.js';
+import * as sspi from '../../src/os/windows-sspi.js';
 import { execute } from '../../src/core/run.js';
 import { bootstrapLine, helperEnv, powershellPath, startSspi, type HelperSpawner } from '../../src/os/windows-sspi.js';
 import { testContext } from '../harness/context.js';
@@ -206,6 +210,43 @@ describe("sqlserver windows authentication: tedious's login, wrapped", () => {
     connection.messageIo = { sendMessage: (_: number, data: Buffer) => sent.push(data) } as never;
     connection.sendLogin7Packet();
     expect(sent[0]!.includes(Buffer.from('NTLMSSP'))).toBe(true);
+  });
+});
+
+describe("sqlserver windows authentication: tedious's SSPI token parse, guarded", () => {
+  type Fake = { buffer: Buffer; position: number };
+  const parse = (fake: Fake) => (StreamParser as unknown as { prototype: { parseToken(this: Fake, p: unknown): unknown } }).prototype.parseToken.call(fake, sspiTokenParser);
+  const tokenOf = (data: Buffer) => Buffer.concat([Buffer.from([0xed]), Buffer.from([data.length & 0xff, data.length >> 8]), data]);
+
+  it('hands a short Negotiate token on raw instead of failing in the NTLM parse', () => {
+    // SPNEGO accept-completed: nine bytes, far shorter than an NTLM CHALLENGE.
+    const spnego = Buffer.from('a1073005a0030a0100', 'hex');
+    const fake = { buffer: tokenOf(spnego), position: 0 };
+    const token = parse(fake) as { ntlmpacket: unknown; ntlmpacketBuffer: Buffer };
+    expect(token.ntlmpacketBuffer).toEqual(spnego);
+    expect(token.ntlmpacket).toBeTruthy();
+    expect(fake.position).toBe(3 + spnego.length);
+  });
+
+  it("still lets tedious parse an NTLM CHALLENGE itself, and asks for more data when the token isn't all there", () => {
+    const challenge = Buffer.alloc(64);
+    challenge.write('NTLMSSP ', 0, 'latin1');
+    challenge.writeInt32LE(2, 8);
+    const token = parse({ buffer: tokenOf(challenge), position: 0 }) as { ntlmpacket: { magic: string; type: number } };
+    expect(token.ntlmpacket).toMatchObject({ magic: 'NTLMSSP ', type: 2 });
+    const partial = tokenOf(Buffer.from('a1073005a0030a0100', 'hex')).subarray(0, 6);
+    expect(() => readSspiTokenRaw({ buffer: partial, position: 0, parseToken: () => undefined })).toThrow();
+  });
+});
+
+describe('sqlserver windows authentication: the helper never outlives a failed setup', () => {
+  it('builds the connection before starting the helper, so a constructor error starts nothing', async () => {
+    const start = vi.spyOn(sspi, 'startSspi');
+    vi.spyOn(process, 'platform', 'get').mockReturnValue('win32');
+    // tedious's constructor refuses a port outside 1-65535.
+    const broken = { ...conn, port: 70000 } as DbConnection;
+    await expect(sqlserverProvider.listSchemas(broken, { signal: new AbortController().signal, debug: () => {} })).rejects.toThrow();
+    expect(start).not.toHaveBeenCalled();
   });
 });
 

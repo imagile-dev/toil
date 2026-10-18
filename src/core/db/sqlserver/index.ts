@@ -205,9 +205,9 @@ class Session {
  */
 async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (s: Session) => Promise<T>): Promise<T> {
   if (call.signal.aborted) throw call.signal.reason;
-  const exchange = windowsAuth(conn) ? await windowsExchange(conn, call) : undefined;
+  // The connection is built before the SSPI helper starts, so a constructor that throws leaves no process behind.
   const connection = new Connection(connectionConfig(conn, call.debug));
-  if (exchange) useExchange(connection, exchange);
+  let exchange: SspiExchange | undefined;
   // An idle connection still emits 'error' if the server drops it; without a listener that would crash the process.
   connection.on('error', (err) => call.debug(`sqlserver: connection ${conn.name}: ${err.message}`));
   const s = new Session(connection);
@@ -218,6 +218,10 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (s
   call.signal.addEventListener('abort', onAbort, { once: true });
   call.debug(`sqlserver: connection ${conn.name}, ${mode === 'read' ? 'read, rolled back' : 'read-write'}`);
   try {
+    if (windowsAuth(conn)) {
+      exchange = await windowsExchange(conn, call);
+      useExchange(connection, exchange);
+    }
     await connect(connection);
     await s.run(mode === 'read' ? 'SET XACT_ABORT OFF; BEGIN TRANSACTION' : 'SET XACT_ABORT ON; BEGIN TRANSACTION');
     let result: T;
