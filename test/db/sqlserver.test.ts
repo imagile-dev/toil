@@ -54,6 +54,11 @@ describe('sqlserver script scanning', () => {
     }
   });
 
+  it('finds OUTPUT outside strings and quoted identifiers', () => {
+    expect(scanScript('UPDATE t SET x = 1 OUTPUT inserted.id').output).toBe(true);
+    expect(scanScript("SELECT [output], 'OUTPUT' FROM t -- output").output).toBe(false);
+  });
+
   it('knows SQL that holds no statement', () => {
     expect(scanScript(';; -- nothing\n /* here */ ;').empty).toBe(true);
     expect(scanScript("SELECT 1; /* trailing */").empty).toBe(false);
@@ -184,6 +189,12 @@ describe.skipIf(skip !== undefined)(`sqlserver server${skip ? ` (skipped: ${skip
       for (const sql of ['UPDATE people SET active = 0', 'SET NOCOUNT ON; UPDATE people SET active = 0', "EXEC('DELETE FROM people')", 'DROP TABLE people', 'CREATE TABLE notes (id int)']) {
         expect((await run(query, { sql }, reader)).error?.code, sql).toBe('WRITE_DISABLED');
       }
+      // 262 also refuses reads, such as a DMV that needs VIEW DATABASE STATE: a permission error, not a write.
+      // (SQL Server 2022 answers these with 262, VIEW DATABASE PERFORMANCE STATE, and 300.)
+      for (const sql of ['SELECT COUNT(*) AS n FROM sys.dm_db_partition_stats', 'SELECT COUNT(*) AS n FROM sys.dm_db_index_usage_stats']) {
+        const denied = await run(query, { sql }, reader);
+        expect(denied.error, sql).toMatchObject({ code: 'DATABASE', message: expect.stringContaining('permission'), fix: expect.stringContaining('lacks that permission') });
+      }
       // A write through execute reaches the same refusal: the login is the boundary.
       const denied = await run(executeCmd, { sql: 'UPDATE people SET active = 0', allowWrite: true }, reader);
       expect(denied.error).toMatchObject({ code: 'DATABASE', message: expect.stringContaining('permission') });
@@ -200,6 +211,16 @@ describe.skipIf(skip !== undefined)(`sqlserver server${skip ? ` (skipped: ${skip
     expect((envelope.data as { rows: unknown[][] }).rows).toEqual([[1], [2], [3]]);
     expect(envelope.meta.page?.nextCursor).toEqual(expect.any(String));
     await expect.poll(db.running!, { timeout: 5000 }).toBe(0);
+  });
+
+  // An OUTPUT clause streams the changed rows before the statement's DONE token, so a full page
+  // would stop it before the server said it was a write; reads refuse OUTPUT outright.
+  it('refuses OUTPUT on reads, whatever the page size', async () => {
+    for (const limit of [1, 100]) {
+      const envelope = await run(query, { sql: 'UPDATE people SET active = 0 OUTPUT inserted.id', limit }, { ...db.settings, writes: true });
+      expect(envelope.error, String(limit)).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('db execute') });
+    }
+    expect(await activeSum()).toBe(8);
   });
 
   it('refuses SQL that holds no statement', async () => {

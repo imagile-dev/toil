@@ -22,6 +22,8 @@ export interface ScriptScan {
   empty: boolean;
   /** The first transaction-control keyword found, upper-cased (`COMMIT`, `BEGIN TRANSACTION`), or undefined. */
   transactionControl?: string;
+  /** True when the reserved word OUTPUT appears: an INSERT, UPDATE, DELETE or MERGE returning rows, or a procedure's output parameter. */
+  output: boolean;
 }
 
 const WORD = /[A-Za-z_@#][A-Za-z0-9_@#$]*/y;
@@ -29,23 +31,24 @@ const TRANSACTION_WORDS = new Set(['TRAN', 'TRANSACTION', 'DISTRIBUTED']);
 
 export function scanScript(sql: string): ScriptScan {
   const tokens = tokenize(sql);
+  const output = tokens.includes('OUTPUT');
   let depth = 0;
   for (let i = 0; i < tokens.length; i++) {
     const word = tokens[i]!;
     const next = tokens[i + 1] ?? ';';
-    if (word === 'COMMIT' || word === 'ROLLBACK') return { empty: false, transactionControl: word };
-    if (word === 'SAVE' && TRANSACTION_WORDS.has(next)) return { empty: false, transactionControl: `SAVE ${next}` };
+    if (word === 'COMMIT' || word === 'ROLLBACK') return { empty: false, output, transactionControl: word };
+    if (word === 'SAVE' && TRANSACTION_WORDS.has(next)) return { empty: false, output, transactionControl: `SAVE ${next}` };
     if (word === 'BEGIN') {
-      if (TRANSACTION_WORDS.has(next) || next === ';') return { empty: false, transactionControl: next === ';' ? 'BEGIN' : `BEGIN ${next}` };
+      if (TRANSACTION_WORDS.has(next) || next === ';') return { empty: false, output, transactionControl: next === ';' ? 'BEGIN' : `BEGIN ${next}` };
       // BEGIN TRY / BEGIN CATCH pair with END TRY / END CATCH, which close them below.
       depth++;
     } else if (word === 'CASE') depth++;
     else if (word === 'END') {
-      if (depth === 0) return { empty: false, transactionControl: 'END' };
+      if (depth === 0) return { empty: false, output, transactionControl: 'END' };
       depth--;
     }
   }
-  return { empty: tokens.every((t) => t === ';') };
+  return { empty: tokens.every((t) => t === ';'), output };
 }
 
 /**

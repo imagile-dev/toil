@@ -285,7 +285,12 @@ with a TDS attention, so anything after it in the same SQL never runs.
 
 `COMMIT`, `ROLLBACK`, `BEGIN TRANSACTION` and `SAVE TRANSACTION` are refused on every
 read with `INVALID_INPUT`, before they reach the server: a `COMMIT` would end the
-transaction toil rolls back, and keep the write before it.
+transaction toil rolls back, and keep the write before it. `OUTPUT` is refused on reads
+too: an `INSERT`, `UPDATE`, `DELETE` or `MERGE` with `OUTPUT` sends its rows before the
+server reports the change, so a full page could stop it before toil learns it was a
+write. A read-only login's refusal of a permission that only reads (a `sys.dm_db_*`
+view needing `VIEW DATABASE STATE`, `SHOWPLAN`) comes back as `DATABASE`, naming the
+permission.
 
 Known limit: transaction control inside dynamic SQL or a procedure (an `EXEC` whose
 text holds a `COMMIT`) can't be refused by name, and a write under `SET NOCOUNT ON`
