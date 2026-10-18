@@ -217,7 +217,9 @@ GitHub Actions; its build tooling is out of scope.
 - `src/audit/` — `toil audit list | path`, reading the audit log `src/core/audit.ts`
   keeps
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
-  `commands` (standalone commands export only `commands`)
+  `commands` (standalone commands export only `commands`). `src/areas/util/kit/`
+  is what the local `util` commands share: the input reader, self-verification,
+  and the XML, YAML and JSON Schema parsers (`docs/util.md`)
 - `src/registry.ts` — every shipped area and command, read by both front doors. It
   imports `src/areas.generated.ts`, which `scripts/gen-areas.mjs` writes before
   typecheck, build and tests and git ignores. **Areas register by existing:** adding
@@ -352,7 +354,7 @@ files, uploads, downloads and CSV reports resolve inside the workspace on both
 front doors (**Bounds**), `-` means stdin only on the CLI (over MCP stdin carries
 the protocol, and on an interactive terminal it refuses at once rather than wait), saved paths in output are absolute with forward slashes, and tests
 get an in-memory copy. It also answers `exists`, `stat`, a `.gitignore`-respecting
-`list` and `findUp`, and writes CSV with `writeCsv`. git runs only through `ctx.git` (`src/core/git.ts`). HTTP to a REST API
+`list` and `findUp`, streams a file of any size with `readStream`, and writes CSV with `writeCsv`. git runs only through `ctx.git` (`src/core/git.ts`). HTTP to a REST API
 goes through `apiRequest` in `src/core/api.ts`, built from the area's
 `defineArea({ request })` hook, on `restRequest` in `src/core/rest.ts`. Together they
 turn failures into `AUTH`, `NOT_FOUND`, `HTTP` or `NETWORK` errors with the server's

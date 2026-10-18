@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { ToilError } from './errors.js';
 import { gitBool, lastValue, refusedGitRead } from './git-config.js';
@@ -32,6 +32,13 @@ export interface FileAccess {
   readText(path: string): string;
   /** A file's bytes. */
   readBytes(path: string): Uint8Array;
+  /**
+   * A file's bytes in chunks as they are read, so a command can work through a
+   * file of any size in constant memory. `-` streams stdin where the front door
+   * allows it. The bounds are checked when it's called, before any chunk, so a
+   * refused path throws at once; a read that fails later throws from the loop.
+   */
+  readStream(path: string, options?: { signal?: AbortSignal; chunkSize?: number }): AsyncIterable<Uint8Array>;
   /** Writes `data`, creating parent directories. Refuses with INVALID_INPUT if a file is already there. Returns the absolute path written, with forward slashes. */
   writeBytes(path: string, data: Uint8Array): string;
   /** Whether anything is at `path`. A path outside the bounds is refused, not answered. */
@@ -231,6 +238,9 @@ export function toCsv(header: readonly string[], rows: ReadonlyArray<readonly un
 
 export const DEFAULT_LIST_LIMIT = 100_000;
 
+/** How much `readStream` reads at a time unless asked otherwise. */
+export const STREAM_CHUNK = 64 * 1024;
+
 export function tooManyFiles(dir: string, limit: number): ToilError {
   return new ToilError('INVALID_INPUT', `${forwardSlashes(dir)} holds more than ${limit} files.`, { fix: 'List a narrower folder.' });
 }
@@ -293,6 +303,23 @@ export function nodeFiles(options: {
       throw readFailed(path, err);
     }
   };
+  const readStream = (path: string, streamOptions: { signal?: AbortSignal; chunkSize?: number } = {}): AsyncIterable<Uint8Array> => {
+    if (path === '-' && !options.stdin) throw STDIN_OVER_MCP;
+    if (path === '-' && options.stdin === 'terminal') throw STDIN_IS_TERMINAL;
+    const target = path === '-' ? undefined : at(path);
+    if (target !== undefined) check(target);
+    const settings = { highWaterMark: streamOptions.chunkSize ?? STREAM_CHUNK, ...(streamOptions.signal ? { signal: streamOptions.signal } : {}) };
+    return (async function* () {
+      // stdin stays open after the read: it belongs to the process, not to this command.
+      const stream = target === undefined ? createReadStream('', { ...settings, fd: 0, autoClose: false }) : createReadStream(target, settings);
+      try {
+        for await (const chunk of stream) yield new Uint8Array(chunk as Buffer);
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') throw err;
+        throw readFailed(path, err);
+      }
+    })();
+  };
   const writeBytes = (path: string, data: Uint8Array): string => {
     const target = at(path);
     check(target);
@@ -315,6 +342,7 @@ export function nodeFiles(options: {
     resolve: at,
     readText: (path) => read(path).toString('utf8'),
     readBytes: (path) => new Uint8Array(read(path)),
+    readStream,
     writeBytes,
     exists: (path) => existsSync(check(at(path))),
     stat: (path) => {

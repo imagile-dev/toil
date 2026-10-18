@@ -1,9 +1,14 @@
 /**
- * The version comparison `outdated` uses, kept exactly as the canonical
- * implementation had it: leading non-digits dropped, missing or non-numeric
- * parts read as 0, a release above its prereleases, and prereleases compared
- * as plain text. It is not the semver specification, which is why it is not
- * called that in any document requiring a signature.
+ * The version comparison `artifactory outdated` and `util deps diff` use,
+ * kept exactly as the canonical implementation had it: leading non-digits
+ * dropped, missing or non-numeric parts read as 0, a release above its
+ * prereleases, and prereleases compared as plain text. It is not the semver
+ * specification, which is why it is not called that in any document requiring
+ * a signature.
+ *
+ * It lives in core so toil has one comparison: `util semver` (#180) starts
+ * from it and adds the ecosystems' own grammars beside it, without changing
+ * what these callers get.
  */
 
 interface ParsedVersion {

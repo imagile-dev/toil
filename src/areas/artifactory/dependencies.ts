@@ -4,7 +4,7 @@ import { ToilError } from '../../core/errors.js';
 import { INVENTORY_FROM_DESCRIPTION, readInventory as readSharedInventory, type InventoryPackage } from '../../core/inventory.js';
 import { artifactoryArea } from './area.js';
 import type { ArtifactoryConnection, ArtifactoryContext } from './client.js';
-import { isNewer, updateType } from './semver.js';
+import { isNewer, updateType } from '../../core/versions.js';
 
 /**
  * `outdated` and `license-check`: newer versions and licenses, from the
