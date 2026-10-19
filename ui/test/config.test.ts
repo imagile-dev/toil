@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { Validator } from '@cfworker/json-schema';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -64,7 +64,8 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), 'toil-ui-config-home-'));
+  // One canonical spelling (macOS's /private/var, no Windows 8.3 name), so the test's own paths match what toil reports.
+  home = realpathSync.native(mkdtempSync(join(tmpdir(), 'toil-ui-config-home-')));
   vi.stubEnv('HOME', home);
   vi.stubEnv('USERPROFILE', home);
   // No TOIL_* or CI fallback var (GITHUB_TOKEN on a runner) may add a connection of its own.
@@ -137,6 +138,9 @@ const jiraAnswers = (baseUrl = 'https://jira.imagile.dev') => {
   const fields = registry.areas.find((a) => a.name === 'jira')!.connection.filter((f) => !f.secret);
   return { confirm: 'y', ...Object.fromEntries(fields.map((f) => [`setting:${f.name}`, f.name === 'baseUrl' ? baseUrl : ''])) };
 };
+
+/** An envelope assertion that prints toil's error, so a failure on CI says why. */
+const expectEnvelope = (reply: { envelope: { error?: unknown } }) => expect(reply.envelope, `toil said: ${JSON.stringify(reply.envelope.error)}`);
 
 /** No secret typed anywhere in the test turns up anywhere the test can see. */
 function sweep() {
@@ -213,7 +217,7 @@ describe('connections, through toil', () => {
     expect(tested.envelope).toMatchObject({ ok: true, data: { live: true, authenticated: true, request: 'GET /rest/api/2/myself' } });
     expect(sent).toEqual([{ url: 'https://jira.imagile.dev/rest/api/2/myself', auth: `Bearer ${SECRET}` }]);
 
-    expect((await config('connections default', { name: 'other-jira' }, { answers: {} })).envelope).toMatchObject({ ok: true, data: { previous: 'corp-jira' } });
+    expectEnvelope(await config('connections default', { name: 'other-jira' }, { answers: {} })).toMatchObject({ ok: true, data: { previous: 'corp-jira' } });
 
     // Writes on: the typed name is the command's own gate. A mismatch changes nothing.
     const mistyped = await config('connections writes', { name: 'corp-jira', state: 'on' }, { answers: { 'confirm-name': 'corp-jria' } });
@@ -224,15 +228,15 @@ describe('connections, through toil', () => {
     const smuggled = await config('connections writes', { name: 'corp-jira', state: 'on' }, { secrets: { 'confirm-name': 'corp-jira' } });
     expect(smuggled.envelope).toMatchObject({ ok: false, error: { code: 'CANCELLED' } });
     expect(JSON.parse(fileText()).connections['corp-jira'].writes).toBeUndefined();
-    expect((await config('connections writes', { name: 'corp-jira', state: 'on' }, { answers: { 'confirm-name': 'corp-jira' } })).envelope).toMatchObject({ ok: true, data: { writes: true, changed: true } });
+    expectEnvelope(await config('connections writes', { name: 'corp-jira', state: 'on' }, { answers: { 'confirm-name': 'corp-jira' } })).toMatchObject({ ok: true, data: { writes: true, changed: true } });
     expect(JSON.parse(fileText()).connections['corp-jira'].writes).toBe(true);
-    expect((await config('connections writes', { name: 'corp-jira', state: 'off' })).envelope).toMatchObject({ ok: true, data: { writes: false } });
+    expectEnvelope(await config('connections writes', { name: 'corp-jira', state: 'off' })).toMatchObject({ ok: true, data: { writes: false } });
 
     const login = await config('connections login', { name: 'corp-jira' }, { secrets: { apiToken: SECOND } });
     expect(login.envelope).toMatchObject({ ok: true, data: { secrets: { apiToken: 'store' } } });
     expect(secrets.entries.get('corp-jira.apiToken')).toBe(SECOND);
 
-    expect((await config('connections remove', { name: 'other-jira' })).envelope).toMatchObject({ ok: true, data: { deletedFromStore: ['other-jira.apiToken'] } });
+    expectEnvelope(await config('connections remove', { name: 'other-jira' })).toMatchObject({ ok: true, data: { deletedFromStore: ['other-jira.apiToken'] } });
     expect(Object.keys(JSON.parse(fileText()).connections)).toEqual(['corp-jira']);
 
     // Every call is in toil's audit log as Toil UI's, through the API.
@@ -275,16 +279,16 @@ describe('dossiers, through toil', () => {
   it('creates one, adds a repo, links an area, names a field, and lists, shows and checks it', async () => {
     const { config } = await serve();
     await config('connections add', { name: 'corp-jira', area: 'jira' }, { answers: jiraAnswers(), secrets: { apiToken: SECRET } });
-    expect((await config('dossiers init', { name: 'payments', description: 'Payments platform' })).envelope).toMatchObject({ ok: true, data: { name: 'payments', source: 'user' } });
-    expect((await config('dossiers add-repo', { dossier: 'payments', location: 'https://git.imagile.dev/pay/payments-api.git' })).envelope).toMatchObject({ ok: true, data: { repo: { name: 'payments-api' } } });
-    expect((await config('dossiers link', { dossier: 'payments', area: 'jira', connection: 'corp-jira', set: ['project=PAY'], add: ['projects=FEES'] })).envelope).toMatchObject({ ok: true });
-    expect((await config('dossiers field', { dossier: 'payments', area: 'jira', alias: 'storyPoints', id: 'customfield_10002' })).envelope).toMatchObject({ ok: true, data: { fields: { storyPoints: 'customfield_10002' } } });
+    expectEnvelope(await config('dossiers init', { name: 'payments', description: 'Payments platform' })).toMatchObject({ ok: true, data: { name: 'payments', source: 'user' } });
+    expectEnvelope(await config('dossiers add-repo', { dossier: 'payments', location: 'https://git.imagile.dev/pay/payments-api.git' })).toMatchObject({ ok: true, data: { repo: { name: 'payments-api' } } });
+    expectEnvelope(await config('dossiers link', { dossier: 'payments', area: 'jira', connection: 'corp-jira', set: ['project=PAY'], add: ['projects=FEES'] })).toMatchObject({ ok: true });
+    expectEnvelope(await config('dossiers field', { dossier: 'payments', area: 'jira', alias: 'storyPoints', id: 'customfield_10002' })).toMatchObject({ ok: true, data: { fields: { storyPoints: 'customfield_10002' } } });
     const file = JSON.parse(readFileSync(join(home, '.toil', 'dossiers', 'payments.json'), 'utf8'));
     expect(file).toMatchObject({ name: 'payments', jira: { connection: 'corp-jira', project: 'PAY', projects: ['FEES'], fields: { storyPoints: 'customfield_10002' } } });
 
     expect((await config('dossiers list')).envelope.data.dossiers.map((d: { name: string }) => d.name)).toEqual(['payments']);
-    expect((await config('dossiers show', { dossier: 'payments' })).envelope).toMatchObject({ ok: true, data: { areas: { jira: { connection: { value: 'corp-jira' }, writes: false, inputs: { project: 'PAY' } } } } });
-    expect((await config('dossiers check', { dossier: 'payments' })).envelope).toMatchObject({ ok: true, data: { ok: true } });
+    expectEnvelope(await config('dossiers show', { dossier: 'payments' })).toMatchObject({ ok: true, data: { areas: { jira: { connection: { value: 'corp-jira' }, writes: false, inputs: { project: 'PAY' } } } } });
+    expectEnvelope(await config('dossiers check', { dossier: 'payments' })).toMatchObject({ ok: true, data: { ok: true } });
     sweep();
   });
 
@@ -295,7 +299,7 @@ describe('dossiers, through toil', () => {
     await config('connections writes', { name: 'admin-jira', state: 'on' }, { answers: { 'confirm-name': 'admin-jira' } });
     await config('dossiers init', { name: 'payments' });
     const linked = await config('dossiers link', { dossier: 'payments', area: 'jira', connection: 'admin-jira' });
-    expect(linked.envelope).toMatchObject({ ok: false, error: { code: 'WRITE_DISABLED' } });
+    expectEnvelope(linked).toMatchObject({ ok: false, error: { code: 'WRITE_DISABLED' } });
     expect(JSON.parse(readFileSync(join(home, '.toil', 'dossiers', 'payments.json'), 'utf8')).jira).toBeUndefined();
   });
 
@@ -304,7 +308,7 @@ describe('dossiers, through toil', () => {
     // The page's reads go read-only even on the config path; a dossiers init can't hide behind one.
     const readOnly = await execute('dossiers init', { name: 'x' }, { readOnly: true, caller: 'toil-ui' });
     expect(readOnly).toMatchObject({ ok: false, error: { code: 'WRITE_DISABLED' } });
-    expect((await config('dossiers list')).envelope).toMatchObject({ ok: true });
+    expectEnvelope(await config('dossiers list')).toMatchObject({ ok: true });
   });
 });
 
@@ -356,6 +360,6 @@ describe("the preview's sample config", () => {
 
 // Every test's home is a temp folder: a guard against one ever pointing at the real ~/.toil.
 it('runs in a temp home, never the real ~/.toil', () => {
-  expect(home.startsWith(tmpdir())).toBe(true);
+  expect(home.startsWith(realpathSync.native(tmpdir()))).toBe(true);
   expect(process.env.HOME).toBe(home);
 });

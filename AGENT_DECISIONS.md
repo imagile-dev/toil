@@ -3123,3 +3123,11 @@ server.
   accessible as they come. Each change is a `form` named by its heading, saying what
   it does and the command it runs, with a live `status` or `alert` for toil's
   answer.
+- **One canonical form for dossier folders (round 2).** `src/core/dossier.ts`'s
+  `real()` real-pathed a folder only once it existed, and otherwise returned it as
+  spelled. So the first `dossiers init` under a home spelled another way (macOS's
+  `/var` for `/private/var`, a Windows 8.3 name such as `RUNNER~1`) compared a
+  real-pathed file against an unresolved `~/.toil/dossiers`, and was refused as
+  "one of toil's own files". `real()` now resolves through the nearest existing
+  folder, as the write check's `realish()` did, and the two are one function.
+  `test/api-person.test.ts` covers it with a home reached through a junction.

@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -130,6 +130,23 @@ describe('execute() with a person', () => {
     expect(await execute('connections remove', { name: 'other-jira' }, { person: person({}) })).toMatchObject({ ok: true, data: { deletedFromStore: ['other-jira.apiToken'] } });
     expect(Object.keys(config().connections)).toEqual(['corp-jira']);
     expect(auditText()).not.toContain(SECRET);
+  });
+
+  it("writes the first dossier when the home is spelled through a link (macOS's /var, a Windows 8.3 name)", async () => {
+    // ~/.toil exists (a connection was added) but ~/.toil/dossiers doesn't yet: the folder and the file must compare in one canonical form.
+    const linked = join(tmpdir(), `toil-api-person-link-${process.pid}-${Date.now()}`);
+    symlinkSync(home, linked, 'junction');
+    try {
+      vi.stubEnv('HOME', linked);
+      vi.stubEnv('USERPROFILE', linked);
+      await execute('connections add', { name: 'corp-jira', area: 'jira' }, { person: person(jira) });
+      const made = await execute('dossiers init', { name: 'payments' });
+      expect(made, JSON.stringify(made.error)).toMatchObject({ ok: true, data: { name: 'payments', source: 'user' } });
+      const changed = await execute('dossiers add-repo', { dossier: 'payments', location: 'https://git.imagile.dev/pay/payments-api.git' });
+      expect(changed, JSON.stringify(changed.error)).toMatchObject({ ok: true });
+    } finally {
+      rmSync(linked, { recursive: false, force: true });
+    }
   });
 
   it('is refused under readOnly, person or not', async () => {

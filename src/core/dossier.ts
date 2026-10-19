@@ -554,11 +554,25 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
   const own = join(o.home, '.toil');
   const guard = { home: o.home, env: o.env, protect: o.protect };
   const areaNames = new Map(o.areas.map((a) => [a.name, a]));
+  /**
+   * A folder's one canonical form, whether or not it exists yet: the nearest
+   * folder above it that exists, real-pathed, with the rest added back. So
+   * `~/.toil/dossiers` before the first dossier is made compares equal to a
+   * real-pathed file inside it, even when the home is spelled another way
+   * (a Windows 8.3 name such as RUNNER~1, macOS's /var for /private/var).
+   */
   const real = (path: string) => {
-    try {
-      return realpathSync.native(path);
-    } catch {
-      return resolve(path);
+    let existing = resolve(path);
+    const rest: string[] = [];
+    for (;;) {
+      try {
+        return join(realpathSync.native(existing), ...rest);
+      } catch {
+        const parent = resolve(existing, '..');
+        if (parent === existing) return resolve(path);
+        rest.unshift(basename(existing));
+        existing = parent;
+      }
     }
   };
 
@@ -677,22 +691,6 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
 
   const usable = (file: DossierFile): file is DossierFile & { dossier: Dossier } => file.dossier !== undefined;
 
-  /** Where `path` would really land, through any link in the folders above it, whether or not it exists yet. */
-  const realish = (path: string): string => {
-    let existing = resolve(path);
-    const rest: string[] = [];
-    for (;;) {
-      try {
-        return join(realpathSync.native(existing), ...rest);
-      } catch {
-        const parent = resolve(existing, '..');
-        if (parent === existing) return resolve(path);
-        rest.unshift(basename(existing));
-        existing = parent;
-      }
-    }
-  };
-
   /**
    * Where a path a call names may be read from, decided before anything is
    * looked at: not toil's own files or a system path, and inside a dossier
@@ -701,7 +699,7 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
    * Returns where it lies, as a source.
    */
   const bounded = (path: string, cwd: string | undefined, refuse: (why: string, fix: string) => ToilError): DossierSource => {
-    const target = realish(path);
+    const target = real(path);
     if (forbidden(target)) throw refuse("that's one of toil's own files, or a system path.", 'Pass a dossier file, or a dossier by name.');
     const where = places(cwd);
     // ~/.toil/dossiers is the one part of toil's own folder a dossier path may name.
@@ -970,7 +968,7 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
     const refuse = (why: string, fix: string) => new ToilError('INVALID_INPUT', `toil won't write a dossier to ${forwardSlashes(target)}: ${why}`, { fix });
     if (!target.toLowerCase().endsWith('.json')) throw refuse('a dossier file ends in .json.', 'Name a .json file.');
     // Judged where it would really land, through any link in the folders above it.
-    const realTarget = realish(target);
+    const realTarget = real(target);
     if (forbidden(realTarget)) throw refuse("that's one of toil's own files, or a system path.", 'Write it to your dossier folder, a repository, or the workspace.');
     const where = places();
     // A repository's dossier folder: `.toil/dossiers/` right under a working tree's root.
