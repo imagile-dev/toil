@@ -84,18 +84,8 @@ const TYPES: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-// The App writes its theme tokens into a <style> element, so styles may be inline; scripts may not.
-const CSP = [
-  "default-src 'none'",
-  "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
-  "font-src 'self' data:",
-  "connect-src 'self'",
-  "base-uri 'none'",
-  "form-action 'none'",
-  "frame-ancestors 'none'",
-].join('; ');
+export { CSP } from './csp.ts';
+import { CSP } from './csp.ts';
 
 const SECURITY_HEADERS: Record<string, string> = {
   'Content-Security-Policy': CSP,

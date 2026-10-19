@@ -1,12 +1,14 @@
 // @vitest-environment node
-import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { fixtureAgent, noAgent, type Agent } from '../server/agent.ts';
 import type { RequestContext } from '../server/context.ts';
-import { CSRF_HEADER, MAX_BODY, SESSION_HEADER, MAX_SESSIONS, createUiServer, type UiServerOptions } from '../server/server.ts';
+import { PRESSABLE_STYLE_HASH } from '../server/csp.ts';
+import { CSP, CSRF_HEADER, MAX_BODY, SESSION_HEADER, MAX_SESSIONS, createUiServer, type UiServerOptions } from '../server/server.ts';
 import { parseSettings, SettingsError, type Settings } from '../server/settings.ts';
 import { mapOwi } from '@imagile-dev/toil/api';
 import { Cache, CacheError, RUNNING_MESSAGE, cachePaths, liveLock, pidAlive, wipeCacheFiles } from '../server/cache.ts';
@@ -119,10 +121,23 @@ describe('the lock on the door', () => {
     }
     const page = await send(origin, '/');
     expect(page.body).toContain('<div id="root">');
-    expect(page.headers['content-security-policy']).toContain("script-src 'self'");
+    expect(page.headers['content-security-policy']).toBe(CSP);
+    expect(CSP).toBe(
+      "default-src 'none'; script-src 'self'; style-src 'self' 'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o='; img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'none'; media-src 'none'; object-src 'none'; worker-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    );
+    // Every response carries it, a refused API call and a missing file included.
+    for (const path of ['/api/session', '/no-such-file.css', '/assets/app.js']) expect((await send(origin, path)).headers['content-security-policy'], path).toBe(CSP);
+    expect(CSP).not.toMatch(/unsafe-inline|unsafe-eval|https?:|\*/);
     expect(page.headers['referrer-policy']).toBe('no-referrer');
     expect(page.headers['x-frame-options']).toBe('DENY');
     expect(noCors(page)).toEqual([]);
+  });
+
+  it("allows by hash only the one style React Aria adds, and recomputes that hash from React Aria's source", () => {
+    const source = readFileSync(join(import.meta.dirname, '..', '..', 'node_modules', 'react-aria', 'dist', 'private', 'interactions', 'usePress.mjs'), 'utf8');
+    const text = /style\.textContent = `([\s\S]*?)`\.trim\(\)/.exec(source)?.[1]?.replace('${$d27d541f9569d26d$var$PRESSABLE_ATTRIBUTE}', 'data-react-aria-pressable').trim();
+    expect(text, 'React Aria no longer adds its pressable style this way; check the browser console for a CSP report').toBeTruthy();
+    expect(`sha256-${createHash('sha256').update(text!).digest('base64')}`).toBe(PRESSABLE_STYLE_HASH);
   });
 
   it('trades the launch token for a session id in the response body, never a cookie, and refuses a wrong token', async () => {

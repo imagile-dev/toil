@@ -9,7 +9,7 @@
  * rule, which is one fewer change request.
  */
 
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useInsertionEffect, useRef, useState, type MouseEvent } from 'react';
 import { Button, Label, ListBox, ListBoxItem, Popover, Select, SelectValue } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { DataContext, type Data } from './data.ts';
@@ -145,7 +145,7 @@ export function App({ execute, agent, now, preview }: AppProps) {
   return (
     <ThemeProvider value={theme}>
       <SkinProvider value={skins}>
-        <style>{THEMES.map(tokenCss).join('\n')}</style>
+        <TokenStyles css={THEMES.map(tokenCss).join('\n')} />
         <a className="skip" href="#main" onClick={skip}>
           Skip to content
         </a>
@@ -208,6 +208,26 @@ export function App({ execute, agent, now, preview }: AppProps) {
       </SkinProvider>
     </ThemeProvider>
   );
+}
+
+/**
+ * The themes' tokens as a constructed stylesheet, adopted by the document, so
+ * the Content-Security-Policy needs no `'unsafe-inline'` for styles: a
+ * stylesheet built through the CSSOM isn't inline markup. Where the browser
+ * can't construct one (jsdom), it falls back to a <style> element.
+ */
+function TokenStyles({ css }: { css: string }) {
+  const constructable = typeof CSSStyleSheet !== 'undefined' && 'replaceSync' in CSSStyleSheet.prototype && 'adoptedStyleSheets' in document;
+  useInsertionEffect(() => {
+    if (!constructable) return;
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    return () => {
+      document.adoptedStyleSheets = document.adoptedStyleSheets.filter((s) => s !== sheet);
+    };
+  }, [css, constructable]);
+  return constructable ? null : <style>{css}</style>;
 }
 
 /** A labelled choice from a short list, on React Aria's Select: a button that opens a listbox. */

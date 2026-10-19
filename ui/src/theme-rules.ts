@@ -9,6 +9,7 @@
  * tests share them.
  */
 
+import { tokenize } from './css-tokens.ts';
 import { TERMS, TOKENS, type ThemeManifest } from './theme-pack.ts';
 
 /** The only files a theme folder may hold. */
@@ -40,10 +41,62 @@ export function selectorsOf(css: string): string[] {
     .filter((s) => !s.startsWith('@') && !/^(from|to|\d+(\.\d+)?%)(\s*,\s*(from|to|\d+(\.\d+)?%))*$/.test(s));
 }
 
+/** The at-rules a user's theme may use. `@import`, `@namespace` and the rest are refused. */
+export const USER_AT_RULES = new Set(['media', 'supports', 'font-face', 'keyframes']);
+
+/** Functions whose string arguments are URLs the browser fetches. */
+const URL_FUNCTIONS = new Set(['url', 'src', 'image', 'image-set', '-webkit-image-set', 'cross-fade', '-webkit-cross-fade']);
+
+/** Functions a user's theme may not call at all: they reach outside the stylesheet or run script. */
+const REFUSED_FUNCTIONS = new Set(['element', '-moz-element', 'expression', 'paint', 'env']);
+
+/**
+ * A path a user's theme may load: relative, inside its own folder, and
+ * spelled with nothing a URL parser reads specially, so `%2e%2e`, a
+ * backslash, a scheme, a host or a query can't take it elsewhere.
+ */
+export function isThemePath(raw: string): boolean {
+  // `./assets/x.svg` and `assets/x.svg` are the same file.
+  const path = raw.startsWith('./') ? raw.slice(2) : raw;
+  return /^[A-Za-z0-9_-][A-Za-z0-9_.-]*(\/[A-Za-z0-9_-][A-Za-z0-9_.-]*)*$/.test(path) && !path.split('/').some((seg) => seg === '.' || seg === '..');
+}
+
+/**
+ * What a user's stylesheet may not do, read through the CSS tokenizer
+ * (src/css-tokens.ts) so escapes are decoded and strings taken whole first:
+ * any at-rule but `@media`, `@supports`, `@font-face` and `@keyframes`; any
+ * `url()`, or string inside a function that loads one (`image-set()`,
+ * `image()`, `cross-fade()`, `src()`), that isn't a relative path inside the
+ * theme's folder; and anything that runs script. The toil-ui server's
+ * Content-Security-Policy is the boundary that holds whatever this misses;
+ * this is what tells a theme's author why it was refused.
+ */
+export function userCssProblems(css: string): string[] {
+  const out = new Set<string>();
+  const leaves = (target: string) => `theme.css: url(${JSON.stringify(target)}) leaves the theme's folder; a user theme may only use its own files.`;
+  const stack: string[] = [];
+  for (const t of tokenize(css)) {
+    if (t.type === 'at-keyword' && !USER_AT_RULES.has(t.value.toLowerCase())) out.add(`theme.css: a user theme may use only @${[...USER_AT_RULES].join(', @')}, not @${t.value}.`);
+    else if (t.type === 'url' && !isThemePath(t.value)) out.add(leaves(t.value));
+    else if (t.type === 'bad-url' || t.type === 'bad-string') out.add('theme.css: holds a malformed url() or string, which a browser would read differently.');
+    else if (t.type === 'function') {
+      const fn = t.value.toLowerCase();
+      if (REFUSED_FUNCTIONS.has(fn)) out.add(`theme.css: a user theme may not use ${t.value}().`);
+      stack.push(fn);
+    } else if (t.type === '(') stack.push('(');
+    else if (t.type === ')') stack.pop();
+    else if (t.type === 'string' && stack.some((fn) => URL_FUNCTIONS.has(fn)) && !isThemePath(t.value)) out.add(leaves(t.value));
+    if ((t.type === 'ident' || t.type === 'function' || t.type === 'string' || t.type === 'url') && (SCRIPT.test(t.value) || /^(behavior|-moz-binding)$/i.test(t.value))) {
+      out.add(`theme.css: holds something that runs script (${t.value}).`);
+    }
+  }
+  return [...out];
+}
+
 /**
  * Problems with a theme's stylesheet: every selector scoped to
- * `[data-theme="<name>"]`, and, for a user's theme, no `@import` and no
- * `url()` that leaves its folder.
+ * `[data-theme="<name>"]`, and, for a user's theme, everything
+ * `userCssProblems` refuses.
  */
 export function cssProblems(name: string, css: string, { user }: { user: boolean }): string[] {
   const out: string[] = [];
@@ -51,16 +104,7 @@ export function cssProblems(name: string, css: string, { user }: { user: boolean
   if (!selectors.length) out.push('theme.css: has no rules.');
   const scope = `[data-theme="${name}"]`;
   for (const s of selectors) for (const part of s.split(',')) if (!part.trim().startsWith(scope)) out.push(`theme.css: "${part.trim()}" isn't scoped to ${scope}.`);
-  if (user) {
-    const text = stripComments(css);
-    if (/@import\b/i.test(text)) out.push('theme.css: a user theme may not @import anything.');
-    for (const m of text.matchAll(/url\(\s*(['"]?)([^'")]*)\1\s*\)/gi)) {
-      const target = m[2]!.trim();
-      if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target) || target.startsWith('/') || target.startsWith('\\') || target.split(/[\\/]/).includes('..')) {
-        out.push(`theme.css: url(${target}) leaves the theme's folder; a user theme may only use its own files.`);
-      }
-    }
-  }
+  if (user) out.push(...userCssProblems(css));
   return out;
 }
 

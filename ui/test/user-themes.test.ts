@@ -80,7 +80,7 @@ describe("the user's theme folder", () => {
   it('refuses @import and unscoped rules', () => {
     theme('bad', { 'theme.css': '@import "https://fonts.imagile.dev/x.css";\nbody { color: red; }' });
     const p = problems('bad');
-    expect(p).toContain('theme.css: a user theme may not @import anything.');
+    expect(p).toContain('theme.css: a user theme may use only @media, @supports, @font-face, @keyframes, not @import.');
     expect(p).toContain('theme.css: "body" isn\'t scoped to [data-theme="bad"].');
   });
 
@@ -121,3 +121,4 @@ describe("the user's theme folder", () => {
     expect(problems('bare')).toEqual(expect.arrayContaining(['theme.json: is missing.', 'theme.css: is missing.']));
   });
 });
+
