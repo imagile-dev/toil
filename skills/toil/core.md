@@ -114,7 +114,9 @@ slashes. Commands that run git need git on PATH and say
 Configuration comes from environment variables, which always win, or from
 `~/.toil/config.json` (or the file passed with `--config`). A connection is one
 instance of an area; `--connection <name>` picks one when there are several.
-`toil connections list` names them (never a secret), and `toil connections test
+`toil connections list` names them (never a secret), with `definedIn`: `file` for one
+in your config file, `env` for one made by env vars alone, which the connections
+commands can't change. `toil connections test
 <name>` checks one with a single authenticated read, failing with the `AUTH`,
 `NETWORK` or config error a real command would. Setting up a connection, signing
 in, turning writes on and choosing a default are for a person: a bare `toil` in a
@@ -210,7 +212,7 @@ const envelope = await execute('jira search', { jql: 'project = PAY', maxResults
   Connections, env vars, the credential store, dossiers, the workspace (the program's
   working directory, else `workspace`), the write gate and the audit log all apply as
   they do on the CLI. It serves what MCP serves: commands that prompt or change
-  connections, and deletes, stay on the CLI.
+  connections, and deletes, stay on the CLI, except as `person` below allows.
 - **`options`**: `readOnly` refuses, with `WRITE_DISABLED` and before anything is sent,
   any call that would change anything, whatever the config says: a write to a service,
   and a local one too (toil's config or dossiers, a download, a file named with
@@ -218,9 +220,23 @@ const envelope = await execute('jira search', { jql: 'project = PAY', maxResults
   `.`, `_` and `-`, up to 64). `signal` cancels the call (`CANCELLED`). `onProgress`
   hears every request (redacted URL, status, time), page and retry. `config`,
   `workspace` and `verbose` match `--config`, `--workspace` and `--verbose`.
-- **`registry`** lists the areas and every command `execute()` serves: its name, MCP
-  tool name, whether it writes to a service (`writes`) or on this machine
-  (`writesLocal`), and its input's JSON Schema.
+- **`person`** is for a program with its own interface for a person, such as Toil
+  UI's settings pages. It is `{ ask(question) }`, and with it `execute()` also runs
+  the connections commands a person runs on a terminal: `connections add`, `login`,
+  `remove`, `writes` and `default` (`registry.personCommands`). Each question
+  arrives as `{ id, text, secret, fallback }`, and `ask` returns what the person
+  typed. The `id` is one of `area`, `setting:<key>`, `secret:<key>`, `confirm`
+  (`y` saves what they reviewed) or `confirm-name` (the connection's name, typed to
+  turn writes on). Return `undefined` for a question they weren't asked, and the
+  command saves nothing (`CANCELLED`). A secret goes from the answer to the OS
+  credential store: it is never in the input, the envelope or the audit log. The
+  program must ask a person and pass on their answers. Nothing about this lets an
+  agent run these commands.
+- **`registry`** lists every command `execute()` serves: its name, MCP tool name,
+  whether it writes to a service (`writes`) or on this machine (`writesLocal`), and
+  its input's JSON Schema. It also lists the areas, each with `connection`: the
+  fields `connections add` asks for, in order, each with `secret`, `password`,
+  `default` and `required`.
 - **`version`** and **`contractVersion`** are what `toil version` reports. Check
   `contractVersion` before relying on anything else. `toil version` also reports
   `commit`, the 40-character hash of the commit the build came from (`null` when the

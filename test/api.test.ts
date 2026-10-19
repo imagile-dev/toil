@@ -256,7 +256,9 @@ describe('@imagile-dev/toil/api (src/api.ts)', () => {
     const unknown = await apiExecute('jira no-such-thing');
     expect(unknown).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' }, meta: { command: 'jira no-such-thing', contractVersion: 1 } });
     const personal = await apiExecute('connections add', { name: 'x' });
-    expect(personal).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: "connections add isn't served through the API: it's a person's command, on the CLI." } });
+    expect(personal).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: "connections add is a person's command: execute() runs it only with a person to answer its questions." } });
+    const cliOnly = await apiExecute('setup alias', {});
+    expect(cliOnly).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: "setup alias isn't served through the API: it's a person's command, on the CLI." } });
     for (const caller of ['Toil UI', '', '-x', 'ghp_'.padEnd(80, 'a')]) {
       expect(await apiExecute('version', {}, { caller })).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
     }

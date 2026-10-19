@@ -1,0 +1,142 @@
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ExecutePerson, Question } from '../src/api.js';
+import { sharedStore } from './harness/shared-store.js';
+
+// The API builds its own credential store; here it is the in-memory one, so no test reaches the OS keychain.
+vi.mock('../src/core/keychain.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/core/keychain.js')>()),
+  createSecretStore: () => sharedStore,
+}));
+
+const { execute, registry } = await import('../src/api.js');
+
+/**
+ * `execute()` with a `person` (src/api.ts): a host such as Toil UI asks the
+ * person toil's own questions in its interface and passes on the answers, so
+ * the connections commands run without a terminal. Each test has its own
+ * home, so the config file, the dossiers and the audit log are the test's.
+ */
+
+const SECRET = 'fake-pat-abc12345-never-shown';
+let home: string;
+beforeEach(() => {
+  home = mkdtempSync(join(tmpdir(), 'toil-api-person-'));
+  vi.stubEnv('HOME', home);
+  vi.stubEnv('USERPROFILE', home);
+  sharedStore.entries.clear();
+  sharedStore.log.length = 0;
+});
+afterEach(() => {
+  vi.unstubAllEnvs();
+  rmSync(home, { recursive: true, force: true });
+});
+
+/** A person who answers by question id, leaving any other setting blank, and the questions they were asked. */
+function person(answers: Record<string, string>): ExecutePerson & { asked: Question[] } {
+  const asked: Question[] = [];
+  return {
+    asked,
+    ask: (q) => {
+      asked.push(q);
+      return answers[q.id] ?? (q.id.startsWith('setting:') ? '' : undefined);
+    },
+  };
+}
+
+const config = () => JSON.parse(readFileSync(join(home, '.toil', 'config.json'), 'utf8')) as { connections: Record<string, Record<string, unknown>>; defaults: Record<string, Record<string, unknown>> };
+const auditText = () => {
+  const dir = join(home, '.toil', 'audit');
+  return readdirSync(dir).map((f) => readFileSync(join(dir, f), 'utf8')).join('');
+};
+const jira = { 'setting:baseUrl': 'https://jira.imagile.dev', 'secret:apiToken': SECRET, confirm: 'y' };
+
+describe('the registry', () => {
+  it("lists the person's commands apart from what execute() serves without one", () => {
+    expect(registry.personCommands.map((c) => c.name).sort()).toEqual(['connections add', 'connections default', 'connections login', 'connections remove', 'connections writes']);
+    expect(registry.commands.map((c) => c.name)).not.toContain('connections add');
+    expect(registry.personCommands.find((c) => c.name === 'connections writes')).toMatchObject({ kind: 'cli-only', writes: false, writesLocal: true });
+  });
+
+  it("says what a connection to each area holds, in the order connections add asks", () => {
+    const fields = registry.areas.find((a) => a.name === 'jira')!.connection;
+    expect(fields[0]).toEqual({ name: 'baseUrl', description: 'Jira server root, e.g. https://jira.imagile.dev', secret: false, password: false, default: null, required: true });
+    expect(fields.at(-1)).toMatchObject({ name: 'apiToken', secret: true, password: false, required: true });
+    expect(fields.find((f) => f.name === 'project')).toMatchObject({ secret: false, required: false });
+  });
+});
+
+describe('execute() with a person', () => {
+  it("refuses a person's command without one, saying what it needs", async () => {
+    const refused = await execute('connections add', { name: 'corp-jira', area: 'jira' });
+    expect(refused).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: "connections add is a person's command: execute() runs it only with a person to answer its questions." } });
+    expect(await execute('setup alias', {}, { person: person({}) })).toMatchObject({ ok: false, error: { message: "setup alias isn't served through the API: it's a person's command, on the CLI." } });
+    expect(await execute('connections add', { name: 'x' }, { person: {} as ExecutePerson })).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: 'person must be an object with an ask(question) function.' } });
+  });
+
+  it('adds a connection: the questions by id, the secret to the store only, and the audit line naming the caller', async () => {
+    const p = person(jira);
+    const added = await execute('connections add', { name: 'corp-jira', area: 'jira' }, { person: p, caller: 'toil-ui' });
+    expect(added).toMatchObject({ ok: true, data: { name: 'corp-jira', area: 'jira', secrets: { apiToken: 'store' } } });
+    expect(p.asked.map((q) => q.id)).toEqual(['setting:baseUrl', 'setting:customFields', 'setting:project', 'setting:issueType', 'setting:priority', 'secret:apiToken', 'confirm']);
+    expect(p.asked.find((q) => q.id === 'secret:apiToken')).toMatchObject({ secret: true, fallback: null });
+    expect(p.asked.find((q) => q.id === 'confirm')).toMatchObject({ secret: false, fallback: 'y' });
+    expect(sharedStore.entries.get('corp-jira.apiToken')).toBe(SECRET);
+    expect(config().connections['corp-jira']).toEqual({ area: 'jira', baseUrl: 'https://jira.imagile.dev', apiToken: 'keychain:corp-jira.apiToken' });
+    expect(config().defaults.jira).toEqual({ connection: 'corp-jira' });
+    expect(JSON.stringify(added)).not.toContain(SECRET);
+    expect(auditText()).not.toContain(SECRET);
+    expect(JSON.parse(auditText().trim())).toMatchObject({ via: 'api', caller: 'toil-ui', command: 'connections add', outcome: 'ok' });
+  });
+
+  it("saves nothing when the person says no, or isn't asked a question the command needs", async () => {
+    expect(await execute('connections add', { name: 'corp-jira', area: 'jira' }, { person: person({ ...jira, confirm: 'n' }) })).toMatchObject({ ok: false, error: { code: 'CANCELLED', message: 'Nothing was saved.' } });
+    const unanswered = await execute('connections add', { name: 'corp-jira', area: 'jira' }, { person: person({ 'setting:baseUrl': 'https://jira.imagile.dev', 'secret:apiToken': SECRET }) });
+    expect(unanswered).toMatchObject({ ok: false, error: { code: 'CANCELLED' } });
+    expect(!unanswered.ok && unanswered.error.message).toMatch(/^Nothing was saved: "Save corp-jira .*" wasn't answered\.$/);
+    expect(JSON.stringify(unanswered)).not.toContain(SECRET);
+    expect(sharedStore.entries.size).toBe(0);
+  });
+
+  it('replaces a secret with login, turns writes on only for the typed name, sets the default and removes', async () => {
+    await execute('connections add', { name: 'corp-jira', area: 'jira' }, { person: person(jira) });
+    await execute('connections add', { name: 'other-jira', area: 'jira' }, { person: person({ ...jira, 'setting:baseUrl': 'https://jira2.imagile.dev' }) });
+
+    const login = await execute('connections login', { name: 'corp-jira' }, { person: person({ 'secret:apiToken': `${SECRET}-2` }) });
+    expect(login).toMatchObject({ ok: true, data: { secrets: { apiToken: 'store' } } });
+    expect(sharedStore.entries.get('corp-jira.apiToken')).toBe(`${SECRET}-2`);
+
+    const mistyped = await execute('connections writes', { name: 'corp-jira', state: 'on' }, { person: person({ 'confirm-name': 'corp-jria' }) });
+    expect(mistyped).toMatchObject({ ok: false, error: { code: 'CANCELLED' } });
+    expect(config().connections['corp-jira']!.writes).toBeUndefined();
+    const typed = person({ 'confirm-name': 'corp-jira' });
+    expect(await execute('connections writes', { name: 'corp-jira', state: 'on' }, { person: typed })).toMatchObject({ ok: true, data: { writes: true, changed: true } });
+    expect(typed.asked).toEqual([expect.objectContaining({ id: 'confirm-name', secret: false, fallback: null })]);
+    expect(typed.asked[0]!.text).toContain('Type corp-jira to turn them on');
+    expect(await execute('connections writes', { name: 'corp-jira', state: 'off' }, { person: person({}) })).toMatchObject({ ok: true, data: { writes: false } });
+
+    expect(await execute('connections default', { name: 'other-jira' }, { person: person({}) })).toMatchObject({ ok: true, data: { previous: 'corp-jira' } });
+    expect(await execute('connections remove', { name: 'other-jira' }, { person: person({}) })).toMatchObject({ ok: true, data: { deletedFromStore: ['other-jira.apiToken'] } });
+    expect(Object.keys(config().connections)).toEqual(['corp-jira']);
+    expect(auditText()).not.toContain(SECRET);
+  });
+
+  it('is refused under readOnly, person or not', async () => {
+    expect(await execute('connections add', { name: 'corp-jira', area: 'jira' }, { person: person(jira), readOnly: true })).toMatchObject({ ok: false, error: { code: 'WRITE_DISABLED' } });
+  });
+
+  it('lists where each connection is defined: the file, or env vars alone', async () => {
+    await execute('connections add', { name: 'corp-jira', area: 'jira' }, { person: person(jira) });
+    vi.stubEnv('TOIL_CONN_CI_JIRA_AREA', 'jira');
+    vi.stubEnv('TOIL_CONN_CI_JIRA_BASE_URL', 'https://jira.imagile.dev');
+    const listed = await execute('connections list', {});
+    expect(listed.ok && (listed.data as { connections: Array<{ name: string; definedIn: string }> }).connections.map((c) => [c.name, c.definedIn])).toEqual([
+      ['ci-jira', 'env'],
+      ['corp-jira', 'file'],
+    ]);
+    const changed = await execute('connections default', { name: 'ci-jira' }, { person: person({}) });
+    expect(changed).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: 'Connection "ci-jira" is defined by env vars, not your config file, so there\'s nothing here to change.' } });
+  });
+});

@@ -390,9 +390,9 @@ describe('toil connections list', () => {
     expect(run.envelope?.data).toEqual({
       configFile: file.replace(/\\/g, '/'),
       connections: [
-        { name: 'a', area: 'demo', isDefault: true, host: 'jira.imagile.dev', writes: true, values: { baseUrl: 'file', token: 'store', writes: 'file', pageSize: 'defaults' } },
-        { name: 'b', area: 'demo', isDefault: false, host: 'env.imagile.dev', writes: false, values: { token: 'file', baseUrl: 'env', pageSize: 'defaults' } },
-        { name: 'reporting', area: 'warehouse', isDefault: true, host: 'db.imagile.dev', writes: false, values: { host: 'file', username: 'file', password: 'file' } },
+        { name: 'a', area: 'demo', isDefault: true, host: 'jira.imagile.dev', writes: true, values: { baseUrl: 'file', token: 'store', writes: 'file', pageSize: 'defaults' }, definedIn: 'file' },
+        { name: 'b', area: 'demo', isDefault: false, host: 'env.imagile.dev', writes: false, values: { token: 'file', baseUrl: 'env', pageSize: 'defaults' }, definedIn: 'file' },
+        { name: 'reporting', area: 'warehouse', isDefault: true, host: 'db.imagile.dev', writes: false, values: { host: 'file', username: 'file', password: 'file' }, definedIn: 'file' },
       ],
     });
     for (const secret of [SECRET, 'plaintext-secret', 'plaintext-password', 'keychain:']) expect(run.stdout).not.toContain(secret);

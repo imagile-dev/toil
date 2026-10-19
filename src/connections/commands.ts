@@ -70,7 +70,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
         });
       }
       if (!prompt) throw needsTerminal('add', input.name, input.area ? areaNamed(input.area) : undefined);
-      const area = areaNamed(input.area ?? (await prompt.ask(`Area (${areas.map((a) => a.name).join(', ')})`, areas.length === 1 ? areas[0]!.name : undefined)));
+      const area = areaNamed(input.area ?? (await prompt.ask(`Area (${areas.map((a) => a.name).join(', ')})`, areas.length === 1 ? areas[0]!.name : undefined, 'area')));
 
       const { settings, secretValues } = await askSettings(prompt, area);
       const parsed = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...secretValues });
@@ -89,7 +89,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
         ...Object.entries(settings).map(([k, v]) => `${k} ${typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)}`),
         ...Object.keys(secretValues).map((k) => `${k} to the OS credential store`),
       ].join(', ');
-      const answer = await prompt.ask(`Save ${input.name} (${review})? y/n`, 'y');
+      const answer = await prompt.ask(`Save ${input.name} (${review})? y/n`, 'y', 'confirm');
       if (!/^y(es)?$/i.test(answer)) throw new ToilError('CANCELLED', 'Nothing was saved.', { fix: `Run toil connections add ${input.name} again.` });
 
       const kept = await storeNew(secrets, input.name, secretValues, ctx.signal);
@@ -130,7 +130,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
 
       const entered: Record<string, string> = {};
       for (const key of keys) {
-        const value = await prompt.askSecret(secretLabel(area, key));
+        const value = await prompt.askSecret(secretLabel(area, key), `secret:${key}`);
         if (value !== '') entered[key] = value;
       }
       if (Object.keys(entered).length === 0) throw new ToilError('INVALID_INPUT', 'Nothing was entered, so nothing changed.', { fix: `Run toil connections login ${input.name} again.` });
@@ -155,7 +155,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     path: ['connections', 'list'],
     description: 'List connections: area, host, writes, and where each value came from. Never prints a secret.',
     toolDescription:
-      "Lists every toil connection: its name, area, whether it's the area's default, its host, whether writes are on, and where each setting came from (env, ci, file, store or defaults). Never returns a secret or any setting's value other than the host. Use it to find the connection name to pass as `connection` to another tool; set `area` for one area's connections only.",
+      "Lists every toil connection: its name, area, whether it's the area's default, its host, whether writes are on, where each setting came from (env, ci, file, store or defaults), and whether the connection is in the config file (definedIn file) or made by env vars alone (env). Never returns a secret or any setting's value other than the host. Use it to find the connection name to pass as `connection` to another tool; set `area` for one area's connections only.",
     input: z.object({
       area: z.string().optional().describe('Only connections to this area, e.g. jira'),
     }),
@@ -167,6 +167,9 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       const { config } = access(ctx);
       // An area toil doesn't have is a mistake to point out, not an empty list.
       if (input.area !== undefined) areaNamed(input.area);
+      // A connection the file doesn't hold was made by env vars alone (TOIL_CONN_<NAME>_AREA, or an
+      // area's TOIL_<AREA>_* or CI variables), so the commands that change the file can't change it.
+      const inFile = fileConnectionNames(config);
       const connections = Object.keys(config.connections)
         .filter((name) => input.area === undefined || config.connections[name]!.area === input.area)
         .sort()
@@ -187,6 +190,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
             host: hostOf(conn, secretKeys),
             writes: connectionWrites(conn),
             values,
+            definedIn: inFile.has(name) ? 'file' : 'env',
           };
         });
       return { configFile: slashes(config.files.global), connections };
@@ -306,7 +310,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
             fix: `Run it in a terminal, or set "writes": true on connection "${input.name}" in ${slashes(path)} yourself (${connectionEnvName(input.name, 'writes')}=true for one process).`,
           });
         }
-        const typed = await prompt.ask(`Writes let commands change data in ${conn.area} through "${input.name}" when a call also passes --allow-write. Type ${input.name} to turn them on`);
+        const typed = await prompt.ask(`Writes let commands change data in ${conn.area} through "${input.name}" when a call also passes --allow-write. Type ${input.name} to turn them on`, undefined, 'confirm-name');
         if (typed !== input.name) throw new ToilError('CANCELLED', `Writes stay off for "${input.name}": what was typed didn't match the name.`, { fix: `Run toil connections writes ${input.name} on again.` });
       }
       if (on !== was) {
@@ -373,6 +377,19 @@ function fileConnection(file: EditableConfig, name: string, config: ConfigAccess
   throw new ToilError('INVALID_INPUT', `There's no connection named "${name}" in ${slashes(config.files.global)}.`, { fix: 'Run toil connections list to see the names.' });
 }
 
+/**
+ * The connections the config file holds. A file the edit commands would
+ * refuse to rewrite (a version 1 file with keys version 1 ignored) still
+ * loaded, so it falls back to the connections with a value read from it.
+ */
+function fileConnectionNames(config: ConfigAccess['config']): Set<string> {
+  try {
+    return new Set(Object.keys(readConfigForEdit(config.files.global).connections));
+  } catch {
+    return new Set(Object.keys(config.connections).filter((name) => Object.keys(config.connections[name]!).some((key) => config.sources[`${name}.${key}`] === 'global')));
+  }
+}
+
 /** Without a terminal the commands can't ask, so they say how to do the same with env vars. */
 function needsTerminal(command: string, name: string, area: AnyArea | undefined): ToilError {
   const keys = area ? Object.keys(area.connection.shape) : ['<key>'];
@@ -407,13 +424,13 @@ async function askSettings(prompt: Prompter, area: AnyArea): Promise<{ settings:
   const settings: Settings = {};
   for (const key of keys) {
     const fallback = area.defaults?.[key] === undefined ? undefined : String(area.defaults[key]);
-    const answer = await prompt.ask(label(area, key), fallback);
+    const answer = await prompt.ask(label(area, key), fallback, `setting:${key}`);
     // An answer equal to the provider default isn't written, so the default can still change.
     if (answer !== '' && answer !== fallback) settings[key] = coerce(shape[key]!, answer);
   }
   const secretValues: Record<string, string> = {};
   for (const key of secretKeys) {
-    const value = await prompt.askSecret(secretLabel(area, key));
+    const value = await prompt.askSecret(secretLabel(area, key), `secret:${key}`);
     if (value !== '') secretValues[key] = value;
   }
   return { settings, secretValues };
