@@ -43,6 +43,12 @@
   margin-right: 0.1em;
 }
 
+/* The illuminated capital stands taller than the heading's line, so the
+   heading makes room above it and the eyebrow over it never touches it. */
+[data-theme="realm"] h1 {
+  padding-top: 0.3em;
+}
+
 /* The wordmark keeps its shape in every theme; here it takes the realm's crimson. */
 [data-theme="realm"] .brand .wordmark {
   color: var(--accent);
@@ -83,8 +89,7 @@
   position: relative;
 }
 
-[data-theme="realm"] .panel,
-[data-theme="realm"] .dossier-card,
+[data-theme="realm"] .l-card,
 [data-theme="realm"] .ask {
   border: 12px solid transparent;
   border-image: url("./assets/ink-border.svg") 16 / 12px round;
@@ -272,8 +277,7 @@
 /* Gradients for life (#271): pages gilded at their foot, wax-seal buttons
    lit from above, and crimson charts that deepen toward the axis. Every text
    colour keeps 6:1 or better on the gilt, and the seal's cream 7.8:1. */
-[data-theme="realm"] .panel,
-[data-theme="realm"] .dossier-card,
+[data-theme="realm"] .l-card,
 [data-theme="realm"] .ask {
   background: linear-gradient(180deg, var(--raised), var(--surface) 50%, color-mix(in srgb, var(--surface) 88%, #c9a24a));
 }

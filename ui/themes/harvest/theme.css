@@ -38,9 +38,8 @@
 }
 
 [data-theme="harvest"] img,
-[data-theme="harvest"] .panel,
+[data-theme="harvest"] .l-card,
 [data-theme="harvest"] .card,
-[data-theme="harvest"] .dossier-card,
 [data-theme="harvest"] .ask {
   image-rendering: pixelated;
 }
@@ -76,8 +75,7 @@
 }
 
 /* Wooden nine-slice panels: plank borders with nails, from wood-panel.svg. */
-[data-theme="harvest"] .panel,
-[data-theme="harvest"] .dossier-card,
+[data-theme="harvest"] .l-card,
 [data-theme="harvest"] .ask,
 [data-theme="harvest"] .stat {
   border: 8px solid #8a5226;
@@ -291,8 +289,7 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--raised) 70%, #fff4b0), var(--surface));
 }
 
-[data-theme="harvest"] .panel,
-[data-theme="harvest"] .dossier-card,
+[data-theme="harvest"] .l-card,
 [data-theme="harvest"] .ask {
   background: linear-gradient(180deg, var(--raised), var(--surface) 55%, color-mix(in srgb, var(--surface) 90%, #c9932a));
 }

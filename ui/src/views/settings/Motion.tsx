@@ -10,13 +10,14 @@
 
 import { Checkbox } from 'react-aria-components';
 import { useMotionAllowed, useMotionChoice } from '../../motion.ts';
+import { Card } from '../../components/layout.tsx';
 
 export function MotionSetting() {
   const [choice, setChoice] = useMotionChoice();
   const allowed = useMotionAllowed();
   const reduced = choice === 'reduced';
   return (
-    <section className="panel motion-setting" aria-labelledby="motion">
+    <Card as="section" className="panel motion-setting" aria-labelledby="motion">
       <h2 id="motion">Motion and effects</h2>
       <Checkbox className="check" isSelected={reduced} onChange={(on) => setChoice(on ? 'reduced' : 'full')}>
         <span className="box" aria-hidden="true">
@@ -31,6 +32,6 @@ export function MotionSetting() {
             ? "The themes' animations, particles and parallax are on. Saved in this browser only."
             : "Your system asks for reduced motion, so nothing moves whichever way this is set."}
       </p>
-    </section>
+    </Card>
   );
 }

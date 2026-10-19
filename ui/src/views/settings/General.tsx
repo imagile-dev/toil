@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import type { ConfigApi, SettingsInfo } from '../../config.ts';
+import { Card, Path } from '../../components/layout.tsx';
 
 const seconds = (ms: number) => (ms % 1000 === 0 ? `${ms / 1000} s` : `${ms} ms`);
 
@@ -41,20 +42,20 @@ export function General({ config }: { config: ConfigApi }) {
   return (
     <>
       <p className="lede">toil has no command to change these, and Toil UI never edits toil's files, so they're shown as toil reports them, with where each is set.</p>
-      <section className="panel" aria-labelledby="bounds">
+      <Card as="section" className="panel" aria-labelledby="bounds">
         <h2 id="bounds">Bounds</h2>
         <dl className="fields">
           <dt>The file workspace</dt>
           <dd>{relaxed ? 'Relaxed: commands may read and write files anywhere you can, except toil\'s own files.' : 'Held: commands read and write files only inside the workspace.'}</dd>
           <dt>Set in</dt>
           <dd>
-            <code>{file}</code>, as <code>"bounds": {'{'} "files": "unbounded" {'}'}</code>
+            <Path value={file} what="config file path" />, as <code>"bounds": {'{'} "files": "unbounded" {'}'}</code>
           </dd>
         </dl>
         {relaxed && <p className="note">toil says: {relaxed}</p>}
         <p className="note">Only that file can relax a bound, and only this one: no env var, flag, dossier or repository file can. Every other bound always holds.</p>
-      </section>
-      <section className="panel" aria-labelledby="timeout">
+      </Card>
+      <Card as="section" className="panel" aria-labelledby="timeout">
         <h2 id="timeout">Time limit</h2>
         <dl className="fields">
           <dt>Each command stops after</dt>
@@ -71,7 +72,7 @@ export function General({ config }: { config: ConfigApi }) {
         <p className="note">
           Without the variable, a command that declares a longer limit (a scan, a report) gets its own. <code>toil wait</code> has its own <code>--timeout</code>, capped by <code>"wait": {'{'} "maxTimeout" {'}'}</code> in <code>{file}</code>. To change the limit, set {t.variable} and start <code>toil-ui</code> again.
         </p>
-      </section>
+      </Card>
     </>
   );
 }

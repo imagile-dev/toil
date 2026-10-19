@@ -9,11 +9,13 @@
  *
  * Every manifest is read up front, since the theme picker lists them all, but
  * a theme's stylesheet (and so its fonts and art) loads only once it is
- * picked. Plain, the default, is the one stylesheet in the first load. The
+ * picked. Crate, the default (#277), and Plain, the quiet one, are the two
+ * stylesheets in the first load. The
  * paperwork for a new colour now fits on one JSON file, a record for this
  * organisation.
  */
 
+import '../themes/crate/theme.css';
 import '../themes/plain/theme.css';
 import crate from '../themes/crate/theme.json';
 import harvest from '../themes/harvest/theme.json';
@@ -24,14 +26,18 @@ import { TOKENS, type Scheme, type ThemeManifest, type Token } from './theme-pac
 
 export { TERMS, TOKENS, type Scheme, type TermKey, type ThemeManifest, type Token } from './theme-pack.ts';
 
-/** The built-in themes, Plain first as the default. */
+/** The built-in themes, in the picker's order: Plain, the quiet one, first. */
 export const THEMES: ThemeManifest[] = [plain, crate, harvest, starship, realm] as ThemeManifest[];
 
-export const DEFAULT_THEME = 'plain';
+/**
+ * The theme a browser shows until someone picks one (the maintainer's call,
+ * #277). Crate is dark only, so the system's light or dark preference doesn't
+ * change the default; it still picks Plain's scheme once Plain is chosen.
+ */
+export const DEFAULT_THEME = 'crate';
 
 /** Each built-in theme's stylesheet, loaded when the theme is first picked. */
 const STYLES: Record<string, () => Promise<unknown>> = {
-  crate: () => import('../themes/crate/theme.css'),
   harvest: () => import('../themes/harvest/theme.css'),
   starship: () => import('../themes/starship/theme.css'),
   realm: () => import('../themes/realm/theme.css'),
@@ -87,4 +93,4 @@ export function tokenCss(theme: ThemeManifest): string {
   return out.join('\n');
 }
 
-export const themeNamed = (name: string) => THEMES.find((t) => t.name === name) ?? THEMES[0]!;
+export const themeNamed = (name: string) => THEMES.find((t) => t.name === name) ?? THEMES.find((t) => t.name === DEFAULT_THEME)!;

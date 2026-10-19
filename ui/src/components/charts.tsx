@@ -11,6 +11,7 @@
 
 import { useId, type CSSProperties, type ReactNode } from 'react';
 import { day } from '../format.ts';
+import { DataTable } from './layout.tsx';
 import type { Burnup } from '../model/burnup.ts';
 import type { Week } from '../model/flow.ts';
 
@@ -22,27 +23,13 @@ function Figures({ caption, head, rows }: { caption: string; head: string[]; row
   return (
     <details className="figures">
       <summary>Show the figures</summary>
-      <div className="table-wrap" tabIndex={0} role="region" aria-label={caption}>
-        <table>
-          <caption className="sr-only">{caption}</caption>
-          <thead>
-            <tr>
-              {head.map((h) => (
-                <th key={h} scope="col">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i}>
-                {r.map((c, j) => (j === 0 ? <th key={j} scope="row">{c}</th> : <td key={j}>{c}</td>))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        label={caption}
+        caption={caption}
+        rows={rows.map((cells, i) => ({ i, cells }))}
+        rowKey={(r) => String(r.i)}
+        columns={head.map((h, j) => ({ header: h, label: h, rowHeader: j === 0, cell: (r: { cells: ReactNode[] }) => r.cells[j] }))}
+      />
     </details>
   );
 }

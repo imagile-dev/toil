@@ -94,13 +94,11 @@
 }
 
 /* Holo panels with a glow, and HUD corner brackets from the Panel skin. */
-[data-theme="starship"] .panel,
-[data-theme="starship"] .dossier-card {
+[data-theme="starship"] .l-card {
   position: relative;
 }
 
-[data-theme="starship"] .panel,
-[data-theme="starship"] .dossier-card,
+[data-theme="starship"] .l-card,
 [data-theme="starship"] .ask {
   border: 1px solid rgba(54, 214, 255, 0.45);
   background: linear-gradient(180deg, rgba(54, 214, 255, 0.05), rgba(54, 214, 255, 0.015) 40%), var(--surface);
@@ -337,8 +335,7 @@
     var(--surface);
 }
 
-[data-theme="starship"] .panel,
-[data-theme="starship"] .dossier-card,
+[data-theme="starship"] .l-card,
 [data-theme="starship"] .ask {
   background:
     linear-gradient(135deg, rgba(54, 214, 255, 0.06), transparent 45%, rgba(160, 110, 255, 0.06)),

@@ -6,6 +6,7 @@
 
 import { Avatar, StatusChip } from '../components/bits.tsx';
 import { Cited, ItemLink, typeText } from '../components/items.tsx';
+import { Card, DataTable } from '../components/layout.tsx';
 import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, dateTime, dossierHref, estimateText, personText, shortKey, sourceLabel } from '../format.ts';
 import { age, cycleTime } from '../model/flow.ts';
@@ -66,7 +67,7 @@ export function ItemView({ id }: { id: string }) {
           )}
         </p>
       </div>
-      <section className="panel insights-panel" aria-labelledby="insights">
+      <Card as="section" className="panel insights-panel" aria-labelledby="insights">
         <h2 id="insights">Insights</h2>
         {found.length ? (
           <ul className="rows">
@@ -93,7 +94,7 @@ export function ItemView({ id }: { id: string }) {
                 : `Time in progress unknown: ${inProgress.reason}.`
               : 'Not started.'}
         </p>
-      </section>
+      </Card>
       <div className="item-grid">
         <section aria-labelledby="fields">
           <h2 id="fields">Fields</h2>
@@ -215,28 +216,17 @@ export function ItemView({ id }: { id: string }) {
           ) : item.history.transitions.length === 0 ? (
             <p>No status changes recorded.</p>
           ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">When</th>
-                    <th scope="col">From</th>
-                    <th scope="col">To</th>
-                    <th scope="col">By</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {item.history.transitions.map((t, i) => (
-                    <tr key={i}>
-                      <td>{dateTime(t.at)}</td>
-                      <td>{t.from ?? 'Created'}</td>
-                      <td>{t.to}</td>
-                      <td>{t.by ? personText(t.by) : 'Unknown'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              label={`${shortKey(item)}'s status changes`}
+              rows={item.history.transitions.map((t, i) => ({ ...t, i }))}
+              rowKey={(t) => String(t.i)}
+              columns={[
+                { header: 'When', label: 'When', cell: (t) => dateTime(t.at) },
+                { header: 'From', label: 'From', cell: (t) => t.from ?? 'Created' },
+                { header: 'To', label: 'To', cell: (t) => t.to },
+                { header: 'By', label: 'By', cell: (t) => (t.by ? personText(t.by) : 'Unknown') },
+              ]}
+            />
           )}
           {item.unmapped.length > 0 && (
             <>

@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { envOnly, envPrefix, type AreaInfo, type ConfigApi, type ConnectionRow, type ConnectionsData } from '../../config.ts';
 import type { Envelope } from '../../toil.ts';
+import { Card, CardGrid, Path } from '../../components/layout.tsx';
 import { ChangeForm, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
 
 const SOURCE_WORD: Record<string, string> = { env: 'env var', ci: 'CI variable', file: 'config file', store: 'credential store', defaults: 'area defaults' };
@@ -50,23 +51,23 @@ export function Connections({ config }: { config: ConfigApi }) {
   const { data } = list;
   return (
     <>
-      <section className="panel" aria-labelledby="conn-list">
+      <Card as="section" className="panel" aria-labelledby="conn-list">
         <h2 id="conn-list">Your connections</h2>
         <p className="lede">
-          From <code>toil connections list</code>, which never returns a secret. Changes are written to <code>{data.configFile}</code>; secrets live in the OS credential store.
+          From <code>toil connections list</code>, which never returns a secret. Changes are written to <Path value={data.configFile} what="config file path" />; secrets live in the OS credential store.
         </p>
         {data.connections.length === 0 ? (
           <p>toil has no connections yet. Add one below.</p>
         ) : (
-          <ul className="conn-cards">
+          <CardGrid min="lg" className="conn-cards">
             {data.connections.map((c) => (
               <li key={c.name}>
                 <ConnectionCard connection={c} areas={areas ?? []} config={config} configFile={data.configFile} onChanged={reload} />
               </li>
             ))}
-          </ul>
+          </CardGrid>
         )}
-      </section>
+      </Card>
       <AddConnection areas={areas} config={config} onChanged={reload} />
     </>
   );
@@ -109,7 +110,7 @@ function ConnectionCard({ connection: c, areas, config, configFile, onChanged }:
   };
 
   return (
-    <article className="conn-card" aria-labelledby={titleId}>
+    <Card className="conn-card" aria-labelledby={titleId}>
       <div className="conn-head">
         <h3 id={titleId}>
           <code>{c.name}</code>
@@ -194,7 +195,7 @@ function ConnectionCard({ connection: c, areas, config, configFile, onChanged }:
           onSubmit={async () => after(await config.run('connections remove', { name: c.name }), `${c.name} was removed.`)}
         />
       )}
-    </article>
+    </Card>
   );
 }
 
@@ -277,10 +278,10 @@ function AddConnection({ areas, config, onChanged }: { areas: AreaInfo[] | null;
   if (areas === null) return null;
   if (withFields.length === 0) {
     return (
-      <section className="panel" aria-labelledby="conn-add">
+      <Card as="section" className="panel" aria-labelledby="conn-add">
         <h2 id="conn-add">Add a connection</h2>
         <p>The toil this server runs doesn't say what each area's connection holds, so the page can't ask for it. Add one with <code>toil connections add</code> in a terminal.</p>
-      </section>
+      </Card>
     );
   }
   const review = [
@@ -290,7 +291,7 @@ function AddConnection({ areas, config, onChanged }: { areas: AreaInfo[] | null;
   ].join(', ');
 
   return (
-    <section className="panel" aria-labelledby="conn-add">
+    <Card as="section" className="panel" aria-labelledby="conn-add">
       <h2 id="conn-add">Add a connection</h2>
       <ChangeForm
         title="A new connection"
@@ -356,6 +357,6 @@ function AddConnection({ areas, config, onChanged }: { areas: AreaInfo[] | null;
         )}
         <p className="note">Saves: {review}.</p>
       </ChangeForm>
-    </section>
+    </Card>
   );
 }

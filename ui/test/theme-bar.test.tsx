@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import type { SyncClient, SyncStatus } from '../src/server-client.ts';
@@ -11,16 +11,23 @@ import { BUILT_IN_SKINS, SLOTS, skinsFor, themed } from '../src/skins.tsx';
 import { THEMES, themeNamed } from '../src/themes.ts';
 
 /**
- * The bar every theme passes (#206), run the same way for each: no axe
- * violations, and the same click targets as Plain on every view, so a theme
- * changes how a view looks and never what can be done on it. Contrast is
- * checked on the tokens (themes.test.ts) and in a real browser, since jsdom
- * can't compute it.
+ * The bar every theme is held to (#206, #277), run the same way for each: the
+ * same click targets as Plain on every view, so a theme changes how a view
+ * looks and never what can be done on it, and axe at WCAG 2.2 AA. Plain and
+ * Crate are strict, with no violations; Harvest, Starship and Realm may
+ * deviate for style, so their findings are reported, never failed (the
+ * maintainer's bar, AGENT_DECISIONS.md, #267). Contrast is checked on the
+ * tokens (themes.test.ts) and in a real browser (scripts/layout-check.mjs),
+ * since jsdom can't compute it.
  */
 
 const item = (dossier: string, id: string) => `#/dossier/${dossier}/item/${encodeURIComponent(id)}`;
 const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', item('card-payments', 'corp-jira:PAY-100'), item('settlement', 'corp-ado:2304'), '#/settings'];
 const SCHEMES = THEMES.flatMap((t) => Object.keys(t.schemes).map((scheme) => [t.name, scheme] as const));
+const STRICT = new Set(['plain', 'crate']);
+/** Each case renders a whole view and runs axe over it, which takes a few seconds on a slow CI runner (macOS on Node 24.14). */
+const SLOW = 30_000;
+const reported: string[] = [];
 
 async function open(hash: string, theme: string, scheme: string) {
   localStorage.setItem('toil-ui.theme', JSON.stringify({ theme, scheme }));
@@ -33,7 +40,11 @@ async function open(hash: string, theme: string, scheme: string) {
 }
 
 async function violations(container: HTMLElement) {
-  const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false } } });
+  const result = await axe.run(container, {
+    runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] },
+    // Experimental in this axe, so named: WCAG 2.5.3, a control's name holding its visible words (the header's name was the case, #277).
+    rules: { 'color-contrast': { enabled: false }, 'label-content-name-mismatch': { enabled: true } },
+  });
   return result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
 }
 
@@ -50,10 +61,14 @@ beforeEach(() => {
   document.documentElement.removeAttribute('data-theme');
 });
 
-describe('every theme', () => {
+describe('every theme', { timeout: SLOW }, () => {
   const plainTargets = new Map<string, string[]>();
 
-  it.each(ROUTES.flatMap((r) => SCHEMES.map(([t, s]) => [r, t, s] as const)))('%s in %s (%s) has no axe violations and the same click targets as Plain', async (hash, theme, scheme) => {
+  afterAll(() => {
+    if (reported.length) console.info(['Report-only axe findings in the decorative themes:', ...reported].join('\n'));
+  });
+
+  it.each(ROUTES.flatMap((r) => SCHEMES.map(([t, s]) => [r, t, s] as const)))('%s in %s (%s) meets its axe bar and has the same click targets as Plain', async (hash, theme, scheme) => {
     if (!plainTargets.has(hash)) {
       const { unmount } = await open(hash, 'plain', 'light');
       plainTargets.set(hash, targets());
@@ -61,7 +76,9 @@ describe('every theme', () => {
     }
     const { container } = await open(hash, theme, scheme);
     expect(document.documentElement.dataset.theme).toBe(theme);
-    expect(await violations(container)).toEqual([]);
+    const found = await violations(container);
+    if (STRICT.has(theme)) expect(found).toEqual([]);
+    else reported.push(...found.map((f) => `${theme} ${hash}: ${f}`));
     expect(targets()).toEqual(plainTargets.get(hash));
   });
 
@@ -81,7 +98,7 @@ describe('every theme', () => {
   });
 });
 
-describe('a renamed word keeps the real one beside it', () => {
+describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () => {
   it('reads "Quest (Epic)" in Realm and "Epic" in Plain', () => {
     expect(themed(themeNamed('realm'), 'epic', 'Epic')).toBe('Quest (Epic)');
     expect(themed(themeNamed('plain'), 'epic', 'Epic')).toBe('Epic');
@@ -116,7 +133,7 @@ describe('a renamed word keeps the real one beside it', () => {
   });
 });
 
-describe('the skins', () => {
+describe('the skins', { timeout: SLOW }, () => {
   it.each([
     ['harvest', 'light', 'Almanac (Agent)'],
     ['starship', 'dark', "Ship's computer (Agent)"],
@@ -169,7 +186,7 @@ describe('the skins', () => {
   });
 });
 
-describe('the local app\'s sync panel', () => {
+describe('the local app\'s sync panel', { timeout: SLOW }, () => {
   const AT = '2026-10-13T08:00:00.000Z';
   const idle = { running: false, by: null, startedAt: AT, finishedAt: AT, dossier: null, dossiersDone: 1, dossiersTotal: 1, fetched: 0, reused: 0, requests: 0, pages: 0, retries: 0, messages: [], error: null };
   const status: SyncStatus = {
@@ -195,8 +212,42 @@ describe('the local app\'s sync panel', () => {
     document.documentElement.dataset.scheme = scheme;
     const { container } = render(<SyncPanel client={client} onChange={() => {}} />);
     expect(await screen.findByText(/Showing the last good copy/)).toBeTruthy();
-    expect(await violations(container)).toEqual([]);
+    const bar = async () => {
+      const found = await violations(container);
+      if (STRICT.has(theme)) expect(found).toEqual([]);
+      else reported.push(...found.map((f) => `${theme} sync panel: ${f}`));
+    };
+    await bar();
     await userEvent.click(screen.getByRole('button', { name: /Wipe/ }));
-    expect(await violations(container)).toEqual([]);
+    await bar();
+  });
+});
+
+describe('the header (#277)', { timeout: SLOW }, () => {
+  it('names the wordmark by its own words, "toil UI", with no aria-label to disagree with them', async () => {
+    await open('#/', 'crate', 'dark');
+    const brand = screen.getByRole('link', { name: 'toil UI' });
+    expect(brand.getAttribute('aria-label')).toBeNull();
+    expect(brand.textContent).toBe('toil UI');
+  });
+
+  it('folds the views, Feedback and the theme into a Menu below 1024px, marks the current page, and closes on Escape', async () => {
+    const real = window.matchMedia;
+    window.matchMedia = ((query: string) => ({ matches: query.includes('max-width'), media: query, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
+    try {
+      await open('#/dossier/settlement', 'crate', 'dark');
+      expect(screen.queryByRole('navigation', { name: 'Views' })).toBeNull();
+      const menu = screen.getByRole('button', { name: 'Menu' });
+      await userEvent.click(menu);
+      const dialog = await screen.findByRole('dialog', { name: 'Menu, on settlement' });
+      expect(within(dialog).getByRole('link', { name: 'settlement' }).getAttribute('aria-current')).toBe('page');
+      expect(within(dialog).getByRole('link', { name: 'Settings' })).toBeTruthy();
+      expect(within(dialog).getByRole('button', { name: /Theme/ })).toBeTruthy();
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(document.activeElement).toBe(menu);
+    } finally {
+      window.matchMedia = real;
+    }
   });
 });

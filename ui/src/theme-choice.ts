@@ -1,7 +1,7 @@
 /**
  * Which theme and colour scheme are showing. A `?theme=` or `?scheme=` in the
  * address wins (it makes a view linkable as it looked), then what this browser
- * picked last, then Plain following the system. The choice is a convenience,
+ * picked last, then Crate, the default (#277). The choice is a convenience,
  * so storage that refuses (a private window, blocked site data) just means it
  * isn't remembered. Preferences are honoured without a request form.
  */
