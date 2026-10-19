@@ -92,7 +92,10 @@ describe('an ignore file that exists but cannot be read (#264)', () => {
     failing.set(`${basename(root)}/.git/info/exclude`, errno('EIO', 'i/o error, read'));
     const { listed, warnings } = list(root);
     expect(listed).toEqual(['a.log']);
-    expect(warnings).toEqual([expect.objectContaining({ code: 'GITIGNORE_UNREADABLE', message: expect.stringMatching(new RegExp(`^${real.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/\\.git/info/exclude could not be read \\(EIO: i/o error, read\\).*Make it readable, or delete it if its rules aren't needed\\.$`)) })]);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]!.code).toBe('GITIGNORE_UNREADABLE');
+    expect(warnings[0]!.message).toContain(`${real}/.git/info/exclude could not be read (EIO: i/o error, read)`);
+    expect(warnings[0]!.message).toMatch(/Make it readable, or delete it if its rules aren't needed\.$/);
   });
 
   it('says so for a folder named .gitignore, a real failure on every OS', () => {
