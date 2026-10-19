@@ -4,10 +4,10 @@ on:
   push:
     branches: [main]
     # The site serves the Toil UI preview (ui/), built from the OWI types and fixture.
-    paths: ['site/**', 'ui/**', 'src/core/owi/**', 'test/fixtures/owi/**', '.github/workflows/pages.yml']
+    paths: ['site/**', 'ui/**', 'package-lock.json', 'src/core/owi/**', 'test/fixtures/owi/**', '.github/workflows/pages.yml']
   pull_request:
     # The site serves the Toil UI preview (ui/), built from the OWI types and fixture.
-    paths: ['site/**', 'ui/**', 'src/core/owi/**', 'test/fixtures/owi/**', '.github/workflows/pages.yml']
+    paths: ['site/**', 'ui/**', 'package-lock.json', 'src/core/owi/**', 'test/fixtures/owi/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -27,11 +27,12 @@ jobs:
           node-version: '24.14'
           cache: npm
           cache-dependency-path: |
+            package-lock.json
             site/package-lock.json
-            ui/package-lock.json
-      # The site build builds the Toil UI preview into /ui-preview/ (site/scripts/ui-preview.mjs).
+      # The site build builds the Toil UI preview into /ui-preview/
+      # (site/scripts/ui-preview.mjs). ui/ is the root's workspace, so its
+      # dependencies come from the root's lockfile.
       - run: npm ci --ignore-scripts
-        working-directory: ui
       - run: npm ci
         working-directory: site
       - run: npm run build

@@ -110,8 +110,10 @@ from `main`).
 - **`/ui-preview/` is the Toil UI preview** (#206, #228): the real `ui/` app,
   running on its fixture `execute()` and scripted Agent. It's labelled "Preview of
   an unreleased product" on every view and has no install instructions. `npm run
-  dev` and `npm run build` build it first (`scripts/ui-preview.mjs`), so run `npm
-  --prefix ui ci` once. Its views are hash routes: the dossier list at `#/` and a
+  dev` and `npm run build` build it first (`scripts/ui-preview.mjs`, into
+  `ui/dist/preview/`), so run `npm ci --ignore-scripts` at the repository root
+  once (`ui/` is its workspace). `/docs/ui/` renders `ui/README.md`, the package's
+  own reference. Its views are hash routes: the dossier list at `#/` and a
   dashboard at `#/dossier/<name>` (`ui-preview/?theme=crate#/dossier/settlement`).
   `scripts/shoot.mjs` can shoot them.
 - Internal links go through `url()` in `site/src/lib/url.ts` because the site is

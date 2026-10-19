@@ -2776,3 +2776,115 @@ Decisions:
   limit (a test counts one start). Only V8's "Maximum call stack size exceeded" is
   `stack` (`kit/stack.ts`, used by the worker and its host); `Invalid string length`
   and other RangeErrors are failures, reported through `boundedError`.
+
+### #249 UI server
+
+`ui/` becomes the publishable `@imagile-dev/toil-ui` package with its local server,
+as #206's Local first, Packaging and release, and Hosting-ready by design sections
+describe.
+
+- **The server is `node:http`** (`ui/server/server.ts`), no framework, so the
+  package's one runtime dependency is `@imagile-dev/toil`, pinned exactly. Vite's
+  SSR build bundles `ui/server/main.ts` into `ui/dist/server/toil-ui.js` (the
+  bin), with the preview's fixtures inside for `--sample`. Only Node built-ins and
+  `@imagile-dev/toil` stay external; a build plugin records the bundle's imports,
+  as the bundler resolved them, in `ui/dist/metafile-server.json` for
+  `check:package`. The server type-checks against the pinned toil's published
+  `dist/api.d.ts` (`ui/tsconfig.server.json`), which is what the bundle runs with.
+- **Two app builds from one `index.html`.** `vite build` is the site preview
+  (`ui/dist/preview/`, `src/main.tsx`, unchanged); `vite build --mode app` is what
+  the package serves (`ui/dist/app/`, `src/local.tsx`). The site's
+  `scripts/ui-preview.mjs` copies `dist/preview/` and finds vite through the
+  workspace's resolution instead of `ui/node_modules`.
+- **The seam stays `execute()`.** The App is unchanged: `src/server-client.ts`
+  gives it an `execute()` that POSTs to `/api/execute`, and an `Agent` over
+  `/api/agent/*`. The Agent's starters are fetched for each dossier before the App
+  mounts, because the App asks for them while it renders and the browser interface
+  is synchronous; changing that interface would have touched the views being built
+  in parallel.
+- **`Store` and `Agent` are the server's interfaces** (`ui/server/store.ts`,
+  `ui/server/agent.ts`), each taking the `RequestContext`. Stores: `toilStore`
+  (toil's own `execute()` from `@imagile-dev/toil/api`) and `fixtureStore` (the
+  preview's fixture). #250's SQLite cache is a third Store answering the same toil
+  calls. Agents: `fixtureAgent` (scripted) and `noAgent`, which offers no starters
+  and answers a question with a plain "no agent is set up yet"; #251's adapters
+  implement the same interface. `toil-ui` picks toil and no agent; `toil-ui
+  --sample` picks the fixture pair, and the App shows the preview banner.
+- **The request `viewer`** (`ui/server/context.ts`): every API request gets a
+  `RequestContext` with the viewer and an abort signal (the browser going away
+  cancels the call), and the Store and Agent read the viewer from there, never from
+  a global. In v1 it is always `{ id: 'local', name: <OS user>, via: 'launch-token' }`.
+- **The launch token.** A random 32-byte token per start, printed once in the URL.
+  The first visit with it gets a fresh session id in a cookie named
+  `toil-ui-<port>` (the port keeps two launches apart, since cookies ignore ports),
+  `HttpOnly; SameSite=Strict`, with no expiry, so it lives in the browser's memory
+  only, and a 303 to the base path that drops the token from the address bar. The
+  token stays good for the whole launch, so a second browser can sign in; each
+  sign-in is its own session, and a launch holds at most 32 (the oldest dropped).
+  The cookie carries the session id rather than the token itself, so each session
+  can have its own CSRF token.
+- **The Host check** is exact: only `127.0.0.1:<port>` (or `[::1]:<port>`), the
+  host it printed. `localhost` is refused too, since the cookie wouldn't follow it
+  anyway. No CORS header is ever sent; OPTIONS is a 405. Every response carries a
+  CSP (`script-src 'self'`; inline styles allowed, because the App writes its theme
+  tokens into a `<style>` element), `Referrer-Policy: no-referrer`, `X-Frame-Options:
+  DENY` and `Cache-Control: no-store`.
+- **Ready for the config pages (#253).** Every POST needs the page's own `Origin`, a
+  JSON content type, and the session's CSRF token in `X-Toil-UI-CSRF` (given by
+  `GET /api/session`). `/api/execute` runs only `READ_COMMANDS`, the 18 commands the
+  views read (a test holds the list to every command the fixture answers), always
+  `readOnly: true`. `/api/config` is the one path where `readOnly` is false: it
+  runs only commands in the server's `configCommands` allowlist, empty in this
+  release, so #253 adds its config commands there and nowhere else. Anything else
+  is a 403 with toil's own refusal envelope, before a Store sees it. Every call, read
+  or config, is `caller: 'toil-ui'`, so the audit log names it. The page can't
+  loosen any of this: the client never sends `readOnly` or `caller`.
+- **Settings:** `--host`, `--port`, `--base-path`, `--data-dir`, each with a
+  `TOIL_UI_*` env var; a flag beats its env var, which beats the default
+  (`127.0.0.1`, port 0 so the OS picks a free one, `/`, `~/.toil-ui`). Any host but
+  `127.0.0.1` or `::1` is refused with a fix. The data folder is resolved but not
+  created yet; #250 is its first user.
+- **No browser is opened.** That would mean spawning a program; `check:package`
+  fails if the server imports `child_process` at all.
+- **Packaging.** `"workspaces": ["ui"]` at the root and one lockfile (the old
+  `ui/package-lock.json` and `ui/.npmrc` are gone; the root's `.npmrc` already sets
+  `save-exact` and `engine-strict`). The tarball is `dist/server/toil-ui.js`,
+  `dist/app/`, `README.md`, `LICENSE` (toil's, held equal by a test) and its own
+  `NOTICE` (React, and the three fonts under the OFL). `ui/scripts/package-rules.mjs`
+  holds the allowlist and package.json rules; `ui/test/package.test.ts` packs on
+  every test run, and `npm run check:package -w ui` checks the build. `npm run smoke
+  -w ui` packs both tarballs, installs them offline with scripts off, and drives the
+  installed bin over HTTP, with `--sample` and against the installed toil. CI runs
+  all of it inside `CI ok` on every OS and Node version.
+- **The toil pin is exempt from the 14-day rule.** It names this repository's own
+  release, which the node-workspace plugin rewrites on every toil release.
+- **The workspace doesn't link the root.** npm workspaces link only workspace
+  members, never the root package, and npm ignores an `overrides` entry for the
+  root's own name (tried: `"@imagile-dev/toil": "file:."` had no effect). So the dev
+  tree holds the registry's toil at the pinned version; only the server's
+  type-check and a run from a clone use it. On a release PR the node-workspace
+  plugin rewrites the pin and the lockfile's version for it while the resolved
+  tarball still names the previous release; a local simulation of release-please
+  17.11.2's updaters on this lockfile showed `npm ci` still succeeds on that branch,
+  so the release PR's CI and its `dist/` rebuild keep working. `publish-ui` then
+  checks that npm serves the pinned toil before it publishes, and its smoke installs
+  the UI beside the freshly packed toil.
+- **Release.** `release-please-config.json` adds the `node-workspace` plugin, `ui`
+  as a second package (`component: toil-ui`, tag `toil-ui-v…`, toil's alpha
+  settings), and `"exclude-paths": ["ui"]` on the root; the manifest gets `"ui":
+  "0.0.0"`. The root's `extra-files`, tag and the committed `dist/` are untouched.
+  `release.yml`'s `publish` job is renamed `publish-toil` with no other change, and
+  `publish-ui` needs it, runs when toil published or had nothing to release, and is
+  skipped when toil's publish failed. It uses the same `NPM_TOKEN`, provenance,
+  alpha dist-tag script (`test/release-workflow.test.ts` holds it word for word to
+  toil's, but the package name) and Discord notices. The dry run
+  (`release-please release-pr --dry-run`, 17.11.2, against the pushed branch)
+  proposed one PR: toil 0.1.0-alpha.3 with only the commits outside `ui/`, and
+  toil-ui 0.1.0-alpha.1 with the UI commits and "@imagile-dev/toil bumped from
+  0.1.0-alpha.2 to 0.1.0-alpha.3".
+- **Docs.** A `skills/toil/ui.md` doesn't fit: the skill's tests take a file only
+  for a registered area, and the UI isn't one, nor should toil's skill carry a
+  separate product. `ui/README.md` is the reference instead, its npm page, and
+  `/docs/ui/` renders it (the remark plugin drops its first heading as it does for
+  skill files), with the package's description as the lead, so the page has no prose
+  of its own. The docs index links it; the root README says "alpha, local only".
