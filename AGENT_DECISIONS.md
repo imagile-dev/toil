@@ -2988,3 +2988,76 @@ describe.
   printed URL can already use the UI, so a single-use token would cost the user
   restarts and protect nothing new. Review round 1 replaced the cookie with the
   header session above, and gave `vite.server.config.ts` its dry line.
+
+### #250 UI sync
+
+Toil UI's sync and SQLite cache (#206 point 2), on the server #249 built.
+
+- **The sync replays the dashboards' own calls.** `ui/server/sync.ts` loads each
+  dossier with the views' loader (`src/load.ts`, unchanged), through an `execute()`
+  that goes to toil's real one (`readOnly: true`, `caller: 'toil-ui'`, the progress
+  callback, an abort signal). So the cache holds exactly the calls the views make,
+  and the new `sqliteStore` answers them by `(dossier, command, input)`. The
+  dashboards render from the cache unchanged; a test loads every sample dossier
+  both ways and compares items, changes and deployments. The other choice, a sync
+  with its own list of calls, would drift from the views on every new panel.
+- **Incremental where toil can say "since".** `jira search` and `ado work search`
+  get `updatedSince` (the source's watermark: the last good sync's start, minus five
+  minutes for clock skew) and are merged into the last copy by key. The GitHub board
+  (`projects list-items`) has no `updatedSince`, so it is read whole and an item
+  counts as changed when its issue's `updatedAt` moved. Batches (`ado work
+  get-batch`, `github get-issue`) and histories (`jira get-changelog`, `ado work
+  revisions`, `github issue-events`) are fetched only for changed and new items. Pull
+  requests, builds, deployments and iterations are read again every sync. Every call
+  follows `meta.page.nextCursor` up to 200 pages and fails its source past that,
+  saying so. A full sync happens when a source has no watermark or no last copy. Not
+  handled: an item deleted in its tracker stays until retention or a wipe (an
+  incremental search can't report deletions); the README says so.
+- **A failing source never blanks.** A source is one area of one dossier. When a
+  call fails, the loader gets that call's last good copy, so items, changes and the
+  normalized tables keep it. The source is marked `failed` with toil's message and
+  fix, its watermark doesn't move (the next sync asks from the old one), and the
+  Store adds a `STALE` warning to its envelopes. A source that worked drops its
+  responses the sync didn't touch. A failed `dossiers show` keeps the dossier's
+  data. A dossier toil no longer lists is forgotten.
+- **Schema.** `responses`, `items` (OWI JSON plus indexed columns), `transitions`,
+  `change_refs` (pull requests, builds and deployments), `sources` (per dossier and
+  area) and `dossiers` (last sync time). Versioned with `PRAGMA user_version`, one
+  migration per step in a transaction. A file from a newer Toil UI is refused with a
+  fix (`toil-ui wipe`) instead of read wrongly.
+- **`node:sqlite` still prints an ExperimentalWarning on Node 24.14.** It is
+  imported dynamically (`ui/server/sqlite.ts`), with `process.emitWarning` filtering
+  that one warning for the import and restored after. Every other warning still
+  prints. The smoke test checks stderr has no such line.
+- **Data folder.** `<dataDir>/cache/toil-ui.db`, created owner-only (0700 where POSIX
+  modes exist). `--retention-days` / `TOIL_UI_RETENTION_DAYS`, default 30, 1 to
+  3650; rows not synced within it are deleted at start and after each sync.
+  `toil-ui wipe` removes the `cache/` folder. The page's **Wipe the cache** closes
+  the file, removes the folder and opens an empty one inside the server.
+- **A lock file, not the OS's file locking (review round 1).** Windows refuses to
+  delete an open database, but macOS and Linux unlink it, and the server went on
+  serving the "wiped" rows from the unlinked file. So the open cache holds
+  `<dataDir>/toil-ui.lock` (pid, a random token, start time; created with `wx`).
+  `toil-ui wipe` refuses with the same "Toil UI is running; stop it, or use Wipe in
+  the UI." on every OS while the lock's pid is alive (`process.kill(pid, 0)`, with
+  EPERM counting as alive), and takes over a lock whose process has gone. Only the
+  holder's token passes, which is how the in-app wipe gets through. A second server
+  on the same data folder is refused at start for the same reason, unless the lock names this process's own pid: that is a crash's lock with the pid reused (review round 2), and the refusal names the lock file to delete. `~` at the start of
+  `TOIL_UI_DATA_DIR` is expanded, since env vars don't go through a shell. Path
+  handling is tested with `path.win32` and `path.posix`.
+- **Progress by polling, not SSE.** The API's session is a header, never a cookie
+  (#249), and `EventSource` can't send headers, so the page polls `GET api/sync`
+  once a second while a sync runs. `POST api/sync` starts one (409 while one runs);
+  `POST api/cache/wipe` needs `{ "confirm": "wipe" }` and is refused while syncing.
+  With `--sample` there's no sync: those routes are 404 and the panel is hidden.
+- **The SPA hook is one new component.** `src/sync-panel.tsx` (its own CSS) renders
+  under the App from `src/local.tsx`, so `src/views/` and `App.tsx` are untouched
+  for #255. The App is remounted after a sync or wipe, and its `now` is the newest
+  dossier sync, so the header line ("Data read … through toil") says when the data
+  was synced. The wipe confirmation is inline, with Cancel focused and Escape to back
+  out, not a modal.
+- **Verified end to end** with the built `toil-ui` and the real toil against a local
+  Jira Data Center stub: the first sync read three search pages and seven
+  changelogs; after one issue changed, the second sent `(project = LAB) AND updated
+  >= "…"` and one changelog; with the stub returning 503, the source showed failed
+  and stale, and the dashboard kept all seven items.

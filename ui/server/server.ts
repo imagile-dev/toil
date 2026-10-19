@@ -34,6 +34,7 @@ import type { Agent } from './agent.ts';
 import { localViewer, type RequestContext, type Viewer } from './context.ts';
 import type { Settings } from './settings.ts';
 import { READ_COMMANDS, type Access, type Store } from './store.ts';
+import { SyncBusy, type SyncService } from './sync.ts';
 
 export interface UiServerOptions {
   settings: Settings;
@@ -46,6 +47,8 @@ export interface UiServerOptions {
   toil: { version: string; contractVersion: number };
   /** Commands `/api/config` may run with writes on this machine (#253). Empty in this release. */
   configCommands?: ReadonlySet<string>;
+  /** The sync job and its cache (#250): `api/sync` and `api/cache/wipe`. None with sample data. */
+  sync?: SyncService;
   /** Tests pass a fixed token; a real start makes one. */
   token?: string;
   viewer?: Viewer;
@@ -172,10 +175,17 @@ export function createUiServer(options: UiServerOptions): UiServer {
     toil: options.toil,
     viewer: { id: viewer.id, name: viewer.name },
     store: store.kind,
+    sync: options.sync !== undefined,
     agent: agent.kind,
     sample: store.sample,
     now: store.now(),
   });
+
+  /** The sync job, or a 404 saying this server has none (sample data syncs nothing). */
+  const syncer = (): SyncService => {
+    if (!options.sync) throw new HttpError(404, 'This Toil UI has no cache to sync: it serves sample data.', 'Start toil-ui without --sample to sync your own dossiers.');
+    return options.sync;
+  };
 
   const sessionOf = (req: IncomingMessage): { id: string; session: Session } | undefined => {
     const id = req.headers[SESSION_HEADER];
@@ -262,8 +272,35 @@ export function createUiServer(options: UiServerOptions): UiServer {
         }
         return;
       }
+      case 'GET sync':
+        json(res, 200, syncer().status());
+        return;
+      case 'POST sync': {
+        const body = await readJson(req);
+        if (body.dossier !== undefined && typeof body.dossier !== 'string') throw new HttpError(400, 'dossier must be a dossier name.', 'Send {} to sync every dossier, or { "dossier": "<name>" } for one.');
+        try {
+          syncer().start(ctx, body.dossier as string | undefined);
+        } catch (e) {
+          if (e instanceof SyncBusy) throw new HttpError(409, e.message, 'Wait for it to finish; the page shows its progress.');
+          throw e;
+        }
+        json(res, 202, syncer().status());
+        return;
+      }
+      case 'POST cache/wipe': {
+        const body = await readJson(req);
+        if (body.confirm !== 'wipe') throw new HttpError(400, 'Wiping the cache needs { "confirm": "wipe" }.', 'Confirm in the page; it deletes everything synced on this machine.');
+        try {
+          syncer().wipe();
+        } catch (e) {
+          if (e instanceof SyncBusy) throw new HttpError(409, 'A sync is running, so the cache stays until it ends.', 'Wait for the sync to finish, then wipe.');
+          throw e;
+        }
+        json(res, 200, syncer().status());
+        return;
+      }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, agent/starters and agent/ask.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, sync, cache/wipe, agent/starters and agent/ask.`);
     }
   };
 
@@ -333,10 +370,12 @@ export function createUiServer(options: UiServerOptions): UiServer {
           resolveListen({ origin, url: `${origin}${base}`, launchUrl: `${origin}${base}?token=${token}` });
         });
       }),
-    close: () =>
-      new Promise((resolveClose) => {
+    close: async () => {
+      await options.sync?.close();
+      await new Promise<void>((resolveClose) => {
         server.closeAllConnections();
         server.close(() => resolveClose());
-      }),
+      });
+    },
   };
 }

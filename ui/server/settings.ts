@@ -9,7 +9,10 @@
  */
 
 import { homedir } from 'node:os';
-import { isAbsolute, join, resolve } from 'node:path';
+import * as nodePath from 'node:path';
+
+/** The path functions the data folder is resolved with: node:path, or path.win32 / path.posix in the tests. */
+export type PathApi = Pick<typeof nodePath, 'isAbsolute' | 'join' | 'resolve'>;
 
 export interface Settings {
   host: string;
@@ -17,11 +20,16 @@ export interface Settings {
   port: number;
   /** Where the app is served, with a slash at each end: `/`, `/toil/`. */
   basePath: string;
-  /** Toil UI's own folder (`~/.toil-ui/`), apart from toil's `~/.toil/`. The cache (#250) and user themes live here. */
+  /** Toil UI's own folder (`~/.toil-ui/`), apart from toil's `~/.toil/`. The cache (`cache/`, #250) and user themes live here. */
   dataDir: string;
+  /** Days the cache keeps what a sync stored after it was last synced (#250). */
+  retentionDays: number;
   /** Serve the preview's sample data and scripted Agent instead of toil. */
   sample: boolean;
 }
+
+export const DEFAULT_RETENTION_DAYS = 30;
+export const MAX_RETENTION_DAYS = 3650;
 
 /** v1 binds loopback only (#206, Local first). */
 export const LOOPBACK = new Set(['127.0.0.1', '::1']);
@@ -33,36 +41,49 @@ export class SettingsError extends Error {
 }
 
 export interface Parsed {
+  /** `serve` starts the server; `wipe` deletes the cache and exits. */
+  command: 'serve' | 'wipe';
   settings: Settings;
   help: boolean;
   version: boolean;
 }
 
 export const USAGE = `Usage: toil-ui [options]
+       toil-ui wipe [--data-dir <dir>]
 
 Starts Toil UI on this machine and prints the one URL that opens it.
 Alpha, local only: it binds loopback and reads through toil, read-only.
+A sync stores what the dashboards show in a cache in the data folder.
+
+Commands:
+  wipe                 Delete the cache (everything a sync stored) and exit.
 
 Options:
   --host <address>     Loopback address to bind: 127.0.0.1 (default) or ::1.   Env: TOIL_UI_HOST
   --port <n>           Port; 0 (default) lets the OS pick a free one.          Env: TOIL_UI_PORT
   --base-path <path>   Path the app is served under (default /).                Env: TOIL_UI_BASE_PATH
   --data-dir <dir>     Toil UI's own folder (default ~/.toil-ui).               Env: TOIL_UI_DATA_DIR
+  --retention-days <n> Days the cache keeps synced data (default ${DEFAULT_RETENTION_DAYS}).        Env: TOIL_UI_RETENTION_DAYS
   --sample             Serve sample data and the scripted agent, not toil.
   --version            Print the version.
   --help               Print this help.
 `;
 
-const FLAGS = new Set(['--host', '--port', '--base-path', '--data-dir']);
+const FLAGS = new Set(['--host', '--port', '--base-path', '--data-dir', '--retention-days']);
 
 /** Flags first, then env, then the default; anything wrong is a SettingsError with a fix. */
-export function parseSettings(argv: readonly string[], env: Record<string, string | undefined>, home: string = homedir()): Parsed {
+export function parseSettings(argv: readonly string[], env: Record<string, string | undefined>, home: string = homedir(), path: PathApi = nodePath): Parsed {
   const flags: Record<string, string> = {};
   let sample = false;
   let help = false;
   let version = false;
+  let command: Parsed['command'] = 'serve';
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]!;
+    if (i === 0 && arg === 'wipe') {
+      command = 'wipe';
+      continue;
+    }
     const eq = arg.indexOf('=');
     const name = eq > 0 ? arg.slice(0, eq) : arg;
     if (arg === '--sample') sample = true;
@@ -98,7 +119,18 @@ export function parseSettings(argv: readonly string[], env: Record<string, strin
   const basePath = trimmed ? `/${trimmed}/` : '/';
 
   const rawData = pick('--data-dir', 'TOIL_UI_DATA_DIR');
-  const dataDir = rawData ? (isAbsolute(rawData) ? rawData : resolve(rawData)) : join(home, '.toil-ui');
+  // An env var isn't expanded by a shell, so `~` (alone, or before / or \) means the home folder here too.
+  const tilde = rawData && /^~(?=$|[\\/])/.test(rawData) ? path.join(home, rawData.slice(1)) : rawData;
+  const dataDir = tilde ? (path.isAbsolute(tilde) ? tilde : path.resolve(tilde)) : path.join(home, '.toil-ui');
 
-  return { settings: { host, port, basePath, dataDir, sample }, help, version };
+  const retentionText = pick('--retention-days', 'TOIL_UI_RETENTION_DAYS') ?? String(DEFAULT_RETENTION_DAYS);
+  const retentionDays = /^\d{1,4}$/.test(retentionText) ? Number(retentionText) : NaN;
+  if (!(retentionDays >= 1 && retentionDays <= MAX_RETENTION_DAYS)) {
+    throw new SettingsError(`The retention must be a whole number of days from 1 to ${MAX_RETENTION_DAYS}, not ${JSON.stringify(retentionText)}.`, `Pass --retention-days ${DEFAULT_RETENTION_DAYS} (the default), or run toil-ui wipe to delete the cache now.`);
+  }
+  if (command === 'wipe' && (sample || flags['--host'] || flags['--port'] || flags['--base-path'])) {
+    throw new SettingsError('toil-ui wipe takes only --data-dir.', 'Run toil-ui wipe, or toil-ui wipe --data-dir <dir> for another data folder.');
+  }
+
+  return { command, settings: { host, port, basePath, dataDir, retentionDays, sample }, help, version };
 }
