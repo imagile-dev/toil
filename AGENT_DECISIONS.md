@@ -3085,6 +3085,26 @@ describes, in one PR because they share the registry, the rules and the bar.
   or a radius that could break out of the stylesheet, a link, or a built-in theme's
   name. The picker and a route for these files come with milestone 8; the gate came
   first so it can't be skipped later.
+- **The boundary is the Content-Security-Policy, the checker explains** (#259 review).
+  Regular expressions over raw CSS were walked past five ways (a quoted `)`, escapes
+  in `url` and in a scheme, `image-set()` strings, an escaped `@import`). Two layers
+  now. `ui/server/csp.ts` sets one policy on every response the toil-ui server sends,
+  and the built page carries it as a `<meta>` (less `frame-ancestors`) for the site
+  preview: `default-src 'none'`, script, style, font and connect from `'self'` only,
+  images from `'self'` and `data:`, `base-uri`, `form-action`, `frame-ancestors`,
+  `object-src`, `worker-src`, `media-src` and `manifest-src` all `'none'`. No
+  `'unsafe-inline'`: the theme tokens are a constructed stylesheet
+  (`adoptedStyleSheets`, CSSOM rather than markup), the build keeps fonts as files
+  (`assetsInlineLimit`), and the one `<style>` React Aria adds (`touch-action` for
+  presses) is allowed by its SHA-256, which `ui/test/server.test.ts` recomputes from
+  React Aria's source. The checker (`userCssProblems`) reads a user's CSS through
+  `ui/src/css-tokens.ts`, a tokenizer written to CSS Syntax 3 section 4 (escapes
+  decoded, strings and `url()` whole, bad strings and urls refused), with no new
+  dependency. It allows only `@media`, `@supports`, `@font-face` and `@keyframes`,
+  and refuses any `url()`, or string inside `src()`, `image()`, `image-set()` or
+  `cross-fade()`, that isn't a plain relative path in the theme folder
+  (`[A-Za-z0-9_.-]` segments, no `.` or `..`, no `%`, `\`, `?` or `#`).
+- **`site/dist/` is git-ignored** beside `site/.astro/`; it was committed by mistake.
 - **Each theme's stylesheet loads when it's picked** (`loadThemeStyles`): Plain is the
   only one in the first load; Crate, Harvest, Starship and Realm are their own CSS
   chunks, with their fonts and art. Manifests stay up front, since the picker lists
