@@ -25,6 +25,7 @@ const app = mkdtempSync(join(tmpdir(), 'toil-ui-app-'));
 mkdirSync(join(app, 'assets'));
 writeFileSync(join(app, 'index.html'), '<!doctype html><div id="root"></div>');
 writeFileSync(join(app, 'assets', 'app.js'), 'console.log(1);');
+writeFileSync(join(app, 'assets', '..app.js'), 'console.log(2);');
 writeFileSync(join(tmpdir(), 'toil-ui-secret.txt'), 'outside the app folder');
 
 const settings = (over: Partial<Settings> = {}): Settings => ({ host: '127.0.0.1', port: 0, basePath: '/', dataDir: join(app, 'data'), sample: true, ...over });
@@ -290,11 +291,27 @@ describe('the static files', () => {
     const js = await send(origin, '/assets/app.js', { headers: { cookie } });
     expect(js.status).toBe(200);
     expect(js.headers['content-type']).toContain('text/javascript');
-    for (const path of ['/../toil-ui-secret.txt', '/%2e%2e/toil-ui-secret.txt', '/assets/..%2f..%2ftoil-ui-secret.txt', '/assets', '/missing.js']) {
+    const dotted = await send(origin, '/assets/..app.js', { headers: { cookie } });
+    expect(dotted.status, 'a name that merely starts with two dots').toBe(200);
+    const paths = ['/../toil-ui-secret.txt', '/%2e%2e/toil-ui-secret.txt', '/assets/..%2f..%2ftoil-ui-secret.txt', '/..%5ctoil-ui-secret.txt', '/%2e%2e%5ctoil-ui-secret.txt', '/index.html::$DATA', '/assets', '/missing.js'];
+    for (const path of paths) {
       const res = await send(origin, path, { headers: { cookie } });
       expect(res.status, path).toBe(404);
       expect(res.body).not.toContain('outside the app folder');
+      expect(res.body).not.toContain('<div id="root">');
     }
+  });
+
+  it('keeps a signed-in browser signed in when it opens a launch URL again', async () => {
+    const { origin } = await start();
+    const { cookie } = await signIn(origin);
+    for (const token of [TOKEN, 'an-old-launch']) {
+      const res = await send(origin, `/?token=${token}`, { headers: { cookie } });
+      expect(res.status).toBe(303);
+      expect(res.headers.location).toBe('/');
+      expect(res.headers['set-cookie']).toBeUndefined();
+    }
+    expect((await send(origin, '/', { headers: { cookie } })).status).toBe(200);
   });
 
   it('serves under its base path only', async () => {

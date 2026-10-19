@@ -25,7 +25,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { extname, isAbsolute, join, normalize, relative } from 'node:path';
+import { extname, isAbsolute, join, normalize, relative, sep } from 'node:path';
 import type { Envelope } from '../src/toil.ts';
 import type { Agent } from './agent.ts';
 import { localViewer, type RequestContext, type Viewer } from './context.ts';
@@ -262,7 +262,8 @@ export function createUiServer(options: UiServerOptions): UiServer {
     }
     const file = normalize(join(appDir, rel));
     const inside = relative(appDir, file);
-    if (rel.includes('\0') || inside.startsWith('..') || isAbsolute(inside)) return text(res, 404, 'Not found.');
+    // A colon is never in an app file's name, and on Windows it would name a stream of one (`index.html::$DATA`).
+    if (rel.includes('\0') || rel.includes(':') || inside === '..' || inside.startsWith(`..${sep}`) || isAbsolute(inside)) return text(res, 404, 'Not found.');
     try {
       if (!(await stat(file)).isFile()) return text(res, 404, 'Not found.');
       send(res, 200, TYPES[extname(file).toLowerCase()] ?? 'application/octet-stream', await readFile(file));
@@ -285,11 +286,13 @@ export function createUiServer(options: UiServerOptions): UiServer {
     }
 
     const offered = url.searchParams.get('token');
+    const session = sessionOf(req);
     if (offered !== null && !isApi) {
+      // A browser already signed in keeps its session, whatever token an old bookmark carries.
+      if (session) return send(res, 303, 'text/plain; charset=utf-8', 'Already signed in to this launch.\n', { Location: base });
       if (same(offered, token)) return startSession(res);
       return text(res, 401, "That launch token isn't this server's. Open the URL toil-ui printed when it started; each start prints a new one.");
     }
-    const session = sessionOf(req);
     if (!session) {
       const message = "Toil UI opens only from the URL it printed when it started, which carries this launch's token.";
       return isApi ? json(res, 401, { error: { message, fix: 'Open that URL once in this browser; it signs the browser in for this launch.' } }) : text(res, 401, message);

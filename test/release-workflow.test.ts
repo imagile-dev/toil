@@ -74,7 +74,7 @@ describe('the publish jobs', () => {
     expect(jobs['publish-toil']!.needs).toBe('release-please');
     expect(jobs['publish-ui']!.needs).toEqual(['release-please', 'publish-toil']);
     const gate = jobs['publish-ui']!.if!.replace(/\s+/g, ' ');
-    expect(gate).toContain('always()');
+    expect(gate).toContain('!cancelled()');
     expect(gate).toContain("needs.release-please.outputs.ui_release_created == 'true'");
     expect(gate).toContain("(needs.publish-toil.result == 'success' || needs.publish-toil.result == 'skipped')");
   });

@@ -2888,3 +2888,15 @@ describe.
   `/docs/ui/` renders it (the remark plugin drops its first heading as it does for
   skill files), with the package's description as the lead, so the page has no prose
   of its own. The docs index links it; the root README says "alpha, local only".
+- **Local review.** Fixed: `publish-ui` gates on `!cancelled()` rather than
+  `always()`; its check that npm serves the pinned toil retries six times, ten
+  seconds apart, for registry lag; a file name that only starts with `..` is
+  served, and any path with a colon is refused (a Windows stream such as
+  `index.html::$DATA`); a signed-in browser opening a launch URL again keeps its
+  session. Two findings kept as they are: the release PR's `npm ci` was said to
+  fail once the pin names an unpublished toil, but the simulation above (the real
+  updaters on this lockfile, then `npm ci`) passes; and the launch token stays
+  reusable for the launch, as Jupyter's is, so a second browser, or the same one
+  after it closes, can sign in again without a restart. Whoever can read the
+  printed URL can already use the UI, so a single-use token would cost the user
+  restarts and protect nothing new.

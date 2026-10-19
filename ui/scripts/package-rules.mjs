@@ -32,8 +32,11 @@ const INSTALL_SCRIPTS =['preinstall', 'install', 'postinstall', 'prepare', 'prep
 
 /**
  * The package.json rules, as a list of problems. `toilVersion` is the root
- * package's: the UI pins exactly that toil, so it builds and ships against the
- * toil in the same checkout.
+ * package's: the UI pins exactly the toil this checkout releases, so the two
+ * ship as a pair. The dev tree resolves that pin from npm (npm workspaces never
+ * link the root package), so the server type-checks and runs against the
+ * published toil; only the smoke test installs it beside this checkout's own
+ * tarball.
  */
 export function packageProblems(pkg, toilVersion) {
   const problems = [];
@@ -41,7 +44,7 @@ export function packageProblems(pkg, toilVersion) {
   for (const s of INSTALL_SCRIPTS) if (pkg.scripts?.[s]) problems.push(`package.json has a "${s}" script; installs must run nothing.`);
   const deps = pkg.dependencies ?? {};
   if (JSON.stringify(Object.keys(deps)) !== JSON.stringify(['@imagile-dev/toil'])) problems.push(`package.json's dependencies must be @imagile-dev/toil alone, not ${JSON.stringify(Object.keys(deps))}; the front end's framework is built in, so it stays a dev dependency.`);
-  if (deps['@imagile-dev/toil'] !== toilVersion) problems.push(`@imagile-dev/toil must be pinned exactly to ${toilVersion}, the toil in this checkout, not ${JSON.stringify(deps['@imagile-dev/toil'])}.`);
+  if (deps['@imagile-dev/toil'] !== toilVersion) problems.push(`@imagile-dev/toil must be pinned exactly to ${toilVersion}, the toil this checkout releases, not ${JSON.stringify(deps['@imagile-dev/toil'])}.`);
   for (const field of ['optionalDependencies', 'bundleDependencies', 'bundledDependencies']) if (pkg[field] && Object.keys(pkg[field]).length) problems.push(`package.json has ${field}; nothing may install beside toil.`);
   // The agent SDKs (#251) arrive as optional peers, so a user installs only the one their organization approved.
   for (const peer of Object.keys(pkg.peerDependencies ?? {})) if (pkg.peerDependenciesMeta?.[peer]?.optional !== true) problems.push(`peer dependency ${peer} must be optional (peerDependenciesMeta).`);

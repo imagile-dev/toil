@@ -207,7 +207,7 @@ jobs:
   publish-ui:
     needs: [release-please, publish-toil]
     if: >-
-      always() &&
+      !cancelled() &&
       needs.release-please.result == 'success' &&
       needs.release-please.outputs.ui_release_created == 'true' &&
       (needs.publish-toil.result == 'success' || needs.publish-toil.result == 'skipped')
@@ -231,15 +231,21 @@ jobs:
       - run: npm install -g npm@11.5.1
       - run: npm ci --ignore-scripts
       # The pin is exact, so a toil npm doesn't serve would make a UI nobody
-      # can install. Fail before publishing, not after.
+      # can install. Fail before publishing, not after. A toil publish-toil
+      # sent seconds ago can take a moment to show, so it asks six times, ten
+      # seconds apart.
       - name: Check that npm serves the toil the UI pins
         run: |
           PIN="$(node -p "require('./ui/package.json').dependencies['@imagile-dev/toil']")"
-          if [[ "$(npm view "@imagile-dev/toil@$PIN" version)" != "$PIN" ]]; then
-            echo "::error::@imagile-dev/toil-ui $VERSION pins @imagile-dev/toil $PIN, which npm doesn't serve."
-            exit 1
-          fi
-          echo "npm serves @imagile-dev/toil $PIN."
+          for attempt in 1 2 3 4 5 6; do
+            if [[ "$(npm view "@imagile-dev/toil@$PIN" version 2>/dev/null)" == "$PIN" ]]; then
+              echo "npm serves @imagile-dev/toil $PIN."
+              exit 0
+            fi
+            [[ $attempt -lt 6 ]] && sleep 10
+          done
+          echo "::error::@imagile-dev/toil-ui $VERSION pins @imagile-dev/toil $PIN, which npm still doesn't serve after a minute."
+          exit 1
       # The root build is toil's tarball, which the UI's smoke installs beside its own.
       - run: npm run build
       - run: npm test -w ui
