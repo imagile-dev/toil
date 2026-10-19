@@ -2814,24 +2814,32 @@ describe.
   `RequestContext` with the viewer and an abort signal (the browser going away
   cancels the call), and the Store and Agent read the viewer from there, never from
   a global. In v1 it is always `{ id: 'local', name: <OS user>, via: 'launch-token' }`.
-- **The launch token.** A random 32-byte token per start, printed once in the URL.
-  The first visit with it gets a fresh session id in a cookie named
-  `toil-ui-<port>` (the port keeps two launches apart, since cookies ignore ports),
-  `HttpOnly; SameSite=Strict`, with no expiry, so it lives in the browser's memory
-  only, and a 303 to the base path that drops the token from the address bar. The
-  token stays good for the whole launch, so a second browser can sign in; each
-  sign-in is its own session, and a launch holds at most 32 (the oldest dropped).
-  The cookie carries the session id rather than the token itself, so each session
-  can have its own CSRF token.
+- **The launch token, and no cookie (review round 1).** A random 32-byte token per
+  start, printed once in the URL. The page (`src/server-client.ts`) POSTs it to
+  `api/session` and gets back a fresh session id and a CSRF token. It keeps both in
+  memory only, sends the id as `X-Toil-UI-Session` on every API call, and takes the
+  token out of the address bar with `history.replaceState`. The API refuses any call
+  without the header; a session id in a cookie counts for nothing. No response ever
+  sets a cookie. The first version used a session cookie, but cookies ignore ports,
+  so the browser would hand it to any other server on `127.0.0.1`. On a shared host,
+  that server could be another account's, which could then read through the
+  user's connections. The static files hold no data, so they're served with no
+  session at all.
+  - **The trade-off:** a reload, or a new tab, forgets the session. It needs the
+    launch URL again, and the page says so. Keeping the id in `sessionStorage`
+    would survive a reload, but it would put a credential on disk-backed storage
+    that any script on the origin can read, for no gain a launch URL can't give.
+  - **The token** stays good for the whole launch, so the URL can be opened again.
+    Each sign-in is its own session, and a launch holds at most 32 (the oldest is
+    dropped).
 - **The Host check** is exact: only `127.0.0.1:<port>` (or `[::1]:<port>`), the
-  host it printed. `localhost` is refused too, since the cookie wouldn't follow it
-  anyway. No CORS header is ever sent; OPTIONS is a 405. Every response carries a
+  host it printed. `localhost` is refused too. No CORS header is ever sent; OPTIONS is a 405. Every response carries a
   CSP (`script-src 'self'`; inline styles allowed, because the App writes its theme
   tokens into a `<style>` element), `Referrer-Policy: no-referrer`, `X-Frame-Options:
   DENY` and `Cache-Control: no-store`.
 - **Ready for the config pages (#253).** Every POST needs the page's own `Origin`, a
-  JSON content type, and the session's CSRF token in `X-Toil-UI-CSRF` (given by
-  `GET /api/session`). `/api/execute` runs only `READ_COMMANDS`, the 18 commands the
+  JSON content type, and the session's CSRF token in `X-Toil-UI-CSRF` (given at
+  sign-in). `/api/execute` runs only `READ_COMMANDS`, the 18 commands the
   views read (a test holds the list to every command the fixture answers), always
   `readOnly: true`. `/api/config` is the one path where `readOnly` is false: it
   runs only commands in the server's `configCommands` allowlist, empty in this
@@ -2892,11 +2900,11 @@ describe.
   `always()`; its check that npm serves the pinned toil retries six times, ten
   seconds apart, for registry lag; a file name that only starts with `..` is
   served, and any path with a colon is refused (a Windows stream such as
-  `index.html::$DATA`); a signed-in browser opening a launch URL again keeps its
-  session. Two findings kept as they are: the release PR's `npm ci` was said to
+  `index.html::$DATA`). Two findings kept as they are: the release PR's `npm ci` was said to
   fail once the pin names an unpublished toil, but the simulation above (the real
   updaters on this lockfile, then `npm ci`) passes; and the launch token stays
   reusable for the launch, as Jupyter's is, so a second browser, or the same one
   after it closes, can sign in again without a restart. Whoever can read the
   printed URL can already use the UI, so a single-use token would cost the user
-  restarts and protect nothing new.
+  restarts and protect nothing new. Review round 1 replaced the cookie with the
+  header session above, and gave `vite.server.config.ts` its dry line.

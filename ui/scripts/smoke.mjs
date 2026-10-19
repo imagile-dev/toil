@@ -1,10 +1,11 @@
 // Installs both tarballs the way a locked-down user would (npm, scripts off,
 // no registry) into a throwaway prefix, then drives the installed toil-ui bin:
 // it prints its launch URL once, refuses a foreign Host and a missing token,
-// trades the token for a session cookie, serves the app, answers the API with
-// the CSRF token and refuses it without, and reads through the installed toil
-// with no sample data at all. Run after `npm run build` at the root (toil's
-// tarball) and in ui/ (its own). Stops every process it starts.
+// trades the token for a session id (a header, never a cookie), serves the app,
+// answers the API with the session id and the CSRF token and refuses it without
+// them, and reads through the installed toil with no sample data at all. Run
+// after `npm run build` at the root (toil's tarball) and in ui/ (its own).
+// Stops every process it starts.
 // The tour of the building takes nine seconds and visits only the lobby.
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -59,15 +60,16 @@ function launch(bin, args) {
   return { child, url, output: () => out };
 }
 
+/** Signs in as the page does: the launch token in the URL for a session id, sent as a header. */
 async function signIn(launchUrl) {
-  const { origin } = new URL(launchUrl);
-  const res = await send(origin, launchUrl);
-  check(res.status === 303, `the launch URL answered ${res.status}, not 303`);
-  const cookie = String(res.headers['set-cookie']?.[0] ?? '').split(';')[0];
-  const session = JSON.parse((await send(origin, '/api/session', { headers: { cookie } })).body);
+  const { origin, searchParams } = new URL(launchUrl);
+  const res = await send(origin, '/api/session', { method: 'POST', body: JSON.stringify({ token: searchParams.get('token') }), headers: { origin, 'content-type': 'application/json' } });
+  check(res.status === 200 && !res.headers['set-cookie'], `signing in answered ${res.status}${res.headers['set-cookie'] ? ' and set a cookie' : ''}`);
+  const session = JSON.parse(res.body);
+  const sid = session.session;
   const call = (command, input = {}, headers = {}) =>
-    send(origin, '/api/execute', { method: 'POST', body: JSON.stringify({ command, input }), headers: { cookie, origin, 'content-type': 'application/json', 'x-toil-ui-csrf': session.csrf, ...headers } });
-  return { origin, cookie, session, call };
+    send(origin, '/api/execute', { method: 'POST', body: JSON.stringify({ command, input }), headers: { 'x-toil-ui-session': sid, origin, 'content-type': 'application/json', 'x-toil-ui-csrf': session.csrf, ...headers } });
+  return { origin, sid, session, call };
 }
 
 const children = [];
@@ -98,14 +100,15 @@ try {
 
   const foreign = await send(origin, launchUrl, { headers: { host: 'rebind.imagile.dev' } });
   check(foreign.status === 403 && !foreign.headers['set-cookie'], `a foreign Host got ${foreign.status}`);
-  check((await send(origin, '/')).status === 401, 'the app opened without the token');
-  check((await send(origin, '/?token=wrong')).status === 401, 'a wrong token was accepted');
+  check((await send(origin, '/api/session')).status === 401, 'the API answered without a session');
+  const wrong = await send(origin, '/api/session', { method: 'POST', body: JSON.stringify({ token: 'wrong' }), headers: { origin, 'content-type': 'application/json' } });
+  check(wrong.status === 401, `a wrong token got ${wrong.status}`);
 
   const s = await signIn(launchUrl);
-  const page = await send(origin, '/', { headers: { cookie: s.cookie } });
+  const page = await send(origin, launchUrl);
   check(page.status === 200 && page.body.includes('<div id="root">') && page.body.includes('<title>Toil UI</title>'), `the app page answered ${page.status}`);
   const script = /src="\.\/(assets\/[^"]+\.js)"/.exec(page.body)?.[1];
-  const asset = script ? await send(origin, `/${script}`, { headers: { cookie: s.cookie } }) : { status: 0, headers: {} };
+  const asset = script ? await send(origin, `/${script}`) : { status: 0, headers: {} };
   check(asset.status === 200 && String(asset.headers['content-type']).startsWith('text/javascript'), `the app's script ${script} answered ${asset.status}`);
   // The package's app is the local entry, which reads through the server, not the preview's fixtures.
   check(asset.body.includes('api/session') && !asset.body.includes('The preview has no sample answer'), `the app's script ${script} is the preview's build, not the local app's`);
@@ -116,9 +119,12 @@ try {
   check(refused.status === 403 && JSON.parse(refused.body).ok === false, `a write command got ${refused.status}`);
   const noCsrf = await s.call('dossiers list', {}, { 'x-toil-ui-csrf': 'wrong' });
   check(noCsrf.status === 403, `a POST without the CSRF token got ${noCsrf.status}`);
+  const onlyCookie = await send(origin, '/api/session', { headers: { cookie: `toil-ui=${s.sid}` } });
+  check(onlyCookie.status === 401, `a session id in a cookie, not the header, got ${onlyCookie.status}`);
   const all = [foreign, page, asset, refused, noCsrf];
+  check(all.every((r) => !r.headers['set-cookie']), 'a response set a cookie');
   check(all.every((r) => !Object.keys(r.headers).some((h) => h.startsWith('access-control-'))), 'a response carried a CORS header');
-  steps.push(`--sample on ${origin}: foreign Host 403, no token 401, token 303 + cookie, app and script 200, 3 dossiers over the API, a write refused, no CSRF 403, no CORS header`);
+  steps.push(`--sample on ${origin}: foreign Host 403, API without a session 401, wrong token 401, token traded for a header session (no cookie), a cookie-only session 401, app and script 200, 3 dossiers over the API, a write refused, no CSRF 403, no CORS header`);
 
   // toil's own execute(), from the installed package, with an empty home.
   const live = launch(bin, []);

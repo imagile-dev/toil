@@ -10,13 +10,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import './app.css';
-import { httpAgent, httpExecute, loadSession } from './server-client.ts';
+import { httpAgent, httpExecute, signIn } from './server-client.ts';
 import { CALL_OPTIONS } from './toil.ts';
 
 const root = createRoot(document.getElementById('root')!);
 
 async function start() {
-  const session = await loadSession();
+  const session = await signIn();
   const execute = httpExecute(session);
   const list = await execute('dossiers list', {}, CALL_OPTIONS);
   const names = list.ok ? ((list.data as { dossiers?: Array<{ name?: unknown }> }).dossiers ?? []).map((d) => String(d.name)) : [];

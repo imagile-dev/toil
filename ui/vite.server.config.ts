@@ -9,7 +9,9 @@ import { defineConfig, type Plugin } from 'vite';
 // Everything is bundled except Node's built-ins and @imagile-dev/toil, the one
 // runtime dependency. The `imports` plugin records what the bundle imports, as
 // the bundler resolved it, into dist/metafile-server.json, which
-// scripts/check-package.mjs reads (never a text scan of the output).
+// scripts/check-package.mjs reads (never a text scan of the output). The
+// bundle declares its own imports, and the inspector checks the declaration
+// against the bundler's receipt.
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(here, 'package.json'), 'utf8')) as { version: string };

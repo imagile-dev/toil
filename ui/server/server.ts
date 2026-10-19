@@ -4,9 +4,12 @@
  * SPA and a small JSON API under the base path, on loopback, behind a lock:
  *
  * - **The launch token.** Each start makes a random token and prints one URL
- *   that carries it, as Jupyter does. The first visit with it gets a session
- *   cookie (no expiry, so it lives in the browser's memory only) and a
- *   redirect that drops the token from the address bar. Nothing else gets in.
+ *   that carries it, as Jupyter does. The page trades it (`POST api/session`)
+ *   for a session id it keeps in memory and sends as `X-Toil-UI-Session` on
+ *   every API call; the API answers nothing without one. No cookie is ever
+ *   set: browsers send cookies to every port on a host, so one would reach any
+ *   other server on 127.0.0.1. The static files hold no data and need no
+ *   session. A reload forgets the id, so it takes the launch URL again.
  * - **The Host header.** Only the exact `127.0.0.1:<port>` (or `[::1]:<port>`)
  *   the server printed is answered, so a page using DNS rebinding to reach the
  *   port is refused before anything else is read.
@@ -60,6 +63,8 @@ export const MAX_SESSIONS = 32;
 /** The largest POST body the API reads. Its calls are a command name and a few fields. */
 export const MAX_BODY = 256 * 1024;
 export const CSRF_HEADER = 'x-toil-ui-csrf';
+/** The session id the page got for the launch token, on every API call. Never a cookie. */
+export const SESSION_HEADER = 'x-toil-ui-session';
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -111,15 +116,6 @@ function same(a: string, b: string): boolean {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-function cookies(req: IncomingMessage): Map<string, string> {
-  const out = new Map<string, string>();
-  for (const part of (req.headers.cookie ?? '').split(';')) {
-    const eq = part.indexOf('=');
-    if (eq > 0) out.set(part.slice(0, eq).trim(), part.slice(eq + 1).trim());
-  }
-  return out;
-}
-
 class HttpError extends Error {
   constructor(readonly status: number, message: string, readonly fix: string) {
     super(message);
@@ -152,7 +148,6 @@ export function createUiServer(options: UiServerOptions): UiServer {
   const sessions = new Map<string, Session>();
   const base = settings.basePath;
   let host = '';
-  let cookieName = 'toil-ui';
 
   const send = (res: ServerResponse, status: number, type: string, body: string | Buffer, extra: Record<string, string> = {}) => {
     res.writeHead(status, { ...SECURITY_HEADERS, 'Content-Type': type, 'Content-Length': String(Buffer.byteLength(body)), ...extra });
@@ -169,30 +164,50 @@ export function createUiServer(options: UiServerOptions): UiServer {
     meta: { command, durationMs: 0, version: options.toil.version, contractVersion: options.toil.contractVersion },
   } as Envelope);
 
-  const startSession = (res: ServerResponse) => {
-    if (sessions.size >= MAX_SESSIONS) sessions.delete(sessions.keys().next().value!);
-    const id = secret();
-    sessions.set(id, { csrf: secret() });
-    // No Expires or Max-Age: a session cookie, gone when the browser closes.
-    send(res, 303, 'text/plain; charset=utf-8', 'Signed in to this launch.\n', {
-      Location: base,
-      'Set-Cookie': `${cookieName}=${id}; Path=${base}; HttpOnly; SameSite=Strict`,
-    });
-  };
+  /** What the page needs about the server, and its session's CSRF token. */
+  const sessionInfo = (id: string, session: Session) => ({
+    session: id,
+    csrf: session.csrf,
+    version: options.version,
+    toil: options.toil,
+    viewer: { id: viewer.id, name: viewer.name },
+    store: store.kind,
+    agent: agent.kind,
+    sample: store.sample,
+    now: store.now(),
+  });
 
-  const sessionOf = (req: IncomingMessage): Session | undefined => {
-    const id = cookies(req).get(cookieName);
-    if (!id) return undefined;
-    for (const [key, s] of sessions) if (same(key, id)) return s;
+  const sessionOf = (req: IncomingMessage): { id: string; session: Session } | undefined => {
+    const id = req.headers[SESSION_HEADER];
+    if (typeof id !== 'string' || !id) return undefined;
+    for (const [key, session] of sessions) if (same(key, id)) return { id: key, session };
     return undefined;
   };
 
-  /** A POST must come from this page: its Origin, a JSON body, and the session's CSRF token. */
-  const checkPost = (req: IncomingMessage, session: Session) => {
+  /** A POST must come from this page: its Origin and a JSON body. */
+  const checkOrigin = (req: IncomingMessage) => {
     if (req.headers.origin !== `http://${host}`) throw new HttpError(403, `This server takes requests only from its own page, http://${host}.`, 'Use Toil UI in the browser tab its launch URL opened.');
     if (!/^application\/json(\s*;|$)/i.test(req.headers['content-type'] ?? '')) throw new HttpError(415, 'The API takes JSON only.', 'Send Content-Type: application/json.');
+  };
+
+  /** And, once signed in, the session's CSRF token. */
+  const checkCsrf = (req: IncomingMessage, session: Session) => {
     const csrf = req.headers[CSRF_HEADER];
-    if (typeof csrf !== 'string' || !same(csrf, session.csrf)) throw new HttpError(403, "The request didn't carry this session's CSRF token.", `Send the csrf value from ${base}api/session in the ${CSRF_HEADER} header.`);
+    if (typeof csrf !== 'string' || !same(csrf, session.csrf)) throw new HttpError(403, "The request didn't carry this session's CSRF token.", `Send the csrf value ${base}api/session gave in the ${CSRF_HEADER} header.`);
+  };
+
+  /** `POST api/session`: the launch token for a new session id, which the page keeps in memory. */
+  const signIn = async (req: IncomingMessage, res: ServerResponse) => {
+    checkOrigin(req);
+    const body = await readJson(req);
+    if (typeof body.token !== 'string' || !same(body.token, token)) {
+      throw new HttpError(401, "That isn't this launch's token.", 'Open the URL toil-ui printed when it started; each start prints a new one.');
+    }
+    if (sessions.size >= MAX_SESSIONS) sessions.delete(sessions.keys().next().value!);
+    const id = secret();
+    const session: Session = { csrf: secret() };
+    sessions.set(id, session);
+    json(res, 200, sessionInfo(id, session));
   };
 
   const run = async (req: IncomingMessage, res: ServerResponse, ctx: RequestContext, access: Access) => {
@@ -212,21 +227,20 @@ export function createUiServer(options: UiServerOptions): UiServer {
     json(res, 200, await store.execute(ctx, command, input as Record<string, unknown>, access));
   };
 
-  const api = async (req: IncomingMessage, res: ServerResponse, route: string, url: URL, session: Session, ctx: RequestContext) => {
-    if (req.method === 'POST') checkPost(req, session);
+  const api = async (req: IncomingMessage, res: ServerResponse, route: string, url: URL, ctx: RequestContext) => {
     const key = `${req.method === 'HEAD' ? 'GET' : req.method} ${route}`;
+    if (key === 'POST session') return signIn(req, res);
+    const signedIn = sessionOf(req);
+    if (!signedIn) {
+      throw new HttpError(401, `The API answers only a page signed in to this launch, with its session id in ${SESSION_HEADER}.`, 'Open the URL toil-ui printed when it started; a reloaded page needs it again.');
+    }
+    if (req.method === 'POST') {
+      checkOrigin(req);
+      checkCsrf(req, signedIn.session);
+    }
     switch (key) {
       case 'GET session':
-        json(res, 200, {
-          version: options.version,
-          toil: options.toil,
-          viewer: { id: ctx.viewer.id, name: ctx.viewer.name },
-          store: store.kind,
-          agent: agent.kind,
-          sample: store.sample,
-          now: store.now(),
-          csrf: session.csrf,
-        });
+        json(res, 200, sessionInfo(signedIn.id, signedIn.session));
         return;
       case 'POST execute':
         return run(req, res, ctx, 'read');
@@ -284,26 +298,14 @@ export function createUiServer(options: UiServerOptions): UiServer {
     if (req.method !== 'GET' && req.method !== 'HEAD' && !(isApi && req.method === 'POST')) {
       return send(res, 405, 'text/plain; charset=utf-8', 'Method not allowed.\n', { Allow: isApi ? 'GET, HEAD, POST' : 'GET, HEAD' });
     }
-
-    const offered = url.searchParams.get('token');
-    const session = sessionOf(req);
-    if (offered !== null && !isApi) {
-      // A browser already signed in keeps its session, whatever token an old bookmark carries.
-      if (session) return send(res, 303, 'text/plain; charset=utf-8', 'Already signed in to this launch.\n', { Location: base });
-      if (same(offered, token)) return startSession(res);
-      return text(res, 401, "That launch token isn't this server's. Open the URL toil-ui printed when it started; each start prints a new one.");
-    }
-    if (!session) {
-      const message = "Toil UI opens only from the URL it printed when it started, which carries this launch's token.";
-      return isApi ? json(res, 401, { error: { message, fix: 'Open that URL once in this browser; it signs the browser in for this launch.' } }) : text(res, 401, message);
-    }
-
+    // The app's files hold no data, so they need no session; the page signs in through the API.
     if (!isApi) return serveFile(res, route);
+
     const controller = new AbortController();
     res.on('close', () => controller.abort());
     const ctx: RequestContext = { viewer, signal: controller.signal };
     try {
-      await api(req, res, route.slice('api/'.length), url, session, ctx);
+      await api(req, res, route.slice('api/'.length), url, ctx);
     } catch (e) {
       if (res.headersSent) return;
       if (e instanceof HttpError) return json(res, e.status, { error: { message: e.message, fix: e.fix } });
@@ -327,7 +329,6 @@ export function createUiServer(options: UiServerOptions): UiServer {
           server.off('error', reject);
           const { port } = server.address() as AddressInfo;
           host = settings.host.includes(':') ? `[${settings.host}]:${port}` : `${settings.host}:${port}`;
-          cookieName = `toil-ui-${port}`;
           const origin = `http://${host}`;
           resolveListen({ origin, url: `${origin}${base}`, launchUrl: `${origin}${base}?token=${token}` });
         });

@@ -35,9 +35,10 @@ Open this URL in your browser. It carries this launch's token, so keep it to you
   http://127.0.0.1:53117/?token=<token>
 ```
 
-Open that URL once. The browser keeps a session cookie for this launch, and the
-token leaves the address bar. Each start prints a new token. Toil UI opens no
-browser itself.
+Open that URL. The page trades the token for a session it keeps in memory, and the
+token leaves the address bar. A reloaded page forgets its session, so open the URL
+again to get back in. Each start prints a new token. Toil UI opens no browser
+itself.
 
 `toil-ui --sample` serves the sample dossiers and the scripted agent the site's
 preview uses, with nothing connected to a tracker.
@@ -61,9 +62,10 @@ never made from the page.
 Any program on the machine, or a web page using DNS rebinding, can reach a local
 port, so the server lets in only the browser holding this launch's token:
 
-- **The token.** A random token per start, in the URL it prints. The first visit
-  trades it for a session cookie with no expiry, `HttpOnly` and `SameSite=Strict`,
-  which the browser forgets when it closes.
+- **The token.** A random token per start, in the URL it prints. The page trades it
+  for a session id, which it keeps in memory and sends as a header on every API
+  call. Nothing is kept in a cookie: a browser would send one to any other server
+  on `127.0.0.1`, whatever its port.
 - **The Host header.** Only the exact `127.0.0.1:<port>` it printed is answered.
 - **No CORS.** No `Access-Control-*` header is ever sent. Every POST also needs the
   page's own `Origin`, a JSON body, and the session's CSRF token.
