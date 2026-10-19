@@ -9,19 +9,20 @@ import { Card, CardGrid } from '../components/layout.tsx';
 import { Sources } from '../components/panel.tsx';
 import { SOURCE_LABEL, dossierHref } from '../format.ts';
 import type { DossierSummary } from '../load.ts';
-import { useSkins } from '../skins.tsx';
+import { useSkins, useWords } from '../skins.tsx';
 import type { Call, SourceKind } from '../toil.ts';
 
 export function Dossiers({ dossiers, calls }: { dossiers: DossierSummary[]; calls: Call[] }) {
   const { EmptyState } = useSkins();
+  const words = useWords();
   return (
     <>
       <div className="view-head">
         <h1 tabIndex={-1}>Dossiers</h1>
-        <p className="lede">Each dossier is one body of work: its repositories, its tracker, its pipelines and its environments. Pick one to see its stories, pull requests, builds and deployments together.</p>
+        <p className="lede">{words('dossiers.lede')}</p>
       </div>
       {dossiers.length === 0 ? (
-        <EmptyState message="toil sees no dossiers yet. A dossier is made with toil dossiers init." />
+        <EmptyState message={words('empty.dossiers')} />
       ) : (
         <CardGrid className="dossiers">
           {dossiers.map((d) => (

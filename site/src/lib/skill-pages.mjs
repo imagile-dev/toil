@@ -67,6 +67,10 @@ export function pagePath(file) {
 /** The areas whose file is an integration page: every area file without a page of its own. */
 export const integrationFiles = skillFiles.filter((f) => f.area && !(f.file in OWN_PAGES));
 
+/** Toil UI's own docs, outside the toil skill (ui/docs/*.md): each is a page, by its file. */
+export const uiDocDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'ui', 'docs');
+export const UI_DOC_PAGES = { 'themes.md': '/docs/themes/' };
+
 /** Where the diagrams a skill file places live: `site/src/figures/<name>.html`. */
 export const figureDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'figures');
 /** A skill file places a figure with a comment on its own line, which agents read past. */
@@ -89,13 +93,16 @@ export function figureHtml(name, base) {
  * since the page hero shows it. A `<!-- figure: <name> -->` line becomes that
  * diagram (`figureHtml`). Agents read the same text with the file names.
  * Toil UI's README (ui/README.md: its npm page, and /docs/ui/) loses its first
- * heading the same way, and keeps its links as written.
+ * heading the same way, and keeps its links as written; Toil UI's own docs
+ * (ui/docs/*.md, such as /docs/themes/) do the same and place figures.
  */
 export function remarkSkillLinks({ base }) {
   return () => (tree, file) => {
     const path = String(file.path ?? file.history?.[0] ?? '').replace(/\\/g, '/');
     const readme = path.endsWith('/ui/README.md');
-    if (!path.includes('/skills/toil/') && !readme) return;
+    // Toil UI's own docs (ui/docs/*.md, such as /docs/themes/) place figures too, and keep their links as written.
+    const uiDoc = path.includes('/ui/docs/');
+    if (!path.includes('/skills/toil/') && !readme && !uiDoc) return;
     const first = tree.children.findIndex((n) => n.type === 'heading' && n.depth === 1);
     if (first >= 0) tree.children.splice(first, 1);
     if (readme) return;
@@ -103,6 +110,7 @@ export function remarkSkillLinks({ base }) {
       const name = node.type === 'html' ? FIGURE.exec(node.value.trim())?.[1] : undefined;
       return name ? { type: 'html', value: figureHtml(name, base) } : node;
     });
+    if (uiDoc) return;
     const walk = (node) => {
       if (!node.children || node.type === 'link') return;
       node.children = node.children.map((child) => {

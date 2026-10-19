@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useInsertionEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
-import { Button, Dialog, DialogTrigger, Label, ListBox, ListBoxItem, Popover, Select, SelectValue } from 'react-aria-components';
+import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { Ambient } from './ambient/Ambient.tsx';
 import { DataContext, type Data } from './data.ts';
@@ -29,6 +29,9 @@ import type { AgentSettingsPanelProps } from './agent-settings.tsx';
 import type { FeedbackApi } from './feedback.ts';
 import { FeedbackButton, FeedbackModal } from './feedback-dialog.tsx';
 import { useMediaQuery } from './components/layout.tsx';
+import { Choice } from './components/choice.tsx';
+import { ThemeChoiceProvider, wordingOn } from './theme-context.ts';
+import { wordFor, type WordKey } from './wording.ts';
 
 export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'agent';
 export type Route = { view: 'dossiers' } | { view: 'settings'; page: SettingsPage } | { view: 'dashboard'; dossier: string } | { view: 'item'; dossier: string; id: string };
@@ -133,6 +136,8 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   };
 
   const skins = skinsFor(theme.name);
+  // The App provides the theme context, so it can't read it through useWords(); this is the same lookup.
+  const words = (key: WordKey, vars?: Record<string, string>) => wordFor(theme.lexicon, wordingOn(theme, choice), key, vars);
   const compact = useMediaQuery(COMPACT_HEADER);
   const links: NavLink[] = [
     { href: '#/', label: 'Dossiers', current: route.view === 'dossiers' },
@@ -168,9 +173,9 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   if (route.view === 'settings') {
     body = <Settings page={route.page} config={config ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'dossiers') {
-    body = !list ? <skins.Loading message="Reading the dossiers…" /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} /> : failure(list.message);
+    body = !list ? <skins.Loading message={words('loading.dossiers')} /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} /> : failure(list.message);
   } else if (!current) {
-    body = <skins.Loading message={`Reading ${route.dossier}…`} />;
+    body = <skins.Loading message={words('loading.dossier', { name: route.dossier })} />;
   } else if (!current.ok) {
     body = failure(current.message);
   } else {
@@ -180,6 +185,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
 
   return (
     <ThemeProvider value={theme}>
+      <ThemeChoiceProvider value={choice}>
       <SkinProvider value={skins}>
         <TokenStyles css={THEMES.map(tokenCss).join('\n')} />
         <Ambient theme={theme.name} />
@@ -229,6 +235,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
           {body}
         </main>
       </SkinProvider>
+      </ThemeChoiceProvider>
     </ThemeProvider>
   );
 }
@@ -318,27 +325,5 @@ function HeaderMenu({ links, feedback, controls }: { links: NavLink[]; feedback:
       </DialogTrigger>
       {feedback && <FeedbackModal api={feedback} isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />}
     </>
-  );
-}
-
-/** A labelled choice from a short list, on React Aria's Select: a button that opens a listbox. */
-function Choice({ label, value, options, onChange }: { label: string; value: string; options: Array<{ id: string; label: string }>; onChange: (id: string) => void }) {
-  return (
-    <Select className="choice" selectedKey={value} onSelectionChange={(k) => k !== null && onChange(String(k))}>
-      <Label>{label}</Label>
-      <Button className="btn choice-button">
-        <SelectValue />
-        <span aria-hidden="true">▾</span>
-      </Button>
-      <Popover className="popover">
-        <ListBox className="menu">
-          {options.map((o) => (
-            <ListBoxItem key={o.id} id={o.id} className="menu-item">
-              {o.label}
-            </ListBoxItem>
-          ))}
-        </ListBox>
-      </Popover>
-    </Select>
   );
 }

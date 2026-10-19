@@ -8,8 +8,8 @@
  * say.
  */
 
-import type { Agent, Answer, AnswerPart, Starter } from '../agent.ts';
-import { citationsOf } from '../agent.ts';
+import type { Agent, Answer, AnswerPart, AskStyle, Starter } from '../agent.ts';
+import { SCRIPTED_LABEL, citationsOf } from '../agent.ts';
 import type { Proposal } from '../proposal.ts';
 
 const J = (n: number) => `[[corp-jira:PAY-${n}]]`;
@@ -136,6 +136,85 @@ export const SCRIPTS: Record<string, Record<string, Script>> = {
   },
 };
 
+/**
+ * The risk answers again, in each game theme's voice (#283), for when
+ * "Themed agent voice" is on: the same citations, figures and proposals, in
+ * other words. test/agent.test.ts holds each to its standard answer, which is
+ * what a voice may change and what it may not.
+ */
+export const VOICED: Record<string, Record<string, string[]>> = {
+  'card-payments': {
+    crate: [
+      `Day 7 of 10 on Sprint 42. 3 of 21 points are on the truck, 18 still on the floor.`,
+      `${J(101)} is the pallet in the aisle: its pull request #311 fails the Jenkins build, and ${J(102)} and ${J(103)} wait behind it. That is 11 points not moving.`,
+      `${J(104)} came over from Sprint 41, and its pull request #305 is still open at the dock. ${J(107)} turned up after the sprint started, with no estimate on the label.`,
+    ],
+    harvest: [
+      `We're on day 7 of 10 of Sprint 42. 3 of 21 points are in the barn, and 18 are still in the ground.`,
+      `${J(101)}'s pull request #311 keeps failing its Jenkins build, and ${J(102)} and ${J(103)} can't grow until it's mended. That's 11 points waiting on one fence.`,
+      `${J(104)} was carried over from Sprint 41, and its pull request #305 is still open. ${J(107)} was planted after the sprint started, with no estimate yet.`,
+    ],
+    starship: [
+      `Ship's log, day 7 of 10 of Sprint 42. 3 of 21 points complete; 18 remain.`,
+      `Fault: ${J(101)}'s pull request #311 fails its Jenkins build. ${J(102)} and ${J(103)} are held behind it, 11 points in all.`,
+      `${J(104)} transferred from Sprint 41 with pull request #305 still open. ${J(107)} came aboard after the sprint started, with no estimate logged.`,
+    ],
+    realm: [
+      `Hear ye: it is day 7 of 10 of Sprint 42, and 3 of 21 points are won, with 18 yet to win.`,
+      `${J(101)}'s pull request #311 is barred by a failing Jenkins build, and ${J(102)} and ${J(103)} wait behind it at the pass, holding 11 points back.`,
+      `${J(104)} was carried from Sprint 41, its pull request #305 still open. ${J(107)} joined the quest after the sprint began, with no estimate given.`,
+    ],
+  },
+  settlement: {
+    crate: [
+      `Day 7 of 9 on Sprint 42. 1 of 16 points is shipped, 15 still on the floor. ${A(2305)} isn't in that count: it's weighed in hours, not points.`,
+      `${A(2303)} can't move until ${A(2302)} clears, and 2302's pull request #87 is still on the forklift check.`,
+      `${A(2304)} came over from Sprint 41 with nothing strapped to it. ${A(2305)} and ${A(2306)} arrived after the sprint started.`,
+      `${A(2307)} was taken off the backlog, which OWI 0.1 books as done.`,
+    ],
+    harvest: [
+      `Day 7 of 9 of Sprint 42: 1 of 16 points is harvested and 15 are still growing. ${A(2305)} isn't counted in those points; it's measured in hours.`,
+      `${A(2303)} can't be planted until ${A(2302)} is done, and 2302's pull request #87 is still building.`,
+      `${A(2304)} came over from Sprint 41 with nothing linked to it. ${A(2305)} and ${A(2306)} were sown after the sprint started.`,
+      `${A(2307)} was cleared from the backlog, which OWI 0.1 counts as done.`,
+    ],
+    starship: [
+      `Ship's log, day 7 of 9 of Sprint 42. 1 of 16 points complete; 15 remain. ${A(2305)} is excluded from the count: it is estimated in hours.`,
+      `${A(2303)} cannot launch until ${A(2302)} is done. 2302's pull request #87 is still building.`,
+      `${A(2304)} transferred from Sprint 41 with no links. ${A(2305)} and ${A(2306)} came aboard after the sprint started.`,
+      `${A(2307)} was removed from the backlog, which OWI 0.1 logs as done.`,
+    ],
+    realm: [
+      `Hear ye: it is day 7 of 9 of Sprint 42. 1 of 16 points is won and 15 remain. ${A(2305)} is not reckoned in points, for it is measured in hours.`,
+      `${A(2303)} may not set out until ${A(2302)} is done, and 2302's pull request #87 is still being forged.`,
+      `${A(2304)} was carried from Sprint 41 with no bond to any other deed. ${A(2305)} and ${A(2306)} joined after the sprint began.`,
+      `${A(2307)} was struck from the backlog, which OWI 0.1 counts as done.`,
+    ],
+  },
+  'checkout-web': {
+    crate: [
+      `Day 7 of 10 on Sprint 42. 1 of 11 points is shipped, 10 still on the floor.`,
+      `${G(43)} turned up after the sprint started, and its draft pull request #53 fails the e2e-safari check.`,
+      `${G(45)} has been on the floor since day one with no estimate on the label.`,
+    ],
+    harvest: [
+      `Day 7 of 10 of Sprint 42: 1 of 11 points is harvested and 10 are still growing.`,
+      `${G(43)} was sown after the sprint started, and its draft pull request #53 fails the e2e-safari check.`,
+      `${G(45)} was planted on day one and still has no estimate.`,
+    ],
+    starship: [
+      `Ship's log, day 7 of 10 of Sprint 42. 1 of 11 points complete; 10 remain.`,
+      `${G(43)} came aboard after the sprint started; its draft pull request #53 fails the e2e-safari check.`,
+      `${G(45)} has been aboard since day one with no estimate logged.`,
+    ],
+    realm: [
+      `Hear ye: it is day 7 of 10 of Sprint 42, and 1 of 11 points is won, with 10 yet to win.`,
+      `${G(43)} joined after the sprint began, and its draft pull request #53 fails the e2e-safari check.`,
+      `${G(45)} was taken up on day one and has no estimate.`,
+    ],
+  },
+};
+
 const UNSCRIPTED = 'This preview answers only its starter questions. The released app sends your question to the agent your organization approved.';
 
 export interface ScriptedOptions {
@@ -154,17 +233,21 @@ const wait = (ms: number, signal?: AbortSignal) =>
 const words = (text: string) => text.match(/\[\[[^\]]+\]\]\S*\s*|\S+\s*/g) ?? [];
 
 export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
-  const answer = (dossier: string, prompt: string): Answer => {
+  const answer = (dossier: string, prompt: string, style?: AskStyle): Answer => {
     const script = SCRIPTS[dossier] ?? {};
-    const entry = script[prompt] ?? Object.values(script).find((s) => s.label === prompt);
-    const parts: AnswerPart[] = (entry?.parts ?? [UNSCRIPTED]).map((text) => ({ text }));
+    const id = script[prompt] ? prompt : Object.entries(script).find(([, s]) => s.label === prompt)?.[0];
+    const entry = id ? script[id] : undefined;
+    // The voiced risk answer when the voice is on and the theme has one; Plain, and the voice off, read the standard.
+    const voiced = id === 'risk' && style?.voice ? VOICED[dossier]?.[style.theme] : undefined;
+    const parts: AnswerPart[] = (voiced ?? entry?.parts ?? [UNSCRIPTED]).map((text) => ({ text }));
     return { prompt: entry?.label ?? prompt, parts, citations: citationsOf(parts), by: 'scripted', proposals: entry?.proposals ?? [] };
   };
   return {
+    label: SCRIPTED_LABEL,
     starters: (dossier: string): Starter[] => Object.entries(SCRIPTS[dossier] ?? {}).map(([id, s]) => ({ id, label: s.label })),
-    ask: async (dossier, prompt) => answer(dossier, prompt),
-    async *stream(dossier, prompt, signal) {
-      const whole = answer(dossier, prompt);
+    ask: async (dossier, prompt, style) => answer(dossier, prompt, style),
+    async *stream(dossier, prompt, signal, style) {
+      const whole = answer(dossier, prompt, style);
       const parts: AnswerPart[] = [];
       for (const part of whole.parts) {
         let text = '';

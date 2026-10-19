@@ -26,6 +26,7 @@ import { promptFor, STARTERS, systemPrompt } from './prompts.ts';
 import { agentEnv } from './env.ts';
 import { cliFor, Latest, loadSdk, nodeImporter, type AdapterName, type Importer, type Runtime, type ServeTools } from './runtime.ts';
 import { checkAgentSettings, loadAgentSettings, saveAgentSettings, DEFAULT_AGENT_SETTINGS, ENDPOINTS, type AgentSettings } from './settings.ts';
+import { promptStyle, type StyleChoice } from './voices.ts';
 import { cacheTools, Ledger, liveTools, proposalTool, recorded, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
 
 export interface AgentHostOptions {
@@ -122,9 +123,9 @@ export class AgentHost implements Agent {
     return STARTERS.map(({ id, label }) => ({ id, label }));
   }
 
-  async ask(ctx: RequestContext, dossier: string, prompt: string): Promise<Answer> {
+  async ask(ctx: RequestContext, dossier: string, prompt: string, style: StyleChoice | null = null): Promise<Answer> {
     let last: Answer | undefined;
-    for await (const a of this.stream(ctx, dossier, prompt)) last = a;
+    for await (const a of this.stream(ctx, dossier, prompt, style)) last = a;
     if (!last) throw new AgentError('The agent ended without an answer.', 'Ask again.');
     return last;
   }
@@ -134,10 +135,18 @@ export class AgentHost implements Agent {
     return recorded([...cacheTools(dossier, data, ledger), proposalTool(this.o.registry), ...liveTools(dossier, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
   }
 
-  async *stream(ctx: RequestContext, dossier: string, prompt: string): AsyncIterable<Answer> {
+  /**
+   * The system prompt a question about this dossier gets now, in this style:
+   * what every adapter is handed, for Settings' "Show the full prompt" (#283).
+   */
+  systemPrompt(dossier: string, style: StyleChoice | null): string {
+    return systemPrompt(dossier, (this.o.now ?? (() => new Date().toISOString()))(), promptStyle(style, this.settings));
+  }
+
+  async *stream(ctx: RequestContext, dossier: string, prompt: string, style: StyleChoice | null = null): AsyncIterable<Answer> {
     const runtime = this.runtime();
     if (!runtime) {
-      yield await this.o.fallback.ask(ctx, dossier, prompt);
+      yield await this.o.fallback.ask(ctx, dossier, prompt, style);
       return;
     }
     if (this.running >= MAX_RUNS) throw new AgentError(`${MAX_RUNS} questions are already running.`, 'Wait for an answer, then ask again.');
@@ -162,7 +171,8 @@ export class AgentHost implements Agent {
       const out = new Latest<Answer>();
       run = runtime
         .run(sdk, {
-          system: systemPrompt(dossier, (this.o.now ?? (() => new Date().toISOString()))()),
+          // The rules, then the theme's voice or the person's own, then their instructions (prompts.ts): the same for all three adapters.
+          system: this.systemPrompt(dossier, style),
           prompt: text,
           tools,
           model: this.settings.model,
