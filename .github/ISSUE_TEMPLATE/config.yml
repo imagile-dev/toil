@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feedback from the site
+    url: https://imagile-dev.github.io/toil/feedback/
+    about: Report a problem or suggest something through the toil site, or its curl endpoint. Reports are redacted before an agent triages them.
+  - name: Report a security vulnerability
+    url: https://github.com/imagile-dev/toil/security/advisories/new
+    about: Privately, through GitHub. Never in a public issue.
+  - name: Read the docs
+    url: https://imagile-dev.github.io/toil/docs/
+    about: Setup, connections and every command, one page per area.

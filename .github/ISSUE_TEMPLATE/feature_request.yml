@@ -1,0 +1,48 @@
+name: Feature request
+description: A command, flag, integration or improvement toil should have.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Say what you're trying to get done; the shape of the command can follow. Issues
+        here are **public and not redacted**, so use placeholder hosts
+        (`<service>.imagile.dev`) and leave out anything that identifies your employer.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of change
+      options:
+        - A new command or flag in an existing area
+        - A new integration
+        - A database engine
+        - The MCP server
+        - Toil UI
+        - The docs or the site
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you or your agent are trying to do, and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you'd like
+      description: The command, its input and the data you'd want back, if you have a picture of it.
+  - type: textarea
+    id: auth
+    attributes:
+      label: For a new integration, how it signs in
+      description: |
+        toil integrates only services that accept a long-lived token you generate once in the
+        vendor's own UI, with no browser login, OAuth flow or other CLI between that token and
+        a request. Name the token and where it's created, and link the vendor's API docs.
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
