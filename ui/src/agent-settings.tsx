@@ -7,12 +7,24 @@
  * `~/.toil-ui/agent.json`, never in toil's config, and there is no field for
  * a key: each SDK signs in the way its own CLI does. A form with one blank
  * left deliberately out.
+ *
+ * Below it, the person's own words (#283): general instructions for every
+ * answer, and a custom voice that replaces the theme's while "Themed agent
+ * voice" is on, each up to 4,000 characters, with "Show the full prompt" to
+ * see exactly what the agent is sent. The preview shows the same card with
+ * saving off, and composes the prompt in the page from the same function the
+ * server uses (server/agents/prompts.ts).
  */
 
-import { useEffect, useState, type FormEvent } from 'react';
-import { Button, Input, Label, Radio, RadioGroup, TextField } from 'react-aria-components';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { Button, Input, Label, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components';
 import type { AdapterStatus, AgentSettings, AgentSettingsClient, AgentStatus } from './server-client.ts';
 import { Card } from './components/layout.tsx';
+import type { AskStyle } from './agent.ts';
+import { MAX_INSTRUCTIONS, systemPrompt } from '../server/agents/prompts.ts';
+import { promptStyle } from '../server/agents/voices.ts';
+import { useTheme, useThemeChoiceContext, voiceOn } from './theme-context.ts';
+import { FIXTURE_NOW } from './fixtures/execute.ts';
 
 const ENDPOINT_LABEL: Record<string, string> = { anthropic: 'Anthropic API', bedrock: 'Amazon Bedrock', foundry: 'Microsoft Foundry', vertex: 'Google Vertex AI' };
 
@@ -24,11 +36,13 @@ function adapterLine(a: AdapterStatus): string {
 
 export interface AgentSettingsPanelProps {
   client: AgentSettingsClient;
+  /** A dossier to show the full prompt for: the first one toil lists, when there is one. */
+  dossier?: string;
   /** The choice was saved: the pane's starters and answers come from it from now on. */
   onChange?: (status: AgentStatus) => void;
 }
 
-export function AgentSettingsPanel({ client, onChange }: AgentSettingsPanelProps) {
+export function AgentSettingsPanel({ client, onChange, dossier }: AgentSettingsPanelProps) {
   const [status, setStatus] = useState<AgentStatus | null>(null);
   const [form, setForm] = useState<AgentSettings | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -70,7 +84,16 @@ export function AgentSettingsPanel({ client, onChange }: AgentSettingsPanelProps
   };
 
   const none = status?.adapters.every((a) => !a.installed);
+  const saveWords = async (words: Pick<AgentSettings, 'instructions' | 'voice'>) => {
+    if (!status) throw new Error('The agent settings have not loaded yet.');
+    // The saved adapter, model and path go back as they are, so an unsaved edit above is neither lost nor sent.
+    const next = await client.save({ ...status.settings, ...words });
+    setStatus(next);
+    setForm((f) => (f ? { ...f, instructions: next.settings.instructions, voice: next.settings.voice } : next.settings));
+    return next.settings;
+  };
   return (
+    <>
     <Card as="section" className="panel" aria-labelledby="agent-settings">
       <h2 id="agent-settings">Agent</h2>
       <p className="note">
@@ -143,17 +166,166 @@ export function AgentSettingsPanel({ client, onChange }: AgentSettingsPanelProps
         </form>
       )}
     </Card>
+    {status && <InstructionsCard saved={status.settings} save={saveWords} dossier={dossier ?? null} prompt={(style) => client.prompt(dossier, style)} />}
+    </>
   );
 }
 
 /** What the preview shows instead: what the local app lets you choose, changing nothing. */
 export function AgentSettingsPreview() {
   return (
+    <>
     <Card as="section" className="panel" aria-labelledby="agent-settings">
       <h2 id="agent-settings">Agent</h2>
       <p className="note">
         The preview answers with a scripted agent. The local app answers with the one your organization approved: Claude (the Claude Agent SDK, on the Anthropic API, Bedrock, Foundry or Vertex), GitHub Copilot (the Copilot SDK) or Codex (the Codex SDK), each through its own CLI on your machine. You choose the adapter, model and CLI path here; no key is ever stored.
       </p>
     </Card>
+    <InstructionsCard
+      saved={{ instructions: null, voice: null }}
+      dossier="card-payments"
+      disabled="This is the preview, so nothing is saved. Toil UI on your own machine keeps these in its data folder, in agent.json."
+      prompt={async (style, draft) => systemPrompt('card-payments', FIXTURE_NOW, promptStyle(style, draft))}
+    />
+    </>
+  );
+}
+
+type Words = Pick<AgentSettings, 'instructions' | 'voice'>;
+
+/**
+ * General instructions and a custom voice (#283), with a counter each, a
+ * Save, and "Show the full prompt". `prompt` returns what the agent is sent
+ * in the page's theme; the local app asks the server, which uses what was
+ * saved, and the preview composes it from what is typed.
+ */
+export function InstructionsCard({ saved, save, prompt, disabled, dossier }: { saved: Words; save?: (words: Words) => Promise<Words>; prompt: (style: AskStyle, draft: Words) => Promise<string>; disabled?: string; dossier: string | null }) {
+  const theme = useTheme();
+  const choice = useThemeChoiceContext();
+  const style: AskStyle = { theme: theme.name, voice: voiceOn(theme, choice) };
+  const [instructions, setInstructions] = useState(saved.instructions ?? '');
+  const [voice, setVoice] = useState(saved.voice ?? '');
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  const [problem, setProblem] = useState<string | null>(null);
+  const [shown, setShown] = useState<string | null>(null);
+  const promptId = useId();
+  const draft: Words = { instructions: instructions.trim() || null, voice: voice.trim() || null };
+  const dirty = (saved.instructions ?? '') !== instructions.trim() || (saved.voice ?? '') !== voice.trim();
+  // An open prompt follows what it shows: the theme on screen and, where nothing is saved (the preview), what is typed.
+  const open = useRef(false);
+  open.current = shown !== null;
+  const live = save ? '' : `${draft.instructions ?? ''}\u0000${draft.voice ?? ''}`;
+  useEffect(() => {
+    if (!open.current) return;
+    let current = true;
+    prompt(style, draft).then(
+      (text) => current && setShown(text),
+      () => current && setShown(null),
+    );
+    return () => {
+      current = false;
+    };
+    // prompt and draft are new each render; what the prompt depends on is the theme, the switch and the typed text.
+  }, [style.theme, style.voice, live]);
+  const edit = (set: (v: string) => void) => (v: string) => {
+    set(v);
+    setNote('');
+  };
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!save) return;
+    setBusy(true);
+    setNote('');
+    try {
+      const next = await save(draft);
+      setInstructions(next.instructions ?? '');
+      setVoice(next.voice ?? '');
+      setProblem(null);
+      setNote('Saved: the next question uses them.');
+      if (shown !== null) setShown(await prompt(style, next));
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggle = async () => {
+    if (shown !== null) return setShown(null);
+    try {
+      setShown(await prompt(style, draft));
+      setProblem(null);
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const voiceState = style.voice
+    ? `Themed agent voice is on in ${theme.label}, so a custom voice here replaces ${theme.label}'s.`
+    : theme.voice
+      ? 'Themed agent voice is off, so a custom voice is not used until you switch it on under Settings, General.'
+      : `${theme.label} has no voice, so a custom voice is not used in it. Pick a game theme to use one.`;
+
+  return (
+    <Card as="section" className="panel instructions" aria-labelledby="agent-instructions">
+      <h2 id="agent-instructions">Instructions</h2>
+      <p className="note">
+        Your own words for every answer. They come after toil's rules in the prompt, and the rules win where the two disagree: answers still cite their items, give figures as the data has them, and suggest changes only as proposals. Instructions can't widen what the agent can do, since its tools only read.
+      </p>
+      {disabled && <p className="config-off">{disabled}</p>}
+      {problem && (
+        <p role="alert" className="failure">
+          {problem}
+        </p>
+      )}
+      <form className="agent-form" onSubmit={submit}>
+        <Counted label="General instructions" hint="For example: answer in British English, or lead with risks." value={instructions} onChange={edit(setInstructions)} />
+        <Counted label="Custom voice" hint={`Replaces the theme's voice while Themed agent voice is on. ${voiceState}`} value={voice} onChange={edit(setVoice)} />
+        <div className="proposal-actions">
+          {save && (
+            <Button type="submit" className="btn btn--accent" isDisabled={busy || !dirty}>
+              Save
+            </Button>
+          )}
+          <Button className="btn" onPress={() => void toggle()} aria-expanded={shown !== null} aria-controls={shown !== null ? promptId : undefined} data-full-prompt="">
+            {shown !== null ? 'Hide the full prompt' : 'Show the full prompt'}
+          </Button>
+          <span className="note" role="status">
+            {note}
+          </span>
+        </div>
+      </form>
+      {shown !== null && (
+        <div className="full-prompt">
+          <p className="note">
+            {save
+              ? `What the agent is sent now, in this theme, for a question about ${dossier ?? 'a dossier'}${dossier ? ', the first dossier toil lists' : ''}.${dirty ? ' Your unsaved changes are not in it until you save.' : ''}`
+              : `What the agent would be sent in this theme, for the sample dossier ${dossier ?? 'card-payments'}.`}
+          </p>
+          <pre id={promptId} className="full-prompt__text" tabIndex={0} role="region" aria-label="The full prompt" data-scroller="">
+            {shown}
+          </pre>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** A labelled text area with a visible count of its characters against the limit. */
+function Counted({ label, hint, value, onChange }: { label: string; hint: string; value: string; onChange: (v: string) => void }) {
+  const id = useId();
+  return (
+    <TextField className="field-text field-text--area" value={value} onChange={onChange} maxLength={MAX_INSTRUCTIONS} aria-describedby={`${id}-hint ${id}-count`}>
+      <Label>{label}</Label>
+      <TextArea rows={4} spellCheck />
+      <span className="note" id={`${id}-hint`}>
+        {hint}
+      </span>
+      <span className="note counter" id={`${id}-count`}>
+        {value.length.toLocaleString('en-GB')} of {MAX_INSTRUCTIONS.toLocaleString('en-GB')} characters
+      </span>
+    </TextField>
   );
 }

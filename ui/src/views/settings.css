@@ -58,4 +58,7 @@ button.btn:disabled { cursor: not-allowed; opacity: 0.75; }
 .outcome-line--ok { border-color: var(--ok); }
 .outcome-line--failed { border-color: var(--danger); }
 
-.motion-setting { margin-bottom: 1.5rem; }
+.motion-setting, .theme-setting { margin-bottom: 1.5rem; }
+/* The Agent page: the adapter, then the person's instructions (#283). */
+.instructions { margin-top: 1.5rem; }
+.theme-setting .choice { justify-self: start; }

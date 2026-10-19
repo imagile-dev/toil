@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { FIGURE, figureDir, pagePath, skillFiles } from '../site/src/lib/skill-pages.mjs';
+import { FIGURE, UI_DOC_PAGES, figureDir, pagePath, skillFiles, uiDocDir } from '../site/src/lib/skill-pages.mjs';
 
 /**
  * The docs are the toil skill (#202): skills/toil/*.md is the one copy of the
@@ -16,7 +16,8 @@ import { FIGURE, figureDir, pagePath, skillFiles } from '../site/src/lib/skill-p
  * sees on a terminal, which no agent reads, so it has no skill file to render.
  * /docs/ui/ renders Toil UI's README (ui/README.md) instead: the UI is its own
  * package, outside the toil skill, and its README is its one copy of the
- * reference, the same file npm shows.
+ * reference, the same file npm shows. /docs/themes/ renders Toil UI's
+ * ui/docs/themes.md the same way (#283).
  *
  * A second copy of a document is how a filing cabinet starts.
  */
@@ -25,7 +26,7 @@ const docsDir = join(root, 'site', 'src', 'pages', 'docs');
 const components = ['SkillPage.astro', 'CommandIndex.astro'].map((f) => join(root, 'site', 'src', 'components', f));
 const NOT_SKILL = new Set(['welcome.astro']);
 /** Pages that render one Markdown file from outside the skill, by the file. */
-const RENDERS = new Map([['ui.astro', 'ui/README.md']]);
+const RENDERS = new Map([['ui.astro', 'ui/README.md'], ['themes.astro', 'ui/docs/themes.md']]);
 /** Longest run of literal words a page may carry: a label or a heading, not a sentence of reference. */
 const MAX_WORDS = 8;
 
@@ -95,7 +96,7 @@ describe('the docs pages render skills/toil/ and carry no reference prose of the
     const other = RENDERS.get(name);
     it(other ? `docs/${name} renders ${other}` : `docs/${name} renders a file of the skill`, () => {
       const page = readFileSync(file, 'utf8');
-      if (other) expect(page).toContain(`import { Content } from '../../../../${other}';`);
+      if (other) expect(page).toMatch(new RegExp(String.raw`^import \{ Content(, frontmatter)? \} from '\.\./\.\./\.\./\.\./${other.replace(/[./]/g, '\\$&')}';$`, 'm'));
       else expect(page).toMatch(/<SkillPage file=/);
     });
   }
@@ -103,6 +104,15 @@ describe('the docs pages render skills/toil/ and carry no reference prose of the
   it('every file of the skill has a page, and every one an integration page names exists', () => {
     expect(skillFiles.filter((f) => !f.path).map((f) => f.file)).toEqual([]);
     for (const file of readdirSync(join(root, 'skills', 'toil')).filter((f) => f.endsWith('.md'))) expect(pagePath(file), file).toBeDefined();
+  });
+
+  it("every one of Toil UI's own docs has a page that renders it (#283)", () => {
+    for (const file of readdirSync(uiDocDir).filter((f) => f.endsWith('.md'))) {
+      const path = UI_DOC_PAGES[file];
+      expect(path, file).toBeDefined();
+      const page = join(docsDir, `${path!.slice('/docs/'.length, -1)}.astro`);
+      expect(readFileSync(page, 'utf8')).toContain(`from '../../../../ui/docs/${file}';`);
+    }
   });
 
   it('every integration on the board has a skill file, so its tile links to a page', () => {
@@ -113,12 +123,17 @@ describe('the docs pages render skills/toil/ and carry no reference prose of the
 });
 
 describe('the diagrams a skill file places', () => {
-  const placed = readdirSync(join(root, 'skills', 'toil'))
-    .filter((f) => f.endsWith('.md'))
-    .flatMap((f) => readFileSync(join(root, 'skills', 'toil', f), 'utf8').split(/\r?\n/).flatMap((line) => {
-      const name = FIGURE.exec(line.trim())?.[1];
-      return name ? [{ file: f, name }] : [];
-    }));
+  // The skill's files, and Toil UI's own docs (ui/docs/*.md, #283), place figures the same way.
+  const placed = [join(root, 'skills', 'toil'), uiDocDir].flatMap((dir) =>
+    readdirSync(dir)
+      .filter((f) => f.endsWith('.md'))
+      .flatMap((f) =>
+        readFileSync(join(dir, f), 'utf8').split(/\r?\n/).flatMap((line) => {
+          const name = FIGURE.exec(line.trim())?.[1];
+          return name ? [{ file: f, name }] : [];
+        }),
+      ),
+  );
   const figures = readdirSync(figureDir).filter((f) => f.endsWith('.html')).map((f) => f.replace(/\.html$/, ''));
 
   it('finds some, so a broken marker cannot pass by finding none', () => {
