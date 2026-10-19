@@ -1,0 +1,30 @@
+/* The sync panel (src/sync-panel.tsx), on the theme's tokens like the rest of
+   the layout. Its own file, so the views' stylesheet stays theirs. */
+
+.sync-panel {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 0.9375rem;
+}
+.sync-inner { max-width: 1280px; margin: 0 auto; padding: 1rem 16px; display: grid; gap: 0.75rem; }
+.sync-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+.sync-head h2 { font-size: 1rem; }
+.sync-when, .sync-area { color: var(--muted); }
+.sync-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-left: auto; }
+.sync-actions button { min-height: 44px; padding: 0.5rem 0.9rem; }
+.sync-live:empty { display: none; }
+.sync-progress { width: 100%; max-width: 24rem; height: 0.75rem; accent-color: var(--accent); }
+.sync-bad { color: var(--danger); }
+.sync-confirm { border: 1px solid var(--danger); border-radius: var(--radius); padding: 0.75rem; display: grid; gap: 0.5rem; background: var(--raised); }
+.sync-confirm .sync-actions { margin-left: 0; }
+button.sync-danger { background: var(--danger); color: var(--bg); border-color: var(--danger); }
+.sync-dossiers, .sync-sources { list-style: none; padding: 0; display: grid; gap: 0.35rem; }
+.sync-dossiers { gap: 0.6rem; }
+.sync-sources { padding-left: 1rem; }
+.sync-dossier p { overflow-wrap: anywhere; }
+.sync-sources li { overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sync-panel * { transition: none !important; animation: none !important; }
+}
