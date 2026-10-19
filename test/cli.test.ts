@@ -91,6 +91,12 @@ describe('toil CLI', () => {
     expect(run.stdout).toMatch(/board\s+list/);
   });
 
+  it('lists an alias-only group by what it holds', async () => {
+    const { context } = testContext();
+    const run = await runCli(['jenkins', '--help'], { commands, context });
+    expect(run.stdout).toMatch(/instance\s+add, list, remove/);
+  });
+
   it('returns INVALID_INPUT with a fix when a required field is missing', async () => {
     const { context, http } = testContext({ config: { demo: { token: 't' } }, routes: demoRoutes });
     const run = await runCli(['demo', 'get-thing'], { commands: demoCommands, context });

@@ -120,6 +120,13 @@
       "toil": "Unchanged: the type-scoped endpoint returns no type or readOnly, so both come out undefined and leave the JSON, as the contract records (#69 item 18, pinned)",
       "why": "A suspected bug is kept until a live run confirms it (CLAUDE.md, The command contract); the field is excused only for calls with --type.",
       "principle": "The command contract"
+    },
+    {
+      "allows": [],
+      "old": "ado run logs with no run id answering --build-id is required (from run, as pipeline logs)",
+      "toil": "The id is a required positional, so a missing one is refused before the command runs: on the CLI as Missing required argument id, over MCP as the schema error naming id. Only an explicit empty id reaches the command, which says the run <id> is required",
+      "why": "The reshape makes the run id the command's one positional; a required positional is checked by the parser, so the recorded message for a missing id has nowhere to come from",
+      "principle": "10"
     }
   ]
 }

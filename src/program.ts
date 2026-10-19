@@ -60,8 +60,10 @@ export interface ProgramOptions {
  */
 export function groupSummary(key: string, commands: readonly AnyCommand[]): string {
   const depth = key.split(' ').length;
-  const words = [...new Set(commands.filter((def) => def.path.length > depth && def.path.slice(0, depth).join(' ') === key).map((def) => def.path[depth]!))];
-  return words.join(', ');
+  // Aliases count: a group made only of them (`jenkins instance`) still says what's in it.
+  const paths = commands.flatMap((def) => [def.path, ...aliasPaths(def)]);
+  const words = [...new Set(paths.filter((path) => path.length > depth && path.slice(0, depth).join(' ') === key).map((path) => path[depth]!))];
+  return words.join(', ') || `${key} commands`;
 }
 
 /**
