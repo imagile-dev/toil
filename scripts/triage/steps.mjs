@@ -96,18 +96,27 @@ export async function redactIssues({ env, fetcher = fetch, log = console.log }) 
 
 const EXCLUDED = new Set(['.git', 'node_modules', '.triage-out', '.triage-in']);
 
+/** Pages of 100 read for the duplicate check; pull requests count against them. */
+const ISSUE_PAGES = 10;
+/** Denied issues shown with their reasons, newest first; each body and comment is cut to this many characters. */
+const MAX_DENIED = 30;
+const MAX_DENIED_TEXT = 2000;
+/** Pages of 100 comments read on each denied issue, so the newest are found, not the first hundred. */
+const COMMENT_PAGES = 5;
+/**
+ * Whose comments can say why a request was denied: triage itself and the project's
+ * own people. Anyone can comment on a closed issue, so a stranger's "the rule changed"
+ * must never reach the agent as a reason.
+ */
+const REASON_AUTHORS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+const TRIAGE_BOT = 'imagile-bot[bot]';
+
 /**
  * prepare: everything the agent reads, made before it starts by main's code: the
  * issue (redacted again, in case it changed since select) fenced with a nonce,
  * the repository's issues for the duplicate check, the area list, a pristine copy
  * of the tree, and the handover script copied out with its hash.
  */
-/** Pages of 100 read for the duplicate check; pull requests count against them. */
-const ISSUE_PAGES = 10;
-/** Denied issues shown with their reasons, newest first; each body and comment is cut to this many characters. */
-const MAX_DENIED = 30;
-const MAX_DENIED_TEXT = 2000;
-
 export async function prepare({ env, fetcher = fetch, cwd = process.cwd() }) {
   const repo = repoOf(env);
   const number = issueOf(env.NUMBER, 'NUMBER');
@@ -134,12 +143,17 @@ export async function prepare({ env, fetcher = fetch, cwd = process.cwd() }) {
   // redacted, and the agent reads why rather than guessing.
   const denied = [];
   for (const i of list.filter((d) => d.labels.includes(DENIED)).sort((a, b) => b.number - a.number).slice(0, MAX_DENIED)) {
-    const comments = await gh('GET', `/repos/${repo}/issues/${i.number}/comments?per_page=100`, undefined, options(env, fetcher));
+    const comments = [];
+    for (let page = 1; page <= COMMENT_PAGES; page++) {
+      const batch = await gh('GET', `/repos/${repo}/issues/${i.number}/comments?per_page=100&page=${page}`, undefined, options(env, fetcher));
+      comments.push(...(batch ?? []).filter((c) => c.user?.login === TRIAGE_BOT || REASON_AUTHORS.has(c.author_association)));
+      if ((batch ?? []).length < 100) break;
+    }
     denied.push({
       number: i.number,
       title: i.title,
       body: redact(bodies.get(i.number) ?? '', terms).slice(0, MAX_DENIED_TEXT),
-      comments: (comments ?? []).slice(-3).map((c) => redact(c.body ?? '', terms).slice(0, MAX_DENIED_TEXT)),
+      comments: comments.slice(-3).map((c) => redact(c.body ?? '', terms).slice(0, MAX_DENIED_TEXT)),
     });
   }
   mkdirSync(join(cwd, '.triage-in'), { recursive: true });
@@ -275,7 +289,12 @@ export async function apply({ env, fetcher = fetch }) {
     // The original must be another issue that exists. A duplicate of a denied
     // request is denied too; a duplicate of anything else isn't.
     const of = issueOf(env.DUPLICATE_OF, 'DUPLICATE_OF');
-    const original = of === number ? undefined : await gh('GET', `/repos/${repo}/issues/${of}`, undefined, o).catch(() => undefined);
+    const original = of === number ? undefined : await gh('GET', `/repos/${repo}/issues/${of}`, undefined, o).catch((error) => {
+      // Only a 404 means the original doesn't exist. An auth, server or network
+      // failure fails the step, rather than telling the issue something untrue.
+      if (/ returned 404:/.test(error.message)) return undefined;
+      throw error;
+    });
     if (!original || original.pull_request) {
       decided = 'invalid';
       body = `Triage could not reach a valid decision (${env.RUN_URL}): it named #${of} as the original, which is not another issue. A maintainer will look at it.\n`;
