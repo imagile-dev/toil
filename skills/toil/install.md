@@ -24,8 +24,7 @@ GitHub release also carries the packed `.tgz` for offline or mirrored installs:
 `npm install -g ./imagile-dev-toil-<version>.tgz`.
 
 **toil is alpha: APIs and flags may change before 1.0.** Releases are published under
-npm's `alpha` tag, which `latest` follows until 1.0. The first alpha is being
-published; until it is, these return 404, so install from a clone meanwhile.
+npm's `alpha` tag, which `latest` follows until 1.0.
 
 ## From a clone, with no npm install
 
@@ -50,8 +49,7 @@ node toil/dist/toil.js version
 the **last released toil**: each release rebuilds them, and nothing else changes
 them, so they are the same files that release ships on npm.
 Newer commits on `main` are in a clone's source but not in its bundle until the next
-release. **Until the first release it is an earlier build**, as the repository's
-`README.md` (**Running from a clone**) says. They import only Node's built-ins, so there is nothing to install.
+release. They import only Node's built-ins, so there is nothing to install.
 
 To type `toil` instead of `node <clone>/dist/toil.js`, add an alias to the shell
 profile, once:

@@ -260,7 +260,7 @@ describe('triage steps, wired as the workflow wires them', () => {
     await apply({ env: { ...base, NUMBER: '5', HANDOVER: handover, DECISION: 'fix', LABELS: decided.labels, PR_URL: opened.url }, fetcher: gh.fetcher });
     expect(gh.byNumber.get(5)).toMatchObject({ state: 'open', labels: ['from-website', 'triaged', 'area:jira'] });
     expect(gh.byNumber.get(5)!.comments[0]).toContain('Proposed fix, as a draft pull request: https://github.com/imagile-dev/toil/pull/900');
-  });
+  }, 30_000); // Runs real git (init, commit, push to a local bare repo); over 5 s on windows-latest.
 
   it('a fix that reaches outside its area opens nothing', async () => {
     const work = checkout();

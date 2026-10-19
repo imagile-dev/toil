@@ -38,8 +38,7 @@ toil mcp            # serve toil to an agent over stdio
 ```
 
 Releases are alpha and published under npm's `alpha` tag, which `latest` follows
-until 1.0. The first alpha is being published; until it is, `npm install` returns
-404, so use the clone path below meanwhile. Setup, connections and every command are on the
+until 1.0 ([npm](https://www.npmjs.com/package/@imagile-dev/toil)). Setup, connections and every command are on the
 [site](https://imagile-dev.github.io/toil/docs/).
 
 ## Running from a clone
@@ -57,9 +56,7 @@ safe. The long form follows.
 
 `dist/toil.js` and the bundle it runs, `dist/toil-lib.js`, are committed, and they
 are the last released toil, so a clone runs as it is, with no `npm install`. They
-import only Node's built-ins. Until the first release, the committed dist/toil.js is
-the earlier single-file bundle; the release PR is the first to commit
-dist/toil-lib.js.
+import only Node's built-ins.
 
 ```bash
 git clone https://github.com/imagile-dev/toil.git
@@ -88,9 +85,7 @@ A build rewrites the committed `dist/toil.js`, so run `git checkout -- dist/` be
 `git pull`, then build again (or run `node scripts/setup.mjs`).
 
 Don't commit the rebuilt `dist/`; `git checkout -- dist/` puts the released bundle
-back. Until the first release, `dist/toil-lib.js` isn't committed yet, so after a
-build it shows as untracked and `git checkout` leaves it: delete it
-(`rm dist/toil-lib.js`, or `git clean -f dist/`). [CLAUDE.md](CLAUDE.md) has the rest of the gate (typecheck, lint, tests).
+back. [CLAUDE.md](CLAUDE.md) has the rest of the gate (typecheck, lint, tests).
 
 ### Pointing an agent at the clone
 
