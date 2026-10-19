@@ -14,12 +14,13 @@ import { StatusChip } from '../components/bits.tsx';
 import { ItemLink } from '../components/items.tsx';
 import { useData } from '../data.ts';
 import { EDGE_WORD, dependencyGraph, type GraphNode } from '../model/graph.ts';
-import { useSkins } from '../skins.tsx';
+import { useSkins, useTerm } from '../skins.tsx';
 
 type ItemNode = Node<{ node: GraphNode }, 'item'>;
 
 function ItemBox({ data }: NodeProps<ItemNode>) {
   const { byId } = useData();
+  const term = useTerm();
   const item = byId.get(data.node.id);
   const n = data.node;
   return (
@@ -30,6 +31,7 @@ function ItemBox({ data }: NodeProps<ItemNode>) {
         <>
           <p className="gnode-title">{item.title}</p>
           <StatusChip category={item.statusCategory} status={item.status} />
+          {n.blocked && <span className="gflag">{term('blocked', 'Blocked')}</span>}
         </>
       ) : (
         <p className="note">Not in this dossier</p>

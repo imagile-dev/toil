@@ -9,13 +9,13 @@
  * rule, which is one fewer change request.
  */
 
-import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { useEffect, useInsertionEffect, useRef, useState, type MouseEvent } from 'react';
 import { Button, Label, ListBox, ListBoxItem, Popover, Select, SelectValue } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { DataContext, type Data } from './data.ts';
 import { dateTime, dossierHref } from './format.ts';
 import { loadDossier, loadDossiers, type DossierData, type DossierSummary } from './load.ts';
-import { SkinProvider, skinsFor } from './skins.tsx';
+import { SkinProvider, ThemeProvider, skinsFor } from './skins.tsx';
 import { THEMES, themeNamed, tokenCss } from './themes.ts';
 import { useThemeChoice } from './theme-choice.ts';
 import type { Call, Execute } from './toil.ts';
@@ -24,13 +24,14 @@ import { Dossiers } from './views/Dossiers.tsx';
 import { ItemView } from './views/Item.tsx';
 import { Settings } from './views/Settings.tsx';
 import type { ConfigApi } from './config.ts';
+import type { AgentSettingsPanelProps } from './agent-settings.tsx';
 
-export type SettingsPage = 'connections' | 'dossiers' | 'toil';
+export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'agent';
 export type Route = { view: 'dossiers' } | { view: 'settings'; page: SettingsPage } | { view: 'dashboard'; dossier: string } | { view: 'item'; dossier: string; id: string };
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/');
-  if (parts[0] === 'settings') return { view: 'settings', page: parts[1] === 'dossiers' || parts[1] === 'toil' ? parts[1] : 'connections' };
+  if (parts[0] === 'settings') return { view: 'settings', page: parts[1] === 'dossiers' || parts[1] === 'toil' || parts[1] === 'agent' ? parts[1] : 'connections' };
   if (parts[0] === 'dossier' && parts[1]) {
     const dossier = decodeURIComponent(parts[1]);
     if (parts[2] === 'item' && parts[3]) return { view: 'item', dossier, id: decodeURIComponent(parts.slice(3).join('/')) };
@@ -59,12 +60,14 @@ export interface AppProps {
   now: string;
   /** The site preview: shows the unreleased-product banner on every view. */
   preview: boolean;
+  /** The local app's agent settings (#251), shown under Settings; the preview has none. */
+  agentSettings?: AgentSettingsPanelProps;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings }: AppProps) {
   const route = useRoute();
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
@@ -134,7 +137,7 @@ export function App({ execute, agent, config, now, preview }: AppProps) {
 
   let body;
   if (route.view === 'settings') {
-    body = <Settings page={route.page} config={config ?? null} />;
+    body = <Settings page={route.page} config={config ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'dossiers') {
     body = !list ? <skins.Loading message="Reading the dossiers…" /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} /> : failure(list.message);
   } else if (!current) {
@@ -147,67 +150,91 @@ export function App({ execute, agent, config, now, preview }: AppProps) {
   }
 
   return (
-    <SkinProvider value={skins}>
-      <style>{THEMES.map(tokenCss).join('\n')}</style>
-      <a className="skip" href="#main" onClick={skip}>
-        Skip to content
-      </a>
-      <header>
-        {preview && (
-          <p className="banner" role="note">
-            <strong>Preview of an unreleased product.</strong> Sample data only: nothing here connects to a tracker.
-          </p>
-        )}
-        <div className="top">
-          <a className="brand" href="#/">
-            Toil UI
-          </a>
-          <nav aria-label="Views">
-            <ul>
-              <li>
-                <a href="#/" aria-current={route.view === 'dossiers' ? 'page' : undefined}>
-                  Dossiers
-                </a>
-              </li>
-              {wanted && (
-                <li>
-                  <a href={dossierHref(wanted)} aria-current={route.view === 'dashboard' ? 'page' : undefined}>
-                    {wanted}
-                  </a>
-                </li>
-              )}
-              <li>
-                <a href="#/settings" aria-current={route.view === 'settings' ? 'page' : undefined}>
-                  Settings
-                </a>
-              </li>
-            </ul>
-          </nav>
-          <div className="settings">
-            <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
-            {Object.keys(theme.schemes).length > 1 && (
-              <Choice
-                label="Appearance"
-                value={choice.scheme}
-                onChange={(v) => choice.setScheme(v as typeof choice.scheme)}
-                options={[
-                  { id: 'system', label: 'System' },
-                  { id: 'light', label: 'Light' },
-                  { id: 'dark', label: 'Dark' },
-                ]}
-              />
-            )}
+    <ThemeProvider value={theme}>
+      <SkinProvider value={skins}>
+        <TokenStyles css={THEMES.map(tokenCss).join('\n')} />
+        <a className="skip" href="#main" onClick={skip}>
+          Skip to content
+        </a>
+        <header>
+          {preview && (
+            <p className="banner" role="note">
+              <strong>Preview of an unreleased product.</strong> Sample data only: nothing here connects to a tracker.
+            </p>
+          )}
+          <div className="top">
+            <skins.Header>
+              <a className="brand" href="#/">
+                Toil UI
+              </a>
+              <nav aria-label="Views">
+                <ul>
+                  <li>
+                    <a href="#/" aria-current={route.view === 'dossiers' ? 'page' : undefined}>
+                      Dossiers
+                    </a>
+                  </li>
+                  {wanted && (
+                    <li>
+                      <a href={dossierHref(wanted)} aria-current={route.view === 'dashboard' ? 'page' : undefined}>
+                        {wanted}
+                      </a>
+                    </li>
+                  )}
+                  <li>
+                    <a href="#/settings" aria-current={route.view === 'settings' ? 'page' : undefined}>
+                      Settings
+                    </a>
+                  </li>
+                </ul>
+              </nav>
+              <div className="settings">
+                <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
+                {Object.keys(theme.schemes).length > 1 && (
+                  <Choice
+                    label="Appearance"
+                    value={choice.scheme}
+                    onChange={(v) => choice.setScheme(v as typeof choice.scheme)}
+                    options={[
+                      { id: 'system', label: 'System' },
+                      { id: 'light', label: 'Light' },
+                      { id: 'dark', label: 'Dark' },
+                    ]}
+                  />
+                )}
+              </div>
+            </skins.Header>
           </div>
-        </div>
-        <p className="sync">
-          {preview ? 'Sample data' : 'Data'} read {dateTime(now)} through toil, read-only.
-        </p>
-      </header>
-      <main id="main" ref={main}>
-        {body}
-      </main>
-    </SkinProvider>
+          <p className="sync">
+            {preview ? 'Sample data' : 'Data'} read {dateTime(now)} through toil, read-only.
+          </p>
+        </header>
+        <main id="main" ref={main}>
+          {body}
+        </main>
+      </SkinProvider>
+    </ThemeProvider>
   );
+}
+
+/**
+ * The themes' tokens as a constructed stylesheet, adopted by the document, so
+ * the Content-Security-Policy needs no `'unsafe-inline'` for styles: a
+ * stylesheet built through the CSSOM isn't inline markup. Where the browser
+ * can't construct one (jsdom), it falls back to a <style> element.
+ */
+function TokenStyles({ css }: { css: string }) {
+  const constructable = typeof CSSStyleSheet !== 'undefined' && 'replaceSync' in CSSStyleSheet.prototype && 'adoptedStyleSheets' in document;
+  useInsertionEffect(() => {
+    if (!constructable) return;
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    return () => {
+      document.adoptedStyleSheets = document.adoptedStyleSheets.filter((s) => s !== sheet);
+    };
+  }, [css, constructable]);
+  return constructable ? null : <style>{css}</style>;
 }
 
 /** A labelled choice from a short list, on React Aria's Select: a button that opens a listbox. */

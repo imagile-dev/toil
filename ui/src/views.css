@@ -179,3 +179,16 @@
 .shell-choice { display: inline-flex; align-items: center; min-height: 44px; padding: 0 0.75rem; border: 1px solid var(--muted); border-radius: var(--radius); background: var(--raised); color: var(--ink); cursor: pointer; font-size: 0.875rem; }
 .shell-choice[data-selected] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
 .shell-choice[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
+.gflag { font-size: 0.75rem; font-weight: 700; color: var(--danger); }
+
+/* The agent's settings (#251) and the checks on an answer. */
+.agent-form { display: grid; gap: 1rem; }
+.agent-adapters { display: grid; gap: 0.5rem; }
+.agent-adapters > .react-aria-Label, .agent-label { font-weight: 600; color: var(--ink); }
+.agent-choice { display: grid; gap: 0.15rem; min-height: 44px; padding: 0.5rem 0.75rem; border: 1px solid var(--muted); border-radius: var(--radius); background: var(--raised); color: var(--ink); cursor: pointer; }
+.agent-choice[data-selected] { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+.agent-choice[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
+.agent-choice .note, .agent-missing { font-size: 0.875rem; overflow-wrap: anywhere; }
+.agent-missing { color: var(--danger); }
+.answer-checks { border-left: 4px solid var(--danger); padding-left: 0.75rem; display: grid; gap: 0.25rem; }
+.agent-notice { overflow-wrap: anywhere; }

@@ -15,14 +15,26 @@ import type { Agent } from './agent.ts';
 import './app.css';
 import './views.css';
 import type { ConfigApi } from './config.ts';
-import { httpAgent, httpConfig, httpExecute, httpSync, signIn, type Session, type SyncStatus } from './server-client.ts';
+import { httpAgent, httpAgentSettings, httpConfig, httpExecute, httpSync, signIn, type AgentStatus, type Session, type SyncStatus } from './server-client.ts';
 import { SyncPanel, lastSynced } from './sync-panel.tsx';
 import { CALL_OPTIONS, type Execute } from './toil.ts';
 
 const root = createRoot(document.getElementById('root')!);
 
-function Local({ session, execute, agent, status }: { session: Session; execute: Execute; agent: Agent; status: SyncStatus | null }) {
+function Local({ session, execute, agent: firstAgent, names, status }: { session: Session; execute: Execute; agent: Agent; names: string[]; status: SyncStatus | null }) {
   const [synced, setSynced] = useState(() => lastSynced(status));
+  const [agent, setAgent] = useState(firstAgent);
+  const [settingsClient] = useState(() => (session.agentSettings ? httpAgentSettings(session) : null));
+  // A new choice of agent (#251) brings its own starters, so the agent is fetched again and the App remounted.
+  const onAgent = useCallback(
+    (next: AgentStatus) => {
+      void httpAgent({ ...session, agent: next.kind }, names).then((a) => {
+        setAgent(a);
+        setGeneration((g) => g + 1);
+      });
+    },
+    [session, names],
+  );
   // A new generation remounts the App, so every view reads the cache again.
   const [generation, setGeneration] = useState(0);
   const [sync] = useState(() => (session.sync ? httpSync(session) : null));
@@ -33,7 +45,7 @@ function Local({ session, execute, agent, status }: { session: Session; execute:
   }, []);
   return (
     <>
-      <App key={generation} execute={execute} agent={agent} config={config} now={synced ?? session.now} preview={session.sample} />
+      <App key={generation} execute={execute} agent={agent} config={config} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent } } : {})} />
       {sync && <SyncPanel client={sync} onChange={onChange} />}
     </>
   );
@@ -48,7 +60,7 @@ async function start() {
   const status = session.sync ? await httpSync(session).status().catch(() => null) : null;
   root.render(
     <StrictMode>
-      <Local session={session} execute={execute} agent={agent} status={status} />
+      <Local session={session} execute={execute} agent={agent} names={names} status={status} />
     </StrictMode>,
   );
 }

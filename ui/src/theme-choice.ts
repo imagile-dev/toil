@@ -7,7 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { DEFAULT_THEME, THEMES } from './themes.ts';
+import { DEFAULT_THEME, THEMES, loadThemeStyles } from './themes.ts';
 
 export type SchemeChoice = 'system' | 'light' | 'dark';
 const SCHEMES: SchemeChoice[] = ['system', 'light', 'dark'];
@@ -32,6 +32,7 @@ export function initialChoice(search: string): { theme: string; scheme: SchemeCh
 export function useThemeChoice() {
   const [choice, setChoice] = useState(() => initialChoice(window.location.search));
   useEffect(() => {
+    void loadThemeStyles(choice.theme);
     document.documentElement.dataset.theme = choice.theme;
     document.documentElement.dataset.scheme = choice.scheme;
     try {

@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { extname, join } from 'node:path';
+import { extname, join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { THEMES, TOKENS, tokenCss, type Token } from '../src/themes.ts';
+import { cssProblems, fileProblems, manifestProblems } from '../src/theme-rules.ts';
+import { TERMS, THEMES, TOKENS, tokenCss, type Token } from '../src/themes.ts';
 
 /**
  * Every theme is held to the same bar (#206): data and styling only, every
@@ -13,6 +14,22 @@ const themesDir = join(import.meta.dirname, '..', 'themes');
 
 function files(dir: string): string[] {
   return readdirSync(dir).flatMap((f) => (statSync(join(dir, f)).isDirectory() ? files(join(dir, f)) : [join(dir, f)]));
+}
+
+/** A stylesheet without its `@media (prefers-reduced-motion: no-preference)` blocks. */
+function withoutMotionBlocks(css: string): string {
+  let out = css;
+  for (let at = out.search(/@media\s*\(prefers-reduced-motion:\s*no-preference\)/); at >= 0; at = out.search(/@media\s*\(prefers-reduced-motion:\s*no-preference\)/)) {
+    let depth = 0;
+    let end = out.indexOf('{', at);
+    for (; end < out.length; end++) {
+      if (out[end] === '{') depth++;
+      else if (out[end] === '}' && --depth === 0) break;
+    }
+    out = out.slice(0, at) + out.slice(end + 1);
+  }
+  // Keyframes describe motion but play only when an animation inside those blocks names them.
+  return out.replace(/@keyframes[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '');
 }
 
 /** WCAG 2.2 relative luminance and contrast ratio. */
@@ -45,24 +62,46 @@ const UI: [Token, Token][] = [
 
 describe.each(THEMES.map((t) => [t.name, t] as const))('the %s theme', (name, theme) => {
   it('is CSS, JSON and assets only, never script', () => {
-    const allowed = new Set(['.css', '.json', '.webp', '.png', '.svg', '.woff2']);
-    const found = files(join(themesDir, name)).map((f) => extname(f).toLowerCase());
-    expect(found.filter((ext) => !allowed.has(ext))).toEqual([]);
-    for (const f of files(join(themesDir, name)).filter((f) => f.endsWith('.svg') || f.endsWith('.css'))) {
-      expect(readFileSync(f, 'utf8'), f).not.toMatch(/<script|javascript:|expression\(|on\w+\s*=/i);
-    }
+    const dir = join(themesDir, name);
+    const problems = files(dir).flatMap((f) => {
+      const ext = extname(f).toLowerCase();
+      return fileProblems(relative(dir, f), ['.css', '.svg', '.json'].includes(ext) ? readFileSync(f, 'utf8') : null);
+    });
+    expect(problems).toEqual([]);
+    expect(manifestProblems(name, theme, { user: false })).toEqual([]);
   });
 
   it('names itself after its folder and scopes its CSS to itself', () => {
     expect(readdirSync(themesDir)).toContain(theme.name);
-    const css = readFileSync(join(themesDir, name, 'theme.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/@import[^;]*;/g, '');
-    const selectors = [...css.matchAll(/([^{};]+)\{/g)].map((m) => m[1]!.trim()).filter((s) => !s.startsWith('@') && !/^(from|to|\d+%)$/.test(s));
-    expect(selectors.length).toBeGreaterThan(0);
-    for (const s of selectors) for (const part of s.split(',')) expect(part.trim(), part).toMatch(new RegExp(`^\\[data-theme="${name}"\\]`));
+    expect(cssProblems(name, readFileSync(join(themesDir, name, 'theme.css'), 'utf8'), { user: false })).toEqual([]);
   });
 
-  it('lists every asset it ships', () => {
+  it('lists every asset it ships, and ships every asset it lists', () => {
     for (const path of Object.values(theme.assets)) expect(statSync(join(themesDir, name, path)).isFile()).toBe(true);
+    const dir = join(themesDir, name);
+    const shipped = files(dir).map((f) => relative(dir, f).split(sep).join('/')).filter((f) => f.startsWith('assets/'));
+    expect(shipped.sort()).toEqual(Object.values(theme.assets).sort());
+    // Every picture its stylesheet draws is one of them.
+    const css = readFileSync(join(dir, 'theme.css'), 'utf8');
+    for (const m of css.matchAll(/url\("\.\/([^"]+)"\)/g)) expect(Object.values(theme.assets), m[1]).toContain(m[1]);
+  });
+
+  it('keeps its art small: 64 KB a file, 160 KB in all', () => {
+    const sizes = Object.values(theme.assets).map((path) => statSync(join(themesDir, name, path)).size);
+    for (const size of sizes) expect(size).toBeLessThanOrEqual(64 * 1024);
+    expect(sizes.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(160 * 1024);
+  });
+
+  it('moves only when motion is welcome, and plays no sound by default', () => {
+    // Every animation and transition sits inside @media (prefers-reduced-motion: no-preference),
+    // so with reduced motion on nothing moves; app.css stops anything else that would.
+    const css = withoutMotionBlocks(readFileSync(join(themesDir, name, 'theme.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''));
+    expect(css).not.toMatch(/(^|[;{\s])(animation|transition)(-[a-z-]+)?\s*:/);
+    expect(theme.sounds).toEqual({});
+  });
+
+  it('renames only words a theme may rename', () => {
+    for (const key of Object.keys(theme.terms ?? {})) expect(TERMS).toContain(key);
   });
 
   it('defines every token for every scheme', () => {

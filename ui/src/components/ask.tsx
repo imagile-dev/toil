@@ -41,7 +41,7 @@ function useNarrow(): boolean {
 
 export function Ask() {
   const { agent, dossier } = useData();
-  const { EmptyState } = useSkins();
+  const { EmptyState, ChatMessage } = useSkins();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
@@ -101,22 +101,33 @@ export function Ask() {
       <div id="ask-body" className="ask-body" hidden={!showBody}>
         <p className="note">Answers cite the items they rest on. The agent reads; it never changes a ticket. What it suggests comes back as a proposal for you to apply.</p>
         <div className="log" role="log" aria-live="polite" aria-busy={busy} aria-label="Conversation">
-          {turns.length === 0 && <EmptyState message="Pick a question, or ask your own, to see how answers cite their sources." />}
+          {turns.length === 0 && (agent.notice ? <p className="note agent-notice">{agent.notice}</p> : <EmptyState message="Pick a question, or ask your own, to see how answers cite their sources." />)}
           {turns.map((t) => (
             <div key={t.id} className="turn">
-              <p className="bubble bubble--you">
-                <span className="sr-only">You asked: </span>
-                {t.prompt}
-              </p>
+              <ChatMessage from="you">
+                <p>
+                  <span className="sr-only">You asked: </span>
+                  {t.prompt}
+                </p>
+              </ChatMessage>
               {t.error ? (
                 <p role="alert" className="failure">
                   {t.error}
                 </p>
               ) : (
-                <div className="bubble bubble--agent">
+                <ChatMessage from="agent">
                   {t.answer ? (
                     <>
                       <h3>{t.answer.prompt}</h3>
+                      {t.done && t.answer.warnings && t.answer.warnings.length > 0 && (
+                        <div className="answer-checks" aria-label="Checks on this answer">
+                          {t.answer.warnings.map((w, i) => (
+                            <p key={i} className="failure">
+                              {w}
+                            </p>
+                          ))}
+                        </div>
+                      )}
                       {t.answer.parts.map((p, i) => (
                         <p key={i}>
                           <Cited text={p.text} />
@@ -124,7 +135,7 @@ export function Ask() {
                       ))}
                       {t.done && (
                         <p className="by">
-                          Cites {t.answer.citations.length} items. Answered by: {t.answer.by === 'scripted' ? 'a scripted preview, not a model' : t.answer.by}.
+                          Cites {t.answer.citations.length} items.{t.answer.unverified && t.answer.unverified.length > 0 ? ` Names ${t.answer.unverified.length} its tools never returned.` : ''} Answered by: {t.answer.by === 'scripted' ? 'a scripted preview, not a model' : t.answer.by}.
                         </p>
                       )}
                     </>
@@ -135,7 +146,7 @@ export function Ask() {
                     t.answer?.proposals
                       .filter((p) => !dismissed.has(p.id))
                       .map((p) => <ProposalCard key={p.id} proposal={p} onDismiss={() => setDismissed((d) => new Set(d).add(p.id))} />)}
-                </div>
+                </ChatMessage>
               )}
             </div>
           ))}

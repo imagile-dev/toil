@@ -38,6 +38,11 @@
   background: linear-gradient(100deg, var(--accent) 10%, var(--link) 90%);
 }
 
+/* The crate's cartoon sits on the site's near-black, so it blends into the panel behind it. */
+[data-theme="crate"] .skin-empty--art img {
+  mix-blend-mode: lighten;
+}
+
 [data-theme="crate"] .banner {
   border-bottom: 1px solid var(--line);
 }
