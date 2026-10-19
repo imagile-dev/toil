@@ -7,6 +7,8 @@ import type { Agent } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { CANNED, FIXTURE_NOW, callKey, fixtureExecute, type Canned } from '../src/fixtures/execute.ts';
 import type { Execute } from '../src/toil.ts';
+import type { AgentSettingsPanelProps } from '../src/agent-settings.tsx';
+import type { AgentSettings, AgentStatus } from '../src/server-client.ts';
 
 /**
  * The views, rendered against the fixture `execute()` and the scripted Agent:
@@ -16,9 +18,9 @@ import type { Execute } from '../src/toil.ts';
 const item = (dossier: string, id: string) => `#/dossier/${dossier}/item/${encodeURIComponent(id)}`;
 const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', item('card-payments', 'corp-jira:PAY-101'), '#/settings'];
 
-async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent() }: { preview?: boolean; execute?: Execute; agent?: Agent } = {}) {
+async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent(), agentSettings }: { preview?: boolean; execute?: Execute; agent?: Agent; agentSettings?: AgentSettingsPanelProps } = {}) {
   window.location.hash = hash;
-  const view = render(<App execute={execute} agent={agent} now={FIXTURE_NOW} preview={preview} />);
+  const view = render(<App execute={execute} agent={agent} now={FIXTURE_NOW} preview={preview} {...(agentSettings ? { agentSettings } : {})} />);
   await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
   return view;
 }
@@ -262,6 +264,84 @@ describe('settings', () => {
     expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe("toil's configuration");
     expect(document.body.textContent).toContain('The preview has no configuration to change');
+    // The agent's part says what the local app offers, and changes nothing here.
+    const agentPanel = panel('Agent');
+    for (const name of ['Claude', 'GitHub Copilot', 'Codex']) expect(agentPanel.textContent).toContain(name);
+    expect(within(agentPanel).queryByRole('button')).toBeNull();
+  });
+
+  const STATUS = (settings: AgentSettings, installed = false): AgentStatus => ({
+    settings,
+    problem: null,
+    kind: settings.adapter,
+    adapters: [
+      {
+        name: 'claude',
+        label: 'Claude',
+        package: '@anthropic-ai/claude-agent-sdk',
+        installed,
+        cli: installed ? { path: '/usr/local/bin/claude', problem: null, fix: null } : { path: null, problem: "Toil UI found no claude on PATH, so it can't start Claude Code. It never downloads one.", fix: 'Install it.' },
+        endpoints: ['anthropic', 'bedrock', 'foundry', 'vertex'],
+      },
+      { name: 'copilot', label: 'GitHub Copilot', package: '@github/copilot-sdk', installed: false, cli: { path: null, problem: 'Toil UI found no copilot on PATH.', fix: null }, endpoints: [] },
+      { name: 'codex', label: 'Codex', package: '@openai/codex-sdk', installed: false, cli: { path: null, problem: 'Toil UI found no codex on PATH.', fix: null }, endpoints: [] },
+    ],
+  });
+
+  it('in the local app, says plainly when no SDK is installed and names the three', async () => {
+    const client = { status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null }), save: async (s: AgentSettings) => STATUS(s) };
+    const { container } = await open('#/settings', { preview: false, agentSettings: { client } });
+    const agentPanel = panel('Agent');
+    await within(agentPanel).findByRole('radiogroup', { name: 'Adapter' });
+    expect(agentPanel.textContent).toContain('None of the three agent SDKs is installed beside Toil UI: Claude (@anthropic-ai/claude-agent-sdk), GitHub Copilot (@github/copilot-sdk), Codex (@openai/codex-sdk).');
+    expect(agentPanel.textContent).toContain('Toil UI found no claude on PATH');
+    expect(within(agentPanel).queryByLabelText(/key|token/i)).toBeNull();
+    expect(await violations(container)).toEqual([]);
+  });
+
+  it('saves the adapter, model, CLI path and Claude endpoint, and says so', async () => {
+    const saves: AgentSettings[] = [];
+    const changed: AgentStatus[] = [];
+    const client = { status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null }, true), save: async (s: AgentSettings) => (saves.push(s), STATUS(s, true)) };
+    const { container } = await open('#/settings', { preview: false, agentSettings: { client, onChange: (s) => changed.push(s) } });
+    const agentPanel = panel('Agent');
+    await userEvent.click(await within(agentPanel).findByRole('radio', { name: /^Claude/ }));
+    await userEvent.type(within(agentPanel).getByRole('textbox', { name: /Model/ }), 'sonnet');
+    await userEvent.click(within(agentPanel).getByRole('radio', { name: 'Amazon Bedrock' }));
+    expect(await violations(container)).toEqual([]);
+    await userEvent.click(within(agentPanel).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(within(agentPanel).getByRole('status').textContent).toBe('Saved: Claude answers from the next question.'));
+    expect(saves).toEqual([{ adapter: 'claude', model: 'sonnet', cliPath: null, endpoint: 'bedrock' }]);
+    expect(changed).toHaveLength(1);
+  });
+});
+
+describe('the agent pane, with a real adapter', () => {
+  it('says plainly when no agent is set up', async () => {
+    const agent: Agent = { notice: 'No agent is set up in this Toil UI. Claude, GitHub Copilot or Codex.', starters: () => [], ask: () => Promise.reject(new Error('none')) };
+    await open('#/dossier/card-payments', { agent, preview: false });
+    expect(screen.getByText(/No agent is set up in this Toil UI/).textContent).toContain('GitHub Copilot');
+  });
+
+  it("shows the server's checks above an answer: ids its tools never returned", async () => {
+    const agent: Agent = {
+      starters: () => [{ id: 'risk', label: 'Why is this sprint at risk?' }],
+      ask: async () => ({
+        prompt: 'Why is this sprint at risk?',
+        parts: [{ text: '[[corp-jira:PAY-101]] and [[corp-jira:PAY-999]].' }],
+        citations: ['corp-jira:PAY-101', 'corp-jira:PAY-999'],
+        by: 'Claude',
+        proposals: [],
+        unverified: ['corp-jira:PAY-999'],
+        warnings: ['This answer names an item its tools never returned: corp-jira:PAY-999. Treat it as unverified.'],
+      }),
+    };
+    const { container } = await open('#/dossier/card-payments', { agent, preview: false });
+    await userEvent.click(await screen.findByRole('button', { name: 'Why is this sprint at risk?' }));
+    const checks = await screen.findByLabelText('Checks on this answer');
+    expect(checks.textContent).toContain('corp-jira:PAY-999');
+    expect(screen.getByText(/Names 1 its tools never returned/)).toBeTruthy();
+    expect(await violations(container)).toEqual([]);
   });
 });
 

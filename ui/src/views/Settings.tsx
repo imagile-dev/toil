@@ -3,10 +3,13 @@
  * connections, writes, dossiers and settings, through toil's own config
  * commands. That page follows the local server, so this is its entry point
  * only, saying what will be here. The preview changes nothing, and neither
- * does this page yet. A form for the forms, pending approval.
+ * does this page yet, except the agent's own settings (#251), which are Toil
+ * UI's and never toil's. A form for the forms, pending approval.
  */
 
-export function Settings({ preview }: { preview: boolean }) {
+import { AgentSettingsPanel, AgentSettingsPreview, type AgentSettingsPanelProps } from '../agent-settings.tsx';
+
+export function Settings({ preview, agent }: { preview: boolean; agent?: AgentSettingsPanelProps }) {
   return (
     <>
       <div className="view-head">
@@ -34,6 +37,7 @@ export function Settings({ preview }: { preview: boolean }) {
         </ul>
         <p className="note">{preview ? 'The preview has no configuration to change, and nothing here changes anything.' : 'Nothing here changes anything yet.'}</p>
       </section>
+      {agent ? <AgentSettingsPanel {...agent} /> : <AgentSettingsPreview />}
     </>
   );
 }

@@ -13,12 +13,16 @@
  * needs the launch URL again. Paperwork, but the kind that files itself.
  */
 
-import type { Agent, Answer, Starter } from './agent.ts';
+import { NO_AGENT_FIX, NO_AGENT_NOTICE, type Agent, type Answer, type Starter } from './agent.ts';
 import type { SyncStatus } from '../server/sync.ts';
 import type { Envelope, Execute } from './toil.ts';
 
 export type { DossierState, SourceState } from '../server/cache.ts';
 export type { SyncJob, SyncStatus } from '../server/sync.ts';
+import type { AgentStatus } from '../server/agents/host.ts';
+import type { AgentSettings } from '../server/agents/settings.ts';
+export type { AdapterStatus, AgentStatus } from '../server/agents/host.ts';
+export type { AgentSettings } from '../server/agents/settings.ts';
 
 export interface Session {
   /** The session id, sent as X-Toil-UI-Session. */
@@ -31,6 +35,8 @@ export interface Session {
   /** The server keeps a cache and syncs it (#250); false with sample data. */
   sync: boolean;
   agent: string;
+  /** The agent can be chosen in Settings (#251); false with sample data. */
+  agentSettings?: boolean;
   sample: boolean;
   now: string;
 }
@@ -130,11 +136,71 @@ export async function httpAgent(session: Session, dossiers: string[], base = './
     }
   }
   return {
+    ...(session.agent === 'none' ? { notice: `${NO_AGENT_NOTICE} ${NO_AGENT_FIX}` } : {}),
     starters: (dossier) => starters.get(dossier) ?? [],
     async ask(dossier, prompt) {
       const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt } });
       if (!res.ok) throw await failure(res, 'The question');
       return (await res.json()) as Answer;
     },
+    async *stream(dossier, prompt, signal) {
+      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, stream: true }, ...(signal ? { signal } : {}) });
+      if (!res.ok) throw await failure(res, 'The question');
+      if (!/^application\/x-ndjson/.test(res.headers.get('content-type') ?? '')) {
+        yield (await res.json()) as Answer;
+        return;
+      }
+      yield* answerLines(res);
+    },
+  };
+}
+
+/** One streamed answer's NDJSON lines (server.ts, streamAnswer): each answer as it grows, then done or an error. */
+export async function* answerLines(res: Response): AsyncIterable<Answer> {
+  if (!res.body) throw new Error('The answer arrived with no body.');
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let done = false;
+  const line = (text: string): Answer | null => {
+    const msg = JSON.parse(text) as { answer?: Answer; done?: boolean; error?: { message?: string; fix?: string } };
+    if (msg.error) throw new Error(`${msg.error.message ?? 'The agent failed.'}${msg.error.fix ? ` ${msg.error.fix}` : ''}`);
+    if (msg.done) done = true;
+    return msg.answer ?? null;
+  };
+  for (;;) {
+    const { value, done: end } = await reader.read();
+    if (value) buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const text = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!text) continue;
+      const answer = line(text);
+      if (answer) yield answer;
+    }
+    if (end) break;
+  }
+  if (buffer.trim()) {
+    const answer = line(buffer.trim());
+    if (answer) yield answer;
+  }
+  if (!done) throw new Error('The answer stopped partway: the connection to Toil UI closed.');
+}
+
+/** What Settings shows and changes about the agent (#251): server/agents/host.ts's status. */
+export interface AgentSettingsClient {
+  status(): Promise<AgentStatus>;
+  save(settings: AgentSettings): Promise<AgentStatus>;
+}
+
+export function httpAgentSettings(session: Session, base = './'): AgentSettingsClient {
+  const answer = async (res: Response, what: string) => {
+    if (!res.ok) throw await failure(res, what);
+    return (await res.json()) as AgentStatus;
+  };
+  return {
+    status: async () => answer(await call(base, session, 'api/agent/settings'), 'Reading the agent settings'),
+    save: async (settings) => answer(await call(base, session, 'api/agent/settings', { body: settings }), 'Saving the agent settings'),
   };
 }
