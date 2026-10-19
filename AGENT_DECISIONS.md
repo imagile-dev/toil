@@ -3278,16 +3278,20 @@ fills.
   needs no recursion and no table the size of both inputs.
 - **Semantics are kept by reusing the old pieces, not by re-deriving them.** The
   compiler reads the pattern exactly as before; a bracket class, and a literal under
-  `caseFold`, become a one-character RegExp (`^[...]$` with the old flags), which can't
+  `caseFold`, become a one-character RegExp, anchored at both ends with the old flags, which can't
   backtrack and folds case exactly as the whole-pattern RegExp did. A reversed range
   such as `[b-a]` still throws the same `SyntaxError` when the pattern is compiled.
 - **`wildmatch()` returns `{ test(path) }` instead of a `RegExp`**, and
   `IgnoreRule.regex` is now `IgnoreRule.match`. Both callers only ever called `test`.
-- **A prefix and suffix check runs before the walk**: the exact characters a pattern
-  starts and ends with. Measured on Windows, Node 24.14, seven typical `.gitignore`
-  patterns against six paths: the old RegExp took about 25 ns a test, the walk alone
-  about 220 ns, and the walk behind the check about 70 ns, because most paths fail
-  there (`*.log` against `index.ts`).
+- **A check on the pattern's plain first and last characters runs before the walk**,
+  because most paths a walk meets fail there (`*.log` against `index.ts`). Under
+  `caseFold`, an ASCII literal compares against its two cases instead of asking a
+  RegExp (review round 1): without the `u` flag no non-ASCII character folds onto an
+  ASCII one, so that is exact, and the differential test includes `ſ` and the Kelvin
+  sign to keep it so. Measured on Windows, Node 24.14, seven typical `.gitignore`
+  patterns against six paths, best of five: the old RegExp about 12 ns a test (14 ns
+  folded), the walk about 35 ns (40 ns folded). Before the check, the walk alone took
+  about 220 ns, and folded literals about 100 ns on Linux in review.
 - **The old compiler is kept, verbatim, as the test oracle**
   (`test/harness/wildmatch-regex.ts`). A seeded differential test compares the two on
   4,000 patterns from a small alphabet, 12 paths each, across `pathname` and

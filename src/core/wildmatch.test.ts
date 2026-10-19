@@ -82,8 +82,11 @@ describe('wildmatch', () => {
       for (let i = rand(max + 1); i > 0; i--) s += alphabet[rand(alphabet.length)];
       return s;
     };
-    const patternAlphabet = ['a', 'b', 'A', '/', '*', '*', '?', '[', ']', '!', '^', '-', '\\', '.', '[:digit:]', '1'];
-    const pathAlphabet = ['a', 'b', 'A', 'B', '/', '/', '.', '-', '1', '[', ']', '\\', '*', '!'];
+    // `ſ` and the Kelvin sign fold onto `S` and `K` only under the `u` flag,
+    // which the RegExp never had; they're here to keep it that way.
+    const odd = ['ſ', 'K'];
+    const patternAlphabet = ['a', 'b', 'A', 's', 'k', 'K', ...odd, '/', '*', '*', '?', '[', ']', '!', '^', '-', '\\', '.', '[:digit:]', '1'];
+    const pathAlphabet = ['a', 'b', 'A', 'B', 's', 'S', 'k', 'K', ...odd, '/', '/', '.', '-', '1', '[', ']', '\\', '*', '!'];
     const disagreements: string[] = [];
     for (let i = 0; i < 4000; i++) {
       const pattern = spell(patternAlphabet, 8);

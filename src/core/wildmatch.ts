@@ -20,14 +20,16 @@ export interface Wildmatch {
 
 /**
  * One step of a compiled pattern. `char` consumes one character that `ok`
- * accepts; `exact` is that character when only one, case and all, will do.
+ * accepts; `literal` marks one written as a plain character, whose `ok` is a
+ * comparison rather than a RegExp.
  * `star` consumes any run of characters `ok` accepts, none included. `dirs` is
  * a `**\/` in the middle: nothing, or any run that ends in `/`.
  */
 type Step =
-  | { kind: 'char'; ok: (c: string) => boolean; exact?: string }
+  | { kind: 'char'; ok: (c: string) => boolean; literal?: true }
   | { kind: 'star'; ok: (c: string) => boolean }
   | { kind: 'dirs' };
+type CharStep = Extract<Step, { kind: 'char' }>;
 
 export function wildmatch(pattern: string, options: { pathname?: boolean; caseFold?: boolean } = {}): Wildmatch {
   const pathname = options.pathname !== false;
@@ -98,21 +100,22 @@ function walker(steps: readonly Step[]): (path: string) => boolean {
     if (step.kind === 'char') fewest++;
     else fixed = false;
   }
-  // The exact characters the pattern starts and ends with, which every match
+  // The plain characters the pattern starts and ends with, which every match
   // starts and ends with too. Most paths a walk meets fail on one of these
   // (`*.log` against `index.ts`), so most never reach the walk below.
-  let prefix = '';
-  for (let k = 0; k < n; k++) {
-    const step = steps[k]!;
-    if (step.kind !== 'char' || step.exact === undefined) break;
-    prefix += step.exact;
-  }
-  let suffix = '';
-  for (let k = n - 1; k >= 0; k--) {
-    const step = steps[k]!;
-    if (step.kind !== 'char' || step.exact === undefined) break;
-    suffix = step.exact + suffix;
-  }
+  const plain = (step: Step | undefined) => step?.kind === 'char' && step.literal === true;
+  let head = 0;
+  while (head < n && plain(steps[head])) head++;
+  let tail = 0;
+  while (tail < n - head && plain(steps[n - 1 - tail])) tail++;
+  const firsts = steps.slice(0, head).map((step) => (step as CharStep).ok);
+  const lasts = steps.slice(n - tail).map((step) => (step as CharStep).ok);
+  const ends = (path: string) => {
+    for (let k = 0; k < head; k++) if (!firsts[k]!(path[k]!)) return false;
+    const from = path.length - tail;
+    for (let k = 0; k < tail; k++) if (!lasts[k]!(path[from + k]!)) return false;
+    return true;
+  };
   // `seen[s] === round` means position `s` is already live this character,
   // which keeps the list from ever holding one position twice.
   const seen = new Uint32Array(2 * n + 2);
@@ -140,7 +143,7 @@ function walker(steps: readonly Step[]): (path: string) => boolean {
   return (path) => {
     // One character per `char` step, exactly that many when nothing repeats.
     if (path.length < fewest || (fixed && path.length !== n)) return false;
-    if (!path.startsWith(prefix) || !path.endsWith(suffix)) return false;
+    if (!ends(path)) return false;
     begin();
     add(0);
     for (let p = 0; p < path.length; p++) {
@@ -171,10 +174,20 @@ function walker(steps: readonly Step[]): (path: string) => boolean {
 const notSlash = (c: string) => c !== '/';
 const anything = () => true;
 
-/** One literal character, folded the way a RegExp's `i` flag folds it. */
+/**
+ * One literal character, folded the way a RegExp's `i` flag folds it. Without
+ * the `u` flag, folding never maps a non-ASCII character onto an ASCII one, so
+ * an ASCII character matches only its own two cases (`k` and `K`, never the
+ * Kelvin sign) and a plain comparison does. Anything else asks a RegExp.
+ */
 function literal(c: string, caseFold: boolean): Step {
-  if (caseFold) return { kind: 'char', ok: single(escape(c), caseFold) };
-  return { kind: 'char', ok: (x) => x === c, exact: c };
+  if (!caseFold) return { kind: 'char', ok: (x) => x === c, literal: true };
+  if (c.charCodeAt(0) < 0x80) {
+    const lower = c.toLowerCase();
+    const upper = c.toUpperCase();
+    return { kind: 'char', ok: (x) => x === lower || x === upper, literal: true };
+  }
+  return { kind: 'char', ok: single(escape(c), caseFold), literal: true };
 }
 
 /**
