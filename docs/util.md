@@ -126,7 +126,10 @@ classify, a file it couldn't read) is counted and reported in `data` and
 
 Folder walking is `ctx.files.list(dir)`: what `git ls-files --cached --others
 --exclude-standard` would list, `.gitignore` respected, with `stat` for sizes. There's
-no second walker.
+no second walker. A `.gitignore` line it can't compile (a reversed range such as
+`[b-a]`) is skipped on its own, with a `GITIGNORE_LINE_SKIPPED` warning in
+`meta.warnings` naming the file, the line and the fix; the rest of that file still
+applies.
 
 Before adding a dependency, read CLAUDE.md, **No Executables** and **Secrets**: pure
 JS or WASM, a licence of MIT, Apache-2.0 or BSD, pinned exactly, at least 14 days old,

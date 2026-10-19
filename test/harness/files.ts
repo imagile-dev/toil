@@ -1,5 +1,5 @@
 import { alreadyExists, DEFAULT_LIST_LIMIT, forwardSlashes, readFailed, STDIN_IS_TERMINAL, STREAM_CHUNK, STDIN_OVER_MCP, toCsv, tooManyFiles, type FileAccess } from '../../src/core/files.js';
-import { isIgnored, parseIgnore, type IgnoreRule } from '../../src/core/gitignore.js';
+import { isIgnored, parseIgnore, skippedLineWarning, type IgnoreRule } from '../../src/core/gitignore.js';
 
 /**
  * In-memory files for tests, rooted at `/work`, which is also the workspace.
@@ -63,13 +63,18 @@ export function memoryFiles(initial: Record<string, string | Uint8Array> = {}, o
       const root = at(dir);
       const under = [...store.keys()].filter((k) => k.startsWith(`${root}/`)).map((k) => k.slice(root.length + 1));
       const gitignore = listOptions.gitignore !== false;
+      // Each .gitignore is parsed once per listing, so a skipped line is warned about once, as the real listing does.
+      const parsed = new Map<string, IgnoreRule[]>();
       const rulesFor = (rel: string): IgnoreRule[] => {
         const parts = rel.split('/').slice(0, -1);
         const rules: IgnoreRule[] = [];
         for (let i = 0; i <= parts.length; i++) {
           const base = parts.slice(0, i).join('/');
-          const file = store.get(`${root}/${base === '' ? '' : `${base}/`}.gitignore`);
-          if (file) rules.push(...parseIgnore(new TextDecoder().decode(file), base));
+          const path = `${root}/${base === '' ? '' : `${base}/`}.gitignore`;
+          const file = store.get(path);
+          if (!file) continue;
+          if (!parsed.has(path)) parsed.set(path, parseIgnore(new TextDecoder().decode(file), base, false, (skipped) => listOptions.warn?.(skippedLineWarning(path, skipped))));
+          rules.push(...parsed.get(path)!);
         }
         return rules;
       };

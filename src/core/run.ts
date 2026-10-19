@@ -325,7 +325,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt, dossiers: ctx.dossiers, env: ctx.env, via, audit: ctx.audit } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
-      // A listing's warnings (a refused git include) land in meta.warnings without the command passing anything.
+      // A listing's warnings (a refused git include, a skipped .gitignore line) land in meta.warnings without the command passing anything.
       files: {
         ...ctx.files,
         list: (dir, options) => ctx.files.list(dir, { ...options, warn: options?.warn ?? ((w) => warnings.push(w)) }),

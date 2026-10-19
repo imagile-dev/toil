@@ -398,6 +398,12 @@ describe("util secrets scan: what it can't read is listed", () => {
     expect(envelope.meta.warnings).toContainEqual(expect.objectContaining({ code: 'SECRETS_UNREADABLE' }));
   });
 
+  it('skips only the bad line of a .gitignore, so the rest still keeps files out, and says so in meta.warnings (#262)', async () => {
+    const { envelope, data } = await scan({ file: 'w' }, { files: { 'w/.gitignore': '*.log\n[b-a]\n', 'w/debug.log': 'password=Pl4ntedPassw0rd\n', 'w/a.env': 'password=Pl4ntedPassw0rd\n' } });
+    expect(data.findings.map(at)).toEqual(['w/a.env:1:10']);
+    expect(envelope.meta.warnings).toContainEqual({ code: 'GITIGNORE_LINE_SKIPPED', message: expect.stringContaining('Line 2 of /work/w/.gitignore ("[b-a]")') });
+  });
+
   it('a single file named on the call that is binary fails the call, as any util command would', async () => {
     const { envelope } = await scan({ file: 'logo.png' }, { files: { 'logo.png': new Uint8Array([1, 0, 2]) } });
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', fix: 'Pass a text file.' });

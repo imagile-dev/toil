@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -302,7 +302,9 @@ describe('list', () => {
     put('src/temp1/x.txt');
     put('src/tempfile.txt');
     put('src/index.ts');
-    put('src/.gitignore', 'secret.*\n!secret.example\n');
+    // A line with a reversed range is skipped; git lists m.txt too, since the range can't cover it (#262).
+    put('src/.gitignore', 'secret.*\n!secret.example\n[z-a].txt\n');
+    put('src/m.txt');
     put('src/secret.json');
     put('src/secret.example');
     put('docs/readme.md');
@@ -316,8 +318,8 @@ describe('list', () => {
     mkdirSync(join(root, '.git'));
     writeFileSync(join(root, '.git', 'HEAD'), 'ref: refs/heads/main\n');
     const files = nodeFiles({ cwd: root, stdin: false });
-    expect(files.list()).toEqual(['.gitignore', 'docs/readme.md', 'keep.log', 'local-only.txt', 'src/.gitignore', 'src/build/kept.js', 'src/index.ts', 'src/secret.example', 'src/tempfile.txt']);
-    expect(files.list('src')).toEqual(['.gitignore', 'build/kept.js', 'index.ts', 'secret.example', 'tempfile.txt']);
+    expect(files.list()).toEqual(['.gitignore', 'docs/readme.md', 'keep.log', 'local-only.txt', 'src/.gitignore', 'src/build/kept.js', 'src/index.ts', 'src/m.txt', 'src/secret.example', 'src/tempfile.txt']);
+    expect(files.list('src')).toEqual(['.gitignore', 'build/kept.js', 'index.ts', 'm.txt', 'secret.example', 'tempfile.txt']);
     expect(files.list('.', { gitignore: false })).toContain('build/out.js');
     expect(files.list('.', { gitignore: false })).not.toContain('.git/HEAD');
     expect(() => files.list('.', { limit: 3 })).toThrow(/more than 3 files/);
@@ -366,6 +368,48 @@ describe('list', () => {
     g('update-index', '--index-version', '4');
     same();
   }, REAL_GIT_TIMEOUT_MS);
+
+  it('skips only the .gitignore line that does not compile, keeps the rest of that file, and warns with the file and line (#262)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'toil-badline-'));
+    dirs.push(root);
+    const put = (path: string, text = 'x') => {
+      mkdirSync(dirname(join(root, path)), { recursive: true });
+      writeFileSync(join(root, path), text);
+    };
+    mkdirSync(join(root, '.git'));
+    writeFileSync(join(root, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    put('.gitignore', '*.log\n# a comment\n[b-a]\n/build/\n');
+    put('src/.gitignore', 'secret.*\n[z-a].txt\n');
+    put('a.log');
+    put('a');
+    put('build/out.js');
+    put('src/index.ts');
+    put('src/secret.json');
+    put('src/m.txt');
+    const files = nodeFiles({ cwd: root, stdin: false, home: root });
+    const warnings: Array<{ code: string; message: string }> = [];
+    expect(files.list('.', { warn: (w) => warnings.push(w) })).toEqual(['.gitignore', 'a', 'src/.gitignore', 'src/index.ts', 'src/m.txt']);
+    // The listing names the file by its real path (/private/var on macOS, a long name for a short one on Windows).
+    const real = realpathSync.native(root);
+    const top = forwardSlashes(join(real, '.gitignore'));
+    const nested = forwardSlashes(join(real, 'src', '.gitignore'));
+    expect(warnings).toEqual([
+      { code: 'GITIGNORE_LINE_SKIPPED', message: expect.stringContaining(`Line 3 of ${top} ("[b-a]")`) },
+      { code: 'GITIGNORE_LINE_SKIPPED', message: expect.stringContaining(`Line 2 of ${nested} ("[z-a].txt")`) },
+    ]);
+    expect(warnings[0]!.message).toContain('was skipped, and the rest of that file still applies: a range in brackets runs backwards');
+    expect(warnings[0]!.message).toMatch(/Write the range from low to high, as in \[a-z\], or delete the line\.$/);
+
+    // A .gitignore above the listing root is read the same way, and its bad line said the same way.
+    const below: Array<{ code: string; message: string }> = [];
+    expect(files.list('src', { warn: (w) => below.push(w) })).toEqual(['.gitignore', 'index.ts', 'm.txt']);
+    expect(below.map((w) => w.message.slice(0, w.message.indexOf(')') + 1))).toEqual([`Line 3 of ${top} ("[b-a]")`, `Line 2 of ${nested} ("[z-a].txt")`]);
+
+    // With .gitignore off, no ignore file is read at all, so nothing is said about one.
+    const off: Array<{ code: string; message: string }> = [];
+    expect(files.list('src', { gitignore: false, warn: (w) => off.push(w) })).toContain('secret.json');
+    expect(off).toEqual([]);
+  });
 
   it('outside a repository applies only the .gitignore files under the folder (git would list nothing: the deps area must check for a repository itself)', () => {
     const root = mkdtempSync(join(tmpdir(), 'toil-norepo-'));

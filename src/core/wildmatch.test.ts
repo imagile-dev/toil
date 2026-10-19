@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { wildmatchRegex } from '../../test/harness/wildmatch-regex.js';
-import { isIgnored, parseIgnore } from './gitignore.js';
+import { isIgnored, parseIgnore, skippedLineWarning, type SkippedIgnoreLine } from './gitignore.js';
 import { wildmatch } from './wildmatch.js';
 
 // git's glob dialect, case by case, from its own documentation. The
@@ -169,6 +169,36 @@ describe('gitignore rules', () => {
     expect(isIgnored('only-here', false, rules)).toBe(false);
     expect(isIgnored('sub/x.tmp', false, rules)).toBe(false);
     expect(isIgnored('other/x.tmp', false, rules)).toBe(true);
+  });
+
+  it('skips only a line that does not compile, reports it with its line number, and keeps the rest (#262)', () => {
+    const skipped: SkippedIgnoreLine[] = [];
+    const rules = parseIgnore('# logs\n*.log\n\n[b-a]\n!keep.log\nbuild/  \n', '', false, (s) => skipped.push(s));
+    expect(skipped).toEqual([
+      {
+        line: 4,
+        pattern: '[b-a]',
+        reason: expect.stringMatching(/^a range in brackets runs backwards, from a higher character to a lower one\. git reads such a range as its first character alone/),
+        fix: 'Write the range from low to high, as in [a-z], or delete the line.',
+      },
+    ]);
+    expect(rules).toHaveLength(3);
+    expect(isIgnored('a.log', false, rules)).toBe(true);
+    expect(isIgnored('keep.log', false, rules)).toBe(false);
+    expect(isIgnored('build', true, rules)).toBe(true);
+    // A negated or anchored line with a reversed range is skipped the same way.
+    const more: SkippedIgnoreLine[] = [];
+    expect(parseIgnore('!/[z-a].txt\nsrc/[!z-a]/\n', '', false, (s) => more.push(s))).toEqual([]);
+    expect(more.map((s) => [s.line, s.pattern])).toEqual([[1, '!/[z-a].txt'], [2, 'src/[!z-a]/']]);
+    // With no one to tell, the line is still skipped rather than the file thrown away.
+    expect(parseIgnore('*.log\n[b-a]\n', '')).toHaveLength(1);
+  });
+
+  it('words the warning for a skipped line with the file, the line, the pattern, the reason and the fix', () => {
+    expect(skippedLineWarning('C:\\work\\.gitignore', { line: 4, pattern: '[b-a]', reason: 'it runs backwards', fix: 'Write it low to high.' })).toEqual({
+      code: 'GITIGNORE_LINE_SKIPPED',
+      message: 'Line 4 of C:/work/.gitignore ("[b-a]") was skipped, and the rest of that file still applies: it runs backwards. Write it low to high.',
+    });
   });
 
   it('re-includes with ! and escapes a leading ! or # to match it literally', () => {

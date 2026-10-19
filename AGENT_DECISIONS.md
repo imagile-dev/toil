@@ -3308,3 +3308,31 @@ fills.
   rule in that file without a warning, so the walk lists what the file ignores. That
   is silent (principle 4), but #244 asked for the matcher's semantics unchanged. Left
   for its own issue.
+
+### #262 a bad .gitignore line
+
+- **One line that won't compile is skipped on its own, and the rest of its file
+  applies** (`parseIgnore` in `src/core/gitignore.ts`). It used to throw out of
+  `parseIgnore`, and `listTree` in `src/core/files.ts` caught that and dropped every
+  rule in the file. `listTree` now catches only the read (a missing `.gitignore` is
+  still no rules), and `parseIgnore` reports each skipped line through an `onSkip`
+  callback with its 1-based line number, comments and blanks counted.
+- **Each skipped line is a `GITIGNORE_LINE_SKIPPED` warning in `meta.warnings`**,
+  through the listing's existing `warn` path (the one `GIT_INCLUDE_REFUSED` takes), so
+  every command that walks a folder reports it without passing anything. The message
+  names the file (absolute, forward slashes), the line, the pattern as written, the
+  reason and the fix. `Warning` has no `fix` field, so the fix is in the message.
+  The wording is in `skippedLineWarning`, which the in-memory test files use too.
+- **The reason is worded in the pattern's own terms.** The only failure wildmatch has
+  is a reversed range, which arrives as the RegExp engine's "Range out of order" about
+  a class the user never wrote, such as `/^[^z-a/]$/s`; it's said as "a range in
+  brackets runs backwards". Any other error keeps its own message. wildmatch itself
+  is unchanged, so #244's oracle and differential test still hold.
+- **Not quite git's behaviour, found:** git doesn't reject `[b-a]`. Its wildmatch
+  compares the range's first character before it sees the `-`, so `[b-a]` matches `b`
+  alone and `[z-a].txt` matches `z.txt`. A skipped line matches nothing, so a file
+  named after a reversed range's first character is listed by toil and not by git, and
+  the warning says so. #262 asked for the skip; matching git exactly (compiling a
+  reversed range as its first character, still with a warning) is left for the
+  maintainer. The real-git differential test adds a reversed-range line whose first
+  character no file in the tree is named after, so both agree.
