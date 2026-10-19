@@ -12,6 +12,7 @@
 import { useEffect, useInsertionEffect, useRef, useState, type MouseEvent } from 'react';
 import { Button, Label, ListBox, ListBoxItem, Popover, Select, SelectValue } from 'react-aria-components';
 import type { Agent } from './agent.ts';
+import { Ambient } from './ambient/Ambient.tsx';
 import { DataContext, type Data } from './data.ts';
 import { dateTime, dossierHref } from './format.ts';
 import { loadDossier, loadDossiers, type DossierData, type DossierSummary } from './load.ts';
@@ -157,6 +158,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
     <ThemeProvider value={theme}>
       <SkinProvider value={skins}>
         <TokenStyles css={THEMES.map(tokenCss).join('\n')} />
+        <Ambient theme={theme.name} />
         <a className="skip" href="#main" onClick={skip}>
           Skip to content
         </a>

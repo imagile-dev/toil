@@ -327,3 +327,42 @@
 @keyframes starship-lane {
   to { stroke-dashoffset: -32; }
 }
+
+/* Gradients for life (#271): the console picks up the nebula's violet at its
+   far edge, buttons charge from cyan to ice, and the charts glow from the top
+   down. Light text keeps 5.3:1 or better at the brightest stop. */
+[data-theme="starship"] .top {
+  background:
+    linear-gradient(90deg, transparent 35%, rgba(160, 110, 255, 0.1)),
+    linear-gradient(180deg, rgba(54, 214, 255, 0.07), transparent),
+    var(--surface);
+}
+
+[data-theme="starship"] .panel,
+[data-theme="starship"] .dossier-card,
+[data-theme="starship"] .ask {
+  background:
+    linear-gradient(135deg, rgba(54, 214, 255, 0.06), transparent 45%, rgba(160, 110, 255, 0.06)),
+    var(--surface);
+}
+
+[data-theme="starship"] .stat {
+  background:
+    linear-gradient(90deg, rgba(54, 214, 255, 0.12), transparent 70%),
+    linear-gradient(180deg, transparent 50%, rgba(160, 110, 255, 0.06)),
+    var(--raised);
+}
+
+[data-theme="starship"] .btn--accent,
+[data-theme="starship"] .top nav a[aria-current="page"],
+[data-theme="starship"] button[aria-pressed="true"] {
+  background: linear-gradient(100deg, var(--accent), var(--link));
+}
+
+[data-theme="starship"] .chart .chart-stop--top { stop-color: var(--link); }
+[data-theme="starship"] .chart .chart-stop--bottom { stop-color: #1a6f99; }
+
+[data-theme="starship"] .chart .bar,
+[data-theme="starship"] .chart .area {
+  fill: var(--chart-fill);
+}

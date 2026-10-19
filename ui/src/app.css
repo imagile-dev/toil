@@ -194,6 +194,13 @@ tbody th { font-weight: 400; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .settings { margin-left: 0; }
 }
+/* A term and its value stack on a phone, so a long term can't squeeze its value out of the panel. */
+@media (max-width: 480px) {
+  .fields { grid-template-columns: minmax(0, 1fr); row-gap: 0.15rem; }
+  .fields dd + dt { margin-top: 0.4rem; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+/* "Reduce motion and effects" in Settings (#271, src/motion.ts) stops the same things. */
+:root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
