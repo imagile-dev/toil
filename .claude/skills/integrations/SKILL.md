@@ -54,7 +54,7 @@ versions.
      the `page` style with a `total` callback: it stops once the items read reach
      the total or a page is empty, never on a short page. The result's `total` is
      the last one the server reported, an empty page's included, so a command
-     asked for zero items (`--max-results 0`) still returns the count.
+     asked for zero items (`jira issue search --limit 0`) still returns the count.
    - **The 1,000-page bound** (`MAX_PAGES`) isn't in the contract,
      which records none: list it in the area's `docs/divergences/<area>.json` (principle 4)
      for every area that pages, and pass `what` so the error names the list.
@@ -130,7 +130,7 @@ versions.
   contract records a failure without it, unless the command has its own fallback (a project in
   `--input-file`); then keep it optional and fill that step with `ctx.supply` (step 3).
   A flag that names a target but doesn't fall back to a setting stays an ordinary
-  option (Jira's `fields`, `list-boards`, `list-sprints`); a context input always
+  option (Jira's `issue fields`, `board list`, `sprint list`); a context input always
   falls back. Give it a `setting` when the connection can hold a
   default, `git` when the remote names it, and `selectsConnection` when the contract
   records it picking an instance or environment. Read it from `ctx.context`. When the
@@ -320,7 +320,7 @@ the Open Work Item mapping (`docs/owi/spec.md`) **in the same PR**:
   returned: `verified.passed`, and anything in `unmapped` or `skipped`.
 
 `test/owi.test.ts` enforces the mark: an area with issue- or work-item-shaped
-commands (`get-issue`, `search-issues`, `issue-events`, `get-changelog`, `work get`)
+commands (`get-issue`, `search-issues`, `issue-events`, `issue get`, `work-item get`)
 that isn't in `OWI_SOURCES` fails CI, and so does a marked area without a fixture or
 whose mapped examples don't validate against the schema. An area that is on its way
 sits in that test's `PENDING` list, by its issue, and switches on once it registers.

@@ -3829,7 +3829,7 @@ choices made by default inside that:
   (`src/program.ts`): `jira issue get PAY-1` returns the issue, as `--key PAY-1` did,
   and `jira issue get PAY-1 PAY-2` the bulk shape.
 - **The contract's jira and ado entries were regenerated from the registry**, each
-  carrying its old entry's recorded `output`; commands the predecessor never had
+  carrying its old entry's recorded `output`; commands the contract never recorded
   (`issue history`, `work-item get-many`, `api`, `check-dossier`) stay out of it, as
   before. The `--save` divergence on `work-item fields` and `types` keeps its record
   with empty `allows`, since the flag is no longer in the contract to excuse.

@@ -44,7 +44,7 @@ signal; never share one context across calls. Both front doors run commands thro
 `runCommand()`, which turns a failure building the context (config that broke while
 the server was up) into an envelope too. The MCP server passes `'mcp'` to it, and
 an `INVALID_INPUT` envelope then names each of the command's flags as its field
-(`--max-results` becomes `maxResults`) in the message and fix, so areas word their
+(`--updated-since` becomes `updatedSince`) in the message and fix, so areas word their
 input errors once, for the CLI, and nothing else changes. A quoted command line
 (`toil …` in backticks, or plain text up to the end of its clause) keeps its flags,
 since it's something to run on the CLI. Tool descriptions are written for a model

@@ -80,7 +80,7 @@ function runOf(data: WelcomeData, c: CommandSummary, argv: string[]): Action {
 }
 
 function commandItem(c: CommandSummary, label = c.path.slice(2).join(' ') || c.path[1]!): Item {
-  return { label, hint: `${c.description}${c.writes ? ' (writes)' : ''}`, action: { go: 'service-command', params: { cmd: c.path.join(' ') } } };
+  return { label, hint: `${c.description}${c.writes ? ' (writes)' : c.mayWrite ? ' (some calls write)' : ''}`, action: { go: 'service-command', params: { cmd: c.path.join(' ') } } };
 }
 
 /** Commands whose path or description holds every word typed. */
@@ -154,6 +154,8 @@ export const resourceView: View = {
 function commandBody(caps: Caps, c: CommandSummary): string[] {
   const lines = [paint(caps, PALETTE.amber, c.description), '', paint(caps, PALETTE.ink, usage(c))];
   if (c.writes) lines.push('', ok(caps, false, 'Writes: needs writes on for the connection, and asks you before it runs.'));
+  // A passthrough's method decides; the menu runs the line as typed, and toil's own gate says if it needs --allow-write.
+  if (c.mayWrite) lines.push('', paint(caps, PALETTE.muted, 'Some calls write (a POST, say): add --allow-write to the flags for those; writes must be on for the connection.'));
   if (c.args.length) {
     lines.push('', paint(caps, PALETTE.muted, 'Arguments'));
     for (const a of c.args) lines.push(`  ${`<${a.name}>`.padEnd(28)} ${paint(caps, PALETTE.muted, a.description)}`);
@@ -255,9 +257,10 @@ export const confirmView: View = {
     const c = findCommand(p.data, p.frame.params.cmd);
     const argv = [...(JSON.parse(p.frame.params.argv ?? '[]') as string[]), '--allow-write'];
     const run: Run = { title: commandLine(p.data, argv), steps: [{ args: argv }], showData: true, next: () => ({ go: 'service-command', params: { cmd: c?.path.join(' ') ?? '' }, root: 'service-command' }) };
+    // Cancel first, so a stray enter sends nothing.
     return [
-      { label: 'Run it', hint: 'With --allow-write', action: { run } },
       { label: 'Cancel', hint: 'Nothing is sent', action: { go: 'service-command', params: { cmd: c?.path.join(' ') ?? '' }, root: 'service-command' } },
+      { label: 'Run it', hint: 'With --allow-write', action: { run } },
     ];
   },
 };

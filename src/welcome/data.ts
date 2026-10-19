@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { CONNECTION_FIELD, CWD_FIELD, DOSSIER_FIELD } from '../core/area.js';
-import { takesAllowWrite, type AnyCommand } from '../core/command.js';
+import type { AnyCommand } from '../core/command.js';
 import { loadConfig, type AreaInfo } from '../core/config.js';
 import { fieldSchema } from '../core/schema.js';
 import { toToilError } from '../core/errors.js';
@@ -68,7 +68,8 @@ export function commandSummaries(area: string, commands: readonly AnyCommand[]):
     .map((def) => ({
       path: [...def.path],
       description: def.description,
-      writes: takesAllowWrite(def),
+      writes: def.writes,
+      ...(def.writesWhen ? { mayWrite: true } : {}),
       args: (def.args ?? []).map((a) => ({ name: a.name, description: a.description, required: a.required !== false, variadic: a.variadic === true })),
       flags: (def.options ?? []).filter((o) => !CORE_FIELDS.has(o.field)).map((o) => ({ flags: o.flags, description: o.description, required: !o.group && required(def, o.field) })),
     }));

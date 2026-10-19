@@ -92,8 +92,8 @@ gets made again in the next place it applies.
     thing lives under that thing, positional arguments are only the ids that lead to
     it, and one idea has one flag in every area (`--limit`, `--assignee`, `--target`,
     `--body`). The welcome menu's Services module is that tree, so browsing it teaches
-    what to type. The shape is toil's own: it doesn't follow the predecessor's paths
-    or flags, and the old ones are dropped with no alias. → **Command Shape**
+    what to type. The shape is toil's own: paths and flags the contract recorded before
+    it are dropped with no alias. → **Command Shape**
     (`integrations` skill); `jira`, `jira-cloud`, `ado` and `ado-cloud` follow it,
     and other areas move to it as they're reshaped.
 
@@ -270,6 +270,9 @@ GitHub Actions; its build tooling is out of scope.
   data and every animation frame a pure function of time, so both are unit-tested.
   One file of views per menu module under `views/`, registered in `views/index.ts`;
   every action runs a real `toil` command in-process and shows the line it ran.
+  Its Services module (`views/services.ts`) runs any area command that way: a
+  write only after a confirm screen that shows the line with `--allow-write`,
+  so the connection's `writes` still decides, as it would typed by hand.
   The one exception is Two Weeks' Notice, a roguelike for the wait on a build,
   reached by typing `resign` on the home screen and listed nowhere: its rules are
   pure functions in `rogue/`, the loop hands it the screen until q, and its progress
@@ -432,7 +435,7 @@ signed download URL with every header dropped. argv is typed from the schema by 
 same rule env vars follow (`fromText` in `src/core/schema.ts`): numbers, `true` and
 `false`, enums, JSON for an object, and an array field's flag is repeatable with each
 value typed as its element. A union stays text, which is how Jira keeps the
-`parseInt` reading of `--max-results` that the contract records.
+`parseInt` reading of `jira issue search --limit` that the contract records.
 
 **`<area> api` is the raw passthrough** (`src/core/passthrough.ts`): an HTTP area
 exports `apiCommand(area, { service, examplePath, examples })` with its commands, and
@@ -769,10 +772,10 @@ error, and the `data` it returns. Toil's unit suite has never met a real server,
 an integration that "fixes" what looks wrong is guessing, and it silently breaks
 callers who rely on the recorded result.
 
-- **The behavior is the predecessor's; the surface is toil's** (*principle 10*). An
+- **The behavior is recorded; the surface is toil's** (*principle 10*). An
   area reshaped to the command shape records its new paths, arguments and flags in
   the contract, in the same change, and keeps every recorded request, result, error
-  and `data` field. A path or flag the predecessor had and toil dropped is gone, not
+  and `data` field. A path or flag the contract recorded before the reshape is gone, not
   aliased, and needs no divergence entry.
 - **Implement the recorded behavior exactly, bugs included,** until a live instance
   proves otherwise. That covers validation, defaults, paging, id-or-name detection,

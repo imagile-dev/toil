@@ -32,7 +32,10 @@ export interface CommandSummary {
   /** The full path, area first. */
   path: string[];
   description: string;
+  /** Every call writes. */
   writes: boolean;
+  /** Some calls write, as the input decides (`<area> api` with a POST); they still need --allow-write. */
+  mayWrite?: boolean;
   args: Array<{ name: string; description: string; required: boolean; variadic: boolean }>;
   /** Its own flags, never the ones core adds to every command (--connection, --dossier, --cwd). */
   flags: Array<{ flags: string; description: string; required: boolean }>;

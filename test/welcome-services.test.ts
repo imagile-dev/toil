@@ -89,8 +89,9 @@ describe('the Services module', () => {
     expect(s.pending).toBeUndefined();
     expect(where(s)).toBe('service-confirm');
     expect(screen(s, d)).toContain('$ toil jira issue comment PROJ-1 --body "Looks good" --allow-write');
-    expect(press(s, d, '2').pending).toBeUndefined();
-    s = press(s, d, '1');
+    expect(press(s, d, '1').pending).toBeUndefined();
+    expect(press(s, d, 'return').pending).toBeUndefined();
+    s = press(s, d, '2');
     expect(s.pending?.steps.map((step) => step.args)).toEqual([['jira', 'issue', 'comment', 'PROJ-1', '--body', 'Looks good', '--allow-write']]);
   });
 
@@ -100,6 +101,16 @@ describe('the Services module', () => {
     s = finish(s, [{ args: ['jira', 'issue', 'get', 'PROJ-1'], envelope: { ok: true, data: { key: 'PROJ-1' }, error: null, meta: { command: 'jira issue get', durationMs: 1, version: 'x', contractVersion: 1 } } }]);
     expect(screen(s, d)).toMatch(/\$ toil jira issue get PROJ-1[\s\S]*"key": "PROJ-1"/);
     expect(where(press(s, d, 'return'))).toBe('service-command');
+  });
+
+  it('runs a command whose input decides whether it writes as typed, and says how to make it write', () => {
+    const api = cmd(['jira', 'api'], { mayWrite: true, args: [{ name: 'method', description: 'Method', required: true, variadic: false }, { name: 'path', description: 'Path', required: true, variadic: false }] });
+    const d = { ...data(), areas: [SONAR, { ...JIRA, commands: [...JIRA.commands!, api] }] };
+    let s = press(settled, d, '1', '2', '4');
+    expect(screen(s, d)).toContain('add --allow-write to the flags for those');
+    s = press(type(press(type(press(s, d, '1'), d, 'GET'), d, 'return'), d, '/rest/api/2/myself'), d, 'return', 'return');
+    expect(where(s)).toBe('service-flags');
+    expect(s.pending?.steps.map((step) => step.args)).toEqual([['jira', 'api', 'GET', '/rest/api/2/myself']]);
   });
 
   it('finds commands holding every word typed, across services', () => {
