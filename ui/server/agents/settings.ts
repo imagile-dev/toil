@@ -59,7 +59,7 @@ export function checkAgentSettings(input: unknown, isAbsolute: (p: string) => bo
     const command = COMMANDS[adapter as AdapterName];
     const path = platform === 'win32' ? nodePath.win32 : nodePath.posix;
     const base = path.basename(cliPath);
-    const names = platform === 'win32' ? [command, `${command}.exe`, `${command}.cmd`] : [command];
+    const names = platform === 'win32' ? [command, `${command}.exe`] : [command];
     if (!names.includes(platform === 'win32' ? base.toLowerCase() : base)) {
       throw new AgentError(`The CLI path must end in ${names.join(' or ')}, the ${adapter} adapter's own CLI, not ${JSON.stringify(base)}.`, `Point it at the ${command} executable, or clear it to use the one on PATH.`);
     }

@@ -3191,7 +3191,9 @@ fills.
     `finally` that covers the SDK load and the CLI search too, so a failed load can't
     leak a place.
   - **A CLI path in Settings must name the adapter's own CLI:** its basename is
-    `claude`, `copilot` or `codex`, or on Windows that name with `.exe` or `.cmd`, in
-    any case. So Settings can't point the agent's arguments at another program. A
+    `claude`, `copilot` or `codex`, or on Windows that name with `.exe`, in any case.
+    So Settings can't point the agent's arguments at another program. A `.cmd` is
+    refused here too (review round 2), since `findCli` would refuse it as a shim the
+    SDKs can't start, and the shim fix names only the `.exe`. A
     path with no adapter chosen is refused. The check sits in `checkAgentSettings`,
     which `POST api/agent/settings` runs, and also when the saved file is read.

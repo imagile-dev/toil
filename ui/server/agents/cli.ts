@@ -53,7 +53,7 @@ export function findCli(l: CliLookup): string {
   const shimError = (found: string) =>
     new AgentError(
       `${l.label} was found at ${found}, which is a Windows command shim the SDK can't start.`,
-      `Set the CLI path in Settings to the ${l.command} executable itself (a .exe), or to the .js file the shim runs.`,
+      `Set the CLI path in Settings to the ${l.command} executable itself (${l.command}.exe).`,
     );
   if (l.configured) {
     if (!path.isAbsolute(l.configured)) throw new AgentError(`The ${l.label} path in Settings, ${JSON.stringify(l.configured)}, isn't an absolute path.`, 'Set the full path to the CLI, or clear it to use the one on PATH.');

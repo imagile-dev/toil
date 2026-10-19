@@ -595,6 +595,7 @@ describe('finding the CLI', () => {
     const exe = win32.join('C:\\tools', 'claude.exe');
     expect(look({ platform: 'win32', env: { Path: 'C:\\shims;C:\\tools', PATHEXT: '.COM;.EXE;.BAT;.CMD' }, isFile: (p) => p === exe || p === win32.join('C:\\shims', 'claude.cmd'), path: win32 })).toBe(exe);
     expect(() => look({ platform: 'win32', env: { Path: 'C:\\shims' }, isFile: (p) => p === win32.join('C:\\shims', 'claude.cmd'), path: win32 })).toThrow(/Windows command shim the SDK can't start/);
+    expect(() => look({ platform: 'win32', env: { Path: 'C:\\shims' }, isFile: (p) => p === win32.join('C:\\shims', 'claude.cmd'), path: win32 })).toThrow(expect.objectContaining({ fix: 'Set the CLI path in Settings to the claude executable itself (claude.exe).' }));
   });
 });
 
@@ -690,9 +691,9 @@ describe('a CLI path in Settings', () => {
     expect(() => checkAgentSettings({ adapter: 'none', cliPath: '/opt/bin/claude' }, posix.isAbsolute, 'linux')).toThrow(/needs an adapter/);
   });
 
-  it('takes .exe and .cmd on Windows, in any case, and nothing else', () => {
-    for (const p of ['C:\\Tools\\codex.exe', 'C:\\Tools\\CODEX.EXE', 'C:\\Tools\\codex.cmd', 'C:\\Tools\\codex']) expect(checkAgentSettings({ adapter: 'codex', cliPath: p }, win32.isAbsolute, 'win32').cliPath).toBe(p);
-    expect(() => checkAgentSettings({ adapter: 'codex', cliPath: 'C:\\Windows\\System32\\cmd.exe' }, win32.isAbsolute, 'win32')).toThrow(/codex or codex.exe or codex.cmd/);
+  it('takes .exe on Windows, in any case, but not a .cmd shim the SDKs cannot start', () => {
+    for (const p of ['C:\\Tools\\codex.exe', 'C:\\Tools\\CODEX.EXE', 'C:\\Tools\\codex']) expect(checkAgentSettings({ adapter: 'codex', cliPath: p }, win32.isAbsolute, 'win32').cliPath).toBe(p);
+    for (const p of ['C:\\Windows\\System32\\cmd.exe', 'C:\\Tools\\codex.cmd']) expect(() => checkAgentSettings({ adapter: 'codex', cliPath: p }, win32.isAbsolute, 'win32')).toThrow(/must end in codex or codex.exe,/);
   });
 });
 
