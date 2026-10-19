@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.0-alpha.2](https://github.com/imagile-dev/toil/compare/v0.1.0-alpha.1...v0.1.0-alpha.2) (2026-10-19)
+
+
+### Features
+
+* **util:** run --grep, md conversion, size outlines and YAML parsing in the bounded worker ([#243](https://github.com/imagile-dev/toil/issues/243)) ([1ff323b](https://github.com/imagile-dev/toil/commit/1ff323bd2e913e42779740a4bb871f64433ab215))
+
+
+### Bug Fixes
+
+* **triage:** install bubblewrap for the agent's isolation, and clear failure labels on a decision ([#242](https://github.com/imagile-dev/toil/issues/242)) ([b20bb4f](https://github.com/imagile-dev/toil/commit/b20bb4f106effdc8cfafbed4c975bea1b2d1eb6b))
+
 ## 0.1.0-alpha.1 (2026-10-18)
 
 
