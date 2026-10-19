@@ -10,6 +10,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import './app.css';
+import './views.css';
 import { httpAgent, httpExecute, signIn } from './server-client.ts';
 import { CALL_OPTIONS } from './toil.ts';
 

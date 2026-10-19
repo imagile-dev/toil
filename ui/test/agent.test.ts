@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { citationsOf, segments } from '../src/agent.ts';
 import { SCRIPTS, scriptedAgent } from '../src/fixtures/agent.ts';
+import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
+import { needsAttention, prepare } from '../src/model/insights.ts';
 import { NAMES, healthOf } from './harness.ts';
 
 /**
@@ -15,8 +17,31 @@ const cites = (text: string) => segments(text).flatMap((s) => ('cite' in s ? [s.
 const text = async (dossier: string, id: string) => (await agent.ask(dossier, id)).parts.map((p) => p.text).join(' ');
 
 describe('the scripted agent', () => {
-  it.each(NAMES)('offers the same two starters for %s', (name) => {
-    expect(agent.starters(name).map((s) => s.label)).toEqual(["What's at risk in this dossier?", 'Where is this work deployed?']);
+  it.each(NAMES)('offers the same three starters for %s', (name) => {
+    expect(agent.starters(name).map((s) => s.label)).toEqual(["What's at risk in this dossier?", 'What needs attention first?', 'Where is this work deployed?']);
+  });
+
+  it('streams each answer as it grows, never splitting a citation, and ends on the whole answer', async () => {
+    const seen: string[] = [];
+    let last;
+    for await (const partial of agent.stream!('card-payments', 'risk')) {
+      seen.push(partial.parts.map((p) => p.text).join(' '));
+      for (const p of partial.parts) expect(p.text.match(/\[\[/g)?.length ?? 0).toBe(p.text.match(/\]\]/g)?.length ?? 0);
+      last = partial;
+    }
+    expect(seen.length).toBeGreaterThan(10);
+    expect(seen.every((s, i) => i === 0 || s.length >= seen[i - 1]!.length)).toBe(true);
+    expect(last).toEqual(await agent.ask('card-payments', 'risk'));
+  });
+
+  it('stops streaming when the signal aborts', async () => {
+    const controller = new AbortController();
+    let n = 0;
+    for await (const partial of agent.stream!('settlement', 'risk', controller.signal)) {
+      expect(partial.prompt).toBe("What's at risk in this dossier?");
+      if (++n === 3) controller.abort();
+    }
+    expect(n).toBe(3);
   });
 
   it.each(NAMES)("cites only %s's own items, and every answer cites some", async (name) => {
@@ -76,6 +101,29 @@ describe.each(NAMES)('the %s script agrees with the model', (name) => {
     const open = data.changes.filter((c) => c.kind === 'pull-request' && c.outcome === 'open').flatMap((c) => c.items);
     const sprintOpen = open.filter((id) => data.items.find((i) => i.id === id)?.type !== 'EPIC' && data.items.find((i) => i.id === id)?.type !== 'OTHER');
     expect(sorted(cites(answer.parts.at(-1)!.text))).toEqual(sorted(sprintOpen));
+  });
+});
+
+describe.each(NAMES)('the %s attention answer agrees with the insights', (name) => {
+  it('takes the top items in rank order, one paragraph each, with their figures', async () => {
+    const { data, h } = await healthOf(name);
+    const ranked = needsAttention(prepare({ items: data.items, changes: data.changes, deployments: data.deployments, health: h, now: FIXTURE_NOW }));
+    const answer = await agent.ask(name, 'attention');
+    expect(answer.parts.length).toBe(Math.min(3, ranked.length));
+    answer.parts.forEach((part, i) => {
+      expect(cites(part.text)[0], part.text).toBe(ranked[i]!.id);
+      for (const insight of ranked[i]!.insights) for (const n of insight.text.match(/\d+(\.\d+)? days?/g) ?? []) expect(part.text, insight.text).toContain(n.replace(/ days?$/, ''));
+    });
+  });
+
+  it('offers proposals only on items it cites', async () => {
+    for (const { id } of agent.starters(name)) {
+      const answer = await agent.ask(name, id);
+      for (const p of answer.proposals) {
+        expect(answer.citations).toContain(p.item);
+        expect(p.from).toBe('agent');
+      }
+    }
   });
 });
 

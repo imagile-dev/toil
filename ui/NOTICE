@@ -19,8 +19,34 @@ The app (dist/app/) bundles:
   (https://github.com/tonsky/FiraCode); each through Fontsource
   (https://fontsource.org) and licensed under the SIL Open Font License,
   Version 1.1, copied below.
+- dnd-kit (@dnd-kit/core, @dnd-kit/accessibility and @dnd-kit/utilities,
+  https://github.com/clauderic/dnd-kit), Copyright (c) 2021, Claudéric Demers,
+  licensed under the MIT License.
+- React Flow (@xyflow/react and @xyflow/system, https://github.com/xyflow/xyflow),
+  Copyright (c) 2019-2025 webkid GmbH, licensed under the MIT License.
+- zustand (https://github.com/pmndrs/zustand), Copyright (c) 2019 Paul
+  Henschel; classcat (https://github.com/jorgebucaran/classcat), Copyright
+  Jorge Bucaran; clsx (https://github.com/lukeed/clsx), Copyright (c) Luke
+  Edwards; aria-hidden (https://github.com/theKashey/aria-hidden), Copyright (c)
+  2017 Anton Korzunov; use-sync-external-store
+  (https://github.com/facebook/react), Copyright (c) Meta Platforms, Inc. and
+  affiliates; and client-only; each licensed under the MIT License.
+- d3-color, d3-dispatch, d3-drag, d3-interpolate, d3-selection, d3-timer,
+  d3-transition and d3-zoom (https://github.com/d3), Copyright 2010-2022 Mike
+  Bostock, licensed under the ISC License, copied below; and d3-ease, Copyright
+  2010-2021 Mike Bostock and Copyright 2001 Robert Penner, licensed under the
+  BSD 3-Clause License, copied below.
+- React Aria Components, React Aria, React Stately and @internationalized/date,
+  number and string (https://github.com/adobe/react-spectrum), Copyright Adobe,
+  licensed under the Apache License, Version 2.0 (see LICENSE).
+- @swc/helpers (https://github.com/swc-project/swc), licensed under the Apache
+  License, Version 2.0 (see LICENSE).
+- tslib (https://github.com/microsoft/tslib), Copyright (c) Microsoft
+  Corporation, licensed under the BSD Zero Clause License, copied below.
 
-The MIT License, as it applies to React, React DOM and scheduler:
+The MIT License, as it applies to React, React DOM, scheduler, dnd-kit, React
+Flow, zustand, classcat, clsx, aria-hidden, use-sync-external-store and
+client-only:
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -125,3 +151,66 @@ INCLUDING ANY GENERAL, SPECIAL, INDIRECT, INCIDENTAL, OR CONSEQUENTIAL
 DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
+
+The ISC License, as it applies to d3-color, d3-dispatch, d3-drag,
+d3-interpolate, d3-selection, d3-timer, d3-transition and d3-zoom:
+
+  Copyright 2010-2022 Mike Bostock
+
+  Permission to use, copy, modify, and/or distribute this software for any
+  purpose with or without fee is hereby granted, provided that the above
+  copyright notice and this permission notice appear in all copies.
+
+  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+  REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+  AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+  INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+  LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+  OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+  PERFORMANCE OF THIS SOFTWARE.
+
+The BSD 3-Clause License, as it applies to d3-ease:
+
+  Copyright 2010-2021 Mike Bostock
+  Copyright 2001 Robert Penner
+  All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are met:
+
+  * Redistributions of source code must retain the above copyright notice, this
+    list of conditions and the following disclaimer.
+
+  * Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+
+  * Neither the name of the author nor the names of contributors may be used to
+    endorse or promote products derived from this software without specific
+    prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+The BSD Zero Clause License, as it applies to tslib:
+
+  Copyright (c) Microsoft Corporation.
+
+  Permission to use, copy, modify, and/or distribute this software for any
+  purpose with or without fee is hereby granted.
+
+  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+  REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+  AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+  INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+  LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+  OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+  PERFORMANCE OF THIS SOFTWARE.

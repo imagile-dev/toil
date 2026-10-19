@@ -1,10 +1,15 @@
 /**
  * The agent seam (#206, Reasoning on the subscription you already have). An
  * agent answers questions about one dossier's work, as the dashboard read it
- * through toil, and cites every item it used; it never writes. Writes come back as proposals a human applies through
- * toil's write gate, which arrives with milestone 7, so this interface has no
- * way to send one yet. A suggestion box that cannot be emptied, by design.
+ * through toil, and cites every item it used; it never writes. A change it
+ * suggests comes back as a proposal (src/proposal.ts) a person reviews and
+ * applies through toil's write gate, so this interface has no way to send
+ * one. An answer may stream (#253): `stream` yields the answer as it grows,
+ * and the pane shows it as it arrives. A suggestion box that cannot be
+ * emptied, by design.
  */
+
+import type { Proposal } from './proposal.ts';
 
 /** One paragraph of an answer, and the work items it rests on. */
 export interface AnswerPart {
@@ -19,6 +24,8 @@ export interface Answer {
   citations: string[];
   /** Who answered: the adapter and model, or `scripted` for the preview. */
   by: string;
+  /** Changes it suggests, for a person to review and apply. Never applied by the UI. */
+  proposals: Proposal[];
 }
 
 export interface Starter {
@@ -31,6 +38,11 @@ export interface Agent {
   starters(dossier: string): Starter[];
   /** Answers about the named dossier only. */
   ask(dossier: string, prompt: string): Promise<Answer>;
+  /**
+   * The same answer as it grows: each value is the answer so far, and the
+   * last is the whole of it. Optional; the pane falls back to `ask`.
+   */
+  stream?(dossier: string, prompt: string, signal?: AbortSignal): AsyncIterable<Answer>;
 }
 
 const CITE = /\[\[([^\]]+)\]\]/g;

@@ -68,3 +68,58 @@ describe("the browser's mapOwi", () => {
     expect(browser.items).toEqual(api.items);
   });
 });
+
+describe('every proposal the board and the scripted agent can make', async () => {
+  const { COLUMNS, proposeMove } = await import('../src/model/board.ts');
+  const { SCRIPTS } = await import('../src/fixtures/agent.ts');
+  const proposals = [];
+  for (const name of NAMES) {
+    const { items } = await loadDossier(fixtureExecute().execute, name);
+    for (const item of items) for (const to of COLUMNS) proposals.push(proposeMove(item, to, items, name));
+  }
+  for (const scripts of Object.values(SCRIPTS)) for (const s of Object.values(scripts)) proposals.push(...(s.proposals ?? []));
+  const withCommand = proposals.filter((p) => p?.command);
+
+  it('includes some of each kind', () => {
+    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira transition-issue', 'ado work transition', 'jira update-issue', 'ado work update']));
+  });
+
+  it.each(withCommand.map((p) => [p!.id, p!] as const))('%s names a write command, with input its schema accepts', (_id, p) => {
+    const def = byName.get(p.command!);
+    expect(def, `toil has no API command "${p.command}"`).toBeDefined();
+    expect(def!.writes).toBe(true);
+    const result = new Validator(def!.inputSchema as object, '2020-12', false).validate(p.input);
+    expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
+  });
+  it('lists exactly the commands whose input takes inputFile, so the advice never offers one that is not there', async () => {
+    const { INPUT_FILE_COMMANDS } = await import('../src/proposal.ts');
+    const takes = registry.commands.filter((c) => Object.keys((c.inputSchema as { properties?: object }).properties ?? {}).includes('inputFile')).map((c) => c.name);
+    expect([...INPUT_FILE_COMMANDS].sort()).toEqual(takes.sort());
+  });
+
+  it('refers a PowerShell refusal to an MCP tool that exists, with input its schema accepts', async () => {
+    const { commandLine, toolName } = await import('../src/proposal.ts');
+    const byTool = new Map(registry.commands.map((c) => [toolName(c.name), c]));
+    const hostile = withCommand.map((p) => ({ ...p, input: { ...p!.input, ...(p!.command === 'jira transition-issue' ? { transition: 'Code Review & QA' } : p!.command === 'ado work transition' ? { state: 'Code Review & QA' } : { dossier: 'a&b' }) } }));
+    for (const p of hostile) {
+      const out = commandLine({ command: p!.command ?? null, input: p!.input }, 'powershell');
+      expect(out.line, p!.command!).toBeNull();
+      const def = byTool.get(out.mcp!.tool);
+      expect(def, out.mcp!.tool).toBeDefined();
+      const result = new Validator(def!.inputSchema as object, '2020-12', false).validate(out.mcp!.input);
+      expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
+      expect((out.reason ?? '').includes('--input-file')).toBe(Object.keys((def!.inputSchema as { properties?: object }).properties ?? {}).includes('inputFile'));
+    }
+  });
+
+  const hints = proposals.flatMap((p) => (p?.hint ? [[`${p.id} hint`, p.hint] as const] : []));
+  it('includes read-only hints', () => expect(hints.length).toBeGreaterThan(0));
+
+  it.each(hints)('%s names a read command, with input its schema accepts', (_id, h) => {
+    const def = byName.get(h.command);
+    expect(def, `toil has no API command "${h.command}"`).toBeDefined();
+    expect(def!.writes).toBe(false);
+    const result = new Validator(def!.inputSchema as object, '2020-12', false).validate(h.input);
+    expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
+  });
+});

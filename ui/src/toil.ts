@@ -17,7 +17,7 @@
 import type { Envelope } from '../../src/core/envelope.ts';
 
 export type { Envelope } from '../../src/core/envelope.ts';
-export type { Person, StatusCategory, WorkItem, WorkItemType } from '../../src/core/owi/types.ts';
+export type { LinkType, Person, StatusCategory, Transition, WorkItem, WorkItemType } from '../../src/core/owi/types.ts';
 
 /**
  * The options the UI passes. A subset of the API's `ExecuteOptions`, so the

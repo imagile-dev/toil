@@ -10,11 +10,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import './app.css';
+import './views.css';
 import { scriptedAgent } from './fixtures/agent.ts';
 import { FIXTURE_NOW, fixtureExecute } from './fixtures/execute.ts';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview />
+    <App execute={fixtureExecute().execute} agent={scriptedAgent({ delay: 18 })} now={FIXTURE_NOW} preview />
   </StrictMode>,
 );

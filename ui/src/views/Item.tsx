@@ -4,9 +4,12 @@
  * listed, not hidden (principle 4). Full disclosure, without the twelve-page form.
  */
 
-import { ItemLink, typeText } from '../components/items.tsx';
-import { useData } from '../data.ts';
+import { Avatar, StatusChip } from '../components/bits.tsx';
+import { Cited, ItemLink, typeText } from '../components/items.tsx';
+import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, dateTime, dossierHref, estimateText, personText, shortKey, sourceLabel } from '../format.ts';
+import { age, cycleTime } from '../model/flow.ts';
+import { INSIGHT_LABEL, insights } from '../model/insights.ts';
 import { entry } from '../model/sprint.ts';
 import { useSkins } from '../skins.tsx';
 
@@ -20,7 +23,8 @@ const LINK_WORD: Record<string, [string, string]> = {
 };
 
 export function ItemView({ id }: { id: string }) {
-  const { byId, dossier } = useData();
+  const { byId, dossier, now } = useData();
+  const { insights: prepared } = useDerived();
   const { EmptyState } = useSkins();
   const item = byId.get(id);
   if (!item) {
@@ -39,6 +43,10 @@ export function ItemView({ id }: { id: string }) {
   const deployedTo = dossier.deployments.filter((d) => d.items.includes(id));
   const e = entry(item);
   const source = sourceLabel(item.source.area);
+  const found = insights(item, prepared);
+  const cycle = cycleTime(item);
+  const inProgress = age(item, now);
+  const round1 = (n: number) => Math.round(n * 10) / 10;
 
   return (
     <>
@@ -47,12 +55,44 @@ export function ItemView({ id }: { id: string }) {
           {source} {shortKey(item)}
         </p>
         <h1 tabIndex={-1}>{item.title}</h1>
-        {item.url && (
-          <p>
-            <a href={item.url}>Open in {source}</a>
-          </p>
-        )}
+        <p className="item-meta">
+          <StatusChip category={item.statusCategory} status={item.status} /> <Avatar person={item.assignee} /> {personText(item.assignee)}
+          {item.url && (
+            <>
+              {' · '}
+              <a href={item.url}>Open in {source}</a>
+            </>
+          )}
+        </p>
       </div>
+      <section className="panel insights-panel" aria-labelledby="insights">
+        <h2 id="insights">Insights</h2>
+        {found.length ? (
+          <ul className="rows">
+            {found.map((i) => (
+              <li key={i.code} className={`insight-row insight-row--w${i.weight}`}>
+                <span className={`insight insight--w${i.weight}`}>{INSIGHT_LABEL[i.code]}</span> <Cited text={i.text} />.{' '}
+                <span className="field">
+                  Source: <code>{i.evidence}</code>
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>{item.statusCategory === 'DONE' ? 'Done: nothing to act on.' : 'Nothing stands out.'}</p>
+        )}
+        <p className="note">
+          {cycle
+            ? cycle.days !== null
+              ? `Cycle time ${round1(cycle.days)} days, from ${dateTime(cycle.start)} to ${dateTime(cycle.end)}.`
+              : `Cycle time unknown: ${cycle.reason}.`
+            : inProgress
+              ? inProgress.days !== null
+                ? `In progress for ${round1(inProgress.days)} days, since ${dateTime(inProgress.since)}.`
+                : `Time in progress unknown: ${inProgress.reason}.`
+              : 'Not started.'}
+        </p>
+      </section>
       <div className="item-grid">
         <section aria-labelledby="fields">
           <h2 id="fields">Fields</h2>
