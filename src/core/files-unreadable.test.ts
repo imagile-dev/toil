@@ -113,7 +113,7 @@ describe('an ignore file that exists but cannot be read (#264)', () => {
     expect(listed).toEqual(['.gitignore', 'b.txt']);
     expect(warnings).toEqual([
       {
-        code: 'GITIGNORE_UNREADABLE',
+        code: 'GITIGNORE_NOT_UTF8',
         message: `${real}/.gitignore is not valid UTF-8. Its rules were read with the bytes that don't decode replaced, so a pattern holding them may not match the files it names, and those files may be listed. Save the file as UTF-8.`,
       },
     ]);

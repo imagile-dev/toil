@@ -92,7 +92,8 @@ export function unreadableIgnoreWarning(file: string, err: unknown): { code: str
  */
 export function undecodableIgnoreWarning(file: string): { code: string; message: string } {
   return {
-    code: 'GITIGNORE_UNREADABLE',
+    // Its own code: the file was read and its rules apply, which is not what GITIGNORE_UNREADABLE means.
+    code: 'GITIGNORE_NOT_UTF8',
     message: `${file.replace(/\\/g, '/')} is not valid UTF-8. Its rules were read with the bytes that don't decode replaced, so a pattern holding them may not match the files it names, and those files may be listed. Save the file as UTF-8.`,
   };
 }

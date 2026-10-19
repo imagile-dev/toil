@@ -3842,7 +3842,8 @@ decided here.
   names the file, Node's error, what it means for the listing, and a fix chosen by
   the error code. The same holds for `.git/info/exclude` and for the `.gitignore`
   files above the listing root.
-- **A file that isn't UTF-8 still applies, and is reported under the same code.**
+- **A file that isn't UTF-8 still applies, and is reported as `GITIGNORE_NOT_UTF8`**,
+  its own code, because the file was read and its rules apply (review on #312).
   It's decoded with each bad byte replaced, which is what reading it as `'utf8'`
   did before without a word. Throwing the file out instead would lose its ASCII
   lines, which are most of any real `.gitignore`. A byte-order mark is kept in the

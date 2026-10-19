@@ -132,7 +132,8 @@ no second walker. A `.gitignore` line it can't compile (a reversed range such as
 applies. An ignore file that exists but can't be read (permission, a lock, a folder
 of that name) applies no rules and is a `GITIGNORE_UNREADABLE` warning naming the
 file, the error and the fix; one that isn't UTF-8 still applies, decoded with
-replacements, under the same code. Only a missing ignore file is silently no rules.
+replacements, with a `GITIGNORE_NOT_UTF8` warning. Only a missing ignore file is
+silently no rules.
 
 Before adding a dependency, read CLAUDE.md, **No Executables** and **Secrets**: pure
 JS or WASM, a licence of MIT, Apache-2.0 or BSD, pinned exactly, at least 14 days old,
