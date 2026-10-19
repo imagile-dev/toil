@@ -68,6 +68,7 @@ export const READ_COMMANDS: ReadonlySet<string> = new Set([
   'ado pipeline list-runs',
   'github projects list-items',
   'github get-issue',
+  'github list-issues',
   'github issue-events',
   'github list-prs',
   'github list-checks',
