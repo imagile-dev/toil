@@ -288,7 +288,8 @@ on stdin with `--input -`.
 
 - **Current:** none (GitHub's generated card).
 - **Proposed:** `.github/assets/social-preview.png`, added in this PR: 1280×640 PNG,
-  277 KB, the toil mark, the wordmark and the one-line pitch on the site's drafting art.
+  221 KB, the toil badge, the Fredoka wordmark and the one-line pitch on the site's
+  drafting art (re-rendered in #286).
 - **Why:** it's the image every shared link to the repository shows on chat, social
   and in search.
 - **Risk:** none. It isn't settable through the API.

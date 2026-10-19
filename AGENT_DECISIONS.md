@@ -3727,3 +3727,14 @@ decided here.
   doesn't touch, and is dropped where a cell holds both, rather than adding a
   background colour to every cell, the recording's encoder and the site's player.
 
+- **The README banner and social preview wear the badge and the Fredoka wordmark**
+  (#286, the follow-up the entry above promised). #268's background master wasn't
+  kept in any worktree's `.claude/image-generation/`, so the background was lifted
+  out of #268's own renders rather than regenerated: left of the art, the plate is a
+  flat gradient, so inside the text's rows each column was replaced by its median
+  over the rows with no text, and every other pixel is #268's. The art is unchanged
+  and nothing was image-generated. The badge is the hand-built SVG from
+  `site/src/components/Logo.astro`, "toil" is Fredoka 600 in the ink colour, and the
+  eyebrow, pitch and sub-line keep #268's words and faces. The banner is WebP at
+  quality 85 (47 KB); the social preview is a 256-colour PNG from pngquant (221 KB),
+  because a plain median-cut palette banded the badge's gradient.
