@@ -56,6 +56,25 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | `dossiers.read` | `files.workspace` | `src/core/dossier.ts` | Reading dossier files (`docs/dossiers.md`) from your own folder (`~/.toil/dossiers/`), the folders you list in `dossierPaths` or `TOIL_DOSSIER_PATHS`, and `.toil/dossiers/` at the root of the repository the call's folder is in. A dossier file named on the call (`--dossier <file>`) must be one of those, or inside the workspace. |
 | `dossiers.write` | `files.workspace` | `src/core/dossier.ts` | The `toil dossiers` commands writing a dossier to your own folder, a listed folder, or `.toil/dossiers/` at the root of a git working tree (`export --repo`). Anywhere else, the file must be inside the workspace. |
 | `dossiers.replace` | `files.no-overwrite` | `src/core/dossier.ts` | Rewriting a dossier: an edit (`link`, `field`, `add-repo`, `env`) rewrites the file it read, and `export`/`import` with `--replace` replace one. Only a file that is already a valid dossier is ever replaced. |
+| `feedback.send` | `commands.read-only` | `src/feedback/command.ts`, `src/api.ts` | `toil feedback` sending one report to Imagile's feedback endpoint, which files it as a public GitHub issue, with no connection holding `writes: true` and no `--allow-write`. Its gate is the approval of that exact report instead, and it is the one request toil makes to a host the user didn't configure. Bounded below. |
+
+`feedback.send` is one request, to one fixed place, and only on approval (CLAUDE.md,
+principle 9 and **Writes**; #265):
+
+1. **Where.** `https://func-toil-feedback.azurewebsites.net/api/report`, written once
+   in `src/feedback/consent.ts`. `TOIL_FEEDBACK_URL` may replace it only with a
+   loopback `http://` address (`http://127.0.0.1:7071`), for testing a local copy of
+   the function; any other value is `CONFIG_INVALID`, before anything is sent.
+2. **When.** Only with `--consent` on the call, or `yes` typed at a terminal after the
+   report and the disclaimer are shown. Without either it sends nothing and returns
+   the report it would send. It is CLI only, never an MCP tool. Through
+   `@imagile-dev/toil/api` it runs only for a `person`, whose `yes` to the `consent`
+   question is the approval: the `consent` field is refused there, and a `readOnly`
+   call asks nothing and only previews.
+3. **What.** The kind, title, body and email the caller gave, plus toil's version,
+   commit and the disclaimer's version. Never config, a connection name, a host, a
+   token or anything else toil holds. The audit line keeps the title and body only as
+   hashes, and drops the email.
 
 `git.read-up` is metadata only, and read only. It covers exactly these, and nothing
 else:

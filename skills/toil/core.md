@@ -1,5 +1,5 @@
 ---
-description: What every toil command shares, in detail - the envelope and errors, the contract version, --select, toil wait, paging and progress, writes and their exceptions, global flags, files and the workspace, configuration, the raw API passthrough, dossiers, the audit log, using toil from a program (@imagile-dev/toil/api), certificates and proxies
+description: What every toil command shares, in detail - the envelope and errors, the contract version, --select, toil wait, paging and progress, writes and their exceptions, global flags, files and the workspace, configuration, the raw API passthrough, dossiers, the audit log, using toil from a program (@imagile-dev/toil/api), sending feedback, certificates and proxies
 ---
 
 # Using toil
@@ -79,13 +79,14 @@ deletes are never tools. A command that is CLI only and has no connection yet
 
 ### Exceptions
 
-Exactly three writes don't follow that rule. Each is the maintainer's choice, made
+Exactly four writes don't follow that rule. Each is the maintainer's choice, made
 deliberately, and is listed here with how to avoid it.
 
 | Write | What it writes, and when | Why | To avoid it |
 |-------|--------------------------|-----|-------------|
 | **`toil skill install`** | With `--allow-write` alone (CLI only, no connection): the toil skill, into one agent's skills folder as `toil/`, recorded as `bundled`. | Its contents are fixed: the files embedded in toil, no third-party code. It replaces only a `toil/` folder it recorded as `bundled` and refuses any other. | Don't run it. |
 | **The toil skill keeping itself current** | With no `--allow-write`: a `toil/` skill folder recorded as `bundled`, and nothing else in a skills folder (never a marketplace or hand-made skill). Rewritten by any command that loads config, on the CLI or over MCP, when that command changed the config file (a connection added, changed or removed) or when the copy was written by another toil version. Said in `meta.warnings` as `SKILL_REWRITTEN`. | So an installed skill never describes connections you no longer have, or a toil you no longer run, with no update command to forget. The contents are fixed; the description holds only area and engine names checked against toil's own list, never a host or a credential; and a rewrite that fails is a `SKILL_REWRITE_FAILED` warning, never a failed command. | Don't install the skill with `toil skill install` (copy `skills/toil` yourself, or use the Claude Code plugin marketplace), or delete the installed `toil/` folder. A call with `--config <file>` never rewrites it. |
+| **`toil feedback`** | With no connection and no `--allow-write`: one bug report or feature request, sent to Imagile LLC, which files it as a public GitHub issue. Only with `--consent` on the call, or `yes` typed at a terminal after it shows the report. CLI only. | Feedback has no connection to hold a standing opt-in, so the approval of each report is the opt-in. It sends only what you typed, plus toil's version and commit, and is the one request toil makes to a host you didn't configure (**Feedback**, below). | Don't run it, or run it without `--consent`: it then sends nothing and shows what it would send. |
 | **The welcome menu's game save** | With no `--allow-write`: the game's progress, under the `"game"` key of `~/.toil/config.json`, every other key kept as it was. Only while you play Two Weeks' Notice in the menu bare `toil` opens. | It's a game a person plays at a terminal, and its save touches nothing but its own key. The save is sealed against tampering, not kept secret. | Don't play it. There is no setting to turn the save off. |
 
 ## The raw API passthrough
@@ -223,12 +224,14 @@ const envelope = await execute('jira search', { jql: 'project = PAY', maxResults
 - **`person`** is for a program with its own interface for a person, such as Toil
   UI's settings pages. It is `{ ask(question) }`, and with it `execute()` also runs
   the connections commands a person runs on a terminal: `connections add`, `login`,
-  `remove`, `writes` and `default` (`registry.personCommands`). Each question
-  arrives as `{ id, text, secret, fallback }`, and `ask` returns what the person
-  typed. The `id` is one of `area`, `setting:<key>`, `secret:<key>`, `confirm`
-  (`y` saves what they reviewed) or `confirm-name` (the connection's name, typed to
-  turn writes on). Return `undefined` for a question they weren't asked, and the
-  command saves nothing (`CANCELLED`). A secret goes from the answer to the OS
+  `remove`, `writes` and `default`, and `feedback` (`registry.personCommands`). Each
+  question arrives as `{ id, text, secret, fallback }`, and `ask` returns what the
+  person typed. The `id` is one of `area`, `setting:<key>`, `secret:<key>`, `confirm`
+  (`y` saves what they reviewed), `confirm-name` (the connection's name, typed to
+  turn writes on) or `consent` (`yes` sends the feedback report and disclaimer the
+  question shows, **Feedback**, above). With `readOnly`, nothing is asked: `feedback`
+  only previews. Return `undefined` for a question they weren't asked, and the
+  command saves or sends nothing (`CANCELLED`). A secret goes from the answer to the OS
   credential store: it is never in the input, the envelope or the audit log. The
   program must ask a person and pass on their answers. Nothing about this lets an
   agent run these commands.
@@ -254,6 +257,65 @@ const envelope = await execute('jira search', { jql: 'project = PAY', maxResults
 What `@imagile-dev/toil/api` exports, and the types it names, follow the command
 contract: they change only additively unless `contractVersion` goes up. Anything else
 in the package is internal.
+
+## Feedback
+
+`toil feedback bug|feature` sends a bug report or a feature request to Imagile LLC,
+where it becomes a public GitHub issue in `imagile-dev/toil`, and the reporter is
+emailed when it's filed and when it closes. It is CLI only, never an MCP tool, and the
+one request toil makes to a host you didn't configure. Every report carries this
+disclaimer, version 1, and nothing is sent until the person sending it agrees to it:
+
+> Your report is sent to Imagile LLC to improve toil, and it becomes a public GitHub
+> issue in imagile-dev/toil. Your email address stays private: it is used only to tell
+> you about your issue. Before you send, remove company data: internal URLs and
+> hostnames, ticket keys, repository and project names, people's names, other
+> identifiers and credentials. You are responsible for what you send.
+
+```bash
+toil feedback bug --title "jira search ignores --max-results" --body "toil jira search --max-results 5 returns 50 issues." --email you@example.com
+```
+
+| Flag | Meaning |
+|------|---------|
+| `--title <text>` | One line, up to 120 characters |
+| `--body <text>` | The details, up to 4000 characters |
+| `--email <address>` | The reporter's own address, kept private |
+| `--input-file <file>` | JSON with any of `kind`, `title`, `body` and `email`, for long text; a flag beats the file, and `-` reads stdin |
+| `--consent` | Send it. Without it nothing is sent |
+
+Without `--consent`, the command sends nothing. On a terminal it shows the report and
+the disclaimer and asks; anywhere else it returns `sent: false`, the exact `report`
+it would send, the `disclaimer`, `consentVersion` and how to approve, with a
+`FEEDBACK_NOT_SENT` warning. With `--consent` it sends that same report and returns
+`sent: true` and the endpoint's message. The report is the kind, title, body and email
+given, plus `version`, `commit` and `consent` (the disclaimer's version). toil never
+adds config, connection names, hosts or tokens. A build that doesn't know its commit
+previews but can't send (`UNSUPPORTED`); the form at
+https://imagile-dev.github.io/toil/feedback/ works from any browser.
+
+**An agent sending feedback for a user follows every step, in order, every time:**
+
+1. **Only when the user asks.** Never offer to send a report on your own initiative,
+   and never send one because a command failed.
+2. **Scrub it.** Replace company data with neutral placeholders before the user sees
+   the draft: internal URLs and hostnames (`jira.imagile.dev`), ticket keys
+   (`PROJ-123`), repository, project and team names (`my-repo`), people's names
+   (`a colleague`), email addresses other than the reporter's own, IDs, tokens,
+   passwords and anything else credential-shaped. Keep toil's own command names,
+   flags and error codes; they're what makes a report useful.
+3. **Show it.** Run the command without `--consent` and show the user the full
+   `data.report` it returned, and the `data.disclaimer`, word for word.
+4. **Ask.** Get the user's explicit yes in chat to sending that exact report. A yes to
+   an earlier draft, or to feedback in general, isn't one.
+5. **Send it.** Only then run the same command again with `--consent`, unchanged. If
+   the user asks for any change, make it, and go back to step 3.
+
+Through `@imagile-dev/toil/api`, `feedback` runs only for a `person` (below), whose
+`yes` to the `consent` question sends it; the `consent` field is refused there, and a
+`readOnly` call only previews. `TOIL_FEEDBACK_URL` points the command at a local copy
+of the feedback function for testing, and takes only a loopback address
+(`http://127.0.0.1:7071`).
 
 ## Certificates and proxies
 

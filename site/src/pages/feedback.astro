@@ -7,7 +7,7 @@ import { repoUrl } from '../lib/url';
 const reportUrl = `${feedback.endpoint}/api/report`;
 const curl = `curl -sS ${reportUrl} \\
   -H 'Content-Type: application/json' \\
-  -d '{"kind":"bug","title":"…","body":"…","email":"you@example.com","commit":"<hash>"}'`;
+  -d '{"kind":"bug","title":"…","body":"…","email":"you@example.com","consent":${feedback.consent.version},"commit":"<hash>"}'`;
 ---
 
 <Layout title="Feedback" description="Report a bug or ask for a feature in toil, without a GitHub account.">
@@ -50,6 +50,14 @@ const curl = `curl -sS ${reportUrl} \\
 
         <div class="cf-turnstile" data-sitekey={feedback.turnstileSiteKey} data-theme="dark"></div>
 
+        <div class="fb-consent">
+          <p class="fb-consent__text" id="fb-disclaimer">{feedback.consent.text}</p>
+          <label class="fb-consent__check">
+            <input name="consent" type="checkbox" required aria-describedby="fb-disclaimer" />
+            <span>I have removed company data and agree to send this report to Imagile LLC.</span>
+          </label>
+        </div>
+
         <div class="fb-actions">
           <button class="btn btn--primary" type="submit">Send report</button>
           <p class="fb-status" role="status" aria-live="polite"></p>
@@ -63,6 +71,8 @@ const curl = `curl -sS ${reportUrl} \\
         <pre class="fb-code"><code>toil version --select data.commit</code></pre>
         <p>Put the <code>data</code> value it returns in place of <code>&lt;hash&gt;</code>:</p>
         <pre class="fb-code"><code>{curl}</code></pre>
+        <p><code>"consent":{feedback.consent.version}</code> says you agree to this, and a report without it is turned away:</p>
+        <p class="fb-consent__text fb-consent__text--boxed">{feedback.consent.text}</p>
         <p>Add <code>"version"</code> too if you like. Up to three reports a day from one address.</p>
         <p class="fb-alt">Have a GitHub account? <a href={`${repoUrl}/issues/new`}>Open an issue directly</a>.</p>
       </aside>
@@ -73,10 +83,13 @@ const curl = `curl -sS ${reportUrl} \\
 <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
 <script>
+  import { feedback } from '../data/feedback';
+
   const form = document.getElementById('feedback-form') as HTMLFormElement | null;
   if (form) {
     const status = form.querySelector<HTMLElement>('.fb-status')!;
     const button = form.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const consent = form.elements.namedItem('consent') as HTMLInputElement;
     const body = form.elements.namedItem('body') as HTMLTextAreaElement;
     const count = form.querySelector<HTMLElement>('[data-count-for="body"]')!;
     body.addEventListener('input', () => {
@@ -91,6 +104,13 @@ const curl = `curl -sS ${reportUrl} \\
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (!form.reportValidity()) return;
+      // The checkbox is required, but a report is only sent with it ticked even
+      // where a browser lets a required field through.
+      if (!consent.checked) {
+        say('Tick the box under the disclaimer to agree to it, then send again.', 'error');
+        consent.focus();
+        return;
+      }
       const data = new FormData(form);
       const token = String(data.get('cf-turnstile-response') ?? '');
       if (!token) {
@@ -108,6 +128,7 @@ const curl = `curl -sS ${reportUrl} \\
             title: String(data.get('title') ?? ''),
             body: String(data.get('body') ?? ''),
             email: String(data.get('email') ?? ''),
+            consent: feedback.consent.version,
             website: String(data.get('website') ?? ''),
             turnstileToken: token,
           }),
@@ -184,6 +205,39 @@ const curl = `curl -sS ${reportUrl} \\
 
   /* Off screen for people, still in the form for bots that fill every field. */
   .fb-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+
+  .fb-consent {
+    display: grid;
+    gap: var(--space-2xs);
+    padding: var(--space-sm);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+  .fb-consent__text { margin: 0; color: var(--color-muted); font-size: var(--text-sm); max-width: var(--measure); }
+  .fb-terminal .fb-consent__text--boxed {
+    padding: var(--space-sm);
+    border-left: 2px solid var(--color-line-strong);
+    background: var(--color-bg-deep);
+    border-radius: var(--radius-sm);
+  }
+  .fb-consent__check {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    min-height: 44px;
+    padding-top: 0.6rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .fb-consent__check input {
+    flex: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0.1rem 0 0;
+    accent-color: var(--color-accent);
+  }
+  .fb-consent__check input:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 
   .fb-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); }
   .fb-actions .btn { min-height: 44px; }

@@ -20,13 +20,18 @@
  */
 
 import { fixtureConfigExecute } from '../src/fixtures/config.ts';
+import { fixtureFeedbackEnvelope } from '../src/fixtures/feedback.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import type { Envelope, Execute, ExecuteOptions, ExecutePerson } from '../src/toil.ts';
 import type { Cache } from './cache.ts';
 import type { RequestContext } from './context.ts';
 
-/** What a call is allowed to do. `read` is every view; `config` is #253's settings pages, and nothing else. */
-export type Access = 'read' | 'config';
+/**
+ * What a call is allowed to do. `read` is every view; `config` is #253's
+ * settings pages; `feedback` is `toil feedback` from the Feedback dialog
+ * (#265), and nothing else.
+ */
+export type Access = 'read' | 'config' | 'feedback';
 
 export interface Store {
   /** `toil`, `fixture`, and later `sqlite`: shown in the session, so a view can say where its data came from. */
@@ -71,7 +76,7 @@ export const READ_COMMANDS: ReadonlySet<string> = new Set([
   'openshift deployments',
 ]);
 
-/** How a `config` call runs: read-only for the pages' reads, and with the person's answers for a change. */
+/** How a `config` or `feedback` call runs: read-only for the pages' reads and a feedback preview, and with the person's answers for a change or a send. */
 export interface ConfigCall {
   readOnly: boolean;
   person?: ExecutePerson;
@@ -89,7 +94,7 @@ function toilOptions(ctx: RequestContext, access: Access, how: ConfigCall | unde
     readOnly: access === 'read' || how?.readOnly !== false,
     caller: CALLER,
     signal: ctx.signal,
-    ...(access === 'config' && how?.person ? { person: how.person } : {}),
+    ...(access !== 'read' && how?.person ? { person: how.person } : {}),
   };
 }
 
@@ -154,6 +159,8 @@ export function fixtureStore(): Store {
     sample: true,
     now: () => FIXTURE_NOW,
     // The settings pages read the sample config; a change is refused, since the sample has nothing of yours to change.
-    execute: (ctx, command, input, access) => (access === 'config' ? config(command, input) : fixture.execute(command, input, { readOnly: true, caller: CALLER, signal: ctx.signal })),
+    // Feedback builds the sample's report with toil's own code and refuses to send it.
+    execute: async (ctx, command, input, access, how) =>
+      access === 'config' ? config(command, input) : access === 'feedback' ? fixtureFeedbackEnvelope(input, how?.readOnly === false) : fixture.execute(command, input, { readOnly: true, caller: CALLER, signal: ctx.signal }),
   };
 }

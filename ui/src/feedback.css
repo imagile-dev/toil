@@ -1,0 +1,74 @@
+/* The Feedback dialog (src/feedback-dialog.tsx). Colours, fonts and the radius
+   come from the active theme's tokens, so every theme dresses it the same way. */
+
+.feedback-open { white-space: nowrap; }
+
+.feedback-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: start center;
+  padding: 2rem 16px;
+  overflow-y: auto;
+  background: rgb(0 0 0 / 0.55);
+}
+.feedback-modal {
+  width: 100%;
+  max-width: 44rem;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.35);
+}
+.feedback-dialog { outline: none; }
+.feedback-body { display: grid; gap: 1rem; padding: 1.25rem; min-width: 0; }
+.feedback-body h2 { font-size: 1.25rem; }
+.feedback-label { font-weight: 600; color: var(--ink); }
+.feedback-body .shells { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+.feedback-details textarea {
+  font: inherit;
+  font-size: 1rem;
+  min-height: 7rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--ink);
+  resize: vertical;
+}
+.feedback-details textarea[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
+.feedback-preview { display: grid; gap: 0.5rem; min-width: 0; }
+.feedback-report {
+  margin: 0;
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.feedback-consent {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--warn);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.feedback-disclaimer { color: var(--ink); }
+.feedback-consent .check { align-items: flex-start; }
+.feedback-consent .check .box { flex: none; margin-top: 0.15rem; }
+.feedback-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+@media (max-width: 480px) {
+  .feedback-overlay { padding: 0.75rem 16px; }
+  .feedback-body { padding: 1rem; }
+}

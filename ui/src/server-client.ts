@@ -15,6 +15,7 @@
 
 import { NO_AGENT_FIX, NO_AGENT_NOTICE, type Agent, type Answer, type Starter } from './agent.ts';
 import type { AreaInfo, ConfigApi, SettingsInfo } from './config.ts';
+import { FEEDBACK_SAMPLE_DISABLED, type FeedbackApi, type FeedbackFields } from './feedback.ts';
 import type { SyncStatus } from '../server/sync.ts';
 import type { Envelope, Execute } from './toil.ts';
 
@@ -151,6 +152,32 @@ export function httpConfig(session: Session, base = './'): ConfigApi {
       if (isEnvelope(body)) return body;
       throw await failure(res, `toil ${command}`);
     },
+  };
+}
+
+/**
+ * `toil feedback` over the server's `api/feedback` (#265). A preview sends the
+ * fields alone, and the server runs the command read-only; a send adds
+ * `consent: true`, which the dialog passes only while its box is ticked for
+ * the report on screen, and the server answers the command's consent
+ * question with it. With sample data the server refuses to send.
+ */
+export function httpFeedback(session: Session, base = './'): FeedbackApi {
+  const run = async (fields: FeedbackFields, consent: boolean, signal?: AbortSignal): Promise<Envelope> => {
+    const res = await call(base, session, 'api/feedback', { body: { fields, ...(consent ? { consent: true } : {}) }, ...(signal ? { signal } : {}) });
+    let body: unknown;
+    try {
+      body = await res.clone().json();
+    } catch {
+      body = undefined;
+    }
+    if (isEnvelope(body)) return body;
+    throw await failure(res, 'toil feedback');
+  };
+  return {
+    disabled: session.sample ? FEEDBACK_SAMPLE_DISABLED : null,
+    preview: (fields, signal) => run(fields, false, signal),
+    send: (fields) => run(fields, true),
   };
 }
 

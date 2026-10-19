@@ -79,7 +79,10 @@ gets made again in the next place it applies.
 9. **toil talks only to what the user pointed it at.** No telemetry, no update checks,
    no call home. The only network traffic is to hosts in the user's config, or to a
    public API that a command the user ran names in its own name (`toil osv vulns`),
-   plus the proxy the environment names. A credential goes only to the connection
+   plus the proxy the environment names. The one exception is feedback to Imagile:
+   `toil feedback` sends one report to Imagile's feedback endpoint, and only on a
+   person's approval of the exact report it shows them, never on its own
+   (`docs/bounds.md`, `feedback.send`). A credential goes only to the connection
    it's configured on, or to one the user paired it with; the one exception is an
    area's default connection taking another area's default env value, which keeps
    the env chain the contract records.
@@ -228,6 +231,9 @@ GitHub Actions; its build tooling is out of scope.
 - `src/repos/` — `toil repos scan`, discovery for dossiers
 - `src/audit/` — `toil audit list | path`, reading the audit log `src/core/audit.ts`
   keeps
+- `src/feedback/` — `toil feedback bug|feature`, CLI only, and the disclaimer every
+  way of sending feedback shows (`consent.ts`, which `test/feedback-consent.test.ts`
+  holds the function's and the site's copies to)
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
   `commands` (standalone commands export only `commands`). `src/areas/util/kit/`
   is what the local `util` commands share: the input reader, self-verification,
@@ -660,7 +666,7 @@ that matches no registered area is ignored, never guessed at, so a variable can'
 change meaning when an area is added. `envName()` and `parseEnvName()` in
 `src/core/config.ts` are the only places the mapping lives. These names are reserved
 and never map onto an area: `TOIL_CONN_*`, `TOIL_DOSSIER*`, `TOIL_ENV`, `TOIL_CONFIG*`,
-`TOIL_TIMEOUT_MS`, `TOIL_WORKSPACE`.
+`TOIL_TIMEOUT_MS`, `TOIL_WORKSPACE`, `TOIL_FEEDBACK_URL`.
 
 **The config file is versioned.** `"version"` is a whole number; a file without one
 is version 1. Every format change adds a step to `migrateConfig()` with a test, so an
@@ -720,7 +726,19 @@ maintainer's decisions:
    warning, never a failed command.
 
 No other code writes outside a command's gate; a third exception needs this rule
-changed first. The user-facing statement of the exceptions, with how to avoid each,
+changed first.
+
+**`toil feedback` is the one write to a service with no connection** (#265). It
+sends a bug report or feature request to Imagile's feedback endpoint, which files a
+public GitHub issue, so it has no connection to hold `writes: true`. Its gate is the
+approval of each report: `--consent`, or `yes` typed at a terminal after the report
+and the disclaimer are shown; without one it sends nothing and returns the report.
+It is CLI only, runs through the API only for a `person` whose `yes` approves it
+(never a `consent` field, and only a preview under `readOnly`), sends only what the
+caller typed plus toil's version and commit, and goes nowhere but the endpoint in
+`src/feedback/consent.ts` or a loopback `TOIL_FEEDBACK_URL`. The bounds are
+`docs/bounds.md`, `feedback.send`; the agent's steps (scrub, show, ask, then send)
+are `skills/toil/core.md`, **Feedback**. The user-facing statement of the exceptions, with how to avoid each,
 is `skills/toil/core.md`, **Writes**.
 
 Anything toil encrypts says what the encryption protects against, in the code and

@@ -53,4 +53,5 @@ export const BOUND_EXCEPTIONS: readonly BoundException[] = [
   { id: 'dossiers.read', bound: 'files.workspace', enforcedIn: ['src/core/dossier.ts'] },
   { id: 'dossiers.write', bound: 'files.workspace', enforcedIn: ['src/core/dossier.ts'] },
   { id: 'dossiers.replace', bound: 'files.no-overwrite', enforcedIn: ['src/core/dossier.ts'] },
+  { id: 'feedback.send', bound: 'commands.read-only', enforcedIn: ['src/feedback/command.ts', 'src/api.ts'] },
 ];

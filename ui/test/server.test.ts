@@ -667,3 +667,81 @@ afterAll(() => {
   rmSync(app, { recursive: true, force: true });
   rmSync(join(tmpdir(), 'toil-ui-secret.txt'), { force: true });
 });
+
+describe('feedback (#265)', () => {
+  const fields = { kind: 'bug', title: 'jira search ignores --max-results', body: 'It returns 50.', email: 'you@example.com' };
+
+  /** A Store that records each feedback call, with how it was to run and how its person answers the consent question. */
+  function feedbackStore() {
+    const calls: Array<{ command: string; input: Record<string, unknown>; access: Access; readOnly: boolean | undefined; consent: unknown; other: unknown }> = [];
+    const inner = fixtureStore();
+    const store: Store = {
+      ...inner,
+      execute: async (ctx, command, input, access, how) => {
+        const question = (id: string) => ({ id, text: 'q', secret: false, fallback: null });
+        calls.push({ command, input, access, readOnly: how?.readOnly, consent: await how?.person?.ask(question('consent')), other: await how?.person?.ask(question('confirm')) });
+        return inner.execute(ctx, command, input, access, how);
+      },
+    };
+    return { store, calls };
+  }
+
+  it('previews read-only, and sends only with consent, answering yes to the consent question and nothing else', async () => {
+    const { store, calls } = feedbackStore();
+    const { origin } = await start({ store });
+    const { sid, session } = await signIn(origin);
+    const preview = await post(origin, '/api/feedback', { fields }, { sid, csrf: session.csrf });
+    expect(preview.status).toBe(200);
+    expect(JSON.parse(preview.body).data).toMatchObject({ sent: false, report: { ...fields, consent: 1 } });
+    await post(origin, '/api/feedback', { fields, consent: true }, { sid, csrf: session.csrf });
+    expect(calls).toEqual([
+      { command: 'feedback', input: fields, access: 'feedback', readOnly: true, consent: 'no', other: undefined },
+      { command: 'feedback', input: fields, access: 'feedback', readOnly: false, consent: 'yes', other: undefined },
+    ]);
+  });
+
+  it('refuses anything but the four fields as text and consent: true, before a Store sees it', async () => {
+    const { store, calls } = feedbackStore();
+    const { origin } = await start({ store });
+    const { sid, session } = await signIn(origin);
+    for (const body of [{ command: 'jira create-issue', fields }, { fields: { ...fields, connection: 'corp-jira' } }, { fields: { ...fields, title: 5 } }, { fields, consent: 'yes' }, { fields, consent: false }, { fields: [fields] }, {}]) {
+      const res = await post(origin, '/api/feedback', body, { sid, csrf: session.csrf });
+      expect(res.status, JSON.stringify(body)).toBe(400);
+      expect(JSON.parse(res.body).error.fix).toContain('"consent": true');
+    }
+    expect(calls).toEqual([]);
+  });
+
+  it('keeps the lock on the door: a session, the page\'s Origin and the CSRF token', async () => {
+    const { store, calls } = feedbackStore();
+    const { origin } = await start({ store });
+    const { sid, session } = await signIn(origin);
+    const body = JSON.stringify({ fields, consent: true });
+    const json = { 'content-type': 'application/json' };
+    expect((await send(origin, '/api/feedback', { method: 'POST', body, headers: { origin, ...json, [CSRF_HEADER]: session.csrf } })).status).toBe(401);
+    expect((await send(origin, '/api/feedback', { method: 'POST', body, headers: { origin, ...json, [SESSION_HEADER]: sid } })).status).toBe(403);
+    expect((await post(origin, '/api/feedback', { fields, consent: true }, { sid, csrf: session.csrf }, { origin: 'https://rebind.imagile.dev' })).status).toBe(403);
+    expect(calls).toEqual([]);
+  });
+
+  it('sends nothing with sample data, saying why', async () => {
+    const { origin } = await start();
+    const { sid, session } = await signIn(origin);
+    const res = JSON.parse((await post(origin, '/api/feedback', { fields, consent: true }, { sid, csrf: session.csrf })).body) as Envelope;
+    expect(res.ok).toBe(false);
+    expect(res.error?.message).toBe('Nothing was sent: this is sample data.');
+  });
+
+  it('hands toil the person only off the read path: toilStore runs feedback with readOnly as the server decided', async () => {
+    const seen: unknown[] = [];
+    const execute: Execute = async (command, input, options) => (seen.push([command, input, options]), { ok: true, data: null, error: null, meta: { command, durationMs: 0, version: 'x', contractVersion: 1 } } as Envelope);
+    const ctx: RequestContext = { viewer: { id: 'local', name: 'you', via: 'launch-token' }, signal: new AbortController().signal };
+    const person = { ask: () => 'yes' };
+    await toilStore(execute).execute(ctx, 'feedback', fields, 'feedback', { readOnly: false, person });
+    await toilStore(execute).execute(ctx, 'feedback', fields, 'feedback', { readOnly: true, person });
+    expect(seen).toEqual([
+      ['feedback', fields, { readOnly: false, caller: CALLER, signal: ctx.signal, person }],
+      ['feedback', fields, { readOnly: true, caller: CALLER, signal: ctx.signal, person }],
+    ]);
+  });
+});

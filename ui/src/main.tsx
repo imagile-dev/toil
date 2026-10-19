@@ -13,10 +13,11 @@ import './app.css';
 import './views.css';
 import { scriptedAgent } from './fixtures/agent.ts';
 import { fixtureConfig } from './fixtures/config.ts';
+import { fixtureFeedback } from './fixtures/feedback.ts';
 import { FIXTURE_NOW, fixtureExecute } from './fixtures/execute.ts';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App execute={fixtureExecute().execute} agent={scriptedAgent({ delay: 18 })} config={fixtureConfig()} now={FIXTURE_NOW} preview />
+    <App execute={fixtureExecute().execute} agent={scriptedAgent({ delay: 18 })} config={fixtureConfig()} feedback={fixtureFeedback()} now={FIXTURE_NOW} preview />
   </StrictMode>,
 );

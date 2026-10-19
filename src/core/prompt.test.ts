@@ -34,6 +34,15 @@ describe('terminalPrompter', () => {
     expect(t.shown()).toContain('reporting');
   });
 
+  it('writes a question of several lines whole, and prompts on its last line', async () => {
+    const t = fakeTerminal();
+    const answer = terminalPrompter(t.input, t.output).ask('toil would send this:\n{\n  "kind": "bug"\n}\n\nSend it? Type yes to send it', 'no');
+    t.input.write('yes\r');
+    expect(await answer).toBe('yes');
+    expect(t.shown()).toContain('toil would send this:\n{\n  "kind": "bug"\n}\n\n');
+    expect(t.shown()).toContain('Send it? Type yes to send it [no]: ');
+  });
+
   it('turns Ctrl+C into CANCELLED rather than waiting forever', async () => {
     const t = fakeTerminal();
     const answer = terminalPrompter(t.input, t.output).askSecret('token');

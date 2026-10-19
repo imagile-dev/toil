@@ -126,7 +126,7 @@ async function main(): Promise<number> {
   process.stdout.write(
     [
       `Toil UI ${__TOIL_UI_VERSION__} (alpha, local only), on toil ${toilVersion}`,
-      settings.sample ? 'Serving sample data and the scripted agent; nothing connects to a tracker.' : 'Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil\'s own connections and dossiers, when you ask.',
+      settings.sample ? 'Serving sample data and the scripted agent; nothing connects to a tracker.' : 'Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil\'s own connections and dossiers, when you ask. Feedback goes to Imagile only when you send it.',
       ...(cache ? [`The cache is ${cache.paths.db}, kept ${settings.retentionDays} days after each sync; toil-ui wipe deletes it.`] : []),
       '',
       'Open this URL in your browser. It carries this launch\'s token, so keep it to yourself:',

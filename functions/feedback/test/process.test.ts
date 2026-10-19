@@ -15,6 +15,7 @@ const pendingRow = (n: number, extra: Record<string, unknown> = {}) => ({
   email: `you+${n}@example.com`,
   source: 'website',
   smoke: false,
+  consentVersion: 1,
   submittedAt: `2026-10-18T11:0${n}:00.000Z`,
   attempts: 0,
   ...extra,
@@ -42,7 +43,7 @@ describe('ProcessSubmissions', () => {
     const result = await processSubmissions(t.deps);
     expect(result).toEqual({ created: 1, deferred: 0, failed: 0, stuck: 0 });
     const sent = JSON.parse(created[0]!.body!);
-    expect(sent).toEqual({ title: 'Report 1', labels: ['bug', 'from-website'], body: 'Body 1, cc @​someone\n\n---\n<sub>Reported through the form on the toil site.</sub>' });
+    expect(sent).toEqual({ title: 'Report 1', labels: ['bug', 'from-website'], body: 'Body 1, cc @​someone\n\n---\n<sub>Reported through the form on the toil site. The reporter accepted the feedback disclaimer (version 1) before sending.</sub>' });
     expect(created[0]!.headers.authorization).toBe('token ghs_issues');
     expect(JSON.parse(t.calls.find((c) => c.url.endsWith('/access_tokens'))!.body!)).toEqual({ repositories: ['toil'], permissions: { issues: 'write' } });
     expect(t.tables.dump('submissions')).toEqual([]);
@@ -59,6 +60,20 @@ describe('ProcessSubmissions', () => {
     const off = issueFor(pendingRow(1, { source: 'terminal', commit: SHA, onMain: false }) as unknown as Stored, REPO);
     expect(off.labels).toEqual(['bug', 'from-terminal', 'unverified-build']);
     expect(off.body).toContain('not on `main`');
+    expect(off.body).toContain('may be a local or unreleased build. The reporter accepted the feedback disclaimer (version 1) before sending.</sub>');
+  });
+
+  it('still files a row queued before consent was asked for, and says so rather than claim it', async () => {
+    const tables = memoryTables();
+    const legacy: Record<string, unknown> = pendingRow(1);
+    delete legacy.consentVersion;
+    await tables.submissions.create(legacy as ReturnType<typeof pendingRow>);
+    const created: Call[] = [];
+    const t = deps({ tables, routes: issueRoutes(created) });
+    expect(await processSubmissions(t.deps)).toMatchObject({ created: 1, failed: 0 });
+    const sent = JSON.parse(created[0]!.body!);
+    expect(sent.body).toBe('Body 1, cc @​someone\n\n---\n<sub>Reported through the form on the toil site. Sent before reporters were asked to accept the feedback disclaimer.</sub>');
+    expect(t.tables.dump('submissions')).toEqual([]);
   });
 
   it('creates at most DAILY_SUBMISSION_LIMIT issues a UTC day and holds the rest, oldest first', async () => {

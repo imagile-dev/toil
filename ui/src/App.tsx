@@ -25,6 +25,8 @@ import { ItemView } from './views/Item.tsx';
 import { Settings } from './views/Settings.tsx';
 import type { ConfigApi } from './config.ts';
 import type { AgentSettingsPanelProps } from './agent-settings.tsx';
+import type { FeedbackApi } from './feedback.ts';
+import { FeedbackButton } from './feedback-dialog.tsx';
 
 export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'agent';
 export type Route = { view: 'dossiers' } | { view: 'settings'; page: SettingsPage } | { view: 'dashboard'; dossier: string } | { view: 'item'; dossier: string; id: string };
@@ -62,12 +64,14 @@ export interface AppProps {
   preview: boolean;
   /** The local app's agent settings (#251), shown under Settings; the preview has none. */
   agentSettings?: AgentSettingsPanelProps;
+  /** `toil feedback`, behind the header's Feedback button (#265): the server's, or the preview's, which sends nothing. */
+  feedback?: FeedbackApi;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback }: AppProps) {
   const route = useRoute();
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
@@ -189,6 +193,7 @@ export function App({ execute, agent, config, now, preview, agentSettings }: App
                 </ul>
               </nav>
               <div className="settings">
+                {feedback && <FeedbackButton api={feedback} />}
                 <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
                 {Object.keys(theme.schemes).length > 1 && (
                   <Choice

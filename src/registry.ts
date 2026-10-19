@@ -3,6 +3,7 @@ import { auditCommands } from './audit/commands.js';
 import { connectionsCommands } from './connections/commands.js';
 import { dossierBuildCommands } from './dossiers/build.js';
 import { dossiersCommands } from './dossiers/commands.js';
+import { feedbackCommands } from './feedback/command.js';
 import { reposCommands } from './repos/commands.js';
 import type { AnyArea } from './core/area.js';
 import { assertUniquePaths, withCoreAliases, type AnyCommand } from './core/command.js';
@@ -27,7 +28,7 @@ export const areas: AnyArea[] = modules.flatMap((m) => (m.area ? [m.area] : []))
  * use one marketplace's connection are the `skills` area's. `skill install`
  * and `skill show` are the toil skill's own (src/skills/skill-commands.ts).
  */
-export const commands: AnyCommand[] = withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...dossiersCommands(areas), ...dossierBuildCommands(areas), ...reposCommands(), ...skillsConfigCommands(), ...skillCommands(areas), ...setupCommands(), ...auditCommands(), waitCommand], areas);
+export const commands: AnyCommand[] = withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...dossiersCommands(areas), ...dossierBuildCommands(areas), ...reposCommands(), ...skillsConfigCommands(), ...skillCommands(areas), ...setupCommands(), ...auditCommands(), ...feedbackCommands(), waitCommand], areas);
 
 // An alias in another group (`deps outdated` for `artifactory outdated`) can
 // collide with a command there; better a failed start than a silent winner.

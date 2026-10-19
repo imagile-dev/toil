@@ -64,7 +64,7 @@ it("clears every area's CI fallback, as the registry declares them, so a runner'
 
 describe('the registry', () => {
   it("lists the person's commands apart from what execute() serves without one", () => {
-    expect(registry.personCommands.map((c) => c.name).sort()).toEqual(['connections add', 'connections default', 'connections login', 'connections remove', 'connections writes']);
+    expect(registry.personCommands.map((c) => c.name).sort()).toEqual(['connections add', 'connections default', 'connections login', 'connections remove', 'connections writes', 'feedback']);
     expect(registry.commands.map((c) => c.name)).not.toContain('connections add');
     expect(registry.personCommands.find((c) => c.name === 'connections writes')).toMatchObject({ kind: 'cli-only', writes: false, writesLocal: true });
   });
