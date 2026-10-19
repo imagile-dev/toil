@@ -60,9 +60,10 @@ npm run smoke
 
 ## Review and merge
 
-- Every PR gets an automated review from the Imagile Bot, against CLAUDE.md. Fix
-  every finding, including the non-blocking ones, and reply in each thread with
-  what changed.
+- PRs from a branch of this repository get an automated review from the Imagile
+  Bot, against CLAUDE.md, once they're out of draft; PRs from a fork are reviewed by
+  a maintainer. Fix every finding, including the non-blocking ones, and reply in
+  each thread with what changed.
 - The PR description says how you verified the change: the gate's summary lines
   with your OS and Node version, real runs of the commands you touched, and
   screenshots for anything visual.

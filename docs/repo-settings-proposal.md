@@ -26,8 +26,9 @@ against:
   `feedback-deploy.yml` deploys the feedback function to Azure over OIDC through the
   `feedback` environment.
 
-The commands assume `gh` is signed in as a repository admin. A JSON body is passed on
-stdin with `--input -`.
+The commands assume `gh` is signed in as a repository admin, and a bash-compatible
+shell (Git Bash or WSL on Windows), because the JSON bodies are bash heredocs passed
+on stdin with `--input -`.
 
 ## Summary
 
@@ -172,6 +173,10 @@ stdin with `--input -`.
   approval. The bot gives it automatically on same-repo PRs; on the release PR the
   maintainer approves after the last `dist/` push, which is the review it already
   needs.
+  Once the fix agent (`claude-pr-feedback.yml`) pushes to PR branches as the App, a
+  PR it fixed needs a human approval, because the App can't approve its own last
+  push. That is likely what you want, an agent never approving its own fix into
+  `main`, but it will look like the loop stalled unless you expect it.
 - **Automation:** review loop and release PR, as above. If the review workflow is ever
   off or broken, nothing merges, which is the intent.
 - **Apply** (a PUT replaces the whole ruleset, so this repeats what's kept):
