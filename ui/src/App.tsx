@@ -136,6 +136,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   };
 
   const skins = skinsFor(theme.name);
+  // The App provides the theme context, so it can't read it through useWords(); this is the same lookup.
   const words = (key: WordKey, vars?: Record<string, string>) => wordFor(theme.lexicon, wordingOn(theme, choice), key, vars);
   const compact = useMediaQuery(COMPACT_HEADER);
   const links: NavLink[] = [

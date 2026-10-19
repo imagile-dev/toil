@@ -53,7 +53,6 @@
     "empty.builds": "No builds on record for this dossier's pull requests.",
     "empty.deployments": "This dossier names no environment, so there is no delivery to check.",
     "empty.links": "No links between this dossier's items: every crate stands on its own.",
-    "empty.item": "No crate {id} on this dossier's manifest.",
     "empty.ask": "Pick a question, or ask your own. Every answer comes with its paperwork: the items it rests on.",
     "loading.dossiers": "Pulling the dossiers off the rack…",
     "loading.dossier": "Pulling {name} off the rack…",

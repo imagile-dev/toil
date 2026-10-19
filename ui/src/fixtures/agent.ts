@@ -9,7 +9,7 @@
  */
 
 import type { Agent, Answer, AnswerPart, AskStyle, Starter } from '../agent.ts';
-import { citationsOf } from '../agent.ts';
+import { SCRIPTED_LABEL, citationsOf } from '../agent.ts';
 import type { Proposal } from '../proposal.ts';
 
 const J = (n: number) => `[[corp-jira:PAY-${n}]]`;
@@ -243,7 +243,7 @@ export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
     return { prompt: entry?.label ?? prompt, parts, citations: citationsOf(parts), by: 'scripted', proposals: entry?.proposals ?? [] };
   };
   return {
-    label: 'a scripted preview, not a model',
+    label: SCRIPTED_LABEL,
     starters: (dossier: string): Starter[] => Object.entries(SCRIPTS[dossier] ?? {}).map(([id, s]) => ({ id, label: s.label })),
     ask: async (dossier, prompt, style) => answer(dossier, prompt, style),
     async *stream(dossier, prompt, signal, style) {

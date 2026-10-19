@@ -65,7 +65,6 @@
     "empty.builds": "No builds are recorded for this dossier's pull requests.",
     "empty.deployments": "This dossier names no environment, so no herald brings word of deployments.",
     "empty.links": "No links between this dossier's items. The map has no roads yet.",
-    "empty.item": "The chronicle holds no item {id}.",
     "empty.ask": "Pick a question, or ask your own. The scribe cites every record an answer rests on.",
     "loading.dossiers": "Unrolling the dossiers…",
     "loading.dossier": "Unrolling the chronicle of {name}…",

@@ -12,6 +12,7 @@ import { THEMES } from '../src/themes.ts';
  * then the person's instructions. Each later part says the rules win, so a
  * voice changes phrasing and never a citation, a proposal block, a figure or
  * the plain-text rule.
+ * The style guide is subordinate to the policy manual, as style guides always are.
  */
 
 const NOW = '2026-10-13T08:00:00.000Z';
@@ -66,7 +67,7 @@ describe("the page's style fields", () => {
     expect(styleFrom({ theme: 'realm', voice: false })).toEqual({ theme: 'realm', voice: false });
     expect(() => styleFrom({ theme: 'my-theme', voice: true })).toThrow(StyleError);
     expect(() => styleFrom({ theme: 'crate', voice: 'yes' })).toThrow(/true or false/);
-    expect(() => styleFrom({ voice: true })).toThrow(/no built-in theme/);
+    expect(() => styleFrom({ voice: true })).toThrow(/Name the theme on screen/);
   });
 
   it("read each voice from the server's own copy of the theme, never from the page", () => {

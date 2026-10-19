@@ -181,7 +181,7 @@ export function AskInfo({ agentLabel }: { agentLabel: string | undefined }) {
   const choice = useThemeChoiceContext();
   const voiced = voiceOn(theme, choice);
   const voice = voiced
-    ? `Answers are written in ${theme.label}'s voice, which changes their phrasing only: citations, figures and proposals stay exact.`
+    ? `Answers are written in ${theme.label}'s voice, or in your own custom voice if you saved one. A voice changes their phrasing only: citations, figures and proposals stay exact.`
     : theme.voice
       ? `Themed agent voice is off, so answers are in plain wording, whatever the theme.`
       : `${theme.label} has no voice of its own, so answers are in plain wording.`;

@@ -37,7 +37,8 @@ from `main`).
   meanings are rendered from `site/src/data/levels.json`, never written out in a
   page.
 - **The docs are the toil skill, rendered.** `skills/toil/*.md` is the one copy of
-  the reference: every page under `site/src/pages/docs/` but `/docs/welcome/` renders
+  the reference: every page under `site/src/pages/docs/` but `/docs/welcome/`, `/docs/ui/`
+  (`ui/README.md`) and `/docs/themes/` (`ui/docs/themes.md`) renders
   one of its files through `src/components/SkillPage.astro`, the file's own heading
   and description become the hero, and inline `<file>.md` references become links
   (`src/lib/skill-pages.mjs`, a remark plugin in `astro.config.mjs`). A page adds
@@ -121,7 +122,7 @@ from `main`).
     a drawing too wide for a phone has a second, tall variant, and scrolling code
     is `tabindex="0"` with a label; `test/site-docs.test.ts` checks all of it. The
     figures' styles live in the page that renders the file
-    (`src/pages/docs/dossiers.astro`). Toil UI's own docs, `ui/docs/*.md`
+    (`src/pages/docs/dossiers.astro`, and `themes.astro` for the `ui-*` figures). Toil UI's own docs, `ui/docs/*.md`
     (`/docs/themes/`), place figures the same way, and `UI_DOC_PAGES` in
     `skill-pages.mjs` names each one's page. The dev server keeps a figure's old
     markup until it restarts.

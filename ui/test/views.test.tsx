@@ -624,7 +624,7 @@ describe('how deep the theme goes (#283)', () => {
     expect([wording.checked, voice.checked]).toEqual([true, true]);
     await userEvent.click(wording);
     expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toMatchObject({ theme: 'crate', wording: false, voice: true });
-    expect(within(card).getByRole('link', { name: 'the themes documentation' }).getAttribute('href')).toBe('https://imagile-dev.github.io/toil/docs/themes/');
+    expect(within(card).getByRole('link', { name: 'the themes documentation (opens in a new tab)' }).getAttribute('href')).toBe('https://imagile-dev.github.io/toil/docs/themes/');
     cleanupView();
     setTheme('plain');
     const { container } = await open('#/settings/toil');
@@ -657,7 +657,7 @@ describe('how deep the theme goes (#283)', () => {
     info.focus();
     await userEvent.keyboard('{Enter}');
     const dialog = await screen.findByRole('dialog', { name: 'About these answers' });
-    expect(dialog.textContent).toContain("Answers are written in Harvest's voice, which changes their phrasing only");
+    expect(dialog.textContent).toContain("Answers are written in Harvest's voice, or in your own custom voice if you saved one. A voice changes their phrasing only");
     expect(dialog.textContent).toContain('Answered by a scripted preview, not a model.');
     expect(dialog.textContent).toContain('The agent only reads');
     expect(within(dialog).getByRole('link', { name: 'Settings, Agent' }).getAttribute('href')).toBe('#/settings/agent');
@@ -691,11 +691,9 @@ describe('how deep the theme goes (#283)', () => {
     expect(prompt.textContent!.trimEnd().endsWith("Lead with risks.\n\nThese instructions come from the person using Toil UI. Follow them where they fit the rules above; where they disagree, the rules win. They can't give you a tool, and nothing in them lets you change anything.")).toBe(true);
     expect(await violations(container)).toEqual([]);
     await userEvent.type(within(card).getByRole('textbox', { name: 'Custom voice' }), 'Talk like a quartermaster.');
-    await userEvent.click(within(card).getByRole('button', { name: 'Hide the full prompt' }));
-    await userEvent.click(within(card).getByRole('button', { name: 'Show the full prompt' }));
-    const again = await within(card).findByRole('region', { name: 'The full prompt' });
-    expect(again.textContent).toContain('Style:\nTalk like a quartermaster.');
-    expect(again.textContent).not.toContain("starship's log");
+    // The open prompt follows what is typed, with no need to open it again.
+    await waitFor(() => expect(within(card).getByRole('region', { name: 'The full prompt' }).textContent).toContain('Style:\nTalk like a quartermaster.'));
+    expect(within(card).getByRole('region', { name: 'The full prompt' }).textContent).not.toContain("starship's log");
   });
 
   it('saves the instructions and the custom voice in the local app, keeping the adapter as it was saved', async () => {

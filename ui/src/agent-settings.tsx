@@ -16,7 +16,7 @@
  * server uses (server/agents/prompts.ts).
  */
 
-import { useEffect, useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Button, Input, Label, Radio, RadioGroup, TextArea, TextField } from 'react-aria-components';
 import type { AdapterStatus, AgentSettings, AgentSettingsClient, AgentStatus } from './server-client.ts';
 import { Card } from './components/layout.tsx';
@@ -166,7 +166,7 @@ export function AgentSettingsPanel({ client, onChange, dossier }: AgentSettingsP
         </form>
       )}
     </Card>
-    {status && <InstructionsCard saved={status.settings} save={saveWords} prompt={(style) => client.prompt(dossier, style)} />}
+    {status && <InstructionsCard saved={status.settings} save={saveWords} dossier={dossier ?? null} prompt={(style) => client.prompt(dossier, style)} />}
     </>
   );
 }
@@ -183,6 +183,7 @@ export function AgentSettingsPreview() {
     </Card>
     <InstructionsCard
       saved={{ instructions: null, voice: null }}
+      dossier="card-payments"
       disabled="This is the preview, so nothing is saved. Toil UI on your own machine keeps these in its data folder, in agent.json."
       prompt={async (style, draft) => systemPrompt('card-payments', FIXTURE_NOW, promptStyle(style, draft))}
     />
@@ -198,7 +199,7 @@ type Words = Pick<AgentSettings, 'instructions' | 'voice'>;
  * in the page's theme; the local app asks the server, which uses what was
  * saved, and the preview composes it from what is typed.
  */
-export function InstructionsCard({ saved, save, prompt, disabled }: { saved: Words; save?: (words: Words) => Promise<Words>; prompt: (style: AskStyle, draft: Words) => Promise<string>; disabled?: string }) {
+export function InstructionsCard({ saved, save, prompt, disabled, dossier }: { saved: Words; save?: (words: Words) => Promise<Words>; prompt: (style: AskStyle, draft: Words) => Promise<string>; disabled?: string; dossier: string | null }) {
   const theme = useTheme();
   const choice = useThemeChoiceContext();
   const style: AskStyle = { theme: theme.name, voice: voiceOn(theme, choice) };
@@ -211,6 +212,26 @@ export function InstructionsCard({ saved, save, prompt, disabled }: { saved: Wor
   const promptId = useId();
   const draft: Words = { instructions: instructions.trim() || null, voice: voice.trim() || null };
   const dirty = (saved.instructions ?? '') !== instructions.trim() || (saved.voice ?? '') !== voice.trim();
+  // An open prompt follows what it shows: the theme on screen and, where nothing is saved (the preview), what is typed.
+  const open = useRef(false);
+  open.current = shown !== null;
+  const live = save ? '' : `${draft.instructions ?? ''}\u0000${draft.voice ?? ''}`;
+  useEffect(() => {
+    if (!open.current) return;
+    let current = true;
+    prompt(style, draft).then(
+      (text) => current && setShown(text),
+      () => current && setShown(null),
+    );
+    return () => {
+      current = false;
+    };
+    // prompt and draft are new each render; what the prompt depends on is the theme, the switch and the typed text.
+  }, [style.theme, style.voice, live]);
+  const edit = (set: (v: string) => void) => (v: string) => {
+    set(v);
+    setNote('');
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -260,8 +281,8 @@ export function InstructionsCard({ saved, save, prompt, disabled }: { saved: Wor
         </p>
       )}
       <form className="agent-form" onSubmit={submit}>
-        <Counted label="General instructions" hint="For example: answer in British English, or lead with risks." value={instructions} onChange={setInstructions} />
-        <Counted label="Custom voice" hint={`Replaces the theme's voice while Themed agent voice is on. ${voiceState}`} value={voice} onChange={setVoice} />
+        <Counted label="General instructions" hint="For example: answer in British English, or lead with risks." value={instructions} onChange={edit(setInstructions)} />
+        <Counted label="Custom voice" hint={`Replaces the theme's voice while Themed agent voice is on. ${voiceState}`} value={voice} onChange={edit(setVoice)} />
         <div className="proposal-actions">
           {save && (
             <Button type="submit" className="btn btn--accent" isDisabled={busy || !dirty}>
@@ -280,10 +301,8 @@ export function InstructionsCard({ saved, save, prompt, disabled }: { saved: Wor
         <div className="full-prompt">
           <p className="note">
             {save
-              ? dirty
-                ? 'What the agent is sent now, in this theme. Your unsaved changes are not in it until you save.'
-                : 'What the agent is sent now, in this theme, with each question.'
-              : 'What the agent would be sent in this theme, for the sample dossier card-payments.'}
+              ? `What the agent is sent now, in this theme, for a question about ${dossier ?? 'a dossier'}${dossier ? ', the first dossier toil lists' : ''}.${dirty ? ' Your unsaved changes are not in it until you save.' : ''}`
+              : `What the agent would be sent in this theme, for the sample dossier ${dossier ?? 'card-payments'}.`}
           </p>
           <pre id={promptId} className="full-prompt__text" tabIndex={0} role="region" aria-label="The full prompt" data-scroller="">
             {shown}

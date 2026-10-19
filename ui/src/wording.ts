@@ -6,7 +6,8 @@
  * "Themed wording" switched off all read the standard text below.
  *
  * Only microcopy is here: eyebrows, ledes and notes, empty states, loading
- * lines. Never a control's name (a button, a link, a field's label), a
+ * lines. Never a not-found notice, such as an item the dossier doesn't have,
+ * which says what went wrong in plain words. Never a control's name (a button, a link, a field's label), a
  * heading a test or a screen reader finds a region by, a command, an id, a
  * number, a date, an error or its fix: those read the same in every theme,
  * so what a person, a script or voice control looks for is always there
@@ -33,7 +34,6 @@ export const STANDARD = {
   'empty.builds': "No builds for this dossier's pull requests.",
   'empty.deployments': 'This dossier names no environment to read deployments from.',
   'empty.links': "No links between this dossier's items.",
-  'empty.item': 'The dossier has no item {id}.',
   'empty.ask': 'Pick a question, or ask your own, to see how answers cite their sources.',
   'loading.dossiers': 'Reading the dossiers…',
   'loading.dossier': 'Reading {name}…',

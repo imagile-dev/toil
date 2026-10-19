@@ -3146,7 +3146,7 @@ describes, in one PR because they share the registry, the rules and the bar.
   keys (`epic`, `board`, `dependencies`, `sprint`, `agent`, `blocked`), always shown
   as "Quest (Epic)". Plain renames nothing. The graph now says "Blocked" on a blocked
   node in every theme, where it was colour alone before.
-- **User themes are checked, not yet served** (superseded by #283: user themes were removed) (`ui/server/user-themes.ts`, rules in
+- **User themes are checked, not yet served** (`ui/server/user-themes.ts`, rules in
   `ui/src/theme-rules.ts`, shared with the built-in themes' test). A theme in
   `~/.toil-ui/themes/<name>/` is refused whole, with each reason, if it holds any
   file other than CSS, JSON, SVG, WebP, PNG, AVIF or WOFF2, anything that runs
@@ -3154,8 +3154,9 @@ describes, in one PR because they share the registry, the rules and the bar.
   folder (a remote `url()` on an attribute selector would read the page out), fonts
   or a radius that could break out of the stylesheet, a link, or a built-in theme's
   name. The picker and a route for these files come with milestone 8; the gate came
-  first so it can't be skipped later.
-- **The boundary is the Content-Security-Policy, the checker explains** (#259 review).
+  first so it can't be skipped later. (Superseded by #283: user themes were removed,
+  and the milestone 8 plan for them dropped.)
+- **The boundary is the Content-Security-Policy, the checker explains** (#259 review; the checker and the tokenizer were removed in #283, and the policy stands).
   Regular expressions over raw CSS were walked past five ways (a quoted `)`, escapes
   in `url` and in a scheme, `image-set()` strings, an escaped `@import`). Two layers
   now. `ui/server/csp.ts` sets one policy on every response the toil-ui server sends,
@@ -3688,8 +3689,10 @@ decided here.
   than once ever, because remembering that it was said would mean another file in
   the data folder; the maintainer may prefer a marker. A saved theme name the app
   doesn't know already falls back to Crate.
-- **Wording is microcopy only** (`ui/src/wording.ts`, 22 keys): ledes, eyebrows,
-  panel notes, empty states and loading lines. No button, link, field label or
+- **Wording is microcopy only** (`ui/src/wording.ts`, 21 keys): the dossier list's
+  lede, eyebrows, the dashboard's notes, empty states and loading lines. The
+  Settings pages and the Sync panel keep the standard text, and so does a not-found
+  notice (an item the dossier doesn't have), which principle 4 keeps plain. No button, link, field label or
   section heading is themed, beyond the existing `terms`, which keep the real word
   beside them. The brief listed "button microcopy"; I read that as the text around
   controls ("Thinking…", the Ask note), because every control's name is what the
@@ -3700,10 +3703,11 @@ decided here.
 - **The lexicon keeps placeholders and commands** (`ui/test/theme-rules.ts`,
   `lexiconProblems`): a themed line must carry every `{id}` or `{name}` and every
   `toil …` command its standard text has, and holds no markup. Each game theme
-  defines all 22 keys.
+  defines all 21 keys.
 - **Both preferences live with the theme in `localStorage`** (`toil-ui.theme`, now
   `{ theme, scheme, wording, voice }`), with `?wording=off|on` and `?voice=off|on`
-  for links. A value that isn't a boolean reads as on. The server never stores the
+  for links, remembered once used, as `?theme=` is. A value that isn't a boolean
+  reads as on. The server never stores the
   voice flag: each question sends `theme` and `voice`, and the server looks the
   voice up in its own bundled copy of the theme (`ui/server/agents/voices.ts`), so
   the page can't put text into the prompt through the style. An unknown theme or a
@@ -3717,8 +3721,9 @@ decided here.
 - **Custom instructions are fields of `agent.json`** (`instructions`, `voice`), saved
   through `POST api/agent/settings` and its field allowlist, rather than a new file
   and route: the brief asked for the existing write path. Each is trimmed, CRLF
-  becomes LF, at most 4,000 characters (`MAX_INSTRUCTIONS`), and a control character
-  other than a line break or tab is refused. An `agent.json` from before has neither
+  becomes LF, at most 4,000 characters (`MAX_INSTRUCTIONS`), and a control or
+  invisible format character (`\p{Cc}`, `\p{Cf}`: zero-width and bidi marks) other
+  than a line break or tab is refused. An `agent.json` from before has neither
   and loads with both empty. The instructions card saves the saved adapter fields
   with its own, so an unsaved edit in the adapter form is neither sent nor lost.
 - **`GET api/agent/prompt`** (`?dossier=&theme=&voice=on|off`) returns the system
@@ -3734,7 +3739,7 @@ decided here.
   "About these answers", is sr-only text inside the button beside an `aria-hidden`
   "i", so WCAG 2.5.3 holds without an `aria-label`.
 - **The preview's voiced answers cover the risk question only** (`VOICED` in
-  `ui/src/fixtures/agent.ts`, three dossiers by four themes). `test/agent.test.ts`
+  `ui/src/fixtures/agent.ts`, three dossiers by four themes). `ui/test/agent.test.ts`
   holds each to its standard answer: the same citations in order, the same figures,
   the same proposals.
 - **The docs page is Toil UI's, not the skill's** (`ui/docs/themes.md`, rendered at

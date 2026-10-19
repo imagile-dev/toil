@@ -61,7 +61,6 @@
     "empty.builds": "No builds logged for this dossier's pull requests.",
     "empty.deployments": "This dossier names no environment, so there is no sector to scan for deployments.",
     "empty.links": "No links between this dossier's items. The star chart is empty space.",
-    "empty.item": "No item {id} in this dossier's records.",
     "empty.ask": "Pick a question, or ask your own. The computer cites every record it used.",
     "loading.dossiers": "Scanning for dossiers…",
     "loading.dossier": "Plotting a course to {name}…",

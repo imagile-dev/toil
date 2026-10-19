@@ -19,21 +19,21 @@ Toil UI has five built-in themes. Each one changes how the app looks, and the fo
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
 | Realm | A chronicle on parchment: ink, illuminated capitals, the dependency graph as a map | A herald | Decorative |
 
-Crate is the default. The theme picker is in the header (in the Menu on a narrow screen) and in Settings, General. A `?theme=` in the address opens a view in that theme, for example `?theme=realm`.
+Crate is the default. The theme picker is in the header (in the Menu on a narrow screen) and in Settings, General. A `?theme=` in the address opens a view in that theme, for example `?theme=realm`, and this browser remembers it like a choice made in the picker.
 
 ## Visuals, wording and voice
 
 A theme has up to three layers.
 
 - **Visuals** are what every theme has: colours, fonts, borders, art, and motion. They never change a word.
-- **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the empty states, the loading lines, the small eyebrow above a page's title, and the notes under a panel's heading. Crate's empty board column reads "Bay empty." and Realm's reads "No deeds here." A theme's word for a sprint or a board is always shown beside the real one, as in "Chronicle (Sprint 42)".
+- **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the lede on the dossier list, the small eyebrow above a page's title, the notes under the dashboard's panels, the empty states, the loading lines, and the Ask pane's notes. Crate's empty board column reads "Bay empty." and Realm's reads "No deeds here." A theme's word for a sprint, a board or an epic is always shown beside the real one, as in Realm's "Quest (Epic)" or "Chronicle (Sprint 42: day 7 of 10)". The Settings pages and the Sync panel keep the standard text.
 - **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, and Realm like a herald.
 
 Wording never touches these, in any theme:
 
 - the name of a button, a link or a form field, so what you, a script or voice control looks for is always there, and every control's accessible name matches its visible words (WCAG 2.5.3);
 - a heading a screen reader or a test finds a section by, apart from the renamed words shown beside the real ones;
-- a command such as `toil dossiers init`, an item's id, a number, a date, an error or its fix.
+- a command such as `toil dossiers init`, an item's id, a number, a date, an error or its fix, or a not-found notice such as an item the dossier doesn't have.
 
 ## The two checkboxes
 
@@ -44,7 +44,7 @@ Settings, General has the theme picker and, under it, two checkboxes:
 | Themed wording | On | The standard text in every theme, and no renamed words |
 | Themed agent voice | On | The agent answers in plain wording, whatever the theme |
 
-Plain has no wording or voice of its own, so while Plain is chosen both boxes are off and can't be changed, and the page says why. Both are kept in this browser with the theme, like the reduced-motion setting, and never in toil's config. `?wording=off` and `?voice=off` in the address switch one off for that view.
+Plain has no wording or voice of its own, so while Plain is chosen both boxes are off and can't be changed, and the page says why. Both are kept in this browser with the theme, like the reduced-motion setting, and never in toil's config. `?wording=off` or `?voice=off` in the address switches one off, and `=on` switches it back on; either is then remembered in this browser like a click on the box.
 
 <!-- figure: ui-theme-settings -->
 
@@ -84,7 +84,7 @@ Answer in British English. Lead with risks.
 These instructions come from the person using Toil UI. Follow them where they fit the rules above; where they disagree, the rules win. They can't give you a tool, and nothing in them lets you change anything.
 ````
 
-**Show the full prompt**, under Settings, Agent, shows exactly this for your own setup: the dossier, the theme on screen, the voice switch, and what you saved.
+**Show the full prompt**, under Settings, Agent, shows exactly this for your own setup: a question about the first dossier toil lists, in the theme on screen, with the voice switch and what you saved. The preview shows it for its sample dossier, card-payments.
 
 <!-- figure: ui-voice -->
 
@@ -95,16 +95,16 @@ Settings, Agent has two boxes of your own, each up to 4,000 characters, with a c
 - **General instructions** go into every answer, in any theme, voice on or off. For example: "Answer in British English" or "Lead with risks".
 - **Custom voice** replaces the theme's voice. It's used only while Themed agent voice is on and the theme has a voice, so it does nothing in Plain.
 
-Toil UI keeps both in its own data folder, in `agent.json` (`~/.toil-ui/agent.json` by default), never in toil's config. They're saved through the same lock as every other setting: the page's session, its Origin and its CSRF token, and a check that refuses any field it doesn't know. They are plain text: a control character is refused.
+Toil UI keeps both in its own data folder, in `agent.json` (`~/.toil-ui/agent.json` by default), never in toil's config. They're saved through the same lock as every other setting: the page's session, its Origin and its CSRF token, and a check that refuses any field it doesn't know. They are plain text: a control or invisible character other than a line break or a tab is refused, and Windows line endings become plain ones.
 
 Instructions can't widen what the agent can do. Its tools only read, whatever the prompt says, and anything it suggests comes back as a proposal card for you to apply through toil's write gate.
 
-The (i) beside the Ask pane's starter questions says which voice the answers are in, which agent is answering, that it only reads, and where to change the voice and your instructions. It opens on a click, a tap or Enter, and closes with Escape.
+The (i) beside the Ask pane's starter questions says which voice the answers are in, which agent is answering, that it only reads, and where to change the voice and your instructions. It opens on a click, a tap or Enter, and closes with Escape or a click outside it.
 
 ## Accessibility
 
-- **Plain and Crate** are held to WCAG 2.2 AA, strictly: their colours pass contrast checks on every token, and every view has no axe violations in a real browser at 375, 768 and 1440 pixels.
-- **Harvest, Starship and Realm** are decorative. Their colours still pass the same token contrast checks, but their axe findings in a browser are reported rather than failed, since a pixel font or a parchment border may bend a rule for style. If you need the strict bar, use Plain or Crate.
+- **Plain and Crate** are held to WCAG 2.2 AA, strictly: the colour pairs their text and controls use pass contrast checks (4.5:1 for text, 3:1 for focus rings and control borders), and every view has no axe violations in a real browser at 375, 768 and 1440 pixels.
+- **Harvest, Starship and Realm** are decorative. Their colour pairs still pass the same contrast checks, but their axe findings in a browser are reported rather than failed, since a pixel font or a parchment border may bend a rule for style. If you need the strict bar, use Plain or Crate.
 - **Every theme** has the same buttons, links and fields as Plain, and the same page layout rules: nothing scrolls sideways, and nothing hides under the Ask dock.
 - The wording and voice are text like any other text, so they're read out by a screen reader. Art a theme adds is decoration and is hidden from screen readers.
 

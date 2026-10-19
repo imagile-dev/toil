@@ -65,7 +65,6 @@
     "empty.builds": "No builds have come up for this dossier's pull requests.",
     "empty.deployments": "This dossier names no environment, so there is no market to send the harvest to.",
     "empty.links": "No links between this dossier's items: every row grows on its own.",
-    "empty.item": "There's no item {id} in this dossier's field.",
     "empty.ask": "Pick a question, or ask your own. Every answer says which rows it was picked from.",
     "loading.dossiers": "Walking out to the dossiers…",
     "loading.dossier": "Walking the rows of {name}…",

@@ -194,7 +194,7 @@ never starts that copy anyway.
 - **Your own instructions.** Under **Settings, Agent**, general instructions (for
   example "answer in British English") and a custom voice, each up to 4,000
   characters, kept in `agent.json` beside the adapter. They come after the rules in
-  the prompt, and the rules win: they change phrasing, never the citations, the
+  the prompt, and the rules win: they can't change the citations, the figures, the
   proposals or what the tools can do. **Show the full prompt** shows exactly what
   the agent is sent.
 
@@ -207,9 +207,10 @@ Five built-in themes: Plain, Crate (the default), Harvest, Starship and Realm. P
 one from the header, or under **Settings, General**, where two checkboxes say how far
 it goes, both on by default:
 
-- **Themed wording:** the theme's own empty states, loading lines, eyebrows and
-  notes. Buttons, links, headings, figures, ids, commands and errors read the same
-  in every theme.
+- **Themed wording:** the theme's own lede, eyebrows, dashboard notes, empty
+  states and loading lines, and its names for a sprint, a board or an epic beside
+  the real ones ("Quest (Epic)"). Buttons, links, figures, ids, commands and errors
+  read the same in every theme.
 - **Themed agent voice:** the agent answers in the theme's register, a terse
   dockworker in Crate, a patient farmhand in Harvest, a ship's log in Starship, a
   herald in Realm. It changes phrasing only.

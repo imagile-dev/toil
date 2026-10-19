@@ -188,12 +188,12 @@ describe('how deep a theme goes (#283)', () => {
     expect(wordFor(crate.lexicon, false, 'empty.prs')).toBe(STANDARD['empty.prs']);
     expect(wordFor(themeNamed('plain').lexicon, true, 'empty.prs')).toBe(STANDARD['empty.prs']);
     expect(wordFor({}, true, 'loading.dossier', { name: 'card-payments' })).toBe('Reading card-payments…');
-    expect(wordFor(crate.lexicon, true, 'empty.item', { id: 'corp-jira:PAY-9' })).toBe("No crate corp-jira:PAY-9 on this dossier's manifest.");
+    expect(wordFor(crate.lexicon, true, 'loading.dossier', { name: 'settlement' })).toBe('Pulling settlement off the rack…');
     expect(themed(themeNamed('realm'), 'epic', 'Epic', false)).toBe('Epic');
   });
 
   it('refuses wording that drops an id or a command, holds markup, or uses a key that does not exist', () => {
-    expect(lexiconProblems({ 'empty.item': 'No such crate.' })).toEqual(['theme.json: lexicon."empty.item" must keep the placeholders {id}.']);
+    expect(lexiconProblems({ 'loading.dossier': 'Pulling it off the rack…' })).toEqual(['theme.json: lexicon."loading.dossier" must keep the placeholders {name}.']);
     expect(lexiconProblems({ 'empty.dossiers': 'Nothing on the floor.' })).toEqual(['theme.json: lexicon."empty.dossiers" must keep the command toil dossiers init.']);
     expect(lexiconProblems({ 'empty.prs': '<b>None</b>' })).toEqual(['theme.json: lexicon."empty.prs" must be plain text.']);
     expect(lexiconProblems({ 'button.ask': 'Holler' })).toEqual(['theme.json: lexicon."button.ask" isn\'t a word key (src/wording.ts).']);

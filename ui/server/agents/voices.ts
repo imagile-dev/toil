@@ -13,6 +13,7 @@ import harvest from '../../themes/harvest/theme.json' with { type: 'json' };
 import plain from '../../themes/plain/theme.json' with { type: 'json' };
 import realm from '../../themes/realm/theme.json' with { type: 'json' };
 import starship from '../../themes/starship/theme.json' with { type: 'json' };
+import type { AskStyle } from '../../src/agent.ts';
 import type { PromptStyle } from './prompts.ts';
 import type { AgentSettings } from './settings.ts';
 
@@ -25,11 +26,8 @@ interface Voiced {
 /** Every built-in theme, by name, with its voice when it has one. */
 export const THEME_VOICES: ReadonlyMap<string, Voiced> = new Map(([plain, crate, harvest, starship, realm] as Voiced[]).map((t) => [t.name, t]));
 
-/** What the page sends about the answer's style: the theme on screen, and the voice switch. */
-export interface StyleChoice {
-  theme: string;
-  voice: boolean;
-}
+/** What the page sends about the answer's style: the theme on screen, and the voice switch (the page's AskStyle). */
+export type StyleChoice = AskStyle;
 
 /** Thrown for a theme the server doesn't have; the server answers it as a 400. */
 export class StyleError extends Error {
@@ -39,7 +37,8 @@ export class StyleError extends Error {
 /** The page's style fields, checked: a built-in theme's name and a boolean, or neither. */
 export function styleFrom(body: Record<string, unknown>): StyleChoice | null {
   if (body.theme === undefined && body.voice === undefined) return null;
-  if (typeof body.theme !== 'string' || !THEME_VOICES.has(body.theme)) throw new StyleError(`There is no built-in theme ${JSON.stringify(body.theme)}.`);
+  if (typeof body.theme !== 'string') throw new StyleError('Name the theme on screen, with the voice switch.');
+  if (!THEME_VOICES.has(body.theme)) throw new StyleError(`There is no built-in theme ${JSON.stringify(body.theme)}.`);
   if (typeof body.voice !== 'boolean') throw new StyleError('voice is true or false: whether "Themed agent voice" is on.');
   return { theme: body.theme, voice: body.voice };
 }

@@ -12,7 +12,7 @@ import { STATUS_CATEGORY_LABEL, dateTime, dossierHref, estimateText, personText,
 import { age, cycleTime } from '../model/flow.ts';
 import { INSIGHT_LABEL, insights } from '../model/insights.ts';
 import { entry } from '../model/sprint.ts';
-import { useSkins, useTheme, useWords } from '../skins.tsx';
+import { useSkins, useTheme } from '../skins.tsx';
 
 /** OWI's link type in words, by direction; the source's own wording is shown beside it. */
 const LINK_WORD: Record<string, [string, string]> = {
@@ -28,13 +28,12 @@ export function ItemView({ id }: { id: string }) {
   const theme = useTheme();
   const { insights: prepared } = useDerived();
   const { EmptyState } = useSkins();
-  const words = useWords();
   const item = byId.get(id);
   if (!item) {
     return (
       <>
         <h1 tabIndex={-1}>No such item</h1>
-        <EmptyState message={words('empty.item', { id })}>
+        <EmptyState message={`The dossier has no item ${id}.`}>
           <p>
             <a href={dossierHref(dossier.name)}>Back to {dossier.name}</a>
           </p>

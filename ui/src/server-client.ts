@@ -13,7 +13,7 @@
  * needs the launch URL again. Paperwork, but the kind that files itself.
  */
 
-import { NO_AGENT_FIX, NO_AGENT_NOTICE, type Agent, type Answer, type AskStyle, type Starter } from './agent.ts';
+import { NO_AGENT_FIX, NO_AGENT_NOTICE, SCRIPTED_LABEL, type Agent, type Answer, type AskStyle, type Starter } from './agent.ts';
 import type { AreaInfo, ConfigApi, SettingsInfo } from './config.ts';
 import { FEEDBACK_SAMPLE_DISABLED, type FeedbackApi, type FeedbackFields } from './feedback.ts';
 import type { SyncStatus } from '../server/sync.ts';
@@ -190,7 +190,7 @@ export const AGENT_LABEL: Record<string, string> = {
   claude: 'Claude, through the Claude Agent SDK',
   copilot: 'GitHub Copilot, through the Copilot SDK',
   codex: 'Codex, through the Codex SDK',
-  scripted: 'a scripted preview, not a model',
+  scripted: SCRIPTED_LABEL,
   none: 'nobody yet: no agent is set up',
 };
 

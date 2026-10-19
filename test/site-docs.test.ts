@@ -108,7 +108,7 @@ describe('the docs pages render skills/toil/ and carry no reference prose of the
 
   it("every one of Toil UI's own docs has a page that renders it (#283)", () => {
     for (const file of readdirSync(uiDocDir).filter((f) => f.endsWith('.md'))) {
-      const path = (UI_DOC_PAGES as Record<string, string>)[file];
+      const path = UI_DOC_PAGES[file];
       expect(path, file).toBeDefined();
       const page = join(docsDir, `${path!.slice('/docs/'.length, -1)}.astro`);
       expect(readFileSync(page, 'utf8')).toContain(`from '../../../../ui/docs/${file}';`);

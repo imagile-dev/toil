@@ -20,8 +20,6 @@ import { AgentError } from './cli.ts';
 import { MAX_INSTRUCTIONS } from './prompts.ts';
 import type { AdapterName, Endpoint } from './runtime.ts';
 
-export { MAX_INSTRUCTIONS } from './prompts.ts';
-
 export interface AgentSettings {
   adapter: AdapterName | 'none';
   /** The model name the SDK takes, or null for the CLI's default. */
@@ -83,15 +81,21 @@ export function checkAgentSettings(input: unknown, isAbsolute: (p: string) => bo
   return { adapter: adapter as AgentSettings['adapter'], model, cliPath, endpoint, instructions: words(o.instructions, 'instructions'), voice: words(o.voice, 'voice') };
 }
 
+/**
+ * Control and invisible format characters (zero-width spaces, bidi overrides),
+ * other than a tab or a line break. In a prompt they could hide text from the
+ * person reading it back under Show the full prompt.
+ */
+const HIDDEN = /(?![\t\n])[\p{Cc}\p{Cf}]/u;
+
 /** The person's own text: null when blank, else plain text of at most MAX_INSTRUCTIONS characters. */
 function words(value: unknown, field: 'instructions' | 'voice'): string | null {
   if (blank(value)) return null;
   const what = field === 'instructions' ? 'The general instructions' : 'The custom voice';
-  if (typeof value !== 'string') throw new AgentError(`${what} must be text.`, 'Type them in Settings, Agent, or leave the box empty.');
+  if (typeof value !== 'string') throw new AgentError(`${what} must be text.`, 'Type it in Settings, Agent, or leave the box empty.');
   const text = value.replace(/\r\n?/g, '\n').trim();
-  if (text.length > MAX_INSTRUCTIONS) throw new AgentError(`${what} are ${text.length} characters, over the ${MAX_INSTRUCTIONS}-character limit.`, `Shorten them to ${MAX_INSTRUCTIONS} characters or fewer.`);
-  // Control characters other than a line break or a tab have no business in a prompt, and could hide text from the person reading it.
-  if ([...text].some((c) => { const n = c.charCodeAt(0); return (n < 32 && n !== 9 && n !== 10) || n === 127; })) throw new AgentError(`${what} hold a control character.`, 'Use plain text: letters, punctuation, line breaks and tabs.');
+  if (text.length > MAX_INSTRUCTIONS) throw new AgentError(`${what} must be at most ${MAX_INSTRUCTIONS} characters, and is ${text.length}.`, `Shorten it to ${MAX_INSTRUCTIONS} characters or fewer.`);
+  if (HIDDEN.test(text)) throw new AgentError(`${what} must be plain text, and holds a control or invisible character.`, 'Use letters, punctuation, line breaks and tabs, and retype any text pasted from elsewhere.');
   return text;
 }
 

@@ -660,9 +660,12 @@ describe('the agent settings', () => {
   it("keep the person's instructions and custom voice as plain text, up to 4,000 characters each (#283)", () => {
     expect(checkAgentSettings({ adapter: 'none', instructions: '  Answer in British English.\r\nLead with risks.  ', voice: '' })).toMatchObject({ instructions: 'Answer in British English.\nLead with risks.', voice: null });
     expect(checkAgentSettings({ voice: 'x'.repeat(4000) }).voice).toHaveLength(4000);
-    expect(() => checkAgentSettings({ instructions: 'x'.repeat(4001) })).toThrow(/4001 characters, over the 4000-character limit/);
+    expect(() => checkAgentSettings({ instructions: 'x'.repeat(4001) })).toThrow(/at most 4000 characters, and is 4001/);
     expect(() => checkAgentSettings({ voice: 42 })).toThrow(/custom voice must be text/);
-    expect(() => checkAgentSettings({ instructions: 'hidden\u0000text' })).toThrow(/control character/);
+    expect(() => checkAgentSettings({ instructions: 'hidden\u0000text' })).toThrow(/control or invisible character/);
+    expect(() => checkAgentSettings({ voice: 'quiet\u202Ereversed' })).toThrow(/invisible/);
+    expect(() => checkAgentSettings({ voice: 'zero\u200Bwidth' })).toThrow(/invisible/);
+    expect(checkAgentSettings({ instructions: 'tabs\tand\nlines, and é' }).instructions).toBe('tabs\tand\nlines, and é');
     // An agent.json from before #283 has neither, and loads with both empty.
     const dataDir = mkdtempSync(join(folder, 'old-'));
     writeFileSync(agentSettingsFile(dataDir), JSON.stringify({ adapter: 'codex', model: null, cliPath: null, endpoint: null }));
