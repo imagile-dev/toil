@@ -3111,3 +3111,139 @@ describes, in one PR because they share the registry, the rules and the bar.
   runs every theme and scheme through axe on every route and requires the same click
   targets (role and name) as Plain, plus the sync panel's stale and wipe states.
   No theme plays sound; none of the three issues asks for it.
+
+### #251 agent adapters
+
+Toil UI's agent (#206 point 4): one server-side `Agent`, three adapters, read-only
+tools, checked citations and proposals, on the server #249 built and the cache #250
+fills.
+
+- **Packages, checked against the registry and each package's own `.d.ts`** (not
+  guessed): `@anthropic-ai/claude-agent-sdk` 0.3.289 (licence "SEE LICENSE IN
+  README.md", Anthropic's commercial terms), `@github/copilot-sdk` 1.0.16 (MIT) and
+  `@openai/codex-sdk` 0.160.0 (Apache-2.0), each the newest release at least 14
+  days old. They are optional `peerDependencies` (`>=` those versions), with `zod`
+  `^4.0.0`, the Claude SDK's own peer, which its tool schemas are built with. None
+  is installed, bundled or listed in `NOTICE`; `check:package` now holds the peer
+  list to exactly these four, each optional. The server loads one with a dynamic
+  `import()` of a variable specifier only when it's chosen, so the bundle's recorded
+  imports are unchanged.
+- **One `Runtime` per adapter, one `AgentHost`** (`ui/server/agents/`). The host
+  loads the SDK, finds the CLI, builds the dossier's tools and ledger, streams, and
+  runs the checks; each runtime only maps that onto its SDK. The server's `Agent`
+  gains an optional `stream()`; the browser's gains `notice`, and `Answer` gains
+  `unverified` and `warnings` (all additive).
+- **The CLI already on the machine, never a download.** `findCli` takes the path set
+  in Settings, else searches `PATH` (on Windows a `.exe` first; a `.cmd` or `.bat`
+  shim is refused with a fix, because the SDKs spawn without a shell), and hands the
+  path to the SDK: `pathToClaudeCodeExecutable`, `RuntimeConnection.forStdio({ path })`,
+  `codexPathOverride`. So no SDK falls back to its bundled copy. Not found is a plain
+  `AgentError` with a fix.
+- **Locked down per SDK.** Claude: `tools: []`, `settingSources: []`,
+  `strictMcpConfig`, an in-process MCP server with only Toil UI's tools,
+  `allowedTools` naming exactly those, `permissionMode: 'dontAsk'`,
+  `persistSession: false`, and a working folder of its own (`<data>/agent/`). A
+  result marked `is_error` (a failed sign-in) is an error, not an answer. Copilot:
+  `availableTools` is only `custom:<name>` for Toil UI's tools, each
+  `skipPermission`, every permission request rejected, and the system message
+  replaced. Codex: read-only sandbox, approvals never, web search off, and
+  `features.*=false` for the shell, unified exec, apps, plugins, sub-agents, browser,
+  computer use, image generation and memories (names from `codex features list`,
+  codex-cli 0.156.0).
+- **Codex takes tools only from MCP servers,** so Toil UI serves them on its own
+  loopback server (`POST api/agent/mcp`, the plain-JSON form of streamable HTTP:
+  `initialize`, `tools/list`, `tools/call`, `ping`) for one question at a time,
+  behind a random bearer token made for it and dropped when it ends. The token
+  reaches Codex through `bearer_token_env_var`, in its environment, never its argv.
+  The whole `mcp_servers` table is replaced with an inline table, so no server from
+  the user's Codex config comes along. The route has no session (the caller is the
+  CLI) and refuses any request with an `Origin`. Claude and Copilot take in-process
+  tools, so they don't use it.
+- **Tools.** `owi_query`, `owi_get` and `owi_history` over the cache (no `native`
+  record, bodies cut at 4000 characters, at most 200 items with a "more" note);
+  `proposal_fields`, a write command's input fields from the registry, so a
+  proposal's input is one toil accepts (added after the smoke run, where the model
+  guessed `fields: { parent }` for `jira update-issue`); and `toil mcp`'s read tools,
+  by their MCP names, for 19 listed commands, each only if the registry says it
+  never writes (`writes`, `writesLocal` and `writesDependOnInput` all false). A live
+  tool hides `dossier`, `cwd`, `connection`, `select` and any `*File` field, forces
+  the dossier, and calls `execute()` with `readOnly: true` and `caller: 'toil-ui'`;
+  a result over 60,000 characters is cut and says so. One tool spec serves all three
+  SDKs: JSON Schema for Copilot and Codex, turned into zod for Claude.
+- **Citations held to the tool results.** Every tool call adds the ids it returned
+  to a ledger: items, their parents, children and link targets, and the pull
+  requests, builds and deployments `owi_get` returns (live results through
+  `mapOwi`). After the answer, every id it names must be in the ledger: cited as
+  `[[id]]`, written bare as `<connection>:<key>` for a connection the ledger has, or
+  a tracker key such as `PAY-999` in a project the ledger has (so `UTF-8` isn't
+  one). Anything else is listed in `unverified`, and the pane flags it above the
+  answer. An answer that read items and cites none is warned too.
+- **Writes are proposals, parsed from fenced `proposal` JSON blocks.** A proposal
+  must name a command the registry marks `writes`, with input whose fields the
+  command has and whose required fields are there; otherwise the card says why and
+  shows no command line. The dossier is forced to the one on screen and
+  `allowWrite` is dropped from the model's input; the card's line comes from #255's
+  `commandLine`. At most 10 per answer. Nothing in the agent path can run one: there
+  is no write tool, and the tests assert the tool list and that `execute()` saw only
+  read-only reads.
+- **Streaming is NDJSON over fetch** (`stream: true` on `POST api/agent/ask`), one
+  line per version of the answer, each the whole of it so far, then `{ "done": true }`
+  or `{ "error": { message, fix } }`. Not SSE, for #250's reason: the session is a
+  header. Half-written citations and proposal blocks are held back until they
+  close, and Markdown bold is taken off, since the pane shows plain text.
+- **Starters:** stand-up digest, "Why is this sprint at risk?", backlog hygiene,
+  dependency risk, and release notes, each written for the dossier on screen. The
+  cross-team roll-up #206 lists is left out: it spans dossiers, and an answer is
+  about one dossier.
+- **Settings** (`<data folder>/agent.json`, owner-only, written through a temporary
+  file): `adapter` (`none`, `claude`, `copilot`, `codex`), `model`, `cliPath`
+  (absolute) and, for Claude only, `endpoint` (`anthropic`, `bedrock`, `foundry` or
+  `vertex`, which set `CLAUDE_CODE_USE_BEDROCK`, `_FOUNDRY` or `_VERTEX` and unset
+  the others). Any other field, such as `apiKey`, is refused with a fix: there is no
+  place for a secret, because each SDK signs in the way its CLI does. Copilot's BYOK
+  needs a key in the session config, so it isn't offered. `GET` and `POST
+  api/agent/settings` sit behind the session and CSRF like every POST, and answer
+  404 with `--sample`, which always uses the scripted agent. The Settings view gets
+  an Agent panel from its own file (`ui/src/agent-settings.tsx`), so #253's work on
+  that view merges cleanly; the preview shows what the local app offers and changes
+  nothing.
+- **Bounds:** two questions at a time, an 8000-character prompt, 30 turns for
+  Claude, and 10 minutes for Copilot's wait.
+- **Smoke run (real).** `claude`, `codex` and a `copilot` shim are on this machine's
+  `PATH`. The `copilot` there is a VS Code shim (`.bat`) that prints "Cannot find
+  GitHub Copilot CLI", which `findCli` reports as a shim. Claude Code's own sign-in
+  had expired ("OAuth session expired"), and Toil UI can't sign in for the user; that
+  run is what found the `is_error` result. The Codex run worked end to end: the real
+  server on loopback, the real Codex SDK 0.160.0 installed with `--omit=optional` (so
+  no bundled binary), the `codex.exe` on `PATH`, the sample dossiers synced into a
+  throwaway cache, and `POST api/agent/ask` with `stream: true`. It answered
+  "Backlog hygiene" in about 75 seconds with ten cited items, none unverified, and
+  six proposals (`jira add-comment`, and `jira update-issue` with
+  `--field 'Epic Link=…'`), none run.
+- **Review round 1.**
+  - **An environment allowlist for the agent CLI** (`ui/server/agents/env.ts`), the
+    approach git takes: PATH and PATHEXT, the home, profile, AppData and temp folders,
+    SystemRoot, windir and ComSpec, locale and TZ, the XDG folders, the proxy
+    variables and the CA variables (`NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`,
+    `SSL_CERT_DIR`). On top of that, each CLI's own sign-in and config: Claude
+    `ANTHROPIC_*`, `CLAUDE_CODE_*`, `CLAUDE_CONFIG_DIR`, and Bedrock's `AWS_*` and
+    Vertex's `GOOGLE_APPLICATION_CREDENTIALS`, `GOOGLE_CLOUD_PROJECT`,
+    `CLOUD_ML_REGION` and `VERTEX_REGION_*`; Copilot `COPILOT_*` and `GH_HOST`;
+    Codex `CODEX_*` and `OPENAI_*`. Nothing else is passed: no `TOIL_*`, no
+    `GITHUB_TOKEN` or `GH_TOKEN` (Copilot's own variable is `COPILOT_GITHUB_TOKEN`),
+    and no CI tokens. Copilot now gets an explicit `env` on its stdio connection
+    instead of inheriting.
+  - **`findCli` skips relative `PATH` entries and the working directory,** git's rule
+    from `src/core/git.ts`: an empty or relative entry, the working directory and
+    anything under it are never searched, except that a home folder inside the
+    working directory stays searchable. Case is folded on Windows.
+  - **The run count** is taken right after the `MAX_RUNS` check and given back in a
+    `finally` that covers the SDK load and the CLI search too, so a failed load can't
+    leak a place.
+  - **A CLI path in Settings must name the adapter's own CLI:** its basename is
+    `claude`, `copilot` or `codex`, or on Windows that name with `.exe`, in any case.
+    So Settings can't point the agent's arguments at another program. A `.cmd` is
+    refused here too (review round 2), since `findCli` would refuse it as a shim the
+    SDKs can't start, and the shim fix names only the `.exe`. A
+    path with no adapter chosen is refused. The check sits in `checkAgentSettings`,
+    which `POST api/agent/settings` runs, and also when the saved file is read.

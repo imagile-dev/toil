@@ -1,7 +1,8 @@
 /**
  * `toil-ui`, the bin (dist/server/toil-ui.js once built). It reads the
  * settings, picks the Store and Agent (the SQLite cache a sync fills through
- * toil's own `execute()`, and no agent; or the sample pair with `--sample`),
+ * toil's own `execute()`, and the agent adapter chosen in Settings, #251; or
+ * the sample pair, fixtures and the scripted agent, with `--sample`),
  * starts the server on loopback and
  * prints the one URL that opens it, once. It opens no browser: that would mean
  * spawning a program, and the URL is right there. Ctrl+C stops it. The whole
@@ -9,9 +10,11 @@
  * and exits.
  */
 
-import { execute, mapOwi, contractVersion as toilContract, version as toilVersion } from '@imagile-dev/toil/api';
+import { execute, mapOwi, registry, contractVersion as toilContract, version as toilVersion } from '@imagile-dev/toil/api';
 import { fileURLToPath } from 'node:url';
 import { fixtureAgent, noAgent } from './agent.ts';
+import { AgentHost } from './agents/host.ts';
+import { cacheData } from './agents/tools.ts';
 import { Cache, CacheError, wipeCacheFiles } from './cache.ts';
 import { createUiServer } from './server.ts';
 import { parseSettings, SettingsError, USAGE } from './settings.ts';
@@ -71,16 +74,40 @@ async function main(): Promise<number> {
     sync = new SyncService({ cache, execute, mapOwi });
   }
   const toil = { version: toilVersion, contractVersion: toilContract };
+  // The agent (#251): the adapter chosen in Settings, reading the cache, or the scripted one for the sample.
+  let serveTools: ConstructorParameters<typeof AgentHost>[0]['serveTools'] = () => {
+    throw new Error('The server is not listening yet.');
+  };
+  const host = cache
+    ? new AgentHost({
+        dataDir: settings.dataDir,
+        version: __TOIL_UI_VERSION__,
+        data: (dossier) => cacheData(cache!, dossier),
+        registry: registry.commands,
+        execute,
+        mapIds: (envelope) => {
+          try {
+            return mapOwi(envelope).items.map((i) => i.id);
+          } catch {
+            return [];
+          }
+        },
+        serveTools: (tools) => serveTools(tools),
+        fallback: noAgent(),
+      })
+    : undefined;
   const ui = createUiServer({
     settings,
     store: cache ? sqliteStore(() => cache, execute, toil) : fixtureStore(),
-    agent: settings.sample ? fixtureAgent() : noAgent(),
+    agent: host ?? fixtureAgent(),
+    ...(host ? { agentControl: host } : {}),
     ...(sync ? { sync } : {}),
     appDir: fileURLToPath(new URL('../app/', import.meta.url)),
     version: __TOIL_UI_VERSION__,
     toil,
   });
 
+  serveTools = ui.serveTools;
   let address;
   try {
     address = await ui.listen();

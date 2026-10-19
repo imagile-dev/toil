@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { fixtureAgent, noAgent, type Agent } from '../server/agent.ts';
+import { AgentError } from '../server/agents/cli.ts';
 import type { RequestContext } from '../server/context.ts';
 import { PRESSABLE_STYLE_HASH } from '../server/csp.ts';
 import { CSP, CSRF_HEADER, MAX_BODY, SESSION_HEADER, MAX_SESSIONS, createUiServer, type UiServerOptions } from '../server/server.ts';
@@ -239,6 +240,7 @@ describe('the API', () => {
       store: 'fixture',
       sync: false,
       agent: 'scripted',
+      agentSettings: false,
       sample: true,
       now: '2026-10-13T08:00:00.000Z',
       csrf: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
@@ -313,6 +315,76 @@ describe('the API', () => {
     const failed = await post(none.origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'risk' }, { sid: other.sid, csrf: other.session.csrf });
     expect(failed.status).toBe(502);
     expect(JSON.parse(failed.body).error.message).toContain('No agent is set up');
+    expect(JSON.parse(failed.body).error.fix).toContain('Settings, Agent');
+  });
+
+  it('streams an answer as NDJSON, each line the answer so far, ending done; a failure partway ends with the error', async () => {
+    const versions = (n: number) => ({ prompt: 'q', parts: [{ text: 'x'.repeat(n) }], citations: [], by: 'stub', proposals: [] });
+    const agent: Agent = {
+      ...fixtureAgent(),
+      async *stream(_ctx, dossier) {
+        yield versions(1);
+        yield versions(2);
+        if (dossier === 'boom') throw new AgentError('The CLI stopped.', 'Run it once on its own.');
+      },
+    };
+    const { origin } = await start({ agent });
+    const { sid, session } = await signIn(origin);
+    const res = await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'q', stream: true }, { sid, csrf: session.csrf });
+    expect(res.headers['content-type']).toBe('application/x-ndjson; charset=utf-8');
+    const lines = res.body.trim().split('\n').map((l) => JSON.parse(l));
+    expect(lines).toEqual([{ answer: versions(1) }, { answer: versions(2) }, { done: true }]);
+    const boom = await post(origin, '/api/agent/ask', { dossier: 'boom', prompt: 'q', stream: true }, { sid, csrf: session.csrf });
+    expect(boom.body.trim().split('\n').map((l) => JSON.parse(l)).at(-1)).toEqual({ error: { message: 'The CLI stopped.', fix: 'Run it once on its own.' } });
+    // Without stream: true, the same agent answers whole through ask().
+    expect(JSON.parse((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'risk' }, { sid, csrf: session.csrf })).body).by).toBe('scripted');
+  });
+
+  it("serves the agent's settings only where there is a choice, and refuses a key", async () => {
+    const sample = await start();
+    const s = await signIn(sample.origin);
+    expect(s.session.agentSettings).toBe(false);
+    expect((await send(sample.origin, '/api/agent/settings', { headers: { [SESSION_HEADER]: s.sid } })).status).toBe(404);
+
+    let saved: unknown = null;
+    const status = { settings: { adapter: 'none', model: null, cliPath: null, endpoint: null }, problem: null, adapters: [], kind: 'none' } as const;
+    const { origin } = await start({
+      agentControl: {
+        status: () => ({ ...status, adapters: [] }),
+        save: (input) => {
+          if (typeof input === 'object' && input && 'apiKey' in input) throw new AgentError('Toil UI\'s agent settings have no "apiKey".', 'Keys never go here.');
+          saved = input;
+          return { ...status, adapters: [] };
+        },
+      },
+    });
+    const { sid, session } = await signIn(origin);
+    expect(session.agentSettings).toBe(true);
+    expect(JSON.parse((await send(origin, '/api/agent/settings', { headers: { [SESSION_HEADER]: sid } })).body).kind).toBe('none');
+    expect((await post(origin, '/api/agent/settings', { adapter: 'claude' }, { sid, csrf: session.csrf })).status).toBe(200);
+    expect(saved).toEqual({ adapter: 'claude' });
+    const key = await post(origin, '/api/agent/settings', { adapter: 'claude', apiKey: 'x' }, { sid, csrf: session.csrf });
+    expect(key.status).toBe(400);
+    expect(JSON.parse(key.body).error).toEqual({ message: 'Toil UI\'s agent settings have no "apiKey".', fix: 'Keys never go here.' });
+    // A POST without the CSRF token is refused, as every POST is.
+    expect((await post(origin, '/api/agent/settings', { adapter: 'claude' }, { sid, csrf: 'wrong' })).status).toBe(403);
+  });
+
+  it("answers the MCP endpoint only with a running question's token, and never from a page", async () => {
+    const { ui, origin } = await start();
+    const served = ui.serveTools([{ name: 'owi_get', description: 'd', inputSchema: { type: 'object', properties: {}, additionalProperties: false }, run: async () => ({ ok: 1 }) }]);
+    expect(served.url).toBe(`${origin}/api/agent/mcp`);
+    const mcp = (headers: Record<string, string>, body: unknown = { jsonrpc: '2.0', id: 1, method: 'tools/list' }) => send(origin, '/api/agent/mcp', { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json', ...headers } });
+    const listed = await mcp({ authorization: `Bearer ${served.token}` });
+    expect(listed.status).toBe(200);
+    expect(JSON.parse(listed.body).result.tools.map((t: { name: string }) => t.name)).toEqual(['owi_get']);
+    expect((await mcp({ authorization: `Bearer ${served.token}` }, { jsonrpc: '2.0', method: 'notifications/initialized' })).status).toBe(202);
+    expect((await mcp({ authorization: 'Bearer not-it' })).status).toBe(401);
+    expect((await mcp({})).status).toBe(401);
+    expect((await mcp({ authorization: `Bearer ${served.token}`, origin })).status).toBe(403);
+    expect(noCors(listed)).toEqual([]);
+    served.close();
+    expect((await mcp({ authorization: `Bearer ${served.token}` })).status).toBe(401);
   });
 
   it('answers an unknown route with where the API is', async () => {

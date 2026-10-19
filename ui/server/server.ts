@@ -20,8 +20,12 @@
  * Every request becomes a `RequestContext` with its viewer before a Store or
  * Agent sees it. Reads are only the commands the views make (`READ_COMMANDS`),
  * always read-only. A config change (#253) is only a command on the server's
- * config allowlist, empty in this release. The building has one door, one key
- * and a guest book, and the guest book is toil's audit log.
+ * config allowlist, empty in this release. The agent (#251) answers on
+ * `agent/ask`, streamed as NDJSON when asked, and its settings are
+ * `agent/settings`. `agent/mcp` is the one route without a session: it serves
+ * one question's read tools to the Codex CLI, by that question's bearer token,
+ * and refuses anything carrying a page's `Origin`. The building has one door,
+ * one key and a guest book, and the guest book is toil's audit log.
  */
 
 import { randomBytes, timingSafeEqual } from 'node:crypto';
@@ -29,8 +33,13 @@ import { readFile, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { extname, isAbsolute, join, normalize, relative, sep } from 'node:path';
+import type { Answer } from '../src/agent.ts';
 import type { Envelope } from '../src/toil.ts';
 import type { Agent } from './agent.ts';
+import { AgentError } from './agents/cli.ts';
+import type { AgentStatus } from './agents/host.ts';
+import { answerMcp, McpGrants } from './agents/mcp.ts';
+import type { ServeTools } from './agents/runtime.ts';
 import { localViewer, type RequestContext, type Viewer } from './context.ts';
 import type { Settings } from './settings.ts';
 import { READ_COMMANDS, type Access, type Store } from './store.ts';
@@ -49,13 +58,23 @@ export interface UiServerOptions {
   configCommands?: ReadonlySet<string>;
   /** The sync job and its cache (#250): `api/sync` and `api/cache/wipe`. None with sample data. */
   sync?: SyncService;
+  /** The agent's settings (#251): `api/agent/settings`. None with sample data, which always uses the scripted agent. */
+  agentControl?: AgentControl;
   /** Tests pass a fixed token; a real start makes one. */
   token?: string;
   viewer?: Viewer;
 }
 
+/** What the Settings page reads and changes about the agent. */
+export interface AgentControl {
+  status(): AgentStatus;
+  save(input: unknown): AgentStatus;
+}
+
 export interface UiServer {
   server: Server;
+  /** Serves tools as an MCP server on `api/agent/mcp` for one run (Codex, #251). */
+  serveTools: ServeTools;
   /** Starts listening; resolves with the address and the one URL to open. */
   listen(): Promise<{ origin: string; url: string; launchUrl: string }>;
   close(): Promise<void>;
@@ -66,6 +85,8 @@ export const MAX_SESSIONS = 32;
 /** The largest POST body the API reads. Its calls are a command name and a few fields. */
 export const MAX_BODY = 256 * 1024;
 export const CSRF_HEADER = 'x-toil-ui-csrf';
+/** The longest question the agent takes, in characters. */
+export const MAX_PROMPT = 8000;
 /** The session id the page got for the launch token, on every API call. Never a cookie. */
 export const SESSION_HEADER = 'x-toil-ui-session';
 
@@ -116,6 +137,18 @@ class HttpError extends Error {
 }
 
 async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+  const body = await readJsonValue(req);
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new HttpError(400, 'The request body must be a JSON object.', 'Send a JSON object.');
+  return body as Record<string, unknown>;
+}
+
+/** An agent's failure as the pane shows it: the message, and the fix when there is one. */
+function agentFailure(e: unknown): { message: string; fix?: string } {
+  if (e instanceof AgentError) return { message: e.message, fix: e.fix };
+  return { message: e instanceof Error ? e.message : String(e) };
+}
+
+async function readJsonValue(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req as AsyncIterable<Buffer>) {
@@ -129,8 +162,7 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
   } catch {
     throw new HttpError(400, "The request body isn't JSON.", 'Send a JSON object.');
   }
-  if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new HttpError(400, 'The request body must be a JSON object.', 'Send a JSON object.');
-  return body as Record<string, unknown>;
+  return body;
 }
 
 export function createUiServer(options: UiServerOptions): UiServer {
@@ -141,6 +173,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
   const sessions = new Map<string, Session>();
   const base = settings.basePath;
   let host = '';
+  const mcp = new McpGrants(() => `http://${host}${base}api/agent/mcp`);
 
   const send = (res: ServerResponse, status: number, type: string, body: string | Buffer, extra: Record<string, string> = {}) => {
     res.writeHead(status, { ...SECURITY_HEADERS, 'Content-Type': type, 'Content-Length': String(Buffer.byteLength(body)), ...extra });
@@ -167,9 +200,51 @@ export function createUiServer(options: UiServerOptions): UiServer {
     store: store.kind,
     sync: options.sync !== undefined,
     agent: agent.kind,
+    agentSettings: options.agentControl !== undefined,
     sample: store.sample,
     now: store.now(),
   });
+
+  /** The agent's settings, or a 404 saying the sample always uses the scripted agent. */
+  const control = (): AgentControl => {
+    if (!options.agentControl) throw new HttpError(404, 'This Toil UI serves sample data, which always answers with the scripted agent.', 'Start toil-ui without --sample to choose an agent.');
+    return options.agentControl;
+  };
+
+  /**
+   * An answer as it streams: NDJSON, one line per version of the answer, each
+   * the whole of it so far, ending with `{ "done": true }`, or with
+   * `{ "error": … }` when the agent fails partway. NDJSON over fetch, not SSE,
+   * because the session is a header and EventSource can't send one (#250).
+   */
+  const streamAnswer = async (res: ServerResponse, answers: AsyncIterable<Answer>) => {
+    res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': 'application/x-ndjson; charset=utf-8' });
+    try {
+      for await (const answer of answers) {
+        if (res.destroyed) return;
+        res.write(`${JSON.stringify({ answer })}\n`);
+      }
+      res.end(`${JSON.stringify({ done: true })}\n`);
+    } catch (e) {
+      if (!res.destroyed) res.end(`${JSON.stringify({ error: agentFailure(e) })}\n`);
+    }
+  };
+
+  /**
+   * `POST api/agent/mcp`: the tools of one agent run, for an SDK that takes
+   * them only from an MCP server (Codex). It needs that run's bearer token,
+   * and no Origin at all: the caller is the agent CLI, never a page.
+   */
+  const mcpCall = async (req: IncomingMessage, res: ServerResponse, ctx: RequestContext) => {
+    if (req.headers.origin !== undefined) throw new HttpError(403, "Toil UI's MCP endpoint takes no requests from a web page.", 'Only the agent CLI Toil UI starts calls it.');
+    const tools = mcp.tools(req.headers.authorization);
+    if (!tools) throw new HttpError(401, "That isn't the token of a running agent question.", 'The endpoint serves an agent CLI for the length of one question only.');
+    if (!/^application\/json(\s*;|$)/i.test(req.headers['content-type'] ?? '')) throw new HttpError(415, 'The MCP endpoint takes JSON only.', 'Send Content-Type: application/json.');
+    const body = await readJsonValue(req);
+    const out = await answerMcp(body, tools, options.version, ctx.signal);
+    if (out === null) return send(res, 202, 'text/plain; charset=utf-8', '');
+    json(res, 200, out);
+  };
 
   /** The sync job, or a 404 saying this server has none (sample data syncs nothing). */
   const syncer = (): SyncService => {
@@ -230,6 +305,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
   const api = async (req: IncomingMessage, res: ServerResponse, route: string, url: URL, ctx: RequestContext) => {
     const key = `${req.method === 'HEAD' ? 'GET' : req.method} ${route}`;
     if (key === 'POST session') return signIn(req, res);
+    if (key === 'POST agent/mcp') return mcpCall(req, res, ctx);
     const signedIn = sessionOf(req);
     if (!signedIn) {
       throw new HttpError(401, `The API answers only a page signed in to this launch, with its session id in ${SESSION_HEADER}.`, 'Open the URL toil-ui printed when it started; a reloaded page needs it again.');
@@ -255,10 +331,25 @@ export function createUiServer(options: UiServerOptions): UiServer {
       case 'POST agent/ask': {
         const body = await readJson(req);
         if (typeof body.dossier !== 'string' || typeof body.prompt !== 'string') throw new HttpError(400, 'A question needs a dossier and a prompt.', 'Send { "dossier": "<name>", "prompt": "<question>" }.');
+        if (body.prompt.length > MAX_PROMPT) throw new HttpError(413, `A question is at most ${MAX_PROMPT} characters.`, 'Ask a shorter question.');
+        if (body.stream === true && agent.stream) return streamAnswer(res, agent.stream(ctx, body.dossier, body.prompt));
         try {
           json(res, 200, await agent.ask(ctx, body.dossier, body.prompt));
         } catch (e) {
-          json(res, 502, { error: { message: e instanceof Error ? e.message : String(e) } });
+          json(res, 502, { error: agentFailure(e) });
+        }
+        return;
+      }
+      case 'GET agent/settings':
+        json(res, 200, control().status());
+        return;
+      case 'POST agent/settings': {
+        const body = await readJson(req);
+        try {
+          json(res, 200, control().save(body));
+        } catch (e) {
+          if (e instanceof AgentError) throw new HttpError(400, e.message, e.fix);
+          throw e;
         }
         return;
       }
@@ -290,7 +381,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return;
       }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, sync, cache/wipe, agent/starters and agent/ask.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, sync, cache/wipe, agent/starters, agent/ask, agent/settings and agent/mcp.`);
     }
   };
 
@@ -349,6 +440,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
 
   return {
     server,
+    serveTools: (tools) => mcp.serve(tools),
     listen: () =>
       new Promise((resolveListen, reject) => {
         server.once('error', reject);
