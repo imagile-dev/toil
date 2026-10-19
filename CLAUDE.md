@@ -914,6 +914,14 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
     area. They're part of their area's issue, never sub-issues.
   - **Data Center/Cloud pairs** are labelled `data-center` and `cloud` and link to
     each other. The Cloud issue starts after its Data Center issue.
+  - **Product labels, on every issue a person or agent files here:** `cli` for the
+    published toil package (the CLI, the MCP server, `./api`, `skills/toil/`), `ui`
+    for Toil UI (`ui/`), and both when it changes both. Repository tooling, the site,
+    `functions/`, `infra/` and docs alone carry neither. Issues filed by the feedback
+    backend (`from-website`, `from-terminal`) can't know which product they are
+    about, so they're filed without one; whoever picks the issue up adds it.
+  - **`deferred`** goes on any issue the maintainer calls "later" or "much later".
+    A deferred issue records the problem and isn't planned in detail.
   - **PR links:** many PRs can serve one issue. They use `Refs #n`, and the PR that
     finishes it uses `Closes #n`.
 - Branches: `kolatts/<issue#>-<description>`.
