@@ -38,20 +38,21 @@ const id = nextId('toil-mark');
     <path d="M36 17.5v4.5a2.5 2.5 0 0 0 2.5 2.5H43Z" fill="var(--color-bg)" />
     <path d="m24.5 27.5 5 4.3-5 4.3" stroke="var(--color-bg)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" />
     {/* A deeper flame than the accent, so the cursor keeps 4.6:1 on the page. */}
-    <path class="logo__cursor" d="M31.8 40h6.2" stroke="#c43d12" stroke-width="3.4" stroke-linecap="round" />
+    <g class="logo__again"><path class="logo__cursor" d="M31.8 40h6.2" stroke="#c43d12" stroke-width="3.4" stroke-linecap="round" /></g>
   </g>
 </svg>
 
 <style>
   .logo { flex: none; }
 
+  /* The load blink runs on the cursor and the hover blink on the group around it,
+     so ending a hover only stops the group's run: neither blink plays again on its
+     way out. */
   @media (prefers-reduced-motion: no-preference) {
     .logo__cursor { animation: logo-blink 0.9s steps(1) 0.6s 3; }
-    :global(a:hover) > .logo .logo__cursor,
-    :global(a:focus-visible) > .logo .logo__cursor { animation: logo-blink-again 0.9s steps(1) 0s 3; }
+    :global(a:hover) > .logo .logo__again,
+    :global(a:focus-visible) > .logo .logo__again { animation: logo-blink 0.9s steps(1) 0s 3; }
   }
 
-  /* Two names for one blink: an element only restarts an animation whose name changes. */
   @keyframes logo-blink { 0% { opacity: 0; } 50% { opacity: 1; } }
-  @keyframes logo-blink-again { 0% { opacity: 0; } 50% { opacity: 1; } }
 </style>
