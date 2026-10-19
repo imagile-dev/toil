@@ -2,18 +2,39 @@
  * The entry the local app builds (`vite build --mode app`): the same App the
  * preview runs, handed `execute()` and the Agent over the local server's API
  * instead of the fixtures. The server says whether it serves sample data, and
- * the App shows the preview banner when it does. Same building, different
- * badge reader.
+ * the App shows the preview banner when it does. When it keeps a cache (#250),
+ * the sync panel sits under the App, the App's clock is the last sync (so
+ * every view says when its data was synced), and the App reads again after
+ * each sync or wipe. Same building, different badge reader.
  */
 
-import { StrictMode } from 'react';
+import { StrictMode, useCallback, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
+import type { Agent } from './agent.ts';
 import './app.css';
-import { httpAgent, httpExecute, signIn } from './server-client.ts';
-import { CALL_OPTIONS } from './toil.ts';
+import { httpAgent, httpExecute, httpSync, signIn, type Session, type SyncStatus } from './server-client.ts';
+import { SyncPanel, lastSynced } from './sync-panel.tsx';
+import { CALL_OPTIONS, type Execute } from './toil.ts';
 
 const root = createRoot(document.getElementById('root')!);
+
+function Local({ session, execute, agent, status }: { session: Session; execute: Execute; agent: Agent; status: SyncStatus | null }) {
+  const [synced, setSynced] = useState(() => lastSynced(status));
+  // A new generation remounts the App, so every view reads the cache again.
+  const [generation, setGeneration] = useState(0);
+  const [sync] = useState(() => (session.sync ? httpSync(session) : null));
+  const onChange = useCallback((next: SyncStatus) => {
+    setSynced(lastSynced(next));
+    setGeneration((g) => g + 1);
+  }, []);
+  return (
+    <>
+      <App key={generation} execute={execute} agent={agent} now={synced ?? session.now} preview={session.sample} />
+      {sync && <SyncPanel client={sync} onChange={onChange} />}
+    </>
+  );
+}
 
 async function start() {
   const session = await signIn();
@@ -21,9 +42,10 @@ async function start() {
   const list = await execute('dossiers list', {}, CALL_OPTIONS);
   const names = list.ok ? ((list.data as { dossiers?: Array<{ name?: unknown }> }).dossiers ?? []).map((d) => String(d.name)) : [];
   const agent = await httpAgent(session, names);
+  const status = session.sync ? await httpSync(session).status().catch(() => null) : null;
   root.render(
     <StrictMode>
-      <App execute={execute} agent={agent} now={session.now} preview={session.sample} />
+      <Local session={session} execute={execute} agent={agent} status={status} />
     </StrictMode>,
   );
 }

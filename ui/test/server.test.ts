@@ -8,7 +8,11 @@ import { fixtureAgent, noAgent, type Agent } from '../server/agent.ts';
 import type { RequestContext } from '../server/context.ts';
 import { CSRF_HEADER, MAX_BODY, SESSION_HEADER, MAX_SESSIONS, createUiServer, type UiServerOptions } from '../server/server.ts';
 import { parseSettings, SettingsError, type Settings } from '../server/settings.ts';
-import { CALLER, READ_COMMANDS, fixtureStore, toilStore, type Access, type Store } from '../server/store.ts';
+import { mapOwi } from '@imagile-dev/toil/api';
+import { Cache } from '../server/cache.ts';
+import { CALLER, READ_COMMANDS, fixtureStore, sqliteStore, toilStore, type Access, type Store } from '../server/store.ts';
+import { SyncService } from '../server/sync.ts';
+import { stubToil } from './toil-stub.ts';
 import { CANNED } from '../src/fixtures/execute.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 
@@ -28,7 +32,7 @@ writeFileSync(join(app, 'assets', 'app.js'), 'console.log(1);');
 writeFileSync(join(app, 'assets', '..app.js'), 'console.log(2);');
 writeFileSync(join(tmpdir(), 'toil-ui-secret.txt'), 'outside the app folder');
 
-const settings = (over: Partial<Settings> = {}): Settings => ({ host: '127.0.0.1', port: 0, basePath: '/', dataDir: join(app, 'data'), sample: true, ...over });
+const settings = (over: Partial<Settings> = {}): Settings => ({ host: '127.0.0.1', port: 0, basePath: '/', dataDir: join(app, 'data'), retentionDays: 30, sample: true, ...over });
 
 interface Seen {
   ctx: RequestContext;
@@ -217,6 +221,7 @@ describe('the API', () => {
       toil: { version: '0.1.0-alpha.2', contractVersion: 1 },
       viewer: { id: 'local', name: 'you' },
       store: 'fixture',
+      sync: false,
       agent: 'scripted',
       sample: true,
       now: '2026-10-13T08:00:00.000Z',
@@ -302,6 +307,79 @@ describe('the API', () => {
   });
 });
 
+describe('the sync API', () => {
+  async function withSync(gate: Promise<void> = Promise.resolve()) {
+    const dataDir = mkdtempSync(join(tmpdir(), 'toil-ui-sync-api-'));
+    const cache = await Cache.open(dataDir, { retentionDays: 30 });
+    const toil = stubToil();
+    // The gate holds every call to toil, so a test can see a sync while it runs.
+    const sync = new SyncService({ cache, execute: async (...args) => (await gate, toil.execute(...args)), mapOwi });
+    running.push(async () => {
+      cache.close();
+      rmSync(dataDir, { recursive: true, force: true, maxRetries: 3 });
+    });
+    const server = await start({ store: sqliteStore(() => cache, toil.execute as unknown as Execute, { version: '0.1.0-alpha.2', contractVersion: 1 }), sync, settings: settings({ sample: false }) });
+    const auth = await signIn(server.origin);
+    const get = (path: string) => send(server.origin, path, { headers: { [SESSION_HEADER]: auth.sid } });
+    return { ...server, auth: { sid: auth.sid, csrf: auth.session.csrf }, session: auth.session, get, sync, cache };
+  }
+
+  it('is not there with sample data', async () => {
+    const { origin } = await start();
+    const { sid, session } = await signIn(origin);
+    expect((await send(origin, '/api/sync', { headers: { [SESSION_HEADER]: sid } })).status).toBe(404);
+    expect((await post(origin, '/api/sync', {}, { sid, csrf: session.csrf })).status).toBe(404);
+    expect((await post(origin, '/api/cache/wipe', { confirm: 'wipe' }, { sid, csrf: session.csrf })).status).toBe(404);
+  });
+
+  it('needs a session, and a POST needs the CSRF token', async () => {
+    const { origin, auth } = await withSync();
+    expect((await send(origin, '/api/sync')).status).toBe(401);
+    expect((await post(origin, '/api/sync', {}, { sid: auth.sid, csrf: 'wrong' })).status).toBe(403);
+    expect((await post(origin, '/api/cache/wipe', { confirm: 'wipe' }, { sid: auth.sid, csrf: 'wrong' })).status).toBe(403);
+  });
+
+  it('starts a sync, reports its progress, refuses a second, and the views then read the cache', async () => {
+    let release!: () => void;
+    const { origin, auth, session, get } = await withSync(new Promise((r) => (release = r)));
+    expect(session).toMatchObject({ store: 'sqlite', sync: true, sample: false });
+    const before = JSON.parse((await post(origin, '/api/execute', { command: 'jira search', input: { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' } }, auth)).body) as Envelope;
+    expect(before.ok).toBe(false);
+
+    const started = await post(origin, '/api/sync', {}, auth);
+    expect(started.status).toBe(202);
+    expect(JSON.parse(started.body).job.running).toBe(true);
+    expect((await post(origin, '/api/sync', {}, auth)).status).toBe(409);
+    expect((await post(origin, '/api/cache/wipe', { confirm: 'wipe' }, auth)).status).toBe(409);
+    release();
+
+    let status = JSON.parse((await get('/api/sync')).body);
+    for (let i = 0; status.job.running && i < 200; i++) {
+      await new Promise((r) => setTimeout(r, 10));
+      status = JSON.parse((await get('/api/sync')).body);
+    }
+    expect(status.job).toMatchObject({ running: false, error: null, dossiersDone: 3, by: 'local' });
+    expect(status.retentionDays).toBe(30);
+    expect(status.dossiers.map((d: { name: string; status: string }) => `${d.name}:${d.status}`)).toEqual(['card-payments:ok', 'checkout-web:ok', 'settlement:ok']);
+
+    const after = JSON.parse((await post(origin, '/api/execute', { command: 'jira search', input: { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' } }, auth)).body) as Envelope;
+    expect(after.ok).toBe(true);
+    const one = await post(origin, '/api/sync', { dossier: 7 }, auth);
+    expect(one.status).toBe(400);
+  });
+
+  it('wipes only when the page confirms', async () => {
+    const { origin, auth, sync, cache } = await withSync();
+    await sync.run({ viewer: { id: 'local', name: 'you', via: 'launch-token' }, signal: new AbortController().signal });
+    expect((await post(origin, '/api/cache/wipe', {}, auth)).status).toBe(400);
+    expect(cache.counts().responses).toBeGreaterThan(0);
+    const wiped = await post(origin, '/api/cache/wipe', { confirm: 'wipe' }, auth);
+    expect(wiped.status).toBe(200);
+    expect(JSON.parse(wiped.body).dossiers).toEqual([]);
+    expect(cache.counts().responses).toBe(0);
+  });
+});
+
 describe('the static files', () => {
   it('serves the app and nothing outside its folder', async () => {
     const { origin } = await start();
@@ -364,7 +442,7 @@ describe('the settings', () => {
   const home = join(app, 'home');
 
   it('defaults to loopback, a free port, the root path and ~/.toil-ui', () => {
-    expect(parseSettings([], {}, home)).toEqual({ settings: { host: '127.0.0.1', port: 0, basePath: '/', dataDir: join(home, '.toil-ui'), sample: false }, help: false, version: false });
+    expect(parseSettings([], {}, home)).toEqual({ command: 'serve', settings: { host: '127.0.0.1', port: 0, basePath: '/', dataDir: join(home, '.toil-ui'), retentionDays: 30, sample: false }, help: false, version: false });
   });
 
   it('takes a flag over its env var, and the env var over the default', () => {

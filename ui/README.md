@@ -52,6 +52,43 @@ in-process through `@imagile-dev/toil/api`, read-only, and toil's audit log
 records it with `via: "api"` and `caller: "toil-ui"`. A call that fails shows on
 its own panel with toil's message and fix.
 
+## Sync and the cache
+
+The dashboards read from a local cache, which a sync fills. Press **Sync now** in
+the Sync panel at the foot of the page. The sync makes the same toil calls the
+dashboards make, for every dossier, and stores the answers. The work items go
+through toil's Open Work Item mapping, with their status changes and the pull
+requests, builds and deployments that name them.
+
+- **Incremental.** After the first sync, Jira and Azure DevOps searches ask only for
+  what changed since the last good sync (`updatedSince`, five minutes early in
+  case the clocks disagree), and the GitHub board marks the issues whose
+  `updatedAt` moved. Only those items and their histories are fetched again.
+  Pull requests, builds, deployments and iterations have no "changed since" in
+  toil, so they're read again each time, bounded as the dashboards bound them.
+- **Every page.** Each call follows `meta.page.nextCursor` to the end, up to 200
+  pages, and fails that source, saying so, rather than keep part of a listing.
+- **Each source on its own.** Each area a dossier reads (Jira, Bitbucket, Jenkins,
+  OpenShift and so on) is a source with its own state. A source that fails shows
+  toil's message and fix in the Sync panel, and keeps its last good data, marked
+  stale. The other sources and dossiers aren't touched. The next sync asks it
+  for everything since its last good sync, so nothing is missed.
+- **When.** The line under the header says when the data was synced. The panel
+  says when each dossier was synced, and shows a running sync's progress
+  (requests, pages and retries, from toil's own progress events).
+- **Where.** The cache is one SQLite file, `cache/toil-ui.db` in the data folder,
+  through Node's built-in `node:sqlite`, so there's no native module. It holds
+  ticket content, so it stays on this machine and is readable by your account
+  only.
+- **For how long.** Anything not synced again within the retention period (30
+  days by default) is deleted, at start and after each sync.
+- **Wiping it.** **Wipe the cache** in the Sync panel deletes it after asking
+  first. `toil-ui wipe` does the same from a terminal; stop `toil-ui` first. Your
+  trackers are never touched. The next sync fetches everything again.
+- **Deleted tickets.** An item deleted in its tracker stays in the cache until
+  the retention period ends or you wipe it, since an incremental search only
+  returns items that still exist.
+
 The page can run only the reads the dashboards make: `dossiers list` and `dossiers
 show`, and each area's search, history, pull request, build and deployment reads.
 Any other command is refused before it reaches toil, and a change to a tracker is
@@ -80,14 +117,15 @@ port, so the server lets in only the browser holding this launch's token:
 | Port | `--port` | `TOIL_UI_PORT` | `0`: the OS picks a free one |
 | Base path | `--base-path` | `TOIL_UI_BASE_PATH` | `/` |
 | Data folder | `--data-dir` | `TOIL_UI_DATA_DIR` | `~/.toil-ui` |
+| Retention | `--retention-days` | `TOIL_UI_RETENTION_DAYS` | `30` (1 to 3650) |
 
 A flag beats its env var. Any bind address other than loopback is refused in this
-release. The data folder is Toil UI's own, apart from toil's `~/.toil/`, and is
-kept for the local cache.
+release. The data folder is Toil UI's own, apart from toil's `~/.toil/`, and holds
+the cache. A `~` at the start of `TOIL_UI_DATA_DIR` means your home folder, on
+Windows too.
 
 ## Not in this alpha
 
-- **The local cache.** Every dashboard reads live through toil when it opens.
 - **The agent.** The agent pane has no adapter yet, and says so when asked.
 - **Settings pages** for connections and dossiers. Use `toil connections` and
   `toil dossiers` on the CLI.

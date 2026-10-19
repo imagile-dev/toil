@@ -7,7 +7,7 @@ import { httpExecute, signIn, type Session } from '../src/server-client.ts';
  * a header (never relying on a cookie) on every call. fetch is stubbed.
  */
 
-const SESSION: Session = { session: 'sid-1', csrf: 'csrf-1', version: '0.0.0', toil: { version: '0.1.0-alpha.2', contractVersion: 1 }, viewer: { id: 'local', name: 'you' }, store: 'fixture', agent: 'scripted', sample: true, now: '2026-10-13T08:00:00.000Z' };
+const SESSION: Session = { session: 'sid-1', csrf: 'csrf-1', version: '0.0.0', toil: { version: '0.1.0-alpha.2', contractVersion: 1 }, viewer: { id: 'local', name: 'you' }, store: 'fixture', sync: false, agent: 'scripted', sample: true, now: '2026-10-13T08:00:00.000Z' };
 
 afterEach(() => vi.unstubAllGlobals());
 
