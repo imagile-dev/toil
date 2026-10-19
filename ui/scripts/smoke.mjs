@@ -147,7 +147,15 @@ try {
   check(!/ExperimentalWarning|SQLite is an experimental/.test(live.errors()), `toil-ui printed node:sqlite's warning: ${live.errors()}`);
   steps.push(`live on ${l.origin}: dossiers list through the installed toil's execute() returned ok with ${liveList.data?.dossiers?.length} dossiers; a sync ran through the API into ${db}, with no ExperimentalWarning on stderr`);
 
-  // toil-ui wipe deletes the cache folder, once the server that holds it has stopped.
+  // toil-ui wipe refuses while the server holds the data folder's lock, on every OS...
+  let refusedWipe = '';
+  try {
+    execFileSync(process.execPath, [bin, 'wipe'], { env, encoding: 'utf8', stdio: 'pipe' });
+  } catch (e) {
+    refusedWipe = String(e.stderr);
+  }
+  check(refusedWipe.includes('Toil UI is running; stop it, or use Wipe in the UI.') && existsSync(db), `toil-ui wipe while the server ran printed ${JSON.stringify(refusedWipe)}`);
+  // ...and deletes the cache folder once the server that holds it has stopped.
   live.child.kill();
   await new Promise((r) => live.child.once('exit', r));
   const wiped = execFileSync(process.execPath, [bin, 'wipe'], { env, encoding: 'utf8' });

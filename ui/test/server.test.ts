@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,7 +9,8 @@ import type { RequestContext } from '../server/context.ts';
 import { CSRF_HEADER, MAX_BODY, SESSION_HEADER, MAX_SESSIONS, createUiServer, type UiServerOptions } from '../server/server.ts';
 import { parseSettings, SettingsError, type Settings } from '../server/settings.ts';
 import { mapOwi } from '@imagile-dev/toil/api';
-import { Cache } from '../server/cache.ts';
+import { Cache, RUNNING_MESSAGE, cachePaths, liveLock, pidAlive, wipeCacheFiles } from '../server/cache.ts';
+import { spawnSync } from 'node:child_process';
 import { CALLER, READ_COMMANDS, fixtureStore, sqliteStore, toilStore, type Access, type Store } from '../server/store.ts';
 import { SyncService } from '../server/sync.ts';
 import { stubToil } from './toil-stub.ts';
@@ -377,6 +378,78 @@ describe('the sync API', () => {
     expect(wiped.status).toBe(200);
     expect(JSON.parse(wiped.body).dossiers).toEqual([]);
     expect(cache.counts().responses).toBe(0);
+  });
+});
+
+describe('toil-ui wipe and a running server', () => {
+  const ctx: RequestContext = { viewer: { id: 'local', name: 'you', via: 'launch-token' }, signal: new AbortController().signal };
+
+  async function serving(dataDir: string) {
+    const cache = await Cache.open(dataDir, { retentionDays: 30 });
+    const toil = stubToil();
+    const sync = new SyncService({ cache, execute: toil.execute, mapOwi });
+    const server = await start({ store: sqliteStore(() => cache, toil.execute as unknown as Execute, { version: '0.1.0-alpha.2', contractVersion: 1 }), sync, settings: settings({ sample: false, dataDir }) });
+    const auth = await signIn(server.origin);
+    return { ...server, cache, sync, auth: { sid: auth.sid, csrf: auth.session.csrf } };
+  }
+
+  it('is refused with the same message on every OS while the server runs, and allowed once it stops', async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'toil-ui-lock-'));
+    try {
+      const { ui, cache, sync } = await serving(dataDir);
+      await sync.run(ctx);
+      expect(() => wipeCacheFiles(dataDir)).toThrow(RUNNING_MESSAGE);
+      // Nothing was unlinked under the server: it still reads its rows.
+      expect(existsSync(cachePaths(dataDir).db)).toBe(true);
+      expect(cache.counts().responses).toBeGreaterThan(0);
+      // A second server on the same folder is refused too.
+      await expect(Cache.open(dataDir, { retentionDays: 30 })).rejects.toThrow(/Another Toil UI/);
+
+      await ui.close();
+      cache.close();
+      expect(() => wipeCacheFiles(dataDir)).not.toThrow();
+      expect(existsSync(cachePaths(dataDir).dir)).toBe(false);
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true, maxRetries: 3 });
+    }
+  });
+
+  it('takes over a stale lock left by a process that has gone', async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'toil-ui-lock-'));
+    try {
+      const gone = spawnSync(process.execPath, ['-e', '']).pid!;
+      expect(pidAlive(gone)).toBe(false);
+      writeFileSync(join(dataDir, 'toil-ui.lock'), JSON.stringify({ pid: gone, token: 'stale', startedAt: '2026-10-01T00:00:00.000Z' }));
+      mkdirSync(cachePaths(dataDir).dir, { recursive: true });
+      expect(() => wipeCacheFiles(dataDir)).not.toThrow();
+      const cache = await Cache.open(dataDir, { retentionDays: 30 });
+      expect(liveLock(dataDir)?.pid).toBe(process.pid);
+      cache.close();
+      expect(liveLock(dataDir)).toBeNull();
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true, maxRetries: 3 });
+    }
+  });
+
+  it("the page's wipe empties the open cache in the server, and the next sync works", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'toil-ui-lock-'));
+    try {
+      const { origin, auth, cache, sync } = await serving(dataDir);
+      await sync.run(ctx);
+      const wiped = await post(origin, '/api/cache/wipe', { confirm: 'wipe' }, auth);
+      expect(wiped.status).toBe(200);
+      expect(Object.values(cache.counts()).every((n) => n === 0)).toBe(true);
+      expect(liveLock(dataDir)?.pid).toBe(process.pid);
+      const job = await sync.run(ctx);
+      expect(job.error).toBeNull();
+      expect(cache.states().map((d) => d.status)).toEqual(['ok', 'ok', 'ok']);
+      const search = JSON.parse((await post(origin, '/api/execute', { command: 'jira search', input: { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' } }, auth)).body) as Envelope;
+      expect(search.ok).toBe(true);
+      cache.close();
+    } finally {
+      while (running.length) await running.pop()!();
+      rmSync(dataDir, { recursive: true, force: true, maxRetries: 3 });
+    }
   });
 });
 

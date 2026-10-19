@@ -2952,9 +2952,17 @@ Toil UI's sync and SQLite cache (#206 point 2), on the server #249 built.
 - **Data folder.** `<dataDir>/cache/toil-ui.db`, created owner-only (0700 where POSIX
   modes exist). `--retention-days` / `TOIL_UI_RETENTION_DAYS`, default 30, 1 to
   3650; rows not synced within it are deleted at start and after each sync.
-  `toil-ui wipe` removes the `cache/` folder (and says to stop the server if the
-  file is locked, as on Windows); the page's **Wipe the cache** closes the file,
-  removes the folder and opens an empty one. `~` at the start of
+  `toil-ui wipe` removes the `cache/` folder. The page's **Wipe the cache** closes
+  the file, removes the folder and opens an empty one inside the server.
+- **A lock file, not the OS's file locking (review round 1).** Windows refuses to
+  delete an open database, but macOS and Linux unlink it, and the server went on
+  serving the "wiped" rows from the unlinked file. So the open cache holds
+  `<dataDir>/toil-ui.lock` (pid, a random token, start time; created with `wx`).
+  `toil-ui wipe` refuses with the same "Toil UI is running; stop it, or use Wipe in
+  the UI." on every OS while the lock's pid is alive (`process.kill(pid, 0)`, with
+  EPERM counting as alive), and takes over a lock whose process has gone. Only the
+  holder's token passes, which is how the in-app wipe gets through. A second server
+  on the same data folder is refused at start for the same reason. `~` at the start of
   `TOIL_UI_DATA_DIR` is expanded, since env vars don't go through a shell. Path
   handling is tested with `path.win32` and `path.posix`.
 - **Progress by polling, not SSE.** The API's session is a header, never a cookie

@@ -84,8 +84,9 @@ requests, builds and deployments that name them.
 - **For how long.** Anything not synced again within the retention period (30
   days by default) is deleted, at start and after each sync.
 - **Wiping it.** **Wipe the cache** in the Sync panel deletes it after asking
-  first. `toil-ui wipe` does the same from a terminal; stop `toil-ui` first. Your
-  trackers are never touched. The next sync fetches everything again.
+  first. `toil-ui wipe` does the same from a terminal, once `toil-ui` has
+  stopped: a running Toil UI holds `toil-ui.lock` in the data folder, and the
+  command refuses while it does. Your trackers are never touched. The next sync fetches everything again.
 - **Deleted tickets.** An item deleted in its tracker stays in the cache until
   the retention period ends or you wipe it, since an incremental search only
   returns items that still exist.

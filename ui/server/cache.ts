@@ -22,7 +22,8 @@
  * welcome. A filing cabinet with a shredder bolted to the side.
  */
 
-import { chmodSync, mkdirSync, rmSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import * as nodePath from 'node:path';
 import type { ChangeRef, Deployment, Envelope, WorkItem } from '../src/toil.ts';
 import { loadSqlite, type DatabaseSync } from './sqlite.ts';
@@ -227,15 +228,87 @@ export interface CacheOptions {
 
 const DAY = 86_400_000;
 
-/** Removes the cache folder and everything in it. Safe when there is none. */
-export function wipeCacheFiles(dataDir: string): CachePaths {
+/** The lock a running Toil UI holds on its data folder: which process, and a token only the holder knows. */
+export interface CacheLock {
+  pid: number;
+  token: string;
+  startedAt: string;
+}
+
+/** The one message every OS gives for a wipe while Toil UI runs. */
+export const RUNNING_MESSAGE = 'Toil UI is running; stop it, or use Wipe in the UI.';
+
+/** True while a process with this id exists (EPERM: it exists, under another account). */
+export function pidAlive(pid: number): boolean {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+/** The lock on the data folder, if one is there and its process is alive; a stale or unreadable one counts as none. */
+export function liveLock(dataDir: string): CacheLock | null {
+  let lock: CacheLock;
+  try {
+    lock = JSON.parse(readFileSync(lockPath(dataDir), 'utf8')) as CacheLock;
+  } catch {
+    return null;
+  }
+  return typeof lock?.pid === 'number' && typeof lock.token === 'string' && pidAlive(lock.pid) ? lock : null;
+}
+
+const lockPath = (dataDir: string) => nodePath.join(dataDir, 'toil-ui.lock');
+
+/**
+ * Takes the data folder's lock for this process, so `toil-ui wipe` can tell a
+ * running Toil UI is using the cache on every OS (POSIX would otherwise unlink
+ * the open file under it). A lock whose process is gone is taken over.
+ */
+export function acquireLock(dataDir: string): CacheLock {
+  mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+  const lock: CacheLock = { pid: process.pid, token: randomBytes(16).toString('hex'), startedAt: new Date().toISOString() };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      writeFileSync(lockPath(dataDir), JSON.stringify(lock), { flag: 'wx', mode: 0o600 });
+      return lock;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
+      const held = liveLock(dataDir);
+      if (held) throw new CacheError(`Another Toil UI (process ${held.pid}) is using ${dataDir}.`, 'Stop it first, or start this one with another --data-dir.');
+      rmSync(lockPath(dataDir), { force: true });
+    }
+  }
+  throw new CacheError(`Couldn't take the lock on ${dataDir}.`, 'Start Toil UI again.');
+}
+
+/** Gives the lock back, if it is still this holder's. */
+export function releaseLock(dataDir: string, lock: CacheLock) {
+  try {
+    const held = JSON.parse(readFileSync(lockPath(dataDir), 'utf8')) as CacheLock;
+    if (held.token === lock.token) rmSync(lockPath(dataDir), { force: true });
+  } catch {
+    // Already gone.
+  }
+}
+
+/**
+ * Removes the cache folder and everything in it. Safe when there is none.
+ * Refused while a running Toil UI holds the folder's lock, unless the caller
+ * is that holder (the in-app wipe, which has closed the file first).
+ */
+export function wipeCacheFiles(dataDir: string, holder?: CacheLock): CachePaths {
   const paths = cachePaths(dataDir);
+  const held = liveLock(dataDir);
+  if (held && held.token !== holder?.token) throw new CacheError(RUNNING_MESSAGE, `It holds ${lockPath(dataDir)} (process ${held.pid}). Press Ctrl+C where it runs, then run toil-ui wipe again.`);
   try {
     rmSync(paths.dir, { recursive: true, force: true, maxRetries: 3 });
   } catch (e) {
     const code = (e as NodeJS.ErrnoException).code;
     if (code === 'EBUSY' || code === 'EPERM') {
-      throw new CacheError(`The cache at ${paths.dir} is in use, so it can't be deleted.`, 'Stop Toil UI (Ctrl+C where it runs), then run toil-ui wipe again, or use Wipe the cache in the app.');
+      throw new CacheError(RUNNING_MESSAGE, `${paths.dir} is in use. Press Ctrl+C where Toil UI runs, then run toil-ui wipe again.`);
     }
     throw e;
   }
@@ -272,9 +345,11 @@ export class Cache {
   private readonly now: () => Date;
   private readonly migrations: readonly Migration[];
   private readonly open: (path: string) => DatabaseSync;
+  private readonly lock: CacheLock;
 
-  private constructor(dataDir: string, db: DatabaseSync, open: (path: string) => DatabaseSync, options: CacheOptions) {
+  private constructor(dataDir: string, db: DatabaseSync, open: (path: string) => DatabaseSync, lock: CacheLock, options: CacheOptions) {
     this.dataDir = dataDir;
+    this.lock = lock;
     this.paths = cachePaths(dataDir);
     this.db = db;
     this.open = open;
@@ -283,9 +358,14 @@ export class Cache {
     this.migrations = options.migrations ?? MIGRATIONS;
   }
 
-  /** Opens the cache in `dataDir`, creating the folder (owner only) and migrating the file. */
+  /**
+   * Opens the cache in `dataDir`, creating the folder (owner only) and
+   * migrating the file. It holds the folder's lock until `close()`, so
+   * `toil-ui wipe` refuses while it's open.
+   */
   static async open(dataDir: string, options: CacheOptions): Promise<Cache> {
     const { DatabaseSync } = await loadSqlite();
+    const lock = acquireLock(dataDir);
     const open = (path: string) => {
       const paths = cachePaths(dataDir);
       mkdirSync(paths.dir, { recursive: true, mode: 0o700 });
@@ -296,15 +376,17 @@ export class Cache {
       }
       return new DatabaseSync(path, { timeout: 5000 });
     };
-    const db = open(cachePaths(dataDir).db);
-    const cache = new Cache(dataDir, db, open, options);
+    let db: DatabaseSync | undefined;
     try {
+      db = open(cachePaths(dataDir).db);
+      const cache = new Cache(dataDir, db, open, lock, options);
       cache.prepare();
+      return cache;
     } catch (e) {
-      db.close();
+      db?.close();
+      releaseLock(dataDir, lock);
       throw e;
     }
-    return cache;
   }
 
   private prepare() {
@@ -317,14 +399,20 @@ export class Cache {
     return Number((this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version);
   }
 
+  /** Closes the file and gives the data folder's lock back. */
   close() {
     if (this.db.isOpen) this.db.close();
+    releaseLock(this.dataDir, this.lock);
   }
 
-  /** Deletes the whole cache folder and starts an empty one: nothing synced is left on disk. */
+  /**
+   * Deletes the whole cache folder and starts an empty one: nothing synced is
+   * left on disk, and nothing is left serving an unlinked file. The file is
+   * closed before it's deleted, and the lock is kept throughout.
+   */
   wipe() {
-    this.close();
-    wipeCacheFiles(this.dataDir);
+    if (this.db.isOpen) this.db.close();
+    wipeCacheFiles(this.dataDir, this.lock);
     this.db = this.open(this.paths.db);
     this.prepare();
   }
