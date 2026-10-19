@@ -9,8 +9,8 @@ import type { RequestContext } from '../server/context.ts';
 import { CSRF_HEADER, MAX_BODY, SESSION_HEADER, MAX_SESSIONS, createUiServer, type UiServerOptions } from '../server/server.ts';
 import { parseSettings, SettingsError, type Settings } from '../server/settings.ts';
 import { mapOwi } from '@imagile-dev/toil/api';
-import { Cache, RUNNING_MESSAGE, cachePaths, liveLock, pidAlive, wipeCacheFiles } from '../server/cache.ts';
-import { spawnSync } from 'node:child_process';
+import { Cache, CacheError, RUNNING_MESSAGE, cachePaths, liveLock, pidAlive, wipeCacheFiles } from '../server/cache.ts';
+import { spawn, spawnSync } from 'node:child_process';
 import { CALLER, READ_COMMANDS, fixtureStore, sqliteStore, toilStore, type Access, type Store } from '../server/store.ts';
 import { SyncService } from '../server/sync.ts';
 import { stubToil } from './toil-stub.ts';
@@ -403,8 +403,6 @@ describe('toil-ui wipe and a running server', () => {
       // Nothing was unlinked under the server: it still reads its rows.
       expect(existsSync(cachePaths(dataDir).db)).toBe(true);
       expect(cache.counts().responses).toBeGreaterThan(0);
-      // A second server on the same folder is refused too.
-      await expect(Cache.open(dataDir, { retentionDays: 30 })).rejects.toThrow(/Another Toil UI/);
 
       await ui.close();
       cache.close();
@@ -428,6 +426,33 @@ describe('toil-ui wipe and a running server', () => {
       cache.close();
       expect(liveLock(dataDir)).toBeNull();
     } finally {
+      rmSync(dataDir, { recursive: true, force: true, maxRetries: 3 });
+    }
+  });
+
+  it('takes over a lock naming its own pid, left by a crash whose pid was reused', async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'toil-ui-lock-'));
+    try {
+      writeFileSync(join(dataDir, 'toil-ui.lock'), JSON.stringify({ pid: process.pid, token: 'crashed', startedAt: '2026-10-01T00:00:00.000Z' }));
+      const cache = await Cache.open(dataDir, { retentionDays: 30 });
+      expect(liveLock(dataDir)).toMatchObject({ pid: process.pid });
+      expect(liveLock(dataDir)?.token).not.toBe('crashed');
+      cache.close();
+    } finally {
+      rmSync(dataDir, { recursive: true, force: true, maxRetries: 3 });
+    }
+  });
+
+  it("refuses to start beside a live lock, naming the lock file to delete if nothing's running", async () => {
+    const dataDir = mkdtempSync(join(tmpdir(), 'toil-ui-lock-'));
+    const other = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)']);
+    try {
+      writeFileSync(join(dataDir, 'toil-ui.lock'), JSON.stringify({ pid: other.pid, token: 'other', startedAt: '2026-10-01T00:00:00.000Z' }));
+      const refused = await Cache.open(dataDir, { retentionDays: 30 }).then(() => null, (e: unknown) => e as CacheError);
+      expect(refused?.message).toContain(`Another Toil UI (process ${other.pid})`);
+      expect(refused?.fix).toContain(`delete ${join(dataDir, 'toil-ui.lock')}`);
+    } finally {
+      other.kill();
       rmSync(dataDir, { recursive: true, force: true, maxRetries: 3 });
     }
   });

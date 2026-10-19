@@ -3042,7 +3042,7 @@ Toil UI's sync and SQLite cache (#206 point 2), on the server #249 built.
   the UI." on every OS while the lock's pid is alive (`process.kill(pid, 0)`, with
   EPERM counting as alive), and takes over a lock whose process has gone. Only the
   holder's token passes, which is how the in-app wipe gets through. A second server
-  on the same data folder is refused at start for the same reason. `~` at the start of
+  on the same data folder is refused at start for the same reason, unless the lock names this process's own pid: that is a crash's lock with the pid reused (review round 2), and the refusal names the lock file to delete. `~` at the start of
   `TOIL_UI_DATA_DIR` is expanded, since env vars don't go through a shell. Path
   handling is tested with `path.win32` and `path.posix`.
 - **Progress by polling, not SSE.** The API's session is a header, never a cookie

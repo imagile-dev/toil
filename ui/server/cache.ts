@@ -277,7 +277,10 @@ export function acquireLock(dataDir: string): CacheLock {
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
       const held = liveLock(dataDir);
-      if (held) throw new CacheError(`Another Toil UI (process ${held.pid}) is using ${dataDir}.`, 'Stop it first, or start this one with another --data-dir.');
+      // This process hasn't taken the lock yet, so a lock naming its pid was left by a crash and the pid reused (common in containers).
+      if (held && held.pid !== process.pid) {
+        throw new CacheError(`Another Toil UI (process ${held.pid}) is using ${dataDir}.`, `Stop it first, or start this one with another --data-dir; or, if no Toil UI is running, delete ${lockPath(dataDir)}.`);
+      }
       rmSync(lockPath(dataDir), { force: true });
     }
   }
