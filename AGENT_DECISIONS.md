@@ -3560,6 +3560,11 @@ fills.
   as `fill: var(--chart-fill)`. Plain never opts in and stays flat. Each new
   stop was checked against every text colour that can sit on it: the lowest is
   Crate's `danger` on its header at 4.7:1.
+- **The running week stays muted in every theme's throughput chart** (review on
+  #275). A theme rule on `.chart .bar` outranks the base `.bar--partial`, which
+  had already hidden the partial week in Crate and Starship on main, so each of
+  the four themes restates it, and `ui/test/themes.test.ts` requires that of any
+  theme that recolours chart bars.
 - **Two overflows from before this change are fixed,** since the bar is clean
   layout in every theme: a long field name in a Connections label at 375px
   (`overflow-wrap: anywhere`), and Harvest's Bounds terms at 375px, which now
