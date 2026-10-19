@@ -131,6 +131,7 @@ describe('the Feedback dialog', () => {
     await openDialog(recording());
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Feedback' }));
+    // React Aria gives focus back once the modal has gone, which can be a frame later on a slow runner.
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Feedback' })));
   });
 });
