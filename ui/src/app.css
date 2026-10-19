@@ -2,6 +2,13 @@
    active theme's tokens (src/themes.ts); a theme's own theme.css may restyle,
    but the layout and the click targets stay the same in every theme (#206). */
 
+@import '@fontsource/fredoka/latin-600.css';
+
+/* The wordmark's face, the same token as the site's (test/brand-sync.test.ts in
+   the repository root holds them together). Every theme sets "toil" in it, so the
+   word looks the same whatever the theme; only its colour follows the theme. */
+:root { --font-brand: 'Fredoka', ui-rounded, 'Arial Rounded MT Bold', system-ui, sans-serif; }
+
 *, *::before, *::after { box-sizing: border-box; }
 * { margin: 0; }
 
@@ -59,14 +66,56 @@ h1:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
   background: var(--surface);
 }
 .brand {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 1.15rem;
+  font-size: 1.6rem;
   color: var(--ink);
   text-decoration: none;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+}
+.wordmark {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+/* "UI" is a die-cut sticker stuck on beside the word: tilted, with a cream
+   border, a soft shadow and a peeled corner, so "toil" itself stays exactly the
+   wordmark. The face takes the theme's accent, which every theme already pairs
+   with accent-ink for the current nav link. */
+.sticker {
+  position: relative;
+  display: inline-block;
+  margin-left: 0.12em;
+  transform: translateY(-0.28em) rotate(-8deg);
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.28)) drop-shadow(0 3px 4px rgb(0 0 0 / 0.22));
+}
+.sticker__face {
+  display: block;
+  padding: 0.2em 0.36em 0.22em;
+  border: 0.14em solid #fffaf0;
+  border-radius: 0.32em;
+  background: var(--sticker-bg, var(--accent));
+  color: var(--sticker-ink, var(--accent-ink));
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-size: 0.56em;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  /* The corner that peeled is cut away here, and the flap below covers the gap. */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 0.42em), calc(100% - 0.42em) 100%, 0 100%);
+}
+.sticker::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0.235em;
+  height: 0.235em;
+  border-bottom-left-radius: 0.08em;
+  background: linear-gradient(315deg, transparent 50%, #e9e1d2 50%, #fffaf0 85%);
+  box-shadow: -1px -1px 2px rgb(0 0 0 / 0.18);
 }
 .top nav ul { display: flex; flex-wrap: wrap; gap: 0.25rem; list-style: none; padding: 0; }
 .top nav a {

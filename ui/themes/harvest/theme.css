@@ -46,8 +46,7 @@
 }
 
 [data-theme="harvest"] h1,
-[data-theme="harvest"] h2,
-[data-theme="harvest"] .brand {
+[data-theme="harvest"] h2 {
   font-weight: 600;
   letter-spacing: 0.02em;
 }

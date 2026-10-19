@@ -16,7 +16,7 @@ const current = Astro.url.pathname;
   <div class="container site-header__inner">
     <a href={url('/')} class="site-header__logo tap" aria-label="toil home">
       <Logo />
-      <span>toil</span>
+      <span class="wordmark">toil</span>
     </a>
     <a href="https://www.imagile.dev" class="site-header__by tap" aria-label="toil is built by Imagile — visit imagile.dev">
       <span class="site-header__by-text">by</span>
@@ -99,10 +99,7 @@ const current = Astro.url.pathname;
     display: inline-flex;
     align-items: center;
     gap: 0.55rem;
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 1.45rem;
-    letter-spacing: -0.01em;
+    font-size: 1.7rem;
   }
 
   /* Byline: a hairline divider, then Imagile's own mark in its own colour. */

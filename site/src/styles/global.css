@@ -36,6 +36,9 @@
   --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, monospace;
   --font-action: 'Archivo', var(--font-body);
+  /* The wordmark's face, for the word "toil" and nothing else. Toil UI sets the
+     same token (ui/src/app.css); test/brand-sync.test.ts holds them together. */
+  --font-brand: 'Fredoka', ui-rounded, 'Arial Rounded MT Bold', system-ui, sans-serif;
 
   --text-xs: 0.75rem;
   --text-sm: 0.875rem;
@@ -262,6 +265,15 @@ button { font: inherit; color: inherit; }
 
 @media (pointer: coarse) {
   .btn--sm { min-height: 44px; }
+}
+
+/* The wordmark: "toil" in its own rounded face, the same word Toil UI's header
+   and the terminal splash draw. It inherits its colour and size from where it sits. */
+.wordmark {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
 }
 
 /* ============================================================

@@ -93,3 +93,33 @@ describe("the Toil UI Crate theme matches the site", () => {
     expect(Object.keys(crate.schemes)).toEqual(['dark']);
   });
 });
+
+/**
+ * The wordmark (#272): "toil" is set in one face on the site and in Toil UI, in
+ * every theme, and the terminal draws the same word as half-block art in
+ * src/welcome/splash.ts. Each package imports the face for itself, so this
+ * holds the token, the one weight and the package version together.
+ */
+describe('the wordmark is one face everywhere', () => {
+  const read = (path: string) => readFileSync(join(root, path), 'utf8');
+  const brand = (text: string) => text.match(/--font-brand:\s*([^;]+);/)?.[1]?.trim();
+  const fredoka = (path: string) => (JSON.parse(read(path)) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> });
+
+  it('uses the same --font-brand on the site and in Toil UI', () => {
+    expect(brand(css)).toMatch(/^'Fredoka'/);
+    expect(brand(read('ui/src/app.css'))).toBe(brand(css));
+  });
+
+  it('imports only the Latin 600 face, at the same version, in both packages', () => {
+    expect(read('site/src/layouts/Layout.astro')).toContain("import '@fontsource/fredoka/latin-600.css';");
+    expect(read('ui/src/app.css')).toContain("@import '@fontsource/fredoka/latin-600.css';");
+    const site = fredoka('site/package.json').dependencies?.['@fontsource/fredoka'];
+    expect(site).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(fredoka('ui/package.json').devDependencies?.['@fontsource/fredoka']).toBe(site);
+  });
+
+  it('sets the word in the brand class wherever the site and the UI show it', () => {
+    for (const path of ['site/src/components/SiteHeader.astro', 'site/src/components/SiteFooter.astro']) expect(read(path), path).toContain('<span class="wordmark">toil</span>');
+    expect(read('ui/src/App.tsx')).toContain('<span className="wordmark">toil</span>');
+  });
+});

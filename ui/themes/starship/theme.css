@@ -55,7 +55,6 @@
 
 [data-theme="starship"] h1,
 [data-theme="starship"] h2,
-[data-theme="starship"] .brand,
 [data-theme="starship"] .stat-value,
 [data-theme="starship"] .big-number,
 [data-theme="starship"] .rank,
@@ -75,9 +74,9 @@
   color: var(--link);
 }
 
-[data-theme="starship"] .brand {
+/* The wordmark keeps its shape in every theme; here it only glows. */
+[data-theme="starship"] .brand .wordmark {
   color: var(--accent);
-  text-transform: uppercase;
   text-shadow: 0 0 10px rgba(54, 214, 255, 0.6);
 }
 
