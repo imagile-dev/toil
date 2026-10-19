@@ -75,6 +75,7 @@ export const FIGURE = /^<!--\s*figure:\s*([a-z0-9-]+)\s*-->$/;
 /**
  * A figure's markup, with `{base}` replaced by the site's base path. A name with
  * no file fails the build, so a typo can't ship a page with a hole in it.
+ * A missing figure is reported at build time, which is sooner than most missing attachments.
  */
 export function figureHtml(name, base) {
   const file = join(figureDir, `${name}.html`);
