@@ -47,6 +47,7 @@ Open only the file the task needs; each sits beside this one.
 |------|------|
 | `core.md` | `--select`, `toil wait`, paging and progress, errors, writes and their exceptions, global flags, files, configuration, the raw `api` passthrough, dossiers, the audit log, calling toil from a program (`@imagile-dev/toil/api`), sending feedback, certificates and proxies |
 | `<area>.md` | One per area, named after it: `jira.md` for `toil jira …`. Its frontmatter says what the area covers; the file gives the oldest version it supports, its credential, its configuration keys and every command |
+| `dossiers.md` | What a dossier is: one body of work mapped to your connections, its file, and how to build and share one |
 | `db.md` | Databases: `toil db …` on every engine |
 | `util.md` | Local utilities with no connection or network: `toil util …` |
 | `skills.md` | Skills marketplaces, and keeping this skill installed |
