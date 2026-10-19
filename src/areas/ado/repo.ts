@@ -16,8 +16,7 @@ import { AT, intText } from './work.js';
 export const IN_REPO = AT;
 const W = { ...IN_REPO, allowWrite: true };
 const prInput = intText.describe('Pull request ID');
-const idOption = { flags: '--id <n>', field: 'id', description: 'Pull request ID' };
-const prOption = { flags: '--pr <n>', field: 'pr', description: 'Pull request ID' };
+export const prArg = { name: 'id', field: 'id', description: 'Pull request ID' };
 
 /** Well-known policy type id of "Required reviewers". */
 const REQUIRED_REVIEWERS_POLICY_TYPE = 'fd2167ab-b0be-447a-8ec8-39368250530e';
@@ -103,7 +102,7 @@ export const repoGetCommand = adoArea.command({
 const STATE = 'PR state: active|abandoned|completed|all (default: "active")';
 
 export const repoListPrsCommand = adoArea.command({
-  path: ['ado', 'repo', 'list-prs'],
+  path: ['ado', 'pr', 'list'],
   description: 'List pull requests',
   toolDescription:
     'Lists every pull request in the repository in one state (active by default), optionally by creator or reviewer identity id (a GUID, from ado_whoami), and by creation date. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.',
@@ -153,12 +152,12 @@ export const repoListPrsCommand = adoArea.command({
 });
 
 export const repoGetPrCommand = adoArea.command({
-  path: ['ado', 'repo', 'get-pr'],
+  path: ['ado', 'pr', 'get'],
   description: 'Get a pull request by ID',
   toolDescription: 'Returns one pull request by id: title, description, status, refs, reviewers and votes, merge commits.',
   input: z.object({ id: prInput }),
   writes: false,
-  options: [idOption],
+  args: [prArg],
   examples: [{ ...IN_REPO, id: '42' }],
   run: async (input, ctx) => getPR(ctx, where(ctx, true), toInt(input.id)),
 });
@@ -166,7 +165,7 @@ export const repoGetPrCommand = adoArea.command({
 const TARGET = 'Target branch (default: main) (default: "main")';
 
 export const repoCreatePrCommand = adoArea.command({
-  path: ['ado', 'repo', 'create-pr'],
+  path: ['ado', 'pr', 'create'],
   description: 'Create a pull request',
   toolDescription:
     'Opens a pull request from a source branch to a target (main by default) and returns it. Give branch names without refs/heads/, which toil adds. Reviewers are identity ids, comma-separated.',
@@ -209,7 +208,7 @@ export const repoCreatePrCommand = adoArea.command({
 });
 
 export const repoUpdatePrCommand = adoArea.command({
-  path: ['ado', 'repo', 'update-pr'],
+  path: ['ado', 'pr', 'update'],
   description: 'Update a pull request',
   toolDescription: 'Changes a pull request\'s title, description, reviewers or draft state in one PATCH and returns it. draft is the text "true" or anything else for false.',
   input: z.object({
@@ -221,8 +220,8 @@ export const repoUpdatePrCommand = adoArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  args: [prArg],
   options: [
-    idOption,
     { flags: '--title <title>', field: 'title', description: 'New title' },
     { flags: '--description <text>', field: 'description', description: 'New description' },
     { flags: '--reviewers <ids>', field: 'reviewers', description: 'Comma-separated reviewer IDs' },
@@ -247,7 +246,7 @@ export const repoUpdatePrCommand = adoArea.command({
 const STRATEGY = 'Merge strategy: noFastForward|squash|rebase|rebaseMerge (default: "noFastForward")';
 
 export const repoMergePrCommand = adoArea.command({
-  path: ['ado', 'repo', 'merge-pr'],
+  path: ['ado', 'pr', 'merge'],
   description: 'Complete (merge) a pull request',
   toolDescription:
     "Asks the server to complete a pull request with a merge strategy (noFastForward by default), optionally deleting the source branch, and returns the pull request. Completion is asynchronous: check data.status, which stays active when policies or conflicts block it.",
@@ -258,7 +257,8 @@ export const repoMergePrCommand = adoArea.command({
     ...allowWriteField,
   }),
   writes: true,
-  options: [idOption, { flags: '--strategy <s>', field: 'strategy', description: STRATEGY }, { flags: '--delete-source', field: 'deleteSource', description: 'Delete source branch after merge' }],
+  args: [prArg],
+  options: [{ flags: '--strategy <s>', field: 'strategy', description: STRATEGY }, { flags: '--delete-source', field: 'deleteSource', description: 'Delete source branch after merge' }],
   examples: [
     { ...W, id: '42' },
     { ...W, id: '43', strategy: 'squash', deleteSource: true },
@@ -278,27 +278,27 @@ export const repoMergePrCommand = adoArea.command({
 });
 
 export const repoAbandonPrCommand = adoArea.command({
-  path: ['ado', 'repo', 'abandon-pr'],
+  path: ['ado', 'pr', 'abandon'],
   description: 'Abandon a pull request',
   toolDescription: 'Abandons a pull request and returns it.',
   input: z.object({ id: prInput, ...allowWriteField }),
   writes: true,
-  options: [idOption],
+  args: [prArg],
   examples: [{ ...W, id: '42' }],
   run: async (input, ctx) => ado(ctx, prUrl(where(ctx, true), toInt(input.id)), { method: 'PATCH', json: { status: 'abandoned' } }),
 });
 
 export const repoListFilesCommand = adoArea.command({
-  path: ['ado', 'repo', 'list-files'],
+  path: ['ado', 'pr', 'files'],
   description: 'List files changed in a pull request',
   toolDescription: "Lists the files changed in a pull request's latest iteration (path, change type), as the server's first page of changes (100).",
-  input: z.object({ pr: prInput }),
+  input: z.object({ id: prInput }),
   writes: false,
-  options: [prOption],
-  examples: [{ ...IN_REPO, pr: '42' }],
+  args: [prArg],
+  examples: [{ ...IN_REPO, id: '42' }],
   run: async (input, ctx) => {
     const w = where(ctx, true);
-    const pr = toInt(input.pr);
+    const pr = toInt(input.id);
     const iterations = await ado<{ value?: Array<{ id: number }> }>(ctx, `${repoPath(w)}/pullrequests/${pr}/iterations?api-version=${API}`);
     const latest = (iterations.value ?? []).at(-1)?.id;
     if (!latest) return [];
@@ -309,20 +309,21 @@ export const repoListFilesCommand = adoArea.command({
 });
 
 export const repoDiffCommand = adoArea.command({
-  path: ['ado', 'repo', 'diff'],
+  path: ['ado', 'pr', 'diff'],
   description: 'Show files changed in a pull request with change types and commit metadata',
   toolDescription:
     "Diffs a pull request's last merge target commit against its last merge source commit: the changed files with change types, and ahead/behind counts. path keeps only that file (a leading / is added). At most the server's first 100 changes.",
-  input: z.object({ pr: prInput, path: z.string().optional().describe('Filter diff to a specific file path') }),
+  input: z.object({ id: prInput, path: z.string().optional().describe('Filter diff to a specific file path') }),
   writes: false,
-  options: [prOption, { flags: '--path <p>', field: 'path', description: 'Filter diff to a specific file path' }],
+  args: [prArg],
+  options: [{ flags: '--path <p>', field: 'path', description: 'Filter diff to a specific file path' }],
   examples: [
-    { ...IN_REPO, pr: '42' },
-    { ...IN_REPO, pr: '42', path: 'src/app.ts' },
+    { ...IN_REPO, id: '42' },
+    { ...IN_REPO, id: '42', path: 'src/app.ts' },
   ],
   run: async (input, ctx) => {
     const w = where(ctx, true);
-    const pr = await getPR(ctx, w, toInt(input.pr));
+    const pr = await getPR(ctx, w, toInt(input.id));
     const source = pr.lastMergeSourceCommit?.commitId;
     const target = pr.lastMergeTargetCommit?.commitId;
     // Suspected bug (#69 item 13): tip against tip, one page.
@@ -339,12 +340,12 @@ export const repoDiffCommand = adoArea.command({
 });
 
 export const repoGetBuildStatusCommand = adoArea.command({
-  path: ['ado', 'repo', 'get-build-status'],
+  path: ['ado', 'repo', 'build-status'],
   description: 'Get CI/build statuses posted to a commit',
   toolDescription: 'Lists the statuses CI posted to a commit in the repository (state, context, description, target url).',
   input: z.object({ commit: z.string().describe('Commit SHA') }),
   writes: false,
-  options: [{ flags: '--commit <sha>', field: 'commit', description: 'Commit SHA' }],
+  args: [{ name: 'commit', field: 'commit', description: 'Commit SHA' }],
   examples: [{ ...IN_REPO, commit: 'abc12345def67890abc12345def67890abc12345' }],
   run: async (input, ctx) => {
     const result = await ado<{ value?: unknown[] }>(ctx, `${repoPath(where(ctx, true))}/commits/${enc(input.commit)}/statuses?api-version=${API}`);
@@ -353,18 +354,18 @@ export const repoGetBuildStatusCommand = adoArea.command({
 });
 
 export const repoListReviewersCommand = adoArea.command({
-  path: ['ado', 'repo', 'list-reviewers'],
+  path: ['ado', 'pr', 'reviewers'],
   description: 'List reviewers on a pull request',
   toolDescription: 'Lists the reviewers on a pull request with their votes (10 approved, 5 with suggestions, 0 none, -5 waiting for author, -10 rejected).',
-  input: z.object({ pr: prInput }),
+  input: z.object({ id: prInput }),
   writes: false,
-  options: [prOption],
-  examples: [{ ...IN_REPO, pr: '42' }],
-  run: async (input, ctx) => (await getPR(ctx, where(ctx, true), toInt(input.pr))).reviewers,
+  args: [prArg],
+  examples: [{ ...IN_REPO, id: '42' }],
+  run: async (input, ctx) => (await getPR(ctx, where(ctx, true), toInt(input.id))).reviewers,
 });
 
 export const repoListDefaultReviewersCommand = adoArea.command({
-  path: ['ado', 'repo', 'list-default-reviewers'],
+  path: ['ado', 'repo', 'default-reviewers'],
   description: 'List required-reviewer branch policies (default reviewers) that apply to the repository',
   toolDescription: "Lists the project's Required reviewers policy configurations whose scope covers the repository (or the whole project), from the server's first page of policies, disabled ones included.",
   input: z.object({}),
@@ -382,17 +383,17 @@ export const repoListDefaultReviewersCommand = adoArea.command({
 /** A vote cast as the token's own identity, read from connectionData first. */
 function voteCommand(name: 'approve' | 'unapprove' | 'wait-for-author', description: string, vote: number, toolDescription: string) {
   return adoArea.command({
-    path: ['ado', 'repo', name],
+    path: ['ado', 'pr', name],
     description,
     toolDescription,
-    input: z.object({ pr: prInput, ...allowWriteField }),
+    input: z.object({ id: prInput, ...allowWriteField }),
     writes: true,
-    options: [prOption],
-    examples: [{ ...W, pr: '42' }],
+    args: [prArg],
+    examples: [{ ...W, id: '42' }],
     run: async (input, ctx) => {
       const w = where(ctx, true);
       const me = await connectionData(ctx, w.collection);
-      return ado(ctx, `${repoPath(w)}/pullrequests/${toInt(input.pr)}/reviewers/${enc(me.authenticatedUser.id)}?api-version=${API}`, { method: 'PUT', json: { vote } });
+      return ado(ctx, `${repoPath(w)}/pullrequests/${toInt(input.id)}/reviewers/${enc(me.authenticatedUser.id)}?api-version=${API}`, { method: 'PUT', json: { vote } });
     },
   });
 }
@@ -402,18 +403,19 @@ export const repoUnapproveCommand = voteCommand('unapprove', 'Remove approval fr
 export const repoWaitForAuthorCommand = voteCommand('wait-for-author', 'Mark a pull request as waiting for author', -5, "Votes -5 (waiting for author) on a pull request as the token's own user, and returns the reviewer entry.");
 
 export const repoListBuildsCommand = adoArea.command({
-  path: ['ado', 'repo', 'list-builds'],
+  path: ['ado', 'pr', 'builds'],
   description: 'List builds associated with a pull request',
   toolDescription:
     "Lists every build of the pull request's source branch (refs/heads/<source>), following continuation tokens. Builds of the PR merge ref (refs/pull/<id>/merge) aren't included. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.",
-  input: z.object({ pr: prInput, limit: limitField('builds'), cursor: cursorField }),
+  input: z.object({ id: prInput, limit: limitField('builds'), cursor: cursorField }),
   writes: false,
-  options: [prOption, ...pageOptions('builds')],
-  examples: [{ ...IN_REPO, pr: '42' }, { ...IN_REPO, pr: '42', limit: 1 }, { ...IN_REPO, pr: '42', limit: 1, cursor: exampleCursor('abc12345') }],
+  args: [prArg],
+  options: pageOptions('builds'),
+  examples: [{ ...IN_REPO, id: '42' }, { ...IN_REPO, id: '42', limit: 1 }, { ...IN_REPO, id: '42', limit: 1, cursor: exampleCursor('abc12345') }],
   run: async (input, ctx) => {
     const page = pageOf(input);
     const w = where(ctx, true);
-    const pr = await getPR(ctx, w, toInt(input.pr));
+    const pr = await getPR(ctx, w, toInt(input.id));
     // Suspected bug (#69 items 11 and 27): PR validation builds run on the merge ref and are missed.
     return listBuilds(ctx, w, { branchName: pr.sourceRefName, page });
   },

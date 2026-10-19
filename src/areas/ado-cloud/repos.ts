@@ -39,7 +39,7 @@ export const projectGetCommand = adoCloudArea.command({
   toolDescription: 'Returns one project in the organization by name or id.',
   input: z.object({ name: z.string().min(1).describe('Project name or id') }),
   writes: false,
-  options: [{ flags: '--name <project>', field: 'name', description: 'Project name or id' }],
+  args: [{ name: 'name', field: 'name', description: 'Project name or id' }],
   examples: [{ name: 'Imagile' }, { ...inRepo, name: 'Imagile' }],
   run: (input, ctx) => adoc(ctx, `/_apis/projects/${enc(input.name)}`),
 });

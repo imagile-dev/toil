@@ -5,7 +5,7 @@ import { allowWriteField } from '../../core/run.js';
 import { adoArea } from './area.js';
 import { API, PATCH, ado, adoDownload, adoUpload, enc, projectPath, toInt, where, type AdoContext } from './client.js';
 import { ADO_WORK_INPUT_FILE_EXAMPLE, ADO_WORK_INPUT_FILE_SCHEMA } from './fields.js';
-import { AT, getWorkItem, idInput, idOption, intText } from './work.js';
+import { AT, getWorkItem, idArg, idInput, intText } from './work.js';
 
 /**
  * Around the work items: their attachments, the area and iteration trees,
@@ -46,25 +46,25 @@ async function listAttachments(ctx: AdoContext, collection: string, id: number):
 }
 
 export const workListAttachmentsCommand = adoArea.command({
-  path: ['ado', 'work', 'list-attachments'],
+  path: ['ado', 'work-item', 'attachments'],
   description: 'List attachments on a work item',
-  toolDescription: 'Lists the files attached to a work item (id, name, url, size, dates). Use ado_work_download_attachment to save one.',
+  toolDescription: 'Lists the files attached to a work item (id, name, url, size, dates). Use ado_work_item_download to save one.',
   input: z.object({ id: idInput }),
   writes: false,
-  options: [idOption],
+  args: [idArg],
   examples: [{ ...AT, id: '42' }],
   run: async (input, ctx) => listAttachments(ctx, where(ctx).collection, toInt(input.id)),
 });
 
 export const workAddAttachmentCommand = adoArea.command({
-  path: ['ado', 'work', 'add-attachment'],
+  path: ['ado', 'work-item', 'attach'],
   description: 'Upload a local file and attach it to a work item',
   toolDescription:
     'Uploads a local file to the attachment store, then links it to the work item, and returns the uploaded attachment (id, url). file is a path in the workspace. If the link fails, the upload stays stored and the error says only why the link failed.',
   input: z.object({ id: idInput, file: z.string().describe('Path to the file to upload'), comment: z.string().optional().describe('Optional comment for the attachment'), ...allowWriteField }),
   writes: true,
+  args: [idArg],
   options: [
-    idOption,
     { flags: '--file <path>', field: 'file', description: 'Path to the file to upload' },
     { flags: '--comment <text>', field: 'comment', description: 'Optional comment for the attachment' },
   ],
@@ -85,20 +85,19 @@ export const workAddAttachmentCommand = adoArea.command({
 });
 
 export const workDownloadAttachmentCommand = adoArea.command({
-  path: ['ado', 'work', 'download-attachment'],
+  path: ['ado', 'work-item', 'download'],
   description: 'Download a work item attachment to .toil/ (or --dir)',
   toolDescription:
-    'Saves one attachment of a work item to a directory in the workspace (default .toil) and returns { saved, name, size }. Never overwrites a file. Get the attachment id from ado_work_list_attachments.',
+    'Saves one attachment of a work item to a directory in the workspace (default .toil) and returns { saved, name, size }. Never overwrites a file. Get the attachment id from ado_work_item_attachments.',
   input: z.object({
     id: idInput,
-    attachmentId: z.string().describe('Attachment ID from work list-attachments output'),
+    attachmentId: z.string().describe('Attachment ID from work-item attachments output'),
     dir: z.string().optional().describe('Output directory (default: .toil in the workspace)'),
   }),
   writes: false,
   writesLocal: true,
+  args: [idArg, { name: 'attachment-id', field: 'attachmentId', description: 'Attachment ID from work-item attachments output' }],
   options: [
-    idOption,
-    { flags: '--attachment-id <guid>', field: 'attachmentId', description: 'Attachment ID from work list-attachments output' },
     { flags: '--dir <path>', field: 'dir', description: 'Output directory (default: .toil relative to cwd)' },
   ],
   examples: [
@@ -109,7 +108,7 @@ export const workDownloadAttachmentCommand = adoArea.command({
     const attachments = await listAttachments(ctx, where(ctx).collection, toInt(input.id));
     const attachment = attachments.find((a) => a.id === input.attachmentId);
     if (!attachment) {
-      throw new ToilError('INVALID_INPUT', `Attachment not found: ${input.attachmentId}`, { fix: `Run toil ado work list-attachments --id ${String(input.id)} for the ids it has.` });
+      throw new ToilError('INVALID_INPUT', `Attachment not found: ${input.attachmentId}`, { fix: `Run toil ado work-item attachments ${String(input.id)} for the ids it has.` });
     }
     const data = await adoDownload(ctx, attachment.url);
     const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${basename(attachment.name)}`, data);
@@ -121,7 +120,7 @@ const DEPTH = 'Depth of the tree to retrieve (default: "10")';
 const depthOf = (value: number | string | undefined) => toInt(value, '10');
 
 export const workListAreasCommand = adoArea.command({
-  path: ['ado', 'work', 'list-areas'],
+  path: ['ado', 'work-item', 'areas'],
   description: 'List classification areas for the team project (tree)',
   toolDescription: "Returns the project's area-path tree, to the given depth (10 by default).",
   input: z.object({ depth: intText.optional().describe(DEPTH) }),
@@ -132,7 +131,7 @@ export const workListAreasCommand = adoArea.command({
 });
 
 export const workListIterationsCommand = adoArea.command({
-  path: ['ado', 'work', 'list-iterations'],
+  path: ['ado', 'work-item', 'iterations'],
   description: 'List classification iterations for the team project (tree), including start/finish dates',
   toolDescription: "Returns the project's iteration tree with start and finish dates, to the given depth (10 by default).",
   input: z.object({ depth: intText.optional().describe(DEPTH) }),
@@ -149,7 +148,7 @@ export const workListIterationsCommand = adoArea.command({
 const DISCOVER = 'Fetch from server (always true for this command)';
 
 export const workTypesCommand = adoArea.command({
-  path: ['ado', 'work', 'types'],
+  path: ['ado', 'work-item', 'types'],
   description: 'List work item types in the project',
   toolDescription: "Lists the project's work item types, each with its states and always-required fields. One extra request per type, for its states.",
   input: z.object({
@@ -173,7 +172,7 @@ export const workTypesCommand = adoArea.command({
 });
 
 export const workListStatesCommand = adoArea.command({
-  path: ['ado', 'work', 'list-states'],
+  path: ['ado', 'work-item', 'states'],
   description: 'List valid states for a work item type',
   toolDescription: 'Lists the states a work item type has (name, color, category).',
   input: z.object({ type: z.string().describe('Work item type name (e.g. Bug)') }),
@@ -198,7 +197,7 @@ interface Field {
 const toFieldMeta = (f: Field) => ({ referenceName: f.referenceName, name: f.name, type: f.type, readOnly: f.readOnly, ...(f.picklistId ? { picklistId: f.picklistId } : {}) });
 
 export const workFieldsCommand = adoArea.command({
-  path: ['ado', 'work', 'fields'],
+  path: ['ado', 'work-item', 'fields'],
   description: 'List work item fields available in the collection (consider --output-file for large results)',
   toolDescription:
     "Lists work item fields (referenceName, name, type, readOnly): the collection's, or with type a work item type's. customOnly leaves out System.* and Microsoft.VSTS.* fields.",
@@ -225,10 +224,10 @@ export const workFieldsCommand = adoArea.command({
 });
 
 export const workSchemaCommand = adoArea.command({
-  path: ['ado', 'work', 'schema'],
+  path: ['ado', 'work-item', 'schema'],
   kind: 'area-local',
-  description: 'Print the --input-file JSON schema and an example for work create/update',
-  toolDescription: 'Returns the JSON Schema of the input file work create and work update accept, and a runnable example. Needs no connection.',
+  description: 'Print the --input-file JSON schema and an example for work-item create/update',
+  toolDescription: 'Returns the JSON Schema of the input file work-item create and work-item update accept, and a runnable example. Needs no connection.',
   input: z.object({ exampleOnly: z.boolean().optional().describe('Return only the runnable example as data, ready to save as an input file') }),
   writes: false,
   options: [{ flags: '--example-only', field: 'exampleOnly', description: 'Return only the runnable example JSON as data — save .data and pass it to --input-file' }],

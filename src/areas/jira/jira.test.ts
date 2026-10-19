@@ -34,7 +34,7 @@ async function run(
 const write = { allowWrite: true };
 
 describe('issues', () => {
-  it('get-issue: GETs the issue with the PAT and translates registered custom fields', async () => {
+  it('issue get: GETs the issue with the PAT and translates registered custom fields', async () => {
     const { envelope, calls } = await run(getIssue, { key: 'PROJ-123' }, [{ url: `${JIRA}/rest/api/2/issue/PROJ-123`, respond: { json: issue('PROJ-123') } }]);
     expect(calls).toEqual([{ method: 'GET', url: `${JIRA}/rest/api/2/issue/PROJ-123`, headers: JSON_HEADERS, body: undefined }]);
     const data = envelope.data as { fields: Record<string, unknown> };
@@ -42,21 +42,21 @@ describe('issues', () => {
     expect(data.fields).not.toHaveProperty('customfield_10016');
   });
 
-  it('get-issue: keeps a base URL context path, and puts the key in the path unencoded, as the contract specifies', async () => {
+  it('issue get: keeps a base URL context path, and puts the key in the path unencoded, as the contract specifies', async () => {
     const config = { jira: { ...fixtureConfig.jira, baseUrl: `${JIRA}/jira` } };
     const { calls } = await run(getIssue, { key: 'PROJ-1/comment' }, [{ url: /\/jira\/rest\/api\/2\/issue\//, respond: { json: issue('X-1') } }], { config });
     // Suspected bug (#70): the key changes the path. Pinned until a live run decides.
     expect(calls[0]!.url).toBe(`${JIRA}/jira/rest/api/2/issue/PROJ-1/comment`);
   });
 
-  it('get-issue: a 401 is AUTH, with where to make a new token', async () => {
+  it('issue get: a 401 is AUTH, with where to make a new token', async () => {
     const { envelope } = await run(getIssue, { key: 'PROJ-1' }, [{ url: /issue/, respond: { status: 401, text: '' } }]);
     expect(envelope.error).toMatchObject({ code: 'AUTH', fix: expect.stringContaining('Personal Access Tokens') });
     // Named through jiraArea.envName, and still the same words.
     expect(envelope.error?.fix).toContain('then set apiToken (TOIL_JIRA_API_TOKEN for the default connection).');
   });
 
-  it('create-issue: POSTs the Data Center payload, then reads the issue back', async () => {
+  it('issue create: POSTs the Data Center payload, then reads the issue back', async () => {
     const { envelope, calls } = await run(
       createIssue,
       { project: 'PROJ', summary: 'S', description: 'D', priority: 'High', assignee: 'jsmith', labels: 'a, b,', parent: 'PROJ-1', field: ['Story Points=5'], ...write },
@@ -87,7 +87,7 @@ describe('issues', () => {
     expect(envelope.data).toMatchObject({ key: 'PROJ-9' });
   });
 
-  it('create-issue: project, issue type and priority fall back to defaults.jira', async () => {
+  it('issue create: project, issue type and priority fall back to defaults.jira', async () => {
     const config = { jira: { ...fixtureConfig.jira, project: 'DEF', issueType: 'Story', priority: 'Low' } };
     const { calls } = await run(createIssue, { summary: 'S', ...write }, [
       { method: 'POST', url: /issue$/, respond: { json: { id: '1', key: 'DEF-1' } } },
@@ -96,7 +96,7 @@ describe('issues', () => {
     expect(JSON.parse(calls[0]!.body!).fields).toMatchObject({ project: { key: 'DEF' }, issuetype: { name: 'Story' }, priority: { name: 'Low' } });
   });
 
-  it('create-issue: an --input-file supplies the issue, @file values are read, flags override and are reported', async () => {
+  it('issue create: an --input-file supplies the issue, @file values are read, flags override and are reported', async () => {
     const files = {
       'issue.json': JSON.stringify({ project: 'PROJ', issueType: 'Bug', fields: { Summary: 'From file', description: '@desc.html', priority: 'High', customfield_10032: '@ac.md' } }),
       'desc.html': '<p>D</p>',
@@ -117,7 +117,7 @@ describe('issues', () => {
     expect(envelope.meta.warnings).toEqual([{ code: 'JIRA_INPUT_OVERRIDDEN', message: '--input-file value(s) overridden by flags: priority' }]);
   });
 
-  it('create-issue: reads --input-file from stdin on the CLI and refuses "-" where stdin is the protocol', async () => {
+  it('issue create: reads --input-file from stdin on the CLI and refuses "-" where stdin is the protocol', async () => {
     const routes: Route[] = [
       { method: 'POST', url: /issue$/, respond: { json: { id: '1', key: 'PROJ-9' } } },
       { url: /PROJ-9$/, respond: { json: issue('PROJ-9') } },
@@ -129,7 +129,7 @@ describe('issues', () => {
     expect(mcp.calls).toHaveLength(0);
   });
 
-  it('create-issue: refuses before any request without a project, a summary, or with a bad --field', async () => {
+  it('issue create: refuses before any request without a project, a summary, or with a bad --field', async () => {
     const none = await run(createIssue, { summary: 'S', ...write }, []);
     expect(none.envelope.error).toMatchObject({
       code: 'INVALID_INPUT',
@@ -144,14 +144,14 @@ describe('issues', () => {
     expect([...none.calls, ...noSummary.calls, ...badField.calls, ...unknownName.calls]).toHaveLength(0);
   });
 
-  it("create-issue: Jira's error names a field by its friendly name", async () => {
+  it("issue create: Jira's error names a field by its friendly name", async () => {
     const { envelope } = await run(createIssue, { project: 'P', summary: 'S', ...write }, [
       { method: 'POST', url: /issue$/, respond: { status: 400, json: { errorMessages: [], errors: { customfield_10016: 'Number value expected' } } } },
     ]);
     expect(envelope.error?.message).toBe('Story Points (customfield_10016): Number value expected');
   });
 
-  it('update-issue: PUTs only the fields given, with --field values shaped by type and @file JSON parsed', async () => {
+  it('issue update: PUTs only the fields given, with --field values shaped by type and @file JSON parsed', async () => {
     const files = { 'steps.json': ' {"steps":[1]} \n', 'fields.json': JSON.stringify({ fixVersions: [{ name: '1.0' }] }) };
     const { envelope, calls } = await run(updateIssue, { key: 'PROJ-1', summary: 'New', field: ['Story Points=8', 'customfield_11204=@steps.json', 'fixVersions=2.0'], fieldsFile: 'fields.json', ...write }, [
       { method: 'PUT', url: `${JIRA}/rest/api/2/issue/PROJ-1`, respond: { status: 204 } },
@@ -165,13 +165,13 @@ describe('issues', () => {
     expect(envelope.data).toEqual({ updated: 'PROJ-1' });
   });
 
-  it('update-issue: nothing to change still PUTs { fields: {} } and reports success, as the contract specifies', async () => {
+  it('issue update: nothing to change still PUTs { fields: {} } and reports success, as the contract specifies', async () => {
     const { envelope, calls } = await run(updateIssue, { key: 'PROJ-1', ...write }, [{ method: 'PUT', url: /PROJ-1$/, respond: { status: 204 } }]);
     expect(calls.map((c) => [c.method, c.body])).toEqual([['PUT', JSON.stringify({ fields: {} })]]);
     expect(envelope.data).toEqual({ updated: 'PROJ-1' });
   });
 
-  it('transition-issue: resolves a name case-insensitively; anything parseInt reads a number from is an id', async () => {
+  it('issue transition: resolves a name case-insensitively; anything parseInt reads a number from is an id', async () => {
     const transitions = { url: /transitions$/, respond: { json: { transitions: [{ id: '21', name: 'In Progress' }, { id: '41', name: '2nd Review' }] } } };
     const post = { method: 'POST', url: /transitions$/, respond: { status: 204 } };
     const byName = await run(transitionIssue, { key: 'PROJ-1', transition: 'in progress', ...write }, [post, transitions]);
@@ -193,7 +193,7 @@ describe('issues', () => {
     expect(JSON.parse(full.calls[0]!.body!)).toEqual({ timeSpent: '1d', comment: 'c', started: '2024-01-15T09:00:00.000+0000' });
   });
 
-  it('list-comments: pages until total', async () => {
+  it('issue comments: pages until total', async () => {
     const page = (startAt: number) => ({ comments: [{ id: String(startAt) }], total: 2, startAt, maxResults: 1 });
     const { envelope, calls } = await run(listComments, { key: 'PROJ-1' }, [
       { url: /startAt=0/, respond: { json: page(0) } },
@@ -203,7 +203,7 @@ describe('issues', () => {
     expect(envelope.data).toEqual([{ id: '0' }, { id: '1' }]);
   });
 
-  it('add-label: PUTs add operations, trimming the list', async () => {
+  it('issue label: PUTs add operations, trimming the list', async () => {
     const { envelope, calls } = await run(addLabel, { key: 'PROJ-1', labels: ' a , b ,', ...write }, [{ method: 'PUT', url: /PROJ-1$/, respond: { status: 204 } }]);
     expect(calls[0]!.body).toBe(JSON.stringify({ update: { labels: [{ add: 'a' }, { add: 'b' }] } }));
     expect(envelope.data).toEqual({ updated: 'PROJ-1', labelsAdded: ['a', 'b'] });
@@ -218,12 +218,12 @@ describe('issues', () => {
     expect(calls[0]).toMatchObject({ method: 'PUT', url: `${JIRA}/rest/api/2/issue/PROJ-1/assignee`, body: JSON.stringify({ name: 'jsmith' }) });
   });
 
-  it('link-issue: resolves a type by name or phrase; an unknown type lists the known ones', async () => {
+  it('issue link: resolves a type by name or phrase; an unknown type lists the known ones', async () => {
     const types = { url: /issueLinkType$/, respond: { json: { issueLinkTypes: [{ id: '10000', name: 'Blocks', inward: 'is blocked by', outward: 'blocks' }] } } };
     const post = { method: 'POST', url: /issueLink$/, respond: { status: 201 } };
-    const { calls } = await run(linkIssue, { key: 'A-1', linkType: 'is blocked by', target: 'B-2', ...write }, [types, post]);
+    const { calls } = await run(linkIssue, { key: 'A-1', type: 'is blocked by', target: 'B-2', ...write }, [types, post]);
     expect(calls[1]!.body).toBe(JSON.stringify({ type: { id: '10000' }, inwardIssue: { key: 'A-1' }, outwardIssue: { key: 'B-2' } }));
-    const unknown = await run(linkIssue, { key: 'A-1', linkType: 'Duplicates', target: 'B-2', ...write }, [types]);
+    const unknown = await run(linkIssue, { key: 'A-1', type: 'Duplicates', target: 'B-2', ...write }, [types]);
     expect(unknown.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Link type not found: Duplicates', fix: expect.stringContaining('Blocks') });
   });
 });
@@ -240,7 +240,7 @@ describe('search', () => {
   });
 
   it('POSTs the JQL with the default fields plus registered custom fields, translating names both ways', async () => {
-    const { envelope, calls } = await run(search, { jql: '"Story Points" > 3 AND summary ~ "Story Points"', maxResults: 1 }, [searchRoute(5)]);
+    const { envelope, calls } = await run(search, { jql: '"Story Points" > 3 AND summary ~ "Story Points"', limit: 1 }, [searchRoute(5)]);
     expect(calls[0]).toEqual({
       method: 'POST',
       url: `${JIRA}/rest/api/2/search`,
@@ -257,12 +257,12 @@ describe('search', () => {
   });
 
   it('translates an unquoted friendly name in JQL to its id', async () => {
-    const { calls } = await run(search, { jql: 'project = P AND story points > 3', maxResults: 1 }, [searchRoute(1)]);
+    const { calls } = await run(search, { jql: 'project = P AND story points > 3', limit: 1 }, [searchRoute(1)]);
     expect(JSON.parse(calls[0]!.body!).jql).toBe('project = P AND customfield_10016 > 3');
   });
 
   it('pages in chunks of 100 until maxResults, keeping the server total', async () => {
-    const { envelope, calls } = await run(search, { jql: 'project = P', maxResults: 250 }, [searchRoute(10000)]);
+    const { envelope, calls } = await run(search, { jql: 'project = P', limit: 250 }, [searchRoute(10000)]);
     expect(calls.map((c) => JSON.parse(c.body!) as { startAt: number; maxResults: number }).map((b) => [b.startAt, b.maxResults])).toEqual([[0, 100], [100, 100], [200, 50]]);
     expect(envelope.data).toMatchObject({ total: 10000, maxResults: 250 });
     expect(envelope.meta.page).toEqual({ nextCursor: '250', limit: 250 });
@@ -276,7 +276,7 @@ describe('search', () => {
   });
 
   it('--fields replaces the default set, resolving friendly names; an unknown name with a space is refused', async () => {
-    const { calls } = await run(search, { jql: 'x', maxResults: 1, fields: 'summary, Story Points ,fixVersions' }, [searchRoute(1)]);
+    const { calls } = await run(search, { jql: 'x', limit: 1, fields: 'summary, Story Points ,fixVersions' }, [searchRoute(1)]);
     expect(JSON.parse(calls[0]!.body!).fields).toEqual(['summary', 'customfield_10016', 'fixVersions']);
     const bad = await run(search, { jql: 'x', fields: 'Epic Name' }, []);
     expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Unknown field in --fields: "Epic Name".' });
@@ -284,7 +284,7 @@ describe('search', () => {
 
   it('reads and trims --jql-file, and refuses both, neither, or an empty file', async () => {
     const files = { 'q.jql': 'project = P\n', 'empty.jql': ' \n' };
-    const { calls } = await run(search, { jqlFile: 'q.jql', maxResults: 1 }, [searchRoute(1)], { files });
+    const { calls } = await run(search, { jqlFile: 'q.jql', limit: 1 }, [searchRoute(1)], { files });
     expect(JSON.parse(calls[0]!.body!).jql).toBe('project = P');
     expect((await run(search, { jql: 'a', jqlFile: 'q.jql' }, [], { files })).envelope.error?.message).toBe('Cannot specify both --jql and --jql-file');
     expect((await run(search, {}, [])).envelope.error?.message).toBe('Must specify --jql or --jql-file');
@@ -300,12 +300,12 @@ describe('search', () => {
   });
 
   it('reads --max-results with parseInt: "10x" is 10, an empty value means all, and a non-number is sent as null', async () => {
-    const tenX = await run(search, { jql: 'x', maxResults: '10x' }, [searchRoute(50)]);
+    const tenX = await run(search, { jql: 'x', limit: '10x' }, [searchRoute(50)]);
     expect(JSON.parse(tenX.calls[0]!.body!).maxResults).toBe(10);
-    const empty = await run(search, { jql: 'x', maxResults: '' }, [searchRoute(1)]);
+    const empty = await run(search, { jql: 'x', limit: '' }, [searchRoute(1)]);
     expect(JSON.parse(empty.calls[0]!.body!).maxResults).toBe(100);
     // Suspected bug (#70), pinned: NaN serialises as null, and paging continues to total.
-    const nan = await run(search, { jql: 'x', maxResults: 'abc' }, [searchRoute(1)]);
+    const nan = await run(search, { jql: 'x', limit: 'abc' }, [searchRoute(1)]);
     expect(JSON.parse(nan.calls[0]!.body!).maxResults).toBeNull();
   });
 });
@@ -367,7 +367,7 @@ describe('fields', () => {
 });
 
 describe('attachments', () => {
-  it('add-attachment: POSTs one multipart file part with no-check, and a boundary fixed by the content', async () => {
+  it('issue attach: POSTs one multipart file part with no-check, and a boundary fixed by the content', async () => {
     const { envelope, calls } = await run(addAttachment, { key: 'PROJ-1', file: 'dir/report.pdf', ...write }, [
       { method: 'POST', url: `${JIRA}/rest/api/2/issue/PROJ-1/attachments`, respond: { json: [{ id: '1', filename: 'report.pdf' }] } },
     ], { files: { 'dir/report.pdf': '%PDF' } });
@@ -382,7 +382,7 @@ describe('attachments', () => {
     expect(envelope.data).toEqual([{ id: '1', filename: 'report.pdf' }]);
   });
 
-  it('add-attachment: a missing file is INVALID_INPUT before any request', async () => {
+  it('issue attach: a missing file is INVALID_INPUT before any request', async () => {
     const { envelope, calls } = await run(addAttachment, { key: 'PROJ-1', file: 'nope.png', ...write }, []);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('nope.png') });
     expect(calls).toHaveLength(0);
@@ -390,7 +390,7 @@ describe('attachments', () => {
 
   const listing = (content: string, filename = 'shot.png') => ({ url: /\?fields=attachment$/, respond: { json: { fields: { attachment: [{ id: '7', filename, content }] } } } });
 
-  it('download-attachment: saves under .toil by default, keeping only the file name', async () => {
+  it('issue download: saves under .toil by default, keeping only the file name', async () => {
     const { envelope, calls, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7' }, [
       listing(`${JIRA}/secure/attachment/7/shot.png`, '../../etc/shot.png'),
       { url: `${JIRA}/secure/attachment/7/shot.png`, respond: { text: 'PNG' } },
@@ -400,7 +400,7 @@ describe('attachments', () => {
     expect(Object.keys(written)).toEqual(['/work/.toil/shot.png']);
   });
 
-  it('download-attachment: never sends the token to a host other than the configured one', async () => {
+  it('issue download: never sends the token to a host other than the configured one', async () => {
     const { envelope, calls } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7', dir: 'out' }, [
       listing('https://jira-internal.imagile.dev:8443/secure/attachment/7/shot.png?x=1'),
       { url: `${JIRA}/secure/attachment/7/shot.png?x=1`, respond: { text: 'PNG' } },
@@ -410,7 +410,7 @@ describe('attachments', () => {
     expect(envelope.data).toMatchObject({ saved: '/work/out/shot.png' });
   });
 
-  it('download-attachment: saved is absolute with forward slashes even when --dir is relative (#233, a listed divergence)', async () => {
+  it('issue download: saved is absolute with forward slashes even when --dir is relative (#233, a listed divergence)', async () => {
     const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7', dir: './downloads' }, [
       listing(`${JIRA}/secure/attachment/7/shot.png`),
       { url: `${JIRA}/secure/attachment/7/shot.png`, respond: { text: 'PNG' } },
@@ -419,7 +419,7 @@ describe('attachments', () => {
     expect(Object.keys(written)).toEqual(['/work/downloads/shot.png']);
   });
 
-  it('download-attachment: never replaces a file already there (#70 item 8, a listed divergence)', async () => {
+  it('issue download: never replaces a file already there (#70 item 8, a listed divergence)', async () => {
     const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7' }, [
       listing(`${JIRA}/secure/attachment/7/notes.md`, 'notes.md'),
       { url: `${JIRA}/secure/attachment/7/notes.md`, respond: { text: 'from jira' } },
@@ -428,14 +428,14 @@ describe('attachments', () => {
     expect(written).toEqual({});
   });
 
-  it('download-attachment: an unknown id is INVALID_INPUT, as in the contract, pointing at list-attachments', async () => {
+  it('issue download: an unknown id is INVALID_INPUT, as in the contract, pointing at issue attachments', async () => {
     const { envelope } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '8' }, [listing(`${JIRA}/x`)]);
-    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Attachment not found: 8', fix: expect.stringContaining('list-attachments') });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Attachment not found: 8', fix: expect.stringContaining('issue attachments') });
   });
 });
 
 describe('agile', () => {
-  it('list-boards: pages by total', async () => {
+  it('board list: pages by total', async () => {
     const { envelope, calls } = await run(listBoards, { project: 'PROJ' }, [
       { url: /startAt=0/, respond: { json: { values: [{ id: 1, name: 'B1', type: 'scrum' }], total: 2, startAt: 0, maxResults: 1 } } },
       { url: /startAt=1/, respond: { json: { values: [{ id: 2, name: 'B2', type: 'scrum' }], total: 2, startAt: 1, maxResults: 1 } } },
@@ -444,7 +444,7 @@ describe('agile', () => {
     expect((envelope.data as Array<{ id: number }>).map((b) => b.id)).toEqual([1, 2]);
   });
 
-  it('list-sprints: pages on total only, so the sprint list (which has none) costs one more, empty, request', async () => {
+  it('sprint list: pages on total only, so the sprint list (which has none) costs one more, empty, request', async () => {
     const { envelope, calls } = await run(listSprints, { board: 3, state: 'active, future' }, [
       { url: /board\/3\/sprint\?startAt=0&/, respond: { json: { maxResults: 100, startAt: 0, isLast: true, values: [{ id: 5, name: 'S5', state: 'active' }] } } },
       { url: /board\/3\/sprint\?startAt=1&/, respond: { json: { maxResults: 100, startAt: 1, isLast: true, values: [] } } },
@@ -457,7 +457,7 @@ describe('agile', () => {
     expect(envelope.data).toEqual([{ id: 5, name: 'S5', state: 'active' }]);
   });
 
-  it('list-sprints --project: scrum boards only, each sprint once', async () => {
+  it('sprint list --project: scrum boards only, each sprint once', async () => {
     const { envelope, calls } = await run(listSprints, { project: 'PROJ' }, [
       { url: /board\?/, respond: { json: { total: 3, values: [{ id: 1, type: 'scrum' }, { id: 2, type: 'scrum' }, { id: 3, type: 'kanban' }] } } },
       { url: /board\/1\/sprint/, respond: { json: { total: 1, values: [{ id: 10, state: 'active' }] } } },
@@ -467,7 +467,7 @@ describe('agile', () => {
     expect(calls.some((c) => c.url.includes('/board/3/'))).toBe(false);
   });
 
-  it('list-sprints: needs a board or project; a non-numeric board and any state reach the request unchecked', async () => {
+  it('sprint list: needs a board or project; a non-numeric board and any state reach the request unchecked', async () => {
     expect((await run(listSprints, {}, [])).envelope.error?.message).toBe('Either --board or --project is required');
     const { calls } = await run(listSprints, { board: 'abc', state: 'open,,closed' }, [{ url: /sprint/, respond: { json: { total: 0, values: [] } } }]);
     // Suspected bug (#70), pinned: parseInt('abc') is NaN.
@@ -487,7 +487,7 @@ describe('agile', () => {
 describe('connection', () => {
   it('reads customFields given as JSON text, as TOIL_JIRA_CUSTOM_FIELDS would give it', async () => {
     const config = { jira: { ...fixtureConfig.jira, customFields: JSON.stringify([{ id: 'customfield_1', name: 'Team' }]) } };
-    const { calls } = await run(search, { jql: 'Team = x', maxResults: 1 }, [{ method: 'POST', url: /search/, respond: { json: { issues: [], total: 0 } } }], { config });
+    const { calls } = await run(search, { jql: 'Team = x', limit: 1 }, [{ method: 'POST', url: /search/, respond: { json: { issues: [], total: 0 } } }], { config });
     expect(JSON.parse(calls[0]!.body!).jql).toBe('customfield_1 = x');
   });
 
@@ -504,7 +504,7 @@ describe('connection', () => {
   });
 });
 
-describe('create-issue --project, a context input', () => {
+describe('issue create --project, a context input', () => {
   const created = [
     { method: 'POST', url: `${JIRA}/rest/api/2/issue`, respond: { status: 201, json: { id: '1', key: 'PROJ-9' } } },
     { url: `${JIRA}/rest/api/2/issue/PROJ-9`, respond: { json: issue('PROJ-9') } },
@@ -568,7 +568,7 @@ describe('paging through core', () => {
         return { json: { issues: Array.from({ length: n }, (_, i) => ({ id: String(startAt + i), key: `P-${startAt + i}`, fields: {} })), total: 5 } };
       },
     };
-    const { envelope, calls } = await run(search, { jql: 'x', maxResults: 'abc' }, [route]);
+    const { envelope, calls } = await run(search, { jql: 'x', limit: 'abc' }, [route]);
     expect(calls.map((c) => JSON.parse(c.body!) as { startAt: number; maxResults: null }).map((b) => [b.startAt, b.maxResults])).toEqual([[0, null], [2, null], [4, null]]);
     expect(envelope.data).toMatchObject({ total: 5, maxResults: 5 });
   });
@@ -598,14 +598,14 @@ describe('more pinned paging and project cases', () => {
   });
   const issuesFrom = (from: number, n: number) => Array.from({ length: n }, (_, i) => ({ id: String(from + i), key: `P-${from + i}`, fields: {} }));
 
-  it('--max-results 0 sends one request for maxResults 0 and returns the server total (counting matches)', async () => {
-    const { envelope, calls } = await run(search, { jql: 'x', maxResults: 0 }, [searchAt(() => ({ issues: [], total: 1234 }))]);
+  it('--limit 0 sends one request for maxResults 0 and returns the server total (counting matches)', async () => {
+    const { envelope, calls } = await run(search, { jql: 'x', limit: 0 }, [searchAt(() => ({ issues: [], total: 1234 }))]);
     expect(calls.map((c) => JSON.parse(c.body!).maxResults)).toEqual([0]);
     expect(envelope.data).toMatchObject({ issues: [], total: 1234, maxResults: 0 });
   });
 
   it('a server capping pages at 50: each request asks for what is left, at most 100', async () => {
-    const { envelope, calls } = await run(search, { jql: 'x', maxResults: 250 }, [
+    const { envelope, calls } = await run(search, { jql: 'x', limit: 250 }, [
       searchAt(({ startAt, maxResults }) => ({ issues: issuesFrom(startAt, Math.min(50, maxResults ?? 50)), total: 10000 })),
     ]);
     expect(calls.map((c) => JSON.parse(c.body!) as { startAt: number; maxResults: number }).map((b) => [b.startAt, b.maxResults])).toEqual([

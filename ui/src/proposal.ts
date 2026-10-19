@@ -85,11 +85,72 @@ export function quote(value: string, shell: Shell): string | null {
  * to it exactly.
  */
 export const INPUT_FILE_COMMANDS: ReadonlySet<string> = new Set([
-  'ado work create', 'ado work update', 'alation document create', 'alation document update', 'jira create-issue', 'jira update-issue',
-  'jira-cloud create-issue', 'jira-cloud update-issue', 'splitio flags update', 'splitio flags batch-toggle',
+  'ado work-item create', 'ado work-item update', 'alation document create', 'alation document update', 'jira issue create', 'jira issue update',
+  'jira-cloud issue create', 'jira-cloud issue update', 'splitio flags update', 'splitio flags batch-toggle',
 ]);
 
-/** A call over MCP: the tool's name (`jira transition-issue` is `jira_transition_issue`) and its input, which as JSON needs no shell quoting. */
+/** One positional list for several commands, as [command, fields] entries. */
+const positional = (fields: readonly string[], ...commands: string[]) => commands.map((c) => [c, fields] as const);
+
+/**
+ * The input fields each Jira and Azure DevOps command takes as positional
+ * arguments on the CLI, in order: the id of the thing first, then a sub-item's
+ * (`toil jira issue transition 'PAY-1' --transition 'Done'`). Every other field
+ * is a flag. The page can't load toil's registry, so test/registry.test.ts
+ * holds this list to the registry's own arguments for those areas exactly.
+ */
+export const POSITIONAL_FIELDS: ReadonlyMap<string, readonly string[]> = new Map([
+  ...positional(['name'],
+    'ado project get', 'ado-cloud project get',
+  ),
+  ...positional(['id'],
+    'ado work-item get', 'ado work-item update', 'ado work-item transition', 'ado work-item assign',
+    'ado work-item link', 'ado work-item history', 'ado work-item get-many', 'ado work-item comments',
+    'ado work-item comment', 'ado work-item tag', 'ado work-item untag', 'ado work-item attachments',
+    'ado work-item attach', 'ado pr get', 'ado pr update', 'ado pr merge', 'ado pr abandon', 'ado pr files',
+    'ado pr diff', 'ado pr reviewers', 'ado pr approve', 'ado pr unapprove', 'ado pr wait-for-author',
+    'ado pr builds', 'ado pr comments', 'ado pr comment', 'ado pr comment-inline', 'ado pipeline get',
+    'ado pipeline run', 'ado run get', 'ado run cancel', 'ado run logs', 'ado-cloud work-item get',
+    'ado-cloud work-item update', 'ado-cloud work-item history', 'ado-cloud work-item get-many',
+    'ado-cloud work-item comments', 'ado-cloud work-item comment', 'ado-cloud pr get', 'ado-cloud pr update',
+    'ado-cloud pr merge', 'ado-cloud pr abandon', 'ado-cloud pr reviewers', 'ado-cloud pr approve',
+    'ado-cloud pr unapprove', 'ado-cloud pr wait-for-author', 'ado-cloud pr threads', 'ado-cloud pr comments',
+    'ado-cloud pr comment', 'ado-cloud pr comment-inline',
+  ),
+  ...positional(['id', 'attachmentId'],
+    'ado work-item download',
+  ),
+  ...positional(['commit'],
+    'ado repo build-status',
+  ),
+  ...positional(['id', 'threadId'],
+    'ado pr reply', 'ado pr resolve', 'ado-cloud pr reply', 'ado-cloud pr resolve',
+  ),
+  ...positional(['id', 'threadId', 'commentId'],
+    'ado pr delete-comment',
+  ),
+  ...positional(['method', 'path'],
+    'ado-cloud api', 'jira api',
+  ),
+  ...positional(['key'],
+    'jira issue get', 'jira issue history', 'jira issue update', 'jira issue transition',
+    'jira issue transitions', 'jira issue comment', 'jira issue log-work', 'jira issue comments',
+    'jira issue label', 'jira issue unlabel', 'jira issue assign', 'jira issue link', 'jira issue attach',
+    'jira issue attachments', 'jira issue set-sprint', 'jira-cloud issue get', 'jira-cloud issue history',
+    'jira-cloud issue update', 'jira-cloud issue transition', 'jira-cloud issue transitions',
+    'jira-cloud issue comment', 'jira-cloud issue comments', 'jira-cloud issue log-work',
+    'jira-cloud issue label', 'jira-cloud issue unlabel', 'jira-cloud issue assign', 'jira-cloud issue link',
+    'jira-cloud issue attach', 'jira-cloud issue attachments', 'jira-cloud issue set-sprint',
+  ),
+  ...positional(['key', 'attachmentId'],
+    'jira issue download', 'jira-cloud issue download',
+  ),
+  ...positional(['project'],
+    'jira-cloud project get',
+  ),
+]);
+
+/** A call over MCP: the tool's name (`jira issue transition` is `jira_issue_transition`) and its input, which as JSON needs no shell quoting. */
 export interface McpCall {
   tool: string;
   input: Record<string, unknown>;
@@ -100,11 +161,13 @@ export const toolName = (command: string) => command.replace(/[ -]/g, '_');
 export type CommandLine = { line: string; reason: null; mcp?: undefined } | { line: null; reason: string; mcp?: McpCall };
 
 /**
- * The command line that applies a proposal, for one shell: `--dossier` first,
- * `--allow-write` last, every value single quoted. A value starting with `-`
- * is attached to its flag (`'--key=-x'`), so it can never read as a flag of
- * its own. Null, with the reason, when there is no command or a value can't be
- * written safely on one line.
+ * The command line that applies a proposal, for one shell: the positional
+ * arguments (`POSITIONAL_FIELDS`) first, then `--dossier`, `--allow-write`
+ * last, every value single quoted. A flag's value starting with `-` is
+ * attached to its flag (`'--summary=-x'`), so it can never read as a flag of
+ * its own; a positional one can't be, so it gets no line. Null, with the
+ * reason, when there is no command or a value can't be written safely on one
+ * line.
  */
 export function commandLine(p: Pick<Proposal, 'command' | 'input'>, shell: Shell): CommandLine {
   if (!p.command || !p.input) return { line: null, reason: 'toil has no command for this change.' };
@@ -121,10 +184,10 @@ export function readLine(h: Pick<Hint, 'command' | 'input'>, shell: Shell): Comm
  * takes one; bash/zsh where only PowerShell refused; and always MCP, whose
  * JSON input carries any value.
  */
-function advice(command: string, shell: Shell, why: string, tool: string): string {
+function advice(command: string, bashHelps: boolean, tool: string): string {
   const ways: string[] = [];
   if (INPUT_FILE_COMMANDS.has(command)) ways.push(`put the input in a file and pass it with toil ${command}'s --input-file`);
-  if (shell === 'powershell' && !why.includes('line break')) ways.push('switch this card to bash/zsh, where single quotes carry it');
+  if (bashHelps) ways.push('switch this card to bash/zsh, where single quotes carry it');
   ways.push(`apply it over MCP with the tool ${tool} and the input below`);
   const text = ways.length === 1 ? ways[0]! : `${ways.slice(0, -1).join(', ')}, or ${ways.at(-1)}`;
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
@@ -132,17 +195,24 @@ function advice(command: string, shell: Shell, why: string, tool: string): strin
 
 /** Every toil command line the UI shows is built here, and only here. */
 function render(command: string, input: Record<string, unknown>, shell: Shell, write: boolean): CommandLine {
-  const entries = Object.entries(input).sort(([a], [b]) => (a === 'dossier' ? -1 : b === 'dossier' ? 1 : 0));
+  const positionals = POSITIONAL_FIELDS.get(command) ?? [];
+  const named = Object.keys(input).filter((k) => !positionals.includes(k)).sort((a, b) => (a === 'dossier' ? -1 : b === 'dossier' ? 1 : 0));
+  const refuse = (what: string, why: string, bashHelps: boolean): CommandLine => {
+    const mcp = { tool: toolName(command), input: write ? { ...input, allowWrite: true } : input };
+    return { line: null, reason: `The ${what} value can't be passed safely on a ${SHELL_LABEL[shell]} command line: ${why}. ${advice(command, bashHelps, mcp.tool)}`, mcp };
+  };
   const parts: string[] = [];
-  for (const [k, v] of entries) {
+  for (const k of [...positionals.filter((k) => k in input), ...named]) {
+    const v = input[k];
+    const positional = positionals.includes(k);
+    const what = positional ? `<${k}>` : flag(k);
     for (const x of Array.isArray(v) ? v : [v]) {
       const value = String(x);
       const why = unsafe(value, shell);
-      if (why) {
-        const mcp = { tool: toolName(command), input: write ? { ...input, allowWrite: true } : input };
-        return { line: null, reason: `The ${flag(k)} value can't be passed safely on a ${SHELL_LABEL[shell]} command line: ${why}. ${advice(command, shell, why, mcp.tool)}`, mcp };
-      }
-      parts.push(value.startsWith('-') ? quote(`${flag(k)}=${value}`, shell)! : `${flag(k)} ${quote(value, shell)}`);
+      if (why) return refuse(what, why, shell === 'powershell' && !why.includes('line break'));
+      if (positional && value.startsWith('-')) return refuse(what, 'it starts with -, so toil would read it as a flag', false);
+      if (positional) parts.push(quote(value, shell)!);
+      else parts.push(value.startsWith('-') ? quote(`${flag(k)}=${value}`, shell)! : `${flag(k)} ${quote(value, shell)}`);
     }
   }
   return { line: `toil ${command} ${parts.join(' ')}${write ? ' --allow-write' : ''}`, reason: null };

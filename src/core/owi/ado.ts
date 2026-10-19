@@ -2,9 +2,9 @@ import { blank, idFor, instant, isRecord, num, overrideUnit, person, setDay, set
 import type { History, Iteration, Link, Person, StatusCategory, WorkItem } from './types.js';
 
 /**
- * Azure DevOps (`ado`) to OWI: the work items `work get` and `work get-batch`
- * return, the revisions `work revisions` returns, and the iteration dates
- * `work list-iterations` returns. Azure DevOps leaves a field with no value
+ * Azure DevOps (`ado`) to OWI: the work items `work-item get` and `work-item get-many`
+ * return, the revisions `work-item history` returns, and the iteration dates
+ * `work-item iterations` returns. Azure DevOps leaves a field with no value
  * out of the record altogether, so an empty estimate and an estimate kept in
  * a team's own field look the same; both are listed as unmapped, with a
  * pointer to `fields estimate`. Four processes, four words for "how big",
@@ -27,7 +27,7 @@ export const ADO_HOURS_FIELD = 'Microsoft.VSTS.Scheduling.OriginalEstimate';
  * puts them in (the docs above). Resolved behaves like In Progress on boards,
  * so it is IN_PROGRESS here; Removed is out of the work, so DONE, with the
  * reason as its resolution. A custom state isn't here and is UNKNOWN, with a
- * warning: `ado work list-states` shows its category.
+ * warning: `ado work-item states` shows its category.
  */
 export const ADO_STATES: Record<string, StatusCategory> = {
   New: 'TODO',
@@ -57,7 +57,7 @@ const CHILD = 'System.LinkTypes.Hierarchy-Forward';
 
 type Item = { id?: unknown; fields?: Record<string, unknown>; relations?: unknown; _links?: unknown; url?: unknown };
 
-/** The work items a document holds: `work get-batch` ({ value }), or one `work get`. */
+/** The work items a document holds: `work-item get-many` ({ value }), or one `work-item get`. */
 export function workItemsOf(data: unknown): Item[] | undefined {
   if (isRecord(data) && Array.isArray(data.value)) return data.value.filter(isRecord) as Item[];
   if (isRecord(data) && typeof data.id === 'number' && isRecord(data.fields)) return [data as Item];
@@ -84,7 +84,7 @@ const pathKey = (path: string, node: boolean) => {
   return parts.join('\\').toLowerCase();
 };
 
-/** Iteration dates by path, from `work list-iterations`' tree. */
+/** Iteration dates by path, from `work-item iterations`' tree. */
 export function iterationDates(data: unknown, into: Map<string, { id: string | null; start: string | null; end: string | null }>): boolean {
   if (!isRecord(data) || data.structureType !== 'iteration') return false;
   const walk = (node: unknown) => {
@@ -124,7 +124,7 @@ export function adoItem(doc: OwiDocument, record: Item, state: MapState, dates: 
 
   item.status = str(f['System.State']);
   if (item.status === null) unmapped(item, 'status', 'the record has no System.State');
-  else item.statusCategory = ADO_STATES[item.status] ?? unknownState(item, state, item.status, 'a custom state; ado work list-states shows its category');
+  else item.statusCategory = ADO_STATES[item.status] ?? unknownState(item, state, item.status, 'a custom state; ado work-item states shows its category');
   if (item.statusCategory === 'DONE') item.resolution = str(f['System.Reason']) ?? (item.status === 'Removed' ? 'Removed' : null);
 
   item.assignee = adoPerson(f['System.AssignedTo']);
@@ -147,7 +147,7 @@ export function adoItem(doc: OwiDocument, record: Item, state: MapState, dates: 
     const known = dates.get(pathKey(path, false));
     const iteration: Iteration = { id: known?.id ?? null, name: path.split('\\').pop()!, path, start: known?.start ?? null, end: known?.end ?? null, state: null };
     item.iteration = iteration;
-    if (!known && iterationField === 'System.IterationPath' && path.includes('\\')) unmapped(item, 'iteration.dates', 'the iteration\'s dates come from ado work list-iterations: add its output to the input');
+    if (!known && iterationField === 'System.IterationPath' && path.includes('\\')) unmapped(item, 'iteration.dates', 'the iteration\'s dates come from ado work-item iterations: add its output to the input');
   }
 
   for (const relation of Array.isArray(record.relations) ? record.relations : []) {
@@ -191,7 +191,7 @@ function estimate(item: WorkItem, f: Record<string, unknown>, state: MapState): 
   unmapped(item, 'estimate', `none of StoryPoints, Effort, Size or OriginalEstimate has a value; Azure DevOps leaves empty fields out, so an unestimated item and one estimated in a field of the team's own look alike: point fields estimate at that field`);
 }
 
-/** The revisions `work revisions` returns, oldest first, as transitions and iteration moves, keyed by the work item's id. */
+/** The revisions `work-item history` returns, oldest first, as transitions and iteration moves, keyed by the work item's id. */
 export function adoHistory(doc: OwiDocument, state: MapState): Map<string, History> | undefined {
   if (!Array.isArray(doc.data)) return undefined;
   const iterationField = state.fields.iteration ?? 'System.IterationPath';

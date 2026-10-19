@@ -9,7 +9,7 @@
         "area": "jira",
         "connection": "corp-jira",
         "key": "PAY-92",
-        "command": "jira get-issue"
+        "command": "jira issue get"
       },
       "url": "https://jira.imagile.dev/browse/PAY-92",
       "type": "STORY",
@@ -85,7 +85,7 @@
       },
       "unmapped": [],
       "native": {
-        "jira get-issue": {
+        "jira issue get": {
           "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
           "id": "20100",
           "self": "https://jira.imagile.dev/rest/api/2/issue/20100",
@@ -156,7 +156,7 @@
             "Epic Link": null
           }
         },
-        "jira get-changelog": [
+        "jira issue history": [
           {
             "id": "40001",
             "author": {
@@ -209,7 +209,7 @@
         "area": "jira",
         "connection": "corp-jira",
         "key": "PAY-95",
-        "command": "jira get-issue"
+        "command": "jira issue get"
       },
       "url": "https://jira.imagile.dev/browse/PAY-95",
       "type": "STORY",
@@ -297,7 +297,7 @@
       },
       "unmapped": [],
       "native": {
-        "jira get-issue": {
+        "jira issue get": {
           "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
           "id": "20101",
           "self": "https://jira.imagile.dev/rest/api/2/issue/20101",
@@ -368,7 +368,7 @@
             "Epic Link": null
           }
         },
-        "jira get-changelog": [
+        "jira issue history": [
           {
             "id": "40011",
             "author": {
@@ -442,7 +442,7 @@
         "area": "jira",
         "connection": "corp-jira",
         "key": "PAY-97",
-        "command": "jira get-issue"
+        "command": "jira issue get"
       },
       "url": "https://jira.imagile.dev/browse/PAY-97",
       "type": "BUG",
@@ -518,7 +518,7 @@
       },
       "unmapped": [],
       "native": {
-        "jira get-issue": {
+        "jira issue get": {
           "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
           "id": "20102",
           "self": "https://jira.imagile.dev/rest/api/2/issue/20102",
@@ -589,7 +589,7 @@
             "Epic Link": null
           }
         },
-        "jira get-changelog": [
+        "jira issue history": [
           {
             "id": "40021",
             "author": {
@@ -642,7 +642,7 @@
         "area": "jira",
         "connection": "corp-jira",
         "key": "PAY-98",
-        "command": "jira get-issue"
+        "command": "jira issue get"
       },
       "url": "https://jira.imagile.dev/browse/PAY-98",
       "type": "STORY",
@@ -730,7 +730,7 @@
       },
       "unmapped": [],
       "native": {
-        "jira get-issue": {
+        "jira issue get": {
           "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
           "id": "20103",
           "self": "https://jira.imagile.dev/rest/api/2/issue/20103",
@@ -801,7 +801,7 @@
             "Epic Link": null
           }
         },
-        "jira get-changelog": [
+        "jira issue history": [
           {
             "id": "40031",
             "author": {
@@ -875,7 +875,7 @@
         "area": "jira",
         "connection": "corp-jira",
         "key": "PAY-100",
-        "command": "jira get-issue"
+        "command": "jira issue get"
       },
       "url": "https://jira.imagile.dev/browse/PAY-100",
       "type": "EPIC",
@@ -915,7 +915,7 @@
       "history": null,
       "unmapped": [],
       "native": {
-        "jira get-issue": {
+        "jira issue get": {
           "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
           "id": "20104",
           "self": "https://jira.imagile.dev/rest/api/2/issue/20104",
@@ -989,7 +989,7 @@
         "area": "jira",
         "connection": "corp-jira",
         "key": "PAY-101",
-        "command": "jira get-issue"
+        "command": "jira issue get"
       },
       "url": "https://jira.imagile.dev/browse/PAY-101",
       "type": "STORY",
@@ -1065,7 +1065,7 @@
       },
       "unmapped": [],
       "native": {
-        "jira get-issue": {
+        "jira issue get": {
           "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
           "id": "20105",
           "self": "https://jira.imagile.dev/rest/api/2/issue/20105",
@@ -1151,7 +1151,7 @@
             "Epic Link": "PAY-100"
           }
         },
-        "jira get-changelog": [
+        "jira issue history": [
           {
             "id": "40101",
             "author": {
@@ -1183,7 +1183,7 @@
         "area": "jira",
         "connection": "corp-jira",
         "key": "PAY-102",
-        "command": "jira get-issue"
+        "command": "jira issue get"
       },
       "url": "https://jira.imagile.dev/browse/PAY-102",
       "type": "STORY",
@@ -1244,7 +1244,7 @@
       "history": null,
       "unmapped": [],
       "native": {
-        "jira get-issue": {
+        "jira issue get": {
           "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
           "id": "20106",
           "self": "https://jira.imagile.dev/rest/api/2/issue/20106",
@@ -1347,7 +1347,7 @@
         "area": "jira",
         "connection": "corp-jira",
         "key": "PAY-103",
-        "command": "jira get-issue"
+        "command": "jira issue get"
       },
       "url": "https://jira.imagile.dev/browse/PAY-103",
       "type": "STORY",
@@ -1398,7 +1398,7 @@
       "history": null,
       "unmapped": [],
       "native": {
-        "jira get-issue": {
+        "jira issue get": {
           "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
           "id": "20107",
           "self": "https://jira.imagile.dev/rest/api/2/issue/20107",
@@ -1482,7 +1482,7 @@
         "area": "jira",
         "connection": "corp-jira",
         "key": "PAY-104",
-        "command": "jira get-issue"
+        "command": "jira issue get"
       },
       "url": "https://jira.imagile.dev/browse/PAY-104",
       "type": "BUG",
@@ -1575,7 +1575,7 @@
       },
       "unmapped": [],
       "native": {
-        "jira get-issue": {
+        "jira issue get": {
           "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
           "id": "20108",
           "self": "https://jira.imagile.dev/rest/api/2/issue/20108",
@@ -1644,7 +1644,7 @@
             "Epic Link": null
           }
         },
-        "jira get-changelog": [
+        "jira issue history": [
           {
             "id": "40201",
             "author": {
@@ -1718,7 +1718,7 @@
         "area": "jira",
         "connection": "corp-jira",
         "key": "PAY-105",
-        "command": "jira get-issue"
+        "command": "jira issue get"
       },
       "url": "https://jira.imagile.dev/browse/PAY-105",
       "type": "STORY",
@@ -1806,7 +1806,7 @@
       },
       "unmapped": [],
       "native": {
-        "jira get-issue": {
+        "jira issue get": {
           "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
           "id": "20109",
           "self": "https://jira.imagile.dev/rest/api/2/issue/20109",
@@ -1877,7 +1877,7 @@
             "Epic Link": "PAY-100"
           }
         },
-        "jira get-changelog": [
+        "jira issue history": [
           {
             "id": "40301",
             "author": {
@@ -1951,7 +1951,7 @@
         "area": "jira",
         "connection": "corp-jira",
         "key": "PAY-106",
-        "command": "jira get-issue"
+        "command": "jira issue get"
       },
       "url": "https://jira.imagile.dev/browse/PAY-106",
       "type": "TASK",
@@ -1995,7 +1995,7 @@
       "history": null,
       "unmapped": [],
       "native": {
-        "jira get-issue": {
+        "jira issue get": {
           "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
           "id": "20110",
           "self": "https://jira.imagile.dev/rest/api/2/issue/20110",
@@ -2079,7 +2079,7 @@
         "area": "jira",
         "connection": "corp-jira",
         "key": "PAY-107",
-        "command": "jira get-issue"
+        "command": "jira issue get"
       },
       "url": "https://jira.imagile.dev/browse/PAY-107",
       "type": "STORY",
@@ -2142,7 +2142,7 @@
       },
       "unmapped": [],
       "native": {
-        "jira get-issue": {
+        "jira issue get": {
           "expand": "renderedFields,names,schema,operations,editmeta,changelog,versionedRepresentations",
           "id": "20111",
           "self": "https://jira.imagile.dev/rest/api/2/issue/20111",
@@ -2217,7 +2217,7 @@
             "Epic Link": null
           }
         },
-        "jira get-changelog": [
+        "jira issue history": [
           {
             "id": "40401",
             "author": {
@@ -2249,7 +2249,7 @@
         "area": "ado",
         "connection": "corp-ado",
         "key": "2290",
-        "command": "ado work get-batch"
+        "command": "ado work-item get-many"
       },
       "url": "https://ado.imagile.dev/DefaultCollection/Payments/_workitems/edit/2290",
       "type": "STORY",
@@ -2364,7 +2364,7 @@
       },
       "unmapped": [],
       "native": {
-        "ado work get-batch": {
+        "ado work-item get-many": {
           "id": 2290,
           "rev": 6,
           "fields": {
@@ -2415,7 +2415,7 @@
           },
           "url": "https://ado.imagile.dev/DefaultCollection/_apis/wit/workItems/2290"
         },
-        "ado work revisions": [
+        "ado work-item history": [
           {
             "id": 2290,
             "rev": 1,
@@ -2498,7 +2498,7 @@
         "area": "ado",
         "connection": "corp-ado",
         "key": "2294",
-        "command": "ado work get-batch"
+        "command": "ado work-item get-many"
       },
       "url": "https://ado.imagile.dev/DefaultCollection/Payments/_workitems/edit/2294",
       "type": "BUG",
@@ -2599,7 +2599,7 @@
       },
       "unmapped": [],
       "native": {
-        "ado work get-batch": {
+        "ado work-item get-many": {
           "id": 2294,
           "rev": 6,
           "fields": {
@@ -2650,7 +2650,7 @@
           },
           "url": "https://ado.imagile.dev/DefaultCollection/_apis/wit/workItems/2294"
         },
-        "ado work revisions": [
+        "ado work-item history": [
           {
             "id": 2294,
             "rev": 1,
@@ -2715,7 +2715,7 @@
         "area": "ado",
         "connection": "corp-ado",
         "key": "2297",
-        "command": "ado work get-batch"
+        "command": "ado work-item get-many"
       },
       "url": "https://ado.imagile.dev/DefaultCollection/Payments/_workitems/edit/2297",
       "type": "STORY",
@@ -2816,7 +2816,7 @@
       },
       "unmapped": [],
       "native": {
-        "ado work get-batch": {
+        "ado work-item get-many": {
           "id": 2297,
           "rev": 6,
           "fields": {
@@ -2867,7 +2867,7 @@
           },
           "url": "https://ado.imagile.dev/DefaultCollection/_apis/wit/workItems/2297"
         },
-        "ado work revisions": [
+        "ado work-item history": [
           {
             "id": 2297,
             "rev": 1,
@@ -2932,7 +2932,7 @@
         "area": "ado",
         "connection": "corp-ado",
         "key": "2301",
-        "command": "ado work get-batch"
+        "command": "ado work-item get-many"
       },
       "url": "https://ado.imagile.dev/DefaultCollection/Payments/_workitems/edit/2301",
       "type": "OTHER",
@@ -2984,7 +2984,7 @@
         }
       ],
       "native": {
-        "ado work get-batch": {
+        "ado work-item get-many": {
           "id": 2301,
           "rev": 6,
           "fields": {
@@ -3058,7 +3058,7 @@
         "area": "ado",
         "connection": "corp-ado",
         "key": "2302",
-        "command": "ado work get-batch"
+        "command": "ado work-item get-many"
       },
       "url": "https://ado.imagile.dev/DefaultCollection/Payments/_workitems/edit/2302",
       "type": "STORY",
@@ -3173,7 +3173,7 @@
       },
       "unmapped": [],
       "native": {
-        "ado work get-batch": {
+        "ado work-item get-many": {
           "id": 2302,
           "rev": 6,
           "fields": {
@@ -3249,7 +3249,7 @@
           },
           "url": "https://ado.imagile.dev/DefaultCollection/_apis/wit/workItems/2302"
         },
-        "ado work revisions": [
+        "ado work-item history": [
           {
             "id": 2302,
             "rev": 1,
@@ -3314,7 +3314,7 @@
         "area": "ado",
         "connection": "corp-ado",
         "key": "2303",
-        "command": "ado work get-batch"
+        "command": "ado work-item get-many"
       },
       "url": "https://ado.imagile.dev/DefaultCollection/Payments/_workitems/edit/2303",
       "type": "STORY",
@@ -3365,7 +3365,7 @@
       "history": null,
       "unmapped": [],
       "native": {
-        "ado work get-batch": {
+        "ado work-item get-many": {
           "id": 2303,
           "rev": 6,
           "fields": {
@@ -3434,7 +3434,7 @@
         "area": "ado",
         "connection": "corp-ado",
         "key": "2304",
-        "command": "ado work get-batch"
+        "command": "ado work-item get-many"
       },
       "url": "https://ado.imagile.dev/DefaultCollection/Payments/_workitems/edit/2304",
       "type": "BUG",
@@ -3538,7 +3538,7 @@
       },
       "unmapped": [],
       "native": {
-        "ado work get-batch": {
+        "ado work-item get-many": {
           "id": 2304,
           "rev": 6,
           "fields": {
@@ -3588,7 +3588,7 @@
           },
           "url": "https://ado.imagile.dev/DefaultCollection/_apis/wit/workItems/2304"
         },
-        "ado work revisions": [
+        "ado work-item history": [
           {
             "id": 2304,
             "rev": 1,
@@ -3653,7 +3653,7 @@
         "area": "ado",
         "connection": "corp-ado",
         "key": "2305",
-        "command": "ado work get-batch"
+        "command": "ado work-item get-many"
       },
       "url": "https://ado.imagile.dev/DefaultCollection/Payments/_workitems/edit/2305",
       "type": "TASK",
@@ -3701,7 +3701,7 @@
       "history": null,
       "unmapped": [],
       "native": {
-        "ado work get-batch": {
+        "ado work-item get-many": {
           "id": 2305,
           "rev": 6,
           "fields": {
@@ -3769,7 +3769,7 @@
         "area": "ado",
         "connection": "corp-ado",
         "key": "2306",
-        "command": "ado work get-batch"
+        "command": "ado work-item get-many"
       },
       "url": "https://ado.imagile.dev/DefaultCollection/Payments/_workitems/edit/2306",
       "type": "STORY",
@@ -3856,7 +3856,7 @@
       },
       "unmapped": [],
       "native": {
-        "ado work get-batch": {
+        "ado work-item get-many": {
           "id": 2306,
           "rev": 6,
           "fields": {
@@ -3898,7 +3898,7 @@
           },
           "url": "https://ado.imagile.dev/DefaultCollection/_apis/wit/workItems/2306"
         },
-        "ado work revisions": [
+        "ado work-item history": [
           {
             "id": 2306,
             "rev": 1,
@@ -3945,7 +3945,7 @@
         "area": "ado",
         "connection": "corp-ado",
         "key": "2307",
-        "command": "ado work get-batch"
+        "command": "ado work-item get-many"
       },
       "url": "https://ado.imagile.dev/DefaultCollection/Payments/_workitems/edit/2307",
       "type": "BUG",
@@ -3989,7 +3989,7 @@
       "history": null,
       "unmapped": [],
       "native": {
-        "ado work get-batch": {
+        "ado work-item get-many": {
           "id": 2307,
           "rev": 6,
           "fields": {

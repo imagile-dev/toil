@@ -155,8 +155,8 @@ export function feedbackCommands(commit: string | null = COMMIT): AnyCommand[] {
         ? "consent isn't taken from a program: through the API, a report is sent only on the yes of the person passed as options.person, to the consent question."
         : undefined,
     examples: [
-      { kind: 'bug', title: 'jira search ignores --max-results', body: 'toil jira search --max-results 5 returns 50 issues.', email: 'you@example.com' },
-      { kind: 'feature', title: 'A --since flag on jira search', body: 'I want only issues updated in the last day.', email: 'you@example.com', consent: true },
+      { kind: 'bug', title: 'jira issue search ignores --limit', body: 'toil jira issue search --limit 5 returns 50 issues.', email: 'you@example.com' },
+      { kind: 'feature', title: 'A --since flag on jira issue search', body: 'I want only issues updated in the last day.', email: 'you@example.com', consent: true },
     ],
     run: async (call: Input, ctx) => {
       const manage = access(ctx);

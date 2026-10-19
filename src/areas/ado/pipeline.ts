@@ -15,7 +15,7 @@ import { AT, intText } from './work.js';
  */
 
 const W = { ...AT, allowWrite: true };
-const idOption = (description: string) => ({ flags: '--id <n>', field: 'id', description });
+const idArg = (description: string) => ({ name: 'id', field: 'id', description });
 
 /** The default 600 s wait plus a minute of slack; a longer --timeout still stops here unless TOIL_TIMEOUT_MS says otherwise. */
 const RUN_TIME_LIMIT_MS = 660_000;
@@ -53,7 +53,7 @@ export const pipelineGetCommand = adoArea.command({
   toolDescription: 'Returns one pipeline (build definition) by id.',
   input: z.object({ id: intText.describe('Pipeline definition ID') }),
   writes: false,
-  options: [idOption('Pipeline definition ID')],
+  args: [idArg('Pipeline definition ID')],
   examples: [{ ...AT, id: '5' }],
   run: async (input, ctx) => {
     const w = where(ctx);
@@ -80,8 +80,8 @@ export const pipelineRunCommand = adoArea.command({
   }),
   writes: true,
   timeLimitMs: RUN_TIME_LIMIT_MS,
+  args: [idArg('Pipeline definition ID')],
   options: [
-    idOption('Pipeline definition ID'),
     { flags: '--branch <ref>', field: 'branch', description: 'Source branch (e.g. refs/heads/main or main)' },
     { flags: '--parameter <k=v>', field: 'parameter', description: 'Build parameter (repeatable) (default: [])' },
     { flags: '--wait', field: 'wait', description: 'Wait for the run to complete before returning' },
@@ -109,7 +109,7 @@ export const pipelineRunCommand = adoArea.command({
     // Checked after the build was queued, as specified, so the fix says it may be running.
     const timeoutSec = toInt(input.timeout, '600');
     const pollSec = toInt(input.poll, '10');
-    const queued = `Build #${build.id} was queued and may still run. Check it with toil ado pipeline get-run --id ${build.id} before queueing it again.`;
+    const queued = `Build #${build.id} was queued and may still run. Check it with toil ado run get ${build.id} before queueing it again.`;
     if (isNaN(timeoutSec) || timeoutSec <= 0) throw new ToilError('INVALID_INPUT', `Invalid --timeout "${String(input.timeout ?? '600')}". Expected a positive number of seconds.`, { fix: queued });
     if (isNaN(pollSec) || pollSec <= 0) throw new ToilError('INVALID_INPUT', `Invalid --poll "${String(input.poll ?? '10')}". Expected a positive number of seconds.`, { fix: queued });
 
@@ -119,7 +119,7 @@ export const pipelineRunCommand = adoArea.command({
     build = await getBuild(ctx, w, id);
     while (build.status !== 'completed') {
       if (Date.now() >= deadline) {
-        throw new ToilError('TIMEOUT', `Timed out waiting for completion after ${timeoutSec}s`, { fix: `Build #${id} is still running. Check it later with toil ado pipeline get-run --id ${id}.` });
+        throw new ToilError('TIMEOUT', `Timed out waiting for completion after ${timeoutSec}s`, { fix: `Build #${id} is still running. Check it later with toil ado run get ${id}.` });
       }
       ctx.debug(`Waiting ${pollSec}s...`);
       await sleep(pollSec * 1000, ctx.signal);
@@ -137,7 +137,7 @@ export const pipelineRunCommand = adoArea.command({
 const TOP = 'Maximum results (default: "50")';
 
 export const pipelineListRunsCommand = adoArea.command({
-  path: ['ado', 'pipeline', 'list-runs'],
+  path: ['ado', 'run', 'list'],
   description: 'List pipeline runs',
   toolDescription:
     "Lists the project's builds (runs), newest first as the server orders them, optionally for one pipeline (definition id, or name looked up in the pipeline list), a branch name as given, and a status. top caps the count (50 by default); top 0 lists every run. limit instead pages: at most that many, with meta.page.nextCursor to pass as cursor for the next page (not with top).",
@@ -196,23 +196,23 @@ export const pipelineListRunsCommand = adoArea.command({
 });
 
 export const pipelineGetRunCommand = adoArea.command({
-  path: ['ado', 'pipeline', 'get-run'],
+  path: ['ado', 'run', 'get'],
   description: 'Get a pipeline run by build ID',
   toolDescription: 'Returns one build (run) by id: status, result, branch, definition, times.',
   input: z.object({ id: intText.describe('Build ID') }),
   writes: false,
-  options: [idOption('Build ID')],
+  args: [idArg('Build ID')],
   examples: [{ ...AT, id: '101' }],
   run: async (input, ctx) => getBuild(ctx, where(ctx), toInt(input.id)),
 });
 
 export const pipelineCancelRunCommand = adoArea.command({
-  path: ['ado', 'pipeline', 'cancel-run'],
+  path: ['ado', 'run', 'cancel'],
   description: 'Cancel a running pipeline build',
   toolDescription: 'Asks the server to cancel a build (status cancelling) and returns it.',
   input: z.object({ id: intText.describe('Build ID'), ...allowWriteField }),
   writes: true,
-  options: [idOption('Build ID')],
+  args: [idArg('Build ID')],
   examples: [{ ...W, id: '101' }],
   run: async (input, ctx) => {
     const w = where(ctx);
@@ -221,27 +221,23 @@ export const pipelineCancelRunCommand = adoArea.command({
 });
 
 export const pipelineLogsCommand = adoArea.command({
-  path: ['ado', 'pipeline', 'logs'],
+  path: ['ado', 'run', 'logs'],
   description: 'List or retrieve build logs (consider --output-file for large logs)',
-  toolDescription: "Without logId, lists a build's logs (id, type, line count). With logId, returns that log's text as { log }. buildId is the run id from ado_pipeline_list_runs.",
+  toolDescription: "Without logId, lists a build's logs (id, type, line count). With logId, returns that log's text as { log }. id is the run id from ado_run_list.",
   input: z.object({
-    buildId: intText.optional().describe('Build (run) ID — from pipeline list-runs or get-run'),
-    id: intText.optional().describe('Build (run) ID — alias for buildId'),
+    id: intText.describe('Build (run) ID — from run list or run get'),
     logId: intText.optional().describe('Specific log ID (omit to list all logs)'),
   }),
   writes: false,
-  options: [
-    { flags: '--build-id <n>', field: 'buildId', description: 'Build (run) ID — from pipeline list-runs or get-run' },
-    { flags: '--id <n>', field: 'id', description: 'Build (run) ID — alias for --build-id (kept for backwards compatibility)' },
-    { flags: '--log-id <n>', field: 'logId', description: 'Specific log ID (omit to list all logs)' },
-  ],
+  args: [{ name: 'id', field: 'id', description: 'Build (run) ID — from run list or run get' }],
+  options: [{ flags: '--log-id <n>', field: 'logId', description: 'Specific log ID (omit to list all logs)' }],
   examples: [
-    { ...AT, buildId: '101' },
+    { ...AT, id: '101' },
     { ...AT, id: '101', logId: '3' },
   ],
   run: async (input, ctx) => {
-    const raw = input.buildId ?? input.id;
-    if (raw === undefined || raw === '') throw new ToilError('INVALID_INPUT', '--build-id is required (build run ID from pipeline list-runs or get-run)', { fix: 'Pass --build-id <n>; toil ado pipeline list-runs lists them.' });
+    const raw = input.id;
+    if (raw === '') throw new ToilError('INVALID_INPUT', 'The run <id> is required (build run ID from run list or run get)', { fix: 'Pass the run id: toil ado run logs <id>; toil ado run list lists them.' });
     const w = where(ctx);
     const buildId = toInt(raw);
     const logs = `${projectPath(w)}/_apis/build/builds/${buildId}/logs`;

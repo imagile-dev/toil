@@ -40,7 +40,7 @@ const envelope = (command: string, data: unknown): Envelope => ({ ok: true, data
 
 const item = (key: string): WorkItem =>
   ({
-    owi: '0.1', id: `jira:${key}`, source: { area: 'jira', connection: 'jira', key, command: 'jira search' }, url: null, type: 'STORY', typeName: 'Story', title: key, body: null,
+    owi: '0.1', id: `jira:${key}`, source: { area: 'jira', connection: 'jira', key, command: 'jira issue search' }, url: null, type: 'STORY', typeName: 'Story', title: key, body: null,
     status: 'Done', statusCategory: 'DONE', resolution: null, assignee: null, reporter: null, priority: null, estimate: null, labels: [], team: null, iteration: null,
     parent: null, children: [], links: [], created: null, updated: T0, resolved: null, dueDate: null,
     history: { transitions: [{ from: 'To Do', to: 'Done', fromCategory: 'TODO', toCategory: 'DONE', at: T0, by: { id: 'you', name: 'You', email: 'you@example.com' } }], iterations: [] },
@@ -51,7 +51,7 @@ const save = (at: string, over: Partial<DossierSave> = {}): DossierSave => ({
   dossier: 'card-payments',
   startedAt: at,
   finishedAt: at,
-  responses: [{ command: 'jira search', input: { dossier: 'card-payments', jql: 'project = PAY' }, envelope: envelope('jira search', { issues: [{ key: 'PAY-1' }] }) }],
+  responses: [{ command: 'jira issue search', input: { dossier: 'card-payments', jql: 'project = PAY' }, envelope: envelope('jira issue search', { issues: [{ key: 'PAY-1' }] }) }],
   items: [item('PAY-1')],
   changes: [],
   deployments: [],

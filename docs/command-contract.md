@@ -2,7 +2,7 @@
 
 `command-contract.json` is toil's hand-maintained record of its command surface: every
 command path and alias, each command's positional arguments and flags with their
-accepted values and defaults, and the field names of the `data` each command returns. It holds 444
+accepted values and defaults, and the field names of the `data` each command returns. It holds 450
 commands, 369 of them leaves. `test/contract.test.ts` checks the registered CLI against
 it on every run, so a command, flag or output field can't change or disappear without
 someone noticing. Each difference toil makes on purpose is a divergence, listed with its
@@ -16,7 +16,7 @@ working rules are **Compatibility** in the `integrations` skill
 
 For every command in scope:
 
-- the command path (`jira get-issue`, `ado pr list`, `dynatrace entities list`) and its
+- the command path (`jira issue get`, `ado pr list`, `dynatrace entities list`) and its
   aliases
 - the positional arguments, in order
 - the long and short flags, their accepted values and their defaults
@@ -53,8 +53,8 @@ any difference none of them allows. An entry holds:
 
 | Key | Meaning |
 |-----|---------|
-| `allows` | The identifiers it excuses: a command path (`git credentials`), a command and flag (`<area> <command> --<flag>`), a global flag (`--dry-run`), or a command and output field (`<area> <command> data.<field>`, such as `jira search data.issues[].key`). Empty for a divergence in behavior only, with the surface unchanged, so it can't excuse a missing command, flag or field. |
-| `when` | Optional. Input values a call must have for the entry to apply, such as `{ "exampleOnly": true }`. The output check applies it per example, so `jira schema`'s fields are excused only with `--example-only`. |
+| `allows` | The identifiers it excuses: a command path (`git credentials`), a command and flag (`<area> <command> --<flag>`), a global flag (`--dry-run`), or a command and output field (`<area> <command> data.<field>`, such as `jira issue search data.issues[].key`). Empty for a divergence in behavior only, with the surface unchanged, so it can't excuse a missing command, flag or field. |
+| `when` | Optional. Input values a call must have for the entry to apply, such as `{ "exampleOnly": true }`. The output check applies it per example, so `jira issue schema`'s fields are excused only with `--example-only`. |
 | `old` | What the contract records |
 | `toil` | What toil does instead, and what to use |
 | `why` | The reason, in a sentence or two |
