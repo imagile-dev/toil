@@ -1,4 +1,5 @@
 import { ToilError } from '../../../core/errors.js';
+import type { BoundedLimits, BoundedSource } from '../kit/bounded.js';
 import type { Schema, SchemaProblem } from '../kit/json-schema.js';
 import type { UtilInput } from '../kit/input.js';
 import type { Verifier } from '../kit/verify.js';
@@ -30,7 +31,26 @@ export interface LoadedDocument {
   /** The version the document declares (`3.0.1`, `2.0`). */
   version: string;
   format: 'json' | 'yaml';
+  /**
+   * The document's bytes, for checkDocument to move to the worker, which
+   * parses its own copy to validate: the bytes cross as one buffer, where
+   * the parsed document would be cloned a value at a time. Taken (set to
+   * undefined) when moved; validation then clones `doc` instead.
+   */
+  source?: BoundedSource | undefined;
 }
+
+/**
+ * The deadline and memory each worker step on one document may use, the
+ * YAML parse and the schema check alike: 15 s and 1,536 MB. A 13 MB vendor
+ * spec, the size real ones reach, took 3.7 s to validate and parsed as 18 MB
+ * of YAML in 0.7 s and about 300 MB; at the 64 MiB input cap, YAML took
+ * 2.3 s and about 1.1 GB, JSON validation 31 s (#200). The defaults (2 s,
+ * 256 MB) left real specs unchecked; these check them and still stop, with
+ * a plain reason, a document past what one command should hold. Both steps
+ * share the limits, so they share one warm worker.
+ */
+export const DOCUMENT_LIMITS = { timeoutMs: 15_000, maxMemoryMb: 1_536 } as const;
 
 /** A copy of an object without some keys. */
 export const without = (node: JsonObject, ...keys: string[]): JsonObject => Object.fromEntries(Object.entries(node).filter(([k]) => !keys.includes(k)));
@@ -93,9 +113,17 @@ export function refPointer(ref: string): string | undefined {
   }
 }
 
-/** The document's text as a value: JSON when it parses as JSON, else YAML through the kit, whose errors carry a line and column. */
-export async function loadDocument(input: UtilInput): Promise<LoadedDocument> {
-  const text = await input.text();
+/**
+ * The document's text as a value: JSON when it parses as JSON, else YAML
+ * through the kit, whose errors carry a line and column. JSON is parsed
+ * here: JSON.parse is linear, 0.3 s and about 120 MB at the 64 MiB input
+ * cap. YAML is parsed in the bounded worker under DOCUMENT_LIMITS (`limits`
+ * replaces them only in tests): js-yaml needs several times the memory, and
+ * time a command shouldn't hold the MCP server for.
+ */
+export async function loadDocument(input: UtilInput, options: { signal?: AbortSignal | undefined; limits?: BoundedLimits } = {}): Promise<LoadedDocument> {
+  const bytes = await input.bytes();
+  const text = new TextDecoder('utf-8').decode(bytes);
   let value: unknown;
   let format: 'json' | 'yaml' = 'yaml';
   if (/^\s*[{[]/.test(text)) {
@@ -107,8 +135,11 @@ export async function loadDocument(input: UtilInput): Promise<LoadedDocument> {
     }
   }
   if (format === 'yaml') {
-    const { parseYaml } = await import('../kit/yaml.js');
-    value = parseYaml(text, input.label);
+    const { boundedStep } = await import('../kit/bounded.js');
+    const limits = options.limits ?? DOCUMENT_LIMITS;
+    // A copy goes to the worker, and the original stays for validation (checkDocument) to move there in turn.
+    const copy = bytes.slice();
+    value = await boundedStep<unknown>(`Reading ${input.label}`, { kind: 'parse', source: { bytes: copy, format: 'yaml' }, label: input.label }, { ...limits, signal: options.signal, transfer: [copy.buffer] }, 'Pass a smaller document, or the same document as JSON, which reads in a fraction of the time and memory.');
   }
   const notADocument = (why: string) =>
     new ToilError('INVALID_INPUT', `${input.label[0]!.toUpperCase()}${input.label.slice(1)} isn't an OpenAPI or Swagger document: ${why}.`, {
@@ -141,7 +172,7 @@ export async function loadDocument(input: UtilInput): Promise<LoadedDocument> {
       fix: 'Pass a Swagger 2.0 or OpenAPI 3.0, 3.1 or 3.2 document.',
     });
   }
-  return { doc: value, spec, version: declared, format };
+  return { doc: value, spec, version: declared, format, source: { bytes, format } };
 }
 
 /** The bundled schema for a version, with the draft-04 meta-schema Swagger 2.0's refers to. Loaded on first use. */
@@ -325,10 +356,13 @@ export function checkRefs(doc: Json, spec: Spec, v: Verifier): RefReport {
 }
 
 /** Validates the document against its version's official schema, and checks its references. */
-export async function checkDocument(loaded: LoadedDocument, v: Verifier, signal?: AbortSignal): Promise<DocumentReport> {
+export async function checkDocument(loaded: LoadedDocument, v: Verifier, signal?: AbortSignal, limits: BoundedLimits = DOCUMENT_LIMITS): Promise<DocumentReport> {
   const [{ leafProblems }, { validateBounded }] = await Promise.all([import('../kit/json-schema.js'), import('../kit/bounded.js')]);
   const { schema, references } = await officialSchema(loaded.spec);
-  const result = await validateBounded(schema, loaded.doc, { references, signal, key: loaded.spec });
+  // The bytes move to the worker, which parses its own copy: cloning a 60 MB document into a worker took the whole process down with it.
+  const source = loaded.source;
+  loaded.source = undefined;
+  const result = await validateBounded(schema, loaded.doc, { references, signal, key: loaded.spec, ...limits, ...(source ? { source } : {}) });
   const leaves = leafProblems(result.problems).map((p) => ({ ...p, message: brief(p.message) }));
   if (result.unchecked !== undefined) v.unchecked('document.schema', result.unchecked);
   else if (result.valid) v.pass('document.schema');

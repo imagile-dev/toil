@@ -2,7 +2,8 @@ import type { Warning } from '../../../core/envelope.js';
 import { ToilError } from '../../../core/errors.js';
 // Types only from the input reader: it imports zod, and a module loaded through import() must not
 // (docs/util.md, Lazy loading). log.ts opens the input and hands it here.
-import type { UtilInput } from '../kit/input.js';
+import type { InputLine, UtilInput } from '../kit/input.js';
+import type { BoundedLimits } from '../kit/bounded.js';
 import { Verifier, type Verified } from '../kit/verify.js';
 
 /**
@@ -230,7 +231,51 @@ export interface Scan {
 export interface Filters {
   level: Level;
   since?: { ms: number; naive: boolean };
-  grep?: RegExp;
+  /** The `--grep` pattern, checked here and matched in the bounded worker (grepped, below). */
+  grep?: string;
+}
+
+/** Where the scan runs `--grep`: the command's signal, and the worker's limits in place of the defaults (2 s and 256 MB per batch), for tests. */
+export interface GrepRun {
+  signal?: AbortSignal | undefined;
+  limits?: BoundedLimits;
+}
+
+/** Lines sent to the worker in one `--grep` batch: 4,096, or fewer once they hold 1 MiB of text. */
+const GREP_BATCH_LINES = 4096;
+const GREP_BATCH_CHARS = 1024 * 1024;
+
+/**
+ * Every line of the input, with whether `--grep` matches it. The pattern is
+ * the user's, and a backtracking one can take longer than the universe on
+ * one short line, so it's matched in the bounded worker, a batch of lines at
+ * a time, each batch under the deadline. A batch that passes it fails the
+ * command with an error naming the lines and the limit.
+ */
+async function* grepped(input: UtilInput, pattern: string | undefined, run: GrepRun): AsyncIterable<{ line: InputLine; hit: boolean }> {
+  if (pattern === undefined) {
+    for await (const line of input.lines()) yield { line, hit: false };
+    return;
+  }
+  const { boundedError, grepBounded } = await import('../kit/bounded.js');
+  const limits = run.limits ?? {};
+  let batch: InputLine[] = [];
+  let chars = 0;
+  const flush = async function* () {
+    const outcome = await grepBounded(pattern, batch.map((l) => l.text), { ...limits, signal: run.signal });
+    if (!outcome.ok) {
+      throw boundedError(`Matching --grep against lines ${batch[0]!.number}-${batch.at(-1)!.number}`, outcome, limits, "Pass a pattern that doesn't nest repetition (such as (a+)+) or repeat overlapping alternatives (such as (a|aa)*), or narrow the log with since or level.");
+    }
+    for (let k = 0; k < batch.length; k++) yield { line: batch[k]!, hit: outcome.value[k] === 1 };
+    batch = [];
+    chars = 0;
+  };
+  for await (const line of input.lines()) {
+    batch.push(line);
+    chars += line.text.length;
+    if (batch.length >= GREP_BATCH_LINES || chars >= GREP_BATCH_CHARS) yield* flush();
+  }
+  if (batch.length) yield* flush();
 }
 
 export function parseFilters(options: LogOptions): Filters {
@@ -246,7 +291,9 @@ export function parseFilters(options: LogOptions): Filters {
   }
   if (options.grep !== undefined) {
     try {
-      filters.grep = new RegExp(options.grep);
+      // Compiled here only to refuse a bad pattern up front: compiling is cheap, matching is what runs in the worker.
+      new RegExp(options.grep);
+      filters.grep = options.grep;
     } catch (err) {
       throw new ToilError('INVALID_INPUT', `--grep isn't a valid regular expression: ${(err as Error).message}`, { fix: 'Pass a JavaScript regular expression, without slashes or flags.' });
     }
@@ -255,7 +302,7 @@ export function parseFilters(options: LogOptions): Filters {
 }
 
 /** One pass over the input: every line classified, error and warning lines grouped, traces joined. */
-export async function scan(input: UtilInput, filters: Filters, v: Verifier): Promise<Scan> {
+export async function scan(input: UtilInput, filters: Filters, v: Verifier, run: GrepRun = {}): Promise<Scan> {
   const lines = { total: 0, error: 0, warning: 0, other: 0, stack: 0, unclassified: 0 };
   const groups = new Map<string, Tracked>();
   const out = { matched: 0, filtered: 0, ungrouped: 0, unjoinedFrames: 0, cutLines: 0, undated: 0, grepStackHits: 0 };
@@ -269,6 +316,8 @@ export async function scan(input: UtilInput, filters: Filters, v: Verifier): Pro
    * an exception's name usually is. Otherwise it's filtered out.
    */
   let pending: { number: number; text: string; rest: string } | undefined;
+  /** Whether `--grep` matches the line being read: every line match() sees is that line. */
+  let grepHit = false;
 
   const match = (number: number, text: string, rest: string, level: Level, pyTrace?: { start: number; end: number }) => {
     lines[level]++;
@@ -283,7 +332,7 @@ export async function scan(input: UtilInput, filters: Filters, v: Verifier): Pro
       }
     }
     const dropped = !keep;
-    if (keep && grep && !grep.test(text)) {
+    if (keep && grep !== undefined && !grepHit) {
       keep = false;
       if (level === 'error' && !pyTrace) pending = { number, text, rest };
     }
@@ -318,13 +367,13 @@ export async function scan(input: UtilInput, filters: Filters, v: Verifier): Pro
     if (!pyTrace) anchor = { group, level, record, gap: 0, inTrace: false };
   };
 
-  for await (const line of input.lines()) {
+  for await (const { line, hit } of grepped(input, filters.grep, run)) {
     lines.total++;
     if (line.cut) out.cutLines++;
     const { rest, stamp } = stripTimestamp(line.text);
     if (stamp !== undefined) lastDate = parseTimestamp(stamp) ?? lastDate;
 
-    const grepHit = filters.grep?.test(line.text) ?? false;
+    grepHit = hit;
 
     // An error held for --grep: kept if this line heads its trace and matches, else filtered out.
     if (pending) {
@@ -496,8 +545,8 @@ export async function finish(found: Scan, input: UtilInput, options: LogOptions,
 }
 
 /** `util log` on an opened input, start to finish. */
-export async function triageLog(input: UtilInput, filters: Filters, options: LogOptions, warn: (w: Warning) => void): Promise<LogTriage> {
+export async function triageLog(input: UtilInput, filters: Filters, options: LogOptions, warn: (w: Warning) => void, run: GrepRun = {}): Promise<LogTriage> {
   const v = new Verifier(warn);
-  const found = await scan(input, filters, v);
+  const found = await scan(input, filters, v, run);
   return finish(found, input, options, v, warn);
 }

@@ -1,13 +1,11 @@
-import type { AdfDocument, AdfNode } from '../../jira-cloud/adf.js';
+import type { AdfDocument } from '../../jira-cloud/adf.js';
 import { ToilError } from '../../../core/errors.js';
 import type { Warning } from '../../../core/envelope.js';
+import type { BoundedLimits, BoundedTask } from '../kit/bounded.js';
 import type { UtilInput } from '../kit/input.js';
 import { Verifier, type Verified } from '../kit/verify.js';
-import { parseAdf, renderAdf } from './adf.js';
-import { dropEmpty, Losses, normalizeBlocks, type Doc, type Loss } from './ast.js';
-import { parseMarkdown, renderBlock, renderMarkdown } from './markdown.js';
-import { parseStorage, renderStorage, XmlSyntaxError } from './storage.js';
-import { parseWiki, renderWiki } from './wiki.js';
+import type { Loss } from './ast.js';
+import type { Converted } from './core.js';
 
 /**
  * `util md`: one document converted between Markdown and Jira wiki markup,
@@ -26,9 +24,24 @@ import { parseWiki, renderWiki } from './wiki.js';
  * `lossless` is true only when nothing was lost and the round trip matched
  * block for block. The conversion is graded by the same office that issued it,
  * which is why the grading is published.
+ *
+ * Steps 1 to 3 run in the bounded worker (md/core.ts, kit/bounded.ts), under
+ * {@link MD_LIMITS}: a document's emphasis and nesting decide what parsing
+ * it costs. This module keeps the comparison and the checks.
  */
 
 export type Format = 'md' | 'wiki' | 'adf' | 'storage';
+
+/**
+ * The deadline and memory each worker step (the conversion, then the read
+ * back) may use: 10 s and 1,024 MB. A 4 MiB document, the input cap, of
+ * ordinary headings, lists, tables and links took under 4 s for the whole
+ * command and peaked at 445 MB in the worker (#200), more than the 256 MB
+ * default, so these leave a slow runner room and still stop a document
+ * built to backtrack, which ran for minutes at a fraction of the cap.
+ */
+export const MD_LIMITS = { timeoutMs: 10_000, maxMemoryMb: 1_024 } as const;
+const MD_FIX = 'Pass a smaller document, or one with less deeply nested quotes, lists and emphasis.';
 
 export interface MdInput {
   file?: string | undefined;
@@ -61,6 +74,8 @@ export interface MdData {
 /** Stand-ins a test uses to break the conversion on purpose and watch the checks catch it. */
 export interface Hooks {
   tamper?: (output: string | AdfDocument) => string | AdfDocument;
+  /** The worker steps' limits in place of MD_LIMITS, so a test can watch a short deadline stop one. */
+  limits?: BoundedLimits;
 }
 
 /** The input cap: a ticket or page, not an archive. */
@@ -70,62 +85,13 @@ const MAX_LOSSES = 500;
 
 const NAMES: Record<Format, string> = { md: 'Markdown', wiki: 'Jira wiki markup', adf: 'ADF', storage: 'Confluence storage format' };
 
-function parse(format: Format, text: string, losses: Losses | undefined, label: string): Doc {
-  if (format === 'md') return parseMarkdown(text, losses);
-  if (format === 'wiki') return parseWiki(text, losses);
-  if (format === 'storage') {
-    try {
-      return parseStorage(text, losses);
-    } catch (err) {
-      if (err instanceof XmlSyntaxError) {
-        throw new ToilError('INVALID_INPUT', `${label} is not well-formed storage format: ${err.message}`, {
-          fix: 'Pass the page body exactly as Confluence returns it in body.storage.value. Only XML\'s entities and HTML\'s common named ones (&nbsp;, &mdash; …) are known; write any other as a numeric reference.',
-        });
-      }
-      throw err;
-    }
-  }
-  return parseAdf(adfDocument(text, label), losses);
-}
-
-/** The ADF document in `text`, or INVALID_INPUT saying why it isn't one. */
-function adfDocument(text: string, label: string): AdfNode {
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch (err) {
-    throw new ToilError('INVALID_INPUT', `${label} is not JSON: ${(err as Error).message}`, { fix: 'Pass an ADF document: { "type": "doc", "version": 1, "content": [...] }.' });
-  }
-  if (typeof value !== 'object' || value === null || (value as AdfNode).type !== 'doc' || !Array.isArray((value as AdfNode).content)) {
-    throw new ToilError('INVALID_INPUT', `${label} is JSON but not an ADF document: the top level needs "type": "doc" and a "content" array.`, {
-      fix: 'Pass the document itself (an issue\'s fields.description, a comment\'s body), not the issue or comment around it.',
-    });
-  }
-  return value as AdfNode;
-}
-
-function render(format: Format, doc: Doc, losses: Losses): string | AdfDocument {
-  if (format === 'md') return renderMarkdown(doc);
-  if (format === 'wiki') return renderWiki(doc, losses);
-  if (format === 'storage') return renderStorage(doc, losses);
-  return renderAdf(doc, losses);
-}
-
-/** The canonical form both sides of the round trip are compared in. */
-function canonical(doc: Doc, losses?: Losses): Doc {
-  const blocks = normalizeBlocks(doc.blocks);
-  const keep = new Set(dropEmpty(blocks));
-  // The losses noted while reading name blocks by their place before empty
-  // paragraphs went; renumber them, or a loss would explain a block it isn't in.
-  // A loss in a dropped block stays in the list but explains no block (-1):
-  // handing it to a neighbour would excuse a real change there.
-  const index: number[] = [];
-  let kept = 0;
-  blocks.forEach((b, k) => {
-    index[k] = keep.has(b) ? kept++ : -1;
-  });
-  for (const loss of losses?.list ?? []) loss.block = loss.block < 0 ? -1 : (index[loss.block] ?? -1);
-  return { blocks: blocks.filter((b) => keep.has(b)), at: doc.at.filter((_, k) => keep.has(blocks[k]!)) };
+/**
+ * Runs one md step in the bounded worker. `limits` replaces MD_LIMITS only
+ * in tests. Input that doesn't parse comes back as its own INVALID_INPUT.
+ */
+async function mdStep<T>(step: string, task: BoundedTask, signal: AbortSignal | undefined, limits: BoundedLimits): Promise<T> {
+  const { boundedStep } = await import('../kit/bounded.js');
+  return boundedStep<T>(step, task, { ...limits, signal }, MD_FIX);
 }
 
 /** A longest-common-subsequence alignment of two lists of strings, as the runs that differ. */
@@ -191,19 +157,21 @@ export async function convertMarkdown(
   const v = new Verifier(ctx.warn);
   v.inputComplete(source);
 
-  const losses = new Losses();
-  const read = canonical(parse(from, text, losses, source.label.replace(/^the /, 'The ')), losses);
+  const limits = { ...MD_LIMITS, ...hooks.limits };
+  const label = source.label.replace(/^the /, 'The ');
+  const read = await mdStep<Converted>(`Converting ${source.label}`, { kind: 'md-convert', from, to, text, label }, ctx.signal, limits);
+  const losses = { list: read.losses };
   if (from === 'adf') {
-    const schema = await validateAdf(JSON.parse(text), ctx.signal);
+    const schema = await validateAdf(JSON.parse(text), ctx.signal, limits.maxMemoryMb);
     if (schema.unchecked !== undefined) v.unchecked('input.adf.schema', schema.unchecked);
     else v.expect('input.adf.schema', schema.valid, { at: schema.problems[0]?.pointer ?? '', expected: 'a document the ADF schema accepts', actual: schema.problems[0]?.message }, { code: 'ADF_INPUT_INVALID', message: `The input doesn't match the ADF schema at ${schema.problems[0]?.pointer || '/'}: ${schema.problems[0]?.message ?? ''} (${schema.total} problem(s)); it was converted as far as it could be read.` });
   }
 
-  let output = render(to, read, losses);
+  let output = read.output;
   if (hooks.tamper) output = hooks.tamper(output);
 
   if (to === 'adf') {
-    const schema = await validateAdf(output, ctx.signal);
+    const schema = await validateAdf(output, ctx.signal, limits.maxMemoryMb);
     if (schema.unchecked !== undefined) v.unchecked('output.adf.schema', schema.unchecked);
     else if (!schema.valid) {
       const where = schema.problems.slice(0, 3).map((p) => `${p.pointer || '/'}: ${p.message}`).join('; ');
@@ -214,22 +182,21 @@ export async function convertMarkdown(
   }
 
   // The round trip: read what was written, and compare it with what was read, block by block.
-  let back: Doc;
-  try {
-    back = canonical(to === 'adf' ? parseAdf(output as unknown as AdfNode) : parse(to, output as string, undefined, 'The output'));
-  } catch (err) {
-    if (to === 'storage') {
-      throw new ToilError('INTERNAL', `The storage format this produced is not well-formed XML (${(err as Error).message}), so it isn't returned.`, {
+  const { boundedError, runBounded } = await import('../kit/bounded.js');
+  const back = await runBounded<string[]>({ kind: 'md-read', format: to, output }, { ...limits, signal: ctx.signal });
+  if (!back.ok) {
+    // Output that doesn't read back is this command's own fault, not the input's; a limit is still the limit.
+    if (back.cause === 'refused' && to === 'storage') {
+      throw new ToilError('INTERNAL', `The storage format this produced is not well-formed XML (${back.reason}), so it isn't returned.`, {
         fix: 'This is a bug in util md: report it with the input that caused it.',
       });
     }
-    throw err;
+    throw boundedError(`Reading back the ${NAMES[to]} this produced`, back, limits, MD_FIX);
   }
   if (to === 'storage') v.pass('output.storage.wellFormed');
 
-  const printed = (doc: Doc) => doc.blocks.map((b, k) => renderBlock(b, doc.blocks[k - 1]));
-  const before = printed(read);
-  const after = printed(back);
+  const before = read.blocks;
+  const after = back.value;
   const lostIn = new Set(losses.list.map((l) => l.block));
   const differences: Difference[] = [];
   const diff = hunks(before, after);
@@ -272,7 +239,7 @@ export async function convertMarkdown(
 }
 
 /** One warning per kind of loss, with where it happened. */
-function reportLosses(losses: Losses, warn: (w: Warning) => void) {
+function reportLosses(losses: { list: Loss[] }, warn: (w: Warning) => void) {
   const byConstruct = new Map<string, Loss[]>();
   for (const loss of losses.list) {
     const list = byConstruct.get(loss.construct) ?? [];
@@ -290,11 +257,12 @@ function reportLosses(losses: Losses, warn: (w: Warning) => void) {
 let adfSchema: unknown;
 
 /** Validates against the bundled ADF schema (@atlaskit/adf-schema's full.json), loading both only when asked. */
-export async function validateAdf(value: unknown, signal?: AbortSignal) {
+export async function validateAdf(value: unknown, signal?: AbortSignal, maxMemoryMb: number = MD_LIMITS.maxMemoryMb) {
   const [{ validateBounded }, schema] = await Promise.all([import('../kit/bounded.js'), adfSchema ?? import('./adf-schema.json', { with: { type: 'json' } }).then((m) => m.default)]);
   adfSchema = schema;
   // In a bounded worker: a document can make the ADF schema's anyOf branches cost more than any reply is worth.
-  const result = await validateBounded(schema as never, value, { signal, key: 'adf' });
+  // Under md's own memory limit, so a conversion's steps share one warm worker: a different limit means a fresh one (kit/bounded.ts, workerFor).
+  const result = await validateBounded(schema as never, value, { signal, key: 'adf', maxMemoryMb });
   return { ...result, problems: result.problems.slice(0, 20) };
 }
 

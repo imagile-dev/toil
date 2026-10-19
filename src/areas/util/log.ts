@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { defineCommand } from '../../core/command.js';
 import { DEFAULT_MAX_BYTES, fileArgument, inputFields, openInput, textOption, type InputContext } from './kit/input.js';
+import type { BoundedLimits } from './kit/bounded.js';
 import type { LogOptions, LogTriage } from './log/triage.js';
 
 /**
@@ -21,12 +22,13 @@ const LEVELS = ['error', 'warning'] as const;
  * streams with no size cap; stdin and text are held for the re-read, so they
  * keep the reader's.
  */
-export async function runLog(ctx: InputContext, fields: { file?: string | undefined; text?: string | undefined }, options: LogOptions): Promise<LogTriage> {
+export async function runLog(ctx: InputContext, fields: { file?: string | undefined; text?: string | undefined }, options: LogOptions, limits?: BoundedLimits): Promise<LogTriage> {
   const { MAX_LINE, parseFilters, triageLog } = await import('./log/triage.js');
   const filters = parseFilters(options);
   const streams = fields.text === undefined && fields.file !== undefined && fields.file !== '-';
   const input = await openInput(ctx, fields, { maxBytes: streams ? Number.POSITIVE_INFINITY : DEFAULT_MAX_BYTES, maxLineLength: MAX_LINE });
-  return triageLog(input, filters, options, ctx.warn);
+  // --grep runs in the bounded worker under its deadline (log/triage.ts, grepped); `limits` replaces the defaults only in tests.
+  return triageLog(input, filters, options, ctx.warn, { signal: ctx.signal, ...(limits ? { limits } : {}) });
 }
 
 export const SAMPLE_LOG = [
