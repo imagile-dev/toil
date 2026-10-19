@@ -18,7 +18,7 @@ const ENDPOINT_LABEL: Record<string, string> = { anthropic: 'Anthropic API', bed
 function adapterLine(a: AdapterStatus): string {
   const sdk = a.installed ? `${a.package} is installed` : `${a.package} isn't installed`;
   const cli = a.cli.path ? `it would start ${a.cli.path}` : (a.cli.problem ?? 'its CLI was not found');
-  return `${sdk}; ${cli}`;
+  return `${sdk}; ${cli}`.replace(/\.$/, '');
 }
 
 export interface AgentSettingsPanelProps {
