@@ -2490,6 +2490,19 @@ preview has a Settings entry that says so.
   proposals say so instead of inventing one. `ui/test/registry.test.ts` holds every
   proposal the board and the scripted agent can make to the real registry: the
   command exists, writes, and its input validates.
+- **A proposal's command line is single quoted, never double quoted** (#255 review):
+  every value in `'…'`, which neither POSIX shells nor PowerShell expand (no `$(…)`,
+  backticks, variables or backslash escapes). POSIX writes a quote inside as `'\''`;
+  PowerShell doubles each character it reads as a single quote, the typographic
+  ones included. A value starting with `-` is attached to its flag
+  (`'--summary=-x'`), and one holding a line break is refused with the reason. The
+  card shows the viewer's shell (PowerShell on Windows, from `userAgentData` or
+  `platform`, else bash/zsh), with a toggle that switches every card and is remembered;
+  Copy copies what is shown. `ui/test/views-model.test.ts` round-trips hostile values
+  through `sh -s` and `pwsh -EncodedCommand` where each is installed, feeding the
+  script past argv so Windows' argument quoting can't mask a bug. Windows PowerShell
+  5.1's own native-argument passing mangles embedded double quotes; that is the
+  shell's, not the line's, and PowerShell 7 passes them as written.
 - **The dependency graph's layout is in the model:** each item's column is the
   longest `blocks` chain leading to it, so no layout library. xyflow draws it,
   lazy-loaded (it is a third of the bundle), with nothing draggable or connectable,

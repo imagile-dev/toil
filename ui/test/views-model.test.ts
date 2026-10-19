@@ -5,7 +5,9 @@ import { burnup } from '../src/model/burnup.ts';
 import { age, aging, cycleTime, cycleTimes, doneAt, percentile, throughput, weekStart } from '../src/model/flow.ts';
 import { dependencyGraph } from '../src/model/graph.ts';
 import { insights, needsAttention, prepare, type Context } from '../src/model/insights.ts';
-import { commandLine } from '../src/proposal.ts';
+import { Buffer } from 'node:buffer';
+import { spawnSync } from 'node:child_process';
+import { commandLine, defaultShell, quote } from '../src/proposal.ts';
 import type { ChangeRef, Deployment, StatusCategory, Transition, WorkItem } from '../src/toil.ts';
 import { healthOf } from './harness.ts';
 
@@ -177,16 +179,17 @@ describe('the board', () => {
     expect(proposeMove(pay102, 'TODO', data.items, 'card-payments')).toBeNull();
     const p = proposeMove(pay102, 'IN_PROGRESS', data.items, 'card-payments')!;
     expect(p).toMatchObject({ from: 'board', item: 'corp-jira:PAY-102', title: 'Move PAY-102 to In progress', command: 'jira transition-issue', input: { dossier: 'card-payments', key: 'PAY-102', transition: 'In Progress' } });
-    expect(commandLine(p)).toBe('toil jira transition-issue --dossier card-payments --key PAY-102 --transition "In Progress" --allow-write');
+    expect(commandLine(p, 'posix').line).toBe("toil jira transition-issue --dossier 'card-payments' --key 'PAY-102' --transition 'In Progress' --allow-write");
+    expect(commandLine(p, 'powershell').line).toBe("toil jira transition-issue --dossier 'card-payments' --key 'PAY-102' --transition 'In Progress' --allow-write");
     const settle = await healthOf('settlement');
-    expect(commandLine(proposeMove(settle.byId.get('corp-ado:2303')!, 'IN_PROGRESS', settle.data.items, 'settlement')!)).toBe('toil ado work transition --dossier settlement --id 2303 --state Active --allow-write');
+    expect(commandLine(proposeMove(settle.byId.get('corp-ado:2303')!, 'IN_PROGRESS', settle.data.items, 'settlement')!, 'posix').line).toBe("toil ado work transition --dossier 'settlement' --id '2303' --state 'Active' --allow-write");
   });
 
   it("says where toil has no command, rather than inventing one", async () => {
     const { data, byId } = await healthOf('checkout-web');
     const p = proposeMove(byId.get('github:imagile/payments-web#43')!, 'DONE', data.items, 'checkout-web')!;
     expect(p.command).toBeNull();
-    expect(commandLine(p)).toBeNull();
+    expect(commandLine(p, 'posix')).toEqual({ line: null, reason: 'toil has no command for this change.' });
     expect(p.note).toMatch(/no command that sets a GitHub Projects status/);
     const lone = item({ id: 'c:L-1' });
     expect(statusFor(lone, 'DONE', [lone])).toBeNull();
@@ -239,8 +242,106 @@ describe('insights', () => {
 });
 
 describe('a proposal', () => {
-  it('reads as one command line, dossier first, quoted where it must be, with --allow-write', () => {
-    expect(commandLine({ command: 'jira update-issue', input: { key: 'PAY-107', dossier: 'card-payments', field: ['Story Points=3'] } })).toBe('toil jira update-issue --dossier card-payments --key PAY-107 --field "Story Points=3" --allow-write');
-    expect(commandLine({ command: null, input: null })).toBeNull();
+  it('reads as one command line, dossier first, every value single quoted, with --allow-write', () => {
+    const p = { command: 'ado work update', input: { id: 2303, dossier: 'settlement', field: ['System.IterationPath=Payments\\Sprint 43'] } };
+    // A backslash is literal inside single quotes in both shells: one stays one.
+    expect(commandLine(p, 'posix').line).toBe("toil ado work update --dossier 'settlement' --id '2303' --field 'System.IterationPath=Payments\\Sprint 43' --allow-write");
+    expect(commandLine(p, 'powershell').line).toBe("toil ado work update --dossier 'settlement' --id '2303' --field 'System.IterationPath=Payments\\Sprint 43' --allow-write");
+    expect(commandLine({ command: null, input: null }, 'posix').line).toBeNull();
   });
+
+  it('never uses double quotes, whatever the value', () => {
+    for (const shell of ['posix', 'powershell'] as const) {
+      expect(commandLine({ command: 'jira update-issue', input: { key: 'A-1', summary: 'say "hi" $(id) `whoami` \'x\'' } }, shell).line).not.toMatch(/^toil[^']*"/);
+    }
+  });
+
+  it('attaches a value that starts with a dash to its flag, so it never reads as a flag', () => {
+    expect(commandLine({ command: 'jira update-issue', input: { key: 'A-1', summary: '--allow-write' } }, 'posix').line).toBe("toil jira update-issue --key 'A-1' '--summary=--allow-write' --allow-write");
+    expect(commandLine({ command: 'jira update-issue', input: { key: 'A-1', summary: '-x' } }, 'powershell').line).toBe("toil jira update-issue --key 'A-1' '--summary=-x' --allow-write");
+  });
+
+  it('refuses a value with a line break, saying why, rather than splitting the command', () => {
+    for (const v of ['a\nb', 'a\r\nb', 'a\u2028b']) {
+      const out = commandLine({ command: 'jira update-issue', input: { key: 'A-1', summary: v } }, 'posix');
+      expect(out.line).toBeNull();
+      expect(out.reason).toMatch(/--summary value holds a line break/);
+    }
+  });
+
+  it("picks PowerShell on Windows and POSIX anywhere else", () => {
+    expect(defaultShell({ userAgentData: { platform: 'Windows' } })).toBe('powershell');
+    expect(defaultShell({ platform: 'Win32' })).toBe('powershell');
+    expect(defaultShell({ platform: 'MacIntel' })).toBe('posix');
+    expect(defaultShell({ userAgentData: { platform: 'Linux' }, platform: 'Linux x86_64' })).toBe('posix');
+    expect(defaultShell(undefined)).toBe('posix');
+  });
+});
+
+/** Values a hostile or careless field could hold: substitutions, both quote kinds, backslashes, a leading dash. */
+const HOSTILE = [
+  'plain',
+  '$(touch /tmp/toil-pwned)',
+  '$HOME ${HOME} $env:PATH',
+  '`whoami` and `$(id)`',
+  "it's 'quoted'",
+  'say "hi" and ""',
+  'back\\slash\\\\ and \\" and \\\'',
+  "‘curly’ ‚low‛ quotes",
+  '-rf --allow-write',
+  "'; rm -rf / #",
+  "a ' b '' c ''' d",
+  '%PATH% !x! ^& | ; > < * ? [a] {b} ~ #',
+  'ünïcödé ✓ 日本',
+];
+
+describe('quoting', () => {
+  it.each(HOSTILE)('writes %j as one single-quoted argument in both shells', (v) => {
+    const posix = quote(v, 'posix')!;
+    const ps = quote(v, 'powershell')!;
+    expect(posix.startsWith("'") && posix.endsWith("'")).toBe(true);
+    expect(ps.startsWith("'") && ps.endsWith("'")).toBe(true);
+    // POSIX: between the outer quotes, a quote only ever appears as '\''.
+    expect(posix.slice(1, -1).replace(/'\\''/g, '')).not.toContain("'");
+    // PowerShell: every quote character inside comes in a pair.
+    expect(ps.slice(1, -1).replace(/(['\u2018\u2019\u201A\u201B])\1/g, '')).not.toMatch(/['\u2018\u2019\u201A\u201B]/);
+  });
+
+  it('refuses a line break or a NUL in either shell', () => {
+    for (const shell of ['posix', 'powershell'] as const) for (const v of ['a\nb', 'a\rb', 'a\0b']) expect(quote(v, shell)).toBeNull();
+  });
+});
+
+/** Is this shell on the machine? The round trip below runs only where it is. */
+function has(cmd: string, args: string[]): boolean {
+  try {
+    return spawnSync(cmd, args, { encoding: 'utf8', timeout: 20_000 }).status === 0;
+  } catch {
+    return false;
+  }
+}
+const SH = has('sh', ['-c', 'exit 0']);
+const PWSH = has('pwsh', ['-NoProfile', '-NonInteractive', '-Command', 'exit 0']);
+
+describe('the round trip through a real shell', () => {
+  // sh: present on Linux and macOS runners and with Git for Windows; skipped where it isn't.
+  it.skipIf(!SH)('sh -s gives back every value byte for byte', () => {
+    for (const v of HOSTILE) {
+      // The script goes in on stdin, so no argv quoting between here and the shell (Windows' would) can touch it.
+      const out = spawnSync('sh', ['-s'], { input: `printf '%s' ${quote(v, 'posix')}`, encoding: 'utf8', timeout: 20_000 });
+      expect(out.status, out.stderr).toBe(0);
+      expect(out.stdout, v).toBe(v);
+    }
+  });
+
+  // pwsh: PowerShell 7, on the Windows runner and wherever it is installed; skipped where it isn't.
+  it.skipIf(!PWSH)('pwsh -EncodedCommand gives back every value byte for byte', () => {
+    for (const v of HOSTILE) {
+      // -EncodedCommand carries the script as base64 UTF-16, past any argv quoting, to PowerShell's own parser.
+      const script = `[Console]::OutputEncoding = [Text.Encoding]::UTF8; [Console]::Out.Write(${quote(v, 'powershell')})`;
+      const out = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { encoding: 'utf8', timeout: 30_000 });
+      expect(out.status, out.stderr).toBe(0);
+      expect(out.stdout, v).toBe(v);
+    }
+  }, 120_000);
 });

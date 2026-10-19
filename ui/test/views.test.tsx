@@ -147,8 +147,13 @@ describe('a dashboard', () => {
     await userEvent.click(within(chat).getByRole('button', { name: "What's at risk in this dossier?" }));
     const card = await within(chat).findByRole('article', { name: 'Proposal: Move 2303 to Sprint 43' });
     expect(card.textContent).toContain('Proposed change, not applied');
-    expect(within(card).getByText(/^toil ado work update/).textContent).toBe('toil ado work update --dossier settlement --id 2303 --field "System.IterationPath=Payments\\\\Sprint 43" --allow-write');
+    // jsdom has no platform, so the viewer's shell is POSIX; the toggle switches it, for every card.
+    expect(within(card).getByText(/^toil ado work update/).textContent).toBe("toil ado work update --dossier 'settlement' --id '2303' --field 'System.IterationPath=Payments\\Sprint 43' --allow-write");
     expect(within(card).getAllByRole('button').map((b) => b.textContent)).toEqual(['Copy command', 'Dismiss']);
+    await userEvent.click(within(card).getByRole('radio', { name: 'PowerShell' }));
+    expect(within(card).getByRole('radio', { name: 'PowerShell' })).toHaveProperty('checked', true);
+    expect(within(card).getByText(/^toil ado work update/).textContent).not.toContain('"');
+    expect(localStorage.getItem('toil-ui.shell')).toBe('powershell');
     await userEvent.click(within(card).getByRole('button', { name: 'Dismiss' }));
     expect(within(chat).queryByRole('article', { name: /^Proposal:/ })).toBeNull();
   });
@@ -192,7 +197,7 @@ describe('the views on a dashboard (#252, #253)', () => {
     await userEvent.click(within(board).getByRole('button', { name: 'Move PAY-102 to…' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'In progress' }));
     const card = within(board).getByRole('article', { name: 'Proposal: Move PAY-102 to In progress' });
-    expect(card.textContent).toContain('toil jira transition-issue --dossier card-payments --key PAY-102 --transition "In Progress" --allow-write');
+    expect(card.textContent).toContain("toil jira transition-issue --dossier 'card-payments' --key 'PAY-102' --transition 'In Progress' --allow-write");
     expect(screen.getByText(/Proposed: Move PAY-102 to In progress. Nothing has changed/)).toBeTruthy();
     // The card is still where Jira says it is, and nothing was asked of toil.
     expect(within(within(board).getByRole('region', { name: /^To do/ })).getByText('Store tokens in the vault')).toBeTruthy();
