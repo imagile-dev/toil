@@ -14,6 +14,7 @@
  */
 
 import type { Agent, Answer, Starter } from './agent.ts';
+import type { AreaInfo, ConfigApi, SettingsInfo } from './config.ts';
 import type { Envelope, Execute } from './toil.ts';
 
 export interface Session {
@@ -88,6 +89,36 @@ export function httpExecute(session: Session, base = './'): Execute {
     }
     if (isEnvelope(body)) return body;
     throw await failure(res, `toil ${command}`);
+  };
+}
+
+/**
+ * The settings pages' calls (src/config.ts) over the server's `/api/config`.
+ * The server decides which commands run and how; the page sends the command,
+ * its input, and what the person typed for its questions. A secret travels in
+ * this one request body and is not kept here after it.
+ */
+export function httpConfig(session: Session, base = './'): ConfigApi {
+  const get = async <T,>(path: string): Promise<T> => {
+    const res = await call(base, session, path);
+    if (!res.ok) throw await failure(res, path);
+    return (await res.json()) as T;
+  };
+  return {
+    disabled: null,
+    areas: () => get<AreaInfo[]>('api/config/areas'),
+    settings: () => get<SettingsInfo>('api/config/settings'),
+    async run(command, input, answers = {}) {
+      const res = await call(base, session, 'api/config', { body: { command, input, ...answers } });
+      let body: unknown;
+      try {
+        body = await res.clone().json();
+      } catch {
+        body = undefined;
+      }
+      if (isEnvelope(body)) return body;
+      throw await failure(res, `toil ${command}`);
+    },
   };
 }
 

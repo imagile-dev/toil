@@ -28,6 +28,21 @@ export interface ExecuteOptions {
   readOnly?: boolean;
   caller?: string;
   signal?: AbortSignal;
+  /** Only the local server's config path passes one (ui/server/config.ts): the person's answers to toil's questions. */
+  person?: ExecutePerson;
+}
+
+/** One question a person's command asks (the API's `Question`). */
+export interface Question {
+  id: string;
+  text: string;
+  secret: boolean;
+  fallback: string | null;
+}
+
+/** The API's `ExecutePerson`: answers a question with what the person typed, or `undefined` if they weren't asked it. */
+export interface ExecutePerson {
+  ask(question: Question): Promise<string | undefined> | string | undefined;
 }
 
 /** `execute()` from `@imagile-dev/toil/api`: one command, its MCP fields, one envelope back. Never throws. */

@@ -7,9 +7,11 @@
  * onboarding process, minus the onboarding.
  */
 
-import { execute, contractVersion as toilContract, version as toilVersion } from '@imagile-dev/toil/api';
+import { execute, registry, contractVersion as toilContract, version as toilVersion } from '@imagile-dev/toil/api';
 import { fileURLToPath } from 'node:url';
+import { FIXTURE_AREAS } from '../src/fixtures/config.ts';
 import { fixtureAgent, noAgent } from './agent.ts';
+import { areasFrom, settingsFrom } from './config.ts';
 import { createUiServer } from './server.ts';
 import { parseSettings, SettingsError, USAGE } from './settings.ts';
 import { fixtureStore, toilStore } from './store.ts';
@@ -44,6 +46,8 @@ async function main(): Promise<number> {
     appDir: fileURLToPath(new URL('../app/', import.meta.url)),
     version: __TOIL_UI_VERSION__,
     toil: { version: toilVersion, contractVersion: toilContract },
+    // The settings pages' connection fields come from toil's registry, and the time limit from the env toil runs in.
+    config: settings.sample ? { areas: FIXTURE_AREAS, settings: settingsFrom({}) } : { areas: areasFrom(registry), settings: settingsFrom(process.env) },
   });
 
   let address;
@@ -59,7 +63,7 @@ async function main(): Promise<number> {
   process.stdout.write(
     [
       `Toil UI ${__TOIL_UI_VERSION__} (alpha, local only), on toil ${toilVersion}`,
-      settings.sample ? 'Serving sample data and the scripted agent; nothing connects to a tracker.' : 'Reading through toil, read-only, with your own connections and dossiers.',
+      settings.sample ? 'Serving sample data and the scripted agent; nothing connects to a tracker.' : 'Reading through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil\'s own connections and dossiers, when you ask.',
       '',
       'Open this URL in your browser. It carries this launch\'s token, so keep it to yourself:',
       `  ${address.launchUrl}`,
