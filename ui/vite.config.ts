@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vitest/config';
 import { META_CSP } from './server/csp.ts';
@@ -54,6 +55,10 @@ export default defineConfig(({ mode }) => ({
     assetsInlineLimit: (file: string) => (/\.(woff2?|ttf|otf)$/.test(file) ? false : undefined),
   },
   test: {
+    // The tests run against toil from source, as test/registry.test.ts already
+    // does, so a change to toil's commands and the UI's use of it land in one PR
+    // and are tested together. The published pin is bumped when toil releases.
+    alias: { '@imagile-dev/toil/api': fileURLToPath(new URL('../src/api.ts', import.meta.url)) },
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}', 'test/**/*.test.{ts,tsx}'],
     setupFiles: ['test/setup.ts'],
