@@ -58,6 +58,17 @@ export interface ProgramOptions {
  * its own: it maps argv onto a command's input and prints the envelope that
  * core produces.
  */
+/**
+ * What a resource's group holds, for its row in the area's --help: `issue`
+ * reads "get, search, create, update, ..." rather than "jira issue commands",
+ * so the list of resources says what each one can do without opening it.
+ */
+export function groupSummary(key: string, commands: readonly AnyCommand[]): string {
+  const depth = key.split(' ').length;
+  const words = [...new Set(commands.filter((def) => def.path.length > depth && def.path.slice(0, depth).join(' ') === key).map((def) => def.path[depth]!))];
+  return words.join(', ');
+}
+
 export function buildProgram(options: ProgramOptions): { program: Command; result: { exitCode: number } } {
   const { io } = options;
   const result = { exitCode: 0 };
@@ -84,7 +95,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       const key = segments.slice(0, i + 1).join(' ');
       let group = groups.get(key);
       if (!group) {
-        group = quiet(parent.command(segments[i]!).description(`${key} commands`));
+        group = quiet(parent.command(segments[i]!).description(i === 0 ? `${key} commands` : groupSummary(key, options.commands)));
         groups.set(key, group);
       }
       parent = group;

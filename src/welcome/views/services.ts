@@ -103,7 +103,9 @@ export const servicesView: View = {
       { label: 'Find a command', hint: 'Search every service by name or description', action: { go: 'service-find' } },
       ...[...connected, ...rest].map((a): Item => {
         const names = connectionsFor(p.data, a.name);
-        return { label: a.name, hint: names.length ? `${names.join(', ')} · ${a.description}` : a.description, action: { go: 'service', params: { area: a.name } } };
+        // A connection named after its area says nothing the label doesn't; "connected" does.
+        const who = names.length === 1 && names[0] === a.name ? 'connected' : names.join(', ');
+        return { label: a.name, hint: names.length ? `${who} · ${a.description}` : a.description, action: { go: 'service', params: { area: a.name } } };
       }),
     ];
   },

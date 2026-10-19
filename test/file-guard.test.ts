@@ -75,7 +75,7 @@ describe("toil's own config is not an input file", () => {
   it('a file outside toil config still works', async () => {
     writeFileSync(join(cwd, 'q.jql'), 'project = PROJ\n');
     const { http, context: ctx } = context(true);
-    const run = await runCli(['jira', 'issue', 'search', '--jql-file', 'q.jql', '--max-results', '1'], { commands, context: ctx });
+    const run = await runCli(['jira', 'issue', 'search', '--jql-file', 'q.jql', '--limit', '1'], { commands, context: ctx });
     expect(run.envelope?.ok).toBe(true);
     expect(JSON.parse(http.calls[0]!.body!).jql).toBe('project = PROJ');
   });

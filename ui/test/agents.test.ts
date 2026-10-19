@@ -209,7 +209,7 @@ describe('proposals', () => {
     const p = a.proposals[0]!;
     expect(p).toMatchObject({ from: 'agent', item: 'corp-jira:PAY-107', command: 'jira issue update', input: { dossier: 'card-payments', key: 'PAY-107', field: ['Story Points=3'] } });
     expect(p.input).not.toHaveProperty('allowWrite');
-    expect(commandLine(p, 'posix').line).toBe("toil jira issue update --dossier 'card-payments' --key 'PAY-107' --field 'Story Points=3' --allow-write");
+    expect(commandLine(p, 'posix').line).toBe("toil jira issue update 'PAY-107' --dossier 'card-payments' --field 'Story Points=3' --allow-write");
   });
 
   it("name a command toil doesn't have as having none, rather than inventing one", () => {
@@ -223,7 +223,7 @@ describe('proposals', () => {
     expect(a.proposals[0]).toMatchObject({ command: null, input: null });
     expect(a.proposals[0]!.note).toMatch(/doesn't fit toil jira issue update, which has no --fields/);
     const missing = finish(block({ item: 'corp-jira:PAY-107', title: 'x', reason: '', command: 'jira issue update', input: { summary: 'y' } }), f);
-    expect(missing.proposals[0]!.note).toMatch(/needs --key/);
+    expect(missing.proposals[0]!.note).toMatch(/needs <key>/);
   });
 
   it('proposal_fields reads a write command\'s fields from the registry and runs nothing', async () => {
@@ -458,9 +458,9 @@ describe('the Claude adapter, on a stubbed SDK', () => {
     const search = liveTools('d', registry.commands, recordingExecute().execute, () => [], new Ledger()).find((t) => t.name === 'jira_issue_search')!;
     const shape = zodShape(zod as never, search.inputSchema) as unknown as Record<string, zod.ZodType>;
     const object = zod.object(shape);
-    expect(object.safeParse({ jql: 'project = PAY', maxResults: 5 }).success).toBe(true);
-    expect(object.safeParse({ maxResults: 'five' }).success).toBe(true);
-    expect(object.safeParse({ maxResults: true }).success).toBe(false);
+    expect(object.safeParse({ jql: 'project = PAY', limit: 5 }).success).toBe(true);
+    expect(object.safeParse({ limit: 'five' }).success).toBe(true);
+    expect(object.safeParse({ limit: true }).success).toBe(false);
     expect(object.safeParse({ jql: 5 }).success).toBe(false);
     const query = cacheTools('d', data, new Ledger())[0]!;
     expect(zod.object(zodShape(zod as never, query.inputSchema) as never).safeParse({ statusCategory: 'NOPE' }).success).toBe(false);

@@ -97,6 +97,15 @@ describe('every proposal the board and the scripted agent can make', async () =>
     expect([...INPUT_FILE_COMMANDS].sort()).toEqual(takes.sort());
   });
 
+  it("lists exactly the Jira and Azure DevOps commands' positional arguments, so a command line puts each id where the CLI reads it", async () => {
+    const { POSITIONAL_FIELDS } = await import('../src/proposal.ts');
+    const { commands } = await import('../../src/registry.ts');
+    const want = commands
+      .filter((c) => ['jira', 'jira-cloud', 'ado', 'ado-cloud'].includes(c.path[0]!) && c.args?.length)
+      .map((c) => [c.path.join(' '), c.args!.map((a) => a.field)] as const);
+    expect([...POSITIONAL_FIELDS.entries()].sort()).toEqual(want.sort());
+  });
+
   it('refers a PowerShell refusal to an MCP tool that exists, with input its schema accepts', async () => {
     const { commandLine, toolName } = await import('../src/proposal.ts');
     const byTool = new Map(registry.commands.map((c) => [toolName(c.name), c]));
