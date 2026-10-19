@@ -38,8 +38,7 @@ toil mcp            # serve toil to an agent over stdio
 ```
 
 Releases are alpha and published under npm's `alpha` tag, which `latest` follows
-until 1.0. The first alpha is being published; until it is, `npm install` returns
-404, so use the clone path below meanwhile. Setup, connections and every command are on the
+until 1.0 ([npm](https://www.npmjs.com/package/@imagile-dev/toil)). Setup, connections and every command are on the
 [site](https://imagile-dev.github.io/toil/docs/).
 
 ## Running from a clone
