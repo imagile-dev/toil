@@ -1,4 +1,25 @@
-# toil
+<p align="center">
+  <a href="https://imagile-dev.github.io/toil/">
+    <img src=".github/assets/banner.webp" width="100%" alt="toil, by Imagile: the token-efficient alternative to MCP. One CLI for your enterprise tools and databases.">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://www.npmjs.com/package/@imagile-dev/toil"><img src="https://img.shields.io/npm/v/@imagile-dev/toil/alpha?style=flat-square&label=npm&labelColor=16130f&color=ff6a3d" alt="npm version (alpha)"></a>
+  <a href="https://github.com/imagile-dev/toil/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/imagile-dev/toil/ci.yml?branch=main&style=flat-square&label=CI&labelColor=16130f" alt="CI status on main"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/node-%E2%89%A5%2024.14-ffb84d?style=flat-square&labelColor=16130f" alt="Node.js 24.14 or later"></a>
+  <a href="https://imagile-dev.github.io/toil/how-it-works/"><img src="https://img.shields.io/badge/runtime%20dependencies-0-ffb84d?style=flat-square&labelColor=16130f" alt="No runtime dependencies"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/imagile-dev/toil?style=flat-square&labelColor=16130f&color=b4a998" alt="Apache 2.0 license"></a>
+</p>
+
+<p align="center">
+  <a href="https://imagile-dev.github.io/toil/"><b>Website</b></a> ·
+  <a href="https://imagile-dev.github.io/toil/docs/"><b>Docs</b></a> ·
+  <a href="https://imagile-dev.github.io/toil/how-it-works/"><b>How it works</b></a> ·
+  <a href="https://imagile-dev.github.io/toil/integrations/"><b>Integrations</b></a> ·
+  <a href="https://imagile-dev.github.io/toil/principles/"><b>Principles</b></a> ·
+  <a href="https://imagile-dev.github.io/toil/feedback/"><b>Feedback</b></a>
+</p>
 
 The token-efficient alternative to MCP: one CLI that gives agents your enterprise
 tools and your databases while spending as little of their context as it can.
@@ -21,6 +42,41 @@ toil is published to npm as [`@imagile-dev/toil`](https://www.npmjs.com/package/
 and documented at [imagile-dev.github.io/toil](https://imagile-dev.github.io/toil/). This
 README is for working from a clone of this repository; the site covers everything else
 in more depth.
+
+### At a glance
+
+One command, one envelope, and only the fields the task asked for. A real run of
+the released `0.1.0-alpha.2`:
+
+```console
+$ toil util size package.json --select "{bytes: bytes, tokens: tokens}"
+{"ok":true,"data":{"bytes":2162,"tokens":541},"error":null,"meta":{"command":"util size","durationMs":90,"version":"0.1.0-alpha.2","contractVersion":1,"warnings":[{"code":"APPROXIMATED","message":"tokens is approximate: ceil(characters / 4) per file, counting characters as Unicode code points. An estimate, not any model's tokenizer: real counts vary by model and by content."}]}}
+```
+
+The estimate says it's an estimate. Every result says where it came from and how
+precise it is.
+
+### Why toil
+
+<p align="center">
+  <img src=".github/assets/crate-red-tape.webp" width="720" alt="A cardboard box in an amber-striped hard hat walks calmly through a maze of barrier tape and traffic cones, the tape parted neatly behind it, carrying a small parcel past an ignored filing cabinet and a rubber stamp.">
+</p>
+
+<table>
+  <tr>
+    <td width="33%" valign="top"><b>Runs where executables can't</b><br>Plain JavaScript on Node. No binary, no native module, no install script, no runtime dependencies. Node and one npm package are all a security team has to approve.</td>
+    <td width="33%" valign="top"><b>One core, three front doors</b><br>The CLI, the MCP server (<code>toil mcp</code>) and a programmatic API all run the same <code>execute()</code>, and a test proves the CLI and MCP agree on every command.</td>
+    <td width="33%" valign="top"><b>Safe when an agent drives</b><br>Reads are free. A write needs <code>writes: true</code> on the connection, set by a human, and <code>--allow-write</code> on the call. Deletes are never served over MCP.</td>
+  </tr>
+  <tr>
+    <td width="33%" valign="top"><b>Secrets stay put</b><br>Credentials come from the OS credential store or env vars, never from a plaintext file, and go only to the connection they belong to, or one you paired them with.</td>
+    <td width="33%" valign="top"><b>The environment wins</b><br>CI and agents configure entirely through env vars, which override anything on disk. No repository config file can switch on writes.</td>
+    <td width="33%" valign="top"><b>Honest about status</b><br>Every integration says how far it has been verified (<code>unit</code>, <code>live</code> or <code>stable</code>), and every error says what went wrong and what to do about it.</td>
+  </tr>
+</table>
+
+No telemetry, no update checks, no call home: toil talks only to the hosts you
+point it at. Windows, macOS and Linux are all first-class.
 
 ## Quick start
 
@@ -156,6 +212,10 @@ the one URL it prints when it starts. Installing toil never installs it.
 ## Contributing
 
 Read [CLAUDE.md](CLAUDE.md). It holds the rules for people and agents alike.
+[CONTRIBUTING.md](.github/CONTRIBUTING.md) is the short version: issues, branches,
+the gate and how review works. Questions and bug reports go through
+[SUPPORT.md](.github/SUPPORT.md), and security reports through
+[SECURITY.md](.github/SECURITY.md), never a public issue.
 
 ## License
 
