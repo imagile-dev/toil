@@ -44,7 +44,7 @@ type Caps = Pick<TermCaps, 'colorDepth' | 'unicode'>;
 
 /**
  * The wordmark at time t as cells: it sweeps in from the left, flame to amber,
- * with a bright leading edge; a shine crosses it after the spin. `scale` 2
+ * with a bright leading edge; a shine crosses it after the ring's turn. `scale` 2
  * doubles every pixel's width, for terminals with room to spare.
  */
 export function wordmarkCells(t: number, caps: Pick<TermCaps, 'unicode'>, scale: 1 | 2 = 1): Cell[][] {

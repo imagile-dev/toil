@@ -58,24 +58,47 @@ from `main`).
   A reveal never clips the observed element itself (a fully clipped element never
   intersects, and a lazy image inside it never loads); clip its children.
 - **House style has three registers; pick by job, never mix them in one image.**
-  - *The mark* is toil's logo, and the central integrator drawn literally. A
-    terminal (a sheet with a `>_` prompt) is the hub. Three branches leave each
-    side of it and fan out to six tools, dots on an outer ring at 0° and 38° either
-    side of horizontal. It's flat, symbolic, serious, and hand-built SVG: the
-    component is `site/src/components/Logo.astro`, the static copies are
-    `public/favicon.svg` and `public/brand/toil-avatar.svg` (circular, with
-    transparent corners, exported to 512 and 256 PNG for avatars). All three share
-    one geometry; change them together. It never comes from an image model, and
-    has no characters and no jokes.
-  - *The terminal draws the same mark.* Bare `toil` opens a splash
-    (`src/welcome/logo.ts`) that draws this geometry on a braille canvas, and the
-    menu (`src/welcome/term.ts`, `PALETTE`) uses the site's colour tokens. **The
-    site and the terminal are one brand: a change to the mark's geometry or to a
-    colour token changes both in the same PR.** `test/brand-sync.test.ts` reads
-    `global.css` and `Logo.astro` and fails when the terminal's palette, ring,
-    branches or tools differ from the site's. It can't see the motion, so a change
-    to the "Command" motion is mirrored by hand (the terminal plays it twice, then
-    spins the ring twice).
+  - *The mark* is toil's logo: the badge. A flame-to-amber tile (the 45° gradient,
+    flame at the bottom-left, amber at the cut corner) whose top-right corner is
+    cut on the diagonal, parallel to the fold of the page it holds, and on the page
+    a `>_` prompt: a near-black chevron and a deep-flame cursor (`#c43d12`, 4.6:1
+    on the page). The cut corner is what makes it toil's: the `>_` alone is
+    everyone's (macOS Terminal, Windows Terminal, Lucide's square-terminal), and a
+    cursor on a warm gradient tile is close to JetBrains', so the page stays a light
+    sheet with a dark fold, never a dark square. It's flat, symbolic, serious, and
+    hand-built SVG: the component is `site/src/components/Logo.astro`, the static
+    copies are `public/favicon.svg` and `public/brand/toil-avatar.svg` (the badge on
+    a near-black disc, circular with transparent corners, exported to 512 and 256
+    PNG; Discord's posts use the 512, see the `automation` skill). All of them share
+    one geometry; change them together. It never comes from an image model, and has
+    no characters and no jokes. **Never add a spark, starburst or sparkle to it**, in
+    any theme or any size: an orange agent CLI with a burst is another product's
+    mark. Sizes: 34px in the header, 26px in the footer, 192px at most in the
+    homepage's closing call to action.
+  - *Its motion is a cursor blink.* The cursor blinks three times on load and again
+    when the pointer or focus reaches the link around it, then stays lit, so it
+    never blinks for five seconds (WCAG 2.2.2). It's pure CSS, behind
+    `prefers-reduced-motion: no-preference`.
+  - *The terminal draws the badge in orbit.* Bare `toil` opens a splash
+    (`src/welcome/logo.ts`) that draws the badge, shrunk, on a braille canvas with
+    six tool dots (amber, flame, cream, repeating) on an implied ring around it: the
+    badge fades in, the dots pop on, the cursor blinks twice, the ring turns half a
+    revolution and settles on the picture it left. Its still copy is
+    `public/brand/toil-orbit.svg`, for docs. The menu (`src/welcome/term.ts`,
+    `PALETTE`) uses the site's colour tokens. **The site, the terminal and Toil UI
+    are one brand: a change to the badge's geometry or to a colour token changes all
+    three in the same PR.** `test/brand-sync.test.ts` fails when the terminal's
+    palette, tile, page placement or orbit, or any static copy, differs from the
+    site's. It can't see the motion, so a change to it is mirrored by hand.
+  - *Toil UI wears the badge in every theme.* Plain, and any theme that brings none,
+    shows the standard badge (`ui/src/mark.svg`); each built-in game theme has its
+    own skin of the same silhouette in `ui/themes/<theme>/assets/mark.svg`: Crate
+    kraft cardboard with a hazard-striped tape and a stencilled prompt, Harvest a
+    16-pixel wooden sign, Starship a riveted hull plate with a glowing console, Realm
+    an illuminated tile with a gilt edge. It sits beside the name at 32px (twice
+    Harvest's grid), and it is the tab's icon too (`ui/src/favicon.ts` swaps it with
+    the theme). A new theme's mark keeps the tile's silhouette and a prompt at 4.5:1
+    on what it sits on; the test holds the tile's path in every skin.
   - *The wordmark* is the word "toil" in Fredoka 600 (`--font-brand`, the class
     `.wordmark`): the site's header and footer, and Toil UI's header in every theme,
     where "UI" is a die-cut sticker stuck on beside it, so the word itself never
@@ -85,12 +108,7 @@ from `main`).
     `src/welcome/splash.ts`), hand-tuned to Fredoka's shapes, 7 lines tall and 28
     columns wide so it sits beside the logo at 80 columns. A change to the face
     changes all three in the same PR; `test/brand-sync.test.ts` holds the site's and
-    the UI's token, weight and version together. The site's favicon stays the mark;
-    Toil UI's is the wordmark's "t" (`ui/src/favicon.svg`).
-  - *Its motion is "Command".* The ring and branches draw in, and the tools pop
-    on. Then, every 4.5s, the cursor types two keystrokes, a signal fires down all
-    six branches at once, and each tool bumps as it arrives. The motion is pure
-    CSS, so reduced motion turns it off.
+    the UI's token, weight and version together. Both favicons are the badge.
   - *Diagrams* are precise drafting-style line drawings for how-it-works art (the
     hero), generated with `.claude/image-generation/style.md`.
   - *Cartoons* are lighthearted spot illustrations, generated with

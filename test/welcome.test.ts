@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DURATION, logoCells, logoFrame, sceneAt, SIGNALS, SPIN } from '../src/welcome/logo.js';
+import { BLINKS, CENTER, DURATION, logoCells, logoFrame, ORBIT, orbitDots, sceneAt, SPIN, TILE } from '../src/welcome/logo.js';
 import type { Settings } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { finish, initialState, reduce, render, top, type MenuState } from '../src/welcome/menu.js';
@@ -79,63 +79,83 @@ describe('terminal capabilities', () => {
 
 describe('the logo', () => {
   it('is 16 lines of 32 cells at every moment', () => {
-    for (const t of [0, 0.4, 0.9, 1.3, DURATION + 1]) {
+    for (const t of [0, 0.4, 0.9, 1.3, 2, DURATION + 1]) {
       const frame = logoFrame(t, plain);
       expect(frame).toHaveLength(16);
       for (const line of frame) expect(visibleLength(line)).toBe(32);
     }
   });
 
-  it('builds up over time: the ring and branches draw in, then the six tools pop on', () => {
+  it('builds up over time: the badge fades in, then the six dots pop onto the ring', () => {
     const inked = (t: number) => logoFrame(t, plain).join('').replace(/[ \u2800]/g, '').length;
-    expect(inked(0.1)).toBeLessThan(inked(0.5));
-    expect(inked(0.5)).toBeLessThan(inked(DURATION + 1));
-    expect(sceneAt(0.5).tools.every((s) => s <= 0)).toBe(true);
-    expect(sceneAt(DURATION + 1).tools.every((s) => s === 1)).toBe(true);
+    expect(inked(0)).toBe(0);
+    expect(inked(0.2)).toBeLessThan(inked(DURATION + 1));
+    expect(sceneAt(0.2).badge).toBeLessThan(1);
+    expect(sceneAt(0.35).badge).toBe(1);
+    expect(sceneAt(0.35).dots.every((s) => s <= 0)).toBe(true);
+    expect(sceneAt(DURATION + 1).dots.every((s) => s === 1)).toBe(true);
   });
 
-  it('runs the command twice: two separate signals down the branches, then none once it settles', () => {
-    const firing = (t: number) => sceneAt(t).signal !== null;
-    expect(SIGNALS).toHaveLength(2);
-    expect(firing(SIGNALS[0] + 0.15)).toBe(true);
-    // A signal runs about 0.4s, so the first has finished well before the second starts.
-    expect(firing(SIGNALS[0] + 0.5)).toBe(false);
-    expect(SIGNALS[0] + 0.5).toBeLessThan(SIGNALS[1]);
-    expect(firing(SIGNALS[1] + 0.15)).toBe(true);
-    expect(firing(DURATION + 1)).toBe(false);
+  it("draws the badge in the tile's gradient and the page in ink, with the dots in the tool colours", () => {
+    const cells = logoCells(DURATION + 1, color).flat().filter((c) => c.color);
+    const is = (c: { color?: readonly number[] }, rgb: readonly number[]) => c.color!.join() === rgb.join();
+    expect(cells.some((c) => is(c, PALETTE.ink))).toBe(true);
+    expect(cells.some((c) => is(c, PALETTE.amber))).toBe(true);
+    expect(cells.some((c) => is(c, PALETTE.accent))).toBe(true);
+    // Everything else is the tile, on the line from flame to amber.
+    for (const c of cells.filter((c) => !is(c, PALETTE.ink))) {
+      expect(c.color![0]).toBe(255);
+      expect(c.color![1]).toBeGreaterThanOrEqual(PALETTE.accent[1]);
+      expect(c.color![1]).toBeLessThanOrEqual(PALETTE.amber[1]);
+    }
   });
 
-  it('shows no comet before the ring is visibly turning, and a full one at speed', () => {
-    // Regression: the comet used to appear at full length the instant the
-    // spin began, while the eased spin hadn't moved yet: a bar, not a motion.
-    const justStarted = SPIN.from + 0.04;
-    expect(sceneAt(justStarted).spinSpeed).toBeLessThan(0.1);
-    // The top of the ring (above the tools) holds no amber until it's moving.
-    const amberOnTop = (t: number) =>
-      logoCells(t, color)
-        .slice(0, 3)
-        .flat()
-        .some((c) => c.color?.join() === PALETTE.amber.join());
-    expect(amberOnTop(justStarted)).toBe(false);
-    expect(amberOnTop(SPIN.from - 0.02)).toBe(false);
-    expect(sceneAt((SPIN.from + SPIN.to) / 2).spinSpeed).toBeCloseTo(1, 1);
+  it('blinks the cursor twice before the turn, and keeps it lit after', () => {
+    expect(BLINKS).toHaveLength(2);
+    expect(sceneAt((BLINKS[0][0] + BLINKS[0][1]) / 2).cursor).toBe(false);
+    expect(sceneAt((BLINKS[0][1] + BLINKS[1][0]) / 2).cursor).toBe(true);
+    expect(sceneAt((BLINKS[1][0] + BLINKS[1][1]) / 2).cursor).toBe(false);
+    expect(BLINKS[1][1]).toBeLessThan(SPIN.from);
+    expect(sceneAt(DURATION + 1).cursor).toBe(true);
+    expect(logoFrame((BLINKS[0][0] + BLINKS[0][1]) / 2, plain)).not.toEqual(logoFrame(SPIN.from - 0.02, plain));
   });
 
-  it('then spins the ring and branches twice, and lands exactly where it started', () => {
+  it('turns the ring half a revolution, and lands on the picture it left', () => {
+    expect(SPIN.turns).toBe(0.5);
     expect(sceneAt(SPIN.from).spin).toBe(0);
-    const mid = sceneAt((SPIN.from + SPIN.to) / 2).spin;
-    expect(mid).toBeGreaterThan(Math.PI);
-    expect(sceneAt(SPIN.to - 0.001).spin).toBeCloseTo(SPIN.turns * Math.PI * 2, 2);
+    expect(sceneAt((SPIN.from + SPIN.to) / 2).spin).toBeCloseTo(Math.PI / 2, 2);
+    expect(sceneAt(SPIN.to - 0.001).spin).toBeCloseTo(Math.PI, 2);
     expect(sceneAt(SPIN.to).spin).toBe(0);
     expect(logoFrame((SPIN.from + SPIN.to) / 2, plain)).not.toEqual(logoFrame(DURATION + 1, plain));
-    // Just before the spin and after it settles, the picture is identical.
+    // Just before the turn and after it settles, the picture is identical.
     expect(logoFrame(SPIN.from - 0.02, plain)).toEqual(logoFrame(DURATION + 1, plain));
+    // Half a turn maps every dot onto one of its own colour, so the end matches the start.
+    const rest = orbitDots(0);
+    orbitDots(Math.PI).forEach((d, i) => {
+      const same = rest.find((r) => Math.hypot(r.at[0] - d.at[0], r.at[1] - d.at[1]) < 1e-9);
+      expect(same?.color, `dot ${i + 1}`).toEqual(d.color);
+    });
+  });
+
+  it('keeps every dot clear of the badge and inside the picture', () => {
+    // The tile's farthest point from the centre is on a rounded corner.
+    const corner = (Math.hypot(CENTER - TILE.x - TILE.r, CENTER - TILE.y - TILE.r) + TILE.r) * ORBIT.k;
+    expect(corner).toBeLessThan(ORBIT.r - ORBIT.dot);
+    for (const { at } of orbitDots(0.3)) {
+      expect(Math.hypot(at[0] - CENTER, at[1] - CENTER)).toBeCloseTo(ORBIT.r, 9);
+      for (const v of at) {
+        expect(v - ORBIT.dot).toBeGreaterThanOrEqual(0);
+        expect(v + ORBIT.dot).toBeLessThanOrEqual(64);
+      }
+    }
   });
 
   it('falls back to plain ASCII, and to no escape codes without color', () => {
     const still = logoFrame(DURATION + 1, ascii).join('\n');
     expect(still).toMatch(/^[\x20-\x7e\n]*$/);
     expect(still).toContain('O');
+    expect(still).toContain('#');
+    expect(still).toContain('+');
     expect(ANSI.test(logoFrame(DURATION + 1, plain).join(''))).toBe(false);
     expect(ANSI.test(logoFrame(DURATION + 1, color).join(''))).toBe(true);
   });

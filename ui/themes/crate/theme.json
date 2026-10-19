@@ -31,7 +31,7 @@
   "sounds": {},
   "assets": {
     "emptyState": "assets/crate-lost.webp",
-    "emblem": "assets/emblem.webp",
+    "mark": "assets/mark.svg",
     "loading": "assets/crate-loading.webp",
     "racking": "assets/racking.webp",
     "pallets": "assets/pallets.webp"

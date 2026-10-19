@@ -1,253 +1,202 @@
 import { type Cell, mix, PALETTE, renderCells, type Rgb, type TermCaps } from './term.js';
 
 /**
- * The toil mark, drawn in a terminal: the terminal is the hub, and three
- * branches leave each side of it for six tools on the outer ring, at 0° and 38°
- * either side of horizontal. Same 64-unit geometry as the site's Logo.astro.
+ * The toil mark, drawn in a terminal: the badge (a flame-to-amber tile with its
+ * top-right corner cut parallel to the page's fold, holding the `>_` sheet) in
+ * the middle, and six tool dots orbiting it. The badge's geometry is the site's
+ * (Logo.astro, favicon.svg); the orbit is the terminal's own, and its static
+ * copy is site/public/brand/toil-orbit.svg. test/brand-sync.test.ts holds the
+ * three together.
  *
  * It's drawn on a braille canvas: each terminal cell is a 2x4 grid of dots, so
- * 64 units become a 32x16-cell picture with square pixels and a ring that is
- * actually round. Without Unicode it falls back to ASCII, which is rounder in
- * spirit than in shape.
- *
- * Every frame is a pure function of time, `frameAt(t)`, so the animation can be
- * tested a frame at a time instead of watched by a committee.
+ * 64 units become a 32x16-cell picture with square pixels. Without Unicode it
+ * falls back to ASCII. Every frame is a pure function of time (`sceneAt(t)`), so
+ * the animation can be tested a frame at a time instead of watched by a
+ * committee.
  */
 
 const SIZE = 64;
 export const CENTER = 32;
-export const RING = 27;
+
+/** The tile: a 52-unit rounded square from (6, 6), corner radius 12, its top-right corner cut 16 units along each edge. */
+export const TILE = { x: 6, y: 6, w: 52, r: 12, cut: 16 } as const;
+
+/** The tile as an SVG path, exactly as the site and Toil UI draw it. */
+export function tilePath({ x, y, w, r, cut }: { x: number; y: number; w: number; r: number; cut: number } = TILE): string {
+  const X = x + w;
+  const Y = y + w;
+  return `M${x + r} ${y}H${X - cut}L${X} ${y + cut}V${Y - r}A${r} ${r} 0 0 1 ${X - r} ${Y}H${x + r}A${r} ${r} 0 0 1 ${x} ${Y - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`;
+}
+
+/**
+ * Where the sheet sits on the tile. The sheet is drawn in its own units (a 23x30
+ * page at (20, 17.5), centred on (31.5, 32.5)) and placed by
+ * `translate(cx cy) scale(s) translate(-31.5 -32.5)`.
+ */
+export const SHEET = { s: 1.3, cx: 32, cy: 32.5 } as const;
+
+/** The orbit: the badge shrunk to `k` in the middle, and `n` tool dots of radius `dot` on a ring of radius `r`. */
+export const ORBIT = { k: 0.66, r: 27, dot: 3.5, n: 6 } as const;
+export const DOT_COLORS: Array<keyof typeof PALETTE> = ['amber', 'accent', 'ink'];
+
+/** The dots' centres at a turn of `a` radians, clockwise; at rest they sit at 0°, 60°, 120°... */
+export function orbitDots(a = 0): Array<{ at: Point; color: Rgb }> {
+  return Array.from({ length: ORBIT.n }, (_, i) => {
+    const angle = (i / ORBIT.n) * Math.PI * 2 + a;
+    return { at: [CENTER + Math.cos(angle) * ORBIT.r, CENTER + Math.sin(angle) * ORBIT.r] as const, color: PALETTE[DOT_COLORS[i % DOT_COLORS.length]!] };
+  });
+}
 
 /** What a pixel belongs to. Higher wins when two things overlap. */
 const enum Layer {
   None = 0,
-  Line = 1,
-  Signal = 2,
-  Body = 3,
-  Fold = 4,
-  Tool = 5,
+  Tile = 1,
+  Sheet = 3,
+  Dot = 5,
 }
 
 type Point = readonly [number, number];
-type Curve = readonly [Point, Point, Point, Point];
-
-// The six branches, as cubic Béziers from the terminal's edge to each tool.
-export const BRANCHES: Curve[] = [
-  [[20, 32], [14.5, 32], [15.1, 18.8], [10.7, 15.4]],
-  [[20, 32], [15, 32], [10, 32], [5, 32]],
-  [[20, 32], [14.5, 32], [15.1, 45.2], [10.7, 48.6]],
-  [[44, 32], [49.5, 32], [48.9, 18.8], [53.3, 15.4]],
-  [[44, 32], [49, 32], [54, 32], [59, 32]],
-  [[44, 32], [49.5, 32], [48.9, 45.2], [53.3, 48.6]],
-];
-
-export const TOOLS: Array<{ at: Point; color: Rgb }> = [
-  { at: [10.7, 15.4], color: PALETTE.amber },
-  { at: [5, 32], color: PALETTE.accent },
-  { at: [10.7, 48.6], color: PALETTE.ink },
-  { at: [53.3, 15.4], color: PALETTE.ink },
-  { at: [59, 32], color: PALETTE.accent },
-  { at: [53.3, 48.6], color: PALETTE.amber },
-];
 
 /**
- * The timeline, in timeline seconds (splash.ts plays it at SPEED): the
- * entrance, then the command runs twice, then the ring spins twice with its
- * branches and lands where it started. Every step is in triplicate somewhere;
- * here, twice will do.
+ * The timeline, in timeline seconds (splash.ts plays it at SPEED): the badge
+ * fades in, the dots pop onto the ring, the cursor blinks twice, then the ring
+ * makes half a turn and settles. With the colours repeating every three dots,
+ * half a turn lands on a picture identical to the one it left, which is the
+ * only kind of reorganisation that never needs a migration plan.
  */
-/** When each command's signal leaves the terminal. */
-export const SIGNALS = [1.15, 1.85] as const;
-export const SPIN = { from: 2.4, to: 3.6, turns: 2 } as const;
+export const SPIN = { from: 1.55, to: 2.75, turns: 0.5 } as const;
+/** When the cursor is off: two blinks before the turn. */
+export const BLINKS = [[1.0, 1.15], [1.3, 1.45]] as const;
 /** The animation's length. After this, every frame is the still. */
-export const DURATION = 4.05;
+export const DURATION = 3.2;
 
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
-const easeOut = (v: number) => 1 - (1 - clamp(v)) ** 3;
 const easeInOut = (v: number) => {
   const x = clamp(v);
   return x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2;
 };
-/** easeInOut's rate of change, scaled so its peak (mid-spin) is 1. */
-const easeInOutSpeed = (v: number) => {
-  const x = clamp(v);
-  return (x < 0.5 ? 12 * x * x : 12 * (1 - x) ** 2) / 3;
-};
-/** Overshoots a little, then settles: how the tools pop onto the ring. */
+/** Overshoots a little, then settles: how the dots pop onto the ring. */
 const backOut = (v: number) => {
   const x = clamp(v);
   const c = 1.9;
   return 1 + (c + 1) * (x - 1) ** 3 + c * (x - 1) ** 2;
 };
 
-function bezier([p0, p1, p2, p3]: Curve, t: number): Point {
-  const u = 1 - t;
-  return [
-    u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
-    u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1],
-  ];
-}
-
 /** A state of the picture at one moment, before it becomes characters. */
-interface Scene {
-  ring: number;
-  branches: number;
-  tools: number[];
-  signal: number | null;
-  bump: number;
+export interface Scene {
+  /** 0 to 1: the badge fading in from the background. */
+  badge: number;
+  /** Each dot's size, 0 to a little over 1 while it pops. */
+  dots: number[];
   cursor: boolean;
-  body: number;
-  /** Rotation of the ring, its branches and tools, in radians. The terminal stays put. */
+  /** The ring's turn, in radians. The badge stays put. */
   spin: number;
-  /** How fast it's turning, 0 at rest to 1 at full speed; sizes the comet. */
-  spinSpeed: number;
 }
 
 /** The scene at time t; see the timeline constants above. */
 export function sceneAt(t: number): Scene {
-  const e = t;
-  // Each command: the cursor types two keystrokes, the signal runs, the tools bump.
-  let signal: number | null = null;
-  let bump = 0;
-  let cursor = true;
-  for (const s of SIGNALS) {
-    const run = (t - s) / 0.32;
-    if (run > 0 && run < 1.25) signal = run;
-    if (t > s + 0.27 && t < s + 0.47) bump = Math.sin(((t - s - 0.27) / 0.2) * Math.PI);
-    if ((t > s - 0.2 && t < s - 0.13) || (t > s - 0.07 && t < s - 0.01)) cursor = false;
-  }
   return {
-    ring: easeOut(e / 0.6),
-    branches: easeOut((e - 0.25) / 0.55),
-    tools: TOOLS.map((_, i) => backOut((e - 0.72 - i * 0.06) / 0.22)),
-    signal,
-    bump,
-    cursor,
-    body: clamp(e / 0.3),
-    // Whole turns land exactly at rest: 4π in floating point is close enough
-    // to nudge a pixel across a cell, and "close enough" isn't a sign-off.
+    badge: clamp(t / 0.35),
+    dots: Array.from({ length: ORBIT.n }, (_, i) => backOut((t - 0.4 - i * 0.07) / 0.22)),
+    cursor: !BLINKS.some(([from, to]) => t > from && t < to),
+    // Half a turn lands exactly at rest; π in floating point is close enough to
+    // nudge a dot across a cell, and "close enough" isn't a sign-off.
     spin: t > SPIN.from && t < SPIN.to ? easeInOut((t - SPIN.from) / (SPIN.to - SPIN.from)) * SPIN.turns * Math.PI * 2 : 0,
-    spinSpeed: t > SPIN.from && t < SPIN.to ? easeInOutSpeed((t - SPIN.from) / (SPIN.to - SPIN.from)) : 0,
   };
 }
 
-/** A point turned about the logo's centre. */
-function turn([x, y]: Point, a: number): Point {
-  if (a === 0) return [x, y];
-  const c = Math.cos(a);
-  const s = Math.sin(a);
-  return [CENTER + (x - CENTER) * c - (y - CENTER) * s, CENTER + (x - CENTER) * s + (y - CENTER) * c];
+/** Inside the tile, in badge units. */
+function inTile(x: number, y: number): boolean {
+  const { x: x0, y: y0, w, r, cut } = TILE;
+  const X = x0 + w;
+  const Y = y0 + w;
+  if (x < x0 || x > X || y < y0 || y > Y) return false;
+  if (x - y > X - cut - y0) return false;
+  const corner = (cx: number, cy: number) => (x - cx) ** 2 + (y - cy) ** 2 <= r * r;
+  if (x < x0 + r && y < y0 + r) return corner(x0 + r, y0 + r);
+  if (x < x0 + r && y > Y - r) return corner(x0 + r, Y - r);
+  if (x > X - r && y > Y - r) return corner(X - r, Y - r);
+  return true;
 }
 
-class Canvas {
-  readonly px = new Uint8Array(SIZE * SIZE);
-  readonly tool = new Int8Array(SIZE * SIZE).fill(-1);
+/** Inside the page, in the sheet's own units: a 23x30 sheet with 3-unit corners, its fold cut away on the diagonal. */
+function inSheet(x: number, y: number): boolean {
+  if (x < 20 || x > 43 || y < 17.5 || y > 47.5) return false;
+  if (x - 36 > y - 17.5) return false;
+  const corner = (cx: number, cy: number) => (x - cx) ** 2 + (y - cy) ** 2 <= 9;
+  if (x < 23 && y < 20.5) return corner(23, 20.5);
+  if (x < 23 && y > 44.5) return corner(23, 44.5);
+  if (x > 40 && y > 44.5) return corner(40, 44.5);
+  return true;
+}
 
-  plot(x: number, y: number, layer: Layer, tool = -1): void {
-    const ix = Math.floor(x);
-    const iy = Math.floor(y);
-    if (ix < 0 || iy < 0 || ix >= SIZE || iy >= SIZE) return;
-    const i = iy * SIZE + ix;
-    if (layer >= this.px[i]!) {
-      this.px[i] = layer;
-      this.tool[i] = tool;
-    }
-  }
+const distToSegment = ([x, y]: Point, [ax, ay]: Point, [bx, by]: Point) => {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const k = clamp(((x - ax) * dx + (y - ay) * dy) / (dx * dx + dy * dy));
+  return Math.hypot(x - ax - k * dx, y - ay - k * dy);
+};
 
-  /** Clears pixels: the stroke cut out of the terminal for `>_`, the gap around a tool. */
-  erase(x: number, y: number): void {
-    const ix = Math.floor(x);
-    const iy = Math.floor(y);
-    if (ix < 0 || iy < 0 || ix >= SIZE || iy >= SIZE) return;
-    this.px[iy * SIZE + ix] = Layer.None;
-  }
+/** The `>` and the cursor, cut out of the page. */
+const CHEVRON: Array<[Point, Point]> = [
+  [[24.5, 27.5], [29.5, 31.8]],
+  [[29.5, 31.8], [24.5, 36.1]],
+];
+const CURSOR: [Point, Point] = [[31.8, 40], [38, 40]];
 
-  /** A round brush, so lines have the stroke width of the SVG. */
-  dab(x: number, y: number, r: number, paint: (x: number, y: number) => void): void {
-    for (let dy = -Math.ceil(r); dy <= Math.ceil(r); dy++) {
-      for (let dx = -Math.ceil(r); dx <= Math.ceil(r); dx++) {
-        if (dx * dx + dy * dy <= r * r) paint(x + dx, y + dy);
+function draw(scene: Scene): { px: Uint8Array; color: Rgb[] } {
+  const px = new Uint8Array(SIZE * SIZE);
+  const color: Rgb[] = new Array(SIZE * SIZE);
+  const sheet = new Uint8Array(SIZE * SIZE);
+  for (let iy = 0; iy < SIZE; iy++) {
+    for (let ix = 0; ix < SIZE; ix++) {
+      const i = iy * SIZE + ix;
+      // The pixel's centre, in badge units (the badge is shrunk to ORBIT.k about the centre),
+      const bx = CENTER + (ix + 0.5 - CENTER) / ORBIT.k;
+      const by = CENTER + (iy + 0.5 - CENTER) / ORBIT.k;
+      // and in the sheet's own units.
+      const sx = 31.5 + (bx - SHEET.cx) / SHEET.s;
+      const sy = 32.5 + (by - SHEET.cy) / SHEET.s;
+      if (scene.badge <= 0) continue;
+      if (inSheet(sx, sy)) {
+        sheet[i] = 1;
+        const cut = [...CHEVRON, ...(scene.cursor ? [CURSOR] : [])].some(([a, b]) => distToSegment([sx, sy], a, b) < 1.5);
+        if (!cut) {
+          px[i] = Layer.Sheet;
+          color[i] = mix(PALETTE.bg, PALETTE.ink, scene.badge);
+        }
+      } else if (inTile(bx, by)) {
+        px[i] = Layer.Tile;
+        // Flame at the bottom-left, amber at the cut corner: the site's 45° gradient.
+        const g = clamp((bx - by + 52) / 104);
+        color[i] = mix(PALETTE.bg, mix(PALETTE.accent, PALETTE.amber, g), scene.badge);
       }
     }
   }
-}
-
-function draw(scene: Scene): Canvas {
-  const c = new Canvas();
-  const line = (x: number, y: number) => c.plot(x, y, Layer.Line);
-
-  // The ring draws clockwise from the top.
-  const steps = 360;
-  for (let s = 0; scene.ring > 0 && s <= steps * scene.ring; s++) {
-    const a = -Math.PI / 2 + (s / steps) * Math.PI * 2;
-    c.dab(CENTER + Math.cos(a) * RING, CENTER + Math.sin(a) * RING, 0.9, line);
+  // A one-pixel gap between the tile and the page, so the page still reads as a
+  // page when both are solid braille.
+  for (let i = 0; i < SIZE * SIZE; i++) {
+    if (px[i] !== Layer.Tile) continue;
+    const x = i % SIZE;
+    const near = (x > 0 && sheet[i - 1]) || (x < SIZE - 1 && sheet[i + 1]) || (i >= SIZE && sheet[i - SIZE]) || (i < SIZE * (SIZE - 1) && sheet[i + SIZE]);
+    if (near) px[i] = Layer.None;
   }
-
-  // While it spins, a bright comet rides the ring so the turn reads at a
-  // glance. Its length follows the speed: it grows as the ring picks up and
-  // fades as it settles, so it never sits there while nothing moves.
-  const tail = 1.1 * scene.spinSpeed;
-  if (tail > 0.12) {
-    for (let s = 0; s <= 40; s++) {
-      const a = -Math.PI / 2 + scene.spin - (s / 40) * tail;
-      c.dab(CENTER + Math.cos(a) * RING, CENTER + Math.sin(a) * RING, s < 12 ? 1.3 : 1, (x, y) => c.plot(x, y, Layer.Signal));
-    }
-  }
-
-  // Branches grow out of the terminal, and turn with the ring.
-  for (const curve of BRANCHES) {
-    for (let s = 0; scene.branches > 0 && s <= 120 * scene.branches; s++) {
-      const [x, y] = turn(bezier(curve, s / 120), scene.spin);
-      c.dab(x, y, 0.8, line);
-    }
-  }
-
-  // The signal: a short bright run travelling down every branch at once.
-  if (scene.signal !== null) {
-    const head = Math.min(1, scene.signal);
-    const tail = Math.max(0, scene.signal - 0.35);
-    for (const curve of BRANCHES) {
-      for (let s = Math.floor(tail * 120); s <= head * 120; s++) {
-        const [x, y] = turn(bezier(curve, s / 120), scene.spin);
-        c.dab(x, y, 1.1, (px, py) => c.plot(px, py, Layer.Signal));
-      }
-    }
-  }
-
-  // The terminal: a sheet with a folded corner, `>_` cut out of it. It fades
-  // in with the entrance and isn't there at all before it starts.
-  for (let y = 17; scene.body > 0 && y < 48; y++) {
-    for (let x = 20; x < 43; x++) {
-      const cx = x + 0.5;
-      const cy = y + 0.5;
-      if (cy < 17.5 || cy > 47.5) continue;
-      // The top-right corner is cut on the diagonal; what's left of the
-      // 7-unit square there is the fold.
-      if (cx - 36 > cy - 17.5) continue;
-      const fold = cx >= 36 && cy <= 24.5;
-      c.plot(x, y, fold ? Layer.Fold : Layer.Body);
-    }
-  }
-  const cut = (from: Point, to: Point) => {
-    for (let s = 0; s <= 40; s++) {
-      const x = from[0] + ((to[0] - from[0]) * s) / 40;
-      const y = from[1] + ((to[1] - from[1]) * s) / 40;
-      c.dab(x, y, 1.1, (px, py) => c.erase(px, py));
-    }
-  };
-  cut([24.5, 27.5], [29.5, 31.8]);
-  cut([29.5, 31.8], [24.5, 36.1]);
-  if (scene.cursor) cut([31.8, 40], [38, 40]);
-
-  // Tools pop onto the ring, each with a gap around it like the SVG's stroke.
-  TOOLS.forEach((tool, i) => {
-    const r = 3.9 * scene.tools[i]! + scene.bump * 0.9;
+  // The dots, each with a clear gap around it.
+  orbitDots(scene.spin).forEach((dot, n) => {
+    const r = ORBIT.dot * scene.dots[n]!;
     if (r <= 0.2) return;
-    const [tx, ty] = turn(tool.at, scene.spin);
-    c.dab(tx, ty, r + 1.2, (x, y) => c.erase(x, y));
-    c.dab(tx, ty, r, (x, y) => c.plot(x, y, Layer.Tool, i));
+    const [dx, dy] = dot.at;
+    for (let iy = Math.floor(dy - r - 1); iy <= dy + r + 1; iy++) {
+      for (let ix = Math.floor(dx - r - 1); ix <= dx + r + 1; ix++) {
+        if (ix < 0 || iy < 0 || ix >= SIZE || iy >= SIZE) continue;
+        if (Math.hypot(ix + 0.5 - dx, iy + 0.5 - dy) <= r) {
+          px[iy * SIZE + ix] = Layer.Dot;
+          color[iy * SIZE + ix] = dot.color;
+        }
+      }
+    }
   });
-  return c;
+  return { px, color };
 }
 
 /** Braille dot bits for a pixel at (dx, dy) inside its 2x4 cell. */
@@ -265,67 +214,53 @@ export function logoFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unicod
 
 /** The logo at time t as cells, for the splash to compose. */
 export function logoCells(t: number, caps: Pick<TermCaps, 'unicode'>): Cell[][] {
-  const scene = sceneAt(t);
-  const c = draw(scene);
+  const { px, color } = draw(sceneAt(t));
   const rows: Cell[][] = [];
   for (let cy = 0; cy < SIZE / 4; cy++) {
     const out: Cell[] = [];
     for (let cx = 0; cx < SIZE / 2; cx++) {
       let bits = 0;
       let top = Layer.None;
-      let topTool = -1;
+      let shades: Rgb[] = [];
       const count = new Map<Layer, number>();
       for (let dy = 0; dy < 4; dy++) {
         for (let dx = 0; dx < 2; dx++) {
           const i = (cy * 4 + dy) * SIZE + cx * 2 + dx;
-          const layer = c.px[i]! as Layer;
+          const layer = px[i]! as Layer;
           if (layer === Layer.None) continue;
           bits |= BRAILLE[dy]![dx]!;
           count.set(layer, (count.get(layer) ?? 0) + 1);
           if (layer > top) {
             top = layer;
-            topTool = c.tool[i]!;
+            shades = [];
           }
+          if (layer === top) shades.push(color[i]!);
         }
       }
       if (bits === 0) {
         out.push({ ch: ' ' });
         continue;
       }
-      const glyph = caps.unicode ? String.fromCodePoint(0x2800 + bits) : asciiGlyph(top, count);
-      out.push({ ch: glyph, color: layerColor(top, topTool, scene) });
+      const glyph = caps.unicode ? String.fromCodePoint(0x2800 + bits) : asciiGlyph(top, count.get(top) ?? 0);
+      out.push({ ch: glyph, color: average(shades) });
     }
     rows.push(out);
   }
   return rows;
 }
 
-function layerColor(layer: Layer, tool: number, scene: Scene): Rgb {
-  switch (layer) {
-    case Layer.Tool:
-      return TOOLS[tool]?.color ?? PALETTE.amber;
-    case Layer.Signal:
-      return PALETTE.amber;
-    case Layer.Body:
-      return mix(PALETTE.bg, PALETTE.ink, scene.body);
-    case Layer.Fold:
-      return PALETTE.accent;
-    default:
-      return PALETTE.accent;
-  }
+function average(colors: Rgb[]): Rgb {
+  const sum = colors.reduce<[number, number, number]>((s, c) => [s[0] + c[0], s[1] + c[1], s[2] + c[2]], [0, 0, 0]);
+  return [Math.round(sum[0] / colors.length), Math.round(sum[1] / colors.length), Math.round(sum[2] / colors.length)];
 }
 
-function asciiGlyph(layer: Layer, count: Map<Layer, number>): string {
+function asciiGlyph(layer: Layer, count: number): string {
   switch (layer) {
-    case Layer.Tool:
+    case Layer.Dot:
       return 'O';
-    case Layer.Signal:
-      return '*';
-    case Layer.Fold:
-      return '%';
-    case Layer.Body:
-      return (count.get(Layer.Body) ?? 0) >= 6 ? '#' : ':';
+    case Layer.Sheet:
+      return count >= 6 ? '#' : ':';
     default:
-      return '.';
+      return count >= 6 ? '+' : '.';
   }
 }

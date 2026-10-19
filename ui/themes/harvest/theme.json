@@ -39,7 +39,7 @@
     "portrait": "assets/portrait.svg",
     "emptyState": "assets/empty-field.svg",
     "loading": "assets/watering-can.svg",
-    "emblem": "assets/emblem.webp",
+    "mark": "assets/mark.svg",
     "fields": "assets/fields.webp"
   },
   "terms": {

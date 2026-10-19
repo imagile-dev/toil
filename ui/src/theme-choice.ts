@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { showFavicon } from './favicon.ts';
 import { DEFAULT_THEME, THEMES, loadThemeStyles } from './themes.ts';
 
 export type SchemeChoice = 'system' | 'light' | 'dark';
@@ -35,6 +36,7 @@ export function useThemeChoice() {
     void loadThemeStyles(choice.theme);
     document.documentElement.dataset.theme = choice.theme;
     document.documentElement.dataset.scheme = choice.scheme;
+    showFavicon(choice.theme);
     try {
       localStorage.setItem(KEY, JSON.stringify(choice));
     } catch {

@@ -27,14 +27,9 @@
   padding-bottom: 192px;
 }
 
-/* The barn and its sunflower beside the name. */
+/* The badge as a pixel-art sign beside the name. */
 [data-theme="harvest"] .brand::before {
-  content: "";
-  width: 40px;
-  height: 40px;
-  margin-right: 0.5rem;
-  background: url("./assets/emblem.webp") center / contain no-repeat;
-  image-rendering: pixelated;
+  background-image: url("./assets/mark.svg");
 }
 
 [data-theme="harvest"] img,
