@@ -129,7 +129,10 @@ Folder walking is `ctx.files.list(dir)`: what `git ls-files --cached --others
 no second walker. A `.gitignore` line it can't compile (a reversed range such as
 `[b-a]`) is skipped on its own, with a `GITIGNORE_LINE_SKIPPED` warning in
 `meta.warnings` naming the file, the line and the fix; the rest of that file still
-applies.
+applies. An ignore file that exists but can't be read (permission, a lock, a folder
+of that name) applies no rules and is a `GITIGNORE_UNREADABLE` warning naming the
+file, the error and the fix; one that isn't UTF-8 still applies, decoded with
+replacements, under the same code. Only a missing ignore file is silently no rules.
 
 Before adding a dependency, read CLAUDE.md, **No Executables** and **Secrets**: pure
 JS or WASM, a licence of MIT, Apache-2.0 or BSD, pinned exactly, at least 14 days old,
