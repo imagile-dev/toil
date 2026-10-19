@@ -1,7 +1,7 @@
 import { createRequire as __toilCreateRequire } from 'node:module';
 const require = __toilCreateRequire(import.meta.url);
 const __TOIL_VERSION__ = "0.1.0-alpha.2"; // x-release-please-version
-const __TOIL_COMMIT__ = "cf56fa8d55c3cdc805f07fb6a376f2dbfcde76b5"; // toil-build-commit
+const __TOIL_COMMIT__ = "a977209ef9af90e0c52ae1e227a216e31c09f8a8"; // toil-build-commit
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -140,7 +140,7 @@ var require_code = __commonJS({
     }
     exports._ = _2;
     var plus = new _Code("+");
-    function str5(strs, ...args) {
+    function str4(strs, ...args) {
       const expr = [safeStringify(strs[0])];
       let i = 0;
       while (i < args.length) {
@@ -151,7 +151,7 @@ var require_code = __commonJS({
       optimize(expr);
       return new _Code(expr);
     }
-    exports.str = str5;
+    exports.str = str4;
     function addCodeArg(code, arg) {
       if (arg instanceof _Code)
         code.push(...arg._items);
@@ -194,7 +194,7 @@ var require_code = __commonJS({
       return;
     }
     function strConcat(c1, c2) {
-      return c2.emptyStr() ? c1 : c1.emptyStr() ? c2 : str5`${c1}${c2}`;
+      return c2.emptyStr() ? c1 : c1.emptyStr() ? c2 : str4`${c1}${c2}`;
     }
     exports.strConcat = strConcat;
     function interpolate(x) {
@@ -1156,22 +1156,22 @@ var require_util = __commonJS({
       return (0, codegen_1._)`${topSchemaRef}${schemaPath}${(0, codegen_1.getProperty)(keyword)}`;
     }
     exports.schemaRefOrVal = schemaRefOrVal;
-    function unescapeFragment(str5) {
-      return unescapeJsonPointer(decodeURIComponent(str5));
+    function unescapeFragment(str4) {
+      return unescapeJsonPointer(decodeURIComponent(str4));
     }
     exports.unescapeFragment = unescapeFragment;
-    function escapeFragment(str5) {
-      return encodeURIComponent(escapeJsonPointer(str5));
+    function escapeFragment(str4) {
+      return encodeURIComponent(escapeJsonPointer(str4));
     }
     exports.escapeFragment = escapeFragment;
-    function escapeJsonPointer(str5) {
-      if (typeof str5 == "number")
-        return `${str5}`;
-      return str5.replace(/~/g, "~0").replace(/\//g, "~1");
+    function escapeJsonPointer(str4) {
+      if (typeof str4 == "number")
+        return `${str4}`;
+      return str4.replace(/~/g, "~0").replace(/\//g, "~1");
     }
     exports.escapeJsonPointer = escapeJsonPointer;
-    function unescapeJsonPointer(str5) {
-      return str5.replace(/~1/g, "/").replace(/~0/g, "~");
+    function unescapeJsonPointer(str4) {
+      return str4.replace(/~1/g, "/").replace(/~0/g, "~");
     }
     exports.unescapeJsonPointer = unescapeJsonPointer;
     function eachItem(xs, f) {
@@ -2196,8 +2196,8 @@ var require_json_schema_traverse = __commonJS({
         post3(schema3, jsonPtr, rootSchema, parentJsonPtr, parentKeyword, parentSchema, keyIndex);
       }
     }
-    function escapeJsonPtr(str5) {
-      return str5.replace(/~/g, "~0").replace(/\//g, "~1");
+    function escapeJsonPtr(str4) {
+      return str4.replace(/~/g, "~0").replace(/\//g, "~1");
     }
   }
 });
@@ -3214,18 +3214,18 @@ var require_utils = __commonJS({
       let bestStart = -1;
       let bestLength = 0;
       let runStart = -1;
-      let runLength2 = 0;
+      let runLength = 0;
       for (let i = 0; i < hextets.length; i++) {
         if (hextets[i] === "0") {
           if (runStart === -1) runStart = i;
-          runLength2++;
-          if (runLength2 > bestLength) {
-            bestLength = runLength2;
+          runLength++;
+          if (runLength > bestLength) {
+            bestLength = runLength;
             bestStart = runStart;
           }
         } else {
           runStart = -1;
-          runLength2 = 0;
+          runLength = 0;
         }
       }
       if (bestLength < 2) return hextets.join(":");
@@ -3294,10 +3294,10 @@ var require_utils = __commonJS({
         isIPV6: true
       };
     }
-    function findToken(str5, token) {
+    function findToken(str4, token) {
       let ind = 0;
-      for (let i = 0; i < str5.length; i++) {
-        if (str5[i] === token) ind++;
+      for (let i = 0; i < str4.length; i++) {
+        if (str4[i] === token) ind++;
       }
       return ind;
     }
@@ -3876,7 +3876,7 @@ var require_fast_uri = __commonJS({
         normalizeString(uri2, options2);
       } else if (typeof uri2 === "object") {
         uri2 = /** @type {T} */
-        parse8(serialize(uri2, options2), options2);
+        parse7(serialize(uri2, options2), options2);
       }
       return uri2;
     }
@@ -3916,8 +3916,8 @@ var require_fast_uri = __commonJS({
     function resolveComponent(base, relative4, options2, skipNormalization) {
       const target2 = {};
       if (!skipNormalization) {
-        base = parse8(serialize(base, options2), options2);
-        relative4 = parse8(serialize(relative4, options2), options2);
+        base = parse7(serialize(base, options2), options2);
+        relative4 = parse7(serialize(relative4, options2), options2);
       }
       options2 = options2 || {};
       if (!options2.tolerant && relative4.scheme) {
@@ -4216,7 +4216,7 @@ var require_fast_uri = __commonJS({
       }
       return { parsed, malformedAuthorityOrPort, malformedPercentEncoding, malformedSchemeSpecific, malformedHost, malformedScheme };
     }
-    function parse8(uri2, opts) {
+    function parse7(uri2, opts) {
       return parseWithStatus(uri2, opts).parsed;
     }
     function normalizeString(uri2, opts) {
@@ -4253,7 +4253,7 @@ var require_fast_uri = __commonJS({
       resolveComponent,
       equal,
       serialize,
-      parse: parse8
+      parse: parse7
     };
     module.exports = fastUri;
     module.exports.default = fastUri;
@@ -4311,7 +4311,7 @@ var require_core = __commonJS({
     var util_1 = require_util();
     var $dataRefSchema = require_data();
     var uri_1 = require_uri();
-    var defaultRegExp = (str5, flags) => new RegExp(str5, flags);
+    var defaultRegExp = (str4, flags) => new RegExp(str4, flags);
     defaultRegExp.code = "new RegExp";
     var META_IGNORE_OPTIONS = ["removeAdditional", "useDefaults", "coerceTypes"];
     var EXT_SCOPE_NAMES = /* @__PURE__ */ new Set([
@@ -5106,16 +5106,16 @@ var require_ucs2length = __commonJS({
   "node_modules/ajv/dist/runtime/ucs2length.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    function ucs2length2(str5) {
-      const len = str5.length;
+    function ucs2length2(str4) {
+      const len = str4.length;
       let length = 0;
       let pos = 0;
       let value2;
       while (pos < len) {
         length++;
-        value2 = str5.charCodeAt(pos++);
+        value2 = str4.charCodeAt(pos++);
         if (value2 >= 55296 && value2 <= 56319 && pos < len) {
-          value2 = str5.charCodeAt(pos);
+          value2 = str4.charCodeAt(pos);
           if ((value2 & 64512) === 56320)
             pos++;
         }
@@ -6998,8 +6998,8 @@ var require_formats = __commonJS({
     }
     var DATE3 = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
     var DAYS3 = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    function date6(str5) {
-      const matches2 = DATE3.exec(str5);
+    function date6(str4) {
+      const matches2 = DATE3.exec(str4);
       if (!matches2)
         return false;
       const year = +matches2[1];
@@ -7018,8 +7018,8 @@ var require_formats = __commonJS({
     }
     var TIME5 = /^(\d\d):(\d\d):(\d\d(?:\.\d+)?)(z|([+-])(\d\d)(?::?(\d\d))?)?$/i;
     function getTime(strictTimeZone) {
-      return function time4(str5) {
-        const matches2 = TIME5.exec(str5);
+      return function time4(str4) {
+        const matches2 = TIME5.exec(str4);
         if (!matches2)
           return false;
         const hr = +matches2[1];
@@ -7065,8 +7065,8 @@ var require_formats = __commonJS({
     var DATE_TIME_SEPARATOR2 = /t|\s/i;
     function getDateTime(strictTimeZone) {
       const time4 = getTime(strictTimeZone);
-      return function date_time2(str5) {
-        const dateTime = str5.split(DATE_TIME_SEPARATOR2);
+      return function date_time2(str4) {
+        const dateTime = str4.split(DATE_TIME_SEPARATOR2);
         return dateTime.length === 2 && date6(dateTime[0]) && time4(dateTime[1]);
       };
     }
@@ -7091,13 +7091,13 @@ var require_formats = __commonJS({
     }
     var NOT_URI_FRAGMENT2 = /\/|:/;
     var URI = /^(?:[a-z][a-z0-9+\-.]*:)(?:\/?\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\.[a-z0-9\-._~!$&'()*+,;=:]+)\]|(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)|(?:[a-z0-9\-._~!$&'()*+,;=]|%[0-9a-f]{2})*)(?::\d*)?(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*|\/(?:(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})+(?:\/(?:[a-z0-9\-._~!$&'()*+,;=:@]|%[0-9a-f]{2})*)*)(?:\?(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\-._~!$&'()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i;
-    function uri2(str5) {
-      return NOT_URI_FRAGMENT2.test(str5) && URI.test(str5);
+    function uri2(str4) {
+      return NOT_URI_FRAGMENT2.test(str4) && URI.test(str4);
     }
     var BYTE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/gm;
-    function byte(str5) {
+    function byte(str4) {
       BYTE.lastIndex = 0;
-      return BYTE.test(str5);
+      return BYTE.test(str4);
     }
     var MIN_INT32 = -(2 ** 31);
     var MAX_INT32 = 2 ** 31 - 1;
@@ -7111,11 +7111,11 @@ var require_formats = __commonJS({
       return true;
     }
     var Z_ANCHOR2 = /[^\\]\\Z/;
-    function regex2(str5) {
-      if (Z_ANCHOR2.test(str5))
+    function regex2(str4) {
+      if (Z_ANCHOR2.test(str4))
         return false;
       try {
-        new RegExp(str5);
+        new RegExp(str4);
         return true;
       } catch (e) {
         return false;
@@ -14559,27 +14559,27 @@ var require_umd = __commonJS({
         }
         Long.fromBits = fromBits;
         var pow_dbl = Math.pow;
-        function fromString(str5, unsigned, radix) {
-          if (str5.length === 0) throw Error("empty string");
+        function fromString(str4, unsigned, radix) {
+          if (str4.length === 0) throw Error("empty string");
           if (typeof unsigned === "number") {
             radix = unsigned;
             unsigned = false;
           } else {
             unsigned = !!unsigned;
           }
-          if (str5 === "NaN" || str5 === "Infinity" || str5 === "+Infinity" || str5 === "-Infinity")
+          if (str4 === "NaN" || str4 === "Infinity" || str4 === "+Infinity" || str4 === "-Infinity")
             return unsigned ? UZERO : ZERO2;
           radix = radix || 10;
           if (radix < 2 || 36 < radix) throw RangeError("radix");
           var p;
-          if ((p = str5.indexOf("-")) > 0) throw Error("interior hyphen");
+          if ((p = str4.indexOf("-")) > 0) throw Error("interior hyphen");
           else if (p === 0) {
-            return fromString(str5.substring(1), unsigned, radix).neg();
+            return fromString(str4.substring(1), unsigned, radix).neg();
           }
           var radixToPower = fromNumber(pow_dbl(radix, 8));
           var result = ZERO2;
-          for (var i = 0; i < str5.length; i += 8) {
-            var size = Math.min(8, str5.length - i), value2 = parseInt(str5.substring(i, i + size), radix);
+          for (var i = 0; i < str4.length; i += 8) {
+            var size = Math.min(8, str4.length - i), value2 = parseInt(str4.substring(i, i + size), radix);
             if (size < 8) {
               var power = fromNumber(pow_dbl(radix, size));
               result = result.mul(power).add(fromNumber(value2));
@@ -15195,12 +15195,12 @@ var require_bom_handling = __commonJS({
       this.encoder = encoder;
       this.addBOM = true;
     }
-    PrependBOMWrapper.prototype.write = function(str5) {
+    PrependBOMWrapper.prototype.write = function(str4) {
       if (this.addBOM) {
-        str5 = BOMChar + str5;
+        str4 = BOMChar + str4;
         this.addBOM = false;
       }
-      return this.encoder.write(str5);
+      return this.encoder.write(str4);
     };
     PrependBOMWrapper.prototype.end = function() {
       return this.encoder.end();
@@ -15299,31 +15299,31 @@ var require_internal = __commonJS({
     function InternalEncoder(options2, codec2) {
       this.enc = codec2.enc;
     }
-    InternalEncoder.prototype.write = function(str5) {
-      return Buffer3.from(str5, this.enc);
+    InternalEncoder.prototype.write = function(str4) {
+      return Buffer3.from(str4, this.enc);
     };
     InternalEncoder.prototype.end = function() {
     };
     function InternalEncoderBase64(options2, codec2) {
       this.prevStr = "";
     }
-    InternalEncoderBase64.prototype.write = function(str5) {
-      str5 = this.prevStr + str5;
-      var completeQuads = str5.length - str5.length % 4;
-      this.prevStr = str5.slice(completeQuads);
-      str5 = str5.slice(0, completeQuads);
-      return Buffer3.from(str5, "base64");
+    InternalEncoderBase64.prototype.write = function(str4) {
+      str4 = this.prevStr + str4;
+      var completeQuads = str4.length - str4.length % 4;
+      this.prevStr = str4.slice(completeQuads);
+      str4 = str4.slice(0, completeQuads);
+      return Buffer3.from(str4, "base64");
     };
     InternalEncoderBase64.prototype.end = function() {
       return Buffer3.from(this.prevStr, "base64");
     };
     function InternalEncoderCesu8(options2, codec2) {
     }
-    InternalEncoderCesu8.prototype.write = function(str5) {
-      var buf = Buffer3.alloc(str5.length * 3);
+    InternalEncoderCesu8.prototype.write = function(str4) {
+      var buf = Buffer3.alloc(str4.length * 3);
       var bufIdx = 0;
-      for (var i = 0; i < str5.length; i++) {
-        var charCode = str5.charCodeAt(i);
+      for (var i = 0; i < str4.length; i++) {
+        var charCode = str4.charCodeAt(i);
         if (charCode < 128) {
           buf[bufIdx++] = charCode;
         } else if (charCode < 2048) {
@@ -15404,25 +15404,25 @@ var require_internal = __commonJS({
     function InternalEncoderUtf8(options2, codec2) {
       this.highSurrogate = "";
     }
-    InternalEncoderUtf8.prototype.write = function(str5) {
+    InternalEncoderUtf8.prototype.write = function(str4) {
       if (this.highSurrogate) {
-        str5 = this.highSurrogate + str5;
+        str4 = this.highSurrogate + str4;
         this.highSurrogate = "";
       }
-      if (str5.length > 0) {
-        var charCode = str5.charCodeAt(str5.length - 1);
+      if (str4.length > 0) {
+        var charCode = str4.charCodeAt(str4.length - 1);
         if (charCode >= 55296 && charCode < 56320) {
-          this.highSurrogate = str5[str5.length - 1];
-          str5 = str5.slice(0, str5.length - 1);
+          this.highSurrogate = str4[str4.length - 1];
+          str4 = str4.slice(0, str4.length - 1);
         }
       }
-      return Buffer3.from(str5, this.enc);
+      return Buffer3.from(str4, this.enc);
     };
     InternalEncoderUtf8.prototype.end = function() {
       if (this.highSurrogate) {
-        var str5 = this.highSurrogate;
+        var str4 = this.highSurrogate;
         this.highSurrogate = "";
-        return Buffer3.from(str5, this.enc);
+        return Buffer3.from(str4, this.enc);
       }
     };
   }
@@ -15449,8 +15449,8 @@ var require_utf32 = __commonJS({
       this.isLE = codec2.isLE;
       this.highSurrogate = 0;
     }
-    Utf32Encoder.prototype.write = function(str5) {
-      var src = Buffer3.from(str5, "ucs2");
+    Utf32Encoder.prototype.write = function(str4) {
+      var src = Buffer3.from(str4, "ucs2");
       var dst = Buffer3.alloc(src.length * 2 + 4);
       var write32 = this.isLE ? dst.writeUInt32LE : dst.writeUInt32BE;
       var offset = 0;
@@ -15575,8 +15575,8 @@ var require_utf32 = __commonJS({
       }
       this.encoder = codec2.iconv.getEncoder(options2.defaultEncoding || "utf-32le", options2);
     }
-    Utf32AutoEncoder.prototype.write = function(str5) {
-      return this.encoder.write(str5);
+    Utf32AutoEncoder.prototype.write = function(str4) {
+      return this.encoder.write(str4);
     };
     Utf32AutoEncoder.prototype.end = function() {
       return this.encoder.end();
@@ -15676,8 +15676,8 @@ var require_utf16 = __commonJS({
     Utf16BECodec.prototype.bomAware = true;
     function Utf16BEEncoder() {
     }
-    Utf16BEEncoder.prototype.write = function(str5) {
-      var buf = Buffer3.from(str5, "ucs2");
+    Utf16BEEncoder.prototype.write = function(str4) {
+      var buf = Buffer3.from(str4, "ucs2");
       for (var i = 0; i < buf.length; i += 2) {
         var tmp = buf[i];
         buf[i] = buf[i + 1];
@@ -15726,8 +15726,8 @@ var require_utf16 = __commonJS({
       }
       this.encoder = codec2.iconv.getEncoder("utf-16le", options2);
     }
-    Utf16Encoder.prototype.write = function(str5) {
-      return this.encoder.write(str5);
+    Utf16Encoder.prototype.write = function(str4) {
+      return this.encoder.write(str4);
     };
     Utf16Encoder.prototype.end = function() {
       return this.encoder.end();
@@ -15823,8 +15823,8 @@ var require_utf7 = __commonJS({
     function Utf7Encoder(options2, codec2) {
       this.iconv = codec2.iconv;
     }
-    Utf7Encoder.prototype.write = function(str5) {
-      return Buffer3.from(str5.replace(nonDirectChars, function(chunk) {
+    Utf7Encoder.prototype.write = function(str4) {
+      return Buffer3.from(str4.replace(nonDirectChars, function(chunk) {
         return "+" + (chunk === "+" ? "" : this.iconv.encode(chunk, "utf16-be").toString("base64").replace(/=+$/, "")) + "-";
       }.bind(this)));
     };
@@ -15908,14 +15908,14 @@ var require_utf7 = __commonJS({
       this.base64Accum = Buffer3.alloc(6);
       this.base64AccumIdx = 0;
     }
-    Utf7IMAPEncoder.prototype.write = function(str5) {
+    Utf7IMAPEncoder.prototype.write = function(str4) {
       var inBase64 = this.inBase64;
       var base64Accum = this.base64Accum;
       var base64AccumIdx = this.base64AccumIdx;
-      var buf = Buffer3.alloc(str5.length * 5 + 10);
+      var buf = Buffer3.alloc(str4.length * 5 + 10);
       var bufIdx = 0;
-      for (var i2 = 0; i2 < str5.length; i2++) {
-        var uChar = str5.charCodeAt(i2);
+      for (var i2 = 0; i2 < str4.length; i2++) {
+        var uChar = str4.charCodeAt(i2);
         if (uChar >= 32 && uChar <= 126) {
           if (inBase64) {
             if (base64AccumIdx > 0) {
@@ -16056,10 +16056,10 @@ var require_sbcs_codec = __commonJS({
     function SBCSEncoder(options2, codec2) {
       this.encodeBuf = codec2.encodeBuf;
     }
-    SBCSEncoder.prototype.write = function(str5) {
-      var buf = Buffer3.alloc(str5.length);
-      for (var i = 0; i < str5.length; i++) {
-        buf[i] = this.encodeBuf[str5.charCodeAt(i)];
+    SBCSEncoder.prototype.write = function(str4) {
+      var buf = Buffer3.alloc(str4.length);
+      for (var i = 0; i < str4.length; i++) {
+        buf[i] = this.encodeBuf[str4.charCodeAt(i)];
       }
       return buf;
     };
@@ -16935,8 +16935,8 @@ var require_dbcs_codec = __commonJS({
       this.defaultCharSingleByte = codec2.defCharSB;
       this.gb18030 = codec2.gb18030;
     }
-    DBCSEncoder.prototype.write = function(str5) {
-      var newBuf = Buffer3.alloc(str5.length * (this.gb18030 ? 4 : 3));
+    DBCSEncoder.prototype.write = function(str4) {
+      var newBuf = Buffer3.alloc(str4.length * (this.gb18030 ? 4 : 3));
       var leadSurrogate = this.leadSurrogate;
       var seqObj = this.seqObj;
       var nextChar = -1;
@@ -16944,8 +16944,8 @@ var require_dbcs_codec = __commonJS({
       var j = 0;
       while (true) {
         if (nextChar === -1) {
-          if (i2 == str5.length) break;
-          var uCode = str5.charCodeAt(i2++);
+          if (i2 == str4.length) break;
+          var uCode = str4.charCodeAt(i2++);
         } else {
           var uCode = nextChar;
           nextChar = -1;
@@ -18783,10 +18783,10 @@ var require_lib4 = __commonJS({
     module.exports.encodings = null;
     module.exports.defaultCharUnicode = "\uFFFD";
     module.exports.defaultCharSingleByte = "?";
-    module.exports.encode = function encode4(str5, encoding, options2) {
-      str5 = "" + (str5 || "");
+    module.exports.encode = function encode4(str4, encoding, options2) {
+      str4 = "" + (str4 || "");
       var encoder = module.exports.getEncoder(encoding, options2);
-      var res = encoder.write(str5);
+      var res = encoder.write(str4);
       var trail = encoder.end();
       return trail && trail.length > 0 ? Buffer3.concat([res, trail]) : res;
     };
@@ -19173,9 +19173,9 @@ var require_types2 = __commonJS({
 var require_helpers = __commonJS({
   "node_modules/mysql2/lib/helpers.js"(exports) {
     "use strict";
-    function srcEscape(str5) {
+    function srcEscape(str4) {
       return JSON.stringify({
-        [str5]: 1
+        [str4]: 1
       }).slice(1, -3);
     }
     exports.srcEscape = srcEscape;
@@ -19602,14 +19602,14 @@ var require_packet = __commonJS({
           }
           return localDate(y, m2, d2, H, M, S, ms);
         }
-        let str5 = this.readDateTimeString(6, "T", null);
-        if (str5.startsWith(ZERO_DATE)) {
+        let str4 = this.readDateTimeString(6, "T", null);
+        if (str4.startsWith(ZERO_DATE)) {
           return /* @__PURE__ */ new Date(NaN);
         }
-        if (str5.length === 10) {
-          str5 += "T00:00:00";
+        if (str4.length === 10) {
+          str4 += "T00:00:00";
         }
-        return new Date(str5 + timezone);
+        return new Date(str4 + timezone);
       }
       readDateTimeString(decimals, timeSep, columnType2) {
         const length = this.readInt8();
@@ -19620,37 +19620,37 @@ var require_packet = __commonJS({
         let M = 0;
         let S = 0;
         let ms = 0;
-        let str5 = ZERO_DATE;
+        let str4 = ZERO_DATE;
         if (length > 3) {
           y = this.readInt16();
           m2 = this.readInt8();
           d2 = this.readInt8();
-          str5 = [leftPad(4, y), leftPad(2, m2), leftPad(2, d2)].join("-");
+          str4 = [leftPad(4, y), leftPad(2, m2), leftPad(2, d2)].join("-");
         }
         if (length > 6) {
           H = this.readInt8();
           M = this.readInt8();
           S = this.readInt8();
-          str5 += `${timeSep || " "}${[
+          str4 += `${timeSep || " "}${[
             leftPad(2, H),
             leftPad(2, M),
             leftPad(2, S)
           ].join(":")}`;
         } else if (columnType2 === Types.DATETIME || columnType2 === Types.TIMESTAMP) {
-          str5 += " 00:00:00";
+          str4 += " 00:00:00";
         }
         if (length > 10) {
           ms = this.readInt32();
-          str5 += ".";
+          str4 += ".";
           if (decimals) {
             ms = leftPad(6, ms);
             if (ms.length > decimals) {
               ms = ms.substring(0, decimals);
             }
           }
-          str5 += ms;
+          str4 += ms;
         }
-        return str5;
+        return str4;
       }
       // TIME - value as a string, Can be negative
       readTimeString(convertTtoMs) {
@@ -19757,20 +19757,20 @@ var require_packet = __commonJS({
           this.offset++;
           sign2 = -1;
         }
-        let str5;
+        let str4;
         const numDigits = end2 - this.offset;
         if (supportBigNumbers) {
           if (numDigits >= 15) {
-            str5 = this.readString(end2 - this.offset, "binary");
-            result = parseInt(str5, 10);
+            str4 = this.readString(end2 - this.offset, "binary");
+            result = parseInt(str4, 10);
             if (Number.isSafeInteger(sign2 * result)) {
               return sign2 * result;
             }
-            return sign2 === -1 ? `-${str5}` : str5;
+            return sign2 === -1 ? `-${str4}` : str4;
           }
           if (numDigits > 16) {
-            str5 = this.readString(end2 - this.offset);
-            return sign2 === -1 ? `-${str5}` : str5;
+            str4 = this.readString(end2 - this.offset);
+            return sign2 === -1 ? `-${str4}` : str4;
           }
         }
         if (this.buffer[this.offset] === plus) {
@@ -19935,11 +19935,11 @@ var require_packet = __commonJS({
       // With supportBigNumbers, unsafe integers become exact strings,
       // mirroring the option's behaviour for BIGINT columns
       parseJson(encoding, supportBigNumbers) {
-        const str5 = this.readLengthCodedString(encoding);
-        if (supportBigNumbers && jsonSourceAccessSupported && str5 !== null && jsonBigNumeral.test(str5)) {
-          return JSON.parse(str5, jsonBigNumberReviver);
+        const str4 = this.readLengthCodedString(encoding);
+        if (supportBigNumbers && jsonSourceAccessSupported && str4 !== null && jsonBigNumeral.test(str4)) {
+          return JSON.parse(str4, jsonBigNumberReviver);
         }
-        return JSON.parse(str5);
+        return JSON.parse(str4);
       }
       parseDate(timezone) {
         const strLen = this.readLengthCodedNumber();
@@ -19980,9 +19980,9 @@ var require_packet = __commonJS({
             return /* @__PURE__ */ new Date(NaN);
           }
           if (y < 100) {
-            const str6 = StringParser.decode(b, "binary", s, s + len);
+            const str5 = StringParser.decode(b, "binary", s, s + len);
             this.offset += len;
-            return !timezone || timezone === "local" ? new Date(str6) : /* @__PURE__ */ new Date(`${str6}${timezone}`);
+            return !timezone || timezone === "local" ? new Date(str5) : /* @__PURE__ */ new Date(`${str5}${timezone}`);
           }
           const h = (b[s + 11] - 48) * 10 + (b[s + 12] - 48);
           const mi = (b[s + 14] - 48) * 10 + (b[s + 15] - 48);
@@ -20011,12 +20011,12 @@ var require_packet = __commonJS({
             `${StringParser.decode(b, "binary", s, s + len)}${timezone}`
           );
         }
-        const str5 = StringParser.decode(b, "binary", s, s + len);
+        const str4 = StringParser.decode(b, "binary", s, s + len);
         this.offset += len;
         if (!timezone || timezone === "local") {
-          return new Date(str5);
+          return new Date(str4);
         }
-        return /* @__PURE__ */ new Date(`${str5}${timezone}`);
+        return /* @__PURE__ */ new Date(`${str4}${timezone}`);
       }
       parseFloat(len) {
         if (len === null) {
@@ -20026,9 +20026,9 @@ var require_packet = __commonJS({
           return 0;
         }
         if (len > 17) {
-          const str5 = this.buffer.toString("utf8", this.offset, this.offset + len);
+          const str4 = this.buffer.toString("utf8", this.offset, this.offset + len);
           this.offset += len;
-          return Number.parseFloat(str5);
+          return Number.parseFloat(str4);
         }
         let result = 0;
         const end2 = this.offset + len;
@@ -20049,9 +20049,9 @@ var require_packet = __commonJS({
             this.offset++;
           } else if (charCode === exponent || charCode === exponentCapital) {
             const start2 = end2 - len;
-            const str5 = this.buffer.toString("utf8", start2, end2);
+            const str4 = this.buffer.toString("utf8", start2, end2);
             this.offset = end2;
-            return Number.parseFloat(str5);
+            return Number.parseFloat(str4);
           } else {
             result *= 10;
             result += this.buffer[this.offset] - 48;
@@ -20289,8 +20289,8 @@ var require_packet = __commonJS({
         }
         return 9;
       }
-      static lengthCodedStringLength(str5, encoding) {
-        const buf = StringParser.encode(str5, encoding);
+      static lengthCodedStringLength(str4, encoding) {
+        const buf = StringParser.encode(str4, encoding);
         const slen = buf.length;
         return _Packet.lengthCodedNumberLength(slen) + slen;
       }
@@ -23393,8 +23393,8 @@ var require_mysql_native_password = __commonJS({
 var require_mysql_clear_password = __commonJS({
   "node_modules/mysql2/lib/auth_plugins/mysql_clear_password.js"(exports, module) {
     "use strict";
-    function bufferFromStr(str5) {
-      return Buffer.from(`${str5}\0`);
+    function bufferFromStr(str4) {
+      return Buffer.from(`${str4}\0`);
     }
     var create_mysql_clear_password_plugin = (pluginOptions) => function mysql_clear_password_plugin({ connection: connection5, command }) {
       const password = command.password || pluginOptions.password || connection5.config.password;
@@ -24131,8 +24131,8 @@ var require_server_handshake = __commonJS({
 var require_is_property = __commonJS({
   "node_modules/is-property/is-property.js"(exports, module) {
     "use strict";
-    function isProperty(str5) {
-      return /^[$A-Z\_a-z\xaa\xb5\xba\xc0-\xd6\xd8-\xf6\xf8-\u02c1\u02c6-\u02d1\u02e0-\u02e4\u02ec\u02ee\u0370-\u0374\u0376\u0377\u037a-\u037d\u0386\u0388-\u038a\u038c\u038e-\u03a1\u03a3-\u03f5\u03f7-\u0481\u048a-\u0527\u0531-\u0556\u0559\u0561-\u0587\u05d0-\u05ea\u05f0-\u05f2\u0620-\u064a\u066e\u066f\u0671-\u06d3\u06d5\u06e5\u06e6\u06ee\u06ef\u06fa-\u06fc\u06ff\u0710\u0712-\u072f\u074d-\u07a5\u07b1\u07ca-\u07ea\u07f4\u07f5\u07fa\u0800-\u0815\u081a\u0824\u0828\u0840-\u0858\u08a0\u08a2-\u08ac\u0904-\u0939\u093d\u0950\u0958-\u0961\u0971-\u0977\u0979-\u097f\u0985-\u098c\u098f\u0990\u0993-\u09a8\u09aa-\u09b0\u09b2\u09b6-\u09b9\u09bd\u09ce\u09dc\u09dd\u09df-\u09e1\u09f0\u09f1\u0a05-\u0a0a\u0a0f\u0a10\u0a13-\u0a28\u0a2a-\u0a30\u0a32\u0a33\u0a35\u0a36\u0a38\u0a39\u0a59-\u0a5c\u0a5e\u0a72-\u0a74\u0a85-\u0a8d\u0a8f-\u0a91\u0a93-\u0aa8\u0aaa-\u0ab0\u0ab2\u0ab3\u0ab5-\u0ab9\u0abd\u0ad0\u0ae0\u0ae1\u0b05-\u0b0c\u0b0f\u0b10\u0b13-\u0b28\u0b2a-\u0b30\u0b32\u0b33\u0b35-\u0b39\u0b3d\u0b5c\u0b5d\u0b5f-\u0b61\u0b71\u0b83\u0b85-\u0b8a\u0b8e-\u0b90\u0b92-\u0b95\u0b99\u0b9a\u0b9c\u0b9e\u0b9f\u0ba3\u0ba4\u0ba8-\u0baa\u0bae-\u0bb9\u0bd0\u0c05-\u0c0c\u0c0e-\u0c10\u0c12-\u0c28\u0c2a-\u0c33\u0c35-\u0c39\u0c3d\u0c58\u0c59\u0c60\u0c61\u0c85-\u0c8c\u0c8e-\u0c90\u0c92-\u0ca8\u0caa-\u0cb3\u0cb5-\u0cb9\u0cbd\u0cde\u0ce0\u0ce1\u0cf1\u0cf2\u0d05-\u0d0c\u0d0e-\u0d10\u0d12-\u0d3a\u0d3d\u0d4e\u0d60\u0d61\u0d7a-\u0d7f\u0d85-\u0d96\u0d9a-\u0db1\u0db3-\u0dbb\u0dbd\u0dc0-\u0dc6\u0e01-\u0e30\u0e32\u0e33\u0e40-\u0e46\u0e81\u0e82\u0e84\u0e87\u0e88\u0e8a\u0e8d\u0e94-\u0e97\u0e99-\u0e9f\u0ea1-\u0ea3\u0ea5\u0ea7\u0eaa\u0eab\u0ead-\u0eb0\u0eb2\u0eb3\u0ebd\u0ec0-\u0ec4\u0ec6\u0edc-\u0edf\u0f00\u0f40-\u0f47\u0f49-\u0f6c\u0f88-\u0f8c\u1000-\u102a\u103f\u1050-\u1055\u105a-\u105d\u1061\u1065\u1066\u106e-\u1070\u1075-\u1081\u108e\u10a0-\u10c5\u10c7\u10cd\u10d0-\u10fa\u10fc-\u1248\u124a-\u124d\u1250-\u1256\u1258\u125a-\u125d\u1260-\u1288\u128a-\u128d\u1290-\u12b0\u12b2-\u12b5\u12b8-\u12be\u12c0\u12c2-\u12c5\u12c8-\u12d6\u12d8-\u1310\u1312-\u1315\u1318-\u135a\u1380-\u138f\u13a0-\u13f4\u1401-\u166c\u166f-\u167f\u1681-\u169a\u16a0-\u16ea\u16ee-\u16f0\u1700-\u170c\u170e-\u1711\u1720-\u1731\u1740-\u1751\u1760-\u176c\u176e-\u1770\u1780-\u17b3\u17d7\u17dc\u1820-\u1877\u1880-\u18a8\u18aa\u18b0-\u18f5\u1900-\u191c\u1950-\u196d\u1970-\u1974\u1980-\u19ab\u19c1-\u19c7\u1a00-\u1a16\u1a20-\u1a54\u1aa7\u1b05-\u1b33\u1b45-\u1b4b\u1b83-\u1ba0\u1bae\u1baf\u1bba-\u1be5\u1c00-\u1c23\u1c4d-\u1c4f\u1c5a-\u1c7d\u1ce9-\u1cec\u1cee-\u1cf1\u1cf5\u1cf6\u1d00-\u1dbf\u1e00-\u1f15\u1f18-\u1f1d\u1f20-\u1f45\u1f48-\u1f4d\u1f50-\u1f57\u1f59\u1f5b\u1f5d\u1f5f-\u1f7d\u1f80-\u1fb4\u1fb6-\u1fbc\u1fbe\u1fc2-\u1fc4\u1fc6-\u1fcc\u1fd0-\u1fd3\u1fd6-\u1fdb\u1fe0-\u1fec\u1ff2-\u1ff4\u1ff6-\u1ffc\u2071\u207f\u2090-\u209c\u2102\u2107\u210a-\u2113\u2115\u2119-\u211d\u2124\u2126\u2128\u212a-\u212d\u212f-\u2139\u213c-\u213f\u2145-\u2149\u214e\u2160-\u2188\u2c00-\u2c2e\u2c30-\u2c5e\u2c60-\u2ce4\u2ceb-\u2cee\u2cf2\u2cf3\u2d00-\u2d25\u2d27\u2d2d\u2d30-\u2d67\u2d6f\u2d80-\u2d96\u2da0-\u2da6\u2da8-\u2dae\u2db0-\u2db6\u2db8-\u2dbe\u2dc0-\u2dc6\u2dc8-\u2dce\u2dd0-\u2dd6\u2dd8-\u2dde\u2e2f\u3005-\u3007\u3021-\u3029\u3031-\u3035\u3038-\u303c\u3041-\u3096\u309d-\u309f\u30a1-\u30fa\u30fc-\u30ff\u3105-\u312d\u3131-\u318e\u31a0-\u31ba\u31f0-\u31ff\u3400-\u4db5\u4e00-\u9fcc\ua000-\ua48c\ua4d0-\ua4fd\ua500-\ua60c\ua610-\ua61f\ua62a\ua62b\ua640-\ua66e\ua67f-\ua697\ua6a0-\ua6ef\ua717-\ua71f\ua722-\ua788\ua78b-\ua78e\ua790-\ua793\ua7a0-\ua7aa\ua7f8-\ua801\ua803-\ua805\ua807-\ua80a\ua80c-\ua822\ua840-\ua873\ua882-\ua8b3\ua8f2-\ua8f7\ua8fb\ua90a-\ua925\ua930-\ua946\ua960-\ua97c\ua984-\ua9b2\ua9cf\uaa00-\uaa28\uaa40-\uaa42\uaa44-\uaa4b\uaa60-\uaa76\uaa7a\uaa80-\uaaaf\uaab1\uaab5\uaab6\uaab9-\uaabd\uaac0\uaac2\uaadb-\uaadd\uaae0-\uaaea\uaaf2-\uaaf4\uab01-\uab06\uab09-\uab0e\uab11-\uab16\uab20-\uab26\uab28-\uab2e\uabc0-\uabe2\uac00-\ud7a3\ud7b0-\ud7c6\ud7cb-\ud7fb\uf900-\ufa6d\ufa70-\ufad9\ufb00-\ufb06\ufb13-\ufb17\ufb1d\ufb1f-\ufb28\ufb2a-\ufb36\ufb38-\ufb3c\ufb3e\ufb40\ufb41\ufb43\ufb44\ufb46-\ufbb1\ufbd3-\ufd3d\ufd50-\ufd8f\ufd92-\ufdc7\ufdf0-\ufdfb\ufe70-\ufe74\ufe76-\ufefc\uff21-\uff3a\uff41-\uff5a\uff66-\uffbe\uffc2-\uffc7\uffca-\uffcf\uffd2-\uffd7\uffda-\uffdc][$A-Z\_a-z\xaa\xb5\xba\xc0-\xd6\xd8-\xf6\xf8-\u02c1\u02c6-\u02d1\u02e0-\u02e4\u02ec\u02ee\u0370-\u0374\u0376\u0377\u037a-\u037d\u0386\u0388-\u038a\u038c\u038e-\u03a1\u03a3-\u03f5\u03f7-\u0481\u048a-\u0527\u0531-\u0556\u0559\u0561-\u0587\u05d0-\u05ea\u05f0-\u05f2\u0620-\u064a\u066e\u066f\u0671-\u06d3\u06d5\u06e5\u06e6\u06ee\u06ef\u06fa-\u06fc\u06ff\u0710\u0712-\u072f\u074d-\u07a5\u07b1\u07ca-\u07ea\u07f4\u07f5\u07fa\u0800-\u0815\u081a\u0824\u0828\u0840-\u0858\u08a0\u08a2-\u08ac\u0904-\u0939\u093d\u0950\u0958-\u0961\u0971-\u0977\u0979-\u097f\u0985-\u098c\u098f\u0990\u0993-\u09a8\u09aa-\u09b0\u09b2\u09b6-\u09b9\u09bd\u09ce\u09dc\u09dd\u09df-\u09e1\u09f0\u09f1\u0a05-\u0a0a\u0a0f\u0a10\u0a13-\u0a28\u0a2a-\u0a30\u0a32\u0a33\u0a35\u0a36\u0a38\u0a39\u0a59-\u0a5c\u0a5e\u0a72-\u0a74\u0a85-\u0a8d\u0a8f-\u0a91\u0a93-\u0aa8\u0aaa-\u0ab0\u0ab2\u0ab3\u0ab5-\u0ab9\u0abd\u0ad0\u0ae0\u0ae1\u0b05-\u0b0c\u0b0f\u0b10\u0b13-\u0b28\u0b2a-\u0b30\u0b32\u0b33\u0b35-\u0b39\u0b3d\u0b5c\u0b5d\u0b5f-\u0b61\u0b71\u0b83\u0b85-\u0b8a\u0b8e-\u0b90\u0b92-\u0b95\u0b99\u0b9a\u0b9c\u0b9e\u0b9f\u0ba3\u0ba4\u0ba8-\u0baa\u0bae-\u0bb9\u0bd0\u0c05-\u0c0c\u0c0e-\u0c10\u0c12-\u0c28\u0c2a-\u0c33\u0c35-\u0c39\u0c3d\u0c58\u0c59\u0c60\u0c61\u0c85-\u0c8c\u0c8e-\u0c90\u0c92-\u0ca8\u0caa-\u0cb3\u0cb5-\u0cb9\u0cbd\u0cde\u0ce0\u0ce1\u0cf1\u0cf2\u0d05-\u0d0c\u0d0e-\u0d10\u0d12-\u0d3a\u0d3d\u0d4e\u0d60\u0d61\u0d7a-\u0d7f\u0d85-\u0d96\u0d9a-\u0db1\u0db3-\u0dbb\u0dbd\u0dc0-\u0dc6\u0e01-\u0e30\u0e32\u0e33\u0e40-\u0e46\u0e81\u0e82\u0e84\u0e87\u0e88\u0e8a\u0e8d\u0e94-\u0e97\u0e99-\u0e9f\u0ea1-\u0ea3\u0ea5\u0ea7\u0eaa\u0eab\u0ead-\u0eb0\u0eb2\u0eb3\u0ebd\u0ec0-\u0ec4\u0ec6\u0edc-\u0edf\u0f00\u0f40-\u0f47\u0f49-\u0f6c\u0f88-\u0f8c\u1000-\u102a\u103f\u1050-\u1055\u105a-\u105d\u1061\u1065\u1066\u106e-\u1070\u1075-\u1081\u108e\u10a0-\u10c5\u10c7\u10cd\u10d0-\u10fa\u10fc-\u1248\u124a-\u124d\u1250-\u1256\u1258\u125a-\u125d\u1260-\u1288\u128a-\u128d\u1290-\u12b0\u12b2-\u12b5\u12b8-\u12be\u12c0\u12c2-\u12c5\u12c8-\u12d6\u12d8-\u1310\u1312-\u1315\u1318-\u135a\u1380-\u138f\u13a0-\u13f4\u1401-\u166c\u166f-\u167f\u1681-\u169a\u16a0-\u16ea\u16ee-\u16f0\u1700-\u170c\u170e-\u1711\u1720-\u1731\u1740-\u1751\u1760-\u176c\u176e-\u1770\u1780-\u17b3\u17d7\u17dc\u1820-\u1877\u1880-\u18a8\u18aa\u18b0-\u18f5\u1900-\u191c\u1950-\u196d\u1970-\u1974\u1980-\u19ab\u19c1-\u19c7\u1a00-\u1a16\u1a20-\u1a54\u1aa7\u1b05-\u1b33\u1b45-\u1b4b\u1b83-\u1ba0\u1bae\u1baf\u1bba-\u1be5\u1c00-\u1c23\u1c4d-\u1c4f\u1c5a-\u1c7d\u1ce9-\u1cec\u1cee-\u1cf1\u1cf5\u1cf6\u1d00-\u1dbf\u1e00-\u1f15\u1f18-\u1f1d\u1f20-\u1f45\u1f48-\u1f4d\u1f50-\u1f57\u1f59\u1f5b\u1f5d\u1f5f-\u1f7d\u1f80-\u1fb4\u1fb6-\u1fbc\u1fbe\u1fc2-\u1fc4\u1fc6-\u1fcc\u1fd0-\u1fd3\u1fd6-\u1fdb\u1fe0-\u1fec\u1ff2-\u1ff4\u1ff6-\u1ffc\u2071\u207f\u2090-\u209c\u2102\u2107\u210a-\u2113\u2115\u2119-\u211d\u2124\u2126\u2128\u212a-\u212d\u212f-\u2139\u213c-\u213f\u2145-\u2149\u214e\u2160-\u2188\u2c00-\u2c2e\u2c30-\u2c5e\u2c60-\u2ce4\u2ceb-\u2cee\u2cf2\u2cf3\u2d00-\u2d25\u2d27\u2d2d\u2d30-\u2d67\u2d6f\u2d80-\u2d96\u2da0-\u2da6\u2da8-\u2dae\u2db0-\u2db6\u2db8-\u2dbe\u2dc0-\u2dc6\u2dc8-\u2dce\u2dd0-\u2dd6\u2dd8-\u2dde\u2e2f\u3005-\u3007\u3021-\u3029\u3031-\u3035\u3038-\u303c\u3041-\u3096\u309d-\u309f\u30a1-\u30fa\u30fc-\u30ff\u3105-\u312d\u3131-\u318e\u31a0-\u31ba\u31f0-\u31ff\u3400-\u4db5\u4e00-\u9fcc\ua000-\ua48c\ua4d0-\ua4fd\ua500-\ua60c\ua610-\ua61f\ua62a\ua62b\ua640-\ua66e\ua67f-\ua697\ua6a0-\ua6ef\ua717-\ua71f\ua722-\ua788\ua78b-\ua78e\ua790-\ua793\ua7a0-\ua7aa\ua7f8-\ua801\ua803-\ua805\ua807-\ua80a\ua80c-\ua822\ua840-\ua873\ua882-\ua8b3\ua8f2-\ua8f7\ua8fb\ua90a-\ua925\ua930-\ua946\ua960-\ua97c\ua984-\ua9b2\ua9cf\uaa00-\uaa28\uaa40-\uaa42\uaa44-\uaa4b\uaa60-\uaa76\uaa7a\uaa80-\uaaaf\uaab1\uaab5\uaab6\uaab9-\uaabd\uaac0\uaac2\uaadb-\uaadd\uaae0-\uaaea\uaaf2-\uaaf4\uab01-\uab06\uab09-\uab0e\uab11-\uab16\uab20-\uab26\uab28-\uab2e\uabc0-\uabe2\uac00-\ud7a3\ud7b0-\ud7c6\ud7cb-\ud7fb\uf900-\ufa6d\ufa70-\ufad9\ufb00-\ufb06\ufb13-\ufb17\ufb1d\ufb1f-\ufb28\ufb2a-\ufb36\ufb38-\ufb3c\ufb3e\ufb40\ufb41\ufb43\ufb44\ufb46-\ufbb1\ufbd3-\ufd3d\ufd50-\ufd8f\ufd92-\ufdc7\ufdf0-\ufdfb\ufe70-\ufe74\ufe76-\ufefc\uff21-\uff3a\uff41-\uff5a\uff66-\uffbe\uffc2-\uffc7\uffca-\uffcf\uffd2-\uffd7\uffda-\uffdc0-9\u0300-\u036f\u0483-\u0487\u0591-\u05bd\u05bf\u05c1\u05c2\u05c4\u05c5\u05c7\u0610-\u061a\u064b-\u0669\u0670\u06d6-\u06dc\u06df-\u06e4\u06e7\u06e8\u06ea-\u06ed\u06f0-\u06f9\u0711\u0730-\u074a\u07a6-\u07b0\u07c0-\u07c9\u07eb-\u07f3\u0816-\u0819\u081b-\u0823\u0825-\u0827\u0829-\u082d\u0859-\u085b\u08e4-\u08fe\u0900-\u0903\u093a-\u093c\u093e-\u094f\u0951-\u0957\u0962\u0963\u0966-\u096f\u0981-\u0983\u09bc\u09be-\u09c4\u09c7\u09c8\u09cb-\u09cd\u09d7\u09e2\u09e3\u09e6-\u09ef\u0a01-\u0a03\u0a3c\u0a3e-\u0a42\u0a47\u0a48\u0a4b-\u0a4d\u0a51\u0a66-\u0a71\u0a75\u0a81-\u0a83\u0abc\u0abe-\u0ac5\u0ac7-\u0ac9\u0acb-\u0acd\u0ae2\u0ae3\u0ae6-\u0aef\u0b01-\u0b03\u0b3c\u0b3e-\u0b44\u0b47\u0b48\u0b4b-\u0b4d\u0b56\u0b57\u0b62\u0b63\u0b66-\u0b6f\u0b82\u0bbe-\u0bc2\u0bc6-\u0bc8\u0bca-\u0bcd\u0bd7\u0be6-\u0bef\u0c01-\u0c03\u0c3e-\u0c44\u0c46-\u0c48\u0c4a-\u0c4d\u0c55\u0c56\u0c62\u0c63\u0c66-\u0c6f\u0c82\u0c83\u0cbc\u0cbe-\u0cc4\u0cc6-\u0cc8\u0cca-\u0ccd\u0cd5\u0cd6\u0ce2\u0ce3\u0ce6-\u0cef\u0d02\u0d03\u0d3e-\u0d44\u0d46-\u0d48\u0d4a-\u0d4d\u0d57\u0d62\u0d63\u0d66-\u0d6f\u0d82\u0d83\u0dca\u0dcf-\u0dd4\u0dd6\u0dd8-\u0ddf\u0df2\u0df3\u0e31\u0e34-\u0e3a\u0e47-\u0e4e\u0e50-\u0e59\u0eb1\u0eb4-\u0eb9\u0ebb\u0ebc\u0ec8-\u0ecd\u0ed0-\u0ed9\u0f18\u0f19\u0f20-\u0f29\u0f35\u0f37\u0f39\u0f3e\u0f3f\u0f71-\u0f84\u0f86\u0f87\u0f8d-\u0f97\u0f99-\u0fbc\u0fc6\u102b-\u103e\u1040-\u1049\u1056-\u1059\u105e-\u1060\u1062-\u1064\u1067-\u106d\u1071-\u1074\u1082-\u108d\u108f-\u109d\u135d-\u135f\u1712-\u1714\u1732-\u1734\u1752\u1753\u1772\u1773\u17b4-\u17d3\u17dd\u17e0-\u17e9\u180b-\u180d\u1810-\u1819\u18a9\u1920-\u192b\u1930-\u193b\u1946-\u194f\u19b0-\u19c0\u19c8\u19c9\u19d0-\u19d9\u1a17-\u1a1b\u1a55-\u1a5e\u1a60-\u1a7c\u1a7f-\u1a89\u1a90-\u1a99\u1b00-\u1b04\u1b34-\u1b44\u1b50-\u1b59\u1b6b-\u1b73\u1b80-\u1b82\u1ba1-\u1bad\u1bb0-\u1bb9\u1be6-\u1bf3\u1c24-\u1c37\u1c40-\u1c49\u1c50-\u1c59\u1cd0-\u1cd2\u1cd4-\u1ce8\u1ced\u1cf2-\u1cf4\u1dc0-\u1de6\u1dfc-\u1dff\u200c\u200d\u203f\u2040\u2054\u20d0-\u20dc\u20e1\u20e5-\u20f0\u2cef-\u2cf1\u2d7f\u2de0-\u2dff\u302a-\u302f\u3099\u309a\ua620-\ua629\ua66f\ua674-\ua67d\ua69f\ua6f0\ua6f1\ua802\ua806\ua80b\ua823-\ua827\ua880\ua881\ua8b4-\ua8c4\ua8d0-\ua8d9\ua8e0-\ua8f1\ua900-\ua909\ua926-\ua92d\ua947-\ua953\ua980-\ua983\ua9b3-\ua9c0\ua9d0-\ua9d9\uaa29-\uaa36\uaa43\uaa4c\uaa4d\uaa50-\uaa59\uaa7b\uaab0\uaab2-\uaab4\uaab7\uaab8\uaabe\uaabf\uaac1\uaaeb-\uaaef\uaaf5\uaaf6\uabe3-\uabea\uabec\uabed\uabf0-\uabf9\ufb1e\ufe00-\ufe0f\ufe20-\ufe26\ufe33\ufe34\ufe4d-\ufe4f\uff10-\uff19\uff3f]*$/.test(str5);
+    function isProperty(str4) {
+      return /^[$A-Z\_a-z\xaa\xb5\xba\xc0-\xd6\xd8-\xf6\xf8-\u02c1\u02c6-\u02d1\u02e0-\u02e4\u02ec\u02ee\u0370-\u0374\u0376\u0377\u037a-\u037d\u0386\u0388-\u038a\u038c\u038e-\u03a1\u03a3-\u03f5\u03f7-\u0481\u048a-\u0527\u0531-\u0556\u0559\u0561-\u0587\u05d0-\u05ea\u05f0-\u05f2\u0620-\u064a\u066e\u066f\u0671-\u06d3\u06d5\u06e5\u06e6\u06ee\u06ef\u06fa-\u06fc\u06ff\u0710\u0712-\u072f\u074d-\u07a5\u07b1\u07ca-\u07ea\u07f4\u07f5\u07fa\u0800-\u0815\u081a\u0824\u0828\u0840-\u0858\u08a0\u08a2-\u08ac\u0904-\u0939\u093d\u0950\u0958-\u0961\u0971-\u0977\u0979-\u097f\u0985-\u098c\u098f\u0990\u0993-\u09a8\u09aa-\u09b0\u09b2\u09b6-\u09b9\u09bd\u09ce\u09dc\u09dd\u09df-\u09e1\u09f0\u09f1\u0a05-\u0a0a\u0a0f\u0a10\u0a13-\u0a28\u0a2a-\u0a30\u0a32\u0a33\u0a35\u0a36\u0a38\u0a39\u0a59-\u0a5c\u0a5e\u0a72-\u0a74\u0a85-\u0a8d\u0a8f-\u0a91\u0a93-\u0aa8\u0aaa-\u0ab0\u0ab2\u0ab3\u0ab5-\u0ab9\u0abd\u0ad0\u0ae0\u0ae1\u0b05-\u0b0c\u0b0f\u0b10\u0b13-\u0b28\u0b2a-\u0b30\u0b32\u0b33\u0b35-\u0b39\u0b3d\u0b5c\u0b5d\u0b5f-\u0b61\u0b71\u0b83\u0b85-\u0b8a\u0b8e-\u0b90\u0b92-\u0b95\u0b99\u0b9a\u0b9c\u0b9e\u0b9f\u0ba3\u0ba4\u0ba8-\u0baa\u0bae-\u0bb9\u0bd0\u0c05-\u0c0c\u0c0e-\u0c10\u0c12-\u0c28\u0c2a-\u0c33\u0c35-\u0c39\u0c3d\u0c58\u0c59\u0c60\u0c61\u0c85-\u0c8c\u0c8e-\u0c90\u0c92-\u0ca8\u0caa-\u0cb3\u0cb5-\u0cb9\u0cbd\u0cde\u0ce0\u0ce1\u0cf1\u0cf2\u0d05-\u0d0c\u0d0e-\u0d10\u0d12-\u0d3a\u0d3d\u0d4e\u0d60\u0d61\u0d7a-\u0d7f\u0d85-\u0d96\u0d9a-\u0db1\u0db3-\u0dbb\u0dbd\u0dc0-\u0dc6\u0e01-\u0e30\u0e32\u0e33\u0e40-\u0e46\u0e81\u0e82\u0e84\u0e87\u0e88\u0e8a\u0e8d\u0e94-\u0e97\u0e99-\u0e9f\u0ea1-\u0ea3\u0ea5\u0ea7\u0eaa\u0eab\u0ead-\u0eb0\u0eb2\u0eb3\u0ebd\u0ec0-\u0ec4\u0ec6\u0edc-\u0edf\u0f00\u0f40-\u0f47\u0f49-\u0f6c\u0f88-\u0f8c\u1000-\u102a\u103f\u1050-\u1055\u105a-\u105d\u1061\u1065\u1066\u106e-\u1070\u1075-\u1081\u108e\u10a0-\u10c5\u10c7\u10cd\u10d0-\u10fa\u10fc-\u1248\u124a-\u124d\u1250-\u1256\u1258\u125a-\u125d\u1260-\u1288\u128a-\u128d\u1290-\u12b0\u12b2-\u12b5\u12b8-\u12be\u12c0\u12c2-\u12c5\u12c8-\u12d6\u12d8-\u1310\u1312-\u1315\u1318-\u135a\u1380-\u138f\u13a0-\u13f4\u1401-\u166c\u166f-\u167f\u1681-\u169a\u16a0-\u16ea\u16ee-\u16f0\u1700-\u170c\u170e-\u1711\u1720-\u1731\u1740-\u1751\u1760-\u176c\u176e-\u1770\u1780-\u17b3\u17d7\u17dc\u1820-\u1877\u1880-\u18a8\u18aa\u18b0-\u18f5\u1900-\u191c\u1950-\u196d\u1970-\u1974\u1980-\u19ab\u19c1-\u19c7\u1a00-\u1a16\u1a20-\u1a54\u1aa7\u1b05-\u1b33\u1b45-\u1b4b\u1b83-\u1ba0\u1bae\u1baf\u1bba-\u1be5\u1c00-\u1c23\u1c4d-\u1c4f\u1c5a-\u1c7d\u1ce9-\u1cec\u1cee-\u1cf1\u1cf5\u1cf6\u1d00-\u1dbf\u1e00-\u1f15\u1f18-\u1f1d\u1f20-\u1f45\u1f48-\u1f4d\u1f50-\u1f57\u1f59\u1f5b\u1f5d\u1f5f-\u1f7d\u1f80-\u1fb4\u1fb6-\u1fbc\u1fbe\u1fc2-\u1fc4\u1fc6-\u1fcc\u1fd0-\u1fd3\u1fd6-\u1fdb\u1fe0-\u1fec\u1ff2-\u1ff4\u1ff6-\u1ffc\u2071\u207f\u2090-\u209c\u2102\u2107\u210a-\u2113\u2115\u2119-\u211d\u2124\u2126\u2128\u212a-\u212d\u212f-\u2139\u213c-\u213f\u2145-\u2149\u214e\u2160-\u2188\u2c00-\u2c2e\u2c30-\u2c5e\u2c60-\u2ce4\u2ceb-\u2cee\u2cf2\u2cf3\u2d00-\u2d25\u2d27\u2d2d\u2d30-\u2d67\u2d6f\u2d80-\u2d96\u2da0-\u2da6\u2da8-\u2dae\u2db0-\u2db6\u2db8-\u2dbe\u2dc0-\u2dc6\u2dc8-\u2dce\u2dd0-\u2dd6\u2dd8-\u2dde\u2e2f\u3005-\u3007\u3021-\u3029\u3031-\u3035\u3038-\u303c\u3041-\u3096\u309d-\u309f\u30a1-\u30fa\u30fc-\u30ff\u3105-\u312d\u3131-\u318e\u31a0-\u31ba\u31f0-\u31ff\u3400-\u4db5\u4e00-\u9fcc\ua000-\ua48c\ua4d0-\ua4fd\ua500-\ua60c\ua610-\ua61f\ua62a\ua62b\ua640-\ua66e\ua67f-\ua697\ua6a0-\ua6ef\ua717-\ua71f\ua722-\ua788\ua78b-\ua78e\ua790-\ua793\ua7a0-\ua7aa\ua7f8-\ua801\ua803-\ua805\ua807-\ua80a\ua80c-\ua822\ua840-\ua873\ua882-\ua8b3\ua8f2-\ua8f7\ua8fb\ua90a-\ua925\ua930-\ua946\ua960-\ua97c\ua984-\ua9b2\ua9cf\uaa00-\uaa28\uaa40-\uaa42\uaa44-\uaa4b\uaa60-\uaa76\uaa7a\uaa80-\uaaaf\uaab1\uaab5\uaab6\uaab9-\uaabd\uaac0\uaac2\uaadb-\uaadd\uaae0-\uaaea\uaaf2-\uaaf4\uab01-\uab06\uab09-\uab0e\uab11-\uab16\uab20-\uab26\uab28-\uab2e\uabc0-\uabe2\uac00-\ud7a3\ud7b0-\ud7c6\ud7cb-\ud7fb\uf900-\ufa6d\ufa70-\ufad9\ufb00-\ufb06\ufb13-\ufb17\ufb1d\ufb1f-\ufb28\ufb2a-\ufb36\ufb38-\ufb3c\ufb3e\ufb40\ufb41\ufb43\ufb44\ufb46-\ufbb1\ufbd3-\ufd3d\ufd50-\ufd8f\ufd92-\ufdc7\ufdf0-\ufdfb\ufe70-\ufe74\ufe76-\ufefc\uff21-\uff3a\uff41-\uff5a\uff66-\uffbe\uffc2-\uffc7\uffca-\uffcf\uffd2-\uffd7\uffda-\uffdc][$A-Z\_a-z\xaa\xb5\xba\xc0-\xd6\xd8-\xf6\xf8-\u02c1\u02c6-\u02d1\u02e0-\u02e4\u02ec\u02ee\u0370-\u0374\u0376\u0377\u037a-\u037d\u0386\u0388-\u038a\u038c\u038e-\u03a1\u03a3-\u03f5\u03f7-\u0481\u048a-\u0527\u0531-\u0556\u0559\u0561-\u0587\u05d0-\u05ea\u05f0-\u05f2\u0620-\u064a\u066e\u066f\u0671-\u06d3\u06d5\u06e5\u06e6\u06ee\u06ef\u06fa-\u06fc\u06ff\u0710\u0712-\u072f\u074d-\u07a5\u07b1\u07ca-\u07ea\u07f4\u07f5\u07fa\u0800-\u0815\u081a\u0824\u0828\u0840-\u0858\u08a0\u08a2-\u08ac\u0904-\u0939\u093d\u0950\u0958-\u0961\u0971-\u0977\u0979-\u097f\u0985-\u098c\u098f\u0990\u0993-\u09a8\u09aa-\u09b0\u09b2\u09b6-\u09b9\u09bd\u09ce\u09dc\u09dd\u09df-\u09e1\u09f0\u09f1\u0a05-\u0a0a\u0a0f\u0a10\u0a13-\u0a28\u0a2a-\u0a30\u0a32\u0a33\u0a35\u0a36\u0a38\u0a39\u0a59-\u0a5c\u0a5e\u0a72-\u0a74\u0a85-\u0a8d\u0a8f-\u0a91\u0a93-\u0aa8\u0aaa-\u0ab0\u0ab2\u0ab3\u0ab5-\u0ab9\u0abd\u0ad0\u0ae0\u0ae1\u0b05-\u0b0c\u0b0f\u0b10\u0b13-\u0b28\u0b2a-\u0b30\u0b32\u0b33\u0b35-\u0b39\u0b3d\u0b5c\u0b5d\u0b5f-\u0b61\u0b71\u0b83\u0b85-\u0b8a\u0b8e-\u0b90\u0b92-\u0b95\u0b99\u0b9a\u0b9c\u0b9e\u0b9f\u0ba3\u0ba4\u0ba8-\u0baa\u0bae-\u0bb9\u0bd0\u0c05-\u0c0c\u0c0e-\u0c10\u0c12-\u0c28\u0c2a-\u0c33\u0c35-\u0c39\u0c3d\u0c58\u0c59\u0c60\u0c61\u0c85-\u0c8c\u0c8e-\u0c90\u0c92-\u0ca8\u0caa-\u0cb3\u0cb5-\u0cb9\u0cbd\u0cde\u0ce0\u0ce1\u0cf1\u0cf2\u0d05-\u0d0c\u0d0e-\u0d10\u0d12-\u0d3a\u0d3d\u0d4e\u0d60\u0d61\u0d7a-\u0d7f\u0d85-\u0d96\u0d9a-\u0db1\u0db3-\u0dbb\u0dbd\u0dc0-\u0dc6\u0e01-\u0e30\u0e32\u0e33\u0e40-\u0e46\u0e81\u0e82\u0e84\u0e87\u0e88\u0e8a\u0e8d\u0e94-\u0e97\u0e99-\u0e9f\u0ea1-\u0ea3\u0ea5\u0ea7\u0eaa\u0eab\u0ead-\u0eb0\u0eb2\u0eb3\u0ebd\u0ec0-\u0ec4\u0ec6\u0edc-\u0edf\u0f00\u0f40-\u0f47\u0f49-\u0f6c\u0f88-\u0f8c\u1000-\u102a\u103f\u1050-\u1055\u105a-\u105d\u1061\u1065\u1066\u106e-\u1070\u1075-\u1081\u108e\u10a0-\u10c5\u10c7\u10cd\u10d0-\u10fa\u10fc-\u1248\u124a-\u124d\u1250-\u1256\u1258\u125a-\u125d\u1260-\u1288\u128a-\u128d\u1290-\u12b0\u12b2-\u12b5\u12b8-\u12be\u12c0\u12c2-\u12c5\u12c8-\u12d6\u12d8-\u1310\u1312-\u1315\u1318-\u135a\u1380-\u138f\u13a0-\u13f4\u1401-\u166c\u166f-\u167f\u1681-\u169a\u16a0-\u16ea\u16ee-\u16f0\u1700-\u170c\u170e-\u1711\u1720-\u1731\u1740-\u1751\u1760-\u176c\u176e-\u1770\u1780-\u17b3\u17d7\u17dc\u1820-\u1877\u1880-\u18a8\u18aa\u18b0-\u18f5\u1900-\u191c\u1950-\u196d\u1970-\u1974\u1980-\u19ab\u19c1-\u19c7\u1a00-\u1a16\u1a20-\u1a54\u1aa7\u1b05-\u1b33\u1b45-\u1b4b\u1b83-\u1ba0\u1bae\u1baf\u1bba-\u1be5\u1c00-\u1c23\u1c4d-\u1c4f\u1c5a-\u1c7d\u1ce9-\u1cec\u1cee-\u1cf1\u1cf5\u1cf6\u1d00-\u1dbf\u1e00-\u1f15\u1f18-\u1f1d\u1f20-\u1f45\u1f48-\u1f4d\u1f50-\u1f57\u1f59\u1f5b\u1f5d\u1f5f-\u1f7d\u1f80-\u1fb4\u1fb6-\u1fbc\u1fbe\u1fc2-\u1fc4\u1fc6-\u1fcc\u1fd0-\u1fd3\u1fd6-\u1fdb\u1fe0-\u1fec\u1ff2-\u1ff4\u1ff6-\u1ffc\u2071\u207f\u2090-\u209c\u2102\u2107\u210a-\u2113\u2115\u2119-\u211d\u2124\u2126\u2128\u212a-\u212d\u212f-\u2139\u213c-\u213f\u2145-\u2149\u214e\u2160-\u2188\u2c00-\u2c2e\u2c30-\u2c5e\u2c60-\u2ce4\u2ceb-\u2cee\u2cf2\u2cf3\u2d00-\u2d25\u2d27\u2d2d\u2d30-\u2d67\u2d6f\u2d80-\u2d96\u2da0-\u2da6\u2da8-\u2dae\u2db0-\u2db6\u2db8-\u2dbe\u2dc0-\u2dc6\u2dc8-\u2dce\u2dd0-\u2dd6\u2dd8-\u2dde\u2e2f\u3005-\u3007\u3021-\u3029\u3031-\u3035\u3038-\u303c\u3041-\u3096\u309d-\u309f\u30a1-\u30fa\u30fc-\u30ff\u3105-\u312d\u3131-\u318e\u31a0-\u31ba\u31f0-\u31ff\u3400-\u4db5\u4e00-\u9fcc\ua000-\ua48c\ua4d0-\ua4fd\ua500-\ua60c\ua610-\ua61f\ua62a\ua62b\ua640-\ua66e\ua67f-\ua697\ua6a0-\ua6ef\ua717-\ua71f\ua722-\ua788\ua78b-\ua78e\ua790-\ua793\ua7a0-\ua7aa\ua7f8-\ua801\ua803-\ua805\ua807-\ua80a\ua80c-\ua822\ua840-\ua873\ua882-\ua8b3\ua8f2-\ua8f7\ua8fb\ua90a-\ua925\ua930-\ua946\ua960-\ua97c\ua984-\ua9b2\ua9cf\uaa00-\uaa28\uaa40-\uaa42\uaa44-\uaa4b\uaa60-\uaa76\uaa7a\uaa80-\uaaaf\uaab1\uaab5\uaab6\uaab9-\uaabd\uaac0\uaac2\uaadb-\uaadd\uaae0-\uaaea\uaaf2-\uaaf4\uab01-\uab06\uab09-\uab0e\uab11-\uab16\uab20-\uab26\uab28-\uab2e\uabc0-\uabe2\uac00-\ud7a3\ud7b0-\ud7c6\ud7cb-\ud7fb\uf900-\ufa6d\ufa70-\ufad9\ufb00-\ufb06\ufb13-\ufb17\ufb1d\ufb1f-\ufb28\ufb2a-\ufb36\ufb38-\ufb3c\ufb3e\ufb40\ufb41\ufb43\ufb44\ufb46-\ufbb1\ufbd3-\ufd3d\ufd50-\ufd8f\ufd92-\ufdc7\ufdf0-\ufdfb\ufe70-\ufe74\ufe76-\ufefc\uff21-\uff3a\uff41-\uff5a\uff66-\uffbe\uffc2-\uffc7\uffca-\uffcf\uffd2-\uffd7\uffda-\uffdc0-9\u0300-\u036f\u0483-\u0487\u0591-\u05bd\u05bf\u05c1\u05c2\u05c4\u05c5\u05c7\u0610-\u061a\u064b-\u0669\u0670\u06d6-\u06dc\u06df-\u06e4\u06e7\u06e8\u06ea-\u06ed\u06f0-\u06f9\u0711\u0730-\u074a\u07a6-\u07b0\u07c0-\u07c9\u07eb-\u07f3\u0816-\u0819\u081b-\u0823\u0825-\u0827\u0829-\u082d\u0859-\u085b\u08e4-\u08fe\u0900-\u0903\u093a-\u093c\u093e-\u094f\u0951-\u0957\u0962\u0963\u0966-\u096f\u0981-\u0983\u09bc\u09be-\u09c4\u09c7\u09c8\u09cb-\u09cd\u09d7\u09e2\u09e3\u09e6-\u09ef\u0a01-\u0a03\u0a3c\u0a3e-\u0a42\u0a47\u0a48\u0a4b-\u0a4d\u0a51\u0a66-\u0a71\u0a75\u0a81-\u0a83\u0abc\u0abe-\u0ac5\u0ac7-\u0ac9\u0acb-\u0acd\u0ae2\u0ae3\u0ae6-\u0aef\u0b01-\u0b03\u0b3c\u0b3e-\u0b44\u0b47\u0b48\u0b4b-\u0b4d\u0b56\u0b57\u0b62\u0b63\u0b66-\u0b6f\u0b82\u0bbe-\u0bc2\u0bc6-\u0bc8\u0bca-\u0bcd\u0bd7\u0be6-\u0bef\u0c01-\u0c03\u0c3e-\u0c44\u0c46-\u0c48\u0c4a-\u0c4d\u0c55\u0c56\u0c62\u0c63\u0c66-\u0c6f\u0c82\u0c83\u0cbc\u0cbe-\u0cc4\u0cc6-\u0cc8\u0cca-\u0ccd\u0cd5\u0cd6\u0ce2\u0ce3\u0ce6-\u0cef\u0d02\u0d03\u0d3e-\u0d44\u0d46-\u0d48\u0d4a-\u0d4d\u0d57\u0d62\u0d63\u0d66-\u0d6f\u0d82\u0d83\u0dca\u0dcf-\u0dd4\u0dd6\u0dd8-\u0ddf\u0df2\u0df3\u0e31\u0e34-\u0e3a\u0e47-\u0e4e\u0e50-\u0e59\u0eb1\u0eb4-\u0eb9\u0ebb\u0ebc\u0ec8-\u0ecd\u0ed0-\u0ed9\u0f18\u0f19\u0f20-\u0f29\u0f35\u0f37\u0f39\u0f3e\u0f3f\u0f71-\u0f84\u0f86\u0f87\u0f8d-\u0f97\u0f99-\u0fbc\u0fc6\u102b-\u103e\u1040-\u1049\u1056-\u1059\u105e-\u1060\u1062-\u1064\u1067-\u106d\u1071-\u1074\u1082-\u108d\u108f-\u109d\u135d-\u135f\u1712-\u1714\u1732-\u1734\u1752\u1753\u1772\u1773\u17b4-\u17d3\u17dd\u17e0-\u17e9\u180b-\u180d\u1810-\u1819\u18a9\u1920-\u192b\u1930-\u193b\u1946-\u194f\u19b0-\u19c0\u19c8\u19c9\u19d0-\u19d9\u1a17-\u1a1b\u1a55-\u1a5e\u1a60-\u1a7c\u1a7f-\u1a89\u1a90-\u1a99\u1b00-\u1b04\u1b34-\u1b44\u1b50-\u1b59\u1b6b-\u1b73\u1b80-\u1b82\u1ba1-\u1bad\u1bb0-\u1bb9\u1be6-\u1bf3\u1c24-\u1c37\u1c40-\u1c49\u1c50-\u1c59\u1cd0-\u1cd2\u1cd4-\u1ce8\u1ced\u1cf2-\u1cf4\u1dc0-\u1de6\u1dfc-\u1dff\u200c\u200d\u203f\u2040\u2054\u20d0-\u20dc\u20e1\u20e5-\u20f0\u2cef-\u2cf1\u2d7f\u2de0-\u2dff\u302a-\u302f\u3099\u309a\ua620-\ua629\ua66f\ua674-\ua67d\ua69f\ua6f0\ua6f1\ua802\ua806\ua80b\ua823-\ua827\ua880\ua881\ua8b4-\ua8c4\ua8d0-\ua8d9\ua8e0-\ua8f1\ua900-\ua909\ua926-\ua92d\ua947-\ua953\ua980-\ua983\ua9b3-\ua9c0\ua9d0-\ua9d9\uaa29-\uaa36\uaa43\uaa4c\uaa4d\uaa50-\uaa59\uaa7b\uaab0\uaab2-\uaab4\uaab7\uaab8\uaabe\uaabf\uaac1\uaaeb-\uaaef\uaaf5\uaaf6\uabe3-\uabea\uabec\uabed\uabf0-\uabf9\ufb1e\ufe00-\ufe0f\ufe20-\ufe26\ufe33\ufe34\ufe4d-\ufe4f\uff10-\uff19\uff3f]*$/.test(str4);
     }
     module.exports = isProperty;
   }
@@ -24219,31 +24219,31 @@ var require_generate_function = __commonJS({
     };
     var genfun = function() {
       var lines = [];
-      var indent2 = 0;
+      var indent = 0;
       var vars = {};
-      var push2 = function(str5) {
+      var push = function(str4) {
         var spaces2 = "";
-        while (spaces2.length < indent2 * 2) spaces2 += "  ";
-        lines.push(spaces2 + str5);
+        while (spaces2.length < indent * 2) spaces2 += "  ";
+        lines.push(spaces2 + str4);
       };
       var pushLine = function(line2) {
         if (INDENT_END.test(line2.trim()[0]) && INDENT_START.test(line2[line2.length - 1])) {
-          indent2--;
-          push2(line2);
-          indent2++;
+          indent--;
+          push(line2);
+          indent++;
           return;
         }
         if (INDENT_START.test(line2[line2.length - 1])) {
-          push2(line2);
-          indent2++;
+          push(line2);
+          indent++;
           return;
         }
         if (INDENT_END.test(line2.trim()[0])) {
-          indent2--;
-          push2(line2);
+          indent--;
+          push(line2);
           return;
         }
-        push2(line2);
+        push(line2);
       };
       var line = function(fmt) {
         if (!fmt) return line;
@@ -26217,7 +26217,7 @@ var require_named_placeholders = __commonJS({
     var DQUOTE = 34;
     var SQUOTE = 39;
     var BSLASH = 92;
-    function parse8(query2) {
+    function parse7(query2) {
       let ppos = RE_PARAM.exec(query2);
       let curpos = 0;
       let start2 = 0;
@@ -26332,17 +26332,17 @@ var require_named_placeholders = __commonJS({
         if (cache2 && (tree = cache2.get(query2))) {
           return toArrayParams(tree, paramsObj);
         }
-        tree = join20(parse8(query2));
+        tree = join20(parse7(query2));
         if (cache2) {
           cache2.set(query2, tree);
         }
         return toArrayParams(tree, paramsObj);
       }
-      compile2.parse = parse8;
+      compile2.parse = parse7;
       return compile2;
     }
     function toNumbered(q, params2) {
-      const tree = parse8(q);
+      const tree = parse7(q);
       const paramsArr = [];
       if (tree.length === 1) {
         return [tree[0], paramsArr];
@@ -26525,9 +26525,9 @@ var require_connection = __commonJS({
               connectChannel,
               () => new Promise((resolve10, reject) => {
                 let onConnect, onError;
-                onConnect = (param2) => {
+                onConnect = (param) => {
                   this.removeListener("error", onError);
-                  resolve10(param2);
+                  resolve10(param);
                 };
                 onError = (err) => {
                   this.removeListener("connect", onConnect);
@@ -27250,13 +27250,13 @@ var require_connection = __commonJS({
           return cb(null, this);
         }
         let onError, onConnect;
-        onError = (param2) => {
+        onError = (param) => {
           this.removeListener("connect", onConnect);
-          cb(param2);
+          cb(param);
         };
-        onConnect = (param2) => {
+        onConnect = (param) => {
           this.removeListener("error", onError);
-          cb(null, param2);
+          cb(null, param);
         };
         this.once("error", onError);
         this.once("connect", onConnect);
@@ -27600,12 +27600,12 @@ var require_connection2 = __commonJS({
         const c = this.connection;
         const stackHolder = c.config.trace ? captureStackHolder(_PromiseConnection.prototype.connect) : void 0;
         return new this.Promise((resolve10, reject) => {
-          c.connect((err, param2) => {
+          c.connect((err, param) => {
             if (err) {
               applyCapturedStack(err, stackHolder);
               reject(err);
             } else {
-              resolve10(param2);
+              resolve10(param);
             }
           });
         });
@@ -29600,10 +29600,10 @@ var require_types3 = __commonJS({
         this._convertToTypedArrays();
       }
       // parse a string input into a sparse vector
-      _fromString(str5) {
+      _fromString(str4) {
         let data;
         try {
-          data = JSON.parse(str5);
+          data = JSON.parse(str4);
         } catch {
           errors.throwErr(errors.ERR_VECTOR_SPARSE_INVALID_JSON);
         }
@@ -36664,17 +36664,17 @@ var require_parser = __commonJS({
     function enquoteLiteral(value2) {
       return `'${value2.replace(/'/g, "''")}'`;
     }
-    function readChar(str5, index2) {
-      if (index2 >= str5.length) {
+    function readChar(str4, index2) {
+      if (index2 >= str4.length) {
         return;
       }
-      const cp = str5.codePointAt(index2);
+      const cp = str4.codePointAt(index2);
       const ch = String.fromCodePoint(cp);
       return { ch, size: ch.length };
     }
-    function skipSpaces(str5, index2) {
-      while (index2 < str5.length) {
-        const next = readChar(str5, index2);
+    function skipSpaces(str4, index2) {
+      while (index2 < str4.length) {
+        const next = readChar(str4, index2);
         if (!isWhitespace(next.ch)) {
           break;
         }
@@ -36682,11 +36682,11 @@ var require_parser = __commonJS({
       }
       return index2;
     }
-    function parseQuotedSimpleSqlName(str5, index2) {
+    function parseQuotedSimpleSqlName(str4, index2) {
       index2 += 1;
       let hasContent = false;
-      while (index2 < str5.length) {
-        const cur = readChar(str5, index2);
+      while (index2 < str4.length) {
+        const cur = readChar(str4, index2);
         if (cur.ch === '"') {
           return hasContent ? index2 + cur.size : void 0;
         }
@@ -36697,14 +36697,14 @@ var require_parser = __commonJS({
         index2 += cur.size;
       }
     }
-    function parseUnquotedSimpleSqlName(str5, index2) {
-      const first = readChar(str5, index2);
+    function parseUnquotedSimpleSqlName(str4, index2) {
+      const first = readChar(str4, index2);
       if (!first || !isUnicodeLetter(first.ch)) {
         return;
       }
       index2 += first.size;
-      while (index2 < str5.length) {
-        const cur = readChar(str5, index2);
+      while (index2 < str4.length) {
+        const cur = readChar(str4, index2);
         if (!isUnquotedIdentifierChar(cur.ch)) {
           break;
         }
@@ -36712,26 +36712,26 @@ var require_parser = __commonJS({
       }
       return index2;
     }
-    function parseSimpleSqlName(str5, index2) {
-      const cur = readChar(str5, index2);
+    function parseSimpleSqlName(str4, index2) {
+      const cur = readChar(str4, index2);
       if (!cur) {
         return;
       }
-      return cur.ch === '"' ? parseQuotedSimpleSqlName(str5, index2) : parseUnquotedSimpleSqlName(str5, index2);
+      return cur.ch === '"' ? parseQuotedSimpleSqlName(str4, index2) : parseUnquotedSimpleSqlName(str4, index2);
     }
-    function parseQualifiedSqlName(str5, index2) {
+    function parseQualifiedSqlName(str4, index2) {
       let foundDbLink = false;
       while (true) {
-        const parsedIndex = parseSimpleSqlName(str5, index2);
+        const parsedIndex = parseSimpleSqlName(str4, index2);
         if (parsedIndex === void 0) {
           return;
         }
-        index2 = skipSpaces(str5, parsedIndex);
-        if (index2 === str5.length) {
+        index2 = skipSpaces(str4, parsedIndex);
+        if (index2 === str4.length) {
           return index2;
         }
-        const separator = readChar(str5, index2);
-        index2 = skipSpaces(str5, index2 + separator.size);
+        const separator = readChar(str4, index2);
+        index2 = skipSpaces(str4, index2 + separator.size);
         if (!foundDbLink && separator.ch === "@") {
           foundDbLink = true;
         } else if (separator.ch !== ".") {
@@ -36799,11 +36799,11 @@ var require_nvStrToNvPair = __commonJS({
         * @param {string} str - input string
         * @returns {boolean}
         */
-      _containsComment(str5) {
-        for (let i = 0; i < str5.length; i++) {
-          if (str5.charAt(i) == "#") {
+      _containsComment(str4) {
+        for (let i = 0; i < str4.length; i++) {
+          if (str4.charAt(i) == "#") {
             if (i != 0) {
-              if (str5.charAt(i - 1) == "\\")
+              if (str4.charAt(i - 1) == "\\")
                 continue;
               else
                 return true;
@@ -37251,9 +37251,9 @@ var require_nvStrToNvPair = __commonJS({
         if (!(tk == TKN_LPAREN || tk == TKN_COMMA)) {
           return;
         }
-        const child2 = readNVPair(nvt, depth + 1, maxDepth);
-        parent.addListElement(child2);
-        if (tk == TKN_COMMA || child2.name == child2.atom) {
+        const child = readNVPair(nvt, depth + 1, maxDepth);
+        parent.addListElement(child);
+        if (tk == TKN_COMMA || child.name == child.atom) {
           if (parent.getListType != LIST_COMMASEP)
             parent.setListType = LIST_COMMASEP;
         }
@@ -37268,9 +37268,9 @@ var require_nvStrToNvPair = __commonJS({
       if (nvp.getRHSType == RHS_ATOM)
         return null;
       for (let i = 0; i < nvp.getListSize(); i++) {
-        const child2 = findNVPairRecurse(nvp.getListElement(i), name3);
-        if (child2 !== null)
-          return child2;
+        const child = findNVPairRecurse(nvp.getListElement(i), name3);
+        if (child !== null)
+          return child;
       }
       return null;
     }
@@ -37281,9 +37281,9 @@ var require_nvStrToNvPair = __commonJS({
       if (nvp.getRHSType == RHS_ATOM)
         return null;
       for (let i = 0; i < nvp.getListSize(); i++) {
-        const child2 = nvp.getListElement(i);
-        if (name3.toUpperCase() == child2.name.toUpperCase())
-          return child2;
+        const child = nvp.getListElement(i);
+        if (name3.toUpperCase() == child.name.toUpperCase())
+          return child;
       }
       return null;
     }
@@ -37830,10 +37830,10 @@ var require_paramParser = __commonJS({
        * @param  str     The String that is going to be tested for inline comments
        * @return String  The modified String returned
        */
-      checkNLPforComments(str5) {
-        const str1 = new Array(str5.length);
-        for (let i = 0; i < str5.length; i++) {
-          const current_char = str5[i];
+      checkNLPforComments(str4) {
+        const str1 = new Array(str4.length);
+        for (let i = 0; i < str4.length; i++) {
+          const current_char = str4[i];
           if (current_char == "#") {
             if (i != 0) {
               break;
@@ -37982,15 +37982,15 @@ var require_parserHelpers = __commonJS({
       let lookup2 = childLookupCache.get(parent);
       if (!lookup2) {
         lookup2 = /* @__PURE__ */ Object.create(null);
-        for (const child2 of parent.list) {
-          const key6 = getUpperName(child2);
+        for (const child of parent.list) {
+          const key6 = getUpperName(child);
           if (!key6) {
             continue;
           }
           if (lookup2[key6]) {
-            lookup2[key6].push(child2);
+            lookup2[key6].push(child);
           } else {
-            lookup2[key6] = [child2];
+            lookup2[key6] = [child];
           }
         }
         childLookupCache.set(parent, lookup2);
@@ -38124,9 +38124,9 @@ var require_parserHelpers = __commonJS({
           let node3 = description3;
           let existing = false;
           for (let k = 1; k < section.length; k++) {
-            const child2 = findFirstChild(node3, section[k]);
-            if (!child2) break;
-            node3 = child2;
+            const child = findFirstChild(node3, section[k]);
+            if (!child) break;
+            node3 = child;
             if (k === section.length - 1) existing = true;
           }
           if (!existing) {
@@ -39179,26 +39179,26 @@ var require_dbObject2 = __commonJS({
       //
       // Returns the value of the given attribute on the object.
       //---------------------------------------------------------------------------
-      _getAttrValue(attr2) {
-        const value2 = this._impl.getAttrValue(attr2);
-        return this._transformValueOut(value2, attr2.typeClass, attr2);
+      _getAttrValue(attr) {
+        const value2 = this._impl.getAttrValue(attr);
+        return this._transformValueOut(value2, attr.typeClass, attr);
       }
       //---------------------------------------------------------------------------
       // _setAttrValue()
       //
       // Sets the value of the attribute on the object to the given value.
       //---------------------------------------------------------------------------
-      _setAttrValue(attr2, value2) {
+      _setAttrValue(attr, value2) {
         const info = {
           fqn: this._objType.fqn,
-          attrName: attr2.name,
-          type: attr2.type,
-          typeClass: attr2.typeClass
+          attrName: attr.name,
+          type: attr.type,
+          typeClass: attr.typeClass
         };
         const options2 = { allowArray: false };
         value2 = transformer.transformValueIn(info, value2, options2);
-        validatePropertyValue(this._objType, attr2, value2);
-        this._impl.setAttrValue(attr2, value2);
+        validatePropertyValue(this._objType, attr, value2);
+        this._impl.setAttrValue(attr, value2);
       }
       //---------------------------------------------------------------------------
       // _toPojo()
@@ -39284,23 +39284,23 @@ var require_dbObject2 = __commonJS({
           const attrs = {};
           for (let i = 0; i < implAttrs.length; i++) {
             const implAttr = implAttrs[i];
-            const attr2 = {
+            const attr = {
               type: implAttr.type,
               typeName: implAttr.typeName
             };
             if (implAttr.typeClass) {
-              attr2.typeClass = implAttr.typeClass;
+              attr.typeClass = implAttr.typeClass;
             }
             if (implAttr.precision != null) {
-              attr2.precision = implAttr.precision;
+              attr.precision = implAttr.precision;
             }
             if (implAttr.scale != null) {
-              attr2.scale = implAttr.scale;
+              attr.scale = implAttr.scale;
             }
             if (implAttr.maxSize != null) {
-              attr2.maxSize = implAttr.maxSize;
+              attr.maxSize = implAttr.maxSize;
             }
-            attrs[implAttr.name] = attr2;
+            attrs[implAttr.name] = attr;
           }
           this._attributes = attrs;
         }
@@ -40841,10 +40841,10 @@ var require_connection5 = __commonJS({
             }
             return proxy;
           } else if (initialValue !== void 0) {
-            for (const attr2 of objType.attributes) {
-              const value2 = initialValue[attr2.name];
+            for (const attr of objType.attributes) {
+              const value2 = initialValue[attr.name];
               if (value2 !== void 0) {
-                this._setAttrValue(attr2, value2);
+                this._setAttrValue(attr, value2);
               }
             }
           }
@@ -40864,21 +40864,21 @@ var require_connection5 = __commonJS({
         }
         if (objType.attributes) {
           const props = {};
-          for (const attr2 of objType.attributes) {
-            if (attr2.typeClass) {
-              attr2.typeClass = this._getDbObjectClass(attr2.typeClass);
+          for (const attr of objType.attributes) {
+            if (attr.typeClass) {
+              attr.typeClass = this._getDbObjectClass(attr.typeClass);
             }
-            nodbUtil.addTypeProperties(attr2, "type");
+            nodbUtil.addTypeProperties(attr, "type");
             const prop = {
               get() {
-                return this._getAttrValue(attr2);
+                return this._getAttrValue(attr);
               },
               set(value2) {
-                this._setAttrValue(attr2, value2);
+                this._setAttrValue(attr, value2);
               }
             };
-            props[attr2.name] = prop;
-            _determineDbObjTypeConverter(attr2, options2);
+            props[attr.name] = prop;
+            _determineDbObjTypeConverter(attr, options2);
           }
           Object.defineProperties(DbObject.prototype, props);
         }
@@ -45887,12 +45887,12 @@ var require_dbObject3 = __commonJS({
             }
           }
         } else {
-          for (const attr2 of objType.attributes) {
+          for (const attr of objType.attributes) {
             this._packValue(
               buf,
-              attr2.type,
-              attr2.typeClass,
-              this.unpackedAttrs.get(attr2.name)
+              attr.type,
+              attr.typeClass,
+              this.unpackedAttrs.get(attr.name)
             );
           }
         }
@@ -46001,9 +46001,9 @@ var require_dbObject3 = __commonJS({
           }
         } else {
           unpackedAttrs = /* @__PURE__ */ new Map();
-          for (const attr2 of objType.attributes) {
-            const value2 = this._unpackValue(buf, attr2.type, attr2.typeClass);
-            unpackedAttrs.set(attr2.name, value2);
+          for (const attr of objType.attributes) {
+            const value2 = this._unpackValue(buf, attr.type, attr.typeClass);
+            unpackedAttrs.set(attr.name, value2);
           }
         }
         this.unpackedAttrs = unpackedAttrs;
@@ -46135,9 +46135,9 @@ var require_dbObject3 = __commonJS({
       //
       // Returns the value of the given attribute on the object.
       //---------------------------------------------------------------------------
-      getAttrValue(attr2) {
+      getAttrValue(attr) {
         this._ensureUnpacked();
-        const value2 = this.unpackedAttrs.get(attr2.name);
+        const value2 = this.unpackedAttrs.get(attr.name);
         if (value2 === void 0)
           return null;
         return value2;
@@ -46298,9 +46298,9 @@ var require_dbObject3 = __commonJS({
       //
       // Sets the value of the attribute on the object to the given value.
       //---------------------------------------------------------------------------
-      setAttrValue(attr2, value2) {
+      setAttrValue(attr, value2) {
         this._ensureUnpacked();
-        this.unpackedAttrs.set(attr2.name, value2);
+        this.unpackedAttrs.set(attr.name, value2);
       }
       //---------------------------------------------------------------------------
       // setElement()
@@ -49139,7 +49139,7 @@ var require_ntTcp = __commonJS({
        */
       dnMatch(serverName, cert) {
         if (this.atts.sslServerDNMatch && this.doDNMatch) {
-          const toObject = (str5) => str5.split(",").map((x) => x.split("=").map((y) => y.trim())).reduce((a, x) => {
+          const toObject = (str4) => str4.split(",").map((x) => x.split("=").map((y) => y.trim())).reduce((a, x) => {
             a[x[0]] = x[1];
             return a;
           }, {});
@@ -49607,8 +49607,8 @@ ${packetDump}
           return null;
         const cdnvp = findNVPair(this.atts.cDataNVPair, "CONNECT_DATA");
         for (let i = 0; i < cdnvp.getListSize(); i++) {
-          const child2 = cdnvp.getListElement(i);
-          if (!sniAllowedCDParams.includes(child2.name.toUpperCase()))
+          const child = cdnvp.getListElement(i);
+          if (!sniAllowedCDParams.includes(child.name.toUpperCase()))
             return null;
         }
         let value2, sni = "";
@@ -50386,7 +50386,7 @@ var require_navNodes = __commonJS({
        */
       initFromNVPair(nvp) {
         this.children = [];
-        let childnv, child2;
+        let childnv, child;
         const listsize = nvp.getListSize();
         if (listsize == 0)
           errors.throwErr(errors.ERR_INVALID_CONNECT_STRING_SYNTAX);
@@ -50399,13 +50399,13 @@ var require_navNodes = __commonJS({
           } else if (childnv.name.toUpperCase() == "FAILOVER") {
             this.failover = childnv.atom.toLowerCase() == "yes" || childnv.atom.toLowerCase() == "on" || childnv.atom.toLowerCase() == "true";
           } else if (childnv.name.toUpperCase() == "ADDRESS") {
-            child2 = new NavAddress();
-            child2.initFromNVPair(childnv);
-            this.children.push(child2);
+            child = new NavAddress();
+            child.initFromNVPair(childnv);
+            this.children.push(child);
           } else if (childnv.name.toUpperCase() == "ADDRESS_LIST") {
-            child2 = new NavAddressList();
-            child2.initFromNVPair(childnv);
-            this.children.push(child2);
+            child = new NavAddressList();
+            child.initFromNVPair(childnv);
+            this.children.push(child);
           } else errors.throwErr(errors.ERR_INVALID_CONNECT_STRING_SYNTAX);
         }
         if (this.children.length == 0) errors.throwErr(errors.ERR_INVALID_CONNECT_STRING_SYNTAX);
@@ -50461,7 +50461,7 @@ var require_navNodes = __commonJS({
       //errors.throwErr(errors.ERR_INVALID_CONNECT_STRING_SYNTAX);
       initFromNVPair(nvp) {
         const listsize = nvp.getListSize();
-        let childnv, child2;
+        let childnv, child;
         if (listsize == 0)
           errors.throwErr(errors.ERR_INVALID_CONNECT_STRING_SYNTAX);
         for (let i = 0; i < listsize; i++) {
@@ -50475,13 +50475,13 @@ var require_navNodes = __commonJS({
           } else if (childnv.name.toUpperCase() == "USE_SNI") {
             this.params.useSNI = childnv.atom.toLowerCase() == "yes" || childnv.atom.toLowerCase() == "on" || childnv.atom.toLowerCase() == "true";
           } else if (childnv.name.toUpperCase() == "ADDRESS_LIST") {
-            child2 = new NavAddressList();
-            child2.initFromNVPair(childnv);
-            this.children.push(child2);
+            child = new NavAddressList();
+            child.initFromNVPair(childnv);
+            this.children.push(child);
           } else if (childnv.name.toUpperCase() == "ADDRESS") {
-            child2 = new NavAddress();
-            child2.initFromNVPair(childnv);
-            this.children.push(child2);
+            child = new NavAddress();
+            child.initFromNVPair(childnv);
+            this.children.push(child);
           } else if (childnv.name.toUpperCase() == "CONNECT_DATA") {
             let tmpnv;
             const listsize2 = childnv.getListSize();
@@ -50550,12 +50550,12 @@ var require_navNodes = __commonJS({
         }
       }
       toString() {
-        let s = new String(""), child2;
-        child2 = new String("");
+        let s = new String(""), child;
+        child = new String("");
         for (let i = 0; i < this.children.size(); i++) {
-          child2 = this.children[i].toString();
-          if (!child2 == "")
-            s += child2;
+          child = this.children[i].toString();
+          if (!child == "")
+            s += child;
         }
         if (!s == "" && this.sourceRoute)
           s += "(SOURCE_ROUTE=yes)";
@@ -50596,7 +50596,7 @@ var require_navNodes = __commonJS({
        */
       initFromNVPair(nvp) {
         const listsize = nvp.getListSize();
-        let child2, childnv;
+        let child, childnv;
         if (listsize == 0)
           errors.throwErr(errors.ERR_INVALID_CONNECT_STRING_SYNTAX);
         for (let i = 0; i < listsize; i++) {
@@ -50608,9 +50608,9 @@ var require_navNodes = __commonJS({
           } else if (childnv.name.toUpperCase() == "FAILOVER") {
             this.failover = childnv.atom.toLowerCase() == "yes" || childnv.atom.toLowerCase() == "on" || childnv.atom.toLowerCase() == "true";
           } else if (childnv.name.toUpperCase() == "DESCRIPTION") {
-            child2 = new NavDescription();
-            child2.initFromNVPair(childnv);
-            this.children.push(child2);
+            child = new NavDescription();
+            child.initFromNVPair(childnv);
+            this.children.push(child);
           } else errors.throwErr(errors.ERR_INVALID_CONNECT_STRING_SYNTAX);
         }
         if (this.children.length == 0) errors.throwErr(errors.ERR_INVALID_CONNECT_STRING_SYNTAX);
@@ -50620,11 +50620,11 @@ var require_navNodes = __commonJS({
         let s = new String("");
         if (this.children.size() < 1)
           return s;
-        let child2 = new String("");
+        let child = new String("");
         for (let i = 0; i < this.children.size(); i++) {
-          child2 = this.children[i].toString();
-          if (!child2.equals(""))
-            s += child2;
+          child = this.children[i].toString();
+          if (!child.equals(""))
+            s += child;
         }
         if (s.equals("") && this.sourceRoute) s += "(SOURCE_ROUTE=yes)";
         if (s.equals("") && !this.loadBalance) s += "(LOAD_BALANCE=no)";
@@ -51135,12 +51135,12 @@ var require_connStrategy = __commonJS({
     function sleep2(time4) {
       return new Promise((resolve10) => setTimeout(resolve10, time4));
     }
-    async function createNode(str5, userConfig) {
+    async function createNode(str4, userConfig) {
       let nvpair;
-      if (typeof str5 === "string")
-        nvpair = createNVPair(str5);
+      if (typeof str4 === "string")
+        nvpair = createNVPair(str4);
       else
-        nvpair = str5;
+        nvpair = str4;
       const arg = nvpair.name.toUpperCase();
       let navobj = null;
       switch (arg) {
@@ -56012,8 +56012,8 @@ var require_connection6 = __commonJS({
           }
         } else {
           if (info.attributes) {
-            for (const attr2 of info.attributes) {
-              this._parseTDSAttr(buf, attr2);
+            for (const attr of info.attributes) {
+              this._parseTDSAttr(buf, attr);
             }
           }
         }
@@ -56260,51 +56260,51 @@ var require_connection6 = __commonJS({
       // Populates "attributes" object present in "attrList".
       //---------------------------------------------------------------------------
       _addAttr(attributes, attrInfo) {
-        const attr2 = { name: attrInfo.name };
+        const attr = { name: attrInfo.name };
         if (attrInfo.dataTypeOwner) {
-          attr2.type = types.DB_TYPE_OBJECT;
-          attr2.typeClass = this._getDbObjectType(
+          attr.type = types.DB_TYPE_OBJECT;
+          attr.typeClass = this._getDbObjectType(
             attrInfo.dataTypeOwner,
             attrInfo.dataType,
             attrInfo.packageName,
             attrInfo.oid
           );
-          if (attr2.typeClass.isXmlType) {
-            attr2.type = types.DB_TYPE_XMLTYPE;
+          if (attr.typeClass.isXmlType) {
+            attr.type = types.DB_TYPE_XMLTYPE;
           }
-          if (attr2.typeClass.partial) {
-            this._partialDbObjectTypes.push(attr2.typeClass);
+          if (attr.typeClass.partial) {
+            this._partialDbObjectTypes.push(attr.typeClass);
           }
         } else {
           if (attrInfo.dataType === "INTEGER" || attrInfo.dataType === "SMALLINT") {
-            attr2.type = types.DB_TYPE_NUMBER;
-            attr2.precision = 38;
-            attr2.scale = 0;
+            attr.type = types.DB_TYPE_NUMBER;
+            attr.precision = 38;
+            attr.scale = 0;
           } else if (attrInfo.dataType === "REAL") {
-            attr2.type = types.DB_TYPE_NUMBER;
-            attr2.precision = 63;
-            attr2.scale = -127;
+            attr.type = types.DB_TYPE_NUMBER;
+            attr.precision = 63;
+            attr.scale = -127;
           } else if (attrInfo.dataType === "DOUBLE PRECISION" || attrInfo.dataType === "FLOAT") {
-            attr2.type = types.DB_TYPE_NUMBER;
+            attr.type = types.DB_TYPE_NUMBER;
             if (attrInfo.dataPrecision != null || attrInfo.dataPrecision != void 0)
-              attr2.precision = Number(attrInfo.dataPrecision);
+              attr.precision = Number(attrInfo.dataPrecision);
             else
-              attr2.precision = 126;
-            attr2.scale = -127;
+              attr.precision = 126;
+            attr.scale = -127;
           } else {
-            attr2.type = types.getTypeByColumnTypeName(attrInfo.dataType);
+            attr.type = types.getTypeByColumnTypeName(attrInfo.dataType);
             if (attrInfo.maxSize != null || attrInfo.maxSize != void 0) {
               const tempMaxSize = Number(attrInfo.maxSize);
               if (tempMaxSize)
-                attr2.maxSize = tempMaxSize;
+                attr.maxSize = tempMaxSize;
             }
-            if (attr2.type === types.DB_TYPE_NUMBER) {
-              attr2.precision = Number(attrInfo.dataPrecision);
-              attr2.scale = Number(attrInfo.dataScale);
+            if (attr.type === types.DB_TYPE_NUMBER) {
+              attr.precision = Number(attrInfo.dataPrecision);
+              attr.scale = Number(attrInfo.dataScale);
             }
           }
         }
-        attributes.push(attr2);
+        attributes.push(attr);
       }
       //---------------------------------------------------------------------------
       // _populatePartialDbObjectTypes()
@@ -59346,7 +59346,7 @@ var require_postgres_interval = __commonJS({
       if (!(this instanceof PostgresInterval)) {
         return new PostgresInterval(raw3);
       }
-      extend2(this, parse8(raw3));
+      extend2(this, parse7(raw3));
     }
     var properties = ["seconds", "minutes", "hours", "days", "months", "years"];
     PostgresInterval.prototype.toPostgres = function() {
@@ -59407,7 +59407,7 @@ var require_postgres_interval = __commonJS({
       var microseconds = fraction + "000000".slice(fraction.length);
       return parseInt(microseconds, 10) / 1e3;
     }
-    function parse8(interval) {
+    function parse7(interval) {
       if (!interval) return {};
       var matches2 = INTERVAL.exec(interval);
       var isNegative = matches2[8] === "-";
@@ -59896,13 +59896,13 @@ var require_binaryParsers = __commonJS({
           console.log("ERROR: ElementType not implemented: " + elementType2);
         }
       };
-      var parse8 = function(dimension, elementType2) {
+      var parse7 = function(dimension, elementType2) {
         var array2 = [];
         var i2;
         if (dimension.length > 1) {
           var count4 = dimension.shift();
           for (i2 = 0; i2 < count4; i2++) {
-            array2[i2] = parse8(dimension, elementType2);
+            array2[i2] = parse7(dimension, elementType2);
           }
           dimension.unshift(count4);
         } else {
@@ -59912,7 +59912,7 @@ var require_binaryParsers = __commonJS({
         }
         return array2;
       };
-      return parse8(dims, elementType);
+      return parse7(dims, elementType);
     };
     var parseText = function(value2) {
       return value2.toString("utf8");
@@ -60249,20 +60249,20 @@ var require_utils3 = __commonJS({
       }
       return Object.defineProperties(Object.create(Object.getPrototypeOf(config5)), Object.getOwnPropertyDescriptors(config5));
     }
-    var escapeIdentifier = function(str5) {
-      return '"' + str5.replace(/"/g, '""') + '"';
+    var escapeIdentifier = function(str4) {
+      return '"' + str4.replace(/"/g, '""') + '"';
     };
-    var escapeLiteral = function(str5) {
+    var escapeLiteral = function(str4) {
       let hasBackslash = false;
       let escaped = "'";
-      if (str5 == null) {
+      if (str4 == null) {
         return "''";
       }
-      if (typeof str5 !== "string") {
+      if (typeof str4 !== "string") {
         return "''";
       }
-      for (let i = 0; i < str5.length; i++) {
-        const c = str5[i];
+      for (let i = 0; i < str4.length; i++) {
+        const c = str4[i];
         if (c === "'") {
           escaped += c + c;
         } else if (c === "\\") {
@@ -60679,22 +60679,22 @@ var require_type_overrides = __commonJS({
 var require_pg_connection_string = __commonJS({
   "node_modules/pg-connection-string/index.js"(exports, module) {
     "use strict";
-    function parse8(str5, options2 = {}) {
-      if (str5.charAt(0) === "/") {
-        const config6 = str5.split(" ");
+    function parse7(str4, options2 = {}) {
+      if (str4.charAt(0) === "/") {
+        const config6 = str4.split(" ");
         return { host: config6[0], database: config6[1] };
       }
       const config5 = /* @__PURE__ */ Object.create(null);
       let result;
       let dummyHost = false;
-      if (/ |%[^a-f0-9]|%[a-f0-9][^a-f0-9]/i.test(str5)) {
-        str5 = encodeURI(str5).replace(/%25(\d\d)/g, "%$1");
+      if (/ |%[^a-f0-9]|%[a-f0-9][^a-f0-9]/i.test(str4)) {
+        str4 = encodeURI(str4).replace(/%25(\d\d)/g, "%$1");
       }
       try {
         try {
-          result = new URL(str5, "postgres://base");
+          result = new URL(str4, "postgres://base");
         } catch (e) {
-          result = new URL(str5.replace("@/", "@___DUMMY___/"), "postgres://base");
+          result = new URL(str4.replace("@/", "@___DUMMY___/"), "postgres://base");
           dummyHost = true;
         }
       } catch (err) {
@@ -60840,8 +60840,8 @@ var require_pg_connection_string = __commonJS({
       }, /* @__PURE__ */ Object.create(null));
       return poolConfig;
     }
-    function parseIntoClientConfig(str5) {
-      return toClientConfig(parse8(str5));
+    function parseIntoClientConfig(str4) {
+      return toClientConfig(parse7(str4));
     }
     function deprecatedSslModeWarning(sslmode) {
       if (!deprecatedSslModeWarning.warned && typeof process !== "undefined" && process.emitWarning) {
@@ -60856,10 +60856,10 @@ To prepare for this change:
 See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions.`);
       }
     }
-    module.exports = parse8;
-    parse8.parse = parse8;
-    parse8.toClientConfig = toClientConfig;
-    parse8.parseIntoClientConfig = parseIntoClientConfig;
+    module.exports = parse7;
+    parse7.parse = parse7;
+    parse7.toClientConfig = toClientConfig;
+    parse7.parseIntoClientConfig = parseIntoClientConfig;
   }
 });
 
@@ -60869,7 +60869,7 @@ var require_connection_parameters = __commonJS({
     "use strict";
     var dns = __require("dns");
     var defaults = require_defaults3();
-    var parse8 = require_pg_connection_string().parse;
+    var parse7 = require_pg_connection_string().parse;
     var val = function(key6, config5, envVar) {
       if (config5[key6]) {
         return config5[key6];
@@ -60907,9 +60907,9 @@ var require_connection_parameters = __commonJS({
     };
     var ConnectionParameters = class {
       constructor(config5) {
-        config5 = typeof config5 === "string" ? parse8(config5) : config5 || {};
+        config5 = typeof config5 === "string" ? parse7(config5) : config5 || {};
         if (config5.connectionString) {
-          config5 = Object.assign({}, config5, parse8(config5.connectionString));
+          config5 = Object.assign({}, config5, parse7(config5.connectionString));
         }
         this.user = val("user", config5);
         this.database = val("database", config5);
@@ -61635,7 +61635,7 @@ var require_serializer = __commonJS({
       );
     };
     var emptyArray = [];
-    var parse8 = (query3) => {
+    var parse7 = (query3) => {
       const name3 = query3.name || "";
       if (name3.length > 63) {
         console.error("Warning! Postgres only supports 63 characters for query names.");
@@ -61782,7 +61782,7 @@ var require_serializer = __commonJS({
       sendSASLInitialResponseMessage,
       sendSCRAMClientFinalMessage,
       query: query2,
-      parse: parse8,
+      parse: parse7,
       bind: bind3,
       execute: execute4,
       describe: describe5,
@@ -62171,7 +62171,7 @@ var require_dist2 = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.DatabaseError = exports.serialize = void 0;
-    exports.parse = parse8;
+    exports.parse = parse7;
     var messages_1 = require_messages2();
     Object.defineProperty(exports, "DatabaseError", { enumerable: true, get: function() {
       return messages_1.DatabaseError;
@@ -62181,7 +62181,7 @@ var require_dist2 = __commonJS({
       return serializer_1.serialize;
     } });
     var parser_1 = require_parser2();
-    function parse8(stream, callback) {
+    function parse7(stream, callback) {
       const parser = new parser_1.Parser();
       stream.on("data", (buffer) => parser.parse(buffer, callback));
       return new Promise((resolve10) => stream.on("end", () => resolve10()));
@@ -62270,7 +62270,7 @@ var require_connection7 = __commonJS({
   "node_modules/pg/lib/connection.js"(exports, module) {
     "use strict";
     var EventEmitter2 = __require("events").EventEmitter;
-    var { parse: parse8, serialize } = require_dist2();
+    var { parse: parse7, serialize } = require_dist2();
     var stream = require_stream();
     var { getStream } = stream;
     var flushBuffer = serialize.flush();
@@ -62376,7 +62376,7 @@ var require_connection7 = __commonJS({
         self2.emit("sslconnect");
       }
       attachListeners(stream2) {
-        parse8(stream2, (msg) => {
+        parse7(stream2, (msg) => {
           const eventName = msg.name === "error" ? "errorMessage" : msg.name;
           if (this._emitMessage) {
             this.emit("message", msg);
@@ -62490,7 +62490,7 @@ var require_split2 = __commonJS({
       this[kLast] = list7.pop();
       for (let i = 0; i < list7.length; i++) {
         try {
-          push2(this, this.mapper(list7[i]));
+          push(this, this.mapper(list7[i]));
         } catch (error62) {
           return cb(error62);
         }
@@ -62506,14 +62506,14 @@ var require_split2 = __commonJS({
       this[kLast] += this[kDecoder].end();
       if (this[kLast]) {
         try {
-          push2(this, this.mapper(this[kLast]));
+          push(this, this.mapper(this[kLast]));
         } catch (error62) {
           return cb(error62);
         }
       }
       cb();
     }
-    function push2(self2, val) {
+    function push(self2, val) {
       if (val !== void 0) {
         self2.push(val);
       }
@@ -63269,11 +63269,11 @@ var require_client2 = __commonJS({
       // escapeIdentifier and escapeLiteral moved to utility functions & exported
       // on PG
       // re-exported here for backwards compatibility
-      escapeIdentifier(str5) {
-        return utils.escapeIdentifier(str5);
+      escapeIdentifier(str4) {
+        return utils.escapeIdentifier(str4);
       }
-      escapeLiteral(str5) {
-        return utils.escapeLiteral(str5);
+      escapeLiteral(str4) {
+        return utils.escapeLiteral(str4);
       }
       _pulseQueryQueue() {
         if (this.pipeline) {
@@ -66542,11 +66542,11 @@ var require_packet4 = __commonJS({
         }
         return statuses.join(" ").trim();
       }
-      headerToString(indent2 = "") {
+      headerToString(indent = "") {
         const text4 = (0, _sprintfJs.sprintf)("type:0x%02X(%s), status:0x%02X(%s), length:0x%04X, spid:0x%04X, packetId:0x%02X, window:0x%02X", this.buffer.readUInt8(OFFSET.Type), typeByValue[this.buffer.readUInt8(OFFSET.Type)], this.buffer.readUInt8(OFFSET.Status), this.statusAsString(), this.buffer.readUInt16BE(OFFSET.Length), this.buffer.readUInt16BE(OFFSET.SPID), this.buffer.readUInt8(OFFSET.PacketID), this.buffer.readUInt8(OFFSET.Window));
-        return indent2 + text4;
+        return indent + text4;
       }
-      dataToString(indent2 = "") {
+      dataToString(indent = "") {
         const BYTES_PER_GROUP = 4;
         const CHARS_PER_GROUP = 8;
         const BYTES_PER_LINE = 32;
@@ -66555,7 +66555,7 @@ var require_packet4 = __commonJS({
         let chars = "";
         for (let offset = 0; offset < data.length; offset++) {
           if (offset % BYTES_PER_LINE === 0) {
-            dataDump += indent2;
+            dataDump += indent;
             dataDump += (0, _sprintfJs.sprintf)("%04X  ", offset);
           }
           if (data[offset] < 32 || data[offset] > 126) {
@@ -66585,8 +66585,8 @@ var require_packet4 = __commonJS({
         }
         return dataDump;
       }
-      toString(indent2 = "") {
-        return this.headerToString(indent2) + "\n" + this.dataToString(indent2 + indent2);
+      toString(indent = "") {
+        return this.headerToString(indent) + "\n" + this.dataToString(indent + indent);
       }
       payloadString() {
         return "";
@@ -66825,8 +66825,8 @@ var require_prelogin_payload = __commonJS({
       extractFedAuth(offset) {
         this.fedAuthRequired = this.data.readUInt8(offset);
       }
-      toString(indent2 = "") {
-        return indent2 + "PreLogin - " + (0, _sprintfJs.sprintf)("version:%d.%d.%d.%d, encryption:0x%02X(%s), instopt:0x%02X, threadId:0x%08X, mars:0x%02X(%s), traceId:%s", this.version.major, this.version.minor, this.version.build, this.version.subbuild, this.encryption ? this.encryption : 0, this.encryptionString ? this.encryptionString : "", this.instance ? this.instance : 0, this.threadId ? this.threadId : 0, this.mars ? this.mars : 0, this.marsString ? this.marsString : "", this.traceId ? this.traceId.toString("hex") : "");
+      toString(indent = "") {
+        return indent + "PreLogin - " + (0, _sprintfJs.sprintf)("version:%d.%d.%d.%d, encryption:0x%02X(%s), instopt:0x%02X, threadId:0x%08X, mars:0x%02X(%s), traceId:%s", this.version.major, this.version.minor, this.version.build, this.version.subbuild, this.encryption ? this.encryption : 0, this.encryptionString ? this.encryptionString : "", this.instance ? this.instance : 0, this.threadId ? this.threadId : 0, this.mars ? this.mars : 0, this.marsString ? this.marsString : "", this.traceId ? this.traceId.toString("hex") : "");
       }
     };
     var _default3 = exports.default = PreloginPayload;
@@ -67182,8 +67182,8 @@ var require_login7_payload = __commonJS({
         }
         return password;
       }
-      toString(indent2 = "") {
-        return indent2 + "Login7 - " + (0, _sprintfJs.sprintf)("TDS:0x%08X, PacketSize:0x%08X, ClientProgVer:0x%08X, ClientPID:0x%08X, ConnectionID:0x%08X", this.tdsVersion, this.packetSize, this.clientProgVer, this.clientPid, this.connectionId) + "\n" + indent2 + "         " + (0, _sprintfJs.sprintf)("Flags1:0x%02X, Flags2:0x%02X, TypeFlags:0x%02X, Flags3:0x%02X, ClientTimezone:%d, ClientLCID:0x%08X", this.buildOptionFlags1(), this.buildOptionFlags2(), this.buildTypeFlags(), this.buildOptionFlags3(), this.clientTimeZone, this.clientLcid) + "\n" + indent2 + "         " + (0, _sprintfJs.sprintf)("Hostname:'%s', Username:'%s', Password:'%s', AppName:'%s', ServerName:'%s', LibraryName:'%s'", this.hostname, this.userName, this.password, this.appName, this.serverName, this.libraryName) + "\n" + indent2 + "         " + (0, _sprintfJs.sprintf)("Language:'%s', Database:'%s', SSPI:'%s', AttachDbFile:'%s', ChangePassword:'%s'", this.language, this.database, this.sspi, this.attachDbFile, this.changePassword);
+      toString(indent = "") {
+        return indent + "Login7 - " + (0, _sprintfJs.sprintf)("TDS:0x%08X, PacketSize:0x%08X, ClientProgVer:0x%08X, ClientPID:0x%08X, ConnectionID:0x%08X", this.tdsVersion, this.packetSize, this.clientProgVer, this.clientPid, this.connectionId) + "\n" + indent + "         " + (0, _sprintfJs.sprintf)("Flags1:0x%02X, Flags2:0x%02X, TypeFlags:0x%02X, Flags3:0x%02X, ClientTimezone:%d, ClientLCID:0x%08X", this.buildOptionFlags1(), this.buildOptionFlags2(), this.buildTypeFlags(), this.buildOptionFlags3(), this.clientTimeZone, this.clientLcid) + "\n" + indent + "         " + (0, _sprintfJs.sprintf)("Hostname:'%s', Username:'%s', Password:'%s', AppName:'%s', ServerName:'%s', LibraryName:'%s'", this.hostname, this.userName, this.password, this.appName, this.serverName, this.libraryName) + "\n" + indent + "         " + (0, _sprintfJs.sprintf)("Language:'%s', Database:'%s', SSPI:'%s', AttachDbFile:'%s', ChangePassword:'%s'", this.language, this.database, this.sspi, this.attachDbFile, this.changePassword);
       }
     };
     var _default3 = exports.default = Login7Payload2;
@@ -67604,8 +67604,8 @@ var require_ntlm_payload = __commonJS({
       constructor(loginData) {
         this.data = this.createResponse(loginData);
       }
-      toString(indent2 = "") {
-        return indent2 + "NTLM Auth";
+      toString(indent = "") {
+        return indent + "NTLM Auth";
       }
       createResponse(challenge) {
         const client_nonce = this.createClientNonce();
@@ -69101,7 +69101,7 @@ var init_js_joda_esm = __esm({
         }
         return this.ofSeconds(secs, nanos);
       };
-      Duration2.parse = function parse8(text4) {
+      Duration2.parse = function parse7(text4) {
         requireNonNull(text4, "text");
         var PATTERN2 = new RegExp("([-+]?)P(?:([-+]?[0-9]+)D)?(T(?:([-+]?[0-9]+)H)?(?:([-+]?[0-9]+)M)?(?:([-+]?[0-9]+)(?:[.,]([0-9]{0,9}))?S)?)?", "i");
         var matches2 = PATTERN2.exec(text4);
@@ -69635,10 +69635,10 @@ var init_js_joda_esm = __esm({
         return MathUtil.hashCode(this._minSmallest, this._minLargest, this._maxSmallest, this._maxLargest);
       };
       _proto.toString = function toString() {
-        var str5 = this.minimum() + (this.minimum() !== this.largestMinimum() ? "/" + this.largestMinimum() : "");
-        str5 += " - ";
-        str5 += this.smallestMaximum() + (this.smallestMaximum() !== this.maximum() ? "/" + this.maximum() : "");
-        return str5;
+        var str4 = this.minimum() + (this.minimum() !== this.largestMinimum() ? "/" + this.largestMinimum() : "");
+        str4 += " - ";
+        str4 += this.smallestMaximum() + (this.smallestMaximum() !== this.maximum() ? "/" + this.maximum() : "");
+        return str4;
       };
       ValueRange2.of = function of() {
         if (arguments.length === 2) {
@@ -70205,7 +70205,7 @@ var init_js_joda_esm = __esm({
         requireInstance(endDate, LocalDate, "endDate");
         return startDate.until(endDate);
       };
-      Period2.parse = function parse8(text4) {
+      Period2.parse = function parse7(text4) {
         requireNonNull(text4, "text");
         try {
           return Period2._parse(text4);
@@ -70236,11 +70236,11 @@ var init_js_joda_esm = __esm({
         }
         throw new DateTimeParseException("Text cannot be parsed to a Period", text4, 0);
       };
-      Period2._parseNumber = function _parseNumber(text4, str5, negate) {
-        if (str5 == null) {
+      Period2._parseNumber = function _parseNumber(text4, str4, negate) {
+        if (str4 == null) {
           return 0;
         }
-        var val = MathUtil.parseInt(str5);
+        var val = MathUtil.parseInt(str4);
         return MathUtil.safeMultiply(val, negate);
       };
       Period2.create = function create(years, months, days) {
@@ -71463,7 +71463,7 @@ var init_js_joda_esm = __esm({
         var time4 = LocalTime.ofSecondOfDay(secsOfDay, instant2.nano());
         return new OffsetTime2(time4, offset);
       };
-      OffsetTime2.parse = function parse8(text4, formatter3) {
+      OffsetTime2.parse = function parse7(text4, formatter3) {
         if (formatter3 === void 0) {
           formatter3 = DateTimeFormatter.ISO_OFFSET_TIME;
         }
@@ -71797,7 +71797,7 @@ var init_js_joda_esm = __esm({
         var ldt = LocalDateTime.ofEpochSecond(instant2.epochSecond(), instant2.nano(), offset);
         return new OffsetDateTime2(ldt, offset);
       };
-      OffsetDateTime2.parse = function parse8(text4, formatter3) {
+      OffsetDateTime2.parse = function parse7(text4, formatter3) {
         if (formatter3 === void 0) {
           formatter3 = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
         }
@@ -72345,7 +72345,7 @@ var init_js_joda_esm = __esm({
         var nanoOfSecond = temporal.get(ChronoField.NANO_OF_SECOND);
         return ZonedDateTime2._create(epochSecond, nanoOfSecond, zone);
       };
-      ZonedDateTime2.parse = function parse8(text4, formatter3) {
+      ZonedDateTime2.parse = function parse7(text4, formatter3) {
         if (formatter3 === void 0) {
           formatter3 = DateTimeFormatter.ISO_ZONED_DATE_TIME;
         }
@@ -72630,11 +72630,11 @@ var init_js_joda_esm = __esm({
         return MathUtil.hashCode(this._dateTime.hashCode(), this._offset.hashCode(), this._zone.hashCode());
       };
       _proto.toString = function toString() {
-        var str5 = this._dateTime.toString() + this._offset.toString();
+        var str4 = this._dateTime.toString() + this._offset.toString();
         if (this._offset !== this._zone) {
-          str5 += "[" + this._zone.toString() + "]";
+          str4 += "[" + this._zone.toString() + "]";
         }
-        return str5;
+        return str4;
       };
       _proto.toJSON = function toJSON() {
         return this.toString();
@@ -73398,7 +73398,7 @@ var init_js_joda_esm = __esm({
       }
       _inheritsLoose(SignStyle2, _Enum);
       var _proto = SignStyle2.prototype;
-      _proto.parse = function parse8(positive2, strict, fixedWidth) {
+      _proto.parse = function parse7(positive2, strict, fixedWidth) {
         switch (this) {
           case SignStyle2.NORMAL:
             return !positive2 || !strict;
@@ -73476,7 +73476,7 @@ var init_js_joda_esm = __esm({
         buf.append(this._literal);
         return true;
       };
-      _proto.parse = function parse8(context, text4, position) {
+      _proto.parse = function parse7(context, text4, position) {
         var length = text4.length;
         if (position === length) {
           return ~position;
@@ -73527,7 +73527,7 @@ var init_js_joda_esm = __esm({
         }
         return true;
       };
-      _proto.parse = function parse8(context, text4, position) {
+      _proto.parse = function parse7(context, text4, position) {
         if (this._optional) {
           context.startOptional();
           var pos = position;
@@ -73611,16 +73611,16 @@ var init_js_joda_esm = __esm({
               fraction = fraction.substr(0, fraction.length - 1);
             }
           }
-          var str5 = fraction;
-          str5 = symbols.convertNumberToI18N(str5);
+          var str4 = fraction;
+          str4 = symbols.convertNumberToI18N(str4);
           if (this.decimalPoint) {
             buf.append(symbols.decimalSeparator());
           }
-          buf.append(str5);
+          buf.append(str4);
         }
         return true;
       };
-      _proto.parse = function parse8(context, text4, position) {
+      _proto.parse = function parse7(context, text4, position) {
         var effectiveMin = context.isStrict() ? this.minWidth : 0;
         var effectiveMax = context.isStrict() ? this.maxWidth : 9;
         var length = text4.length;
@@ -73728,11 +73728,11 @@ var init_js_joda_esm = __esm({
         }
         var value2 = this._getValue(context, contextValue);
         var symbols = context.symbols();
-        var str5 = "" + Math.abs(value2);
-        if (str5.length > this._maxWidth) {
+        var str4 = "" + Math.abs(value2);
+        if (str4.length > this._maxWidth) {
           throw new DateTimeException("Field " + this._field + " cannot be printed as the value " + value2 + " exceeds the maximum print width of " + this._maxWidth);
         }
-        str5 = symbols.convertNumberToI18N(str5);
+        str4 = symbols.convertNumberToI18N(str4);
         if (value2 >= 0) {
           switch (this._signStyle) {
             case SignStyle.EXCEEDS_PAD:
@@ -73755,13 +73755,13 @@ var init_js_joda_esm = __esm({
               throw new DateTimeException("Field " + this._field + " cannot be printed as the value " + value2 + " cannot be negative according to the SignStyle");
           }
         }
-        for (var i = 0; i < this._minWidth - str5.length; i++) {
+        for (var i = 0; i < this._minWidth - str4.length; i++) {
           buf.append(symbols.zeroDigit());
         }
-        buf.append(str5);
+        buf.append(str4);
         return true;
       };
-      _proto.parse = function parse8(context, text4, position) {
+      _proto.parse = function parse7(context, text4, position) {
         var length = text4.length;
         if (position === length) {
           return ~position;
@@ -73909,8 +73909,8 @@ var init_js_joda_esm = __esm({
         var parseLen = successPos - errorPos;
         if (parseLen === this._minWidth && value2 >= 0) {
           var range2 = EXCEED_POINTS[this._minWidth];
-          var lastPart3 = baseValue % range2;
-          var basePart = baseValue - lastPart3;
+          var lastPart2 = baseValue % range2;
+          var basePart = baseValue - lastPart2;
           if (baseValue > 0) {
             value2 = basePart + value2;
           } else {
@@ -73989,7 +73989,7 @@ var init_js_joda_esm = __esm({
         }
         return true;
       };
-      _proto.parse = function parse8(context, text4, position) {
+      _proto.parse = function parse7(context, text4, position) {
         var length = text4.length;
         var noOffsetLen = this.noOffsetText.length;
         if (noOffsetLen === 0) {
@@ -74075,7 +74075,7 @@ var init_js_joda_esm = __esm({
         }
         return true;
       };
-      _proto.parse = function parse8(context, text4, position) {
+      _proto.parse = function parse7(context, text4, position) {
         var strict = context.isStrict();
         var caseSensitive = context.isCaseSensitive();
         assert2(!(position > text4.length));
@@ -74115,7 +74115,7 @@ var init_js_joda_esm = __esm({
       _proto.print = function print() {
         return true;
       };
-      _proto.parse = function parse8(context, text4, position) {
+      _proto.parse = function parse7(context, text4, position) {
         switch (this) {
           case SettingsParser2.SENSITIVE:
             context.setCaseSensitive(true);
@@ -74159,7 +74159,7 @@ var init_js_joda_esm = __esm({
         buf.append(this._literal);
         return true;
       };
-      _proto.parse = function parse8(context, text4, position) {
+      _proto.parse = function parse7(context, text4, position) {
         var length = text4.length;
         assert2(!(position > length || position < 0));
         if (context.subSequenceEquals(text4, position, this._literal, 0, this._literal.length) === false) {
@@ -74220,7 +74220,7 @@ var init_js_joda_esm = __esm({
         buf.append(zone.id());
         return true;
       };
-      _proto.parse = function parse8(context, text4, position) {
+      _proto.parse = function parse7(context, text4, position) {
         var length = text4.length;
         if (position > length) {
           return ~position;
@@ -74660,11 +74660,11 @@ var init_js_joda_esm = __esm({
             if (pos >= pattern.length) {
               throw new IllegalArgumentException("Pattern ends with an incomplete string literal: " + pattern);
             }
-            var str5 = pattern.substring(_start + 1, pos);
-            if (str5.length === 0) {
+            var str4 = pattern.substring(_start + 1, pos);
+            if (str4.length === 0) {
               this.appendLiteral("'");
             } else {
-              this.appendLiteral(str5.replace("''", "'"));
+              this.appendLiteral(str4.replace("''", "'"));
             }
           } else if (cur === "[") {
             this.optionalStart();
@@ -75008,7 +75008,7 @@ var init_js_joda_esm = __esm({
         buf.append("Z");
         return true;
       };
-      _proto2.parse = function parse8(context, text4, position) {
+      _proto2.parse = function parse7(context, text4, position) {
         var newContext = context.copy();
         var minDigits = this.fractionalDigits < 0 ? 0 : this.fractionalDigits;
         var maxDigits = this.fractionalDigits < 0 ? 9 : this.fractionalDigits;
@@ -75063,7 +75063,7 @@ var init_js_joda_esm = __esm({
       _proto3.print = function print() {
         return true;
       };
-      _proto3.parse = function parse8(context, text4, position) {
+      _proto3.parse = function parse7(context, text4, position) {
         if (context.getParsed(this._field) == null) {
           context.setParsedField(this._field, this._value, position, position);
         }
@@ -75076,20 +75076,20 @@ var init_js_joda_esm = __esm({
         this._str = "";
       }
       var _proto = StringBuilder2.prototype;
-      _proto.append = function append(str5) {
-        this._str += str5;
+      _proto.append = function append(str4) {
+        this._str += str4;
         return this;
       };
-      _proto.appendChar = function appendChar(str5) {
-        this._str += str5[0];
+      _proto.appendChar = function appendChar(str4) {
+        this._str += str4[0];
         return this;
       };
-      _proto.insert = function insert(offset, str5) {
-        this._str = this._str.slice(0, offset) + str5 + this._str.slice(offset);
+      _proto.insert = function insert(offset, str4) {
+        this._str = this._str.slice(0, offset) + str4 + this._str.slice(offset);
         return this;
       };
-      _proto.replace = function replace(start2, end2, str5) {
-        this._str = this._str.slice(0, start2) + str5 + this._str.slice(end2);
+      _proto.replace = function replace(start2, end2, str4) {
+        this._str = this._str.slice(0, start2) + str4 + this._str.slice(end2);
         return this;
       };
       _proto.length = function length() {
@@ -75166,7 +75166,7 @@ var init_js_joda_esm = __esm({
         var context = new DateTimePrintContext(temporal, this);
         this._printerParser.print(context, appendable);
       };
-      _proto.parse = function parse8(text4, type) {
+      _proto.parse = function parse7(text4, type) {
         if (arguments.length === 1) {
           return this.parse1(text4);
         } else {
@@ -75313,7 +75313,7 @@ var init_js_joda_esm = __esm({
           throw new DateTimeException("Unable to obtain MonthDay from TemporalAccessor: " + temporal + ", type " + (temporal && temporal.constructor != null ? temporal.constructor.name : ""));
         }
       };
-      MonthDay2.parse = function parse8(text4, formatter3) {
+      MonthDay2.parse = function parse7(text4, formatter3) {
         if (arguments.length === 1) {
           return MonthDay2.parseString(text4);
         } else {
@@ -75505,7 +75505,7 @@ var init_js_joda_esm = __esm({
           throw new DateTimeException("Unable to obtain YearMonth from TemporalAccessor: " + temporal + ", type " + (temporal && temporal.constructor != null ? temporal.constructor.name : ""));
         }
       };
-      YearMonth2.parse = function parse8(text4, formatter3) {
+      YearMonth2.parse = function parse7(text4, formatter3) {
         if (arguments.length === 1) {
           return YearMonth2.parseString(text4);
         } else {
@@ -75818,7 +75818,7 @@ var init_js_joda_esm = __esm({
           throw new DateTimeException("Unable to obtain Year from TemporalAccessor: " + temporal + ", type " + (temporal && temporal.constructor != null ? temporal.constructor.name : ""));
         }
       };
-      Year2.parse = function parse8(text4, formatter3) {
+      Year2.parse = function parse7(text4, formatter3) {
         if (arguments.length <= 1) {
           return Year2.parseText(text4);
         } else {
@@ -76405,7 +76405,7 @@ var init_js_joda_esm = __esm({
         }
         return date6;
       };
-      LocalDate2.parse = function parse8(text4, formatter3) {
+      LocalDate2.parse = function parse7(text4, formatter3) {
         if (formatter3 === void 0) {
           formatter3 = DateTimeFormatter.ISO_LOCAL_DATE;
         }
@@ -77059,7 +77059,7 @@ var init_js_joda_esm = __esm({
           throw new DateTimeException("Unable to obtain LocalDateTime TemporalAccessor: " + temporal + ", type " + (temporal.constructor != null ? temporal.constructor.name : ""));
         }
       };
-      LocalDateTime2.parse = function parse8(text4, formatter3) {
+      LocalDateTime2.parse = function parse7(text4, formatter3) {
         if (formatter3 === void 0) {
           formatter3 = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
         }
@@ -77500,7 +77500,7 @@ var init_js_joda_esm = __esm({
         }
         return time4;
       };
-      LocalTime2.parse = function parse8(text4, formatter3) {
+      LocalTime2.parse = function parse7(text4, formatter3) {
         if (formatter3 === void 0) {
           formatter3 = DateTimeFormatter.ISO_LOCAL_TIME;
         }
@@ -77958,7 +77958,7 @@ var init_js_joda_esm = __esm({
           throw new DateTimeException("Unable to obtain Instant from TemporalAccessor: " + temporal + ", type " + typeof temporal, ex);
         }
       };
-      Instant2.parse = function parse8(text4) {
+      Instant2.parse = function parse7(text4) {
         return DateTimeFormatter.ISO_INSTANT.parse(text4, Instant2.FROM);
       };
       Instant2._create = function _create(seconds, nanoOfSecond) {
@@ -81411,8 +81411,8 @@ var require_rpcrequest_payload = __commonJS({
           yield chunk;
         }
       }
-      toString(indent2 = "") {
-        return indent2 + ("RPC Request - " + this.procedure);
+      toString(indent = "") {
+        return indent + ("RPC Request - " + this.procedure);
       }
       writeHeader(buffer) {
         if (this.options.tdsVersion >= "7_2") {
@@ -81474,8 +81474,8 @@ var require_sqlbatch_payload = __commonJS({
         }
         yield Buffer.from(this.sqlText, "ucs2");
       }
-      toString(indent2 = "") {
-        return indent2 + ("SQL Batch - " + this.sqlText);
+      toString(indent = "") {
+        return indent + ("SQL Batch - " + this.sqlText);
       }
     };
     var _default3 = exports.default = SqlBatchPayload;
@@ -82000,7 +82000,7 @@ var require_errors5 = __commonJS({
     );
     E(
       "ERR_OUT_OF_RANGE",
-      (str5, range2, input3) => {
+      (str4, range2, input3) => {
         assert3(range2, 'Missing "range" argument');
         let received;
         if (Number.isInteger(input3) && Math.abs(input3) > 2 ** 32) {
@@ -82015,7 +82015,7 @@ var require_errors5 = __commonJS({
         } else {
           received = inspect(input3);
         }
-        return `The value of "${str5}" is out of range. It must be ${range2}. Received ${received}`;
+        return `The value of "${str4}" is out of range. It must be ${range2}. Received ${received}`;
       },
       RangeError
     );
@@ -84087,20 +84087,20 @@ var require_buffer_list = __commonJS({
         let p = this.head;
         let c = 0;
         do {
-          const str5 = p.data;
-          if (n > str5.length) {
-            ret += str5;
-            n -= str5.length;
+          const str4 = p.data;
+          if (n > str4.length) {
+            ret += str4;
+            n -= str4.length;
           } else {
-            if (n === str5.length) {
-              ret += str5;
+            if (n === str4.length) {
+              ret += str4;
               ++c;
               if (p.next) this.head = p.next;
               else this.head = this.tail = null;
             } else {
-              ret += StringPrototypeSlice(str5, 0, n);
+              ret += StringPrototypeSlice(str4, 0, n);
               this.head = p;
-              p.data = StringPrototypeSlice(str5, n);
+              p.data = StringPrototypeSlice(str4, n);
             }
             break;
           }
@@ -92325,8 +92325,8 @@ var require_bulk_load_payload = __commonJS({
         }
         buffer.consume(buffer.length);
       }
-      toString(indent2 = "") {
-        return indent2 + "BulkLoad";
+      toString(indent = "") {
+        return indent + "BulkLoad";
       }
     };
     exports.BulkLoadPayload = BulkLoadPayload;
@@ -95678,7 +95678,17 @@ var WORKER_SOURCE;
 var init_bounded_worker_generated = __esm({
   "src/areas/util/kit/bounded-worker.generated.ts"() {
     "use strict";
-    WORKER_SOURCE = '"use strict";var Se=require("node:worker_threads");function xe(e,r){let t=typeof e;if(t!==typeof r)return!1;if(Array.isArray(e)){if(!Array.isArray(r))return!1;let o=e.length;if(o!==r.length)return!1;for(let s=0;s<o;s++)if(!xe(e[s],r[s]))return!1;return!0}if(t==="object"){if(!e||!r)return e===r;let o=Object.keys(e),s=Object.keys(r);if(o.length!==s.length)return!1;for(let n of o)if(!xe(e[n],r[n]))return!1;return!0}return e===r}function L(e){return encodeURI(xt(e))}function xt(e){return e.replace(/~/g,"~0").replace(/\\//g,"~1")}var $t={prefixItems:!0,items:!0,allOf:!0,anyOf:!0,oneOf:!0},wt={$defs:!0,definitions:!0,properties:!0,patternProperties:!0,dependentSchemas:!0},bt={id:!0,$id:!0,$ref:!0,$schema:!0,$anchor:!0,$vocabulary:!0,$comment:!0,default:!0,enum:!0,const:!0,required:!0,type:!0,maximum:!0,minimum:!0,exclusiveMaximum:!0,exclusiveMinimum:!0,multipleOf:!0,maxLength:!0,minLength:!0,pattern:!0,format:!0,maxItems:!0,minItems:!0,uniqueItems:!0,maxProperties:!0,minProperties:!0},kt=typeof self<"u"&&self.location&&self.location.origin!=="null"?new URL(self.location.origin+self.location.pathname+location.search):new URL("https://github.com/cfworker");function te(e,r=Object.create(null),t=kt,o=""){if(e&&typeof e=="object"&&!Array.isArray(e)){let f=e.$id||e.id;if(f){let n=new URL(f,t.href);n.hash.length>1?r[n.href]=e:(n.hash="",o===""?t=n:te(e,r,t))}}else if(e!==!0&&e!==!1)return r;let s=t.href+(o?"#"+o:"");if(r[s]!==void 0)throw new Error(`Duplicate schema URI "${s}".`);if(r[s]=e,e===!0||e===!1)return r;if(e.__absolute_uri__===void 0&&Object.defineProperty(e,"__absolute_uri__",{enumerable:!1,value:s}),e.$ref&&e.__absolute_ref__===void 0){let f=new URL(e.$ref,t.href);f.hash=f.hash,Object.defineProperty(e,"__absolute_ref__",{enumerable:!1,value:f.href})}if(e.$recursiveRef&&e.__absolute_recursive_ref__===void 0){let f=new URL(e.$recursiveRef,t.href);f.hash=f.hash,Object.defineProperty(e,"__absolute_recursive_ref__",{enumerable:!1,value:f.href})}if(e.$anchor){let f=new URL("#"+e.$anchor,t.href);r[f.href]=e}for(let f in e){if(bt[f])continue;let n=`${o}/${L(f)}`,i=e[f];if(Array.isArray(i)){if($t[f]){let d=i.length;for(let l=0;l<d;l++)te(i[l],r,t,`${n}/${l}`)}}else if(wt[f])for(let d in i)te(i[d],r,t,`${n}/${L(d)}`);else te(i,r,t,n)}return r}var Et=/^(\\d\\d\\d\\d)-(\\d\\d)-(\\d\\d)$/,vt=[0,31,28,31,30,31,30,31,31,30,31,30,31],Rt=/^(\\d\\d):(\\d\\d):(\\d\\d)(\\.\\d+)?(z|[+-]\\d\\d(?::?\\d\\d)?)?$/i,It=/^(?=.{1,253}\\.?$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[-0-9a-z]{0,61}[0-9a-z])?)*\\.?$/i,Pt=/^(?:[a-z][a-z0-9+\\-.]*:)?(?:\\/?\\/(?:(?:[a-z0-9\\-._~!$&\'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\\.[a-z0-9\\-._~!$&\'()*+,;=:]+)\\]|(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)|(?:[a-z0-9\\-._~!$&\'"()*+,;=]|%[0-9a-f]{2})*)(?::\\d*)?(?:\\/(?:[a-z0-9\\-._~!$&\'"()*+,;=:@]|%[0-9a-f]{2})*)*|\\/(?:(?:[a-z0-9\\-._~!$&\'"()*+,;=:@]|%[0-9a-f]{2})+(?:\\/(?:[a-z0-9\\-._~!$&\'"()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\\-._~!$&\'"()*+,;=:@]|%[0-9a-f]{2})+(?:\\/(?:[a-z0-9\\-._~!$&\'"()*+,;=:@]|%[0-9a-f]{2})*)*)?(?:\\?(?:[a-z0-9\\-._~!$&\'"()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\\-._~!$&\'"()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i,_t=/^(?:(?:[^\\x00-\\x20"\'<>%\\\\^`{|}]|%[0-9a-f]{2})|\\{[+#./;?&=,!@|]?(?:[a-z0-9_]|%[0-9a-f]{2})+(?::[1-9][0-9]{0,3}|\\*)?(?:,(?:[a-z0-9_]|%[0-9a-f]{2})+(?::[1-9][0-9]{0,3}|\\*)?)*\\})*$/i,Mt=/^(?:(?:https?|ftp):\\/\\/)(?:\\S+(?::\\S*)?@)?(?:(?!10(?:\\.\\d{1,3}){3})(?!127(?:\\.\\d{1,3}){3})(?!169\\.254(?:\\.\\d{1,3}){2})(?!192\\.168(?:\\.\\d{1,3}){2})(?!172\\.(?:1[6-9]|2\\d|3[0-1])(?:\\.\\d{1,3}){2})(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))|(?:(?:[a-z\\u{00a1}-\\u{ffff}0-9]+-?)*[a-z\\u{00a1}-\\u{ffff}0-9]+)(?:\\.(?:[a-z\\u{00a1}-\\u{ffff}0-9]+-?)*[a-z\\u{00a1}-\\u{ffff}0-9]+)*(?:\\.(?:[a-z\\u{00a1}-\\u{ffff}]{2,})))(?::\\d{2,5})?(?:\\/[^\\s]*)?$/iu,Ot=/^(?:urn:uuid:)?[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i,St=/^(?:\\/(?:[^~/]|~0|~1)*)*$/,Tt=/^#(?:\\/(?:[a-z0-9_\\-.!$&\'()*+,;:=@]|%[0-9a-f]{2}|~0|~1)*)*$/i,At=/^(?:0|[1-9][0-9]*)(?:#|(?:\\/(?:[^~/]|~0|~1)*)*)$/,Nt=e=>{if(e[0]===\'"\')return!1;let[r,t,...o]=e.split("@");return!r||!t||o.length!==0||r.length>64||t.length>253||r[0]==="."||r.endsWith(".")||r.includes("..")||!/^[a-z0-9.-]+$/i.test(t)||!/^[a-z0-9.!#$%&\'*+/=?^_`{|}~-]+$/i.test(r)?!1:t.split(".").every(s=>/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i.test(s))},zt=/^(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$/,Dt=/^((([0-9a-f]{1,4}:){7}([0-9a-f]{1,4}|:))|(([0-9a-f]{1,4}:){6}(:[0-9a-f]{1,4}|((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9a-f]{1,4}:){5}(((:[0-9a-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9a-f]{1,4}:){4}(((:[0-9a-f]{1,4}){1,3})|((:[0-9a-f]{1,4})?:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-f]{1,4}:){3}(((:[0-9a-f]{1,4}){1,4})|((:[0-9a-f]{1,4}){0,2}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-f]{1,4}:){2}(((:[0-9a-f]{1,4}){1,5})|((:[0-9a-f]{1,4}){0,3}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-f]{1,4}:){1}(((:[0-9a-f]{1,4}){1,6})|((:[0-9a-f]{1,4}){0,4}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(:(((:[0-9a-f]{1,4}){1,7})|((:[0-9a-f]{1,4}){0,5}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:)))$/i,Xt=e=>e.length>1&&e.length<80&&(/^P\\d+([.,]\\d+)?W$/.test(e)||/^P[\\dYMDTHS]*(\\d[.,]\\d+)?[YMDHS]$/.test(e)&&/^P([.,\\d]+Y)?([.,\\d]+M)?([.,\\d]+D)?(T([.,\\d]+H)?([.,\\d]+M)?([.,\\d]+S)?)?$/.test(e));function Z(e){return e.test.bind(e)}var Ae={date:Ve,time:We.bind(void 0,!1),"date-time":Ct,duration:Xt,uri:Vt,"uri-reference":Z(Pt),"uri-template":Z(_t),url:Z(Mt),email:Nt,hostname:Z(It),ipv4:Z(zt),ipv6:Z(Dt),regex:qt,uuid:Z(Ot),"json-pointer":Z(St),"json-pointer-uri-fragment":Z(Tt),"relative-json-pointer":Z(At)};function jt(e){return e%4===0&&(e%100!==0||e%400===0)}function Ve(e){let r=e.match(Et);if(!r)return!1;let t=+r[1],o=+r[2],s=+r[3];return o>=1&&o<=12&&s>=1&&s<=(o==2&&jt(t)?29:vt[o])}function We(e,r){let t=r.match(Rt);if(!t)return!1;let o=+t[1],s=+t[2],f=+t[3],n=!!t[5];return(o<=23&&s<=59&&f<=59||o==23&&s==59&&f==60)&&(!e||n)}var Bt=/t|\\s/i;function Ct(e){let r=e.split(Bt);return r.length==2&&Ve(r[0])&&We(!0,r[1])}var Ft=/\\/|:/,Lt=/^(?:[a-z][a-z0-9+\\-.]*:)(?:\\/?\\/(?:(?:[a-z0-9\\-._~!$&\'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\\.[a-z0-9\\-._~!$&\'()*+,;=:]+)\\]|(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)|(?:[a-z0-9\\-._~!$&\'()*+,;=]|%[0-9a-f]{2})*)(?::\\d*)?(?:\\/(?:[a-z0-9\\-._~!$&\'()*+,;=:@]|%[0-9a-f]{2})*)*|\\/(?:(?:[a-z0-9\\-._~!$&\'()*+,;=:@]|%[0-9a-f]{2})+(?:\\/(?:[a-z0-9\\-._~!$&\'()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\\-._~!$&\'()*+,;=:@]|%[0-9a-f]{2})+(?:\\/(?:[a-z0-9\\-._~!$&\'()*+,;=:@]|%[0-9a-f]{2})*)*)(?:\\?(?:[a-z0-9\\-._~!$&\'()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\\-._~!$&\'()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i;function Vt(e){return Ft.test(e)&&Lt.test(e)}var Wt=/[^\\\\]\\\\Z/;function qt(e){if(Wt.test(e))return!1;try{return new RegExp(e,"u"),!0}catch{return!1}}var qe;(function(e){e[e.Flag=1]="Flag",e[e.Basic=2]="Basic",e[e.Detailed=4]="Detailed"})(qe||(qe={}));function Ue(e){let r=0,t=e.length,o=0,s;for(;o<t;)r++,s=e.charCodeAt(o++),s>=55296&&s<=56319&&o<t&&(s=e.charCodeAt(o),(s&64512)==56320&&o++);return r}function S(e,r,t="2019-09",o=te(r),s=!0,f=null,n="#",i="#",d=Object.create(null)){if(r===!0)return{valid:!0,errors:[]};if(r===!1)return{valid:!1,errors:[{instanceLocation:n,keyword:"false",keywordLocation:n,error:"False boolean schema."}]};let l=typeof e,c;switch(l){case"boolean":case"number":case"string":c=l;break;case"object":e===null?c="null":Array.isArray(e)?c="array":c="object";break;default:throw new Error(`Instances of "${l}" type are not supported.`)}let{$ref:u,$recursiveRef:k,$recursiveAnchor:A,type:O,const:B,enum:K,required:fe,not:z,anyOf:V,allOf:X,oneOf:de,if:Y,then:W,else:P,format:D,properties:ee,patternProperties:ne,additionalProperties:q,unevaluatedProperties:oe,minProperties:se,maxProperties:we,propertyNames:ae,dependentRequired:G,dependentSchemas:le,dependencies:he,prefixItems:ue,items:H,additionalItems:ve,unevaluatedItems:pe,contains:ge,minContains:U,maxContains:ce,minItems:ye,maxItems:me,uniqueItems:Te,minimum:J,maximum:a,exclusiveMinimum:E,exclusiveMaximum:v,multipleOf:_,minLength:I,maxLength:$,pattern:M,__absolute_ref__:T,__absolute_recursive_ref__:N}=r,m=[];if(A===!0&&f===null&&(f=r),k==="#"){let x=f===null?o[N]:f,g=`${i}/$recursiveRef`,y=S(e,f===null?r:f,t,o,s,x,n,g,d);y.valid||m.push({instanceLocation:n,keyword:"$recursiveRef",keywordLocation:g,error:"A subschema had errors."},...y.errors)}if(u!==void 0){let g=o[T||u];if(g===void 0){let p=`Unresolved $ref "${u}".`;throw T&&T!==u&&(p+=`  Absolute URI "${T}".`),p+=`\nKnown schemas:\n- ${Object.keys(o).join(`\n- `)}`,new Error(p)}let y=`${i}/$ref`,h=S(e,g,t,o,s,f,n,y,d);if(h.valid||m.push({instanceLocation:n,keyword:"$ref",keywordLocation:y,error:"A subschema had errors."},...h.errors),t==="4"||t==="7")return{valid:m.length===0,errors:m}}if(Array.isArray(O)){let x=O.length,g=!1;for(let y=0;y<x;y++)if(c===O[y]||O[y]==="integer"&&c==="number"&&e%1===0&&e===e){g=!0;break}g||m.push({instanceLocation:n,keyword:"type",keywordLocation:`${i}/type`,error:`Instance type "${c}" is invalid. Expected "${O.join(\'", "\')}".`})}else O==="integer"?(c!=="number"||e%1||e!==e)&&m.push({instanceLocation:n,keyword:"type",keywordLocation:`${i}/type`,error:`Instance type "${c}" is invalid. Expected "${O}".`}):O!==void 0&&c!==O&&m.push({instanceLocation:n,keyword:"type",keywordLocation:`${i}/type`,error:`Instance type "${c}" is invalid. Expected "${O}".`});if(B!==void 0&&(c==="object"||c==="array"?xe(e,B)||m.push({instanceLocation:n,keyword:"const",keywordLocation:`${i}/const`,error:`Instance does not match ${JSON.stringify(B)}.`}):e!==B&&m.push({instanceLocation:n,keyword:"const",keywordLocation:`${i}/const`,error:`Instance does not match ${JSON.stringify(B)}.`})),K!==void 0&&(c==="object"||c==="array"?K.some(x=>xe(e,x))||m.push({instanceLocation:n,keyword:"enum",keywordLocation:`${i}/enum`,error:`Instance does not match any of ${JSON.stringify(K)}.`}):K.some(x=>e===x)||m.push({instanceLocation:n,keyword:"enum",keywordLocation:`${i}/enum`,error:`Instance does not match any of ${JSON.stringify(K)}.`})),z!==void 0){let x=`${i}/not`;S(e,z,t,o,s,f,n,x).valid&&m.push({instanceLocation:n,keyword:"not",keywordLocation:x,error:\'Instance matched "not" schema.\'})}let C=[];if(V!==void 0){let x=`${i}/anyOf`,g=m.length,y=!1;for(let h=0;h<V.length;h++){let p=V[h],b=Object.create(d),w=S(e,p,t,o,s,A===!0?f:null,n,`${x}/${h}`,b);m.push(...w.errors),y=y||w.valid,w.valid&&C.push(b)}y?m.length=g:m.splice(g,0,{instanceLocation:n,keyword:"anyOf",keywordLocation:x,error:"Instance does not match any subschemas."})}if(X!==void 0){let x=`${i}/allOf`,g=m.length,y=!0;for(let h=0;h<X.length;h++){let p=X[h],b=Object.create(d),w=S(e,p,t,o,s,A===!0?f:null,n,`${x}/${h}`,b);m.push(...w.errors),y=y&&w.valid,w.valid&&C.push(b)}y?m.length=g:m.splice(g,0,{instanceLocation:n,keyword:"allOf",keywordLocation:x,error:"Instance does not match every subschema."})}if(de!==void 0){let x=`${i}/oneOf`,g=m.length,y=de.filter((h,p)=>{let b=Object.create(d),w=S(e,h,t,o,s,A===!0?f:null,n,`${x}/${p}`,b);return m.push(...w.errors),w.valid&&C.push(b),w.valid}).length;y===1?m.length=g:m.splice(g,0,{instanceLocation:n,keyword:"oneOf",keywordLocation:x,error:`Instance does not match exactly one subschema (${y} matches).`})}if((c==="object"||c==="array")&&Object.assign(d,...C),Y!==void 0){let x=`${i}/if`;if(S(e,Y,t,o,s,f,n,x,d).valid){if(W!==void 0){let y=S(e,W,t,o,s,f,n,`${i}/then`,d);y.valid||m.push({instanceLocation:n,keyword:"if",keywordLocation:x,error:\'Instance does not match "then" schema.\'},...y.errors)}}else if(P!==void 0){let y=S(e,P,t,o,s,f,n,`${i}/else`,d);y.valid||m.push({instanceLocation:n,keyword:"if",keywordLocation:x,error:\'Instance does not match "else" schema.\'},...y.errors)}}if(c==="object"){if(fe!==void 0)for(let h of fe)h in e||m.push({instanceLocation:n,keyword:"required",keywordLocation:`${i}/required`,error:`Instance does not have required property "${h}".`});let x=Object.keys(e);if(se!==void 0&&x.length<se&&m.push({instanceLocation:n,keyword:"minProperties",keywordLocation:`${i}/minProperties`,error:`Instance does not have at least ${se} properties.`}),we!==void 0&&x.length>we&&m.push({instanceLocation:n,keyword:"maxProperties",keywordLocation:`${i}/maxProperties`,error:`Instance does not have at least ${we} properties.`}),ae!==void 0){let h=`${i}/propertyNames`;for(let p in e){let b=`${n}/${L(p)}`,w=S(p,ae,t,o,s,f,b,h);w.valid||m.push({instanceLocation:n,keyword:"propertyNames",keywordLocation:h,error:`Property name "${p}" does not match schema.`},...w.errors)}}if(G!==void 0){let h=`${i}/dependantRequired`;for(let p in G)if(p in e){let b=G[p];for(let w of b)w in e||m.push({instanceLocation:n,keyword:"dependentRequired",keywordLocation:h,error:`Instance has "${p}" but does not have "${w}".`})}}if(le!==void 0)for(let h in le){let p=`${i}/dependentSchemas`;if(h in e){let b=S(e,le[h],t,o,s,f,n,`${p}/${L(h)}`,d);b.valid||m.push({instanceLocation:n,keyword:"dependentSchemas",keywordLocation:p,error:`Instance has "${h}" but does not match dependant schema.`},...b.errors)}}if(he!==void 0){let h=`${i}/dependencies`;for(let p in he)if(p in e){let b=he[p];if(Array.isArray(b))for(let w of b)w in e||m.push({instanceLocation:n,keyword:"dependencies",keywordLocation:h,error:`Instance has "${p}" but does not have "${w}".`});else{let w=S(e,b,t,o,s,f,n,`${h}/${L(p)}`);w.valid||m.push({instanceLocation:n,keyword:"dependencies",keywordLocation:h,error:`Instance has "${p}" but does not match dependant schema.`},...w.errors)}}}let g=Object.create(null),y=!1;if(ee!==void 0){let h=`${i}/properties`;for(let p in ee){if(!(p in e))continue;let b=`${n}/${L(p)}`,w=S(e[p],ee[p],t,o,s,f,b,`${h}/${L(p)}`);if(w.valid)d[p]=g[p]=!0;else if(y=s,m.push({instanceLocation:n,keyword:"properties",keywordLocation:h,error:`Property "${p}" does not match schema.`},...w.errors),y)break}}if(!y&&ne!==void 0){let h=`${i}/patternProperties`;for(let p in ne){let b=new RegExp(p,"u"),w=ne[p];for(let F in e){if(!b.test(F))continue;let Fe=`${n}/${L(F)}`,Le=S(e[F],w,t,o,s,f,Fe,`${h}/${L(p)}`);Le.valid?d[F]=g[F]=!0:(y=s,m.push({instanceLocation:n,keyword:"patternProperties",keywordLocation:h,error:`Property "${F}" matches pattern "${p}" but does not match associated schema.`},...Le.errors))}}}if(!y&&q!==void 0){let h=`${i}/additionalProperties`;for(let p in e){if(g[p])continue;let b=`${n}/${L(p)}`,w=S(e[p],q,t,o,s,f,b,h);w.valid?d[p]=!0:(y=s,m.push({instanceLocation:n,keyword:"additionalProperties",keywordLocation:h,error:`Property "${p}" does not match additional properties schema.`},...w.errors))}}else if(!y&&oe!==void 0){let h=`${i}/unevaluatedProperties`;for(let p in e)if(!d[p]){let b=`${n}/${L(p)}`,w=S(e[p],oe,t,o,s,f,b,h);w.valid?d[p]=!0:m.push({instanceLocation:n,keyword:"unevaluatedProperties",keywordLocation:h,error:`Property "${p}" does not match unevaluated properties schema.`},...w.errors)}}}else if(c==="array"){me!==void 0&&e.length>me&&m.push({instanceLocation:n,keyword:"maxItems",keywordLocation:`${i}/maxItems`,error:`Array has too many items (${e.length} > ${me}).`}),ye!==void 0&&e.length<ye&&m.push({instanceLocation:n,keyword:"minItems",keywordLocation:`${i}/minItems`,error:`Array has too few items (${e.length} < ${ye}).`});let x=e.length,g=0,y=!1;if(ue!==void 0){let h=`${i}/prefixItems`,p=Math.min(ue.length,x);for(;g<p;g++){let b=S(e[g],ue[g],t,o,s,f,`${n}/${g}`,`${h}/${g}`);if(d[g]=!0,!b.valid&&(y=s,m.push({instanceLocation:n,keyword:"prefixItems",keywordLocation:h,error:"Items did not match schema."},...b.errors),y))break}}if(H!==void 0){let h=`${i}/items`;if(Array.isArray(H)){let p=Math.min(H.length,x);for(;g<p;g++){let b=S(e[g],H[g],t,o,s,f,`${n}/${g}`,`${h}/${g}`);if(d[g]=!0,!b.valid&&(y=s,m.push({instanceLocation:n,keyword:"items",keywordLocation:h,error:"Items did not match schema."},...b.errors),y))break}}else for(;g<x;g++){let p=S(e[g],H,t,o,s,f,`${n}/${g}`,h);if(d[g]=!0,!p.valid&&(y=s,m.push({instanceLocation:n,keyword:"items",keywordLocation:h,error:"Items did not match schema."},...p.errors),y))break}if(!y&&ve!==void 0){let p=`${i}/additionalItems`;for(;g<x;g++){let b=S(e[g],ve,t,o,s,f,`${n}/${g}`,p);d[g]=!0,b.valid||(y=s,m.push({instanceLocation:n,keyword:"additionalItems",keywordLocation:p,error:"Items did not match additional items schema."},...b.errors))}}}if(ge!==void 0)if(x===0&&U===void 0)m.push({instanceLocation:n,keyword:"contains",keywordLocation:`${i}/contains`,error:"Array is empty. It must contain at least one item matching the schema."});else if(U!==void 0&&x<U)m.push({instanceLocation:n,keyword:"minContains",keywordLocation:`${i}/minContains`,error:`Array has less items (${x}) than minContains (${U}).`});else{let h=`${i}/contains`,p=m.length,b=0;for(let w=0;w<x;w++){let F=S(e[w],ge,t,o,s,f,`${n}/${w}`,h);F.valid?(d[w]=!0,b++):m.push(...F.errors)}b>=(U||0)&&(m.length=p),U===void 0&&ce===void 0&&b===0?m.splice(p,0,{instanceLocation:n,keyword:"contains",keywordLocation:h,error:"Array does not contain item matching schema."}):U!==void 0&&b<U?m.push({instanceLocation:n,keyword:"minContains",keywordLocation:`${i}/minContains`,error:`Array must contain at least ${U} items matching schema. Only ${b} items were found.`}):ce!==void 0&&b>ce&&m.push({instanceLocation:n,keyword:"maxContains",keywordLocation:`${i}/maxContains`,error:`Array may contain at most ${ce} items matching schema. ${b} items were found.`})}if(!y&&pe!==void 0){let h=`${i}/unevaluatedItems`;for(g;g<x;g++){if(d[g])continue;let p=S(e[g],pe,t,o,s,f,`${n}/${g}`,h);d[g]=!0,p.valid||m.push({instanceLocation:n,keyword:"unevaluatedItems",keywordLocation:h,error:"Items did not match unevaluated items schema."},...p.errors)}}if(Te)for(let h=0;h<x;h++){let p=e[h],b=typeof p=="object"&&p!==null;for(let w=0;w<x;w++){if(h===w)continue;let F=e[w];(p===F||b&&(typeof F=="object"&&F!==null)&&xe(p,F))&&(m.push({instanceLocation:n,keyword:"uniqueItems",keywordLocation:`${i}/uniqueItems`,error:`Duplicate items at indexes ${h} and ${w}.`}),h=Number.MAX_SAFE_INTEGER,w=Number.MAX_SAFE_INTEGER)}}}else if(c==="number"){if(t==="4"?(J!==void 0&&(E===!0&&e<=J||e<J)&&m.push({instanceLocation:n,keyword:"minimum",keywordLocation:`${i}/minimum`,error:`${e} is less than ${E?"or equal to ":""} ${J}.`}),a!==void 0&&(v===!0&&e>=a||e>a)&&m.push({instanceLocation:n,keyword:"maximum",keywordLocation:`${i}/maximum`,error:`${e} is greater than ${v?"or equal to ":""} ${a}.`})):(J!==void 0&&e<J&&m.push({instanceLocation:n,keyword:"minimum",keywordLocation:`${i}/minimum`,error:`${e} is less than ${J}.`}),a!==void 0&&e>a&&m.push({instanceLocation:n,keyword:"maximum",keywordLocation:`${i}/maximum`,error:`${e} is greater than ${a}.`}),E!==void 0&&e<=E&&m.push({instanceLocation:n,keyword:"exclusiveMinimum",keywordLocation:`${i}/exclusiveMinimum`,error:`${e} is less than ${E}.`}),v!==void 0&&e>=v&&m.push({instanceLocation:n,keyword:"exclusiveMaximum",keywordLocation:`${i}/exclusiveMaximum`,error:`${e} is greater than or equal to ${v}.`})),_!==void 0){let x=e%_;Math.abs(0-x)>=11920929e-14&&Math.abs(_-x)>=11920929e-14&&m.push({instanceLocation:n,keyword:"multipleOf",keywordLocation:`${i}/multipleOf`,error:`${e} is not a multiple of ${_}.`})}}else if(c==="string"){let x=I===void 0&&$===void 0?0:Ue(e);I!==void 0&&x<I&&m.push({instanceLocation:n,keyword:"minLength",keywordLocation:`${i}/minLength`,error:`String is too short (${x} < ${I}).`}),$!==void 0&&x>$&&m.push({instanceLocation:n,keyword:"maxLength",keywordLocation:`${i}/maxLength`,error:`String is too long (${x} > ${$}).`}),M!==void 0&&!new RegExp(M,"u").test(e)&&m.push({instanceLocation:n,keyword:"pattern",keywordLocation:`${i}/pattern`,error:"String does not match pattern."}),D!==void 0&&Ae[D]&&!Ae[D](e)&&m.push({instanceLocation:n,keyword:"format",keywordLocation:`${i}/format`,error:`String does not match format "${D}".`})}return{valid:m.length===0,errors:m}}var Re=class{schema;draft;shortCircuit;lookup;constructor(r,t="2019-09",o=!0){this.schema=r,this.draft=t,this.shortCircuit=o,this.lookup=te(r)}validate(r){return S(r,this.schema,this.draft,this.lookup,this.shortCircuit)}addSchema(r,t){t&&(r={...r,$id:t}),te(r,this.lookup)}};function Ut(e,r="2020-12"){let t=typeof e=="object"&&e!==null?e.$schema:void 0;return typeof t!="string"?r:/draft-0?4\\b/.test(t)?"4":/draft-0?[67]\\b/.test(t)?"7":t.includes("2019-09")?"2019-09":t.includes("2020-12")?"2020-12":r}var He=e=>{let r=e.startsWith("#")?e.slice(1):e;try{return decodeURI(r)}catch{return r}};function Ke(e,r={}){let t=new Re(e,r.draft??Ut(e),!1);for(let o of r.references??[])t.addSchema(o.schema,o.id);return t}function Ye(e,r,t={}){let o;try{o=e.validate(r)}catch(i){if(i instanceof RangeError)return{valid:!1,problems:[],total:0,unchecked:`validation ran out of room (${i.message}): the value or the schema nests too deep`};throw i}if(o.valid)return{valid:!0,problems:[],total:0};let s=new Set,f=[];for(let i of o.errors){let d=`${i.instanceLocation}\\0${i.keyword}`;s.has(d)||(s.add(d),f.push({pointer:He(i.instanceLocation),keyword:i.keyword,schemaPointer:He(i.keywordLocation),message:i.error}))}f.sort((i,d)=>d.pointer.split("/").length-i.pointer.split("/").length);let n=t.maxProblems??50;return{valid:!1,problems:f.slice(0,n),total:f.length}}var Ht={person:"Person",system:"Software System",container:"Container",component:"Component"};function Ne(e){let r=e.kind==="container"&&e.database?"Container":Ht[e.kind];return e.technology?`[${r}: ${e.technology}]`:`[${r}]`}var Kt=[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584],Yt=[278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584],Gt=1e3,st="Helvetica, Arial, sans-serif";function Xe(e,r,t=!1){let o=t?Yt:Kt,s=0;for(let f of e){let n=f.codePointAt(0);s+=n>=32&&n<=126?o[n-32]:Gt}return s*r/1e3}function Pe(e,r,t,o=!1){let s=[],f="",n=i=>Xe(i,t,o)<=r;for(let i of e.split(/\\s+/).filter(Boolean)){let d=f?`${f} ${i}`:i;if(n(d)){f=d;continue}f&&s.push(f);let l=i;for(;!n(l);){let c=l.length-1;for(;c>1&&!n(l.slice(0,c));)c--;s.push(l.slice(0,c)),l=l.slice(c)}f=l}return f&&s.push(f),s}var je=e=>Math.round(e.size*1.3),be=e=>e.reduce((r,t)=>r+je(t),0),Jt=e=>Math.max(0,...e.map(r=>Xe(r.text,r.size,r.bold))),De=230,it=14,Zt=100,Q=10,Ge=15,Je=11,Ze=12,Qt=16,re=50,er=120,$e=28,Qe=38,ze=30,Ie=20,tr=150,et=11,rr=10,tt=12;function nr(e){let r=De-2*it,t=[...Pe(e.name,r,Ge,!0).map(o=>({text:o,size:Ge,bold:!0})),...Pe(Ne(e),r,Je).map(o=>({text:o,size:Je,bold:!1}))];return e.description&&t.push({text:"",size:6,bold:!1},...Pe(e.description,r,Ze).map(o=>({text:o,size:Ze,bold:!1}))),t}function or(e,r){return Math.max(Zt,be(r)+2*it)+(e.database?2*Q:0)}function sr(e,r,t=new Set){let o=r.map(i=>t.has(i.to)&&!t.has(i.from)),s=new Map(e.map(i=>[i,[]]));r.forEach((i,d)=>{t.has(i.from)&&t.has(i.to)||s.get(o[d]?i.to:i.from).push(d)});let f=new Map,n=i=>{f.set(i,"open");for(let d of s.get(i)){let l=o[d]?r[d].from:r[d].to,c=f.get(l);c==="open"?o[d]=!o[d]:c===void 0&&n(l)}f.set(i,"done")};for(let i of e)f.has(i)||n(i);return o}function ir(e,r,t=new Set){let o=t.size>0?1:0,s=r.filter(u=>!t.has(u.to)&&u.from!==u.to),f=new Map(e.map(u=>[u,[]])),n=new Map(e.map(u=>[u,[]]));for(let u of s)f.get(u.to).push(u.from),n.get(u.from).push(u.to);let i=new Map,d=new Map(e.map(u=>[u,f.get(u).length])),l=e.filter(u=>d.get(u)===0);for(let u of l)i.set(u,t.has(u)?0:o);for(;l.length>0;){let u=l.shift();for(let k of n.get(u))i.set(k,Math.max(i.get(k)??o,i.get(u)+1)),d.set(k,d.get(k)-1),d.get(k)===0&&l.push(k)}let c=Math.max(o,...i.values());for(let u of e)i.has(u)||i.set(u,c+1);for(let u of e){if(t.has(u)||f.get(u).length>0||n.get(u).length===0)continue;let k=Math.min(...n.get(u).map(A=>i.get(A)));k-1>i.get(u)&&i.set(u,k-1)}return i}var ie="#block";function _e(e,r){let t=new Map;return e.items[r].forEach((o,s)=>{if(o!==ie)return t.set(o,s);let f=e.inner[r];f.forEach((n,i)=>t.set(n,s-.5+(i+.5)/f.length))}),t}function rt(e,r,t){let o=0;for(let s=0;s+1<e.items.length;s++){let f=_e(e,s),n=_e(e,s+1),i=r.filter(([d,l])=>t.get(d)===s&&t.get(l)===s+1).map(([d,l])=>[f.get(d),n.get(l)]);for(let d=0;d<i.length;d++)for(let l=d+1;l<i.length;l++){let[c,u]=i[d],[k,A]=i[l];(c-k)*(u-A)<0&&o++}}return o}function fr(e,r,t,o=6){let s=c=>({items:c.items.map(u=>[...u]),inner:c.inner.map(u=>[...u])}),f=s(e),n=s(e),i=rt(n,r,t),d=ft(r),l=(c,u)=>(d.get(c)??[]).filter(k=>t.get(k)===u);for(let c=0;c<o;c++){let u=c%2===0,k=[...f.items.keys()];u||k.reverse();for(let O of k.slice(1)){let B=u?O-1:O+1,K=_e(f,B),fe=_e(f,O),z=P=>{let D=l(P,B).map(ee=>K.get(ee));return D.length?D.reduce((ee,ne)=>ee+ne,0)/D.length:fe.get(P)},V=f.inner[O],X=new Map(V.map(P=>[P,z(P)]));f.inner[O]=[...V].sort((P,D)=>X.get(P)-X.get(D));let de=f.items[O].indexOf(ie),Y=V.length?[...X.values()].reduce((P,D)=>P+D,0)/V.length:de,W=f.items[O].map(P=>({id:P,b:P===ie?Y:z(P)}));f.items[O]=W.sort((P,D)=>P.b-D.b).map(P=>P.id)}let A=rt(f,r,t);A<i&&(n=s(f),i=A)}return n}function ft(e){let r=new Map;for(let[t,o]of e)(r.get(t)??r.set(t,[]).get(t)).push(o),(r.get(o)??r.set(o,[]).get(o)).push(t);return r}function nt(e,r,t,o=-1/0,s=1/0){let f=e.length;if(f===0)return[];let n=[0];for(let u=1;u<f;u++)n.push(n[u-1]+(e[u-1]+e[u])/2+t);let i=[];for(let u=0;u<f;u++)for(i.push({sum:r[u]-n[u],count:1});i.length>1&&i.at(-2).sum/i.at(-2).count>i.at(-1).sum/i.at(-1).count;){let k=i.pop();i.at(-1).sum+=k.sum,i.at(-1).count+=k.count}let d=i.flatMap(u=>Array(u.count).fill(u.sum/u.count)),l=o+e[0]/2,c=s-e[f-1]/2-n[f-1];return d.map((u,k)=>Math.min(Math.max(u,l),Math.max(l,c))+n[k])}var ot="~";function dt(e){let r=e.boundary&&e.inside.length>0?e.boundary:void 0,t=[...e.outside,...e.inside],o=new Set(r?e.inside.map(a=>a.id):[]),s=t.map(a=>a.id),f=new Set(t.filter(a=>a.kind==="person").map(a=>a.id)),n=sr(s,e.edges,f),i=e.edges.map((a,E)=>n[E]?{from:a.to,to:a.from}:{from:a.from,to:a.to}),d=ir(s,i,f),l=new Map,c=new Map;for(let a of t){let E=nr(a);c.set(a.id,E),l.set(a.id,{id:a.id,width:De,height:or(a,E),dummy:!1,inside:o.has(a.id),layer:d.get(a.id),x:0,y:0})}let u=t.filter(a=>o.has(a.id)).map(a=>d.get(a.id)),k=u.length?{first:Math.min(...u),last:Math.max(...u)}:void 0,A=a=>k!==void 0&&a>=k.first&&a<=k.last,O=[],B=[];i.forEach((a,E)=>{let[v,_]=[a.from,a.to];d.get(v)>d.get(_)&&([v,_]=[_,v]);let I=[v];for(let $=d.get(v)+1;$<d.get(_);$++){let M=`${ot}${E}${ot}${$}`;l.set(M,{id:M,width:Qt,height:0,dummy:!0,inside:A($)&&(o.has(v)||o.has(_)),layer:$,x:0,y:0}),d.set(M,$),I.push(M)}I.push(_);for(let $=0;$+1<I.length;$++)d.get(I[$])!==d.get(I[$+1])&&B.push([I[$],I[$+1]]);O.push(I)});let K=Math.max(...[...l.values()].map(a=>a.layer))+1,fe=[...l.values()].filter(a=>a.inside).map(a=>a.layer),z=r?{first:Math.min(...fe),last:Math.max(...fe)}:void 0,V={items:[],inner:[]};for(let a=0;a<K;a++){let E=[...l.values()].filter($=>$.layer===a),v=E.filter($=>!$.inside).map($=>$.id),_=E.filter($=>$.inside).map($=>$.id),I=z&&a>=z.first&&a<=z.last;V.items.push(I?[ie,...v]:v),V.inner.push(_)}let X=fr(V,B,d),de=a=>a.reduce((E,v,_)=>E+l.get(v).width+(_>0?re:0),0),Y=z?Math.max(De,...X.inner.map(de)):0,W=Y+2*$e,P=0,D=a=>a===ie?W:l.get(a).width;X.items.forEach((a,E)=>{let v=0;for(let $ of a){let M=D($);$===ie?P=v+M/2:l.get($).x=v+M/2,v+=M+re}let _=X.inner[E],I=P-de(_)/2;for(let $ of _)l.get($).x=I+l.get($).width/2,I+=l.get($).width+re});let ee=ft(B),ne=(a,E)=>{let v=(ee.get(a)??[]).filter(_=>E.includes(d.get(_))).map(_=>l.get(_).x);return v.length?v.reduce((_,I)=>_+I,0)/v.length:l.get(a).x};for(let a=0;a<12;a++){let E=a%2===0,v=[...X.items.keys()];E||v.reverse();let _=a>=8,I=[];for(let $ of v){let M=_?[$-1,$+1]:[E?$-1:$+1],T=X.items[$],N=T.indexOf(ie),m=(C,x,g)=>{let y=nt(C.map(D),C.map(h=>ne(h,M)),re,x,g);C.forEach((h,p)=>l.get(h).x=y[p])};if(N<0)m(T);else{m(T.slice(0,N),-1/0,P-W/2-re),m(T.slice(N+1),P+W/2+re);let C=X.inner[$];for(let x of C)I.push(ne(x,M)-l.get(x).x);m(C,P-Y/2,P+Y/2)}}I.length&&(P+=I.reduce(($,M)=>$+M,0)/I.length/2)}X.items.forEach((a,E)=>{let v=a.indexOf(ie);if(v<0)return;let _=(I,$,M)=>{let T=nt(I.map(D),I.map(N=>l.get(N).x),re,$,M);I.forEach((N,m)=>l.get(N).x=T[m])};_(a.slice(0,v),-1/0,P-W/2-re),_(a.slice(v+1),P+W/2+re),_(X.inner[E],P-Y/2,P+Y/2)});let q=[],oe=[],se=Ie*2.5;for(let a=0;a<K;a++){z&&a===z.first&&(se+=$e),q.push(se);let E=Math.max(0,...[...l.values()].filter(v=>v.layer===a).map(v=>v.height));oe.push(E),se+=E+er,z&&a===z.last&&(se+=$e+Qe)}for(let a of l.values())a.y=q[a.layer]+(oe[a.layer]-a.height)/2;let we=a=>({x:a.x-a.width/2,y:a.y,width:a.width,height:a.height}),ae=t.map(a=>({...we(l.get(a.id)),id:a.id,element:a,inside:o.has(a.id),lines:c.get(a.id)})),G=z?{x:P-W/2,y:q[z.first]-$e,width:W,height:q[z.last]+oe[z.last]+$e+Qe-(q[z.first]-$e)}:void 0,le=new Map,he=new Map,ue=(a,E)=>a<E?`${a}|${E}`:`${E}|${a}`;for(let a of e.edges)le.set(ue(a.from,a.to),(le.get(ue(a.from,a.to))??0)+1);let H=e.edges.map((a,E)=>{let v=ue(a.from,a.to),_=he.get(v)??0;he.set(v,_+1);let I=(_-((le.get(v)??1)-1)/2)*28,$=O[E],M=l.get($[0]),T=l.get($.at(-1)),N;if(M.layer===T.layer){let m=q[M.layer]+oe[M.layer]+30+Math.abs(I);N=[{x:M.x+I/2,y:M.y+M.height},{x:M.x+I/2,y:m},{x:T.x+I/2,y:m},{x:T.x+I/2,y:T.y+T.height}]}else{let m=y=>q[y]+oe[y],C=(y,h)=>Math.min(Math.max(h,y.x-y.width/2+tt),y.x+y.width/2-tt),x=C(M,M.x+I),g=C(T,T.x+I);N=[{x,y:M.y+M.height},{x,y:m(M.layer)}];for(let y of $.slice(1,-1)){let h=l.get(y);N.push({x:h.x+I,y:q[h.layer]},{x:h.x+I,y:m(h.layer)})}N.push({x:g,y:q[T.layer]},{x:g,y:T.y}),N=N.filter((y,h)=>h===0||y.x!==N[h-1].x||y.y!==N[h-1].y)}return $[0]!==a.from&&N.reverse(),{from:a.from,to:a.to,description:a.description,technology:a.technology,points:N}});ur(H,ae);let ve=Xe(e.title,Ie,!0),pe=[...ae,...G?[G]:[],...H.flatMap(a=>a.label?[a.label.rect]:[]),...H.flatMap(a=>a.points.map(E=>({x:E.x,y:E.y,width:0,height:0})))],ge=Math.min(...pe.map(a=>a.x)),U=Math.max(...pe.map(a=>a.x+a.width)),ce=Math.max(U-ge,ve),ye=ze-ge+(ce-(U-ge))/2,me=a=>{a.x+=ye};ae.forEach(me),G&&me(G);for(let a of H)a.points.forEach(E=>E.x+=ye),a.label&&me(a.label.rect);let Te=Math.max(...pe.map(a=>a.y+a.height)),J=Math.ceil(ce+2*ze);return{width:J,height:Math.ceil(Te+ze),title:{text:e.title,x:J/2,y:Ie*1.6,size:Ie},boundary:r&&G?{element:r,rect:G,lines:dr(r)}:void 0,nodes:ae,edges:H}}function dr(e){return[{text:e.name,size:14,bold:!0},{text:Ne(e),size:11,bold:!1}]}function Me(e,r,t=0){return e.x<r.x+r.width+t&&r.x<e.x+e.width+t&&e.y<r.y+r.height+t&&r.y<e.y+e.height+t}var ar=(e,r)=>Math.max(0,Math.min(e.x+e.width,r.x+r.width)-Math.max(e.x,r.x))*Math.max(0,Math.min(e.y+e.height,r.y+r.height)-Math.max(e.y,r.y));function lr(e,r){let t=e.slice(1).map((s,f)=>Math.hypot(s.x-e[f].x,s.y-e[f].y)),o=t.reduce((s,f)=>s+f,0)*r;for(let s=0;s<t.length;s++){if(o<=t[s]||s===t.length-1){let f=t[s]===0?0:Math.min(1,o/t[s]);return{x:e[s].x+(e[s+1].x-e[s].x)*f,y:e[s].y+(e[s+1].y-e[s].y)*f}}o-=t[s]}return e[0]}function ur(e,r){let t=[];for(let o of e){let s=[...o.description?Pe(o.description,tr,et).map(d=>({text:d,size:et,bold:!1})):[],...o.technology?[{text:`[${o.technology}]`,size:rr,bold:!1}]:[]];if(s.length===0)continue;let f=Jt(s)+6,n=be(s)+4,i;e:for(let d of[.5,.4,.6,.3,.7,.2,.8]){let l=lr(o.points,d);for(let c of[0,f/2+8,-(f/2+8)]){let u={x:l.x+c-f/2,y:l.y-n/2,width:f,height:n},k=[...r,...t].reduce((A,O)=>A+ar(u,{x:O.x-4,y:O.y-4,width:O.width+8,height:O.height+8}),0);if((!i||k<i.cost)&&(i={rect:u,cost:k}),k===0)break e}}o.label={lines:s,rect:i.rect},t.push(i.rect)}}var cr={person:{fill:"#08427b",stroke:"#073b6f",font:"#ffffff"},system:{fill:"#1168bd",stroke:"#0b4884",font:"#ffffff"},container:{fill:"#438dd5",stroke:"#3c7fc0",font:"#ffffff"},component:{fill:"#85bbf0",stroke:"#78a8d8",font:"#000000"}},mr={fill:"#686868",stroke:"#5d5d5d",font:"#ffffff"},hr={fill:"#999999",stroke:"#8a8a8a",font:"#ffffff"},at="#707070",ke=/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\uFFFE\\uFFFF]|[\\uD800-\\uDBFF](?![\\uDC00-\\uDFFF])|(?<![\\uD800-\\uDBFF])[\\uDC00-\\uDFFF]/g,Oe=e=>e.replace(ke,"\\uFFFD").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"),R=e=>String(Math.round(e*10)/10);function Be(e,r,t,o,s="middle"){let f=t,n=[];for(let i of e){let d=je(i);i.text&&n.push(`<text x="${R(r)}" y="${R(f+d*.78)}" font-size="${i.size}"${i.bold?\' font-weight="bold"\':""} text-anchor="${s}" fill="${o}">${Oe(i.text)}</text>`),f+=d}return n.join("")}function pr(e){let r=e.element,t=r.external?r.kind==="person"?mr:hr:cr[r.kind],{x:o,y:s,width:f,height:n}=e,i=`fill="${t.fill}" stroke="${t.stroke}" stroke-width="1.5"`,d,l=s+(n-be(e.lines))/2;if(r.database){let c=f/2;d=`<path d="M${R(o)},${R(s+Q)} L${R(o)},${R(s+n-Q)} A${R(c)},${Q} 0 0 0 ${R(o+f)},${R(s+n-Q)} L${R(o+f)},${R(s+Q)} Z" ${i}/><ellipse cx="${R(o+c)}" cy="${R(s+Q)}" rx="${R(c)}" ry="${Q}" ${i}/>`,l+=Q}else d=`<rect x="${R(o)}" y="${R(s)}" width="${R(f)}" height="${R(n)}" rx="${r.kind==="person"?28:10}" ${i}/>`;return`<g id="${Oe(e.id)}" class="c4-${r.kind}">${d}${Be(e.lines,o+f/2,l,t.font)}</g>`}function gr(e){if(e.length<3)return`M${e.map(s=>`${R(s.x)},${R(s.y)}`).join(" L")}`;let r=(s,f)=>({x:(s.x+f.x)/2,y:(s.y+f.y)/2}),t=`M${R(e[0].x)},${R(e[0].y)}`;for(let s=1;s<e.length-1;s++){let f=r(e[s-1],e[s]),n=r(e[s],e[s+1]);t+=` L${R(f.x)},${R(f.y)} Q${R(e[s].x)},${R(e[s].y)} ${R(n.x)},${R(n.y)}`}let o=e.at(-1);return`${t} L${R(o.x)},${R(o.y)}`}function lt(e){let r=[`<svg xmlns="http://www.w3.org/2000/svg" width="${e.width}" height="${e.height}" viewBox="0 0 ${e.width} ${e.height}" font-family="${st}">`,`<title>${Oe(e.title.text)}</title>`,`<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${at}"/></marker></defs>`,\'<rect width="100%" height="100%" fill="#ffffff"/>\',`<text x="${R(e.title.x)}" y="${R(e.title.y)}" font-size="${e.title.size}" font-weight="bold" text-anchor="middle" fill="#000000">${Oe(e.title.text)}</text>`];if(e.boundary){let{rect:t,lines:o}=e.boundary;r.push(`<g class="c4-boundary"><rect x="${R(t.x)}" y="${R(t.y)}" width="${R(t.width)}" height="${R(t.height)}" rx="12" fill="none" stroke="#444444" stroke-width="1.5" stroke-dasharray="8 5"/>`,Be(o,t.x+16,t.y+t.height-be(o)-10,"#444444","start"),"</g>")}r.push(\'<g class="c4-relationships">\');for(let t of e.edges)r.push(`<path d="${gr(t.points)}" fill="none" stroke="${at}" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>`);r.push("</g>",...e.nodes.map(pr),\'<g class="c4-labels">\');for(let t of e.edges){if(!t.label)continue;let o=t.label.rect;r.push(`<rect x="${R(o.x)}" y="${R(o.y)}" width="${R(o.width)}" height="${R(o.height)}" fill="#ffffff" fill-opacity="0.85"/>`,Be(t.label.lines,o.x+o.width/2,o.y+2,"#444444"))}return r.push("</g>","</svg>"),`${r.join(`\n`)}\n`}var Ee=class extends Error{constructor(t,o,s){super(`${t} (line ${o}, column ${s})`);this.line=o;this.column=s;this.name="XmlSyntaxError"}line;column},yr={lt:"<",gt:">",amp:"&",quot:\'"\',apos:"\'"},ut=/^[A-Za-z_:\\u00c0-\\uffff][\\w:.\\u00b7\\u00c0-\\uffff-]*$/,xr=16*1024*1024;var Ce=class{constructor(r,t={}){this.onEvent=r;this.options=t;this.entities={...t.entities,...yr},this.maxToken=t.maxToken??xr}onEvent;options;buffer="";line=1;column=1;stack=[];roots=0;ended=!1;entities;maxToken;get open(){return this.stack}write(r){if(this.ended)throw new Error("write() after end()");this.buffer+=this.line===1&&this.column===1&&this.buffer===""?r.replace(/^\\ufeff/,""):r,this.drain(!1)}end(){if(this.ended=!0,this.drain(!0),this.stack.length)throw this.error(`<${this.stack.at(-1)}> is never closed`);if(!this.options.fragment&&this.roots===0)throw this.error("There is no root element")}error(r,t={line:this.line,column:this.column}){return new Ee(r,t.line,t.column)}advance(r){let t=r.indexOf(`\n`);if(t===-1){this.column+=r.length;return}let o=t;for(;t!==-1;)this.line++,o=t,t=r.indexOf(`\n`,t+1);this.column=r.length-o}drain(r){for(;;){let t=this.buffer.indexOf("<");if(t!==0){let s=t===-1?this.buffer.length:t;if(t===-1&&!r){let f=this.buffer.lastIndexOf("&");for(f!==-1&&this.buffer.length-f<=32&&this.buffer.indexOf(";",f)===-1&&(s=f);s>0&&s>this.buffer.length-2&&this.buffer[s-1]==="]";)s--;s>0&&this.buffer[s-1]==="\\r"&&s--}if(s===0||(this.text(this.buffer.slice(0,s)),this.consume(s),t===-1))return;continue}if(this.markup(r)===0){if(this.buffer.length>this.maxToken)throw this.error(`A single construct is longer than ${this.maxToken} characters`);if(r)throw this.error("The document ends inside markup");return}}}consume(r){this.advance(this.buffer.slice(0,r)),this.buffer=this.buffer.slice(r)}markup(r){let t=this.buffer,o={line:this.line,column:this.column},s=d=>t.startsWith(d)||!r&&d.startsWith(t),f=(d,l)=>{let c=t.indexOf(d,l);return c===-1?-1:c+d.length};if(s("<!--")){if(t.length<4)return 0;let d=f("-->",4);return d===-1?0:(this.onEvent({type:"comment",text:t.slice(4,d-3),...o}),this.consume(d),d)}if(s("<![CDATA[")){if(t.length<9)return 0;let d=f("]]>",9);return d===-1?0:(this.inElementOrFragment(o,!0),this.onEvent({type:"text",text:t.slice(9,d-3).replace(/\\r\\n?/g,`\n`),cdata:!0,...o}),this.consume(d),d)}if(s("<!DOCTYPE")){if(t.length<9)return 0;let d=t.indexOf("["),l=t.indexOf(">"),c;if(d!==-1&&(l===-1||d<l)){let u=t.indexOf("]",d);c=u===-1?-1:f(">",u)}else c=l===-1?-1:l+1;return c===-1?0:(this.onEvent({type:"doctype",body:t.slice(9,c-1).trim(),...o}),this.consume(c),c)}if(t.startsWith("<!")){if(!r&&t.length<9)return 0;throw this.error("Unrecognised markup after <!")}if(t.startsWith("<?")){let d=f("?>",2);if(d===-1)return 0;let l=t.slice(2,d-2),c=/^\\S+/.exec(l)?.[0]??"";return this.onEvent({type:"pi",target:c,body:l.slice(c.length).trim(),...o}),this.consume(d),d}let n=$r(t);if(n===-1)return 0;if(n===-2)throw this.error(\'A tag holds "<", or is never closed with ">"\',o);let i=t.slice(1,n-1);if(i.startsWith("/")){let d=i.slice(1).trim(),l=this.stack.pop();if(l===void 0)throw this.error(`</${d}> closes nothing`,o);if(d!==l)throw this.error(`</${d}> found where </${l}> was expected`,o);this.onEvent({type:"close",name:d,...o})}else{let d=i.endsWith("/"),{name:l,attrs:c}=this.tag(d?i.slice(0,-1):i,o);if(this.stack.length===0){if(!this.options.fragment&&this.roots>0)throw this.error(`<${l}> is a second root element`,o);this.roots++}this.onEvent({type:"open",name:l,attrs:c,selfClosing:d,...o}),d?this.onEvent({type:"close",name:l,...o}):this.stack.push(l)}return this.consume(n),n}inElementOrFragment(r,t){if(this.stack.length===0&&!this.options.fragment)throw this.error(`${t?"CDATA":"Text"} outside the root element`,r)}text(r){let t={line:this.line,column:this.column};if(this.stack.length===0&&!this.options.fragment){r.trim()!==""&&this.inElementOrFragment(t,!1);return}if(r.includes("]]>"))throw this.error(\'"]]>" is not allowed in text\',t);this.onEvent({type:"text",text:this.decode(r.replace(/\\r\\n?/g,`\n`),t),cdata:!1,...t})}tag(r,t){let o=/^[^\\s/>=]+/.exec(r)?.[0]??"";if(!ut.test(o))throw this.error(`"<${r.slice(0,40)}" is not a valid tag`,t);let s={},f=r.slice(o.length),n=/^\\s+([^\\s=/>]+)\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\')/;for(;f.trim()!=="";){let i=n.exec(f);if(!i)throw this.error(`<${o}> has a malformed attribute near "${f.trim().slice(0,40)}"`,t);let d=i[1];if(!ut.test(d))throw this.error(`<${o}> has an invalid attribute name "${d}"`,t);if(Object.hasOwn(s,d))throw this.error(`<${o}> has the attribute "${d}" twice`,t);if((i[2]??i[3]??"").includes("<"))throw this.error(`<${o}> has "<" in the value of "${d}"; write it as &lt;`,t);s[d]=this.decode((i[2]??i[3]??"").replace(/\\r\\n|[\\t\\n\\r]/g," "),t),f=f.slice(i[0].length)}return{name:o,attrs:s}}decode(r,t){return r.includes("&")?r.replace(/&([^;&\\s]*);?/g,(o,s)=>{if(!o.endsWith(";"))throw this.error(\'A bare "&" must be written &amp;\',t);if(s.startsWith("#")){let n=s[1]==="x"?parseInt(s.slice(2),16):/^\\d+$/.test(s.slice(1))?parseInt(s.slice(1),10):NaN;if(!Number.isInteger(n)||n<1||n>1114111||n>=55296&&n<=57343)throw this.error(`"&${s};" is not a valid character reference`,t);return String.fromCodePoint(n)}let f=Object.hasOwn(this.entities,s)?this.entities[s]:void 0;if(f===void 0)throw this.error(`"&${s};" is not an entity this reader knows`,t);return f}):r}};function $r(e){let r="";for(let t=1;t<e.length;t++){let o=e[t];if(r)o===r&&(r="");else if(o===\'"\'||o==="\'")r=o;else{if(o===">")return t+1;if(o==="<")return-2}}return-1}function ct(e,r={}){let t=[],o=[],s=n=>{let i=o.at(-1)?.children??t,d=i.at(-1);n.type==="text"&&d?.type==="text"&&d.cdata===n.cdata?d.text+=n.text:i.push(n)},f=new Ce(n=>{if(n.type==="open"){let i={type:"element",name:n.name,attrs:n.attrs,children:[],line:n.line,column:n.column};s(i),o.push(i)}else n.type==="close"?o.pop():n.type==="text"?s({type:"text",text:n.text,cdata:n.cdata}):n.type==="comment"&&r.comments&&s({type:"comment",text:n.text})},r);return f.write(e),f.end(),t}var wr=["boxes.apart","children.inBoundary","edges.touchBoxes","edges.clearOfBoxes","labels.clearOfBoxes"],br=5,j=1,kr=(e,r)=>r.x>=e.x-j&&r.y>=e.y-j&&r.x+r.width<=e.x+e.width+j&&r.y+r.height<=e.y+e.height+j;function mt(e,r){let t=r.x>=e.x-j&&r.x<=e.x+e.width+j&&r.y>=e.y-j&&r.y<=e.y+e.height+j,o=r.x>e.x+j&&r.x<e.x+e.width-j&&r.y>e.y+j&&r.y<e.y+e.height-j;return t&&!o}function Er(e,r,t){let o=e.x+j,s=e.y+j,f=e.x+e.width-j,n=e.y+e.height-j;if(f<=o||n<=s)return!1;let i=t.x-r.x,d=t.y-r.y,l=0,c=1;for(let[u,k]of[[-i,r.x-o],[i,f-r.x],[-d,r.y-s],[d,n-r.y]]){if(u===0){if(k<=0)return!1;continue}let A=k/u;if(u<0?l=Math.max(l,A):c=Math.min(c,A),l>=c)return!1}return c-l>1e-9}function ht(e){let r=new Map(wr.map(n=>[n,{check:n,checked:0,failed:0,failures:[]}])),t=(n,i,d,l)=>{let c=r.get(n);c.checked++,!i&&(c.failed++,c.failures.length<br&&c.failures.push({at:d,message:l()}))},o=e.nodes;for(let n=0;n<o.length;n++)for(let i=n+1;i<o.length;i++){let[d,l]=[o[n],o[i]];t("boxes.apart",!Me(d,l),`${d.id}, ${l.id}`,()=>`boxes "${d.id}" and "${l.id}" overlap`)}let s=e.boundary;for(let n of o)n.inside?t("children.inBoundary",!!s&&kr(s.rect,n),n.id,()=>`"${n.id}" belongs inside the boundary${s?` "${s.element.id}"`:""} and is drawn outside it`):s&&t("children.inBoundary",!Me(s.rect,n),n.id,()=>`"${n.id}" is outside the boundary "${s.element.id}" and is drawn over it`);let f=new Map(o.map(n=>[n.id,n]));for(let n of e.edges){let i=`${n.from} -> ${n.to}`,d=f.get(n.from),l=f.get(n.to),c=n.points[0],u=n.points.at(-1);t("edges.touchBoxes",!!d&&!!c&&mt(d,c),i,()=>`the arrow ${i} doesn\'t start on "${n.from}"`),t("edges.touchBoxes",!!l&&!!u&&n.points.length>=2&&mt(l,u),i,()=>`the arrow ${i} doesn\'t end on "${n.to}"`);for(let k of o){if(k.id===n.from||k.id===n.to)continue;let A=n.points.slice(1).some((O,B)=>Er(k,n.points[B],O));t("edges.clearOfBoxes",!A,`${i}, ${k.id}`,()=>`the arrow ${i} passes behind "${k.id}"`)}}for(let n of e.edges)if(n.label)for(let i of o)t("labels.clearOfBoxes",!Me(n.label.rect,i),`${n.from} -> ${n.to}, ${i.id}`,()=>`the label of ${n.from} -> ${n.to} covers "${i.id}"`);return[...r.values()]}function pt(e){let r=(o,s)=>({check:"svg.wellFormed",checked:1,failed:1,failures:[{at:o,message:s}]});ke.lastIndex=0;let t=ke.exec(e);if(ke.lastIndex=0,t){let o=`U+${t[0].charCodeAt(0).toString(16).toUpperCase().padStart(4,"0")}`;return r(`offset ${t.index}`,`the SVG holds ${o} at offset ${t.index}, a character XML forbids, so it won\'t open`)}try{ct(e)}catch(o){if(!(o instanceof Ee))throw o;return r(`line ${o.line}, column ${o.column}`,`the SVG is not well-formed XML: ${o.message}`)}return{check:"svg.wellFormed",checked:1,failed:0,failures:[]}}function gt(e){let r=dt(e),t=lt(r);return{svg:t,width:r.width,height:r.height,runs:[...ht(r),pt(t)]}}var yt=new Map;function vr(e){if(e.kind==="c4-draw")return gt(e.view);if(e.kind==="validate"){let r=e.key===void 0?void 0:yt.get(e.key);if(!r){if(e.schema===void 0)throw new Error(`no schema was sent for key ${e.key}`);try{r=Ke(e.schema,{...e.draft?{draft:e.draft}:{},...e.references?{references:e.references}:{}})}catch(t){if(t instanceof RangeError)return{valid:!1,problems:[],total:0,unchecked:`validation ran out of room (${t.message}): the value or the schema nests too deep`};throw t}e.key!==void 0&&yt.set(e.key,r)}return Ye(r,e.value,{maxProblems:1/0})}return e.patterns.map(({pattern:r,candidates:t})=>{let o;try{o=new RegExp(r,"u")}catch{try{o=new RegExp(r)}catch{return-2}}return t.findIndex(s=>o.test(s))})}Se.parentPort.on("message",({id:e,task:r})=>{try{Se.parentPort.postMessage({id:e,ok:!0,value:vr(r)})}catch(t){Se.parentPort.postMessage({id:e,ok:!1,stack:t instanceof RangeError,message:t instanceof Error?t.message:String(t)})}});\n';
+    WORKER_SOURCE = '"use strict";var Xt=require("node:worker_threads");function Ze(e,t){let n=typeof e;if(n!==typeof t)return!1;if(Array.isArray(e)){if(!Array.isArray(t))return!1;let i=e.length;if(i!==t.length)return!1;for(let r=0;r<i;r++)if(!Ze(e[r],t[r]))return!1;return!0}if(n==="object"){if(!e||!t)return e===t;let i=Object.keys(e),r=Object.keys(t);if(i.length!==r.length)return!1;for(let o of i)if(!Ze(e[o],t[o]))return!1;return!0}return e===t}function fe(e){return encodeURI(ds(e))}function ds(e){return e.replace(/~/g,"~0").replace(/\\//g,"~1")}var hs={prefixItems:!0,items:!0,allOf:!0,anyOf:!0,oneOf:!0},ps={$defs:!0,definitions:!0,properties:!0,patternProperties:!0,dependentSchemas:!0},ms={id:!0,$id:!0,$ref:!0,$schema:!0,$anchor:!0,$vocabulary:!0,$comment:!0,default:!0,enum:!0,const:!0,required:!0,type:!0,maximum:!0,minimum:!0,exclusiveMaximum:!0,exclusiveMinimum:!0,multipleOf:!0,maxLength:!0,minLength:!0,pattern:!0,format:!0,maxItems:!0,minItems:!0,uniqueItems:!0,maxProperties:!0,minProperties:!0},gs=typeof self<"u"&&self.location&&self.location.origin!=="null"?new URL(self.location.origin+self.location.pathname+location.search):new URL("https://github.com/cfworker");function ve(e,t=Object.create(null),n=gs,i=""){if(e&&typeof e=="object"&&!Array.isArray(e)){let s=e.$id||e.id;if(s){let o=new URL(s,n.href);o.hash.length>1?t[o.href]=e:(o.hash="",i===""?n=o:ve(e,t,n))}}else if(e!==!0&&e!==!1)return t;let r=n.href+(i?"#"+i:"");if(t[r]!==void 0)throw new Error(`Duplicate schema URI "${r}".`);if(t[r]=e,e===!0||e===!1)return t;if(e.__absolute_uri__===void 0&&Object.defineProperty(e,"__absolute_uri__",{enumerable:!1,value:r}),e.$ref&&e.__absolute_ref__===void 0){let s=new URL(e.$ref,n.href);s.hash=s.hash,Object.defineProperty(e,"__absolute_ref__",{enumerable:!1,value:s.href})}if(e.$recursiveRef&&e.__absolute_recursive_ref__===void 0){let s=new URL(e.$recursiveRef,n.href);s.hash=s.hash,Object.defineProperty(e,"__absolute_recursive_ref__",{enumerable:!1,value:s.href})}if(e.$anchor){let s=new URL("#"+e.$anchor,n.href);t[s.href]=e}for(let s in e){if(ms[s])continue;let o=`${i}/${fe(s)}`,a=e[s];if(Array.isArray(a)){if(hs[s]){let l=a.length;for(let c=0;c<l;c++)ve(a[c],t,n,`${o}/${c}`)}}else if(ps[s])for(let l in a)ve(a[l],t,n,`${o}/${fe(l)}`);else ve(a,t,n,o)}return t}var ys=/^(\\d\\d\\d\\d)-(\\d\\d)-(\\d\\d)$/,xs=[0,31,28,31,30,31,30,31,31,30,31,30,31],ks=/^(\\d\\d):(\\d\\d):(\\d\\d)(\\.\\d+)?(z|[+-]\\d\\d(?::?\\d\\d)?)?$/i,bs=/^(?=.{1,253}\\.?$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\\.[a-z0-9](?:[-0-9a-z]{0,61}[0-9a-z])?)*\\.?$/i,ws=/^(?:[a-z][a-z0-9+\\-.]*:)?(?:\\/?\\/(?:(?:[a-z0-9\\-._~!$&\'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\\.[a-z0-9\\-._~!$&\'()*+,;=:]+)\\]|(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)|(?:[a-z0-9\\-._~!$&\'"()*+,;=]|%[0-9a-f]{2})*)(?::\\d*)?(?:\\/(?:[a-z0-9\\-._~!$&\'"()*+,;=:@]|%[0-9a-f]{2})*)*|\\/(?:(?:[a-z0-9\\-._~!$&\'"()*+,;=:@]|%[0-9a-f]{2})+(?:\\/(?:[a-z0-9\\-._~!$&\'"()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\\-._~!$&\'"()*+,;=:@]|%[0-9a-f]{2})+(?:\\/(?:[a-z0-9\\-._~!$&\'"()*+,;=:@]|%[0-9a-f]{2})*)*)?(?:\\?(?:[a-z0-9\\-._~!$&\'"()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\\-._~!$&\'"()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i,$s=/^(?:(?:[^\\x00-\\x20"\'<>%\\\\^`{|}]|%[0-9a-f]{2})|\\{[+#./;?&=,!@|]?(?:[a-z0-9_]|%[0-9a-f]{2})+(?::[1-9][0-9]{0,3}|\\*)?(?:,(?:[a-z0-9_]|%[0-9a-f]{2})+(?::[1-9][0-9]{0,3}|\\*)?)*\\})*$/i,vs=/^(?:(?:https?|ftp):\\/\\/)(?:\\S+(?::\\S*)?@)?(?:(?!10(?:\\.\\d{1,3}){3})(?!127(?:\\.\\d{1,3}){3})(?!169\\.254(?:\\.\\d{1,3}){2})(?!192\\.168(?:\\.\\d{1,3}){2})(?!172\\.(?:1[6-9]|2\\d|3[0-1])(?:\\.\\d{1,3}){2})(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}(?:\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))|(?:(?:[a-z\\u{00a1}-\\u{ffff}0-9]+-?)*[a-z\\u{00a1}-\\u{ffff}0-9]+)(?:\\.(?:[a-z\\u{00a1}-\\u{ffff}0-9]+-?)*[a-z\\u{00a1}-\\u{ffff}0-9]+)*(?:\\.(?:[a-z\\u{00a1}-\\u{ffff}]{2,})))(?::\\d{2,5})?(?:\\/[^\\s]*)?$/iu,Es=/^(?:urn:uuid:)?[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i,As=/^(?:\\/(?:[^~/]|~0|~1)*)*$/,Ss=/^#(?:\\/(?:[a-z0-9_\\-.!$&\'()*+,;:=@]|%[0-9a-f]{2}|~0|~1)*)*$/i,Is=/^(?:0|[1-9][0-9]*)(?:#|(?:\\/(?:[^~/]|~0|~1)*)*)$/,Ts=e=>{if(e[0]===\'"\')return!1;let[t,n,...i]=e.split("@");return!t||!n||i.length!==0||t.length>64||n.length>253||t[0]==="."||t.endsWith(".")||t.includes("..")||!/^[a-z0-9.-]+$/i.test(n)||!/^[a-z0-9.!#$%&\'*+/=?^_`{|}~-]+$/i.test(t)?!1:n.split(".").every(r=>/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i.test(r))},Ls=/^(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$/,Ns=/^((([0-9a-f]{1,4}:){7}([0-9a-f]{1,4}|:))|(([0-9a-f]{1,4}:){6}(:[0-9a-f]{1,4}|((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9a-f]{1,4}:){5}(((:[0-9a-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9a-f]{1,4}:){4}(((:[0-9a-f]{1,4}){1,3})|((:[0-9a-f]{1,4})?:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-f]{1,4}:){3}(((:[0-9a-f]{1,4}){1,4})|((:[0-9a-f]{1,4}){0,2}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-f]{1,4}:){2}(((:[0-9a-f]{1,4}){1,5})|((:[0-9a-f]{1,4}){0,3}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-f]{1,4}:){1}(((:[0-9a-f]{1,4}){1,6})|((:[0-9a-f]{1,4}){0,4}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(:(((:[0-9a-f]{1,4}){1,7})|((:[0-9a-f]{1,4}){0,5}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:)))$/i,Os=e=>e.length>1&&e.length<80&&(/^P\\d+([.,]\\d+)?W$/.test(e)||/^P[\\dYMDTHS]*(\\d[.,]\\d+)?[YMDHS]$/.test(e)&&/^P([.,\\d]+Y)?([.,\\d]+M)?([.,\\d]+D)?(T([.,\\d]+H)?([.,\\d]+M)?([.,\\d]+S)?)?$/.test(e));function we(e){return e.test.bind(e)}var Gt={date:rr,time:ir.bind(void 0,!1),"date-time":Rs,duration:Os,uri:Fs,"uri-reference":we(ws),"uri-template":we($s),url:we(vs),email:Ts,hostname:we(bs),ipv4:we(Ls),ipv6:we(Ns),regex:Bs,uuid:we(Es),"json-pointer":we(As),"json-pointer-uri-fragment":we(Ss),"relative-json-pointer":we(Is)};function _s(e){return e%4===0&&(e%100!==0||e%400===0)}function rr(e){let t=e.match(ys);if(!t)return!1;let n=+t[1],i=+t[2],r=+t[3];return i>=1&&i<=12&&r>=1&&r<=(i==2&&_s(n)?29:xs[i])}function ir(e,t){let n=t.match(ks);if(!n)return!1;let i=+n[1],r=+n[2],s=+n[3],o=!!n[5];return(i<=23&&r<=59&&s<=59||i==23&&r==59&&s==60)&&(!e||o)}var Cs=/t|\\s/i;function Rs(e){let t=e.split(Cs);return t.length==2&&rr(t[0])&&ir(!0,t[1])}var Ps=/\\/|:/,Ms=/^(?:[a-z][a-z0-9+\\-.]*:)(?:\\/?\\/(?:(?:[a-z0-9\\-._~!$&\'()*+,;=:]|%[0-9a-f]{2})*@)?(?:\\[(?:(?:(?:(?:[0-9a-f]{1,4}:){6}|::(?:[0-9a-f]{1,4}:){5}|(?:[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){4}|(?:(?:[0-9a-f]{1,4}:){0,1}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){3}|(?:(?:[0-9a-f]{1,4}:){0,2}[0-9a-f]{1,4})?::(?:[0-9a-f]{1,4}:){2}|(?:(?:[0-9a-f]{1,4}:){0,3}[0-9a-f]{1,4})?::[0-9a-f]{1,4}:|(?:(?:[0-9a-f]{1,4}:){0,4}[0-9a-f]{1,4})?::)(?:[0-9a-f]{1,4}:[0-9a-f]{1,4}|(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?))|(?:(?:[0-9a-f]{1,4}:){0,5}[0-9a-f]{1,4})?::[0-9a-f]{1,4}|(?:(?:[0-9a-f]{1,4}:){0,6}[0-9a-f]{1,4})?::)|[Vv][0-9a-f]+\\.[a-z0-9\\-._~!$&\'()*+,;=:]+)\\]|(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)|(?:[a-z0-9\\-._~!$&\'()*+,;=]|%[0-9a-f]{2})*)(?::\\d*)?(?:\\/(?:[a-z0-9\\-._~!$&\'()*+,;=:@]|%[0-9a-f]{2})*)*|\\/(?:(?:[a-z0-9\\-._~!$&\'()*+,;=:@]|%[0-9a-f]{2})+(?:\\/(?:[a-z0-9\\-._~!$&\'()*+,;=:@]|%[0-9a-f]{2})*)*)?|(?:[a-z0-9\\-._~!$&\'()*+,;=:@]|%[0-9a-f]{2})+(?:\\/(?:[a-z0-9\\-._~!$&\'()*+,;=:@]|%[0-9a-f]{2})*)*)(?:\\?(?:[a-z0-9\\-._~!$&\'()*+,;=:@/?]|%[0-9a-f]{2})*)?(?:#(?:[a-z0-9\\-._~!$&\'()*+,;=:@/?]|%[0-9a-f]{2})*)?$/i;function Fs(e){return Ps.test(e)&&Ms.test(e)}var Ds=/[^\\\\]\\\\Z/;function Bs(e){if(Ds.test(e))return!1;try{return new RegExp(e,"u"),!0}catch{return!1}}var sr;(function(e){e[e.Flag=1]="Flag",e[e.Basic=2]="Basic",e[e.Detailed=4]="Detailed"})(sr||(sr={}));function or(e){let t=0,n=e.length,i=0,r;for(;i<n;)t++,r=e.charCodeAt(i++),r>=55296&&r<=56319&&i<n&&(r=e.charCodeAt(i),(r&64512)==56320&&i++);return t}function V(e,t,n="2019-09",i=ve(t),r=!0,s=null,o="#",a="#",l=Object.create(null)){if(t===!0)return{valid:!0,errors:[]};if(t===!1)return{valid:!1,errors:[{instanceLocation:o,keyword:"false",keywordLocation:o,error:"False boolean schema."}]};let c=typeof e,u;switch(c){case"boolean":case"number":case"string":u=c;break;case"object":e===null?u="null":Array.isArray(e)?u="array":u="object";break;default:throw new Error(`Instances of "${c}" type are not supported.`)}let{$ref:f,$recursiveRef:d,$recursiveAnchor:p,type:g,const:$,enum:S,required:_,not:x,anyOf:F,allOf:m,oneOf:A,if:E,then:y,else:k,format:z,properties:Z,patternProperties:Le,additionalProperties:me,unevaluatedProperties:Ne,minProperties:Oe,maxProperties:ut,propertyNames:De,dependentRequired:ke,dependentSchemas:Be,dependencies:Ge,prefixItems:je,items:ye,additionalItems:bt,unevaluatedItems:He,contains:Qe,minContains:ge,maxContains:qe,minItems:Je,maxItems:Ue,uniqueItems:Vt,minimum:be,maximum:h,exclusiveMinimum:D,exclusiveMaximum:B,multipleOf:K,minLength:q,maxLength:O,pattern:X,__absolute_ref__:H,__absolute_recursive_ref__:J}=t,b=[];if(p===!0&&s===null&&(s=t),d==="#"){let L=s===null?i[J]:s,I=`${a}/$recursiveRef`,T=V(e,s===null?t:s,n,i,r,L,o,I,l);T.valid||b.push({instanceLocation:o,keyword:"$recursiveRef",keywordLocation:I,error:"A subschema had errors."},...T.errors)}if(f!==void 0){let I=i[H||f];if(I===void 0){let v=`Unresolved $ref "${f}".`;throw H&&H!==f&&(v+=`  Absolute URI "${H}".`),v+=`\nKnown schemas:\n- ${Object.keys(i).join(`\n- `)}`,new Error(v)}let T=`${a}/$ref`,w=V(e,I,n,i,r,s,o,T,l);if(w.valid||b.push({instanceLocation:o,keyword:"$ref",keywordLocation:T,error:"A subschema had errors."},...w.errors),n==="4"||n==="7")return{valid:b.length===0,errors:b}}if(Array.isArray(g)){let L=g.length,I=!1;for(let T=0;T<L;T++)if(u===g[T]||g[T]==="integer"&&u==="number"&&e%1===0&&e===e){I=!0;break}I||b.push({instanceLocation:o,keyword:"type",keywordLocation:`${a}/type`,error:`Instance type "${u}" is invalid. Expected "${g.join(\'", "\')}".`})}else g==="integer"?(u!=="number"||e%1||e!==e)&&b.push({instanceLocation:o,keyword:"type",keywordLocation:`${a}/type`,error:`Instance type "${u}" is invalid. Expected "${g}".`}):g!==void 0&&u!==g&&b.push({instanceLocation:o,keyword:"type",keywordLocation:`${a}/type`,error:`Instance type "${u}" is invalid. Expected "${g}".`});if($!==void 0&&(u==="object"||u==="array"?Ze(e,$)||b.push({instanceLocation:o,keyword:"const",keywordLocation:`${a}/const`,error:`Instance does not match ${JSON.stringify($)}.`}):e!==$&&b.push({instanceLocation:o,keyword:"const",keywordLocation:`${a}/const`,error:`Instance does not match ${JSON.stringify($)}.`})),S!==void 0&&(u==="object"||u==="array"?S.some(L=>Ze(e,L))||b.push({instanceLocation:o,keyword:"enum",keywordLocation:`${a}/enum`,error:`Instance does not match any of ${JSON.stringify(S)}.`}):S.some(L=>e===L)||b.push({instanceLocation:o,keyword:"enum",keywordLocation:`${a}/enum`,error:`Instance does not match any of ${JSON.stringify(S)}.`})),x!==void 0){let L=`${a}/not`;V(e,x,n,i,r,s,o,L).valid&&b.push({instanceLocation:o,keyword:"not",keywordLocation:L,error:\'Instance matched "not" schema.\'})}let ce=[];if(F!==void 0){let L=`${a}/anyOf`,I=b.length,T=!1;for(let w=0;w<F.length;w++){let v=F[w],R=Object.create(l),C=V(e,v,n,i,r,p===!0?s:null,o,`${L}/${w}`,R);b.push(...C.errors),T=T||C.valid,C.valid&&ce.push(R)}T?b.length=I:b.splice(I,0,{instanceLocation:o,keyword:"anyOf",keywordLocation:L,error:"Instance does not match any subschemas."})}if(m!==void 0){let L=`${a}/allOf`,I=b.length,T=!0;for(let w=0;w<m.length;w++){let v=m[w],R=Object.create(l),C=V(e,v,n,i,r,p===!0?s:null,o,`${L}/${w}`,R);b.push(...C.errors),T=T&&C.valid,C.valid&&ce.push(R)}T?b.length=I:b.splice(I,0,{instanceLocation:o,keyword:"allOf",keywordLocation:L,error:"Instance does not match every subschema."})}if(A!==void 0){let L=`${a}/oneOf`,I=b.length,T=A.filter((w,v)=>{let R=Object.create(l),C=V(e,w,n,i,r,p===!0?s:null,o,`${L}/${v}`,R);return b.push(...C.errors),C.valid&&ce.push(R),C.valid}).length;T===1?b.length=I:b.splice(I,0,{instanceLocation:o,keyword:"oneOf",keywordLocation:L,error:`Instance does not match exactly one subschema (${T} matches).`})}if((u==="object"||u==="array")&&Object.assign(l,...ce),E!==void 0){let L=`${a}/if`;if(V(e,E,n,i,r,s,o,L,l).valid){if(y!==void 0){let T=V(e,y,n,i,r,s,o,`${a}/then`,l);T.valid||b.push({instanceLocation:o,keyword:"if",keywordLocation:L,error:\'Instance does not match "then" schema.\'},...T.errors)}}else if(k!==void 0){let T=V(e,k,n,i,r,s,o,`${a}/else`,l);T.valid||b.push({instanceLocation:o,keyword:"if",keywordLocation:L,error:\'Instance does not match "else" schema.\'},...T.errors)}}if(u==="object"){if(_!==void 0)for(let w of _)w in e||b.push({instanceLocation:o,keyword:"required",keywordLocation:`${a}/required`,error:`Instance does not have required property "${w}".`});let L=Object.keys(e);if(Oe!==void 0&&L.length<Oe&&b.push({instanceLocation:o,keyword:"minProperties",keywordLocation:`${a}/minProperties`,error:`Instance does not have at least ${Oe} properties.`}),ut!==void 0&&L.length>ut&&b.push({instanceLocation:o,keyword:"maxProperties",keywordLocation:`${a}/maxProperties`,error:`Instance does not have at least ${ut} properties.`}),De!==void 0){let w=`${a}/propertyNames`;for(let v in e){let R=`${o}/${fe(v)}`,C=V(v,De,n,i,r,s,R,w);C.valid||b.push({instanceLocation:o,keyword:"propertyNames",keywordLocation:w,error:`Property name "${v}" does not match schema.`},...C.errors)}}if(ke!==void 0){let w=`${a}/dependantRequired`;for(let v in ke)if(v in e){let R=ke[v];for(let C of R)C in e||b.push({instanceLocation:o,keyword:"dependentRequired",keywordLocation:w,error:`Instance has "${v}" but does not have "${C}".`})}}if(Be!==void 0)for(let w in Be){let v=`${a}/dependentSchemas`;if(w in e){let R=V(e,Be[w],n,i,r,s,o,`${v}/${fe(w)}`,l);R.valid||b.push({instanceLocation:o,keyword:"dependentSchemas",keywordLocation:v,error:`Instance has "${w}" but does not match dependant schema.`},...R.errors)}}if(Ge!==void 0){let w=`${a}/dependencies`;for(let v in Ge)if(v in e){let R=Ge[v];if(Array.isArray(R))for(let C of R)C in e||b.push({instanceLocation:o,keyword:"dependencies",keywordLocation:w,error:`Instance has "${v}" but does not have "${C}".`});else{let C=V(e,R,n,i,r,s,o,`${w}/${fe(v)}`);C.valid||b.push({instanceLocation:o,keyword:"dependencies",keywordLocation:w,error:`Instance has "${v}" but does not match dependant schema.`},...C.errors)}}}let I=Object.create(null),T=!1;if(Z!==void 0){let w=`${a}/properties`;for(let v in Z){if(!(v in e))continue;let R=`${o}/${fe(v)}`,C=V(e[v],Z[v],n,i,r,s,R,`${w}/${fe(v)}`);if(C.valid)l[v]=I[v]=!0;else if(T=r,b.push({instanceLocation:o,keyword:"properties",keywordLocation:w,error:`Property "${v}" does not match schema.`},...C.errors),T)break}}if(!T&&Le!==void 0){let w=`${a}/patternProperties`;for(let v in Le){let R=new RegExp(v,"u"),C=Le[v];for(let ue in e){if(!R.test(ue))continue;let tr=`${o}/${fe(ue)}`,nr=V(e[ue],C,n,i,r,s,tr,`${w}/${fe(v)}`);nr.valid?l[ue]=I[ue]=!0:(T=r,b.push({instanceLocation:o,keyword:"patternProperties",keywordLocation:w,error:`Property "${ue}" matches pattern "${v}" but does not match associated schema.`},...nr.errors))}}}if(!T&&me!==void 0){let w=`${a}/additionalProperties`;for(let v in e){if(I[v])continue;let R=`${o}/${fe(v)}`,C=V(e[v],me,n,i,r,s,R,w);C.valid?l[v]=!0:(T=r,b.push({instanceLocation:o,keyword:"additionalProperties",keywordLocation:w,error:`Property "${v}" does not match additional properties schema.`},...C.errors))}}else if(!T&&Ne!==void 0){let w=`${a}/unevaluatedProperties`;for(let v in e)if(!l[v]){let R=`${o}/${fe(v)}`,C=V(e[v],Ne,n,i,r,s,R,w);C.valid?l[v]=!0:b.push({instanceLocation:o,keyword:"unevaluatedProperties",keywordLocation:w,error:`Property "${v}" does not match unevaluated properties schema.`},...C.errors)}}}else if(u==="array"){Ue!==void 0&&e.length>Ue&&b.push({instanceLocation:o,keyword:"maxItems",keywordLocation:`${a}/maxItems`,error:`Array has too many items (${e.length} > ${Ue}).`}),Je!==void 0&&e.length<Je&&b.push({instanceLocation:o,keyword:"minItems",keywordLocation:`${a}/minItems`,error:`Array has too few items (${e.length} < ${Je}).`});let L=e.length,I=0,T=!1;if(je!==void 0){let w=`${a}/prefixItems`,v=Math.min(je.length,L);for(;I<v;I++){let R=V(e[I],je[I],n,i,r,s,`${o}/${I}`,`${w}/${I}`);if(l[I]=!0,!R.valid&&(T=r,b.push({instanceLocation:o,keyword:"prefixItems",keywordLocation:w,error:"Items did not match schema."},...R.errors),T))break}}if(ye!==void 0){let w=`${a}/items`;if(Array.isArray(ye)){let v=Math.min(ye.length,L);for(;I<v;I++){let R=V(e[I],ye[I],n,i,r,s,`${o}/${I}`,`${w}/${I}`);if(l[I]=!0,!R.valid&&(T=r,b.push({instanceLocation:o,keyword:"items",keywordLocation:w,error:"Items did not match schema."},...R.errors),T))break}}else for(;I<L;I++){let v=V(e[I],ye,n,i,r,s,`${o}/${I}`,w);if(l[I]=!0,!v.valid&&(T=r,b.push({instanceLocation:o,keyword:"items",keywordLocation:w,error:"Items did not match schema."},...v.errors),T))break}if(!T&&bt!==void 0){let v=`${a}/additionalItems`;for(;I<L;I++){let R=V(e[I],bt,n,i,r,s,`${o}/${I}`,v);l[I]=!0,R.valid||(T=r,b.push({instanceLocation:o,keyword:"additionalItems",keywordLocation:v,error:"Items did not match additional items schema."},...R.errors))}}}if(Qe!==void 0)if(L===0&&ge===void 0)b.push({instanceLocation:o,keyword:"contains",keywordLocation:`${a}/contains`,error:"Array is empty. It must contain at least one item matching the schema."});else if(ge!==void 0&&L<ge)b.push({instanceLocation:o,keyword:"minContains",keywordLocation:`${a}/minContains`,error:`Array has less items (${L}) than minContains (${ge}).`});else{let w=`${a}/contains`,v=b.length,R=0;for(let C=0;C<L;C++){let ue=V(e[C],Qe,n,i,r,s,`${o}/${C}`,w);ue.valid?(l[C]=!0,R++):b.push(...ue.errors)}R>=(ge||0)&&(b.length=v),ge===void 0&&qe===void 0&&R===0?b.splice(v,0,{instanceLocation:o,keyword:"contains",keywordLocation:w,error:"Array does not contain item matching schema."}):ge!==void 0&&R<ge?b.push({instanceLocation:o,keyword:"minContains",keywordLocation:`${a}/minContains`,error:`Array must contain at least ${ge} items matching schema. Only ${R} items were found.`}):qe!==void 0&&R>qe&&b.push({instanceLocation:o,keyword:"maxContains",keywordLocation:`${a}/maxContains`,error:`Array may contain at most ${qe} items matching schema. ${R} items were found.`})}if(!T&&He!==void 0){let w=`${a}/unevaluatedItems`;for(I;I<L;I++){if(l[I])continue;let v=V(e[I],He,n,i,r,s,`${o}/${I}`,w);l[I]=!0,v.valid||b.push({instanceLocation:o,keyword:"unevaluatedItems",keywordLocation:w,error:"Items did not match unevaluated items schema."},...v.errors)}}if(Vt)for(let w=0;w<L;w++){let v=e[w],R=typeof v=="object"&&v!==null;for(let C=0;C<L;C++){if(w===C)continue;let ue=e[C];(v===ue||R&&(typeof ue=="object"&&ue!==null)&&Ze(v,ue))&&(b.push({instanceLocation:o,keyword:"uniqueItems",keywordLocation:`${a}/uniqueItems`,error:`Duplicate items at indexes ${w} and ${C}.`}),w=Number.MAX_SAFE_INTEGER,C=Number.MAX_SAFE_INTEGER)}}}else if(u==="number"){if(n==="4"?(be!==void 0&&(D===!0&&e<=be||e<be)&&b.push({instanceLocation:o,keyword:"minimum",keywordLocation:`${a}/minimum`,error:`${e} is less than ${D?"or equal to ":""} ${be}.`}),h!==void 0&&(B===!0&&e>=h||e>h)&&b.push({instanceLocation:o,keyword:"maximum",keywordLocation:`${a}/maximum`,error:`${e} is greater than ${B?"or equal to ":""} ${h}.`})):(be!==void 0&&e<be&&b.push({instanceLocation:o,keyword:"minimum",keywordLocation:`${a}/minimum`,error:`${e} is less than ${be}.`}),h!==void 0&&e>h&&b.push({instanceLocation:o,keyword:"maximum",keywordLocation:`${a}/maximum`,error:`${e} is greater than ${h}.`}),D!==void 0&&e<=D&&b.push({instanceLocation:o,keyword:"exclusiveMinimum",keywordLocation:`${a}/exclusiveMinimum`,error:`${e} is less than ${D}.`}),B!==void 0&&e>=B&&b.push({instanceLocation:o,keyword:"exclusiveMaximum",keywordLocation:`${a}/exclusiveMaximum`,error:`${e} is greater than or equal to ${B}.`})),K!==void 0){let L=e%K;Math.abs(0-L)>=11920929e-14&&Math.abs(K-L)>=11920929e-14&&b.push({instanceLocation:o,keyword:"multipleOf",keywordLocation:`${a}/multipleOf`,error:`${e} is not a multiple of ${K}.`})}}else if(u==="string"){let L=q===void 0&&O===void 0?0:or(e);q!==void 0&&L<q&&b.push({instanceLocation:o,keyword:"minLength",keywordLocation:`${a}/minLength`,error:`String is too short (${L} < ${q}).`}),O!==void 0&&L>O&&b.push({instanceLocation:o,keyword:"maxLength",keywordLocation:`${a}/maxLength`,error:`String is too long (${L} > ${O}).`}),X!==void 0&&!new RegExp(X,"u").test(e)&&b.push({instanceLocation:o,keyword:"pattern",keywordLocation:`${a}/pattern`,error:"String does not match pattern."}),z!==void 0&&Gt[z]&&!Gt[z](e)&&b.push({instanceLocation:o,keyword:"format",keywordLocation:`${a}/format`,error:`String does not match format "${z}".`})}return{valid:b.length===0,errors:b}}var wt=class{schema;draft;shortCircuit;lookup;constructor(t,n="2019-09",i=!0){this.schema=t,this.draft=n,this.shortCircuit=i,this.lookup=ve(t)}validate(t){return V(t,this.schema,this.draft,this.lookup,this.shortCircuit)}addSchema(t,n){n&&(t={...t,$id:n}),ve(t,this.lookup)}};function js(e,t="2020-12"){let n=typeof e=="object"&&e!==null?e.$schema:void 0;return typeof n!="string"?t:/draft-0?4\\b/.test(n)?"4":/draft-0?[67]\\b/.test(n)?"7":n.includes("2019-09")?"2019-09":n.includes("2020-12")?"2020-12":t}var ar=e=>{let t=e.startsWith("#")?e.slice(1):e;try{return decodeURI(t)}catch{return t}};function lr(e,t={}){let n=new wt(e,t.draft??js(e),!1);for(let i of t.references??[])n.addSchema(i.schema,i.id);return n}function cr(e,t,n={}){let i;try{i=e.validate(t)}catch(a){if(a instanceof RangeError)return{valid:!1,problems:[],total:0,unchecked:`validation ran out of room (${a.message}): the value or the schema nests too deep`};throw a}if(i.valid)return{valid:!0,problems:[],total:0};let r=new Set,s=[];for(let a of i.errors){let l=`${a.instanceLocation}\\0${a.keyword}`;r.has(l)||(r.add(l),s.push({pointer:ar(a.instanceLocation),keyword:a.keyword,schemaPointer:ar(a.keywordLocation),message:a.error}))}s.sort((a,l)=>l.pointer.split("/").length-a.pointer.split("/").length);let o=n.maxProblems??50;return{valid:!1,problems:s.slice(0,o),total:s.length}}function Ht(e){return e instanceof RangeError&&/Maximum call stack size exceeded/.test(e.message)}var W=Symbol("NOT_RESOLVED");function ie(e,t){return{tagName:e,nodeKind:"scalar",implicit:t.implicit??!1,matchByTagPrefix:t.matchByTagPrefix??!1,implicitFirstChars:t.implicitFirstChars??null,resolve:t.resolve,identify:t.identify,represent:t.represent??(n=>String(n)),representTagName:t.representTagName??(()=>e)}}function fn(e,t){let n=t.finalize===void 0;return{tagName:e,nodeKind:"sequence",implicit:!1,matchByTagPrefix:t.matchByTagPrefix??!1,create:t.create,addItem:t.addItem,finalize:t.finalize??(i=>i),carrierIsResult:n,identify:t.identify,represent:t.represent??(i=>i),representTagName:t.representTagName??(()=>e)}}function At(e,t){let n=t.finalize===void 0;return{tagName:e,nodeKind:"mapping",implicit:!1,matchByTagPrefix:t.matchByTagPrefix??!1,create:t.create,addPair:t.addPair,has:t.has,keys:t.keys,get:t.get,finalize:t.finalize??(i=>i),carrierIsResult:n,identify:t.identify,represent:t.represent??(i=>i),representTagName:t.representTagName??(()=>e)}}var qs=ie("tag:yaml.org,2002:str",{resolve:e=>e,identify:e=>typeof e=="string"}),Us=["","~","null","Null","NULL"],Ks=ie("tag:yaml.org,2002:null",{implicit:!0,implicitFirstChars:["","~","n","N"],resolve:e=>Us.indexOf(e)!==-1?null:W,identify:e=>e===null,represent:()=>"null"}),Ws=ie("tag:yaml.org,2002:null",{implicit:!0,implicitFirstChars:["n"],resolve:(e,t)=>e==="null"||t&&e===""?null:W,identify:e=>e===null,represent:()=>"null"}),zs=["","~","null","Null","NULL"],Ys=ie("tag:yaml.org,2002:null",{implicit:!0,implicitFirstChars:["","~","n","N"],resolve:e=>zs.indexOf(e)!==-1?null:W,identify:e=>e===null,represent:()=>"null"}),Xs=["true","True","TRUE"],Vs=["false","False","FALSE"],Gs=ie("tag:yaml.org,2002:bool",{implicit:!0,implicitFirstChars:["t","T","f","F"],resolve:e=>Xs.indexOf(e)!==-1?!0:Vs.indexOf(e)!==-1?!1:W,identify:e=>Object.prototype.toString.call(e)==="[object Boolean]",represent:e=>e?"true":"false"}),Hs=["true"],Qs=["false"],Js=ie("tag:yaml.org,2002:bool",{implicit:!0,implicitFirstChars:["t","f"],resolve:e=>Hs.indexOf(e)!==-1?!0:Qs.indexOf(e)!==-1?!1:W,identify:e=>Object.prototype.toString.call(e)==="[object Boolean]",represent:e=>e?"true":"false"}),Zs=["true","True","TRUE","y","Y","yes","Yes","YES","on","On","ON"],eo=["false","False","FALSE","n","N","no","No","NO","off","Off","OFF"],to=ie("tag:yaml.org,2002:bool",{implicit:!0,implicitFirstChars:["y","Y","n","N","t","T","f","F","o","O"],resolve:e=>Zs.indexOf(e)!==-1?!0:eo.indexOf(e)!==-1?!1:W,identify:e=>Object.prototype.toString.call(e)==="[object Boolean]",represent:e=>e?"true":"false"}),no=new RegExp("^(?:0o[0-7]+|0x[0-9a-fA-F]+|[-+]?[0-9]+)$"),ro=new RegExp("^(?:[-+]?0b[0-1]+|[-+]?0o[0-7]+|[-+]?0x[0-9a-fA-F]+|[-+]?[0-9]+)$");function io(e){let t=e,n=1;return(t[0]==="-"||t[0]==="+")&&(t[0]==="-"&&(n=-1),t=t.slice(1)),t.startsWith("0b")?n*parseInt(t.slice(2),2):t.startsWith("0o")?n*parseInt(t.slice(2),8):t.startsWith("0x")?n*parseInt(t.slice(2),16):n*parseInt(t,10)}function so(e,t){if(t){if(!ro.test(e))return W}else if(!no.test(e))return W;let n=io(e);return Number.isFinite(n)?n:W}var Er=ie("tag:yaml.org,2002:int",{implicit:!0,implicitFirstChars:["-","+",..."0123456789"],resolve:so,identify:e=>Number.isInteger(e)&&!Object.is(e,-0)&&e.toString(10).indexOf("e")<0,represent:e=>e.toString(10)}),oo=new RegExp("^-?(?:0|[1-9][0-9]*)$"),ao=new RegExp("^(?:[-+]?0b[0-1]+|[-+]?0o[0-7]+|[-+]?0x[0-9a-fA-F]+|[-+]?[0-9]+)$");function lo(e){let t=e,n=1;return(t[0]==="-"||t[0]==="+")&&(t[0]==="-"&&(n=-1),t=t.slice(1)),t.startsWith("0b")?n*parseInt(t.slice(2),2):t.startsWith("0o")?n*parseInt(t.slice(2),8):t.startsWith("0x")?n*parseInt(t.slice(2),16):n*parseInt(t,10)}function co(e,t){if(t){if(!ao.test(e))return W}else if(!oo.test(e))return W;let n=lo(e);return Number.isFinite(n)?n:W}var uo=ie("tag:yaml.org,2002:int",{implicit:!0,implicitFirstChars:["-",..."0123456789"],resolve:co,identify:e=>Number.isInteger(e)&&!Object.is(e,-0)&&e.toString(10).indexOf("e")<0,represent:e=>e.toString(10)}),fo=new RegExp("^(?:[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?0x[0-9a-fA-F_]+|[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+|[-+]?(?:0|[1-9][0-9_]*))$");function ho(e){let t=e.replace(/_/g,""),n=1;if((t[0]==="-"||t[0]==="+")&&(t[0]==="-"&&(n=-1),t=t.slice(1)),t.startsWith("0b"))return n*parseInt(t.slice(2),2);if(t.startsWith("0x"))return n*parseInt(t.slice(2),16);if(t.includes(":")){let i=0;for(let r of t.split(":"))i=i*60+Number(r);return n*i}return t!=="0"&&t[0]==="0"?n*parseInt(t,8):n*parseInt(t,10)}function po(e){if(!fo.test(e))return W;let t=ho(e);return Number.isFinite(t)?t:W}var nn=ie("tag:yaml.org,2002:int",{implicit:!0,implicitFirstChars:["-","+",..."0123456789"],resolve:po,identify:e=>Number.isInteger(e)&&!Object.is(e,-0)&&e.toString(10).indexOf("e")<0,represent:e=>e.toString(10)}),mo=new RegExp("^(?:[-+]?[0-9]+(?:\\\\.[0-9]*)?(?:[eE][-+]?[0-9]+)?|[-+]?\\\\.[0-9]+(?:[eE][-+]?[0-9]+)?|[-+]?\\\\.(?:inf|Inf|INF)|\\\\.(?:nan|NaN|NAN))$"),go=new RegExp("^(?:[-+]?\\\\.(?:inf|Inf|INF)|\\\\.(?:nan|NaN|NAN))$");function yo(e){if(!mo.test(e))return W;let t=e.toLowerCase(),n=t[0]==="-"?-1:1;if("+-".includes(t[0])&&(t=t.slice(1)),t===".inf")return n===1?Number.POSITIVE_INFINITY:Number.NEGATIVE_INFINITY;if(t===".nan")return NaN;let i=n*parseFloat(t);return Number.isFinite(i)||go.test(e)?i:W}function xo(e){if(isNaN(e))return".nan";if(e===Number.POSITIVE_INFINITY)return".inf";if(e===Number.NEGATIVE_INFINITY)return"-.inf";if(Object.is(e,-0))return"-0.0";let t=e.toString(10);return/^[-+]?[0-9]+e/.test(t)?t.replace("e",".e"):t}var Ar=ie("tag:yaml.org,2002:float",{implicit:!0,implicitFirstChars:["-","+",".",..."0123456789"],resolve:yo,identify:e=>typeof e=="number"&&(!Number.isInteger(e)||Object.is(e,-0)||e.toString(10).indexOf("e")>=0),represent:xo}),ko=new RegExp("^-?(?:0|[1-9][0-9]*)(?:\\\\.[0-9]*)?(?:[eE][-+]?[0-9]+)?$"),bo=new RegExp("^(?:[-+]?[0-9]+(?:\\\\.[0-9]*)?(?:[eE][-+]?[0-9]+)?|[-+]?\\\\.[0-9]+(?:[eE][-+]?[0-9]+)?|[-+]?\\\\.(?:inf|Inf|INF)|\\\\.(?:nan|NaN|NAN))$");function wo(e,t){if(t){if(!bo.test(e))return W;let i=e.toLowerCase(),r=i[0]==="-"?-1:1;if("+-".includes(i[0])&&(i=i.slice(1)),i===".inf")return r===1?Number.POSITIVE_INFINITY:Number.NEGATIVE_INFINITY;if(i===".nan")return NaN;let s=r*parseFloat(i);return Number.isFinite(s)?s:W}if(!ko.test(e))return W;let n=Number(e);return Number.isFinite(n)?n:W}function $o(e){if(isNaN(e))return".nan";if(e===Number.POSITIVE_INFINITY)return".inf";if(e===Number.NEGATIVE_INFINITY)return"-.inf";if(Object.is(e,-0))return"-0.0";let t=e.toString(10);return/^[-+]?[0-9]+e/.test(t)?t.replace("e",".e"):t}var vo=ie("tag:yaml.org,2002:float",{implicit:!0,implicitFirstChars:["-",..."0123456789"],resolve:wo,identify:e=>typeof e=="number"&&(!Number.isInteger(e)||Object.is(e,-0)||e.toString(10).indexOf("e")>=0),represent:$o}),Eo=new RegExp("^(?:[-+]?(?:(?:[0-9][0-9_]*)?\\\\.[0-9_]*)(?:[eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\\\.[0-9_]*|[-+]?\\\\.(?:inf|Inf|INF)|\\\\.(?:nan|NaN|NAN))$"),Ao=new RegExp("^(?:[-+]?\\\\.(?:inf|Inf|INF)|\\\\.(?:nan|NaN|NAN))$");function So(e){if(!Eo.test(e))return W;let t=e.toLowerCase().replace(/_/g,""),n=t[0]==="-"?-1:1;if("+-".includes(t[0])&&(t=t.slice(1)),t===".inf")return n===1?Number.POSITIVE_INFINITY:Number.NEGATIVE_INFINITY;if(t===".nan")return NaN;let i=0;if(t.includes(":")){for(let r of t.split(":"))i=i*60+Number(r);i*=n}else i=n*parseFloat(t);return Number.isFinite(i)||Ao.test(e)?i:W}function Io(e){if(isNaN(e))return".nan";if(e===Number.POSITIVE_INFINITY)return".inf";if(e===Number.NEGATIVE_INFINITY)return"-.inf";if(Object.is(e,-0))return"-0.0";let t=e.toString(10);return/^[-+]?[0-9]+e/.test(t)?t.replace("e",".e"):t}var rn=ie("tag:yaml.org,2002:float",{implicit:!0,implicitFirstChars:["-","+",".",..."0123456789"],resolve:So,identify:e=>typeof e=="number"&&(!Number.isInteger(e)||Object.is(e,-0)||e.toString(10).indexOf("e")>=0),represent:Io}),To=ie("tag:yaml.org,2002:merge",{implicit:!0,implicitFirstChars:["<"],resolve:(e,t)=>e==="<<"||t&&e===""?"<<":W,identify:()=>!1}),Lo=/^[A-Za-z0-9+/]*={0,2}$/;function No(e){let t=e.replace(/\\s/g,"");if(t.length%4!==0||!Lo.test(t))return W;let n=atob(t),i=new Uint8Array(n.length);for(let r=0;r<n.length;r++)i[r]=n.charCodeAt(r);return i}function Oo(e){let t="";for(let n=0;n<e.length;n++)t+=String.fromCharCode(e[n]);return btoa(t)}var _o=ie("tag:yaml.org,2002:binary",{resolve:No,identify:e=>Object.prototype.toString.call(e)==="[object Uint8Array]",represent:Oo}),Co=new RegExp("^([0-9][0-9][0-9][0-9])-([0-9][0-9])-([0-9][0-9])$"),Ro=new RegExp("^([0-9][0-9][0-9][0-9])-([0-9][0-9]?)-([0-9][0-9]?)(?:[Tt]|[ \\\\t]+)([0-9][0-9]?):([0-9][0-9]):([0-9][0-9])(?:\\\\.([0-9]*))?(?:[ \\\\t]*(Z|([-+])([0-9][0-9]?)(?::([0-9][0-9]))?))?$");function ur(e,t,n,i=0,r=0,s=0,o=0){let a=new Date(Date.UTC(e,t,n,i,r,s,o));return a.setUTCFullYear(e,t,n),a}function Po(e){let t=Co.exec(e);if(t===null&&(t=Ro.exec(e)),t===null)return W;let n=+t[1],i=+t[2]-1,r=+t[3];if(!t[4]){let u=ur(n,i,r);return u.getUTCFullYear()!==n||u.getUTCMonth()!==i||u.getUTCDate()!==r?W:u}let s=+t[4],o=+t[5],a=+t[6],l=0;if(s>23||o>59||a>59)return W;if(t[7]){let u=t[7].slice(0,3);for(;u.length<3;)u+="0";l=+u}let c=ur(n,i,r,s,o,a,l);if(c.getUTCFullYear()!==n||c.getUTCMonth()!==i||c.getUTCDate()!==r)return W;if(t[9]){let u=+t[10],f=+(t[11]||0);if(u>23||f>59)return W;let d=(u*60+f)*6e4;c.setTime(c.getTime()-(t[9]==="-"?-d:d))}return c}var Mo=ie("tag:yaml.org,2002:timestamp",{implicit:!0,implicitFirstChars:[..."0123456789"],resolve:Po,identify:e=>e instanceof Date,represent:e=>e.toISOString()}),Fo=fn("tag:yaml.org,2002:seq",{create:()=>[],addItem:(e,t)=>{e.push(t)},identify:Array.isArray});function St(e){if(e===null||typeof e!="object"||Array.isArray(e))return!1;let t=Object.getPrototypeOf(e);return t===null||t===Object.prototype}function fr(e,t){let n={};for(let i of t)e[i]!==void 0&&(n[i]=e[i]);return n}var Do=fn("tag:yaml.org,2002:omap",{create:()=>({list:[],seen:new Set}),addItem:(e,t)=>{let n;if(t instanceof Map){if(t.size!==1)return"cannot resolve an ordered map item";n=t.keys().next().value}else if(St(t)){let i=Object.keys(t);if(i.length!==1)return"cannot resolve an ordered map item";n=i[0]}else return"cannot resolve an ordered map item";return e.seen.has(n)?"duplicate key in ordered map":(e.seen.add(n),e.list.push(t),"")},finalize:e=>e.list,identify:()=>!1}),Bo=fn("tag:yaml.org,2002:pairs",{create:()=>[],addItem:(e,t)=>{if(t instanceof Map)return t.size!==1?"cannot resolve a pairs item":(e.push(t.entries().next().value),"");if(Object.prototype.toString.call(t)!=="[object Object]")return"cannot resolve a pairs item";let n=t,i=Object.keys(n);return i.length!==1?"cannot resolve a pairs item":(e.push([i[0],n[i[0]]]),"")},identify:()=>!1}),jo=At("tag:yaml.org,2002:map",{create:()=>({}),identify:St,represent:e=>{let t=new Map;for(let n of Object.keys(e))t.set(n,e[n]);return t},addPair:(e,t,n)=>{if(t!==null&&typeof t=="object")return"object-based map does not support complex keys";let i=String(t);return i==="__proto__"?Object.defineProperty(e,i,{value:n,enumerable:!0,configurable:!0,writable:!0}):e[i]=n,""},has:(e,t)=>t!==null&&typeof t=="object"?!1:Object.prototype.hasOwnProperty.call(e,String(t)),keys:e=>Object.keys(e),get:(e,t)=>{let n=String(t);return Object.prototype.hasOwnProperty.call(e,n)?e[n]:null}}),qo=At("tag:yaml.org,2002:set",{create:()=>new Set,identify:e=>e instanceof Set,represent:e=>{let t=new Map;for(let n of e)t.set(n,null);return t},addPair:(e,t,n)=>n!==null?"cannot resolve a set item":(e.add(t),""),has:(e,t)=>e.has(t),keys:e=>e.keys(),get:()=>null});function Uo(){return{scalar:Object.create(null),sequence:Object.create(null),mapping:Object.create(null)}}function Ko(){return{scalar:[],sequence:[],mapping:[]}}function Wo(e){let t=[];for(let n of e){let i=t.length;for(let r=0;r<t.length;r++){let s=t[r];if(s.nodeKind===n.nodeKind&&s.tagName===n.tagName&&s.matchByTagPrefix===n.matchByTagPrefix){i=r;break}}t[i]=n}return t}var It=class Sr{tags;implicitScalarTags;implicitScalarByFirstChar;implicitScalarAnyFirstChar;defaultScalarTag;defaultSequenceTag;defaultMappingTag;exact;prefix;constructor(t){let n=Wo(t),i=[],r=Uo(),s=Ko();for(let u of n){if(u.nodeKind==="scalar"&&u.implicit){if(u.matchByTagPrefix)throw new Error("Implicit scalar tags cannot match by tag prefix");i.push(u)}switch(u.nodeKind){case"scalar":u.matchByTagPrefix?s.scalar.push(u):r.scalar[u.tagName]=u;break;case"sequence":u.matchByTagPrefix?s.sequence.push(u):r.sequence[u.tagName]=u;break;case"mapping":u.matchByTagPrefix?s.mapping.push(u):r.mapping[u.tagName]=u;break}}let o=i.filter(u=>u.implicitFirstChars===null),a=new Set;for(let u of i)if(u.implicitFirstChars!==null)for(let f of u.implicitFirstChars)a.add(f);let l=new Map;for(let u of a)l.set(u,i.filter(f=>f.implicitFirstChars===null||f.implicitFirstChars.indexOf(u)!==-1));let c=r.scalar["tag:yaml.org,2002:str"];if(!c)throw new Error("schema does not define the default scalar tag (tag:yaml.org,2002:str)");this.tags=n,this.implicitScalarTags=i,this.implicitScalarByFirstChar=l,this.implicitScalarAnyFirstChar=o,this.defaultScalarTag=c,this.defaultSequenceTag=r.sequence["tag:yaml.org,2002:seq"],this.defaultMappingTag=r.mapping["tag:yaml.org,2002:map"],this.exact=r,this.prefix=s}lookupScalarTag(t){let n=this.exact.scalar[t];if(n)return n;for(let i of this.prefix.scalar)if(t.startsWith(i.tagName))return i}lookupSequenceTag(t){let n=this.exact.sequence[t];if(n)return n;for(let i of this.prefix.sequence)if(t.startsWith(i.tagName))return i}lookupMappingTag(t){let n=this.exact.mapping[t];if(n)return n;for(let i of this.prefix.mapping)if(t.startsWith(i.tagName))return i}resolveImplicitScalarTag(t){let n=this.implicitScalarByFirstChar.get(t.charAt(0))??this.implicitScalarAnyFirstChar;for(let r of n){let s=r.resolve(t,!1,r.tagName);if(s!==W)return{value:s,tag:r}}let i=this.defaultScalarTag;return{value:i.resolve(t,!1,i.tagName),tag:i}}withTags(...t){let n=[];for(let i of t)n=n.concat(i);return new Sr([...this.tags,...n])}},dn=new It([qs,Fo,jo]),hu=new It([...dn.tags,Ws,Js,uo,vo]),hn=new It([...dn.tags,Ks,Gs,Er,Ar]),zo=new It([...dn.tags,Ys,to,nn,rn,Mo,To,_o,Do,Bo,qo]),Yo=zo.withTags({...nn,resolve:(e,t,n)=>{let i=nn.resolve(e,t,n);return i===W?Er.resolve(e,t,n):i}},{...rn,resolve:(e,t,n)=>{let i=rn.resolve(e,t,n);return i===W?Ar.resolve(e,t,n):i}}),pu=At("tag:yaml.org,2002:map",{create:()=>new Map,addPair:(e,t,n)=>(e.set(t,n),""),has:(e,t)=>e.has(t),keys:e=>e.keys(),get:(e,t)=>e.get(t),identify:e=>e instanceof Map||St(e),represent:e=>{if(e instanceof Map)return e;let t=new Map,n=e;for(let i of Object.keys(n))t.set(i,n[i]);return t}});function dr(e){if(Array.isArray(e)){let t=Array.prototype.slice.call(e);for(let n=0;n<t.length;n++){if(Array.isArray(t[n]))return null;typeof t[n]=="object"&&Object.prototype.toString.call(t[n])==="[object Object]"&&(t[n]="[object Object]")}return String(t)}return typeof e=="object"&&Object.prototype.toString.call(e)==="[object Object]"?"[object Object]":String(e)}var mu=At("tag:yaml.org,2002:map",{create:()=>({}),identify:St,represent:e=>{let t=new Map;for(let n of Object.keys(e))t.set(n,e[n]);return t},addPair:(e,t,n)=>{let i=dr(t);return i===null?"nested arrays are not supported inside keys":(i==="__proto__"?Object.defineProperty(e,i,{value:n,enumerable:!0,configurable:!0,writable:!0}):e[i]=n,"")},has:(e,t)=>{let n=dr(t);return n!==null&&Object.prototype.hasOwnProperty.call(e,n)},keys:e=>Object.keys(e),get:(e,t)=>{let n=String(t);return Object.prototype.hasOwnProperty.call(e,n)?e[n]:null}}),Xo={maxLength:79,indent:1,linesBefore:3,linesAfter:2};function Qt(e,t,n,i,r){let s="",o="",a=Math.floor(r/2)-1;return i-t>a&&(s=" ... ",t=i-a+s.length),n-i>a&&(o=" ...",n=i+a-o.length),{str:s+e.slice(t,n).replace(/\\t/g,"\\u2192")+o,pos:i-t+s.length}}function Jt(e,t){return" ".repeat(Math.max(t-e.length,0))+e}function Vo(e,t){if(!e.buffer)return null;let n={...Xo,...t},i=/\\r?\\n|\\r|\\0/g,r=[0],s=[],o,a=-1;for(;o=i.exec(e.buffer);)s.push(o.index),r.push(o.index+o[0].length),e.position<=o.index&&a<0&&(a=r.length-2);a<0&&(a=r.length-1);let l="",c=Math.min(e.line+n.linesAfter,s.length).toString().length,u=n.maxLength-(n.indent+c+3);for(let d=1;d<=n.linesBefore&&!(a-d<0);d++){let p=Qt(e.buffer,r[a-d],s[a-d],e.position-(r[a]-r[a-d]),u);l=`${" ".repeat(n.indent)}${Jt((e.line-d+1).toString(),c)} | ${p.str}\n${l}`}let f=Qt(e.buffer,r[a],s[a],e.position,u);l+=`${" ".repeat(n.indent)}${Jt((e.line+1).toString(),c)} | ${f.str}\n`,l+=`${"-".repeat(n.indent+c+3+f.pos)}^\n`;for(let d=1;d<=n.linesAfter&&!(a+d>=s.length);d++){let p=Qt(e.buffer,r[a+d],s[a+d],e.position-(r[a]-r[a+d]),u);l+=`${" ".repeat(n.indent)}${Jt((e.line+d+1).toString(),c)} | ${p.str}\n`}return l.replace(/\\n$/,"")}function hr(e,t){let n="";return e.mark?(e.mark.name&&(n+=`in "${e.mark.name}" `),n+=`(${e.mark.line+1}:${e.mark.column+1})`,!t&&e.mark.snippet&&(n+=`\n\n${e.mark.snippet}`),`${e.reason} ${n}`):e.reason}var Ae=class Ir extends Error{reason;mark;constructor(t,n){super(),this.name="YAMLException",this.reason=t,this.mark=n,this.message=hr(this,!1),Error.captureStackTrace&&Error.captureStackTrace(this,this.constructor)}toString(t){return`${this.name}: ${hr(this,t)}`}static throwAt(t,n,i,r=""){let s=0,o=0;for(let l=0;l<n;l++){let c=t.charCodeAt(l);c===10?(s++,o=l+1):c===13&&(s++,t.charCodeAt(l+1)===10&&l++,o=l+1)}let a={name:r,buffer:t,position:n,line:s,column:n-o};throw a.snippet=Vo(a),new Ir(i,a)}},G={DOCUMENT:1,SEQUENCE:2,MAPPING:3,SCALAR:4,ALIAS:5,POP:6},U={PLAIN:1,SINGLE_QUOTED:2,DOUBLE_QUOTED:3,LITERAL_BLOCK:4,FOLDED_BLOCK:5},_e={BLOCK:1,FLOW:2},de={CLIP:1,STRIP:2,KEEP:3},Go=-1;function pr(e){switch(e){case 48:return"\\0";case 97:return"\\x07";case 98:return"\\b";case 116:return"	";case 9:return"	";case 110:return`\n`;case 118:return"\\v";case 102:return"\\f";case 114:return"\\r";case 101:return"\\x1B";case 32:return" ";case 34:return\'"\';case 47:return"/";case 92:return"\\\\";case 78:return"\\x85";case 95:return"\\xA0";case 76:return"\\u2028";case 80:return"\\u2029";default:return""}}var Tr=new Array(256),Lr=new Array(256);for(let e=0;e<256;e++)Tr[e]=pr(e)?1:0,Lr[e]=pr(e);function Ho(e){return e<=65535?String.fromCharCode(e):String.fromCharCode((e-65536>>10)+55296,(e-65536&1023)+56320)}function Qo(e){return e>=48&&e<=57?e-48:(e|32)-97+10}function Jo(e){return e===120?2:e===117?4:8}function $t(e,t,n){let i=0;for(;t<n;){let r=e.charCodeAt(t);if(r===10)i++,t++;else if(r===13)i++,t++,e.charCodeAt(t)===10&&t++;else if(r===32||r===9)t++;else break}return{position:t,breaks:i}}function pn(e){return e===1?" ":`\n`.repeat(e-1)}function Zo(e,t,n){let i="",r=t,s=t,o=t;for(;r<n;){let a=e.charCodeAt(r);if(a===10||a===13){i+=e.slice(s,o);let l=$t(e,r,n);i+=pn(l.breaks),r=s=o=l.position}else r++,a!==32&&a!==9&&(o=r)}return i+e.slice(s,o)}function ea(e,t,n){let i="",r=t,s=t,o=t;for(;r<n;){let a=e.charCodeAt(r);if(a===39)i+=e.slice(s,r)+"\'",r+=2,s=o=r;else if(a===10||a===13){i+=e.slice(s,o);let l=$t(e,r,n);i+=pn(l.breaks),r=s=o=l.position}else r++,a!==32&&a!==9&&(o=r)}return i+e.slice(s,n)}function ta(e,t,n){let i="",r=t,s=t,o=t;for(;r<n;){let a=e.charCodeAt(r);if(a===92){i+=e.slice(s,r),r++;let l=e.charCodeAt(r);if(l===10||l===13)r=$t(e,r,n).position;else if(l<256&&Tr[l])i+=Lr[l],r++;else{let c=Jo(l),u=0;for(;c>0;c--){r++;let f=Qo(e.charCodeAt(r));u=(u<<4)+f}i+=Ho(u),r++}s=o=r}else if(a===10||a===13){i+=e.slice(s,o);let l=$t(e,r,n);i+=pn(l.breaks),r=s=o=l.position}else r++,a!==32&&a!==9&&(o=r)}return i+e.slice(s,n)}function mr(e,t,n,i,r,s){let o=i<0?0:i,a=e.slice(t,n).replace(/\\r\\n?/g,`\n`),l=a===""?[]:(a.endsWith(`\n`)?a.slice(0,-1):a).split(`\n`),c="",u=!1,f=0,d=!1;for(let p of l){let g=0;for(;g<o&&p.charCodeAt(g)===32;)g++;if(i<0||g>=p.length){f++;continue}let $=p.slice(o),S=$.charCodeAt(0);s?S===32||S===9?(d=!0,c+=`\n`.repeat(u?1+f:f)):d?(d=!1,c+=`\n`.repeat(f+1)):f===0?u&&(c+=" "):c+=`\n`.repeat(f):c+=`\n`.repeat(u?1+f:f),c+=$,u=!0,f=0}return r===de.KEEP?c+=`\n`.repeat(u?1+f:f):r!==de.STRIP&&u&&(c+=`\n`),c}function na(e,t){if(t.valueStart===Go)return"";let{valueStart:n,valueEnd:i}=t;if(t.fast)return e.slice(n,i);switch(t.style){case U.SINGLE_QUOTED:return ea(e,n,i);case U.DOUBLE_QUOTED:return ta(e,n,i);case U.LITERAL_BLOCK:return mr(e,n,i,t.indent,t.chomping,!1);case U.FOLDED_BLOCK:return mr(e,n,i,t.indent,t.chomping,!0);default:return Zo(e,n,i)}}var ra=Object.assign(Object.create(null),{"!":"!","!!":"tag:yaml.org,2002:"});function Nr(e,t){if(e.startsWith("!<")&&e.endsWith(">"))return decodeURIComponent(e.slice(2,-1));let n=e.indexOf("!",1),i=n===-1?"!":e.slice(0,n+1),r=t?.[i]??ra[i]??i;return decodeURIComponent(r)+decodeURIComponent(e.slice(i.length))}var et=-1,ia="tag:yaml.org,2002:merge",mn={filename:"",schema:hn,json:!1,maxTotalMergeKeys:1e4,maxAliases:-1};function sa(e){return"tagStart"in e&&e.tagStart!==et?e.tagStart:"anchorStart"in e&&e.anchorStart!==et?e.anchorStart:"valueStart"in e&&e.valueStart!==et?e.valueStart:"start"in e?e.start:0}function ne(e,t){Ae.throwAt(e.source,e.position,t,e.filename)}function Or(e,t,n,i){try{return n.finalize(i)}catch(r){if(r instanceof Ae)throw r;Ae.throwAt(e.source,t,r instanceof Error?r.message:String(r),e.filename)}}function oa(e,t){let n=na(e.source,t),i=t.tagStart===et?"":e.source.slice(t.tagStart,t.tagEnd),r=e.schema.defaultScalarTag;if(i!==""){if(i==="!")return{value:n,tag:r};let s=Nr(i,e.tagHandlers),o=e.schema.lookupScalarTag(s);if(o){let l=o.resolve(n,!0,s);return l===W&&ne(e,`cannot resolve a node with !<${s}> explicit tag`),{value:l,tag:o}}let a=e.schema.lookupMappingTag(s)??e.schema.lookupSequenceTag(s);if(a){n!==""&&ne(e,`cannot resolve a node with !<${s}> explicit tag`);let l=a.create(s);return{value:a.carrierIsResult?l:Or(e,e.position,a,l),tag:a}}ne(e,`unknown scalar tag !<${s}>`)}return t.style===U.PLAIN?e.schema.resolveImplicitScalarTag(n):{value:r.resolve(n,!1,r.tagName),tag:r}}function gr(e,t,n){let i=t.tagStart===et?"":e.source.slice(t.tagStart,t.tagEnd);return i===""||i==="!"?n:Nr(i,e.tagHandlers)}function _r(e){return e.nodeKind==="mapping"}function yr(e){e.totalMergeKeys++,e.maxTotalMergeKeys!==-1&&e.totalMergeKeys>e.maxTotalMergeKeys&&ne(e,`merge keys exceeded maxTotalMergeKeys (${e.maxTotalMergeKeys})`)}function xr(e,t,n,i){yr(e);for(let r of i.keys(n)){if(yr(e),t.tag.has(t.value,r))continue;let s=t.tag.addPair(t.value,r,i.get(n,r));s&&ne(e,s),t.overridable??=new Set,t.overridable.add(r)}}function aa(e,t,n,i){if(e.position=t.keyPosition,_r(i))xr(e,t,n,i);else if(i.nodeKind==="sequence"&&Array.isArray(n)){n.length>100&&ne(e,"abnormal merge sequence size");for(let r of n){let s=e.nodeTags.get(r);s||ne(e,"cannot merge mappings; the provided source object is unacceptable"),xr(e,t,r,s)}}else ne(e,"cannot merge mappings; the provided source object is unacceptable")}function la(e,t,n,i,r){if(e.position=t.keyPosition,t.keyIsMerge){aa(e,t,i,r);return}!e.json&&t.tag.has(t.value,n)&&!t.overridable?.has(n)&&ne(e,"duplicated mapping key");let s=t.tag.addPair(t.value,n,i);s&&ne(e,s),t.overridable?.delete(n)}function Zt(e,t,n){let i=e.frames[e.frames.length-1];if(i.kind==="document")i.value=t,i.hasValue=!0;else if(i.kind==="sequence"){_r(n)&&e.nodeTags.set(t,n);let r=i.tag.addItem(i.value,t,i.index++);r&&ne(e,r)}else if(i.hasKey){let r=i.key;i.key=void 0,i.hasKey=!1,la(e,i,r,t,n)}else i.key=t,i.keyPosition=e.position,i.hasKey=!0,i.keyIsMerge=n.tagName===ia}function en(e,t,n,i,r){if(t.anchorStart!==et){let s={value:n,tag:i,isValueFinal:r};return e.anchors.set(e.source.slice(t.anchorStart,t.anchorEnd),s),s}return null}function ca(e,t){let n={...mn,...t,events:e,documents:[],eventIndex:0,position:0,frames:[],anchors:new Map,nodeTags:new Map,tagHandlers:Object.create(null),totalMergeKeys:0,aliasCount:0};for(;n.eventIndex<n.events.length;){let i=n.events[n.eventIndex++];switch(n.position=sa(i),i.type){case G.DOCUMENT:n.anchors=new Map,n.nodeTags=new Map,n.aliasCount=0,n.tagHandlers=Object.create(null);for(let r of i.directives)r.kind==="tag"&&(n.tagHandlers[r.handle]=r.prefix);n.frames.push({kind:"document",position:n.position,value:void 0,hasValue:!1});break;case G.SCALAR:{let{value:r,tag:s}=oa(n,i);en(n,i,r,s,!0),Zt(n,r,s);break}case G.SEQUENCE:{let r=gr(n,i,"tag:yaml.org,2002:seq"),s=n.schema.lookupSequenceTag(r);s||ne(n,`unknown sequence tag !<${r}>`);let o=s.create(r),a=en(n,i,o,s,s.carrierIsResult);n.frames.push({kind:"sequence",position:n.position,value:o,tag:s,anchor:a,index:0});break}case G.MAPPING:{let r=gr(n,i,"tag:yaml.org,2002:map"),s=n.schema.lookupMappingTag(r);s||ne(n,`unknown mapping tag !<${r}>`);let o=s.create(r),a=en(n,i,o,s,s.carrierIsResult);n.frames.push({kind:"mapping",position:n.position,value:o,tag:s,anchor:a,key:void 0,keyPosition:n.position,hasKey:!1,keyIsMerge:!1,overridable:null});break}case G.ALIAS:{n.maxAliases!==-1&&++n.aliasCount>n.maxAliases&&ne(n,`aliases exceeded maxAliases (${n.maxAliases})`);let r=n.source.slice(i.anchorStart,i.anchorEnd),s=n.anchors.get(r);s||ne(n,`unidentified alias "${r}"`),s.isValueFinal||ne(n,`recursive alias "${r}" is not supported for tag ${s.tag.tagName} because it uses finalize()`),Zt(n,s.value,s.tag);break}case G.POP:{let r=n.frames.pop();if(r.kind==="mapping"&&r.hasKey&&(n.position=r.keyPosition,ne(n,"incomplete mapping pair in event stream")),r.kind==="document")n.documents.push(r.value);else{let s=r.tag.carrierIsResult?r.value:Or(n,r.position,r.tag,r.value);r.anchor&&(r.anchor.value=s,r.anchor.isValueFinal=!0),Zt(n,s,r.tag)}break}}}return n.documents}var Y=-1,Cr=Object.prototype.hasOwnProperty,rt=1,sn=2,Rr=3,vt=4,ua=/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F-\\x84\\x86-\\x9F\\uFFFE\\uFFFF]|[\\uD800-\\uDBFF](?![\\uDC00-\\uDFFF])|(?:[^\\uD800-\\uDBFF]|^)[\\uDC00-\\uDFFF]/,fa=/[,\\[\\]{}]/,Pr=/^(?:!|!!|![0-9A-Za-z-]+!)$/,on=String.raw`(?:%[0-9A-Fa-f]{2}|[0-9A-Za-z\\-#;/?:@&=+$,_.!~*\'()\\[\\]])`,Mr=String.raw`(?:%[0-9A-Fa-f]{2}|[0-9A-Za-z\\-#;/?:@&=+$.~*\'()_])`,da=new RegExp(`^(?:${on})*$`),ha=new RegExp(`^(?:${Mr})+$`),pa=new RegExp(`^(?:!(?:${on})*|${Mr}(?:${on})*)$`),gn={filename:"",maxDepth:100};function ma(e,t,n){e.events.push({type:G.DOCUMENT,explicitStart:t,explicitEnd:n,directives:e.directives})}function Fr(e,t,n,i,r,s,o){e.events.push({type:G.SEQUENCE,start:t,anchorStart:n,anchorEnd:i,tagStart:r,tagEnd:s,style:o})}function an(e,t,n,i,r,s,o){e.events.push({type:G.MAPPING,start:t,anchorStart:n,anchorEnd:i,tagStart:r,tagEnd:s,style:o})}function kr(e,t){e.events.splice(t.eventsLength,0,{type:G.MAPPING,start:t.position,anchorStart:Y,anchorEnd:Y,tagStart:Y,tagEnd:Y,style:_e.FLOW})}function st(e,t,n,i,r,s,o,a,l=de.CLIP,c=-1,u=!1){e.events.push({type:G.SCALAR,valueStart:t,valueEnd:n,anchorStart:i,anchorEnd:r,tagStart:s,tagEnd:o,style:a,chomping:l,indent:c,fast:u})}function ga(e,t,n){e.events.push({type:G.ALIAS,anchorStart:t,anchorEnd:n})}function tt(e){e.events.push({type:G.POP})}function oe(e){st(e,Y,Y,Y,Y,Y,Y,U.PLAIN)}function br(){return{anchorStart:Y,anchorEnd:Y,tagStart:Y,tagEnd:Y}}function nt(e){return{position:e.position,line:e.line,lineStart:e.lineStart,lineIndent:e.lineIndent,firstTabInLine:e.firstTabInLine,eventsLength:e.events.length}}function Ke(e,t){e.position=t.position,e.line=t.line,e.lineStart=t.lineStart,e.lineIndent=t.lineIndent,e.firstTabInLine=t.firstTabInLine,e.events.length=t.eventsLength}function N(e,t){Ae.throwAt(e.input.slice(0,e.length),e.position,t,e.filename)}function te(e){return e===10||e===13}function ze(e){return e===9||e===32}function xe(e){return ze(e)||te(e)}function Ee(e){return e===0||xe(e)}function Ye(e){return e===44||e===91||e===93||e===123||e===125}function ya(e){return e>=48&&e<=57?e-48:-1}function xa(e){if(e>=48&&e<=57)return e-48;let t=e|32;return t>=97&&t<=102?t-97+10:-1}function ka(e){return e===120?2:e===117?4:e===85?8:0}function ba(e){return e===48||e===97||e===98||e===116||e===9||e===110||e===118||e===102||e===114||e===101||e===32||e===34||e===47||e===92||e===78||e===95||e===76||e===80}function Et(e){e.input.charCodeAt(e.position)===10?e.position++:(e.position++,e.input.charCodeAt(e.position)===10&&e.position++),e.line++,e.lineStart=e.position,e.lineIndent=0,e.firstTabInLine=-1}function re(e,t){let n=0,i=e.input.charCodeAt(e.position),r=e.position===e.lineStart||xe(e.input.charCodeAt(e.position-1));for(;i!==0;){for(;ze(i);)r=!0,i===9&&e.firstTabInLine===-1&&(e.firstTabInLine=e.position),i=e.input.charCodeAt(++e.position);if(t&&r&&i===35)do i=e.input.charCodeAt(++e.position);while(!te(i)&&i!==0);if(!te(i))break;for(Et(e),n++,r=!0,i=e.input.charCodeAt(e.position);i===32;)e.lineIndent++,i=e.input.charCodeAt(++e.position)}return n}function it(e,t=e.position){let n=e.input.charCodeAt(t);if((n===45||n===46)&&n===e.input.charCodeAt(t+1)&&n===e.input.charCodeAt(t+2)){let i=e.input.charCodeAt(t+3);return i===0||xe(i)}return!1}function Dr(e){e.position===e.lineStart&&e.input.charCodeAt(e.position)===65279&&(e.position++,e.lineStart=e.position)}function yn(e){if(e.position!==e.lineStart)return!1;if(it(e))return!0;if(e.input.charCodeAt(e.position)!==65279)return!1;let t=nt(e);Dr(e),re(e,!0);let n=e.input.charCodeAt(e.position),i=e.position===e.lineStart&&(n===37||n===45&&it(e));return Ke(e,t),i}function wr(e){let t=e.input.charCodeAt(e.position);for(;t!==0&&!te(t);)t=e.input.charCodeAt(++e.position)}function Br(e,t,n){ua.test(e.input.slice(t,n))&&N(e,"the stream contains non-printable characters")}function wa(e,t,n){if(e.input.charCodeAt(e.position)!==33)return!1;t.tagStart!==Y&&N(e,"duplication of a tag property");let i=e.position,r=!1,s=!1,o="!",a=e.input.charCodeAt(++e.position);a===60?(r=!0,a=e.input.charCodeAt(++e.position)):a===33&&(s=!0,o="!!",a=e.input.charCodeAt(++e.position));let l=e.position,c;if(r){for(;a!==0&&a!==62;)a=e.input.charCodeAt(++e.position);a!==62&&N(e,"unexpected end of the stream within a verbatim tag"),c=e.input.slice(l,e.position),e.position++}else{for(;a!==0&&!xe(a)&&!(n&&Ye(a));)a===33&&(s?N(e,"tag suffix cannot contain exclamation marks"):(o=e.input.slice(l-1,e.position+1),Pr.test(o)||N(e,"named tag handle cannot contain such characters"),s=!0,l=e.position+1)),a=e.input.charCodeAt(++e.position);c=e.input.slice(l,e.position),fa.test(c)&&N(e,"tag suffix cannot contain flow indicator characters")}return c&&!(r?da.test(c):ha.test(c))&&N(e,`tag name cannot contain such characters: ${c}`),!r&&o!=="!"&&o!=="!!"&&!Cr.call(e.tagHandlers,o)&&N(e,`undeclared tag handle "${o}"`),t.tagStart=i,t.tagEnd=e.position,!0}function $a(e,t){if(e.input.charCodeAt(e.position)!==38)return!1;t.anchorStart!==Y&&N(e,"duplication of an anchor property"),e.position++;let n=e.position;for(;e.input.charCodeAt(e.position)!==0&&!xe(e.input.charCodeAt(e.position))&&!Ye(e.input.charCodeAt(e.position));)e.position++;return e.position===n&&N(e,"name of an anchor node must contain at least one character"),t.anchorStart=n,t.anchorEnd=e.position,!0}function va(e,t){if(e.input.charCodeAt(e.position)!==42)return!1;(t.anchorStart!==Y||t.tagStart!==Y)&&N(e,"alias node should not have any properties"),e.position++;let n=e.position;for(;e.input.charCodeAt(e.position)!==0&&!xe(e.input.charCodeAt(e.position))&&!Ye(e.input.charCodeAt(e.position));)e.position++;return e.position===n&&N(e,"name of an alias node must contain at least one character"),ga(e,n,e.position),!0}function ln(e,t){re(e,!1),e.lineIndent<t&&N(e,"deficient indentation")}function Ea(e,t,n){if(e.input.charCodeAt(e.position)!==39)return!1;e.position++;let i=e.position,r=!0;for(;e.input.charCodeAt(e.position)!==0;){let s=e.input.charCodeAt(e.position);if(s===39){if(e.input.charCodeAt(e.position+1)===39){r=!1,e.position+=2;continue}let o=e.position;return e.position++,st(e,i,o,n.anchorStart,n.anchorEnd,n.tagStart,n.tagEnd,U.SINGLE_QUOTED,de.CLIP,-1,r),!0}te(s)?(r=!1,ln(e,t)):e.position===e.lineStart&&it(e)?N(e,"unexpected end of the document within a single quoted scalar"):s!==9&&s<32?N(e,"expected valid JSON character"):e.position++}N(e,"unexpected end of the stream within a single quoted scalar")}function Aa(e,t,n){if(e.input.charCodeAt(e.position)!==34)return!1;e.position++;let i=e.position,r=!0;for(;e.input.charCodeAt(e.position)!==0;){let s=e.input.charCodeAt(e.position);if(s===34){let o=e.position;return e.position++,st(e,i,o,n.anchorStart,n.anchorEnd,n.tagStart,n.tagEnd,U.DOUBLE_QUOTED,de.CLIP,-1,r),!0}if(s===92){r=!1;let o=e.input.charCodeAt(++e.position);if(te(o))ln(e,t);else if(ba(o))e.position++;else{let a=ka(o);for(a===0&&N(e,"unknown escape sequence");a-- >0;)e.position++,xa(e.input.charCodeAt(e.position))<0&&N(e,"expected hexadecimal character");e.position++}}else te(s)?(r=!1,ln(e,t)):e.position===e.lineStart&&it(e)?N(e,"unexpected end of the document within a double quoted scalar"):s!==9&&s<32?N(e,"expected valid JSON character"):e.position++}N(e,"unexpected end of the stream within a double quoted scalar")}function Sa(e,t,n){let i=e.input.charCodeAt(e.position),r=de.CLIP,s=-1,o=!1;if(i!==124&&i!==62)return!1;let a=i===124?U.LITERAL_BLOCK:U.FOLDED_BLOCK;for(e.position++;e.input.charCodeAt(e.position)!==0;){let p=e.input.charCodeAt(e.position),g=ya(p);if(p===43||p===45)r!==de.CLIP&&N(e,"repeat of a chomping mode identifier"),r=p===43?de.KEEP:de.STRIP,e.position++;else if(g>=0)g===0&&N(e,"bad explicit indentation width of a block scalar; it cannot be less than one"),o&&N(e,"repeat of an indentation width identifier"),s=t+g-1,o=!0,e.position++;else break}let l=!1;for(;ze(e.input.charCodeAt(e.position));)l=!0,e.position++;l&&e.input.charCodeAt(e.position)===35&&wr(e),te(e.input.charCodeAt(e.position))?Et(e):e.input.charCodeAt(e.position)!==0&&N(e,"a line break is expected");let c=o?s:-1,u=0,f=e.position,d=e.position;for(;e.input.charCodeAt(e.position)!==0;){let p=e.position,g=0;for(;e.input.charCodeAt(p+g)===32;)g++;let $=e.input.charCodeAt(p+g);if($===0){c>=0?g>c&&(d=p+g):g>0&&(d=p+g);break}if(yn(e))break;if(!o&&c===-1&&te($)&&(u=Math.max(u,g)),!o&&c===-1&&!te($)&&($===9&&g<t&&(e.position=p+g,N(e,"tab characters must not be used in indentation")),g<u&&(e.position=p+g,N(e,"bad indentation of a mapping entry"))),c===-1&&$!==0&&!te($)&&g<t){e.lineIndent=g,e.position=p+g;break}!o&&$!==0&&!te($)&&c===-1&&(c=g);let S=c===-1?t+1:c;if($!==0&&!te($)&&g<S){e.lineIndent=g,e.position=p+g;break}wr(e),d=e.position,te(e.input.charCodeAt(e.position))&&(Et(e),d=e.position)}return Br(e,f,d),st(e,f,d,n.anchorStart,n.anchorEnd,n.tagStart,n.tagEnd,a,r,c),!0}function Ia(e,t){let n=e.input.charCodeAt(e.position),i=t===rt;if(n===0||xe(n)||n===35||n===38||n===42||n===33||n===124||n===62||n===39||n===34||n===37||n===64||n===96||i&&Ye(n))return!1;if(n===63||n===45){let r=e.input.charCodeAt(e.position+1);if(Ee(r)||i&&Ye(r))return!1}return!0}function Ta(e,t,n,i){if(!Ia(e,n))return!1;let r=e.position,s=e.position,o=e.input.charCodeAt(e.position),a=n===rt,l=!1;for(;o!==0&&!yn(e);){if(o===58){let c=e.input.charCodeAt(e.position+1);if(Ee(c)||a&&Ye(c))break}else if(o===35){if(xe(e.input.charCodeAt(e.position-1)))break}else{if(a&&Ye(o))break;if(te(o)){let c=e.position,u=e.line,f=e.lineStart,d=e.lineIndent;if(re(e,!1),e.lineIndent>=t){l=!0,o=e.input.charCodeAt(e.position);continue}e.position=c,e.line=u,e.lineStart=f,e.lineIndent=d;break}}ze(o)||(s=e.position+1),o=e.input.charCodeAt(++e.position)}return s===r?!1:(Br(e,r,s),st(e,r,s,i.anchorStart,i.anchorEnd,i.tagStart,i.tagEnd,U.PLAIN,de.CLIP,-1,!l),!0)}function ft(e,t){let n=e.line;re(e,!0),(e.line>n&&e.lineIndent<t||e.firstTabInLine!==-1&&e.lineIndent<t)&&N(e,"deficient indentation")}function La(e,t,n){let i=e.input.charCodeAt(e.position),r=i===123,s=e.position,o=!0;if(i!==91&&i!==123)return!1;let a=r?125:93;for(r?an(e,s,n.anchorStart,n.anchorEnd,n.tagStart,n.tagEnd,_e.FLOW):Fr(e,s,n.anchorStart,n.anchorEnd,n.tagStart,n.tagEnd,_e.FLOW),e.position++;e.input.charCodeAt(e.position)!==0;){ft(e,t);let l=e.input.charCodeAt(e.position);if(l===a)return e.position++,tt(e),!0;o?l===44&&N(e,"expected the node content, but found \',\'"):N(e,"missed comma between flow collection entries");let c=!1,u=!1;l===63&&xe(e.input.charCodeAt(e.position+1))&&(c=u=!0,e.position+=1,ft(e,t));let f=e.line,d=nt(e),p=We(e,t,rt,!1,!0);ft(e,t),l=e.input.charCodeAt(e.position),(r||u||e.line===f)&&l===58?(c=!0,e.position++,ft(e,t),r||kr(e,d),p||oe(e),We(e,t,rt,!1,!0)||oe(e),ft(e,t),r||tt(e)):r&&c?(p||oe(e),oe(e)):r?oe(e):c&&(kr(e,d),p||oe(e),oe(e),tt(e)),l=e.input.charCodeAt(e.position),l===44?(o=!0,e.position++):o=!1}N(e,"unexpected end of the stream within a flow collection")}function $r(e,t,n){if(e.firstTabInLine!==-1||e.input.charCodeAt(e.position)!==45||!Ee(e.input.charCodeAt(e.position+1)))return!1;for(Fr(e,e.position,n.anchorStart,n.anchorEnd,n.tagStart,n.tagEnd,_e.BLOCK);e.input.charCodeAt(e.position)===45&&Ee(e.input.charCodeAt(e.position+1));){e.firstTabInLine!==-1&&(e.position=e.firstTabInLine,N(e,"tab characters must not be used in indentation"));let i=e.line;e.position++;let r=re(e,!0)>0;if(e.firstTabInLine!==-1&&e.input.charCodeAt(e.position)===45&&Ee(e.input.charCodeAt(e.position+1))&&N(e,"bad indentation of a sequence entry"),r&&e.lineIndent<=t?oe(e):We(e,t,Rr,!1,!0),re(e,!0),e.lineIndent<t||e.position>=e.length)break;e.lineIndent>t&&N(e,"bad indentation of a sequence entry"),e.line===i&&e.input.charCodeAt(e.position)===45&&Ee(e.input.charCodeAt(e.position+1))&&N(e,"bad indentation of a sequence entry")}return tt(e),!0}function tn(e,t,n,i){let r=!1,s=!1,o=!1,a=!1;if(e.firstTabInLine!==-1)return!1;let l=e.input.charCodeAt(e.position);for(;l!==0;){!r&&e.firstTabInLine!==-1&&(e.position=e.firstTabInLine,N(e,"tab characters must not be used in indentation"));let c=e.input.charCodeAt(e.position+1),u=e.line;if((l===63||l===58)&&Ee(c))o||(an(e,e.position,i.anchorStart,i.anchorEnd,i.tagStart,i.tagEnd,_e.BLOCK),o=!0),l===63?(r&&oe(e),s=!0,r=!0):(r||(oe(e),s=!0),r=!1),e.position+=1,a=!0;else{r&&(oe(e),r=!1);let f=nt(e);if(!We(e,n,sn,!1,!0))break;if(e.line===u){for(l=e.input.charCodeAt(e.position);ze(l);)l=e.input.charCodeAt(++e.position);if(l===58){if(l=e.input.charCodeAt(++e.position),Ee(l)||N(e,"a whitespace character is expected after the key-value separator within a block mapping"),!o){for(Ke(e,f),an(e,f.position,i.anchorStart,i.anchorEnd,i.tagStart,i.tagEnd,_e.BLOCK),o=!0,We(e,n,sn,!1,!0),l=e.input.charCodeAt(e.position);ze(l);)l=e.input.charCodeAt(++e.position);e.position++}s=!0,r=!1,a=!1}else if(s)N(e,"expected \':\' after a mapping key");else return i.anchorStart!==Y||i.tagStart!==Y?(Ke(e,f),!1):!0}else if(s)N(e,"can not read a block mapping entry; a multiline key may not be an implicit key");else return i.anchorStart!==Y||i.tagStart!==Y?(Ke(e,f),!1):!0}if(We(e,t,vt,!0,a)&&(a=!1),r||a&&(oe(e),a=!1),re(e,!0),l=e.input.charCodeAt(e.position),(e.line===u||e.lineIndent>t)&&l!==0)N(e,"bad indentation of a mapping entry");else if(e.lineIndent<t)break}return s?(r&&oe(e),o&&tt(e),!0):!1}function We(e,t,n,i,r,s=!0){e.depth>=e.maxDepth&&N(e,`nesting exceeded maxDepth (${e.maxDepth})`),e.depth++;let o=1,a=!1,l=!1,c=null,u=br(),f=n===vt||n===Rr,d=f,p=f;if(i&&re(e,!0)&&(a=!0,e.lineIndent>t?o=1:e.lineIndent===t?o=0:o=-1),o===1)for(;;){let g=e.input.charCodeAt(e.position),$=nt(e);if(a&&o!==1&&(g===33||g===38))break;if(a&&p&&(u.tagStart!==Y||u.anchorStart!==Y)&&(g===33||g===38)){let S=nt(e),_=t+1;if(tn(e,e.position-e.lineStart,_,u)&&e.events[S.eventsLength]?.type===G.MAPPING)return e.depth--,!0;Ke(e,S)}if(a&&(g===33&&u.tagStart!==Y||g===38&&u.anchorStart!==Y)||!wa(e,u,n===rt)&&!$a(e,u))break;c===null&&(c=$),re(e,!0)?(a=!0,d=p,e.lineIndent>t?o=1:e.lineIndent===t?o=0:o=-1):d=!1}if(d&&(d=a||r),o===1||n===vt){let g=n===rt||n===sn?t:t+1,$=e.position-e.lineStart;if(o===1)if(d&&($r(e,$,u)||tn(e,$,g,u))||La(e,g,u))l=!0;else{let S=e.input.charCodeAt(e.position);if(c!==null&&s&&p&&!d&&S!==124&&S!==62){let _=nt(e),x=c.position-c.lineStart;Ke(e,c),tn(e,x,g,br())&&e.events[_.eventsLength]?.type===G.MAPPING?l=!0:Ke(e,_)}!l&&(f&&Sa(e,g,u)||Ea(e,g,u)||Aa(e,g,u)||va(e,u)||Ta(e,g,n,u))&&(l=!0)}else o===0&&(l=d&&$r(e,$,u))}return f=f&&!l,!l&&(u.anchorStart!==Y||u.tagStart!==Y||f)&&(st(e,Y,Y,u.anchorStart,u.anchorEnd,u.tagStart,u.tagEnd,U.PLAIN),l=!0),e.depth--,l||u.anchorStart!==Y||u.tagStart!==Y}function Na(e){if(e.lineIndent>0||e.input.charCodeAt(e.position)!==37)return!1;e.position++;let t=e.position;for(;e.input.charCodeAt(e.position)!==0&&!xe(e.input.charCodeAt(e.position));)e.position++;let n=e.input.slice(t,e.position),i=[];for(n.length===0&&N(e,"directive name must not be less than one character in length");e.input.charCodeAt(e.position)!==0&&!te(e.input.charCodeAt(e.position));){for(;ze(e.input.charCodeAt(e.position));)e.position++;if(e.input.charCodeAt(e.position)===35||te(e.input.charCodeAt(e.position))||e.input.charCodeAt(e.position)===0)break;let r=e.position;for(;e.input.charCodeAt(e.position)!==0&&!xe(e.input.charCodeAt(e.position));)e.position++;i.push(e.input.slice(r,e.position))}if(te(e.input.charCodeAt(e.position))&&Et(e),n==="YAML"){e.directives.some(s=>s.kind==="yaml")&&N(e,"duplication of %YAML directive"),i.length!==1&&N(e,"YAML directive accepts exactly one argument");let r=/^([0-9]+)\\.([0-9]+)$/.exec(i[0]);r===null&&N(e,"ill-formed argument of the YAML directive"),parseInt(r[1],10)!==1&&N(e,"unacceptable YAML version of the document"),e.directives.push({kind:"yaml",version:i[0]})}else if(n==="TAG"){i.length!==2&&N(e,"TAG directive accepts exactly two arguments");let[r,s]=i;Pr.test(r)||N(e,"ill-formed tag handle (first argument) of the TAG directive"),Cr.call(e.tagHandlers,r)&&N(e,`there is a previously declared suffix for "${r}" tag handle`),pa.test(s)||N(e,"ill-formed tag prefix (second argument) of the TAG directive"),e.tagHandlers[r]=s,e.directives.push({kind:"tag",handle:r,prefix:s})}return!0}function Oa(e){e.directives=[],e.tagHandlers=Object.create(null);let t=!1;for(re(e,!0);Na(e);)t=!0,re(e,!0);let n=!1,i=!1,r=!0;if(e.lineIndent===0&&e.input.charCodeAt(e.position)===45&&e.input.charCodeAt(e.position+1)===45&&e.input.charCodeAt(e.position+2)===45&&Ee(e.input.charCodeAt(e.position+3))){n=!0;let a=e.line;e.position+=3,re(e,!0),r=e.line>a}else t&&N(e,"directives end mark is expected");let s=e.events.length;if(!n&&e.position===e.lineStart&&e.input.charCodeAt(e.position)===46&&it(e)){e.position+=3,re(e,!0);return}if(ma(e,n,!1),We(e,e.lineIndent-1,vt,!1,r,r)||oe(e),re(e,!0),e.position===e.lineStart&&it(e)&&(i=e.input.charCodeAt(e.position)===46,i)){let a=e.line;e.position+=3,re(e,!0),e.line===a&&e.position<e.length&&N(e,"end of the stream or a document separator is expected")}let o=e.events[s];o?.type===G.DOCUMENT&&(o.explicitEnd=i),tt(e),!i&&e.position<e.length&&!yn(e)&&N(e,"end of the stream or a document separator is expected")}function _a(e,t){let n=e.length,i={...gn,...t,input:`${e}\\0`,length:n,position:0,line:0,lineStart:0,lineIndent:0,firstTabInLine:-1,depth:0,directives:[],tagHandlers:Object.create(null),events:[]},r=e.indexOf("\\0");for(r!==-1&&Ae.throwAt(e,r,"null byte is not allowed in input",i.filename);i.position<i.length&&(Dr(i),re(i,!0),!(i.position>=i.length));){let s=i.position;Oa(i),i.position===s&&N(i,"can not read a document")}return i.events}var Ca={...gn,...mn};function Ra(e,t={}){let n={...Ca,...t},i=String(e),r=Object.keys(gn),s=Object.keys(mn);return ca(_a(i,fr(n,r)),{...fr(n,s),source:i})}function jr(e,t){let n=Ra(e,t);if(n.length===0)throw new Ae("expected a document, but the input is empty");if(n.length===1)return n[0];throw new Ae("expected a single document in the stream, but found more")}function Tt(e,t){return(e&1<<t)!==0}var vr={applyQuoteFlowKeysOption:Pa,doubleQuoteForInvisibles:Ma,doubleQuoteWhitespaceOnly:Fa,applyForceQuotesOption:Da,tryLongOrMultilineAsBlock:Ba,quoteInvalidPlain:ja,fallbackToDoubleQuoted:qa};function qr(e){return e.presenterOptions.quoteStyle==="single"&&Tt(e.allowedStylesMask,U.SINGLE_QUOTED)?U.SINGLE_QUOTED:U.DOUBLE_QUOTED}function Pa(e){e.presenterOptions.quoteFlowKeys&&(!e.isKey||!e.flowOnly||e.style!==U.PLAIN||(e.style=U.DOUBLE_QUOTED))}function Ma(e){e.style===U.PLAIN&&/[\\t\\x7F-\\xA0\\u2028\\u2029\\uFEFF\\uFFFE\\uFFFF]/.test(e.node.value)&&(e.style=U.DOUBLE_QUOTED)}function Fa(e){e.style===U.PLAIN&&/^\\s+$/.test(e.node.value)&&(e.style=U.DOUBLE_QUOTED)}function Da(e){e.presenterOptions.forceQuotes&&(e.isKey||e.style!==U.PLAIN||e.node.tag===e.presenterOptions.schema.defaultScalarTag.tagName&&(e.style=e.node.value.includes(`\n`)?U.DOUBLE_QUOTED:qr(e)))}function Ba(e){if(e.style!==U.PLAIN||e.isKey)return;let t=e.node.value,n=t.indexOf(`\n`)!==-1;if(!Tt(e.allowedStylesMask,U.LITERAL_BLOCK)){n&&(e.style=U.DOUBLE_QUOTED);return}let i=e.presenterOptions.lineWidth;if(i===-1){n&&(e.style=U.LITERAL_BLOCK);return}let r=Math.max(Math.min(i,40),i-e.shiftOfContent),s=0,o=!1;for(;s<=t.length;){let a=t.length,l=t.indexOf(`\n`,s);l!==-1&&(a=l);let c=t.slice(s,a);if(c.length>r&&c[0]!==" "&&/ [^ \\t]/.test(c)&&(o=!0),l===-1)break;s=l+1}o?e.style=U.FOLDED_BLOCK:n&&(e.style=U.LITERAL_BLOCK)}function ja(e){e.style===U.PLAIN&&!Tt(e.allowedStylesMask,U.PLAIN)&&(e.style=qr(e))}function qa(e){Tt(e.allowedStylesMask,e.style)||(e.style=U.DOUBLE_QUOTED)}var Ua="[\\\\x09\\\\x0A\\\\x0D\\\\x20-\\\\x7E\\\\x85\\\\xA0-\\\\uD7FF\\\\uE000-\\\\uFFFD\\\\u{10000}-\\\\u{10FFFF}]",Ka="[\\\\n\\\\r]",Wa="\\\\uFEFF",xn="[ \\\\t]",Ur=`(?:(?!(?:${Ka}|${Wa}))${Ua})`,Lt=`(?:(?!${xn})${Ur})`,Kr="[\\\\x09\\\\x20-\\\\uD7FF\\\\uE000-\\\\uFFFF\\\\u{10000}-\\\\u{10FFFF}]",Wr="[-?:,\\\\[\\\\]{}#&*!|>\'\\"%@`]",za="[,\\\\[\\\\]{}]",cn=Lt,un=`(?:(?!${za})${Lt})`,Ya=`(?:(?:(?!${Wr})${Lt})|[?:-](?=${cn}))`,Xa=`(?:(?:(?!${Wr})${Lt})|[?:-](?=${un}))`,zr=`(?:(?:(?![:#])${cn})|:(?=${cn}))#*`,Yr=`(?:(?:(?![:#])${un})|:(?=${un}))#*`,Xr=`(?:${xn}*${zr})*`,Vr=`(?:${xn}*${Yr})*`,Gr=`${Ya}#*${Xr}`,Hr=`${Xa}#*${Vr}`,Va=Gr,Ga=Hr,Ha=`\\\\n+${zr}${Xr}`,Qa=`\\\\n+${Yr}${Vr}`,Ja=`${Gr}(?:${Ha})*`,Za=`${Hr}(?:${Qa})*`,gu=new RegExp(`^(?:${Ja})$`,"u"),yu=new RegExp(`^(?:${Za})$`,"u"),xu=new RegExp(`^(?:${Va})$`,"u"),ku=new RegExp(`^(?:${Ga})$`,"u"),bu=new RegExp(`^(?:${Kr})*$`,"u"),wu=new RegExp(`^(?:${Kr}|\\\\n)*$`,"u"),$u=new RegExp(`^(?:${Ur}|\\\\n)*$`,"u");var el={indent:2,seqNoIndent:!1,seqInlineFirst:!0,lineWidth:80,flowBracketPadding:!1,flowSkipCommaSpace:!1,flowSkipColonSpace:!1,quoteFlowKeys:!1,quoteStyle:"single",forceQuotes:!1,scalarStyleRules:Object.keys(vr).map(e=>Reflect.get(vr,e)),tagBeforeAnchor:!1};var vu={...el,schema:Yo,skipInvalid:!1,noRefs:!1,flowLevel:-1,sortKeys:!1,transform:()=>{}};var Eu=G.DOCUMENT,Au=G.SEQUENCE,Su=G.MAPPING,Iu=G.SCALAR,Tu=G.ALIAS,Lu=G.POP,Nu=U.PLAIN,Ou=U.SINGLE_QUOTED,_u=U.DOUBLE_QUOTED,Cu=U.LITERAL_BLOCK,Ru=U.FOLDED_BLOCK,Pu=_e.BLOCK,Mu=_e.FLOW,Fu=de.CLIP,Du=de.STRIP,Bu=de.KEEP;var Se=class extends Error{code;fix;details;constructor(t,n,i={}){super(n),this.name="ToilError",this.code=t,this.fix=i.fix,this.details=i.details}};var kn=1e6;function bn(e,t="the YAML"){let n;try{n=jr(e,{schema:hn})}catch(r){if(!(r instanceof Ae))throw r;let s=r.mark?` at line ${r.mark.line+1}, column ${r.mark.column+1}`:"";throw new Se("INVALID_INPUT",`${t[0].toUpperCase()}${t.slice(1)} isn\'t valid YAML${s}: ${r.reason}.`,{fix:/more than one document|multi-document|expected a single document/i.test(r.reason)?"Pass a single YAML document.":"Fix the YAML at that position and run it again.",...r.mark?{details:{line:r.mark.line+1,column:r.mark.column+1}}:{}})}let i=tl(n);if(i.shared&&nl(n,i.count+kn)>i.count+kn)throw new Se("INVALID_INPUT",`${t[0].toUpperCase()}${t.slice(1)} uses aliases that add more than ${kn} values to it once expanded, the most toil accepts.`,{fix:"Pass a document without deeply nested aliases (*name), or with the aliased content written out."});return n}function tl(e){let t=new Set,n=0,i=!1,r=[e];for(;r.length;){let s=r.pop();if(n++,!(s===null||typeof s!="object")){if(t.has(s)){i=!0;continue}t.add(s);for(let o of Object.values(s))r.push(o)}}return{count:n,shared:i}}function nl(e,t){let n=0,i=[e];for(;i.length;){let r=i.pop();if(++n>t)return n;if(r!==null&&typeof r=="object")for(let s of Object.values(r))i.push(s)}return n}var rl={person:"Person",system:"Software System",container:"Container",component:"Component"};function wn(e){let t=e.kind==="container"&&e.database?"Container":rl[e.kind];return e.technology?`[${t}: ${e.technology}]`:`[${t}]`}var il=[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584],sl=[278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584],ol=1e3,oi="Helvetica, Arial, sans-serif";function En(e,t,n=!1){let i=n?sl:il,r=0;for(let s of e){let o=s.codePointAt(0);r+=o>=32&&o<=126?i[o-32]:ol}return r*t/1e3}function Ot(e,t,n,i=!1){let r=[],s="",o=a=>En(a,n,i)<=t;for(let a of e.split(/\\s+/).filter(Boolean)){let l=s?`${s} ${a}`:a;if(o(l)){s=l;continue}s&&r.push(s);let c=a;for(;!o(c);){let u=c.length-1;for(;u>1&&!o(c.slice(0,u));)u--;r.push(c.slice(0,u)),c=c.slice(u)}s=c}return s&&r.push(s),r}var An=e=>Math.round(e.size*1.3),dt=e=>e.reduce((t,n)=>t+An(n),0),al=e=>Math.max(0,...e.map(t=>En(t.text,t.size,t.bold))),vn=230,ai=14,ll=100,$e=10,Qr=15,Jr=11,Zr=12,cl=16,Ie=50,ul=120,ot=28,ei=38,$n=30,Nt=20,fl=150,ti=11,dl=10,ni=12;function hl(e){let t=vn-2*ai,n=[...Ot(e.name,t,Qr,!0).map(i=>({text:i,size:Qr,bold:!0})),...Ot(wn(e),t,Jr).map(i=>({text:i,size:Jr,bold:!1}))];return e.description&&n.push({text:"",size:6,bold:!1},...Ot(e.description,t,Zr).map(i=>({text:i,size:Zr,bold:!1}))),n}function pl(e,t){return Math.max(ll,dt(t)+2*ai)+(e.database?2*$e:0)}function ml(e,t,n=new Set){let i=t.map(a=>n.has(a.to)&&!n.has(a.from)),r=new Map(e.map(a=>[a,[]]));t.forEach((a,l)=>{n.has(a.from)&&n.has(a.to)||r.get(i[l]?a.to:a.from).push(l)});let s=new Map,o=a=>{s.set(a,"open");for(let l of r.get(a)){let c=i[l]?t[l].from:t[l].to,u=s.get(c);u==="open"?i[l]=!i[l]:u===void 0&&o(c)}s.set(a,"done")};for(let a of e)s.has(a)||o(a);return i}function gl(e,t,n=new Set){let i=n.size>0?1:0,r=t.filter(f=>!n.has(f.to)&&f.from!==f.to),s=new Map(e.map(f=>[f,[]])),o=new Map(e.map(f=>[f,[]]));for(let f of r)s.get(f.to).push(f.from),o.get(f.from).push(f.to);let a=new Map,l=new Map(e.map(f=>[f,s.get(f).length])),c=e.filter(f=>l.get(f)===0);for(let f of c)a.set(f,n.has(f)?0:i);for(;c.length>0;){let f=c.shift();for(let d of o.get(f))a.set(d,Math.max(a.get(d)??i,a.get(f)+1)),l.set(d,l.get(d)-1),l.get(d)===0&&c.push(d)}let u=Math.max(i,...a.values());for(let f of e)a.has(f)||a.set(f,u+1);for(let f of e){if(n.has(f)||s.get(f).length>0||o.get(f).length===0)continue;let d=Math.min(...o.get(f).map(p=>a.get(p)));d-1>a.get(f)&&a.set(f,d-1)}return a}var Ce="#block";function _t(e,t){let n=new Map;return e.items[t].forEach((i,r)=>{if(i!==Ce)return n.set(i,r);let s=e.inner[t];s.forEach((o,a)=>n.set(o,r-.5+(a+.5)/s.length))}),n}function ri(e,t,n){let i=0;for(let r=0;r+1<e.items.length;r++){let s=_t(e,r),o=_t(e,r+1),a=t.filter(([l,c])=>n.get(l)===r&&n.get(c)===r+1).map(([l,c])=>[s.get(l),o.get(c)]);for(let l=0;l<a.length;l++)for(let c=l+1;c<a.length;c++){let[u,f]=a[l],[d,p]=a[c];(u-d)*(f-p)<0&&i++}}return i}function yl(e,t,n,i=6){let r=u=>({items:u.items.map(f=>[...f]),inner:u.inner.map(f=>[...f])}),s=r(e),o=r(e),a=ri(o,t,n),l=li(t),c=(u,f)=>(l.get(u)??[]).filter(d=>n.get(d)===f);for(let u=0;u<i;u++){let f=u%2===0,d=[...s.items.keys()];f||d.reverse();for(let g of d.slice(1)){let $=f?g-1:g+1,S=_t(s,$),_=_t(s,g),x=k=>{let z=c(k,$).map(Z=>S.get(Z));return z.length?z.reduce((Z,Le)=>Z+Le,0)/z.length:_.get(k)},F=s.inner[g],m=new Map(F.map(k=>[k,x(k)]));s.inner[g]=[...F].sort((k,z)=>m.get(k)-m.get(z));let A=s.items[g].indexOf(Ce),E=F.length?[...m.values()].reduce((k,z)=>k+z,0)/F.length:A,y=s.items[g].map(k=>({id:k,b:k===Ce?E:x(k)}));s.items[g]=y.sort((k,z)=>k.b-z.b).map(k=>k.id)}let p=ri(s,t,n);p<a&&(o=r(s),a=p)}return o}function li(e){let t=new Map;for(let[n,i]of e)(t.get(n)??t.set(n,[]).get(n)).push(i),(t.get(i)??t.set(i,[]).get(i)).push(n);return t}function ii(e,t,n,i=-1/0,r=1/0){let s=e.length;if(s===0)return[];let o=[0];for(let f=1;f<s;f++)o.push(o[f-1]+(e[f-1]+e[f])/2+n);let a=[];for(let f=0;f<s;f++)for(a.push({sum:t[f]-o[f],count:1});a.length>1&&a.at(-2).sum/a.at(-2).count>a.at(-1).sum/a.at(-1).count;){let d=a.pop();a.at(-1).sum+=d.sum,a.at(-1).count+=d.count}let l=a.flatMap(f=>Array(f.count).fill(f.sum/f.count)),c=i+e[0]/2,u=r-e[s-1]/2-o[s-1];return l.map((f,d)=>Math.min(Math.max(f,c),Math.max(c,u))+o[d])}var si="~";function ci(e){let t=e.boundary&&e.inside.length>0?e.boundary:void 0,n=[...e.outside,...e.inside],i=new Set(t?e.inside.map(h=>h.id):[]),r=n.map(h=>h.id),s=new Set(n.filter(h=>h.kind==="person").map(h=>h.id)),o=ml(r,e.edges,s),a=e.edges.map((h,D)=>o[D]?{from:h.to,to:h.from}:{from:h.from,to:h.to}),l=gl(r,a,s),c=new Map,u=new Map;for(let h of n){let D=hl(h);u.set(h.id,D),c.set(h.id,{id:h.id,width:vn,height:pl(h,D),dummy:!1,inside:i.has(h.id),layer:l.get(h.id),x:0,y:0})}let f=n.filter(h=>i.has(h.id)).map(h=>l.get(h.id)),d=f.length?{first:Math.min(...f),last:Math.max(...f)}:void 0,p=h=>d!==void 0&&h>=d.first&&h<=d.last,g=[],$=[];a.forEach((h,D)=>{let[B,K]=[h.from,h.to];l.get(B)>l.get(K)&&([B,K]=[K,B]);let q=[B];for(let O=l.get(B)+1;O<l.get(K);O++){let X=`${si}${D}${si}${O}`;c.set(X,{id:X,width:cl,height:0,dummy:!0,inside:p(O)&&(i.has(B)||i.has(K)),layer:O,x:0,y:0}),l.set(X,O),q.push(X)}q.push(K);for(let O=0;O+1<q.length;O++)l.get(q[O])!==l.get(q[O+1])&&$.push([q[O],q[O+1]]);g.push(q)});let S=Math.max(...[...c.values()].map(h=>h.layer))+1,_=[...c.values()].filter(h=>h.inside).map(h=>h.layer),x=t?{first:Math.min(..._),last:Math.max(..._)}:void 0,F={items:[],inner:[]};for(let h=0;h<S;h++){let D=[...c.values()].filter(O=>O.layer===h),B=D.filter(O=>!O.inside).map(O=>O.id),K=D.filter(O=>O.inside).map(O=>O.id),q=x&&h>=x.first&&h<=x.last;F.items.push(q?[Ce,...B]:B),F.inner.push(K)}let m=yl(F,$,l),A=h=>h.reduce((D,B,K)=>D+c.get(B).width+(K>0?Ie:0),0),E=x?Math.max(vn,...m.inner.map(A)):0,y=E+2*ot,k=0,z=h=>h===Ce?y:c.get(h).width;m.items.forEach((h,D)=>{let B=0;for(let O of h){let X=z(O);O===Ce?k=B+X/2:c.get(O).x=B+X/2,B+=X+Ie}let K=m.inner[D],q=k-A(K)/2;for(let O of K)c.get(O).x=q+c.get(O).width/2,q+=c.get(O).width+Ie});let Z=li($),Le=(h,D)=>{let B=(Z.get(h)??[]).filter(K=>D.includes(l.get(K))).map(K=>c.get(K).x);return B.length?B.reduce((K,q)=>K+q,0)/B.length:c.get(h).x};for(let h=0;h<12;h++){let D=h%2===0,B=[...m.items.keys()];D||B.reverse();let K=h>=8,q=[];for(let O of B){let X=K?[O-1,O+1]:[D?O-1:O+1],H=m.items[O],J=H.indexOf(Ce),b=(ce,L,I)=>{let T=ii(ce.map(z),ce.map(w=>Le(w,X)),Ie,L,I);ce.forEach((w,v)=>c.get(w).x=T[v])};if(J<0)b(H);else{b(H.slice(0,J),-1/0,k-y/2-Ie),b(H.slice(J+1),k+y/2+Ie);let ce=m.inner[O];for(let L of ce)q.push(Le(L,X)-c.get(L).x);b(ce,k-E/2,k+E/2)}}q.length&&(k+=q.reduce((O,X)=>O+X,0)/q.length/2)}m.items.forEach((h,D)=>{let B=h.indexOf(Ce);if(B<0)return;let K=(q,O,X)=>{let H=ii(q.map(z),q.map(J=>c.get(J).x),Ie,O,X);q.forEach((J,b)=>c.get(J).x=H[b])};K(h.slice(0,B),-1/0,k-y/2-Ie),K(h.slice(B+1),k+y/2+Ie),K(m.inner[D],k-E/2,k+E/2)});let me=[],Ne=[],Oe=Nt*2.5;for(let h=0;h<S;h++){x&&h===x.first&&(Oe+=ot),me.push(Oe);let D=Math.max(0,...[...c.values()].filter(B=>B.layer===h).map(B=>B.height));Ne.push(D),Oe+=D+ul,x&&h===x.last&&(Oe+=ot+ei)}for(let h of c.values())h.y=me[h.layer]+(Ne[h.layer]-h.height)/2;let ut=h=>({x:h.x-h.width/2,y:h.y,width:h.width,height:h.height}),De=n.map(h=>({...ut(c.get(h.id)),id:h.id,element:h,inside:i.has(h.id),lines:u.get(h.id)})),ke=x?{x:k-y/2,y:me[x.first]-ot,width:y,height:me[x.last]+Ne[x.last]+ot+ei-(me[x.first]-ot)}:void 0,Be=new Map,Ge=new Map,je=(h,D)=>h<D?`${h}|${D}`:`${D}|${h}`;for(let h of e.edges)Be.set(je(h.from,h.to),(Be.get(je(h.from,h.to))??0)+1);let ye=e.edges.map((h,D)=>{let B=je(h.from,h.to),K=Ge.get(B)??0;Ge.set(B,K+1);let q=(K-((Be.get(B)??1)-1)/2)*28,O=g[D],X=c.get(O[0]),H=c.get(O.at(-1)),J;if(X.layer===H.layer){let b=me[X.layer]+Ne[X.layer]+30+Math.abs(q);J=[{x:X.x+q/2,y:X.y+X.height},{x:X.x+q/2,y:b},{x:H.x+q/2,y:b},{x:H.x+q/2,y:H.y+H.height}]}else{let b=T=>me[T]+Ne[T],ce=(T,w)=>Math.min(Math.max(w,T.x-T.width/2+ni),T.x+T.width/2-ni),L=ce(X,X.x+q),I=ce(H,H.x+q);J=[{x:L,y:X.y+X.height},{x:L,y:b(X.layer)}];for(let T of O.slice(1,-1)){let w=c.get(T);J.push({x:w.x+q,y:me[w.layer]},{x:w.x+q,y:b(w.layer)})}J.push({x:I,y:me[H.layer]},{x:I,y:H.y}),J=J.filter((T,w)=>w===0||T.x!==J[w-1].x||T.y!==J[w-1].y)}return O[0]!==h.from&&J.reverse(),{from:h.from,to:h.to,description:h.description,technology:h.technology,points:J}});wl(ye,De);let bt=En(e.title,Nt,!0),He=[...De,...ke?[ke]:[],...ye.flatMap(h=>h.label?[h.label.rect]:[]),...ye.flatMap(h=>h.points.map(D=>({x:D.x,y:D.y,width:0,height:0})))],Qe=Math.min(...He.map(h=>h.x)),ge=Math.max(...He.map(h=>h.x+h.width)),qe=Math.max(ge-Qe,bt),Je=$n-Qe+(qe-(ge-Qe))/2,Ue=h=>{h.x+=Je};De.forEach(Ue),ke&&Ue(ke);for(let h of ye)h.points.forEach(D=>D.x+=Je),h.label&&Ue(h.label.rect);let Vt=Math.max(...He.map(h=>h.y+h.height)),be=Math.ceil(qe+2*$n);return{width:be,height:Math.ceil(Vt+$n),title:{text:e.title,x:be/2,y:Nt*1.6,size:Nt},boundary:t&&ke?{element:t,rect:ke,lines:xl(t)}:void 0,nodes:De,edges:ye}}function xl(e){return[{text:e.name,size:14,bold:!0},{text:wn(e),size:11,bold:!1}]}function Ct(e,t,n=0){return e.x<t.x+t.width+n&&t.x<e.x+e.width+n&&e.y<t.y+t.height+n&&t.y<e.y+e.height+n}var kl=(e,t)=>Math.max(0,Math.min(e.x+e.width,t.x+t.width)-Math.max(e.x,t.x))*Math.max(0,Math.min(e.y+e.height,t.y+t.height)-Math.max(e.y,t.y));function bl(e,t){let n=e.slice(1).map((r,s)=>Math.hypot(r.x-e[s].x,r.y-e[s].y)),i=n.reduce((r,s)=>r+s,0)*t;for(let r=0;r<n.length;r++){if(i<=n[r]||r===n.length-1){let s=n[r]===0?0:Math.min(1,i/n[r]);return{x:e[r].x+(e[r+1].x-e[r].x)*s,y:e[r].y+(e[r+1].y-e[r].y)*s}}i-=n[r]}return e[0]}function wl(e,t){let n=[];for(let i of e){let r=[...i.description?Ot(i.description,fl,ti).map(l=>({text:l,size:ti,bold:!1})):[],...i.technology?[{text:`[${i.technology}]`,size:dl,bold:!1}]:[]];if(r.length===0)continue;let s=al(r)+6,o=dt(r)+4,a;e:for(let l of[.5,.4,.6,.3,.7,.2,.8]){let c=bl(i.points,l);for(let u of[0,s/2+8,-(s/2+8)]){let f={x:c.x+u-s/2,y:c.y-o/2,width:s,height:o},d=[...t,...n].reduce((p,g)=>p+kl(f,{x:g.x-4,y:g.y-4,width:g.width+8,height:g.height+8}),0);if((!a||d<a.cost)&&(a={rect:f,cost:d}),d===0)break e}}i.label={lines:r,rect:a.rect},n.push(a.rect)}}var $l={person:{fill:"#08427b",stroke:"#073b6f",font:"#ffffff"},system:{fill:"#1168bd",stroke:"#0b4884",font:"#ffffff"},container:{fill:"#438dd5",stroke:"#3c7fc0",font:"#ffffff"},component:{fill:"#85bbf0",stroke:"#78a8d8",font:"#000000"}},vl={fill:"#686868",stroke:"#5d5d5d",font:"#ffffff"},El={fill:"#999999",stroke:"#8a8a8a",font:"#ffffff"},ui="#707070",ht=/[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\uFFFE\\uFFFF]|[\\uD800-\\uDBFF](?![\\uDC00-\\uDFFF])|(?<![\\uD800-\\uDBFF])[\\uDC00-\\uDFFF]/g,Rt=e=>e.replace(ht,"\\uFFFD").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"),j=e=>String(Math.round(e*10)/10);function Sn(e,t,n,i,r="middle"){let s=n,o=[];for(let a of e){let l=An(a);a.text&&o.push(`<text x="${j(t)}" y="${j(s+l*.78)}" font-size="${a.size}"${a.bold?\' font-weight="bold"\':""} text-anchor="${r}" fill="${i}">${Rt(a.text)}</text>`),s+=l}return o.join("")}function Al(e){let t=e.element,n=t.external?t.kind==="person"?vl:El:$l[t.kind],{x:i,y:r,width:s,height:o}=e,a=`fill="${n.fill}" stroke="${n.stroke}" stroke-width="1.5"`,l,c=r+(o-dt(e.lines))/2;if(t.database){let u=s/2;l=`<path d="M${j(i)},${j(r+$e)} L${j(i)},${j(r+o-$e)} A${j(u)},${$e} 0 0 0 ${j(i+s)},${j(r+o-$e)} L${j(i+s)},${j(r+$e)} Z" ${a}/><ellipse cx="${j(i+u)}" cy="${j(r+$e)}" rx="${j(u)}" ry="${$e}" ${a}/>`,c+=$e}else l=`<rect x="${j(i)}" y="${j(r)}" width="${j(s)}" height="${j(o)}" rx="${t.kind==="person"?28:10}" ${a}/>`;return`<g id="${Rt(e.id)}" class="c4-${t.kind}">${l}${Sn(e.lines,i+s/2,c,n.font)}</g>`}function Sl(e){if(e.length<3)return`M${e.map(r=>`${j(r.x)},${j(r.y)}`).join(" L")}`;let t=(r,s)=>({x:(r.x+s.x)/2,y:(r.y+s.y)/2}),n=`M${j(e[0].x)},${j(e[0].y)}`;for(let r=1;r<e.length-1;r++){let s=t(e[r-1],e[r]),o=t(e[r],e[r+1]);n+=` L${j(s.x)},${j(s.y)} Q${j(e[r].x)},${j(e[r].y)} ${j(o.x)},${j(o.y)}`}let i=e.at(-1);return`${n} L${j(i.x)},${j(i.y)}`}function fi(e){let t=[`<svg xmlns="http://www.w3.org/2000/svg" width="${e.width}" height="${e.height}" viewBox="0 0 ${e.width} ${e.height}" font-family="${oi}">`,`<title>${Rt(e.title.text)}</title>`,`<defs><marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${ui}"/></marker></defs>`,\'<rect width="100%" height="100%" fill="#ffffff"/>\',`<text x="${j(e.title.x)}" y="${j(e.title.y)}" font-size="${e.title.size}" font-weight="bold" text-anchor="middle" fill="#000000">${Rt(e.title.text)}</text>`];if(e.boundary){let{rect:n,lines:i}=e.boundary;t.push(`<g class="c4-boundary"><rect x="${j(n.x)}" y="${j(n.y)}" width="${j(n.width)}" height="${j(n.height)}" rx="12" fill="none" stroke="#444444" stroke-width="1.5" stroke-dasharray="8 5"/>`,Sn(i,n.x+16,n.y+n.height-dt(i)-10,"#444444","start"),"</g>")}t.push(\'<g class="c4-relationships">\');for(let n of e.edges)t.push(`<path d="${Sl(n.points)}" fill="none" stroke="${ui}" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#arrow)"/>`);t.push("</g>",...e.nodes.map(Al),\'<g class="c4-labels">\');for(let n of e.edges){if(!n.label)continue;let i=n.label.rect;t.push(`<rect x="${j(i.x)}" y="${j(i.y)}" width="${j(i.width)}" height="${j(i.height)}" fill="#ffffff" fill-opacity="0.85"/>`,Sn(n.label.lines,i.x+i.width/2,i.y+2,"#444444"))}return t.push("</g>","</svg>"),`${t.join(`\n`)}\n`}var Re=class extends Error{constructor(n,i,r){super(`${n} (line ${i}, column ${r})`);this.line=i;this.column=r;this.name="XmlSyntaxError"}line;column},Il={lt:"<",gt:">",amp:"&",quot:\'"\',apos:"\'"},di=/^[A-Za-z_:\\u00c0-\\uffff][\\w:.\\u00b7\\u00c0-\\uffff-]*$/,Tl=16*1024*1024;function ae(e){let t=e.indexOf(":");return t===-1?e:e.slice(t+1)}var In=class{constructor(t,n={}){this.onEvent=t;this.options=n;this.entities={...n.entities,...Il},this.maxToken=n.maxToken??Tl}onEvent;options;buffer="";line=1;column=1;stack=[];roots=0;ended=!1;entities;maxToken;get open(){return this.stack}write(t){if(this.ended)throw new Error("write() after end()");this.buffer+=this.line===1&&this.column===1&&this.buffer===""?t.replace(/^\\ufeff/,""):t,this.drain(!1)}end(){if(this.ended=!0,this.drain(!0),this.stack.length)throw this.error(`<${this.stack.at(-1)}> is never closed`);if(!this.options.fragment&&this.roots===0)throw this.error("There is no root element")}error(t,n={line:this.line,column:this.column}){return new Re(t,n.line,n.column)}advance(t){let n=t.indexOf(`\n`);if(n===-1){this.column+=t.length;return}let i=n;for(;n!==-1;)this.line++,i=n,n=t.indexOf(`\n`,n+1);this.column=t.length-i}drain(t){for(;;){let n=this.buffer.indexOf("<");if(n!==0){let r=n===-1?this.buffer.length:n;if(n===-1&&!t){let s=this.buffer.lastIndexOf("&");for(s!==-1&&this.buffer.length-s<=32&&this.buffer.indexOf(";",s)===-1&&(r=s);r>0&&r>this.buffer.length-2&&this.buffer[r-1]==="]";)r--;r>0&&this.buffer[r-1]==="\\r"&&r--}if(r===0||(this.text(this.buffer.slice(0,r)),this.consume(r),n===-1))return;continue}if(this.markup(t)===0){if(this.buffer.length>this.maxToken)throw this.error(`A single construct is longer than ${this.maxToken} characters`);if(t)throw this.error("The document ends inside markup");return}}}consume(t){this.advance(this.buffer.slice(0,t)),this.buffer=this.buffer.slice(t)}markup(t){let n=this.buffer,i={line:this.line,column:this.column},r=l=>n.startsWith(l)||!t&&l.startsWith(n),s=(l,c)=>{let u=n.indexOf(l,c);return u===-1?-1:u+l.length};if(r("<!--")){if(n.length<4)return 0;let l=s("-->",4);return l===-1?0:(this.onEvent({type:"comment",text:n.slice(4,l-3),...i}),this.consume(l),l)}if(r("<![CDATA[")){if(n.length<9)return 0;let l=s("]]>",9);return l===-1?0:(this.inElementOrFragment(i,!0),this.onEvent({type:"text",text:n.slice(9,l-3).replace(/\\r\\n?/g,`\n`),cdata:!0,...i}),this.consume(l),l)}if(r("<!DOCTYPE")){if(n.length<9)return 0;let l=n.indexOf("["),c=n.indexOf(">"),u;if(l!==-1&&(c===-1||l<c)){let f=n.indexOf("]",l);u=f===-1?-1:s(">",f)}else u=c===-1?-1:c+1;return u===-1?0:(this.onEvent({type:"doctype",body:n.slice(9,u-1).trim(),...i}),this.consume(u),u)}if(n.startsWith("<!")){if(!t&&n.length<9)return 0;throw this.error("Unrecognised markup after <!")}if(n.startsWith("<?")){let l=s("?>",2);if(l===-1)return 0;let c=n.slice(2,l-2),u=/^\\S+/.exec(c)?.[0]??"";return this.onEvent({type:"pi",target:u,body:c.slice(u.length).trim(),...i}),this.consume(l),l}let o=Ll(n);if(o===-1)return 0;if(o===-2)throw this.error(\'A tag holds "<", or is never closed with ">"\',i);let a=n.slice(1,o-1);if(a.startsWith("/")){let l=a.slice(1).trim(),c=this.stack.pop();if(c===void 0)throw this.error(`</${l}> closes nothing`,i);if(l!==c)throw this.error(`</${l}> found where </${c}> was expected`,i);this.onEvent({type:"close",name:l,...i})}else{let l=a.endsWith("/"),{name:c,attrs:u}=this.tag(l?a.slice(0,-1):a,i);if(this.stack.length===0){if(!this.options.fragment&&this.roots>0)throw this.error(`<${c}> is a second root element`,i);this.roots++}this.onEvent({type:"open",name:c,attrs:u,selfClosing:l,...i}),l?this.onEvent({type:"close",name:c,...i}):this.stack.push(c)}return this.consume(o),o}inElementOrFragment(t,n){if(this.stack.length===0&&!this.options.fragment)throw this.error(`${n?"CDATA":"Text"} outside the root element`,t)}text(t){let n={line:this.line,column:this.column};if(this.stack.length===0&&!this.options.fragment){t.trim()!==""&&this.inElementOrFragment(n,!1);return}if(t.includes("]]>"))throw this.error(\'"]]>" is not allowed in text\',n);this.onEvent({type:"text",text:this.decode(t.replace(/\\r\\n?/g,`\n`),n),cdata:!1,...n})}tag(t,n){let i=/^[^\\s/>=]+/.exec(t)?.[0]??"";if(!di.test(i))throw this.error(`"<${t.slice(0,40)}" is not a valid tag`,n);let r={},s=t.slice(i.length),o=/^\\s+([^\\s=/>]+)\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\')/;for(;s.trim()!=="";){let a=o.exec(s);if(!a)throw this.error(`<${i}> has a malformed attribute near "${s.trim().slice(0,40)}"`,n);let l=a[1];if(!di.test(l))throw this.error(`<${i}> has an invalid attribute name "${l}"`,n);if(Object.hasOwn(r,l))throw this.error(`<${i}> has the attribute "${l}" twice`,n);if((a[2]??a[3]??"").includes("<"))throw this.error(`<${i}> has "<" in the value of "${l}"; write it as &lt;`,n);r[l]=this.decode((a[2]??a[3]??"").replace(/\\r\\n|[\\t\\n\\r]/g," "),n),s=s.slice(a[0].length)}return{name:i,attrs:r}}decode(t,n){return t.includes("&")?t.replace(/&([^;&\\s]*);?/g,(i,r)=>{if(!i.endsWith(";"))throw this.error(\'A bare "&" must be written &amp;\',n);if(r.startsWith("#")){let o=r[1]==="x"?parseInt(r.slice(2),16):/^\\d+$/.test(r.slice(1))?parseInt(r.slice(1),10):NaN;if(!Number.isInteger(o)||o<1||o>1114111||o>=55296&&o<=57343)throw this.error(`"&${r};" is not a valid character reference`,n);return String.fromCodePoint(o)}let s=Object.hasOwn(this.entities,r)?this.entities[r]:void 0;if(s===void 0)throw this.error(`"&${r};" is not an entity this reader knows`,n);return s}):t}};function Ll(e){let t="";for(let n=1;n<e.length;n++){let i=e[n];if(t)i===t&&(t="");else if(i===\'"\'||i==="\'")t=i;else{if(i===">")return n+1;if(i==="<")return-2}}return-1}function Pt(e,t={}){let n=[],i=[],r=o=>{let a=i.at(-1)?.children??n,l=a.at(-1);o.type==="text"&&l?.type==="text"&&l.cdata===o.cdata?l.text+=o.text:a.push(o)},s=new In(o=>{if(o.type==="open"){let a={type:"element",name:o.name,attrs:o.attrs,children:[],line:o.line,column:o.column};r(a),i.push(a)}else o.type==="close"?i.pop():o.type==="text"?r({type:"text",text:o.text,cdata:o.cdata}):o.type==="comment"&&t.comments&&r({type:"comment",text:o.text})},t);return s.write(e),s.end(),n}function Pe(e){return e.type==="text"?e.text:e.type==="comment"?"":e.children.map(Pe).join("")}var Nl=["boxes.apart","children.inBoundary","edges.touchBoxes","edges.clearOfBoxes","labels.clearOfBoxes"],Ol=5,se=1,_l=(e,t)=>t.x>=e.x-se&&t.y>=e.y-se&&t.x+t.width<=e.x+e.width+se&&t.y+t.height<=e.y+e.height+se;function hi(e,t){let n=t.x>=e.x-se&&t.x<=e.x+e.width+se&&t.y>=e.y-se&&t.y<=e.y+e.height+se,i=t.x>e.x+se&&t.x<e.x+e.width-se&&t.y>e.y+se&&t.y<e.y+e.height-se;return n&&!i}function Cl(e,t,n){let i=e.x+se,r=e.y+se,s=e.x+e.width-se,o=e.y+e.height-se;if(s<=i||o<=r)return!1;let a=n.x-t.x,l=n.y-t.y,c=0,u=1;for(let[f,d]of[[-a,t.x-i],[a,s-t.x],[-l,t.y-r],[l,o-t.y]]){if(f===0){if(d<=0)return!1;continue}let p=d/f;if(f<0?c=Math.max(c,p):u=Math.min(u,p),c>=u)return!1}return u-c>1e-9}function pi(e){let t=new Map(Nl.map(o=>[o,{check:o,checked:0,failed:0,failures:[]}])),n=(o,a,l,c)=>{let u=t.get(o);u.checked++,!a&&(u.failed++,u.failures.length<Ol&&u.failures.push({at:l,message:c()}))},i=e.nodes;for(let o=0;o<i.length;o++)for(let a=o+1;a<i.length;a++){let[l,c]=[i[o],i[a]];n("boxes.apart",!Ct(l,c),`${l.id}, ${c.id}`,()=>`boxes "${l.id}" and "${c.id}" overlap`)}let r=e.boundary;for(let o of i)o.inside?n("children.inBoundary",!!r&&_l(r.rect,o),o.id,()=>`"${o.id}" belongs inside the boundary${r?` "${r.element.id}"`:""} and is drawn outside it`):r&&n("children.inBoundary",!Ct(r.rect,o),o.id,()=>`"${o.id}" is outside the boundary "${r.element.id}" and is drawn over it`);let s=new Map(i.map(o=>[o.id,o]));for(let o of e.edges){let a=`${o.from} -> ${o.to}`,l=s.get(o.from),c=s.get(o.to),u=o.points[0],f=o.points.at(-1);n("edges.touchBoxes",!!l&&!!u&&hi(l,u),a,()=>`the arrow ${a} doesn\'t start on "${o.from}"`),n("edges.touchBoxes",!!c&&!!f&&o.points.length>=2&&hi(c,f),a,()=>`the arrow ${a} doesn\'t end on "${o.to}"`);for(let d of i){if(d.id===o.from||d.id===o.to)continue;let p=o.points.slice(1).some((g,$)=>Cl(d,o.points[$],g));n("edges.clearOfBoxes",!p,`${a}, ${d.id}`,()=>`the arrow ${a} passes behind "${d.id}"`)}}for(let o of e.edges)if(o.label)for(let a of i)n("labels.clearOfBoxes",!Ct(o.label.rect,a),`${o.from} -> ${o.to}, ${a.id}`,()=>`the label of ${o.from} -> ${o.to} covers "${a.id}"`);return[...t.values()]}function mi(e){let t=(i,r)=>({check:"svg.wellFormed",checked:1,failed:1,failures:[{at:i,message:r}]});ht.lastIndex=0;let n=ht.exec(e);if(ht.lastIndex=0,n){let i=`U+${n[0].charCodeAt(0).toString(16).toUpperCase().padStart(4,"0")}`;return t(`offset ${n.index}`,`the SVG holds ${i} at offset ${n.index}, a character XML forbids, so it won\'t open`)}try{Pt(e)}catch(i){if(!(i instanceof Re))throw i;return t(`line ${i.line}, column ${i.column}`,`the SVG is not well-formed XML: ${i.message}`)}return{check:"svg.wellFormed",checked:1,failed:0,failures:[]}}function gi(e){let t=ci(e),n=fi(t);return{svg:n,width:t.width,height:t.height,runs:[...pi(t),mi(n)]}}var Mt=class{list=[];block=0;at="";from=0;enter(t,n){this.list.length>this.from&&t===this.block&&this.orphan(),this.block=t,this.at=n,this.from=this.list.length}close(t){t===this.block&&this.orphan(),this.block=-2,this.from=this.list.length}orphan(){for(let t=this.from;t<this.list.length;t++)this.list[t].block=-1}add(t,n,i){let r=i??this.at,s=`${t}\\0${r}\\0${n}`;this.seen.has(s)||(this.seen.add(s),this.list.push({construct:t,at:r,detail:n,block:this.block}))}seen=new Set};function Tn(e){return e.map(t=>{switch(t.type){case"text":case"code":return t.text;case"image":return t.alt;case"break":return" ";default:return Tn(t.children)}}).join("")}function Te(e){switch(e.type){case"paragraph":case"heading":return e.content;case"code":return[{type:"code",text:e.text}];case"quote":return he(e.children.map(Te));case"list":return he(e.items.map(t=>he(t.children.map(Te))));case"table":return he(e.rows.map(t=>he(t,[{type:"text",text:" | "}])));case"rule":return[]}}function he(e,t=[{type:"break"}]){let n=[];for(let i of e)i.length!==0&&(n.length&&n.push(...t),n.push(...i));return n}var Rl=(e,t)=>e.type===t.type&&(e.type!=="link"||t.type==="link"&&e.href===t.href&&e.title===t.title)&&"children"in e;function mt(e,t){let n=[];for(let r of e)if(r.type==="text")n.push({type:"text",text:r.text.replace(/[ \\t\\r\\n]+/g," ")});else if(r.type==="code")n.push({type:"code",text:r.text.replace(/\\r?\\n/g," ")});else if(r.type==="image"||r.type==="break")n.push(r);else{let s=mt(r.children,r.type);r.type===t?n.push(...s):s.length&&n.push({...r,children:s})}let i=[];for(let r of n){if((r.type==="strong"||r.type==="em"||r.type==="strike")&&r.children.length){let s=r.children[0],o=r.children.at(-1),a=s.type==="text"?/^ +/.exec(s.text)?.[0]??"":"",l=o.type==="text"?/ +$/.exec(o.text)?.[0]??"":"";if(a||l){let u=r.children.slice();if(a&&(u[0]={type:"text",text:u[0].text.slice(a.length)}),l){let d=u.at(-1);u[u.length-1]={type:"text",text:d.text.slice(0,d.text.length-l.length)}}a&&pt(i,{type:"text",text:a});let f=mt(u,r.type);f.length&&pt(i,{...r,children:f}),l&&pt(i,{type:"text",text:l});continue}let c=r.children.length===1?r.children[0]:void 0;if(c?.type==="link"){pt(i,{...c,children:mt([{type:r.type,children:c.children}],"link")});continue}r.type==="strong"&&r.children.length===1&&r.children[0].type==="em"&&(r={type:"em",children:[{type:"strong",children:r.children[0].children}]})}pt(i,r)}return i.filter(r=>r.type!=="text"||r.text!=="")}function pt(e,t){let n=e.at(-1);if(t.type==="text"&&n?.type==="text")e[e.length-1]={type:"text",text:(n.text+t.text).replace(/ {2,}/g," ")};else if(n&&Rl(n,t)){let i={...n,children:mt([...n.children,...t.children],t.type)};e[e.length-1]=i}else e.push(t)}function Pl(e){let t=e.slice(),n=(i,r)=>{let s=t[i];if(s?.type!=="text")return;let o=r==="start"?s.text.replace(/^ +/,""):s.text.replace(/ +$/,"");o===""?t.splice(i,1):t[i]={type:"text",text:o}};for(;;){let i=t.length;for(;t[0]?.type==="break";)t.shift();for(;t.at(-1)?.type==="break";)t.pop();if(n(0,"start"),t.length&&n(t.length-1,"end"),t.length===i)break}for(let i=t.length-1;i>=0;i--)t[i].type==="break"&&(t[i+1]?.type==="text"&&n(i+1,"start"),t[i-1]?.type==="text"&&n(i-1,"end"));return t}function Ft(e){return e.map(Ml)}function Ml(e){let t=n=>Pl(mt(n));switch(e.type){case"paragraph":return{type:"paragraph",content:t(e.content)};case"heading":return{type:"heading",level:e.level,content:t(e.content)};case"code":return{type:"code",...e.lang?{lang:e.lang}:{},text:e.text.replace(/\\r\\n?/g,`\n`).replace(/\\n$/,"")};case"quote":return{type:"quote",children:Ft(e.children)};case"list":return{...e,items:e.items.map(n=>({...n.task?{task:n.task}:{},children:Ft(n.children)}))};case"table":{let n=Math.max(1,...e.rows.map(s=>s.length)),i=e.rows.map(s=>Array.from({length:n},(o,a)=>t(s[a]??[])));return{type:"table",align:Array.from({length:n},(s,o)=>e.align[o]??null),rows:i}}case"rule":return e}}function yi(e){return e.filter(t=>t.type!=="paragraph"||t.content.length>0)}var Q=e=>typeof e=="string"?e:"",Me={type:"dropped node"},Fl=["link","strike","strong","em"],Ln=class{constructor(t){this.losses=t}losses;doc(t){let n=[],i=[];return(t.content??[]).forEach((r,s)=>{let o=`/content/${s}`;this.losses?.enter(n.length,o);let a=this.sane(r,o);if(a)for(let l of this.block(a,o))n.push(l),i.push(o)}),this.losses?.close(n.length),{blocks:n,at:i}}sane(t,n){if(typeof t!="object"||t===null||Array.isArray(t)||typeof t.type!="string"){this.lose("malformed ADF","this is not an ADF node (an object with a type) and was dropped",n);return}let i={...t};return i.attrs!==void 0&&(typeof i.attrs!="object"||i.attrs===null||Array.isArray(i.attrs))&&(this.lose("malformed ADF","attrs is not an object and was ignored",n),delete i.attrs),i.text!==void 0&&typeof i.text!="string"&&(this.lose("malformed ADF","text is not a string and was ignored",n),delete i.text),i.marks!==void 0&&(Array.isArray(i.marks)?i.marks=i.marks.map((r,s)=>this.sane(r,`${n}/marks/${s}`)??Me):(this.lose("malformed ADF","marks is not an array and was ignored",n),delete i.marks)),i.content!==void 0&&(Array.isArray(i.content)?i.content=i.content.map((r,s)=>this.sane(r,`${n}/content/${s}`)??Me):(this.lose("malformed ADF","content is not an array and was ignored",n),delete i.content)),i}blocks(t,n){return(t??[]).flatMap((i,r)=>this.block(i,`${n}/content/${r}`))}lose(t,n,i){this.losses?.add(t,n,i)}block(t,n){if(t===Me)return[];let i=t.attrs??{};switch(t.type){case"paragraph":return Array.isArray(t.marks)&&t.marks.length&&this.lose("paragraph alignment","paragraph alignment and indentation have no Markdown equivalent",n),[{type:"paragraph",content:this.inline(t.content,n)}];case"heading":return Array.isArray(t.marks)&&t.marks.length&&this.lose("heading alignment","heading alignment and indentation have no Markdown equivalent",n),[{type:"heading",level:typeof i.level=="number"?Math.min(6,Math.max(1,i.level)):1,content:this.inline(t.content,n)}];case"codeBlock":{let r=Q(i.language);return[{type:"code",...r?{lang:r}:{},text:(t.content??[]).map(s=>Q(s.text)).join("")}]}case"blockquote":return[{type:"quote",children:this.blocks(t.content,n)}];case"bulletList":case"orderedList":return[{type:"list",ordered:t.type==="orderedList",start:t.type==="orderedList"&&typeof i.order=="number"?i.order:1,items:(t.content??[]).map((r,s)=>({children:this.blocks(r.content,`${n}/content/${s}`)}))}];case"taskList":case"decisionList":return t.type==="decisionList"&&this.lose("decision list","decisions have no Markdown equivalent; they became a bullet list",n),[this.taskList(t,n)];case"table":return[this.table(t,n)];case"rule":return[{type:"rule"}];case"mediaSingle":case"mediaGroup":{let r=[];return(t.content??[]).forEach((s,o)=>{if(s===Me)return;let a=`${n}/content/${o}`,l=s.attrs??{};s.type==="media"&&l.type==="external"&&typeof l.url=="string"?r.push({type:"paragraph",content:[{type:"image",src:l.url,alt:Q(l.alt)}]}):s.type==="caption"?(this.lose("image caption","image captions have no Markdown equivalent; the caption is kept as a paragraph",a),r.push({type:"paragraph",content:this.inline(s.content,a)})):this.lose("attachment",`the attached file ${Q(l.id)||"(no id)"} can\'t be referred to from Markdown and was dropped`,a)}),r}case"panel":return this.lose("panel",`a ${Q(i.panelType)||"info"} panel has no Markdown equivalent; its content is kept as a quote`,n),[{type:"quote",children:this.blocks(t.content,n)}];case"expand":case"nestedExpand":{this.lose("expand","an expand has no Markdown equivalent; its title and content are kept",n);let r=Q(i.title);return[...r?[{type:"paragraph",content:[{type:"strong",children:[{type:"text",text:r}]}]}]:[],...this.blocks(t.content,n)]}case"blockCard":case"embedCard":{let r=Q(i.url);return this.lose("smart link","a smart link card became a plain link",n),r?[{type:"paragraph",content:[{type:"link",href:r,children:[{type:"text",text:r}]}]}]:[]}case"layoutSection":return this.lose("layout","layout columns have no Markdown equivalent; their content is kept in order",n),(t.content??[]).flatMap((r,s)=>this.blocks(r.content,`${n}/content/${s}`));case"bodiedExtension":return this.lose("extension",`the ${Q(i.extensionKey)||"extension"} macro has no Markdown equivalent; its content is kept`,n),this.blocks(t.content,n);default:return this.lose(t.type==="extension"?"extension":`${t.type} node`,`${t.type==="extension"?`the ${Q(i.extensionKey)||"extension"} macro`:`a ${t.type} node`} has no Markdown equivalent and was dropped`,n),[]}}taskList(t,n){let i=[];return(t.content??[]).forEach((r,s)=>{if(r===Me)return;let o=`${n}/content/${s}`;if(r.type==="taskList"||r.type==="decisionList"){let u=this.taskList(r,o);i.length===0&&i.push({children:[]}),i.at(-1).children.push(u);return}let a=r.attrs?.state,l=a==="DONE"||a==="DECIDED",c=r.type==="blockTaskItem"?this.blocks(r.content,o):[{type:"paragraph",content:this.inline(r.content,o)}];i.push({...t.type==="taskList"?{task:l?"done":"todo"}:{},children:c})}),{type:"list",ordered:!1,start:1,items:i}}table(t,n){let i=[],r=[],s=!0;return t.attrs?.isNumberColumnEnabled===!0&&this.lose("numbered table rows","the table\'s row numbers have no Markdown equivalent",n),(t.content??[]).forEach((o,a)=>{let l=[];(o.content??[]).forEach((c,u)=>{if(c===Me)return;let f=`${n}/content/${a}/content/${u}`,d=typeof c.attrs?.colspan=="number"?c.attrs.colspan:1,p=typeof c.attrs?.rowspan=="number"?c.attrs.rowspan:1;(d>1||p>1)&&this.lose("merged cells","Markdown tables have no merged cells; the cell was unmerged and the cells it covered left empty",f),a===0&&c.type!=="tableHeader"&&(s=!1),a>0&&c.type==="tableHeader"&&this.lose("header cell outside the first row","Markdown has header cells only in the first row; this one became an ordinary cell",f);let g=c.content??[],$=Dl(g);a===0?r[l.length]=$:$!==(r[l.length]??null)&&this.lose("cell alignment","Markdown aligns whole columns; this cell\'s own alignment was dropped",f),(g.length>1||g.some(S=>S.type!=="paragraph"))&&this.lose("block content in a table cell","a Markdown table cell holds one line; the cell\'s blocks were joined with line breaks",f),l.push(he(this.blocks(g,f).map(Te)));for(let S=1;S<d;S++)l.push([])}),i.push(l)}),s||this.lose("table without a header row","Markdown tables need a header row; the first row was made the header",n),r=r.map(o=>o??null),{type:"table",align:r,rows:i}}inline(t,n){let i=[];return(t??[]).forEach((r,s)=>{if(r===Me)return;let o=`${n}/content/${s}`,a=r.attrs??{},l=new Map,c=!1;for(let f of r.marks??[]){if(f===Me)continue;let d=f.attrs??{};f.type==="code"?c=!0:f.type==="link"?l.set("link",{href:Q(d.href),...typeof d.title=="string"?{title:d.title}:{}}):f.type==="strong"||f.type==="em"||f.type==="strike"?l.set(f.type,{}):this.lose(xi[f.type]??`${f.type} mark`,`${xi[f.type]??`the ${f.type} mark`} has no Markdown equivalent; the text is kept`,o)}let u=f=>i.push({node:f,marks:l});switch(r.type){case"text":u(c?{type:"code",text:Q(r.text)}:{type:"text",text:Q(r.text)});break;case"hardBreak":u({type:"break"});break;case"mention":{let f=Q(a.text)||`@${Q(a.id)}`;this.lose("mention",`the mention ${f} is kept as text`,o),u({type:"text",text:f.startsWith("@")?f:`@${f}`});break}case"emoji":this.lose("emoji",`the emoji ${Q(a.shortName)} is kept as its character or short name`,o),u({type:"text",text:Q(a.text)||Q(a.shortName)});break;case"date":{let f=Number(a.timestamp);this.lose("date","a date became its text",o),u({type:"text",text:Number.isFinite(f)?new Date(f).toISOString().slice(0,10):Q(a.timestamp)});break}case"status":this.lose("status",`the status lozenge ${Q(a.text)} is kept as text`,o),u({type:"text",text:Q(a.text)});break;case"inlineCard":{let f=Q(a.url);this.lose("smart link","an inline smart link became a plain link",o),f&&i.push({node:{type:"text",text:f},marks:new Map([...l,["link",{href:f}]])});break}default:this.lose(`${r.type} node`,`a ${r.type} node has no Markdown equivalent and was dropped`,o)}}),bi(i)}},xi={underline:"underline",textColor:"text colour",backgroundColor:"highlight",subsup:"subscript or superscript",annotation:"inline comment"};function bi(e){let t=[],n=0,i=(r,s)=>r!==void 0&&s!==void 0&&r.href===s.href&&r.title===s.title;for(;n<e.length;){let r=e[n];if(r.marks.size===0){t.push(r.node),n++;continue}let s,o=n;for(let u of Fl){if(!r.marks.has(u))continue;let f=n+1;for(;f<e.length&&i(e[f].marks.get(u),r.marks.get(u));)f++;f>o&&(s=u,o=f)}let a=e.slice(n,o).map(u=>{let f=new Map(u.marks);return f.delete(s),{node:u.node,marks:f}}),l=bi(a),c=r.marks.get(s);t.push(s==="link"?{type:"link",href:c.href??"",...c.title!==void 0?{title:c.title}:{},children:l}:{type:s,children:l}),n=o}return t}function Dl(e){let n=(e[0]?.marks??[]).find(i=>i.type==="alignment")?.attrs?.align;return n==="center"?"center":n==="end"?"right":null}function _n(e,t){return new Ln(t).doc(e)}var Bl={doc:new Set(["paragraph","heading","code","quote","list","taskList","table","rule"]),quote:new Set(["paragraph","code","list"]),listItem:new Set(["paragraph","code","list","taskList"])},jl={doc:"the document",quote:"a quote",listItem:"a list item"},Nn=class{constructor(t){this.losses=t}losses;ids=0;blocks(t,n){return t.flatMap(i=>this.block(i,n))}kind(t){return t.type==="list"&&t.items.some(n=>n.task!==void 0)?"taskList":t.type}block(t,n){if(!Bl[n].has(this.kind(t)))return this.degrade(t,n);switch(t.type){case"paragraph":{let i=t.content.length===1?t.content[0]:void 0;return i?.type==="image"?[this.media(i)]:[gt(this.inline(t.content))]}case"heading":return[{type:"heading",attrs:{level:t.level},...On(this.inline(t.content))}];case"code":return[{type:"codeBlock",...t.lang?{attrs:{language:t.lang}}:{},...t.text?{content:[{type:"text",text:t.text}]}:{}}];case"quote":return[{type:"blockquote",content:ki(this.blocks(t.children,"quote"))}];case"rule":return[{type:"rule"}];case"table":return[this.table(t)];case"list":return this.kind(t)==="taskList"?[this.taskList(t)]:[{type:t.ordered?"orderedList":"bulletList",...t.ordered&&t.start!==1?{attrs:{order:t.start}}:{},content:t.items.map(i=>({type:"listItem",content:ki(this.blocks(i.children,"listItem"))}))}]}}degrade(t,n){let i=jl[n];switch(t.type){case"heading":return this.losses.add("heading",`ADF has no heading inside ${i}; it became a bold paragraph`),[gt(this.inline([{type:"strong",children:t.content}]))];case"quote":return this.losses.add(n==="quote"?"nested quote":"quote",`ADF has no quote inside ${i}; its content was kept without the quote`),this.blocks(t.children,n);case"table":return this.losses.add("table",`ADF has no table inside ${i}; each row became a paragraph`),t.rows.map(r=>gt(this.inline(he(r,[{type:"text",text:" | "}]))));case"rule":return this.losses.add("rule",`ADF has no rule inside ${i}; it was dropped`),[];case"list":{this.losses.add("task list",`ADF has no task list inside ${i}; it became a bullet list with [ ] and [x] text`);let r=t.items.map(s=>({...s,task:void 0,children:s.children.map((o,a)=>a===0&&o.type==="paragraph"?{...o,content:[{type:"text",text:s.task==="done"?"[x] ":s.task==="todo"?"[ ] ":""},...o.content]}:o)}));return this.block({...t,items:r},n)}default:return[]}}taskList(t){t.items.some(i=>i.task===void 0)&&this.losses.add("mixed task list","a list mixing tasks and ordinary items became a task list; the ordinary items are open tasks"),t.ordered&&this.losses.add("ordered task list","ADF task lists are not numbered");let n=[];for(let i of t.items){let r=[],s=[];i.children.forEach((o,a)=>{o.type==="list"?(o.items.some(l=>l.task!==void 0)||this.losses.add("list inside a task","ADF tasks hold only task lists; the nested list became open tasks"),s.push(this.taskList({...o,items:o.items.map(l=>({...l,task:l.task??"todo"}))}))):((a>0||o.type!=="paragraph")&&this.losses.add("block content in a task","an ADF task holds one line; its content was joined with line breaks"),r.push(Te(o)))}),n.push({type:"taskItem",attrs:{localId:this.id(),state:i.task==="done"?"DONE":"TODO"},...On(this.inline(he(r)))}),n.push(...s)}return{type:"taskList",attrs:{localId:this.id()},content:n}}table(t){return t.align.includes("left")&&this.losses.add("table alignment","ADF has no explicit left alignment; those columns use the default"),{type:"table",attrs:{isNumberColumnEnabled:!1,layout:"default"},content:t.rows.map((n,i)=>({type:"tableRow",content:n.map((r,s)=>{let o=t.align[s],a=gt(this.inline(r));return(o==="center"||o==="right")&&(a.marks=[{type:"alignment",attrs:{align:o==="center"?"center":"end"}}]),{type:i===0?"tableHeader":"tableCell",content:[a]}})}))}}media(t){return t.title!==void 0&&this.losses.add("image title","ADF images have no title; it was dropped"),{type:"mediaSingle",attrs:{layout:"center"},content:[{type:"media",attrs:{type:"external",url:t.src,...t.alt?{alt:t.alt}:{}}}]}}id(){return this.ids++,`abc12345-0000-0000-0000-${String(this.ids).padStart(12,"0")}`}inline(t,n=[]){let i=[];for(let r of t)switch(r.type){case"text":r.text&&i.push({type:"text",text:r.text,...n.length?{marks:n}:{}});break;case"code":{let s=n.filter(o=>o.type==="link");s.length<n.length&&this.losses.add("formatting on inline code","ADF inline code can carry only a link; its other formatting was dropped"),r.text&&i.push({type:"text",text:r.text,marks:[...s,{type:"code"}]});break}case"break":i.push({type:"hardBreak"});break;case"image":this.losses.add("inline image","ADF images stand alone as blocks; an image inside text became a link to it"),i.push(...this.inline([{type:"text",text:r.alt||r.src}],[...n.filter(s=>s.type!=="link"),{type:"link",attrs:{href:r.src}}]));break;case"link":i.push(...this.inline(r.children,[...n.filter(s=>s.type!=="link"),{type:"link",attrs:{href:r.href,...r.title!==void 0?{title:r.title}:{}}}]));break;default:i.push(...this.inline(r.children,[...n,{type:r.type}]))}return i}},On=e=>e.length?{content:e}:{},gt=e=>({type:"paragraph",...On(e)}),ki=e=>e.length?e:[gt([])];function wi(e,t){let n=new Nn(t),i=[];return e.blocks.forEach((r,s)=>{t.enter(s,e.at[s]??""),i.push(...n.blocks([r],"doc"))}),{type:"doc",version:1,content:i}}var pe=/^[ \\t]*$/,Mn=/^( {0,3})(`{3,}|~{3,})(.*)$/,Ii=/^ {0,3}(#{1,6})(?=[ \\t]|$)(.*)$/,Fn=/^ {0,3}([-*_])(?:[ \\t]*\\1){2,}[ \\t]*$/,jt=/^ {0,3}> ?/,lt=/^( {0,3})([-+*]|\\d{1,9}[.)])([ \\t]+|$)(.*)$/,ql=/^ {0,3}<(?:\\/?[A-Za-z][\\w-]*(?=[\\s/>]|$)|!--)/,$i=/^ {0,3}\\[[^\\]]+\\]:/,Ul=/^ {0,3}(=+|-+)[ \\t]*$/,Kl=/^ {0,3}\\|?[ \\t]*:?-+:?[ \\t]*(\\|[ \\t]*:?-+:?[ \\t]*)*\\|?[ \\t]*$/,yt=e=>/^ */.exec(e)[0].length;function Wl(e){if(!e.includes("	"))return e;let t="",n=0;for(;n<e.length&&(e[n]===" "||e[n]==="	");n++)t+=e[n]==="	"?" ".repeat(4-t.length%4):" ";return t+e.slice(n)}function Dt(e){if(Mn.test(e)||Ii.test(e)||Fn.test(e)||jt.test(e))return!0;let t=lt.exec(e);return!!(t&&t[4].trim()!==""&&(/^[-+*]$/.test(t[2])||/^1[.)]$/.test(t[2])))}function Cn(e){let t=e.trim();t.startsWith("|")&&(t=t.slice(1)),t.endsWith("|")&&!t.endsWith("\\\\|")&&(t=t.slice(0,-1));let n=[],i="";for(let r=0;r<t.length;r++){let s=t[r];s==="\\\\"&&t[r+1]==="|"?(i+="|",r++):s==="|"?(n.push(i.trim()),i=""):i+=s}return n.push(i.trim()),n}function zl(e){let t=e.startsWith(":"),n=e.endsWith(":");return t&&n?"center":n?"right":t?"left":null}var Dn=class{constructor(t){this.losses=t}losses;read(t,n){let i=[],r=[],s=0,o=(l,c)=>{i.push(l),r.push(`line ${c}`)},a=l=>{n&&this.losses?.enter(i.length,`line ${l}`)};for(;s<t.length;){let l=t[s],c=l.text;if(pe.test(c)){s++;continue}if(a(l.n),yt(c)>=4){let x=[];for(;s<t.length&&(yt(t[s].text)>=4||pe.test(t[s].text));)x.push(t[s++].text.slice(4));for(;x.length&&pe.test(x.at(-1));)x.pop();o({type:"code",text:x.join(`\n`)},l.n);continue}let f=Mn.exec(c);if(f&&!(f[2][0]==="`"&&f[3].includes("`"))){let[,x,F,m]=f,A=[];s++;let E=new RegExp(`^ {0,3}${F[0]==="`"?"`":"~"}{${F.length},}[ \\\\t]*$`);for(;s<t.length&&!E.test(t[s].text);){let k=t[s++].text;A.push(k.slice(Math.min(x.length,yt(k))))}s++;let y=Bn(m.trim().split(/\\s+/)[0]??"");o({type:"code",...y?{lang:y}:{},text:A.join(`\n`)},l.n);continue}let d=Ii.exec(c);if(d){let x=d[2].trim().replace(/(^|[ \\t]+)#+[ \\t]*$/,"").trim();o({type:"heading",level:d[1].length,content:this.inline(x)},l.n),s++;continue}if(Fn.test(c)){o({type:"rule"},l.n),s++;continue}if(jt.test(c)){let x=[],F=!1;for(;s<t.length;){let m=t[s].text;if(jt.test(m)){let A=m.replace(jt,"");x.push({text:A,n:t[s].n}),F=pe.test(A)}else if(!pe.test(m)&&!F&&x.length&&!Dt(m)&&!pe.test(x.at(-1).text))x.push({text:m,n:t[s].n});else break;s++}o({type:"quote",children:this.read(x,!1).blocks},l.n);continue}if(lt.exec(c)){let[x,F]=this.list(t,s);o(x,l.n),s=F;continue}if(c.includes("|")&&s+1<t.length&&Kl.test(t[s+1].text)){let x=Cn(c),F=Cn(t[s+1].text);if(x.length===F.length){let m=[x.map(A=>this.inline(A))];for(s+=2;s<t.length&&!pe.test(t[s].text)&&!Dt(t[s].text);){let A=Cn(t[s].text);A.length>x.length&&this.losses?.add("table row cells",`line ${t[s].n} has ${A.length} cells and the header ${x.length}; the extra cells were dropped, as GFM does`,`line ${t[s].n}`),m.push(x.map((E,y)=>this.inline(A[y]??""))),s++}o({type:"table",align:F.map(zl),rows:m},l.n);continue}}if(ql.test(c)||$i.test(c)){let x=[];for(;s<t.length&&!pe.test(t[s].text);)x.push(t[s++].text.trim());$i.test(c)?this.losses?.add(c.trimStart().startsWith("[^")?"footnote":"link reference definition","reference definitions and footnotes are not read; the text is kept as it is",`line ${l.n}`):this.losses?.add("raw HTML","HTML is not converted; its text is kept as it is",`line ${l.n}`),o({type:"paragraph",content:[{type:"text",text:x.join(" ")}]},l.n);continue}let g=[c];s++;let $=0;for(;s<t.length;){let x=t[s].text;if(pe.test(x))break;let F=Ul.exec(x);if(F){$=F[1][0]==="="?1:2,s++;break}if(Dt(x))break;g.push(x),s++}let S=g.map((x,F)=>F<g.length-1&&/ {2,}$/.test(x)?`${x.trim()}\\\\`:x.trim()).join(`\n`),_=this.inline(S);o($?{type:"heading",level:$,content:_}:{type:"paragraph",content:_},l.n)}return n&&this.losses?.close(i.length),{blocks:i,at:r}}list(t,n){let i=lt.exec(t[n].text),r=/^[-+*]$/.test(i[2]),s=r?i[2]:i[2].slice(-1),o=[],a=n;for(;a<t.length;){let c=lt.exec(t[a].text);if(!c||Fn.test(t[a].text)||/^[-+*]$/.test(c[2])!==r||(r?c[2]:c[2].slice(-1))!==s)break;let f=c[1].length+c[2].length,d=c[3].length,p=c[4],g=p===""||d>=5?f+1:f+d;p!==""&&d>=5&&(p=" ".repeat(d-1)+p);let $,S=/^\\[([ xX])\\](?:[ \\t]+|$)/.exec(p);S&&($=S[1]===" "?"todo":"done",p=p.slice(S[0].length));let _=[{text:p,n:t[a].n}];for(a++;a<t.length;){let F=t[a].text;if(pe.test(F)){let A=a;for(;A<t.length&&pe.test(t[A].text);)A++;if(A<t.length&&yt(t[A].text)>=g){for(;a<A;a++)_.push({text:"",n:t[a].n});continue}break}if(yt(F)>=g){_.push({text:F.slice(g),n:t[a].n}),a++;continue}let m=_.at(-1).text;if(!pe.test(m)&&!Dt(F)&&!lt.test(F)&&!Mn.test(m)&&!/^ {0,3}(`{3,}|~{3,})/.test(_[0].text)){_.push({text:F.trim(),n:t[a].n}),a++;continue}break}o.push({...$?{task:$}:{},children:this.read(_,!1).blocks});let x=a;for(;x<t.length&&pe.test(t[x].text);)x++;if(x<t.length&&lt.test(t[x].text))a=x;else break}let l=r?1:parseInt(i[2],10);return[{type:"list",ordered:!r,start:l,items:o},a]}inline(t){return new jn(t,this.losses).read()}};function Ti(e,t){let n=e.replace(/^\\ufeff/,"").replace(/\\r\\n?/g,`\n`).split(`\n`).map((i,r)=>({text:Wl(i),n:r+1}));return new Dn(t).read(n,!0)}var Yl=/[!-/:-@[-`{-~\\p{P}\\p{S}]/u,Xl=/[!-/:-@[-`{-~]/,vi={amp:"&",lt:"<",gt:">",quot:\'"\',apos:"\'",nbsp:"\\xA0",copy:"\\xA9",reg:"\\xAE",trade:"\\u2122",hellip:"\\u2026",mdash:"\\u2014",ndash:"\\u2013",lsquo:"\\u2018",rsquo:"\\u2019",ldquo:"\\u201C",rdquo:"\\u201D",bull:"\\u2022",middot:"\\xB7",times:"\\xD7",rarr:"\\u2192",larr:"\\u2190",deg:"\\xB0"};function Li(e){if(e.startsWith("#")){let t=/^#[xX]/.test(e)?parseInt(e.slice(2),16):parseInt(e.slice(1),10);return!Number.isInteger(t)||t<0||t>1114111?void 0:t===0||t>=55296&&t<=57343?"\\uFFFD":String.fromCodePoint(t)}return Object.hasOwn(vi,e)?vi[e]:void 0}function Bn(e){return e.replace(/\\\\([!-/:-@[-`{-~])|&(#[xX][0-9a-fA-F]{1,6}|#\\d{1,7}|[A-Za-z]+);/g,(t,n,i)=>n??Li(i)??t)}var Bt=e=>e===void 0||/\\s/u.test(e),at=e=>e!==void 0&&Yl.test(e),Vl=/^\\(\\s*(<[^<>\\n]*>|(?:[^\\s()\\\\]|\\\\.|\\((?:[^\\s()\\\\]|\\\\.)*\\))*)(?:\\s+("(?:[^"\\\\]|\\\\.)*"|\'(?:[^\'\\\\]|\\\\.)*\'|\\((?:[^()\\\\]|\\\\.)*\\)))?\\s*\\)/,Gl=/^<([A-Za-z][A-Za-z0-9+.-]{1,31}:[^\\s<>]*)>/,Ni=/^<([A-Za-z0-9.!#$%&\'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*)>/,Hl=/^(?:https?:\\/\\/|www\\.)[^\\s<]*/,Ql=/^<\\/?[A-Za-z][\\w-]*(?:\\s+[^<>]*)?\\/?>|^<!--[\\s\\S]*?-->/,Rn=8192,Pn=(e,t,n)=>{let i=t;for(;e[i]===n;)i++;return i-t},jn=class{constructor(t,n){this.src=t;this.losses=n}src;losses;nodes=[];buf="";flush(){this.buf&&this.nodes.push({type:"text",text:this.buf}),this.buf=""}emit(t){this.flush(),this.nodes.push(t)}read(){let t=this.src,n=0;for(;n<t.length;){let i=t[n];if(i==="\\\\"){let r=t[n+1];if(r===`\n`){this.emit({type:"break"}),n+=2;continue}if(r!==void 0&&Xl.test(r)){this.buf+=r,n+=2;continue}this.buf+=i,n++;continue}if(i===`\n`){for(this.buf=this.buf.replace(/ +$/,""),this.buf+=" ",n++;t[n]===" ";)n++;continue}if(i==="`"){let r="`".repeat(Pn(t,n,"`")),s=n+r.length,o=-1;for(;s<t.length;){let l=t.indexOf("`",s);if(l===-1)break;let c="`".repeat(Pn(t,l,"`"));if(c.length===r.length){o=l;break}s=l+c.length}if(o===-1){this.buf+=r,n+=r.length;continue}let a=t.slice(n+r.length,o).replace(/\\n/g," ");a.length>2&&a.startsWith(" ")&&a.endsWith(" ")&&a.trim()!==""&&(a=a.slice(1,-1)),this.emit({type:"code",text:a}),n=o+r.length;continue}if(i==="<"){let r=t.slice(n,n+Rn),s=Gl.exec(r);if(s){this.emit({type:"link",href:s[1],children:[{type:"text",text:s[1]}]}),n+=s[0].length;continue}let o=Ni.exec(r);if(o){this.emit({type:"link",href:`mailto:${o[1]}`,children:[{type:"text",text:o[1]}]}),n+=o[0].length;continue}let a=/^<br\\s*\\/?>/i.exec(r);if(a){this.emit({type:"break"}),n+=a[0].length;continue}let l=Ql.exec(r);if(l){this.losses?.add("inline HTML",`${l[0].slice(0,40)} is not converted; it is kept as text`),this.buf+=l[0],n+=l[0].length;continue}this.buf+=i,n++;continue}if(i==="&"){let r=/^&(#[xX][0-9a-fA-F]{1,6}|#\\d{1,7}|[A-Za-z][A-Za-z0-9]{1,31});/.exec(t.slice(n,n+40)),s=r?Li(r[1]):void 0;if(r&&s!==void 0){this.buf+=s,n+=r[0].length;continue}this.buf+=i,n++;continue}if(i==="!"&&t[n+1]==="["){this.emit({kind:"bracket",image:!0,active:!0}),this.nodes.push({type:"text",text:"!["}),n+=2;continue}if(i==="["){this.emit({kind:"bracket",image:!1,active:!0}),this.nodes.push({type:"text",text:"["}),n++;continue}if(i==="]"){n=this.closeBracket(n);continue}if(i==="*"||i==="_"||i==="~"){let r=i.repeat(Pn(t,n,i)),s=n===0?void 0:t[n-1],o=t[n+r.length],a=!Bt(o)&&(!at(o)||Bt(s)||at(s)),l=!Bt(s)&&(!at(s)||Bt(o)||at(o)),c=a,u=l;i==="_"&&(c=a&&(!l||at(s)),u=l&&(!a||at(o))),i==="~"&&r.length>2?this.buf+=r:this.emit({kind:"delim",char:i,count:r.length,orig:r.length,canOpen:c,canClose:u}),n+=r.length;continue}if((i==="h"||i==="w")&&(n===0||/[\\s*_~(]/.test(t[n-1]))){let r=Hl.exec(t.slice(n,n+Rn));if(r){let s=Jl(r[0]);if(s&&(s.startsWith("www.")?/^www\\.[A-Za-z0-9-]+\\.[A-Za-z]/.test(s):/^https?:\\/\\/[A-Za-z0-9]/.test(s))){this.emit({type:"link",href:s.startsWith("www.")?`http://${s}`:s,children:[{type:"text",text:s}]}),n+=s.length;continue}}}this.buf+=i,n++}return this.flush(),this.processEmphasis(0),this.finish(this.nodes)}closeBracket(t){this.flush();let n=this.nodes.length-1;for(;n>=0&&this.nodes[n].kind!=="bracket";)n--;if(n<0)return this.buf+="]",t+1;let i=this.nodes[n],r=Vl.exec(this.src.slice(t+1,t+1+Rn));if(!i.active||!r)return this.nodes.splice(n,1),this.buf+="]",t+1;let s=r[1];s.startsWith("<")&&(s=s.slice(1,-1));let o=r[2],a=o===void 0?void 0:Bn(o.slice(1,-1));this.processEmphasis(n+2);let l=this.finish(this.nodes.slice(n+2));this.nodes.splice(n);let c=Bn(s);if(i.image)this.nodes.push({type:"image",src:c,alt:Oi(l),...a!==void 0?{title:a}:{}});else{this.nodes.push({type:"link",href:c,...a!==void 0?{title:a}:{},children:qn(l)});for(let u of this.nodes)u.kind==="bracket"&&!u.image&&(u.active=!1)}return t+1+r[0].length}processEmphasis(t){let n=this.nodes;for(let i=t;i<n.length;i++){let r=n[i];if(r.kind!=="delim"||!r.canClose)continue;let s=i-1;for(;s>=t;s--){let u=n[s];if(!(u.kind!=="delim"||u.char!==r.char||!u.canOpen)){if(r.char==="~"){if(u.count===r.count)break;continue}if(!((u.canClose||r.canOpen)&&(u.orig+r.orig)%3===0&&!(u.orig%3===0&&r.orig%3===0)))break}}if(s<t)continue;let o=n[s],a=r.char==="~"?r.count:o.count>=2&&r.count>=2?2:1,l=r.char==="~"?"strike":a===2?"strong":"em",c=this.finish(n.slice(s+1,i));n.splice(s+1,i-s-1,{type:l,children:c}),i=s+2,o.count-=a,r.count-=a,r.count===0&&n.splice(i,1),o.count===0&&(n.splice(s,1),i--),i--}}finish(t){let n=[];for(let i of t)if(i.kind==="delim")n.push({type:"text",text:i.char.repeat(i.count)});else{if(i.kind==="bracket")continue;n.push(i)}return n}};function Jl(e){let t=e.replace(/&[A-Za-z0-9]+;$/,"");for(;;){let n=t;if(t=t.replace(/[?!.,:*_~\'"]+$/,""),t.endsWith(")")){let i=(t.match(/\\(/g)??[]).length;(t.match(/\\)/g)??[]).length>i&&(t=t.slice(0,-1))}if(t===n)return t}}function Oi(e){return e.map(t=>"text"in t?t.text:t.type==="image"?t.alt:t.type==="break"?" ":Oi(t.children)).join("")}function qn(e){return e.flatMap(t=>t.type==="link"?qn(t.children):t.type==="strong"||t.type==="em"||t.type==="strike"?[{...t,children:qn(t.children)}]:[t])}function Ei(e,t){let n=e.replace(/[\\\\`*_[\\]<>~]/g,"\\\\$&").replace(/&(?=#?[A-Za-z0-9]+;)/g,"\\\\&").replace(/!$/,"\\\\!");return t&&(n=n.replace(/\\|/g,"\\\\|")),n=n.replace(/(^|[\\s(])(https?):\\/\\//g,"$1$2\\\\://").replace(/(^|[\\s(])www\\./g,"$1www\\\\."),n}function Zl(e){if(/^[#>+=|-]/.test(e))return`\\\\${e}`;let t=/^(\\d{1,9})([.)])/.exec(e);return t?`${t[1]}\\\\${e.slice(t[1].length)}`:e}function ec(e){let t=e.match(/`+/g)??[],n=Math.max(0,...t.map(s=>s.length))+1,i="`".repeat(n),r=e.startsWith("`")||e.endsWith("`")||e.startsWith(" ")&&e.endsWith(" ")&&e.trim()!==""?" ":"";return`${i}${r}${e}${r}${i}`}function Ai(e){return e===""||/[\\s<>]/.test(e)||/[()]/.test(e)?`<${e.replace(/[<>\\\\]/g,"\\\\$&")}>`:e.replace(/\\\\/g,"\\\\\\\\")}var Si=e=>e===void 0?"":` "${e.replace(/["\\\\]/g,"\\\\$&")}"`;function Xe(e,t="block"){let n=t==="table";return e.map(i=>{switch(i.type){case"text":return Ei(i.text,n);case"code":return ec(n?i.text.replace(/\\|/g,"\\\\|"):i.text);case"strong":return`**${Xe(i.children,t)}**`;case"em":return`*${Xe(i.children,t)}*`;case"strike":return`~~${Xe(i.children,t)}~~`;case"break":return t==="block"?`\\\\\n`:"<br>";case"image":return`![${Ei(i.alt,n)}](${Ai(i.src)}${Si(i.title)})`;case"link":{let r=i.children[0],s=i.children.length===1&&r?.type==="text"?r.text:void 0;if(i.title===void 0&&s!==void 0&&!/[\\s<>]/.test(i.href)){if(s===i.href&&/^[A-Za-z][A-Za-z0-9+.-]{1,31}:/.test(i.href))return`<${i.href}>`;if(`mailto:${s}`===i.href&&Ni.test(`<${s}>`))return`<${s}>`}return`[${Xe(i.children,t)}](${Ai(i.href)}${Si(i.title)})`}}}).join("").split(`\n`).map(i=>t==="block"?Zl(i):i).join(`\n`)}var tc=(e,t)=>e.split(`\n`).map((n,i)=>i===0||n===""?n:t+n).join(`\n`);function qt(e,t){switch(e.type){case"paragraph":return Xe(e.content);case"heading":return`${"#".repeat(e.level)}${e.content.length?" ":""}${Xe(e.content,"heading").replace(/#$/,"\\\\#")}`;case"code":{let n=e.text.match(/^`{3,}/gm)??[],i=Math.max(2,...n.map(o=>o.length))+1,s=(e.lang?.includes("`")?"~":"`").repeat(i);return`${s}${e.lang??""}\n${e.text}${e.text===""?"":`\n`}${s}`}case"quote":{let n=_i(e.children);return n===""?">":n.split(`\n`).map(i=>i===""?">":`> ${i}`).join(`\n`)}case"rule":return"---";case"table":{let n=r=>`| ${r.map(s=>Xe(s,"table")).join(" | ")} |`,i=e.align.map(r=>r==="center"?":-:":r==="right"?"--:":r==="left"?":--":"---");return[n(e.rows[0]??[]),`| ${i.join(" | ")} |`,...e.rows.slice(1).map(n)].join(`\n`)}case"list":{let n=t?.type==="list"&&t.ordered===e.ordered;return e.items.map((i,r)=>{let s=e.ordered?`${e.start+r}${n?")":"."}`:n?"*":"-",o=" ".repeat(s.length+1),a=i.task===void 0?"":i.task==="done"?"[x] ":"[ ] ",l=nc(i.children);if(l==="")return i.task===void 0?s:`${s} ${a.trimEnd()}`;let c=i.children[0]?.type==="paragraph";return(i.task!==void 0&&!c?`${s} ${a.trimEnd()}\n${o}`:`${s} ${a}`)+tc(l,o)}).join(`\n`)}}}function nc(e){let t="";return e.forEach((n,i)=>{let r=e[i-1];i>0&&(t+=r?.type==="paragraph"&&n.type==="list"&&(!n.ordered||n.start===1)&&(n.items[0]?.children.length??0)>0?`\n`:`\n\n`),t+=qt(n,r)}),t}function _i(e){return e.map((t,n)=>qt(t,e[n-1])).join(`\n\n`)}function Ci(e){let t=_i(e.blocks);return t===""?"":`${t}\n`}var rc={nbsp:"\\xA0",copy:"\\xA9",reg:"\\xAE",trade:"\\u2122",hellip:"\\u2026",mdash:"\\u2014",ndash:"\\u2013",lsquo:"\\u2018",rsquo:"\\u2019",ldquo:"\\u201C",rdquo:"\\u201D",sbquo:"\\u201A",bdquo:"\\u201E",bull:"\\u2022",middot:"\\xB7",times:"\\xD7",divide:"\\xF7",minus:"\\u2212",plusmn:"\\xB1",deg:"\\xB0",micro:"\\xB5",para:"\\xB6",sect:"\\xA7",laquo:"\\xAB",raquo:"\\xBB",lsaquo:"\\u2039",rsaquo:"\\u203A",rarr:"\\u2192",larr:"\\u2190",uarr:"\\u2191",darr:"\\u2193",harr:"\\u2194",rArr:"\\u21D2",lArr:"\\u21D0",hArr:"\\u21D4",le:"\\u2264",ge:"\\u2265",ne:"\\u2260",asymp:"\\u2248",infin:"\\u221E",check:"\\u2713",euro:"\\u20AC",pound:"\\xA3",yen:"\\xA5",cent:"\\xA2",iexcl:"\\xA1",iquest:"\\xBF",shy:"\\xAD",zwj:"\\u200D",zwnj:"\\u200C",ensp:"\\u2002",emsp:"\\u2003",thinsp:"\\u2009",dagger:"\\u2020",Dagger:"\\u2021",permil:"\\u2030",prime:"\\u2032",Prime:"\\u2033",frac12:"\\xBD",frac14:"\\xBC",frac34:"\\xBE",sup2:"\\xB2",sup3:"\\xB3",acute:"\\xB4",cedil:"\\xB8",uml:"\\xA8",macr:"\\xAF",aacute:"\\xE1",eacute:"\\xE9",iacute:"\\xED",oacute:"\\xF3",uacute:"\\xFA",agrave:"\\xE0",egrave:"\\xE8",ograve:"\\xF2",auml:"\\xE4",ouml:"\\xF6",uuml:"\\xFC",Auml:"\\xC4",Ouml:"\\xD6",Uuml:"\\xDC",szlig:"\\xDF",ntilde:"\\xF1",ccedil:"\\xE7",aring:"\\xE5",oslash:"\\xF8",aelig:"\\xE6",Eacute:"\\xC9"},ic=new Set(["p","h1","h2","h3","h4","h5","h6","ul","ol","blockquote","pre","table","hr","div","section","article","task-list","layout","layout-section","layout-cell","structured-macro","macro"]),sc=new Set(["code","noformat","info","note","tip","warning","panel","expand","section","column","details"]),Un={u:"underline",sup:"superscript",sub:"subscript",ins:"underline",small:"small text",big:"big text",font:"font",mark:"highlight",cite:"citation"},le=(e,t)=>e.attrs[t]??e.attrs[`ac:${t}`],ct=(e,t)=>{let n=e.children.find(i=>i.type==="element"&&ae(i.name)==="parameter"&&le(i,"name")===t);return n?Pe(n).trim():void 0},Fe=(e,t)=>e.children.find(n=>n.type==="element"&&ae(n.name)===t);function oc(e){if(e.type!=="element")return!1;let t=ae(e.name);return t==="structured-macro"||t==="macro"?sc.has(le(e,"name")??"")||!ac.has(le(e,"name")??""):t==="image"?!1:ic.has(t)}var ac=new Set(["status","jira","anchor","emoticon","mention"]),Kn=class{constructor(t){this.losses=t}losses;doc(t){let n=[],i=[];for(let r of Ri(t)){let s=r.line;this.losses?.enter(n.length,`line ${s}`);for(let o of this.group(r))n.push(o),i.push(`line ${s}`)}return this.losses?.close(n.length),{blocks:n,at:i}}group(t){if(t.inline){let n=this.inline(t.nodes);return n.length?[{type:"paragraph",content:n}]:[]}return this.block(t.nodes[0])}blocks(t){return Ri(t).flatMap(n=>this.group(n))}lose(t,n,i){this.losses?.add(t,n,i?`line ${i.line}`:void 0)}block(t){let n=ae(t.name);switch(n){case"p":return[{type:"paragraph",content:this.inline(t.children)}];case"h1":case"h2":case"h3":case"h4":case"h5":case"h6":return[{type:"heading",level:Number(n[1]),content:this.inline(t.children)}];case"blockquote":return[{type:"quote",children:this.blocks(t.children)}];case"hr":return[{type:"rule"}];case"pre":return[{type:"code",text:Pe(t)}];case"ul":case"ol":{let i=n==="ol"&&/^\\d+$/.test(t.attrs.start??"")?Number(t.attrs.start):1,r=t.children.filter(s=>s.type==="element"&&ae(s.name)==="li").map(s=>({children:this.blocks(s.children)}));return[{type:"list",ordered:n==="ol",start:i,items:r}]}case"task-list":return[this.taskList(t)];case"table":return[this.table(t)];case"div":case"section":case"article":return this.blocks(t.children);case"layout":case"layout-section":case"layout-cell":return n==="layout"&&this.lose("layout","page layout columns have no Markdown equivalent; their content is kept in order",t),this.blocks(t.children);case"structured-macro":case"macro":return this.macro(t);default:return this.blocks(t.children)}}macro(t){let n=le(t,"name")??"",i=Fe(t,"rich-text-body"),r=Fe(t,"plain-text-body");if(n==="code"||n==="noformat"){let s=n==="code"?ct(t,"language"):void 0,o=t.children.filter(a=>a.type==="element"&&ae(a.name)==="parameter"&&le(a,"name")!=="language").map(a=>le(a,"name"));return o.length&&this.lose("code macro parameters",`the ${n} macro\'s ${o.join(", ")} have no Markdown equivalent and were dropped`,t),[{type:"code",...s?{lang:s}:{},text:r?Pe(r):""}]}if(["info","note","tip","warning","panel"].includes(n)){this.lose(n==="panel"?"panel":`${n} panel`,`the ${n} macro has no Markdown equivalent; its content is kept as a quote`,t);let s=ct(t,"title"),o=i?this.blocks(i.children):[];return[{type:"quote",children:[...s?[{type:"paragraph",content:[{type:"strong",children:[{type:"text",text:s}]}]}]:[],...o]}]}if(n==="expand"||n==="details"||n==="section"||n==="column"){this.lose(n,`the ${n} macro has no Markdown equivalent; its content is kept`,t);let s=ct(t,"title");return[...s?[{type:"paragraph",content:[{type:"strong",children:[{type:"text",text:s}]}]}]:[],...i?this.blocks(i.children):[]]}return this.lose(`${n||"unnamed"} macro`,`the ${n||"unnamed"} macro has no Markdown equivalent and was dropped`,t),[]}taskList(t){let n=[];for(let i of t.children){if(i.type!=="element")continue;let r=ae(i.name);if(r==="task-list")n.length===0&&n.push({children:[]}),n.at(-1).children.push(this.taskList(i));else if(r==="task"){let s=Fe(i,"task-status"),o=Fe(i,"task-body"),a=s?Pe(s).trim()==="complete":!1,l=o?this.blocks(o.children):[];n.push({task:a?"done":"todo",children:l.length?l:[{type:"paragraph",content:[]}]})}}return{type:"list",ordered:!1,start:1,items:n}}table(t){let n=[],i=a=>{for(let l of a.children){if(l.type!=="element")continue;let c=ae(l.name);c==="tr"?n.push(l):(c==="thead"||c==="tbody"||c==="tfoot")&&i(l)}};i(t);let r=[],s=[],o=!0;return n.forEach((a,l)=>{let c=[];for(let u of a.children){if(u.type!=="element"||!["td","th"].includes(ae(u.name)))continue;let f=Number(u.attrs.colspan??1),d=Number(u.attrs.rowspan??1);(f>1||d>1)&&this.lose("merged cells","Markdown tables have no merged cells; the cell was unmerged and the cells it covered left empty",u);let p=ae(u.name)==="th";l===0&&!p&&(o=!1),l>0&&p&&this.lose("header cell outside the first row","Markdown has header cells only in the first row; this one became an ordinary cell",u);let g=/text-align:\\s*(left|center|right)/.exec(u.attrs.style??"")?.[1];l===0?s[c.length]=g??null:(g??null)!==(s[c.length]??null)&&this.lose("cell alignment","Markdown aligns whole columns; this cell\'s own alignment was dropped",u);let $=this.blocks(u.children);($.length>1||$.some(S=>S.type!=="paragraph"))&&this.lose("block content in a table cell","a Markdown table cell holds one line; the cell\'s blocks were joined with line breaks",u),c.push(he($.map(Te)));for(let S=1;S<f;S++)c.push([])}r.push(c)}),o||this.lose("table without a header row","Markdown tables need a header row; the first row was made the header",t),{type:"table",align:s.map(a=>a??null),rows:r}}inline(t){let n=[];for(let i of t){if(i.type==="text"){n.push({type:"text",text:i.cdata?i.text:i.text.replace(/[ \\t\\r\\n]+/g," ")});continue}if(i.type!=="element")continue;let r=ae(i.name),s=()=>this.inline(i.children);switch(r){case"strong":case"b":n.push({type:"strong",children:s()});break;case"em":case"i":n.push({type:"em",children:s()});break;case"s":case"del":case"strike":n.push({type:"strike",children:s()});break;case"code":case"tt":n.push({type:"code",text:Pe(i)});break;case"br":n.push({type:"break"});break;case"a":{let o=i.attrs.href;o===void 0?n.push(...s()):n.push({type:"link",href:o,...i.attrs.title!==void 0?{title:i.attrs.title}:{},children:s()});break}case"span":{let o=i.attrs.style??"";/line-through/.test(o)?n.push({type:"strike",children:s()}):(/color/.test(o)&&this.lose("text colour","text colour has no Markdown equivalent; the text is kept",i),n.push(...s()));break}case"image":case"img":n.push(...this.image(i));break;case"link":n.push(...this.acLink(i));break;case"emoticon":{let o=le(i,"emoji-fallback")??le(i,"name")??"";this.lose("emoticon",`the ${le(i,"name")??""} emoticon is kept as ${o||"nothing"}`,i),o&&n.push({type:"text",text:o});break}case"structured-macro":case"macro":{let o=le(i,"name")??"",a=ct(i,"title")??ct(i,"key");this.lose(`${o||"unnamed"} macro`,`the ${o||"unnamed"} macro has no Markdown equivalent${a?`; its ${ct(i,"title")?"title":"key"} ${a} is kept as text`:" and was dropped"}`,i),a&&n.push({type:"text",text:a});break}case"time":{let o=le(i,"datetime")??"";this.lose("date","a date became its text",i),n.push({type:"text",text:o});break}case"placeholder":this.lose("placeholder","placeholder text was dropped",i);break;case"inline-comment-marker":this.lose("inline comment","an inline comment marker was dropped; the text it marked is kept",i),n.push(...s());break;case"parameter":break;default:Un[r]&&this.lose(Un[r],`${Un[r]} has no Markdown equivalent; the text is kept`,i),n.push(...s())}}return n}image(t){let n=le(t,"alt")??"",i=le(t,"title");if(ae(t.name)==="img")return[{type:"image",src:t.attrs.src??"",alt:n,...i!==void 0?{title:i}:{}}];let r=Fe(t,"url");if(r)return[{type:"image",src:le(r,"value")??r.attrs["ri:value"]??"",alt:n,...i!==void 0?{title:i}:{}}];let s=Fe(t,"attachment"),o=s?s.attrs["ri:filename"]??"":"";return this.lose("attachment image",`the attached image ${o||"(unnamed)"} can\'t be referred to from Markdown; its file name is kept as the image source`,t),[{type:"image",src:o,alt:n}]}acLink(t){let n=Fe(t,"link-body")??Fe(t,"plain-text-link-body"),i=t.children.find(a=>a.type==="element"&&a.name.startsWith("ri:")),r=n?ae(n.name)==="plain-text-link-body"?[{type:"text",text:Pe(n)}]:this.inline(n.children):[],s=i?ae(i.name):"anchor",o=i?i.attrs["ri:content-title"]??i.attrs["ri:filename"]??i.attrs["ri:username"]??i.attrs["ri:userkey"]??i.attrs["ri:account-id"]??i.attrs["ri:space-key"]??"":le(t,"anchor")??"";return s==="user"?(this.lose("user mention",`the mention of ${o} is kept as @${o} text`,t),r.length?r:[{type:"text",text:`@${o}`}]):(this.lose(s==="page"?"page link":s==="attachment"?"attachment link":`${s} link`,`the link to the ${s} ${o} is kept as text`,t),r.length?r:o?[{type:"text",text:o}]:[])}};function Ri(e){let t=[],n=[],i=0,r=()=>{n.some(s=>s.type==="element"||s.type==="text"&&s.text.trim()!=="")&&t.push({inline:!0,nodes:n,line:i}),n=[]};for(let s of e)oc(s)?(r(),t.push({inline:!1,nodes:[s],line:s.line})):((n.length===0||i===0)&&(i=s.type==="element"?s.line:i),n.push(s));return r(),t}function Pi(e,t){let n=Pt(e,{fragment:!0,entities:rc});return new Kn(t).doc(n)}var Ut=e=>e.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"),xt=e=>Ut(e).replace(/"/g,"&quot;"),lc=e=>`<![CDATA[${e.replace(/]]>/g,"]]]]><![CDATA[>")}]]>`,Wn=class{constructor(t){this.losses=t}losses;tasks=0;inline(t){return t.map(n=>{switch(n.type){case"text":return Ut(n.text);case"strong":return`<strong>${this.inline(n.children)}</strong>`;case"em":return`<em>${this.inline(n.children)}</em>`;case"strike":return`<span style="text-decoration: line-through;">${this.inline(n.children)}</span>`;case"code":return`<code>${Ut(n.text)}</code>`;case"break":return"<br />";case"link":return`<a href="${xt(n.href)}"${n.title!==void 0?` title="${xt(n.title)}"`:""}>${this.inline(n.children)}</a>`;case"image":return`<ac:image${n.alt?` ac:alt="${xt(n.alt)}"`:""}${n.title!==void 0?` ac:title="${xt(n.title)}"`:""}><ri:url ri:value="${xt(n.src)}" /></ac:image>`}}).join("")}block(t){switch(t.type){case"paragraph":return`<p>${this.inline(t.content)}</p>`;case"heading":return`<h${t.level}>${this.inline(t.content)}</h${t.level}>`;case"code":return`<ac:structured-macro ac:name="code">${t.lang?`<ac:parameter ac:name="language">${Ut(t.lang)}</ac:parameter>`:""}<ac:plain-text-body>${lc(t.text)}</ac:plain-text-body></ac:structured-macro>`;case"quote":return`<blockquote>${t.children.map(n=>this.block(n)).join("")}</blockquote>`;case"rule":return"<hr />";case"table":{t.align.includes("left")&&this.losses.add("table alignment","explicit left alignment is written as the default");let n=(s,o,a)=>{let l=t.align[a],c=l==="center"||l==="right"?` style="text-align: ${l};"`:"";return`<${s}${c}><p>${this.inline(o)}</p></${s}>`},[i=[],...r]=t.rows;return`<table><tbody><tr>${i.map((s,o)=>n("th",s,o)).join("")}</tr>${r.map(s=>`<tr>${s.map((o,a)=>n("td",o,a)).join("")}</tr>`).join("")}</tbody></table>`}case"list":{if(t.items.some(r=>r.task!==void 0))return this.taskList(t);let n=t.ordered?"ol":"ul",i=t.ordered&&t.start!==1?` start="${t.start}"`:"";return`<${n}${i}>${t.items.map(r=>`<li>${this.item(r.children)}</li>`).join("")}</${n}>`}}}item(t){return t.map((n,i)=>i===0&&n.type==="paragraph"?this.inline(n.content):this.block(n)).join("")}taskList(t){return t.items.some(n=>n.task===void 0)&&this.losses.add("mixed task list","a list mixing tasks and ordinary items became a task list; the ordinary items are open tasks"),t.ordered&&this.losses.add("ordered task list","Confluence task lists are not numbered"),`<ac:task-list>${t.items.map(n=>{this.tasks++;let i=n.task==="done"?"complete":"incomplete";return`<ac:task><ac:task-id>${this.tasks}</ac:task-id><ac:task-status>${i}</ac:task-status><ac:task-body>${this.item(n.children)}</ac:task-body></ac:task>`}).join("")}</ac:task-list>`}};function Mi(e,t){let n=new Wn(t);return e.blocks.map((i,r)=>(t.enter(r,e.at[r]??""),n.block(i))).join(`\n`)}var Xn={"*":"strong",_:"em","-":"strike","+":"underline","^":"sup","~":"sub"},Fi={underline:"underline",sup:"superscript",sub:"subscript",cite:"citation"},Di=/^\\s*\\{(quote|code|noformat|panel|info|note|tip|warning|expand)(?::([^}]*))?\\}(.*)$/i,Bi=/^\\s*\\{([A-Za-z][\\w-]*)(?::[^}]*)?\\}\\s*$/,ji=/^\\s*h([1-6])\\.\\s*(.*)$/,qi=/^\\s*bq\\.\\s?(.*)$/,zn=/^\\s*([*#-]+)\\s+(.*)$/,Yn=/^\\s*-{4,}\\s*$/,cc={amp:"&",lt:"<",gt:">",quot:\'"\',nbsp:"\\xA0",apos:"\'"},Ve=e=>e!==void 0&&/[\\p{L}\\p{N}]/u.test(e),kt=e=>e===void 0||/\\s/.test(e),Vn=class{constructor(t){this.losses=t}losses;blocks(t,n,i){let r=[],s=[],o=0,a=(l,c)=>{r.push(l),s.push(`line ${c}`)};for(;o<t.length;){let l=t[o],c=n+o;if(l.trim()===""){o++;continue}i&&this.losses?.enter(r.length,`line ${c}`);let u=Di.exec(l);if(u){let $=u[1].toLowerCase(),S=u[2],_=[],x=u[3],F=new RegExp(`\\\\{${$}\\\\}`,"i"),m;for(o++;;){let E=F.exec(x);if(E){_.push(x.slice(0,E.index)),m=x.slice(E.index+E[0].length);break}if(_.push(x),o>=t.length)break;x=t[o++]}if(m!==void 0&&m.trim()!==""&&(t[o-1]=m,o--),_[0]?.trim()===""&&_.shift(),_.length&&_.at(-1).trim()===""&&_.pop(),$==="code"||$==="noformat"){let E;if($==="code"&&S){let y=S.split("|"),k=[];for(let z of y){let Z=/^\\s*([\\w-]+)\\s*=\\s*(.*)$/.exec(z);Z?Z[1].toLowerCase()==="language"?E=Z[2].trim():k.push(Z[1]):E=z.trim()||E}k.length&&this.losses?.add("code macro parameters",`{code} parameters ${k.join(", ")} have no Markdown equivalent and were dropped`,`line ${c}`)}else S&&this.losses?.add("noformat parameters","{noformat} parameters have no Markdown equivalent and were dropped",`line ${c}`);a({type:"code",...E?{lang:E}:{},text:_.join(`\n`)},c);continue}let A=this.blocks(_,c,!1).blocks;if($==="quote")a({type:"quote",children:A},c);else if($==="expand"){this.losses?.add("expand","an {expand} section has no Markdown equivalent; its title and content are kept as text",`line ${c}`),S&&a({type:"paragraph",content:[{type:"strong",children:[{type:"text",text:S.replace(/^title=/,"")}]}]},c);for(let E of A)a(E,c)}else{this.losses?.add($==="panel"?"panel":`${$} panel`,`a {${$}} panel has no Markdown equivalent; its content is kept as a quote, its title as bold text`,`line ${c}`);let E=/(?:^|\\|)\\s*title\\s*=\\s*([^|]*)/.exec(S??"")?.[1]?.trim();a({type:"quote",children:[...E?[{type:"paragraph",content:[{type:"strong",children:[{type:"text",text:E}]}]}]:[],...A]},c)}continue}let f=ji.exec(l);if(f){a({type:"heading",level:Number(f[1]),content:this.inline(f[2])},c),o++;continue}let d=qi.exec(l);if(d){a({type:"quote",children:[{type:"paragraph",content:this.inline(d[1])}]},c),o++;continue}if(Yn.test(l)){a({type:"rule"},c),o++;continue}if(l.trimStart().startsWith("|")){let[$,S]=this.table(t,o,n);a($,c),o=S;continue}if(zn.test(l)){let[$,S]=this.list(t,o);for(let _ of $)a(_,c);o=S;continue}let p=Bi.exec(l);if(p){this.losses?.add(`${p[1]} macro`,`the {${p[1]}} macro has no Markdown equivalent and was dropped`,`line ${c}`),o++;continue}let g=[];for(;o<t.length&&t[o].trim()!==""&&(g.length===0||!this.startsBlock(t[o]));)g.push(t[o++]);a({type:"paragraph",content:this.inline(g.join(`\n`))},c)}return i&&this.losses?.close(r.length),{blocks:r,at:s}}startsBlock(t){return Di.test(t)||ji.test(t)||qi.test(t)||Yn.test(t)||t.trimStart().startsWith("|")||zn.test(t)||Bi.test(t)}list(t,n){let i=[],r=[],s=n;for(;s<t.length;){let o=t[s],a=zn.exec(o);if(!a||Yn.test(o)){if(o.trim()!==""&&!this.startsBlock(o)&&r.length){let p=r.at(-1).list.items.at(-1).children[0];p?.type==="paragraph"&&p.content.push({type:"break"},...this.inline(o.trim())),s++;continue}break}let l=a[1].includes("-")&&a[1]!=="-"?void 0:a[1];if(l===void 0)break;for(;r.length>l.length;)r.pop();for(let d=0;d<r.length;d++)if(r[d].ch!==(l[d]==="-"?"*":l[d])){r.length=d;break}for(;r.length<l.length;){let d=l[r.length]==="-"?"*":l[r.length],p={type:"list",ordered:d==="#",start:1,items:[]};if(r.length===0)i.push(p);else{let g=r.at(-1).list;g.items.length===0&&g.items.push({children:[]}),g.items.at(-1).children.push(p)}r.push({list:p,ch:d})}let c=this.inline(a[2]),u,f=c[0];if(f?.type==="text"){let d=/^\\[([ xX])\\] ?/.exec(f.text);d&&(u=d[1]===" "?"todo":"done",c=[{type:"text",text:f.text.slice(d[0].length)},...c.slice(1)])}r.at(-1).list.items.push({...u?{task:u}:{},children:[{type:"paragraph",content:c}]}),s++}return[i,s]}table(t,n,i){let r=[],s=n;for(;s<t.length&&t[s].trimStart().startsWith("|");){let u=t[s++].trim();for(;!/(^|[^\\\\])\\|$/.test(u)&&s<t.length&&t[s].trim()!==""&&!t[s].trimStart().startsWith("|");)u+=`\n${t[s++].trim()}`;r.push(uc(u))}let o=`line ${i+n}`;(r[0]??[]).every(u=>u.header)||this.losses?.add("table without a header row","Markdown tables need a header row; the first row was made the header",o),r.slice(1).some(u=>u.some(f=>f.header))&&this.losses?.add("header cell outside the first row","Markdown has header cells only in the first row; the others became ordinary cells",o);let l=Math.max(...r.map(u=>u.length));return r.some(u=>u.length!==l)&&this.losses?.add("uneven table rows","rows with fewer cells were padded with empty ones",o),[{type:"table",align:Array.from({length:l},()=>null),rows:r.map(u=>u.map(f=>this.inline(f.text.trim())))},s]}inline(t){return new Gn(this.losses).parse(t)}};function uc(e){let t=[],n,i=0,r=!1;for(let s=0;s<e.length;s++){let o=e[s];if(o==="\\\\"&&s+1<e.length){n&&(n.text+=o+e[s+1]),s++;continue}if(e.startsWith("{{",s)&&(r=!0),e.startsWith("}}",s)&&(r=!1),o==="["&&i++,o==="]"&&i&&i--,o==="|"&&i===0&&!r){n&&t.push(n);let a=e[s+1]==="|";a&&s++,n={header:a,text:""};continue}n&&(n.text+=o)}return n&&n.text.trim()!==""&&t.push(n),t}var Gn=class{constructor(t){this.losses=t}losses;parse(t){let n=[],i="",r=()=>{i&&n.push({type:"text",text:i}),i=""},s=(...a)=>{r(),n.push(...a)},o=0;for(;o<t.length;){let a=t[o],l=t.slice(o,o+8192);if(a==="\\\\"){if(t[o+1]==="\\\\"){s({type:"break"}),o+=2;continue}if(o+1<t.length&&t[o+1]!==`\n`){i+=t[o+1],o+=2;continue}}if(a===`\n`){s({type:"break"}),o++;continue}if(a==="&"){let u=/^&(#\\d{1,7}|#x[0-9a-fA-F]{1,6}|[a-z]+);/.exec(l);if(u){let f=u[1],d=f.startsWith("#x")?String.fromCodePoint(parseInt(f.slice(2),16)):f.startsWith("#")?String.fromCodePoint(parseInt(f.slice(1),10)):cc[f];if(d!==void 0){i+=d,o+=u[0].length;continue}}}if(l.startsWith("{{")){let u=Ui(t,"}}",o+2);if(u!==-1){s({type:"code",text:t.slice(o+2,u).replace(/\\\\(.)/g,"$1").replace(/&#92;/g,"\\\\")}),o=u+2;continue}}if(a==="{"){let u=/^\\{([*_\\-+^~]|\\?\\?)\\}/.exec(l);if(u){let p=t.indexOf(u[0],o+u[0].length);if(p!==-1){s(...this.effect(u[1],t.slice(o+u[0].length,p))),o=p+u[0].length;continue}}let f=/^\\{color(?::[^}]*)?\\}/i.exec(l);if(f){let p=t.toLowerCase().indexOf("{color}",o+f[0].length);this.losses?.add("text colour","text colour has no Markdown equivalent; the text is kept"),p!==-1?(s(...this.parse(t.slice(o+f[0].length,p))),o=p+7):o+=f[0].length;continue}let d=/^\\{([A-Za-z][\\w-]*)(?::[^}]*)?\\}/.exec(l);if(d){this.losses?.add(`${d[1]} macro`,`the {${d[1]}} macro has no Markdown equivalent and was dropped`),o+=d[0].length;continue}}if(a==="["){let u=Ui(t,"]",o+1,!0);if(u!==-1&&!t.slice(o+1,u).includes(`\n`)){s(...this.link(t.slice(o+1,u))),o=u+1;continue}}if(a==="!"){let u=/^!([^\\s!|][^!\\n]*?)(?:\\|([^!\\n]*))?!/.exec(l);if(u){s(this.image(u[1],u[2])),o+=u[0].length;continue}}let c=l.startsWith("??")?"??":Xn[a]?a:void 0;if(c&&!Ve(t[o-1])&&!kt(t[o+c.length])){let u=this.closer(t,o,c);if(u!==-1){s(...this.effect(c,t.slice(o+c.length,u))),o=u+c.length;continue}}if((a==="h"||a==="f"||a==="m")&&!Ve(t[o-1])){let u=/^(?:https?:\\/\\/|ftp:\\/\\/|mailto:)[^\\s|\\][]+/.exec(l);if(u){let f=u[0].replace(/[.,;:!?)]+$/,"");s({type:"link",href:f,children:[{type:"text",text:f}]}),o+=f.length;continue}}i+=a,o++}return r(),n}closer(t,n,i){let r=n+i.length+1;for(;r<t.length;r++){if(t[r]===`\n`)return-1;if(t[r]==="\\\\"){r++;continue}if(t.startsWith(i,r)&&!kt(t[r-1])&&!Ve(t[r+i.length]))return r}return-1}effect(t,n){let i=t==="??"?"cite":Xn[t],r=this.parse(n);return i==="strong"||i==="em"||i==="strike"?[{type:i,children:r}]:(this.losses?.add(Fi[i],`${Fi[i]} has no Markdown equivalent; the text is kept`),r)}link(t){let n=fc(t,"|"),i=(n.length>1?n[1]:n[0]).trim(),r=n.length>1?n[0]:void 0;return n.length>2&&this.losses?.add("link tooltip","a link tooltip was dropped"),i.startsWith("~")?(this.losses?.add("user mention",`the mention of ${i.slice(1)} is kept as @${i.slice(1)} text`),[{type:"text",text:`@${i.slice(1)}`}]):i.startsWith("^")?(this.losses?.add("attachment link",`the link to the attachment ${i.slice(1)} is kept as text`),r===void 0?[{type:"text",text:i.slice(1)}]:this.parse(r)):/^[A-Za-z][A-Za-z0-9+.-]*:/.test(i)&&!/^[A-Z][A-Z0-9_]*-\\d+$/.test(i)?[{type:"link",href:i.replace(/\\\\(.)/g,"$1"),children:r===void 0?[{type:"text",text:i.replace(/\\\\(.)/g,"$1")}]:this.parse(r)}]:(this.losses?.add("wiki link",`the link to "${i}" (a page, issue or anchor, not a URL) is kept as text`),r===void 0?[{type:"text",text:i}]:this.parse(r))}image(t,n){let i="";if(n!==void 0){let r=[];for(let s of n.split(",")){let o=/^\\s*([\\w-]+)\\s*(?:=\\s*(.*))?$/.exec(s);o?.[1]==="alt"?i=(o[2]??"").trim():s.trim()&&r.push(s.trim())}r.length&&this.losses?.add("image parameters",`image parameters ${r.join(", ")} were dropped`)}return/^[A-Za-z][A-Za-z0-9+.-]*:/.test(t)||this.losses?.add("attachment image",`the image ${t} is an attachment; its file name is kept as the image source`),{type:"image",src:t,alt:i}}};function Ui(e,t,n,i=!1){for(let r=n;r<e.length;r++){if(e[r]==="\\\\"){r++;continue}if(i&&e[r]===`\n`)return-1;if(e.startsWith(t,r))return r}return-1}function fc(e,t){let n=[],i="";for(let r=0;r<e.length;r++)e[r]==="\\\\"&&r+1<e.length?(i+=e[r]+e[r+1],r++):e[r]===t?(n.push(i),i=""):i+=e[r];return n.push(i),n}function zi(e,t){let n=e.replace(/^\\ufeff/,"").replace(/\\r\\n?/g,`\n`).split(`\n`);return new Vn(t).blocks(n,1,!0)}var dc={strong:"*",em:"_",strike:"-"},Ki=/(?:^|\\s)(:\\)|:\\(|:P|:D|;\\)|\\(y\\)|\\(n\\)|\\(i\\)|\\(\\/\\)|\\(x\\)|\\(!\\)|\\(\\+\\)|\\(-\\)|\\(\\?\\)|\\(on\\)|\\(off\\)|\\(\\*[rgby]?\\)|\\(flag\\))(?=\\s|$)/,Hn=class{constructor(t){this.losses=t}losses;text(t,n,i){return Ki.test(t)&&this.losses.add("emoticon",`Jira shows ${Ki.exec(t)[1]} as an emoticon image`),/(?:https?|ftp):\\/\\/|mailto:/.test(t)&&this.losses.add("URL text","Jira turns a URL written as text into a link"),Wi(t,n,i)}inlines(t,n,i=""){return this.inlinesOf(t,n,i)}inlinesOf(t,n,i){let r=i;return t.forEach((s,o)=>{let a=r.at(-1),l=hc(t[o+1]);r+=this.node(s,a,l,n)}),r.slice(i.length)}node(t,n,i,r){switch(t.type){case"text":return this.text(t.text,n,i);case"break":return r;case"code":return t.text.includes("}}")&&this.losses.add("monospace text",`monospace text holding "}}" can\'t be written in wiki markup intact`),`{{${Wi(t.text,"{","}")}}}`;case"strong":case"em":case"strike":{let s=dc[t.type],o=Ve(n)||Ve(i)?`{${s}}`:s;return o+this.inlinesOf(t.children,r,"")+o}case"link":{t.title!==void 0&&this.losses.add("link title","wiki markup links have no title; it was dropped");let s=t.href.replace(/[|\\]]/g,"\\\\$&");return Tn(t.children)===t.href&&t.children.length===1?`[${s}]`:`[${this.inlinesOf(t.children," ","")}|${s}]`}case"image":return t.title!==void 0&&this.losses.add("image title","wiki markup images have no title; it was dropped"),/[,|!]/.test(t.alt)&&this.losses.add("image alt text","commas, pipes and ! in alt text became spaces"),t.alt?`!${t.src}|alt=${t.alt.replace(/[,|!]/g," ")}!`:`!${t.src}!`}}lines(t){return t.split(`\n`).map(n=>/^(h[1-6]|bq)\\./.test(n)||/^[*#-]+\\s/.test(n)||/^-{4,}\\s*$/.test(n)?`\\\\${n}`:n).join(`\n`)}block(t,n=0){switch(t.type){case"paragraph":return this.lines(this.inlines(t.content,`\n`));case"heading":return t.content.some(i=>i.type==="break")&&this.losses.add("line break in a heading","a wiki heading is one line; the break became a space"),`h${t.level}. ${this.inlines(t.content," ")}`;case"code":{let i=t.lang?"code":"noformat";return new RegExp(`\\\\{${i}\\\\}`,"i").test(t.text)&&this.losses.add("code block",`code holding {${i}} ends the block early in wiki markup`),t.lang?`{code:${t.lang}}\n${t.text}\n{code}`:`{noformat}\n${t.text}\n{noformat}`}case"quote":return`{quote}\n${t.children.flatMap(r=>r.type!=="quote"?[r]:(this.losses.add("nested quote","Jira has no quote inside a quote; the inner one was merged into the outer"),r.children)).map(r=>this.block(r,n)).join(`\n\n`)}\n{quote}`;case"rule":return"----";case"table":{t.align.some(o=>o!==null)&&this.losses.add("table alignment","wiki tables have no column alignment; it was dropped");let i=o=>{let a=this.inlines(o,"\\\\\\\\");return a===""?" ":a},[r=[],...s]=t.rows;return[`||${r.map(i).join("||")}||`,...s.map(o=>`|${o.map(i).join("|")}|`)].join(`\n`)}case"list":return this.list(t,"")}}list(t,n){let i=n+(t.ordered?"#":"*");t.ordered&&t.start!==1&&this.losses.add("list start number",`wiki lists always start at 1; this one started at ${t.start}`);let r=[];for(let s of t.items){let o=[],a=[];for(let c of s.children)c.type==="list"?a.push(this.list(c,i)):((o.length||c.type!=="paragraph")&&this.losses.add(c.type==="paragraph"?"several paragraphs in a list item":`${c.type==="code"?"code block":c.type} in a list item`,"a wiki list item is one line; its content was joined with line breaks"),o.push(Te(c)));let l="";s.task!==void 0&&(this.losses.add("task list","Jira wiki markup has no task lists; each task is written as [ ] or [x] text"),l=s.task==="done"?"\\\\[x\\\\] ":"\\\\[ \\\\] "),r.push(`${i} ${l}${this.inlines(he(o),"\\\\\\\\")}`.trimEnd()),r.push(...a)}return r.join(`\n`)}};function Wi(e,t,n){let i="";for(let r=0;r<e.length;r++){let s=e[r],o=r===0?t:e[r-1],a=r===e.length-1?n:e[r+1];s==="\\\\"?i+="&#92;":"{}[]|".includes(s)?i+=`\\\\${s}`:s==="!"&&!kt(a)?i+="\\\\!":s==="&"&&/^&(#\\d+|#x[0-9a-fA-F]+|[a-z]+);/.test(e.slice(r,r+40))?i+="\\\\&":(Xn[s]||s==="?"&&(a==="?"||o==="?"))&&(!Ve(o)&&!kt(a)||!kt(o)&&!Ve(a))?i+=`\\\\${s}`:i+=s}return i}function hc(e){if(e)switch(e.type){case"text":return e.text[0];case"code":return"{";case"break":return`\n`;case"link":return"[";case"image":return"!";default:return"*"}}function Yi(e,t){let n=new Hn(t);return e.blocks.map((i,r)=>(t.enter(r,e.at[r]??""),n.block(i))).join(`\n\n`)}function Xi(e,t,n,i){if(e==="md")return Ti(t,n);if(e==="wiki")return zi(t,n);if(e==="storage")try{return Pi(t,n)}catch(r){throw r instanceof Re?new Se("INVALID_INPUT",`${i} is not well-formed storage format: ${r.message}`,{fix:"Pass the page body exactly as Confluence returns it in body.storage.value. Only XML\'s entities and HTML\'s common named ones (&nbsp;, &mdash; \\u2026) are known; write any other as a numeric reference."}):r}return _n(pc(t,i),n)}function pc(e,t){let n;try{n=JSON.parse(e)}catch(i){throw new Se("INVALID_INPUT",`${t} is not JSON: ${i.message}`,{fix:\'Pass an ADF document: { "type": "doc", "version": 1, "content": [...] }.\'})}if(typeof n!="object"||n===null||n.type!=="doc"||!Array.isArray(n.content))throw new Se("INVALID_INPUT",`${t} is JSON but not an ADF document: the top level needs "type": "doc" and a "content" array.`,{fix:"Pass the document itself (an issue\'s fields.description, a comment\'s body), not the issue or comment around it."});return n}function mc(e,t,n){return e==="md"?Ci(t):e==="wiki"?Yi(t,n):e==="storage"?Mi(t,n):wi(t,n)}function Vi(e,t){let n=Ft(e.blocks),i=new Set(yi(n)),r=[],s=0;n.forEach((o,a)=>{r[a]=i.has(o)?s++:-1});for(let o of t?.list??[])o.block=o.block<0?-1:r[o.block]??-1;return{blocks:n.filter(o=>i.has(o)),at:e.at.filter((o,a)=>i.has(n[a]))}}var Gi=e=>e.blocks.map((t,n)=>qt(t,e.blocks[n-1]));function Hi(e,t,n,i){let r=new Mt,s=Vi(Xi(e,n,r,i),r);return{output:mc(t,s,r),blocks:Gi(s),at:s.at,losses:r.list}}function Qi(e,t){return Gi(Vi(e==="adf"?_n(t):Xi(e,t,void 0,"The output")))}var ee=class extends Error{},gc=["===","!==","...","=>","->","==","!=","<=",">=","::","+=","-=","*=","/=","%=","&=","|=","^=","&&","||","??","?.",":=","++","--"],yc=new Set(["return","typeof","instanceof","in","of","new","delete","void","throw","case","do","else","yield","await"]),xc=new Set([")","]","}","++","--"]),kc=e=>/[A-Za-z_$\xC0-\uFFFF]/.test(e),Qn=e=>/[\\w$\xC0-\uFFFF]/.test(e);function Ji(e,t){let n=t==="typescript"||t==="javascript",i=[],r=0,s=1,o=0,a=0,l=()=>{s++,o=r+1},c=(m,A,E,y)=>{i.push({t:m,v:A,line:E,endLine:s,col:y,nl:E>a}),a=s},u=(m,A)=>{throw new ee(`${m} opened on line ${A} is never closed`)},f=()=>{let m=e[r+1]==="\\r"&&e[r+2]===`\n`;if(e[r+1]===`\n`||m){r+=m?2:1,l(),r++;return}r+=2},d=(m,A)=>{let E=s;for(r++;r<e.length;){let y=e[r];if(y==="\\\\"){f();continue}if(y===m){r++;return}if(y===`\n`)throw new ee(`${A} opened on line ${E} isn\'t closed by the end of that line`);r++}u(A,E)},p=(m,A,E)=>{for(;r<e.length;){if(e.startsWith(m,r)){r+=m.length;return}e[r]===`\n`&&l(),r++}u(A,E)},g=()=>{let m=s,A=i.length,E=a,y=0;for(;r<e.length;){let k=i.length;F();let z=i[k];if(i.length>k&&z?.t==="p"){if(z.v==="{")y++;else if(z.v==="}"){if(y===0){i.length=A,a=E;return}y--}}}throw i.length=A,a=E,new ee(`an interpolation opened on line ${m} is never closed`)},$=()=>{let m=s;for(r++;r<e.length;){let A=e[r];if(A==="\\\\"){f();continue}if(A==="`"){r++;return}if(A==="$"&&e[r+1]==="{"){r+=2,g();continue}A===`\n`&&l(),r++}u("a template literal",m)},S=()=>{let m=s,A=0,E=!1;for(;e[r]==="$"||e[r]==="@";)e[r]==="$"?A++:E=!0,r++;let y=0;for(;e[r+y]===\'"\';)y++;if(y>=3){let k=\'"\'.repeat(y);for(r+=y,p(k,"a raw string",m);e[r]===\'"\';)r++;return}for(r++;r<e.length;){let k=e[r];if(E){if(k===\'"\'){if(e[r+1]===\'"\'){r+=2;continue}r++;return}}else{if(k==="\\\\"){r+=2;continue}if(k===\'"\'){r++;return}if(k===`\n`)throw new ee(`a string opened on line ${m} isn\'t closed by the end of that line`)}if(A>0&&k==="{"){if(e[r+1]==="{"){r+=2;continue}r++,g();continue}k===`\n`&&l(),r++}u("a string",m)},_=()=>{let m=i[i.length-1];return m?m.t==="num"||m.t==="str"?!1:m.t==="id"?yc.has(m.v):!xc.has(m.v):!0},x=()=>{let m=s;r++;let A=!1;for(;r<e.length;){let E=e[r];if(E===`\n`)throw new ee(`a regular expression opened on line ${m} isn\'t closed by the end of that line`);if(E==="\\\\"){r+=2;continue}if(E==="[")A=!0;else if(E==="]")A=!1;else if(E==="/"&&!A){for(r++;r<e.length&&Qn(e[r]);)r++;return}r++}u("a regular expression",m)};function F(){let m=e[r],A=r,E=s,y=r-o;if(m===`\n`){l(),r++;return}if(m===" "||m==="	"||m==="\\r"||m==="\\f"||m==="\\v"||m==="\\uFEFF"){r++;return}if(t==="python"?m==="#":m==="/"&&e[r+1]==="/"){for(;r<e.length&&e[r]!==`\n`;)r++;return}if(t!=="python"&&m==="/"&&e[r+1]==="*"){r+=2,p("*/","a block comment",E);return}if(t==="csharp"&&m==="#"&&e.slice(o,r).trim()===""){for(;r<e.length&&e[r]!==`\n`;)r++;return}if(t==="python"){let k=/^[rRbBuUfF]{0,2}(?=\'|")/.exec(e.slice(r,r+3));if(k&&(k[0]===""||!Qn(e[r-1]??" "))){r+=k[0].length;let z=e[r];e.startsWith(z.repeat(3),r)?(r+=3,p(z.repeat(3),"a triple-quoted string",E)):d(z,"a string"),c("str",e.slice(A,r),E,y);return}}else if(t==="csharp"&&(m===\'"\'||(m==="$"||m==="@")&&/^[$@]*"/.test(e.slice(r,r+4)))){S(),c("str",e.slice(A,r),E,y);return}else if(t==="java"&&m===\'"\'&&e.startsWith(\'"""\',r)){r+=3,p(\'"""\',"a text block",E),c("str",e.slice(A,r),E,y);return}else if(m===\'"\'||m==="\'"){d(m,m==="\'"&&!n?"a character literal":"a string"),c("str",e.slice(A,r),E,y);return}else if(m==="`"&&(n||t==="go")){n?$():(r++,p("`","a raw string",E)),c("str",e.slice(A,r),E,y);return}if(n&&m==="/"&&_()){x(),c("str",e.slice(A,r),E,y);return}if(kc(m)){let k=r+1;for(;k<e.length&&Qn(e[k]);)k++;let z=e.slice(r,k);r=k,c("id",z,E,y);return}if(/[0-9]/.test(m)||m==="."&&/[0-9]/.test(e[r+1]??"")){let k=r+1;for(;k<e.length&&/[\\w.]/.test(e[k]);)k++;r=k,c("num","",E,y);return}for(let k of gc)if(e.startsWith(k,r)){r+=k.length,c("p",k,E,y);return}r++,c("p",m,E,y)}for(;r<e.length;)F();return i}var ts={typescript:"Syntactic scan in pure JavaScript, not the TypeScript compiler: functions, classes, interfaces, type aliases, enums and namespaces, exported variables and function-valued constants, and class and interface methods. Function bodies are not searched, and JSX text containing quotes may not be read",javascript:"Syntactic scan in pure JavaScript, not a parser: functions, classes, exported variables and function-valued constants, and class methods. Function bodies are not searched, CommonJS exports (module.exports) are not listed, and JSX text containing quotes may not be read",python:"Syntactic scan in pure JavaScript, by indentation: classes, functions and methods (async included), with nested classes. Functions defined inside functions are not listed",csharp:"Syntactic scan in pure JavaScript, not Roslyn: namespaces, classes, structs, records, interfaces, enums, delegates, methods, constructors and properties. Fields, events and operators are not listed, and #if branches are read as written",java:"Syntactic scan in pure JavaScript, not javac: classes, interfaces, enums, records, annotation types, methods and constructors. Fields and the members of enum bodies are not listed",go:"Syntactic scan in pure JavaScript, not go/parser: functions, methods (with their receiver type as the container) and type declarations. Grouped type ( \\u2026 ) blocks, var and const are not listed"},er={"(":")","[":"]","{":"}"},Wt={")":"(","]":"[","}":"{"};function ns(e,t){let n=Ji(e,t);return t==="python"?Cc(n):_c(n,t)}function Kt(e,t){let n=[];for(let r=t;r<e.length;r++){let s=e[r];if(s.t==="p"){if(er[s.v])n.push(s);else if(Wt[s.v]){let o=n.pop();if(!o||o.v!==Wt[s.v])throw new ee(`a ${s.v} on line ${s.line} closes ${o?`a ${o.v} from line ${o.line}`:"nothing"}`);if(n.length===0)return r+1}}}let i=n[n.length-1]??e[t];throw new ee(`a ${i.v} opened on line ${i.line} is never closed`)}var M=(e,t)=>e!==void 0&&e.t==="p"&&e.v===t,P=(e,t)=>e!==void 0&&e.t==="id"&&(t===void 0||e.v===t),bc=e=>e.t==="id"||e.t==="num"||e.t==="str"||e.t==="p"&&(e.v===")"||e.v==="]"||e.v==="}"||e.v==="++"||e.v==="--"),Zi=new Set(["extends","implements","instanceof","in","of","as","satisfies","keyof","is"]),wc=new Set(["export","default","declare","abstract","async","public","private","protected","static","readonly","override","accessor","get","set"]),$c=new Set(["public","protected","private","static","final","abstract","native","synchronized","transient","volatile","strictfp","default","sealed"]),vc=new Set(["public","private","protected","internal","static","readonly","sealed","abstract","virtual","override","async","extern","unsafe","new","partial","volatile","required","file","ref","scoped"]),Ec=new Set(["if","for","foreach","while","switch","using","lock","catch","fixed","return","new","else","do","try","throw","synchronized","this","base","super","typeof","sizeof","nameof","default","when","await"]);function zt(e,t){let n=0;for(;;){let i=e[n]?.tok;if(t==="csharp"&&M(i,"[")){n++;continue}if(t!=="csharp"&&M(i,"@")&&P(e[n+1]?.tok)&&!P(e[n+1]?.tok,"interface")){for(n+=2;M(e[n]?.tok,".")&&P(e[n+1]?.tok);)n+=2;M(e[n]?.tok,"(")&&n++;continue}return n}}var Ac=e=>e!==void 0&&(e.t==="id"||M(e,"*")||M(e,"#")||M(e,"["));function Jn(e,t){let n=e[t]?.tok;return M(n,"#")&&P(e[t+1]?.tok)?e[t+1].tok:n&&(n.t==="id"||n.t==="str")?n:void 0}function es(e,t){let n=t;if(P(e[n]?.tok,"async")&&n++,P(e[n]?.tok,"function"))return!0;if(M(e[n]?.tok,"<")){for(;n<e.length&&!M(e[n]?.tok,">");)n++;n++}let i=e[n]?.tok;if(P(i)&&M(e[n+1]?.tok,"=>"))return!0;if(!M(i,"("))return!1;for(let r=n+1;r<e.length;r++){if(M(e[r].tok,"=>"))return!0;if(M(e[r].tok,"=")||M(e[r].tok,";"))return!1}return!1}function Sc(e,t,n,i){let r=zt(e,"javascript"),s=!1;for(;P(e[r]?.tok)&&wc.has(e[r].tok.v)&&Ac(e[r+1]?.tok);)e[r].tok.v==="export"&&(s=!0),r++;let o=e[r]?.tok;if(!o)return null;let a=o.t==="id"?o.v:"";if(i==="top"||i==="namespace"){if(a==="function"){let l=r+1;M(e[l]?.tok,"*")&&l++;let c=Jn(e,l);return c&&c.t==="id"?{name:c.v,nameTok:c,kind:"function"}:s?{name:"default",nameTok:o,kind:"function"}:null}if(a==="class"||a==="interface"||a==="enum"||a==="const"&&P(e[r+1]?.tok,"enum")){let l=a==="const"?r+2:r+1,c=a==="class"?"class":a==="interface"?"interface":"enum",u=Jn(e,l),f=c==="enum"?"enum":c;return u&&u.t==="id"&&!P(u,"extends")&&!P(u,"implements")?{name:u.v,nameTok:u,kind:c,...n==="body"?{body:f}:{}}:c==="class"&&s?{name:"default",nameTok:o,kind:c,...n==="body"?{body:f}:{}}:null}if(a==="type"&&P(e[r+1]?.tok)&&(M(e[r+2]?.tok,"=")||M(e[r+2]?.tok,"<")))return{name:e[r+1].tok.v,nameTok:e[r+1].tok,kind:"type"};if((a==="namespace"||a==="module")&&P(e[r+1]?.tok)){let l=e[r+1].tok.v,c=r+2;for(;M(e[c]?.tok,".")&&P(e[c+1]?.tok);)l+=`.${e[c+1].tok.v}`,c+=2;return{name:l,nameTok:e[r+1].tok,kind:"namespace",...n==="body"?{body:"namespace"}:{}}}if((a==="const"||a==="let"||a==="var")&&P(e[r+1]?.tok)){let l=e[r+1].tok;return t>=0&&es(e,t+1)?{name:l.v,nameTok:l,kind:"function"}:s?{name:l.v,nameTok:l,kind:"variable"}:null}return null}if(i==="class"||i==="interface"){M(e[r]?.tok,"*")&&r++;let l=Jn(e,r);if(!l)return null;let c=M(e[r]?.tok,"#")?r+2:r+1,u=e[c]?.tok,f=c;if((M(u,"?")||M(u,"!"))&&(u=e[++f]?.tok),M(u,"(")||M(u,"<"))return i==="class"&&l.v==="constructor"?{name:"constructor",nameTok:l,kind:"constructor"}:{name:l.t==="str"?l.v.slice(1,-1):l.v,nameTok:l,kind:"method"};if(i==="class"&&t===f&&es(e,t+1))return{name:l.v,nameTok:l,kind:"method"}}return null}function Ic(e,t,n,i){let r=zt(e,"java");for(;P(e[r]?.tok)&&$c.has(e[r].tok.v);)r++;P(e[r]?.tok,"non")&&M(e[r+1]?.tok,"-")&&P(e[r+2]?.tok,"sealed")&&(r+=3);let s=e[r]?.tok;if(!s)return null;let o=M(s,"@")&&P(e[r+1]?.tok,"interface");if(o||s.t==="id"&&["class","interface","enum","record"].includes(s.v)){let a=o?r+2:r+1,l=e[a]?.tok;if(!P(l))return null;let c=o||s.v==="interface"?"interface":s.v==="enum"?"enum":s.v==="record"?"record":"class",u=c==="interface"?"interface":c==="enum"?"enum":"class";return{name:l.v,nameTok:l,kind:c,...t==="body"?{body:u}:{}}}return n!=="class"&&n!=="interface"?null:Zn(e,r,i)}function Zn(e,t,n){for(let i=t+1;i<e.length;i++){if(!M(e[i].tok,"("))continue;let r=i-1;if(M(e[r]?.tok,">")){let a=0;for(;r>t;r--)if(M(e[r].tok,">"))a++;else if(M(e[r].tok,"<")&&--a===0)break;r--}let s=e[r]?.tok;if(!P(s)||Ec.has(s.v))return null;if(M(e[r-1]?.tok,"~"))return{name:`~${s.v}`,nameTok:s,kind:"method"};let o=r===t&&s.v===Tc(n);return{name:s.v,nameTok:s,kind:o?"constructor":"method"}}return null}var Tc=e=>e===null?null:e.slice(e.lastIndexOf(".")+1);function Lc(e,t,n,i,r){let s=zt(e,"csharp");for(;P(e[s]?.tok)&&vc.has(e[s].tok.v);)s++;let o=e[s]?.tok;if(!o||o.t!=="id")return null;if(o.v==="namespace"&&P(e[s+1]?.tok)){let l=e[s+1].tok.v,c=s+2;for(;M(e[c]?.tok,".")&&P(e[c+1]?.tok);)l+=`.${e[c+1].tok.v}`,c+=2;return{name:l,nameTok:e[s+1].tok,kind:"namespace",...n==="body"?{body:"namespace"}:{}}}if(["class","struct","interface","enum","record"].includes(o.v)){let l=s+1,c=o.v;o.v==="record"&&(P(e[l]?.tok,"struct")&&(c="struct"),(P(e[l]?.tok,"class")||P(e[l]?.tok,"struct"))&&l++);let u=e[l]?.tok;if(!P(u))return null;let f=c==="interface"?"interface":c==="enum"?"enum":"class";return{name:u.v,nameTok:u,kind:c,...n==="body"?{body:f}:{}}}if(o.v==="delegate"){let l=Zn(e,s,null);return l?{...l,kind:"type"}:null}if(i!=="class"&&i!=="interface"||e.slice(s).some(l=>P(l.tok,"operator")||P(l.tok,"event")||P(l.tok,"const")))return null;let a=Zn(e,s,r);if(a)return a;if(n==="body"||t==="=>"){let l=e[e.length-1]?.tok;if(P(l)&&!P(l,"this")&&e.length-s>=2)return{name:l.v,nameTok:l,kind:"property"}}return null}function Nc(e,t){if(t!=="top")return null;let n=e[0]?.tok;if(P(n,"func"))return P(e[1]?.tok)?{name:e[1].tok.v,nameTok:e[1].tok,kind:"function"}:M(e[1]?.tok,"(")&&P(e[2]?.tok)?{name:e[2].tok.v,nameTok:e[2].tok,kind:"method"}:null;if(P(n,"type")&&P(e[1]?.tok)){let i=2;M(e[i]?.tok,"[")&&i++;let r=P(e[i]?.tok,"struct")?"struct":P(e[i]?.tok,"interface")?"interface":"type";return{name:e[1].tok.v,nameTok:e[1].tok,kind:r}}return null}function Oc(e,t){let n=0,i=null,r=e.indexOf(t.tok);for(let s=r+1;s<(t.end??r)-1;s++){let o=e[s];M(o,"[")?n++:M(o,"]")?n--:n===0&&o.t==="id"&&(i=o.v)}return i}function _c(e,t){let n=[],i=e.length,r=0,s=t==="typescript"||t==="javascript"||t==="go",o=c=>c.length>0&&zt(c,t)>=c.length;function a(c,u,f,d=!1){for(;r<i;){let p=e[r];if(M(p,"}")){if(d)throw new ee(`a } on line ${p.line} closes nothing`);return}if(M(p,";")||M(p,",")){r++;continue}l(c,u,f)}if(!d)throw new ee(`a block for ${u??"a declaration"} is never closed`)}function l(c,u,f){let d=[],p=-1,g=null,$=0,S=-1,_;for(;r<i;){let y=e[r];if(d.length>0&&y.nl&&s&&_&&bc(_)&&!o(d)&&(t==="go"||(y.t==="id"||y.t==="str"||y.t==="num"||M(y,"@")||M(y,"#"))&&!Zi.has(y.v)&&!Zi.has(_.v)))break;if(y.t==="p"&&(y.v===";"||y.v===","&&$===0&&c==="interface"&&t==="typescript")){_=y,r++;break}if(y.t==="p"&&(y.v==="}"||y.v===")"||y.v==="]")){if(y.v==="}")break;throw new ee(`a ${y.v} on line ${y.line} closes nothing`)}if(y.t==="p"&&(y.v==="("||y.v==="[")){let k=Kt(e,r);d.push({tok:y,end:k,close:e[k-1]}),_=e[k-1],r=k;continue}if(y.t==="p"&&y.v==="{"){let k=d[d.length-1]?.tok;if(!(p>=0||$>0||k!==void 0&&k.t==="p"&&[":","|","&",",","<","=>","->","?"].includes(k.v)||t==="typescript"&&P(k,"extends"))){S=r;break}let Z=Kt(e,r);d.push({tok:y,end:Z,close:e[Z-1]}),_=e[Z-1],r=Z;continue}p<0&&$===0&&y.t==="p"&&(y.v==="="||y.v==="=>"||y.v===":=")&&(p=d.length,g=y.v),p<0&&t!=="go"&&y.t==="p"&&(y.v==="<"?$++:y.v===">"&&$>0&&$--),d.push({tok:y}),_=y,r++}let x=p>=0?d.slice(0,p):d,F=S>=0?"body":"plain",m=t==="typescript"||t==="javascript"?Sc(d,p,F,c):t==="java"?Ic(x,F,c,u):t==="csharp"?Lc(x,g,F,c,u):Nc(x,c),A=m?n.length:void 0;if(m){let y=u;t==="go"&&m.kind==="method"&&(y=Oc(e,x[1])),n.push({name:m.name,kind:m.kind,startLine:m.nameTok.line,endLine:m.nameTok.line,container:y,...f===void 0?{}:{parent:f}})}let E=_;if(S>=0){if(m?.body&&m.body!=="enum"){r=S+1;let y=u===null?m.name:`${u}.${m.name}`;a(m.body,y,A),E=e[r],r++}else r=Kt(e,S),E=e[r-1];if(t==="csharp"&&m?.kind==="property"&&M(e[r],"=")){for(;r<i&&!M(e[r],";");)r=er[e[r].v]&&e[r].t==="p"?Kt(e,r):r+1;E=e[r]??E,r<i&&r++}}m&&A!==void 0&&E&&(n[A].endLine=Math.max(E.endLine,n[A].startLine)),t==="csharp"&&m?.kind==="namespace"&&S<0&&A!==void 0&&(n[A].endLine=e[i-1].endLine,a("namespace",m.name,A,!0))}return a("top",null,void 0,!0),n}function Cc(e){let t=[],n=[],i=0,r=[];for(let l=0;l<e.length;l++){let c=e[l];if(i===0&&c.nl&&!Rc(e,l)?n.push({first:l,indent:c.col,lastLine:c.endLine}):n.length&&(n[n.length-1].lastLine=Math.max(n[n.length-1].lastLine,c.endLine)),c.t==="p"&&er[c.v])r.push(c),i++;else if(c.t==="p"&&Wt[c.v]){let u=r.pop();if(!u||u.v!==Wt[c.v])throw new ee(`a ${c.v} on line ${c.line} closes ${u?`a ${u.v} from line ${u.line}`:"nothing"}`);i--}}if(r.length)throw new ee(`a ${r[r.length-1].v} opened on line ${r[r.length-1].line} is never closed`);let s=[],o=(l,c)=>{for(;s.length&&s[s.length-1].indent>=l;){let u=s.pop();u.index!==void 0&&(t[u.index].endLine=c)}},a=0;for(let l of n){o(l.indent,a);let c=e[l.first],u=l.first;P(c,"async")&&u++;let f=e[u],d=e[u+1],p=s[s.length-1],g=!p||p.searched;if((P(f,"def")||P(f,"class"))&&P(d)){let $;if(g){let S=s.filter(x=>x.index!==void 0).map(x=>x.name),_=f.v==="class"?"class":p&&p.index!==void 0&&t[p.index].kind==="class"?"method":"function";$=t.length,t.push({name:d.v,kind:_,startLine:d.line,endLine:l.lastLine,container:S.length?S.join("."):null,...p?.index===void 0?{}:{parent:p.index}})}s.push({index:$,indent:l.indent,searched:g&&f.v==="class",name:d.v})}a=l.lastLine}return o(-1,a),t}function Rc(e,t){let n=e[t-1];return n!==void 0&&M(n,"\\\\")}function rs(e,t,n,i){let r=n;for(;r>t;){let s=e[r-1].trim();if(s!==""&&!(i&&s.startsWith("#")))break;r--}return r}var is=e=>{let t=e.split(`\n`).map(n=>n.endsWith("\\r")?n.slice(0,-1):n);return t.length>0&&t[t.length-1]===""&&e.endsWith(`\n`)&&t.pop(),t};function ss(e){let t=is(e),n=[],i=null,r=0;if(t[0]==="---"){let a=t.findIndex((l,c)=>c>0&&(l==="---"||l==="..."));a>0&&(r=a+1)}for(let a=r;a<t.length;a++){let l=t[a],c=/^ {0,3}(`{3,}|~{3,})/.exec(l);if(i){c&&c[1][0]===i.char&&c[1].length>=i.length&&l.trim()===c[1]&&(i=null);continue}if(c){i={char:c[1][0],length:c[1].length};continue}let u=/^ {0,3}(#{1,6})(?:[ \\t]+(.*?))?[ \\t]*$/.exec(l);if(u){let p=(u[2]??"").replace(/(?:^|[ \\t]+)#+$/,"").trim();n.push({name:p,level:u[1].length,line:a+1});continue}let f=/^ {0,3}(=+|-+)[ \\t]*$/.exec(l),d=t[a-1];f&&a>r&&d!==void 0&&Pc(d)&&(/^ {0,3}(`{3,}|~{3,})/.test(d)||n.push({name:d.trim(),level:f[1][0]==="="?1:2,line:a}))}if(i)throw new ee(`a fenced code block opened with ${i.char.repeat(i.length)} is never closed`);let s=[],o=[];return n.forEach((a,l)=>{let c;for(let d=l+1;d<n.length&&!c;d++)n[d].level<=a.level&&(c=n[d]);let u=c?c.line-1:t.length;for(;o.length&&s[o[o.length-1]].level>=a.level;)o.pop();let f=o[o.length-1];s.push({name:a.name,kind:"heading",level:a.level,startLine:a.line,endLine:Math.max(a.line,rs(t,a.line,u,!1)),container:f===void 0?null:s[f].name,...f===void 0?{}:{parent:f}}),o.push(s.length-1)}),s}function Pc(e){return e.trim()===""||/^ {4,}/.test(e)?!1:!/^ {0,3}([-*+]\\s|\\d+[.)]\\s|>|\\||#{1,6}(\\s|$)|<|(=+|-+)\\s*$)/.test(e)}function os(e){let t=0,n=1,i=()=>{for(;t<e.length&&/[ \\t\\r\\n\\ufeff]/.test(e[t]);)e[t]===`\n`&&n++,t++},r=()=>{let a=t;for(t++;e[t]!==\'"\';)t+=e[t]==="\\\\"?2:1;return t++,JSON.parse(e.slice(a,t))},s=()=>{let a=0;do{i();let l=e[t];if(l===\'"\')r();else if(l==="{"||l==="[")a++,t++;else if(l==="}"||l==="]")a--,t++;else if(l===","||l===":")t++;else for(;t<e.length&&!/[\\s,\\]}:]/.test(e[t]);)t++}while(a>0&&t<e.length)};if(i(),e[t]!=="{")return[];t++;let o=[];for(;;){if(i(),e[t]==="}"||t>=e.length)return o;if(e[t]===","){t++;continue}let a=n,l=r();i(),t++,s(),o.push({name:l,startLine:a,endLine:n})}}function as(e){let t=is(e),n=[],i=!1;for(let r=0;r<t.length;r++){let s=t[r];if(s===""||/^[ \\t]/.test(s)||s.startsWith("#")||s.startsWith("%"))continue;if(/^---(\\s|$)/.test(s)){if(i||n.length)break;i=!0;continue}if(/^\\.\\.\\.(\\s|$)/.test(s))break;let o=/^("(?:[^"\\\\]|\\\\.)*"|\'(?:[^\']|\'\')*\')\\s*:(\\s|$)/.exec(s);if(o){let l=o[1];n.push({name:l.startsWith(\'"\')?JSON.parse(l):l.slice(1,-1).replace(/\'\'/g,"\'"),line:r+1});continue}let a=/^([^\\s#:\\-?[\\]{},&*!|>\'"%@`](?:\\S|\\s(?!#))*?|[-?:][^\\s#](?:\\S|\\s(?!#))*?)\\s*:(\\s|$)/.exec(s);a&&n.push({name:a[1],line:r+1})}return n.map((r,s)=>{let o=s+1<n.length?n[s+1].line-1:t.length;return{name:r.name,startLine:r.line,endLine:Math.max(r.line,rs(t,r.line,o,!0))}})}var ls=e=>e.map(t=>({name:t.name,kind:"key",startLine:t.startLine,endLine:t.endLine,container:null}));function Mc(e,t){let n=/position (\\d+)/.exec(e.message);if(!n)return"it isn\'t valid JSON";let i=t.slice(0,Number(n[1])),r=i.split(`\n`).length-1,s=Math.max(1,i.endsWith(`\n`)?r:r+1),o=i.length-i.lastIndexOf(`\n`);return`it isn\'t valid JSON at line ${s}, column ${o}`}function cs(e,t,n){try{if(e==="markdown")return{outline:{precision:"syntactic",method:"ATX (#) and setext (underlined) headings, outside fenced code blocks and front matter. Each runs to the line before the next heading of the same or a higher level",symbols:ss(t)}};if(e==="json"||e==="yaml"){let i;if(e==="json")try{i=JSON.parse(t.charCodeAt(0)===65279?t.slice(1):t)}catch(o){return{parseError:Mc(o,t)}}else i=n(t,"it");let r=e==="json"?os(t):as(t),s=i!==null&&typeof i=="object"&&!Array.isArray(i);return{outline:{precision:"parsed",method:`Top-level keys, found by scanning the text and held against the keys ${e==="json"?"JSON.parse":"the YAML parser"} returns. A document whose top level isn\'t a mapping has none`,symbols:ls(r)},parsedKeys:s?[...new Set(Object.keys(i))].sort():[]}}return{outline:{precision:"syntactic",method:ts[e],symbols:ns(t,e)}}}catch(i){if(i instanceof ee||i instanceof Error&&i.name==="ToilError")return{parseError:i.message};throw i}}var us=new Map,Yt=new Map;function fs(e,t){let n=new TextDecoder("utf-8").decode(e.bytes);return e.format==="json"?JSON.parse(n):bn(n,t)}function Fc(e){if(e.kind==="c4-draw")return gi(e.view);if(e.kind==="parse")return fs(e.source,e.label);if(e.kind==="outline")return cs(e.language,e.text,bn);if(e.kind==="md-convert")return Hi(e.from,e.to,e.text,e.label);if(e.kind==="md-read")return Qi(e.format,e.output);if(e.kind==="grep"){let t=Yt.get(e.pattern);t||(t=new RegExp(e.pattern),Yt.size>=8&&Yt.clear(),Yt.set(e.pattern,t));let n=new Uint8Array(e.lines.length);for(let i=0;i<e.lines.length;i++)t.test(e.lines[i])&&(n[i]=1);return n}if(e.kind==="validate"){let t=e.key===void 0?void 0:us.get(e.key);if(!t){if(e.schema===void 0)throw new Error(`no schema was sent for key ${e.key}`);try{t=lr(e.schema,{...e.draft?{draft:e.draft}:{},...e.references?{references:e.references}:{}})}catch(n){if(Ht(n))return{valid:!1,problems:[],total:0,unchecked:`validation ran out of room (${n.message}): the value or the schema nests too deep`};throw n}e.key!==void 0&&us.set(e.key,t)}return cr(t,e.source?fs(e.source,"the document"):e.value,{maxProblems:1/0})}return e.patterns.map(({pattern:t,candidates:n})=>{let i;try{i=new RegExp(t,"u")}catch{try{i=new RegExp(t)}catch{return-2}}return n.findIndex(r=>i.test(r))})}function Dc(e){if(!(e instanceof Error)||e.name!=="ToilError")return;let{code:t,fix:n,details:i}=e;return{code:t,message:e.message,...n===void 0?{}:{fix:n},...i===void 0?{}:{details:i}}}Xt.parentPort.on("message",({id:e,task:t})=>{try{Xt.parentPort.postMessage({id:e,ok:!0,value:Fc(t)})}catch(n){let i=Dc(n);Xt.parentPort.postMessage({id:e,ok:!1,stack:Ht(n),message:n instanceof Error?n.message:String(n),...i?{refused:i}:{}})}});\n';
+  }
+});
+
+// src/areas/util/kit/stack.ts
+function outOfStack(err) {
+  return err instanceof RangeError && /Maximum call stack size exceeded/.test(err.message);
+}
+var init_stack = __esm({
+  "src/areas/util/kit/stack.ts"() {
+    "use strict";
   }
 });
 
@@ -95687,8 +95697,12 @@ var bounded_exports = {};
 __export(bounded_exports, {
   BOUNDED_MEMORY_MB: () => BOUNDED_MEMORY_MB,
   BOUNDED_TIMEOUT_MS: () => BOUNDED_TIMEOUT_MS,
+  boundedError: () => boundedError,
+  boundedStep: () => boundedStep,
   boundedWorkerStarts: () => boundedWorkerStarts,
+  grepBounded: () => grepBounded,
   matchBounded: () => matchBounded,
+  movable: () => movable,
   runBounded: () => runBounded,
   validateBounded: () => validateBounded
 });
@@ -95734,13 +95748,14 @@ function workerFor(maxMemoryMb) {
     busy = void 0;
     worker.unref();
     if (reply.ok) finish(job, { ok: true, value: reply.value });
+    else if (reply.refused) finish(job, { ok: false, cause: "refused", reason: reply.refused.message, error: reply.refused });
     else if (reply.stack) finish(job, { ok: false, cause: "stack", reason: `it nests too deep and ran out of stack (${reply.message})` });
     else finish(job, { ok: false, cause: "failed", reason: `it failed: ${reply.message}` });
     pump();
   });
   worker.on("error", (err) => {
     if (err.code === "ERR_WORKER_OUT_OF_MEMORY") kill({ ok: false, cause: "memory", reason: `it needed more than ${maxMemoryMb} MB of memory, the most one check may use, and was stopped` });
-    else if (err instanceof RangeError) kill({ ok: false, cause: "stack", reason: `it nests too deep and ran out of stack (${err.message})` });
+    else if (outOfStack(err)) kill({ ok: false, cause: "stack", reason: `it nests too deep and ran out of stack (${err.message})` });
     else kill({ ok: false, cause: "failed", reason: `it failed: ${err.message}` });
   });
   worker.on("exit", (code) => {
@@ -95778,10 +95793,10 @@ function pump() {
     }, job.timeoutMs);
     let task = job.task;
     if (task.kind === "validate" && task.key !== void 0) {
-      if (current.keys.has(task.key)) task = { kind: "validate", value: task.value, key: task.key };
+      if (current.keys.has(task.key)) task = { kind: "validate", value: task.value, ...task.source ? { source: task.source } : {}, key: task.key };
       else current.keys.add(task.key);
     }
-    worker.postMessage({ id: job.id, task });
+    worker.postMessage({ id: job.id, task }, job.transfer);
   }
 }
 function runBounded(task, options2 = {}) {
@@ -95797,6 +95812,7 @@ function runBounded(task, options2 = {}) {
       timeoutMs: options2.timeoutMs ?? BOUNDED_TIMEOUT_MS,
       maxMemoryMb: options2.maxMemoryMb ?? BOUNDED_MEMORY_MB,
       signal,
+      transfer: options2.transfer ?? [],
       resolve: resolve10
     };
     if (signal) {
@@ -95814,9 +95830,16 @@ function runBounded(task, options2 = {}) {
     pump();
   });
 }
+function movable(source2) {
+  const { bytes } = source2;
+  if (bytes.buffer instanceof ArrayBuffer && bytes.byteOffset === 0 && bytes.byteLength === bytes.buffer.byteLength) return source2;
+  return { ...source2, bytes: bytes.slice() };
+}
 async function validateBounded(schema3, value2, options2 = {}) {
-  const { draft, references, key: key6, ...limits } = options2;
-  const outcome2 = await runBounded({ kind: "validate", schema: schema3, value: value2, ...draft ? { draft } : {}, ...references ? { references } : {}, ...key6 === void 0 ? {} : { key: key6 } }, limits);
+  const { draft, references, key: key6, source: source2, ...limits } = options2;
+  const moved = source2 ? movable(source2) : void 0;
+  const task = { kind: "validate", schema: schema3, ...moved ? { source: moved } : { value: value2 }, ...draft ? { draft } : {}, ...references ? { references } : {}, ...key6 === void 0 ? {} : { key: key6 } };
+  const outcome2 = await runBounded(task, moved ? { ...limits, transfer: [...limits.transfer ?? [], moved.bytes.buffer] } : limits);
   if (outcome2.ok) return outcome2.value;
   return { valid: false, problems: [], total: 0, unchecked: `validation was not finished: ${outcome2.reason}` };
 }
@@ -95824,11 +95847,42 @@ async function matchBounded(patterns, options2 = {}) {
   if (!patterns.length) return { ok: true, value: [] };
   return runBounded({ kind: "match", patterns }, options2);
 }
-var BOUNDED_TIMEOUT_MS, BOUNDED_MEMORY_MB, CANCELLED, current, queue, busy, nextId, exitHook, starts;
+function boundedError(step4, outcome2, limits, fix) {
+  const timeout = (limits.timeoutMs ?? BOUNDED_TIMEOUT_MS) / 1e3;
+  const memory = limits.maxMemoryMb ?? BOUNDED_MEMORY_MB;
+  switch (outcome2.cause) {
+    case "refused":
+      return new ToilError(outcome2.error.code, outcome2.error.message, { ...outcome2.error.fix === void 0 ? {} : { fix: outcome2.error.fix }, ...outcome2.error.details === void 0 ? {} : { details: outcome2.error.details } });
+    case "cancelled":
+      return new ToilError("CANCELLED", `${step4} was cancelled.`);
+    case "timeout":
+      return new ToilError("TIMEOUT", `${step4} took longer than the ${timeout} s it may run, so it was stopped.`, { fix });
+    case "memory":
+      return new ToilError("INVALID_INPUT", `${step4} needed more than the ${memory} MB of memory it may use, so it was stopped.`, { fix });
+    case "stack":
+      return new ToilError("INVALID_INPUT", `${step4} nests too deep: it ran out of stack and was stopped.`, { fix });
+    case "denied":
+      return new ToilError("NOT_CONFIGURED", `${step4} needs a worker thread, and Node's permission model doesn't allow one here.`, { fix: "Run Node with --allow-worker, or without the permission model." });
+    default:
+      return new ToilError("INTERNAL", `${step4} failed: ${outcome2.reason}.`, { fix: BUG_FIX });
+  }
+}
+async function boundedStep(step4, task, options2, fix) {
+  const outcome2 = await runBounded(task, options2);
+  if (outcome2.ok) return outcome2.value;
+  throw boundedError(step4, outcome2, options2, fix);
+}
+async function grepBounded(pattern, lines, options2 = {}) {
+  if (!lines.length) return { ok: true, value: new Uint8Array(0) };
+  return runBounded({ kind: "grep", pattern, lines }, options2);
+}
+var BOUNDED_TIMEOUT_MS, BOUNDED_MEMORY_MB, CANCELLED, current, queue, busy, nextId, exitHook, starts, BUG_FIX;
 var init_bounded = __esm({
   "src/areas/util/kit/bounded.ts"() {
     "use strict";
+    init_errors();
     init_bounded_worker_generated();
+    init_stack();
     BOUNDED_TIMEOUT_MS = 2e3;
     BOUNDED_MEMORY_MB = 256;
     CANCELLED = { ok: false, cause: "cancelled", reason: "the command was cancelled, so the worker was stopped" };
@@ -95836,6 +95890,7 @@ var init_bounded = __esm({
     nextId = 1;
     exitHook = false;
     starts = 0;
+    BUG_FIX = "This is a bug in toil. Please report it at https://github.com/imagile-dev/toil/issues with the command you ran.";
   }
 });
 
@@ -95863,9 +95918,9 @@ function readTlv(bytes, offset, limit3 = bytes.length) {
 function children3(bytes, parent) {
   const out = [];
   for (let at9 = parent.content; at9 < parent.end; ) {
-    const child2 = readTlv(bytes, at9, parent.end);
-    out.push(child2);
-    at9 = child2.end;
+    const child = readTlv(bytes, at9, parent.end);
+    out.push(child);
+    at9 = child.end;
   }
   return out;
 }
@@ -96246,2535 +96301,6 @@ var init_decode = __esm({
       "2.5.29.37.0": "anyExtendedKeyUsage"
     };
     oneLine = (name3) => name3.split("\n").join(", ");
-  }
-});
-
-// node_modules/js-yaml/dist/js-yaml.mjs
-function defineScalarTag(tagName, options2) {
-  return {
-    tagName,
-    nodeKind: "scalar",
-    implicit: options2.implicit ?? false,
-    matchByTagPrefix: options2.matchByTagPrefix ?? false,
-    implicitFirstChars: options2.implicitFirstChars ?? null,
-    resolve: options2.resolve,
-    identify: options2.identify,
-    represent: options2.represent ?? ((data) => String(data)),
-    representTagName: options2.representTagName ?? (() => tagName)
-  };
-}
-function defineSequenceTag(tagName, options2) {
-  const carrierIsResult = options2.finalize === void 0;
-  return {
-    tagName,
-    nodeKind: "sequence",
-    implicit: false,
-    matchByTagPrefix: options2.matchByTagPrefix ?? false,
-    create: options2.create,
-    addItem: options2.addItem,
-    finalize: options2.finalize ?? ((carrier) => carrier),
-    carrierIsResult,
-    identify: options2.identify,
-    represent: options2.represent ?? ((data) => data),
-    representTagName: options2.representTagName ?? (() => tagName)
-  };
-}
-function defineMappingTag(tagName, options2) {
-  const carrierIsResult = options2.finalize === void 0;
-  return {
-    tagName,
-    nodeKind: "mapping",
-    implicit: false,
-    matchByTagPrefix: options2.matchByTagPrefix ?? false,
-    create: options2.create,
-    addPair: options2.addPair,
-    has: options2.has,
-    keys: options2.keys,
-    get: options2.get,
-    finalize: options2.finalize ?? ((carrier) => carrier),
-    carrierIsResult,
-    identify: options2.identify,
-    represent: options2.represent ?? ((data) => data),
-    representTagName: options2.representTagName ?? (() => tagName)
-  };
-}
-function parseYamlInteger$2(source2) {
-  let value2 = source2;
-  let sign2 = 1;
-  if (value2[0] === "-" || value2[0] === "+") {
-    if (value2[0] === "-") sign2 = -1;
-    value2 = value2.slice(1);
-  }
-  if (value2.startsWith("0b")) return sign2 * parseInt(value2.slice(2), 2);
-  if (value2.startsWith("0o")) return sign2 * parseInt(value2.slice(2), 8);
-  if (value2.startsWith("0x")) return sign2 * parseInt(value2.slice(2), 16);
-  return sign2 * parseInt(value2, 10);
-}
-function resolveYamlInteger$2(source2, isExplicit) {
-  if (isExplicit) {
-    if (!YAML_INTEGER_EXPLICIT_PATTERN$1.test(source2)) return NOT_RESOLVED;
-  } else if (!YAML_INTEGER_IMPLICIT_PATTERN$1.test(source2)) return NOT_RESOLVED;
-  const result = parseYamlInteger$2(source2);
-  return Number.isFinite(result) ? result : NOT_RESOLVED;
-}
-function parseYamlInteger$1(source2) {
-  let value2 = source2;
-  let sign2 = 1;
-  if (value2[0] === "-" || value2[0] === "+") {
-    if (value2[0] === "-") sign2 = -1;
-    value2 = value2.slice(1);
-  }
-  if (value2.startsWith("0b")) return sign2 * parseInt(value2.slice(2), 2);
-  if (value2.startsWith("0o")) return sign2 * parseInt(value2.slice(2), 8);
-  if (value2.startsWith("0x")) return sign2 * parseInt(value2.slice(2), 16);
-  return sign2 * parseInt(value2, 10);
-}
-function resolveYamlInteger$1(source2, isExplicit) {
-  if (isExplicit) {
-    if (!YAML_INTEGER_EXPLICIT_PATTERN.test(source2)) return NOT_RESOLVED;
-  } else if (!YAML_INTEGER_IMPLICIT_PATTERN.test(source2)) return NOT_RESOLVED;
-  const result = parseYamlInteger$1(source2);
-  return Number.isFinite(result) ? result : NOT_RESOLVED;
-}
-function parseYamlInteger(source2) {
-  let value2 = source2.replace(/_/g, "");
-  let sign2 = 1;
-  if (value2[0] === "-" || value2[0] === "+") {
-    if (value2[0] === "-") sign2 = -1;
-    value2 = value2.slice(1);
-  }
-  if (value2.startsWith("0b")) return sign2 * parseInt(value2.slice(2), 2);
-  if (value2.startsWith("0x")) return sign2 * parseInt(value2.slice(2), 16);
-  if (value2.includes(":")) {
-    let result = 0;
-    for (const part of value2.split(":")) result = result * 60 + Number(part);
-    return sign2 * result;
-  }
-  if (value2 !== "0" && value2[0] === "0") return sign2 * parseInt(value2, 8);
-  return sign2 * parseInt(value2, 10);
-}
-function resolveYamlInteger(source2) {
-  if (!YAML_INTEGER_PATTERN.test(source2)) return NOT_RESOLVED;
-  const result = parseYamlInteger(source2);
-  return Number.isFinite(result) ? result : NOT_RESOLVED;
-}
-function resolveYamlFloat$2(source2) {
-  if (!YAML_FLOAT_PATTERN$1.test(source2)) return NOT_RESOLVED;
-  let value2 = source2.toLowerCase();
-  const sign2 = value2[0] === "-" ? -1 : 1;
-  if ("+-".includes(value2[0])) value2 = value2.slice(1);
-  if (value2 === ".inf") return sign2 === 1 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
-  if (value2 === ".nan") return NaN;
-  const result = sign2 * parseFloat(value2);
-  if (Number.isFinite(result) || YAML_FLOAT_SPECIAL_PATTERN$1.test(source2)) return result;
-  return NOT_RESOLVED;
-}
-function representYamlFloat$2(object3) {
-  if (isNaN(object3)) return ".nan";
-  if (object3 === Number.POSITIVE_INFINITY) return ".inf";
-  if (object3 === Number.NEGATIVE_INFINITY) return "-.inf";
-  if (Object.is(object3, -0)) return "-0.0";
-  const result = object3.toString(10);
-  return /^[-+]?[0-9]+e/.test(result) ? result.replace("e", ".e") : result;
-}
-function resolveYamlFloat$1(source2, isExplicit) {
-  if (isExplicit) {
-    if (!YAML_FLOAT_EXPLICIT_PATTERN.test(source2)) return NOT_RESOLVED;
-    let value2 = source2.toLowerCase();
-    const sign2 = value2[0] === "-" ? -1 : 1;
-    if ("+-".includes(value2[0])) value2 = value2.slice(1);
-    if (value2 === ".inf") return sign2 === 1 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
-    if (value2 === ".nan") return NaN;
-    const result2 = sign2 * parseFloat(value2);
-    return Number.isFinite(result2) ? result2 : NOT_RESOLVED;
-  }
-  if (!YAML_FLOAT_IMPLICIT_PATTERN.test(source2)) return NOT_RESOLVED;
-  const result = Number(source2);
-  if (Number.isFinite(result)) return result;
-  return NOT_RESOLVED;
-}
-function representYamlFloat$1(object3) {
-  if (isNaN(object3)) return ".nan";
-  if (object3 === Number.POSITIVE_INFINITY) return ".inf";
-  if (object3 === Number.NEGATIVE_INFINITY) return "-.inf";
-  if (Object.is(object3, -0)) return "-0.0";
-  const result = object3.toString(10);
-  return /^[-+]?[0-9]+e/.test(result) ? result.replace("e", ".e") : result;
-}
-function resolveYamlFloat(source2) {
-  if (!YAML_FLOAT_PATTERN.test(source2)) return NOT_RESOLVED;
-  let value2 = source2.toLowerCase().replace(/_/g, "");
-  const sign2 = value2[0] === "-" ? -1 : 1;
-  if ("+-".includes(value2[0])) value2 = value2.slice(1);
-  if (value2 === ".inf") return sign2 === 1 ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
-  if (value2 === ".nan") return NaN;
-  let result = 0;
-  if (value2.includes(":")) {
-    for (const part of value2.split(":")) result = result * 60 + Number(part);
-    result *= sign2;
-  } else result = sign2 * parseFloat(value2);
-  if (Number.isFinite(result) || YAML_FLOAT_SPECIAL_PATTERN.test(source2)) return result;
-  return NOT_RESOLVED;
-}
-function representYamlFloat(object3) {
-  if (isNaN(object3)) return ".nan";
-  if (object3 === Number.POSITIVE_INFINITY) return ".inf";
-  if (object3 === Number.NEGATIVE_INFINITY) return "-.inf";
-  if (Object.is(object3, -0)) return "-0.0";
-  const result = object3.toString(10);
-  return /^[-+]?[0-9]+e/.test(result) ? result.replace("e", ".e") : result;
-}
-function resolveYamlBinary(source2) {
-  const input3 = source2.replace(/\s/g, "");
-  if (input3.length % 4 !== 0 || !BASE64_PATTERN.test(input3)) return NOT_RESOLVED;
-  const binary = atob(input3);
-  const result = new Uint8Array(binary.length);
-  for (let index2 = 0; index2 < binary.length; index2++) result[index2] = binary.charCodeAt(index2);
-  return result;
-}
-function representYamlBinary(object3) {
-  let binary = "";
-  for (let index2 = 0; index2 < object3.length; index2++) binary += String.fromCharCode(object3[index2]);
-  return btoa(binary);
-}
-function makeUtcDate(year, month, day2, hour = 0, minute = 0, second = 0, fraction = 0) {
-  const date6 = new Date(Date.UTC(year, month, day2, hour, minute, second, fraction));
-  date6.setUTCFullYear(year, month, day2);
-  return date6;
-}
-function resolveYamlTimestamp(source2) {
-  let match = YAML_DATE_REGEXP.exec(source2);
-  if (match === null) match = YAML_TIMESTAMP_REGEXP.exec(source2);
-  if (match === null) return NOT_RESOLVED;
-  const year = +match[1];
-  const month = +match[2] - 1;
-  const day2 = +match[3];
-  if (!match[4]) {
-    const date7 = makeUtcDate(year, month, day2);
-    if (date7.getUTCFullYear() !== year || date7.getUTCMonth() !== month || date7.getUTCDate() !== day2) return NOT_RESOLVED;
-    return date7;
-  }
-  const hour = +match[4];
-  const minute = +match[5];
-  const second = +match[6];
-  let fraction = 0;
-  if (hour > 23 || minute > 59 || second > 59) return NOT_RESOLVED;
-  if (match[7]) {
-    let value2 = match[7].slice(0, 3);
-    while (value2.length < 3) value2 += "0";
-    fraction = +value2;
-  }
-  const date6 = makeUtcDate(year, month, day2, hour, minute, second, fraction);
-  if (date6.getUTCFullYear() !== year || date6.getUTCMonth() !== month || date6.getUTCDate() !== day2) return NOT_RESOLVED;
-  if (match[9]) {
-    const offsetHour = +match[10];
-    const offsetMinute = +(match[11] || 0);
-    if (offsetHour > 23 || offsetMinute > 59) return NOT_RESOLVED;
-    const offset = (offsetHour * 60 + offsetMinute) * 6e4;
-    date6.setTime(date6.getTime() - (match[9] === "-" ? -offset : offset));
-  }
-  return date6;
-}
-function isPlainObject3(data) {
-  if (data === null || typeof data !== "object" || Array.isArray(data)) return false;
-  const prototype = Object.getPrototypeOf(data);
-  return prototype === null || prototype === Object.prototype;
-}
-function pick2(object3, keys2) {
-  const result = {};
-  for (const key6 of keys2) if (object3[key6] !== void 0) result[key6] = object3[key6];
-  return result;
-}
-function createTagDefinitionMap() {
-  return {
-    scalar: /* @__PURE__ */ Object.create(null),
-    sequence: /* @__PURE__ */ Object.create(null),
-    mapping: /* @__PURE__ */ Object.create(null)
-  };
-}
-function createTagDefinitionListMap() {
-  return {
-    scalar: [],
-    sequence: [],
-    mapping: []
-  };
-}
-function compileTags(tags) {
-  const result = [];
-  for (const tag2 of tags) {
-    let index2 = result.length;
-    for (let previousIndex = 0; previousIndex < result.length; previousIndex++) {
-      const previous = result[previousIndex];
-      if (previous.nodeKind === tag2.nodeKind && previous.tagName === tag2.tagName && previous.matchByTagPrefix === tag2.matchByTagPrefix) {
-        index2 = previousIndex;
-        break;
-      }
-    }
-    result[index2] = tag2;
-  }
-  return result;
-}
-function normalizeKey(key6) {
-  if (Array.isArray(key6)) {
-    const array2 = Array.prototype.slice.call(key6);
-    for (let index2 = 0; index2 < array2.length; index2++) {
-      if (Array.isArray(array2[index2])) return null;
-      if (typeof array2[index2] === "object" && Object.prototype.toString.call(array2[index2]) === "[object Object]") array2[index2] = "[object Object]";
-    }
-    return String(array2);
-  }
-  if (typeof key6 === "object" && Object.prototype.toString.call(key6) === "[object Object]") return "[object Object]";
-  return String(key6);
-}
-function getLine(buffer, lineStart, lineEnd, position, maxLineLength) {
-  let head2 = "";
-  let tail = "";
-  const maxHalfLength = Math.floor(maxLineLength / 2) - 1;
-  if (position - lineStart > maxHalfLength) {
-    head2 = " ... ";
-    lineStart = position - maxHalfLength + head2.length;
-  }
-  if (lineEnd - position > maxHalfLength) {
-    tail = " ...";
-    lineEnd = position + maxHalfLength - tail.length;
-  }
-  return {
-    str: head2 + buffer.slice(lineStart, lineEnd).replace(/\t/g, "\u2192") + tail,
-    pos: position - lineStart + head2.length
-  };
-}
-function padStart(string4, max) {
-  return " ".repeat(Math.max(max - string4.length, 0)) + string4;
-}
-function makeSnippet(mark, options2) {
-  if (!mark.buffer) return null;
-  const opts = {
-    ...DEFAULT_SNIPPET_OPTIONS,
-    ...options2
-  };
-  const re = /\r?\n|\r|\0/g;
-  const lineStarts = [0];
-  const lineEnds = [];
-  let match;
-  let foundLineNo = -1;
-  while (match = re.exec(mark.buffer)) {
-    lineEnds.push(match.index);
-    lineStarts.push(match.index + match[0].length);
-    if (mark.position <= match.index && foundLineNo < 0) foundLineNo = lineStarts.length - 2;
-  }
-  if (foundLineNo < 0) foundLineNo = lineStarts.length - 1;
-  let result = "";
-  const lineNoLength = Math.min(mark.line + opts.linesAfter, lineEnds.length).toString().length;
-  const maxLineLength = opts.maxLength - (opts.indent + lineNoLength + 3);
-  for (let i = 1; i <= opts.linesBefore; i++) {
-    if (foundLineNo - i < 0) break;
-    const line2 = getLine(mark.buffer, lineStarts[foundLineNo - i], lineEnds[foundLineNo - i], mark.position - (lineStarts[foundLineNo] - lineStarts[foundLineNo - i]), maxLineLength);
-    result = `${" ".repeat(opts.indent)}${padStart((mark.line - i + 1).toString(), lineNoLength)} | ${line2.str}
-${result}`;
-  }
-  const line = getLine(mark.buffer, lineStarts[foundLineNo], lineEnds[foundLineNo], mark.position, maxLineLength);
-  result += `${" ".repeat(opts.indent)}${padStart((mark.line + 1).toString(), lineNoLength)} | ${line.str}
-`;
-  result += `${"-".repeat(opts.indent + lineNoLength + 3 + line.pos)}^
-`;
-  for (let i = 1; i <= opts.linesAfter; i++) {
-    if (foundLineNo + i >= lineEnds.length) break;
-    const line2 = getLine(mark.buffer, lineStarts[foundLineNo + i], lineEnds[foundLineNo + i], mark.position - (lineStarts[foundLineNo] - lineStarts[foundLineNo + i]), maxLineLength);
-    result += `${" ".repeat(opts.indent)}${padStart((mark.line + i + 1).toString(), lineNoLength)} | ${line2.str}
-`;
-  }
-  return result.replace(/\n$/, "");
-}
-function formatError2(exception, compact) {
-  let where6 = "";
-  if (!exception.mark) return exception.reason;
-  if (exception.mark.name) where6 += `in "${exception.mark.name}" `;
-  where6 += `(${exception.mark.line + 1}:${exception.mark.column + 1})`;
-  if (!compact && exception.mark.snippet) where6 += `
-
-${exception.mark.snippet}`;
-  return `${exception.reason} ${where6}`;
-}
-function simpleEscapeSequence(c) {
-  switch (c) {
-    case 48:
-      return "\0";
-    case 97:
-      return "\x07";
-    case 98:
-      return "\b";
-    case 116:
-      return "	";
-    case 9:
-      return "	";
-    case 110:
-      return "\n";
-    case 118:
-      return "\v";
-    case 102:
-      return "\f";
-    case 114:
-      return "\r";
-    case 101:
-      return "\x1B";
-    case 32:
-      return " ";
-    case 34:
-      return '"';
-    case 47:
-      return "/";
-    case 92:
-      return "\\";
-    case 78:
-      return "\x85";
-    case 95:
-      return "\xA0";
-    case 76:
-      return "\u2028";
-    case 80:
-      return "\u2029";
-    default:
-      return "";
-  }
-}
-function charFromCodepoint(c) {
-  if (c <= 65535) return String.fromCharCode(c);
-  return String.fromCharCode((c - 65536 >> 10) + 55296, (c - 65536 & 1023) + 56320);
-}
-function fromHexCode$1(c) {
-  if (c >= 48 && c <= 57) return c - 48;
-  return (c | 32) - 97 + 10;
-}
-function escapedHexLen$1(c) {
-  if (c === 120) return 2;
-  if (c === 117) return 4;
-  return 8;
-}
-function skipFoldedBreaks(input3, position, end2) {
-  let breaks = 0;
-  while (position < end2) {
-    const ch = input3.charCodeAt(position);
-    if (ch === 10) {
-      breaks++;
-      position++;
-    } else if (ch === 13) {
-      breaks++;
-      position++;
-      if (input3.charCodeAt(position) === 10) position++;
-    } else if (ch === 32 || ch === 9) position++;
-    else break;
-  }
-  return {
-    position,
-    breaks
-  };
-}
-function foldedBreaks(count4) {
-  if (count4 === 1) return " ";
-  return "\n".repeat(count4 - 1);
-}
-function getPlainValue(input3, start2, end2) {
-  let result = "";
-  let position = start2;
-  let captureStart = start2;
-  let captureEnd = start2;
-  while (position < end2) {
-    const ch = input3.charCodeAt(position);
-    if (ch === 10 || ch === 13) {
-      result += input3.slice(captureStart, captureEnd);
-      const fold = skipFoldedBreaks(input3, position, end2);
-      result += foldedBreaks(fold.breaks);
-      position = captureStart = captureEnd = fold.position;
-    } else {
-      position++;
-      if (ch !== 32 && ch !== 9) captureEnd = position;
-    }
-  }
-  return result + input3.slice(captureStart, captureEnd);
-}
-function getSingleQuotedValue(input3, start2, end2) {
-  let result = "";
-  let position = start2;
-  let captureStart = start2;
-  let captureEnd = start2;
-  while (position < end2) {
-    const ch = input3.charCodeAt(position);
-    if (ch === 39) {
-      result += input3.slice(captureStart, position) + "'";
-      position += 2;
-      captureStart = captureEnd = position;
-    } else if (ch === 10 || ch === 13) {
-      result += input3.slice(captureStart, captureEnd);
-      const fold = skipFoldedBreaks(input3, position, end2);
-      result += foldedBreaks(fold.breaks);
-      position = captureStart = captureEnd = fold.position;
-    } else {
-      position++;
-      if (ch !== 32 && ch !== 9) captureEnd = position;
-    }
-  }
-  return result + input3.slice(captureStart, end2);
-}
-function getDoubleQuotedValue(input3, start2, end2) {
-  let result = "";
-  let position = start2;
-  let captureStart = start2;
-  let captureEnd = start2;
-  while (position < end2) {
-    const ch = input3.charCodeAt(position);
-    if (ch === 92) {
-      result += input3.slice(captureStart, position);
-      position++;
-      const escaped = input3.charCodeAt(position);
-      if (escaped === 10 || escaped === 13) position = skipFoldedBreaks(input3, position, end2).position;
-      else if (escaped < 256 && simpleEscapeCheck[escaped]) {
-        result += simpleEscapeMap[escaped];
-        position++;
-      } else {
-        let hexLength = escapedHexLen$1(escaped);
-        let hexResult = 0;
-        for (; hexLength > 0; hexLength--) {
-          position++;
-          const digit = fromHexCode$1(input3.charCodeAt(position));
-          hexResult = (hexResult << 4) + digit;
-        }
-        result += charFromCodepoint(hexResult);
-        position++;
-      }
-      captureStart = captureEnd = position;
-    } else if (ch === 10 || ch === 13) {
-      result += input3.slice(captureStart, captureEnd);
-      const fold = skipFoldedBreaks(input3, position, end2);
-      result += foldedBreaks(fold.breaks);
-      position = captureStart = captureEnd = fold.position;
-    } else {
-      position++;
-      if (ch !== 32 && ch !== 9) captureEnd = position;
-    }
-  }
-  return result + input3.slice(captureStart, end2);
-}
-function getBlockValue(input3, start2, end2, indent2, chomping, folded) {
-  const textIndent = indent2 < 0 ? 0 : indent2;
-  const region = input3.slice(start2, end2).replace(/\r\n?/g, "\n");
-  const lines = region === "" ? [] : (region.endsWith("\n") ? region.slice(0, -1) : region).split("\n");
-  let result = "";
-  let didReadContent = false;
-  let emptyLines = 0;
-  let atMoreIndented = false;
-  for (const line of lines) {
-    let column = 0;
-    while (column < textIndent && line.charCodeAt(column) === 32) column++;
-    if (indent2 < 0 || column >= line.length) {
-      emptyLines++;
-      continue;
-    }
-    const content = line.slice(textIndent);
-    const first = content.charCodeAt(0);
-    if (folded) if (first === 32 || first === 9) {
-      atMoreIndented = true;
-      result += "\n".repeat(didReadContent ? 1 + emptyLines : emptyLines);
-    } else if (atMoreIndented) {
-      atMoreIndented = false;
-      result += "\n".repeat(emptyLines + 1);
-    } else if (emptyLines === 0) {
-      if (didReadContent) result += " ";
-    } else result += "\n".repeat(emptyLines);
-    else result += "\n".repeat(didReadContent ? 1 + emptyLines : emptyLines);
-    result += content;
-    didReadContent = true;
-    emptyLines = 0;
-  }
-  if (chomping === CHOMPING_MODE.KEEP) result += "\n".repeat(didReadContent ? 1 + emptyLines : emptyLines);
-  else if (chomping !== CHOMPING_MODE.STRIP) {
-    if (didReadContent) result += "\n";
-  }
-  return result;
-}
-function getScalarValue(input3, scalar) {
-  if (scalar.valueStart === NO_RANGE$3) return "";
-  const { valueStart, valueEnd } = scalar;
-  if (scalar.fast) return input3.slice(valueStart, valueEnd);
-  switch (scalar.style) {
-    case SCALAR_STYLE.SINGLE_QUOTED:
-      return getSingleQuotedValue(input3, valueStart, valueEnd);
-    case SCALAR_STYLE.DOUBLE_QUOTED:
-      return getDoubleQuotedValue(input3, valueStart, valueEnd);
-    case SCALAR_STYLE.LITERAL_BLOCK:
-      return getBlockValue(input3, valueStart, valueEnd, scalar.indent, scalar.chomping, false);
-    case SCALAR_STYLE.FOLDED_BLOCK:
-      return getBlockValue(input3, valueStart, valueEnd, scalar.indent, scalar.chomping, true);
-    default:
-      return getPlainValue(input3, valueStart, valueEnd);
-  }
-}
-function tagNameFull(rawTag, tagHandlers) {
-  if (rawTag.startsWith("!<") && rawTag.endsWith(">")) return decodeURIComponent(rawTag.slice(2, -1));
-  const handleEnd = rawTag.indexOf("!", 1);
-  const handle = handleEnd === -1 ? "!" : rawTag.slice(0, handleEnd + 1);
-  const prefix = tagHandlers?.[handle] ?? DEFAULT_TAG_HANDLERS[handle] ?? handle;
-  return decodeURIComponent(prefix) + decodeURIComponent(rawTag.slice(handle.length));
-}
-function eventPosition$1(event) {
-  if ("tagStart" in event && event.tagStart !== NO_RANGE$2) return event.tagStart;
-  if ("anchorStart" in event && event.anchorStart !== NO_RANGE$2) return event.anchorStart;
-  if ("valueStart" in event && event.valueStart !== NO_RANGE$2) return event.valueStart;
-  if ("start" in event) return event.start;
-  return 0;
-}
-function throwError$1(state, message) {
-  YAMLException.throwAt(state.source, state.position, message, state.filename);
-}
-function finalizeCollection(state, position, tag2, carrier) {
-  try {
-    return tag2.finalize(carrier);
-  } catch (error62) {
-    if (error62 instanceof YAMLException) throw error62;
-    YAMLException.throwAt(state.source, position, error62 instanceof Error ? error62.message : String(error62), state.filename);
-  }
-}
-function constructScalar(state, event) {
-  const source2 = getScalarValue(state.source, event);
-  const rawTag = event.tagStart === NO_RANGE$2 ? "" : state.source.slice(event.tagStart, event.tagEnd);
-  const strTag2 = state.schema.defaultScalarTag;
-  if (rawTag !== "") {
-    if (rawTag === "!") return {
-      value: source2,
-      tag: strTag2
-    };
-    const tagName = tagNameFull(rawTag, state.tagHandlers);
-    const scalarTag = state.schema.lookupScalarTag(tagName);
-    if (scalarTag) {
-      const result = scalarTag.resolve(source2, true, tagName);
-      if (result === NOT_RESOLVED) throwError$1(state, `cannot resolve a node with !<${tagName}> explicit tag`);
-      return {
-        value: result,
-        tag: scalarTag
-      };
-    }
-    const collectionTagDef = state.schema.lookupMappingTag(tagName) ?? state.schema.lookupSequenceTag(tagName);
-    if (collectionTagDef) {
-      if (source2 !== "") throwError$1(state, `cannot resolve a node with !<${tagName}> explicit tag`);
-      const carrier = collectionTagDef.create(tagName);
-      return {
-        value: collectionTagDef.carrierIsResult ? carrier : finalizeCollection(state, state.position, collectionTagDef, carrier),
-        tag: collectionTagDef
-      };
-    }
-    throwError$1(state, `unknown scalar tag !<${tagName}>`);
-  }
-  if (event.style === SCALAR_STYLE.PLAIN) return state.schema.resolveImplicitScalarTag(source2);
-  return {
-    value: strTag2.resolve(source2, false, strTag2.tagName),
-    tag: strTag2
-  };
-}
-function collectionTagName(state, event, defaultTagName) {
-  const rawTag = event.tagStart === NO_RANGE$2 ? "" : state.source.slice(event.tagStart, event.tagEnd);
-  return rawTag === "" || rawTag === "!" ? defaultTagName : tagNameFull(rawTag, state.tagHandlers);
-}
-function isMappingTag(tag2) {
-  return tag2.nodeKind === "mapping";
-}
-function chargeMergeWork(state) {
-  state.totalMergeKeys++;
-  if (state.maxTotalMergeKeys !== -1 && state.totalMergeKeys > state.maxTotalMergeKeys) throwError$1(state, `merge keys exceeded maxTotalMergeKeys (${state.maxTotalMergeKeys})`);
-}
-function mergeKeys(state, frame3, source2, sourceTag) {
-  chargeMergeWork(state);
-  for (const sourceKey of sourceTag.keys(source2)) {
-    chargeMergeWork(state);
-    if (frame3.tag.has(frame3.value, sourceKey)) continue;
-    const err = frame3.tag.addPair(frame3.value, sourceKey, sourceTag.get(source2, sourceKey));
-    if (err) throwError$1(state, err);
-    frame3.overridable ??= /* @__PURE__ */ new Set();
-    frame3.overridable.add(sourceKey);
-  }
-}
-function mergeSource(state, frame3, source2, sourceTag) {
-  state.position = frame3.keyPosition;
-  if (isMappingTag(sourceTag)) mergeKeys(state, frame3, source2, sourceTag);
-  else if (sourceTag.nodeKind === "sequence" && Array.isArray(source2)) {
-    if (source2.length > 100) throwError$1(state, "abnormal merge sequence size");
-    for (const element of source2) {
-      const elementTag = state.nodeTags.get(element);
-      if (!elementTag) throwError$1(state, "cannot merge mappings; the provided source object is unacceptable");
-      mergeKeys(state, frame3, element, elementTag);
-    }
-  } else throwError$1(state, "cannot merge mappings; the provided source object is unacceptable");
-}
-function addMappingValue(state, frame3, key6, value2, tag2) {
-  state.position = frame3.keyPosition;
-  if (frame3.keyIsMerge) {
-    mergeSource(state, frame3, value2, tag2);
-    return;
-  }
-  if (!state.json && frame3.tag.has(frame3.value, key6) && !frame3.overridable?.has(key6)) throwError$1(state, "duplicated mapping key");
-  const err = frame3.tag.addPair(frame3.value, key6, value2);
-  if (err) throwError$1(state, err);
-  frame3.overridable?.delete(key6);
-}
-function addValue(state, value2, tag2) {
-  const frame3 = state.frames[state.frames.length - 1];
-  if (frame3.kind === "document") {
-    frame3.value = value2;
-    frame3.hasValue = true;
-  } else if (frame3.kind === "sequence") {
-    if (isMappingTag(tag2)) state.nodeTags.set(value2, tag2);
-    const err = frame3.tag.addItem(frame3.value, value2, frame3.index++);
-    if (err) throwError$1(state, err);
-  } else if (frame3.hasKey) {
-    const key6 = frame3.key;
-    frame3.key = void 0;
-    frame3.hasKey = false;
-    addMappingValue(state, frame3, key6, value2, tag2);
-  } else {
-    frame3.key = value2;
-    frame3.keyPosition = state.position;
-    frame3.hasKey = true;
-    frame3.keyIsMerge = tag2.tagName === MERGE_TAG_NAME;
-  }
-}
-function storeAnchor(state, event, value2, tag2, isValueFinal) {
-  if (event.anchorStart !== NO_RANGE$2) {
-    const anchor2 = {
-      value: value2,
-      tag: tag2,
-      isValueFinal
-    };
-    state.anchors.set(state.source.slice(event.anchorStart, event.anchorEnd), anchor2);
-    return anchor2;
-  }
-  return null;
-}
-function constructFromEvents(events, options2) {
-  const state = {
-    ...DEFAULT_CONSTRUCTOR_OPTIONS,
-    ...options2,
-    events,
-    documents: [],
-    eventIndex: 0,
-    position: 0,
-    frames: [],
-    anchors: /* @__PURE__ */ new Map(),
-    nodeTags: /* @__PURE__ */ new Map(),
-    tagHandlers: /* @__PURE__ */ Object.create(null),
-    totalMergeKeys: 0,
-    aliasCount: 0
-  };
-  while (state.eventIndex < state.events.length) {
-    const event = state.events[state.eventIndex++];
-    state.position = eventPosition$1(event);
-    switch (event.type) {
-      case EVENT_ID.DOCUMENT:
-        state.anchors = /* @__PURE__ */ new Map();
-        state.nodeTags = /* @__PURE__ */ new Map();
-        state.aliasCount = 0;
-        state.tagHandlers = /* @__PURE__ */ Object.create(null);
-        for (const directive of event.directives) if (directive.kind === "tag") state.tagHandlers[directive.handle] = directive.prefix;
-        state.frames.push({
-          kind: "document",
-          position: state.position,
-          value: void 0,
-          hasValue: false
-        });
-        break;
-      case EVENT_ID.SCALAR: {
-        const { value: value2, tag: tag2 } = constructScalar(state, event);
-        storeAnchor(state, event, value2, tag2, true);
-        addValue(state, value2, tag2);
-        break;
-      }
-      case EVENT_ID.SEQUENCE: {
-        const tagName = collectionTagName(state, event, "tag:yaml.org,2002:seq");
-        const tag2 = state.schema.lookupSequenceTag(tagName);
-        if (!tag2) throwError$1(state, `unknown sequence tag !<${tagName}>`);
-        const value2 = tag2.create(tagName);
-        const anchor2 = storeAnchor(state, event, value2, tag2, tag2.carrierIsResult);
-        state.frames.push({
-          kind: "sequence",
-          position: state.position,
-          value: value2,
-          tag: tag2,
-          anchor: anchor2,
-          index: 0
-        });
-        break;
-      }
-      case EVENT_ID.MAPPING: {
-        const tagName = collectionTagName(state, event, "tag:yaml.org,2002:map");
-        const tag2 = state.schema.lookupMappingTag(tagName);
-        if (!tag2) throwError$1(state, `unknown mapping tag !<${tagName}>`);
-        const value2 = tag2.create(tagName);
-        const anchor2 = storeAnchor(state, event, value2, tag2, tag2.carrierIsResult);
-        state.frames.push({
-          kind: "mapping",
-          position: state.position,
-          value: value2,
-          tag: tag2,
-          anchor: anchor2,
-          key: void 0,
-          keyPosition: state.position,
-          hasKey: false,
-          keyIsMerge: false,
-          overridable: null
-        });
-        break;
-      }
-      case EVENT_ID.ALIAS: {
-        if (state.maxAliases !== -1 && ++state.aliasCount > state.maxAliases) throwError$1(state, `aliases exceeded maxAliases (${state.maxAliases})`);
-        const name3 = state.source.slice(event.anchorStart, event.anchorEnd);
-        const anchor2 = state.anchors.get(name3);
-        if (!anchor2) throwError$1(state, `unidentified alias "${name3}"`);
-        if (!anchor2.isValueFinal) throwError$1(state, `recursive alias "${name3}" is not supported for tag ${anchor2.tag.tagName} because it uses finalize()`);
-        addValue(state, anchor2.value, anchor2.tag);
-        break;
-      }
-      case EVENT_ID.POP: {
-        const frame3 = state.frames.pop();
-        if (frame3.kind === "mapping" && frame3.hasKey) {
-          state.position = frame3.keyPosition;
-          throwError$1(state, "incomplete mapping pair in event stream");
-        }
-        if (frame3.kind === "document") state.documents.push(frame3.value);
-        else {
-          const value2 = frame3.tag.carrierIsResult ? frame3.value : finalizeCollection(state, frame3.position, frame3.tag, frame3.value);
-          if (frame3.anchor) {
-            frame3.anchor.value = value2;
-            frame3.anchor.isValueFinal = true;
-          }
-          addValue(state, value2, frame3.tag);
-        }
-        break;
-      }
-    }
-  }
-  return state.documents;
-}
-function addDocumentEvent(state, explicitStart, explicitEnd) {
-  state.events.push({
-    type: EVENT_ID.DOCUMENT,
-    explicitStart,
-    explicitEnd,
-    directives: state.directives
-  });
-}
-function addSequenceEvent(state, start2, anchorStart, anchorEnd, tagStart, tagEnd2, style2) {
-  state.events.push({
-    type: EVENT_ID.SEQUENCE,
-    start: start2,
-    anchorStart,
-    anchorEnd,
-    tagStart,
-    tagEnd: tagEnd2,
-    style: style2
-  });
-}
-function addMappingEvent(state, start2, anchorStart, anchorEnd, tagStart, tagEnd2, style2) {
-  state.events.push({
-    type: EVENT_ID.MAPPING,
-    start: start2,
-    anchorStart,
-    anchorEnd,
-    tagStart,
-    tagEnd: tagEnd2,
-    style: style2
-  });
-}
-function insertFlowPairMappingEvent(state, snapshot) {
-  state.events.splice(snapshot.eventsLength, 0, {
-    type: EVENT_ID.MAPPING,
-    start: snapshot.position,
-    anchorStart: NO_RANGE$1,
-    anchorEnd: NO_RANGE$1,
-    tagStart: NO_RANGE$1,
-    tagEnd: NO_RANGE$1,
-    style: COLLECTION_STYLE.FLOW
-  });
-}
-function addScalarEvent(state, valueStart, valueEnd, anchorStart, anchorEnd, tagStart, tagEnd2, style2, chomping = CHOMPING_MODE.CLIP, indent2 = -1, fast = false) {
-  state.events.push({
-    type: EVENT_ID.SCALAR,
-    valueStart,
-    valueEnd,
-    anchorStart,
-    anchorEnd,
-    tagStart,
-    tagEnd: tagEnd2,
-    style: style2,
-    chomping,
-    indent: indent2,
-    fast
-  });
-}
-function addAliasEvent(state, anchorStart, anchorEnd) {
-  state.events.push({
-    type: EVENT_ID.ALIAS,
-    anchorStart,
-    anchorEnd
-  });
-}
-function addPopEvent(state) {
-  state.events.push({ type: EVENT_ID.POP });
-}
-function addEmptyScalarEvent(state) {
-  addScalarEvent(state, NO_RANGE$1, NO_RANGE$1, NO_RANGE$1, NO_RANGE$1, NO_RANGE$1, NO_RANGE$1, SCALAR_STYLE.PLAIN);
-}
-function emptyProperties() {
-  return {
-    anchorStart: NO_RANGE$1,
-    anchorEnd: NO_RANGE$1,
-    tagStart: NO_RANGE$1,
-    tagEnd: NO_RANGE$1
-  };
-}
-function snapshotState(state) {
-  return {
-    position: state.position,
-    line: state.line,
-    lineStart: state.lineStart,
-    lineIndent: state.lineIndent,
-    firstTabInLine: state.firstTabInLine,
-    eventsLength: state.events.length
-  };
-}
-function restoreState(state, snapshot) {
-  state.position = snapshot.position;
-  state.line = snapshot.line;
-  state.lineStart = snapshot.lineStart;
-  state.lineIndent = snapshot.lineIndent;
-  state.firstTabInLine = snapshot.firstTabInLine;
-  state.events.length = snapshot.eventsLength;
-}
-function throwError(state, message) {
-  YAMLException.throwAt(state.input.slice(0, state.length), state.position, message, state.filename);
-}
-function isEol(c) {
-  return c === 10 || c === 13;
-}
-function isWhiteSpace(c) {
-  return c === 9 || c === 32;
-}
-function isWsOrEol(c) {
-  return isWhiteSpace(c) || isEol(c);
-}
-function isWsOrEolOrEnd(c) {
-  return c === 0 || isWsOrEol(c);
-}
-function isFlowIndicator(c) {
-  return c === 44 || c === 91 || c === 93 || c === 123 || c === 125;
-}
-function fromDecimalCode(c) {
-  return c >= 48 && c <= 57 ? c - 48 : -1;
-}
-function fromHexCode(c) {
-  if (c >= 48 && c <= 57) return c - 48;
-  const lc = c | 32;
-  if (lc >= 97 && lc <= 102) return lc - 97 + 10;
-  return -1;
-}
-function escapedHexLen(c) {
-  if (c === 120) return 2;
-  if (c === 117) return 4;
-  if (c === 85) return 8;
-  return 0;
-}
-function isSimpleEscape(c) {
-  return c === 48 || c === 97 || c === 98 || c === 116 || c === 9 || c === 110 || c === 118 || c === 102 || c === 114 || c === 101 || c === 32 || c === 34 || c === 47 || c === 92 || c === 78 || c === 95 || c === 76 || c === 80;
-}
-function consumeLineBreak(state) {
-  if (state.input.charCodeAt(state.position) === 10) state.position++;
-  else {
-    state.position++;
-    if (state.input.charCodeAt(state.position) === 10) state.position++;
-  }
-  state.line++;
-  state.lineStart = state.position;
-  state.lineIndent = 0;
-  state.firstTabInLine = -1;
-}
-function skipSeparationSpace(state, allowComments) {
-  let lineBreaks = 0;
-  let ch = state.input.charCodeAt(state.position);
-  let hasSeparation = state.position === state.lineStart || isWsOrEol(state.input.charCodeAt(state.position - 1));
-  while (ch !== 0) {
-    while (isWhiteSpace(ch)) {
-      hasSeparation = true;
-      if (ch === 9 && state.firstTabInLine === -1) state.firstTabInLine = state.position;
-      ch = state.input.charCodeAt(++state.position);
-    }
-    if (allowComments && hasSeparation && ch === 35) do
-      ch = state.input.charCodeAt(++state.position);
-    while (!isEol(ch) && ch !== 0);
-    if (!isEol(ch)) break;
-    consumeLineBreak(state);
-    lineBreaks++;
-    hasSeparation = true;
-    ch = state.input.charCodeAt(state.position);
-    while (ch === 32) {
-      state.lineIndent++;
-      ch = state.input.charCodeAt(++state.position);
-    }
-  }
-  return lineBreaks;
-}
-function testDocumentSeparator(state, position = state.position) {
-  const ch = state.input.charCodeAt(position);
-  if ((ch === 45 || ch === 46) && ch === state.input.charCodeAt(position + 1) && ch === state.input.charCodeAt(position + 2)) {
-    const following = state.input.charCodeAt(position + 3);
-    return following === 0 || isWsOrEol(following);
-  }
-  return false;
-}
-function skipByteOrderMark(state) {
-  if (state.position === state.lineStart && state.input.charCodeAt(state.position) === 65279) {
-    state.position++;
-    state.lineStart = state.position;
-  }
-}
-function testDocumentBoundary(state) {
-  if (state.position !== state.lineStart) return false;
-  if (testDocumentSeparator(state)) return true;
-  if (state.input.charCodeAt(state.position) !== 65279) return false;
-  const snapshot = snapshotState(state);
-  skipByteOrderMark(state);
-  skipSeparationSpace(state, true);
-  const ch = state.input.charCodeAt(state.position);
-  const result = state.position === state.lineStart && (ch === 37 || ch === 45 && testDocumentSeparator(state));
-  restoreState(state, snapshot);
-  return result;
-}
-function skipUntilLineEnd(state) {
-  let ch = state.input.charCodeAt(state.position);
-  while (ch !== 0 && !isEol(ch)) ch = state.input.charCodeAt(++state.position);
-}
-function checkPrintable(state, start2, end2) {
-  if (PATTERN_NON_PRINTABLE.test(state.input.slice(start2, end2))) throwError(state, "the stream contains non-printable characters");
-}
-function readTagProperty(state, props, inFlow) {
-  if (state.input.charCodeAt(state.position) !== 33) return false;
-  if (props.tagStart !== NO_RANGE$1) throwError(state, "duplication of a tag property");
-  const start2 = state.position;
-  let isVerbatim = false;
-  let isNamed = false;
-  let tagHandle = "!";
-  let ch = state.input.charCodeAt(++state.position);
-  if (ch === 60) {
-    isVerbatim = true;
-    ch = state.input.charCodeAt(++state.position);
-  } else if (ch === 33) {
-    isNamed = true;
-    tagHandle = "!!";
-    ch = state.input.charCodeAt(++state.position);
-  }
-  let suffixStart = state.position;
-  let tagName;
-  if (isVerbatim) {
-    while (ch !== 0 && ch !== 62) ch = state.input.charCodeAt(++state.position);
-    if (ch !== 62) throwError(state, "unexpected end of the stream within a verbatim tag");
-    tagName = state.input.slice(suffixStart, state.position);
-    state.position++;
-  } else {
-    while (ch !== 0 && !isWsOrEol(ch) && !(inFlow && isFlowIndicator(ch))) {
-      if (ch === 33) if (!isNamed) {
-        tagHandle = state.input.slice(suffixStart - 1, state.position + 1);
-        if (!PATTERN_TAG_HANDLE.test(tagHandle)) throwError(state, "named tag handle cannot contain such characters");
-        isNamed = true;
-        suffixStart = state.position + 1;
-      } else throwError(state, "tag suffix cannot contain exclamation marks");
-      ch = state.input.charCodeAt(++state.position);
-    }
-    tagName = state.input.slice(suffixStart, state.position);
-    if (PATTERN_FLOW_INDICATORS.test(tagName)) throwError(state, "tag suffix cannot contain flow indicator characters");
-  }
-  if (tagName && !(isVerbatim ? PATTERN_TAG_URI.test(tagName) : PATTERN_TAG_SUFFIX.test(tagName))) throwError(state, `tag name cannot contain such characters: ${tagName}`);
-  if (!isVerbatim && tagHandle !== "!" && tagHandle !== "!!" && !HAS_OWN.call(state.tagHandlers, tagHandle)) throwError(state, `undeclared tag handle "${tagHandle}"`);
-  props.tagStart = start2;
-  props.tagEnd = state.position;
-  return true;
-}
-function readAnchorProperty(state, props) {
-  if (state.input.charCodeAt(state.position) !== 38) return false;
-  if (props.anchorStart !== NO_RANGE$1) throwError(state, "duplication of an anchor property");
-  state.position++;
-  const start2 = state.position;
-  while (state.input.charCodeAt(state.position) !== 0 && !isWsOrEol(state.input.charCodeAt(state.position)) && !isFlowIndicator(state.input.charCodeAt(state.position))) state.position++;
-  if (state.position === start2) throwError(state, "name of an anchor node must contain at least one character");
-  props.anchorStart = start2;
-  props.anchorEnd = state.position;
-  return true;
-}
-function readAlias(state, props) {
-  if (state.input.charCodeAt(state.position) !== 42) return false;
-  if (props.anchorStart !== NO_RANGE$1 || props.tagStart !== NO_RANGE$1) throwError(state, "alias node should not have any properties");
-  state.position++;
-  const start2 = state.position;
-  while (state.input.charCodeAt(state.position) !== 0 && !isWsOrEol(state.input.charCodeAt(state.position)) && !isFlowIndicator(state.input.charCodeAt(state.position))) state.position++;
-  if (state.position === start2) throwError(state, "name of an alias node must contain at least one character");
-  addAliasEvent(state, start2, state.position);
-  return true;
-}
-function readFlowScalarBreak(state, nodeIndent) {
-  skipSeparationSpace(state, false);
-  if (state.lineIndent < nodeIndent) throwError(state, "deficient indentation");
-}
-function readSingleQuotedScalar(state, nodeIndent, props) {
-  if (state.input.charCodeAt(state.position) !== 39) return false;
-  state.position++;
-  const start2 = state.position;
-  let simple = true;
-  while (state.input.charCodeAt(state.position) !== 0) {
-    const ch = state.input.charCodeAt(state.position);
-    if (ch === 39) {
-      if (state.input.charCodeAt(state.position + 1) === 39) {
-        simple = false;
-        state.position += 2;
-        continue;
-      }
-      const end2 = state.position;
-      state.position++;
-      addScalarEvent(state, start2, end2, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, SCALAR_STYLE.SINGLE_QUOTED, CHOMPING_MODE.CLIP, -1, simple);
-      return true;
-    }
-    if (isEol(ch)) {
-      simple = false;
-      readFlowScalarBreak(state, nodeIndent);
-    } else if (state.position === state.lineStart && testDocumentSeparator(state)) throwError(state, "unexpected end of the document within a single quoted scalar");
-    else if (ch !== 9 && ch < 32) throwError(state, "expected valid JSON character");
-    else state.position++;
-  }
-  throwError(state, "unexpected end of the stream within a single quoted scalar");
-}
-function readDoubleQuotedScalar(state, nodeIndent, props) {
-  if (state.input.charCodeAt(state.position) !== 34) return false;
-  state.position++;
-  const start2 = state.position;
-  let simple = true;
-  while (state.input.charCodeAt(state.position) !== 0) {
-    const ch = state.input.charCodeAt(state.position);
-    if (ch === 34) {
-      const end2 = state.position;
-      state.position++;
-      addScalarEvent(state, start2, end2, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, SCALAR_STYLE.DOUBLE_QUOTED, CHOMPING_MODE.CLIP, -1, simple);
-      return true;
-    }
-    if (ch === 92) {
-      simple = false;
-      const escaped = state.input.charCodeAt(++state.position);
-      if (isEol(escaped)) readFlowScalarBreak(state, nodeIndent);
-      else if (isSimpleEscape(escaped)) state.position++;
-      else {
-        let hexLength = escapedHexLen(escaped);
-        if (hexLength === 0) throwError(state, "unknown escape sequence");
-        while (hexLength-- > 0) {
-          state.position++;
-          if (fromHexCode(state.input.charCodeAt(state.position)) < 0) throwError(state, "expected hexadecimal character");
-        }
-        state.position++;
-      }
-    } else if (isEol(ch)) {
-      simple = false;
-      readFlowScalarBreak(state, nodeIndent);
-    } else if (state.position === state.lineStart && testDocumentSeparator(state)) throwError(state, "unexpected end of the document within a double quoted scalar");
-    else if (ch !== 9 && ch < 32) throwError(state, "expected valid JSON character");
-    else state.position++;
-  }
-  throwError(state, "unexpected end of the stream within a double quoted scalar");
-}
-function readBlockScalar(state, parentIndent, props) {
-  const ch = state.input.charCodeAt(state.position);
-  let chomping = CHOMPING_MODE.CLIP;
-  let indent2 = -1;
-  let detectedIndent = false;
-  if (ch !== 124 && ch !== 62) return false;
-  const style2 = ch === 124 ? SCALAR_STYLE.LITERAL_BLOCK : SCALAR_STYLE.FOLDED_BLOCK;
-  state.position++;
-  while (state.input.charCodeAt(state.position) !== 0) {
-    const current3 = state.input.charCodeAt(state.position);
-    const digit = fromDecimalCode(current3);
-    if (current3 === 43 || current3 === 45) {
-      if (chomping !== CHOMPING_MODE.CLIP) throwError(state, "repeat of a chomping mode identifier");
-      chomping = current3 === 43 ? CHOMPING_MODE.KEEP : CHOMPING_MODE.STRIP;
-      state.position++;
-    } else if (digit >= 0) {
-      if (digit === 0) throwError(state, "bad explicit indentation width of a block scalar; it cannot be less than one");
-      if (detectedIndent) throwError(state, "repeat of an indentation width identifier");
-      indent2 = parentIndent + digit - 1;
-      detectedIndent = true;
-      state.position++;
-    } else break;
-  }
-  let hadWhitespace = false;
-  while (isWhiteSpace(state.input.charCodeAt(state.position))) {
-    hadWhitespace = true;
-    state.position++;
-  }
-  if (hadWhitespace && state.input.charCodeAt(state.position) === 35) skipUntilLineEnd(state);
-  if (isEol(state.input.charCodeAt(state.position))) consumeLineBreak(state);
-  else if (state.input.charCodeAt(state.position) !== 0) throwError(state, "a line break is expected");
-  let contentIndent = detectedIndent ? indent2 : -1;
-  let maxLeadingIndent = 0;
-  const valueStart = state.position;
-  let valueEnd = state.position;
-  while (state.input.charCodeAt(state.position) !== 0) {
-    const linePosition = state.position;
-    let column = 0;
-    while (state.input.charCodeAt(linePosition + column) === 32) column++;
-    const first = state.input.charCodeAt(linePosition + column);
-    if (first === 0) {
-      if (contentIndent >= 0) {
-        if (column > contentIndent) valueEnd = linePosition + column;
-      } else if (column > 0) valueEnd = linePosition + column;
-      break;
-    }
-    if (testDocumentBoundary(state)) break;
-    if (!detectedIndent && contentIndent === -1 && isEol(first)) maxLeadingIndent = Math.max(maxLeadingIndent, column);
-    if (!detectedIndent && contentIndent === -1 && !isEol(first)) {
-      if (first === 9 && column < parentIndent) {
-        state.position = linePosition + column;
-        throwError(state, "tab characters must not be used in indentation");
-      }
-      if (column < maxLeadingIndent) {
-        state.position = linePosition + column;
-        throwError(state, "bad indentation of a mapping entry");
-      }
-    }
-    if (contentIndent === -1 && first !== 0 && !isEol(first) && column < parentIndent) {
-      state.lineIndent = column;
-      state.position = linePosition + column;
-      break;
-    }
-    if (!detectedIndent && first !== 0 && !isEol(first) && contentIndent === -1) contentIndent = column;
-    const requiredIndent = contentIndent === -1 ? parentIndent + 1 : contentIndent;
-    if (first !== 0 && !isEol(first) && column < requiredIndent) {
-      state.lineIndent = column;
-      state.position = linePosition + column;
-      break;
-    }
-    skipUntilLineEnd(state);
-    valueEnd = state.position;
-    if (isEol(state.input.charCodeAt(state.position))) {
-      consumeLineBreak(state);
-      valueEnd = state.position;
-    }
-  }
-  checkPrintable(state, valueStart, valueEnd);
-  addScalarEvent(state, valueStart, valueEnd, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, style2, chomping, contentIndent);
-  return true;
-}
-function canStartPlainScalar(state, nodeContext) {
-  const ch = state.input.charCodeAt(state.position);
-  const inFlow = nodeContext === CONTEXT_FLOW_IN;
-  if (ch === 0 || isWsOrEol(ch) || ch === 35 || ch === 38 || ch === 42 || ch === 33 || ch === 124 || ch === 62 || ch === 39 || ch === 34 || ch === 37 || ch === 64 || ch === 96 || inFlow && isFlowIndicator(ch)) return false;
-  if (ch === 63 || ch === 45) {
-    const following = state.input.charCodeAt(state.position + 1);
-    if (isWsOrEolOrEnd(following) || inFlow && isFlowIndicator(following)) return false;
-  }
-  return true;
-}
-function readPlainScalar(state, nodeIndent, nodeContext, props) {
-  if (!canStartPlainScalar(state, nodeContext)) return false;
-  const start2 = state.position;
-  let end2 = state.position;
-  let ch = state.input.charCodeAt(state.position);
-  const inFlow = nodeContext === CONTEXT_FLOW_IN;
-  let multiline = false;
-  while (ch !== 0) {
-    if (testDocumentBoundary(state)) break;
-    if (ch === 58) {
-      const following = state.input.charCodeAt(state.position + 1);
-      if (isWsOrEolOrEnd(following) || inFlow && isFlowIndicator(following)) break;
-    } else if (ch === 35) {
-      if (isWsOrEol(state.input.charCodeAt(state.position - 1))) break;
-    } else if (inFlow && isFlowIndicator(ch)) break;
-    else if (isEol(ch)) {
-      const savedPosition = state.position;
-      const savedLine = state.line;
-      const savedLineStart = state.lineStart;
-      const savedLineIndent = state.lineIndent;
-      skipSeparationSpace(state, false);
-      if (state.lineIndent >= nodeIndent) {
-        multiline = true;
-        ch = state.input.charCodeAt(state.position);
-        continue;
-      }
-      state.position = savedPosition;
-      state.line = savedLine;
-      state.lineStart = savedLineStart;
-      state.lineIndent = savedLineIndent;
-      break;
-    }
-    if (!isWhiteSpace(ch)) end2 = state.position + 1;
-    ch = state.input.charCodeAt(++state.position);
-  }
-  if (end2 === start2) return false;
-  checkPrintable(state, start2, end2);
-  addScalarEvent(state, start2, end2, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, SCALAR_STYLE.PLAIN, CHOMPING_MODE.CLIP, -1, !multiline);
-  return true;
-}
-function skipFlowSeparationSpace(state, nodeIndent) {
-  const startLine = state.line;
-  skipSeparationSpace(state, true);
-  if (state.line > startLine && state.lineIndent < nodeIndent || state.firstTabInLine !== -1 && state.lineIndent < nodeIndent) throwError(state, "deficient indentation");
-}
-function readFlowCollection(state, nodeIndent, props) {
-  const ch = state.input.charCodeAt(state.position);
-  const isMapping = ch === 123;
-  const start2 = state.position;
-  let readNext = true;
-  if (ch !== 91 && ch !== 123) return false;
-  const terminator = isMapping ? 125 : 93;
-  if (isMapping) addMappingEvent(state, start2, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, COLLECTION_STYLE.FLOW);
-  else addSequenceEvent(state, start2, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, COLLECTION_STYLE.FLOW);
-  state.position++;
-  while (state.input.charCodeAt(state.position) !== 0) {
-    skipFlowSeparationSpace(state, nodeIndent);
-    let ch2 = state.input.charCodeAt(state.position);
-    if (ch2 === terminator) {
-      state.position++;
-      addPopEvent(state);
-      return true;
-    } else if (!readNext) throwError(state, "missed comma between flow collection entries");
-    else if (ch2 === 44) throwError(state, "expected the node content, but found ','");
-    let isPair = false;
-    let isExplicitPair = false;
-    if (ch2 === 63 && isWsOrEol(state.input.charCodeAt(state.position + 1))) {
-      isPair = isExplicitPair = true;
-      state.position += 1;
-      skipFlowSeparationSpace(state, nodeIndent);
-    }
-    const entryLine = state.line;
-    const entryStart = snapshotState(state);
-    const keyWasRead = parseNode(state, nodeIndent, CONTEXT_FLOW_IN, false, true);
-    skipFlowSeparationSpace(state, nodeIndent);
-    ch2 = state.input.charCodeAt(state.position);
-    if ((isMapping || isExplicitPair || state.line === entryLine) && ch2 === 58) {
-      isPair = true;
-      state.position++;
-      skipFlowSeparationSpace(state, nodeIndent);
-      if (!isMapping) {
-        insertFlowPairMappingEvent(state, entryStart);
-        if (!keyWasRead) addEmptyScalarEvent(state);
-      } else if (!keyWasRead) addEmptyScalarEvent(state);
-      if (!parseNode(state, nodeIndent, CONTEXT_FLOW_IN, false, true)) addEmptyScalarEvent(state);
-      skipFlowSeparationSpace(state, nodeIndent);
-      if (!isMapping) addPopEvent(state);
-    } else if (isMapping && isPair) {
-      if (!keyWasRead) addEmptyScalarEvent(state);
-      addEmptyScalarEvent(state);
-    } else if (isMapping) addEmptyScalarEvent(state);
-    else if (isPair) {
-      insertFlowPairMappingEvent(state, entryStart);
-      if (!keyWasRead) addEmptyScalarEvent(state);
-      addEmptyScalarEvent(state);
-      addPopEvent(state);
-    }
-    ch2 = state.input.charCodeAt(state.position);
-    if (ch2 === 44) {
-      readNext = true;
-      state.position++;
-    } else readNext = false;
-  }
-  throwError(state, "unexpected end of the stream within a flow collection");
-}
-function readBlockSequence(state, nodeIndent, props) {
-  if (state.firstTabInLine !== -1 || state.input.charCodeAt(state.position) !== 45 || !isWsOrEolOrEnd(state.input.charCodeAt(state.position + 1))) return false;
-  addSequenceEvent(state, state.position, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, COLLECTION_STYLE.BLOCK);
-  while (state.input.charCodeAt(state.position) === 45 && isWsOrEolOrEnd(state.input.charCodeAt(state.position + 1))) {
-    if (state.firstTabInLine !== -1) {
-      state.position = state.firstTabInLine;
-      throwError(state, "tab characters must not be used in indentation");
-    }
-    const entryLine = state.line;
-    state.position++;
-    const hadBreak = skipSeparationSpace(state, true) > 0;
-    if (state.firstTabInLine !== -1 && state.input.charCodeAt(state.position) === 45 && isWsOrEolOrEnd(state.input.charCodeAt(state.position + 1))) throwError(state, "bad indentation of a sequence entry");
-    if (hadBreak && state.lineIndent <= nodeIndent) addEmptyScalarEvent(state);
-    else parseNode(state, nodeIndent, CONTEXT_BLOCK_IN, false, true);
-    skipSeparationSpace(state, true);
-    if (state.lineIndent < nodeIndent || state.position >= state.length) break;
-    if (state.lineIndent > nodeIndent) throwError(state, "bad indentation of a sequence entry");
-    if (state.line === entryLine && state.input.charCodeAt(state.position) === 45 && isWsOrEolOrEnd(state.input.charCodeAt(state.position + 1))) throwError(state, "bad indentation of a sequence entry");
-  }
-  addPopEvent(state);
-  return true;
-}
-function readBlockMapping(state, nodeIndent, flowIndent, props) {
-  let atExplicitKey = false;
-  let detected = false;
-  let mappingOpened = false;
-  let pendingExplicitKey = false;
-  if (state.firstTabInLine !== -1) return false;
-  let ch = state.input.charCodeAt(state.position);
-  while (ch !== 0) {
-    if (!atExplicitKey && state.firstTabInLine !== -1) {
-      state.position = state.firstTabInLine;
-      throwError(state, "tab characters must not be used in indentation");
-    }
-    const following = state.input.charCodeAt(state.position + 1);
-    const entryLine = state.line;
-    if ((ch === 63 || ch === 58) && isWsOrEolOrEnd(following)) {
-      if (!mappingOpened) {
-        addMappingEvent(state, state.position, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, COLLECTION_STYLE.BLOCK);
-        mappingOpened = true;
-      }
-      if (ch === 63) {
-        if (atExplicitKey) addEmptyScalarEvent(state);
-        detected = true;
-        atExplicitKey = true;
-      } else if (atExplicitKey) atExplicitKey = false;
-      else {
-        addEmptyScalarEvent(state);
-        detected = true;
-        atExplicitKey = false;
-      }
-      state.position += 1;
-      pendingExplicitKey = true;
-    } else {
-      if (atExplicitKey) {
-        addEmptyScalarEvent(state);
-        atExplicitKey = false;
-      }
-      const beforeKey = snapshotState(state);
-      if (!parseNode(state, flowIndent, CONTEXT_FLOW_OUT, false, true)) break;
-      if (state.line === entryLine) {
-        ch = state.input.charCodeAt(state.position);
-        while (isWhiteSpace(ch)) ch = state.input.charCodeAt(++state.position);
-        if (ch === 58) {
-          ch = state.input.charCodeAt(++state.position);
-          if (!isWsOrEolOrEnd(ch)) throwError(state, "a whitespace character is expected after the key-value separator within a block mapping");
-          if (!mappingOpened) {
-            restoreState(state, beforeKey);
-            addMappingEvent(state, beforeKey.position, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, COLLECTION_STYLE.BLOCK);
-            mappingOpened = true;
-            parseNode(state, flowIndent, CONTEXT_FLOW_OUT, false, true);
-            ch = state.input.charCodeAt(state.position);
-            while (isWhiteSpace(ch)) ch = state.input.charCodeAt(++state.position);
-            state.position++;
-          }
-          detected = true;
-          atExplicitKey = false;
-          pendingExplicitKey = false;
-        } else if (detected) throwError(state, "expected ':' after a mapping key");
-        else {
-          if (props.anchorStart !== NO_RANGE$1 || props.tagStart !== NO_RANGE$1) {
-            restoreState(state, beforeKey);
-            return false;
-          }
-          return true;
-        }
-      } else if (detected) throwError(state, "can not read a block mapping entry; a multiline key may not be an implicit key");
-      else {
-        if (props.anchorStart !== NO_RANGE$1 || props.tagStart !== NO_RANGE$1) {
-          restoreState(state, beforeKey);
-          return false;
-        }
-        return true;
-      }
-    }
-    if (parseNode(state, nodeIndent, CONTEXT_BLOCK_OUT, true, pendingExplicitKey)) pendingExplicitKey = false;
-    if (!atExplicitKey) {
-      if (pendingExplicitKey) {
-        addEmptyScalarEvent(state);
-        pendingExplicitKey = false;
-      }
-    }
-    skipSeparationSpace(state, true);
-    ch = state.input.charCodeAt(state.position);
-    if ((state.line === entryLine || state.lineIndent > nodeIndent) && ch !== 0) throwError(state, "bad indentation of a mapping entry");
-    else if (state.lineIndent < nodeIndent) break;
-  }
-  if (!detected) return false;
-  if (atExplicitKey) addEmptyScalarEvent(state);
-  if (mappingOpened) addPopEvent(state);
-  return true;
-}
-function parseNode(state, parentIndent, nodeContext, allowToSeek, allowCompact, allowPropertyMapping = true) {
-  if (state.depth >= state.maxDepth) throwError(state, `nesting exceeded maxDepth (${state.maxDepth})`);
-  state.depth++;
-  let indentStatus = 1;
-  let atNewLine = false;
-  let hasContent = false;
-  let propertyStart = null;
-  const props = emptyProperties();
-  let allowBlockScalars = nodeContext === CONTEXT_BLOCK_OUT || nodeContext === CONTEXT_BLOCK_IN;
-  let allowBlockCollections = allowBlockScalars;
-  const allowBlockStyles = allowBlockScalars;
-  if (allowToSeek && skipSeparationSpace(state, true)) {
-    atNewLine = true;
-    if (state.lineIndent > parentIndent) indentStatus = 1;
-    else if (state.lineIndent === parentIndent) indentStatus = 0;
-    else indentStatus = -1;
-  }
-  if (indentStatus === 1) while (true) {
-    const ch = state.input.charCodeAt(state.position);
-    const propertyState = snapshotState(state);
-    if (atNewLine && indentStatus !== 1 && (ch === 33 || ch === 38)) break;
-    if (atNewLine && allowBlockStyles && (props.tagStart !== NO_RANGE$1 || props.anchorStart !== NO_RANGE$1) && (ch === 33 || ch === 38)) {
-      const fallbackState = snapshotState(state);
-      const flowIndent = parentIndent + 1;
-      if (readBlockMapping(state, state.position - state.lineStart, flowIndent, props) && state.events[fallbackState.eventsLength]?.type === EVENT_ID.MAPPING) {
-        state.depth--;
-        return true;
-      }
-      restoreState(state, fallbackState);
-    }
-    if (atNewLine && (ch === 33 && props.tagStart !== NO_RANGE$1 || ch === 38 && props.anchorStart !== NO_RANGE$1)) break;
-    if (!readTagProperty(state, props, nodeContext === CONTEXT_FLOW_IN) && !readAnchorProperty(state, props)) break;
-    if (propertyStart === null) propertyStart = propertyState;
-    if (skipSeparationSpace(state, true)) {
-      atNewLine = true;
-      allowBlockCollections = allowBlockStyles;
-      if (state.lineIndent > parentIndent) indentStatus = 1;
-      else if (state.lineIndent === parentIndent) indentStatus = 0;
-      else indentStatus = -1;
-    } else allowBlockCollections = false;
-  }
-  if (allowBlockCollections) allowBlockCollections = atNewLine || allowCompact;
-  if (indentStatus === 1 || nodeContext === CONTEXT_BLOCK_OUT) {
-    const flowIndent = nodeContext === CONTEXT_FLOW_IN || nodeContext === CONTEXT_FLOW_OUT ? parentIndent : parentIndent + 1;
-    const blockIndent = state.position - state.lineStart;
-    if (indentStatus === 1) if (allowBlockCollections && (readBlockSequence(state, blockIndent, props) || readBlockMapping(state, blockIndent, flowIndent, props)) || readFlowCollection(state, flowIndent, props)) hasContent = true;
-    else {
-      const ch = state.input.charCodeAt(state.position);
-      if (propertyStart !== null && allowPropertyMapping && allowBlockStyles && !allowBlockCollections && ch !== 124 && ch !== 62) {
-        const fallbackState = snapshotState(state);
-        const propertyIndent = propertyStart.position - propertyStart.lineStart;
-        restoreState(state, propertyStart);
-        if (readBlockMapping(state, propertyIndent, flowIndent, emptyProperties()) && state.events[fallbackState.eventsLength]?.type === EVENT_ID.MAPPING) hasContent = true;
-        else restoreState(state, fallbackState);
-      }
-      if (!hasContent && (allowBlockScalars && readBlockScalar(state, flowIndent, props) || readSingleQuotedScalar(state, flowIndent, props) || readDoubleQuotedScalar(state, flowIndent, props) || readAlias(state, props) || readPlainScalar(state, flowIndent, nodeContext, props))) hasContent = true;
-    }
-    else if (indentStatus === 0) hasContent = allowBlockCollections && readBlockSequence(state, blockIndent, props);
-  }
-  allowBlockScalars = allowBlockScalars && !hasContent;
-  if (!hasContent && (props.anchorStart !== NO_RANGE$1 || props.tagStart !== NO_RANGE$1 || allowBlockScalars)) {
-    addScalarEvent(state, NO_RANGE$1, NO_RANGE$1, props.anchorStart, props.anchorEnd, props.tagStart, props.tagEnd, SCALAR_STYLE.PLAIN);
-    hasContent = true;
-  }
-  state.depth--;
-  return hasContent || props.anchorStart !== NO_RANGE$1 || props.tagStart !== NO_RANGE$1;
-}
-function readDirective(state) {
-  if (state.lineIndent > 0 || state.input.charCodeAt(state.position) !== 37) return false;
-  state.position++;
-  const nameStart = state.position;
-  while (state.input.charCodeAt(state.position) !== 0 && !isWsOrEol(state.input.charCodeAt(state.position))) state.position++;
-  const name3 = state.input.slice(nameStart, state.position);
-  const args = [];
-  if (name3.length === 0) throwError(state, "directive name must not be less than one character in length");
-  while (state.input.charCodeAt(state.position) !== 0 && !isEol(state.input.charCodeAt(state.position))) {
-    while (isWhiteSpace(state.input.charCodeAt(state.position))) state.position++;
-    if (state.input.charCodeAt(state.position) === 35 || isEol(state.input.charCodeAt(state.position)) || state.input.charCodeAt(state.position) === 0) break;
-    const start2 = state.position;
-    while (state.input.charCodeAt(state.position) !== 0 && !isWsOrEol(state.input.charCodeAt(state.position))) state.position++;
-    args.push(state.input.slice(start2, state.position));
-  }
-  if (isEol(state.input.charCodeAt(state.position))) consumeLineBreak(state);
-  if (name3 === "YAML") {
-    if (state.directives.some((directive) => directive.kind === "yaml")) throwError(state, "duplication of %YAML directive");
-    if (args.length !== 1) throwError(state, "YAML directive accepts exactly one argument");
-    const match = /^([0-9]+)\.([0-9]+)$/.exec(args[0]);
-    if (match === null) throwError(state, "ill-formed argument of the YAML directive");
-    if (parseInt(match[1], 10) !== 1) throwError(state, "unacceptable YAML version of the document");
-    state.directives.push({
-      kind: "yaml",
-      version: args[0]
-    });
-  } else if (name3 === "TAG") {
-    if (args.length !== 2) throwError(state, "TAG directive accepts exactly two arguments");
-    const [handle, prefix] = args;
-    if (!PATTERN_TAG_HANDLE.test(handle)) throwError(state, "ill-formed tag handle (first argument) of the TAG directive");
-    if (HAS_OWN.call(state.tagHandlers, handle)) throwError(state, `there is a previously declared suffix for "${handle}" tag handle`);
-    if (!PATTERN_TAG_PREFIX.test(prefix)) throwError(state, "ill-formed tag prefix (second argument) of the TAG directive");
-    state.tagHandlers[handle] = prefix;
-    state.directives.push({
-      kind: "tag",
-      handle,
-      prefix
-    });
-  }
-  return true;
-}
-function readDocument(state) {
-  state.directives = [];
-  state.tagHandlers = /* @__PURE__ */ Object.create(null);
-  let hasDirectives = false;
-  skipSeparationSpace(state, true);
-  while (readDirective(state)) {
-    hasDirectives = true;
-    skipSeparationSpace(state, true);
-  }
-  let explicitStart = false;
-  let explicitEnd = false;
-  let allowCompact = true;
-  if (state.lineIndent === 0 && state.input.charCodeAt(state.position) === 45 && state.input.charCodeAt(state.position + 1) === 45 && state.input.charCodeAt(state.position + 2) === 45 && isWsOrEolOrEnd(state.input.charCodeAt(state.position + 3))) {
-    explicitStart = true;
-    const markerLine = state.line;
-    state.position += 3;
-    skipSeparationSpace(state, true);
-    allowCompact = state.line > markerLine;
-  } else if (hasDirectives) throwError(state, "directives end mark is expected");
-  const documentEventIndex = state.events.length;
-  if (!explicitStart && state.position === state.lineStart && state.input.charCodeAt(state.position) === 46 && testDocumentSeparator(state)) {
-    state.position += 3;
-    skipSeparationSpace(state, true);
-    return;
-  }
-  addDocumentEvent(state, explicitStart, false);
-  if (!parseNode(state, state.lineIndent - 1, CONTEXT_BLOCK_OUT, false, allowCompact, allowCompact)) addEmptyScalarEvent(state);
-  skipSeparationSpace(state, true);
-  if (state.position === state.lineStart && testDocumentSeparator(state)) {
-    explicitEnd = state.input.charCodeAt(state.position) === 46;
-    if (explicitEnd) {
-      const markerLine = state.line;
-      state.position += 3;
-      skipSeparationSpace(state, true);
-      if (state.line === markerLine && state.position < state.length) throwError(state, "end of the stream or a document separator is expected");
-    }
-  }
-  const documentEvent = state.events[documentEventIndex];
-  if (documentEvent?.type === EVENT_ID.DOCUMENT) documentEvent.explicitEnd = explicitEnd;
-  addPopEvent(state);
-  if (!explicitEnd && state.position < state.length && !testDocumentBoundary(state)) throwError(state, "end of the stream or a document separator is expected");
-}
-function parseEvents(input3, options2) {
-  const length = input3.length;
-  const state = {
-    ...DEFAULT_PARSER_OPTIONS,
-    ...options2,
-    input: `${input3}\0`,
-    length,
-    position: 0,
-    line: 0,
-    lineStart: 0,
-    lineIndent: 0,
-    firstTabInLine: -1,
-    depth: 0,
-    directives: [],
-    tagHandlers: /* @__PURE__ */ Object.create(null),
-    events: []
-  };
-  const nullpos = input3.indexOf("\0");
-  if (nullpos !== -1) YAMLException.throwAt(input3, nullpos, "null byte is not allowed in input", state.filename);
-  while (state.position < state.length) {
-    skipByteOrderMark(state);
-    skipSeparationSpace(state, true);
-    if (state.position >= state.length) break;
-    const documentStart = state.position;
-    readDocument(state);
-    if (state.position === documentStart)
-      throwError(state, "can not read a document");
-  }
-  return state.events;
-}
-function loadDocuments(input3, options2 = {}) {
-  const opts = {
-    ...DEFAULT_LOAD_OPTIONS,
-    ...options2
-  };
-  const source2 = String(input3);
-  const PARSER_OPT_KEYS = Object.keys(DEFAULT_PARSER_OPTIONS);
-  const CONSTRUCTOR_OPT_KEYS = Object.keys(DEFAULT_CONSTRUCTOR_OPTIONS);
-  return constructFromEvents(parseEvents(source2, pick2(opts, PARSER_OPT_KEYS)), {
-    ...pick2(opts, CONSTRUCTOR_OPT_KEYS),
-    source: source2
-  });
-}
-function load(input3, options2) {
-  const documents = loadDocuments(input3, options2);
-  if (documents.length === 0) throw new YAMLException("expected a document, but the input is empty");
-  if (documents.length === 1) return documents[0];
-  throw new YAMLException("expected a single document in the stream, but found more");
-}
-function hasBit(mask, bit) {
-  return (mask & 1 << bit) !== 0;
-}
-function _preferredQuotedStyle(layout) {
-  if (layout.presenterOptions.quoteStyle === "single" && hasBit(layout.allowedStylesMask, SCALAR_STYLE.SINGLE_QUOTED)) return SCALAR_STYLE.SINGLE_QUOTED;
-  return SCALAR_STYLE.DOUBLE_QUOTED;
-}
-function applyQuoteFlowKeysOption(layout) {
-  if (!layout.presenterOptions.quoteFlowKeys) return;
-  if (!layout.isKey || !layout.flowOnly || layout.style !== SCALAR_STYLE.PLAIN) return;
-  layout.style = SCALAR_STYLE.DOUBLE_QUOTED;
-}
-function doubleQuoteForInvisibles(layout) {
-  if (layout.style === SCALAR_STYLE.PLAIN && /[\t\x7F-\xA0\u2028\u2029\uFEFF\uFFFE\uFFFF]/.test(layout.node.value)) layout.style = SCALAR_STYLE.DOUBLE_QUOTED;
-}
-function doubleQuoteWhitespaceOnly(layout) {
-  if (layout.style === SCALAR_STYLE.PLAIN && /^\s+$/.test(layout.node.value)) layout.style = SCALAR_STYLE.DOUBLE_QUOTED;
-}
-function applyForceQuotesOption(layout) {
-  if (!layout.presenterOptions.forceQuotes) return;
-  if (layout.isKey || layout.style !== SCALAR_STYLE.PLAIN) return;
-  if (layout.node.tag !== layout.presenterOptions.schema.defaultScalarTag.tagName) return;
-  layout.style = layout.node.value.includes("\n") ? SCALAR_STYLE.DOUBLE_QUOTED : _preferredQuotedStyle(layout);
-}
-function tryLongOrMultilineAsBlock(layout) {
-  if (layout.style !== SCALAR_STYLE.PLAIN || layout.isKey) return;
-  const value2 = layout.node.value;
-  const multiline = value2.indexOf("\n") !== -1;
-  if (!hasBit(layout.allowedStylesMask, SCALAR_STYLE.LITERAL_BLOCK)) {
-    if (multiline) layout.style = SCALAR_STYLE.DOUBLE_QUOTED;
-    return;
-  }
-  const w = layout.presenterOptions.lineWidth;
-  if (w === -1) {
-    if (multiline) layout.style = SCALAR_STYLE.LITERAL_BLOCK;
-    return;
-  }
-  const availableWidth = Math.max(Math.min(w, 40), w - layout.shiftOfContent);
-  let position = 0;
-  let shouldFold = false;
-  while (position <= value2.length) {
-    let lineEnd = value2.length;
-    const nextLineBreak = value2.indexOf("\n", position);
-    if (nextLineBreak !== -1) lineEnd = nextLineBreak;
-    const line = value2.slice(position, lineEnd);
-    if (line.length > availableWidth && line[0] !== " " && / [^ \t]/.test(line)) shouldFold = true;
-    if (nextLineBreak === -1) break;
-    position = nextLineBreak + 1;
-  }
-  if (shouldFold) layout.style = SCALAR_STYLE.FOLDED_BLOCK;
-  else if (multiline) layout.style = SCALAR_STYLE.LITERAL_BLOCK;
-}
-function quoteInvalidPlain(layout) {
-  if (layout.style === SCALAR_STYLE.PLAIN && !hasBit(layout.allowedStylesMask, SCALAR_STYLE.PLAIN)) layout.style = _preferredQuotedStyle(layout);
-}
-function fallbackToDoubleQuoted(layout) {
-  if (!hasBit(layout.allowedStylesMask, layout.style)) layout.style = SCALAR_STYLE.DOUBLE_QUOTED;
-}
-var NOT_RESOLVED, strTag, NULL_VALUES$1, nullCoreTag, nullJsonTag, NULL_VALUES, nullYaml11Tag, TRUE_VALUES$2, FALSE_VALUES$2, boolCoreTag, TRUE_VALUES$1, FALSE_VALUES$1, boolJsonTag, TRUE_VALUES, FALSE_VALUES, boolYaml11Tag, YAML_INTEGER_IMPLICIT_PATTERN$1, YAML_INTEGER_EXPLICIT_PATTERN$1, intCoreTag, YAML_INTEGER_IMPLICIT_PATTERN, YAML_INTEGER_EXPLICIT_PATTERN, intJsonTag, YAML_INTEGER_PATTERN, intYaml11Tag, YAML_FLOAT_PATTERN$1, YAML_FLOAT_SPECIAL_PATTERN$1, floatCoreTag, YAML_FLOAT_IMPLICIT_PATTERN, YAML_FLOAT_EXPLICIT_PATTERN, floatJsonTag, YAML_FLOAT_PATTERN, YAML_FLOAT_SPECIAL_PATTERN, floatYaml11Tag, mergeTag, BASE64_PATTERN, binaryTag, YAML_DATE_REGEXP, YAML_TIMESTAMP_REGEXP, timestampTag, seqTag, omapTag, pairsTag, mapTag, setTag, Schema, FAILSAFE_SCHEMA, JSON_SCHEMA, CORE_SCHEMA, YAML11_SCHEMA, DUMP_SCHEMA, realMapTag, legacyMapTag, DEFAULT_SNIPPET_OPTIONS, YAMLException, EVENT_ID, SCALAR_STYLE, COLLECTION_STYLE, CHOMPING_MODE, NO_RANGE$3, simpleEscapeCheck, simpleEscapeMap, DEFAULT_TAG_HANDLERS, NO_RANGE$2, MERGE_TAG_NAME, DEFAULT_CONSTRUCTOR_OPTIONS, NO_RANGE$1, HAS_OWN, CONTEXT_FLOW_IN, CONTEXT_FLOW_OUT, CONTEXT_BLOCK_IN, CONTEXT_BLOCK_OUT, PATTERN_NON_PRINTABLE, PATTERN_FLOW_INDICATORS, PATTERN_TAG_HANDLE, NS_URI_CHAR, NS_TAG_CHAR, PATTERN_TAG_URI, PATTERN_TAG_SUFFIX, PATTERN_TAG_PREFIX, DEFAULT_PARSER_OPTIONS, DEFAULT_LOAD_OPTIONS, DEFAULT_SCALAR_STYLE_RULES, SRC_C_PRINTABLE, SRC_B_CHAR, SRC_C_BYTE_ORDER_MARK, SRC_S_WHITE, SRC_NB_CHAR, SRC_NS_CHAR, SRC_NB_JSON, SRC_C_INDICATOR, SRC_C_FLOW_INDICATOR, SRC_NS_PLAIN_SAFE_FLOW_OUT, SRC_NS_PLAIN_SAFE_FLOW_IN, SRC_NS_PLAIN_FIRST_FLOW_OUT, SRC_NS_PLAIN_FIRST_FLOW_IN, SRC_NS_PLAIN_CHAR_FLOW_OUT, SRC_NS_PLAIN_CHAR_FLOW_IN, SRC_NB_NS_PLAIN_IN_LINE_FLOW_OUT, SRC_NB_NS_PLAIN_IN_LINE_FLOW_IN, SRC_NS_PLAIN_ONE_LINE_FLOW_OUT, SRC_NS_PLAIN_ONE_LINE_FLOW_IN, SRC_NS_PLAIN_ONE_LINE_BLOCK_KEY, SRC_NS_PLAIN_ONE_LINE_FLOW_KEY, SRC_S_NS_PLAIN_NEXT_LINE_FLOW_OUT, SRC_S_NS_PLAIN_NEXT_LINE_FLOW_IN, SRC_NS_PLAIN_MULTI_LINE_FLOW_OUT, SRC_NS_PLAIN_MULTI_LINE_FLOW_IN, NS_PLAIN_FLOW_OUT, NS_PLAIN_FLOW_IN, NS_PLAIN_BLOCK_KEY, NS_PLAIN_FLOW_KEY, NB_SINGLE_ONE_LINE, NB_SINGLE_MULTI_LINE, BLOCK_SCALAR_CONTENT, DEFAULT_PRESENTER_OPTIONS, DEFAULT_DUMP_OPTIONS, EVENT_DOCUMENT, EVENT_SEQUENCE, EVENT_MAPPING, EVENT_SCALAR, EVENT_ALIAS, EVENT_POP, SCALAR_STYLE_PLAIN, SCALAR_STYLE_SINGLE_QUOTED, SCALAR_STYLE_DOUBLE_QUOTED, SCALAR_STYLE_LITERAL_BLOCK, SCALAR_STYLE_FOLDED_BLOCK, COLLECTION_STYLE_BLOCK, COLLECTION_STYLE_FLOW, CHOMPING_CLIP, CHOMPING_STRIP, CHOMPING_KEEP;
-var init_js_yaml = __esm({
-  "node_modules/js-yaml/dist/js-yaml.mjs"() {
-    "use strict";
-    NOT_RESOLVED = /* @__PURE__ */ Symbol("NOT_RESOLVED");
-    strTag = defineScalarTag("tag:yaml.org,2002:str", {
-      resolve: (source2) => source2,
-      identify: (data) => typeof data === "string"
-    });
-    NULL_VALUES$1 = [
-      "",
-      "~",
-      "null",
-      "Null",
-      "NULL"
-    ];
-    nullCoreTag = defineScalarTag("tag:yaml.org,2002:null", {
-      implicit: true,
-      implicitFirstChars: [
-        "",
-        "~",
-        "n",
-        "N"
-      ],
-      resolve: (source2) => {
-        if (NULL_VALUES$1.indexOf(source2) !== -1) return null;
-        return NOT_RESOLVED;
-      },
-      identify: (object3) => object3 === null,
-      represent: () => "null"
-    });
-    nullJsonTag = defineScalarTag("tag:yaml.org,2002:null", {
-      implicit: true,
-      implicitFirstChars: ["n"],
-      resolve: (source2, isExplicit) => {
-        if (source2 === "null" || isExplicit && source2 === "") return null;
-        return NOT_RESOLVED;
-      },
-      identify: (object3) => object3 === null,
-      represent: () => "null"
-    });
-    NULL_VALUES = [
-      "",
-      "~",
-      "null",
-      "Null",
-      "NULL"
-    ];
-    nullYaml11Tag = defineScalarTag("tag:yaml.org,2002:null", {
-      implicit: true,
-      implicitFirstChars: [
-        "",
-        "~",
-        "n",
-        "N"
-      ],
-      resolve: (source2) => {
-        if (NULL_VALUES.indexOf(source2) !== -1) return null;
-        return NOT_RESOLVED;
-      },
-      identify: (object3) => object3 === null,
-      represent: () => "null"
-    });
-    TRUE_VALUES$2 = [
-      "true",
-      "True",
-      "TRUE"
-    ];
-    FALSE_VALUES$2 = [
-      "false",
-      "False",
-      "FALSE"
-    ];
-    boolCoreTag = defineScalarTag("tag:yaml.org,2002:bool", {
-      implicit: true,
-      implicitFirstChars: [
-        "t",
-        "T",
-        "f",
-        "F"
-      ],
-      resolve: (source2) => {
-        if (TRUE_VALUES$2.indexOf(source2) !== -1) return true;
-        if (FALSE_VALUES$2.indexOf(source2) !== -1) return false;
-        return NOT_RESOLVED;
-      },
-      identify: (object3) => Object.prototype.toString.call(object3) === "[object Boolean]",
-      represent: (object3) => object3 ? "true" : "false"
-    });
-    TRUE_VALUES$1 = ["true"];
-    FALSE_VALUES$1 = ["false"];
-    boolJsonTag = defineScalarTag("tag:yaml.org,2002:bool", {
-      implicit: true,
-      implicitFirstChars: ["t", "f"],
-      resolve: (source2) => {
-        if (TRUE_VALUES$1.indexOf(source2) !== -1) return true;
-        if (FALSE_VALUES$1.indexOf(source2) !== -1) return false;
-        return NOT_RESOLVED;
-      },
-      identify: (object3) => Object.prototype.toString.call(object3) === "[object Boolean]",
-      represent: (object3) => object3 ? "true" : "false"
-    });
-    TRUE_VALUES = [
-      "true",
-      "True",
-      "TRUE",
-      "y",
-      "Y",
-      "yes",
-      "Yes",
-      "YES",
-      "on",
-      "On",
-      "ON"
-    ];
-    FALSE_VALUES = [
-      "false",
-      "False",
-      "FALSE",
-      "n",
-      "N",
-      "no",
-      "No",
-      "NO",
-      "off",
-      "Off",
-      "OFF"
-    ];
-    boolYaml11Tag = defineScalarTag("tag:yaml.org,2002:bool", {
-      implicit: true,
-      implicitFirstChars: [
-        "y",
-        "Y",
-        "n",
-        "N",
-        "t",
-        "T",
-        "f",
-        "F",
-        "o",
-        "O"
-      ],
-      resolve: (source2) => {
-        if (TRUE_VALUES.indexOf(source2) !== -1) return true;
-        if (FALSE_VALUES.indexOf(source2) !== -1) return false;
-        return NOT_RESOLVED;
-      },
-      identify: (object3) => Object.prototype.toString.call(object3) === "[object Boolean]",
-      represent: (object3) => object3 ? "true" : "false"
-    });
-    YAML_INTEGER_IMPLICIT_PATTERN$1 = /* @__PURE__ */ new RegExp("^(?:0o[0-7]+|0x[0-9a-fA-F]+|[-+]?[0-9]+)$");
-    YAML_INTEGER_EXPLICIT_PATTERN$1 = /* @__PURE__ */ new RegExp("^(?:[-+]?0b[0-1]+|[-+]?0o[0-7]+|[-+]?0x[0-9a-fA-F]+|[-+]?[0-9]+)$");
-    intCoreTag = defineScalarTag("tag:yaml.org,2002:int", {
-      implicit: true,
-      implicitFirstChars: [
-        "-",
-        "+",
-        ..."0123456789"
-      ],
-      resolve: resolveYamlInteger$2,
-      identify: (object3) => Number.isInteger(object3) && !Object.is(object3, -0) && object3.toString(10).indexOf("e") < 0,
-      represent: (object3) => object3.toString(10)
-    });
-    YAML_INTEGER_IMPLICIT_PATTERN = /* @__PURE__ */ new RegExp("^-?(?:0|[1-9][0-9]*)$");
-    YAML_INTEGER_EXPLICIT_PATTERN = /* @__PURE__ */ new RegExp("^(?:[-+]?0b[0-1]+|[-+]?0o[0-7]+|[-+]?0x[0-9a-fA-F]+|[-+]?[0-9]+)$");
-    intJsonTag = defineScalarTag("tag:yaml.org,2002:int", {
-      implicit: true,
-      implicitFirstChars: ["-", ..."0123456789"],
-      resolve: resolveYamlInteger$1,
-      identify: (object3) => Number.isInteger(object3) && !Object.is(object3, -0) && object3.toString(10).indexOf("e") < 0,
-      represent: (object3) => object3.toString(10)
-    });
-    YAML_INTEGER_PATTERN = /* @__PURE__ */ new RegExp("^(?:[-+]?0b[0-1_]+|[-+]?0[0-7_]+|[-+]?0x[0-9a-fA-F_]+|[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+|[-+]?(?:0|[1-9][0-9_]*))$");
-    intYaml11Tag = defineScalarTag("tag:yaml.org,2002:int", {
-      implicit: true,
-      implicitFirstChars: [
-        "-",
-        "+",
-        ..."0123456789"
-      ],
-      resolve: resolveYamlInteger,
-      identify: (object3) => Number.isInteger(object3) && !Object.is(object3, -0) && object3.toString(10).indexOf("e") < 0,
-      represent: (object3) => object3.toString(10)
-    });
-    YAML_FLOAT_PATTERN$1 = /* @__PURE__ */ new RegExp("^(?:[-+]?[0-9]+(?:\\.[0-9]*)?(?:[eE][-+]?[0-9]+)?|[-+]?\\.[0-9]+(?:[eE][-+]?[0-9]+)?|[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$");
-    YAML_FLOAT_SPECIAL_PATTERN$1 = /* @__PURE__ */ new RegExp("^(?:[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$");
-    floatCoreTag = defineScalarTag("tag:yaml.org,2002:float", {
-      implicit: true,
-      implicitFirstChars: [
-        "-",
-        "+",
-        ".",
-        ..."0123456789"
-      ],
-      resolve: resolveYamlFloat$2,
-      identify: (object3) => typeof object3 === "number" && (!Number.isInteger(object3) || Object.is(object3, -0) || object3.toString(10).indexOf("e") >= 0),
-      represent: representYamlFloat$2
-    });
-    YAML_FLOAT_IMPLICIT_PATTERN = /* @__PURE__ */ new RegExp("^-?(?:0|[1-9][0-9]*)(?:\\.[0-9]*)?(?:[eE][-+]?[0-9]+)?$");
-    YAML_FLOAT_EXPLICIT_PATTERN = /* @__PURE__ */ new RegExp("^(?:[-+]?[0-9]+(?:\\.[0-9]*)?(?:[eE][-+]?[0-9]+)?|[-+]?\\.[0-9]+(?:[eE][-+]?[0-9]+)?|[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$");
-    floatJsonTag = defineScalarTag("tag:yaml.org,2002:float", {
-      implicit: true,
-      implicitFirstChars: ["-", ..."0123456789"],
-      resolve: resolveYamlFloat$1,
-      identify: (object3) => typeof object3 === "number" && (!Number.isInteger(object3) || Object.is(object3, -0) || object3.toString(10).indexOf("e") >= 0),
-      represent: representYamlFloat$1
-    });
-    YAML_FLOAT_PATTERN = /* @__PURE__ */ new RegExp("^(?:[-+]?(?:(?:[0-9][0-9_]*)?\\.[0-9_]*)(?:[eE][-+][0-9]+)?|[-+]?[0-9][0-9_]*(?::[0-5]?[0-9])+\\.[0-9_]*|[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$");
-    YAML_FLOAT_SPECIAL_PATTERN = /* @__PURE__ */ new RegExp("^(?:[-+]?\\.(?:inf|Inf|INF)|\\.(?:nan|NaN|NAN))$");
-    floatYaml11Tag = defineScalarTag("tag:yaml.org,2002:float", {
-      implicit: true,
-      implicitFirstChars: [
-        "-",
-        "+",
-        ".",
-        ..."0123456789"
-      ],
-      resolve: resolveYamlFloat,
-      identify: (object3) => typeof object3 === "number" && (!Number.isInteger(object3) || Object.is(object3, -0) || object3.toString(10).indexOf("e") >= 0),
-      represent: representYamlFloat
-    });
-    mergeTag = defineScalarTag("tag:yaml.org,2002:merge", {
-      implicit: true,
-      implicitFirstChars: ["<"],
-      resolve: (source2, isExplicit) => {
-        if (source2 === "<<" || isExplicit && source2 === "") return "<<";
-        return NOT_RESOLVED;
-      },
-      identify: () => false
-    });
-    BASE64_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
-    binaryTag = defineScalarTag("tag:yaml.org,2002:binary", {
-      resolve: resolveYamlBinary,
-      identify: (object3) => Object.prototype.toString.call(object3) === "[object Uint8Array]",
-      represent: representYamlBinary
-    });
-    YAML_DATE_REGEXP = /* @__PURE__ */ new RegExp("^([0-9][0-9][0-9][0-9])-([0-9][0-9])-([0-9][0-9])$");
-    YAML_TIMESTAMP_REGEXP = /* @__PURE__ */ new RegExp("^([0-9][0-9][0-9][0-9])-([0-9][0-9]?)-([0-9][0-9]?)(?:[Tt]|[ \\t]+)([0-9][0-9]?):([0-9][0-9]):([0-9][0-9])(?:\\.([0-9]*))?(?:[ \\t]*(Z|([-+])([0-9][0-9]?)(?::([0-9][0-9]))?))?$");
-    timestampTag = defineScalarTag("tag:yaml.org,2002:timestamp", {
-      implicit: true,
-      implicitFirstChars: [..."0123456789"],
-      resolve: resolveYamlTimestamp,
-      identify: (object3) => object3 instanceof Date,
-      represent: (object3) => object3.toISOString()
-    });
-    seqTag = defineSequenceTag("tag:yaml.org,2002:seq", {
-      create: () => [],
-      addItem: (container2, item) => {
-        container2.push(item);
-      },
-      identify: Array.isArray
-    });
-    omapTag = defineSequenceTag("tag:yaml.org,2002:omap", {
-      create: () => ({
-        list: [],
-        seen: /* @__PURE__ */ new Set()
-      }),
-      addItem: (carrier, item) => {
-        let key6;
-        if (item instanceof Map) {
-          if (item.size !== 1) return "cannot resolve an ordered map item";
-          key6 = item.keys().next().value;
-        } else if (isPlainObject3(item)) {
-          const itemKeys = Object.keys(item);
-          if (itemKeys.length !== 1) return "cannot resolve an ordered map item";
-          key6 = itemKeys[0];
-        } else return "cannot resolve an ordered map item";
-        if (carrier.seen.has(key6)) return "duplicate key in ordered map";
-        carrier.seen.add(key6);
-        carrier.list.push(item);
-        return "";
-      },
-      finalize: (carrier) => carrier.list,
-      identify: () => false
-    });
-    pairsTag = defineSequenceTag("tag:yaml.org,2002:pairs", {
-      create: () => [],
-      addItem: (container2, item) => {
-        if (item instanceof Map) {
-          if (item.size !== 1) return "cannot resolve a pairs item";
-          container2.push(item.entries().next().value);
-          return "";
-        }
-        if (Object.prototype.toString.call(item) !== "[object Object]") return "cannot resolve a pairs item";
-        const object3 = item;
-        const keys2 = Object.keys(object3);
-        if (keys2.length !== 1) return "cannot resolve a pairs item";
-        container2.push([keys2[0], object3[keys2[0]]]);
-        return "";
-      },
-      identify: () => false
-    });
-    mapTag = defineMappingTag("tag:yaml.org,2002:map", {
-      create: () => ({}),
-      identify: isPlainObject3,
-      represent: (o) => {
-        const map2 = /* @__PURE__ */ new Map();
-        for (const key6 of Object.keys(o)) map2.set(key6, o[key6]);
-        return map2;
-      },
-      addPair: (container2, key6, value2) => {
-        if (key6 !== null && typeof key6 === "object") return "object-based map does not support complex keys";
-        const normalizedKey = String(key6);
-        if (normalizedKey === "__proto__") Object.defineProperty(container2, normalizedKey, {
-          value: value2,
-          enumerable: true,
-          configurable: true,
-          writable: true
-        });
-        else container2[normalizedKey] = value2;
-        return "";
-      },
-      has: (container2, key6) => {
-        if (key6 !== null && typeof key6 === "object") return false;
-        return Object.prototype.hasOwnProperty.call(container2, String(key6));
-      },
-      keys: (container2) => Object.keys(container2),
-      get: (container2, key6) => {
-        const normalizedKey = String(key6);
-        if (!Object.prototype.hasOwnProperty.call(container2, normalizedKey)) return null;
-        return container2[normalizedKey];
-      }
-    });
-    setTag = defineMappingTag("tag:yaml.org,2002:set", {
-      create: () => /* @__PURE__ */ new Set(),
-      identify: (data) => data instanceof Set,
-      represent: (data) => {
-        const map2 = /* @__PURE__ */ new Map();
-        for (const key6 of data) map2.set(key6, null);
-        return map2;
-      },
-      addPair: (container2, key6, value2) => {
-        if (value2 !== null) return "cannot resolve a set item";
-        container2.add(key6);
-        return "";
-      },
-      has: (container2, key6) => container2.has(key6),
-      keys: (container2) => container2.keys(),
-      get: () => null
-    });
-    Schema = class Schema2 {
-      tags;
-      /** @internal */
-      implicitScalarTags;
-      /**
-      * Dispatch implicit scalar resolvers by `source.charAt(0)`. Each bucket holds
-      * the resolvers that may match that key, in schema order; a key absent from
-      * the map uses
-      * {@link Schema.implicitScalarAnyFirstChar}
-      * (resolvers that declared no first-char constraint, so they apply to any
-      * first character).
-      */
-      implicitScalarByFirstChar;
-      implicitScalarAnyFirstChar;
-      /**
-      * The default scalar tag (`!!str`), resolved once so the composer's fallback
-      * for unresolved plain scalars avoids a keyed lookup per scalar.
-      *
-      * @internal
-      */
-      defaultScalarTag;
-      /**
-      * The default container tags (`!!seq` / `!!map`), used by the dumper: when a
-      * value is identified by its default tag, the tag is implicit and not
-      * printed. Undefined if the schema does not define them (then such values
-      * can't be dumped).
-      *
-      * @internal
-      */
-      defaultSequenceTag;
-      /** @internal */
-      defaultMappingTag;
-      exact;
-      prefix;
-      constructor(tags) {
-        const compiledTags = compileTags(tags);
-        const implicitScalarTags = [];
-        const exact2 = createTagDefinitionMap();
-        const prefix = createTagDefinitionListMap();
-        for (const tag2 of compiledTags) {
-          if (tag2.nodeKind === "scalar" && tag2.implicit) {
-            if (tag2.matchByTagPrefix) throw new Error("Implicit scalar tags cannot match by tag prefix");
-            implicitScalarTags.push(tag2);
-          }
-          switch (tag2.nodeKind) {
-            case "scalar":
-              if (tag2.matchByTagPrefix) prefix.scalar.push(tag2);
-              else exact2.scalar[tag2.tagName] = tag2;
-              break;
-            case "sequence":
-              if (tag2.matchByTagPrefix) prefix.sequence.push(tag2);
-              else exact2.sequence[tag2.tagName] = tag2;
-              break;
-            case "mapping":
-              if (tag2.matchByTagPrefix) prefix.mapping.push(tag2);
-              else exact2.mapping[tag2.tagName] = tag2;
-              break;
-          }
-        }
-        const implicitScalarAnyFirstChar = implicitScalarTags.filter((tag2) => tag2.implicitFirstChars === null);
-        const keys2 = /* @__PURE__ */ new Set();
-        for (const tag2 of implicitScalarTags) if (tag2.implicitFirstChars !== null) for (const key6 of tag2.implicitFirstChars) keys2.add(key6);
-        const implicitScalarByFirstChar = /* @__PURE__ */ new Map();
-        for (const key6 of keys2) implicitScalarByFirstChar.set(key6, implicitScalarTags.filter((tag2) => tag2.implicitFirstChars === null || tag2.implicitFirstChars.indexOf(key6) !== -1));
-        const defaultScalarTag = exact2.scalar["tag:yaml.org,2002:str"];
-        if (!defaultScalarTag) throw new Error("schema does not define the default scalar tag (tag:yaml.org,2002:str)");
-        this.tags = compiledTags;
-        this.implicitScalarTags = implicitScalarTags;
-        this.implicitScalarByFirstChar = implicitScalarByFirstChar;
-        this.implicitScalarAnyFirstChar = implicitScalarAnyFirstChar;
-        this.defaultScalarTag = defaultScalarTag;
-        this.defaultSequenceTag = exact2.sequence["tag:yaml.org,2002:seq"];
-        this.defaultMappingTag = exact2.mapping["tag:yaml.org,2002:map"];
-        this.exact = exact2;
-        this.prefix = prefix;
-      }
-      /** @internal */
-      lookupScalarTag(tagName) {
-        const exactTag = this.exact.scalar[tagName];
-        if (exactTag) return exactTag;
-        for (const tag2 of this.prefix.scalar) if (tagName.startsWith(tag2.tagName)) return tag2;
-      }
-      /** @internal */
-      lookupSequenceTag(tagName) {
-        const exactTag = this.exact.sequence[tagName];
-        if (exactTag) return exactTag;
-        for (const tag2 of this.prefix.sequence) if (tagName.startsWith(tag2.tagName)) return tag2;
-      }
-      /** @internal */
-      lookupMappingTag(tagName) {
-        const exactTag = this.exact.mapping[tagName];
-        if (exactTag) return exactTag;
-        for (const tag2 of this.prefix.mapping) if (tagName.startsWith(tag2.tagName)) return tag2;
-      }
-      /** @internal */
-      resolveImplicitScalarTag(source2) {
-        const candidates = this.implicitScalarByFirstChar.get(source2.charAt(0)) ?? this.implicitScalarAnyFirstChar;
-        for (const tag3 of candidates) {
-          const value2 = tag3.resolve(source2, false, tag3.tagName);
-          if (value2 !== NOT_RESOLVED) return {
-            value: value2,
-            tag: tag3
-          };
-        }
-        const tag2 = this.defaultScalarTag;
-        return {
-          value: tag2.resolve(source2, false, tag2.tagName),
-          tag: tag2
-        };
-      }
-      /**
-      * Creates a new schema with the specified tags added. If a tag already
-      * exists, it is replaced by the specified tag.
-      *
-      * @example
-      *
-      * ```javascript
-      * import { CORE_SCHEMA, mergeTag, realMapTag } from 'js-yaml'
-      *
-      * const schema = CORE_SCHEMA.withTags(mergeTag, realMapTag)
-      * ```
-      */
-      withTags(...tags) {
-        let flatTags = [];
-        for (const tag2 of tags) flatTags = flatTags.concat(tag2);
-        return new Schema2([...this.tags, ...flatTags]);
-      }
-    };
-    FAILSAFE_SCHEMA = new Schema([
-      strTag,
-      seqTag,
-      mapTag
-    ]);
-    JSON_SCHEMA = new Schema([
-      ...FAILSAFE_SCHEMA.tags,
-      nullJsonTag,
-      boolJsonTag,
-      intJsonTag,
-      floatJsonTag
-    ]);
-    CORE_SCHEMA = new Schema([
-      ...FAILSAFE_SCHEMA.tags,
-      nullCoreTag,
-      boolCoreTag,
-      intCoreTag,
-      floatCoreTag
-    ]);
-    YAML11_SCHEMA = new Schema([
-      ...FAILSAFE_SCHEMA.tags,
-      nullYaml11Tag,
-      boolYaml11Tag,
-      intYaml11Tag,
-      floatYaml11Tag,
-      timestampTag,
-      mergeTag,
-      binaryTag,
-      omapTag,
-      pairsTag,
-      setTag
-    ]);
-    DUMP_SCHEMA = YAML11_SCHEMA.withTags({
-      ...intYaml11Tag,
-      resolve: (source2, isExplicit, tagName) => {
-        const result = intYaml11Tag.resolve(source2, isExplicit, tagName);
-        return result === NOT_RESOLVED ? intCoreTag.resolve(source2, isExplicit, tagName) : result;
-      }
-    }, {
-      ...floatYaml11Tag,
-      resolve: (source2, isExplicit, tagName) => {
-        const result = floatYaml11Tag.resolve(source2, isExplicit, tagName);
-        return result === NOT_RESOLVED ? floatCoreTag.resolve(source2, isExplicit, tagName) : result;
-      }
-    });
-    realMapTag = defineMappingTag("tag:yaml.org,2002:map", {
-      create: () => /* @__PURE__ */ new Map(),
-      addPair: (container2, key6, value2) => {
-        container2.set(key6, value2);
-        return "";
-      },
-      has: (container2, key6) => container2.has(key6),
-      keys: (container2) => container2.keys(),
-      get: (container2, key6) => container2.get(key6),
-      identify: (data) => data instanceof Map || isPlainObject3(data),
-      represent: (data) => {
-        if (data instanceof Map) return data;
-        const map2 = /* @__PURE__ */ new Map();
-        const obj6 = data;
-        for (const key6 of Object.keys(obj6)) map2.set(key6, obj6[key6]);
-        return map2;
-      }
-    });
-    legacyMapTag = defineMappingTag("tag:yaml.org,2002:map", {
-      create: () => ({}),
-      identify: isPlainObject3,
-      represent: (o) => {
-        const map2 = /* @__PURE__ */ new Map();
-        for (const key6 of Object.keys(o)) map2.set(key6, o[key6]);
-        return map2;
-      },
-      addPair: (container2, key6, value2) => {
-        const normalizedKey = normalizeKey(key6);
-        if (normalizedKey === null) return "nested arrays are not supported inside keys";
-        if (normalizedKey === "__proto__") Object.defineProperty(container2, normalizedKey, {
-          value: value2,
-          enumerable: true,
-          configurable: true,
-          writable: true
-        });
-        else container2[normalizedKey] = value2;
-        return "";
-      },
-      has: (container2, key6) => {
-        const normalizedKey = normalizeKey(key6);
-        return normalizedKey !== null && Object.prototype.hasOwnProperty.call(container2, normalizedKey);
-      },
-      keys: (container2) => Object.keys(container2),
-      get: (container2, key6) => {
-        const normalizedKey = String(key6);
-        if (!Object.prototype.hasOwnProperty.call(container2, normalizedKey)) return null;
-        return container2[normalizedKey];
-      }
-    });
-    DEFAULT_SNIPPET_OPTIONS = {
-      maxLength: 79,
-      indent: 1,
-      linesBefore: 3,
-      linesAfter: 2
-    };
-    YAMLException = class YAMLException2 extends Error {
-      reason;
-      mark;
-      /**
-      * Optional `mark` contains source snippet data. Usually, use
-      * {@link YAMLException.throwAt} instead of passing it directly.
-      */
-      constructor(reason, mark) {
-        super();
-        this.name = "YAMLException";
-        this.reason = reason;
-        this.mark = mark;
-        this.message = formatError2(this, false);
-        if (Error.captureStackTrace) Error.captureStackTrace(this, this.constructor);
-      }
-      /**
-      * Returns the formatted error, omitting the source snippet in compact mode.
-      */
-      toString(compact) {
-        return `${this.name}: ${formatError2(this, compact)}`;
-      }
-      /**
-      * Builds a YAMLException with a source snippet and throws it. `source` is
-      * the raw input text; `position` is an offset into it.
-      */
-      static throwAt(source2, position, message, filename = "") {
-        let line = 0;
-        let lineStart = 0;
-        for (let index2 = 0; index2 < position; index2++) {
-          const ch = source2.charCodeAt(index2);
-          if (ch === 10) {
-            line++;
-            lineStart = index2 + 1;
-          } else if (ch === 13) {
-            line++;
-            if (source2.charCodeAt(index2 + 1) === 10) index2++;
-            lineStart = index2 + 1;
-          }
-        }
-        const mark = {
-          name: filename,
-          buffer: source2,
-          position,
-          line,
-          column: position - lineStart
-        };
-        mark.snippet = makeSnippet(mark);
-        throw new YAMLException2(message, mark);
-      }
-    };
-    EVENT_ID = {
-      DOCUMENT: 1,
-      SEQUENCE: 2,
-      MAPPING: 3,
-      SCALAR: 4,
-      ALIAS: 5,
-      POP: 6
-    };
-    SCALAR_STYLE = {
-      PLAIN: 1,
-      SINGLE_QUOTED: 2,
-      DOUBLE_QUOTED: 3,
-      LITERAL_BLOCK: 4,
-      FOLDED_BLOCK: 5
-    };
-    COLLECTION_STYLE = {
-      BLOCK: 1,
-      FLOW: 2
-    };
-    CHOMPING_MODE = {
-      CLIP: 1,
-      STRIP: 2,
-      KEEP: 3
-    };
-    NO_RANGE$3 = -1;
-    simpleEscapeCheck = new Array(256);
-    simpleEscapeMap = new Array(256);
-    for (let i = 0; i < 256; i++) {
-      simpleEscapeCheck[i] = simpleEscapeSequence(i) ? 1 : 0;
-      simpleEscapeMap[i] = simpleEscapeSequence(i);
-    }
-    DEFAULT_TAG_HANDLERS = Object.assign(/* @__PURE__ */ Object.create(null), {
-      "!": "!",
-      "!!": "tag:yaml.org,2002:"
-    });
-    NO_RANGE$2 = -1;
-    MERGE_TAG_NAME = "tag:yaml.org,2002:merge";
-    DEFAULT_CONSTRUCTOR_OPTIONS = {
-      filename: "",
-      schema: CORE_SCHEMA,
-      json: false,
-      maxTotalMergeKeys: 1e4,
-      maxAliases: -1
-    };
-    NO_RANGE$1 = -1;
-    HAS_OWN = Object.prototype.hasOwnProperty;
-    CONTEXT_FLOW_IN = 1;
-    CONTEXT_FLOW_OUT = 2;
-    CONTEXT_BLOCK_IN = 3;
-    CONTEXT_BLOCK_OUT = 4;
-    PATTERN_NON_PRINTABLE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x84\x86-\x9F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/;
-    PATTERN_FLOW_INDICATORS = /[,\[\]{}]/;
-    PATTERN_TAG_HANDLE = /^(?:!|!!|![0-9A-Za-z-]+!)$/;
-    NS_URI_CHAR = String.raw`(?:%[0-9A-Fa-f]{2}|[0-9A-Za-z\-#;/?:@&=+$,_.!~*'()\[\]])`;
-    NS_TAG_CHAR = String.raw`(?:%[0-9A-Fa-f]{2}|[0-9A-Za-z\-#;/?:@&=+$.~*'()_])`;
-    PATTERN_TAG_URI = new RegExp(`^(?:${NS_URI_CHAR})*$`);
-    PATTERN_TAG_SUFFIX = new RegExp(`^(?:${NS_TAG_CHAR})+$`);
-    PATTERN_TAG_PREFIX = new RegExp(`^(?:!(?:${NS_URI_CHAR})*|${NS_TAG_CHAR}(?:${NS_URI_CHAR})*)$`);
-    DEFAULT_PARSER_OPTIONS = {
-      filename: "",
-      maxDepth: 100
-    };
-    DEFAULT_LOAD_OPTIONS = {
-      ...DEFAULT_PARSER_OPTIONS,
-      ...DEFAULT_CONSTRUCTOR_OPTIONS
-    };
-    DEFAULT_SCALAR_STYLE_RULES = {
-      applyQuoteFlowKeysOption,
-      doubleQuoteForInvisibles,
-      doubleQuoteWhitespaceOnly,
-      applyForceQuotesOption,
-      tryLongOrMultilineAsBlock,
-      quoteInvalidPlain,
-      fallbackToDoubleQuoted
-    };
-    SRC_C_PRINTABLE = "[\\x09\\x0A\\x0D\\x20-\\x7E\\x85\\xA0-\\uD7FF\\uE000-\\uFFFD\\u{10000}-\\u{10FFFF}]";
-    SRC_B_CHAR = "[\\n\\r]";
-    SRC_C_BYTE_ORDER_MARK = "\\uFEFF";
-    SRC_S_WHITE = "[ \\t]";
-    SRC_NB_CHAR = `(?:(?!(?:${SRC_B_CHAR}|${SRC_C_BYTE_ORDER_MARK}))${SRC_C_PRINTABLE})`;
-    SRC_NS_CHAR = `(?:(?!${SRC_S_WHITE})${SRC_NB_CHAR})`;
-    SRC_NB_JSON = "[\\x09\\x20-\\uD7FF\\uE000-\\uFFFF\\u{10000}-\\u{10FFFF}]";
-    SRC_C_INDICATOR = "[-?:,\\[\\]{}#&*!|>'\"%@`]";
-    SRC_C_FLOW_INDICATOR = "[,\\[\\]{}]";
-    SRC_NS_PLAIN_SAFE_FLOW_OUT = SRC_NS_CHAR;
-    SRC_NS_PLAIN_SAFE_FLOW_IN = `(?:(?!${SRC_C_FLOW_INDICATOR})${SRC_NS_CHAR})`;
-    SRC_NS_PLAIN_FIRST_FLOW_OUT = `(?:(?:(?!${SRC_C_INDICATOR})${SRC_NS_CHAR})|[?:-](?=${SRC_NS_PLAIN_SAFE_FLOW_OUT}))`;
-    SRC_NS_PLAIN_FIRST_FLOW_IN = `(?:(?:(?!${SRC_C_INDICATOR})${SRC_NS_CHAR})|[?:-](?=${SRC_NS_PLAIN_SAFE_FLOW_IN}))`;
-    SRC_NS_PLAIN_CHAR_FLOW_OUT = `(?:(?:(?![:#])${SRC_NS_PLAIN_SAFE_FLOW_OUT})|:(?=${SRC_NS_PLAIN_SAFE_FLOW_OUT}))#*`;
-    SRC_NS_PLAIN_CHAR_FLOW_IN = `(?:(?:(?![:#])${SRC_NS_PLAIN_SAFE_FLOW_IN})|:(?=${SRC_NS_PLAIN_SAFE_FLOW_IN}))#*`;
-    SRC_NB_NS_PLAIN_IN_LINE_FLOW_OUT = `(?:${SRC_S_WHITE}*${SRC_NS_PLAIN_CHAR_FLOW_OUT})*`;
-    SRC_NB_NS_PLAIN_IN_LINE_FLOW_IN = `(?:${SRC_S_WHITE}*${SRC_NS_PLAIN_CHAR_FLOW_IN})*`;
-    SRC_NS_PLAIN_ONE_LINE_FLOW_OUT = `${SRC_NS_PLAIN_FIRST_FLOW_OUT}#*${SRC_NB_NS_PLAIN_IN_LINE_FLOW_OUT}`;
-    SRC_NS_PLAIN_ONE_LINE_FLOW_IN = `${SRC_NS_PLAIN_FIRST_FLOW_IN}#*${SRC_NB_NS_PLAIN_IN_LINE_FLOW_IN}`;
-    SRC_NS_PLAIN_ONE_LINE_BLOCK_KEY = SRC_NS_PLAIN_ONE_LINE_FLOW_OUT;
-    SRC_NS_PLAIN_ONE_LINE_FLOW_KEY = SRC_NS_PLAIN_ONE_LINE_FLOW_IN;
-    SRC_S_NS_PLAIN_NEXT_LINE_FLOW_OUT = `\\n+${SRC_NS_PLAIN_CHAR_FLOW_OUT}${SRC_NB_NS_PLAIN_IN_LINE_FLOW_OUT}`;
-    SRC_S_NS_PLAIN_NEXT_LINE_FLOW_IN = `\\n+${SRC_NS_PLAIN_CHAR_FLOW_IN}${SRC_NB_NS_PLAIN_IN_LINE_FLOW_IN}`;
-    SRC_NS_PLAIN_MULTI_LINE_FLOW_OUT = `${SRC_NS_PLAIN_ONE_LINE_FLOW_OUT}(?:${SRC_S_NS_PLAIN_NEXT_LINE_FLOW_OUT})*`;
-    SRC_NS_PLAIN_MULTI_LINE_FLOW_IN = `${SRC_NS_PLAIN_ONE_LINE_FLOW_IN}(?:${SRC_S_NS_PLAIN_NEXT_LINE_FLOW_IN})*`;
-    NS_PLAIN_FLOW_OUT = new RegExp(`^(?:${SRC_NS_PLAIN_MULTI_LINE_FLOW_OUT})$`, "u");
-    NS_PLAIN_FLOW_IN = new RegExp(`^(?:${SRC_NS_PLAIN_MULTI_LINE_FLOW_IN})$`, "u");
-    NS_PLAIN_BLOCK_KEY = new RegExp(`^(?:${SRC_NS_PLAIN_ONE_LINE_BLOCK_KEY})$`, "u");
-    NS_PLAIN_FLOW_KEY = new RegExp(`^(?:${SRC_NS_PLAIN_ONE_LINE_FLOW_KEY})$`, "u");
-    NB_SINGLE_ONE_LINE = new RegExp(`^(?:${SRC_NB_JSON})*$`, "u");
-    NB_SINGLE_MULTI_LINE = new RegExp(`^(?:${SRC_NB_JSON}|\\n)*$`, "u");
-    BLOCK_SCALAR_CONTENT = new RegExp(`^(?:${SRC_NB_CHAR}|\\n)*$`, "u");
-    DEFAULT_PRESENTER_OPTIONS = {
-      indent: 2,
-      seqNoIndent: false,
-      seqInlineFirst: true,
-      lineWidth: 80,
-      flowBracketPadding: false,
-      flowSkipCommaSpace: false,
-      flowSkipColonSpace: false,
-      quoteFlowKeys: false,
-      quoteStyle: "single",
-      forceQuotes: false,
-      scalarStyleRules: Object.keys(DEFAULT_SCALAR_STYLE_RULES).map((name3) => Reflect.get(DEFAULT_SCALAR_STYLE_RULES, name3)),
-      tagBeforeAnchor: false
-    };
-    DEFAULT_DUMP_OPTIONS = {
-      ...DEFAULT_PRESENTER_OPTIONS,
-      schema: DUMP_SCHEMA,
-      skipInvalid: false,
-      noRefs: false,
-      flowLevel: -1,
-      sortKeys: false,
-      transform: () => {
-      }
-    };
-    EVENT_DOCUMENT = EVENT_ID.DOCUMENT;
-    EVENT_SEQUENCE = EVENT_ID.SEQUENCE;
-    EVENT_MAPPING = EVENT_ID.MAPPING;
-    EVENT_SCALAR = EVENT_ID.SCALAR;
-    EVENT_ALIAS = EVENT_ID.ALIAS;
-    EVENT_POP = EVENT_ID.POP;
-    SCALAR_STYLE_PLAIN = SCALAR_STYLE.PLAIN;
-    SCALAR_STYLE_SINGLE_QUOTED = SCALAR_STYLE.SINGLE_QUOTED;
-    SCALAR_STYLE_DOUBLE_QUOTED = SCALAR_STYLE.DOUBLE_QUOTED;
-    SCALAR_STYLE_LITERAL_BLOCK = SCALAR_STYLE.LITERAL_BLOCK;
-    SCALAR_STYLE_FOLDED_BLOCK = SCALAR_STYLE.FOLDED_BLOCK;
-    COLLECTION_STYLE_BLOCK = COLLECTION_STYLE.BLOCK;
-    COLLECTION_STYLE_FLOW = COLLECTION_STYLE.FLOW;
-    CHOMPING_CLIP = CHOMPING_MODE.CLIP;
-    CHOMPING_STRIP = CHOMPING_MODE.STRIP;
-    CHOMPING_KEEP = CHOMPING_MODE.KEEP;
-  }
-});
-
-// src/areas/util/kit/yaml.ts
-var yaml_exports = {};
-__export(yaml_exports, {
-  MAX_YAML_NODES: () => MAX_YAML_NODES,
-  parseYaml: () => parseYaml
-});
-function parseYaml(text4, label3 = "the YAML") {
-  let value2;
-  try {
-    value2 = load(text4, { schema: CORE_SCHEMA });
-  } catch (err) {
-    if (!(err instanceof YAMLException)) throw err;
-    const where6 = err.mark ? ` at line ${err.mark.line + 1}, column ${err.mark.column + 1}` : "";
-    throw new ToilError("INVALID_INPUT", `${label3[0].toUpperCase()}${label3.slice(1)} isn't valid YAML${where6}: ${err.reason}.`, {
-      fix: /more than one document|multi-document|expected a single document/i.test(err.reason) ? "Pass a single YAML document." : "Fix the YAML at that position and run it again.",
-      ...err.mark ? { details: { line: err.mark.line + 1, column: err.mark.column + 1 } } : {}
-    });
-  }
-  const written = writtenSize(value2);
-  if (written.shared && expandedSize(value2, written.count + MAX_YAML_NODES) > written.count + MAX_YAML_NODES) {
-    throw new ToilError("INVALID_INPUT", `${label3[0].toUpperCase()}${label3.slice(1)} uses aliases that add more than ${MAX_YAML_NODES} values to it once expanded, the most toil accepts.`, {
-      fix: "Pass a document without deeply nested aliases (*name), or with the aliased content written out."
-    });
-  }
-  return value2;
-}
-function writtenSize(value2) {
-  const seen = /* @__PURE__ */ new Set();
-  let count4 = 0;
-  let shared = false;
-  const stack = [value2];
-  while (stack.length) {
-    const next = stack.pop();
-    count4++;
-    if (next === null || typeof next !== "object") continue;
-    if (seen.has(next)) {
-      shared = true;
-      continue;
-    }
-    seen.add(next);
-    for (const child2 of Object.values(next)) stack.push(child2);
-  }
-  return { count: count4, shared };
-}
-function expandedSize(value2, limit3) {
-  let count4 = 0;
-  const stack = [value2];
-  while (stack.length) {
-    const next = stack.pop();
-    if (++count4 > limit3) return count4;
-    if (next !== null && typeof next === "object") for (const child2 of Object.values(next)) stack.push(child2);
-  }
-  return count4;
-}
-var MAX_YAML_NODES;
-var init_yaml = __esm({
-  "src/areas/util/kit/yaml.ts"() {
-    "use strict";
-    init_js_yaml();
-    init_errors();
-    MAX_YAML_NODES = 1e6;
   }
 });
 
@@ -105530,8 +103056,8 @@ function bind(r) {
 function isLeapYear(year) {
   return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
 }
-function date5(str5) {
-  const matches2 = str5.match(DATE);
+function date5(str4) {
+  const matches2 = str4.match(DATE);
   if (!matches2)
     return false;
   const year = +matches2[1];
@@ -105539,8 +103065,8 @@ function date5(str5) {
   const day2 = +matches2[3];
   return month >= 1 && month <= 12 && day2 >= 1 && day2 <= (month == 2 && isLeapYear(year) ? 29 : DAYS[month]);
 }
-function time3(full, str5) {
-  const matches2 = str5.match(TIME);
+function time3(full, str4) {
+  const matches2 = str4.match(TIME);
   if (!matches2)
     return false;
   const hour = +matches2[1];
@@ -105549,18 +103075,18 @@ function time3(full, str5) {
   const timeZone = !!matches2[5];
   return (hour <= 23 && minute <= 59 && second <= 59 || hour == 23 && minute == 59 && second == 60) && (!full || timeZone);
 }
-function date_time(str5) {
-  const dateTime = str5.split(DATE_TIME_SEPARATOR);
+function date_time(str4) {
+  const dateTime = str4.split(DATE_TIME_SEPARATOR);
   return dateTime.length == 2 && date5(dateTime[0]) && time3(true, dateTime[1]);
 }
-function uri(str5) {
-  return NOT_URI_FRAGMENT.test(str5) && URI_PATTERN.test(str5);
+function uri(str4) {
+  return NOT_URI_FRAGMENT.test(str4) && URI_PATTERN.test(str4);
 }
-function regex(str5) {
-  if (Z_ANCHOR.test(str5))
+function regex(str4) {
+  if (Z_ANCHOR.test(str4))
     return false;
   try {
-    new RegExp(str5, "u");
+    new RegExp(str4, "u");
     return true;
   } catch (e) {
     return false;
@@ -106563,7 +104089,7 @@ function nesting(value2) {
     if (typeof node3 !== "object" || node3 === null) continue;
     if (depth > deepest) deepest = depth;
     if (deepest > MAX_DOCUMENT_DEPTH * 4) return deepest;
-    for (const child2 of Object.values(node3)) if (typeof child2 === "object" && child2 !== null) stack.push([child2, depth + 1]);
+    for (const child of Object.values(node3)) if (typeof child === "object" && child !== null) stack.push([child, depth + 1]);
   }
   return deepest;
 }
@@ -106591,8 +104117,9 @@ function refPointer(ref2) {
     return ref2.slice(1);
   }
 }
-async function loadDocument(input3) {
-  const text4 = await input3.text();
+async function loadDocument(input3, options2 = {}) {
+  const bytes = await input3.bytes();
+  const text4 = new TextDecoder("utf-8").decode(bytes);
   let value2;
   let format4 = "yaml";
   if (/^\s*[{[]/.test(text4)) {
@@ -106603,8 +104130,10 @@ async function loadDocument(input3) {
     }
   }
   if (format4 === "yaml") {
-    const { parseYaml: parseYaml2 } = await Promise.resolve().then(() => (init_yaml(), yaml_exports));
-    value2 = parseYaml2(text4, input3.label);
+    const { boundedStep: boundedStep2 } = await Promise.resolve().then(() => (init_bounded(), bounded_exports));
+    const limits = options2.limits ?? DOCUMENT_LIMITS;
+    const copy = bytes.slice();
+    value2 = await boundedStep2(`Reading ${input3.label}`, { kind: "parse", source: { bytes: copy, format: "yaml" }, label: input3.label }, { ...limits, signal: options2.signal, transfer: [copy.buffer] }, "Pass a smaller document, or the same document as JSON, which reads in a fraction of the time and memory.");
   }
   const notADocument = (why) => new ToilError("INVALID_INPUT", `${input3.label[0].toUpperCase()}${input3.label.slice(1)} isn't an OpenAPI or Swagger document: ${why}.`, {
     fix: 'Pass an OpenAPI 3.x or Swagger 2.0 document, in JSON or YAML, with an "openapi" or "swagger" field at the top.'
@@ -106625,7 +104154,7 @@ async function loadDocument(input3) {
       fix: "Pass a Swagger 2.0 or OpenAPI 3.0, 3.1 or 3.2 document."
     });
   }
-  return { doc: value2, spec, version: declared, format: format4 };
+  return { doc: value2, spec, version: declared, format: format4, source: { bytes, format: format4 } };
 }
 async function officialSchema(spec) {
   const own2 = (module) => structuredClone(module.default);
@@ -106649,17 +104178,17 @@ function collectRefs(doc, spec) {
   while (stack.length) {
     const { node: node3, pointer: pointer2, names: names2 } = stack.pop();
     if (Array.isArray(node3)) {
-      node3.forEach((child2, i) => stack.push({ node: child2, pointer: childPointer(pointer2, i), names: false }));
+      node3.forEach((child, i) => stack.push({ node: child, pointer: childPointer(pointer2, i), names: false }));
       continue;
     }
     if (!isObject4(node3)) continue;
     if (!names2 && typeof node3.$ref === "string") found.push({ at: childPointer(pointer2, "$ref"), ref: node3.$ref });
-    for (const [key6, child2] of Object.entries(node3)) {
+    for (const [key6, child] of Object.entries(node3)) {
       if (!names2) {
         if (key6.startsWith("x-") || DATA_KEYS.has(key6)) continue;
-        if (key6 === "examples" && (spec === "swagger-2.0" || Array.isArray(child2))) continue;
+        if (key6 === "examples" && (spec === "swagger-2.0" || Array.isArray(child))) continue;
       }
-      stack.push({ node: child2, pointer: childPointer(pointer2, key6), names: !names2 && NAME_MAPS.has(key6) });
+      stack.push({ node: child, pointer: childPointer(pointer2, key6), names: !names2 && NAME_MAPS.has(key6) });
     }
   }
   return found.reverse();
@@ -106699,9 +104228,9 @@ function findCycles(refs) {
     while (work.length) {
       const frame3 = work[work.length - 1];
       if (frame3.i < frame3.children.length) {
-        const child2 = frame3.children[frame3.i++];
-        if (!index2.has(child2)) visit3(child2);
-        else if (onStack.has(child2)) low.set(frame3.node, Math.min(low.get(frame3.node), index2.get(child2)));
+        const child = frame3.children[frame3.i++];
+        if (!index2.has(child)) visit3(child);
+        else if (onStack.has(child)) low.set(frame3.node, Math.min(low.get(frame3.node), index2.get(child)));
         continue;
       }
       work.pop();
@@ -106741,10 +104270,12 @@ function checkRefs(doc, spec, v) {
   if (external2.length) v.unchecked("refs.external", `${external2.length} $ref${external2.length === 1 ? " points" : "s point"} outside this document (first at ${external2[0].at}), and other files and URLs are not read`);
   return { total: all3.length, local: local.length + broken.length, broken: broken.slice(0, MAX_LISTED), external: external2.slice(0, MAX_LISTED), circular: findCycles(local).slice(0, MAX_LISTED) };
 }
-async function checkDocument(loaded, v, signal) {
+async function checkDocument(loaded, v, signal, limits = DOCUMENT_LIMITS) {
   const [{ leafProblems: leafProblems2 }, { validateBounded: validateBounded2 }] = await Promise.all([Promise.resolve().then(() => (init_json_schema(), json_schema_exports2)), Promise.resolve().then(() => (init_bounded(), bounded_exports))]);
   const { schema: schema3, references } = await officialSchema(loaded.spec);
-  const result = await validateBounded2(schema3, loaded.doc, { references, signal, key: loaded.spec });
+  const source2 = loaded.source;
+  loaded.source = void 0;
+  const result = await validateBounded2(schema3, loaded.doc, { references, signal, key: loaded.spec, ...limits, ...source2 ? { source: source2 } : {} });
   const leaves = leafProblems2(result.problems).map((p) => ({ ...p, message: brief(p.message) }));
   if (result.unchecked !== void 0) v.unchecked("document.schema", result.unchecked);
   else if (result.valid) v.pass("document.schema");
@@ -106770,11 +104301,12 @@ async function checkDocument(loaded, v, signal) {
     refs
   };
 }
-var without, brief, MAX_DOCUMENT_DEPTH, isObject4, escapeToken, unescapeToken, childPointer, MAX_LISTED, NAME_MAPS, DATA_KEYS;
+var DOCUMENT_LIMITS, without, brief, MAX_DOCUMENT_DEPTH, isObject4, escapeToken, unescapeToken, childPointer, MAX_LISTED, NAME_MAPS, DATA_KEYS;
 var init_document = __esm({
   "src/areas/util/openapi/document.ts"() {
     "use strict";
     init_errors();
+    DOCUMENT_LIMITS = { timeoutMs: 15e3, maxMemoryMb: 1536 };
     without = (node3, ...keys2) => Object.fromEntries(Object.entries(node3).filter(([k]) => !keys2.includes(k)));
     brief = (message) => message.length > 300 ? `${message.slice(0, 300)}\u2026` : message;
     MAX_DOCUMENT_DEPTH = 256;
@@ -106900,7 +104432,7 @@ function expandNode(doc, spec, node3, expansion, trail, names2) {
   if (Array.isArray(node3)) {
     if (!spend(() => 2 + node3.length)) return null;
     expansion.nodes++;
-    return node3.map((child2) => expand(doc, spec, child2, expansion, trail));
+    return node3.map((child) => expand(doc, spec, child, expansion, trail));
   }
   if (!isObject4(node3)) return spend(() => JSON.stringify(node3).length) ? node3 : null;
   if (!names2 && typeof node3.$ref === "string") {
@@ -106928,10 +104460,10 @@ function expandNode(doc, spec, node3, expansion, trail, names2) {
   if (!spend(() => 2)) return null;
   expansion.nodes++;
   const out = {};
-  for (const [key6, child2] of Object.entries(node3)) {
+  for (const [key6, child] of Object.entries(node3)) {
     const data = !names2 && (DATA_KEYS.has(key6) || key6 === "examples" || key6.startsWith("x-"));
-    if (data) out[key6] = spend(() => JSON.stringify(key6).length + 2 + JSON.stringify(child2).length) ? child2 : null;
-    else out[key6] = spend(() => JSON.stringify(key6).length + 2) ? expand(doc, spec, child2, expansion, trail, !names2 && NAME_MAPS.has(key6)) : null;
+    if (data) out[key6] = spend(() => JSON.stringify(key6).length + 2 + JSON.stringify(child).length) ? child : null;
+    else out[key6] = spend(() => JSON.stringify(key6).length + 2) ? expand(doc, spec, child, expansion, trail, !names2 && NAME_MAPS.has(key6)) : null;
   }
   return out;
 }
@@ -107226,8 +104758,8 @@ function stringCandidates(g, node3) {
 }
 function stringValue(g, node3) {
   const candidates = stringCandidates(g, node3);
-  const pick4 = g.picks?.get(node3);
-  return pick4 ?? candidates[0];
+  const pick3 = g.picks?.get(node3);
+  return pick3 ?? candidates[0];
 }
 function numberValue(node3, integer2) {
   const step4 = typeof node3.multipleOf === "number" && node3.multipleOf > 0 ? node3.multipleOf : integer2 ? 1 : void 0;
@@ -107362,7 +104894,7 @@ function patternSchemas(doc, root) {
       const value2 = target2 === void 0 ? void 0 : atPointer(doc, target2);
       if (value2 !== void 0) stack.push(value2);
     }
-    for (const [key6, child2] of Object.entries(node3)) if (!DATA_KEYS.has(key6) && key6 !== "examples" && !key6.startsWith("x-")) stack.push(child2);
+    for (const [key6, child] of Object.entries(node3)) if (!DATA_KEYS.has(key6) && key6 !== "examples" && !key6.startsWith("x-")) stack.push(child);
   }
   return found;
 }
@@ -107389,12 +104921,12 @@ async function generateExample(doc, spec, schema3, direction, signal) {
   return { example: example3, truncated: g.truncated === true, ...patterns === void 0 ? {} : { patterns } };
 }
 function asJsonSchema(g, node3, names2 = false) {
-  if (Array.isArray(node3)) return node3.map((child2) => asJsonSchema(g, child2));
+  if (Array.isArray(node3)) return node3.map((child) => asJsonSchema(g, child));
   if (!isObject4(node3)) return node3;
   const out = {};
-  for (const [key6, child2] of Object.entries(node3)) {
+  for (const [key6, child] of Object.entries(node3)) {
     const data = !names2 && (DATA_KEYS.has(key6) || key6 === "examples" || key6.startsWith("x-"));
-    out[key6] = data ? child2 : asJsonSchema(g, child2, !names2 && NAME_MAPS.has(key6));
+    out[key6] = data ? child : asJsonSchema(g, child, !names2 && NAME_MAPS.has(key6));
   }
   if (names2) return out;
   if ((g.spec === "openapi-3.0" || g.spec === "swagger-2.0") && isNullable(node3)) {
@@ -107502,7 +105034,7 @@ function servers(doc, spec) {
   return schemes.map((scheme) => `${scheme}://${doc.host}${typeof doc.basePath === "string" ? doc.basePath : ""}`);
 }
 async function open2(input3, v, signal) {
-  const loaded = await loadDocument(input3);
+  const loaded = await loadDocument(input3, { signal });
   v.inputComplete(input3);
   const report = await checkDocument(loaded, v, signal);
   const ops = operations(loaded.doc);
@@ -108584,6 +106116,31 @@ function isTraceLine(rest, kind) {
 function signature(rest) {
   return rest.replace(new RegExp(TS, "g"), "<ts>").replace(/\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}(?:_\d+)?Z?/g, "<ts>").replace(new RegExp(String.raw`\b${TIME4}\b`, "g"), "<ts>").replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "<id>").replace(/\b0x[0-9a-f]+\b/gi, "<hex>").replace(/\b(?=[0-9a-f]*[a-f])(?=[0-9a-f]*\d)[0-9a-f]{8,}\b/gi, "<hex>").replace(/\b\d+(?:[.,_]\d+)*\b/g, "<n>").replace(/\s+/g, " ").trim();
 }
+async function* grepped(input3, pattern, run3) {
+  if (pattern === void 0) {
+    for await (const line of input3.lines()) yield { line, hit: false };
+    return;
+  }
+  const { boundedError: boundedError2, grepBounded: grepBounded2 } = await Promise.resolve().then(() => (init_bounded(), bounded_exports));
+  const limits = run3.limits ?? {};
+  let batch = [];
+  let chars = 0;
+  const flush = async function* () {
+    const outcome2 = await grepBounded2(pattern, batch.map((l) => l.text), { ...limits, signal: run3.signal });
+    if (!outcome2.ok) {
+      throw boundedError2(`Matching --grep against lines ${batch[0].number}-${batch.at(-1).number}`, outcome2, limits, "Pass a pattern that doesn't nest repetition (such as (a+)+) or repeat overlapping alternatives (such as (a|aa)*), or narrow the log with since or level.");
+    }
+    for (let k = 0; k < batch.length; k++) yield { line: batch[k], hit: outcome2.value[k] === 1 };
+    batch = [];
+    chars = 0;
+  };
+  for await (const line of input3.lines()) {
+    batch.push(line);
+    chars += line.text.length;
+    if (batch.length >= GREP_BATCH_LINES || chars >= GREP_BATCH_CHARS) yield* flush();
+  }
+  if (batch.length) yield* flush();
+}
 function parseFilters(options2) {
   const filters = { level: options2.level ?? "warning" };
   if (options2.since !== void 0) {
@@ -108597,14 +106154,15 @@ function parseFilters(options2) {
   }
   if (options2.grep !== void 0) {
     try {
-      filters.grep = new RegExp(options2.grep);
+      new RegExp(options2.grep);
+      filters.grep = options2.grep;
     } catch (err) {
       throw new ToilError("INVALID_INPUT", `--grep isn't a valid regular expression: ${err.message}`, { fix: "Pass a JavaScript regular expression, without slashes or flags." });
     }
   }
   return filters;
 }
-async function scan(input3, filters, v) {
+async function scan(input3, filters, v, run3 = {}) {
   const lines = { total: 0, error: 0, warning: 0, other: 0, stack: 0, unclassified: 0 };
   const groups = /* @__PURE__ */ new Map();
   const out = { matched: 0, filtered: 0, ungrouped: 0, unjoinedFrames: 0, cutLines: 0, undated: 0, grepStackHits: 0 };
@@ -108613,6 +106171,7 @@ async function scan(input3, filters, v) {
   let anchor2;
   let py;
   let pending;
+  let grepHit = false;
   const match = (number4, text4, rest, level2, pyTrace) => {
     lines[level2]++;
     anchor2 = void 0;
@@ -108626,7 +106185,7 @@ async function scan(input3, filters, v) {
       }
     }
     const dropped = !keep;
-    if (keep && grep && !grep.test(text4)) {
+    if (keep && grep !== void 0 && !grepHit) {
       keep = false;
       if (level2 === "error" && !pyTrace) pending = { number: number4, text: text4, rest };
     }
@@ -108658,12 +106217,12 @@ async function scan(input3, filters, v) {
     group.lastLine = number4;
     if (!pyTrace) anchor2 = { group, level: level2, record: record2, gap: 0, inTrace: false };
   };
-  for await (const line of input3.lines()) {
+  for await (const { line, hit } of grepped(input3, filters.grep, run3)) {
     lines.total++;
     if (line.cut) out.cutLines++;
     const { rest, stamp: stamp2 } = stripTimestamp(line.text);
     if (stamp2 !== void 0) lastDate = parseTimestamp(stamp2) ?? lastDate;
-    const grepHit = filters.grep?.test(line.text) ?? false;
+    grepHit = hit;
     if (pending) {
       const held = pending;
       pending = void 0;
@@ -108806,12 +106365,12 @@ async function finish2(found, input3, options2, v, warn) {
     verified: v.done()
   };
 }
-async function triageLog(input3, filters, options2, warn) {
+async function triageLog(input3, filters, options2, warn, run3 = {}) {
   const v = new Verifier(warn);
-  const found = await scan(input3, filters, v);
+  const found = await scan(input3, filters, v, run3);
   return finish2(found, input3, options2, v, warn);
 }
-var MAX_LINE3, MAX_TRACKED, DEFAULT_GROUPS, MAX_GROUPS, MAX_TRACE_LINES, MAX_GAP, TS, TIME4, PREFIX, DATE2, LEVEL_WORD, TOOL_LEVEL, EXCEPTION, ERROR_SHAPES, WARNING_SHAPES, WORD_LEVEL, TOOL_WORD, isBare, JAVA_FRAME, JAVA_MORE, NODE_FRAME, DOTNET_FRAME, DOTNET_MORE, ANY_FRAME, PY_START, byReport;
+var MAX_LINE3, MAX_TRACKED, DEFAULT_GROUPS, MAX_GROUPS, MAX_TRACE_LINES, MAX_GAP, TS, TIME4, PREFIX, DATE2, LEVEL_WORD, TOOL_LEVEL, EXCEPTION, ERROR_SHAPES, WARNING_SHAPES, WORD_LEVEL, TOOL_WORD, isBare, JAVA_FRAME, JAVA_MORE, NODE_FRAME, DOTNET_FRAME, DOTNET_MORE, ANY_FRAME, PY_START, GREP_BATCH_LINES, GREP_BATCH_CHARS, byReport;
 var init_triage = __esm({
   "src/areas/util/log/triage.ts"() {
     "use strict";
@@ -108854,3587 +106413,9 @@ var init_triage = __esm({
     DOTNET_MORE = /^\s*(?:---> \S|--- End of (?:inner exception )?stack trace)/;
     ANY_FRAME = /^\s+at \S/;
     PY_START = /^Traceback \(most recent call last\):\s*$/;
+    GREP_BATCH_LINES = 4096;
+    GREP_BATCH_CHARS = 1024 * 1024;
     byReport = (a, b) => a.level === b.level ? a.firstLine - b.firstLine : a.level === "error" ? -1 : 1;
-  }
-});
-
-// src/areas/util/kit/xml.ts
-function localName(name3) {
-  const colon = name3.indexOf(":");
-  return colon === -1 ? name3 : name3.slice(colon + 1);
-}
-function tagEnd(b) {
-  let quote = "";
-  for (let i = 1; i < b.length; i++) {
-    const c = b[i];
-    if (quote) {
-      if (c === quote) quote = "";
-    } else if (c === '"' || c === "'") quote = c;
-    else if (c === ">") return i + 1;
-    else if (c === "<") return -2;
-  }
-  return -1;
-}
-function parseXml(text4, options2 = {}) {
-  const top2 = [];
-  const open3 = [];
-  const add2 = (node3) => {
-    const siblings = open3.at(-1)?.children ?? top2;
-    const prev = siblings.at(-1);
-    if (node3.type === "text" && prev?.type === "text" && prev.cdata === node3.cdata) prev.text += node3.text;
-    else siblings.push(node3);
-  };
-  const tokenizer = new XmlTokenizer((event) => {
-    if (event.type === "open") {
-      const element = { type: "element", name: event.name, attrs: event.attrs, children: [], line: event.line, column: event.column };
-      add2(element);
-      open3.push(element);
-    } else if (event.type === "close") open3.pop();
-    else if (event.type === "text") add2({ type: "text", text: event.text, cdata: event.cdata });
-    else if (event.type === "comment" && options2.comments) add2({ type: "comment", text: event.text });
-  }, options2);
-  tokenizer.write(text4);
-  tokenizer.end();
-  return top2;
-}
-function textOf(node3) {
-  if (node3.type === "text") return node3.text;
-  if (node3.type === "comment") return "";
-  return node3.children.map(textOf).join("");
-}
-var XmlSyntaxError, PREDEFINED, NAME2, DEFAULT_MAX_TOKEN, XmlTokenizer;
-var init_xml = __esm({
-  "src/areas/util/kit/xml.ts"() {
-    "use strict";
-    XmlSyntaxError = class extends Error {
-      constructor(message, line, column) {
-        super(`${message} (line ${line}, column ${column})`);
-        this.line = line;
-        this.column = column;
-        this.name = "XmlSyntaxError";
-      }
-      line;
-      column;
-    };
-    PREDEFINED = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
-    NAME2 = /^[A-Za-z_:\u00c0-\uffff][\w:.\u00b7\u00c0-\uffff-]*$/;
-    DEFAULT_MAX_TOKEN = 16 * 1024 * 1024;
-    XmlTokenizer = class {
-      constructor(onEvent, options2 = {}) {
-        this.onEvent = onEvent;
-        this.options = options2;
-        this.entities = { ...options2.entities, ...PREDEFINED };
-        this.maxToken = options2.maxToken ?? DEFAULT_MAX_TOKEN;
-      }
-      onEvent;
-      options;
-      buffer = "";
-      line = 1;
-      column = 1;
-      stack = [];
-      roots = 0;
-      ended = false;
-      entities;
-      maxToken;
-      /** The element names open at this point, outermost first. */
-      get open() {
-        return this.stack;
-      }
-      write(chunk) {
-        if (this.ended) throw new Error("write() after end()");
-        this.buffer += this.line === 1 && this.column === 1 && this.buffer === "" ? chunk.replace(/^\ufeff/, "") : chunk;
-        this.drain(false);
-      }
-      end() {
-        this.ended = true;
-        this.drain(true);
-        if (this.stack.length) throw this.error(`<${this.stack.at(-1)}> is never closed`);
-        if (!this.options.fragment && this.roots === 0) throw this.error("There is no root element");
-      }
-      error(message, at9 = { line: this.line, column: this.column }) {
-        return new XmlSyntaxError(message, at9.line, at9.column);
-      }
-      /** Moves the position past `text`. */
-      advance(text4) {
-        let nl = text4.indexOf("\n");
-        if (nl === -1) {
-          this.column += text4.length;
-          return;
-        }
-        let last = nl;
-        while (nl !== -1) {
-          this.line++;
-          last = nl;
-          nl = text4.indexOf("\n", nl + 1);
-        }
-        this.column = text4.length - last;
-      }
-      drain(final) {
-        for (; ; ) {
-          const lt = this.buffer.indexOf("<");
-          if (lt !== 0) {
-            let end2 = lt === -1 ? this.buffer.length : lt;
-            if (lt === -1 && !final) {
-              const amp = this.buffer.lastIndexOf("&");
-              if (amp !== -1 && this.buffer.length - amp <= 32 && this.buffer.indexOf(";", amp) === -1) end2 = amp;
-              while (end2 > 0 && end2 > this.buffer.length - 2 && this.buffer[end2 - 1] === "]") end2--;
-              if (end2 > 0 && this.buffer[end2 - 1] === "\r") end2--;
-            }
-            if (end2 === 0) return;
-            this.text(this.buffer.slice(0, end2));
-            this.consume(end2);
-            if (lt === -1) return;
-            continue;
-          }
-          const length = this.markup(final);
-          if (length === 0) {
-            if (this.buffer.length > this.maxToken) throw this.error(`A single construct is longer than ${this.maxToken} characters`);
-            if (final) throw this.error("The document ends inside markup");
-            return;
-          }
-        }
-      }
-      consume(n) {
-        this.advance(this.buffer.slice(0, n));
-        this.buffer = this.buffer.slice(n);
-      }
-      /** Handles the markup at the start of the buffer and returns how much it used, or 0 when it isn't all here yet. */
-      markup(final) {
-        const b = this.buffer;
-        const at9 = { line: this.line, column: this.column };
-        const startsWith = (prefix) => b.startsWith(prefix) || !final && prefix.startsWith(b);
-        const until = (close, from) => {
-          const i = b.indexOf(close, from);
-          return i === -1 ? -1 : i + close.length;
-        };
-        if (startsWith("<!--")) {
-          if (b.length < 4) return 0;
-          const end3 = until("-->", 4);
-          if (end3 === -1) return 0;
-          this.onEvent({ type: "comment", text: b.slice(4, end3 - 3), ...at9 });
-          this.consume(end3);
-          return end3;
-        }
-        if (startsWith("<![CDATA[")) {
-          if (b.length < 9) return 0;
-          const end3 = until("]]>", 9);
-          if (end3 === -1) return 0;
-          this.inElementOrFragment(at9, true);
-          this.onEvent({ type: "text", text: b.slice(9, end3 - 3).replace(/\r\n?/g, "\n"), cdata: true, ...at9 });
-          this.consume(end3);
-          return end3;
-        }
-        if (startsWith("<!DOCTYPE")) {
-          if (b.length < 9) return 0;
-          const open3 = b.indexOf("[");
-          const firstGt = b.indexOf(">");
-          let end3;
-          if (open3 !== -1 && (firstGt === -1 || open3 < firstGt)) {
-            const close = b.indexOf("]", open3);
-            end3 = close === -1 ? -1 : until(">", close);
-          } else end3 = firstGt === -1 ? -1 : firstGt + 1;
-          if (end3 === -1) return 0;
-          this.onEvent({ type: "doctype", body: b.slice(9, end3 - 1).trim(), ...at9 });
-          this.consume(end3);
-          return end3;
-        }
-        if (b.startsWith("<!")) {
-          if (!final && b.length < 9) return 0;
-          throw this.error("Unrecognised markup after <!");
-        }
-        if (b.startsWith("<?")) {
-          const end3 = until("?>", 2);
-          if (end3 === -1) return 0;
-          const body = b.slice(2, end3 - 2);
-          const target2 = /^\S+/.exec(body)?.[0] ?? "";
-          this.onEvent({ type: "pi", target: target2, body: body.slice(target2.length).trim(), ...at9 });
-          this.consume(end3);
-          return end3;
-        }
-        const end2 = tagEnd(b);
-        if (end2 === -1) return 0;
-        if (end2 === -2) throw this.error('A tag holds "<", or is never closed with ">"', at9);
-        const raw3 = b.slice(1, end2 - 1);
-        if (raw3.startsWith("/")) {
-          const name3 = raw3.slice(1).trim();
-          const expected = this.stack.pop();
-          if (expected === void 0) throw this.error(`</${name3}> closes nothing`, at9);
-          if (name3 !== expected) throw this.error(`</${name3}> found where </${expected}> was expected`, at9);
-          this.onEvent({ type: "close", name: name3, ...at9 });
-        } else {
-          const selfClosing = raw3.endsWith("/");
-          const { name: name3, attrs } = this.tag(selfClosing ? raw3.slice(0, -1) : raw3, at9);
-          if (this.stack.length === 0) {
-            if (!this.options.fragment && this.roots > 0) throw this.error(`<${name3}> is a second root element`, at9);
-            this.roots++;
-          }
-          this.onEvent({ type: "open", name: name3, attrs, selfClosing, ...at9 });
-          if (selfClosing) this.onEvent({ type: "close", name: name3, ...at9 });
-          else this.stack.push(name3);
-        }
-        this.consume(end2);
-        return end2;
-      }
-      inElementOrFragment(at9, cdata2) {
-        if (this.stack.length === 0 && !this.options.fragment) throw this.error(`${cdata2 ? "CDATA" : "Text"} outside the root element`, at9);
-      }
-      text(raw3) {
-        const at9 = { line: this.line, column: this.column };
-        if (this.stack.length === 0 && !this.options.fragment) {
-          if (raw3.trim() !== "") this.inElementOrFragment(at9, false);
-          return;
-        }
-        if (raw3.includes("]]>")) throw this.error('"]]>" is not allowed in text', at9);
-        this.onEvent({ type: "text", text: this.decode(raw3.replace(/\r\n?/g, "\n"), at9), cdata: false, ...at9 });
-      }
-      tag(raw3, at9) {
-        const name3 = /^[^\s/>=]+/.exec(raw3)?.[0] ?? "";
-        if (!NAME2.test(name3)) throw this.error(`"<${raw3.slice(0, 40)}" is not a valid tag`, at9);
-        const attrs = {};
-        let rest = raw3.slice(name3.length);
-        const ATTR = /^\s+([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/;
-        for (; ; ) {
-          if (rest.trim() === "") break;
-          const m2 = ATTR.exec(rest);
-          if (!m2) throw this.error(`<${name3}> has a malformed attribute near "${rest.trim().slice(0, 40)}"`, at9);
-          const attr2 = m2[1];
-          if (!NAME2.test(attr2)) throw this.error(`<${name3}> has an invalid attribute name "${attr2}"`, at9);
-          if (Object.hasOwn(attrs, attr2)) throw this.error(`<${name3}> has the attribute "${attr2}" twice`, at9);
-          if ((m2[2] ?? m2[3] ?? "").includes("<")) throw this.error(`<${name3}> has "<" in the value of "${attr2}"; write it as &lt;`, at9);
-          attrs[attr2] = this.decode((m2[2] ?? m2[3] ?? "").replace(/\r\n|[\t\n\r]/g, " "), at9);
-          rest = rest.slice(m2[0].length);
-        }
-        return { name: name3, attrs };
-      }
-      decode(text4, at9) {
-        if (!text4.includes("&")) return text4;
-        return text4.replace(/&([^;&\s]*);?/g, (whole, ref2) => {
-          if (!whole.endsWith(";")) throw this.error(`A bare "&" must be written &amp;`, at9);
-          if (ref2.startsWith("#")) {
-            const code = ref2[1] === "x" ? parseInt(ref2.slice(2), 16) : /^\d+$/.test(ref2.slice(1)) ? parseInt(ref2.slice(1), 10) : NaN;
-            if (!Number.isInteger(code) || code < 1 || code > 1114111 || code >= 55296 && code <= 57343) throw this.error(`"&${ref2};" is not a valid character reference`, at9);
-            return String.fromCodePoint(code);
-          }
-          const value2 = Object.hasOwn(this.entities, ref2) ? this.entities[ref2] : void 0;
-          if (value2 === void 0) throw this.error(`"&${ref2};" is not an entity this reader knows`, at9);
-          return value2;
-        });
-      }
-    };
-  }
-});
-
-// src/areas/util/size/lexer.ts
-var lexer_exports = {};
-__export(lexer_exports, {
-  OutlineError: () => OutlineError,
-  lex: () => lex
-});
-function lex(src, lang) {
-  const js = lang === "typescript" || lang === "javascript";
-  const tokens = [];
-  let i = 0;
-  let line = 1;
-  let lineStart = 0;
-  let lastEnd = 0;
-  const newline = () => {
-    line++;
-    lineStart = i + 1;
-  };
-  const emit3 = (t, v, startLine, col) => {
-    tokens.push({ t, v, line: startLine, endLine: line, col, nl: startLine > lastEnd });
-    lastEnd = line;
-  };
-  const unterminated2 = (what, at9) => {
-    throw new OutlineError(`${what} opened on line ${at9} is never closed`);
-  };
-  const escape3 = () => {
-    const crlf = src[i + 1] === "\r" && src[i + 2] === "\n";
-    if (src[i + 1] === "\n" || crlf) {
-      i += crlf ? 2 : 1;
-      newline();
-      i++;
-      return;
-    }
-    i += 2;
-  };
-  const quoted2 = (quote, what) => {
-    const at9 = line;
-    i++;
-    while (i < src.length) {
-      const c = src[i];
-      if (c === "\\") {
-        escape3();
-        continue;
-      }
-      if (c === quote) {
-        i++;
-        return;
-      }
-      if (c === "\n") throw new OutlineError(`${what} opened on line ${at9} isn't closed by the end of that line`);
-      i++;
-    }
-    unterminated2(what, at9);
-  };
-  const until = (close, what, at9) => {
-    while (i < src.length) {
-      if (src.startsWith(close, i)) {
-        i += close.length;
-        return;
-      }
-      if (src[i] === "\n") newline();
-      i++;
-    }
-    unterminated2(what, at9);
-  };
-  const hole = () => {
-    const at9 = line;
-    const keep = tokens.length;
-    const saved2 = lastEnd;
-    let depth = 0;
-    while (i < src.length) {
-      const before = tokens.length;
-      step4();
-      const tok = tokens[before];
-      if (tokens.length > before && tok?.t === "p") {
-        if (tok.v === "{") depth++;
-        else if (tok.v === "}") {
-          if (depth === 0) {
-            tokens.length = keep;
-            lastEnd = saved2;
-            return;
-          }
-          depth--;
-        }
-      }
-    }
-    tokens.length = keep;
-    lastEnd = saved2;
-    throw new OutlineError(`an interpolation opened on line ${at9} is never closed`);
-  };
-  const template = () => {
-    const at9 = line;
-    i++;
-    while (i < src.length) {
-      const c = src[i];
-      if (c === "\\") {
-        escape3();
-        continue;
-      }
-      if (c === "`") {
-        i++;
-        return;
-      }
-      if (c === "$" && src[i + 1] === "{") {
-        i += 2;
-        hole();
-        continue;
-      }
-      if (c === "\n") newline();
-      i++;
-    }
-    unterminated2("a template literal", at9);
-  };
-  const csharpString = () => {
-    const at9 = line;
-    let dollars = 0;
-    let verbatim = false;
-    while (src[i] === "$" || src[i] === "@") {
-      if (src[i] === "$") dollars++;
-      else verbatim = true;
-      i++;
-    }
-    let quotes = 0;
-    while (src[i + quotes] === '"') quotes++;
-    if (quotes >= 3) {
-      const close = '"'.repeat(quotes);
-      i += quotes;
-      until(close, "a raw string", at9);
-      while (src[i] === '"') i++;
-      return;
-    }
-    i++;
-    while (i < src.length) {
-      const c = src[i];
-      if (verbatim) {
-        if (c === '"') {
-          if (src[i + 1] === '"') {
-            i += 2;
-            continue;
-          }
-          i++;
-          return;
-        }
-      } else {
-        if (c === "\\") {
-          i += 2;
-          continue;
-        }
-        if (c === '"') {
-          i++;
-          return;
-        }
-        if (c === "\n") throw new OutlineError(`a string opened on line ${at9} isn't closed by the end of that line`);
-      }
-      if (dollars > 0 && c === "{") {
-        if (src[i + 1] === "{") {
-          i += 2;
-          continue;
-        }
-        i++;
-        hole();
-        continue;
-      }
-      if (c === "\n") newline();
-      i++;
-    }
-    unterminated2("a string", at9);
-  };
-  const regexAllowed = () => {
-    const prev = tokens[tokens.length - 1];
-    if (!prev) return true;
-    if (prev.t === "num" || prev.t === "str") return false;
-    if (prev.t === "id") return REGEX_AFTER_KEYWORD.has(prev.v);
-    return !DIVIDE_AFTER_PUNCT.has(prev.v);
-  };
-  const regex2 = () => {
-    const at9 = line;
-    i++;
-    let inClass = false;
-    while (i < src.length) {
-      const c = src[i];
-      if (c === "\n") throw new OutlineError(`a regular expression opened on line ${at9} isn't closed by the end of that line`);
-      if (c === "\\") {
-        i += 2;
-        continue;
-      }
-      if (c === "[") inClass = true;
-      else if (c === "]") inClass = false;
-      else if (c === "/" && !inClass) {
-        i++;
-        while (i < src.length && isIdPart(src[i])) i++;
-        return;
-      }
-      i++;
-    }
-    unterminated2("a regular expression", at9);
-  };
-  function step4() {
-    const c = src[i];
-    const start2 = i;
-    const startLine = line;
-    const col = i - lineStart;
-    if (c === "\n") {
-      newline();
-      i++;
-      return;
-    }
-    if (c === " " || c === "	" || c === "\r" || c === "\f" || c === "\v" || c === "\uFEFF") {
-      i++;
-      return;
-    }
-    if (lang === "python" ? c === "#" : c === "/" && src[i + 1] === "/") {
-      while (i < src.length && src[i] !== "\n") i++;
-      return;
-    }
-    if (lang !== "python" && c === "/" && src[i + 1] === "*") {
-      i += 2;
-      until("*/", "a block comment", startLine);
-      return;
-    }
-    if (lang === "csharp" && c === "#" && src.slice(lineStart, i).trim() === "") {
-      while (i < src.length && src[i] !== "\n") i++;
-      return;
-    }
-    if (lang === "python") {
-      const prefix = /^[rRbBuUfF]{0,2}(?='|")/.exec(src.slice(i, i + 3));
-      if (prefix && (prefix[0] === "" || !isIdPart(src[i - 1] ?? " "))) {
-        i += prefix[0].length;
-        const q = src[i];
-        if (src.startsWith(q.repeat(3), i)) {
-          i += 3;
-          until(q.repeat(3), "a triple-quoted string", startLine);
-        } else quoted2(q, "a string");
-        emit3("str", src.slice(start2, i), startLine, col);
-        return;
-      }
-    } else if (lang === "csharp" && (c === '"' || (c === "$" || c === "@") && /^[$@]*"/.test(src.slice(i, i + 4)))) {
-      csharpString();
-      emit3("str", src.slice(start2, i), startLine, col);
-      return;
-    } else if (lang === "java" && c === '"' && src.startsWith('"""', i)) {
-      i += 3;
-      until('"""', "a text block", startLine);
-      emit3("str", src.slice(start2, i), startLine, col);
-      return;
-    } else if (c === '"' || c === "'") {
-      quoted2(c, c === "'" && !js ? "a character literal" : "a string");
-      emit3("str", src.slice(start2, i), startLine, col);
-      return;
-    } else if (c === "`" && (js || lang === "go")) {
-      if (js) template();
-      else {
-        i++;
-        until("`", "a raw string", startLine);
-      }
-      emit3("str", src.slice(start2, i), startLine, col);
-      return;
-    }
-    if (js && c === "/" && regexAllowed()) {
-      regex2();
-      emit3("str", src.slice(start2, i), startLine, col);
-      return;
-    }
-    if (isIdStart(c)) {
-      let j = i + 1;
-      while (j < src.length && isIdPart(src[j])) j++;
-      const v = src.slice(i, j);
-      i = j;
-      emit3("id", v, startLine, col);
-      return;
-    }
-    if (/[0-9]/.test(c) || c === "." && /[0-9]/.test(src[i + 1] ?? "")) {
-      let j = i + 1;
-      while (j < src.length && /[\w.]/.test(src[j])) j++;
-      i = j;
-      emit3("num", "", startLine, col);
-      return;
-    }
-    for (const m2 of MULTI) {
-      if (src.startsWith(m2, i)) {
-        i += m2.length;
-        emit3("p", m2, startLine, col);
-        return;
-      }
-    }
-    i++;
-    emit3("p", c, startLine, col);
-  }
-  while (i < src.length) step4();
-  return tokens;
-}
-var OutlineError, MULTI, REGEX_AFTER_KEYWORD, DIVIDE_AFTER_PUNCT, isIdStart, isIdPart;
-var init_lexer = __esm({
-  "src/areas/util/size/lexer.ts"() {
-    "use strict";
-    OutlineError = class extends Error {
-    };
-    MULTI = ["===", "!==", "...", "=>", "->", "==", "!=", "<=", ">=", "::", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "&&", "||", "??", "?.", ":=", "++", "--"];
-    REGEX_AFTER_KEYWORD = /* @__PURE__ */ new Set(["return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "do", "else", "yield", "await"]);
-    DIVIDE_AFTER_PUNCT = /* @__PURE__ */ new Set([")", "]", "}", "++", "--"]);
-    isIdStart = (c) => /[A-Za-z_$À-￿]/.test(c);
-    isIdPart = (c) => /[\w$À-￿]/.test(c);
-  }
-});
-
-// src/areas/util/size/data.ts
-var data_exports = {};
-__export(data_exports, {
-  keySymbols: () => keySymbols,
-  outlineMarkdown: () => outlineMarkdown,
-  scanJsonKeys: () => scanJsonKeys,
-  scanYamlKeys: () => scanYamlKeys
-});
-function trimBack(lines, from, end2, comments) {
-  let at9 = end2;
-  while (at9 > from) {
-    const text4 = lines[at9 - 1].trim();
-    if (text4 !== "" && !(comments && text4.startsWith("#"))) break;
-    at9--;
-  }
-  return at9;
-}
-function outlineMarkdown(text4) {
-  const lines = splitLines2(text4);
-  const found = [];
-  let fence = null;
-  let start2 = 0;
-  if (lines[0] === "---") {
-    const close = lines.findIndex((l, n) => n > 0 && (l === "---" || l === "..."));
-    if (close > 0) start2 = close + 1;
-  }
-  for (let n = start2; n < lines.length; n++) {
-    const line = lines[n];
-    const fenceMatch = /^ {0,3}(`{3,}|~{3,})/.exec(line);
-    if (fence) {
-      if (fenceMatch && fenceMatch[1][0] === fence.char && fenceMatch[1].length >= fence.length && line.trim() === fenceMatch[1]) fence = null;
-      continue;
-    }
-    if (fenceMatch) {
-      fence = { char: fenceMatch[1][0], length: fenceMatch[1].length };
-      continue;
-    }
-    const atx = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?[ \t]*$/.exec(line);
-    if (atx) {
-      const title = (atx[2] ?? "").replace(/(?:^|[ \t]+)#+$/, "").trim();
-      found.push({ name: title, level: atx[1].length, line: n + 1 });
-      continue;
-    }
-    const setext = /^ {0,3}(=+|-+)[ \t]*$/.exec(line);
-    const previous = lines[n - 1];
-    if (setext && n > start2 && previous !== void 0 && paragraphLine(previous)) {
-      if (!/^ {0,3}(`{3,}|~{3,})/.test(previous)) found.push({ name: previous.trim(), level: setext[1][0] === "=" ? 1 : 2, line: n });
-    }
-  }
-  if (fence) throw new OutlineError(`a fenced code block opened with ${fence.char.repeat(fence.length)} is never closed`);
-  const out = [];
-  const stack = [];
-  found.forEach((h, k) => {
-    const next = found.slice(k + 1).find((o) => o.level <= h.level);
-    const end2 = next ? next.line - 1 : lines.length;
-    while (stack.length && out[stack[stack.length - 1]].level >= h.level) stack.pop();
-    const parent = stack[stack.length - 1];
-    out.push({ name: h.name, kind: "heading", level: h.level, startLine: h.line, endLine: Math.max(h.line, trimBack(lines, h.line, end2, false)), container: parent === void 0 ? null : out[parent].name, ...parent === void 0 ? {} : { parent } });
-    stack.push(out.length - 1);
-  });
-  return out;
-}
-function paragraphLine(line) {
-  if (line.trim() === "") return false;
-  if (/^ {4,}/.test(line)) return false;
-  return !/^ {0,3}([-*+]\s|\d+[.)]\s|>|\||#{1,6}(\s|$)|<|(=+|-+)\s*$)/.test(line);
-}
-function scanJsonKeys(text4) {
-  let i = 0;
-  let line = 1;
-  const ws = () => {
-    while (i < text4.length && /[ \t\r\n\ufeff]/.test(text4[i])) {
-      if (text4[i] === "\n") line++;
-      i++;
-    }
-  };
-  const string4 = () => {
-    const start2 = i;
-    i++;
-    while (text4[i] !== '"') i += text4[i] === "\\" ? 2 : 1;
-    i++;
-    return JSON.parse(text4.slice(start2, i));
-  };
-  const value2 = () => {
-    let depth = 0;
-    do {
-      ws();
-      const c = text4[i];
-      if (c === '"') string4();
-      else if (c === "{" || c === "[") {
-        depth++;
-        i++;
-      } else if (c === "}" || c === "]") {
-        depth--;
-        i++;
-      } else if (c === "," || c === ":") i++;
-      else while (i < text4.length && !/[\s,\]}:]/.test(text4[i])) i++;
-    } while (depth > 0 && i < text4.length);
-  };
-  ws();
-  if (text4[i] !== "{") return [];
-  i++;
-  const keys2 = [];
-  for (; ; ) {
-    ws();
-    if (text4[i] === "}" || i >= text4.length) return keys2;
-    if (text4[i] === ",") {
-      i++;
-      continue;
-    }
-    const startLine = line;
-    const name3 = string4();
-    ws();
-    i++;
-    value2();
-    keys2.push({ name: name3, startLine, endLine: line });
-  }
-}
-function scanYamlKeys(text4) {
-  const lines = splitLines2(text4);
-  const found = [];
-  let documentStarted = false;
-  for (let n = 0; n < lines.length; n++) {
-    const line = lines[n];
-    if (line === "" || /^[ \t]/.test(line) || line.startsWith("#") || line.startsWith("%")) continue;
-    if (/^---(\s|$)/.test(line)) {
-      if (documentStarted || found.length) break;
-      documentStarted = true;
-      continue;
-    }
-    if (/^\.\.\.(\s|$)/.test(line)) break;
-    const quoted2 = /^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*')\s*:(\s|$)/.exec(line);
-    if (quoted2) {
-      const raw3 = quoted2[1];
-      found.push({ name: raw3.startsWith('"') ? JSON.parse(raw3) : raw3.slice(1, -1).replace(/''/g, "'"), line: n + 1 });
-      continue;
-    }
-    const plain2 = /^([^\s#:\-?[\]{},&*!|>'"%@`](?:\S|\s(?!#))*?|[-?:][^\s#](?:\S|\s(?!#))*?)\s*:(\s|$)/.exec(line);
-    if (plain2) found.push({ name: plain2[1], line: n + 1 });
-  }
-  return found.map((k, idx) => {
-    const end2 = idx + 1 < found.length ? found[idx + 1].line - 1 : lines.length;
-    return { name: k.name, startLine: k.line, endLine: Math.max(k.line, trimBack(lines, k.line, end2, true)) };
-  });
-}
-var splitLines2, keySymbols;
-var init_data = __esm({
-  "src/areas/util/size/data.ts"() {
-    "use strict";
-    init_lexer();
-    splitLines2 = (text4) => {
-      const lines = text4.split("\n").map((l) => l.endsWith("\r") ? l.slice(0, -1) : l);
-      if (lines.length > 0 && lines[lines.length - 1] === "" && text4.endsWith("\n")) lines.pop();
-      return lines;
-    };
-    keySymbols = (keys2) => keys2.map((k) => ({ name: k.name, kind: "key", startLine: k.startLine, endLine: k.endLine, container: null }));
-  }
-});
-
-// src/areas/util/size/code.ts
-var code_exports = {};
-__export(code_exports, {
-  CODE_METHOD: () => CODE_METHOD,
-  outlineCode: () => outlineCode
-});
-function outlineCode(text4, lang) {
-  const tokens = lex(text4, lang);
-  return lang === "python" ? outlinePython(tokens) : outlineBraces(tokens, lang);
-}
-function skipGroup(tokens, i) {
-  const stack = [];
-  for (let j = i; j < tokens.length; j++) {
-    const t = tokens[j];
-    if (t.t !== "p") continue;
-    if (OPEN[t.v]) stack.push(t);
-    else if (CLOSE[t.v]) {
-      const open4 = stack.pop();
-      if (!open4 || open4.v !== CLOSE[t.v]) throw new OutlineError(`a ${t.v} on line ${t.line} closes ${open4 ? `a ${open4.v} from line ${open4.line}` : "nothing"}`);
-      if (stack.length === 0) return j + 1;
-    }
-  }
-  const open3 = stack[stack.length - 1] ?? tokens[i];
-  throw new OutlineError(`a ${open3.v} opened on line ${open3.line} is never closed`);
-}
-function stripDecorations(items, lang) {
-  let k = 0;
-  for (; ; ) {
-    const t = items[k]?.tok;
-    if (lang === "csharp" && isP(t, "[")) {
-      k++;
-      continue;
-    }
-    if (lang !== "csharp" && isP(t, "@") && isId(items[k + 1]?.tok) && !isId(items[k + 1]?.tok, "interface")) {
-      k += 2;
-      while (isP(items[k]?.tok, ".") && isId(items[k + 1]?.tok)) k += 2;
-      if (isP(items[k]?.tok, "(")) k++;
-      continue;
-    }
-    return k;
-  }
-}
-function nameAt(items, k) {
-  const t = items[k]?.tok;
-  if (isP(t, "#") && isId(items[k + 1]?.tok)) return items[k + 1].tok;
-  return t && (t.t === "id" || t.t === "str") ? t : void 0;
-}
-function functionValued(items, from) {
-  let k = from;
-  if (isId(items[k]?.tok, "async")) k++;
-  if (isId(items[k]?.tok, "function")) return true;
-  if (isP(items[k]?.tok, "<")) {
-    while (k < items.length && !isP(items[k]?.tok, ">")) k++;
-    k++;
-  }
-  const t = items[k]?.tok;
-  if (isId(t) && isP(items[k + 1]?.tok, "=>")) return true;
-  if (!isP(t, "(")) return false;
-  for (let j = k + 1; j < items.length; j++) {
-    if (isP(items[j].tok, "=>")) return true;
-    if (isP(items[j].tok, "=") || isP(items[j].tok, ";")) return false;
-  }
-  return false;
-}
-function classifyJs(items, assign3, form, ctx) {
-  let k = stripDecorations(items, "javascript");
-  let exported = false;
-  while (isId(items[k]?.tok) && JS_MODIFIERS.has(items[k].tok.v) && followsModifier(items[k + 1]?.tok)) {
-    if (items[k].tok.v === "export") exported = true;
-    k++;
-  }
-  const head2 = items[k]?.tok;
-  if (!head2) return null;
-  const word = head2.t === "id" ? head2.v : "";
-  if (ctx === "top" || ctx === "namespace") {
-    if (word === "function") {
-      let n = k + 1;
-      if (isP(items[n]?.tok, "*")) n++;
-      const name3 = nameAt(items, n);
-      if (name3 && name3.t === "id") return { name: name3.v, nameTok: name3, kind: "function" };
-      return exported ? { name: "default", nameTok: head2, kind: "function" } : null;
-    }
-    if (word === "class" || word === "interface" || word === "enum" || word === "const" && isId(items[k + 1]?.tok, "enum")) {
-      const at9 = word === "const" ? k + 2 : k + 1;
-      const kind = word === "class" ? "class" : word === "interface" ? "interface" : "enum";
-      const name3 = nameAt(items, at9);
-      const body = kind === "enum" ? "enum" : kind;
-      if (name3 && name3.t === "id" && !isId(name3, "extends") && !isId(name3, "implements")) return { name: name3.v, nameTok: name3, kind, ...form === "body" ? { body } : {} };
-      return kind === "class" && exported ? { name: "default", nameTok: head2, kind, ...form === "body" ? { body } : {} } : null;
-    }
-    if (word === "type" && isId(items[k + 1]?.tok) && (isP(items[k + 2]?.tok, "=") || isP(items[k + 2]?.tok, "<"))) {
-      return { name: items[k + 1].tok.v, nameTok: items[k + 1].tok, kind: "type" };
-    }
-    if ((word === "namespace" || word === "module") && isId(items[k + 1]?.tok)) {
-      let name3 = items[k + 1].tok.v;
-      let n = k + 2;
-      while (isP(items[n]?.tok, ".") && isId(items[n + 1]?.tok)) {
-        name3 += `.${items[n + 1].tok.v}`;
-        n += 2;
-      }
-      return { name: name3, nameTok: items[k + 1].tok, kind: "namespace", ...form === "body" ? { body: "namespace" } : {} };
-    }
-    if ((word === "const" || word === "let" || word === "var") && isId(items[k + 1]?.tok)) {
-      const name3 = items[k + 1].tok;
-      const fn = assign3 >= 0 && functionValued(items, assign3 + 1);
-      if (fn) return { name: name3.v, nameTok: name3, kind: "function" };
-      return exported ? { name: name3.v, nameTok: name3, kind: "variable" } : null;
-    }
-    return null;
-  }
-  if (ctx === "class" || ctx === "interface") {
-    if (isP(items[k]?.tok, "*")) k++;
-    const name3 = nameAt(items, k);
-    if (!name3) return null;
-    const n = isP(items[k]?.tok, "#") ? k + 2 : k + 1;
-    let next = items[n]?.tok;
-    let m2 = n;
-    if (isP(next, "?") || isP(next, "!")) next = items[++m2]?.tok;
-    if (isP(next, "(") || isP(next, "<")) {
-      if (ctx === "class" && name3.v === "constructor") return { name: "constructor", nameTok: name3, kind: "constructor" };
-      return { name: name3.t === "str" ? name3.v.slice(1, -1) : name3.v, nameTok: name3, kind: "method" };
-    }
-    if (ctx === "class" && assign3 === m2 && functionValued(items, assign3 + 1)) return { name: name3.v, nameTok: name3, kind: "method" };
-  }
-  return null;
-}
-function classifyJava(items, form, ctx, container2) {
-  let k = stripDecorations(items, "java");
-  while (isId(items[k]?.tok) && JAVA_MODIFIERS.has(items[k].tok.v)) k++;
-  if (isId(items[k]?.tok, "non") && isP(items[k + 1]?.tok, "-") && isId(items[k + 2]?.tok, "sealed")) k += 3;
-  const head2 = items[k]?.tok;
-  if (!head2) return null;
-  const annotationType = isP(head2, "@") && isId(items[k + 1]?.tok, "interface");
-  if (annotationType || head2.t === "id" && ["class", "interface", "enum", "record"].includes(head2.v)) {
-    const at9 = annotationType ? k + 2 : k + 1;
-    const name3 = items[at9]?.tok;
-    if (!isId(name3)) return null;
-    const kind = annotationType || head2.v === "interface" ? "interface" : head2.v === "enum" ? "enum" : head2.v === "record" ? "record" : "class";
-    const body = kind === "interface" ? "interface" : kind === "enum" ? "enum" : "class";
-    return { name: name3.v, nameTok: name3, kind, ...form === "body" ? { body } : {} };
-  }
-  if (ctx !== "class" && ctx !== "interface") return null;
-  return methodShape(items, k, container2);
-}
-function methodShape(items, k, container2) {
-  for (let p = k + 1; p < items.length; p++) {
-    if (!isP(items[p].tok, "(")) continue;
-    let n = p - 1;
-    if (isP(items[n]?.tok, ">")) {
-      let depth = 0;
-      for (; n > k; n--) {
-        if (isP(items[n].tok, ">")) depth++;
-        else if (isP(items[n].tok, "<") && --depth === 0) break;
-      }
-      n--;
-    }
-    const name3 = items[n]?.tok;
-    if (!isId(name3) || NOT_A_NAME.has(name3.v)) return null;
-    if (isP(items[n - 1]?.tok, "~")) return { name: `~${name3.v}`, nameTok: name3, kind: "method" };
-    const ctor = n === k && name3.v === lastPart(container2);
-    return { name: name3.v, nameTok: name3, kind: ctor ? "constructor" : "method" };
-  }
-  return null;
-}
-function classifyCs(items, assignTok, form, ctx, container2) {
-  let k = stripDecorations(items, "csharp");
-  while (isId(items[k]?.tok) && CS_MODIFIERS.has(items[k].tok.v)) k++;
-  const head2 = items[k]?.tok;
-  if (!head2 || head2.t !== "id") return null;
-  if (head2.v === "namespace" && isId(items[k + 1]?.tok)) {
-    let name3 = items[k + 1].tok.v;
-    let n = k + 2;
-    while (isP(items[n]?.tok, ".") && isId(items[n + 1]?.tok)) {
-      name3 += `.${items[n + 1].tok.v}`;
-      n += 2;
-    }
-    return { name: name3, nameTok: items[k + 1].tok, kind: "namespace", ...form === "body" ? { body: "namespace" } : {} };
-  }
-  if (["class", "struct", "interface", "enum", "record"].includes(head2.v)) {
-    let at9 = k + 1;
-    let kind = head2.v;
-    if (head2.v === "record") {
-      if (isId(items[at9]?.tok, "struct")) kind = "struct";
-      if (isId(items[at9]?.tok, "class") || isId(items[at9]?.tok, "struct")) at9++;
-    }
-    const name3 = items[at9]?.tok;
-    if (!isId(name3)) return null;
-    const body = kind === "interface" ? "interface" : kind === "enum" ? "enum" : "class";
-    return { name: name3.v, nameTok: name3, kind, ...form === "body" ? { body } : {} };
-  }
-  if (head2.v === "delegate") {
-    const decl = methodShape(items, k, null);
-    return decl ? { ...decl, kind: "type" } : null;
-  }
-  if (ctx !== "class" && ctx !== "interface") return null;
-  if (items.slice(k).some((it) => isId(it.tok, "operator") || isId(it.tok, "event") || isId(it.tok, "const"))) return null;
-  const method = methodShape(items, k, container2);
-  if (method) return method;
-  if (form === "body" || assignTok === "=>") {
-    const last = items[items.length - 1]?.tok;
-    if (isId(last) && !isId(last, "this") && items.length - k >= 2) return { name: last.v, nameTok: last, kind: "property" };
-  }
-  return null;
-}
-function classifyGo(items, ctx) {
-  if (ctx !== "top") return null;
-  const head2 = items[0]?.tok;
-  if (isId(head2, "func")) {
-    if (isId(items[1]?.tok)) return { name: items[1].tok.v, nameTok: items[1].tok, kind: "function" };
-    if (isP(items[1]?.tok, "(") && isId(items[2]?.tok)) return { name: items[2].tok.v, nameTok: items[2].tok, kind: "method" };
-    return null;
-  }
-  if (isId(head2, "type") && isId(items[1]?.tok)) {
-    let n = 2;
-    if (isP(items[n]?.tok, "[")) n++;
-    const kind = isId(items[n]?.tok, "struct") ? "struct" : isId(items[n]?.tok, "interface") ? "interface" : "type";
-    return { name: items[1].tok.v, nameTok: items[1].tok, kind };
-  }
-  return null;
-}
-function goReceiver(tokens, open3) {
-  let depth = 0;
-  let last = null;
-  const start2 = tokens.indexOf(open3.tok);
-  for (let j = start2 + 1; j < (open3.end ?? start2) - 1; j++) {
-    const t = tokens[j];
-    if (isP(t, "[")) depth++;
-    else if (isP(t, "]")) depth--;
-    else if (depth === 0 && t.t === "id") last = t.v;
-  }
-  return last;
-}
-function outlineBraces(tokens, lang) {
-  const out = [];
-  const n = tokens.length;
-  let i = 0;
-  const asi = lang === "typescript" || lang === "javascript" || lang === "go";
-  const onlyDecorators = (items) => items.length > 0 && stripDecorations(items, lang) >= items.length;
-  function body(ctx, container2, parent, toEnd = false) {
-    while (i < n) {
-      const t = tokens[i];
-      if (isP(t, "}")) {
-        if (toEnd) throw new OutlineError(`a } on line ${t.line} closes nothing`);
-        return;
-      }
-      if (isP(t, ";") || isP(t, ",")) {
-        i++;
-        continue;
-      }
-      statement(ctx, container2, parent);
-    }
-    if (!toEnd) throw new OutlineError(`a block for ${container2 ?? "a declaration"} is never closed`);
-  }
-  function statement(ctx, container2, parent) {
-    const items = [];
-    let assign3 = -1;
-    let assignTok = null;
-    let angle = 0;
-    let bodyOpen = -1;
-    let last;
-    while (i < n) {
-      const t = tokens[i];
-      if (items.length > 0 && t.nl && asi && last && ENDS_LINE(last) && !onlyDecorators(items)) {
-        if (lang === "go" || (t.t === "id" || t.t === "str" || t.t === "num" || isP(t, "@") || isP(t, "#")) && !JS_CONTINUES.has(t.v) && !JS_CONTINUES.has(last.v)) break;
-      }
-      if (t.t === "p" && (t.v === ";" || t.v === "," && angle === 0 && ctx === "interface" && lang === "typescript")) {
-        last = t;
-        i++;
-        break;
-      }
-      if (t.t === "p" && (t.v === "}" || t.v === ")" || t.v === "]")) {
-        if (t.v === "}") break;
-        throw new OutlineError(`a ${t.v} on line ${t.line} closes nothing`);
-      }
-      if (t.t === "p" && (t.v === "(" || t.v === "[")) {
-        const end3 = skipGroup(tokens, i);
-        items.push({ tok: t, end: end3, close: tokens[end3 - 1] });
-        last = tokens[end3 - 1];
-        i = end3;
-        continue;
-      }
-      if (t.t === "p" && t.v === "{") {
-        const prev = items[items.length - 1]?.tok;
-        const typeBrace = assign3 >= 0 || angle > 0 || prev !== void 0 && prev.t === "p" && [":", "|", "&", ",", "<", "=>", "->", "?"].includes(prev.v) || lang === "typescript" && isId(prev, "extends");
-        if (!typeBrace) {
-          bodyOpen = i;
-          break;
-        }
-        const end3 = skipGroup(tokens, i);
-        items.push({ tok: t, end: end3, close: tokens[end3 - 1] });
-        last = tokens[end3 - 1];
-        i = end3;
-        continue;
-      }
-      if (assign3 < 0 && angle === 0 && t.t === "p" && (t.v === "=" || t.v === "=>" || t.v === ":=")) {
-        assign3 = items.length;
-        assignTok = t.v;
-      }
-      if (assign3 < 0 && lang !== "go" && t.t === "p") {
-        if (t.v === "<") angle++;
-        else if (t.v === ">" && angle > 0) angle--;
-      }
-      items.push({ tok: t });
-      last = t;
-      i++;
-    }
-    const before = assign3 >= 0 ? items.slice(0, assign3) : items;
-    const form = bodyOpen >= 0 ? "body" : "plain";
-    const decl = lang === "typescript" || lang === "javascript" ? classifyJs(items, assign3, form, ctx) : lang === "java" ? classifyJava(before, form, ctx, container2) : lang === "csharp" ? classifyCs(before, assignTok, form, ctx, container2) : classifyGo(before, ctx);
-    const index2 = decl ? out.length : void 0;
-    if (decl) {
-      let symbolContainer = container2;
-      if (lang === "go" && decl.kind === "method") symbolContainer = goReceiver(tokens, before[1]);
-      out.push({ name: decl.name, kind: decl.kind, startLine: decl.nameTok.line, endLine: decl.nameTok.line, container: symbolContainer, ...parent === void 0 ? {} : { parent } });
-    }
-    let end2 = last;
-    if (bodyOpen >= 0) {
-      if (decl?.body && decl.body !== "enum") {
-        i = bodyOpen + 1;
-        const inner = container2 === null ? decl.name : `${container2}.${decl.name}`;
-        body(decl.body, inner, index2);
-        end2 = tokens[i];
-        i++;
-      } else {
-        i = skipGroup(tokens, bodyOpen);
-        end2 = tokens[i - 1];
-      }
-      if (lang === "csharp" && decl?.kind === "property" && isP(tokens[i], "=")) {
-        while (i < n && !isP(tokens[i], ";")) i = OPEN[tokens[i].v] && tokens[i].t === "p" ? skipGroup(tokens, i) : i + 1;
-        end2 = tokens[i] ?? end2;
-        if (i < n) i++;
-      }
-    }
-    if (decl && index2 !== void 0 && end2) out[index2].endLine = Math.max(end2.endLine, out[index2].startLine);
-    if (lang === "csharp" && decl?.kind === "namespace" && bodyOpen < 0 && index2 !== void 0) {
-      out[index2].endLine = tokens[n - 1].endLine;
-      body("namespace", decl.name, index2, true);
-    }
-  }
-  body("top", null, void 0, true);
-  return out;
-}
-function outlinePython(tokens) {
-  const out = [];
-  const logical = [];
-  let depth = 0;
-  const stack = [];
-  for (let j = 0; j < tokens.length; j++) {
-    const t = tokens[j];
-    if (depth === 0 && t.nl && !continued(tokens, j)) logical.push({ first: j, indent: t.col, lastLine: t.endLine });
-    else if (logical.length) logical[logical.length - 1].lastLine = Math.max(logical[logical.length - 1].lastLine, t.endLine);
-    if (t.t === "p" && OPEN[t.v]) {
-      stack.push(t);
-      depth++;
-    } else if (t.t === "p" && CLOSE[t.v]) {
-      const open4 = stack.pop();
-      if (!open4 || open4.v !== CLOSE[t.v]) throw new OutlineError(`a ${t.v} on line ${t.line} closes ${open4 ? `a ${open4.v} from line ${open4.line}` : "nothing"}`);
-      depth--;
-    }
-  }
-  if (stack.length) throw new OutlineError(`a ${stack[stack.length - 1].v} opened on line ${stack[stack.length - 1].line} is never closed`);
-  const open3 = [];
-  const close = (indent2, lastLine) => {
-    while (open3.length && open3[open3.length - 1].indent >= indent2) {
-      const top2 = open3.pop();
-      if (top2.index !== void 0) out[top2.index].endLine = lastLine;
-    }
-  };
-  let previousEnd = 0;
-  for (const line of logical) {
-    close(line.indent, previousEnd);
-    const t = tokens[line.first];
-    let k = line.first;
-    if (isId(t, "async")) k++;
-    const word = tokens[k];
-    const name3 = tokens[k + 1];
-    const enclosing = open3[open3.length - 1];
-    const searched = !enclosing || enclosing.searched;
-    if ((isId(word, "def") || isId(word, "class")) && isId(name3)) {
-      let index2;
-      if (searched) {
-        const container2 = open3.filter((o) => o.index !== void 0).map((o) => o.name);
-        const kind = word.v === "class" ? "class" : enclosing && enclosing.index !== void 0 && out[enclosing.index].kind === "class" ? "method" : "function";
-        index2 = out.length;
-        out.push({ name: name3.v, kind, startLine: name3.line, endLine: line.lastLine, container: container2.length ? container2.join(".") : null, ...enclosing?.index === void 0 ? {} : { parent: enclosing.index } });
-      }
-      open3.push({ index: index2, indent: line.indent, searched: searched && word.v === "class", name: name3.v });
-    }
-    previousEnd = line.lastLine;
-  }
-  close(-1, previousEnd);
-  return out;
-}
-function continued(tokens, j) {
-  const prev = tokens[j - 1];
-  return prev !== void 0 && isP(prev, "\\");
-}
-var CODE_METHOD, OPEN, CLOSE, isP, isId, ENDS_LINE, JS_CONTINUES, JS_MODIFIERS, JAVA_MODIFIERS, CS_MODIFIERS, NOT_A_NAME, followsModifier, lastPart;
-var init_code = __esm({
-  "src/areas/util/size/code.ts"() {
-    "use strict";
-    init_lexer();
-    CODE_METHOD = {
-      typescript: "Syntactic scan in pure JavaScript, not the TypeScript compiler: functions, classes, interfaces, type aliases, enums and namespaces, exported variables and function-valued constants, and class and interface methods. Function bodies are not searched, and JSX text containing quotes may not be read",
-      javascript: "Syntactic scan in pure JavaScript, not a parser: functions, classes, exported variables and function-valued constants, and class methods. Function bodies are not searched, CommonJS exports (module.exports) are not listed, and JSX text containing quotes may not be read",
-      python: "Syntactic scan in pure JavaScript, by indentation: classes, functions and methods (async included), with nested classes. Functions defined inside functions are not listed",
-      csharp: "Syntactic scan in pure JavaScript, not Roslyn: namespaces, classes, structs, records, interfaces, enums, delegates, methods, constructors and properties. Fields, events and operators are not listed, and #if branches are read as written",
-      java: "Syntactic scan in pure JavaScript, not javac: classes, interfaces, enums, records, annotation types, methods and constructors. Fields and the members of enum bodies are not listed",
-      go: "Syntactic scan in pure JavaScript, not go/parser: functions, methods (with their receiver type as the container) and type declarations. Grouped type ( \u2026 ) blocks, var and const are not listed"
-    };
-    OPEN = { "(": ")", "[": "]", "{": "}" };
-    CLOSE = { ")": "(", "]": "[", "}": "{" };
-    isP = (t, v) => t !== void 0 && t.t === "p" && t.v === v;
-    isId = (t, v) => t !== void 0 && t.t === "id" && (v === void 0 || t.v === v);
-    ENDS_LINE = (t) => t.t === "id" || t.t === "num" || t.t === "str" || t.t === "p" && (t.v === ")" || t.v === "]" || t.v === "}" || t.v === "++" || t.v === "--");
-    JS_CONTINUES = /* @__PURE__ */ new Set(["extends", "implements", "instanceof", "in", "of", "as", "satisfies", "keyof", "is"]);
-    JS_MODIFIERS = /* @__PURE__ */ new Set(["export", "default", "declare", "abstract", "async", "public", "private", "protected", "static", "readonly", "override", "accessor", "get", "set"]);
-    JAVA_MODIFIERS = /* @__PURE__ */ new Set(["public", "protected", "private", "static", "final", "abstract", "native", "synchronized", "transient", "volatile", "strictfp", "default", "sealed"]);
-    CS_MODIFIERS = /* @__PURE__ */ new Set(["public", "private", "protected", "internal", "static", "readonly", "sealed", "abstract", "virtual", "override", "async", "extern", "unsafe", "new", "partial", "volatile", "required", "file", "ref", "scoped"]);
-    NOT_A_NAME = /* @__PURE__ */ new Set(["if", "for", "foreach", "while", "switch", "using", "lock", "catch", "fixed", "return", "new", "else", "do", "try", "throw", "synchronized", "this", "base", "super", "typeof", "sizeof", "nameof", "default", "when", "await"]);
-    followsModifier = (t) => t !== void 0 && (t.t === "id" || isP(t, "*") || isP(t, "#") || isP(t, "["));
-    lastPart = (container2) => container2 === null ? null : container2.slice(container2.lastIndexOf(".") + 1);
-  }
-});
-
-// src/areas/util/md/ast.ts
-function plainText(nodes) {
-  return nodes.map((n) => {
-    switch (n.type) {
-      case "text":
-      case "code":
-        return n.text;
-      case "image":
-        return n.alt;
-      case "break":
-        return " ";
-      default:
-        return plainText(n.children);
-    }
-  }).join("");
-}
-function blockInlines(block2) {
-  switch (block2.type) {
-    case "paragraph":
-    case "heading":
-      return block2.content;
-    case "code":
-      return [{ type: "code", text: block2.text }];
-    case "quote":
-      return joinInlines(block2.children.map(blockInlines));
-    case "list":
-      return joinInlines(block2.items.map((item) => joinInlines(item.children.map(blockInlines))));
-    case "table":
-      return joinInlines(block2.rows.map((row) => joinInlines(row, [{ type: "text", text: " | " }])));
-    case "rule":
-      return [];
-  }
-}
-function joinInlines(runs2, separator = [{ type: "break" }]) {
-  const out = [];
-  for (const run3 of runs2) {
-    if (run3.length === 0) continue;
-    if (out.length) out.push(...separator);
-    out.push(...run3);
-  }
-  return out;
-}
-function normalizeInlines(nodes, inside3) {
-  const flat = [];
-  for (const node3 of nodes) {
-    if (node3.type === "text") {
-      flat.push({ type: "text", text: node3.text.replace(/[ \t\r\n]+/g, " ") });
-    } else if (node3.type === "code") {
-      flat.push({ type: "code", text: node3.text.replace(/\r?\n/g, " ") });
-    } else if (node3.type === "image" || node3.type === "break") {
-      flat.push(node3);
-    } else {
-      const children4 = normalizeInlines(node3.children, node3.type);
-      if (node3.type === inside3) flat.push(...children4);
-      else if (children4.length) flat.push({ ...node3, children: children4 });
-    }
-  }
-  const out = [];
-  for (let node3 of flat) {
-    if ((node3.type === "strong" || node3.type === "em" || node3.type === "strike") && node3.children.length) {
-      const first = node3.children[0];
-      const last = node3.children.at(-1);
-      const lead = first.type === "text" ? /^ +/.exec(first.text)?.[0] ?? "" : "";
-      const trail = last.type === "text" ? / +$/.exec(last.text)?.[0] ?? "" : "";
-      if (lead || trail) {
-        const children4 = node3.children.slice();
-        if (lead) children4[0] = { type: "text", text: children4[0].text.slice(lead.length) };
-        if (trail) {
-          const t = children4.at(-1);
-          children4[children4.length - 1] = { type: "text", text: t.text.slice(0, t.text.length - trail.length) };
-        }
-        if (lead) push(out, { type: "text", text: lead });
-        const inner = normalizeInlines(children4, node3.type);
-        if (inner.length) push(out, { ...node3, children: inner });
-        if (trail) push(out, { type: "text", text: trail });
-        continue;
-      }
-      const sole = node3.children.length === 1 ? node3.children[0] : void 0;
-      if (sole?.type === "link") {
-        push(out, { ...sole, children: normalizeInlines([{ type: node3.type, children: sole.children }], "link") });
-        continue;
-      }
-      if (node3.type === "strong" && node3.children.length === 1 && node3.children[0].type === "em") {
-        const em = node3.children[0];
-        node3 = { type: "em", children: [{ type: "strong", children: em.children }] };
-      }
-    }
-    push(out, node3);
-  }
-  return out.filter((n) => n.type !== "text" || n.text !== "");
-}
-function push(out, node3) {
-  const prev = out.at(-1);
-  if (node3.type === "text" && prev?.type === "text") {
-    out[out.length - 1] = { type: "text", text: (prev.text + node3.text).replace(/ {2,}/g, " ") };
-  } else if (prev && sameWrapper(prev, node3)) {
-    const merged = { ...prev, children: normalizeInlines([...prev.children, ...node3.children], node3.type) };
-    out[out.length - 1] = merged;
-  } else out.push(node3);
-}
-function trimInlines(nodes) {
-  const out = nodes.slice();
-  const edge = (i, side) => {
-    const n = out[i];
-    if (n?.type !== "text") return;
-    const text4 = side === "start" ? n.text.replace(/^ +/, "") : n.text.replace(/ +$/, "");
-    if (text4 === "") out.splice(i, 1);
-    else out[i] = { type: "text", text: text4 };
-  };
-  for (; ; ) {
-    const before = out.length;
-    while (out[0]?.type === "break") out.shift();
-    while (out.at(-1)?.type === "break") out.pop();
-    edge(0, "start");
-    if (out.length) edge(out.length - 1, "end");
-    if (out.length === before) break;
-  }
-  for (let i = out.length - 1; i >= 0; i--) {
-    if (out[i].type !== "break") continue;
-    if (out[i + 1]?.type === "text") edge(i + 1, "start");
-    if (out[i - 1]?.type === "text") edge(i - 1, "end");
-  }
-  return out;
-}
-function normalizeBlocks(blocks) {
-  return blocks.map(normalizeBlock);
-}
-function normalizeBlock(block2) {
-  const inl = (nodes) => trimInlines(normalizeInlines(nodes));
-  switch (block2.type) {
-    case "paragraph":
-      return { type: "paragraph", content: inl(block2.content) };
-    case "heading":
-      return { type: "heading", level: block2.level, content: inl(block2.content) };
-    case "code":
-      return { type: "code", ...block2.lang ? { lang: block2.lang } : {}, text: block2.text.replace(/\r\n?/g, "\n").replace(/\n$/, "") };
-    case "quote":
-      return { type: "quote", children: normalizeBlocks(block2.children) };
-    case "list":
-      return { ...block2, items: block2.items.map((item) => ({ ...item.task ? { task: item.task } : {}, children: normalizeBlocks(item.children) })) };
-    case "table": {
-      const width = Math.max(1, ...block2.rows.map((r) => r.length));
-      const rows = block2.rows.map((row) => Array.from({ length: width }, (_2, i) => inl(row[i] ?? [])));
-      const align = Array.from({ length: width }, (_2, i) => block2.align[i] ?? null);
-      return { type: "table", align, rows };
-    }
-    case "rule":
-      return block2;
-  }
-}
-function dropEmpty(blocks) {
-  return blocks.filter((b) => b.type !== "paragraph" || b.content.length > 0);
-}
-var Losses, sameWrapper;
-var init_ast = __esm({
-  "src/areas/util/md/ast.ts"() {
-    "use strict";
-    Losses = class {
-      list = [];
-      block = 0;
-      at = "";
-      /** Where the losses of the current source block start in `list`. */
-      from = 0;
-      /**
-       * Every loss from here on belongs to top-level block `index`, which starts at
-       * `at`. A reader calls it with the number of blocks it has made so far, so
-       * when `index` hasn't moved, the source block before produced nothing (a
-       * dropped macro): its losses explain no block, and are marked -1.
-       */
-      enter(index2, at9) {
-        if (this.list.length > this.from && index2 === this.block) this.orphan();
-        this.block = index2;
-        this.at = at9;
-        this.from = this.list.length;
-      }
-      /** After the last source block: `count` is how many blocks were made. */
-      close(count4) {
-        if (count4 === this.block) this.orphan();
-        this.block = -2;
-        this.from = this.list.length;
-      }
-      orphan() {
-        for (let k = this.from; k < this.list.length; k++) this.list[k].block = -1;
-      }
-      /** Records a loss, once: four tasks in one wiki list are one `task list` loss at the list. */
-      add(construct, detail, at9) {
-        const where6 = at9 ?? this.at;
-        const key6 = `${construct}\0${where6}\0${detail}`;
-        if (this.seen.has(key6)) return;
-        this.seen.add(key6);
-        this.list.push({ construct, at: where6, detail, block: this.block });
-      }
-      seen = /* @__PURE__ */ new Set();
-    };
-    sameWrapper = (a, b) => a.type === b.type && (a.type !== "link" || b.type === "link" && a.href === b.href && a.title === b.title) && "children" in a;
-  }
-});
-
-// src/areas/util/md/adf.ts
-function nest(leaves) {
-  const out = [];
-  let k = 0;
-  const same = (a, b) => a !== void 0 && b !== void 0 && a.href === b.href && a.title === b.title;
-  while (k < leaves.length) {
-    const leaf = leaves[k];
-    if (leaf.marks.size === 0) {
-      out.push(leaf.node);
-      k++;
-      continue;
-    }
-    let best;
-    let bestEnd = k;
-    for (const mark of MARK_ORDER) {
-      if (!leaf.marks.has(mark)) continue;
-      let end2 = k + 1;
-      while (end2 < leaves.length && same(leaves[end2].marks.get(mark), leaf.marks.get(mark))) end2++;
-      if (end2 > bestEnd) {
-        best = mark;
-        bestEnd = end2;
-      }
-    }
-    const run3 = leaves.slice(k, bestEnd).map((l) => {
-      const marks = new Map(l.marks);
-      marks.delete(best);
-      return { node: l.node, marks };
-    });
-    const children4 = nest(run3);
-    const attrs = leaf.marks.get(best);
-    out.push(best === "link" ? { type: "link", href: attrs.href ?? "", ...attrs.title !== void 0 ? { title: attrs.title } : {}, children: children4 } : { type: best, children: children4 });
-    k = bestEnd;
-  }
-  return out;
-}
-function cellAlign(content) {
-  const mark = (content[0]?.marks ?? []).find((m2) => m2.type === "alignment");
-  const align = mark?.attrs?.align;
-  return align === "center" ? "center" : align === "end" ? "right" : null;
-}
-function parseAdf(value2, losses) {
-  return new AdfReader(losses).doc(value2);
-}
-function renderAdf(doc, losses) {
-  const writer = new AdfWriter(losses);
-  const out = [];
-  doc.blocks.forEach((block2, k) => {
-    losses.enter(k, doc.at[k] ?? "");
-    out.push(...writer.blocks([block2], "doc"));
-  });
-  return { type: "doc", version: 1, content: out };
-}
-var str3, DROPPED, MARK_ORDER, AdfReader, MARK_NAMES, ALLOWED, PLACE, AdfWriter, withContent, paragraph, nonEmpty;
-var init_adf = __esm({
-  "src/areas/util/md/adf.ts"() {
-    "use strict";
-    init_ast();
-    str3 = (v) => typeof v === "string" ? v : "";
-    DROPPED = { type: "dropped node" };
-    MARK_ORDER = ["link", "strike", "strong", "em"];
-    AdfReader = class {
-      constructor(losses) {
-        this.losses = losses;
-      }
-      losses;
-      doc(value2) {
-        const blocks = [];
-        const at9 = [];
-        (value2.content ?? []).forEach((raw3, k) => {
-          const ptr = `/content/${k}`;
-          this.losses?.enter(blocks.length, ptr);
-          const node3 = this.sane(raw3, ptr);
-          if (!node3) return;
-          for (const block2 of this.block(node3, ptr)) {
-            blocks.push(block2);
-            at9.push(ptr);
-          }
-        });
-        this.losses?.close(blocks.length);
-        return { blocks, at: at9 };
-      }
-      /**
-       * The node as the reader expects it, or undefined: anything that isn't an
-       * object with a string `type` is dropped, and a `content`, `marks` or
-       * `attrs` of the wrong shape is set aside, each reported as a loss. The
-       * schema check says the same about the input; this keeps the reading going
-       * so it can, instead of failing as a bug.
-       */
-      sane(value2, ptr) {
-        if (typeof value2 !== "object" || value2 === null || Array.isArray(value2) || typeof value2.type !== "string") {
-          this.lose("malformed ADF", "this is not an ADF node (an object with a type) and was dropped", ptr);
-          return void 0;
-        }
-        const node3 = { ...value2 };
-        if (node3.attrs !== void 0 && (typeof node3.attrs !== "object" || node3.attrs === null || Array.isArray(node3.attrs))) {
-          this.lose("malformed ADF", "attrs is not an object and was ignored", ptr);
-          delete node3.attrs;
-        }
-        if (node3.text !== void 0 && typeof node3.text !== "string") {
-          this.lose("malformed ADF", "text is not a string and was ignored", ptr);
-          delete node3.text;
-        }
-        if (node3.marks !== void 0) {
-          if (!Array.isArray(node3.marks)) {
-            this.lose("malformed ADF", "marks is not an array and was ignored", ptr);
-            delete node3.marks;
-          } else node3.marks = node3.marks.map((m2, k) => this.sane(m2, `${ptr}/marks/${k}`) ?? DROPPED);
-        }
-        if (node3.content !== void 0) {
-          if (!Array.isArray(node3.content)) {
-            this.lose("malformed ADF", "content is not an array and was ignored", ptr);
-            delete node3.content;
-          } else node3.content = node3.content.map((c, k) => this.sane(c, `${ptr}/content/${k}`) ?? DROPPED);
-        }
-        return node3;
-      }
-      blocks(nodes, ptr) {
-        return (nodes ?? []).flatMap((n, k) => this.block(n, `${ptr}/content/${k}`));
-      }
-      lose(construct, detail, ptr) {
-        this.losses?.add(construct, detail, ptr);
-      }
-      block(node3, ptr) {
-        if (node3 === DROPPED) return [];
-        const attrs = node3.attrs ?? {};
-        switch (node3.type) {
-          case "paragraph":
-            if (Array.isArray(node3.marks) && node3.marks.length) this.lose("paragraph alignment", "paragraph alignment and indentation have no Markdown equivalent", ptr);
-            return [{ type: "paragraph", content: this.inline(node3.content, ptr) }];
-          case "heading":
-            if (Array.isArray(node3.marks) && node3.marks.length) this.lose("heading alignment", "heading alignment and indentation have no Markdown equivalent", ptr);
-            return [{ type: "heading", level: typeof attrs.level === "number" ? Math.min(6, Math.max(1, attrs.level)) : 1, content: this.inline(node3.content, ptr) }];
-          case "codeBlock": {
-            const lang = str3(attrs.language);
-            return [{ type: "code", ...lang ? { lang } : {}, text: (node3.content ?? []).map((t) => str3(t.text)).join("") }];
-          }
-          case "blockquote":
-            return [{ type: "quote", children: this.blocks(node3.content, ptr) }];
-          case "bulletList":
-          case "orderedList":
-            return [
-              {
-                type: "list",
-                ordered: node3.type === "orderedList",
-                start: node3.type === "orderedList" && typeof attrs.order === "number" ? attrs.order : 1,
-                items: (node3.content ?? []).map((item, k) => ({ children: this.blocks(item.content, `${ptr}/content/${k}`) }))
-              }
-            ];
-          case "taskList":
-          case "decisionList":
-            if (node3.type === "decisionList") this.lose("decision list", "decisions have no Markdown equivalent; they became a bullet list", ptr);
-            return [this.taskList(node3, ptr)];
-          case "table":
-            return [this.table(node3, ptr)];
-          case "rule":
-            return [{ type: "rule" }];
-          case "mediaSingle":
-          case "mediaGroup": {
-            const out = [];
-            (node3.content ?? []).forEach((media, k) => {
-              if (media === DROPPED) return;
-              const p = `${ptr}/content/${k}`;
-              const a = media.attrs ?? {};
-              if (media.type === "media" && a.type === "external" && typeof a.url === "string") {
-                out.push({ type: "paragraph", content: [{ type: "image", src: a.url, alt: str3(a.alt) }] });
-              } else if (media.type === "caption") {
-                this.lose("image caption", "image captions have no Markdown equivalent; the caption is kept as a paragraph", p);
-                out.push({ type: "paragraph", content: this.inline(media.content, p) });
-              } else this.lose("attachment", `the attached file ${str3(a.id) || "(no id)"} can't be referred to from Markdown and was dropped`, p);
-            });
-            return out;
-          }
-          case "panel":
-            this.lose("panel", `a ${str3(attrs.panelType) || "info"} panel has no Markdown equivalent; its content is kept as a quote`, ptr);
-            return [{ type: "quote", children: this.blocks(node3.content, ptr) }];
-          case "expand":
-          case "nestedExpand": {
-            this.lose("expand", "an expand has no Markdown equivalent; its title and content are kept", ptr);
-            const title = str3(attrs.title);
-            return [...title ? [{ type: "paragraph", content: [{ type: "strong", children: [{ type: "text", text: title }] }] }] : [], ...this.blocks(node3.content, ptr)];
-          }
-          case "blockCard":
-          case "embedCard": {
-            const url2 = str3(attrs.url);
-            this.lose("smart link", "a smart link card became a plain link", ptr);
-            return url2 ? [{ type: "paragraph", content: [{ type: "link", href: url2, children: [{ type: "text", text: url2 }] }] }] : [];
-          }
-          case "layoutSection":
-            this.lose("layout", "layout columns have no Markdown equivalent; their content is kept in order", ptr);
-            return (node3.content ?? []).flatMap((col, k) => this.blocks(col.content, `${ptr}/content/${k}`));
-          case "bodiedExtension":
-            this.lose("extension", `the ${str3(attrs.extensionKey) || "extension"} macro has no Markdown equivalent; its content is kept`, ptr);
-            return this.blocks(node3.content, ptr);
-          default:
-            this.lose(node3.type === "extension" ? "extension" : `${node3.type} node`, `${node3.type === "extension" ? `the ${str3(attrs.extensionKey) || "extension"} macro` : `a ${node3.type} node`} has no Markdown equivalent and was dropped`, ptr);
-            return [];
-        }
-      }
-      taskList(node3, ptr) {
-        const items = [];
-        (node3.content ?? []).forEach((child2, k) => {
-          if (child2 === DROPPED) return;
-          const p = `${ptr}/content/${k}`;
-          if (child2.type === "taskList" || child2.type === "decisionList") {
-            const nested = this.taskList(child2, p);
-            if (items.length === 0) items.push({ children: [] });
-            items.at(-1).children.push(nested);
-            return;
-          }
-          const state = child2.attrs?.state;
-          const done = state === "DONE" || state === "DECIDED";
-          const children4 = child2.type === "blockTaskItem" ? this.blocks(child2.content, p) : [{ type: "paragraph", content: this.inline(child2.content, p) }];
-          items.push({ ...node3.type === "taskList" ? { task: done ? "done" : "todo" } : {}, children: children4 });
-        });
-        return { type: "list", ordered: false, start: 1, items };
-      }
-      table(node3, ptr) {
-        const rows = [];
-        let align = [];
-        let headerRow = true;
-        if (node3.attrs?.isNumberColumnEnabled === true) this.lose("numbered table rows", "the table's row numbers have no Markdown equivalent", ptr);
-        (node3.content ?? []).forEach((row, r) => {
-          const cells = [];
-          (row.content ?? []).forEach((cell, c) => {
-            if (cell === DROPPED) return;
-            const p = `${ptr}/content/${r}/content/${c}`;
-            const colspan = typeof cell.attrs?.colspan === "number" ? cell.attrs.colspan : 1;
-            const rowspan = typeof cell.attrs?.rowspan === "number" ? cell.attrs.rowspan : 1;
-            if (colspan > 1 || rowspan > 1) this.lose("merged cells", "Markdown tables have no merged cells; the cell was unmerged and the cells it covered left empty", p);
-            if (r === 0 && cell.type !== "tableHeader") headerRow = false;
-            if (r > 0 && cell.type === "tableHeader") this.lose("header cell outside the first row", "Markdown has header cells only in the first row; this one became an ordinary cell", p);
-            const content = cell.content ?? [];
-            const a = cellAlign(content);
-            if (r === 0) align[cells.length] = a;
-            else if (a !== (align[cells.length] ?? null)) this.lose("cell alignment", "Markdown aligns whole columns; this cell's own alignment was dropped", p);
-            if (content.length > 1 || content.some((b) => b.type !== "paragraph")) this.lose("block content in a table cell", "a Markdown table cell holds one line; the cell's blocks were joined with line breaks", p);
-            cells.push(joinInlines(this.blocks(content, p).map(blockInlines)));
-            for (let k = 1; k < colspan; k++) cells.push([]);
-          });
-          rows.push(cells);
-        });
-        if (!headerRow) this.lose("table without a header row", "Markdown tables need a header row; the first row was made the header", ptr);
-        align = align.map((a) => a ?? null);
-        return { type: "table", align, rows };
-      }
-      inline(nodes, ptr) {
-        const leaves = [];
-        (nodes ?? []).forEach((node3, k) => {
-          if (node3 === DROPPED) return;
-          const p = `${ptr}/content/${k}`;
-          const attrs = node3.attrs ?? {};
-          const marks = /* @__PURE__ */ new Map();
-          let code = false;
-          for (const mark of node3.marks ?? []) {
-            if (mark === DROPPED) continue;
-            const a = mark.attrs ?? {};
-            if (mark.type === "code") code = true;
-            else if (mark.type === "link") marks.set("link", { href: str3(a.href), ...typeof a.title === "string" ? { title: a.title } : {} });
-            else if (mark.type === "strong" || mark.type === "em" || mark.type === "strike") marks.set(mark.type, {});
-            else this.lose(MARK_NAMES[mark.type] ?? `${mark.type} mark`, `${MARK_NAMES[mark.type] ?? `the ${mark.type} mark`} has no Markdown equivalent; the text is kept`, p);
-          }
-          const leaf = (n) => leaves.push({ node: n, marks });
-          switch (node3.type) {
-            case "text":
-              leaf(code ? { type: "code", text: str3(node3.text) } : { type: "text", text: str3(node3.text) });
-              break;
-            case "hardBreak":
-              leaf({ type: "break" });
-              break;
-            case "mention": {
-              const text4 = str3(attrs.text) || `@${str3(attrs.id)}`;
-              this.lose("mention", `the mention ${text4} is kept as text`, p);
-              leaf({ type: "text", text: text4.startsWith("@") ? text4 : `@${text4}` });
-              break;
-            }
-            case "emoji":
-              this.lose("emoji", `the emoji ${str3(attrs.shortName)} is kept as its character or short name`, p);
-              leaf({ type: "text", text: str3(attrs.text) || str3(attrs.shortName) });
-              break;
-            case "date": {
-              const ms = Number(attrs.timestamp);
-              this.lose("date", "a date became its text", p);
-              leaf({ type: "text", text: Number.isFinite(ms) ? new Date(ms).toISOString().slice(0, 10) : str3(attrs.timestamp) });
-              break;
-            }
-            case "status":
-              this.lose("status", `the status lozenge ${str3(attrs.text)} is kept as text`, p);
-              leaf({ type: "text", text: str3(attrs.text) });
-              break;
-            case "inlineCard": {
-              const url2 = str3(attrs.url);
-              this.lose("smart link", "an inline smart link became a plain link", p);
-              if (url2) leaves.push({ node: { type: "text", text: url2 }, marks: new Map([...marks, ["link", { href: url2 }]]) });
-              break;
-            }
-            default:
-              this.lose(`${node3.type} node`, `a ${node3.type} node has no Markdown equivalent and was dropped`, p);
-          }
-        });
-        return nest(leaves);
-      }
-    };
-    MARK_NAMES = { underline: "underline", textColor: "text colour", backgroundColor: "highlight", subsup: "subscript or superscript", annotation: "inline comment" };
-    ALLOWED = {
-      doc: /* @__PURE__ */ new Set(["paragraph", "heading", "code", "quote", "list", "taskList", "table", "rule"]),
-      quote: /* @__PURE__ */ new Set(["paragraph", "code", "list"]),
-      listItem: /* @__PURE__ */ new Set(["paragraph", "code", "list", "taskList"])
-    };
-    PLACE = { doc: "the document", quote: "a quote", listItem: "a list item" };
-    AdfWriter = class {
-      constructor(losses) {
-        this.losses = losses;
-      }
-      losses;
-      ids = 0;
-      blocks(blocks, container2) {
-        return blocks.flatMap((b) => this.block(b, container2));
-      }
-      kind(block2) {
-        return block2.type === "list" && block2.items.some((i) => i.task !== void 0) ? "taskList" : block2.type;
-      }
-      block(block2, container2) {
-        if (!ALLOWED[container2].has(this.kind(block2))) return this.degrade(block2, container2);
-        switch (block2.type) {
-          case "paragraph": {
-            const only = block2.content.length === 1 ? block2.content[0] : void 0;
-            if (only?.type === "image") return [this.media(only)];
-            return [paragraph(this.inline(block2.content))];
-          }
-          case "heading":
-            return [{ type: "heading", attrs: { level: block2.level }, ...withContent(this.inline(block2.content)) }];
-          case "code":
-            return [{ type: "codeBlock", ...block2.lang ? { attrs: { language: block2.lang } } : {}, ...block2.text ? { content: [{ type: "text", text: block2.text }] } : {} }];
-          case "quote":
-            return [{ type: "blockquote", content: nonEmpty(this.blocks(block2.children, "quote")) }];
-          case "rule":
-            return [{ type: "rule" }];
-          case "table":
-            return [this.table(block2)];
-          case "list":
-            if (this.kind(block2) === "taskList") return [this.taskList(block2)];
-            return [
-              {
-                type: block2.ordered ? "orderedList" : "bulletList",
-                ...block2.ordered && block2.start !== 1 ? { attrs: { order: block2.start } } : {},
-                content: block2.items.map((item) => ({ type: "listItem", content: nonEmpty(this.blocks(item.children, "listItem")) }))
-              }
-            ];
-        }
-      }
-      /** A block ADF doesn't allow here, brought down to what it does. */
-      degrade(block2, container2) {
-        const where6 = PLACE[container2];
-        switch (block2.type) {
-          case "heading":
-            this.losses.add("heading", `ADF has no heading inside ${where6}; it became a bold paragraph`);
-            return [paragraph(this.inline([{ type: "strong", children: block2.content }]))];
-          case "quote":
-            this.losses.add(container2 === "quote" ? "nested quote" : "quote", `ADF has no quote inside ${where6}; its content was kept without the quote`);
-            return this.blocks(block2.children, container2);
-          case "table":
-            this.losses.add("table", `ADF has no table inside ${where6}; each row became a paragraph`);
-            return block2.rows.map((row) => paragraph(this.inline(joinInlines(row, [{ type: "text", text: " | " }]))));
-          case "rule":
-            this.losses.add("rule", `ADF has no rule inside ${where6}; it was dropped`);
-            return [];
-          case "list": {
-            this.losses.add("task list", `ADF has no task list inside ${where6}; it became a bullet list with [ ] and [x] text`);
-            const items = block2.items.map((item) => ({
-              ...item,
-              task: void 0,
-              children: item.children.map((c, k) => k === 0 && c.type === "paragraph" ? { ...c, content: [{ type: "text", text: item.task === "done" ? "[x] " : item.task === "todo" ? "[ ] " : "" }, ...c.content] } : c)
-            }));
-            return this.block({ ...block2, items }, container2);
-          }
-          default:
-            return [];
-        }
-      }
-      taskList(block2) {
-        if (block2.items.some((i) => i.task === void 0)) this.losses.add("mixed task list", "a list mixing tasks and ordinary items became a task list; the ordinary items are open tasks");
-        if (block2.ordered) this.losses.add("ordered task list", "ADF task lists are not numbered");
-        const content = [];
-        for (const item of block2.items) {
-          const parts = [];
-          const nested = [];
-          item.children.forEach((child2, k) => {
-            if (child2.type === "list") {
-              if (!child2.items.some((i) => i.task !== void 0)) {
-                this.losses.add("list inside a task", "ADF tasks hold only task lists; the nested list became open tasks");
-              }
-              nested.push(this.taskList({ ...child2, items: child2.items.map((i) => ({ ...i, task: i.task ?? "todo" })) }));
-            } else {
-              if (k > 0 || child2.type !== "paragraph") this.losses.add("block content in a task", "an ADF task holds one line; its content was joined with line breaks");
-              parts.push(blockInlines(child2));
-            }
-          });
-          content.push({ type: "taskItem", attrs: { localId: this.id(), state: item.task === "done" ? "DONE" : "TODO" }, ...withContent(this.inline(joinInlines(parts))) });
-          content.push(...nested);
-        }
-        return { type: "taskList", attrs: { localId: this.id() }, content };
-      }
-      table(block2) {
-        if (block2.align.includes("left")) this.losses.add("table alignment", "ADF has no explicit left alignment; those columns use the default");
-        return {
-          type: "table",
-          attrs: { isNumberColumnEnabled: false, layout: "default" },
-          content: block2.rows.map((row, r) => ({
-            type: "tableRow",
-            content: row.map((cell, c) => {
-              const a = block2.align[c];
-              const p = paragraph(this.inline(cell));
-              if (a === "center" || a === "right") p.marks = [{ type: "alignment", attrs: { align: a === "center" ? "center" : "end" } }];
-              return { type: r === 0 ? "tableHeader" : "tableCell", content: [p] };
-            })
-          }))
-        };
-      }
-      media(image) {
-        if (image.title !== void 0) this.losses.add("image title", "ADF images have no title; it was dropped");
-        return { type: "mediaSingle", attrs: { layout: "center" }, content: [{ type: "media", attrs: { type: "external", url: image.src, ...image.alt ? { alt: image.alt } : {} } }] };
-      }
-      id() {
-        this.ids++;
-        return `abc12345-0000-0000-0000-${String(this.ids).padStart(12, "0")}`;
-      }
-      /** Inline content as ADF text nodes with marks. */
-      inline(nodes, marks = []) {
-        const out = [];
-        for (const n of nodes) {
-          switch (n.type) {
-            case "text":
-              if (n.text) out.push({ type: "text", text: n.text, ...marks.length ? { marks } : {} });
-              break;
-            case "code": {
-              const link = marks.filter((m2) => m2.type === "link");
-              if (link.length < marks.length) this.losses.add("formatting on inline code", "ADF inline code can carry only a link; its other formatting was dropped");
-              if (n.text) out.push({ type: "text", text: n.text, marks: [...link, { type: "code" }] });
-              break;
-            }
-            case "break":
-              out.push({ type: "hardBreak" });
-              break;
-            case "image":
-              this.losses.add("inline image", "ADF images stand alone as blocks; an image inside text became a link to it");
-              out.push(...this.inline([{ type: "text", text: n.alt || n.src }], [...marks.filter((m2) => m2.type !== "link"), { type: "link", attrs: { href: n.src } }]));
-              break;
-            case "link":
-              out.push(...this.inline(n.children, [...marks.filter((m2) => m2.type !== "link"), { type: "link", attrs: { href: n.href, ...n.title !== void 0 ? { title: n.title } : {} } }]));
-              break;
-            default:
-              out.push(...this.inline(n.children, [...marks, { type: n.type }]));
-          }
-        }
-        return out;
-      }
-    };
-    withContent = (nodes) => nodes.length ? { content: nodes } : {};
-    paragraph = (nodes) => ({ type: "paragraph", ...withContent(nodes) });
-    nonEmpty = (nodes) => nodes.length ? nodes : [paragraph([])];
-  }
-});
-
-// src/areas/util/md/markdown.ts
-function expandTabs(text4) {
-  if (!text4.includes("	")) return text4;
-  let out = "";
-  let i = 0;
-  for (; i < text4.length && (text4[i] === " " || text4[i] === "	"); i++) out += text4[i] === "	" ? " ".repeat(4 - out.length % 4) : " ";
-  return out + text4.slice(i);
-}
-function interrupts(text4) {
-  if (FENCE.test(text4) || ATX.test(text4) || HR.test(text4) || QUOTE.test(text4)) return true;
-  const item = ITEM.exec(text4);
-  if (item && item[4].trim() !== "" && (/^[-+*]$/.test(item[2]) || /^1[.)]$/.test(item[2]))) return true;
-  return false;
-}
-function splitRow(text4) {
-  let row = text4.trim();
-  if (row.startsWith("|")) row = row.slice(1);
-  if (row.endsWith("|") && !row.endsWith("\\|")) row = row.slice(0, -1);
-  const cells = [];
-  let cell = "";
-  for (let i = 0; i < row.length; i++) {
-    const c = row[i];
-    if (c === "\\" && row[i + 1] === "|") {
-      cell += "|";
-      i++;
-    } else if (c === "|") {
-      cells.push(cell.trim());
-      cell = "";
-    } else cell += c;
-  }
-  cells.push(cell.trim());
-  return cells;
-}
-function alignOf(cell) {
-  const left = cell.startsWith(":");
-  const right = cell.endsWith(":");
-  return left && right ? "center" : right ? "right" : left ? "left" : null;
-}
-function parseMarkdown(text4, losses) {
-  const lines = text4.replace(/^\ufeff/, "").replace(/\r\n?/g, "\n").split("\n").map((t, k) => ({ text: expandTabs(t), n: k + 1 }));
-  return new BlockReader(losses).read(lines, true);
-}
-function decodeEntity(ref2) {
-  if (ref2.startsWith("#")) {
-    const code = /^#[xX]/.test(ref2) ? parseInt(ref2.slice(2), 16) : parseInt(ref2.slice(1), 10);
-    if (!Number.isInteger(code) || code < 0 || code > 1114111) return void 0;
-    return code === 0 || code >= 55296 && code <= 57343 ? "\uFFFD" : String.fromCodePoint(code);
-  }
-  return Object.hasOwn(NAMED, ref2) ? NAMED[ref2] : void 0;
-}
-function unescapeText(text4) {
-  return text4.replace(/\\([!-/:-@[-`{-~])|&(#[xX][0-9a-fA-F]{1,6}|#\d{1,7}|[A-Za-z]+);/g, (whole, esc3, ref2) => esc3 ?? decodeEntity(ref2) ?? whole);
-}
-function trimUrl(url2) {
-  let u = url2.replace(/&[A-Za-z0-9]+;$/, "");
-  for (; ; ) {
-    const before = u;
-    u = u.replace(/[?!.,:*_~'"]+$/, "");
-    if (u.endsWith(")")) {
-      const open3 = (u.match(/\(/g) ?? []).length;
-      const close = (u.match(/\)/g) ?? []).length;
-      if (close > open3) u = u.slice(0, -1);
-    }
-    if (u === before) return u;
-  }
-}
-function plain(nodes) {
-  return nodes.map((n) => "text" in n ? n.text : n.type === "image" ? n.alt : n.type === "break" ? " " : plain(n.children)).join("");
-}
-function unlink(nodes) {
-  return nodes.flatMap((n) => {
-    if (n.type === "link") return unlink(n.children);
-    if (n.type === "strong" || n.type === "em" || n.type === "strike") return [{ ...n, children: unlink(n.children) }];
-    return [n];
-  });
-}
-function escapeText(text4, table) {
-  let out = text4.replace(/[\\`*_[\]<>~]/g, "\\$&").replace(/&(?=#?[A-Za-z0-9]+;)/g, "\\&").replace(/!$/, "\\!");
-  if (table) out = out.replace(/\|/g, "\\|");
-  out = out.replace(/(^|[\s(])(https?):\/\//g, "$1$2\\://").replace(/(^|[\s(])www\./g, "$1www\\.");
-  return out;
-}
-function escapeLineStart(line) {
-  if (/^[#>+=|-]/.test(line)) return `\\${line}`;
-  const ordered = /^(\d{1,9})([.)])/.exec(line);
-  if (ordered) return `${ordered[1]}\\${line.slice(ordered[1].length)}`;
-  return line;
-}
-function codeSpan(text4) {
-  const runs2 = text4.match(/`+/g) ?? [];
-  const n = Math.max(0, ...runs2.map((r) => r.length)) + 1;
-  const fence = "`".repeat(n);
-  const pad5 = text4.startsWith("`") || text4.endsWith("`") || text4.startsWith(" ") && text4.endsWith(" ") && text4.trim() !== "" ? " " : "";
-  return `${fence}${pad5}${text4}${pad5}${fence}`;
-}
-function destination(href) {
-  if (href === "" || /[\s<>]/.test(href) || /[()]/.test(href)) return `<${href.replace(/[<>\\]/g, "\\$&")}>`;
-  return href.replace(/\\/g, "\\\\");
-}
-function renderInlines(nodes, where6 = "block") {
-  const table = where6 === "table";
-  return nodes.map((n) => {
-    switch (n.type) {
-      case "text":
-        return escapeText(n.text, table);
-      case "code":
-        return codeSpan(table ? n.text.replace(/\|/g, "\\|") : n.text);
-      case "strong":
-        return `**${renderInlines(n.children, where6)}**`;
-      case "em":
-        return `*${renderInlines(n.children, where6)}*`;
-      case "strike":
-        return `~~${renderInlines(n.children, where6)}~~`;
-      case "break":
-        return where6 === "block" ? "\\\n" : "<br>";
-      case "image":
-        return `![${escapeText(n.alt, table)}](${destination(n.src)}${titlePart(n.title)})`;
-      case "link": {
-        const first = n.children[0];
-        const only = n.children.length === 1 && first?.type === "text" ? first.text : void 0;
-        if (n.title === void 0 && only !== void 0 && !/[\s<>]/.test(n.href)) {
-          if (only === n.href && /^[A-Za-z][A-Za-z0-9+.-]{1,31}:/.test(n.href)) return `<${n.href}>`;
-          if (`mailto:${only}` === n.href && EMAIL2.test(`<${only}>`)) return `<${only}>`;
-        }
-        return `[${renderInlines(n.children, where6)}](${destination(n.href)}${titlePart(n.title)})`;
-      }
-    }
-  }).join("").split("\n").map((line) => where6 === "block" ? escapeLineStart(line) : line).join("\n");
-}
-function renderBlock(block2, previous) {
-  switch (block2.type) {
-    case "paragraph":
-      return renderInlines(block2.content);
-    case "heading":
-      return `${"#".repeat(block2.level)}${block2.content.length ? " " : ""}${renderInlines(block2.content, "heading").replace(/#$/, "\\#")}`;
-    case "code": {
-      const runs2 = block2.text.match(/^`{3,}/gm) ?? [];
-      const n = Math.max(2, ...runs2.map((r) => r.length)) + 1;
-      const char = block2.lang?.includes("`") ? "~" : "`";
-      const fence = char.repeat(n);
-      return `${fence}${block2.lang ?? ""}
-${block2.text}${block2.text === "" ? "" : "\n"}${fence}`;
-    }
-    case "quote": {
-      const inner = renderBlocks(block2.children);
-      return inner === "" ? ">" : inner.split("\n").map((l) => l === "" ? ">" : `> ${l}`).join("\n");
-    }
-    case "rule":
-      return "---";
-    case "table": {
-      const row = (cells) => `| ${cells.map((c) => renderInlines(c, "table")).join(" | ")} |`;
-      const delim = block2.align.map((a) => a === "center" ? ":-:" : a === "right" ? "--:" : a === "left" ? ":--" : "---");
-      return [row(block2.rows[0] ?? []), `| ${delim.join(" | ")} |`, ...block2.rows.slice(1).map(row)].join("\n");
-    }
-    case "list": {
-      const alt = previous?.type === "list" && previous.ordered === block2.ordered;
-      return block2.items.map((item, k) => {
-        const marker = block2.ordered ? `${block2.start + k}${alt ? ")" : "."}` : alt ? "*" : "-";
-        const pad5 = " ".repeat(marker.length + 1);
-        const box = item.task === void 0 ? "" : item.task === "done" ? "[x] " : "[ ] ";
-        const body = renderItem(item.children);
-        if (body === "") return item.task === void 0 ? marker : `${marker} ${box.trimEnd()}`;
-        const startsWithText = item.children[0]?.type === "paragraph";
-        const head2 = item.task !== void 0 && !startsWithText ? `${marker} ${box.trimEnd()}
-${pad5}` : `${marker} ${box}`;
-        return head2 + indent(body, pad5);
-      }).join("\n");
-    }
-  }
-}
-function renderItem(children4) {
-  let out = "";
-  children4.forEach((block2, k) => {
-    const prev = children4[k - 1];
-    if (k > 0) out += prev?.type === "paragraph" && block2.type === "list" && (!block2.ordered || block2.start === 1) && (block2.items[0]?.children.length ?? 0) > 0 ? "\n" : "\n\n";
-    out += renderBlock(block2, prev);
-  });
-  return out;
-}
-function renderBlocks(blocks) {
-  return blocks.map((b, k) => renderBlock(b, blocks[k - 1])).join("\n\n");
-}
-function renderMarkdown(doc) {
-  const text4 = renderBlocks(doc.blocks);
-  return text4 === "" ? "" : `${text4}
-`;
-}
-var BLANK, FENCE, ATX, HR, QUOTE, ITEM, HTML_BLOCK, REF_DEF, SETEXT, TABLE_DELIM, indentOf, BlockReader, PUNCT, ESCAPABLE, NAMED, isWs, isPunct, LINK_TAIL, AUTOLINK, EMAIL2, BARE_URL, INLINE_HTML, WINDOW, runLength, InlineReader, titlePart, indent;
-var init_markdown = __esm({
-  "src/areas/util/md/markdown.ts"() {
-    "use strict";
-    init_ast();
-    BLANK = /^[ \t]*$/;
-    FENCE = /^( {0,3})(`{3,}|~{3,})(.*)$/;
-    ATX = /^ {0,3}(#{1,6})(?=[ \t]|$)(.*)$/;
-    HR = /^ {0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
-    QUOTE = /^ {0,3}> ?/;
-    ITEM = /^( {0,3})([-+*]|\d{1,9}[.)])([ \t]+|$)(.*)$/;
-    HTML_BLOCK = /^ {0,3}<(?:\/?[A-Za-z][\w-]*(?=[\s/>]|$)|!--)/;
-    REF_DEF = /^ {0,3}\[[^\]]+\]:/;
-    SETEXT = /^ {0,3}(=+|-+)[ \t]*$/;
-    TABLE_DELIM = /^ {0,3}\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
-    indentOf = (text4) => /^ */.exec(text4)[0].length;
-    BlockReader = class {
-      constructor(losses) {
-        this.losses = losses;
-      }
-      losses;
-      read(lines, top2) {
-        const blocks = [];
-        const at9 = [];
-        let i = 0;
-        const emit3 = (block2, line) => {
-          blocks.push(block2);
-          at9.push(`line ${line}`);
-        };
-        const enter2 = (line) => {
-          if (top2) this.losses?.enter(blocks.length, `line ${line}`);
-        };
-        while (i < lines.length) {
-          const line = lines[i];
-          const text4 = line.text;
-          if (BLANK.test(text4)) {
-            i++;
-            continue;
-          }
-          enter2(line.n);
-          const indent2 = indentOf(text4);
-          if (indent2 >= 4) {
-            const body = [];
-            while (i < lines.length && (indentOf(lines[i].text) >= 4 || BLANK.test(lines[i].text))) body.push(lines[i++].text.slice(4));
-            while (body.length && BLANK.test(body.at(-1))) body.pop();
-            emit3({ type: "code", text: body.join("\n") }, line.n);
-            continue;
-          }
-          const fence = FENCE.exec(text4);
-          if (fence && !(fence[2][0] === "`" && fence[3].includes("`"))) {
-            const [, pad5, marks, info] = fence;
-            const body = [];
-            i++;
-            const close = new RegExp(`^ {0,3}${marks[0] === "`" ? "`" : "~"}{${marks.length},}[ \\t]*$`);
-            while (i < lines.length && !close.test(lines[i].text)) {
-              const t = lines[i++].text;
-              body.push(t.slice(Math.min(pad5.length, indentOf(t))));
-            }
-            i++;
-            const lang = unescapeText(info.trim().split(/\s+/)[0] ?? "");
-            emit3({ type: "code", ...lang ? { lang } : {}, text: body.join("\n") }, line.n);
-            continue;
-          }
-          const atx = ATX.exec(text4);
-          if (atx) {
-            const content2 = atx[2].trim().replace(/(^|[ \t]+)#+[ \t]*$/, "").trim();
-            emit3({ type: "heading", level: atx[1].length, content: this.inline(content2) }, line.n);
-            i++;
-            continue;
-          }
-          if (HR.test(text4)) {
-            emit3({ type: "rule" }, line.n);
-            i++;
-            continue;
-          }
-          if (QUOTE.test(text4)) {
-            const inner = [];
-            let lastBlank = false;
-            while (i < lines.length) {
-              const t = lines[i].text;
-              if (QUOTE.test(t)) {
-                const rest = t.replace(QUOTE, "");
-                inner.push({ text: rest, n: lines[i].n });
-                lastBlank = BLANK.test(rest);
-              } else if (!BLANK.test(t) && !lastBlank && inner.length && !interrupts(t) && !BLANK.test(inner.at(-1).text)) {
-                inner.push({ text: t, n: lines[i].n });
-              } else break;
-              i++;
-            }
-            emit3({ type: "quote", children: this.read(inner, false).blocks }, line.n);
-            continue;
-          }
-          const item = ITEM.exec(text4);
-          if (item) {
-            const [list7, next] = this.list(lines, i);
-            emit3(list7, line.n);
-            i = next;
-            continue;
-          }
-          if (text4.includes("|") && i + 1 < lines.length && TABLE_DELIM.test(lines[i + 1].text)) {
-            const head2 = splitRow(text4);
-            const delims = splitRow(lines[i + 1].text);
-            if (head2.length === delims.length) {
-              const rows = [head2.map((c) => this.inline(c))];
-              i += 2;
-              while (i < lines.length && !BLANK.test(lines[i].text) && !interrupts(lines[i].text)) {
-                const cells = splitRow(lines[i].text);
-                if (cells.length > head2.length) this.losses?.add("table row cells", `line ${lines[i].n} has ${cells.length} cells and the header ${head2.length}; the extra cells were dropped, as GFM does`, `line ${lines[i].n}`);
-                rows.push(head2.map((_2, c) => this.inline(cells[c] ?? "")));
-                i++;
-              }
-              emit3({ type: "table", align: delims.map(alignOf), rows }, line.n);
-              continue;
-            }
-          }
-          if (HTML_BLOCK.test(text4) || REF_DEF.test(text4)) {
-            const body = [];
-            while (i < lines.length && !BLANK.test(lines[i].text)) body.push(lines[i++].text.trim());
-            if (REF_DEF.test(text4)) {
-              this.losses?.add(text4.trimStart().startsWith("[^") ? "footnote" : "link reference definition", "reference definitions and footnotes are not read; the text is kept as it is", `line ${line.n}`);
-            } else this.losses?.add("raw HTML", "HTML is not converted; its text is kept as it is", `line ${line.n}`);
-            emit3({ type: "paragraph", content: [{ type: "text", text: body.join(" ") }] }, line.n);
-            continue;
-          }
-          const raw3 = [text4];
-          i++;
-          let heading3 = 0;
-          while (i < lines.length) {
-            const t = lines[i].text;
-            if (BLANK.test(t)) break;
-            const setext = SETEXT.exec(t);
-            if (setext) {
-              heading3 = setext[1][0] === "=" ? 1 : 2;
-              i++;
-              break;
-            }
-            if (interrupts(t)) break;
-            raw3.push(t);
-            i++;
-          }
-          const joined = raw3.map((r, k) => k < raw3.length - 1 && / {2,}$/.test(r) ? `${r.trim()}\\` : r.trim()).join("\n");
-          const content = this.inline(joined);
-          emit3(heading3 ? { type: "heading", level: heading3, content } : { type: "paragraph", content }, line.n);
-        }
-        if (top2) this.losses?.close(blocks.length);
-        return { blocks, at: at9 };
-      }
-      list(lines, start2) {
-        const first = ITEM.exec(lines[start2].text);
-        const bullet = /^[-+*]$/.test(first[2]);
-        const kind = bullet ? first[2] : first[2].slice(-1);
-        const items = [];
-        let i = start2;
-        while (i < lines.length) {
-          const m2 = ITEM.exec(lines[i].text);
-          if (!m2 || HR.test(lines[i].text)) break;
-          const isBullet = /^[-+*]$/.test(m2[2]);
-          if (isBullet !== bullet || (bullet ? m2[2] : m2[2].slice(-1)) !== kind) break;
-          const markerEnd = m2[1].length + m2[2].length;
-          const spaces2 = m2[3].length;
-          let rest = m2[4];
-          const content = rest === "" ? markerEnd + 1 : spaces2 >= 5 ? markerEnd + 1 : markerEnd + spaces2;
-          if (rest !== "" && spaces2 >= 5) rest = " ".repeat(spaces2 - 1) + rest;
-          let task;
-          const box = /^\[([ xX])\](?:[ \t]+|$)/.exec(rest);
-          if (box) {
-            task = box[1] === " " ? "todo" : "done";
-            rest = rest.slice(box[0].length);
-          }
-          const inner = [{ text: rest, n: lines[i].n }];
-          i++;
-          while (i < lines.length) {
-            const t = lines[i].text;
-            if (BLANK.test(t)) {
-              let j2 = i;
-              while (j2 < lines.length && BLANK.test(lines[j2].text)) j2++;
-              if (j2 < lines.length && indentOf(lines[j2].text) >= content) {
-                for (; i < j2; i++) inner.push({ text: "", n: lines[i].n });
-                continue;
-              }
-              break;
-            }
-            if (indentOf(t) >= content) {
-              inner.push({ text: t.slice(content), n: lines[i].n });
-              i++;
-              continue;
-            }
-            const last = inner.at(-1).text;
-            if (!BLANK.test(last) && !interrupts(t) && !ITEM.test(t) && !FENCE.test(last) && !/^ {0,3}(`{3,}|~{3,})/.test(inner[0].text)) {
-              inner.push({ text: t.trim(), n: lines[i].n });
-              i++;
-              continue;
-            }
-            break;
-          }
-          items.push({ ...task ? { task } : {}, children: this.read(inner, false).blocks });
-          let j = i;
-          while (j < lines.length && BLANK.test(lines[j].text)) j++;
-          if (j < lines.length && ITEM.test(lines[j].text)) i = j;
-          else break;
-        }
-        const startNumber = bullet ? 1 : parseInt(first[2], 10);
-        return [{ type: "list", ordered: !bullet, start: startNumber, items }, i];
-      }
-      inline(text4) {
-        return new InlineReader(text4, this.losses).read();
-      }
-    };
-    PUNCT = /[!-/:-@[-`{-~\p{P}\p{S}]/u;
-    ESCAPABLE = /[!-/:-@[-`{-~]/;
-    NAMED = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: "\xA0", copy: "\xA9", reg: "\xAE", trade: "\u2122", hellip: "\u2026", mdash: "\u2014", ndash: "\u2013", lsquo: "\u2018", rsquo: "\u2019", ldquo: "\u201C", rdquo: "\u201D", bull: "\u2022", middot: "\xB7", times: "\xD7", rarr: "\u2192", larr: "\u2190", deg: "\xB0" };
-    isWs = (c) => c === void 0 || /\s/u.test(c);
-    isPunct = (c) => c !== void 0 && PUNCT.test(c);
-    LINK_TAIL = /^\(\s*(<[^<>\n]*>|(?:[^\s()\\]|\\.|\((?:[^\s()\\]|\\.)*\))*)(?:\s+("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\((?:[^()\\]|\\.)*\)))?\s*\)/;
-    AUTOLINK = /^<([A-Za-z][A-Za-z0-9+.-]{1,31}:[^\s<>]*)>/;
-    EMAIL2 = /^<([A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*)>/;
-    BARE_URL = /^(?:https?:\/\/|www\.)[^\s<]*/;
-    INLINE_HTML = /^<\/?[A-Za-z][\w-]*(?:\s+[^<>]*)?\/?>|^<!--[\s\S]*?-->/;
-    WINDOW = 8192;
-    runLength = (s, i, c) => {
-      let j = i;
-      while (s[j] === c) j++;
-      return j - i;
-    };
-    InlineReader = class {
-      constructor(src, losses) {
-        this.src = src;
-        this.losses = losses;
-      }
-      src;
-      losses;
-      nodes = [];
-      buf = "";
-      flush() {
-        if (this.buf) this.nodes.push({ type: "text", text: this.buf });
-        this.buf = "";
-      }
-      emit(node3) {
-        this.flush();
-        this.nodes.push(node3);
-      }
-      read() {
-        const s = this.src;
-        let i = 0;
-        while (i < s.length) {
-          const c = s[i];
-          if (c === "\\") {
-            const next = s[i + 1];
-            if (next === "\n") {
-              this.emit({ type: "break" });
-              i += 2;
-              continue;
-            }
-            if (next !== void 0 && ESCAPABLE.test(next)) {
-              this.buf += next;
-              i += 2;
-              continue;
-            }
-            this.buf += c;
-            i++;
-            continue;
-          }
-          if (c === "\n") {
-            this.buf = this.buf.replace(/ +$/, "");
-            this.buf += " ";
-            i++;
-            while (s[i] === " ") i++;
-            continue;
-          }
-          if (c === "`") {
-            const run3 = "`".repeat(runLength(s, i, "`"));
-            let j = i + run3.length;
-            let close = -1;
-            while (j < s.length) {
-              const k = s.indexOf("`", j);
-              if (k === -1) break;
-              const r = "`".repeat(runLength(s, k, "`"));
-              if (r.length === run3.length) {
-                close = k;
-                break;
-              }
-              j = k + r.length;
-            }
-            if (close === -1) {
-              this.buf += run3;
-              i += run3.length;
-              continue;
-            }
-            let code = s.slice(i + run3.length, close).replace(/\n/g, " ");
-            if (code.length > 2 && code.startsWith(" ") && code.endsWith(" ") && code.trim() !== "") code = code.slice(1, -1);
-            this.emit({ type: "code", text: code });
-            i = close + run3.length;
-            continue;
-          }
-          if (c === "<") {
-            const rest = s.slice(i, i + WINDOW);
-            const auto = AUTOLINK.exec(rest);
-            if (auto) {
-              this.emit({ type: "link", href: auto[1], children: [{ type: "text", text: auto[1] }] });
-              i += auto[0].length;
-              continue;
-            }
-            const email3 = EMAIL2.exec(rest);
-            if (email3) {
-              this.emit({ type: "link", href: `mailto:${email3[1]}`, children: [{ type: "text", text: email3[1] }] });
-              i += email3[0].length;
-              continue;
-            }
-            const br = /^<br\s*\/?>/i.exec(rest);
-            if (br) {
-              this.emit({ type: "break" });
-              i += br[0].length;
-              continue;
-            }
-            const html = INLINE_HTML.exec(rest);
-            if (html) {
-              this.losses?.add("inline HTML", `${html[0].slice(0, 40)} is not converted; it is kept as text`);
-              this.buf += html[0];
-              i += html[0].length;
-              continue;
-            }
-            this.buf += c;
-            i++;
-            continue;
-          }
-          if (c === "&") {
-            const m2 = /^&(#[xX][0-9a-fA-F]{1,6}|#\d{1,7}|[A-Za-z][A-Za-z0-9]{1,31});/.exec(s.slice(i, i + 40));
-            const decoded = m2 ? decodeEntity(m2[1]) : void 0;
-            if (m2 && decoded !== void 0) {
-              this.buf += decoded;
-              i += m2[0].length;
-              continue;
-            }
-            this.buf += c;
-            i++;
-            continue;
-          }
-          if (c === "!" && s[i + 1] === "[") {
-            this.emit({ kind: "bracket", image: true, active: true });
-            this.nodes.push({ type: "text", text: "![" });
-            i += 2;
-            continue;
-          }
-          if (c === "[") {
-            this.emit({ kind: "bracket", image: false, active: true });
-            this.nodes.push({ type: "text", text: "[" });
-            i++;
-            continue;
-          }
-          if (c === "]") {
-            i = this.closeBracket(i);
-            continue;
-          }
-          if (c === "*" || c === "_" || c === "~") {
-            const run3 = c.repeat(runLength(s, i, c));
-            const prev = i === 0 ? void 0 : s[i - 1];
-            const next = s[i + run3.length];
-            const left = !isWs(next) && (!isPunct(next) || isWs(prev) || isPunct(prev));
-            const right = !isWs(prev) && (!isPunct(prev) || isWs(next) || isPunct(next));
-            let canOpen = left;
-            let canClose = right;
-            if (c === "_") {
-              canOpen = left && (!right || isPunct(prev));
-              canClose = right && (!left || isPunct(next));
-            }
-            if (c === "~" && run3.length > 2) {
-              this.buf += run3;
-            } else this.emit({ kind: "delim", char: c, count: run3.length, orig: run3.length, canOpen, canClose });
-            i += run3.length;
-            continue;
-          }
-          if ((c === "h" || c === "w") && (i === 0 || /[\s*_~(]/.test(s[i - 1]))) {
-            const url2 = BARE_URL.exec(s.slice(i, i + WINDOW));
-            if (url2) {
-              const found = trimUrl(url2[0]);
-              if (found && (found.startsWith("www.") ? /^www\.[A-Za-z0-9-]+\.[A-Za-z]/.test(found) : /^https?:\/\/[A-Za-z0-9]/.test(found))) {
-                this.emit({ type: "link", href: found.startsWith("www.") ? `http://${found}` : found, children: [{ type: "text", text: found }] });
-                i += found.length;
-                continue;
-              }
-            }
-          }
-          this.buf += c;
-          i++;
-        }
-        this.flush();
-        this.processEmphasis(0);
-        return this.finish(this.nodes);
-      }
-      /** At `]`: a link or image if a usable opener and a destination are here, else a literal bracket. */
-      closeBracket(i) {
-        this.flush();
-        let o = this.nodes.length - 1;
-        while (o >= 0 && this.nodes[o].kind !== "bracket") o--;
-        if (o < 0) {
-          this.buf += "]";
-          return i + 1;
-        }
-        const opener = this.nodes[o];
-        const tail = LINK_TAIL.exec(this.src.slice(i + 1, i + 1 + WINDOW));
-        if (!opener.active || !tail) {
-          this.nodes.splice(o, 1);
-          this.buf += "]";
-          return i + 1;
-        }
-        let dest = tail[1];
-        if (dest.startsWith("<")) dest = dest.slice(1, -1);
-        const titleRaw = tail[2];
-        const title = titleRaw === void 0 ? void 0 : unescapeText(titleRaw.slice(1, -1));
-        this.processEmphasis(o + 2);
-        const inner = this.finish(this.nodes.slice(o + 2));
-        this.nodes.splice(o);
-        const href = unescapeText(dest);
-        if (opener.image) {
-          this.nodes.push({ type: "image", src: href, alt: plain(inner), ...title !== void 0 ? { title } : {} });
-        } else {
-          this.nodes.push({ type: "link", href, ...title !== void 0 ? { title } : {}, children: unlink(inner) });
-          for (const n of this.nodes) if (n.kind === "bracket" && !n.image) n.active = false;
-        }
-        return i + 1 + tail[0].length;
-      }
-      /** CommonMark's "process emphasis", over the nodes from `bottom` on. */
-      processEmphasis(bottom) {
-        const nodes = this.nodes;
-        for (let c = bottom; c < nodes.length; c++) {
-          const closer = nodes[c];
-          if (closer.kind !== "delim" || !closer.canClose) continue;
-          let o = c - 1;
-          for (; o >= bottom; o--) {
-            const opener2 = nodes[o];
-            if (opener2.kind !== "delim" || opener2.char !== closer.char || !opener2.canOpen) continue;
-            if (closer.char === "~") {
-              if (opener2.count === closer.count) break;
-              continue;
-            }
-            if ((opener2.canClose || closer.canOpen) && (opener2.orig + closer.orig) % 3 === 0 && !(opener2.orig % 3 === 0 && closer.orig % 3 === 0)) continue;
-            break;
-          }
-          if (o < bottom) {
-            continue;
-          }
-          const opener = nodes[o];
-          const use2 = closer.char === "~" ? closer.count : opener.count >= 2 && closer.count >= 2 ? 2 : 1;
-          const type = closer.char === "~" ? "strike" : use2 === 2 ? "strong" : "em";
-          const children4 = this.finish(nodes.slice(o + 1, c));
-          nodes.splice(o + 1, c - o - 1, { type, children: children4 });
-          c = o + 2;
-          opener.count -= use2;
-          closer.count -= use2;
-          if (closer.count === 0) nodes.splice(c, 1);
-          if (opener.count === 0) {
-            nodes.splice(o, 1);
-            c--;
-          }
-          c--;
-        }
-      }
-      /** Nodes to inline content: leftover delimiters and brackets are their text. */
-      finish(nodes) {
-        const out = [];
-        for (const n of nodes) {
-          if (n.kind === "delim") out.push({ type: "text", text: n.char.repeat(n.count) });
-          else if (n.kind === "bracket") continue;
-          else out.push(n);
-        }
-        return out;
-      }
-    };
-    titlePart = (title) => title === void 0 ? "" : ` "${title.replace(/["\\]/g, "\\$&")}"`;
-    indent = (text4, pad5) => text4.split("\n").map((l, k) => k === 0 || l === "" ? l : pad5 + l).join("\n");
-  }
-});
-
-// src/areas/util/md/storage.ts
-function isBlockElement(node3) {
-  if (node3.type !== "element") return false;
-  const name3 = localName(node3.name);
-  if (name3 === "structured-macro" || name3 === "macro") return BLOCK_MACROS.has(attr(node3, "name") ?? "") || !INLINE_MACROS.has(attr(node3, "name") ?? "");
-  if (name3 === "image") return false;
-  return BLOCK_TAGS.has(name3);
-}
-function groupBlocks(nodes) {
-  const groups = [];
-  let run3 = [];
-  let runLine = 0;
-  const flush = () => {
-    if (run3.some((n) => n.type === "element" || n.type === "text" && n.text.trim() !== "")) groups.push({ inline: true, nodes: run3, line: runLine });
-    run3 = [];
-  };
-  for (const node3 of nodes) {
-    if (isBlockElement(node3)) {
-      flush();
-      groups.push({ inline: false, nodes: [node3], line: node3.line });
-    } else {
-      if (run3.length === 0 || runLine === 0) runLine = node3.type === "element" ? node3.line : runLine;
-      run3.push(node3);
-    }
-  }
-  flush();
-  return groups;
-}
-function parseStorage(text4, losses) {
-  const nodes = parseXml(text4, { fragment: true, entities: HTML_ENTITIES });
-  return new StorageReader(losses).doc(nodes);
-}
-function renderStorage(doc, losses) {
-  const writer = new StorageWriter(losses);
-  return doc.blocks.map((block2, k) => {
-    losses.enter(k, doc.at[k] ?? "");
-    return writer.block(block2);
-  }).join("\n");
-}
-var HTML_ENTITIES, BLOCK_TAGS, BLOCK_MACROS, LOST_INLINE, attr, param, child, INLINE_MACROS, StorageReader, esc2, escAttr, cdata, StorageWriter;
-var init_storage = __esm({
-  "src/areas/util/md/storage.ts"() {
-    "use strict";
-    init_xml();
-    init_ast();
-    HTML_ENTITIES = {
-      nbsp: "\xA0",
-      copy: "\xA9",
-      reg: "\xAE",
-      trade: "\u2122",
-      hellip: "\u2026",
-      mdash: "\u2014",
-      ndash: "\u2013",
-      lsquo: "\u2018",
-      rsquo: "\u2019",
-      ldquo: "\u201C",
-      rdquo: "\u201D",
-      sbquo: "\u201A",
-      bdquo: "\u201E",
-      bull: "\u2022",
-      middot: "\xB7",
-      times: "\xD7",
-      divide: "\xF7",
-      minus: "\u2212",
-      plusmn: "\xB1",
-      deg: "\xB0",
-      micro: "\xB5",
-      para: "\xB6",
-      sect: "\xA7",
-      laquo: "\xAB",
-      raquo: "\xBB",
-      lsaquo: "\u2039",
-      rsaquo: "\u203A",
-      rarr: "\u2192",
-      larr: "\u2190",
-      uarr: "\u2191",
-      darr: "\u2193",
-      harr: "\u2194",
-      rArr: "\u21D2",
-      lArr: "\u21D0",
-      hArr: "\u21D4",
-      le: "\u2264",
-      ge: "\u2265",
-      ne: "\u2260",
-      asymp: "\u2248",
-      infin: "\u221E",
-      check: "\u2713",
-      euro: "\u20AC",
-      pound: "\xA3",
-      yen: "\xA5",
-      cent: "\xA2",
-      iexcl: "\xA1",
-      iquest: "\xBF",
-      shy: "\xAD",
-      zwj: "\u200D",
-      zwnj: "\u200C",
-      ensp: "\u2002",
-      emsp: "\u2003",
-      thinsp: "\u2009",
-      dagger: "\u2020",
-      Dagger: "\u2021",
-      permil: "\u2030",
-      prime: "\u2032",
-      Prime: "\u2033",
-      frac12: "\xBD",
-      frac14: "\xBC",
-      frac34: "\xBE",
-      sup2: "\xB2",
-      sup3: "\xB3",
-      acute: "\xB4",
-      cedil: "\xB8",
-      uml: "\xA8",
-      macr: "\xAF",
-      aacute: "\xE1",
-      eacute: "\xE9",
-      iacute: "\xED",
-      oacute: "\xF3",
-      uacute: "\xFA",
-      agrave: "\xE0",
-      egrave: "\xE8",
-      ograve: "\xF2",
-      auml: "\xE4",
-      ouml: "\xF6",
-      uuml: "\xFC",
-      Auml: "\xC4",
-      Ouml: "\xD6",
-      Uuml: "\xDC",
-      szlig: "\xDF",
-      ntilde: "\xF1",
-      ccedil: "\xE7",
-      aring: "\xE5",
-      oslash: "\xF8",
-      aelig: "\xE6",
-      Eacute: "\xC9"
-    };
-    BLOCK_TAGS = /* @__PURE__ */ new Set(["p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "blockquote", "pre", "table", "hr", "div", "section", "article", "task-list", "layout", "layout-section", "layout-cell", "structured-macro", "macro"]);
-    BLOCK_MACROS = /* @__PURE__ */ new Set(["code", "noformat", "info", "note", "tip", "warning", "panel", "expand", "section", "column", "details"]);
-    LOST_INLINE = { u: "underline", sup: "superscript", sub: "subscript", ins: "underline", small: "small text", big: "big text", font: "font", mark: "highlight", cite: "citation" };
-    attr = (el, name3) => el.attrs[name3] ?? el.attrs[`ac:${name3}`];
-    param = (macro, name3) => {
-      const p = macro.children.find((c) => c.type === "element" && localName(c.name) === "parameter" && attr(c, "name") === name3);
-      return p ? textOf(p).trim() : void 0;
-    };
-    child = (el, name3) => el.children.find((c) => c.type === "element" && localName(c.name) === name3);
-    INLINE_MACROS = /* @__PURE__ */ new Set(["status", "jira", "anchor", "emoticon", "mention"]);
-    StorageReader = class {
-      constructor(losses) {
-        this.losses = losses;
-      }
-      losses;
-      doc(nodes) {
-        const blocks = [];
-        const at9 = [];
-        for (const group of groupBlocks(nodes)) {
-          const line = group.line;
-          this.losses?.enter(blocks.length, `line ${line}`);
-          for (const block2 of this.group(group)) {
-            blocks.push(block2);
-            at9.push(`line ${line}`);
-          }
-        }
-        this.losses?.close(blocks.length);
-        return { blocks, at: at9 };
-      }
-      group(group) {
-        if (group.inline) {
-          const content = this.inline(group.nodes);
-          return content.length ? [{ type: "paragraph", content }] : [];
-        }
-        return this.block(group.nodes[0]);
-      }
-      blocks(nodes) {
-        return groupBlocks(nodes).flatMap((g) => this.group(g));
-      }
-      lose(construct, detail, el) {
-        this.losses?.add(construct, detail, el ? `line ${el.line}` : void 0);
-      }
-      block(el) {
-        const name3 = localName(el.name);
-        switch (name3) {
-          case "p":
-            return [{ type: "paragraph", content: this.inline(el.children) }];
-          case "h1":
-          case "h2":
-          case "h3":
-          case "h4":
-          case "h5":
-          case "h6":
-            return [{ type: "heading", level: Number(name3[1]), content: this.inline(el.children) }];
-          case "blockquote":
-            return [{ type: "quote", children: this.blocks(el.children) }];
-          case "hr":
-            return [{ type: "rule" }];
-          case "pre":
-            return [{ type: "code", text: textOf(el) }];
-          case "ul":
-          case "ol": {
-            const start2 = name3 === "ol" && /^\d+$/.test(el.attrs.start ?? "") ? Number(el.attrs.start) : 1;
-            const items = el.children.filter((c) => c.type === "element" && localName(c.name) === "li").map((li) => ({ children: this.blocks(li.children) }));
-            return [{ type: "list", ordered: name3 === "ol", start: start2, items }];
-          }
-          case "task-list":
-            return [this.taskList(el)];
-          case "table":
-            return [this.table(el)];
-          case "div":
-          case "section":
-          case "article":
-            return this.blocks(el.children);
-          case "layout":
-          case "layout-section":
-          case "layout-cell":
-            if (name3 === "layout") this.lose("layout", "page layout columns have no Markdown equivalent; their content is kept in order", el);
-            return this.blocks(el.children);
-          case "structured-macro":
-          case "macro":
-            return this.macro(el);
-          default:
-            return this.blocks(el.children);
-        }
-      }
-      macro(el) {
-        const name3 = attr(el, "name") ?? "";
-        const body = child(el, "rich-text-body");
-        const plain2 = child(el, "plain-text-body");
-        if (name3 === "code" || name3 === "noformat") {
-          const lang = name3 === "code" ? param(el, "language") : void 0;
-          const extra = el.children.filter((c) => c.type === "element" && localName(c.name) === "parameter" && attr(c, "name") !== "language").map((c) => attr(c, "name"));
-          if (extra.length) this.lose("code macro parameters", `the ${name3} macro's ${extra.join(", ")} have no Markdown equivalent and were dropped`, el);
-          return [{ type: "code", ...lang ? { lang } : {}, text: plain2 ? textOf(plain2) : "" }];
-        }
-        if (["info", "note", "tip", "warning", "panel"].includes(name3)) {
-          this.lose(name3 === "panel" ? "panel" : `${name3} panel`, `the ${name3} macro has no Markdown equivalent; its content is kept as a quote`, el);
-          const title = param(el, "title");
-          const children4 = body ? this.blocks(body.children) : [];
-          return [{ type: "quote", children: [...title ? [{ type: "paragraph", content: [{ type: "strong", children: [{ type: "text", text: title }] }] }] : [], ...children4] }];
-        }
-        if (name3 === "expand" || name3 === "details" || name3 === "section" || name3 === "column") {
-          this.lose(name3, `the ${name3} macro has no Markdown equivalent; its content is kept`, el);
-          const title = param(el, "title");
-          return [...title ? [{ type: "paragraph", content: [{ type: "strong", children: [{ type: "text", text: title }] }] }] : [], ...body ? this.blocks(body.children) : []];
-        }
-        this.lose(`${name3 || "unnamed"} macro`, `the ${name3 || "unnamed"} macro has no Markdown equivalent and was dropped`, el);
-        return [];
-      }
-      taskList(el) {
-        const items = [];
-        for (const c of el.children) {
-          if (c.type !== "element") continue;
-          const n = localName(c.name);
-          if (n === "task-list") {
-            if (items.length === 0) items.push({ children: [] });
-            items.at(-1).children.push(this.taskList(c));
-          } else if (n === "task") {
-            const status = child(c, "task-status");
-            const body = child(c, "task-body");
-            const done = status ? textOf(status).trim() === "complete" : false;
-            const blocks = body ? this.blocks(body.children) : [];
-            items.push({ task: done ? "done" : "todo", children: blocks.length ? blocks : [{ type: "paragraph", content: [] }] });
-          }
-        }
-        return { type: "list", ordered: false, start: 1, items };
-      }
-      table(el) {
-        const rows = [];
-        const collect = (parent) => {
-          for (const c of parent.children) {
-            if (c.type !== "element") continue;
-            const n = localName(c.name);
-            if (n === "tr") rows.push(c);
-            else if (n === "thead" || n === "tbody" || n === "tfoot") collect(c);
-          }
-        };
-        collect(el);
-        const out = [];
-        const align = [];
-        let headerRow = true;
-        rows.forEach((tr, r) => {
-          const cells = [];
-          for (const cell of tr.children) {
-            if (cell.type !== "element" || !["td", "th"].includes(localName(cell.name))) continue;
-            const colspan = Number(cell.attrs.colspan ?? 1);
-            const rowspan = Number(cell.attrs.rowspan ?? 1);
-            if (colspan > 1 || rowspan > 1) this.lose("merged cells", "Markdown tables have no merged cells; the cell was unmerged and the cells it covered left empty", cell);
-            const header = localName(cell.name) === "th";
-            if (r === 0 && !header) headerRow = false;
-            if (r > 0 && header) this.lose("header cell outside the first row", "Markdown has header cells only in the first row; this one became an ordinary cell", cell);
-            const a = /text-align:\s*(left|center|right)/.exec(cell.attrs.style ?? "")?.[1];
-            if (r === 0) align[cells.length] = a ?? null;
-            else if ((a ?? null) !== (align[cells.length] ?? null)) this.lose("cell alignment", "Markdown aligns whole columns; this cell's own alignment was dropped", cell);
-            const blocks = this.blocks(cell.children);
-            if (blocks.length > 1 || blocks.some((b) => b.type !== "paragraph")) this.lose("block content in a table cell", "a Markdown table cell holds one line; the cell's blocks were joined with line breaks", cell);
-            cells.push(joinInlines(blocks.map(blockInlines)));
-            for (let k = 1; k < colspan; k++) cells.push([]);
-          }
-          out.push(cells);
-        });
-        if (!headerRow) this.lose("table without a header row", "Markdown tables need a header row; the first row was made the header", el);
-        return { type: "table", align: align.map((a) => a ?? null), rows: out };
-      }
-      inline(nodes) {
-        const out = [];
-        for (const node3 of nodes) {
-          if (node3.type === "text") {
-            out.push({ type: "text", text: node3.cdata ? node3.text : node3.text.replace(/[ \t\r\n]+/g, " ") });
-            continue;
-          }
-          if (node3.type !== "element") continue;
-          const name3 = localName(node3.name);
-          const kids = () => this.inline(node3.children);
-          switch (name3) {
-            case "strong":
-            case "b":
-              out.push({ type: "strong", children: kids() });
-              break;
-            case "em":
-            case "i":
-              out.push({ type: "em", children: kids() });
-              break;
-            case "s":
-            case "del":
-            case "strike":
-              out.push({ type: "strike", children: kids() });
-              break;
-            case "code":
-            case "tt":
-              out.push({ type: "code", text: textOf(node3) });
-              break;
-            case "br":
-              out.push({ type: "break" });
-              break;
-            case "a": {
-              const href = node3.attrs.href;
-              if (href === void 0) out.push(...kids());
-              else out.push({ type: "link", href, ...node3.attrs.title !== void 0 ? { title: node3.attrs.title } : {}, children: kids() });
-              break;
-            }
-            case "span": {
-              const style2 = node3.attrs.style ?? "";
-              if (/line-through/.test(style2)) out.push({ type: "strike", children: kids() });
-              else {
-                if (/color/.test(style2)) this.lose("text colour", "text colour has no Markdown equivalent; the text is kept", node3);
-                out.push(...kids());
-              }
-              break;
-            }
-            case "image":
-            case "img":
-              out.push(...this.image(node3));
-              break;
-            case "link":
-              out.push(...this.acLink(node3));
-              break;
-            case "emoticon": {
-              const fallback = attr(node3, "emoji-fallback") ?? attr(node3, "name") ?? "";
-              this.lose("emoticon", `the ${attr(node3, "name") ?? ""} emoticon is kept as ${fallback || "nothing"}`, node3);
-              if (fallback) out.push({ type: "text", text: fallback });
-              break;
-            }
-            case "structured-macro":
-            case "macro": {
-              const macroName = attr(node3, "name") ?? "";
-              const title = param(node3, "title") ?? param(node3, "key");
-              this.lose(`${macroName || "unnamed"} macro`, `the ${macroName || "unnamed"} macro has no Markdown equivalent${title ? `; its ${param(node3, "title") ? "title" : "key"} ${title} is kept as text` : " and was dropped"}`, node3);
-              if (title) out.push({ type: "text", text: title });
-              break;
-            }
-            case "time": {
-              const dt = attr(node3, "datetime") ?? "";
-              this.lose("date", "a date became its text", node3);
-              out.push({ type: "text", text: dt });
-              break;
-            }
-            case "placeholder":
-              this.lose("placeholder", "placeholder text was dropped", node3);
-              break;
-            case "inline-comment-marker":
-              this.lose("inline comment", "an inline comment marker was dropped; the text it marked is kept", node3);
-              out.push(...kids());
-              break;
-            case "parameter":
-              break;
-            default:
-              if (LOST_INLINE[name3]) this.lose(LOST_INLINE[name3], `${LOST_INLINE[name3]} has no Markdown equivalent; the text is kept`, node3);
-              out.push(...kids());
-          }
-        }
-        return out;
-      }
-      image(el) {
-        const alt = attr(el, "alt") ?? "";
-        const title = attr(el, "title");
-        if (localName(el.name) === "img") return [{ type: "image", src: el.attrs.src ?? "", alt, ...title !== void 0 ? { title } : {} }];
-        const url2 = child(el, "url");
-        if (url2) return [{ type: "image", src: attr(url2, "value") ?? url2.attrs["ri:value"] ?? "", alt, ...title !== void 0 ? { title } : {} }];
-        const attachment = child(el, "attachment");
-        const file2 = attachment ? attachment.attrs["ri:filename"] ?? "" : "";
-        this.lose("attachment image", `the attached image ${file2 || "(unnamed)"} can't be referred to from Markdown; its file name is kept as the image source`, el);
-        return [{ type: "image", src: file2, alt }];
-      }
-      acLink(el) {
-        const body = child(el, "link-body") ?? child(el, "plain-text-link-body");
-        const target2 = el.children.find((c) => c.type === "element" && c.name.startsWith("ri:"));
-        const words = body ? localName(body.name) === "plain-text-link-body" ? [{ type: "text", text: textOf(body) }] : this.inline(body.children) : [];
-        const kind = target2 ? localName(target2.name) : "anchor";
-        const name3 = target2 ? target2.attrs["ri:content-title"] ?? target2.attrs["ri:filename"] ?? target2.attrs["ri:username"] ?? target2.attrs["ri:userkey"] ?? target2.attrs["ri:account-id"] ?? target2.attrs["ri:space-key"] ?? "" : attr(el, "anchor") ?? "";
-        if (kind === "user") {
-          this.lose("user mention", `the mention of ${name3} is kept as @${name3} text`, el);
-          return words.length ? words : [{ type: "text", text: `@${name3}` }];
-        }
-        this.lose(kind === "page" ? "page link" : kind === "attachment" ? "attachment link" : `${kind} link`, `the link to the ${kind} ${name3} is kept as text`, el);
-        return words.length ? words : name3 ? [{ type: "text", text: name3 }] : [];
-      }
-    };
-    esc2 = (text4) => text4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    escAttr = (text4) => esc2(text4).replace(/"/g, "&quot;");
-    cdata = (text4) => `<![CDATA[${text4.replace(/]]>/g, "]]]]><![CDATA[>")}]]>`;
-    StorageWriter = class {
-      constructor(losses) {
-        this.losses = losses;
-      }
-      losses;
-      tasks = 0;
-      inline(nodes) {
-        return nodes.map((n) => {
-          switch (n.type) {
-            case "text":
-              return esc2(n.text);
-            case "strong":
-              return `<strong>${this.inline(n.children)}</strong>`;
-            case "em":
-              return `<em>${this.inline(n.children)}</em>`;
-            case "strike":
-              return `<span style="text-decoration: line-through;">${this.inline(n.children)}</span>`;
-            case "code":
-              return `<code>${esc2(n.text)}</code>`;
-            case "break":
-              return "<br />";
-            case "link":
-              return `<a href="${escAttr(n.href)}"${n.title !== void 0 ? ` title="${escAttr(n.title)}"` : ""}>${this.inline(n.children)}</a>`;
-            case "image":
-              return `<ac:image${n.alt ? ` ac:alt="${escAttr(n.alt)}"` : ""}${n.title !== void 0 ? ` ac:title="${escAttr(n.title)}"` : ""}><ri:url ri:value="${escAttr(n.src)}" /></ac:image>`;
-          }
-        }).join("");
-      }
-      block(block2) {
-        switch (block2.type) {
-          case "paragraph":
-            return `<p>${this.inline(block2.content)}</p>`;
-          case "heading":
-            return `<h${block2.level}>${this.inline(block2.content)}</h${block2.level}>`;
-          case "code":
-            return `<ac:structured-macro ac:name="code">${block2.lang ? `<ac:parameter ac:name="language">${esc2(block2.lang)}</ac:parameter>` : ""}<ac:plain-text-body>${cdata(block2.text)}</ac:plain-text-body></ac:structured-macro>`;
-          case "quote":
-            return `<blockquote>${block2.children.map((b) => this.block(b)).join("")}</blockquote>`;
-          case "rule":
-            return "<hr />";
-          case "table": {
-            if (block2.align.includes("left")) this.losses.add("table alignment", "explicit left alignment is written as the default");
-            const cell = (tag2, c, k) => {
-              const a = block2.align[k];
-              const style2 = a === "center" || a === "right" ? ` style="text-align: ${a};"` : "";
-              return `<${tag2}${style2}><p>${this.inline(c)}</p></${tag2}>`;
-            };
-            const [head2 = [], ...rows] = block2.rows;
-            return `<table><tbody><tr>${head2.map((c, k) => cell("th", c, k)).join("")}</tr>${rows.map((r) => `<tr>${r.map((c, k) => cell("td", c, k)).join("")}</tr>`).join("")}</tbody></table>`;
-          }
-          case "list": {
-            if (block2.items.some((i) => i.task !== void 0)) return this.taskList(block2);
-            const tag2 = block2.ordered ? "ol" : "ul";
-            const start2 = block2.ordered && block2.start !== 1 ? ` start="${block2.start}"` : "";
-            return `<${tag2}${start2}>${block2.items.map((item) => `<li>${this.item(item.children)}</li>`).join("")}</${tag2}>`;
-          }
-        }
-      }
-      /** A list item's blocks: its first paragraph unwrapped, as Confluence's editor writes it. */
-      item(children4) {
-        return children4.map((b, k) => k === 0 && b.type === "paragraph" ? this.inline(b.content) : this.block(b)).join("");
-      }
-      taskList(block2) {
-        if (block2.items.some((i) => i.task === void 0)) this.losses.add("mixed task list", "a list mixing tasks and ordinary items became a task list; the ordinary items are open tasks");
-        if (block2.ordered) this.losses.add("ordered task list", "Confluence task lists are not numbered");
-        return `<ac:task-list>${block2.items.map((item) => {
-          this.tasks++;
-          const status = item.task === "done" ? "complete" : "incomplete";
-          return `<ac:task><ac:task-id>${this.tasks}</ac:task-id><ac:task-status>${status}</ac:task-status><ac:task-body>${this.item(item.children)}</ac:task-body></ac:task>`;
-        }).join("")}</ac:task-list>`;
-      }
-    };
-  }
-});
-
-// src/areas/util/md/wiki.ts
-function splitWikiRow(row) {
-  const cells = [];
-  let cur;
-  let depth = 0;
-  let mono = false;
-  for (let i = 0; i < row.length; i++) {
-    const c = row[i];
-    if (c === "\\" && i + 1 < row.length) {
-      if (cur) cur.text += c + row[i + 1];
-      i++;
-      continue;
-    }
-    if (row.startsWith("{{", i)) mono = true;
-    if (row.startsWith("}}", i)) mono = false;
-    if (c === "[") depth++;
-    if (c === "]" && depth) depth--;
-    if (c === "|" && depth === 0 && !mono) {
-      if (cur) cells.push(cur);
-      const header = row[i + 1] === "|";
-      if (header) i++;
-      cur = { header, text: "" };
-      continue;
-    }
-    if (cur) cur.text += c;
-  }
-  if (cur && cur.text.trim() !== "") cells.push(cur);
-  return cells;
-}
-function findUnescaped(s, needle, from, line = false) {
-  for (let j = from; j < s.length; j++) {
-    if (s[j] === "\\") {
-      j++;
-      continue;
-    }
-    if (line && s[j] === "\n") return -1;
-    if (s.startsWith(needle, j)) return j;
-  }
-  return -1;
-}
-function splitUnescaped(s, sep4) {
-  const out = [];
-  let cur = "";
-  for (let j = 0; j < s.length; j++) {
-    if (s[j] === "\\" && j + 1 < s.length) {
-      cur += s[j] + s[j + 1];
-      j++;
-    } else if (s[j] === sep4) {
-      out.push(cur);
-      cur = "";
-    } else cur += s[j];
-  }
-  out.push(cur);
-  return out;
-}
-function parseWiki(text4, losses) {
-  const lines = text4.replace(/^\ufeff/, "").replace(/\r\n?/g, "\n").split("\n");
-  return new WikiReader(losses).blocks(lines, 1, true);
-}
-function escapeWiki(text4, prev, next) {
-  let out = "";
-  for (let k = 0; k < text4.length; k++) {
-    const c = text4[k];
-    const before = k === 0 ? prev : text4[k - 1];
-    const after = k === text4.length - 1 ? next : text4[k + 1];
-    if (c === "\\") out += "&#92;";
-    else if ("{}[]|".includes(c)) out += `\\${c}`;
-    else if (c === "!" && !isWs2(after)) out += "\\!";
-    else if (c === "&" && /^&(#\d+|#x[0-9a-fA-F]+|[a-z]+);/.test(text4.slice(k, k + 40))) out += "\\&";
-    else if ((EFFECTS[c] || c === "?" && (after === "?" || before === "?")) && (!isAlnum(before) && !isWs2(after) || !isWs2(before) && !isAlnum(after))) out += `\\${c}`;
-    else out += c;
-  }
-  return out;
-}
-function firstChar(node3) {
-  if (!node3) return void 0;
-  switch (node3.type) {
-    case "text":
-      return node3.text[0];
-    case "code":
-      return "{";
-    case "break":
-      return "\n";
-    case "link":
-      return "[";
-    case "image":
-      return "!";
-    default:
-      return "*";
-  }
-}
-function renderWiki(doc, losses) {
-  const writer = new WikiWriter(losses);
-  return doc.blocks.map((block2, k) => {
-    losses.enter(k, doc.at[k] ?? "");
-    return writer.block(block2);
-  }).join("\n\n");
-}
-var EFFECTS, LOST_EFFECT, BLOCK_MACRO, LONE_MACRO, HEADING, BQ, LIST, RULE, ENTITY, isAlnum, isWs2, WikiReader, WikiInline, WRAP, EMOTICON, WikiWriter;
-var init_wiki = __esm({
-  "src/areas/util/md/wiki.ts"() {
-    "use strict";
-    init_ast();
-    EFFECTS = { "*": "strong", _: "em", "-": "strike", "+": "underline", "^": "sup", "~": "sub" };
-    LOST_EFFECT = { underline: "underline", sup: "superscript", sub: "subscript", cite: "citation" };
-    BLOCK_MACRO = /^\s*\{(quote|code|noformat|panel|info|note|tip|warning|expand)(?::([^}]*))?\}(.*)$/i;
-    LONE_MACRO = /^\s*\{([A-Za-z][\w-]*)(?::[^}]*)?\}\s*$/;
-    HEADING = /^\s*h([1-6])\.\s*(.*)$/;
-    BQ = /^\s*bq\.\s?(.*)$/;
-    LIST = /^\s*([*#-]+)\s+(.*)$/;
-    RULE = /^\s*-{4,}\s*$/;
-    ENTITY = { amp: "&", lt: "<", gt: ">", quot: '"', nbsp: "\xA0", apos: "'" };
-    isAlnum = (c) => c !== void 0 && /[\p{L}\p{N}]/u.test(c);
-    isWs2 = (c) => c === void 0 || /\s/.test(c);
-    WikiReader = class {
-      constructor(losses) {
-        this.losses = losses;
-      }
-      losses;
-      blocks(lines, base, top2) {
-        const blocks = [];
-        const at9 = [];
-        let i = 0;
-        const emit3 = (block2, line) => {
-          blocks.push(block2);
-          at9.push(`line ${line}`);
-        };
-        while (i < lines.length) {
-          const text4 = lines[i];
-          const n = base + i;
-          if (text4.trim() === "") {
-            i++;
-            continue;
-          }
-          if (top2) this.losses?.enter(blocks.length, `line ${n}`);
-          const macro = BLOCK_MACRO.exec(text4);
-          if (macro) {
-            const name3 = macro[1].toLowerCase();
-            const params2 = macro[2];
-            const inner = [];
-            let rest = macro[3];
-            const close = new RegExp(`\\{${name3}\\}`, "i");
-            let after;
-            i++;
-            for (; ; ) {
-              const m2 = close.exec(rest);
-              if (m2) {
-                inner.push(rest.slice(0, m2.index));
-                after = rest.slice(m2.index + m2[0].length);
-                break;
-              }
-              inner.push(rest);
-              if (i >= lines.length) break;
-              rest = lines[i++];
-            }
-            if (after !== void 0 && after.trim() !== "") {
-              lines[i - 1] = after;
-              i--;
-            }
-            if (inner[0]?.trim() === "") inner.shift();
-            if (inner.length && inner.at(-1).trim() === "") inner.pop();
-            if (name3 === "code" || name3 === "noformat") {
-              let lang;
-              if (name3 === "code" && params2) {
-                const parts = params2.split("|");
-                const extra = [];
-                for (const p of parts) {
-                  const kv = /^\s*([\w-]+)\s*=\s*(.*)$/.exec(p);
-                  if (!kv) lang = p.trim() || lang;
-                  else if (kv[1].toLowerCase() === "language") lang = kv[2].trim();
-                  else extra.push(kv[1]);
-                }
-                if (extra.length) this.losses?.add("code macro parameters", `{code} parameters ${extra.join(", ")} have no Markdown equivalent and were dropped`, `line ${n}`);
-              } else if (params2) this.losses?.add("noformat parameters", "{noformat} parameters have no Markdown equivalent and were dropped", `line ${n}`);
-              emit3({ type: "code", ...lang ? { lang } : {}, text: inner.join("\n") }, n);
-              continue;
-            }
-            const children4 = this.blocks(inner, n, false).blocks;
-            if (name3 === "quote") emit3({ type: "quote", children: children4 }, n);
-            else if (name3 === "expand") {
-              this.losses?.add("expand", "an {expand} section has no Markdown equivalent; its title and content are kept as text", `line ${n}`);
-              if (params2) emit3({ type: "paragraph", content: [{ type: "strong", children: [{ type: "text", text: params2.replace(/^title=/, "") }] }] }, n);
-              for (const child2 of children4) emit3(child2, n);
-            } else {
-              this.losses?.add(name3 === "panel" ? "panel" : `${name3} panel`, `a {${name3}} panel has no Markdown equivalent; its content is kept as a quote, its title as bold text`, `line ${n}`);
-              const title = /(?:^|\|)\s*title\s*=\s*([^|]*)/.exec(params2 ?? "")?.[1]?.trim();
-              emit3({ type: "quote", children: [...title ? [{ type: "paragraph", content: [{ type: "strong", children: [{ type: "text", text: title }] }] }] : [], ...children4] }, n);
-            }
-            continue;
-          }
-          const heading3 = HEADING.exec(text4);
-          if (heading3) {
-            emit3({ type: "heading", level: Number(heading3[1]), content: this.inline(heading3[2]) }, n);
-            i++;
-            continue;
-          }
-          const bq = BQ.exec(text4);
-          if (bq) {
-            emit3({ type: "quote", children: [{ type: "paragraph", content: this.inline(bq[1]) }] }, n);
-            i++;
-            continue;
-          }
-          if (RULE.test(text4)) {
-            emit3({ type: "rule" }, n);
-            i++;
-            continue;
-          }
-          if (text4.trimStart().startsWith("|")) {
-            const [table, next] = this.table(lines, i, base);
-            emit3(table, n);
-            i = next;
-            continue;
-          }
-          if (LIST.test(text4)) {
-            const [lists, next] = this.list(lines, i);
-            for (const list7 of lists) emit3(list7, n);
-            i = next;
-            continue;
-          }
-          const lone = LONE_MACRO.exec(text4);
-          if (lone) {
-            this.losses?.add(`${lone[1]} macro`, `the {${lone[1]}} macro has no Markdown equivalent and was dropped`, `line ${n}`);
-            i++;
-            continue;
-          }
-          const body = [];
-          while (i < lines.length && lines[i].trim() !== "" && (body.length === 0 || !this.startsBlock(lines[i]))) body.push(lines[i++]);
-          emit3({ type: "paragraph", content: this.inline(body.join("\n")) }, n);
-        }
-        if (top2) this.losses?.close(blocks.length);
-        return { blocks, at: at9 };
-      }
-      startsBlock(text4) {
-        return BLOCK_MACRO.test(text4) || HEADING.test(text4) || BQ.test(text4) || RULE.test(text4) || text4.trimStart().startsWith("|") || LIST.test(text4) || LONE_MACRO.test(text4);
-      }
-      list(lines, start2) {
-        const roots = [];
-        const stack = [];
-        let i = start2;
-        while (i < lines.length) {
-          const text4 = lines[i];
-          const m2 = LIST.exec(text4);
-          if (!m2 || RULE.test(text4)) {
-            if (text4.trim() !== "" && !this.startsBlock(text4) && stack.length) {
-              const item = stack.at(-1).list.items.at(-1);
-              const para = item.children[0];
-              if (para?.type === "paragraph") para.content.push({ type: "break" }, ...this.inline(text4.trim()));
-              i++;
-              continue;
-            }
-            break;
-          }
-          const marks = m2[1].includes("-") && m2[1] !== "-" ? void 0 : m2[1];
-          if (marks === void 0) break;
-          while (stack.length > marks.length) stack.pop();
-          for (let k = 0; k < stack.length; k++) {
-            if (stack[k].ch !== (marks[k] === "-" ? "*" : marks[k])) {
-              stack.length = k;
-              break;
-            }
-          }
-          while (stack.length < marks.length) {
-            const ch = marks[stack.length] === "-" ? "*" : marks[stack.length];
-            const list7 = { type: "list", ordered: ch === "#", start: 1, items: [] };
-            if (stack.length === 0) roots.push(list7);
-            else {
-              const parent = stack.at(-1).list;
-              if (parent.items.length === 0) parent.items.push({ children: [] });
-              parent.items.at(-1).children.push(list7);
-            }
-            stack.push({ list: list7, ch });
-          }
-          let content = this.inline(m2[2]);
-          let task;
-          const first = content[0];
-          if (first?.type === "text") {
-            const box = /^\[([ xX])\] ?/.exec(first.text);
-            if (box) {
-              task = box[1] === " " ? "todo" : "done";
-              content = [{ type: "text", text: first.text.slice(box[0].length) }, ...content.slice(1)];
-            }
-          }
-          stack.at(-1).list.items.push({ ...task ? { task } : {}, children: [{ type: "paragraph", content }] });
-          i++;
-        }
-        return [roots, i];
-      }
-      table(lines, start2, base) {
-        const rows = [];
-        let i = start2;
-        while (i < lines.length && lines[i].trimStart().startsWith("|")) {
-          let row = lines[i++].trim();
-          while (!/(^|[^\\])\|$/.test(row) && i < lines.length && lines[i].trim() !== "" && !lines[i].trimStart().startsWith("|")) row += `
-${lines[i++].trim()}`;
-          rows.push(splitWikiRow(row));
-        }
-        const at9 = `line ${base + start2}`;
-        const head2 = rows[0] ?? [];
-        if (!head2.every((c) => c.header)) this.losses?.add("table without a header row", "Markdown tables need a header row; the first row was made the header", at9);
-        if (rows.slice(1).some((r) => r.some((c) => c.header))) this.losses?.add("header cell outside the first row", "Markdown has header cells only in the first row; the others became ordinary cells", at9);
-        const width = Math.max(...rows.map((r) => r.length));
-        if (rows.some((r) => r.length !== width)) this.losses?.add("uneven table rows", "rows with fewer cells were padded with empty ones", at9);
-        const align = Array.from({ length: width }, () => null);
-        return [{ type: "table", align, rows: rows.map((r) => r.map((c) => this.inline(c.text.trim()))) }, i];
-      }
-      inline(text4) {
-        return new WikiInline(this.losses).parse(text4);
-      }
-    };
-    WikiInline = class {
-      constructor(losses) {
-        this.losses = losses;
-      }
-      losses;
-      parse(s) {
-        const out = [];
-        let buf = "";
-        const flush = () => {
-          if (buf) out.push({ type: "text", text: buf });
-          buf = "";
-        };
-        const emit3 = (...nodes) => {
-          flush();
-          out.push(...nodes);
-        };
-        let i = 0;
-        while (i < s.length) {
-          const c = s[i];
-          const rest = s.slice(i, i + 8192);
-          if (c === "\\") {
-            if (s[i + 1] === "\\") {
-              emit3({ type: "break" });
-              i += 2;
-              continue;
-            }
-            if (i + 1 < s.length && s[i + 1] !== "\n") {
-              buf += s[i + 1];
-              i += 2;
-              continue;
-            }
-          }
-          if (c === "\n") {
-            emit3({ type: "break" });
-            i++;
-            continue;
-          }
-          if (c === "&") {
-            const m2 = /^&(#\d{1,7}|#x[0-9a-fA-F]{1,6}|[a-z]+);/.exec(rest);
-            if (m2) {
-              const ref2 = m2[1];
-              const ch = ref2.startsWith("#x") ? String.fromCodePoint(parseInt(ref2.slice(2), 16)) : ref2.startsWith("#") ? String.fromCodePoint(parseInt(ref2.slice(1), 10)) : ENTITY[ref2];
-              if (ch !== void 0) {
-                buf += ch;
-                i += m2[0].length;
-                continue;
-              }
-            }
-          }
-          if (rest.startsWith("{{")) {
-            const end2 = findUnescaped(s, "}}", i + 2);
-            if (end2 !== -1) {
-              emit3({ type: "code", text: s.slice(i + 2, end2).replace(/\\(.)/g, "$1").replace(/&#92;/g, "\\") });
-              i = end2 + 2;
-              continue;
-            }
-          }
-          if (c === "{") {
-            const braced = /^\{([*_\-+^~]|\?\?)\}/.exec(rest);
-            if (braced) {
-              const end2 = s.indexOf(braced[0], i + braced[0].length);
-              if (end2 !== -1) {
-                emit3(...this.effect(braced[1], s.slice(i + braced[0].length, end2)));
-                i = end2 + braced[0].length;
-                continue;
-              }
-            }
-            const color = /^\{color(?::[^}]*)?\}/i.exec(rest);
-            if (color) {
-              const end2 = s.toLowerCase().indexOf("{color}", i + color[0].length);
-              this.losses?.add("text colour", "text colour has no Markdown equivalent; the text is kept");
-              if (end2 !== -1) {
-                emit3(...this.parse(s.slice(i + color[0].length, end2)));
-                i = end2 + "{color}".length;
-              } else i += color[0].length;
-              continue;
-            }
-            const macro = /^\{([A-Za-z][\w-]*)(?::[^}]*)?\}/.exec(rest);
-            if (macro) {
-              this.losses?.add(`${macro[1]} macro`, `the {${macro[1]}} macro has no Markdown equivalent and was dropped`);
-              i += macro[0].length;
-              continue;
-            }
-          }
-          if (c === "[") {
-            const end2 = findUnescaped(s, "]", i + 1, true);
-            if (end2 !== -1 && !s.slice(i + 1, end2).includes("\n")) {
-              emit3(...this.link(s.slice(i + 1, end2)));
-              i = end2 + 1;
-              continue;
-            }
-          }
-          if (c === "!") {
-            const img = /^!([^\s!|][^!\n]*?)(?:\|([^!\n]*))?!/.exec(rest);
-            if (img) {
-              emit3(this.image(img[1], img[2]));
-              i += img[0].length;
-              continue;
-            }
-          }
-          const effectChar = rest.startsWith("??") ? "??" : EFFECTS[c] ? c : void 0;
-          if (effectChar && !isAlnum(s[i - 1]) && !isWs2(s[i + effectChar.length])) {
-            const end2 = this.closer(s, i, effectChar);
-            if (end2 !== -1) {
-              emit3(...this.effect(effectChar, s.slice(i + effectChar.length, end2)));
-              i = end2 + effectChar.length;
-              continue;
-            }
-          }
-          if ((c === "h" || c === "f" || c === "m") && !isAlnum(s[i - 1])) {
-            const url2 = /^(?:https?:\/\/|ftp:\/\/|mailto:)[^\s|\][]+/.exec(rest);
-            if (url2) {
-              const href = url2[0].replace(/[.,;:!?)]+$/, "");
-              emit3({ type: "link", href, children: [{ type: "text", text: href }] });
-              i += href.length;
-              continue;
-            }
-          }
-          buf += c;
-          i++;
-        }
-        flush();
-        return out;
-      }
-      /** Where the effect opened at `i` closes, on the same line, or -1. */
-      closer(s, i, mark) {
-        let j = i + mark.length + 1;
-        for (; j < s.length; j++) {
-          if (s[j] === "\n") return -1;
-          if (s[j] === "\\") {
-            j++;
-            continue;
-          }
-          if (s.startsWith(mark, j) && !isWs2(s[j - 1]) && !isAlnum(s[j + mark.length])) return j;
-        }
-        return -1;
-      }
-      effect(mark, inner) {
-        const kind = mark === "??" ? "cite" : EFFECTS[mark];
-        const children4 = this.parse(inner);
-        if (kind === "strong" || kind === "em" || kind === "strike") return [{ type: kind, children: children4 }];
-        this.losses?.add(LOST_EFFECT[kind], `${LOST_EFFECT[kind]} has no Markdown equivalent; the text is kept`);
-        return children4;
-      }
-      link(inner) {
-        const parts = splitUnescaped(inner, "|");
-        const target2 = (parts.length > 1 ? parts[1] : parts[0]).trim();
-        const text4 = parts.length > 1 ? parts[0] : void 0;
-        if (parts.length > 2) this.losses?.add("link tooltip", "a link tooltip was dropped");
-        if (target2.startsWith("~")) {
-          this.losses?.add("user mention", `the mention of ${target2.slice(1)} is kept as @${target2.slice(1)} text`);
-          return [{ type: "text", text: `@${target2.slice(1)}` }];
-        }
-        if (target2.startsWith("^")) {
-          this.losses?.add("attachment link", `the link to the attachment ${target2.slice(1)} is kept as text`);
-          return text4 === void 0 ? [{ type: "text", text: target2.slice(1) }] : this.parse(text4);
-        }
-        if (/^[A-Za-z][A-Za-z0-9+.-]*:/.test(target2) && !/^[A-Z][A-Z0-9_]*-\d+$/.test(target2)) {
-          return [{ type: "link", href: target2.replace(/\\(.)/g, "$1"), children: text4 === void 0 ? [{ type: "text", text: target2.replace(/\\(.)/g, "$1") }] : this.parse(text4) }];
-        }
-        this.losses?.add("wiki link", `the link to "${target2}" (a page, issue or anchor, not a URL) is kept as text`);
-        return text4 === void 0 ? [{ type: "text", text: target2 }] : this.parse(text4);
-      }
-      image(src, params2) {
-        let alt = "";
-        if (params2 !== void 0) {
-          const others = [];
-          for (const p of params2.split(",")) {
-            const kv = /^\s*([\w-]+)\s*(?:=\s*(.*))?$/.exec(p);
-            if (kv?.[1] === "alt") alt = (kv[2] ?? "").trim();
-            else if (p.trim()) others.push(p.trim());
-          }
-          if (others.length) this.losses?.add("image parameters", `image parameters ${others.join(", ")} were dropped`);
-        }
-        if (!/^[A-Za-z][A-Za-z0-9+.-]*:/.test(src)) this.losses?.add("attachment image", `the image ${src} is an attachment; its file name is kept as the image source`);
-        return { type: "image", src, alt };
-      }
-    };
-    WRAP = { strong: "*", em: "_", strike: "-" };
-    EMOTICON = /(?:^|\s)(:\)|:\(|:P|:D|;\)|\(y\)|\(n\)|\(i\)|\(\/\)|\(x\)|\(!\)|\(\+\)|\(-\)|\(\?\)|\(on\)|\(off\)|\(\*[rgby]?\)|\(flag\))(?=\s|$)/;
-    WikiWriter = class {
-      constructor(losses) {
-        this.losses = losses;
-      }
-      losses;
-      /** Text with every character Jira could read as markup escaped. `prev` and `next` are the characters around it. */
-      text(text4, prev, next) {
-        if (EMOTICON.test(text4)) this.losses.add("emoticon", `Jira shows ${EMOTICON.exec(text4)[1]} as an emoticon image`);
-        if (/(?:https?|ftp):\/\/|mailto:/.test(text4)) this.losses.add("URL text", "Jira turns a URL written as text into a link");
-        return escapeWiki(text4, prev, next);
-      }
-      inlines(nodes, breakAs, prevOut = "") {
-        return this.inlinesOf(nodes, breakAs, prevOut);
-      }
-      inlinesOf(nodes, breakAs, prevOut) {
-        let out = prevOut;
-        nodes.forEach((n, k) => {
-          const prev = out.at(-1);
-          const next = firstChar(nodes[k + 1]);
-          out += this.node(n, prev, next, breakAs);
-        });
-        return out.slice(prevOut.length);
-      }
-      node(n, prev, next, breakAs) {
-        switch (n.type) {
-          case "text":
-            return this.text(n.text, prev, next);
-          case "break":
-            return breakAs;
-          case "code":
-            if (n.text.includes("}}")) this.losses.add("monospace text", `monospace text holding "}}" can't be written in wiki markup intact`);
-            return `{{${escapeWiki(n.text, "{", "}")}}}`;
-          case "strong":
-          case "em":
-          case "strike": {
-            const mark = WRAP[n.type];
-            const open3 = isAlnum(prev) || isAlnum(next) ? `{${mark}}` : mark;
-            return open3 + this.inlinesOf(n.children, breakAs, "") + open3;
-          }
-          case "link": {
-            if (n.title !== void 0) this.losses.add("link title", "wiki markup links have no title; it was dropped");
-            const href = n.href.replace(/[|\]]/g, "\\$&");
-            return plainText(n.children) === n.href && n.children.length === 1 ? `[${href}]` : `[${this.inlinesOf(n.children, " ", "")}|${href}]`;
-          }
-          case "image":
-            if (n.title !== void 0) this.losses.add("image title", "wiki markup images have no title; it was dropped");
-            if (/[,|!]/.test(n.alt)) this.losses.add("image alt text", "commas, pipes and ! in alt text became spaces");
-            return n.alt ? `!${n.src}|alt=${n.alt.replace(/[,|!]/g, " ")}!` : `!${n.src}!`;
-        }
-      }
-      /** A paragraph's lines, each escaped where it starts so it can't read as a heading, list or table. */
-      lines(text4) {
-        return text4.split("\n").map((line) => /^(h[1-6]|bq)\./.test(line) || /^[*#-]+\s/.test(line) || /^-{4,}\s*$/.test(line) ? `\\${line}` : line).join("\n");
-      }
-      block(block2, depth = 0) {
-        switch (block2.type) {
-          case "paragraph":
-            return this.lines(this.inlines(block2.content, "\n"));
-          case "heading":
-            if (block2.content.some((n) => n.type === "break")) this.losses.add("line break in a heading", "a wiki heading is one line; the break became a space");
-            return `h${block2.level}. ${this.inlines(block2.content, " ")}`;
-          case "code": {
-            const tag2 = block2.lang ? "code" : "noformat";
-            if (new RegExp(`\\{${tag2}\\}`, "i").test(block2.text)) this.losses.add("code block", `code holding {${tag2}} ends the block early in wiki markup`);
-            return block2.lang ? `{code:${block2.lang}}
-${block2.text}
-{code}` : `{noformat}
-${block2.text}
-{noformat}`;
-          }
-          case "quote": {
-            const children4 = block2.children.flatMap((child2) => {
-              if (child2.type !== "quote") return [child2];
-              this.losses.add("nested quote", "Jira has no quote inside a quote; the inner one was merged into the outer");
-              return child2.children;
-            });
-            return `{quote}
-${children4.map((c) => this.block(c, depth)).join("\n\n")}
-{quote}`;
-          }
-          case "rule":
-            return "----";
-          case "table": {
-            if (block2.align.some((a) => a !== null)) this.losses.add("table alignment", "wiki tables have no column alignment; it was dropped");
-            const cell = (c) => {
-              const t = this.inlines(c, "\\\\");
-              return t === "" ? " " : t;
-            };
-            const [head2 = [], ...rows] = block2.rows;
-            return [`||${head2.map(cell).join("||")}||`, ...rows.map((r) => `|${r.map(cell).join("|")}|`)].join("\n");
-          }
-          case "list":
-            return this.list(block2, "");
-        }
-      }
-      list(block2, marks) {
-        const mark = marks + (block2.ordered ? "#" : "*");
-        if (block2.ordered && block2.start !== 1) this.losses.add("list start number", `wiki lists always start at 1; this one started at ${block2.start}`);
-        const lines = [];
-        for (const item of block2.items) {
-          const parts = [];
-          const nested = [];
-          for (const child2 of item.children) {
-            if (child2.type === "list") nested.push(this.list(child2, mark));
-            else {
-              if (parts.length || child2.type !== "paragraph") {
-                this.losses.add(child2.type === "paragraph" ? "several paragraphs in a list item" : `${child2.type === "code" ? "code block" : child2.type} in a list item`, "a wiki list item is one line; its content was joined with line breaks");
-              }
-              parts.push(blockInlines(child2));
-            }
-          }
-          let box = "";
-          if (item.task !== void 0) {
-            this.losses.add("task list", "Jira wiki markup has no task lists; each task is written as [ ] or [x] text");
-            box = item.task === "done" ? "\\[x\\] " : "\\[ \\] ";
-          }
-          lines.push(`${mark} ${box}${this.inlines(joinInlines(parts), "\\\\")}`.trimEnd());
-          lines.push(...nested);
-        }
-        return lines.join("\n");
-      }
-    };
   }
 });
 
@@ -115438,57 +109419,14 @@ var init_adf_schema = __esm({
 var convert_exports = {};
 __export(convert_exports, {
   MAX_BYTES: () => MAX_BYTES2,
+  MD_LIMITS: () => MD_LIMITS,
   convertMarkdown: () => convertMarkdown,
   formats: () => formats,
   validateAdf: () => validateAdf
 });
-function parse5(format4, text4, losses, label3) {
-  if (format4 === "md") return parseMarkdown(text4, losses);
-  if (format4 === "wiki") return parseWiki(text4, losses);
-  if (format4 === "storage") {
-    try {
-      return parseStorage(text4, losses);
-    } catch (err) {
-      if (err instanceof XmlSyntaxError) {
-        throw new ToilError("INVALID_INPUT", `${label3} is not well-formed storage format: ${err.message}`, {
-          fix: "Pass the page body exactly as Confluence returns it in body.storage.value. Only XML's entities and HTML's common named ones (&nbsp;, &mdash; \u2026) are known; write any other as a numeric reference."
-        });
-      }
-      throw err;
-    }
-  }
-  return parseAdf(adfDocument(text4, label3), losses);
-}
-function adfDocument(text4, label3) {
-  let value2;
-  try {
-    value2 = JSON.parse(text4);
-  } catch (err) {
-    throw new ToilError("INVALID_INPUT", `${label3} is not JSON: ${err.message}`, { fix: 'Pass an ADF document: { "type": "doc", "version": 1, "content": [...] }.' });
-  }
-  if (typeof value2 !== "object" || value2 === null || value2.type !== "doc" || !Array.isArray(value2.content)) {
-    throw new ToilError("INVALID_INPUT", `${label3} is JSON but not an ADF document: the top level needs "type": "doc" and a "content" array.`, {
-      fix: "Pass the document itself (an issue's fields.description, a comment's body), not the issue or comment around it."
-    });
-  }
-  return value2;
-}
-function render(format4, doc, losses) {
-  if (format4 === "md") return renderMarkdown(doc);
-  if (format4 === "wiki") return renderWiki(doc, losses);
-  if (format4 === "storage") return renderStorage(doc, losses);
-  return renderAdf(doc, losses);
-}
-function canonical2(doc, losses) {
-  const blocks = normalizeBlocks(doc.blocks);
-  const keep = new Set(dropEmpty(blocks));
-  const index2 = [];
-  let kept = 0;
-  blocks.forEach((b, k) => {
-    index2[k] = keep.has(b) ? kept++ : -1;
-  });
-  for (const loss of losses?.list ?? []) loss.block = loss.block < 0 ? -1 : index2[loss.block] ?? -1;
-  return { blocks: blocks.filter((b) => keep.has(b)), at: doc.at.filter((_2, k) => keep.has(blocks[k])) };
+async function mdStep(step4, task, signal, limits) {
+  const { boundedStep: boundedStep2 } = await Promise.resolve().then(() => (init_bounded(), bounded_exports));
+  return boundedStep2(step4, task, { ...limits, signal }, MD_FIX);
 }
 function hunks(a, b) {
   const n = a.length;
@@ -115537,17 +109475,19 @@ async function convertMarkdown(input3, ctx, hooks = {}) {
   const { text: text4, source: source2 } = input3;
   const v = new Verifier(ctx.warn);
   v.inputComplete(source2);
-  const losses = new Losses();
-  const read = canonical2(parse5(from, text4, losses, source2.label.replace(/^the /, "The ")), losses);
+  const limits = { ...MD_LIMITS, ...hooks.limits };
+  const label3 = source2.label.replace(/^the /, "The ");
+  const read = await mdStep(`Converting ${source2.label}`, { kind: "md-convert", from, to, text: text4, label: label3 }, ctx.signal, limits);
+  const losses = { list: read.losses };
   if (from === "adf") {
-    const schema3 = await validateAdf(JSON.parse(text4), ctx.signal);
+    const schema3 = await validateAdf(JSON.parse(text4), ctx.signal, limits.maxMemoryMb);
     if (schema3.unchecked !== void 0) v.unchecked("input.adf.schema", schema3.unchecked);
     else v.expect("input.adf.schema", schema3.valid, { at: schema3.problems[0]?.pointer ?? "", expected: "a document the ADF schema accepts", actual: schema3.problems[0]?.message }, { code: "ADF_INPUT_INVALID", message: `The input doesn't match the ADF schema at ${schema3.problems[0]?.pointer || "/"}: ${schema3.problems[0]?.message ?? ""} (${schema3.total} problem(s)); it was converted as far as it could be read.` });
   }
-  let output3 = render(to, read, losses);
+  let output3 = read.output;
   if (hooks.tamper) output3 = hooks.tamper(output3);
   if (to === "adf") {
-    const schema3 = await validateAdf(output3, ctx.signal);
+    const schema3 = await validateAdf(output3, ctx.signal, limits.maxMemoryMb);
     if (schema3.unchecked !== void 0) v.unchecked("output.adf.schema", schema3.unchecked);
     else if (!schema3.valid) {
       const where6 = schema3.problems.slice(0, 3).map((p) => `${p.pointer || "/"}: ${p.message}`).join("; ");
@@ -115556,21 +109496,19 @@ async function convertMarkdown(input3, ctx, hooks = {}) {
       });
     } else v.pass("output.adf.schema");
   }
-  let back;
-  try {
-    back = canonical2(to === "adf" ? parseAdf(output3) : parse5(to, output3, void 0, "The output"));
-  } catch (err) {
-    if (to === "storage") {
-      throw new ToilError("INTERNAL", `The storage format this produced is not well-formed XML (${err.message}), so it isn't returned.`, {
+  const { boundedError: boundedError2, runBounded: runBounded2 } = await Promise.resolve().then(() => (init_bounded(), bounded_exports));
+  const back = await runBounded2({ kind: "md-read", format: to, output: output3 }, { ...limits, signal: ctx.signal });
+  if (!back.ok) {
+    if (back.cause === "refused" && to === "storage") {
+      throw new ToilError("INTERNAL", `The storage format this produced is not well-formed XML (${back.reason}), so it isn't returned.`, {
         fix: "This is a bug in util md: report it with the input that caused it."
       });
     }
-    throw err;
+    throw boundedError2(`Reading back the ${NAMES2[to]} this produced`, back, limits, MD_FIX);
   }
   if (to === "storage") v.pass("output.storage.wellFormed");
-  const printed = (doc) => doc.blocks.map((b, k) => renderBlock(b, doc.blocks[k - 1]));
-  const before = printed(read);
-  const after = printed(back);
+  const before = read.blocks;
+  const after = back.value;
   const lostIn = new Set(losses.list.map((l) => l.block));
   const differences = [];
   const diff4 = hunks(before, after);
@@ -115621,23 +109559,20 @@ function reportLosses(losses, warn) {
   }
   if (losses.list.length > MAX_LOSSES) warn({ code: "MD_LOSSES_CUT", message: `${losses.list.length} losses were found; data.losses lists the first ${MAX_LOSSES}.` });
 }
-async function validateAdf(value2, signal) {
+async function validateAdf(value2, signal, maxMemoryMb = MD_LIMITS.maxMemoryMb) {
   const [{ validateBounded: validateBounded2 }, schema3] = await Promise.all([Promise.resolve().then(() => (init_bounded(), bounded_exports)), adfSchema ?? Promise.resolve().then(() => (init_adf_schema(), adf_schema_exports)).then((m2) => m2.default)]);
   adfSchema = schema3;
-  const result = await validateBounded2(schema3, value2, { signal, key: "adf" });
+  const result = await validateBounded2(schema3, value2, { signal, key: "adf", maxMemoryMb });
   return { ...result, problems: result.problems.slice(0, 20) };
 }
-var MAX_BYTES2, MAX_DIFFERENCES, MAX_LOSSES, NAMES2, adfSchema;
+var MD_LIMITS, MD_FIX, MAX_BYTES2, MAX_DIFFERENCES, MAX_LOSSES, NAMES2, adfSchema;
 var init_convert = __esm({
   "src/areas/util/md/convert.ts"() {
     "use strict";
     init_errors();
     init_verify();
-    init_adf();
-    init_ast();
-    init_markdown();
-    init_storage();
-    init_wiki();
+    MD_LIMITS = { timeoutMs: 1e4, maxMemoryMb: 1024 };
+    MD_FIX = "Pass a smaller document, or one with less deeply nested quotes, lists and emphasis.";
     MAX_BYTES2 = 4 * 1024 * 1024;
     MAX_DIFFERENCES = 50;
     MAX_LOSSES = 500;
@@ -115690,7 +109625,7 @@ function text3(value2) {
     }
     return null;
   }
-  if (isRecord5(value2)) return str4(value2.value) ?? str4(value2.name) ?? str4(value2.displayName) ?? str4(value2.title);
+  if (isRecord5(value2)) return str3(value2.value) ?? str3(value2.name) ?? str3(value2.displayName) ?? str3(value2.title);
   return null;
 }
 function instant(value2) {
@@ -115764,20 +109699,20 @@ function unknownState(item, state, status, why) {
   return "UNKNOWN";
 }
 function person2(id9, name3, email3) {
-  const key6 = str4(id9) ?? (typeof id9 === "number" ? String(id9) : null);
+  const key6 = str3(id9) ?? (typeof id9 === "number" ? String(id9) : null);
   if (key6 === null) return null;
-  return { id: key6, name: str4(name3), email: str4(email3) };
+  return { id: key6, name: str3(name3), email: str3(email3) };
 }
 function current2(iterations) {
   return iterations.find((i) => i.state === "current") ?? [...iterations].reverse().find((i) => i.state === "future") ?? iterations[iterations.length - 1] ?? null;
 }
-var isRecord5, str4, num3, TYPES2, idFor, overrideUnit;
+var isRecord5, str3, num3, TYPES2, idFor, overrideUnit;
 var init_common = __esm({
   "src/core/owi/common.ts"() {
     "use strict";
     init_types2();
     isRecord5 = (value2) => typeof value2 === "object" && value2 !== null && !Array.isArray(value2);
-    str4 = (value2) => typeof value2 === "string" && value2 !== "" ? value2 : null;
+    str3 = (value2) => typeof value2 === "string" && value2 !== "" ? value2 : null;
     num3 = (value2) => typeof value2 === "number" && Number.isFinite(value2) ? value2 : null;
     TYPES2 = {
       epic: "EPIC",
@@ -115817,9 +109752,9 @@ function iterationDates(data, into) {
     if (!isRecord5(node3)) return;
     if (typeof node3.path === "string") {
       const attrs = isRecord5(node3.attributes) ? node3.attributes : {};
-      into.set(pathKey(node3.path, true), { id: str4(node3.identifier), start: instant(attrs.startDate) ?? null, end: instant(attrs.finishDate) ?? null });
+      into.set(pathKey(node3.path, true), { id: str3(node3.identifier), start: instant(attrs.startDate) ?? null, end: instant(attrs.finishDate) ?? null });
     }
-    for (const child2 of Array.isArray(node3.children) ? node3.children : []) walk(child2);
+    for (const child of Array.isArray(node3.children) ? node3.children : []) walk(child);
   };
   walk(data);
   return true;
@@ -115828,12 +109763,12 @@ function adoItem(doc, record2, state, dates) {
   if (typeof record2.id !== "number") return void 0;
   const key6 = String(record2.id);
   const f = record2.fields ?? {};
-  const item = blank(doc, key6, str4(f["System.Title"]) ?? "", { [doc.command]: record2 });
-  if (str4(f["System.Title"]) === null) unmapped(item, "title", "the record has no System.Title");
+  const item = blank(doc, key6, str3(f["System.Title"]) ?? "", { [doc.command]: record2 });
+  if (str3(f["System.Title"]) === null) unmapped(item, "title", "the record has no System.Title");
   const links = isRecord5(record2._links) ? record2._links : {};
-  const html = isRecord5(links.html) ? str4(links.html.href) : null;
-  const apiUrl = str4(record2.url);
-  const project2 = str4(f["System.TeamProject"]);
+  const html = isRecord5(links.html) ? str3(links.html.href) : null;
+  const apiUrl = str3(record2.url);
+  const project2 = str3(f["System.TeamProject"]);
   if (html) item.url = html;
   else if (apiUrl?.includes("/_apis/") && project2) item.url = `${apiUrl.slice(0, apiUrl.indexOf("/_apis/"))}/${encodeURIComponent(project2)}/_workitems/edit/${key6}`;
   else unmapped(item, "url", "the record has no html link and no System.TeamProject to build one from");
@@ -115842,10 +109777,10 @@ function adoItem(doc, record2, state, dates) {
   item.type = typeOf3(item.typeName, { issue: "STORY" });
   if (!(typeField in f)) unmapped(item, "type", missing2(typeField, state.fields.type !== void 0 && "type"));
   if (typeof f["System.Description"] === "string") item.body = { format: "html", content: f["System.Description"] };
-  item.status = str4(f["System.State"]);
+  item.status = str3(f["System.State"]);
   if (item.status === null) unmapped(item, "status", "the record has no System.State");
   else item.statusCategory = ADO_STATES[item.status] ?? unknownState(item, state, item.status, "a custom state; ado work list-states shows its category");
-  if (item.statusCategory === "DONE") item.resolution = str4(f["System.Reason"]) ?? (item.status === "Removed" ? "Removed" : null);
+  if (item.statusCategory === "DONE") item.resolution = str3(f["System.Reason"]) ?? (item.status === "Removed" ? "Removed" : null);
   item.assignee = adoPerson(f["System.AssignedTo"]);
   item.reporter = adoPerson(f["System.CreatedBy"]);
   const priorityField = state.fields.priority ?? "Microsoft.VSTS.Common.Priority";
@@ -115858,7 +109793,7 @@ function adoItem(doc, record2, state, dates) {
   }
   estimate(item, f, state);
   const iterationField = state.fields.iteration ?? "System.IterationPath";
-  const path2 = str4(f[iterationField]);
+  const path2 = str3(f[iterationField]);
   if (path2 === null) unmapped(item, "iteration", missing2(iterationField, state.fields.iteration !== void 0 && "iteration"));
   else {
     const known = dates.get(pathKey(path2, false));
@@ -115915,12 +109850,12 @@ function adoHistory(doc, state) {
     let entry = byItem.get(key6);
     if (!entry) byItem.set(key6, entry = { history: { transitions: [], iterations: [] }, state: null, path: null });
     const by = adoPerson(f["System.ChangedBy"]);
-    const to = str4(f["System.State"]);
+    const to = str3(f["System.State"]);
     if (to !== null && to !== entry.state) {
       entry.history.transitions.push({ from: entry.state, to, fromCategory: entry.state === null ? null : ADO_STATES[entry.state] ?? "UNKNOWN", toCategory: ADO_STATES[to] ?? "UNKNOWN", at: at9, by });
       entry.state = to;
     }
-    const path2 = str4(f[iterationField]);
+    const path2 = str3(f[iterationField]);
     if (path2 !== null && path2 !== entry.path) {
       entry.history.iterations.push({ from: entry.path === null ? [] : [entry.path], to: [path2], at: at9, by });
       entry.path = path2;
@@ -115972,10 +109907,10 @@ var init_ado = __esm({
 function issueKey(issue2) {
   const number4 = num3(issue2.number);
   if (number4 === null) return void 0;
-  const html = str4(issue2.html_url);
+  const html = str3(issue2.html_url);
   const fromHtml = html ? /^https?:\/\/[^/]+(?:\/[^/]+)*?\/([^/]+)\/([^/]+)\/issues\/\d+$/.exec(html) : null;
   if (fromHtml) return `${fromHtml[1]}/${fromHtml[2]}#${number4}`;
-  const repo = str4(issue2.repository_url);
+  const repo = str3(issue2.repository_url);
   const fromRepo = repo ? /\/repos\/([^/]+)\/([^/]+)$/.exec(repo) : null;
   return fromRepo ? `${fromRepo[1]}/${fromRepo[2]}#${number4}` : void 0;
 }
@@ -115989,15 +109924,15 @@ function issuesOf(data) {
 function githubItem(doc, issue2) {
   const key6 = issueKey(issue2);
   if (key6 === void 0) return void 0;
-  const item = blank(doc, key6, str4(issue2.title) ?? "", { [doc.command]: issue2 });
-  item.url = str4(issue2.html_url);
-  item.typeName = isRecord5(issue2.type) ? str4(issue2.type.name) : null;
+  const item = blank(doc, key6, str3(issue2.title) ?? "", { [doc.command]: issue2 });
+  item.url = str3(issue2.html_url);
+  item.typeName = isRecord5(issue2.type) ? str3(issue2.type.name) : null;
   item.type = typeOf3(item.typeName);
   if (issue2.type === void 0) unmapped(item, "type", "the record has no type field: this GitHub server doesn't have issue types");
   if (typeof issue2.body === "string") item.body = { format: "markdown", content: issue2.body };
-  item.status = str4(issue2.state);
+  item.status = str3(issue2.state);
   item.statusCategory = item.status === "closed" ? "DONE" : item.status === "open" ? "TODO" : "UNKNOWN";
-  item.resolution = item.status === "closed" ? str4(issue2.state_reason) : null;
+  item.resolution = item.status === "closed" ? str3(issue2.state_reason) : null;
   item.assignee = Array.isArray(issue2.assignees) && issue2.assignees.length > 0 ? ghPerson(issue2.assignees[0]) : ghPerson(issue2.assignee);
   item.reporter = ghPerson(issue2.user);
   item.labels = (Array.isArray(issue2.labels) ? issue2.labels : []).flatMap((l) => typeof l === "string" ? [l] : isRecord5(l) && typeof l.name === "string" ? [l.name] : []);
@@ -116025,7 +109960,7 @@ function boardEntries(doc) {
       if (typeof raw3.id === "string") entries.push({ key: `${doc.inputs.owner ?? "project"}/draft/${raw3.id}`, item: raw3, values: values2, draft: true });
       continue;
     }
-    const repo = isRecord5(content.repository) ? str4(content.repository.nameWithOwner) : null;
+    const repo = isRecord5(content.repository) ? str3(content.repository.nameWithOwner) : null;
     const number4 = num3(content.number);
     if (repo && number4 !== null) entries.push({ key: `${repo}#${number4}`, item: raw3, values: values2, draft: false });
   }
@@ -116033,10 +109968,10 @@ function boardEntries(doc) {
 }
 function boardItem(doc, entry) {
   const content = isRecord5(entry.item.content) ? entry.item.content : {};
-  const item = blank(doc, entry.key, str4(content.title) ?? "", {});
-  item.url = str4(content.url);
+  const item = blank(doc, entry.key, str3(content.title) ?? "", {});
+  item.url = str3(content.url);
   item.typeName = entry.draft ? "Draft issue" : null;
-  item.status = entry.draft ? null : str4(content.state)?.toLowerCase() ?? null;
+  item.status = entry.draft ? null : str3(content.state)?.toLowerCase() ?? null;
   item.statusCategory = item.status === "closed" ? "DONE" : "TODO";
   setInstant(item, "created", entry.item.createdAt, "createdAt");
   setInstant(item, "updated", content.updatedAt ?? null, "updatedAt");
@@ -116046,7 +109981,7 @@ function boardItem(doc, entry) {
 function applyBoard(item, entry, doc, state) {
   item.native[doc.command] = entry.item;
   const status = entry.values.get(GITHUB_STATUS_FIELD);
-  const name3 = status ? str4(status.name) : null;
+  const name3 = status ? str3(status.name) : null;
   if (name3 !== null && item.status !== "closed") {
     item.status = name3;
     item.statusCategory = GITHUB_STATUSES[name3.toLowerCase()] ?? unknownState(item, state, name3, "a board status option of the project's own");
@@ -116061,11 +109996,11 @@ function applyBoard(item, entry, doc, state) {
   const iterationName = state.fields.iteration;
   const iterationValue = iterationName ? entry.values.get(iterationName) : [...entry.values.values()].find((v) => v.__typename === "ProjectV2ItemFieldIterationValue");
   removeUnmapped(item, "iteration");
-  if (iterationValue && str4(iterationValue.title)) {
+  if (iterationValue && str3(iterationValue.title)) {
     const start2 = instant(iterationValue.startDate) ?? null;
     const days = num3(iterationValue.duration);
     const end2 = start2 && days !== null ? new Date(Date.parse(start2) + days * 864e5).toISOString() : null;
-    const iteration2 = { id: str4(iterationValue.iterationId), name: iterationValue.title, path: null, start: start2, end: end2, state: null };
+    const iteration2 = { id: str3(iterationValue.iterationId), name: iterationValue.title, path: null, start: start2, end: end2, state: null };
     item.iteration = iteration2;
   } else if (iterationName) absent(iterationName, "iteration");
   else unmapped(item, "iteration", "the board item has no iteration value: it isn't in an iteration, or the project has no iteration field");
@@ -116074,14 +110009,14 @@ function applyBoard(item, entry, doc, state) {
     if (fieldName === void 0) continue;
     removeUnmapped(item, field4);
     const value2 = entry.values.get(fieldName);
-    const read = value2 ? str4(value2.name) ?? str4(value2.text) ?? str4(value2.date) ?? (num3(value2.number) === null ? null : String(value2.number)) : null;
+    const read = value2 ? str3(value2.name) ?? str3(value2.text) ?? str3(value2.date) ?? (num3(value2.number) === null ? null : String(value2.number)) : null;
     if (read === null) absent(fieldName, field4);
     else if (field4 === "dueDate") setDay(item, read, fieldName);
     else item[field4] = read;
   }
   if (state.fields.type !== void 0) {
     const value2 = entry.values.get(state.fields.type);
-    const typeName2 = value2 ? str4(value2.name) ?? str4(value2.text) : null;
+    const typeName2 = value2 ? str3(value2.name) ?? str3(value2.text) : null;
     removeUnmapped(item, "type");
     if (typeName2) {
       item.typeName = typeName2;
@@ -116161,7 +110096,7 @@ function sprintOf(value2) {
       if (at9 > 0) fields3[part.slice(0, at9)] = part.slice(at9 + 1) === "<null>" ? null : part.slice(at9 + 1);
     }
   }
-  const name3 = str4(fields3?.name);
+  const name3 = str3(fields3?.name);
   if (!fields3 || name3 === null) return void 0;
   const state = String(fields3.state ?? "").toLowerCase();
   return {
@@ -116174,29 +110109,29 @@ function sprintOf(value2) {
   };
 }
 function jiraItem(doc, issue2, state, categories) {
-  const key6 = str4(issue2.key);
+  const key6 = str3(issue2.key);
   if (key6 === null) return void 0;
   const f = issue2.fields ?? {};
-  const item = blank(doc, key6, str4(f.summary) ?? "", { [doc.command]: issue2 });
-  if (str4(f.summary) === null) unmapped(item, "title", "the record has no summary");
-  const self2 = str4(issue2.self);
+  const item = blank(doc, key6, str3(f.summary) ?? "", { [doc.command]: issue2 });
+  if (str3(f.summary) === null) unmapped(item, "title", "the record has no summary");
+  const self2 = str3(issue2.self);
   if (self2?.includes("/rest/")) item.url = `${self2.slice(0, self2.indexOf("/rest/"))}/browse/${encodeURIComponent(key6)}`;
   else unmapped(item, "url", "the record has no self link to take the site from");
   const typeField = state.fields.type;
-  const typeName2 = typeField === void 0 ? isRecord5(f.issuetype) ? str4(f.issuetype.name) : null : text3(f[typeField]);
+  const typeName2 = typeField === void 0 ? isRecord5(f.issuetype) ? str3(f.issuetype.name) : null : text3(f[typeField]);
   if (typeField !== void 0 && !(typeField in f)) unmapped(item, "type", `the record has no field "${typeField}" (fields type)`);
   item.typeName = typeName2;
   item.type = typeField === void 0 && isRecord5(f.issuetype) && f.issuetype.subtask === true ? "TASK" : typeOf3(typeName2);
   if (typeof f.description === "string") item.body = { format: "wiki", content: f.description };
   else if (isRecord5(f.description)) item.body = { format: "adf", content: f.description };
   if (isRecord5(f.status)) {
-    item.status = str4(f.status.name);
-    const categoryKey = isRecord5(f.status.statusCategory) ? str4(f.status.statusCategory.key) : null;
+    item.status = str3(f.status.name);
+    const categoryKey = isRecord5(f.status.statusCategory) ? str3(f.status.statusCategory.key) : null;
     const category = categoryKey === null ? void 0 : CATEGORY[categoryKey];
     if (category && item.status) categories.set(item.status, category);
     item.statusCategory = category ?? unknownState(item, state, item.status ?? "(none)", categoryKey === null ? "the status came without its statusCategory" : `its statusCategory is "${categoryKey}"`);
   } else unmapped(item, "status", "the record has no status field");
-  item.resolution = isRecord5(f.resolution) ? str4(f.resolution.name) : null;
+  item.resolution = isRecord5(f.resolution) ? str3(f.resolution.name) : null;
   item.assignee = jiraPerson(f.assignee);
   item.reporter = jiraPerson(f.reporter);
   const priorityField = state.fields.priority ?? "priority";
@@ -116209,20 +110144,20 @@ function jiraItem(doc, issue2, state, categories) {
   }
   estimate2(item, issue2, state);
   iteration(item, issue2, state);
-  const parent = isRecord5(f.parent) ? str4(f.parent.key) : str4(f[fieldKey(issue2, EPIC_LINK) ?? EPIC_LINK]) ?? null;
+  const parent = isRecord5(f.parent) ? str3(f.parent.key) : str3(f[fieldKey(issue2, EPIC_LINK) ?? EPIC_LINK]) ?? null;
   item.parent = parent === null ? null : idFor(doc.connection, parent);
   item.children = (Array.isArray(f.subtasks) ? f.subtasks : []).flatMap((s) => isRecord5(s) && typeof s.key === "string" ? [idFor(doc.connection, s.key)] : []);
   for (const link of Array.isArray(f.issuelinks) ? f.issuelinks : []) {
     if (!isRecord5(link) || !isRecord5(link.type)) continue;
-    const outward = isRecord5(link.outwardIssue) ? str4(link.outwardIssue.key) : null;
-    const inward = isRecord5(link.inwardIssue) ? str4(link.inwardIssue.key) : null;
+    const outward = isRecord5(link.outwardIssue) ? str3(link.outwardIssue.key) : null;
+    const inward = isRecord5(link.inwardIssue) ? str3(link.inwardIssue.key) : null;
     const target2 = outward ?? inward;
     if (target2 === null) continue;
     item.links.push({
       type: LINKS[String(link.type.name ?? "").toLowerCase()] ?? "other",
       direction: outward !== null ? "outward" : "inward",
       target: idFor(doc.connection, target2),
-      name: str4(outward !== null ? link.type.outward : link.type.inward) ?? str4(link.type.name) ?? ""
+      name: str3(outward !== null ? link.type.outward : link.type.inward) ?? str3(link.type.name) ?? ""
     });
   }
   setInstant(item, "created", f.created, "created");
@@ -116293,13 +110228,13 @@ function jiraHistory(doc, state, categoryOf) {
     for (const change2 of entry.items) {
       if (!isRecord5(change2)) continue;
       const field4 = String(change2.field ?? "");
-      const toText = Object.hasOwn(change2, "toString") ? str4(change2.toString) : null;
+      const toText = Object.hasOwn(change2, "toString") ? str3(change2.toString) : null;
       if (field4.toLowerCase() === "status" && toText !== null) {
-        const from = str4(change2.fromString);
+        const from = str3(change2.fromString);
         const to = toText;
         history.transitions.push({ from, to, fromCategory: from === null ? null : categoryOf(from) ?? "UNKNOWN", toCategory: categoryOf(to) ?? "UNKNOWN", at: at9, by });
       } else if (field4 === sprintField || change2.fieldId === sprintField) {
-        const names2 = (value2) => (str4(value2) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+        const names2 = (value2) => (str3(value2) ?? "").split(",").map((s) => s.trim()).filter(Boolean);
         history.iterations.push({ from: names2(change2.fromString), to: names2(toText), at: at9, by });
       }
     }
@@ -116358,13 +110293,13 @@ function documentsFrom(values2, options2 = {}) {
     if (isEnvelope(value2)) {
       command = value2.meta.command;
       if (value2.ok !== true) {
-        const code = isRecord5(value2.error) ? str4(value2.error.code) : null;
+        const code = isRecord5(value2.error) ? str3(value2.error.code) : null;
         skipped.push({ at: at9, command, reason: `the call failed${code ? ` (${code})` : ""}, so there is nothing to map` });
         return;
       }
       data = value2.data;
       const context = isRecord5(value2.meta.context) ? value2.meta.context : {};
-      connection5 = isRecord5(context.connection) ? str4(context.connection.value) ?? void 0 : void 0;
+      connection5 = isRecord5(context.connection) ? str3(context.connection.value) ?? void 0 : void 0;
       if (isRecord5(context.inputs)) {
         for (const [name3, input3] of Object.entries(context.inputs)) if (isRecord5(input3) && typeof input3.value === "string") inputs[name3] = input3.value;
       }
@@ -117663,14 +111598,14 @@ function promiseAllObject(promisesObj) {
 }
 function randomString(length = 10) {
   const chars = "abcdefghijklmnopqrstuvwxyz";
-  let str5 = "";
+  let str4 = "";
   for (let i = 0; i < length; i++) {
-    str5 += chars[Math.floor(Math.random() * chars.length)];
+    str4 += chars[Math.floor(Math.random() * chars.length)];
   }
-  return str5;
+  return str4;
 }
-function esc(str5) {
-  return JSON.stringify(str5);
+function esc(str4) {
+  return JSON.stringify(str4);
 }
 function slugify(input3) {
   return input3.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "");
@@ -117784,8 +111719,8 @@ var primitiveTypes = /* @__PURE__ */ new Set([
   "symbol",
   "undefined"
 ]);
-function escapeRegex(str5) {
-  return str5.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function escapeRegex(str4) {
+  return str4.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function clone(inst, def, params2) {
   const cl = new inst._zod.constr(def ?? inst._zod.def);
@@ -118039,13 +111974,13 @@ function getSizableOrigin(input3) {
   return "unknown";
 }
 var highSurrogate = /[\uD800-\uDBFF]/;
-function codePointLength(str5) {
-  const units = str5.length;
-  if (!highSurrogate.test(str5))
+function codePointLength(str4) {
+  const units = str4.length;
+  if (!highSurrogate.test(str4))
     return units;
   let count4 = units;
   for (let i = 0; i < units - 1; i++) {
-    if ((str5.charCodeAt(i) & 64512) === 55296 && (str5.charCodeAt(i + 1) & 64512) === 56320) {
+    if ((str4.charCodeAt(i) & 64512) === 55296 && (str4.charCodeAt(i + 1) & 64512) === 56320) {
       count4--;
       i++;
     }
@@ -118674,18 +112609,18 @@ var validateAsync = async (schema3, value2, _ctx) => {
   return result.issues.length === 0;
 };
 var _encode = (_Err) => {
-  const parse8 = _parse(_Err);
+  const parse7 = _parse(_Err);
   const fn = (schema3, value2, _ctx, _params) => {
     const ctx = _ctx ? { ..._ctx, direction: "backward" } : { direction: "backward" };
-    return parse8(schema3, value2, ctx, finalizeParams(fn, _params));
+    return parse7(schema3, value2, ctx, finalizeParams(fn, _params));
   };
   return fn;
 };
 var encode = /* @__PURE__ */ _encode($ZodRealError);
 var _decode = (_Err) => {
-  const parse8 = _parse(_Err);
+  const parse7 = _parse(_Err);
   const fn = (schema3, value2, _ctx, _params) => {
-    return parse8(schema3, value2, _ctx, finalizeParams(fn, _params));
+    return parse7(schema3, value2, _ctx, finalizeParams(fn, _params));
   };
   return fn;
 };
@@ -121863,9 +115798,9 @@ function isRecursive(inst, stack, resolve10) {
     return PROVEN;
   stack.add(inst);
   let result = NONE;
-  const check2 = (child2) => {
-    if (result !== PROVEN && child2?._zod) {
-      const answer2 = isRecursive(child2, stack, resolve10);
+  const check2 = (child) => {
+    if (result !== PROVEN && child?._zod) {
+      const answer2 = isRecursive(child, stack, resolve10);
       if (answer2 > result)
         result = answer2;
     }
@@ -121876,9 +115811,9 @@ function isRecursive(inst, stack, resolve10) {
       const desc = Object.getOwnPropertyDescriptor(sh, key6);
       if (spread && !desc.enumerable)
         continue;
-      const child2 = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve10) : NONE;
-      if (child2 > answer2)
-        answer2 = child2;
+      const child = desc.get ? ASSUMED : desc.value?._zod ? isRecursive(desc.value, stack, resolve10) : NONE;
+      if (child > answer2)
+        answer2 = child;
     }
     return answer2;
   };
@@ -138275,7 +132210,7 @@ function matches(value2, type) {
   return actual === type;
 }
 function checkFunctions(node3) {
-  for (const child2 of children(node3)) checkFunctions(child2);
+  for (const child of children(node3)) checkFunctions(child);
   if (node3.type !== "Function") return;
   const spec = FUNCTIONS[node3.name];
   if (!spec || !Object.hasOwn(FUNCTIONS, node3.name)) throw new QueryError("unknown-function", `There is no function ${node3.name}().`, node3.position);
@@ -138291,7 +132226,7 @@ function checkDepth(root, max) {
   while (stack.length > 0) {
     const [node3, depth] = stack.pop();
     if (depth > max) throw new QueryError("syntax", `The expression nests more than ${max} levels deep.`);
-    for (const child2 of children(node3)) stack.push([child2, depth + 1]);
+    for (const child of children(node3)) stack.push([child, depth + 1]);
   }
 }
 function children(node3) {
@@ -138367,7 +132302,7 @@ var Interpreter = class {
       case "Literal":
         return node3.value;
       case "MultiSelectList":
-        return value2 === null || value2 === void 0 ? null : node3.children.map((child2) => this.visit(child2, value2));
+        return value2 === null || value2 === void 0 ? null : node3.children.map((child) => this.visit(child, value2));
       case "MultiSelectHash":
         return value2 === null || value2 === void 0 ? null : objectOf(node3.pairs.map((pair) => [pair.key, this.visit(pair.value, value2)]));
       case "Comparator":
@@ -138458,61 +132393,61 @@ var isAlphaNum = (ch) => isAlpha(ch) || isDigit(ch);
 function tokenize(expression) {
   const tokens = [];
   let at9 = 0;
-  const push2 = (type, value2, start2) => tokens.push({ type, value: value2, start: start2 });
+  const push = (type, value2, start2) => tokens.push({ type, value: value2, start: start2 });
   while (at9 < expression.length) {
     const ch = expression[at9];
     const start2 = at9;
     if (isAlpha(ch)) {
       at9++;
       while (isAlphaNum(expression[at9])) at9++;
-      push2("UnquotedIdentifier", expression.slice(start2, at9), start2);
+      push("UnquotedIdentifier", expression.slice(start2, at9), start2);
     } else if (SINGLE[ch] !== void 0) {
-      push2(SINGLE[ch], ch, start2);
+      push(SINGLE[ch], ch, start2);
       at9++;
     } else if (isDigit(ch) || ch === "-") {
       at9++;
       while (isDigit(expression[at9])) at9++;
       const text4 = expression.slice(start2, at9);
       if (text4 === "-") throw new QueryError("syntax", 'A "-" must be followed by digits.', start2);
-      push2("Number", Number.parseInt(text4, 10), start2);
+      push("Number", Number.parseInt(text4, 10), start2);
     } else if (ch === "[") {
       at9++;
       if (expression[at9] === "?") {
         at9++;
-        push2("Filter", "[?", start2);
+        push("Filter", "[?", start2);
       } else if (expression[at9] === "]") {
         at9++;
-        push2("Flatten", "[]", start2);
+        push("Flatten", "[]", start2);
       } else {
-        push2("Lbracket", "[", start2);
+        push("Lbracket", "[", start2);
       }
     } else if (ch === '"') {
       at9 = delimited(expression, at9, '"');
       try {
-        push2("QuotedIdentifier", JSON.parse(expression.slice(start2, at9)), start2);
+        push("QuotedIdentifier", JSON.parse(expression.slice(start2, at9)), start2);
       } catch {
         throw new QueryError("syntax", `Invalid quoted identifier ${expression.slice(start2, at9)}.`, start2);
       }
     } else if (ch === "'") {
       at9 = delimited(expression, at9, "'");
-      push2("Literal", expression.slice(start2 + 1, at9 - 1).replaceAll("\\'", "'"), start2);
+      push("Literal", expression.slice(start2 + 1, at9 - 1).replaceAll("\\'", "'"), start2);
     } else if (ch === "`") {
       at9 = delimited(expression, at9, "`");
-      push2("Literal", jsonLiteral(expression.slice(start2 + 1, at9 - 1).replaceAll("\\`", "`"), start2), start2);
+      push("Literal", jsonLiteral(expression.slice(start2 + 1, at9 - 1).replaceAll("\\`", "`"), start2), start2);
     } else if (ch === "<" || ch === ">" || ch === "!" || ch === "=") {
       at9++;
       const equals = expression[at9] === "=";
       if (equals) at9++;
       if (ch === "=" && !equals) throw new QueryError("syntax", `A single "=" isn't an operator; compare with "==".`, start2);
       const type = ch === "<" ? equals ? "LTE" : "LT" : ch === ">" ? equals ? "GTE" : "GT" : ch === "!" ? equals ? "NE" : "Not" : "EQ";
-      push2(type, expression.slice(start2, at9), start2);
+      push(type, expression.slice(start2, at9), start2);
     } else if (ch === "&" || ch === "|") {
       at9++;
       if (expression[at9] === ch) {
         at9++;
-        push2(ch === "&" ? "And" : "Or", ch + ch, start2);
+        push(ch === "&" ? "And" : "Or", ch + ch, start2);
       } else {
-        push2(ch === "&" ? "Expref" : "Pipe", ch, start2);
+        push(ch === "&" ? "Expref" : "Pipe", ch, start2);
       }
     } else if (WHITESPACE.has(ch)) {
       at9++;
@@ -138520,7 +132455,7 @@ function tokenize(expression) {
       throw new QueryError("syntax", `Unexpected character ${JSON.stringify(ch)}.`, start2);
     }
   }
-  push2("EOF", "", expression.length);
+  push("EOF", "", expression.length);
   return tokens;
 }
 function delimited(expression, start2, quote) {
@@ -139700,17 +133635,17 @@ var KEYCHAIN_PREFIX = "keychain:";
 var SERVICE = "toil";
 var REF_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 var spawnProgram = (command, args, input3, signal) => new Promise((resolve10) => {
-  const child2 = spawn(command, args, { shell: false, windowsHide: true, timeout: 3e4, ...signal ? { signal } : {} });
+  const child = spawn(command, args, { shell: false, windowsHide: true, timeout: 3e4, ...signal ? { signal } : {} });
   let stdout = "";
   let stderr = "";
   let error62;
-  child2.stdout.setEncoding("utf8").on("data", (chunk) => stdout += chunk);
-  child2.stderr.setEncoding("utf8").on("data", (chunk) => stderr += chunk);
-  child2.on("error", (err) => error62 = err);
-  child2.stdin.on("error", () => {
+  child.stdout.setEncoding("utf8").on("data", (chunk) => stdout += chunk);
+  child.stderr.setEncoding("utf8").on("data", (chunk) => stderr += chunk);
+  child.on("error", (err) => error62 = err);
+  child.stdin.on("error", () => {
   });
-  child2.on("close", (status) => resolve10({ status, stdout, stderr, error: error62 }));
-  child2.stdin.end(input3);
+  child.on("close", (status) => resolve10({ status, stdout, stderr, error: error62 }));
+  child.stdin.end(input3);
 });
 function isKeychainRef(value2) {
   return typeof value2 === "string" && value2.startsWith(KEYCHAIN_PREFIX);
@@ -140999,14 +134934,14 @@ function mergeCapabilities(base, additional) {
   const result = { ...base };
   for (const key6 in additional) {
     const k = key6;
-    const addValue2 = additional[k];
-    if (addValue2 === void 0)
+    const addValue = additional[k];
+    if (addValue === void 0)
       continue;
     const baseValue = result[k];
-    if (isPlainObject2(baseValue) && isPlainObject2(addValue2)) {
-      result[k] = { ...baseValue, ...addValue2 };
+    if (isPlainObject2(baseValue) && isPlainObject2(addValue)) {
+      result[k] = { ...baseValue, ...addValue };
     } else {
-      result[k] = addValue2;
+      result[k] = addValue;
     }
   }
   return result;
@@ -142183,7 +136118,7 @@ function chooseConnection(config5, area31, def, input3, early, dossier) {
   const named = (source2) => source2 === "input" ? typeof input3.connection === "string" ? input3.connection : void 0 : source2 === "dossier" ? dossier(area31.name, "connection", input3) : void 0;
   for (const source2 of ["input", "dossier", "git"]) {
     const name3 = named(source2);
-    let pick4 = name3 === void 0 ? void 0 : { value: name3, source: source2 };
+    let pick3 = name3 === void 0 ? void 0 : { value: name3, source: source2 };
     const joint = jointSelection(config5, area31, early, source2);
     for (const [name4, found] of Object.entries(early)) {
       const spec = declared[name4];
@@ -142195,16 +136130,16 @@ function chooseConnection(config5, area31, def, input3, early, dossier) {
         if (joint === void 0) throw err;
         selected2 = joint;
       }
-      if (pick4 && pick4.value !== selected2) {
-        const first = pick4.via ? `${flagOf(pick4.via, declared[pick4.via]).split(" ")[0]} selects connection ${pick4.value}` : `--connection is ${pick4.value}`;
+      if (pick3 && pick3.value !== selected2) {
+        const first = pick3.via ? `${flagOf(pick3.via, declared[pick3.via]).split(" ")[0]} selects connection ${pick3.value}` : `--connection is ${pick3.value}`;
         const where6 = { input: "the call", dossier: "your dossier", git: "the git remote" }[source2];
         throw new ToilError("INVALID_INPUT", `Two different connections for ${commandName(def)}, both from ${where6}: ${first}, but ${flagOf(name4, spec).split(" ")[0]} ${found.value} selects connection ${selected2}.`, {
           fix: `Give only one of them, or make them name the same connection.`
         });
       }
-      pick4 ??= { value: selected2, source: source2, via: name4 };
+      pick3 ??= { value: selected2, source: source2, via: name4 };
     }
-    if (pick4) return pick4;
+    if (pick3) return pick3;
   }
   return void 0;
 }
@@ -142277,8 +136212,8 @@ function assertNoDotSegments(raw3) {
   const rest = authority ? parsed.slice(authority[0].length) : parsed;
   const path2 = rest.split(/[?#]/, 1)[0];
   for (const segment2 of path2.split(/[/\\]/)) {
-    const plain2 = segment2.split(";", 1)[0].replace(/%2e/gi, ".");
-    if (plain2 === "." || plain2 === "..") {
+    const plain = segment2.split(";", 1)[0].replace(/%2e/gi, ".");
+    if (plain === "." || plain === "..") {
       throw new ToilError("INVALID_INPUT", `A request path can't have "${segment2}" as a segment: ${redactUrl(raw3)} would reach a different endpoint than the one named.`, {
         fix: `Check the id, key or name passed to the command; "${segment2}" isn't one.`,
         details: { segment: segment2 }
@@ -143007,7 +136942,7 @@ var skillFiles = {
   "sonar.md": '---\narea: sonar\ndescription: Quality gate status, issues, security hotspots, measures and projects on SonarQube Server\n---\n\n# SonarQube Server (`sonar`)\n\nQuality gate status, issues, security hotspots, measures and projects on\n**SonarQube Server**, through its Web API (`/api/...`). Every command reads; none\nchanges anything. Verification level: `unit`.\n\n**Supported versions:** The oldest SonarQube Server version toil supports hasn\'t been established. toil\ncalls the unversioned Web API with a user token sent as a Bearer header. No release\nhas been verified yet.\n\n## Credential\n\nA SonarQube **user token**: in SonarQube, My Account \u2192 Security \u2192 Generate Tokens.\ntoil sends it as `Authorization: Bearer <token>`. There is no username, password or\nbrowser login.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_SONAR_BASE_URL` | yes | SonarQube server root, e.g. `https://sonar.imagile.dev` (keep any context path) |\n| `token` | `TOIL_SONAR_TOKEN`, then `SONAR_TOKEN` | yes | User token |\n| `project` | `TOIL_SONAR_PROJECT` | no | Default project key for `quality-gate`, `issues`, `measures` and `hotspots` |\n\n**CI fallback:** when `TOIL_SONAR_TOKEN` isn\'t set, the default connection takes its\ntoken from `SONAR_TOKEN`, the variable SonarSource\'s own scanner reads. It sits\ndirectly below `TOIL_SONAR_TOKEN` and above the config file. There\'s no fallback for\nthe base URL.\n\nEnvironment variables (CI, or a one-off shell):\n\n```bash\nexport TOIL_SONAR_BASE_URL=https://sonar.imagile.dev\nexport TOIL_SONAR_TOKEN=<your user token>\n```\n\nOr `~/.toil/config.json`, with `project` usually set once under `defaults.sonar`:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "corp-sonar": { "area": "sonar", "baseUrl": "https://sonar.imagile.dev" }\n  },\n  "defaults": { "sonar": { "connection": "corp-sonar", "project": "imagile-api" } }\n}\n```\n\nThe token never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add corp-sonar --area sonar` (or\n`toil connections login corp-sonar` for an existing connection) to keep it in the OS\ncredential store, or set `TOIL_SONAR_TOKEN`.\n\n## Commands\n\nThe project comes from `--project <key>`, else the connection\'s `project` (usually\n`defaults.sonar.project`). With neither, the command fails with "No project\nspecified".\n\n- `quality-gate`: Get quality gate status for a project (`--branch`).\n- `issues`: Search/list issues for a project. Filters `--severities`, `--types` and\n  `--statuses` take comma lists; `--resolved` sends `true` only for the exact string\n  `true`, anything else as `false`.\n- `measures`: Get key metrics for a project. `--metrics` defaults to coverage,\n  duplicated lines density, bugs, vulnerabilities, code smells, the three ratings\n  and ncloc.\n- `projects`: Search/list projects (`--query`). SonarQube\'s `api/projects/search`\n  needs the Administer System permission, so other tokens may get `AUTH`.\n- `hotspots`: List security hotspots for a project (`--status`, `--resolution`).\n- `check-dossier`: Check that every project key the call\'s dossier names (`project`,\n  `projectKeys`, `projects`) exists, through `api/components/show`. Returns `{ dossier,\n  connection, env, ok, checked, checks, unchecked }`, and the CLI exits 1 when one is missing.\n\n`issues`, `projects` and `hotspots` page with `--page` (default 1) and `--page-size`\n(default 100), passed to the server as given; `data` is then SonarQube\'s own page.\n`--all` ignores both and fetches every page, 500 at a time, until the total is\nreached or a page comes back empty; `data` is then one flat list of items. SonarQube refuses `issues` past the\n10,000th result, so `issues --all` on a larger result fails; narrow the filters.\n`--all` also stops with an error after 1,000 pages (500,000 items), and like every\ncommand it\'s subject to toil\'s time limit (`TOIL_TIMEOUT_MS`, 120 s by default), so a\nvery large `projects` or `hotspots --all` can end in `TIMEOUT`.\n\n```bash\ntoil sonar quality-gate --project imagile-api\ntoil sonar issues --project imagile-api --severities BLOCKER,CRITICAL --all\ntoil sonar measures --metrics coverage,bugs --branch main\n```\n',
   "sonatypeiq.md": '---\narea: sonatypeiq\ndescription: Applications, organizations, policies and policy evaluations on Sonatype IQ Server\n---\n\n# Sonatype IQ Server (`sonatypeiq`)\n\nApplications, organizations and policies on **Sonatype IQ Server**, read through its\nREST API (`/api/v2/...`), and a policy evaluation of a dependency inventory against\none application. Nothing here changes anything in IQ Server. Verification level:\n`unit`.\n\n**Supported versions:** The oldest Sonatype IQ Server version toil supports hasn\'t been established. toil\ncalls only `/api/v2` endpoints, with a user token pair sent as HTTP Basic. No release\nhas been verified yet.\n\n## Credential\n\nAn IQ Server **user token**: in IQ Server, open your profile and choose User Token,\nthen create one. It has two halves, a user code and a passcode. toil sends them as\n`Authorization: Basic base64(userCode:passcode)`. It is not your login password, and\nthere is no browser login.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_SONATYPEIQ_BASE_URL` | yes | Sonatype IQ Server root, e.g. `https://iq.imagile.dev` (keep any context path) |\n| `userCode` | `TOIL_SONATYPEIQ_USER_CODE` | yes | User token code |\n| `passcode` | `TOIL_SONATYPEIQ_PASSCODE` | yes | User token passcode (a secret) |\n\nThere\'s no CI fallback variable.\n\nEnvironment variables (CI, or a one-off shell):\n\n```bash\nexport TOIL_SONATYPEIQ_BASE_URL=https://iq.imagile.dev\nexport TOIL_SONATYPEIQ_USER_CODE=<your user code>\nexport TOIL_SONATYPEIQ_PASSCODE=<your passcode>\n```\n\nOr `~/.toil/config.json`:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "corp-iq": { "area": "sonatypeiq", "baseUrl": "https://iq.imagile.dev", "userCode": "abc12345" }\n  },\n  "defaults": { "sonatypeiq": { "connection": "corp-iq" } }\n}\n```\n\nThe passcode never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add corp-iq --area sonatypeiq` (or\n`toil connections login corp-iq` for an existing connection) to keep it in the OS\ncredential store, or set `TOIL_SONATYPEIQ_PASSCODE`.\n\n## Commands\n\nThe four read commands return IQ Server\'s answer unchanged as `data`.\n\n- `applications list`: List all applications in Sonatype IQ Server\n  (`--organization-id <id>`, sent as an `organizationId` query parameter, which IQ\n  may ignore).\n- `applications get --public-id <id>`: Get an application by its public ID. `data`\n  is the filtered list, `{ applications: [...] }`; an unknown ID gives an empty\n  list, not an error.\n- `organizations list`: List all organizations in Sonatype IQ Server.\n- `policies list`: List all policies (`--organization-id <id>` asks\n  `/api/v2/policies/organization/<id>`).\n- `evaluate` (also `toil deps frisk --source sonatypeiq`): Evaluate a dependency\n  inventory against an application\'s policies. `--application-id <id>` (required) is\n  the application\'s public ID. `data` is `{ tier, source, sourcesQueried,\n  sourceErrors, scanned, vulnerable, packages }`, each package with its\n  `vulnerabilities`.\n\n`evaluate` reads the inventory that `toil deps scan` writes, from `--from <file>` or,\nwhen that\'s left out on the CLI, from piped stdin (with nothing piped in on a terminal it\nrefuses at once rather than wait); over MCP, pass `from`. Use `deps scan\n--include-transitive` to evaluate transitive dependencies too. `--ecosystem\nnpm|nuget|maven|all` (default `all`), `--direct-only` and `--include-dev` filter the\ninventory first. `toil deps frisk --source sonatypeiq` takes the same flags and runs\nthis command.\n\nIt looks up the application\'s internal ID by public ID (if the lookup fails or finds\nnothing, the public ID is used as it is), then posts the packages as package URLs,\n128 at a time. If IQ answers that the evaluation is queued, toil polls the\n`resultsUrl` up to 10 times, waiting 2 s longer each time, and fails if it\'s still\nqueued. A `resultsUrl` on another host is fetched from the connection\'s host\ninstead, with a `SONATYPEIQ_RESULTS_HOST` warning. Only `SECURITY` policy violations\ncount, with threat level 9 or more as `CRITICAL`, 7 `HIGH`, 4 `MEDIUM` and above 0\n`LOW`. The command is allowed up to 600 s.\n\n`meta.warnings` says `SONATYPEIQ_NO_COMPONENTS` when IQ\'s answer had no\n`components` list to read findings from, and `SONATYPEIQ_UNMATCHED_RESULT` for a\nresult that matches no package sent. Either means the result may undercount.\n\n```bash\ntoil sonatypeiq applications list\ntoil sonatypeiq applications get --public-id imagile-api\ntoil deps scan --include-transitive | toil sonatypeiq evaluate --application-id imagile-api\ntoil sonatypeiq evaluate --from inventory.json --application-id imagile-api --ecosystem npm\n```\n',
   "splitio.md": '---\narea: splitio\ndescription: Split.IO feature flags, environments and change requests through the Split Admin API\n---\n\n# Split.IO (`splitio`)\n\nFeature flags, environments and change requests on **Split.IO** (Harness FME),\nthrough the Admin API under `/internal/api/v2`. The reads list workspaces,\nenvironments, flags and change requests; every write files a **change request**\nthat Split\'s approvers then accept or reject. toil never changes a flag directly.\nVerification level: `unit`.\n\n**Supported versions:** The oldest Split.IO Admin API version toil supports hasn\'t been established. toil calls the\nAdmin API under `/internal/api/v2` with an Admin API key sent as a Bearer header. It\nhas not been run against a live Split account yet.\n\n## Credential\n\nA Split **Admin API key**: in Split, Admin settings \u2192 API keys \u2192 Create API key, with\nthe type Admin. toil sends it as `Authorization: Bearer <key>`. There is no login and\nno token exchange.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_SPLITIO_BASE_URL` | yes | Admin API root, normally `https://api.split.io` |\n| `adminApiKey` | `TOIL_SPLITIO_ADMIN_API_KEY` | yes | Admin API key |\n| `workspace` | `TOIL_SPLITIO_WORKSPACE` | no | Default Split workspace (project) ID, used when `--ws` is not given |\n\nThere is no CI fallback variable.\n\n```bash\nexport TOIL_SPLITIO_BASE_URL=https://api.split.io\nexport TOIL_SPLITIO_ADMIN_API_KEY=<your Admin API key>\n```\n\nOr `~/.toil/config.json`:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "split": { "area": "splitio", "baseUrl": "https://api.split.io", "workspace": "<workspace id>" }\n  }\n}\n```\n\nThe key never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add split --area splitio` to keep it in the\nOS credential store, or set `TOIL_SPLITIO_ADMIN_API_KEY`.\n\n## The workspace is `--ws`\n\nEvery command but `workspaces list` and `change-requests get` acts in one Split\nworkspace: `--ws <id>`, else the connection\'s `workspace`. Over MCP the field is\n`workspace`. **On the CLI, `--workspace` is toil\'s own flag** for the folder commands\nmay read files in, so `--workspace <split id>` doesn\'t name the Split workspace; a\ncommand left without one fails with `INVALID_INPUT` saying to pass `--ws`.\n\n## Commands\n\nReads:\n\n- `workspaces list`: List all Split.IO workspaces, every page.\n- `environments list`: List environments in a workspace.\n- `flags list`: List feature flags in a workspace. `--limit` (default 50, Split\'s\n  maximum) and `--offset` (default 0); `data.totalCount` is Split\'s total.\n  `--flag-set` is sent as `flagSetName`, which Split\'s reference doesn\'t document,\n  so the result carries a warning to compare `totalCount` with an unfiltered list.\n- `flags get`: Get a flag (`--flag`), or with `--environment` its definition in that\n  environment: treatments, rules, default rule, kill state.\n- `change-requests list`: List Change Requests for a workspace (`--environment`,\n  `--status`; Split returns `REQUESTED` ones when `--status` is unset). `--limit`\n  defaults to 25 (Split allows 1 to 100). Split pages by marker: pass\n  `data.nextMarker` (also `meta.page.nextCursor`) as `--after` for the next page.\n  `--offset` accepts only 0, and `totalCount` is `null`, since Split reports none.\n- `change-requests get`: Get a Change Request by ID (`--id`).\n\nWrites, each a change request against one `--environment`. They need `writes: true`\non the connection and `--allow-write` on the call. Every one takes `--mnemonic` (the\ntitle), `--description` (the comment), `--change-number` (added to the comment as\n"Change number: \u2026", since Split has no field for it), `--approvers` (comma-separated\nemail addresses, only where the environment lets submitters choose) and\n`--rollout-status <id>` (a rollout status ID; Split\'s guide says KILL doesn\'t need\none, and the others may).\n\n- `flags update`: Replace a flag\'s definition with the JSON object in `--input-file`\n  (`-` reads stdin on the CLI). Start from `flags get --environment`.\n- `flags set-rule`: Change rule `--rule-index` (from 0) to one `--treatment` (a\n  100% bucket) or `--weights` (a JSON array of `{treatment, size}`, sizes in percent;\n  anything but an array is refused).\n  The rest of the definition is copied from the current one.\n- `flags set-default`: Set the default rule to one `--treatment` at 100%.\n- `flags toggle`: `--enabled false` (or `0`) kills the flag; **any other value\n  restores it**, `off` and `no` included. A value other than `true` or `1` that\n  restores adds a `SPLITIO_TOGGLE_RESTORED` warning to `meta.warnings` saying so.\n- `flags batch-toggle`: One change request per entry of `--input-file`, a JSON array\n  of `{flag, enabled}`, titled `<mnemonic> \u2014 <flag>`. A failed entry doesn\'t stop the\n  rest; it\'s reported in `results[]` with `ok: false`, the envelope stays `ok`, and\n  `meta.warnings` says how many failed. `enabled` is read by truthiness, so the\n  string `"false"` restores. Every entry must have a `flag` name; if one doesn\'t, the\n  command fails with `INVALID_INPUT` naming the entry, before any request is filed.\n- `flags kill`, `flags restore`: Kill or restore a flag in the environment.\n- `flags archive`: Remove a flag\'s definition from the environment (Split\'s\n  `ARCHIVE` change request; not Split\'s flag-archive API). CLI only: it removes a\n  definition, and deletes are never served over MCP.\n\n```bash\ntoil splitio workspaces list\ntoil splitio flags get --ws <workspace id> --flag new_checkout --environment <environment id>\ntoil splitio flags kill --ws <workspace id> --flag new_checkout --environment <environment id> \\\n  --mnemonic checkout-off --description "Kill during incident" --change-number CHG0001234 --allow-write\n```\n',
-  "util.md": '---\narea: util\ndescription: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, converting Markdown to and from Jira and Confluence formats, reading OpenAPI documents, drawing C4 architecture diagrams from a JSON model, and mapping Jira, Azure DevOps and GitHub work items to Open Work Items\n---\n\n# Local utilities (`util`)\n\nCommands that work on what\'s on this machine: a token or version you paste, a file or\nfolder in the workspace (a certificate, a log or an API description), the manifests and lockfiles there, a\nreport a build left behind, a C4 model described in JSON, text you\'re about to commit or post, or a time and a time zone. They aren\'t\nintegrations. There is no server, no connection to add, no `TOIL_UTIL_*`\nvariable, no credential and no `--connection` flag, and none of them sends\nanything over the network. None changes anything: the only file one writes is a\nnew one you name with `--out`, inside the workspace, and it never replaces a\nfile. Verification level: `unit`.\n\n`jwt` and `deps` also have a short path, an alias that does the same thing with\nthe same flags and output:\n\n| Command | Alias | MCP tool |\n|---------|-------|----------|\n| `toil util jwt decode` | `toil jwt decode` | `util_jwt_decode` |\n| `toil util deps scan` | `toil deps scan` | `util_deps_scan` |\n| `toil util deps diff` | `toil deps diff` | `util_deps_diff` |\n| `toil util secrets scan` | none | `util_secrets_scan` |\n| `toil util encode` | none | `util_encode` |\n| `toil util cert` | none | `util_cert` |\n| `toil util report` | none | `util_report` |\n| `toil util log` | none | `util_log` |\n| `toil util size` | none | `util_size` |\n| `toil util time convert` | none | `util_time_convert` |\n| `toil util time duration` | none | `util_time_duration` |\n| `toil util time business-days add` | none | `util_time_business_days_add` |\n| `toil util time business-days diff` | none | `util_time_business_days_diff` |\n| `toil util time cron` | none | `util_time_cron` |\n| `toil util semver compare` | none | `util_semver_compare` |\n| `toil util semver satisfies` | none | `util_semver_satisfies` |\n| `toil util semver sort` | none | `util_semver_sort` |\n| `toil util semver bump` | none | `util_semver_bump` |\n| `toil util md` | none | `util_md` |\n| `toil util openapi list` | none | `util_openapi_list` |\n| `toil util openapi show` | none | `util_openapi_show` |\n| `toil util openapi example` | none | `util_openapi_example` |\n| `toil util c4 render` | none | `util_c4_render` |\n| `toil util c4 mermaid` | none | `util_c4_mermaid` |\n| `toil util c4 d2` | none | `util_c4_d2` |\n| `toil util owi map` | none | `util_owi_map` |\n\nOver MCP the tools are served without any configuration. `toil mcp --areas util`\nserves just these.\n\n## By job\n\nThe same commands, grouped by what you need them for.\n\n### Reading CI output\n\nWhat a build or a scanner leaves behind, turned into something short enough to read: totals and failures from a report, and the errors that matter from a log thousands of lines long.\n\n- **Summarising a report** (`toil util report`): Turns what CI and scanners write into one JSON summary. JUnit XML (Maven Surefire, Jenkins and Azure DevOps shapes) and TRX become test totals plus each failure with its suite, name, file, line, message and the first lines of its stack. SARIF 2.1.0 becomes findings with rule, level, file and line. lcov and Cobertura become per-file line and branch percentages and the lowest-covered files.\n- **Triaging a log** (`toil util log`): Reads a CI console, a Maven, npm or dotnet build, or a test run, and returns what\'s worth reading: the error and warning lines grouped by signature, with numbers, ids, timestamps and hex replaced so the same complaint counts once. Each group has its count, its first and last line, one sample, and the Java, .NET, Node or Python stack trace that belongs to it.\n\n### Writing for the tools\n\nGetting text into the shape an enterprise tool expects before it\'s sent, so a description, a page or a request arrives the way it was meant.\n\n- **Converting Markdown** (`toil util md`): Turns Markdown into Jira wiki markup (Jira Data Center), Atlassian Document Format (Jira Cloud and Confluence Cloud) or Confluence storage format (Confluence Data Center), and any of those back into Markdown.\n- **Reading an OpenAPI document** (`toil util openapi list`, `toil util openapi show`, `toil util openapi example`): Reads an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, so an agent calls an endpoint right the first time: `list` gives every operation, `show` lays one out with each parameter and where it goes, its request and response bodies with `$ref`s expanded, and the exact inputs for `toil <area> api`, and `example` builds the smallest body its schema accepts.\n- **Drawing a C4 architecture diagram** (`toil util c4 render`, `toil util c4 mermaid`, `toil util c4 d2`): Draws one view of a C4 model (a system context, container or component view) from JSON an agent writes: `render` lays it out and returns SVG, people on top and the scope\'s children inside a dashed boundary, checked for overlaps, arrows behind boxes and well-formed XML, and `mermaid` and `d2` write the same view as text for places that draw it themselves, such as a Mermaid block in Markdown on GitHub.\n\n### Reading the trackers as one\n\nWork from Jira, Azure DevOps and GitHub in one shape, so a sprint, a board or a question about the work reads the same whichever tracker holds it.\n\n- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, jira-cloud, ado and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item, and every item is checked against the published schema.\n\n### Safety\n\nChecks to run before something leaves the machine or gets trusted: a secret in a diff, a certificate chain that won\'t validate, a token\'s claims, and the dependencies a repository ships.\n\n- **Scanning for secrets** (`toil util secrets scan`): Looks for credential-shaped strings before you commit, push or post them: tokens, keys, `password=` values, credentials in URLs, private keys and long random strings. It uses the same rules toil\'s audit log redacts with, plus an entropy check, and exits with 1 when it finds anything, so a hook or a pipeline can stop on it.\n- **Decoding certificates** (`toil util cert`): Decodes a certificate or a chain bundle, PEM or DER: subject, issuer, SANs, serial, how many days it has left, its key, its signature algorithm, its basic constraints and key usage, and its fingerprints, so a TLS failure can be explained from the files. It never connects to the host.\n- **Decoding a JWT** (`toil util jwt decode`): Shows a token\'s header and claims, so you can see who it\'s for, what it grants and when it expires.\n- **Inventorying dependencies** (`toil util deps scan`, `toil util deps diff`): `deps scan` lists every package the workspace\'s npm, NuGet and Maven/Gradle manifests and lockfiles declare, with its version, the file it came from, and whether it\'s direct or transitive, production or dev. That inventory is what the vulnerability and licence commands read, one source per command, so you choose which service sees your dependency list. `deps diff` lists what was added, removed, upgraded or downgraded between two git refs.\n\n### Arithmetic models get wrong\n\nWork that looks simple and is easy to get subtly wrong by reasoning alone: time zones and DST, version ordering, encodings and hashes, and how big a file is before reading it. Each one works the answer out, then checks it a second way.\n\n- **Time zones, durations, business days and cron** (`toil util time convert`, `toil util time duration`, `toil util time business-days add`, `toil util time business-days diff`, `toil util time cron`): Date arithmetic on the time zone data Node already ships: convert a time between zones, read or write an ISO 8601 duration, add or count business days, and list a cron schedule\'s next run times.\n- **Comparing versions** (`toil util semver compare`, `toil util semver satisfies`, `toil util semver sort`, `toil util semver bump`): Compare, sort and bump versions, and check them against ranges, in the grammar of the ecosystem they come from: npm (SemVer 2.0.0 and npm\'s ranges, the default), NuGet (up to four parts, interval notation) or Maven (Maven\'s own ordering, where `1.0.0.Final` is `1` and `SNAPSHOT` comes before the release).\n- **Encoding, decoding and hashing** (`toil util encode`): Base64, base64url, hex, URL components and form values, in either direction, and a file\'s SHA-256, SHA-1 or MD5 hash.\n- **Sizing before reading** (`toil util size`): Tells an agent how much a file or folder will cost to read. For a file it gives bytes, lines, an estimated token count, and an outline: functions, classes and methods with their line ranges for TypeScript, JavaScript, Python, C#, Java and Go, headings for Markdown, and top-level keys for JSON and YAML, so the agent reads only the lines it needs. For a folder it gives a tree of totals, largest first, and names the largest files.\n\n## Commands\n\n### `toil util jwt decode`\n\nDecodes a JWT\'s header and claims **without verifying it**. There\'s no key and no\nnetwork call, and nothing here says whether the token is valid, expired or trusted.\n\n```bash\ntoil util jwt decode eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhYmMxMjM0NSJ9.c2ln\necho "$TOKEN" | toil util jwt decode -\n```\n\n| Argument | Meaning |\n|----------|---------|\n| `<token>` | The token, `header.payload.signature`. `-` reads it from stdin, which keeps it out of the process list and your shell history; one trailing line ending is dropped |\n\nOutput: `{ header, payload, signature }`, the header and claims as parsed JSON and\nthe signature segment as the text it is.\n\n- A token that isn\'t three dot-separated parts (an encrypted 5-part JWE, say) fails\n  with `INVALID_INPUT`, `Invalid JWT: expected 3 dot-separated parts`.\n- A header or payload that doesn\'t decode to JSON fails with `Invalid JWT: header is\n  not valid JSON` (or `payload`). A `Bearer ` prefix gives this error too, so strip it.\n- The decoding is lenient, as it has always been. A segment that is JSON but not an\n  object (`null`, a number) comes back as it is. Characters outside base64url are\n  skipped. Invalid UTF-8 shows as `\uFFFD`. Whitespace in a token passed as an argument\n  is kept, so a trailing newline ends up in `signature`.\n\nThe token goes nowhere but the decoder. toil doesn\'t log it, and no error message\nrepeats it.\n\n### `toil util deps scan`\n\nThe dependency inventory of the workspace, from its manifests and lockfiles. It\nreads files only and needs no git. It must be inside a git repository, though, or it\nfails with `Not inside a git repository. deps commands require a git repo root.`\n\n```bash\ntoil util deps scan\ntoil util deps scan --ecosystem npm --include-transitive --include-dev\ntoil util deps scan | toil osv vulns\n```\n\n| Flag | Meaning |\n|------|---------|\n| `--ecosystem <ecosystem>` | `npm`, `nuget`, `maven` or `all` (default). Any other value matches nothing and scans nothing |\n| `--include-transitive` | Include transitive dependencies (left out by default) |\n| `--include-dev` | Include dev and test dependencies (left out by default) |\n\nWhich files it reads:\n\n- **Which files:** every file in the workspace that `git ls-files --cached --others\n  --exclude-standard` would list. That\'s tracked files plus untracked ones `.gitignore`\n  and `.git/info/exclude` don\'t cover. A nested repository isn\'t walked into. Your\n  global git excludes file isn\'t read, so a file only it ignores is scanned.\n- **npm:** `package.json` (not under `node_modules`), with the first of\n  `package-lock.json` (v2 or later), `yarn.lock` (v1) or `pnpm-lock.yaml` beside it.\n  A `package-lock.json` with no packages falls back to `package.json`.\n- **NuGet:** `.csproj`, `.fsproj`, `.vbproj`, `packages.config` and\n  `Directory.Packages.props`, with a `packages.lock.json` in the same folder. Project\n  files that share one lock file count once. A project with no version on a\n  `PackageReference` takes it from the nearest `Directory.Packages.props`, up to 10\n  folders up.\n- **Maven/Gradle:** `pom.xml`, `build.gradle` and `build.gradle.kts`, with a\n  `gradle.lockfile` beside them.\n\nA lockfile wins over its manifest. Packages are de-duplicated on ecosystem, name,\nversion and source file. A manifest that can\'t be read is skipped. One that exists\nbut can\'t be read (a link out of the workspace, say) also gets a\n`DEPS_FILE_SKIPPED` warning in `meta.warnings`. That warning is the only check it\nmakes of its own result: the `deps` commands have no `verified` block, so treat the\nquirks below as unchecked.\n\nOutput:\n\n```json\n{\n  "ecosystems": ["npm", "nuget", "maven"],\n  "manifests": [{ "file": "package.json", "ecosystem": "npm", "lockFile": "package-lock.json" }],\n  "packages": [{ "name": "lodash", "version": "4.17.21", "ecosystem": "npm", "source": "package-lock.json", "type": "direct", "scope": "production" }],\n  "summary": { "totalPackages": 1, "byEcosystem": { "npm": 1 }, "byType": { "direct": 1, "transitive": 0 }, "byScope": { "production": 1, "dev": 0 } }\n}\n```\n\nPaths are relative to the workspace, with forward slashes. Maven names are\n`group:artifact`. When the repository\'s root is above the workspace, only the\nworkspace is scanned: run it from the root, or pass `--workspace <root>`, to scan\neverything.\n\nKnown quirks, which stay until they\'re checked against real repositories:\n\n- In an npm v7+ lockfile, `direct` means hoisted to the top `node_modules`, so most\n  transitive packages count as direct. Workspace folders show up as packages.\n- Yarn 1 headers with several ranges give a garbled name. Yarn 2+ lockfiles give no\n  packages.\n- pnpm peer suffixes stay in the version, and pnpm 9\'s scoped packages are missed.\n- `CentralTransitive` NuGet packages count as direct.\n- `gradle.lockfile` test dependencies are always included.\n- Any `word \'a:b:c\'` string in `build.gradle` reads as a dependency.\n- `pom.xml` plugin dependencies count as the project\'s.\n\nThe output is the inventory the vulnerability and licence commands read from stdin\nor `--from <file>`: `toil osv vulns`, `toil ossindex vulns`, `toil sonatypeiq\nevaluate`, and `toil artifactory outdated` / `license-check`. Over MCP, save it to a\nfile in the workspace and pass that file\'s path as `from`.\n\n### `toil util deps diff`\n\nHow the inventory changed between two git refs. This command runs the git on PATH:\n`git ls-tree` for each ref\'s files and `git show` for each one it reads. Without git\nit fails with `GIT_NOT_FOUND`.\n\n```bash\ntoil util deps diff --from main\ntoil util deps diff --from v1.0.0 --to main --ecosystem npm --include-dev\n```\n\n| Flag | Meaning |\n|------|---------|\n| `--from <ref>` | The base ref: a commit, tag or branch. Required |\n| `--to <ref>` | The target ref (default: the working tree, scanned as `deps scan` does) |\n| `--ecosystem <ecosystem>` | `npm`, `nuget`, `maven` or `all` (default) |\n| `--include-dev` | Include dev and test dependencies |\n\nTransitive dependencies are always included. Output: `{ from, to, changes: [{ name,\necosystem, change, from, to, source }], summary: { added, removed, upgraded,\ndowngraded, unchanged } }`. `change` is `added`, `removed`, `upgraded` or\n`downgraded`. Unchanged packages are counted, not listed. `to` reads `working tree`\nwhen `--to` is left out.\n\nKnown quirks:\n\n- A ref git can\'t read (a typo, or one you haven\'t fetched) gives an empty\n  inventory for that side, so a bad `--from` reports every package as `added`.\n  Check the ref first.\n- Each package is keyed on ecosystem, name and source file, and one version per key\n  survives. A package present at two versions can show a change that didn\'t happen.\n- Paths that git quotes (non-ASCII names) aren\'t read at a ref.\n- A ref that starts with `-`, or an empty `--from`, is refused with `INVALID_INPUT` before git runs. An empty `--to` means the working tree.\n\n### `toil util secrets scan`\n\nFinds credential-shaped strings before an agent or a person commits, pushes,\ncomments or posts them. It reads a file, a folder, stdin, text, or the\nrepository\'s staged or working-tree diff, and talks to nothing.\n\n```bash\ntoil util secrets scan --diff staged          # before git commit\ntoil util secrets scan src/                   # a folder, .gitignore respected\ntoil util secrets scan notes.md\ngh pr view 12 --json body -q .body | toil util secrets scan -\ntoil util secrets scan --text "$COMMENT"\n```\n\n| Argument / flag | Meaning |\n|-----------------|---------|\n| `[path]` | A file or folder inside the workspace. A folder is walked as `git ls-files --cached --others --exclude-standard` would list it. `-`, or nothing at all, reads stdin |\n| `--text <text>` | The content itself, instead of a file |\n| `--diff <kind>` | `staged` scans what the next commit holds (`git diff --staged`); `working` scans unstaged changes (`git diff`). Added lines only, in the workspace only. Runs the git on PATH |\n| `--allow-file <file>` | The allow file (default: `.toil/secrets-allow` at the workspace\'s top, when it exists) |\n\nPass one of a path, `--text` or `--diff`; two at once is `INVALID_INPUT`. Over\nMCP, pass `file`, `text` or `diff`.\n\n**The exit code is 1 when anything is found**, and 0 when nothing is, so a hook\nor a pipeline can gate on it. The envelope stays `ok: true` either way; `ok:\nfalse` (also exit 1) means the scan itself failed.\n\n**What it looks for:**\n\n- The rules the audit log redacts with, so toil has one definition of a\n  secret: GitHub, GitLab, Slack, AWS, SonarQube, `sk-` and Atlassian tokens,\n  JWTs, private keys, credentials in URLs, `Bearer` / `Basic` / `Token`\n  values, `name=value` pairs whose name says secret (`password=`,\n  `"apiToken":`, `--token=`), `curl -u user:pass`, and long random runs of\n  letters and digits.\n- `high-entropy`: a run of 20 or more base64 or base64url characters, holding\n  letters and digits, that those rules didn\'t catch and whose Shannon entropy\n  is at least 4.2 bits per character.\n\nTwo things are set aside and counted instead of reported: Subresource Integrity\nchecksums (`sha512-\u2026` in lockfiles, counted in `summary.checksums`), and a named\nvalue that is a reference to a secret rather than one (`token: ${{ secrets.X }}`,\n`password=$DB_PASSWORD`, `<your-token>`, `xxx`, counted in\n`summary.placeholders`). Commits, digests and UUIDs aren\'t findings.\n\nOutput:\n\n```json\n{\n  "source": { "kind": "staged", "path": null },\n  "findings": [{ "file": "config/application.properties", "line": 4, "column": 28, "length": 14, "rule": "name-value", "confidence": "high", "entropy": 3.18, "preview": "\u2026", "fingerprint": "e594506f-49ad270a-55b41205-70d9b059" }],\n  "allowed": [],\n  "unreadable": [{ "file": "logo.png", "reason": "binary", "message": "logo.png is binary in the diff; its content wasn\'t scanned." }],\n  "allowList": null,\n  "summary": { "files": 1, "lines": 5, "findings": 1, "allowed": 0, "unreadable": 1, "checksums": 0, "placeholders": 0, "byRule": { "name-value": 1 } },\n  "verified": { "passed": true, "checks": [] }\n}\n```\n\n- `file` is relative to the workspace, with forward slashes, or `null` for\n  stdin and text. `line` and `column` start at 1; columns count UTF-16 code\n  units. A private key spanning lines is one finding, with `endLine`.\n- `source.kind` is `file`, `folder`, `stdin`, `text`, `staged` or `working`.\n- `confidence` is `high` for a vendor\'s token format, `high` or `medium` for a\n  value a name or scheme marks as secret (medium when it\'s short and plain),\n  and graded by entropy for a random run (`low` below 3.5 bits per character).\n- **The full secret is never in the output**, nor in a warning, an error or the\n  audit log, which keeps no copy of `text`. `preview` keeps at most 4\n  characters at each end of a secret of 24 or more, 2 of one of 16 to 23, and\n  none of a shorter one: `ghp_\u2026c9vB`, `\u2026`.\n- `fingerprint` identifies the value without revealing it: a salted scrypt,\n  four groups of 8 hex digits. It\'s slow on purpose, so a short password can\'t\n  be recovered from it by guessing at speed.\n\n**The allow file** lists known false positives, one fingerprint per line, copied\nfrom a finding. `#` starts a comment. It\'s matched by fingerprint only, never by\nthe raw value, so it\'s safe to check in. A finding it names goes in `allowed`\ninstead of `findings` and doesn\'t set the exit code. `allowList` says which file\nwas read, how many entries it had, how many lines weren\'t fingerprints, and how\nmany entries matched nothing. A line that isn\'t a fingerprint is ignored with a\n`SECRETS_ALLOW_INVALID` warning that gives its line number and never its text. A\nnamed `--allow-file` that doesn\'t exist is `INVALID_INPUT`.\n\n```text\n# .toil/secrets-allow\ne594506f-49ad270a-55b41205-70d9b059  # the test fixture\'s dummy password\n```\n\n**What it checks of its own result** (`verified`):\n\n- `finding.reread`: every finding is read again at its reported line, from the\n  file on disk, from the index (`git show :<path>`) for a staged diff, or from\n  what stdin or the text held. The same characters must be at the same column,\n  with the same rule finding them. A mismatch warns `SECRETS_REREAD_MISMATCH`.\n- `preview.masked`: every preview is checked to hold none of the secret\'s\n  middle. One that fails warns `SECRETS_PREVIEW_LEAK` and is replaced by `\u2026`.\n- `input.complete`: each file was read to its size on disk. For a diff this is\n  `unchecked`, with an `UNVERIFIED` warning, since git\'s output has no size to\n  compare with; the re-read checks each finding instead.\n\n**What it couldn\'t read is listed**, never skipped silently. `unreadable` holds\neach binary file, each file over 64 MiB, each one it couldn\'t open (a permission\nerror, say), each nested repository a folder scan didn\'t walk into, and each line\nover 4 MiB, of which only the start was scanned. Any of them adds a\n`SECRETS_UNREADABLE` warning. A single file named on the call that can\'t be read\nis an `INVALID_INPUT` error instead. `--diff working` also warns\n`SECRETS_UNTRACKED_NOT_SCANNED` with the number of untracked files, which no diff\nholds: scan the folder, or stage them, to include them.\n\n**A diff covers the workspace, not the whole repository.** When the workspace is\na folder inside the repository, changes outside it aren\'t scanned, and a\n`SECRETS_DIFF_PARTIAL` warning gives the number of changed files left out. To\ncheck a whole commit, run it with `--workspace` at the repository\'s top.\n\nKnown limits:\n\n- A diff and a file are scanned line by line, so a secret split across two lines\n  (other than a private key) isn\'t found.\n- A private key spans lines only when its BEGIN line stands alone and an END\n  line follows its body (base64, blank, `Proc-Type:` and `DEK-Info:` lines). It\'s\n  then one finding, with `endLine`. When no END comes (another line, a gap\n  between diff hunks, or the end of the file), the BEGIN line is reported on its\n  own and the lines below it are scanned as usual.\n- A bare `key=` isn\'t treated as a secret\'s name, because in toil\'s inputs it\'s\n  an issue, space or project key. A real key there is still caught by its shape\n  or its entropy.\n\n### `toil util encode`\n\nEncodes or decodes base64, base64url, hex and URL percent-encoding, and hashes a\nfile with SHA-256, SHA-1 or MD5. Each result is checked before it\'s returned, and\n`data.verified` says how.\n\n```bash\ntoil util encode base64 --text \'you@example.com:abc12345\'\ntoil util encode base64 --decode mail-part.b64 --out logo.png\ntoil util encode url --text \'project = PAY AND assignee = "you@example.com"\'\ntoil util encode form --decode --text \'project+%3D+PAY+AND+assignee+%3D+%22you%40example.com%22\'\nprintf \'hello\' | toil util encode hex\ntoil util encode sha256 release.tgz\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `<scheme>` | `base64`, `base64url`, `hex`, `url`, `form`, or a hash: `sha256`, `sha1`, `md5`. Required |\n| `[file]` | A file inside the workspace. `-`, or leaving out both the file and `--text`, reads stdin |\n| `--text <text>` | The content itself, instead of a file. It\'s encoded as UTF-8 |\n| `--decode` | Decode instead of encode. Not for a hash |\n| `--out <file>` | Write the result to this new file inside the workspace instead of returning it. Never replaces a file. Not for a hash |\n\nThe schemes:\n\n- **`base64`** is written padded. Decoding accepts it with or without padding, and\n  ignores spaces and line breaks, so MIME-wrapped base64 reads as it is.\n- **`base64url`** (`-` and `_`) is written without padding, as JWTs use it, and\n  read with or without.\n- **`hex`** is written in lower case and read in either. Spaces and line breaks are\n  ignored; a `0x` prefix or `:` separators are not.\n- **`url`** is a URL component, written as JavaScript\'s `encodeURIComponent` writes\n  it: letters, digits and `-_.!~*\'()` stay, every other byte becomes `%XX`.\n- **`form`** is one name or value of an `application/x-www-form-urlencoded` body:\n  letters, digits and `*-._` stay, a space becomes `+`, and every other byte becomes\n  `%XX`. Decode a body one field at a time. A whole body decodes, but its `=` and\n  `&` come back the same as an encoded `%3D` and `%26`, so `roundtrip.encode`\n  fails, as it should.\n\nOutput:\n\n- **Encode:** `{ operation: "encode", scheme, inputBytes, outputBytes, output, verified }`.\n- **Decode:** `{ operation: "decode", scheme, inputBytes, outputBytes, utf8, output, verified }`.\n  `utf8` says whether the decoded bytes are valid UTF-8.\n- **Hash:** `{ operation: "hash", scheme, inputBytes, hex, base64, verified }`, the\n  digest both ways.\n- With `--out`, `file` (the absolute path written) replaces `output`.\n\nThe input is bytes: a file or stdin is encoded or hashed exactly as it is, so\n`echo hello | toil util encode base64` includes the newline `echo` adds. Use\n`printf` or `--text` to leave it out. When decoding, one trailing line ending is\ndropped.\n\n**Decoded bytes that aren\'t valid UTF-8 are refused** with `INVALID_INPUT` unless\n`--out` names a file to write them to. JSON can only carry them as text, and any\ntext would be different bytes. Valid UTF-8 comes back as the text it is.\n\nWhat `data.verified` checks:\n\n| Check | What it means |\n|-------|---------------|\n| `roundtrip.decode` | An encode was decoded back, and gave exactly the input |\n| `roundtrip.encode` | A decode was encoded again, and gave the input, allowing for whitespace, padding, the case of hex and `%XX`, and `%20` for `+` in a form |\n| `input.complete` | The bytes read equal the file\'s size on disk, so a read that stopped short can\'t pass. Unchecked for stdin, which has no size |\n| `output.file` | The file written was read back, and holds exactly the bytes written |\n\nA failed check sets `verified.passed` to `false` and adds a warning:\n`ENCODE_ROUNDTRIP_MISMATCH`, `INPUT_INCOMPLETE` or `ENCODE_OUTPUT_MISMATCH`. Input\nthat decodes but fails `roundtrip.encode` isn\'t how the scheme writes those bytes.\nFor example, base64 `QR==` decodes to `A`, but base64 writes `A` as `QQ==`, and a URL\nwith a space left in it isn\'t encoded. Check that it wasn\'t changed on the way.\n\nErrors:\n\n- Text that isn\'t the scheme is `INVALID_INPUT`, naming the offset of the first\n  character that\'s wrong but never the character, in case the text is a credential.\n  A base64 character that only base64url uses (or the other way round) says to try\n  the other scheme.\n- A file to decode that looks binary (a NUL byte), `--decode` or `--out` with a hash,\n  and a scheme toil doesn\'t have are `INVALID_INPUT`.\n- Encoding or decoding reads at most 64 MiB. A hash of a file streams, with no\n  limit; stdin is held in memory, so it keeps the 64 MiB limit.\n\nMD5 and SHA-1 are here to match checksums that other tools publish, not to protect\nanything. The audit log keeps only a hash of `--text`.\n\n### `toil util cert`\n\nDecodes X.509 certificates, one or a chain bundle, in PEM or DER, so you can\nexplain a TLS failure from the files. It never connects to the host the certificate\nis for: pass the file the server is configured with, or the chain a client saved.\n\n```bash\ntoil util cert chain.pem\ntoil util cert chain.pem --host api.imagile.dev\ntoil util cert server.der\ncat chain.pem | toil util cert -\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `[file]` | A file in the workspace, PEM or DER. `-`, or leaving it out, reads stdin |\n| `--text <text>` | The PEM itself, instead of a file. Over MCP, `text` is read as UTF-8, so a DER certificate goes as `file` |\n| `--host <host>` | A host name or IP address: do the first certificate\'s SANs cover it? |\n\nOutput: `{ format, certificates, skipped, chain, host, verified }`. Each\ncertificate is `{ position, line, offset, subject, issuer, sans, serial, validity:\n{ notBefore, notAfter, daysLeft, status }, key: { type, bits, curve },\nsignatureAlgorithm: { name, oid }, selfSigned, basicConstraints: { ca, pathLength },\nkeyUsage, extendedKeyUsage, fingerprints: { sha1, sha256 } }`. `position` counts\nevery block in a PEM bundle (or element in a DER one) from 1, `line` is where a PEM\nblock starts and `offset` where a DER certificate does. `status` is `valid`,\n`expired` or `not-yet-valid`, and `daysLeft` is negative once expired.\n`basicConstraints`, `keyUsage` and `extendedKeyUsage` are null when the certificate\ndoesn\'t have that extension.\n\nWhat it checks, in `data.verified` (a failure also warns under its code):\n\n| Check | Means | Fails with |\n|-------|-------|------------|\n| `bundle.readable` | Every block meant to be a certificate decodes | `CERT_UNREADABLE` |\n| `decode.matchesNode` | toil\'s DER reader and `node:crypto` agree on the serial and CA flag, and nothing follows the certificate in its block | `CERT_DECODE_MISMATCH` |\n| `validity.notExpired`, `validity.started` | Each certificate is inside its validity window now | `CERT_EXPIRED`, `CERT_NOT_YET_VALID` |\n| `chain.order` | Each certificate\'s issuer is the next one\'s subject | `CERT_CHAIN_ORDER` |\n| `chain.signature` | Where the names match, each signature verifies with the next certificate\'s key, and a self-issued last certificate with its own | `CERT_SIGNATURE_MISMATCH` |\n| `chain.root` | Unchecked (`UNVERIFIED`) when the last certificate isn\'t self-signed, so its issuer doesn\'t follow it: the chain is checked only as far as the bundle goes | |\n| `host.covered` | With `--host`, a DNS or IP SAN of the first certificate covers it | `CERT_HOST_MISMATCH` |\n| `input.complete` | The whole file was read (unchecked for stdin) | `INPUT_INCOMPLETE` |\n\n- The chain is checked in the order given, leaf first. When it\'s out of order but\n  is one chain in another order, `chain.suggestedOrder` lists the positions in the\n  right order and `CERT_CHAIN_REORDER` says so.\n- `chain.inOrder` is true when every link\'s names match and every signature\n  checked verifies. `chain.root` is `included` when the last certificate is\n  self-signed. Nothing is checked against a trust store: a chain that verifies to\n  a root in the bundle isn\'t thereby trusted.\n- `--host` follows what browsers do: SANs only, never the subject CN, and a\n  wildcard covers exactly one label (`*.imagile.dev` covers `api.imagile.dev`, not\n  `imagile.dev` or `a.api.imagile.dev`). `host.explanation` says why it\'s covered\n  or not.\n- A PEM block that isn\'t a certificate is skipped, listed in `skipped` and named in\n  a `CERT_BLOCK_SKIPPED` warning. A private key is never read, and\n  `CERT_PRIVATE_KEY_IN_INPUT` says one was there. `CERTIFICATE` and\n  `X509 CERTIFICATE` blocks are read; `TRUSTED CERTIFICATE`, PKCS#7 (`.p7b`) and\n  PKCS#12 (`.pfx`) are not.\n- In DER input a damaged certificate ends the reading, since nothing says where the\n  next one starts; it\'s reported at its byte offset.\n- Input with no certificate that can be read fails with `INVALID_INPUT`, naming\n  each block and why.\n\n### `toil util semver`\n\nVersions and ranges in the grammar of the ecosystem they come from. Pick it with\n`--ecosystem`: `npm` (the default), `nuget` or `maven`.\n\n- **npm:** SemVer 2.0.0 versions (`1.2.3`, `1.2.3-rc.1+build.5`; a leading `v` is\n  allowed) and npm\'s ranges, as `package.json` takes them: `^1.2.3`, `~1.2`, `1.x`, `>=1.0.0 <2.0.0`,\n  `1.0.0 - 2.0.0`, joined with `||`. A prerelease satisfies a range only when the\n  range names a prerelease of the same `major.minor.patch`, unless you pass\n  `--include-prerelease`. There\'s no loose mode that turns text that isn\'t a\n  version into one.\n- **nuget:** one to four numbers (`1`, `1.0` and `1.0.0.0` are one version), then\n  an optional `-prerelease` and `+metadata`. Labels compare case-insensitively.\n  Ranges are interval notation: `1.0` (at least 1.0), `[1.0]`, `[1.0,2.0)`,\n  `(,2.0]`. A prerelease inside the bounds satisfies the range. Floating versions\n  (`1.*`, `1.0.0-*`) are refused, because what one picks depends on the feed.\n- **maven:** Maven\'s own ordering: `alpha < beta < milestone < rc < snapshot <\n  release < sp`, `1`, `1.0` and `1.0.0.Final` are one version, and `1a1` is\n  `1-alpha-1`. A version is letters, digits, `.`, `-`, `_` and `+` with at least\n  one digit, so an unresolved `${property}` is reported, not ordered. Ranges are\n  `[1.0,2.0)`, `[1.0]` and `(,1.0],[1.2,)`. A bare version is a soft requirement\n  that any version satisfies, and says so in a `MAVEN_SOFT_REQUIREMENT` warning.\n\nA version or range that doesn\'t parse in the chosen grammar is `INVALID_INPUT`,\nwith the reason and an example of what fits. Build metadata never affects order.\n\n```bash\ntoil util semver compare 1.0.0-rc.10 1.0.0-rc.9\ntoil util semver satisfies 1.3.0-rc.1 \'^1.2.0\' --include-prerelease\ntoil util semver satisfies 5.3.39 \'[5.0,6.0)\' --ecosystem maven\ntoil util semver sort versions.txt --range \'^5.0.0\'\ntoil util semver bump 1.2.3 prerelease --preid rc\n```\n\n| Command | Arguments and flags | Output |\n|---------|---------------------|--------|\n| `compare <a> <b>` | `--ecosystem <ecosystem>` | `{ ecosystem, a, b, order, higher, difference, normalized: { a, b }, verified }`. `order` is -1, 0 or 1 for a against b, `higher` is `a`, `b` or null, and `difference` is the most significant part they differ in: `major`, `minor`, `patch`, `revision` (NuGet\'s fourth part, or Maven\'s), `prerelease`, `qualifier` (Maven) or null |\n| `satisfies <version> <range>` | `--ecosystem <ecosystem>`, `--include-prerelease` | `{ ecosystem, version, range, normalizedRange, satisfies, verified }` |\n| `sort [file]` | `--text <text>`, `--ecosystem <ecosystem>`, `--range <range>`, `--include-prerelease` | `{ ecosystem, count, sorted, invalid, verified }`, lowest first, plus `{ range, normalizedRange, satisfying, highest }` with `--range` |\n| `bump <version> <release>` | `--ecosystem <ecosystem>`, `--preid <id>` | `{ ecosystem, version, release, preid, result, verified }` |\n\n- **`sort`** reads a file in the workspace, stdin (`-`, or no file), or `--text`.\n  Versions go one per line or separated by spaces. An entry that doesn\'t parse is\n  left out of the sort and listed in `invalid` with its line and the reason, with a\n  `SEMVER_INVALID_VERSION` warning.\n- **`bump`** takes `major`, `minor` or `patch` in every ecosystem. npm also takes\n  `premajor`, `preminor`, `prepatch`, `prerelease` and `release`, the bumps npm\n  publishes with, and `--preid` names the prerelease (`1.2.3` `prerelease --preid rc` is\n  `1.2.4-rc.0`). A NuGet result has three parts, with the revision and labels\n  dropped. Maven bumps the leading numbers and drops the qualifier\n  (`1.2.3-SNAPSHOT` `minor` is `1.3.0`).\n\n**What it checks** (`verified`, with failures as warnings):\n\n- `sort.transitive`: every pair in the sorted list is in order, so a comparison\n  where a < b and b < c but not a < c can\'t hide. Up to 2,000 versions; past that,\n  each against its neighbour, reported as `APPROXIMATED`.\n- `sort.antisymmetric`, `sort.complete`: each neighbouring pair compares the same\n  both ways round, and every entry is either sorted or listed as invalid.\n- `range.boundaries`, `range.answers`: each answer agrees with the range\'s\n  intervals, worked out by comparison alone, at the range\'s boundary versions and\n  at every version asked about. A range with no bounds (`*`) has none to test, and\n  says so with `UNVERIFIED`.\n- `compare.antisymmetric`, `diff.consistent`, `bump.increases`,\n  `version.normalized`: b against a is the reverse of a against b, a difference is\n  named exactly when the versions differ, a bump goes up, and a normalised version\n  reads back as the same version.\n- `input.complete`: the whole file was read. stdin has no size to compare with, so\n  it\'s `UNVERIFIED`.\n\n`diff` names the most significant part that changed, the same rule in every\necosystem; it never answers `premajor` or the like.\n\n### `toil util report`\n\nOne JSON summary of a report that CI or a scanner wrote: JUnit XML, TRX, SARIF\n2.1.0, lcov or Cobertura. It reads the file and nothing else, and checks the report\nagainst its own declared totals.\n\n```bash\ntoil util report target/surefire-reports/TEST-dev.imagile.OrderTest.xml\ntoil util report TestResults/build.trx\ntoil util report coverage/lcov.info --lowest 5\ntoil util report results.sarif\ncat coverage.xml | toil util report --format cobertura\n```\n\n| Argument / flag | Meaning |\n|-----------------|---------|\n| `[file]` | The report, inside the workspace. `-`, or no file and no `--text`, reads stdin |\n| `--text <text>` | The report itself, instead of a file |\n| `--format <format>` | `junit`, `trx`, `sarif`, `lcov` or `cobertura`. Left out, it\'s detected from the content: the root element for XML (`<testsuites>` or `<testsuite>`, `<TestRun>`, `<coverage>`), `"runs"` for SARIF, a first `TN:` or `SF:` line for lcov |\n| `--lowest <n>` | How many of the lowest-covered files to list (default 10, up to 1000) |\n\nOver MCP the tool is `util_report`, with `file` or `text`, `format` and `lowest`.\n\nOutput: `{ format, formatFrom, tests, findings, coverage, skipped, verified }`.\n`formatFrom` is `content` or `flag`. One of `tests`, `findings` and `coverage` is\nfilled in, by format, and the other two are `null`.\n\n- **`tests`** (JUnit, TRX): `{ suites, totals: { tests, passed, failures, errors,\n  skipped, flaky, other }, failures: [{ suite, name, className, kind, type,\n  message, file, line, location, stack, stackLines }] }`. The totals are recounted\n  from the cases, never copied from the report. `kind` is `failure` or `error`.\n  `stack` is the first 15 lines, and `stackLines` how many there were. `location` is\n  `report` when the report states `file` or `line`, and `stack` when they were read\n  from the first stack frame naming the test\'s class or method (an `APPROXIMATED`\n  warning says how many). It\'s `null` when neither has one.\n- **`findings`** (SARIF): `{ runs: [{ tool, version, results }], total, byLevel,\n  results: [{ tool, rule, level, kind, file, line, message, suppressed }] }`. `level`\n  follows the spec: the result\'s own, else its rule\'s default, else `warning` for a\n  failing result and `none` for any other. `file` is the first location\'s URI as\n  written, and `line` its `startLine`.\n- **`coverage`** (lcov, Cobertura): `{ sources, totals: { lines, branches }, files:\n  [{ file, lines, branches }], lowest }`. Each figure is `{ covered, total, percent }`,\n  with `percent` rounded to two places (`null` when there\'s nothing to cover).\n  `branches` is `null` where the report has no branch data. `lowest` lists the\n  `--lowest` files with the lowest line coverage, leaving out files with no lines.\n- **`skipped`**: `{ count, elements: [{ element, count, reason }] }`, every element\n  (or lcov record) the reader met and didn\'t read, also warned as\n  `REPORT_ELEMENTS_SKIPPED`. Known parts that hold nothing it summarises\n  (`system-out`, `properties`, TRX\'s settings and lists, Cobertura\'s per-method copies\n  of the lines) aren\'t counted.\n\nWhat `verified` checks:\n\n| Format | Check | Warning when it fails |\n|--------|-------|-----------------------|\n| JUnit | Each suite\'s (and `<testsuites>`\') declared `tests`, `failures`, `errors` and `skipped`, recounted from its cases, nested suites included | `REPORT_TOTALS_MISMATCH`, naming both numbers |\n| TRX | `<Counters>`\' `total` and each outcome counter, recounted from the results\' `outcome` | `REPORT_TOTALS_MISMATCH` |\n| Cobertura | Every stated `line-rate` and `branch-rate` (class, package and root), to within one unit of its last written decimal, and the root\'s `lines-covered`, `lines-valid`, `branches-covered` and `branches-valid` | `REPORT_COVERAGE_MISMATCH` |\n| lcov | Each record\'s `LF`, `LH`, `BRF`, `BRH`, `FNF` and `FNH`, recounted from its `DA`, `BRDA`, `FN` and `FNDA` lines | `REPORT_COVERAGE_MISMATCH` |\n| SARIF | Each `ruleIndex` points at the rule its `ruleId` names | `REPORT_SARIF_INCONSISTENT` |\n| All | The whole input was read (`input.complete`) | `INPUT_INCOMPLETE`, or `INPUT_TRUNCATED` at the cap |\n\nWhat it can\'t check is reported as `UNVERIFIED`, never as passed: a JUnit report\nthat declares no totals, SARIF (which declares none), a TRX counter left at `0` over\nresults with that outcome (VSTest leaves `notExecuted` at 0, for one), and the size\nof stdin. TRX\'s `executed` isn\'t compared, because writers disagree on what it\ncounts.\n\nFormats it reads:\n\n- **JUnit:** Maven Surefire\'s, the Jenkins shape (nested `<testsuite>`s, `status`,\n  `assertions`, `disabled`) and the Azure DevOps shape (the VSTest JUnit logger\'s).\n  Surefire\'s `flakyFailure` and `flakyError` mean a rerun passed: the case counts as\n  passed and in `flaky`. A case with `<error>` is an error, else one with\n  `<failure>` is a failure, else one with `<skipped>` is skipped.\n- **TRX:** `dotnet test --logger trx` and Visual Studio\'s. Top-level results are\n  counted, as the counters count them, and a data-driven test\'s inner rows aren\'t.\n  `failures` is `Failed`; `errors` is `Error`, `Timeout` and `Aborted`; `skipped` is\n  `NotExecuted` and `NotRunnable`; any other outcome is `other`. `suites` is the\n  number of test classes, and a failure\'s `suite` is its class.\n- **SARIF 2.1.0:** any tool\'s. A rule reference with a `toolComponent` index is\n  looked up in that entry of `tool.extensions` (CodeQL query packs); one that names\n  its component only by `guid` can\'t be found, so `sarif.ruleIndex` is `UNVERIFIED`\n  and the level falls back to `warning`. A file with another `version` is read as\n  2.1.0, with an `APPROXIMATED` warning. A run whose invocation says it failed warns\n  `REPORT_TOOL_FAILED`.\n- **lcov:** `SF` to `end_of_record` records, including lcov 2\'s `FNL` and `FNA`.\n  `FNH` is recounted as distinct functions hit: `FNA` by index, so a function\'s\n  aliases count once, and `FNDA` by name. A file in several records is merged, and a\n  line is covered when any record hit it.\n- **Cobertura:** coverlet\'s, coverage.py\'s and others\'. Classes in the same file are\n  added together, and branch counts come from `condition-coverage="50% (1/2)"`.\n\nLimits: XML and lcov stream, so memory stays flat for a report of any size, apart\nfrom the failures it lists, up to the 64 MiB input cap. At the cap the read stops,\n`INPUT_TRUNCATED` says so, `input.complete` fails, and what came before the cut is\nsummarised; a suite the cut left open isn\'t compared. SARIF is JSON and is read\nwhole, so a SARIF file over the cap is `INVALID_INPUT`. Malformed XML or JSON is\n`INVALID_INPUT` with the line and column. So is a document whose format can\'t be\ndetected, or whose root doesn\'t match `--format`, with a fix naming `--format`.\n\n### `toil util log`\n\nTriages a large log (a CI console, a Maven, npm or dotnet build, a test run) into\nwhat\'s worth reading: its error and warning lines grouped by signature, each with the\nstack trace that follows it. It reads the file only, streams it, and holds memory\nconstant however large the log is.\n\n```bash\ntoil util log build.log\ntoil util log console.log --level error --context 3\ntoil util log console.log --since 2026-10-14T09:12:00Z --grep \'Failed to execute\'\nsome-build 2>&1 | toil util log -\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `[file]` | The log, inside the workspace. `-`, or no file and no `--text`, reads stdin |\n| `--text <text>` | The log itself, instead of a file |\n| `--since <timestamp>` | Only lines dated at or after this ISO 8601 time (`2026-10-14`, `2026-10-14T09:12:00Z`, `"2026-10-14 09:12:00"`). A line with no date takes the date of the last dated line before it. Without a zone, a time is read as UTC |\n| `--level <level>` | `warning` (default) reports errors and warnings; `error` reports errors only |\n| `--grep <regex>` | Only error and warning lines matching this JavaScript regular expression (case-sensitive, no slashes or flags). An error also matches when the exception line heading its trace does (`--grep IllegalStateException`). Frames aren\'t searched; `LOG_GREP_STACK_ONLY` says when only they matched |\n| `--max-groups <n>` | The most groups to return, default 50, up to 1000 |\n| `--context <n>` | Lines to show before and after each group\'s sample, default 0, up to 20 |\n\nOver MCP the tool is `util_log`, with `file` (a path in the workspace) or `text`, and\nthe same fields: `since`, `level`, `grep`, `maxGroups`, `context`.\n\nHow it reads a log:\n\n- **Timestamps:** a leading timestamp, bracketed (Jenkins\' timestamper) or bare (CI\n  runners, log4j, Serilog), is set aside before anything else, so it never splits a\n  group.\n- **Levels:** the first level word decides (`ERROR`, `FATAL`, `SEVERE`, `WARN`,\n  `WARNING`, `INFO`, `DEBUG` \u2026, and npm\'s `npm error` / `npm warn`). A line tagged\n  `INFO`, or with no tag, is still an error by its shape: `BUILD FAILURE`, `FAILED`,\n  `error CS0246:`, `error TS2322:`, `TypeError: \u2026`, `Unhandled exception.`, an eslint\n  or vstest failure line. A tag with nothing after it (`[ERROR] `) is not a group.\n- **Signatures:** dates and times, UUIDs, hex and every number are replaced, and\n  spaces collapsed. Codes such as `CS0246` and `TS2322` keep their digits, and paths\n  and quoted names stay, so two different errors stay apart.\n- **Stack traces:** Java (`at \u2026(File.java:12)`, `Caused by:`, `... 14 more`), .NET\n  (`at \u2026 in file:line 9`, `--->`, `--- End of inner exception stack trace ---`), Node\n  (`at fn (file:12:3)`) and Python (`Traceback (most recent call last):`, printed\n  before its exception) are joined to the error they belong to, with the exception\n  line that heads one. An exception line joins an error, never a warning: after a\n  warning it\'s an error of its own. A trace is reported for each group\'s first occurrence, up to\n  50 lines.\n\nOutput:\n\n```json\n{\n  "lines": { "total": 76, "error": 20, "warning": 5, "other": 35, "stack": 12, "unclassified": 4 },\n  "matched": 25, "filtered": 0, "groupsTotal": 18, "truncated": false, "ungrouped": 0, "unjoinedFrames": 0,\n  "groups": [{\n    "level": "error",\n    "signature": "[ERROR] /build/ledger/Reconciler.java:[<n>] cannot find symbol",\n    "count": 4, "firstLine": 27, "lastLine": 52,\n    "sample": "[ERROR] /build/ledger/Reconciler.java:[54,38] cannot find symbol",\n    "trace": { "kind": "java", "firstLine": 57, "lastLine": 68, "frames": 12, "lines": ["\u2026"] },\n    "context": { "before": [{ "line": 26, "text": "\u2026" }], "after": [{ "line": 28, "text": "\u2026" }] }\n  }],\n  "verified": { "passed": true, "checks": [{ "check": "lines.reread", "status": "passed", "checked": 36, "failed": 0 }] }\n}\n```\n\nGroups are errors first, then warnings, each in order of first appearance. `lines`\nclasses every line once: `other` is a level below warning, `stack` a trace line, and\n`unclassified` a line with no level at all. `filtered` counts the error and warning\nlines `--since`, `--level` or `--grep` left out.\n\nIt checks its own answer, in `data.verified`:\n\n- **`lines.reread`:** every group\'s first line is read again from the file and must\n  be its sample, and its last line must still have its signature. `trace.reread`\n  does the same for every trace line shown. A mismatch is `LOG_LINE_MISMATCH`, which\n  usually means the file changed while it was read.\n- **`groups.sum`, `lines.sum`, `filter.sum`:** the group counts add up to the matched\n  lines, the line classes to the lines read, and matched plus filtered to the error\n  and warning lines. A mismatch is `LOG_COUNT_MISMATCH`.\n- **`input.complete`:** the bytes read equal the file\'s size. It\'s `unchecked` for\n  stdin and text.\n\nWhat it reports in `meta.warnings` rather than leave out: `LOG_UNCLASSIFIED` (lines\nwith no level, in no group), `LOG_GROUPS_TRUNCATED` (more groups than\n`--max-groups`), `LOG_UNGROUPED` (matched lines whose signature came after the first\n2,000 distinct ones, counted but not grouped, which is what keeps memory constant),\n`LOG_TRACE_UNJOINED` (trace lines with no error before them), `LOG_GREP_STACK_ONLY`\n(`--grep` matched only stack trace lines), `LOG_SINCE_UNDATED`\n(lines `--since` couldn\'t date, kept), and `APPROXIMATED` for a line longer than\n4,096 characters (grouped by its start) or a `--since` compared with times that had\nno zone.\n\nA file streams with no size limit. stdin and `--text` are held in memory, up to\n64 MiB, so pass a file for anything bigger.\n\n### `toil util size`\n\nHow big a file or folder is before you read it, so an agent can budget its\ncontext: bytes, lines and an estimated token count, and for one file an outline\nwith line ranges, so you can read just the part you need.\n\n```bash\ntoil util size src/areas/util/size.ts\ntoil util size src --depth 2 --top 5\ngit show HEAD:README.md | toil util size - --language markdown\n```\n\n| Argument / flag | Meaning |\n|-----------------|---------|\n| `[file]` | A file or folder inside the workspace. `-` (or nothing) reads stdin |\n| `--text <text>` | The content itself, instead of a file |\n| `--language <language>` | Outline it as this language: `typescript`, `javascript`, `python`, `csharp`, `java`, `go`, `markdown`, `json` or `yaml`. Needed for stdin and `--text`; for a file it overrides the extension |\n| `--top <n>` | For a folder: how many of the largest files to list (default 10) |\n| `--depth <n>` | For a folder: how many levels of subfolders the tree shows (default 3). Deeper folders still count in their parent\'s totals, and `foldersHidden` says how many were left out |\n\n**Tokens are an estimate**: `ceil(characters / 4)` per file, counting Unicode code\npoints. No model\'s tokenizer is bundled, and real counts vary by model and\ncontent. Every result says so in `tokenMethod` and with an `APPROXIMATED` warning.\n\n**For a file**: `{ kind: "file", path, language, bytes, lines, tokens, tokenMethod,\noutline, notOutlined, verified }`. `outline` is `{ precision, method, symbols }`,\neach symbol `{ name, kind, startLine, endLine, container }` (headings add `level`):\n\n- **Code** (`precision: "syntactic"`): TypeScript and JavaScript (`.ts`, `.tsx`,\n  `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`), Python, C#, Java and Go. Functions,\n  classes, interfaces, types, enums, namespaces, methods, constructors, C#\n  properties and exported names. It\'s a pure-JavaScript scan that skips comments\n  and strings and matches braces (indentation for Python), not a compiler, so\n  `method` says what each language covers. Function bodies aren\'t searched, and\n  fields aren\'t listed. `container` is the enclosing class or namespace.\n- **Markdown**: ATX and setext headings, outside code fences and front matter.\n- **JSON and YAML** (`precision: "parsed"`): the top-level keys, found by scanning\n  and held against what the parser returns.\n\nWhen there\'s no outline, `outline` is null and `notOutlined` says why: `binary` (a\nNUL byte in the first 8,000 bytes; lines and tokens are null too),\n`unsupported-language`, `parse-error` (with the line, never the text; also a\n`SIZE_PARSE_ERROR` warning) or `too-large` (over 8 MiB; it\'s still counted).\n\n**For a folder**: `{ kind: "folder", path, tokenMethod, totals, tree, largest,\nskipped, verified }`. It lists files the way `deps scan` does, skipping what\n`.gitignore` ignores. `totals` and every `tree` node hold `files`, `bytes`, `lines`,\n`tokens` and `binaryFiles`; binary files count in files and bytes only. Folders are\nsorted largest first. `largest` names the biggest files with their language.\n`skipped` lists what wasn\'t counted, with the reason: `unreadable` (with a\n`SIZE_FILES_SKIPPED` warning), `not-a-file` or `nested-repository`.\n\n**What it checks**, in `data.verified`:\n\n- `outline.start`: each symbol\'s start line, re-read from the input, names it.\n- `outline.range` and `outline.nesting`: each range is inside the file and in\n  order, and a member sits inside its container.\n- `outline.keys`: JSON and YAML keys match the parser\'s.\n- `counts.reread`: the outline\'s full read gives the same bytes and lines.\n- `totals.sum` and `tree.sum`: the totals equal the files added up, and each\n  folder equals its own files plus its subfolders.\n- `input.complete`: every file was read to its size on disk.\n\nA failed check sets `verified.passed` to false and warns `SIZE_OUTLINE_MISMATCH`,\n`SIZE_TOTALS_MISMATCH` or `SIZE_COUNTS_MISMATCH`.\n\n### Time: `toil util time`\n\nDate and time arithmetic on the time zone data Node ships (IANA, through `Intl`);\ntoil bundles no zone database of its own, and nothing reads the network. Each\ncommand checks its own answer a second way and reports the checks in\n`data.verified` (`{ passed, checks }`), with anything it couldn\'t check or had to\napproximate in `meta.warnings` as `UNVERIFIED` or `APPROXIMATED`.\n\nTimes are ISO 8601: a date (`2026-03-08`), a wall clock (`2026-03-08T02:30`), or an\ninstant with `Z` or an offset (`2026-03-08T07:30:00Z`, `2026-03-08T02:30:00-05:00`).\n`@1760000000` is epoch seconds, and `now` is the current time, read once per call.\nFields out of range (`2026-02-29`, `24:00`, a leap second) are `INVALID_INPUT`,\nnever rolled over. Digits below a millisecond are dropped with an `APPROXIMATED`\nwarning. Zones are IANA names (`America/New_York`); an unknown one is\n`INVALID_INPUT`.\n\n**DST.** A wall clock a zone skipped (spring forward) or showed twice (fall back) is\nalways reported, in `data` as a `dst` object and in `meta.warnings` as\n`TIME_DST_GAP` or `TIME_DST_OVERLAP`. A gap is read as the time the clocks showed\nafter the jump (02:30 becomes 03:30) and an overlap as the earlier of the two. Give\nthe time an offset to choose otherwise.\n\n#### `toil util time convert`\n\n```bash\ntoil util time convert 2026-03-08T02:30 --zone America/New_York --to UTC --to Europe/London\ntoil util time convert now --to Asia/Kolkata\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `<time>` | The time to convert |\n| `--zone <zone>` | The zone of a time written without an offset. Required for one; refused for a time that has an offset |\n| `--to <zone>` | A zone to convert to (repeatable; default `UTC`) |\n\nOutput: `{ input, instant, epochMs, source: { kind, zone, offset, dst? }, results:\n[{ zone, local, offset, offsetSeconds, dst? }], verified }`. `local` is the time in\nthat zone with its offset. Checks: each result reads back as the same instant\n(`convert.roundtrip`), the zone shows that wall clock then (`convert.zone`), and a\nwall-clock input is what its zone shows at the instant found (`convert.source`). A\nfailure warns `TIME_ROUNDTRIP_MISMATCH`.\n\n#### `toil util time duration`\n\n```bash\ntoil util time duration P1DT2H30M\ntoil util time duration --seconds 93784.5\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `<duration>` | An ISO 8601 duration to read: `PT1H30M`, `P1Y2M10DT2H`, `PT0.5S`, `-PT15M`. Only the last part may have a fraction |\n| `--seconds <seconds>` | Instead, a number of seconds to write as a duration |\n\nOutput: `{ input, iso, negative, parts: { years, months, weeks, days, hours,\nminutes, seconds }, totalSeconds, text, verified }`. `iso` is the canonical text.\nSeconds are written in hours, minutes and seconds only (`PT26H3M4.5S`), since a day\nisn\'t always 24 hours. Years and months have no fixed length, so `totalSeconds` is\n`null` with an `UNVERIFIED` warning; days and weeks count as 24 hours and 7 days,\nwith an `APPROXIMATED` warning. Check: the canonical text reads back as the same\nparts (`duration.roundtrip`, warning `DURATION_ROUNDTRIP_MISMATCH`).\n\n#### `toil util time business-days add` and `diff`\n\n```bash\ntoil util time business-days add 2026-12-23 3 --holidays holidays-2026.txt\ntoil util time business-days add 2026-12-28 -1\ntoil util time business-days diff 2026-12-24T15:00 2026-12-29T10:00 --zone America/Chicago --holiday 2026-12-25\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `<start>` | The start time or date |\n| `<days>` | `add`: business days to add; negative subtracts |\n| `<end>` | `diff`: the end time or date |\n| `--zone <zone>` | The zone whose calendar days count, and the zone of a time without an offset (default `UTC`) |\n| `--holidays <file>` | A file in the workspace: one `YYYY-MM-DD` per line, optionally followed by a name; `#` lines are comments. Any other line is `INVALID_INPUT` naming it |\n| `--holiday <date>` | A holiday as `YYYY-MM-DD` (repeatable) |\n\nBusiness days are Monday to Friday, less the holidays given. No country\'s holidays\nare built in: list the dates the office is actually shut (the observed Friday, not\nthe Saturday it stands in for).\n\n`add` counts as a spreadsheet\'s `WORKDAY` does: the start never counts, each step\nlands on the next business day, and `0` returns the start unchanged. A time of day\nis kept, and a result in a DST gap or overlap is warned about. Output: `{ start,\ndays, zone, result, weekday, skipped: { weekendDays, holidays }, holidaysListed,\ndst?, verified }`. Checks: the business days between start and result, counted\nagain day by day, number `days` (`business.count`); the result is a business day\n(`business.landing`); and it\'s on the right side of the start\n(`business.direction`). A failure warns `BUSINESS_DAYS_MISMATCH`.\n\n`diff` measures the time between two times that falls on business days in the\nzone. A date means midnight. Output: `{ start, end, zone, negative, businessDays,\nhours, duration, totalBusinessSeconds, elapsedSeconds, holidays, verified }`:\n`businessDays` is whole 24-hour days of business time, `hours` what\'s left over,\nand `duration` the same, exactly (`PT43H`). DST days count as the 23 or 25 hours\nthey are. Checks: business time plus the rest adds up to the elapsed time\n(`business.partition`), and the days and hours make the business time\n(`business.total`), warning `BUSINESS_TIME_MISMATCH`.\n\n#### `toil util time cron`\n\n```bash\ntoil util time cron "*/15 9-17 * * 1-5" --zone Europe/London --count 10\ntoil util time cron "0 0 12 ? * MON#2" --dialect quartz\ntoil util time cron "H H(0-7) * * 1-5" --dialect jenkins --job platform/api-build\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `<expression>` | The cron expression, quoted |\n| `--dialect <dialect>` | `standard`, `quartz` or `jenkins` (default: detected: 6 or 7 fields is `quartz`, an `H` is `jenkins`, otherwise `standard`) |\n| `--zone <zone>` | The zone the schedule runs in (default `UTC`) |\n| `--from <time>` | List runs after this time (default `now`) |\n| `--count <n>` | How many run times to list, 1 to 100 (default 5) |\n| `--job <name>` | The Jenkins job\'s full name (`folder/job`), which `H` is hashed from. Required when the expression uses `H` |\n\nThe dialects:\n\n- **standard**: five fields, minute hour day-of-month month day-of-week, as the classic\n  crontab reads them. Names (`JAN`, `MON`), ranges, lists and steps (`*/15`,\n  `1-30/5`, `5/15`); day-of-week 0 to 7, with 0 and 7 both Sunday. Macros `@yearly`,\n  `@annually`, `@monthly`, `@weekly`, `@daily`, `@midnight` and `@hourly`; `@reboot`\n  is refused, since it has no times. When neither day field starts with `*`, a day\n  matching **either** runs. A detected standard expression with both day fields set\n  warns `CRON_DIALECT_ASSUMED`, since Jenkins reads it differently.\n- **quartz**: six or seven fields, second first and an optional year (1970 to 2099)\n  last. Day-of-week is 1 to 7 from Sunday. One of the day fields must be `?`.\n  Day-of-month takes `L`, `L-3`, `15W` (the weekday nearest the 15th, inside the\n  month) and `LW`; day-of-week takes `6L` (the last Friday) and `6#3` (the third\n  Friday). A backwards range wraps (`FRI-MON`, `22-2`).\n- **jenkins**: five fields like standard, plus `H`, `H(0-7)` and `H/15`, placed as\n  Jenkins places them from the job\'s full name. An unbounded `H` in day-of-month\n  stays within 1 to 28. Both day fields must match. The macros use `H` (`@daily` is\n  `H H * * *`, `@midnight` is `H H(0-2) * * *`), so pass `--dialect jenkins` for a\n  Jenkins macro: a bare macro is detected as standard.\n\nOutput: `{ expression, dialect, dialectSource, zone, from, explanation, fields,\nruns: [{ instant, local, offset, dst? }], skipped, skippedTotal, verified }`. `fields` holds what\neach field expanded to, with day-of-week 0 for Sunday in every dialect.\n\nDST: a run time the zone skipped isn\'t listed as a run; it\'s in `skipped`, with a\n`CRON_DST_GAP` warning giving the total. `skipped` lists the first 100 and\n`skippedTotal` counts them all. The walk stops after 5,000 skipped run times (more\nthan one every-second gap hour), warning `CRON_SEARCH_STOPPED` with the last one\nreached, so a schedule that only lands in gaps (`* * 2 ? 3 1#2` in New York) answers\nat once; pass a later `--from` to look further. A run time that happened twice is listed once, at the first,\nwith a `dst` object and a `CRON_DST_OVERLAP` warning. Schedulers differ on both, so\ncheck yours. Fewer runs than `--count` in the next 100 years (or in Quartz\'s listed\nyears) warns `CRON_FEW_RUNS`; `0 0 30 2 *` never runs.\n\nChecks: each run, read back as the wall clock its zone shows then, matches every\nfield again (`cron.rematch`); the runs come after `--from` and in order\n(`cron.order`); `local` is the same instant (`cron.local`); and each skipped time\nreally is in a gap (`cron.gap`). A failure warns `CRON_RUN_MISMATCH`. The\nexplanation\'s wording isn\'t checked, and says so (`UNVERIFIED`): it\'s built from the\nsame fields the run times come from, and the run times are what\'s checked.\n\n### `toil util md`\n\nConverts a document between Markdown and the rich-text formats the Atlassian\nareas send: Jira wiki markup (Jira Data Center), Atlassian Document Format\n(Jira Cloud, Confluence Cloud) and Confluence storage format (Confluence Data\nCenter). One side is always Markdown. Every result is checked by converting it\nback, so you\'re told exactly what didn\'t survive.\n\n```bash\ntoil util md description.md --to wiki\ntoil util md page.md --to storage\ntoil util md description.md --to adf --select output\ntoil util md PROJ-142.wiki --from wiki\ntoil util md description.adf.json --from adf\n```\n\nADF input is the document itself, `{ "type": "doc", "version": 1, "content": [...] }`:\nan issue\'s `fields.description` or a comment\'s `body`, not the issue around it.\n\n| Argument / flag | Meaning |\n|-----------------|---------|\n| `[file]` | A file inside the workspace. `-`, or no file and no `--text`, reads stdin |\n| `--text <text>` | The document itself, instead of a file |\n| `--to <format>` | `wiki`, `adf` or `storage`, to convert Markdown into it |\n| `--from <format>` | `wiki`, `adf` or `storage`, to convert it into Markdown |\n\nOver MCP the tool is `util_md`, with `file` or `text` plus `from` or `to`.\n\nOutput:\n\n```json\n{\n  "from": "md",\n  "to": "wiki",\n  "output": "h2. Steps\\n\\n# Open the login page\\n...",\n  "lossless": false,\n  "losses": [{ "construct": "task list", "at": "line 12", "detail": "Jira wiki markup has no task lists; each task is written as [ ] or [x] text" }],\n  "roundTrip": { "blocks": 9, "differences": [] },\n  "verified": { "passed": true, "checks": [{ "check": "roundTrip.blocks", "status": "passed", "checked": 9, "failed": 0 }] }\n}\n```\n\n- **`output`** is the converted document: an ADF document object for `adf`,\n  text for the others. Markdown output is in one canonical spelling (`-` bullets,\n  `*emphasis*`, `**strong**`, fenced code, one line per paragraph).\n- **`losses`** lists every construct that has no equivalent in the target, with\n  its position: `line N` in Markdown, wiki markup and storage format, a JSON\n  pointer (`/content/6/content/2`) in ADF. Each kind is also an `MD_LOSSY`\n  warning. Words are kept wherever there are words to keep: a panel becomes a\n  quote, a mention becomes `@name` text, a merged cell is unmerged with the cells\n  it covered left empty.\n- **`roundTrip`**: the output is read back and compared with the input, block by\n  block, as canonical Markdown. `differences` shows each block that changed, and\n  whether a loss explains it. A change no loss explains fails the\n  `roundTrip.blocks` check and warns `MD_ROUNDTRIP_MISMATCH`: that\'s a bug in the\n  converter, so check the output before you send it.\n- **`lossless`** is true only when nothing was lost and every block came back the same.\n- **ADF output is validated against the ADF JSON schema** (Atlassian\'s\n  `@atlaskit/adf-schema`, bundled) before it\'s returned, and storage output is\n  read back as XML. Output that fails either is never returned; the command fails\n  instead. ADF input the schema refuses is converted as far as it reads, with an\n  `ADF_INPUT_INVALID` warning.\n\nWhat Markdown means here: CommonMark plus GFM tables, task lists, strikethrough\nand bare-URL links. Raw HTML (other than `<br>`), link reference definitions and\nfootnotes aren\'t read; they\'re kept as text and reported as losses.\n\nKnown losses, by format:\n\n- **Wiki markup:** no task lists (written as `[ ]` / `[x]` text), no table\n  alignment, no link or image titles, lists always start at 1, and a list item is\n  one line, so a code block or second paragraph in one is joined with line breaks.\n  Underline, colour, sub/superscript, citations, panels, mentions, attachments and\n  other macros don\'t come back into Markdown. Text such as `(y)` that Jira shows as\n  an emoticon, and a URL written as text, which Jira links, are reported too.\n- **ADF:** a quote can\'t hold a heading, table, task list or another quote, and a\n  list item can\'t hold a heading, quote or table, so those are brought down and\n  reported. Inline images become links; explicit left alignment is the default.\n  Panels, expands, mentions, emoji, dates, statuses, smart links, decisions,\n  attachments, layouts, extensions and merged cells don\'t come back.\n- **Storage format:** a list mixing tasks and ordinary items becomes a task list.\n  Info, note, tip and warning panels, expand, layouts, page and user links,\n  attachments, emoticons, colour, merged cells and other macros don\'t come back.\n  Only XML\'s entities and HTML\'s common named ones (`&nbsp;`, `&mdash;` and so on)\n  are read; any other is refused with `INVALID_INPUT`, as is XML that isn\'t\n  well-formed, with its line and column.\n\nTo send the result, pass it to the area\'s own command: wiki markup as\n`toil jira create-issue --description`, storage format as\n`toil confluence create-page --body` (or `confluence-cloud`), and ADF as\n`fields.description` in a `toil jira-cloud create-issue --input-file`. How each product\'s own renderer displays it hasn\'t\nbeen checked against a live instance.\n### `toil util openapi`: read an API description before calling it\n\nThree commands that read an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, in JSON\nor YAML, so you can call an endpoint right the first time, usually through\n`toil <area> api`. The document is a file in the workspace, `-` for stdin, or\n`--text` (`file` or `text` over MCP). Nothing is fetched: the official schemas\neach version is checked against are bundled.\n\n```bash\ntoil util openapi list jira-platform.json --tag Issues\ntoil util openapi list github.yaml --path pulls\ntoil util openapi show jira-platform.json --operation createIssue\ntoil util openapi show bitbucket.json --method POST --path /repositories/{workspace}/{repo_slug}/pullrequests --depth 1\ntoil util openapi example jira-platform.json --operation createIssue\ntoil util openapi example github.yaml --operation pulls/get --response 200\n```\n\n| Flag | Meaning |\n|------|---------|\n| `[file]` | The document: a file in the workspace, or `-` (or nothing) for stdin |\n| `--text <text>` | The document itself, instead of a file |\n| `--tag <tag>` | `list`: only operations with this tag (any case) |\n| `--path <text>` | `list`: only operations whose path contains this text. `show` and `example`: the path exactly as the document writes it, with `--method` |\n| `--operation <operationId>` | `show`, `example`: the operation, by its operationId |\n| `--method <method>` | `show`, `example`: the method, with `--path`, for an operation with no operationId |\n| `--depth <n>` | `show`: how many `$ref`s deep to expand schemas (default 3, at most 20) |\n| `--response <status>` | `example`: build that response\'s body (`200`, `201`, `default`) instead of the request body |\n| `--content-type <type>` | `example`: which of the body\'s content types (default: the first JSON one) |\n\nIn Git Bash on Windows, leave the leading `/` off `--path`\n(`--path repos/{owner}/{repo}/pulls`): the shell rewrites `/repos/...` into a file\npath. Both forms match.\n\n- **`list`** returns `{ document, count, operations: [{ method, path, operationId,\n  summary, tags, deprecated }] }`.\n- **`show`** returns `{ document, operation, parameters, requestBody, responses,\n  call, expansion }`. Each parameter has `name`, `in` (path, query, header, cookie),\n  `required` and `schema`. The request body and each response have `contentTypes`,\n  the `contentType` the `schema` is for (the first JSON one), and `schemaPointer`.\n  Swagger 2.0\'s `body` and `formData` parameters come out as the request body, so\n  both versions have one shape.\n- **Expanded schemas:** `$ref`s are replaced by what they point at, `--depth` refs\n  deep, and an expanded one says where it came from in `x-toil-ref`. One left in\n  place says why in `x-toil-stop`: `depth`, `circular` (it loops back), `external`\n  (another file or a URL) or `broken`. `expansion.stopped` counts each. Expansion\n  builds at most 250,000 objects and arrays per call (`expansion.nodes`) and copies\n  at most 4,000,000 characters of the document\'s text (`expansion.chars`), since refs\n  can fan out and each copies its whole target (three properties each referring to\n  the next, twenty deep, is 3^20 copies). Past that, the rest stay in place as\n  `depth`, `expansion.truncated` is true and an `OPENAPI_EXPANSION_TRUNCATED` warning\n  says so. `example` generates at most 250,000 values, no more array items than\n  that leaves room for, strings of at most 10,000 characters each, and at most 1,000,000\n  characters in all, a document\'s own `const` and `enum` values included (a\n  `minLength` or a pattern\'s `{n}` past that is cut; any value past the total is null). A cut-short example fails `example.valid` with\n  `OPENAPI_EXAMPLE_TRUNCATED` and isn\'t validated. In 3.0 and\n  Swagger 2.0 a `$ref`\'s sibling keys are dropped, as the spec says. From 3.1\n  they\'re kept, over the target\'s keys.\n- **`example`** returns `{ document, operation, body, status, contentType,\n  schemaPointer, example }`. The example is the smallest body the schema accepts:\n  required properties only (read-only ones left out of a request, write-only ones\n  out of a response), the first enum value, the lowest number in range, a string in\n  the right format with placeholder values (`you@example.com`, `api.imagile.dev`),\n  the first branch of a `oneOf`. It\'s minimal, not complete: Jira\'s `createIssue`\n  gives `{}`, because its schema requires nothing. Use `show` to see the fields you\n  want to add.\n\n#### Calling the endpoint with `<area> api`\n\n`show`\'s `call` is the operation as `<area> api` takes it: `method`, `path` (the\nserver\'s base path plus the operation\'s, with `{name}` for each of\n`pathParameters`), `query` (each required query parameter as `name=<name>`),\n`bodyFile`, `contentType` (set only when it isn\'t `application/json`), whether it\n`writes`, and the CLI line. Over MCP the same fields are `<area>_api`\'s inputs.\n\n```bash\ntoil util openapi show jira-platform.json --operation editIssue --select call\n# { "method": "PUT", "path": "/rest/api/2/issue/{issueIdOrKey}", "bodyFile": "body.json", "writes": true,\n#   "cli": "toil <area> api PUT /rest/api/2/issue/{issueIdOrKey} --body-file body.json --allow-write", ... }\ntoil util openapi example jira-platform.json --operation editIssue --select example\ntoil jira api PUT /rest/api/2/issue/ABC-123 --body-file body.json --allow-write\n```\n\nSave the example as `body.json`, fill in the placeholders, and put the area the\ndocument describes for `<area>`. The path is relative to the connection\'s\n`baseUrl`: when `baseUrl` already ends with the server\'s base path (`/2.0` for\nBitbucket Cloud\'s), leave that part off. `call.unsupported` lists required header and\ncookie parameters, which `<area> api` doesn\'t send. `call` is null for a method it\ndoesn\'t send (OPTIONS, TRACE, QUERY).\n\n#### What every command checks\n\nEach one reads the whole document and checks it before answering, and\n`data.verified` says what it checked:\n\n| Check | What it is | Warning when it fails |\n|-------|------------|-----------------------|\n| `document.schema` | The document against the official schema for its version (Swagger 2.0, OpenAPI 3.0, 3.1 or 3.2), bundled. Every problem is in `document.problems` by JSON pointer (`/paths/~1pets/get/responses`), at most 50, with `problemCount` | `OPENAPI_INVALID` |\n| `refs.resolve` | Every local `$ref` points at something. Broken ones are in `document.refs.broken` as `{ at, ref }`, `at` being where the `$ref` sits | `OPENAPI_REF_BROKEN` |\n| `operations.uniqueIds` | No operationId is used twice | `OPENAPI_DUPLICATE_OPERATION_ID` |\n| `operations.pathParameters` | Every `{name}` in a path is declared as a path parameter | `OPENAPI_PATH_PARAMETER_MISSING` |\n| `example.valid` | `example` only: the generated body validates against its own schema, `$ref`s and all, before it\'s returned | `OPENAPI_EXAMPLE_INVALID` |\n| `input.complete` | The whole file was read | `INPUT_INCOMPLETE` |\n\nAn invalid document is still listed and shown, since real vendor documents aren\'t\nalways valid, but `verified.passed` is false. `document.refs.circular` lists each\nloop of references (a recursive schema), which is legal; nothing follows one\nforever. What can\'t be checked is reported, never assumed:\n\n- Validation, and running the document\'s own `pattern`s, each get 2 seconds and 256 MB.\n  A schema that branches too much to finish (a diamond of `anyOf`s), a pattern that\n  backtracks without end (`^(a+)+$`), or a document too deep for the stack leaves\n  `document.schema`, `example.valid` or `example.patterns` unchecked, with which limit\n  it hit (`UNVERIFIED`). So does a Node run with `--permission` and no `--allow-worker`.\n  A document nested more than 256 levels is refused (`INVALID_INPUT`).\n- A `$ref` to another file or a URL isn\'t followed (`refs.external`, `UNVERIFIED`),\n  and an example whose schema reaches one isn\'t validated.\n- The 3.1 and 3.2 schemas leave Schema Objects to the JSON Schema 2020-12 dialect,\n  which isn\'t checked (`document.schemaObjects`, `UNVERIFIED`). Swagger 2.0 and 3.0\n  documents are checked all the way down.\n- Some schemas have no value that satisfies them (two `allOf` branches that\n  disagree, a property required and forbidden at once). The example is returned\n  anyway, with `example.valid` failed at the pointer that doesn\'t fit, so you fill\n  that value in by hand.\n\nA document that isn\'t an object, has no `openapi` or `swagger` field, declares a\nversion these commands don\'t read (OpenAPI 4, Swagger 1.2), or isn\'t valid JSON or\nYAML fails with `INVALID_INPUT`. So does an operation that isn\'t there (the fix names\nclose operationIds), `example` on an operation with no request body (pass\n`--response`), and a status or content type the operation doesn\'t list.\n\n### `toil util c4 render`, `toil util c4 mermaid`, `toil util c4 d2`\n\nOne view of a C4 architecture model: `render` draws it as SVG, `mermaid` writes it\nas Mermaid\'s C4 syntax (GitHub draws a ```` ```mermaid ```` block inline), and `d2`\nwrites it as D2 text. `render` lays the diagram out itself, with a layered layout\nmade for C4 views: people on the top row, the scope\'s children together inside\ntheir dashed boundary, and each relationship\'s label placed clear of the boxes.\nNothing is installed or run, and nothing goes over the network.\n\n```bash\ntoil util c4 render docs/c4/bookshop.c4.json --view containers --out containers.svg\ntoil util c4 mermaid docs/c4/bookshop.c4.json --view context\ncat model.json | toil util c4 d2 - --view components\n```\n\n| Flag | Meaning |\n|------|---------|\n| `[file]` | A JSON file holding the model, inside the workspace, or `-` (or nothing) for stdin |\n| `--text <text>` | The model itself, as a JSON string, instead of a file. Over MCP, `file` or `text` |\n| `--view <key>` | The view to draw. It can be left out when the model has only one |\n| `--out <file>` | `render` only: write the SVG to this new file inside the workspace instead of returning it. toil never overwrites a file |\n\nThe model:\n\n```json\n{\n  "title": "Online bookshop",\n  "people": [{ "id": "customer", "name": "Customer", "description": "Buys books" }],\n  "systems": [{\n    "id": "bookshop", "name": "Online Bookshop", "description": "Sells books at bookshop.imagile.dev",\n    "containers": [\n      { "id": "web", "name": "Web shop", "technology": "React",\n        "components": [{ "id": "cart", "name": "Cart", "technology": "TypeScript" }] },\n      { "id": "db", "name": "Database", "technology": "PostgreSQL", "database": true }\n    ]\n  }, { "id": "payments", "name": "Payment provider", "external": true }],\n  "relationships": [{ "source": "customer", "destination": "web", "description": "Buys books using", "technology": "HTTPS" }],\n  "views": [\n    { "key": "context", "type": "systemContext", "scope": "bookshop" },\n    { "key": "containers", "type": "container", "scope": "bookshop" },\n    { "key": "components", "type": "component", "scope": "web", "include": ["*", "payments"] }\n  ]\n}\n```\n\n- **Elements** are people and software systems at the top, containers inside a\n  system, and components inside a container. Each has an `id`, a `name`, and\n  optionally a `description`, a `technology` (containers and components) and\n  `external: true`, which draws it grey. A container with `database: true` is drawn\n  as a cylinder. Ids start with a letter and hold only letters, digits and\n  underscores, and are unique across the whole model.\n- **Relationships** join any two elements, at any level: `source`, `destination`,\n  and optionally `description` and `technology`.\n- **Views** have a `key`, a `type` (`systemContext`, `container` or `component`), a\n  `scope` (a system for the first two, a container for `component`), an optional\n  `title`, and an optional `include` list of ids. `"*"` in it stands for the default\n  set, which is also what you get with no `include`: for `systemContext`, the scope\n  and every person and system related to it; for `container`, the scope\'s\n  containers inside a dashed boundary and what they relate to; for `component`, the\n  scope\'s components and what they relate to.\n- A relationship is drawn between the nearest elements a view shows, so one between\n  two containers shows up between their systems in a system context view. Model\n  relationships at the most detailed level you know. One that ends on a view\'s own\n  boundary from outside can\'t be drawn there; a `C4_RELATIONSHIP_NOT_DRAWN` warning\n  in `meta.warnings` names it, unless that outside element already has a drawn\n  relationship into the boundary.\n\nOutput: `{ view, type, title, elements, relationships, verified, format, svg }` for\n`render`, where `elements` lists the ids drawn and `relationships` counts the arrows.\nWith `--out`, `{ file, bytes }` take the place of `svg`, and `file` is the absolute\npath written. `mermaid` and `d2` return `text` in place of `svg`.\n\n`render` lays the view out down the page: arrows leave a box from its bottom, run\nstraight through any row they pass, and enter their target from the top, so they\nbend only in the gaps between rows. It checks its own drawing before returning it,\nand `data.verified` lists each check:\n\n| Check | What held |\n|-------|-----------|\n| `input.complete` | The whole file was read (unchecked for stdin and `--text`) |\n| `boxes.apart` | No two boxes overlap |\n| `children.inBoundary` | Every child is inside its dashed boundary, and nothing else is drawn over it (views with a boundary only) |\n| `edges.touchBoxes` | Every arrow starts on its source\'s border and ends on its target\'s |\n| `edges.clearOfBoxes` | No arrow passes behind a box it doesn\'t join |\n| `labels.clearOfBoxes` | No label covers a box |\n| `svg.wellFormed` | The SVG parses as XML and holds no character XML forbids. A control character in the model\'s text (other than tab and line breaks), U+FFFE, U+FFFF or a lone surrogate is drawn as U+FFFD |\n| `text.width` | Always `approximated`: text is measured with Helvetica\'s widths, which Arial shares |\n\nEach check that fails is one `C4_LAYOUT_CHECK` warning in `meta.warnings` naming\nthe first boxes or arrow involved and how many failed, and the first five are in\n`verified`, so a bad drawing is never returned without saying so. `mermaid` and\n`d2` check their own text instead: every element declared once (`text.elements`)\nand one line per arrow (`text.relationships`), failing as `C4_TEXT_CHECK`. Whether\nthe text draws is up to whatever renders it, and is reported as unchecked\n(`text.renders`, `UNVERIFIED`).\n\nLimits, each an `INVALID_INPUT` past it, before any work grows with it:\n\n- The model\'s JSON is at most 4 MiB.\n- A model holds at most 1,000 elements (people, systems, containers and components\n  together), 2,000 relationships and 100 views.\n- `render` draws at most 100 boxes and 250 arrows in one view. Draw fewer with the\n  view\'s `include` list, or split the view; `mermaid` and `d2` write a view of any\n  size the model allows.\n\nThe layout runs in a worker thread with a 2 s deadline, past which it\'s stopped\nwith `TIMEOUT`; at the limits above it takes well under half a second. Past about\n25 boxes, arrows cross more often and the drawing grows tall.\n\nA model with mistakes fails with `INVALID_INPUT` before anything is drawn. The\nmessage names each problem by its path in the model, such as\n`relationships[2].destination: no element has the id "warehose"`, and\n`error.details` lists them all. An unknown `--view` lists the keys the model has.\n\nA sample model, an online bookshop with all three views, is\n`docs/c4/bookshop.c4.json` in toil\'s source, and `docs/c4/busy.c4.json` is a busier\nview of 25 boxes.\n\n### `toil util owi map`\n\nMaps the output of toil\'s own work item commands to Open Work Items (OWI 0.1),\nthe model in `docs/owi/spec.md` in toil\'s source, with its JSON Schema beside it\nin `docs/owi/schema.json`. It composes: each tracker is read by its own command,\nand this reads what they printed, whether piped, saved to a file, or appended one\nenvelope a line.\n\n```bash\ntoil jira search --jql "sprint in openSprints()" --fields "summary,status,issuetype,Story Points,Sprint" | toil util owi map\ntoil util owi map sprint-42.jsonl\ntoil util owi map changelog.json --key PAY-104\ntoil util owi map batch.json --field estimate=Custom.TeamPoints --field estimateUnit=points\ntoil util owi map issue.json --command "github get-issue"\n```\n\n| Argument / flag | Meaning |\n|-----------------|---------|\n| `[file]` | A file inside the workspace. `-`, or no file and no `--text`, reads stdin |\n| `--text <text>` | The input itself, instead of a file |\n| `--command <name>` | The command whose data the input is, when it holds `data` without its envelope (`"jira search"`) |\n| `--key <key>` | The item a history belongs to, when its output doesn\'t say: `PAY-104`, or `imagile/payments-web#44` (a bare `44` takes the envelope\'s owner and repo) |\n| `--field <name=field>` | Point an OWI field at a field of your own, repeatable: `estimate`, `estimateUnit` (`points`, `hours` or `days`), `priority`, `type`, `team`, `dueDate` or `iteration` |\n\nOver MCP the tool is `util_owi_map`, with `file` or `text`, and `command`, `key`\nand `field` (a list of `name=field`).\n\n**What it reads**, by the command each envelope\'s `meta.command` names:\n\n- **Jira and Jira Cloud:** `search` and `get-issue` (one key or several) for items,\n  `get-changelog` for history.\n- **Azure DevOps:** `work get` and `work get-batch` for items, `work revisions`\n  for history, and `work list-iterations` for iteration dates. `work search`\n  returns ids only and is skipped: map `work get-batch` for those ids instead.\n- **GitHub:** `list-issues`, `search-issues` and `get-issue` for issues,\n  `projects list-items` for the board\'s status, estimate and iteration, and\n  `issue-events` for history. Pull requests are left out with a warning.\n\nPass one envelope, a JSON array of them, or one a line (`>>` appends each command\'s\noutput to one file). A Jira changelog and a GitHub timeline don\'t name their issue,\nso give `--key`, or wrap each as `{ "key": "PAY-104", "history": <envelope> }` in a\nfile holding several. Output from any other command is refused with\n`INVALID_INPUT` naming the ones that map.\n\nOutput:\n\n```json\n{\n  "owi": "0.1",\n  "count": 1,\n  "items": [{\n    "owi": "0.1",\n    "id": "corp-jira:PAY-101",\n    "source": { "area": "jira", "connection": "corp-jira", "key": "PAY-101", "command": "jira get-issue" },\n    "url": "https://jira.imagile.dev/browse/PAY-101",\n    "type": "STORY", "typeName": "Story",\n    "title": "Tokenise card numbers at the edge",\n    "status": "In Progress", "statusCategory": "IN_PROGRESS",\n    "estimate": { "value": 5, "unit": "points", "field": "Story Points" },\n    "iteration": { "id": "42", "name": "Sprint 42", "path": null, "start": "2026-10-05T09:00:00.000Z", "end": "2026-10-16T17:00:00.000Z", "state": "current" },\n    "parent": "corp-jira:PAY-100",\n    "links": [{ "type": "blocks", "direction": "outward", "target": "corp-jira:PAY-102", "name": "blocks" }],\n    "history": { "transitions": [{ "from": "To Do", "to": "In Progress", "fromCategory": "TODO", "toCategory": "IN_PROGRESS", "at": "2026-10-06T09:15:00.000Z", "by": { "id": "jsmith", "name": "J. Smith", "email": null } }], "iterations": [] },\n    "unmapped": [],\n    "native": { "jira get-issue": { "key": "PAY-101", "fields": { "...": "..." } } }\n  }],\n  "histories": [],\n  "unmapped": {},\n  "skipped": [],\n  "verified": { "passed": true, "checks": [{ "check": "items.schema", "status": "passed", "checked": 1, "failed": 0 }] }\n}\n```\n\n(Each item has every field in the spec; this one is shortened.)\n\n- **`id`** is `<connection>:<native key>`, so items from two Jira sites never\n  collide. Links, parents and children use the same ids.\n- **`statusCategory`** is `TODO`, `IN_PROGRESS`, `DONE` or `UNKNOWN`: from Jira\'s\n  status category, Azure DevOps\' default states, and a GitHub board\'s Status\n  options. A status with no known category is `UNKNOWN`, with an\n  `OWI_UNKNOWN_STATE` warning naming it.\n- **`estimate`** comes from each tracker\'s default field: Story Points or Story\n  point estimate in Jira (by the name the connection registers, never a fixed\n  `customfield_` id), then the original estimate in hours; StoryPoints, Effort or\n  Size in Azure DevOps, then OriginalEstimate; a board number field named\n  Estimate, Size or Story Points in GitHub. `field` says which. Teams with a field\n  of their own point `estimate` at it with `--field`, the same keys a dossier\'s\n  `fields` uses.\n- **`unmapped`**, on each item, lists every field the record couldn\'t fill and\n  why: a field `jira search` wasn\'t asked for, an iteration whose dates need\n  `ado work list-iterations`, an issue with no board in the input. `data.unmapped`\n  counts them by field, and an `OWI_UNMAPPED` warning sums them up. Nothing is\n  guessed.\n- **`histories`** holds histories whose item wasn\'t in the input, by id, so they\n  can be joined to items read earlier. **`skipped`** lists each document that\n  wasn\'t mapped (a failed call, `work search`), each also an `OWI_SKIPPED` warning.\n- **`native`** keeps every source record as it came, keyed by command.\n- **`verified`:** every item, and every history in `histories`, is validated\n  against `docs/owi/schema.json` (`items.schema`, `histories.schema`) before it is\n  returned; a failure is an `OWI_SCHEMA_INVALID` warning naming the item and the\n  JSON pointer. The validation runs in a worker with a 2 s deadline per item, and\n  one that can\'t finish is unchecked, never passed. `input.complete` checks the\n  whole file was read.\n\nAt most 5,000 items are mapped in one call; past that the rest are left out with\nan `OWI_ITEMS_CAPPED` warning, so map them in another call. Input is at most\n64 MiB.\n'
+  "util.md": '---\narea: util\ndescription: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, converting Markdown to and from Jira and Confluence formats, reading OpenAPI documents, drawing C4 architecture diagrams from a JSON model, and mapping Jira, Azure DevOps and GitHub work items to Open Work Items\n---\n\n# Local utilities (`util`)\n\nCommands that work on what\'s on this machine: a token or version you paste, a file or\nfolder in the workspace (a certificate, a log or an API description), the manifests and lockfiles there, a\nreport a build left behind, a C4 model described in JSON, text you\'re about to commit or post, or a time and a time zone. They aren\'t\nintegrations. There is no server, no connection to add, no `TOIL_UTIL_*`\nvariable, no credential and no `--connection` flag, and none of them sends\nanything over the network. None changes anything: the only file one writes is a\nnew one you name with `--out`, inside the workspace, and it never replaces a\nfile. Verification level: `unit`.\n\n`jwt` and `deps` also have a short path, an alias that does the same thing with\nthe same flags and output:\n\n| Command | Alias | MCP tool |\n|---------|-------|----------|\n| `toil util jwt decode` | `toil jwt decode` | `util_jwt_decode` |\n| `toil util deps scan` | `toil deps scan` | `util_deps_scan` |\n| `toil util deps diff` | `toil deps diff` | `util_deps_diff` |\n| `toil util secrets scan` | none | `util_secrets_scan` |\n| `toil util encode` | none | `util_encode` |\n| `toil util cert` | none | `util_cert` |\n| `toil util report` | none | `util_report` |\n| `toil util log` | none | `util_log` |\n| `toil util size` | none | `util_size` |\n| `toil util time convert` | none | `util_time_convert` |\n| `toil util time duration` | none | `util_time_duration` |\n| `toil util time business-days add` | none | `util_time_business_days_add` |\n| `toil util time business-days diff` | none | `util_time_business_days_diff` |\n| `toil util time cron` | none | `util_time_cron` |\n| `toil util semver compare` | none | `util_semver_compare` |\n| `toil util semver satisfies` | none | `util_semver_satisfies` |\n| `toil util semver sort` | none | `util_semver_sort` |\n| `toil util semver bump` | none | `util_semver_bump` |\n| `toil util md` | none | `util_md` |\n| `toil util openapi list` | none | `util_openapi_list` |\n| `toil util openapi show` | none | `util_openapi_show` |\n| `toil util openapi example` | none | `util_openapi_example` |\n| `toil util c4 render` | none | `util_c4_render` |\n| `toil util c4 mermaid` | none | `util_c4_mermaid` |\n| `toil util c4 d2` | none | `util_c4_d2` |\n| `toil util owi map` | none | `util_owi_map` |\n\nOver MCP the tools are served without any configuration. `toil mcp --areas util`\nserves just these.\n\n## By job\n\nThe same commands, grouped by what you need them for.\n\n### Reading CI output\n\nWhat a build or a scanner leaves behind, turned into something short enough to read: totals and failures from a report, and the errors that matter from a log thousands of lines long.\n\n- **Summarising a report** (`toil util report`): Turns what CI and scanners write into one JSON summary. JUnit XML (Maven Surefire, Jenkins and Azure DevOps shapes) and TRX become test totals plus each failure with its suite, name, file, line, message and the first lines of its stack. SARIF 2.1.0 becomes findings with rule, level, file and line. lcov and Cobertura become per-file line and branch percentages and the lowest-covered files.\n- **Triaging a log** (`toil util log`): Reads a CI console, a Maven, npm or dotnet build, or a test run, and returns what\'s worth reading: the error and warning lines grouped by signature, with numbers, ids, timestamps and hex replaced so the same complaint counts once. Each group has its count, its first and last line, one sample, and the Java, .NET, Node or Python stack trace that belongs to it.\n\n### Writing for the tools\n\nGetting text into the shape an enterprise tool expects before it\'s sent, so a description, a page or a request arrives the way it was meant.\n\n- **Converting Markdown** (`toil util md`): Turns Markdown into Jira wiki markup (Jira Data Center), Atlassian Document Format (Jira Cloud and Confluence Cloud) or Confluence storage format (Confluence Data Center), and any of those back into Markdown.\n- **Reading an OpenAPI document** (`toil util openapi list`, `toil util openapi show`, `toil util openapi example`): Reads an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, so an agent calls an endpoint right the first time: `list` gives every operation, `show` lays one out with each parameter and where it goes, its request and response bodies with `$ref`s expanded, and the exact inputs for `toil <area> api`, and `example` builds the smallest body its schema accepts.\n- **Drawing a C4 architecture diagram** (`toil util c4 render`, `toil util c4 mermaid`, `toil util c4 d2`): Draws one view of a C4 model (a system context, container or component view) from JSON an agent writes: `render` lays it out and returns SVG, people on top and the scope\'s children inside a dashed boundary, checked for overlaps, arrows behind boxes and well-formed XML, and `mermaid` and `d2` write the same view as text for places that draw it themselves, such as a Mermaid block in Markdown on GitHub.\n\n### Reading the trackers as one\n\nWork from Jira, Azure DevOps and GitHub in one shape, so a sprint, a board or a question about the work reads the same whichever tracker holds it.\n\n- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, jira-cloud, ado and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item, and every item is checked against the published schema.\n\n### Safety\n\nChecks to run before something leaves the machine or gets trusted: a secret in a diff, a certificate chain that won\'t validate, a token\'s claims, and the dependencies a repository ships.\n\n- **Scanning for secrets** (`toil util secrets scan`): Looks for credential-shaped strings before you commit, push or post them: tokens, keys, `password=` values, credentials in URLs, private keys and long random strings. It uses the same rules toil\'s audit log redacts with, plus an entropy check, and exits with 1 when it finds anything, so a hook or a pipeline can stop on it.\n- **Decoding certificates** (`toil util cert`): Decodes a certificate or a chain bundle, PEM or DER: subject, issuer, SANs, serial, how many days it has left, its key, its signature algorithm, its basic constraints and key usage, and its fingerprints, so a TLS failure can be explained from the files. It never connects to the host.\n- **Decoding a JWT** (`toil util jwt decode`): Shows a token\'s header and claims, so you can see who it\'s for, what it grants and when it expires.\n- **Inventorying dependencies** (`toil util deps scan`, `toil util deps diff`): `deps scan` lists every package the workspace\'s npm, NuGet and Maven/Gradle manifests and lockfiles declare, with its version, the file it came from, and whether it\'s direct or transitive, production or dev. That inventory is what the vulnerability and licence commands read, one source per command, so you choose which service sees your dependency list. `deps diff` lists what was added, removed, upgraded or downgraded between two git refs.\n\n### Arithmetic models get wrong\n\nWork that looks simple and is easy to get subtly wrong by reasoning alone: time zones and DST, version ordering, encodings and hashes, and how big a file is before reading it. Each one works the answer out, then checks it a second way.\n\n- **Time zones, durations, business days and cron** (`toil util time convert`, `toil util time duration`, `toil util time business-days add`, `toil util time business-days diff`, `toil util time cron`): Date arithmetic on the time zone data Node already ships: convert a time between zones, read or write an ISO 8601 duration, add or count business days, and list a cron schedule\'s next run times.\n- **Comparing versions** (`toil util semver compare`, `toil util semver satisfies`, `toil util semver sort`, `toil util semver bump`): Compare, sort and bump versions, and check them against ranges, in the grammar of the ecosystem they come from: npm (SemVer 2.0.0 and npm\'s ranges, the default), NuGet (up to four parts, interval notation) or Maven (Maven\'s own ordering, where `1.0.0.Final` is `1` and `SNAPSHOT` comes before the release).\n- **Encoding, decoding and hashing** (`toil util encode`): Base64, base64url, hex, URL components and form values, in either direction, and a file\'s SHA-256, SHA-1 or MD5 hash.\n- **Sizing before reading** (`toil util size`): Tells an agent how much a file or folder will cost to read. For a file it gives bytes, lines, an estimated token count, and an outline: functions, classes and methods with their line ranges for TypeScript, JavaScript, Python, C#, Java and Go, headings for Markdown, and top-level keys for JSON and YAML, so the agent reads only the lines it needs. For a folder it gives a tree of totals, largest first, and names the largest files.\n\n## Commands\n\n### `toil util jwt decode`\n\nDecodes a JWT\'s header and claims **without verifying it**. There\'s no key and no\nnetwork call, and nothing here says whether the token is valid, expired or trusted.\n\n```bash\ntoil util jwt decode eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhYmMxMjM0NSJ9.c2ln\necho "$TOKEN" | toil util jwt decode -\n```\n\n| Argument | Meaning |\n|----------|---------|\n| `<token>` | The token, `header.payload.signature`. `-` reads it from stdin, which keeps it out of the process list and your shell history; one trailing line ending is dropped |\n\nOutput: `{ header, payload, signature }`, the header and claims as parsed JSON and\nthe signature segment as the text it is.\n\n- A token that isn\'t three dot-separated parts (an encrypted 5-part JWE, say) fails\n  with `INVALID_INPUT`, `Invalid JWT: expected 3 dot-separated parts`.\n- A header or payload that doesn\'t decode to JSON fails with `Invalid JWT: header is\n  not valid JSON` (or `payload`). A `Bearer ` prefix gives this error too, so strip it.\n- The decoding is lenient, as it has always been. A segment that is JSON but not an\n  object (`null`, a number) comes back as it is. Characters outside base64url are\n  skipped. Invalid UTF-8 shows as `\uFFFD`. Whitespace in a token passed as an argument\n  is kept, so a trailing newline ends up in `signature`.\n\nThe token goes nowhere but the decoder. toil doesn\'t log it, and no error message\nrepeats it.\n\n### `toil util deps scan`\n\nThe dependency inventory of the workspace, from its manifests and lockfiles. It\nreads files only and needs no git. It must be inside a git repository, though, or it\nfails with `Not inside a git repository. deps commands require a git repo root.`\n\n```bash\ntoil util deps scan\ntoil util deps scan --ecosystem npm --include-transitive --include-dev\ntoil util deps scan | toil osv vulns\n```\n\n| Flag | Meaning |\n|------|---------|\n| `--ecosystem <ecosystem>` | `npm`, `nuget`, `maven` or `all` (default). Any other value matches nothing and scans nothing |\n| `--include-transitive` | Include transitive dependencies (left out by default) |\n| `--include-dev` | Include dev and test dependencies (left out by default) |\n\nWhich files it reads:\n\n- **Which files:** every file in the workspace that `git ls-files --cached --others\n  --exclude-standard` would list. That\'s tracked files plus untracked ones `.gitignore`\n  and `.git/info/exclude` don\'t cover. A nested repository isn\'t walked into. Your\n  global git excludes file isn\'t read, so a file only it ignores is scanned.\n- **npm:** `package.json` (not under `node_modules`), with the first of\n  `package-lock.json` (v2 or later), `yarn.lock` (v1) or `pnpm-lock.yaml` beside it.\n  A `package-lock.json` with no packages falls back to `package.json`.\n- **NuGet:** `.csproj`, `.fsproj`, `.vbproj`, `packages.config` and\n  `Directory.Packages.props`, with a `packages.lock.json` in the same folder. Project\n  files that share one lock file count once. A project with no version on a\n  `PackageReference` takes it from the nearest `Directory.Packages.props`, up to 10\n  folders up.\n- **Maven/Gradle:** `pom.xml`, `build.gradle` and `build.gradle.kts`, with a\n  `gradle.lockfile` beside them.\n\nA lockfile wins over its manifest. Packages are de-duplicated on ecosystem, name,\nversion and source file. A manifest that can\'t be read is skipped. One that exists\nbut can\'t be read (a link out of the workspace, say) also gets a\n`DEPS_FILE_SKIPPED` warning in `meta.warnings`. That warning is the only check it\nmakes of its own result: the `deps` commands have no `verified` block, so treat the\nquirks below as unchecked.\n\nOutput:\n\n```json\n{\n  "ecosystems": ["npm", "nuget", "maven"],\n  "manifests": [{ "file": "package.json", "ecosystem": "npm", "lockFile": "package-lock.json" }],\n  "packages": [{ "name": "lodash", "version": "4.17.21", "ecosystem": "npm", "source": "package-lock.json", "type": "direct", "scope": "production" }],\n  "summary": { "totalPackages": 1, "byEcosystem": { "npm": 1 }, "byType": { "direct": 1, "transitive": 0 }, "byScope": { "production": 1, "dev": 0 } }\n}\n```\n\nPaths are relative to the workspace, with forward slashes. Maven names are\n`group:artifact`. When the repository\'s root is above the workspace, only the\nworkspace is scanned: run it from the root, or pass `--workspace <root>`, to scan\neverything.\n\nKnown quirks, which stay until they\'re checked against real repositories:\n\n- In an npm v7+ lockfile, `direct` means hoisted to the top `node_modules`, so most\n  transitive packages count as direct. Workspace folders show up as packages.\n- Yarn 1 headers with several ranges give a garbled name. Yarn 2+ lockfiles give no\n  packages.\n- pnpm peer suffixes stay in the version, and pnpm 9\'s scoped packages are missed.\n- `CentralTransitive` NuGet packages count as direct.\n- `gradle.lockfile` test dependencies are always included.\n- Any `word \'a:b:c\'` string in `build.gradle` reads as a dependency.\n- `pom.xml` plugin dependencies count as the project\'s.\n\nThe output is the inventory the vulnerability and licence commands read from stdin\nor `--from <file>`: `toil osv vulns`, `toil ossindex vulns`, `toil sonatypeiq\nevaluate`, and `toil artifactory outdated` / `license-check`. Over MCP, save it to a\nfile in the workspace and pass that file\'s path as `from`.\n\n### `toil util deps diff`\n\nHow the inventory changed between two git refs. This command runs the git on PATH:\n`git ls-tree` for each ref\'s files and `git show` for each one it reads. Without git\nit fails with `GIT_NOT_FOUND`.\n\n```bash\ntoil util deps diff --from main\ntoil util deps diff --from v1.0.0 --to main --ecosystem npm --include-dev\n```\n\n| Flag | Meaning |\n|------|---------|\n| `--from <ref>` | The base ref: a commit, tag or branch. Required |\n| `--to <ref>` | The target ref (default: the working tree, scanned as `deps scan` does) |\n| `--ecosystem <ecosystem>` | `npm`, `nuget`, `maven` or `all` (default) |\n| `--include-dev` | Include dev and test dependencies |\n\nTransitive dependencies are always included. Output: `{ from, to, changes: [{ name,\necosystem, change, from, to, source }], summary: { added, removed, upgraded,\ndowngraded, unchanged } }`. `change` is `added`, `removed`, `upgraded` or\n`downgraded`. Unchanged packages are counted, not listed. `to` reads `working tree`\nwhen `--to` is left out.\n\nKnown quirks:\n\n- A ref git can\'t read (a typo, or one you haven\'t fetched) gives an empty\n  inventory for that side, so a bad `--from` reports every package as `added`.\n  Check the ref first.\n- Each package is keyed on ecosystem, name and source file, and one version per key\n  survives. A package present at two versions can show a change that didn\'t happen.\n- Paths that git quotes (non-ASCII names) aren\'t read at a ref.\n- A ref that starts with `-`, or an empty `--from`, is refused with `INVALID_INPUT` before git runs. An empty `--to` means the working tree.\n\n### `toil util secrets scan`\n\nFinds credential-shaped strings before an agent or a person commits, pushes,\ncomments or posts them. It reads a file, a folder, stdin, text, or the\nrepository\'s staged or working-tree diff, and talks to nothing.\n\n```bash\ntoil util secrets scan --diff staged          # before git commit\ntoil util secrets scan src/                   # a folder, .gitignore respected\ntoil util secrets scan notes.md\ngh pr view 12 --json body -q .body | toil util secrets scan -\ntoil util secrets scan --text "$COMMENT"\n```\n\n| Argument / flag | Meaning |\n|-----------------|---------|\n| `[path]` | A file or folder inside the workspace. A folder is walked as `git ls-files --cached --others --exclude-standard` would list it. `-`, or nothing at all, reads stdin |\n| `--text <text>` | The content itself, instead of a file |\n| `--diff <kind>` | `staged` scans what the next commit holds (`git diff --staged`); `working` scans unstaged changes (`git diff`). Added lines only, in the workspace only. Runs the git on PATH |\n| `--allow-file <file>` | The allow file (default: `.toil/secrets-allow` at the workspace\'s top, when it exists) |\n\nPass one of a path, `--text` or `--diff`; two at once is `INVALID_INPUT`. Over\nMCP, pass `file`, `text` or `diff`.\n\n**The exit code is 1 when anything is found**, and 0 when nothing is, so a hook\nor a pipeline can gate on it. The envelope stays `ok: true` either way; `ok:\nfalse` (also exit 1) means the scan itself failed.\n\n**What it looks for:**\n\n- The rules the audit log redacts with, so toil has one definition of a\n  secret: GitHub, GitLab, Slack, AWS, SonarQube, `sk-` and Atlassian tokens,\n  JWTs, private keys, credentials in URLs, `Bearer` / `Basic` / `Token`\n  values, `name=value` pairs whose name says secret (`password=`,\n  `"apiToken":`, `--token=`), `curl -u user:pass`, and long random runs of\n  letters and digits.\n- `high-entropy`: a run of 20 or more base64 or base64url characters, holding\n  letters and digits, that those rules didn\'t catch and whose Shannon entropy\n  is at least 4.2 bits per character.\n\nTwo things are set aside and counted instead of reported: Subresource Integrity\nchecksums (`sha512-\u2026` in lockfiles, counted in `summary.checksums`), and a named\nvalue that is a reference to a secret rather than one (`token: ${{ secrets.X }}`,\n`password=$DB_PASSWORD`, `<your-token>`, `xxx`, counted in\n`summary.placeholders`). Commits, digests and UUIDs aren\'t findings.\n\nOutput:\n\n```json\n{\n  "source": { "kind": "staged", "path": null },\n  "findings": [{ "file": "config/application.properties", "line": 4, "column": 28, "length": 14, "rule": "name-value", "confidence": "high", "entropy": 3.18, "preview": "\u2026", "fingerprint": "e594506f-49ad270a-55b41205-70d9b059" }],\n  "allowed": [],\n  "unreadable": [{ "file": "logo.png", "reason": "binary", "message": "logo.png is binary in the diff; its content wasn\'t scanned." }],\n  "allowList": null,\n  "summary": { "files": 1, "lines": 5, "findings": 1, "allowed": 0, "unreadable": 1, "checksums": 0, "placeholders": 0, "byRule": { "name-value": 1 } },\n  "verified": { "passed": true, "checks": [] }\n}\n```\n\n- `file` is relative to the workspace, with forward slashes, or `null` for\n  stdin and text. `line` and `column` start at 1; columns count UTF-16 code\n  units. A private key spanning lines is one finding, with `endLine`.\n- `source.kind` is `file`, `folder`, `stdin`, `text`, `staged` or `working`.\n- `confidence` is `high` for a vendor\'s token format, `high` or `medium` for a\n  value a name or scheme marks as secret (medium when it\'s short and plain),\n  and graded by entropy for a random run (`low` below 3.5 bits per character).\n- **The full secret is never in the output**, nor in a warning, an error or the\n  audit log, which keeps no copy of `text`. `preview` keeps at most 4\n  characters at each end of a secret of 24 or more, 2 of one of 16 to 23, and\n  none of a shorter one: `ghp_\u2026c9vB`, `\u2026`.\n- `fingerprint` identifies the value without revealing it: a salted scrypt,\n  four groups of 8 hex digits. It\'s slow on purpose, so a short password can\'t\n  be recovered from it by guessing at speed.\n\n**The allow file** lists known false positives, one fingerprint per line, copied\nfrom a finding. `#` starts a comment. It\'s matched by fingerprint only, never by\nthe raw value, so it\'s safe to check in. A finding it names goes in `allowed`\ninstead of `findings` and doesn\'t set the exit code. `allowList` says which file\nwas read, how many entries it had, how many lines weren\'t fingerprints, and how\nmany entries matched nothing. A line that isn\'t a fingerprint is ignored with a\n`SECRETS_ALLOW_INVALID` warning that gives its line number and never its text. A\nnamed `--allow-file` that doesn\'t exist is `INVALID_INPUT`.\n\n```text\n# .toil/secrets-allow\ne594506f-49ad270a-55b41205-70d9b059  # the test fixture\'s dummy password\n```\n\n**What it checks of its own result** (`verified`):\n\n- `finding.reread`: every finding is read again at its reported line, from the\n  file on disk, from the index (`git show :<path>`) for a staged diff, or from\n  what stdin or the text held. The same characters must be at the same column,\n  with the same rule finding them. A mismatch warns `SECRETS_REREAD_MISMATCH`.\n- `preview.masked`: every preview is checked to hold none of the secret\'s\n  middle. One that fails warns `SECRETS_PREVIEW_LEAK` and is replaced by `\u2026`.\n- `input.complete`: each file was read to its size on disk. For a diff this is\n  `unchecked`, with an `UNVERIFIED` warning, since git\'s output has no size to\n  compare with; the re-read checks each finding instead.\n\n**What it couldn\'t read is listed**, never skipped silently. `unreadable` holds\neach binary file, each file over 64 MiB, each one it couldn\'t open (a permission\nerror, say), each nested repository a folder scan didn\'t walk into, and each line\nover 4 MiB, of which only the start was scanned. Any of them adds a\n`SECRETS_UNREADABLE` warning. A single file named on the call that can\'t be read\nis an `INVALID_INPUT` error instead. `--diff working` also warns\n`SECRETS_UNTRACKED_NOT_SCANNED` with the number of untracked files, which no diff\nholds: scan the folder, or stage them, to include them.\n\n**A diff covers the workspace, not the whole repository.** When the workspace is\na folder inside the repository, changes outside it aren\'t scanned, and a\n`SECRETS_DIFF_PARTIAL` warning gives the number of changed files left out. To\ncheck a whole commit, run it with `--workspace` at the repository\'s top.\n\nKnown limits:\n\n- A diff and a file are scanned line by line, so a secret split across two lines\n  (other than a private key) isn\'t found.\n- A private key spans lines only when its BEGIN line stands alone and an END\n  line follows its body (base64, blank, `Proc-Type:` and `DEK-Info:` lines). It\'s\n  then one finding, with `endLine`. When no END comes (another line, a gap\n  between diff hunks, or the end of the file), the BEGIN line is reported on its\n  own and the lines below it are scanned as usual.\n- A bare `key=` isn\'t treated as a secret\'s name, because in toil\'s inputs it\'s\n  an issue, space or project key. A real key there is still caught by its shape\n  or its entropy.\n\n### `toil util encode`\n\nEncodes or decodes base64, base64url, hex and URL percent-encoding, and hashes a\nfile with SHA-256, SHA-1 or MD5. Each result is checked before it\'s returned, and\n`data.verified` says how.\n\n```bash\ntoil util encode base64 --text \'you@example.com:abc12345\'\ntoil util encode base64 --decode mail-part.b64 --out logo.png\ntoil util encode url --text \'project = PAY AND assignee = "you@example.com"\'\ntoil util encode form --decode --text \'project+%3D+PAY+AND+assignee+%3D+%22you%40example.com%22\'\nprintf \'hello\' | toil util encode hex\ntoil util encode sha256 release.tgz\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `<scheme>` | `base64`, `base64url`, `hex`, `url`, `form`, or a hash: `sha256`, `sha1`, `md5`. Required |\n| `[file]` | A file inside the workspace. `-`, or leaving out both the file and `--text`, reads stdin |\n| `--text <text>` | The content itself, instead of a file. It\'s encoded as UTF-8 |\n| `--decode` | Decode instead of encode. Not for a hash |\n| `--out <file>` | Write the result to this new file inside the workspace instead of returning it. Never replaces a file. Not for a hash |\n\nThe schemes:\n\n- **`base64`** is written padded. Decoding accepts it with or without padding, and\n  ignores spaces and line breaks, so MIME-wrapped base64 reads as it is.\n- **`base64url`** (`-` and `_`) is written without padding, as JWTs use it, and\n  read with or without.\n- **`hex`** is written in lower case and read in either. Spaces and line breaks are\n  ignored; a `0x` prefix or `:` separators are not.\n- **`url`** is a URL component, written as JavaScript\'s `encodeURIComponent` writes\n  it: letters, digits and `-_.!~*\'()` stay, every other byte becomes `%XX`.\n- **`form`** is one name or value of an `application/x-www-form-urlencoded` body:\n  letters, digits and `*-._` stay, a space becomes `+`, and every other byte becomes\n  `%XX`. Decode a body one field at a time. A whole body decodes, but its `=` and\n  `&` come back the same as an encoded `%3D` and `%26`, so `roundtrip.encode`\n  fails, as it should.\n\nOutput:\n\n- **Encode:** `{ operation: "encode", scheme, inputBytes, outputBytes, output, verified }`.\n- **Decode:** `{ operation: "decode", scheme, inputBytes, outputBytes, utf8, output, verified }`.\n  `utf8` says whether the decoded bytes are valid UTF-8.\n- **Hash:** `{ operation: "hash", scheme, inputBytes, hex, base64, verified }`, the\n  digest both ways.\n- With `--out`, `file` (the absolute path written) replaces `output`.\n\nThe input is bytes: a file or stdin is encoded or hashed exactly as it is, so\n`echo hello | toil util encode base64` includes the newline `echo` adds. Use\n`printf` or `--text` to leave it out. When decoding, one trailing line ending is\ndropped.\n\n**Decoded bytes that aren\'t valid UTF-8 are refused** with `INVALID_INPUT` unless\n`--out` names a file to write them to. JSON can only carry them as text, and any\ntext would be different bytes. Valid UTF-8 comes back as the text it is.\n\nWhat `data.verified` checks:\n\n| Check | What it means |\n|-------|---------------|\n| `roundtrip.decode` | An encode was decoded back, and gave exactly the input |\n| `roundtrip.encode` | A decode was encoded again, and gave the input, allowing for whitespace, padding, the case of hex and `%XX`, and `%20` for `+` in a form |\n| `input.complete` | The bytes read equal the file\'s size on disk, so a read that stopped short can\'t pass. Unchecked for stdin, which has no size |\n| `output.file` | The file written was read back, and holds exactly the bytes written |\n\nA failed check sets `verified.passed` to `false` and adds a warning:\n`ENCODE_ROUNDTRIP_MISMATCH`, `INPUT_INCOMPLETE` or `ENCODE_OUTPUT_MISMATCH`. Input\nthat decodes but fails `roundtrip.encode` isn\'t how the scheme writes those bytes.\nFor example, base64 `QR==` decodes to `A`, but base64 writes `A` as `QQ==`, and a URL\nwith a space left in it isn\'t encoded. Check that it wasn\'t changed on the way.\n\nErrors:\n\n- Text that isn\'t the scheme is `INVALID_INPUT`, naming the offset of the first\n  character that\'s wrong but never the character, in case the text is a credential.\n  A base64 character that only base64url uses (or the other way round) says to try\n  the other scheme.\n- A file to decode that looks binary (a NUL byte), `--decode` or `--out` with a hash,\n  and a scheme toil doesn\'t have are `INVALID_INPUT`.\n- Encoding or decoding reads at most 64 MiB. A hash of a file streams, with no\n  limit; stdin is held in memory, so it keeps the 64 MiB limit.\n\nMD5 and SHA-1 are here to match checksums that other tools publish, not to protect\nanything. The audit log keeps only a hash of `--text`.\n\n### `toil util cert`\n\nDecodes X.509 certificates, one or a chain bundle, in PEM or DER, so you can\nexplain a TLS failure from the files. It never connects to the host the certificate\nis for: pass the file the server is configured with, or the chain a client saved.\n\n```bash\ntoil util cert chain.pem\ntoil util cert chain.pem --host api.imagile.dev\ntoil util cert server.der\ncat chain.pem | toil util cert -\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `[file]` | A file in the workspace, PEM or DER. `-`, or leaving it out, reads stdin |\n| `--text <text>` | The PEM itself, instead of a file. Over MCP, `text` is read as UTF-8, so a DER certificate goes as `file` |\n| `--host <host>` | A host name or IP address: do the first certificate\'s SANs cover it? |\n\nOutput: `{ format, certificates, skipped, chain, host, verified }`. Each\ncertificate is `{ position, line, offset, subject, issuer, sans, serial, validity:\n{ notBefore, notAfter, daysLeft, status }, key: { type, bits, curve },\nsignatureAlgorithm: { name, oid }, selfSigned, basicConstraints: { ca, pathLength },\nkeyUsage, extendedKeyUsage, fingerprints: { sha1, sha256 } }`. `position` counts\nevery block in a PEM bundle (or element in a DER one) from 1, `line` is where a PEM\nblock starts and `offset` where a DER certificate does. `status` is `valid`,\n`expired` or `not-yet-valid`, and `daysLeft` is negative once expired.\n`basicConstraints`, `keyUsage` and `extendedKeyUsage` are null when the certificate\ndoesn\'t have that extension.\n\nWhat it checks, in `data.verified` (a failure also warns under its code):\n\n| Check | Means | Fails with |\n|-------|-------|------------|\n| `bundle.readable` | Every block meant to be a certificate decodes | `CERT_UNREADABLE` |\n| `decode.matchesNode` | toil\'s DER reader and `node:crypto` agree on the serial and CA flag, and nothing follows the certificate in its block | `CERT_DECODE_MISMATCH` |\n| `validity.notExpired`, `validity.started` | Each certificate is inside its validity window now | `CERT_EXPIRED`, `CERT_NOT_YET_VALID` |\n| `chain.order` | Each certificate\'s issuer is the next one\'s subject | `CERT_CHAIN_ORDER` |\n| `chain.signature` | Where the names match, each signature verifies with the next certificate\'s key, and a self-issued last certificate with its own | `CERT_SIGNATURE_MISMATCH` |\n| `chain.root` | Unchecked (`UNVERIFIED`) when the last certificate isn\'t self-signed, so its issuer doesn\'t follow it: the chain is checked only as far as the bundle goes | |\n| `host.covered` | With `--host`, a DNS or IP SAN of the first certificate covers it | `CERT_HOST_MISMATCH` |\n| `input.complete` | The whole file was read (unchecked for stdin) | `INPUT_INCOMPLETE` |\n\n- The chain is checked in the order given, leaf first. When it\'s out of order but\n  is one chain in another order, `chain.suggestedOrder` lists the positions in the\n  right order and `CERT_CHAIN_REORDER` says so.\n- `chain.inOrder` is true when every link\'s names match and every signature\n  checked verifies. `chain.root` is `included` when the last certificate is\n  self-signed. Nothing is checked against a trust store: a chain that verifies to\n  a root in the bundle isn\'t thereby trusted.\n- `--host` follows what browsers do: SANs only, never the subject CN, and a\n  wildcard covers exactly one label (`*.imagile.dev` covers `api.imagile.dev`, not\n  `imagile.dev` or `a.api.imagile.dev`). `host.explanation` says why it\'s covered\n  or not.\n- A PEM block that isn\'t a certificate is skipped, listed in `skipped` and named in\n  a `CERT_BLOCK_SKIPPED` warning. A private key is never read, and\n  `CERT_PRIVATE_KEY_IN_INPUT` says one was there. `CERTIFICATE` and\n  `X509 CERTIFICATE` blocks are read; `TRUSTED CERTIFICATE`, PKCS#7 (`.p7b`) and\n  PKCS#12 (`.pfx`) are not.\n- In DER input a damaged certificate ends the reading, since nothing says where the\n  next one starts; it\'s reported at its byte offset.\n- Input with no certificate that can be read fails with `INVALID_INPUT`, naming\n  each block and why.\n\n### `toil util semver`\n\nVersions and ranges in the grammar of the ecosystem they come from. Pick it with\n`--ecosystem`: `npm` (the default), `nuget` or `maven`.\n\n- **npm:** SemVer 2.0.0 versions (`1.2.3`, `1.2.3-rc.1+build.5`; a leading `v` is\n  allowed) and npm\'s ranges, as `package.json` takes them: `^1.2.3`, `~1.2`, `1.x`, `>=1.0.0 <2.0.0`,\n  `1.0.0 - 2.0.0`, joined with `||`. A prerelease satisfies a range only when the\n  range names a prerelease of the same `major.minor.patch`, unless you pass\n  `--include-prerelease`. There\'s no loose mode that turns text that isn\'t a\n  version into one.\n- **nuget:** one to four numbers (`1`, `1.0` and `1.0.0.0` are one version), then\n  an optional `-prerelease` and `+metadata`. Labels compare case-insensitively.\n  Ranges are interval notation: `1.0` (at least 1.0), `[1.0]`, `[1.0,2.0)`,\n  `(,2.0]`. A prerelease inside the bounds satisfies the range. Floating versions\n  (`1.*`, `1.0.0-*`) are refused, because what one picks depends on the feed.\n- **maven:** Maven\'s own ordering: `alpha < beta < milestone < rc < snapshot <\n  release < sp`, `1`, `1.0` and `1.0.0.Final` are one version, and `1a1` is\n  `1-alpha-1`. A version is letters, digits, `.`, `-`, `_` and `+` with at least\n  one digit, so an unresolved `${property}` is reported, not ordered. Ranges are\n  `[1.0,2.0)`, `[1.0]` and `(,1.0],[1.2,)`. A bare version is a soft requirement\n  that any version satisfies, and says so in a `MAVEN_SOFT_REQUIREMENT` warning.\n\nA version or range that doesn\'t parse in the chosen grammar is `INVALID_INPUT`,\nwith the reason and an example of what fits. Build metadata never affects order.\n\n```bash\ntoil util semver compare 1.0.0-rc.10 1.0.0-rc.9\ntoil util semver satisfies 1.3.0-rc.1 \'^1.2.0\' --include-prerelease\ntoil util semver satisfies 5.3.39 \'[5.0,6.0)\' --ecosystem maven\ntoil util semver sort versions.txt --range \'^5.0.0\'\ntoil util semver bump 1.2.3 prerelease --preid rc\n```\n\n| Command | Arguments and flags | Output |\n|---------|---------------------|--------|\n| `compare <a> <b>` | `--ecosystem <ecosystem>` | `{ ecosystem, a, b, order, higher, difference, normalized: { a, b }, verified }`. `order` is -1, 0 or 1 for a against b, `higher` is `a`, `b` or null, and `difference` is the most significant part they differ in: `major`, `minor`, `patch`, `revision` (NuGet\'s fourth part, or Maven\'s), `prerelease`, `qualifier` (Maven) or null |\n| `satisfies <version> <range>` | `--ecosystem <ecosystem>`, `--include-prerelease` | `{ ecosystem, version, range, normalizedRange, satisfies, verified }` |\n| `sort [file]` | `--text <text>`, `--ecosystem <ecosystem>`, `--range <range>`, `--include-prerelease` | `{ ecosystem, count, sorted, invalid, verified }`, lowest first, plus `{ range, normalizedRange, satisfying, highest }` with `--range` |\n| `bump <version> <release>` | `--ecosystem <ecosystem>`, `--preid <id>` | `{ ecosystem, version, release, preid, result, verified }` |\n\n- **`sort`** reads a file in the workspace, stdin (`-`, or no file), or `--text`.\n  Versions go one per line or separated by spaces. An entry that doesn\'t parse is\n  left out of the sort and listed in `invalid` with its line and the reason, with a\n  `SEMVER_INVALID_VERSION` warning.\n- **`bump`** takes `major`, `minor` or `patch` in every ecosystem. npm also takes\n  `premajor`, `preminor`, `prepatch`, `prerelease` and `release`, the bumps npm\n  publishes with, and `--preid` names the prerelease (`1.2.3` `prerelease --preid rc` is\n  `1.2.4-rc.0`). A NuGet result has three parts, with the revision and labels\n  dropped. Maven bumps the leading numbers and drops the qualifier\n  (`1.2.3-SNAPSHOT` `minor` is `1.3.0`).\n\n**What it checks** (`verified`, with failures as warnings):\n\n- `sort.transitive`: every pair in the sorted list is in order, so a comparison\n  where a < b and b < c but not a < c can\'t hide. Up to 2,000 versions; past that,\n  each against its neighbour, reported as `APPROXIMATED`.\n- `sort.antisymmetric`, `sort.complete`: each neighbouring pair compares the same\n  both ways round, and every entry is either sorted or listed as invalid.\n- `range.boundaries`, `range.answers`: each answer agrees with the range\'s\n  intervals, worked out by comparison alone, at the range\'s boundary versions and\n  at every version asked about. A range with no bounds (`*`) has none to test, and\n  says so with `UNVERIFIED`.\n- `compare.antisymmetric`, `diff.consistent`, `bump.increases`,\n  `version.normalized`: b against a is the reverse of a against b, a difference is\n  named exactly when the versions differ, a bump goes up, and a normalised version\n  reads back as the same version.\n- `input.complete`: the whole file was read. stdin has no size to compare with, so\n  it\'s `UNVERIFIED`.\n\n`diff` names the most significant part that changed, the same rule in every\necosystem; it never answers `premajor` or the like.\n\n### `toil util report`\n\nOne JSON summary of a report that CI or a scanner wrote: JUnit XML, TRX, SARIF\n2.1.0, lcov or Cobertura. It reads the file and nothing else, and checks the report\nagainst its own declared totals.\n\n```bash\ntoil util report target/surefire-reports/TEST-dev.imagile.OrderTest.xml\ntoil util report TestResults/build.trx\ntoil util report coverage/lcov.info --lowest 5\ntoil util report results.sarif\ncat coverage.xml | toil util report --format cobertura\n```\n\n| Argument / flag | Meaning |\n|-----------------|---------|\n| `[file]` | The report, inside the workspace. `-`, or no file and no `--text`, reads stdin |\n| `--text <text>` | The report itself, instead of a file |\n| `--format <format>` | `junit`, `trx`, `sarif`, `lcov` or `cobertura`. Left out, it\'s detected from the content: the root element for XML (`<testsuites>` or `<testsuite>`, `<TestRun>`, `<coverage>`), `"runs"` for SARIF, a first `TN:` or `SF:` line for lcov |\n| `--lowest <n>` | How many of the lowest-covered files to list (default 10, up to 1000) |\n\nOver MCP the tool is `util_report`, with `file` or `text`, `format` and `lowest`.\n\nOutput: `{ format, formatFrom, tests, findings, coverage, skipped, verified }`.\n`formatFrom` is `content` or `flag`. One of `tests`, `findings` and `coverage` is\nfilled in, by format, and the other two are `null`.\n\n- **`tests`** (JUnit, TRX): `{ suites, totals: { tests, passed, failures, errors,\n  skipped, flaky, other }, failures: [{ suite, name, className, kind, type,\n  message, file, line, location, stack, stackLines }] }`. The totals are recounted\n  from the cases, never copied from the report. `kind` is `failure` or `error`.\n  `stack` is the first 15 lines, and `stackLines` how many there were. `location` is\n  `report` when the report states `file` or `line`, and `stack` when they were read\n  from the first stack frame naming the test\'s class or method (an `APPROXIMATED`\n  warning says how many). It\'s `null` when neither has one.\n- **`findings`** (SARIF): `{ runs: [{ tool, version, results }], total, byLevel,\n  results: [{ tool, rule, level, kind, file, line, message, suppressed }] }`. `level`\n  follows the spec: the result\'s own, else its rule\'s default, else `warning` for a\n  failing result and `none` for any other. `file` is the first location\'s URI as\n  written, and `line` its `startLine`.\n- **`coverage`** (lcov, Cobertura): `{ sources, totals: { lines, branches }, files:\n  [{ file, lines, branches }], lowest }`. Each figure is `{ covered, total, percent }`,\n  with `percent` rounded to two places (`null` when there\'s nothing to cover).\n  `branches` is `null` where the report has no branch data. `lowest` lists the\n  `--lowest` files with the lowest line coverage, leaving out files with no lines.\n- **`skipped`**: `{ count, elements: [{ element, count, reason }] }`, every element\n  (or lcov record) the reader met and didn\'t read, also warned as\n  `REPORT_ELEMENTS_SKIPPED`. Known parts that hold nothing it summarises\n  (`system-out`, `properties`, TRX\'s settings and lists, Cobertura\'s per-method copies\n  of the lines) aren\'t counted.\n\nWhat `verified` checks:\n\n| Format | Check | Warning when it fails |\n|--------|-------|-----------------------|\n| JUnit | Each suite\'s (and `<testsuites>`\') declared `tests`, `failures`, `errors` and `skipped`, recounted from its cases, nested suites included | `REPORT_TOTALS_MISMATCH`, naming both numbers |\n| TRX | `<Counters>`\' `total` and each outcome counter, recounted from the results\' `outcome` | `REPORT_TOTALS_MISMATCH` |\n| Cobertura | Every stated `line-rate` and `branch-rate` (class, package and root), to within one unit of its last written decimal, and the root\'s `lines-covered`, `lines-valid`, `branches-covered` and `branches-valid` | `REPORT_COVERAGE_MISMATCH` |\n| lcov | Each record\'s `LF`, `LH`, `BRF`, `BRH`, `FNF` and `FNH`, recounted from its `DA`, `BRDA`, `FN` and `FNDA` lines | `REPORT_COVERAGE_MISMATCH` |\n| SARIF | Each `ruleIndex` points at the rule its `ruleId` names | `REPORT_SARIF_INCONSISTENT` |\n| All | The whole input was read (`input.complete`) | `INPUT_INCOMPLETE`, or `INPUT_TRUNCATED` at the cap |\n\nWhat it can\'t check is reported as `UNVERIFIED`, never as passed: a JUnit report\nthat declares no totals, SARIF (which declares none), a TRX counter left at `0` over\nresults with that outcome (VSTest leaves `notExecuted` at 0, for one), and the size\nof stdin. TRX\'s `executed` isn\'t compared, because writers disagree on what it\ncounts.\n\nFormats it reads:\n\n- **JUnit:** Maven Surefire\'s, the Jenkins shape (nested `<testsuite>`s, `status`,\n  `assertions`, `disabled`) and the Azure DevOps shape (the VSTest JUnit logger\'s).\n  Surefire\'s `flakyFailure` and `flakyError` mean a rerun passed: the case counts as\n  passed and in `flaky`. A case with `<error>` is an error, else one with\n  `<failure>` is a failure, else one with `<skipped>` is skipped.\n- **TRX:** `dotnet test --logger trx` and Visual Studio\'s. Top-level results are\n  counted, as the counters count them, and a data-driven test\'s inner rows aren\'t.\n  `failures` is `Failed`; `errors` is `Error`, `Timeout` and `Aborted`; `skipped` is\n  `NotExecuted` and `NotRunnable`; any other outcome is `other`. `suites` is the\n  number of test classes, and a failure\'s `suite` is its class.\n- **SARIF 2.1.0:** any tool\'s. A rule reference with a `toolComponent` index is\n  looked up in that entry of `tool.extensions` (CodeQL query packs); one that names\n  its component only by `guid` can\'t be found, so `sarif.ruleIndex` is `UNVERIFIED`\n  and the level falls back to `warning`. A file with another `version` is read as\n  2.1.0, with an `APPROXIMATED` warning. A run whose invocation says it failed warns\n  `REPORT_TOOL_FAILED`.\n- **lcov:** `SF` to `end_of_record` records, including lcov 2\'s `FNL` and `FNA`.\n  `FNH` is recounted as distinct functions hit: `FNA` by index, so a function\'s\n  aliases count once, and `FNDA` by name. A file in several records is merged, and a\n  line is covered when any record hit it.\n- **Cobertura:** coverlet\'s, coverage.py\'s and others\'. Classes in the same file are\n  added together, and branch counts come from `condition-coverage="50% (1/2)"`.\n\nLimits: XML and lcov stream, so memory stays flat for a report of any size, apart\nfrom the failures it lists, up to the 64 MiB input cap. At the cap the read stops,\n`INPUT_TRUNCATED` says so, `input.complete` fails, and what came before the cut is\nsummarised; a suite the cut left open isn\'t compared. SARIF is JSON and is read\nwhole, so a SARIF file over the cap is `INVALID_INPUT`. Malformed XML or JSON is\n`INVALID_INPUT` with the line and column. So is a document whose format can\'t be\ndetected, or whose root doesn\'t match `--format`, with a fix naming `--format`.\n\n### `toil util log`\n\nTriages a large log (a CI console, a Maven, npm or dotnet build, a test run) into\nwhat\'s worth reading: its error and warning lines grouped by signature, each with the\nstack trace that follows it. It reads the file only, streams it, and holds memory\nconstant however large the log is.\n\n```bash\ntoil util log build.log\ntoil util log console.log --level error --context 3\ntoil util log console.log --since 2026-10-14T09:12:00Z --grep \'Failed to execute\'\nsome-build 2>&1 | toil util log -\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `[file]` | The log, inside the workspace. `-`, or no file and no `--text`, reads stdin |\n| `--text <text>` | The log itself, instead of a file |\n| `--since <timestamp>` | Only lines dated at or after this ISO 8601 time (`2026-10-14`, `2026-10-14T09:12:00Z`, `"2026-10-14 09:12:00"`). A line with no date takes the date of the last dated line before it. Without a zone, a time is read as UTC |\n| `--level <level>` | `warning` (default) reports errors and warnings; `error` reports errors only |\n| `--grep <regex>` | Only error and warning lines matching this JavaScript regular expression (case-sensitive, no slashes or flags). An error also matches when the exception line heading its trace does (`--grep IllegalStateException`). Frames aren\'t searched; `LOG_GREP_STACK_ONLY` says when only they matched |\n| `--max-groups <n>` | The most groups to return, default 50, up to 1000 |\n| `--context <n>` | Lines to show before and after each group\'s sample, default 0, up to 20 |\n\nOver MCP the tool is `util_log`, with `file` (a path in the workspace) or `text`, and\nthe same fields: `since`, `level`, `grep`, `maxGroups`, `context`.\n\nHow it reads a log:\n\n- **Timestamps:** a leading timestamp, bracketed (Jenkins\' timestamper) or bare (CI\n  runners, log4j, Serilog), is set aside before anything else, so it never splits a\n  group.\n- **Levels:** the first level word decides (`ERROR`, `FATAL`, `SEVERE`, `WARN`,\n  `WARNING`, `INFO`, `DEBUG` \u2026, and npm\'s `npm error` / `npm warn`). A line tagged\n  `INFO`, or with no tag, is still an error by its shape: `BUILD FAILURE`, `FAILED`,\n  `error CS0246:`, `error TS2322:`, `TypeError: \u2026`, `Unhandled exception.`, an eslint\n  or vstest failure line. A tag with nothing after it (`[ERROR] `) is not a group.\n- **Signatures:** dates and times, UUIDs, hex and every number are replaced, and\n  spaces collapsed. Codes such as `CS0246` and `TS2322` keep their digits, and paths\n  and quoted names stay, so two different errors stay apart.\n- **Stack traces:** Java (`at \u2026(File.java:12)`, `Caused by:`, `... 14 more`), .NET\n  (`at \u2026 in file:line 9`, `--->`, `--- End of inner exception stack trace ---`), Node\n  (`at fn (file:12:3)`) and Python (`Traceback (most recent call last):`, printed\n  before its exception) are joined to the error they belong to, with the exception\n  line that heads one. An exception line joins an error, never a warning: after a\n  warning it\'s an error of its own. A trace is reported for each group\'s first occurrence, up to\n  50 lines.\n\nOutput:\n\n```json\n{\n  "lines": { "total": 76, "error": 20, "warning": 5, "other": 35, "stack": 12, "unclassified": 4 },\n  "matched": 25, "filtered": 0, "groupsTotal": 18, "truncated": false, "ungrouped": 0, "unjoinedFrames": 0,\n  "groups": [{\n    "level": "error",\n    "signature": "[ERROR] /build/ledger/Reconciler.java:[<n>] cannot find symbol",\n    "count": 4, "firstLine": 27, "lastLine": 52,\n    "sample": "[ERROR] /build/ledger/Reconciler.java:[54,38] cannot find symbol",\n    "trace": { "kind": "java", "firstLine": 57, "lastLine": 68, "frames": 12, "lines": ["\u2026"] },\n    "context": { "before": [{ "line": 26, "text": "\u2026" }], "after": [{ "line": 28, "text": "\u2026" }] }\n  }],\n  "verified": { "passed": true, "checks": [{ "check": "lines.reread", "status": "passed", "checked": 36, "failed": 0 }] }\n}\n```\n\nGroups are errors first, then warnings, each in order of first appearance. `lines`\nclasses every line once: `other` is a level below warning, `stack` a trace line, and\n`unclassified` a line with no level at all. `filtered` counts the error and warning\nlines `--since`, `--level` or `--grep` left out.\n\nIt checks its own answer, in `data.verified`:\n\n- **`lines.reread`:** every group\'s first line is read again from the file and must\n  be its sample, and its last line must still have its signature. `trace.reread`\n  does the same for every trace line shown. A mismatch is `LOG_LINE_MISMATCH`, which\n  usually means the file changed while it was read.\n- **`groups.sum`, `lines.sum`, `filter.sum`:** the group counts add up to the matched\n  lines, the line classes to the lines read, and matched plus filtered to the error\n  and warning lines. A mismatch is `LOG_COUNT_MISMATCH`.\n- **`input.complete`:** the bytes read equal the file\'s size. It\'s `unchecked` for\n  stdin and text.\n\nWhat it reports in `meta.warnings` rather than leave out: `LOG_UNCLASSIFIED` (lines\nwith no level, in no group), `LOG_GROUPS_TRUNCATED` (more groups than\n`--max-groups`), `LOG_UNGROUPED` (matched lines whose signature came after the first\n2,000 distinct ones, counted but not grouped, which is what keeps memory constant),\n`LOG_TRACE_UNJOINED` (trace lines with no error before them), `LOG_GREP_STACK_ONLY`\n(`--grep` matched only stack trace lines), `LOG_SINCE_UNDATED`\n(lines `--since` couldn\'t date, kept), and `APPROXIMATED` for a line longer than\n4,096 characters (grouped by its start) or a `--since` compared with times that had\nno zone.\n\nA file streams with no size limit. stdin and `--text` are held in memory, up to\n64 MiB, so pass a file for anything bigger.\n\n`--grep` runs in a worker thread, a batch of up to 4,096 lines at a time, each batch\nwith 2 seconds and 256 MB. A pattern that backtracks without end on some line, such as\n`(a+)+b`, fails the command with `TIMEOUT` naming the lines, rather than holding it.\n\n### `toil util size`\n\nHow big a file or folder is before you read it, so an agent can budget its\ncontext: bytes, lines and an estimated token count, and for one file an outline\nwith line ranges, so you can read just the part you need.\n\n```bash\ntoil util size src/areas/util/size.ts\ntoil util size src --depth 2 --top 5\ngit show HEAD:README.md | toil util size - --language markdown\n```\n\n| Argument / flag | Meaning |\n|-----------------|---------|\n| `[file]` | A file or folder inside the workspace. `-` (or nothing) reads stdin |\n| `--text <text>` | The content itself, instead of a file |\n| `--language <language>` | Outline it as this language: `typescript`, `javascript`, `python`, `csharp`, `java`, `go`, `markdown`, `json` or `yaml`. Needed for stdin and `--text`; for a file it overrides the extension |\n| `--top <n>` | For a folder: how many of the largest files to list (default 10) |\n| `--depth <n>` | For a folder: how many levels of subfolders the tree shows (default 3). Deeper folders still count in their parent\'s totals, and `foldersHidden` says how many were left out |\n\n**Tokens are an estimate**: `ceil(characters / 4)` per file, counting Unicode code\npoints. No model\'s tokenizer is bundled, and real counts vary by model and\ncontent. Every result says so in `tokenMethod` and with an `APPROXIMATED` warning.\n\n**For a file**: `{ kind: "file", path, language, bytes, lines, tokens, tokenMethod,\noutline, notOutlined, verified }`. `outline` is `{ precision, method, symbols }`,\neach symbol `{ name, kind, startLine, endLine, container }` (headings add `level`):\n\n- **Code** (`precision: "syntactic"`): TypeScript and JavaScript (`.ts`, `.tsx`,\n  `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`), Python, C#, Java and Go. Functions,\n  classes, interfaces, types, enums, namespaces, methods, constructors, C#\n  properties and exported names. It\'s a pure-JavaScript scan that skips comments\n  and strings and matches braces (indentation for Python), not a compiler, so\n  `method` says what each language covers. Function bodies aren\'t searched, and\n  fields aren\'t listed. `container` is the enclosing class or namespace.\n- **Markdown**: ATX and setext headings, outside code fences and front matter.\n- **JSON and YAML** (`precision: "parsed"`): the top-level keys, found by scanning\n  and held against what the parser returns.\n\nWhen there\'s no outline, `outline` is null and `notOutlined` says why: `binary` (a\nNUL byte in the first 8,000 bytes; lines and tokens are null too),\n`unsupported-language`, `parse-error` (with the line, never the text, or that it\nnests too deep to outline; also a `SIZE_PARSE_ERROR` warning) or `too-large` (over\n8 MiB; it\'s still counted).\n\nThe outline is made in a worker thread with 10 seconds and 512 MB; a file at the\n8 MiB limit takes under 2 seconds. Past either, the command fails with `TIMEOUT` or\n`INVALID_INPUT` naming the file and the limit.\n\n**For a folder**: `{ kind: "folder", path, tokenMethod, totals, tree, largest,\nskipped, verified }`. It lists files the way `deps scan` does, skipping what\n`.gitignore` ignores. `totals` and every `tree` node hold `files`, `bytes`, `lines`,\n`tokens` and `binaryFiles`; binary files count in files and bytes only. Folders are\nsorted largest first. `largest` names the biggest files with their language.\n`skipped` lists what wasn\'t counted, with the reason: `unreadable` (with a\n`SIZE_FILES_SKIPPED` warning), `not-a-file` or `nested-repository`.\n\n**What it checks**, in `data.verified`:\n\n- `outline.start`: each symbol\'s start line, re-read from the input, names it.\n- `outline.range` and `outline.nesting`: each range is inside the file and in\n  order, and a member sits inside its container.\n- `outline.keys`: JSON and YAML keys match the parser\'s.\n- `counts.reread`: the outline\'s full read gives the same bytes and lines.\n- `totals.sum` and `tree.sum`: the totals equal the files added up, and each\n  folder equals its own files plus its subfolders.\n- `input.complete`: every file was read to its size on disk.\n\nA failed check sets `verified.passed` to false and warns `SIZE_OUTLINE_MISMATCH`,\n`SIZE_TOTALS_MISMATCH` or `SIZE_COUNTS_MISMATCH`.\n\n### Time: `toil util time`\n\nDate and time arithmetic on the time zone data Node ships (IANA, through `Intl`);\ntoil bundles no zone database of its own, and nothing reads the network. Each\ncommand checks its own answer a second way and reports the checks in\n`data.verified` (`{ passed, checks }`), with anything it couldn\'t check or had to\napproximate in `meta.warnings` as `UNVERIFIED` or `APPROXIMATED`.\n\nTimes are ISO 8601: a date (`2026-03-08`), a wall clock (`2026-03-08T02:30`), or an\ninstant with `Z` or an offset (`2026-03-08T07:30:00Z`, `2026-03-08T02:30:00-05:00`).\n`@1760000000` is epoch seconds, and `now` is the current time, read once per call.\nFields out of range (`2026-02-29`, `24:00`, a leap second) are `INVALID_INPUT`,\nnever rolled over. Digits below a millisecond are dropped with an `APPROXIMATED`\nwarning. Zones are IANA names (`America/New_York`); an unknown one is\n`INVALID_INPUT`.\n\n**DST.** A wall clock a zone skipped (spring forward) or showed twice (fall back) is\nalways reported, in `data` as a `dst` object and in `meta.warnings` as\n`TIME_DST_GAP` or `TIME_DST_OVERLAP`. A gap is read as the time the clocks showed\nafter the jump (02:30 becomes 03:30) and an overlap as the earlier of the two. Give\nthe time an offset to choose otherwise.\n\n#### `toil util time convert`\n\n```bash\ntoil util time convert 2026-03-08T02:30 --zone America/New_York --to UTC --to Europe/London\ntoil util time convert now --to Asia/Kolkata\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `<time>` | The time to convert |\n| `--zone <zone>` | The zone of a time written without an offset. Required for one; refused for a time that has an offset |\n| `--to <zone>` | A zone to convert to (repeatable; default `UTC`) |\n\nOutput: `{ input, instant, epochMs, source: { kind, zone, offset, dst? }, results:\n[{ zone, local, offset, offsetSeconds, dst? }], verified }`. `local` is the time in\nthat zone with its offset. Checks: each result reads back as the same instant\n(`convert.roundtrip`), the zone shows that wall clock then (`convert.zone`), and a\nwall-clock input is what its zone shows at the instant found (`convert.source`). A\nfailure warns `TIME_ROUNDTRIP_MISMATCH`.\n\n#### `toil util time duration`\n\n```bash\ntoil util time duration P1DT2H30M\ntoil util time duration --seconds 93784.5\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `<duration>` | An ISO 8601 duration to read: `PT1H30M`, `P1Y2M10DT2H`, `PT0.5S`, `-PT15M`. Only the last part may have a fraction |\n| `--seconds <seconds>` | Instead, a number of seconds to write as a duration |\n\nOutput: `{ input, iso, negative, parts: { years, months, weeks, days, hours,\nminutes, seconds }, totalSeconds, text, verified }`. `iso` is the canonical text.\nSeconds are written in hours, minutes and seconds only (`PT26H3M4.5S`), since a day\nisn\'t always 24 hours. Years and months have no fixed length, so `totalSeconds` is\n`null` with an `UNVERIFIED` warning; days and weeks count as 24 hours and 7 days,\nwith an `APPROXIMATED` warning. Check: the canonical text reads back as the same\nparts (`duration.roundtrip`, warning `DURATION_ROUNDTRIP_MISMATCH`).\n\n#### `toil util time business-days add` and `diff`\n\n```bash\ntoil util time business-days add 2026-12-23 3 --holidays holidays-2026.txt\ntoil util time business-days add 2026-12-28 -1\ntoil util time business-days diff 2026-12-24T15:00 2026-12-29T10:00 --zone America/Chicago --holiday 2026-12-25\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `<start>` | The start time or date |\n| `<days>` | `add`: business days to add; negative subtracts |\n| `<end>` | `diff`: the end time or date |\n| `--zone <zone>` | The zone whose calendar days count, and the zone of a time without an offset (default `UTC`) |\n| `--holidays <file>` | A file in the workspace: one `YYYY-MM-DD` per line, optionally followed by a name; `#` lines are comments. Any other line is `INVALID_INPUT` naming it |\n| `--holiday <date>` | A holiday as `YYYY-MM-DD` (repeatable) |\n\nBusiness days are Monday to Friday, less the holidays given. No country\'s holidays\nare built in: list the dates the office is actually shut (the observed Friday, not\nthe Saturday it stands in for).\n\n`add` counts as a spreadsheet\'s `WORKDAY` does: the start never counts, each step\nlands on the next business day, and `0` returns the start unchanged. A time of day\nis kept, and a result in a DST gap or overlap is warned about. Output: `{ start,\ndays, zone, result, weekday, skipped: { weekendDays, holidays }, holidaysListed,\ndst?, verified }`. Checks: the business days between start and result, counted\nagain day by day, number `days` (`business.count`); the result is a business day\n(`business.landing`); and it\'s on the right side of the start\n(`business.direction`). A failure warns `BUSINESS_DAYS_MISMATCH`.\n\n`diff` measures the time between two times that falls on business days in the\nzone. A date means midnight. Output: `{ start, end, zone, negative, businessDays,\nhours, duration, totalBusinessSeconds, elapsedSeconds, holidays, verified }`:\n`businessDays` is whole 24-hour days of business time, `hours` what\'s left over,\nand `duration` the same, exactly (`PT43H`). DST days count as the 23 or 25 hours\nthey are. Checks: business time plus the rest adds up to the elapsed time\n(`business.partition`), and the days and hours make the business time\n(`business.total`), warning `BUSINESS_TIME_MISMATCH`.\n\n#### `toil util time cron`\n\n```bash\ntoil util time cron "*/15 9-17 * * 1-5" --zone Europe/London --count 10\ntoil util time cron "0 0 12 ? * MON#2" --dialect quartz\ntoil util time cron "H H(0-7) * * 1-5" --dialect jenkins --job platform/api-build\n```\n\n| Argument or flag | Meaning |\n|------------------|---------|\n| `<expression>` | The cron expression, quoted |\n| `--dialect <dialect>` | `standard`, `quartz` or `jenkins` (default: detected: 6 or 7 fields is `quartz`, an `H` is `jenkins`, otherwise `standard`) |\n| `--zone <zone>` | The zone the schedule runs in (default `UTC`) |\n| `--from <time>` | List runs after this time (default `now`) |\n| `--count <n>` | How many run times to list, 1 to 100 (default 5) |\n| `--job <name>` | The Jenkins job\'s full name (`folder/job`), which `H` is hashed from. Required when the expression uses `H` |\n\nThe dialects:\n\n- **standard**: five fields, minute hour day-of-month month day-of-week, as the classic\n  crontab reads them. Names (`JAN`, `MON`), ranges, lists and steps (`*/15`,\n  `1-30/5`, `5/15`); day-of-week 0 to 7, with 0 and 7 both Sunday. Macros `@yearly`,\n  `@annually`, `@monthly`, `@weekly`, `@daily`, `@midnight` and `@hourly`; `@reboot`\n  is refused, since it has no times. When neither day field starts with `*`, a day\n  matching **either** runs. A detected standard expression with both day fields set\n  warns `CRON_DIALECT_ASSUMED`, since Jenkins reads it differently.\n- **quartz**: six or seven fields, second first and an optional year (1970 to 2099)\n  last. Day-of-week is 1 to 7 from Sunday. One of the day fields must be `?`.\n  Day-of-month takes `L`, `L-3`, `15W` (the weekday nearest the 15th, inside the\n  month) and `LW`; day-of-week takes `6L` (the last Friday) and `6#3` (the third\n  Friday). A backwards range wraps (`FRI-MON`, `22-2`).\n- **jenkins**: five fields like standard, plus `H`, `H(0-7)` and `H/15`, placed as\n  Jenkins places them from the job\'s full name. An unbounded `H` in day-of-month\n  stays within 1 to 28. Both day fields must match. The macros use `H` (`@daily` is\n  `H H * * *`, `@midnight` is `H H(0-2) * * *`), so pass `--dialect jenkins` for a\n  Jenkins macro: a bare macro is detected as standard.\n\nOutput: `{ expression, dialect, dialectSource, zone, from, explanation, fields,\nruns: [{ instant, local, offset, dst? }], skipped, skippedTotal, verified }`. `fields` holds what\neach field expanded to, with day-of-week 0 for Sunday in every dialect.\n\nDST: a run time the zone skipped isn\'t listed as a run; it\'s in `skipped`, with a\n`CRON_DST_GAP` warning giving the total. `skipped` lists the first 100 and\n`skippedTotal` counts them all. The walk stops after 5,000 skipped run times (more\nthan one every-second gap hour), warning `CRON_SEARCH_STOPPED` with the last one\nreached, so a schedule that only lands in gaps (`* * 2 ? 3 1#2` in New York) answers\nat once; pass a later `--from` to look further. A run time that happened twice is listed once, at the first,\nwith a `dst` object and a `CRON_DST_OVERLAP` warning. Schedulers differ on both, so\ncheck yours. Fewer runs than `--count` in the next 100 years (or in Quartz\'s listed\nyears) warns `CRON_FEW_RUNS`; `0 0 30 2 *` never runs.\n\nChecks: each run, read back as the wall clock its zone shows then, matches every\nfield again (`cron.rematch`); the runs come after `--from` and in order\n(`cron.order`); `local` is the same instant (`cron.local`); and each skipped time\nreally is in a gap (`cron.gap`). A failure warns `CRON_RUN_MISMATCH`. The\nexplanation\'s wording isn\'t checked, and says so (`UNVERIFIED`): it\'s built from the\nsame fields the run times come from, and the run times are what\'s checked.\n\n### `toil util md`\n\nConverts a document between Markdown and the rich-text formats the Atlassian\nareas send: Jira wiki markup (Jira Data Center), Atlassian Document Format\n(Jira Cloud, Confluence Cloud) and Confluence storage format (Confluence Data\nCenter). One side is always Markdown. Every result is checked by converting it\nback, so you\'re told exactly what didn\'t survive.\n\n```bash\ntoil util md description.md --to wiki\ntoil util md page.md --to storage\ntoil util md description.md --to adf --select output\ntoil util md PROJ-142.wiki --from wiki\ntoil util md description.adf.json --from adf\n```\n\nADF input is the document itself, `{ "type": "doc", "version": 1, "content": [...] }`:\nan issue\'s `fields.description` or a comment\'s `body`, not the issue around it.\n\n| Argument / flag | Meaning |\n|-----------------|---------|\n| `[file]` | A file inside the workspace. `-`, or no file and no `--text`, reads stdin |\n| `--text <text>` | The document itself, instead of a file |\n| `--to <format>` | `wiki`, `adf` or `storage`, to convert Markdown into it |\n| `--from <format>` | `wiki`, `adf` or `storage`, to convert it into Markdown |\n\nOver MCP the tool is `util_md`, with `file` or `text` plus `from` or `to`.\n\nOutput:\n\n```json\n{\n  "from": "md",\n  "to": "wiki",\n  "output": "h2. Steps\\n\\n# Open the login page\\n...",\n  "lossless": false,\n  "losses": [{ "construct": "task list", "at": "line 12", "detail": "Jira wiki markup has no task lists; each task is written as [ ] or [x] text" }],\n  "roundTrip": { "blocks": 9, "differences": [] },\n  "verified": { "passed": true, "checks": [{ "check": "roundTrip.blocks", "status": "passed", "checked": 9, "failed": 0 }] }\n}\n```\n\n- **`output`** is the converted document: an ADF document object for `adf`,\n  text for the others. Markdown output is in one canonical spelling (`-` bullets,\n  `*emphasis*`, `**strong**`, fenced code, one line per paragraph).\n- **`losses`** lists every construct that has no equivalent in the target, with\n  its position: `line N` in Markdown, wiki markup and storage format, a JSON\n  pointer (`/content/6/content/2`) in ADF. Each kind is also an `MD_LOSSY`\n  warning. Words are kept wherever there are words to keep: a panel becomes a\n  quote, a mention becomes `@name` text, a merged cell is unmerged with the cells\n  it covered left empty.\n- **`roundTrip`**: the output is read back and compared with the input, block by\n  block, as canonical Markdown. `differences` shows each block that changed, and\n  whether a loss explains it. A change no loss explains fails the\n  `roundTrip.blocks` check and warns `MD_ROUNDTRIP_MISMATCH`: that\'s a bug in the\n  converter, so check the output before you send it.\n- **`lossless`** is true only when nothing was lost and every block came back the same.\n- **ADF output is validated against the ADF JSON schema** (Atlassian\'s\n  `@atlaskit/adf-schema`, bundled) before it\'s returned, and storage output is\n  read back as XML. Output that fails either is never returned; the command fails\n  instead. ADF input the schema refuses is converted as far as it reads, with an\n  `ADF_INPUT_INVALID` warning.\n\nReading and writing run in a worker thread, the conversion and the read back each\nwith 10 seconds and 1,024 MB; a 4 MiB document, the input limit, takes under\n4 seconds. A document whose emphasis or brackets would take far longer, or that\nnests past the stack, fails with `TIMEOUT` or `INVALID_INPUT` naming the step and\nthe limit.\n\nWhat Markdown means here: CommonMark plus GFM tables, task lists, strikethrough\nand bare-URL links. Raw HTML (other than `<br>`), link reference definitions and\nfootnotes aren\'t read; they\'re kept as text and reported as losses.\n\nKnown losses, by format:\n\n- **Wiki markup:** no task lists (written as `[ ]` / `[x]` text), no table\n  alignment, no link or image titles, lists always start at 1, and a list item is\n  one line, so a code block or second paragraph in one is joined with line breaks.\n  Underline, colour, sub/superscript, citations, panels, mentions, attachments and\n  other macros don\'t come back into Markdown. Text such as `(y)` that Jira shows as\n  an emoticon, and a URL written as text, which Jira links, are reported too.\n- **ADF:** a quote can\'t hold a heading, table, task list or another quote, and a\n  list item can\'t hold a heading, quote or table, so those are brought down and\n  reported. Inline images become links; explicit left alignment is the default.\n  Panels, expands, mentions, emoji, dates, statuses, smart links, decisions,\n  attachments, layouts, extensions and merged cells don\'t come back.\n- **Storage format:** a list mixing tasks and ordinary items becomes a task list.\n  Info, note, tip and warning panels, expand, layouts, page and user links,\n  attachments, emoticons, colour, merged cells and other macros don\'t come back.\n  Only XML\'s entities and HTML\'s common named ones (`&nbsp;`, `&mdash;` and so on)\n  are read; any other is refused with `INVALID_INPUT`, as is XML that isn\'t\n  well-formed, with its line and column.\n\nTo send the result, pass it to the area\'s own command: wiki markup as\n`toil jira create-issue --description`, storage format as\n`toil confluence create-page --body` (or `confluence-cloud`), and ADF as\n`fields.description` in a `toil jira-cloud create-issue --input-file`. How each product\'s own renderer displays it hasn\'t\nbeen checked against a live instance.\n### `toil util openapi`: read an API description before calling it\n\nThree commands that read an OpenAPI 3.0, 3.1 or 3.2 or Swagger 2.0 document, in JSON\nor YAML, so you can call an endpoint right the first time, usually through\n`toil <area> api`. The document is a file in the workspace, `-` for stdin, or\n`--text` (`file` or `text` over MCP). Nothing is fetched: the official schemas\neach version is checked against are bundled.\n\n```bash\ntoil util openapi list jira-platform.json --tag Issues\ntoil util openapi list github.yaml --path pulls\ntoil util openapi show jira-platform.json --operation createIssue\ntoil util openapi show bitbucket.json --method POST --path /repositories/{workspace}/{repo_slug}/pullrequests --depth 1\ntoil util openapi example jira-platform.json --operation createIssue\ntoil util openapi example github.yaml --operation pulls/get --response 200\n```\n\n| Flag | Meaning |\n|------|---------|\n| `[file]` | The document: a file in the workspace, or `-` (or nothing) for stdin |\n| `--text <text>` | The document itself, instead of a file |\n| `--tag <tag>` | `list`: only operations with this tag (any case) |\n| `--path <text>` | `list`: only operations whose path contains this text. `show` and `example`: the path exactly as the document writes it, with `--method` |\n| `--operation <operationId>` | `show`, `example`: the operation, by its operationId |\n| `--method <method>` | `show`, `example`: the method, with `--path`, for an operation with no operationId |\n| `--depth <n>` | `show`: how many `$ref`s deep to expand schemas (default 3, at most 20) |\n| `--response <status>` | `example`: build that response\'s body (`200`, `201`, `default`) instead of the request body |\n| `--content-type <type>` | `example`: which of the body\'s content types (default: the first JSON one) |\n\nIn Git Bash on Windows, leave the leading `/` off `--path`\n(`--path repos/{owner}/{repo}/pulls`): the shell rewrites `/repos/...` into a file\npath. Both forms match.\n\n- **`list`** returns `{ document, count, operations: [{ method, path, operationId,\n  summary, tags, deprecated }] }`.\n- **`show`** returns `{ document, operation, parameters, requestBody, responses,\n  call, expansion }`. Each parameter has `name`, `in` (path, query, header, cookie),\n  `required` and `schema`. The request body and each response have `contentTypes`,\n  the `contentType` the `schema` is for (the first JSON one), and `schemaPointer`.\n  Swagger 2.0\'s `body` and `formData` parameters come out as the request body, so\n  both versions have one shape.\n- **Expanded schemas:** `$ref`s are replaced by what they point at, `--depth` refs\n  deep, and an expanded one says where it came from in `x-toil-ref`. One left in\n  place says why in `x-toil-stop`: `depth`, `circular` (it loops back), `external`\n  (another file or a URL) or `broken`. `expansion.stopped` counts each. Expansion\n  builds at most 250,000 objects and arrays per call (`expansion.nodes`) and copies\n  at most 4,000,000 characters of the document\'s text (`expansion.chars`), since refs\n  can fan out and each copies its whole target (three properties each referring to\n  the next, twenty deep, is 3^20 copies). Past that, the rest stay in place as\n  `depth`, `expansion.truncated` is true and an `OPENAPI_EXPANSION_TRUNCATED` warning\n  says so. `example` generates at most 250,000 values, no more array items than\n  that leaves room for, strings of at most 10,000 characters each, and at most 1,000,000\n  characters in all, a document\'s own `const` and `enum` values included (a\n  `minLength` or a pattern\'s `{n}` past that is cut; any value past the total is null). A cut-short example fails `example.valid` with\n  `OPENAPI_EXAMPLE_TRUNCATED` and isn\'t validated. In 3.0 and\n  Swagger 2.0 a `$ref`\'s sibling keys are dropped, as the spec says. From 3.1\n  they\'re kept, over the target\'s keys.\n- **`example`** returns `{ document, operation, body, status, contentType,\n  schemaPointer, example }`. The example is the smallest body the schema accepts:\n  required properties only (read-only ones left out of a request, write-only ones\n  out of a response), the first enum value, the lowest number in range, a string in\n  the right format with placeholder values (`you@example.com`, `api.imagile.dev`),\n  the first branch of a `oneOf`. It\'s minimal, not complete: Jira\'s `createIssue`\n  gives `{}`, because its schema requires nothing. Use `show` to see the fields you\n  want to add.\n\n#### Calling the endpoint with `<area> api`\n\n`show`\'s `call` is the operation as `<area> api` takes it: `method`, `path` (the\nserver\'s base path plus the operation\'s, with `{name}` for each of\n`pathParameters`), `query` (each required query parameter as `name=<name>`),\n`bodyFile`, `contentType` (set only when it isn\'t `application/json`), whether it\n`writes`, and the CLI line. Over MCP the same fields are `<area>_api`\'s inputs.\n\n```bash\ntoil util openapi show jira-platform.json --operation editIssue --select call\n# { "method": "PUT", "path": "/rest/api/2/issue/{issueIdOrKey}", "bodyFile": "body.json", "writes": true,\n#   "cli": "toil <area> api PUT /rest/api/2/issue/{issueIdOrKey} --body-file body.json --allow-write", ... }\ntoil util openapi example jira-platform.json --operation editIssue --select example\ntoil jira api PUT /rest/api/2/issue/ABC-123 --body-file body.json --allow-write\n```\n\nSave the example as `body.json`, fill in the placeholders, and put the area the\ndocument describes for `<area>`. The path is relative to the connection\'s\n`baseUrl`: when `baseUrl` already ends with the server\'s base path (`/2.0` for\nBitbucket Cloud\'s), leave that part off. `call.unsupported` lists required header and\ncookie parameters, which `<area> api` doesn\'t send. `call` is null for a method it\ndoesn\'t send (OPTIONS, TRACE, QUERY).\n\n#### What every command checks\n\nEach one reads the whole document and checks it before answering, and\n`data.verified` says what it checked:\n\n| Check | What it is | Warning when it fails |\n|-------|------------|-----------------------|\n| `document.schema` | The document against the official schema for its version (Swagger 2.0, OpenAPI 3.0, 3.1 or 3.2), bundled. Every problem is in `document.problems` by JSON pointer (`/paths/~1pets/get/responses`), at most 50, with `problemCount` | `OPENAPI_INVALID` |\n| `refs.resolve` | Every local `$ref` points at something. Broken ones are in `document.refs.broken` as `{ at, ref }`, `at` being where the `$ref` sits | `OPENAPI_REF_BROKEN` |\n| `operations.uniqueIds` | No operationId is used twice | `OPENAPI_DUPLICATE_OPERATION_ID` |\n| `operations.pathParameters` | Every `{name}` in a path is declared as a path parameter | `OPENAPI_PATH_PARAMETER_MISSING` |\n| `example.valid` | `example` only: the generated body validates against its own schema, `$ref`s and all, before it\'s returned | `OPENAPI_EXAMPLE_INVALID` |\n| `input.complete` | The whole file was read | `INPUT_INCOMPLETE` |\n\nAn invalid document is still listed and shown, since real vendor documents aren\'t\nalways valid, but `verified.passed` is false. `document.refs.circular` lists each\nloop of references (a recursive schema), which is legal; nothing follows one\nforever. What can\'t be checked is reported, never assumed:\n\n- Checking the document against its schema gets 15 seconds and 1,536 MB, enough for a\n  vendor spec of 13 MB, which takes about 4 seconds. Validating an example, and\n  running the document\'s own `pattern`s, each get 2 seconds and 256 MB.\n  A document too big to finish, a schema that branches too much (a diamond of\n  `anyOf`s), a pattern that backtracks without end (`^(a+)+$`), or a document too\n  deep for the stack leaves `document.schema`, `example.valid` or `example.patterns`\n  unchecked, with which limit it hit (`UNVERIFIED`). So does a Node run with\n  `--permission` and no `--allow-worker`.\n  A document nested more than 256 levels is refused (`INVALID_INPUT`).\n- A YAML document is read in a worker thread with the same 15 seconds and 1,536 MB:\n  YAML takes several times JSON\'s memory. Past either limit the command fails with\n  `TIMEOUT` or `INVALID_INPUT` naming it; the same document as JSON reads in a fraction\n  of both.\n- A `$ref` to another file or a URL isn\'t followed (`refs.external`, `UNVERIFIED`),\n  and an example whose schema reaches one isn\'t validated.\n- The 3.1 and 3.2 schemas leave Schema Objects to the JSON Schema 2020-12 dialect,\n  which isn\'t checked (`document.schemaObjects`, `UNVERIFIED`). Swagger 2.0 and 3.0\n  documents are checked all the way down.\n- Some schemas have no value that satisfies them (two `allOf` branches that\n  disagree, a property required and forbidden at once). The example is returned\n  anyway, with `example.valid` failed at the pointer that doesn\'t fit, so you fill\n  that value in by hand.\n\nA document that isn\'t an object, has no `openapi` or `swagger` field, declares a\nversion these commands don\'t read (OpenAPI 4, Swagger 1.2), or isn\'t valid JSON or\nYAML fails with `INVALID_INPUT`. So does an operation that isn\'t there (the fix names\nclose operationIds), `example` on an operation with no request body (pass\n`--response`), and a status or content type the operation doesn\'t list.\n\n### `toil util c4 render`, `toil util c4 mermaid`, `toil util c4 d2`\n\nOne view of a C4 architecture model: `render` draws it as SVG, `mermaid` writes it\nas Mermaid\'s C4 syntax (GitHub draws a ```` ```mermaid ```` block inline), and `d2`\nwrites it as D2 text. `render` lays the diagram out itself, with a layered layout\nmade for C4 views: people on the top row, the scope\'s children together inside\ntheir dashed boundary, and each relationship\'s label placed clear of the boxes.\nNothing is installed or run, and nothing goes over the network.\n\n```bash\ntoil util c4 render docs/c4/bookshop.c4.json --view containers --out containers.svg\ntoil util c4 mermaid docs/c4/bookshop.c4.json --view context\ncat model.json | toil util c4 d2 - --view components\n```\n\n| Flag | Meaning |\n|------|---------|\n| `[file]` | A JSON file holding the model, inside the workspace, or `-` (or nothing) for stdin |\n| `--text <text>` | The model itself, as a JSON string, instead of a file. Over MCP, `file` or `text` |\n| `--view <key>` | The view to draw. It can be left out when the model has only one |\n| `--out <file>` | `render` only: write the SVG to this new file inside the workspace instead of returning it. toil never overwrites a file |\n\nThe model:\n\n```json\n{\n  "title": "Online bookshop",\n  "people": [{ "id": "customer", "name": "Customer", "description": "Buys books" }],\n  "systems": [{\n    "id": "bookshop", "name": "Online Bookshop", "description": "Sells books at bookshop.imagile.dev",\n    "containers": [\n      { "id": "web", "name": "Web shop", "technology": "React",\n        "components": [{ "id": "cart", "name": "Cart", "technology": "TypeScript" }] },\n      { "id": "db", "name": "Database", "technology": "PostgreSQL", "database": true }\n    ]\n  }, { "id": "payments", "name": "Payment provider", "external": true }],\n  "relationships": [{ "source": "customer", "destination": "web", "description": "Buys books using", "technology": "HTTPS" }],\n  "views": [\n    { "key": "context", "type": "systemContext", "scope": "bookshop" },\n    { "key": "containers", "type": "container", "scope": "bookshop" },\n    { "key": "components", "type": "component", "scope": "web", "include": ["*", "payments"] }\n  ]\n}\n```\n\n- **Elements** are people and software systems at the top, containers inside a\n  system, and components inside a container. Each has an `id`, a `name`, and\n  optionally a `description`, a `technology` (containers and components) and\n  `external: true`, which draws it grey. A container with `database: true` is drawn\n  as a cylinder. Ids start with a letter and hold only letters, digits and\n  underscores, and are unique across the whole model.\n- **Relationships** join any two elements, at any level: `source`, `destination`,\n  and optionally `description` and `technology`.\n- **Views** have a `key`, a `type` (`systemContext`, `container` or `component`), a\n  `scope` (a system for the first two, a container for `component`), an optional\n  `title`, and an optional `include` list of ids. `"*"` in it stands for the default\n  set, which is also what you get with no `include`: for `systemContext`, the scope\n  and every person and system related to it; for `container`, the scope\'s\n  containers inside a dashed boundary and what they relate to; for `component`, the\n  scope\'s components and what they relate to.\n- A relationship is drawn between the nearest elements a view shows, so one between\n  two containers shows up between their systems in a system context view. Model\n  relationships at the most detailed level you know. One that ends on a view\'s own\n  boundary from outside can\'t be drawn there; a `C4_RELATIONSHIP_NOT_DRAWN` warning\n  in `meta.warnings` names it, unless that outside element already has a drawn\n  relationship into the boundary.\n\nOutput: `{ view, type, title, elements, relationships, verified, format, svg }` for\n`render`, where `elements` lists the ids drawn and `relationships` counts the arrows.\nWith `--out`, `{ file, bytes }` take the place of `svg`, and `file` is the absolute\npath written. `mermaid` and `d2` return `text` in place of `svg`.\n\n`render` lays the view out down the page: arrows leave a box from its bottom, run\nstraight through any row they pass, and enter their target from the top, so they\nbend only in the gaps between rows. It checks its own drawing before returning it,\nand `data.verified` lists each check:\n\n| Check | What held |\n|-------|-----------|\n| `input.complete` | The whole file was read (unchecked for stdin and `--text`) |\n| `boxes.apart` | No two boxes overlap |\n| `children.inBoundary` | Every child is inside its dashed boundary, and nothing else is drawn over it (views with a boundary only) |\n| `edges.touchBoxes` | Every arrow starts on its source\'s border and ends on its target\'s |\n| `edges.clearOfBoxes` | No arrow passes behind a box it doesn\'t join |\n| `labels.clearOfBoxes` | No label covers a box |\n| `svg.wellFormed` | The SVG parses as XML and holds no character XML forbids. A control character in the model\'s text (other than tab and line breaks), U+FFFE, U+FFFF or a lone surrogate is drawn as U+FFFD |\n| `text.width` | Always `approximated`: text is measured with Helvetica\'s widths, which Arial shares |\n\nEach check that fails is one `C4_LAYOUT_CHECK` warning in `meta.warnings` naming\nthe first boxes or arrow involved and how many failed, and the first five are in\n`verified`, so a bad drawing is never returned without saying so. `mermaid` and\n`d2` check their own text instead: every element declared once (`text.elements`)\nand one line per arrow (`text.relationships`), failing as `C4_TEXT_CHECK`. Whether\nthe text draws is up to whatever renders it, and is reported as unchecked\n(`text.renders`, `UNVERIFIED`).\n\nLimits, each an `INVALID_INPUT` past it, before any work grows with it:\n\n- The model\'s JSON is at most 4 MiB.\n- A model holds at most 1,000 elements (people, systems, containers and components\n  together), 2,000 relationships and 100 views.\n- `render` draws at most 100 boxes and 250 arrows in one view. Draw fewer with the\n  view\'s `include` list, or split the view; `mermaid` and `d2` write a view of any\n  size the model allows.\n\nThe layout runs in a worker thread with a 2 s deadline and 256 MB, past which it\'s\nstopped with `TIMEOUT`, or `INVALID_INPUT` for the memory; at the limits above it\ntakes well under a second and about 40 MB. Past about\n25 boxes, arrows cross more often and the drawing grows tall.\n\nA model with mistakes fails with `INVALID_INPUT` before anything is drawn. The\nmessage names each problem by its path in the model, such as\n`relationships[2].destination: no element has the id "warehose"`, and\n`error.details` lists them all. An unknown `--view` lists the keys the model has.\n\nA sample model, an online bookshop with all three views, is\n`docs/c4/bookshop.c4.json` in toil\'s source, and `docs/c4/busy.c4.json` is a busier\nview of 25 boxes.\n\n### `toil util owi map`\n\nMaps the output of toil\'s own work item commands to Open Work Items (OWI 0.1),\nthe model in `docs/owi/spec.md` in toil\'s source, with its JSON Schema beside it\nin `docs/owi/schema.json`. It composes: each tracker is read by its own command,\nand this reads what they printed, whether piped, saved to a file, or appended one\nenvelope a line.\n\n```bash\ntoil jira search --jql "sprint in openSprints()" --fields "summary,status,issuetype,Story Points,Sprint" | toil util owi map\ntoil util owi map sprint-42.jsonl\ntoil util owi map changelog.json --key PAY-104\ntoil util owi map batch.json --field estimate=Custom.TeamPoints --field estimateUnit=points\ntoil util owi map issue.json --command "github get-issue"\n```\n\n| Argument / flag | Meaning |\n|-----------------|---------|\n| `[file]` | A file inside the workspace. `-`, or no file and no `--text`, reads stdin |\n| `--text <text>` | The input itself, instead of a file |\n| `--command <name>` | The command whose data the input is, when it holds `data` without its envelope (`"jira search"`) |\n| `--key <key>` | The item a history belongs to, when its output doesn\'t say: `PAY-104`, or `imagile/payments-web#44` (a bare `44` takes the envelope\'s owner and repo) |\n| `--field <name=field>` | Point an OWI field at a field of your own, repeatable: `estimate`, `estimateUnit` (`points`, `hours` or `days`), `priority`, `type`, `team`, `dueDate` or `iteration` |\n\nOver MCP the tool is `util_owi_map`, with `file` or `text`, and `command`, `key`\nand `field` (a list of `name=field`).\n\n**What it reads**, by the command each envelope\'s `meta.command` names:\n\n- **Jira and Jira Cloud:** `search` and `get-issue` (one key or several) for items,\n  `get-changelog` for history.\n- **Azure DevOps:** `work get` and `work get-batch` for items, `work revisions`\n  for history, and `work list-iterations` for iteration dates. `work search`\n  returns ids only and is skipped: map `work get-batch` for those ids instead.\n- **GitHub:** `list-issues`, `search-issues` and `get-issue` for issues,\n  `projects list-items` for the board\'s status, estimate and iteration, and\n  `issue-events` for history. Pull requests are left out with a warning.\n\nPass one envelope, a JSON array of them, or one a line (`>>` appends each command\'s\noutput to one file). A Jira changelog and a GitHub timeline don\'t name their issue,\nso give `--key`, or wrap each as `{ "key": "PAY-104", "history": <envelope> }` in a\nfile holding several. Output from any other command is refused with\n`INVALID_INPUT` naming the ones that map.\n\nOutput:\n\n```json\n{\n  "owi": "0.1",\n  "count": 1,\n  "items": [{\n    "owi": "0.1",\n    "id": "corp-jira:PAY-101",\n    "source": { "area": "jira", "connection": "corp-jira", "key": "PAY-101", "command": "jira get-issue" },\n    "url": "https://jira.imagile.dev/browse/PAY-101",\n    "type": "STORY", "typeName": "Story",\n    "title": "Tokenise card numbers at the edge",\n    "status": "In Progress", "statusCategory": "IN_PROGRESS",\n    "estimate": { "value": 5, "unit": "points", "field": "Story Points" },\n    "iteration": { "id": "42", "name": "Sprint 42", "path": null, "start": "2026-10-05T09:00:00.000Z", "end": "2026-10-16T17:00:00.000Z", "state": "current" },\n    "parent": "corp-jira:PAY-100",\n    "links": [{ "type": "blocks", "direction": "outward", "target": "corp-jira:PAY-102", "name": "blocks" }],\n    "history": { "transitions": [{ "from": "To Do", "to": "In Progress", "fromCategory": "TODO", "toCategory": "IN_PROGRESS", "at": "2026-10-06T09:15:00.000Z", "by": { "id": "jsmith", "name": "J. Smith", "email": null } }], "iterations": [] },\n    "unmapped": [],\n    "native": { "jira get-issue": { "key": "PAY-101", "fields": { "...": "..." } } }\n  }],\n  "histories": [],\n  "unmapped": {},\n  "skipped": [],\n  "verified": { "passed": true, "checks": [{ "check": "items.schema", "status": "passed", "checked": 1, "failed": 0 }] }\n}\n```\n\n(Each item has every field in the spec; this one is shortened.)\n\n- **`id`** is `<connection>:<native key>`, so items from two Jira sites never\n  collide. Links, parents and children use the same ids.\n- **`statusCategory`** is `TODO`, `IN_PROGRESS`, `DONE` or `UNKNOWN`: from Jira\'s\n  status category, Azure DevOps\' default states, and a GitHub board\'s Status\n  options. A status with no known category is `UNKNOWN`, with an\n  `OWI_UNKNOWN_STATE` warning naming it.\n- **`estimate`** comes from each tracker\'s default field: Story Points or Story\n  point estimate in Jira (by the name the connection registers, never a fixed\n  `customfield_` id), then the original estimate in hours; StoryPoints, Effort or\n  Size in Azure DevOps, then OriginalEstimate; a board number field named\n  Estimate, Size or Story Points in GitHub. `field` says which. Teams with a field\n  of their own point `estimate` at it with `--field`, the same keys a dossier\'s\n  `fields` uses.\n- **`unmapped`**, on each item, lists every field the record couldn\'t fill and\n  why: a field `jira search` wasn\'t asked for, an iteration whose dates need\n  `ado work list-iterations`, an issue with no board in the input. `data.unmapped`\n  counts them by field, and an `OWI_UNMAPPED` warning sums them up. Nothing is\n  guessed.\n- **`histories`** holds histories whose item wasn\'t in the input, by id, so they\n  can be joined to items read earlier. **`skipped`** lists each document that\n  wasn\'t mapped (a failed call, `work search`), each also an `OWI_SKIPPED` warning.\n- **`native`** keeps every source record as it came, keyed by command.\n- **`verified`:** every item, and every history in `histories`, is validated\n  against `docs/owi/schema.json` (`items.schema`, `histories.schema`) before it is\n  returned; a failure is an `OWI_SCHEMA_INVALID` warning naming the item and the\n  JSON pointer. The validation runs in a worker with a 2 s deadline per item, and\n  one that can\'t finish is unchecked, never passed. `input.complete` checks the\n  whole file was read.\n\nAt most 5,000 items are mapped in one call; past that the rest are left out with\nan `OWI_ITEMS_CAPPED` warning, so map them in another call. Input is at most\n64 MiB.\n'
 };
 var skillPages = Object.fromEntries(
   Object.entries(skillFiles).flatMap(([file2, text4]) => file2 === "SKILL.md" ? [] : [[file2.slice(0, -3), text4]])
@@ -143200,9 +137135,9 @@ function inputSchemaFor(def) {
 init_errors();
 var MIN_NODE = "24.14.0";
 function nodeTooOld(version3, min = MIN_NODE) {
-  const parse8 = (v) => v.replace(/^v/, "").split(".").map((n) => Number.parseInt(n, 10) || 0);
-  const have = parse8(version3);
-  const need = parse8(min);
+  const parse7 = (v) => v.replace(/^v/, "").split(".").map((n) => Number.parseInt(n, 10) || 0);
+  const have = parse7(version3);
+  const need = parse7(min);
   for (let i = 0; i < 3; i++) {
     if ((have[i] ?? 0) !== (need[i] ?? 0)) return (have[i] ?? 0) < (need[i] ?? 0);
   }
@@ -143812,7 +137747,7 @@ function outsideWorkspace(path2, workspace) {
 }
 var HOW_TO_SET = "Pass --workspace <dir> (in the MCP server's args for toil mcp), set TOIL_WORKSPACE, or use an MCP client that shares exactly one root.";
 function resolveWorkspace(options2) {
-  const pick4 = (raw3, source2, named) => {
+  const pick3 = (raw3, source2, named) => {
     const dir = resolve4(options2.cwd, raw3);
     let isDir2 = false;
     try {
@@ -143829,12 +137764,12 @@ function resolveWorkspace(options2) {
     }
     return { dir, source: source2 };
   };
-  if (options2.flag) return pick4(options2.flag, "flag", "--workspace");
+  if (options2.flag) return pick3(options2.flag, "flag", "--workspace");
   const env = options2.env.TOIL_WORKSPACE;
-  if (env) return pick4(env, "env", "TOIL_WORKSPACE");
-  if (!options2.mcp) return pick4(options2.cwd, "cwd", "the working directory");
+  if (env) return pick3(env, "env", "TOIL_WORKSPACE");
+  if (!options2.mcp) return pick3(options2.cwd, "cwd", "the working directory");
   const roots = options2.roots ?? [];
-  if (roots.length === 1) return pick4(roots[0], "mcp-root", "the MCP client's root");
+  if (roots.length === 1) return pick3(roots[0], "mcp-root", "the MCP client's root");
   return {
     source: "none",
     error: new ToilError(
@@ -143865,7 +137800,7 @@ function isSystemPath(realPath, platform = process.platform) {
   return /^\/(proc|sys)(\/|$)/.test(realPath);
 }
 var comparable = (path2) => process.platform === "win32" ? path2.toLowerCase() : path2;
-var inside = (child2, parent) => child2 === parent || child2.startsWith(parent.endsWith(sep2) ? parent : parent + sep2);
+var inside = (child, parent) => child === parent || child.startsWith(parent.endsWith(sep2) ? parent : parent + sep2);
 function toCsv(header, rows) {
   const field4 = (value2) => {
     const text4 = value2 === null || value2 === void 0 ? "" : String(value2);
@@ -144211,8 +138146,8 @@ function samePath(a, b, platform = process.platform) {
   };
   return norm(a) === norm(b);
 }
-function inside2(child2, parent) {
-  const rel = relative2(parent, child2);
+function inside2(child, parent) {
+  const rel = relative2(parent, child);
   return rel === "" || !rel.startsWith("..") && !isAbsolute5(rel);
 }
 function validateDossier(raw3, areas2) {
@@ -144962,7 +138897,7 @@ function findGit(options2) {
   };
   const excluded = (options2.exclude ?? []).map(realish2);
   const pathSep = platform === "win32" ? "\\" : "/";
-  const under2 = (child2, parent) => child2.startsWith(parent.endsWith(pathSep) || parent.endsWith(sep3) ? parent : parent + pathSep);
+  const under2 = (child, parent) => child.startsWith(parent.endsWith(pathSep) || parent.endsWith(sep3) ? parent : parent + pathSep);
   const home = options2.home ? realish2(options2.home) : void 0;
   const inExcluded = (dir) => excluded.some((e) => dir === e || under2(dir, e) && !(home !== void 0 && (home === e || under2(home, e))));
   const raw3 = envValue(options2.env, "PATH", platform) ?? "";
@@ -145039,9 +138974,9 @@ function spawnGit(path2, argv, cwd, env, command, signal) {
       reject(signal.reason);
       return;
     }
-    let child2;
+    let child;
     try {
-      child2 = spawn2(path2, argv, { cwd, env, shell: false, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+      child = spawn2(path2, argv, { cwd, env, shell: false, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
     } catch (e) {
       reject(gitNotRunnable(command, path2, e));
       return;
@@ -145054,20 +138989,20 @@ function spawnGit(path2, argv, cwd, env, command, signal) {
       size += chunk.length;
       if (size > GIT_MAX_OUTPUT) {
         overflow = true;
-        child2.kill();
+        child.kill();
         return;
       }
       into.push(chunk);
     };
-    child2.stdout.on("data", take2(out));
-    child2.stderr.on("data", take2(err));
-    const onAbort = () => child2.kill();
+    child.stdout.on("data", take2(out));
+    child.stderr.on("data", take2(err));
+    const onAbort = () => child.kill();
     signal?.addEventListener("abort", onAbort, { once: true });
-    child2.once("error", (e) => {
+    child.once("error", (e) => {
       signal?.removeEventListener("abort", onAbort);
       reject(signal?.aborted ? signal.reason : gitNotRunnable(command, path2, e));
     });
-    child2.once("close", (code) => {
+    child.once("close", (code) => {
       signal?.removeEventListener("abort", onAbort);
       if (signal?.aborted) return reject(signal.reason);
       if (overflow) {
@@ -145198,9 +139133,9 @@ function targetsFor(choice, scope, roots) {
   return [{ agent, scope, dir: skillsDir(agent, scope, roots) }];
 }
 var slashes2 = forwardSlashes;
-function isWithin(child2, parent) {
+function isWithin(child, parent) {
   const fold = (p) => process.platform === "win32" ? p.toLowerCase() : p;
-  const rel = relative3(fold(resolve6(parent)), fold(resolve6(child2)));
+  const rel = relative3(fold(resolve6(parent)), fold(resolve6(child)));
   return rel === "" || !rel.startsWith("..") && !isAbsolute7(rel);
 }
 function childOf(dir, name3) {
@@ -146422,8 +140357,8 @@ var Help = class {
    * @param {string} str
    * @returns {number}
    */
-  displayWidth(str5) {
-    return stripVTControlCharacters(str5).length;
+  displayWidth(str4) {
+    return stripVTControlCharacters(str4).length;
   }
   /**
    * Style the title for displaying in the help. Called with 'Usage:', 'Options:', etc.
@@ -146431,11 +140366,11 @@ var Help = class {
    * @param {string} str
    * @returns {string}
    */
-  styleTitle(str5) {
-    return str5;
+  styleTitle(str4) {
+    return str4;
   }
-  styleUsage(str5) {
-    return str5.split(" ").map((word) => {
+  styleUsage(str4) {
+    return str4.split(" ").map((word) => {
       if (word === "[options]") return this.styleOptionText(word);
       if (word === "[command]") return this.styleSubcommandText(word);
       if (word[0] === "[" || word[0] === "<")
@@ -146443,46 +140378,46 @@ var Help = class {
       return this.styleCommandText(word);
     }).join(" ");
   }
-  styleCommandDescription(str5) {
-    return this.styleDescriptionText(str5);
+  styleCommandDescription(str4) {
+    return this.styleDescriptionText(str4);
   }
-  styleOptionDescription(str5) {
-    return this.styleDescriptionText(str5);
+  styleOptionDescription(str4) {
+    return this.styleDescriptionText(str4);
   }
-  styleSubcommandDescription(str5) {
-    return this.styleDescriptionText(str5);
+  styleSubcommandDescription(str4) {
+    return this.styleDescriptionText(str4);
   }
-  styleArgumentDescription(str5) {
-    return this.styleDescriptionText(str5);
+  styleArgumentDescription(str4) {
+    return this.styleDescriptionText(str4);
   }
-  styleDescriptionText(str5) {
-    return str5;
+  styleDescriptionText(str4) {
+    return str4;
   }
-  styleOptionTerm(str5) {
-    return this.styleOptionText(str5);
+  styleOptionTerm(str4) {
+    return this.styleOptionText(str4);
   }
-  styleSubcommandTerm(str5) {
-    return str5.split(" ").map((word) => {
+  styleSubcommandTerm(str4) {
+    return str4.split(" ").map((word) => {
       if (word === "[options]") return this.styleOptionText(word);
       if (word[0] === "[" || word[0] === "<")
         return this.styleArgumentText(word);
       return this.styleSubcommandText(word);
     }).join(" ");
   }
-  styleArgumentTerm(str5) {
-    return this.styleArgumentText(str5);
+  styleArgumentTerm(str4) {
+    return this.styleArgumentText(str4);
   }
-  styleOptionText(str5) {
-    return str5;
+  styleOptionText(str4) {
+    return str4;
   }
-  styleArgumentText(str5) {
-    return str5;
+  styleArgumentText(str4) {
+    return str4;
   }
-  styleSubcommandText(str5) {
-    return str5;
+  styleSubcommandText(str4) {
+    return str4;
   }
-  styleCommandText(str5) {
-    return str5;
+  styleCommandText(str4) {
+    return str4;
   }
   /**
    * Calculate the pad width from the maximum term length.
@@ -146505,8 +140440,8 @@ var Help = class {
    * @param {string} str
    * @returns {boolean}
    */
-  preformatted(str5) {
-    return /\n[^\S\r\n]/.test(str5);
+  preformatted(str4) {
+    return /\n[^\S\r\n]/.test(str4);
   }
   /**
    * Format the "item", which consists of a term and description. Pad the term and wrap the description, indenting the following lines.
@@ -146552,9 +140487,9 @@ ${itemIndentStr}`);
    * @param {number} width
    * @returns {string}
    */
-  boxWrap(str5, width) {
-    if (width < this.minWidthToWrap) return str5;
-    const rawLines = str5.split(/\r\n|\n/);
+  boxWrap(str4, width) {
+    if (width < this.minWidthToWrap) return str4;
+    const rawLines = str4.split(/\r\n|\n/);
     const chunkPattern = /[\s]*[^\s]+/g;
     const wrappedLines = [];
     rawLines.forEach((line) => {
@@ -146844,9 +140779,9 @@ var DualOptions = class {
     return option.negate === (negativeValue === value2);
   }
 };
-function camelcase(str5) {
-  return str5.split("-").reduce((str6, word) => {
-    return str6 + word[0].toUpperCase() + word.slice(1);
+function camelcase(str4) {
+  return str4.split("-").reduce((str5, word) => {
+    return str5 + word[0].toUpperCase() + word.slice(1);
   });
 }
 function splitOptionFlags(flags) {
@@ -147006,14 +140941,14 @@ var Command = class _Command extends EventEmitter {
     this._showSuggestionAfterError = true;
     this._savedState = null;
     this._outputConfiguration = {
-      writeOut: (str5) => process3.stdout.write(str5),
-      writeErr: (str5) => process3.stderr.write(str5),
-      outputError: (str5, write) => write(str5),
+      writeOut: (str4) => process3.stdout.write(str4),
+      writeErr: (str4) => process3.stderr.write(str4),
+      outputError: (str4, write) => write(str4),
       getOutHelpWidth: () => process3.stdout.isTTY ? process3.stdout.columns : void 0,
       getErrHelpWidth: () => process3.stderr.isTTY ? process3.stderr.columns : void 0,
       getOutHasColors: () => useColor() ?? (process3.stdout.isTTY && process3.stdout.hasColors?.()),
       getErrHasColors: () => useColor() ?? (process3.stderr.isTTY && process3.stderr.hasColors?.()),
-      stripColor: (str5) => stripVTControlCharacters2(str5)
+      stripColor: (str4) => stripVTControlCharacters2(str4)
     };
     this._hidden = false;
     this._helpOption = void 0;
@@ -148741,18 +142676,18 @@ Expecting one of '${allowedValues.join("', '")}'`);
    * @param {string} [description]
    * @return {(this | string | undefined)} `this` command for chaining, or version string if no arguments
    */
-  version(str5, flags, description3) {
-    if (str5 === void 0) return this._version;
-    this._version = str5;
+  version(str4, flags, description3) {
+    if (str4 === void 0) return this._version;
+    this._version = str4;
     flags = flags || "-V, --version";
     description3 = description3 || "output the version number";
     const versionOption2 = this.createOption(flags, description3);
     this._versionOptionName = versionOption2.attributeName();
     this._registerOption(versionOption2);
     this.on("option:" + versionOption2.name(), () => {
-      this._outputConfiguration.writeOut(`${str5}
+      this._outputConfiguration.writeOut(`${str4}
 `);
-      this._exit(0, "commander.version", str5);
+      this._exit(0, "commander.version", str4);
     });
     return this;
   }
@@ -148763,10 +142698,10 @@ Expecting one of '${allowedValues.join("', '")}'`);
    * @param {object} [argsDescription]
    * @return {(string|Command)}
    */
-  description(str5, argsDescription) {
-    if (str5 === void 0 && argsDescription === void 0)
+  description(str4, argsDescription) {
+    if (str4 === void 0 && argsDescription === void 0)
       return this._description;
-    this._description = str5;
+    this._description = str4;
     if (argsDescription) {
       this._argsDescription = argsDescription;
     }
@@ -148778,9 +142713,9 @@ Expecting one of '${allowedValues.join("', '")}'`);
    * @param {string} [str]
    * @return {(string|Command)}
    */
-  summary(str5) {
-    if (str5 === void 0) return this._summary;
-    this._summary = str5;
+  summary(str4) {
+    if (str4 === void 0) return this._summary;
+    this._summary = str4;
     return this;
   }
   /**
@@ -148828,8 +142763,8 @@ Expecting one of '${allowedValues.join("', '")}'`);
    * @param {string} [str]
    * @return {(string|Command)}
    */
-  usage(str5) {
-    if (str5 === void 0) {
+  usage(str4) {
+    if (str4 === void 0) {
       if (this._usage) return this._usage;
       const args = this.registeredArguments.map((arg) => {
         return humanReadableArgName(arg);
@@ -148840,7 +142775,7 @@ Expecting one of '${allowedValues.join("', '")}'`);
         this.registeredArguments.length ? args : []
       ).join(" ");
     }
-    this._usage = str5;
+    this._usage = str4;
     return this;
   }
   /**
@@ -148849,9 +142784,9 @@ Expecting one of '${allowedValues.join("', '")}'`);
    * @param {string} [str]
    * @return {(string|Command)}
    */
-  name(str5) {
-    if (str5 === void 0) return this._name;
-    this._name = str5;
+  name(str4) {
+    if (str4 === void 0) return this._name;
+    this._name = str4;
     return this;
   }
   /**
@@ -148985,17 +142920,17 @@ Expecting one of '${allowedValues.join("', '")}'`);
     let hasColors;
     let helpWidth;
     if (error62) {
-      baseWrite = (str5) => this._outputConfiguration.writeErr(str5);
+      baseWrite = (str4) => this._outputConfiguration.writeErr(str4);
       hasColors = this._outputConfiguration.getErrHasColors();
       helpWidth = this._outputConfiguration.getErrHelpWidth();
     } else {
-      baseWrite = (str5) => this._outputConfiguration.writeOut(str5);
+      baseWrite = (str4) => this._outputConfiguration.writeOut(str4);
       hasColors = this._outputConfiguration.getOutHasColors();
       helpWidth = this._outputConfiguration.getOutHelpWidth();
     }
-    const write = (str5) => {
-      if (!hasColors) str5 = this._outputConfiguration.stripColor(str5);
-      return baseWrite(str5);
+    const write = (str4) => {
+      if (!hasColors) str4 = this._outputConfiguration.stripColor(str4);
+      return baseWrite(str4);
     };
     return { error: error62, write, hasColors, helpWidth };
   }
@@ -149255,13 +143190,13 @@ function buildProgram(options2) {
   const onGroup = /* @__PURE__ */ new Map();
   const groupFlags = (area31) => onGroup.get(area31) ?? /* @__PURE__ */ new Set();
   const register = (def, path2) => {
-    const canonical3 = path2 === def.path;
-    const preset = canonical3 ? {} : aliasInput(def, path2);
+    const canonical2 = path2 === def.path;
+    const preset = canonical2 ? {} : aliasInput(def, path2);
     const fixed = Object.entries(preset).map(([field4, value2]) => `${def.options?.find((o) => o.field === field4)?.flags.split(/[ ,]+/).find((p) => p.startsWith("--")) ?? field4} ${String(value2)}`).join(" ");
     const leaf = quiet(
-      groupFor(path2.slice(0, -1)).command(path2[path2.length - 1]).description(canonical3 ? def.description : `${def.description} (same as toil ${commandName(def)}${fixed ? ` ${fixed}` : ""})`)
+      groupFor(path2.slice(0, -1)).command(path2[path2.length - 1]).description(canonical2 ? def.description : `${def.description} (same as toil ${commandName(def)}${fixed ? ` ${fixed}` : ""})`)
     );
-    if (canonical3) {
+    if (canonical2) {
       for (const alias of def.aliases ?? []) if (typeof alias === "string") leaf.alias(alias);
     }
     for (const arg of def.args ?? []) {
@@ -149286,7 +143221,7 @@ function buildProgram(options2) {
       const cmd = actionArgs[actionArgs.length - 1];
       const globals = cmd.optsWithGlobals();
       const input3 = withSelect({ ...inputFromCli(def, cmd, groupFlags(path2[0]), preset), ...preset }, globals);
-      if (!canonical3) {
+      if (!canonical2) {
         const stray = strayGroupFlags(def, cmd, groupFlags(path2[0]))[0];
         if (stray) {
           const flag = stray.split(/[ ,]+/).find((p) => p.startsWith("--")) ?? stray;
@@ -155782,11 +149717,11 @@ var example2 = { ...at8, pr: 42 };
 async function prSpec(ctx, id9) {
   const found = await getPR4(ctx, id9);
   const source2 = found.source?.commit?.hash;
-  const destination2 = found.destination?.commit?.hash;
-  if (!source2 || !destination2) {
+  const destination = found.destination?.commit?.hash;
+  if (!source2 || !destination) {
     throw new ToilError("NOT_FOUND", `Pull request ${id9} has no source or destination commit to diff.`, { fix: "Check the pull request still has both branches: toil bitbucket-cloud get-pr --id <id>." });
   }
-  return `${source2}..${destination2}`;
+  return `${source2}..${destination}`;
 }
 var diffCommand2 = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "diff"],
@@ -159842,11 +153777,11 @@ function failure3(connection5, kind, detail) {
 async function startSspi(connection5, request, signal, spawner = spawnHelper, platform = process.platform) {
   if (platform !== "win32") throw notWindows(connection5);
   signal.throwIfAborted();
-  const child2 = spawner(helperEnv());
-  const lines = createInterface2({ input: child2.stdout })[Symbol.asyncIterator]();
+  const child = spawner(helperEnv());
+  const lines = createInterface2({ input: child.stdout })[Symbol.asyncIterator]();
   let stderr = "";
-  child2.stderr.on("data", (d2) => (stderr += d2.toString()).length > 4e3 && (stderr = stderr.slice(-4e3)));
-  child2.stdin.on("error", () => {
+  child.stderr.on("data", (d2) => (stderr += d2.toString()).length > 4e3 && (stderr = stderr.slice(-4e3)));
+  child.stdin.on("error", () => {
   });
   let closed = false;
   const close = () => {
@@ -159854,10 +153789,10 @@ async function startSspi(connection5, request, signal, spawner = spawnHelper, pl
     closed = true;
     signal.removeEventListener("abort", close);
     try {
-      child2.stdin.end("END\n");
+      child.stdin.end("END\n");
     } catch {
     }
-    child2.kill();
+    child.kill();
   };
   signal.addEventListener("abort", close, { once: true });
   const read = async () => {
@@ -159873,16 +153808,16 @@ async function startSspi(connection5, request, signal, spawner = spawnHelper, pl
     return Buffer.from(line.slice("TOKEN".length).trim(), "base64");
   };
   try {
-    child2.stdin.write(bootstrapLine() + "\n");
+    child.stdin.write(bootstrapLine() + "\n");
     if (await read() !== "READY") throw failure3(connection5, "SSPI", "the helper answered out of turn");
     const { account } = request;
-    child2.stdin.write(JSON.stringify({ spn: request.spn, domain: account?.domain ?? null, user: account?.user ?? null, password: account?.password ?? null }) + "\n");
+    child.stdin.write(JSON.stringify({ spn: request.spn, domain: account?.domain ?? null, user: account?.user ?? null, password: account?.password ?? null }) + "\n");
     const first = await token();
     return {
       first,
       async next(serverToken) {
         if (closed) throw failure3(connection5, "SSPI", "the handshake was already closed");
-        child2.stdin.write(serverToken.toString("base64") + "\n");
+        child.stdin.write(serverToken.toString("base64") + "\n");
         return token();
       },
       close
@@ -165133,8 +159068,8 @@ function textToAdf(text4) {
   return {
     type: "doc",
     version: 1,
-    content: paragraphs.map((paragraph2) => {
-      const lines = paragraph2.replace(/^\n+|\n+$/g, "").split("\n");
+    content: paragraphs.map((paragraph) => {
+      const lines = paragraph.replace(/^\n+|\n+$/g, "").split("\n");
       const content = [];
       lines.forEach((line, i) => {
         if (i > 0) content.push({ type: "hardBreak" });
@@ -170669,9 +164604,6 @@ __export(util_exports2, {
   commands: () => commands31
 });
 
-// src/areas/util/c4/commands.ts
-init_errors();
-
 // src/areas/util/kit/input.ts
 import { isUtf8 } from "node:buffer";
 init_errors();
@@ -171173,15 +165105,15 @@ var D2_STYLE = {
   component: { fill: "#85bbf0", stroke: "#78a8d8", font: "#000000" }
 };
 var key5 = (elId) => d(elId);
-function d2Element(el, indent2) {
+function d2Element(el, indent) {
   const colour = el.external ? { fill: el.kind === "person" ? "#686868" : "#999999", stroke: "#8a8a8a", font: "#ffffff" } : D2_STYLE[el.kind];
   const label3 = [el.name, typeLine(el), ...el.description ? ["", el.description] : []].join("\n");
   const shape = el.kind === "person" ? "c4-person" : el.kind === "container" && el.database ? "cylinder" : "rectangle";
   return [
-    `${indent2}${key5(el.id)}: ${d(label3)} {`,
-    `${indent2}  shape: ${shape}`,
-    `${indent2}  style: { fill: "${colour.fill}"; stroke: "${colour.stroke}"; font-color: "${colour.font}"${shape === "rectangle" ? "; border-radius: 8" : ""} }`,
-    `${indent2}}`
+    `${indent}${key5(el.id)}: ${d(label3)} {`,
+    `${indent}  shape: ${shape}`,
+    `${indent}  style: { fill: "${colour.fill}"; stroke: "${colour.stroke}"; font-color: "${colour.font}"${shape === "rectangle" ? "; border-radius: 8" : ""} }`,
+    `${indent}}`
   ];
 }
 function toD2(view2) {
@@ -171243,13 +165175,8 @@ function checkText(v, view2, text4, language) {
   v.unchecked("text.renders", `toil doesn't run ${language}, so whether the text draws is up to the place that renders it`);
 }
 async function draw(view2, signal, timeoutMs) {
-  const { BOUNDED_TIMEOUT_MS: BOUNDED_TIMEOUT_MS2, runBounded: runBounded2 } = await Promise.resolve().then(() => (init_bounded(), bounded_exports));
-  const outcome2 = await runBounded2({ kind: "c4-draw", view: view2 }, { signal, ...timeoutMs === void 0 ? {} : { timeoutMs } });
-  if (outcome2.ok) return outcome2.value;
-  const fix = "Draw fewer elements in this view with its include list, or split it into several views.";
-  if (outcome2.cause === "cancelled") throw new ToilError("CANCELLED", `Drawing view "${view2.key}" was cancelled.`);
-  if (outcome2.cause === "timeout") throw new ToilError("TIMEOUT", `Laying out view "${view2.key}" took longer than the ${(timeoutMs ?? BOUNDED_TIMEOUT_MS2) / 1e3} s it may run, so it was stopped.`, { fix });
-  throw new ToilError("INTERNAL", `View "${view2.key}" couldn't be laid out: ${outcome2.reason}.`, { fix: outcome2.cause === "denied" ? "Run Node with --allow-worker, or without the permission model." : fix });
+  const { boundedStep: boundedStep2 } = await Promise.resolve().then(() => (init_bounded(), bounded_exports));
+  return boundedStep2(`Laying out view "${view2.key}"`, { kind: "c4-draw", view: view2 }, { signal, ...timeoutMs === void 0 ? {} : { timeoutMs } }, "Draw fewer elements in this view with its include list, or split it into several views.");
 }
 var SHAPE = `The model is JSON: { title?, people[], systems[] (each with containers[], each with components[]), relationships[] of { source, destination, description?, technology? }, views[] of { key, type: systemContext | container | component, scope, title?, include? } }; every id is unique across the model. A view shows its scope's children plus whatever they relate to, with relationships drawn between the nearest elements shown; include lists ids to show instead ("*" = the default set). Pass it as file (a file in the workspace) or text (the JSON itself). At most ${MODEL_LIMITS.elements} elements, ${MODEL_LIMITS.relationships} relationships and ${MODEL_LIMITS.views} views.`;
 var c4RenderCommand = defineCommand({
@@ -172922,12 +166849,12 @@ var secretsCommands = [secretsScanCommand];
 
 // src/areas/util/log.ts
 var LEVELS = ["error", "warning"];
-async function runLog(ctx, fields3, options2) {
+async function runLog(ctx, fields3, options2, limits) {
   const { MAX_LINE: MAX_LINE4, parseFilters: parseFilters2, triageLog: triageLog2 } = await Promise.resolve().then(() => (init_triage(), triage_exports));
   const filters = parseFilters2(options2);
   const streams = fields3.text === void 0 && fields3.file !== void 0 && fields3.file !== "-";
   const input3 = await openInput(ctx, fields3, { maxBytes: streams ? Number.POSITIVE_INFINITY : DEFAULT_MAX_BYTES, maxLineLength: MAX_LINE4 });
-  return triageLog2(input3, filters, options2, ctx.warn);
+  return triageLog2(input3, filters, options2, ctx.warn, { signal: ctx.signal, ...limits ? { limits } : {} });
 }
 var SAMPLE_LOG = [
   "[2026-10-14T09:12:20.411Z] [INFO] Running com.imagile.payments.OrderServiceTest",
@@ -172978,14 +166905,242 @@ var logCommands2 = [logCommand2];
 // src/areas/util/report/summarise.ts
 init_errors();
 init_verify();
-init_xml();
 
-// src/areas/util/report/cobertura.ts
-init_xml();
+// src/areas/util/kit/xml.ts
+var XmlSyntaxError = class extends Error {
+  constructor(message, line, column) {
+    super(`${message} (line ${line}, column ${column})`);
+    this.line = line;
+    this.column = column;
+    this.name = "XmlSyntaxError";
+  }
+  line;
+  column;
+};
+var PREDEFINED = { lt: "<", gt: ">", amp: "&", quot: '"', apos: "'" };
+var NAME2 = /^[A-Za-z_:\u00c0-\uffff][\w:.\u00b7\u00c0-\uffff-]*$/;
+var DEFAULT_MAX_TOKEN = 16 * 1024 * 1024;
+function localName(name3) {
+  const colon = name3.indexOf(":");
+  return colon === -1 ? name3 : name3.slice(colon + 1);
+}
+var XmlTokenizer = class {
+  constructor(onEvent, options2 = {}) {
+    this.onEvent = onEvent;
+    this.options = options2;
+    this.entities = { ...options2.entities, ...PREDEFINED };
+    this.maxToken = options2.maxToken ?? DEFAULT_MAX_TOKEN;
+  }
+  onEvent;
+  options;
+  buffer = "";
+  line = 1;
+  column = 1;
+  stack = [];
+  roots = 0;
+  ended = false;
+  entities;
+  maxToken;
+  /** The element names open at this point, outermost first. */
+  get open() {
+    return this.stack;
+  }
+  write(chunk) {
+    if (this.ended) throw new Error("write() after end()");
+    this.buffer += this.line === 1 && this.column === 1 && this.buffer === "" ? chunk.replace(/^\ufeff/, "") : chunk;
+    this.drain(false);
+  }
+  end() {
+    this.ended = true;
+    this.drain(true);
+    if (this.stack.length) throw this.error(`<${this.stack.at(-1)}> is never closed`);
+    if (!this.options.fragment && this.roots === 0) throw this.error("There is no root element");
+  }
+  error(message, at9 = { line: this.line, column: this.column }) {
+    return new XmlSyntaxError(message, at9.line, at9.column);
+  }
+  /** Moves the position past `text`. */
+  advance(text4) {
+    let nl = text4.indexOf("\n");
+    if (nl === -1) {
+      this.column += text4.length;
+      return;
+    }
+    let last = nl;
+    while (nl !== -1) {
+      this.line++;
+      last = nl;
+      nl = text4.indexOf("\n", nl + 1);
+    }
+    this.column = text4.length - last;
+  }
+  drain(final) {
+    for (; ; ) {
+      const lt = this.buffer.indexOf("<");
+      if (lt !== 0) {
+        let end2 = lt === -1 ? this.buffer.length : lt;
+        if (lt === -1 && !final) {
+          const amp = this.buffer.lastIndexOf("&");
+          if (amp !== -1 && this.buffer.length - amp <= 32 && this.buffer.indexOf(";", amp) === -1) end2 = amp;
+          while (end2 > 0 && end2 > this.buffer.length - 2 && this.buffer[end2 - 1] === "]") end2--;
+          if (end2 > 0 && this.buffer[end2 - 1] === "\r") end2--;
+        }
+        if (end2 === 0) return;
+        this.text(this.buffer.slice(0, end2));
+        this.consume(end2);
+        if (lt === -1) return;
+        continue;
+      }
+      const length = this.markup(final);
+      if (length === 0) {
+        if (this.buffer.length > this.maxToken) throw this.error(`A single construct is longer than ${this.maxToken} characters`);
+        if (final) throw this.error("The document ends inside markup");
+        return;
+      }
+    }
+  }
+  consume(n) {
+    this.advance(this.buffer.slice(0, n));
+    this.buffer = this.buffer.slice(n);
+  }
+  /** Handles the markup at the start of the buffer and returns how much it used, or 0 when it isn't all here yet. */
+  markup(final) {
+    const b = this.buffer;
+    const at9 = { line: this.line, column: this.column };
+    const startsWith = (prefix) => b.startsWith(prefix) || !final && prefix.startsWith(b);
+    const until = (close, from) => {
+      const i = b.indexOf(close, from);
+      return i === -1 ? -1 : i + close.length;
+    };
+    if (startsWith("<!--")) {
+      if (b.length < 4) return 0;
+      const end3 = until("-->", 4);
+      if (end3 === -1) return 0;
+      this.onEvent({ type: "comment", text: b.slice(4, end3 - 3), ...at9 });
+      this.consume(end3);
+      return end3;
+    }
+    if (startsWith("<![CDATA[")) {
+      if (b.length < 9) return 0;
+      const end3 = until("]]>", 9);
+      if (end3 === -1) return 0;
+      this.inElementOrFragment(at9, true);
+      this.onEvent({ type: "text", text: b.slice(9, end3 - 3).replace(/\r\n?/g, "\n"), cdata: true, ...at9 });
+      this.consume(end3);
+      return end3;
+    }
+    if (startsWith("<!DOCTYPE")) {
+      if (b.length < 9) return 0;
+      const open3 = b.indexOf("[");
+      const firstGt = b.indexOf(">");
+      let end3;
+      if (open3 !== -1 && (firstGt === -1 || open3 < firstGt)) {
+        const close = b.indexOf("]", open3);
+        end3 = close === -1 ? -1 : until(">", close);
+      } else end3 = firstGt === -1 ? -1 : firstGt + 1;
+      if (end3 === -1) return 0;
+      this.onEvent({ type: "doctype", body: b.slice(9, end3 - 1).trim(), ...at9 });
+      this.consume(end3);
+      return end3;
+    }
+    if (b.startsWith("<!")) {
+      if (!final && b.length < 9) return 0;
+      throw this.error("Unrecognised markup after <!");
+    }
+    if (b.startsWith("<?")) {
+      const end3 = until("?>", 2);
+      if (end3 === -1) return 0;
+      const body = b.slice(2, end3 - 2);
+      const target2 = /^\S+/.exec(body)?.[0] ?? "";
+      this.onEvent({ type: "pi", target: target2, body: body.slice(target2.length).trim(), ...at9 });
+      this.consume(end3);
+      return end3;
+    }
+    const end2 = tagEnd(b);
+    if (end2 === -1) return 0;
+    if (end2 === -2) throw this.error('A tag holds "<", or is never closed with ">"', at9);
+    const raw3 = b.slice(1, end2 - 1);
+    if (raw3.startsWith("/")) {
+      const name3 = raw3.slice(1).trim();
+      const expected = this.stack.pop();
+      if (expected === void 0) throw this.error(`</${name3}> closes nothing`, at9);
+      if (name3 !== expected) throw this.error(`</${name3}> found where </${expected}> was expected`, at9);
+      this.onEvent({ type: "close", name: name3, ...at9 });
+    } else {
+      const selfClosing = raw3.endsWith("/");
+      const { name: name3, attrs } = this.tag(selfClosing ? raw3.slice(0, -1) : raw3, at9);
+      if (this.stack.length === 0) {
+        if (!this.options.fragment && this.roots > 0) throw this.error(`<${name3}> is a second root element`, at9);
+        this.roots++;
+      }
+      this.onEvent({ type: "open", name: name3, attrs, selfClosing, ...at9 });
+      if (selfClosing) this.onEvent({ type: "close", name: name3, ...at9 });
+      else this.stack.push(name3);
+    }
+    this.consume(end2);
+    return end2;
+  }
+  inElementOrFragment(at9, cdata) {
+    if (this.stack.length === 0 && !this.options.fragment) throw this.error(`${cdata ? "CDATA" : "Text"} outside the root element`, at9);
+  }
+  text(raw3) {
+    const at9 = { line: this.line, column: this.column };
+    if (this.stack.length === 0 && !this.options.fragment) {
+      if (raw3.trim() !== "") this.inElementOrFragment(at9, false);
+      return;
+    }
+    if (raw3.includes("]]>")) throw this.error('"]]>" is not allowed in text', at9);
+    this.onEvent({ type: "text", text: this.decode(raw3.replace(/\r\n?/g, "\n"), at9), cdata: false, ...at9 });
+  }
+  tag(raw3, at9) {
+    const name3 = /^[^\s/>=]+/.exec(raw3)?.[0] ?? "";
+    if (!NAME2.test(name3)) throw this.error(`"<${raw3.slice(0, 40)}" is not a valid tag`, at9);
+    const attrs = {};
+    let rest = raw3.slice(name3.length);
+    const ATTR = /^\s+([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)')/;
+    for (; ; ) {
+      if (rest.trim() === "") break;
+      const m2 = ATTR.exec(rest);
+      if (!m2) throw this.error(`<${name3}> has a malformed attribute near "${rest.trim().slice(0, 40)}"`, at9);
+      const attr = m2[1];
+      if (!NAME2.test(attr)) throw this.error(`<${name3}> has an invalid attribute name "${attr}"`, at9);
+      if (Object.hasOwn(attrs, attr)) throw this.error(`<${name3}> has the attribute "${attr}" twice`, at9);
+      if ((m2[2] ?? m2[3] ?? "").includes("<")) throw this.error(`<${name3}> has "<" in the value of "${attr}"; write it as &lt;`, at9);
+      attrs[attr] = this.decode((m2[2] ?? m2[3] ?? "").replace(/\r\n|[\t\n\r]/g, " "), at9);
+      rest = rest.slice(m2[0].length);
+    }
+    return { name: name3, attrs };
+  }
+  decode(text4, at9) {
+    if (!text4.includes("&")) return text4;
+    return text4.replace(/&([^;&\s]*);?/g, (whole, ref2) => {
+      if (!whole.endsWith(";")) throw this.error(`A bare "&" must be written &amp;`, at9);
+      if (ref2.startsWith("#")) {
+        const code = ref2[1] === "x" ? parseInt(ref2.slice(2), 16) : /^\d+$/.test(ref2.slice(1)) ? parseInt(ref2.slice(1), 10) : NaN;
+        if (!Number.isInteger(code) || code < 1 || code > 1114111 || code >= 55296 && code <= 57343) throw this.error(`"&${ref2};" is not a valid character reference`, at9);
+        return String.fromCodePoint(code);
+      }
+      const value2 = Object.hasOwn(this.entities, ref2) ? this.entities[ref2] : void 0;
+      if (value2 === void 0) throw this.error(`"&${ref2};" is not an entity this reader knows`, at9);
+      return value2;
+    });
+  }
+};
+function tagEnd(b) {
+  let quote = "";
+  for (let i = 1; i < b.length; i++) {
+    const c = b[i];
+    if (quote) {
+      if (c === quote) quote = "";
+    } else if (c === '"' || c === "'") quote = c;
+    else if (c === ">") return i + 1;
+    else if (c === "<") return -2;
+  }
+  return -1;
+}
 
 // src/areas/util/report/shared.ts
 init_errors();
-init_xml();
 var MAX_MESSAGE = 1e3;
 var MAX_STACK_LINE = 500;
 var STACK_LINES = 15;
@@ -173069,8 +167224,8 @@ function locationFromStack(text4, hints) {
   }
   if (frames.length === 0) return null;
   const words = hints.flatMap((h) => h ? [h, h.split(/[.:/\\]/).at(-1)] : []).filter((w) => w.length > 2);
-  const pick4 = frames.find((f) => words.some((w) => f.text.includes(w))) ?? frames.find((f) => !FRAMEWORK.test(f.text)) ?? frames[0];
-  return { file: pick4.file, line: pick4.line };
+  const pick3 = frames.find((f) => words.some((w) => f.text.includes(w))) ?? frames.find((f) => !FRAMEWORK.test(f.text)) ?? frames[0];
+  return { file: pick3.file, line: pick3.line };
 }
 
 // src/areas/util/report/coverage.ts
@@ -173117,21 +167272,21 @@ async function readCobertura(input3, v, skips, lowest) {
   let source2;
   let file2 = null;
   let ignoring = 0;
-  const checkRate = (scope, attr2, covered, total, where6) => {
-    const stated = scope.attrs[attr2];
+  const checkRate = (scope, attr, covered, total, where6) => {
+    const stated = scope.attrs[attr];
     if (stated === void 0 || total === 0 || !/^\s*\d+(\.\d+)?\s*$/.test(stated)) return;
     const computed = covered / total;
     const ok2 = Math.abs(Number(stated) - computed) <= rateTolerance(stated);
-    const check2 = attr2 === "line-rate" ? "coverage.lineRate" : "coverage.branchRate";
+    const check2 = attr === "line-rate" ? "coverage.lineRate" : "coverage.branchRate";
     v.expect(check2, ok2, { at: where6, expected: Number(stated), actual: Math.round(computed * 1e6) / 1e6 }, {
       code: "REPORT_COVERAGE_MISMATCH",
-      message: `${where6} states ${attr2}="${stated}", but its hit counts give ${covered}/${total} = ${(computed * 100).toFixed(2)}%.`
+      message: `${where6} states ${attr}="${stated}", but its hit counts give ${covered}/${total} = ${(computed * 100).toFixed(2)}%.`
     });
   };
-  const checkCount = (scope, attr2, counted, where6, check2) => {
-    const stated = intAttr(scope.attrs[attr2]);
+  const checkCount = (scope, attr, counted, where6, check2) => {
+    const stated = intAttr(scope.attrs[attr]);
     if (stated === void 0) return;
-    v.equal(check2, stated, counted, { at: where6, code: "REPORT_COVERAGE_MISMATCH", message: `${where6} states ${attr2}="${stated}", but its lines count ${counted}.` });
+    v.equal(check2, stated, counted, { at: where6, code: "REPORT_COVERAGE_MISMATCH", message: `${where6} states ${attr}="${stated}", but its lines count ${counted}.` });
   };
   const closeScope = () => {
     const scope = scopes.pop();
@@ -173230,7 +167385,6 @@ async function readCobertura(input3, v, skips, lowest) {
 }
 
 // src/areas/util/report/junit.ts
-init_xml();
 var DECLARED = ["tests", "failures", "errors", "skipped"];
 var CHECK = { tests: "tests.total", failures: "tests.failures", errors: "tests.errors", skipped: "tests.skipped" };
 var QUIET2 = /* @__PURE__ */ new Set(["system-out", "system-err", "properties"]);
@@ -173628,7 +167782,6 @@ async function readSarif(input3, v, skips, ctx) {
 }
 
 // src/areas/util/report/trx.ts
-init_xml();
 var OUTCOMES = ["passed", "failed", "error", "timeout", "aborted", "inconclusive", "passedButRunAborted", "notRunnable", "notExecuted", "disconnected", "warning", "completed", "inProgress", "pending"];
 var FAILING = { failed: "failure", error: "error", timeout: "error", aborted: "error" };
 var QUIET3 = /* @__PURE__ */ new Set([
@@ -174279,7 +168432,8 @@ async function count3(input3) {
   const bytes = input3.bytesRead;
   return { bytes, lines: bytes === 0 ? 0 : newlines + (last === 10 ? 0 : 1), tokens: Math.ceil(chars / 4), binary };
 }
-async function measure(input3, ctx) {
+var OUTLINE_LIMITS = { timeoutMs: 1e4, maxMemoryMb: 512 };
+async function measure(input3, ctx, limits = OUTLINE_LIMITS) {
   const named = input3.text === void 0 && input3.file !== void 0 && input3.file !== "-" ? input3.file : void 0;
   if (named !== void 0 && ctx.files.stat(named).type === "directory") {
     if (input3.language !== void 0) {
@@ -174290,10 +168444,10 @@ async function measure(input3, ctx) {
   for (const field4 of ["top", "depth"]) {
     if (input3[field4] !== void 0) throw new ToilError("INVALID_INPUT", `${field4} applies to a folder, and this is one file.`, { fix: `Leave out ${field4}, or pass a folder.` });
   }
-  return measureFile(input3, ctx);
+  return measureFile(input3, ctx, limits);
 }
 var clean = (path2) => forwardSlashes(path2).replace(/^(\.\/)+/, "").replace(/\/+$/, "") || ".";
-async function measureFile(input3, ctx) {
+async function measureFile(input3, ctx, limits) {
   const v = new Verifier(ctx.warn);
   const isFile = input3.text === void 0 && input3.file !== void 0 && input3.file !== "-";
   const opened = await openInput(ctx, input3, { binary: "allow", ...isFile ? { maxBytes: COUNT_MAX_BYTES } : {} });
@@ -174314,13 +168468,20 @@ async function measureFile(input3, ctx) {
   } else {
     const text4 = await opened.text();
     v.equal("counts.reread", { bytes: counts.bytes, lines: counts.lines }, { bytes: opened.bytesRead, lines: lineCount(text4) }, { code: "SIZE_COUNTS_MISMATCH" });
-    const { OutlineError: OutlineError2 } = await Promise.resolve().then(() => (init_lexer(), lexer_exports));
-    try {
-      outline = await outlineOf(language, text4, v);
-    } catch (err) {
-      if (!(err instanceof OutlineError2) && !(err instanceof ToilError)) throw err;
-      notOutlined = { reason: "parse-error", detail: err.message };
-      ctx.warn({ code: "SIZE_PARSE_ERROR", message: `No outline for ${opened.label}: ${err.message}. Its counts are still given.` });
+    const { boundedError: boundedError2, runBounded: runBounded2 } = await Promise.resolve().then(() => (init_bounded(), bounded_exports));
+    const result = await runBounded2({ kind: "outline", language, text: text4 }, { ...limits, signal: ctx.signal });
+    let unreadable;
+    if (!result.ok) {
+      if (result.cause !== "stack") throw boundedError2(`Outlining ${opened.label}`, result, limits, "Size the file without an outline (pass a language it has none for), or outline a smaller part of it.");
+      unreadable = "it nests too deep to outline";
+    } else if ("parseError" in result.value) unreadable = result.value.parseError;
+    else {
+      outline = result.value.outline;
+      if (result.value.parsedKeys) checkKeyNames(result.value.parsedKeys, outline.symbols.map((s) => s.name), v);
+    }
+    if (unreadable !== void 0) {
+      notOutlined = { reason: "parse-error", detail: unreadable };
+      ctx.warn({ code: "SIZE_PARSE_ERROR", message: `No outline for ${opened.label}: ${unreadable}. Its counts are still given.` });
     }
     if (outline) {
       if (outline.precision === "syntactic") v.approximated("outline.symbols", `found by a syntactic scan, not a compiler or parser; outline.method says what it covers`);
@@ -174342,65 +168503,33 @@ async function measureFile(input3, ctx) {
     verified: v.done()
   };
 }
-function jsonError(err, text4, OutlineError2) {
-  const at9 = /position (\d+)/.exec(err.message);
-  if (!at9) return new OutlineError2("it isn't valid JSON");
-  const before = text4.slice(0, Number(at9[1]));
-  const line = lineCount(before) || 1;
-  const column = before.length - before.lastIndexOf("\n");
-  return new OutlineError2(`it isn't valid JSON at line ${line}, column ${column}`);
-}
-async function outlineOf(language, text4, v) {
-  if (language === "markdown") {
-    const { outlineMarkdown: outlineMarkdown2 } = await Promise.resolve().then(() => (init_data(), data_exports));
-    return { precision: "syntactic", method: "ATX (#) and setext (underlined) headings, outside fenced code blocks and front matter. Each runs to the line before the next heading of the same or a higher level", symbols: outlineMarkdown2(text4) };
-  }
-  if (language === "json" || language === "yaml") {
-    let parsed;
-    if (language === "json") {
-      try {
-        parsed = JSON.parse(text4.replace(/^\ufeff/, ""));
-      } catch (err) {
-        const { OutlineError: OutlineError2 } = await Promise.resolve().then(() => (init_lexer(), lexer_exports));
-        throw jsonError(err, text4, OutlineError2);
-      }
-    } else {
-      const { parseYaml: parseYaml2 } = await Promise.resolve().then(() => (init_yaml(), yaml_exports));
-      parsed = parseYaml2(text4, "it");
-    }
-    const { keySymbols: keySymbols2, scanJsonKeys: scanJsonKeys2, scanYamlKeys: scanYamlKeys2 } = await Promise.resolve().then(() => (init_data(), data_exports));
-    const keys2 = language === "json" ? scanJsonKeys2(text4) : scanYamlKeys2(text4);
-    checkKeys(parsed, keys2.map((k) => k.name), v);
-    return {
-      precision: "parsed",
-      method: `Top-level keys, found by scanning the text and held against the keys ${language === "json" ? "JSON.parse" : "the YAML parser"} returns. A document whose top level isn't a mapping has none`,
-      symbols: keySymbols2(keys2)
-    };
-  }
-  const { CODE_METHOD: CODE_METHOD2, outlineCode: outlineCode2 } = await Promise.resolve().then(() => (init_code(), code_exports));
-  return { precision: "syntactic", method: CODE_METHOD2[language], symbols: outlineCode2(text4, language) };
-}
-function checkKeys(parsed, scanned, v) {
-  const isMapping = parsed !== null && typeof parsed === "object" && !Array.isArray(parsed);
-  const expected = isMapping ? [...new Set(Object.keys(parsed))].sort() : [];
+function checkKeyNames(expected, scanned, v) {
   const actual = [...new Set(scanned)].sort();
   v.equal("outline.keys", expected, actual, { code: "SIZE_OUTLINE_MISMATCH", at: "the top-level keys" });
 }
 var IDENTIFIER = /^[\w$]+$/;
-var escapeRegex2 = (text4) => text4.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-function names(line, name3) {
+function names(line, words, name3) {
   if (name3 === "") return true;
-  if (IDENTIFIER.test(name3)) return new RegExp(`(^|[^\\w$])${escapeRegex2(name3)}($|[^\\w$])`).test(line);
+  if (IDENTIFIER.test(name3)) return words().has(name3);
   return line.includes(name3) || line.includes(JSON.stringify(name3).slice(1, -1));
 }
 async function verifyOutline(symbols, input3, lines, v) {
   const reread = await input3.linesAt(symbols.map((s) => s.startLine));
   const code = { code: "SIZE_OUTLINE_MISMATCH" };
+  const wordsOf = /* @__PURE__ */ new Map();
+  let shown2 = 0;
   for (const s of symbols) {
     const label3 = `${s.kind} ${s.container ? `${s.container}.` : ""}${s.name}`;
     v.expect("outline.range", s.startLine >= 1 && s.startLine <= s.endLine && s.endLine <= lines, { at: label3, expected: `1 <= start <= end <= ${lines}`, actual: `${s.startLine}-${s.endLine}` }, code);
     const found = reread.get(s.startLine);
-    v.expect("outline.start", found !== void 0 && names(found, s.name), { at: `line ${s.startLine}`, expected: label3, actual: found === void 0 ? "no such line" : redactText(found.trim()).slice(0, 120) }, code);
+    const words = () => {
+      let set2 = wordsOf.get(s.startLine);
+      if (!set2) wordsOf.set(s.startLine, set2 = new Set(found.split(/[^\w$]+/)));
+      return set2;
+    };
+    const named = found !== void 0 && names(found, words, s.name);
+    const show = !named && found !== void 0 && shown2++ < MAX_SAMPLES;
+    v.expect("outline.start", named, { at: `line ${s.startLine}`, expected: label3, actual: found === void 0 ? "no such line" : show ? redactText(found.trim().slice(0, 4096)).slice(0, 120) : "(not shown)" }, code);
     if (s.parent !== void 0) {
       const p = symbols[s.parent];
       v.expect("outline.nesting", p !== void 0 && p.startLine <= s.startLine && s.endLine <= p.endLine, { at: label3, expected: p ? `inside ${p.startLine}-${p.endLine}` : "a container", actual: `${s.startLine}-${s.endLine}` }, code);
@@ -174473,13 +168602,13 @@ function verifyTree(tree, files, v) {
   const walk = (n) => {
     seen.add(n.path);
     const expected = totalsOf(own2.get(n.path) ?? zero());
-    for (const child2 of n.folders) {
-      walk(child2);
-      expected.files += child2.files;
-      expected.bytes += child2.bytes;
-      expected.lines += child2.lines;
-      expected.tokens += child2.tokens;
-      expected.binaryFiles += child2.binaryFiles;
+    for (const child of n.folders) {
+      walk(child);
+      expected.files += child.files;
+      expected.bytes += child.bytes;
+      expected.lines += child.lines;
+      expected.tokens += child.tokens;
+      expected.binaryFiles += child.binaryFiles;
     }
     v.equal("tree.sum", expected, totalsOf(n), { code: "SIZE_TOTALS_MISMATCH", at: `the folder ${n.path}` });
   };
@@ -175245,7 +169374,7 @@ function dossierBuildCommands(areas2) {
       if (isRemote) {
         if (hasSecretUserinfo(input3.location)) ctx.warn({ code: "DOSSIER_REMOTE_USERINFO", message: "The remote had a credential in it; it was left out of the dossier." });
         const remote = stripUserinfo(input3.location);
-        entry = { name: input3.name ?? lastPart2(remote), remotes: [remote] };
+        entry = { name: input3.name ?? lastPart(remote), remotes: [remote] };
       } else {
         const { path: path2, repo } = catalog.inspect(input3.location);
         const root = repo?.root ?? forwardSlashes(path2);
@@ -175442,7 +169571,7 @@ function dossierBuildCommands(areas2) {
       return { imported, toSetUp, failed: failed3 };
     }
   });
-  const unlink2 = defineConfigCommand({
+  const unlink = defineConfigCommand({
     path: ["dossiers", "unlink"],
     description: "Remove an area's section from a dossier, or one environment's",
     input: external_exports.object({
@@ -175497,7 +169626,7 @@ function dossierBuildCommands(areas2) {
       return { name: input3.name, file: forwardSlashes(mine.file), deleted: true };
     }
   });
-  return [init2, addRepo, link, env, field4, exportCommand, importCommand, unlink2, remove];
+  return [init2, addRepo, link, env, field4, exportCommand, importCommand, unlink, remove];
   async function changeSection({ catalog, config: config5, via }, ctx, area31, envName2, input3, makeDefault2) {
     const file2 = catalog.find(input3.dossier);
     const before = file2.dossier;
@@ -175582,7 +169711,7 @@ function keyValue(pair, flag) {
   if (at9 <= 0 || at9 === pair.length - 1) throw new ToilError("INVALID_INPUT", `${flag} takes key=value, and "${pair}" isn't.`, { fix: `For example ${flag} project=PAY.` });
   return [pair.slice(0, at9), pair.slice(at9 + 1)];
 }
-function lastPart2(remote) {
+function lastPart(remote) {
   return normalizeRemote(remote).split("/").filter(Boolean).pop() ?? remote;
 }
 function choices(catalog, config5, area31, dossier) {
@@ -176358,7 +170487,7 @@ function skillsConfigCommands() {
       for (const f of folders) {
         if (!locations.find((l) => l.path === slashes2(f.dir))?.exists) continue;
         const meta3 = readMeta(f.dir);
-        const push2 = (skill, record2, enabled) => {
+        const push = (skill, record2, enabled) => {
           const recorded = record2?.marketplace ?? null;
           const match = registered.find(([n, c]) => recorded !== null && n === recorded || record2?.installedFrom !== void 0 && c.repoUrl === record2.installedFrom);
           const clone2 = match ? clonePathOf(asMarketplace(match[0], match[1]), roots.home) : void 0;
@@ -176383,8 +170512,8 @@ function skillsConfigCommands() {
             stale: record2?.source === "bundled" && version3 !== ctx.version
           });
         };
-        for (const name3 of activeSkills(f.dir)) push2(name3, recordOf(meta3, f.dir, name3), true);
-        for (const [name3, record2] of Object.entries(meta3.disabled ?? {})) push2(name3, record2, false);
+        for (const name3 of activeSkills(f.dir)) push(name3, recordOf(meta3, f.dir, name3), true);
+        for (const [name3, record2] of Object.entries(meta3.disabled ?? {})) push(name3, record2, false);
       }
       const shown2 = skills.filter((r) => !input3.plugin || r.plugin === input3.plugin).filter((r) => !input3.source || r.source === input3.source).filter((r) => !input3.marketplace || r.marketplace === input3.marketplace || r.repoUrl === input3.marketplace).sort((a, b) => a.location.localeCompare(b.location) || a.skill.localeCompare(b.skill));
       const byMarketplace = {};
@@ -176684,11 +170813,11 @@ function fitLine(text4, width) {
 }
 function wrapLine(text4, width) {
   if (visibleLength(text4) <= width) return [text4];
-  const indent2 = /^ */.exec(text4)[0];
-  const tokens = text4.slice(indent2.length).split(/(\x1b\[[0-9;?]*[A-Za-z]| +)/).filter(Boolean);
+  const indent = /^ */.exec(text4)[0];
+  const tokens = text4.slice(indent.length).split(/(\x1b\[[0-9;?]*[A-Za-z]| +)/).filter(Boolean);
   const lines = [];
-  let line = indent2;
-  let shown2 = indent2.length;
+  let line = indent;
+  let shown2 = indent.length;
   let active = "";
   for (const token of tokens) {
     if (token.startsWith("\x1B[")) {
@@ -176701,17 +170830,17 @@ function wrapLine(text4, width) {
       if (shown2 + length < width) {
         line += token;
         shown2 += length;
-      } else if (shown2 > indent2.length) {
+      } else if (shown2 > indent.length) {
         lines.push(active ? `${line.trimEnd()}\x1B[0m` : line.trimEnd());
-        line = `${indent2}${active}`;
-        shown2 = indent2.length;
+        line = `${indent}${active}`;
+        shown2 = indent.length;
       }
       continue;
     }
-    if (shown2 + length > width && shown2 > indent2.length) {
+    if (shown2 + length > width && shown2 > indent.length) {
       lines.push(active ? `${line.trimEnd()}\x1B[0m` : line.trimEnd());
-      line = `${indent2}${active}`;
-      shown2 = indent2.length;
+      line = `${indent}${active}`;
+      shown2 = indent.length;
     }
     line += token;
     shown2 += length;
@@ -177029,7 +171158,7 @@ function random(g) {
   return ((t ^ t >>> 14) >>> 0) / 4294967296;
 }
 var int2 = (g, lo, hi) => lo + Math.floor(random(g) * (hi - lo + 1));
-var pick3 = (g, list7) => list7[Math.floor(random(g) * list7.length)];
+var pick2 = (g, list7) => list7[Math.floor(random(g) * list7.length)];
 function start(seed, o = {}) {
   const perks = o.perks ?? loadout(freshProgress());
   const g = {
@@ -177102,7 +171231,7 @@ function carve(g) {
 var occupied = (g, p) => p.x === g.player.x && p.y === g.player.y || p.x === g.exit.x && p.y === g.exit.y || !!mobAt(g, p.x, p.y) || !!agentAt(g, p.x, p.y) || g.pickups.some((i) => i.x === p.x && i.y === p.y);
 function freeCell(g, rooms, away = 3) {
   for (let tries = 0; tries < 500; tries++) {
-    const r = pick3(g, rooms);
+    const r = pick2(g, rooms);
     const p = { x: int2(g, r.x, r.x + r.w - 1), y: int2(g, r.y, r.y + r.h - 1) };
     if (!isWall(g, p.x, p.y) && !occupied(g, p) && chebyshev(p, g.player) > away) return p;
   }
@@ -177137,7 +171266,7 @@ function enter(g, floor) {
   g.agents = g.agents.map((a, i) => ({ ...a, ...besideOf(g, first, i) }));
   g.seen = Array.from({ length: HEIGHT }, () => Array.from({ length: WIDTH }, () => false));
   const later = rooms.length > 1 ? rooms.slice(1) : rooms;
-  for (let i = 0; i < 3 + Math.floor(floor / 2); i++) g.mobs.push(spawn5(pick3(g, STAFF[floor]), freeCell(g, later)));
+  for (let i = 0; i < 3 + Math.floor(floor / 2); i++) g.mobs.push(spawn5(pick2(g, STAFF[floor]), freeCell(g, later)));
   g.mobs.push(spawn5(ROBOTS[floor], freeCell(g, later, 8)));
   if (floor === LAST_FLOOR) {
     const door = g.exit;
@@ -177262,7 +171391,7 @@ function strike(g, mob) {
   const dmg = 2 + Math.floor(random(g) * g.player.power) + boost;
   mob.hp -= dmg;
   g.fx.push({ kind: "hit", x: mob.x, y: mob.y, amount: dmg, by: "you" });
-  if (mob.hp > 0) return say(g, `You ${pick3(g, VERBS)} ${called(mob.kind)}.`);
+  if (mob.hp > 0) return say(g, `You ${pick2(g, VERBS)} ${called(mob.kind)}.`);
   finish3(g, mob);
 }
 function finish3(g, mob) {
@@ -177318,7 +171447,7 @@ function visit2(g) {
   if (!low && g.here < 60) return;
   g.maverick -= 1;
   if (!low) g.here = 0;
-  const move = low ? pick3(g, ["pep", "teach", "agent"]) : pick3(g, ["diagram", "teach", "agent"]);
+  const move = low ? pick2(g, ["pep", "teach", "agent"]) : pick2(g, ["diagram", "teach", "agent"]);
   if (move === "diagram") g.seen = g.seen.map((row) => row.map(() => true));
   if (move === "pep") heal(g, 10);
   if (move === "teach") g.player.boost = 4;
@@ -177339,7 +171468,7 @@ function turn(g, m2) {
   if (chebyshev(m2, p) === 1) {
     if (m2.kind.trait === "briefing" && p.stun === 0 && random(g) < 0.35 * g.perks.nag) {
       p.stun = 1;
-      return say(g, `${BRIEFING} ${pick3(g, DECISIONS)}`);
+      return say(g, `${BRIEFING} ${pick2(g, DECISIONS)}`);
     }
     if (m2.kind.trait === "boss" && p.stun === 0 && random(g) < 0.3 * g.perks.nag) {
       p.stun = 1;
@@ -177351,7 +171480,7 @@ function turn(g, m2) {
       return;
     }
     const dmg = 1 + Math.floor(random(g) * m2.kind.attack);
-    return hurt(g, dmg, random(g) < 0.55 ? pick3(g, m2.kind.lines) : `${called(m2.kind, true)} costs you ${dmg} morale.`);
+    return hurt(g, dmg, random(g) < 0.55 ? pick2(g, m2.kind.lines) : `${called(m2.kind, true)} costs you ${dmg} morale.`);
   }
   const range2 = m2.kind.trait === "boss" ? 5 : NOTICE;
   const sees = chebyshev(m2, p) <= range2 && clearLine(g, m2, p);
@@ -177359,7 +171488,7 @@ function turn(g, m2) {
     const at9 = besideOf(g, m2);
     if (at9 !== m2) {
       g.mobs.push({ ...spawn5(TASK, at9), real: random(g) < 0.2 });
-      say(g, pick3(g, m2.kind.lines));
+      say(g, pick2(g, m2.kind.lines));
     }
   }
   if (sees) {
@@ -177374,7 +171503,7 @@ function turn(g, m2) {
     }
     return;
   }
-  if (m2.kind.trait !== "boss" && random(g) < 0.25) step(g, m2, pick3(g, Object.values(STEPS)));
+  if (m2.kind.trait !== "boss" && random(g) < 0.25) step(g, m2, pick2(g, Object.values(STEPS)));
 }
 function help(g, a) {
   a.context -= 1;
@@ -177393,7 +171522,7 @@ function help(g, a) {
     const dmg = 2 + Math.floor(random(g) * 3);
     target2.hp -= dmg;
     g.fx.push({ kind: "hit", x: target2.x, y: target2.y, amount: dmg, by: "agent" });
-    if (target2.hp > 0) return say(g, pick3(g, AGENT_LINES).replace("{name}", called(target2.kind)).replace("{Name}", called(target2.kind, true)));
+    if (target2.hp > 0) return say(g, pick2(g, AGENT_LINES).replace("{name}", called(target2.kind)).replace("{Name}", called(target2.kind, true)));
     return finish3(g, target2);
   }
   if (chebyshev(a, g.player) <= 1) return;
@@ -177668,14 +171797,14 @@ function frame(g, caps, hud) {
   const shake = t < 4 && g.fx.some((f) => f.kind === "hurt" && f.amount >= 5) ? [2, 0, 1, 0][t] : 1;
   const box = caps.unicode ? { tl: "\u250C", tr: "\u2510", bl: "\u2514", br: "\u2518", h: "\u2500", v: "\u2502" } : { tl: "+", tr: "+", bl: "+", br: "+", h: "-", v: "|" };
   const edge = (s) => paint(caps, hurt2 ? mix(PALETTE.accent, PALETTE.faint, t / 5) : PALETTE.faint, s);
-  const indent2 = " ".repeat(1 + shake);
+  const indent = " ".repeat(1 + shake);
   const p = g.player;
   const healed = t < 5 && g.fx.some((f) => f.kind === "heal");
   const status = `Morale ${bar(caps, p.hp, p.max, healed)} ${paint(caps, p.hp <= p.max / 4 ? PALETTE.accent : PALETTE.amber, `${Math.max(0, p.hp)}/${p.max}`)}` + paint(caps, PALETTE.muted, `  Grit ${p.power}`) + (p.boost ? paint(caps, MAVERICK_INK, `+${p.boost}`) : "") + paint(caps, PALETTE.muted, `  Agents ${g.agents.length}  Score ${score(g)}`);
   let map2 = [
-    `${indent2}${edge(box.tl + box.h.repeat(WIDTH) + box.tr)}`,
-    ...rows.map((row) => `${indent2}${edge(box.v)}${renderCells(row, caps)}${edge(box.v)}`),
-    `${indent2}${edge(box.bl + box.h.repeat(WIDTH) + box.br)}`
+    `${indent}${edge(box.tl + box.h.repeat(WIDTH) + box.tr)}`,
+    ...rows.map((row) => `${indent}${edge(box.v)}${renderCells(row, caps)}${edge(box.v)}`),
+    `${indent}${edge(box.bl + box.h.repeat(WIDTH) + box.br)}`
   ];
   const wide = hud.columns >= WIDE;
   const overlay = g.cards[0] ? cardLines(g.cards[0], caps, hud) : hud.legend && !wide ? boxed(caps, PALETTE.amber, OVERLAY, ["", ...legendLines(g, caps).map((l) => `  ${l}`), "", `  ${paint(caps, PALETTE.faint, "? closes")}`]) : void 0;
@@ -177683,7 +171812,7 @@ function frame(g, caps, hud) {
     const top2 = Math.max(1, Math.floor((map2.length - overlay.length) / 2));
     map2 = map2.map((line, i) => {
       const o = overlay[i - top2];
-      return o === void 0 ? line : `${indent2}${edge(box.v)}  ${o}${" ".repeat(Math.max(0, WIDTH - 2 - visibleLength(o)))}${edge(box.v)}`;
+      return o === void 0 ? line : `${indent}${edge(box.v)}  ${o}${" ".repeat(Math.max(0, WIDTH - 2 - visibleLength(o)))}${edge(box.v)}`;
     });
   }
   if (wide) {
@@ -178605,7 +172734,7 @@ var makeDefault = {
 
 // src/welcome/views/dossiers.ts
 var json2 = (value2) => JSON.stringify(value2);
-var parse6 = (text4, fallback) => {
+var parse5 = (text4, fallback) => {
   try {
     return text4 ? JSON.parse(text4) : fallback;
   } catch {
@@ -178654,7 +172783,7 @@ function sectionLines(caps, section) {
   }
   return lines;
 }
-var thenOf = (params2) => parse6(params2.then, { go: "dossier", root: "dossier" });
+var thenOf = (params2) => parse5(params2.then, { go: "dossier", root: "dossier" });
 function sectionArgs(params2, flags) {
   const { ref: ref2, area: area31, env } = params2;
   return env ? ["dossiers", "env", ref2, env, area31, ...flags] : ["dossiers", "link", ref2, area31, ...flags];
@@ -178675,25 +172804,25 @@ function change(params2, title, steps, then) {
 function onHost(settings, host) {
   return settings !== void 0 && hostMatches(settings, host.trim());
 }
-function writesTargets(data, area31, pick4) {
+function writesTargets(data, area31, pick3) {
   const cfg = config3(data);
   if (!cfg) return [];
-  const names2 = pick4.connection !== void 0 ? [pick4.connection] : connectionsOf(cfg, area31).filter((name3) => onHost(cfg.connections[name3], pick4.host ?? ""));
+  const names2 = pick3.connection !== void 0 ? [pick3.connection] : connectionsOf(cfg, area31).filter((name3) => onHost(cfg.connections[name3], pick3.host ?? ""));
   return names2.filter((name3) => cfg.connections[name3]?.area === area31 && connectionWrites(cfg.connections[name3]));
 }
-function bind2(p, flags, title, pick4) {
+function bind2(p, flags, title, pick3) {
   const params2 = p.frame.params;
   const section = sectionOf(shownOf(p), params2.area, params2.env);
   const bound = typeof section.connection === "string" || typeof section.host === "string";
   const steps = [{ args: sectionArgs(params2, [...flags, ...bound ? ["--replace"] : [], ...firstEnv(params2)]) }];
-  const targets = writesTargets(p.data, params2.area, pick4);
+  const targets = writesTargets(p.data, params2.area, pick3);
   const then = thenFromPicker(params2);
   if (targets.length) return { go: "dossier-confirm", params: { ref: params2.ref, title, steps: json2(steps.map((s) => s.args)), connection: targets[0], then: json2(then), ...params2.flow ? { flow: params2.flow } : {} } };
   return change(params2, title, steps, then);
 }
 var firstEnv = (params2) => params2.env && params2.first === "1" ? ["--default"] : [];
 function thenFromPicker(params2) {
-  const root = parse6(params2.then, {}).root;
+  const root = parse5(params2.then, {}).root;
   const at9 = root ? { root } : {};
   if (params2.setAfter === "1" && params2.env) {
     return { ...at9, go: "dossier-set", params: { ref: params2.ref, area: params2.area, env: params2.env, flow: params2.flow ?? "create", skippable: "1", then: params2.then ?? backTo("dossier-edit") } };
@@ -178770,7 +172899,7 @@ function whyApplies(a, origin) {
 var folderView = {
   title: () => "This folder",
   body: (caps, p) => {
-    const c = parse6(p.frame.params.context, void 0);
+    const c = parse5(p.frame.params.context, void 0);
     if (!c) return [];
     const lines = [`${label2(caps, "Folder")} ${c.folder?.path ?? p.data.folder.cwd}`];
     if (c.repo) lines.push(`${label2(caps, "Repo")} ${c.repo.root}`, `${label2(caps, "Origin")} ${c.repo.origin ?? faint2(caps, "none")}`);
@@ -178785,7 +172914,7 @@ var folderView = {
     return lines;
   },
   items: (p) => {
-    const c = parse6(p.frame.params.context, void 0);
+    const c = parse5(p.frame.params.context, void 0);
     if (!c) return [];
     if (c.dossier) return [{ label: `Open ${c.dossier.name}`, hint: "Review, edit or export it", action: { run: openRun(c.dossier.name) } }];
     if (c.candidates.length > 1) return c.candidates.map((x) => ({ label: `Open ${x.name}`, hint: x.file, action: { run: openRun(x.name) } }));
@@ -178799,7 +172928,7 @@ var folderView = {
 var listView = {
   title: (p) => p.frame.params.mode === "add-repo" ? "Add this repo" : "Your dossiers",
   body: (caps, p) => {
-    const list7 = parse6(p.frame.params.list, { dossiers: [], broken: [] });
+    const list7 = parse5(p.frame.params.list, { dossiers: [], broken: [] });
     const lines = [];
     if (list7.dossiers.length === 0) lines.push(muted2(caps, "No dossiers yet. Create one, or import one a teammate shared."));
     if (p.frame.params.mode === "add-repo") lines.push(heading2(caps, `Which dossier should ${p.frame.params.repo} join?`));
@@ -178810,7 +172939,7 @@ var listView = {
     return lines;
   },
   items: (p) => {
-    const list7 = parse6(p.frame.params.list, { dossiers: [], broken: [] });
+    const list7 = parse5(p.frame.params.list, { dossiers: [], broken: [] });
     return list7.dossiers.map((d2) => {
       const ref2 = d2.shadowedBy ? d2.file : d2.name;
       const hint = `${d2.source}${d2.description ? `, ${d2.description}` : ""}${d2.shadowedBy ? `, overridden by ${d2.shadowedBy}` : ""}${d2.problems ? `, ${plural2(d2.problems, "problem")}` : ""}`;
@@ -178952,7 +173081,7 @@ var reviewView = {
 var serviceView = {
   title: (p) => p.frame.params.area ?? "",
   body: (caps, p) => {
-    const r = parse6(p.frame.params.result, void 0);
+    const r = parse5(p.frame.params.result, void 0);
     if (!r) return [];
     const missing3 = r.checks.filter((c) => !c.found);
     const lines = [r.ok ? ok(caps, true, `All ${plural2(r.checked, "value")} found on ${r.connection ?? "the connection"}.`) : ok(caps, false, `${missing3.length} of ${r.checked} not found on ${r.connection ?? "the connection"}.`), ""];
@@ -178961,7 +173090,7 @@ var serviceView = {
     return lines;
   },
   items: (p) => {
-    const r = parse6(p.frame.params.result, void 0);
+    const r = parse5(p.frame.params.result, void 0);
     const { ref: ref2, area: area31 } = p.frame.params;
     if (!r || r.ok) return [];
     const params2 = { ref: ref2, area: area31, flow: "fix", then: json2(backToReview()) };
@@ -179098,7 +173227,7 @@ var hostView = {
 var confirmView = {
   title: () => "Confirm",
   body: (caps, p) => {
-    const steps = parse6(p.frame.params.steps, []);
+    const steps = parse5(p.frame.params.steps, []);
     return [
       ok(caps, false, `${p.frame.params.connection} has writes on.`),
       "",
@@ -179112,7 +173241,7 @@ var confirmView = {
     submit: (text4, p) => {
       const conn = p.frame.params.connection;
       if (text4 !== conn) return { error: `That isn't "${conn}", so nothing was changed.` };
-      const steps = parse6(p.frame.params.steps, []).map((args) => ({ args }));
+      const steps = parse5(p.frame.params.steps, []).map((args) => ({ args }));
       return { run: editRun(p.frame.params.title ?? "Bind", p.frame.params.ref, steps, thenOf(p.frame.params), p.frame.params.flow === "fix") };
     }
   }
@@ -179204,12 +173333,12 @@ var discoverStartView = {
 var discoverView = {
   title: () => "Discovered",
   body: (caps, p) => {
-    const found = parse6(p.frame.params.found, []);
+    const found = parse5(p.frame.params.found, []);
     if (found.length === 0) return [muted2(caps, "Nothing found. Enter goes on.")];
     return [muted2(caps, `${found.length} found. Space ticks, enter adds the new ticks; what the dossier already names stays.${DISCOVERY[p.frame.params.area]?.key ? "" : " Each ticked field gets an alias from its name."}`)];
   },
   checklist: {
-    options: (p) => parse6(p.frame.params.found, []).map((x) => ({ id: x.id, label: x.name || x.id, hint: x.name && x.name !== x.id ? x.id : "" })),
+    options: (p) => parse5(p.frame.params.found, []).map((x) => ({ id: x.id, label: x.name || x.id, hint: x.name && x.name !== x.id ? x.id : "" })),
     initial: (p) => existingValues(p),
     confirm: (checked2, p) => {
       const params2 = p.frame.params;
@@ -179217,7 +173346,7 @@ var discoverView = {
       const have = new Set(existingValues(p));
       const added = checked2.filter((id9) => !have.has(id9));
       if (added.length === 0) return thenOf(params2);
-      const found = parse6(params2.found, []);
+      const found = parse5(params2.found, []);
       const steps = d2.key ? [{ args: sectionArgs(params2, added.flatMap((id9) => ["--add", `${d2.key}=${id9}`])) }] : added.map((id9) => ({ args: ["dossiers", "field", params2.ref, params2.area, aliasFor(found.find((x) => x.id === id9)?.name ?? id9, id9), id9] }));
       return change(params2, `Add ${plural2(added.length, d2.key ? d2.what.replace(/s$/, "") : "field")} to ${params2.area}`, steps, thenOf(params2));
     }
@@ -179234,7 +173363,7 @@ var saveView = {
   title: () => "Review",
   body: (caps, p) => {
     const { area: area31, env } = p.frame.params;
-    const steps = parse6(p.frame.params.steps, []);
+    const steps = parse5(p.frame.params.steps, []);
     return [
       ...area31 ? [heading2(caps, `${where5(area31, env)} now`), ...sectionLines(caps, sectionOf(shownOf(p), area31, env)), ""] : [],
       heading2(caps, "Saving runs"),
@@ -179244,7 +173373,7 @@ var saveView = {
     ];
   },
   items: (p) => {
-    const steps = parse6(p.frame.params.steps, []).map((args) => ({ args }));
+    const steps = parse5(p.frame.params.steps, []).map((args) => ({ args }));
     return [
       { label: "Save", hint: plural2(steps.length, "command"), action: { run: editRun(p.frame.params.title ?? "Save", refOf(p), steps, thenOf(p.frame.params)) } },
       { label: "Back", hint: "Change it first", action: { back: true } }
@@ -179277,18 +173406,18 @@ var scanView = {
 var reposChecklist = {
   title: () => "Repos",
   body: (caps, p) => {
-    const repos = parse6(p.frame.params.repos, []);
+    const repos = parse5(p.frame.params.repos, []);
     return [
       ...p.frame.params.flow === "create" ? [heading2(caps, step3(2, "repositories")), ""] : [],
       repos.length ? muted2(caps, `${plural2(repos.length, "repository")} found. Tick the ones in this dossier; enter adds them.`) : muted2(caps, "None found there. Enter goes on.")
     ];
   },
   checklist: {
-    options: (p) => parse6(p.frame.params.repos, []).map((r) => ({ id: r.path, label: r.name, hint: r.remotes.origin ?? Object.values(r.remotes)[0] ?? r.path })),
+    options: (p) => parse5(p.frame.params.repos, []).map((r) => ({ id: r.path, label: r.name, hint: r.remotes.origin ?? Object.values(r.remotes)[0] ?? r.path })),
     // The repository the wizard was opened from starts ticked; repos already in the dossier too.
     initial: (p) => {
       const have = reposOf(shownOf(p)).map((r) => r.path).filter(Boolean);
-      return parse6(p.frame.params.repos, []).map((r) => r.path).filter((path2) => path2 === p.frame.params.repo || have.includes(path2));
+      return parse5(p.frame.params.repos, []).map((r) => r.path).filter((path2) => path2 === p.frame.params.repo || have.includes(path2));
     },
     confirm: (checked2, p) => {
       const params2 = p.frame.params;
@@ -179436,7 +173565,7 @@ var exportReplaceView = {
   title: () => "Replace",
   body: (caps) => [ok(caps, false, "A dossier is already there."), "", "Replace it with this one?"],
   items: (p) => {
-    const args = parse6(p.frame.params.args, []);
+    const args = parse5(p.frame.params.args, []);
     return [
       { label: "Replace it", hint: "The same export, with --replace", action: { run: exportRun(refOf(p), [...args, "--replace"]) } },
       { label: "Keep it", hint: "Write nothing", action: { go: "dossier", root: "dossier" } }
@@ -179511,7 +173640,7 @@ function stillToSetUp(data, result) {
 var importDoneView = {
   title: () => "Imported",
   body: (caps, p) => {
-    const r = parse6(p.frame.params.result, { imported: [], toSetUp: [] });
+    const r = parse5(p.frame.params.result, { imported: [], toSetUp: [] });
     const left = stillToSetUp(p.data, r);
     return [
       ...r.imported.map((x) => ok(caps, true, `${x.name} is yours now: ${x.file}`)),
@@ -179521,7 +173650,7 @@ var importDoneView = {
     ];
   },
   items: (p) => {
-    const r = parse6(p.frame.params.result, { imported: [], toSetUp: [] });
+    const r = parse5(p.frame.params.result, { imported: [], toSetUp: [] });
     const then = backTo("dossier-import-done");
     return [
       ...stillToSetUp(p.data, r).map((x) => ({
@@ -179793,7 +173922,7 @@ function pluginNames(result) {
   const d2 = result.envelope.ok ? result.envelope.data : void 0;
   return (d2?.plugins ?? []).filter((x) => typeof x.name === "string").map((x) => ({ name: String(x.name), description: typeof x.description === "string" ? x.description : "" }));
 }
-var parse7 = (text4, fallback) => {
+var parse6 = (text4, fallback) => {
   try {
     return text4 ? JSON.parse(text4) : fallback;
   } catch {
@@ -179805,7 +173934,7 @@ var pluginView = {
   body: (caps) => [paint(caps, PALETTE.amber, "Which skill plugin?")],
   items: (p) => {
     const name3 = p.frame.params.name;
-    const plugins = parse7(p.frame.params.plugins, []);
+    const plugins = parse6(p.frame.params.plugins, []);
     return [
       ...plugins.map((x) => ({ label: x.name, hint: x.description, action: { go: "skills-agent", params: { mode: "install", name: name3, plugin: x.name } } })),
       ...plugins.length > 1 ? [{ label: "All skill plugins", hint: `Everything in ${name3}`, action: { go: "skills-agent", params: { mode: "install", name: name3, plugin: "all" } } }] : []
@@ -179853,10 +173982,10 @@ var scopeView = {
   items: (p) => {
     const agent = p.frame.params.agent;
     const mode = p.frame.params.mode;
-    const pick4 = (scope) => mode === "toggle" ? { run: statusRun(agent, scope) } : mode === "toil" ? { run: toilSkillRun(agent, scope) } : { run: installRun({ ...p.frame.params, scope }) };
+    const pick3 = (scope) => mode === "toggle" ? { run: statusRun(agent, scope) } : mode === "toil" ? { run: toilSkillRun(agent, scope) } : { run: installRun({ ...p.frame.params, scope }) };
     return [
-      { label: "For you, in every repository", hint: `${folderHint(agent, "user")} (the default)`, action: pick4("user") },
-      { label: "In this repository", hint: folderHint(agent, "project"), action: pick4("project") }
+      { label: "For you, in every repository", hint: `${folderHint(agent, "user")} (the default)`, action: pick3("user") },
+      { label: "In this repository", hint: folderHint(agent, "project"), action: pick3("project") }
     ];
   }
 };
@@ -179949,19 +174078,19 @@ var pluginsView = {
 var toggleView = {
   title: (p) => p.frame.params.scope === "project" ? "This repository" : "Your folder",
   body: (caps, p) => {
-    const states = parse7(p.frame.params.plugins, []);
+    const states = parse6(p.frame.params.plugins, []);
     if (states.length === 0) return [paint(caps, PALETTE.muted, "No skill plugins installed here from a marketplace. Install one from Skill plugins first.")];
     return [paint(caps, PALETTE.muted, "Space switches a skill plugin, enter shows what will change before anything is written.")];
   },
   checklist: {
-    options: (p) => parse7(p.frame.params.plugins, []).map((s) => ({
+    options: (p) => parse6(p.frame.params.plugins, []).map((s) => ({
       id: pluginId(s.marketplace, s.plugin),
       label: s.plugin,
       hint: `${s.marketplace}, ${s.on + s.off} skill${s.on + s.off === 1 ? "" : "s"}${s.on && s.off ? ` (${s.off} off)` : ""}`
     })),
-    initial: (p) => parse7(p.frame.params.plugins, []).filter(isOn).map((s) => pluginId(s.marketplace, s.plugin)),
+    initial: (p) => parse6(p.frame.params.plugins, []).filter(isOn).map((s) => pluginId(s.marketplace, s.plugin)),
     confirm: (checked2, p) => {
-      const states = parse7(p.frame.params.plugins, []);
+      const states = parse6(p.frame.params.plugins, []);
       const changes = toggleChanges(states, checked2);
       if (changes.length === 0) return { go: "plugins", root: "plugins" };
       return { go: "plugins-review", params: { agent: p.frame.params.agent, scope: p.frame.params.scope, changes: JSON.stringify(changes) } };
@@ -179984,7 +174113,7 @@ function toggleSteps(changes, agent, scope) {
 var reviewView2 = {
   title: () => "Review",
   body: (caps, p) => {
-    const changes = parse7(p.frame.params.changes, []);
+    const changes = parse6(p.frame.params.changes, []);
     const lines = [paint(caps, PALETTE.amber, "This will change:"), ""];
     for (const c of changes) lines.push(`  ${c.on ? ok(caps, true, "on ") : ok(caps, false, "off")}  ${c.plugin}  ${paint(caps, PALETTE.faint, c.marketplace)}`);
     const off = [...new Set(changes.map((c) => c.marketplace))].filter((m2) => !writesOn(p.data, m2));
@@ -179993,7 +174122,7 @@ var reviewView2 = {
     return lines;
   },
   items: (p) => {
-    const changes = parse7(p.frame.params.changes, []);
+    const changes = parse6(p.frame.params.changes, []);
     const { agent, scope } = p.frame.params;
     return [
       { label: "Save", hint: `${changes.length} command${changes.length === 1 ? "" : "s"}`, action: { run: { title: "Switch plugins", keepGoing: true, steps: toggleSteps(changes, agent, scope), next: () => ({ run: statusRun(agent, scope) }) } } },
@@ -180240,7 +174369,7 @@ function breadcrumb(state, caps, data) {
   const titles = state.stack.map((f) => viewOf2(f).title({ data, session: state.session, frame: f })).filter(Boolean);
   return ["toil", ...titles].join(` ${arrow} `);
 }
-function render2(state, caps, data, notice = "") {
+function render(state, caps, data, notice = "") {
   const f = top(state);
   const view2 = viewOf2(f);
   const p = propsOf(state, data);
@@ -180403,7 +174532,7 @@ async function runWelcome(io, initial2) {
     redraw = () => {
       if (busy2 || gaming || exiting.signal.aborted) return;
       const now2 = detectCaps(output3, io.env);
-      write(`${cursor3.home}${cursor3.clearDown}${render2(state, now2, data, notice).join("\n")}`);
+      write(`${cursor3.home}${cursor3.clearDown}${render(state, now2, data, notice).join("\n")}`);
     };
     redraw();
     output3.on("resize", redraw);
@@ -180848,7 +174977,4 @@ js-md4/src/md4.js:
 
 safe-buffer/index.js:
   (*! safe-buffer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> *)
-
-js-yaml/dist/js-yaml.mjs:
-  (*! js-yaml 5.4.2 https://github.com/nodeca/js-yaml @license MIT *)
 */
