@@ -1,4 +1,4 @@
-import { wildmatch } from './wildmatch.js';
+import { wildmatch, type Wildmatch } from './wildmatch.js';
 
 /**
  * `.gitignore` rules, read the way git reads them, so a directory listing can
@@ -11,7 +11,7 @@ import { wildmatch } from './wildmatch.js';
 export interface IgnoreRule {
   /** Folder the rule's file sits in, relative to the listing root, forward slashes, '' for the root. */
   base: string;
-  regex: RegExp;
+  match: Wildmatch;
   negate: boolean;
   dirOnly: boolean;
   /** No slash in the pattern: matched against the basename at any depth. */
@@ -42,7 +42,7 @@ export function parseIgnore(text: string, base: string, caseFold = false): Ignor
     if (line === '') continue;
     const basenameOnly = !line.includes('/');
     if (line.startsWith('/')) line = line.slice(1);
-    rules.push({ base, regex: wildmatch(line, { pathname: true, caseFold }), negate, dirOnly, basenameOnly });
+    rules.push({ base, match: wildmatch(line, { pathname: true, caseFold }), negate, dirOnly, basenameOnly });
   }
   return rules;
 }
@@ -62,7 +62,7 @@ export function isIgnored(path: string, isDir: boolean, rules: readonly IgnoreRu
     else if (path.startsWith(`${rule.base}/`)) rel = path.slice(rule.base.length + 1);
     else continue;
     const subject = rule.basenameOnly ? rel.slice(rel.lastIndexOf('/') + 1) : rel;
-    if (rule.regex.test(subject)) return !rule.negate;
+    if (rule.match.test(subject)) return !rule.negate;
   }
   return false;
 }
