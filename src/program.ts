@@ -54,11 +54,6 @@ export interface ProgramOptions {
 }
 
 /**
- * Builds the `toil` CLI from command definitions. The CLI has no behaviour of
- * its own: it maps argv onto a command's input and prints the envelope that
- * core produces.
- */
-/**
  * What a resource's group holds, for its row in the area's --help: `issue`
  * reads "get, search, create, update, ..." rather than "jira issue commands",
  * so the list of resources says what each one can do without opening it.
@@ -69,6 +64,11 @@ export function groupSummary(key: string, commands: readonly AnyCommand[]): stri
   return words.join(', ');
 }
 
+/**
+ * Builds the `toil` CLI from command definitions. The CLI has no behaviour of
+ * its own: it maps argv onto a command's input and prints the envelope that
+ * core produces.
+ */
 export function buildProgram(options: ProgramOptions): { program: Command; result: { exitCode: number } } {
   const { io } = options;
   const result = { exitCode: 0 };
@@ -582,8 +582,8 @@ const isArrayField = (def: AnyCommand, field: string): boolean => repeatsAs(def,
 
 /**
  * argv holds only text. Each value becomes the type its field's schema asks
- * for, by the same rule env vars follow (`fromText`): `--max-results 50` and
- * MCP's `maxResults: 50` are the same input, and a repeated flag's values are
+ * for, by the same rule env vars follow (`fromText`): `--limit 50` and
+ * MCP's `limit: 50` are the same input, and a repeated flag's values are
  * each typed as the array's element. Anything that doesn't parse stays as
  * typed, and the schema rejects it with the same message through both doors.
  */

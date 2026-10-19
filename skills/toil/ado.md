@@ -251,6 +251,10 @@ toil ado pipeline run 5 --branch main --wait --allow-write
 toil ado run logs 101 --log-id 3
 ```
 
+Over MCP the same commands are tools named after the path, with spaces and
+hyphens as underscores (`ado_work_item_get`, `ado_pr_comment_inline`), and a
+positional id is the `id` field.
+
 ## Checking a dossier
 
 `check-dossier` checks the call's dossier against the server: each team project it names (`project`, per repo or not, and `projects`) exists in its collection, and each repository (`repo`) in its project. The collection is the section's `collection`, else `--collection` or the connection's; a value with no collection anywhere is `INVALID_INPUT`. It's `toil ado check-dossier` (`--dossier <name|file>`, or the dossier the folder resolves to), and it returns `{ dossier, connection, env, ok, checked, checks, unchecked }`, one check per value with its key path. The CLI exits 1 when one is missing. A failure other than not-found (a bad token, an unreachable host) fails the command. Read only.

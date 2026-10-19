@@ -84,6 +84,13 @@ describe('toil CLI', () => {
     expect(run.stdout).toContain('Usage: toil');
   });
 
+  it("lists each resource with its actions in an area's --help", async () => {
+    const { context } = testContext();
+    const run = await runCli(['jira', '--help'], { commands, context });
+    expect(run.stdout).toMatch(/issue\s+get, history, create, update/);
+    expect(run.stdout).toMatch(/board\s+list/);
+  });
+
   it('returns INVALID_INPUT with a fix when a required field is missing', async () => {
     const { context, http } = testContext({ config: { demo: { token: 't' } }, routes: demoRoutes });
     const run = await runCli(['demo', 'get-thing'], { commands: demoCommands, context });

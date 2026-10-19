@@ -98,8 +98,8 @@ describe('the Services module', () => {
   it("shows what the command returned, and goes back to the command's screen", () => {
     const d = data();
     let s = press(type(press(settled, d, '1', '2', '1', '1', '1'), d, 'PROJ-1'), d, 'return', 'return');
-    s = finish(s, [{ args: ['jira', 'issue', 'get', 'PROJ-1'], envelope: { ok: true, data: { key: 'PROJ-1' }, error: null, meta: { command: 'jira issue get', durationMs: 1, version: 'x', contractVersion: 1 } } }]);
-    expect(screen(s, d)).toMatch(/\$ toil jira issue get PROJ-1[\s\S]*"key": "PROJ-1"/);
+    s = finish(s, [{ args: ['jira', 'issue', 'get', 'PROJ-1'], envelope: { ok: true, data: { key: 'PROJ-1' }, error: null, meta: { command: 'jira issue get', durationMs: 1, version: 'x', contractVersion: 1, context: { connection: { value: 'jira', source: 'default' } } } } }]);
+    expect(screen(s, d)).toMatch(/\$ toil jira issue get PROJ-1[\s\S]*on jira \(default\)[\s\S]*"key": "PROJ-1"/);
     expect(where(press(s, d, 'return'))).toBe('service-command');
   });
 
@@ -111,6 +111,16 @@ describe('the Services module', () => {
     s = press(type(press(type(press(s, d, '1'), d, 'GET'), d, 'return'), d, '/rest/api/2/myself'), d, 'return', 'return');
     expect(where(s)).toBe('service-flags');
     expect(s.pending?.steps.map((step) => step.args)).toEqual([['jira', 'api', 'GET', '/rest/api/2/myself']]);
+  });
+
+  it('refuses an argument that would read as a flag, and names --connection when there is more than one', () => {
+    const d = data();
+    const s = press(settled, d, '1', '2', '1', '1', '1');
+    expect(top(press(type(s, d, '-PROJ'), d, 'return')).error).toContain("can't start with -");
+    const two = { ...d, config: testConfig({ jira: { baseUrl: 'https://jira.imagile.dev', token: 't' }, 'jira-2': { baseUrl: 'https://jira2.imagile.dev', token: 't' } }) };
+    two.config.connections['jira-2']!.area = 'jira';
+    const flags = press(type(press(settled, two, '1', '2', '1', '1', '1'), two, 'PROJ-1'), two, 'return');
+    expect(screen(flags, two)).toMatch(/--connection <name>\s+One of jira, jira-2/);
   });
 
   it('finds commands holding every word typed, across services', () => {
@@ -128,6 +138,13 @@ describe('the Services module', () => {
 });
 
 describe('the Services tree over the real registry', () => {
+  it('marks a flag required when its field is, and shows a variadic id as such', () => {
+    const jira = commandSummaries('jira', commands);
+    const transition = jira.find((c) => c.path.join(' ') === 'jira issue transition')!;
+    expect(transition.flags.find((f) => f.flags.startsWith('--transition'))?.required).toBe(true);
+    expect(usage(jira.find((c) => c.path.join(' ') === 'jira issue get')!)).toBe('toil jira issue get <key...>');
+  });
+
   it('reaches every area command, with no flag core adds to all of them', () => {
     for (const area of areas) {
       const summary: AreaSummary = { name: area.name, description: area.description, signsIn: false, live: false, configurable: true, commands: commandSummaries(area.name, commands) };

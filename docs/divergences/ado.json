@@ -16,14 +16,14 @@
       "when": {
         "exampleOnly": true
       },
-      "old": "ado work schema --example-only printing the bare example with no envelope",
+      "old": "ado work-item schema --example-only printing the bare example with no envelope",
       "toil": "The flag stays; the example comes back as data in the usual envelope, so with the flag data is the example itself, not { schema, example }. Save .data to use it as an --input-file",
-      "why": "Every command writes exactly one envelope, so an agent never has to guess which shape stdout holds. The allowed fields are excused only for calls with --example-only (`when`), so plain ado work schema must still return both.",
+      "why": "Every command writes exactly one envelope, so an agent never has to guess which shape stdout holds. The allowed fields are excused only for calls with --example-only (`when`), so plain ado work-item schema must still return both.",
       "principle": "Output Contract"
     },
     {
       "allows": [],
-      "old": "ado work download-attachment fetching the attachment's relation URL, with the PAT, from whatever host the work item names (#69 item 1)",
+      "old": "ado work-item download fetching the attachment's relation URL, with the PAT, from whatever host the work item names (#69 item 1)",
       "toil": "The PAT goes only to baseUrl's origin: a relation URL on another host has its path and query re-pointed at baseUrl, with an ADO_ATTACHMENT_HOST warning",
       "why": "A server-supplied URL must not carry the user's credential to a host they didn't configure. A change a principle requires, so the integration makes it before a live run (CLAUDE.md, The command contract).",
       "principle": "9",
@@ -31,7 +31,7 @@
     },
     {
       "allows": [],
-      "old": "ado work download-attachment writing under --dir (by default a dot-folder in the working directory) anywhere on disk, replacing a file already there, and reporting saved with the platform's separator",
+      "old": "ado work-item download writing under --dir (by default a dot-folder in the working directory) anywhere on disk, replacing a file already there, and reporting saved with the platform's separator",
       "toil": "--dir defaults to .toil; the file is written inside the workspace, an existing file is refused with INVALID_INPUT naming the path, and saved uses forward slashes on every platform",
       "why": "A read-only command, whose file name comes from whoever uploaded the attachment, must not change files already on disk or write outside the workspace; paths in JSON output are the same on every platform.",
       "principle": "2",
@@ -39,42 +39,42 @@
     },
     {
       "allows": [],
-      "old": "ado work download-attachment reporting saved as --dir joined with the file name, so a relative --dir gives a relative path",
+      "old": "ado work-item download reporting saved as --dir joined with the file name, so a relative --dir gives a relative path",
       "toil": "saved is always the absolute path written, with forward slashes, even when --dir is relative. The file lands in the same place (#233)",
       "why": "A relative --dir resolves against the workspace, which over MCP is not the caller's working directory, so a relative saved would point somewhere else. The absolute path says exactly where the file is.",
       "principle": "4"
     },
     {
       "allows": [],
-      "old": "ado project list, pipeline list, pipeline list-runs (with no --top), repo list-builds and repo list-prs paging for as long as the server keeps answering",
+      "old": "ado project list, pipeline list, run list (with no --top), pr builds and pr list paging for as long as the server keeps answering",
       "toil": "The same stops (no continuation header, or a short $top/$skip page), plus a bound: after 1,000 pages the command fails with HTTP, naming the list, and a fix to narrow the request",
       "why": "A server that hands back a token or ignores $skip would otherwise be asked forever; the bound turns a hang into an error that says what happened.",
       "principle": "4"
     },
     {
       "allows": [],
-      "old": "ado project list, pipeline list, list-runs, repo list-prs, list-builds and pipeline logs --log-id surfacing a network failure or timeout as Node's bare fetch error, and reading only message from an error body (#69 item 4)",
+      "old": "ado project list, pipeline list, run list, pr list, pr builds and run logs --log-id surfacing a network failure or timeout as Node's bare fetch error, and reading only message from an error body (#69 item 4)",
       "toil": "The same requests, still with no 429 retry; a failure is core's NETWORK, TIMEOUT, AUTH, NOT_FOUND or HTTP error with the server's message and a fix, as every other ado command's is",
       "why": "Errors say plainly what went wrong and what to do next; a bare \"fetch failed\" says neither.",
       "principle": "4"
     },
     {
       "allows": [],
-      "old": "ado repo delete-comment available to every caller",
+      "old": "ado pr delete-comment available to every caller",
       "toil": "The same command on the CLI; toil mcp never serves it",
       "why": "Deletes are never exposed through MCP (CLAUDE.md, Writes).",
       "principle": "2"
     },
     {
       "allows": [],
-      "old": "ado work fields --save and work types --save writing fieldAliases, discoveredFields and discoveredTypes into the global config file",
+      "old": "ado work-item fields --save and work-item types --save writing fieldAliases, discoveredFields and discoveredTypes into the global config file",
       "toil": "There is no --save: passing it is the usual unknown-option INVALID_INPUT. Every call without it returns the data the contract records. A custom alias is fieldAliases on the connection",
       "why": "The saved fieldAliases were the built-in aliases filtered to fields the server has, and they were merged over those same built-ins when used, so saving never changed what a field name resolved to; nothing ever read discoveredFields or discoveredTypes. Removed on the maintainer's instruction of 2026-10-17 (KF6, #68), so no area command needs to write config.",
       "principle": "decision"
     },
     {
       "allows": [],
-      "old": "ado work create and work update printing input-file keys overridden by flags to stderr and in meta.overrides, and work create --parent printing a failed link to stderr",
+      "old": "ado work-item create and work-item update printing input-file keys overridden by flags to stderr and in meta.overrides, and work-item create --parent printing a failed link to stderr",
       "toil": "The same text as ADO_INPUT_OVERRIDDEN and ADO_PARENT_LINK_FAILED entries in meta.warnings; data and the exit code are unchanged",
       "why": "An MCP client never sees stderr, so a warning it can't see would fail silently. meta.warnings is the envelope's place for it (Output Contract).",
       "principle": "4"
@@ -104,7 +104,7 @@
       "allows": [
         "ado work-item attach data.name"
       ],
-      "old": "ado work add-attachment typing its data as an attachment with a name",
+      "old": "ado work-item attach typing its data as an attachment with a name",
       "toil": "data is the server's answer passed through unchanged, as the contract specifies. The upload endpoint answers with an AttachmentReference, { id, url }, so the typed field the contract records never exists at run time",
       "why": "Nothing changes; the recorded field comes from a declared type, not from what the server returns, and a fixture shaped like the documented API can't carry it.",
       "principle": "The command contract"
@@ -116,7 +116,7 @@
       "when": {
         "type": "Bug"
       },
-      "old": "ado work fields --type typing each field with a type",
+      "old": "ado work-item fields --type typing each field with a type",
       "toil": "Unchanged: the type-scoped endpoint returns no type or readOnly, so both come out undefined and leave the JSON, as the contract records (#69 item 18, pinned)",
       "why": "A suspected bug is kept until a live run confirms it (CLAUDE.md, The command contract); the field is excused only for calls with --type.",
       "principle": "The command contract"

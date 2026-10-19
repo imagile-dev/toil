@@ -42,7 +42,7 @@ const keys = [
 ];
 ---
 
-<Layout title="The welcome menu" description="Bare toil on an interactive terminal opens a splash and a menu that sets up, tests and signs in to connections, turns writes on with a typed confirmation, and prints MCP config for an agent. Every step is a real command.">
+<Layout title="The welcome menu" description="Bare toil on an interactive terminal opens a splash and a menu that browses and runs every command by service, sets up, tests and signs in to connections, turns writes on with a typed confirmation, and prints MCP config for an agent. Every step is a real command.">
   <PageHero
     eyebrow="<b>Docs</b> · The welcome menu"
     title="Type <em>toil.</em> Get set up."
@@ -91,6 +91,18 @@ const keys = [
             Home shows what this folder is (the repository, its branch and remote, read from <code>.git</code> without running git), how many
             connections you have and how the last test of each went, and a <strong>needs attention</strong> list: a config file that won't load, its
             warnings, a sign-in that was rejected, or no connections yet. Each of those rows opens the screen that fixes it.
+          </p>
+        </section>
+
+        <section data-reveal>
+          <h2>Services</h2>
+          <p>
+            <strong>Services</strong>, the first entry on home, is every command toil has, laid out the way you type it:
+            <code>toil &lt;service&gt; &lt;resource&gt; &lt;action&gt;</code>. Pick a service (the ones you have a connection for come first), then what
+            to act on (an issue, a work item, a pull request), then the action, and the screen shows the command with its arguments and flags.
+            <strong>Run it</strong> asks for each id, then a line of flags with the required ones filled in, and runs that line. A command that
+            changes something shows the line with <code>--allow-write</code> and asks first; it still needs writes on for the connection.
+            <strong>Find a command</strong> searches every service by name or description.
           </p>
         </section>
 

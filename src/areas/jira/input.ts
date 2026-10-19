@@ -159,7 +159,7 @@ export const commaList = (value: string): string[] =>
     .filter(Boolean);
 
 /**
- * The JQL for `jira search`, from --jql or --jql-file, trimmed: a file almost
+ * The JQL for `jira issue search`, from --jql or --jql-file, trimmed: a file almost
  * always ends in a newline, and Jira rejects the trailing whitespace.
  */
 export function resolveJql(jql: string | undefined, jqlFile: string | undefined, files: FileAccess): string {

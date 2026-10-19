@@ -368,8 +368,10 @@ breaking the other.
 - **One idea, one flag, everywhere**: `--limit` / `--cursor` to page (never
   `--max-results` or `--top` for the same thing), `--assignee`, `--target`, `--type`,
   `--body`, `--file` to upload, `--dir` to download into, `--input-file` for a JSON
-  document, `--field Name=value`, `--updated-since`. An input field is named after
-  its flag; a positional id's field is `key` for a Jira issue and `id` elsewhere.
+  document, `--field Name=value`, `--updated-since`. A new input field is named after
+  its flag, and a positional id's field after the argument (`key` for a Jira issue,
+  `id` for most others, `name` or `commit` where that's what identifies it). Where an
+  idea needs two flags (`--top` beside `--limit`), `AGENT_DECISIONS.md` says why.
 - **Reshaping an area changes the command layer only**: paths, arguments, flags,
   field names and the text that names them. Client code, requests, results, errors
   and `data` stay as the contract records them. The old paths and flags are dropped,

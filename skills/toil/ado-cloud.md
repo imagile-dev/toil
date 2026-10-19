@@ -152,7 +152,7 @@ deletes.
 | `pr comment-inline <id>` ✎ | `--file --line --body --line-type` | The new thread, on one line of a file |
 | `pr reply <id> <thread-id>` ✎ | `--body` | The new reply |
 | `pr resolve <id> <thread-id>` ✎ | `--status` | The thread, with its new status |
-| `api` | `--query --body-file --content-type` | Any endpoint (below) |
+| `api` | `<method> <path>`, `--query --body-file --content-type` | Any endpoint (below) |
 
 ```bash
 toil ado-cloud --project Imagile work-item search --wiql "SELECT [System.Id] FROM WorkItems" --updated-since 2026-10-01 --limit 200

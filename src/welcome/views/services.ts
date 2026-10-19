@@ -202,12 +202,21 @@ export const argView: View = {
       const split = a.variadic ? splitArgs(text) : text.trim() ? [text.trim()] : [];
       if (!Array.isArray(split)) return split;
       if (a.required && split.length === 0) return { error: `<${a.name}> is required.` };
+      // A leading - would be read as a flag; the menu won't guess which was meant.
+      if (split.some((v) => v.startsWith('-'))) return { error: `<${a.name}> can't start with -: run that one from a shell, after --.` };
       const values = [...(JSON.parse(p.frame.params.values ?? '[]') as string[]), ...split];
       const params = { cmd: p.frame.params.cmd!, values: JSON.stringify(values) };
-      return i + 1 < c.args.length ? { go: 'service-arg', params: { ...params, i: String(i + 1) } } : { go: 'service-flags', params };
+      // An optional argument left empty ends the list, so a later one can't slide into its place.
+      return i + 1 < c.args.length && split.length > 0 ? { go: 'service-arg', params: { ...params, i: String(i + 1) } } : { go: 'service-flags', params };
     },
   },
 };
+
+/** With more than one connection to the service, the flag that picks one, and the names to pick from. */
+function connectionHint(caps: Caps, data: WelcomeData, c: CommandSummary): string[] {
+  const names = connectionsFor(data, c.path[0]!);
+  return names.length > 1 ? [`  ${'--connection <name>'.padEnd(28)} ${paint(caps, PALETTE.muted, `One of ${names.join(', ')}; the default when left out`)}`] : [];
+}
 
 /** Flags as you'd type them after the command; the required ones are filled in to edit. */
 export const flagsView: View = {
@@ -221,6 +230,7 @@ export const flagsView: View = {
       '',
       ...c.flags.map((f) => `  ${f.flags.padEnd(28)} ${paint(caps, PALETTE.muted, `${f.description}${f.required ? ' (required)' : ''}`)}`),
       ...(c.flags.length ? [] : [paint(caps, PALETTE.muted, 'It has no flags of its own; press enter to run it.')]),
+      ...connectionHint(caps, p.data, c),
     ];
   },
   input: {

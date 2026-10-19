@@ -6,7 +6,7 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "<key>"
+      "<key...>"
     ]
   },
   {

@@ -209,7 +209,7 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "<id>",
+      "<id...>",
       "--fields <names>",
       "--collection <name>",
       "--organization <name>",

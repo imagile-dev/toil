@@ -33,7 +33,7 @@ export interface BulkResult<T> {
 export function bulkKeys(keys: string[]): string[] {
   const unique = [...new Set(keys)];
   if (unique.length === 0 || unique.some((k) => k.trim() === '')) {
-    throw new ToilError('INVALID_INPUT', 'Every <key> needs an issue key.', { fix: 'Pass each issue key, e.g. PROJ-123, as its own argument.' });
+    throw new ToilError('INVALID_INPUT', 'Every <key> needs an issue key.', { fix: 'Give each <key> as an issue key, e.g. PROJ-123.' });
   }
   if (unique.length > MAX_BULK_KEYS) {
     throw new ToilError('INVALID_INPUT', `${unique.length} issue keys is more than the ${MAX_BULK_KEYS} one call reads.`, {

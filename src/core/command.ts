@@ -12,7 +12,7 @@ export interface CliArgument {
   variadic?: boolean;
 }
 
-/** A CLI flag, e.g. `--key <issue-key>`, mapped onto one input field. */
+/** A CLI flag, e.g. `--body <text>`, mapped onto one input field. */
 export interface CliOption {
   flags: string;
   field: string;

@@ -95,8 +95,8 @@ version will carry. Any other command's output is refused.
   strings. The active sprint, else the latest future one, else the last.
 - **Parent** from `parent`, else Data Center's **Epic Link**; children from
   `subtasks`; links from `issuelinks` by link type (Blocks, Duplicate, Relates).
-- `search` returns the fields it asks for (`--fields`), and only the custom fields
-  the connection registers; `get-issue` returns every field. A field missing from
+- `issue search` returns the fields it asks for (`--fields`), and only the custom fields
+  the connection registers; `issue get` returns every field. A field missing from
   the record is listed in `unmapped`.
 
 ### Azure DevOps (Server and Services)

@@ -7,6 +7,10 @@ description: What every toil command shares, in detail - the envelope and errors
 `SKILL.md` has the rules every call needs. This page has the detail behind them, for
 when a call needs more than a command's own flags.
 
+The jira, jira-cloud, ado and ado-cloud commands are `toil <area> <resource> <action>
+[ids...]`: ids are positional, everything else is a flag, and `toil <area> <resource>
+--help` lists what a resource can do (`toil jira issue --help`).
+
 ## The envelope and errors
 
 Every command prints one JSON envelope on stdout: `{ ok, data, error, meta }`.

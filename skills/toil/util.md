@@ -72,7 +72,7 @@ Getting text into the shape an enterprise tool expects before it's sent, so a de
 
 Work from Jira, Azure DevOps and GitHub in one shape, so a sprint, a board or a question about the work reads the same whichever tracker holds it.
 
-- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, jira-cloud, ado and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item, and every item is checked against the published schema.
+- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, jira-cloud, ado, ado-cloud and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item, and every item is checked against the published schema.
 
 ### Safety
 
@@ -1397,11 +1397,11 @@ and `field` (a list of `name=field`).
 
 **What it reads**, by the command each envelope's `meta.command` names:
 
-- **Jira and Jira Cloud:** `search` and `get-issue` (one key or several) for items,
-  `get-changelog` for history.
-- **Azure DevOps:** `work get` and `work get-batch` for items, `work revisions`
-  for history, and `work list-iterations` for iteration dates. `work search`
-  returns ids only and is skipped: map `work get-batch` for those ids instead.
+- **Jira and Jira Cloud:** `issue search` and `issue get` (one key or several) for items,
+  `issue history` for history.
+- **Azure DevOps and Azure DevOps Services:** `work-item get` and `work-item get-many` for items, `work-item history`
+  for history, and `work-item iterations` for iteration dates. `work-item search`
+  returns ids only and is skipped: map `work-item get-many` for those ids instead.
 - **GitHub:** `list-issues`, `search-issues` and `get-issue` for issues,
   `projects list-items` for the board's status, estimate and iteration, and
   `issue-events` for history. Pull requests are left out with a warning.
@@ -1463,7 +1463,7 @@ Output:
   guessed.
 - **`histories`** holds histories whose item wasn't in the input, by id, so they
   can be joined to items read earlier. **`skipped`** lists each document that
-  wasn't mapped (a failed call, `work search`), each also an `OWI_SKIPPED` warning.
+  wasn't mapped (a failed call, `work-item search`), each also an `OWI_SKIPPED` warning.
 - **`native`** keeps every source record as it came, keyed by command.
 - **`verified`:** every item, and every history in `histories`, is validated
   against `docs/owi/schema.json` (`items.schema`, `histories.schema`) before it is

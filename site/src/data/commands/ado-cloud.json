@@ -138,7 +138,7 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "<id>",
+      "<id...>",
       "--fields <names>",
       "--project <name>",
       "--repo <name>"

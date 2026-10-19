@@ -238,7 +238,7 @@ connection:
 `parentId:childId`), `user` (`{accountId}`), `multi-user` (comma-separated accountIds, `[{accountId}]`), `labels`, `url`, and `textarea`, which
 is plain text sent as ADF, since a multi-line text field takes ADF on Cloud. Omit it to
 send the raw string. A value in `--fields-file` or `--input-file` is sent untouched, so
-a multi-line text field there needs ADF. `fields --discover` lists Jira's fields with a
+a multi-line text field there needs ADF. `issue fields --discover` lists Jira's fields with a
 `suggestedType` (a single-line text field is `string`, a multi-line one `textarea`); add
 `--project PROJ` for each select field's `allowedValues`, from the paged createmeta
 endpoints. **Sprint is not a custom field**: use `issue set-sprint` after the issue exists.
@@ -256,7 +256,7 @@ keeping only the file name, and never replaces a file that's already there.
 - `issue create` doesn't check for duplicates. After a timeout, search for the summary
   before retrying: the issue may already exist.
 - `issue update` with nothing to change is `INVALID_INPUT`; nothing is sent.
-- `log-work` needs `--started`: Jira Cloud's API requires it, where `jira` lets the
+- `issue log-work` needs `--started`: Jira Cloud's API requires it, where `jira` lets the
   server default it.
 - `sprint list --project` reads scrum and team-managed (`simple`) boards and skips
   kanban ones. A team-managed board whose project hasn't turned sprints on answers 400;

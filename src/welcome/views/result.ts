@@ -62,6 +62,9 @@ export const resultView: View = {
     for (const r of results) {
       const o = outcome(r);
       lines.push(paint(caps, PALETTE.faint, `$ ${commandLine(p.data, r.args)}`));
+      // Which connection answered, so a result from the wrong one is obvious.
+      const via = r.envelope.meta.context?.connection;
+      if (p.frame.run?.showData && via) lines.push(paint(caps, PALETTE.muted, `  on ${String(via.value)} (${via.source})`));
       if (p.frame.run?.showData && r.envelope.ok) lines.push(...dataLines(caps, r.envelope.data));
       else lines.push(`${mark(o.good)} ${o.good ? o.text : ok(caps, false, o.text)}`);
       if (o.fix) lines.push(paint(caps, PALETTE.muted, `  Fix: ${o.fix}`));
