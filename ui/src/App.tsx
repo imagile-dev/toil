@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
+import { Button, Label, ListBox, ListBoxItem, Popover, Select, SelectValue } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { DataContext, type Data } from './data.ts';
 import { dateTime, dossierHref } from './format.ts';
@@ -21,11 +22,13 @@ import type { Call, Execute } from './toil.ts';
 import { Dashboard } from './views/Dashboard.tsx';
 import { Dossiers } from './views/Dossiers.tsx';
 import { ItemView } from './views/Item.tsx';
+import { Settings } from './views/Settings.tsx';
 
-export type Route = { view: 'dossiers' } | { view: 'dashboard'; dossier: string } | { view: 'item'; dossier: string; id: string };
+export type Route = { view: 'dossiers' } | { view: 'settings' } | { view: 'dashboard'; dossier: string } | { view: 'item'; dossier: string; id: string };
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/');
+  if (parts[0] === 'settings') return { view: 'settings' };
   if (parts[0] === 'dossier' && parts[1]) {
     const dossier = decodeURIComponent(parts[1]);
     if (parts[2] === 'item' && parts[3]) return { view: 'item', dossier, id: decodeURIComponent(parts.slice(3).join('/')) };
@@ -65,7 +68,7 @@ export function App({ execute, agent, now, preview }: AppProps) {
   const theme = themeNamed(choice.theme);
   const main = useRef<HTMLElement>(null);
   const first = useRef(true);
-  const wanted = route.view === 'dossiers' ? null : route.dossier;
+  const wanted = route.view === 'dossiers' || route.view === 'settings' ? null : route.dossier;
 
   useEffect(() => {
     if (route.view !== 'dossiers' || list) return;
@@ -126,7 +129,9 @@ export function App({ execute, agent, now, preview }: AppProps) {
   );
 
   let body;
-  if (route.view === 'dossiers') {
+  if (route.view === 'settings') {
+    body = <Settings preview={preview} />;
+  } else if (route.view === 'dossiers') {
     body = !list ? <skins.Loading message="Reading the dossiers…" /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} /> : failure(list.message);
   } else if (!current) {
     body = <skins.Loading message={`Reading ${route.dossier}…`} />;
@@ -167,28 +172,26 @@ export function App({ execute, agent, now, preview }: AppProps) {
                   </a>
                 </li>
               )}
+              <li>
+                <a href="#/settings" aria-current={route.view === 'settings' ? 'page' : undefined}>
+                  Settings
+                </a>
+              </li>
             </ul>
           </nav>
           <div className="settings">
-            <label>
-              Theme
-              <select value={theme.name} onChange={(e) => choice.setTheme(e.target.value)}>
-                {THEMES.map((t) => (
-                  <option key={t.name} value={t.name}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
             {Object.keys(theme.schemes).length > 1 && (
-              <label>
-                Appearance
-                <select value={choice.scheme} onChange={(e) => choice.setScheme(e.target.value as typeof choice.scheme)}>
-                  <option value="system">System</option>
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                </select>
-              </label>
+              <Choice
+                label="Appearance"
+                value={choice.scheme}
+                onChange={(v) => choice.setScheme(v as typeof choice.scheme)}
+                options={[
+                  { id: 'system', label: 'System' },
+                  { id: 'light', label: 'Light' },
+                  { id: 'dark', label: 'Dark' },
+                ]}
+              />
             )}
           </div>
         </div>
@@ -200,5 +203,27 @@ export function App({ execute, agent, now, preview }: AppProps) {
         {body}
       </main>
     </SkinProvider>
+  );
+}
+
+/** A labelled choice from a short list, on React Aria's Select: a button that opens a listbox. */
+function Choice({ label, value, options, onChange }: { label: string; value: string; options: Array<{ id: string; label: string }>; onChange: (id: string) => void }) {
+  return (
+    <Select className="choice" selectedKey={value} onSelectionChange={(k) => k !== null && onChange(String(k))}>
+      <Label>{label}</Label>
+      <Button className="btn choice-button">
+        <SelectValue />
+        <span aria-hidden="true">▾</span>
+      </Button>
+      <Popover className="popover">
+        <ListBox className="menu">
+          {options.map((o) => (
+            <ListBoxItem key={o.id} id={o.id} className="menu-item">
+              {o.label}
+            </ListBoxItem>
+          ))}
+        </ListBox>
+      </Popover>
+    </Select>
   );
 }

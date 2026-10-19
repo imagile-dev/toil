@@ -5,9 +5,12 @@
  * and which the Toil UI preview's fixture `execute()` serves, split by dossier
  * (ui/src/fixtures/work.ts).
  *
- * Sprint 42 runs 2026-10-05 to 2026-10-16. Twenty items: eight Jira issues
- * (PAY), seven Azure DevOps work items (Payments) and five GitHub issues
- * (imagile/payments-web) on project 7. What a sprint report should find in it:
+ * Sprint 42 runs 2026-10-05 to 2026-10-16. Twenty items in it: eight Jira
+ * issues (PAY), seven Azure DevOps work items (Payments) and five GitHub issues
+ * (imagile/payments-web) on project 7. Nine more were finished in Sprints 40
+ * and 41 (PAY-92, PAY-95, PAY-97, PAY-98, 2290, 2294, 2297, payments-web#36
+ * and #38), with the histories that give throughput and cycle time the weeks
+ * before this one. What a sprint report should find in Sprint 42:
  *
  * - a blocked chain in each tracker: PAY-101 blocks PAY-102 blocks PAY-103,
  *   and 2302 must finish before 2303 starts;
@@ -67,6 +70,7 @@ const TYPE = {
 /** Data Center's sprint field, as /rest/api/2 writes it: one string per sprint. */
 const sprint = (n: number, state: 'CLOSED' | 'ACTIVE' | 'FUTURE', start: string, end: string) =>
   `com.atlassian.greenhopper.service.sprint.Sprint@6f3a${n}[id=${n},rapidViewId=7,state=${state},name=Sprint ${n},startDate=${start},endDate=${end},completeDate=${state === 'CLOSED' ? end : '<null>'},sequence=${n},goal=]`;
+const S40 = sprint(40, 'CLOSED', '2026-09-07T09:00:00.000Z', '2026-09-18T17:00:00.000Z');
 const S41 = sprint(41, 'CLOSED', '2026-09-21T09:00:00.000Z', '2026-10-02T17:00:00.000Z');
 const S42 = sprint(42, 'ACTIVE', '2026-10-05T09:00:00.000Z', '2026-10-16T17:00:00.000Z');
 
@@ -128,6 +132,11 @@ const jiraIssue = (s: JiraSpec, n: number) => ({
 });
 
 const jiraSpecs: JiraSpec[] = [
+  // Finished in Sprints 40 and 41: the weeks before this one, for throughput and cycle time.
+  { key: 'PAY-92', type: 'story', summary: 'Mask card numbers in the gateway logs', status: 'done', assignee: SMITH, points: 3, sprints: [S40], created: '2026-09-01T09:00:00.000+0000', updated: '2026-09-17T14:00:00.000+0000', resolved: '2026-09-17T14:00:00.000+0000' },
+  { key: 'PAY-95', type: 'story', summary: 'Look up the card scheme from the BIN', status: 'done', assignee: CHEN, points: 3, sprints: [S41], created: '2026-09-08T11:00:00.000+0000', updated: '2026-09-25T11:00:00.000+0000', resolved: '2026-09-25T11:00:00.000+0000' },
+  { key: 'PAY-97', type: 'bug', summary: 'A double click charges twice', status: 'done', assignee: SMITH, points: 2, sprints: [S41], created: '2026-09-16T08:20:00.000+0000', updated: '2026-09-30T16:00:00.000+0000', resolved: '2026-09-30T16:00:00.000+0000', priority: 'High' },
+  { key: 'PAY-98', type: 'story', summary: 'Decline codes in the merchant report', status: 'done', assignee: PATEL, points: 5, sprints: [S41], created: '2026-09-10T10:00:00.000+0000', updated: '2026-10-02T15:00:00.000+0000', resolved: '2026-10-02T15:00:00.000+0000' },
   { key: 'PAY-100', type: 'epic', summary: 'Card payments v2', status: 'progress', assignee: PATEL, created: '2026-08-31T10:00:00.000+0000', updated: '2026-10-09T11:00:00.000+0000', description: 'h2. Goal\nStore cards as tokens and charge them without the PAN leaving the edge.' },
   {
     key: 'PAY-101', type: 'story', summary: 'Tokenise card numbers at the edge', status: 'progress', assignee: SMITH, points: 5, sprints: [S42], epic: 'PAY-100', subtasks: ['PAY-106'],
@@ -147,6 +156,18 @@ const status = (from: keyof typeof STATUS, to: keyof typeof STATUS) => ({ field:
 const sprintChange = (from: string, to: string) => ({ field: 'Sprint', fieldtype: 'custom', from: null, fromString: from, to: null, toString: to });
 
 const changelogs: Record<string, unknown[]> = {
+  'PAY-92': [history(40001, SMITH, '2026-09-09T10:00:00.000+0000', [status('todo', 'progress')]), history(40002, SMITH, '2026-09-17T14:00:00.000+0000', [status('progress', 'done')])],
+  'PAY-95': [
+    history(40011, CHEN, '2026-09-22T10:00:00.000+0000', [status('todo', 'progress')]),
+    history(40012, CHEN, '2026-09-24T15:00:00.000+0000', [status('progress', 'review')]),
+    history(40013, SMITH, '2026-09-25T11:00:00.000+0000', [status('review', 'done')]),
+  ],
+  'PAY-97': [history(40021, SMITH, '2026-09-23T09:00:00.000+0000', [status('todo', 'progress')]), history(40022, CHEN, '2026-09-30T16:00:00.000+0000', [status('progress', 'done')])],
+  'PAY-98': [
+    history(40031, PATEL, '2026-09-21T14:00:00.000+0000', [status('todo', 'progress')]),
+    history(40032, PATEL, '2026-10-01T10:00:00.000+0000', [status('progress', 'review')]),
+    history(40033, CHEN, '2026-10-02T15:00:00.000+0000', [status('review', 'done')]),
+  ],
   'PAY-101': [history(40101, SMITH, '2026-10-06T09:15:00.000+0000', [status('todo', 'progress')])],
   'PAY-104': [
     history(40201, CHEN, '2026-09-29T10:00:00.000+0000', [status('todo', 'progress')]),
@@ -220,6 +241,10 @@ const adoItem = (s: AdoSpec) => ({
 
 const S = 'Payments\\Sprint 42';
 const adoSpecs: AdoSpec[] = [
+  // Finished in Sprints 40 and 41.
+  { id: 2290, type: 'User Story', title: 'Read settlement batches from the ledger', state: 'Closed', reason: 'Acceptance tests pass', assignee: OKAFOR, iteration: 'Payments\\Sprint 40', points: 3, teamPoints: 3, created: '2026-09-01T09:00:00Z', changed: '2026-09-15T16:00:00Z', closed: '2026-09-15T16:00:00Z' },
+  { id: 2294, type: 'Bug', title: 'Batch totals ignore refunds', state: 'Closed', reason: 'Fixed and verified', assignee: LIND, iteration: 'Payments\\Sprint 41', points: 2, teamPoints: 2, created: '2026-09-14T13:00:00Z', changed: '2026-09-26T11:30:00Z', closed: '2026-09-26T11:30:00Z' },
+  { id: 2297, type: 'User Story', title: 'Group settlements by merchant', state: 'Closed', reason: 'Acceptance tests pass', assignee: OKAFOR, iteration: 'Payments\\Sprint 41', points: 5, teamPoints: 5, created: '2026-09-15T10:00:00Z', changed: '2026-10-01T15:00:00Z', closed: '2026-10-01T15:00:00Z' },
   { id: 2301, type: 'Feature', title: 'Settlement reports', state: 'Active', reason: 'Implementation started', assignee: NAKAMURA, iteration: 'Payments', relations: [relation('System.LinkTypes.Hierarchy-Forward', 2302), relation('System.LinkTypes.Hierarchy-Forward', 2303)], created: '2026-08-24T14:00:00Z', changed: '2026-10-05T09:30:00Z' },
   { id: 2302, type: 'User Story', title: 'Export the daily settlement CSV', state: 'Active', reason: 'Implementation started', assignee: OKAFOR, iteration: S, points: 5, teamPoints: 5, relations: [relation('System.LinkTypes.Hierarchy-Reverse', 2301), relation('System.LinkTypes.Dependency-Forward', 2303), relation('System.LinkTypes.Hierarchy-Forward', 2305)], created: '2026-09-10T10:00:00Z', changed: '2026-10-06T08:45:00Z', description: '<div>One CSV per merchant, written at 02:00 UTC.</div>' },
   { id: 2303, type: 'User Story', title: 'Email the settlement report to finance', state: 'New', reason: 'New', iteration: S, points: 3, teamPoints: 3, relations: [relation('System.LinkTypes.Hierarchy-Reverse', 2301), relation('System.LinkTypes.Dependency-Reverse', 2302)], created: '2026-09-10T10:05:00Z', changed: '2026-10-05T09:30:00Z' },
@@ -232,11 +257,16 @@ const adoSpecs: AdoSpec[] = [
 const revision = (id: number, rev: number, at: string, by: typeof OKAFOR, state: string, iteration: string) => ({
   id,
   rev,
-  fields: { 'System.WorkItemType': id === 2304 ? 'Bug' : 'User Story', 'System.State': state, 'System.IterationPath': iteration, 'System.ChangedDate': at, 'System.ChangedBy': by },
+  fields: { 'System.WorkItemType': id === 2304 || id === 2294 ? 'Bug' : 'User Story', 'System.State': state, 'System.IterationPath': iteration, 'System.ChangedDate': at, 'System.ChangedBy': by },
   url: `${ADO}/_apis/wit/workItems/${id}/revisions/${rev}`,
 });
 
+const S40P = 'Payments\\Sprint 40';
+const S41P = 'Payments\\Sprint 41';
 const revisions: Record<number, unknown[]> = {
+  2290: [revision(2290, 1, '2026-09-01T09:00:00Z', NAKAMURA, 'New', 'Payments'), revision(2290, 2, '2026-09-04T15:00:00Z', NAKAMURA, 'New', S40P), revision(2290, 3, '2026-09-08T10:00:00Z', OKAFOR, 'Active', S40P), revision(2290, 4, '2026-09-15T16:00:00Z', OKAFOR, 'Closed', S40P)],
+  2294: [revision(2294, 1, '2026-09-14T13:00:00Z', NAKAMURA, 'New', S41P), revision(2294, 2, '2026-09-22T09:30:00Z', LIND, 'Active', S41P), revision(2294, 3, '2026-09-26T11:30:00Z', LIND, 'Closed', S41P)],
+  2297: [revision(2297, 1, '2026-09-15T10:00:00Z', NAKAMURA, 'New', S41P), revision(2297, 2, '2026-09-23T09:00:00Z', OKAFOR, 'Active', S41P), revision(2297, 3, '2026-10-01T15:00:00Z', OKAFOR, 'Closed', S41P)],
   2302: [revision(2302, 1, '2026-09-10T10:00:00Z', NAKAMURA, 'New', 'Payments'), revision(2302, 2, '2026-09-30T15:00:00Z', NAKAMURA, 'New', S), revision(2302, 3, '2026-10-06T08:45:00Z', OKAFOR, 'Active', S)],
   2304: [revision(2304, 1, '2026-09-24T16:20:00Z', NAKAMURA, 'New', 'Payments\\Sprint 41'), revision(2304, 2, '2026-09-28T09:00:00Z', LIND, 'Active', 'Payments\\Sprint 41'), revision(2304, 3, '2026-10-05T08:30:00Z', NAKAMURA, 'Active', S)],
   2306: [revision(2306, 1, '2026-10-02T09:00:00Z', NAKAMURA, 'New', 'Payments'), revision(2306, 2, '2026-10-09T10:15:00Z', NAKAMURA, 'New', S)],
@@ -259,7 +289,7 @@ const iterations = {
   structureType: 'iteration',
   hasChildren: true,
   path: '\\Payments\\Iteration',
-  children: [node('Sprint 41', '2026-09-21T00:00:00Z', '2026-10-02T00:00:00Z', 41), node('Sprint 42', '2026-10-05T00:00:00Z', '2026-10-16T00:00:00Z', 42), node('Sprint 43', '2026-10-19T00:00:00Z', '2026-10-30T00:00:00Z', 43)],
+  children: [node('Sprint 40', '2026-09-07T00:00:00Z', '2026-09-18T00:00:00Z', 40), node('Sprint 41', '2026-09-21T00:00:00Z', '2026-10-02T00:00:00Z', 41), node('Sprint 42', '2026-10-05T00:00:00Z', '2026-10-16T00:00:00Z', 42), node('Sprint 43', '2026-10-19T00:00:00Z', '2026-10-30T00:00:00Z', 43)],
   url: `${ADO}/Payments/_apis/wit/classificationNodes/Iterations`,
 };
 
@@ -308,6 +338,9 @@ const ghIssue = (s: GhSpec): Record<string, unknown> => ({
 });
 
 const ghSpecs: GhSpec[] = [
+  // Finished in Sprint 41.
+  { number: 36, title: 'Pay button stays disabled after an error', type: 'Bug', state: 'closed', assignee: BO, labels: ['bug'], created: '2026-09-21T10:00:00Z', updated: '2026-09-24T17:00:00Z', closed: '2026-09-24T17:00:00Z', body: 'After a declined card the Pay button never re-enables.' },
+  { number: 38, title: 'Show card brand icons', type: 'Task', state: 'closed', assignee: ADA, labels: ['checkout', 'ui'], created: '2026-09-21T10:30:00Z', updated: '2026-10-01T12:00:00Z', closed: '2026-10-01T12:00:00Z', body: 'Visa, Mastercard and Amex icons beside the card number field.' },
   { number: 41, title: 'Checkout accepts saved cards', type: 'Feature', state: 'open', assignee: ADA, labels: ['checkout'], subs: [42], created: '2026-09-28T12:00:00Z', updated: '2026-10-08T09:00:00Z', body: 'Customers pick a saved card at checkout instead of typing it again.\n\n- [ ] Card picker\n- [ ] 3-D Secure on saved cards' },
   { number: 42, title: 'Saved-card picker component', type: 'Task', state: 'open', assignee: BO, labels: ['checkout', 'ui'], parent: 41, created: '2026-09-28T12:10:00Z', updated: '2026-10-09T14:00:00Z', body: 'A list of saved cards with the last four digits and expiry.' },
   { number: 43, title: 'Card form loses focus on Safari', type: 'Bug', state: 'open', assignee: BO, labels: ['bug', 'safari'], created: '2026-10-07T08:30:00Z', updated: '2026-10-07T08:45:00Z', body: 'Typing the expiry moves focus back to the card number field on Safari 18.' },
@@ -315,7 +348,9 @@ const ghSpecs: GhSpec[] = [
   { number: 45, title: 'End-to-end test for 3-D Secure', type: 'Task', state: 'open', labels: ['testing'], created: '2026-10-05T11:00:00Z', updated: '2026-10-05T11:00:00Z', body: 'Cover the challenge flow with the issuer simulator.' },
 ];
 
-const board: Record<number, { status: string; estimate?: number; added: string }> = {
+const board: Record<number, { status: string; estimate?: number; added: string; sprint?: 41 }> = {
+  36: { status: 'Done', estimate: 2, added: '2026-09-21T10:05:00Z', sprint: 41 },
+  38: { status: 'Done', estimate: 3, added: '2026-09-21T10:35:00Z', sprint: 41 },
   41: { status: 'In Progress', estimate: 5, added: '2026-09-28T12:05:00Z' },
   42: { status: 'In Review', estimate: 3, added: '2026-09-28T12:15:00Z' },
   43: { status: 'Todo', estimate: 2, added: '2026-10-07T09:00:00Z' },
@@ -337,10 +372,14 @@ const projectItem = (s: GhSpec) => {
       { __typename: 'ProjectV2ItemFieldTextValue', text: s.title, field: { id: 'PVTF_abc12345title', name: 'Title' } },
       { __typename: 'ProjectV2ItemFieldSingleSelectValue', name: b.status, optionId: OPTIONS[b.status], field: { id: 'PVTSSF_abc12345', name: 'Status' } },
       ...(b.estimate === undefined ? [] : [{ __typename: 'ProjectV2ItemFieldNumberValue', number: b.estimate, field: { id: 'PVTF_abc12345', name: 'Estimate' } }]),
-      { __typename: 'ProjectV2ItemFieldIterationValue', title: 'Sprint 42', iterationId: 'cfc16e4d', startDate: '2026-10-05', duration: 12, field: { id: 'PVTIF_abc12345', name: 'Sprint' } },
+      b.sprint === 41
+        ? { __typename: 'ProjectV2ItemFieldIterationValue', title: 'Sprint 41', iterationId: 'b7e2a91c', startDate: '2026-09-21', duration: 12, field: { id: 'PVTIF_abc12345', name: 'Sprint' } }
+        : { __typename: 'ProjectV2ItemFieldIterationValue', title: 'Sprint 42', iterationId: 'cfc16e4d', startDate: '2026-10-05', duration: 12, field: { id: 'PVTIF_abc12345', name: 'Sprint' } },
     ],
   };
 };
+
+const closedOn = (n: number, actor: typeof ADA, at: string) => [{ id: 7000 + n * 10, node_id: `CE_kwDOabc1234570${n}`, event: 'closed', actor, created_at: at, state_reason: 'completed', commit_id: null }];
 
 const timeline44 = [
   { id: 7001, node_id: 'LE_kwDOabc123457001', event: 'labeled', actor: ADA, created_at: '2026-10-01T10:01:00Z', label: { name: 'bug', color: 'd73a4a' } },
@@ -359,6 +398,8 @@ export const sprintEnvelopes: unknown[] = [
   envelope('ado work get-batch', { count: adoSpecs.length, value: adoSpecs.map(adoItem), missing: [] }, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' }),
   ...Object.values(revisions).map((value) => envelope('ado work revisions', value, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' })),
   envelope('github get-issue', { issues: ghSpecs.map((s) => (s.subs ? { ...ghIssue(s), sub_issues: s.subs.map((n) => ghIssue(ghSpecs.find((g) => g.number === n)!)) } : ghIssue(s))), errors: [] }, 'github', GH),
+  { key: '36', history: envelope('github issue-events', closedOn(36, BO, '2026-09-24T17:00:00Z'), 'github', GH) },
+  { key: '38', history: envelope('github issue-events', closedOn(38, ADA, '2026-10-01T12:00:00Z'), 'github', GH) },
   { key: '44', history: envelope('github issue-events', timeline44, 'github', GH) },
   envelope('github projects list-items', ghSpecs.map(projectItem), 'github', { owner: 'imagile' }),
 ];

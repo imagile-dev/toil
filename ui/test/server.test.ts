@@ -286,9 +286,10 @@ describe('the API', () => {
     const { origin } = await start({ agent });
     const { sid, session } = await signIn(origin);
     const starters = JSON.parse((await send(origin, '/api/agent/starters?dossier=card-payments', { headers: { [SESSION_HEADER]: sid } })).body) as Array<{ id: string }>;
-    expect(starters.map((s) => s.id)).toEqual(['risk', 'deployed']);
+    expect(starters.map((s) => s.id)).toEqual(['risk', 'attention', 'deployed']);
     const answer = JSON.parse((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'risk' }, { sid, csrf: session.csrf })).body);
     expect(answer.citations).toContain('corp-jira:PAY-101');
+    expect(answer.proposals.map((p: { command: string }) => p.command)).toEqual(['jira update-issue']);
     expect(asked).toEqual(['local card-payments risk']);
 
     const none = await start({ agent: noAgent() });

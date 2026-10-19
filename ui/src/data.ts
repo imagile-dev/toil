@@ -8,6 +8,8 @@
 import { createContext, useContext } from 'react';
 import type { Agent } from './agent.ts';
 import type { DossierData } from './load.ts';
+import { prepare, type Prepared } from './model/insights.ts';
+import { health, type Health } from './model/sprint.ts';
 import type { WorkItem } from './toil.ts';
 
 export interface Data {
@@ -24,4 +26,20 @@ export function useData(): Data {
   const data = useContext(DataContext);
   if (!data) throw new Error('useData() needs the shell to have loaded the dossier first.');
   return data;
+}
+
+const derived = new WeakMap<DossierData, Map<string, { health: Health | null; insights: Prepared }>>();
+
+/** The sprint and the insights for the dossier on screen, worked out once per dossier and clock. */
+export function useDerived(): { health: Health | null; insights: Prepared } {
+  const { dossier, now } = useData();
+  let byNow = derived.get(dossier);
+  if (!byNow) derived.set(dossier, (byNow = new Map()));
+  let d = byNow.get(now);
+  if (!d) {
+    const h = health(dossier.items, dossier.changes, now);
+    d = { health: h, insights: prepare({ items: dossier.items, changes: dossier.changes, deployments: dossier.deployments, health: h, now }) };
+    byNow.set(now, d);
+  }
+  return d;
 }

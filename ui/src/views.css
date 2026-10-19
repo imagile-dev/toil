@@ -1,0 +1,181 @@
+/* The dashboard's views (#252, #253): controls on React Aria Components,
+   status colour, avatars, insights, charts, the board, the dependency graph
+   and the docked chat. Like app.css, colours come from the theme's tokens, so
+   Plain and Crate share the layout and click targets. A colour never carries
+   meaning alone: a word always rides with it. */
+
+/* Controls: the look is ours, the behaviour React Aria's. */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; }
+.btn[data-hovered] { border-color: var(--ink); }
+.btn[data-focus-visible], .starter[data-focus-visible], .menu-item[data-focus-visible], .drag:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.btn[data-disabled], .starter[data-disabled] { cursor: not-allowed; opacity: 0.75; }
+.btn--small { padding: 0 0.6rem; font-size: 0.875rem; }
+.btn--quiet { border-color: transparent; background: transparent; color: var(--link); text-decoration: underline; }
+.btn--accent { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.choice { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9375rem; color: var(--muted); }
+.choice-button { color: var(--ink); min-width: 7rem; justify-content: space-between; }
+.popover { background: var(--raised); border: 1px solid var(--muted); border-radius: var(--radius); box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); min-width: var(--trigger-width, 10rem); }
+.menu { padding: 0.25rem; outline: none; max-height: 60vh; overflow: auto; }
+.menu-item { display: flex; align-items: center; min-height: 44px; padding: 0 0.75rem; border-radius: var(--radius); color: var(--ink); cursor: pointer; outline: none; }
+.menu-item[data-focused], .menu-item[data-hovered] { background: var(--surface); }
+.menu-item[data-selected] { font-weight: 600; }
+.menu-item[data-selected]::after { content: "\2713"; margin-left: auto; padding-left: 1rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* Status chips, avatars and insight chips. */
+.chip { display: inline-flex; align-items: center; gap: 0.2rem; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid currentColor; font-size: 0.75rem; font-weight: 600; white-space: nowrap; background: var(--raised); }
+.chip--todo { color: var(--muted); }
+.chip--in_progress { color: var(--link); }
+.chip--done { color: var(--ok); }
+.chip--unknown { color: var(--warn); }
+.chip-cat { font-weight: 400; }
+.avatar { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.02em; color: var(--ink); background: color-mix(in srgb, var(--h) 24%, var(--raised)); border: 2px solid color-mix(in srgb, var(--h) 70%, var(--raised)); vertical-align: middle; flex: none; }
+.avatar--0 { --h: #3b82f6; }
+.avatar--1 { --h: #10b981; }
+.avatar--2 { --h: #f59e0b; }
+.avatar--3 { --h: #ef4444; }
+.avatar--4 { --h: #8b5cf6; }
+.avatar--5 { --h: #06b6d4; }
+.avatar--none { --h: #888888; color: var(--muted); }
+.insight-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; list-style: none; padding: 0; }
+.insight { display: inline-block; padding: 0.05rem 0.45rem; border-radius: var(--radius); font-size: 0.75rem; font-weight: 600; border: 1px solid var(--line); background: var(--raised); color: var(--ink); }
+.insight--w3 { color: var(--danger); border-color: var(--danger); }
+.insight--w2 { color: var(--warn); border-color: var(--warn); }
+.insight--w1, .insight--more { color: var(--muted); }
+.item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.5rem; }
+.insights-panel { margin-bottom: 1.5rem; }
+
+/* Big figures and charts. */
+.big-figure { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.5rem; }
+.big-number { font-family: var(--font-display); font-size: 2.25rem; font-weight: 700; line-height: 1; color: var(--ink); }
+.chart-figure { display: grid; gap: 0.4rem; }
+.chart { width: 100%; height: auto; overflow: visible; }
+.chart .grid { stroke: var(--line); stroke-width: 1; }
+.chart .axis { fill: var(--muted); font-size: 11px; font-family: var(--font-body); }
+.chart .axis--value { fill: var(--ink); font-weight: 600; }
+.chart .axis--p85 { fill: var(--warn); font-weight: 600; }
+.chart .line { fill: none; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.chart .line--done { stroke: var(--accent); }
+.chart .line--scope { stroke: var(--muted); stroke-dasharray: 6 5; stroke-width: 2; }
+.chart .area { fill: var(--accent); opacity: 0.14; }
+.chart .today { stroke: var(--muted); stroke-dasharray: 2 4; }
+.chart .bar { fill: var(--accent); }
+.chart .bar--partial { fill: var(--muted); }
+.chart .dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.chart .p85 { stroke: var(--warn); stroke-dasharray: 5 4; stroke-width: 2; }
+.legend { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem; font-size: 0.8125rem; color: var(--muted); }
+.key-swatch { display: inline-block; width: 1.25rem; height: 0; border-top: 3px solid var(--accent); }
+.key-swatch--scope { border-top: 2px dashed var(--muted); }
+.figures summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--link); font-size: 0.875rem; }
+.figures table { font-size: 0.875rem; }
+.unknowns { display: grid; gap: 0.35rem; }
+
+/* Needs attention. */
+.attention { list-style: none; padding: 0; display: grid; gap: 0.75rem; }
+.attention-item { display: grid; grid-template-columns: 2.25rem minmax(0, 1fr); gap: 0.75rem; padding: 0.75rem; border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: var(--radius); background: var(--raised); }
+.attention-item > div { display: grid; gap: 0.35rem; min-width: 0; }
+.attention-item--w3 { border-left-color: var(--danger); }
+.attention-item--w2 { border-left-color: var(--warn); }
+.rank { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
+
+/* The board. */
+.board { display: grid; gap: 0.75rem; overflow-x: auto; padding-bottom: 0.25rem; }
+.column { background: var(--bg); border: 1px solid var(--line); border-top: 4px solid var(--muted); border-radius: var(--radius); padding: 0.6rem; display: grid; gap: 0.6rem; align-content: start; min-height: 10rem; min-width: 0; }
+.column--in_progress { border-top-color: var(--link); }
+.column--done { border-top-color: var(--ok); }
+.column--over { outline: 3px dashed var(--focus); outline-offset: -3px; }
+.column h3 { display: flex; align-items: center; justify-content: space-between; margin: 0; }
+.count { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); }
+.cards { list-style: none; padding: 0; display: grid; gap: 0.6rem; }
+.card { background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.6rem; display: grid; gap: 0.45rem; position: relative; }
+.card--dragging { z-index: 5; box-shadow: 0 12px 28px rgb(0 0 0 / 0.3); border-color: var(--focus); }
+.card-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.35rem; }
+.card-title { font-weight: 600; line-height: 1.35; }
+.card-foot { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; font-size: 0.8125rem; }
+.who { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--muted); }
+.card-actions { display: flex; gap: 0.4rem; }
+.drag { padding: 0 0.6rem; font-size: 0.875rem; cursor: grab; touch-action: none; }
+.drag:active { cursor: grabbing; }
+.proposals { display: grid; gap: 0.75rem; }
+.proposal { border: 2px dashed var(--accent); border-radius: var(--radius); padding: 0.75rem; display: grid; gap: 0.45rem; background: var(--raised); }
+.proposal-kind { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.proposal h3 { margin: 0; }
+.command { margin: 0; padding: 0.5rem 0.6rem; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+.proposal-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+
+/* Aging. */
+.aging { list-style: none; padding: 0; display: grid; gap: 0.85rem; }
+.aging-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; }
+.aging-days { font-family: var(--font-display); font-weight: 700; white-space: nowrap; }
+.aging .flag { color: var(--danger); font-family: var(--font-body); font-size: 0.8125rem; }
+.aging-bar { position: relative; height: 0.6rem; margin: 0.35rem 0; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; }
+.aging-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--link); }
+.aging--over .aging-bar > span { background: var(--danger); }
+.aging-bar > i { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--warn); }
+.aging .evidence { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+
+/* The dependency graph. */
+.graph { height: 22rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); }
+.graph .react-flow__background { color: var(--line); }
+.gnode { width: 210px; padding: 0.5rem 0.6rem; border-radius: var(--radius); border: 2px solid var(--line); background: var(--raised); color: var(--ink); display: grid; gap: 0.3rem; font-size: 0.8125rem; justify-items: start; }
+.gnode--blocked { border-color: var(--danger); }
+.gnode--blocking { border-color: var(--warn); }
+.gnode--unknown { border-style: dashed; }
+.gnode-title { font-weight: 600; line-height: 1.3; }
+.graph .react-flow__handle { opacity: 0; }
+.gedge .react-flow__edge-path { stroke: var(--muted); stroke-width: 2; }
+.gedge--live .react-flow__edge-path { stroke: var(--danger); stroke-width: 2.5; }
+.gedge--relates .react-flow__edge-path { stroke-dasharray: 5 4; }
+.graph .react-flow__edge-textbg { fill: var(--surface); }
+.graph .react-flow__edge-text { fill: var(--ink); font-size: 11px; }
+.graph .zoom { display: flex; gap: 0.25rem; }
+.graph .zoom button { min-width: 44px; justify-content: center; text-align: center; font-weight: 700; }
+.graph .react-flow__attribution { background: var(--surface); padding: 2px 6px; }
+.graph .react-flow__attribution a { color: var(--link); display: inline-block; min-height: 24px; min-width: 24px; padding: 4px 2px; }
+
+/* The chat: docked beside the dashboard, or a sheet on a narrow screen. */
+.ask { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: var(--radius); padding: 1rem; display: grid; gap: 0.75rem; align-content: start; position: sticky; top: 0.75rem; max-height: calc(100svh - 1.5rem); overflow: auto; }
+.ask-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.ask-body { display: grid; gap: 0.75rem; }
+.ask-body[hidden] { display: none; }
+.log { display: grid; gap: 0.75rem; }
+.turn { display: grid; gap: 0.5rem; }
+.bubble { padding: 0.6rem 0.75rem; border-radius: var(--radius); border: 1px solid var(--line); display: grid; gap: 0.5rem; }
+.bubble--you { justify-self: end; max-width: 90%; background: var(--raised); font-weight: 600; }
+.bubble--agent { background: var(--bg); }
+.starters { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.starter { font: inherit; font-size: 0.875rem; min-height: 44px; padding: 0.35rem 0.8rem; border-radius: 999px; border: 1px solid var(--accent); background: var(--raised); color: var(--ink); cursor: pointer; text-align: left; }
+.starter[data-hovered] { background: var(--bg); }
+.ask-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; }
+.field-text { display: grid; gap: 0.25rem; flex: 1 1 12rem; font-size: 0.875rem; color: var(--muted); }
+.field-text input { font: inherit; font-size: 1rem; min-height: 44px; padding: 0 0.75rem; border: 1px solid var(--muted); border-radius: var(--radius); background: var(--raised); color: var(--ink); }
+.field-text input[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
+.field-text input::placeholder { color: var(--muted); opacity: 1; }
+
+.panel-grid--two { grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
+
+@media (max-width: 1000px) {
+  .dashboard { padding-bottom: 5rem; }
+  .ask--sheet { position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 20; max-height: 4.75rem; border-radius: var(--radius) var(--radius) 0 0; border-left: 0; border-right: 0; border-bottom: 0; padding: 0.75rem 16px; box-shadow: 0 -8px 24px rgb(0 0 0 / 0.25); }
+  .ask--sheet.ask--open { max-height: 85svh; }
+  .board { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+/* Motion, only where it's welcome: lines draw in, bars grow, cards lift. */
+@media (prefers-reduced-motion: no-preference) {
+  .chart .line--done { stroke-dasharray: 1; stroke-dashoffset: 1; animation: toil-draw 0.9s ease-out forwards; }
+  .chart .line--scope, .chart .bar, .chart .dot, .turn { animation: toil-fade 0.5s ease-out; }
+  .aging-bar > span { animation: toil-grow 0.7s ease-out; transform-origin: left; }
+  .card { transition: box-shadow 0.15s ease; }
+  .card:hover:not(.card--dragging) { box-shadow: 0 4px 12px rgb(0 0 0 / 0.14); }
+  .ask--sheet { transition: max-height 0.25s ease; }
+}
+@keyframes toil-draw { to { stroke-dashoffset: 0; } }
+@keyframes toil-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes toil-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* The shell a proposal's command is shown for. */
+.shells { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.shell-choice { display: inline-flex; align-items: center; min-height: 44px; padding: 0 0.75rem; border: 1px solid var(--muted); border-radius: var(--radius); background: var(--raised); color: var(--ink); cursor: pointer; font-size: 0.875rem; }
+.shell-choice[data-selected] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.shell-choice[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }

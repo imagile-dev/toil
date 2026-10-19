@@ -52,3 +52,27 @@
   from { transform: translateY(0); }
   to { transform: translateY(-6px); }
 }
+
+/* The dashboard's views (#253): Crate carries the brand into the numbers,
+   the chat and the board, with the same layout and targets as Plain. */
+[data-theme="crate"] .big-number {
+  background: linear-gradient(100deg, var(--accent) 10%, var(--link) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+[data-theme="crate"] .ask {
+  border-top: 4px solid transparent;
+  border-image: linear-gradient(100deg, var(--accent), var(--link)) 1;
+  border-image-slice: 1 0 0 0;
+}
+
+[data-theme="crate"] .column--in_progress {
+  border-top-color: var(--accent);
+}
+
+[data-theme="crate"] .chart .bar,
+[data-theme="crate"] .chart .dot {
+  fill: var(--link);
+}

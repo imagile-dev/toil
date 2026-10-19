@@ -28,9 +28,29 @@ const jiraIssues = (dataOf('jira get-issue') as { issues: Array<{ key: string }>
 export const JIRA_SEARCH = { startAt: 0, maxResults: 50, total: jiraIssues.length, issues: jiraIssues };
 export const JIRA_KEYS = jiraIssues.map((i) => i.key);
 
+const SMITH = { self: 'https://jira.imagile.dev/rest/api/2/user?username=jsmith', name: 'jsmith', key: 'jsmith', displayName: 'J. Smith', active: true };
+const jiraStatus = (id: number, at: string, from: [string, string], to: [string, string]) => ({
+  id: String(id),
+  author: SMITH,
+  created: at,
+  items: [{ field: 'status', fieldtype: 'jira', from: from[0], fromString: from[1], to: to[0], toString: to[1] }],
+});
+
+/**
+ * Changelogs for the issues the OWI fixture keeps none for, matching their
+ * fields: PAY-106, a sub-task created on day one and resolved on 10-07, was
+ * started the day after it was created.
+ */
+const moreChangelogs: Record<string, unknown[]> = {
+  'PAY-106': [
+    jiraStatus(40501, '2026-10-06T09:30:00.000+0000', ['10000', 'To Do'], ['3', 'In Progress']),
+    jiraStatus(40502, '2026-10-07T12:00:00.000+0000', ['3', 'In Progress'], ['10001', 'Done']),
+  ],
+};
+
 /** Each issue's `jira get-changelog` data; an issue nothing changed on since it was created has an empty one. */
 export const JIRA_CHANGELOGS: Record<string, unknown> = Object.fromEntries(
-  JIRA_KEYS.map((key) => [key, historyOf('jira get-changelog').find((h) => h.key === key)?.history.data ?? []]),
+  JIRA_KEYS.map((key) => [key, historyOf('jira get-changelog').find((h) => h.key === key)?.history.data ?? moreChangelogs[key] ?? []]),
 );
 
 // Azure DevOps Server: settlement -------------------------------------------

@@ -13,6 +13,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from './App.tsx';
 import type { Agent } from './agent.ts';
 import './app.css';
+import './views.css';
 import { httpAgent, httpExecute, httpSync, signIn, type Session, type SyncStatus } from './server-client.ts';
 import { SyncPanel, lastSynced } from './sync-panel.tsx';
 import { CALL_OPTIONS, type Execute } from './toil.ts';

@@ -144,15 +144,15 @@ describe('the sprint fixture (test/fixtures/owi/)', async () => {
   const items = (data?.items ?? []) as WorkItem[];
   it('maps without an error', () => expect(envelope.error).toBeNull());
 
-  it('maps all twenty items, every one valid, with nothing skipped', () => {
-    expect(data.count).toBe(20);
+  it('maps all twenty-nine items (twenty in Sprint 42), every one valid, with nothing skipped', () => {
+    expect(data.count).toBe(29);
     expect(data.verified.passed).toBe(true);
-    expect(data.verified.checks.find((c: Data) => c.check === 'items.schema')).toMatchObject({ status: 'passed', checked: 20, failed: 0 });
+    expect(data.verified.checks.find((c: Data) => c.check === 'items.schema')).toMatchObject({ status: 'passed', checked: 29, failed: 0 });
     expect(data.skipped).toEqual([]);
     expect(data.histories).toEqual([]);
-    expect(items.filter((i) => i.source.area === 'jira')).toHaveLength(8);
-    expect(items.filter((i) => i.source.area === 'ado')).toHaveLength(7);
-    expect(items.filter((i) => i.source.area === 'github')).toHaveLength(5);
+    expect(items.filter((i) => i.source.area === 'jira')).toHaveLength(12);
+    expect(items.filter((i) => i.source.area === 'ado')).toHaveLength(10);
+    expect(items.filter((i) => i.source.area === 'github')).toHaveLength(7);
     expect(items.every((i) => i.statusCategory !== 'UNKNOWN')).toBe(true);
     expect(warnings.map((w) => w.code)).toEqual(['OWI_UNMAPPED', 'INPUT_INCOMPLETE'].filter((c) => warnings.some((w) => w.code === c)));
   });
@@ -330,8 +330,8 @@ describe('@imagile-dev/toil/api', () => {
     expect(api.owiVersion).toBe(OWI_VERSION);
     expect(api.owiSchema).toEqual(schema);
     const result = api.mapOwi(sprintEnvelopes, { fields: { estimateUnit: 'points' } });
-    expect(result.items).toHaveLength(20);
-    expect(api.mapOwi(sprintJsonl).items).toHaveLength(20);
+    expect(result.items).toHaveLength(29);
+    expect(api.mapOwi(sprintJsonl).items).toHaveLength(29);
     expect(api.mapOwi({ issues: [] }, { command: 'jira search' }).items).toEqual([]);
     expect(() => api.mapOwi(sprintEnvelopes, { fields: { storyPoints: 'x' } })).toThrow(ToilError);
   });
