@@ -3671,6 +3671,63 @@ decided here.
   wrapped in focusable, labelled scrollers by a rehype plugin, so the skill files
   stay plain markdown.
 
+### #281 the badge as toil's mark
+
+- **The badge replaces the terminal-hub mark everywhere**, from the maintainer's
+  pick among the mockups. The cut corner (parallel to the page's fold), the 45°
+  gradient and the deep-flame cursor came out of a similarity check against
+  terminal, developer-tool and agent-CLI icons: the `>_` alone matched macOS
+  Terminal, Windows Terminal and Lucide's square-terminal, and a cursor on a warm
+  gradient tile was close to JetBrains', so the silhouette carries the identity.
+- **The cursor is `#c43d12`, not the accent.** The accent on the page is 2.5:1,
+  under even the 3:1 for graphics; the deeper flame is 4.6:1. It's a literal in
+  the mark's files rather than a new site token, since nothing else uses it.
+- **The site's mark blinks its cursor three times, on load and on hover or focus**,
+  instead of blinking forever, so it stops well inside five seconds (WCAG 2.2.2)
+  without a pause control.
+- **The CLI splash is the badge in an orbit of six dots**, half a turn, then still.
+  Six read at 80 columns; eight touched and four looked like a compass. The colours
+  repeat every three dots, so half a turn lands on the starting picture and the
+  still frame needs no special case. The splash runs 3.2 timeline seconds (2.6 real),
+  down from 4.05. A one-pixel gap separates the tile from the page in braille, or
+  the two solid areas would read as one block.
+- **Toil UI's theme emblems are gone; the badge skins take their place.** Each
+  generated emblem (#269) sat in `.brand::before`, the only place it was used, so
+  `emblem.webp` is deleted from Crate, Harvest, Starship and Realm and `mark.svg`
+  takes its slot in each `theme.json`. The skins are hand-built SVG, no generated
+  art. Harvest's is drawn on the same 16-cell grid, so the badge sits at 32px in
+  the header, twice the grid, where the pixels stay crisp.
+- **Toil UI's favicon follows the theme** (`ui/src/favicon.ts`, called where the
+  theme is applied). It replaces #274's Fredoka "t". A theme from the user's folder
+  has no mark the build knows, so it shows the standard badge.
+- **The README banner and social preview aren't re-rendered here.** They live on
+  #268's branch, which hasn't merged; they follow once it does.
+- **Plain's badge is blue** (the maintainer's call on #282): the tile takes the
+  scheme's `accent` (`#0b5cad` light, `#8cc4ff` dark) instead of the gradient, so
+  Plain has two marks and its favicon follows the scheme, including `system` as the
+  OS changes. On the light accent the page is white; on the dark accent's light
+  blue a white page would barely separate, so the dark mark has a dark page
+  (`#0b1220`, Plain dark's accent ink) with Plain's ink for the chevron. The
+  cursor is the accent in both: 6.7:1 and 10.2:1 on the page. Plain's sticker and
+  wordmark needed no change: the sticker already takes the theme's accent and the
+  word its ink.
+- **The terminal wordmark is generated from Fredoka itself** (#282, the
+  maintainer's note that the hand-drawn one didn't read as Fredoka).
+  `scripts/gen-wordmark.mjs` rasterises the real glyphs in headless Chrome (already
+  how the repo's screenshot and layout tools run) rather than adding opentype.js
+  for a one-off; Chrome's text rasteriser is the one the site's wordmark goes
+  through too. Quadrant blocks (U+2596 to U+259F, in the same Block Elements range
+  the half-blocks were) rather than sextants or octants, which many terminal fonts
+  still lack. The sampler's output needed no hand-tuning, so `TUNE` is empty.
+- **The splash no longer doubles the word's width on a wide window.** That was
+  the "fatter" logo: from 97 columns the splash drew "toil" at twice its width
+  while the menu didn't. The word now has one size everywhere, and a test holds
+  the splash's and the menu's to the same lines and columns. The badge itself was
+  already square (a test now measures it, dot by dot, at 1:1 within 5%).
+- **The wordmark's shadow is foreground-only**: it shows in cells the word
+  doesn't touch, and is dropped where a cell holds both, rather than adding a
+  background colour to every cell, the recording's encoder and the site's player.
+
 ### #283 theme depth
 
 - **User-installed themes are removed, whole** (the maintainer's decision on #283:

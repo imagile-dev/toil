@@ -34,7 +34,7 @@
     "chart": "assets/star-chart.svg",
     "computer": "assets/computer.svg",
     "loading": "assets/lightspeed.svg",
-    "emblem": "assets/emblem.webp",
+    "mark": "assets/mark.svg",
     "nebula": "assets/nebula.webp",
     "emptyState": "assets/empty-sector.webp"
   },

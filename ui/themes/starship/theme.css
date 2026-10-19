@@ -23,14 +23,10 @@
     var(--bg);
 }
 
-/* The ship's insignia beside the name, lit by its own engines. */
+/* The badge as a hull plate beside the name, its console lit. */
 [data-theme="starship"] .brand::before {
-  content: "";
-  width: 36px;
-  height: 36px;
-  margin-right: 0.5rem;
-  background: url("./assets/emblem.webp") center / contain no-repeat;
-  filter: drop-shadow(0 0 6px rgba(54, 214, 255, 0.55));
+  background-image: url("./assets/mark.svg");
+  filter: drop-shadow(0 0 5px rgba(54, 214, 255, 0.45));
 }
 
 /* The starfield, on its own layer so it can drift without repainting the page. */

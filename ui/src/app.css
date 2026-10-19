@@ -74,6 +74,17 @@ h1:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
   align-items: center;
   flex: none;
 }
+/* The badge beside the name (#281): the standard one here, and each theme swaps in
+   its own skin (theme.css, `background-image`). It's decorative; the link's name
+   is its text. 32px, twice Harvest's 16-pixel grid, so the pixel art stays crisp. */
+.brand::before {
+  content: "";
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin-right: 0.5rem;
+  background: url("./mark.svg") center / contain no-repeat;
+}
 /* One line of text, so the space between the word and the sticker is a real,
    rendered one and the link's name reads "toil UI". word-spacing narrows it to
    the width the sticker's margin used to be; the padding holds the tilted
