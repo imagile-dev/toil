@@ -39,6 +39,9 @@
   "engines": {
     "node": ">=24.14"
   },
+  "workspaces": [
+    "ui"
+  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
