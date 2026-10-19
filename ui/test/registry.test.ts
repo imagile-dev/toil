@@ -68,3 +68,27 @@ describe("the browser's mapOwi", () => {
     expect(browser.items).toEqual(api.items);
   });
 });
+
+describe('every proposal the board and the scripted agent can make', async () => {
+  const { COLUMNS, proposeMove } = await import('../src/model/board.ts');
+  const { SCRIPTS } = await import('../src/fixtures/agent.ts');
+  const proposals = [];
+  for (const name of NAMES) {
+    const { items } = await loadDossier(fixtureExecute().execute, name);
+    for (const item of items) for (const to of COLUMNS) proposals.push(proposeMove(item, to, items, name));
+  }
+  for (const scripts of Object.values(SCRIPTS)) for (const s of Object.values(scripts)) proposals.push(...(s.proposals ?? []));
+  const withCommand = proposals.filter((p) => p?.command);
+
+  it('includes some of each kind', () => {
+    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira transition-issue', 'ado work transition', 'jira update-issue', 'ado work update']));
+  });
+
+  it.each(withCommand.map((p) => [p!.id, p!] as const))('%s names a write command, with input its schema accepts', (_id, p) => {
+    const def = byName.get(p.command!);
+    expect(def, `toil has no API command "${p.command}"`).toBeDefined();
+    expect(def!.writes).toBe(true);
+    const result = new Validator(def!.inputSchema as object, '2020-12', false).validate(p.input);
+    expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
+  });
+});

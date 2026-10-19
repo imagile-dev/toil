@@ -2465,6 +2465,59 @@ board, the separate health and traceability views).
   dossier every figure, every environment and commit, the items each environment
   runs, and the items with open PRs.
 
+### #252 views and #253 insights, charts and chat
+
+The dossier dashboard gains the board, aging work in progress, the dependency graph,
+throughput and cycle time (#252), plus #253's items 1 to 3: charts, insights on
+tickets and a docked chat. #253's configuration page waits for the local server; the
+preview has a Settings entry that says so.
+
+- **Every figure is a pure, tested function** of OWI items, transitions and
+  `ChangeRef`s: `ui/src/model/flow.ts` (cycle time, aging, throughput), `burnup.ts`,
+  `graph.ts`, `board.ts` and `insights.ts`. Cycle time runs from the first move into
+  In progress to the last move into Done; aging from the start of the current spell in
+  progress; throughput counts an item in the week (Monday, UTC) of its last move into
+  Done. Anything the history can't show is listed as unknown with its reason, never
+  guessed: GitHub's timeline records only open and closed, so a GitHub issue never has
+  a cycle time or an age. Epics and `OTHER` items are left out, as the trace table
+  leaves them out.
+- **The board is one column per OWI status category,** across trackers, each card with
+  its own status word. A drag (dnd-kit, pointer and keyboard) or the card's Move menu
+  (the single-pointer alternative WCAG 2.5.7 asks for) makes a proposal and changes
+  nothing. A proposal names the toil write command and its exact input:
+  `jira transition-issue` or `ado work transition`, with the status word other items
+  in that column use. GitHub has no toil command for a Projects status, so its
+  proposals say so instead of inventing one. `ui/test/registry.test.ts` holds every
+  proposal the board and the scripted agent can make to the real registry: the
+  command exists, writes, and its input validates.
+- **The dependency graph's layout is in the model:** each item's column is the
+  longest `blocks` chain leading to it, so no layout library. xyflow draws it,
+  lazy-loaded (it is a third of the bundle), with nothing draggable or connectable,
+  no scroll-wheel zoom, and its own labelled zoom buttons, because xyflow's control
+  panel puts an `aria-label` on a div with no role. Every link is also listed in words.
+- **Insights** (stale after 5 days, aging past p85 once there are 3 cycle times,
+  blocked, blocking, failing build, unestimated, scope added, carried over, PR open with
+  no build, merged but not deployed, deployed but still open) each carry a weight and
+  the data they rest on. "Needs attention" ranks open items by total weight.
+- **Charts are hand-written SVG,** no chart library: a burn-up, a throughput sparkline
+  and a cycle-time scatter, each an image with a summary and a "Show the figures" table.
+- **The chat** is docked and sticky on a wide screen and a bottom sheet under 1000px.
+  `Agent` gains an optional `stream()` and `Answer.proposals`; the scripted agent
+  streams word by word (never splitting a citation) and has a third starter, "What
+  needs attention first?", which `ui/test/agent.test.ts` holds to the insight ranking.
+- **React Aria Components** now carry the controls: the theme and appearance selects,
+  the gaps checkbox, the chat's buttons and text field, and the board's Move menu.
+- **Dependencies:** `@dnd-kit/core` 6.3.1 (MIT), `@xyflow/react` 12.12.0 (MIT) and
+  `react-aria-components` 1.21.1 (Apache-2.0), dev dependencies of `ui/` and installed
+  with `--before` a date 14 days back so the whole tree is that old. None ships a NOTICE
+  file and their licences need none, and the root `NOTICE` covers the published CLI,
+  not the unpublished UI. Their notices belong in the UI tarball's own NOTICE when the
+  UI package is published.
+- **Fixtures:** nine items finished in Sprints 40 and 41 join the OWI sprint fixture
+  (PAY-92, PAY-95, PAY-97, PAY-98, 2290, 2294, 2297, payments-web#36 and #38), so
+  throughput and cycle time have weeks to show; Sprint 42 is unchanged. The UI's own
+  fixture adds PAY-106's changelog, which agrees with its created and resolved dates.
+
 ### #222 ado-cloud
 
 Azure DevOps Services (#222), built from Microsoft's REST API 7.1 reference

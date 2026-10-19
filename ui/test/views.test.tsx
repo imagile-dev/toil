@@ -14,7 +14,7 @@ import type { Execute } from '../src/toil.ts';
  */
 
 const item = (dossier: string, id: string) => `#/dossier/${dossier}/item/${encodeURIComponent(id)}`;
-const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', item('card-payments', 'corp-jira:PAY-101')];
+const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', item('card-payments', 'corp-jira:PAY-101'), '#/settings'];
 
 async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent() }: { preview?: boolean; execute?: Execute; agent?: Agent } = {}) {
   window.location.hash = hash;
@@ -90,7 +90,7 @@ describe('a dashboard', () => {
   ])('%s names the commands that fed each panel', async (name, work, prs, builds, deployments) => {
     await open(`#/dossier/${name}`);
     const fed = (region: HTMLElement) => within(region).getByText(/Fed by/).textContent;
-    for (const c of work) expect(fed(panel(/^Sprint 42/))).toContain(`toil ${c}`);
+    for (const c of work) expect(fed(panel(/^Sprint 42: day/))).toContain(`toil ${c}`);
     for (const c of prs) expect(fed(panel('Pull requests'))).toContain(`toil ${c}`);
     for (const c of builds) expect(fed(panel('Builds'))).toContain(`toil ${c}`);
     for (const c of deployments) expect(fed(panel('Deployments'))).toContain(`toil ${c}`);
@@ -98,7 +98,7 @@ describe('a dashboard', () => {
 
   it('shows a story with its pull request, its build and where it runs, in one row', async () => {
     await open('#/dossier/card-payments');
-    const row = (name: RegExp) => screen.getByRole('rowheader', { name }).closest('tr')!;
+    const row = (name: RegExp) => screen.getAllByRole('rowheader', { name }).find((r) => r.closest('table.trace'))!.closest('tr')!;
     expect(row(/PAY-105/).textContent).toContain('#298 PAY-105 Show the last four digits on receipts');
     expect(row(/PAY-105/).textContent).toContain('SUCCESS');
     expect(row(/PAY-105/).textContent).toContain('dev');
@@ -106,7 +106,8 @@ describe('a dashboard', () => {
     expect(row(/PAY-101/).textContent).toContain('Latest build failed');
     expect(row(/PAY-101/).textContent).toContain('Not deployed');
     await userEvent.click(screen.getByRole('checkbox', { name: 'Only items with something to check' }));
-    expect(screen.getAllByRole('rowheader').map((r) => r.textContent)).toEqual([expect.stringContaining('PAY-101')]);
+    const trace = document.querySelector('table.trace') as HTMLElement;
+    expect(within(trace).getAllByRole('rowheader').map((r) => r.textContent)).toEqual([expect.stringContaining('PAY-101')]);
   });
 
   it('lists what each environment runs and what that includes', async () => {
@@ -121,21 +122,141 @@ describe('a dashboard', () => {
 
   it("shows the sprint's figures and each risk's reasons", async () => {
     await open('#/dossier/settlement');
-    const sprint = panel(/^Sprint 42/);
+    const sprint = panel(/^Sprint 42: day/);
     expect(sprint.querySelector('h2')!.textContent).toBe('Sprint 42: day 7 of 9');
     expect(within(sprint).getByRole('list', { name: 'Sprint figures' }).textContent).toContain('Done1 of 16points, 2 items');
     expect(sprint.textContent).toContain('Blocked by Azure DevOps 2302');
     expect(sprint.textContent).toContain('Points totals leave out items estimated in other units: Azure DevOps 2305');
   });
 
-  it('answers a starter question about the dossier, with links to every item it cites', async () => {
+  it('answers a starter question about the dossier, streaming, with links to every item it cites', async () => {
     await open('#/dossier/settlement');
-    await userEvent.click(screen.getByRole('button', { name: 'Where is this work deployed?' }));
-    const answer = await screen.findByRole('heading', { level: 3, name: 'Where is this work deployed?' });
+    const chat = screen.getByRole('complementary', { name: 'Ask about settlement' });
+    await userEvent.click(within(chat).getByRole('button', { name: 'Where is this work deployed?' }));
+    const answer = await within(chat).findByRole('heading', { level: 3, name: 'Where is this work deployed?' });
     const pane = answer.parentElement!;
+    await waitFor(() => expect(pane.textContent).toContain('Answered by: a scripted preview, not a model.'));
     expect(within(pane).getAllByRole('link').map((a) => a.getAttribute('href'))).toContain(item('settlement', 'corp-ado:2305'));
-    expect(pane.textContent).toContain('Answered by: a scripted preview, not a model.');
-    expect(screen.getByRole('button', { name: 'Where is this work deployed?' }).getAttribute('aria-pressed')).toBe('true');
+    expect(within(chat).getByRole('log').getAttribute('aria-busy')).toBe('false');
+    expect(within(chat).getByText('You asked:', { exact: false }).closest('.bubble')!.textContent).toBe('You asked: Where is this work deployed?');
+  });
+
+  it("shows the agent's proposals as cards to review, with the command and no way to apply them", async () => {
+    await open('#/dossier/settlement');
+    const chat = screen.getByRole('complementary', { name: 'Ask about settlement' });
+    await userEvent.click(within(chat).getByRole('button', { name: "What's at risk in this dossier?" }));
+    const card = await within(chat).findByRole('article', { name: 'Proposal: Move 2303 to Sprint 43' });
+    expect(card.textContent).toContain('Proposed change, not applied');
+    expect(within(card).getByText(/^toil ado work update/).textContent).toBe('toil ado work update --dossier settlement --id 2303 --field "System.IterationPath=Payments\\\\Sprint 43" --allow-write');
+    expect(within(card).getAllByRole('button').map((b) => b.textContent)).toEqual(['Copy command', 'Dismiss']);
+    await userEvent.click(within(card).getByRole('button', { name: 'Dismiss' }));
+    expect(within(chat).queryByRole('article', { name: /^Proposal:/ })).toBeNull();
+  });
+
+  it('answers a typed question, and says plainly when the preview has no answer for it', async () => {
+    await open('#/dossier/checkout-web');
+    const chat = screen.getByRole('complementary', { name: 'Ask about checkout-web' });
+    await userEvent.type(within(chat).getByRole('textbox', { name: 'Your question' }), 'Should we cut scope?');
+    await userEvent.click(within(chat).getByRole('button', { name: 'Ask' }));
+    await waitFor(() => expect(chat.textContent).toMatch(/answers only its starter questions/));
+    expect(within(chat).getByRole('textbox', { name: 'Your question' })).toHaveProperty('value', '');
+  });
+});
+
+describe('the views on a dashboard (#252, #253)', () => {
+  it('ranks what needs attention, each insight with its source', async () => {
+    await open('#/dossier/card-payments');
+    const list = within(panel('Needs attention')).getAllByRole('listitem').filter((li) => li.classList.contains('attention-item'));
+    expect(list.map((li) => within(li).getAllByRole('link')[0]!.textContent)).toEqual(['Jira PAY-102 Store tokens in the vault', 'Jira PAY-104 Refund total rounds half-cents down', 'Jira PAY-101 Tokenise card numbers at the edge', 'Jira PAY-103 Charge a stored token', 'Jira PAY-107 Retry declined charges once']);
+    expect(list[1]!.textContent).toContain('In progress for 13.9 days');
+    expect(list[1]!.textContent).toContain('Source: history.transitions, against 6 cycle times');
+  });
+
+  it('puts each sprint item on the board under its status category, with its own status word and insights', async () => {
+    await open('#/dossier/settlement');
+    const board = panel('Sprint 42 board');
+    const col = (name: string) => within(board).getByRole('region', { name: new RegExp(`^${name}`) });
+    const cards = (region: HTMLElement) => within(region).getAllByRole('listitem').filter((li) => li.classList.contains('card'));
+    expect(cards(col('To do')).map((c) => within(c).getAllByRole('link')[0]!.textContent)).toEqual(['Azure DevOps 2303', 'Azure DevOps 2306']);
+    const card = cards(col('In progress')).find((li) => li.textContent?.includes('2304'))!;
+    expect(card.textContent).toContain('Active · In progress');
+    expect(card.textContent).toContain('Aging');
+    expect(card.textContent).toContain('M. Lind');
+  });
+
+  it('turns a move into a proposal card naming the toil command, and changes nothing', async () => {
+    const fixture = fixtureExecute();
+    await open('#/dossier/card-payments', { execute: fixture.execute });
+    const before = fixture.calls.length;
+    const board = panel('Sprint 42 board');
+    await userEvent.click(within(board).getByRole('button', { name: 'Move PAY-102 to…' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'In progress' }));
+    const card = within(board).getByRole('article', { name: 'Proposal: Move PAY-102 to In progress' });
+    expect(card.textContent).toContain('toil jira transition-issue --dossier card-payments --key PAY-102 --transition "In Progress" --allow-write');
+    expect(screen.getByText(/Proposed: Move PAY-102 to In progress. Nothing has changed/)).toBeTruthy();
+    // The card is still where Jira says it is, and nothing was asked of toil.
+    expect(within(within(board).getByRole('region', { name: /^To do/ })).getByText('Store tokens in the vault')).toBeTruthy();
+    expect(fixture.calls.length).toBe(before);
+  });
+
+  it('draws throughput, cycle time and aging, each listing what it could not compute', async () => {
+    await open('#/dossier/checkout-web');
+    expect(within(panel('Throughput')).getAllByRole('img').length).toBeGreaterThan(0);
+    expect(panel('Throughput').textContent).toContain('3 finished in 6 weeks');
+    expect(panel('Cycle time').textContent).toContain('No finished item here has a cycle time the data can show.');
+    expect(panel('Cycle time').textContent).toContain('Unknown: Never recorded as In progress before Done.');
+    expect(panel('Aging work in progress').textContent).toContain('Unknown: No move into In progress recorded.');
+  });
+
+  it('draws the dependency graph, and lists every link in words', async () => {
+    await open('#/dossier/card-payments');
+    const graph = panel('Dependencies');
+    await waitFor(() => expect(graph.querySelector('.react-flow')).not.toBeNull());
+    expect([...graph.querySelectorAll(':scope > ul.rows > li')].map((li) => li.textContent)).toEqual([
+      'Jira PAY-101 Tokenise card numbers at the edge blocks Jira PAY-102 Store tokens in the vault (blocks)',
+      'Jira PAY-102 Store tokens in the vault blocks Jira PAY-103 Charge a stored token (blocks)',
+      'Jira PAY-103 Charge a stored token relates to Jira PAY-107 Retry declined charges once (relates to)',
+    ]);
+  });
+
+  it('says so when a dossier has no links to draw', async () => {
+    await open('#/dossier/checkout-web');
+    await waitFor(() => expect(panel('Dependencies').textContent).toContain("No links between this dossier's items."));
+  });
+
+  it("charts the sprint's burn-up with its figures in a table", async () => {
+    await open('#/dossier/settlement');
+    const sprint = panel(/^Sprint 42: day/);
+    expect(sprint.querySelector('svg.chart title')!.textContent).toBe('Sprint 42 burn-up: 1 of 16 points done after 9 days, with 3 days to go. Scope grew from 11 to 16 points.');
+    expect(within(sprint).getByRole('table', { name: 'Sprint 42 burn-up by day' })).toBeTruthy();
+  });
+});
+
+describe('the chat on a narrow screen', () => {
+  it('is a sheet that opens and closes, with its question box inside', async () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((q: string) => ({ matches: q.includes('max-width'), media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
+    try {
+      await open('#/dossier/card-payments');
+      const chat = screen.getByRole('complementary', { name: 'Ask about card-payments' });
+      const toggle = within(chat).getByRole('button', { name: 'Open' });
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(within(chat).queryByRole('textbox')).toBeNull();
+      await userEvent.click(toggle);
+      expect(within(chat).getByRole('button', { name: 'Hide' }).getAttribute('aria-expanded')).toBe('true');
+      expect(within(chat).getByRole('textbox', { name: 'Your question' })).toBeTruthy();
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+});
+
+describe('settings', () => {
+  it('is in the navigation, and says the preview changes nothing', async () => {
+    await open('#/settings');
+    expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe("toil's configuration");
+    expect(document.body.textContent).toContain('The preview has no configuration to change');
   });
 });
 
@@ -145,7 +266,7 @@ describe('failures', () => {
     await open('#/dossier/card-payments', { execute: fixtureExecute(CANNED.filter(without)).execute });
     const prs = panel('Pull requests');
     expect(within(prs).getByRole('alert').textContent).toMatch(/toil bitbucket list-prs failed: The preview has no sample answer .* Add the call to CANNED/);
-    expect(panel(/^Sprint 42/).textContent).toContain('At risk');
+    expect(panel(/^Sprint 42: day/).textContent).toContain('At risk');
   });
 
   it('says the data did not load when dossiers show fails', async () => {
@@ -157,7 +278,7 @@ describe('failures', () => {
   });
 
   it('says the agent failed, in the answer pane, when ask() rejects', async () => {
-    const agent = { ...scriptedAgent(), ask: () => Promise.reject(new Error('model endpoint unreachable')) };
+    const agent: Agent = { starters: scriptedAgent().starters, ask: () => Promise.reject(new Error('model endpoint unreachable')) };
     await open('#/dossier/checkout-web', { agent });
     await userEvent.click(await screen.findByRole('button', { name: "What's at risk in this dossier?" }));
     const alert = await screen.findByRole('alert');
@@ -174,6 +295,15 @@ describe('an item', () => {
     expect(screen.getByText(/read with/).textContent).toContain('toil ado work get-batch');
     expect(screen.getByRole('link', { name: 'Schedule the settlement export job' }).getAttribute('href')).toBe('https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement/pullrequest/84');
     expect(screen.getByText(/settlement-deploy 20261008.1/).textContent).toContain('test');
+  });
+
+  it('shows its insights, each with its source, and its time in progress', async () => {
+    await open(item('settlement', 'corp-ado:2304'));
+    const box = screen.getByRole('region', { name: 'Insights' });
+    expect(box.textContent).toContain('Aging');
+    expect(box.textContent).toContain('Carried over from Payments\\Sprint 41');
+    expect(box.textContent).toContain('Source: history.iterations');
+    expect(box.textContent).toMatch(/In progress for 15 days, since 28 Sept? 2026, 09:00 UTC/);
   });
 
   it('says so when the item is not in the dossier, with a way back', async () => {
@@ -204,14 +334,15 @@ describe('themes', () => {
     await open('#/dossier/card-payments');
     const before = screen.getAllByRole('button').map((b) => b.textContent);
     expect(document.documentElement.dataset.theme).toBe('plain');
-    expect(screen.getByRole('combobox', { name: 'Appearance' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Appearance/ })).toBeTruthy();
     expect(document.querySelector('.ask img')).toBeNull();
-    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Theme' }), 'crate');
+    await userEvent.click(screen.getByRole('button', { name: /Theme/ }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Crate' }));
     expect(document.documentElement.dataset.theme).toBe('crate');
     // Crate is dark only, so there's no appearance to choose; its crate stars in the empty state.
-    expect(screen.queryByRole('combobox', { name: 'Appearance' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Appearance/ })).toBeNull();
     expect(document.querySelector('.ask img')?.getAttribute('alt')).toBe('');
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(before);
+    expect(screen.getAllByRole('button').map((b) => b.textContent).filter((t) => !/Plain|Crate|System/.test(t ?? ''))).toEqual(before.filter((t) => !/Plain|Crate|System/.test(t ?? '')));
     expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toEqual({ theme: 'crate', scheme: 'system' });
   });
 

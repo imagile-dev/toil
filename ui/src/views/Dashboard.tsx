@@ -1,22 +1,28 @@
 /**
- * One dossier's dashboard (#228): its sprint, its stories with their pull
- * requests, builds and deployments side by side, and the agent pane. Every
- * panel was filled by toil commands (src/load.ts) and says which ones. It
- * folds in what #227 drew as separate views: sprint health is the first panel,
- * traceability the second, and the board's status words and estimates are in
- * the trace table. The one page the weekly status meeting was trying to be.
+ * One dossier's dashboard (#228, #252, #253): its sprint with a burn-up, what
+ * needs attention, the board, throughput, cycle time and aging work, the
+ * dependency graph, its stories with their pull requests, builds and
+ * deployments side by side, and the chat docked beside it all. Every panel
+ * was filled by toil commands (src/load.ts) and says which ones.
+ * The one page the weekly status meeting was trying to be.
  */
 
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
+import { Checkbox } from 'react-aria-components';
 import { Ask } from '../components/ask.tsx';
 import { Cited, ItemLink } from '../components/items.tsx';
 import { Panel, Sources } from '../components/panel.tsx';
-import { useData } from '../data.ts';
+import { useData, useDerived } from '../data.ts';
 import { SOURCE_LABEL, STATUS_CATEGORY_LABEL, day, dateTime, estimateText } from '../format.ts';
-import { describe, health, type Health } from '../model/sprint.ts';
+import { describe, type Health } from '../model/sprint.ts';
 import { FLAG_TEXT, trace } from '../model/trace.ts';
 import { useSkins } from '../skins.tsx';
 import type { ChangeRef, Deployment, SourceKind } from '../toil.ts';
+import { Board } from './Board.tsx';
+import { Aging, Attention, Burnup, CycleTime, Throughput } from './Flow.tsx';
+
+// The graph library is the biggest piece of the page, so it loads on its own, after the rest.
+const Graph = lazy(() => import('./Graph.tsx').then((m) => ({ default: m.Graph })));
 
 const pts = (n: number) => `${n} ${n === 1 ? 'point' : 'points'}`;
 const area = (name: string) => SOURCE_LABEL[name as SourceKind] ?? name;
@@ -47,10 +53,10 @@ function Items({ ids }: { ids: string[] }) {
 }
 
 export function Dashboard() {
-  const { dossier, now } = useData();
+  const { dossier } = useData();
   const { EmptyState } = useSkins();
   const [gapsOnly, setGapsOnly] = useState(false);
-  const h = health(dossier.items, dossier.changes, now);
+  const { health: h } = useDerived();
   const rows = trace(h?.items ?? dossier.items, dossier.changes, dossier.deployments);
   const shown = gapsOnly ? rows.filter((r) => r.flags.length) : rows;
   const prs = dossier.changes.filter((c) => c.kind === 'pull-request');
@@ -79,12 +85,43 @@ export function Dashboard() {
             {h ? <Sprint h={h} /> : <EmptyState message="No sprint is running in this dossier's work items." />}
           </Panel>
 
+          <Panel id="attention" title="Needs attention" calls={all} alerts={false}>
+            <p className="note">Open items ranked by their insights, weightiest first. Each insight names the data it rests on.</p>
+            <Attention />
+          </Panel>
+
+          <Panel id="board" title={h ? `${h.sprint.name} board` : 'Board'} calls={dossier.calls.work} alerts={false}>
+            <Board items={h?.items ?? dossier.items} />
+          </Panel>
+
+          <div className="panel-grid panel-grid--two">
+            <Panel id="throughput" title="Throughput" calls={dossier.calls.work} alerts={false}>
+              <Throughput />
+            </Panel>
+            <Panel id="cycle" title="Cycle time" calls={dossier.calls.work} alerts={false}>
+              <CycleTime />
+            </Panel>
+          </div>
+
+          <Panel id="aging" title="Aging work in progress" calls={dossier.calls.work} alerts={false}>
+            <p className="note">How long each item in progress has been in progress, from its history, oldest first.</p>
+            <Aging />
+          </Panel>
+
+          <Panel id="graph" title="Dependencies" calls={dossier.calls.work} alerts={false}>
+            <Suspense fallback={<p className="skin-loading" role="status">Drawing the graph…</p>}>
+              <Graph />
+            </Suspense>
+          </Panel>
+
           <Panel id="trace" title="Stories, pull requests, builds and deployments" calls={all} alerts={false}>
             <p className="note">Each work item with the pull requests that name it, their latest builds, and the environments running them.</p>
-            <label className="check">
-              <input type="checkbox" checked={gapsOnly} onChange={(e) => setGapsOnly(e.target.checked)} />
+            <Checkbox className="check" isSelected={gapsOnly} onChange={setGapsOnly}>
+              <span className="box" aria-hidden="true">
+                {gapsOnly ? '✓' : ''}
+              </span>
               Only items with something to check
-            </label>
+            </Checkbox>
             <div className="table-wrap" tabIndex={0} role="region" aria-label="Work items and their delivery">
               <table className="trace">
                 <thead>
@@ -255,6 +292,7 @@ function Sprint({ h }: { h: Health }) {
       <div className="meter" role="img" aria-label={`${h.done.points} of ${total} points done`}>
         <span style={{ width: `${total ? (100 * h.done.points) / total : 0}%` }} />
       </div>
+      <Burnup />
       {h.otherUnits.length > 0 && (
         <p className="note">
           Points totals leave out items estimated in other units:{' '}

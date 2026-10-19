@@ -221,7 +221,7 @@ realistic OWI items without a tracker, the Toil UI preview first:
   `github get-issue`, `github issue-events` and `github projects list-items` print,
   as `util owi map` reads them (also served to its examples as `owi/sprint-42.jsonl`).
 - `sprint-42.owi.json` is what `util owi map` makes of it: `{ owi, count, items }`,
-  twenty items that all validate. `test/owi.test.ts` regenerates it
+  twenty-nine items that all validate. `test/owi.test.ts` regenerates it
   (`npx vitest run test/owi.test.ts -u`) and fails when it drifts.
 
 Sprint 42 runs 2026-10-05 to 2026-10-16, across eight Jira issues (`corp-jira`,
@@ -231,4 +231,7 @@ blocked chain in each of Jira and Azure DevOps (PAY-101 blocks PAY-102 blocks
 PAY-103; 2302 precedes 2303), scope added mid-sprint (PAY-107, 2306,
 payments-web#43), items carried over from Sprint 41 (PAY-104, 2304), unestimated
 and orphaned items (PAY-107, payments-web#45), and finished and removed ones.
+Nine more were finished in Sprints 40 and 41 (PAY-92, PAY-95, PAY-97, PAY-98, 2290,
+2294, 2297, payments-web#36 and #38), with the histories that give throughput and
+cycle time the weeks before Sprint 42.
 Every host is a placeholder and every name invented.
