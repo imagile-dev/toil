@@ -76,7 +76,7 @@ const histories = [
 export const routes: Route[] = [
   // Issue reads. The attachment-only read comes first: same path, with a query.
   { url: api('/issue/PROJ-123\\?fields=attachment'), respond: json({ id: '10123', key: 'PROJ-123', fields: { attachment: [attachment] } }) },
-  // Invented from the docs: Jira's 404 for a key that doesn't exist, for get-issue's bulk read.
+  // Invented from the docs: Jira's 404 for a key that doesn't exist, for issue get's bulk read.
   { url: api('/issue/PROJ-404'), respond: json({ errorMessages: ['Issue Does Not Exist'], errors: {} }, 404) },
   // Invented from the docs: GET /rest/api/2/issue/{key}?expand=changelog, the issue with its histories.
   { url: api('/issue/PROJ-123\\?expand=changelog&fields=summary'), respond: json({ id: '10123', key: 'PROJ-123', fields: { summary: 'Login broken on Safari' }, changelog: { startAt: 0, maxResults: 2, total: 2, histories } }) },

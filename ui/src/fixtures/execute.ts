@@ -48,21 +48,21 @@ export const CANNED: Canned[] = [
   ...DOSSIERS.map((d) => ({ command: 'dossiers show', input: { dossier: d.name }, data: showData(d) })),
 
   // card-payments
-  { command: 'jira search', input: { dossier: card, jql: JQL('PAY') }, data: JIRA_SEARCH, ...at(card, 'jira') },
-  ...JIRA_KEYS.map((key) => ({ command: 'jira get-changelog', input: { dossier: card, key }, data: JIRA_CHANGELOGS[key], ...at(card, 'jira') })),
+  { command: 'jira issue search', input: { dossier: card, jql: JQL('PAY') }, data: JIRA_SEARCH, ...at(card, 'jira') },
+  ...JIRA_KEYS.map((key) => ({ command: 'jira issue history', input: { dossier: card, key }, data: JIRA_CHANGELOGS[key], ...at(card, 'jira') })),
   { command: 'bitbucket list-prs', input: { dossier: card, state: 'ALL' }, data: BITBUCKET_PRS, ...at(card, 'bitbucket') },
   ...Object.entries(JENKINS_RUNS).map(([pr, runs]) => ({ command: 'jenkins pipeline list-runs', input: { dossier: card, name: `payments-core/PR-${pr}`, top: 5 }, data: runs, ...at(card, 'jenkins') })),
   { command: 'openshift deployments', input: { dossier: card, env: 'dev', namespace: 'payments-dev' }, data: OPENSHIFT['payments-dev'], ...at(card, 'openshift', 'dev') },
   { command: 'openshift deployments', input: { dossier: card, env: 'prod', namespace: 'payments-prod' }, data: OPENSHIFT['payments-prod'], ...at(card, 'openshift', 'prod') },
 
   // settlement
-  { command: 'ado work list-iterations', input: { dossier: settle }, data: ADO_ITERATIONS, ...at(settle, 'ado') },
-  { command: 'ado work search', input: { dossier: settle, wiql: WIQL }, data: ADO_WIQL, ...at(settle, 'ado') },
-  { command: 'ado work get-batch', input: { dossier: settle, id: ADO_IDS }, data: ADO_BATCH, ...at(settle, 'ado') },
-  ...ADO_IDS.map((id) => ({ command: 'ado work revisions', input: { dossier: settle, id }, data: ADO_REVISIONS[id], ...at(settle, 'ado') })),
-  { command: 'ado repo list-prs', input: { dossier: settle, state: 'all' }, data: ADO_PRS, ...at(settle, 'ado') },
-  { command: 'ado pipeline list-runs', input: { dossier: settle, name: 'settlement-ci', top: 20 }, data: ADO_CI_RUNS, ...at(settle, 'ado') },
-  { command: 'ado pipeline list-runs', input: { dossier: settle, name: 'settlement-deploy', top: 20 }, data: ADO_DEPLOY_RUNS, ...at(settle, 'ado') },
+  { command: 'ado work-item iterations', input: { dossier: settle }, data: ADO_ITERATIONS, ...at(settle, 'ado') },
+  { command: 'ado work-item search', input: { dossier: settle, wiql: WIQL }, data: ADO_WIQL, ...at(settle, 'ado') },
+  { command: 'ado work-item get-many', input: { dossier: settle, id: ADO_IDS }, data: ADO_BATCH, ...at(settle, 'ado') },
+  ...ADO_IDS.map((id) => ({ command: 'ado work-item history', input: { dossier: settle, id }, data: ADO_REVISIONS[id], ...at(settle, 'ado') })),
+  { command: 'ado pr list', input: { dossier: settle, state: 'all' }, data: ADO_PRS, ...at(settle, 'ado') },
+  { command: 'ado run list', input: { dossier: settle, name: 'settlement-ci', top: 20 }, data: ADO_CI_RUNS, ...at(settle, 'ado') },
+  { command: 'ado run list', input: { dossier: settle, name: 'settlement-deploy', top: 20 }, data: ADO_DEPLOY_RUNS, ...at(settle, 'ado') },
 
   // checkout-web
   { command: 'github projects list-items', input: { dossier: checkout, project: 7 }, data: GITHUB_PROJECT_ITEMS, ...at(checkout, 'github') },

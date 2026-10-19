@@ -69,12 +69,12 @@ The commands whose output maps, and what each gives:
 
 | Area | Items | History | Context |
 |------|-------|---------|---------|
-| `jira`, `jira-cloud` | `jira search`, `jira get-issue`, `jira-cloud search`, `jira-cloud get-issue` | `jira get-changelog`, `jira-cloud get-changelog` | |
-| `ado`, `ado-cloud` | `ado work get`, `ado work get-batch`, `ado-cloud work get`, `ado-cloud work get-batch` | `ado work revisions`, `ado-cloud work revisions` | `ado work list-iterations`, `ado-cloud work list-iterations` (iteration dates) |
+| `jira`, `jira-cloud` | `jira issue search`, `jira issue get`, `jira-cloud issue search`, `jira-cloud issue get` | `jira issue history`, `jira-cloud issue history` | |
+| `ado`, `ado-cloud` | `ado work-item get`, `ado work-item get-many`, `ado-cloud work-item get`, `ado-cloud work-item get-many` | `ado work-item history`, `ado-cloud work-item history` | `ado work-item iterations`, `ado-cloud work-item iterations` (iteration dates) |
 | `github` | `github list-issues`, `github search-issues`, `github get-issue`, `github projects list-items` | `github issue-events` | |
 
-`ado work search` and `ado-cloud work search` return ids only, so they are skipped
-with a pointer to `work get-batch`. Pull requests (in GitHub's issue lists and on boards) are
+`ado work-item search` and `ado-cloud work-item search` return ids only, so they are skipped
+with a pointer to `work-item get-many`. Pull requests (in GitHub's issue lists and on boards) are
 left out, with a warning: they are the changes that reference work, which a later
 version will carry. Any other command's output is refused.
 
@@ -95,8 +95,8 @@ version will carry. Any other command's output is refused.
   strings. The active sprint, else the latest future one, else the last.
 - **Parent** from `parent`, else Data Center's **Epic Link**; children from
   `subtasks`; links from `issuelinks` by link type (Blocks, Duplicate, Relates).
-- `search` returns the fields it asks for (`--fields`), and only the custom fields
-  the connection registers; `get-issue` returns every field. A field missing from
+- `issue search` returns the fields it asks for (`--fields`), and only the custom fields
+  the connection registers; `issue get` returns every field. A field missing from
   the record is listed in `unmapped`.
 
 ### Azure DevOps (Server and Services)
@@ -120,16 +120,16 @@ Services differs, the mapping already holds:
   New, To Do, Approved and Proposed are `TODO`; Active, Doing, Committed, Open and
   Resolved are `IN_PROGRESS` (Resolved behaves as in progress on boards); Closed
   and Done are `DONE`; Removed is `DONE` with its reason as `resolution`. A custom
-  state is `UNKNOWN`; `ado work list-states` shows its category.
+  state is `UNKNOWN`; `ado work-item states` shows its category.
 - **Estimate**, the first with a value: `Microsoft.VSTS.Scheduling.StoryPoints`
   (Agile), `.Effort` (Scrum), `.Size` (CMMI) as points, then
   `Microsoft.VSTS.Scheduling.OriginalEstimate` as hours. Azure DevOps leaves an
   empty field out of the record, so an unestimated item and one estimated in a
   team's own field look alike; both are listed in `unmapped`.
 - **Iteration** from `System.IterationPath`, with dates when the input also holds
-  `ado work list-iterations`. **Parent** and **children** from the hierarchy
+  `ado work-item iterations`. **Parent** and **children** from the hierarchy
   relations; **links** from the dependency links, Successor and its reverse (`blocks`), Related,
-  Duplicate and Duplicate Of. History from `ado work revisions`: each change of
+  Duplicate and Duplicate Of. History from `ado work-item history`: each change of
   `System.State` and `System.IterationPath`.
 
 ### GitHub
@@ -216,8 +216,8 @@ command.
 `test/fixtures/owi/` holds one sprint of placeholder work for anything that needs
 realistic OWI items without a tracker, the Toil UI preview first:
 
-- `sprint.ts` builds the input: the envelopes `jira get-issue`, `jira get-changelog`,
-  `ado work list-iterations`, `ado work get-batch`, `ado work revisions`,
+- `sprint.ts` builds the input: the envelopes `jira issue get`, `jira issue history`,
+  `ado work-item iterations`, `ado work-item get-many`, `ado work-item history`,
   `github get-issue`, `github issue-events` and `github projects list-items` print,
   as `util owi map` reads them (also served to its examples as `owi/sprint-42.jsonl`).
 - `sprint-42.owi.json` is what `util owi map` makes of it: `{ owi, count, items }`,

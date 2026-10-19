@@ -49,7 +49,7 @@
     "flags": [
       "<repo>",
       "<path>",
-      "[keyvals]",
+      "[keyvals...]",
       "--recursive",
       "--allow-write"
     ]

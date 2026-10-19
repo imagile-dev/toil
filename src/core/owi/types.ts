@@ -12,7 +12,7 @@ export const OWI_VERSION = '0.1' as const;
 /** How a source's records are read: one mapper per shape, shared by every area that sends it. */
 export type OwiFamily = 'jira' | 'ado' | 'github';
 
-/** The commands of one area whose output maps, without the area's name (`search`, `work get-batch`). */
+/** The commands of one area whose output maps, without the area's name (`issue search`, `work-item get-many`). */
 export interface OwiSource {
   family: OwiFamily;
   items: string[];
@@ -20,8 +20,8 @@ export interface OwiSource {
   context: string[];
 }
 
-const JIRA: OwiSource = { family: 'jira', items: ['search', 'get-issue'], history: ['get-changelog'], context: [] };
-const ADO: OwiSource = { family: 'ado', items: ['work get', 'work get-batch'], history: ['work revisions'], context: ['work list-iterations'] };
+const JIRA: OwiSource = { family: 'jira', items: ['issue search', 'issue get'], history: ['issue history'], context: [] };
+const ADO: OwiSource = { family: 'ado', items: ['work-item get', 'work-item get-many'], history: ['work-item history'], context: ['work-item iterations'] };
 const GITHUB: OwiSource = { family: 'github', items: ['list-issues', 'search-issues', 'get-issue', 'projects list-items'], history: ['issue-events'], context: [] };
 
 /**

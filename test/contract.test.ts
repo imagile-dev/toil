@@ -242,9 +242,9 @@ describe('command contract: output field names', async () => {
     });
   }
 
-  it('jira fields: suggestedType is the one type-hint key, and the toilType the contract records is excused only by its divergence', async () => {
+  it('jira issue fields: suggestedType is the one type-hint key, and the toilType the contract records is excused only by its divergence', async () => {
     const f = fixtures.find((x) => x.area === 'jira')!;
-    const def = f.commands.find((d) => commandName(d) === 'jira fields')!;
+    const def = f.commands.find((d) => commandName(d) === 'jira issue fields')!;
     const examples = def.examples.filter((e) => (e as { discover?: boolean }).discover === true);
     expect(examples.length).toBeGreaterThan(0);
     for (const example of examples) {
@@ -253,9 +253,9 @@ describe('command contract: output field names', async () => {
       const data = envelope.data as Array<Record<string, unknown>>;
       expect(data.some((field) => 'suggestedType' in field)).toBe(true);
       expect(data.filter((field) => 'toilType' in field)).toEqual([]);
-      expect(loadDivergences(divergenceFiles, example as Record<string, unknown>).has('jira fields data.[].toilType')).toBe(true);
+      expect(loadDivergences(divergenceFiles, example as Record<string, unknown>).has('jira issue fields data.[].toilType')).toBe(true);
     }
-    expect(byPath.get('jira fields')!.output!.some((v) => 'fields' in v && v.fields.includes('[].toilType?'))).toBe(true);
+    expect(byPath.get('jira issue fields')!.output!.some((v) => 'fields' in v && v.fields.includes('[].toilType?'))).toBe(true);
   });
 });
 

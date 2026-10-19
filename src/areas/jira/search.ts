@@ -14,14 +14,14 @@ import { jqlInstant, parseUpdatedSince, updatedSinceField, updatedSinceOption, w
  */
 
 export const search = jiraArea.command({
-  path: ['jira', 'search'],
+  path: ['jira', 'issue', 'search'],
   description: 'Search Jira issues with JQL (consider --output-file for large results)',
   toolDescription:
-    'Searches Jira issues with JQL and returns { issues, total, startAt, maxResults }. Without maxResults it pages through every match, so bound broad queries. meta.page.nextCursor is where the next page starts: pass it back as cursor (or startAt). updatedSince adds updated >= that instant to the JQL, in the time zone of your Jira profile. Use jira_get_issue for one issue by key.',
+    'Searches Jira issues with JQL and returns { issues, total, startAt, maxResults }. Without limit it pages through every match, so bound broad queries. meta.page.nextCursor is where the next page starts: pass it back as cursor (or startAt). updatedSince adds updated >= that instant to the JQL, in the time zone of your Jira profile. Use jira_issue_get for one issue by key.',
   input: z.object({
     jql: z.string().optional().describe('JQL query, e.g. project = PROJ AND status = "In Progress"'),
     jqlFile: z.string().optional().describe('Path to a file holding the JQL query ("-" = stdin on the CLI)'),
-    maxResults: z.union([z.number(), z.string()]).optional().describe('Maximum number of issues to return; all matches when omitted'),
+    limit: z.union([z.number(), z.string()]).optional().describe('Maximum number of issues to return; all matches when omitted'),
     startAt: z.union([z.number(), z.string()]).optional().describe('Index of the first result to return (a non-negative integer), for resuming or paging'),
     cursor: z.string().min(1).optional().describe('meta.page.nextCursor from the previous page, to carry on from there (the same as startAt)'),
     updatedSince: updatedSinceField,
@@ -33,18 +33,18 @@ export const search = jiraArea.command({
   options: [
     { flags: '--jql <query>', field: 'jql', description: 'JQL query string' },
     { flags: '--jql-file <path>', field: 'jqlFile', description: "Path to a file containing the JQL query ('-' = stdin)" },
-    { flags: '--max-results <n>', field: 'maxResults', description: 'Maximum number of results' },
+    { flags: '--limit <n>', field: 'limit', description: 'Maximum number of results' },
     { flags: '--start-at <n>', field: 'startAt', description: 'Index of the first result to return (for resuming or paging)' },
     { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous page (the same as --start-at)' },
     updatedSinceOption,
     { flags: '--fields <list>', field: 'fields', description: 'Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,"Story Points")' },
   ],
   examples: [
-    { jql: 'project = PROJ AND status = "In Progress"', maxResults: 2 },
+    { jql: 'project = PROJ AND status = "In Progress"', limit: 2 },
     { jqlFile: 'query.jql', startAt: 1, fields: 'summary,status,Story Points' },
     // The cursor the first example hands back.
-    { jql: 'project = PROJ AND status = "In Progress"', maxResults: 2, cursor: '2' },
-    { jqlFile: 'query.jql', updatedSince: '2026-10-01T09:30:00Z', maxResults: 2 },
+    { jql: 'project = PROJ AND status = "In Progress"', limit: 2, cursor: '2' },
+    { jqlFile: 'query.jql', updatedSince: '2026-10-01T09:30:00Z', limit: 2 },
     { updatedSince: '2026-10-01' },
   ],
   run: async (input, ctx) => {
@@ -68,9 +68,9 @@ export const search = jiraArea.command({
     } else {
       fields = [...client.STANDARD_SEARCH_FIELDS, ...ctx.connection.customFields.map((f) => f.id)];
     }
-    // As the contract specifies: an empty --max-results means all, and a
+    // As the contract specifies: an empty --limit means all, and a
     // non-number reaches the request as null. --start-at is digits only.
-    const maxResults = input.maxResults !== undefined && String(input.maxResults) !== '' ? asInt(input.maxResults) : undefined;
+    const maxResults = input.limit !== undefined && String(input.limit) !== '' ? asInt(input.limit) : undefined;
     const startAt = input.cursor !== undefined ? parseCursor(input.cursor) : parseStartAt(input.startAt);
     let query = jql === undefined ? undefined : translateJql(jql, fieldMap);
     if (since) {
@@ -98,7 +98,7 @@ function parseCursor(cursor: string): number {
 }
 
 export const fields = jiraArea.command({
-  path: ['jira', 'fields'],
+  path: ['jira', 'issue', 'fields'],
   description: 'List custom fields (configured or discovered from Jira API) (consider --output-file for large results)',
   toolDescription:
     "Without discover, returns the custom fields registered on the connection. With discover, returns Jira's field list (id, name, schema, suggestedType), and with project also each field's allowedValues. Use it to find a field's id before setting it.",

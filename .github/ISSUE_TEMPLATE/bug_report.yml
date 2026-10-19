@@ -35,7 +35,7 @@ body:
     attributes:
       label: Area
       description: The area or command, if it's about one.
-      placeholder: jira search
+      placeholder: jira issue search
   - type: input
     id: environment
     attributes:

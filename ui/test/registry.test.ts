@@ -81,7 +81,7 @@ describe('every proposal the board and the scripted agent can make', async () =>
   const withCommand = proposals.filter((p) => p?.command);
 
   it('includes some of each kind', () => {
-    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira transition-issue', 'ado work transition', 'jira update-issue', 'ado work update']));
+    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update']));
   });
 
   it.each(withCommand.map((p) => [p!.id, p!] as const))('%s names a write command, with input its schema accepts', (_id, p) => {
@@ -97,10 +97,19 @@ describe('every proposal the board and the scripted agent can make', async () =>
     expect([...INPUT_FILE_COMMANDS].sort()).toEqual(takes.sort());
   });
 
+  it("lists exactly the Jira and Azure DevOps commands' positional arguments, so a command line puts each id where the CLI reads it", async () => {
+    const { POSITIONAL_FIELDS } = await import('../src/proposal.ts');
+    const { commands } = await import('../../src/registry.ts');
+    const want = commands
+      .filter((c) => ['jira', 'jira-cloud', 'ado', 'ado-cloud'].includes(c.path[0]!) && c.args?.length)
+      .map((c) => [c.path.join(' '), c.args!.map((a) => a.field)] as const);
+    expect([...POSITIONAL_FIELDS.entries()].sort()).toEqual(want.sort());
+  });
+
   it('refers a PowerShell refusal to an MCP tool that exists, with input its schema accepts', async () => {
     const { commandLine, toolName } = await import('../src/proposal.ts');
     const byTool = new Map(registry.commands.map((c) => [toolName(c.name), c]));
-    const hostile = withCommand.map((p) => ({ ...p, input: { ...p!.input, ...(p!.command === 'jira transition-issue' ? { transition: 'Code Review & QA' } : p!.command === 'ado work transition' ? { state: 'Code Review & QA' } : { dossier: 'a&b' }) } }));
+    const hostile = withCommand.map((p) => ({ ...p, input: { ...p!.input, ...(p!.command === 'jira issue transition' ? { transition: 'Code Review & QA' } : p!.command === 'ado work-item transition' ? { state: 'Code Review & QA' } : { dossier: 'a&b' }) } }));
     for (const p of hostile) {
       const out = commandLine({ command: p!.command ?? null, input: p!.input }, 'powershell');
       expect(out.line, p!.command!).toBeNull();

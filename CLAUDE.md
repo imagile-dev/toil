@@ -20,7 +20,7 @@ Who it is for, in priority order:
 The rules in this file are consequences of a few principles. When a rule and a
 situation disagree, or a case is not covered, reason from the principle.
 
-Principles 1 to 7 and 9 govern **toil itself**: the npm package and what it does on a
+Principles 1 to 7, 9 and 10 govern **toil itself**: the npm package and what it does on a
 user's machine. This repository's own tooling (`scripts/`, the tests, workflows, and
 the skills under `.claude/skills/`) is never published or installed by toil. It may
 run `git` and `gh` and call GitHub. It still follows principle 8, because every
@@ -69,7 +69,8 @@ gets made again in the next place it applies.
 7. **Never break what users already rely on silently.** Config on disk, flags, the
    JSON envelope and precedence are contracts; changing them is a declared,
    documented breaking change. → Output Contract, Delivery. **This starts at toil's
-   first npm release**, which waits until every integration is built. Until then
+   first npm release**, which waits until every integration is built. Alpha
+   prereleases (`0.1.0-alpha.N`) don't count (the maintainer's call, 2026-10-19). Until then
    no one can rely on anything, so contract changes need no breaking-change checks,
    declarations or migration notes. Compatibility with the command contract
    (the `integrations` skill) is a separate requirement and still applies.
@@ -86,6 +87,16 @@ gets made again in the next place it applies.
    it's configured on, or to one the user paired it with; the one exception is an
    area's default connection taking another area's default env value, which keeps
    the env chain the contract records.
+10. **Learn one area, know them all.** Integration commands converge on one shape,
+    `toil <area> <resource> <action> [ids...] [--flags]`: everything you can do to a
+    thing lives under that thing, positional arguments are only the ids that lead to
+    it, and one idea has one flag in every area (`--limit`, `--assignee`, `--target`,
+    `--body`). The welcome menu's Services module is that tree, so browsing it teaches
+    what to type. The shape is toil's own: when an area is reshaped, the paths and flags
+    the contract recorded before are dropped, not kept as aliases. Deliberate aliases
+    (`deps outdated`, a routed alias, an area's `coreAliases`) are a different thing
+    and stay. → **Command Shape** (`integrations` skill); `jira`, `jira-cloud`, `ado`
+    and `ado-cloud` follow it, and every other area is reshaped before 1.0 (#297).
 
 ## Cross-Platform
 
@@ -260,6 +271,9 @@ GitHub Actions; its build tooling is out of scope.
   data and every animation frame a pure function of time, so both are unit-tested.
   One file of views per menu module under `views/`, registered in `views/index.ts`;
   every action runs a real `toil` command in-process and shows the line it ran.
+  Its Services module (`views/services.ts`) runs any area command that way: a
+  write only after a confirm screen that shows the line with `--allow-write`,
+  so the connection's `writes` still decides, as it would typed by hand.
   The one exception is Two Weeks' Notice, a roguelike for the wait on a build,
   reached by typing `resign` on the home screen and listed nowhere: its rules are
   pure functions in `rogue/`, the loop hands it the screen until q, and its progress
@@ -332,7 +346,7 @@ behavior of their own; if one needs something the other lacks, the gap is in cor
 **Every command has one `kind`**, which decides what core hands it and which front
 doors serve it: `standalone` (`defineCommand`: no area, no config, e.g. `version`),
 `area` (the default for `area.command`), `area-local` (under an area's path with no
-connection or config, e.g. `jira schema`), `config` (`defineConfigCommand`: gets
+connection or config, e.g. `jira issue schema`), `config` (`defineConfigCommand`: gets
 `ctx.manage`) and `cli-only` (a config command never served over MCP).
 
 **Context inputs** say where in the service a command acts (`--project`, `--repo`,
@@ -422,7 +436,7 @@ signed download URL with every header dropped. argv is typed from the schema by 
 same rule env vars follow (`fromText` in `src/core/schema.ts`): numbers, `true` and
 `false`, enums, JSON for an object, and an array field's flag is repeatable with each
 value typed as its element. A union stays text, which is how Jira keeps the
-`parseInt` reading of `--max-results` that the contract records.
+`parseInt` reading of `jira issue search --limit` that the contract records.
 
 **`<area> api` is the raw passthrough** (`src/core/passthrough.ts`): an HTTP area
 exports `apiCommand(area, { service, examplePath, examples })` with its commands, and
@@ -678,7 +692,7 @@ old file always loads. A file from a newer toil is refused with an upgrade fix r
 than half-read. Version 1 is a map of area to settings and reads as one connection
 per area, named after it and set as its default. Version 2 holds `connections` and
 `defaults`; using them needs `"version": 2`. Standalone and area-local commands
-(`version`, `jira schema`) don't load config at all, so a broken or newer file can't stop a user finding out which
+(`version`, `jira issue schema`) don't load config at all, so a broken or newer file can't stop a user finding out which
 toil they have.
 
 ## Writes
@@ -759,6 +773,14 @@ error, and the `data` it returns. Toil's unit suite has never met a real server,
 an integration that "fixes" what looks wrong is guessing, and it silently breaks
 callers who rely on the recorded result.
 
+- **The behavior is recorded; the surface is toil's** (*principle 10*). An
+  area reshaped to the command shape records its new paths, arguments and flags in
+  the contract, in the same change, and keeps every recorded request, result, error
+  and `data` field. A path or flag the contract recorded before the reshape is gone, not
+  aliased, and needs no divergence entry. The area's entries may be rebuilt from the
+  registry only in its reshape PR, before the first non-alpha release, and that PR
+  carries the old-to-new table of every path and flag for review: a contract rebuilt
+  from the code can't catch what the code dropped, so the table is the check.
 - **Implement the recorded behavior exactly, bugs included,** until a live instance
   proves otherwise. That covers validation, defaults, paging, id-or-name detection,
   encoding and error messages too, not just the happy path.
@@ -902,7 +924,7 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 - Conventional Commits: `fix:`, `feat:`, `feat!:` with a `BREAKING CHANGE:` footer
   that says why and how to migrate. release-please builds the changelog from them.
   **Before the first npm release, don't use `feat!:` or `BREAKING CHANGE:`**
-  (principle 7): a contract change is a plain `feat:` or `fix:`, and a breaking
+  (principle 7; alphas don't count as that release): a contract change is a plain `feat:` or `fix:`, and a breaking
   marker would put a migration note for a change no user ever saw into the first
   changelog.
 - **Every major item starts with a GitHub issue, created before the branch.** Keep it
@@ -938,6 +960,10 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   for the package, then OIDC with no token. The release PR is opened by the Imagile
   Bot App, not `GITHUB_TOKEN`, so CI runs on it. The agent review skips it, because
   the App can't review its own PR; the human who merges it is the review.
+- **Toil UI never releases ahead of the toil it needs.** Its tests run against toil
+  from source, so `ui/` on `main` may already use commands the pinned toil doesn't
+  have. A `toil-ui-v…` release goes out with or after the toil release that has them,
+  and bumps `ui/package.json`'s exact pin in the same release PR.
 - **Until 1.0, every release is an alpha prerelease** (`0.1.0-alpha.1`, then
   `-alpha.2` …), marked as a prerelease on GitHub and published under npm's `alpha`
   dist-tag. Until a stable release exists, `latest` also follows the newest alpha,
@@ -1001,7 +1027,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 
 | Skill | Use when |
 |-------|----------|
-| `integrations` | Adding or changing an enterprise integration: the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, Open Work Item checks for work-item areas, the command contract and its divergences |
+| `integrations` | Adding or changing an enterprise integration: the command shape, the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, Open Work Item checks for work-item areas, the command contract and its divergences |
 | `databases` | Working on the `db` area, a database provider, or database tests, including the local Docker run |
 | `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: small pure-JS code intelligence is welcome, heavy analysis dependencies are ruled out, and what reopening that takes |
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |

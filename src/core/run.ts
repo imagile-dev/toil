@@ -75,7 +75,7 @@ const COMMAND_LINE = /(`toil [^`]*`|\btoil [^,;`]*?(?=[,;`]|\.(?:\s|$)|$))/;
 
 /**
  * An INVALID_INPUT envelope reworded for an MCP caller: each of the
- * command's flags (`--max-results`) becomes its field (`maxResults`), in the
+ * command's flags (`--updated-since`) and positional arguments (`<key>`) becomes its field (`updatedSince`, `key`), in the
  * message and the fix. Areas word their input errors once, for the CLI; this
  * translates them, so no area keeps two copies. The code and everything else
  * stay as they were. A form that cites the wrong form's field numbers is
@@ -88,10 +88,12 @@ export function inFieldNames(def: AnyCommand, envelope: Envelope): Envelope {
     return long && !long.startsWith('--no-') ? [[long, o.field] as [string, string]] : [];
   });
   if (takesAllowWrite(def)) flags.push(['--allow-write', 'allowWrite']);
-  // Longest first, so `--max-results` isn't read as `--max` followed by text.
+  // A positional argument is named in prose as `<key>`; over MCP it is the field it maps to.
+  for (const arg of def.args ?? []) flags.push([`<${arg.name}>`, arg.field]);
+  // Longest first, so `--updated-since` isn't read as `--updated` followed by text.
   flags.sort((a, b) => b[0].length - a[0].length);
   const swap = (text: string) => flags.reduce((out, [flag, field]) => out.replace(new RegExp(`(?<![\\w-])${flag}(?![\\w-])`, 'g'), field), text);
-  // A quoted command line (`toil jira list-transitions --key X`) is something to
+  // A quoted command line (`toil jira issue transitions X`) is something to
   // run on the CLI, so it keeps its flags: only the prose between them is swapped.
   const reword = (text: string) => text.split(COMMAND_LINE).map((part, i) => (i % 2 === 1 ? part : swap(part))).join('');
   const error = { ...envelope.error, message: reword(envelope.error.message) };

@@ -8,6 +8,7 @@ import { ToilError } from '../src/core/errors.js';
 import { inFieldNames } from '../src/core/run.js';
 import { evaluateCommand } from '../src/areas/sonatypeiq/evaluate.js';
 import { flagsSetRuleCommand } from '../src/areas/splitio/flags.js';
+import { getIssue } from '../src/areas/jira/issues.js';
 import { config as iqConfig, fixture as iqFixture } from './fixtures/sonatypeiq.fixture.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
@@ -69,6 +70,15 @@ describe('a CLI command line quoted in an input error stays CLI-shaped over MCP'
     // In backticks, a command line ends at the closing backtick.
     const ticked = failure(new ToilError('INVALID_INPUT', 'x', { fix: 'Run `toil splitio flags get --environment <id>`, then pass --environment.' }), { command: 'splitio flags set-rule', durationMs: 0, version: '0.0.0' });
     expect(inFieldNames(flagsSetRuleCommand, ticked).error?.fix).toBe('Run `toil splitio flags get --environment <id>`, then pass environment.');
+  });
+});
+
+describe('a positional argument, over MCP', () => {
+  it('is named as its field in an input error, as a flag is', () => {
+    const envelope = failure(new ToilError('INVALID_INPUT', 'Every <key> needs an issue key.', { fix: 'Give each <key> as an issue key, e.g. PROJ-123.' }), { command: 'jira issue get', durationMs: 0, version: '0.0.0' });
+    const reworded = inFieldNames(getIssue, envelope);
+    expect(reworded.error?.message).toBe('Every key needs an issue key.');
+    expect(reworded.error?.fix).toBe('Give each key as an issue key, e.g. PROJ-123.');
   });
 });
 

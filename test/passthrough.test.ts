@@ -150,7 +150,7 @@ describe('jira api', () => {
     // The fake server sends the text as UTF-8; data is exactly those bytes, round-tripped, not a lossy decode.
     const sent = new TextEncoder().encode(String.fromCharCode(...png));
     expect(new Uint8Array(Buffer.from(run.envelope?.data as string, 'base64'))).toEqual(sent);
-    expect(run.envelope?.meta.warnings).toContainEqual(expect.objectContaining({ code: 'API_BINARY', message: expect.stringContaining('toil jira download-attachment') }));
+    expect(run.envelope?.meta.warnings).toContainEqual(expect.objectContaining({ code: 'API_BINARY', message: expect.stringContaining('toil jira issue download') }));
     expect(run.envelope?.meta.response?.contentType).toBe('image/png');
     const xml = await runCli(['jira', 'api', 'GET', '/rest/api/2/feed'], { commands, context });
     expect(xml.envelope?.data).toBe('<feed/>');

@@ -30,7 +30,7 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "--name <project>",
+      "<name>",
       "--project <name>",
       "--repo <name>"
     ]
@@ -58,20 +58,20 @@
     ]
   },
   {
-    "name": "work get",
-    "tool": "ado_cloud_work_get",
+    "name": "work-item get",
+    "tool": "ado_cloud_work_item_get",
     "description": "Get a work item by ID",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--project <name>",
       "--repo <name>"
     ]
   },
   {
-    "name": "work create",
-    "tool": "ado_cloud_work_create",
+    "name": "work-item create",
+    "tool": "ado_cloud_work_item_create",
     "description": "Create a work item",
     "writes": true,
     "connection": true,
@@ -88,13 +88,13 @@
     ]
   },
   {
-    "name": "work update",
-    "tool": "ado_cloud_work_update",
+    "name": "work-item update",
+    "tool": "ado_cloud_work_item_update",
     "description": "Update work item fields",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--field <name=value>",
       "--rev <n>",
       "--project <name>",
@@ -103,8 +103,8 @@
     ]
   },
   {
-    "name": "work search",
-    "tool": "ado_cloud_work_search",
+    "name": "work-item search",
+    "tool": "ado_cloud_work_item_search",
     "description": "Run a WIQL query (consider --output-file for large results)",
     "writes": false,
     "connection": true,
@@ -118,13 +118,13 @@
     ]
   },
   {
-    "name": "work revisions",
-    "tool": "ado_cloud_work_revisions",
+    "name": "work-item history",
+    "tool": "ado_cloud_work_item_history",
     "description": "List the revisions of a work item, oldest first",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--limit <n>",
       "--cursor <cursor>",
       "--project <name>",
@@ -132,26 +132,26 @@
     ]
   },
   {
-    "name": "work get-batch",
-    "tool": "ado_cloud_work_get_batch",
+    "name": "work-item get-many",
+    "tool": "ado_cloud_work_item_get_many",
     "description": "Get several work items by ID in one call",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id...>",
       "--fields <names>",
       "--project <name>",
       "--repo <name>"
     ]
   },
   {
-    "name": "work list-comments",
-    "tool": "ado_cloud_work_list_comments",
+    "name": "work-item comments",
+    "tool": "ado_cloud_work_item_comments",
     "description": "List comments on a work item",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--limit <n>",
       "--cursor <cursor>",
       "--project <name>",
@@ -159,13 +159,13 @@
     ]
   },
   {
-    "name": "work add-comment",
-    "tool": "ado_cloud_work_add_comment",
+    "name": "work-item comment",
+    "tool": "ado_cloud_work_item_comment",
     "description": "Add a comment to a work item",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--body <text>",
       "--project <name>",
       "--repo <name>",
@@ -173,8 +173,8 @@
     ]
   },
   {
-    "name": "work list-iterations",
-    "tool": "ado_cloud_work_list_iterations",
+    "name": "work-item iterations",
+    "tool": "ado_cloud_work_item_iterations",
     "description": "List the iteration tree for the project, with start and finish dates",
     "writes": false,
     "connection": true,
@@ -185,8 +185,8 @@
     ]
   },
   {
-    "name": "repo list-prs",
-    "tool": "ado_cloud_repo_list_prs",
+    "name": "pr list",
+    "tool": "ado_cloud_pr_list",
     "description": "List pull requests",
     "writes": false,
     "connection": true,
@@ -203,20 +203,20 @@
     ]
   },
   {
-    "name": "repo get-pr",
-    "tool": "ado_cloud_repo_get_pr",
+    "name": "pr get",
+    "tool": "ado_cloud_pr_get",
     "description": "Get a pull request by ID",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--project <name>",
       "--repo <name>"
     ]
   },
   {
-    "name": "repo create-pr",
-    "tool": "ado_cloud_repo_create_pr",
+    "name": "pr create",
+    "tool": "ado_cloud_pr_create",
     "description": "Create a pull request",
     "writes": true,
     "connection": true,
@@ -233,13 +233,13 @@
     ]
   },
   {
-    "name": "repo update-pr",
-    "tool": "ado_cloud_repo_update_pr",
+    "name": "pr update",
+    "tool": "ado_cloud_pr_update",
     "description": "Update a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--title <title>",
       "--description <text>",
       "--target <branch>",
@@ -250,13 +250,13 @@
     ]
   },
   {
-    "name": "repo merge-pr",
-    "tool": "ado_cloud_repo_merge_pr",
+    "name": "pr merge",
+    "tool": "ado_cloud_pr_merge",
     "description": "Complete (merge) a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--strategy <s>",
       "--delete-source",
       "--message <text>",
@@ -266,89 +266,89 @@
     ]
   },
   {
-    "name": "repo abandon-pr",
-    "tool": "ado_cloud_repo_abandon_pr",
+    "name": "pr abandon",
+    "tool": "ado_cloud_pr_abandon",
     "description": "Abandon a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--project <name>",
       "--repo <name>",
       "--allow-write"
     ]
   },
   {
-    "name": "repo list-reviewers",
-    "tool": "ado_cloud_repo_list_reviewers",
+    "name": "pr reviewers",
+    "tool": "ado_cloud_pr_reviewers",
     "description": "List reviewers on a pull request",
     "writes": false,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--project <name>",
       "--repo <name>"
     ]
   },
   {
-    "name": "repo approve",
-    "tool": "ado_cloud_repo_approve",
+    "name": "pr approve",
+    "tool": "ado_cloud_pr_approve",
     "description": "Approve a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--project <name>",
       "--repo <name>",
       "--allow-write"
     ]
   },
   {
-    "name": "repo unapprove",
-    "tool": "ado_cloud_repo_unapprove",
+    "name": "pr unapprove",
+    "tool": "ado_cloud_pr_unapprove",
     "description": "Remove your vote from a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--project <name>",
       "--repo <name>",
       "--allow-write"
     ]
   },
   {
-    "name": "repo wait-for-author",
-    "tool": "ado_cloud_repo_wait_for_author",
+    "name": "pr wait-for-author",
+    "tool": "ado_cloud_pr_wait_for_author",
     "description": "Mark a pull request as waiting for author",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--project <name>",
       "--repo <name>",
       "--allow-write"
     ]
   },
   {
-    "name": "repo list-threads",
-    "tool": "ado_cloud_repo_list_threads",
+    "name": "pr threads",
+    "tool": "ado_cloud_pr_threads",
     "description": "List comment threads on a pull request",
     "writes": false,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--project <name>",
       "--repo <name>"
     ]
   },
   {
-    "name": "repo list-comments",
-    "tool": "ado_cloud_repo_list_comments",
+    "name": "pr comments",
+    "tool": "ado_cloud_pr_comments",
     "description": "List all comments on a pull request (general + inline)",
     "writes": false,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--inline-only",
       "--general-only",
       "--include-system",
@@ -357,13 +357,13 @@
     ]
   },
   {
-    "name": "repo add-comment",
-    "tool": "ado_cloud_repo_add_comment",
+    "name": "pr comment",
+    "tool": "ado_cloud_pr_comment",
     "description": "Add a general comment to a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--body <text>",
       "--project <name>",
       "--repo <name>",
@@ -371,13 +371,13 @@
     ]
   },
   {
-    "name": "repo add-inline-comment",
-    "tool": "ado_cloud_repo_add_inline_comment",
+    "name": "pr comment-inline",
+    "tool": "ado_cloud_pr_comment_inline",
     "description": "Add an inline comment on a file in a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--file <path>",
       "--line <n>",
       "--body <text>",
@@ -388,14 +388,14 @@
     ]
   },
   {
-    "name": "repo reply-comment",
-    "tool": "ado_cloud_repo_reply_comment",
+    "name": "pr reply",
+    "tool": "ado_cloud_pr_reply",
     "description": "Reply to a comment thread",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
-      "--thread-id <id>",
+      "<id>",
+      "<thread-id>",
       "--body <text>",
       "--project <name>",
       "--repo <name>",
@@ -403,14 +403,14 @@
     ]
   },
   {
-    "name": "repo resolve-comment",
-    "tool": "ado_cloud_repo_resolve_comment",
+    "name": "pr resolve",
+    "tool": "ado_cloud_pr_resolve",
     "description": "Mark a comment thread as resolved",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
-      "--thread-id <id>",
+      "<id>",
+      "<thread-id>",
       "--status <status>",
       "--project <name>",
       "--repo <name>",
