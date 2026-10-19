@@ -2,8 +2,8 @@
 
 `command-contract.json` is toil's hand-maintained record of its command surface: every
 command path and alias, each command's positional arguments and flags with their
-accepted values and defaults, and the field names of the `data` each command returns. It holds 443
-commands, 368 of them leaves. `test/contract.test.ts` checks the registered CLI against
+accepted values and defaults, and the field names of the `data` each command returns. It holds 444
+commands, 369 of them leaves. `test/contract.test.ts` checks the registered CLI against
 it on every run, so a command, flag or output field can't change or disappear without
 someone noticing. Each difference toil makes on purpose is a divergence, listed with its
 reason (below).
@@ -42,6 +42,7 @@ changes or drops is a divergence.
 | `config` | No | Built around the OS credential store. `config import` reads a global config file in the shape the contract records, once. |
 | `skills` | Yes | Marketplace add, list, plugins, remove, sync, enable and disable, and `skills status`, matched. The rest aren't built yet, or are gone for good (`skills git-auth`); each is a divergence in `docs/divergences/skills.json` |
 | `doctor` | No | Built for toil's own setup story |
+| `feedback` | Yes | toil's own: a bug report or feature request to Imagile LLC, sent only with `--consent` or a terminal's `yes` (`skills/toil/core.md`, **Feedback**). CLI only |
 
 ## Divergences
 

@@ -24,7 +24,7 @@ beside this file, says how.
   identical inputs and output.
 - **Writes.** Reads are always allowed. A command that changes data needs
   `writes: true` on the connection, set by a person, and `--allow-write` on the call
-  (`allowWrite: true` over MCP). Only make a write the user asked for. Three writes
+  (`allowWrite: true` over MCP). Only make a write the user asked for. Four writes
   differ, each listed in `core.md` under **Writes**.
 - **Connections.** Environment variables always win over `~/.toil/config.json`.
   `--connection <name>` picks one when an area has several; `toil connections list`
@@ -32,6 +32,9 @@ beside this file, says how.
   terminal opens a menu for them.
 - **Files** a command reads or writes stay inside the workspace (`--workspace <dir>`,
   else the working directory).
+- **Feedback** to Imagile (`toil feedback`) only when the user asks, scrubbed of
+  company data, shown to them in full with its disclaimer, and sent with `--consent`
+  only after their yes to that exact report: `core.md`, **Feedback**.
 - **Less output.** `--select <expression>` keeps only the fields you name, and
   `toil wait --until <expression> -- <read>` repeats a read until it's true, instead
   of polling yourself.
@@ -42,7 +45,7 @@ Open only the file the task needs; each sits beside this one.
 
 | File | When |
 |------|------|
-| `core.md` | `--select`, `toil wait`, paging and progress, errors, writes and their exceptions, global flags, files, configuration, the raw `api` passthrough, dossiers, the audit log, calling toil from a program (`@imagile-dev/toil/api`), certificates and proxies |
+| `core.md` | `--select`, `toil wait`, paging and progress, errors, writes and their exceptions, global flags, files, configuration, the raw `api` passthrough, dossiers, the audit log, calling toil from a program (`@imagile-dev/toil/api`), sending feedback, certificates and proxies |
 | `<area>.md` | One per area, named after it: `jira.md` for `toil jira …`. Its frontmatter says what the area covers; the file gives the oldest version it supports, its credential, its configuration keys and every command |
 | `db.md` | Databases: `toil db …` on every engine |
 | `util.md` | Local utilities with no connection or network: `toil util …` |

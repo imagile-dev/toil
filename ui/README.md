@@ -7,7 +7,8 @@ with its stories, pull requests, builds and deployments side by side.
 **Status: alpha, local only.** It runs on your own machine, binds loopback, and
 reads through toil with your own connections and dossiers, read-only. Its
 settings pages are the one place it changes anything, and only toil's own
-connections and dossiers. It is a separate package from toil: installing toil
+connections and dossiers. Its Feedback dialog sends a report to Imagile through
+`toil feedback`, only when you approve it. It is a separate package from toil: installing toil
 never installs it.
 
 ## Start it
@@ -31,7 +32,7 @@ It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
 Toil UI 0.1.0-alpha.1 (alpha, local only), on toil 0.1.0-alpha.3
-Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil's own connections and dossiers, when you ask.
+Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil's own connections and dossiers, when you ask. Feedback goes to Imagile only when you send it.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
 Open this URL in your browser. It carries this launch's token, so keep it to yourself:
@@ -77,6 +78,27 @@ Every change is an explicit action, runs the command's own checks, and is in
 toil's audit log as `caller: "toil-ui"`. The page can run no other command on this
 path, and never a tracker write. Adding or changing connections needs a toil
 newer than 0.1.0-alpha.2; with that one, use the CLI.
+
+## Feedback
+
+The **Feedback** button in the header opens a dialog for a bug report or a feature
+request: the kind, a title, the details and your email. It sends through
+`toil feedback` (toil's `skills/toil/core.md`, **Feedback**), never on its own:
+
+- **A live preview.** As you type, the page asks toil for the report it would send,
+  read-only, and shows it exactly, with the endpoint. Nothing is sent to show it.
+- **toil's disclaimer, and a checkbox.** The report goes to Imagile LLC, which files
+  it as a public GitHub issue; your email stays private; you remove company data
+  first. Send works only while the box is ticked, and any edit clears it, so you
+  agree to the report on screen and no other.
+- **Only what you typed.** toil adds its version and commit, nothing else: no
+  dossier, connection, host or cached data.
+- **The same lock as Settings.** `api/feedback` needs the session, the page's
+  Origin and the CSRF token, takes the four fields and nothing else, and runs
+  `toil feedback` and no other command. Your tick becomes the yes to the command's
+  own consent question. With sample data it sends nothing. With a toil that has no
+  `feedback` command (0.1.0-alpha.2), the dialog says so and points at the site's
+  form.
 
 ## Sync and the cache
 
@@ -185,7 +207,7 @@ port, so the server lets in only the browser holding this launch's token:
 - **No CORS.** No `Access-Control-*` header is ever sent. Every POST also needs the
   page's own `Origin`, a JSON body, and the session's CSRF token.
 - **No network but toil's.** It talks to the hosts in your toil connections, and
-  nothing else. The agent CLI you choose talks to its own model endpoint.
+  nothing else, apart from a feedback report you send, which toil sends to Imagile. The agent CLI you choose talks to its own model endpoint.
 
 ## Settings
 

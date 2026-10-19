@@ -8,9 +8,9 @@ like `site/`, and is never published.
 
 | Function | Trigger | What it does |
 |---|---|---|
-| `Submit` | `POST /api/submit` | The site's form. Honeypot, then `Origin`, validation, Turnstile, and the per-IP daily limit (10), in that order. Stores a pending row. |
-| `Report` | `POST /api/report` | curl, for networks where Turnstile can't load. No CAPTCHA and no `Origin` check; instead `commit` must be a commit in the repository (checked through the GitHub API, cached in a table). Per-IP limit 3 a day, then a total of `REPORT_DAILY_LIMIT` (30) a day across every caller, both checked before the lookup; lookups themselves are capped at `COMMIT_LOOKUP_DAILY_LIMIT` (50) a day. |
-| `ProcessSubmissions` | timer, every minute | Files pending rows as issues, oldest first, at most `DAILY_SUBMISSION_LIMIT` (10) a UTC day. Labels: `bug` or `enhancement`; `from-website` or `from-terminal`; `unverified-build` when a reported commit isn't on `main`. Records issue → email, sends the confirmation, and retries failures on the next tick without filing twice. |
+| `Submit` | `POST /api/submit` | The site's form. Honeypot, then `Origin`, validation, consent, Turnstile, and the per-IP daily limit (10), in that order. Stores a pending row. |
+| `Report` | `POST /api/report` | curl, for networks where Turnstile can't load. Validation and consent first. No CAPTCHA and no `Origin` check; instead `commit` must be a commit in the repository (checked through the GitHub API, cached in a table). Per-IP limit 3 a day, then a total of `REPORT_DAILY_LIMIT` (30) a day across every caller, both checked before the lookup; lookups themselves are capped at `COMMIT_LOOKUP_DAILY_LIMIT` (50) a day. |
+| `ProcessSubmissions` | timer, every minute | Files pending rows as issues, oldest first, at most `DAILY_SUBMISSION_LIMIT` (10) a UTC day. Labels: `bug` or `enhancement`; `from-website` or `from-terminal`; `unverified-build` when a reported commit isn't on `main`. The issue's footer says which version of the feedback disclaimer the reporter accepted. Records issue → email, sends the confirmation, and retries failures on the next tick without filing twice. |
 | `IssueWebhook` | `POST /api/webhook/issue` | Verifies GitHub's HMAC signature. When a submitted issue closes, emails the submitter the close reason and the last maintainer comment, then forgets the address. |
 
 **Limits that hold whatever a caller claims.** The client address is the last
@@ -24,9 +24,42 @@ must share one allowance. On top of the per-IP limits, nothing more is queued on
 `REPORT_DAILY_LIMIT` (30) a day in all, and GitHub commit lookups stop at
 `COMMIT_LOOKUP_DAILY_LIMIT` (50) a day. Each answers a plain 429.
 
+## Request format
+
+Both endpoints take one JSON object, at most 16 KB, and refuse any field they
+don't know with a 400 that lists the allowed ones.
+
+| Field | Endpoint | |
+|---|---|---|
+| `kind` | both | `"bug"` or `"feature"` |
+| `title` | both | 1 to 120 characters |
+| `body` | both | 1 to 4000 characters |
+| `email` | both | Where the issue link and the closing notice go; never shown on GitHub |
+| `consent` | both | The number `1`: the version of the feedback disclaimer the reporter agrees to |
+| `commit` | `/api/report` | The 40-character hash `toil version --select data.commit` prints |
+| `version` | `/api/report` | Optional: what `toil version --select data.version` prints |
+| `turnstileToken`, `website` | `/api/submit` | The CAPTCHA token, and the honeypot people never see |
+
+```bash
+curl -sS https://func-toil-feedback.azurewebsites.net/api/report \
+  -H 'Content-Type: application/json' \
+  -d '{"kind":"bug","title":"…","body":"…","email":"you@example.com","consent":1,"commit":"<hash>"}'
+```
+
+**Consent.** Every report becomes a public issue, so neither endpoint takes one
+without `"consent": 1`, which says the reporter agrees to version 1 of the feedback
+disclaimer in `src/lib/consent.ts` (the site and every other copy are pinned to it by
+`test/feedback-consent.test.ts` at the repository root). A missing value, or anything
+but the number 1 (`true`, `"1"`, `0`, `2`), is a 400 whose message quotes the
+disclaimer. The check comes straight after validation, before Turnstile and every
+limit, so a refused report costs no allowance. The agreed version is stored on the
+queued row as `consentVersion` and named in the issue's footer; a row queued before
+consent was asked for is still filed, and its footer says it predates the
+disclaimer. Changing the wording means bumping `CONSENT_VERSION` and every copy.
+
 Submissions carrying the `X-Smoke-Test-Key` header (the key is in Key Vault) skip
 Turnstile and nothing else, and are recorded on one persistent, closed `smoke-test`
-issue instead of a new one. The deploy's smoke test (`scripts/smoke.mjs`) uses it.
+issue instead of a new one. The deploy's smoke test (`scripts/smoke.mjs`) uses it, and also checks that a report without consent is refused with 400.
 
 ## Storage
 

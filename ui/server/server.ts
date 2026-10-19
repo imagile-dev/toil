@@ -22,6 +22,9 @@
  * always read-only. A config change (#253) is only a command on the server's
  * config allowlist (ui/server/config.ts): toil's own commands for its
  * connections and dossiers, with the person's answers to their questions. The
+ * Feedback (#265) is `toil feedback` alone, on `feedback`: read-only for the
+ * dialog's preview, and sent only with the person's `consent`, which answers
+ * the command's own consent question. The
  * agent (#251) answers on `agent/ask`, streamed as NDJSON when asked, and its
  * settings are `agent/settings`. `agent/mcp` is the one route without a
  * session: it serves one question's read tools to the Codex CLI, by that
@@ -36,7 +39,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net';
 import { extname, isAbsolute, join, normalize, relative, sep } from 'node:path';
 import type { Answer } from '../src/agent.ts';
-import type { Envelope } from '../src/toil.ts';
+import type { Envelope, ExecutePerson } from '../src/toil.ts';
 import type { AreaInfo, SettingsInfo } from '../src/config.ts';
 import type { Agent } from './agent.ts';
 import { AnswersError, CONFIG_COMMANDS, isConfigRead, personFrom, settingsFrom } from './config.ts';
@@ -129,6 +132,10 @@ interface Session {
 }
 
 const secret = () => randomBytes(32).toString('base64url');
+
+/** The fields a feedback call carries: what the person typed, and nothing Toil UI knows. */
+const FEEDBACK_FIELDS: ReadonlySet<string> = new Set(['kind', 'title', 'body', 'email']);
+const FEEDBACK_SHAPE = 'Send { "fields": { "kind": "bug", "title": "…", "body": "…", "email": "you@example.com" } }, with "consent": true to send it.';
 
 function same(a: string, b: string): boolean {
   const x = Buffer.from(a);
@@ -322,6 +329,27 @@ export function createUiServer(options: UiServerOptions): UiServer {
     json(res, 200, await store.execute(ctx, command, input as Record<string, unknown>, access, { readOnly, ...(person ? { person } : {}) }));
   };
 
+  /**
+   * `POST api/feedback` (#265): `toil feedback`, and no other command, with the
+   * dialog's four fields. Without `consent` it runs read-only, which only
+   * previews; with `consent: true`, ticked by the person for the report on
+   * screen, it runs with a person whose one answer is yes to the command's
+   * consent question. Toil UI adds nothing to the fields.
+   */
+  const feedbackCall = async (req: IncomingMessage, res: ServerResponse, ctx: RequestContext) => {
+    const body = await readJson(req);
+    const extra = Object.keys(body).filter((k) => k !== 'fields' && k !== 'consent');
+    if (extra.length) throw new HttpError(400, `A feedback call takes fields and consent, not ${extra.join(', ')}.`, FEEDBACK_SHAPE);
+    const fields = body.fields;
+    if (typeof fields !== 'object' || fields === null || Array.isArray(fields) || Object.entries(fields).some(([k, v]) => !FEEDBACK_FIELDS.has(k) || typeof v !== 'string')) {
+      throw new HttpError(400, "A feedback call's fields are kind, title, body and email, each as text.", FEEDBACK_SHAPE);
+    }
+    if (body.consent !== undefined && body.consent !== true) throw new HttpError(400, 'consent is true, once the person has agreed to send the report on screen, or left out for a preview.', FEEDBACK_SHAPE);
+    const consent = body.consent === true;
+    const person: ExecutePerson = { ask: (q) => (q.id === 'consent' ? (consent ? 'yes' : 'no') : undefined) };
+    json(res, 200, await store.execute(ctx, 'feedback', fields as Record<string, unknown>, 'feedback', { readOnly: !consent, person }));
+  };
+
   const api = async (req: IncomingMessage, res: ServerResponse, route: string, url: URL, ctx: RequestContext) => {
     const key = `${req.method === 'HEAD' ? 'GET' : req.method} ${route}`;
     if (key === 'POST session') return signIn(req, res);
@@ -342,6 +370,8 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return run(req, res, ctx, 'read');
       case 'POST config':
         return run(req, res, ctx, 'config');
+      case 'POST feedback':
+        return feedbackCall(req, res, ctx);
       case 'GET config/areas':
         json(res, 200, configInfo.areas);
         return;
@@ -407,7 +437,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return;
       }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, sync, cache/wipe, agent/starters, agent/ask, agent/settings and agent/mcp.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, agent/starters, agent/ask, agent/settings and agent/mcp.`);
     }
   };
 

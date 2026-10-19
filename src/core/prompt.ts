@@ -4,7 +4,7 @@ import { ToilError } from './errors.js';
 
 /**
  * Questions for a person at a terminal, used only by the `toil connections`
- * setup commands. Nothing else in toil prompts, and nothing prompts under MCP,
+ * setup commands and `toil feedback`'s "send it?". Nothing else in toil prompts, and nothing prompts under MCP,
  * where stdin is the protocol. The CLI builds one only when stdin and stderr
  * are both terminals; a program using the API builds one only from the
  * `person` it passes, whose answers a person typed in that program's own
@@ -17,7 +17,8 @@ export interface Prompter {
   /**
    * A visible answer; an empty one returns `fallback` (or ''). `id` names the
    * question for a host that asks it in its own interface (src/api.ts,
-   * `person`): `area`, `setting:<key>`, `confirm` or `confirm-name`. A
+   * `person`): `area`, `setting:<key>`, `confirm`, `confirm-name` or
+   * `consent` (toil feedback's report, shown whole in the question). A
    * terminal shows only the question.
    */
   ask(question: string, fallback?: string, id?: string): Promise<string>;
@@ -50,9 +51,13 @@ export function terminalPrompter(input: NodeJS.ReadableStream, output: NodeJS.Wr
       // A visible question is readline's own prompt, so redrawing the line
       // (after a backspace) keeps it. A secret's question is written before
       // muting, and with the echo muted nothing redraws over it.
+      // A question of several lines (toil feedback's report) is written whole,
+      // and readline prompts on its last line alone, so a redraw stays on one line.
+      const cut = secret ? -1 : question.lastIndexOf('\n');
+      if (cut >= 0) output.write(question.slice(0, cut + 1));
       if (secret) output.write(question);
       muted = secret;
-      return (await Promise.race([rl.question(secret ? '' : question), cancelled])).trim();
+      return (await Promise.race([rl.question(secret ? '' : question.slice(cut + 1)), cancelled])).trim();
     } finally {
       muted = false;
       if (secret) output.write('\n');

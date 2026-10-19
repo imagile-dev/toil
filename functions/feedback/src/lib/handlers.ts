@@ -12,6 +12,7 @@
 
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { Settings } from './config.js';
+import { CONSENT_VERSION, DISCLAIMER } from './consent.js';
 import type { Mailer } from './email.js';
 import type { CommitState, Fetch, GitHub } from './github.js';
 import type { Stored, Tables, Table } from './tables.js';
@@ -129,6 +130,23 @@ function validate(input: Record<string, unknown>, allowed: readonly string[]): P
   return { ok: true, value: { kind, title: cleanTitle, body: cleanBody, email: cleanEmail } };
 }
 
+const CONSENT_WHY = `Reports become public GitHub issues, so none is taken without it.`;
+
+/**
+ * Null when the caller agreed to the current disclaimer, otherwise the refusal.
+ * Both refusals quote the disclaimer, so a caller with only curl and this
+ * message still knows exactly what they are agreeing to.
+ */
+export function consentError(consent: unknown): string | null {
+  if (consent === CONSENT_VERSION) return null;
+  if (consent === undefined) {
+    return `consent is missing. Send "consent": ${CONSENT_VERSION} to say you agree to the feedback disclaimer, version ${CONSENT_VERSION}: "${DISCLAIMER}" ${CONSENT_WHY}`;
+  }
+  const sent = JSON.stringify(consent) ?? String(consent);
+  const shown = sent.length > 60 ? `${sent.slice(0, 60)}…` : sent;
+  return `consent must be the number ${CONSENT_VERSION}, the version of the feedback disclaimer you agree to, not ${shown}. Send "consent": ${CONSENT_VERSION} to agree to version ${CONSENT_VERSION}: "${DISCLAIMER}" ${CONSENT_WHY}`;
+}
+
 // ---------------------------------------------------------------------------
 // Limits
 
@@ -208,7 +226,7 @@ export async function commitState(deps: Deps, sha: string): Promise<CommitState 
 // ---------------------------------------------------------------------------
 // The two ways in
 
-async function enqueue(deps: Deps, submission: Submission, extra: Record<string, string | boolean>): Promise<void> {
+async function enqueue(deps: Deps, submission: Submission, extra: Record<string, string | number | boolean>): Promise<void> {
   const now = (deps.now ?? (() => new Date()))();
   await deps.tables.submissions.create({
     partitionKey: 'pending',
@@ -223,7 +241,7 @@ async function enqueue(deps: Deps, submission: Submission, extra: Record<string,
 
 const ACCEPTED = 'Thanks. Your report is queued and becomes a GitHub issue within a few minutes; we will email you the link.';
 
-/** POST /api/submit: honeypot, Origin, validation, Turnstile, then the per-IP limit, in that order. */
+/** POST /api/submit: honeypot, Origin, validation, consent, Turnstile, then the per-IP limit, in that order. */
 export async function submit(request: HttpIn, deps: Deps): Promise<HttpOut> {
   const parsed = await readJson(request);
   if (!parsed.ok) return fail(400, parsed.error);
@@ -234,10 +252,14 @@ export async function submit(request: HttpIn, deps: Deps): Promise<HttpOut> {
     return reply(202, { ok: true, message: ACCEPTED });
   }
   if (request.headers.get('origin') !== deps.settings.allowedOrigin) return fail(403, 'Submissions are accepted from the toil site only. From a terminal, use /api/report.');
-  const { turnstileToken, ...fields } = parsed.value;
+  const { turnstileToken, consent, ...fields } = parsed.value;
   delete fields.website;
-  const valid = validate(fields, ['kind', 'title', 'body', 'email']);
+  const valid = validate(fields, ['kind', 'title', 'body', 'email', 'consent']);
   if (!valid.ok) return fail(400, valid.error);
+  // Before Turnstile and the limits, so a report refused for want of consent
+  // costs the caller none of the day's allowance.
+  const refused = consentError(consent);
+  if (refused) return fail(400, refused);
   const ip = clientIp(request.headers);
   const smoke = sameSecret(request.headers.get(SMOKE_HEADER), deps.settings.smokeTestKey);
   // The smoke key replaces the CAPTCHA and nothing else: Origin, validation and
@@ -250,18 +272,20 @@ export async function submit(request: HttpIn, deps: Deps): Promise<HttpOut> {
     return fail(429, `This address has sent ${deps.settings.submitIpDailyLimit} reports today, the daily limit. Try again tomorrow (UTC).`);
   }
   if (await queueFull(deps)) return fail(429, QUEUE_FULL);
-  await enqueue(deps, valid.value, { source: 'website', smoke });
+  await enqueue(deps, valid.value, { source: 'website', smoke, consentVersion: CONSENT_VERSION });
   deps.log.info(`Submit: queued a ${valid.value.kind}${smoke ? ' (smoke test)' : ''}.`);
   return reply(202, { ok: true, message: ACCEPTED });
 }
 
-/** POST /api/report: validation, the per-IP limit, then the commit lookup. No CAPTCHA and no Origin check. */
+/** POST /api/report: validation, consent, the per-IP limit, then the commit lookup. No CAPTCHA and no Origin check. */
 export async function report(request: HttpIn, deps: Deps): Promise<HttpOut> {
   const parsed = await readJson(request);
   if (!parsed.ok) return fail(400, parsed.error);
-  const { commit, version, ...fields } = parsed.value;
-  const valid = validate(fields, ['kind', 'title', 'body', 'email']);
+  const { commit, version, consent, ...fields } = parsed.value;
+  const valid = validate(fields, ['kind', 'title', 'body', 'email', 'consent']);
   if (!valid.ok) return fail(400, valid.error);
+  const refused = consentError(consent);
+  if (refused) return fail(400, refused);
   const sha = typeof commit === 'string' ? commit.trim().toLowerCase() : '';
   if (!/^[0-9a-f]{40}$/.test(sha)) return fail(400, 'commit must be the 40-character hash from `toil version --select data.commit`.');
   if (version !== undefined && (typeof version !== 'string' || !/^[0-9A-Za-z.+_-]{1,64}$/.test(version))) {
@@ -289,6 +313,7 @@ export async function report(request: HttpIn, deps: Deps): Promise<HttpOut> {
   await enqueue(deps, valid.value, {
     source: 'terminal',
     smoke,
+    consentVersion: CONSENT_VERSION,
     commit: sha,
     onMain: state === 'on-main',
     ...(typeof version === 'string' ? { version } : {}),
@@ -320,6 +345,12 @@ export function issueFor(row: Stored, repo: string): { title: string; body: stri
     labels.push('from-website');
     footer = 'Reported through the form on the toil site.';
   }
+  // Rows queued before the disclaimer existed carry no version; they are filed
+  // all the same, and the issue says so rather than claim an agreement.
+  footer +=
+    typeof row.consentVersion === 'number'
+      ? ` The reporter accepted the feedback disclaimer (version ${row.consentVersion}) before sending.`
+      : ' Sent before reporters were asked to accept the feedback disclaimer.';
   return { title: String(row.title), body: `${quietMentions(String(row.body))}\n\n---\n<sub>${footer}</sub>`, labels };
 }
 

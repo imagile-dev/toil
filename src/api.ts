@@ -118,8 +118,10 @@ export interface Registry {
  * One question a person's command asks, which a host shows in its own
  * interface. `id` says what it asks for, so the host can match it to a field:
  * `area`, `setting:<key>` and `secret:<key>` (the connection's fields,
- * `AreaSummary.connection`), `confirm` (save what was reviewed: `y` or `n`)
- * and `confirm-name` (type the connection's name to turn writes on).
+ * `AreaSummary.connection`), `confirm` (save what was reviewed: `y` or `n`),
+ * `confirm-name` (type the connection's name to turn writes on) and `consent`
+ * (`feedback`: send the report and disclaimer the question shows to Imagile
+ * LLC, `yes` or `no`; only the person's own yes may be passed on).
  */
 export interface Question {
   id: string;
@@ -176,11 +178,14 @@ export interface ExecuteOptions {
   /**
    * The person the call is for, answering the questions toil would ask on a
    * terminal. With one, `execute()` also runs `registry.personCommands`
-   * (`connections add`, `login`, `remove`, `writes` and `default`), asking
-   * each question through it: a secret goes from their answer straight to the
-   * OS credential store and is never in the input, the envelope or the audit
-   * log, and turning writes on still needs them to type the connection's
-   * name. Without one, those commands are refused, as before.
+   * (`connections add`, `login`, `remove`, `writes` and `default`, and
+   * `feedback`), asking each question through it: a secret goes from their
+   * answer straight to the OS credential store and is never in the input, the
+   * envelope or the audit log, turning writes on still needs them to type the
+   * connection's name, and a feedback report is sent only on their `yes` to
+   * the `consent` question, which shows the report and the disclaimer. With
+   * `readOnly` too, nothing is asked: `feedback` returns its preview and sends
+   * nothing. Without one, those commands are refused, as before.
    */
   person?: ExecutePerson;
 }
@@ -189,10 +194,12 @@ const served: AnyCommand[] = commands.filter(servedOverMcp);
 const byName = new Map(served.map((def) => [commandName(def), def]));
 /**
  * The person's commands a host may run with `person`: setting up and changing
- * connections. The other CLI-only commands (a shell alias, a dossier's or a
- * marketplace's removal) and every delete stay on the CLI.
+ * connections, and `feedback`, which sends a report to Imagile LLC only on the
+ * person's yes to its `consent` question (AGENT_DECISIONS.md, #265). The other
+ * CLI-only commands (a shell alias, a dossier's or a marketplace's removal)
+ * and every delete stay on the CLI.
  */
-const PERSON_COMMANDS = new Set(['connections add', 'connections login', 'connections remove', 'connections writes', 'connections default']);
+const PERSON_COMMANDS = new Set(['connections add', 'connections login', 'connections remove', 'connections writes', 'connections default', 'feedback']);
 const forPerson: AnyCommand[] = commands.filter((def) => PERSON_COMMANDS.has(commandName(def)));
 const personByName = new Map(forPerson.map((def) => [commandName(def), def]));
 const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context) }));
@@ -311,7 +318,8 @@ export async function execute(command: string, input: Record<string, unknown> = 
       secrets,
       ...(options.onProgress ? { progress: options.onProgress } : {}),
       // Only the person's commands are handed it, through ctx.manage; run() keeps it from every other.
-      ...(options.person && personByName.has(commandName(d)) ? { prompt: prompterFor(options.person) } : {}),
+      // A read-only call asks nothing: `feedback` then only previews, and the connections commands are refused anyway.
+      ...(options.person && !options.readOnly && personByName.has(commandName(d)) ? { prompt: prompterFor(options.person) } : {}),
     });
   return runCommand(def, input, context, VERSION, 'api', { targets: served }, { ...(options.readOnly ? { readOnly: true } : {}), ...(options.caller ? { caller: options.caller } : {}) });
 }

@@ -5,9 +5,11 @@
 //
 //   1. POST /api/submit with the site's Origin (the key skips Turnstile only)
 //   2. POST /api/report about the commit being deployed (a real commit on main)
-//   3. POST /api/webhook/issue unsigned, which must be refused with 401: a 500
+//   3. POST /api/report with no consent, which must be refused with 400. The
+//      consent check comes before every limit, so this costs no allowance
+//   4. POST /api/webhook/issue unsigned, which must be refused with 401: a 500
 //      means the webhook secret didn't resolve from Key Vault
-//   4. Wait for the timer to record both runs on the smoke-test issue
+//   5. Wait for the timer to record both runs on the smoke-test issue
 //
 // It names the stage that failed and exits 1. A smoke test that passes when the
 // pipeline is down is a status report, and we have enough of those.
@@ -55,7 +57,8 @@ async function post(path, body, headers) {
 }
 
 const titles = { submit: `smoke ${run} submit`, report: `smoke ${run} report` };
-const fields = { kind: 'bug', body: 'Automated smoke test of the deployed feedback backend.', email: 'you@example.com' };
+// consent: 1 is the version of the feedback disclaimer (functions/feedback/src/lib/consent.ts).
+const fields = { kind: 'bug', body: 'Automated smoke test of the deployed feedback backend.', email: 'you@example.com', consent: 1 };
 
 const submitted = await post('/api/submit', { ...fields, title: titles.submit, website: '' }, { origin, 'x-smoke-test-key': key });
 if (submitted.status !== 202) fail('submit', `expected 202, got ${submitted.status}: ${submitted.text}`);
@@ -64,6 +67,12 @@ console.log('smoke: /api/submit accepted the smoke run.');
 const reported = await post('/api/report', { ...fields, title: titles.report, commit }, { 'x-smoke-test-key': key });
 if (reported.status !== 202) fail('report', `expected 202, got ${reported.status}: ${reported.text}`);
 console.log('smoke: /api/report accepted the smoke run.');
+
+const unconsented = { ...fields };
+delete unconsented.consent;
+const refused = await post('/api/report', { ...unconsented, title: `smoke ${run} no consent`, commit }, {});
+if (refused.status !== 400 || !refused.text.includes('consent is missing')) fail('consent', `expected 400 "consent is missing" for a report without consent, got ${refused.status}: ${refused.text}`);
+console.log('smoke: /api/report refused a report without consent.');
 
 const hook = await post('/api/webhook/issue', { action: 'closed' }, { 'x-github-event': 'issues' });
 if (hook.status !== 401) fail('webhook', `expected 401 for an unsigned delivery, got ${hook.status}: ${hook.text}`);

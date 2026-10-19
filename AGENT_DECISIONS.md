@@ -3446,3 +3446,68 @@ fills.
   which git ignores apart from the two style files. Starship's scanner came back
   in dark navy, invisible on the console, so its lines were recoloured to the
   theme's ice blue after generation.
+
+### #265 consented feedback
+
+- **Principle 9 doesn't forbid `toil feedback`; it is sharpened to name it.** "No call
+  home" is about traffic toil starts on its own. A report the person writes, sees in
+  full and approves is theirs, sent to a host the command names in its own name, as
+  `toil osv vulns` does. Principle 9 now says so, and `docs/bounds.md` records it as the
+  exception `feedback.send` to `commands.read-only` (no connection holds `writes: true`
+  for it; the per-report approval is its gate). CLAUDE.md, **Writes**, lists it as the
+  one write to a service with no connection. If the maintainer reads "no call home" as
+  covering this too, the command is one file to remove (`src/feedback/`).
+- **One text, versioned, held identical by a test.** `src/feedback/consent.ts` is toil's
+  copy (`CONSENT_VERSION = 1`, `DISCLAIMER`). The function and the site are packages of
+  their own and keep copies; `test/feedback-consent.test.ts` holds them, the skill's
+  quoted text and the README's curl field to it. Toil UI has no copy: it shows the text
+  `toil feedback` returns, so it can't drift from the toil it runs. A change to the text
+  is a new version; the function accepts only the current one.
+- **On the wire, consent is the version number** (`"consent": 1`), not a boolean, so a
+  report says which text was agreed to. The function stores it as `consentVersion` and
+  the issue footer says the reporter accepted that version. Rows queued before this
+  change have none, and their footer says they predate the disclaimer rather than claim
+  an agreement.
+- **The function checks consent after field validation and before Turnstile and every
+  limit**, so a refused report costs no allowance and no commit lookup. The refusal
+  quotes the disclaimer, so a curl user sees what they are agreeing to. The deploy smoke
+  test gains a stage posting without consent and expecting that 400.
+- **`toil feedback` is a `cli-only` config command** (it needs the prompter for the
+  terminal's yes, and only config commands get one). It loads config like any of them,
+  so a broken config file stops it; the site's form is the way out then, and the error
+  already says how to fix the config.
+- **Without approval it succeeds with `sent: false`**, the exact report, the disclaimer
+  and how to approve, plus a `FEEDBACK_NOT_SENT` warning, rather than failing: a preview
+  is the expected first step for an agent, not an error. A terminal "no" is the same;
+  Ctrl+C (or a host's unanswered question) is `CANCELLED`.
+- **`@imagile-dev/toil/api` runs it only for a `person`** (it joins
+  `PERSON_COMMANDS`). The `consent` field is refused there (`offMcpWhen`, which the API
+  shares), so a program can't approve a report itself: the approval is the person's
+  `yes` to the `consent` question, whose text is the report and the disclaimer. A
+  `readOnly` call gets no prompter, so it only previews; that is how Toil UI previews.
+- **Nothing toil holds is added to a report**: only kind, title, body, email, `consent`,
+  `version` and `commit`. The audit line hashes the title and body and drops the email.
+- **A build with no commit previews but can't send**, since `/api/report` needs one.
+  It returns the preview with a `FEEDBACK_NOT_SENT` warning naming the cause, without
+  asking first (a yes it would then refuse wastes the person's time), and `--consent`
+  on it is `UNSUPPORTED`. Source runs and builds without git get the site's form.
+- **Left for the maintainer: no standing opt-in (principle 2).** Every other outbound
+  write needs `writes: true`, set by a person, plus a flag; this needs only
+  `--consent`, which an agent with a shell can pass itself, so a prompt injection
+  could publish what is in its context as a public issue past everything but the
+  skill's steps. Options the review raised: ask on a terminal even with `--consent`,
+  or add a config opt-in an agent can't set. Not changed here; the trade-off is
+  written into `docs/bounds.md`, `feedback.send`, and the review thread stays open
+  (#270).
+- **`TOIL_FEEDBACK_URL`, loopback only**, exists to drive the command against a local
+  copy of the function. Any other value is `CONFIG_INVALID` before anything is sent, so
+  it can't redirect a report elsewhere. It is a reserved env name.
+- **The terminal prompter writes a multi-line question whole** and prompts on its last
+  line, so readline's redraw stays on one line while the report above it stays visible.
+- **Toil UI: a header button and a modal dialog**, not a Settings page, since feedback
+  isn't configuration. Its server route is `POST api/feedback`, separate from
+  `api/config`: four text fields, `consent: true` or nothing, and only `toil feedback`.
+  The preview is the command run read-only, debounced 300 ms; any edit clears the
+  checkbox, so the yes belongs to the report on screen. The disclaimer and checkbox
+  appear once toil has returned a preview, since the text is toil's; until then the
+  dialog says what to fill in.

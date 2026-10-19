@@ -15,7 +15,7 @@ import type { Agent } from './agent.ts';
 import './app.css';
 import './views.css';
 import type { ConfigApi } from './config.ts';
-import { httpAgent, httpAgentSettings, httpConfig, httpExecute, httpSync, signIn, type AgentStatus, type Session, type SyncStatus } from './server-client.ts';
+import { httpAgent, httpAgentSettings, httpConfig, httpExecute, httpFeedback, httpSync, signIn, type AgentStatus, type Session, type SyncStatus } from './server-client.ts';
 import { SyncPanel, lastSynced } from './sync-panel.tsx';
 import { CALL_OPTIONS, type Execute } from './toil.ts';
 
@@ -39,13 +39,14 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   const [generation, setGeneration] = useState(0);
   const [sync] = useState(() => (session.sync ? httpSync(session) : null));
   const [config] = useState<ConfigApi>(() => httpConfig(session));
+  const [feedback] = useState(() => httpFeedback(session));
   const onChange = useCallback((next: SyncStatus) => {
     setSynced(lastSynced(next));
     setGeneration((g) => g + 1);
   }, []);
   return (
     <>
-      <App key={generation} execute={execute} agent={agent} config={config} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent } } : {})} />
+      <App key={generation} execute={execute} agent={agent} config={config} feedback={feedback} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent } } : {})} />
       {sync && <SyncPanel client={sync} onChange={onChange} />}
     </>
   );

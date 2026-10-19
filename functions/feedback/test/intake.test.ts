@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { readSettings } from '../src/lib/config.js';
+import { CONSENT_VERSION, DISCLAIMER } from '../src/lib/consent.js';
 import { clientIp, report, submit } from '../src/lib/handlers.js';
 import { TURNSTILE_VERIFY } from '../src/lib/turnstile.js';
 import { API, ORIGIN, REPO, SHA, deps, json, request } from './helpers.js';
 
-const form = { kind: 'bug', title: 'jira get-issue drops the epic link', body: 'Steps: run it.', email: 'you@example.com', turnstileToken: 'cf-token', website: '' };
+const form = { kind: 'bug', title: 'jira get-issue drops the epic link', body: 'Steps: run it.', email: 'you@example.com', consent: 1, turnstileToken: 'cf-token', website: '' };
 const site = { origin: ORIGIN, 'x-forwarded-for': '203.0.113.7:51234' };
 /** What a caller forging X-Forwarded-For looks like by the time the platform has appended the real address. */
 const forged = (n: number, real = '198.51.100.4') => ({ 'x-forwarded-for': `10.9.8.${n}, ${real}:40000` });
@@ -58,7 +59,7 @@ describe('POST /api/submit', () => {
     expect(full).toEqual({ status: 429, body: { ok: false, error: 'The feedback queue is full right now. Try again tomorrow (UTC).' } });
     expect(t.tables.dump('submissions')).toHaveLength(2);
     const [row] = t.tables.dump('submissions');
-    expect(row).toMatchObject({ partitionKey: 'pending', kind: 'bug', title: form.title, body: form.body, email: 'you@example.com', source: 'website', smoke: false, attempts: 0, submittedAt: '2026-10-18T12:00:00.000Z' });
+    expect(row).toMatchObject({ partitionKey: 'pending', kind: 'bug', title: form.title, body: form.body, email: 'you@example.com', source: 'website', smoke: false, consentVersion: 1, attempts: 0, submittedAt: '2026-10-18T12:00:00.000Z' });
     expect(row!.rowKey).toMatch(/^2026-10-18T12:00:00\.000Z-[0-9a-f]{32}$/);
   });
 
@@ -84,7 +85,7 @@ describe('POST /api/submit', () => {
     [{ body: 'x'.repeat(4001) }, 'body must be 1 to 4000 characters.'],
     [{ email: 'not-an-address' }, expect.stringContaining('email must be a valid email address')],
     [{ email: undefined }, expect.stringContaining('email must be a valid email address')],
-    [{ service: 'jira' }, 'Unknown field: service. Allowed: kind, title, body, email.'],
+    [{ service: 'jira' }, 'Unknown field: service. Allowed: kind, title, body, email, consent.'],
   ])('refuses %j before Turnstile is asked', async (change, error) => {
     const t = deps();
     const out = await submit(request({ ...form, ...change }, site), t.deps);
@@ -142,14 +143,14 @@ describe('POST /api/submit', () => {
 
 describe('POST /api/report', () => {
   const curl = { 'x-forwarded-for': '198.51.100.4' };
-  const body = { kind: 'feature', title: 'A --since flag on bitbucket list-prs', body: 'Please.', email: 'you@example.com', commit: SHA.toUpperCase(), version: '0.1.0-alpha.1' };
+  const body = { kind: 'feature', title: 'A --since flag on bitbucket list-prs', body: 'Please.', email: 'you@example.com', consent: 1, commit: SHA.toUpperCase(), version: '0.1.0-alpha.1' };
   const compare = `GET ${API}/repos/${REPO}/compare/${SHA}...main?per_page=1`;
 
   it('needs no Origin and no CAPTCHA, and queues a report about a commit on main', async () => {
     const t = deps({ routes: { [compare]: () => json(200, { status: 'ahead' }) } });
     const out = await report(request(body, curl), t.deps);
     expect(out.status).toBe(202);
-    expect(t.tables.dump('submissions')[0]).toMatchObject({ source: 'terminal', commit: SHA, onMain: true, version: '0.1.0-alpha.1', kind: 'feature', smoke: false });
+    expect(t.tables.dump('submissions')[0]).toMatchObject({ source: 'terminal', commit: SHA, onMain: true, version: '0.1.0-alpha.1', kind: 'feature', smoke: false, consentVersion: 1 });
     const lookup = t.calls.find((c) => c.url.includes('/compare/'))!;
     expect(lookup.headers.authorization).toBe('token ghs_contents');
     const mint = t.calls.find((c) => c.url.endsWith('/access_tokens'))!;
@@ -224,5 +225,75 @@ describe('POST /api/report', () => {
     for (let i = 0; i < 3; i++) expect((await report(request(body, curl), t.deps)).status).toBe(422);
     expect((await report(request(body, curl), t.deps)).status).toBe(429);
     expect(t.calls.filter((c) => c.url.includes('/compare/'))).toHaveLength(1);
+  });
+});
+
+describe('consent to the feedback disclaimer', () => {
+  const curl = { 'x-forwarded-for': '198.51.100.4' };
+  const terminal = { kind: 'bug', title: 'A report', body: 'Details.', email: 'you@example.com', consent: 1, commit: SHA };
+  const missing = `consent is missing. Send "consent": 1 to say you agree to the feedback disclaimer, version 1: "${DISCLAIMER}" Reports become public GitHub issues, so none is taken without it.`;
+  const wrong = (shown: string) =>
+    `consent must be the number 1, the version of the feedback disclaimer you agree to, not ${shown}. Send "consent": 1 to agree to version 1: "${DISCLAIMER}" Reports become public GitHub issues, so none is taken without it.`;
+  const without = (payload: Record<string, unknown>) => {
+    const copy = { ...payload };
+    delete copy.consent;
+    return copy;
+  };
+
+  it('is version 1 of the disclaimer', () => {
+    expect(CONSENT_VERSION).toBe(1);
+    expect(DISCLAIMER).toContain('becomes a public GitHub issue in imagile-dev/toil');
+  });
+
+  it('refuses a submission with no consent, quoting the disclaimer, before Turnstile and without spending the per-IP limit', async () => {
+    const t = deps({ routes: turnstileOk, settings: { submitIpDailyLimit: 1 } });
+    expect(await submit(request(without(form), site), t.deps)).toEqual({ status: 400, body: { ok: false, error: missing } });
+    expect(t.calls).toEqual([]);
+    expect(t.tables.dump('ratelimits')).toEqual([]);
+    expect(t.tables.dump('submissions')).toEqual([]);
+    expect((await submit(request(form, site), t.deps)).status).toBe(202);
+  });
+
+  it('refuses a report with no consent before the per-IP limit, the daily total and the commit lookup', async () => {
+    const t = deps({ settings: { reportIpDailyLimit: 1, reportDailyLimit: 1 } });
+    expect(await report(request(without(terminal), curl), t.deps)).toEqual({ status: 400, body: { ok: false, error: missing } });
+    expect(t.calls).toEqual([]);
+    expect(t.tables.dump('ratelimits')).toEqual([]);
+    expect(t.tables.dump('counters')).toEqual([]);
+  });
+
+  it.each([
+    [true, 'true'],
+    ['1', '"1"'],
+    [0, '0'],
+    [2, '2'],
+    [null, 'null'],
+  ])('refuses consent %j on both endpoints, saying what was sent', async (consent, shown) => {
+    const t = deps({ settings: { submitIpDailyLimit: 1, reportIpDailyLimit: 1 } });
+    expect(await submit(request({ ...form, consent }, site), t.deps)).toEqual({ status: 400, body: { ok: false, error: wrong(shown) } });
+    expect(await report(request({ ...terminal, consent }, curl), t.deps)).toEqual({ status: 400, body: { ok: false, error: wrong(shown) } });
+    expect(t.calls).toEqual([]);
+    expect(t.tables.dump('ratelimits')).toEqual([]);
+  });
+
+  it('shortens a long consent value in the refusal', async () => {
+    const t = deps();
+    const out = await report(request({ ...terminal, consent: 'x'.repeat(200) }, curl), t.deps);
+    expect(out.body.error).toContain(`not "${'x'.repeat(59)}…. Send`);
+  });
+
+  it('records the agreed version on both kinds of row', async () => {
+    const t = deps({ routes: { ...turnstileOk, [`GET ${API}/repos/${REPO}/compare/${SHA}...main?per_page=1`]: () => json(200, { status: 'ahead' }) } });
+    expect((await submit(request(form, site), t.deps)).status).toBe(202);
+    expect((await report(request(terminal, curl), t.deps)).status).toBe(202);
+    const recorded = t.tables.dump('submissions').map((row) => [row.source, row.consentVersion]);
+    expect(recorded).toHaveLength(2);
+    expect(recorded).toEqual(expect.arrayContaining([['website', 1], ['terminal', 1]]));
+  });
+
+  it('still answers a filled honeypot as if it worked, consent or not', async () => {
+    const t = deps();
+    expect((await submit(request({ ...without(form), website: 'https://spam.imagile.dev' }, site), t.deps)).status).toBe(202);
+    expect(t.tables.dump('submissions')).toEqual([]);
   });
 });

@@ -13472,6 +13472,47 @@
           "opaque": "unknown"
         }
       ]
+    },
+    {
+      "command": "feedback",
+      "usage": "[options] [kind]",
+      "description": "Send a bug report or feature request to Imagile LLC as a public GitHub issue, once you approve it",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--title <text>",
+          "description": "One-line summary, up to 120 characters"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "The details, up to 4000 characters"
+        },
+        {
+          "flags": "--email <address>",
+          "description": "Your email, kept private: used only to tell you about the issue"
+        },
+        {
+          "flags": "--input-file <file>",
+          "description": "JSON with any of kind, title, body and email; a flag beats the file; - reads stdin"
+        },
+        {
+          "flags": "--consent",
+          "description": "Send it: you read the report and the disclaimer, and agree"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "sent",
+            "endpoint",
+            "report",
+            "consentVersion",
+            "disclaimer",
+            "approve?",
+            "message?"
+          ]
+        }
+      ]
     }
   ]
 }
