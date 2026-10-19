@@ -182,9 +182,11 @@ const clickAll = (selector, text) => `(() => {
 function states(route, width) {
   const out = [];
   const narrow = width <= 1000;
-  if (width < 768) out.push({ name: 'menu', setup: clickAll('[data-menu-button]'), undo: 'Escape' });
-  if (route === '#/') out.push({ name: 'feedback', setup: clickAll('button.feedback-open, [data-feedback-open]'), undo: 'Escape', inMenu: width < 768 });
-  if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/') });
+  // The app's own breakpoint (COMPACT_HEADER in src/App.tsx): below it, the header is the Menu button.
+  const compact = width < 1024;
+  if (compact) out.push({ name: 'menu', setup: clickAll('[data-menu-button]'), undo: 'Escape' });
+  if (route === '#/') out.push({ name: 'feedback', setup: clickAll('button.feedback-open'), undo: 'Escape', inMenu: compact });
+  if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/'), undoJs: clickAll('.conn-card button', '/^Hide$/') });
   if (/^#\/dossier\/[^/]+$/.test(route) && narrow) out.push({ name: 'ask-open', setup: clickAll('.ask--sheet .ask-head button', '/Open/'), undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') });
   return out;
 }
@@ -241,8 +243,10 @@ export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES,
             (run.strict ? problems : reported).push(line);
           }
           for (const state of states(route, width)) {
-            if (state.inMenu) await page.evaluate(clickAll('[data-menu-button]'));
-            await page.evaluate(state.setup);
+            // A state that opens nothing checks nothing, so it's a problem, never a quiet pass.
+            if (state.inMenu && !(await page.evaluate(clickAll('[data-menu-button]')))) problems.push(`${where} (${state.name}): no Menu button to open`);
+            if (state.inMenu) await page.evaluate(`new Promise((r) => setTimeout(r, 200))`);
+            if (!(await page.evaluate(state.setup))) problems.push(`${where} (${state.name}): nothing to open; the selector matched no element`);
             await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
             await shoot(`${slug}__${state.name}`);
             record(state.name, await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)})`));

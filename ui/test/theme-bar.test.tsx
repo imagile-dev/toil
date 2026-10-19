@@ -245,7 +245,8 @@ describe('the header (#277)', { timeout: SLOW }, () => {
       expect(within(dialog).getByRole('button', { name: /Theme/ })).toBeTruthy();
       await userEvent.keyboard('{Escape}');
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-      expect(document.activeElement).toBe(menu);
+      // React Aria hands focus back to the trigger a tick after the popover unmounts.
+      await waitFor(() => expect(document.activeElement).toBe(menu));
     } finally {
       window.matchMedia = real;
     }
