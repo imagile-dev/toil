@@ -16,6 +16,15 @@
   background-size: 24px 24px;
 }
 
+/* The crate in its hard hat beside the name. */
+[data-theme="crate"] .brand::before {
+  content: "";
+  width: 36px;
+  height: 36px;
+  margin-right: 0.5rem;
+  background: url("./assets/emblem.webp") center / contain no-repeat;
+}
+
 [data-theme="crate"] h1,
 [data-theme="crate"] h2 {
   font-family: var(--font-display);

@@ -2,8 +2,9 @@
  * Realm's skins (#210): a chronicle in ink. A board card names the quest it
  * serves (its epic, with the source's own word beside the theme's), panels
  * close with an inked flourish, the header carries one too, an empty list is
- * a blank scroll, and the agent writes as a scribe. The art is drawn for this
- * theme and hidden from screen readers.
+ * a blank scroll, the agent writes as a scribe, and while a view loads the
+ * quill is still at work (#267). The art is drawn for this theme and hidden
+ * from screen readers.
  * Every quest is recorded in the ledger before any hero is consulted.
  */
 
@@ -70,6 +71,12 @@ export const realmSkins: Partial<Skins> = {
       <img src={art('scroll.svg')} alt="" width={200} height={120} loading="lazy" decoding="async" />
       <p>{message}</p>
       {children}
+    </div>
+  ),
+  Loading: ({ message }) => (
+    <div className="skin-loading skin-empty--art realm-writing" role="status">
+      <img src={art('quill-and-scroll.webp')} alt="" width={240} height={160} decoding="async" />
+      <p>{message}</p>
     </div>
   ),
 };

@@ -9,14 +9,32 @@
 @import '@fontsource/pixelify-sans/400.css';
 @import '@fontsource/pixelify-sans/600.css';
 
+/* The farm itself along the foot of the page (fields, a fence and the barn)
+   over a faint woven-straw check, close enough to the background that text
+   keeps its contrast. Its sky fades into the page rather than starting at a
+   line. The page keeps the farm's strip clear, so no text ever
+   sits on the art. */
 [data-theme="harvest"] body {
-  background-color: var(--bg);
-  /* A faint woven-straw check, close enough to the background that text keeps its contrast. */
-  background-image:
-    linear-gradient(45deg, rgba(92, 63, 36, 0.035) 25%, transparent 25%, transparent 75%, rgba(92, 63, 36, 0.035) 75%),
-    linear-gradient(45deg, rgba(92, 63, 36, 0.035) 25%, transparent 25%, transparent 75%, rgba(92, 63, 36, 0.035) 75%);
-  background-position: 0 0, 4px 4px;
-  background-size: 8px 8px;
+  background:
+    linear-gradient(var(--bg), transparent 45%) center bottom / 100% 192px no-repeat,
+    url("./assets/fields.webp") center bottom / auto 192px repeat-x,
+    linear-gradient(45deg, rgba(92, 63, 36, 0.035) 25%, transparent 25%, transparent 75%, rgba(92, 63, 36, 0.035) 75%) 0 0 / 8px 8px,
+    linear-gradient(45deg, rgba(92, 63, 36, 0.035) 25%, transparent 25%, transparent 75%, rgba(92, 63, 36, 0.035) 75%) 4px 4px / 8px 8px,
+    var(--bg);
+}
+
+[data-theme="harvest"] #root {
+  padding-bottom: 192px;
+}
+
+/* The barn and its sunflower beside the name. */
+[data-theme="harvest"] .brand::before {
+  content: "";
+  width: 40px;
+  height: 40px;
+  margin-right: 0.5rem;
+  background: url("./assets/emblem.webp") center / contain no-repeat;
+  image-rendering: pixelated;
 }
 
 [data-theme="harvest"] img,

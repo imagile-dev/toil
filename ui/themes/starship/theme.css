@@ -11,8 +11,25 @@
 @import '@fontsource/exo-2/400.css';
 @import '@fontsource/exo-2/600.css';
 
+/* Deep space behind the console: a nebula and a planet's limb, under a scrim
+   of the page's own black. At its brightest pixel the scrim leaves muted text
+   at 4.5:1 and ink at 13:1, so text that sits straight on the page stays
+   readable. The drifting starfield passes over it. */
 [data-theme="starship"] body {
-  background-color: var(--bg);
+  background:
+    linear-gradient(rgba(5, 7, 15, 0.75), rgba(5, 7, 15, 0.75)) fixed,
+    url("./assets/nebula.webp") center / cover no-repeat fixed,
+    var(--bg);
+}
+
+/* The ship's insignia beside the name, lit by its own engines. */
+[data-theme="starship"] .brand::before {
+  content: "";
+  width: 36px;
+  height: 36px;
+  margin-right: 0.5rem;
+  background: url("./assets/emblem.webp") center / contain no-repeat;
+  filter: drop-shadow(0 0 6px rgba(54, 214, 255, 0.55));
 }
 
 /* The starfield, on its own layer so it can drift without repainting the page. */
@@ -262,6 +279,11 @@
 [data-theme="starship"] .chart .bar,
 [data-theme="starship"] .chart .dot {
   filter: drop-shadow(0 0 3px rgba(54, 214, 255, 0.7));
+}
+
+/* An empty list is an empty sector on the scanner. */
+[data-theme="starship"] .starship-empty img {
+  width: 240px;
 }
 
 /* The jump to lightspeed: still when reduced motion is on. */

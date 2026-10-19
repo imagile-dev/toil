@@ -33,7 +33,10 @@
     "starfield": "assets/starfield.svg",
     "chart": "assets/star-chart.svg",
     "computer": "assets/computer.svg",
-    "loading": "assets/lightspeed.svg"
+    "loading": "assets/lightspeed.svg",
+    "emblem": "assets/emblem.webp",
+    "nebula": "assets/nebula.webp",
+    "emptyState": "assets/empty-sector.webp"
   },
   "terms": {
     "sprint": "Ship's status",
