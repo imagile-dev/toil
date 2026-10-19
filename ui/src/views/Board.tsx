@@ -30,7 +30,7 @@ import { STATUS_CATEGORY_LABEL, estimateText, personText, shortKey } from '../fo
 import { columns, proposeMove } from '../model/board.ts';
 import { insights } from '../model/insights.ts';
 import type { Proposal } from '../proposal.ts';
-import { useSkins } from '../skins.tsx';
+import { useSkins, useWords } from '../skins.tsx';
 import type { StatusCategory, WorkItem } from '../toil.ts';
 
 const label = (c: StatusCategory) => STATUS_CATEGORY_LABEL[c];
@@ -84,6 +84,7 @@ function Card({ item, others, onMove }: { item: WorkItem; others: StatusCategory
 
 function Column({ category, items, all, onMove }: { category: StatusCategory; items: WorkItem[]; all: StatusCategory[]; onMove: (item: WorkItem, to: StatusCategory) => void }) {
   const { setNodeRef, isOver } = useDroppable({ id: category });
+  const words = useWords();
   const id = `col-${category}`;
   return (
     <section ref={setNodeRef} className={`column column--${category.toLowerCase()}${isOver ? ' column--over' : ''}`} aria-labelledby={id}>
@@ -97,7 +98,7 @@ function Column({ category, items, all, onMove }: { category: StatusCategory; it
           ))}
         </ul>
       ) : (
-        <p className="note">Nothing here.</p>
+        <p className="note">{words('empty.column')}</p>
       )}
     </section>
   );

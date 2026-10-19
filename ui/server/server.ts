@@ -26,7 +26,9 @@
  * dialog's preview, and sent only with the person's `consent`, which answers
  * the command's own consent question. The
  * agent (#251) answers on `agent/ask`, streamed as NDJSON when asked, and its
- * settings are `agent/settings`. `agent/mcp` is the one route without a
+ * settings are `agent/settings`, the person's instructions and custom voice
+ * among them (#283), and `agent/prompt` shows the system prompt a question
+ * would get in the page's theme. `agent/mcp` is the one route without a
  * session: it serves one question's read tools to the Codex CLI, by that
  * question's bearer token, and refuses anything carrying a page's `Origin`.
  * The building has one door, one key and a guest book, and the guest book is
@@ -47,6 +49,7 @@ import { AgentError } from './agents/cli.ts';
 import type { AgentStatus } from './agents/host.ts';
 import { answerMcp, McpGrants } from './agents/mcp.ts';
 import type { ServeTools } from './agents/runtime.ts';
+import { StyleError, styleFrom, type StyleChoice } from './agents/voices.ts';
 import { localViewer, type RequestContext, type Viewer } from './context.ts';
 import type { Settings } from './settings.ts';
 import { READ_COMMANDS, type Access, type Store } from './store.ts';
@@ -78,6 +81,8 @@ export interface UiServerOptions {
 export interface AgentControl {
   status(): AgentStatus;
   save(input: unknown): AgentStatus;
+  /** The system prompt a question about the dossier gets now, in the page's style (#283). */
+  systemPrompt(dossier: string, style: StyleChoice | null): string;
 }
 
 export interface UiServer {
@@ -159,6 +164,16 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
 function agentFailure(e: unknown): { message: string; fix?: string } {
   if (e instanceof AgentError) return { message: e.message, fix: e.fix };
   return { message: e instanceof Error ? e.message : String(e) };
+}
+
+/** The answer's style the page sent (#283): a built-in theme and the voice switch, or neither. */
+function checkedStyle(body: Record<string, unknown>): StyleChoice | null {
+  try {
+    return styleFrom(body);
+  } catch (e) {
+    if (e instanceof StyleError) throw new HttpError(400, e.message, e.fix);
+    throw e;
+  }
 }
 
 async function readJsonValue(req: IncomingMessage): Promise<unknown> {
@@ -386,14 +401,25 @@ export function createUiServer(options: UiServerOptions): UiServer {
       }
       case 'POST agent/ask': {
         const body = await readJson(req);
-        if (typeof body.dossier !== 'string' || typeof body.prompt !== 'string') throw new HttpError(400, 'A question needs a dossier and a prompt.', 'Send { "dossier": "<name>", "prompt": "<question>" }.');
+        if (typeof body.dossier !== 'string' || typeof body.prompt !== 'string') throw new HttpError(400, 'A question needs a dossier and a prompt.', 'Send { "dossier": "<name>", "prompt": "<question>", "theme": "<theme>", "voice": true }.');
         if (body.prompt.length > MAX_PROMPT) throw new HttpError(413, `A question is at most ${MAX_PROMPT} characters.`, 'Ask a shorter question.');
-        if (body.stream === true && agent.stream) return streamAnswer(res, agent.stream(ctx, body.dossier, body.prompt));
+        const style = checkedStyle(body);
+        if (body.stream === true && agent.stream) return streamAnswer(res, agent.stream(ctx, body.dossier, body.prompt, style));
         try {
-          json(res, 200, await agent.ask(ctx, body.dossier, body.prompt));
+          json(res, 200, await agent.ask(ctx, body.dossier, body.prompt, style));
         } catch (e) {
           json(res, 502, { error: agentFailure(e) });
         }
+        return;
+      }
+      case 'GET agent/prompt': {
+        // Read-only: the prompt as the next question would get it, with the saved instructions. `voice` is on or off.
+        const dossier = url.searchParams.get('dossier') || '<dossier>';
+        if (dossier.length > 200) throw new HttpError(400, 'That dossier name is over 200 characters.', 'Name a dossier toil dossiers list shows.');
+        const voice = url.searchParams.get('voice');
+        if (voice !== 'on' && voice !== 'off') throw new HttpError(400, 'Say whether the voice is on.', `Ask ${base}api/agent/prompt?theme=<name>&voice=on (or off).`);
+        const style = checkedStyle({ theme: url.searchParams.get('theme') ?? undefined, voice: voice === 'on' });
+        json(res, 200, { dossier, prompt: control().systemPrompt(dossier, style) });
         return;
       }
       case 'GET agent/settings':
@@ -437,7 +463,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return;
       }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, agent/starters, agent/ask, agent/settings and agent/mcp.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, agent/starters, agent/ask, agent/prompt, agent/settings and agent/mcp.`);
     }
   };
 

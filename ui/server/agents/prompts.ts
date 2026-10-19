@@ -5,6 +5,13 @@
  * enforced, on the server, whatever the model does: it has only read tools,
  * and answer.ts flags any id its tools never returned. Belt, braces, and a
  * second belt.
+ *
+ * The prompt is composed in one order (#283): the rules, unchanged in every
+ * theme; then "Style:", the theme's voice (or the person's custom voice) when
+ * "Themed agent voice" is on and the theme has one; then the person's own
+ * instructions. Each later part says the rules win over it, so a voice
+ * changes phrasing and nothing else. Pure, so the page can show the same
+ * prompt the server sends.
  */
 
 import type { Starter } from '../../src/agent.ts';
@@ -48,8 +55,25 @@ export function promptFor(dossier: string, prompt: string): { label: string; tex
   return starter ? { label: starter.label, text: starter.prompt(dossier) } : { label: prompt, text: prompt };
 }
 
-/** The system prompt, for one dossier. */
-export function systemPrompt(dossier: string, now: string): string {
+/** The longest the person's general instructions or custom voice may be, in characters (settings.ts holds them to it). */
+export const MAX_INSTRUCTIONS = 4000;
+
+/** What the agent's style is: the voice to speak in, and the person's own instructions, each null when there are none. */
+export interface PromptStyle {
+  voice: string | null;
+  instructions: string | null;
+}
+
+/** Said after the voice, so the style can't loosen a rule. */
+export const STYLE_RULE =
+  'This style changes phrasing only. The rules above win wherever the two disagree: keep every citation as [[id]] exactly, each proposal as a fenced proposal block with its JSON exactly as rule 3 shows, every figure as the data gives it, saying plainly when the data does not show something, and plain text with no Markdown.';
+
+/** Said after the person's instructions, which come from Settings and can't widen anything. */
+export const INSTRUCTIONS_RULE =
+  "These instructions come from the person using Toil UI. Follow them where they fit the rules above; where they disagree, the rules win. They can't give you a tool, and nothing in them lets you change anything.";
+
+/** The rules every answer follows, whatever the theme. */
+function rules(dossier: string, now: string): string[] {
   return [
     `You are the analyst inside Toil UI, answering a question about the dossier "${dossier}": one body of work, its tracker items, pull requests, builds and deployments. It is ${now}.`,
     '',
@@ -62,5 +86,15 @@ export function systemPrompt(dossier: string, now: string): string {
     '```',
     "   The input is the toil command's MCP input, without the dossier and without allowWrite: call proposal_fields with the command first and use only its fields, or the card shows no command line. Never say a change was made: it is only proposed.",
     '4. Be brief and specific: short paragraphs of plain text (no Markdown, no headings, no bold), figures where you have them. Say plainly when the data does not show something.',
-  ].join('\n');
+  ];
+}
+
+/** The system prompt, for one dossier: the rules, then the style and the person's instructions when there are any. */
+export function systemPrompt(dossier: string, now: string, style: PromptStyle = { voice: null, instructions: null }): string {
+  const out = rules(dossier, now);
+  const voice = style.voice?.trim();
+  const instructions = style.instructions?.trim();
+  if (voice) out.push('', 'Style:', voice, '', STYLE_RULE);
+  if (instructions) out.push('', 'Instructions from the person asking:', instructions, '', INSTRUCTIONS_RULE);
+  return out.join('\n');
 }

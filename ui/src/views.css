@@ -149,6 +149,15 @@
 .bubble--you { justify-self: end; max-width: 90%; background: var(--raised); font-weight: 600; }
 .bubble--agent { background: var(--bg); }
 .starters { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+/* The starter questions' label and the (i) beside it (#283): a 44px target, the popover's words within the screen. */
+.starters-head { display: flex; align-items: center; gap: 0.5rem; }
+.starters-head .note { margin: 0; }
+.info-button { min-width: 44px; min-height: 44px; padding: 0; border-radius: 999px; display: inline-grid; place-items: center; }
+.info-button__mark { display: inline-grid; place-items: center; width: 1.5rem; height: 1.5rem; border: 2px solid currentColor; border-radius: 999px; font-family: Georgia, 'Times New Roman', serif; font-style: italic; font-weight: 700; line-height: 1; }
+.ask-info { max-width: min(22rem, calc(100vw - 2rem)); }
+.ask-info__dialog { padding: 0.9rem 1rem; display: grid; gap: 0.5rem; outline: none; font-size: 0.9375rem; }
+.ask-info__dialog p { margin: 0; overflow-wrap: anywhere; }
+.ask-info__title { font-size: 1rem; margin: 0; }
 .starter { font: inherit; font-size: 0.875rem; min-height: 44px; padding: 0.35rem 0.8rem; border-radius: 999px; border: 1px solid var(--accent); background: var(--raised); color: var(--ink); cursor: pointer; text-align: left; }
 .starter[data-hovered] { background: var(--bg); }
 .ask-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; }
@@ -194,6 +203,13 @@
 
 /* The agent's settings (#251) and the checks on an answer. */
 .agent-form { display: grid; gap: 1rem; }
+/* The person's instructions (#283): text areas with a counter, and the full prompt in a scroller of its own. */
+.field-text--area textarea { font: inherit; font-size: 1rem; min-height: 6rem; padding: 0.5rem 0.75rem; border: 1px solid var(--muted); border-radius: var(--radius); background: var(--raised); color: var(--ink); resize: vertical; width: 100%; box-sizing: border-box; }
+.field-text--area textarea[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
+.field-text--area .counter { justify-self: end; font-variant-numeric: tabular-nums; }
+.full-prompt { display: grid; gap: 0.5rem; margin-top: 1rem; min-width: 0; }
+.full-prompt__text { margin: 0; max-height: 28rem; overflow: auto; padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); color: var(--ink); font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.full-prompt__text:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .agent-adapters { display: grid; gap: 0.5rem; }
 .agent-adapters > .react-aria-Label, .agent-label { font-weight: 600; color: var(--ink); }
 .agent-choice { display: grid; gap: 0.15rem; min-height: 44px; padding: 0.5rem 0.75rem; border: 1px solid var(--muted); border-radius: var(--radius); background: var(--raised); color: var(--ink); cursor: pointer; }

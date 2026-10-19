@@ -19,7 +19,7 @@ import { cacheData } from './agents/tools.ts';
 import { Cache, CacheError, wipeCacheFiles } from './cache.ts';
 import { areasFrom, settingsFrom } from './config.ts';
 import { createUiServer } from './server.ts';
-import { parseSettings, SettingsError, USAGE } from './settings.ts';
+import { parseSettings, SettingsError, themesNotice, USAGE } from './settings.ts';
 import { fixtureStore, sqliteStore } from './store.ts';
 import { SyncService } from './sync.ts';
 
@@ -136,6 +136,9 @@ async function main(): Promise<number> {
       '',
     ].join('\n'),
   );
+  // A themes folder from an earlier alpha is never read; say so once per start rather than say nothing.
+  const leftover = themesNotice(settings.dataDir);
+  if (leftover) process.stderr.write(`${leftover}\n`);
 
   await new Promise<void>((resolveStop) => {
     const stop = () => resolveStop();

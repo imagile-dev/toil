@@ -3,14 +3,14 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { fixtureAgent, noAgent, type Agent } from '../server/agent.ts';
 import { AgentError } from '../server/agents/cli.ts';
 import type { RequestContext } from '../server/context.ts';
 import { PRESSABLE_STYLE_HASH } from '../server/csp.ts';
 import { CSP, CSRF_HEADER, MAX_BODY, SESSION_HEADER, MAX_SESSIONS, createUiServer, type UiServerOptions } from '../server/server.ts';
-import { parseSettings, SettingsError, type Settings } from '../server/settings.ts';
+import { parseSettings, SettingsError, themesNotice, type Settings } from '../server/settings.ts';
 import { mapOwi } from '@imagile-dev/toil/api';
 import { Cache, CacheError, RUNNING_MESSAGE, cachePaths, liveLock, pidAlive, wipeCacheFiles } from '../server/cache.ts';
 import { spawn, spawnSync } from 'node:child_process';
@@ -350,7 +350,7 @@ describe('the API', () => {
     expect((await send(sample.origin, '/api/agent/settings', { headers: { [SESSION_HEADER]: s.sid } })).status).toBe(404);
 
     let saved: unknown = null;
-    const status = { settings: { adapter: 'none', model: null, cliPath: null, endpoint: null }, problem: null, adapters: [], kind: 'none' } as const;
+    const status = { settings: { adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null }, problem: null, adapters: [], kind: 'none' } as const;
     const { origin } = await start({
       agentControl: {
         status: () => ({ ...status, adapters: [] }),
@@ -359,6 +359,7 @@ describe('the API', () => {
           saved = input;
           return { ...status, adapters: [] };
         },
+        systemPrompt: (dossier, style) => `prompt for ${dossier} in ${style?.theme ?? 'none'} with the voice ${style?.voice ? 'on' : 'off'}`,
       },
     });
     const { sid, session } = await signIn(origin);
@@ -371,6 +372,30 @@ describe('the API', () => {
     expect(JSON.parse(key.body).error).toEqual({ message: 'Toil UI\'s agent settings have no "apiKey".', fix: 'Keys never go here.' });
     // A POST without the CSRF token is refused, as every POST is.
     expect((await post(origin, '/api/agent/settings', { adapter: 'claude' }, { sid, csrf: 'wrong' })).status).toBe(403);
+    // The full prompt (#283): read-only, with the session, in a built-in theme only.
+    const prompt = (query: string, headers: Record<string, string> = { [SESSION_HEADER]: sid }) => send(origin, `/api/agent/prompt?${query}`, { headers });
+    expect(JSON.parse((await prompt('dossier=card-payments&theme=crate&voice=on')).body)).toEqual({ dossier: 'card-payments', prompt: 'prompt for card-payments in crate with the voice on' });
+    expect(JSON.parse((await prompt('theme=plain&voice=off')).body).dossier).toBe('<dossier>');
+    expect((await prompt('theme=my-theme&voice=on')).status).toBe(400);
+    expect((await prompt('theme=crate')).status).toBe(400);
+    expect((await prompt('theme=crate&voice=on', {})).status).toBe(401);
+    expect((await send(sample.origin, '/api/agent/prompt?theme=crate&voice=on', { headers: { [SESSION_HEADER]: s.sid } })).status).toBe(404);
+  });
+
+  it("passes the page's theme and voice switch to the agent, and refuses a theme that isn't built in (#283)", async () => {
+    const seen: unknown[] = [];
+    const agent = { kind: 'scripted', starters: async () => [], ask: async (_ctx: unknown, _d: string, _p: string, style: unknown) => (seen.push(style), { prompt: 'p', parts: [], citations: [], by: 'scripted', proposals: [] }) };
+    const { origin } = await start({ agent });
+    const { sid, session } = await signIn(origin);
+    const auth = { sid, csrf: session.csrf };
+    expect((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'risk', theme: 'harvest', voice: true }, auth)).status).toBe(200);
+    expect((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'risk' }, auth)).status).toBe(200);
+    expect(seen).toEqual([{ theme: 'harvest', voice: true }, null]);
+    const bad = await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'risk', theme: 'my-theme', voice: true }, auth);
+    expect(bad.status).toBe(400);
+    expect(JSON.parse(bad.body).error.message).toBe('There is no built-in theme "my-theme".');
+    expect((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'risk', theme: 'crate', voice: 'loud' }, auth)).status).toBe(400);
+    expect(seen).toHaveLength(2);
   });
 
   it("answers the MCP endpoint only with a running question's token, and never from a page", async () => {
@@ -388,6 +413,12 @@ describe('the API', () => {
     expect(noCors(listed)).toEqual([]);
     served.close();
     expect((await mcp({ authorization: `Bearer ${served.token}` })).status).toBe(401);
+  });
+
+  it('says once, plainly, that a themes folder from an earlier alpha is no longer read (#283)', () => {
+    expect(themesNotice('/home/you/.toil-ui', () => false, posix)).toBeNull();
+    const note = themesNotice('/home/you/.toil-ui', (p) => p === '/home/you/.toil-ui/themes', posix)!;
+    expect(note).toBe('Note: Toil UI no longer reads themes from /home/you/.toil-ui/themes; only its built-in themes are offered. The folder is left as it is, and you can delete it. To ask for a new theme, send a feature request from the Feedback button or with toil feedback feature.');
   });
 
   it('answers an unknown route with where the API is', async () => {

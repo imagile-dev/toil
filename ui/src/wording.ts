@@ -1,0 +1,60 @@
+/**
+ * Themed wording (#283): the microcopy a game theme may say in its own words,
+ * looked up by key with the standard text as the fallback, the way an i18n
+ * catalogue works with one language and four dialects. A theme's `lexicon`
+ * in `theme.json` replaces any of these; a key it leaves out, Plain, and
+ * "Themed wording" switched off all read the standard text below.
+ *
+ * Only microcopy is here: eyebrows, ledes and notes, empty states, loading
+ * lines. Never a not-found notice, such as an item the dossier doesn't have,
+ * which says what went wrong in plain words. Never a control's name (a button, a link, a field's label), a
+ * heading a test or a screen reader finds a region by, a command, an id, a
+ * number, a date, an error or its fix: those read the same in every theme,
+ * so what a person, a script or voice control looks for is always there
+ * (WCAG 2.5.3). A `{name}` in the text is filled in from the view, and a
+ * theme's wording must keep every one, and every `toil …` command, that the
+ * standard text has (test/themes.test.ts).
+ * The standard wording, approved once and translated into four dialects without a vote.
+ */
+
+export const STANDARD = {
+  'dossiers.lede': 'Each dossier is one body of work: its repositories, its tracker, its pipelines and its environments. Pick one to see its stories, pull requests, builds and deployments together.',
+  'dossier.eyebrow': 'Dossier',
+  'settings.eyebrow': 'Settings',
+  'attention.note': 'Open items ranked by their insights, weightiest first. Each insight names the data it rests on.',
+  'aging.note': 'How long each item in progress has been in progress, from its history, oldest first.',
+  'trace.note': 'Each work item with the pull requests that name it, their latest builds, and the environments running them.',
+  'graph.note': "Arrows run the way each link reads, from the source's own links. Blocking chains run left to right.",
+  'ask.note': 'Answers cite the items they rest on. The agent reads; it never changes a ticket. What it suggests comes back as a proposal for you to apply.',
+  'empty.dossiers': 'toil sees no dossiers yet. A dossier is made with toil dossiers init.',
+  'empty.sprint': "No sprint is running in this dossier's work items.",
+  'empty.burnup': 'No sprint is running, so there is nothing to burn up.',
+  'empty.column': 'Nothing here.',
+  'empty.prs': 'No pull requests for this dossier.',
+  'empty.builds': "No builds for this dossier's pull requests.",
+  'empty.deployments': 'This dossier names no environment to read deployments from.',
+  'empty.links': "No links between this dossier's items.",
+  'empty.ask': 'Pick a question, or ask your own, to see how answers cite their sources.',
+  'loading.dossiers': 'Reading the dossiers…',
+  'loading.dossier': 'Reading {name}…',
+  'loading.graph': 'Drawing the graph…',
+  'loading.answer': 'Thinking…',
+} as const;
+
+export type WordKey = keyof typeof STANDARD;
+export const WORD_KEYS = Object.keys(STANDARD) as WordKey[];
+
+/** The `{name}` placeholders in a text, in order. */
+export const placeholders = (text: string) => [...text.matchAll(/\{([a-z]+)\}/g)].map((m) => m[1]!);
+
+/** The `toil …` commands a text names, which a theme's wording keeps word for word. */
+export const commandsIn = (text: string) => [...text.matchAll(/\btoil (?:dossiers|connections|feedback|skill|skills|setup|mcp) [a-z-]+/g)].map((m) => m[0]);
+
+/**
+ * The text for a key: the theme's own when wording is on and it has one,
+ * else the standard, with each `{name}` filled from `vars`.
+ */
+export function wordFor(lexicon: Partial<Record<WordKey, string>> | undefined, on: boolean, key: WordKey, vars: Record<string, string> = {}): string {
+  const text = (on ? lexicon?.[key] : undefined) ?? STANDARD[key];
+  return text.replace(/\{([a-z]+)\}/g, (whole, name: string) => vars[name] ?? whole);
+}

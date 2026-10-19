@@ -14,7 +14,8 @@ import { copilotRuntime } from '../server/agents/copilot.ts';
 import { agentEnv } from '../server/agents/env.ts';
 import { AgentHost, type AgentHostOptions } from '../server/agents/host.ts';
 import { answerMcp, McpGrants } from '../server/agents/mcp.ts';
-import { STARTERS } from '../server/agents/prompts.ts';
+import { STARTERS, STYLE_RULE, systemPrompt } from '../server/agents/prompts.ts';
+import { THEME_VOICES } from '../server/agents/voices.ts';
 import { Latest, loadSdk, type Importer, type Runtime } from '../server/agents/runtime.ts';
 import { agentSettingsFile, checkAgentSettings, loadAgentSettings } from '../server/agents/settings.ts';
 import { cacheData, cacheTools, Ledger, LIVE_COMMANDS, liveTools, neverWrites, proposalTool, type AgentData, type ToolSpec } from '../server/agents/tools.ts';
@@ -316,7 +317,7 @@ function copilotStub(script: Script) {
 
 /** The Codex SDK, stubbed: it calls the served MCP tools over the real loopback grant, through answerMcp, with the token from its env. */
 function codexStub(script: Script, grants: McpGrants) {
-  const seen: { options?: Record<string, unknown>; thread?: Record<string, unknown>; listed: string[] } = { listed: [] };
+  const seen: { options?: Record<string, unknown>; thread?: Record<string, unknown>; listed: string[]; input?: string } = { listed: [] };
   class Codex {
     constructor(o: Record<string, unknown>) {
       seen.options = o;
@@ -324,7 +325,7 @@ function codexStub(script: Script, grants: McpGrants) {
     startThread(t: Record<string, unknown>) {
       seen.thread = t;
       return {
-        runStreamed: async () => ({
+        runStreamed: async (input: string) => ((seen.input = input), {
           events: (async function* () {
             const env = seen.options!.env as Record<string, string>;
             const tools = grants.tools(`Bearer ${env[TOKEN_ENV]}`)!;
@@ -503,6 +504,45 @@ describe('the Codex adapter, on a stubbed SDK', () => {
   });
 });
 
+describe('the composed prompt, on every adapter (#283)', () => {
+  const style = { theme: 'crate', voice: true };
+  const saved = { instructions: 'Answer in British English.', voice: null };
+  const expected = systemPrompt('card-payments', FIXTURE_NOW, { voice: THEME_VOICES.get('crate')!.voice!, instructions: 'Answer in British English.' });
+
+  async function systemOf(adapter: 'claude' | 'copilot' | 'codex', withStyle: typeof style | null): Promise<string> {
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const stub = adapter === 'claude' ? claudeStub(SCRIPT) : adapter === 'copilot' ? copilotStub(SCRIPT) : codexStub(SCRIPT, holder);
+    const { host, dataDir } = hostFor(adapter, stub.module, adapter === 'codex' ? { serveTools: (tools) => holder.serve(tools) } : {});
+    host.save({ ...host.status().settings, ...saved });
+    expect(JSON.parse(readFileSync(agentSettingsFile(dataDir), 'utf8'))).toMatchObject(saved);
+    for await (const _ of host.stream(ctx(), 'card-payments', 'hygiene', withStyle)) void _;
+    if (adapter === 'claude') return (stub as ReturnType<typeof claudeStub>).seen.options!.systemPrompt as string;
+    if (adapter === 'copilot') return ((stub as ReturnType<typeof copilotStub>).seen.session!.systemMessage as { content: string }).content;
+    // Codex takes no separate system prompt, so Toil UI's goes first in the turn.
+    const input = (stub as ReturnType<typeof codexStub>).seen.input!;
+    expect(input.endsWith(`\n\nQuestion:\n${STARTERS.find((q) => q.id === 'hygiene')!.prompt('card-payments')}`)).toBe(true);
+    return input.slice(0, input.indexOf('\n\nQuestion:\n'));
+  }
+
+  it.each(['claude', 'copilot', 'codex'] as const)('%s is sent the rules, then Crate\'s voice, then the instructions', async (adapter) => {
+    const sent = await systemOf(adapter, style);
+    expect(sent).toBe(expected);
+    expect(sent).toBe(host0().systemPrompt('card-payments', style));
+    expect(sent).toContain(STYLE_RULE);
+  });
+
+  it.each(['claude', 'copilot', 'codex'] as const)('%s is sent the rules and the instructions alone with the voice off', async (adapter) => {
+    expect(await systemOf(adapter, { theme: 'crate', voice: false })).toBe(systemPrompt('card-payments', FIXTURE_NOW, { voice: null, instructions: 'Answer in British English.' }));
+  });
+
+  /** A host with the same saved words, for the prompt Settings shows. */
+  function host0() {
+    const { host } = hostFor('claude', claudeStub(SCRIPT).module);
+    host.save({ ...host.status().settings, ...saved });
+    return host;
+  }
+});
+
 describe('the MCP endpoint\'s protocol', () => {
   it('initializes, lists, calls, and refuses a tool it lacks', async () => {
     const tools = cacheTools('card-payments', data, new Ledger());
@@ -604,7 +644,7 @@ describe('the agent settings', () => {
     const { host, dataDir } = hostFor('claude', claudeStub(SCRIPT).module);
     host.save({ adapter: 'codex', model: 'gpt-5', cliPath: null, endpoint: null });
     expect(agentSettingsFile(dataDir)).toBe(join(dataDir, 'agent.json'));
-    expect(JSON.parse(readFileSync(agentSettingsFile(dataDir), 'utf8'))).toEqual({ adapter: 'codex', model: 'gpt-5', cliPath: null, endpoint: null });
+    expect(JSON.parse(readFileSync(agentSettingsFile(dataDir), 'utf8'))).toEqual({ adapter: 'codex', model: 'gpt-5', cliPath: null, endpoint: null, instructions: null, voice: null });
     expect(loadAgentSettings(dataDir).adapter).toBe('codex');
     expect(host.kind).toBe('codex');
   });
@@ -614,7 +654,22 @@ describe('the agent settings', () => {
     expect(() => checkAgentSettings({ adapter: 'codex', endpoint: 'bedrock' })).toThrow(/Only the Claude adapter takes an endpoint/);
     expect(() => checkAgentSettings({ adapter: 'claude', cliPath: 'bin/claude' }, posix.isAbsolute)).toThrow(/absolute path/);
     expect(() => checkAgentSettings({ adapter: 'gemini' })).toThrow(/no adapter "gemini"/);
-    expect(checkAgentSettings({ adapter: 'claude', model: ' ', endpoint: '' })).toEqual({ adapter: 'claude', model: null, cliPath: null, endpoint: null });
+    expect(checkAgentSettings({ adapter: 'claude', model: ' ', endpoint: '' })).toEqual({ adapter: 'claude', model: null, cliPath: null, endpoint: null, instructions: null, voice: null });
+  });
+
+  it("keep the person's instructions and custom voice as plain text, up to 4,000 characters each (#283)", () => {
+    expect(checkAgentSettings({ adapter: 'none', instructions: '  Answer in British English.\r\nLead with risks.  ', voice: '' })).toMatchObject({ instructions: 'Answer in British English.\nLead with risks.', voice: null });
+    expect(checkAgentSettings({ voice: 'x'.repeat(4000) }).voice).toHaveLength(4000);
+    expect(() => checkAgentSettings({ instructions: 'x'.repeat(4001) })).toThrow(/at most 4000 characters, and is 4001/);
+    expect(() => checkAgentSettings({ voice: 42 })).toThrow(/custom voice must be text/);
+    expect(() => checkAgentSettings({ instructions: 'hidden\u0000text' })).toThrow(/control or invisible character/);
+    expect(() => checkAgentSettings({ voice: 'quiet\u202Ereversed' })).toThrow(/invisible/);
+    expect(() => checkAgentSettings({ voice: 'zero\u200Bwidth' })).toThrow(/invisible/);
+    expect(checkAgentSettings({ instructions: 'tabs\tand\nlines, and é' }).instructions).toBe('tabs\tand\nlines, and é');
+    // An agent.json from before #283 has neither, and loads with both empty.
+    const dataDir = mkdtempSync(join(folder, 'old-'));
+    writeFileSync(agentSettingsFile(dataDir), JSON.stringify({ adapter: 'codex', model: null, cliPath: null, endpoint: null }));
+    expect(loadAgentSettings(dataDir)).toMatchObject({ adapter: 'codex', instructions: null, voice: null });
   });
 
   it('a broken file leaves the agent unset and says which file and why', () => {
