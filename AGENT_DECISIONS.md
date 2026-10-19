@@ -3267,3 +3267,44 @@ fills.
     SDKs can't start, and the shim fix names only the `.exe`. A
     path with no adapter chosen is refused. The check sits in `checkAgentSettings`,
     which `POST api/agent/settings` runs, and also when the saved file is read.
+
+### #244 linear wildmatch
+
+- **The matcher walks a set of live positions instead of compiling to a RegExp**
+  (`src/core/wildmatch.ts`). The pattern becomes a list of steps (one character, a run
+  of `*`, a mid-pattern `**/`), and each path character moves every live position at
+  once, deduplicated, so a match costs O(steps x path length) with no backtracking.
+  A set walk was chosen over a memoised (pattern index, path index) table because it
+  needs no recursion and no table the size of both inputs.
+- **Semantics are kept by reusing the old pieces, not by re-deriving them.** The
+  compiler reads the pattern exactly as before; a bracket class, and a literal under
+  `caseFold`, become a one-character RegExp, anchored at both ends with the old flags, which can't
+  backtrack and folds case exactly as the whole-pattern RegExp did. A reversed range
+  such as `[b-a]` still throws the same `SyntaxError` when the pattern is compiled.
+- **`wildmatch()` returns `{ test(path) }` instead of a `RegExp`**, and
+  `IgnoreRule.regex` is now `IgnoreRule.match`. Both callers only ever called `test`.
+- **A check on the pattern's plain first and last characters runs before the walk**,
+  because most paths a walk meets fail there (`*.log` against `index.ts`). Under
+  `caseFold`, an ASCII literal compares against its two cases instead of asking a
+  RegExp (review round 1): without the `u` flag no non-ASCII character folds onto an
+  ASCII one, so that is exact, and the differential test includes `ſ` and the Kelvin
+  sign to keep it so. Measured on Windows, Node 24.14, seven typical `.gitignore`
+  patterns against six paths, best of five: the old RegExp about 12 ns a test (14 ns
+  folded), the walk about 35 ns (40 ns folded). Before the check, the walk alone took
+  about 220 ns, and folded literals about 100 ns on Linux in review.
+- **The old compiler is kept, verbatim, as the test oracle**
+  (`test/harness/wildmatch-regex.ts`). A seeded differential test compares the two on
+  4,000 patterns from a small alphabet, 12 paths each, across `pathname` and
+  `caseFold`. The oracle only sees short inputs.
+- **The timing test races each hostile pattern against a baseline** with the same
+  number of steps on the same path, one that matches and that a RegExp settles at
+  once, and allows 25 times the baseline (measured: about 1x). The first two cases are
+  sized so the old matcher fails them in about a second instead of hanging the suite;
+  the long ones (2,000 characters, 30 stars) run after them. Each hostile pattern ends
+  in a class so the suffix check can't answer for the walk. Pointed at the old
+  matcher, the test fails on its first case.
+- **Out of scope, found:** a `.gitignore` line with a reversed range (`[b-a]`) throws
+  when compiled, and `listTree` in `src/core/files.ts` catches that and drops every
+  rule in that file without a warning, so the walk lists what the file ignores. That
+  is silent (principle 4), but #244 asked for the matcher's semantics unchanged. Left
+  for its own issue.

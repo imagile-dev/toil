@@ -1,20 +1,46 @@
 /**
- * git's glob dialect, as `.gitignore` and `includeIf "gitdir:..."` use it,
- * compiled to a RegExp. With `pathname` (git's WM_PATHNAME), `*`, `?` and
- * bracket classes never match `/`, and `**` between slashes matches any number
- * of directories, including none. Without it, `*` matches across slashes too.
+ * git's glob dialect, as `.gitignore` and `includeIf "gitdir:..."` use it.
+ * With `pathname` (git's WM_PATHNAME), `*`, `?` and bracket classes never match
+ * `/`, and `**` between slashes matches any number of directories, including
+ * none. Without it, `*` matches across slashes too.
+ *
+ * The pattern compiles to a list of steps that a matcher walks as a set of
+ * live positions, one path character at a time (#244). It used to compile to
+ * a RegExp, which backtracks: a `.gitignore` line of stacked `*` or `**`
+ * segments took time exponential in the number of stars, and every folder
+ * walk reads `.gitignore`. The set holds at most two positions per step, so a
+ * match costs O(steps x path length), whatever the pattern says.
  *
  * Forty years of shell globbing, and every tool still files its own variance.
  */
-export function wildmatch(pattern: string, options: { pathname?: boolean; caseFold?: boolean } = {}): RegExp {
+export interface Wildmatch {
+  /** Whether the whole of `path` matches the pattern. */
+  test(path: string): boolean;
+}
+
+/**
+ * One step of a compiled pattern. `char` consumes one character that `ok`
+ * accepts; `literal` marks one written as a plain character, whose `ok` is a
+ * comparison rather than a RegExp.
+ * `star` consumes any run of characters `ok` accepts, none included. `dirs` is
+ * a `**\/` in the middle: nothing, or any run that ends in `/`.
+ */
+type Step =
+  | { kind: 'char'; ok: (c: string) => boolean; literal?: true }
+  | { kind: 'star'; ok: (c: string) => boolean }
+  | { kind: 'dirs' };
+type CharStep = Extract<Step, { kind: 'char' }>;
+
+export function wildmatch(pattern: string, options: { pathname?: boolean; caseFold?: boolean } = {}): Wildmatch {
   const pathname = options.pathname !== false;
-  const one = pathname ? '[^/]' : '.';
-  let out = '';
+  const caseFold = options.caseFold === true;
+  const one = pathname ? notSlash : anything;
+  const steps: Step[] = [];
   let i = 0;
   while (i < pattern.length) {
     const c = pattern[i]!;
     if (c === '\\' && i + 1 < pattern.length) {
-      out += escape(pattern[i + 1]!);
+      steps.push(literal(pattern[i + 1]!, caseFold));
       i += 2;
       continue;
     }
@@ -27,35 +53,152 @@ export function wildmatch(pattern: string, options: { pathname?: boolean; caseFo
       if (pathname && stars >= 2 && atStart && atEnd) {
         if (j === pattern.length) {
           // A trailing `**` (or `dir/**`) matches everything below.
-          out += '.*';
+          steps.push({ kind: 'star', ok: anything });
         } else {
           // `**/` matches zero or more whole directories.
-          out += '(?:.*/)?';
+          steps.push({ kind: 'dirs' });
           j++;
         }
       } else {
-        out += `${one}*`;
+        steps.push({ kind: 'star', ok: one });
       }
       i = j;
       continue;
     }
     if (c === '?') {
-      out += one;
+      steps.push({ kind: 'char', ok: one });
       i++;
       continue;
     }
     if (c === '[') {
       const cls = bracket(pattern, i, pathname);
       if (cls) {
-        out += cls.source;
+        steps.push({ kind: 'char', ok: single(cls.source, caseFold) });
         i = cls.end;
         continue;
       }
     }
-    out += escape(c);
+    steps.push(literal(c, caseFold));
     i++;
   }
-  return new RegExp(`^${out}$`, options.caseFold ? 'is' : 's');
+  return { test: walker(steps) };
+}
+
+/**
+ * Walks a path through `steps` with every live position at once, one
+ * character at a time, so no choice is ever revisited. A position is a step
+ * index `k` (the next character may start step `k`; `steps.length` is the end
+ * of the pattern), or `steps.length + 1 + k` for a `dirs` step `k` that has
+ * begun a run, which must still end in `/`. The buffers belong to the matcher
+ * and are reused by every call, which is safe because a call never yields.
+ */
+function walker(steps: readonly Step[]): (path: string) => boolean {
+  const n = steps.length;
+  let fewest = 0;
+  let fixed = true;
+  for (const step of steps) {
+    if (step.kind === 'char') fewest++;
+    else fixed = false;
+  }
+  // The plain characters the pattern starts and ends with, which every match
+  // starts and ends with too. Most paths a walk meets fail on one of these
+  // (`*.log` against `index.ts`), so most never reach the walk below.
+  const plain = (step: Step | undefined) => step?.kind === 'char' && step.literal === true;
+  let head = 0;
+  while (head < n && plain(steps[head])) head++;
+  let tail = 0;
+  while (tail < n - head && plain(steps[n - 1 - tail])) tail++;
+  const firsts = steps.slice(0, head).map((step) => (step as CharStep).ok);
+  const lasts = steps.slice(n - tail).map((step) => (step as CharStep).ok);
+  const ends = (path: string) => {
+    for (let k = 0; k < head; k++) if (!firsts[k]!(path[k]!)) return false;
+    const from = path.length - tail;
+    for (let k = 0; k < tail; k++) if (!lasts[k]!(path[from + k]!)) return false;
+    return true;
+  };
+  // `seen[s] === round` means position `s` is already live this character,
+  // which keeps the list from ever holding one position twice.
+  const seen = new Uint32Array(2 * n + 2);
+  let live = new Int32Array(2 * n + 2);
+  let next = new Int32Array(2 * n + 2);
+  let size = 0;
+  let round = 0;
+  const begin = () => {
+    if (++round === 0xffffffff) {
+      seen.fill(0);
+      round = 1;
+    }
+    size = 0;
+  };
+  const add = (position: number) => {
+    // A `star` or `dirs` step can take no characters, so reaching it reaches
+    // the step after it too. Those skips only move forward.
+    while (seen[position] !== round) {
+      seen[position] = round;
+      next[size++] = position;
+      if (position >= n || steps[position]!.kind === 'char') return;
+      position++;
+    }
+  };
+  return (path) => {
+    // One character per `char` step, exactly that many when nothing repeats.
+    if (path.length < fewest || (fixed && path.length !== n)) return false;
+    if (!ends(path)) return false;
+    begin();
+    add(0);
+    for (let p = 0; p < path.length; p++) {
+      const c = path[p]!;
+      const swap = live;
+      live = next;
+      next = swap;
+      const count = size;
+      begin();
+      for (let i = 0; i < count; i++) {
+        const position = live[i]!;
+        if (position === n) continue;
+        const k = position > n ? position - n - 1 : position;
+        const step = steps[k]!;
+        if (step.kind === 'dirs') {
+          add(n + 1 + k);
+          if (c === '/') add(k + 1);
+        } else if (step.ok(c)) {
+          add(step.kind === 'star' ? k : k + 1);
+        }
+      }
+      if (size === 0) return false;
+    }
+    return seen[n] === round;
+  };
+}
+
+const notSlash = (c: string) => c !== '/';
+const anything = () => true;
+
+/**
+ * One literal character, folded the way a RegExp's `i` flag folds it. Without
+ * the `u` flag, folding never maps a non-ASCII character onto an ASCII one, so
+ * an ASCII character matches only its own two cases (`k` and `K`, never the
+ * Kelvin sign) and a plain comparison does. Anything else asks a RegExp.
+ */
+function literal(c: string, caseFold: boolean): Step {
+  if (!caseFold) return { kind: 'char', ok: (x) => x === c, literal: true };
+  if (c.charCodeAt(0) < 0x80) {
+    const lower = c.toLowerCase();
+    const upper = c.toUpperCase();
+    return { kind: 'char', ok: (x) => x === lower || x === upper, literal: true };
+  }
+  return { kind: 'char', ok: single(escape(c), caseFold), literal: true };
+}
+
+/**
+ * A RegExp that accepts exactly one character, as a predicate. One atom
+ * anchored at both ends can't backtrack, and it keeps the `i` flag's case
+ * folding (and a class's ranges) exactly as they were when the whole pattern
+ * was one RegExp.
+ */
+function single(source: string, caseFold: boolean): (c: string) => boolean {
+  const regex = new RegExp(`^${source}$`, caseFold ? 'is' : 's');
+  return (c) => regex.test(c);
 }
 
 const CLASSES: Record<string, string> = {

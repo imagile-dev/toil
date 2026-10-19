@@ -119,8 +119,8 @@ function conditionHolds(condition: string, file: string, ctx: IncludeContext): b
   const pattern = condition.slice(colon + 1);
   if (kind === 'gitdir' || kind === 'gitdir/i') {
     if (!ctx.gitDir) return false;
-    const regex = wildmatch(gitdirPattern(pattern, file, ctx.home), { pathname: true, caseFold: kind === 'gitdir/i' });
-    return regex.test(slashes(ctx.gitDir));
+    const matcher = wildmatch(gitdirPattern(pattern, file, ctx.home), { pathname: true, caseFold: kind === 'gitdir/i' });
+    return matcher.test(slashes(ctx.gitDir));
   }
   if (kind === 'onbranch') {
     if (!ctx.branch) return false;
