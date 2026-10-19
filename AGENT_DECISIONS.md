@@ -3512,6 +3512,74 @@ fills.
   appear once toil has returned a preview, since the text is toil's; until then the
   dialog says what to fill in.
 
+### #271 UI theme motion
+
+- **Crate keeps its grid and gains the warehouse, the maintainer's call
+  (2026-10-19).** Crate's tokens are held to the site by `test/brand-sync.test.ts`,
+  so the warehouse proposal's palette (kraft cardboard, rack steel, the dark
+  floor) lives in `ui/themes/crate/theme.css` as `--wh-*` custom properties and
+  reaches the page through the backdrop and gradients, never through the
+  tokens. The drafting grid moved off `body` onto the backdrop's middle layer,
+  unchanged in size and colour.
+- **Parallax is three layers behind the page** (`ui/src/ambient/Ambient.tsx`):
+  racking far off (6% of the scroll), the grid (20%) and pallets of boxes nearest
+  (40%). Each is a CSS scroll-driven animation of `transform` where the browser
+  has them, on the compositor: an iteration of a scroll-driven animation spans
+  an equal share of its range, so 50 iterations each `--tile / --depth` long move
+  a layer exactly `--depth` px per px scrolled and wrap every tile, keeping each
+  layer no taller than the window plus one tile. Elsewhere a passive scroll
+  listener and one `requestAnimationFrame` per scroll frame do the same from the
+  same custom properties. Only Crate has parallax; the maintainer asked for it
+  there and nowhere else.
+- **Contrast over the backdrop is measured on the images.** The proposal's 55%
+  scrim held muted text but not `danger`, which can sit straight on the page
+  (a failed load). The racking now sits under a 90% scrim and the pallets are
+  baked to a fifth of their brightness, as silhouettes in shadow. At the single
+  brightest pixel of every layer at once (racking, the light shaft's peak, the
+  grid, the brightest pallet pixel), ink is 11.7:1, muted 5.7:1, link 7.7:1 and
+  danger 4.6:1. The racking reads darker than the mockup as a result; a lighter
+  backdrop would need `danger` text kept off the page background.
+- **One particle engine, one canvas, 30 frames a second**
+  (`ui/src/ambient/engine.ts`). Each frame books the next with a timer and only
+  then asks for an animation frame, so the page wakes 30 times a second whatever
+  the display's refresh rate. Sprites are painted once into small offscreen
+  canvases. The canvas sits at `z-index: -1` behind the page, so particles pass
+  behind text and never cross a panel; it is `aria-hidden`, takes no pointer,
+  stops in a hidden tab, and is never created when motion is unwelcome. Presets
+  live in code (`presets.ts`), not in `theme.json`, because they are script and
+  only built-in themes ship script. A user theme gets none.
+- **Reduce motion and effects is Toil UI's own setting,** on the General page
+  (renamed from "Bounds and time limit", which it still holds), kept in this
+  browser as `toil-ui.motion` beside `toil-ui.theme`. It mirrors onto the root
+  as `data-motion`, and `app.css` stops every animation and transition under it,
+  the same rule as the OS setting. The OS setting wins when it asks for less, and
+  the page says so. A browser that can't answer the media query counts as
+  reduced.
+- **Gradients go through the tokens** with `color-mix()` and, for charts, a
+  per-chart `<linearGradient>` whose stops a theme colours in CSS and opts into
+  as `fill: var(--chart-fill)`. Plain never opts in and stays flat. Each new
+  stop was checked against every text colour that can sit on it: the lowest is
+  Crate's `danger` on its header at 4.7:1.
+- **The running week stays muted in every theme's throughput chart** (review on
+  #275). A theme rule on `.chart .bar` outranks the base `.bar--partial`, which
+  had already hidden the partial week in Crate and Starship on main, so each of
+  the four themes restates it, and `ui/test/themes.test.ts` requires that of any
+  theme that recolours chart bars.
+- **Two overflows from before this change are fixed,** since the bar is clean
+  layout in every theme: a long field name in a Connections label at 375px
+  (`overflow-wrap: anywhere`), and Harvest's Bounds terms at 375px, which now
+  stack under their values below 480px.
+- **Starship's lanes are left as they are.** Its animated hyperspace lanes
+  (#209, `stroke-dashoffset` on every graph edge) cost about 10% of a core at
+  idle in headless Chrome at 240 Hz, before and after this change; the particles
+  add about 1%. Making them cheaper changes Starship's design, which is the
+  maintainer's call.
+- **Generation.** The racking wall (gpt-image-2, medium) was cut to an exact
+  four-bay, three-shelf repeat with its seams cross-faded, so it tiles; the
+  pallets (gpt-image-1.5, transparent) were three cut-outs scattered on one
+  sparse tile. Both are WebP; Crate's art is 83 KB of its 160 KB budget. The
+  proposal's original master was gone, so the racking was regenerated.
+
 ### #272 wordmark
 
 The maintainer picked the face, Fredoka 600, from four candidates (Fredoka, Bagel Fat

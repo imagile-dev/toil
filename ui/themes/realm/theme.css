@@ -268,3 +268,35 @@
   border-top: 3px double var(--ink);
   background: transparent;
 }
+
+/* Gradients for life (#271): pages gilded at their foot, wax-seal buttons
+   lit from above, and crimson charts that deepen toward the axis. Every text
+   colour keeps 6:1 or better on the gilt, and the seal's cream 7.8:1. */
+[data-theme="realm"] .panel,
+[data-theme="realm"] .dossier-card,
+[data-theme="realm"] .ask {
+  background: linear-gradient(180deg, var(--raised), var(--surface) 50%, color-mix(in srgb, var(--surface) 88%, #c9a24a));
+}
+
+[data-theme="realm"] .stat {
+  background: linear-gradient(180deg, var(--raised) 40%, color-mix(in srgb, var(--raised) 85%, #c9a24a));
+}
+
+[data-theme="realm"] .btn--accent,
+[data-theme="realm"] .top nav a[aria-current="page"],
+[data-theme="realm"] button[aria-pressed="true"] {
+  background: linear-gradient(180deg, #8f2a2a, var(--accent) 55%, #5e1616);
+}
+
+[data-theme="realm"] .chart .chart-stop--top { stop-color: #a33a2a; }
+[data-theme="realm"] .chart .chart-stop--bottom { stop-color: #5e1616; }
+
+[data-theme="realm"] .chart .bar,
+[data-theme="realm"] .chart .area {
+  fill: var(--chart-fill);
+}
+
+/* The week still running stays muted, as in Plain, so a partial count never reads as a finished one. */
+[data-theme="realm"] .chart .bar--partial {
+  fill: var(--muted);
+}

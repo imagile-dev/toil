@@ -1,7 +1,7 @@
 {
   "name": "crate",
   "label": "Crate",
-  "description": "toil's own brand: the site's warm near-black, the flame-to-amber accent, and the crate in its hard hat when there's nothing to show yet.",
+  "description": "toil's own brand: the site's warm near-black and flame-to-amber accent in a warehouse of pallet racking that drifts as you scroll, dust in a light shaft, and the crate in its hard hat when there's nothing to show yet.",
   "schemes": {
     "dark": {
       "bg": "#16130f",
@@ -32,6 +32,8 @@
   "assets": {
     "emptyState": "assets/crate-lost.webp",
     "emblem": "assets/emblem.webp",
-    "loading": "assets/crate-loading.webp"
+    "loading": "assets/crate-loading.webp",
+    "racking": "assets/racking.webp",
+    "pallets": "assets/pallets.webp"
   }
 }

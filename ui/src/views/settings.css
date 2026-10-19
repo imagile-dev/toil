@@ -28,8 +28,9 @@ button.btn:disabled { cursor: not-allowed; opacity: 0.75; }
 .runs { font-size: 0.875rem; color: var(--muted); }
 .runs code { color: var(--ink); }
 
-.field-row { display: grid; gap: 0.25rem; max-width: 40rem; }
-.field-row label { font-weight: 600; }
+.field-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.25rem; max-width: 40rem; }
+.field-row select { min-width: 0; text-overflow: ellipsis; }
+.field-row label { font-weight: 600; overflow-wrap: anywhere; }
 .req { font-weight: 400; color: var(--muted); }
 .field-row input[type="text"], .field-row input[type="password"], .field-row input[type="url"], .field-row textarea, .field-row select {
   font: inherit;
@@ -54,3 +55,4 @@ button.btn:disabled { cursor: not-allowed; opacity: 0.75; }
 .outcome-line--ok { border-color: var(--ok); }
 .outcome-line--failed { border-color: var(--danger); }
 .shown { display: grid; gap: 0.5rem; }
+.motion-setting { margin-bottom: 1.5rem; }

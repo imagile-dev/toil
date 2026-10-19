@@ -1,19 +1,78 @@
 /* Crate: toil's own brand, from site/src/styles/global.css. Tokens come from
    theme.json (test/brand-sync.test.ts in the repository root holds them to the
    site); this file adds the site's fonts, its drafting grid, its accent
-   gradient and the crate's head beside the name. The same layout and click targets as Plain: only the look changes. */
+   gradient and the crate's head beside the name. The same layout and click
+   targets as Plain: only the look changes.
+
+   The warehouse (#271): the tokens stay the site's, so the warehouse's own
+   colours, kraft cardboard and rack steel, live here as custom properties and
+   reach the page through gradients and the backdrop. Behind the page, three
+   layers move at their own rates as it scrolls (src/ambient/Ambient.tsx):
+   pallet racking far off, the drafting grid nearer, and pallets of boxes
+   nearest. Each layer's `--depth` is the share of the scroll it follows and
+   `--tile` the height its art repeats at. A light shaft falls across them,
+   with dust turning in it (src/ambient/presets.ts draws the dust to match).
+   Text that sits straight on the page keeps 4.5:1 at the brightest pixel of
+   every layer at once, measured on the images, not guessed: under the 90%
+   scrim, the shaft's peak and the grid, over the brightest pallet, muted
+   text is 5.7:1 and danger 4.6:1. */
 
 @import '@fontsource/ibm-plex-sans/400.css';
 @import '@fontsource/ibm-plex-sans/600.css';
 @import '@fontsource/source-serif-4/600.css';
 @import '@fontsource/fira-code/400.css';
 
+[data-theme="crate"] {
+  --wh-kraft: #8a6a45;
+  --wh-kraft-dark: #6b5137;
+  --wh-tape: #b48a5a;
+  --wh-steel: #3a3029;
+  --wh-floor: #0d0b08;
+}
+
 [data-theme="crate"] body {
-  background-color: var(--bg);
+  background: var(--bg);
+}
+
+/* Far: the racking, under a scrim of the page's near-black. */
+[data-theme="crate"] .ambient-layer--far {
+  --depth: 0.06;
+  --tile: 362px;
+  background:
+    linear-gradient(rgba(22, 19, 15, 0.9), rgba(22, 19, 15, 0.9)),
+    url("./assets/racking.webp") 0 0 / 515px 362px;
+}
+
+/* The warehouse is dark up by the header and lit toward the floor, and a
+   light shaft falls across it from the high windows. This one holds still. */
+[data-theme="crate"] .ambient::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(115deg, transparent 54%, rgba(255, 184, 77, 0.025) 60%, rgba(255, 200, 120, 0.04) 64%, rgba(255, 184, 77, 0.025) 68%, transparent 74%),
+    linear-gradient(180deg, var(--bg) 0%, rgba(22, 19, 15, 0.7) 22%, rgba(22, 19, 15, 0) 60%, rgba(13, 11, 8, 0.35) 100%);
+}
+
+/* Mid: the site's drafting grid, kept from the start. */
+[data-theme="crate"] .ambient-layer--mid {
+  --depth: 0.2;
+  --tile: 24px;
+  z-index: 2;
   background-image:
     linear-gradient(rgba(246, 241, 233, 0.045) 1px, transparent 1px),
     linear-gradient(90deg, rgba(246, 241, 233, 0.045) 1px, transparent 1px);
   background-size: 24px 24px;
+}
+
+/* Near: pallets of boxes in shadow, few, moving fastest. */
+[data-theme="crate"] .ambient-layer--near {
+  --depth: 0.4;
+  --tile: 1400px;
+  z-index: 3;
+  opacity: 0.9;
+  background: url("./assets/pallets.webp") 0 0 / 1600px 1400px;
 }
 
 /* The crate in its hard hat beside the name. */
@@ -95,4 +154,79 @@
 [data-theme="crate"] .chart .bar,
 [data-theme="crate"] .chart .dot {
   fill: var(--link);
+}
+
+/* Gradients for life (#271), in the warehouse's colours over the site's
+   tokens. Every text colour that sits on them keeps 4.5:1 at the lightest
+   stop: kraft is mixed in at no more than 14%. */
+[data-theme="crate"] .top {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--raised) 86%, var(--wh-kraft)), var(--surface));
+  box-shadow: 0 1px 0 rgba(255, 184, 77, 0.08), 0 8px 24px rgba(13, 11, 8, 0.5);
+}
+
+[data-theme="crate"] .panel,
+[data-theme="crate"] .dossier-card,
+[data-theme="crate"] .ask {
+  background: linear-gradient(170deg, color-mix(in srgb, var(--surface) 88%, var(--wh-kraft)) 0%, var(--surface) 38%, color-mix(in srgb, var(--surface) 70%, var(--wh-floor)) 100%);
+  box-shadow: inset 0 1px 0 rgba(246, 241, 233, 0.04), 0 10px 30px -18px rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="crate"] .stat {
+  border-top: 2px solid var(--wh-tape);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--raised) 86%, var(--wh-kraft)), var(--surface) 75%);
+}
+
+[data-theme="crate"] .btn--accent,
+[data-theme="crate"] .top nav a[aria-current="page"],
+[data-theme="crate"] button[aria-pressed="true"],
+[data-theme="crate"] .check[data-selected] .box {
+  background: linear-gradient(100deg, var(--accent) 10%, var(--link) 90%);
+  border-color: var(--accent);
+}
+
+[data-theme="crate"] .column {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 90%, var(--wh-kraft)), var(--bg) 70%);
+}
+
+[data-theme="crate"] .chart .chart-stop--top { stop-color: var(--link); }
+[data-theme="crate"] .chart .chart-stop--bottom { stop-color: var(--accent); }
+
+[data-theme="crate"] .chart .bar,
+[data-theme="crate"] .chart .area {
+  fill: var(--chart-fill);
+}
+
+[data-theme="crate"] .chart .area {
+  opacity: 0.22;
+}
+
+/* The parallax: each layer drifts its `--depth` share of the scroll, on the
+   compositor, and wraps every `--tile`. An iteration of a scroll-driven
+   animation spans an equal share of its range, so 50 of them, each
+   `--tile / --depth` long, move a layer exactly `--depth` px for every px
+   scrolled, past any page length toil will draw. Browsers without
+   scroll-driven animations get the same motion from Ambient.tsx. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: scroll()) {
+    [data-theme="crate"] .ambient-layer {
+      animation: crate-parallax linear both;
+      animation-iteration-count: 50;
+      animation-timeline: scroll(root block);
+      animation-range: 0 calc(var(--tile) / var(--depth) * 50);
+    }
+  }
+
+  [data-theme="crate"] .ambient-layer {
+    will-change: transform;
+  }
+}
+
+@keyframes crate-parallax {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, calc(-1 * var(--tile)), 0); }
+}
+
+/* The week still running stays muted, as in Plain, so a partial count never reads as a finished one. */
+[data-theme="crate"] .chart .bar--partial {
+  fill: var(--muted);
 }
