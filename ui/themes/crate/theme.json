@@ -30,6 +30,8 @@
   "motion": "subtle",
   "sounds": {},
   "assets": {
-    "emptyState": "assets/crate-lost.webp"
+    "emptyState": "assets/crate-lost.webp",
+    "emblem": "assets/emblem.webp",
+    "loading": "assets/crate-loading.webp"
   }
 }

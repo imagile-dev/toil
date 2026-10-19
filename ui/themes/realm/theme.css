@@ -1,17 +1,23 @@
 /* Realm (#210): a high-fantasy chronicle. Tokens come from theme.json; this
-   file adds parchment, ink-drawn borders, illuminated capitals on the
-   headings, the sprint as a chronicle page, and the dependency graph as a
-   hand-drawn map, where blockers are mountain passes. The same layout and
-   click targets as Plain: only the look changes. Art is original and hidden
-   from screen readers; the words beside it say what it shows. */
+   file adds parchment, a crest beside the name, ink-drawn borders,
+   illuminated capitals on the headings, the sprint as a chronicle page, and
+   the dependency graph as a hand-drawn map, where blockers are mountain
+   passes. The same layout and click targets as Plain: only the look changes.
+   Art is original and hidden from screen readers; the words beside it say
+   what it shows. */
 
 @import '@fontsource/cinzel/600.css';
 @import '@fontsource/cinzel-decorative/700.css';
 @import '@fontsource/eb-garamond/400.css';
 @import '@fontsource/eb-garamond/600.css';
 
+/* Parchment under everything, washed with the page's own colour so text
+   that sits on it keeps 6:1 at the darkest fibre. */
 [data-theme="realm"] body {
-  background: url("./assets/parchment.svg") 0 0 / 320px 320px, var(--bg);
+  background:
+    linear-gradient(rgba(239, 226, 196, 0.35), rgba(239, 226, 196, 0.35)),
+    url("./assets/parchment.webp") 0 0 / 384px 384px,
+    var(--bg);
   font-size: 1.0625rem;
 }
 
@@ -41,6 +47,15 @@
 [data-theme="realm"] .brand {
   color: var(--accent);
   letter-spacing: 0.06em;
+}
+
+/* The realm's crest beside the name: a quill and a key on a crimson shield. */
+[data-theme="realm"] .brand::before {
+  content: "";
+  width: 34px;
+  height: 40px;
+  margin-right: 0.5rem;
+  background: url("./assets/emblem.webp") center / contain no-repeat;
 }
 
 [data-theme="realm"] .top {
@@ -158,8 +173,8 @@
   border: 1.5px solid var(--ink);
   border-radius: 0;
   background:
-    url("./assets/map.svg") center / cover no-repeat,
-    url("./assets/parchment.svg") 0 0 / 320px 320px,
+    linear-gradient(rgba(239, 226, 196, 0.3), rgba(239, 226, 196, 0.3)),
+    url("./assets/map.webp") center / cover no-repeat,
     var(--bg);
 }
 
@@ -242,6 +257,11 @@
 [data-theme="realm"] .realm-scroll img {
   width: 200px;
   max-width: 100%;
+}
+
+/* While a view loads, the scribe is still writing. */
+[data-theme="realm"] .realm-writing img {
+  width: 240px;
 }
 
 /* The local app's sync panel (#257). */

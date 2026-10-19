@@ -1,7 +1,7 @@
 /* Crate: toil's own brand, from site/src/styles/global.css. Tokens come from
    theme.json (test/brand-sync.test.ts in the repository root holds them to the
-   site); this file adds the site's fonts, its drafting grid and its accent
-   gradient. The same layout and click targets as Plain: only the look changes. */
+   site); this file adds the site's fonts, its drafting grid, its accent
+   gradient and the crate's head beside the name. The same layout and click targets as Plain: only the look changes. */
 
 @import '@fontsource/ibm-plex-sans/400.css';
 @import '@fontsource/ibm-plex-sans/600.css';
@@ -14,6 +14,15 @@
     linear-gradient(rgba(246, 241, 233, 0.045) 1px, transparent 1px),
     linear-gradient(90deg, rgba(246, 241, 233, 0.045) 1px, transparent 1px);
   background-size: 24px 24px;
+}
+
+/* The crate in its hard hat beside the name. */
+[data-theme="crate"] .brand::before {
+  content: "";
+  width: 36px;
+  height: 36px;
+  margin-right: 0.5rem;
+  background: url("./assets/emblem.webp") center / contain no-repeat;
 }
 
 [data-theme="crate"] h1,

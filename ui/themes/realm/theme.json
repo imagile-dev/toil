@@ -30,14 +30,16 @@
   "motion": "none",
   "sounds": {},
   "assets": {
-    "parchment": "assets/parchment.svg",
+    "parchment": "assets/parchment.webp",
     "border": "assets/ink-border.svg",
     "capital": "assets/capital.svg",
-    "map": "assets/map.svg",
+    "map": "assets/map.webp",
     "pass": "assets/mountain-pass.svg",
     "scroll": "assets/scroll.svg",
     "quill": "assets/quill.svg",
-    "flourish": "assets/flourish.svg"
+    "flourish": "assets/flourish.svg",
+    "emblem": "assets/emblem.webp",
+    "loading": "assets/quill-and-scroll.webp"
   },
   "terms": {
     "epic": "Quest",

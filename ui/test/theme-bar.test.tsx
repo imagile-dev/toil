@@ -7,7 +7,7 @@ import { scriptedAgent } from '../src/fixtures/agent.ts';
 import type { SyncClient, SyncStatus } from '../src/server-client.ts';
 import { SyncPanel } from '../src/sync-panel.tsx';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import { BUILT_IN_SKINS, SLOTS, themed } from '../src/skins.tsx';
+import { BUILT_IN_SKINS, SLOTS, skinsFor, themed } from '../src/skins.tsx';
 import { THEMES, themeNamed } from '../src/themes.ts';
 
 /**
@@ -145,6 +145,19 @@ describe('the skins', () => {
     expect(p).toBeLessThan(1);
     unmount();
     expect(document.documentElement.style.getPropertyValue('--sprint-progress')).toBe('');
+  });
+
+  it.each([
+    ['crate', 'Loading', 'crate-loading'],
+    ['starship', 'EmptyState', 'empty-sector'],
+    ['realm', 'Loading', 'quill-and-scroll'],
+  ] as const)("show %s's own art in its %s slot, decorative, beside the words", (theme, slot, file) => {
+    const Slot = skinsFor(theme)[slot];
+    const { container } = render(<Slot message="Nothing to file." />);
+    const img = container.querySelector('img')!;
+    expect(img.getAttribute('src')).toContain(file);
+    expect(img.getAttribute('alt')).toBe('');
+    expect(screen.getByText('Nothing to file.')).toBeTruthy();
   });
 
   it('put HUD corners on Starship panels and the header, out of the accessibility tree', async () => {

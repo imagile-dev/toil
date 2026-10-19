@@ -38,7 +38,9 @@
     "harvested": "assets/crop-harvested.svg",
     "portrait": "assets/portrait.svg",
     "emptyState": "assets/empty-field.svg",
-    "loading": "assets/watering-can.svg"
+    "loading": "assets/watering-can.svg",
+    "emblem": "assets/emblem.webp",
+    "fields": "assets/fields.webp"
   },
   "terms": {
     "board": "Farm plot",
