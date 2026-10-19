@@ -995,7 +995,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
 | `automation` | Editing workflows under `.github/`: the review agent, the fix agent, issue triage and its daily cap, the feedback deploy, action pins, Discord notifications, redaction |
-| `site` | Changing anything under `site/`, or the brand it shares with the terminal splash and menu in `src/welcome/`: responsive rules, palette, the mark and its motion, art, status honesty, screenshots |
+| `site` | Changing anything under `site/`, or the brand it shares with the terminal splash and menu in `src/welcome/`: responsive rules, palette, the mark and its motion, the wordmark, art, status honesty, screenshots |
 | `ship` | Opening, updating or shepherding a PR: four local reviews (gate, code, docs, principles), fixing all but principle findings, and the four-minute PR watch that replaces the app's Auto-fix |
 
 ## Cloud Cost

@@ -172,6 +172,20 @@ describe('the splash', () => {
     }
   });
 
+  it('draws the wordmark beside the logo at 80 columns, seven lines tall, and doubles it only where it fits', () => {
+    const at = (columns: number) => splashFrame(DURATION + 1, { ...plain, columns }, '0.1.0');
+    const wordmark = (frame: string[]) => frame.filter((line) => /[█▀▄]/.test(line));
+    const width = (frame: string[]) => Math.max(...wordmark(frame).map((line) => visibleLength(line.replace(/^.*?(?=[█▀▄])/u, ''))));
+    const side = at(80);
+    expect(side).toHaveLength(16);
+    expect(wordmark(side)).toHaveLength(7);
+    expect(side.join('\n')).toContain(TAGLINE);
+    expect(width(side)).toBeLessThanOrEqual(28);
+    // 32 for the logo, 3 of gap, the word at double width and 6 to spare.
+    expect(width(at(96))).toBeLessThanOrEqual(28);
+    expect(width(at(97))).toBeGreaterThan(28);
+  });
+
   it('prints only the still when it cannot animate, and plays frames then the still when it can', async () => {
     let out = '';
     const caps = { colorDepth: 1, unicode: true, animate: false, columns: 120, rows: 40 } as const;
