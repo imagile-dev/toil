@@ -36,12 +36,18 @@ export function useThemeChoice() {
     void loadThemeStyles(choice.theme);
     document.documentElement.dataset.theme = choice.theme;
     document.documentElement.dataset.scheme = choice.scheme;
-    showFavicon(choice.theme);
     try {
       localStorage.setItem(KEY, JSON.stringify(choice));
     } catch {
       // Not remembered; nothing else depends on it.
     }
+    // The tab's icon follows the scheme too (Plain has one per scheme), and with
+    // `system` it follows the operating system as it changes.
+    const dark = window.matchMedia?.('(prefers-color-scheme: dark)');
+    const icon = () => showFavicon(choice.theme, choice.scheme === 'system' ? (dark?.matches ? 'dark' : 'light') : choice.scheme);
+    icon();
+    dark?.addEventListener('change', icon);
+    return () => dark?.removeEventListener('change', icon);
   }, [choice]);
   return {
     ...choice,

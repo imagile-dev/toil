@@ -4,3 +4,20 @@
 [data-theme="plain"] .l-card {
   box-shadow: 0 1px 0 var(--line);
 }
+
+/* The badge in Plain's own blue rather than toil's flame: the light accent on
+   the light scheme, the dark accent on the dark one, and the system's choice
+   when the scheme follows it. */
+[data-theme="plain"] .brand::before {
+  background-image: url("./assets/mark-light.svg");
+}
+
+[data-theme="plain"][data-scheme="dark"] .brand::before {
+  background-image: url("./assets/mark-dark.svg");
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="plain"][data-scheme="system"] .brand::before {
+    background-image: url("./assets/mark-dark.svg");
+  }
+}

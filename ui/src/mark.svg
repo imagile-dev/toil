@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-<!-- Toil UI's mark in Plain, and in any theme that brings none of its own: the standard badge, the site's favicon. -->
+<!-- Toil UI's mark in any theme that brings none of its own, such as one from the user's folder: the standard badge, the site's favicon. -->
 <defs>
 <linearGradient id="b2" gradientUnits="userSpaceOnUse" x1="8" y1="58" x2="58" y2="8">
 <stop offset=".08" stop-color="#ff6a3d"/>

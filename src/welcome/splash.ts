@@ -1,5 +1,6 @@
-import { DURATION, logoCells, SPIN } from './logo.js';
+import { BLINKS, DURATION, logoCells, SPIN } from './logo.js';
 import { blank, type Cell, cursor, mix, PALETTE, renderCells, textCells, type TermCaps } from './term.js';
+import { WORDMARK } from './wordmark.js';
 
 /**
  * The splash: the logo on the left, the wordmark and the tagline on the right.
@@ -16,57 +17,82 @@ export const TAGLINE = 'Let your agents handle the toil.';
  */
 export const SPEED = 1.25;
 
-// "toil" as a 14-row bitmap, hand-drawn after the wordmark's typeface (Fredoka,
-// weight 600: round terminals, a footed t, 3-pixel strokes). Each pair of rows
-// becomes one line of half-blocks, so it stands 7 lines tall. The site and Toil
-// UI set the same word in the font itself; a terminal has no fonts to set.
-const LETTERS: string[][] = [
-  // t
-  ['.......', '.......', '..###..', '..###..', '..###..', '#######', '#######', '..###..', '..###..', '..###..', '..###..', '..###..', '..####.', '...####'],
-  // o
-  ['.........', '.........', '.........', '.........', '.........', '..#####..', '.#######.', '###...###', '###...###', '###...###', '###...###', '###...###', '.#######.', '..#####..'],
-  // i
-  ['...', '###', '###', '...', '...', '###', '###', '###', '###', '###', '###', '###', '###', '###'],
-  // l
-  ['###', '###', '###', '###', '###', '###', '###', '###', '###', '###', '###', '###', '###', '###'],
-];
-
-const WORD: string[] = LETTERS[0]!.map((_, row) => LETTERS.map((letter) => letter[row]).join('..'));
-const WORD_WIDTH = WORD[0]!.length;
+/** The wordmark's pixels (src/welcome/wordmark.ts, generated from Fredoka 600). */
+const WORD = WORDMARK;
+/** Lines the word itself takes: two pixel rows per line. */
+const WORD_LINES = WORD.length / 2;
+/** Columns the word takes: two pixels per column. */
+const WORD_COLS = WORD[0]!.length / 2;
+/** The word, its one-cell shadow, a space and the two-cell cursor. */
+const WORDMARK_WIDTH = WORD_COLS + 1 + 1 + 2;
 const LOGO_WIDTH = 32;
 const GAP = 3;
-/** Blank lines above the wordmark, so the text column sits centred beside the 16-line logo. */
-const LEAD = 2;
+/** A blank line above the wordmark, so the text column sits centred beside the 16-line logo. */
+const LEAD = 1;
 
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 
 type Caps = Pick<TermCaps, 'colorDepth' | 'unicode'>;
 
+/** Quadrant blocks by the pixels they fill: top-left 1, top-right 2, bottom-left 4, bottom-right 8. */
+const QUADRANTS = [' ', '▘', '▝', '▀', '▖', '▌', '▞', '▛', '▗', '▚', '▐', '▜', '▄', '▙', '▟', '█'];
+
+/** ASCII for the same four pixels: the top half, the bottom half, or more. */
+function asciiQuadrant(bits: number): string {
+  if ((bits & 12) === 0) return '"';
+  if ((bits & 3) === 0) return '.';
+  return '#';
+}
+
+const ink = (row: number, col: number) => WORD[row]?.[col] === '#';
+const bitsAt = (line: number, cell: number, dy = 0, dx = 0) =>
+  (ink(line * 2 - dy, cell * 2 - dx) ? 1 : 0) | (ink(line * 2 - dy, cell * 2 + 1 - dx) ? 2 : 0) | (ink(line * 2 + 1 - dy, cell * 2 - dx) ? 4 : 0) | (ink(line * 2 + 1 - dy, cell * 2 + 1 - dx) ? 8 : 0);
+
 /**
- * The wordmark at time t as cells: it sweeps in from the left, flame to amber,
- * with a bright leading edge; a shine crosses it after the ring's turn. `scale` 2
- * doubles every pixel's width, for terminals with room to spare.
+ * The wordmark at time t as cells: Fredoka's "toil", flame at the baseline rising
+ * to amber at the top, over a one-cell shadow in a dark flame, with a cursor after
+ * it that blinks with the badge's. It sweeps in from the left with a bright leading
+ * edge, and a shine crosses it after the ring's turn. Without colour it's the shape
+ * alone; without Unicode, ASCII. The welcome menu draws the same cells, so the
+ * word has one shape everywhere.
  */
-export function wordmarkCells(t: number, caps: Pick<TermCaps, 'unicode'>, scale: 1 | 2 = 1): Cell[][] {
-  const reveal = clamp((t - 0.3) / 0.6) * (WORD_WIDTH + 4);
+export function wordmarkCells(t: number, caps: Pick<TermCaps, 'unicode'> & Partial<Pick<TermCaps, 'colorDepth'>>): Cell[][] {
+  const colour = (caps.colorDepth ?? 24) > 1;
+  const reveal = clamp((t - 0.3) / 0.6) * (WORDMARK_WIDTH + 4);
   const shineAt = SPIN.to - 0.05;
-  const shine = ((t - shineAt) / 0.45) * (WORD_WIDTH + 8) - 4;
+  const shine = ((t - shineAt) / 0.45) * (WORDMARK_WIDTH + 8) - 4;
+  const shadow = mix(PALETTE.bg, PALETTE.accent, 0.38);
+  const cursorOn = !BLINKS.some(([from, to]) => t > from && t < to);
   const rows: Cell[][] = [];
-  for (let row = 0; row < WORD.length; row += 2) {
+  // One more line than the word, for the shadow below it.
+  for (let line = 0; line <= WORD_LINES; line++) {
     const out: Cell[] = [];
-    for (let col = 0; col < WORD_WIDTH; col++) {
-      const top = WORD[row]![col] === '#';
-      const bottom = WORD[row + 1]![col] === '#';
-      if (col > reveal || (!top && !bottom)) {
-        out.push(...blank(scale));
+    for (let col = 0; col < WORDMARK_WIDTH; col++) {
+      if (col > reveal) {
+        out.push({ ch: ' ' });
         continue;
       }
-      const glyph = caps.unicode ? (top && bottom ? '█' : top ? '▀' : '▄') : top && bottom ? '#' : top ? '"' : '.';
-      const base = mix(PALETTE.accent, PALETTE.amber, col / (WORD_WIDTH - 1));
-      const edge = clamp(1 - (reveal - col) / 4);
-      const glint = t > shineAt && t < shineAt + 0.5 ? clamp(1 - Math.abs(shine - col) / 3) : 0;
-      const color = mix(base, PALETTE.ink, Math.max(edge * 0.8, glint * 0.9));
-      for (let k = 0; k < scale; k++) out.push({ ch: glyph, color });
+      const bits = line < WORD_LINES ? bitsAt(line, col) : 0;
+      if (bits) {
+        // The vertical gradient, by the line's place in the word, then the sweep and the shine.
+        const base = mix(PALETTE.accent, PALETTE.amber, 1 - line / (WORD_LINES - 1));
+        const edge = clamp(1 - (reveal - col) / 4);
+        const glint = t > shineAt && t < shineAt + 0.5 ? clamp(1 - Math.abs(shine - col) / 3) : 0;
+        out.push({ ch: caps.unicode ? QUADRANTS[bits]! : asciiQuadrant(bits), color: mix(base, PALETTE.ink, Math.max(edge * 0.8, glint * 0.9)) });
+        continue;
+      }
+      // The shadow shows only where the word doesn't, and only in colour: as shape alone it would read as more letters.
+      const behind = bitsAt(line, col, 2, 2);
+      if (behind && colour && caps.unicode) {
+        out.push({ ch: QUADRANTS[behind]!, color: shadow });
+        continue;
+      }
+      // The cursor, two cells on the baseline after the word and its shadow.
+      if (line === WORD_LINES - 1 && col >= WORD_COLS + 2 && cursorOn) {
+        out.push({ ch: caps.unicode ? '▄' : '_', color: PALETTE.accent });
+        continue;
+      }
+      out.push({ ch: ' ' });
     }
     rows.push(out);
   }
@@ -74,8 +100,8 @@ export function wordmarkCells(t: number, caps: Pick<TermCaps, 'unicode'>, scale:
 }
 
 /** The wordmark at time t, as painted lines. */
-export function wordmarkFrame(t: number, caps: Caps, scale: 1 | 2 = 1): string[] {
-  return wordmarkCells(t, caps, scale).map((row) => renderCells(row, caps));
+export function wordmarkFrame(t: number, caps: Caps): string[] {
+  return wordmarkCells(t, caps).map((row) => renderCells(row, caps));
 }
 
 /** Text that types itself out between `from` and `to` seconds. */
@@ -87,17 +113,16 @@ function typed(text: string, t: number, from: number, to: number): string {
 export function splashFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unicode' | 'columns'>, version: string): string[] {
   const logo = logoCells(t, caps);
   const dot = caps.unicode ? '·' : '-';
-  const wide = caps.columns >= LOGO_WIDTH + GAP + WORD_WIDTH * 2 + 6;
   const side: Cell[][] = [
     ...Array.from({ length: LEAD }, () => []),
-    ...wordmarkCells(t, caps, wide ? 2 : 1),
+    ...wordmarkCells(t, caps),
     [],
     textCells(typed(TAGLINE, t, 0.9, 1.4), PALETTE.ink),
     [],
     textCells(typed('Enterprise tools and databases.', t, 1.2, 1.6), PALETTE.muted),
     textCells(t > 1.5 ? `toil ${version} ${dot} by Imagile` : '', PALETTE.faint),
   ];
-  const stacked = caps.columns < LOGO_WIDTH + GAP + Math.max(WORD_WIDTH, TAGLINE.length) + 4;
+  const stacked = caps.columns < LOGO_WIDTH + GAP + Math.max(WORDMARK_WIDTH, TAGLINE.length) + 4;
   const rows = stacked
     ? [...logo, ...side.slice(LEAD)].map((row) => [{ ch: ' ' }, ...row])
     : logo.map((row, i) => [{ ch: ' ' }, ...row, ...blank(GAP), ...(side[i] ?? [])]);

@@ -3701,3 +3701,29 @@ decided here.
   has no mark the build knows, so it shows the standard badge.
 - **The README banner and social preview aren't re-rendered here.** They live on
   #268's branch, which hasn't merged; they follow once it does.
+- **Plain's badge is blue** (the maintainer's call on #282): the tile takes the
+  scheme's `accent` (`#0b5cad` light, `#8cc4ff` dark) instead of the gradient, so
+  Plain has two marks and its favicon follows the scheme, including `system` as the
+  OS changes. On the light accent the page is white; on the dark accent's light
+  blue a white page would barely separate, so the dark mark has a dark page
+  (`#0b1220`, Plain dark's accent ink) with Plain's ink for the chevron. The
+  cursor is the accent in both: 6.7:1 and 10.2:1 on the page. Plain's sticker and
+  wordmark needed no change: the sticker already takes the theme's accent and the
+  word its ink.
+- **The terminal wordmark is generated from Fredoka itself** (#282, the
+  maintainer's note that the hand-drawn one didn't read as Fredoka).
+  `scripts/gen-wordmark.mjs` rasterises the real glyphs in headless Chrome (already
+  how the repo's screenshot and layout tools run) rather than adding opentype.js
+  for a one-off; Chrome's text rasteriser is the one the site's wordmark goes
+  through too. Quadrant blocks (U+2596 to U+259F, in the same Block Elements range
+  the half-blocks were) rather than sextants or octants, which many terminal fonts
+  still lack. The sampler's output needed no hand-tuning, so `TUNE` is empty.
+- **The splash no longer doubles the word's width on a wide window.** That was
+  the "fatter" logo: from 97 columns the splash drew "toil" at twice its width
+  while the menu didn't. The word now has one size everywhere, and a test holds
+  the splash's and the menu's to the same lines and columns. The badge itself was
+  already square (a test now measures it, dot by dot, at 1:1 within 5%).
+- **The wordmark's shadow is foreground-only**: it shows in cells the word
+  doesn't touch, and is dropped where a cell holds both, rather than adding a
+  background colour to every cell, the recording's encoder and the site's player.
+

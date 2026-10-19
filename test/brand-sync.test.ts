@@ -117,6 +117,18 @@ describe("Toil UI's badges", () => {
       expect(read('ui/src/favicon.ts'), theme).toContain(`'../themes/${theme}/assets/mark.svg'`);
     }
   });
+
+  // Plain's badge is the same badge in Plain's own blue, one per scheme: the
+  // tile takes that scheme's accent instead of the flame-to-amber gradient.
+  const plain = JSON.parse(read('ui/themes/plain/theme.json')) as { schemes: Record<'light' | 'dark', { accent: string }> };
+  it.each(['light', 'dark'] as const)("draws Plain's %s badge in that scheme's accent, on the same tile", (scheme) => {
+    const svg = read(`ui/themes/plain/assets/mark-${scheme}.svg`);
+    expect(svg).toContain(`<path d="${tilePath()}" fill="${plain.schemes[scheme].accent}"/>`);
+    expect(svg).toContain(`transform="${placement}"`);
+    expect(svg).not.toContain('Gradient');
+    expect(read('ui/themes/plain/theme.css')).toContain(`url("./assets/mark-${scheme}.svg")`);
+    expect(read('ui/src/favicon.ts')).toContain(`'../themes/plain/assets/mark-${scheme}.svg'`);
+  });
 });
 
 /**

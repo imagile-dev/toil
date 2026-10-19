@@ -6,7 +6,7 @@ import type { Envelope } from '../src/core/envelope.js';
 import { finish, initialState, reduce, render, top, type MenuState } from '../src/welcome/menu.js';
 import { agentScreen, connectionsScreen, healthScreen, type WelcomeData } from '../src/welcome/screens.js';
 import { launchCommand } from '../src/welcome/data.js';
-import { playSplash, SPEED, splashFrame, TAGLINE } from '../src/welcome/splash.js';
+import { playSplash, SPEED, splashFrame, TAGLINE, wordmarkCells, wordmarkFrame } from '../src/welcome/splash.js';
 import { detectCaps, fitLine, PALETTE, visibleLength, wrapLine } from '../src/welcome/term.js';
 import { CTRL_C_WINDOW_MS, doubleTap, runWelcome, wantsWelcome } from '../src/welcome/index.js';
 import { testConfig } from './harness/context.js';
@@ -192,18 +192,75 @@ describe('the splash', () => {
     }
   });
 
-  it('draws the wordmark beside the logo at 80 columns, seven lines tall, and doubles it only where it fits', () => {
+  // The word's cells: the lines and columns its quadrant blocks take, wherever it's drawn.
+  const QUAD = /[▘▝▀▖▌▞▛▗▚▐▜▄▙▟█]/u;
+  const box = (lines: string[]) => {
+    const word = lines.map((l) => l.replace(/[⠀-⣿]/g, ' ')).filter((l) => QUAD.test(l));
+    const starts = word.map((l) => [...l].findIndex((ch) => QUAD.test(ch)));
+    const ends = word.map((l) => [...l].length - [...l].reverse().findIndex((ch) => QUAD.test(ch)));
+    return { lines: word.length, columns: Math.max(...ends) - Math.min(...starts) };
+  };
+
+  it('draws the wordmark beside the logo at 80 columns, eight lines of Fredoka, never stretched', () => {
     const at = (columns: number) => splashFrame(DURATION + 1, { ...plain, columns }, '0.1.0');
-    const wordmark = (frame: string[]) => frame.filter((line) => /[█▀▄]/.test(line));
-    const width = (frame: string[]) => Math.max(...wordmark(frame).map((line) => visibleLength(line.replace(/^.*?(?=[█▀▄])/u, ''))));
     const side = at(80);
     expect(side).toHaveLength(16);
-    expect(wordmark(side)).toHaveLength(7);
     expect(side.join('\n')).toContain(TAGLINE);
-    expect(width(side)).toBeLessThanOrEqual(28);
-    // 32 for the logo, 3 of gap, the word at double width and 6 to spare.
-    expect(width(at(96))).toBeLessThanOrEqual(28);
-    expect(width(at(97))).toBeGreaterThan(28);
+    // Eight lines of word (the shadow is colour only), its cursor on the last.
+    expect(box(side).lines).toBe(8);
+    expect(box(side).columns).toBeLessThanOrEqual(80 - 1 - 32 - 3);
+    // A wide window gets the same word, not a wider one.
+    expect(box(at(120))).toEqual(box(side));
+  });
+
+  it('draws the same word, at the same width to height, in the splash and on the menu', () => {
+    const splash = box(splashFrame(DURATION + 1, { ...plain, columns: 120 }, '0.1.0'));
+    const menu = box(render(initialState, { ...plain, columns: 120, rows: 40 }, data()));
+    expect(menu).toEqual(splash);
+    expect(menu.columns / menu.lines).toBe(splash.columns / splash.lines);
+  });
+
+  it("draws Fredoka's round dot on the i, apart from its stem", () => {
+    const cells = wordmarkCells(DURATION + 1, plain);
+    // The i's dot is on the first line, the line under it is clear in that column, and the stem starts below.
+    const col = cells[0]!.findIndex((c, i) => c.ch !== ' ' && cells[1]![i]!.ch !== ' ' && cells[2]!.slice(i, i + 2).some((x) => x.ch !== ' ') && i > 15);
+    expect(col).toBeGreaterThan(0);
+    expect(cells.slice(0, 2).every((row) => row[col]!.ch !== ' ')).toBe(true);
+  });
+
+  it('shades the word flame to amber from the baseline up, with a shadow and a cursor only in colour', () => {
+    const lit = wordmarkCells(DURATION + 1, color);
+    const tones = (row: (typeof lit)[number]) => row.filter((c) => c.color && QUAD.test(c.ch)).map((c) => c.color![1]);
+    // Green rises from flame (106) at the bottom to amber (184) at the top.
+    expect(Math.max(...tones(lit[0]!))).toBeGreaterThan(Math.max(...tones(lit[7]!)));
+    // The shadow line below the word has ink in colour, and none without it.
+    expect(lit[8]!.some((c) => c.ch !== ' ')).toBe(true);
+    expect(wordmarkCells(DURATION + 1, plain)[8]!.every((c) => c.ch === ' ')).toBe(true);
+    // The cursor blinks with the badge's.
+    const cursor = (t: number) => wordmarkCells(t, color)[7]!.slice(-2).every((c) => c.ch === '▄');
+    expect(cursor(DURATION + 1)).toBe(true);
+    expect(cursor((BLINKS[0][0] + BLINKS[0][1]) / 2)).toBe(false);
+    // ASCII stays ASCII.
+    expect(wordmarkFrame(DURATION + 1, ascii).join('\n')).toMatch(/^[\x20-\x7e\n]*$/);
+  });
+
+  it('keeps the badge square, as the SVG draws it: braille dots are square in cells twice as tall as they are wide', () => {
+    // The tile's dots, decoded from the braille (2 across, 4 down per cell). Tile cells sit
+    // on the line from flame to amber; the dots are exact palette colours, the page is ink.
+    const BIT = [[0x01, 0x08], [0x02, 0x10], [0x04, 0x20], [0x40, 0x80]];
+    const dots: Array<[number, number]> = [];
+    logoCells(DURATION + 1, color).forEach((row, cy) =>
+      row.forEach((c, cx) => {
+        if (!c.color || c.color[0] !== 255 || [PALETTE.amber, PALETTE.accent].some((p) => p.join() === c.color!.join())) return;
+        const bits = c.ch.codePointAt(0)! - 0x2800;
+        BIT.forEach((pair, dy) => pair.forEach((bit, dx) => bits & bit && dots.push([cx * 2 + dx, cy * 4 + dy])));
+      }),
+    );
+    const span = (v: number[]) => Math.max(...v) - Math.min(...v) + 1;
+    const ratio = span(dots.map(([x]) => x)) / span(dots.map(([, y]) => y));
+    // The SVG's tile is 52 by 52; shrunk to ORBIT.k it's about 34 dots each way.
+    expect(ratio).toBeGreaterThan(0.95);
+    expect(ratio).toBeLessThan(1.05);
   });
 
   it('prints only the still when it cannot animate, and plays frames then the still when it can', async () => {

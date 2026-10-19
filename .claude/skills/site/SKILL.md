@@ -90,9 +90,12 @@ from `main`).
     three in the same PR.** `test/brand-sync.test.ts` fails when the terminal's
     palette, tile, page placement or orbit, or any static copy, differs from the
     site's. It can't see the motion, so a change to it is mirrored by hand.
-  - *Toil UI wears the badge in every theme.* Plain, and any theme that brings none,
-    shows the standard badge (`ui/src/mark.svg`); each built-in game theme has its
-    own skin of the same silhouette in `ui/themes/<theme>/assets/mark.svg`: Crate
+  - *Toil UI wears the badge in every theme.* A theme that brings none (one from
+    the user's folder) shows the standard badge (`ui/src/mark.svg`). Plain's is the
+    same badge in Plain's own blue, one per scheme (the tile takes that scheme's
+    `accent`, with a white or dark page; `assets/mark-light.svg` and
+    `mark-dark.svg`), so the quiet theme never wears flame. Each built-in game theme
+    has its own skin of the same silhouette in `ui/themes/<theme>/assets/mark.svg`: Crate
     kraft cardboard with a hazard-striped tape and a stencilled prompt, Harvest a
     16-pixel wooden sign, Starship a riveted hull plate with a glowing console, Realm
     an illuminated tile with a gilt edge. It sits beside the name at 32px (twice
@@ -104,9 +107,15 @@ from `main`).
     where "UI" is a die-cut sticker stuck on beside it, so the word itself never
     changes. It's real type, never an image, and only the word "toil" uses it;
     headings and the hero keep their faces. Only the Latin 600 file is imported.
-    The terminal draws the same word as half-block art (`LETTERS` in
-    `src/welcome/splash.ts`), hand-tuned to Fredoka's shapes, 7 lines tall and 28
-    columns wide so it sits beside the logo at 80 columns. A change to the face
+    The terminal draws the same word from the face itself: `scripts/gen-wordmark.mjs`
+    rasterises Fredoka 600 in headless Chrome onto quadrant blocks (two pixels across
+    and two down per cell, sampled twice as densely across because a cell is twice
+    as tall as it is wide) and writes `src/welcome/wordmark.ts`; hand-tuning goes in
+    the script's `TUNE`, never in the data. It's 8 lines by 33 columns, shaded flame
+    at the baseline to amber at the top, over a one-cell shadow in a dark flame
+    (colour only), with a cursor after it that blinks with the badge's. The splash
+    and the menu draw it at that one size, never stretched for a wide window, so it
+    sits beside the logo at 80 columns. A change to the face
     changes all three in the same PR; `test/brand-sync.test.ts` holds the site's and
     the UI's token, weight and version together. Both favicons are the badge.
   - *Diagrams* are precise drafting-style line drawings for how-it-works art (the
