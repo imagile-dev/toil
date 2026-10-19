@@ -57,7 +57,8 @@ beforeEach(() => {
   document.documentElement.removeAttribute('data-theme');
 });
 
-describe('the Feedback dialog', () => {
+// Typing a whole report key by key takes a few seconds on a slow runner.
+describe('the Feedback dialog', { timeout: 20_000 }, () => {
   it("shows exactly toil's report, then its disclaimer, and sends only with the box ticked", async () => {
     const api = recording();
     const dialog = await openDialog(api);
@@ -104,7 +105,9 @@ describe('the Feedback dialog', () => {
       },
     };
     const dialog = await openDialog(old);
-    await fill(dialog).catch(() => undefined);
+    await userEvent.type(within(dialog).getByRole('textbox', { name: /Title/ }), 't');
+    await userEvent.type(within(dialog).getByRole('textbox', { name: /Details/ }), 'b');
+    await userEvent.type(within(dialog).getByRole('textbox', { name: /Your email/ }), 'you@example.com');
     expect(await within(dialog).findByText(/0\.1\.0-alpha\.2\) has no feedback command; it needs a newer toil/, {}, { timeout: 3000 })).toBeTruthy();
   });
 
