@@ -17,7 +17,7 @@ import { useData, useDerived } from '../data.ts';
 import { SOURCE_LABEL, STATUS_CATEGORY_LABEL, day, dateTime, estimateText } from '../format.ts';
 import { describe, type Health } from '../model/sprint.ts';
 import { FLAG_TEXT, trace, type Trace as TraceRow } from '../model/trace.ts';
-import { useSkins, useTerm } from '../skins.tsx';
+import { useSkins, useTerm, useWords } from '../skins.tsx';
 import type { ChangeRef, Deployment, SourceKind } from '../toil.ts';
 import { Board } from './Board.tsx';
 import { Aging, Attention, Burnup, CycleTime, Throughput } from './Flow.tsx';
@@ -127,6 +127,7 @@ export function Dashboard() {
   const { dossier } = useData();
   const { EmptyState, Loading } = useSkins();
   const term = useTerm();
+  const words = useWords();
   const [gapsOnly, setGapsOnly] = useState(false);
   const { health: h } = useDerived();
   useSprintProgress(h);
@@ -139,7 +140,7 @@ export function Dashboard() {
   return (
     <>
       <div className="view-head">
-        <p className="eyebrow">Dossier</p>
+        <p className="eyebrow">{words('dossier.eyebrow')}</p>
         <h1 tabIndex={-1}>{dossier.name}</h1>
         {dossier.description && <p className="lede">{dossier.description}</p>}
         <ul className="sources" aria-label="Sources">
@@ -155,11 +156,11 @@ export function Dashboard() {
       <div className="dashboard">
         <div className="dash-main">
           <Panel id="sprint" title={term('sprint', h ? `${h.sprint.name}: day ${h.days.gone} of ${h.days.total}` : 'Sprint')} calls={dossier.calls.work}>
-            {h ? <Sprint h={h} /> : <EmptyState message="No sprint is running in this dossier's work items." />}
+            {h ? <Sprint h={h} /> : <EmptyState message={words('empty.sprint')} />}
           </Panel>
 
           <Panel id="attention" title="Needs attention" calls={all} alerts={false}>
-            <p className="note">Open items ranked by their insights, weightiest first. Each insight names the data it rests on.</p>
+            <p className="note">{words('attention.note')}</p>
             <Attention />
           </Panel>
 
@@ -177,18 +178,18 @@ export function Dashboard() {
           </div>
 
           <Panel id="aging" title="Aging work in progress" calls={dossier.calls.work} alerts={false}>
-            <p className="note">How long each item in progress has been in progress, from its history, oldest first.</p>
+            <p className="note">{words('aging.note')}</p>
             <Aging />
           </Panel>
 
           <Panel id="graph" title={term('dependencies', 'Dependencies')} calls={dossier.calls.work} alerts={false}>
-            <Suspense fallback={<Loading message="Drawing the graph…" />}>
+            <Suspense fallback={<Loading message={words('loading.graph')} />}>
               <Graph />
             </Suspense>
           </Panel>
 
           <Panel id="trace" title="Stories, pull requests, builds and deployments" calls={all} alerts={false}>
-            <p className="note">Each work item with the pull requests that name it, their latest builds, and the environments running them.</p>
+            <p className="note">{words('trace.note')}</p>
             <Checkbox className="check" isSelected={gapsOnly} onChange={setGapsOnly}>
               <span className="box" aria-hidden="true">
                 {gapsOnly ? '✓' : ''}
@@ -212,7 +213,7 @@ export function Dashboard() {
                   ))}
                 </ul>
               ) : (
-                <EmptyState message="No pull requests for this dossier." />
+                <EmptyState message={words('empty.prs')} />
               )}
             </Panel>
 
@@ -229,7 +230,7 @@ export function Dashboard() {
                   ))}
                 </ul>
               ) : (
-                <EmptyState message="No builds for this dossier's pull requests." />
+                <EmptyState message={words('empty.builds')} />
               )}
             </Panel>
 
@@ -241,7 +242,7 @@ export function Dashboard() {
                   ))}
                 </ul>
               ) : (
-                <EmptyState message="This dossier names no environment to read deployments from." />
+                <EmptyState message={words('empty.deployments')} />
               )}
             </Panel>
           </div>

@@ -8,6 +8,7 @@
  * printed anyway for the audit trail.
  */
 
+import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import * as nodePath from 'node:path';
 
@@ -20,7 +21,7 @@ export interface Settings {
   port: number;
   /** Where the app is served, with a slash at each end: `/`, `/toil/`. */
   basePath: string;
-  /** Toil UI's own folder (`~/.toil-ui/`), apart from toil's `~/.toil/`. The cache (`cache/`, #250) and user themes live here. */
+  /** Toil UI's own folder (`~/.toil-ui/`), apart from toil's `~/.toil/`. The cache (`cache/`, #250) and the agent's settings (`agent.json`, #251) live here. */
   dataDir: string;
   /** Days the cache keeps what a sync stored after it was last synced (#250). */
   retentionDays: number;
@@ -133,4 +134,16 @@ export function parseSettings(argv: readonly string[], env: Record<string, strin
   }
 
   return { command, settings: { host, port, basePath, dataDir, retentionDays, sample }, help, version };
+}
+
+/**
+ * Themes from the user's own folder were removed (#283): only the built-in
+ * themes exist. A `themes/` folder left in the data folder by an earlier
+ * alpha is never read; this is the plain notice the bin prints once per
+ * start while it's there, and the folder is left for the person to delete.
+ */
+export function themesNotice(dataDir: string, exists: (path: string) => boolean = existsSync, path: Pick<typeof nodePath, 'join'> = nodePath): string | null {
+  const dir = path.join(dataDir, 'themes');
+  if (!exists(dir)) return null;
+  return `Note: Toil UI no longer reads themes from ${dir}; only its built-in themes are offered. The folder is left as it is, and you can delete it. To ask for a new theme, send a feature request from the Feedback button or with toil feedback feature.`;
 }

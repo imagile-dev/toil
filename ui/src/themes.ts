@@ -1,7 +1,7 @@
 /**
  * Theme packs (#206, Front end: built to be themed). A theme is data and
  * styling only: `theme.json` (tokens per colour scheme, fonts, motion, assets,
- * and the words it renames) and a `theme.css` scoped under
+ * the words it renames, and, for a game theme, its wording and agent voice, #283) and a `theme.css` scoped under
  * `[data-theme="<name>"]`. No theme runs script, which test/themes.test.ts
  * holds every theme folder to. This module turns a manifest's tokens into
  * custom properties; built-in skins, which are script, live in src/skins/

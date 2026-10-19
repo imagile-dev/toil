@@ -1,8 +1,11 @@
 /**
- * Which theme and colour scheme are showing. A `?theme=` or `?scheme=` in the
- * address wins (it makes a view linkable as it looked), then what this browser
- * picked last, then Crate, the default (#277). The choice is a convenience,
- * so storage that refuses (a private window, blocked site data) just means it
+ * Which theme and colour scheme are showing, and how deep the theme goes
+ * (#283): "Themed wording" (the theme's lexicon) and "Themed agent voice" (its
+ * voice in the agent's prompt), both on unless switched off. A `?theme=`,
+ * `?scheme=`, `?wording=off` or `?voice=off` in the address wins (it makes a
+ * view linkable as it looked), then what this browser picked last, then
+ * Crate, the default (#277), with both on. The choice is a convenience, so
+ * storage that refuses (a private window, blocked site data) just means it
  * isn't remembered. Preferences are honoured without a request form.
  */
 
@@ -14,20 +17,37 @@ export type SchemeChoice = 'system' | 'light' | 'dark';
 const SCHEMES: SchemeChoice[] = ['system', 'light', 'dark'];
 const KEY = 'toil-ui.theme';
 
-function remembered(): { theme?: string; scheme?: string } {
+export interface ThemeChoice {
+  theme: string;
+  scheme: SchemeChoice;
+  /** The theme's own microcopy (src/wording.ts); off reads the standard text. */
+  wording: boolean;
+  /** The theme's voice in the agent's prompt; off sends the rules and your instructions only. */
+  voice: boolean;
+}
+
+function remembered(): Partial<Record<keyof ThemeChoice, unknown>> {
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? '{}') as { theme?: string; scheme?: string };
+    const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
+    return saved && typeof saved === 'object' && !Array.isArray(saved) ? (saved as Partial<Record<keyof ThemeChoice, unknown>>) : {};
   } catch {
     return {};
   }
 }
 
-export function initialChoice(search: string): { theme: string; scheme: SchemeChoice } {
+/** `?wording=off` and `?voice=off` switch one off, `on` switches it on; anything else leaves it to what was saved. */
+function flag(param: string | null, saved: unknown): boolean {
+  if (param === 'off') return false;
+  if (param === 'on') return true;
+  return typeof saved === 'boolean' ? saved : true;
+}
+
+export function initialChoice(search: string): ThemeChoice {
   const params = new URLSearchParams(search);
   const saved = remembered();
-  const theme = [params.get('theme'), saved.theme].find((t) => THEMES.some((m) => m.name === t)) ?? DEFAULT_THEME;
+  const theme = [params.get('theme'), saved.theme].find((t): t is string => THEMES.some((m) => m.name === t)) ?? DEFAULT_THEME;
   const scheme = [params.get('scheme'), saved.scheme].find((s): s is SchemeChoice => SCHEMES.includes(s as SchemeChoice)) ?? 'system';
-  return { theme, scheme };
+  return { theme, scheme, wording: flag(params.get('wording'), saved.wording), voice: flag(params.get('voice'), saved.voice) };
 }
 
 export function useThemeChoice() {
@@ -53,5 +73,9 @@ export function useThemeChoice() {
     ...choice,
     setTheme: (theme: string) => setChoice((c) => ({ ...c, theme })),
     setScheme: (scheme: SchemeChoice) => setChoice((c) => ({ ...c, scheme })),
+    setWording: (wording: boolean) => setChoice((c) => ({ ...c, wording })),
+    setVoice: (voice: boolean) => setChoice((c) => ({ ...c, voice })),
   };
 }
+
+export type ThemeChoiceState = ReturnType<typeof useThemeChoice>;

@@ -14,7 +14,7 @@ import { StatusChip } from '../components/bits.tsx';
 import { ItemLink } from '../components/items.tsx';
 import { useData } from '../data.ts';
 import { EDGE_WORD, dependencyGraph, type GraphNode } from '../model/graph.ts';
-import { useSkins, useTerm } from '../skins.tsx';
+import { useSkins, useTerm, useWords } from '../skins.tsx';
 
 type ItemNode = Node<{ node: GraphNode }, 'item'>;
 
@@ -83,8 +83,9 @@ class Drawing extends Component<{ children: ReactNode }, { error: string | null 
 export function Graph() {
   const { dossier, byId } = useData();
   const { EmptyState } = useSkins();
+  const words = useWords();
   const g = dependencyGraph(dossier.items);
-  if (!g.nodes.length) return <EmptyState message="No links between this dossier's items." />;
+  if (!g.nodes.length) return <EmptyState message={words('empty.links')} />;
 
   const nodes: ItemNode[] = g.nodes.map((n) => ({ id: n.id, type: 'item', position: { x: n.rank * 260, y: n.row * 130 }, data: { node: n } }));
   const edges: Edge[] = g.edges.map((e) => {
@@ -106,7 +107,7 @@ export function Graph() {
 
   return (
     <>
-      <p className="note">Arrows run the way each link reads, from the source's own links. Blocking chains run left to right.</p>
+      <p className="note">{words('graph.note')}</p>
       {g.cycle && <p className="failure">These blocks links form a loop, so the columns are approximate.</p>}
       <Drawing>
       <div className="graph">

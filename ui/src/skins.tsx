@@ -1,8 +1,8 @@
 /**
  * Skins (#206): a built-in theme may replace a named slot with its own
  * component, so a card can become a wooden sign without the views knowing.
- * Only built-in themes ship skins, because a skin is script and a theme someone
- * downloaded must never run any. The views ask for a slot; the active theme's
+ * Only built-in themes exist (#283), and each ships its skins as script
+ * reviewed with the rest of the app. The views ask for a slot; the active theme's
  * skin answers, or the default does. Plain answers with the defaults.
  *
  * A skin decorates; it never takes anything away. Every slot that wraps
@@ -64,7 +64,7 @@ export const DEFAULT_SKINS: Skins = {
   Header: ({ children }) => children,
 };
 
-/** The skins each built-in theme ships, by theme name. A theme from the user's folder never appears here. */
+/** The skins each built-in theme ships, by theme name. */
 export const BUILT_IN_SKINS: Record<string, Partial<Skins>> = { crate: crateSkins, harvest: harvestSkins, starship: starshipSkins, realm: realmSkins };
 
 export const skinsFor = (theme: string): Skins => ({ ...DEFAULT_SKINS, ...BUILT_IN_SKINS[theme] });
@@ -73,4 +73,4 @@ const SkinContext = createContext<Skins>(DEFAULT_SKINS);
 export const SkinProvider = SkinContext.Provider;
 export const useSkins = () => useContext(SkinContext);
 
-export { ThemeProvider, themed, useTerm, useTheme } from './theme-context.ts';
+export { ThemeChoiceProvider, ThemeProvider, themed, useTerm, useTheme, useThemeChoiceContext, useWords } from './theme-context.ts';
