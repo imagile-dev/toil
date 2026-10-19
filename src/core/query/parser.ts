@@ -6,7 +6,9 @@ import { tokenize, type Token, type TokenType } from './lexer.js';
  * strict TypeScript from the Apache-2.0 jmespath.js reference implementation
  * (see NOTICE). Each token has a binding power; `nud` handles a token that
  * starts an expression and `led` one that continues it. The tree it builds is
- * typed, so the interpreter can't meet a node it doesn't know. Binding power
+ * typed, so the interpreter can't meet a node it doesn't know. One change
+ * from the reference: an object projection (`a.*`) takes every field after it,
+ * as the specification says and `[*]` already did (#279). Binding power
  * decides who goes first, which committees otherwise settle by seniority.
  */
 
@@ -188,7 +190,11 @@ class Parser {
       case 'Dot':
         if (this.token().type === 'Star') {
           this.advance();
-          return { type: 'ValueProjection', left, right: this.projectionRhs(BINDING_POWER.Dot) };
+          // The projection's right-hand side binds at the star's power, as `[*]`'s
+          // does, so it takes every field that follows: `a.*.b.c` projects `b.c`
+          // over each value. At the dot's own power it stopped after one, left
+          // `.c` to read a field of the projected list, and gave null (#279).
+          return { type: 'ValueProjection', left, right: this.projectionRhs(BINDING_POWER.Star) };
         }
         return { type: 'Subexpression', left, right: this.dotRhs(BINDING_POWER.Dot) };
       case 'Pipe':
