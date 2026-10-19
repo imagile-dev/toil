@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'nod
 import { ToilError } from './errors.js';
 import { gitBool, lastValue, refusedGitRead } from './git-config.js';
 import { findGitRepo, readGitConfig, readGitIndex } from './git-repo.js';
-import { isIgnored, parseIgnore, type IgnoreRule } from './gitignore.js';
+import { isIgnored, parseIgnore, skippedLineWarning, type IgnoreRule } from './gitignore.js';
 
 /**
  * The local files a command may read or write: an `--input-file`, a file to
@@ -52,8 +52,9 @@ export interface FileAccess {
    * --exclude-standard` lists: tracked files, ignored or not, plus untracked
    * ones no ignore rule covers, and a nested repository as `name/`. Symlinks
    * are listed, never followed. More than `limit` files (default 100,000) is
-   * INVALID_INPUT. A git config include it refuses to read is reported through
-   * `warn`, which execute() points at meta.warnings.
+   * INVALID_INPUT. A git config include it refuses to read, and a `.gitignore`
+   * line it can't compile (skipped alone, the rest of that file still applying),
+   * are reported through `warn`, which execute() points at meta.warnings.
    */
   list(dir?: string, options?: { gitignore?: boolean; limit?: number; warn?: (warning: { code: string; message: string }) => void }): string[];
   /**
@@ -408,12 +409,18 @@ function listTree(root: string, o: { gitignore: boolean; limit: number; home: st
   };
   let caseFold = process.platform === 'win32' || process.platform === 'darwin';
   const base: IgnoreRule[] = [];
+  // A missing .gitignore is the usual case and means no rules. A line that
+  // won't compile is a different matter: only that line is left out, and it's
+  // reported, because dropping the file's other rules would list what they
+  // exclude with nothing to say so (#262).
   const readRules = (file: string, at: string) => {
+    let text: string;
     try {
-      return parseIgnore(readFileSync(file, 'utf8'), at, caseFold);
+      text = readFileSync(file, 'utf8');
     } catch {
       return [];
     }
+    return parseIgnore(text, at, caseFold, (skipped) => o.warn?.(skippedLineWarning(file, skipped)));
   };
   let others = true;
   const tracked = new Set<string>();

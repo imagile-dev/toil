@@ -18,10 +18,59 @@ export interface IgnoreRule {
   basenameOnly: boolean;
 }
 
-/** Parses one ignore file's text into rules rooted at `base`. */
-export function parseIgnore(text: string, base: string, caseFold = false): IgnoreRule[] {
+/** A line `parseIgnore` couldn't compile and left out. `line` counts from 1, comments and blanks included. */
+export interface SkippedIgnoreLine {
+  line: number;
+  /** The line as written, trailing whitespace dropped. */
+  pattern: string;
+  /** What is wrong with it, in the pattern's terms. */
+  reason: string;
+  /** What to do about it. */
+  fix: string;
+}
+
+/**
+ * Why a pattern didn't compile, and the fix. The one failure wildmatch has is
+ * a reversed range, which arrives as the RegExp engine's complaint about a
+ * class the user never wrote (`/^[^z-a/]$/s`), so it's said in the pattern's
+ * own terms. Anything else keeps its own words.
+ */
+function explain(err: Error): { reason: string; fix: string } {
+  if (/range out of order/i.test(err.message)) {
+    return {
+      reason:
+        'a range in brackets runs backwards, from a higher character to a lower one. git reads such a range as its first character alone, so a file of that name may be listed here although git ignores it',
+      fix: 'Write the range from low to high, as in [a-z], or delete the line.',
+    };
+  }
+  return { reason: err.message, fix: 'Correct the pattern or delete the line.' };
+}
+
+/**
+ * The `meta.warnings` entry for a skipped line: the file (absolute, forward
+ * slashes), the line number, the pattern, why, and what to do. A listing that
+ * quietly lists files a `.gitignore` meant to exclude is the failure principle
+ * 4 is about, so this is said every time.
+ */
+export function skippedLineWarning(file: string, skipped: SkippedIgnoreLine): { code: string; message: string } {
+  return {
+    code: 'GITIGNORE_LINE_SKIPPED',
+    message: `Line ${skipped.line} of ${file.replace(/\\/g, '/')} ("${skipped.pattern}") was skipped, and the rest of that file still applies: ${skipped.reason}. ${skipped.fix}`,
+  };
+}
+
+/**
+ * Parses one ignore file's text into rules rooted at `base`. A line whose
+ * pattern doesn't compile (a reversed range such as `[b-a]`) is left out on
+ * its own and handed to `onSkip`; the lines around it still apply, as they do
+ * in git, which never discards a whole file over one line. One misfiled form
+ * does not cancel the rest of the folder.
+ */
+export function parseIgnore(text: string, base: string, caseFold = false, onSkip?: (skipped: SkippedIgnoreLine) => void): IgnoreRule[] {
   const rules: IgnoreRule[] = [];
-  for (let line of text.split(/\r?\n/)) {
+  const lines = text.split(/\r?\n/);
+  for (let n = 0; n < lines.length; n++) {
+    let line = lines[n]!;
     if (line === '' || line.startsWith('#')) continue;
     // Trailing spaces are dropped unless escaped with a backslash.
     line = line.replace(/(?<!\\)\s+$/, '');
@@ -42,7 +91,14 @@ export function parseIgnore(text: string, base: string, caseFold = false): Ignor
     if (line === '') continue;
     const basenameOnly = !line.includes('/');
     if (line.startsWith('/')) line = line.slice(1);
-    rules.push({ base, match: wildmatch(line, { pathname: true, caseFold }), negate, dirOnly, basenameOnly });
+    let match: Wildmatch;
+    try {
+      match = wildmatch(line, { pathname: true, caseFold });
+    } catch (err) {
+      onSkip?.({ line: n + 1, pattern: lines[n]!.trimEnd(), ...explain(err as Error) });
+      continue;
+    }
+    rules.push({ base, match, negate, dirOnly, basenameOnly });
   }
   return rules;
 }
