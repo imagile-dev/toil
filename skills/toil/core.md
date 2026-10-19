@@ -132,6 +132,9 @@ command lists its own flags.
 
 ## Dossiers
 
+`dossiers.md` explains what a dossier is, with an example file field by field; this
+section is the short form.
+
 A **dossier** holds what toil knows about one body of work: its repositories, and per
 area the keys a call needs (`project`, `owner`, a namespace per environment), which
 connection to use (by name, or by `host`), and reference data such as board lists.

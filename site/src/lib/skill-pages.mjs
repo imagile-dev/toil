@@ -4,7 +4,7 @@
 // from the folder at build time, so a new area's file gets its page without
 // anyone writing one, and a remark plugin that turns the files' references
 // to each other (`core.md`, `jira.md`) into links to those pages.
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -14,6 +14,7 @@ export const skillDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..'
 const OWN_PAGES = {
   'SKILL.md': '/docs/',
   'core.md': '/docs/core/',
+  'dossiers.md': '/docs/dossiers/',
   'install.md': '/docs/install/',
   'mcp.md': '/docs/mcp/',
   'db.md': '/docs/databases/',
@@ -66,10 +67,27 @@ export function pagePath(file) {
 /** The areas whose file is an integration page: every area file without a page of its own. */
 export const integrationFiles = skillFiles.filter((f) => f.area && !(f.file in OWN_PAGES));
 
+/** Where the diagrams a skill file places live: `site/src/figures/<name>.html`. */
+export const figureDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'figures');
+/** A skill file places a figure with a comment on its own line, which agents read past. */
+export const FIGURE = /^<!--\s*figure:\s*([a-z0-9-]+)\s*-->$/;
+
+/**
+ * A figure's markup, with `{base}` replaced by the site's base path. A name with
+ * no file fails the build, so a typo can't ship a page with a hole in it.
+ * A missing figure is reported at build time, which is sooner than most missing attachments.
+ */
+export function figureHtml(name, base) {
+  const file = join(figureDir, `${name}.html`);
+  if (!existsSync(file)) throw new Error(`A skill file places figure "${name}", and site/src/figures/${name}.html doesn't exist.`);
+  return readFileSync(file, 'utf8').replaceAll('{base}', base);
+}
+
 /**
  * A remark plugin: inline code naming another file of the skill (`core.md`)
  * becomes a link to its page, and each file's own first heading is dropped,
- * since the page hero shows it. Agents read the same text with the file names.
+ * since the page hero shows it. A `<!-- figure: <name> -->` line becomes that
+ * diagram (`figureHtml`). Agents read the same text with the file names.
  * Toil UI's README (ui/README.md: its npm page, and /docs/ui/) loses its first
  * heading the same way, and keeps its links as written.
  */
@@ -81,6 +99,10 @@ export function remarkSkillLinks({ base }) {
     const first = tree.children.findIndex((n) => n.type === 'heading' && n.depth === 1);
     if (first >= 0) tree.children.splice(first, 1);
     if (readme) return;
+    tree.children = tree.children.map((node) => {
+      const name = node.type === 'html' ? FIGURE.exec(node.value.trim())?.[1] : undefined;
+      return name ? { type: 'html', value: figureHtml(name, base) } : node;
+    });
     const walk = (node) => {
       if (!node.children || node.type === 'link') return;
       node.children = node.children.map((child) => {
