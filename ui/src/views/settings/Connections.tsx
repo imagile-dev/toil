@@ -245,7 +245,8 @@ function LoginForm({ connection: c, fields, config, after }: { connection: Conne
       submit="Save to the credential store"
       disabled={config.disabled}
       onSubmit={async () => {
-        const secrets = values;
+        // Every field shown is answered, an empty one with '': toil keeps that secret as it is, as on the CLI.
+        const secrets = Object.fromEntries(fields.map((f) => [f.name, values[f.name] ?? '']));
         setValues({});
         return after(await config.run('connections login', { name: c.name }, { secrets }), `${c.name}'s secret was replaced in the credential store.`);
       }}
@@ -305,7 +306,8 @@ function AddConnection({ areas, config, onChanged }: { areas: AreaInfo[] | null;
           if (!NAME.test(name)) return { ok: false, message: `"${name}" isn't a valid connection name.`, fix: 'Use lowercase letters, digits and single hyphens, starting with a letter, e.g. corp-jira.' };
           const answers: Record<string, string> = { confirm: 'y' };
           for (const f of settings) answers[`setting:${f.name}`] = values[f.name] ?? '';
-          const typed = secrets;
+          // Every secret field shown is answered, an empty one with '', so toil skips an empty optional one as the CLI does.
+          const typed = Object.fromEntries(secretFields.map((f) => [f.name, secrets[f.name] ?? '']));
           setSecrets({});
           const envelope = await config.run('connections add', { name, area: chosen!.name }, { answers, secrets: typed });
           const outcome = outcomeOf(envelope, `${name} was added.`);

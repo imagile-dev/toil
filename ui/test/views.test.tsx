@@ -337,6 +337,29 @@ describe('settings', () => {
     expect(document.body.textContent).not.toContain('fake-pat-abc12345');
   });
 
+  it("answers an optional secret left blank with '', so toil skips it as the CLI does", async () => {
+    const { config, sent } = recording();
+    await open('#/settings/connections', { config });
+    const form = await screen.findByRole('form', { name: 'A new connection' });
+    await userEvent.type(within(form).getByRole('textbox', { name: /^Name/ }), 'ocp-lab');
+    await userEvent.selectOptions(within(form).getByRole('combobox', { name: 'Area' }), 'openshift');
+    expect((within(form).getByLabelText(/^token/) as HTMLInputElement).required).toBe(false);
+    await userEvent.click(within(form).getByRole('button', { name: 'Save connection' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toMatchObject({ command: 'connections add', input: { name: 'ocp-lab', area: 'openshift' }, answers: { secrets: { token: '' } } });
+  });
+
+  it("replaces a secret with every field answered, an empty one as ''", async () => {
+    const { config, sent } = recording();
+    await open('#/settings/connections', { config });
+    const card = await screen.findByRole('article', { name: 'corp-jenkins' });
+    await userEvent.click(within(card).getByRole('button', { name: 'Replace secret' }));
+    const form = within(card).getByRole('form', { name: "Replace corp-jenkins's secret" });
+    await userEvent.click(within(form).getByRole('button', { name: 'Save to the credential store' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toMatchObject({ command: 'connections login', input: { name: 'corp-jenkins' }, answers: { secrets: { apiToken: '' } } });
+  });
+
   it('builds a dossier through toil dossiers, and shows and checks one', async () => {
     const { config, sent } = recording();
     await open('#/settings/dossiers', { config });

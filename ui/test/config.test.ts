@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeStore } from '../../test/harness/fake-store.ts';
+import { clearConnectionEnv } from '../../test/harness/hermetic-env.ts';
 import { DEFAULT_TIMEOUT_MS as TOIL_DEFAULT_TIMEOUT_MS } from '../../src/core/run.ts';
 import { areas as toilAreas } from '../../src/registry.ts';
 import { CONFIG_CHANGES, CONFIG_COMMANDS, CONFIG_READS, DEFAULT_TIMEOUT_MS } from '../src/config.ts';
@@ -66,7 +67,8 @@ beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'toil-ui-config-home-'));
   vi.stubEnv('HOME', home);
   vi.stubEnv('USERPROFILE', home);
-  for (const name of Object.keys(process.env)) if (name.startsWith('TOIL_')) vi.stubEnv(name, undefined as unknown as string);
+  // No TOIL_* or CI fallback var (GITHUB_TOKEN on a runner) may add a connection of its own.
+  clearConnectionEnv(toilAreas);
   secrets = fakeStore();
   store.current = secrets;
 });
@@ -241,6 +243,17 @@ describe('connections, through toil', () => {
       'connections writes', 'connections writes', 'connections writes', 'connections writes', 'connections writes', 'connections login', 'connections remove',
     ]);
     sweep();
+  });
+
+  it("saves a connection whose optional secret was left blank (''), storing nothing for it, as the CLI does", async () => {
+    const { config } = await serve();
+    const fields = registry.areas.find((a) => a.name === 'openshift')!.connection;
+    expect(fields.find((f) => f.name === 'token')).toMatchObject({ secret: true, required: false });
+    const answers = { confirm: 'y', ...Object.fromEntries(fields.filter((f) => !f.secret).map((f) => [`setting:${f.name}`, f.name === 'baseUrl' ? 'https://openshift.imagile.dev' : ''])) };
+    const added = await config('connections add', { name: 'ocp-lab', area: 'openshift' }, { answers, secrets: { token: '' } });
+    expect(added.envelope).toMatchObject({ ok: true, data: { name: 'ocp-lab', area: 'openshift', secrets: {} } });
+    expect(JSON.parse(fileText()).connections['ocp-lab']).toEqual({ area: 'openshift', baseUrl: 'https://openshift.imagile.dev' });
+    expect(secrets.entries.size).toBe(0);
   });
 
   it('shows a connection made by env vars alone as such, and toil refuses to change it', async () => {

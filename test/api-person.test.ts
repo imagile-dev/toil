@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExecutePerson, Question } from '../src/api.js';
+import { areas } from '../src/registry.js';
+import { clearConnectionEnv, connectionEnvVars } from './harness/hermetic-env.js';
 import { sharedStore } from './harness/shared-store.js';
 
 // The API builds its own credential store; here it is the in-memory one, so no test reaches the OS keychain.
@@ -26,6 +28,8 @@ beforeEach(() => {
   home = mkdtempSync(join(tmpdir(), 'toil-api-person-'));
   vi.stubEnv('HOME', home);
   vi.stubEnv('USERPROFILE', home);
+  // No TOIL_* or CI fallback var (GITHUB_TOKEN on a runner) may add a connection of its own.
+  clearConnectionEnv(areas);
   sharedStore.entries.clear();
   sharedStore.log.length = 0;
 });
@@ -52,6 +56,11 @@ const auditText = () => {
   return readdirSync(dir).map((f) => readFileSync(join(dir, f), 'utf8')).join('');
 };
 const jira = { 'setting:baseUrl': 'https://jira.imagile.dev', 'secret:apiToken': SECRET, confirm: 'y' };
+
+it("clears every area's CI fallback, as the registry declares them, so a runner's GITHUB_TOKEN can't add a connection", () => {
+  expect(connectionEnvVars(areas, {})).toEqual(expect.arrayContaining(['GITHUB_TOKEN', 'SYSTEM_ACCESSTOKEN']));
+  expect(process.env.GITHUB_TOKEN).toBeUndefined();
+});
 
 describe('the registry', () => {
   it("lists the person's commands apart from what execute() serves without one", () => {
