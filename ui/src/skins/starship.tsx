@@ -1,7 +1,8 @@
 /**
  * Starship's skins (#209): a bridge console. Panels and the header get HUD
- * corner brackets, the agent speaks as the ship's computer, and loading is a
- * jump to lightspeed that holds still when reduced motion is on. The art is
+ * corner brackets, the agent speaks as the ship's computer, loading is a
+ * jump to lightspeed that holds still when reduced motion is on, and an empty
+ * list is an empty sector on the scanner (#267). The art is
  * drawn for this theme and hidden from screen readers; the words beside it
  * say what it shows.
  * Lightspeed is available pending sign-off from the reduced-motion committee.
@@ -52,6 +53,13 @@ export const starshipSkins: Partial<Skins> = {
     </>
   ),
   ChatMessage: ({ from, children }) => (from === 'agent' ? <Computer>{children}</Computer> : <div className="bubble bubble--you">{children}</div>),
+  EmptyState: ({ message, children }) => (
+    <div className="skin-empty skin-empty--art starship-empty">
+      <img src={art('empty-sector.webp')} alt="" width={240} height={160} loading="lazy" decoding="async" />
+      <p>{message}</p>
+      {children}
+    </div>
+  ),
   Loading: ({ message }) => (
     <div className="skin-loading skin-empty--art starship-jump" role="status">
       <img src={art('lightspeed.svg')} alt="" width={240} height={120} loading="lazy" decoding="async" />

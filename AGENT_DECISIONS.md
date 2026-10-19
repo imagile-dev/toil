@@ -3407,6 +3407,46 @@ fills.
   maintainer. The real-git differential test adds a reversed-range line whose first
   character no file in the tree is named after, so both agree.
 
+### #267 UI theme art
+
+- **The accessibility bar, the maintainer's call (2026-10-19).** Plain (light and
+  dark) and Crate are held to 0 axe violations at WCAG 2.2 AA. Harvest, Starship and
+  Realm may deviate for style: their axe findings are reported on the PR but don't
+  block, their text stays readable, and overflow and layout stay clean in every
+  theme. `ui/test/theme-bar.test.tsx` still asserts 0 violations for every theme;
+  this PR leaves it as it is, and a separate change scopes it to Plain. Every theme
+  here still has 0 violations at 1440px and 375px.
+- **Crate changes only subtly, and anything major is proposed first** (the
+  maintainer's call). It gains the crate's head in the header and a new loading
+  scene (the crate wheeling a hand truck of paperwork) in the slot it already had.
+  A warehouse backdrop was generated and tried, then left out as a new background;
+  it's on the PR as a proposal with a mockup.
+- **Plain stays plain.** No art at all; the empty-state illustration the brief
+  allowed would be the one picture in the accessibility baseline, so it waits for
+  the maintainer to ask.
+- **WebP only, one size each, no fallback.** Every browser Toil UI runs in already
+  needs constructed stylesheets and CSS `sin()`, so each supports WebP, and
+  `ui/scripts/package-rules.mjs` doesn't allow `.avif` in the tarball, so AVIF
+  would mean widening the package rules for a second copy of every image. Each image
+  is encoded at twice the size it renders, and backgrounds at one size: a CSS
+  background can't take a width-based `srcset`.
+- **The existing art budget holds** (`ui/test/themes.test.ts`: 64 KB a file, 160 KB a
+  theme). Realm's `parchment.svg` and `map.svg` are replaced by the generated
+  parchment and map rather than kept beside them, which keeps Realm at 124 KB.
+- **Text over art is checked on the image itself.** axe can't measure contrast over
+  a background image (it reports it as incomplete), so each scrim was chosen by
+  compositing it over every pixel of the image and taking the worst case: Starship's
+  nebula under a 75% scrim leaves muted text at 4.5:1 at its single brightest pixel;
+  Realm's parchment under a 35% wash leaves muted text at 6.2:1. Harvest's farm
+  strip sits in padding below the page, so no text ever lies on it. Emblems are CSS
+  backgrounds on `.brand::before`, so they never reach the accessibility tree.
+- **Generation.** gpt-image-2 can't return a transparent background, so the emblems
+  and cut-out art use gpt-image-1.5 and the opaque scenes gpt-image-2, through the
+  OpenAI Images API. The masters and prompts stay in `.claude/image-generation/`,
+  which git ignores apart from the two style files. Starship's scanner came back
+  in dark navy, invisible on the console, so its lines were recoloured to the
+  theme's ice blue after generation.
+
 ### #265 consented feedback
 
 - **Principle 9 doesn't forbid `toil feedback`; it is sharpened to name it.** "No call
@@ -3447,8 +3487,18 @@ fills.
   `readOnly` call gets no prompter, so it only previews; that is how Toil UI previews.
 - **Nothing toil holds is added to a report**: only kind, title, body, email, `consent`,
   `version` and `commit`. The audit line hashes the title and body and drops the email.
-- **A build with no commit previews but can't send** (`UNSUPPORTED`), since
-  `/api/report` needs one; source runs and builds without git get the site's form.
+- **A build with no commit previews but can't send**, since `/api/report` needs one.
+  It returns the preview with a `FEEDBACK_NOT_SENT` warning naming the cause, without
+  asking first (a yes it would then refuse wastes the person's time), and `--consent`
+  on it is `UNSUPPORTED`. Source runs and builds without git get the site's form.
+- **Left for the maintainer: no standing opt-in (principle 2).** Every other outbound
+  write needs `writes: true`, set by a person, plus a flag; this needs only
+  `--consent`, which an agent with a shell can pass itself, so a prompt injection
+  could publish what is in its context as a public issue past everything but the
+  skill's steps. Options the review raised: ask on a terminal even with `--consent`,
+  or add a config opt-in an agent can't set. Not changed here; the trade-off is
+  written into `docs/bounds.md`, `feedback.send`, and the review thread stays open
+  (#270).
 - **`TOIL_FEEDBACK_URL`, loopback only**, exists to drive the command against a local
   copy of the function. Any other value is `CONFIG_INVALID` before anything is sent, so
   it can't redirect a report elsewhere. It is a reserved env name.

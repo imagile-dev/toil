@@ -128,11 +128,15 @@ describe('toil feedback', () => {
     expect(run.envelope?.error?.fix).toContain('https://imagile-dev.github.io/toil/feedback/');
   });
 
-  it('refuses to send from a build that does not know its commit, but still previews', async () => {
+  it('refuses to send from a build that does not know its commit, but still previews, without asking first', async () => {
     const unknown = feedbackCommands(null);
-    const { context, http } = testContext({ routes: [accepted] });
+    const asked = scriptedPrompter({ 'toil would send': 'yes' });
+    const { context, http } = testContext({ routes: [accepted], prompt: asked.prompt });
     const preview = await runCli(args, { commands: unknown, context });
-    expect((preview.envelope?.data as { report: { commit: unknown } }).report.commit).toBeNull();
+    expect((preview.envelope?.data as { sent: boolean; report: { commit: unknown } }).report.commit).toBeNull();
+    expect(preview.envelope?.data).toMatchObject({ sent: false });
+    expect(preview.envelope?.meta.warnings?.[0]?.message).toContain("this toil can't send it");
+    expect(asked.asked).toEqual([]);
     const run = await runCli([...args, '--consent'], { commands: unknown, context });
     expect(run.envelope?.error?.code).toBe('UNSUPPORTED');
     expect(run.envelope?.error?.message).toContain('Nothing was sent');

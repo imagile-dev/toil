@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import * as fn from '../functions/feedback/src/lib/consent.js';
-import { feedback as site } from '../site/src/data/feedback.js';
 import { CONSENT_VERSION, DISCLAIMER, FEEDBACK_ENDPOINT } from '../src/feedback/consent.js';
 
 /**
@@ -23,9 +22,12 @@ describe('the feedback disclaimer', () => {
     expect(fn.CONSENT_VERSION).toBe(CONSENT_VERSION);
   });
 
+  // Read as text: importing it would load the site's tsconfig, which needs site/'s own install.
   it('is the same on the site, which sends to the same function', () => {
-    expect(site.consent).toEqual({ version: CONSENT_VERSION, text: DISCLAIMER });
-    expect(FEEDBACK_ENDPOINT).toBe(`${site.endpoint}/api/report`);
+    const data = read('site/src/data/feedback.ts');
+    expect(data).toContain(`version: ${CONSENT_VERSION},`);
+    expect(data).toContain(`text: ${JSON.stringify(DISCLAIMER)},`);
+    expect(data).toContain(`endpoint: '${new URL(FEEDBACK_ENDPOINT).origin}',`);
     const page = read('site/src/pages/feedback.astro');
     expect(page).toContain('feedback.consent.text');
     expect(page).toContain('feedback.consent.version');

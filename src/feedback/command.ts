@@ -169,6 +169,13 @@ export function feedbackCommands(commit: string | null = COMMIT): AnyCommand[] {
       const endpoint = endpointFrom(manage.env);
       const result = { endpoint, report, consentVersion: CONSENT_VERSION, disclaimer: DISCLAIMER };
 
+      const noCommit = "This toil doesn't know which commit it was built from, and the feedback endpoint needs one to say which build a report is about.";
+      const elsewhere = `Run a toil installed from npm (npm install -g @imagile-dev/toil), or use the form at ${FEEDBACK_FORM}.`;
+      // A build that can't send previews without asking: a yes it then refused would waste the person's time.
+      if (commit === null && call.consent !== true) {
+        ctx.warn({ code: 'FEEDBACK_NOT_SENT', message: `Nothing was sent, and this toil can't send it: ${noCommit} ${elsewhere}` });
+        return { sent: false, ...result, approve: elsewhere };
+      }
       let approved = call.consent === true;
       if (!approved && manage.prompt) {
         let answer: string;
@@ -190,9 +197,7 @@ export function feedbackCommands(commit: string | null = COMMIT): AnyCommand[] {
         return { sent: false, ...result, approve: 'Run the same command with --consent once the person sending it has read the report and the disclaimer and agreed.' };
       }
       if (commit === null) {
-        throw new ToilError('UNSUPPORTED', "This toil doesn't know which commit it was built from, and the feedback endpoint needs one to say which build a report is about. Nothing was sent.", {
-          fix: `Run a toil installed from npm (npm install -g @imagile-dev/toil), or use the form at ${FEEDBACK_FORM}.`,
-        });
+        throw new ToilError('UNSUPPORTED', `${noCommit} Nothing was sent.`, { fix: elsewhere });
       }
       const message = await send(ctx, endpoint, report);
       return { sent: true, ...result, message };

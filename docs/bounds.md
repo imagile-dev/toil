@@ -76,6 +76,13 @@ principle 9 and **Writes**; #265):
    token or anything else toil holds. The audit line keeps the title and body only as
    hashes, and drops the email.
 
+What it doesn't stop, said plainly: there is no standing opt-in in config, as a
+connection's `writes: true` is for other writes. An agent with a shell can pass
+`--consent` itself, so the agent's steps in `skills/toil/core.md`, **Feedback** (send
+only when asked, scrub, show the report, get the user's yes) are what stand between a
+prompt injection and a public issue. Whether to add a config opt-in, or to ask on a
+terminal even with `--consent`, is open for the maintainer (#270).
+
 `git.read-up` is metadata only, and read only. It covers exactly these, and nothing
 else:
 
