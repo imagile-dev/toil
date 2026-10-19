@@ -17,7 +17,7 @@ import { join, relative, sep } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { extract, inspect } from './archive.mjs';
-import { CLAIMED, FAILED, NEEDS_HUMAN, QUEUED, claim, drain, gh } from './cap.mjs';
+import { CLAIMED, DENIED, FAILED, NEEDS_HUMAN, QUEUED, claim, drain, gh } from './cap.mjs';
 import { check } from './changes.mjs';
 import { decide } from './decision.mjs';
 import { areas } from './labels.mjs';
@@ -102,6 +102,12 @@ const EXCLUDED = new Set(['.git', 'node_modules', '.triage-out', '.triage-in']);
  * the repository's issues for the duplicate check, the area list, a pristine copy
  * of the tree, and the handover script copied out with its hash.
  */
+/** Pages of 100 read for the duplicate check; pull requests count against them. */
+const ISSUE_PAGES = 10;
+/** Denied issues shown with their reasons, newest first; each body and comment is cut to this many characters. */
+const MAX_DENIED = 30;
+const MAX_DENIED_TEXT = 2000;
+
 export async function prepare({ env, fetcher = fetch, cwd = process.cwd() }) {
   const repo = repoOf(env);
   const number = issueOf(env.NUMBER, 'NUMBER');
@@ -109,17 +115,37 @@ export async function prepare({ env, fetcher = fetch, cwd = process.cwd() }) {
   if (!temp) throw new Error('RUNNER_TEMP is not set.');
   const terms = parseTerms(env.REDACT_TERMS ?? '');
   const issue = await gh('GET', `/repos/${repo}/issues/${number}`, undefined, options(env, fetcher));
+  // Every other issue, open or closed, for the duplicate check. The issue being
+  // triaged is left out: a re-triage is a fresh look, never its own duplicate.
+  // The endpoint returns pull requests too, which use up pages, hence ten of them.
   const list = [];
-  for (let page = 1; page <= 5; page++) {
+  const bodies = new Map();
+  for (let page = 1; page <= ISSUE_PAGES; page++) {
     const batch = await gh('GET', `/repos/${repo}/issues?state=all&per_page=100&page=${page}`, undefined, options(env, fetcher));
     for (const i of batch) {
-      if (!i.pull_request) list.push({ number: i.number, title: redact(i.title ?? '', terms), state: i.state, stateReason: i.state_reason ?? null, labels: (i.labels ?? []).map((l) => l.name) });
+      if (i.pull_request || i.number === number) continue;
+      list.push({ number: i.number, title: redact(i.title ?? '', terms), state: i.state, stateReason: i.state_reason ?? null, labels: (i.labels ?? []).map((l) => l.name) });
+      bodies.set(i.number, i.body ?? '');
     }
     if (batch.length < 100) break;
+  }
+  // A past denial binds only if its reason still holds, and the list carries no
+  // reasons. So the denied issues come with their body and their last comments,
+  // redacted, and the agent reads why rather than guessing.
+  const denied = [];
+  for (const i of list.filter((d) => d.labels.includes(DENIED)).sort((a, b) => b.number - a.number).slice(0, MAX_DENIED)) {
+    const comments = await gh('GET', `/repos/${repo}/issues/${i.number}/comments?per_page=100`, undefined, options(env, fetcher));
+    denied.push({
+      number: i.number,
+      title: i.title,
+      body: redact(bodies.get(i.number) ?? '', terms).slice(0, MAX_DENIED_TEXT),
+      comments: (comments ?? []).slice(-3).map((c) => redact(c.body ?? '', terms).slice(0, MAX_DENIED_TEXT)),
+    });
   }
   mkdirSync(join(cwd, '.triage-in'), { recursive: true });
   mkdirSync(join(cwd, '.triage-out'), { recursive: true });
   writeFileSync(join(cwd, '.triage-in', 'issues.json'), `${JSON.stringify(list, null, 1)}\n`);
+  writeFileSync(join(cwd, '.triage-in', 'denied.json'), `${JSON.stringify(denied, null, 1)}\n`);
   // A fence nobody can guess, so text inside it can't close it early.
   const nonce = randomBytes(12).toString('hex');
   const strip = (text) => text.replace(/\r/g, '').split('\n').filter((line) => !line.includes(nonce)).join('\n');
@@ -244,13 +270,29 @@ export async function apply({ env, fetcher = fetch }) {
     labels = ['triaged'];
   }
   const o = options(env, fetcher);
+  let decided = decision;
+  if (decision === 'duplicate') {
+    // The original must be another issue that exists. A duplicate of a denied
+    // request is denied too; a duplicate of anything else isn't.
+    const of = issueOf(env.DUPLICATE_OF, 'DUPLICATE_OF');
+    const original = of === number ? undefined : await gh('GET', `/repos/${repo}/issues/${of}`, undefined, o).catch(() => undefined);
+    if (!original || original.pull_request) {
+      decided = 'invalid';
+      body = `Triage could not reach a valid decision (${env.RUN_URL}): it named #${of} as the original, which is not another issue. A maintainer will look at it.\n`;
+      labels = ['triaged'];
+    } else {
+      if ((original.labels ?? []).some((l) => l.name === DENIED)) labels.push(DENIED);
+      if (!new RegExp(`#${of}\\b`).test(body)) body += `\n\nThis is the same request as #${of}.`;
+      body += `\n\nDuplicate of #${of}\n`;
+    }
+  }
   await gh('POST', `/repos/${repo}/issues/${number}/comments`, { body: body.trim() || 'Triaged.' }, o);
   await gh('POST', `/repos/${repo}/issues/${number}/labels`, { labels }, o);
   // A decision ends the issue's time in triage: the claim, the queue and an earlier
   // failure all come off, whether it came from a label, the queue or a manual re-triage.
   for (const label of [CLAIMED, QUEUED, FAILED]) await gh('DELETE', `/repos/${repo}/issues/${number}/labels/${label}`, undefined, o);
   if (decision === 'deny') await gh('PATCH', `/repos/${repo}/issues/${number}`, { state: 'closed', state_reason: 'not_planned' }, o);
-  if (decision === 'duplicate') await gh('PATCH', `/repos/${repo}/issues/${number}`, { state: 'closed', state_reason: 'duplicate' }, o);
+  if (decided === 'duplicate') await gh('PATCH', `/repos/${repo}/issues/${number}`, { state: 'closed', state_reason: 'duplicate' }, o);
   return {};
 }
 
