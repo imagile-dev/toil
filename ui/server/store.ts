@@ -1,17 +1,18 @@
 /**
  * The Store: where the server gets what a view shows (#206, Hosting-ready by
  * design). The SPA reads through one seam, toil's own `execute()` signature
- * (src/toil.ts), so a Store answers toil calls. Two ship beside each other and
- * one is chosen at startup:
+ * (src/toil.ts), so a Store answers toil calls. Three ship beside each other
+ * and one is chosen at startup:
  *
+ * - `sqliteStore`: the SQLite cache (#250), answering the views' calls from
+ *   what a sync stored (server/sync.ts). `toil-ui` picks it.
  * - `toilStore`: toil itself, in-process through `@imagile-dev/toil/api`, with
- *   the user's own connections and dossiers. Every call is `caller: 'toil-ui'`
- *   in the audit log.
+ *   the user's own connections and dossiers, every call live. Every call is
+ *   `caller: 'toil-ui'` in the audit log.
  * - `fixtureStore`: the preview's fixture `execute()` and its sample data, for
- *   `toil-ui --sample` and the tests.
+ *   `toil-ui --sample`, the site preview and the tests.
  *
- * The SQLite cache (#250) is a third, answering the same calls from what a
- * sync stored. The server, not the Store, decides what a call may do: a read
+ * The server, not the Store, decides what a call may do: a read
  * from `READ_COMMANDS` always goes `readOnly`, a config change only for a
  * command in the server's config allowlist (#253), and anything else is
  * refused before a Store sees it. Two locks on one door, and both keys stay
@@ -20,7 +21,8 @@
 
 import { fixtureConfigExecute } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import type { Envelope, Execute, ExecutePerson } from '../src/toil.ts';
+import type { Envelope, Execute, ExecuteOptions, ExecutePerson } from '../src/toil.ts';
+import type { Cache } from './cache.ts';
 import type { RequestContext } from './context.ts';
 
 /** What a call is allowed to do. `read` is every view; `config` is #253's settings pages, and nothing else. */
@@ -78,19 +80,68 @@ export interface ConfigCall {
 /** Every Toil UI call names itself, so the audit log says which lines were the UI's. */
 export const CALLER = 'toil-ui';
 
+/**
+ * The options a call to toil's own `execute()` gets: read-only for every read
+ * and for a config read, and a config change's person only on a config call.
+ */
+function toilOptions(ctx: RequestContext, access: Access, how: ConfigCall | undefined): ExecuteOptions {
+  return {
+    readOnly: access === 'read' || how?.readOnly !== false,
+    caller: CALLER,
+    signal: ctx.signal,
+    ...(access === 'config' && how?.person ? { person: how.person } : {}),
+  };
+}
+
 /** toil's own `execute()`, read-only for every read; `config` calls go through toil's write rules unchanged. */
 export function toilStore(execute: Execute): Store {
   return {
     kind: 'toil',
     sample: false,
     now: () => new Date().toISOString(),
-    execute: (ctx, command, input, access, how) =>
-      execute(command, input, {
-        readOnly: access === 'read' || how?.readOnly !== false,
-        caller: CALLER,
-        signal: ctx.signal,
-        ...(access === 'config' && how?.person ? { person: how.person } : {}),
-      }),
+    execute: (ctx, command, input, access, how) => execute(command, input, toilOptions(ctx, access, how)),
+  };
+}
+
+/** The commands a cache answers by passing them to toil: the dossiers are toil's own config on this machine, read fresh. */
+const LIVE_COMMANDS = new Set(['dossiers list', 'dossiers show']);
+
+/**
+ * The SQLite cache (#250): the views' calls answered from what the last sync
+ * stored (server/sync.ts), so a dashboard opens without reaching a tracker.
+ * The dossiers themselves are toil's own config on this machine and go to
+ * toil, read-only. A call the sync never stored gets a refusal saying to
+ * sync; a call whose source failed on its latest sync gets the last good copy
+ * with a `STALE` warning. `config` calls go to toil's write rules unchanged.
+ * `cache` is a getter so a wipe can swap the file underneath.
+ */
+export function sqliteStore(cache: () => Cache, execute: Execute, toil: { version: string; contractVersion: number }): Store {
+  return {
+    kind: 'sqlite',
+    sample: false,
+    now: () => new Date().toISOString(),
+    async execute(ctx, command, input, access, how) {
+      if (access !== 'read' || LIVE_COMMANDS.has(command)) return execute(command, input, toilOptions(ctx, access, how));
+      const meta = { command, durationMs: 0, version: toil.version, contractVersion: toil.contractVersion };
+      const dossier = typeof input.dossier === 'string' ? input.dossier : null;
+      const stored = dossier ? cache().response(dossier, command, input) : null;
+      if (!stored) {
+        return {
+          ok: false,
+          data: null,
+          error: {
+            code: 'NOT_FOUND',
+            message: dossier ? `Toil UI hasn't synced ${command} for ${dossier} yet.` : `Toil UI answers ${command} from its cache, which is kept per dossier, and this call named none.`,
+            fix: 'Press Sync now in the Sync panel at the foot of the page; the dashboards read what the sync stores.',
+          },
+          meta,
+        } as Envelope;
+      }
+      const source = cache().source(dossier!, stored.area);
+      if (source?.status !== 'failed') return stored.envelope;
+      const warning = { code: 'STALE', message: `The latest sync of ${stored.area} failed (${source.error ?? 'no message'}), so this is the copy synced ${stored.syncedAt}.` };
+      return { ...stored.envelope, meta: { ...stored.envelope.meta, warnings: [...(stored.envelope.meta.warnings ?? []), warning] } } as Envelope;
+    },
   };
 }
 

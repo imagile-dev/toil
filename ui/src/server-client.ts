@@ -15,7 +15,11 @@
 
 import type { Agent, Answer, Starter } from './agent.ts';
 import type { AreaInfo, ConfigApi, SettingsInfo } from './config.ts';
+import type { SyncStatus } from '../server/sync.ts';
 import type { Envelope, Execute } from './toil.ts';
+
+export type { DossierState, SourceState } from '../server/cache.ts';
+export type { SyncJob, SyncStatus } from '../server/sync.ts';
 
 export interface Session {
   /** The session id, sent as X-Toil-UI-Session. */
@@ -25,6 +29,8 @@ export interface Session {
   toil: { version: string; contractVersion: number };
   viewer: { id: string; name: string };
   store: string;
+  /** The server keeps a cache and syncs it (#250); false with sample data. */
+  sync: boolean;
   agent: string;
   sample: boolean;
   now: string;
@@ -89,6 +95,26 @@ export function httpExecute(session: Session, base = './'): Execute {
     }
     if (isEnvelope(body)) return body;
     throw await failure(res, `toil ${command}`);
+  };
+}
+
+/** The sync job over the server (#250): its status, a start, and the wipe. Each throws with the server's message. */
+export interface SyncClient {
+  status(): Promise<SyncStatus>;
+  /** Every dossier, or the one named. */
+  start(dossier?: string): Promise<SyncStatus>;
+  wipe(): Promise<SyncStatus>;
+}
+
+export function httpSync(session: Session, base = './'): SyncClient {
+  const answer = async (res: Response, what: string) => {
+    if (!res.ok) throw await failure(res, what);
+    return (await res.json()) as SyncStatus;
+  };
+  return {
+    status: async () => answer(await call(base, session, 'api/sync'), 'Reading the sync status'),
+    start: async (dossier) => answer(await call(base, session, 'api/sync', { body: dossier === undefined ? {} : { dossier } }), 'Starting the sync'),
+    wipe: async () => answer(await call(base, session, 'api/cache/wipe', { body: { confirm: 'wipe' } }), 'Wiping the cache'),
   };
 }
 

@@ -57,7 +57,7 @@ function launch(bin, args) {
     child.stderr.on('data', (c) => (err += c));
     child.on('exit', (code) => reject(new Error(`toil-ui exited ${code} before printing a URL. stderr: ${err}`)));
   });
-  return { child, url, output: () => out };
+  return { child, url, output: () => out, errors: () => err };
 }
 
 /** Signs in as the page does: the launch token in the URL for a session id, sent as a header. */
@@ -126,14 +126,41 @@ try {
   check(all.every((r) => !Object.keys(r.headers).some((h) => h.startsWith('access-control-'))), 'a response carried a CORS header');
   steps.push(`--sample on ${origin}: foreign Host 403, API without a session 401, wrong token 401, token traded for a header session (no cookie), a cookie-only session 401, app and script 200, 3 dossiers over the API, a write refused, no CSRF 403, no CORS header`);
 
-  // toil's own execute(), from the installed package, with an empty home.
+  // toil's own execute(), from the installed package, with an empty home, behind the SQLite cache.
   const live = launch(bin, []);
   children.push(live.child);
   const l = await signIn(await live.url);
-  check(l.session.store === 'toil' && l.session.agent === 'none' && l.session.sample === false, `the live session was ${JSON.stringify(l.session)}`);
+  check(l.session.store === 'sqlite' && l.session.sync === true && l.session.agent === 'none' && l.session.sample === false, `the live session was ${JSON.stringify(l.session)}`);
   const liveList = JSON.parse((await l.call('dossiers list')).body);
   check(liveList.ok === true && Array.isArray(liveList.data?.dossiers) && liveList.meta?.command === 'dossiers list', `dossiers list through the installed toil returned ${JSON.stringify(liveList).slice(0, 300)}`);
-  steps.push(`live on ${l.origin}: dossiers list through the installed toil's execute() returned ok with ${liveList.data?.dossiers?.length} dossiers`);
+  const syncHeaders = { 'x-toil-ui-session': l.sid, origin: l.origin, 'content-type': 'application/json', 'x-toil-ui-csrf': l.session.csrf };
+  const started = await send(l.origin, '/api/sync', { method: 'POST', body: '{}', headers: syncHeaders });
+  check(started.status === 202, `starting a sync answered ${started.status}: ${started.body.slice(0, 200)}`);
+  let status = { job: { running: true } };
+  for (let i = 0; status.job.running && i < 100; i++) {
+    await new Promise((r) => setTimeout(r, 100));
+    status = JSON.parse((await send(l.origin, '/api/sync', { headers: { 'x-toil-ui-session': l.sid } })).body);
+  }
+  check(status.job.running === false && status.job.error === null && status.job.dossiersTotal === 0, `the sync with no dossiers ended as ${JSON.stringify(status.job)}`);
+  const db = join(work, 'data', 'cache', 'toil-ui.db');
+  check(existsSync(db), `the cache wasn't created at ${db}`);
+  check(!/ExperimentalWarning|SQLite is an experimental/.test(live.errors()), `toil-ui printed node:sqlite's warning: ${live.errors()}`);
+  steps.push(`live on ${l.origin}: dossiers list through the installed toil's execute() returned ok with ${liveList.data?.dossiers?.length} dossiers; a sync ran through the API into ${db}, with no ExperimentalWarning on stderr`);
+
+  // toil-ui wipe refuses while the server holds the data folder's lock, on every OS...
+  let refusedWipe = '';
+  try {
+    execFileSync(process.execPath, [bin, 'wipe'], { env, encoding: 'utf8', stdio: 'pipe' });
+  } catch (e) {
+    refusedWipe = String(e.stderr);
+  }
+  check(refusedWipe.includes('Toil UI is running; stop it, or use Wipe in the UI.') && existsSync(db), `toil-ui wipe while the server ran printed ${JSON.stringify(refusedWipe)}`);
+  // ...and deletes the cache folder once the server that holds it has stopped.
+  live.child.kill();
+  await new Promise((r) => live.child.once('exit', r));
+  const wiped = execFileSync(process.execPath, [bin, 'wipe'], { env, encoding: 'utf8' });
+  check(!existsSync(join(work, 'data', 'cache')) && /Wiped/.test(wiped), `toil-ui wipe left ${join(work, 'data', 'cache')}: ${wiped}`);
+  steps.push('toil-ui wipe removed the cache folder');
 } catch (e) {
   problems.push(e instanceof Error ? e.message : String(e));
 } finally {
