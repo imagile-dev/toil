@@ -1,7 +1,7 @@
 import { createRequire as __toilCreateRequire } from 'node:module';
 const require = __toilCreateRequire(import.meta.url);
 const __TOIL_VERSION__ = "0.1.0-alpha.3"; // x-release-please-version
-const __TOIL_COMMIT__ = "a977209ef9af90e0c52ae1e227a216e31c09f8a8"; // toil-build-commit
+const __TOIL_COMMIT__ = "02eac5c70b2d12af18cb15f9195d9f964613fc7b"; // toil-build-commit
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -3170,27 +3170,27 @@ var require_utils = __commonJS({
       }
       return BYTE_HEX[240 | cp >> 18] + BYTE_HEX[128 | cp >> 12 & 63] + BYTE_HEX[128 | cp >> 6 & 63] + BYTE_HEX[128 | cp & 63];
     }
-    function stringArrayToHexStripped(input3) {
+    function stringArrayToHexStripped(input4) {
       let acc = "";
       let code = 0;
       let i = 0;
-      for (i = 0; i < input3.length; i++) {
-        code = input3[i].charCodeAt(0);
+      for (i = 0; i < input4.length; i++) {
+        code = input4[i].charCodeAt(0);
         if (code === 48) {
           continue;
         }
         if (!(code >= 48 && code <= 57 || code >= 65 && code <= 70 || code >= 97 && code <= 102)) {
           return "";
         }
-        acc += input3[i];
+        acc += input4[i];
         break;
       }
-      for (i += 1; i < input3.length; i++) {
-        code = input3[i].charCodeAt(0);
+      for (i += 1; i < input4.length; i++) {
+        code = input4[i].charCodeAt(0);
         if (!(code >= 48 && code <= 57 || code >= 65 && code <= 70 || code >= 97 && code <= 102)) {
           return "";
         }
-        acc += input3[i];
+        acc += input4[i];
       }
       return acc;
     }
@@ -3233,11 +3233,11 @@ var require_utils = __commonJS({
       const tail = hextets.slice(bestStart + bestLength).join(":");
       return head2 + "::" + tail;
     }
-    function normalizeIPv6Address(input3) {
-      const compression = input3.indexOf("::");
-      if (compression !== -1 && input3.indexOf("::", compression + 1) !== -1) return void 0;
-      const left = compression === -1 ? input3.split(":") : input3.slice(0, compression).split(":");
-      const right = compression === -1 ? [] : input3.slice(compression + 2).split(":");
+    function normalizeIPv6Address(input4) {
+      const compression = input4.indexOf("::");
+      if (compression !== -1 && input4.indexOf("::", compression + 1) !== -1) return void 0;
+      const left = compression === -1 ? input4.split(":") : input4.slice(0, compression).split(":");
+      const right = compression === -1 ? [] : input4.slice(compression + 2).split(":");
       if (compression !== -1) {
         if (left.length === 1 && left[0] === "") left.length = 0;
         if (right.length === 1 && right[0] === "") right.length = 0;
@@ -3270,23 +3270,23 @@ var require_utils = __commonJS({
       const bracketed = host[0] === "[" && host[host.length - 1] === "]";
       const hasBracket = host[0] === "[" || host[host.length - 1] === "]";
       if (hasBracket && !bracketed) return { host, isIPV6: false, error: true };
-      let input3 = bracketed ? host.slice(1, -1) : host;
-      if (bracketed && isIPvFuture(input3)) {
-        input3 = input3.toLowerCase();
-        return { host: `[${input3}]`, escapedHost: input3, isIPV6: false, isIPVFuture: true };
+      let input4 = bracketed ? host.slice(1, -1) : host;
+      if (bracketed && isIPvFuture(input4)) {
+        input4 = input4.toLowerCase();
+        return { host: `[${input4}]`, escapedHost: input4, isIPV6: false, isIPVFuture: true };
       }
-      if (findToken(input3, ":") < 2) {
+      if (findToken(input4, ":") < 2) {
         return { host, isIPV6: false, error: bracketed };
       }
       let zoneIdentifier = "";
-      const zoneSeparator = input3.indexOf("%");
+      const zoneSeparator = input4.indexOf("%");
       if (zoneSeparator !== -1) {
-        const separatorLength = input3.slice(zoneSeparator, zoneSeparator + 3).toLowerCase() === "%25" ? 3 : 1;
-        zoneIdentifier = input3.slice(zoneSeparator + separatorLength);
+        const separatorLength = input4.slice(zoneSeparator, zoneSeparator + 3).toLowerCase() === "%25" ? 3 : 1;
+        zoneIdentifier = input4.slice(zoneSeparator + separatorLength);
         if (!isZoneIdentifier(zoneIdentifier)) return { host, isIPV6: false, error: true };
-        input3 = input3.slice(0, zoneSeparator);
+        input4 = input4.slice(0, zoneSeparator);
       }
-      const address = normalizeIPv6Address(input3);
+      const address = normalizeIPv6Address(input4);
       if (address === void 0) return { host, isIPV6: false, error: true };
       return {
         host: address + (zoneIdentifier ? "%" + zoneIdentifier : ""),
@@ -3302,37 +3302,37 @@ var require_utils = __commonJS({
       return ind;
     }
     function removeDotSegments(path2) {
-      let input3 = path2;
+      let input4 = path2;
       const output3 = [];
       let nextSlash = -1;
       let len = 0;
-      while (len = input3.length) {
+      while (len = input4.length) {
         if (len === 1) {
-          if (input3 === ".") {
+          if (input4 === ".") {
             break;
-          } else if (input3 === "/") {
+          } else if (input4 === "/") {
             output3.push("/");
             break;
           } else {
-            output3.push(input3);
+            output3.push(input4);
             break;
           }
         } else if (len === 2) {
-          if (input3[0] === ".") {
-            if (input3[1] === ".") {
+          if (input4[0] === ".") {
+            if (input4[1] === ".") {
               break;
-            } else if (input3[1] === "/") {
-              input3 = input3.slice(2);
+            } else if (input4[1] === "/") {
+              input4 = input4.slice(2);
               continue;
             }
-          } else if (input3[0] === "/") {
-            if (input3[1] === "." || input3[1] === "/") {
+          } else if (input4[0] === "/") {
+            if (input4[1] === "." || input4[1] === "/") {
               output3.push("/");
               break;
             }
           }
         } else if (len === 3) {
-          if (input3 === "/..") {
+          if (input4 === "/..") {
             if (output3.length !== 0) {
               output3.pop();
             }
@@ -3340,24 +3340,24 @@ var require_utils = __commonJS({
             break;
           }
         }
-        if (input3[0] === ".") {
-          if (input3[1] === ".") {
-            if (input3[2] === "/") {
-              input3 = input3.slice(3);
+        if (input4[0] === ".") {
+          if (input4[1] === ".") {
+            if (input4[2] === "/") {
+              input4 = input4.slice(3);
               continue;
             }
-          } else if (input3[1] === "/") {
-            input3 = input3.slice(2);
+          } else if (input4[1] === "/") {
+            input4 = input4.slice(2);
             continue;
           }
-        } else if (input3[0] === "/") {
-          if (input3[1] === ".") {
-            if (input3[2] === "/") {
-              input3 = input3.slice(2);
+        } else if (input4[0] === "/") {
+          if (input4[1] === ".") {
+            if (input4[2] === "/") {
+              input4 = input4.slice(2);
               continue;
-            } else if (input3[2] === ".") {
-              if (input3[3] === "/") {
-                input3 = input3.slice(3);
+            } else if (input4[2] === ".") {
+              if (input4[3] === "/") {
+                input4 = input4.slice(3);
                 if (output3.length !== 0) {
                   output3.pop();
                 }
@@ -3366,12 +3366,12 @@ var require_utils = __commonJS({
             }
           }
         }
-        if ((nextSlash = input3.indexOf("/", 1)) === -1) {
-          output3.push(input3);
+        if ((nextSlash = input4.indexOf("/", 1)) === -1) {
+          output3.push(input4);
           break;
         } else {
-          output3.push(input3.slice(0, nextSlash));
-          input3 = input3.slice(nextSlash);
+          output3.push(input4.slice(0, nextSlash));
+          input4 = input4.slice(nextSlash);
         }
       }
       return output3.join("");
@@ -3384,14 +3384,14 @@ var require_utils = __commonJS({
       re.lastIndex = 0;
       return host.replace(re, (ch) => HOST_DELIMS[ch]);
     }
-    function normalizePercentEncoding(input3, decodeUnreserved = false) {
-      if (input3.indexOf("%") === -1) {
-        return input3;
+    function normalizePercentEncoding(input4, decodeUnreserved = false) {
+      if (input4.indexOf("%") === -1) {
+        return input4;
       }
       let output3 = "";
-      for (let i = 0; i < input3.length; i++) {
-        if (input3[i] === "%" && i + 2 < input3.length) {
-          const hex3 = input3.slice(i + 1, i + 3);
+      for (let i = 0; i < input4.length; i++) {
+        if (input4[i] === "%" && i + 2 < input4.length) {
+          const hex3 = input4.slice(i + 1, i + 3);
           if (isHexPair(hex3)) {
             const normalizedHex = hex3.toUpperCase();
             const decoded = String.fromCharCode(parseInt(normalizedHex, 16));
@@ -3404,16 +3404,16 @@ var require_utils = __commonJS({
             continue;
           }
         }
-        output3 += input3[i];
+        output3 += input4[i];
       }
       return output3;
     }
-    function normalizePathEncoding(input3) {
+    function normalizePathEncoding(input4) {
       let output3 = "";
-      for (let i = 0; i < input3.length; i++) {
-        const ch = input3[i];
-        if (ch === "%" && i + 2 < input3.length) {
-          const hex3 = input3.slice(i + 1, i + 3);
+      for (let i = 0; i < input4.length; i++) {
+        const ch = input4[i];
+        if (ch === "%" && i + 2 < input4.length) {
+          const hex3 = input4.slice(i + 1, i + 3);
           if (isHexPair(hex3)) {
             const normalizedHex = hex3.toUpperCase();
             const decoded = String.fromCharCode(parseInt(normalizedHex, 16));
@@ -3429,13 +3429,13 @@ var require_utils = __commonJS({
         if (isPathCharacter(ch)) {
           output3 += ch;
         } else {
-          const code = input3.charCodeAt(i);
+          const code = input4.charCodeAt(i);
           if (code < 128) {
             output3 += isEscapeSafe(code) ? ch : BYTE_HEX[code];
           } else if (code < 55296 || code > 57343) {
             output3 += percentEncodeNonAscii(code);
-          } else if (code <= 56319 && i + 1 < input3.length) {
-            const low = input3.charCodeAt(i + 1);
+          } else if (code <= 56319 && i + 1 < input4.length) {
+            const low = input4.charCodeAt(i + 1);
             if (low >= 56320 && low <= 57343) {
               output3 += percentEncodeNonAscii(65536 + (code - 55296 << 10) + (low - 56320));
               i++;
@@ -3449,13 +3449,13 @@ var require_utils = __commonJS({
       }
       return output3;
     }
-    function serializePathEncoding(input3, pathNoScheme = false) {
+    function serializePathEncoding(input4, pathNoScheme = false) {
       let output3 = "";
-      let firstSegment = pathNoScheme && input3[0] !== "/";
-      for (let i = 0; i < input3.length; i++) {
-        const ch = input3[i];
-        if (ch === "%" && i + 2 < input3.length) {
-          const hex3 = input3.slice(i + 1, i + 3);
+      let firstSegment = pathNoScheme && input4[0] !== "/";
+      for (let i = 0; i < input4.length; i++) {
+        const ch = input4[i];
+        if (ch === "%" && i + 2 < input4.length) {
+          const hex3 = input4.slice(i + 1, i + 3);
           if (isHexPair(hex3)) {
             output3 += "%" + hex3.toUpperCase();
             i += 2;
@@ -3468,13 +3468,13 @@ var require_utils = __commonJS({
         if (isPathCharacter(ch) && (ch !== ":" || !firstSegment)) {
           output3 += ch;
         } else {
-          const code = input3.charCodeAt(i);
+          const code = input4.charCodeAt(i);
           if (code < 128) {
             output3 += BYTE_HEX[code];
           } else if (code < 55296 || code > 57343) {
             output3 += percentEncodeNonAscii(code);
-          } else if (code <= 56319 && i + 1 < input3.length) {
-            const low = input3.charCodeAt(i + 1);
+          } else if (code <= 56319 && i + 1 < input4.length) {
+            const low = input4.charCodeAt(i + 1);
             if (low >= 56320 && low <= 57343) {
               output3 += percentEncodeNonAscii(65536 + (code - 55296 << 10) + (low - 56320));
               i++;
@@ -3488,12 +3488,12 @@ var require_utils = __commonJS({
       }
       return output3;
     }
-    function encodeComponent(input3, isAllowed) {
+    function encodeComponent(input4, isAllowed) {
       let output3 = "";
-      for (let i = 0; i < input3.length; i++) {
-        const ch = input3[i];
-        if (ch === "%" && i + 2 < input3.length) {
-          const hex3 = input3.slice(i + 1, i + 3);
+      for (let i = 0; i < input4.length; i++) {
+        const ch = input4[i];
+        if (ch === "%" && i + 2 < input4.length) {
+          const hex3 = input4.slice(i + 1, i + 3);
           if (isHexPair(hex3)) {
             output3 += "%" + hex3.toUpperCase();
             i += 2;
@@ -3503,13 +3503,13 @@ var require_utils = __commonJS({
         if (isAllowed(ch)) {
           output3 += ch;
         } else {
-          const code = input3.charCodeAt(i);
+          const code = input4.charCodeAt(i);
           if (code < 128) {
             output3 += BYTE_HEX[code];
           } else if (code < 55296 || code > 57343) {
             output3 += percentEncodeNonAscii(code);
-          } else if (code <= 56319 && i + 1 < input3.length) {
-            const low = input3.charCodeAt(i + 1);
+          } else if (code <= 56319 && i + 1 < input4.length) {
+            const low = input4.charCodeAt(i + 1);
             if (low >= 56320 && low <= 57343) {
               output3 += percentEncodeNonAscii(65536 + (code - 55296 << 10) + (low - 56320));
               i++;
@@ -3523,24 +3523,24 @@ var require_utils = __commonJS({
       }
       return output3;
     }
-    function encodeUserinfo(input3) {
-      return encodeComponent(input3, isUserinfoCharacter);
+    function encodeUserinfo(input4) {
+      return encodeComponent(input4, isUserinfoCharacter);
     }
-    function encodeQuery(input3) {
-      return encodeComponent(input3, isQueryFragmentCharacter);
+    function encodeQuery(input4) {
+      return encodeComponent(input4, isQueryFragmentCharacter);
     }
-    function encodeFragment(input3) {
-      return encodeComponent(input3, isQueryFragmentCharacter);
+    function encodeFragment(input4) {
+      return encodeComponent(input4, isQueryFragmentCharacter);
     }
     function isEscapeSafe(cp) {
       return cp >= 48 && cp <= 57 || cp >= 65 && cp <= 90 || cp >= 97 && cp <= 122 || cp === 42 || cp === 43 || cp === 45 || cp === 46 || cp === 47 || cp === 64 || cp === 95;
     }
-    function normalizeQueryFragmentEncoding(input3) {
+    function normalizeQueryFragmentEncoding(input4) {
       let output3 = "";
-      for (let i = 0; i < input3.length; i++) {
-        const ch = input3[i];
-        if (ch === "%" && i + 2 < input3.length) {
-          const hex3 = input3.slice(i + 1, i + 3);
+      for (let i = 0; i < input4.length; i++) {
+        const ch = input4[i];
+        if (ch === "%" && i + 2 < input4.length) {
+          const hex3 = input4.slice(i + 1, i + 3);
           if (isHexPair(hex3)) {
             const normalizedHex = hex3.toUpperCase();
             const decoded = String.fromCharCode(parseInt(normalizedHex, 16));
@@ -3556,13 +3556,13 @@ var require_utils = __commonJS({
         if (isQueryFragmentCharacter(ch)) {
           output3 += ch;
         } else {
-          const code = input3.charCodeAt(i);
+          const code = input4.charCodeAt(i);
           if (code < 128) {
             output3 += isEscapeSafe(code) ? ch : BYTE_HEX[code];
           } else if (code < 55296 || code > 57343) {
             output3 += percentEncodeNonAscii(code);
-          } else if (code <= 56319 && i + 1 < input3.length) {
-            const low = input3.charCodeAt(i + 1);
+          } else if (code <= 56319 && i + 1 < input4.length) {
+            const low = input4.charCodeAt(i + 1);
             if (low >= 56320 && low <= 57343) {
               output3 += percentEncodeNonAscii(65536 + (code - 55296 << 10) + (low - 56320));
               i++;
@@ -3576,18 +3576,18 @@ var require_utils = __commonJS({
       }
       return output3;
     }
-    function escapePreservingEscapes(input3) {
+    function escapePreservingEscapes(input4) {
       let output3 = "";
-      for (let i = 0; i < input3.length; i++) {
-        if (input3[i] === "%" && i + 2 < input3.length) {
-          const hex3 = input3.slice(i + 1, i + 3);
+      for (let i = 0; i < input4.length; i++) {
+        if (input4[i] === "%" && i + 2 < input4.length) {
+          const hex3 = input4.slice(i + 1, i + 3);
           if (isHexPair(hex3)) {
             output3 += "%" + hex3.toUpperCase();
             i += 2;
             continue;
           }
         }
-        output3 += escape(input3[i]);
+        output3 += escape(input4[i]);
       }
       return output3;
     }
@@ -29518,19 +29518,19 @@ var require_types3 = __commonJS({
       }
     };
     var SparseVector = class _SparseVector {
-      constructor(input3) {
+      constructor(input4) {
         this._indices = new Uint32Array(0);
         this._values = new Float64Array(0);
         this._numDimensions = 0;
-        if (!input3) {
+        if (!input4) {
           return;
         }
-        if (typeof input3 === "object" && "numDimensions" in input3 && "indices" in input3 && "values" in input3) {
-          this._fromObject(input3);
-        } else if (typeof input3 === "string") {
-          this._fromString(input3);
-        } else if (this._validDenseArray(input3)) {
-          this._fromDense(input3);
+        if (typeof input4 === "object" && "numDimensions" in input4 && "indices" in input4 && "values" in input4) {
+          this._fromObject(input4);
+        } else if (typeof input4 === "string") {
+          this._fromString(input4);
+        } else if (this._validDenseArray(input4)) {
+          this._fromDense(input4);
         } else {
           errors.throwErr(errors.ERR_VECTOR_SPARSE_INVALID_INPUT);
         }
@@ -29562,8 +29562,8 @@ var require_types3 = __commonJS({
         this._values = values2;
         this._convertToTypedArrays();
       }
-      _fromObject(input3) {
-        this._updateProperties(input3.numDimensions, input3.indices, input3.values);
+      _fromObject(input4) {
+        this._updateProperties(input4.numDimensions, input4.indices, input4.values);
       }
       _convertToTypedArrays() {
         if (!(this._indices instanceof Uint32Array)) {
@@ -29587,16 +29587,16 @@ var require_types3 = __commonJS({
       // The length of input is assumed to be same as
       // dimensions of sparse Vector column.
       // values will be an array even if input is a typedArray.
-      _fromDense(input3) {
+      _fromDense(input4) {
         this._indices = [];
         this._values = [];
-        for (let i = 0; i < input3.length; i++) {
-          if (input3[i] !== 0) {
+        for (let i = 0; i < input4.length; i++) {
+          if (input4[i] !== 0) {
             this._indices.push(i);
-            this._values.push(input3[i]);
+            this._values.push(input4[i]);
           }
         }
-        this._numDimensions = input3.length;
+        this._numDimensions = input4.length;
         this._convertToTypedArrays();
       }
       // parse a string input into a sparse vector
@@ -29639,11 +29639,11 @@ var require_types3 = __commonJS({
         };
       }
       // It always constructs a typedArray.
-      _createEmptyArray(input3, len) {
-        if (Array.isArray(input3)) {
+      _createEmptyArray(input4, len) {
+        if (Array.isArray(input4)) {
           return new Float64Array(len);
         } else {
-          return new input3.constructor(len);
+          return new input4.constructor(len);
         }
       }
       // Convert sparse vector to a dense vector
@@ -36172,32 +36172,32 @@ var require_resultset = __commonJS({
           }
         }
         for (let i = 0; i < metaData.length; i++) {
-          const info = metaData[i];
-          if (info.dbTypeClass) {
-            const cls = options2.connection._getDbObjectClass(info.dbTypeClass);
-            info.dbTypeClass = cls;
+          const info2 = metaData[i];
+          if (info2.dbTypeClass) {
+            const cls = options2.connection._getDbObjectClass(info2.dbTypeClass);
+            info2.dbTypeClass = cls;
           }
-          nodbUtil.addTypeProperties(info, "dbType");
-          this._determineFetchType(info, options2, metaData);
-          if (info.fetchType === types.DB_TYPE_CURSOR) {
+          nodbUtil.addTypeProperties(info2, "dbType");
+          this._determineFetchType(info2, options2, metaData);
+          if (info2.fetchType === types.DB_TYPE_CURSOR) {
             this.nestedCursorIndices.push(i);
-          } else if (info.fetchType === types.DB_TYPE_CLOB || info.fetchType === types.DB_TYPE_NCLOB || info.fetchType === types.DB_TYPE_BLOB || info.fetchType === types.DB_TYPE_BFILE) {
+          } else if (info2.fetchType === types.DB_TYPE_CLOB || info2.fetchType === types.DB_TYPE_NCLOB || info2.fetchType === types.DB_TYPE_BLOB || info2.fetchType === types.DB_TYPE_BFILE) {
             this.lobIndices.push(i);
-          } else if (info.fetchType === types.DB_TYPE_OBJECT) {
+          } else if (info2.fetchType === types.DB_TYPE_OBJECT) {
             this.dbObjectIndices.push(i);
           }
-          if (info.converter) {
+          if (info2.converter) {
             this.converterIndices.push(i);
           }
-          let name3 = info.name;
+          let name3 = info2.name;
           if (names2.get(name3) !== i) {
             let seqNum = 0;
             while (names2.has(name3)) {
               seqNum = seqNum + 1;
-              name3 = `${info.name}_${seqNum}`;
+              name3 = `${info2.name}_${seqNum}`;
             }
             names2.set(name3, i);
-            info.name = name3;
+            info2.name = name3;
           }
         }
       }
@@ -36997,15 +36997,15 @@ var require_nvStrToNvPair = __commonJS({
         this.tkValue = new Array();
         const len = nvString.length;
         let eql_seen = false;
-        let input3 = new Array();
-        input3 = Array.from(nvString);
+        let input4 = new Array();
+        input4 = Array.from(nvString);
         let pos = 0;
         while (pos < len) {
-          while (pos < len && this._isWhiteSpace(input3[pos])) {
+          while (pos < len && this._isWhiteSpace(input4[pos])) {
             pos++;
           }
           if (pos < len) {
-            switch (input3[pos]) {
+            switch (input4[pos]) {
               // For metacharacters (, ), and =, add to the token list, and
               // advance the NVString position. (Save token, eat character)
               case TKN_LPAREN_VALUE:
@@ -37033,25 +37033,25 @@ var require_nvStrToNvPair = __commonJS({
                 let endPos = -1;
                 let quoted_str = false;
                 let quote_char = TKN_DQUOTE_VALUE;
-                if (input3[pos] == TKN_SQUOTE_VALUE || input3[pos] == TKN_DQUOTE_VALUE) {
+                if (input4[pos] == TKN_SQUOTE_VALUE || input4[pos] == TKN_DQUOTE_VALUE) {
                   quoted_str = true;
-                  quote_char = input3[pos];
+                  quote_char = input4[pos];
                   pos++;
                   startPos = pos;
                 }
                 while (pos < len) {
-                  if (input3[pos] == TKN_BKSLASH_VALUE) {
+                  if (input4[pos] == TKN_BKSLASH_VALUE) {
                     pos += 2;
                     continue;
                   }
                   if (quoted_str) {
-                    if (input3[pos] == quote_char) {
+                    if (input4[pos] == quote_char) {
                       pos++;
                       endPos = pos - 1;
                       break;
                     }
                   } else {
-                    if (input3[pos] == TKN_LPAREN_VALUE || input3[pos] == TKN_RPAREN_VALUE || input3[pos] == TKN_COMMA_VALUE && !eql_seen || input3[pos] == TKN_EQUAL_VALUE && !eql_seen) {
+                    if (input4[pos] == TKN_LPAREN_VALUE || input4[pos] == TKN_RPAREN_VALUE || input4[pos] == TKN_COMMA_VALUE && !eql_seen || input4[pos] == TKN_EQUAL_VALUE && !eql_seen) {
                       endPos = pos;
                       break;
                     }
@@ -38906,37 +38906,37 @@ var require_transformer = __commonJS({
     var util = __require("util");
     var types = require_types3();
     var nodbUtil = require_util2();
-    function checkType(info, options2) {
-      if (info.type === void 0 && arguments.length > 2) {
-        info.type = arguments[2];
+    function checkType(info2, options2) {
+      if (info2.type === void 0 && arguments.length > 2) {
+        info2.type = arguments[2];
       } else {
         let matches2 = false;
         for (let i = 2; i < arguments.length; i++) {
-          if (info.type === arguments[i]) {
+          if (info2.type === arguments[i]) {
             matches2 = true;
             break;
           }
         }
         if (!matches2) {
-          if (info.attrName) {
+          if (info2.attrName) {
             errors.throwErr(
               errors.ERR_WRONG_VALUE_FOR_DBOBJECT_ATTR,
-              info.attrName,
-              info.fqn
+              info2.attrName,
+              info2.fqn
             );
-          } else if (info.fqn) {
-            errors.throwErr(errors.ERR_WRONG_VALUE_FOR_DBOBJECT_ELEM, info.fqn);
-          } else if (info.isArray && info.name) {
+          } else if (info2.fqn) {
+            errors.throwErr(errors.ERR_WRONG_VALUE_FOR_DBOBJECT_ELEM, info2.fqn);
+          } else if (info2.isArray && info2.name) {
             errors.throwErr(
               errors.ERR_INCOMPATIBLE_TYPE_ARRAY_BIND,
               options2.pos,
-              info.name
+              info2.name
             );
-          } else if (info.isArray) {
+          } else if (info2.isArray) {
             errors.throwErr(
               errors.ERR_INCOMPATIBLE_TYPE_ARRAY_INDEX_BIND,
               options2.pos,
-              info.pos
+              info2.pos
             );
           } else {
             errors.throwErr(errors.ERR_BIND_VALUE_AND_TYPE_MISMATCH);
@@ -38967,20 +38967,20 @@ var require_transformer = __commonJS({
       }
       return outValue;
     }
-    function transformValueIn(info, value2, options2) {
+    function transformValueIn(info2, value2, options2) {
       if (value2 === void 0 || value2 === null)
         return void 0;
-      if (info.type === types.DB_TYPE_OBJECT) {
+      if (info2.type === types.DB_TYPE_OBJECT) {
         let obj6 = value2;
         if (!(value2 instanceof BaseDbObject)) {
-          obj6 = new info.typeClass(value2);
+          obj6 = new info2.typeClass(value2);
         }
         return obj6._impl;
-      } else if (info.type === types.DB_TYPE_JSON) {
+      } else if (info2.type === types.DB_TYPE_JSON) {
         return transformJsonValue(value2);
       } else if (typeof value2 === "string") {
         checkType(
-          info,
+          info2,
           options2,
           types.DB_TYPE_VARCHAR,
           types.DB_TYPE_NVARCHAR,
@@ -38991,40 +38991,40 @@ var require_transformer = __commonJS({
           types.DB_TYPE_LONG,
           types.DB_TYPE_LONG_NVARCHAR
         );
-        if (info.type !== types.DB_TYPE_CLOB && info.type !== types.DB_TYPE_NCLOB && info.type !== types.DB_TYPE_LONG && info.type !== types.DB_TYPE_LONG_NVARCHAR) {
+        if (info2.type !== types.DB_TYPE_CLOB && info2.type !== types.DB_TYPE_NCLOB && info2.type !== types.DB_TYPE_LONG && info2.type !== types.DB_TYPE_LONG_NVARCHAR) {
           const valueLen = Buffer3.byteLength(value2);
-          if (info.maxSize === void 0 || valueLen > info.maxSize) {
-            if (info.checkSize) {
+          if (info2.maxSize === void 0 || valueLen > info2.maxSize) {
+            if (info2.checkSize) {
               errors.throwErr(
                 errors.ERR_MAX_SIZE_TOO_SMALL,
-                info.maxSize,
+                info2.maxSize,
                 valueLen,
                 options2.pos
               );
             }
-            info.maxSize = valueLen;
+            info2.maxSize = valueLen;
           }
         }
         return value2;
       } else if (typeof value2 === "number" || typeof value2 === "bigint") {
         checkType(
-          info,
+          info2,
           options2,
           types.DB_TYPE_NUMBER,
           types.DB_TYPE_BINARY_INTEGER,
           types.DB_TYPE_BINARY_FLOAT,
           types.DB_TYPE_BINARY_DOUBLE
         );
-        if (Number.isNaN(value2) && info.type === types.DB_TYPE_NUMBER) {
+        if (Number.isNaN(value2) && info2.type === types.DB_TYPE_NUMBER) {
           errors.throwErr(errors.ERR_NAN_VALUE);
         }
         return value2;
       } else if (typeof value2 === "boolean") {
-        checkType(info, options2, types.DB_TYPE_BOOLEAN);
+        checkType(info2, options2, types.DB_TYPE_BOOLEAN);
         return value2;
       } else if (util.types.isDate(value2)) {
         checkType(
-          info,
+          info2,
           options2,
           types.DB_TYPE_TIMESTAMP,
           types.DB_TYPE_TIMESTAMP_TZ,
@@ -39034,72 +39034,72 @@ var require_transformer = __commonJS({
         return value2;
       } else if (value2 instanceof types.IntervalYM) {
         checkType(
-          info,
+          info2,
           options2,
           types.DB_TYPE_INTERVAL_YM
         );
         return value2;
       } else if (value2 instanceof types.IntervalDS) {
         checkType(
-          info,
+          info2,
           options2,
           types.DB_TYPE_INTERVAL_DS
         );
         return value2;
       } else if (Buffer3.isBuffer(value2)) {
         checkType(
-          info,
+          info2,
           options2,
           types.DB_TYPE_RAW,
           types.DB_TYPE_BLOB,
           types.DB_TYPE_LONG_RAW
         );
-        if (info.type === types.DB_TYPE_RAW && (info.maxSize === void 0 || value2.length > info.maxSize)) {
-          if (info.checkSize) {
+        if (info2.type === types.DB_TYPE_RAW && (info2.maxSize === void 0 || value2.length > info2.maxSize)) {
+          if (info2.checkSize) {
             errors.throwErr(
               errors.ERR_MAX_SIZE_TOO_SMALL,
-              info.maxSize,
+              info2.maxSize,
               value2.length,
               options2.pos
             );
           }
-          info.maxSize = value2.length;
+          info2.maxSize = value2.length;
         }
         return value2;
       } else if (value2 instanceof ResultSet) {
-        checkType(info, options2, types.DB_TYPE_CURSOR);
+        checkType(info2, options2, types.DB_TYPE_CURSOR);
         return value2._impl;
       } else if (value2 instanceof Lob) {
-        checkType(info, options2, value2.type);
+        checkType(info2, options2, value2.type);
         return value2._impl;
       } else if (value2 instanceof BaseDbObject) {
-        checkType(info, options2, types.DB_TYPE_OBJECT);
+        checkType(info2, options2, types.DB_TYPE_OBJECT);
         return value2._impl;
       } else if (nodbUtil.isVectorValue(value2)) {
-        checkType(info, options2, types.DB_TYPE_VECTOR);
+        checkType(info2, options2, types.DB_TYPE_VECTOR);
         return value2;
-      } else if (info.type === types.DB_TYPE_VECTOR && Array.isArray(value2)) {
+      } else if (info2.type === types.DB_TYPE_VECTOR && Array.isArray(value2)) {
         return new Float64Array(value2);
       } else if (options2.allowArray && Array.isArray(value2)) {
-        info.isArray = true;
-        if (info.dir === constants2.BIND_IN) {
-          info.maxArraySize = value2.length || 1;
-        } else if (info.maxArraySize === void 0) {
+        info2.isArray = true;
+        if (info2.dir === constants2.BIND_IN) {
+          info2.maxArraySize = value2.length || 1;
+        } else if (info2.maxArraySize === void 0) {
           errors.throwErr(errors.ERR_REQUIRED_MAX_ARRAY_SIZE);
-        } else if (value2.length > info.maxArraySize) {
+        } else if (value2.length > info2.maxArraySize) {
           errors.throwErr(errors.ERR_INVALID_ARRAY_SIZE);
         }
         options2.allowArray = false;
         const transformed = new Array(value2.length);
         for (let i = 0; i < value2.length; i++) {
           options2.pos = i;
-          transformed[i] = transformValueIn(info, value2[i], options2);
+          transformed[i] = transformValueIn(info2, value2[i], options2);
         }
         return transformed;
       }
-      if (info.type === void 0)
+      if (info2.type === void 0)
         errors.throwErr(errors.ERR_INVALID_BIND_DATA_TYPE, 2);
-      checkType(info, options2);
+      checkType(info2, options2);
     }
     module.exports = {
       transformJsonValue,
@@ -39189,14 +39189,14 @@ var require_dbObject2 = __commonJS({
       // Sets the value of the attribute on the object to the given value.
       //---------------------------------------------------------------------------
       _setAttrValue(attr, value2) {
-        const info = {
+        const info2 = {
           fqn: this._objType.fqn,
           attrName: attr.name,
           type: attr.type,
           typeClass: attr.typeClass
         };
         const options2 = { allowArray: false };
-        value2 = transformer.transformValueIn(info, value2, options2);
+        value2 = transformer.transformValueIn(info2, value2, options2);
         validatePropertyValue(this._objType, attr, value2);
         this._impl.setAttrValue(attr, value2);
       }
@@ -39257,13 +39257,13 @@ var require_dbObject2 = __commonJS({
       append(value2) {
         errors.assertArgCount(arguments, 1, 1);
         this._ensureCollection();
-        const info = {
+        const info2 = {
           fqn: this._objType.fqn,
           type: this._objType.elementType,
           typeClass: this._objType.elementTypeClass
         };
         const options2 = { allowArray: false };
-        value2 = transformer.transformValueIn(info, value2, options2);
+        value2 = transformer.transformValueIn(info2, value2, options2);
         let index2 = this._impl.getLastIndex();
         if (index2) {
           index2 = index2 + 1;
@@ -39509,13 +39509,13 @@ var require_dbObject2 = __commonJS({
         errors.assertArgCount(arguments, 2, 2);
         this._ensureCollection();
         errors.assertParamValue(Number.isInteger(index2), 1);
-        const info = {
+        const info2 = {
           fqn: this._objType.fqn,
           type: this._objType.elementType,
           typeClass: this._objType.elementTypeClass
         };
         const options2 = { allowArray: false };
-        value2 = transformer.transformValueIn(info, value2, options2);
+        value2 = transformer.transformValueIn(info2, value2, options2);
         validatePropertyValue(this._objType, this._objType.elementTypeInfo, value2, index2);
         this._impl.setElement(index2, value2);
       }
@@ -41256,13 +41256,13 @@ var require_connection5 = __commonJS({
             const names2 = Object.getOwnPropertyNames(options2.fetchInfo);
             const map2 = new Map(settings.fetchTypeMap);
             for (const name3 of names2) {
-              const info = options2.fetchInfo[name3];
-              if (info.type === void 0)
+              const info2 = options2.fetchInfo[name3];
+              if (info2.type === void 0)
                 errors.throwErr(errors.ERR_NO_TYPE_FOR_CONVERSION);
-              if (info.type !== constants2.DEFAULT && info.type !== types.DB_TYPE_VARCHAR && info.type !== types.DB_TYPE_RAW) {
+              if (info2.type !== constants2.DEFAULT && info2.type !== types.DB_TYPE_VARCHAR && info2.type !== types.DB_TYPE_RAW) {
                 errors.throwErr(errors.ERR_INVALID_TYPE_FOR_CONVERSION);
               }
-              map2.set(name3, info.type);
+              map2.set(name3, info2.type);
             }
             outOptions.fetchTypeMap = map2;
           }
@@ -41911,15 +41911,15 @@ var require_connection5 = __commonJS({
         errors.assertArgCount(arguments, 1, 1);
         errors.assertParamValue(typeof sql === "string", 1);
         errors.assert(this._impl, errors.ERR_INVALID_CONNECTION);
-        const info = await this._impl.getStatementInfo(sql);
-        if (info.metaData) {
-          for (let i = 0; i < info.metaData.length; i++) {
-            const m2 = info.metaData[i];
+        const info2 = await this._impl.getStatementInfo(sql);
+        if (info2.metaData) {
+          for (let i = 0; i < info2.metaData.length; i++) {
+            const m2 = info2.metaData[i];
             nodbUtil.addTypeProperties(m2, "dbType");
             m2.fetchType = types.DB_TYPE_FETCH_TYPE_MAP.get(m2.dbType);
           }
         }
-        return info;
+        return info2;
       }
       //---------------------------------------------------------------------------
       // instanceName
@@ -47328,16 +47328,16 @@ var require_execute3 = __commonJS({
         if (params2 !== void 0) {
           if (!stmt.isQuery) {
             this.outVariables = [];
-            params2.forEach((info) => {
-              if (info.bindDir !== constants2.TNS_BIND_DIR_INPUT) {
-                this.outVariables.push(info.bindVar);
+            params2.forEach((info2) => {
+              if (info2.bindDir !== constants2.TNS_BIND_DIR_INPUT) {
+                this.outVariables.push(info2.bindVar);
               }
             });
           }
           const tmpparams = [];
-          params2.forEach((info) => {
-            if (info.bindDir !== constants2.TNS_BIND_DIR_OUTPUT && !info.isReturnBind) {
-              tmpparams.push(info);
+          params2.forEach((info2) => {
+            if (info2.bindDir !== constants2.TNS_BIND_DIR_OUTPUT && !info2.isReturnBind) {
+              tmpparams.push(info2);
             }
           });
           params2 = tmpparams;
@@ -48034,23 +48034,23 @@ var require_packet2 = __commonJS({
         this._dataFlags = 0;
         this.tokenNum = 0;
       }
-      _asBuffer(input3) {
-        if (Buffer3.isBuffer(input3)) {
-          return input3;
+      _asBuffer(input4) {
+        if (Buffer3.isBuffer(input4)) {
+          return input4;
         }
-        if (typeof input3 === "string") {
-          return Buffer3.from(input3);
+        if (typeof input4 === "string") {
+          return Buffer3.from(input4);
         }
         errors.throwErr(errors.ERR_INTERNAL, "Expected Buffer or string");
       }
       // Writes a 32-bit length, writeUB4 followed by the field if present.
       // For Null input, We just write length as 0.
-      _writeBytesWithTwoLengths(input3) {
-        if (input3 == null) {
+      _writeBytesWithTwoLengths(input4) {
+        if (input4 == null) {
           this.writeUB4(0);
           return;
         }
-        const buf = this._asBuffer(input3);
+        const buf = this._asBuffer(input4);
         const length = buf.length;
         this.writeUB4(length);
         if (length > 0) {
@@ -52312,18 +52312,18 @@ var require_statement = __commonJS({
       //---------------------------------------------------------------------------
       _addBind(name3) {
         if (!this.isPlSql || !this.bindInfoDict.has(name3)) {
-          const info = new BindInfo(name3, this.isReturning);
-          this.bindInfoList.push(info);
-          if (this.bindInfoDict.has(info.bindName)) {
+          const info2 = new BindInfo(name3, this.isReturning);
+          this.bindInfoList.push(info2);
+          if (this.bindInfoDict.has(info2.bindName)) {
             if (this.isReturning) {
-              const origInfo = this.bindInfoDict.get(info.bindName)[0];
+              const origInfo = this.bindInfoDict.get(info2.bindName)[0];
               if (!origInfo.isReturnBind) {
                 errors.throwErr(errors.ERR_DML_RETURNING_DUP_BINDS, name3);
               }
             }
-            this.bindInfoDict.get(info.bindName).push(info);
+            this.bindInfoDict.get(info2.bindName).push(info2);
           } else {
-            this.bindInfoDict.set(info.bindName, [info]);
+            this.bindInfoDict.set(info2.bindName, [info2]);
           }
         }
       }
@@ -55446,32 +55446,32 @@ var require_connection6 = __commonJS({
       // collections with an object as the element type since this information is
       // not available in the TDS.
       //---------------------------------------------------------------------------
-      async _getElementTypeObj(info) {
+      async _getElementTypeObj(info2) {
         const binds = [
           {
             name: "owner",
             type: types.DB_TYPE_VARCHAR,
             dir: constants2.BIND_IN,
             maxSize: 128,
-            values: [info.schema]
+            values: [info2.schema]
           },
           {
             name: "name",
             type: types.DB_TYPE_VARCHAR,
             dir: constants2.BIND_IN,
             maxSize: 128,
-            values: [info.name]
+            values: [info2.name]
           },
           {
             name: "package_name",
             type: types.DB_TYPE_VARCHAR,
             dir: constants2.BIND_IN,
             maxSize: 128,
-            values: [info.packageName]
+            values: [info2.packageName]
           }
         ];
         let sql;
-        if (info.packageName) {
+        if (info2.packageName) {
           sql = `
         select
             elem_type_owner,
@@ -55499,9 +55499,9 @@ var require_connection6 = __commonJS({
         const rows = await result.resultSet.getRows(1, options2);
         await result.resultSet.close();
         const row = rows[0];
-        info.elementTypeClass = this._getDbObjectType(row[0], row[1], row[2]);
-        if (info.elementTypeClass.partial) {
-          this._partialDbObjectTypes.push(info.elementTypeClass);
+        info2.elementTypeClass = this._getDbObjectType(row[0], row[1], row[2]);
+        if (info2.elementTypeClass.partial) {
+          this._partialDbObjectTypes.push(info2.elementTypeClass);
         }
       }
       async _getExecuteMessage(statement, numIters, binds, options2, executeManyFlag, internalTempLobs = []) {
@@ -55974,7 +55974,7 @@ var require_connection6 = __commonJS({
       //
       // Parses the TDS (type descriptor segment) for the type.
       //---------------------------------------------------------------------------
-      async _parseTDS(tds, info) {
+      async _parseTDS(tds, info2) {
         const buf = new TDSBuffer(tds);
         buf.skipBytes(4);
         buf.skipBytes(2);
@@ -55984,35 +55984,35 @@ var require_connection6 = __commonJS({
         buf.skipBytes(1);
         buf.skipBytes(2);
         buf.skipBytes(4);
-        info.isCollection = false;
+        info2.isCollection = false;
         if (numAttrs === 1) {
           const pos = buf.pos;
           const attrType = buf.readUInt8();
           if (attrType === constants2.TNS_OBJ_TDS_TYPE_COLL) {
-            info.isCollection = true;
+            info2.isCollection = true;
           } else {
             buf.pos = pos;
           }
         }
-        if (info.isCollection) {
+        if (info2.isCollection) {
           const elementPos = buf.readUInt32BE();
-          info.maxNumElements = buf.readUInt32BE();
-          info.collectionType = buf.readUInt8();
-          if (info.collectionType === constants2.TNS_OBJ_PLSQL_INDEX_TABLE) {
-            info.collectionFlags = constants2.TNS_OBJ_HAS_INDEXES;
+          info2.maxNumElements = buf.readUInt32BE();
+          info2.collectionType = buf.readUInt8();
+          if (info2.collectionType === constants2.TNS_OBJ_PLSQL_INDEX_TABLE) {
+            info2.collectionFlags = constants2.TNS_OBJ_HAS_INDEXES;
           }
           buf.pos = elementPos;
-          info.elementTypeInfo = {};
-          info.elementType = this._parseTDSAttr(buf, info.elementTypeInfo);
-          if (info.elementType === types.DB_TYPE_OBJECT) {
-            await this._getElementTypeObj(info);
-            if (info.elementTypeClass.isXmlType) {
-              info.elementType = types.DB_TYPE_XMLTYPE;
+          info2.elementTypeInfo = {};
+          info2.elementType = this._parseTDSAttr(buf, info2.elementTypeInfo);
+          if (info2.elementType === types.DB_TYPE_OBJECT) {
+            await this._getElementTypeObj(info2);
+            if (info2.elementTypeClass.isXmlType) {
+              info2.elementType = types.DB_TYPE_XMLTYPE;
             }
           }
         } else {
-          if (info.attributes) {
-            for (const attr of info.attributes) {
+          if (info2.attributes) {
+            for (const attr of info2.attributes) {
               this._parseTDSAttr(buf, attr);
             }
           }
@@ -56023,7 +56023,7 @@ var require_connection6 = __commonJS({
       //
       // Get column and datatype information in case of %ROWTYPE handling.
       //---------------------------------------------------------------------------
-      async _populateRowTypeInfo(info, options2, result) {
+      async _populateRowTypeInfo(info2, options2, result) {
         const getColumnsSQL = `
       SELECT
         column_name,
@@ -56068,7 +56068,7 @@ var require_connection6 = __commonJS({
             type: types.DB_TYPE_VARCHAR,
             maxSize: 128,
             dir: constants2.BIND_IN,
-            values: [info.name.substring(0, info.name.length - 8)]
+            values: [info2.name.substring(0, info2.name.length - 8)]
           }
         ];
         const val = await this.execute(
@@ -56080,7 +56080,7 @@ var require_connection6 = __commonJS({
         );
         try {
           const attrRows = await val.resultSet._getAllRows();
-          info.attributes = [];
+          info2.attributes = [];
           for (const row of attrRows) {
             const metaData = {
               name: row[0],
@@ -56100,7 +56100,7 @@ var require_connection6 = __commonJS({
                 );
               }
             }
-            this._addAttr(info.attributes, metaData);
+            this._addAttr(info2.attributes, metaData);
           }
         } finally {
           val.resultSet.close();
@@ -56219,22 +56219,22 @@ var require_connection6 = __commonJS({
           errors.throwErr(errors.ERR_INVALID_OBJECT_TYPE_NAME, name3);
         }
         try {
-          const info = this._getDbObjectType(
+          const info2 = this._getDbObjectType(
             result.outBinds.schema,
             result.outBinds.name,
             result.outBinds.package_name,
             result.outBinds.oid
           );
-          if (!info.partial) {
-            return info;
+          if (!info2.partial) {
+            return info2;
           }
-          if (info.name.endsWith("%ROWTYPE")) {
-            await this._populateRowTypeInfo(info, options2, result);
+          if (info2.name.endsWith("%ROWTYPE")) {
+            await this._populateRowTypeInfo(info2, options2, result);
           } else {
-            info.version = result.outBinds.version;
+            info2.version = result.outBinds.version;
             const attrRows = await result.outBinds.attrs_rc._getAllRows();
             if (attrRows.length > 0) {
-              info.attributes = [];
+              info2.attributes = [];
               for (const row of attrRows) {
                 const metaData = {
                   name: row[1],
@@ -56243,13 +56243,13 @@ var require_connection6 = __commonJS({
                   packageName: row[5],
                   oid: row[6]
                 };
-                this._addAttr(info.attributes, metaData);
+                this._addAttr(info2.attributes, metaData);
               }
             }
-            await this._parseTDS(result.outBinds.tds, info);
+            await this._parseTDS(result.outBinds.tds, info2);
           }
-          info.partial = false;
-          return info;
+          info2.partial = false;
+          return info2;
         } finally {
           result.outBinds.attrs_rc.close();
         }
@@ -56316,19 +56316,19 @@ var require_connection6 = __commonJS({
       //---------------------------------------------------------------------------
       async _populatePartialDbObjectTypes() {
         while (this._partialDbObjectTypes.length > 0) {
-          const info = this._partialDbObjectTypes.pop();
+          const info2 = this._partialDbObjectTypes.pop();
           let suffix = "%ROWTYPE";
-          let name3 = info.name;
+          let name3 = info2.name;
           if (name3.endsWith(suffix)) {
             name3 = name3.substring(0, name3.length - suffix.length);
           } else {
             suffix = "";
           }
           let fullName;
-          if (info.packageName) {
-            fullName = `"${info.schema}"."${info.packageName}"."${name3}"${suffix}`;
+          if (info2.packageName) {
+            fullName = `"${info2.schema}"."${info2.packageName}"."${name3}"${suffix}`;
           } else {
-            fullName = `"${info.schema}"."${name3}"${suffix}`;
+            fullName = `"${info2.schema}"."${name3}"${suffix}`;
           }
           await this._populateDbObjectTypeInfo(fullName);
         }
@@ -56606,9 +56606,9 @@ var require_connection6 = __commonJS({
       // Returns a database object class given its name.
       //---------------------------------------------------------------------------
       async getDbObjectClass(name3) {
-        const info = await this._populateDbObjectTypeInfo(name3);
+        const info2 = await this._populateDbObjectTypeInfo(name3);
         await this._populatePartialDbObjectTypes();
-        return info;
+        return info2;
       }
       //---------------------------------------------------------------------------
       // getStatementInfo()
@@ -59432,23 +59432,23 @@ var require_postgres_bytea = __commonJS({
   "node_modules/postgres-bytea/index.js"(exports, module) {
     "use strict";
     var bufferFrom = Buffer.from || Buffer;
-    module.exports = function parseBytea(input3) {
-      if (/^\\x/.test(input3)) {
-        return bufferFrom(input3.substr(2), "hex");
+    module.exports = function parseBytea(input4) {
+      if (/^\\x/.test(input4)) {
+        return bufferFrom(input4.substr(2), "hex");
       }
       var output3 = "";
       var i = 0;
-      while (i < input3.length) {
-        if (input3[i] !== "\\") {
-          output3 += input3[i];
+      while (i < input4.length) {
+        if (input4[i] !== "\\") {
+          output3 += input4[i];
           ++i;
         } else {
-          if (/[0-7]{3}/.test(input3.substr(i + 1, 3))) {
-            output3 += String.fromCharCode(parseInt(input3.substr(i + 1, 3), 8));
+          if (/[0-7]{3}/.test(input4.substr(i + 1, 3))) {
+            output3 += String.fromCharCode(parseInt(input4.substr(i + 1, 3), 8));
             i += 4;
           } else {
             var backslashes = 1;
-            while (i + backslashes < input3.length && input3[i + backslashes] === "\\") {
+            while (i + backslashes < input4.length && input4[i + backslashes] === "\\") {
               backslashes++;
             }
             for (var k = 0; k < Math.floor(backslashes / 2); ++k) {
@@ -64821,8 +64821,8 @@ var require_object = __commonJS({
       isObject: () => isObject6
     });
     module.exports = __toCommonJS2(object_exports);
-    function isObject6(input3) {
-      return typeof input3 === "object" && input3 !== null && !Array.isArray(input3) && !(input3 instanceof RegExp) && !(input3 instanceof Date);
+    function isObject6(input4) {
+      return typeof input4 === "object" && input4 !== null && !Array.isArray(input4) && !(input4 instanceof RegExp) && !(input4 instanceof Date);
     }
   }
 });
@@ -65650,8 +65650,8 @@ var require_commonjs2 = __commonJS({
     function isError2(e) {
       return tspRuntime.isError(e);
     }
-    function isObject6(input3) {
-      return tspRuntime.isObject(input3);
+    function isObject6(input4) {
+      return tspRuntime.isObject(input4);
     }
     function randomUUID2() {
       return tspRuntime.randomUUID();
@@ -73465,11 +73465,11 @@ var init_js_joda_esm = __esm({
     TextStyle.NARROW = new TextStyle("NARROW");
     TextStyle.NARROW_STANDALONE = new TextStyle("NARROW_STANDALONE");
     CharLiteralPrinterParser = (function() {
-      function CharLiteralPrinterParser2(literal2) {
-        if (literal2.length > 1) {
-          throw new IllegalArgumentException('invalid literal, too long: "' + literal2 + '"');
+      function CharLiteralPrinterParser2(literal3) {
+        if (literal3.length > 1) {
+          throw new IllegalArgumentException('invalid literal, too long: "' + literal3 + '"');
         }
-        this._literal = literal2;
+        this._literal = literal3;
       }
       var _proto = CharLiteralPrinterParser2.prototype;
       _proto.print = function print(context, buf) {
@@ -74151,8 +74151,8 @@ var init_js_joda_esm = __esm({
     SettingsParser.STRICT = new SettingsParser("STRICT");
     SettingsParser.LENIENT = new SettingsParser("LENIENT");
     StringLiteralPrinterParser = (function() {
-      function StringLiteralPrinterParser2(literal2) {
-        this._literal = literal2;
+      function StringLiteralPrinterParser2(literal3) {
+        this._literal = literal3;
       }
       var _proto = StringLiteralPrinterParser2.prototype;
       _proto.print = function print(context, buf) {
@@ -74893,13 +74893,13 @@ var init_js_joda_esm = __esm({
         this._active._valueParserIndex = -1;
         return this._active._printerParsers.length - 1;
       };
-      _proto.appendLiteral = function appendLiteral(literal2) {
-        assert2(literal2 != null);
-        if (literal2.length > 0) {
-          if (literal2.length === 1) {
-            this._appendInternalPrinterParser(new CharLiteralPrinterParser(literal2.charAt(0)));
+      _proto.appendLiteral = function appendLiteral(literal3) {
+        assert2(literal3 != null);
+        if (literal3.length > 0) {
+          if (literal3.length === 1) {
+            this._appendInternalPrinterParser(new CharLiteralPrinterParser(literal3.charAt(0)));
           } else {
-            this._appendInternalPrinterParser(new StringLiteralPrinterParser(literal2));
+            this._appendInternalPrinterParser(new StringLiteralPrinterParser(literal3));
           }
         }
         return this;
@@ -81966,10 +81966,10 @@ var require_errors5 = __commonJS({
     );
     E(
       "ERR_INVALID_RETURN_VALUE",
-      (input3, name3, value2) => {
+      (input4, name3, value2) => {
         var _value$constructor;
         const type = value2 !== null && value2 !== void 0 && (_value$constructor = value2.constructor) !== null && _value$constructor !== void 0 && _value$constructor.name ? `instance of ${value2.constructor.name}` : `type ${typeof value2}`;
-        return `Expected ${input3} to be returned from the "${name3}" function but got ${type}.`;
+        return `Expected ${input4} to be returned from the "${name3}" function but got ${type}.`;
       },
       TypeError
     );
@@ -82000,20 +82000,20 @@ var require_errors5 = __commonJS({
     );
     E(
       "ERR_OUT_OF_RANGE",
-      (str4, range2, input3) => {
+      (str4, range2, input4) => {
         assert3(range2, 'Missing "range" argument');
         let received;
-        if (Number.isInteger(input3) && Math.abs(input3) > 2 ** 32) {
-          received = addNumericalSeparator(String(input3));
-        } else if (typeof input3 === "bigint") {
-          received = String(input3);
+        if (Number.isInteger(input4) && Math.abs(input4) > 2 ** 32) {
+          received = addNumericalSeparator(String(input4));
+        } else if (typeof input4 === "bigint") {
+          received = String(input4);
           const limit3 = BigInt(2) ** BigInt(32);
-          if (input3 > limit3 || input3 < -limit3) {
+          if (input4 > limit3 || input4 < -limit3) {
             received = addNumericalSeparator(received);
           }
           received += "n";
         } else {
-          received = inspect(input3);
+          received = inspect(input4);
         }
         return `The value of "${str4}" is out of range. It must be ${range2}. Received ${received}`;
       },
@@ -95639,15 +95639,15 @@ var init_verify = __esm({
        * nothing to compare with, and stdin no size to compare with; both are
        * reported as unchecked rather than assumed.
        */
-      inputComplete(input3) {
+      inputComplete(input4) {
         const check2 = "input.complete";
-        if (input3.truncated) {
-          this.fail(check2, { expected: input3.expectedBytes ?? "all of it", actual: input3.bytesRead });
+        if (input4.truncated) {
+          this.fail(check2, { expected: input4.expectedBytes ?? "all of it", actual: input4.bytesRead });
           this.entry(check2).warned = true;
-        } else if (input3.expectedBytes === void 0) {
-          this.unchecked(check2, input3.source.kind === "stdin" ? "stdin has no size to compare the bytes read with" : "the content was passed inline");
+        } else if (input4.expectedBytes === void 0) {
+          this.unchecked(check2, input4.source.kind === "stdin" ? "stdin has no size to compare the bytes read with" : "the content was passed inline");
         } else {
-          this.equal(check2, input3.expectedBytes, input3.bytesRead, { code: "INPUT_INCOMPLETE", message: `The input is ${input3.expectedBytes} bytes on disk, but ${input3.bytesRead} were read.` });
+          this.equal(check2, input4.expectedBytes, input4.bytesRead, { code: "INPUT_INCOMPLETE", message: `The input is ${input4.expectedBytes} bytes on disk, but ${input4.bytesRead} were read.` });
         }
       }
       mark(check2, status, detail, code, message) {
@@ -96166,11 +96166,11 @@ function hostCheck(v, leaf, host) {
   v.expect("host.covered", matched !== void 0, { at: where3(leaf.summary), expected: host, actual: hostSans }, { code: "CERT_HOST_MISMATCH", message: explanation });
   return { name: host, certificate: leaf.summary.position, covered: matched !== void 0, matchedBy, explanation };
 }
-async function decodeCertInput(input3, options2) {
-  const bytes = await input3.bytes();
+async function decodeCertInput(input4, options2) {
+  const bytes = await input4.bytes();
   const v = new Verifier(options2.warn);
-  v.inputComplete(input3);
-  return decodeBundle(bytes, input3.label, v, options2);
+  v.inputComplete(input4);
+  return decodeBundle(bytes, input4.label, v, options2);
 }
 function decodeBundle(bytes, label3, v, options2) {
   const text4 = new TextDecoder("utf-8").decode(bytes);
@@ -103107,10 +103107,10 @@ var init_format = __esm({
     JSON_POINTER = /^(?:\/(?:[^~/]|~0|~1)*)*$/;
     JSON_POINTER_URI_FRAGMENT = /^#(?:\/(?:[a-z0-9_\-.!$&'()*+,;:=@]|%[0-9a-f]{2}|~0|~1)*)*$/i;
     RELATIVE_JSON_POINTER = /^(?:0|[1-9][0-9]*)(?:#|(?:\/(?:[^~/]|~0|~1)*)*)$/;
-    EMAIL = (input3) => {
-      if (input3[0] === '"')
+    EMAIL = (input4) => {
+      if (input4[0] === '"')
         return false;
-      const [name3, host, ...rest] = input3.split("@");
+      const [name3, host, ...rest] = input4.split("@");
       if (!name3 || !host || rest.length !== 0 || name3.length > 64 || host.length > 253)
         return false;
       if (name3[0] === "." || name3.endsWith(".") || name3.includes(".."))
@@ -103121,7 +103121,7 @@ var init_format = __esm({
     };
     IPV4 = /^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
     IPV6 = /^((([0-9a-f]{1,4}:){7}([0-9a-f]{1,4}|:))|(([0-9a-f]{1,4}:){6}(:[0-9a-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9a-f]{1,4}:){5}(((:[0-9a-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9a-f]{1,4}:){4}(((:[0-9a-f]{1,4}){1,3})|((:[0-9a-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){3}(((:[0-9a-f]{1,4}){1,4})|((:[0-9a-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){2}(((:[0-9a-f]{1,4}){1,5})|((:[0-9a-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9a-f]{1,4}:){1}(((:[0-9a-f]{1,4}){1,6})|((:[0-9a-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9a-f]{1,4}){1,7})|((:[0-9a-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))$/i;
-    DURATION2 = (input3) => input3.length > 1 && input3.length < 80 && (/^P\d+([.,]\d+)?W$/.test(input3) || /^P[\dYMDTHS]*(\d[.,]\d+)?[YMDHS]$/.test(input3) && /^P([.,\d]+Y)?([.,\d]+M)?([.,\d]+D)?(T([.,\d]+H)?([.,\d]+M)?([.,\d]+S)?)?$/.test(input3));
+    DURATION2 = (input4) => input4.length > 1 && input4.length < 80 && (/^P\d+([.,]\d+)?W$/.test(input4) || /^P[\dYMDTHS]*(\d[.,]\d+)?[YMDHS]$/.test(input4) && /^P([.,\d]+Y)?([.,\d]+M)?([.,\d]+D)?(T([.,\d]+H)?([.,\d]+M)?([.,\d]+S)?)?$/.test(input4));
     format3 = {
       date: date5,
       time: time3.bind(void 0, false),
@@ -104117,8 +104117,8 @@ function refPointer(ref2) {
     return ref2.slice(1);
   }
 }
-async function loadDocument(input3, options2 = {}) {
-  const bytes = await input3.bytes();
+async function loadDocument(input4, options2 = {}) {
+  const bytes = await input4.bytes();
   const text4 = new TextDecoder("utf-8").decode(bytes);
   let value2;
   let format4 = "yaml";
@@ -104133,15 +104133,15 @@ async function loadDocument(input3, options2 = {}) {
     const { boundedStep: boundedStep2 } = await Promise.resolve().then(() => (init_bounded(), bounded_exports));
     const limits = options2.limits ?? DOCUMENT_LIMITS;
     const copy = bytes.slice();
-    value2 = await boundedStep2(`Reading ${input3.label}`, { kind: "parse", source: { bytes: copy, format: "yaml" }, label: input3.label }, { ...limits, signal: options2.signal, transfer: [copy.buffer] }, "Pass a smaller document, or the same document as JSON, which reads in a fraction of the time and memory.");
+    value2 = await boundedStep2(`Reading ${input4.label}`, { kind: "parse", source: { bytes: copy, format: "yaml" }, label: input4.label }, { ...limits, signal: options2.signal, transfer: [copy.buffer] }, "Pass a smaller document, or the same document as JSON, which reads in a fraction of the time and memory.");
   }
-  const notADocument = (why) => new ToilError("INVALID_INPUT", `${input3.label[0].toUpperCase()}${input3.label.slice(1)} isn't an OpenAPI or Swagger document: ${why}.`, {
+  const notADocument = (why) => new ToilError("INVALID_INPUT", `${input4.label[0].toUpperCase()}${input4.label.slice(1)} isn't an OpenAPI or Swagger document: ${why}.`, {
     fix: 'Pass an OpenAPI 3.x or Swagger 2.0 document, in JSON or YAML, with an "openapi" or "swagger" field at the top.'
   });
   if (!isObject4(value2)) throw notADocument("it is not an object");
   const depth = nesting(value2);
   if (depth > MAX_DOCUMENT_DEPTH) {
-    throw new ToilError("INVALID_INPUT", `${input3.label[0].toUpperCase()}${input3.label.slice(1)} nests ${depth > MAX_DOCUMENT_DEPTH * 4 ? "far " : ""}more than ${MAX_DOCUMENT_DEPTH} levels deep, more than this command reads.`, {
+    throw new ToilError("INVALID_INPUT", `${input4.label[0].toUpperCase()}${input4.label.slice(1)} nests ${depth > MAX_DOCUMENT_DEPTH * 4 ? "far " : ""}more than ${MAX_DOCUMENT_DEPTH} levels deep, more than this command reads.`, {
       fix: "Pass a document whose objects and arrays nest at most 256 levels deep. Real API descriptions nest a few dozen."
     });
   }
@@ -104150,7 +104150,7 @@ async function loadDocument(input3, options2 = {}) {
   if (typeof declared !== "string") throw notADocument(`its ${value2.openapi !== void 0 ? '"openapi"' : '"swagger"'} field is ${JSON.stringify(declared)}, not a version string such as "3.0.3"`);
   const spec = value2.openapi === void 0 ? declared === "2.0" ? "swagger-2.0" : void 0 : /^3\.0(\.|$)/.test(declared) ? "openapi-3.0" : /^3\.1(\.|$)/.test(declared) ? "openapi-3.1" : /^3\.2(\.|$)/.test(declared) ? "openapi-3.2" : void 0;
   if (spec === void 0) {
-    throw new ToilError("INVALID_INPUT", `${input3.label[0].toUpperCase()}${input3.label.slice(1)} declares ${value2.openapi !== void 0 ? "OpenAPI" : "Swagger"} ${declared}, which this command doesn't read.`, {
+    throw new ToilError("INVALID_INPUT", `${input4.label[0].toUpperCase()}${input4.label.slice(1)} declares ${value2.openapi !== void 0 ? "OpenAPI" : "Swagger"} ${declared}, which this command doesn't read.`, {
       fix: "Pass a Swagger 2.0 or OpenAPI 3.0, 3.1 or 3.2 document."
     });
   }
@@ -104287,14 +104287,14 @@ async function checkDocument(loaded, v, signal, limits = DOCUMENT_LIMITS) {
     v.unchecked("document.schemaObjects", `the OpenAPI ${loaded.spec.slice(8)} schema leaves Schema Objects to the JSON Schema 2020-12 dialect, which is not checked here`);
   }
   const refs = checkRefs(loaded.doc, loaded.spec, v);
-  const info = isObject4(loaded.doc.info) ? loaded.doc.info : {};
+  const info2 = isObject4(loaded.doc.info) ? loaded.doc.info : {};
   return {
     spec: loaded.spec,
     version: loaded.version,
     format: loaded.format,
     schema: String(schema3.$id ?? schema3.id),
-    title: typeof info.title === "string" ? info.title : null,
-    apiVersion: typeof info.version === "string" ? info.version : null,
+    title: typeof info2.title === "string" ? info2.title : null,
+    apiVersion: typeof info2.version === "string" ? info2.version : null,
     valid: result.unchecked !== void 0 ? null : result.valid,
     problems: leaves.slice(0, MAX_LISTED).map(({ pointer: pointer2, keyword, message }) => ({ pointer: pointer2, keyword, message })),
     problemCount: leaves.length,
@@ -105033,26 +105033,26 @@ function servers(doc, spec) {
   const schemes = Array.isArray(doc.schemes) && doc.schemes.length ? doc.schemes.filter((s) => typeof s === "string") : ["https"];
   return schemes.map((scheme) => `${scheme}://${doc.host}${typeof doc.basePath === "string" ? doc.basePath : ""}`);
 }
-async function open2(input3, v, signal) {
-  const loaded = await loadDocument(input3, { signal });
-  v.inputComplete(input3);
+async function open2(input4, v, signal) {
+  const loaded = await loadDocument(input4, { signal });
+  v.inputComplete(input4);
   const report = await checkDocument(loaded, v, signal);
   const ops = operations(loaded.doc);
   checkOperations(loaded.doc, ops, v);
   return { loaded, document: { ...report, servers: servers(loaded.doc, loaded.spec), operations: ops.length }, ops };
 }
-async function listOperations(ctx, source2, input3) {
+async function listOperations(ctx, source2, input4) {
   const v = new Verifier(ctx.warn);
   const { document, ops } = await open2(source2, v, ctx.signal);
-  const tag2 = input3.tag?.toLowerCase();
-  const path2 = input3.path?.toLowerCase();
+  const tag2 = input4.tag?.toLowerCase();
+  const path2 = input4.path?.toLowerCase();
   const listed4 = ops.map(summarise2).filter((o) => (tag2 === void 0 || o.tags.some((t) => t.toLowerCase() === tag2)) && (path2 === void 0 || o.path.toLowerCase().includes(path2)));
   return { document, count: listed4.length, operations: listed4, verified: v.done() };
 }
-async function showOne(ctx, source2, input3) {
+async function showOne(ctx, source2, input4) {
   const v = new Verifier(ctx.warn);
   const { loaded, document, ops } = await open2(source2, v, ctx.signal);
-  const shown2 = showOperation(loaded, findOperation(ops, input3), input3.depth ?? 3);
+  const shown2 = showOperation(loaded, findOperation(ops, input4), input4.depth ?? 3);
   if (shown2.expansion.truncated) {
     ctx.warn({
       code: "OPENAPI_EXPANSION_TRUNCATED",
@@ -105061,27 +105061,27 @@ async function showOne(ctx, source2, input3) {
   }
   return { document, ...shown2, verified: v.done() };
 }
-async function exampleBody(ctx, source2, input3) {
+async function exampleBody(ctx, source2, input4) {
   const v = new Verifier(ctx.warn);
   const { loaded, document, ops } = await open2(source2, v, ctx.signal);
   const { doc, spec } = loaded;
-  const o = findOperation(ops, input3);
+  const o = findOperation(ops, input4);
   const name3 = `${o.method} ${o.path}`;
-  const direction = input3.response === void 0 ? "request" : "response";
+  const direction = input4.response === void 0 ? "request" : "response";
   let body;
   if (direction === "request") {
-    body = requestBody(doc, spec, o, input3.contentType);
+    body = requestBody(doc, spec, o, input4.contentType);
     if (!body) throw new ToilError("INVALID_INPUT", `${name3} has no request body.`, { fix: "Pass response with a status (200, 201, default) for an example of a response body instead." });
   } else {
-    const all3 = responses(doc, spec, o, input3.contentType);
-    body = all3.find((r) => r.status === input3.response);
-    if (!body) throw new ToilError("INVALID_INPUT", `${name3} has no "${input3.response}" response.`, { fix: all3.length ? `Its responses are: ${all3.map((r) => r.status).join(", ")}.` : "It lists no responses." });
+    const all3 = responses(doc, spec, o, input4.contentType);
+    body = all3.find((r) => r.status === input4.response);
+    if (!body) throw new ToilError("INVALID_INPUT", `${name3} has no "${input4.response}" response.`, { fix: all3.length ? `Its responses are: ${all3.map((r) => r.status).join(", ")}.` : "It lists no responses." });
   }
-  if (input3.contentType !== void 0 && !body.contentTypes.includes(input3.contentType)) {
-    throw new ToilError("INVALID_INPUT", `${name3} doesn't list content type "${input3.contentType}" for that body.`, { fix: body.contentTypes.length ? `It lists: ${body.contentTypes.join(", ")}.` : "It lists no content types." });
+  if (input4.contentType !== void 0 && !body.contentTypes.includes(input4.contentType)) {
+    throw new ToilError("INVALID_INPUT", `${name3} doesn't list content type "${input4.contentType}" for that body.`, { fix: body.contentTypes.length ? `It lists: ${body.contentTypes.join(", ")}.` : "It lists no content types." });
   }
   if (body.schemaPointer === null && !body.formSchema) {
-    throw new ToilError("INVALID_INPUT", `${name3}'s ${direction === "request" ? "request body" : `"${input3.response}" response`} has no schema${body.contentType ? ` for ${body.contentType}` : ""}, so there's nothing to build an example from.`, {
+    throw new ToilError("INVALID_INPUT", `${name3}'s ${direction === "request" ? "request body" : `"${input4.response}" response`} has no schema${body.contentType ? ` for ${body.contentType}` : ""}, so there's nothing to build an example from.`, {
       fix: body.contentTypes.length > 1 ? `Try another content type: ${body.contentTypes.join(", ")}.` : "Pick another response, or another operation."
     });
   }
@@ -105104,7 +105104,7 @@ async function exampleBody(ctx, source2, input3) {
     document,
     operation: summarise2(o),
     body: direction,
-    status: direction === "response" ? input3.response : null,
+    status: direction === "response" ? input4.response : null,
     contentType: body.contentType,
     schemaPointer: body.schemaPointer,
     example: example3,
@@ -105822,17 +105822,17 @@ function toInstant(text4, field4, zone, now2, v, warn) {
   if (note) warnDst(warn, note, field4);
   return { instant: r.instant, wall: value2.wall, dateOnly: value2.kind === "date", ...note ? { note } : {} };
 }
-function convertTime(input3, now2, warn) {
+function convertTime(input4, now2, warn) {
   const v = new Verifier(warn);
-  const parsed = parseTime(input3.time, now2, "time").value;
-  if (parsed.kind === "instant" && input3.zone !== void 0) {
-    throw new ToilError("INVALID_INPUT", `time "${input3.time}" is already an instant, so zone has nothing to place.`, {
+  const parsed = parseTime(input4.time, now2, "time").value;
+  if (parsed.kind === "instant" && input4.zone !== void 0) {
+    throw new ToilError("INVALID_INPUT", `time "${input4.time}" is already an instant, so zone has nothing to place.`, {
       fix: "zone is the zone of a time written without an offset. To see an instant in another zone, pass that zone as to."
     });
   }
-  const zone = input3.zone === void 0 ? void 0 : checkZone(input3.zone, "zone");
-  const targets = (input3.to?.length ? input3.to : ["UTC"]).map((z2) => checkZone(z2, "to"));
-  const from = toInstant(input3.time, "time", zone, now2, v, warn);
+  const zone = input4.zone === void 0 ? void 0 : checkZone(input4.zone, "zone");
+  const targets = (input4.to?.length ? input4.to : ["UTC"]).map((z2) => checkZone(z2, "to"));
+  const from = toInstant(input4.time, "time", zone, now2, v, warn);
   const offset = parsed.kind === "instant" ? parsed.offsetSeconds === void 0 ? null : formatOffset(parsed.offsetSeconds) : formatLocal(from.instant, zone).offset;
   const source2 = { kind: parsed.kind, zone: zone ?? null, offset, ...from.note ? { dst: from.note } : {} };
   const results = targets.map((target2) => {
@@ -105843,7 +105843,7 @@ function convertTime(input3, now2, warn) {
     }
     return { zone: target2, local: f.local, offset: f.offset, offsetSeconds: f.offsetSeconds, ...note ? { dst: note } : {} };
   });
-  const data = { input: input3.time, instant: formatInstant(from.instant), epochMs: from.instant, source: source2, results };
+  const data = { input: input4.time, instant: formatInstant(from.instant), epochMs: from.instant, source: source2, results };
   checkConversion(v, data, from.wall && !from.note ? { wall: from.wall, zone } : void 0);
   return { ...data, verified: v.done() };
 }
@@ -105860,24 +105860,24 @@ function checkConversion(v, data, source2) {
   v.equal("convert.instant", data.epochMs, instantOf(data.instant), { code });
   if (source2) v.equal("convert.source", formatWall(source2.wall), formatWall(wallAt(data.epochMs, source2.zone)), { at: source2.zone, code });
 }
-function durationOf(input3, warn) {
-  if (input3.duration === void 0 === (input3.seconds === void 0)) {
+function durationOf(input4, warn) {
+  if (input4.duration === void 0 === (input4.seconds === void 0)) {
     throw new ToilError("INVALID_INPUT", "Pass a duration to read or seconds to write as one, not both and not neither.", { fix: "duration is ISO 8601 text (PT1H30M); seconds is a number (5400)." });
   }
   const v = new Verifier(warn);
   let d2;
-  if (input3.seconds !== void 0) {
-    if (!Number.isFinite(input3.seconds)) throw new ToilError("INVALID_INPUT", `seconds ${input3.seconds} is not a finite number.`, { fix: "Pass a number of seconds, such as 5400 or 0.25." });
-    const ms = Math.round(input3.seconds * 1e3);
-    if (Math.abs(ms - input3.seconds * 1e3) > 1e-6) v.approximated("duration.precision", "seconds were rounded to the millisecond");
+  if (input4.seconds !== void 0) {
+    if (!Number.isFinite(input4.seconds)) throw new ToilError("INVALID_INPUT", `seconds ${input4.seconds} is not a finite number.`, { fix: "Pass a number of seconds, such as 5400 or 0.25." });
+    const ms = Math.round(input4.seconds * 1e3);
+    if (Math.abs(ms - input4.seconds * 1e3) > 1e-6) v.approximated("duration.precision", "seconds were rounded to the millisecond");
     d2 = durationFromMs(ms);
-  } else d2 = parseDuration2(input3.duration);
+  } else d2 = parseDuration2(input4.duration);
   const total = durationMs(d2);
   if (total.subMs) v.approximated("duration.precision", "a fraction below a millisecond was rounded");
   if (total.ms === null) v.unchecked("duration.totalSeconds", "years and months have no fixed length in seconds");
   else if (total.nominalDays) v.approximated("duration.totalSeconds", "a day counted as 24 hours and a week as 7 days, though a day across a DST change is 23 or 25");
-  const data = { input: input3.duration ?? input3.seconds, iso: formatDuration(d2), negative: d2.negative, parts: { ...d2.parts }, totalSeconds: total.ms === null ? null : total.ms / 1e3, text: describeDuration(d2) };
-  checkDuration(v, data, input3.seconds);
+  const data = { input: input4.duration ?? input4.seconds, iso: formatDuration(d2), negative: d2.negative, parts: { ...d2.parts }, totalSeconds: total.ms === null ? null : total.ms / 1e3, text: describeDuration(d2) };
+  checkDuration(v, data, input4.seconds);
   return { ...data, verified: v.done() };
 }
 function checkDuration(v, data, seconds) {
@@ -105886,24 +105886,24 @@ function checkDuration(v, data, seconds) {
   v.equal("duration.sign", data.negative, back.negative, { code: "DURATION_ROUNDTRIP_MISMATCH" });
   if (seconds !== void 0) v.equal("duration.seconds", Math.round(seconds * 1e3) / 1e3, (durationMs(back).ms ?? NaN) / 1e3, { code: "DURATION_ROUNDTRIP_MISMATCH" });
 }
-function loadHolidays(ctx, input3, v) {
+function loadHolidays(ctx, input4, v) {
   const holidays = /* @__PURE__ */ new Map();
   if (ctx.holidayFile) v.inputComplete(ctx.holidayFile.read);
-  for (const [i, date6] of (input3.holiday ?? []).entries()) addHolidayLine(holidays, date6, `holiday ${i + 1}`);
+  for (const [i, date6] of (input4.holiday ?? []).entries()) addHolidayLine(holidays, date6, `holiday ${i + 1}`);
   for (const line of ctx.holidayFile?.lines ?? []) addHolidayLine(holidays, line.text, `${ctx.holidayFile.label}, line ${line.number},`);
   return holidays;
 }
-function addDays(input3, now2, ctx) {
-  if (!Number.isInteger(input3.days) || Math.abs(input3.days) > 1e5) {
-    throw new ToilError("INVALID_INPUT", `days ${input3.days} must be a whole number from -100000 to 100000.`, { fix: "Pass a whole number of business days; negative counts back." });
+function addDays(input4, now2, ctx) {
+  if (!Number.isInteger(input4.days) || Math.abs(input4.days) > 1e5) {
+    throw new ToilError("INVALID_INPUT", `days ${input4.days} must be a whole number from -100000 to 100000.`, { fix: "Pass a whole number of business days; negative counts back." });
   }
   const v = new Verifier(ctx.warn);
-  const zone = checkZone(input3.zone ?? "UTC", "zone");
-  const holidays = loadHolidays(ctx, input3, v);
-  const start2 = toInstant(input3.start, "start", zone, now2, v, ctx.warn);
+  const zone = checkZone(input4.zone ?? "UTC", "zone");
+  const holidays = loadHolidays(ctx, input4, v);
+  const start2 = toInstant(input4.start, "start", zone, now2, v, ctx.warn);
   const startWall = start2.wall ?? wallAt(start2.instant, zone);
   const startDay = dayNumber(startWall);
-  const added = addBusinessDays(startDay, input3.days, holidays);
+  const added = addBusinessDays(startDay, input4.days, holidays);
   let result = showDay(added.day);
   let note;
   if (!start2.dateOnly) {
@@ -105914,8 +105914,8 @@ function addDays(input3, now2, ctx) {
     result = formatLocal(r.instant, zone).local;
   }
   const data = {
-    start: input3.start,
-    days: input3.days,
+    start: input4.start,
+    days: input4.days,
     zone,
     result,
     weekday: WEEKDAY_NAMES[weekdayOfDay(added.day)],
@@ -105948,18 +105948,18 @@ function businessSpans(from, to, zone, holidays) {
   }
   return out;
 }
-function diffDays(input3, now2, ctx) {
+function diffDays(input4, now2, ctx) {
   const v = new Verifier(ctx.warn);
-  const zone = checkZone(input3.zone ?? "UTC", "zone");
-  const holidays = loadHolidays(ctx, input3, v);
-  const a = toInstant(input3.start, "start", zone, now2, v, ctx.warn).instant;
-  const b = toInstant(input3.end, "end", zone, now2, v, ctx.warn).instant;
+  const zone = checkZone(input4.zone ?? "UTC", "zone");
+  const holidays = loadHolidays(ctx, input4, v);
+  const a = toInstant(input4.start, "start", zone, now2, v, ctx.warn).instant;
+  const b = toInstant(input4.end, "end", zone, now2, v, ctx.warn).instant;
   const [from, to] = a <= b ? [a, b] : [b, a];
   const spans = businessSpans(from, to, zone, holidays);
   const day2 = 864e5;
   const data = {
-    start: input3.start,
-    end: input3.end,
+    start: input4.start,
+    end: input4.end,
     zone,
     negative: b < a,
     businessDays: Math.floor(spans.businessMs / day2),
@@ -105977,18 +105977,18 @@ function checkSpans(v, data, spans) {
   v.equal("business.partition", data.elapsedSeconds * 1e3, spans.businessMs + spans.otherMs, { code });
   v.equal("business.total", data.totalBusinessSeconds * 1e3, Math.round(data.businessDays * 864e5 + data.hours * 36e5), { code });
 }
-function cronRuns(input3, now2, warn) {
+function cronRuns(input4, now2, warn) {
   const v = new Verifier(warn);
-  const dialect = input3.dialect ?? detectDialect(input3.expression);
-  const zone = checkZone(input3.zone ?? "UTC", "zone");
-  const count4 = input3.count ?? 5;
+  const dialect = input4.dialect ?? detectDialect(input4.expression);
+  const zone = checkZone(input4.zone ?? "UTC", "zone");
+  const count4 = input4.count ?? 5;
   if (!Number.isInteger(count4) || count4 < 1 || count4 > MAX_RUNS) throw new ToilError("INVALID_INPUT", `count ${count4} must be a whole number from 1 to ${MAX_RUNS}.`, { fix: `Ask for at most ${MAX_RUNS} run times.` });
-  const s = parseCron(input3.expression, dialect, input3.job);
-  if (s.hashed && input3.job === void 0) throw new ToilError("INVALID_INPUT", "H needs the job to place it.", { fix: "Pass job with the job's full name as Jenkins shows it (folder/job)." });
-  if (input3.dialect === void 0 && dialect === "standard" && !s.domStar && !s.dowStar) {
+  const s = parseCron(input4.expression, dialect, input4.job);
+  if (s.hashed && input4.job === void 0) throw new ToilError("INVALID_INPUT", "H needs the job to place it.", { fix: "Pass job with the job's full name as Jenkins shows it (folder/job)." });
+  if (input4.dialect === void 0 && dialect === "standard" && !s.domStar && !s.dowStar) {
     warn({ code: "CRON_DIALECT_ASSUMED", message: "Read as standard cron, where a day matching either day field runs. Jenkins runs only on days matching both: pass dialect jenkins if this is a Jenkins schedule." });
   }
-  const from = toInstant(input3.from ?? "now", "from", zone, now2, v, warn).instant;
+  const from = toInstant(input4.from ?? "now", "from", zone, now2, v, warn).instant;
   const runs2 = [];
   const skipped = [];
   let skippedTotal = 0;
@@ -106024,7 +106024,7 @@ function cronRuns(input3, now2, warn) {
   }
   v.unchecked("cron.explanation", "the wording is built from the same fields the run times come from; the run times are what is checked");
   const fields3 = { written: s.written, second: s.second, minute: s.minute, hour: s.hour, dayOfMonth: s.dayOfMonth, month: s.month, dayOfWeek: s.dayOfWeek, year: s.year };
-  const data = { expression: input3.expression, dialect, dialectSource: input3.dialect === void 0 ? "detected" : "input", zone, from: formatLocal(from, zone).local, explanation: explainCron(s), fields: fields3, runs: runs2, skipped, skippedTotal };
+  const data = { expression: input4.expression, dialect, dialectSource: input4.dialect === void 0 ? "detected" : "input", zone, from: formatLocal(from, zone).local, explanation: explainCron(s), fields: fields3, runs: runs2, skipped, skippedTotal };
   checkCronRuns(v, s, zone, from, data.runs, data.skipped);
   return { ...data, verified: v.done() };
 }
@@ -106116,9 +106116,9 @@ function isTraceLine(rest, kind) {
 function signature(rest) {
   return rest.replace(new RegExp(TS, "g"), "<ts>").replace(/\d{4}-\d{2}-\d{2}T\d{2}_\d{2}_\d{2}(?:_\d+)?Z?/g, "<ts>").replace(new RegExp(String.raw`\b${TIME4}\b`, "g"), "<ts>").replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, "<id>").replace(/\b0x[0-9a-f]+\b/gi, "<hex>").replace(/\b(?=[0-9a-f]*[a-f])(?=[0-9a-f]*\d)[0-9a-f]{8,}\b/gi, "<hex>").replace(/\b\d+(?:[.,_]\d+)*\b/g, "<n>").replace(/\s+/g, " ").trim();
 }
-async function* grepped(input3, pattern, run3) {
+async function* grepped(input4, pattern, run3) {
   if (pattern === void 0) {
-    for await (const line of input3.lines()) yield { line, hit: false };
+    for await (const line of input4.lines()) yield { line, hit: false };
     return;
   }
   const { boundedError: boundedError2, grepBounded: grepBounded2 } = await Promise.resolve().then(() => (init_bounded(), bounded_exports));
@@ -106134,7 +106134,7 @@ async function* grepped(input3, pattern, run3) {
     batch = [];
     chars = 0;
   };
-  for await (const line of input3.lines()) {
+  for await (const line of input4.lines()) {
     batch.push(line);
     chars += line.text.length;
     if (batch.length >= GREP_BATCH_LINES || chars >= GREP_BATCH_CHARS) yield* flush();
@@ -106162,7 +106162,7 @@ function parseFilters(options2) {
   }
   return filters;
 }
-async function scan(input3, filters, v, run3 = {}) {
+async function scan(input4, filters, v, run3 = {}) {
   const lines = { total: 0, error: 0, warning: 0, other: 0, stack: 0, unclassified: 0 };
   const groups = /* @__PURE__ */ new Map();
   const out = { matched: 0, filtered: 0, ungrouped: 0, unjoinedFrames: 0, cutLines: 0, undated: 0, grepStackHits: 0 };
@@ -106217,7 +106217,7 @@ async function scan(input3, filters, v, run3 = {}) {
     group.lastLine = number4;
     if (!pyTrace) anchor2 = { group, level: level2, record: record2, gap: 0, inTrace: false };
   };
-  for await (const { line, hit } of grepped(input3, filters.grep, run3)) {
+  for await (const { line, hit } of grepped(input4, filters.grep, run3)) {
     lines.total++;
     if (line.cut) out.cutLines++;
     const { rest, stamp: stamp2 } = stripTimestamp(line.text);
@@ -106282,11 +106282,11 @@ async function scan(input3, filters, v, run3 = {}) {
   }
   if (pending) out.filtered++;
   if (py) out.unjoinedFrames += py.end - py.start + 1;
-  v.inputComplete(input3);
+  v.inputComplete(input4);
   if (filters.since && naiveCompared) v.approximated("since", "timestamps without a time zone were read as UTC");
   return { lines, ...out, groups: [...groups.values()] };
 }
-async function finish2(found, input3, options2, v, warn) {
+async function finish2(found, input4, options2, v, warn) {
   const maxGroups = options2.maxGroups ?? DEFAULT_GROUPS;
   const context = options2.context ?? 0;
   const chosen2 = [...found.groups].sort(byReport).slice(0, maxGroups);
@@ -106298,7 +106298,7 @@ async function finish2(found, input3, options2, v, warn) {
     if (g.trace) for (let n = g.trace.firstLine; n <= Math.min(g.trace.lastLine, g.trace.firstLine + MAX_TRACE_LINES - 1); n++) wanted.add(n);
     for (let n = Math.max(1, g.firstLine - context); n <= Math.min(lines.total, g.firstLine + context); n++) wanted.add(n);
   }
-  const reread = await input3.linesAt(wanted);
+  const reread = await input4.linesAt(wanted);
   const groups = chosen2.map((g) => {
     const first = reread.get(g.firstLine);
     v.expect("lines.reread", first === g.sample, { at: `line ${g.firstLine}`, expected: g.sample, actual: first }, { code: "LOG_LINE_MISMATCH" });
@@ -106365,10 +106365,10 @@ async function finish2(found, input3, options2, v, warn) {
     verified: v.done()
   };
 }
-async function triageLog(input3, filters, options2, warn, run3 = {}) {
+async function triageLog(input4, filters, options2, warn, run3 = {}) {
   const v = new Verifier(warn);
-  const found = await scan(input3, filters, v, run3);
-  return finish2(found, input3, options2, v, warn);
+  const found = await scan(input4, filters, v, run3);
+  return finish2(found, input4, options2, v, warn);
 }
 var MAX_LINE3, MAX_TRACKED, DEFAULT_GROUPS, MAX_GROUPS, MAX_TRACE_LINES, MAX_GAP, TS, TIME4, PREFIX, DATE2, LEVEL_WORD, TOOL_LEVEL, EXCEPTION, ERROR_SHAPES, WARNING_SHAPES, WORD_LEVEL, TOOL_WORD, isBare, JAVA_FRAME, JAVA_MORE, NODE_FRAME, DOTNET_FRAME, DOTNET_MORE, ANY_FRAME, PY_START, GREP_BATCH_LINES, GREP_BATCH_CHARS, byReport;
 var init_triage = __esm({
@@ -109460,9 +109460,9 @@ function hunks(a, b) {
   close();
   return out;
 }
-function formats(input3) {
-  const from = input3.from ?? "md";
-  const to = input3.to ?? "md";
+function formats(input4) {
+  const from = input4.from ?? "md";
+  const to = input4.to ?? "md";
   if (from === to || from !== "md" && to !== "md") {
     throw new ToilError("INVALID_INPUT", from === to ? `Nothing to convert: from and to are both ${NAMES2[from]}.` : `util md converts to or from Markdown, not from ${NAMES2[from]} to ${NAMES2[to]}.`, {
       fix: "Pass --to wiki|adf|storage to convert Markdown, or --from wiki|adf|storage to convert to Markdown."
@@ -109470,9 +109470,9 @@ function formats(input3) {
   }
   return { from, to };
 }
-async function convertMarkdown(input3, ctx, hooks = {}) {
-  const { from, to } = formats(input3);
-  const { text: text4, source: source2 } = input3;
+async function convertMarkdown(input4, ctx, hooks = {}) {
+  const { from, to } = formats(input4);
+  const { text: text4, source: source2 } = input4;
   const v = new Verifier(ctx.warn);
   v.inputComplete(source2);
   const limits = { ...MD_LIMITS, ...hooks.limits };
@@ -110301,7 +110301,7 @@ function documentsFrom(values2, options2 = {}) {
       const context = isRecord5(value2.meta.context) ? value2.meta.context : {};
       connection5 = isRecord5(context.connection) ? str3(context.connection.value) ?? void 0 : void 0;
       if (isRecord5(context.inputs)) {
-        for (const [name3, input3] of Object.entries(context.inputs)) if (isRecord5(input3) && typeof input3.value === "string") inputs[name3] = input3.value;
+        for (const [name3, input4] of Object.entries(context.inputs)) if (isRecord5(input4) && typeof input4.value === "string") inputs[name3] = input4.value;
       }
     } else if (options2.command !== void 0) {
       command = options2.command;
@@ -110716,9 +110716,9 @@ __export(run_exports3, {
   checkAgainstSchema: () => checkAgainstSchema,
   mapOwiInput: () => mapOwiInput
 });
-async function mapOwiInput(ctx, input3) {
-  const fields3 = fieldOverrides(input3.field);
-  const { documents, skipped } = documentsFrom(parseOwiInput(input3.text), { command: input3.command, key: input3.key });
+async function mapOwiInput(ctx, input4) {
+  const fields3 = fieldOverrides(input4.field);
+  const { documents, skipped } = documentsFrom(parseOwiInput(input4.text), { command: input4.command, key: input4.key });
   const result = mapOwi(documents, { fields: fields3, skipped });
   for (const warning of result.warnings) ctx.warn(warning);
   const unmapped2 = {};
@@ -110730,7 +110730,7 @@ async function mapOwiInput(ctx, input3) {
   }
   const v = new Verifier(ctx.warn);
   await checkAgainstSchema(v, result.items, result.histories, ctx.signal);
-  v.inputComplete(input3.source);
+  v.inputComplete(input4.source);
   return { owi: OWI_VERSION, count: result.items.length, items: result.items, histories: result.histories, unmapped: unmapped2, skipped: result.skipped, verified: v.done() };
 }
 async function checkAgainstSchema(v, items, histories, signal) {
@@ -111469,8 +111469,8 @@ var Cached = class {
 function cached(getter) {
   return new Cached(getter);
 }
-function nullish(input3) {
-  return input3 === null || input3 === void 0;
+function nullish(input4) {
+  return input4 === null || input4 === void 0;
 }
 function cleanRegex(source2) {
   const start2 = source2.startsWith("^") ? 1 : 0;
@@ -111607,8 +111607,8 @@ function randomString(length = 10) {
 function esc(str4) {
   return JSON.stringify(str4);
 }
-function slugify(input3) {
-  return input3.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "");
+function slugify(input4) {
+  return input4.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "");
 }
 var captureStackTrace = "captureStackTrace" in Error ? Error.captureStackTrace : (..._args) => {
 };
@@ -111964,12 +111964,12 @@ function finalizeIssue(iss, ctx, config5) {
   }
   return full;
 }
-function getSizableOrigin(input3) {
-  if (input3 instanceof Set)
+function getSizableOrigin(input4) {
+  if (input4 instanceof Set)
     return "set";
-  if (input3 instanceof Map)
+  if (input4 instanceof Map)
     return "map";
-  if (input3 instanceof File)
+  if (input4 instanceof File)
     return "file";
   return "unknown";
 }
@@ -111987,10 +111987,10 @@ function codePointLength(str4) {
   }
   return count4;
 }
-function getLengthableOrigin(input3) {
-  if (Array.isArray(input3))
+function getLengthableOrigin(input4) {
+  if (Array.isArray(input4))
     return "array";
-  if (typeof input3 === "string")
+  if (typeof input4 === "string")
     return "string";
   return "unknown";
 }
@@ -112016,12 +112016,12 @@ function parsedType(data) {
   return t;
 }
 function issue(...args) {
-  const [iss, input3, inst] = args;
+  const [iss, input4, inst] = args;
   if (typeof iss === "string") {
     return {
       message: iss,
       code: "custom",
-      input: input3,
+      input: input4,
       inst
     };
   }
@@ -112917,23 +112917,23 @@ var $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberFormat"
   const origin = isInt ? "int" : "number";
   const [minimum, maximum] = NUMBER_FORMAT_RANGES[def.format];
   inst._zod.check = (payload) => {
-    const input3 = payload.value;
+    const input4 = payload.value;
     if (isInt) {
-      if (!Number.isInteger(input3)) {
+      if (!Number.isInteger(input4)) {
         payload.issues.push({
           expected: origin,
           format: def.format,
           code: "invalid_type",
           continue: false,
-          input: input3,
+          input: input4,
           inst
         });
         return;
       }
-      if (!Number.isSafeInteger(input3)) {
-        if (input3 > 0) {
+      if (!Number.isSafeInteger(input4)) {
+        if (input4 > 0) {
           payload.issues.push({
-            input: input3,
+            input: input4,
             code: "too_big",
             maximum: Number.MAX_SAFE_INTEGER,
             note: "Integers must be within the safe integer range.",
@@ -112944,7 +112944,7 @@ var $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberFormat"
           });
         } else {
           payload.issues.push({
-            input: input3,
+            input: input4,
             code: "too_small",
             minimum: Number.MIN_SAFE_INTEGER,
             note: "Integers must be within the safe integer range.",
@@ -112957,10 +112957,10 @@ var $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberFormat"
         return;
       }
     }
-    if (input3 < minimum) {
+    if (input4 < minimum) {
       payload.issues.push({
         origin: "number",
-        input: input3,
+        input: input4,
         code: "too_small",
         minimum,
         inclusive: true,
@@ -112968,10 +112968,10 @@ var $ZodCheckNumberFormat = /* @__PURE__ */ $constructor("$ZodCheckNumberFormat"
         continue: !def.abort
       });
     }
-    if (input3 > maximum) {
+    if (input4 > maximum) {
       payload.issues.push({
         origin: "number",
-        input: input3,
+        input: input4,
         code: "too_big",
         maximum,
         inclusive: true,
@@ -112985,11 +112985,11 @@ var $ZodCheckBigIntFormat = /* @__PURE__ */ $constructor("$ZodCheckBigIntFormat"
   $ZodCheck.init(inst, def);
   const [minimum, maximum] = BIGINT_FORMAT_RANGES[def.format];
   inst._zod.check = (payload) => {
-    const input3 = payload.value;
-    if (input3 < minimum) {
+    const input4 = payload.value;
+    if (input4 < minimum) {
       payload.issues.push({
         origin: "bigint",
-        input: input3,
+        input: input4,
         code: "too_small",
         minimum,
         inclusive: true,
@@ -112997,10 +112997,10 @@ var $ZodCheckBigIntFormat = /* @__PURE__ */ $constructor("$ZodCheckBigIntFormat"
         continue: !def.abort
       });
     }
-    if (input3 > maximum) {
+    if (input4 > maximum) {
       payload.issues.push({
         origin: "bigint",
-        input: input3,
+        input: input4,
         code: "too_big",
         maximum,
         inclusive: true,
@@ -113015,16 +113015,16 @@ var $ZodCheckMaxSize = /* @__PURE__ */ $constructor("$ZodCheckMaxSize", (inst, d
   $ZodCheck.init(inst, def);
   (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasSize);
   inst._zod.check = (payload) => {
-    const input3 = payload.value;
-    const size = input3.size;
+    const input4 = payload.value;
+    const size = input4.size;
     if (size <= def.maximum)
       return;
     payload.issues.push({
-      origin: getSizableOrigin(input3),
+      origin: getSizableOrigin(input4),
       code: "too_big",
       maximum: def.maximum,
       inclusive: true,
-      input: input3,
+      input: input4,
       inst,
       continue: !def.abort
     });
@@ -113035,16 +113035,16 @@ var $ZodCheckMinSize = /* @__PURE__ */ $constructor("$ZodCheckMinSize", (inst, d
   $ZodCheck.init(inst, def);
   (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasSize);
   inst._zod.check = (payload) => {
-    const input3 = payload.value;
-    const size = input3.size;
+    const input4 = payload.value;
+    const size = input4.size;
     if (size >= def.minimum)
       return;
     payload.issues.push({
-      origin: getSizableOrigin(input3),
+      origin: getSizableOrigin(input4),
       code: "too_small",
       minimum: def.minimum,
       inclusive: true,
-      input: input3,
+      input: input4,
       inst,
       continue: !def.abort
     });
@@ -113055,13 +113055,13 @@ var $ZodCheckSizeEquals = /* @__PURE__ */ $constructor("$ZodCheckSizeEquals", (i
   $ZodCheck.init(inst, def);
   (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasSize);
   inst._zod.check = (payload) => {
-    const input3 = payload.value;
-    const size = input3.size;
+    const input4 = payload.value;
+    const size = input4.size;
     if (size === def.size)
       return;
     const tooBig = size > def.size;
     payload.issues.push({
-      origin: getSizableOrigin(input3),
+      origin: getSizableOrigin(input4),
       ...tooBig ? { code: "too_big", maximum: def.size } : { code: "too_small", minimum: def.size },
       inclusive: true,
       exact: true,
@@ -113076,18 +113076,18 @@ var $ZodCheckMaxLength = /* @__PURE__ */ $constructor("$ZodCheckMaxLength", (ins
   $ZodCheck.init(inst, def);
   (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasLength);
   inst._zod.check = (payload) => {
-    const input3 = payload.value;
-    const units = input3.length;
-    const length = typeof input3 === "string" && units > def.maximum ? codePointLength(input3) : units;
+    const input4 = payload.value;
+    const units = input4.length;
+    const length = typeof input4 === "string" && units > def.maximum ? codePointLength(input4) : units;
     if (length <= def.maximum)
       return;
-    const origin = getLengthableOrigin(input3);
+    const origin = getLengthableOrigin(input4);
     payload.issues.push({
       origin,
       code: "too_big",
       maximum: def.maximum,
       inclusive: true,
-      input: input3,
+      input: input4,
       inst,
       continue: !def.abort
     });
@@ -113098,18 +113098,18 @@ var $ZodCheckMinLength = /* @__PURE__ */ $constructor("$ZodCheckMinLength", (ins
   $ZodCheck.init(inst, def);
   (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasLength);
   inst._zod.check = (payload) => {
-    const input3 = payload.value;
-    const units = input3.length;
-    const length = typeof input3 === "string" && units >= def.minimum && units < def.minimum * 2 ? codePointLength(input3) : units;
+    const input4 = payload.value;
+    const units = input4.length;
+    const length = typeof input4 === "string" && units >= def.minimum && units < def.minimum * 2 ? codePointLength(input4) : units;
     if (length >= def.minimum)
       return;
-    const origin = getLengthableOrigin(input3);
+    const origin = getLengthableOrigin(input4);
     payload.issues.push({
       origin,
       code: "too_small",
       minimum: def.minimum,
       inclusive: true,
-      input: input3,
+      input: input4,
       inst,
       continue: !def.abort
     });
@@ -113120,12 +113120,12 @@ var $ZodCheckLengthEquals = /* @__PURE__ */ $constructor("$ZodCheckLengthEquals"
   $ZodCheck.init(inst, def);
   (_a3 = inst._zod.def).when ?? (_a3.when = _whenHasLength);
   inst._zod.check = (payload) => {
-    const input3 = payload.value;
-    const units = input3.length;
-    const length = typeof input3 === "string" && units >= def.length && units <= def.length * 2 ? codePointLength(input3) : units;
+    const input4 = payload.value;
+    const units = input4.length;
+    const length = typeof input4 === "string" && units >= def.length && units <= def.length * 2 ? codePointLength(input4) : units;
     if (length === def.length)
       return;
-    const origin = getLengthableOrigin(input3);
+    const origin = getLengthableOrigin(input4);
     const tooBig = length > def.length;
     payload.issues.push({
       origin,
@@ -113271,10 +113271,10 @@ var $ZodCheckProperties = /* @__PURE__ */ $constructor("$ZodCheckProperties", (i
       return void 0;
     }
     entries ?? (entries = Reflect.ownKeys(def.shape).map((key6) => [key6, def.shape[key6]]));
-    const input3 = payload.value;
+    const input4 = payload.value;
     let proms;
     for (const [key6, schema3] of entries) {
-      const result = schema3._zod.run({ value: input3[key6], issues: [] }, {});
+      const result = schema3._zod.run({ value: input4[key6], issues: [] }, {});
       if (result instanceof Promise) {
         proms ?? (proms = []);
         proms.push(result.then((result2) => handleCheckPropertyResult(result2, payload, key6)));
@@ -113542,11 +113542,11 @@ var $ZodEmail = /* @__PURE__ */ $constructor("$ZodEmail", (inst, def) => {
 });
 var URL_BAD_FORMAT = 1;
 var URL_UNPARSEABLE = 2;
-function canParseURL(input3) {
+function canParseURL(input4) {
   try {
     if (typeof URL !== "undefined" && typeof URL.canParse === "function")
-      return URL.canParse(input3);
-    new URL(input3);
+      return URL.canParse(input4);
+    new URL(input4);
     return true;
   } catch {
     return false;
@@ -113828,10 +113828,10 @@ function isLuhnAlgo(digits) {
   }
   return sum % 10 === 0;
 }
-function isValidCreditCard(input3) {
-  if (!creditCard.test(input3))
+function isValidCreditCard(input4) {
+  if (!creditCard.test(input4))
     return false;
-  return isLuhnAlgo(input3.replace(CC_SANITIZE, ""));
+  return isLuhnAlgo(input4.replace(CC_SANITIZE, ""));
 }
 var $ZodCreditCard = /* @__PURE__ */ $constructor("$ZodCreditCard", (inst, def) => {
   def.pattern ?? (def.pattern = creditCard);
@@ -113861,10 +113861,10 @@ function isIso7064Mod97(iban3) {
   }
   return remainder === 1;
 }
-function isValidIBAN(input3) {
-  if (!iban.test(input3))
+function isValidIBAN(input4) {
+  if (!iban.test(input4))
     return false;
-  return isIso7064Mod97(input3);
+  return isIso7064Mod97(input4);
 }
 var $ZodIBAN = /* @__PURE__ */ $constructor("$ZodIBAN", (inst, def) => {
   def.pattern ?? (def.pattern = iban);
@@ -113938,15 +113938,15 @@ var $ZodNumber = /* @__PURE__ */ $constructor("$ZodNumber", (inst, def) => {
         payload.value = Number(payload.value);
       } catch (_2) {
       }
-    const input3 = payload.value;
-    if (typeof input3 === "number" && !Number.isNaN(input3) && Number.isFinite(input3)) {
+    const input4 = payload.value;
+    if (typeof input4 === "number" && !Number.isNaN(input4) && Number.isFinite(input4)) {
       return payload;
     }
-    const received = typeof input3 === "number" ? Number.isNaN(input3) ? "NaN" : !Number.isFinite(input3) ? String(input3) : void 0 : void 0;
+    const received = typeof input4 === "number" ? Number.isNaN(input4) ? "NaN" : !Number.isFinite(input4) ? String(input4) : void 0 : void 0;
     payload.issues.push({
       expected: "number",
       code: "invalid_type",
-      input: input3,
+      input: input4,
       inst,
       ...received ? { received } : {}
     });
@@ -113966,13 +113966,13 @@ var $ZodBoolean = /* @__PURE__ */ $constructor("$ZodBoolean", (inst, def) => {
         payload.value = Boolean(payload.value);
       } catch (_2) {
       }
-    const input3 = payload.value;
-    if (typeof input3 === "boolean")
+    const input4 = payload.value;
+    if (typeof input4 === "boolean")
       return payload;
     payload.issues.push({
       expected: "boolean",
       code: "invalid_type",
-      input: input3,
+      input: input4,
       inst
     });
     return payload;
@@ -114005,13 +114005,13 @@ var $ZodBigIntFormat = /* @__PURE__ */ $constructor("$ZodBigIntFormat", (inst, d
 var $ZodSymbol = /* @__PURE__ */ $constructor("$ZodSymbol", (inst, def) => {
   $ZodType.init(inst, def);
   inst._zod.parse = (payload, _ctx) => {
-    const input3 = payload.value;
-    if (typeof input3 === "symbol")
+    const input4 = payload.value;
+    if (typeof input4 === "symbol")
       return payload;
     payload.issues.push({
       expected: "symbol",
       code: "invalid_type",
-      input: input3,
+      input: input4,
       inst
     });
     return payload;
@@ -114022,13 +114022,13 @@ var $ZodUndefined = /* @__PURE__ */ $constructor("$ZodUndefined", (inst, def) =>
   inst._zod.pattern = _undefined;
   inst._zod.values = /* @__PURE__ */ new Set([void 0]);
   inst._zod.parse = (payload, _ctx) => {
-    const input3 = payload.value;
-    if (typeof input3 === "undefined")
+    const input4 = payload.value;
+    if (typeof input4 === "undefined")
       return payload;
     payload.issues.push({
       expected: "undefined",
       code: "invalid_type",
-      input: input3,
+      input: input4,
       inst
     });
     return payload;
@@ -114039,13 +114039,13 @@ var $ZodNull = /* @__PURE__ */ $constructor("$ZodNull", (inst, def) => {
   inst._zod.pattern = _null;
   inst._zod.values = /* @__PURE__ */ new Set([null]);
   inst._zod.parse = (payload, _ctx) => {
-    const input3 = payload.value;
-    if (input3 === null)
+    const input4 = payload.value;
+    if (input4 === null)
       return payload;
     payload.issues.push({
       expected: "null",
       code: "invalid_type",
-      input: input3,
+      input: input4,
       inst
     });
     return payload;
@@ -114074,13 +114074,13 @@ var $ZodNever = /* @__PURE__ */ $constructor("$ZodNever", (inst, def) => {
 var $ZodVoid = /* @__PURE__ */ $constructor("$ZodVoid", (inst, def) => {
   $ZodType.init(inst, def);
   inst._zod.parse = (payload, _ctx) => {
-    const input3 = payload.value;
-    if (typeof input3 === "undefined")
+    const input4 = payload.value;
+    if (typeof input4 === "undefined")
       return payload;
     payload.issues.push({
       expected: "void",
       code: "invalid_type",
-      input: input3,
+      input: input4,
       inst
     });
     return payload;
@@ -114095,15 +114095,15 @@ var $ZodDate = /* @__PURE__ */ $constructor("$ZodDate", (inst, def) => {
       } catch (_err) {
       }
     }
-    const input3 = payload.value;
-    const isDate = input3 instanceof Date;
-    const isValidDate = isDate && !Number.isNaN(input3.getTime());
+    const input4 = payload.value;
+    const isDate = input4 instanceof Date;
+    const isValidDate = isDate && !Number.isNaN(input4.getTime());
     if (isValidDate)
       return payload;
     payload.issues.push({
       expected: "date",
       code: "invalid_type",
-      input: input3,
+      input: input4,
       ...isDate ? { received: "Invalid Date" } : {},
       inst
     });
@@ -114121,21 +114121,21 @@ var $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
   const memo2 = globalConfig.memoizer;
   memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
-    const input3 = payload.value;
-    if (!Array.isArray(input3)) {
+    const input4 = payload.value;
+    if (!Array.isArray(input4)) {
       payload.issues.push({
         expected: "array",
         code: "invalid_type",
-        input: input3,
+        input: input4,
         inst
       });
       return payload;
     }
-    payload.value = memo2 ? memo2.alloc(inst, payload, Array(input3.length), ctx) : Array(input3.length);
+    payload.value = memo2 ? memo2.alloc(inst, payload, Array(input4.length), ctx) : Array(input4.length);
     const proms = [];
     const abortEarly = ctx?.abortEarly;
-    for (let i = 0; i < input3.length; i++) {
-      const item = input3[i];
+    for (let i = 0; i < input4.length; i++) {
+      const item = input4[i];
       const result = def.element._zod.run({
         value: item,
         issues: []
@@ -114154,8 +114154,8 @@ var $ZodArray = /* @__PURE__ */ $constructor("$ZodArray", (inst, def) => {
     return payload;
   };
 });
-function handlePropertyResult(result, final, key6, input3, optin, optout) {
-  const isPresent = key6 in input3;
+function handlePropertyResult(result, final, key6, input4, optin, optout) {
+  const isPresent = key6 in input4;
   const isOptionalOut = optout === "optional";
   if (!isPresent && isOptionalOut && optin === "optional") {
     return;
@@ -114207,7 +114207,7 @@ function normalizeDef(def) {
     optionalKeys: new Set(okeys)
   };
 }
-function handleCatchall(proms, input3, payload, ctx, def, inst, abortEarly) {
+function handleCatchall(proms, input4, payload, ctx, def, inst, abortEarly) {
   const unrecognized = [];
   const keySet = def.keySet;
   const _catchall = def.catchall._zod;
@@ -114215,7 +114215,7 @@ function handleCatchall(proms, input3, payload, ctx, def, inst, abortEarly) {
   const optin = _catchall.optin;
   const optout = _catchall.optout;
   let seen = 0;
-  for (const key6 in input3) {
+  for (const key6 in input4) {
     if (abortEarly && payload.issues.length !== seen) {
       if (aborted(payload, seen))
         break;
@@ -114232,18 +114232,18 @@ function handleCatchall(proms, input3, payload, ctx, def, inst, abortEarly) {
       unrecognized.push(key6);
       continue;
     }
-    const r = _catchall.run({ value: input3[key6], issues: [] }, ctx);
+    const r = _catchall.run({ value: input4[key6], issues: [] }, ctx);
     if (r instanceof Promise) {
-      proms.push(r.then((r2) => handlePropertyResult(r2, payload, key6, input3, optin, optout)));
+      proms.push(r.then((r2) => handlePropertyResult(r2, payload, key6, input4, optin, optout)));
     } else {
-      handlePropertyResult(r, payload, key6, input3, optin, optout);
+      handlePropertyResult(r, payload, key6, input4, optin, optout);
     }
   }
   if (unrecognized.length) {
     payload.issues.push({
       code: "unrecognized_keys",
       keys: unrecognized,
-      input: input3,
+      input: input4,
       inst,
       // Describes the shape of the input, not the validity of the parsed value, so it never aborts. The parse still fails; the schema's own checks just get to run first, and an enclosing intersection can reconcile the key against a sibling operand.
       continue: true
@@ -114294,12 +114294,12 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
   memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
     value2 ?? (value2 = _normalized.value);
-    const input3 = payload.value;
-    if (!isObject6(input3)) {
+    const input4 = payload.value;
+    if (!isObject6(input4)) {
       payload.issues.push({
         expected: "object",
         code: "invalid_type",
-        input: input3,
+        input: input4,
         inst
       });
       return payload;
@@ -114320,17 +114320,17 @@ var $ZodObject = /* @__PURE__ */ $constructor("$ZodObject", (inst, def) => {
       const el = shape[key6];
       const optin = el._zod.optin;
       const optout = el._zod.optout;
-      const r = el._zod.run({ value: input3[key6], issues: [] }, ctx);
+      const r = el._zod.run({ value: input4[key6], issues: [] }, ctx);
       if (r instanceof Promise) {
-        proms.push(r.then((r2) => handlePropertyResult(r2, payload, key6, input3, optin, optout)));
+        proms.push(r.then((r2) => handlePropertyResult(r2, payload, key6, input4, optin, optout)));
       } else {
-        handlePropertyResult(r, payload, key6, input3, optin, optout);
+        handlePropertyResult(r, payload, key6, input4, optin, optout);
       }
     }
     if (!catchall) {
       return proms.length ? Promise.all(proms).then(() => payload) : payload;
     }
-    return handleCatchall(proms, input3, payload, ctx, _normalized.value, inst, abortEarly === true);
+    return handleCatchall(proms, input4, payload, ctx, _normalized.value, inst, abortEarly === true);
   };
 });
 var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) => {
@@ -114439,12 +114439,12 @@ var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) =>
   let value2;
   inst._zod.parse = (payload, ctx) => {
     value2 ?? (value2 = _normalized.value);
-    const input3 = payload.value;
-    if (!isObject6(input3)) {
+    const input4 = payload.value;
+    if (!isObject6(input4)) {
       payload.issues.push({
         expected: "object",
         code: "invalid_type",
-        input: input3,
+        input: input4,
         inst
       });
       return payload;
@@ -114455,7 +114455,7 @@ var $ZodObjectJIT = /* @__PURE__ */ $constructor("$ZodObjectJIT", (inst, def) =>
       payload = fastpass(payload, ctx);
       if (!catchall)
         return payload;
-      return handleCatchall([], input3, payload, ctx, value2, inst, ctx?.abortEarly === true);
+      return handleCatchall([], input4, payload, ctx, value2, inst, ctx?.abortEarly === true);
     }
     return superParse(payload, ctx);
   };
@@ -114647,17 +114647,17 @@ var $ZodDiscriminatedUnion = /* @__PURE__ */ $constructor("$ZodDiscriminatedUnio
   });
   const disc = cached(() => discriminatorMap(def));
   inst._zod.parse = (payload, ctx) => {
-    const input3 = payload.value;
-    if (!isObject2(input3)) {
+    const input4 = payload.value;
+    if (!isObject2(input4)) {
       payload.issues.push({
         code: "invalid_type",
         expected: "object",
-        input: input3,
+        input: input4,
         inst
       });
       return payload;
     }
-    const value2 = input3?.[def.discriminator];
+    const value2 = input4?.[def.discriminator];
     const opt = disc.value.get(value2);
     if (opt && (value2 !== void 0 || ctx.direction !== "backward")) {
       return opt._zod.run(payload, ctx);
@@ -114671,7 +114671,7 @@ var $ZodDiscriminatedUnion = /* @__PURE__ */ $constructor("$ZodDiscriminatedUnio
       note: "No matching discriminator",
       discriminator: def.discriminator,
       options: Array.from(disc.value.keys()).filter((value3) => disc.value.get(value3) !== null),
-      input: input3,
+      input: input4,
       path: [def.discriminator],
       inst
     });
@@ -114681,9 +114681,9 @@ var $ZodDiscriminatedUnion = /* @__PURE__ */ $constructor("$ZodDiscriminatedUnio
 var $ZodIntersection = /* @__PURE__ */ $constructor("$ZodIntersection", (inst, def) => {
   $ZodType.init(inst, def);
   inst._zod.parse = (payload, ctx) => {
-    const input3 = payload.value;
-    const left = def.left._zod.run({ value: input3, issues: [] }, ctx);
-    const right = def.right._zod.run({ value: input3, issues: [] }, ctx);
+    const input4 = payload.value;
+    const left = def.left._zod.run({ value: input4, issues: [] }, ctx);
+    const right = def.right._zod.run({ value: input4, issues: [] }, ctx);
     const async = left instanceof Promise || right instanceof Promise;
     if (async) {
       return Promise.all([left, right]).then(([left2, right2]) => {
@@ -114798,10 +114798,10 @@ var $ZodTuple = /* @__PURE__ */ $constructor("$ZodTuple", (inst, def) => {
   const memo2 = globalConfig.memoizer;
   memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
-    const input3 = payload.value;
-    if (!Array.isArray(input3)) {
+    const input4 = payload.value;
+    if (!Array.isArray(input4)) {
       payload.issues.push({
-        input: input3,
+        input: input4,
         inst,
         expected: "tuple",
         code: "invalid_type"
@@ -114813,23 +114813,23 @@ var $ZodTuple = /* @__PURE__ */ $constructor("$ZodTuple", (inst, def) => {
     const optinStart = getTupleOptStart(items, "optin");
     const optoutStart = getTupleOptStart(items, "optout");
     if (!def.rest) {
-      if (input3.length < optinStart) {
+      if (input4.length < optinStart) {
         payload.issues.push({
           code: "too_small",
           minimum: optinStart,
           inclusive: true,
-          input: input3,
+          input: input4,
           inst,
           origin: "array"
         });
         return payload;
       }
-      if (input3.length > items.length) {
+      if (input4.length > items.length) {
         payload.issues.push({
           code: "too_big",
           maximum: items.length,
           inclusive: true,
-          input: input3,
+          input: input4,
           inst,
           origin: "array"
         });
@@ -114839,7 +114839,7 @@ var $ZodTuple = /* @__PURE__ */ $constructor("$ZodTuple", (inst, def) => {
     const abortEarly = def.rest ? ctx?.abortEarly : void 0;
     let itemAborted = false;
     for (let i = 0; i < items.length; i++) {
-      const r = items[i]._zod.run({ value: input3[i], issues: [] }, ctx);
+      const r = items[i]._zod.run({ value: input4[i], issues: [] }, ctx);
       if (r instanceof Promise) {
         proms.push(r.then((rr) => {
           itemResults[i] = rr;
@@ -114852,7 +114852,7 @@ var $ZodTuple = /* @__PURE__ */ $constructor("$ZodTuple", (inst, def) => {
     }
     if (def.rest && !itemAborted) {
       let i = items.length - 1;
-      const rest = input3.slice(items.length);
+      const rest = input4.slice(items.length);
       let seen = payload.issues.length;
       for (const el of rest) {
         if (abortEarly && payload.issues.length !== seen) {
@@ -114870,9 +114870,9 @@ var $ZodTuple = /* @__PURE__ */ $constructor("$ZodTuple", (inst, def) => {
       }
     }
     if (proms.length) {
-      return Promise.all(proms).then(() => handleTupleResults(itemResults, payload, items, input3, optoutStart));
+      return Promise.all(proms).then(() => handleTupleResults(itemResults, payload, items, input4, optoutStart));
     }
-    return handleTupleResults(itemResults, payload, items, input3, optoutStart);
+    return handleTupleResults(itemResults, payload, items, input4, optoutStart);
   };
 });
 function getTupleOptStart(items, key6) {
@@ -114889,10 +114889,10 @@ function handleTupleResult(result, final, index2) {
   }
   final.value[index2] = result.value;
 }
-function handleTupleResults(itemResults, final, items, input3, optoutStart) {
+function handleTupleResults(itemResults, final, items, input4, optoutStart) {
   for (let i = 0; i < items.length; i++) {
     const r = itemResults[i];
-    const isPresent = i < input3.length;
+    const isPresent = i < input4.length;
     if (!isPresent && i >= optoutStart && items[i]._zod.optin === "optional") {
       final.value.length = i;
       break;
@@ -114906,7 +114906,7 @@ function handleTupleResults(itemResults, final, items, input3, optoutStart) {
     }
     final.value[i] = r.value;
   }
-  for (let i = final.value.length - 1; i >= input3.length; i--) {
+  for (let i = final.value.length - 1; i >= input4.length; i--) {
     if (items[i]._zod.optout === "optional" && final.value[i] === void 0) {
       final.value.length = i;
     } else {
@@ -114920,12 +114920,12 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
   const memo2 = globalConfig.memoizer;
   memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
-    const input3 = payload.value;
-    if (!isPlainObject(input3)) {
+    const input4 = payload.value;
+    if (!isPlainObject(input4)) {
       payload.issues.push({
         expected: "record",
         code: "invalid_type",
-        input: input3,
+        input: input4,
         inst
       });
       return payload;
@@ -114958,7 +114958,7 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
           const outKey = keyResult.value;
           if (outKey === "__proto__")
             continue;
-          const result = def.valueType._zod.run({ value: input3[key6], issues: [] }, ctx);
+          const result = def.valueType._zod.run({ value: input4[key6], issues: [] }, ctx);
           if (result instanceof Promise) {
             proms.push(result.then((result2) => {
               if (result2.issues.length) {
@@ -114975,12 +114975,12 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
         }
       }
       let unrecognized;
-      for (const key6 in input3) {
+      for (const key6 in input4) {
         if (!recordKeys.has(key6)) {
           if (def.mode === "loose") {
             if (key6 === "__proto__")
               continue;
-            payload.value[key6] = input3[key6];
+            payload.value[key6] = input4[key6];
           } else {
             unrecognized = unrecognized ?? [];
             unrecognized.push(key6);
@@ -114990,7 +114990,7 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
       if (unrecognized && unrecognized.length > 0) {
         payload.issues.push({
           code: "unrecognized_keys",
-          input: input3,
+          input: input4,
           inst,
           keys: unrecognized,
           continue: true
@@ -114999,10 +114999,10 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
     } else {
       payload.value = memo2 ? memo2.alloc(inst, payload, {}, ctx) : {};
       let unrecognized;
-      for (const key6 of Reflect.ownKeys(input3)) {
+      for (const key6 of Reflect.ownKeys(input4)) {
         if (key6 === "__proto__")
           continue;
-        if (!Object.prototype.propertyIsEnumerable.call(input3, key6))
+        if (!Object.prototype.propertyIsEnumerable.call(input4, key6))
           continue;
         let keyResult = def.keyType._zod.run({ value: key6, issues: [] }, ctx);
         if (keyResult instanceof Promise) {
@@ -115020,7 +115020,7 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
         }
         if (keyResult.issues.length) {
           if (def.mode === "loose") {
-            payload.value[key6] = input3[key6];
+            payload.value[key6] = input4[key6];
           } else if (values2) {
             unrecognized = unrecognized ?? [];
             unrecognized.push(key6);
@@ -115039,7 +115039,7 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
         const outKey = keyResult.value;
         if (outKey === "__proto__")
           continue;
-        const result = def.valueType._zod.run({ value: input3[key6], issues: [] }, ctx);
+        const result = def.valueType._zod.run({ value: input4[key6], issues: [] }, ctx);
         if (result instanceof Promise) {
           proms.push(result.then((result2) => {
             if (result2.issues.length) {
@@ -115057,7 +115057,7 @@ var $ZodRecord = /* @__PURE__ */ $constructor("$ZodRecord", (inst, def) => {
       if (unrecognized && unrecognized.length > 0) {
         payload.issues.push({
           code: "unrecognized_keys",
-          input: input3,
+          input: input4,
           inst,
           keys: unrecognized,
           continue: true
@@ -115075,12 +115075,12 @@ var $ZodMap = /* @__PURE__ */ $constructor("$ZodMap", (inst, def) => {
   const memo2 = globalConfig.memoizer;
   memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
-    const input3 = payload.value;
-    if (!(input3 instanceof Map)) {
+    const input4 = payload.value;
+    if (!(input4 instanceof Map)) {
       payload.issues.push({
         expected: "map",
         code: "invalid_type",
-        input: input3,
+        input: input4,
         inst
       });
       return payload;
@@ -115089,7 +115089,7 @@ var $ZodMap = /* @__PURE__ */ $constructor("$ZodMap", (inst, def) => {
     payload.value = memo2 ? memo2.alloc(inst, payload, /* @__PURE__ */ new Map(), ctx) : /* @__PURE__ */ new Map();
     const abortEarly = ctx?.abortEarly;
     let seen = payload.issues.length;
-    for (const [key6, value2] of input3) {
+    for (const [key6, value2] of input4) {
       if (abortEarly && payload.issues.length !== seen) {
         if (aborted(payload, seen))
           break;
@@ -115099,10 +115099,10 @@ var $ZodMap = /* @__PURE__ */ $constructor("$ZodMap", (inst, def) => {
       const valueResult = def.valueType._zod.run({ value: value2, issues: [] }, ctx);
       if (keyResult instanceof Promise || valueResult instanceof Promise) {
         proms.push(Promise.all([keyResult, valueResult]).then(([keyResult2, valueResult2]) => {
-          handleMapResult(keyResult2, valueResult2, payload, key6, input3, inst, ctx);
+          handleMapResult(keyResult2, valueResult2, payload, key6, input4, inst, ctx);
         }));
       } else {
-        handleMapResult(keyResult, valueResult, payload, key6, input3, inst, ctx);
+        handleMapResult(keyResult, valueResult, payload, key6, input4, inst, ctx);
       }
     }
     if (proms.length)
@@ -115110,7 +115110,7 @@ var $ZodMap = /* @__PURE__ */ $constructor("$ZodMap", (inst, def) => {
     return payload;
   };
 });
-function handleMapResult(keyResult, valueResult, final, key6, input3, inst, ctx) {
+function handleMapResult(keyResult, valueResult, final, key6, input4, inst, ctx) {
   if (keyResult.issues.length) {
     if (propertyKeyTypes.has(typeof key6)) {
       final.issues.push(...prefixIssues(key6, keyResult.issues));
@@ -115118,7 +115118,7 @@ function handleMapResult(keyResult, valueResult, final, key6, input3, inst, ctx)
       final.issues.push({
         code: "invalid_key",
         origin: "map",
-        input: input3,
+        input: input4,
         inst,
         issues: keyResult.issues.map((iss) => finalizeIssue(iss, ctx, config()))
       });
@@ -115131,7 +115131,7 @@ function handleMapResult(keyResult, valueResult, final, key6, input3, inst, ctx)
       final.issues.push({
         origin: "map",
         code: "invalid_element",
-        input: input3,
+        input: input4,
         inst,
         key: key6,
         issues: valueResult.issues.map((iss) => finalizeIssue(iss, ctx, config()))
@@ -115145,10 +115145,10 @@ var $ZodSet = /* @__PURE__ */ $constructor("$ZodSet", (inst, def) => {
   const memo2 = globalConfig.memoizer;
   memo2?.attach(inst);
   inst._zod.parse = (payload, ctx) => {
-    const input3 = payload.value;
-    if (!(input3 instanceof Set)) {
+    const input4 = payload.value;
+    if (!(input4 instanceof Set)) {
       payload.issues.push({
-        input: input3,
+        input: input4,
         inst,
         expected: "set",
         code: "invalid_type"
@@ -115159,7 +115159,7 @@ var $ZodSet = /* @__PURE__ */ $constructor("$ZodSet", (inst, def) => {
     payload.value = memo2 ? memo2.alloc(inst, payload, /* @__PURE__ */ new Set(), ctx) : /* @__PURE__ */ new Set();
     const abortEarly = ctx?.abortEarly;
     let seen = payload.issues.length;
-    for (const item of input3) {
+    for (const item of input4) {
       if (abortEarly && payload.issues.length !== seen) {
         if (aborted(payload, seen))
           break;
@@ -115192,14 +115192,14 @@ var $ZodEnum = /* @__PURE__ */ $constructor("$ZodEnum", (inst, def) => {
     return new RegExp(patternValues.length ? `^(${patternValues.map((o) => escapeRegex(o.toString())).join("|")})$` : "^[^\\s\\S]$");
   });
   inst._zod.parse = (payload, _ctx) => {
-    const input3 = payload.value;
-    if (valuesSet.has(input3)) {
+    const input4 = payload.value;
+    if (valuesSet.has(input4)) {
       return payload;
     }
     payload.issues.push({
       code: "invalid_value",
       values: values2,
-      input: input3,
+      input: input4,
       inst
     });
     return payload;
@@ -115214,14 +115214,14 @@ var $ZodLiteral = /* @__PURE__ */ $constructor("$ZodLiteral", (inst, def) => {
     return new RegExp(vals.length ? `^(${vals.map((o) => typeof o === "string" ? escapeRegex(o) : o ? escapeRegex(o.toString()) : String(o)).join("|")})$` : "^[^\\s\\S]$");
   });
   inst._zod.parse = (payload, _ctx) => {
-    const input3 = payload.value;
-    if (values2.has(input3)) {
+    const input4 = payload.value;
+    if (values2.has(input4)) {
       return payload;
     }
     payload.issues.push({
       code: "invalid_value",
       values: def.values,
-      input: input3,
+      input: input4,
       inst
     });
     return payload;
@@ -115230,13 +115230,13 @@ var $ZodLiteral = /* @__PURE__ */ $constructor("$ZodLiteral", (inst, def) => {
 var $ZodFile = /* @__PURE__ */ $constructor("$ZodFile", (inst, def) => {
   $ZodType.init(inst, def);
   inst._zod.parse = (payload, _ctx) => {
-    const input3 = payload.value;
-    if (input3 instanceof File)
+    const input4 = payload.value;
+    if (input4 instanceof File)
       return payload;
     payload.issues.push({
       expected: "file",
       code: "invalid_type",
-      input: input3,
+      input: input4,
       inst
     });
     return payload;
@@ -115744,20 +115744,20 @@ var $ZodCustom = /* @__PURE__ */ $constructor("$ZodCustom", (inst, def) => {
     return payload;
   };
   inst._zod.check = (payload) => {
-    const input3 = payload.value;
-    const r = def.fn(input3);
+    const input4 = payload.value;
+    const r = def.fn(input4);
     if (r instanceof Promise) {
-      return r.then((r2) => handleRefineResult(r2, payload, input3, inst));
+      return r.then((r2) => handleRefineResult(r2, payload, input4, inst));
     }
-    handleRefineResult(r, payload, input3, inst);
+    handleRefineResult(r, payload, input4, inst);
     return;
   };
 });
-function handleRefineResult(result, payload, input3, inst) {
+function handleRefineResult(result, payload, input4, inst) {
   if (!result) {
     const _iss = {
       code: "custom",
-      input: input3,
+      input: input4,
       inst,
       // incorporates params.error into issue reporting
       path: [...inst._zod.def.path ?? []],
@@ -115989,8 +115989,8 @@ var memo = {
           else
             rechecked = true;
         }
-        const input3 = payload.value;
-        if (!isRef(input3))
+        const input4 = payload.value;
+        if (!isRef(input4))
           return base(payload, ctx);
         let state = ctx[STATE];
         if (!state) {
@@ -116005,7 +116005,7 @@ var memo = {
           lastCtx = ctx;
           lastBucket = bucket;
         }
-        const hit = bucket.get(input3);
+        const hit = bucket.get(input4);
         if (hit) {
           payload.value = hit.value;
           if (hit.issues) {
@@ -117511,9 +117511,9 @@ var error12 = () => {
     nan: "NaN"
     // All other type names omitted - they fall back to raw values via ?? operator
   };
-  function getTypeName(type, input3) {
-    if (type === "number" && typeof input3 === "number" && !Number.isFinite(input3)) {
-      return String(input3);
+  function getTypeName(type, input4) {
+    if (type === "number" && typeof input4 === "number" && !Number.isFinite(input4)) {
+      return String(input4);
     }
     return TypeDictionary[type] ?? type;
   }
@@ -125953,23 +125953,23 @@ function _overwrite(tx) {
 }
 // @__NO_SIDE_EFFECTS__
 function _normalize(form) {
-  return /* @__PURE__ */ _overwrite((input3) => input3.normalize(form));
+  return /* @__PURE__ */ _overwrite((input4) => input4.normalize(form));
 }
 // @__NO_SIDE_EFFECTS__
 function _trim() {
-  return /* @__PURE__ */ _overwrite((input3) => input3.trim());
+  return /* @__PURE__ */ _overwrite((input4) => input4.trim());
 }
 // @__NO_SIDE_EFFECTS__
 function _toLowerCase() {
-  return /* @__PURE__ */ _overwrite((input3) => input3.toLowerCase());
+  return /* @__PURE__ */ _overwrite((input4) => input4.toLowerCase());
 }
 // @__NO_SIDE_EFFECTS__
 function _toUpperCase() {
-  return /* @__PURE__ */ _overwrite((input3) => input3.toUpperCase());
+  return /* @__PURE__ */ _overwrite((input4) => input4.toUpperCase());
 }
 // @__NO_SIDE_EFFECTS__
 function _slugify() {
-  return /* @__PURE__ */ _overwrite((input3) => slugify(input3));
+  return /* @__PURE__ */ _overwrite((input4) => slugify(input4));
 }
 // @__NO_SIDE_EFFECTS__
 function _array(Class2, element, params2) {
@@ -126275,8 +126275,8 @@ function _stringbool(Classes, _params) {
     type: "pipe",
     in: stringSchema,
     out: booleanSchema,
-    transform: ((input3, payload) => {
-      let data = input3;
+    transform: ((input4, payload) => {
+      let data = input4;
       if (params2.case !== "sensitive")
         data = data.toLowerCase();
       if (truthySet.has(data)) {
@@ -126295,8 +126295,8 @@ function _stringbool(Classes, _params) {
         return {};
       }
     }),
-    reverseTransform: ((input3, _payload) => {
-      if (input3 === true) {
+    reverseTransform: ((input4, _payload) => {
+      if (input4 === true) {
         return truthyArray[0] || "true";
       } else {
         return falsyArray[0] || "false";
@@ -127569,9 +127569,9 @@ var allProcessors = {
   optional: optionalProcessor,
   lazy: lazyProcessor
 };
-function toJSONSchema(input3, params2) {
-  if ("_idmap" in input3) {
-    const registry3 = input3;
+function toJSONSchema(input4, params2) {
+  if ("_idmap" in input4) {
+    const registry3 = input4;
     const ctx2 = initializeContext({ ...params2, processors: allProcessors });
     const defs2 = {};
     for (const entry of registry3._idmap.entries()) {
@@ -127599,9 +127599,9 @@ function toJSONSchema(input3, params2) {
     return { schemas };
   }
   const ctx = initializeContext({ ...params2, processors: allProcessors });
-  processSchema(input3, ctx);
-  extractDefs(ctx, input3);
-  return finalize(ctx, input3);
+  processSchema(input4, ctx);
+  extractDefs(ctx, input4);
+  return finalize(ctx, input4);
 }
 
 // node_modules/zod/v4/core/json-schema-generator.js
@@ -132763,15 +132763,15 @@ var SELECT_DESCRIPTION = 'A JMESPath expression applied to the result before it 
 var docsFix = "See https://jmespath.org/specification.html for the expression language.";
 function takeSelect(command, raw3) {
   if (typeof raw3 !== "object" || raw3 === null || !Object.hasOwn(raw3, SELECT_FIELD)) return { input: raw3 };
-  const { [SELECT_FIELD]: expression, ...input3 } = raw3;
-  if (expression === void 0) return { input: input3 };
+  const { [SELECT_FIELD]: expression, ...input4 } = raw3;
+  if (expression === void 0) return { input: input4 };
   if (typeof expression !== "string" || expression.trim() === "") {
     throw new ToilError("INVALID_INPUT", `Invalid input for ${command}: select must be a non-empty JMESPath expression.`, {
       fix: `Give select an expression (--select <expression> on the CLI), or leave it out. ${docsFix}`
     });
   }
   try {
-    return { input: input3, query: compileQuery(expression) };
+    return { input: input4, query: compileQuery(expression) };
   } catch (caught) {
     const err = caught instanceof QueryError ? caught : new QueryError("syntax", caught instanceof Error ? caught.message : String(caught));
     throw new ToilError("INVALID_INPUT", `Invalid select expression for ${command}: ${err.message}`, {
@@ -132814,8 +132814,8 @@ function defineConfigCommand(def) {
 }
 var isCliOnly = (def) => def.kind === "cli-only";
 var takesAllowWrite = (def) => def.writes || def.writesWhen !== void 0;
-var writesFor = (def, input3) => def.writes || def.writesWhen !== void 0 && def.writesWhen(input3) === true;
-var changesAnythingFor = (def, input3) => writesFor(def, input3) || def.writesLocal === true || def.writesLocalWhen?.(input3) === true;
+var writesFor = (def, input4) => def.writes || def.writesWhen !== void 0 && def.writesWhen(input4) === true;
+var changesAnythingFor = (def, input4) => writesFor(def, input4) || def.writesLocal === true || def.writesLocalWhen?.(input4) === true;
 var servedOverMcp = (def) => !isCliOnly(def) && def.mcp !== false;
 var needsConfig = (def) => def.kind !== "standalone" && def.kind !== "area-local";
 var managesConfig = (def) => def.kind === "config" || def.kind === "cli-only";
@@ -132958,8 +132958,8 @@ function redactUrl(raw3) {
   return `${base}?${query2}${hash3}`;
 }
 function instrumentFetch(base, log, signal) {
-  return (async (input3, init2) => {
-    const original = input3 instanceof Request ? input3 : new Request(input3, init2);
+  return (async (input4, init2) => {
+    const original = input4 instanceof Request ? input4 : new Request(input4, init2);
     const request = signal ? new Request(original, { signal: AbortSignal.any([original.signal, signal]) }) : original;
     const started = performance.now();
     const entry = { method: request.method.toUpperCase(), url: redactUrl(request.url), status: null, durationMs: 0 };
@@ -133109,10 +133109,10 @@ function redactValue(value2, depth) {
   for (const [name3, v] of Object.entries(value2)) out[name3] = hidesValue(name3, v) ? "[redacted]" : redactValue(v, depth + 1);
   return out;
 }
-function auditInput(def, input3) {
-  if (input3 === null || typeof input3 !== "object" || Array.isArray(input3)) return redactValue(input3, 0);
+function auditInput(def, input4) {
+  if (input4 === null || typeof input4 !== "object" || Array.isArray(input4)) return redactValue(input4, 0);
   const out = {};
-  for (const [name3, value2] of Object.entries(input3)) {
+  for (const [name3, value2] of Object.entries(input4)) {
     const rule = def.auditInput?.[name3];
     if (rule === "drop") continue;
     if (rule === "hash" && value2 !== void 0) {
@@ -133528,7 +133528,7 @@ function fromVersion2(raw3, path2, warnings2) {
   }
   return { connections: connections2, defaults };
 }
-var RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/, /^TOIL_WORKSPACE$/];
+var RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/, /^TOIL_WORKSPACE$/, /^TOIL_FEEDBACK_URL$/];
 function snake(key6) {
   return key6.replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1_$2").toUpperCase();
 }
@@ -133634,7 +133634,7 @@ init_errors();
 var KEYCHAIN_PREFIX = "keychain:";
 var SERVICE = "toil";
 var REF_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
-var spawnProgram = (command, args, input3, signal) => new Promise((resolve10) => {
+var spawnProgram = (command, args, input4, signal) => new Promise((resolve10) => {
   const child = spawn(command, args, { shell: false, windowsHide: true, timeout: 3e4, ...signal ? { signal } : {} });
   let stdout = "";
   let stderr = "";
@@ -133645,7 +133645,7 @@ var spawnProgram = (command, args, input3, signal) => new Promise((resolve10) =>
   child.stdin.on("error", () => {
   });
   child.on("close", (status) => resolve10({ status, stdout, stderr, error: error62 }));
-  child.stdin.end(input3);
+  child.stdin.end(input4);
 });
 function isKeychainRef(value2) {
   return typeof value2 === "string" && value2.startsWith(KEYCHAIN_PREFIX);
@@ -133847,7 +133847,7 @@ function none(platform) {
 function createSecretStore(options2 = {}) {
   const platform = options2.platform ?? process.platform;
   const wrap = options2.testOnlyProgram;
-  const run3 = options2.spawn ?? (wrap ? (command, args, input3, signal) => spawnProgram(wrap.command, [...wrap.args, command, ...args], input3, signal) : spawnProgram);
+  const run3 = options2.spawn ?? (wrap ? (command, args, input4, signal) => spawnProgram(wrap.command, [...wrap.args, command, ...args], input4, signal) : spawnProgram);
   if (platform === "darwin") return macos(run3);
   if (platform === "win32") return windows(run3);
   if (platform === "linux") return linux(run3);
@@ -133866,7 +133866,7 @@ async function storeVerified(store, ref2, secret, signal) {
 init_errors();
 import { createInterface } from "node:readline/promises";
 import { Writable } from "node:stream";
-function terminalPrompter(input3, output3) {
+function terminalPrompter(input4, output3) {
   let muted3 = false;
   const echo = new Writable({
     write(chunk, _encoding, done) {
@@ -133875,7 +133875,7 @@ function terminalPrompter(input3, output3) {
     }
   });
   const read = async (question, secret) => {
-    const rl = createInterface({ input: input3, output: echo, terminal: true });
+    const rl = createInterface({ input: input4, output: echo, terminal: true });
     const cancelled2 = new Promise(
       (_2, reject) => (
         // In raw mode Ctrl+C reaches readline, not the process.
@@ -133883,9 +133883,11 @@ function terminalPrompter(input3, output3) {
       )
     );
     try {
+      const cut2 = secret ? -1 : question.lastIndexOf("\n");
+      if (cut2 >= 0) output3.write(question.slice(0, cut2 + 1));
       if (secret) output3.write(question);
       muted3 = secret;
-      return (await Promise.race([rl.question(secret ? "" : question), cancelled2])).trim();
+      return (await Promise.race([rl.question(secret ? "" : question.slice(cut2 + 1)), cancelled2])).trim();
     } finally {
       muted3 = false;
       if (secret) output3.write("\n");
@@ -134142,25 +134144,25 @@ var Protocol = class {
     });
   }
   _resetTimeout(messageId) {
-    const info = this._timeoutInfo.get(messageId);
-    if (!info)
+    const info2 = this._timeoutInfo.get(messageId);
+    if (!info2)
       return false;
-    const totalElapsed = Date.now() - info.startTime;
-    if (info.maxTotalTimeout && totalElapsed >= info.maxTotalTimeout) {
+    const totalElapsed = Date.now() - info2.startTime;
+    if (info2.maxTotalTimeout && totalElapsed >= info2.maxTotalTimeout) {
       this._timeoutInfo.delete(messageId);
       throw McpError.fromError(ErrorCode.RequestTimeout, "Maximum total timeout exceeded", {
-        maxTotalTimeout: info.maxTotalTimeout,
+        maxTotalTimeout: info2.maxTotalTimeout,
         totalElapsed
       });
     }
-    clearTimeout(info.timeoutId);
-    info.timeoutId = setTimeout(info.onTimeout, info.timeout);
+    clearTimeout(info2.timeoutId);
+    info2.timeoutId = setTimeout(info2.onTimeout, info2.timeout);
     return true;
   }
   _cleanupTimeout(messageId) {
-    const info = this._timeoutInfo.get(messageId);
-    if (info) {
-      clearTimeout(info.timeoutId);
+    const info2 = this._timeoutInfo.get(messageId);
+    if (info2) {
+      clearTimeout(info2.timeoutId);
       this._timeoutInfo.delete(messageId);
     }
   }
@@ -134205,8 +134207,8 @@ var Protocol = class {
     this._progressHandlers.clear();
     this._taskProgressTokens.clear();
     this._pendingDebouncedNotifications.clear();
-    for (const info of this._timeoutInfo.values()) {
-      clearTimeout(info.timeoutId);
+    for (const info2 of this._timeoutInfo.values()) {
+      clearTimeout(info2.timeoutId);
     }
     this._timeoutInfo.clear();
     for (const controller of this._requestHandlerAbortControllers.values()) {
@@ -134996,12 +134998,12 @@ var AjvJsonSchemaValidator = class {
    */
   getValidator(schema3) {
     const ajvValidator = "$id" in schema3 && typeof schema3.$id === "string" ? this._ajv.getSchema(schema3.$id) ?? this._ajv.compile(schema3) : this._ajv.compile(schema3);
-    return (input3) => {
-      const valid = ajvValidator(input3);
+    return (input4) => {
+      const valid = ajvValidator(input4);
       if (valid) {
         return {
           valid: true,
-          data: input3,
+          data: input4,
           errorMessage: void 0
         };
       } else {
@@ -135667,13 +135669,13 @@ function defineArea(spec) {
     if (key6 in spec.connection.shape || key6 in (spec.renamed ?? {})) throw new Error(`Area ${spec.name}: removed key "${key6}" is still a connection key or a renamed one.`);
   }
   const context = { ...spec.context ?? {} };
-  for (const [name3, input3] of Object.entries(context)) {
+  for (const [name3, input4] of Object.entries(context)) {
     if (RESERVED_INPUTS.has(name3)) throw new Error(`Area ${spec.name}: "${name3}" can't be a context input; core or a global flag already uses it.`);
-    if (input3.setting !== void 0 && !(input3.setting in spec.connection.shape)) {
-      throw new Error(`Area ${spec.name}: context input "${name3}" reads setting "${input3.setting}", which isn't a connection key.`);
+    if (input4.setting !== void 0 && !(input4.setting in spec.connection.shape)) {
+      throw new Error(`Area ${spec.name}: context input "${name3}" reads setting "${input4.setting}", which isn't a connection key.`);
     }
-    if (input3.selectsConnection && !((input3.setting ?? name3) in spec.connection.shape)) {
-      throw new Error(`Area ${spec.name}: context input "${name3}" selects a connection by "${input3.setting ?? name3}", which must be a connection key.`);
+    if (input4.selectsConnection && !((input4.setting ?? name3) in spec.connection.shape)) {
+      throw new Error(`Area ${spec.name}: context input "${name3}" selects a connection by "${input4.setting ?? name3}", which must be a connection key.`);
     }
   }
   const connection5 = spec.shares ? withPairing(spec, secretKinds) : spec.connection;
@@ -135712,13 +135714,13 @@ function defineArea(spec) {
       const needs = contextFor(spec.name, name3, context, def.context ?? {});
       const fields3 = {};
       const options2 = [];
-      for (const input3 of Object.keys(needs)) {
-        const declared = context[input3];
-        if (input3 in def.input.shape) throw new Error(`Command ${name3}: "${input3}" is a context input of ${spec.name}; core adds it.`);
-        const description3 = describeInput(input3, declared);
-        fields3[input3] = (declared.schema ?? external_exports.string().min(1)).optional().describe(description3);
-        const flags = declared.flags ?? `--${kebab(input3)} <value>`;
-        options2.push({ flags, field: input3, description: description3, ...(declared.scope ?? "group") === "group" ? { group: true } : {} });
+      for (const input4 of Object.keys(needs)) {
+        const declared = context[input4];
+        if (input4 in def.input.shape) throw new Error(`Command ${name3}: "${input4}" is a context input of ${spec.name}; core adds it.`);
+        const description3 = describeInput(input4, declared);
+        fields3[input4] = (declared.schema ?? external_exports.string().min(1)).optional().describe(description3);
+        const flags = declared.flags ?? `--${kebab(input4)} <value>`;
+        options2.push({ flags, field: input4, description: description3, ...(declared.scope ?? "group") === "group" ? { group: true } : {} });
       }
       return {
         ...def,
@@ -135746,10 +135748,10 @@ function defineArea(spec) {
 }
 function contextFor(area31, command, declared, listed4) {
   const needs = {};
-  for (const [input3, spec] of Object.entries(declared)) if ((spec.scope ?? "group") === "group") needs[input3] = "optional";
-  for (const [input3, need] of Object.entries(listed4)) {
-    if (!(input3 in declared)) throw new Error(`Command ${command}: "${input3}" isn't a context input of ${area31}.`);
-    needs[input3] = need;
+  for (const [input4, spec] of Object.entries(declared)) if ((spec.scope ?? "group") === "group") needs[input4] = "optional";
+  for (const [input4, need] of Object.entries(listed4)) {
+    if (!(input4 in declared)) throw new Error(`Command ${command}: "${input4}" isn't a context input of ${area31}.`);
+    needs[input4] = need;
   }
   return needs;
 }
@@ -136010,7 +136012,7 @@ async function takeShared(config5, area31, name3, stored, merged, io) {
     if (io.report) io.report[key6] = { area: other.name, connection: from, source: theirs.source, via };
   }
 }
-function selectConnection(config5, area31, input3, setting, value2, flag, source2 = "input") {
+function selectConnection(config5, area31, input4, setting, value2, flag, source2 = "input") {
   const where6 = { input: "the call", file: "the input file", dossier: "your dossier", git: "the git remote", connection: "the connection", default: "the area's default" }[source2];
   const instead = source2 === "input" ? "" : `, or correct ${where6}`;
   const names2 = connectionsOf(config5, area31.name);
@@ -136019,7 +136021,7 @@ function selectConnection(config5, area31, input3, setting, value2, flag, source
   if (matches2.length === 1) return matches2[0];
   if (matches2.length === 0) {
     const known = names2.map((n) => config5.connections[n][setting] === void 0 ? n : `${String(config5.connections[n][setting])} (connection ${n})`);
-    throw new ToilError("INVALID_INPUT", `${area31.name} has no ${input3} "${value2}" (from ${where6}). It knows: ${known.join(", ") || "none"}.`, {
+    throw new ToilError("INVALID_INPUT", `${area31.name} has no ${input4} "${value2}" (from ${where6}). It knows: ${known.join(", ") || "none"}.`, {
       fix: names2.length ? `Pass ${flag} with one of those, or --connection <name>${instead}; or set ${setting} on the connection you mean.` : `Add ${withArticle(area31.name)} connection with ${setting} "${value2}" to your toil config${instead}.`
     });
   }
@@ -136042,7 +136044,7 @@ function requiredKeys(schema3) {
 // src/core/call-context.ts
 init_errors();
 var noDossier = () => void 0;
-async function resolveCall(def, input3, sources, warn, signal, report = {}) {
+async function resolveCall(def, input4, sources, warn, signal, report = {}) {
   const area31 = def.area;
   const declared = area31.context;
   const needs = def.context ?? {};
@@ -136060,16 +136062,16 @@ async function resolveCall(def, input3, sources, warn, signal, report = {}) {
   const early = {};
   for (const name3 of Object.keys(needs)) {
     const spec = declared[name3];
-    const explicit = input3[name3];
+    const explicit = input4[name3];
     if (typeof explicit === "string") {
       early[name3] = { value: explicit, source: "input" };
       continue;
     }
-    const fromDossier = spec.selectsConnection && typeof input3.connection === "string" ? void 0 : dossier(area31.name, name3, input3);
+    const fromDossier = spec.selectsConnection && typeof input4.connection === "string" ? void 0 : dossier(area31.name, name3, input4);
     const found = checked(area31, name3, spec, fromDossier, "dossier") ?? (spec.selectsConnection ? checked(area31, name3, spec, await fromGit(spec, void 0), "git") : void 0);
     if (found) early[name3] = found;
   }
-  const chosen2 = chooseConnection(sources.config, area31, def, input3, early, dossier);
+  const chosen2 = chooseConnection(sources.config, area31, def, input4, early, dossier);
   const shared = {};
   const connection5 = await resolveConnection(sources.config, area31, chosen2?.value, warn, sources.secrets, signal, { shared });
   report.connection = chosen2 ? { value: connection5.name, source: chosen2.source, ...chosen2.via ? { via: chosen2.via } : {} } : { value: connection5.name, source: "default", default: defaultKind(sources.config, area31, connection5.name) };
@@ -136113,9 +136115,9 @@ function defaultKind(config5, area31, name3) {
   if (typeof config5.defaults[area31.name]?.connection === "string") return "named";
   return name3 === area31.name ? "area-name" : "only";
 }
-function chooseConnection(config5, area31, def, input3, early, dossier) {
+function chooseConnection(config5, area31, def, input4, early, dossier) {
   const declared = area31.context;
-  const named = (source2) => source2 === "input" ? typeof input3.connection === "string" ? input3.connection : void 0 : source2 === "dossier" ? dossier(area31.name, "connection", input3) : void 0;
+  const named = (source2) => source2 === "input" ? typeof input4.connection === "string" ? input4.connection : void 0 : source2 === "dossier" ? dossier(area31.name, "connection", input4) : void 0;
   for (const source2 of ["input", "dossier", "git"]) {
     const name3 = named(source2);
     let pick3 = name3 === void 0 ? void 0 : { value: name3, source: source2 };
@@ -136750,16 +136752,16 @@ async function execute(def, rawInput, ctx, via = "cli", how = {}) {
     });
     aborted2.catch(() => {
     });
-    const input3 = parsed.data;
-    writing = writesFor(def, input3);
-    if (how.readOnly && changesAnythingFor(def, input3)) throw readOnlyRefusal(def);
-    const offMcp = via !== "cli" ? def.offMcpWhen?.(input3) : void 0;
+    const input4 = parsed.data;
+    writing = writesFor(def, input4);
+    if (how.readOnly && changesAnythingFor(def, input4)) throw readOnlyRefusal(def);
+    const offMcp = via !== "cli" ? def.offMcpWhen?.(input4) : void 0;
     if (offMcp) throw new ToilError("INVALID_INPUT", `${commandName(def)}: ${offMcp}`, { fix: `Only a person can make this call, on the CLI with toil ${commandName(def)}.` });
     const partial2 = {};
     if (usesConnection(def)) report = partial2;
-    const optional2 = def.connectionOptional === true && typeof input3.connection !== "string" && !Object.entries(def.area?.context ?? {}).some(([name3, spec]) => spec?.selectsConnection && typeof input3[name3] === "string");
+    const optional2 = def.connectionOptional === true && typeof input4.connection !== "string" && !Object.entries(def.area?.context ?? {}).some(([name3, spec]) => spec?.selectsConnection && typeof input4[name3] === "string");
     const unconfigured = optional2 && defaultConnectionName(ctx.config, areaOf(def)) === void 0 && connectionsOf(ctx.config, areaOf(def)).length === 0;
-    const place = usesConnection(def) && ctx.dossiers ? ctx.dossiers.place({ dossier: input3.dossier, cwd: input3.cwd }) : void 0;
+    const place = usesConnection(def) && ctx.dossiers ? ctx.dossiers.place({ dossier: input4.dossier, cwd: input4.cwd }) : void 0;
     let warned = 0;
     reportDossier = () => {
       if (!place) return;
@@ -136778,13 +136780,13 @@ async function execute(def, rawInput, ctx, via = "cli", how = {}) {
         const dossier = ctx.dossiers ? place?.lookup : ctx.dossier;
         try {
           call2 = await Promise.race([
-            resolveCall(def, input3, { config: ctx.config, secrets: ctx.secrets, dossier, gitRemote: place?.gitRemote ?? ctx.gitRemote }, (w) => warnings2.push(w), controller.signal, partial2),
+            resolveCall(def, input4, { config: ctx.config, secrets: ctx.secrets, dossier, gitRemote: place?.gitRemote ?? ctx.gitRemote }, (w) => warnings2.push(w), controller.signal, partial2),
             aborted2
           ]);
         } finally {
           reportDossier();
           const chosen2 = partial2.connection;
-          const host = chosen2?.source === "dossier" ? place?.hostFor(areaOf(def), input3) : void 0;
+          const host = chosen2?.source === "dossier" ? place?.hostFor(areaOf(def), input4) : void 0;
           if (chosen2 && host) chosen2.host = host;
         }
       } catch (err) {
@@ -136793,7 +136795,7 @@ async function execute(def, rawInput, ctx, via = "cli", how = {}) {
       }
     }
     const connection5 = call2?.connection;
-    if (writing) assertWritesAllowed(def, input3, connection5, call2?.report, place ? place.adopted : ctx.adopted, ctx);
+    if (writing) assertWritesAllowed(def, input4, connection5, call2?.report, place ? place.adopted : ctx.adopted, ctx);
     const rest = { ...ctx };
     delete rest.config;
     delete rest.env;
@@ -136821,7 +136823,7 @@ async function execute(def, rawInput, ctx, via = "cli", how = {}) {
       ...managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt, dossiers: ctx.dossiers, env: ctx.env, via, audit: ctx.audit } } : {},
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
-      // A listing's warnings (a refused git include) land in meta.warnings without the command passing anything.
+      // A listing's warnings (a refused git include, a skipped .gitignore line) land in meta.warnings without the command passing anything.
       files: {
         ...ctx.files,
         list: (dir, options2) => ctx.files.list(dir, { ...options2, warn: options2?.warn ?? ((w) => warnings2.push(w)) }),
@@ -136834,7 +136836,7 @@ async function execute(def, rawInput, ctx, via = "cli", how = {}) {
       ...ctx.git ? { git: { run: (call3) => ctx.git.run(call3, controller.signal) } } : {},
       // A call's `cwd` names the folder its repository is read from; otherwise the workspace's.
       repo: () => (place?.repo ?? ctx.repo)?.(),
-      dossierFields: () => place && def.area ? place.fields(def.area.name, input3) : {},
+      dossierFields: () => place && def.area ? place.fields(def.area.name, input4) : {},
       dossierView: () => place && def.area ? place.view(def.area.name) : void 0,
       warn: (warning) => warnings2.push(warning),
       setPage: (p) => page2 = p,
@@ -136874,9 +136876,9 @@ function readOnlyRefusal(def) {
     fix: "Make the call without readOnly if you mean to make this change; it then goes through the write gate as usual."
   });
 }
-function assertWritesAllowed(def, input3, connection5, report, adopted, ctx) {
+function assertWritesAllowed(def, input4, connection5, report, adopted, ctx) {
   if (isCliOnly(def)) {
-    if (input3.allowWrite === true) return;
+    if (input4.allowWrite === true) return;
     throw new ToilError("WRITE_DISABLED", `${commandName(def)} changes files on this machine and needs --allow-write on the call.`, {
       fix: "Re-run with --allow-write if you mean to make this change."
     });
@@ -136896,7 +136898,7 @@ function assertWritesAllowed(def, input3, connection5, report, adopted, ctx) {
       fix: `To allow writes, set "writes": true on connection "${name3}" in your toil config (or ${variable}=true), then pass --allow-write.`
     });
   }
-  if (input3.allowWrite !== true) {
+  if (input4.allowWrite !== true) {
     throw new ToilError("WRITE_DISABLED", `${commandName(def)} changes data and needs --allow-write on the call.`, {
       fix: "Re-run with --allow-write if you mean to make this change."
     });
@@ -136908,7 +136910,7 @@ var allowWriteField = {
 
 // src/skill-pages.generated.ts
 var skillFiles = {
-  "SKILL.md": "---\nname: toil\ndescription: Use toil, a structured-JSON CLI and MCP server, to read from and (when allowed) write to databases and the enterprise tools an organization runs, such as issue trackers, source hosts, wikis, CI, artifact repositories, scanners and observability. Use when a task needs data from one of those tools or a database, or mentions `toil` commands, `toil mcp`, a toil connection, or a TOIL_* environment variable.\n---\n\n# toil\n\ntoil is the token-efficient alternative to MCP: the same commands as a CLI, each\nreturning one compact envelope, with this skill read a file at a time rather than\nevery tool schema up front. Keep it lean: `--select` the fields you need, and\n`toil wait` rather than polling.\n\nIf `toil version` doesn't print an envelope, toil isn't installed yet: `install.md`,\nbeside this file, says how.\n\n## Every call\n\n- **Output.** Every command prints one JSON envelope on stdout: `{ ok, data, error,\n  meta }`. Check `ok`; on failure, `error.code` says what kind of failure it was and\n  `error.fix` what to do about it. `meta.warnings` lists what's worth knowing that\n  isn't a failure, and `meta.page.nextCursor` the next page, when there is one.\n- **Two front doors, one command.** `toil <area> <command>` on the command line, or\n  the MCP tool named after its path (`db_query`) from `toil mcp --areas <area>`, with\n  identical inputs and output.\n- **Writes.** Reads are always allowed. A command that changes data needs\n  `writes: true` on the connection, set by a person, and `--allow-write` on the call\n  (`allowWrite: true` over MCP). Only make a write the user asked for. Three writes\n  differ, each listed in `core.md` under **Writes**.\n- **Connections.** Environment variables always win over `~/.toil/config.json`.\n  `--connection <name>` picks one when an area has several; `toil connections list`\n  names them, never a secret. Setting one up is for a person: a bare `toil` in a\n  terminal opens a menu for them.\n- **Files** a command reads or writes stay inside the workspace (`--workspace <dir>`,\n  else the working directory).\n- **Less output.** `--select <expression>` keeps only the fields you name, and\n  `toil wait --until <expression> -- <read>` repeats a read until it's true, instead\n  of polling yourself.\n\n## Where to look\n\nOpen only the file the task needs; each sits beside this one.\n\n| File | When |\n|------|------|\n| `core.md` | `--select`, `toil wait`, paging and progress, errors, writes and their exceptions, global flags, files, configuration, the raw `api` passthrough, dossiers, the audit log, calling toil from a program (`@imagile-dev/toil/api`), certificates and proxies |\n| `<area>.md` | One per area, named after it: `jira.md` for `toil jira \u2026`. Its frontmatter says what the area covers; the file gives the oldest version it supports, its credential, its configuration keys and every command |\n| `db.md` | Databases: `toil db \u2026` on every engine |\n| `util.md` | Local utilities with no connection or network: `toil util \u2026` |\n| `skills.md` | Skills marketplaces, and keeping this skill installed |\n| `mcp.md` | Running toil as an MCP server and registering it with an agent |\n| `install.md` | Installing toil, and this skill |\n\n`toil --help` lists the areas this install has.\n",
+  "SKILL.md": "---\nname: toil\ndescription: Use toil, a structured-JSON CLI and MCP server, to read from and (when allowed) write to databases and the enterprise tools an organization runs, such as issue trackers, source hosts, wikis, CI, artifact repositories, scanners and observability. Use when a task needs data from one of those tools or a database, or mentions `toil` commands, `toil mcp`, a toil connection, or a TOIL_* environment variable.\n---\n\n# toil\n\ntoil is the token-efficient alternative to MCP: the same commands as a CLI, each\nreturning one compact envelope, with this skill read a file at a time rather than\nevery tool schema up front. Keep it lean: `--select` the fields you need, and\n`toil wait` rather than polling.\n\nIf `toil version` doesn't print an envelope, toil isn't installed yet: `install.md`,\nbeside this file, says how.\n\n## Every call\n\n- **Output.** Every command prints one JSON envelope on stdout: `{ ok, data, error,\n  meta }`. Check `ok`; on failure, `error.code` says what kind of failure it was and\n  `error.fix` what to do about it. `meta.warnings` lists what's worth knowing that\n  isn't a failure, and `meta.page.nextCursor` the next page, when there is one.\n- **Two front doors, one command.** `toil <area> <command>` on the command line, or\n  the MCP tool named after its path (`db_query`) from `toil mcp --areas <area>`, with\n  identical inputs and output.\n- **Writes.** Reads are always allowed. A command that changes data needs\n  `writes: true` on the connection, set by a person, and `--allow-write` on the call\n  (`allowWrite: true` over MCP). Only make a write the user asked for. Four writes\n  differ, each listed in `core.md` under **Writes**.\n- **Connections.** Environment variables always win over `~/.toil/config.json`.\n  `--connection <name>` picks one when an area has several; `toil connections list`\n  names them, never a secret. Setting one up is for a person: a bare `toil` in a\n  terminal opens a menu for them.\n- **Files** a command reads or writes stay inside the workspace (`--workspace <dir>`,\n  else the working directory).\n- **Feedback** to Imagile (`toil feedback`) only when the user asks, scrubbed of\n  company data, shown to them in full with its disclaimer, and sent with `--consent`\n  only after their yes to that exact report: `core.md`, **Feedback**.\n- **Less output.** `--select <expression>` keeps only the fields you name, and\n  `toil wait --until <expression> -- <read>` repeats a read until it's true, instead\n  of polling yourself.\n\n## Where to look\n\nOpen only the file the task needs; each sits beside this one.\n\n| File | When |\n|------|------|\n| `core.md` | `--select`, `toil wait`, paging and progress, errors, writes and their exceptions, global flags, files, configuration, the raw `api` passthrough, dossiers, the audit log, calling toil from a program (`@imagile-dev/toil/api`), sending feedback, certificates and proxies |\n| `<area>.md` | One per area, named after it: `jira.md` for `toil jira \u2026`. Its frontmatter says what the area covers; the file gives the oldest version it supports, its credential, its configuration keys and every command |\n| `dossiers.md` | What a dossier is: one body of work mapped to your connections, its file, and how to build and share one |\n| `db.md` | Databases: `toil db \u2026` on every engine |\n| `util.md` | Local utilities with no connection or network: `toil util \u2026` |\n| `skills.md` | Skills marketplaces, and keeping this skill installed |\n| `mcp.md` | Running toil as an MCP server and registering it with an agent |\n| `install.md` | Installing toil, and this skill |\n\n`toil --help` lists the areas this install has.\n",
   "ado-cloud.md": "---\narea: ado-cloud\ndescription: Work items, git repositories and pull requests on Azure DevOps Services (dev.azure.com)\n---\n\n# Azure DevOps Services (`ado-cloud`)\n\nWork items, git repositories and pull requests on **Azure DevOps Services**\n(`https://dev.azure.com/<organization>`, or the older\n`https://<organization>.visualstudio.com`), through its REST API with\n`api-version=7.1`. Built from Microsoft's REST API reference and never run against a\nlive organization. Verification level: `unit`.\n\nFor Azure DevOps Server (on-premises), use the `ado` area instead. The two are\nseparate areas so that neither one's fixes can change the other: a Services\nconnection is one organization, where a Server connection is a server holding\nseveral collections.\n\n**Supported versions:** The oldest Azure DevOps Services version toil supports hasn't been established.\nAzure DevOps Services is always current. toil sends `api-version=7.1`, the newest\nreleased version (7.2 is preview only), with `7.1-preview.1` for connection data and\n`7.1-preview.4` for work item comments, which exist only as previews.\n\n## Credential\n\nAn **organization-scoped personal access token**: in Azure DevOps, User settings \u2192\nPersonal access tokens \u2192 New Token, with **Organization** set to the one organization\nthis connection is for. Give it the scopes the commands you'll use need: Work Items\nand Code, Read (or Read & write for the write commands), plus Project and Team Read\nfor `project list`. toil sends it as `Authorization: Basic base64(\":\" + token)`, with\nan empty user name.\n\n**Don't create a global token** (\"All accessible organizations\"). Microsoft is retiring\nglobal personal access tokens: every existing one stops working on **December 1,\n2026**. A connection is one organization, so an organization-scoped token is all it\nneeds. A `401` or `403` is `AUTH`, and its fix says to create an organization-scoped\ntoken and that global ones are being retired.\n\nThere is no OAuth, Microsoft Entra ID or service principal sign-in: those need a\nbrowser login or an app registration, and toil takes only a token you create once.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_ADO_CLOUD_BASE_URL` | yes | Organization URL: `https://dev.azure.com/<organization>` (or `https://<organization>.visualstudio.com`) |\n| `pat` | `TOIL_ADO_CLOUD_PAT` | yes | Organization-scoped personal access token (a secret) |\n| `project` | `TOIL_ADO_CLOUD_PROJECT` | no | Default project, when `--project` isn't given |\n| `repo` | `TOIL_ADO_CLOUD_REPO` | no | Default git repository, when `--repo` isn't given |\n| `fieldAliases` | `TOIL_ADO_CLOUD_FIELD_ALIASES` | no | Work item field aliases as a JSON object, friendly name to reference name, e.g. `{\"effortdays\": \"MyOrg.EffortDays\"}` |\n| `writes` | `TOIL_ADO_CLOUD_WRITES` | no | `true` lets write commands run (with `--allow-write`) |\n\nA `baseUrl` that doesn't name exactly one organization is refused with\n`CONFIG_INVALID` before anything is sent: `https://dev.azure.com` with no organization\nor with more after it (a project), or a `visualstudio.com` URL with any path other\nthan the legacy `/DefaultCollection`.\n\n```bash\nexport TOIL_ADO_CLOUD_BASE_URL=https://dev.azure.com/imagile\nexport TOIL_ADO_CLOUD_PAT=<your organization-scoped token>\n```\n\nOr `~/.toil/config.json`, with `project` and `repo` usually set once under\n`defaults.ado-cloud`:\n\n```json\n{\n  \"version\": 2,\n  \"connections\": {\n    \"imagile-ado\": { \"area\": \"ado-cloud\", \"baseUrl\": \"https://dev.azure.com/imagile\", \"writes\": true }\n  },\n  \"defaults\": { \"ado-cloud\": { \"connection\": \"imagile-ado\", \"project\": \"Imagile\", \"repo\": \"imagile-api\" } }\n}\n```\n\nThe token never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add imagile-ado --area ado-cloud` (or\n`toil connections login imagile-ado`) to keep it in the OS credential store, or set\n`TOIL_ADO_CLOUD_PAT`. Env vars always win over the file. For a second organization,\nadd a second connection with its own token.\n\n**In Azure Pipelines**, map the job's own token and organization URL into the step:\n\n```yaml\n- script: toil ado-cloud work get --id 42\n  env:\n    TOIL_ADO_CLOUD_PAT: $(System.AccessToken)\n    TOIL_ADO_CLOUD_BASE_URL: $(System.CollectionUri)\n```\n\n`ado-cloud` doesn't read `SYSTEM_ACCESSTOKEN` or `SYSTEM_COLLECTIONURI` on its own.\nAzure Pipelines sets both under the same names on Server and on Services, and the\n`ado` area already takes `SYSTEM_ACCESSTOKEN`, so if both areas read them, one job's\ntoken would configure both. The job token has to be mapped into the step's\nenvironment anyway, so naming it `TOIL_ADO_CLOUD_PAT` costs nothing. On Services,\n`System.CollectionUri` is the organization URL with a trailing slash\n(`https://dev.azure.com/imagile/`), which `baseUrl` accepts.\n\n## Where a command acts\n\n`--project <name>` and `--repo <name>` are group flags, accepted before or after the\ncommand (`toil ado-cloud --project Imagile work search --wiql ...`). Without them,\ntoil uses a dossier, then the connection's `project` and `repo`. The git remote isn't\nread. Over MCP they're the `project` and `repo` fields. `meta.context` says where each\ncame from.\n\n- A work item belongs to the organization, so `work get`, `work update`,\n  `work revisions` and `work get-batch` need neither.\n- `work create`, `work search`, `work list-comments`, `work add-comment`,\n  `work list-iterations` and `repo list` need a project.\n- Every other `repo` command needs a project and a repo.\n- `whoami`, `project list` and `project get` need neither.\n\n## Commands\n\nEvery command also takes `--connection <name>`. Write commands (marked \u270E) need\n`writes: true` on the connection **and** `--allow-write`. Names and flags match\n`ado` wherever the operation is the same. MCP tools are `ado_cloud_<command>`\n(`ado_cloud_work_get`). There are no deletes.\n\n| Command | Flags | Returns |\n|---------|-------|---------|\n| `whoami` | | The token's connection data; `authenticatedUser.id` is the identity id the vote commands use |\n| `project list` | `--limit --cursor` | Projects in the organization |\n| `project get` | `--name` | One project by name or id |\n| `repo list` | | Git repositories in the project |\n| `repo get` | | The repository |\n| `work get` | `--id` | A work item with every field and relation |\n| `work get-batch` | `--id --fields` | `{ count, value, missing }` for several ids |\n| `work create` \u270E | `--type --title --description --assignee --priority --field` | The created work item |\n| `work update` \u270E | `--id --field --rev` | The updated work item |\n| `work search` | `--wiql --updated-since --limit --cursor` | The WIQL answer: matching ids and urls, not fields |\n| `work revisions` | `--id --limit --cursor` | Every revision, oldest first |\n| `work list-comments` | `--id --limit --cursor` | Every comment on the work item |\n| `work add-comment` \u270E | `--id --body` | The new comment |\n| `work list-iterations` | `--depth` | The iteration tree, with dates |\n| `repo list-prs` | `--state --creator --reviewer --created-after --created-before --limit --cursor` | Pull requests |\n| `repo get-pr` | `--id` | One pull request |\n| `repo create-pr` \u270E | `--title --source --target --description --reviewers --draft` | The created pull request |\n| `repo update-pr` \u270E | `--id --title --description --target --draft` | The updated pull request |\n| `repo merge-pr` \u270E | `--id --strategy --delete-source --message` | The pull request, with completion requested |\n| `repo abandon-pr` \u270E | `--id` | The abandoned pull request |\n| `repo list-reviewers` | `--pr` | Reviewers and their votes |\n| `repo approve` \u270E | `--pr` | Your reviewer entry, vote 10 |\n| `repo unapprove` \u270E | `--pr` | Your reviewer entry, vote 0 |\n| `repo wait-for-author` \u270E | `--pr` | Your reviewer entry, vote -5 |\n| `repo list-threads` | `--pr` | Comment threads, as the server returns them |\n| `repo list-comments` | `--pr --inline-only --general-only --include-system` | Every comment, flattened from the threads |\n| `repo add-comment` \u270E | `--pr --body` | The new thread |\n| `repo add-inline-comment` \u270E | `--pr --file --line --body --line-type` | The new thread, on one line of a file |\n| `repo reply-comment` \u270E | `--pr --thread-id --body` | The new reply |\n| `repo resolve-comment` \u270E | `--pr --thread-id --status` | The thread, with its new status |\n| `api` | `--query --body-file --content-type` | Any endpoint (below) |\n\n```bash\ntoil ado-cloud --project Imagile work search --wiql \"SELECT [System.Id] FROM WorkItems\" --updated-since 2026-10-01 --limit 200\ntoil ado-cloud work get-batch --id 42 --id 7 --fields System.Title,System.State\ntoil ado-cloud --project Imagile work create --type Bug --title \"Login broken\" --field storypoints=3 --allow-write\ntoil ado-cloud work update --id 42 --field state=Active --rev 3 --allow-write\ntoil ado-cloud --project Imagile --repo imagile-api repo list-prs --state all --limit 50\ntoil ado-cloud --project Imagile --repo imagile-api repo merge-pr --id 42 --strategy squash --delete-source --allow-write\n```\n\n### Paging\n\n`project list`, `repo list-prs`, `work search`, `work revisions` and\n`work list-comments` return the whole list by default. With `--limit <n>` they return\nat most that many and set `meta.page.nextCursor`; pass it back as `--cursor`, with the\nsame `--limit`, for the next page, until it's `null`. Every list except `work search`\nreads page by page (continuation tokens for projects and comments, `$top` and `$skip`\nfor pull requests and revisions) and stops with an `HTTP` error after 1,000 pages,\nnaming the list.\n\n### Work items\n\n- **Fields.** `--field name=value` takes a reference name\n  (`Microsoft.VSTS.Scheduling.StoryPoints=5`) or an alias, matched ignoring case,\n  spaces and dashes: the connection's `fieldAliases` first, then the built-in ones\n  (`title`, `state`, `assignedto`, `description`, `areapath`, `iterationpath`,\n  `iteration`, `tags`, `priority`, `severity`, `effort`, `storypoints`,\n  `remainingwork`, `remaining`, `acceptancecriteria`, `reprosteps`). Anything else is\n  sent as given. Values are sent as text; the server converts them.\n- **`work update --rev <n>`** adds a JSON Patch `test` of the revision first, so the\n  server refuses the whole change if someone else changed the item since you read it.\n- **`work search`** returns the matching ids and urls, not their fields; fetch those\n  with `work get-batch`. `--updated-since <iso>` keeps only items changed at or after\n  that instant: a date (`2026-10-01`, UTC midnight) or a date-time with its zone\n  (`2026-10-01T09:00:00Z`). toil ANDs `[System.ChangedDate] >= '<instant>'` onto the\n  query's own `WHERE`, in parentheses so an `OR` keeps its meaning, and asks for time\n  precision. Time precision applies to the whole query, so with `--updated-since` an\n  `=` on a date field matches one exact instant, not a day; write date conditions with\n  `>=` and `<` instead. It and `--limit` work on flat queries (`FROM WorkItems`) only;\n  a link query is refused. With `--limit`, each page runs the query again, so an item\n  changed in between can move. A query returns at most 20,000 items.\n- **`work get-batch --id <n> --id <n>`** reads 200 ids per request, at most 1,000 per\n  call. `value` holds the items found in the order asked, with every field and\n  relation, or only `--fields`; `missing` lists each id that doesn't exist or the\n  token can't see, with an `ADO_CLOUD_WORK_ITEMS_MISSING` warning.\n- **`work revisions`** returns each revision as the whole item as it stood after that\n  change, oldest first, so neighbours show what changed and when.\n\n### Pull requests\n\n- Branch names get `refs/heads/`; a full ref (`refs/heads/x`, `refs/tags/x`) is sent as\n  given. `--reviewers` and `--creator` / `--reviewer` take identity ids (from\n  `whoami`, or a pull request's `reviewers[].id`), not names or emails.\n- `--created-after` and `--created-before` take a date (UTC midnight) or a date-time\n  with its zone, as `--updated-since` does.\n- `merge-pr` reads the pull request for its source commit, then asks the server to\n  complete it with `--strategy noFastForward` (default), `squash`, `rebase` or\n  `rebaseMerge`. A pull request with no source commit yet is refused with\n  `INVALID_INPUT` before anything is changed. Completion is asynchronous: check `data.status` and\n  `data.mergeStatus`, which stay `active` and `queued` while policies or conflicts\n  hold it.\n- `update-pr` doesn't change reviewers: the API doesn't take them on that call.\n- `repo list-comments` flattens every live thread's comments, oldest first, each with\n  `threadId` and `threadContext` (null for a general comment). System comments (votes,\n  pushes) are left out unless `--include-system`. `repo list-threads` returns the\n  threads themselves, system ones included.\n- `repo add-inline-comment` anchors on the right (new) side of `--line` unless\n  `--line-type left`; a path without a leading `/` gets one.\n- `repo resolve-comment` sets `--status fixed` (resolved) by default; `wontFix`,\n  `closed`, `byDesign`, `pending`, or `active` to reopen.\n\n## Output, compared with `ado`\n\n`data` is the server's own JSON, so where Services and Server agree it has the same\nshape as `ado`'s, and `toil util owi map` reads `work get`, `work get-batch`,\n`work revisions` and `work list-iterations` output from either area into Open Work\nItems. The differences, for anything that reads both:\n\n- **Work items** (`work get`, `work get-batch`, `work revisions`, `work search`) have\n  the same shape: `id`, `rev`, `fields` keyed by reference name, `relations`, `url`.\n  On Services every `url` is under the organization (`https://dev.azure.com/<org>/_apis/...`)\n  with no collection segment. `work get-batch` returns `{ count, value, missing }`,\n  the same as `ado`'s.\n- **Identities** (`System.AssignedTo`, `System.CreatedBy`, `createdBy`, `reviewers`)\n  are the same object, `{ displayName, id, uniqueName, url, imageUrl, descriptor }`,\n  but on Services `uniqueName` is the user's sign-in email, `descriptor` starts with\n  `aad.` (or `msa.`), and `url` is on `vssps.dev.azure.com`. On Server `uniqueName` is\n  often `DOMAIN\\user`.\n- **`work list-comments`** returns every comment, following continuation tokens;\n  `ado`'s returns only the server's first page. Each comment has the same shape.\n- **`work create`** takes `--type`, `--title` and the other flags, and `--field`; it\n  has no `--input-file` or `--parent`, which `ado`'s has.\n- **`work update`** takes `--field` (and `--rev`); it has no `--input-file`.\n- **`repo list-comments`** leaves system comments out unless `--include-system`;\n  `ado`'s includes them.\n- **Ids** are whole numbers, checked by the schema: `--id 12abc` is refused, where\n  `ado` reads it as 12.\n\n## Any endpoint: `ado-cloud api`\n\nWhen no command above covers an endpoint, `ado-cloud api` calls it directly. It sends\nthe connection's own token, the same way every other `ado-cloud` command does, to a\npath under the organization URL. Add `api-version` yourself:\n\n```bash\ntoil ado-cloud api GET _apis/projects --query api-version=7.1\ntoil ado-cloud api GET Imagile/_apis/wit/workitemtypes --query api-version=7.1 --query '$expand=states'\ntoil ado-cloud api PATCH _apis/wit/workitems/42 --query api-version=7.1 --body-file patch.json --content-type application/json-patch+json --allow-write\n```\n\n- **The path** is relative to `baseUrl`, with or without a leading `/` (in Git Bash\n  on Windows, leave it off: the shell rewrites `/_apis/...` into a file path, which is\n  refused). A full URL, a scheme, `//host`, a leading backslash or a `.` / `..`\n  segment is refused with `INVALID_INPUT` before anything is sent, so the token never\n  leaves the connection's host.\n- **The method decides the gate.** `GET` and `HEAD` are reads. `POST`, `PUT`,\n  `PATCH` and `DELETE` are writes: they need `writes: true` on the connection\n  **and** `--allow-write`. `DELETE` works only on the CLI: over MCP,\n  `ado_cloud_api` refuses it with `INVALID_INPUT`.\n- **`--query key=value`** adds a query parameter; repeat it for more, or to repeat\n  a key. **`--body-file <path>`** sends that file (inside the workspace, or `-` for\n  stdin) as the body, as `application/json` unless `--content-type` says otherwise.\n  A work item change is `application/json-patch+json`.\n- **Output:** a JSON body is `data`, parsed. A text body (`text/*`, XML, or no content\n  type) is `data` as text. Any other body is binary: `data` is its bytes as base64,\n  with an `API_BINARY` warning. Text and binary are capped at 1 MB, with an\n  `API_TRUNCATED` warning when the body was longer. An empty body (a `204`, a `HEAD`)\n  is `null`. `meta.response` is `{ status, contentType }`. Errors use the usual codes\n  (`AUTH`, `NOT_FOUND`, `HTTP`, `NETWORK`) with Azure DevOps's own message. A body\n  labelled JSON that doesn't parse comes back as text, with an `API_NOT_JSON` warning.\n- **Over MCP** it's the `ado_cloud_api` tool, with `method`, `path`, `query` (an array\n  of `key=value` strings), `bodyFile`, `contentType` and `allowWrite`.\n\nPrefer a wrapped command when one exists: it knows the endpoint's paging and quirks,\nand `ado-cloud api` doesn't.\n\n## Notes\n\n- `toil connections test` reads the organization's connection data, which names the\n  token's own user.\n- A 429 is retried after the delay Azure DevOps asks for, as in every area.\n- Not covered yet: pipelines and builds, attachments, work item types, states and\n  fields, areas, links, tags, and PR files and diffs. `ado-cloud api` reaches all of\n  them.\n",
   "ado.md": '---\narea: ado\ndescription: Work items, git repositories, pull requests and pipelines on Azure DevOps Server\n---\n\n# Azure DevOps Server (`ado`)\n\nWork items, git repositories, pull requests and pipelines on **Azure DevOps Server**\n(on-premises), through its REST API with `api-version=7.1`. Verification level:\n`unit`.\n\n**Supported versions:** Azure DevOps Server 2022.1 or later (REST API 7.1). Requests\nsend `api-version=7.1` (`7.1-preview.1` for connection data, `7.1-preview.4` for work\nitem comments), which newer servers also accept. Azure DevOps Server 2022 RTM, 2020\nand 2019 are out of scope: an older server\'s "REST API version out of range" answer\ncomes back as an error saying the server is too old for toil and naming 2022.1.\n\n## Credential\n\nAn Azure DevOps **personal access token**: in Azure DevOps, User settings \u2192 Personal\naccess tokens \u2192 New Token. Give it the scopes the commands you\'ll use need (Work\nItems, Code, Build; Read & write for the write commands). toil sends it as\n`Authorization: Basic base64(":" + token)`, with an empty user name. There is no\npassword or browser login.\n\nIn an Azure Pipelines job, the job\'s own token, `SYSTEM_ACCESSTOKEN`, is read when\n`TOIL_ADO_PAT` isn\'t set (for the default connection, and before anything in the\nconfig file), so a pipeline step needs only `TOIL_ADO_BASE_URL`. Map it into the\nstep\'s environment (`env: SYSTEM_ACCESSTOKEN: $(System.AccessToken)`).\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_ADO_BASE_URL` | yes | Server root, e.g. `https://ado.imagile.dev` (keep any context path, such as `/tfs`) |\n| `pat` | `TOIL_ADO_PAT` (or `SYSTEM_ACCESSTOKEN`) | yes | Personal access token |\n| `collection` | `TOIL_ADO_COLLECTION` | no | Default collection, when `--collection` isn\'t given |\n| `project` | `TOIL_ADO_PROJECT` | no | Default team project, when `--project` isn\'t given |\n| `repo` | `TOIL_ADO_REPO` | no | Default git repository, when `--repo` isn\'t given |\n| `fieldAliases` | `TOIL_ADO_FIELD_ALIASES` | no | Work item field aliases as a JSON object, friendly name to reference name, e.g. `{"storypoints": "Microsoft.VSTS.Scheduling.StoryPoints"}` |\n| `discoveredFields` | `TOIL_ADO_DISCOVERED_FIELDS` | no | Fields an earlier discovery recorded; kept, not read |\n| `discoveredTypes` | `TOIL_ADO_DISCOVERED_TYPES` | no | Work item types an earlier discovery recorded; kept, not read |\n| `writes` | `TOIL_ADO_WRITES` | no | `true` lets write commands run (with `--allow-write`) |\n\nEnvironment variables (CI, or a one-off shell):\n\n```bash\nexport TOIL_ADO_BASE_URL=https://ado.imagile.dev\nexport TOIL_ADO_PAT=<your personal access token>\n```\n\nOr `~/.toil/config.json`, with `collection`, `project` and `repo` usually set once\nunder `defaults.ado`:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "corp-ado": { "area": "ado", "baseUrl": "https://ado.imagile.dev", "writes": true }\n  },\n  "defaults": { "ado": { "connection": "corp-ado", "collection": "DefaultCollection", "project": "Imagile", "repo": "imagile-api" } }\n}\n```\n\nThe token never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add corp-ado --area ado` (or\n`toil connections login corp-ado` for an existing connection) to keep it in the OS\ncredential store, or set `TOIL_ADO_PAT`.\n\n## Where a command acts\n\n`--collection <name>` (or its alias `--organization <name>`), `--project <name>` and\n`--repo <name>` are group flags, accepted before or after the command\n(`toil ado --project Imagile work get --id 42`). Without them, toil reads them from\nthe first of the workspace\'s remotes on the connection\'s host, of any name, trying\n`origin` first\n(`https://<host>[/tfs]/<collection>/<project>/_git/<repo>`, or the `_ssh` forms with\n`ssh://git@<host>` or `git@<host>:`), then the connection\'s `collection`, `project`\nand `repo` settings. `--collection` beats `--organization`, which beats the remote and\nthe settings. An `ssh://` remote with no user, an HTTPS remote with a user name, and\nthe short `<collection>/_git/<project>` form aren\'t read correctly. `meta.context`\nsays where each came from.\n\n**Every command needs a collection and a project**, even the ones that don\'t use\nthem (`whoami`, `project list-collections`), and fails with "Could not determine Azure\nDevOps collection" (or project) when either is missing. Every `repo` command except\n`list` and `create` also needs a repo.\n\nIds are read as whole numbers from the start of the text: `12abc` is 12, and `abc` is\nsent as `NaN`.\n\n## Commands\n\nServer and projects:\n\n- `whoami`, `connection-data`: The collection\'s connection data: the authenticated\n  user (`authenticatedUser.id` is the identity id the vote commands use), the instance\n  and the deployment. The two return the same thing.\n- `project list-collections`: The server\'s project collections.\n- `project list`: Every team project in the collection.\n- `project get`: One team project by `--name`.\n\nWork items (`--id <n>`):\n\n- `work get`: A work item with every field and relation.\n- `work create`: Create one (`--type`, `--title`, `--description`, `--assignee`,\n  `--priority`, `--field name=value` repeatable, `--input-file`). `--parent <id>`\n  adds a parent link afterwards; the result is the item as created, and a failed link\n  is only an `ADO_PARENT_LINK_FAILED` warning, with the item already created.\n- `work update`: Set fields (`--field name=value` repeatable, or `--input-file`).\n- `work transition`: Set `--state`.\n- `work assign`: Assign `--to` a display name or email.\n- `work link`: Link `--id` to `--to`, `--type related` (default), `parent`, `child`,\n  `duplicate`, `duplicate-of`, or a raw relation name.\n- `work search`: Run `--wiql`; returns the matching ids and urls, not their fields.\n  `--updated-since <iso>` keeps only items changed at or after that instant: a date\n  (`2026-10-01`, UTC midnight) or a date-time with its zone (`2026-10-01T09:00:00Z`).\n  toil ANDs `[System.ChangedDate] >= \'<instant>\'` onto the query\'s own `WHERE`, in\n  parentheses so an `OR` keeps its meaning, and asks the server for time precision.\n  Time precision applies to the whole query, so with `--updated-since` an `=` on a\n  date field (`[System.CreatedDate] = @Today`) matches one exact instant, not a day;\n  write date conditions with `>=` and `<` instead.\n  It and `--limit` work on flat queries (`FROM WorkItems`) only; a link query is\n  refused. With `--limit`, each page runs the query again, so an item changed in\n  between can move. A query returns at most 20,000 items, so a page can\'t end past\n  that.\n- `work get-batch --id <n> --id <n>`: Several work items through the batch endpoint,\n  200 ids per request, at most 1,000 per call. Returns `{ count, value, missing }`:\n  `value` holds the items found in the order asked, with every field and relation,\n  or only `--fields System.Title,System.State`; `missing` lists each id that doesn\'t\n  exist or the token can\'t see, with an `ADO_WORK_ITEMS_MISSING` warning.\n- `work revisions --id <n>`: Every revision of a work item, oldest first; each is the\n  whole item as it stood after that change, so neighbours show what changed and when.\n- `work list-comments`, `work add-comment` (`--body`): Comments; listing reads the\n  first page only.\n- `work add-tag`, `work remove-tag`: `--tags a;b` or `a,b`, matched ignoring case. The\n  tag list is read and written back, with no revision check.\n- `work list-attachments`: The attached files (id, name, url, size, dates).\n- `work add-attachment`: Upload `--file` (a path in the workspace), then link it\n  (`--comment` optional). Returns the uploaded attachment\'s `{ id, url }`. If the link\n  fails, the upload stays on the server.\n- `work download-attachment`: Save `--attachment-id` to `--dir` (default `.toil`) in\n  the workspace; returns `{ saved, name, size }`. It never overwrites a file. The\n  token only goes to the configured host: an attachment URL naming another host is\n  fetched from the configured one, with an `ADO_ATTACHMENT_HOST` warning.\n- `work list-areas`, `work list-iterations`: The area or iteration tree, `--depth`\n  (default 10).\n- `work types`: The work item types with their states and required fields.\n- `work list-states`: The states of `--type`.\n- `work fields`: The collection\'s fields, or with `--type` a type\'s (those have no\n  `type` or `readOnly`); `--custom-only` drops `System.*` and `Microsoft.VSTS.*`.\n- `work schema`: The `--input-file` JSON schema and an example; `--example-only`\n  returns just the example as `data`. Needs no connection.\n\n`work types` and `work fields` have no `--save`; passing it is an unknown option.\nThe aliases `--save` would store are the built-in ones below, which apply anyway.\n`--discover` is accepted and changes nothing.\n\nField names in `--field` and `--input-file` resolve through the connection\'s\n`fieldAliases`, then the built-in aliases (`title`, `state`, `description`,\n`priority`, `storypoints`, `acceptancecriteria`, `reprosteps` and others), matched\nignoring case, spaces and dashes; anything else is sent as a reference name\n(`MyOrg.Team`). To add your own alias, set `fieldAliases` as a JSON object:\n`toil connections add <name> --area ado` asks for it when setting up a connection;\non one that exists, add `"fieldAliases": { "effortdays": "MyOrg.EffortDays" }` to it\nin `~/.toil/config.json`, or set `TOIL_ADO_FIELD_ALIASES` (or\n`TOIL_CONN_<NAME>_FIELD_ALIASES`) to the JSON. An `--input-file` is\n`{ "type": "Bug", "fields": { "Title": "...", "Description": "@desc.html" } }`: a value\nstarting with `@` is read from that file. Flags win over the file, with an\n`ADO_INPUT_OVERRIDDEN` warning naming the keys.\n\nRepositories and pull requests:\n\n- `repo list`, `repo create` (`--name`), `repo get`: Repositories in the project.\n- `repo list-prs`: Every pull request, `--state active` (default), `abandoned`,\n  `completed` or `all`. `--creator` and `--reviewer` are sent as identity id filters,\n  so pass an id (from `whoami`), not an alias. `--created-after` and\n  `--created-before` take ISO 8601 dates; a date alone is UTC midnight, a date-time\n  without a zone is local time.\n- `repo get-pr`: One by `--id`.\n- `repo create-pr`: `--title`, `--source`, `--target` (default `main`),\n  `--description`, `--reviewers <id,id>` (identity ids), `--draft`. Give branch names\n  without `refs/heads/`, which toil adds (a full ref gets it twice).\n- `repo update-pr`: `--title`, `--description`, `--reviewers`, `--draft true|false`,\n  in one PATCH.\n- `repo merge-pr`: Ask the server to complete it, `--strategy noFastForward`\n  (default), `squash`, `rebase` or `rebaseMerge`, `--delete-source`. Completion is\n  asynchronous; check `data.status`.\n- `repo abandon-pr`: Abandon it.\n- `repo list-comments --pr <n>`: Every comment of every thread, oldest first, with\n  `threadId` and `threadContext` (null for a general comment); system comments\n  included. `--inline-only` or `--general-only` narrows it.\n- `repo add-comment`, `repo add-inline-comment` (`--file /src/a.ts --line 12`,\n  `--line-type left|right`, default `right`), `repo reply-comment --thread-id`,\n  `repo resolve-comment --thread-id` (status `fixed`).\n- `repo delete-comment --thread-id --comment-id`: Returns `{ "deleted": true }`. CLI\n  only: deletes are never exposed through MCP.\n- `repo list-files --pr <n>`: Changed files of the latest iteration, at most 100.\n- `repo diff --pr <n>`: Changed files between the last merge commits, at most 100;\n  `--path` keeps one file (a leading `/` is added).\n- `repo get-build-status --commit <sha>`: Statuses posted to a commit.\n- `repo list-reviewers --pr <n>`: Reviewers and their votes.\n- `repo list-default-reviewers`: Required reviewers policies covering the repository.\n- `repo approve`, `repo unapprove`, `repo wait-for-author` (`--pr <n>`): Vote 10, 0 or\n  -5 as the token\'s own user.\n- `repo list-builds --pr <n>`: Builds of the pull request\'s source branch (not of its\n  merge ref).\n\nPipelines:\n\n- `pipeline list`, `pipeline get --id`: Pipelines (build definitions).\n- `pipeline run --id`: Queue a run, `--branch` (a short name gets `refs/heads/`),\n  `--parameter k=v` repeatable. `--wait` polls every `--poll` seconds (10) for up to\n  `--timeout` seconds (600). A result other than `succeeded` still returns the build,\n  with an `ADO_BUILD_NOT_SUCCEEDED` warning, and the CLI exits 1. The command\'s own\n  time limit is 11 minutes, so a longer `--timeout` also needs `TOIL_TIMEOUT_MS`.\n- `pipeline list-runs`: Runs, `--definition <id>` or `--name <pipeline>`, `--branch`\n  (as given, e.g. `refs/heads/main`), `--status`, `--top` (default 50; `--top 0`\n  lists every run).\n- `pipeline get-run --id`, `pipeline cancel-run --id`: One run; cancel it.\n- `pipeline logs --build-id <n>` (or `--id`): The run\'s logs; with `--log-id`, that\n  log\'s text as `{ "log": "..." }`.\n\nPaging: `project list`, `pipeline list`, `pipeline list-runs`, `repo list-prs`,\n`repo list-builds`, `work search` and `work revisions` return the whole list by\ndefault. With `--limit <n>` they return at most that many and set\n`meta.page.nextCursor`; pass it back as `--cursor`, with the same `--limit`, for the\nnext page, until it\'s `null`. `pipeline list-runs` takes `--limit` or `--top`, not\nboth. Every list except `work search` (one request) reads page by page and stops\nwith an `HTTP` error after 1,000 pages, naming the list.\n\nWrite commands need `writes: true` on the connection and `--allow-write` on the call.\n\n```bash\ntoil ado --collection DefaultCollection --project Imagile work get --id 42\ntoil ado work create --type Bug --title "Login broken" --field "Story Points=3" --allow-write\ntoil ado --repo imagile-api repo list-prs --state all\ntoil ado work search --wiql "SELECT [System.Id] FROM WorkItems" --updated-since 2026-10-01 --limit 200\ntoil ado work get-batch --id 42 --id 7 --fields System.Title,System.State\ntoil ado pipeline run --id 5 --branch main --wait --allow-write\n```\n\n## Checking a dossier\n\n`check-dossier` checks the call\'s dossier against the server: each team project it names (`project`, per repo or not, and `projects`) exists in its collection, and each repository (`repo`) in its project. The collection is the section\'s `collection`, else `--collection` or the connection\'s; a value with no collection anywhere is `INVALID_INPUT`. It\'s `toil ado check-dossier` (`--dossier <name|file>`, or the dossier the folder resolves to), and it returns `{ dossier, connection, env, ok, checked, checks, unchecked }`, one check per value with its key path. The CLI exits 1 when one is missing. A failure other than not-found (a bad token, an unreachable host) fails the command. Read only.\n',
   "alation.md": '---\narea: alation\ndescription: Data sources, schemas, tables, columns, catalog search and Document Hub folders and documents on Alation\n---\n\n# Alation (`alation`)\n\nThe **Alation** data catalog (data sources, schemas, tables, columns and full-text\nsearch) and its **Document Hubs** (folders and documents), through the Integration\nAPI under `/integration/v1` and `/integration/v2`. Document `create` and `update`\nwrite; everything else reads. Verification level: `unit`.\n\n**Supported versions:** The oldest Alation version toil supports hasn\'t been established. toil needs\nthe token APIs under `integration/v1` and the Document Hub endpoints under\n`integration/v2` (document, folder); releases with only Articles lack the latter. No\nrelease has been verified yet.\n\n## Credential\n\nAn Alation **refresh token** and the **numeric user ID** it belongs to: in Alation,\nyour profile \u2192 Account Settings \u2192 Authentication \u2192 Create Refresh Token. Alation shows the\nuser ID with the token. Refresh tokens last 60 days by default.\n\ntoil never sends the refresh token to the data API. It POSTs it, with the user ID, to\n`integration/v1/createAPIAccessToken/` on the connection\'s own host, and sends the\n24-hour API access token it gets back as the `TOKEN` header. The access token is kept\nin memory only, per connection, and renewed a minute before it expires; under\n`toil mcp` one exchange serves every call until then. There is no username, password\nor browser login.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_ALATION_BASE_URL` | yes | Alation instance root, e.g. `https://alation.imagile.dev` (keep any context path) |\n| `refreshToken` | `TOIL_ALATION_REFRESH_TOKEN` | yes | Refresh token |\n| `userId` | `TOIL_ALATION_USER_ID` | yes | Numeric ID of the token\'s user; a number or a string of digits, anything else is `CONFIG_INVALID` |\n| `writes` | `TOIL_ALATION_WRITES` | no | `true` lets `document create` and `document update` run (with `--allow-write`) |\n\nEnvironment variables (CI, or a one-off shell):\n\n```bash\nexport TOIL_ALATION_BASE_URL=https://alation.imagile.dev\nexport TOIL_ALATION_REFRESH_TOKEN=<your refresh token>\nexport TOIL_ALATION_USER_ID=102\n```\n\nOr `~/.toil/config.json`:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "corp-alation": { "area": "alation", "baseUrl": "https://alation.imagile.dev", "userId": 102 }\n  },\n  "defaults": { "alation": { "connection": "corp-alation" } }\n}\n```\n\nThe refresh token never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add corp-alation --area alation` (or\n`toil connections login corp-alation` for an existing connection) to keep it in the\nOS credential store, or set `TOIL_ALATION_REFRESH_TOKEN`. There\'s no CI fallback\nvariable.\n\nA refused exchange is `AUTH`, naming the endpoint: check the refresh token and user ID,\nor make a new refresh token if it\'s past its 60 days. Alation\'s paths are Django\nroutes, so every path keeps its trailing slash. A redirect to another host is refused,\nso the token stays on the configured one.\n\n## Commands\n\nIDs are positional and must be positive integers. Lists return one page: `--limit`\n(default 100, 1 to 1000) and `--skip` (default 0), as `{ count, limit, skip, <items> }`.\n\n- `token status`: Mint an API access token from the configured refresh token and\n  report its expiry (verifies credentials). It mints a new token each time, then\n  validates it, and returns `user_id`, `created_at`, `token_expires_at` and\n  `token_status`, never the token.\n- `datasource list`: List data sources (`--include-undeployed`, `--include-hidden`),\n  as `{ count, datasources }`; not paged.\n- `datasource get`: Get a data source by ID.\n- `schema list`: List schemas, optionally within one data source (`--ds`, `--name`).\n- `schema get`: Get a schema by ID.\n- `table list`: List tables (descriptions, custom fields, fully-qualified keys):\n  `--ds`, `--schema`, `--schema-name`, `--name`, and `--search` for a\n  case-insensitive substring of the name.\n- `table get`: Get a table by ID, optionally with its columns. `--columns` adds\n  `columnCount` and `columns`, the first 1000 by ID, with an\n  `ALATION_COLUMNS_TRUNCATED` warning when it reaches 1000.\n- `column list`: List columns of a table (types, descriptions, keys, custom fields):\n  `--table`, `--table-name`, `--schema`, `--ds`, `--name`, `--search`. At least one\n  filter is required.\n- `column get`: Get a column by ID.\n- `search`: Full-text search across the catalog. `--otype table,column` restricts\n  the object types (checked against Alation\'s list), `--limit` (default 20, at most\n  10000) and `--offset` page it. Returns `{ query, total, limit, offset,\n  fullSearchUrl, results }`.\n- `folder list`: List folders in a Document Hub (`--hub`, `--parent`, `--search`).\n- `folder get`: Get a Document Hub folder by ID.\n- `document list`: List documents in a Document Hub or folder (`--hub`, `--folder`,\n  `--parent-document`, `--search`, `--deleted`).\n- `document get`: Get a document by ID, including its custom field values.\n- `document schema`: Print the `--input-file` JSON schema and an example for\n  document create/update. With `--example-only`, `data` is the example itself, ready\n  to save as an input file. It needs no connection.\n- `document create`: Create a document (async: returns a job ID; check it with\n  `alation job get`). Needs a title, `--hub` and `--folder`, from flags or\n  `--input-file`.\n- `document update`: Update a document (async: returns a job ID; custom field values\n  replace existing values per field). It can\'t change hubs, and needs at least one\n  change.\n- `job get`: Get the status of a bulk job (returned by document create/update).\n\n`get` commands read the list endpoint with `id=<n>&limit=1`. If no row has that ID\nthey return the first row anyway, with an `ALATION_ID_MISMATCH` warning in\n`meta.warnings`; check `data.id`.\n\n### Document input files\n\n`--input-file <path>` (`-` reads stdin on the CLI) holds `title`, `description`,\n`hub`, `folder`, `template`, `parentDocument`, `navLinkFolders`, and `fields`: custom\nfield values keyed by numeric field ID. Custom fields need a template. A string value\nstarting with `@` is read from that file, inside the workspace. Flags win over the\nfile, and a `meta.warnings` entry names each value they overrode. Create and update\nreturn `{ jobId, document, overrides? }`, where `document` is the payload sent.\n\n```bash\ntoil alation search customer --otype table,column\ntoil alation table get 7 --columns\ntoil alation document schema --example-only > doc.json\ntoil alation document create --input-file doc.json --allow-write\ntoil alation job get 555\n```\n',
@@ -136919,14 +136921,15 @@ var skillFiles = {
   "confluence-cloud.md": '---\narea: confluence-cloud\ndescription: Pages, spaces, CQL search, comments, labels and attachments on Confluence Cloud\n---\n\n# Confluence Cloud (`confluence-cloud`)\n\nPages, spaces, CQL search, comments, labels and attachments on **Confluence Cloud**\n(`https://<your-site>.atlassian.net`, REST API v2, with v1 where v2 has no\nendpoint). Built from Atlassian\'s API documentation and never run against a live\nsite. Verification level: `unit`.\n\nFor Confluence Data Center or Server, use the `confluence` area instead. The two are\nseparate areas because their APIs differ: Cloud\'s v2 API has different paths, pages\nby cursor rather than offset, and addresses spaces by a numeric id rather than their\nkey.\n\n**Supported versions:** The oldest Confluence Cloud version toil supports hasn\'t been established.\nConfluence Cloud is always current. toil calls REST API v2\n(`/wiki/api/v2`) and, where v2 has no endpoint, v1 (`/wiki/rest/api`: CQL search,\nadding and removing labels, attachment uploads), with an Atlassian account email and\nAPI token sent as Basic auth. Nothing has been run against a live site yet.\n\n## Credential\n\nAn **Atlassian account API token** plus that account\'s **email address**. Create\nthe token at https://id.atlassian.com/manage-profile/security/api-tokens (Atlassian\naccount \u2192 Security \u2192 API tokens \u2192 Create API token). toil sends\n`Authorization: Basic base64(<email>:<apiToken>)`, as Atlassian documents for\nscripts. There is no password, OAuth app or browser login. The token acts with the\naccount\'s own permissions, so a read sees what that account can see.\n\nThe same account token works for Jira Cloud. With no token of its own, the default\nconnection uses `TOIL_JIRA_CLOUD_API_TOKEN` (the default `jira-cloud` connection\'s env\nvalue). Any other connection borrows a `jira-cloud` connection\'s token, env or stored,\nonly by naming it: `"apiTokenFrom": "imagile-cloud"`. Its own token always wins, and\n`meta.context.shared` says when the token came from Jira Cloud. Only the token is\nborrowed: `email` is always this connection\'s own, and must be the address the token\nbelongs to.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_CONFLUENCE_CLOUD_BASE_URL` | yes | Confluence Cloud site root, without `/wiki`: `https://<your-site>.atlassian.net` |\n| `email` | `TOIL_CONFLUENCE_CLOUD_EMAIL` | yes | Email address of the Atlassian account the token belongs to |\n| `apiToken` | `TOIL_CONFLUENCE_CLOUD_API_TOKEN` | yes | Atlassian account API token (a secret), unless borrowed from Jira Cloud |\n| `apiTokenFrom` | `TOIL_CONFLUENCE_CLOUD_API_TOKEN_FROM` | no | A `jira-cloud` connection whose token this connection uses |\n| `writes` | `TOIL_CONFLUENCE_CLOUD_WRITES` | no | `true` lets write commands run (with `--allow-write`) |\n\ntoil adds `/wiki/api/v2` and `/wiki/rest/api` itself, so `baseUrl` is the site root. A\n`baseUrl` ending in `/wiki` (as the browser shows it) is refused with `CONFIG_INVALID`\nbefore anything is sent: drop the `/wiki`.\nThere is no CI fallback variable. The examples use the placeholder\n`https://confluence-cloud.imagile.dev`, which never resolves; your own site is\n`https://<your-site>.atlassian.net`.\n\n```bash\nexport TOIL_CONFLUENCE_CLOUD_BASE_URL=https://confluence-cloud.imagile.dev\nexport TOIL_CONFLUENCE_CLOUD_EMAIL=you@example.com\nexport TOIL_CONFLUENCE_CLOUD_API_TOKEN=<your API token>\n```\n\nOr `~/.toil/config.json`:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "imagile-wiki": { "area": "confluence-cloud", "baseUrl": "https://confluence-cloud.imagile.dev", "email": "you@example.com", "writes": true }\n  },\n  "defaults": { "confluence-cloud": { "connection": "imagile-wiki" } }\n}\n```\n\nThe token never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add imagile-wiki --area confluence-cloud` (or\n`toil connections login imagile-wiki`) to keep it in the OS credential store, or set\n`TOIL_CONFLUENCE_CLOUD_API_TOKEN`. Env vars always win over the file.\n\n## Commands\n\nEvery command also takes `--connection <name>`. Write commands (marked \u270E) need\n`writes: true` on the connection **and** `--allow-write`. Names and flags match\n`confluence` wherever the operation is the same. MCP tools are\n`confluence_cloud_<command>` (`confluence_cloud_get_page`). The two deletes are CLI\nonly: they are never MCP tools.\n\n| Command | Flags | Returns |\n|---------|-------|---------|\n| `get-page` | `--id` | The page with its storage body, plus `bodyText` |\n| `get-page-by-title` | `--space <key> --title` | The page with that exact title, plus `bodyText` |\n| `list-pages` | `--space <key> --limit --cursor` | Pages in the space (no bodies) |\n| `get-page-children` | `--id` | Direct children, each with its `type` |\n| `get-page-history` | `--id` | Every version of the page |\n| `search` | `--cql --limit --cursor --expand` | One page of CQL results, as Confluence returns it |\n| `create-page` \u270E | `--space <key> --title --body --body-file --parent-id --representation` | The created page, plus `bodyText` |\n| `update-page` \u270E | `--id --title --body --body-file --status --representation` | The updated page, plus `bodyText` |\n| `delete-page` \u270E (CLI only) | `--id` | `{ deleted }` |\n| `list-comments` | `--id` | Top-level footer comments, each with `bodyText` |\n| `add-comment` \u270E | `--id --body --representation` | The comment, plus `bodyText` |\n| `get-labels` | `--id` | The page\'s labels |\n| `add-label` \u270E | `--id --labels <a,b>` | The labels Confluence reports |\n| `remove-label` \u270E | `--id --label` | `{ removed, from }` |\n| `list-spaces` | `--type --limit --cursor` | Spaces the account can see |\n| `get-space` | `--key` | The space, with its plain-text description |\n| `list-attachments` | `--id <page-id>` | The page\'s attachments |\n| `upload-attachment` \u270E | `--id <page-id> --file --comment` | The attachments Confluence created |\n| `download-attachment` | `--id <attachment-id> --dir` | `{ saved, filename, size }` |\n| `delete-attachment` \u270E (CLI only) | `--id <attachment-id>` | `{ deleted }` |\n\n```bash\ntoil confluence-cloud get-page-by-title --space DOCS --title "Release notes"\ntoil confluence-cloud search --cql \'space=DOCS AND type=page AND text~"runbook"\' --limit 10\ntoil confluence-cloud create-page --space DOCS --title Runbook --body-file runbook.html --parent-id 12345 --allow-write\ntoil confluence-cloud update-page --id 12345 --title "Release notes (archived)" --allow-write\ntoil confluence-cloud download-attachment --id att98765 --dir downloads\n```\n\n### Ids and keys\n\nPage ids are numbers (`12345`); attachment ids carry an `att` prefix (`att98765`).\nCommands that take `--space` take the space **key** (`DOCS`), as `confluence` does;\ntoil looks up the numeric space id v2 needs with one extra request, and a key that\nmatches nothing is `NOT_FOUND`. An id containing `/`, `\\`, `?` or `#` is refused with\n`INVALID_INPUT` before anything is sent, and the rest is percent-encoded as one path\nsegment.\n\n### Body format: storage\n\nBodies are **storage format**, the XHTML Confluence keeps pages in, both ways:\n\n- **Out**: every page and comment is read with `body-format=storage`, so\n  `body.storage.value` is the XHTML. Beside it, `bodyText` is a plain-text rendering:\n  tags dropped, blocks on their own lines, list items as `- `, table cells joined\n  with ` | `, code macro text kept, macro parameters dropped. It\'s for reading, not\n  for writing back.\n- **In** (`--body`, `--body-file`): storage-format XHTML, or wiki markup with\n  `--representation wiki`, which Confluence converts to storage. Atlassian Document\n  Format isn\'t offered.\n\n`confluence`\'s `--markdown` isn\'t here: Confluence Cloud documents no synchronous\nMarkdown converter. Write storage XHTML, or wiki markup, instead. `get-page` has no\n`--expand`: v2 has no expansions, and the body always comes back.\n\n### Paging\n\nLists page by cursor. Without `--limit`, `list-pages` and `list-spaces` read every\npage of results. With `--limit N` they return at most N, and `meta.page.nextCursor`\nresumes: pass it back as `--cursor` with `--limit`. Every other list\n(`get-page-children`, `get-page-history`, `list-comments`, `get-labels`,\n`list-attachments`) is read in full. Paging stops after 1,000 requests with an error\nnaming the list.\n\n`search` returns one page, as Confluence returns it (`results`, `size`, `totalSize`,\n`_links`), 25 results unless `--limit` says otherwise. When there are more,\n`meta.page.nextCursor` is the cursor from its `_links.next`: pass it as `--cursor`\n(with the same `--cql`) for the next page. `confluence`\'s `--start` isn\'t here: Cloud\nsearch pages by cursor.\n\n## Notes\n\n- `update-page` reads the page first and sends the next version number, keeping the\n  title unless `--title` is given. Confluence Cloud requires a body on every update,\n  so with no `--body` or `--body-file` the current storage body is sent back\n  unchanged (a rename). `--status draft` sends version 1, as Atlassian documents for\n  a change to draft, and deletes any draft the page already has. `--representation` without a body is `INVALID_INPUT`.\n- `create-page` without `--parent-id` puts the page under the space\'s homepage, as\n  the API does.\n- `get-page-children` uses v2\'s direct children, which lists folders, whiteboards,\n  databases and embeds beside child pages; each result\'s `type` says which.\n- `get-page-history` returns the version list (`number`, `createdAt`, `authorId`,\n  `message`, `minorEdit`), where `confluence` returns Data Center\'s history object.\n- `list-comments` reads footer comments only, top level only: no replies and no inline\n  comments. `add-comment` adds a footer comment.\n- `add-label` and `remove-label` use v1, since v2 can\'t write labels. Labels are added\n  with the `global` prefix. `remove-label` sends the label as a query parameter, so any\n  label can be removed.\n- `upload-attachment` uses v1 multipart with `X-Atlassian-Token: nocheck`, and always\n  adds a new attachment. The file name is the path\'s last segment, with `/` or `\\`\n  splitting it on every platform.\n- `download-attachment` reads the attachment, then fetches its `downloadLink` under\n  `baseUrl/wiki` with the credential. Confluence answers with a redirect to a signed\n  URL on Atlassian\'s media host; toil follows it with **every header dropped**, so the\n  credential stays on your site. It saves under `.toil/` (or `--dir`), keeping only the\n  file name, and never replaces a file that\'s already there.\n- `delete-page` and `delete-attachment` move the item to the trash; neither purges.\n- A 429 is retried after the delay Confluence asks for, as in every area.\n',
   "confluence.md": '---\narea: confluence\ndescription: Pages, spaces, CQL search, comments, labels and attachments on Confluence Data Center\n---\n\n# Confluence Data Center (`confluence`)\n\nPages, spaces, CQL search, comments, labels and attachments on **Confluence Data\nCenter / Server** (the Server REST API under `/rest/api`). Verification level: `unit`.\n\n**Supported versions:** Confluence Data Center 7.9 or later (Server REST API). toil\nauthenticates with a personal access token, which Confluence Data Center added in 7.9.\nNo release has been verified yet.\n\n## Credential\n\nA Confluence **personal access token**: in Confluence, your profile picture \u2192 Settings \u2192\nPersonal Access Tokens \u2192 Create token. toil sends it as `Authorization: Bearer <token>`.\nThere is no username, password or browser login.\n\n**The Jira token works too.** When the default Confluence connection has no token of\nits own in env (`TOIL_CONFLUENCE_API_TOKEN`), it uses `TOIL_JIRA_API_TOKEN`, the default\nJira connection\'s env value. Any Confluence connection can instead borrow a Jira\nconnection\'s token, env or stored, by naming it: `"apiTokenFrom": "corp-jira"`.\n`meta.context.shared` says when the token came from Jira, never the value.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_CONFLUENCE_BASE_URL` | yes | Confluence server root, e.g. `https://confluence.imagile.dev` (keep any context path, e.g. `https://confluence.imagile.dev/confluence`) |\n| `apiToken` | `TOIL_CONFLUENCE_API_TOKEN` | yes, unless borrowed from Jira | Personal access token |\n| `apiTokenFrom` | `TOIL_CONFLUENCE_API_TOKEN_FROM` | no | A Jira connection whose token this connection uses |\n| `writes` | `TOIL_CONFLUENCE_WRITES` | no | `true` lets write commands run (with `--allow-write`) |\n\nEnvironment variables (CI, or a one-off shell):\n\n```bash\nexport TOIL_CONFLUENCE_BASE_URL=https://confluence.imagile.dev\nexport TOIL_CONFLUENCE_API_TOKEN=<your personal access token>\n```\n\nOr `~/.toil/config.json`:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "corp-wiki": { "area": "confluence", "baseUrl": "https://confluence.imagile.dev", "apiTokenFrom": "corp-jira" }\n  }\n}\n```\n\nThe token never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add corp-wiki --area confluence` (or\n`toil connections login corp-wiki`) to keep it in the OS credential store, or set\n`TOIL_CONFLUENCE_API_TOKEN`. Env vars always win over the file.\n\n## Commands\n\nEvery command also takes `--connection <name>`. Write commands (marked \u270E) need\n`writes: true` on the connection **and** `--allow-write`; over MCP `allowWrite: true`\nstands in for the flag. `delete-page` and `delete-attachment` run on the CLI only; they are\nnot MCP tools.\n\nIds, space keys and labels go into URL paths as given. One that is a `.` or `..`\nsegment, in any spelling (`%2e%2e` too), or contains `/`, `\\`, `?` or `#`, is refused\nwith `INVALID_INPUT` before anything is sent.\n\n| Command | Flags | Returns |\n|---------|-------|---------|\n| `get-page` | `--id --expand` | The page (default expand `body.storage,version,space,ancestors`) |\n| `get-page-by-title` | `--space --title` | The first page with that exact title, or `NOT_FOUND` |\n| `list-pages` | `--space --limit --start` | Every page in the space (or `--limit` of them, from `--start`) |\n| `get-page-children` | `--id` | Every child page |\n| `get-page-history` | `--id` | The page\'s history metadata |\n| `search` | `--cql --limit --start --expand` | Confluence\'s search result, one page (25 by default) |\n| `create-page` \u270E | `--space --title --body or --body-file --markdown --parent-id --representation` | The created page |\n| `update-page` \u270E | `--id --title --body or --body-file --markdown --status --representation` | The updated page |\n| `delete-page` \u270E | `--id` | `{ deleted }` |\n| `list-comments` | `--id` | Top-level comments, with storage bodies |\n| `add-comment` \u270E | `--id --body --representation` | The comment |\n| `get-labels` | `--id` | Every label |\n| `add-label` \u270E | `--id --labels a,b` | The labels Confluence reports |\n| `remove-label` \u270E | `--id --label` | `{ removed, from }` |\n| `list-spaces` | `--type --limit` | Every space (or `--limit` of them) |\n| `get-space` | `--key` | The space, with its plain-text description |\n| `list-attachments` | `--id` | Every attachment on the page |\n| `upload-attachment` \u270E | `--id --file --comment` | The attachments created |\n| `download-attachment` | `--id --dir` | `{ saved, filename, size }`; saves to `.toil/` by default |\n| `delete-attachment` \u270E | `--id` | `{ deleted }`; the attachment goes to the trash |\n| `check-dossier` | `--dossier <name\\|file>` (or the folder\'s dossier) | `{ dossier, connection, env, ok, checked, checks, unchecked }`: each space the dossier names (`space`, `spaces`), found or not; exit 1 when one is missing |\n\nOver MCP the same commands are tools named `confluence_<command>` with hyphens as\nunderscores (`confluence_get_page`, `confluence_download_attachment`), taking camelCase\nfields (`id`, `bodyFile`, `parentId`).\n\n## Examples\n\n```bash\ntoil confluence get-page --id 12345\ntoil confluence get-page-by-title --space DOCS --title "Release notes"\ntoil confluence search --cql \'space=DOCS AND type=page AND text~"runbook"\' --limit 10\ntoil confluence list-pages --space DOCS --limit 50\ntoil confluence create-page --space DOCS --title "Runbook" --body-file runbook.html --parent-id 12345 --allow-write\ntoil confluence update-page --id 12345 --body-file runbook.html --allow-write\ntoil confluence add-label --id 12345 --labels runbook,ops --allow-write\ntoil confluence upload-attachment --id 12345 --file diagram.png --allow-write\ntoil confluence download-attachment --id 98765 --dir downloads\n```\n\n## Notes\n\n- Bodies are Confluence **storage format** (XHTML). `--representation wiki` sends the\n  value under `body.storage` with `representation: "wiki"`. `--markdown` asks\n  Confluence\'s converter (`/rest/api/contentbody/convert/storage`) to turn Markdown into\n  storage format first; whether your server accepts that hasn\'t been verified.\n- `--body-file -` reads the body from stdin on the CLI. Over MCP, `-` is refused because\n  stdin carries the protocol; pass a file path. Files resolve inside the workspace.\n- When Confluence rejects a body, the error adds the offending line of an XML parse\n  error, and known storage-format mistakes behind an HTTP 500 (`<ac:parameter name=\u2026>`,\n  a macro with no `ac:macro-id`).\n- `update-page` reads the current version and sends the next one, keeping the title\n  unless `--title` is given. With no body it sends none.\n- `list-pages` and `list-spaces` without `--limit`, and the other lists always, page\n  through everything, 25 at a time. A `--limit` that isn\'t a positive whole number\n  (`abc`, `0`) usually returns an empty list, with a `CONFLUENCE_LIMIT_INVALID` warning.\n- `download-attachment` never replaces a file: one of the same name in the target\n  directory fails with `INVALID_INPUT`. The file name is the attachment title\'s last\n  path segment. The token only ever goes to `baseUrl`\'s host: a download link naming\n  another host is fetched from `baseUrl` instead, with a `CONFLUENCE_ATTACHMENT_HOST`\n  warning.\n- `upload-attachment` always creates a new attachment; a file name already on the page\n  isn\'t added as a new version.\n\n## Data Center, not Cloud\n\nThis area targets Confluence Data Center and Server. Confluence Cloud is a separate\narea, `confluence-cloud`, with its own `TOIL_CONFLUENCE_CLOUD_*` settings; don\'t\npoint this one at a Cloud site.\n',
   "contrast.md": '---\narea: contrast\ndescription: Applications, vulnerability findings and libraries for a Contrast Security organization\n---\n\n# Contrast Security (`contrast`)\n\nApplications, vulnerability findings (traces) and libraries for one **Contrast\nSecurity** organization, through the TeamServer "ng" REST API\n(`/Contrast/api/ng/<orgUuid>/...`), on SaaS or self-hosted. Every command reads; none\nchanges anything. Verification level: `unit`.\n\n**Supported versions:** The oldest Contrast TeamServer version toil supports hasn\'t been established. toil calls the TeamServer "ng" REST API with an API key and a\nservice key. No release has been verified yet.\n\n## Credential\n\nThree values, all from **User Settings \u2192 Your Keys** in Contrast: your username, the\norganization\'s **API key** and your **service key**, plus the organization UUID shown\non the same page. toil sends two headers on every request:\n\n- `Authorization: base64(username:serviceKey)`, with no `Basic ` prefix, which is\n  Contrast\'s own format\n- `API-Key: <apiKey>`\n\nThere is no password or browser login. A redirect to another host is refused, so the\nAPI key never leaves the configured instance.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_CONTRAST_BASE_URL` | yes | Instance root, e.g. `https://contrast.imagile.dev` or `https://app.contrastsecurity.com` |\n| `orgUuid` | `TOIL_CONTRAST_ORG_UUID` | yes | Organization UUID |\n| `username` | `TOIL_CONTRAST_USERNAME` | yes | Contrast username |\n| `apiKey` | `TOIL_CONTRAST_API_KEY` | yes | Organization API key (secret) |\n| `serviceKey` | `TOIL_CONTRAST_SERVICE_KEY` | yes | Your service key (secret) |\n\nThere\'s no CI fallback variable.\n\nEnvironment variables (CI, or a one-off shell):\n\n```bash\nexport TOIL_CONTRAST_BASE_URL=https://contrast.imagile.dev\nexport TOIL_CONTRAST_ORG_UUID=abc12345-0000-0000-0000-000000000000\nexport TOIL_CONTRAST_USERNAME=you@example.com\nexport TOIL_CONTRAST_API_KEY=<your API key>\nexport TOIL_CONTRAST_SERVICE_KEY=<your service key>\n```\n\nOr `~/.toil/config.json`:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "corp-contrast": {\n      "area": "contrast",\n      "baseUrl": "https://contrast.imagile.dev",\n      "orgUuid": "abc12345-0000-0000-0000-000000000000",\n      "username": "you@example.com"\n    }\n  },\n  "defaults": { "contrast": { "connection": "corp-contrast" } }\n}\n```\n\n`apiKey` and `serviceKey` never go in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add corp-contrast --area contrast` (or\n`toil connections login corp-contrast` for an existing connection) to keep them in the\nOS credential store, or set the env vars.\n\n## Commands\n\n`data` is Contrast\'s own response, as it came, except for `libraries get`.\n\n- `apps list`: List applications in the organization.\n- `findings list`: List vulnerability findings for an application (`--app`, required).\n  `--severity` and `--status` are sent as `severities` and `statuses`, as typed; a\n  comma list such as `HIGH,CRITICAL` keeps its commas.\n- `findings get`: Get details for a specific vulnerability finding (`--app` and\n  `--trace`, both required).\n- `libraries list`: List libraries used by an application, as shown on the Libraries\n  tab (`--app`, required).\n- `libraries get`: Get details for a specific library used by an application, by hash\n  (`--app` and `--hash`, both required). It reads the application\'s libraries 25 at a\n  time until one\'s `hash` matches exactly, or a page has fewer than 25, and returns\n  that one library object. No match is `NOT_FOUND`. It stops with an error after\n  1,000 pages.\n\n`apps list`, `findings list` and `libraries list` take `--limit` (default 25) and\n`--offset` (default 0), sent to the server as given; they return one page, and you\npage by hand. `--app`, `--trace` and the org UUID go into the URL path as typed.\n\n```bash\ntoil contrast apps list --limit 50\ntoil contrast findings list --app abc12345-0000-0000-0000-000000000000 --severity HIGH,CRITICAL\ntoil contrast libraries get --app abc12345-0000-0000-0000-000000000000 --hash 0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c\n```\n',
-  "core.md": "---\ndescription: What every toil command shares, in detail - the envelope and errors, the contract version, --select, toil wait, paging and progress, writes and their exceptions, global flags, files and the workspace, configuration, the raw API passthrough, dossiers, the audit log, using toil from a program (@imagile-dev/toil/api), certificates and proxies\n---\n\n# Using toil\n\n`SKILL.md` has the rules every call needs. This page has the detail behind them, for\nwhen a call needs more than a command's own flags.\n\n## The envelope and errors\n\nEvery command prints one JSON envelope on stdout: `{ ok, data, error, meta }`.\nCheck `ok`; on failure, `error.code` says what kind of failure it was and `error.fix`\nsays what to do about it. New codes may appear in any release, so treat a code you\ndon't know as a generic failure. `meta.warnings` lists anything worth knowing that\nisn't a failure, such as a truncated result. `meta.context` says which connection a\ncall used and how it was chosen, and where any project, repo or environment it\nresolved came from. `--pretty` formats the output for people.\n\n`meta.contractVersion` (also in `toil version`) is the version of toil's command\ncontract: its commands, flags, `data` fields, envelope and error codes. It goes up only\nwith a breaking change, so a script or program built against one version works with\nevery toil that reports it.\n\n## Paging\n\nPaged results put the next page's cursor in `meta.page.nextCursor` (null on the last\npage) and the page size in `meta.page.limit`. Pass the cursor back with the\ncommand's own paging flag, which its reference names.\n\n## Progress\n\nWhile a command runs, toil says what it's doing: each page a listing reads, and each\nrate-limited (429) request it waits to retry. On the command line these go to stderr,\none plain `[toil] \u2026` line each: a retry and how long toil waits always, piped or not,\nand pages only when stderr is a terminal. stdout still holds only the envelope. Over MCP they're progress notifications, sent when the\nclient's call asks for progress. A program using toil's API gets them, and every\nrequest too, through `onProgress` (**Using toil from a program**). They never change\nthe envelope.\n\n## Selecting fields\n\nTo get back only the fields you need, pass `--select <expression>` (`select` over\nMCP), a [JMESPath](https://jmespath.org/specification.html) expression applied to\n`data`, for example `--select \"issues[].{key: key, status: fields.status.name}\"`.\n`meta`, including `meta.page`, is left as it is. A bad expression is `INVALID_INPUT`\nbefore the command runs, with its position in `error.fix`; one that selects nothing\ngives `data: null` and a `SELECT_EMPTY` warning.\n\n## Waiting for something to finish\n\nTo wait for a build, a scan or a deployment to finish, don't call a read in a loop:\n`toil wait --until \"<expression>\" -- <read command>` runs it again every `--interval`\n(default 15s, at least 5s) until the JMESPath expression over its `data` is true (not\nnull, false or empty), for example\n`toil wait --until \"result != null\" -- jenkins pipeline get-run --name my-job --number 42` or\n`toil wait --until \"projectStatus.status != 'NONE'\" --timeout 10m -- sonar quality-gate --project my-app`.\nOver MCP it's the `wait` tool, with `tool` (the read's tool name), `input` (that tool's\ninput) and the same `until`, `interval` and `timeout`. It returns the read's last\nenvelope plus `meta.wait` (`until`, `attempts`, `elapsedMs`). `NETWORK` errors and\n`HTTP` 5xx or 429 answers are retried with backoff; any other error ends the wait with\nthat error. Past `--timeout` (at least 5s; default 30m, or `TOIL_TIMEOUT_MS`, cut to the maximum\nwith a `WAIT_TIMEOUT_CAPPED` warning when it is longer; at most the\n`\"wait\": { \"maxTimeout\" }` in config, default 1h) it's `TIMEOUT`, with the last `data`\nin `error.details.data`. Only reads can be waited on: a write is `INVALID_INPUT`.\n`--select` before `wait` applies to the final `data`; a `--select` after `--` belongs\nto the read, so `--until` sees what it selected. Other global flags go before `wait`.\n\n## Writes\n\nReads are always allowed. A command that changes something, in a service, a database\nor a file on this machine outside toil's own config, needs both `writes: true` on the\nconnection it uses, set by a person in their config or with a\n`TOIL_CONN_<NAME>_WRITES` / `TOIL_<AREA>_WRITES` env var, and `--allow-write` on the\ncall (`allowWrite: true` over MCP). Without either it fails with `WRITE_DISABLED`,\nnaming what's missing. Over MCP a write tool isn't listed until writes are on, and\ndeletes are never tools. A command that is CLI only and has no connection yet\n(`toil skills marketplace add`) needs `--allow-write` alone.\n\n### Exceptions\n\nExactly three writes don't follow that rule. Each is the maintainer's choice, made\ndeliberately, and is listed here with how to avoid it.\n\n| Write | What it writes, and when | Why | To avoid it |\n|-------|--------------------------|-----|-------------|\n| **`toil skill install`** | With `--allow-write` alone (CLI only, no connection): the toil skill, into one agent's skills folder as `toil/`, recorded as `bundled`. | Its contents are fixed: the files embedded in toil, no third-party code. It replaces only a `toil/` folder it recorded as `bundled` and refuses any other. | Don't run it. |\n| **The toil skill keeping itself current** | With no `--allow-write`: a `toil/` skill folder recorded as `bundled`, and nothing else in a skills folder (never a marketplace or hand-made skill). Rewritten by any command that loads config, on the CLI or over MCP, when that command changed the config file (a connection added, changed or removed) or when the copy was written by another toil version. Said in `meta.warnings` as `SKILL_REWRITTEN`. | So an installed skill never describes connections you no longer have, or a toil you no longer run, with no update command to forget. The contents are fixed; the description holds only area and engine names checked against toil's own list, never a host or a credential; and a rewrite that fails is a `SKILL_REWRITE_FAILED` warning, never a failed command. | Don't install the skill with `toil skill install` (copy `skills/toil` yourself, or use the Claude Code plugin marketplace), or delete the installed `toil/` folder. A call with `--config <file>` never rewrites it. |\n| **The welcome menu's game save** | With no `--allow-write`: the game's progress, under the `\"game\"` key of `~/.toil/config.json`, every other key kept as it was. Only while you play Two Weeks' Notice in the menu bare `toil` opens. | It's a game a person plays at a terminal, and its save touches nothing but its own key. The save is sealed against tampering, not kept secret. | Don't play it. There is no setting to turn the save off. |\n\n## The raw API passthrough\n\nFor an endpoint no command covers, an HTTP area has `toil <area> api <METHOD> <path>`\n(`<area>_api` over MCP), which sends the connection's own credential to a path under\nits base URL. GET and HEAD are reads; other methods are writes, and `DELETE` is CLI\nonly. The area's reference describes it where the area has one (`jira.md`).\n\n## Files and the workspace\n\nFiles a command reads or writes (an `--input-file`, an upload, a download, a CSV\nreport) must be inside the workspace: `--workspace <dir>`, else `TOIL_WORKSPACE`,\nelse the working directory; under `toil mcp`, the client's root when it shares\nexactly one. Relative paths resolve against it, a path outside is refused with\n`INVALID_INPUT`, and nothing is ever overwritten. Under `toil mcp` with no single\nroot, a command that touches a file returns `NOT_CONFIGURED`: add `--workspace <dir>`\nto the server's args. A person can let commands reach any path with\n`\"bounds\": { \"files\": \"unbounded\" }` in their config, and every envelope then\ncarries a `BOUND_RELAXED` warning. Saved paths come back absolute, with forward\nslashes. Commands that run git need git on PATH and say\n`GIT_NOT_FOUND` without it; nothing else does.\n\n## Configuration\n\nConfiguration comes from environment variables, which always win, or from\n`~/.toil/config.json` (or the file passed with `--config`). A connection is one\ninstance of an area; `--connection <name>` picks one when there are several.\n`toil connections list` names them (never a secret), and `toil connections test\n<name>` checks one with a single authenticated read, failing with the `AUTH`,\n`NETWORK` or config error a real command would. Setting up a connection, signing\nin, turning writes on and choosing a default are for a person: a bare `toil` in a\nterminal opens a menu for them.\n\n## Global flags\n\nGlobal flags go before or after the command: `--pretty`, `--verbose` (adds every\nrequest to `meta.requests`, credentials redacted), `--debug` (traces on stderr),\n`--config <file>`, `--output-file <file>` and `--workspace <dir>`. `--help` on any\ncommand lists its own flags.\n\n## Dossiers\n\nA **dossier** holds what toil knows about one body of work: its repositories, and per\narea the keys a call needs (`project`, `owner`, a namespace per environment), which\nconnection to use (by name, or by `host`), and reference data such as board lists.\nIt holds no secret and can't add a host or turn on writes. toil reads dossiers on\nevery area command from `~/.toil/dossiers/`, the folders in `dossierPaths` (or\n`TOIL_DOSSIER_PATHS`), and `.toil/dossiers/` in the repository you're in, and uses\nthe one that applies: `--dossier <name|file>` (`dossier` over MCP, or\n`TOIL_DOSSIER`), else the one whose repo matches the folder by path or `origin`\nremote. `--cwd <dir>` (`cwd` over MCP) looks from another folder. A value you pass\nalways beats the dossier's, and `meta.context.dossier` says which dossier applied and\nwhy. When two different dossiers match, the call fails with `INVALID_INPUT` until you\npick one. A write on a connection a dossier chose is `WRITE_DISABLED` unless the\ndossier is in your own folder; pass `--connection` to choose it yourself. To see what\na call will use before making it: `toil dossiers context` (which dossier a folder\nresolves to and why), `toil dossiers show [name]` (per area: the connection and why,\nwhether writes are on, the environment and the inputs), `toil dossiers list`, and\n`toil dossiers check [name]`, which checks one locally and contacts no service.\n\nTo build one for a product: `toil repos scan` lists the git repositories under the\nworkspace. Then:\n- `toil dossiers init <name>` creates the dossier.\n- `toil dossiers add-repo <name> <folder|remote>` adds each repository.\n- `toil dossiers link <name> <area> --host <host> --set project=PAY [--for-repo <repo>]`\n  says which connection an area uses and the keys it supplies.\n- `toil dossiers env <name> <env> <area> --set namespace=...` adds an environment.\n- `toil dossiers field <name> jira storyPoints customfield_10002` names a field, so\n  `--field storyPoints=5` works.\n- `toil <area> check-dossier` checks a section against the service, for the call's\n  environment (jira, jira-cloud, confluence, sonar, ado, bitbucket, github, openshift,\n  dynatrace).\n- `toil dossiers export <name> --repo <root>` writes a shareable copy into a\n  repository's `.toil/dossiers/`. It uses host selectors and no local paths, and toil\n  never commits it.\n- `toil dossiers unlink <name> --area <area> [--env <env>]` removes a section (CLI only).\n- `toil dossiers import <file>` copies a teammate's into your own folder. A connection\n  or host you lack is listed under `toSetUp`; toil never creates one.\n\nThese are local writes and need no `--allow-write`. Each refuses a value that's already\nset unless `--replace`. Over MCP they refuse to make a dossier select a connection\nwith writes on; the user does that on the command line, or under **Dossiers** in the\nmenu bare `toil` opens, which runs these same commands and asks them to type the\nconnection's name first.\n\n## The audit log\n\ntoil keeps a local audit log of every command it runs, through the CLI, MCP and the\nAPI: one JSON line per call in `~/.toil/audit/<yyyy-mm>.jsonl`, with the command, front\ndoor (`via`: `cli`, `mcp` or `api`, plus `caller` when a program named itself), connection, whether it wrote, the outcome, the redacted input and each request's\nmethod, URL and status. It never holds a secret, a header, a body or a row, and `db`\nSQL is kept only as a SHA-256 hash. `toil audit list` reads it back, newest first,\nwith `--since <date>`, `--command <name|area>`, `--connection <name>` and\n`--writes-only`; `toil audit path` says where it is and whether it's on. Six months are\nkept by default (`\"audit\": { \"keepMonths\": 12 }` changes that), and only a person can\nturn it off, with `\"audit\": { \"enabled\": false }` in `~/.toil/config.json`. A call\nwhose line couldn't be written still succeeds, with an `AUDIT_WRITE_FAILED` warning.\n\n## Using toil from a program\n\nA Node program can call toil in-process instead of running `toil` and parsing stdout.\n`@imagile-dev/toil/api` is a supported entry point of the same package, with its own\ntypes, and it adds no dependency: it is the same bundle as the CLI. Loading it runs nothing, even\nwhen your own build bundles it in: only toil's bin starts the CLI.\n\n```js\nimport { contractVersion, execute, registry, version } from '@imagile-dev/toil/api';\n\nif (contractVersion !== 1) throw new Error(`Needs toil's contract 1; toil ${version} has ${contractVersion}.`);\nconst envelope = await execute('jira search', { jql: 'project = PAY', maxResults: 50 }, {\n  readOnly: true,\n  caller: 'nightly-sync',\n  onProgress: (event) => console.error(event.message),\n});\n```\n\n- **`execute(command, input, options)`** runs one command and returns its envelope,\n  exactly as the CLI prints it. `command` is the name `meta.command` reports\n  (`jira search`); `input` is the command's MCP fields, checked strictly. It never\n  throws: an unknown command or a bad option is an `INVALID_INPUT` envelope.\n  Connections, env vars, the credential store, dossiers, the workspace (the program's\n  working directory, else `workspace`), the write gate and the audit log all apply as\n  they do on the CLI. It serves what MCP serves: commands that prompt or change\n  connections, and deletes, stay on the CLI.\n- **`options`**: `readOnly` refuses, with `WRITE_DISABLED` and before anything is sent,\n  any call that would change anything, whatever the config says: a write to a service,\n  and a local one too (toil's config or dossiers, a download, a file named with\n  `out`). A read-only call writes nothing but its audit line. `caller` names the program in the audit log (lowercase letters, digits,\n  `.`, `_` and `-`, up to 64). `signal` cancels the call (`CANCELLED`). `onProgress`\n  hears every request (redacted URL, status, time), page and retry. `config`,\n  `workspace` and `verbose` match `--config`, `--workspace` and `--verbose`.\n- **`registry`** lists the areas and every command `execute()` serves: its name, MCP\n  tool name, whether it writes to a service (`writes`) or on this machine\n  (`writesLocal`), and its input's JSON Schema.\n- **`version`** and **`contractVersion`** are what `toil version` reports. Check\n  `contractVersion` before relying on anything else. `toil version` also reports\n  `commit`, the 40-character hash of the commit the build came from (`null` when the\n  build didn't record one), which is what a bug report from a terminal names.\n- **`mapOwi(input, options)`** maps envelopes you already hold (one, an array, or\n  JSON Lines text) to Open Work Items, the way `toil util owi map` does (`util.md`),\n  synchronously and without the schema check: `{ items, histories, skipped,\n  warnings }`. `options.fields` is a dossier section's `fields` object\n  (`{ estimate: 'customfield_10234', estimateUnit: 'points' }`), `command` names the\n  command for bare `data`, and `key` the item a keyless history belongs to. A\n  refused input throws, with a fix. **`owiVersion`** is the OWI version items carry,\n  and **`owiSchema`** their JSON Schema; `execute('util owi map', { text })` maps\n  and validates in one call.\n\nWhat `@imagile-dev/toil/api` exports, and the types it names, follow the command\ncontract: they change only additively unless `contractVersion` goes up. Anything else\nin the package is internal.\n\n## Certificates and proxies\n\ntoil trusts the OS certificate store and Node's bundled CAs, and uses `HTTPS_PROXY` /\n`HTTP_PROXY` / `NO_PROXY` when they're set. A `NETWORK` error about an untrusted\ncertificate means the CA is in neither; `NODE_EXTRA_CA_CERTS` adds it.\n",
+  "core.md": "---\ndescription: What every toil command shares, in detail - the envelope and errors, the contract version, --select, toil wait, paging and progress, writes and their exceptions, global flags, files and the workspace, configuration, the raw API passthrough, dossiers, the audit log, using toil from a program (@imagile-dev/toil/api), sending feedback, certificates and proxies\n---\n\n# Using toil\n\n`SKILL.md` has the rules every call needs. This page has the detail behind them, for\nwhen a call needs more than a command's own flags.\n\n## The envelope and errors\n\nEvery command prints one JSON envelope on stdout: `{ ok, data, error, meta }`.\nCheck `ok`; on failure, `error.code` says what kind of failure it was and `error.fix`\nsays what to do about it. New codes may appear in any release, so treat a code you\ndon't know as a generic failure. `meta.warnings` lists anything worth knowing that\nisn't a failure, such as a truncated result. `meta.context` says which connection a\ncall used and how it was chosen, and where any project, repo or environment it\nresolved came from. `--pretty` formats the output for people.\n\n`meta.contractVersion` (also in `toil version`) is the version of toil's command\ncontract: its commands, flags, `data` fields, envelope and error codes. It goes up only\nwith a breaking change, so a script or program built against one version works with\nevery toil that reports it.\n\n## Paging\n\nPaged results put the next page's cursor in `meta.page.nextCursor` (null on the last\npage) and the page size in `meta.page.limit`. Pass the cursor back with the\ncommand's own paging flag, which its reference names.\n\n## Progress\n\nWhile a command runs, toil says what it's doing: each page a listing reads, and each\nrate-limited (429) request it waits to retry. On the command line these go to stderr,\none plain `[toil] \u2026` line each: a retry and how long toil waits always, piped or not,\nand pages only when stderr is a terminal. stdout still holds only the envelope. Over MCP they're progress notifications, sent when the\nclient's call asks for progress. A program using toil's API gets them, and every\nrequest too, through `onProgress` (**Using toil from a program**). They never change\nthe envelope.\n\n## Selecting fields\n\nTo get back only the fields you need, pass `--select <expression>` (`select` over\nMCP), a [JMESPath](https://jmespath.org/specification.html) expression applied to\n`data`, for example `--select \"issues[].{key: key, status: fields.status.name}\"`.\n`meta`, including `meta.page`, is left as it is. A bad expression is `INVALID_INPUT`\nbefore the command runs, with its position in `error.fix`; one that selects nothing\ngives `data: null` and a `SELECT_EMPTY` warning.\n\n## Waiting for something to finish\n\nTo wait for a build, a scan or a deployment to finish, don't call a read in a loop:\n`toil wait --until \"<expression>\" -- <read command>` runs it again every `--interval`\n(default 15s, at least 5s) until the JMESPath expression over its `data` is true (not\nnull, false or empty), for example\n`toil wait --until \"result != null\" -- jenkins pipeline get-run --name my-job --number 42` or\n`toil wait --until \"projectStatus.status != 'NONE'\" --timeout 10m -- sonar quality-gate --project my-app`.\nOver MCP it's the `wait` tool, with `tool` (the read's tool name), `input` (that tool's\ninput) and the same `until`, `interval` and `timeout`. It returns the read's last\nenvelope plus `meta.wait` (`until`, `attempts`, `elapsedMs`). `NETWORK` errors and\n`HTTP` 5xx or 429 answers are retried with backoff; any other error ends the wait with\nthat error. Past `--timeout` (at least 5s; default 30m, or `TOIL_TIMEOUT_MS`, cut to the maximum\nwith a `WAIT_TIMEOUT_CAPPED` warning when it is longer; at most the\n`\"wait\": { \"maxTimeout\" }` in config, default 1h) it's `TIMEOUT`, with the last `data`\nin `error.details.data`. Only reads can be waited on: a write is `INVALID_INPUT`.\n`--select` before `wait` applies to the final `data`; a `--select` after `--` belongs\nto the read, so `--until` sees what it selected. Other global flags go before `wait`.\n\n## Writes\n\nReads are always allowed. A command that changes something, in a service, a database\nor a file on this machine outside toil's own config, needs both `writes: true` on the\nconnection it uses, set by a person in their config or with a\n`TOIL_CONN_<NAME>_WRITES` / `TOIL_<AREA>_WRITES` env var, and `--allow-write` on the\ncall (`allowWrite: true` over MCP). Without either it fails with `WRITE_DISABLED`,\nnaming what's missing. Over MCP a write tool isn't listed until writes are on, and\ndeletes are never tools. A command that is CLI only and has no connection yet\n(`toil skills marketplace add`) needs `--allow-write` alone.\n\n### Exceptions\n\nExactly four writes don't follow that rule. Each is the maintainer's choice, made\ndeliberately, and is listed here with how to avoid it.\n\n| Write | What it writes, and when | Why | To avoid it |\n|-------|--------------------------|-----|-------------|\n| **`toil skill install`** | With `--allow-write` alone (CLI only, no connection): the toil skill, into one agent's skills folder as `toil/`, recorded as `bundled`. | Its contents are fixed: the files embedded in toil, no third-party code. It replaces only a `toil/` folder it recorded as `bundled` and refuses any other. | Don't run it. |\n| **The toil skill keeping itself current** | With no `--allow-write`: a `toil/` skill folder recorded as `bundled`, and nothing else in a skills folder (never a marketplace or hand-made skill). Rewritten by any command that loads config, on the CLI or over MCP, when that command changed the config file (a connection added, changed or removed) or when the copy was written by another toil version. Said in `meta.warnings` as `SKILL_REWRITTEN`. | So an installed skill never describes connections you no longer have, or a toil you no longer run, with no update command to forget. The contents are fixed; the description holds only area and engine names checked against toil's own list, never a host or a credential; and a rewrite that fails is a `SKILL_REWRITE_FAILED` warning, never a failed command. | Don't install the skill with `toil skill install` (copy `skills/toil` yourself, or use the Claude Code plugin marketplace), or delete the installed `toil/` folder. A call with `--config <file>` never rewrites it. |\n| **`toil feedback`** | With no connection and no `--allow-write`: one bug report or feature request, sent to Imagile LLC, which files it as a public GitHub issue. Only with `--consent` on the call, or `yes` typed at a terminal after it shows the report. CLI only. | Feedback has no connection to hold a standing opt-in, so the approval of each report is the opt-in. It sends only what you typed, plus toil's version and commit, and is the one request toil makes to a host you didn't configure (**Feedback**, below). | Don't run it, or run it without `--consent`: it then sends nothing and shows what it would send. |\n| **The welcome menu's game save** | With no `--allow-write`: the game's progress, under the `\"game\"` key of `~/.toil/config.json`, every other key kept as it was. Only while you play Two Weeks' Notice in the menu bare `toil` opens. | It's a game a person plays at a terminal, and its save touches nothing but its own key. The save is sealed against tampering, not kept secret. | Don't play it. There is no setting to turn the save off. |\n\n## The raw API passthrough\n\nFor an endpoint no command covers, an HTTP area has `toil <area> api <METHOD> <path>`\n(`<area>_api` over MCP), which sends the connection's own credential to a path under\nits base URL. GET and HEAD are reads; other methods are writes, and `DELETE` is CLI\nonly. The area's reference describes it where the area has one (`jira.md`).\n\n## Files and the workspace\n\nFiles a command reads or writes (an `--input-file`, an upload, a download, a CSV\nreport) must be inside the workspace: `--workspace <dir>`, else `TOIL_WORKSPACE`,\nelse the working directory; under `toil mcp`, the client's root when it shares\nexactly one. Relative paths resolve against it, a path outside is refused with\n`INVALID_INPUT`, and nothing is ever overwritten. Under `toil mcp` with no single\nroot, a command that touches a file returns `NOT_CONFIGURED`: add `--workspace <dir>`\nto the server's args. A person can let commands reach any path with\n`\"bounds\": { \"files\": \"unbounded\" }` in their config, and every envelope then\ncarries a `BOUND_RELAXED` warning. Saved paths come back absolute, with forward\nslashes. Commands that run git need git on PATH and say\n`GIT_NOT_FOUND` without it; nothing else does.\n\n## Configuration\n\nConfiguration comes from environment variables, which always win, or from\n`~/.toil/config.json` (or the file passed with `--config`). A connection is one\ninstance of an area; `--connection <name>` picks one when there are several.\n`toil connections list` names them (never a secret), with `definedIn`: `file` for one\nin your config file, `env` for one made by env vars alone, which the connections\ncommands can't change. `toil connections test\n<name>` checks one with a single authenticated read, failing with the `AUTH`,\n`NETWORK` or config error a real command would. Setting up a connection, signing\nin, turning writes on and choosing a default are for a person: a bare `toil` in a\nterminal opens a menu for them.\n\n## Global flags\n\nGlobal flags go before or after the command: `--pretty`, `--verbose` (adds every\nrequest to `meta.requests`, credentials redacted), `--debug` (traces on stderr),\n`--config <file>`, `--output-file <file>` and `--workspace <dir>`. `--help` on any\ncommand lists its own flags.\n\n## Dossiers\n\n`dossiers.md` explains what a dossier is, with an example file field by field; this\nsection is the short form.\n\nA **dossier** holds what toil knows about one body of work: its repositories, and per\narea the keys a call needs (`project`, `owner`, a namespace per environment), which\nconnection to use (by name, or by `host`), and reference data such as board lists.\nIt holds no secret and can't add a host or turn on writes. toil reads dossiers on\nevery area command from `~/.toil/dossiers/`, the folders in `dossierPaths` (or\n`TOIL_DOSSIER_PATHS`), and `.toil/dossiers/` in the repository you're in, and uses\nthe one that applies: `--dossier <name|file>` (`dossier` over MCP, or\n`TOIL_DOSSIER`), else the one whose repo matches the folder by path or `origin`\nremote. `--cwd <dir>` (`cwd` over MCP) looks from another folder. A value you pass\nalways beats the dossier's, and `meta.context.dossier` says which dossier applied and\nwhy. When two different dossiers match, the call fails with `INVALID_INPUT` until you\npick one. A write on a connection a dossier chose is `WRITE_DISABLED` unless the\ndossier is in your own folder; pass `--connection` to choose it yourself. To see what\na call will use before making it: `toil dossiers context` (which dossier a folder\nresolves to and why), `toil dossiers show [name]` (per area: the connection and why,\nwhether writes are on, the environment and the inputs), `toil dossiers list`, and\n`toil dossiers check [name]`, which checks one locally and contacts no service.\n\nTo build one for a product: `toil repos scan` lists the git repositories under the\nworkspace. Then:\n- `toil dossiers init <name>` creates the dossier.\n- `toil dossiers add-repo <name> <folder|remote>` adds each repository.\n- `toil dossiers link <name> <area> --host <host> --set project=PAY [--for-repo <repo>]`\n  says which connection an area uses and the keys it supplies.\n- `toil dossiers env <name> <env> <area> --set namespace=...` adds an environment.\n- `toil dossiers field <name> jira storyPoints customfield_10002` names a field, so\n  `--field storyPoints=5` works.\n- `toil <area> check-dossier` checks a section against the service, for the call's\n  environment (jira, jira-cloud, confluence, sonar, ado, bitbucket, github, openshift,\n  dynatrace).\n- `toil dossiers export <name> --repo <root>` writes a shareable copy into a\n  repository's `.toil/dossiers/`. It uses host selectors and no local paths, and toil\n  never commits it.\n- `toil dossiers unlink <name> --area <area> [--env <env>]` removes a section (CLI only).\n- `toil dossiers import <file>` copies a teammate's into your own folder. A connection\n  or host you lack is listed under `toSetUp`; toil never creates one.\n\nThese are local writes and need no `--allow-write`. Each refuses a value that's already\nset unless `--replace`. Over MCP they refuse to make a dossier select a connection\nwith writes on; the user does that on the command line, or under **Dossiers** in the\nmenu bare `toil` opens, which runs these same commands and asks them to type the\nconnection's name first.\n\n## The audit log\n\ntoil keeps a local audit log of every command it runs, through the CLI, MCP and the\nAPI: one JSON line per call in `~/.toil/audit/<yyyy-mm>.jsonl`, with the command, front\ndoor (`via`: `cli`, `mcp` or `api`, plus `caller` when a program named itself), connection, whether it wrote, the outcome, the redacted input and each request's\nmethod, URL and status. It never holds a secret, a header, a body or a row, and `db`\nSQL is kept only as a SHA-256 hash. `toil audit list` reads it back, newest first,\nwith `--since <date>`, `--command <name|area>`, `--connection <name>` and\n`--writes-only`; `toil audit path` says where it is and whether it's on. Six months are\nkept by default (`\"audit\": { \"keepMonths\": 12 }` changes that), and only a person can\nturn it off, with `\"audit\": { \"enabled\": false }` in `~/.toil/config.json`. A call\nwhose line couldn't be written still succeeds, with an `AUDIT_WRITE_FAILED` warning.\n\n## Using toil from a program\n\nA Node program can call toil in-process instead of running `toil` and parsing stdout.\n`@imagile-dev/toil/api` is a supported entry point of the same package, with its own\ntypes, and it adds no dependency: it is the same bundle as the CLI. Loading it runs nothing, even\nwhen your own build bundles it in: only toil's bin starts the CLI.\n\n```js\nimport { contractVersion, execute, registry, version } from '@imagile-dev/toil/api';\n\nif (contractVersion !== 1) throw new Error(`Needs toil's contract 1; toil ${version} has ${contractVersion}.`);\nconst envelope = await execute('jira search', { jql: 'project = PAY', maxResults: 50 }, {\n  readOnly: true,\n  caller: 'nightly-sync',\n  onProgress: (event) => console.error(event.message),\n});\n```\n\n- **`execute(command, input, options)`** runs one command and returns its envelope,\n  exactly as the CLI prints it. `command` is the name `meta.command` reports\n  (`jira search`); `input` is the command's MCP fields, checked strictly. It never\n  throws: an unknown command or a bad option is an `INVALID_INPUT` envelope.\n  Connections, env vars, the credential store, dossiers, the workspace (the program's\n  working directory, else `workspace`), the write gate and the audit log all apply as\n  they do on the CLI. It serves what MCP serves: commands that prompt or change\n  connections, and deletes, stay on the CLI, except as `person` below allows.\n- **`options`**: `readOnly` refuses, with `WRITE_DISABLED` and before anything is sent,\n  any call that would change anything, whatever the config says: a write to a service,\n  and a local one too (toil's config or dossiers, a download, a file named with\n  `out`). A read-only call writes nothing but its audit line. `caller` names the program in the audit log (lowercase letters, digits,\n  `.`, `_` and `-`, up to 64). `signal` cancels the call (`CANCELLED`). `onProgress`\n  hears every request (redacted URL, status, time), page and retry. `config`,\n  `workspace` and `verbose` match `--config`, `--workspace` and `--verbose`.\n- **`person`** is for a program with its own interface for a person, such as Toil\n  UI's settings pages. It is `{ ask(question) }`, and with it `execute()` also runs\n  the connections commands a person runs on a terminal: `connections add`, `login`,\n  `remove`, `writes` and `default`, and `feedback` (`registry.personCommands`). Each\n  question arrives as `{ id, text, secret, fallback }`, and `ask` returns what the\n  person typed. The `id` is one of `area`, `setting:<key>`, `secret:<key>`, `confirm`\n  (`y` saves what they reviewed), `confirm-name` (the connection's name, typed to\n  turn writes on) or `consent` (`yes` sends the feedback report and disclaimer the\n  question shows, **Feedback**, above). With `readOnly`, nothing is asked: `feedback`\n  only previews. Return `undefined` for a question they weren't asked, and the\n  command saves or sends nothing (`CANCELLED`). A secret goes from the answer to the OS\n  credential store: it is never in the input, the envelope or the audit log. The\n  program must ask a person and pass on their answers. Nothing about this lets an\n  agent run these commands.\n- **`registry`** lists every command `execute()` serves: its name, MCP tool name,\n  whether it writes to a service (`writes`) or on this machine (`writesLocal`), and\n  its input's JSON Schema. It also lists the areas, each with `connection`: the\n  fields `connections add` asks for, in order, each with `secret`, `password`,\n  `default` and `required`.\n- **`version`** and **`contractVersion`** are what `toil version` reports. Check\n  `contractVersion` before relying on anything else. `toil version` also reports\n  `commit`, the 40-character hash of the commit the build came from (`null` when the\n  build didn't record one), which is what a bug report from a terminal names.\n- **`mapOwi(input, options)`** maps envelopes you already hold (one, an array, or\n  JSON Lines text) to Open Work Items, the way `toil util owi map` does (`util.md`),\n  synchronously and without the schema check: `{ items, histories, skipped,\n  warnings }`. `options.fields` is a dossier section's `fields` object\n  (`{ estimate: 'customfield_10234', estimateUnit: 'points' }`), `command` names the\n  command for bare `data`, and `key` the item a keyless history belongs to. A\n  refused input throws, with a fix. **`owiVersion`** is the OWI version items carry,\n  and **`owiSchema`** their JSON Schema; `execute('util owi map', { text })` maps\n  and validates in one call.\n\nWhat `@imagile-dev/toil/api` exports, and the types it names, follow the command\ncontract: they change only additively unless `contractVersion` goes up. Anything else\nin the package is internal.\n\n## Feedback\n\n`toil feedback bug|feature` sends a bug report or a feature request to Imagile LLC,\nwhere it becomes a public GitHub issue in `imagile-dev/toil`, and the reporter is\nemailed when it's filed and when it closes. It is CLI only, never an MCP tool, and the\none request toil makes to a host you didn't configure. Every report carries this\ndisclaimer, version 1, and nothing is sent until the person sending it agrees to it:\n\n> Your report is sent to Imagile LLC to improve toil, and it becomes a public GitHub\n> issue in imagile-dev/toil. Your email address stays private: it is used only to tell\n> you about your issue. Before you send, remove company data: internal URLs and\n> hostnames, ticket keys, repository and project names, people's names, other\n> identifiers and credentials. You are responsible for what you send.\n\n```bash\ntoil feedback bug --title \"jira search ignores --max-results\" --body \"toil jira search --max-results 5 returns 50 issues.\" --email you@example.com\n```\n\n| Flag | Meaning |\n|------|---------|\n| `--title <text>` | One line, up to 120 characters |\n| `--body <text>` | The details, up to 4000 characters |\n| `--email <address>` | The reporter's own address, kept private |\n| `--input-file <file>` | JSON with any of `kind`, `title`, `body` and `email`, for long text; a flag beats the file, and `-` reads stdin |\n| `--consent` | Send it. Without it nothing is sent |\n\nWithout `--consent`, the command sends nothing. On a terminal it shows the report and\nthe disclaimer and asks; anywhere else it returns `sent: false`, the exact `report`\nit would send, the `disclaimer`, `consentVersion` and how to approve, with a\n`FEEDBACK_NOT_SENT` warning. With `--consent` it sends that same report and returns\n`sent: true` and the endpoint's message. The report is the kind, title, body and email\ngiven, plus `version`, `commit` and `consent` (the disclaimer's version). toil never\nadds config, connection names, hosts or tokens. A build that doesn't know its commit\npreviews but can't send (`UNSUPPORTED`); the form at\nhttps://imagile-dev.github.io/toil/feedback/ works from any browser.\n\n**An agent sending feedback for a user follows every step, in order, every time:**\n\n1. **Only when the user asks.** Never offer to send a report on your own initiative,\n   and never send one because a command failed.\n2. **Scrub it.** Replace company data with neutral placeholders before the user sees\n   the draft: internal URLs and hostnames (`jira.imagile.dev`), ticket keys\n   (`PROJ-123`), repository, project and team names (`my-repo`), people's names\n   (`a colleague`), email addresses other than the reporter's own, IDs, tokens,\n   passwords and anything else credential-shaped. Keep toil's own command names,\n   flags and error codes; they're what makes a report useful.\n3. **Show it.** Run the command without `--consent` and show the user the full\n   `data.report` it returned, and the `data.disclaimer`, word for word.\n4. **Ask.** Get the user's explicit yes in chat to sending that exact report. A yes to\n   an earlier draft, or to feedback in general, isn't one.\n5. **Send it.** Only then run the same command again with `--consent`, unchanged. If\n   the user asks for any change, make it, and go back to step 3.\n\nThrough `@imagile-dev/toil/api`, `feedback` runs only for a `person` (below), whose\n`yes` to the `consent` question sends it; the `consent` field is refused there, and a\n`readOnly` call only previews. `TOIL_FEEDBACK_URL` points the command at a local copy\nof the feedback function for testing, and takes only a loopback address\n(`http://127.0.0.1:7071`).\n\n## Certificates and proxies\n\ntoil trusts the OS certificate store and Node's bundled CAs, and uses `HTTPS_PROXY` /\n`HTTP_PROXY` / `NO_PROXY` when they're set. A `NETWORK` error about an untrusted\ncertificate means the CA is in neither; `NODE_EXTRA_CA_CERTS` adds it.\n",
   "db.md": '---\narea: db\ndescription: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite, PostgreSQL, MySQL/MariaDB, SQL Server, Oracle)\n---\n\n# Databases (`db`)\n\nOne set of commands for every database engine. Each connection says which engine it\nuses, and the commands work the same way on all of them.\n\n| Engine | `engine` value | Status |\n|--------|----------------|--------|\n| SQLite | `sqlite` | `live`: automated tests run against the real engine (Node\'s built-in `node:sqlite`) |\n| PostgreSQL | `postgres` | `live`: automated tests run against PostgreSQL 17 (the official `postgres:17` image) |\n| MySQL / MariaDB | `mysql` | `live`: automated tests run against MySQL 8.4 and MariaDB 11.8 (the official `mysql:8.4` and `mariadb:11.8` images) |\n| SQL Server | `sqlserver` | `live`: automated tests run against SQL Server 2022 (the official `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04` image) |\n| Oracle | `oracle` | `live`: automated tests run against Oracle Database 23ai Free (the `gvenzl/oracle-free:23.26.3-slim-faststart` image) |\n\n**Supported versions:** The oldest SQLite version toil supports hasn\'t been established. toil\nuses the SQLite built into Node, so the version is whichever your Node ships.\nPostgreSQL is tested against 17; the catalog columns toil reads need 11 or later.\nMySQL is tested against 8.4 and MariaDB against 11.8; the oldest versions toil\nsupports haven\'t been established.\nSQL Server is tested against 2022; the catalog views and `OFFSET ... FETCH` toil uses\nneed 2012 or later. Azure SQL Database speaks the same protocol but hasn\'t been tested.\nOracle is tested against 23ai; Thin mode and the dictionary columns toil reads need\n12.1 or later. No release older than 23ai has been run.\n\n## SQLite connections\n\nThere is nothing to install: toil uses the SQLite built into Node.\n\n| Key | Required | Meaning |\n|-----|----------|---------|\n| `engine` | yes | `sqlite` |\n| `path` | yes | Absolute path to an existing database file. toil never creates one. |\n| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |\n\n**Environment variables**, for the default `db` connection:\n\n```bash\nexport TOIL_DB_ENGINE=sqlite\nexport TOIL_DB_PATH=/srv/data/app.db\n# Only if this connection may be written to:\nexport TOIL_DB_WRITES=true\n```\n\nA named connection, defined entirely from the environment (handy in CI):\n\n```bash\nexport TOIL_CONN_SCRATCH_AREA=db\nexport TOIL_CONN_SCRATCH_ENGINE=sqlite\nexport TOIL_CONN_SCRATCH_PATH=/tmp/scratch.db\nexport TOIL_CONN_SCRATCH_WRITES=true\n```\n\n**Config file** (`~/.toil/config.json`), with a read-only connection as the default\nand a writable scratch copy beside it:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "app": { "area": "db", "engine": "sqlite", "path": "/srv/data/app.db" },\n    "scratch": { "area": "db", "engine": "sqlite", "path": "/tmp/scratch.db", "writes": true }\n  },\n  "defaults": { "db": { "connection": "app" } }\n}\n```\n\nOn Windows, write the path with forward slashes or escaped backslashes in JSON:\n`"C:/data/app.db"`.\n\n## PostgreSQL connections\n\ntoil speaks PostgreSQL\'s wire protocol in plain JavaScript (the `pg` driver, bundled\ninto toil): no libpq, no `psql`, nothing to install.\n\n| Key | Required | Meaning |\n|-----|----------|---------|\n| `engine` | yes | `postgres` |\n| `host` | yes | Server host name or address |\n| `port` | no | TCP port. Default `5432`. |\n| `database` | yes | The database to connect to |\n| `user` | yes | The login role |\n| `password` | no | The role\'s password. A secret: an env var or the OS credential store, never the config file. |\n| `ssl` | no | `true` connects over TLS and verifies the server\'s certificate against Node\'s CAs, `NODE_EXTRA_CA_CERTS` and the OS certificate store, so a corporate root in the OS store is trusted. Off by default. |\n| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |\n\n**Environment variables**, for the default `db` connection:\n\n```bash\nexport TOIL_DB_ENGINE=postgres\nexport TOIL_DB_HOST=db.imagile.dev\nexport TOIL_DB_PORT=5432\nexport TOIL_DB_DATABASE=app\nexport TOIL_DB_USER=reader\nexport TOIL_DB_PASSWORD=<the role\'s password>\nexport TOIL_DB_SSL=true\n```\n\nOr keep the connection in config and the password in the OS credential store:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "app-pg": { "area": "db", "engine": "postgres", "host": "db.imagile.dev", "database": "app", "user": "reader", "ssl": true }\n  },\n  "defaults": { "db": { "connection": "app-pg" } }\n}\n```\n\n```bash\ntoil connections login app-pg   # prompts for the password and stores it\n```\n\nA named connection\'s password can also come from `TOIL_CONN_APP_PG_PASSWORD`.\n\ntoil ignores the libpq environment (`PGHOST`, `PGUSER`, `PGPASSWORD`, `PGSSLMODE`,\n`PGOPTIONS` and the rest) and `~/.pgpass`: a connection reaches only the host its own\nsettings name, with only its own password.\n\n**Connect with an ordinary role** that can read what the agent should see, ideally\none with only `SELECT` grants. See the known limit under "Reads are read-only at the\nengine".\n\n## MySQL and MariaDB connections\n\nOne engine, `mysql`, covers both. toil speaks their wire protocol in plain\nJavaScript (the `mysql2` driver, bundled into toil): no client library, no `mysql`\nCLI, nothing to install.\n\n| Key | Required | Meaning |\n|-----|----------|---------|\n| `engine` | yes | `mysql` |\n| `host` | yes | Server host name or address |\n| `port` | no | TCP port. Default `3306`. |\n| `database` | yes | The database to connect to. It is also the default schema. |\n| `user` | yes | The account |\n| `password` | no | The account\'s password. A secret: an env var or the OS credential store, never the config file. |\n| `ssl` | no | `true` connects over TLS and verifies the server\'s certificate and host name against Node\'s and the OS\'s certificate stores. Off by default. |\n| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |\n\n**Environment variables**, for the default `db` connection:\n\n```bash\nexport TOIL_DB_ENGINE=mysql\nexport TOIL_DB_HOST=db.imagile.dev\nexport TOIL_DB_PORT=3306\nexport TOIL_DB_DATABASE=app\nexport TOIL_DB_USER=reader\nexport TOIL_DB_PASSWORD=<the account\'s password>\nexport TOIL_DB_SSL=true\n```\n\nOr in config, with the password in the OS credential store:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "app-mysql": { "area": "db", "engine": "mysql", "host": "db.imagile.dev", "database": "app", "user": "reader", "ssl": true }\n  },\n  "defaults": { "db": { "connection": "app-mysql" } }\n}\n```\n\n```bash\ntoil connections login app-mysql   # prompts for the password and stores it\n```\n\ntoil reads no option file (`my.cnf`, `~/.mylogin.cnf`) and no `MYSQL_*` variable. It\nnever sends the password in clear text (an account using `mysql_clear_password`\nfails with `AUTH`), and it never uploads a local file: `LOAD DATA LOCAL` is off.\n\n**Connect with an account that has only `SELECT`** on what the agent should see. See\nthe known limits under "Reads are read-only at the engine".\n\n## SQL Server connections\n\ntoil speaks TDS, SQL Server\'s wire protocol, in plain JavaScript (the `tedious`\ndriver, bundled into toil): no ODBC driver, no `sqlcmd`, nothing to install. It signs\nin with a SQL Server login (user name and password), which needs the server to allow\nSQL Server authentication (mixed mode), or, on Windows only, with Windows\nauthentication (`"auth": "windows"`, below).\n\n| Key | Required | Meaning |\n|-----|----------|---------|\n| `engine` | yes | `sqlserver` |\n| `host` | yes | Server host name or address |\n| `port` | no | TCP port. Default `1433`. A named instance needs its own port here: toil doesn\'t ask the SQL Browser service. |\n| `database` | yes | The database to connect to |\n| `user` | for a SQL login | The SQL Server login; with `"auth": "windows"`, another domain account to sign in as |\n| `password` | no | The login\'s password. A secret: an env var or the OS credential store, never the config file. |\n| `ssl` | no | `true` encrypts the connection with TLS and verifies the server\'s certificate against the OS certificate store. Off by default, which sends the login and every result unencrypted, so turn it on unless the network is trusted. There is no setting to trust any certificate: add the server\'s certificate, or your organization\'s CA, to the OS store instead. |\n| `auth` | no | `sql` (a SQL Server login, the default) or `windows` (Windows authentication, Windows only) |\n| `domain` | no | With `"auth": "windows"` and `user`: the account\'s domain |\n| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |\n\n**Environment variables**, for the default `db` connection:\n\n```bash\nexport TOIL_DB_ENGINE=sqlserver\nexport TOIL_DB_HOST=sql.imagile.dev\nexport TOIL_DB_PORT=1433\nexport TOIL_DB_DATABASE=app\nexport TOIL_DB_USER=toil_reader\nexport TOIL_DB_PASSWORD=<the login\'s password>\nexport TOIL_DB_SSL=true\n```\n\nOr keep the connection in config and the password in the OS credential store:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "app-sql": { "area": "db", "engine": "sqlserver", "host": "sql.imagile.dev", "database": "app", "user": "toil_reader", "ssl": true }\n  },\n  "defaults": { "db": { "connection": "app-sql" } }\n}\n```\n\n```bash\ntoil connections login app-sql   # prompts for the password and stores it\n```\n\nA named connection\'s password can also come from `TOIL_CONN_APP_SQL_PASSWORD`.\n\n### Windows authentication (Windows only)\n\n`"auth": "windows"` signs in as the Windows user running toil, with no password\nstored anywhere: Windows proves who you are with the Kerberos ticket (or NTLM) it\nalready holds from your logon.\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "app-sql": { "area": "db", "engine": "sqlserver", "host": "sql.imagile.dev", "database": "app", "auth": "windows", "ssl": true }\n  }\n}\n```\n\nFrom the environment, for the default `db` connection, as the current Windows user:\n\n```bash\nexport TOIL_DB_ENGINE=sqlserver\nexport TOIL_DB_HOST=sql.imagile.dev\nexport TOIL_DB_DATABASE=app\nexport TOIL_DB_AUTH=windows\n```\n\nTo sign in as a different domain account, add `domain` and `user` (`TOIL_DB_DOMAIN`,\n`TOIL_DB_USER`), and store that account\'s password with `toil connections login\napp-sql` (Windows Credential Manager), or set `TOIL_CONN_APP_SQL_PASSWORD`.\n\n| Platform | `"auth": "windows"` |\n|----------|---------------------|\n| Windows | Supported |\n| macOS, Linux | Refused before connecting (`CONFIG_INVALID`); use a SQL Server login |\n\nHow it works: Node has no way to ask Windows for a sign-in token, so for each\nconnection toil runs one Windows PowerShell (`powershell.exe` from the Windows\nfolder, `-NoProfile -NonInteractive`), which asks Windows\' SSPI `Negotiate` package\nfor tokens for the server\'s SPN, `MSSQLSvc/<host>:<port>`. The script and every token\npass over the process\'s stdin and stdout, never its command line. Use the server\'s\nfully qualified name in `host`, the name its SPN is registered under; with any other\nname Kerberos can\'t find the SPN, and Windows falls back to NTLM if the server and\ndomain allow it.\n\nWindows PowerShell must run in Full Language mode. Where an AppLocker or WDAC\npolicy puts it in Constrained Language mode, `Add-Type` is blocked, and toil says so\nwith `AUTH` naming the mode instead of failing the login vaguely. Windows PowerShell\n5.1\'s `Add-Type` also compiles a small helper with `csc.exe` into `TEMP`, so `TEMP`\nmust be writable.\n\nWindows authentication is `untested` against a real server: its tests run the\nhelper against Windows\' own SSPI, and a full multi-step handshake completes, but\nno run against SQL Server on a domain has happened yet, nor one under a\nConstrained Language Mode policy.\n\n**Connect with a read-only login.** SQL Server has no read-only transaction, so toil\ncan\'t ask the server to refuse writes the way it does for PostgreSQL. It rolls back\nevery read instead (see "Reads are read-only at the engine"), and the login is what\nmakes the server itself refuse a write. A login whose database user is only in\n`db_datareader` is enough:\n\n```sql\nCREATE LOGIN toil_reader WITH PASSWORD = \'<a strong password>\';\nUSE app;\nCREATE USER toil_reader FOR LOGIN toil_reader;\nALTER ROLE db_datareader ADD MEMBER toil_reader;\n```\n\nUse a second connection, with a login that may write and `writes: true`, for `db\nexecute`.\n\n## Oracle connections\n\ntoil speaks Oracle Net in plain JavaScript (the `oracledb` driver in Thin mode, bundled\ninto toil): no Instant Client, no `sqlplus`, no native library, nothing to install.\ntoil never switches the driver to Thick mode.\n\n| Key | Required | Meaning |\n|-----|----------|---------|\n| `engine` | yes | `oracle` |\n| `host` | yes | Listener host name or IP address. Nothing else: no port, scheme or descriptor. |\n| `port` | no | Listener port. Default `1521`. |\n| `database` | yes | The **service name** (`FREEPDB1`, `ORCLPDB1`). Not a SID, and not a TNS alias. |\n| `user` | yes | The user. Unquoted, it\'s read in upper case, as Oracle does; wrap it in double quotes for a case-sensitive one. |\n| `password` | no | The user\'s password. A secret: an env var or the OS credential store, never the config file. |\n| `ssl` | no | `true` connects over TCPS and verifies the server\'s certificate, and that its name matches `host`, against the OS certificate store. Off by default. |\n| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |\n\n```bash\nexport TOIL_DB_ENGINE=oracle\nexport TOIL_DB_HOST=db.imagile.dev\nexport TOIL_DB_PORT=1521\nexport TOIL_DB_DATABASE=ORCLPDB1\nexport TOIL_DB_USER=reader\nexport TOIL_DB_PASSWORD=<the user\'s password>\n```\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "app-ora": { "area": "db", "engine": "oracle", "host": "db.imagile.dev", "database": "ORCLPDB1", "user": "reader" }\n  },\n  "defaults": { "db": { "connection": "app-ora" } }\n}\n```\n\n```bash\ntoil connections login app-ora   # prompts for the password and stores it\n```\n\ntoil builds the connect descriptor itself from `host`, `port` and `database`, so it\nreads no `tnsnames.ora`, `sqlnet.ora`, `TNS_ADMIN` or wallet. Thin mode needs the\nuser\'s password to have an 11G or 12C verifier; an older one fails with `AUTH`,\nsaying so.\n\n**Connect with a read-only account**: a user granted `SELECT` (or `READ`) on what the\nagent should see, and nothing that writes. On Oracle this matters more than on the\nother engines; see the known limit under "Reads are read-only at the engine".\n\n## Commands\n\n| Command | MCP tool | Returns |\n|---------|----------|---------|\n| `toil db list-schemas` | `db_list_schemas` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`; for SQL Server, the schemas, without `sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas; for Oracle, the users the login can see that Oracle doesn\'t maintain. |\n| `toil db list-tables [--schema <name>]` | `db_list_tables` | `{ schema, tables: [{ name, type }] }`, `type` being `table` or `view` |\n| `toil db describe-table <table> [--schema <name>]` | `db_describe_table` | `{ schema, name, type, columns, primaryKey, indexes, foreignKeys }` |\n| `toil db preview-table <table> [--schema] [--limit] [--cursor]` | `db_preview_table` | A page of rows: `{ columns, rows }` |\n| `toil db query <sql> [--limit] [--cursor]` | `db_query` | A page of rows from one read-only statement: `{ columns, rows }` |\n| `toil db execute <sql> --allow-write` | `db_execute` | `{ changes }`: rows inserted, updated or deleted |\n\nEvery command takes `--connection <name>`. `--schema` defaults to the engine\'s\ndefault schema (`main` for SQLite, `public` for PostgreSQL, the connection\'s database\nfor MySQL, where a schema is a database, `dbo` for SQL Server, and the user\'s own\nschema for Oracle). PostgreSQL names are case-sensitive as stored: an unquoted\n`CREATE TABLE People` is stored as `people`. MySQL table names are case-sensitive on\nmost Linux servers. Oracle stores an unquoted name in upper case and reports names as\nstored (`PEOPLE`, `ID`); a schema or table you name that doesn\'t exist as written is\nlooked up again in upper case, so `describe-table people` finds `PEOPLE`. A quoted\nmixed-case name (`"People"`) must be typed exactly.\n\nRows come back as arrays in the order of `columns`, so a join\'s two `id` columns both\nsurvive:\n\n```json\n{ "columns": [{ "name": "id", "type": "INTEGER" }, { "name": "name", "type": "TEXT" }],\n  "rows": [[1, "Ada"], [2, "Grace"]] }\n```\n\n`type` is the column\'s declared type, or null for an expression. Integers too large\nfor JavaScript come back as strings, and binary values as base64.\n\nPostgreSQL names every result column\'s type (`integer`, `character varying(100)`,\n`timestamp with time zone`). `numeric` comes back as a string, so no digits are lost;\n`json` and `jsonb` as JSON; arrays as arrays. Dates, times, timestamps and intervals\ncome back as the text the server sent, never shifted into the local time zone.\n\nMySQL names each result column\'s type from the protocol (`INT`, `BIGINT`, `VARCHAR`,\n`DECIMAL`, `DATETIME`), without lengths; `describe-table` gives the full column type\n(`varchar(100)`). `DECIMAL` comes back as a string; dates, times and timestamps as the\ntext the server sent; `JSON` as JSON; `BLOB`, `BINARY` and `BIT` as base64.\n`preview-table` orders a table by its primary key, so pages stay stable. In\n`describe-table`, a foreign key\'s `NO ACTION` and `RESTRICT` both read as null: InnoDB\nenforces them the same way, and MariaDB reports an unstated rule as `RESTRICT`.\nSQL Server names every result column\'s type as you\'d write it in DDL (`int`,\n`varchar(100)`, `nvarchar(max)`, `decimal(10,2)`, `datetime2(7)`). `bigint` comes back\nas a number when it fits and a string when it doesn\'t; `bit` as true or false;\n`uniqueidentifier` as a string; binary as base64. `date`, `time`, `datetime`,\n`datetime2` and `smalldatetime` come back as the text of the value the server holds,\nnever shifted into a time zone (`2026-01-02 03:04:05.123`), to the millisecond: digits\npast that are dropped. `datetimeoffset` comes back as the instant in UTC\n(`2026-01-02T01:04:05.000Z`), without its original offset. `decimal`, `numeric` and\n`money` come back as JSON numbers, so a value with more than about 15 significant\ndigits loses the rest; `CAST` it to `varchar` in the query when every digit matters.\n`preview-table` pages in primary-key order, or in the engine\'s own order for a table\nwithout one.\n\nOracle names each result column\'s type (`NUMBER`, `VARCHAR2`, `DATE`), and\n`describe-table` gives the declared form (`NUMBER(10,2)`, `VARCHAR2(100)`). A `NUMBER`\nis a JSON number when that\'s exactly its value, and a string otherwise, so no digits\nare lost. `CLOB` comes back as text, `BLOB` and `RAW` as base64, `BOOLEAN` as a\nboolean, and `BINARY_DOUBLE`\'s NaN and infinities as strings. Dates and\ntimestamps come back exactly as stored, in the shape PostgreSQL and MySQL use, never\nthrough the local time zone of the machine running toil: `DATE` as\n`2026-01-02 03:04:05`, `TIMESTAMP` with every fractional digit it holds\n(`2026-01-02 03:04:05.123456`), and `TIMESTAMP WITH TIME ZONE` with its offset\n(`2026-01-02 03:04:05+02`, `+05:30`). A value stored with a named region\n(`Europe/Paris`) and `TIMESTAMP WITH LOCAL TIME ZONE` come back as the same instant in\nUTC (`+00`).\n\n### Paging and row caps\n\n`preview-table` and `query` return 100 rows per page unless you pass `--limit`\n(1 to 1000). When there are more, `meta.page.nextCursor` holds a cursor; pass it\nback with `--cursor`, along with the same SQL or table, to get the next page. A\ncursor only works with the query it came from. Use `ORDER BY` in a query you page\nthrough, so the pages are stable.\n\n### Reads are read-only at the engine\n\n`db query`, `preview-table` and the listing commands open SQLite read-only with\n`PRAGMA query_only` on. A statement that tries to write fails with `WRITE_DISABLED`,\nwhatever the connection\'s `writes` setting. `db query` runs exactly one statement;\nSQL holding several is refused with `INVALID_INPUT`.\n\n`VACUUM` is refused on every read with `INVALID_INPUT`, before it reaches SQLite.\n`VACUUM INTO \'<file>\'` creates its target file even on a read-only connection, so\nreads never get the chance. To vacuum or to write a copy, use `db execute` with\nwrites on; it runs a lone `VACUUM` outside the usual transaction, because SQLite\ncan\'t vacuum inside one, and refuses `VACUUM` mixed with other statements.\n\nOne known gap remains: `ATTACH DATABASE` from a read-only query can open another\nexisting SQLite file for reading (it can\'t create one). If the files a connection\ncan reach matter, run toil as a user that can read only what it should.\n\n**PostgreSQL** runs every read in a transaction begun with `SET TRANSACTION READ ONLY`\nand rolled back, on a connection opened for that one call. The server refuses any\nwrite (`INSERT`, `UPDATE`, DDL, `nextval`, a data-modifying `WITH`) with SQLSTATE\n25006, which comes back as `WRITE_DISABLED`. `db query` sends its statement on the\nextended protocol, which refuses a second one, so several statements are\n`INVALID_INPUT` here too.\n\n`COPY` and `DO` are refused on every read with `INVALID_INPUT`, before they reach the\nserver: `COPY ... TO \'<file>\'` writes a file on the server, and `TO PROGRAM` runs one,\neven in a read-only transaction, for a role allowed to, and a `DO` block can run the\nsame `COPY`. Neither returns rows a query could page. To run them, use `db execute`.\n\nKnown limit: functions with effects outside the database still run in a read-only\ntransaction for a role allowed to call them. `lo_export` writes a server file,\n`pg_terminate_backend` ends sessions, `pg_reload_conf` reloads the server\'s config,\nand an extension such as `dblink` can reach another database. They can\'t be refused\nby name, so connect with an ordinary role: not a superuser, and not a member of\n`pg_write_server_files`, `pg_execute_server_program` or `pg_signal_backend`.\n\n**MySQL and MariaDB** run every read on a session set to `SET SESSION TRANSACTION READ\nONLY`, inside `START TRANSACTION READ ONLY`, rolled back, on a connection opened for\nthat one call. Both are needed: DDL commits the transaction implicitly, and the session\nsetting makes the server refuse it all the same. Any write (`INSERT`, `UPDATE`, DDL,\n`LOAD DATA`) fails with error 1792, which comes back as `WRITE_DISABLED`. `db query`\nsends one statement with multi-statements off; several are `INVALID_INPUT`.\n\n`SELECT ... INTO OUTFILE`, `INTO DUMPFILE` and every `SET` are refused on reads with\n`INVALID_INPUT`, before they reach the server: `INTO OUTFILE` writes a server file even\nin a read-only transaction, for an account with `FILE`, and `SET GLOBAL` or `SET\nPERSIST` changes the server\'s configuration. To run them, use `db execute`.\n\nKnown limits: a stored procedure that commits and switches its own session to read-write\ncan still write when a read `CALL`s it, and administrative statements that aren\'t\nwrites (`KILL`, `FLUSH`, `SHUTDOWN`) run for an account allowed to. Neither can be\nrefused by name without refusing ordinary reads, so connect with an account that has\n`SELECT` only: no `FILE`, `SUPER`, `SYSTEM_VARIABLES_ADMIN` or `CONNECTION_ADMIN`, and no\n`EXECUTE` on procedures that change data.\n**SQL Server** has no read-only transaction. toil runs every read in a transaction,\non a connection opened for that one call, and always rolls it back, so nothing a read\ndoes is kept. The server reports the type of every statement it runs, and a read whose\nstatement the server reports as changing data or schema (`INSERT`, `UPDATE`,\n`DELETE`, `MERGE`, `SELECT INTO`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `UPDATE\nSTATISTICS`, including inside `EXEC`) comes back as `WRITE_DISABLED`. With a\nread-only login the server refuses the write itself, which comes back as\n`WRITE_DISABLED` too. `db query` returns one result: SQL that returns a second result\nis `INVALID_INPUT`. When the first result fills the page, toil stops the batch there\nwith a TDS attention, so anything after it in the same SQL never runs.\n\n`COMMIT`, `ROLLBACK`, `BEGIN TRANSACTION` and `SAVE TRANSACTION` are refused on every\nread with `INVALID_INPUT`, before they reach the server: a `COMMIT` would end the\ntransaction toil rolls back, and keep the write before it. An `OUTPUT` clause is refused\non reads too: an `INSERT`, `UPDATE`, `DELETE` or `MERGE` with `OUTPUT` sends its rows\nbefore the server reports the change, so a full page could stop it before toil learns it\nwas a write. A column or alias named `output` in a plain `SELECT` is fine; in SQL that\nalso holds one of those words, bracket-quote it as `[output]`. A read-only login\'s refusal of a permission that only reads (a `sys.dm_db_*`\nview needing `VIEW DATABASE STATE`, `SHOWPLAN`) comes back as `DATABASE`, naming the\npermission.\n\nKnown limit: transaction control inside dynamic SQL or a procedure (an `EXEC` whose\ntext holds a `COMMIT`) can\'t be refused by name, and neither can an `OUTPUT` clause\nthere (`EXEC(\'UPDATE ... OUTPUT ...\')`): its changed rows can fill a page and come back\nas an ordinary result, though the change is still rolled back. A write under `SET\nNOCOUNT ON` isn\'t reported by the server. toil notices the transaction ending and says so with\n`DATABASE` ("anything it changed may have been saved"), but by then the change is\nmade. That is why a SQL Server connection for reads should use a read-only login:\nwith one, the server refuses the write whatever the SQL does.\n\n**Oracle** runs every read in a transaction begun with `SET TRANSACTION READ ONLY` and\nrolled back, on a connection opened for that one call. The server refuses `INSERT`,\n`UPDATE`, `DELETE`, `MERGE` and `SELECT ... FOR UPDATE` with ORA-01456, which comes\nback as `WRITE_DISABLED`, as do a read-only user or session (ORA-28193) and a database\nopen read-only (ORA-16000). `db query` runs one statement; several are `INVALID_INPUT`.\n\nThat transaction doesn\'t hold everything, so some statements are refused on every read\nbefore they reach the server:\n\n- **DDL** (`CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `RENAME`, `GRANT`, `REVOKE`,\n  `COMMENT`, `ANALYZE`, `PURGE`, `FLASHBACK`, `NOAUDIT`, `ASSOCIATE`,\n  `DISASSOCIATE`) is `WRITE_DISABLED`: Oracle commits before and after DDL, so it runs,\n  and stays, inside a read-only transaction.\n- **PL/SQL** (`BEGIN`, `DECLARE`, `CALL`, and `WITH FUNCTION` or `WITH PROCEDURE`) is\n  `INVALID_INPUT`: a block can `COMMIT`, `EXECUTE IMMEDIATE` DDL, or run an autonomous\n  transaction, and `CALL` reaches built-ins such as `DBMS_UTILITY.EXEC_DDL_STATEMENT`.\n\nTo run any of them, use `db execute`.\n\nKnown limit: a stored function that runs an autonomous transaction (`PRAGMA\nAUTONOMOUS_TRANSACTION`) still writes when a `SELECT` calls it, and a function can\'t be\nrefused by name. **Connect with an account that can\'t write**: then nothing a query\ncalls can either. `AUDIT` isn\'t refused either: it needs the audit privileges an\nordinary account doesn\'t have. A trigger or stored function with an autonomous\ntransaction commits on its own; toil can\'t see it, so "nothing was applied" after a\nfailed `db execute` covers only the script\'s own transaction.\n\n### Writes\n\n`db execute` is the only command that changes data. It needs both:\n\n1. `writes: true` on the connection (`TOIL_DB_WRITES=true`, or\n   `TOIL_CONN_<NAME>_WRITES=true`), set by the person who owns the config, and\n2. `--allow-write` on the call (`allowWrite: true` over MCP).\n\nWithout either it fails with `WRITE_DISABLED` and changes nothing. It runs one or more\nstatements, separated by semicolons, in one transaction that commits only if every\nstatement succeeds. A script that starts or ends a transaction of its own (`BEGIN`,\n`COMMIT`, `END`, `ROLLBACK`, `SAVEPOINT`, `RELEASE`, and for PostgreSQL also `START`,\n`ABORT` and `PREPARE TRANSACTION`; for MySQL also `START TRANSACTION`, `XA`, `LOCK` and\n`UNLOCK TABLES`, and `SET autocommit`) is refused with `INVALID_INPUT` before any of it runs.\n\nOn MySQL and MariaDB, DDL (`CREATE`, `ALTER`, `DROP`, `TRUNCATE`) commits implicitly,\nso a script holding DDL isn\'t all or nothing: what ran before the DDL is committed\neven if a later statement fails. Keep DDL in a script of its own. A server running\n`read_only`, or an account whose transactions default to read-only, fails writes with\n`DATABASE`, saying so.\nOn SQL Server that means `BEGIN TRANSACTION`, `COMMIT`, `ROLLBACK` and `SAVE\nTRANSACTION`; `BEGIN ... END` blocks, `TRY ... CATCH` and `CASE` are fine. A SQL\nServer script runs as one batch, so leave out `GO`, and a statement that must start a\nbatch (`CREATE VIEW`, `CREATE PROCEDURE`) goes in a call of its own. `changes` counts\nthe rows `INSERT`, `UPDATE`, `DELETE`, `MERGE` and `SELECT INTO` reported; under `SET\nNOCOUNT ON` the server reports none.\n\nOn PostgreSQL, statements that can\'t run inside a transaction (`VACUUM`, `CREATE\nDATABASE`, `CREATE INDEX CONCURRENTLY`) fail with `DATABASE`; run those with your own\ntools. A connection that reaches a read-only standby, or a role whose transactions\ndefault to read-only, fails writes with `DATABASE`, saying so.\n\nOn Oracle, a script\'s statements are separated by semicolons, and a PL/SQL unit (a\n`BEGIN` or `DECLARE` block, `CREATE FUNCTION`, `PROCEDURE`, `PACKAGE`, `TRIGGER` or\n`TYPE`) runs to a line holding only `/`, as in SQL*Plus, or to the end of the script.\n`COMMIT`, `ROLLBACK`, `SAVEPOINT` and `SET TRANSACTION` are refused before any of it\nruns. Two things Oracle does break all-or-nothing, and toil can\'t stop them: **DDL\ncommits** everything before it, and itself, as it runs, and a PL/SQL block can commit\ninside. When a script fails after Oracle has committed part of it (a DDL statement\nthat ran, or failed after parsing), the error says which\nstatements stayed committed (`Oracle committed statements 1 to 2 of 4`). After a\nPL/SQL block or a `CALL` ran, toil can\'t see whether it committed, so the error says the statements\nup to the failure may have committed; check before running the script again. Only when\nnothing in the script could have committed does it say nothing was applied (an\nautonomous-transaction trigger or function is the exception; see the known limit above). Keep DDL in a\nscript of its own, or first.\n\n### Time limits and cancelling\n\nEvery command stops at `TOIL_TIMEOUT_MS` (default 120000) with `TIMEOUT`, and on\nCtrl+C or an MCP cancel with `CANCELLED`. The answer comes back straight away.\nSQLite can only be stopped between rows, though: a statement that computes for a long\ntime before producing its first row keeps running in the background until it\nfinishes, and the CLI process exits only then. Prefer `LIMIT` and indexed filters on\nlarge tables.\n\nPostgreSQL stops the statement on the server: on a time limit or a cancel, toil asks\nthe server to cancel it (`pg_cancel_backend`, from a second short connection), so a\nlong sort or `pg_sleep` doesn\'t keep running after toil has answered. `db query`\nreads rows a batch at a time from a server-side portal, so the server stops\nproducing rows once the page is full.\n\nMySQL stops the statement on the server too, with `KILL <id>` from a second short\nconnection. That ends the whole session, so a cancelled `db execute` rolls back and\nruns none of its remaining statements. Its protocol has no portal, so `db query` reads rows as they stream and,\nonce the page is full, drops the connection; the server stops at the next row it\ntries to send.\nSQL Server stops the statement on the server too: on a time limit or a cancel, toil\nsends a TDS attention, which ends the running batch, and the read\'s transaction is\nrolled back when its connection closes.\n\nOracle is sent a break (`connection.break()`) on a time limit or a cancel, which stops\nthe statement on the server at its next check: a long join or sort stops at once.\nThin mode\'s break travels in the data stream, so a session parked in\n`DBMS_SESSION.SLEEP` hears it only when the sleep ends; toil still answers straight\naway. `db query` reads rows a batch at a time from a server-side cursor.\n\n## Examples\n\n```bash\ntoil db list-tables\ntoil db describe-table people\ntoil db preview-table people --limit 20\ntoil db query "SELECT id, name FROM people WHERE active = 1 ORDER BY id" --limit 50\ntoil db query "SELECT id, name FROM people WHERE active = 1 ORDER BY id" --limit 50 --cursor <meta.page.nextCursor>\ntoil db execute "UPDATE people SET active = 0 WHERE id = 7" --allow-write --connection scratch\n```\n\nOver MCP:\n\n```json\n{ "name": "db_query", "arguments": { "sql": "SELECT id, name FROM people ORDER BY id", "limit": 50 } }\n```\n\n## Errors\n\n| Code | Means |\n|------|-------|\n| `NOT_CONFIGURED` | No db connection set up |\n| `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`), `path` is relative, the file isn\'t a SQLite database, `"auth": "windows"` is set off Windows, or an Oracle `host` or `database` holds more than a host name or service name |\n| `AUTH` | The server refused the login: check `user` and `password` (for SQL Server, also that SQL Server logins are allowed; for Oracle, also a locked or expired account, or a password verifier too old for Thin mode); or Windows authentication couldn\'t start (Constrained Language mode, SSPI refused) |\n| `NETWORK` | The server or listener couldn\'t be reached, didn\'t answer, or its TLS certificate wasn\'t trusted; or SQL Server requires encryption and `ssl` is off |\n| `NOT_FOUND` | The file, database, Oracle service, schema or table doesn\'t exist |\n| `WRITE_DISABLED` | A write was refused: by `db query` (DDL included, on Oracle), or by the write gate on `db execute` |\n| `INVALID_INPUT` | Bad flags, a cursor from another query, several statements in `db query`, or on a read `VACUUM` (SQLite), `COPY` and `DO` (PostgreSQL), `INTO OUTFILE` and `SET` (MySQL), transaction control and `OUTPUT` (SQL Server), or PL/SQL (Oracle) |\n| `DATABASE` | The engine refused or failed the statement: bad SQL, a constraint, a lock, a permission; on SQL Server, also SQL that ended toil\'s transaction itself |\n| `TIMEOUT`, `CANCELLED` | Stopped waiting; for `db execute`, check whether the change was made before retrying |\n',
+  "dossiers.md": '---\ndescription: One body of work, its repositories, tracker, pipelines and environments, mapped to the connections that reach them. Why dossiers exist, where they live, one field by field, and how to create, check, use and share one\n---\n\n# What is a dossier?\n\nA **dossier** is one body of work, meaning its repositories, tracker, pipelines and\nenvironments, mapped to the connections that reach them. It\'s a small JSON file that\nsays "for `card-payments`, Jira is project `PAY` on `jira.imagile.dev`, the code is\n`payments-core` in Bitbucket, Jenkins builds the `payments-core` job, and dev runs in\nthe `payments-dev` namespace". It holds no secret, can\'t add a host and can\'t turn on\nwrites. It only chooses among connections you already have.\n\n<!-- figure: dossier-map -->\n\nIn words: the repository you work in matches the dossier `card-payments`. The dossier\nhas one section per area (Jira, Bitbucket, Jenkins, and OpenShift per environment),\nand each section picks one of your own connections by its host. The connection holds\nthe credential and is the only thing that talks to the host.\n\n## Why it exists\n\n- **One name instead of the same flags on every call.** Without a dossier, every\n  command repeats where the work lives:\n  `toil bitbucket list-prs --connection corp-bitbucket --project PAY --repo payments-core`.\n  With one, inside a clone of `payments-core` it\'s `toil bitbucket list-prs`, and from\n  anywhere else `toil bitbucket list-prs --dossier card-payments`. A value you pass\n  still wins over the dossier\'s.\n- **Scoping for agents.** An agent working in the repository gets the right project,\n  repository and connection without being told, and every envelope says where each\n  value came from (`meta.context`). The dossier can\'t widen what the agent may do: it\n  holds no credential, can\'t point a connection at a new host, and a write on a\n  connection it chose waits until you adopt it (**Writes**, below).\n- **What Toil UI shows.** Toil UI draws one dashboard per dossier: the stories, pull\n  requests, builds and deployments of exactly the areas the dossier names.\n- **Knowledge that outlives the handover.** Repositories, project keys, field ids,\n  boards and namespaces are written down once, in a file a team can review, instead\n  of in one person\'s shell history.\n\n<!-- figure: dossier-cartoon -->\n\n## Areas, connections and dossiers\n\nThree words, three jobs:\n\n- **An area** is a kind of service toil speaks to: `jira`, `bitbucket`, `jenkins`,\n  `openshift`. Each has its own commands and its own file in this skill.\n- **A connection** is one instance of an area, set up by a person in\n  `~/.toil/config.json` or env vars: its host (`baseUrl`), its credential (in the OS\n  credential store or an env var, never the file) and whether `writes` are on.\n  `toil connections list` names yours. A dossier never holds any of this.\n- **A dossier** is one body of work: which connection each area uses for it, and the\n  keys a call needs there (a project, a repository, a namespace per environment).\n  Anyone, an agent included, may build one with `toil dossiers`.\n\nCredentials stay with connections; knowledge about the work goes in dossiers. That\nsplit is why a dossier may be checked into a repository when config may not.\n\n## How a call uses a dossier\n\n<!-- figure: dossier-resolution -->\n\nEvery area command runs the same steps, on the CLI and over MCP alike:\n\n1. **Pick the dossier.** `--dossier <name|file>` (or `TOIL_DOSSIER`) if given, else\n   the one whose repository matches the folder you\'re in, by its path or its git\n   remote. `--cwd <dir>` looks from another folder. No match means no dossier, and the\n   command needs its inputs as flags, as it always would.\n2. **Pick the section.** The area\'s section, or `environments.<env>.<area>` for the\n   environment: the call\'s `--env` when the area has one, else the dossier\'s `env`.\n3. **Fill the inputs.** Each context input the area declares (`--project`, `--repo`,\n   `--owner`) resolves in one order: the call\'s own value, then the dossier, then the\n   git remote, then the connection\'s setting, then the area\'s default.\n   `toil <area> --help` says which inputs a dossier can fill ("defaults to your\n   dossier\'s \u2026").\n4. **Pick the connection.** By the section\'s `connection` name, or by its `host`,\n   which selects your connection whose `baseUrl` has that host. toil never sends\n   anything to a host because a dossier named it; the host is only a selector.\n5. **Send the request** with that connection\'s credential, and report what was used\n   in `meta.context`.\n\nA real envelope from `toil bitbucket list-prs`, run in a clone of `payments-core`\n(the host doesn\'t resolve, which is the point of a placeholder):\n\n```json\n"meta": {\n  "context": {\n    "dossier": { "name": "card-payments", "source": "user", "by": "folder", "match": "remote", "repo": "payments-core" },\n    "connection": { "value": "corp-bitbucket", "source": "dossier", "host": "bitbucket.imagile.dev" },\n    "inputs": {\n      "project": { "value": "PAY", "source": "dossier" },\n      "repo": { "value": "payments-core", "source": "dossier" }\n    }\n  }\n}\n```\n\nThe request it sent was\n`GET https://bitbucket.imagile.dev/rest/api/1.0/projects/PAY/repos/payments-core/pull-requests`.\n\n## A dossier, field by field\n\n`~/.toil/dossiers/card-payments.json`, as `toil dossiers` writes it, with notes added:\n\n```jsonc\n{\n  "name": "card-payments",                      // how you call it: --dossier card-payments\n  "description": "Card payments v2: tokenised cards at the edge.",\n  "env": "dev",                                 // the default environment; a key of "environments"\n  "repos": [                                    // how toil knows you\'re in this work\n    { "name": "payments-core",\n      "remotes": ["ssh://git@bitbucket.imagile.dev:7999/pay/payments-core.git"] }\n  ],\n  "jira": {                                     // one section per area\n    "host": "jira.imagile.dev",                 // selects your Jira connection on this host\n    "project": "PAY",                           // a context input: fills --project\n    "fields": { "storyPoints": "customfield_10002" }   // so --field storyPoints=5 works\n  },\n  "bitbucket": { "host": "bitbucket.imagile.dev", "project": "PAY", "repo": "payments-core" },\n  "jenkins": { "host": "jenkins.imagile.dev", "jobs": ["payments-core"] },   // "jobs": reference data\n  "environments": {\n    "dev":  { "openshift": { "host": "api.ocp-nonprod.imagile.dev", "namespace": "payments-dev" } },\n    "prod": { "openshift": { "host": "api.ocp.imagile.dev", "namespace": "payments-prod" } }\n  }\n}\n```\n\n- **`name`**: lowercase letters, digits and single hyphens, like a connection\'s name.\n- **`description`**: for people, and for the dossier list in Toil UI.\n- **`env`**: the environment calls use when they don\'t pass `--env`.\n- **`repos`**: each has a `name`, optional `remotes` and an optional local `path`. A\n  folder matches by path first, then by its `origin` remote, so a fresh clone anywhere\n  still resolves. Remotes are only compared, never contacted, and toil strips any\n  credential from one before storing it.\n- **An area\'s section** (`jira`, `bitbucket`, \u2026) holds:\n  - `host` or `connection`, never both. `host` suits a shared dossier, since\n    teammates name their connections differently; `connection` names one of yours.\n    With neither, the area\'s default connection is used.\n  - the area\'s context inputs by name (`project`, `repo`, `owner`). A value may also\n    be an object of repo name to value, for a dossier with several repositories.\n  - `fields`: friendly names for custom field ids, used by `--field`.\n  - anything else (`jobs`, `boards`, `deployments`, an OpenShift `namespace`) is\n    **reference data**: kept as written for people, agents, Toil UI and\n    `check-dossier` to read, and never applied to a call. Adding one says so in\n    `meta.warnings`.\n- **`environments`**: per environment, sections that replace the area\'s own section\n  when that environment applies (`--env prod`, or the dossier\'s `env`).\n\n## Where dossiers live\n\n<!-- figure: dossier-sources -->\n\ntoil reads dossiers on every area command from three kinds of place, and every\nlisting says which one each came from (`source`):\n\n1. **Your own**, `~/.toil/dossiers/<name>.json` (`user`). The commands that build a\n   dossier write here.\n2. **Folders you list**, in `"dossierPaths"` in your config or `TOIL_DOSSIER_PATHS`\n   (`listed`): a team repository of dossiers, cloned once. toil reads only folders you\n   list and never searches for others.\n3. **The repository you\'re in**, `.toil/dossiers/*.json` at its root (`repo`). A\n   service can carry its own dossier.\n\nA file passed by path (`--dossier ./card-payments.json`) is a fourth, `file`.\n\n**Same name in two places:** your own wins, then a listed folder, then the\nrepository, so you can override a teammate\'s copy without editing it.\n`toil dossiers list` shows the one left out under `shadowedBy`, and the call warns.\n**Two different dossiers that both match** the folder fail with `INVALID_INPUT` until\nyou pass `--dossier`. toil never guesses, and never picks the one you used last.\n\n## Create, check, use, share\n\n### Create\n\nOn the command line, or let an agent run the same commands:\n\n```bash\ntoil repos scan\ntoil dossiers init card-payments --description "Card payments v2"\ntoil dossiers add-repo card-payments ./payments-core\ntoil dossiers link card-payments jira --host jira.imagile.dev --set project=PAY\ntoil dossiers link card-payments bitbucket --host bitbucket.imagile.dev --set project=PAY --set repo=payments-core\ntoil dossiers env card-payments dev openshift --host api.ocp-nonprod.imagile.dev --default\ntoil dossiers field card-payments jira storyPoints customfield_10002\n```\n\nEach command returns the change it made, refuses a value that\'s already there unless\n`--replace`, and needs no `--allow-write`, since it only writes your own dossier.\nThe same steps are under **Settings \u2192 Dossiers** in Toil UI, and under **Dossiers** in\nthe menu a bare `toil` opens. Both run these commands; neither edits the file itself.\n\n### Check\n\n`toil dossiers check card-payments` finds problems **without contacting any\nservice**: keys given twice, an unknown section, a `connection` you don\'t have, a\n`host` that matches none of your connections or more than one, a remote with a\ncredential in it. Each problem names its key path:\n\n```json\n{ "level": "error", "code": "DOSSIER_HOST_UNMATCHED", "path": "sonar.host",\n  "message": "Dossier card-payments uses the sonar connection on sonar.imagile.dev, and you have no sonar connection with that host." }\n```\n\n`toil jira check-dossier --dossier card-payments` goes one step further and asks the\nservice whether each project and field id the dossier names exists. `jira`,\n`jira-cloud`, `confluence`, `sonar`, `ado`, `bitbucket`, `github`, `openshift` and\n`dynatrace` each have one.\n\n### Use\n\nWork in the repository and the dossier applies by itself, or pass\n`--dossier card-payments` from anywhere. Before a call, `toil dossiers context` says\nwhich dossier the folder resolves to and why, and `toil dossiers show card-payments`\nsays, per area, the connection a call would use, whether writes are on for it, the\nenvironment and the inputs it supplies.\n\n### Share\n\n`toil dossiers export card-payments --repo .` writes a copy into the repository\'s\n`.toil/dossiers/`, with host selectors and no local paths. Commit it yourself; toil\nnever commits. A teammate with a clone gets it with no setup beyond their own\nconnections, and `toil dossiers import .toil/dossiers/card-payments.json` copies it\ninto their own folder, listing any connection they still need under `toSetUp`.\n\n### Writes\n\nA write on a connection the dossier chose waits for you. A dossier in your own folder\nis yours, so its choices are too. A checked-in, listed or loose one isn\'t: a write\nthrough it fails with `WRITE_DISABLED` until you pass `--connection` yourself, or\nadopt the dossier with `toil dossiers import`. Writes still need `writes: true` on\nthe connection and `--allow-write` on the call, as everywhere. Over MCP, and in Toil\nUI, the dossier commands refuse to point a dossier at a connection with writes on; a\nperson makes that link on the command line.\n\n## One dossier, three views\n\n<!-- figure: dossier-views -->\n\nThe same file reaches each reader its own way: `toil dossiers show` on the command\nline; for an agent, the `dossiers_show` tool, the `toil://dossiers/<name>` resource and\n`meta.context` on every call it makes; and a dashboard per dossier in Toil UI.\n\n## FAQ\n\n- **Do I need a dossier?** No. Without one, commands take their inputs as flags or\n  from the connection, exactly as before.\n- **Is it safe to commit one?** Yes, that\'s what it\'s for. It holds no secret and no\n  `writes`, and can only choose among connections each reader already has.\n- **Does toil contact the hosts in it?** Never because a dossier named them. A host\n  is compared with your connections\' hosts, nothing more.\n- **Several services, one product?** One dossier, several `repos`, and per-repo values\n  where they differ (`"repo": { "payments-core": "payments-core", "ledger": "ledger-svc" }`).\n- **One service in several products?** Put a dossier in each, and pass `--dossier`\n  when the folder matches both.\n- **Edits while `toil mcp` runs?** Dossiers are read on every call, so an edit applies\n  from the next one.\n\n## Common mistakes\n\n- **A `host` with no connection behind it.** `dossiers check` reports\n  `DOSSIER_HOST_UNMATCHED`; the call fails with `NOT_CONFIGURED` and names the\n  command to add one. It never falls back to the default connection.\n- **Expecting reference data to fill a flag.** Only an area\'s context inputs fill\n  flags. The warning when you add a key says which it is.\n- **Two dossiers for one folder.** The call fails until you pass `--dossier`. Merge\n  them, or keep one in another repository.\n- **A write through a teammate\'s dossier.** `WRITE_DISABLED`, by design: adopt it with\n  `toil dossiers import`, or pass `--connection`.\n- **A token in a remote.** toil strips userinfo before storing a remote, and\n  `dossiers check` fails a hand-edited file that still has one\n  (`DOSSIER_REMOTE_USERINFO`).\n- **Editing the JSON by hand and giving a key twice.** JSON parsers keep the last one\n  quietly; toil reports `DOSSIER_DUPLICATE_KEY` with its path instead.\n',
   "dynatrace.md": '---\narea: dynatrace\ndescription: Monitored entities, services, Kubernetes workloads, problems and distributed traces from Dynatrace\n---\n\n# Dynatrace (`dynatrace`)\n\nMonitored entities, services, Kubernetes workloads and problems from the Dynatrace\n**Environment API v2**, and distributed-trace spans from **Grail**. Every command\nreads; none changes anything. Verification level: `unit`.\n\n**Supported versions:** The oldest Dynatrace version toil supports hasn\'t been established. The\nclassic commands call Environment API v2 (`/api/v2`) on SaaS and Managed; `trace`\nneeds the platform Grail query API (`/platform/storage/query/v1`), so a deployment\nwithout the platform can\'t run it. No release has been verified yet.\n\n## Credential\n\nTwo hosts, two tokens, and each token goes only to its own host:\n\n- **Access token**, for every command except `trace`. In Dynatrace: Access tokens \u2192\n  Generate new token, with the `entities.read` and `problems.read` scopes. toil sends\n  it to `baseUrl` as `Authorization: Api-Token <token>`.\n- **Platform token**, for `trace` only, with the `storage:spans:read` and\n  `storage:buckets:read` scopes. toil sends it to `platformUrl` as\n  `Authorization: Bearer <token>`.\n\nThere is no username, password or browser login, and no CI fallback variable.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_DYNATRACE_BASE_URL` | for all but `trace` | Classic environment URL, like `https://<environment-id>.live.dynatrace.com`. On Managed, keep the `/e/<environment-id>` path |\n| `apiToken` | `TOIL_DYNATRACE_API_TOKEN` | for all but `trace` | Access token, sent as `Api-Token` |\n| `platformUrl` | `TOIL_DYNATRACE_PLATFORM_URL` | for `trace` | Platform URL, like `https://<environment-id>.apps.dynatrace.com` |\n| `platformToken` | `TOIL_DYNATRACE_PLATFORM_TOKEN` | for `trace` | Platform token, sent as `Bearer` |\n| `env` | `TOIL_DYNATRACE_ENV` | no | The environment name `--env` selects this connection by, when it differs from the connection\'s name |\n\nA command that needs a missing key fails with `NOT_CONFIGURED` naming it\n("Dynatrace baseUrl not configured.").\n\nEnvironment variables (CI, or a one-off shell):\n\n```bash\nexport TOIL_DYNATRACE_BASE_URL=https://dynatrace.imagile.dev\nexport TOIL_DYNATRACE_API_TOKEN=<your access token>\nexport TOIL_DYNATRACE_PLATFORM_URL=https://dynatrace-platform.imagile.dev\nexport TOIL_DYNATRACE_PLATFORM_TOKEN=<your platform token>\n```\n\n## Environments\n\nEach Dynatrace environment is one connection. `--env <name>` picks the connection\nnamed `<name>`, or the one whose `env` setting is `<name>`; an environment toil\ndoesn\'t know is an `INVALID_INPUT` that lists the ones it has. Without `--env`, the\narea\'s default connection is used: the one named in `defaults.dynatrace.connection`,\nelse the one named `dynatrace`, else the only one. Keys every environment shares\n(often `platformUrl`) can go once under `defaults.dynatrace`; a connection\'s own\nvalue wins over them.\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "prod": { "area": "dynatrace", "baseUrl": "https://dynatrace.imagile.dev" },\n    "staging": { "area": "dynatrace", "baseUrl": "https://dynatrace.imagile.dev/e/abc12345-0000-0000-0000-000000000000" }\n  },\n  "defaults": { "dynatrace": { "connection": "prod" } }\n}\n```\n\nThe tokens never go in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add prod --area dynatrace` (or\n`toil connections login prod` for an existing connection) to keep them in the OS\ncredential store, or set the env vars. `TOIL_DYNATRACE_*` variables configure the\ndefault connection only; for another one use `TOIL_CONN_<NAME>_<KEY>`\n(`TOIL_CONN_STAGING_API_TOKEN`).\n\n```bash\ntoil dynatrace --env staging problems list\n```\n\n## Commands\n\n- `entities list`: List monitored entities using an entity selector. `--selector`\n  is required; `--from`, `--to` and `--fields` are passed through.\n- `entities get`: Get a monitored entity by ID (`--id`, plus `--from`, `--to`,\n  `--fields`). `data` is Dynatrace\'s entity as it came.\n- `services`: List monitored services: `entities list` with `type("SERVICE")`\n  (`--from`, `--to`). `data` is `{ totalCount, services }`.\n- `workloads`: List monitored Kubernetes workloads: `entities list` with\n  `type("CLOUD_APPLICATION")` (`--from`, `--to`). `data` is `{ totalCount, workloads }`.\n- `problems list`: List problems. `--from` defaults to `now-2h` and `--to` to `now`;\n  `--problem-selector` and `--entity-selector` filter. `data` is\n  `{ totalCount, problems }`.\n- `problems get`: Get a problem by ID (`--id`, `--fields`). `data` is Dynatrace\'s\n  problem as it came.\n- `trace`: Get distributed-trace spans from Grail (`--id`, 16 to 32 hexadecimal\n  characters). It runs `fetch spans | filter trace.id == "<id>" | sort start_time asc`\n  and waits up to 60 seconds for Grail, polling at most once a second; past that it\n  fails with `TIMEOUT`. `data` is the query\'s `result` (`records`, `types`,\n  `metadata`). The query sends no timeframe and no record limit, so Grail\'s\n  defaults apply: an old trace or a very large one may come back empty or cut short.\n\nThe lists fetch every page, 500 at a time, until Dynatrace stops returning a\n`nextPageKey`; `totalCount` is the number of items collected. They stop with an\nerror after 1,000 pages, and like every command they\'re subject to toil\'s time limit\n(`TOIL_TIMEOUT_MS`, 120 s by default).\n\nDynatrace\'s own error text isn\'t shown yet: an error is the status line, such as\n`HTTP 400 Bad Request`, with toil\'s fix.\n\n```bash\ntoil dynatrace entities list --selector \'type("HOST"),tag("team:payments")\'\ntoil dynatrace problems list --from now-1d --problem-selector \'status("open")\'\ntoil dynatrace trace --id 4bf92f3577b34da6a3ce929d0e0e4736\n```\n\n## Checking a dossier\n\n`check-dossier` checks the call\'s dossier for the call\'s environment (`--env`, else the dossier\'s own): each entity id it names (`entity`, `entities`) exists, through `/api/v2/entities/{id}`. It\'s `toil dynatrace check-dossier` (`--dossier <name|file>`, or the dossier the folder resolves to), and it returns `{ dossier, connection, env, ok, checked, checks, unchecked }`, one check per value with its key path. The CLI exits 1 when one is missing. A failure other than not-found (a bad token, an unreachable host) fails the command. Read only.\n',
   "elasticsearch.md": '---\narea: elasticsearch\ndescription: Cluster health, the index list, and search and count with Query DSL or a Lucene query string on Elasticsearch\n---\n\n# Elasticsearch (`elasticsearch`)\n\nCluster health, the index list, and document search and count on **Elasticsearch**,\nthrough its REST API. Every command reads; none changes anything. Verification\nlevel: `unit`.\n\n**Supported versions:** The oldest Elasticsearch version toil supports hasn\'t been established. toil\ncalls `_cluster/health`, `_cat/indices`, `_search` and `_count` with an API key sent as\nan `ApiKey` header, following Elastic\'s current REST API reference. No release has\nbeen verified yet.\n\n## Credential\n\nAn Elasticsearch **API key**: in Kibana, Stack Management \u2192 API keys \u2192 Create API key\n(or Elasticsearch\'s own `POST /_security/api_key`). Copy the **encoded** value, the\nbase64 string shown once when the key is created. Give it the `read` index privilege\non the indices you\'ll search and count, `monitor` on those you\'ll list, and the\n`monitor` cluster privilege for `cluster health` and `indices list`. toil sends it as\n`Authorization: ApiKey <encoded>`. There is no username, password or browser login.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_ELASTICSEARCH_BASE_URL` | yes | Elasticsearch root, e.g. `https://elasticsearch.imagile.dev` (keep any context path). Elasticsearch itself, not Kibana |\n| `apiKey` | `TOIL_ELASTICSEARCH_API_KEY` | yes | The encoded API key |\n\nThere\'s no CI fallback variable.\n\nEnvironment variables (CI, or a one-off shell):\n\n```bash\nexport TOIL_ELASTICSEARCH_BASE_URL=https://elasticsearch.imagile.dev\nexport TOIL_ELASTICSEARCH_API_KEY=<your encoded API key>\n```\n\nOr `~/.toil/config.json`:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "es-prod": { "area": "elasticsearch", "baseUrl": "https://elasticsearch.imagile.dev" }\n  },\n  "defaults": { "elasticsearch": { "connection": "es-prod" } }\n}\n```\n\nThe key never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add es-prod --area elasticsearch` (or\n`toil connections login es-prod` for an existing connection) to keep it in the OS\ncredential store, or set `TOIL_ELASTICSEARCH_API_KEY`.\n\n**Sharing the key with Kibana:** a Kibana connection can use this connection\'s key\ninstead of its own, but only when you pair them on the Kibana side\n(`"apiKeyFrom": "es-prod"`). An unpaired Kibana connection never gets it. The one\nexception is an env fallback the contract specifies: Kibana\'s default connection takes\n`TOIL_ELASTICSEARCH_API_KEY` when `TOIL_KIBANA_API_KEY` isn\'t set. Either way the key\nis sent only to that Kibana connection\'s own host. See `kibana.md`.\n\n## Commands\n\n- `cluster health`: Show cluster health (status, node and shard counts), as\n  Elasticsearch reports it. A red cluster is a successful answer whose `status` is\n  `red`.\n- `indices list`: List indices with health, document count and size (`--pattern`\n  takes a name or wildcard, comma-separate several). `data` is `{ count, indices }`,\n  each row the `_cat/indices` columns `index`, `health`, `status`, `docs.count`,\n  `store.size`, `pri` and `rep`, every value a string.\n- `search`: Search one or more indices with Query DSL JSON or a query string.\n  `--index` is required (comma-separate several; wildcards and aliases work; an empty\n  name or an empty entry between commas is refused, so nothing silently searches every\n  index).\n  `--query` takes one Query DSL clause as a JSON object, `--q` a Lucene query string;\n  use one or the other, and with neither every document matches. `--sort` takes\n  `field:order` pairs, comma-separated (`@timestamp:desc,_score:desc`; an entry with\n  no `asc` or `desc` sorts ascending). `--source` is a comma list of fields to return.\n  `--size` (default 100) and `--from` (default 0) go to the server as given; past\n  10,000 hits Elasticsearch refuses `from + size` (its `max_result_window`).\n  `--timeout-ms` (default 30000) is how long toil waits for the answer. `search` has\n  a 10-minute time limit of its own, so a `--timeout-ms` up to 600000 is honoured;\n  `TOIL_TIMEOUT_MS`, when set, overrides that limit. `data` is `{ index,\n  took, timedOut, total, totalRelation, hitCount, hits, aggregations }`: `hits` as\n  Elasticsearch sent them, and `totalRelation` `gte` when `total` is only a lower\n  bound.\n- `count`: Count documents matching a query (`--index` required, `--query` or `--q`\n  as for `search`). `data` is `{ index, count }`.\n\n`search` and `count` send their query as a POST body. They still only read.\n\nErrors carry Elasticsearch\'s own reason, e.g. `index_not_found_exception: no such\nindex [nope]`, or a query parse error under its root cause, so a bad query can be\nfixed from the message.\n\n```bash\ntoil elasticsearch cluster health\ntoil elasticsearch indices list --pattern "logs-*"\ntoil elasticsearch search --index logs-app --q "level:error AND service:api" --sort "@timestamp:desc" --size 20\ntoil elasticsearch count --index "logs-*" --query \'{"term":{"level":"error"}}\'\n```\n',
   "figma.md": '---\narea: figma\ndescription: Figma files and nodes from a link, comments, version history and project files\n---\n\n# Figma (`figma`)\n\nFiles and single nodes (from a key or a pasted Figma link), comments, version\nhistory and project file lists, through the **Figma REST API** (`/v1/...`). Every\ncommand reads; none changes anything. Verification level: `unit`.\n\n**Supported versions:** The oldest Figma version toil supports hasn\'t been established. toil\ncalls the Figma REST API v1 with a personal access token in `X-Figma-Token`. Nothing\nhas been run against a live account yet.\n\n## Credential\n\nA Figma **personal access token**: in Figma, Settings \u2192 Security \u2192 Personal access\ntokens. toil sends it as the `X-Figma-Token` header, to the configured `baseUrl` and\nnowhere else. A redirect to another host is refused rather than followed, so the\ntoken never travels with it. There is no OAuth app, password or browser login.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_FIGMA_BASE_URL` | yes | Figma API root: `https://api.figma.com` (toil has no built-in default) |\n| `token` | `TOIL_FIGMA_TOKEN` | yes | Personal access token |\n\nThere\'s no CI fallback variable.\n\nEnvironment variables (CI, or a one-off shell):\n\n```bash\nexport TOIL_FIGMA_BASE_URL=https://api.figma.com\nexport TOIL_FIGMA_TOKEN=<your personal access token>\n```\n\nOr `~/.toil/config.json`:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "figma": { "area": "figma", "baseUrl": "https://api.figma.com" }\n  },\n  "defaults": { "figma": { "connection": "figma" } }\n}\n```\n\nThe token never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add figma --area figma` (or\n`toil connections login figma` for an existing connection) to keep it in the OS\ncredential store, or set `TOIL_FIGMA_TOKEN`.\n\n## Links, keys and node IDs\n\nWherever a command takes `<file-key-or-url>`, pass the file key or a link. A link\n(anything starting `http://` or `https://`) must contain `figma.com/design/<key>` or\n`figma.com/file/<key>`; anything else fails with "Could not extract Figma file key\nfrom URL". A value that isn\'t a link is used as the key as it stands. The link is\nparsed locally and never opened.\n\n- A branch link (`/design/<key>/branch/<branch-key>/...`) resolves to the main\n  file\'s key, not the branch\'s.\n- FigJam (`/board/`), prototype (`/proto/`) and Slides (`/slides/`) links are\n  refused; pass the bare key instead.\n- A node ID is `12:34` or `12-34` (dashes become colons), or for a layer inside an\n  instance `I12:34;56:78`. `file` takes it from `--node-id`, else from the link\'s\n  `node-id` query parameter. A malformed one fails with "Invalid Figma node ID".\n\n## Commands\n\n- `file`: Get a Figma file \u2014 metadata, structure, and component/style inventory (or a\n  single node with `--node-id`).\n  - Whole file: `data` is `fileKey`, `name`, `lastModified`, `version`,\n    `thumbnailUrl`, `role`, `editorType`, `schemaVersion`, `componentCount` and\n    `styleCount`. The request sends `depth=1`, so component and style counts may be\n    lower than with `--document`. `--document` drops `depth` and adds the full\n    `document` tree, which can be large.\n  - One node (`--node-id`, or a link with `node-id`): `GET /v1/files/<key>/nodes`;\n    `data` is `fileKey`, `nodeId`, `name`, `lastModified`, `thumbnailUrl`, the node\'s\n    whole `document` subtree (with or without `--document`), `componentCount` and\n    `styleCount`. A node the answer doesn\'t hold is `NOT_FOUND` ("Node 12:34 not\n    found in file ...").\n- `comments`: Get comments on a Figma file. `data` is `fileKey`, `count` and\n  `comments` as Figma returns them. `--as-of <date>` is sent as `as_of`, a parameter\n  Figma doesn\'t document, so every comment comes back regardless, and\n  `meta.warnings` says so (`FIGMA_AS_OF_IGNORED`).\n- `versions`: Get the version history of a Figma file. `data` is `fileKey`, `count`\n  and `versions`. Only the first page Figma returns is read; when Figma has more,\n  `meta.warnings` says so (`FIGMA_MORE_VERSIONS`) and older versions are missing.\n- `project-files`: List files in a Figma project. `data` is `projectId`, `count` and\n  `files`. The project ID is in the project\'s URL.\n- `me`: Get the current Figma user (useful for verifying credentials). `data` is\n  Figma\'s answer as it came.\n\nImage links in the answers (`thumbnailUrl`, `thumbnail_url`, `img_url`) are returned\nas they are and never fetched; they\'re on Figma\'s image host, not the API.\n\n```bash\ntoil figma file "https://www.figma.com/design/abc12345/Checkout?node-id=12-34"\ntoil figma file abc12345 --document\ntoil figma comments abc12345\ntoil figma me\n```\n',
   "git.md": "---\narea: git\ndescription: Local git status, diff, log, branches and a commit report for the repository in the workspace\n---\n\n# Local git (`git`)\n\nStatus, diff, recent commits, branches and a commits-and-lines report for the git\nrepository the workspace is in. Every command reads; none changes anything.\nVerification level: `unit`.\n\n**Supported versions:** The oldest git version toil supports hasn't been established. toil\nruns the git already on PATH and needs git 2.24 or later for its argument\nsafeguards; an older one gets `GIT_NOT_FOUND`. Output parsing was checked against\ngit 2.49.\n\n## Credential and configuration\n\nNone. There is no server, no connection to add, no `TOIL_GIT_*` variable and no\n`--connection` flag. The repository is the one the workspace (`--workspace`, else\n`TOIL_WORKSPACE`, else the working directory, else the MCP client's single root)\nsits in; outside one, every command fails with `Not a git repository` (or `GIT_NOT_FOUND`, when there is no git either).\n\nThese are the only commands that need git installed. toil finds it on PATH itself,\nskipping relative entries and the working directory, and runs it with no shell,\nno pager, no prompts and none of your environment's tokens. It also turns off what\na repository's config could make git run: external diff drivers, textconv filters,\nthe fsmonitor hook and signature checks. Without git on PATH they fail with\n`GIT_NOT_FOUND`, naming the PATH searched; nothing else in toil is affected.\n\n`toil git current-pr` is an alias of `toil bitbucket current-pr`, which asks\nBitbucket for the open pull request from the current branch (see `bitbucket.md`).\n\n## Commands\n\n### `toil git status`\n\n`git status --porcelain`, as `{ staged, unstaged, untracked }`: lists of paths\nrelative to the repository root. A file with staged and unstaged changes is in\nboth. A rename reads `old -> new`, and a path git quotes stays quoted. MCP tool:\n`git_status`.\n\n### `toil git diff`\n\nThe uncommitted changes, parsed. MCP tool: `git_diff`.\n\n```bash\ntoil git diff\ntoil git diff --staged --file src/retry.ts\n```\n\n| Flag | Meaning |\n|------|---------|\n| `--staged` | The index against HEAD, instead of the working tree against the index |\n| `--file <path>` | One file, relative to the repository root |\n\nOutput: `{ files: [{ path, binary, truncated, hunks: [{ oldStart, oldCount,\nnewStart, newCount, lines }] }], truncated }`. Parsing stops after 5,000 lines of\ngit's output, with `truncated: true`. A git that fails, or a diff over 1 MB, gives\n`{ files: [], truncated: false }`.\n\n### `toil git log`\n\nRecent commits, newest first: `[{ hash, author, date, message }]`, `date` being\nthe author date in ISO 8601 and `message` the subject line. MCP tool: `git_log`.\n\n| Flag | Meaning |\n|------|---------|\n| `--count <n>` | How many (default 10). `0`, or anything that isn't a number, means no limit |\n| `--since <date>` | Anything git accepts: `2 weeks ago`, `2026-01-31` |\n\nA git that fails (a `--since` it can't read, an empty repository) gives `[]`.\n\n### `toil git branch`\n\n`git branch -a`, as `{ current, local, remote }`, remote names without their\n`remotes/` prefix (`origin/main`). Lines are kept as git prints them, so a branch\nchecked out in another worktree reads `+ name`, a detached HEAD is `current` as\n`(HEAD detached at \u2026)`, and `origin/HEAD -> origin/main` is a remote. MCP tool:\n`git_branch`.\n\n### `toil git report`\n\nCommits, lines and files changed on a branch, from `git log --numstat`. MCP tool:\n`git_report`.\n\n```bash\ntoil git report --since 2026-09-01\ntoil git report --base main --branch feature/retries --csv --out report.csv\n```\n\n| Flag | Meaning |\n|------|---------|\n| `--branch <name>` | The branch (default: the current one) |\n| `--base <ref>` | Report `base..branch`, or `base..HEAD` without `--branch` |\n| `--since <date>` | On or after this date: `YYYY-MM-DD` or anything git accepts |\n| `--until <date>` | Before this date. A plain `YYYY-MM-DD` is the start of that day in UTC, so that day itself is left out |\n| `--csv` | Also write one row per week and author, then a `TOTAL` row, as CSV. Needs `--out` |\n| `--out <file>` | The CSV file, a new one inside the workspace; toil never overwrites. Needs `--csv` |\n\nOutput: `{ branch, since, until, commits: [{ hash, date, author, message,\nfilesChanged, insertions, deletions, netLines }], weeks: [{ week, weekStart,\nweekEnd, authors, summary }], byAuthor, summary: { commitCount, totalInsertions,\ntotalDeletions, totalNetLines, totalFilesChanged } }`, plus `file` (the CSV's\nabsolute path) with `--csv`. Weeks run Monday to Sunday in UTC and are labelled by\nISO week (`2026-W40`). Absolute dates are applied again to each commit's author\ndate, since git's own range walks by committer date. A binary file counts 0 lines.\nThe CSV header is\n`week,week_start,author,commits,insertions,deletions,net_lines,files_changed`.\n\nA misspelt branch or base, or a date git can't read, gives an empty report.\n",
   "github.md": '---\narea: github\ndescription: Pull requests, reviews, comments, checks, labels, assignees, issues and projects on GitHub and GitHub Enterprise Server\n---\n\n# GitHub and GitHub Enterprise Server (`github`)\n\nPull requests, reviews, comments, checks, labels, assignees, issues and Projects on\n**GitHub.com** and **GitHub Enterprise Server**, through the REST API and, for\nreview threads, PR status, auto-merge, the merge queue, drafts and Projects, the\nGraphQL API. The two differ only in host, so they\'re one area with a configurable\n`baseUrl`. Verification level: `unit`.\n\n**Supported versions:** The oldest GitHub Enterprise Server version toil supports hasn\'t been established. toil pins\nREST API version 2022-11-28 and uses GraphQL for review threads, PR status, auto-merge,\nthe merge queue, drafts and Projects. GitHub.com is always current; no Enterprise Server\nrelease has been verified yet. The auto-merge and merge-queue commands need a release\nthat has those features, and so do issue types, sub-issues and Projects (v2). A release\nwithout issue types just leaves `type` off each issue; one without sub-issues\n(`get-issue --sub-issues`) or Projects (`projects \u2026`) gets `UNSUPPORTED`, saying so.\n\n## Credential\n\nA **fine-grained personal access token**: Settings \u2192 Developer settings \u2192 Personal\naccess tokens \u2192 Fine-grained tokens, with access to the repositories you work on\n(pull requests, issues, contents and checks, read or write as needed). toil sends it as\n`Authorization: Bearer <token>`, with `Accept: application/vnd.github+json` and\n`X-GitHub-Api-Version: 2022-11-28`. There is no OAuth app, username, password or\nbrowser login.\n\nWhat each group of commands needs from the token:\n\n| Commands | Fine-grained token | Classic token |\n|----------|--------------------|---------------|\n| `list-issues`, `search-issues`, `get-issue`, `issue-events` | Issues: read, on the repository | `repo` (`public_repo` for public repositories only) |\n| `projects list`, `projects fields`, `projects list-items` | Projects: read, under the organization\'s permissions. A fine-grained token can\'t read a user\'s own projects | `read:project` (plus `repo` to see items from private repositories) |\n| Pull request, review, comment and check commands | Pull requests, contents and checks, read or write as needed | `repo` |\n\nA token without the Projects permission gets `AUTH` from the `projects` commands,\nnaming the scope.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_GITHUB_BASE_URL`, then `GITHUB_API_URL` | yes | The REST API root: `https://api.github.com`, or `https://ghe.imagile.dev/api/v3` for Enterprise Server |\n| `token` | `TOIL_GITHUB_TOKEN`, then `GITHUB_TOKEN` | yes | Fine-grained personal access token |\n| `owner` | `TOIL_GITHUB_OWNER` | no | Default owner (user or org) |\n| `repo` | `TOIL_GITHUB_REPO` | no | Default repository name |\n| `targetBranch` | `TOIL_GITHUB_TARGET_BRANCH` | no | Default base branch for `create-pr` (`main` when unset) |\n| `writes` | `TOIL_GITHUB_WRITES` | no | `true` lets write commands run (with `--allow-write`) |\n\n**CI fallbacks:** in GitHub Actions, the default connection takes its token from\n`GITHUB_TOKEN` when `TOIL_GITHUB_TOKEN` isn\'t set, and its base URL from\n`GITHUB_API_URL` when `TOIL_GITHUB_BASE_URL` isn\'t set. Each sits directly below its\n`TOIL_GITHUB_*` variable and above the config file.\n\nThe GraphQL endpoint is derived from `baseUrl`: a trailing `/v3` is dropped and\n`/graphql` appended, so `https://api.github.com` uses `https://api.github.com/graphql`\nand `https://ghe.imagile.dev/api/v3` uses `https://ghe.imagile.dev/api/graphql`.\n\nEnvironment variables (CI, or a one-off shell):\n\n```bash\nexport TOIL_GITHUB_BASE_URL=https://ghe.imagile.dev/api/v3\nexport TOIL_GITHUB_TOKEN=<your fine-grained token>\n```\n\nOr `~/.toil/config.json`, with `owner`, `repo` and `targetBranch` usually set once\nunder `defaults.github`:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "corp-github": { "area": "github", "baseUrl": "https://ghe.imagile.dev/api/v3" }\n  },\n  "defaults": { "github": { "connection": "corp-github", "owner": "imagile", "repo": "toil-probe" } }\n}\n```\n\nThe token never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add corp-github --area github` (or\n`toil connections login corp-github` for an existing connection) to keep it in the OS\ncredential store, or set `TOIL_GITHUB_TOKEN`.\n\n## Owner and repository\n\nEvery command except `create-repo` needs an owner and a repository, which come\nfrom, in order:\n\n1. `--owner` and `--repo`, before or after the command (`toil github --owner imagile\n   --repo toil-probe get-pr --number 7`); on `create-pr` the ones after the command win\n2. the first of the working folder\'s remotes whose host is this connection\'s host,\n   of any name, trying `origin` first (so a fork\'s `upstream` counts)\n   (`api.github.com` counts as `github.com`). `git@host:o/r`, `ssh://git@host[:port]/o/r`\n   and `https://host[:port]/o/r` remotes are read, each with or without `.git`; an\n   HTTPS remote with a user name in it isn\'t\n3. the connection\'s `owner` and `repo` (usually `defaults.github`)\n\nWith neither found, the command fails with "Could not determine GitHub owner/repo".\n`resolve-thread` needs them too, though it acts by thread id alone. `create-repo`\nreads only an explicit `--owner`, always as an organization (`POST /orgs/<owner>/repos`);\nwithout it the repository is created under the token\'s user.\n\n## Commands\n\nNumbers (`--number`, `--comment-id`, `--line`) are read as whole numbers from the\nstart of the text, so `12abc` is 12. Write commands need `writes` on the connection\nand `--allow-write`. The deletes (`delete-comment`, `delete-review-comment`,\n`remove-label`, `remove-reviewers`, `remove-assignees`) run on the CLI only and are\nnever MCP tools. Owner, repo, labels and refs go into request paths as typed; a value\nthat would make a `.` or `..` path segment is refused with `INVALID_INPUT`.\n\n- **Repositories and issues:** `create-repo` (`--name`, `--description`, `--private`,\n  `--auto-init`); `create-issue` (`--title`, `--body` or `--body-file <path>` with `-`\n  for stdin, repeatable `--label` and `--assignee`).\n- **Issues as work items:** each issue is GitHub\'s own, with the issue type in `type`,\n  sub-issue counts in `sub_issues_summary` and the parent in `parent_issue_url`, where\n  the server has them.\n  - `list-issues` (`--state open|closed|all`, default `open`; repeatable `--label`, all\n    of which must match; `--assignee`, `--type` with `none` or `*` too; `--sort\n    created|updated|comments`, `--direction asc|desc`; `--updated-since <iso>`,\n    GitHub\'s `since`). The issues endpoint mixes pull requests in; toil leaves them out\n    (`list-prs` has them).\n  - `search-issues --query <q>` (GitHub search syntax; `--sort`, `--order`,\n    `--updated-since`). toil adds `is:issue`, and `updated:>=<iso>` with\n    `--updated-since`, but not `--owner` or `--repo`: scope the query with `repo:`,\n    `org:` or `user:`. GitHub serves only the first 1,000 results of a search, so past\n    that toil stops with a `GITHUB_SEARCH_CAPPED` warning; a search GitHub timed out\n    part of gets `GITHUB_SEARCH_INCOMPLETE`.\n  - `get-issue --number <n>`, repeatable up to 100. One number returns the issue\n    itself. Several return `{ issues, errors }`, read four at a time, where an issue\n    GitHub can\'t find or answers with an error goes into `errors` as `{ number, code,\n    message }`, with a `GITHUB_ISSUES_FAILED` warning; a bad token or a timeout still\n    fails the call. `--sub-issues` adds `sub_issues`, each issue\'s sub-issues, one more\n    request per issue.\n  - `issue-events --number <n>`: the issue\'s timeline, oldest first, as GitHub returns\n    it: `closed` and `reopened` (with `state_reason`), `labeled`, `assigned`,\n    `issue_type_added` and `issue_type_changed`, `sub_issue_added`,\n    `cross-referenced` (the PRs that mention it), `commented` and the rest.\n  - `--updated-since` reads a date the way `--created-after` does (a date alone is UTC\n    midnight) and sends it as UTC to the second, `2025-01-31T00:00:00Z`.\n- **Projects (v2):** GitHub\'s boards, read over GraphQL. They belong to an owner, so\n  only `--owner` is read; `--project` is the number in the project\'s URL.\n  - `projects list`: the owner\'s projects (`id`, `number`, `title`, `url`, `closed`, \u2026).\n  - `projects fields --project <n>`: each field\'s `id`, `name` and `dataType`, a\n    single-select field\'s `options` (Status), and an iteration field\'s\n    `configuration` with its `iterations` and `completedIterations`.\n  - `projects list-items --project <n>`: each item\'s `id`, `type` (`ISSUE`,\n    `PULL_REQUEST`, `DRAFT_ISSUE`), `content` (number, title, state, url and\n    repository) and `fieldValues`, each with its `field.name` and value (`text`,\n    `number`, `date`, a single-select `name`, or an iteration\'s `title` and\n    `startDate`). An item\'s first 100 values are read, with a\n    `GITHUB_PROJECT_VALUES_TRUNCATED` warning past that.\n- **Pull requests:** `list-prs` (`--state open|closed|all`, default `open`; `--head\n  user:branch`, `--base`; `--author` and `--created-after`/`--created-before`, ISO 8601,\n  are filtered as each page comes in, the author case-insensitively; a date alone is\n  UTC midnight, a date-time with no zone local time), `get-pr`, `create-pr` (`--title`,\n  `--head`, `--base` defaulting to `targetBranch` then `main`, `--body`/`--body-file`,\n  `--draft`), `update-pr` (`--title`, `--body`, `--base`), `merge-pr` (`--method\n  merge|squash|rebase`, default `merge`, always sent; `--commit-title`,\n  `--commit-message`), `close-pr`, `reopen-pr`, `convert-to-draft`, `ready-for-review`.\n- **Merging:** `enable-auto-merge` and `enqueue-pr` (`--method`, `--match-head-commit\n  <sha>`), `disable-auto-merge`.\n- **Comments:** `list-comments`, `add-comment`, `list-review-comments`,\n  `add-inline-comment` (`--commit`, `--file`, `--line`, `--side LEFT|RIGHT`, default\n  `RIGHT`), `reply-comment` (`--comment-id`), `delete-comment`,\n  `delete-review-comment`.\n- **Diff and files:** `diff` returns `{ diff }`, the unified diff as text;\n  `list-files`.\n- **Reviews:** `list-reviews`, `approve` (`--body` optional), `request-changes`\n  (`--body` required), `list-reviewers`, `list-review-threads` (thread ids for\n  `resolve-thread`; the first 100 threads with a `GITHUB_REVIEW_THREADS_TRUNCATED`\n  warning past that, and the first 10 comments of each), `resolve-thread\n  --thread-id`, `add-reviewers` and `remove-reviewers` (repeatable `--reviewer` and\n  `--team-reviewer`, at least one).\n- **Status:** `get-status --ref` (the combined status; GitHub\'s first 30 statuses),\n  `list-checks --ref`, `pr-status` (review decision, mergeability, draft and\n  auto-merge state, and the first 100 checks counted into `checks.passed`, `failed`,\n  `pending` and `other`).\n- **Labels and assignees:** `add-labels` (repeatable `--label`), `remove-label\n  --label`, `add-assignees` and `remove-assignees` (repeatable `--assignee`).\n\nLists page 100 at a time until a short page, and stop with an error after 1,000 pages.\nEvery list (`list-prs`, `list-files`, `list-comments`, `list-review-comments`,\n`list-reviews`, `list-checks`, `list-issues`, `search-issues`, `issue-events` and the\nthree `projects` lists) reads every page by default. `--limit <n>` stops after `n`\nitems and sets `meta.page.nextCursor`; pass it back as `--cursor` with the same\n`--limit` for the next `n`, until `nextCursor` is `null`. On `list-prs`, `--limit`\ncounts the pull requests that pass `--author` and the date filters.\n\n```bash\ntoil github list-issues --state all --sort updated --direction asc --updated-since 2025-01-31T00:00:00Z --limit 100\ntoil github get-issue --number 9 --number 10 --sub-issues\ntoil github --owner imagile projects list-items --project 3\ntoil github list-prs --state all --author octo-dev\ntoil github --owner imagile --repo toil-probe pr-status --number 7\ntoil github create-pr --title "Add the probe" --head feature --body-file pr.md --allow-write\n```\n\n## Checking a dossier\n\n`check-dossier` checks the call\'s dossier: each owner it names (`owner`, per repo or not, and `owners`) is a user or organization, and each repository (`repo`) exists under its owner. It\'s `toil github check-dossier` (`--dossier <name|file>`, or the dossier the folder resolves to), and it returns `{ dossier, connection, env, ok, checked, checks, unchecked }`, one check per value with its key path. The CLI exits 1 when one is missing. A failure other than not-found (a bad token, an unreachable host) fails the command. Read only.\n',
-  "install.md": "---\ndescription: Installing toil from npm or from a clone with no npm install, the toil alias for a clone, and installing this skill for Codex, GitHub Copilot or Claude Code\n---\n\n# Installing toil\n\nCheck first: if `toil version` prints an envelope with `\"ok\": true`, toil is installed\nand nothing here is needed. If `toil` isn't found but a clone of the toil repository is\non the machine, `node <clone>/dist/toil.js version` is the same thing.\n\ntoil needs **Node.js 24.14 or later** (`node --version`) and nothing else: no\nexecutable, no native module, no install script and no admin rights. On an older Node\nevery command returns `UNSUPPORTED_NODE`. Windows, macOS and Linux all work the same.\n\n## From npm (recommended)\n\n```bash\nnpm install -g @imagile-dev/toil\ntoil version\n```\n\nWith no global install, `npx -y @imagile-dev/toil version` runs it on demand. Each\nGitHub release also carries the packed `.tgz` for offline or mirrored installs:\n`npm install -g ./imagile-dev-toil-<version>.tgz`.\n\n**toil is alpha: APIs and flags may change before 1.0.** Releases are published under\nnpm's `alpha` tag, which `latest` follows until 1.0. The first alpha is being\npublished; until it is, these return 404, so install from a clone meanwhile.\n\n## From a clone, with no npm install\n\nFor a machine that can reach the git host but not the npm registry. Needs Node and\ngit. A person setting up their own machine can do it all in one command, which\nbuilds the clone, adds the alias below and prints `toil version`\n(the build runs `npm ci`; with no registry, add `--skip-build` to use the committed\nbundle as it is):\n\n```bash\ngit clone https://github.com/imagile-dev/toil.git && cd toil && node scripts/setup.mjs\n```\n\nStep by step:\n\n```bash\ngit clone https://github.com/imagile-dev/toil.git\nnode toil/dist/toil.js version\n```\n\n`dist/toil.js` is committed with the bundle it runs, `dist/toil-lib.js`, and they are\nthe **last released toil**: each release rebuilds them, and nothing else changes\nthem, so they are the same files that release ships on npm.\nNewer commits on `main` are in a clone's source but not in its bundle until the next\nrelease. **Until the first release it is an earlier build**, as the repository's\n`README.md` (**Running from a clone**) says. They import only Node's built-ins, so there is nothing to install.\n\nTo type `toil` instead of `node <clone>/dist/toil.js`, add an alias to the shell\nprofile, once:\n\n| Shell | Run | Edits |\n|-------|-----|-------|\n| bash, zsh | `node toil/dist/toil.js setup alias` | `~/.bashrc` or `~/.zshrc`, by `SHELL` (`--shell bash` or `--shell zsh` to choose) |\n| PowerShell | `node toil/dist/toil.js setup alias --profile $PROFILE` | The profile of the PowerShell you ran it in |\n\nThen open a new terminal and run `toil version`. `--profile <file>` names any other\nprofile (macOS bash login shells read `~/.bash_profile`). The alias is a shell\nfunction between two marker lines; nothing else in the file changes, and running it\nagain updates it in place. `node toil/dist/toil.js setup remove-alias`, with the same\nflags, takes it out.\n\n- **An agent's shell may not read the profile.** When `toil` isn't found there, run\n  `node <clone>/dist/toil.js` with the same arguments; it's the same command.\n- **Windows PowerShell's default execution policy runs no profile.** If `toil` isn't\n  found after opening a new PowerShell, call `node <clone>/dist/toil.js` directly.\n- **Update** with `git -C toil pull`, which brings the newest release. There is\n  nothing to rebuild.\n\n## Installing this skill\n\ntoil carries this skill inside itself, so the copy it installs always matches the\ntoil that runs it. Install it once, for the agent you use:\n\n```bash\ntoil skill install --allow-write\ntoil skill install --agent github-copilot --scope project --allow-write\ntoil skill install --claude --allow-write\n```\n\n| `--agent` | `--scope user` (the default) | `--scope project` |\n|-----------|------------------------------|-------------------|\n| `codex` (the default; GitHub Copilot reads it too) | `~/.agents/skills/toil` | `.agents/skills/toil` |\n| `github-copilot` | `~/.copilot/skills/toil` | `.github/skills/toil` |\n| `claude-code` (`--claude`) | `~/.claude/skills/toil` | `.claude/skills/toil` |\n\nA project-scope copy describes your own config, so add the folder (for example\n`.github/skills/toil/`) to `.gitignore`.\n\nProject scope is the root of the repository you're in. Installing writes files\noutside the workspace, so it's CLI only and needs `--allow-write`. Every reference\nfile is installed, so an area you set up later is already documented.\n\n**The installed skill keeps itself current; there is nothing to update by hand.** The\ndescription in the installed `SKILL.md` names the areas and database engines you have\nconnections for (names only, never a host or a credential), so an agent reaches for\ntoil when a task touches one of them. Any toil command that loads config, on the CLI\nor over MCP, rewrites every copy toil installed when that command changed the config\nfile (`toil connections add`, `login`, `remove`, `writes`, `default`, `toil skills\nmarketplace add` and `remove`), and when the copy was written by another toil\nversion. Nothing else in a skills folder is ever touched. This is one of the writes\nthat need no `--allow-write`: `core.md`, under **Writes**, says why, and how to avoid\nit. Connections that only `TOIL_*` env vars define are named when they're set in the\nprocess that writes the skill, and the output says which. With no connections, the\ndescription is the general one.\n\n`toil skill show` (`skill_show` over MCP) prints the description toil would write now\nand every installed copy, with its version and whether it's current.\n\ntoil only ever rewrites a `toil` folder it installed itself. One copied by hand, or\ninstalled by a marketplace, is left exactly as it is, and `toil skill install` refuses\nto replace it: move it aside first.\n\nOther ways in, for agents toil doesn't write to:\n\n- **Claude Code**, from the plugin marketplace in the repository:\n  `claude plugin marketplace add imagile-dev/toil`, then\n  `claude plugin install toil@toil` (or `/plugin marketplace add imagile-dev/toil` and\n  `/plugin install toil@toil` in a session). From a clone, pass its path instead of\n  `imagile-dev/toil`. This copy carries the general description, and toil doesn't\n  keep it current.\n- **Any installer that reads `skills/<name>/SKILL.md` from a git repository**: point it\n  at `https://github.com/imagile-dev/toil`.\n\n## Next\n\nConnect toil to a tool: each area's file (`jira.md`, `db.md`, \u2026) gives its credential,\nits env vars and its config. To run toil as an MCP server, see `mcp.md`.\n",
+  "install.md": "---\ndescription: Installing toil from npm or from a clone with no npm install, the toil alias for a clone, and installing this skill for Codex, GitHub Copilot or Claude Code\n---\n\n# Installing toil\n\nCheck first: if `toil version` prints an envelope with `\"ok\": true`, toil is installed\nand nothing here is needed. If `toil` isn't found but a clone of the toil repository is\non the machine, `node <clone>/dist/toil.js version` is the same thing.\n\ntoil needs **Node.js 24.14 or later** (`node --version`) and nothing else: no\nexecutable, no native module, no install script and no admin rights. On an older Node\nevery command returns `UNSUPPORTED_NODE`. Windows, macOS and Linux all work the same.\n\n## From npm (recommended)\n\n```bash\nnpm install -g @imagile-dev/toil\ntoil version\n```\n\nWith no global install, `npx -y @imagile-dev/toil version` runs it on demand. Each\nGitHub release also carries the packed `.tgz` for offline or mirrored installs:\n`npm install -g ./imagile-dev-toil-<version>.tgz`.\n\n**toil is alpha: APIs and flags may change before 1.0.** Releases are published under\nnpm's `alpha` tag, which `latest` follows until 1.0.\n\n## From a clone, with no npm install\n\nFor a machine that can reach the git host but not the npm registry. Needs Node and\ngit. A person setting up their own machine can do it all in one command, which\nbuilds the clone, adds the alias below and prints `toil version`\n(the build runs `npm ci`; with no registry, add `--skip-build` to use the committed\nbundle as it is):\n\n```bash\ngit clone https://github.com/imagile-dev/toil.git && cd toil && node scripts/setup.mjs\n```\n\nStep by step:\n\n```bash\ngit clone https://github.com/imagile-dev/toil.git\nnode toil/dist/toil.js version\n```\n\n`dist/toil.js` is committed with the bundle it runs, `dist/toil-lib.js`, and they are\nthe **last released toil**: each release rebuilds them, and nothing else changes\nthem, so they are the same files that release ships on npm.\nNewer commits on `main` are in a clone's source but not in its bundle until the next\nrelease. They import only Node's built-ins, so there is nothing to install.\n\nTo type `toil` instead of `node <clone>/dist/toil.js`, add an alias to the shell\nprofile, once:\n\n| Shell | Run | Edits |\n|-------|-----|-------|\n| bash, zsh | `node toil/dist/toil.js setup alias` | `~/.bashrc` or `~/.zshrc`, by `SHELL` (`--shell bash` or `--shell zsh` to choose) |\n| PowerShell | `node toil/dist/toil.js setup alias --profile $PROFILE` | The profile of the PowerShell you ran it in |\n\nThen open a new terminal and run `toil version`. `--profile <file>` names any other\nprofile (macOS bash login shells read `~/.bash_profile`). The alias is a shell\nfunction between two marker lines; nothing else in the file changes, and running it\nagain updates it in place. `node toil/dist/toil.js setup remove-alias`, with the same\nflags, takes it out.\n\n- **An agent's shell may not read the profile.** When `toil` isn't found there, run\n  `node <clone>/dist/toil.js` with the same arguments; it's the same command.\n- **Windows PowerShell's default execution policy runs no profile.** If `toil` isn't\n  found after opening a new PowerShell, call `node <clone>/dist/toil.js` directly.\n- **Update** with `git -C toil pull`, which brings the newest release. There is\n  nothing to rebuild.\n\n## Installing this skill\n\ntoil carries this skill inside itself, so the copy it installs always matches the\ntoil that runs it. Install it once, for the agent you use:\n\n```bash\ntoil skill install --allow-write\ntoil skill install --agent github-copilot --scope project --allow-write\ntoil skill install --claude --allow-write\n```\n\n| `--agent` | `--scope user` (the default) | `--scope project` |\n|-----------|------------------------------|-------------------|\n| `codex` (the default; GitHub Copilot reads it too) | `~/.agents/skills/toil` | `.agents/skills/toil` |\n| `github-copilot` | `~/.copilot/skills/toil` | `.github/skills/toil` |\n| `claude-code` (`--claude`) | `~/.claude/skills/toil` | `.claude/skills/toil` |\n\nA project-scope copy describes your own config, so add the folder (for example\n`.github/skills/toil/`) to `.gitignore`.\n\nProject scope is the root of the repository you're in. Installing writes files\noutside the workspace, so it's CLI only and needs `--allow-write`. Every reference\nfile is installed, so an area you set up later is already documented.\n\n**The installed skill keeps itself current; there is nothing to update by hand.** The\ndescription in the installed `SKILL.md` names the areas and database engines you have\nconnections for (names only, never a host or a credential), so an agent reaches for\ntoil when a task touches one of them. Any toil command that loads config, on the CLI\nor over MCP, rewrites every copy toil installed when that command changed the config\nfile (`toil connections add`, `login`, `remove`, `writes`, `default`, `toil skills\nmarketplace add` and `remove`), and when the copy was written by another toil\nversion. Nothing else in a skills folder is ever touched. This is one of the writes\nthat need no `--allow-write`: `core.md`, under **Writes**, says why, and how to avoid\nit. Connections that only `TOIL_*` env vars define are named when they're set in the\nprocess that writes the skill, and the output says which. With no connections, the\ndescription is the general one.\n\n`toil skill show` (`skill_show` over MCP) prints the description toil would write now\nand every installed copy, with its version and whether it's current.\n\ntoil only ever rewrites a `toil` folder it installed itself. One copied by hand, or\ninstalled by a marketplace, is left exactly as it is, and `toil skill install` refuses\nto replace it: move it aside first.\n\nOther ways in, for agents toil doesn't write to:\n\n- **Claude Code**, from the plugin marketplace in the repository:\n  `claude plugin marketplace add imagile-dev/toil`, then\n  `claude plugin install toil@toil` (or `/plugin marketplace add imagile-dev/toil` and\n  `/plugin install toil@toil` in a session). From a clone, pass its path instead of\n  `imagile-dev/toil`. This copy carries the general description, and toil doesn't\n  keep it current.\n- **Any installer that reads `skills/<name>/SKILL.md` from a git repository**: point it\n  at `https://github.com/imagile-dev/toil`.\n\n## Next\n\nConnect toil to a tool: each area's file (`jira.md`, `db.md`, \u2026) gives its credential,\nits env vars and its config. To run toil as an MCP server, see `mcp.md`.\n",
   "jenkins.md": '---\narea: jenkins\ndescription: Jenkins jobs, builds, console logs and triggering builds, on one or more named instances\n---\n\n# Jenkins (`jenkins`)\n\nJobs, builds, console logs and the build queue on **Jenkins**, through its classic\nremote access API (`/api/json` with `tree`, `consoleText`, `/queue/item`). Every\ncommand reads except `pipeline run`, which triggers a build. Verification level:\n`unit`.\n\n**Supported versions:** The oldest Jenkins version toil supports hasn\'t been established. toil\ncalls the classic remote access API with a user name and API token sent as Basic auth.\nNo release has been verified yet.\n\n## Credential\n\nA Jenkins **API token** and the user name it belongs to: in Jenkins, your user name \u2192\nSecurity \u2192 API Token \u2192 Add new token. toil sends `Authorization: Basic\nbase64(username:apiToken)`; both parts are required. No CSRF crumb is requested,\nand there is no password or browser login.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_JENKINS_BASE_URL` | yes | Jenkins server root, e.g. `https://jenkins.imagile.dev` (keep any context path) |\n| `username` | `TOIL_JENKINS_USERNAME` | yes | Jenkins user name the API token belongs to |\n| `apiToken` | `TOIL_JENKINS_API_TOKEN` | yes | Jenkins API token |\n| `instance` | `TOIL_JENKINS_INSTANCE` | no | The name `--instance` selects this connection by, when it isn\'t the connection\'s own name |\n\nThere\'s no CI fallback variable. Environment variables (CI, or a one-off shell)\nconfigure the default connection:\n\n```bash\nexport TOIL_JENKINS_BASE_URL=https://jenkins.imagile.dev\nexport TOIL_JENKINS_USERNAME=ci-bot\nexport TOIL_JENKINS_API_TOKEN=<your API token>\n```\n\n## Named instances\n\nEach Jenkins server is its own connection. `--instance <name>` (on the group:\n`toil jenkins --instance ephemeral pipeline list`, or the `instance` field over MCP)\nselects the jenkins connection with that name, or the one whose `instance` setting is\nthat name. An unknown name is `INVALID_INPUT`, listing the ones toil knows. Without\n`--instance`, the area\'s default connection is used.\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "jenkins": { "area": "jenkins", "baseUrl": "https://jenkins.imagile.dev", "username": "ci-bot" },\n    "ephemeral": { "area": "jenkins", "baseUrl": "https://jenkins-tmp.imagile.dev", "username": "tmp-user" }\n  },\n  "defaults": { "jenkins": { "connection": "jenkins" } }\n}\n```\n\nThe API token never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Add an instance with `toil connections add ephemeral --area\njenkins`, which asks for each setting and keeps the token in the OS credential\nstore; remove one with `toil connections remove ephemeral`. In CI, define one with\n`TOIL_CONN_EPHEMERAL_AREA=jenkins` and `TOIL_CONN_EPHEMERAL_BASE_URL`, `_USERNAME`\nand `_API_TOKEN`.\n\n- `instance list`: List configured Jenkins instances. It is `toil connections list\n  --area jenkins`: every jenkins connection\'s name, host, whether it\'s the default,\n  whether writes are on, and where each setting came from, never a secret. Over MCP,\n  call `connections_list` with `area: "jenkins"`.\n- `instance add <name>`: CLI only. It is `toil connections add <name> --area\n  jenkins`, asking for each setting on a terminal and keeping the token in the OS\n  credential store. It takes the name as an argument and accepts none of the\n  contract\'s `--name`, `--base-url`, `--username`, `--api-token` and `--force` flags.\n- `instance remove <name>`: CLI only. It is `toil connections remove <name> --area\n  jenkins`, which also deletes the token from the OS credential store and refuses a\n  connection to another area. It takes the name as an argument, not `--name`.\n\n## Commands\n\nJob names with folders are written `folder/job` (`platform/api-build`); each level\nbecomes `/job/<segment>`, percent-encoded.\n\n- `pipeline list`: List all jobs on the Jenkins instance (or within a folder, `--folder parent/child`).\n- `pipeline get`: Get details for a specific job (`--name`), with its last 10 builds.\n- `pipeline run`: Trigger a build (`--name`). It writes, so it needs `writes: true`\n  on the connection and `--allow-write`. Each `--parameter key=value` (repeatable)\n  sends the build to `buildWithParameters`; without one it goes to `build`, even for\n  a parameterized job. Without `--wait`, `data` is `{ queueItemId }`. With `--wait`\n  it polls every `--poll` seconds (default 10) until the build leaves the queue, then\n  until it finishes, giving each phase `--timeout` seconds (default 600), and returns\n  the build. A build whose result is set and isn\'t `SUCCESS` is still returned as\n  `data` with `ok: true`, but the CLI exits 1, and `meta.warnings` has a\n  `JENKINS_BUILD_NOT_SUCCESSFUL` warning (over MCP, check the warning or\n  `data.result`).\n  The command\'s time limit is 21 minutes (`TOIL_TIMEOUT_MS` overrides it).\n  `--timeout` and `--poll` are checked only after the build was triggered.\n- `pipeline list-runs`: List recent builds for a job (`--name`, `--top`, default 25).\n  Jenkins\' `builds` list holds only the newest 100.\n- `pipeline get-run`: Get details for a specific build (`--name`, `--number`).\n- `pipeline logs`: Fetch console log for a build (consider --output-file for large\n  logs); `data` is `{ log }`, the whole text.\n\n`--number`, `--top`, `--timeout` and `--poll` are read as whole numbers from the\nstart of the text, so `12abc` is 12.\n\n```bash\ntoil jenkins pipeline list --folder platform\ntoil jenkins --instance ephemeral pipeline list-runs --name platform/api-build --top 5\ntoil jenkins pipeline run --name api-build --parameter BRANCH=main --wait --allow-write\n```\n',
   "jira-cloud.md": '---\narea: jira-cloud\ndescription: Issues, JQL search, transitions, comments, worklogs, labels, links, attachments, custom fields, projects, users, boards and sprints on Jira Cloud\n---\n\n# Jira Cloud (`jira-cloud`)\n\nIssues, JQL search, transitions, comments, worklogs, labels, links, attachments,\ncustom fields, projects, users, boards and sprints on **Jira Cloud**\n(`https://<your-site>.atlassian.net`, REST API 3 and the Agile REST API 1.0). Built\nfrom Atlassian\'s API documentation and never run against a live site. Verification\nlevel: `unit`.\n\nFor Jira Data Center or Server, use the `jira` area instead. The two are separate\nareas because their APIs differ: Cloud names people by **accountId**, not username,\nand its rich text is **Atlassian Document Format** (ADF), not a string.\n\n**Supported versions:** The oldest Jira Cloud version toil supports hasn\'t been established. Jira\nCloud is always current. toil calls REST API 3 (`/rest/api/3`, with the enhanced JQL\nsearch at `/rest/api/3/search/jql`) and the Agile REST API 1.0, with an Atlassian\naccount email and API token sent as Basic auth. Nothing has been run against a live\nsite yet.\n\n## Credential\n\nAn **Atlassian account API token** plus that account\'s **email address**. Create\nthe token at https://id.atlassian.com/manage-profile/security/api-tokens (Atlassian\naccount \u2192 Security \u2192 API tokens \u2192 Create API token). toil sends\n`Authorization: Basic base64(<email>:<apiToken>)`, as Atlassian documents for\nscripts. There is no password, OAuth app or browser login. The token acts with the\naccount\'s own permissions, so a read sees what that account can see.\n\nIf the email and token don\'t match, Jira Cloud may treat the call as anonymous\nrather than refuse it: a 401 is `AUTH`, but a missing issue can also surface as\n`NOT_FOUND`, and a search as no results. When a call that should work finds nothing,\ncheck `email` first.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_JIRA_CLOUD_BASE_URL` | yes | Jira Cloud site root, `https://<your-site>.atlassian.net` |\n| `email` | `TOIL_JIRA_CLOUD_EMAIL` | yes | Email address of the Atlassian account the token belongs to |\n| `apiToken` | `TOIL_JIRA_CLOUD_API_TOKEN` | yes | Atlassian account API token (a secret) |\n| `customFields` | `TOIL_JIRA_CLOUD_CUSTOM_FIELDS` (JSON) | no | Custom fields addressable by friendly name; see **Custom fields** |\n| `project` | `TOIL_JIRA_CLOUD_PROJECT` | no | Default project for `create-issue` |\n| `issueType` | `TOIL_JIRA_CLOUD_ISSUE_TYPE` | no | Default issue type for `create-issue` (`Task` when unset) |\n| `priority` | `TOIL_JIRA_CLOUD_PRIORITY` | no | Default priority for `create-issue` |\n| `writes` | `TOIL_JIRA_CLOUD_WRITES` | no | `true` lets write commands run (with `--allow-write`) |\n\nThere is no CI fallback variable. The examples use the placeholder\n`https://jira-cloud.imagile.dev`, which never resolves; your own site is\n`https://<your-site>.atlassian.net`.\n\n```bash\nexport TOIL_JIRA_CLOUD_BASE_URL=https://jira-cloud.imagile.dev\nexport TOIL_JIRA_CLOUD_EMAIL=you@example.com\nexport TOIL_JIRA_CLOUD_API_TOKEN=<your API token>\n```\n\nOr `~/.toil/config.json`, with `project`, `issueType` and `priority` usually set once\nunder `defaults.jira-cloud`:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "imagile-cloud": { "area": "jira-cloud", "baseUrl": "https://jira-cloud.imagile.dev", "email": "you@example.com", "writes": true }\n  },\n  "defaults": { "jira-cloud": { "connection": "imagile-cloud", "project": "PROJ" } }\n}\n```\n\nThe token never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add imagile-cloud --area jira-cloud` (or\n`toil connections login imagile-cloud`) to keep it in the OS credential store, or set\n`TOIL_JIRA_CLOUD_API_TOKEN`. Env vars always win over the file.\n\n## Commands\n\nEvery command also takes `--connection <name>`. Write commands (marked \u270E) need\n`writes: true` on the connection **and** `--allow-write`. Names and flags match\n`jira` wherever the operation is the same. MCP tools are `jira_cloud_<command>`\n(`jira_cloud_get_issue`).\n\n| Command | Flags | Returns |\n|---------|-------|---------|\n| `get-issue` | `--key` (repeat for up to 100) | The issue as Jira returns it, registered custom fields under their friendly names, plus `descriptionText`. With several keys, `{ issues, errors }` |\n| `get-changelog` | `--key --limit --cursor` | The issue\'s change history, oldest first: `id`, `author`, `created`, `items` |\n| `create-issue` \u270E | `--project --type --summary --description --priority --assignee <account-id> --labels --parent --field (repeatable) --fields-file --input-file` | The created issue, read back, plus `descriptionText` |\n| `update-issue` \u270E | `--key --summary --description --priority --assignee <account-id> --labels --field --fields-file --input-file` | `{ updated }` |\n| `schema` | `--example-only` | `{ schema, example }` for `--input-file`, or just the example; needs no connection |\n| `transition-issue` \u270E | `--key --transition <name-or-id>` | `{ transitioned, transition }` |\n| `list-transitions` | `--key` | Transitions available now |\n| `add-comment` \u270E | `--key --body` | The comment, plus `bodyText` |\n| `list-comments` | `--key --limit --cursor` | Every comment, or a page of them, each with `bodyText` |\n| `log-work` \u270E | `--key --time-spent --started --comment` | The worklog, plus `commentText` |\n| `add-label` \u270E | `--key --labels` | `{ updated, labelsAdded }` |\n| `remove-label` \u270E | `--key --labels` | `{ updated, labelsRemoved }` |\n| `assign` \u270E | `--key --assignee <account-id>` | `{ assigned, assignee }` |\n| `link-issue` \u270E | `--key --link-type --target` | `{ linked, to, type }` |\n| `search` | `--jql` or `--jql-file`, `--max-results --cursor --updated-since --fields` | `{ issues, maxResults, isLast }` |\n| `fields` | `--discover --custom-only --project --issue-type` | Registered custom fields, or Jira\'s field list with `suggestedType` (and `allowedValues` with `--project`) |\n| `add-attachment` \u270E | `--key --file` | The attachments Jira created |\n| `list-attachments` | `--key` | The issue\'s attachments |\n| `download-attachment` | `--key --attachment-id --dir` | `{ saved, filename, size }` |\n| `list-projects` | `--query --limit --cursor` | Every visible project, or a page of them |\n| `get-project` | `--project` | The project |\n| `search-users` | `--query --max-results --cursor` | One page of matching users, with `accountId` |\n| `list-boards` | `--project --limit --cursor` | Agile boards |\n| `list-sprints` | `--board` or `--project`, `--state`, `--limit --cursor` (with `--board`) | Sprints, each once |\n| `set-sprint` \u270E | `--key --sprint` | `{ updated, sprint }` |\n\n```bash\ntoil jira-cloud search --jql \'project = PROJ AND status = "In Progress"\' --max-results 20\ntoil jira-cloud search-users --query smith\ntoil jira-cloud create-issue --project PROJ --type Bug --summary "Login broken" --description "Open the login page in Safari; the button does nothing." --assignee 5b10ac8d82e05b22cc7d4ef5 --allow-write\ntoil jira-cloud log-work --key PROJ-123 --time-spent "2h 30m" --started 2026-01-15T09:00:00.000+0000 --allow-write\ntoil jira-cloud list-sprints --project PROJ --state active\n```\n\n### People are accountIds\n\n`--assignee` takes an **accountId** (`5b10ac8d82e05b22cc7d4ef5`), never a username or\nemail: Jira Cloud has no usernames in its API. Find one with `search-users --query\n<name or email>`. People in output (`assignee`, `reporter`, `author`) carry\n`accountId` and `displayName`; an email address appears only where the person\'s\nprofile settings allow it. A `user`-typed custom field sends `{ "accountId": ... }`.\n\n### Rich text (ADF)\n\nA description, a comment body and a worklog comment are ADF documents on Jira Cloud.\ntoil converts them simply, and no more:\n\n- **In** (`--description`, `--body`, `--comment`): plain text. A blank line starts a\n  new paragraph; a single line break becomes a hard break. Markdown, wiki markup and\n  HTML are **not** interpreted: `**bold**` arrives as those characters. A line break\n  has to be a real one: in bash, `$\'one\\ntwo\'`; `\\n` inside ordinary quotes is two\n  characters.\n- **In, from `--input-file`**: `fields.description` may also be an ADF document\n  object (`{ "type": "doc", ... }`), sent as it is, for formatting plain text can\'t\n  carry.\n- **Out**: Jira\'s ADF is returned untouched (`fields.description`, `body`,\n  `comment`), and a plain-text rendering sits beside it: `descriptionText` on an issue\n  (`null` when it has no description), `bodyText` on each comment and `commentText` on\n  a worklog. Formatting is dropped; text, mentions, emoji, links, dates, list items\n  (`- `, `1. `) and table cells (`a | b`) keep their words.\n\n### Search\n\n`search` uses Jira Cloud\'s enhanced JQL search, which pages by token and reports\n**no total**. Without `--max-results` it reads every match. With `--max-results N`\nit returns at most N, `isLast` says whether that was all, and `meta.page.nextCursor`\nresumes it: pass it back as `--cursor` with `--max-results`. `maxResults` in `data`\nis how many issues came back. `--fields` takes field ids or registered names; the\ndefault is summary, status, priority, assignee, issuetype, project, created, updated,\nlabels, reporter and every registered custom field. `--start-at` from `jira` doesn\'t\nexist here, since the API has no offsets.\n\n### Paging, changes since, history and several issues\n\nThese are what a sync needs: read everything once, then only what changed.\n\n```bash\ntoil jira-cloud search --jql \'project = ABC\' --max-results 100\ntoil jira-cloud search --jql \'project = ABC ORDER BY updated\' --updated-since 2026-10-01T09:30:00Z\ntoil jira-cloud get-changelog --key ABC-123\ntoil jira-cloud get-issue --key ABC-1 --key ABC-2 --key ABC-7\ntoil jira-cloud list-projects --limit 50\n```\n\n- **Paging.** Every list and search pages the same way. Without `--limit`\n  (`--max-results` on `search` and `search-users`), a list returns every item. With\n  one, it returns that many and `meta.page.nextCursor` says where the next page\n  starts; pass it back as `--cursor`, unchanged. `null` means that was the last page.\n  `search-users` is always one page; a full page hands out a cursor, which may lead\n  to an empty one. `list-transitions`, `list-attachments` and `fields` have no\n  paging, because Jira sends each of them whole. `list-sprints` pages only with\n  `--board`, since `--project` gathers sprints from several boards.\n- **`--updated-since <iso>`** on `search` adds `updated >= "<instant>"` to the JQL,\n  before any `ORDER BY`, with your JQL in parentheses. The instant is an ISO 8601\n  date (`2026-10-01`, read as midnight UTC) or a date and time with a zone\n  (`2026-10-01T09:30:00Z`). JQL has no time zones, so toil reads your account\'s zone\n  from `/rest/api/3/myself` and writes the instant in it, rounded down to the minute;\n  an issue near the boundary can come back twice, never not at all. If Jira names no\n  zone it knows, toil writes UTC and warns with `JIRA_CLOUD_TIME_ZONE`. On its own,\n  `--updated-since` is the whole query.\n- **`get-changelog`** reads `/rest/api/3/issue/{key}/changelog`, oldest first, each\n  entry with `id`, `author` (an `accountId`), `created` and `items` (`field`,\n  `fieldtype`, `fieldId`, `from`, `fromString`, `to`, `toString`).\n- **Several issues.** Repeat `--key` (up to 100) and `get-issue` reads them in one\n  `POST /rest/api/3/issue/bulkfetch` and returns `{ issues, errors }`: the issues in\n  the order you asked, and each key that couldn\'t be read as `{ key, code, message }`,\n  with a `JIRA_CLOUD_BULK_PARTIAL` warning, and never more than one error per key.\n  Jira leaves out a key it can\'t find or won\'t show, returns a moved issue under its\n  new key, and names an issue it couldn\'t fetch only by id. A key asked for by id\n  that Jira couldn\'t fetch is `HTTP` with Jira\'s message. A key with no answer is\n  `NOT_FOUND` when everything else Jira sent is accounted for; otherwise it\'s\n  `UNMATCHED`, with a message naming the issues returned under other keys and the\n  ids Jira couldn\'t fetch, since the answer doesn\'t say which is which. Issues\n  returned under another key still come back, after the others. One `--key` returns\n  the issue itself, as before. Over MCP, `key` takes a string or a list.\n\n## Large fields via --input-file\n\n`create-issue` and `update-issue` take `--input-file <path>` (`-` reads stdin on the\nCLI) describing the issue as `{ project, issueType, fields: { ... } }`.\n`toil jira-cloud schema` returns its JSON Schema and an example. Any string value in\n`fields` may be `@path/to/file` to read it from a file. Flags override matching keys\nfrom the file, and each override is reported in `meta.warnings` as\n`JIRA_CLOUD_INPUT_OVERRIDDEN`. The project comes from `--project`, then the file, then\nthe connection\'s `project`; `meta.context` says which.\n\n```bash\ntoil jira-cloud schema --example-only > envelope.json   # the example is in .data\ntoil jira-cloud create-issue --input-file issue.json --priority Low --allow-write\n```\n\nOver MCP, `-` is refused because stdin carries the protocol; pass a file path.\n\n## Custom fields\n\n`--field Name=value` (repeatable), `--fields-file` and `--input-file` accept a raw field\nid (`customfield_10016`) or a standard field name (`fixVersions`) with no setup, and\nsend the value as given. `Name=@file.json` reads the value from a file: JSON when it\nparses, text otherwise.\n\nTo use a **friendly name** in flags, JQL and output, register the field on the\nconnection:\n\n```json\n"customFields": [{ "id": "customfield_10016", "name": "Story Points", "type": "number" }]\n```\n\n`type` shapes a `--field` value: `string`, `number`, `date`, `datetime`, `select`\n(`{value}`), `multi-select`, `option-id` (`{id}`), `cascading-select` (`parentId` or\n`parentId:childId`), `user` (`{accountId}`), `multi-user` (comma-separated accountIds, `[{accountId}]`), `labels`, `url`, and `textarea`, which\nis plain text sent as ADF, since a multi-line text field takes ADF on Cloud. Omit it to\nsend the raw string. A value in `--fields-file` or `--input-file` is sent untouched, so\na multi-line text field there needs ADF. `fields --discover` lists Jira\'s fields with a\n`suggestedType` (a single-line text field is `string`, a multi-line one `textarea`); add\n`--project PROJ` for each select field\'s `allowedValues`, from the paged createmeta\nendpoints. **Sprint is not a custom field**: use `set-sprint` after the issue exists.\n\n## Attachments\n\n`add-attachment` uploads one file as multipart with `X-Atlassian-Token: no-check`.\n`download-attachment` looks the id up on the issue, then asks Jira for the bytes with\n`GET /rest/api/3/attachment/content/<id>?redirect=false`, so the request never leaves\nyour site and the credential goes nowhere else. It saves under `.toil/` (or `--dir`),\nkeeping only the file name, and never replaces a file that\'s already there.\n\n## Notes\n\n- `create-issue` doesn\'t check for duplicates. After a timeout, search for the summary\n  before retrying: the issue may already exist.\n- `update-issue` with nothing to change is `INVALID_INPUT`; nothing is sent.\n- `log-work` needs `--started`: Jira Cloud\'s API requires it, where `jira` lets the\n  server default it.\n- `list-sprints --project` reads scrum and team-managed (`simple`) boards and skips\n  kanban ones. A team-managed board whose project hasn\'t turned sprints on answers 400;\n  it\'s skipped with a `JIRA_CLOUD_NO_SPRINTS` warning naming it. Any other failure is\n  the command\'s error.\n- `transition-issue` and `link-issue` treat an all-digits value as an id and anything\n  else as a name (case-insensitive), looked up first.\n- An issue key or id is sent as one URL path segment, encoded, so it can\'t change the\n  endpoint called.\n- A 429 is retried after the delay Jira asks for, as in every area.\n\n## Checking a dossier\n\n`check-dossier` checks the call\'s dossier: each project key it names (`project`, `projects`) exists, and each field alias in `fields` names a field id the site has. It\'s `toil jira-cloud check-dossier` (`--dossier <name|file>`, or the dossier the folder resolves to), and it returns `{ dossier, connection, env, ok, checked, checks, unchecked }`, one check per value with its key path. The CLI exits 1 when one is missing. A failure other than not-found (a bad token, an unreachable host) fails the command. Read only.\n',
   "jira.md": '---\narea: jira\ndescription: Issues, JQL search, transitions, comments, worklogs, labels, links, attachments, custom fields, boards and sprints on Jira Data Center\n---\n\n# Jira Data Center (`jira`)\n\nIssues, JQL search, transitions, comments, worklogs, labels, links, attachments,\ncustom fields, boards and sprints on **Jira Data Center / Server** (`/rest/api/2`\nand `/rest/agile/1.0`). Verification level: `unit`.\n\n**Supported versions:** Jira Data Center 8.14 or later (REST API 2 and Agile REST API 1.0). toil\nauthenticates with a personal access token, which Jira Data Center added in 8.14. No\nrelease has been verified yet.\n\n## Credential\n\nA Jira **personal access token**: in Jira, your profile picture \u2192 Profile \u2192\nPersonal Access Tokens \u2192 Create token. toil sends it as `Authorization: Bearer <token>`.\nThere is no username, password or browser login.\n\n## Configuration\n\n| Key | Env var | Required | Meaning |\n|-----|---------|----------|---------|\n| `baseUrl` | `TOIL_JIRA_BASE_URL` | yes | Jira server root, e.g. `https://jira.imagile.dev` (keep any context path, e.g. `https://jira.imagile.dev/jira`) |\n| `apiToken` | `TOIL_JIRA_API_TOKEN` | yes | Personal access token |\n| `customFields` | `TOIL_JIRA_CUSTOM_FIELDS` (JSON) | no | Custom fields addressable by friendly name; see **Custom fields** |\n| `project` | `TOIL_JIRA_PROJECT` | no | Default project for `create-issue` |\n| `issueType` | `TOIL_JIRA_ISSUE_TYPE` | no | Default issue type for `create-issue` (`Task` when unset) |\n| `priority` | `TOIL_JIRA_PRIORITY` | no | Default priority for `create-issue` |\n| `writes` | `TOIL_JIRA_WRITES` | no | `true` lets write commands run (with `--allow-write`) |\n\nEnvironment variables (CI, or a one-off shell):\n\n```bash\nexport TOIL_JIRA_BASE_URL=https://jira.imagile.dev\nexport TOIL_JIRA_API_TOKEN=<your personal access token>\n```\n\nOr `~/.toil/config.json`, with `project`, `issueType` and `priority` usually set once\nunder `defaults.jira` so every Jira connection shares them:\n\n```json\n{\n  "version": 2,\n  "connections": {\n    "corp-jira": { "area": "jira", "baseUrl": "https://jira.imagile.dev", "writes": true }\n  },\n  "defaults": { "jira": { "connection": "corp-jira", "project": "ABC", "issueType": "Story" } }\n}\n```\n\nThe token never goes in this file; a plaintext one there is refused with\n`CONFIG_INVALID`. Run `toil connections add corp-jira --area jira` (or\n`toil connections login corp-jira` for an existing connection) to keep it in the OS\ncredential store, which writes `"apiToken": "keychain:\u2026"`, or set\n`TOIL_JIRA_API_TOKEN`.\n\nEnv vars always win over the file. A second Jira server is a second connection\n(`"lab-jira": { "area": "jira", ... }`), chosen per call with `--connection lab-jira`\nor configured from env with `TOIL_CONN_LAB_JIRA_AREA=jira` plus\n`TOIL_CONN_LAB_JIRA_BASE_URL` and `TOIL_CONN_LAB_JIRA_API_TOKEN`.\n\n## Commands\n\nEvery command also takes `--connection <name>`. Write commands (marked \u270E) need\n`writes: true` on the connection **and** `--allow-write`; over MCP they are only\nlisted when writes are on, and `allowWrite: true` stands in for the flag.\n\n| Command | Flags | Returns |\n|---------|-------|---------|\n| `get-issue` | `--key` (repeat for up to 100) | The issue; registered custom fields under their friendly names. With several keys, `{ issues, errors }` |\n| `get-changelog` | `--key --limit --cursor` | The issue\'s change history: `id`, `author`, `created`, `items` |\n| `create-issue` \u270E | `--project --type --summary --description --priority --assignee --labels --parent --field (repeatable) --fields-file --input-file` | The created issue, read back |\n| `update-issue` \u270E | `--key --summary --description --priority --assignee --labels --field --fields-file --input-file` | `{ updated }` |\n| `schema` | `--example-only` | `{ schema, example }` for `--input-file`, or just the example |\n| `transition-issue` \u270E | `--key --transition <name-or-id>` | `{ transitioned, transition }` |\n| `list-transitions` | `--key` | Transitions available now |\n| `add-comment` \u270E | `--key --body` | The comment |\n| `list-comments` | `--key --limit --cursor` | Every comment, or a page of them |\n| `log-work` \u270E | `--key --time-spent --comment --started` | The worklog |\n| `search` | `--jql` or `--jql-file`, `--max-results --start-at --cursor --updated-since --fields` | `{ issues, total, startAt, maxResults }` |\n| `add-label` \u270E / `remove-label` \u270E | `--key --labels a,b` | `{ updated, labelsAdded }` / `{ updated, labelsRemoved }` |\n| `assign` \u270E | `--key --assignee <username>` | `{ assigned, assignee }` |\n| `link-issue` \u270E | `--key --link-type --target` | `{ linked, to, type }` |\n| `add-attachment` \u270E | `--key --file` | The attachments created |\n| `list-attachments` | `--key` | Attachments (id, filename, size, mimeType, content) |\n| `download-attachment` | `--key --attachment-id --dir` | `{ saved, filename, size }`; saves to `.toil/` by default |\n| `fields` | `--discover --custom-only --project --issue-type` | Registered fields, or Jira\'s field list with `suggestedType` and `allowedValues` |\n| `list-boards` | `--project --limit --cursor` | Boards (id, name, scrum or kanban) |\n| `list-sprints` | `--board` or `--project`, `--state active,future,closed`, `--limit --cursor` (with `--board`) | Sprints with dates and goal |\n| `set-sprint` \u270E | `--key --sprint <id>` | `{ updated, sprint }` |\n| `api` | `<method> <path> --query key=value (repeatable) --body-file --content-type` | The response body; see **Any endpoint** below. \u270E for `POST`, `PUT`, `PATCH`, `DELETE` |\n| `check-dossier` | `--dossier <name\\|file>` (or the folder\'s dossier) | `{ dossier, connection, env, ok, checked, checks, unchecked }`: each project and field id the dossier names, found or not; exit 1 when one is missing |\n\nOver MCP the same commands are tools named `jira_<command>` with hyphens as\nunderscores (`jira_get_issue`, `jira_list_sprints`), taking camelCase fields\n(`key`, `issueType`, `maxResults`, `attachmentId`).\n\n## Examples\n\n```bash\ntoil jira get-issue --key ABC-123\ntoil jira search --jql \'project = ABC AND status = "In Progress"\' --max-results 20\ntoil jira search --jql-file query.jql --fields summary,status,"Story Points"\ntoil jira create-issue --project ABC --type Bug --summary "Login broken on Safari" --priority High --allow-write\ntoil jira transition-issue --key ABC-123 --transition "In Progress" --allow-write\ntoil jira add-comment --key ABC-123 --body "Reproduced on staging." --allow-write\ntoil jira log-work --key ABC-123 --time-spent "2h 30m" --comment "Investigated the failing build" --allow-write\ntoil jira list-sprints --project ABC --state active,future\ntoil jira set-sprint --key ABC-123 --sprint 42 --allow-write\ntoil jira download-attachment --key ABC-123 --attachment-id 10001 --dir downloads\n```\n\n`search` without `--max-results` pages through every match, so bound broad\nqueries. `meta.page.nextCursor` is the `--start-at` for the next page (or `null`).\n\n## Paging, changes since, history and several issues\n\nThese are what a sync needs: read everything once, then only what changed.\n\n```bash\ntoil jira search --jql \'project = ABC\' --max-results 100\ntoil jira search --jql \'project = ABC\' --max-results 100 --cursor 100\ntoil jira search --jql \'project = ABC ORDER BY updated\' --updated-since 2026-10-01T09:30:00Z\ntoil jira get-changelog --key ABC-123\ntoil jira get-issue --key ABC-1 --key ABC-2 --key ABC-7\ntoil jira list-comments --key ABC-123 --limit 50\n```\n\n- **Paging.** Every list and search pages the same way. Without `--limit`\n  (`--max-results` on `search`), it returns every item. With one, it returns that\n  many and `meta.page.nextCursor` says where the next page starts; pass it back as\n  `--cursor`, unchanged. `null` means that was the last page. `list-transitions`,\n  `list-attachments` and `fields` have no paging, because Jira sends each of them\n  whole. `list-sprints` pages only with `--board`, since `--project` gathers sprints\n  from several boards.\n- **`--updated-since <iso>`** on `search` adds `updated >= "<instant>"` to the JQL,\n  before any `ORDER BY`, with your JQL in parentheses. The instant is an ISO 8601\n  date (`2026-10-01`, read as midnight UTC) or a date and time with a zone\n  (`2026-10-01T09:30:00Z`). JQL has no time zones, so toil reads your profile\'s\n  zone from `/rest/api/2/myself` and writes the instant in it, rounded down to the\n  minute; an issue near the boundary can come back twice, never not at all. If Jira\n  names no zone it knows, toil writes UTC and warns with `JIRA_TIME_ZONE`. On its\n  own, `--updated-since` is the whole query.\n- **`get-changelog`** returns the history entries Jira records for an issue, each\n  with `id`, `author`, `created` and `items` (`field`, `fieldtype`, `from`,\n  `fromString`, `to`, `toString`). Data Center sends the history with the issue\n  (`expand=changelog`), all at once, and `--limit` / `--cursor` page it. If Jira\n  reports more entries than it sent, a `JIRA_CHANGELOG_TRUNCATED` warning says so.\n- **Several issues.** Repeat `--key` (up to 100) and `get-issue` returns\n  `{ issues, errors }`: the issues in the order you asked, and each key that couldn\'t\n  be read as `{ key, code, message }` (`NOT_FOUND`, or `HTTP` for another refusal),\n  with a `JIRA_BULK_PARTIAL` warning. A rejected token or a network failure fails the\n  whole call. Data Center has no bulk endpoint, so toil sends one request per key,\n  five at a time. One `--key` returns the issue itself, as before. Over MCP, `key`\n  takes a string or a list.\n`create-issue` takes its project from `--project`, then `project` in `--input-file`, then\nthe connection\'s `project`, and `meta.context.inputs.project` says which: `input` for\nthe flag or the file, `connection` for the setting (`TOIL_JIRA_PROJECT` and\n`defaults.jira.project` both report `connection`, not `default`). The `--project` on `fields`,\n`list-boards` and `list-sprints` never falls back to the connection.\n`--time-spent` takes Jira durations (`1d`, `2h 30m`); `--started` takes Jira\'s datetime\nformat (`2024-01-15T09:00:00.000+0000`) and defaults to now.\n\n## Any endpoint: `jira api`\n\nWhen no command above covers an endpoint, `jira api` calls it directly. It sends\nthe connection\'s own credential, the same way every other `jira` command does,\nto a path under the connection\'s `baseUrl`:\n\n```bash\ntoil jira api GET /rest/api/2/myself\ntoil jira api GET /rest/api/2/issue/ABC-123/remotelink\ntoil jira api GET /rest/agile/1.0/board/12/backlog --query fields=summary --query maxResults=20\ntoil jira api POST /rest/api/2/version --body-file version.json --allow-write\ntoil jira api PUT /rest/api/2/issue/ABC-123/watchers --body-file user.json --content-type application/json --allow-write\n```\n\n- **The path** is relative to `baseUrl` (a context path such as `/jira` is kept),\n  with or without a leading `/` (in Git Bash on Windows, leave it off: the shell\n  rewrites `/rest/...` into a file path, which is refused). A full URL, a scheme, `//host`, a leading\n  backslash or a `.` / `..` segment is refused with `INVALID_INPUT` before anything\n  is sent, so the token never leaves the connection\'s host.\n- **The method decides the gate.** `GET` and `HEAD` are reads. `POST`, `PUT`,\n  `PATCH` and `DELETE` are writes: they need `writes: true` on the connection\n  **and** `--allow-write`. `DELETE` works only on the CLI: over MCP, `jira_api`\n  refuses it with `INVALID_INPUT`.\n- **`--query key=value`** adds a query parameter; repeat it for more, or to repeat\n  a key. **`--body-file <path>`** sends that file (inside the workspace, or `-` for\n  stdin) as the body, as `application/json` unless `--content-type` says\n  otherwise.\n- **Output:** a JSON body is `data`, parsed. A text body (`text/*`, XML, or no content\n  type) is `data` as text. Any other body is binary: `data` is its bytes as base64,\n  with an `API_BINARY` warning (use `download-attachment` to save an attachment).\n  Text and binary are capped at 1 MB, with an `API_TRUNCATED` warning when the body\n  was longer. An empty body (a `204`,\n  a `HEAD`) is `null`. `meta.response` is `{ status, contentType }`. Errors use the\n  usual codes (`AUTH`, `NOT_FOUND`, `HTTP`, `NETWORK`) with Jira\'s own message. A\n  body labelled JSON that doesn\'t parse comes back as text, with an `API_NOT_JSON`\n  warning.\n- **Over MCP** it\'s the `jira_api` tool, with `method`, `path`, `query` (an array of\n  `key=value` strings), `bodyFile`, `contentType` and `allowWrite`.\n\nPrefer a wrapped command when one exists: it knows the endpoint\'s paging, custom\nfields and quirks, and `jira api` doesn\'t.\n\n## Large fields via --input-file\n\n`create-issue` and `update-issue` take `--input-file <path>` (`-` reads stdin on the\nCLI) describing the issue as `{ project, issueType, fields: { ... } }`.\n`toil jira schema` returns its JSON Schema and an example. Any string value in `fields`\nmay be `@path/to/file` to read it from a file. Flags override matching keys from the file,\nand each override is reported in `meta.warnings`.\n\n```bash\ntoil jira schema --example-only > envelope.json   # the example is in .data\ntoil jira create-issue --input-file issue.json --priority Low --allow-write\n```\n\nOver MCP, `-` is refused because stdin carries the protocol; pass a file path.\nRelative paths resolve against the directory toil runs in.\n\n## Custom fields\n\n`--field Name=value` (repeatable), `--fields-file` and `--input-file` accept a raw field\nid (`customfield_10032`) or a standard field name (`fixVersions`) with no setup.\n`Name=@file.json` reads the value from a file: JSON when it parses, text otherwise, which\nalso avoids shell quoting trouble in PowerShell.\n\nTo use a **friendly name** in flags, JQL and output, register the field on the\nconnection:\n\n```json\n"customFields": [{ "id": "customfield_10016", "name": "Story Points", "type": "number" }]\n```\n\n`type` shapes a `--field` value: `string`, `number`, `date`, `datetime`, `select`\n(`{value}`), `multi-select`, `option-id` (`{id}`), `cascading-select` (`parent` or\n`parent:child` ids), `user` (`{name}`), `labels`, `url`, `textarea`. Omit it to send the\nraw string. `toil jira fields --discover` lists Jira\'s fields with a `suggestedType`; add\n`--project ABC` to see each select field\'s `allowedValues`. A select field that only\naccepts option ids needs `"type": "option-id"`. **Sprint is not a custom field**: use\n`set-sprint` after the issue exists.\n\nA **dossier** can name fields too (`"jira": { "fields": { "storyPoints": "customfield_10016" } }`,\nor `toil dossiers field <dossier> jira storyPoints customfield_10016`). Then\n`create-issue` and `update-issue` take `--field storyPoints=5` in any folder the dossier\napplies to. An alias takes the type the connection registers for that id. A name the\nconnection already uses keeps the connection\'s meaning.\n\n## Data Center, not Cloud\n\nThis area targets Jira Data Center and Server. Users are **usernames** (`--assignee\njsmith`, `user`-typed fields send `{ "name": ... }`), where Jira Cloud needs an\n`accountId`. Jira Cloud is a separate area, `jira-cloud`, with its own\n`TOIL_JIRA_CLOUD_*` settings; don\'t point this one at a Cloud site.\n\n## Notes\n\n- `create-issue` doesn\'t check for duplicates. After a timeout, search for the summary\n  before retrying: the issue may already exist.\n- `update-issue` with nothing to change still sends an empty update and reports\n  `{ updated }`.\n- `download-attachment` never replaces a file. If one of the same name is already in the target directory, it fails with `INVALID_INPUT`; delete the file or pass a different `--dir`.\n- `download-attachment` only ever sends the token to `baseUrl`\'s host. If Jira names\n  another host for the file, toil fetches the same path from `baseUrl` and warns.\n',
@@ -137026,9 +137029,9 @@ function connections(host) {
     })
   };
 }
-async function viaCommand(host, name3, input3) {
+async function viaCommand(host, name3, input4) {
   const def = byName(host, name3);
-  const envelope = await runCommand(def, input3, (d2) => host.context(d2), host.version, "mcp");
+  const envelope = await runCommand(def, input4, (d2) => host.context(d2), host.version, "mcp");
   if (envelope.ok) return envelope.data;
   throw new ResourceError(`${envelope.error.message}${envelope.error.fix ? ` ${envelope.error.fix}` : ""}`, envelope.error.code === "INVALID_INPUT");
 }
@@ -137175,13 +137178,14 @@ import { dirname as dirname2, isAbsolute as isAbsolute2, join as join3, resolve 
 // src/core/wildmatch.ts
 function wildmatch(pattern, options2 = {}) {
   const pathname = options2.pathname !== false;
-  const one = pathname ? "[^/]" : ".";
-  let out = "";
+  const caseFold = options2.caseFold === true;
+  const one = pathname ? notSlash : anything;
+  const steps = [];
   let i = 0;
   while (i < pattern.length) {
     const c = pattern[i];
     if (c === "\\" && i + 1 < pattern.length) {
-      out += escape2(pattern[i + 1]);
+      steps.push(literal2(pattern[i + 1], caseFold));
       i += 2;
       continue;
     }
@@ -137193,34 +137197,119 @@ function wildmatch(pattern, options2 = {}) {
       const atEnd = j === pattern.length || pattern[j] === "/";
       if (pathname && stars >= 2 && atStart && atEnd) {
         if (j === pattern.length) {
-          out += ".*";
+          steps.push({ kind: "star", ok: anything });
         } else {
-          out += "(?:.*/)?";
+          steps.push({ kind: "dirs" });
           j++;
         }
       } else {
-        out += `${one}*`;
+        steps.push({ kind: "star", ok: one });
       }
       i = j;
       continue;
     }
     if (c === "?") {
-      out += one;
+      steps.push({ kind: "char", ok: one });
       i++;
       continue;
     }
     if (c === "[") {
       const cls = bracket(pattern, i, pathname);
       if (cls) {
-        out += cls.source;
+        steps.push({ kind: "char", ok: single(cls.source, caseFold) });
         i = cls.end;
         continue;
       }
     }
-    out += escape2(c);
+    steps.push(literal2(c, caseFold));
     i++;
   }
-  return new RegExp(`^${out}$`, options2.caseFold ? "is" : "s");
+  return { test: walker(steps) };
+}
+function walker(steps) {
+  const n = steps.length;
+  let fewest = 0;
+  let fixed = true;
+  for (const step4 of steps) {
+    if (step4.kind === "char") fewest++;
+    else fixed = false;
+  }
+  const plain = (step4) => step4?.kind === "char" && step4.literal === true;
+  let head2 = 0;
+  while (head2 < n && plain(steps[head2])) head2++;
+  let tail = 0;
+  while (tail < n - head2 && plain(steps[n - 1 - tail])) tail++;
+  const firsts = steps.slice(0, head2).map((step4) => step4.ok);
+  const lasts = steps.slice(n - tail).map((step4) => step4.ok);
+  const ends = (path2) => {
+    for (let k = 0; k < head2; k++) if (!firsts[k](path2[k])) return false;
+    const from = path2.length - tail;
+    for (let k = 0; k < tail; k++) if (!lasts[k](path2[from + k])) return false;
+    return true;
+  };
+  const seen = new Uint32Array(2 * n + 2);
+  let live = new Int32Array(2 * n + 2);
+  let next = new Int32Array(2 * n + 2);
+  let size = 0;
+  let round = 0;
+  const begin2 = () => {
+    if (++round === 4294967295) {
+      seen.fill(0);
+      round = 1;
+    }
+    size = 0;
+  };
+  const add2 = (position) => {
+    while (seen[position] !== round) {
+      seen[position] = round;
+      next[size++] = position;
+      if (position >= n || steps[position].kind === "char") return;
+      position++;
+    }
+  };
+  return (path2) => {
+    if (path2.length < fewest || fixed && path2.length !== n) return false;
+    if (!ends(path2)) return false;
+    begin2();
+    add2(0);
+    for (let p = 0; p < path2.length; p++) {
+      const c = path2[p];
+      const swap = live;
+      live = next;
+      next = swap;
+      const count4 = size;
+      begin2();
+      for (let i = 0; i < count4; i++) {
+        const position = live[i];
+        if (position === n) continue;
+        const k = position > n ? position - n - 1 : position;
+        const step4 = steps[k];
+        if (step4.kind === "dirs") {
+          add2(n + 1 + k);
+          if (c === "/") add2(k + 1);
+        } else if (step4.ok(c)) {
+          add2(step4.kind === "star" ? k : k + 1);
+        }
+      }
+      if (size === 0) return false;
+    }
+    return seen[n] === round;
+  };
+}
+var notSlash = (c) => c !== "/";
+var anything = () => true;
+function literal2(c, caseFold) {
+  if (!caseFold) return { kind: "char", ok: (x) => x === c, literal: true };
+  if (c.charCodeAt(0) < 128) {
+    const lower = c.toLowerCase();
+    const upper = c.toUpperCase();
+    return { kind: "char", ok: (x) => x === lower || x === upper, literal: true };
+  }
+  return { kind: "char", ok: single(escape2(c), caseFold), literal: true };
+}
+function single(source2, caseFold) {
+  const regex2 = new RegExp(`^${source2}$`, caseFold ? "is" : "s");
+  return (c) => regex2.test(c);
 }
 var CLASSES = {
   alnum: "a-zA-Z0-9",
@@ -137346,8 +137435,8 @@ function conditionHolds(condition, file2, ctx) {
   const pattern = condition.slice(colon + 1);
   if (kind === "gitdir" || kind === "gitdir/i") {
     if (!ctx.gitDir) return false;
-    const regex2 = wildmatch(gitdirPattern(pattern, file2, ctx.home), { pathname: true, caseFold: kind === "gitdir/i" });
-    return regex2.test(slashes(ctx.gitDir));
+    const matcher = wildmatch(gitdirPattern(pattern, file2, ctx.home), { pathname: true, caseFold: kind === "gitdir/i" });
+    return matcher.test(slashes(ctx.gitDir));
   }
   if (kind === "onbranch") {
     if (!ctx.branch) return false;
@@ -137668,9 +137757,26 @@ function readGitContext(start2, options2) {
 }
 
 // src/core/gitignore.ts
-function parseIgnore(text4, base, caseFold = false) {
+function explain(err) {
+  if (/range out of order/i.test(err.message)) {
+    return {
+      reason: "a range in brackets runs backwards, from a higher character to a lower one. git reads such a range as its first character alone, so a file of that name may be listed here although git ignores it",
+      fix: "Write the range from low to high, as in [a-z], or delete the line."
+    };
+  }
+  return { reason: err.message, fix: "Correct the pattern or delete the line." };
+}
+function skippedLineWarning(file2, skipped) {
+  return {
+    code: "GITIGNORE_LINE_SKIPPED",
+    message: `Line ${skipped.line} of ${file2.replace(/\\/g, "/")} ("${skipped.pattern}") was skipped, and the rest of that file still applies: ${skipped.reason}. ${skipped.fix}`
+  };
+}
+function parseIgnore(text4, base, caseFold = false, onSkip) {
   const rules = [];
-  for (let line of text4.split(/\r?\n/)) {
+  const lines = text4.split(/\r?\n/);
+  for (let n = 0; n < lines.length; n++) {
+    let line = lines[n];
     if (line === "" || line.startsWith("#")) continue;
     line = line.replace(/(?<!\\)\s+$/, "");
     if (line.endsWith("\\ ")) line = `${line.slice(0, -2)} `;
@@ -137690,7 +137796,14 @@ function parseIgnore(text4, base, caseFold = false) {
     if (line === "") continue;
     const basenameOnly = !line.includes("/");
     if (line.startsWith("/")) line = line.slice(1);
-    rules.push({ base, regex: wildmatch(line, { pathname: true, caseFold }), negate, dirOnly, basenameOnly });
+    let match;
+    try {
+      match = wildmatch(line, { pathname: true, caseFold });
+    } catch (err) {
+      onSkip?.({ line: n + 1, pattern: lines[n].trimEnd(), ...explain(err) });
+      continue;
+    }
+    rules.push({ base, match, negate, dirOnly, basenameOnly });
   }
   return rules;
 }
@@ -137703,7 +137816,7 @@ function isIgnored(path2, isDir2, rules) {
     else if (path2.startsWith(`${rule.base}/`)) rel = path2.slice(rule.base.length + 1);
     else continue;
     const subject = rule.basenameOnly ? rel.slice(rel.lastIndexOf("/") + 1) : rel;
-    if (rule.regex.test(subject)) return !rule.negate;
+    if (rule.match.test(subject)) return !rule.negate;
   }
   return false;
 }
@@ -137929,11 +138042,13 @@ function listTree(root, o) {
   let caseFold = process.platform === "win32" || process.platform === "darwin";
   const base = [];
   const readRules = (file2, at9) => {
+    let text4;
     try {
-      return parseIgnore(readFileSync5(file2, "utf8"), at9, caseFold);
+      text4 = readFileSync5(file2, "utf8");
     } catch {
       return [];
     }
+    return parseIgnore(text4, at9, caseFold, (skipped) => o.warn?.(skippedLineWarning(file2, skipped)));
   };
   let others = true;
   const tracked = /* @__PURE__ */ new Set();
@@ -138048,10 +138163,10 @@ function parseStrictJson(text4) {
     if (c === "{") return object3(path2);
     if (c === "[") return array2(path2);
     if (c === '"') return string4();
-    for (const [word, literal2] of [["true", true], ["false", false], ["null", null]]) {
+    for (const [word, literal3] of [["true", true], ["false", false], ["null", null]]) {
       if (c === word[0]) {
         expect(word);
-        return literal2;
+        return literal3;
       }
     }
     if (c === "-" || c !== void 0 && c >= "0" && c <= "9") return number4();
@@ -138380,10 +138495,17 @@ function createDossierCatalog(o) {
   const guard = { home: o.home, env: o.env, protect: o.protect };
   const areaNames = new Map(o.areas.map((a) => [a.name, a]));
   const real3 = (path2) => {
-    try {
-      return realpathSync4.native(path2);
-    } catch {
-      return resolve5(path2);
+    let existing = resolve5(path2);
+    const rest = [];
+    for (; ; ) {
+      try {
+        return join6(realpathSync4.native(existing), ...rest);
+      } catch {
+        const parent = resolve5(existing, "..");
+        if (parent === existing) return resolve5(path2);
+        rest.unshift(basename2(existing));
+        existing = parent;
+      }
     }
   };
   const listed4 = () => {
@@ -138480,22 +138602,8 @@ function createDossierCatalog(o) {
     return void 0;
   };
   const usable = (file2) => file2.dossier !== void 0;
-  const realish2 = (path2) => {
-    let existing = resolve5(path2);
-    const rest = [];
-    for (; ; ) {
-      try {
-        return join6(realpathSync4.native(existing), ...rest);
-      } catch {
-        const parent = resolve5(existing, "..");
-        if (parent === existing) return resolve5(path2);
-        rest.unshift(basename2(existing));
-        existing = parent;
-      }
-    }
-  };
   const bounded = (path2, cwd, refuse2) => {
-    const target2 = realish2(path2);
+    const target2 = real3(path2);
     if (forbidden(target2)) throw refuse2("that's one of toil's own files, or a system path.", "Pass a dossier file, or a dossier by name.");
     const where6 = places(cwd);
     const source2 = inside2(target2, real3(user)) ? "user" : where6.listed.some((d2) => inside2(target2, real3(d2))) ? "listed" : where6.repo && inside2(target2, real3(where6.repo)) ? "repo" : "file";
@@ -138613,14 +138721,14 @@ function createDossierCatalog(o) {
     }
     return {};
   };
-  const envOf = (dossier, area31, input3) => {
-    const explicit = areaNames.get(area31)?.context.includes("env") ? input3.env : void 0;
+  const envOf = (dossier, area31, input4) => {
+    const explicit = areaNames.get(area31)?.context.includes("env") ? input4.env : void 0;
     return typeof explicit === "string" ? explicit : dossier.env;
   };
   const lookupFor = (applied) => {
     const dossier = applied.file.dossier;
-    return (area31, key6, input3 = {}) => {
-      const env = envOf(dossier, area31, input3);
+    return (area31, key6, input4 = {}) => {
+      const env = envOf(dossier, area31, input4);
       if (key6 === "connection") return binding(dossier, area31, env).connection;
       if (key6 === "env" && areaNames.get(area31)?.context.includes("env")) return dossier.env !== void 0 && dossier.environments[dossier.env]?.[area31] ? dossier.env : void 0;
       for (const section of sectionsFor(dossier, area31, env)) {
@@ -138649,18 +138757,18 @@ function createDossierCatalog(o) {
     if (request.dossier !== void 0 || o.env.TOIL_DOSSIER) choose2();
     let lookup2;
     return {
-      lookup: (area31, key6, input3) => {
+      lookup: (area31, key6, input4) => {
         const { applied } = choose2();
         if (!applied) return void 0;
         lookup2 ??= lookupFor(applied);
-        return lookup2(area31, key6, input3);
+        return lookup2(area31, key6, input4);
       },
       // Your own dossier's bindings are yours; a checked-in, listed or loose
       // file's are suggestions until you import it (docs/dossiers.md, Writes ask once).
       adopted: (_area, _connection, by) => by === "dossier" && chosen2?.applied?.file.source === "user",
-      hostFor: (area31, input3) => {
+      hostFor: (area31, input4) => {
         const applied = chosen2?.applied;
-        return applied ? binding(applied.file.dossier, area31, envOf(applied.file.dossier, area31, input3)).host : void 0;
+        return applied ? binding(applied.file.dossier, area31, envOf(applied.file.dossier, area31, input4)).host : void 0;
       },
       // Only once a dossier was consulted: one that never mattered isn't reported.
       report: () => {
@@ -138678,11 +138786,11 @@ function createDossierCatalog(o) {
           ...folderReport
         };
       },
-      fields: (area31, input3) => {
+      fields: (area31, input4) => {
         const { applied } = choose2();
         if (!applied) return {};
         const dossier = applied.file.dossier;
-        const sections = sectionsFor(dossier, area31, envOf(dossier, area31, input3));
+        const sections = sectionsFor(dossier, area31, envOf(dossier, area31, input4));
         return Object.assign({}, ...sections.map((s) => isRecord2(s.fields) ? s.fields : {}).reverse());
       },
       view: (area31) => {
@@ -138718,7 +138826,7 @@ function createDossierCatalog(o) {
     const target2 = resolve5(path2);
     const refuse2 = (why, fix) => new ToilError("INVALID_INPUT", `toil won't write a dossier to ${forwardSlashes(target2)}: ${why}`, { fix });
     if (!target2.toLowerCase().endsWith(".json")) throw refuse2("a dossier file ends in .json.", "Name a .json file.");
-    const realTarget = realish2(target2);
+    const realTarget = real3(target2);
     if (forbidden(realTarget)) throw refuse2("that's one of toil's own files, or a system path.", "Write it to your dossier folder, a repository, or the workspace.");
     const where6 = places();
     const folderOf2 = resolve5(realTarget, "..");
@@ -139075,12 +139183,12 @@ function trustedCertificates(debug, apis = node2) {
 }
 var trustedCache;
 function networkFetch(base, env, debug, apis = node2) {
-  return (async (input3, init2) => {
+  return (async (input4, init2) => {
     if (!configured) {
       configureNetwork(env, debug, apis);
       configured = true;
     }
-    return base(input3, init2);
+    return base(input4, init2);
   });
 }
 var configured = false;
@@ -143220,7 +143328,7 @@ function buildProgram(options2) {
     leaf.action(async (...actionArgs) => {
       const cmd = actionArgs[actionArgs.length - 1];
       const globals = cmd.optsWithGlobals();
-      const input3 = withSelect({ ...inputFromCli(def, cmd, groupFlags(path2[0]), preset), ...preset }, globals);
+      const input4 = withSelect({ ...inputFromCli(def, cmd, groupFlags(path2[0]), preset), ...preset }, globals);
       if (!canonical2) {
         const stray = strayGroupFlags(def, cmd, groupFlags(path2[0]))[0];
         if (stray) {
@@ -143234,7 +143342,7 @@ function buildProgram(options2) {
           return;
         }
       }
-      if (options2.capture) return options2.capture({ def, input: input3, globals });
+      if (options2.capture) return options2.capture({ def, input: input4, globals });
       if (globals.outputFile && io.checkFile) {
         try {
           io.checkFile(globals.outputFile, globals);
@@ -143245,8 +143353,8 @@ function buildProgram(options2) {
           return;
         }
       }
-      const envelope = await runCommand(def, input3, (d2) => options2.createContext(globals, d2), options2.version);
-      const written = emit(envelope, globals, io, writesFor(def, input3));
+      const envelope = await runCommand(def, input4, (d2) => options2.createContext(globals, d2), options2.version);
+      const written = emit(envelope, globals, io, writesFor(def, input4));
       result.exitCode = written ? exitCodeOf(envelope) : 1;
     });
   };
@@ -143270,10 +143378,10 @@ function buildProgram(options2) {
       if ("help" in parsed) return;
       if ("error" in parsed) return refuse2(parsed.error);
       const own2 = cmd.opts();
-      const input3 = { tool: toolName(parsed.def), input: parsed.input };
+      const input4 = { tool: toolName(parsed.def), input: parsed.input };
       for (const opt of def.options ?? []) {
         const value2 = own2[new Option(opt.flags).attributeName()];
-        if (value2 !== void 0) input3[opt.field] = value2;
+        if (value2 !== void 0) input4[opt.field] = value2;
       }
       if (globals.outputFile && io.checkFile) {
         try {
@@ -143282,7 +143390,7 @@ function buildProgram(options2) {
           return refuse2(toToilError(err));
         }
       }
-      const envelope = await runCommand(def, withSelect(input3, globals), (d2) => options2.createContext(globals, d2), options2.version, "cli", {
+      const envelope = await runCommand(def, withSelect(input4, globals), (d2) => options2.createContext(globals, d2), options2.version, "cli", {
         targets: options2.commands,
         progress: (p) => io.stderr(`toil wait: ${p.message} (${Math.round(p.elapsedMs / 1e3)}s)
 `)
@@ -143334,8 +143442,8 @@ function buildProgram(options2) {
         if (theirs.has(long) || cmd.getOptionValueSource(new Option(long).attributeName()) !== "cli") continue;
         return refuse2(`${long} is for ${routing} ${values2.join(" or ")}; ${routing} ${value2} runs toil ${commandName(def)}, which doesn't take it.`, `Leave out ${long}, or pass ${routing} ${values2[0]}.`);
       }
-      const input3 = withSelect(inputFromCli(def, cmd, groupFlags(alias.path[0])), globals);
-      if (options2.capture) return options2.capture({ def, input: input3, globals });
+      const input4 = withSelect(inputFromCli(def, cmd, groupFlags(alias.path[0])), globals);
+      if (options2.capture) return options2.capture({ def, input: input4, globals });
       if (globals.outputFile && io.checkFile) {
         try {
           io.checkFile(globals.outputFile, globals);
@@ -143346,8 +143454,8 @@ function buildProgram(options2) {
           return;
         }
       }
-      const envelope = await runCommand(def, input3, (d2) => options2.createContext(globals, d2), options2.version);
-      const written = emit(envelope, globals, io, writesFor(def, input3));
+      const envelope = await runCommand(def, input4, (d2) => options2.createContext(globals, d2), options2.version);
+      const written = emit(envelope, globals, io, writesFor(def, input4));
       result.exitCode = written ? exitCodeOf(envelope) : 1;
     });
   }
@@ -143519,10 +143627,10 @@ function addOption(cmd, def, opt) {
   }
 }
 function inputFromCli(def, cmd, groupFlags, preset = {}) {
-  const input3 = {};
+  const input4 = {};
   const positional = cmd.processedArgs;
   (def.args ?? []).forEach((arg, i) => {
-    if (positional[i] !== void 0) input3[arg.field] = typed(def, arg.field, positional[i]);
+    if (positional[i] !== void 0) input4[arg.field] = typed(def, arg.field, positional[i]);
   });
   const own2 = cmd.opts();
   const all3 = cmd.optsWithGlobals();
@@ -143530,17 +143638,17 @@ function inputFromCli(def, cmd, groupFlags, preset = {}) {
     if (opt.field in preset) continue;
     const attribute = new Option(opt.flags).attributeName();
     const value2 = own2[attribute] !== void 0 ? own2[attribute] : groupFlags.has(opt.flags) ? all3[attribute] : void 0;
-    if (value2 !== void 0) input3[opt.field] = typed(def, opt.field, value2);
+    if (value2 !== void 0) input4[opt.field] = typed(def, opt.field, value2);
   }
   for (const flags of strayGroupFlags(def, cmd, groupFlags)) {
     const attribute = new Option(flags).attributeName();
-    input3[attribute] = all3[attribute];
+    input4[attribute] = all3[attribute];
   }
-  if (takesAllowWrite(def) && own2.allowWrite === true) input3.allowWrite = true;
-  return input3;
+  if (takesAllowWrite(def) && own2.allowWrite === true) input4.allowWrite = true;
+  return input4;
 }
-function withSelect(input3, globals) {
-  return globals.select === void 0 ? input3 : { ...input3, [SELECT_FIELD]: globals.select };
+function withSelect(input4, globals) {
+  return globals.select === void 0 ? input4 : { ...input4, [SELECT_FIELD]: globals.select };
 }
 function strayGroupFlags(def, cmd, groupFlags) {
   const mapped = new Set((def.options ?? []).map((opt) => opt.flags));
@@ -144222,13 +144330,13 @@ var pageOptions = (what) => [
   { flags: "--limit <n>", field: "limit", description: `Return at most this many ${what}; meta.page.nextCursor says where the rest start (default: all)` },
   { flags: "--cursor <cursor>", field: "cursor", description: "meta.page.nextCursor from the previous call (with --limit)" }
 ];
-function pageOf(input3) {
-  if (input3.cursor !== void 0 && input3.limit === void 0) {
+function pageOf(input4) {
+  if (input4.cursor !== void 0 && input4.limit === void 0) {
     throw new ToilError("INVALID_INPUT", "--cursor needs --limit", {
       fix: "Pass --limit with --cursor (the limit of the call that gave you the cursor), or leave out --cursor to read everything."
     });
   }
-  return { cap: input3.limit, cursor: input3.cursor };
+  return { cap: input4.limit, cursor: input4.cursor };
 }
 var pageOptionsFor = (ctx, what, page2) => ({
   what,
@@ -144397,8 +144505,8 @@ var projectListCommand = adoArea.command({
   writes: false,
   options: pageOptions("projects"),
   examples: [AT, { ...AT, limit: 1 }, { ...AT, limit: 1, cursor: exampleCursor("abc12345") }],
-  run: async (input3, ctx) => {
-    const page2 = pageOf(input3);
+  run: async (input4, ctx) => {
+    const page2 = pageOf(input4);
     const { collection } = where(ctx);
     return adoAll(ctx, `/${enc(collection)}/_apis/projects`, { "api-version": API }, `Azure DevOps projects in ${collection}`, page2);
   }
@@ -144411,9 +144519,9 @@ var projectGetCommand = adoArea.command({
   writes: false,
   options: [{ flags: "--name <project>", field: "name", description: "Project name" }],
   examples: [{ ...AT, name: "Imagile" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { collection } = where(ctx);
-    return ado(ctx, `/${enc(collection)}/_apis/projects/${enc(input3.name)}?api-version=${API}`);
+    return ado(ctx, `/${enc(collection)}/_apis/projects/${enc(input4.name)}?api-version=${API}`);
   }
 });
 var serverCommands = [whoamiCommand, connectionDataCommand, projectListCollectionsCommand, projectListCommand, projectGetCommand];
@@ -144624,7 +144732,7 @@ var workGetCommand = adoArea.command({
   writes: false,
   options: [idOption],
   examples: [{ ...AT2, id: "42" }],
-  run: async (input3, ctx) => getWorkItem(ctx, where(ctx).collection, toInt(input3.id))
+  run: async (input4, ctx) => getWorkItem(ctx, where(ctx).collection, toInt(input4.id))
 });
 var workCreateCommand = adoArea.command({
   path: ["ado", "work", "create"],
@@ -144656,21 +144764,21 @@ var workCreateCommand = adoArea.command({
     { ...W, type: "Bug", title: "Login broken", description: "Steps", assignee: "you@example.com", priority: "2", field: ["Story Points=3", "MyOrg.Team=Core"] },
     { ...W, inputFile: "work-item.json", title: "From the flag", parent: "7" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { collection, project: project2 } = where(ctx);
-    const json3 = input3.inputFile !== void 0 ? readJsonInputFile(input3.inputFile, ctx.files) : void 0;
+    const json3 = input4.inputFile !== void 0 ? readJsonInputFile(input4.inputFile, ctx.files) : void 0;
     const { builtin: jsonBuiltin, custom: jsonCustom } = json3?.fields ? splitWorkFieldsDictionary(json3.fields, ctx.files) : { builtin: {}, custom: {} };
-    const type = input3.type ?? json3?.type;
+    const type = input4.type ?? json3?.type;
     if (!type) throw new ToilError("INVALID_INPUT", '--type required (or "type" in --input-file)', { fix: "Pass --type Bug (or Task, User Story, ...). toil ado work types lists them." });
     const flagBuiltin = {
-      ...input3.title !== void 0 ? { title: input3.title } : {},
-      ...input3.description !== void 0 ? { description: input3.description } : {},
-      ...input3.assignee !== void 0 ? { assignee: input3.assignee } : {},
-      ...input3.priority !== void 0 ? { priority: input3.priority } : {}
+      ...input4.title !== void 0 ? { title: input4.title } : {},
+      ...input4.description !== void 0 ? { description: input4.description } : {},
+      ...input4.assignee !== void 0 ? { assignee: input4.assignee } : {},
+      ...input4.priority !== void 0 ? { priority: input4.priority } : {}
     };
     const { merged: builtin, overrides: builtinOverrides } = mergeWithOverrides(jsonBuiltin, flagBuiltin);
     if (!builtin.title) throw new ToilError("INVALID_INPUT", '--title required (or "fields.Title" in --input-file)', { fix: 'Pass --title "<title>".' });
-    const { merged: custom2, overrides: customOverrides } = mergeWithOverrides(jsonCustom, parseFieldArgs(input3.field ?? []));
+    const { merged: custom2, overrides: customOverrides } = mergeWithOverrides(jsonCustom, parseFieldArgs(input4.field ?? []));
     reportOverrides(ctx, [...builtinOverrides, ...customOverrides]);
     const hasContent = (v) => v !== void 0 && v !== "";
     const fields3 = {
@@ -144681,12 +144789,12 @@ var workCreateCommand = adoArea.command({
     };
     const patch = [...Object.entries(fields3).map(([k, v]) => ({ op: "add", path: `/fields/${k}`, value: v })), ...buildFieldPatch(custom2, ctx.connection.fieldAliases)];
     const created = await ado(ctx, `${projectPath({ collection, project: project2, repo: "" })}/_apis/wit/workitems/${enc(`$${type}`)}?api-version=${API}`, { method: "POST", json: patch, headers: PATCH });
-    if (input3.parent) {
+    if (input4.parent) {
       try {
-        const link = [{ op: "add", path: "/relations/-", value: { rel: "System.LinkTypes.Hierarchy-Reverse", url: workItemUrl(ctx, collection, input3.parent) } }];
+        const link = [{ op: "add", path: "/relations/-", value: { rel: "System.LinkTypes.Hierarchy-Reverse", url: workItemUrl(ctx, collection, input4.parent) } }];
         await updateWorkItem(ctx, collection, created.id, link);
       } catch (err) {
-        ctx.warn({ code: "ADO_PARENT_LINK_FAILED", message: `Created #${created.id} but failed to link to parent ${input3.parent}: ${err instanceof Error ? err.message : String(err)}` });
+        ctx.warn({ code: "ADO_PARENT_LINK_FAILED", message: `Created #${created.id} but failed to link to parent ${input4.parent}: ${err instanceof Error ? err.message : String(err)}` });
       }
     }
     return created;
@@ -144712,13 +144820,13 @@ var workUpdateCommand = adoArea.command({
     { ...W, id: "42", field: ["state=Active", "Story Points=5"] },
     { ...W, id: "42", inputFile: "work-item.json", field: ["Title=Flag wins"] }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { collection } = where(ctx);
-    const json3 = input3.inputFile !== void 0 ? readJsonInputFile(input3.inputFile, ctx.files) : void 0;
+    const json3 = input4.inputFile !== void 0 ? readJsonInputFile(input4.inputFile, ctx.files) : void 0;
     const jsonFields = json3?.fields ? Object.fromEntries(Object.entries(json3.fields).map(([k, v]) => [k, resolveAtFileRef(v, ctx.files)])) : {};
-    const { merged, overrides } = mergeWithOverrides(jsonFields, parseFieldArgs(input3.field ?? []));
+    const { merged, overrides } = mergeWithOverrides(jsonFields, parseFieldArgs(input4.field ?? []));
     reportOverrides(ctx, overrides);
-    return updateWorkItem(ctx, collection, toInt(input3.id), buildFieldPatch(merged, ctx.connection.fieldAliases));
+    return updateWorkItem(ctx, collection, toInt(input4.id), buildFieldPatch(merged, ctx.connection.fieldAliases));
   }
 });
 var workTransitionCommand = adoArea.command({
@@ -144729,7 +144837,7 @@ var workTransitionCommand = adoArea.command({
   writes: true,
   options: [idOption, { flags: "--state <state>", field: "state", description: "New state (e.g. Active, Resolved, Closed)" }],
   examples: [{ ...W, id: "42", state: "Resolved" }],
-  run: async (input3, ctx) => updateWorkItem(ctx, where(ctx).collection, toInt(input3.id), [{ op: "add", path: "/fields/System.State", value: input3.state }])
+  run: async (input4, ctx) => updateWorkItem(ctx, where(ctx).collection, toInt(input4.id), [{ op: "add", path: "/fields/System.State", value: input4.state }])
 });
 var workAssignCommand = adoArea.command({
   path: ["ado", "work", "assign"],
@@ -144739,7 +144847,7 @@ var workAssignCommand = adoArea.command({
   writes: true,
   options: [idOption, { flags: "--to <user>", field: "to", description: "User display name or email" }],
   examples: [{ ...W, id: "42", to: "you@example.com" }],
-  run: async (input3, ctx) => updateWorkItem(ctx, where(ctx).collection, toInt(input3.id), [{ op: "add", path: "/fields/System.AssignedTo", value: input3.to }])
+  run: async (input4, ctx) => updateWorkItem(ctx, where(ctx).collection, toInt(input4.id), [{ op: "add", path: "/fields/System.AssignedTo", value: input4.to }])
 });
 var REL = {
   related: "System.LinkTypes.Related",
@@ -144764,11 +144872,11 @@ var workLinkCommand = adoArea.command({
     { ...W, id: "42", to: "7" },
     { ...W, id: "42", to: "8", type: "child" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { collection } = where(ctx);
-    const type = input3.type ?? "related";
+    const type = input4.type ?? "related";
     const rel = REL[type] ?? type;
-    return updateWorkItem(ctx, collection, toInt(input3.id), [{ op: "add", path: "/relations/-", value: { rel, url: workItemUrl(ctx, collection, input3.to) } }]);
+    return updateWorkItem(ctx, collection, toInt(input4.id), [{ op: "add", path: "/relations/-", value: { rel, url: workItemUrl(ctx, collection, input4.to) } }]);
   }
 });
 var WIQL_MAX = 2e4;
@@ -144797,14 +144905,14 @@ var workSearchCommand = adoArea.command({
     { ...AT2, wiql: "SELECT [System.Id] FROM WorkItems", limit: 1 },
     { ...AT2, wiql: "SELECT [System.Id] FROM WorkItems", limit: 1, cursor: "1" }
   ],
-  run: async (input3, ctx) => {
-    const page2 = pageOf(input3);
+  run: async (input4, ctx) => {
+    const page2 = pageOf(input4);
     const offset = page2.cursor === void 0 ? 0 : Number(page2.cursor);
     if (page2.cursor !== void 0 && !/^\d+$/.test(page2.cursor)) {
       throw new ToilError("INVALID_INPUT", `"${page2.cursor}" isn't a cursor this command hands out.`, { fix: "Pass meta.page.nextCursor from the previous page unchanged, or leave out --cursor to start at the beginning." });
     }
-    let wiql = input3.wiql;
-    if (input3.updatedSince !== void 0) wiql = andWhere(wiql, `[System.ChangedDate] >= '${wiqlInstant(input3.updatedSince)}'`);
+    let wiql = input4.wiql;
+    if (input4.updatedSince !== void 0) wiql = andWhere(wiql, `[System.ChangedDate] >= '${wiqlInstant(input4.updatedSince)}'`);
     else if (page2.cap !== void 0) checkFlat(wiql);
     const query2 = [];
     if (page2.cap !== void 0) {
@@ -144816,7 +144924,7 @@ var workSearchCommand = adoArea.command({
       }
       query2.push(`$top=${top2}`);
     }
-    if (input3.updatedSince !== void 0) query2.push("timePrecision=true");
+    if (input4.updatedSince !== void 0) query2.push("timePrecision=true");
     const result = await ado(ctx, `${projectPath({ ...where(ctx) })}/_apis/wit/wiql?${[...query2, `api-version=${API}`].join("&")}`, { method: "POST", json: { query: wiql } });
     if (page2.cap === void 0) return result;
     const all3 = result.workItems ?? [];
@@ -144837,9 +144945,9 @@ var workRevisionsCommand = adoArea.command({
     { ...AT2, id: "42", limit: 1 },
     { ...AT2, id: "42", limit: 1, cursor: exampleCursor("1", REVISIONS_PAGE) }
   ],
-  run: async (input3, ctx) => {
-    const page2 = pageOf(input3);
-    const id9 = toInt(input3.id);
+  run: async (input4, ctx) => {
+    const page2 = pageOf(input4);
+    const id9 = toInt(input4.id);
     return adoSkipPages(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${id9}/revisions`, { "api-version": API }, REVISIONS_PAGE, `revisions of Azure DevOps work item ${id9}`, page2);
   }
 });
@@ -144864,12 +144972,12 @@ var workGetBatchCommand = adoArea.command({
     { ...AT2, id: [42, 7] },
     { ...AT2, id: [42, 404], fields: "System.Title, System.State" }
   ],
-  run: async (input3, ctx) => {
-    const ids = [...new Set(input3.id)];
+  run: async (input4, ctx) => {
+    const ids = [...new Set(input4.id)];
     if (ids.length > BATCH_MAX) {
       throw new ToilError("INVALID_INPUT", `get-batch takes at most ${BATCH_MAX} work item ids in one call, and this one has ${ids.length}.`, { fix: `Split the ids into calls of ${BATCH_MAX} or fewer.` });
     }
-    const fields3 = input3.fields?.split(",").map((f) => f.trim()).filter(Boolean);
+    const fields3 = input4.fields?.split(",").map((f) => f.trim()).filter(Boolean);
     const path2 = `${projectPath(where(ctx))}/_apis/wit/workitemsbatch?api-version=${API}`;
     const found = /* @__PURE__ */ new Map();
     for (let start2 = 0; start2 < ids.length; start2 += BATCH_SIZE) {
@@ -144891,8 +144999,8 @@ var workListCommentsCommand = adoArea.command({
   writes: false,
   options: [idOption],
   examples: [{ ...AT2, id: "42" }],
-  run: async (input3, ctx) => {
-    const result = await ado(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${toInt(input3.id)}/comments?api-version=${API_COMMENTS}`);
+  run: async (input4, ctx) => {
+    const result = await ado(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${toInt(input4.id)}/comments?api-version=${API_COMMENTS}`);
     return result.comments ?? result.value ?? [];
   }
 });
@@ -144904,7 +145012,7 @@ var workAddCommentCommand = adoArea.command({
   writes: true,
   options: [idOption, { flags: "--body <text>", field: "body", description: "Comment text" }],
   examples: [{ ...W, id: "42", body: "Looked into it." }],
-  run: async (input3, ctx) => ado(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${toInt(input3.id)}/comments?api-version=${API_COMMENTS}`, { method: "POST", json: { text: input3.body } })
+  run: async (input4, ctx) => ado(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${toInt(input4.id)}/comments?api-version=${API_COMMENTS}`, { method: "POST", json: { text: input4.body } })
 });
 var tagList = (tags) => tags.split(/[;,]/).map((t) => t.trim()).filter(Boolean);
 var currentTags = (item) => (item.fields["System.Tags"] ?? "").split(";").map((t) => t.trim());
@@ -144916,12 +145024,12 @@ var workAddTagCommand = adoArea.command({
   writes: true,
   options: [idOption, { flags: "--tags <tags>", field: "tags", description: "Semicolon- or comma-separated tags to add" }],
   examples: [{ ...W, id: "42", tags: "ui; Backend,urgent" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { collection } = where(ctx);
-    const id9 = toInt(input3.id);
+    const id9 = toInt(input4.id);
     const current3 = currentTags(await getWorkItem(ctx, collection, id9)).filter(Boolean);
     const have = new Set(current3.map((t) => t.toLowerCase()));
-    const merged = [...current3, ...tagList(input3.tags).filter((t) => !have.has(t.toLowerCase()))];
+    const merged = [...current3, ...tagList(input4.tags).filter((t) => !have.has(t.toLowerCase()))];
     return updateWorkItem(ctx, collection, id9, [{ op: "add", path: "/fields/System.Tags", value: merged.join("; ") }]);
   }
 });
@@ -144933,10 +145041,10 @@ var workRemoveTagCommand = adoArea.command({
   writes: true,
   options: [idOption, { flags: "--tags <tags>", field: "tags", description: "Semicolon- or comma-separated tags to remove" }],
   examples: [{ ...W, id: "42", tags: "UI" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { collection } = where(ctx);
-    const id9 = toInt(input3.id);
-    const drop = new Set(tagList(input3.tags).map((t) => t.toLowerCase()));
+    const id9 = toInt(input4.id);
+    const drop = new Set(tagList(input4.tags).map((t) => t.toLowerCase()));
     const remaining = currentTags(await getWorkItem(ctx, collection, id9)).filter((t) => t && !drop.has(t.toLowerCase()));
     return updateWorkItem(ctx, collection, id9, [{ op: "add", path: "/fields/System.Tags", value: remaining.join("; ") }]);
   }
@@ -145009,7 +145117,7 @@ var repoCreateCommand = adoArea.command({
   writes: true,
   options: [{ flags: "--name <name>", field: "name", description: "Repository name" }],
   examples: [{ ...AT2, name: "imagile-new", allowWrite: true }],
-  run: async (input3, ctx) => ado(ctx, `${projectPath(where(ctx))}/_apis/git/repositories?api-version=${API}`, { method: "POST", json: { name: input3.name } })
+  run: async (input4, ctx) => ado(ctx, `${projectPath(where(ctx))}/_apis/git/repositories?api-version=${API}`, { method: "POST", json: { name: input4.name } })
 });
 var repoGetCommand = adoArea.command({
   path: ["ado", "repo", "get"],
@@ -145049,16 +145157,16 @@ var repoListPrsCommand = adoArea.command({
     { ...IN_REPO, limit: 1 },
     { ...IN_REPO, limit: 1, cursor: exampleCursor("1", 100) }
   ],
-  run: async (input3, ctx) => {
-    const page2 = pageOf(input3);
-    const after = input3.createdAfter ? parseDate("--created-after", input3.createdAfter) : void 0;
-    const before = input3.createdBefore ? parseDate("--created-before", input3.createdBefore) : void 0;
+  run: async (input4, ctx) => {
+    const page2 = pageOf(input4);
+    const after = input4.createdAfter ? parseDate("--created-after", input4.createdAfter) : void 0;
+    const before = input4.createdBefore ? parseDate("--created-before", input4.createdBefore) : void 0;
     const w = where(ctx, true);
     const query2 = {
       "api-version": API,
-      "searchCriteria.status": input3.state ?? "active",
-      ...input3.creator ? { "searchCriteria.creatorId": input3.creator } : {},
-      ...input3.reviewer ? { "searchCriteria.reviewerId": input3.reviewer } : {},
+      "searchCriteria.status": input4.state ?? "active",
+      ...input4.creator ? { "searchCriteria.creatorId": input4.creator } : {},
+      ...input4.reviewer ? { "searchCriteria.reviewerId": input4.reviewer } : {},
       // minTime and maxTime only count alongside queryTimeRangeType.
       ...after || before ? { "searchCriteria.queryTimeRangeType": "created" } : {},
       ...after ? { "searchCriteria.minTime": after.toISOString() } : {},
@@ -145075,7 +145183,7 @@ var repoGetPrCommand = adoArea.command({
   writes: false,
   options: [idOption2],
   examples: [{ ...IN_REPO, id: "42" }],
-  run: async (input3, ctx) => getPR(ctx, where(ctx, true), toInt(input3.id))
+  run: async (input4, ctx) => getPR(ctx, where(ctx, true), toInt(input4.id))
 });
 var TARGET = 'Target branch (default: main) (default: "main")';
 var repoCreatePrCommand = adoArea.command({
@@ -145104,16 +145212,16 @@ var repoCreatePrCommand = adoArea.command({
     { ...W2, title: "Add retries", source: "feature/retries" },
     { ...W2, title: "Tidy up", source: "tidy", target: "develop", description: "Small things", reviewers: "abc12345-0000-0000-0000-000000000000, abc12345-0000-0000-0000-000000000001", draft: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const w = where(ctx, true);
-    const reviewers = input3.reviewers ? input3.reviewers.split(",").map((id9) => ({ id: id9.trim() })) : [];
+    const reviewers = input4.reviewers ? input4.reviewers.split(",").map((id9) => ({ id: id9.trim() })) : [];
     const body = {
-      title: input3.title,
-      description: input3.description,
-      sourceRefName: `refs/heads/${input3.source}`,
-      targetRefName: `refs/heads/${input3.target ?? "main"}`,
+      title: input4.title,
+      description: input4.description,
+      sourceRefName: `refs/heads/${input4.source}`,
+      targetRefName: `refs/heads/${input4.target ?? "main"}`,
       reviewers,
-      ...input3.draft !== void 0 ? { isDraft: input3.draft } : {}
+      ...input4.draft !== void 0 ? { isDraft: input4.draft } : {}
     };
     return ado(ctx, `${repoPath(w)}/pullrequests?api-version=${API}`, { method: "POST", json: body });
   }
@@ -145142,14 +145250,14 @@ var repoUpdatePrCommand = adoArea.command({
     { ...W2, id: "42", title: "Add retries, properly" },
     { ...W2, id: "42", description: "", reviewers: "abc12345-0000-0000-0000-000000000000", draft: "false" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const w = where(ctx, true);
     const body = {};
-    if (input3.title) body.title = input3.title;
-    if (input3.description !== void 0) body.description = input3.description;
-    if (input3.reviewers) body.reviewers = input3.reviewers.split(",").map((id9) => ({ id: id9.trim() }));
-    if (input3.draft !== void 0) body.isDraft = input3.draft === "true";
-    return ado(ctx, prUrl(w, toInt(input3.id)), { method: "PATCH", json: body });
+    if (input4.title) body.title = input4.title;
+    if (input4.description !== void 0) body.description = input4.description;
+    if (input4.reviewers) body.reviewers = input4.reviewers.split(",").map((id9) => ({ id: id9.trim() }));
+    if (input4.draft !== void 0) body.isDraft = input4.draft === "true";
+    return ado(ctx, prUrl(w, toInt(input4.id)), { method: "PATCH", json: body });
   }
 });
 var STRATEGY = 'Merge strategy: noFastForward|squash|rebase|rebaseMerge (default: "noFastForward")';
@@ -145169,14 +145277,14 @@ var repoMergePrCommand = adoArea.command({
     { ...W2, id: "42" },
     { ...W2, id: "43", strategy: "squash", deleteSource: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const w = where(ctx, true);
-    const id9 = toInt(input3.id);
+    const id9 = toInt(input4.id);
     const pr3 = await getPR(ctx, w, id9);
     const body = {
       status: "completed",
       lastMergeSourceCommit: { commitId: pr3.lastMergeSourceCommit?.commitId ?? "" },
-      completionOptions: { mergeStrategy: input3.strategy ?? "noFastForward", deleteSourceBranch: input3.deleteSource ?? false }
+      completionOptions: { mergeStrategy: input4.strategy ?? "noFastForward", deleteSourceBranch: input4.deleteSource ?? false }
     };
     return ado(ctx, prUrl(w, id9), { method: "PATCH", json: body });
   }
@@ -145189,7 +145297,7 @@ var repoAbandonPrCommand = adoArea.command({
   writes: true,
   options: [idOption2],
   examples: [{ ...W2, id: "42" }],
-  run: async (input3, ctx) => ado(ctx, prUrl(where(ctx, true), toInt(input3.id)), { method: "PATCH", json: { status: "abandoned" } })
+  run: async (input4, ctx) => ado(ctx, prUrl(where(ctx, true), toInt(input4.id)), { method: "PATCH", json: { status: "abandoned" } })
 });
 var repoListFilesCommand = adoArea.command({
   path: ["ado", "repo", "list-files"],
@@ -145199,9 +145307,9 @@ var repoListFilesCommand = adoArea.command({
   writes: false,
   options: [prOption],
   examples: [{ ...IN_REPO, pr: "42" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const w = where(ctx, true);
-    const pr3 = toInt(input3.pr);
+    const pr3 = toInt(input4.pr);
     const iterations = await ado(ctx, `${repoPath(w)}/pullrequests/${pr3}/iterations?api-version=${API}`);
     const latest = (iterations.value ?? []).at(-1)?.id;
     if (!latest) return [];
@@ -145220,14 +145328,14 @@ var repoDiffCommand = adoArea.command({
     { ...IN_REPO, pr: "42" },
     { ...IN_REPO, pr: "42", path: "src/app.ts" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const w = where(ctx, true);
-    const pr3 = await getPR(ctx, w, toInt(input3.pr));
+    const pr3 = await getPR(ctx, w, toInt(input4.pr));
     const source2 = pr3.lastMergeSourceCommit?.commitId;
     const target2 = pr3.lastMergeTargetCommit?.commitId;
     const data = !source2 || !target2 ? { changes: [], aheadCount: 0, behindCount: 0 } : await ado(ctx, `${repoPath(w)}/diffs/commits?baseVersion=${enc(target2)}&baseVersionType=commit&targetVersion=${enc(source2)}&targetVersionType=commit&api-version=${API}`);
-    if (input3.path) {
-      const needle = input3.path.startsWith("/") ? input3.path : `/${input3.path}`;
+    if (input4.path) {
+      const needle = input4.path.startsWith("/") ? input4.path : `/${input4.path}`;
       data.changes = (data.changes ?? []).filter((c) => c.item.path === needle);
     }
     return data;
@@ -145241,8 +145349,8 @@ var repoGetBuildStatusCommand = adoArea.command({
   writes: false,
   options: [{ flags: "--commit <sha>", field: "commit", description: "Commit SHA" }],
   examples: [{ ...IN_REPO, commit: "abc12345def67890abc12345def67890abc12345" }],
-  run: async (input3, ctx) => {
-    const result = await ado(ctx, `${repoPath(where(ctx, true))}/commits/${enc(input3.commit)}/statuses?api-version=${API}`);
+  run: async (input4, ctx) => {
+    const result = await ado(ctx, `${repoPath(where(ctx, true))}/commits/${enc(input4.commit)}/statuses?api-version=${API}`);
     return result.value ?? [];
   }
 });
@@ -145254,7 +145362,7 @@ var repoListReviewersCommand = adoArea.command({
   writes: false,
   options: [prOption],
   examples: [{ ...IN_REPO, pr: "42" }],
-  run: async (input3, ctx) => (await getPR(ctx, where(ctx, true), toInt(input3.pr))).reviewers
+  run: async (input4, ctx) => (await getPR(ctx, where(ctx, true), toInt(input4.pr))).reviewers
 });
 var repoListDefaultReviewersCommand = adoArea.command({
   path: ["ado", "repo", "list-default-reviewers"],
@@ -145279,10 +145387,10 @@ function voteCommand(name3, description3, vote, toolDescription) {
     writes: true,
     options: [prOption],
     examples: [{ ...W2, pr: "42" }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const w = where(ctx, true);
       const me = await connectionData(ctx, w.collection);
-      return ado(ctx, `${repoPath(w)}/pullrequests/${toInt(input3.pr)}/reviewers/${enc(me.authenticatedUser.id)}?api-version=${API}`, { method: "PUT", json: { vote } });
+      return ado(ctx, `${repoPath(w)}/pullrequests/${toInt(input4.pr)}/reviewers/${enc(me.authenticatedUser.id)}?api-version=${API}`, { method: "PUT", json: { vote } });
     }
   });
 }
@@ -145297,10 +145405,10 @@ var repoListBuildsCommand = adoArea.command({
   writes: false,
   options: [prOption, ...pageOptions("builds")],
   examples: [{ ...IN_REPO, pr: "42" }, { ...IN_REPO, pr: "42", limit: 1 }, { ...IN_REPO, pr: "42", limit: 1, cursor: exampleCursor("abc12345") }],
-  run: async (input3, ctx) => {
-    const page2 = pageOf(input3);
+  run: async (input4, ctx) => {
+    const page2 = pageOf(input4);
     const w = where(ctx, true);
-    const pr3 = await getPR(ctx, w, toInt(input3.pr));
+    const pr3 = await getPR(ctx, w, toInt(input4.pr));
     return listBuilds(ctx, w, { branchName: pr3.sourceRefName, page: page2 });
   }
 });
@@ -145357,9 +145465,9 @@ var repoListCommentsCommand = adoArea.command({
     { ...IN_REPO, pr: "42", inlineOnly: true },
     { ...IN_REPO, pr: "42", generalOnly: true }
   ],
-  run: async (input3, ctx) => {
-    const result = await ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input3.pr)}/threads?api-version=${API}`);
-    return flatten(result.value ?? [], input3.inlineOnly ?? false, input3.generalOnly ?? false);
+  run: async (input4, ctx) => {
+    const result = await ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input4.pr)}/threads?api-version=${API}`);
+    return flatten(result.value ?? [], input4.inlineOnly ?? false, input4.generalOnly ?? false);
   }
 });
 var repoAddCommentCommand = adoArea.command({
@@ -145370,9 +145478,9 @@ var repoAddCommentCommand = adoArea.command({
   writes: true,
   options: [prOption2, bodyOption],
   examples: [{ ...W3, pr: "42", body: "Looks good." }],
-  run: async (input3, ctx) => ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input3.pr)}/threads?api-version=${API}`, {
+  run: async (input4, ctx) => ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input4.pr)}/threads?api-version=${API}`, {
     method: "POST",
-    json: { comments: [{ content: input3.body, commentType: "text" }], status: "active" }
+    json: { comments: [{ content: input4.body, commentType: "text" }], status: "active" }
   })
 });
 var LINE_TYPE = 'Line side: left|right (default: right) (default: "right")';
@@ -145400,13 +145508,13 @@ var repoAddInlineCommentCommand = adoArea.command({
     { ...W3, pr: "42", file: "/src/app.ts", line: "12", body: "Off by one?" },
     { ...W3, pr: "42", file: "src/app.ts", line: "3", body: "Was this removed on purpose?", lineType: "left" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const w = where(ctx, true);
-    const line = toInt(input3.line);
-    const range2 = (input3.lineType ?? "right") !== "left" ? { rightFileStart: { line, offset: 1 }, rightFileEnd: { line, offset: 1 } } : { leftFileStart: { line, offset: 1 }, leftFileEnd: { line, offset: 1 } };
-    return ado(ctx, `${repoPath(w)}/pullrequests/${toInt(input3.pr)}/threads?api-version=${API}`, {
+    const line = toInt(input4.line);
+    const range2 = (input4.lineType ?? "right") !== "left" ? { rightFileStart: { line, offset: 1 }, rightFileEnd: { line, offset: 1 } } : { leftFileStart: { line, offset: 1 }, leftFileEnd: { line, offset: 1 } };
+    return ado(ctx, `${repoPath(w)}/pullrequests/${toInt(input4.pr)}/threads?api-version=${API}`, {
       method: "POST",
-      json: { comments: [{ content: input3.body, commentType: "text" }], status: "active", threadContext: { filePath: input3.file, ...range2 } }
+      json: { comments: [{ content: input4.body, commentType: "text" }], status: "active", threadContext: { filePath: input4.file, ...range2 } }
     });
   }
 });
@@ -145418,9 +145526,9 @@ var repoReplyCommentCommand = adoArea.command({
   writes: true,
   options: [prOption2, threadOption, { flags: "--body <text>", field: "body", description: "Reply text" }],
   examples: [{ ...W3, pr: "42", threadId: "7", body: "Fixed in the next commit." }],
-  run: async (input3, ctx) => ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input3.pr)}/threads/${toInt(input3.threadId)}/comments?api-version=${API}`, {
+  run: async (input4, ctx) => ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input4.pr)}/threads/${toInt(input4.threadId)}/comments?api-version=${API}`, {
     method: "POST",
-    json: { content: input3.body, commentType: "text" }
+    json: { content: input4.body, commentType: "text" }
   })
 });
 var repoResolveCommentCommand = adoArea.command({
@@ -145431,7 +145539,7 @@ var repoResolveCommentCommand = adoArea.command({
   writes: true,
   options: [prOption2, threadOption],
   examples: [{ ...W3, pr: "42", threadId: "7" }],
-  run: async (input3, ctx) => ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input3.pr)}/threads/${toInt(input3.threadId)}?api-version=${API}`, { method: "PATCH", json: { status: "fixed" } })
+  run: async (input4, ctx) => ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input4.pr)}/threads/${toInt(input4.threadId)}?api-version=${API}`, { method: "PATCH", json: { status: "fixed" } })
 });
 var repoDeleteCommentCommand = adoArea.command({
   path: ["ado", "repo", "delete-comment"],
@@ -145442,8 +145550,8 @@ var repoDeleteCommentCommand = adoArea.command({
   mcp: false,
   options: [prOption2, threadOption, { flags: "--comment-id <id>", field: "commentId", description: "Comment ID" }],
   examples: [{ ...W3, pr: "42", threadId: "7", commentId: "2" }],
-  run: async (input3, ctx) => {
-    await ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input3.pr)}/threads/${toInt(input3.threadId)}/comments/${toInt(input3.commentId)}?api-version=${API}`, { method: "DELETE" });
+  run: async (input4, ctx) => {
+    await ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input4.pr)}/threads/${toInt(input4.threadId)}/comments/${toInt(input4.commentId)}?api-version=${API}`, { method: "DELETE" });
     return { deleted: true };
   }
 });
@@ -145465,8 +145573,8 @@ var pipelineListCommand = adoArea.command({
   writes: false,
   options: pageOptions("pipelines"),
   examples: [AT2, { ...AT2, limit: 1 }, { ...AT2, limit: 1, cursor: exampleCursor("abc12345") }],
-  run: async (input3, ctx) => {
-    const page2 = pageOf(input3);
+  run: async (input4, ctx) => {
+    const page2 = pageOf(input4);
     return listDefinitions(ctx, where(ctx), page2);
   }
 });
@@ -145478,9 +145586,9 @@ var pipelineGetCommand = adoArea.command({
   writes: false,
   options: [idOption3("Pipeline definition ID")],
   examples: [{ ...AT2, id: "5" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const w = where(ctx);
-    return ado(ctx, `${projectPath(w)}/_apis/build/definitions/${toInt(input3.id)}?api-version=${API}`);
+    return ado(ctx, `${projectPath(w)}/_apis/build/definitions/${toInt(input4.id)}?api-version=${API}`);
   }
 });
 var TIMEOUT = 'Max wait time in seconds (default 600) (default: "600")';
@@ -145513,23 +145621,23 @@ var pipelineRunCommand = adoArea.command({
     { ...W4, id: "5", branch: "main", parameter: ["env=staging", "debug=true"] },
     { ...W4, id: "6", branch: "refs/heads/release", wait: true, timeout: "60", poll: "1" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const w = where(ctx);
-    const sourceBranch = input3.branch ? input3.branch.startsWith("refs/") ? input3.branch : `refs/heads/${input3.branch}` : void 0;
-    const raw3 = input3.parameter ?? [];
+    const sourceBranch = input4.branch ? input4.branch.startsWith("refs/") ? input4.branch : `refs/heads/${input4.branch}` : void 0;
+    const raw3 = input4.parameter ?? [];
     for (const p of raw3) {
       if (!p.includes("=")) throw new ToilError("INVALID_INPUT", `Invalid --parameter "${p}". Expected format: key=value`, { fix: "Pass each parameter as key=value, e.g. --parameter env=staging." });
     }
     const parameters2 = raw3.length > 0 ? JSON.stringify(Object.fromEntries(raw3.map((p) => [p.slice(0, p.indexOf("=")), p.slice(p.indexOf("=") + 1)]))) : void 0;
-    const body = { definition: { id: toInt(input3.id) }, ...sourceBranch ? { sourceBranch } : {}, ...parameters2 ? { parameters: parameters2 } : {} };
+    const body = { definition: { id: toInt(input4.id) }, ...sourceBranch ? { sourceBranch } : {}, ...parameters2 ? { parameters: parameters2 } : {} };
     let build = await ado(ctx, `${projectPath(w)}/_apis/build/builds?api-version=${API}`, { method: "POST", json: body });
     ctx.debug(`Queued build #${build.id} (${String(build.buildNumber)}) \u2014 status: ${build.status}`);
-    if (!input3.wait) return build;
-    const timeoutSec = toInt(input3.timeout, "600");
-    const pollSec = toInt(input3.poll, "10");
+    if (!input4.wait) return build;
+    const timeoutSec = toInt(input4.timeout, "600");
+    const pollSec = toInt(input4.poll, "10");
     const queued = `Build #${build.id} was queued and may still run. Check it with toil ado pipeline get-run --id ${build.id} before queueing it again.`;
-    if (isNaN(timeoutSec) || timeoutSec <= 0) throw new ToilError("INVALID_INPUT", `Invalid --timeout "${String(input3.timeout ?? "600")}". Expected a positive number of seconds.`, { fix: queued });
-    if (isNaN(pollSec) || pollSec <= 0) throw new ToilError("INVALID_INPUT", `Invalid --poll "${String(input3.poll ?? "10")}". Expected a positive number of seconds.`, { fix: queued });
+    if (isNaN(timeoutSec) || timeoutSec <= 0) throw new ToilError("INVALID_INPUT", `Invalid --timeout "${String(input4.timeout ?? "600")}". Expected a positive number of seconds.`, { fix: queued });
+    if (isNaN(pollSec) || pollSec <= 0) throw new ToilError("INVALID_INPUT", `Invalid --poll "${String(input4.poll ?? "10")}". Expected a positive number of seconds.`, { fix: queued });
     ctx.debug(`Waiting for build #${build.id} to complete (timeout ${timeoutSec}s, poll ${pollSec}s)...`);
     const deadline = Date.now() + timeoutSec * 1e3;
     const id9 = build.id;
@@ -145580,29 +145688,29 @@ var pipelineListRunsCommand = adoArea.command({
     { ...AT2, definition: "5", limit: 1 },
     { ...AT2, limit: 1, cursor: exampleCursor("abc12345") }
   ],
-  run: async (input3, ctx) => {
-    const page2 = pageOf(input3);
-    if (page2.cap !== void 0 && input3.top !== void 0) {
+  run: async (input4, ctx) => {
+    const page2 = pageOf(input4);
+    if (page2.cap !== void 0 && input4.top !== void 0) {
       throw new ToilError("INVALID_INPUT", "Cannot specify both --top and --limit. Use one or the other.", { fix: "Pass --limit (with --cursor for later pages) to page through runs, or --top for one request of at most that many." });
     }
     const w = where(ctx);
-    if (input3.definition && input3.name) throw new ToilError("INVALID_INPUT", "Cannot specify both --definition and --name. Use one or the other.", { fix: "Pass --definition <id> or --name <pipeline>, not both." });
+    if (input4.definition && input4.name) throw new ToilError("INVALID_INPUT", "Cannot specify both --definition and --name. Use one or the other.", { fix: "Pass --definition <id> or --name <pipeline>, not both." });
     let definitionId;
-    if (input3.definition) {
-      definitionId = parseInt(input3.definition, 10);
+    if (input4.definition) {
+      definitionId = parseInt(input4.definition, 10);
       if (isNaN(definitionId)) {
-        throw new ToilError("INVALID_INPUT", `--definition must be a numeric ID. Got "${input3.definition}". Use --name to filter by pipeline name instead.`, { fix: "Pass the definition id from toil ado pipeline list, or --name." });
+        throw new ToilError("INVALID_INPUT", `--definition must be a numeric ID. Got "${input4.definition}". Use --name to filter by pipeline name instead.`, { fix: "Pass the definition id from toil ado pipeline list, or --name." });
       }
-    } else if (input3.name) {
-      const wanted = input3.name.toLowerCase();
+    } else if (input4.name) {
+      const wanted = input4.name.toLowerCase();
       const match = (await listDefinitions(ctx, w)).find((d2) => d2.name.toLowerCase() === wanted);
       if (!match) {
-        throw new ToilError("INVALID_INPUT", `Pipeline "${input3.name}" not found. Run 'toil ado pipeline list' to see available pipelines.`, { fix: "Check the name against toil ado pipeline list; it is matched ignoring case." });
+        throw new ToilError("INVALID_INPUT", `Pipeline "${input4.name}" not found. Run 'toil ado pipeline list' to see available pipelines.`, { fix: "Check the name against toil ado pipeline list; it is matched ignoring case." });
       }
       definitionId = match.id;
     }
-    const filters = { definitionIds: definitionId !== void 0 ? [definitionId] : void 0, branchName: input3.branch, statusFilter: input3.status };
-    return listBuilds(ctx, w, page2.cap !== void 0 ? { ...filters, page: page2 } : { ...filters, top: toInt(input3.top, "50") });
+    const filters = { definitionIds: definitionId !== void 0 ? [definitionId] : void 0, branchName: input4.branch, statusFilter: input4.status };
+    return listBuilds(ctx, w, page2.cap !== void 0 ? { ...filters, page: page2 } : { ...filters, top: toInt(input4.top, "50") });
   }
 });
 var pipelineGetRunCommand = adoArea.command({
@@ -145613,7 +145721,7 @@ var pipelineGetRunCommand = adoArea.command({
   writes: false,
   options: [idOption3("Build ID")],
   examples: [{ ...AT2, id: "101" }],
-  run: async (input3, ctx) => getBuild(ctx, where(ctx), toInt(input3.id))
+  run: async (input4, ctx) => getBuild(ctx, where(ctx), toInt(input4.id))
 });
 var pipelineCancelRunCommand = adoArea.command({
   path: ["ado", "pipeline", "cancel-run"],
@@ -145623,9 +145731,9 @@ var pipelineCancelRunCommand = adoArea.command({
   writes: true,
   options: [idOption3("Build ID")],
   examples: [{ ...W4, id: "101" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const w = where(ctx);
-    return ado(ctx, buildPath(w, toInt(input3.id)), { method: "PATCH", json: { status: "cancelling" } });
+    return ado(ctx, buildPath(w, toInt(input4.id)), { method: "PATCH", json: { status: "cancelling" } });
   }
 });
 var pipelineLogsCommand = adoArea.command({
@@ -145647,13 +145755,13 @@ var pipelineLogsCommand = adoArea.command({
     { ...AT2, buildId: "101" },
     { ...AT2, id: "101", logId: "3" }
   ],
-  run: async (input3, ctx) => {
-    const raw3 = input3.buildId ?? input3.id;
+  run: async (input4, ctx) => {
+    const raw3 = input4.buildId ?? input4.id;
     if (raw3 === void 0 || raw3 === "") throw new ToilError("INVALID_INPUT", "--build-id is required (build run ID from pipeline list-runs or get-run)", { fix: "Pass --build-id <n>; toil ado pipeline list-runs lists them." });
     const w = where(ctx);
     const buildId = toInt(raw3);
     const logs = `${projectPath(w)}/_apis/build/builds/${buildId}/logs`;
-    if (input3.logId !== void 0 && input3.logId !== "") return { log: await adoText(ctx, `${logs}/${toInt(input3.logId)}?api-version=${API}`) };
+    if (input4.logId !== void 0 && input4.logId !== "") return { log: await adoText(ctx, `${logs}/${toInt(input4.logId)}?api-version=${API}`) };
     const result = await ado(ctx, `${logs}?api-version=${API}`);
     return result.value ?? [];
   }
@@ -145687,7 +145795,7 @@ var workListAttachmentsCommand = adoArea.command({
   writes: false,
   options: [idOption],
   examples: [{ ...AT2, id: "42" }],
-  run: async (input3, ctx) => listAttachments(ctx, where(ctx).collection, toInt(input3.id))
+  run: async (input4, ctx) => listAttachments(ctx, where(ctx).collection, toInt(input4.id))
 });
 var workAddAttachmentCommand = adoArea.command({
   path: ["ado", "work", "add-attachment"],
@@ -145704,12 +145812,12 @@ var workAddAttachmentCommand = adoArea.command({
     { ...W5, id: "42", file: "screenshot.png" },
     { ...W5, id: "42", file: "logs/run.txt", comment: "From the failed run" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { collection } = where(ctx);
-    const id9 = toInt(input3.id);
-    const data = ctx.files.readBytes(input3.file);
-    const attachment = await adoUpload(ctx, `/${enc(collection)}/_apis/wit/attachments?fileName=${enc(basename4(input3.file))}&api-version=${API}`, data);
-    const relation = { rel: "AttachedFile", url: attachment.url, ...input3.comment ? { attributes: { comment: input3.comment } } : {} };
+    const id9 = toInt(input4.id);
+    const data = ctx.files.readBytes(input4.file);
+    const attachment = await adoUpload(ctx, `/${enc(collection)}/_apis/wit/attachments?fileName=${enc(basename4(input4.file))}&api-version=${API}`, data);
+    const relation = { rel: "AttachedFile", url: attachment.url, ...input4.comment ? { attributes: { comment: input4.comment } } : {} };
     await ado(ctx, `/${enc(collection)}/_apis/wit/workitems/${id9}?api-version=${API}`, { method: "PATCH", json: [{ op: "add", path: "/relations/-", value: relation }], headers: PATCH });
     return attachment;
   }
@@ -145734,14 +145842,14 @@ var workDownloadAttachmentCommand = adoArea.command({
     { ...AT2, id: "42", attachmentId: "abc12345-0000-0000-0000-000000000000" },
     { ...AT2, id: "42", attachmentId: "abc12345-0000-0000-0000-000000000000", dir: "downloads" }
   ],
-  run: async (input3, ctx) => {
-    const attachments = await listAttachments(ctx, where(ctx).collection, toInt(input3.id));
-    const attachment = attachments.find((a) => a.id === input3.attachmentId);
+  run: async (input4, ctx) => {
+    const attachments = await listAttachments(ctx, where(ctx).collection, toInt(input4.id));
+    const attachment = attachments.find((a) => a.id === input4.attachmentId);
     if (!attachment) {
-      throw new ToilError("INVALID_INPUT", `Attachment not found: ${input3.attachmentId}`, { fix: `Run toil ado work list-attachments --id ${String(input3.id)} for the ids it has.` });
+      throw new ToilError("INVALID_INPUT", `Attachment not found: ${input4.attachmentId}`, { fix: `Run toil ado work list-attachments --id ${String(input4.id)} for the ids it has.` });
     }
     const data = await adoDownload(ctx, attachment.url);
-    const saved2 = ctx.files.writeBytes(`${input3.dir ?? ".toil"}/${basename4(attachment.name)}`, data);
+    const saved2 = ctx.files.writeBytes(`${input4.dir ?? ".toil"}/${basename4(attachment.name)}`, data);
     return { saved: saved2, name: attachment.name, size: data.length };
   }
 });
@@ -145755,7 +145863,7 @@ var workListAreasCommand = adoArea.command({
   writes: false,
   options: [{ flags: "--depth <n>", field: "depth", description: 'Depth of the area tree to retrieve (default: "10")' }],
   examples: [AT2, { ...AT2, depth: "2" }],
-  run: async (input3, ctx) => ado(ctx, `${projectPath(where(ctx))}/_apis/wit/classificationnodes/areas?$depth=${depthOf(input3.depth)}&api-version=${API}`)
+  run: async (input4, ctx) => ado(ctx, `${projectPath(where(ctx))}/_apis/wit/classificationnodes/areas?$depth=${depthOf(input4.depth)}&api-version=${API}`)
 });
 var workListIterationsCommand = adoArea.command({
   path: ["ado", "work", "list-iterations"],
@@ -145765,7 +145873,7 @@ var workListIterationsCommand = adoArea.command({
   writes: false,
   options: [{ flags: "--depth <n>", field: "depth", description: 'Depth of the iteration tree to retrieve (default: "10")' }],
   examples: [AT2, { ...AT2, depth: "3" }],
-  run: async (input3, ctx) => ado(ctx, `${projectPath(where(ctx))}/_apis/wit/classificationnodes/iterations?$depth=${depthOf(input3.depth)}&api-version=${API}`)
+  run: async (input4, ctx) => ado(ctx, `${projectPath(where(ctx))}/_apis/wit/classificationnodes/iterations?$depth=${depthOf(input4.depth)}&api-version=${API}`)
 });
 var DISCOVER = "Fetch from server (always true for this command)";
 var workTypesCommand = adoArea.command({
@@ -145780,7 +145888,7 @@ var workTypesCommand = adoArea.command({
     { flags: "--discover", field: "discover", description: DISCOVER }
   ],
   examples: [AT2, { ...AT2, discover: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const w = where(ctx);
     const types = await ado(ctx, `${projectPath(w)}/_apis/wit/workitemtypes?api-version=${API}`);
     const result = [];
@@ -145799,8 +145907,8 @@ var workListStatesCommand = adoArea.command({
   writes: false,
   options: [{ flags: "--type <type>", field: "type", description: "Work item type name (e.g. Bug)" }],
   examples: [{ ...AT2, type: "Bug" }],
-  run: async (input3, ctx) => {
-    const result = await ado(ctx, `${projectPath(where(ctx))}/_apis/wit/workitemtypes/${enc(input3.type)}/states?api-version=${API}`);
+  run: async (input4, ctx) => {
+    const result = await ado(ctx, `${projectPath(where(ctx))}/_apis/wit/workitemtypes/${enc(input4.type)}/states?api-version=${API}`);
     return result.value ?? [];
   }
 });
@@ -145821,11 +145929,11 @@ var workFieldsCommand = adoArea.command({
     { flags: "--discover", field: "discover", description: DISCOVER }
   ],
   examples: [AT2, { ...AT2, type: "Bug", customOnly: true }, { ...AT2, discover: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const w = where(ctx);
-    const path2 = input3.type ? `${projectPath(w)}/_apis/wit/workitemtypes/${enc(input3.type)}/fields?api-version=${API}` : `/${enc(w.collection)}/_apis/wit/fields?api-version=${API}`;
+    const path2 = input4.type ? `${projectPath(w)}/_apis/wit/workitemtypes/${enc(input4.type)}/fields?api-version=${API}` : `/${enc(w.collection)}/_apis/wit/fields?api-version=${API}`;
     const all3 = ((await ado(ctx, path2)).value ?? []).map(toFieldMeta);
-    const fields3 = input3.customOnly ? all3.filter((f) => !f.referenceName.startsWith("System.") && !f.referenceName.startsWith("Microsoft.VSTS.")) : all3;
+    const fields3 = input4.customOnly ? all3.filter((f) => !f.referenceName.startsWith("System.") && !f.referenceName.startsWith("Microsoft.VSTS.")) : all3;
     return fields3;
   }
 });
@@ -145838,7 +145946,7 @@ var workSchemaCommand = adoArea.command({
   writes: false,
   options: [{ flags: "--example-only", field: "exampleOnly", description: "Return only the runnable example JSON as data \u2014 save .data and pass it to --input-file" }],
   examples: [{}, { exampleOnly: true }],
-  run: async (input3) => input3.exampleOnly ? ADO_WORK_INPUT_FILE_EXAMPLE : { schema: ADO_WORK_INPUT_FILE_SCHEMA, example: ADO_WORK_INPUT_FILE_EXAMPLE }
+  run: async (input4) => input4.exampleOnly ? ADO_WORK_INPUT_FILE_EXAMPLE : { schema: ADO_WORK_INPUT_FILE_SCHEMA, example: ADO_WORK_INPUT_FILE_EXAMPLE }
 });
 var workMetaCommands = [
   workListAttachmentsCommand,
@@ -145889,8 +145997,8 @@ function apiCommand(area31, spec) {
     toolDescription: `One raw ${spec.service} REST call, for an endpoint no other ${area31.name} tool covers; prefer those tools when one fits. Returns the parsed JSON body as data (other bodies as text), with the status and content type in meta.response. GET and HEAD read. POST, PUT and PATCH change data: they need writes on for the connection and allowWrite true. DELETE is not available over MCP.`,
     input: passthroughInput,
     writes: false,
-    writesWhen: (input3) => !READS.has(input3.method),
-    offMcpWhen: (input3) => input3.method === "DELETE" ? "DELETE is never served over MCP; deletes are made by a person on the CLI." : void 0,
+    writesWhen: (input4) => !READS.has(input4.method),
+    offMcpWhen: (input4) => input4.method === "DELETE" ? "DELETE is never served over MCP; deletes are made by a person on the CLI." : void 0,
     args: [
       { name: "method", field: "method", description: "GET, HEAD, POST, PUT, PATCH or DELETE" },
       { name: "path", field: "path", description: `Path under the base URL, e.g. ${spec.examplePath}` }
@@ -145901,23 +146009,23 @@ function apiCommand(area31, spec) {
       { flags: "--content-type <type>", field: "contentType", description: "The body's content type (default application/json)" }
     ],
     examples: spec.examples,
-    run: (input3, ctx) => passthrough(area31, name3, input3, ctx, spec.download)
+    run: (input4, ctx) => passthrough(area31, name3, input4, ctx, spec.download)
   });
 }
-async function passthrough(area31, name3, input3, ctx, download) {
-  assertRelativePath(input3.path, name3);
-  const query2 = queryOf(input3.query ?? [], name3);
-  if (input3.bodyFile === void 0 && input3.contentType !== void 0) {
+async function passthrough(area31, name3, input4, ctx, download) {
+  assertRelativePath(input4.path, name3);
+  const query2 = queryOf(input4.query ?? [], name3);
+  if (input4.bodyFile === void 0 && input4.contentType !== void 0) {
     throw new ToilError("INVALID_INPUT", `${name3}: --content-type describes a body, and there is no --body-file.`, { fix: "Pass --body-file <path> with it, or leave --content-type out." });
   }
-  if (input3.bodyFile !== void 0 && READS.has(input3.method)) {
-    throw new ToilError("INVALID_INPUT", `${name3}: a ${input3.method} request has no body.`, { fix: "Leave out --body-file, or use POST, PUT or PATCH." });
+  if (input4.bodyFile !== void 0 && READS.has(input4.method)) {
+    throw new ToilError("INVALID_INPUT", `${name3}: a ${input4.method} request has no body.`, { fix: "Leave out --body-file, or use POST, PUT or PATCH." });
   }
-  const body = input3.bodyFile === void 0 ? void 0 : ctx.files.readBytes(input3.bodyFile);
-  const response = await apiResponse(area31, ctx, input3.path, {
-    method: input3.method,
+  const body = input4.bodyFile === void 0 ? void 0 : ctx.files.readBytes(input4.bodyFile);
+  const response = await apiResponse(area31, ctx, input4.path, {
+    method: input4.method,
     ...Object.keys(query2).length > 0 ? { query: query2 } : {},
-    ...body !== void 0 ? { body, contentType: input3.contentType ?? "application/json" } : {},
+    ...body !== void 0 ? { body, contentType: input4.contentType ?? "application/json" } : {},
     as: "bytes"
   });
   const contentType = response.headers.get("content-type");
@@ -146059,13 +146167,13 @@ var pageOptions2 = (what) => [
   { flags: "--limit <n>", field: "limit", description: `Return at most this many ${what}; meta.page.nextCursor says where the rest start (default: all)` },
   { flags: "--cursor <cursor>", field: "cursor", description: "meta.page.nextCursor from the previous call (with --limit)" }
 ];
-function pageOf2(input3) {
-  if (input3.cursor !== void 0 && input3.limit === void 0) {
+function pageOf2(input4) {
+  if (input4.cursor !== void 0 && input4.limit === void 0) {
     throw new ToilError("INVALID_INPUT", "--cursor needs --limit", {
       fix: "Pass --limit with --cursor (the limit of the call that gave you the cursor), or leave out --cursor to read everything."
     });
   }
-  return { cap: input3.limit, cursor: input3.cursor };
+  return { cap: input4.limit, cursor: input4.cursor };
 }
 var pageOptionsFor2 = (ctx, what, page2) => ({
   what,
@@ -146219,14 +146327,14 @@ var repoListPrsCommand2 = adoCloudArea.command({
     { ...inRepo, limit: 1 },
     { ...inRepo, limit: 1, cursor: exampleCursor2("1", PRS_PAGE) }
   ],
-  run: (input3, ctx) => {
-    const page2 = pageOf2(input3);
-    const after = input3.createdAfter !== void 0 ? wiqlInstant2(input3.createdAfter, "--created-after") : void 0;
-    const before = input3.createdBefore !== void 0 ? wiqlInstant2(input3.createdBefore, "--created-before") : void 0;
+  run: (input4, ctx) => {
+    const page2 = pageOf2(input4);
+    const after = input4.createdAfter !== void 0 ? wiqlInstant2(input4.createdAfter, "--created-after") : void 0;
+    const before = input4.createdBefore !== void 0 ? wiqlInstant2(input4.createdBefore, "--created-before") : void 0;
     const query2 = {
-      "searchCriteria.status": input3.state ?? "active",
-      ...input3.creator ? { "searchCriteria.creatorId": input3.creator } : {},
-      ...input3.reviewer ? { "searchCriteria.reviewerId": input3.reviewer } : {},
+      "searchCriteria.status": input4.state ?? "active",
+      ...input4.creator ? { "searchCriteria.creatorId": input4.creator } : {},
+      ...input4.reviewer ? { "searchCriteria.reviewerId": input4.reviewer } : {},
       // minTime and maxTime only count alongside queryTimeRangeType.
       ...after || before ? { "searchCriteria.queryTimeRangeType": "created" } : {},
       ...after ? { "searchCriteria.minTime": after } : {},
@@ -146244,7 +146352,7 @@ var repoGetPrCommand2 = adoCloudArea.command({
   context: IN_REPO2,
   options: [idOption4],
   examples: [{ ...inRepo, id: 42 }],
-  run: (input3, ctx) => getPR2(ctx, input3.id)
+  run: (input4, ctx) => getPR2(ctx, input4.id)
 });
 var TARGET2 = "Target branch (default: main)";
 var repoCreatePrCommand2 = adoCloudArea.command({
@@ -146274,15 +146382,15 @@ var repoCreatePrCommand2 = adoCloudArea.command({
     { ...W6, title: "Add retries", source: "feature/retries" },
     { ...W6, title: "Tidy up", source: "refs/heads/tidy", target: "develop", description: "Small things", reviewers: "abc12345-0000-0000-0000-000000000000, abc12345-0000-0000-0000-000000000001", draft: true }
   ],
-  run: (input3, ctx) => {
-    const reviewers = (input3.reviewers ?? "").split(",").map((id9) => id9.trim()).filter(Boolean).map((id9) => ({ id: id9 }));
+  run: (input4, ctx) => {
+    const reviewers = (input4.reviewers ?? "").split(",").map((id9) => id9.trim()).filter(Boolean).map((id9) => ({ id: id9 }));
     const body = {
-      title: input3.title,
-      ...input3.description !== void 0 ? { description: input3.description } : {},
-      sourceRefName: ref(input3.source),
-      targetRefName: ref(input3.target ?? "main"),
+      title: input4.title,
+      ...input4.description !== void 0 ? { description: input4.description } : {},
+      sourceRefName: ref(input4.source),
+      targetRefName: ref(input4.target ?? "main"),
       ...reviewers.length > 0 ? { reviewers } : {},
-      ...input3.draft !== void 0 ? { isDraft: input3.draft } : {}
+      ...input4.draft !== void 0 ? { isDraft: input4.draft } : {}
     };
     return adoc(ctx, `${repoPath2(ctx)}/pullrequests`, { method: "POST", json: body });
   }
@@ -146312,14 +146420,14 @@ var repoUpdatePrCommand2 = adoCloudArea.command({
     { ...W6, id: 42, title: "Add retries, properly" },
     { ...W6, id: 42, description: "", target: "release/1.2", draft: false }
   ],
-  run: (input3, ctx) => {
+  run: (input4, ctx) => {
     const body = {
-      ...input3.title !== void 0 ? { title: input3.title } : {},
-      ...input3.description !== void 0 ? { description: input3.description } : {},
-      ...input3.target !== void 0 ? { targetRefName: ref(input3.target) } : {},
-      ...input3.draft !== void 0 ? { isDraft: input3.draft } : {}
+      ...input4.title !== void 0 ? { title: input4.title } : {},
+      ...input4.description !== void 0 ? { description: input4.description } : {},
+      ...input4.target !== void 0 ? { targetRefName: ref(input4.target) } : {},
+      ...input4.draft !== void 0 ? { isDraft: input4.draft } : {}
     };
-    return adoc(ctx, prPath(ctx, input3.id), { method: "PATCH", json: body });
+    return adoc(ctx, prPath(ctx, input4.id), { method: "PATCH", json: body });
   }
 });
 var STRATEGIES = ["noFastForward", "squash", "rebase", "rebaseMerge"];
@@ -146347,20 +146455,20 @@ var repoMergePrCommand2 = adoCloudArea.command({
     { ...W6, id: 42 },
     { ...W6, id: 42, strategy: "squash", deleteSource: true, message: "Add retries (#42)" }
   ],
-  run: async (input3, ctx) => {
-    const pr3 = await getPR2(ctx, input3.id);
+  run: async (input4, ctx) => {
+    const pr3 = await getPR2(ctx, input4.id);
     const commitId = pr3.lastMergeSourceCommit?.commitId;
     if (!commitId) {
-      throw new ToilError("INVALID_INPUT", `Pull request ${input3.id} has no source commit to complete yet.`, {
+      throw new ToilError("INVALID_INPUT", `Pull request ${input4.id} has no source commit to complete yet.`, {
         fix: "Check data.mergeStatus with ado-cloud repo get-pr, and retry once the server has merged the source branch."
       });
     }
     const body = {
       status: "completed",
       lastMergeSourceCommit: { commitId },
-      completionOptions: { mergeStrategy: input3.strategy ?? "noFastForward", deleteSourceBranch: input3.deleteSource ?? false, ...input3.message !== void 0 ? { mergeCommitMessage: input3.message } : {} }
+      completionOptions: { mergeStrategy: input4.strategy ?? "noFastForward", deleteSourceBranch: input4.deleteSource ?? false, ...input4.message !== void 0 ? { mergeCommitMessage: input4.message } : {} }
     };
-    return adoc(ctx, prPath(ctx, input3.id), { method: "PATCH", json: body });
+    return adoc(ctx, prPath(ctx, input4.id), { method: "PATCH", json: body });
   }
 });
 var repoAbandonPrCommand2 = adoCloudArea.command({
@@ -146372,7 +146480,7 @@ var repoAbandonPrCommand2 = adoCloudArea.command({
   context: IN_REPO2,
   options: [idOption4],
   examples: [{ ...W6, id: 42 }],
-  run: (input3, ctx) => adoc(ctx, prPath(ctx, input3.id), { method: "PATCH", json: { status: "abandoned" } })
+  run: (input4, ctx) => adoc(ctx, prPath(ctx, input4.id), { method: "PATCH", json: { status: "abandoned" } })
 });
 function voteCommand2(name3, description3, vote, toolDescription) {
   return adoCloudArea.command({
@@ -146384,9 +146492,9 @@ function voteCommand2(name3, description3, vote, toolDescription) {
     context: IN_REPO2,
     options: [prOption3],
     examples: [{ ...W6, pr: 42 }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const me = await connectionData2(ctx);
-      return adoc(ctx, `${prPath(ctx, input3.pr)}/reviewers/${enc2(me.authenticatedUser.id)}`, { method: "PUT", json: { vote } });
+      return adoc(ctx, `${prPath(ctx, input4.pr)}/reviewers/${enc2(me.authenticatedUser.id)}`, { method: "PUT", json: { vote } });
     }
   });
 }
@@ -146402,7 +146510,7 @@ var repoListReviewersCommand2 = adoCloudArea.command({
   context: IN_REPO2,
   options: [prOption3],
   examples: [{ ...inRepo, pr: 42 }],
-  run: async (input3, ctx) => (await adoc(ctx, `${prPath(ctx, input3.pr)}/reviewers`)).value ?? []
+  run: async (input4, ctx) => (await adoc(ctx, `${prPath(ctx, input4.pr)}/reviewers`)).value ?? []
 });
 var pullRequestCommands = [
   repoListPrsCommand2,
@@ -146433,7 +146541,7 @@ var repoListThreadsCommand = adoCloudArea.command({
   context: IN_REPO2,
   options: [prOption4],
   examples: [{ ...inRepo, pr: 42 }],
-  run: async (input3, ctx) => (await threadsOf(ctx, input3.pr)).filter((t) => !t.isDeleted)
+  run: async (input4, ctx) => (await threadsOf(ctx, input4.pr)).filter((t) => !t.isDeleted)
 });
 var repoListCommentsCommand2 = adoCloudArea.command({
   path: ["ado-cloud", "repo", "list-comments"],
@@ -146458,15 +146566,15 @@ var repoListCommentsCommand2 = adoCloudArea.command({
     { ...inRepo, pr: 42, inlineOnly: true },
     { ...inRepo, pr: 42, generalOnly: true, includeSystem: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const flat = [];
-    for (const thread of await threadsOf(ctx, input3.pr)) {
+    for (const thread of await threadsOf(ctx, input4.pr)) {
       if (thread.isDeleted) continue;
-      if (input3.inlineOnly && !thread.threadContext) continue;
-      if (input3.generalOnly && thread.threadContext) continue;
+      if (input4.inlineOnly && !thread.threadContext) continue;
+      if (input4.generalOnly && thread.threadContext) continue;
       for (const comment of thread.comments ?? []) {
         if (comment.isDeleted) continue;
-        if (!input3.includeSystem && comment.commentType === "system") continue;
+        if (!input4.includeSystem && comment.commentType === "system") continue;
         flat.push({ ...comment, threadId: thread.id, threadContext: thread.threadContext ?? null });
       }
     }
@@ -146488,7 +146596,7 @@ var repoAddCommentCommand2 = adoCloudArea.command({
   context: IN_REPO2,
   options: [prOption4, { flags: "--body <text>", field: "body", description: "Comment text (Markdown)" }],
   examples: [{ ...W7, pr: 42, body: "Looks good." }],
-  run: (input3, ctx) => startThread(ctx, input3.pr, input3.body)
+  run: (input4, ctx) => startThread(ctx, input4.pr, input4.body)
 });
 var repoAddInlineCommentCommand2 = adoCloudArea.command({
   path: ["ado-cloud", "repo", "add-inline-comment"],
@@ -146515,10 +146623,10 @@ var repoAddInlineCommentCommand2 = adoCloudArea.command({
     { ...W7, pr: 42, file: "src/app.ts", line: 12, body: "Off by one?" },
     { ...W7, pr: 42, file: "/src/app.ts", line: 3, body: "Was this removed on purpose?", lineType: "left" }
   ],
-  run: (input3, ctx) => {
-    const position = { line: input3.line, offset: 1 };
-    const range2 = (input3.lineType ?? "right") === "left" ? { leftFileStart: position, leftFileEnd: position } : { rightFileStart: position, rightFileEnd: position };
-    return startThread(ctx, input3.pr, input3.body, { filePath: input3.file.startsWith("/") ? input3.file : `/${input3.file}`, ...range2 });
+  run: (input4, ctx) => {
+    const position = { line: input4.line, offset: 1 };
+    const range2 = (input4.lineType ?? "right") === "left" ? { leftFileStart: position, leftFileEnd: position } : { rightFileStart: position, rightFileEnd: position };
+    return startThread(ctx, input4.pr, input4.body, { filePath: input4.file.startsWith("/") ? input4.file : `/${input4.file}`, ...range2 });
   }
 });
 var repoReplyCommentCommand2 = adoCloudArea.command({
@@ -146531,7 +146639,7 @@ var repoReplyCommentCommand2 = adoCloudArea.command({
   options: [prOption4, threadOption2, { flags: "--body <text>", field: "body", description: "Reply text (Markdown)" }],
   examples: [{ ...W7, pr: 42, threadId: 7, body: "Fixed in the next commit." }],
   // parentCommentId 1 is the thread's first comment, so the reply sits under it.
-  run: (input3, ctx) => adoc(ctx, `${prPath(ctx, input3.pr)}/threads/${input3.threadId}/comments`, { method: "POST", json: { parentCommentId: 1, content: input3.body, commentType: "text" } })
+  run: (input4, ctx) => adoc(ctx, `${prPath(ctx, input4.pr)}/threads/${input4.threadId}/comments`, { method: "POST", json: { parentCommentId: 1, content: input4.body, commentType: "text" } })
 });
 var STATUSES = ["active", "fixed", "wontFix", "closed", "byDesign", "pending"];
 var repoResolveCommentCommand2 = adoCloudArea.command({
@@ -146546,7 +146654,7 @@ var repoResolveCommentCommand2 = adoCloudArea.command({
     { ...W7, pr: 42, threadId: 7 },
     { ...W7, pr: 42, threadId: 7, status: "wontFix" }
   ],
-  run: (input3, ctx) => adoc(ctx, `${prPath(ctx, input3.pr)}/threads/${input3.threadId}`, { method: "PATCH", json: { status: input3.status ?? "fixed" } })
+  run: (input4, ctx) => adoc(ctx, `${prPath(ctx, input4.pr)}/threads/${input4.threadId}`, { method: "PATCH", json: { status: input4.status ?? "fixed" } })
 });
 var commentCommands2 = [repoListThreadsCommand, repoListCommentsCommand2, repoAddCommentCommand2, repoAddInlineCommentCommand2, repoReplyCommentCommand2, repoResolveCommentCommand2];
 
@@ -146570,7 +146678,7 @@ var projectListCommand2 = adoCloudArea.command({
   writes: false,
   options: pageOptions2("projects"),
   examples: [{}, { ...inRepo2, limit: 1 }, { limit: 1, cursor: exampleCursor2("abc12345") }],
-  run: (input3, ctx) => headerPages(ctx, "/_apis/projects", {}, "Azure DevOps projects", pageOf2(input3))
+  run: (input4, ctx) => headerPages(ctx, "/_apis/projects", {}, "Azure DevOps projects", pageOf2(input4))
 });
 var projectGetCommand2 = adoCloudArea.command({
   path: ["ado-cloud", "project", "get"],
@@ -146580,7 +146688,7 @@ var projectGetCommand2 = adoCloudArea.command({
   writes: false,
   options: [{ flags: "--name <project>", field: "name", description: "Project name or id" }],
   examples: [{ name: "Imagile" }, { ...inRepo2, name: "Imagile" }],
-  run: (input3, ctx) => adoc(ctx, `/_apis/projects/${enc2(input3.name)}`)
+  run: (input4, ctx) => adoc(ctx, `/_apis/projects/${enc2(input4.name)}`)
 });
 var repoListCommand2 = adoCloudArea.command({
   path: ["ado-cloud", "repo", "list"],
@@ -146660,7 +146768,7 @@ var workGetCommand2 = adoCloudArea.command({
   writes: false,
   options: [idOption5],
   examples: [{ id: 42 }, { ...all, id: 7 }],
-  run: (input3, ctx) => adoc(ctx, workItemPath(input3.id), { query: { $expand: "all" } })
+  run: (input4, ctx) => adoc(ctx, workItemPath(input4.id), { query: { $expand: "all" } })
 });
 var fieldInput2 = external_exports.array(external_exports.string()).optional().describe("Field as name=value, by reference name or alias (repeatable)");
 var fieldOption = { flags: "--field <name=value>", field: "field", description: "Field as name=value, by reference name or alias (repeatable)" };
@@ -146691,15 +146799,15 @@ var workCreateCommand2 = adoCloudArea.command({
     { ...W8, repo: "imagile-api", type: "Bug", title: "Login broken" },
     { ...W8, type: "User Story", title: "Sign in with a passkey", description: "<p>As a user</p>", assignee: "you@example.com", priority: 2, field: ["storypoints=3", "MyOrg.Team=Core"] }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const fields3 = {
-      "System.Title": input3.title,
-      ...input3.description ? { "System.Description": input3.description } : {},
-      ...input3.assignee ? { "System.AssignedTo": input3.assignee } : {},
-      ...input3.priority !== void 0 ? { "Microsoft.VSTS.Common.Priority": input3.priority } : {}
+      "System.Title": input4.title,
+      ...input4.description ? { "System.Description": input4.description } : {},
+      ...input4.assignee ? { "System.AssignedTo": input4.assignee } : {},
+      ...input4.priority !== void 0 ? { "Microsoft.VSTS.Common.Priority": input4.priority } : {}
     };
-    const patch = [...fieldPatch(fields3), ...fieldPatch(parseFieldArgs2(input3.field ?? []), ctx.connection.fieldAliases)];
-    return adoc(ctx, `${projectPath2(ctx)}/_apis/wit/workitems/${enc2(`$${input3.type}`)}`, { method: "POST", json: patch, headers: PATCH2 });
+    const patch = [...fieldPatch(fields3), ...fieldPatch(parseFieldArgs2(input4.field ?? []), ctx.connection.fieldAliases)];
+    return adoc(ctx, `${projectPath2(ctx)}/_apis/wit/workitems/${enc2(`$${input4.type}`)}`, { method: "POST", json: patch, headers: PATCH2 });
   }
 });
 var workUpdateCommand2 = adoCloudArea.command({
@@ -146718,9 +146826,9 @@ var workUpdateCommand2 = adoCloudArea.command({
     { ...W8, id: 42, field: ["state=Active", "storypoints=5"] },
     { ...W8, repo: "imagile-api", id: 42, field: ["System.Title=Login broken on Safari"], rev: 3 }
   ],
-  run: async (input3, ctx) => {
-    const patch = [...input3.rev !== void 0 ? [{ op: "test", path: "/rev", value: input3.rev }] : [], ...fieldPatch(parseFieldArgs2(input3.field), ctx.connection.fieldAliases)];
-    return adoc(ctx, workItemPath(input3.id), { method: "PATCH", json: patch, headers: PATCH2 });
+  run: async (input4, ctx) => {
+    const patch = [...input4.rev !== void 0 ? [{ op: "test", path: "/rev", value: input4.rev }] : [], ...fieldPatch(parseFieldArgs2(input4.field), ctx.connection.fieldAliases)];
+    return adoc(ctx, workItemPath(input4.id), { method: "PATCH", json: patch, headers: PATCH2 });
   }
 });
 var WIQL_MAX2 = 2e4;
@@ -146750,14 +146858,14 @@ var workSearchCommand2 = adoCloudArea.command({
     { ...all, wiql: "SELECT [System.Id] FROM WorkItems", limit: 1 },
     { ...at3, wiql: "SELECT [System.Id] FROM WorkItems", limit: 1, cursor: "1" }
   ],
-  run: async (input3, ctx) => {
-    const page2 = pageOf2(input3);
+  run: async (input4, ctx) => {
+    const page2 = pageOf2(input4);
     if (page2.cursor !== void 0 && !/^\d+$/.test(page2.cursor)) {
       throw new ToilError("INVALID_INPUT", `"${page2.cursor}" isn't a cursor this command hands out.`, { fix: "Pass meta.page.nextCursor from the previous page unchanged, or leave out --cursor to start at the beginning." });
     }
     const offset = page2.cursor === void 0 ? 0 : Number(page2.cursor);
-    let wiql = input3.wiql;
-    if (input3.updatedSince !== void 0) wiql = andWhere2(wiql, `[System.ChangedDate] >= '${wiqlInstant2(input3.updatedSince)}'`);
+    let wiql = input4.wiql;
+    if (input4.updatedSince !== void 0) wiql = andWhere2(wiql, `[System.ChangedDate] >= '${wiqlInstant2(input4.updatedSince)}'`);
     else if (page2.cap !== void 0) checkFlat2(wiql);
     const query2 = {};
     if (page2.cap !== void 0) {
@@ -146769,7 +146877,7 @@ var workSearchCommand2 = adoCloudArea.command({
       }
       query2.$top = top2;
     }
-    if (input3.updatedSince !== void 0) query2.timePrecision = "true";
+    if (input4.updatedSince !== void 0) query2.timePrecision = "true";
     const result = await adoc(ctx, `${projectPath2(ctx)}/_apis/wit/wiql`, { method: "POST", query: query2, json: { query: wiql } });
     if (page2.cap === void 0) return result;
     const all3 = result.workItems ?? [];
@@ -146786,7 +146894,7 @@ var workRevisionsCommand2 = adoCloudArea.command({
   writes: false,
   options: [idOption5, ...pageOptions2("revisions")],
   examples: [{ id: 42 }, { ...all, id: 42, limit: 1 }, { id: 42, limit: 1, cursor: exampleCursor2("1", REVISIONS_PAGE2) }],
-  run: (input3, ctx) => skipPages(ctx, `/_apis/wit/workItems/${input3.id}/revisions`, {}, REVISIONS_PAGE2, `revisions of Azure DevOps work item ${input3.id}`, pageOf2(input3))
+  run: (input4, ctx) => skipPages(ctx, `/_apis/wit/workItems/${input4.id}/revisions`, {}, REVISIONS_PAGE2, `revisions of Azure DevOps work item ${input4.id}`, pageOf2(input4))
 });
 var BATCH_SIZE2 = 200;
 var BATCH_MAX2 = 1e3;
@@ -146806,12 +146914,12 @@ var workGetBatchCommand2 = adoCloudArea.command({
     { flags: "--fields <names>", field: "fields", description: "Comma-separated field reference names to return (default: every field, with relations)" }
   ],
   examples: [{ ...all, id: [42, 7] }, { id: [42, 404], fields: "System.Title, System.State" }],
-  run: async (input3, ctx) => {
-    const ids = [...new Set(input3.id)];
+  run: async (input4, ctx) => {
+    const ids = [...new Set(input4.id)];
     if (ids.length > BATCH_MAX2) {
       throw new ToilError("INVALID_INPUT", `get-batch takes at most ${BATCH_MAX2} work item ids in one call, and this one has ${ids.length}.`, { fix: `Split the ids into calls of ${BATCH_MAX2} or fewer.` });
     }
-    const fields3 = input3.fields?.split(",").map((f) => f.trim()).filter(Boolean);
+    const fields3 = input4.fields?.split(",").map((f) => f.trim()).filter(Boolean);
     const found = /* @__PURE__ */ new Map();
     for (let start2 = 0; start2 < ids.length; start2 += BATCH_SIZE2) {
       const json3 = { ids: ids.slice(start2, start2 + BATCH_SIZE2), ...fields3?.length ? { fields: fields3 } : { $expand: "all" }, errorPolicy: "omit" };
@@ -146834,13 +146942,13 @@ var workListCommentsCommand2 = adoCloudArea.command({
   context: IN_PROJECT,
   options: [idOption5, ...pageOptions2("comments")],
   examples: [{ ...at3, id: 42 }, { ...all, id: 42, limit: 1 }, { ...at3, id: 42, limit: 1, cursor: exampleCursor2("abc12345") }],
-  run: (input3, ctx) => bodyTokenPages(
+  run: (input4, ctx) => bodyTokenPages(
     ctx,
-    `${projectPath2(ctx)}/_apis/wit/workItems/${input3.id}/comments`,
+    `${projectPath2(ctx)}/_apis/wit/workItems/${input4.id}/comments`,
     { $top: COMMENTS_PAGE, "api-version": API_COMMENTS2 },
     (body) => body.comments ?? [],
-    `comments on Azure DevOps work item ${input3.id}`,
-    pageOf2(input3)
+    `comments on Azure DevOps work item ${input4.id}`,
+    pageOf2(input4)
   )
 });
 var workAddCommentCommand2 = adoCloudArea.command({
@@ -146852,7 +146960,7 @@ var workAddCommentCommand2 = adoCloudArea.command({
   context: IN_PROJECT,
   options: [idOption5, { flags: "--body <text>", field: "body", description: "Comment text" }],
   examples: [{ ...W8, repo: "imagile-api", id: 42, body: "Looked into it." }],
-  run: (input3, ctx) => adoc(ctx, `${projectPath2(ctx)}/_apis/wit/workItems/${input3.id}/comments`, { method: "POST", query: { "api-version": API_COMMENTS2 }, json: { text: input3.body } })
+  run: (input4, ctx) => adoc(ctx, `${projectPath2(ctx)}/_apis/wit/workItems/${input4.id}/comments`, { method: "POST", query: { "api-version": API_COMMENTS2 }, json: { text: input4.body } })
 });
 var DEPTH2 = "Depth of the iteration tree to retrieve (default: 10)";
 var workListIterationsCommand2 = adoCloudArea.command({
@@ -146864,7 +146972,7 @@ var workListIterationsCommand2 = adoCloudArea.command({
   context: IN_PROJECT,
   options: [{ flags: "--depth <n>", field: "depth", description: DEPTH2 }],
   examples: [at3, { ...all, depth: 2 }],
-  run: (input3, ctx) => adoc(ctx, `${projectPath2(ctx)}/_apis/wit/classificationnodes/iterations`, { query: { $depth: input3.depth ?? 10 } })
+  run: (input4, ctx) => adoc(ctx, `${projectPath2(ctx)}/_apis/wit/classificationnodes/iterations`, { query: { $depth: input4.depth ?? 10 } })
 });
 var workCommands = [workGetCommand2, workCreateCommand2, workUpdateCommand2, workSearchCommand2, workRevisionsCommand2, workGetBatchCommand2, workListCommentsCommand2, workAddCommentCommand2, workListIterationsCommand2];
 
@@ -146985,9 +147093,9 @@ function parsePositiveId(value2, what) {
   if (!/^[1-9]\d*$/.test(trimmed)) throw invalid(`Invalid ${what} "${value2}". Expected a positive integer ID.`);
   return Number(trimmed);
 }
-function pageParams(input3) {
-  const limit3 = parseIntOption(input3.limit ?? "100", "--limit") ?? 100;
-  const skip = parseIntOption(input3.skip ?? "0", "--skip") ?? 0;
+function pageParams(input4) {
+  const limit3 = parseIntOption(input4.limit ?? "100", "--limit") ?? 100;
+  const skip = parseIntOption(input4.skip ?? "0", "--skip") ?? 0;
   if (limit3 < 1 || limit3 > MAX_PAGE) {
     throw new ToilError("INVALID_INPUT", `--limit must be between 1 and ${MAX_PAGE} (Alation's per-request cap).`, { fix: "Pass --limit 1 to 1000, and page on with --skip." });
   }
@@ -147068,10 +147176,10 @@ var datasourceListCommand = alationArea.command({
     { flags: "--include-hidden", field: "includeHidden", description: "Include hidden data sources" }
   ],
   examples: [{}, { includeUndeployed: true, includeHidden: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const params2 = {};
-    if (input3.includeUndeployed) params2.include_undeployed = true;
-    if (input3.includeHidden) params2.include_hidden = true;
+    if (input4.includeUndeployed) params2.include_undeployed = true;
+    if (input4.includeHidden) params2.include_hidden = true;
     const data = await alation(ctx, "integration/v1/datasource/", { params: params2 });
     return { count: data.length, datasources: data };
   }
@@ -147083,7 +147191,7 @@ var datasourceGetCommand = alationArea.command({
   writes: false,
   args: idArg("Data source"),
   examples: [{ id: "3" }],
-  run: async (input3, ctx) => alation(ctx, `integration/v1/datasource/${parsePositiveId(input3.id, "data source ID")}/`)
+  run: async (input4, ctx) => alation(ctx, `integration/v1/datasource/${parsePositiveId(input4.id, "data source ID")}/`)
 });
 var schemaListCommand = alationArea.command({
   path: ["alation", "schema", "list"],
@@ -147101,10 +147209,10 @@ var schemaListCommand = alationArea.command({
     SKIP
   ],
   examples: [{}, { ds: "3", name: "public", limit: "50", skip: "50" }],
-  run: async (input3, ctx) => {
-    const params2 = { ...pageParams(input3) };
-    if (given(input3.ds)) params2.ds_id = parsePositiveId(input3.ds, "--ds");
-    if (input3.name) params2.name = input3.name;
+  run: async (input4, ctx) => {
+    const params2 = { ...pageParams(input4) };
+    if (given(input4.ds)) params2.ds_id = parsePositiveId(input4.ds, "--ds");
+    if (input4.name) params2.name = input4.name;
     const data = await alation(ctx, "integration/v2/schema/", { params: params2 });
     return { count: data.length, limit: params2.limit, skip: params2.skip, schemas: data };
   }
@@ -147116,7 +147224,7 @@ var schemaGetCommand = alationArea.command({
   writes: false,
   args: idArg("Schema"),
   examples: [{ id: "11" }],
-  run: async (input3, ctx) => getOne(ctx, "integration/v2/schema/", parsePositiveId(input3.id, "schema ID"), "Schema")
+  run: async (input4, ctx) => getOne(ctx, "integration/v2/schema/", parsePositiveId(input4.id, "schema ID"), "Schema")
 });
 var tableListCommand = alationArea.command({
   path: ["alation", "table", "list"],
@@ -147140,13 +147248,13 @@ var tableListCommand = alationArea.command({
     SKIP
   ],
   examples: [{}, { ds: "3", schema: "11", schemaName: "public", name: "customers", search: "cust", limit: "50", skip: "10" }],
-  run: async (input3, ctx) => {
-    const params2 = { ...pageParams(input3) };
-    if (given(input3.ds)) params2.ds_id = parsePositiveId(input3.ds, "--ds");
-    if (given(input3.schema)) params2.schema_id = parsePositiveId(input3.schema, "--schema");
-    if (input3.schemaName) params2.schema_name = input3.schemaName;
-    if (input3.name) params2.name = input3.name;
-    if (input3.search) params2.name__icontains = input3.search;
+  run: async (input4, ctx) => {
+    const params2 = { ...pageParams(input4) };
+    if (given(input4.ds)) params2.ds_id = parsePositiveId(input4.ds, "--ds");
+    if (given(input4.schema)) params2.schema_id = parsePositiveId(input4.schema, "--schema");
+    if (input4.schemaName) params2.schema_name = input4.schemaName;
+    if (input4.name) params2.name = input4.name;
+    if (input4.search) params2.name__icontains = input4.search;
     const data = await alation(ctx, "integration/v2/table/", { params: params2 });
     return { count: data.length, limit: params2.limit, skip: params2.skip, tables: data };
   }
@@ -147162,10 +147270,10 @@ var tableGetCommand = alationArea.command({
   args: idArg("Table"),
   options: [{ flags: "--columns", field: "columns", description: "Also fetch the table's columns (up to 1000)" }],
   examples: [{ id: "7" }, { id: "7", columns: true }],
-  run: async (input3, ctx) => {
-    const tableId = parsePositiveId(input3.id, "table ID");
+  run: async (input4, ctx) => {
+    const tableId = parsePositiveId(input4.id, "table ID");
     const data = await getOne(ctx, "integration/v2/table/", tableId, "Table");
-    if (!input3.columns) return data;
+    if (!input4.columns) return data;
     const columns = await alation(ctx, "integration/v2/column/", { params: { table_id: tableId, limit: MAX_PAGE, order_by: "id" } });
     if (columns.length >= MAX_PAGE) {
       ctx.warn({ code: "ALATION_COLUMNS_TRUNCATED", message: `columns holds the first ${MAX_PAGE} by ID; the table may have more. Use toil alation column list --table ${tableId} --skip ${MAX_PAGE} for the rest.` });
@@ -147197,19 +147305,19 @@ var columnListCommand = alationArea.command({
     SKIP
   ],
   examples: [{ table: "7" }, { table: "7", tableName: "orders", schema: "11", ds: "3", name: "total", search: "tot", limit: "20", skip: "0" }],
-  run: async (input3, ctx) => {
-    if (!given(input3.table) && !input3.tableName && !given(input3.schema) && !given(input3.ds) && !input3.name && !input3.search) {
+  run: async (input4, ctx) => {
+    if (!given(input4.table) && !input4.tableName && !given(input4.schema) && !given(input4.ds) && !input4.name && !input4.search) {
       throw new ToilError("INVALID_INPUT", "Pass at least one filter (--table, --table-name, --schema, --ds, --name, or --search); listing every column in the catalog is not supported.", {
         fix: "Narrow it to a table, e.g. --table 7."
       });
     }
-    const params2 = { ...pageParams(input3) };
-    if (given(input3.table)) params2.table_id = parsePositiveId(input3.table, "--table");
-    if (input3.tableName) params2.table_name = input3.tableName;
-    if (given(input3.schema)) params2.schema_id = parsePositiveId(input3.schema, "--schema");
-    if (given(input3.ds)) params2.ds_id = parsePositiveId(input3.ds, "--ds");
-    if (input3.name) params2.name = input3.name;
-    if (input3.search) params2.name__icontains = input3.search;
+    const params2 = { ...pageParams(input4) };
+    if (given(input4.table)) params2.table_id = parsePositiveId(input4.table, "--table");
+    if (input4.tableName) params2.table_name = input4.tableName;
+    if (given(input4.schema)) params2.schema_id = parsePositiveId(input4.schema, "--schema");
+    if (given(input4.ds)) params2.ds_id = parsePositiveId(input4.ds, "--ds");
+    if (input4.name) params2.name = input4.name;
+    if (input4.search) params2.name__icontains = input4.search;
     const data = await alation(ctx, "integration/v2/column/", { params: params2 });
     return { count: data.length, limit: params2.limit, skip: params2.skip, columns: data };
   }
@@ -147221,7 +147329,7 @@ var columnGetCommand = alationArea.command({
   writes: false,
   args: idArg("Column"),
   examples: [{ id: "70" }],
-  run: async (input3, ctx) => getOne(ctx, "integration/v2/column/", parsePositiveId(input3.id, "column ID"), "Column")
+  run: async (input4, ctx) => getOne(ctx, "integration/v2/column/", parsePositiveId(input4.id, "column ID"), "Column")
 });
 var OTYPE_HELP = `Comma-separated object types to restrict to (e.g. table,column). Valid: ${SEARCH_OTYPES.join(", ")}`;
 var searchCommand = alationArea.command({
@@ -147241,15 +147349,15 @@ var searchCommand = alationArea.command({
     { flags: "--offset <n>", field: "offset", description: 'Index of the first result (default: "0")' }
   ],
   examples: [{ query: "customer" }, { query: "customer", otype: "table,column", limit: "5", offset: "10" }],
-  run: async (input3, ctx) => {
-    const limit3 = parseIntOption(input3.limit ?? "20", "--limit") ?? 20;
-    const offset = parseIntOption(input3.offset ?? "0", "--offset") ?? 0;
+  run: async (input4, ctx) => {
+    const limit3 = parseIntOption(input4.limit ?? "20", "--limit") ?? 20;
+    const offset = parseIntOption(input4.offset ?? "0", "--offset") ?? 0;
     if (limit3 > 1e4) throw new ToilError("INVALID_INPUT", "--limit must be at most 10000", { fix: "Pass --limit 10000 or less, and page on with --offset." });
-    const params2 = { q: input3.query, limit: limit3, offset };
-    const otypes = parseOtypes(input3.otype);
+    const params2 = { q: input4.query, limit: limit3, offset };
+    const otypes = parseOtypes(input4.otype);
     if (otypes) params2.filters = JSON.stringify({ otypes });
     const data = await alation(ctx, "integration/v1/search/", { params: params2 });
-    return { query: input3.query, total: data.total, limit: data.limit, offset: data.offset, fullSearchUrl: data.full_search_url, results: data.results };
+    return { query: input4.query, total: data.total, limit: data.limit, offset: data.offset, fullSearchUrl: data.full_search_url, results: data.results };
   }
 });
 var catalogCommands = [
@@ -147393,11 +147501,11 @@ var folderListCommand = alationArea.command({
     SKIP2
   ],
   examples: [{}, { hub: "1", parent: "42", search: "onboarding", limit: "10", skip: "20" }],
-  run: async (input3, ctx) => {
-    const params2 = { ...pageParams(input3) };
-    if (given(input3.hub)) params2.document_hub_id = parsePositiveId(input3.hub, "--hub");
-    if (given(input3.parent)) params2.parent_folder_id = parsePositiveId(input3.parent, "--parent");
-    if (input3.search) params2.search = input3.search;
+  run: async (input4, ctx) => {
+    const params2 = { ...pageParams(input4) };
+    if (given(input4.hub)) params2.document_hub_id = parsePositiveId(input4.hub, "--hub");
+    if (given(input4.parent)) params2.parent_folder_id = parsePositiveId(input4.parent, "--parent");
+    if (input4.search) params2.search = input4.search;
     const data = await alation(ctx, "integration/v2/folder/", { params: params2 });
     return { count: data.length, limit: params2.limit, skip: params2.skip, folders: data };
   }
@@ -147409,7 +147517,7 @@ var folderGetCommand = alationArea.command({
   writes: false,
   args: [{ name: "id", field: "id", description: "Folder ID" }],
   examples: [{ id: "42" }],
-  run: async (input3, ctx) => getOne(ctx, "integration/v2/folder/", parsePositiveId(input3.id, "folder ID"), "Folder")
+  run: async (input4, ctx) => getOne(ctx, "integration/v2/folder/", parsePositiveId(input4.id, "folder ID"), "Folder")
 });
 var documentListCommand = alationArea.command({
   path: ["alation", "document", "list"],
@@ -147433,13 +147541,13 @@ var documentListCommand = alationArea.command({
     SKIP2
   ],
   examples: [{}, { hub: "1", folder: "42", parentDocument: "12", search: "customer", deleted: true, limit: "25", skip: "25" }],
-  run: async (input3, ctx) => {
-    const params2 = { ...pageParams(input3) };
-    if (given(input3.hub)) params2.document_hub_id = parsePositiveId(input3.hub, "--hub");
-    if (given(input3.folder)) params2.parent_folder_id = parsePositiveId(input3.folder, "--folder");
-    if (given(input3.parentDocument)) params2.parent_document_id = parsePositiveId(input3.parentDocument, "--parent-document");
-    if (input3.search) params2.search = input3.search;
-    if (input3.deleted) params2.deleted = true;
+  run: async (input4, ctx) => {
+    const params2 = { ...pageParams(input4) };
+    if (given(input4.hub)) params2.document_hub_id = parsePositiveId(input4.hub, "--hub");
+    if (given(input4.folder)) params2.parent_folder_id = parsePositiveId(input4.folder, "--folder");
+    if (given(input4.parentDocument)) params2.parent_document_id = parsePositiveId(input4.parentDocument, "--parent-document");
+    if (input4.search) params2.search = input4.search;
+    if (input4.deleted) params2.deleted = true;
     const data = await alation(ctx, "integration/v2/document/", { params: params2 });
     return { count: data.length, limit: params2.limit, skip: params2.skip, documents: data };
   }
@@ -147451,7 +147559,7 @@ var documentGetCommand = alationArea.command({
   writes: false,
   args: [{ name: "id", field: "id", description: "Document ID" }],
   examples: [{ id: "12" }],
-  run: async (input3, ctx) => getOne(ctx, "integration/v2/document/", parsePositiveId(input3.id, "document ID"), "Document")
+  run: async (input4, ctx) => getOne(ctx, "integration/v2/document/", parsePositiveId(input4.id, "document ID"), "Document")
 });
 var documentSchemaCommand = alationArea.command({
   path: ["alation", "document", "schema"],
@@ -147463,7 +147571,7 @@ var documentSchemaCommand = alationArea.command({
   writes: false,
   options: [{ flags: "--example-only", field: "exampleOnly", description: "Return only the runnable example as data, ready to save as an input file" }],
   examples: [{}, { exampleOnly: true }],
-  run: async (input3) => input3.exampleOnly ? DOCUMENT_INPUT_FILE_EXAMPLE : { schema: DOCUMENT_INPUT_FILE_SCHEMA, example: DOCUMENT_INPUT_FILE_EXAMPLE }
+  run: async (input4) => input4.exampleOnly ? DOCUMENT_INPUT_FILE_EXAMPLE : { schema: DOCUMENT_INPUT_FILE_SCHEMA, example: DOCUMENT_INPUT_FILE_EXAMPLE }
 });
 var INPUT_FILE_CREATE2 = 'JSON file with title/description/hub/folder/template/fields (see `alation document schema`); "-" reads stdin';
 var INPUT_FILE_UPDATE2 = 'JSON file with title/description/folder/template/fields (see `alation document schema`); "-" reads stdin';
@@ -147494,8 +147602,8 @@ var documentCreateCommand = alationArea.command({
     { title: "Notes", description: "Hi", hub: "1", folder: "42", allowWrite: true },
     { inputFile: "alation-doc.json", title: "From flag", template: "9", parentDocument: "12", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const { payload, overrides } = buildDocumentPayload(input3, ctx.files, ctx.warn);
+  run: async (input4, ctx) => {
+    const { payload, overrides } = buildDocumentPayload(input4, ctx.files, ctx.warn);
     for (const [key6, flag] of [["title", "--title"], ["document_hub_id", "--hub"], ["parent_folder_id", "--folder"]]) {
       if (payload[key6] === void 0) throw new ToilError("INVALID_INPUT", `${flag} is required to create a document (or set it in --input-file)`, { fix: `Pass ${flag}, or set it in --input-file.` });
     }
@@ -147528,9 +147636,9 @@ var documentUpdateCommand = alationArea.command({
     { id: "12", description: "New", allowWrite: true },
     { id: "12", inputFile: "alation-update.json", title: "Renamed", folder: "43", template: "9", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const documentId = parsePositiveId(input3.id, "document ID");
-    const { payload, overrides } = buildDocumentPayload(input3, ctx.files, ctx.warn);
+  run: async (input4, ctx) => {
+    const documentId = parsePositiveId(input4.id, "document ID");
+    const { payload, overrides } = buildDocumentPayload(input4, ctx.files, ctx.warn);
     if (payload.document_hub_id !== void 0) {
       throw new ToilError("INVALID_INPUT", 'A document cannot change hubs; remove "hub" from --input-file.', { fix: 'Remove "hub" from --input-file.' });
     }
@@ -147549,8 +147657,8 @@ var jobGetCommand = alationArea.command({
   writes: false,
   args: [{ name: "id", field: "id", description: "Job ID" }],
   examples: [{ id: "555" }],
-  run: async (input3, ctx) => {
-    const jobId3 = parsePositiveId(input3.id, "job ID");
+  run: async (input4, ctx) => {
+    const jobId3 = parsePositiveId(input4.id, "job ID");
     const data = await alation(ctx, "api/v1/bulk_metadata/job/", { params: { id: jobId3 } });
     return { jobId: jobId3, ...data };
   }
@@ -147700,7 +147808,7 @@ var reposCommand = artifactoryArea.command({
   ],
   examples: [{}, { type: "local", packageType: "npm" }],
   // Neither filter is checked here; Artifactory decides what a type is.
-  run: async (input3, ctx) => artifactory(ctx, "api/repositories", { query: { type: input3.type, packageType: input3.packageType } })
+  run: async (input4, ctx) => artifactory(ctx, "api/repositories", { query: { type: input4.type, packageType: input4.packageType } })
 });
 var artifactInfoCommand = artifactoryArea.command({
   path: ["artifactory", "artifact-info"],
@@ -147715,7 +147823,7 @@ var artifactInfoCommand = artifactoryArea.command({
     { name: "path", field: "path", description: "Path of the artifact or folder inside the repository" }
   ],
   examples: [{ repo: "libs-release-local", path: "dev/imagile/api/1.4.0/api-1.4.0.jar" }, { repo: "libs-release-local", path: "/dev/imagile/api" }],
-  run: async (input3, ctx) => artifactory(ctx, storagePath(input3.repo, input3.path))
+  run: async (input4, ctx) => artifactory(ctx, storagePath(input4.repo, input4.path))
 });
 var propertiesGetCommand = artifactoryArea.command({
   path: ["artifactory", "properties-get"],
@@ -147730,7 +147838,7 @@ var propertiesGetCommand = artifactoryArea.command({
     { name: "path", field: "path", description: "Path of the artifact or folder inside the repository" }
   ],
   examples: [{ repo: "libs-release-local", path: "dev/imagile/api/1.4.0/api-1.4.0.jar" }],
-  run: async (input3, ctx) => artifactory(ctx, storagePath(input3.repo, input3.path), { query: { properties: "" } })
+  run: async (input4, ctx) => artifactory(ctx, storagePath(input4.repo, input4.path), { query: { properties: "" } })
 });
 var propertiesSetCommand = artifactoryArea.command({
   path: ["artifactory", "properties-set"],
@@ -147753,8 +147861,8 @@ var propertiesSetCommand = artifactoryArea.command({
     { repo: "libs-release-local", path: "dev/imagile/api/1.4.0/api-1.4.0.jar", keyvals: ["qa.status=passed", "build.ticket=ABC-123"], allowWrite: true },
     { repo: "libs-release-local", path: "/dev/imagile/api", keyvals: ["retention=keep"], recursive: true, allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const keyvals = input3.keyvals ?? [];
+  run: async (input4, ctx) => {
+    const keyvals = input4.keyvals ?? [];
     if (!keyvals.length) {
       throw new ToilError("INVALID_INPUT", "Provide at least one key=value pair", { fix: "Pass the properties to set after the path, e.g. toil artifactory properties-set <repo> <path> qa.status=passed." });
     }
@@ -147765,8 +147873,8 @@ var propertiesSetCommand = artifactoryArea.command({
       properties[kv.slice(0, eq)] = kv.slice(eq + 1);
     }
     const propString = Object.entries(properties).map(([k, v]) => `${k}=${v}`).join(";");
-    await artifactory(ctx, storagePath(input3.repo, input3.path), { method: "PUT", query: { properties: propString, ...input3.recursive ? { recursive: 1 } : {} } });
-    return { repo: input3.repo, path: input3.path, properties };
+    await artifactory(ctx, storagePath(input4.repo, input4.path), { method: "PUT", query: { properties: propString, ...input4.recursive ? { recursive: 1 } : {} } });
+    return { repo: input4.repo, path: input4.path, properties };
   }
 });
 var searchCommand2 = artifactoryArea.command({
@@ -147798,13 +147906,13 @@ var searchCommand2 = artifactoryArea.command({
     { repo: "libs-release-local" },
     { repo: "libs-release-local", name: "api-*.jar", path: "dev/imagile/*", after: "2026-01-01", before: "2026-10-01", limit: "5", properties: true }
   ],
-  run: async (input3, ctx) => {
-    if (!input3.repo && !input3.name && !input3.path) {
+  run: async (input4, ctx) => {
+    if (!input4.repo && !input4.name && !input4.path) {
       throw new ToilError("INVALID_INPUT", "Provide at least one filter: --repo, --name, or --path", { fix: "Add --repo <key>, --name <pattern> or --path <pattern> to the search." });
     }
-    const parsed = parseInt(String(input3.limit ?? "100"), 10);
+    const parsed = parseInt(String(input4.limit ?? "100"), 10);
     const limit3 = Number.isNaN(parsed) ? 100 : parsed;
-    return artifactory(ctx, "api/search/aql", { method: "POST", body: aql({ ...input3, limit: limit3 }), headers: { "Content-Type": "text/plain" } });
+    return artifactory(ctx, "api/search/aql", { method: "POST", body: aql({ ...input4, limit: limit3 }), headers: { "Content-Type": "text/plain" } });
   }
 });
 function aql(opts) {
@@ -147830,8 +147938,8 @@ var buildsCommand = artifactoryArea.command({
   timeLimitMs: 6e5,
   options: [{ flags: "--timeout <s>", field: "timeout", description: "Request timeout in seconds (default 60; increase for large Artifactory instances)" }],
   examples: [{}, { timeout: "90" }],
-  run: async (input3, ctx) => {
-    const timeoutSecs = parseInt(String(input3.timeout ?? "60"), 10);
+  run: async (input4, ctx) => {
+    const timeoutSecs = parseInt(String(input4.timeout ?? "60"), 10);
     if (isNaN(timeoutSecs) || timeoutSecs <= 0) {
       throw new ToilError("INVALID_INPUT", "--timeout must be a positive integer (seconds)", { fix: "Pass --timeout <seconds>, a whole number above 0, or leave it out for 60." });
     }
@@ -147853,7 +147961,7 @@ var buildRunsCommand = artifactoryArea.command({
   writes: false,
   args: [{ name: "name", field: "name", description: "Build name, as builds lists it" }],
   examples: [{ name: "imagile-api" }, { name: "imagile api/main" }],
-  run: async (input3, ctx) => artifactory(ctx, `api/build/${encodeURIComponent(input3.name)}`)
+  run: async (input4, ctx) => artifactory(ctx, `api/build/${encodeURIComponent(input4.name)}`)
 });
 var buildInfoCommand = artifactoryArea.command({
   path: ["artifactory", "build-info"],
@@ -147868,7 +147976,7 @@ var buildInfoCommand = artifactoryArea.command({
     { name: "number", field: "number", description: "Run number, as build-runs lists it" }
   ],
   examples: [{ name: "imagile-api", number: "142" }],
-  run: async (input3, ctx) => artifactory(ctx, `api/build/${encodeURIComponent(input3.name)}/${encodeURIComponent(input3.number)}`)
+  run: async (input4, ctx) => artifactory(ctx, `api/build/${encodeURIComponent(input4.name)}/${encodeURIComponent(input4.number)}`)
 });
 var artifactoryCommands = [pingCommand, reposCommand, artifactInfoCommand, propertiesGetCommand, propertiesSetCommand, searchCommand2, buildsCommand, buildRunsCommand, buildInfoCommand];
 
@@ -148075,10 +148183,10 @@ var outdatedCommand = artifactoryArea.command({
     { from: "inventory.json", ecosystem: "npm", minor: true },
     { from: "inventory.json", major: true, patch: true }
   ],
-  run: async (input3, ctx) => {
-    const packages = direct(readInventory2(ctx, input3.from), input3.ecosystem, false);
+  run: async (input4, ctx) => {
+    const packages = direct(readInventory2(ctx, input4.from), input4.ecosystem, false);
     await requireReachable(ctx);
-    const filterType = input3.major ? "major" : input3.minor ? "minor" : input3.patch ? "patch" : void 0;
+    const filterType = input4.major ? "major" : input4.minor ? "minor" : input4.patch ? "patch" : void 0;
     const order = { major: 3, minor: 2, patch: 1 };
     const outdated = [];
     const unchecked = /* @__PURE__ */ new Set();
@@ -148117,8 +148225,8 @@ var licenseCheckCommand = artifactoryArea.command({
     { flags: "--include-dev", field: "includeDev", description: "Include dev/test dependencies (default: false)" }
   ],
   examples: [{ from: "inventory.json" }, { from: "inventory.json", ecosystem: "nuget", includeDev: true }],
-  run: async (input3, ctx) => {
-    const packages = direct(readInventory2(ctx, input3.from), input3.ecosystem, input3.includeDev === true);
+  run: async (input4, ctx) => {
+    const packages = direct(readInventory2(ctx, input4.from), input4.ecosystem, input4.includeDev === true);
     await requireReachable(ctx);
     const licensed = [];
     for (const pkg of packages) {
@@ -148321,13 +148429,13 @@ var listCommentsCommand = bitbucketArea.command({
     { project: "PROJ", repo: "imagile-api", pr: "42", generalOnly: true },
     { project: "PROJ", repo: "imagile-api", pr: "42", withReplies: false }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    const prId3 = toInt2(input3.pr);
-    const withReplies = input3.withReplies ?? true;
+    const prId3 = toInt2(input4.pr);
+    const withReplies = input4.withReplies ?? true;
     const activities = await bbAll(ctx, `${prPath2(project2, repo, prId3)}/activities`, {}, `Bitbucket activities on pull request ${prId3}`);
     const topLevel = activities.filter((a) => a.action === "COMMENTED" && a.comment).map((a) => a.comment);
-    const keep = (c) => (!input3.inlineOnly || !!c.anchor) && (!input3.generalOnly || !c.anchor);
+    const keep = (c) => (!input4.inlineOnly || !!c.anchor) && (!input4.generalOnly || !c.anchor);
     if (!withReplies) return topLevel.filter(keep);
     const flatten2 = (comment, parentId) => {
       const node3 = { ...comment, comments: void 0, ...parentId !== void 0 ? { parentId } : {} };
@@ -148345,9 +148453,9 @@ var addCommentCommand = bitbucketArea.command({
   context: IN_REPO3,
   options: [prOption5, { flags: "--body <text>", field: "body", description: "Comment text" }],
   examples: [{ project: "PROJ", repo: "imagile-api", pr: "42", body: "Looks good to me.", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    return bb(ctx, `${prPath2(project2, repo, toInt2(input3.pr))}/comments`, { method: "POST", json: { text: input3.body } });
+    return bb(ctx, `${prPath2(project2, repo, toInt2(input4.pr))}/comments`, { method: "POST", json: { text: input4.body } });
   }
 });
 var addInlineCommentCommand = bitbucketArea.command({
@@ -148375,10 +148483,10 @@ var addInlineCommentCommand = bitbucketArea.command({
     { project: "PROJ", repo: "imagile-api", pr: "42", file: "src/retry.ts", line: "12", body: "Cap the backoff?", allowWrite: true },
     { project: "PROJ", repo: "imagile-api", pr: "42", file: "src/old.ts", line: 3, body: "Why was this removed?", lineType: "REMOVED", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    const anchor2 = { line: toInt2(input3.line), lineType: input3.lineType ?? "ADDED", fileType: "TO", path: input3.file };
-    return bb(ctx, `${prPath2(project2, repo, toInt2(input3.pr))}/comments`, { method: "POST", json: { text: input3.body, anchor: anchor2 } });
+    const anchor2 = { line: toInt2(input4.line), lineType: input4.lineType ?? "ADDED", fileType: "TO", path: input4.file };
+    return bb(ctx, `${prPath2(project2, repo, toInt2(input4.pr))}/comments`, { method: "POST", json: { text: input4.body, anchor: anchor2 } });
   }
 });
 var replyCommentCommand = bitbucketArea.command({
@@ -148390,9 +148498,9 @@ var replyCommentCommand = bitbucketArea.command({
   context: IN_REPO3,
   options: [prOption5, { flags: "--comment-id <id>", field: "commentId", description: "Comment ID to reply to" }, { flags: "--body <text>", field: "body", description: "Reply text" }],
   examples: [{ project: "PROJ", repo: "imagile-api", pr: "42", commentId: "1001", body: "Done.", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    return bb(ctx, `${prPath2(project2, repo, toInt2(input3.pr))}/comments`, { method: "POST", json: { text: input3.body, parent: { id: toInt2(input3.commentId) } } });
+    return bb(ctx, `${prPath2(project2, repo, toInt2(input4.pr))}/comments`, { method: "POST", json: { text: input4.body, parent: { id: toInt2(input4.commentId) } } });
   }
 });
 var resolveCommentCommand = bitbucketArea.command({
@@ -148407,10 +148515,10 @@ var resolveCommentCommand = bitbucketArea.command({
     { project: "PROJ", repo: "imagile-api", pr: "42", commentId: "1001", allowWrite: true },
     { project: "PROJ", repo: "imagile-api", pr: "42", commentId: "1001", commentVersion: "2", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    const path2 = `${prPath2(project2, repo, toInt2(input3.pr))}/comments/${toInt2(input3.commentId)}`;
-    await bb(ctx, path2, { method: "PUT", json: { version: toInt2(input3.commentVersion, "0"), threadResolved: true } });
+    const path2 = `${prPath2(project2, repo, toInt2(input4.pr))}/comments/${toInt2(input4.commentId)}`;
+    await bb(ctx, path2, { method: "PUT", json: { version: toInt2(input4.commentVersion, "0"), threadResolved: true } });
     return { resolved: true };
   }
 });
@@ -148428,10 +148536,10 @@ var deleteCommentCommand = bitbucketArea.command({
     { project: "PROJ", repo: "imagile-api", pr: "42", commentId: "1002", allowWrite: true },
     { project: "PROJ", repo: "imagile-api", pr: "42", commentId: "1002", commentVersion: 1, allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    const path2 = `${prPath2(project2, repo, toInt2(input3.pr))}/comments/${toInt2(input3.commentId)}`;
-    await bb(ctx, path2, { method: "DELETE", query: { version: toInt2(input3.commentVersion, "0") } });
+    const path2 = `${prPath2(project2, repo, toInt2(input4.pr))}/comments/${toInt2(input4.commentId)}`;
+    await bb(ctx, path2, { method: "DELETE", query: { version: toInt2(input4.commentVersion, "0") } });
     return { deleted: true };
   }
 });
@@ -148469,11 +148577,11 @@ var createRepoCommand = bitbucketArea.command({
     { project: "PROJ", repo: "ignored", name: "imagile-new", description: "A new service", allowWrite: true },
     { project: "PROJ", name: "imagile-bare", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const project2 = projectOf(ctx);
     return bb(ctx, `${API3}/projects/${project2}/repos`, {
       method: "POST",
-      json: { name: input3.name, scmId: "git", ...input3.description !== void 0 ? { description: input3.description } : {} }
+      json: { name: input4.name, scmId: "git", ...input4.description !== void 0 ? { description: input4.description } : {} }
     });
   }
 });
@@ -148501,11 +148609,11 @@ var listPrsCommand = bitbucketArea.command({
     { project: "PROJ", repo: "imagile-api" },
     { project: "PROJ", repo: "imagile-api", state: "ALL", author: "jdoe", reviewer: "asmith", createdAfter: "2026-09-01", createdBefore: "2026-10-01" }
   ],
-  run: async (input3, ctx) => {
-    const createdAfter = input3.createdAfter ? parseDate2("--created-after", input3.createdAfter) : void 0;
-    const createdBefore = input3.createdBefore ? parseDate2("--created-before", input3.createdBefore) : void 0;
+  run: async (input4, ctx) => {
+    const createdAfter = input4.createdAfter ? parseDate2("--created-after", input4.createdAfter) : void 0;
+    const createdBefore = input4.createdBefore ? parseDate2("--created-before", input4.createdBefore) : void 0;
     const { project: project2, repo } = where2(ctx);
-    return listPRs(ctx, project2, repo, { state: input3.state, author: input3.author, reviewer: input3.reviewer, createdAfter, createdBefore });
+    return listPRs(ctx, project2, repo, { state: input4.state, author: input4.author, reviewer: input4.reviewer, createdAfter, createdBefore });
   }
 });
 async function listPRs(ctx, project2, repo, opts) {
@@ -148534,9 +148642,9 @@ var getPrCommand = bitbucketArea.command({
   context: IN_REPO3,
   options: [idOption6],
   examples: [{ project: "PROJ", repo: "imagile-api", id: "42" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    return getPR3(ctx, project2, repo, toInt2(input3.id));
+    return getPR3(ctx, project2, repo, toInt2(input4.id));
   }
 });
 var createPrCommand = bitbucketArea.command({
@@ -148564,11 +148672,11 @@ var createPrCommand = bitbucketArea.command({
     { project: "PROJ", repo: "imagile-api", title: "Add retries", source: "feature/retries", allowWrite: true },
     { project: "~jdoe", repo: "scratch", title: "Tidy up", source: "tidy", target: "develop", description: "Small things", reviewers: "asmith, bkhan", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    const target2 = input3.target ?? ctx.connection.targetBranch ?? "main";
-    const reviewers = input3.reviewers ? commaList(input3.reviewers) : void 0;
-    return createPR(ctx, { project: project2, repo, title: input3.title, source: input3.source, target: target2, description: input3.description, reviewers });
+    const target2 = input4.target ?? ctx.connection.targetBranch ?? "main";
+    const reviewers = input4.reviewers ? commaList(input4.reviewers) : void 0;
+    return createPR(ctx, { project: project2, repo, title: input4.title, source: input4.source, target: target2, description: input4.description, reviewers });
   }
 });
 var createPrsCommand = bitbucketArea.command({
@@ -148600,27 +148708,27 @@ var createPrsCommand = bitbucketArea.command({
     { project: "PROJ", from: "develop", to: "main", repos: "imagile-api, imagile-web,,imagile-gone", allowWrite: true },
     { project: "PROJ", repo: "ignored", from: "develop", to: "release", repos: "imagile-api", title: "Release 2026.10", description: "Monthly promotion", reviewers: "asmith", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const project2 = projectOf(ctx);
-    const repos = input3.repos.split(",").map((s) => s.trim()).filter(Boolean);
+    const repos = input4.repos.split(",").map((s) => s.trim()).filter(Boolean);
     if (repos.length === 0) {
       throw new ToilError("INVALID_INPUT", "--repos must contain at least one repository slug", { fix: "Pass --repos as a comma-separated list of repository slugs, e.g. --repos api,web." });
     }
-    const title = input3.title ?? `Promote ${input3.from} to ${input3.to}`;
-    const reviewers = input3.reviewers ? commaList(input3.reviewers) : void 0;
+    const title = input4.title ?? `Promote ${input4.from} to ${input4.to}`;
+    const reviewers = input4.reviewers ? commaList(input4.reviewers) : void 0;
     const results = [];
     let created = 0;
     let nothingToPromote = 0;
     let errors = 0;
     for (const repo of repos) {
       try {
-        const ahead = await bb(ctx, `${repoPath3(project2, repo)}/commits`, { query: { until: input3.from, since: input3.to, limit: 1 } });
+        const ahead = await bb(ctx, `${repoPath3(project2, repo)}/commits`, { query: { until: input4.from, since: input4.to, limit: 1 } });
         if ((ahead.values?.length ?? 0) === 0) {
           results.push({ repo, status: "nothing_to_promote" });
           nothingToPromote++;
           continue;
         }
-        const pr3 = await createPR(ctx, { project: project2, repo, title, source: input3.from, target: input3.to, description: input3.description, reviewers });
+        const pr3 = await createPR(ctx, { project: project2, repo, title, source: input4.from, target: input4.to, description: input4.description, reviewers });
         results.push({ repo, status: "created", pr: pr3 });
         created++;
       } catch (err) {
@@ -148657,13 +148765,13 @@ var updatePrCommand = bitbucketArea.command({
     { project: "PROJ", repo: "imagile-api", id: "42", title: "Add retries, with backoff", allowWrite: true },
     { project: "PROJ", repo: "imagile-api", id: "42", description: "", reviewers: "asmith,bkhan", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    const id9 = toInt2(input3.id);
+    const id9 = toInt2(input4.id);
     const pr3 = await getPR3(ctx, project2, repo, id9);
-    const reviewers = input3.reviewers ? commaList(input3.reviewers) : (pr3.reviewers ?? []).map((r) => r.user.name);
-    const title = input3.title ?? pr3.title;
-    const description3 = input3.description ?? pr3.description;
+    const reviewers = input4.reviewers ? commaList(input4.reviewers) : (pr3.reviewers ?? []).map((r) => r.user.name);
+    const title = input4.title ?? pr3.title;
+    const description3 = input4.description ?? pr3.description;
     const body = { version: pr3.version };
     if (title) body.title = title;
     if (description3 !== void 0) body.description = description3;
@@ -148688,15 +148796,15 @@ var mergePrCommand = bitbucketArea.command({
     { project: "PROJ", repo: "imagile-api", id: "42", allowWrite: true },
     { project: "PROJ", repo: "imagile-api", id: "42", strategy: "squash", deleteBranch: true, allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    const id9 = toInt2(input3.id);
+    const id9 = toInt2(input4.id);
     const pr3 = await getPR3(ctx, project2, repo, id9);
     const body = {};
-    if (input3.strategy) body.strategyId = input3.strategy;
-    if (input3.deleteBranch) body.autoSubject = true;
+    if (input4.strategy) body.strategyId = input4.strategy;
+    if (input4.deleteBranch) body.autoSubject = true;
     const merged = await bb(ctx, `${prPath2(project2, repo, id9)}/merge`, { method: "POST", query: { version: pr3.version }, json: body });
-    if (input3.deleteBranch) {
+    if (input4.deleteBranch) {
       ctx.warn({ code: "BITBUCKET_BRANCH_NOT_DELETED", message: `--delete-branch didn't delete the source branch: it set Bitbucket's autoSubject. Delete ${pr3.fromRef?.displayId ?? "the source branch"} yourself if it should go.` });
     }
     return merged;
@@ -148711,9 +148819,9 @@ var declinePrCommand = bitbucketArea.command({
   context: IN_REPO3,
   options: [idOption6],
   examples: [{ project: "PROJ", repo: "imagile-api", id: "42", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    const id9 = toInt2(input3.id);
+    const id9 = toInt2(input4.id);
     const pr3 = await getPR3(ctx, project2, repo, id9);
     return bb(ctx, `${prPath2(project2, repo, id9)}/decline`, { method: "POST", query: { version: pr3.version } });
   }
@@ -148764,11 +148872,11 @@ var diffCommand = bitbucketArea.command({
   context: IN_REPO3,
   options: [prOption6, { flags: "--file <path>", field: "file", description: "Limit diff to a specific file" }, { flags: "--context-lines <n>", field: "contextLines", description: "Lines of context around changes" }],
   examples: [example, { ...example, file: "src/retry.ts", contextLines: "5" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    const contextLines = input3.contextLines !== void 0 && String(input3.contextLines) !== "" ? toInt2(input3.contextLines) : void 0;
-    const base = `${prPath2(project2, repo, toInt2(input3.pr))}/diff`;
-    const result = await bb(ctx, input3.file ? `${base}/${input3.file}` : base, { query: contextLines !== void 0 ? { contextLines } : {} });
+    const contextLines = input4.contextLines !== void 0 && String(input4.contextLines) !== "" ? toInt2(input4.contextLines) : void 0;
+    const base = `${prPath2(project2, repo, toInt2(input4.pr))}/diff`;
+    const result = await bb(ctx, input4.file ? `${base}/${input4.file}` : base, { query: contextLines !== void 0 ? { contextLines } : {} });
     return { diff: typeof result === "string" ? result : JSON.stringify(result) };
   }
 });
@@ -148781,9 +148889,9 @@ var listFilesCommand = bitbucketArea.command({
   context: IN_REPO3,
   options: [prOption6],
   examples: [example],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    const result = await bb(ctx, `${prPath2(project2, repo, toInt2(input3.pr))}/changes`, { query: { limit: 1e3 } });
+    const result = await bb(ctx, `${prPath2(project2, repo, toInt2(input4.pr))}/changes`, { query: { limit: 1e3 } });
     return (result.values ?? []).map((v) => typeof v.path === "string" ? v.path : JSON.stringify(v.path));
   }
 });
@@ -148797,9 +148905,9 @@ var approveCommand = bitbucketArea.command({
   options: [prOption6],
   examples: [{ ...example, allowWrite: true }],
   // POST /approve needs no user slug, and Bitbucket promotes the caller to reviewer.
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    return bb(ctx, `${prPath2(project2, repo, toInt2(input3.pr))}/approve`, { method: "POST" });
+    return bb(ctx, `${prPath2(project2, repo, toInt2(input4.pr))}/approve`, { method: "POST" });
   }
 });
 var unapproveCommand = bitbucketArea.command({
@@ -148811,9 +148919,9 @@ var unapproveCommand = bitbucketArea.command({
   context: IN_REPO3,
   options: [prOption6],
   examples: [{ ...example, allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    return bb(ctx, `${prPath2(project2, repo, toInt2(input3.pr))}/approve`, { method: "DELETE" });
+    return bb(ctx, `${prPath2(project2, repo, toInt2(input4.pr))}/approve`, { method: "DELETE" });
   }
 });
 var needsWorkCommand = bitbucketArea.command({
@@ -148828,9 +148936,9 @@ var needsWorkCommand = bitbucketArea.command({
     { ...example, allowWrite: true },
     { ...example, pr: "43", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    const prId3 = toInt2(input3.pr);
+    const prId3 = toInt2(input4.pr);
     const [user, pr3] = await Promise.all([currentUser(ctx), getPR3(ctx, project2, repo, prId3)]);
     if (!(pr3.reviewers ?? []).some((r) => r.user.slug === user.slug)) {
       await bb(ctx, `${prPath2(project2, repo, prId3)}/participants`, { method: "POST", json: { user: { name: user.name }, role: "REVIEWER" } });
@@ -148847,9 +148955,9 @@ var listReviewersCommand = bitbucketArea.command({
   context: IN_REPO3,
   options: [prOption6],
   examples: [example],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    return (await getPR3(ctx, project2, repo, toInt2(input3.pr))).reviewers;
+    return (await getPR3(ctx, project2, repo, toInt2(input4.pr))).reviewers;
   }
 });
 var listDefaultReviewersCommand = bitbucketArea.command({
@@ -148875,9 +148983,9 @@ var addReviewerCommand = bitbucketArea.command({
   context: IN_REPO3,
   options: [prOption6, { flags: "--user <username>", field: "user", description: "Username to add as a reviewer" }],
   examples: [{ ...example, user: "asmith", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    return bb(ctx, `${prPath2(project2, repo, toInt2(input3.pr))}/participants`, { method: "POST", json: { user: { name: input3.user }, role: "REVIEWER" } });
+    return bb(ctx, `${prPath2(project2, repo, toInt2(input4.pr))}/participants`, { method: "POST", json: { user: { name: input4.user }, role: "REVIEWER" } });
   }
 });
 var listBuildsCommand = bitbucketArea.command({
@@ -148889,9 +148997,9 @@ var listBuildsCommand = bitbucketArea.command({
   context: IN_REPO3,
   options: [prOption6],
   examples: [example, { ...example, pr: "7" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { project: project2, repo } = where2(ctx);
-    const commits = await bb(ctx, `${prPath2(project2, repo, toInt2(input3.pr))}/commits`, { query: { limit: 1 } });
+    const commits = await bb(ctx, `${prPath2(project2, repo, toInt2(input4.pr))}/commits`, { query: { limit: 1 } });
     const sha = commits.values[0]?.id;
     return sha ? buildStatus(ctx, sha) : [];
   }
@@ -148906,7 +149014,7 @@ var getBuildStatusCommand = bitbucketArea.command({
   context: IN_REPO3,
   options: [{ flags: "--commit <sha>", field: "commit", description: "Commit SHA" }],
   examples: [{ project: "PROJ", repo: "imagile-api", commit: "abc12345def67890abc12345def67890abc12345" }],
-  run: async (input3, ctx) => buildStatus(ctx, input3.commit)
+  run: async (input4, ctx) => buildStatus(ctx, input4.commit)
 });
 var reviewCommands = [
   diffCommand,
@@ -149078,8 +149186,8 @@ function list(ctx, what, path2, query2 = {}, opts = {}) {
 async function all2(ctx, what, path2, query2 = {}) {
   return (await list(ctx, what, path2, query2)).items;
 }
-function needLimitForCursor(input3) {
-  if (input3.cursor !== void 0 && input3.limit === void 0) {
+function needLimitForCursor(input4) {
+  if (input4.cursor !== void 0 && input4.limit === void 0) {
     throw new ToilError("INVALID_INPUT", "--cursor needs --limit", {
       fix: "Pass --limit with --cursor (the limit of the call that gave you the cursor), or leave out --cursor to read everything."
     });
@@ -149132,9 +149240,9 @@ var listCommentsCommand2 = bitbucketCloudArea.command({
     { flags: "--general-only", field: "generalOnly", description: "Return only general (non-inline) PR comments" }
   ],
   examples: [at4, { ...at4, inlineOnly: true }, { ...at4, generalOnly: true, withReplies: false }],
-  run: async (input3, ctx) => {
-    const comments = await all2(ctx, `Bitbucket Cloud comments on pull request ${input3.pr}`, `${prPath3(ctx, input3.pr)}/comments`, { sort: "created_on" });
-    return comments.filter((c) => (input3.withReplies || !c.parent) && (!input3.inlineOnly || !!c.inline) && (!input3.generalOnly || !c.inline));
+  run: async (input4, ctx) => {
+    const comments = await all2(ctx, `Bitbucket Cloud comments on pull request ${input4.pr}`, `${prPath3(ctx, input4.pr)}/comments`, { sort: "created_on" });
+    return comments.filter((c) => (input4.withReplies || !c.parent) && (!input4.inlineOnly || !!c.inline) && (!input4.generalOnly || !c.inline));
   }
 });
 var addCommentCommand2 = bitbucketCloudArea.command({
@@ -149146,7 +149254,7 @@ var addCommentCommand2 = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [prOption7, { flags: "--body <text>", field: "body", description: "Comment text (Markdown)" }],
   examples: [{ ...at4, body: "Looks good to me.", allowWrite: true }],
-  run: (input3, ctx) => bbc(ctx, `${prPath3(ctx, input3.pr)}/comments`, { method: "POST", json: { content: { raw: input3.body } } })
+  run: (input4, ctx) => bbc(ctx, `${prPath3(ctx, input4.pr)}/comments`, { method: "POST", json: { content: { raw: input4.body } } })
 });
 var addInlineCommentCommand2 = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "add-inline-comment"],
@@ -149173,9 +149281,9 @@ var addInlineCommentCommand2 = bitbucketCloudArea.command({
     { ...at4, file: "src/retry.ts", line: 12, body: "Cap the backoff?", allowWrite: true },
     { ...at4, file: "src/old.ts", line: 3, body: "Why was this removed?", lineType: "REMOVED", allowWrite: true }
   ],
-  run: (input3, ctx) => {
-    const inline2 = input3.lineType === "REMOVED" ? { path: input3.file, from: input3.line } : { path: input3.file, to: input3.line };
-    return bbc(ctx, `${prPath3(ctx, input3.pr)}/comments`, { method: "POST", json: { content: { raw: input3.body }, inline: inline2 } });
+  run: (input4, ctx) => {
+    const inline2 = input4.lineType === "REMOVED" ? { path: input4.file, from: input4.line } : { path: input4.file, to: input4.line };
+    return bbc(ctx, `${prPath3(ctx, input4.pr)}/comments`, { method: "POST", json: { content: { raw: input4.body }, inline: inline2 } });
   }
 });
 var replyCommentCommand2 = bitbucketCloudArea.command({
@@ -149187,7 +149295,7 @@ var replyCommentCommand2 = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [prOption7, { flags: "--comment-id <id>", field: "commentId", description: "Comment ID to reply to" }, { flags: "--body <text>", field: "body", description: "Reply text (Markdown)" }],
   examples: [{ ...at4, commentId: 1001, body: "Done.", allowWrite: true }],
-  run: (input3, ctx) => bbc(ctx, `${prPath3(ctx, input3.pr)}/comments`, { method: "POST", json: { content: { raw: input3.body }, parent: { id: input3.commentId } } })
+  run: (input4, ctx) => bbc(ctx, `${prPath3(ctx, input4.pr)}/comments`, { method: "POST", json: { content: { raw: input4.body }, parent: { id: input4.commentId } } })
 });
 var resolveCommentCommand2 = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "resolve-comment"],
@@ -149198,7 +149306,7 @@ var resolveCommentCommand2 = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [prOption7, commentIdOption2],
   examples: [{ ...at4, commentId: 1001, allowWrite: true }],
-  run: (input3, ctx) => bbc(ctx, `${prPath3(ctx, input3.pr)}/comments/${input3.commentId}/resolve`, { method: "POST" })
+  run: (input4, ctx) => bbc(ctx, `${prPath3(ctx, input4.pr)}/comments/${input4.commentId}/resolve`, { method: "POST" })
 });
 var deleteCommentCommand2 = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "delete-comment"],
@@ -149211,8 +149319,8 @@ var deleteCommentCommand2 = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [prOption7, commentIdOption2],
   examples: [{ ...at4, commentId: 1002, allowWrite: true }],
-  run: async (input3, ctx) => {
-    await bbc(ctx, `${prPath3(ctx, input3.pr)}/comments/${input3.commentId}`, { method: "DELETE" });
+  run: async (input4, ctx) => {
+    await bbc(ctx, `${prPath3(ctx, input4.pr)}/comments/${input4.commentId}`, { method: "DELETE" });
     return { deleted: true };
   }
 });
@@ -149251,9 +149359,9 @@ var listPipelinesCommand = bitbucketCloudArea.command({
     { flags: "--cursor <cursor>", field: "cursor", description: "meta.page.nextCursor from the previous call" }
   ],
   examples: [at5, { ...at5, branch: "main", limit: 1 }, { ...at5, cursor: exampleCursor3("/repositories/imagile/toil/pipelines?sort=-created_on&pagelen=100&page=2") }],
-  run: async (input3, ctx) => {
-    const query2 = { sort: "-created_on", ...input3.branch ? { "target.branch": input3.branch } : {} };
-    return (await list(ctx, `Bitbucket Cloud pipelines in ${ctx.context.workspace}/${ctx.context.repo}`, `${repoPath4(ctx)}/pipelines`, query2, { cap: input3.limit ?? PIPELINE_LIMIT, cursor: input3.cursor })).items;
+  run: async (input4, ctx) => {
+    const query2 = { sort: "-created_on", ...input4.branch ? { "target.branch": input4.branch } : {} };
+    return (await list(ctx, `Bitbucket Cloud pipelines in ${ctx.context.workspace}/${ctx.context.repo}`, `${repoPath4(ctx)}/pipelines`, query2, { cap: input4.limit ?? PIPELINE_LIMIT, cursor: input4.cursor })).items;
   }
 });
 var getPipelineCommand = bitbucketCloudArea.command({
@@ -149265,7 +149373,7 @@ var getPipelineCommand = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [pipelineOption],
   examples: [{ ...at5, pipeline: PIPELINE }],
-  run: (input3, ctx) => bbc(ctx, pipelinePath(ctx, input3.pipeline))
+  run: (input4, ctx) => bbc(ctx, pipelinePath(ctx, input4.pipeline))
 });
 var listPipelineStepsCommand = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "list-pipeline-steps"],
@@ -149276,7 +149384,7 @@ var listPipelineStepsCommand = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [pipelineOption],
   examples: [{ ...at5, pipeline: "abc12345-0000-0000-0000-000000000000" }],
-  run: (input3, ctx) => all2(ctx, `Bitbucket Cloud steps of pipeline ${input3.pipeline}`, `${pipelinePath(ctx, input3.pipeline)}/steps`)
+  run: (input4, ctx) => all2(ctx, `Bitbucket Cloud steps of pipeline ${input4.pipeline}`, `${pipelinePath(ctx, input4.pipeline)}/steps`)
 });
 var getStepLogCommand = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "get-step-log"],
@@ -149288,7 +149396,7 @@ var getStepLogCommand = bitbucketCloudArea.command({
   options: [pipelineOption, { flags: "--step <uuid>", field: "step", description: "Step uuid, with or without braces" }],
   examples: [{ ...at5, pipeline: PIPELINE, step: STEP }],
   // The log may answer with a redirect to signed storage; toil follows it with every header dropped.
-  run: async (input3, ctx) => ({ log: await bbc(ctx, `${pipelinePath(ctx, input3.pipeline)}/steps/${seg(uuid3(input3.step, "step"))}/log`, { as: "text", redirect: "follow-without-auth" }) })
+  run: async (input4, ctx) => ({ log: await bbc(ctx, `${pipelinePath(ctx, input4.pipeline)}/steps/${seg(uuid3(input4.step, "step"))}/log`, { as: "text", redirect: "follow-without-auth" }) })
 });
 var pipelineCommands2 = [listPipelinesCommand, getPipelineCommand, listPipelineStepsCommand, getStepLogCommand];
 
@@ -149319,11 +149427,11 @@ var listPrsCommand2 = bitbucketCloudArea.command({
     { flags: "--cursor <cursor>", field: "cursor", description: "meta.page.nextCursor from the previous call (with --limit)" }
   ],
   examples: [at6, { ...at6, state: "ALL", query: 'author.account_id = "557058:abc12345"', limit: 2 }, { ...at6, limit: 1, cursor: exampleCursor3("/repositories/imagile/toil/pullrequests?state=OPEN&pagelen=100&page=2") }],
-  run: async (input3, ctx) => {
-    needLimitForCursor(input3);
-    const state = input3.state ?? "OPEN";
-    const query2 = { state: state === "ALL" ? [...PR_STATES] : state, ...input3.query ? { q: input3.query } : {} };
-    return (await list(ctx, `Bitbucket Cloud pull requests in ${ctx.context.workspace}/${ctx.context.repo}`, `${repoPath4(ctx)}/pullrequests`, query2, { cap: input3.limit, cursor: input3.cursor })).items;
+  run: async (input4, ctx) => {
+    needLimitForCursor(input4);
+    const state = input4.state ?? "OPEN";
+    const query2 = { state: state === "ALL" ? [...PR_STATES] : state, ...input4.query ? { q: input4.query } : {} };
+    return (await list(ctx, `Bitbucket Cloud pull requests in ${ctx.context.workspace}/${ctx.context.repo}`, `${repoPath4(ctx)}/pullrequests`, query2, { cap: input4.limit, cursor: input4.cursor })).items;
   }
 });
 var getPrCommand2 = bitbucketCloudArea.command({
@@ -149335,7 +149443,7 @@ var getPrCommand2 = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [idOption7],
   examples: [{ ...at6, id: 42 }],
-  run: (input3, ctx) => getPR4(ctx, input3.id)
+  run: (input4, ctx) => getPR4(ctx, input4.id)
 });
 var createPrCommand2 = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "create-pr"],
@@ -149376,19 +149484,19 @@ var createPrCommand2 = bitbucketCloudArea.command({
       allowWrite: true
     }
   ],
-  run: (input3, ctx) => {
-    const reviewers = input3.reviewers !== void 0 ? reviewerRefs(input3.reviewers) : [];
+  run: (input4, ctx) => {
+    const reviewers = input4.reviewers !== void 0 ? reviewerRefs(input4.reviewers) : [];
     return bbc(ctx, `${repoPath4(ctx)}/pullrequests`, {
       method: "POST",
       json: {
-        title: input3.title,
-        source: { branch: { name: input3.source } },
-        ...input3.target ? { destination: { branch: { name: input3.target } } } : {},
-        ...input3.description !== void 0 ? { description: input3.description } : {},
+        title: input4.title,
+        source: { branch: { name: input4.source } },
+        ...input4.target ? { destination: { branch: { name: input4.target } } } : {},
+        ...input4.description !== void 0 ? { description: input4.description } : {},
         // Left out rather than [], so the repository's default reviewers still apply.
         ...reviewers.length > 0 ? { reviewers } : {},
-        ...input3.closeSourceBranch !== void 0 ? { close_source_branch: input3.closeSourceBranch } : {},
-        ...input3.draft !== void 0 ? { draft: input3.draft } : {}
+        ...input4.closeSourceBranch !== void 0 ? { close_source_branch: input4.closeSourceBranch } : {},
+        ...input4.draft !== void 0 ? { draft: input4.draft } : {}
       }
     });
   }
@@ -149418,17 +149526,17 @@ var updatePrCommand2 = bitbucketCloudArea.command({
     { ...at6, id: 42, title: "Add retries, with backoff", allowWrite: true },
     { ...at6, id: 42, description: "", reviewers: "557058:abc12345", target: "develop", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const pr3 = await getPR4(ctx, input3.id);
+  run: async (input4, ctx) => {
+    const pr3 = await getPR4(ctx, input4.id);
     const current3 = (pr3.reviewers ?? []).flatMap((r) => r.uuid ? [{ uuid: r.uuid }] : r.account_id ? [{ account_id: r.account_id }] : []);
-    const reviewers = input3.reviewers !== void 0 ? reviewerRefs(input3.reviewers) : current3;
-    return bbc(ctx, prPath3(ctx, input3.id), {
+    const reviewers = input4.reviewers !== void 0 ? reviewerRefs(input4.reviewers) : current3;
+    return bbc(ctx, prPath3(ctx, input4.id), {
       method: "PUT",
       json: {
-        title: input3.title ?? pr3.title,
-        description: input3.description ?? pr3.description ?? "",
+        title: input4.title ?? pr3.title,
+        description: input4.description ?? pr3.description ?? "",
         reviewers,
-        ...input3.target ? { destination: { branch: { name: input3.target } } } : {}
+        ...input4.target ? { destination: { branch: { name: input4.target } } } : {}
       }
     });
   }
@@ -149456,13 +149564,13 @@ var mergePrCommand2 = bitbucketCloudArea.command({
     { ...at6, id: 42, allowWrite: true },
     { ...at6, id: 43, strategy: "squash", message: "Add retries (#43)", deleteBranch: true, allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const response = await bbcResponse(ctx, `${prPath3(ctx, input3.id)}/merge`, {
+  run: async (input4, ctx) => {
+    const response = await bbcResponse(ctx, `${prPath3(ctx, input4.id)}/merge`, {
       method: "POST",
       json: {
-        ...input3.strategy ? { merge_strategy: input3.strategy } : {},
-        ...input3.message ? { message: input3.message } : {},
-        ...input3.deleteBranch !== void 0 ? { close_source_branch: input3.deleteBranch } : {}
+        ...input4.strategy ? { merge_strategy: input4.strategy } : {},
+        ...input4.message ? { message: input4.message } : {},
+        ...input4.deleteBranch !== void 0 ? { close_source_branch: input4.deleteBranch } : {}
       }
     });
     if (response.status !== 202) return response.data;
@@ -149472,7 +149580,7 @@ var mergePrCommand2 = bitbucketCloudArea.command({
     const taskStatus = polled && basePath2 && polled.startsWith(`${basePath2}/`) ? polled.slice(basePath2.length) : polled;
     ctx.warn({
       code: "BITBUCKET_CLOUD_MERGE_PENDING",
-      message: `Bitbucket Cloud accepted the merge of pull request ${input3.id} but hasn't finished it (a merge queue, or a slow merge).${taskStatus ? ` Read toil bitbucket-cloud api GET ${taskStatus} until task_status is SUCCESS.` : " Check the pull request in Bitbucket before trying again."}`
+      message: `Bitbucket Cloud accepted the merge of pull request ${input4.id} but hasn't finished it (a merge queue, or a slow merge).${taskStatus ? ` Read toil bitbucket-cloud api GET ${taskStatus} until task_status is SUCCESS.` : " Check the pull request in Bitbucket before trying again."}`
     });
     return { pending: true, taskStatus };
   }
@@ -149486,7 +149594,7 @@ var declinePrCommand2 = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [idOption7],
   examples: [{ ...at6, id: 42, allowWrite: true }],
-  run: (input3, ctx) => bbc(ctx, `${prPath3(ctx, input3.id)}/decline`, { method: "POST" })
+  run: (input4, ctx) => bbc(ctx, `${prPath3(ctx, input4.id)}/decline`, { method: "POST" })
 });
 var currentPrCommand2 = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "current-pr"],
@@ -149525,10 +149633,10 @@ var listReposCommand = bitbucketCloudArea.command({
   context: IN_WORKSPACE,
   options: [filterOption, limitOption("repositories"), cursorOption],
   examples: [{ workspace: "imagile" }, { workspace: "imagile", repo: "ignored", filter: 'project.key = "TOIL"', limit: 1 }, { workspace: "imagile", limit: 1, cursor: exampleCursor3("/repositories/imagile?pagelen=100&page=2") }],
-  run: async (input3, ctx) => {
-    needLimitForCursor(input3);
-    const query2 = input3.filter ? { q: input3.filter } : {};
-    return (await list(ctx, `Bitbucket Cloud repositories in ${ctx.context.workspace}`, `/repositories/${seg(ctx.context.workspace)}`, query2, { cap: input3.limit, cursor: input3.cursor })).items;
+  run: async (input4, ctx) => {
+    needLimitForCursor(input4);
+    const query2 = input4.filter ? { q: input4.filter } : {};
+    return (await list(ctx, `Bitbucket Cloud repositories in ${ctx.context.workspace}`, `/repositories/${seg(ctx.context.workspace)}`, query2, { cap: input4.limit, cursor: input4.cursor })).items;
   }
 });
 var getRepoCommand = bitbucketCloudArea.command({
@@ -149564,13 +149672,13 @@ var createRepoCommand2 = bitbucketCloudArea.command({
     { workspace: "imagile", repo: "ignored", name: "scratch", allowWrite: true },
     { workspace: "imagile", name: "scratch", description: "Somewhere to try things", project: "TOIL", public: true, allowWrite: true }
   ],
-  run: (input3, ctx) => bbc(ctx, `/repositories/${seg(ctx.context.workspace)}/${seg(input3.name)}`, {
+  run: (input4, ctx) => bbc(ctx, `/repositories/${seg(ctx.context.workspace)}/${seg(input4.name)}`, {
     method: "POST",
     json: {
       scm: "git",
-      is_private: !input3.public,
-      ...input3.description !== void 0 ? { description: input3.description } : {},
-      ...input3.project ? { project: { key: input3.project } } : {}
+      is_private: !input4.public,
+      ...input4.description !== void 0 ? { description: input4.description } : {},
+      ...input4.project ? { project: { key: input4.project } } : {}
     }
   })
 });
@@ -149583,9 +149691,9 @@ var listBranchesCommand = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [filterOption, limitOption("branches"), cursorOption],
   examples: [at7, { ...at7, filter: 'name ~ "release"', limit: 1 }, { ...at7, limit: 1, cursor: exampleCursor3("/repositories/imagile/toil/refs/branches?pagelen=100&page=2") }],
-  run: async (input3, ctx) => {
-    needLimitForCursor(input3);
-    return (await list(ctx, `Bitbucket Cloud branches in ${ctx.context.workspace}/${ctx.context.repo}`, `${repoPath4(ctx)}/refs/branches`, input3.filter ? { q: input3.filter } : {}, { cap: input3.limit, cursor: input3.cursor })).items;
+  run: async (input4, ctx) => {
+    needLimitForCursor(input4);
+    return (await list(ctx, `Bitbucket Cloud branches in ${ctx.context.workspace}/${ctx.context.repo}`, `${repoPath4(ctx)}/refs/branches`, input4.filter ? { q: input4.filter } : {}, { cap: input4.limit, cursor: input4.cursor })).items;
   }
 });
 var createBranchCommand = bitbucketCloudArea.command({
@@ -149600,7 +149708,7 @@ var createBranchCommand = bitbucketCloudArea.command({
     { flags: "--commit <sha>", field: "commit", description: "Commit hash the branch points at" }
   ],
   examples: [{ ...at7, name: "feature/retries", commit: "abc12345def67890abc12345def67890abc12345", allowWrite: true }],
-  run: (input3, ctx) => bbc(ctx, `${repoPath4(ctx)}/refs/branches`, { method: "POST", json: { name: input3.name, target: { hash: input3.commit } } })
+  run: (input4, ctx) => bbc(ctx, `${repoPath4(ctx)}/refs/branches`, { method: "POST", json: { name: input4.name, target: { hash: input4.commit } } })
 });
 var listTagsCommand = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "list-tags"],
@@ -149611,9 +149719,9 @@ var listTagsCommand = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [filterOption, limitOption("tags"), cursorOption],
   examples: [at7, { ...at7, filter: 'name ~ "v1."', limit: 1, cursor: exampleCursor3("/repositories/imagile/toil/refs/tags?q=name+~+%22v1.%22&pagelen=100&page=2") }],
-  run: async (input3, ctx) => {
-    needLimitForCursor(input3);
-    return (await list(ctx, `Bitbucket Cloud tags in ${ctx.context.workspace}/${ctx.context.repo}`, `${repoPath4(ctx)}/refs/tags`, input3.filter ? { q: input3.filter } : {}, { cap: input3.limit, cursor: input3.cursor })).items;
+  run: async (input4, ctx) => {
+    needLimitForCursor(input4);
+    return (await list(ctx, `Bitbucket Cloud tags in ${ctx.context.workspace}/${ctx.context.repo}`, `${repoPath4(ctx)}/refs/tags`, input4.filter ? { q: input4.filter } : {}, { cap: input4.limit, cursor: input4.cursor })).items;
   }
 });
 var createTagCommand = bitbucketCloudArea.command({
@@ -149634,7 +149742,7 @@ var createTagCommand = bitbucketCloudArea.command({
     { flags: "--message <text>", field: "message", description: "Tag message" }
   ],
   examples: [{ ...at7, name: "v1.2.0", commit: "abc12345def67890abc12345def67890abc12345", message: "Release 1.2.0", allowWrite: true }],
-  run: (input3, ctx) => bbc(ctx, `${repoPath4(ctx)}/refs/tags`, { method: "POST", json: { name: input3.name, target: { hash: input3.commit }, ...input3.message !== void 0 ? { message: input3.message } : {} } })
+  run: (input4, ctx) => bbc(ctx, `${repoPath4(ctx)}/refs/tags`, { method: "POST", json: { name: input4.name, target: { hash: input4.commit }, ...input4.message !== void 0 ? { message: input4.message } : {} } })
 });
 var listCommitsCommand = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "list-commits"],
@@ -149655,9 +149763,9 @@ var listCommitsCommand = bitbucketCloudArea.command({
     cursorOption
   ],
   examples: [at7, { ...at7, branch: "feature/retries", path: "src/retry.ts", limit: 1 }, { ...at7, branch: "feature/retries", path: "src/retry.ts", limit: 1, cursor: exampleCursor3("/repositories/imagile/toil/commits?include=feature%2Fretries&path=src%2Fretry.ts&pagelen=100&page=2") }],
-  run: async (input3, ctx) => {
-    const query2 = { ...input3.branch ? { include: input3.branch } : {}, ...input3.path ? { path: input3.path } : {} };
-    return (await list(ctx, `Bitbucket Cloud commits in ${ctx.context.workspace}/${ctx.context.repo}`, `${repoPath4(ctx)}/commits`, query2, { cap: input3.limit ?? COMMIT_LIMIT, cursor: input3.cursor })).items;
+  run: async (input4, ctx) => {
+    const query2 = { ...input4.branch ? { include: input4.branch } : {}, ...input4.path ? { path: input4.path } : {} };
+    return (await list(ctx, `Bitbucket Cloud commits in ${ctx.context.workspace}/${ctx.context.repo}`, `${repoPath4(ctx)}/commits`, query2, { cap: input4.limit ?? COMMIT_LIMIT, cursor: input4.cursor })).items;
   }
 });
 var getCommitCommand = bitbucketCloudArea.command({
@@ -149669,7 +149777,7 @@ var getCommitCommand = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [{ flags: "--commit <sha>", field: "commit", description: "Commit hash" }],
   examples: [{ ...at7, commit: "abc12345def67890abc12345def67890abc12345" }],
-  run: (input3, ctx) => bbc(ctx, `${repoPath4(ctx)}/commit/${seg(input3.commit)}`)
+  run: (input4, ctx) => bbc(ctx, `${repoPath4(ctx)}/commit/${seg(input4.commit)}`)
 });
 var refInput = external_exports.string().min(1).optional().describe("Branch, tag or commit to read at (default: the main branch)");
 var refOption = { flags: "--ref <ref>", field: "ref", description: "Branch, tag or commit to read at (default: the main branch)" };
@@ -149685,10 +149793,10 @@ var getFileCommand = bitbucketCloudArea.command({
     { ...at7, path: "README.md" },
     { ...at7, path: "src/retry.ts", ref: "feature/retries" }
   ],
-  run: async (input3, ctx) => {
-    const commit = await resolveRef2(ctx, input3.ref);
-    const content = await bbc(ctx, `${repoPath4(ctx)}/src/${seg(commit)}/${filePath(input3.path)}`, { as: "text" });
-    return { path: input3.path, commit, content };
+  run: async (input4, ctx) => {
+    const commit = await resolveRef2(ctx, input4.ref);
+    const content = await bbc(ctx, `${repoPath4(ctx)}/src/${seg(commit)}/${filePath(input4.path)}`, { as: "text" });
+    return { path: input4.path, commit, content };
   }
 });
 var listDirCommand = bitbucketCloudArea.command({
@@ -149700,10 +149808,10 @@ var listDirCommand = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [{ flags: "--path <path>", field: "path", description: "Folder path (default: the repository root)" }, refOption],
   examples: [at7, { ...at7, path: "src", ref: "abc12345def67890abc12345def67890abc12345" }],
-  run: async (input3, ctx) => {
-    const commit = await resolveRef2(ctx, input3.ref);
-    const folder = filePath(input3.path ?? "");
-    return all2(ctx, `Bitbucket Cloud folder ${input3.path || "/"} at ${commit}`, `${repoPath4(ctx)}/src/${seg(commit)}/${folder ? `${folder}/` : ""}`);
+  run: async (input4, ctx) => {
+    const commit = await resolveRef2(ctx, input4.ref);
+    const folder = filePath(input4.path ?? "");
+    return all2(ctx, `Bitbucket Cloud folder ${input4.path || "/"} at ${commit}`, `${repoPath4(ctx)}/src/${seg(commit)}/${folder ? `${folder}/` : ""}`);
   }
 });
 var repoCommands3 = [listReposCommand, getRepoCommand, createRepoCommand2, listBranchesCommand, createBranchCommand, listTagsCommand, createTagCommand, listCommitsCommand, getCommitCommand, getFileCommand, listDirCommand];
@@ -149742,12 +149850,12 @@ var diffCommand2 = bitbucketCloudArea.command({
     { flags: "--context-lines <n>", field: "contextLines", description: "Lines of context around changes" }
   ],
   examples: [example2, { ...at8, spec: "abc12345def67890abc12345def67890abc12345", file: "src/retry.ts", contextLines: 0 }],
-  run: async (input3, ctx) => {
-    if (input3.pr === void 0 === (input3.spec === void 0)) {
+  run: async (input4, ctx) => {
+    if (input4.pr === void 0 === (input4.spec === void 0)) {
       throw new ToilError("INVALID_INPUT", "Pass exactly one of --pr and --spec.", { fix: "Use --pr <id> for a pull request, or --spec <commit> (or <a>..<b>) for commits." });
     }
-    const spec = input3.spec ?? await prSpec(ctx, input3.pr);
-    const query2 = { ...input3.pr !== void 0 ? { topic: true } : {}, ...input3.file ? { path: input3.file } : {}, ...input3.contextLines !== void 0 ? { context: input3.contextLines } : {} };
+    const spec = input4.spec ?? await prSpec(ctx, input4.pr);
+    const query2 = { ...input4.pr !== void 0 ? { topic: true } : {}, ...input4.file ? { path: input4.file } : {}, ...input4.contextLines !== void 0 ? { context: input4.contextLines } : {} };
     return { diff: await bbc(ctx, `${repoPath4(ctx)}/diff/${seg(spec)}`, { query: query2, as: "text" }) };
   }
 });
@@ -149760,9 +149868,9 @@ var listFilesCommand2 = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [prOption8],
   examples: [example2],
-  run: async (input3, ctx) => {
-    const spec = await prSpec(ctx, input3.pr);
-    const stats = await all2(ctx, `Bitbucket Cloud files changed in pull request ${input3.pr}`, `${repoPath4(ctx)}/diffstat/${seg(spec)}`, { topic: true });
+  run: async (input4, ctx) => {
+    const spec = await prSpec(ctx, input4.pr);
+    const stats = await all2(ctx, `Bitbucket Cloud files changed in pull request ${input4.pr}`, `${repoPath4(ctx)}/diffstat/${seg(spec)}`, { topic: true });
     return stats.flatMap((s) => {
       const path2 = s.new?.path ?? s.old?.path;
       return path2 ? [path2] : [];
@@ -149778,7 +149886,7 @@ var approveCommand2 = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [prOption8],
   examples: [{ ...example2, allowWrite: true }],
-  run: (input3, ctx) => bbc(ctx, `${prPath3(ctx, input3.pr)}/approve`, { method: "POST" })
+  run: (input4, ctx) => bbc(ctx, `${prPath3(ctx, input4.pr)}/approve`, { method: "POST" })
 });
 var unapproveCommand2 = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "unapprove"],
@@ -149789,8 +149897,8 @@ var unapproveCommand2 = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [prOption8],
   examples: [{ ...example2, allowWrite: true }],
-  run: async (input3, ctx) => {
-    await bbc(ctx, `${prPath3(ctx, input3.pr)}/approve`, { method: "DELETE" });
+  run: async (input4, ctx) => {
+    await bbc(ctx, `${prPath3(ctx, input4.pr)}/approve`, { method: "DELETE" });
     return { unapproved: true };
   }
 });
@@ -149803,7 +149911,7 @@ var requestChangesCommand = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [prOption8],
   examples: [{ ...example2, allowWrite: true }],
-  run: (input3, ctx) => bbc(ctx, `${prPath3(ctx, input3.pr)}/request-changes`, { method: "POST" })
+  run: (input4, ctx) => bbc(ctx, `${prPath3(ctx, input4.pr)}/request-changes`, { method: "POST" })
 });
 var listReviewersCommand2 = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "list-reviewers"],
@@ -149814,7 +149922,7 @@ var listReviewersCommand2 = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [prOption8],
   examples: [example2],
-  run: async (input3, ctx) => ((await getPR4(ctx, input3.pr)).participants ?? []).filter((p) => p.role === "REVIEWER")
+  run: async (input4, ctx) => ((await getPR4(ctx, input4.pr)).participants ?? []).filter((p) => p.role === "REVIEWER")
 });
 var listDefaultReviewersCommand2 = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "list-default-reviewers"],
@@ -149835,7 +149943,7 @@ var listBuildsCommand2 = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [prOption8],
   examples: [example2],
-  run: (input3, ctx) => all2(ctx, `Bitbucket Cloud build statuses on pull request ${input3.pr}`, `${prPath3(ctx, input3.pr)}/statuses`)
+  run: (input4, ctx) => all2(ctx, `Bitbucket Cloud build statuses on pull request ${input4.pr}`, `${prPath3(ctx, input4.pr)}/statuses`)
 });
 var getBuildStatusCommand2 = bitbucketCloudArea.command({
   path: ["bitbucket-cloud", "get-build-status"],
@@ -149846,7 +149954,7 @@ var getBuildStatusCommand2 = bitbucketCloudArea.command({
   context: IN_REPO4,
   options: [{ flags: "--commit <sha>", field: "commit", description: "Commit SHA" }],
   examples: [{ ...at8, commit: "abc12345def67890abc12345def67890abc12345" }],
-  run: (input3, ctx) => all2(ctx, `Bitbucket Cloud build statuses on commit ${input3.commit}`, `${repoPath4(ctx)}/commit/${seg(input3.commit)}/statuses`)
+  run: (input4, ctx) => all2(ctx, `Bitbucket Cloud build statuses on commit ${input4.commit}`, `${repoPath4(ctx)}/commit/${seg(input4.commit)}/statuses`)
 });
 var reviewCommands2 = [diffCommand2, listFilesCommand2, approveCommand2, unapproveCommand2, requestChangesCommand, listReviewersCommand2, listDefaultReviewersCommand2, listBuildsCommand2, getBuildStatusCommand2];
 
@@ -149969,7 +150077,7 @@ var projectGetCommand3 = checkmarxArea.command({
   options: [{ flags: "--id <id>", field: "id", description: "Project UUID" }],
   examples: [{ id: PROJECT_ID }],
   // Suspected bug (#89 item 7): the id goes into the path unencoded.
-  run: async (input3, ctx) => checkmarx(ctx, `projects/${input3.id}`)
+  run: async (input4, ctx) => checkmarx(ctx, `projects/${input4.id}`)
 });
 var scanListCommand = checkmarxArea.command({
   path: ["checkmarx", "scan", "list"],
@@ -149985,13 +150093,13 @@ var scanListCommand = checkmarxArea.command({
     { flags: "--last <n>", field: "last", description: "Return only the last N scans" }
   ],
   examples: [{}, { project: PROJECT_ID, last: "5" }],
-  run: async (input3, ctx) => {
-    const text4 = input3.last === void 0 ? void 0 : String(input3.last);
+  run: async (input4, ctx) => {
+    const text4 = input4.last === void 0 ? void 0 : String(input4.last);
     const last = text4 ? parseInt(text4, 10) : void 0;
     if (text4 && Number.isNaN(last)) {
       throw new ToilError("INVALID_INPUT", `Invalid --last "${text4}". Expected an integer.`, { fix: "Pass --last a whole number of scans, e.g. --last 10." });
     }
-    return checkmarxList(ctx, "scans", { limit: last ?? 100, "project-id": input3.project ? input3.project : void 0 });
+    return checkmarxList(ctx, "scans", { limit: last ?? 100, "project-id": input4.project ? input4.project : void 0 });
   }
 });
 var scanGetCommand = checkmarxArea.command({
@@ -150003,7 +150111,7 @@ var scanGetCommand = checkmarxArea.command({
   writes: false,
   options: [{ flags: "--id <id>", field: "id", description: "Scan UUID" }],
   examples: [{ id: SCAN_ID }],
-  run: async (input3, ctx) => checkmarx(ctx, `scans/${input3.id}`)
+  run: async (input4, ctx) => checkmarx(ctx, `scans/${input4.id}`)
 });
 var scanStatsCommand = checkmarxArea.command({
   path: ["checkmarx", "scan", "stats"],
@@ -150015,7 +150123,7 @@ var scanStatsCommand = checkmarxArea.command({
   options: [{ flags: "--id <id>", field: "id", description: "Scan UUID" }],
   examples: [{ id: SCAN_ID }],
   // Suspected bug (#89 item 2): the deprecated Results Summary API, with scan-id.
-  run: async (input3, ctx) => checkmarx(ctx, "results/summary", { "scan-id": input3.id })
+  run: async (input4, ctx) => checkmarx(ctx, "results/summary", { "scan-id": input4.id })
 });
 var checkmarxCommands = [projectListCommand3, projectGetCommand3, scanListCommand, scanGetCommand, scanStatsCommand];
 
@@ -150324,7 +150432,7 @@ var listAttachments3 = confluenceArea.command({
   writes: false,
   options: [{ flags: "--id <page-id>", field: "id", description: "Page ID" }],
   examples: [{ id: "12345" }],
-  run: (input3, ctx) => listAttachments2(ctx, input3.id)
+  run: (input4, ctx) => listAttachments2(ctx, input4.id)
 });
 var uploadAttachment2 = confluenceArea.command({
   path: ["confluence", "upload-attachment"],
@@ -150346,12 +150454,12 @@ var uploadAttachment2 = confluenceArea.command({
     { id: "12345", file: "diagram.png", allowWrite: true },
     { id: "12345", file: "notes.txt", comment: "First draft", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    if (!ctx.files.exists(input3.file)) {
-      throw new ToilError("INVALID_INPUT", `File not found: ${input3.file}`, { fix: "Check the path. Relative paths resolve against the workspace." });
+  run: async (input4, ctx) => {
+    if (!ctx.files.exists(input4.file)) {
+      throw new ToilError("INVALID_INPUT", `File not found: ${input4.file}`, { fix: "Check the path. Relative paths resolve against the workspace." });
     }
-    const data = ctx.files.readBytes(input3.file);
-    return uploadAttachment(ctx, input3.id, basename5(input3.file), data, input3.comment);
+    const data = ctx.files.readBytes(input4.file);
+    return uploadAttachment(ctx, input4.id, basename5(input4.file), data, input4.comment);
   }
 });
 var downloadAttachment2 = confluenceArea.command({
@@ -150366,10 +150474,10 @@ var downloadAttachment2 = confluenceArea.command({
   writesLocal: true,
   options: [attachmentOption, { flags: "--dir <path>", field: "dir", description: "Output directory (default: .toil relative to cwd)" }],
   examples: [{ id: "98765" }, { id: "98765", dir: "downloads" }],
-  run: async (input3, ctx) => {
-    const attachment = await getAttachment(ctx, input3.id);
+  run: async (input4, ctx) => {
+    const attachment = await getAttachment(ctx, input4.id);
     const data = await downloadAttachment(ctx, attachment);
-    const saved2 = ctx.files.writeBytes(`${input3.dir ?? ".toil"}/${attachmentFileName(attachment.title)}`, data);
+    const saved2 = ctx.files.writeBytes(`${input4.dir ?? ".toil"}/${attachmentFileName(attachment.title)}`, data);
     return { saved: saved2, filename: attachment.title, size: data.length };
   }
 });
@@ -150381,9 +150489,9 @@ var deleteAttachment = confluenceArea.command({
   mcp: false,
   options: [attachmentOption],
   examples: [{ id: "98765", allowWrite: true }],
-  run: async (input3, ctx) => {
-    await deleteContent(ctx, input3.id);
-    return { deleted: input3.id };
+  run: async (input4, ctx) => {
+    await deleteContent(ctx, input4.id);
+    return { deleted: input4.id };
   }
 });
 var attachmentCommands = [listAttachments3, uploadAttachment2, downloadAttachment2, deleteAttachment];
@@ -150399,7 +150507,7 @@ var listComments2 = confluenceArea.command({
   writes: false,
   options: [idOption8],
   examples: [{ id: "12345" }],
-  run: (input3, ctx) => listComments(ctx, input3.id)
+  run: (input4, ctx) => listComments(ctx, input4.id)
 });
 var addComment2 = confluenceArea.command({
   path: ["confluence", "add-comment"],
@@ -150420,7 +150528,7 @@ var addComment2 = confluenceArea.command({
     { id: "12345", body: "<p>Reviewed.</p>", allowWrite: true },
     { id: "12345", body: "Reviewed, *approved*.", representation: "wiki", allowWrite: true }
   ],
-  run: (input3, ctx) => addComment(ctx, input3.id, input3.body, input3.representation ?? "storage")
+  run: (input4, ctx) => addComment(ctx, input4.id, input4.body, input4.representation ?? "storage")
 });
 var getLabels2 = confluenceArea.command({
   path: ["confluence", "get-labels"],
@@ -150429,7 +150537,7 @@ var getLabels2 = confluenceArea.command({
   writes: false,
   options: [idOption8],
   examples: [{ id: "12345" }],
-  run: (input3, ctx) => getLabels(ctx, input3.id)
+  run: (input4, ctx) => getLabels(ctx, input4.id)
 });
 var addLabel = confluenceArea.command({
   path: ["confluence", "add-label"],
@@ -150438,10 +150546,10 @@ var addLabel = confluenceArea.command({
   writes: true,
   options: [idOption8, { flags: "--labels <names>", field: "labels", description: "Comma-separated label names" }],
   examples: [{ id: "12345", labels: "runbook, ops,", allowWrite: true }],
-  run: (input3, ctx) => addLabels(
+  run: (input4, ctx) => addLabels(
     ctx,
-    input3.id,
-    input3.labels.split(",").map((s) => s.trim()).filter(Boolean)
+    input4.id,
+    input4.labels.split(",").map((s) => s.trim()).filter(Boolean)
   )
 });
 var removeLabel2 = confluenceArea.command({
@@ -150451,9 +150559,9 @@ var removeLabel2 = confluenceArea.command({
   writes: true,
   options: [idOption8, { flags: "--label <name>", field: "label", description: "Label name to remove" }],
   examples: [{ id: "12345", label: "runbook", allowWrite: true }],
-  run: async (input3, ctx) => {
-    await removeLabel(ctx, input3.id, input3.label);
-    return { removed: input3.label, from: input3.id };
+  run: async (input4, ctx) => {
+    await removeLabel(ctx, input4.id, input4.label);
+    return { removed: input4.label, from: input4.id };
   }
 });
 var discussionCommands = [listComments2, addComment2, getLabels2, addLabel, removeLabel2];
@@ -150522,7 +150630,7 @@ var getPage2 = confluenceArea.command({
   writes: false,
   options: [idOption9, { flags: "--expand <fields>", field: "expand", description: `Comma-separated fields to expand (default: "${DEFAULT_EXPAND}")` }],
   examples: [{ id: "12345" }, { id: "12345", expand: "body.view,version" }],
-  run: (input3, ctx) => getPage(ctx, input3.id, input3.expand ?? DEFAULT_EXPAND)
+  run: (input4, ctx) => getPage(ctx, input4.id, input4.expand ?? DEFAULT_EXPAND)
 });
 var getPageByTitle2 = confluenceArea.command({
   path: ["confluence", "get-page-by-title"],
@@ -150534,11 +150642,11 @@ var getPageByTitle2 = confluenceArea.command({
     { flags: "--title <title>", field: "title", description: "Page title" }
   ],
   examples: [{ space: "DOCS", title: "Release notes" }],
-  run: async (input3, ctx) => {
-    const page2 = await getPageByTitle(ctx, input3.space, input3.title);
+  run: async (input4, ctx) => {
+    const page2 = await getPageByTitle(ctx, input4.space, input4.title);
     if (!page2) {
-      throw new ToilError("NOT_FOUND", `Page not found: "${input3.title}" in space ${input3.space}`, {
-        fix: `Check the title (it must match exactly) and the space key. toil confluence search --cql 'space=${input3.space} AND title~"\u2026"' finds near matches.`
+      throw new ToilError("NOT_FOUND", `Page not found: "${input4.title}" in space ${input4.space}`, {
+        fix: `Check the title (it must match exactly) and the space key. toil confluence search --cql 'space=${input4.space} AND title~"\u2026"' finds near matches.`
       });
     }
     return page2;
@@ -150560,9 +150668,9 @@ var listPages2 = confluenceArea.command({
     { flags: "--start <n>", field: "start", description: "Offset for first result" }
   ],
   examples: [{ space: "DOCS" }, { space: "DOCS", limit: "30", start: "5" }],
-  run: async (input3, ctx) => {
-    const max = optionalInt(input3.limit);
-    return warnBadLimit(ctx, input3.limit, max, await listPages(ctx, input3.space, { max, start: optionalInt(input3.start) }));
+  run: async (input4, ctx) => {
+    const max = optionalInt(input4.limit);
+    return warnBadLimit(ctx, input4.limit, max, await listPages(ctx, input4.space, { max, start: optionalInt(input4.start) }));
   }
 });
 var getPageChildren2 = confluenceArea.command({
@@ -150572,7 +150680,7 @@ var getPageChildren2 = confluenceArea.command({
   writes: false,
   options: [{ flags: "--id <page-id>", field: "id", description: "Parent page ID" }],
   examples: [{ id: "12345" }],
-  run: (input3, ctx) => getPageChildren(ctx, input3.id)
+  run: (input4, ctx) => getPageChildren(ctx, input4.id)
 });
 var getPageHistory2 = confluenceArea.command({
   path: ["confluence", "get-page-history"],
@@ -150581,7 +150689,7 @@ var getPageHistory2 = confluenceArea.command({
   writes: false,
   options: [idOption9],
   examples: [{ id: "12345" }],
-  run: (input3, ctx) => getPageHistory(ctx, input3.id)
+  run: (input4, ctx) => getPageHistory(ctx, input4.id)
 });
 var search2 = confluenceArea.command({
   path: ["confluence", "search"],
@@ -150601,10 +150709,10 @@ var search2 = confluenceArea.command({
     { flags: "--expand <fields>", field: "expand", description: "Comma-separated fields to expand" }
   ],
   examples: [{ cql: "space=DOCS AND type=page" }, { cql: 'text~"runbook"', limit: "10", start: "20", expand: "space,version" }],
-  run: (input3, ctx) => search(ctx, input3.cql, {
-    limit: parseInt(String(input3.limit ?? "25"), 10),
-    start: parseInt(String(input3.start ?? "0"), 10),
-    expand: input3.expand
+  run: (input4, ctx) => search(ctx, input4.cql, {
+    limit: parseInt(String(input4.limit ?? "25"), 10),
+    start: parseInt(String(input4.start ?? "0"), 10),
+    expand: input4.expand
   })
 });
 var representation = external_exports.string().optional().describe('Body format: storage (default) or wiki (default: "storage")');
@@ -150653,21 +150761,21 @@ var createPage2 = confluenceArea.command({
     { space: "DOCS", title: "Runbook", bodyFile: "runbook.md", markdown: true, allowWrite: true },
     { space: "DOCS", title: "Wiki page", body: "h1. Heading", representation: "wiki", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     let sent;
     try {
-      const raw3 = bodyOf(ctx.files, input3.body, input3.bodyFile);
+      const raw3 = bodyOf(ctx.files, input4.body, input4.bodyFile);
       if (raw3 === void 0) throw new ToilError("INVALID_INPUT", "Must specify --body or --body-file", { fix: "Pass the page body with --body, or a file with --body-file." });
-      sent = input3.markdown ? await convertToStorage(ctx, raw3) : raw3;
+      sent = input4.markdown ? await convertToStorage(ctx, raw3) : raw3;
       return await createPage(ctx, {
-        spaceKey: input3.space,
-        title: input3.title,
+        spaceKey: input4.space,
+        title: input4.title,
         body: sent,
-        parentId: input3.parentId,
-        representation: input3.markdown ? "storage" : input3.representation ?? "storage"
+        parentId: input4.parentId,
+        representation: input4.markdown ? "storage" : input4.representation ?? "storage"
       });
     } catch (err) {
-      throw withBodyHints(err, sent, Boolean(input3.markdown));
+      throw withBodyHints(err, sent, Boolean(input4.markdown));
     }
   }
 });
@@ -150701,21 +150809,21 @@ var updatePage2 = confluenceArea.command({
     { id: "12345", bodyFile: "runbook.md", markdown: true, allowWrite: true },
     { id: "12345", body: "h1. Heading", representation: "wiki", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     let sent;
     try {
-      const raw3 = bodyOf(ctx.files, input3.body, input3.bodyFile);
-      sent = raw3 !== void 0 && input3.markdown ? await convertToStorage(ctx, raw3) : raw3;
-      const current3 = await getPage(ctx, input3.id, "version");
-      return await updatePage(ctx, input3.id, {
+      const raw3 = bodyOf(ctx.files, input4.body, input4.bodyFile);
+      sent = raw3 !== void 0 && input4.markdown ? await convertToStorage(ctx, raw3) : raw3;
+      const current3 = await getPage(ctx, input4.id, "version");
+      return await updatePage(ctx, input4.id, {
         version: current3.version.number + 1,
-        title: input3.title ?? current3.title,
+        title: input4.title ?? current3.title,
         body: sent,
-        status: input3.status ?? "current",
-        representation: sent !== void 0 && input3.markdown ? "storage" : input3.representation ?? "storage"
+        status: input4.status ?? "current",
+        representation: sent !== void 0 && input4.markdown ? "storage" : input4.representation ?? "storage"
       });
     } catch (err) {
-      throw withBodyHints(err, sent, Boolean(input3.markdown));
+      throw withBodyHints(err, sent, Boolean(input4.markdown));
     }
   }
 });
@@ -150727,9 +150835,9 @@ var deletePage = confluenceArea.command({
   mcp: false,
   options: [idOption9],
   examples: [{ id: "12345", allowWrite: true }],
-  run: async (input3, ctx) => {
-    await deleteContent(ctx, input3.id);
-    return { deleted: input3.id };
+  run: async (input4, ctx) => {
+    await deleteContent(ctx, input4.id);
+    return { deleted: input4.id };
   }
 });
 var pageCommands = [getPage2, getPageByTitle2, listPages2, getPageChildren2, getPageHistory2, search2, createPage2, updatePage2, deletePage];
@@ -150748,9 +150856,9 @@ var listSpaces2 = confluenceArea.command({
     { flags: "--limit <n>", field: "limit", description: "Max total spaces to return (default: all)" }
   ],
   examples: [{}, { type: "global", limit: "10" }],
-  run: async (input3, ctx) => {
-    const max = input3.limit === void 0 || input3.limit === "" ? void 0 : parseInt(String(input3.limit), 10);
-    return warnBadLimit(ctx, input3.limit, max, await listSpaces(ctx, { type: input3.type, max }));
+  run: async (input4, ctx) => {
+    const max = input4.limit === void 0 || input4.limit === "" ? void 0 : parseInt(String(input4.limit), 10);
+    return warnBadLimit(ctx, input4.limit, max, await listSpaces(ctx, { type: input4.type, max }));
   }
 });
 var getSpace2 = confluenceArea.command({
@@ -150760,7 +150868,7 @@ var getSpace2 = confluenceArea.command({
   writes: false,
   options: [{ flags: "--key <space-key>", field: "key", description: "Space key" }],
   examples: [{ key: "DOCS" }],
-  run: (input3, ctx) => getSpace(ctx, input3.key)
+  run: (input4, ctx) => getSpace(ctx, input4.key)
 });
 var spaceCommands = [listSpaces2, getSpace2];
 
@@ -151041,7 +151149,7 @@ var listAttachments5 = confluenceCloudArea.command({
   writes: false,
   options: [{ flags: "--id <page-id>", field: "id", description: "Page ID" }],
   examples: [{ id: "12345" }],
-  run: (input3, ctx) => listAttachments4(ctx, input3.id)
+  run: (input4, ctx) => listAttachments4(ctx, input4.id)
 });
 var uploadAttachment4 = confluenceCloudArea.command({
   path: ["confluence-cloud", "upload-attachment"],
@@ -151063,12 +151171,12 @@ var uploadAttachment4 = confluenceCloudArea.command({
     { id: "12345", file: "diagram.png", allowWrite: true },
     { id: "12345", file: "notes.txt", comment: "First draft", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    if (!ctx.files.exists(input3.file)) {
-      throw new ToilError("INVALID_INPUT", `File not found: ${input3.file}`, { fix: "Check the path. Relative paths resolve against the workspace." });
+  run: async (input4, ctx) => {
+    if (!ctx.files.exists(input4.file)) {
+      throw new ToilError("INVALID_INPUT", `File not found: ${input4.file}`, { fix: "Check the path. Relative paths resolve against the workspace." });
     }
-    const data = ctx.files.readBytes(input3.file);
-    return uploadAttachment3(ctx, input3.id, attachmentFileName2(input3.file), data, input3.comment);
+    const data = ctx.files.readBytes(input4.file);
+    return uploadAttachment3(ctx, input4.id, attachmentFileName2(input4.file), data, input4.comment);
   }
 });
 var downloadAttachment4 = confluenceCloudArea.command({
@@ -151083,10 +151191,10 @@ var downloadAttachment4 = confluenceCloudArea.command({
   writesLocal: true,
   options: [attachmentOption2, { flags: "--dir <path>", field: "dir", description: "Output directory (default: .toil in the workspace)" }],
   examples: [{ id: "att98765" }, { id: "att98765", dir: "downloads" }],
-  run: async (input3, ctx) => {
-    const attachment = await getAttachment2(ctx, input3.id);
+  run: async (input4, ctx) => {
+    const attachment = await getAttachment2(ctx, input4.id);
     const data = await downloadAttachment3(ctx, attachment);
-    const saved2 = ctx.files.writeBytes(`${input3.dir ?? ".toil"}/${attachmentFileName2(attachment.title)}`, data);
+    const saved2 = ctx.files.writeBytes(`${input4.dir ?? ".toil"}/${attachmentFileName2(attachment.title)}`, data);
     return { saved: saved2, filename: attachment.title, size: data.length };
   }
 });
@@ -151098,9 +151206,9 @@ var deleteAttachment3 = confluenceCloudArea.command({
   mcp: false,
   options: [attachmentOption2],
   examples: [{ id: "att98765", allowWrite: true }],
-  run: async (input3, ctx) => {
-    await deleteAttachment2(ctx, input3.id);
-    return { deleted: input3.id };
+  run: async (input4, ctx) => {
+    await deleteAttachment2(ctx, input4.id);
+    return { deleted: input4.id };
   }
 });
 var attachmentCommands2 = [listAttachments5, uploadAttachment4, downloadAttachment4, deleteAttachment3];
@@ -151141,7 +151249,7 @@ var listComments4 = confluenceCloudArea.command({
   writes: false,
   options: [idOption10],
   examples: [{ id: "12345" }],
-  run: async (input3, ctx) => (await listComments3(ctx, input3.id)).map(withBodyText)
+  run: async (input4, ctx) => (await listComments3(ctx, input4.id)).map(withBodyText)
 });
 var addComment4 = confluenceCloudArea.command({
   path: ["confluence-cloud", "add-comment"],
@@ -151162,7 +151270,7 @@ var addComment4 = confluenceCloudArea.command({
     { id: "12345", body: "<p>Reviewed.</p>", allowWrite: true },
     { id: "12345", body: "Reviewed, *approved*.", representation: "wiki", allowWrite: true }
   ],
-  run: async (input3, ctx) => withBodyText(await addComment3(ctx, input3.id, input3.body, input3.representation ?? "storage"))
+  run: async (input4, ctx) => withBodyText(await addComment3(ctx, input4.id, input4.body, input4.representation ?? "storage"))
 });
 var getLabels4 = confluenceCloudArea.command({
   path: ["confluence-cloud", "get-labels"],
@@ -151171,7 +151279,7 @@ var getLabels4 = confluenceCloudArea.command({
   writes: false,
   options: [idOption10],
   examples: [{ id: "12345" }],
-  run: (input3, ctx) => getLabels3(ctx, input3.id)
+  run: (input4, ctx) => getLabels3(ctx, input4.id)
 });
 var addLabel2 = confluenceCloudArea.command({
   path: ["confluence-cloud", "add-label"],
@@ -151180,10 +151288,10 @@ var addLabel2 = confluenceCloudArea.command({
   writes: true,
   options: [idOption10, { flags: "--labels <names>", field: "labels", description: "Comma-separated label names" }],
   examples: [{ id: "12345", labels: "runbook, ops,", allowWrite: true }],
-  run: (input3, ctx) => addLabels2(
+  run: (input4, ctx) => addLabels2(
     ctx,
-    input3.id,
-    input3.labels.split(",").map((s) => s.trim()).filter(Boolean)
+    input4.id,
+    input4.labels.split(",").map((s) => s.trim()).filter(Boolean)
   )
 });
 var removeLabel4 = confluenceCloudArea.command({
@@ -151193,9 +151301,9 @@ var removeLabel4 = confluenceCloudArea.command({
   writes: true,
   options: [idOption10, { flags: "--label <name>", field: "label", description: "Label name to remove" }],
   examples: [{ id: "12345", label: "runbook", allowWrite: true }],
-  run: async (input3, ctx) => {
-    await removeLabel3(ctx, input3.id, input3.label);
-    return { removed: input3.label, from: input3.id };
+  run: async (input4, ctx) => {
+    await removeLabel3(ctx, input4.id, input4.label);
+    return { removed: input4.label, from: input4.id };
   }
 });
 var discussionCommands2 = [listComments4, addComment4, getLabels4, addLabel2, removeLabel4];
@@ -151209,8 +151317,8 @@ var spaceOption = { flags: "--space <key>", field: "space", description: "Space 
 var limit2 = (what) => external_exports.number().int().positive().optional().describe(`Max total ${what} to return (default: all)`);
 var cursor2 = external_exports.string().min(1).optional().describe("meta.page.nextCursor from the previous page, to carry on from there (with limit)");
 var cursorOption2 = { flags: "--cursor <cursor>", field: "cursor", description: "meta.page.nextCursor from the previous page (with --limit)" };
-function needLimitForCursor2(input3) {
-  if (input3.cursor !== void 0 && input3.limit === void 0) {
+function needLimitForCursor2(input4) {
+  if (input4.cursor !== void 0 && input4.limit === void 0) {
     throw new ToilError("INVALID_INPUT", "--cursor needs --limit", {
       fix: "Pass --limit with --cursor (the limit of the call that gave you the cursor), or leave out --cursor to read everything."
     });
@@ -151224,7 +151332,7 @@ var getPage4 = confluenceCloudArea.command({
   writes: false,
   options: [idOption11],
   examples: [{ id: "12345" }],
-  run: async (input3, ctx) => withBodyText(await getPage3(ctx, input3.id))
+  run: async (input4, ctx) => withBodyText(await getPage3(ctx, input4.id))
 });
 var getPageByTitle4 = confluenceCloudArea.command({
   path: ["confluence-cloud", "get-page-by-title"],
@@ -151233,12 +151341,12 @@ var getPageByTitle4 = confluenceCloudArea.command({
   writes: false,
   options: [spaceOption, { flags: "--title <title>", field: "title", description: "Page title" }],
   examples: [{ space: "DOCS", title: "Release notes" }],
-  run: async (input3, ctx) => {
-    const found = await getSpace3(ctx, input3.space);
-    const page2 = await getPageByTitle3(ctx, found.id, input3.title);
+  run: async (input4, ctx) => {
+    const found = await getSpace3(ctx, input4.space);
+    const page2 = await getPageByTitle3(ctx, found.id, input4.title);
     if (!page2) {
-      throw new ToilError("NOT_FOUND", `Page not found: "${input3.title}" in space ${input3.space}`, {
-        fix: `Check the title (it must match exactly) and the space key. toil confluence-cloud search --cql 'space=${input3.space} AND title~"\u2026"' finds near matches.`
+      throw new ToilError("NOT_FOUND", `Page not found: "${input4.title}" in space ${input4.space}`, {
+        fix: `Check the title (it must match exactly) and the space key. toil confluence-cloud search --cql 'space=${input4.space} AND title~"\u2026"' finds near matches.`
       });
     }
     return withBodyText(page2);
@@ -151252,10 +151360,10 @@ var listPages4 = confluenceCloudArea.command({
   writes: false,
   options: [spaceOption, { flags: "--limit <n>", field: "limit", description: "Max total pages to return (default: all)" }, cursorOption2],
   examples: [{ space: "DOCS" }, { space: "DOCS", limit: 2 }, { space: "DOCS", limit: 2, cursor: "eyJjIjoicGFnZS0yIiwicyI6MH0" }],
-  run: async (input3, ctx) => {
-    needLimitForCursor2(input3);
-    const found = await getSpace3(ctx, input3.space);
-    return (await listPages3(ctx, found.id, { cap: input3.limit, cursor: input3.cursor })).items;
+  run: async (input4, ctx) => {
+    needLimitForCursor2(input4);
+    const found = await getSpace3(ctx, input4.space);
+    return (await listPages3(ctx, found.id, { cap: input4.limit, cursor: input4.cursor })).items;
   }
 });
 var getPageChildren4 = confluenceCloudArea.command({
@@ -151266,7 +151374,7 @@ var getPageChildren4 = confluenceCloudArea.command({
   writes: false,
   options: [{ flags: "--id <page-id>", field: "id", description: "Parent page ID" }],
   examples: [{ id: "12345" }],
-  run: (input3, ctx) => getPageChildren3(ctx, input3.id)
+  run: (input4, ctx) => getPageChildren3(ctx, input4.id)
 });
 var getPageHistory3 = confluenceCloudArea.command({
   path: ["confluence-cloud", "get-page-history"],
@@ -151276,7 +151384,7 @@ var getPageHistory3 = confluenceCloudArea.command({
   writes: false,
   options: [idOption11],
   examples: [{ id: "12345" }],
-  run: (input3, ctx) => getPageVersions(ctx, input3.id)
+  run: (input4, ctx) => getPageVersions(ctx, input4.id)
 });
 var search4 = confluenceCloudArea.command({
   path: ["confluence-cloud", "search"],
@@ -151296,9 +151404,9 @@ var search4 = confluenceCloudArea.command({
     { flags: "--expand <fields>", field: "expand", description: "Comma-separated fields to expand" }
   ],
   examples: [{ cql: "space=DOCS AND type=page" }, { cql: 'text~"runbook"', limit: 10, cursor: "c2VhcmNoLTI", expand: "content.space" }],
-  run: async (input3, ctx) => {
-    const limit3 = input3.limit ?? 25;
-    const result = await search3(ctx, input3.cql, { limit: limit3, cursor: input3.cursor, expand: input3.expand });
+  run: async (input4, ctx) => {
+    const limit3 = input4.limit ?? 25;
+    const result = await search3(ctx, input4.cql, { limit: limit3, cursor: input4.cursor, expand: input4.expand });
     ctx.setPage({ nextCursor: cursorOf(result._links?.next) ?? null, limit: limit3 });
     return result;
   }
@@ -151345,11 +151453,11 @@ var createPage4 = confluenceCloudArea.command({
     { space: "DOCS", title: "Runbook", bodyFile: "runbook.html", allowWrite: true },
     { space: "DOCS", title: "Wiki page", body: "h1. Heading", representation: "wiki", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const body = bodyOf2(ctx.files, input3.body, input3.bodyFile);
+  run: async (input4, ctx) => {
+    const body = bodyOf2(ctx.files, input4.body, input4.bodyFile);
     if (body === void 0) throw new ToilError("INVALID_INPUT", "Must specify --body or --body-file", { fix: "Pass the page body with --body, or a file with --body-file." });
-    const found = await getSpace3(ctx, input3.space);
-    const page2 = await createPage3(ctx, { spaceId: found.id, title: input3.title, body, parentId: input3.parentId, representation: input3.representation ?? "storage" });
+    const found = await getSpace3(ctx, input4.space);
+    const page2 = await createPage3(ctx, { spaceId: found.id, title: input4.title, body, parentId: input4.parentId, representation: input4.representation ?? "storage" });
     return withBodyText(page2);
   }
 });
@@ -151381,28 +151489,28 @@ var updatePage4 = confluenceCloudArea.command({
     { id: "12345", bodyFile: "runbook.html", status: "draft", allowWrite: true },
     { id: "12345", body: "h1. Heading", representation: "wiki", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const body = bodyOf2(ctx.files, input3.body, input3.bodyFile);
-    if (body === void 0 && input3.representation !== void 0) {
+  run: async (input4, ctx) => {
+    const body = bodyOf2(ctx.files, input4.body, input4.bodyFile);
+    if (body === void 0 && input4.representation !== void 0) {
       throw new ToilError("INVALID_INPUT", "--representation needs --body or --body-file", { fix: "Pass the new body, or leave out --representation." });
     }
-    const current3 = await getPage3(ctx, input3.id);
+    const current3 = await getPage3(ctx, input4.id);
     const number4 = current3.version?.number;
     if (typeof number4 !== "number") {
-      throw new ToilError("HTTP", `Confluence Cloud returned page ${input3.id} without a version number, so toil can't send the next one.`, { fix: "Check the id is a page id, then try again." });
+      throw new ToilError("HTTP", `Confluence Cloud returned page ${input4.id} without a version number, so toil can't send the next one.`, { fix: "Check the id is a page id, then try again." });
     }
     const kept = storageOf(current3);
     if (body === void 0 && kept === void 0) {
-      throw new ToilError("HTTP", `Confluence Cloud returned page ${input3.id} without its storage body, which an update has to resend.`, { fix: "Pass the body with --body or --body-file." });
+      throw new ToilError("HTTP", `Confluence Cloud returned page ${input4.id} without its storage body, which an update has to resend.`, { fix: "Pass the body with --body or --body-file." });
     }
-    const status = input3.status ?? "current";
-    const page2 = await updatePage3(ctx, input3.id, {
+    const status = input4.status ?? "current";
+    const page2 = await updatePage3(ctx, input4.id, {
       // Atlassian: the current number plus one, except a change to draft, which is version 1.
       version: status === "draft" ? 1 : number4 + 1,
-      title: input3.title ?? current3.title,
+      title: input4.title ?? current3.title,
       status,
       body: body ?? kept,
-      representation: body === void 0 ? "storage" : input3.representation ?? "storage"
+      representation: body === void 0 ? "storage" : input4.representation ?? "storage"
     });
     return withBodyText(page2);
   }
@@ -151415,9 +151523,9 @@ var deletePage3 = confluenceCloudArea.command({
   mcp: false,
   options: [idOption11],
   examples: [{ id: "12345", allowWrite: true }],
-  run: async (input3, ctx) => {
-    await deletePage2(ctx, input3.id);
-    return { deleted: input3.id };
+  run: async (input4, ctx) => {
+    await deletePage2(ctx, input4.id);
+    return { deleted: input4.id };
   }
 });
 var pageCommands2 = [getPage4, getPageByTitle4, listPages4, getPageChildren4, getPageHistory3, search4, createPage4, updatePage4, deletePage3];
@@ -151439,9 +151547,9 @@ var listSpaces4 = confluenceCloudArea.command({
     { flags: "--cursor <cursor>", field: "cursor", description: "meta.page.nextCursor from the previous page (with --limit)" }
   ],
   examples: [{}, { type: "global", limit: 1 }, { type: "global", limit: 1, cursor: "eyJjIjoicGFnZS0xIiwicyI6MH0" }],
-  run: async (input3, ctx) => {
-    needLimitForCursor2(input3);
-    return (await listSpaces3(ctx, { type: input3.type, cap: input3.limit, cursor: input3.cursor })).items;
+  run: async (input4, ctx) => {
+    needLimitForCursor2(input4);
+    return (await listSpaces3(ctx, { type: input4.type, cap: input4.limit, cursor: input4.cursor })).items;
   }
 });
 var getSpace4 = confluenceCloudArea.command({
@@ -151451,7 +151559,7 @@ var getSpace4 = confluenceCloudArea.command({
   writes: false,
   options: [{ flags: "--key <space-key>", field: "key", description: "Space key" }],
   examples: [{ key: "DOCS" }],
-  run: (input3, ctx) => getSpace3(ctx, input3.key)
+  run: (input4, ctx) => getSpace3(ctx, input4.key)
 });
 var spaceCommands2 = [listSpaces4, getSpace4];
 
@@ -151533,7 +151641,7 @@ var appsListCommand = contrastArea.command({
     { flags: "--offset <n>", field: "offset", description: 'Pagination offset (default: "0")' }
   ],
   examples: [{}, { limit: "10", offset: "20" }],
-  run: async (input3, ctx) => contrast(ctx, "/applications", limitOffset(input3.limit, input3.offset))
+  run: async (input4, ctx) => contrast(ctx, "/applications", limitOffset(input4.limit, input4.offset))
 });
 var appsCommands = [appsListCommand];
 
@@ -151560,15 +151668,15 @@ var findingsListCommand = contrastArea.command({
     { app: "abc12345-0000-0000-0000-000000000000" },
     { app: "abc12345-0000-0000-0000-000000000000", severity: "HIGH,CRITICAL", status: "CONFIRMED", limit: "50", offset: "25" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const params2 = {
-      ...limitOffset(input3.limit, input3.offset),
+      ...limitOffset(input4.limit, input4.offset),
       // An empty value is left out, by the truthiness check the contract specifies.
-      ...input3.severity ? { severities: input3.severity } : {},
+      ...input4.severity ? { severities: input4.severity } : {},
       // Suspected bug (#87 item 2): Contrast's SDK sends `status`, not `statuses`.
-      ...input3.status ? { statuses: input3.status } : {}
+      ...input4.status ? { statuses: input4.status } : {}
     };
-    return contrast(ctx, `/traces/${input3.app}/filter`, params2);
+    return contrast(ctx, `/traces/${input4.app}/filter`, params2);
   }
 });
 var findingsGetCommand = contrastArea.command({
@@ -151585,7 +151693,7 @@ var findingsGetCommand = contrastArea.command({
   ],
   examples: [{ app: "abc12345-0000-0000-0000-000000000000", trace: "ABCD-1234-EFGH-5678" }],
   // Suspected bug (#87 item 3): the SDK reads a trace from `/filter/<id>`, not `/trace/<id>`.
-  run: async (input3, ctx) => contrast(ctx, `/traces/${input3.app}/trace/${input3.trace}`)
+  run: async (input4, ctx) => contrast(ctx, `/traces/${input4.app}/trace/${input4.trace}`)
 });
 var findingsCommands = [findingsListCommand, findingsGetCommand];
 
@@ -151610,7 +151718,7 @@ var librariesListCommand = contrastArea.command({
     { app: "abc12345-0000-0000-0000-000000000000" },
     { app: "abc12345-0000-0000-0000-000000000000", limit: "10", offset: "20" }
   ],
-  run: async (input3, ctx) => contrast(ctx, `/applications/${input3.app}/libraries`, limitOffset(input3.limit, input3.offset))
+  run: async (input4, ctx) => contrast(ctx, `/applications/${input4.app}/libraries`, limitOffset(input4.limit, input4.offset))
 });
 var librariesGetCommand = contrastArea.command({
   path: ["contrast", "libraries", "get"],
@@ -151625,21 +151733,21 @@ var librariesGetCommand = contrastArea.command({
     { flags: "--hash <library-hash>", field: "hash", description: "Library hash" }
   ],
   examples: [{ app: "abc12345-0000-0000-0000-000000000000", hash: "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     let match;
     await paginate(
       { kind: "offset", startParam: "offset", limitParam: "limit", pageSize: BATCH, items: (body) => body },
       async (page2) => {
-        const body = await contrast(ctx, `/applications/${input3.app}/libraries`, { limit: page2.limit, offset: page2.offset });
+        const body = await contrast(ctx, `/applications/${input4.app}/libraries`, { limit: page2.limit, offset: page2.offset });
         const items = body.libraries ?? [];
-        match = items.find((item) => item.hash === input3.hash);
+        match = items.find((item) => item.hash === input4.hash);
         return { body: match || items.length < BATCH ? [] : items };
       },
-      { what: `Contrast libraries for application ${input3.app}` }
+      { what: `Contrast libraries for application ${input4.app}` }
     );
     if (!match) {
-      throw new ToilError("NOT_FOUND", `Library with hash "${input3.hash}" not found for application ${input3.app}`, {
-        fix: `Check the hash with toil contrast libraries list --app ${input3.app}, and that the application ID is right.`
+      throw new ToilError("NOT_FOUND", `Library with hash "${input4.hash}" not found for application ${input4.app}`, {
+        fix: `Check the hash with toil contrast libraries list --app ${input4.app}, and that the application ID is right.`
       });
     }
     return match;
@@ -154689,9 +154797,9 @@ var listTables = area11.command({
   writes: false,
   options: [schemaOption],
   examples: [{}, { schema: "main" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { provider, conn, call: call2 } = using(ctx);
-    const schema3 = input3.schema ?? provider.defaultSchema(conn);
+    const schema3 = input4.schema ?? provider.defaultSchema(conn);
     return { schema: schema3, tables: await provider.listTables(conn, schema3, call2) };
   }
 });
@@ -154704,9 +154812,9 @@ var describeTable = area11.command({
   args: [{ name: "table", field: "table", description: "Table or view name" }],
   options: [schemaOption],
   examples: [{ table: "people" }, { table: "people", schema: "main" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { provider, conn, call: call2 } = using(ctx);
-    return provider.describeTable(conn, { schema: input3.schema ?? provider.defaultSchema(conn), table: input3.table }, call2);
+    return provider.describeTable(conn, { schema: input4.schema ?? provider.defaultSchema(conn), table: input4.table }, call2);
   }
 });
 var previewTable = area11.command({
@@ -154718,13 +154826,13 @@ var previewTable = area11.command({
   args: [{ name: "table", field: "table", description: "Table or view name" }],
   options: [schemaOption, ...pageOptions3],
   examples: [{ table: "people" }, { table: "people", schema: "main", limit: 2, cursor: encodeCursor2(2, pageKey("db preview-table", "main", "people")) }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { provider, conn, call: call2 } = using(ctx);
-    const schema3 = input3.schema ?? provider.defaultSchema(conn);
-    const limit3 = input3.limit ?? DEFAULT_LIMIT;
-    const key6 = pageKey("db preview-table", schema3, input3.table);
-    const offset = decodeCursor2(input3.cursor, key6);
-    const { data, page: page2 } = toPage(await provider.previewTable(conn, { schema: schema3, table: input3.table }, windowFor(offset, limit3), call2), offset, limit3, key6);
+    const schema3 = input4.schema ?? provider.defaultSchema(conn);
+    const limit3 = input4.limit ?? DEFAULT_LIMIT;
+    const key6 = pageKey("db preview-table", schema3, input4.table);
+    const offset = decodeCursor2(input4.cursor, key6);
+    const { data, page: page2 } = toPage(await provider.previewTable(conn, { schema: schema3, table: input4.table }, windowFor(offset, limit3), call2), offset, limit3, key6);
     ctx.setPage(page2);
     return data;
   }
@@ -154740,12 +154848,12 @@ var query = area11.command({
   args: [{ name: "sql", field: "sql", description: "One SQL statement, quoted" }],
   options: pageOptions3,
   examples: [{ sql: EXAMPLE_SQL }, { sql: EXAMPLE_SQL, limit: 2, cursor: encodeCursor2(2, pageKey("db query", EXAMPLE_SQL)) }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { provider, conn, call: call2 } = using(ctx);
-    const limit3 = input3.limit ?? DEFAULT_LIMIT;
-    const key6 = pageKey("db query", input3.sql);
-    const offset = decodeCursor2(input3.cursor, key6);
-    const { data, page: page2 } = toPage(await provider.query(conn, input3.sql, windowFor(offset, limit3), call2), offset, limit3, key6);
+    const limit3 = input4.limit ?? DEFAULT_LIMIT;
+    const key6 = pageKey("db query", input4.sql);
+    const offset = decodeCursor2(input4.cursor, key6);
+    const { data, page: page2 } = toPage(await provider.query(conn, input4.sql, windowFor(offset, limit3), call2), offset, limit3, key6);
     ctx.setPage(page2);
     return data;
   }
@@ -154759,9 +154867,9 @@ var execute2 = area11.command({
   auditInput: { sql: "hash" },
   args: [{ name: "sql", field: "sql", description: "SQL to run, quoted" }],
   examples: [{ sql: "UPDATE people SET active = 1 WHERE name = 'Ada'", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { provider, conn, call: call2 } = using(ctx);
-    return provider.execute(conn, input3.sql, call2);
+    return provider.execute(conn, input4.sql, call2);
   }
 });
 var commands11 = [listSchemas, listTables, describeTable, previewTable, query, execute2];
@@ -154895,8 +155003,8 @@ var entitiesListCommand = dynatraceArea.command({
     { flags: "--fields <fields>", field: "fields", description: "Additional entity fields" }
   ],
   examples: [{ selector: 'type("HOST")' }, { selector: 'type("PROCESS_GROUP")', from: "now-1d", to: "now", fields: "+properties,+tags", env: "prod" }],
-  run: async (input3, ctx) => {
-    const { totalCount, items } = await allPages(ctx, "/api/v2/entities", "entities", { entitySelector: input3.selector, from: input3.from, to: input3.to, fields: input3.fields }, "Dynatrace entities");
+  run: async (input4, ctx) => {
+    const { totalCount, items } = await allPages(ctx, "/api/v2/entities", "entities", { entitySelector: input4.selector, from: input4.from, to: input4.to, fields: input4.fields }, "Dynatrace entities");
     return { totalCount, entities: items };
   }
 });
@@ -154918,7 +155026,7 @@ var entitiesGetCommand = dynatraceArea.command({
   ],
   examples: [{ id: "SERVICE-1234567890ABCDEF" }, { id: "HOST-ABC1234500000000", from: "now-2h", to: "now", fields: "+properties", env: "prod" }],
   // The server's entity, passed through as it came.
-  run: async (input3, ctx) => dynatrace(ctx, `/api/v2/entities/${encodeURIComponent(input3.id)}`, { query: { from: input3.from, to: input3.to, fields: input3.fields } })
+  run: async (input4, ctx) => dynatrace(ctx, `/api/v2/entities/${encodeURIComponent(input4.id)}`, { query: { from: input4.from, to: input4.to, fields: input4.fields } })
 });
 var entitiesCommands = [entitiesListCommand, entitiesGetCommand];
 
@@ -154940,8 +155048,8 @@ var problemsListCommand = dynatraceArea.command({
     { flags: "--entity-selector <selector>", field: "entitySelector", description: "Affected entity selector" }
   ],
   examples: [{}, { from: "now-1d", to: "now-1h", problemSelector: 'status("open")', entitySelector: 'type("SERVICE")', env: "prod" }],
-  run: async (input3, ctx) => {
-    const first = { from: input3.from ?? "now-2h", to: input3.to ?? "now", problemSelector: input3.problemSelector, entitySelector: input3.entitySelector };
+  run: async (input4, ctx) => {
+    const first = { from: input4.from ?? "now-2h", to: input4.to ?? "now", problemSelector: input4.problemSelector, entitySelector: input4.entitySelector };
     const { totalCount, items } = await allPages(ctx, "/api/v2/problems", "problems", first, "Dynatrace problems");
     return { totalCount, problems: items };
   }
@@ -154960,7 +155068,7 @@ var problemsGetCommand = dynatraceArea.command({
   ],
   examples: [{ id: "-1234567890123456789_1700000000000V2" }, { id: "-1234567890123456789_1700000000000V2", fields: "evidenceDetails,impactAnalysis", env: "dynatrace" }],
   // The server's problem, passed through as it came.
-  run: async (input3, ctx) => dynatrace(ctx, `/api/v2/problems/${encodeURIComponent(input3.id)}`, { query: { fields: input3.fields } })
+  run: async (input4, ctx) => dynatrace(ctx, `/api/v2/problems/${encodeURIComponent(input4.id)}`, { query: { fields: input4.fields } })
 });
 var problemsCommands = [problemsListCommand, problemsGetCommand];
 
@@ -154973,7 +155081,7 @@ var windowOptions = [
   { flags: "--from <time>", field: "from", description: "Start time" },
   { flags: "--to <time>", field: "to", description: "End time" }
 ];
-var entitiesOfType = (ctx, selector, input3, what) => allPages(ctx, "/api/v2/entities", "entities", { entitySelector: selector, from: input3.from, to: input3.to }, what);
+var entitiesOfType = (ctx, selector, input4, what) => allPages(ctx, "/api/v2/entities", "entities", { entitySelector: selector, from: input4.from, to: input4.to }, what);
 var servicesCommand = dynatraceArea.command({
   path: ["dynatrace", "services"],
   description: "List monitored services",
@@ -154981,8 +155089,8 @@ var servicesCommand = dynatraceArea.command({
   writes: false,
   options: windowOptions,
   examples: [{}, { from: "now-6h", to: "now", env: "prod" }],
-  run: async (input3, ctx) => {
-    const { totalCount, items } = await entitiesOfType(ctx, 'type("SERVICE")', input3, "Dynatrace services");
+  run: async (input4, ctx) => {
+    const { totalCount, items } = await entitiesOfType(ctx, 'type("SERVICE")', input4, "Dynatrace services");
     return { totalCount, services: items };
   }
 });
@@ -154993,8 +155101,8 @@ var workloadsCommand = dynatraceArea.command({
   writes: false,
   options: windowOptions,
   examples: [{}, { from: "now-6h", to: "now", env: "prod" }],
-  run: async (input3, ctx) => {
-    const { totalCount, items } = await entitiesOfType(ctx, 'type("CLOUD_APPLICATION")', input3, "Dynatrace workloads");
+  run: async (input4, ctx) => {
+    const { totalCount, items } = await entitiesOfType(ctx, 'type("CLOUD_APPLICATION")', input4, "Dynatrace workloads");
     return { totalCount, workloads: items };
   }
 });
@@ -155088,7 +155196,7 @@ var traceCommand = dynatraceArea.command({
   queryByPost: true,
   options: [{ flags: "--id <trace-id>", field: "id", description: "16- or 32-character hexadecimal trace ID" }],
   examples: [{ id: "4BF92F3577B34DA6A3CE929D0E0E4736", env: "prod" }],
-  run: async (input3, ctx) => runTraceQuery(ctx, input3.id)
+  run: async (input4, ctx) => runTraceQuery(ctx, input4.id)
 });
 var traceCommands = [traceCommand];
 
@@ -155160,8 +155268,8 @@ function errorReason(body) {
   return root !== void 0 && root !== top2 ? `${top2} (root cause: ${root})` : top2;
 }
 function withReason(fetch) {
-  return async (input3, init2) => {
-    const response = await fetch(input3, init2);
+  return async (input4, init2) => {
+    const response = await fetch(input4, init2);
     if (response.status < 400 || response.status === 429) return response;
     const text4 = await response.text().catch(() => "");
     const reason = errorReason(text4);
@@ -155178,10 +155286,10 @@ function indexPath(index2, flag) {
   }
   return targets.map((t) => encodeURIComponent(t)).join(",");
 }
-function buildQuery(input3) {
-  if (input3.query && input3.q) throw invalid2("Use either --query or --q, not both.", "Pass a Query DSL clause with --query, or a Lucene query string with --q.");
-  if (input3.query) return parseJsonObject(input3.query, "--query");
-  if (input3.q) return { query_string: { query: input3.q } };
+function buildQuery(input4) {
+  if (input4.query && input4.q) throw invalid2("Use either --query or --q, not both.", "Pass a Query DSL clause with --query, or a Lucene query string with --q.");
+  if (input4.query) return parseJsonObject(input4.query, "--query");
+  if (input4.q) return { query_string: { query: input4.q } };
   return { match_all: {} };
 }
 function parseJsonObject(raw3, flag) {
@@ -155260,23 +155368,23 @@ var searchCommand3 = elasticsearchArea.command({
     { index: "logs-app, logs-web", query: '{"match":{"message":"timeout"}}', sort: "@timestamp:desc,_score", source: "message, @timestamp,", size: "20", from: "40", timeoutMs: "5000" },
     { index: "logs-*", q: "level:error AND service:api" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const body = {
-      query: buildQuery(input3),
-      size: nonNegativeInt(input3.size ?? "100", "--size"),
-      from: nonNegativeInt(input3.from ?? "0", "--from")
+      query: buildQuery(input4),
+      size: nonNegativeInt(input4.size ?? "100", "--size"),
+      from: nonNegativeInt(input4.from ?? "0", "--from")
     };
-    if (input3.sort) {
-      const sort2 = parseSort(input3.sort);
+    if (input4.sort) {
+      const sort2 = parseSort(input4.sort);
       if (sort2.length > 0) body.sort = sort2;
     }
-    if (input3.source) body._source = input3.source.split(",").map((s) => s.trim()).filter(Boolean);
-    const timeoutMs = nonNegativeInt(input3.timeoutMs ?? "30000", "--timeout-ms");
-    const data = await es(ctx, `/${indexPath(input3.index, "--index")}/_search`, { method: "POST", json: body, timeoutMs });
+    if (input4.source) body._source = input4.source.split(",").map((s) => s.trim()).filter(Boolean);
+    const timeoutMs = nonNegativeInt(input4.timeoutMs ?? "30000", "--timeout-ms");
+    const data = await es(ctx, `/${indexPath(input4.index, "--index")}/_search`, { method: "POST", json: body, timeoutMs });
     const total = data.hits?.total;
     const hits = data.hits?.hits ?? [];
     return {
-      index: input3.index,
+      index: input4.index,
       took: data.took,
       timedOut: data.timed_out ?? false,
       total: typeof total === "object" ? total?.value : total,
@@ -155306,9 +155414,9 @@ var countCommand = elasticsearchArea.command({
   ],
   examples: [{ index: "logs-app" }, { index: "logs-*", q: "level:error" }, { index: "logs-app", query: '{"term":{"level":"error"}}' }],
   // https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-count
-  run: async (input3, ctx) => {
-    const data = await es(ctx, `/${indexPath(input3.index, "--index")}/_count`, { method: "POST", json: { query: buildQuery(input3) } });
-    return { index: input3.index, count: data.count };
+  run: async (input4, ctx) => {
+    const data = await es(ctx, `/${indexPath(input4.index, "--index")}/_count`, { method: "POST", json: { query: buildQuery(input4) } });
+    return { index: input4.index, count: data.count };
   }
 });
 var documentCommands2 = [searchCommand3, countCommand];
@@ -155325,8 +155433,8 @@ var indicesListCommand = elasticsearchArea.command({
   writes: false,
   options: [{ flags: "--pattern <pattern>", field: "pattern", description: 'Index name or wildcard pattern (e.g. "logs-*")' }],
   examples: [{}, { pattern: "logs-*,metrics-*" }],
-  run: async (input3, ctx) => {
-    const path2 = input3.pattern ? `/_cat/indices/${indexPath(input3.pattern, "--pattern")}` : "/_cat/indices";
+  run: async (input4, ctx) => {
+    const path2 = input4.pattern ? `/_cat/indices/${indexPath(input4.pattern, "--pattern")}` : "/_cat/indices";
     const rows = await es(ctx, path2, { query: { format: "json", h: COLUMNS } });
     if (!Array.isArray(rows)) {
       throw new ToilError("HTTP", `Elasticsearch answered ${path2} with something other than a list of indices.`, {
@@ -155383,38 +155491,38 @@ init_errors();
 init_errors();
 var FIX_KEY = "Pass the file key on its own (the part after /design/, /file/ or /board/ in the link), or a link of the form https://www.figma.com/design/<file-key>/...";
 var FIX_NODE = "Pass a node ID like 12:34 or 12-34, or a Figma link with a node-id query parameter.";
-function isUrl(input3) {
-  return input3.startsWith("http://") || input3.startsWith("https://");
+function isUrl(input4) {
+  return input4.startsWith("http://") || input4.startsWith("https://");
 }
-function parseFileKey(input3) {
-  if (isUrl(input3)) {
-    const match = /figma\.com\/(?:design|file)\/([A-Za-z0-9]+)/i.exec(input3);
+function parseFileKey(input4) {
+  if (isUrl(input4)) {
+    const match = /figma\.com\/(?:design|file)\/([A-Za-z0-9]+)/i.exec(input4);
     if (!match?.[1]) {
-      throw new ToilError("INVALID_INPUT", `Could not extract Figma file key from URL: ${input3}
+      throw new ToilError("INVALID_INPUT", `Could not extract Figma file key from URL: ${input4}
 Expected format: https://www.figma.com/design/<file-key>/...`, { fix: FIX_KEY });
     }
     return match[1];
   }
-  return input3;
+  return input4;
 }
 var NODE_ID_PATTERN = /^[A-Za-z0-9]+:[A-Za-z0-9]+(?:;[A-Za-z0-9]+:[A-Za-z0-9]+)*$/;
 var NODE_ID_HINT = "Expected a node ID like 12:34 or 12-34, or a Figma URL with a node-id query param";
-function parseNodeId(input3) {
-  let raw3 = input3;
-  if (isUrl(input3)) {
+function parseNodeId(input4) {
+  let raw3 = input4;
+  if (isUrl(input4)) {
     try {
-      raw3 = new URL(input3).searchParams.get("node-id");
+      raw3 = new URL(input4).searchParams.get("node-id");
     } catch {
       raw3 = null;
     }
     if (raw3 === null) {
-      throw new ToilError("INVALID_INPUT", `Could not extract a Figma node ID from URL: ${input3}
+      throw new ToilError("INVALID_INPUT", `Could not extract a Figma node ID from URL: ${input4}
 ${NODE_ID_HINT}`, { fix: FIX_NODE });
     }
   }
   const nodeId = raw3.trim().replace(/-/g, ":");
   if (!NODE_ID_PATTERN.test(nodeId)) {
-    throw new ToilError("INVALID_INPUT", `Invalid Figma node ID: ${input3}
+    throw new ToilError("INVALID_INPUT", `Invalid Figma node ID: ${input4}
 ${NODE_ID_HINT}`, { fix: FIX_NODE });
   }
   return nodeId;
@@ -155458,9 +155566,9 @@ var fileCommand = figmaArea.command({
     { fileKeyOrUrl: "https://www.figma.com/design/abc12345/Checkout?node-id=12-34" },
     { fileKeyOrUrl: "abc12345", nodeId: "12-34" }
   ],
-  run: async (input3, ctx) => {
-    const fileKey = parseFileKey(input3.fileKeyOrUrl);
-    const nodeId = input3.nodeId ? parseNodeId(input3.nodeId) : isUrl(input3.fileKeyOrUrl) ? findNodeIdInUrl(input3.fileKeyOrUrl) : void 0;
+  run: async (input4, ctx) => {
+    const fileKey = parseFileKey(input4.fileKeyOrUrl);
+    const nodeId = input4.nodeId ? parseNodeId(input4.nodeId) : isUrl(input4.fileKeyOrUrl) ? findNodeIdInUrl(input4.fileKeyOrUrl) : void 0;
     if (nodeId) {
       const data2 = await figma(ctx, `/v1/files/${encodeURIComponent(fileKey)}/nodes`, { ids: nodeId });
       const node3 = data2.nodes[nodeId];
@@ -155480,7 +155588,7 @@ var fileCommand = figmaArea.command({
         styleCount: count2(node3.styles)
       };
     }
-    const data = await figma(ctx, `/v1/files/${encodeURIComponent(fileKey)}`, input3.document ? {} : { depth: 1 });
+    const data = await figma(ctx, `/v1/files/${encodeURIComponent(fileKey)}`, input4.document ? {} : { depth: 1 });
     return {
       fileKey,
       name: data.name,
@@ -155490,7 +155598,7 @@ var fileCommand = figmaArea.command({
       role: data.role,
       editorType: data.editorType,
       schemaVersion: data.schemaVersion,
-      ...input3.document ? { document: data.document } : {},
+      ...input4.document ? { document: data.document } : {},
       componentCount: count2(data.components),
       styleCount: count2(data.styles)
     };
@@ -155507,10 +155615,10 @@ var commentsCommand = figmaArea.command({
   args: [{ name: "file-key-or-url", field: "fileKeyOrUrl", description: KEY_OR_URL }],
   options: [{ flags: "--as-of <date>", field: "asOf", description: "ISO 8601 timestamp \u2014 return only comments created before this time" }],
   examples: [{ fileKeyOrUrl: "abc12345" }, { fileKeyOrUrl: "https://www.figma.com/file/abc12345/Checkout", asOf: "2026-09-01T00:00:00Z" }],
-  run: async (input3, ctx) => {
-    const fileKey = parseFileKey(input3.fileKeyOrUrl);
-    const data = await figma(ctx, `/v1/files/${encodeURIComponent(fileKey)}/comments`, input3.asOf ? { as_of: input3.asOf } : {});
-    if (input3.asOf) ctx.warn({ code: "FIGMA_AS_OF_IGNORED", message: "Figma's API doesn't filter comments by --as-of; every comment was returned." });
+  run: async (input4, ctx) => {
+    const fileKey = parseFileKey(input4.fileKeyOrUrl);
+    const data = await figma(ctx, `/v1/files/${encodeURIComponent(fileKey)}/comments`, input4.asOf ? { as_of: input4.asOf } : {});
+    if (input4.asOf) ctx.warn({ code: "FIGMA_AS_OF_IGNORED", message: "Figma's API doesn't filter comments by --as-of; every comment was returned." });
     return { fileKey, count: data.comments.length, comments: data.comments };
   }
 });
@@ -155523,8 +155631,8 @@ var versionsCommand = figmaArea.command({
   writes: false,
   args: [{ name: "file-key-or-url", field: "fileKeyOrUrl", description: KEY_OR_URL }],
   examples: [{ fileKeyOrUrl: "abc12345" }],
-  run: async (input3, ctx) => {
-    const fileKey = parseFileKey(input3.fileKeyOrUrl);
+  run: async (input4, ctx) => {
+    const fileKey = parseFileKey(input4.fileKeyOrUrl);
     const data = await figma(ctx, `/v1/files/${encodeURIComponent(fileKey)}/versions`);
     if (data.pagination?.next_page) ctx.warn({ code: "FIGMA_MORE_VERSIONS", message: "Figma has more versions than this page; only the first page was read." });
     return { fileKey, count: data.versions.length, versions: data.versions };
@@ -155539,9 +155647,9 @@ var projectFilesCommand = figmaArea.command({
   writes: false,
   args: [{ name: "project-id", field: "projectId", description: "Figma project ID (visible in the project URL)" }],
   examples: [{ projectId: "12345" }],
-  run: async (input3, ctx) => {
-    const data = await figma(ctx, `/v1/projects/${encodeURIComponent(input3.projectId)}/files`);
-    return { projectId: input3.projectId, count: data.files.length, files: data.files };
+  run: async (input4, ctx) => {
+    const data = await figma(ctx, `/v1/projects/${encodeURIComponent(input4.projectId)}/files`);
+    return { projectId: input4.projectId, count: data.files.length, files: data.files };
   }
 });
 var meCommand = figmaArea.command({
@@ -155728,13 +155836,13 @@ var diffCommand3 = gitArea.command({
     { flags: "--file <path>", field: "file", description: "Limit diff to a specific file" }
   ],
   examples: [{}, { staged: true, file: "src/retry.ts" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const repo = await requireRepo(ctx);
-    const command = ["git diff", ...input3.staged ? ["--staged"] : [], ...input3.file ? ["--", input3.file] : []].join(" ");
+    const command = ["git diff", ...input4.staged ? ["--staged"] : [], ...input4.file ? ["--", input4.file] : []].join(" ");
     const call2 = {
       subcommand: "diff",
-      options: input3.staged ? ["--staged"] : [],
-      ...input3.file ? { paths: [rootRelativePathspec(input3.file, repo.root, ctx.files.workspace)] } : {}
+      options: input4.staged ? ["--staged"] : [],
+      ...input4.file ? { paths: [rootRelativePathspec(input4.file, repo.root, ctx.files.workspace)] } : {}
     };
     return swallowGitFailure(
       async () => {
@@ -155772,12 +155880,12 @@ var logCommand = gitArea.command({
     { flags: "--since <date>", field: "since", description: 'Show commits since date (e.g. "2 weeks ago")' }
   ],
   examples: [{}, { count: "5", since: "2 weeks ago" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     await requireRepo(ctx);
-    const count4 = parseInt(String(input3.count ?? "10"), 10);
+    const count4 = parseInt(String(input4.count ?? "10"), 10);
     const options2 = [`--format=%H${SEP}%an${SEP}%aI${SEP}%s`];
     if (count4) options2.push(`-n${count4}`);
-    if (input3.since) options2.push(`--since=${input3.since}`);
+    if (input4.since) options2.push(`--since=${input4.since}`);
     return swallowGitFailure(
       async () => parseLog(execOutput("git log", await runGit(ctx, { subcommand: "log", options: options2 }))),
       () => []
@@ -155926,7 +156034,7 @@ var reportCommand = gitArea.command({
     out: external_exports.string().optional().describe("The CSV file to write, inside the workspace; it must not exist yet. Required with --csv")
   }),
   writes: false,
-  writesLocalWhen: (input3) => input3.csv === true,
+  writesLocalWhen: (input4) => input4.csv === true,
   options: [
     { flags: "--branch <name>", field: "branch", description: "Branch to report on (defaults to current branch)" },
     { flags: "--base <ref>", field: "base", description: 'Base ref to compare against, e.g. "main" (base..branch, or base..HEAD if --branch is omitted)' },
@@ -155936,26 +156044,26 @@ var reportCommand = gitArea.command({
     { flags: "--out <file>", field: "out", description: "The CSV file to write, inside the workspace; it must not exist yet. Required with --csv" }
   ],
   examples: [{}, { branch: "feature/retries", base: "main", since: "2026-09-01", until: "2026-09-30", csv: true, out: "report.csv" }],
-  run: async (input3, ctx) => {
-    if (input3.csv && !input3.out) {
+  run: async (input4, ctx) => {
+    if (input4.csv && !input4.out) {
       throw new ToilError("INVALID_INPUT", "--csv writes the CSV to a file, and no --out <file> was given.", { fix: "Pass --out <file> (a new file inside the workspace) with --csv, or drop --csv for the JSON report alone." });
     }
-    if (input3.out && !input3.csv) {
+    if (input4.out && !input4.csv) {
       throw new ToilError("INVALID_INPUT", "--out names the CSV file, but --csv wasn't given.", { fix: "Pass --csv with --out <file>, or drop --out for the JSON report alone." });
     }
     const repo = await requireRepo(ctx);
     const options2 = [`--format=${COMMIT_PREFIX}%H	%an	%aI	%s`, "--numstat"];
-    if (input3.since) options2.push(`--since=${normalizeGitDate(input3.since)}`);
-    if (input3.until) options2.push(`--until=${normalizeGitDate(input3.until)}`);
-    const range2 = reportRange(input3);
+    if (input4.since) options2.push(`--since=${normalizeGitDate(input4.since)}`);
+    if (input4.until) options2.push(`--until=${normalizeGitDate(input4.until)}`);
+    const range2 = reportRange(input4);
     const raw3 = await swallowGitFailure(
       async () => execOutput("git log", await runGit(ctx, { subcommand: "log", options: options2, ...range2.length ? { revisions: range2 } : {} }), REPORT_MAX_BUFFER),
       () => ""
     );
-    const branch = input3.branch || (repo.branch === "unknown" ? "HEAD" : repo.branch);
-    const report = parseReport(raw3, branch, input3);
-    if (!input3.csv) return report;
-    return { ...report, file: ctx.files.writeCsv(input3.out, CSV_HEADER, reportCsvRows(report)) };
+    const branch = input4.branch || (repo.branch === "unknown" ? "HEAD" : repo.branch);
+    const report = parseReport(raw3, branch, input4);
+    if (!input4.csv) return report;
+    return { ...report, file: ctx.files.writeCsv(input4.out, CSV_HEADER, reportCsvRows(report)) };
   }
 });
 var reportCommands = [reportCommand];
@@ -156122,8 +156230,8 @@ async function githubGraphqlList(ctx, query2, variables, connection5, what, opts
 }
 var exampleCursor4 = (page2 = 2) => Buffer.from(JSON.stringify({ c: String(page2), s: 0, n: (page2 - 1) * PER_PAGE })).toString("base64url");
 var exampleGraphqlCursor = (endCursor = "Y3Vyc29yOjEwMA") => Buffer.from(JSON.stringify({ c: endCursor, s: 0 })).toString("base64url");
-function needLimitForCursor3(input3) {
-  if (input3.cursor !== void 0 && input3.limit === void 0) {
+function needLimitForCursor3(input4) {
+  if (input4.cursor !== void 0 && input4.limit === void 0) {
     throw new ToilError("INVALID_INPUT", "--cursor needs --limit", {
       fix: "Pass --limit with --cursor (the limit of the call that gave you the cursor), or leave out --cursor to read everything."
     });
@@ -156232,10 +156340,10 @@ var listCommentsCommand3 = githubArea.command({
     { owner: "imagile", repo: "toil-probe", number: "7" },
     { owner: "imagile", repo: "toil-probe", number: "7", limit: 1, cursor: exampleCursor4() }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const number4 = parseIntText(input3.number);
-    return githubList(ctx, `/repos/${owner}/${repo}/issues/${number4}/comments`, `comments on GitHub PR #${number4}`, {}, { limit: input3.limit, cursor: input3.cursor });
+    const number4 = parseIntText(input4.number);
+    return githubList(ctx, `/repos/${owner}/${repo}/issues/${number4}/comments`, `comments on GitHub PR #${number4}`, {}, { limit: input4.limit, cursor: input4.cursor });
   }
 });
 var addCommentCommand3 = githubArea.command({
@@ -156245,9 +156353,9 @@ var addCommentCommand3 = githubArea.command({
   writes: true,
   options: [prNumberOption, { flags: "--body <text>", field: "body", description: "Comment text" }],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", body: "Looks right.", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    return github(ctx, `/repos/${owner}/${repo}/issues/${parseIntText(input3.number)}/comments`, { method: "POST", json: { body: input3.body } });
+    return github(ctx, `/repos/${owner}/${repo}/issues/${parseIntText(input4.number)}/comments`, { method: "POST", json: { body: input4.body } });
   }
 });
 var listReviewCommentsCommand = githubArea.command({
@@ -156260,10 +156368,10 @@ var listReviewCommentsCommand = githubArea.command({
     { owner: "imagile", repo: "toil-probe", number: "7" },
     { owner: "imagile", repo: "toil-probe", number: "7", limit: 1, cursor: exampleCursor4() }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const number4 = parseIntText(input3.number);
-    return githubList(ctx, `/repos/${owner}/${repo}/pulls/${number4}/comments`, `review comments on GitHub PR #${number4}`, {}, { limit: input3.limit, cursor: input3.cursor });
+    const number4 = parseIntText(input4.number);
+    return githubList(ctx, `/repos/${owner}/${repo}/pulls/${number4}/comments`, `review comments on GitHub PR #${number4}`, {}, { limit: input4.limit, cursor: input4.cursor });
   }
 });
 var addInlineCommentCommand3 = githubArea.command({
@@ -156291,11 +156399,11 @@ var addInlineCommentCommand3 = githubArea.command({
     { owner: "imagile", repo: "toil-probe", number: "7", commit: "abc1234", file: "src/probe.ts", line: "12", body: "Off by one?", allowWrite: true },
     { owner: "imagile", repo: "toil-probe", number: "7", commit: "abc1234", file: "src/probe.ts", line: 3, body: "Was this removed on purpose?", side: "LEFT", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input3.number)}/comments`, {
+    return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input4.number)}/comments`, {
       method: "POST",
-      json: { body: input3.body, commit_id: input3.commit, path: input3.file, line: parseIntText(input3.line), side: input3.side ?? "RIGHT" }
+      json: { body: input4.body, commit_id: input4.commit, path: input4.file, line: parseIntText(input4.line), side: input4.side ?? "RIGHT" }
     });
   }
 });
@@ -156310,9 +156418,9 @@ var replyCommentCommand3 = githubArea.command({
     { flags: "--body <text>", field: "body", description: "Reply text" }
   ],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", commentId: "501", body: "Fixed.", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input3.number)}/comments/${parseIntText(input3.commentId)}/replies`, { method: "POST", json: { body: input3.body } });
+    return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input4.number)}/comments/${parseIntText(input4.commentId)}/replies`, { method: "POST", json: { body: input4.body } });
   }
 });
 var deleteCommentCommand3 = githubArea.command({
@@ -156324,9 +156432,9 @@ var deleteCommentCommand3 = githubArea.command({
   mcp: false,
   options: [{ flags: "--comment-id <id>", field: "commentId", description: "Comment ID" }],
   examples: [{ owner: "imagile", repo: "toil-probe", commentId: "401", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    await github(ctx, `/repos/${owner}/${repo}/issues/comments/${parseIntText(input3.commentId)}`, { method: "DELETE" });
+    await github(ctx, `/repos/${owner}/${repo}/issues/comments/${parseIntText(input4.commentId)}`, { method: "DELETE" });
     return { deleted: true };
   }
 });
@@ -156339,9 +156447,9 @@ var deleteReviewCommentCommand = githubArea.command({
   mcp: false,
   options: [{ flags: "--comment-id <id>", field: "commentId", description: "Review comment ID" }],
   examples: [{ owner: "imagile", repo: "toil-probe", commentId: "501", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    await github(ctx, `/repos/${owner}/${repo}/pulls/comments/${parseIntText(input3.commentId)}`, { method: "DELETE" });
+    await github(ctx, `/repos/${owner}/${repo}/pulls/comments/${parseIntText(input4.commentId)}`, { method: "DELETE" });
     return { deleted: true };
   }
 });
@@ -156370,7 +156478,7 @@ var createRepoCommand3 = githubArea.command({
     { name: "toil-probe", allowWrite: true },
     { owner: "imagile", repo: "unused", name: "toil-probe", description: "A probe", private: true, autoInit: true, allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const inputs = ctx.resolved.inputs ?? {};
     const org = inputs.owner?.source === "input" ? ctx.context.owner : void 0;
     if (inputs.owner?.source !== "input") delete inputs.owner;
@@ -156378,10 +156486,10 @@ var createRepoCommand3 = githubArea.command({
     return github(ctx, org ? `/orgs/${org}/repos` : "/user/repos", {
       method: "POST",
       json: {
-        name: input3.name,
-        ...input3.description !== void 0 ? { description: input3.description } : {},
-        ...input3.private !== void 0 ? { private: input3.private } : {},
-        ...input3.autoInit !== void 0 ? { auto_init: input3.autoInit } : {}
+        name: input4.name,
+        ...input4.description !== void 0 ? { description: input4.description } : {},
+        ...input4.private !== void 0 ? { private: input4.private } : {},
+        ...input4.autoInit !== void 0 ? { auto_init: input4.autoInit } : {}
       }
     });
   }
@@ -156409,16 +156517,16 @@ var createIssueCommand = githubArea.command({
     { owner: "imagile", repo: "toil-probe", title: "Probe failed", body: "Details.", label: ["bug", "area/api"], assignee: ["octo-dev"], allowWrite: true },
     { owner: "imagile", repo: "toil-probe", title: "Probe failed", bodyFile: "issue-body.md", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const body = bodyOf3(ctx, input3.body, input3.bodyFile);
+    const body = bodyOf3(ctx, input4.body, input4.bodyFile);
     return github(ctx, `/repos/${owner}/${repo}/issues`, {
       method: "POST",
       json: {
-        title: input3.title,
+        title: input4.title,
         ...body !== void 0 ? { body } : {},
-        ...input3.label?.length ? { labels: input3.label } : {},
-        ...input3.assignee?.length ? { assignees: input3.assignee } : {}
+        ...input4.label?.length ? { labels: input4.label } : {},
+        ...input4.assignee?.length ? { assignees: input4.assignee } : {}
       }
     });
   }
@@ -156430,10 +156538,10 @@ var addLabelsCommand = githubArea.command({
   writes: true,
   options: [itemNumberOption, { flags: "--label <label>", field: "label", description: "Label to add (repeatable) (default: [])" }],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", label: ["bug", "needs-review"], allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    if (!input3.label?.length) throw new ToilError("INVALID_INPUT", "At least one --label is required", { fix: "Pass --label <label>; repeat it for more than one." });
-    return github(ctx, `/repos/${owner}/${repo}/issues/${parseIntText(input3.number)}/labels`, { method: "POST", json: { labels: input3.label } });
+    if (!input4.label?.length) throw new ToilError("INVALID_INPUT", "At least one --label is required", { fix: "Pass --label <label>; repeat it for more than one." });
+    return github(ctx, `/repos/${owner}/${repo}/issues/${parseIntText(input4.number)}/labels`, { method: "POST", json: { labels: input4.label } });
   }
 });
 var removeLabelCommand = githubArea.command({
@@ -156445,10 +156553,10 @@ var removeLabelCommand = githubArea.command({
   mcp: false,
   options: [itemNumberOption, { flags: "--label <label>", field: "label", description: "Label name to remove" }],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", label: "needs review", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    await github(ctx, `/repos/${owner}/${repo}/issues/${parseIntText(input3.number)}/labels/${input3.label}`, { method: "DELETE" });
-    return { removed: true, label: input3.label };
+    await github(ctx, `/repos/${owner}/${repo}/issues/${parseIntText(input4.number)}/labels/${input4.label}`, { method: "DELETE" });
+    return { removed: true, label: input4.label };
   }
 });
 function assignees(ctx, number4, assignee, method) {
@@ -156463,7 +156571,7 @@ var addAssigneesCommand = githubArea.command({
   writes: true,
   options: [itemNumberOption, { flags: "--assignee <login>", field: "assignee", description: "Assignee login (repeatable) (default: [])" }],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", assignee: ["octo-dev", "octo-ops"], allowWrite: true }],
-  run: async (input3, ctx) => assignees(ctx, input3.number, input3.assignee, "POST")
+  run: async (input4, ctx) => assignees(ctx, input4.number, input4.assignee, "POST")
 });
 var removeAssigneesCommand = githubArea.command({
   path: ["github", "remove-assignees"],
@@ -156474,7 +156582,7 @@ var removeAssigneesCommand = githubArea.command({
   mcp: false,
   options: [itemNumberOption, { flags: "--assignee <login>", field: "assignee", description: "Assignee login to remove (repeatable) (default: [])" }],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", assignee: ["octo-ops"], allowWrite: true }],
-  run: async (input3, ctx) => assignees(ctx, input3.number, input3.assignee, "DELETE")
+  run: async (input4, ctx) => assignees(ctx, input4.number, input4.assignee, "DELETE")
 });
 var issueCommands = [createRepoCommand3, createIssueCommand, addLabelsCommand, removeLabelCommand, addAssigneesCommand, removeAssigneesCommand];
 
@@ -156508,9 +156616,9 @@ var enableAutoMergeCommand = githubArea.command({
     { owner: "imagile", repo: "toil-probe", number: "7", allowWrite: true },
     { owner: "imagile", repo: "toil-probe", number: "7", method: "squash", matchHeadCommit: "abc1234", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const pullRequestId = await prNodeId(ctx, owner, repo, parseIntText(input3.number));
+    const pullRequestId = await prNodeId(ctx, owner, repo, parseIntText(input4.number));
     const mutation = `
       mutation($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod, $expectedHeadOid: GitObjectID) {
         enablePullRequestAutoMerge(input: {
@@ -156523,8 +156631,8 @@ var enableAutoMergeCommand = githubArea.command({
       }
     `;
     const variables = { pullRequestId };
-    if (input3.method) variables.mergeMethod = graphqlMethod(input3.method);
-    if (input3.matchHeadCommit) variables.expectedHeadOid = input3.matchHeadCommit;
+    if (input4.method) variables.mergeMethod = graphqlMethod(input4.method);
+    if (input4.matchHeadCommit) variables.expectedHeadOid = input4.matchHeadCommit;
     const data = await githubGraphql(ctx, mutation, variables);
     return data.enablePullRequestAutoMerge.pullRequest;
   }
@@ -156536,9 +156644,9 @@ var disableAutoMergeCommand = githubArea.command({
   writes: true,
   options: [prNumberOption],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const pullRequestId = await prNodeId(ctx, owner, repo, parseIntText(input3.number));
+    const pullRequestId = await prNodeId(ctx, owner, repo, parseIntText(input4.number));
     const mutation = `
       mutation($pullRequestId: ID!) {
         disablePullRequestAutoMerge(input: { pullRequestId: $pullRequestId }) {
@@ -156569,9 +156677,9 @@ var enqueuePrCommand = githubArea.command({
     { owner: "imagile", repo: "toil-probe", number: "7", allowWrite: true },
     { owner: "imagile", repo: "toil-probe", number: "7", method: "rebase", matchHeadCommit: "abc1234", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const pullRequestId = await prNodeId(ctx, owner, repo, parseIntText(input3.number));
+    const pullRequestId = await prNodeId(ctx, owner, repo, parseIntText(input4.number));
     const mutation = `
       mutation($pullRequestId: ID!, $expectedHeadOid: GitObjectID, $mergeMethod: PullRequestMergeMethod) {
         addPullRequestToMergeQueue(input: {
@@ -156586,8 +156694,8 @@ var enqueuePrCommand = githubArea.command({
       }
     `;
     const variables = { pullRequestId };
-    if (input3.matchHeadCommit) variables.expectedHeadOid = input3.matchHeadCommit;
-    if (input3.method) variables.mergeMethod = graphqlMethod(input3.method);
+    if (input4.matchHeadCommit) variables.expectedHeadOid = input4.matchHeadCommit;
+    if (input4.method) variables.mergeMethod = graphqlMethod(input4.method);
     const data = await githubGraphql(ctx, mutation, variables);
     return { mergeQueueUrl: data.addPullRequestToMergeQueue.mergeQueue.url };
   }
@@ -156600,9 +156708,9 @@ function draftCommand(name3, description3, mutationName) {
     writes: true,
     options: [prNumberOption],
     examples: [{ owner: "imagile", repo: "toil-probe", number: "7", allowWrite: true }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { owner, repo } = target(ctx);
-      const pullRequestId = await prNodeId(ctx, owner, repo, parseIntText(input3.number));
+      const pullRequestId = await prNodeId(ctx, owner, repo, parseIntText(input4.number));
       const mutation = `
       mutation($pullRequestId: ID!) {
         ${mutationName}(input: { pullRequestId: $pullRequestId }) {
@@ -156670,9 +156778,9 @@ var prStatusCommand = githubArea.command({
   queryByPost: true,
   options: [prNumberOption],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const data = await githubGraphql(ctx, PR_STATUS_QUERY, { owner, repo, number: parseIntText(input3.number) });
+    const data = await githubGraphql(ctx, PR_STATUS_QUERY, { owner, repo, number: parseIntText(input4.number) });
     const pr3 = data.repository.pullRequest;
     const nodes = pr3.commits.nodes[0]?.commit.statusCheckRollup?.contexts.nodes ?? [];
     const details = nodes.map((n) => n.__typename === "CheckRun" ? { name: n.name, status: n.status, conclusion: n.conclusion } : { name: n.context, status: n.state, conclusion: null });
@@ -156809,17 +156917,17 @@ var listProjectsCommand = githubArea.command({
   writes: false,
   options: [...pageOptions4("projects")],
   examples: [{ owner: "imagile" }, { owner: "imagile", repo: "unused", limit: 1, cursor: exampleGraphqlCursor() }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const owner = targetOwner(ctx);
     const what = `projects owned by ${owner}`;
-    return projectsCall(owner, what, () => githubGraphqlList(ctx, PROJECTS, { owner }, (d2) => d2.repositoryOwner?.projectsV2, what, input3));
+    return projectsCall(owner, what, () => githubGraphqlList(ctx, PROJECTS, { owner }, (d2) => d2.repositoryOwner?.projectsV2, what, input4));
   }
 });
-function inProject(ctx, input3, query2, key6, noun) {
+function inProject(ctx, input4, query2, key6, noun) {
   const owner = targetOwner(ctx);
-  const project2 = parseIntText(input3.project);
+  const project2 = parseIntText(input4.project);
   const what = `${noun} of project ${project2} owned by ${owner}`;
-  return projectsCall(owner, what, () => githubGraphqlList(ctx, query2, { owner, project: project2 }, (d2) => d2.repositoryOwner?.projectV2?.[key6], what, input3));
+  return projectsCall(owner, what, () => githubGraphqlList(ctx, query2, { owner, project: project2 }, (d2) => d2.repositoryOwner?.projectV2?.[key6], what, input4));
 }
 var projectFieldsCommand = githubArea.command({
   path: ["github", "projects", "fields"],
@@ -156830,7 +156938,7 @@ var projectFieldsCommand = githubArea.command({
   writes: false,
   options: [projectOption, ...pageOptions4("fields")],
   examples: [{ owner: "imagile", project: "3" }, { owner: "imagile", repo: "unused", project: 3, limit: 1, cursor: exampleGraphqlCursor() }],
-  run: async (input3, ctx) => inProject(ctx, input3, FIELDS, "fields", "fields")
+  run: async (input4, ctx) => inProject(ctx, input4, FIELDS, "fields", "fields")
 });
 var projectItemsCommand = githubArea.command({
   path: ["github", "projects", "list-items"],
@@ -156841,8 +156949,8 @@ var projectItemsCommand = githubArea.command({
   writes: false,
   options: [projectOption, ...pageOptions4("items")],
   examples: [{ owner: "imagile", project: "3" }, { owner: "imagile", repo: "unused", project: "3", limit: 1, cursor: exampleGraphqlCursor() }],
-  run: async (input3, ctx) => {
-    const items = await inProject(ctx, input3, ITEMS, "items", "items");
+  run: async (input4, ctx) => {
+    const items = await inProject(ctx, input4, ITEMS, "items", "items");
     let cut2 = 0;
     const flat = items.map(({ fieldValues, ...item }) => {
       if (fieldValues?.pageInfo?.hasNextPage) cut2++;
@@ -156883,17 +156991,17 @@ var listPrsCommand3 = githubArea.command({
     { owner: "imagile", repo: "toil-probe", state: "all", head: "imagile:feature", base: "main", author: "OCTO-DEV", createdAfter: "2025-01-01", createdBefore: "2025-02-01T00:00:00Z" },
     { owner: "imagile", repo: "toil-probe", limit: 1, cursor: exampleCursor4() }
   ],
-  run: async (input3, ctx) => {
-    const createdAfter = input3.createdAfter ? parseDateOption("--created-after", input3.createdAfter) : void 0;
-    const createdBefore = input3.createdBefore ? parseDateOption("--created-before", input3.createdBefore) : void 0;
+  run: async (input4, ctx) => {
+    const createdAfter = input4.createdAfter ? parseDateOption("--created-after", input4.createdAfter) : void 0;
+    const createdBefore = input4.createdBefore ? parseDateOption("--created-before", input4.createdBefore) : void 0;
     const { owner, repo } = target(ctx);
-    const author = input3.author?.toLowerCase();
+    const author = input4.author?.toLowerCase();
     return githubList(
       ctx,
       `/repos/${owner}/${repo}/pulls`,
       `GitHub pull requests in ${owner}/${repo}`,
-      { state: input3.state ?? "open", ...input3.head ? { head: input3.head } : {}, ...input3.base ? { base: input3.base } : {} },
-      { limit: input3.limit, cursor: input3.cursor, keep: (pr3) => (!author || pr3.user?.login?.toLowerCase() === author) && inDateRange(Date.parse(pr3.created_at), createdAfter, createdBefore) }
+      { state: input4.state ?? "open", ...input4.head ? { head: input4.head } : {}, ...input4.base ? { base: input4.base } : {} },
+      { limit: input4.limit, cursor: input4.cursor, keep: (pr3) => (!author || pr3.user?.login?.toLowerCase() === author) && inDateRange(Date.parse(pr3.created_at), createdAfter, createdBefore) }
     );
   }
 });
@@ -156904,9 +157012,9 @@ var getPrCommand3 = githubArea.command({
   writes: false,
   options: [prNumberOption],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    return github(ctx, prPath4(owner, repo, parseIntText(input3.number)));
+    return github(ctx, prPath4(owner, repo, parseIntText(input4.number)));
   }
 });
 var createPrCommand3 = githubArea.command({
@@ -156937,13 +157045,13 @@ var createPrCommand3 = githubArea.command({
     { owner: "imagile", repo: "toil-probe", title: "Add the probe", head: "feature", body: "Adds it.", draft: true, base: "develop", allowWrite: true },
     { owner: "imagile", repo: "toil-probe", title: "Add the probe", head: "imagile:feature", bodyFile: "pr-body.md", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const base = input3.base ?? ctx.connection.targetBranch ?? "main";
-    const body = bodyOf3(ctx, input3.body, input3.bodyFile);
+    const base = input4.base ?? ctx.connection.targetBranch ?? "main";
+    const body = bodyOf3(ctx, input4.body, input4.bodyFile);
     return github(ctx, `/repos/${owner}/${repo}/pulls`, {
       method: "POST",
-      json: { title: input3.title, head: input3.head, base, ...body !== void 0 ? { body } : {}, ...input3.draft !== void 0 ? { draft: input3.draft } : {} }
+      json: { title: input4.title, head: input4.head, base, ...body !== void 0 ? { body } : {}, ...input4.draft !== void 0 ? { draft: input4.draft } : {} }
     });
   }
 });
@@ -156974,7 +157082,7 @@ var updatePrCommand3 = githubArea.command({
     { flags: "--base <branch>", field: "base", description: "New base branch" }
   ],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", title: "Renamed", body: "Updated.", base: "develop", allowWrite: true }],
-  run: async (input3, ctx) => updatePr(ctx, parseIntText(input3.number), { title: input3.title, body: input3.body, base: input3.base })
+  run: async (input4, ctx) => updatePr(ctx, parseIntText(input4.number), { title: input4.title, body: input4.body, base: input4.base })
 });
 var closePrCommand = githubArea.command({
   path: ["github", "close-pr"],
@@ -156983,7 +157091,7 @@ var closePrCommand = githubArea.command({
   writes: true,
   options: [prNumberOption],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", allowWrite: true }],
-  run: async (input3, ctx) => updatePr(ctx, parseIntText(input3.number), { state: "closed" })
+  run: async (input4, ctx) => updatePr(ctx, parseIntText(input4.number), { state: "closed" })
 });
 var reopenPrCommand = githubArea.command({
   path: ["github", "reopen-pr"],
@@ -156992,7 +157100,7 @@ var reopenPrCommand = githubArea.command({
   writes: true,
   options: [prNumberOption],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", allowWrite: true }],
-  run: async (input3, ctx) => updatePr(ctx, parseIntText(input3.number), { state: "open" })
+  run: async (input4, ctx) => updatePr(ctx, parseIntText(input4.number), { state: "open" })
 });
 var mergePrCommand3 = githubArea.command({
   path: ["github", "merge-pr"],
@@ -157015,13 +157123,13 @@ var mergePrCommand3 = githubArea.command({
     { owner: "imagile", repo: "toil-probe", number: "7", allowWrite: true },
     { owner: "imagile", repo: "toil-probe", number: "7", method: "squash", commitTitle: "Add the probe (#7)", commitMessage: "Squashed.", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
     const json3 = {};
-    if (input3.commitTitle) json3.commit_title = input3.commitTitle;
-    if (input3.commitMessage) json3.commit_message = input3.commitMessage;
-    json3.merge_method = input3.method ?? "merge";
-    return github(ctx, `${prPath4(owner, repo, parseIntText(input3.number))}/merge`, { method: "PUT", json: json3 });
+    if (input4.commitTitle) json3.commit_title = input4.commitTitle;
+    if (input4.commitMessage) json3.commit_message = input4.commitMessage;
+    json3.merge_method = input4.method ?? "merge";
+    return github(ctx, `${prPath4(owner, repo, parseIntText(input4.number))}/merge`, { method: "PUT", json: json3 });
   }
 });
 var diffCommand4 = githubArea.command({
@@ -157031,9 +157139,9 @@ var diffCommand4 = githubArea.command({
   writes: false,
   options: [prNumberOption],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    return { diff: await githubText(ctx, prPath4(owner, repo, parseIntText(input3.number))) };
+    return { diff: await githubText(ctx, prPath4(owner, repo, parseIntText(input4.number))) };
   }
 });
 var listFilesCommand3 = githubArea.command({
@@ -157046,10 +157154,10 @@ var listFilesCommand3 = githubArea.command({
     { owner: "imagile", repo: "toil-probe", number: "7" },
     { owner: "imagile", repo: "toil-probe", number: "7", limit: 1, cursor: exampleCursor4() }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const number4 = parseIntText(input3.number);
-    return githubList(ctx, `${prPath4(owner, repo, number4)}/files`, `files in GitHub PR #${number4}`, {}, { limit: input3.limit, cursor: input3.cursor });
+    const number4 = parseIntText(input4.number);
+    return githubList(ctx, `${prPath4(owner, repo, number4)}/files`, `files in GitHub PR #${number4}`, {}, { limit: input4.limit, cursor: input4.cursor });
   }
 });
 var prCommands = [listPrsCommand3, getPrCommand3, createPrCommand3, updatePrCommand3, mergePrCommand3, closePrCommand, reopenPrCommand, diffCommand4, listFilesCommand3];
@@ -157066,10 +157174,10 @@ var listReviewsCommand = githubArea.command({
     { owner: "imagile", repo: "toil-probe", number: "7" },
     { owner: "imagile", repo: "toil-probe", number: "7", limit: 1, cursor: exampleCursor4() }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const number4 = parseIntText(input3.number);
-    return githubList(ctx, `/repos/${owner}/${repo}/pulls/${number4}/reviews`, `reviews on GitHub PR #${number4}`, {}, { limit: input3.limit, cursor: input3.cursor });
+    const number4 = parseIntText(input4.number);
+    return githubList(ctx, `/repos/${owner}/${repo}/pulls/${number4}/reviews`, `reviews on GitHub PR #${number4}`, {}, { limit: input4.limit, cursor: input4.cursor });
   }
 });
 function submitReview(ctx, number4, event, body) {
@@ -157086,7 +157194,7 @@ var approveCommand3 = githubArea.command({
     { owner: "imagile", repo: "toil-probe", number: "7", allowWrite: true },
     { owner: "imagile", repo: "toil-probe", number: "7", body: "Ship it.", allowWrite: true }
   ],
-  run: async (input3, ctx) => submitReview(ctx, input3.number, "APPROVE", input3.body)
+  run: async (input4, ctx) => submitReview(ctx, input4.number, "APPROVE", input4.body)
 });
 var requestChangesCommand2 = githubArea.command({
   path: ["github", "request-changes"],
@@ -157095,7 +157203,7 @@ var requestChangesCommand2 = githubArea.command({
   writes: true,
   options: [prNumberOption, { flags: "--body <text>", field: "body", description: "Review feedback text" }],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", body: "Please add a test.", allowWrite: true }],
-  run: async (input3, ctx) => submitReview(ctx, input3.number, "REQUEST_CHANGES", input3.body)
+  run: async (input4, ctx) => submitReview(ctx, input4.number, "REQUEST_CHANGES", input4.body)
 });
 var listReviewersCommand3 = githubArea.command({
   path: ["github", "list-reviewers"],
@@ -157104,9 +157212,9 @@ var listReviewersCommand3 = githubArea.command({
   writes: false,
   options: [prNumberOption],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input3.number)}/requested_reviewers`);
+    return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input4.number)}/requested_reviewers`);
   }
 });
 var reviewerInputs = {
@@ -157132,10 +157240,10 @@ var addReviewersCommand = githubArea.command({
     { flags: "--team-reviewer <slug>", field: "teamReviewer", description: "Team slug to request (repeatable)" }
   ],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", reviewer: ["octo-dev", "octo-ops"], teamReviewer: ["platform"], allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const json3 = reviewersBody(input3.reviewer, input3.teamReviewer);
-    return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input3.number)}/requested_reviewers`, { method: "POST", json: json3 });
+    const json3 = reviewersBody(input4.reviewer, input4.teamReviewer);
+    return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input4.number)}/requested_reviewers`, { method: "POST", json: json3 });
   }
 });
 var removeReviewersCommand = githubArea.command({
@@ -157151,10 +157259,10 @@ var removeReviewersCommand = githubArea.command({
     { flags: "--team-reviewer <slug>", field: "teamReviewer", description: "Team slug to remove (repeatable)" }
   ],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7", reviewer: ["octo-dev"], teamReviewer: ["platform"], allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const json3 = reviewersBody(input3.reviewer, input3.teamReviewer);
-    await github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input3.number)}/requested_reviewers`, { method: "DELETE", json: json3 });
+    const json3 = reviewersBody(input4.reviewer, input4.teamReviewer);
+    await github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input4.number)}/requested_reviewers`, { method: "DELETE", json: json3 });
     return { removed: true };
   }
 });
@@ -157180,9 +157288,9 @@ var listReviewThreadsCommand = githubArea.command({
   queryByPost: true,
   options: [prNumberOption],
   examples: [{ owner: "imagile", repo: "toil-probe", number: "7" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const number4 = parseIntText(input3.number);
+    const number4 = parseIntText(input4.number);
     const query2 = `
       query($owner: String!, $repo: String!, $number: Int!) {
         repository(owner: $owner, name: $repo) {
@@ -157212,7 +157320,7 @@ var resolveThreadCommand = githubArea.command({
   writes: true,
   options: [{ flags: "--thread-id <id>", field: "threadId", description: "GraphQL node ID of the review thread (e.g. PRT_kwDO...)" }],
   examples: [{ owner: "imagile", repo: "toil-probe", threadId: "PRT_kwDOabc12345", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     target(ctx);
     const mutation = `
       mutation($threadId: ID!) {
@@ -157223,7 +157331,7 @@ var resolveThreadCommand = githubArea.command({
         }
       }
     `;
-    const data = await githubGraphql(ctx, mutation, { threadId: input3.threadId });
+    const data = await githubGraphql(ctx, mutation, { threadId: input4.threadId });
     return data.resolveReviewThread.thread;
   }
 });
@@ -157239,9 +157347,9 @@ var getStatusCommand = githubArea.command({
   writes: false,
   options: [refOption2],
   examples: [{ owner: "imagile", repo: "toil-probe", ref: "main" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    return github(ctx, `/repos/${owner}/${repo}/commits/${input3.ref}/status`);
+    return github(ctx, `/repos/${owner}/${repo}/commits/${input4.ref}/status`);
   }
 });
 var listChecksCommand = githubArea.command({
@@ -157254,11 +157362,11 @@ var listChecksCommand = githubArea.command({
     { owner: "imagile", repo: "toil-probe", ref: "abc1234" },
     { owner: "imagile", repo: "toil-probe", ref: "abc1234", limit: 1, cursor: exampleCursor4() }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    return githubList(ctx, `/repos/${owner}/${repo}/commits/${input3.ref}/check-runs`, `GitHub check runs for ${input3.ref}`, {}, {
-      limit: input3.limit,
-      cursor: input3.cursor,
+    return githubList(ctx, `/repos/${owner}/${repo}/commits/${input4.ref}/check-runs`, `GitHub check runs for ${input4.ref}`, {}, {
+      limit: input4.limit,
+      cursor: input4.cursor,
       items: (body) => {
         const runs2 = body?.check_runs;
         return Array.isArray(runs2) ? runs2 : [];
@@ -157304,24 +157412,24 @@ var listIssuesCommand = githubArea.command({
     { owner: "imagile", repo: "toil-probe", state: "all", label: ["bug", "area/api"], assignee: "octo-dev", type: "Bug", sort: "updated", direction: "asc", updatedSince: "2025-01-01T00:00:00Z" },
     { owner: "imagile", repo: "toil-probe", limit: 1, cursor: exampleCursor4() }
   ],
-  run: async (input3, ctx) => {
-    const updated = since(input3.updatedSince);
+  run: async (input4, ctx) => {
+    const updated = since(input4.updatedSince);
     const { owner, repo } = target(ctx);
     return githubList(
       ctx,
       `/repos/${owner}/${repo}/issues`,
       `GitHub issues in ${owner}/${repo}`,
       {
-        state: input3.state ?? "open",
-        ...input3.label?.length ? { labels: input3.label.join(",") } : {},
-        ...input3.assignee !== void 0 ? { assignee: input3.assignee } : {},
-        ...input3.type !== void 0 ? { type: input3.type } : {},
-        ...input3.sort ? { sort: input3.sort } : {},
-        ...input3.direction ? { direction: input3.direction } : {},
+        state: input4.state ?? "open",
+        ...input4.label?.length ? { labels: input4.label.join(",") } : {},
+        ...input4.assignee !== void 0 ? { assignee: input4.assignee } : {},
+        ...input4.type !== void 0 ? { type: input4.type } : {},
+        ...input4.sort ? { sort: input4.sort } : {},
+        ...input4.direction ? { direction: input4.direction } : {},
         ...updated ? { since: updated } : {}
       },
       // GitHub marks a pull request with a pull_request key; list-prs is where those live.
-      { limit: input3.limit, cursor: input3.cursor, keep: (item) => item.pull_request === void 0 }
+      { limit: input4.limit, cursor: input4.cursor, keep: (item) => item.pull_request === void 0 }
     );
   }
 });
@@ -157350,21 +157458,21 @@ var searchIssuesCommand = githubArea.command({
     // --owner and --repo are accepted, as on every github command, and never added to the query.
     { owner: "imagile", repo: "unused", query: "label:bug", limit: 1, cursor: exampleCursor4() }
   ],
-  run: async (input3, ctx) => {
-    const updated = since(input3.updatedSince);
+  run: async (input4, ctx) => {
+    const updated = since(input4.updatedSince);
     delete ctx.resolved.inputs?.owner;
     delete ctx.resolved.inputs?.repo;
-    const q = [input3.query, .../(^|\s)is:issue(\s|$)/i.test(input3.query) ? [] : ["is:issue"], ...updated ? [`updated:>=${updated}`] : []].join(" ");
+    const q = [input4.query, .../(^|\s)is:issue(\s|$)/i.test(input4.query) ? [] : ["is:issue"], ...updated ? [`updated:>=${updated}`] : []].join(" ");
     let total;
     let incomplete = false;
     const items = await githubList(
       ctx,
       "/search/issues",
       `GitHub issues matching "${q}"`,
-      { q, ...input3.sort ? { sort: input3.sort } : {}, ...input3.order ? { order: input3.order } : {} },
+      { q, ...input4.sort ? { sort: input4.sort } : {}, ...input4.order ? { order: input4.order } : {} },
       {
-        limit: input3.limit,
-        cursor: input3.cursor,
+        limit: input4.limit,
+        cursor: input4.cursor,
         items: (body) => {
           const page2 = body ?? {};
           if (typeof page2.total_count === "number") total = page2.total_count;
@@ -157413,13 +157521,13 @@ var getIssueCommand = githubArea.command({
     { owner: "imagile", repo: "toil-probe", number: ["9"] },
     { owner: "imagile", repo: "toil-probe", number: ["9", "10"], subIssues: true }
   ],
-  run: async (input3, ctx) => {
-    if (input3.number.length > MAX_NUMBERS) {
-      throw new ToilError("INVALID_INPUT", `get-issue takes up to ${MAX_NUMBERS} issue numbers in one call, not ${input3.number.length}.`, { fix: `Split the numbers into calls of ${MAX_NUMBERS} or fewer.` });
+  run: async (input4, ctx) => {
+    if (input4.number.length > MAX_NUMBERS) {
+      throw new ToilError("INVALID_INPUT", `get-issue takes up to ${MAX_NUMBERS} issue numbers in one call, not ${input4.number.length}.`, { fix: `Split the numbers into calls of ${MAX_NUMBERS} or fewer.` });
     }
     const { owner, repo } = target(ctx);
-    const numbers = input3.number.map(parseIntText);
-    const subIssues = input3.subIssues === true;
+    const numbers = input4.number.map(parseIntText);
+    const subIssues = input4.subIssues === true;
     if (numbers.length === 1) return getIssue(ctx, owner, repo, numbers[0], subIssues);
     const results = new Array(numbers.length);
     let next = 0;
@@ -157453,10 +157561,10 @@ var issueEventsCommand = githubArea.command({
     { owner: "imagile", repo: "toil-probe", number: "9" },
     { owner: "imagile", repo: "toil-probe", number: "9", limit: 1, cursor: exampleCursor4() }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { owner, repo } = target(ctx);
-    const number4 = parseIntText(input3.number);
-    return githubList(ctx, `/repos/${owner}/${repo}/issues/${number4}/timeline`, `timeline of GitHub issue #${number4}`, {}, { limit: input3.limit, cursor: input3.cursor });
+    const number4 = parseIntText(input4.number);
+    return githubList(ctx, `/repos/${owner}/${repo}/issues/${number4}/timeline`, `timeline of GitHub issue #${number4}`, {}, { limit: input4.limit, cursor: input4.cursor });
   }
 });
 var workItemCommands2 = [listIssuesCommand, searchIssuesCommand, getIssueCommand, issueEventsCommand];
@@ -157596,7 +157704,7 @@ var pipelineListCommand2 = jenkinsArea.command({
   writes: false,
   options: [{ flags: "--folder <name>", field: "folder", description: "Folder name to enumerate (supports nested folders: parentFolder/childFolder)" }],
   examples: [{}, { folder: "platform/services" }, { instance: "jenkins" }],
-  run: async (input3, ctx) => listJobs(ctx, input3.folder)
+  run: async (input4, ctx) => listJobs(ctx, input4.folder)
 });
 var pipelineGetCommand2 = jenkinsArea.command({
   path: ["jenkins", "pipeline", "get"],
@@ -157605,7 +157713,7 @@ var pipelineGetCommand2 = jenkinsArea.command({
   writes: false,
   options: [nameOption],
   examples: [{ name: "platform/api-build", instance: "jenkins" }],
-  run: async (input3, ctx) => getJob(ctx, input3.name)
+  run: async (input4, ctx) => getJob(ctx, input4.name)
 });
 var pipelineRunCommand2 = jenkinsArea.command({
   path: ["jenkins", "pipeline", "run"],
@@ -157632,31 +157740,31 @@ var pipelineRunCommand2 = jenkinsArea.command({
     { name: "platform/api-build", parameter: ["BRANCH=main", "DEPLOY=false"], allowWrite: true },
     { name: "api-build", wait: true, timeout: "60", poll: "1", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const raw3 = input3.parameter ?? [];
+  run: async (input4, ctx) => {
+    const raw3 = input4.parameter ?? [];
     for (const p of raw3) {
       if (!p.includes("=")) throw new ToilError("INVALID_INPUT", `Invalid --parameter "${p}". Expected format: key=value`, { fix: "Pass each parameter as key=value, e.g. --parameter BRANCH=main." });
     }
     const params2 = raw3.length > 0 ? Object.fromEntries(raw3.map((p) => [p.slice(0, p.indexOf("=")), p.slice(p.indexOf("=") + 1)])) : void 0;
-    const { queueItemId } = await triggerBuild(ctx, input3.name, params2);
+    const { queueItemId } = await triggerBuild(ctx, input4.name, params2);
     ctx.debug(`Queued build (queue item #${queueItemId})`);
-    if (!input3.wait) return { queueItemId };
-    const timeoutSec = parseIntText2(input3.timeout, "600");
-    const pollSec = parseIntText2(input3.poll, "10");
-    const queued = `Build was queued as queue item #${queueItemId} and may still run. Check it with toil jenkins pipeline list-runs --name ${input3.name} before triggering it again.`;
+    if (!input4.wait) return { queueItemId };
+    const timeoutSec = parseIntText2(input4.timeout, "600");
+    const pollSec = parseIntText2(input4.poll, "10");
+    const queued = `Build was queued as queue item #${queueItemId} and may still run. Check it with toil jenkins pipeline list-runs --name ${input4.name} before triggering it again.`;
     if (isNaN(timeoutSec) || timeoutSec <= 0) {
-      throw new ToilError("INVALID_INPUT", `Invalid --timeout "${shown(input3.timeout, "600")}". Expected a positive number of seconds.`, { fix: queued });
+      throw new ToilError("INVALID_INPUT", `Invalid --timeout "${shown(input4.timeout, "600")}". Expected a positive number of seconds.`, { fix: queued });
     }
     if (isNaN(pollSec) || pollSec <= 0) {
-      throw new ToilError("INVALID_INPUT", `Invalid --poll "${shown(input3.poll, "10")}". Expected a positive number of seconds.`, { fix: queued });
+      throw new ToilError("INVALID_INPUT", `Invalid --poll "${shown(input4.poll, "10")}". Expected a positive number of seconds.`, { fix: queued });
     }
     ctx.debug(`Waiting for build to start (timeout ${timeoutSec}s)...`);
     const buildNumber = await waitForQueue(ctx, queueItemId, pollSec * 1e3, timeoutSec * 1e3, queued);
     ctx.debug(`Build #${buildNumber} started \u2014 waiting for completion...`);
-    const build = await waitForBuild(ctx, input3.name, buildNumber, pollSec * 1e3, timeoutSec * 1e3);
+    const build = await waitForBuild(ctx, input4.name, buildNumber, pollSec * 1e3, timeoutSec * 1e3);
     if (build.result !== null && build.result !== "SUCCESS") {
       ctx.setExitCode(1);
-      ctx.warn({ code: "JENKINS_BUILD_NOT_SUCCESSFUL", message: `Build #${buildNumber} of ${input3.name} finished with result ${String(build.result)}.` });
+      ctx.warn({ code: "JENKINS_BUILD_NOT_SUCCESSFUL", message: `Build #${buildNumber} of ${input4.name} finished with result ${String(build.result)}.` });
     }
     return build;
   }
@@ -157691,12 +157799,12 @@ var pipelineListRunsCommand2 = jenkinsArea.command({
   writes: false,
   options: [nameOption, { flags: "--top <n>", field: "top", description: TOP_DESCRIPTION }],
   examples: [{ name: "api-build" }, { name: "platform/api-build", top: "5", instance: "jenkins" }],
-  run: async (input3, ctx) => {
-    const top2 = parseIntText2(input3.top, "25");
+  run: async (input4, ctx) => {
+    const top2 = parseIntText2(input4.top, "25");
     if (isNaN(top2) || top2 <= 0) {
-      throw new ToilError("INVALID_INPUT", `Invalid --top "${shown(input3.top, "25")}". Expected a positive integer.`, { fix: "Pass a whole number above zero, e.g. --top 10." });
+      throw new ToilError("INVALID_INPUT", `Invalid --top "${shown(input4.top, "25")}". Expected a positive integer.`, { fix: "Pass a whole number above zero, e.g. --top 10." });
     }
-    return listBuilds2(ctx, input3.name, top2);
+    return listBuilds2(ctx, input4.name, top2);
   }
 });
 var pipelineGetRunCommand2 = jenkinsArea.command({
@@ -157706,7 +157814,7 @@ var pipelineGetRunCommand2 = jenkinsArea.command({
   writes: false,
   options: [nameOption, { flags: "--number <n>", field: "number", description: "Build number" }],
   examples: [{ name: "api-build", number: "42", instance: "jenkins" }],
-  run: async (input3, ctx) => getBuild2(ctx, input3.name, buildNumberOf(input3.number))
+  run: async (input4, ctx) => getBuild2(ctx, input4.name, buildNumberOf(input4.number))
 });
 var pipelineLogsCommand2 = jenkinsArea.command({
   path: ["jenkins", "pipeline", "logs"],
@@ -157715,7 +157823,7 @@ var pipelineLogsCommand2 = jenkinsArea.command({
   writes: false,
   options: [nameOption, { flags: "--number <n>", field: "number", description: "Build number" }],
   examples: [{ name: "platform/api-build", number: "42", instance: "jenkins" }],
-  run: async (input3, ctx) => ({ log: await getConsoleLog(ctx, input3.name, buildNumberOf(input3.number)) })
+  run: async (input4, ctx) => ({ log: await getConsoleLog(ctx, input4.name, buildNumberOf(input4.number)) })
 });
 var pipelineCommands3 = [pipelineListCommand2, pipelineGetCommand2, pipelineRunCommand2, pipelineListRunsCommand2, pipelineGetRunCommand2, pipelineLogsCommand2];
 
@@ -158340,7 +158448,7 @@ var listBoards2 = jiraArea.command({
   writes: false,
   options: [{ flags: "--project <key>", field: "project", description: "Project key" }, ...pagingOptions("boards")],
   examples: [{ project: "PROJ" }, { project: "PROJ", limit: 1 }, { project: "PROJ", limit: 1, cursor: "1" }],
-  run: (input3, ctx) => listBoards(ctx, input3.project, input3)
+  run: (input4, ctx) => listBoards(ctx, input4.project, input4)
 });
 var listSprints = jiraArea.command({
   path: ["jira", "list-sprints"],
@@ -158360,18 +158468,18 @@ var listSprints = jiraArea.command({
     ...pagingOptions("sprints (with --board)")
   ],
   examples: [{ board: 3, state: "active,future" }, { project: "PROJ" }, { board: 1, limit: 1 }, { board: 1, limit: 1, cursor: "1" }],
-  run: async (input3, ctx) => {
-    const board = input3.board === void 0 ? "" : String(input3.board);
-    if (!board && !input3.project) {
+  run: async (input4, ctx) => {
+    const board = input4.board === void 0 ? "" : String(input4.board);
+    if (!board && !input4.project) {
       throw new ToilError("INVALID_INPUT", "Either --board or --project is required", { fix: "Pass --board <id> (from toil jira list-boards), or --project <key>." });
     }
-    const states = input3.state ? input3.state.split(",").map((s) => s.trim()) : void 0;
-    if (!board && (input3.limit !== void 0 || input3.cursor !== void 0)) {
+    const states = input4.state ? input4.state.split(",").map((s) => s.trim()) : void 0;
+    if (!board && (input4.limit !== void 0 || input4.cursor !== void 0)) {
       throw new ToilError("INVALID_INPUT", "--limit and --cursor page one board's sprints, so they need --board", {
         fix: "Pass --board <id> (from toil jira list-boards) with --limit, or leave --limit and --cursor out to list every sprint of the project."
       });
     }
-    return board ? listSprintsForBoard(ctx, asInt(board), states, input3) : listSprintsForProject(ctx, input3.project, states);
+    return board ? listSprintsForBoard(ctx, asInt(board), states, input4) : listSprintsForProject(ctx, input4.project, states);
   }
 });
 var setSprint2 = jiraArea.command({
@@ -158389,9 +158497,9 @@ var setSprint2 = jiraArea.command({
     { flags: "--sprint <id>", field: "sprint", description: "Sprint ID (from list-sprints)" }
   ],
   examples: [{ key: "PROJ-123", sprint: 42, allowWrite: true }],
-  run: async (input3, ctx) => {
-    await setSprint(ctx, asInt(input3.sprint), [input3.key]);
-    return { updated: input3.key, sprint: String(input3.sprint) };
+  run: async (input4, ctx) => {
+    await setSprint(ctx, asInt(input4.sprint), [input4.key]);
+    return { updated: input4.key, sprint: String(input4.sprint) };
   }
 });
 var agileCommands = [listBoards2, listSprints, setSprint2];
@@ -158410,9 +158518,9 @@ var addAttachment = jiraArea.command({
   writes: true,
   options: [keyOption, { flags: "--file <path>", field: "file", description: "Path to the file to upload" }],
   examples: [{ key: "PROJ-123", file: "screenshot.png", allowWrite: true }],
-  run: async (input3, ctx) => {
-    const data = ctx.files.readBytes(input3.file);
-    return uploadAttachment5(ctx, input3.key, baseName(input3.file), data);
+  run: async (input4, ctx) => {
+    const data = ctx.files.readBytes(input4.file);
+    return uploadAttachment5(ctx, input4.key, baseName(input4.file), data);
   }
 });
 var listAttachments7 = jiraArea.command({
@@ -158423,7 +158531,7 @@ var listAttachments7 = jiraArea.command({
   writes: false,
   options: [keyOption],
   examples: [{ key: "PROJ-123" }],
-  run: (input3, ctx) => listAttachments6(ctx, input3.key)
+  run: (input4, ctx) => listAttachments6(ctx, input4.key)
 });
 var downloadAttachment6 = jiraArea.command({
   path: ["jira", "download-attachment"],
@@ -158445,16 +158553,16 @@ var downloadAttachment6 = jiraArea.command({
     { key: "PROJ-123", attachmentId: "10001" },
     { key: "PROJ-123", attachmentId: "10001", dir: "downloads" }
   ],
-  run: async (input3, ctx) => {
-    const attachments = await listAttachments6(ctx, input3.key);
-    const attachment = attachments.find((a) => a.id === input3.attachmentId);
+  run: async (input4, ctx) => {
+    const attachments = await listAttachments6(ctx, input4.key);
+    const attachment = attachments.find((a) => a.id === input4.attachmentId);
     if (!attachment) {
-      throw new ToilError("INVALID_INPUT", `Attachment not found: ${input3.attachmentId}`, {
-        fix: `Run toil jira list-attachments --key ${input3.key} for the ids it has.`
+      throw new ToilError("INVALID_INPUT", `Attachment not found: ${input4.attachmentId}`, {
+        fix: `Run toil jira list-attachments --key ${input4.key} for the ids it has.`
       });
     }
     const data = await downloadAttachment5(ctx, attachment.content);
-    const saved2 = ctx.files.writeBytes(`${input3.dir ?? ".toil"}/${baseName(attachment.filename)}`, data);
+    const saved2 = ctx.files.writeBytes(`${input4.dir ?? ".toil"}/${baseName(attachment.filename)}`, data);
     return { saved: saved2, filename: attachment.filename, size: data.length };
   }
 });
@@ -158509,12 +158617,12 @@ function projectFor(ctx, json3) {
 function reportOverrides2(ctx, overrides) {
   if (overrides.length > 0) ctx.warn({ code: "JIRA_INPUT_OVERRIDDEN", message: `--input-file value(s) overridden by flags: ${overrides.join(", ")}` });
 }
-function gatherFields(ctx, input3, flagBuiltin, fieldMap) {
-  const json3 = readIssueFile(input3.inputFile, ctx);
+function gatherFields(ctx, input4, flagBuiltin, fieldMap) {
+  const json3 = readIssueFile(input4.inputFile, ctx);
   const fromJson = json3?.fields ? splitFieldsDictionary(json3.fields, fieldMap, ctx.files) : { builtin: {}, custom: {} };
   const builtin = mergeWithOverrides3(fromJson.builtin, flagBuiltin);
-  const fileFields = input3.fieldsFile ? parseFieldsFile(input3.fieldsFile, fieldMap, ctx.files) : {};
-  const custom2 = mergeWithOverrides3(fromJson.custom, { ...fileFields, ...parseFieldArgs3(input3.field ?? [], fieldMap, ctx.files) });
+  const fileFields = input4.fieldsFile ? parseFieldsFile(input4.fieldsFile, fieldMap, ctx.files) : {};
+  const custom2 = mergeWithOverrides3(fromJson.custom, { ...fileFields, ...parseFieldArgs3(input4.field ?? [], fieldMap, ctx.files) });
   reportOverrides2(ctx, [...builtin.overrides, ...custom2.overrides]);
   return { json: json3, builtin: builtin.merged, custom: custom2.merged };
 }
@@ -158535,11 +158643,11 @@ var getIssue3 = jiraArea.command({
   writes: false,
   options: [keyOption2(`Issue key (e.g. PROJ-123); repeat for up to ${MAX_BULK_KEYS} issues`)],
   examples: [{ key: "PROJ-123" }, { key: ["PROJ-1", "PROJ-2", "PROJ-404"] }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const fieldMap = buildFieldMap(ctx.connection.customFields);
     const translate = (issue2) => ({ ...issue2, fields: translateFieldsInOutput(issue2.fields, fieldMap) });
-    if (!Array.isArray(input3.key)) return translate(await getIssue2(ctx, input3.key));
-    const keys2 = bulkKeys(input3.key);
+    if (!Array.isArray(input4.key)) return translate(await getIssue2(ctx, input4.key));
+    const keys2 = bulkKeys(input4.key);
     const results = await getIssues(ctx, keys2);
     const issues = results.flatMap((r) => r.issue ? [translate(r.issue)] : []);
     const errors = results.flatMap((r) => r.error ? [r.error] : []);
@@ -158556,7 +158664,7 @@ var getChangelog2 = jiraArea.command({
   writes: false,
   options: [keyOption2(), ...pagingOptions("history entries")],
   examples: [{ key: "PROJ-123" }, { key: "PROJ-123", limit: 1 }, { key: "PROJ-123", limit: 1, cursor: "1" }],
-  run: async (input3, ctx) => pageOf3(await getChangelog(ctx, input3.key), input3, ctx.setPage)
+  run: async (input4, ctx) => pageOf3(await getChangelog(ctx, input4.key), input4, ctx.setPage)
 });
 var createIssue2 = jiraArea.command({
   path: ["jira", "create-issue"],
@@ -158605,20 +158713,20 @@ var createIssue2 = jiraArea.command({
     },
     { inputFile: "issue.json", fieldsFile: "fields.json", field: ["Story Points=5", "customfield_10050=@ac.md"], priority: "Low", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const fieldMap = withAliases(buildFieldMap(ctx.connection.customFields), input3.field?.length ? ctx.dossierFields() : {});
+  run: async (input4, ctx) => {
+    const fieldMap = withAliases(buildFieldMap(ctx.connection.customFields), input4.field?.length ? ctx.dossierFields() : {});
     try {
       const flags = defined({
-        summary: input3.summary,
-        description: input3.description,
-        priority: input3.priority,
-        assignee: input3.assignee,
-        labels: input3.labels,
-        parent: input3.parent
+        summary: input4.summary,
+        description: input4.description,
+        priority: input4.priority,
+        assignee: input4.assignee,
+        labels: input4.labels,
+        parent: input4.parent
       });
-      const { json: json3, builtin, custom: custom2 } = gatherFields(ctx, input3, flags, fieldMap);
+      const { json: json3, builtin, custom: custom2 } = gatherFields(ctx, input4, flags, fieldMap);
       const project2 = projectFor(ctx, json3);
-      const issueType = input3.issueType ?? json3?.issueType ?? ctx.connection.issueType ?? "Task";
+      const issueType = input4.issueType ?? json3?.issueType ?? ctx.connection.issueType ?? "Task";
       if (!project2) {
         throw new ToilError("INVALID_INPUT", '--project required (or set defaults.jira.project in config, or "project" in --input-file)', {
           fix: 'Pass --project, put "project" in --input-file, or set defaults.jira.project in your toil config.'
@@ -158676,11 +158784,11 @@ var updateIssue2 = jiraArea.command({
     { key: "PROJ-123", summary: "Login broken on Safari 17", description: "Narrowed down to 17.x.", priority: "Highest", assignee: "alice", labels: "frontend", allowWrite: true },
     { key: "PROJ-123", inputFile: "update.json", fieldsFile: "fields.json", field: ["Story Points=8"], allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const fieldMap = withAliases(buildFieldMap(ctx.connection.customFields), input3.field?.length ? ctx.dossierFields() : {});
+  run: async (input4, ctx) => {
+    const fieldMap = withAliases(buildFieldMap(ctx.connection.customFields), input4.field?.length ? ctx.dossierFields() : {});
     try {
-      const flags = defined({ summary: input3.summary, description: input3.description, priority: input3.priority, assignee: input3.assignee, labels: input3.labels });
-      const { builtin, custom: custom2 } = gatherFields(ctx, input3, flags, fieldMap);
+      const flags = defined({ summary: input4.summary, description: input4.description, priority: input4.priority, assignee: input4.assignee, labels: input4.labels });
+      const { builtin, custom: custom2 } = gatherFields(ctx, input4, flags, fieldMap);
       const fields3 = updateFields({
         summary: builtin.summary,
         description: builtin.description,
@@ -158689,8 +158797,8 @@ var updateIssue2 = jiraArea.command({
         labels: normalizeLabels(builtin.labels),
         customFieldValues: custom2
       });
-      await updateIssue(ctx, input3.key, fields3);
-      return { updated: input3.key };
+      await updateIssue(ctx, input4.key, fields3);
+      return { updated: input4.key };
     } catch (err) {
       throw translateFieldErrors(err, fieldMap);
     }
@@ -158714,7 +158822,7 @@ var schema = jiraArea.command({
     }
   ],
   examples: [{}, { exampleOnly: true }],
-  run: async (input3) => input3.exampleOnly ? JIRA_INPUT_FILE_EXAMPLE : { schema: JIRA_INPUT_FILE_SCHEMA, example: JIRA_INPUT_FILE_EXAMPLE }
+  run: async (input4) => input4.exampleOnly ? JIRA_INPUT_FILE_EXAMPLE : { schema: JIRA_INPUT_FILE_SCHEMA, example: JIRA_INPUT_FILE_EXAMPLE }
 });
 var transitionIssue2 = jiraArea.command({
   path: ["jira", "transition-issue"],
@@ -158727,20 +158835,20 @@ var transitionIssue2 = jiraArea.command({
     { key: "PROJ-123", transition: "In Progress", allowWrite: true },
     { key: "PROJ-123", transition: "31", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    let id9 = input3.transition;
-    if (!looksNumeric(input3.transition)) {
-      const transitions = await listTransitions(ctx, input3.key);
-      const found = transitions.find((t) => t.name.toLowerCase() === input3.transition.toLowerCase());
+  run: async (input4, ctx) => {
+    let id9 = input4.transition;
+    if (!looksNumeric(input4.transition)) {
+      const transitions = await listTransitions(ctx, input4.key);
+      const found = transitions.find((t) => t.name.toLowerCase() === input4.transition.toLowerCase());
       if (!found) {
-        throw new ToilError("INVALID_INPUT", `Transition not found: ${input3.transition}`, {
-          fix: `Available from here: ${transitions.map((t) => t.name).join(", ") || "(none)"}. Run toil jira list-transitions --key ${input3.key}.`
+        throw new ToilError("INVALID_INPUT", `Transition not found: ${input4.transition}`, {
+          fix: `Available from here: ${transitions.map((t) => t.name).join(", ") || "(none)"}. Run toil jira list-transitions --key ${input4.key}.`
         });
       }
       id9 = found.id;
     }
-    await transitionIssue(ctx, input3.key, id9);
-    return { transitioned: input3.key, transition: input3.transition };
+    await transitionIssue(ctx, input4.key, id9);
+    return { transitioned: input4.key, transition: input4.transition };
   }
 });
 var listTransitions2 = jiraArea.command({
@@ -158751,7 +158859,7 @@ var listTransitions2 = jiraArea.command({
   writes: false,
   options: [keyOption2()],
   examples: [{ key: "PROJ-123" }],
-  run: (input3, ctx) => listTransitions(ctx, input3.key)
+  run: (input4, ctx) => listTransitions(ctx, input4.key)
 });
 var addComment6 = jiraArea.command({
   path: ["jira", "add-comment"],
@@ -158761,7 +158869,7 @@ var addComment6 = jiraArea.command({
   writes: true,
   options: [keyOption2(), { flags: "--body <text>", field: "body", description: "Comment text" }],
   examples: [{ key: "PROJ-123", body: "Reproduced on staging.", allowWrite: true }],
-  run: (input3, ctx) => addComment5(ctx, input3.key, input3.body)
+  run: (input4, ctx) => addComment5(ctx, input4.key, input4.body)
 });
 var logWork = jiraArea.command({
   path: ["jira", "log-work"],
@@ -158785,7 +158893,7 @@ var logWork = jiraArea.command({
     { key: "PROJ-123", timeSpent: "2h 30m", allowWrite: true },
     { key: "PROJ-123", timeSpent: "1d", comment: "Investigated the failing build", started: "2024-01-15T09:00:00.000+0000", allowWrite: true }
   ],
-  run: (input3, ctx) => addWorklog(ctx, input3.key, input3)
+  run: (input4, ctx) => addWorklog(ctx, input4.key, input4)
 });
 var listComments6 = jiraArea.command({
   path: ["jira", "list-comments"],
@@ -158795,7 +158903,7 @@ var listComments6 = jiraArea.command({
   writes: false,
   options: [keyOption2(), ...pagingOptions("comments")],
   examples: [{ key: "PROJ-123" }, { key: "PROJ-123", limit: 1 }, { key: "PROJ-123", limit: 1, cursor: "1" }],
-  run: (input3, ctx) => listComments5(ctx, input3.key, input3)
+  run: (input4, ctx) => listComments5(ctx, input4.key, input4)
 });
 var labelsInput = (verb) => external_exports.string().describe(`Comma-separated labels to ${verb}`);
 var labelList = (raw3) => commaList2(raw3);
@@ -158807,10 +158915,10 @@ var addLabel3 = jiraArea.command({
   writes: true,
   options: [keyOption2(), { flags: "--labels <labels>", field: "labels", description: "Comma-separated labels to add" }],
   examples: [{ key: "PROJ-123", labels: "backend,urgent", allowWrite: true }],
-  run: async (input3, ctx) => {
-    const labels = labelList(input3.labels);
-    await addLabels3(ctx, input3.key, labels);
-    return { updated: input3.key, labelsAdded: labels };
+  run: async (input4, ctx) => {
+    const labels = labelList(input4.labels);
+    await addLabels3(ctx, input4.key, labels);
+    return { updated: input4.key, labelsAdded: labels };
   }
 });
 var removeLabel5 = jiraArea.command({
@@ -158821,10 +158929,10 @@ var removeLabel5 = jiraArea.command({
   writes: true,
   options: [keyOption2(), { flags: "--labels <labels>", field: "labels", description: "Comma-separated labels to remove" }],
   examples: [{ key: "PROJ-123", labels: "urgent", allowWrite: true }],
-  run: async (input3, ctx) => {
-    const labels = labelList(input3.labels);
-    await removeLabels(ctx, input3.key, labels);
-    return { updated: input3.key, labelsRemoved: labels };
+  run: async (input4, ctx) => {
+    const labels = labelList(input4.labels);
+    await removeLabels(ctx, input4.key, labels);
+    return { updated: input4.key, labelsRemoved: labels };
   }
 });
 var assign = jiraArea.command({
@@ -158835,9 +158943,9 @@ var assign = jiraArea.command({
   writes: true,
   options: [keyOption2(), { flags: "--assignee <username>", field: "assignee", description: "Assignee username" }],
   examples: [{ key: "PROJ-123", assignee: "jsmith", allowWrite: true }],
-  run: async (input3, ctx) => {
-    await assignIssue(ctx, input3.key, input3.assignee);
-    return { assigned: input3.key, assignee: input3.assignee };
+  run: async (input4, ctx) => {
+    await assignIssue(ctx, input4.key, input4.assignee);
+    return { assigned: input4.key, assignee: input4.assignee };
   }
 });
 var linkIssue2 = jiraArea.command({
@@ -158860,9 +158968,9 @@ var linkIssue2 = jiraArea.command({
     { key: "PROJ-123", linkType: "Blocks", target: "PROJ-456", allowWrite: true },
     { key: "PROJ-123", linkType: "10000", target: "PROJ-456", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    await linkIssue(ctx, input3);
-    return { linked: input3.key, to: input3.target, type: input3.linkType };
+  run: async (input4, ctx) => {
+    await linkIssue(ctx, input4);
+    return { linked: input4.key, to: input4.target, type: input4.linkType };
   }
 });
 var issueCommands2 = [getIssue3, getChangelog2, createIssue2, updateIssue2, schema, transitionIssue2, listTransitions2, addComment6, logWork, listComments6, addLabel3, removeLabel5, assign, linkIssue2];
@@ -158960,16 +159068,16 @@ var search6 = jiraArea.command({
     { jqlFile: "query.jql", updatedSince: "2026-10-01T09:30:00Z", maxResults: 2 },
     { updatedSince: "2026-10-01" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const fieldMap = buildFieldMap(ctx.connection.customFields);
-    const jql = input3.updatedSince !== void 0 && input3.jql === void 0 && input3.jqlFile === void 0 ? void 0 : resolveJql(input3.jql, input3.jqlFile, ctx.files);
-    const since2 = input3.updatedSince === void 0 ? void 0 : parseUpdatedSince(input3.updatedSince);
-    if (input3.cursor !== void 0 && input3.startAt !== void 0) {
+    const jql = input4.updatedSince !== void 0 && input4.jql === void 0 && input4.jqlFile === void 0 ? void 0 : resolveJql(input4.jql, input4.jqlFile, ctx.files);
+    const since2 = input4.updatedSince === void 0 ? void 0 : parseUpdatedSince(input4.updatedSince);
+    if (input4.cursor !== void 0 && input4.startAt !== void 0) {
       throw new ToilError("INVALID_INPUT", "Cannot specify both --cursor and --start-at", { fix: "Pass one of them: the cursor is the startAt of the next page." });
     }
     let fields3;
-    if (input3.fields !== void 0) {
-      fields3 = commaList2(input3.fields).map((name3) => {
+    if (input4.fields !== void 0) {
+      fields3 = commaList2(input4.fields).map((name3) => {
         const id9 = resolveFieldKey(name3, fieldMap);
         if (id9 === void 0) {
           throw new ToilError("INVALID_INPUT", `Unknown field in --fields: "${name3}".`, { fix: "Use a field id, or a custom field name registered in customFields." });
@@ -158980,8 +159088,8 @@ var search6 = jiraArea.command({
     } else {
       fields3 = [...STANDARD_SEARCH_FIELDS, ...ctx.connection.customFields.map((f) => f.id)];
     }
-    const maxResults = input3.maxResults !== void 0 && String(input3.maxResults) !== "" ? asInt(input3.maxResults) : void 0;
-    const startAt = input3.cursor !== void 0 ? parseCursor(input3.cursor) : parseStartAt(input3.startAt);
+    const maxResults = input4.maxResults !== void 0 && String(input4.maxResults) !== "" ? asInt(input4.maxResults) : void 0;
+    const startAt = input4.cursor !== void 0 ? parseCursor(input4.cursor) : parseStartAt(input4.startAt);
     let query2 = jql === void 0 ? void 0 : translateJql(jql, fieldMap);
     if (since2) {
       const zone = await myTimeZone(ctx);
@@ -159024,14 +159132,14 @@ var fields = jiraArea.command({
     { flags: "--issue-type <type>", field: "issueType", description: "Filter allowedValues to a specific issue type (requires --project)" }
   ],
   examples: [{}, { discover: true, customOnly: true }, { discover: true, project: "PROJ", issueType: "Bug" }],
-  run: async (input3, ctx) => {
-    if (!input3.discover) {
-      const ignored = ["customOnly", "project", "issueType"].filter((k) => input3[k] !== void 0);
+  run: async (input4, ctx) => {
+    if (!input4.discover) {
+      const ignored = ["customOnly", "project", "issueType"].filter((k) => input4[k] !== void 0);
       if (ignored.length > 0) ctx.warn({ code: "JIRA_NEEDS_DISCOVER", message: `${ignored.join(", ")} only apply with --discover and were ignored.` });
       return ctx.connection.customFields;
     }
-    const all3 = input3.project ? await fetchFieldsWithAllowedValues(ctx, input3.project, input3.issueType) : await fetchFields(ctx);
-    return input3.customOnly ? all3.filter((f) => f.custom) : all3;
+    const all3 = input4.project ? await fetchFieldsWithAllowedValues(ctx, input4.project, input4.issueType) : await fetchFields(ctx);
+    return input4.customOnly ? all3.filter((f) => f.custom) : all3;
   }
 });
 var searchCommands = [search6, fields];
@@ -159543,7 +159651,7 @@ var listBoards4 = jiraCloudArea.command({
   writes: false,
   options: [{ flags: "--project <key>", field: "project", description: "Project key" }, ...pagingOptions("boards")],
   examples: [{ project: "PROJ" }, { project: "PROJ", limit: 1 }, { project: "PROJ", limit: 1, cursor: "1" }],
-  run: (input3, ctx) => listBoards3(ctx, input3.project, input3)
+  run: (input4, ctx) => listBoards3(ctx, input4.project, input4)
 });
 var listSprints2 = jiraCloudArea.command({
   path: ["jira-cloud", "list-sprints"],
@@ -159563,19 +159671,19 @@ var listSprints2 = jiraCloudArea.command({
     ...pagingOptions("sprints (with --board)")
   ],
   examples: [{ board: 3, state: "active,future" }, { project: "PROJ" }, { board: 1, limit: 1 }, { board: 1, limit: 1, cursor: "1" }],
-  run: async (input3, ctx) => {
-    if (input3.board === void 0 && !input3.project) {
+  run: async (input4, ctx) => {
+    if (input4.board === void 0 && !input4.project) {
       throw new ToilError("INVALID_INPUT", "Either --board or --project is required", { fix: "Pass --board <id> (from toil jira-cloud list-boards), or --project <key>." });
     }
-    const states = input3.state === void 0 ? void 0 : input3.state.split(",").map((s) => s.trim()).filter(Boolean);
+    const states = input4.state === void 0 ? void 0 : input4.state.split(",").map((s) => s.trim()).filter(Boolean);
     const unknown2 = (states ?? []).filter((s) => !SPRINT_STATES.includes(s));
     if (unknown2.length > 0) throw new ToilError("INVALID_INPUT", `Unknown sprint state: ${unknown2.join(", ")}`, { fix: "Use active, future and/or closed, comma-separated." });
-    if (input3.board === void 0 && (input3.limit !== void 0 || input3.cursor !== void 0)) {
+    if (input4.board === void 0 && (input4.limit !== void 0 || input4.cursor !== void 0)) {
       throw new ToilError("INVALID_INPUT", "--limit and --cursor page one board's sprints, so they need --board", {
         fix: "Pass --board <id> (from toil jira-cloud list-boards) with --limit, or leave --limit and --cursor out to list every sprint of the project."
       });
     }
-    return input3.board !== void 0 ? listSprintsForBoard2(ctx, input3.board, states, input3) : listSprintsForProject2(ctx, input3.project, states);
+    return input4.board !== void 0 ? listSprintsForBoard2(ctx, input4.board, states, input4) : listSprintsForProject2(ctx, input4.project, states);
   }
 });
 var setSprint4 = jiraCloudArea.command({
@@ -159593,9 +159701,9 @@ var setSprint4 = jiraCloudArea.command({
     { flags: "--sprint <id>", field: "sprint", description: "Sprint ID (from list-sprints)" }
   ],
   examples: [{ key: "PROJ-123", sprint: 42, allowWrite: true }],
-  run: async (input3, ctx) => {
-    await setSprint3(ctx, input3.sprint, [input3.key]);
-    return { updated: input3.key, sprint: String(input3.sprint) };
+  run: async (input4, ctx) => {
+    await setSprint3(ctx, input4.sprint, [input4.key]);
+    return { updated: input4.key, sprint: String(input4.sprint) };
   }
 });
 var agileCommands2 = [listBoards4, listSprints2, setSprint4];
@@ -159613,9 +159721,9 @@ var addAttachment2 = jiraCloudArea.command({
   writes: true,
   options: [keyOption3, { flags: "--file <path>", field: "file", description: "Path to the file to upload" }],
   examples: [{ key: "PROJ-123", file: "screenshot.png", allowWrite: true }],
-  run: async (input3, ctx) => {
-    const data = ctx.files.readBytes(input3.file);
-    return uploadAttachment6(ctx, input3.key, basename7(input3.file), data);
+  run: async (input4, ctx) => {
+    const data = ctx.files.readBytes(input4.file);
+    return uploadAttachment6(ctx, input4.key, basename7(input4.file), data);
   }
 });
 var listAttachments9 = jiraCloudArea.command({
@@ -159626,7 +159734,7 @@ var listAttachments9 = jiraCloudArea.command({
   writes: false,
   options: [keyOption3],
   examples: [{ key: "PROJ-123" }],
-  run: (input3, ctx) => listAttachments8(ctx, input3.key)
+  run: (input4, ctx) => listAttachments8(ctx, input4.key)
 });
 var downloadAttachment8 = jiraCloudArea.command({
   path: ["jira-cloud", "download-attachment"],
@@ -159648,15 +159756,15 @@ var downloadAttachment8 = jiraCloudArea.command({
     { key: "PROJ-123", attachmentId: "10001" },
     { key: "PROJ-123", attachmentId: "10001", dir: "downloads" }
   ],
-  run: async (input3, ctx) => {
-    const attachment = (await listAttachments8(ctx, input3.key)).find((a) => a.id === input3.attachmentId);
+  run: async (input4, ctx) => {
+    const attachment = (await listAttachments8(ctx, input4.key)).find((a) => a.id === input4.attachmentId);
     if (!attachment) {
-      throw new ToilError("INVALID_INPUT", `Attachment not found on ${input3.key}: ${input3.attachmentId}`, {
-        fix: `Run toil jira-cloud list-attachments --key ${input3.key} for the ids it has.`
+      throw new ToilError("INVALID_INPUT", `Attachment not found on ${input4.key}: ${input4.attachmentId}`, {
+        fix: `Run toil jira-cloud list-attachments --key ${input4.key} for the ids it has.`
       });
     }
     const data = await downloadAttachment7(ctx, attachment.id);
-    const saved2 = ctx.files.writeBytes(`${input3.dir ?? ".toil"}/${basename7(attachment.filename)}`, data);
+    const saved2 = ctx.files.writeBytes(`${input4.dir ?? ".toil"}/${basename7(attachment.filename)}`, data);
     return { saved: saved2, filename: attachment.filename, size: data.length };
   }
 });
@@ -159833,12 +159941,12 @@ function projectFor2(ctx, json3) {
   if (ctx.resolved.inputs?.project?.source === "input" || json3?.project == null || String(json3.project) === "") return ctx.context.project;
   return ctx.supply("project", String(json3.project), "file");
 }
-function gatherFields2(ctx, input3, flagBuiltin, fieldMap) {
-  const json3 = readIssueFile2(input3.inputFile, ctx);
+function gatherFields2(ctx, input4, flagBuiltin, fieldMap) {
+  const json3 = readIssueFile2(input4.inputFile, ctx);
   const fromJson = json3?.fields ? splitFieldsDictionary2(json3.fields, fieldMap, ctx.files) : { builtin: {}, custom: {} };
   const builtin = mergeWithOverrides4(fromJson.builtin, flagBuiltin);
-  const fileFields = input3.fieldsFile ? parseFieldsFile2(input3.fieldsFile, fieldMap, ctx.files) : {};
-  const custom2 = mergeWithOverrides4(fromJson.custom, { ...fileFields, ...parseFieldArgs4(input3.field ?? [], fieldMap, ctx.files) });
+  const fileFields = input4.fieldsFile ? parseFieldsFile2(input4.fieldsFile, fieldMap, ctx.files) : {};
+  const custom2 = mergeWithOverrides4(fromJson.custom, { ...fileFields, ...parseFieldArgs4(input4.field ?? [], fieldMap, ctx.files) });
   const overrides = [...builtin.overrides, ...custom2.overrides];
   if (overrides.length > 0) ctx.warn({ code: "JIRA_CLOUD_INPUT_OVERRIDDEN", message: `--input-file value(s) overridden by flags: ${overrides.join(", ")}` });
   return { json: json3, builtin: builtin.merged, custom: custom2.merged };
@@ -159875,11 +159983,11 @@ var getIssue5 = jiraCloudArea.command({
   queryByPost: true,
   options: [keyOption4(`Issue key (e.g. PROJ-123); repeat for up to ${MAX_BULK_KEYS} issues`)],
   examples: [{ key: "PROJ-123" }, { key: ["PROJ-1", "PROJ-2", "PROJ-404"] }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const fieldMap = buildFieldMap2(ctx.connection.customFields);
     const translate = (issue2) => ({ ...withDescriptionText(issue2), fields: translateFieldsInOutput2(issue2.fields, fieldMap) });
-    if (!Array.isArray(input3.key)) return translate(await getIssue4(ctx, input3.key));
-    const keys2 = bulkKeys(input3.key);
+    if (!Array.isArray(input4.key)) return translate(await getIssue4(ctx, input4.key));
+    const keys2 = bulkKeys(input4.key);
     const { issues, errors } = await getIssues2(ctx, keys2);
     const warning = bulkWarning("JIRA_CLOUD_BULK_PARTIAL", errors, keys2.length);
     if (warning) ctx.warn(warning);
@@ -159894,7 +160002,7 @@ var getChangelog4 = jiraCloudArea.command({
   writes: false,
   options: [keyOption4(), ...pagingOptions("history entries")],
   examples: [{ key: "PROJ-123" }, { key: "PROJ-123", limit: 1 }, { key: "PROJ-123", limit: 1, cursor: "1" }],
-  run: (input3, ctx) => getChangelog3(ctx, input3.key, input3)
+  run: (input4, ctx) => getChangelog3(ctx, input4.key, input4)
 });
 var createIssue4 = jiraCloudArea.command({
   path: ["jira-cloud", "create-issue"],
@@ -159944,11 +160052,11 @@ var createIssue4 = jiraCloudArea.command({
     { summary: "Tidy the release checklist", allowWrite: true },
     { inputFile: "issue.json", fieldsFile: "fields.json", field: ["Story Points=5", "Reviewer=5b10ac8d82e05b22cc7d4ef5"], priority: "Low", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const fieldMap = withAliases2(buildFieldMap2(ctx.connection.customFields), input3.field?.length ? ctx.dossierFields() : {});
+  run: async (input4, ctx) => {
+    const fieldMap = withAliases2(buildFieldMap2(ctx.connection.customFields), input4.field?.length ? ctx.dossierFields() : {});
     try {
-      const flags = defined2({ summary: input3.summary, description: input3.description, priority: input3.priority, assignee: input3.assignee, labels: input3.labels, parent: input3.parent });
-      const { json: json3, builtin, custom: custom2 } = gatherFields2(ctx, input3, flags, fieldMap);
+      const flags = defined2({ summary: input4.summary, description: input4.description, priority: input4.priority, assignee: input4.assignee, labels: input4.labels, parent: input4.parent });
+      const { json: json3, builtin, custom: custom2 } = gatherFields2(ctx, input4, flags, fieldMap);
       const project2 = projectFor2(ctx, json3);
       if (!project2) {
         throw new ToilError("INVALID_INPUT", "No project for create-issue.", {
@@ -159959,7 +160067,7 @@ var createIssue4 = jiraCloudArea.command({
       if (!summary2) throw new ToilError("INVALID_INPUT", 'Must specify --summary or "fields.summary" in --input-file', { fix: 'Pass --summary, or set "fields.summary" in --input-file.' });
       const issue2 = await createIssue3(ctx, {
         project: project2,
-        issueType: input3.issueType ?? text("issueType", json3?.issueType) ?? ctx.connection.issueType ?? "Task",
+        issueType: input4.issueType ?? text("issueType", json3?.issueType) ?? ctx.connection.issueType ?? "Task",
         summary: summary2,
         description: description(builtin.description),
         priority: text("fields.priority", builtin.priority) ?? ctx.connection.priority,
@@ -160008,11 +160116,11 @@ var updateIssue3 = jiraCloudArea.command({
     { key: "PROJ-123", summary: "Login broken on Safari 17", description: "Narrowed down to 17.x.", priority: "Highest", assignee: "5b10ac8d82e05b22cc7d4ef5", labels: "frontend", allowWrite: true },
     { key: "PROJ-123", inputFile: "update.json", fieldsFile: "fields.json", field: ["Story Points=8"], allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const fieldMap = withAliases2(buildFieldMap2(ctx.connection.customFields), input3.field?.length ? ctx.dossierFields() : {});
+  run: async (input4, ctx) => {
+    const fieldMap = withAliases2(buildFieldMap2(ctx.connection.customFields), input4.field?.length ? ctx.dossierFields() : {});
     try {
-      const flags = defined2({ summary: input3.summary, description: input3.description, priority: input3.priority, assignee: input3.assignee, labels: input3.labels });
-      const { builtin, custom: custom2 } = gatherFields2(ctx, input3, flags, fieldMap);
+      const flags = defined2({ summary: input4.summary, description: input4.description, priority: input4.priority, assignee: input4.assignee, labels: input4.labels });
+      const { builtin, custom: custom2 } = gatherFields2(ctx, input4, flags, fieldMap);
       const fields3 = issueFields({
         summary: text("fields.summary", builtin.summary),
         description: description(builtin.description),
@@ -160026,8 +160134,8 @@ var updateIssue3 = jiraCloudArea.command({
           fix: "Pass --summary, --description, --priority, --assignee, --labels, --field, --fields-file or --input-file."
         });
       }
-      await editIssue(ctx, input3.key, { fields: fields3 });
-      return { updated: input3.key };
+      await editIssue(ctx, input4.key, { fields: fields3 });
+      return { updated: input4.key };
     } catch (err) {
       throw translateFieldErrors2(err, fieldMap);
     }
@@ -160043,7 +160151,7 @@ var schema2 = jiraCloudArea.command({
   writes: false,
   options: [{ flags: "--example-only", field: "exampleOnly", description: "Return only the runnable example JSON as data \u2014 save .data and pass it to --input-file" }],
   examples: [{}, { exampleOnly: true }],
-  run: async (input3) => input3.exampleOnly ? JIRA_CLOUD_INPUT_FILE_EXAMPLE : { schema: JIRA_CLOUD_INPUT_FILE_SCHEMA, example: JIRA_CLOUD_INPUT_FILE_EXAMPLE }
+  run: async (input4) => input4.exampleOnly ? JIRA_CLOUD_INPUT_FILE_EXAMPLE : { schema: JIRA_CLOUD_INPUT_FILE_SCHEMA, example: JIRA_CLOUD_INPUT_FILE_EXAMPLE }
 });
 var logWork2 = jiraCloudArea.command({
   path: ["jira-cloud", "log-work"],
@@ -160067,8 +160175,8 @@ var logWork2 = jiraCloudArea.command({
     { key: "PROJ-123", timeSpent: "2h 30m", started: "2026-01-15T09:00:00.000+0000", allowWrite: true },
     { key: "PROJ-123", timeSpent: "1d", started: "2026-01-15T09:00:00.000+0000", comment: "Investigated the failing build", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const worklog = await addWorklog2(ctx, input3.key, input3);
+  run: async (input4, ctx) => {
+    const worklog = await addWorklog2(ctx, input4.key, input4);
     return { ...worklog, commentText: adfToText(worklog.comment) };
   }
 });
@@ -160083,20 +160191,20 @@ var transitionIssue4 = jiraCloudArea.command({
     { key: "PROJ-123", transition: "In Progress", allowWrite: true },
     { key: "PROJ-123", transition: "31", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    let id9 = input3.transition;
-    if (!/^\d+$/.test(input3.transition)) {
-      const transitions = await listTransitions3(ctx, input3.key);
-      const found = transitions.find((t) => t.name.toLowerCase() === input3.transition.toLowerCase());
+  run: async (input4, ctx) => {
+    let id9 = input4.transition;
+    if (!/^\d+$/.test(input4.transition)) {
+      const transitions = await listTransitions3(ctx, input4.key);
+      const found = transitions.find((t) => t.name.toLowerCase() === input4.transition.toLowerCase());
       if (!found) {
-        throw new ToilError("INVALID_INPUT", `Transition not found: ${input3.transition}`, {
-          fix: `Available from here: ${transitions.map((t) => t.name).join(", ") || "(none)"}. Run toil jira-cloud list-transitions --key ${input3.key}.`
+        throw new ToilError("INVALID_INPUT", `Transition not found: ${input4.transition}`, {
+          fix: `Available from here: ${transitions.map((t) => t.name).join(", ") || "(none)"}. Run toil jira-cloud list-transitions --key ${input4.key}.`
         });
       }
       id9 = found.id;
     }
-    await transitionIssue3(ctx, input3.key, id9);
-    return { transitioned: input3.key, transition: input3.transition };
+    await transitionIssue3(ctx, input4.key, id9);
+    return { transitioned: input4.key, transition: input4.transition };
   }
 });
 var listTransitions4 = jiraCloudArea.command({
@@ -160107,7 +160215,7 @@ var listTransitions4 = jiraCloudArea.command({
   writes: false,
   options: [keyOption4()],
   examples: [{ key: "PROJ-123" }],
-  run: (input3, ctx) => listTransitions3(ctx, input3.key)
+  run: (input4, ctx) => listTransitions3(ctx, input4.key)
 });
 var addComment8 = jiraCloudArea.command({
   path: ["jira-cloud", "add-comment"],
@@ -160117,9 +160225,9 @@ var addComment8 = jiraCloudArea.command({
   writes: true,
   options: [keyOption4(), { flags: "--body <text>", field: "body", description: "Comment text (plain text)" }],
   examples: [{ key: "PROJ-123", body: "Reproduced on staging.", allowWrite: true }],
-  run: async (input3, ctx) => {
-    if (input3.body.trim() === "") throw new ToilError("INVALID_INPUT", "--body is blank.", { fix: "Pass the comment text in --body." });
-    return withBodyText2(await addComment7(ctx, input3.key, textToAdf(input3.body)));
+  run: async (input4, ctx) => {
+    if (input4.body.trim() === "") throw new ToilError("INVALID_INPUT", "--body is blank.", { fix: "Pass the comment text in --body." });
+    return withBodyText2(await addComment7(ctx, input4.key, textToAdf(input4.body)));
   }
 });
 var listComments8 = jiraCloudArea.command({
@@ -160130,7 +160238,7 @@ var listComments8 = jiraCloudArea.command({
   writes: false,
   options: [keyOption4(), ...pagingOptions("comments")],
   examples: [{ key: "PROJ-123" }, { key: "PROJ-123", limit: 1 }, { key: "PROJ-123", limit: 1, cursor: "1" }],
-  run: async (input3, ctx) => (await listComments7(ctx, input3.key, input3)).map(withBodyText2)
+  run: async (input4, ctx) => (await listComments7(ctx, input4.key, input4)).map(withBodyText2)
 });
 var labelsInput2 = (verb) => external_exports.string().describe(`Comma-separated labels to ${verb}`);
 function labelList2(raw3) {
@@ -160146,10 +160254,10 @@ var addLabel4 = jiraCloudArea.command({
   writes: true,
   options: [keyOption4(), { flags: "--labels <labels>", field: "labels", description: "Comma-separated labels to add" }],
   examples: [{ key: "PROJ-123", labels: "backend,urgent", allowWrite: true }],
-  run: async (input3, ctx) => {
-    const labels = labelList2(input3.labels);
-    await changeLabels(ctx, input3.key, "add", labels);
-    return { updated: input3.key, labelsAdded: labels };
+  run: async (input4, ctx) => {
+    const labels = labelList2(input4.labels);
+    await changeLabels(ctx, input4.key, "add", labels);
+    return { updated: input4.key, labelsAdded: labels };
   }
 });
 var removeLabel6 = jiraCloudArea.command({
@@ -160160,10 +160268,10 @@ var removeLabel6 = jiraCloudArea.command({
   writes: true,
   options: [keyOption4(), { flags: "--labels <labels>", field: "labels", description: "Comma-separated labels to remove" }],
   examples: [{ key: "PROJ-123", labels: "urgent", allowWrite: true }],
-  run: async (input3, ctx) => {
-    const labels = labelList2(input3.labels);
-    await changeLabels(ctx, input3.key, "remove", labels);
-    return { updated: input3.key, labelsRemoved: labels };
+  run: async (input4, ctx) => {
+    const labels = labelList2(input4.labels);
+    await changeLabels(ctx, input4.key, "remove", labels);
+    return { updated: input4.key, labelsRemoved: labels };
   }
 });
 var assign2 = jiraCloudArea.command({
@@ -160174,9 +160282,9 @@ var assign2 = jiraCloudArea.command({
   writes: true,
   options: [keyOption4(), { flags: "--assignee <account-id>", field: "assignee", description: "Assignee accountId (from search-users)" }],
   examples: [{ key: "PROJ-123", assignee: "5b10ac8d82e05b22cc7d4ef5", allowWrite: true }],
-  run: async (input3, ctx) => {
-    await assignIssue2(ctx, input3.key, input3.assignee);
-    return { assigned: input3.key, assignee: input3.assignee };
+  run: async (input4, ctx) => {
+    await assignIssue2(ctx, input4.key, input4.assignee);
+    return { assigned: input4.key, assignee: input4.assignee };
   }
 });
 var linkIssue4 = jiraCloudArea.command({
@@ -160199,9 +160307,9 @@ var linkIssue4 = jiraCloudArea.command({
     { key: "PROJ-123", linkType: "Blocks", target: "PROJ-456", allowWrite: true },
     { key: "PROJ-123", linkType: "10000", target: "PROJ-456", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    await linkIssue3(ctx, input3);
-    return { linked: input3.key, to: input3.target, type: input3.linkType };
+  run: async (input4, ctx) => {
+    await linkIssue3(ctx, input4);
+    return { linked: input4.key, to: input4.target, type: input4.linkType };
   }
 });
 var issueCommands3 = [getIssue5, getChangelog4, createIssue4, updateIssue3, schema2, transitionIssue4, listTransitions4, addComment8, listComments8, logWork2, addLabel4, removeLabel6, assign2, linkIssue4];
@@ -160215,7 +160323,7 @@ var listProjects2 = jiraCloudArea.command({
   writes: false,
   options: [{ flags: "--query <text>", field: "query", description: "Only projects whose key or name contains this text" }, ...pagingOptions("projects")],
   examples: [{}, { query: "imagile" }, { limit: 1 }, { limit: 1, cursor: "1" }],
-  run: (input3, ctx) => listProjects(ctx, input3.query, input3)
+  run: (input4, ctx) => listProjects(ctx, input4.query, input4)
 });
 var getProject2 = jiraCloudArea.command({
   path: ["jira-cloud", "get-project"],
@@ -160225,7 +160333,7 @@ var getProject2 = jiraCloudArea.command({
   writes: false,
   options: [{ flags: "--project <key>", field: "project", description: "Project key or id" }],
   examples: [{ project: "PROJ" }],
-  run: (input3, ctx) => getProject(ctx, input3.project)
+  run: (input4, ctx) => getProject(ctx, input4.project)
 });
 var searchUsers2 = jiraCloudArea.command({
   path: ["jira-cloud", "search-users"],
@@ -160243,7 +160351,7 @@ var searchUsers2 = jiraCloudArea.command({
     { flags: "--cursor <cursor>", field: "cursor", description: "meta.page.nextCursor from the previous page" }
   ],
   examples: [{ query: "smith" }, { query: "you@example.com", maxResults: 5 }, { query: "smith", maxResults: 1, cursor: "1" }],
-  run: (input3, ctx) => searchUsers(ctx, input3.query, input3.maxResults ?? 50, input3.cursor)
+  run: (input4, ctx) => searchUsers(ctx, input4.query, input4.maxResults ?? 50, input4.cursor)
 });
 var projectCommands2 = [listProjects2, getProject2, searchUsers2];
 
@@ -160280,18 +160388,18 @@ var search8 = jiraCloudArea.command({
     { jqlFile: "query.jql", updatedSince: "2026-10-01T09:30:00Z", maxResults: 2 },
     { updatedSince: "2026-10-01" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const fieldMap = buildFieldMap2(ctx.connection.customFields);
-    const jql = input3.updatedSince !== void 0 && input3.jql === void 0 && input3.jqlFile === void 0 ? void 0 : resolveJql2(input3.jql, input3.jqlFile, ctx.files);
-    const since2 = input3.updatedSince === void 0 ? void 0 : parseUpdatedSince(input3.updatedSince);
-    if (input3.cursor !== void 0 && input3.maxResults === void 0) {
+    const jql = input4.updatedSince !== void 0 && input4.jql === void 0 && input4.jqlFile === void 0 ? void 0 : resolveJql2(input4.jql, input4.jqlFile, ctx.files);
+    const since2 = input4.updatedSince === void 0 ? void 0 : parseUpdatedSince(input4.updatedSince);
+    if (input4.cursor !== void 0 && input4.maxResults === void 0) {
       throw new ToilError("INVALID_INPUT", "--cursor needs --max-results", {
         fix: "Pass --max-results with --cursor (the page size of the call that gave you the cursor), or leave out --cursor to read every match."
       });
     }
     let fields3;
-    if (input3.fields !== void 0) {
-      fields3 = commaList3(input3.fields).map((name3) => {
+    if (input4.fields !== void 0) {
+      fields3 = commaList3(input4.fields).map((name3) => {
         const id9 = resolveFieldKey2(name3, fieldMap);
         if (id9 === void 0) throw new ToilError("INVALID_INPUT", `Unknown field in --fields: "${name3}".`, { fix: "Use a field id, or a custom field name registered in customFields." });
         return id9;
@@ -160310,7 +160418,7 @@ var search8 = jiraCloudArea.command({
       );
       query2 = withUpdatedSince(query2, instant2);
     }
-    const result = await search7(ctx, query2, { fields: fields3, cap: input3.maxResults, cursor: input3.cursor });
+    const result = await search7(ctx, query2, { fields: fields3, cap: input4.maxResults, cursor: input4.cursor });
     const issues = result.items.map((issue2) => ({ ...issue2, fields: translateFieldsInOutput2(issue2.fields, fieldMap) }));
     return { issues, maxResults: issues.length, isLast: result.nextCursor === null };
   }
@@ -160333,17 +160441,17 @@ var fields2 = jiraCloudArea.command({
     { flags: "--issue-type <type>", field: "issueType", description: "Filter allowedValues to a specific issue type (requires --project)" }
   ],
   examples: [{}, { discover: true, customOnly: true }, { discover: true, project: "PROJ", issueType: "Bug" }],
-  run: async (input3, ctx) => {
-    if (!input3.discover) {
-      const ignored = ["customOnly", "project", "issueType"].filter((k) => input3[k] !== void 0);
+  run: async (input4, ctx) => {
+    if (!input4.discover) {
+      const ignored = ["customOnly", "project", "issueType"].filter((k) => input4[k] !== void 0);
       if (ignored.length > 0) ctx.warn({ code: "JIRA_CLOUD_NEEDS_DISCOVER", message: `${ignored.join(", ")} only apply with --discover and were ignored.` });
       return ctx.connection.customFields;
     }
-    if (input3.issueType !== void 0 && input3.project === void 0) {
+    if (input4.issueType !== void 0 && input4.project === void 0) {
       throw new ToilError("INVALID_INPUT", "--issue-type needs --project", { fix: "Pass --project with --issue-type, or leave --issue-type out." });
     }
-    const all3 = input3.project ? await fetchFieldsWithAllowedValues2(ctx, input3.project, input3.issueType) : await fetchFields2(ctx);
-    return input3.customOnly ? all3.filter((f) => f.custom) : all3;
+    const all3 = input4.project ? await fetchFieldsWithAllowedValues2(ctx, input4.project, input4.issueType) : await fetchFields2(ctx);
+    return input4.customOnly ? all3.filter((f) => f.custom) : all3;
   }
 });
 var searchCommands2 = [search8, fields2];
@@ -160541,12 +160649,12 @@ var dashboardsListCommand = kibanaArea.command({
     { flags: "--per-page <n>", field: "perPage", description: 'Results per page (default: "100")' }
   ],
   examples: [{}, { search: "pay*", space: "ops", page: "2", perPage: "20" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const space2 = ctx.context.space;
-    const page2 = positiveInt(input3.page, "--page");
-    const perPage = positiveInt(input3.perPage, "--per-page");
+    const page2 = positiveInt(input4.page, "--page");
+    const perPage = positiveInt(input4.perPage, "--per-page");
     const data = await kibana(ctx, spacePath(space2, "/api/saved_objects/_find"), {
-      query: { type: "dashboard", search: input3.search, search_fields: input3.search ? "title" : void 0, page: page2, per_page: perPage }
+      query: { type: "dashboard", search: input4.search, search_fields: input4.search ? "title" : void 0, page: page2, per_page: perPage }
     });
     const dashboards = data.saved_objects.map((o) => ({
       id: o.id,
@@ -160574,11 +160682,11 @@ var dashboardsExportCommand = kibanaArea.command({
     { flags: "--no-references", field: "references", description: "Export only the dashboards themselves, not what they reference" }
   ],
   examples: [{ id: ["abc12345"] }, { id: ["abc12345", "abc12346"], references: false, space: "ops" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const space2 = ctx.context.space;
     const lines = await kibanaNdjson(ctx, spacePath(space2, "/api/saved_objects/_export"), {
-      objects: input3.id.map((id9) => ({ type: "dashboard", id: id9 })),
-      includeReferencesDeep: input3.references
+      objects: input4.id.map((id9) => ({ type: "dashboard", id: id9 })),
+      includeReferencesDeep: input4.references
     });
     const objects = lines.filter((o) => !isDetails(o));
     return { space: space2 || "default", count: objects.length, exportDetails: lines.find(isDetails), objects };
@@ -160639,12 +160747,12 @@ var rulesListCommand = kibanaArea.command({
     { flags: "--per-page <n>", field: "perPage", description: 'Results per page (default: "100")' }
   ],
   examples: [{}, { search: "High*", space: "ops", page: "1", perPage: "20" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const space2 = ctx.context.space;
-    const page2 = positiveInt(input3.page, "--page");
-    const perPage = positiveInt(input3.perPage, "--per-page");
+    const page2 = positiveInt(input4.page, "--page");
+    const perPage = positiveInt(input4.perPage, "--per-page");
     const data = await kibana(ctx, spacePath(space2, "/api/alerting/rules/_find"), {
-      query: { search: input3.search, search_fields: input3.search ? "name" : void 0, page: page2, per_page: perPage }
+      query: { search: input4.search, search_fields: input4.search ? "name" : void 0, page: page2, per_page: perPage }
     });
     const rules = data.data.map(summarizeRule);
     return { space: space2 || "default", total: data.total, page: data.page, perPage: data.per_page, count: rules.length, rules };
@@ -160660,9 +160768,9 @@ var rulesGetCommand = kibanaArea.command({
   context: { space: "optional" },
   options: [{ flags: "--id <id>", field: "id", description: "Rule ID" }],
   examples: [{ id: "abc12345-0000-0000-0000-000000000000" }, { id: "abc12345-0000-0000-0000-000000000000", space: "ops" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const space2 = ctx.context.space;
-    const data = await kibana(ctx, spacePath(space2, `/api/alerting/rule/${encodeURIComponent(input3.id)}`));
+    const data = await kibana(ctx, spacePath(space2, `/api/alerting/rule/${encodeURIComponent(input4.id)}`));
     return { ...summarizeRule(data), params: data.params, actions: data.actions };
   }
 });
@@ -160793,17 +160901,17 @@ var queryCommand = logscaleArea.command({
     { repository: "imagile-app", query: "level=error" },
     { repository: "imagile app/prod", query: "level=error | count()", start: "2026-10-01T00:00:00Z", end: "1790000000000", limit: 1, timeoutMs: 6e4 }
   ],
-  run: async (input3, ctx) => {
-    const limit3 = input3.limit ?? DEFAULT_LIMIT2;
+  run: async (input4, ctx) => {
+    const limit3 = input4.limit ?? DEFAULT_LIMIT2;
     const body = {
-      queryString: input3.query,
-      start: timeOf(input3.start ?? "1h", "--start"),
-      end: timeOf(input3.end ?? "now", "--end"),
+      queryString: input4.query,
+      start: timeOf(input4.start ?? "1h", "--start"),
+      end: timeOf(input4.end ?? "now", "--end"),
       isLive: false
     };
-    const answer2 = await searchRepository(ctx, input3.repository, body, input3.timeoutMs ?? DEFAULT_TIMEOUT_MS2);
+    const answer2 = await searchRepository(ctx, input4.repository, body, input4.timeoutMs ?? DEFAULT_TIMEOUT_MS2);
     if (!Array.isArray(answer2)) {
-      throw new ToilError("HTTP", `LogScale answered the search on ${input3.repository} with something other than a list of events.`, {
+      throw new ToilError("HTTP", `LogScale answered the search on ${input4.repository} with something other than a list of events.`, {
         fix: "Check baseUrl points at LogScale itself, not a proxy or sign-in page in front of it."
       });
     }
@@ -160814,7 +160922,7 @@ var queryCommand = logscaleArea.command({
         message: `LogScale returned ${answer2.length} events; toil kept the first ${limit3} (--limit). Add | head(${limit3}) or | tail(${limit3}) to the query to have LogScale return fewer.`
       });
     }
-    return { repository: input3.repository, done: true, cancelled: false, eventCount: events.length, events, warnings: [], metaData: null };
+    return { repository: input4.repository, done: true, cancelled: false, eventCount: events.length, events, warnings: [], metaData: null };
   }
 });
 var queryCommands = [queryCommand];
@@ -160983,10 +161091,10 @@ var podMetricsCommand = openshiftArea.command({
   writes: false,
   options: [{ flags: "--namespace <ns>", field: "namespace", description: "Kubernetes namespace" }],
   examples: [{ namespace: "payments" }, { namespace: "payments", env: "prod", instance: "east" }],
-  run: async (input3, ctx) => {
-    const metrics = await openshift(ctx, `/apis/metrics.k8s.io/v1beta1/namespaces/${ns(input3.namespace)}/pods`);
+  run: async (input4, ctx) => {
+    const metrics = await openshift(ctx, `/apis/metrics.k8s.io/v1beta1/namespaces/${ns(input4.namespace)}/pods`);
     const pods = metrics.items.map((pm) => ({ name: pm.metadata.name, containers: pm.containers.map((c) => ({ name: c.name, cpu: c.usage.cpu, memory: c.usage.memory })) }));
-    return { namespace: input3.namespace, pods };
+    return { namespace: input4.namespace, pods };
   }
 });
 var resourceUsageCommand = openshiftArea.command({
@@ -160999,7 +161107,7 @@ var resourceUsageCommand = openshiftArea.command({
     out: external_exports.string().optional().describe("The CSV file to write, inside the workspace; it must not exist yet. Required with csv")
   }),
   writes: false,
-  writesLocalWhen: (input3) => input3.csv === true,
+  writesLocalWhen: (input4) => input4.csv === true,
   options: [
     { flags: "--namespace <ns>", field: "namespace", description: "Kubernetes namespace" },
     { flags: "--label-selector <selector>", field: "labelSelector", description: "Label selector (e.g. app=my-app)" },
@@ -161007,17 +161115,17 @@ var resourceUsageCommand = openshiftArea.command({
     { flags: "--out <file>", field: "out", description: "The CSV file to write, inside the workspace; it must not exist yet. Required with --csv" }
   ],
   examples: [{ namespace: "payments" }, { namespace: "payments", labelSelector: "app=api", csv: true, out: "usage.csv", env: "prod", instance: "east" }],
-  run: async (input3, ctx) => {
-    if (input3.csv && !input3.out) {
+  run: async (input4, ctx) => {
+    if (input4.csv && !input4.out) {
       throw new ToilError("INVALID_INPUT", "--csv writes the CSV to a file, and no --out <file> was given.", { fix: "Pass --out <file> (a new file inside the workspace) with --csv, or drop --csv for the JSON rows alone." });
     }
-    if (input3.out && !input3.csv) {
+    if (input4.out && !input4.csv) {
       throw new ToilError("INVALID_INPUT", "--out names the CSV file, but --csv wasn't given.", { fix: "Pass --csv with --out <file>, or drop --out for the JSON rows alone." });
     }
-    const query2 = { labelSelector: input3.labelSelector || void 0 };
+    const query2 = { labelSelector: input4.labelSelector || void 0 };
     const [podList, metricsList] = await Promise.all([
-      openshift(ctx, `/api/v1/namespaces/${ns(input3.namespace)}/pods`, query2),
-      openshift(ctx, `/apis/metrics.k8s.io/v1beta1/namespaces/${ns(input3.namespace)}/pods`, query2)
+      openshift(ctx, `/api/v1/namespaces/${ns(input4.namespace)}/pods`, query2),
+      openshift(ctx, `/apis/metrics.k8s.io/v1beta1/namespaces/${ns(input4.namespace)}/pods`, query2)
     ]);
     const usageByPod = /* @__PURE__ */ new Map();
     for (const pm of metricsList.items) usageByPod.set(pm.metadata.name, new Map(pm.containers.map((c) => [c.name, c.usage])));
@@ -161036,10 +161144,10 @@ var resourceUsageCommand = openshiftArea.command({
         };
       })
     );
-    const data = { namespace: input3.namespace, count: rows.length, units: { cpu: "m", memory: "Mi" }, rows };
-    if (!input3.csv) return data;
+    const data = { namespace: input4.namespace, count: rows.length, units: { cpu: "m", memory: "Mi" }, rows };
+    if (!input4.csv) return data;
     const file2 = ctx.files.writeCsv(
-      input3.out,
+      input4.out,
       CSV_HEADER2,
       rows.map((r) => [r.pod, r.container, r.cpuUsageMillicores, r.memUsageMiB, r.cpuLimitsMillicores, r.memLimitsMiB, r.cpuRequestsMillicores, r.memRequestsMiB])
     );
@@ -161068,9 +161176,9 @@ var podsCommand = openshiftArea.command({
     { flags: "--raw", field: "raw", description: "Return full Kubernetes pod objects without summarization (includes env vars, images, node name, annotations, resources, etc.) (default: false)" }
   ],
   examples: [{ namespace: "payments" }, { namespace: "payments", labelSelector: "app=api", raw: true }, { namespace: "payments", env: "prod", instance: "east" }],
-  run: async (input3, ctx) => {
-    const podList = await openshift(ctx, `/api/v1/namespaces/${ns(input3.namespace)}/pods`, { labelSelector: input3.labelSelector || void 0 });
-    if (input3.raw) return { namespace: input3.namespace, count: podList.items.length, pods: podList.items };
+  run: async (input4, ctx) => {
+    const podList = await openshift(ctx, `/api/v1/namespaces/${ns(input4.namespace)}/pods`, { labelSelector: input4.labelSelector || void 0 });
+    if (input4.raw) return { namespace: input4.namespace, count: podList.items.length, pods: podList.items };
     const summary2 = { total: podList.items.length, running: 0, pending: 0, failed: 0, succeeded: 0, unknown: 0, crashLoopBackOff: 0, oomKilled: 0, imagePullBackOff: 0, totalRestarts: 0 };
     const pods = podList.items.map((pod) => {
       const phase = pod.status.phase ?? "Unknown";
@@ -161119,7 +161227,7 @@ var podsCommand = openshiftArea.command({
       return entry;
     });
     pods.sort((a, b) => phasePriority(a.phase) - phasePriority(b.phase) || (b.restartCount ?? 0) - (a.restartCount ?? 0));
-    return { namespace: input3.namespace, summary: summary2, pods };
+    return { namespace: input4.namespace, summary: summary2, pods };
   }
 });
 var deploymentsCommand = openshiftArea.command({
@@ -161139,11 +161247,11 @@ var deploymentsCommand = openshiftArea.command({
     { flags: "--raw", field: "raw", description: "Return full objects without summarization (includes pod template, env vars, strategy, etc.) (default: false)" }
   ],
   examples: [{ namespace: "payments" }, { namespace: "payments", labelSelector: "app=api", deploymentConfigs: true }, { namespace: "payments", raw: true, env: "prod", instance: "east" }],
-  run: async (input3, ctx) => {
-    const kind = input3.deploymentConfigs ? "DeploymentConfig" : "Deployment";
-    const path2 = input3.deploymentConfigs ? `/apis/apps.openshift.io/v1/namespaces/${ns(input3.namespace)}/deploymentconfigs` : `/apis/apps/v1/namespaces/${ns(input3.namespace)}/deployments`;
-    const list7 = await openshift(ctx, path2, { labelSelector: input3.labelSelector || void 0 });
-    if (input3.raw) return { namespace: input3.namespace, kind, count: list7.items.length, deployments: list7.items };
+  run: async (input4, ctx) => {
+    const kind = input4.deploymentConfigs ? "DeploymentConfig" : "Deployment";
+    const path2 = input4.deploymentConfigs ? `/apis/apps.openshift.io/v1/namespaces/${ns(input4.namespace)}/deploymentconfigs` : `/apis/apps/v1/namespaces/${ns(input4.namespace)}/deployments`;
+    const list7 = await openshift(ctx, path2, { labelSelector: input4.labelSelector || void 0 });
+    if (input4.raw) return { namespace: input4.namespace, kind, count: list7.items.length, deployments: list7.items };
     const deployments = list7.items.map((d2) => {
       const desired = d2.spec.replicas ?? 0;
       const status = d2.status ?? {};
@@ -161168,7 +161276,7 @@ var deploymentsCommand = openshiftArea.command({
       return entry;
     });
     deployments.sort((a, b) => (b.unavailableReplicas ?? 0) - (a.unavailableReplicas ?? 0));
-    return { namespace: input3.namespace, kind, count: deployments.length, deployments };
+    return { namespace: input4.namespace, kind, count: deployments.length, deployments };
   }
 });
 var eventsCommand = openshiftArea.command({
@@ -161186,11 +161294,11 @@ var eventsCommand = openshiftArea.command({
     { flags: "--all", field: "all", description: "Include Normal events in addition to Warning events (default: false)" }
   ],
   examples: [{ namespace: "payments" }, { namespace: "payments", fieldSelector: "involvedObject.name=api-7d9f8b6c5-abcde", all: true, env: "prod", instance: "east" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const selectors = [];
-    if (!input3.all) selectors.push("type=Warning");
-    if (input3.fieldSelector) selectors.push(input3.fieldSelector);
-    const eventList = await openshift(ctx, `/api/v1/namespaces/${ns(input3.namespace)}/events`, { fieldSelector: selectors.length > 0 ? selectors.join(",") : void 0 });
+    if (!input4.all) selectors.push("type=Warning");
+    if (input4.fieldSelector) selectors.push(input4.fieldSelector);
+    const eventList = await openshift(ctx, `/api/v1/namespaces/${ns(input4.namespace)}/events`, { fieldSelector: selectors.length > 0 ? selectors.join(",") : void 0 });
     const events = eventList.items.map((ev) => {
       const obj6 = ev.involvedObject ?? ev.regarding;
       const entry = {
@@ -161208,7 +161316,7 @@ var eventsCommand = openshiftArea.command({
       return entry;
     });
     events.sort((a, b) => (b.count ?? 0) - (a.count ?? 0));
-    return { namespace: input3.namespace, count: events.length, events };
+    return { namespace: input4.namespace, count: events.length, events };
   }
 });
 var logsCommand = openshiftArea.command({
@@ -161231,14 +161339,14 @@ var logsCommand = openshiftArea.command({
     { flags: "--previous", field: "previous", description: "Return logs from the previous container instance (default: false)" }
   ],
   examples: [{ namespace: "payments", pod: "api-7d9f8b6c5-abcde" }, { namespace: "payments", pod: "api-7d9f8b6c5-abcde", container: "api", lines: "20", previous: true, env: "prod", instance: "east" }],
-  run: async (input3, ctx) => {
-    const lines = input3.lines === void 0 || input3.lines === "" ? 100 : parseInt(String(input3.lines), 10);
-    const log = await openshiftText(ctx, `/api/v1/namespaces/${ns(input3.namespace)}/pods/${encodeURIComponent(input3.pod)}/log`, {
-      container: input3.container || void 0,
-      previous: input3.previous ? "true" : void 0,
+  run: async (input4, ctx) => {
+    const lines = input4.lines === void 0 || input4.lines === "" ? 100 : parseInt(String(input4.lines), 10);
+    const log = await openshiftText(ctx, `/api/v1/namespaces/${ns(input4.namespace)}/pods/${encodeURIComponent(input4.pod)}/log`, {
+      container: input4.container || void 0,
+      previous: input4.previous ? "true" : void 0,
       tailLines: lines
     });
-    return { pod: input3.pod, namespace: input3.namespace, container: input3.container ?? "(default)", previous: input3.previous ?? false, lines, log };
+    return { pod: input4.pod, namespace: input4.namespace, container: input4.container ?? "(default)", previous: input4.previous ?? false, lines, log };
   }
 });
 var workloadCommands = [podsCommand, deploymentsCommand, eventsCommand, logsCommand];
@@ -161308,9 +161416,9 @@ function readInventory3(ctx, from, command) {
     packageFix: 'Each package needs a name, version and ecosystem, e.g. { "name": "lodash", "version": "4.17.20", "ecosystem": "npm" }.'
   });
 }
-function selectPackages(packages, input3) {
-  const eco = input3.ecosystem ?? "all";
-  return packages.filter((p) => (eco === "all" || p.ecosystem === eco) && !(input3.directOnly === true && p.type === "transitive") && (input3.includeDev === true || p.scope !== "dev"));
+function selectPackages(packages, input4) {
+  const eco = input4.ecosystem ?? "all";
+  return packages.filter((p) => (eco === "all" || p.ecosystem === eco) && !(input4.directOnly === true && p.type === "transitive") && (input4.includeDev === true || p.scope !== "dev"));
 }
 function friskData(source2, scanned, packages) {
   return { tier: "full", source: source2, sourcesQueried: [source2], sourceErrors: [], scanned, vulnerable: packages.length, packages };
@@ -161449,8 +161557,8 @@ var vulnsCommand = ossindexArea.command({
   timeLimitMs: TIME_LIMIT_MS2,
   options: inventoryOptions,
   examples: [{ from: "inventory.json" }, { from: "inventory.json", ecosystem: "maven", directOnly: true, includeDev: true }],
-  run: async (input3, ctx) => {
-    const packages = selectPackages(readInventory3(ctx, input3.from, "ossindex vulns"), input3);
+  run: async (input4, ctx) => {
+    const packages = selectPackages(readInventory3(ctx, input4.from, "ossindex vulns"), input4);
     await requireReachable2(ctx);
     if (packages.length === 0) return friskData("sonatype", 0, []);
     const vulnerable = [];
@@ -161598,8 +161706,8 @@ var vulnsCommand2 = osvArea.command({
   timeLimitMs: TIME_LIMIT_MS2,
   options: inventoryOptions,
   examples: [{ from: "inventory.json" }, { from: "inventory.json", ecosystem: "npm", directOnly: true, includeDev: true }],
-  run: async (input3, ctx) => {
-    const packages = selectPackages(readInventory3(ctx, input3.from, "osv vulns"), input3);
+  run: async (input4, ctx) => {
+    const packages = selectPackages(readInventory3(ctx, input4.from, "osv vulns"), input4);
     const up = await probe(ctx, { service: SERVICE3, url: QUERYBATCH, body: { queries: [] } });
     if (!up.reachable) {
       throw new ToilError("NETWORK", "toil osv vulns requires OSV.dev access but api.osv.dev is not reachable from this machine.", {
@@ -161709,10 +161817,10 @@ function splitList(values2) {
   if (values2 === void 0) return void 0;
   return values2.flatMap((v) => v.split(",").map((s) => s.trim()).filter(Boolean));
 }
-function passedFlag(input3) {
-  if (input3.passed && input3.failed) throw invalid3("Pass only one of --passed or --failed.", "Drop one of --passed and --failed.");
-  if (input3.passed) return true;
-  if (input3.failed) return false;
+function passedFlag(input4) {
+  if (input4.passed && input4.failed) throw invalid3("Pass only one of --passed or --failed.", "Drop one of --passed and --failed.");
+  if (input4.passed) return true;
+  if (input4.failed) return false;
   return void 0;
 }
 function requireBody(body, hint) {
@@ -161750,8 +161858,8 @@ var platformsCommand = saucelabsArea.command({
   writes: false,
   options: [{ flags: "--api <api>", field: "api", description: 'Automation API: all, appium, webdriver (default: "all")' }],
   examples: [{}, { api: "Appium" }],
-  run: async (input3, ctx) => {
-    const api = parseChoice(input3.api ?? "all", PLATFORM_APIS, "--api");
+  run: async (input4, ctx) => {
+    const api = parseChoice(input4.api ?? "all", PLATFORM_APIS, "--api");
     const data = await sauce(ctx, `/rest/v1/info/platforms/${api}`);
     return { api, count: countOf(data), platforms: data };
   }
@@ -161781,12 +161889,12 @@ var usersCommand = saucelabsArea.command({
     { flags: "--offset <n>", field: "offset", description: "Number of results to skip" }
   ],
   examples: [{}, { username: "imagile-qa", phrase: "imagile", limit: "50", offset: "50" }],
-  run: async (input3, ctx) => sauce(ctx, `${TEAM_MGMT}/users/`, {
+  run: async (input4, ctx) => sauce(ctx, `${TEAM_MGMT}/users/`, {
     query: {
-      username: input3.username,
-      phrase: input3.phrase,
-      limit: parseIntOption2(input3.limit, "--limit"),
-      offset: parseIntOption2(input3.offset, "--offset")
+      username: input4.username,
+      phrase: input4.phrase,
+      limit: parseIntOption2(input4.limit, "--limit"),
+      offset: parseIntOption2(input4.offset, "--offset")
     }
   })
 });
@@ -161813,12 +161921,12 @@ var jobListCommand = saucelabsArea.command({
     { flags: "--to <time>", field: "to", description: "Only jobs created before this time (Unix seconds or ISO 8601)" }
   ],
   examples: [{}, { limit: "5", skip: "10", from: "2026-09-01T00:00:00Z", to: "1790000000" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const query2 = {
-      limit: parseIntOption2(input3.limit, "--limit"),
-      skip: parseIntOption2(input3.skip, "--skip"),
-      from: parseUnixTime(input3.from, "--from"),
-      to: parseUnixTime(input3.to, "--to")
+      limit: parseIntOption2(input4.limit, "--limit"),
+      skip: parseIntOption2(input4.skip, "--skip"),
+      from: parseUnixTime(input4.from, "--from"),
+      to: parseUnixTime(input4.to, "--to")
     };
     const data = await sauce(ctx, `${userPath(ctx)}/jobs`, { query: query2 });
     return { count: countOf(data), jobs: data };
@@ -161831,7 +161939,7 @@ var jobGetCommand2 = saucelabsArea.command({
   writes: false,
   args: jobArg,
   examples: [{ jobId: "abc12345" }],
-  run: async (input3, ctx) => sauce(ctx, `${userPath(ctx)}/jobs/${id7(input3.jobId)}`)
+  run: async (input4, ctx) => sauce(ctx, `${userPath(ctx)}/jobs/${id7(input4.jobId)}`)
 });
 var jobUpdateCommand = saucelabsArea.command({
   path: ["saucelabs", "job", "update"],
@@ -161860,16 +161968,16 @@ var jobUpdateCommand = saucelabsArea.command({
     { jobId: "abc12345", failed: true, tags: ["smoke,email"], public: "TEAM", allowWrite: true },
     { jobId: "abc12345", name: "Checkout flow", build: "release-1.2", passed: true, allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const body = {};
-    if (input3.name !== void 0) body.name = input3.name;
-    if (input3.build !== void 0) body.build = input3.build;
-    if (input3.tags !== void 0) body.tags = splitList(input3.tags);
-    const passed = passedFlag(input3);
+    if (input4.name !== void 0) body.name = input4.name;
+    if (input4.build !== void 0) body.build = input4.build;
+    if (input4.tags !== void 0) body.tags = splitList(input4.tags);
+    const passed = passedFlag(input4);
     if (passed !== void 0) body.passed = passed;
-    const visibility = parseChoice(input3.public, JOB_VISIBILITY, "--public");
+    const visibility = parseChoice(input4.public, JOB_VISIBILITY, "--public");
     if (visibility !== void 0) body.public = visibility;
-    return sauce(ctx, `${userPath(ctx)}/jobs/${id7(input3.jobId)}`, {
+    return sauce(ctx, `${userPath(ctx)}/jobs/${id7(input4.jobId)}`, {
       method: "PUT",
       body: requireBody(body, "Pass at least one of --name, --build, --tags, --passed/--failed, --public.")
     });
@@ -161882,7 +161990,7 @@ var jobStopCommand = saucelabsArea.command({
   writes: true,
   args: jobArg,
   examples: [{ jobId: "abc12345", allowWrite: true }],
-  run: async (input3, ctx) => sauce(ctx, `${userPath(ctx)}/jobs/${id7(input3.jobId)}/stop`, { method: "PUT" })
+  run: async (input4, ctx) => sauce(ctx, `${userPath(ctx)}/jobs/${id7(input4.jobId)}/stop`, { method: "PUT" })
 });
 var jobDeleteCommand = saucelabsArea.command({
   path: ["saucelabs", "job", "delete"],
@@ -161893,9 +162001,9 @@ var jobDeleteCommand = saucelabsArea.command({
   mcp: false,
   args: jobArg,
   examples: [{ jobId: "abc12345", allowWrite: true }],
-  run: async (input3, ctx) => {
-    await sauce(ctx, `${userPath(ctx)}/jobs/${id7(input3.jobId)}`, { method: "DELETE" });
-    return { jobId: input3.jobId, deleted: true };
+  run: async (input4, ctx) => {
+    await sauce(ctx, `${userPath(ctx)}/jobs/${id7(input4.jobId)}`, { method: "DELETE" });
+    return { jobId: input4.jobId, deleted: true };
   }
 });
 var jobAssetsCommand = saucelabsArea.command({
@@ -161905,9 +162013,9 @@ var jobAssetsCommand = saucelabsArea.command({
   writes: false,
   args: jobArg,
   examples: [{ jobId: "abc12345" }],
-  run: async (input3, ctx) => {
-    const data = await sauce(ctx, `${userPath(ctx)}/jobs/${id7(input3.jobId)}/assets`);
-    return { jobId: input3.jobId, assets: data };
+  run: async (input4, ctx) => {
+    const data = await sauce(ctx, `${userPath(ctx)}/jobs/${id7(input4.jobId)}/assets`);
+    return { jobId: input4.jobId, assets: data };
   }
 });
 var jobCommands = [jobListCommand, jobGetCommand2, jobUpdateCommand, jobStopCommand, jobDeleteCommand, jobAssetsCommand];
@@ -161931,11 +162039,11 @@ var rdcJobListCommand = saucelabsArea.command({
     { flags: "--live", field: "live", description: "Only manual (live) tests" }
   ],
   examples: [{}, { limit: "3", offset: "0", live: true }],
-  run: async (input3, ctx) => sauce(ctx, "/v1/rdc/jobs", {
+  run: async (input4, ctx) => sauce(ctx, "/v1/rdc/jobs", {
     query: {
-      limit: parseIntOption2(input3.limit, "--limit"),
-      offset: parseIntOption2(input3.offset, "--offset"),
-      type: input3.live ? "LIVE" : void 0
+      limit: parseIntOption2(input4.limit, "--limit"),
+      offset: parseIntOption2(input4.offset, "--offset"),
+      type: input4.live ? "LIVE" : void 0
     }
   })
 });
@@ -161946,7 +162054,7 @@ var rdcJobGetCommand = saucelabsArea.command({
   writes: false,
   args: jobArg2,
   examples: [{ jobId: "abc12345" }],
-  run: async (input3, ctx) => sauce(ctx, `/v1/rdc/jobs/${id7(input3.jobId)}`)
+  run: async (input4, ctx) => sauce(ctx, `/v1/rdc/jobs/${id7(input4.jobId)}`)
 });
 var rdcJobUpdateCommand = saucelabsArea.command({
   path: ["saucelabs", "rdc-job", "update"],
@@ -161973,14 +162081,14 @@ var rdcJobUpdateCommand = saucelabsArea.command({
     { jobId: "abc12345", name: "Login on device", build: "release-1.2", tags: ["smoke", "android"], passed: true, allowWrite: true },
     { jobId: "abc12345", failed: true, allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const body = {};
-    if (input3.name !== void 0) body.name = input3.name;
-    if (input3.build !== void 0) body.build = input3.build;
-    if (input3.tags !== void 0) body.tags = splitList(input3.tags);
-    const passed = passedFlag(input3);
+    if (input4.name !== void 0) body.name = input4.name;
+    if (input4.build !== void 0) body.build = input4.build;
+    if (input4.tags !== void 0) body.tags = splitList(input4.tags);
+    const passed = passedFlag(input4);
     if (passed !== void 0) body.passed = passed;
-    return sauce(ctx, `/v1/rdc/jobs/${id7(input3.jobId)}`, {
+    return sauce(ctx, `/v1/rdc/jobs/${id7(input4.jobId)}`, {
       method: "PUT",
       body: requireBody(body, "Pass at least one of --name, --build, --tags, --passed/--failed.")
     });
@@ -161993,9 +162101,9 @@ var rdcJobStopCommand = saucelabsArea.command({
   writes: true,
   args: jobArg2,
   examples: [{ jobId: "abc12345", allowWrite: true }],
-  run: async (input3, ctx) => {
-    await sauce(ctx, `/v1/rdc/jobs/${id7(input3.jobId)}/stop`, { method: "PUT" });
-    return { jobId: input3.jobId, stopped: true };
+  run: async (input4, ctx) => {
+    await sauce(ctx, `/v1/rdc/jobs/${id7(input4.jobId)}/stop`, { method: "PUT" });
+    return { jobId: input4.jobId, stopped: true };
   }
 });
 var rdcJobDeleteCommand = saucelabsArea.command({
@@ -162007,9 +162115,9 @@ var rdcJobDeleteCommand = saucelabsArea.command({
   mcp: false,
   args: jobArg2,
   examples: [{ jobId: "abc12345", allowWrite: true }],
-  run: async (input3, ctx) => {
-    await sauce(ctx, `/v1/rdc/jobs/${id7(input3.jobId)}`, { method: "DELETE" });
-    return { jobId: input3.jobId, deleted: true };
+  run: async (input4, ctx) => {
+    await sauce(ctx, `/v1/rdc/jobs/${id7(input4.jobId)}`, { method: "DELETE" });
+    return { jobId: input4.jobId, deleted: true };
   }
 });
 var rdcJobCommands = [rdcJobListCommand, rdcJobGetCommand, rdcJobUpdateCommand, rdcJobStopCommand, rdcJobDeleteCommand];
@@ -162051,19 +162159,19 @@ var buildListCommand = saucelabsArea.command({
     {},
     { source: "rdc", status: ["failed,error", "running"], name: "release-1.2", start: "2026-09-01T00:00:00Z", end: "1790000000", limit: "10", offset: "20", sort: "DESC" }
   ],
-  run: async (input3, ctx) => {
-    const src = sourceOf(input3.source);
-    const statuses = splitList(input3.status)?.map((s) => parseChoice(s, BUILD_STATUSES, "--status"));
+  run: async (input4, ctx) => {
+    const src = sourceOf(input4.source);
+    const statuses = splitList(input4.status)?.map((s) => parseChoice(s, BUILD_STATUSES, "--status"));
     const data = await sauce(ctx, `/v2/builds/${src}/`, {
       // The repeated status keys come first, as they did when they were written into the path.
       query: {
         status: statuses,
-        name: input3.name,
-        start: parseUnixTime(input3.start, "--start"),
-        end: parseUnixTime(input3.end, "--end"),
-        limit: parseIntOption2(input3.limit, "--limit"),
-        offset: parseIntOption2(input3.offset, "--offset"),
-        sort: parseChoice(input3.sort, ["asc", "desc"], "--sort")
+        name: input4.name,
+        start: parseUnixTime(input4.start, "--start"),
+        end: parseUnixTime(input4.end, "--end"),
+        limit: parseIntOption2(input4.limit, "--limit"),
+        offset: parseIntOption2(input4.offset, "--offset"),
+        sort: parseChoice(input4.sort, ["asc", "desc"], "--sort")
       }
     });
     return { source: src, count: countOf(data, "builds"), builds: data?.builds ?? [] };
@@ -162077,7 +162185,7 @@ var buildGetCommand = saucelabsArea.command({
   args: [{ name: "build-id", field: "buildId", description: "Build ID", required: true }],
   options: [sourceOption],
   examples: [{ buildId: "abc12345" }, { buildId: "abc12345", source: "rdc" }],
-  run: async (input3, ctx) => sauce(ctx, `/v2/builds/${sourceOf(input3.source)}/${id7(input3.buildId)}/`)
+  run: async (input4, ctx) => sauce(ctx, `/v2/builds/${sourceOf(input4.source)}/${id7(input4.buildId)}/`)
 });
 var buildJobsCommand = saucelabsArea.command({
   path: ["saucelabs", "build", "jobs"],
@@ -162113,12 +162221,12 @@ var buildJobsCommand = saucelabsArea.command({
     { buildId: "abc12345" },
     { buildId: "abc12345", source: "rdc", failed: true, errored: true, passed: true, running: true, queued: true, completed: true, finished: true, faulty: true, modifiedSince: "2026-09-01T00:00:00Z" }
   ],
-  run: async (input3, ctx) => {
-    const src = sourceOf(input3.source);
-    const query2 = { modified_since: input3.modifiedSince };
-    for (const flag of JOB_STATE_FLAGS) if (input3[flag]) query2[flag] = true;
-    const data = await sauce(ctx, `/v2/builds/${src}/${id7(input3.buildId)}/jobs/`, { query: query2 });
-    return { buildId: input3.buildId, source: src, count: countOf(data, "jobs"), jobs: data?.jobs ?? [] };
+  run: async (input4, ctx) => {
+    const src = sourceOf(input4.source);
+    const query2 = { modified_since: input4.modifiedSince };
+    for (const flag of JOB_STATE_FLAGS) if (input4[flag]) query2[flag] = true;
+    const data = await sauce(ctx, `/v2/builds/${src}/${id7(input4.buildId)}/jobs/`, { query: query2 });
+    return { buildId: input4.buildId, source: src, count: countOf(data, "jobs"), jobs: data?.jobs ?? [] };
   }
 });
 var buildForJobCommand = saucelabsArea.command({
@@ -162129,7 +162237,7 @@ var buildForJobCommand = saucelabsArea.command({
   args: [{ name: "job-id", field: "jobId", description: "Job ID", required: true }],
   options: [sourceOption],
   examples: [{ jobId: "abc12345" }, { jobId: "abc12345", source: "RDC" }],
-  run: async (input3, ctx) => sauce(ctx, `/v2/builds/${sourceOf(input3.source)}/jobs/${id7(input3.jobId)}/build/`)
+  run: async (input4, ctx) => sauce(ctx, `/v2/builds/${sourceOf(input4.source)}/jobs/${id7(input4.jobId)}/build/`)
 });
 var buildCommands = [buildListCommand, buildGetCommand, buildJobsCommand, buildForJobCommand];
 
@@ -162154,13 +162262,13 @@ var deviceListCommand = saucelabsArea.command({
     { flags: "--type <type>", field: "type", description: "Device type: phone or tablet" }
   ],
   examples: [{}, { name: "iPhone.*", os: "ios", osVersion: "17", type: "phone" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const data = await sauce(ctx, `${RDA}/devices`, {
       query: {
-        deviceName: input3.name,
-        os: parseChoice(input3.os, DEVICE_OS, "--os"),
-        osVersion: input3.osVersion,
-        deviceType: parseChoice(input3.type, DEVICE_TYPES, "--type")
+        deviceName: input4.name,
+        os: parseChoice(input4.os, DEVICE_OS, "--os"),
+        osVersion: input4.osVersion,
+        deviceType: parseChoice(input4.type, DEVICE_TYPES, "--type")
       }
     });
     return { count: countOf(data), devices: data };
@@ -162173,7 +162281,7 @@ var deviceGetCommand = saucelabsArea.command({
   writes: false,
   args: [{ name: "device-id", field: "deviceId", description: "Device ID, for example iPhone_15_real", required: true }],
   examples: [{ deviceId: "iPhone_15_real" }],
-  run: async (input3, ctx) => sauce(ctx, `/v1/rdc/devices/${id7(input3.deviceId)}`)
+  run: async (input4, ctx) => sauce(ctx, `/v1/rdc/devices/${id7(input4.deviceId)}`)
 });
 var deviceStatusCommand = saucelabsArea.command({
   path: ["saucelabs", "device", "status"],
@@ -162190,12 +162298,12 @@ var deviceStatusCommand = saucelabsArea.command({
     { flags: "--private-only", field: "privateOnly", description: "Only your organization's private devices" }
   ],
   examples: [{}, { state: "available", name: "iPhone.*", privateOnly: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const data = await sauce(ctx, `${RDA}/devices/status`, {
       query: {
-        state: parseChoice(input3.state, DEVICE_STATES, "--state"),
-        deviceName: input3.name,
-        privateOnly: input3.privateOnly ? true : void 0
+        state: parseChoice(input4.state, DEVICE_STATES, "--state"),
+        deviceName: input4.name,
+        privateOnly: input4.privateOnly ? true : void 0
       }
     });
     return { count: countOf(data, "devices"), devices: data?.devices ?? [] };
@@ -162227,9 +162335,9 @@ var sessionListCommand = saucelabsArea.command({
     { flags: "--device-name <regex>", field: "deviceName", description: "Device name (regex)" }
   ],
   examples: [{}, { state: "active", deviceName: "iPhone.*" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const data = await sauce(ctx, `${RDA}/sessions`, {
-      query: { state: parseChoice(input3.state, SESSION_STATES, "--state"), deviceName: input3.deviceName }
+      query: { state: parseChoice(input4.state, SESSION_STATES, "--state"), deviceName: input4.deviceName }
     });
     return { count: countOf(data, "sessions"), sessions: data?.sessions ?? [] };
   }
@@ -162262,20 +162370,20 @@ var sessionCreateCommand = saucelabsArea.command({
     { allowWrite: true },
     { deviceName: "Samsung Galaxy.*", os: "Android", tunnelName: "sc-proxy", tunnelOwner: "imagile-qa", duration: "PT30M", wait: true, timeout: "60", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    if (input3.tunnelOwner && !input3.tunnelName) throw invalid3("--tunnel-owner requires --tunnel-name.", "Pass --tunnel-name with --tunnel-owner, or drop --tunnel-owner.");
-    const timeoutSeconds = parseIntOption2(input3.timeout ?? "300", "--timeout") ?? 300;
+  run: async (input4, ctx) => {
+    if (input4.tunnelOwner && !input4.tunnelName) throw invalid3("--tunnel-owner requires --tunnel-name.", "Pass --tunnel-name with --tunnel-owner, or drop --tunnel-owner.");
+    const timeoutSeconds = parseIntOption2(input4.timeout ?? "300", "--timeout") ?? 300;
     const device = {};
-    if (input3.deviceName) device.deviceName = input3.deviceName;
-    const os = parseChoice(input3.os, ["android", "ios"], "--os");
+    if (input4.deviceName) device.deviceName = input4.deviceName;
+    const os = parseChoice(input4.os, ["android", "ios"], "--os");
     if (os) device.os = os;
     const configuration = {};
-    if (input3.tunnelName) configuration.tunnel = { name: input3.tunnelName, ...input3.tunnelOwner ? { owner: input3.tunnelOwner } : {} };
-    if (input3.duration) configuration.sessionDuration = input3.duration;
+    if (input4.tunnelName) configuration.tunnel = { name: input4.tunnelName, ...input4.tunnelOwner ? { owner: input4.tunnelOwner } : {} };
+    if (input4.duration) configuration.sessionDuration = input4.duration;
     const body = { device };
     if (Object.keys(configuration).length > 0) body.configuration = configuration;
     const created = await sauce(ctx, `${RDA}/sessions`, { method: "POST", body });
-    if (!input3.wait) return created;
+    if (!input4.wait) return created;
     return waitForSession(ctx, created.id, timeoutSeconds);
   }
 });
@@ -162310,7 +162418,7 @@ var sessionGetCommand = saucelabsArea.command({
   writes: false,
   args: [sessionArg],
   examples: [{ sessionId: "abc12345" }],
-  run: async (input3, ctx) => sauce(ctx, sessionPath(input3.sessionId))
+  run: async (input4, ctx) => sauce(ctx, sessionPath(input4.sessionId))
 });
 var sessionDeleteCommand = saucelabsArea.command({
   path: ["saucelabs", "session", "delete"],
@@ -162326,7 +162434,7 @@ var sessionDeleteCommand = saucelabsArea.command({
   args: [sessionArg],
   options: [{ flags: "--reboot", field: "reboot", description: "Reboot the device after closing (private devices only)" }],
   examples: [{ sessionId: "abc12345", allowWrite: true }, { sessionId: "abc12345", reboot: true, allowWrite: true }],
-  run: async (input3, ctx) => sauce(ctx, sessionPath(input3.sessionId), { method: "DELETE", query: { rebootDevice: input3.reboot ? true : void 0 } })
+  run: async (input4, ctx) => sauce(ctx, sessionPath(input4.sessionId), { method: "DELETE", query: { rebootDevice: input4.reboot ? true : void 0 } })
 });
 var sessionOpenUrlCommand = saucelabsArea.command({
   path: ["saucelabs", "session", "open-url"],
@@ -162335,9 +162443,9 @@ var sessionOpenUrlCommand = saucelabsArea.command({
   writes: true,
   args: [sessionArg, { name: "url", field: "url", description: "URL to open", required: true }],
   examples: [{ sessionId: "abc12345", url: "https://preview.imagile.dev/welcome-email", allowWrite: true }],
-  run: async (input3, ctx) => {
-    await sauce(ctx, deviceAction(input3.sessionId, "openUrl"), { method: "POST", body: { url: input3.url } });
-    return { sessionId: input3.sessionId, url: input3.url, opened: true };
+  run: async (input4, ctx) => {
+    await sauce(ctx, deviceAction(input4.sessionId, "openUrl"), { method: "POST", body: { url: input4.url } });
+    return { sessionId: input4.sessionId, url: input4.url, opened: true };
   }
 });
 var sessionShellCommand = saucelabsArea.command({
@@ -162351,13 +162459,13 @@ var sessionShellCommand = saucelabsArea.command({
   writes: true,
   args: [sessionArg, { name: "command", field: "command", description: 'Shell command without the "adb shell" prefix, for example "getprop ro.build.version.release"', required: true }],
   examples: [{ sessionId: "abc12345", command: "getprop ro.build.version.release", allowWrite: true }],
-  run: async (input3, ctx) => {
-    const data = await sauce(ctx, deviceAction(input3.sessionId, "executeShellCommand"), {
+  run: async (input4, ctx) => {
+    const data = await sauce(ctx, deviceAction(input4.sessionId, "executeShellCommand"), {
       method: "POST",
-      body: { adbShellCommand: input3.command },
+      body: { adbShellCommand: input4.command },
       timeoutMs: 12e4
     });
-    return { sessionId: input3.sessionId, command: input3.command, stdout: data?.stdout ?? "" };
+    return { sessionId: input4.sessionId, command: input4.command, stdout: data?.stdout ?? "" };
   }
 });
 var sessionInstallAppCommand = saucelabsArea.command({
@@ -162380,9 +162488,9 @@ var sessionInstallAppCommand = saucelabsArea.command({
     { sessionId: "abc12345", app: "storage:filename=imagile.apk", allowWrite: true },
     { sessionId: "abc12345", app: "storage:abc12345-0000-0000-0000-000000000000", launch: true, instrumentation: false, allowWrite: true }
   ],
-  run: async (input3, ctx) => sauce(ctx, deviceAction(input3.sessionId, "installApp"), {
+  run: async (input4, ctx) => sauce(ctx, deviceAction(input4.sessionId, "installApp"), {
     method: "POST",
-    body: { app: input3.app, enableInstrumentation: input3.instrumentation ?? true, launchAfterInstall: Boolean(input3.launch) }
+    body: { app: input4.app, enableInstrumentation: input4.instrumentation ?? true, launchAfterInstall: Boolean(input4.launch) }
   })
 });
 var sessionInstallationsCommand = saucelabsArea.command({
@@ -162394,13 +162502,13 @@ var sessionInstallationsCommand = saucelabsArea.command({
   queryByPost: true,
   args: [sessionArg],
   examples: [{ sessionId: "abc12345" }],
-  run: async (input3, ctx) => sauce(ctx, deviceAction(input3.sessionId, "listAppInstallations"), { method: "POST" })
+  run: async (input4, ctx) => sauce(ctx, deviceAction(input4.sessionId, "listAppInstallations"), { method: "POST" })
 });
-function appIdentity(input3) {
-  if (Boolean(input3.bundleId) === Boolean(input3.packageName)) {
+function appIdentity(input4) {
+  if (Boolean(input4.bundleId) === Boolean(input4.packageName)) {
     throw invalid3("Pass exactly one of --bundle-id (iOS) or --package-name (Android).", "Pass --bundle-id for an iOS app or --package-name for an Android app, not both.");
   }
-  return input3.bundleId ? { bundleId: input3.bundleId } : { packageName: input3.packageName };
+  return input4.bundleId ? { bundleId: input4.bundleId } : { packageName: input4.packageName };
 }
 var sessionLaunchAppCommand = saucelabsArea.command({
   path: ["saucelabs", "session", "launch-app"],
@@ -162423,11 +162531,11 @@ var sessionLaunchAppCommand = saucelabsArea.command({
     { sessionId: "abc12345", bundleId: "dev.imagile.app", allowWrite: true },
     { sessionId: "abc12345", packageName: "dev.imagile.app", activity: ".MainActivity", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    if (input3.activity && !input3.packageName) throw invalid3("--activity requires --package-name.", "Pass --package-name with --activity, or drop --activity.");
-    const body = { ...appIdentity(input3), ...input3.activity ? { activityName: input3.activity } : {} };
-    await sauce(ctx, deviceAction(input3.sessionId, "launchApp"), { method: "POST", body });
-    return { sessionId: input3.sessionId, ...body, launched: true };
+  run: async (input4, ctx) => {
+    if (input4.activity && !input4.packageName) throw invalid3("--activity requires --package-name.", "Pass --package-name with --activity, or drop --activity.");
+    const body = { ...appIdentity(input4), ...input4.activity ? { activityName: input4.activity } : {} };
+    await sauce(ctx, deviceAction(input4.sessionId, "launchApp"), { method: "POST", body });
+    return { sessionId: input4.sessionId, ...body, launched: true };
   }
 });
 var sessionUninstallAppCommand = saucelabsArea.command({
@@ -162449,10 +162557,10 @@ var sessionUninstallAppCommand = saucelabsArea.command({
     { sessionId: "abc12345", bundleId: "dev.imagile.app", allowWrite: true },
     { sessionId: "abc12345", packageName: "dev.imagile.app", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const body = appIdentity(input3);
-    await sauce(ctx, deviceAction(input3.sessionId, "uninstallApp"), { method: "POST", body });
-    return { sessionId: input3.sessionId, ...body, uninstalled: true };
+  run: async (input4, ctx) => {
+    const body = appIdentity(input4);
+    await sauce(ctx, deviceAction(input4.sessionId, "uninstallApp"), { method: "POST", body });
+    return { sessionId: input4.sessionId, ...body, uninstalled: true };
   }
 });
 var sessionSettingsCommand = saucelabsArea.command({
@@ -162473,18 +162581,18 @@ var sessionSettingsCommand = saucelabsArea.command({
     { flags: "--animations <on|off>", field: "animations", description: "Enable or disable system animations (Android only)" }
   ],
   examples: [{ sessionId: "abc12345", orientation: "landscape", locale: "en_US", animations: "off", allowWrite: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const body = {};
-    const orientation = parseChoice(input3.orientation, ORIENTATIONS, "--orientation");
+    const orientation = parseChoice(input4.orientation, ORIENTATIONS, "--orientation");
     if (orientation) body.orientation = orientation;
-    if (input3.locale) body.locale = input3.locale;
-    const animations = parseChoice(input3.animations, ["on", "off"], "--animations");
+    if (input4.locale) body.locale = input4.locale;
+    const animations = parseChoice(input4.animations, ["on", "off"], "--animations");
     if (animations) body.animations = animations === "on";
-    await sauce(ctx, deviceAction(input3.sessionId, "applySettings"), {
+    await sauce(ctx, deviceAction(input4.sessionId, "applySettings"), {
       method: "POST",
       body: requireBody(body, "Pass at least one of --orientation, --locale, --animations.")
     });
-    return { sessionId: input3.sessionId, applied: body };
+    return { sessionId: input4.sessionId, applied: body };
   }
 });
 var sessionStartTestCommand = saucelabsArea.command({
@@ -162519,20 +162627,20 @@ var sessionStartTestCommand = saucelabsArea.command({
     { sessionId: "abc12345", name: "Checkout", build: "release-1.2", tags: ["smoke,android"], video: true, deviceLogs: true, networkCapture: true, screenshots: true, appiumLogs: true, allowWrite: true }
   ],
   // Suspected bug (#71 item 8): testName and the artifacts object couldn't be confirmed against public docs.
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const body = {};
-    if (input3.name) body.testName = input3.name;
-    if (input3.build) body.build = input3.build;
-    if (input3.tags) body.tags = splitList(input3.tags);
+    if (input4.name) body.testName = input4.name;
+    if (input4.build) body.build = input4.build;
+    if (input4.tags) body.tags = splitList(input4.tags);
     const artifacts = {
-      video: Boolean(input3.video),
-      deviceLogs: Boolean(input3.deviceLogs),
-      networkCapture: Boolean(input3.networkCapture),
-      screenshots: Boolean(input3.screenshots),
-      appiumLogs: Boolean(input3.appiumLogs)
+      video: Boolean(input4.video),
+      deviceLogs: Boolean(input4.deviceLogs),
+      networkCapture: Boolean(input4.networkCapture),
+      screenshots: Boolean(input4.screenshots),
+      appiumLogs: Boolean(input4.appiumLogs)
     };
     if (Object.values(artifacts).some(Boolean)) body.artifacts = artifacts;
-    return sauce(ctx, `${sessionPath(input3.sessionId)}/startTest`, { method: "POST", body });
+    return sauce(ctx, `${sessionPath(input4.sessionId)}/startTest`, { method: "POST", body });
   }
 });
 var sessionEndTestCommand = saucelabsArea.command({
@@ -162552,9 +162660,9 @@ var sessionEndTestCommand = saucelabsArea.command({
   ],
   examples: [{ sessionId: "abc12345", passed: true, allowWrite: true }, { sessionId: "abc12345", failed: true, allowWrite: true }],
   // Suspected bug (#71 item 8): the result goes as { status }, where Sauce's job APIs take passed: true|false.
-  run: async (input3, ctx) => {
-    const passed = passedFlag(input3);
-    return sauce(ctx, `${sessionPath(input3.sessionId)}/endTest`, { method: "POST", body: passed === void 0 ? {} : { status: passed ? "passed" : "failed" } });
+  run: async (input4, ctx) => {
+    const passed = passedFlag(input4);
+    return sauce(ctx, `${sessionPath(input4.sessionId)}/endTest`, { method: "POST", body: passed === void 0 ? {} : { status: passed ? "passed" : "failed" } });
   }
 });
 var sessionTestsCommand = saucelabsArea.command({
@@ -162564,7 +162672,7 @@ var sessionTestsCommand = saucelabsArea.command({
   writes: false,
   args: [sessionArg],
   examples: [{ sessionId: "abc12345" }],
-  run: async (input3, ctx) => sauce(ctx, `${sessionPath(input3.sessionId)}/tests`)
+  run: async (input4, ctx) => sauce(ctx, `${sessionPath(input4.sessionId)}/tests`)
 });
 var sessionNetworkProfilesCommand = saucelabsArea.command({
   path: ["saucelabs", "session", "network-profiles"],
@@ -162573,7 +162681,7 @@ var sessionNetworkProfilesCommand = saucelabsArea.command({
   writes: false,
   args: [sessionArg],
   examples: [{ sessionId: "abc12345" }],
-  run: async (input3, ctx) => sauce(ctx, `${sessionPath(input3.sessionId)}/network/profiles`)
+  run: async (input4, ctx) => sauce(ctx, `${sessionPath(input4.sessionId)}/network/profiles`)
 });
 var sessionNetworkCommand = saucelabsArea.command({
   path: ["saucelabs", "session", "network"],
@@ -162603,7 +162711,7 @@ var sessionNetworkCommand = saucelabsArea.command({
     { sessionId: "abc12345", download: "1500", upload: "750", latency: "300", loss: "2", allowWrite: true },
     { sessionId: "abc12345", reset: true, allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const conditions = {};
     const set2 = (key6, value2, flag, max) => {
       const n = parseIntOption2(value2, flag);
@@ -162611,20 +162719,20 @@ var sessionNetworkCommand = saucelabsArea.command({
       if (n > max) throw invalid3(`${flag} must be between 0 and ${max}.`, `Pass ${flag} between 0 and ${max}.`);
       conditions[key6] = n;
     };
-    set2("downloadSpeed", input3.download, "--download", 5e4);
-    set2("uploadSpeed", input3.upload, "--upload", 5e4);
-    set2("latency", input3.latency, "--latency", 3e3);
-    set2("loss", input3.loss, "--loss", 100);
-    const modes = [Boolean(input3.reset), Boolean(input3.profile), Object.keys(conditions).length > 0].filter(Boolean).length;
+    set2("downloadSpeed", input4.download, "--download", 5e4);
+    set2("uploadSpeed", input4.upload, "--upload", 5e4);
+    set2("latency", input4.latency, "--latency", 3e3);
+    set2("loss", input4.loss, "--loss", 100);
+    const modes = [Boolean(input4.reset), Boolean(input4.profile), Object.keys(conditions).length > 0].filter(Boolean).length;
     if (modes !== 1) {
       throw invalid3("Pass exactly one of --profile, --reset, or explicit conditions (--download/--upload/--latency/--loss).", "Pick one mode: a --profile, --reset, or any of --download, --upload, --latency and --loss.");
     }
-    if (input3.reset) {
-      await sauce(ctx, `${sessionPath(input3.sessionId)}/network/condition`, { method: "DELETE" });
-      return { sessionId: input3.sessionId, reset: true };
+    if (input4.reset) {
+      await sauce(ctx, `${sessionPath(input4.sessionId)}/network/condition`, { method: "DELETE" });
+      return { sessionId: input4.sessionId, reset: true };
     }
-    if (input3.profile) return sauce(ctx, `${sessionPath(input3.sessionId)}/network/profile`, { method: "POST", body: { networkProfile: input3.profile } });
-    return sauce(ctx, `${sessionPath(input3.sessionId)}/network/condition`, { method: "POST", body: { networkConditions: conditions } });
+    if (input4.profile) return sauce(ctx, `${sessionPath(input4.sessionId)}/network/profile`, { method: "POST", body: { networkProfile: input4.profile } });
+    return sauce(ctx, `${sessionPath(input4.sessionId)}/network/condition`, { method: "POST", body: { networkConditions: conditions } });
   }
 });
 var sessionAppiumCommand = saucelabsArea.command({
@@ -162648,10 +162756,10 @@ var sessionAppiumCommand = saucelabsArea.command({
     { sessionId: "abc12345", allowWrite: true },
     { sessionId: "abc12345", start: true, appiumVersion: "2.11.0", allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    if (input3.appiumVersion && !input3.start) throw invalid3("--appium-version requires --start.", "Pass --start with --appium-version, or drop --appium-version.");
-    if (!input3.start) return sauce(ctx, `${sessionPath(input3.sessionId)}/appiumserver`);
-    return sauce(ctx, `${sessionPath(input3.sessionId)}/appiumserver`, { method: "POST", body: input3.appiumVersion ? { appiumVersion: input3.appiumVersion } : {} });
+  run: async (input4, ctx) => {
+    if (input4.appiumVersion && !input4.start) throw invalid3("--appium-version requires --start.", "Pass --start with --appium-version, or drop --appium-version.");
+    if (!input4.start) return sauce(ctx, `${sessionPath(input4.sessionId)}/appiumserver`);
+    return sauce(ctx, `${sessionPath(input4.sessionId)}/appiumserver`, { method: "POST", body: input4.appiumVersion ? { appiumVersion: input4.appiumVersion } : {} });
   }
 });
 var sessionCommands = [
@@ -162684,8 +162792,8 @@ var tunnelListCommand = saucelabsArea.command({
   writes: false,
   options: [{ flags: "--all", field: "all", description: "Include tunnels shared with you" }],
   examples: [{}, { all: true }],
-  run: async (input3, ctx) => {
-    const data = await sauce(ctx, `${userPath(ctx)}/tunnels`, { query: { full: true, all: input3.all ? true : void 0 } });
+  run: async (input4, ctx) => {
+    const data = await sauce(ctx, `${userPath(ctx)}/tunnels`, { query: { full: true, all: input4.all ? true : void 0 } });
     return { count: countOf(data), tunnels: data };
   }
 });
@@ -162696,7 +162804,7 @@ var tunnelGetCommand = saucelabsArea.command({
   writes: false,
   args: tunnelArg,
   examples: [{ tunnelId: "abc12345" }],
-  run: async (input3, ctx) => sauce(ctx, `${userPath(ctx)}/tunnels/${id7(input3.tunnelId)}`)
+  run: async (input4, ctx) => sauce(ctx, `${userPath(ctx)}/tunnels/${id7(input4.tunnelId)}`)
 });
 var tunnelJobsCommand = saucelabsArea.command({
   path: ["saucelabs", "tunnel", "jobs"],
@@ -162705,7 +162813,7 @@ var tunnelJobsCommand = saucelabsArea.command({
   writes: false,
   args: tunnelArg,
   examples: [{ tunnelId: "abc12345" }],
-  run: async (input3, ctx) => sauce(ctx, `${userPath(ctx)}/tunnels/${id7(input3.tunnelId)}/num_jobs`)
+  run: async (input4, ctx) => sauce(ctx, `${userPath(ctx)}/tunnels/${id7(input4.tunnelId)}/num_jobs`)
 });
 var tunnelStopCommand = saucelabsArea.command({
   path: ["saucelabs", "tunnel", "stop"],
@@ -162716,7 +162824,7 @@ var tunnelStopCommand = saucelabsArea.command({
   mcp: false,
   args: tunnelArg,
   examples: [{ tunnelId: "abc12345", allowWrite: true }],
-  run: async (input3, ctx) => sauce(ctx, `${userPath(ctx)}/tunnels/${id7(input3.tunnelId)}`, { method: "DELETE" })
+  run: async (input4, ctx) => sauce(ctx, `${userPath(ctx)}/tunnels/${id7(input4.tunnelId)}`, { method: "DELETE" })
 });
 var tunnelCommands = [tunnelListCommand, tunnelGetCommand, tunnelJobsCommand, tunnelStopCommand];
 
@@ -162740,12 +162848,12 @@ function storageCommand(what, description3, queryHelp) {
       { flags: "--per-page <n>", field: "perPage", description: "Results per page (max 100)" }
     ],
     examples: [{}, { query: "imagile", kind: "Android", page: "2", perPage: "25" }],
-    run: async (input3, ctx) => sauce(ctx, `/v1/storage/${what}`, {
+    run: async (input4, ctx) => sauce(ctx, `/v1/storage/${what}`, {
       query: {
-        q: input3.query,
-        kind: parseChoice(input3.kind, STORAGE_KINDS, "--kind"),
-        page: parseIntOption2(input3.page, "--page"),
-        per_page: parseIntOption2(input3.perPage, "--per-page")
+        q: input4.query,
+        kind: parseChoice(input4.kind, STORAGE_KINDS, "--kind"),
+        page: parseIntOption2(input4.page, "--page"),
+        per_page: parseIntOption2(input4.perPage, "--per-page")
       }
     })
   });
@@ -162763,7 +162871,7 @@ var teamListCommand = saucelabsArea.command({
   writes: false,
   options: [{ flags: "--name <prefix>", field: "name", description: "Team name prefix" }],
   examples: [{}, { name: "imagile" }],
-  run: async (input3, ctx) => sauce(ctx, `${TEAM_MGMT}/teams/`, { query: { name: input3.name } })
+  run: async (input4, ctx) => sauce(ctx, `${TEAM_MGMT}/teams/`, { query: { name: input4.name } })
 });
 var teamGetCommand = saucelabsArea.command({
   path: ["saucelabs", "team", "get"],
@@ -162772,7 +162880,7 @@ var teamGetCommand = saucelabsArea.command({
   writes: false,
   args: teamArg,
   examples: [{ teamId: "abc12345" }],
-  run: async (input3, ctx) => sauce(ctx, `${TEAM_MGMT}/teams/${id7(input3.teamId)}/`)
+  run: async (input4, ctx) => sauce(ctx, `${TEAM_MGMT}/teams/${id7(input4.teamId)}/`)
 });
 var teamMembersCommand = saucelabsArea.command({
   path: ["saucelabs", "team", "members"],
@@ -162781,7 +162889,7 @@ var teamMembersCommand = saucelabsArea.command({
   writes: false,
   args: teamArg,
   examples: [{ teamId: "abc12345" }],
-  run: async (input3, ctx) => sauce(ctx, `${TEAM_MGMT}/teams/${id7(input3.teamId)}/members/`)
+  run: async (input4, ctx) => sauce(ctx, `${TEAM_MGMT}/teams/${id7(input4.teamId)}/members/`)
 });
 var teamCommands = [teamListCommand, teamGetCommand, teamMembersCommand];
 
@@ -162919,9 +163027,9 @@ function projectOf2(value2, flag) {
   if (id9 <= 0) throw invalid5();
   return id9;
 }
-function listed2(ctx, path2, params2, input3, what) {
-  if (input3.all) return sdeAll(ctx, path2, params2, what);
-  return sde(ctx, path2, { ...params2, page: positive(input3.page, "1", "--page"), page_size: positive(input3.pageSize, "100", "--page-size") });
+function listed2(ctx, path2, params2, input4, what) {
+  if (input4.all) return sdeAll(ctx, path2, params2, what);
+  return sde(ctx, path2, { ...params2, page: positive(input4.page, "1", "--page"), page_size: positive(input4.pageSize, "100", "--page-size") });
 }
 var pageFields2 = {
   page: intText15.optional().describe('Page number (1-based) (default: "1")'),
@@ -162974,10 +163082,10 @@ var usersCommand2 = sdeArea.command({
     ...pageOptions5
   ],
   examples: [{}, { email: "you@example.com", firstName: "Pat", lastName: "Lee", active: "true", page: "2", pageSize: "25" }, { active: "false", all: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     endpointOf(ctx.connection);
-    const params2 = { email: input3.email, first_name: input3.firstName, last_name: input3.lastName, is_active: oneOf(input3.active, ["true", "false"]) };
-    return listed2(ctx, "/users/", params2, input3, "SD Elements users");
+    const params2 = { email: input4.email, first_name: input4.firstName, last_name: input4.lastName, is_active: oneOf(input4.active, ["true", "false"]) };
+    return listed2(ctx, "/users/", params2, input4, "SD Elements users");
   }
 });
 var projectsCommand = sdeArea.command({
@@ -163007,17 +163115,17 @@ var projectsCommand = sdeArea.command({
     { name: "Imagile API", search: "api", active: "all", ordering: "-updated", expand: "application,creator", include: "task_counts", page: 2, pageSize: 10 },
     { active: "true", all: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     endpointOf(ctx.connection);
     const params2 = {
-      name: input3.name,
-      search: input3.search,
-      active: oneOf(input3.active, ["true", "false", "all"]),
-      ordering: input3.ordering,
-      expand: input3.expand,
-      include: input3.include
+      name: input4.name,
+      search: input4.search,
+      active: oneOf(input4.active, ["true", "false", "all"]),
+      ordering: input4.ordering,
+      expand: input4.expand,
+      include: input4.include
     };
-    return listed2(ctx, "/projects/", params2, input3, "SD Elements projects");
+    return listed2(ctx, "/projects/", params2, input4, "SD Elements projects");
   }
 });
 var projectCommand = sdeArea.command({
@@ -163034,10 +163142,10 @@ var projectCommand = sdeArea.command({
     { flags: "--include <fields>", field: "include", description: "Include extra fields (comma-separated): task_counts,permissions" }
   ],
   examples: [{ id: "42" }, { id: "42", expand: "application,business_unit", include: "task_counts,permissions" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     endpointOf(ctx.connection);
     const id9 = projectOf2(ctx.context.id, "--id");
-    return sde(ctx, `/projects/${id9}/`, { expand: input3.expand, include: input3.include });
+    return sde(ctx, `/projects/${id9}/`, { expand: input4.expand, include: input4.include });
   }
 });
 var tasksCommand = sdeArea.command({
@@ -163093,23 +163201,23 @@ var tasksCommand = sdeArea.command({
     },
     { project: "42", all: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     endpointOf(ctx.connection);
     const id9 = projectOf2(ctx.context.project, "--project");
     const params2 = {
-      phase: input3.phase,
-      priority: input3.priority,
-      status: input3.status,
-      assigned_to: input3.assignedTo,
-      source: input3.source,
-      verification: input3.verification,
-      tag: input3.tag,
-      accepted: input3.accepted,
-      relevant: input3.relevant,
-      expand: input3.expand,
-      include: input3.include
+      phase: input4.phase,
+      priority: input4.priority,
+      status: input4.status,
+      assigned_to: input4.assignedTo,
+      source: input4.source,
+      verification: input4.verification,
+      tag: input4.tag,
+      accepted: input4.accepted,
+      relevant: input4.relevant,
+      expand: input4.expand,
+      include: input4.include
     };
-    return listed2(ctx, `/projects/${id9}/tasks/`, params2, input3, `SD Elements tasks for project ${id9}`);
+    return listed2(ctx, `/projects/${id9}/tasks/`, params2, input4, `SD Elements tasks for project ${id9}`);
   }
 });
 var taskCommand = sdeArea.command({
@@ -163132,10 +163240,10 @@ var taskCommand = sdeArea.command({
     // Suspected bug (#86 item 1): the bare ID the help suggests goes into the path as given.
     { project: "42", task: "T21", expand: "status,phase", include: "how_tos,last_note" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     endpointOf(ctx.connection);
     const id9 = projectOf2(ctx.context.project, "--project");
-    return sde(ctx, `/projects/${id9}/tasks/${input3.task}/`, { expand: input3.expand, include: input3.include });
+    return sde(ctx, `/projects/${id9}/tasks/${input4.task}/`, { expand: input4.expand, include: input4.include });
   }
 });
 var threatsCommand = sdeArea.command({
@@ -163164,11 +163272,11 @@ var threatsCommand = sdeArea.command({
     { project: "42", severity: "7", search: "injection", ordering: "-threat__severity", capecId: "66", componentId: "C12", page: "1", pageSize: "20" },
     { project: "42", all: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     endpointOf(ctx.connection);
     const id9 = projectOf2(ctx.context.project, "--project");
-    const params2 = { severity: input3.severity, search: input3.search, ordering: input3.ordering, capec_id: input3.capecId, component_id: input3.componentId };
-    return listed2(ctx, `/projects/${id9}/threats/`, params2, input3, `SD Elements threats for project ${id9}`);
+    const params2 = { severity: input4.severity, search: input4.search, ordering: input4.ordering, capec_id: input4.capecId, component_id: input4.componentId };
+    return listed2(ctx, `/projects/${id9}/threats/`, params2, input4, `SD Elements threats for project ${id9}`);
   }
 });
 var sdeCommands = [serverInfoCommand, whoamiCommand3, usersCommand2, projectsCommand, projectCommand, tasksCommand, taskCommand, threatsCommand];
@@ -163245,8 +163353,8 @@ function syncResult(marketplace, updated, plugin, results, installedOnly) {
     const r = results[0];
     if (r.skipped) return { marketplace, updated: false, skipped: true, target: r.target, message: r.message, ...tail };
     if (plugin === "all") return { marketplace, plugins: r.plugins, total: r.total, target: r.target, ...tail };
-    const single = r.plugins[plugin] ?? { installed: [], failed: [] };
-    return { marketplace, plugin, installed: single.installed, failed: single.failed, total: single.installed.length, target: r.target, ...tail };
+    const single2 = r.plugins[plugin] ?? { installed: [], failed: [] };
+    return { marketplace, plugin, installed: single2.installed, failed: single2.failed, total: single2.installed.length, target: r.target, ...tail };
   }
   return {
     marketplace,
@@ -163470,15 +163578,15 @@ var sync = area27.command({
     { plugin: "all", claude: true, installedOnly: true, allowWrite: true },
     { allAgents: true, allowWrite: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const m2 = ctx.connection;
     const roots = rootsOf(ctx);
-    const targets = targetsFor(input3, input3.scope ?? "user", roots);
+    const targets = targetsFor(input4, input4.scope ?? "user", roots);
     const clone2 = clonePathOf(m2, roots.home);
     checkClonePath(clone2, roots.home, join13(roots.home, ".toil", "config.json"));
     const { updated } = await cloneOrPull(ctx.git, m2, clone2, ctx.signal);
-    const plugin = input3.plugin ?? "all";
-    const installedOnly = input3.plugin === void 0 || input3.installedOnly === true;
+    const plugin = input4.plugin ?? "all";
+    const installedOnly = input4.plugin === void 0 || input4.installedOnly === true;
     const choices2 = choicesFor(clone2, m2.name, plugin);
     const results = targets.map((t) => installInto(t, choices2, { marketplace: marketplaceOf(m2), clone: clone2, plugin, installedOnly, toilVersion: ctx.version, warn: ctx.warn }));
     return syncResult(m2.name, updated, plugin, results, installedOnly);
@@ -163503,18 +163611,18 @@ var disable = area27.command({
     { plugin: "review", agent: "codex", scope: "user", marketplace: "skills", allowWrite: true },
     { plugin: "docs", claude: true, allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const dir = skillsDir(agentOf(input3), input3.scope ?? "user", rootsOf(ctx));
+  run: async (input4, ctx) => {
+    const dir = skillsDir(agentOf(input4), input4.scope ?? "user", rootsOf(ctx));
     const target2 = slashes2(dir);
     if (!existsSync10(dir)) return { disabled: [], total: 0, target: target2, message: "No skills directory found." };
-    const result = disablePlugin(dir, input3.plugin, marketplaceOf(ctx.connection));
+    const result = disablePlugin(dir, input4.plugin, marketplaceOf(ctx.connection));
     return {
       disabled: result.disabled,
       alreadyDisabled: result.alreadyDisabled,
       skipped: result.skipped.length,
       total: result.disabled.length,
       target: target2,
-      plugin: input3.plugin,
+      plugin: input4.plugin,
       stash: slashes2(join13(dir, DISABLED_DIR)),
       marketplace: ctx.connection.name
     };
@@ -163539,22 +163647,22 @@ var enable = area27.command({
     { plugin: "docs", agent: "codex", scope: "user", marketplace: "skills", allowWrite: true },
     { plugin: "review", claude: true, allowWrite: true }
   ],
-  run: async (input3, ctx) => {
-    const dir = skillsDir(agentOf(input3), input3.scope ?? "user", rootsOf(ctx));
+  run: async (input4, ctx) => {
+    const dir = skillsDir(agentOf(input4), input4.scope ?? "user", rootsOf(ctx));
     const target2 = slashes2(dir);
     if (!existsSync10(dir)) return { enabled: [], total: 0, target: target2, message: "No skills directory found." };
-    const result = enablePlugin(dir, input3.plugin, marketplaceOf(ctx.connection));
-    if (!result.hadDisabled) return { enabled: [], total: 0, target: target2, plugin: input3.plugin, message: `No disabled skills found for plugin "${input3.plugin}".` };
+    const result = enablePlugin(dir, input4.plugin, marketplaceOf(ctx.connection));
+    if (!result.hadDisabled) return { enabled: [], total: 0, target: target2, plugin: input4.plugin, message: `No disabled skills found for plugin "${input4.plugin}".` };
     return {
       enabled: result.enabled,
       skipped: result.skipped.length,
       total: result.enabled.length,
       target: target2,
-      plugin: input3.plugin,
+      plugin: input4.plugin,
       marketplace: ctx.connection.name,
       ...result.stashMissing.length > 0 ? {
         stashMissing: result.stashMissing,
-        warning: `Skills marked disabled but missing from the stash were left as-is. Re-install the plugin (toil skills marketplace sync ${input3.plugin} --marketplace ${ctx.connection.name} --allow-write) to restore them.`
+        warning: `Skills marked disabled but missing from the stash were left as-is. Re-install the plugin (toil skills marketplace sync ${input4.plugin} --marketplace ${ctx.connection.name} --allow-write) to restore them.`
       } : {}
     };
   }
@@ -163668,9 +163776,9 @@ var qualityGateCommand = sonarArea.command({
   context: { project: "required" },
   options: [{ flags: "--branch <name>", field: "branch", description: "Branch name" }],
   examples: [{ project: "imagile-api" }, { project: "imagile-api", branch: "release-1.2" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const projectKey = ctx.context.project;
-    return sonar(ctx, "/qualitygates/project_status", { projectKey, ...input3.branch ? { branch: input3.branch } : {} });
+    return sonar(ctx, "/qualitygates/project_status", { projectKey, ...input4.branch ? { branch: input4.branch } : {} });
   }
 });
 var issuesCommand = sonarArea.command({
@@ -163703,18 +163811,18 @@ var issuesCommand = sonarArea.command({
     { project: "imagile-api", severities: "BLOCKER,CRITICAL", types: "BUG,VULNERABILITY", statuses: "OPEN,REOPENED", branch: "main", resolved: "false", page: "2", pageSize: "50" },
     { project: "imagile-api", all: true }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const params2 = {
       componentKeys: ctx.context.project,
-      severities: input3.severities,
-      types: input3.types,
-      statuses: input3.statuses,
-      branch: input3.branch,
+      severities: input4.severities,
+      types: input4.types,
+      statuses: input4.statuses,
+      branch: input4.branch,
       // Suspected bug (#92 item 4): anything but the exact string "true" is sent as false.
-      resolved: input3.resolved !== void 0 ? String(input3.resolved === "true") : void 0
+      resolved: input4.resolved !== void 0 ? String(input4.resolved === "true") : void 0
     };
-    if (input3.all) return sonarAll(`/issues/search`, ctx, params2, issuesPage, `SonarQube issues for ${params2.componentKeys}`);
-    return sonar(ctx, "/issues/search", { ...params2, p: parseIntText3(input3.page, "1"), ps: parseIntText3(input3.pageSize, "100") });
+    if (input4.all) return sonarAll(`/issues/search`, ctx, params2, issuesPage, `SonarQube issues for ${params2.componentKeys}`);
+    return sonar(ctx, "/issues/search", { ...params2, p: parseIntText3(input4.page, "1"), ps: parseIntText3(input4.pageSize, "100") });
   }
 });
 var measuresCommand = sonarArea.command({
@@ -163731,9 +163839,9 @@ var measuresCommand = sonarArea.command({
     { flags: "--branch <name>", field: "branch", description: "Branch name" }
   ],
   examples: [{ project: "imagile-api" }, { project: "imagile-api", metrics: "coverage,bugs", branch: "main" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const component2 = ctx.context.project;
-    return sonar(ctx, "/measures/component", { component: component2, metricKeys: input3.metrics ?? DEFAULT_METRICS, ...input3.branch ? { branch: input3.branch } : {} });
+    return sonar(ctx, "/measures/component", { component: component2, metricKeys: input4.metrics ?? DEFAULT_METRICS, ...input4.branch ? { branch: input4.branch } : {} });
   }
 });
 var projectsCommand2 = sonarArea.command({
@@ -163754,9 +163862,9 @@ var projectsCommand2 = sonarArea.command({
   ],
   examples: [{}, { query: "imagile", page: "2", pageSize: "25" }, { query: "imagile", all: true }],
   // Suspected bug (#92 item 2): api/projects/search needs Administer System, so other tokens likely get 403.
-  run: async (input3, ctx) => {
-    if (input3.all) return sonarAll("/projects/search", ctx, { q: input3.query }, projectsPage, "SonarQube projects");
-    return sonar(ctx, "/projects/search", { q: input3.query, p: parseIntText3(input3.page, "1"), ps: parseIntText3(input3.pageSize, "100") });
+  run: async (input4, ctx) => {
+    if (input4.all) return sonarAll("/projects/search", ctx, { q: input4.query }, projectsPage, "SonarQube projects");
+    return sonar(ctx, "/projects/search", { q: input4.query, p: parseIntText3(input4.page, "1"), ps: parseIntText3(input4.pageSize, "100") });
   }
 });
 var hotspotsCommand = sonarArea.command({
@@ -163786,10 +163894,10 @@ var hotspotsCommand = sonarArea.command({
     { project: "imagile-api", status: "REVIEWED", resolution: "FIXED,SAFE", branch: "main", page: "1", pageSize: "20" },
     { project: "imagile-api", all: true }
   ],
-  run: async (input3, ctx) => {
-    const params2 = { projectKey: ctx.context.project, status: input3.status, resolution: input3.resolution, branch: input3.branch };
-    if (input3.all) return sonarAll("/hotspots/search", ctx, params2, hotspotsPage, `SonarQube hotspots for ${params2.projectKey}`);
-    return sonar(ctx, "/hotspots/search", { ...params2, p: parseIntText3(input3.page, "1"), ps: parseIntText3(input3.pageSize, "100") });
+  run: async (input4, ctx) => {
+    const params2 = { projectKey: ctx.context.project, status: input4.status, resolution: input4.resolution, branch: input4.branch };
+    if (input4.all) return sonarAll("/hotspots/search", ctx, params2, hotspotsPage, `SonarQube hotspots for ${params2.projectKey}`);
+    return sonar(ctx, "/hotspots/search", { ...params2, p: parseIntText3(input4.page, "1"), ps: parseIntText3(input4.pageSize, "100") });
   }
 });
 var sonarCommands = [qualityGateCommand, issuesCommand, measuresCommand, projectsCommand2, hotspotsCommand];
@@ -163851,7 +163959,7 @@ var applicationsListCommand = sonatypeiqArea.command({
   options: [{ flags: "--organization-id <id>", field: "organizationId", description: "Filter by organization ID" }],
   examples: [{}, { organizationId: "abc12345-0000-0000-0000-000000000000" }],
   // Suspected bug #90 item 1: organizationId goes as a query key IQ doesn't document, so it may filter nothing.
-  run: async (input3, ctx) => iq(ctx, "/api/v2/applications", input3.organizationId ? { organizationId: input3.organizationId } : {})
+  run: async (input4, ctx) => iq(ctx, "/api/v2/applications", input4.organizationId ? { organizationId: input4.organizationId } : {})
 });
 var applicationsGetCommand = sonatypeiqArea.command({
   path: ["sonatypeiq", "applications", "get"],
@@ -163863,7 +163971,7 @@ var applicationsGetCommand = sonatypeiqArea.command({
   writes: false,
   options: [{ flags: "--public-id <id>", field: "publicId", description: "Application public ID" }],
   examples: [{ publicId: "imagile-api" }],
-  run: async (input3, ctx) => iq(ctx, "/api/v2/applications", { publicId: input3.publicId })
+  run: async (input4, ctx) => iq(ctx, "/api/v2/applications", { publicId: input4.publicId })
 });
 var applicationsCommands = [applicationsListCommand, applicationsGetCommand];
 
@@ -164054,16 +164162,16 @@ var evaluateCommand = sonatypeiqArea.command({
     { from: "inventory.json", applicationId: "imagile-api" },
     { from: "inventory.json", applicationId: "imagile-api", ecosystem: "npm", directOnly: true, includeDev: true }
   ],
-  run: async (input3, ctx) => {
-    if (!input3.applicationId) {
+  run: async (input4, ctx) => {
+    if (!input4.applicationId) {
       throw new ToilError("INVALID_INPUT", "deps frisk --source sonatypeiq requires --application-id <id>. Use 'toil sonatypeiq applications list' to find application IDs.", {
         fix: "Pass --application-id <public ID>; toil sonatypeiq applications list shows each application's publicId."
       });
     }
-    const packages = selected(readInventory4(ctx, input3.from), input3.ecosystem, input3.directOnly === true, input3.includeDev === true);
+    const packages = selected(readInventory4(ctx, input4.from), input4.ecosystem, input4.directOnly === true, input4.includeDev === true);
     const result = { tier: "full", source: "sonatypeiq", sourcesQueried: ["sonatypeiq"], sourceErrors: [] };
     if (packages.length === 0) return { ...result, scanned: 0, vulnerable: 0, packages: [] };
-    const id9 = await internalId(ctx, input3.applicationId);
+    const id9 = await internalId(ctx, input4.applicationId);
     const vulnerable = [];
     let unread = 0;
     for (let i = 0; i < packages.length; i += BATCH_SIZE5) {
@@ -164105,7 +164213,7 @@ var policiesListCommand = sonatypeiqArea.command({
   writes: false,
   options: [{ flags: "--organization-id <id>", field: "organizationId", description: "Filter by organization ID" }],
   examples: [{}, { organizationId: "abc12345-0000-0000-0000-000000000000" }],
-  run: async (input3, ctx) => iq(ctx, input3.organizationId ? `/api/v2/policies/organization/${encodeURIComponent(input3.organizationId)}` : "/api/v2/policies")
+  run: async (input4, ctx) => iq(ctx, input4.organizationId ? `/api/v2/policies/organization/${encodeURIComponent(input4.organizationId)}` : "/api/v2/policies")
 });
 var policiesCommands = [policiesListCommand];
 
@@ -164186,16 +164294,16 @@ var crOptions = [
   { flags: "--approvers <ids>", field: "approvers", description: "Comma-separated approver email addresses (only where the environment lets submitters choose approvers)" },
   { flags: "--rollout-status <id>", field: "rolloutStatus", description: "Rollout status ID to set on the flag with this Change Request" }
 ];
-function crBody(input3, operationType, flag, title = input3.mnemonic) {
+function crBody(input4, operationType, flag, title = input4.mnemonic) {
   return {
     split: flag,
     operationType,
     title,
-    comment: `${input3.description}
+    comment: `${input4.description}
 
-Change number: ${input3.changeNumber}`,
-    approvers: (input3.approvers ?? "").split(",").map((s) => s.trim()).filter(Boolean),
-    ...input3.rolloutStatus ? { rolloutStatus: { id: input3.rolloutStatus } } : {}
+Change number: ${input4.changeNumber}`,
+    approvers: (input4.approvers ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+    ...input4.rolloutStatus ? { rolloutStatus: { id: input4.rolloutStatus } } : {}
   };
 }
 function submitCr(ctx, environment, body) {
@@ -164290,15 +164398,15 @@ var flagsListCommand = splitioArea.command({
     { flags: "--flag-set <name>", field: "flagSet", description: "Filter by flag set name" }
   ],
   examples: [{ workspace: "ws-abc12345" }, { workspace: "ws-abc12345", limit: "10", offset: "20", flagSet: "checkout" }],
-  run: async (input3, ctx) => {
-    if (input3.flagSet) {
+  run: async (input4, ctx) => {
+    if (input4.flagSet) {
       ctx.warn({
         code: "SPLITIO_FLAG_SET_FILTER",
         message: "Split's List feature flags reference documents no flag-set filter; flagSetName is sent, but compare totalCount with an unfiltered list before relying on it."
       });
     }
     const body = await split(ctx, `/splits/ws/${seg6(workspaceOf(ctx))}`, {
-      query: { limit: parseIntText4(input3.limit, "50"), offset: parseIntText4(input3.offset, "0"), ...input3.flagSet ? { flagSetName: input3.flagSet } : {} }
+      query: { limit: parseIntText4(input4.limit, "50"), offset: parseIntText4(input4.offset, "0"), ...input4.flagSet ? { flagSetName: input4.flagSet } : {} }
     });
     const flags = body.objects ?? [];
     return { count: flags.length, totalCount: body.totalCount, flags };
@@ -164318,9 +164426,9 @@ var flagsGetCommand = splitioArea.command({
     { workspace: "ws-abc12345", flag: "new_checkout" },
     { workspace: "ws-abc12345", flag: "new_checkout", environment: "env-abc12345" }
   ],
-  run: async (input3, ctx) => {
-    if (input3.environment) return getDefinition(ctx, input3.flag, input3.environment);
-    return split(ctx, `/splits/ws/${seg6(workspaceOf(ctx))}/${seg6(input3.flag)}`);
+  run: async (input4, ctx) => {
+    if (input4.environment) return getDefinition(ctx, input4.flag, input4.environment);
+    return split(ctx, `/splits/ws/${seg6(workspaceOf(ctx))}/${seg6(input4.flag)}`);
   }
 });
 var flagsUpdateCommand = splitioArea.command({
@@ -164342,13 +164450,13 @@ var flagsUpdateCommand = splitioArea.command({
     { flags: "--input-file <path>", field: "inputFile", description: 'JSON file with the complete flag definition (treatments, defaultTreatment, rules, defaultRule, ...); "-" = stdin on the CLI' }
   ],
   examples: [{ ...CR, flag: "new_checkout", environment: "env-abc12345", inputFile: "definition.json" }],
-  run: async (input3, ctx) => {
-    if (!input3.inputFile) throw new ToilError("INVALID_INPUT", "--input-file is required for flags update", { fix: "Pass --input-file <path> with the flag definition as JSON; get the current one with toil splitio flags get --environment <id>." });
-    const definition = parseJson(ctx.files.readText(input3.inputFile), "--input-file", "The file holds one JSON object: the flag definition, as flags get --environment returns it.");
+  run: async (input4, ctx) => {
+    if (!input4.inputFile) throw new ToilError("INVALID_INPUT", "--input-file is required for flags update", { fix: "Pass --input-file <path> with the flag definition as JSON; get the current one with toil splitio flags get --environment <id>." });
+    const definition = parseJson(ctx.files.readText(input4.inputFile), "--input-file", "The file holds one JSON object: the flag definition, as flags get --environment returns it.");
     if (typeof definition !== "object" || definition === null || Array.isArray(definition)) {
       throw new ToilError("INVALID_INPUT", "--input-file must hold a JSON object: the flag definition.", { fix: "Start from the output of toil splitio flags get --environment <id>." });
     }
-    return submitCr(ctx, input3.environment, crBody(input3, "UPDATE", { ...definition, name: input3.flag }));
+    return submitCr(ctx, input4.environment, crBody(input4, "UPDATE", { ...definition, name: input4.flag }));
   }
 });
 var flagsSetRuleCommand = splitioArea.command({
@@ -164377,20 +164485,20 @@ var flagsSetRuleCommand = splitioArea.command({
     { ...CR, flag: "new_checkout", environment: "env-abc12345", ruleIndex: "0", treatment: "on" },
     { ...CR, flag: "new_checkout", environment: "env-abc12345", ruleIndex: "1", weights: '[{"treatment":"on","size":20},{"treatment":"off","size":80}]', approvers: "you@example.com, lead@example.com" }
   ],
-  run: async (input3, ctx) => {
-    if (!input3.treatment && !input3.weights) throw new ToilError("INVALID_INPUT", "Either --treatment or --weights must be specified", { fix: WEIGHTS_FIX });
-    const current3 = await getDefinition(ctx, input3.flag, input3.environment);
+  run: async (input4, ctx) => {
+    if (!input4.treatment && !input4.weights) throw new ToilError("INVALID_INPUT", "Either --treatment or --weights must be specified", { fix: WEIGHTS_FIX });
+    const current3 = await getDefinition(ctx, input4.flag, input4.environment);
     const rules = Array.isArray(current3.rules) ? [...current3.rules] : [];
-    const idx = parseIntText4(input3.ruleIndex, "");
+    const idx = parseIntText4(input4.ruleIndex, "");
     if (Number.isNaN(idx) || idx < 0 || idx >= rules.length) {
-      throw new ToilError("INVALID_INPUT", `Rule index ${Number.isNaN(idx) ? JSON.stringify(String(input3.ruleIndex)) : idx} is out of range (flag has ${rules.length} rules)`, {
+      throw new ToilError("INVALID_INPUT", `Rule index ${Number.isNaN(idx) ? JSON.stringify(String(input4.ruleIndex)) : idx} is out of range (flag has ${rules.length} rules)`, {
         fix: "Run toil splitio flags get --environment <id> to see the rules; --rule-index counts from 0."
       });
     }
-    const buckets = input3.treatment ? [{ treatment: input3.treatment, size: 100 }] : parseJson(input3.weights, "--weights", WEIGHTS_FIX);
+    const buckets = input4.treatment ? [{ treatment: input4.treatment, size: 100 }] : parseJson(input4.weights, "--weights", WEIGHTS_FIX);
     if (!Array.isArray(buckets)) throw new ToilError("INVALID_INPUT", "--weights must be a JSON array of {treatment, size} objects.", { fix: WEIGHTS_FIX });
     rules[idx] = { ...rules[idx], buckets };
-    return submitCr(ctx, input3.environment, crBody(input3, "UPDATE", writableDefinition(input3.flag, current3, { rules })));
+    return submitCr(ctx, input4.environment, crBody(input4, "UPDATE", writableDefinition(input4.flag, current3, { rules })));
   }
 });
 var flagsSetDefaultCommand = splitioArea.command({
@@ -164407,13 +164515,13 @@ var flagsSetDefaultCommand = splitioArea.command({
   context: { workspace: "required" },
   options: [flagOption, environmentOption, { flags: "--treatment <name>", field: "treatment", description: "Treatment to assign as the default" }, ...crOptions],
   examples: [{ ...CR, flag: "new_checkout", environment: "env-abc12345", treatment: "off" }],
-  run: async (input3, ctx) => {
-    const current3 = await getDefinition(ctx, input3.flag, input3.environment);
-    return submitCr(ctx, input3.environment, crBody(input3, "UPDATE", writableDefinition(input3.flag, current3, { defaultRule: [{ treatment: input3.treatment, size: 100 }] })));
+  run: async (input4, ctx) => {
+    const current3 = await getDefinition(ctx, input4.flag, input4.environment);
+    return submitCr(ctx, input4.environment, crBody(input4, "UPDATE", writableDefinition(input4.flag, current3, { defaultRule: [{ treatment: input4.treatment, size: 100 }] })));
   }
 });
-function killOrRestore(ctx, input3, operation) {
-  return submitCr(ctx, input3.environment, crBody(input3, operation, { name: input3.flag }));
+function killOrRestore(ctx, input4, operation) {
+  return submitCr(ctx, input4.environment, crBody(input4, operation, { name: input4.flag }));
 }
 var flagsToggleCommand = splitioArea.command({
   path: ["splitio", "flags", "toggle"],
@@ -164432,15 +164540,15 @@ var flagsToggleCommand = splitioArea.command({
     { ...CR, flag: "new_checkout", environment: "env-abc12345", enabled: "false" },
     { ...CR, flag: "new_checkout", environment: "env-abc12345", enabled: "true" }
   ],
-  run: async (input3, ctx) => {
-    const enable2 = input3.enabled.toLowerCase() !== "false" && input3.enabled !== "0";
-    if (enable2 && !["true", "1"].includes(input3.enabled.toLowerCase())) {
+  run: async (input4, ctx) => {
+    const enable2 = input4.enabled.toLowerCase() !== "false" && input4.enabled !== "0";
+    if (enable2 && !["true", "1"].includes(input4.enabled.toLowerCase())) {
       ctx.warn({
         code: "SPLITIO_TOGGLE_RESTORED",
-        message: `--enabled "${input3.enabled}" isn't true or false, and anything but false or 0 counts as true, so this filed a RESTORE change request for ${input3.flag}. If you meant to kill it, withdraw this request and run again with --enabled false.`
+        message: `--enabled "${input4.enabled}" isn't true or false, and anything but false or 0 counts as true, so this filed a RESTORE change request for ${input4.flag}. If you meant to kill it, withdraw this request and run again with --enabled false.`
       });
     }
-    return killOrRestore(ctx, input3, enable2 ? "RESTORE" : "KILL");
+    return killOrRestore(ctx, input4, enable2 ? "RESTORE" : "KILL");
   }
 });
 var flagsBatchToggleCommand = splitioArea.command({
@@ -164461,9 +164569,9 @@ var flagsBatchToggleCommand = splitioArea.command({
     { flags: "--input-file <path>", field: "inputFile", description: 'JSON file: array of {flag, enabled} objects; "-" = stdin on the CLI' }
   ],
   examples: [{ ...CR, environment: "env-abc12345", inputFile: "toggles.json" }],
-  run: async (input3, ctx) => {
-    if (!input3.inputFile) throw new ToilError("INVALID_INPUT", "--input-file is required for batch-toggle", { fix: 'Pass --input-file <path> holding a JSON array such as [{"flag":"new_checkout","enabled":false}].' });
-    const entries = parseJson(ctx.files.readText(input3.inputFile), "--input-file", "The file holds a JSON array of {flag, enabled} objects.");
+  run: async (input4, ctx) => {
+    if (!input4.inputFile) throw new ToilError("INVALID_INPUT", "--input-file is required for batch-toggle", { fix: 'Pass --input-file <path> holding a JSON array such as [{"flag":"new_checkout","enabled":false}].' });
+    const entries = parseJson(ctx.files.readText(input4.inputFile), "--input-file", "The file holds a JSON array of {flag, enabled} objects.");
     if (!Array.isArray(entries)) throw new ToilError("INVALID_INPUT", "Input file must be a JSON array of {flag, enabled} objects", { fix: "Wrap the entries in [ ]." });
     const bad = entries.findIndex((e) => typeof e !== "object" || e === null || typeof e.flag !== "string" || !e.flag);
     if (bad !== -1) {
@@ -164473,7 +164581,7 @@ var flagsBatchToggleCommand = splitioArea.command({
     for (const entry of entries) {
       try {
         const operation = entry.enabled ? "RESTORE" : "KILL";
-        const cr = await submitCr(ctx, input3.environment, crBody(input3, operation, { name: entry.flag }, `${input3.mnemonic} \u2014 ${entry.flag}`));
+        const cr = await submitCr(ctx, input4.environment, crBody(input4, operation, { name: entry.flag }, `${input4.mnemonic} \u2014 ${entry.flag}`));
         results.push({ flag: entry.flag, ok: true, id: cr.id });
       } catch (err) {
         if (ctx.signal.aborted) throw err;
@@ -164493,7 +164601,7 @@ var flagsKillCommand = splitioArea.command({
   context: { workspace: "required" },
   options: [flagOption, environmentOption, ...crOptions],
   examples: [{ ...CR, flag: "new_checkout", environment: "env-abc12345" }],
-  run: async (input3, ctx) => killOrRestore(ctx, input3, "KILL")
+  run: async (input4, ctx) => killOrRestore(ctx, input4, "KILL")
 });
 var flagsRestoreCommand = splitioArea.command({
   path: ["splitio", "flags", "restore"],
@@ -164503,7 +164611,7 @@ var flagsRestoreCommand = splitioArea.command({
   context: { workspace: "required" },
   options: [flagOption, environmentOption, ...crOptions],
   examples: [{ ...CR, flag: "new_checkout", environment: "env-abc12345" }],
-  run: async (input3, ctx) => killOrRestore(ctx, input3, "RESTORE")
+  run: async (input4, ctx) => killOrRestore(ctx, input4, "RESTORE")
 });
 var flagsArchiveCommand = splitioArea.command({
   path: ["splitio", "flags", "archive"],
@@ -164516,7 +164624,7 @@ var flagsArchiveCommand = splitioArea.command({
   // It removes a flag definition, and deletes never go through MCP.
   mcp: false,
   // ARCHIVE removes the definition from one environment; it isn't Split's flag archive API. https://docs.split.io/reference/create-change-request
-  run: async (input3, ctx) => submitCr(ctx, input3.environment, crBody(input3, "ARCHIVE", { name: input3.flag }))
+  run: async (input4, ctx) => submitCr(ctx, input4.environment, crBody(input4, "ARCHIVE", { name: input4.flag }))
 });
 var flagsCommands = [
   flagsListCommand,
@@ -164556,21 +164664,21 @@ var changeRequestsListCommand = splitioArea.command({
     { workspace: "ws-abc12345" },
     { workspace: "ws-abc12345", environment: "env-abc12345", status: "APPROVED", limit: "10", offset: "0", after: "marker-abc12345" }
   ],
-  run: async (input3, ctx) => {
-    const offset = parseIntText4(input3.offset, "0");
+  run: async (input4, ctx) => {
+    const offset = parseIntText4(input4.offset, "0");
     if (offset !== 0) {
-      throw new ToilError("INVALID_INPUT", `Split pages change requests by marker, not offset, so --offset ${String(input3.offset)} can't be honoured.`, {
+      throw new ToilError("INVALID_INPUT", `Split pages change requests by marker, not offset, so --offset ${String(input4.offset)} can't be honoured.`, {
         fix: "Leave out --offset, and pass the nextMarker from the previous page as --after."
       });
     }
-    const limit3 = parseIntText4(input3.limit, "25");
+    const limit3 = parseIntText4(input4.limit, "25");
     const body = await split(ctx, "/changeRequests", {
       query: {
         workspaceId: workspaceOf(ctx),
-        ...input3.environment ? { environmentId: input3.environment } : {},
-        ...input3.status ? { status: input3.status } : {},
+        ...input4.environment ? { environmentId: input4.environment } : {},
+        ...input4.status ? { status: input4.status } : {},
         limit: limit3,
-        ...input3.after ? { after: input3.after } : {}
+        ...input4.after ? { after: input4.after } : {}
       }
     });
     const changeRequests = body.data ?? [];
@@ -164589,7 +164697,7 @@ var changeRequestsGetCommand = splitioArea.command({
   options: [{ flags: "--id <id>", field: "id", description: "Change Request ID" }],
   examples: [{ id: "cr-abc12345" }],
   // GET /changeRequests/{id}; no workspace in the path. https://docs.split.io/reference/get-change-request
-  run: async (input3, ctx) => split(ctx, `/changeRequests/${seg6(input3.id)}`)
+  run: async (input4, ctx) => split(ctx, `/changeRequests/${seg6(input4.id)}`)
 });
 var changeRequestsCommands = [changeRequestsListCommand, changeRequestsGetCommand];
 
@@ -165151,12 +165259,12 @@ var EXAMPLE_MODEL = {
   views: [{ key: "context", type: "systemContext", scope: "status" }]
 };
 var EXAMPLE_TEXT = JSON.stringify(EXAMPLE_MODEL);
-async function viewOf(input3, ctx, v) {
-  const source2 = await openInput(ctx, input3, { maxBytes: MAX_BYTES, signal: ctx.signal });
+async function viewOf(input4, ctx, v) {
+  const source2 = await openInput(ctx, input4, { maxBytes: MAX_BYTES, signal: ctx.signal });
   const text4 = await source2.text();
   v.inputComplete(source2);
   const model = loadModel(text4, source2.label);
-  return computeView(model, pickView(model, input3.view), (w) => ctx.warn(w));
+  return computeView(model, pickView(model, input4.view), (w) => ctx.warn(w));
 }
 var summary = (view2) => ({
   view: view2.key,
@@ -165188,13 +165296,13 @@ var c4RenderCommand = defineCommand({
     out: external_exports.string().optional().describe("Write the SVG to this new file inside the workspace instead of returning it; it must not exist yet")
   }),
   writes: false,
-  writesLocalWhen: (input3) => input3.out !== void 0,
+  writesLocalWhen: (input4) => input4.out !== void 0,
   args: [fileArgument],
   options: [...modelOptions, { flags: "--out <file>", field: "out", description: "Write the SVG to this new file inside the workspace instead of returning it in data" }],
   examples: [{ text: EXAMPLE_TEXT }, { file: "bookshop.c4.json", view: "containers" }, { file: "bookshop.c4.json", view: "components", out: "components.svg" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const v = new Verifier(ctx.warn);
-    const view2 = await viewOf(input3, ctx, v);
+    const view2 = await viewOf(input4, ctx, v);
     checkDrawable(view2);
     const drawing = await draw(view2, ctx.signal);
     for (const run3 of drawing.runs) {
@@ -165205,9 +165313,9 @@ var c4RenderCommand = defineCommand({
     }
     v.approximated("text.width", "text is measured with Helvetica's character widths, which Arial shares, so a viewer that substitutes a much wider font can overflow a box");
     const verified = v.done();
-    if (input3.out === void 0) return { ...summary(view2), verified, format: "svg", svg: drawing.svg };
+    if (input4.out === void 0) return { ...summary(view2), verified, format: "svg", svg: drawing.svg };
     const bytes = Buffer.from(drawing.svg, "utf8");
-    return { ...summary(view2), verified, format: "svg", file: ctx.files.writeBytes(input3.out, bytes), bytes: bytes.length };
+    return { ...summary(view2), verified, format: "svg", file: ctx.files.writeBytes(input4.out, bytes), bytes: bytes.length };
   }
 });
 var c4MermaidCommand = defineCommand({
@@ -165219,9 +165327,9 @@ var c4MermaidCommand = defineCommand({
   args: [fileArgument],
   options: modelOptions,
   examples: [{ text: EXAMPLE_TEXT }, { file: "bookshop.c4.json", view: "context" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const v = new Verifier(ctx.warn);
-    const view2 = await viewOf(input3, ctx, v);
+    const view2 = await viewOf(input4, ctx, v);
     const text4 = toMermaid(view2);
     checkText(v, view2, text4, "Mermaid");
     return { ...summary(view2), verified: v.done(), format: "mermaid", text: text4 };
@@ -165236,9 +165344,9 @@ var c4D2Command = defineCommand({
   args: [fileArgument],
   options: modelOptions,
   examples: [{ text: EXAMPLE_TEXT }, { file: "bookshop.c4.json", view: "containers" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const v = new Verifier(ctx.warn);
-    const view2 = await viewOf(input3, ctx, v);
+    const view2 = await viewOf(input4, ctx, v);
     const text4 = toD2(view2);
     checkText(v, view2, text4, "D2");
     return { ...summary(view2), verified: v.done(), format: "d2", text: text4 };
@@ -165270,10 +165378,10 @@ var certCommand = defineCommand({
   args: [fileArgument],
   options: [textOption, { flags: "--host <host>", field: "host", description: "A host name or IP address: does the first certificate cover it?" }],
   examples: [{ file: EXAMPLE_CHAIN }, { file: EXAMPLE_CHAIN, host: "api.imagile.dev" }, { file: "certs/leaf.der", host: "imagile.dev" }, { text: EXAMPLE_PEM, host: "example.imagile.dev" }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { decodeCertInput: decodeCertInput2 } = await Promise.resolve().then(() => (init_decode(), decode_exports));
-    const opened = await openInput(ctx, input3, { binary: "allow", utf8: "skip" });
-    return decodeCertInput2(opened, { host: input3.host, now: Date.now(), warn: ctx.warn });
+    const opened = await openInput(ctx, input4, { binary: "allow", utf8: "skip" });
+    return decodeCertInput2(opened, { host: input4.host, now: Date.now(), warn: ctx.warn });
   }
 });
 var certCommands = [certCommand];
@@ -165300,19 +165408,19 @@ function findNpmManifests(files) {
   }
   return manifests;
 }
-function parseNpmPackages(content, info, opts, lockContent) {
-  if (lockContent && info.lockFile) {
-    const base = basename9(info.lockFile);
+function parseNpmPackages(content, info2, opts, lockContent) {
+  if (lockContent && info2.lockFile) {
+    const base = basename9(info2.lockFile);
     if (base === "package-lock.json") {
-      const pkgs = parsePackageLock(lockContent, info.lockFile, opts);
+      const pkgs = parsePackageLock(lockContent, info2.lockFile, opts);
       if (pkgs.length > 0) return pkgs;
     } else if (base === "yarn.lock") {
-      return parseYarnLock(lockContent, info.lockFile, opts, content);
+      return parseYarnLock(lockContent, info2.lockFile, opts, content);
     } else if (base === "pnpm-lock.yaml") {
-      return parsePnpmLock(lockContent, info.lockFile, opts, content);
+      return parsePnpmLock(lockContent, info2.lockFile, opts, content);
     }
   }
-  return parsePackageJson(content, info.file, opts);
+  return parsePackageJson(content, info2.file, opts);
 }
 function stripVersionPrefix(v) {
   return v.replace(/^[\^~>=<* ]+/, "").split(/\s/)[0] ?? v;
@@ -165426,12 +165534,12 @@ function findNugetManifests(files) {
     return true;
   });
 }
-function parseNugetPackages(content, info, opts, lockContent, propsContent) {
-  const base = basename9(info.file);
-  if (lockContent) return parsePackagesLock(lockContent, info.lockFile ?? info.file, opts);
-  if (base === "packages.config") return parsePackagesConfig(content, info.file);
-  if (base === "Directory.Packages.props") return parseDirectoryPackagesProps(content, info.file);
-  return parseCsproj(content, info.file, propsContent);
+function parseNugetPackages(content, info2, opts, lockContent, propsContent) {
+  const base = basename9(info2.file);
+  if (lockContent) return parsePackagesLock(lockContent, info2.lockFile ?? info2.file, opts);
+  if (base === "packages.config") return parsePackagesConfig(content, info2.file);
+  if (base === "Directory.Packages.props") return parseDirectoryPackagesProps(content, info2.file);
+  return parseCsproj(content, info2.file, propsContent);
 }
 function parseCsproj(content, filePath2, propsContent) {
   const centralVersions = propsContent ? extractCentralVersions(propsContent) : /* @__PURE__ */ new Map();
@@ -165514,11 +165622,11 @@ function findMavenManifests(files) {
   }
   return manifests;
 }
-function parseMavenPackages(content, info, opts, lockContent) {
-  const base = basename9(info.file);
-  if (lockContent && info.lockFile) return parseGradleLock(lockContent, info.lockFile, opts);
-  if (base === "pom.xml") return parsePomXml(content, info.file, opts);
-  if (base === "build.gradle" || base === "build.gradle.kts") return parseBuildGradle(content, info.file, opts);
+function parseMavenPackages(content, info2, opts, lockContent) {
+  const base = basename9(info2.file);
+  if (lockContent && info2.lockFile) return parseGradleLock(lockContent, info2.lockFile, opts);
+  if (base === "pom.xml") return parsePomXml(content, info2.file, opts);
+  if (base === "build.gradle" || base === "build.gradle.kts") return parseBuildGradle(content, info2.file, opts);
   return [];
 }
 var tag = (name3, inner) => new RegExp(`<${name3}>\\s*([^<\\s]+)\\s*<\\/${name3}>`, "i").exec(inner)?.[1];
@@ -165614,14 +165722,14 @@ async function findPropsContent(manifestFile, read) {
 async function parseManifests(manifests, opts, read) {
   const all3 = [];
   const seen = /* @__PURE__ */ new Set();
-  for (const info of manifests) {
-    const content = await read(info.file);
+  for (const info2 of manifests) {
+    const content = await read(info2.file);
     if (!content) continue;
-    const lockContent = info.lockFile ? await read(info.lockFile) ?? void 0 : void 0;
+    const lockContent = info2.lockFile ? await read(info2.lockFile) ?? void 0 : void 0;
     let pkgs;
-    if (info.ecosystem === "npm") pkgs = parseNpmPackages(content, info, opts, lockContent);
-    else if (info.ecosystem === "nuget") pkgs = parseNugetPackages(content, info, opts, lockContent, await findPropsContent(info.file, read) ?? void 0);
-    else pkgs = parseMavenPackages(content, info, opts, lockContent);
+    if (info2.ecosystem === "npm") pkgs = parseNpmPackages(content, info2, opts, lockContent);
+    else if (info2.ecosystem === "nuget") pkgs = parseNugetPackages(content, info2, opts, lockContent, await findPropsContent(info2.file, read) ?? void 0);
+    else pkgs = parseMavenPackages(content, info2, opts, lockContent);
     for (const pkg of pkgs) {
       const key6 = `${pkg.ecosystem}:${pkg.name}@${pkg.version}:${pkg.source}`;
       if (seen.has(key6)) continue;
@@ -165736,13 +165844,13 @@ var depsScanCommand = defineCommand({
   ],
   aliases: [["deps", "scan"]],
   examples: [{}, { ecosystem: "npm", includeTransitive: true, includeDev: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     if (!ctx.repo()) {
       throw new ToilError("INVALID_INPUT", "Not inside a git repository. deps commands require a git repo root.", {
         fix: "Run it inside a git clone, or point --workspace at one."
       });
     }
-    return scanTree(ctx, { ecosystem: input3.ecosystem ?? "all", includeTransitive: input3.includeTransitive ?? false, includeDev: input3.includeDev ?? false });
+    return scanTree(ctx, { ecosystem: input4.ecosystem ?? "all", includeTransitive: input4.includeTransitive ?? false, includeDev: input4.includeDev ?? false });
   }
 });
 var depsDiffCommand = defineCommand({
@@ -165764,15 +165872,15 @@ var depsDiffCommand = defineCommand({
   ],
   aliases: [["deps", "diff"]],
   examples: [{ from: "main" }, { from: "v1.0.0", to: "main", ecosystem: "npm", includeDev: true }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     if (!ctx.repo()) {
       await runGit(ctx, { subcommand: "version" });
       throw new ToilError("INVALID_INPUT", "Not inside a git repository.", { fix: "Run it inside a git clone, or point --workspace at one." });
     }
-    const opts = { ecosystem: input3.ecosystem ?? "all", includeTransitive: true, includeDev: input3.includeDev ?? false };
-    const fromScan = await scanAtRef(ctx, input3.from, opts);
-    const toScan = input3.to ? await scanAtRef(ctx, input3.to, opts) : await scanTree(ctx, opts);
-    return diffScans(input3.from, input3.to, fromScan, toScan);
+    const opts = { ecosystem: input4.ecosystem ?? "all", includeTransitive: true, includeDev: input4.includeDev ?? false };
+    const fromScan = await scanAtRef(ctx, input4.from, opts);
+    const toScan = input4.to ? await scanAtRef(ctx, input4.to, opts) : await scanTree(ctx, opts);
+    return diffScans(input4.from, input4.to, fromScan, toScan);
   }
 });
 var depsCommands = [depsScanCommand, depsDiffCommand];
@@ -165945,43 +166053,43 @@ function writeChecked(ctx, v, out, data) {
   v.expect("output.file", at9 === -1, { at: file2, expected: `${data.length} bytes`, actual: `${back.length} bytes` }, { code: "ENCODE_OUTPUT_MISMATCH", message: `The file written, ${file2}, doesn't hold what was written: they first differ at byte ${at9}.` });
   return file2;
 }
-async function runEncode(input3, ctx, codecs = CODECS) {
+async function runEncode(input4, ctx, codecs = CODECS) {
   const v = new Verifier(ctx.warn);
-  const { scheme } = input3;
+  const { scheme } = input4;
   if (isHash2(scheme)) {
-    if (input3.decode) throw new ToilError("INVALID_INPUT", `${scheme} is a hash, which can't be decoded.`, { fix: "Drop --decode to hash the input." });
-    if (input3.out !== void 0) throw new ToilError("INVALID_INPUT", `A ${scheme} digest is returned in the output, not written to a file.`, { fix: "Drop --out." });
+    if (input4.decode) throw new ToilError("INVALID_INPUT", `${scheme} is a hash, which can't be decoded.`, { fix: "Drop --decode to hash the input." });
+    if (input4.out !== void 0) throw new ToilError("INVALID_INPUT", `A ${scheme} digest is returned in the output, not written to a file.`, { fix: "Drop --out." });
     const hash3 = hashFor(scheme);
-    const fromFile = input3.file !== void 0 && input3.file !== "-";
-    const src2 = await openInput(ctx, input3, { binary: "allow", utf8: "skip", ...fromFile ? { maxBytes: Number.POSITIVE_INFINITY } : {} });
+    const fromFile = input4.file !== void 0 && input4.file !== "-";
+    const src2 = await openInput(ctx, input4, { binary: "allow", utf8: "skip", ...fromFile ? { maxBytes: Number.POSITIVE_INFINITY } : {} });
     for await (const chunk of src2.chunks()) hash3.update(chunk);
     v.inputComplete(src2);
     const digest2 = hash3.digest();
     return { operation: "hash", scheme, inputBytes: src2.bytesRead, hex: digest2.toString("hex"), base64: digest2.toString("base64"), verified: v.done() };
   }
   const codec2 = codecs[scheme];
-  if (!input3.decode) {
-    const src2 = await openInput(ctx, input3, { binary: "allow", utf8: "skip" });
+  if (!input4.decode) {
+    const src2 = await openInput(ctx, input4, { binary: "allow", utf8: "skip" });
     const bytes2 = await src2.bytes();
     v.inputComplete(src2);
     const output3 = codec2.encode(bytes2);
     checkEncode(v, codec2, scheme, bytes2, output3);
     const base2 = { operation: "encode", scheme, inputBytes: bytes2.length, outputBytes: output3.length };
-    if (input3.out !== void 0) {
-      const file2 = writeChecked(ctx, v, input3.out, new TextEncoder().encode(output3));
+    if (input4.out !== void 0) {
+      const file2 = writeChecked(ctx, v, input4.out, new TextEncoder().encode(output3));
       return { ...base2, file: file2, verified: v.done() };
     }
     return { ...base2, output: output3, verified: v.done() };
   }
-  const src = await openInput(ctx, input3);
+  const src = await openInput(ctx, input4);
   const text4 = (await src.text()).replace(/\r?\n$/, "");
   v.inputComplete(src);
   const bytes = codec2.decode(text4);
   checkDecode(v, codec2, scheme, text4, bytes);
   const utf8 = isUtf82(bytes);
   const base = { operation: "decode", scheme, inputBytes: src.bytesRead, outputBytes: bytes.length, utf8 };
-  if (input3.out !== void 0) {
-    const file2 = writeChecked(ctx, v, input3.out, bytes);
+  if (input4.out !== void 0) {
+    const file2 = writeChecked(ctx, v, input4.out, bytes);
     return { ...base, file: file2, verified: v.done() };
   }
   if (!utf8) {
@@ -166010,7 +166118,7 @@ var encodeCommand = defineCommand({
     out: external_exports.string().optional().describe(OUT)
   }),
   writes: false,
-  writesLocalWhen: (input3) => input3.out !== void 0,
+  writesLocalWhen: (input4) => input4.out !== void 0,
   // The content may be a credential on its way into a header; the audit line keeps only its hash.
   auditInput: { text: "hash" },
   args: [{ name: "scheme", field: "scheme", description: SCHEME, required: true }, fileArgument],
@@ -166023,15 +166131,15 @@ var encodeCommand = defineCommand({
     { scheme: "hex", file: "encode/pixel.png" },
     { scheme: "sha256", file: "encode/pixel.png" }
   ],
-  run: (input3, ctx) => runEncode(input3, ctx)
+  run: (input4, ctx) => runEncode(input4, ctx)
 });
 var encodeCommands = [encodeCommand];
 
 // src/areas/util/jwt.ts
 init_errors();
 var FIX = 'Pass the whole token, header.payload.signature, without a "Bearer " prefix. An encrypted (5-part) JWE cannot be decoded without its key.';
-function base64urlDecode(input3) {
-  const base643 = input3.replace(/-/g, "+").replace(/_/g, "/");
+function base64urlDecode(input4) {
+  const base643 = input4.replace(/-/g, "+").replace(/_/g, "/");
   const padded = base643 + "=".repeat((4 - base643.length % 4) % 4);
   return Buffer.from(padded, "base64").toString("utf8");
 }
@@ -166064,8 +166172,8 @@ var jwtDecodeCommand = defineCommand({
   args: [{ name: "token", field: "token", description: "The JWT to decode, or - to read it from stdin" }],
   aliases: [["jwt", "decode"]],
   examples: [{ token: EXAMPLE_TOKEN }],
-  run: async (input3, ctx) => {
-    const token = input3.token === "-" ? ctx.files.readText("-").replace(/\r?\n$/, "") : input3.token;
+  run: async (input4, ctx) => {
+    const token = input4.token === "-" ? ctx.files.readText("-").replace(/\r?\n$/, "") : input4.token;
     return decodeJwt(token);
   }
 });
@@ -166127,7 +166235,7 @@ var openapiListCommand = defineCommand({
     { flags: "--path <text>", field: "path", description: "Only operations whose path contains this text" }
   ],
   examples: [{ file: SAMPLE_JIRA }, { file: SAMPLE_GITHUB, tag: "pulls" }, { file: SAMPLE_BITBUCKET, path: "pullrequests" }, { text: EXAMPLE_TEXT2 }],
-  run: async (input3, ctx) => (await Promise.resolve().then(() => (init_run(), run_exports))).listOperations(ctx, await openInput(ctx, input3), input3)
+  run: async (input4, ctx) => (await Promise.resolve().then(() => (init_run(), run_exports))).listOperations(ctx, await openInput(ctx, input4), input4)
 });
 var openapiShowCommand = defineCommand({
   path: ["util", "openapi", "show"],
@@ -166147,7 +166255,7 @@ var openapiShowCommand = defineCommand({
     { file: SAMPLE_BITBUCKET, method: "GET", path: "/repositories/{workspace}/{repo_slug}/pullrequests" },
     { text: EXAMPLE_TEXT2, operation: "createOrder" }
   ],
-  run: async (input3, ctx) => (await Promise.resolve().then(() => (init_run(), run_exports))).showOne(ctx, await openInput(ctx, input3), input3)
+  run: async (input4, ctx) => (await Promise.resolve().then(() => (init_run(), run_exports))).showOne(ctx, await openInput(ctx, input4), input4)
 });
 var openapiExampleCommand = defineCommand({
   path: ["util", "openapi", "example"],
@@ -166173,7 +166281,7 @@ var openapiExampleCommand = defineCommand({
     { file: SAMPLE_BITBUCKET, method: "POST", path: "/repositories/{workspace}/{repo_slug}/pullrequests", response: "201", contentType: "application/json" },
     { text: EXAMPLE_TEXT2, operation: "createOrder" }
   ],
-  run: async (input3, ctx) => (await Promise.resolve().then(() => (init_run(), run_exports))).exampleBody(ctx, await openInput(ctx, input3), input3)
+  run: async (input4, ctx) => (await Promise.resolve().then(() => (init_run(), run_exports))).exampleBody(ctx, await openInput(ctx, input4), input4)
 });
 var openapiCommands = [openapiListCommand, openapiShowCommand, openapiExampleCommand];
 
@@ -166193,10 +166301,10 @@ var holidayOptions = [
 var now = () => Date.now();
 async function holidayFile(ctx, file2) {
   if (file2 === void 0) return void 0;
-  const input3 = await openInput(ctx, { file: file2 }, { maxBytes: 1024 * 1024 });
+  const input4 = await openInput(ctx, { file: file2 }, { maxBytes: 1024 * 1024 });
   const lines = [];
-  for await (const line of input3.lines()) lines.push({ number: line.number, text: line.text });
-  return { label: input3.label, lines, read: { source: input3.source, expectedBytes: input3.expectedBytes, bytesRead: input3.bytesRead, truncated: input3.truncated } };
+  for await (const line of input4.lines()) lines.push({ number: line.number, text: line.text });
+  return { label: input4.label, lines, read: { source: input4.source, expectedBytes: input4.expectedBytes, bytesRead: input4.bytesRead, truncated: input4.truncated } };
 }
 var timeConvertCommand = defineCommand({
   path: ["util", "time", "convert"],
@@ -166217,9 +166325,9 @@ var timeConvertCommand = defineCommand({
     { time: "2026-03-08T02:30", zone: "America/New_York", to: ["UTC", "Europe/London"] },
     { time: "2026-11-01T05:30:00Z", to: ["America/New_York", "Asia/Kolkata"] }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { convertTime: convertTime2 } = await Promise.resolve().then(() => (init_run2(), run_exports2));
-    return convertTime2(input3, now(), ctx.warn);
+    return convertTime2(input4, now(), ctx.warn);
   }
 });
 var timeDurationCommand = defineCommand({
@@ -166234,9 +166342,9 @@ var timeDurationCommand = defineCommand({
   args: [{ name: "duration", field: "duration", description: "An ISO 8601 duration, such as PT1H30M", required: false }],
   options: [{ flags: "--seconds <seconds>", field: "seconds", description: "A number of seconds to write as a duration, instead" }],
   examples: [{ duration: "P1DT2H30M" }, { seconds: 93784.5 }],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { durationOf: durationOf2 } = await Promise.resolve().then(() => (init_run2(), run_exports2));
-    return durationOf2(input3, ctx.warn);
+    return durationOf2(input4, ctx.warn);
   }
 });
 var timeBusinessAddCommand = defineCommand({
@@ -166258,9 +166366,9 @@ var timeBusinessAddCommand = defineCommand({
     { start: "2026-12-23", days: 3, holidays: "holidays-2026.txt" },
     { start: "2026-03-06T02:30", days: 1, zone: "America/New_York", holiday: ["2026-01-01"] }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { addDays: addDays2 } = await Promise.resolve().then(() => (init_run2(), run_exports2));
-    return addDays2(input3, now(), { warn: ctx.warn, holidayFile: await holidayFile(ctx, input3.holidays) });
+    return addDays2(input4, now(), { warn: ctx.warn, holidayFile: await holidayFile(ctx, input4.holidays) });
   }
 });
 var timeBusinessDiffCommand = defineCommand({
@@ -166282,9 +166390,9 @@ var timeBusinessDiffCommand = defineCommand({
     { start: "2026-12-24T15:00", end: "2026-12-29T10:00", zone: "America/Chicago", holidays: "holidays-2026.txt" },
     { start: "2026-10-30T17:00:00Z", end: "2026-11-02T09:00:00Z", zone: "Europe/Berlin", holiday: ["2026-11-02"] }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { diffDays: diffDays2 } = await Promise.resolve().then(() => (init_run2(), run_exports2));
-    return diffDays2(input3, now(), { warn: ctx.warn, holidayFile: await holidayFile(ctx, input3.holidays) });
+    return diffDays2(input4, now(), { warn: ctx.warn, holidayFile: await holidayFile(ctx, input4.holidays) });
   }
 });
 var timeCronCommand = defineCommand({
@@ -166313,9 +166421,9 @@ var timeCronCommand = defineCommand({
     { expression: "0 0 12 ? * MON#2", dialect: "quartz", zone: "Europe/London", from: "2026-01-01T00:00:00Z" },
     { expression: "H H(0-7) * * 1-5", dialect: "jenkins", job: "platform/api-build", from: "2026-10-01T00:00:00Z" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { cronRuns: cronRuns2 } = await Promise.resolve().then(() => (init_run2(), run_exports2));
-    return cronRuns2(input3, now(), ctx.warn);
+    return cronRuns2(input4, now(), ctx.warn);
   }
 });
 var timeCommands = [timeConvertCommand, timeDurationCommand, timeBusinessAddCommand, timeBusinessDiffCommand, timeCronCommand];
@@ -166568,11 +166676,11 @@ async function scanFile(scan2, path2) {
       scan2.cantRead({ file: path2, reason: "too-large", message: `${path2} is ${stat.size} bytes, more than the ${DEFAULT_MAX_BYTES} this command reads from one file.` });
       return;
     }
-    const input3 = await openInput(ctx, { file: path2 }, { maxLineLength: MAX_LINE2 });
+    const input4 = await openInput(ctx, { file: path2 }, { maxLineLength: MAX_LINE2 });
     const fileScan = scan2.fileScan(path2);
-    for await (const line of input3.lines()) scanLine(scan2, fileScan, path2, line);
-    scan2.v.inputComplete(input3);
-    scan2.done(fileScan, path2, (lines) => input3.linesAt(lines));
+    for await (const line of input4.lines()) scanLine(scan2, fileScan, path2, line);
+    scan2.v.inputComplete(input4);
+    scan2.done(fileScan, path2, (lines) => input4.linesAt(lines));
   } catch (err) {
     if (err instanceof ToilError && (err.code === "TIMEOUT" || err.code === "CANCELLED")) throw err;
     if (ctx.signal.aborted) throw err;
@@ -166584,11 +166692,11 @@ function scanLine(scan2, fileScan, file2, line) {
   fileScan.line(line.number, line.text);
 }
 async function scanOne(scan2, fields3) {
-  const input3 = await openInput(scan2.ctx, fields3, { maxLineLength: MAX_LINE2 });
+  const input4 = await openInput(scan2.ctx, fields3, { maxLineLength: MAX_LINE2 });
   const fileScan = scan2.fileScan(null);
-  for await (const line of input3.lines()) scanLine(scan2, fileScan, null, line);
-  scan2.v.inputComplete(input3);
-  scan2.done(fileScan, null, (lines) => input3.linesAt(lines));
+  for await (const line of input4.lines()) scanLine(scan2, fileScan, null, line);
+  scan2.v.inputComplete(input4);
+  scan2.done(fileScan, null, (lines) => input4.linesAt(lines));
 }
 async function scanFolder(scan2, dir) {
   const base = dir.replace(/\\/g, "/").replace(/\/+$/, "");
@@ -166732,11 +166840,11 @@ async function readAllowList(ctx, named) {
     }
     if (!present) return null;
   }
-  const input3 = await openInput(ctx, { file: file2 });
+  const input4 = await openInput(ctx, { file: file2 });
   const fingerprints = /* @__PURE__ */ new Set();
   let entries = 0;
   const invalid5 = [];
-  for await (const line of input3.lines()) {
+  for await (const line of input4.lines()) {
     const value2 = line.text.replace(/#.*$/, "").trim();
     if (value2 === "") continue;
     if (FINGERPRINT.test(value2.toLowerCase())) {
@@ -166764,30 +166872,30 @@ var output2 = (h) => ({
   preview: h.preview,
   fingerprint: h.fingerprint
 });
-async function scanSecrets(input3, ctx) {
-  const given2 = [input3.file !== void 0, input3.text !== void 0, input3.diff !== void 0].filter(Boolean).length;
+async function scanSecrets(input4, ctx) {
+  const given2 = [input4.file !== void 0, input4.text !== void 0, input4.diff !== void 0].filter(Boolean).length;
   if (given2 > 1) {
     throw new ToilError("INVALID_INPUT", "Pass one of file, text or diff.", { fix: "file names a file or folder in the workspace, text is the content itself, and diff scans the repository's staged or working-tree changes." });
   }
-  const allow = await readAllowList(ctx, input3.allowFile);
-  const scan2 = new Scan(ctx, input3.mask ?? maskSecret);
+  const allow = await readAllowList(ctx, input4.allowFile);
+  const scan2 = new Scan(ctx, input4.mask ?? maskSecret);
   let source2;
-  if (input3.diff) {
-    source2 = { kind: input3.diff, path: null };
-    await scanDiff(scan2, input3.diff);
-  } else if (input3.text !== void 0) {
+  if (input4.diff) {
+    source2 = { kind: input4.diff, path: null };
+    await scanDiff(scan2, input4.diff);
+  } else if (input4.text !== void 0) {
     source2 = { kind: "text", path: null };
-    await scanOne(scan2, { text: input3.text });
-  } else if (input3.file === void 0 || input3.file === "-") {
+    await scanOne(scan2, { text: input4.text });
+  } else if (input4.file === void 0 || input4.file === "-") {
     source2 = { kind: "stdin", path: null };
-    await scanOne(scan2, input3.file === void 0 ? {} : { file: "-" });
-  } else if (ctx.files.stat(input3.file).type === "directory") {
-    source2 = { kind: "folder", path: input3.file };
-    await scanFolder(scan2, input3.file);
+    await scanOne(scan2, input4.file === void 0 ? {} : { file: "-" });
+  } else if (ctx.files.stat(input4.file).type === "directory") {
+    source2 = { kind: "folder", path: input4.file };
+    await scanFolder(scan2, input4.file);
   } else {
-    source2 = { kind: "file", path: input3.file };
+    source2 = { kind: "file", path: input4.file };
     const before = scan2.unreadable.length;
-    await scanFile(scan2, input3.file);
+    await scanFile(scan2, input4.file);
     const failed3 = scan2.unreadable.slice(before).find((u) => u.reason !== "line-too-long");
     if (failed3) throw new ToilError("INVALID_INPUT", failed3.message, { fix: failed3.reason === "binary" ? "Pass a text file." : "Check the path, and that the file can be read." });
   }
@@ -166843,7 +166951,7 @@ var secretsScanCommand = defineCommand({
     { flags: "--allow-file <file>", field: "allowFile", description: ALLOW }
   ],
   examples: [{ file: "samples/secrets", allowFile: "samples/secrets-allow" }, { text: "deploy to https://jira.imagile.dev with the token from the vault" }, { diff: "staged", allowFile: "samples/secrets-allow" }],
-  run: (input3, ctx) => scanSecrets(input3, ctx)
+  run: (input4, ctx) => scanSecrets(input4, ctx)
 });
 var secretsCommands = [secretsScanCommand];
 
@@ -166853,8 +166961,8 @@ async function runLog(ctx, fields3, options2, limits) {
   const { MAX_LINE: MAX_LINE4, parseFilters: parseFilters2, triageLog: triageLog2 } = await Promise.resolve().then(() => (init_triage(), triage_exports));
   const filters = parseFilters2(options2);
   const streams = fields3.text === void 0 && fields3.file !== void 0 && fields3.file !== "-";
-  const input3 = await openInput(ctx, fields3, { maxBytes: streams ? Number.POSITIVE_INFINITY : DEFAULT_MAX_BYTES, maxLineLength: MAX_LINE4 });
-  return triageLog2(input3, filters, options2, ctx.warn, { signal: ctx.signal, ...limits ? { limits } : {} });
+  const input4 = await openInput(ctx, fields3, { maxBytes: streams ? Number.POSITIVE_INFINITY : DEFAULT_MAX_BYTES, maxLineLength: MAX_LINE4 });
+  return triageLog2(input4, filters, options2, ctx.warn, { signal: ctx.signal, ...limits ? { limits } : {} });
 }
 var SAMPLE_LOG = [
   "[2026-10-14T09:12:20.411Z] [INFO] Running com.imagile.payments.OrderServiceTest",
@@ -166895,8 +167003,8 @@ var logCommand2 = defineCommand({
     { file: "logs/dotnet.log" },
     { text: SAMPLE_LOG }
   ],
-  run: async (input3, ctx) => {
-    const { file: file2, text: text4, ...options2 } = input3;
+  run: async (input4, ctx) => {
+    const { file: file2, text: text4, ...options2 } = input4;
     return runLog(ctx, { file: file2, text: text4 }, options2);
   }
 });
@@ -167168,16 +167276,16 @@ function intAttr(value2) {
   if (value2 === void 0 || !/^\s*\d+\s*$/.test(value2)) return void 0;
   return Number(value2);
 }
-async function streamXml(input3, format4, onEvent) {
+async function streamXml(input4, format4, onEvent) {
   const decoder = new TextDecoder("utf-8");
   const tokenizer = new XmlTokenizer(onEvent);
   try {
-    for await (const chunk of input3.chunks()) tokenizer.write(decoder.decode(chunk, { stream: true }));
+    for await (const chunk of input4.chunks()) tokenizer.write(decoder.decode(chunk, { stream: true }));
     tokenizer.write(decoder.decode());
-    if (!input3.truncated) tokenizer.end();
+    if (!input4.truncated) tokenizer.end();
   } catch (err) {
     if (err instanceof XmlSyntaxError) {
-      throw new ToilError("INVALID_INPUT", `${capital2(input3.label)} is not a well-formed ${format4} report: ${err.message}.`, { fix: "Pass the report as the tool wrote it, whole. A file cut off mid-write is the usual cause." });
+      throw new ToilError("INVALID_INPUT", `${capital2(input4.label)} is not a well-formed ${format4} report: ${err.message}.`, { fix: "Pass the report as the tool wrote it, whole. A file cut off mid-write is the usual cause." });
     }
     throw err;
   }
@@ -167264,7 +167372,7 @@ function rateTolerance(stated) {
 var CONDITION = /\((\d+)\s*\/\s*(\d+)\)/;
 var QUIET = /* @__PURE__ */ new Set(["methods", "conditions"]);
 var PARENT = { sources: "coverage", source: "sources", packages: "coverage", package: "packages", classes: "package", class: "classes", lines: "class", line: "lines" };
-async function readCobertura(input3, v, skips, lowest) {
+async function readCobertura(input4, v, skips, lowest) {
   const path2 = [];
   const scopes = [];
   const files = /* @__PURE__ */ new Map();
@@ -167304,7 +167412,7 @@ async function readCobertura(input3, v, skips, lowest) {
     }
   };
   let rootSeen = false;
-  await streamXml(input3, "Cobertura", (event) => {
+  await streamXml(input4, "Cobertura", (event) => {
     if (event.type === "open") {
       if (ignoring > 0) {
         ignoring++;
@@ -167313,7 +167421,7 @@ async function readCobertura(input3, v, skips, lowest) {
       const name3 = localName(event.name);
       if (!rootSeen) {
         rootSeen = true;
-        expectRoot(event.name, ["coverage"], "Cobertura", input3.label);
+        expectRoot(event.name, ["coverage"], "Cobertura", input4.label);
         path2.push(name3);
         scopes.push({ element: "coverage", name: null, line: event.line, attrs: event.attrs, tally: empty() });
         return;
@@ -167389,7 +167497,7 @@ var DECLARED = ["tests", "failures", "errors", "skipped"];
 var CHECK = { tests: "tests.total", failures: "tests.failures", errors: "tests.errors", skipped: "tests.skipped" };
 var QUIET2 = /* @__PURE__ */ new Set(["system-out", "system-err", "properties"]);
 var RERUN = /* @__PURE__ */ new Set(["flakyFailure", "flakyError", "rerunFailure", "rerunError"]);
-async function readJunit(input3, v, skips) {
+async function readJunit(input4, v, skips) {
   const frames = [{ element: "root", name: null, line: 0, declared: {}, counted: { tests: 0, failures: 0, errors: 0, skipped: 0 } }];
   const failures = [];
   const totals = { flaky: 0 };
@@ -167444,7 +167552,7 @@ async function readJunit(input3, v, skips) {
     }
     failures.push({ suite: c.suite, name: c.name, className: c.className, kind, type: type?.trim() || null, message: messageOf(message, text4), file: file2, line, location: location2, ...trace });
   };
-  await streamXml(input3, "JUnit", (event) => {
+  await streamXml(input4, "JUnit", (event) => {
     if (event.type === "open") {
       if (ignoring > 0) {
         ignoring++;
@@ -167453,7 +167561,7 @@ async function readJunit(input3, v, skips) {
       const name3 = localName(event.name);
       if (!rootSeen) {
         rootSeen = true;
-        expectRoot(event.name, ["testsuites", "testsuite"], "JUnit", input3.label);
+        expectRoot(event.name, ["testsuites", "testsuite"], "JUnit", input4.label);
       }
       const { attrs } = event;
       if (current3) {
@@ -167565,7 +167673,7 @@ var CHECKS = {
 };
 var KNOWN = /* @__PURE__ */ new Set(["TN", "SF", "VER", "FN", "FNDA", "FNF", "FNH", "FNL", "FNA", "DA", "LF", "LH", "BRDA", "BRF", "BRH"]);
 var COUNT = /^\d+$/;
-async function readLcov(input3, v, skips, lowest) {
+async function readLcov(input4, v, skips, lowest) {
   const merged = /* @__PURE__ */ new Map();
   let record2;
   let sawRecord = false;
@@ -167588,7 +167696,7 @@ async function readLcov(input3, v, skips, lowest) {
     for (const [k, t] of r.brda) into.branches.set(k, (into.branches.get(k) ?? 0) + t);
     merged.set(r.file, into);
   };
-  for await (const { number: number4, text: text4 } of input3.lines()) {
+  for await (const { number: number4, text: text4 } of input4.lines()) {
     const line = text4.trim();
     if (line === "") continue;
     if (line === "end_of_record") {
@@ -167695,16 +167803,16 @@ function messageText(message, rule) {
   if (out === null) return null;
   return out.length > MAX_MESSAGE ? `${out.slice(0, MAX_MESSAGE)}\u2026` : out;
 }
-async function readSarif(input3, v, skips, ctx) {
+async function readSarif(input4, v, skips, ctx) {
   let doc;
   try {
-    doc = JSON.parse(await input3.text());
+    doc = JSON.parse(await input4.text());
   } catch (err) {
     if (err instanceof ToilError) throw err;
-    throw new ToilError("INVALID_INPUT", `${capital2(input3.label)} is not valid JSON, so not a SARIF report: ${err.message}.`, { fix: "Pass the .sarif file as the tool wrote it, whole." });
+    throw new ToilError("INVALID_INPUT", `${capital2(input4.label)} is not valid JSON, so not a SARIF report: ${err.message}.`, { fix: "Pass the .sarif file as the tool wrote it, whole." });
   }
   if (!isObject5(doc) || !Array.isArray(doc.runs)) {
-    throw new ToilError("INVALID_INPUT", `${capital2(input3.label)} is JSON but not a SARIF log: it has no "runs" array.`, { fix: "Pass a SARIF 2.1.0 file, or --format (format over MCP) for the report it is." });
+    throw new ToilError("INVALID_INPUT", `${capital2(input4.label)} is JSON but not a SARIF log: it has no "runs" array.`, { fix: "Pass a SARIF 2.1.0 file, or --format (format over MCP) for the report it is." });
   }
   if (doc.version !== "2.1.0") v.approximated("sarif.version", `the file says SARIF version ${JSON.stringify(doc.version ?? null)}; it was read as 2.1.0`);
   v.unchecked("findings.totals", "SARIF declares no totals of its own to recount");
@@ -167821,7 +167929,7 @@ var PARENT2 = {
   TestMethod: "UnitTest",
   Counters: "ResultSummary"
 };
-async function readTrx(input3, v, skips) {
+async function readTrx(input4, v, skips) {
   const path2 = [];
   const counted = {};
   let total = 0;
@@ -167833,7 +167941,7 @@ async function readTrx(input3, v, skips) {
   let result;
   let unitTest = null;
   let capture;
-  await streamXml(input3, "TRX", (event) => {
+  await streamXml(input4, "TRX", (event) => {
     if (event.type === "open") {
       if (ignoring > 0) {
         ignoring++;
@@ -167842,7 +167950,7 @@ async function readTrx(input3, v, skips) {
       const name3 = localName(event.name);
       if (!rootSeen) {
         rootSeen = true;
-        expectRoot(event.name, ["TestRun"], "TRX", input3.label);
+        expectRoot(event.name, ["TestRun"], "TRX", input4.label);
         path2.push(name3);
         return;
       }
@@ -167972,18 +168080,18 @@ function detectFormat(head2) {
   const first = text4.split(/\r?\n/, 1)[0] ?? "";
   return /^(TN|SF|VER):/.test(first) ? "lcov" : void 0;
 }
-async function head(input3) {
+async function head(input4) {
   const decoder = new TextDecoder("utf-8");
   let text4 = "";
-  for await (const chunk of input3.chunks()) {
+  for await (const chunk of input4.chunks()) {
     text4 += decoder.decode(chunk, { stream: true });
     if (text4.length >= HEAD) break;
   }
   return text4;
 }
-async function summariseReport(input3, ctx, readOptions = {}) {
-  const source2 = await openInput(ctx, input3, readOptions);
-  let format4 = input3.format;
+async function summariseReport(input4, ctx, readOptions = {}) {
+  const source2 = await openInput(ctx, input4, readOptions);
+  let format4 = input4.format;
   const formatFrom = format4 === void 0 ? "content" : "flag";
   if (format4 === void 0) {
     format4 = detectFormat(await head(source2));
@@ -167993,7 +168101,7 @@ async function summariseReport(input3, ctx, readOptions = {}) {
       });
     }
   }
-  const lowest = input3.lowest ?? DEFAULT_LOWEST;
+  const lowest = input4.lowest ?? DEFAULT_LOWEST;
   const v = new Verifier(ctx.warn);
   const skips = new Skips();
   let tests = null;
@@ -168061,7 +168169,7 @@ var reportCommand2 = defineCommand({
     { file: "reports/coverage-py.xml", format: "cobertura" },
     { text: SAMPLE_JUNIT }
   ],
-  run: async (input3, ctx) => summariseReport(input3, ctx)
+  run: async (input4, ctx) => summariseReport(input4, ctx)
 });
 var reportCommands2 = [reportCommand2];
 
@@ -168128,22 +168236,22 @@ function warnSoft(g, range2, ctx) {
     ctx.warn({ code: "MAVEN_SOFT_REQUIREMENT", message: "Maven reads a bare version as a soft requirement, which any version satisfies. For exactly that version, write it as [1.0]." });
   }
 }
-async function compare2(input3, ctx) {
-  const g = await grammarFor(input3.ecosystem);
-  const a = parseVersion4(g, input3.a, "Version a,");
-  const b = parseVersion4(g, input3.b, "Version b,");
+async function compare2(input4, ctx) {
+  const g = await grammarFor(input4.ecosystem);
+  const a = parseVersion4(g, input4.a, "Version a,");
+  const b = parseVersion4(g, input4.b, "Version b,");
   const v = new Verifier(ctx.warn);
   const order = sign(g.compare(a, b));
   const reverse = sign(g.compare(b, a));
-  v.expect("compare.antisymmetric", reverse === -order, { at: `${input3.b} against ${input3.a}`, expected: -order, actual: reverse }, { code: "SEMVER_COMPARE_INCONSISTENT" });
+  v.expect("compare.antisymmetric", reverse === -order, { at: `${input4.b} against ${input4.a}`, expected: -order, actual: reverse }, { code: "SEMVER_COMPARE_INCONSISTENT" });
   const difference = g.diff(a, b);
-  v.expect("diff.consistent", difference === null === (order === 0), { at: `${input3.a} and ${input3.b}`, expected: order === 0 ? null : "a difference", actual: difference }, { code: "SEMVER_COMPARE_INCONSISTENT" });
+  v.expect("diff.consistent", difference === null === (order === 0), { at: `${input4.a} and ${input4.b}`, expected: order === 0 ? null : "a difference", actual: difference }, { code: "SEMVER_COMPARE_INCONSISTENT" });
   checkNormalized(g, v, a, "a");
   checkNormalized(g, v, b, "b");
   return {
-    ecosystem: input3.ecosystem,
-    a: input3.a,
-    b: input3.b,
+    ecosystem: input4.ecosystem,
+    a: input4.a,
+    b: input4.b,
     order,
     higher: order > 0 ? "a" : order < 0 ? "b" : null,
     difference,
@@ -168151,17 +168259,17 @@ async function compare2(input3, ctx) {
     verified: v.done()
   };
 }
-async function satisfies4(input3, ctx) {
-  const options2 = rangeOptions(input3);
-  const g = await grammarFor(input3.ecosystem);
-  const version3 = parseVersion4(g, input3.version, "The version");
-  const range2 = parseRange4(g, input3.range, options2);
+async function satisfies4(input4, ctx) {
+  const options2 = rangeOptions(input4);
+  const g = await grammarFor(input4.ecosystem);
+  const version3 = parseVersion4(g, input4.version, "The version");
+  const range2 = parseRange4(g, input4.range, options2);
   warnSoft(g, range2, ctx);
   const v = new Verifier(ctx.warn);
   const answer2 = g.satisfies(range2, version3, options2);
   checkRange(g, v, range2, [version3], options2);
   checkNormalized(g, v, version3, "the version");
-  return { ecosystem: input3.ecosystem, version: input3.version, range: input3.range, normalizedRange: g.formatRange(range2), satisfies: answer2, verified: v.done() };
+  return { ecosystem: input4.ecosystem, version: input4.version, range: input4.range, normalizedRange: g.formatRange(range2), satisfies: answer2, verified: v.done() };
 }
 var PAIRWISE_LIMIT = 2e3;
 function sortEntries(g, entries, v) {
@@ -168192,15 +168300,15 @@ function sortEntries(g, entries, v) {
   }
   return { sorted: sorted2, invalid: invalid5 };
 }
-async function sort(input3, ctx) {
-  const options2 = rangeOptions(input3);
-  if (input3.includePrerelease && input3.range === void 0) {
+async function sort(input4, ctx) {
+  const options2 = rangeOptions(input4);
+  if (input4.includePrerelease && input4.range === void 0) {
     throw new ToilError("INVALID_INPUT", "includePrerelease changes what a range matches, and no range was given.", { fix: "Pass --range too, or drop --include-prerelease." });
   }
-  const g = await grammarFor(input3.ecosystem);
-  const range2 = input3.range === void 0 ? void 0 : parseRange4(g, input3.range, options2);
+  const g = await grammarFor(input4.ecosystem);
+  const range2 = input4.range === void 0 ? void 0 : parseRange4(g, input4.range, options2);
   if (range2 !== void 0) warnSoft(g, range2, ctx);
-  const source2 = await openInput(ctx, input3);
+  const source2 = await openInput(ctx, input4);
   const entries = [];
   const cut2 = [];
   for await (const line of source2.lines()) {
@@ -168225,7 +168333,7 @@ async function sort(input3, ctx) {
     });
   }
   const result = {
-    ecosystem: input3.ecosystem,
+    ecosystem: input4.ecosystem,
     count: sorted2.length,
     sorted: sorted2.map((s) => s.entry.value),
     invalid: invalid5
@@ -168235,32 +168343,32 @@ async function sort(input3, ctx) {
   checkRange(g, v, range2, sorted2.map((s) => s.version), options2);
   return {
     ...result,
-    range: input3.range,
+    range: input4.range,
     normalizedRange: g.formatRange(range2),
     satisfying: satisfying.map((s) => s.entry.value),
     highest: satisfying.at(-1)?.entry.value ?? null,
     verified: v.done()
   };
 }
-async function bump4(input3, ctx) {
-  const g = await grammarFor(input3.ecosystem);
-  const release = input3.release;
+async function bump4(input4, ctx) {
+  const g = await grammarFor(input4.ecosystem);
+  const release = input4.release;
   if (!g.releases.includes(release)) {
-    throw new ToilError("INVALID_INPUT", `"${input3.release}" is not ${A[g.ecosystem]} release to bump: use ${g.releases.join(", ")}.`, {
+    throw new ToilError("INVALID_INPUT", `"${input4.release}" is not ${A[g.ecosystem]} release to bump: use ${g.releases.join(", ")}.`, {
       fix: g.ecosystem === "npm" ? "Pass one of the releases listed." : "Prerelease bumps are npm only (--ecosystem npm); NuGet and Maven take major, minor or patch."
     });
   }
-  if (input3.preid !== void 0 && !release.startsWith("pre")) {
+  if (input4.preid !== void 0 && !release.startsWith("pre")) {
     throw new ToilError("INVALID_INPUT", `preid names the prerelease of a premajor, preminor, prepatch or prerelease bump, and this is a ${release} bump.`, { fix: "Drop --preid, or bump premajor, preminor, prepatch or prerelease." });
   }
-  const version3 = parseVersion4(g, input3.version, "The version");
-  const bumped = g.bump(version3, release, input3.preid);
-  if (!bumped.ok) throw new ToilError("INVALID_INPUT", `Can't bump ${input3.version} (${release}): ${bumped.reason}.`, { fix: VERSION_FIX[g.ecosystem] });
+  const version3 = parseVersion4(g, input4.version, "The version");
+  const bumped = g.bump(version3, release, input4.preid);
+  if (!bumped.ok) throw new ToilError("INVALID_INPUT", `Can't bump ${input4.version} (${release}): ${bumped.reason}.`, { fix: VERSION_FIX[g.ecosystem] });
   const v = new Verifier(ctx.warn);
   const result = g.format(bumped.value);
-  v.expect("bump.increases", g.compare(bumped.value, version3) > 0, { at: `${input3.version} to ${result}`, expected: "higher", actual: g.compare(bumped.value, version3) === 0 ? "equal" : "lower" }, { code: "SEMVER_BUMP_MISMATCH" });
+  v.expect("bump.increases", g.compare(bumped.value, version3) > 0, { at: `${input4.version} to ${result}`, expected: "higher", actual: g.compare(bumped.value, version3) === 0 ? "equal" : "lower" }, { code: "SEMVER_BUMP_MISMATCH" });
   checkNormalized(g, v, bumped.value, "the result");
-  return { ecosystem: input3.ecosystem, version: input3.version, release, ...input3.preid === void 0 ? {} : { preid: input3.preid }, result, verified: v.done() };
+  return { ecosystem: input4.ecosystem, version: input4.version, release, ...input4.preid === void 0 ? {} : { preid: input4.preid }, result, verified: v.done() };
 }
 
 // src/areas/util/semver.ts
@@ -168286,7 +168394,7 @@ var semverCompareCommand = defineCommand({
   ],
   options: [ecosystemOption],
   examples: [{ a: "1.2.3", b: "1.10.0-rc.1" }, { a: "2.17.1", b: "2.17.1.Final", ecosystem: "maven" }, { a: "13.0.1", b: "13.0.1.0-Beta1", ecosystem: "nuget" }],
-  run: (input3, ctx) => compare2({ ...input3, ecosystem: input3.ecosystem ?? "npm" }, ctx)
+  run: (input4, ctx) => compare2({ ...input4, ecosystem: input4.ecosystem ?? "npm" }, ctx)
 });
 var semverSatisfiesCommand = defineCommand({
   path: ["util", "semver", "satisfies"],
@@ -168310,7 +168418,7 @@ var semverSatisfiesCommand = defineCommand({
     { version: "13.0.3", range: "[12.0.1,14.0)", ecosystem: "nuget" },
     { version: "5.3.39", range: "[5.0,6.0)", ecosystem: "maven" }
   ],
-  run: (input3, ctx) => satisfies4({ ...input3, ecosystem: input3.ecosystem ?? "npm" }, ctx)
+  run: (input4, ctx) => satisfies4({ ...input4, ecosystem: input4.ecosystem ?? "npm" }, ctx)
 });
 var semverSortCommand = defineCommand({
   path: ["util", "semver", "sort"],
@@ -168332,7 +168440,7 @@ var semverSortCommand = defineCommand({
     { file: "versions/nuget.txt", ecosystem: "nuget", range: "[12.0,13.0)" },
     { text: "2.17.1 2.14.1 2.17.0-rc1 2.0-beta9 2.17.1.Final 2.17.2-SNAPSHOT", ecosystem: "maven" }
   ],
-  run: (input3, ctx) => sort({ ...input3, ecosystem: input3.ecosystem ?? "npm" }, ctx)
+  run: (input4, ctx) => sort({ ...input4, ecosystem: input4.ecosystem ?? "npm" }, ctx)
 });
 var RELEASE = "major, minor or patch; npm also takes premajor, preminor, prepatch, prerelease and release";
 var semverBumpCommand = defineCommand({
@@ -168356,7 +168464,7 @@ var semverBumpCommand = defineCommand({
     { version: "1.2.3", release: "prerelease", preid: "rc" },
     { version: "3.1.1", release: "major", ecosystem: "nuget" }
   ],
-  run: (input3, ctx) => bump4({ ...input3, ecosystem: input3.ecosystem ?? "npm" }, ctx)
+  run: (input4, ctx) => bump4({ ...input4, ecosystem: input4.ecosystem ?? "npm" }, ctx)
 });
 var semverCommands = [semverCompareCommand, semverSatisfiesCommand, semverSortCommand, semverBumpCommand];
 
@@ -168408,14 +168516,14 @@ var lineCount = (text4) => {
   for (let at9 = text4.indexOf("\n"); at9 !== -1; at9 = text4.indexOf("\n", at9 + 1)) n++;
   return text4.endsWith("\n") ? n : n + 1;
 };
-async function count3(input3) {
+async function count3(input4) {
   const decoder = new TextDecoder("utf-8");
   let head2 = new Uint8Array(0);
   let binary = false;
   let newlines = 0;
   let last = -1;
   let chars = 0;
-  for await (const chunk of input3.chunks()) {
+  for await (const chunk of input4.chunks()) {
     if (head2.length < BINARY_SNIFF) {
       const more = chunk.subarray(0, BINARY_SNIFF - head2.length);
       const joined = new Uint8Array(head2.length + more.length);
@@ -168429,32 +168537,32 @@ async function count3(input3) {
     if (!binary) chars += codePoints(decoder.decode(chunk, { stream: true }));
   }
   if (!binary) chars += codePoints(decoder.decode());
-  const bytes = input3.bytesRead;
+  const bytes = input4.bytesRead;
   return { bytes, lines: bytes === 0 ? 0 : newlines + (last === 10 ? 0 : 1), tokens: Math.ceil(chars / 4), binary };
 }
 var OUTLINE_LIMITS = { timeoutMs: 1e4, maxMemoryMb: 512 };
-async function measure(input3, ctx, limits = OUTLINE_LIMITS) {
-  const named = input3.text === void 0 && input3.file !== void 0 && input3.file !== "-" ? input3.file : void 0;
+async function measure(input4, ctx, limits = OUTLINE_LIMITS) {
+  const named = input4.text === void 0 && input4.file !== void 0 && input4.file !== "-" ? input4.file : void 0;
   if (named !== void 0 && ctx.files.stat(named).type === "directory") {
-    if (input3.language !== void 0) {
+    if (input4.language !== void 0) {
       throw new ToilError("INVALID_INPUT", "language applies to one file, and this is a folder.", { fix: "Leave out language: each file in a folder is told by its extension." });
     }
-    return measureFolder(named, input3, ctx);
+    return measureFolder(named, input4, ctx);
   }
   for (const field4 of ["top", "depth"]) {
-    if (input3[field4] !== void 0) throw new ToilError("INVALID_INPUT", `${field4} applies to a folder, and this is one file.`, { fix: `Leave out ${field4}, or pass a folder.` });
+    if (input4[field4] !== void 0) throw new ToilError("INVALID_INPUT", `${field4} applies to a folder, and this is one file.`, { fix: `Leave out ${field4}, or pass a folder.` });
   }
-  return measureFile(input3, ctx, limits);
+  return measureFile(input4, ctx, limits);
 }
 var clean = (path2) => forwardSlashes(path2).replace(/^(\.\/)+/, "").replace(/\/+$/, "") || ".";
-async function measureFile(input3, ctx, limits) {
+async function measureFile(input4, ctx, limits) {
   const v = new Verifier(ctx.warn);
-  const isFile = input3.text === void 0 && input3.file !== void 0 && input3.file !== "-";
-  const opened = await openInput(ctx, input3, { binary: "allow", ...isFile ? { maxBytes: COUNT_MAX_BYTES } : {} });
+  const isFile = input4.text === void 0 && input4.file !== void 0 && input4.file !== "-";
+  const opened = await openInput(ctx, input4, { binary: "allow", ...isFile ? { maxBytes: COUNT_MAX_BYTES } : {} });
   const counts = await count3(opened);
   v.inputComplete(opened);
   const path2 = opened.source.kind === "file" ? clean(opened.source.path) : null;
-  const language = input3.language ?? (path2 === null ? void 0 : languageOf(path2)) ?? null;
+  const language = input4.language ?? (path2 === null ? void 0 : languageOf(path2)) ?? null;
   let outline = null;
   let notOutlined = null;
   if (counts.binary) notOutlined = { reason: "binary", detail: `It has a NUL byte in its first ${BINARY_SNIFF} bytes, so it was counted in bytes only.` };
@@ -168513,8 +168621,8 @@ function names(line, words, name3) {
   if (IDENTIFIER.test(name3)) return words().has(name3);
   return line.includes(name3) || line.includes(JSON.stringify(name3).slice(1, -1));
 }
-async function verifyOutline(symbols, input3, lines, v) {
-  const reread = await input3.linesAt(symbols.map((s) => s.startLine));
+async function verifyOutline(symbols, input4, lines, v) {
+  const reread = await input4.linesAt(symbols.map((s) => s.startLine));
   const code = { code: "SIZE_OUTLINE_MISMATCH" };
   const wordsOf = /* @__PURE__ */ new Map();
   let shown2 = 0;
@@ -168619,7 +168727,7 @@ function prune(n, depth) {
   if (depth <= 0) return { ...n, folders: [], foldersHidden: n.folders.length };
   return { ...n, folders: n.folders.map((f) => prune(f, depth - 1)), foldersHidden: 0 };
 }
-async function measureFolder(dir, input3, ctx) {
+async function measureFolder(dir, input4, ctx) {
   const v = new Verifier(ctx.warn);
   const root = clean(dir);
   const join20 = (rel) => root === "." ? rel : `${root}/${rel}`;
@@ -168664,8 +168772,8 @@ async function measureFolder(dir, input3, ctx) {
     path: root,
     tokenMethod: TOKEN_METHOD,
     totals: totalsOf(tree),
-    tree: prune(tree, input3.depth ?? DEFAULT_DEPTH),
-    largest: [...files].sort(bySize).slice(0, input3.top ?? DEFAULT_TOP).map(({ folder: _folder, ...f }) => f),
+    tree: prune(tree, input4.depth ?? DEFAULT_DEPTH),
+    largest: [...files].sort(bySize).slice(0, input4.top ?? DEFAULT_TOP).map(({ folder: _folder, ...f }) => f),
     skipped,
     verified: v.done()
   };
@@ -168701,7 +168809,7 @@ var sizeCommand = defineCommand({
     { file: "samples/size/flatted.py" },
     { text: "# Notes\n\n## Budget\n\nTwo lines.\n", language: "markdown" }
   ],
-  run: (input3, ctx) => measure(input3, ctx)
+  run: (input4, ctx) => measure(input4, ctx)
 });
 var sizeCommands = [sizeCommand];
 
@@ -168749,12 +168857,12 @@ var mdCommand = defineCommand({
     { file: "docs/PROJ-142.adf.json", from: "adf" },
     { file: "docs/release-notes.storage.xml", from: "storage" }
   ],
-  run: async (input3, ctx) => {
+  run: async (input4, ctx) => {
     const { convertMarkdown: convertMarkdown2, formats: formats2, MAX_BYTES: MAX_BYTES4 } = await Promise.resolve().then(() => (init_convert(), convert_exports));
-    formats2(input3);
-    const source2 = await openInput(ctx, input3, { maxBytes: MAX_BYTES4 });
+    formats2(input4);
+    const source2 = await openInput(ctx, input4, { maxBytes: MAX_BYTES4 });
     const text4 = await source2.text();
-    return convertMarkdown2({ from: input3.from, to: input3.to, text: text4, source: source2 }, ctx);
+    return convertMarkdown2({ from: input4.from, to: input4.to, text: text4, source: source2 }, ctx);
   }
 });
 var mdCommands = [mdCommand];
@@ -168799,11 +168907,11 @@ var owiMapCommand = defineCommand({
     { file: "owi/ado-get-batch.json", field: ["estimate=Custom.TeamPoints", "estimateUnit=points"] },
     { text: EXAMPLE_ISSUE, command: "github get-issue" }
   ],
-  run: async (input3, ctx) => {
-    const source2 = await openInput(ctx, input3, { maxBytes: MAX_BYTES3 });
+  run: async (input4, ctx) => {
+    const source2 = await openInput(ctx, input4, { maxBytes: MAX_BYTES3 });
     const text4 = await source2.text();
     const { mapOwiInput: mapOwiInput2 } = await Promise.resolve().then(() => (init_run3(), run_exports3));
-    return mapOwiInput2(ctx, { text: text4, source: source2, command: input3.command, key: input3.key, field: input3.field });
+    return mapOwiInput2(ctx, { text: text4, source: source2, command: input4.command, key: input4.key, field: input4.field });
   }
 });
 var owiCommands = [owiMapCommand];
@@ -168869,17 +168977,17 @@ function auditCommands() {
       { flags: "--limit <n>", field: "limit", description: "Most entries to return (default 100)" }
     ],
     examples: [{}, { since: "2026-10-01", command: "jira", connection: "corp-jira", writesOnly: true, limit: 10 }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const log = logOf(ctx);
-      const since2 = input3.since === void 0 ? void 0 : parseSince(input3.since);
+      const since2 = input4.since === void 0 ? void 0 : parseSince(input4.since);
       const { entries, unreadable } = log.read(since2);
       if (unreadable > 0) {
         ctx.warn({ code: "AUDIT_UNREADABLE_LINES", message: `${unreadable} line${unreadable === 1 ? "" : "s"} in ${forwardSlashes(log.dir)} couldn't be read and ${unreadable === 1 ? "was" : "were"} skipped.` });
       }
       if (!log.settings.enabled) ctx.warn({ code: "AUDIT_OFF", message: `The audit log is off ("audit": { "enabled": false } in ${forwardSlashes(log.configFile)}), so nothing new is being recorded.` });
-      const matches2 = (e) => (since2 === void 0 || Date.parse(e.time) >= since2.getTime()) && (input3.command === void 0 || e.command === input3.command || e.command.startsWith(`${input3.command} `)) && (input3.connection === void 0 || e.connection === input3.connection) && (input3.writesOnly !== true || e.writes === true);
+      const matches2 = (e) => (since2 === void 0 || Date.parse(e.time) >= since2.getTime()) && (input4.command === void 0 || e.command === input4.command || e.command.startsWith(`${input4.command} `)) && (input4.connection === void 0 || e.connection === input4.connection) && (input4.writesOnly !== true || e.writes === true);
       const found = entries.filter(matches2).reverse();
-      const limit3 = input3.limit ?? 100;
+      const limit3 = input4.limit ?? 100;
       if (found.length > limit3) {
         ctx.warn({ code: "AUDIT_LIMIT", message: `Showing the newest ${limit3} of ${found.length} matching entries. Narrow the filters (since, command, connection) or raise the limit.` });
       }
@@ -168941,24 +169049,24 @@ function connectionsCommands(areas2) {
       { flags: "--area <area>", field: "area", description: "The area it connects to (asked for when left out)" }
     ],
     examples: [{ name: "corp-jira", area: "jira" }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { config: config5, secrets: secrets2, prompt } = access(ctx);
-      checkName(input3.name);
+      checkName(input4.name);
       const path2 = config5.files.global;
       const file2 = readConfigForEdit(path2);
-      if (file2.connections[input3.name]) {
-        throw new ToilError("INVALID_INPUT", `There's already a connection named "${input3.name}".`, {
-          fix: `Run toil connections login ${input3.name} to replace its secret, or toil connections remove ${input3.name} first.`
+      if (file2.connections[input4.name]) {
+        throw new ToilError("INVALID_INPUT", `There's already a connection named "${input4.name}".`, {
+          fix: `Run toil connections login ${input4.name} to replace its secret, or toil connections remove ${input4.name} first.`
         });
       }
-      if (!prompt) throw needsTerminal("add", input3.name, input3.area ? areaNamed(input3.area) : void 0);
-      const area31 = areaNamed(input3.area ?? await prompt.ask(`Area (${areas2.map((a) => a.name).join(", ")})`, areas2.length === 1 ? areas2[0].name : void 0));
+      if (!prompt) throw needsTerminal("add", input4.name, input4.area ? areaNamed(input4.area) : void 0);
+      const area31 = areaNamed(input4.area ?? await prompt.ask(`Area (${areas2.map((a) => a.name).join(", ")})`, areas2.length === 1 ? areas2[0].name : void 0, "area"));
       const { settings, secretValues } = await askSettings(prompt, area31);
       const parsed = area31.connection.safeParse({ ...area31.defaults ?? {}, ...settings, ...secretValues });
       if (!parsed.success) {
         const keys2 = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? "")).filter(Boolean))];
         throw new ToilError("INVALID_INPUT", `Those settings aren't a valid ${area31.name} connection: check ${keys2.join(", ")}. Nothing was saved.`, {
-          fix: `Run toil connections add ${input3.name} again.`,
+          fix: `Run toil connections add ${input4.name} again.`,
           details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message }))
         });
       }
@@ -168968,16 +169076,16 @@ function connectionsCommands(areas2) {
         ...Object.entries(settings).map(([k, v]) => `${k} ${typeof v === "object" && v !== null ? JSON.stringify(v) : String(v)}`),
         ...Object.keys(secretValues).map((k) => `${k} to the OS credential store`)
       ].join(", ");
-      const answer2 = await prompt.ask(`Save ${input3.name} (${review})? y/n`, "y");
-      if (!/^y(es)?$/i.test(answer2)) throw new ToilError("CANCELLED", "Nothing was saved.", { fix: `Run toil connections add ${input3.name} again.` });
-      const kept = await storeNew(secrets2, input3.name, secretValues, ctx.signal);
-      file2.connections[input3.name] = { area: area31.name, ...settings, ...kept };
-      const others = Object.keys(file2.connections).filter((n) => n !== input3.name && file2.connections[n].area === area31.name);
+      const answer2 = await prompt.ask(`Save ${input4.name} (${review})? y/n`, "y", "confirm");
+      if (!/^y(es)?$/i.test(answer2)) throw new ToilError("CANCELLED", "Nothing was saved.", { fix: `Run toil connections add ${input4.name} again.` });
+      const kept = await storeNew(secrets2, input4.name, secretValues, ctx.signal);
+      file2.connections[input4.name] = { area: area31.name, ...settings, ...kept };
+      const others = Object.keys(file2.connections).filter((n) => n !== input4.name && file2.connections[n].area === area31.name);
       if (others.length === 0 && typeof file2.defaults[area31.name]?.connection !== "string") {
-        file2.defaults[area31.name] = { ...file2.defaults[area31.name] ?? {}, connection: input3.name };
+        file2.defaults[area31.name] = { ...file2.defaults[area31.name] ?? {}, connection: input4.name };
       }
       writeConfigFile(path2, file2);
-      return { name: input3.name, area: area31.name, configFile: slashes3(path2), secrets: whereKept(kept) };
+      return { name: input4.name, area: area31.name, configFile: slashes3(path2), secrets: whereKept(kept) };
     }
   });
   const login = defineConfigCommand({
@@ -168991,26 +169099,26 @@ function connectionsCommands(areas2) {
     kind: "cli-only",
     args: [{ name: "name", field: "name", description: "Connection name" }],
     examples: [{ name: "corp-jira" }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { config: config5, secrets: secrets2, prompt } = access(ctx);
       const path2 = config5.files.global;
       const file2 = readConfigForEdit(path2);
-      const conn = fileConnection(file2, input3.name, config5);
+      const conn = fileConnection(file2, input4.name, config5);
       const area31 = areaNamed(conn.area);
       const keys2 = area31.secrets ?? [];
       if (keys2.length === 0) {
-        throw new ToilError("INVALID_INPUT", `${area31.name} connections have no secret to log in with.`, { fix: `Edit "${input3.name}" in ${slashes3(path2)} instead.` });
+        throw new ToilError("INVALID_INPUT", `${area31.name} connections have no secret to log in with.`, { fix: `Edit "${input4.name}" in ${slashes3(path2)} instead.` });
       }
-      if (!prompt) throw needsTerminal("login", input3.name, area31);
+      if (!prompt) throw needsTerminal("login", input4.name, area31);
       const entered = {};
       for (const key6 of keys2) {
-        const value2 = await prompt.askSecret(secretLabel(area31, key6));
+        const value2 = await prompt.askSecret(secretLabel(area31, key6), `secret:${key6}`);
         if (value2 !== "") entered[key6] = value2;
       }
-      if (Object.keys(entered).length === 0) throw new ToilError("INVALID_INPUT", "Nothing was entered, so nothing changed.", { fix: `Run toil connections login ${input3.name} again.` });
+      if (Object.keys(entered).length === 0) throw new ToilError("INVALID_INPUT", "Nothing was entered, so nothing changed.", { fix: `Run toil connections login ${input4.name} again.` });
       const before = { ...conn };
       for (const [key6, value2] of Object.entries(entered)) {
-        const ref2 = refFor(input3.name, key6);
+        const ref2 = refFor(input4.name, key6);
         await storeVerified(required2(secrets2, ref2), ref2, value2, ctx.signal);
         conn[key6] = `${KEYCHAIN_PREFIX}${ref2}`;
       }
@@ -169019,13 +169127,13 @@ function connectionsCommands(areas2) {
         const old = before[key6];
         if (isKeychainRef(old) && old !== conn[key6]) await deleteUnreferenced(file2, old, secrets2, ctx);
       }
-      return { name: input3.name, area: area31.name, configFile: slashes3(path2), secrets: whereKept(Object.fromEntries(Object.keys(entered).map((k) => [k, conn[k]]))) };
+      return { name: input4.name, area: area31.name, configFile: slashes3(path2), secrets: whereKept(Object.fromEntries(Object.keys(entered).map((k) => [k, conn[k]]))) };
     }
   });
   const list7 = defineConfigCommand({
     path: ["connections", "list"],
     description: "List connections: area, host, writes, and where each value came from. Never prints a secret.",
-    toolDescription: "Lists every toil connection: its name, area, whether it's the area's default, its host, whether writes are on, and where each setting came from (env, ci, file, store or defaults). Never returns a secret or any setting's value other than the host. Use it to find the connection name to pass as `connection` to another tool; set `area` for one area's connections only.",
+    toolDescription: "Lists every toil connection: its name, area, whether it's the area's default, its host, whether writes are on, where each setting came from (env, ci, file, store or defaults), and whether the connection is in the config file (definedIn file) or made by env vars alone (env). Never returns a secret or any setting's value other than the host. Use it to find the connection name to pass as `connection` to another tool; set `area` for one area's connections only.",
     input: external_exports.object({
       area: external_exports.string().optional().describe("Only connections to this area, e.g. jira")
     }),
@@ -169033,10 +169141,11 @@ function connectionsCommands(areas2) {
     writesLocal: false,
     options: [{ flags: "--area <area>", field: "area", description: "Only connections to this area" }],
     examples: [{}, { area: "jira" }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { config: config5 } = access(ctx);
-      if (input3.area !== void 0) areaNamed(input3.area);
-      const connections2 = Object.keys(config5.connections).filter((name3) => input3.area === void 0 || config5.connections[name3].area === input3.area).sort().map((name3) => {
+      if (input4.area !== void 0) areaNamed(input4.area);
+      const inFile = fileConnectionNames(config5);
+      const connections2 = Object.keys(config5.connections).filter((name3) => input4.area === void 0 || config5.connections[name3].area === input4.area).sort().map((name3) => {
         const conn = config5.connections[name3];
         const secretKeys = new Set(areas2.find((a) => a.name === conn.area)?.secrets ?? []);
         const values2 = {};
@@ -169052,7 +169161,8 @@ function connectionsCommands(areas2) {
           isDefault: defaultConnectionName(config5, conn.area) === name3,
           host: hostOf(conn, secretKeys),
           writes: connectionWrites(conn),
-          values: values2
+          values: values2,
+          definedIn: inFile.has(name3) ? "file" : "env"
         };
       });
       return { configFile: slashes3(config5.files.global), connections: connections2 };
@@ -169071,20 +169181,20 @@ function connectionsCommands(areas2) {
     args: [{ name: "name", field: "name", description: "Connection name" }],
     options: [{ flags: "--area <area>", field: "area", description: "Remove it only if it connects to this area" }],
     examples: [{ name: "corp-jira" }, { name: "corp-jira", area: "jira" }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { config: config5, secrets: secrets2 } = access(ctx);
-      if (input3.area !== void 0) areaNamed(input3.area);
+      if (input4.area !== void 0) areaNamed(input4.area);
       const path2 = config5.files.global;
       const file2 = readConfigForEdit(path2);
-      const conn = fileConnection(file2, input3.name, config5);
-      if (input3.area !== void 0 && conn.area !== input3.area) {
-        throw new ToilError("INVALID_INPUT", `Connection "${input3.name}" is ${withArticle(conn.area)} connection, not ${input3.area}. Nothing was removed.`, {
-          fix: `Run toil connections list --area ${input3.area} to see its connections.`
+      const conn = fileConnection(file2, input4.name, config5);
+      if (input4.area !== void 0 && conn.area !== input4.area) {
+        throw new ToilError("INVALID_INPUT", `Connection "${input4.name}" is ${withArticle(conn.area)} connection, not ${input4.area}. Nothing was removed.`, {
+          fix: `Run toil connections list --area ${input4.area} to see its connections.`
         });
       }
-      delete file2.connections[input3.name];
+      delete file2.connections[input4.name];
       const shared = file2.defaults[conn.area];
-      if (shared?.connection === input3.name) {
+      if (shared?.connection === input4.name) {
         delete shared.connection;
         if (Object.keys(shared).length === 0) delete file2.defaults[conn.area];
       }
@@ -169093,7 +169203,7 @@ function connectionsCommands(areas2) {
       for (const value2 of Object.values(conn)) {
         if (isKeychainRef(value2) && await deleteUnreferenced(file2, value2, secrets2, ctx)) deleted.push(refName(value2));
       }
-      return { name: input3.name, area: conn.area, configFile: slashes3(path2), deletedFromStore: deleted };
+      return { name: input4.name, area: conn.area, configFile: slashes3(path2), deletedFromStore: deleted };
     }
   });
   const test = defineConfigCommand({
@@ -169107,12 +169217,12 @@ function connectionsCommands(areas2) {
     writesLocal: false,
     args: [{ name: "name", field: "name", description: "Connection name" }],
     examples: [{ name: "jira" }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { config: config5, secrets: secrets2 } = access(ctx);
-      const settings = config5.connections[input3.name];
-      if (!settings) throw new ToilError("INVALID_INPUT", `There's no connection named "${input3.name}".`, { fix: "Run toil connections list to see the names." });
+      const settings = config5.connections[input4.name];
+      if (!settings) throw new ToilError("INVALID_INPUT", `There's no connection named "${input4.name}".`, { fix: "Run toil connections list to see the names." });
       const area31 = areaNamed(settings.area);
-      const connection5 = await resolveConnection(config5, area31, input3.name, ctx.warn, secrets2, ctx.signal);
+      const connection5 = await resolveConnection(config5, area31, input4.name, ctx.warn, secrets2, ctx.signal);
       const host = hostOf(connection5, new Set(area31.secrets));
       const probe2 = area31.request ? area31.probe?.(connection5) : void 0;
       if (!probe2) {
@@ -169120,18 +169230,18 @@ function connectionsCommands(areas2) {
           code: "NOT_LIVE_TESTED",
           message: `toil has no live check for ${area31.name} connections${area31.probe ? " set up like this one" : ""}, so nothing was sent. The settings are complete and the secret was read.`
         });
-        return { name: input3.name, area: area31.name, host, live: false, authenticated: false, request: null };
+        return { name: input4.name, area: area31.name, host, live: false, authenticated: false, request: null };
       }
       const body = await apiRequest(area31, { fetch: ctx.fetch, signal: ctx.signal, connection: connection5 }, probe2.path, { as: probe2.as ?? "json", ...probe2.query ? { query: probe2.query } : {} });
       if (probe2.accepts && !probe2.accepts(body)) {
-        throw new ToilError("AUTH", `${area31.name} answered GET ${probe2.path} for connection "${input3.name}" as an anonymous user, so its credential wasn't accepted.`, {
-          fix: `Run toil connections login ${input3.name} with a new credential, or replace the one its env var sets.`
+        throw new ToilError("AUTH", `${area31.name} answered GET ${probe2.path} for connection "${input4.name}" as an anonymous user, so its credential wasn't accepted.`, {
+          fix: `Run toil connections login ${input4.name} with a new credential, or replace the one its env var sets.`
         });
       }
       if (probe2.authenticated === false) {
         ctx.warn({ code: "NOT_AUTHENTICATED", message: `${area31.name} has no cheap read that needs the credential, so this test shows the host answers, not that the credential works.` });
       }
-      return { name: input3.name, area: area31.name, host, live: true, authenticated: probe2.authenticated !== false, request: `GET ${probe2.path}` };
+      return { name: input4.name, area: area31.name, host, live: true, authenticated: probe2.authenticated !== false, request: `GET ${probe2.path}` };
     }
   });
   const writes = defineConfigCommand({
@@ -169149,30 +169259,30 @@ function connectionsCommands(areas2) {
       { name: "state", field: "state", description: "on or off" }
     ],
     examples: [{ name: "corp-jira", state: "off" }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { config: config5, prompt } = access(ctx);
       const path2 = config5.files.global;
       const file2 = readConfigForEdit(path2);
-      const conn = fileConnection(file2, input3.name, config5);
-      const on = input3.state === "on";
+      const conn = fileConnection(file2, input4.name, config5);
+      const on = input4.state === "on";
       const was = connectionWrites(conn);
       if (on && !was) {
         if (!prompt) {
           throw new ToilError("INVALID_INPUT", "Turning writes on asks you to type the connection name on a terminal, and this isn't one.", {
-            fix: `Run it in a terminal, or set "writes": true on connection "${input3.name}" in ${slashes3(path2)} yourself (${connectionEnvName(input3.name, "writes")}=true for one process).`
+            fix: `Run it in a terminal, or set "writes": true on connection "${input4.name}" in ${slashes3(path2)} yourself (${connectionEnvName(input4.name, "writes")}=true for one process).`
           });
         }
-        const typed3 = await prompt.ask(`Writes let commands change data in ${conn.area} through "${input3.name}" when a call also passes --allow-write. Type ${input3.name} to turn them on`);
-        if (typed3 !== input3.name) throw new ToilError("CANCELLED", `Writes stay off for "${input3.name}": what was typed didn't match the name.`, { fix: `Run toil connections writes ${input3.name} on again.` });
+        const typed3 = await prompt.ask(`Writes let commands change data in ${conn.area} through "${input4.name}" when a call also passes --allow-write. Type ${input4.name} to turn them on`, void 0, "confirm-name");
+        if (typed3 !== input4.name) throw new ToilError("CANCELLED", `Writes stay off for "${input4.name}": what was typed didn't match the name.`, { fix: `Run toil connections writes ${input4.name} on again.` });
       }
       if (on !== was) {
         if (on) conn.writes = true;
         else delete conn.writes;
         writeConfigFile(path2, file2);
       }
-      const fromEnv2 = config5.sources[`${input3.name}.writes`] === "env";
-      if (fromEnv2) ctx.warn({ code: "OVERRIDDEN_BY_ENV", message: `An env var sets writes for "${input3.name}" and wins over the file; unset ${connectionEnvName(input3.name, "writes")} for this change to apply.` });
-      return { name: input3.name, area: conn.area, writes: on, changed: on !== was, configFile: slashes3(path2) };
+      const fromEnv2 = config5.sources[`${input4.name}.writes`] === "env";
+      if (fromEnv2) ctx.warn({ code: "OVERRIDDEN_BY_ENV", message: `An env var sets writes for "${input4.name}" and wins over the file; unset ${connectionEnvName(input4.name, "writes")} for this change to apply.` });
+      return { name: input4.name, area: conn.area, writes: on, changed: on !== was, configFile: slashes3(path2) };
     }
   });
   const setDefault = defineConfigCommand({
@@ -169186,18 +169296,18 @@ function connectionsCommands(areas2) {
     kind: "cli-only",
     args: [{ name: "name", field: "name", description: "Connection name" }],
     examples: [{ name: "corp-jira" }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { config: config5 } = access(ctx);
       const path2 = config5.files.global;
       const file2 = readConfigForEdit(path2);
-      const conn = fileConnection(file2, input3.name, config5);
+      const conn = fileConnection(file2, input4.name, config5);
       areaNamed(conn.area);
       const previous = typeof file2.defaults[conn.area]?.connection === "string" ? file2.defaults[conn.area].connection : null;
-      if (previous !== input3.name) {
-        file2.defaults[conn.area] = { ...file2.defaults[conn.area] ?? {}, connection: input3.name };
+      if (previous !== input4.name) {
+        file2.defaults[conn.area] = { ...file2.defaults[conn.area] ?? {}, connection: input4.name };
         writeConfigFile(path2, file2);
       }
-      return { name: input3.name, area: conn.area, previous, configFile: slashes3(path2) };
+      return { name: input4.name, area: conn.area, previous, configFile: slashes3(path2) };
     }
   });
   return [add2, login, list7, remove, test, writes, setDefault];
@@ -169221,6 +169331,13 @@ function fileConnection(file2, name3, config5) {
   }
   throw new ToilError("INVALID_INPUT", `There's no connection named "${name3}" in ${slashes3(config5.files.global)}.`, { fix: "Run toil connections list to see the names." });
 }
+function fileConnectionNames(config5) {
+  try {
+    return new Set(Object.keys(readConfigForEdit(config5.files.global).connections));
+  } catch {
+    return new Set(Object.keys(config5.connections).filter((name3) => Object.keys(config5.connections[name3]).some((key6) => config5.sources[`${name3}.${key6}`] === "global")));
+  }
+}
 function needsTerminal(command, name3, area31) {
   const keys2 = area31 ? Object.keys(area31.connection.shape) : ["<key>"];
   const vars = [`${connectionEnvName(name3, "area")}=${area31?.name ?? "<area>"}`, ...keys2.map((k) => connectionEnvName(name3, k))];
@@ -169242,12 +169359,12 @@ async function askSettings(prompt, area31) {
   const settings = {};
   for (const key6 of keys2) {
     const fallback = area31.defaults?.[key6] === void 0 ? void 0 : String(area31.defaults[key6]);
-    const answer2 = await prompt.ask(label(area31, key6), fallback);
+    const answer2 = await prompt.ask(label(area31, key6), fallback, `setting:${key6}`);
     if (answer2 !== "" && answer2 !== fallback) settings[key6] = coerce(shape[key6], answer2);
   }
   const secretValues = {};
   for (const key6 of secretKeys) {
-    const value2 = await prompt.askSecret(secretLabel(area31, key6));
+    const value2 = await prompt.askSecret(secretLabel(area31, key6), `secret:${key6}`);
     if (value2 !== "") secretValues[key6] = value2;
   }
   return { settings, secretValues };
@@ -169333,18 +169450,18 @@ function dossierBuildCommands(areas2) {
     args: [{ name: "name", field: "name", description: "The dossier name, e.g. payments" }],
     options: [{ flags: "--description <text>", field: "description", description: "One line saying what it covers" }],
     examples: [{ name: "billing" }, { name: "billing", description: "Billing platform" }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { catalog } = access2(ctx);
-      if (!CONNECTION_NAME.test(input3.name)) {
-        throw new ToilError("INVALID_INPUT", `"${input3.name}" isn't a valid dossier name.`, { fix: "Use lowercase letters, digits and single hyphens, starting with a letter, e.g. payments." });
+      if (!CONNECTION_NAME.test(input4.name)) {
+        throw new ToilError("INVALID_INPUT", `"${input4.name}" isn't a valid dossier name.`, { fix: "Use lowercase letters, digits and single hyphens, starting with a letter, e.g. payments." });
       }
-      const elsewhere = catalog.scan().files.filter((f) => f.dossier?.name === input3.name);
+      const elsewhere = catalog.scan().files.filter((f) => f.dossier?.name === input4.name);
       const mine = elsewhere.find((f) => f.source === "user");
-      if (mine) throw new ToilError("INVALID_INPUT", `You already have a dossier named "${input3.name}" (${forwardSlashes(mine.file)}).`, { fix: `Change it with toil dossiers link ${input3.name} ..., or choose another name.` });
-      for (const other of elsewhere) ctx.warn({ code: "DOSSIER_DUPLICATE_NAME", message: `A dossier named "${input3.name}" is also in ${forwardSlashes(other.file)} (${other.source}); yours takes precedence.` });
-      const dossier = { name: input3.name, ...input3.description ? { description: input3.description } : {}, repos: [], sections: {}, environments: {} };
-      const file2 = catalog.save(catalog.userFile(input3.name), dossier, "create");
-      return { name: input3.name, file: file2, source: "user", dossier: dossierContent(dossier) };
+      if (mine) throw new ToilError("INVALID_INPUT", `You already have a dossier named "${input4.name}" (${forwardSlashes(mine.file)}).`, { fix: `Change it with toil dossiers link ${input4.name} ..., or choose another name.` });
+      for (const other of elsewhere) ctx.warn({ code: "DOSSIER_DUPLICATE_NAME", message: `A dossier named "${input4.name}" is also in ${forwardSlashes(other.file)} (${other.source}); yours takes precedence.` });
+      const dossier = { name: input4.name, ...input4.description ? { description: input4.description } : {}, repos: [], sections: {}, environments: {} };
+      const file2 = catalog.save(catalog.userFile(input4.name), dossier, "create");
+      return { name: input4.name, file: file2, source: "user", dossier: dossierContent(dossier) };
     }
   });
   const addRepo = defineConfigCommand({
@@ -169365,20 +169482,20 @@ function dossierBuildCommands(areas2) {
       { dossier: "payments", location: "git@git.imagile.dev:pay/fees-svc.git" },
       { dossier: "payments", location: "https://git.imagile.dev/pay/payments-api.git", name: "payments-api", replace: true }
     ],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { catalog } = access2(ctx);
-      const file2 = catalog.find(input3.dossier);
+      const file2 = catalog.find(input4.dossier);
       const dossier = structuredClone(file2.dossier);
-      const isRemote = /^[a-z][a-z0-9+.-]*:\/\//i.test(input3.location) || /^[^@/\\\s]+@[^:/\\\s]+:/.test(input3.location);
+      const isRemote = /^[a-z][a-z0-9+.-]*:\/\//i.test(input4.location) || /^[^@/\\\s]+@[^:/\\\s]+:/.test(input4.location);
       let entry;
       if (isRemote) {
-        if (hasSecretUserinfo(input3.location)) ctx.warn({ code: "DOSSIER_REMOTE_USERINFO", message: "The remote had a credential in it; it was left out of the dossier." });
-        const remote = stripUserinfo(input3.location);
-        entry = { name: input3.name ?? lastPart(remote), remotes: [remote] };
+        if (hasSecretUserinfo(input4.location)) ctx.warn({ code: "DOSSIER_REMOTE_USERINFO", message: "The remote had a credential in it; it was left out of the dossier." });
+        const remote = stripUserinfo(input4.location);
+        entry = { name: input4.name ?? lastPart(remote), remotes: [remote] };
       } else {
-        const { path: path2, repo } = catalog.inspect(input3.location);
+        const { path: path2, repo } = catalog.inspect(input4.location);
         const root = repo?.root ?? forwardSlashes(path2);
-        entry = { name: input3.name ?? basename10(root), path: root, remotes: repo?.origin ? [stripUserinfo(repo.origin)] : [] };
+        entry = { name: input4.name ?? basename10(root), path: root, remotes: repo?.origin ? [stripUserinfo(repo.origin)] : [] };
         if (!repo) ctx.warn({ code: "DOSSIER_NOT_A_REPO", message: `${forwardSlashes(path2)} isn't in a git repository, so only its path was recorded.` });
       }
       const others = dossier.repos.filter((r) => r.name !== entry.name);
@@ -169389,10 +169506,10 @@ function dossierBuildCommands(areas2) {
       }
       const existing = dossier.repos.find((r) => r.name === entry.name);
       const already = existing !== void 0 && (entry.path === void 0 || existing.path !== void 0 && samePath(existing.path, entry.path)) && entry.remotes.every((r) => existing.remotes.some((x) => normalizeRemote(x) === normalizeRemote(r)));
-      if (existing && !already && !input3.replace) {
+      if (existing && !already && !input4.replace) {
         throw new ToilError("INVALID_INPUT", `Dossier ${dossier.name} already has a repo named "${entry.name}".`, { fix: `Pass --replace to replace it, or --name to add this one under another name.` });
       }
-      if (already && !input3.replace) return saved(ctx, catalog, file2, dossier, false, { repo: existing });
+      if (already && !input4.replace) return saved(ctx, catalog, file2, dossier, false, { repo: existing });
       dossier.repos = existing ? dossier.repos.map((r) => r.name === entry.name ? entry : r) : [...dossier.repos, entry];
       return saved(ctx, catalog, file2, dossier, existing === void 0 || JSON.stringify(existing) !== JSON.stringify(entry), { repo: entry });
     }
@@ -169429,9 +169546,9 @@ function dossierBuildCommands(areas2) {
       { dossier: "payments", area: "jira", unbind: true, set: ["project=LEDG"], forRepo: "ledger-svc", replace: true },
       { dossier: "payments", area: "jira", connection: "jira" }
     ],
-    run: async (input3, ctx) => {
-      const area31 = areaNamed(input3.area);
-      return changeSection(access2(ctx), ctx, area31, void 0, input3, false);
+    run: async (input4, ctx) => {
+      const area31 = areaNamed(input4.area);
+      return changeSection(access2(ctx), ctx, area31, void 0, input4, false);
     }
   });
   const env = defineConfigCommand({
@@ -169453,9 +169570,9 @@ function dossierBuildCommands(areas2) {
       { dossier: "payments", env: "prod", area: "openshift", host: "api.ocp.imagile.dev:6443", set: ["namespace=payments-prod"], add: ["deployments=payments-api"] },
       { dossier: "payments", env: "test", area: "openshift", default: true, set: ["namespace=payments-test"], connection: "openshift", unbind: false, forRepo: "payments-api", replace: false }
     ],
-    run: async (input3, ctx) => {
-      const area31 = areaNamed(input3.area);
-      return changeSection(access2(ctx), ctx, area31, input3.env, input3, input3.default === true);
+    run: async (input4, ctx) => {
+      const area31 = areaNamed(input4.area);
+      return changeSection(access2(ctx), ctx, area31, input4.env, input4, input4.default === true);
     }
   });
   const field4 = defineConfigCommand({
@@ -169474,23 +169591,23 @@ function dossierBuildCommands(areas2) {
     args: [dossierArg, { name: "area", field: "area", description: "The area" }, { name: "alias", field: "alias", description: "The friendly name" }, { name: "field-id", field: "id", description: "The service's field id" }],
     options: [replaceOption],
     examples: [{ dossier: "payments", area: "jira", alias: "storyPoints", id: "customfield_10002" }, { dossier: "payments", area: "jira", alias: "acceptanceCriteria", id: "customfield_10234", replace: true }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { catalog } = access2(ctx);
-      areaNamed(input3.area);
-      const file2 = catalog.find(input3.dossier);
+      areaNamed(input4.area);
+      const file2 = catalog.find(input4.dossier);
       const dossier = structuredClone(file2.dossier);
-      const section = { ...dossier.sections[input3.area] ?? {} };
+      const section = { ...dossier.sections[input4.area] ?? {} };
       const fields3 = { ...section.fields ?? {} };
-      const current3 = fields3[input3.alias];
-      const sameId = Object.entries(fields3).find(([alias, id9]) => id9 === input3.id && alias !== input3.alias);
-      if (sameId && !input3.replace) throw new ToilError("INVALID_INPUT", `${input3.id} already has the alias "${sameId[0]}" in dossier ${dossier.name}.`, { fix: `Use "${sameId[0]}", or pass --replace to give it a second alias.` });
-      if (current3 !== void 0 && current3 !== input3.id && !input3.replace) {
-        throw new ToilError("INVALID_INPUT", `"${input3.alias}" already names ${current3} in dossier ${dossier.name}.`, { fix: "Pass --replace to point it at the new field id." });
+      const current3 = fields3[input4.alias];
+      const sameId = Object.entries(fields3).find(([alias, id9]) => id9 === input4.id && alias !== input4.alias);
+      if (sameId && !input4.replace) throw new ToilError("INVALID_INPUT", `${input4.id} already has the alias "${sameId[0]}" in dossier ${dossier.name}.`, { fix: `Use "${sameId[0]}", or pass --replace to give it a second alias.` });
+      if (current3 !== void 0 && current3 !== input4.id && !input4.replace) {
+        throw new ToilError("INVALID_INPUT", `"${input4.alias}" already names ${current3} in dossier ${dossier.name}.`, { fix: "Pass --replace to point it at the new field id." });
       }
-      fields3[input3.alias] = input3.id;
+      fields3[input4.alias] = input4.id;
       section.fields = fields3;
-      dossier.sections[input3.area] = section;
-      return saved(ctx, catalog, file2, dossier, current3 !== input3.id, { area: input3.area, fields: fields3 });
+      dossier.sections[input4.area] = section;
+      return saved(ctx, catalog, file2, dossier, current3 !== input4.id, { area: input4.area, fields: fields3 });
     }
   });
   const exportCommand = defineConfigCommand({
@@ -169512,14 +169629,14 @@ function dossierBuildCommands(areas2) {
       replaceOption
     ],
     examples: [{ dossier: "payments", file: "shared/payments.json" }, { dossier: "payments", repo: ".", replace: true }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { catalog, config: config5, via } = access2(ctx);
-      if (input3.repo === void 0 === (input3.file === void 0)) throw new ToilError("INVALID_INPUT", "Pass exactly one of --repo and --file.", { fix: "toil dossiers export <name> --repo <dir>, or --file <path>." });
-      const source2 = catalog.find(input3.dossier);
+      if (input4.repo === void 0 === (input4.file === void 0)) throw new ToilError("INVALID_INPUT", "Pass exactly one of --repo and --file.", { fix: "toil dossiers export <name> --repo <dir>, or --file <path>." });
+      const source2 = catalog.find(input4.dossier);
       if (via !== "cli") refuseWritesBindings(catalog, config5, areas2, source2.dossier, "export");
       const { dossier, hosts, droppedPaths } = forSharing(source2.dossier, config5);
-      const target2 = input3.repo !== void 0 ? join14(catalog.repoFolder(input3.repo), `${dossier.name}.json`) : catalog.pathFor(input3.file, "The export file");
-      const file2 = catalog.save(target2, dossier, input3.replace ? "replace" : "create");
+      const target2 = input4.repo !== void 0 ? join14(catalog.repoFolder(input4.repo), `${dossier.name}.json`) : catalog.pathFor(input4.file, "The export file");
+      const file2 = catalog.save(target2, dossier, input4.replace ? "replace" : "create");
       return { name: dossier.name, file: file2, hosts, droppedPaths, dossier: dossierContent(dossier) };
     }
   });
@@ -169537,10 +169654,10 @@ function dossierBuildCommands(areas2) {
     args: [{ name: "source", field: "source", description: "A dossier file, or a folder of them" }],
     options: [{ flags: "--name <name>", field: "name", description: "A new name for it (a single file only)" }, replaceOption],
     examples: [{ source: ".toil/dossiers/team.json" }, { source: ".toil/dossiers", name: void 0, replace: true }, { source: ".toil/dossiers/team.json", name: "team-mine", replace: true }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { catalog, config: config5, via } = access2(ctx);
-      const { folder: isDir2, files } = catalog.importFiles(input3.source);
-      if (isDir2 && input3.name !== void 0) throw new ToilError("INVALID_INPUT", "--name renames one dossier, and a folder may hold several.", { fix: "Import the one file with --name, or the folder without it." });
+      const { folder: isDir2, files } = catalog.importFiles(input4.source);
+      if (isDir2 && input4.name !== void 0) throw new ToilError("INVALID_INPUT", "--name renames one dossier, and a folder may hold several.", { fix: "Import the one file with --name, or the folder without it." });
       const found = [];
       const failed3 = [];
       for (const f of files) {
@@ -169554,14 +169671,14 @@ function dossierBuildCommands(areas2) {
       }
       const plan = found.map((f) => {
         if (f.source === "user") throw new ToilError("INVALID_INPUT", `${forwardSlashes(f.file)} is already in your own folder.`, { fix: "It is yours already; change it with toil dossiers link." });
-        const dossier = { ...structuredClone(f.dossier), ...input3.name !== void 0 ? { name: input3.name } : {} };
+        const dossier = { ...structuredClone(f.dossier), ...input4.name !== void 0 ? { name: input4.name } : {} };
         if (!CONNECTION_NAME.test(dossier.name)) throw new ToilError("INVALID_INPUT", `"${dossier.name}" isn't a valid dossier name.`, { fix: "Use lowercase letters, digits and single hyphens, starting with a letter." });
         if (via !== "cli") refuseWritesBindings(catalog, config5, areas2, dossier, "import");
         return { from: f.file, dossier, target: catalog.userFile(dossier.name) };
       });
       const mine = new Map(catalog.scan().files.filter((f) => f.source === "user" && f.dossier).map((f) => [f.dossier.name, f.file]));
       for (const p of plan) {
-        if (mine.has(p.dossier.name) && !input3.replace) {
+        if (mine.has(p.dossier.name) && !input4.replace) {
           throw new ToilError("INVALID_INPUT", `You already have a dossier named "${p.dossier.name}" (${forwardSlashes(mine.get(p.dossier.name))}). Nothing was imported.`, { fix: "Pass --replace to replace yours, or --name to import it under another name." });
         }
       }
@@ -169589,23 +169706,23 @@ function dossierBuildCommands(areas2) {
       { flags: "--env <env>", field: "env", description: "Remove that environment's section for the area instead" }
     ],
     examples: [{ dossier: "payments", area: "jira" }, { dossier: "payments", area: "openshift", env: "prod" }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { catalog } = access2(ctx);
-      const file2 = catalog.find(input3.dossier);
+      const file2 = catalog.find(input4.dossier);
       const dossier = structuredClone(file2.dossier);
-      const where6 = input3.env === void 0 ? input3.area : `environments.${input3.env}.${input3.area}`;
-      const holder = input3.env === void 0 ? dossier.sections : dossier.environments[input3.env];
-      const section = holder?.[input3.area];
+      const where6 = input4.env === void 0 ? input4.area : `environments.${input4.env}.${input4.area}`;
+      const holder = input4.env === void 0 ? dossier.sections : dossier.environments[input4.env];
+      const section = holder?.[input4.area];
       if (!holder || section === void 0) {
         const have = [...Object.keys(dossier.sections), ...Object.entries(dossier.environments).flatMap(([env2, byArea]) => Object.keys(byArea).map((area31) => `${area31} --env ${env2}`))];
         throw new ToilError("INVALID_INPUT", `Dossier ${dossier.name} has no ${where6} section.`, { fix: have.length ? `It has: ${have.join(", ")}.` : "It has no sections yet." });
       }
-      delete holder[input3.area];
-      if (input3.env !== void 0 && Object.keys(holder).length === 0) {
-        delete dossier.environments[input3.env];
-        if (dossier.env === input3.env) delete dossier.env;
+      delete holder[input4.area];
+      if (input4.env !== void 0 && Object.keys(holder).length === 0) {
+        delete dossier.environments[input4.env];
+        if (dossier.env === input4.env) delete dossier.env;
       }
-      return saved(ctx, catalog, file2, dossier, true, { area: input3.area, env: input3.env ?? null, removed: section });
+      return saved(ctx, catalog, file2, dossier, true, { area: input4.area, env: input4.env ?? null, removed: section });
     }
   });
   const remove = defineConfigCommand({
@@ -169618,43 +169735,43 @@ function dossierBuildCommands(areas2) {
     kind: "cli-only",
     args: [{ name: "name", field: "name", description: "The name of a dossier in your own folder" }],
     examples: [{ name: "payments" }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const { catalog } = access2(ctx);
-      const mine = catalog.scan().files.find((f) => f.source === "user" && (f.dossier?.name === input3.name || !f.dossier && basename10(f.file).replace(/\.json$/i, "") === input3.name));
-      if (!mine) throw new ToilError("INVALID_INPUT", `You have no dossier named "${input3.name}" in ${forwardSlashes(catalog.places().user)}.`, { fix: "Run toil dossiers list to see the names. Only your own dossiers can be removed here." });
+      const mine = catalog.scan().files.find((f) => f.source === "user" && (f.dossier?.name === input4.name || !f.dossier && basename10(f.file).replace(/\.json$/i, "") === input4.name));
+      if (!mine) throw new ToilError("INVALID_INPUT", `You have no dossier named "${input4.name}" in ${forwardSlashes(catalog.places().user)}.`, { fix: "Run toil dossiers list to see the names. Only your own dossiers can be removed here." });
       rmSync3(mine.file);
-      return { name: input3.name, file: forwardSlashes(mine.file), deleted: true };
+      return { name: input4.name, file: forwardSlashes(mine.file), deleted: true };
     }
   });
   return [init2, addRepo, link, env, field4, exportCommand, importCommand, unlink, remove];
-  async function changeSection({ catalog, config: config5, via }, ctx, area31, envName2, input3, makeDefault2) {
-    const file2 = catalog.find(input3.dossier);
+  async function changeSection({ catalog, config: config5, via }, ctx, area31, envName2, input4, makeDefault2) {
+    const file2 = catalog.find(input4.dossier);
     const before = file2.dossier;
     const dossier = structuredClone(before);
     const where6 = envName2 === void 0 ? area31.name : `environments.${envName2}.${area31.name}`;
     const section = structuredClone((envName2 === void 0 ? dossier.sections[area31.name] : dossier.environments[envName2]?.[area31.name]) ?? {});
     const refuse2 = (message, fix) => new ToilError("INVALID_INPUT", `${message} (dossier ${dossier.name}, ${where6}).`, { fix });
-    const replace = input3.replace === true;
-    const bindings = [input3.connection !== void 0, input3.host !== void 0, input3.unbind === true].filter(Boolean).length;
+    const replace = input4.replace === true;
+    const bindings = [input4.connection !== void 0, input4.host !== void 0, input4.unbind === true].filter(Boolean).length;
     if (bindings > 1) throw refuse2("Give one of --connection, --host and --unbind", "Each decides the connection on its own.");
-    if (input3.connection !== void 0) {
-      const conn = config5.connections[input3.connection];
-      if (!conn || conn.area !== area31.name) throw refuse2(`You have no ${area31.name} connection named "${input3.connection}"`, `Run toil connections list --area ${area31.name} to see yours.`);
+    if (input4.connection !== void 0) {
+      const conn = config5.connections[input4.connection];
+      if (!conn || conn.area !== area31.name) throw refuse2(`You have no ${area31.name} connection named "${input4.connection}"`, `Run toil connections list --area ${area31.name} to see yours.`);
     }
     const bound = typeof section.connection === "string" ? `connection ${section.connection}` : typeof section.host === "string" ? `host ${section.host}` : void 0;
-    const wanted = input3.connection !== void 0 ? `connection ${input3.connection}` : input3.host !== void 0 ? `host ${input3.host.toLowerCase()}` : void 0;
+    const wanted = input4.connection !== void 0 ? `connection ${input4.connection}` : input4.host !== void 0 ? `host ${input4.host.toLowerCase()}` : void 0;
     if (wanted && bound && wanted !== bound && !replace) throw refuse2(`It already selects ${bound}`, "Pass --replace to select the new one instead.");
-    if (input3.connection !== void 0 || input3.host !== void 0 || input3.unbind) {
+    if (input4.connection !== void 0 || input4.host !== void 0 || input4.unbind) {
       delete section.connection;
       delete section.host;
-      if (input3.connection !== void 0) section.connection = input3.connection;
-      if (input3.host !== void 0) section.host = input3.host.toLowerCase();
+      if (input4.connection !== void 0) section.connection = input4.connection;
+      if (input4.host !== void 0) section.host = input4.host.toLowerCase();
     }
-    if (input3.forRepo !== void 0 && !dossier.repos.some((r) => r.name === input3.forRepo)) {
-      throw refuse2(`It has no repo named "${input3.forRepo}"`, `Add it with toil dossiers add-repo ${dossier.name} <folder|remote> --name ${input3.forRepo}, or use one of: ${dossier.repos.map((r) => r.name).join(", ") || "(no repos yet)"}.`);
+    if (input4.forRepo !== void 0 && !dossier.repos.some((r) => r.name === input4.forRepo)) {
+      throw refuse2(`It has no repo named "${input4.forRepo}"`, `Add it with toil dossiers add-repo ${dossier.name} <folder|remote> --name ${input4.forRepo}, or use one of: ${dossier.repos.map((r) => r.name).join(", ") || "(no repos yet)"}.`);
     }
     const context = area31.context;
-    for (const pair of input3.set ?? []) {
+    for (const pair of input4.set ?? []) {
       const [key6, value2] = keyValue(pair, "--set");
       if (["connection", "host", "fields"].includes(key6)) throw refuse2(`"${key6}" isn't set with --set`, key6 === "fields" ? "Use toil dossiers field." : `Use --${key6}.`);
       if (key6 === "env" && "env" in context) throw refuse2("The environment isn't set with --set", `Use toil dossiers env ${dossier.name} <env> ${area31.name} --default to make it the dossier's environment.`);
@@ -169662,11 +169779,11 @@ function dossierBuildCommands(areas2) {
       const parsed = spec?.schema?.safeParse(value2);
       if (parsed && !parsed.success) throw refuse2(`"${value2}" isn't a valid ${key6}: ${parsed.error.issues.map((i) => i.message).join("; ")}`, "Correct the value.");
       const current3 = section[key6];
-      if (input3.forRepo !== void 0) {
+      if (input4.forRepo !== void 0) {
         if (typeof current3 === "string" && !replace) throw refuse2(`${key6} is already "${current3}" for every repo`, "Pass --replace to make it per repo.");
         const map2 = typeof current3 === "object" && current3 !== null && !Array.isArray(current3) ? { ...current3 } : {};
-        if (map2[input3.forRepo] !== void 0 && map2[input3.forRepo] !== value2 && !replace) throw refuse2(`${key6} is already "${String(map2[input3.forRepo])}" for ${input3.forRepo}`, "Pass --replace to change it.");
-        map2[input3.forRepo] = value2;
+        if (map2[input4.forRepo] !== void 0 && map2[input4.forRepo] !== value2 && !replace) throw refuse2(`${key6} is already "${String(map2[input4.forRepo])}" for ${input4.forRepo}`, "Pass --replace to change it.");
+        map2[input4.forRepo] = value2;
         section[key6] = map2;
       } else {
         if (current3 !== void 0 && current3 !== value2 && !replace) throw refuse2(`${key6} is already ${JSON.stringify(current3)}`, "Pass --replace to change it.");
@@ -169674,7 +169791,7 @@ function dossierBuildCommands(areas2) {
       }
       if (!spec) ctx.warn({ code: "DOSSIER_REFERENCE_KEY", message: `"${key6}" isn't one of ${area31.name}'s context inputs (${Object.keys(context).join(", ") || "it has none"}), so it's kept as reference data and not applied to calls.` });
     }
-    for (const pair of input3.add ?? []) {
+    for (const pair of input4.add ?? []) {
       const [key6, value2] = keyValue(pair, "--add");
       if (key6 in context || ["connection", "host", "fields"].includes(key6)) throw refuse2(`"${key6}" holds one value, not a list`, "Use --set.");
       const current3 = section[key6];
@@ -169830,11 +169947,11 @@ function dossiersCommands(areas2) {
     writesLocal: false,
     options: [cwdOption],
     examples: [{}, { cwd: "." }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const catalog = dossiersOf(ctx);
-      const { files, folder, warnings: warnings2 } = catalog.scan(input3.cwd);
+      const { files, folder, warnings: warnings2 } = catalog.scan(input4.cwd);
       for (const w of warnings2) ctx.warn(w);
-      const places = catalog.places(input3.cwd);
+      const places = catalog.places(input4.cwd);
       const first = /* @__PURE__ */ new Map();
       for (const f of files) if (f.dossier && !first.has(f.dossier.name)) first.set(f.dossier.name, f.file);
       return {
@@ -169862,9 +169979,9 @@ function dossiersCommands(areas2) {
     args: [{ name: "dossier", field: "dossier", description: "A dossier name or file (default: the one the folder matches)", required: false }],
     options: [cwdOption],
     examples: [{ dossier: "payments" }, { dossier: "payments", cwd: "." }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const catalog = dossiersOf(ctx);
-      const applied = chosen(catalog, input3, ctx);
+      const applied = chosen(catalog, input4, ctx);
       const { dossier, source: source2, file: file2 } = applied.file;
       return {
         name: dossier.name,
@@ -169891,20 +170008,20 @@ function dossiersCommands(areas2) {
     args: [{ name: "dossier", field: "dossier", description: "A dossier name or file (default: the one the folder matches)", required: false }],
     options: [cwdOption],
     examples: [{ dossier: "payments" }, { dossier: "payments", cwd: "." }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const catalog = dossiersOf(ctx);
       let target2;
       try {
-        target2 = chosen(catalog, input3, ctx).file;
+        target2 = chosen(catalog, input4, ctx).file;
       } catch (err) {
         const broken = toToilError(err);
         const details = broken.details;
         if (broken.code !== "CONFIG_INVALID" || !details) throw err;
         ctx.setExitCode(1);
-        return { name: input3.dossier ?? null, file: null, source: null, ok: false, problems: details.map((d2) => ({ level: "error", code: "DOSSIER_INVALID", path: d2.path, message: d2.message })), message: broken.message };
+        return { name: input4.dossier ?? null, file: null, source: null, ok: false, problems: details.map((d2) => ({ level: "error", code: "DOSSIER_INVALID", path: d2.path, message: d2.message })), message: broken.message };
       }
       const problems = [...target2.problems.map((p) => p.code === "DOSSIER_REMOTE_USERINFO" ? { ...p, level: "error" } : p), ...bindingProblems(catalog, ctx.manage.config, areas2, target2)];
-      const others = catalog.scan(input3.cwd).files.filter((f) => f.dossier?.name === target2.dossier.name && f.file !== target2.file);
+      const others = catalog.scan(input4.cwd).files.filter((f) => f.dossier?.name === target2.dossier.name && f.file !== target2.file);
       for (const other of others) {
         problems.push({ level: "warning", code: "DOSSIER_DUPLICATE_NAME", path: "name", message: `A dossier with the same name is also in ${forwardSlashes(other.file)} (${other.source}).` });
       }
@@ -169922,8 +170039,8 @@ function dossiersCommands(areas2) {
     writesLocal: false,
     options: [cwdOption],
     examples: [{}, { cwd: "." }],
-    run: async (input3, ctx) => {
-      const selection = dossiersOf(ctx).select({ cwd: input3.cwd });
+    run: async (input4, ctx) => {
+      const selection = dossiersOf(ctx).select({ cwd: input4.cwd });
       for (const w of selection.warnings) ctx.warn(w);
       return contextOut(selection);
     }
@@ -169935,8 +170052,8 @@ function dossiersOf(ctx) {
   if (!ctx.manage.dossiers) throw new ToilError("NOT_CONFIGURED", "Dossiers are not available here.", { fix: "Run toil dossiers from the CLI or toil mcp." });
   return ctx.manage.dossiers;
 }
-function chosen(catalog, input3, ctx) {
-  const selection = catalog.select({ dossier: input3.dossier, cwd: input3.cwd });
+function chosen(catalog, input4, ctx) {
+  const selection = catalog.select({ dossier: input4.dossier, cwd: input4.cwd });
   for (const w of selection.warnings) ctx.warn(w);
   if (selection.applied) return selection.applied;
   const where6 = selection.folder.path ? forwardSlashes(selection.folder.path) : "here";
@@ -170032,6 +170149,207 @@ function contextOut(selection) {
   };
 }
 
+// src/feedback/command.ts
+init_errors();
+
+// src/feedback/consent.ts
+var CONSENT_VERSION = 1;
+var DISCLAIMER = "Your report is sent to Imagile LLC to improve toil, and it becomes a public GitHub issue in imagile-dev/toil. Your email address stays private: it is used only to tell you about your issue. Before you send, remove company data: internal URLs and hostnames, ticket keys, repository and project names, people's names, other identifiers and credentials. You are responsible for what you send.";
+var FEEDBACK_ENDPOINT = "https://func-toil-feedback.azurewebsites.net/api/report";
+var FEEDBACK_FORM = "https://imagile-dev.github.io/toil/feedback/";
+
+// src/feedback/report.ts
+init_errors();
+var KINDS = ["bug", "feature"];
+var MAX_TITLE = 120;
+var MAX_BODY = 4e3;
+var MAX_EMAIL = 254;
+var CONTROL = /[\u0000-\u001f\u007f]+/g;
+var EMAIL2 = /^[^\s@<>()[\]\\,;:"]+@[^\s@<>()[\]\\,;:"]+\.[^\s@<>()[\]\\,;:"]{2,}$/;
+function buildReport(fields3, version3, commit) {
+  const { kind } = fields3;
+  if (kind !== "bug" && kind !== "feature") {
+    throw new ToilError("INVALID_INPUT", kind === void 0 ? "Say what kind of report this is: bug or feature." : `The kind must be bug or feature, not ${JSON.stringify(kind)}.`, {
+      fix: "Run toil feedback bug \u2026 for something broken, or toil feedback feature \u2026 for something you need."
+    });
+  }
+  const title = (fields3.title ?? "").replace(CONTROL, " ").trim();
+  if (title.length < 1 || title.length > MAX_TITLE) {
+    throw new ToilError("INVALID_INPUT", `The title must be 1 to ${MAX_TITLE} characters; it is ${title.length}.`, { fix: "Pass a one-line summary with --title." });
+  }
+  const body = (fields3.body ?? "").replace(/\r\n?/g, "\n").trim();
+  if (body.length < 1 || body.length > MAX_BODY) {
+    throw new ToilError("INVALID_INPUT", `The body must be 1 to ${MAX_BODY} characters; it is ${body.length}.`, {
+      fix: 'Pass the details with --body, or as "body" in a JSON file given with --input-file.'
+    });
+  }
+  const email3 = (fields3.email ?? "").trim();
+  if (email3.length > MAX_EMAIL || !EMAIL2.test(email3)) {
+    throw new ToilError("INVALID_INPUT", email3 ? `${JSON.stringify(email3)} isn't an email address.` : "An email address is needed.", {
+      fix: "Pass yours with --email. It stays private: it is used only to tell you when the issue is filed and when it closes."
+    });
+  }
+  return { kind, title, body, email: email3, consent: CONSENT_VERSION, version: version3, commit };
+}
+function previewText(endpoint3, report) {
+  return `toil would send this to ${endpoint3}:
+${JSON.stringify(report, null, 2)}
+
+${DISCLAIMER}
+
+Send this report to Imagile LLC? Type yes to send it`;
+}
+
+// src/feedback/command.ts
+var REQUEST_TIMEOUT_MS3 = 3e4;
+var input3 = external_exports.object({
+  kind: external_exports.enum(KINDS).optional().describe('bug or feature (or "kind" in --input-file)'),
+  title: external_exports.string().optional().describe(`A one-line summary, up to ${MAX_TITLE} characters (or "title" in --input-file)`),
+  body: external_exports.string().optional().describe(`What happened and what you expected, or what you need, up to ${MAX_BODY} characters (or "body" in --input-file)`),
+  email: external_exports.string().optional().describe('Your email address, kept private: used only to tell you about the issue (or "email" in --input-file)'),
+  inputFile: external_exports.string().min(1).optional().describe("A JSON file with any of kind, title, body and email; a flag beats the file. - reads stdin"),
+  consent: external_exports.boolean().optional().describe("Send it: you have read the report and the disclaimer, and agree. Without it nothing is sent")
+});
+var fileShape = external_exports.object({ kind: external_exports.string(), title: external_exports.string(), body: external_exports.string(), email: external_exports.string() }).partial().strict();
+function readFile(path2, ctx) {
+  let parsed;
+  try {
+    parsed = JSON.parse(ctx.files.readText(path2));
+  } catch (err) {
+    if (err instanceof ToilError) throw err;
+    throw new ToilError("INVALID_INPUT", `--input-file must contain valid JSON: ${err.message}`, {
+      fix: 'Write a JSON object such as {"kind":"bug","title":"\u2026","body":"\u2026","email":"you@example.com"}.'
+    });
+  }
+  const file2 = fileShape.safeParse(parsed);
+  if (!file2.success) {
+    throw new ToilError("INVALID_INPUT", `--input-file must be a JSON object with any of kind, title, body and email, as text: ${external_exports.prettifyError(file2.error)}`, {
+      fix: 'Write a JSON object such as {"kind":"bug","title":"\u2026","body":"\u2026","email":"you@example.com"}, and nothing else.'
+    });
+  }
+  return file2.data;
+}
+function endpointFrom(env) {
+  const raw3 = env.TOIL_FEEDBACK_URL;
+  if (raw3 === void 0 || raw3 === "") return FEEDBACK_ENDPOINT;
+  let url2;
+  try {
+    url2 = new URL(raw3);
+  } catch {
+    url2 = void 0;
+  }
+  const loopback = url2 !== void 0 && url2.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(url2.hostname) && url2.username === "" && url2.password === "";
+  if (!url2 || !loopback || url2.pathname !== "/" && url2.pathname !== "" || url2.search !== "" || url2.hash !== "") {
+    throw new ToilError("CONFIG_INVALID", `TOIL_FEEDBACK_URL is ${JSON.stringify(raw3)}, but it may name only a loopback address, such as http://127.0.0.1:7071.`, {
+      fix: `It exists to test a local copy of the feedback function. Unset it to send to Imagile (${new URL(FEEDBACK_ENDPOINT).origin}); reports go nowhere else.`
+    });
+  }
+  return `${url2.origin}/api/report`;
+}
+var send3 = async (ctx, endpoint3, report) => {
+  const service = "The toil feedback endpoint";
+  try {
+    const response = await restResponse(
+      { fetch: ctx.fetch, signal: ctx.signal ?? new AbortController().signal },
+      endpoint3,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(report), signal: ctx.signal ?? null },
+      {
+        service,
+        authFix: `It refused the report. Try again later, or use the form at ${FEEDBACK_FORM}.`,
+        timeoutMs: REQUEST_TIMEOUT_MS3,
+        // Its 429 is a daily limit, so waiting a few seconds would only delay the same answer.
+        retryRateLimit: false,
+        urlKey: null,
+        // The function answers { ok: false, error: "…" }, a sentence written for the reporter.
+        errorMessage: (body) => {
+          try {
+            const parsed = JSON.parse(body);
+            return typeof parsed.error === "string" ? `${service} refused the report: ${parsed.error}` : void 0;
+          } catch {
+            return void 0;
+          }
+        }
+      }
+    );
+    return typeof response.data?.message === "string" ? response.data.message : "The report was accepted.";
+  } catch (err) {
+    if (!(err instanceof ToilError) || err.code === "CANCELLED" || err.code === "TIMEOUT") throw err;
+    const fix = err.code === "NETWORK" ? `Check that this machine can reach ${new URL(endpoint3).host} (VPN, proxy, DNS), or use the form at ${FEEDBACK_FORM}. Nothing was filed.` : `Nothing was filed. Fix what the message says and run it again, or use the form at ${FEEDBACK_FORM}.`;
+    throw new ToilError(err.code, err.message, { fix, details: err.details });
+  }
+};
+function access3(ctx) {
+  if (!ctx.manage) throw new ToilError("INTERNAL", "toil feedback ran without ctx.manage; it is defined with defineConfigCommand.");
+  return ctx.manage;
+}
+function feedbackCommands(commit = COMMIT) {
+  const feedback = defineConfigCommand({
+    path: ["feedback"],
+    description: "Send a bug report or feature request to Imagile LLC as a public GitHub issue, once you approve it",
+    toolDescription: "Previews a bug report or feature request and, only with consent, sends it to Imagile LLC, where it becomes a public GitHub issue. CLI only. Without --consent it sends nothing and returns the exact report, the disclaimer and how to approve.",
+    input: input3,
+    writes: false,
+    writesLocal: false,
+    kind: "cli-only",
+    args: [{ name: "kind", field: "kind", description: "bug or feature", required: false }],
+    options: [
+      { flags: "--title <text>", field: "title", description: `One-line summary, up to ${MAX_TITLE} characters` },
+      { flags: "--body <text>", field: "body", description: `The details, up to ${MAX_BODY} characters` },
+      { flags: "--email <address>", field: "email", description: "Your email, kept private: used only to tell you about the issue" },
+      { flags: "--input-file <file>", field: "inputFile", description: "JSON with any of kind, title, body and email; a flag beats the file; - reads stdin" },
+      { flags: "--consent", field: "consent", description: "Send it: you read the report and the disclaimer, and agree" }
+    ],
+    // The report's text stays out of the audit log, and the address with it: the log keeps what kind it was and when.
+    auditInput: { title: "hash", body: "hash", email: "drop" },
+    offMcpWhen: (call2) => call2.consent === true ? "consent isn't taken from a program: through the API, a report is sent only on the yes of the person passed as options.person, to the consent question." : void 0,
+    examples: [
+      { kind: "bug", title: "jira search ignores --max-results", body: "toil jira search --max-results 5 returns 50 issues.", email: "you@example.com" },
+      { kind: "feature", title: "A --since flag on jira search", body: "I want only issues updated in the last day.", email: "you@example.com", consent: true }
+    ],
+    run: async (call2, ctx) => {
+      const manage = access3(ctx);
+      const file2 = call2.inputFile ? readFile(call2.inputFile, ctx) : {};
+      const report = buildReport(
+        { kind: call2.kind ?? file2.kind, title: call2.title ?? file2.title, body: call2.body ?? file2.body, email: call2.email ?? file2.email },
+        ctx.version,
+        commit
+      );
+      const endpoint3 = endpointFrom(manage.env);
+      const result = { endpoint: endpoint3, report, consentVersion: CONSENT_VERSION, disclaimer: DISCLAIMER };
+      const noCommit = "This toil doesn't know which commit it was built from, and the feedback endpoint needs one to say which build a report is about.";
+      const elsewhere = `Run a toil installed from npm (npm install -g @imagile-dev/toil), or use the form at ${FEEDBACK_FORM}.`;
+      if (commit === null && call2.consent !== true) {
+        ctx.warn({ code: "FEEDBACK_NOT_SENT", message: `Nothing was sent, and this toil can't send it: ${noCommit} ${elsewhere}` });
+        return { sent: false, ...result, approve: elsewhere };
+      }
+      let approved = call2.consent === true;
+      if (!approved && manage.prompt) {
+        let answer2;
+        try {
+          answer2 = await manage.prompt.ask(previewText(endpoint3, report), "no", "consent");
+        } catch (err) {
+          if (err instanceof ToilError && err.code === "CANCELLED") throw new ToilError("CANCELLED", "Nothing was sent: the report was not approved.", { fix: "Run it again and answer yes to send it." });
+          throw err;
+        }
+        approved = /^(y|yes)$/i.test(answer2.trim());
+      }
+      if (!approved) {
+        ctx.warn({
+          code: "FEEDBACK_NOT_SENT",
+          message: manage.prompt ? "Nothing was sent: the report was not approved." : "Nothing was sent: this is a preview. Read data.report and data.disclaimer, then run the same command with --consent to send exactly that report."
+        });
+        return { sent: false, ...result, approve: "Run the same command with --consent once the person sending it has read the report and the disclaimer and agreed." };
+      }
+      if (commit === null) {
+        throw new ToilError("UNSUPPORTED", `${noCommit} Nothing was sent.`, { fix: elsewhere });
+      }
+      const message = await send3(ctx, endpoint3, report);
+      return { sent: true, ...result, message };
+    }
+  });
+  return [feedback];
+}
+
 // src/repos/commands.ts
 init_errors();
 function reposCommands() {
@@ -170048,10 +170366,10 @@ function reposCommands() {
     args: [{ name: "folder", field: "folder", description: "The folder to scan (default: the workspace)", required: false }],
     options: [{ flags: "--depth <n>", field: "depth", description: "How many folder levels below it to look (default 3)" }],
     examples: [{}, { folder: ".", depth: 1 }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const catalog = ctx.manage?.dossiers;
       if (!catalog) throw new ToilError("NOT_CONFIGURED", "Scanning is not available here.", { fix: "Run toil repos scan from the CLI or toil mcp." });
-      return catalog.scanRepos(input3.folder, input3.depth ?? 3);
+      return catalog.scanRepos(input4.folder, input4.depth ?? 3);
     }
   });
   return [scan2];
@@ -170170,15 +170488,15 @@ function nodeSetupHost() {
   };
 }
 function setupCommands(host = nodeSetupHost) {
-  const target2 = (input3, ctx) => {
+  const target2 = (input4, ctx) => {
     const h = host();
     const config5 = ctx.manage?.config;
     if (!config5) throw new ToilError("INTERNAL", "setup commands need the config they were defined to get.");
-    const shell = pickShell(input3.shell, input3.profile, h);
+    const shell = pickShell(input4.shell, input4.profile, h);
     return {
       h,
       shell,
-      profile: input3.profile ?? profileFor(shell, h),
+      profile: input4.profile ?? profileFor(shell, h),
       protect: [join16(h.home, ".toil"), config5.files.global]
     };
   };
@@ -170191,8 +170509,8 @@ function setupCommands(host = nodeSetupHost) {
     kind: "cli-only",
     options,
     examples: [{ shell: "bash" }],
-    run: async (input3, ctx) => {
-      const { h, shell, profile, protect } = target2(input3, ctx);
+    run: async (input4, ctx) => {
+      const { h, shell, profile, protect } = target2(input4, ctx);
       fromClone(h.bundle);
       const block2 = aliasBlock(shell, h.bundle);
       let change2 = "unchanged";
@@ -170220,8 +170538,8 @@ function setupCommands(host = nodeSetupHost) {
     kind: "cli-only",
     options,
     examples: [{ shell: "zsh" }],
-    run: async (input3, ctx) => {
-      const { shell, profile, protect, h } = target2(input3, ctx);
+    run: async (input4, ctx) => {
+      const { shell, profile, protect, h } = target2(input4, ctx);
       let removed = false;
       const edited = editProfile({ path: profile, cwd: h.cwd, protect }, (text4, path2) => {
         const result = withoutBlock(text4, path2);
@@ -170270,28 +170588,28 @@ function skillsConfigCommands() {
       { flags: "--provider <provider>", field: "provider", description: "Git host type, when detection guesses wrong: github | bitbucket | ado | git" }
     ],
     examples: [{ url: "https://bitbucket.imagile.dev/scm/ai/skills.git", name: "corp-skills", allowWrite: true }],
-    run: async (input3, ctx) => {
-      const { config: config5, secrets: secrets2, prompt } = access3(ctx);
+    run: async (input4, ctx) => {
+      const { config: config5, secrets: secrets2, prompt } = access4(ctx);
       const roots = rootsOf(ctx);
-      const url2 = checkRepoUrl(input3.url);
-      const name3 = input3.name ?? nameFromRepo(repoNameFromUrl(input3.url));
+      const url2 = checkRepoUrl(input4.url);
+      const name3 = input4.name ?? nameFromRepo(repoNameFromUrl(input4.url));
       if (!CONNECTION_NAME.test(name3)) {
         throw new ToilError("INVALID_INPUT", `"${name3}" isn't a valid marketplace name.`, { fix: "Use lowercase letters, digits and single hyphens, starting with a letter, e.g. corp-skills." });
       }
       const path2 = config5.files.global;
       const file2 = readConfigForEdit(path2);
       const existing = file2.connections[name3];
-      if (existing && (existing.area !== AREA || existing.repoUrl !== input3.url)) {
+      if (existing && (existing.area !== AREA || existing.repoUrl !== input4.url)) {
         throw new ToilError("INVALID_INPUT", `There's already a connection named "${name3}"${existing.area === AREA ? ` for ${String(existing.repoUrl)}` : `, for ${existing.area}`}.`, {
           fix: "Pass --name with another name, or remove the existing one first."
         });
       }
-      const sameUrl = Object.entries(file2.connections).find(([n, c]) => n !== name3 && c.area === AREA && c.repoUrl === input3.url);
+      const sameUrl = Object.entries(file2.connections).find(([n, c]) => n !== name3 && c.area === AREA && c.repoUrl === input4.url);
       if (sameUrl) {
-        throw new ToilError("INVALID_INPUT", `${input3.url} is already registered as marketplace "${sameUrl[0]}".`, { fix: `Run toil skills marketplace sync --marketplace ${sameUrl[0]} --allow-write to refresh it.` });
+        throw new ToilError("INVALID_INPUT", `${input4.url} is already registered as marketplace "${sameUrl[0]}".`, { fix: `Run toil skills marketplace sync --marketplace ${sameUrl[0]} --allow-write to refresh it.` });
       }
       const before = existing ? asMarketplace(name3, existing) : void 0;
-      const dir = input3.localPath ? isAbsolute11(input3.localPath) ? resolve9(input3.localPath) : ctx.files.resolve(input3.localPath) : clonePathOf({ name: name3, repoUrl: input3.url, localPath: before?.localPath }, roots.home);
+      const dir = input4.localPath ? isAbsolute11(input4.localPath) ? resolve9(input4.localPath) : ctx.files.resolve(input4.localPath) : clonePathOf({ name: name3, repoUrl: input4.url, localPath: before?.localPath }, roots.home);
       checkClonePath(dir, roots.home, path2);
       let token = "";
       if (url2 && prompt) token = await prompt.askSecret(`Access token for ${url2.host} (leave empty for a public repository)`);
@@ -170305,11 +170623,11 @@ function skillsConfigCommands() {
       const cloneToken = token || kept;
       const m2 = {
         name: name3,
-        repoUrl: input3.url,
+        repoUrl: input4.url,
         localPath: dir,
-        branch: input3.branch ?? before?.branch,
-        username: input3.username ?? before?.username,
-        provider: input3.provider ?? before?.provider,
+        branch: input4.branch ?? before?.branch,
+        username: input4.username ?? before?.username,
+        provider: input4.provider ?? before?.provider,
         ...cloneToken ? { token: cloneToken } : {}
       };
       const reused = isClone(dir);
@@ -170329,11 +170647,11 @@ function skillsConfigCommands() {
       const conn = {
         ...existing ?? {},
         area: AREA,
-        repoUrl: input3.url,
+        repoUrl: input4.url,
         localPath: dir,
-        ...input3.branch ? { branch: input3.branch } : {},
-        ...input3.username ? { username: input3.username } : {},
-        ...input3.provider ? { provider: input3.provider } : {},
+        ...input4.branch ? { branch: input4.branch } : {},
+        ...input4.username ? { username: input4.username } : {},
+        ...input4.provider ? { provider: input4.provider } : {},
         ...tokenRef ? { token: tokenRef } : {}
       };
       file2.connections[name3] = conn;
@@ -170342,14 +170660,14 @@ function skillsConfigCommands() {
       writeConfigFile(path2, file2);
       if (existing?.token && token && isKeychainRef(existing.token) && existing.token !== tokenRef) await deleteUnreferenced2(file2, existing.token, ctx);
       const available = pluginsIn(dir).map((p) => ({ name: p.name, description: p.description }));
-      const after = loadConfig({ env: access3(ctx).env, cwd: roots.home, home: roots.home, configPath: path2, areas: [{ name: AREA }] });
+      const after = loadConfig({ env: access4(ctx).env, cwd: roots.home, home: roots.home, configPath: path2, areas: [{ name: AREA }] });
       const writes = connectionWrites(after.connections[name3]);
       const fromEnv2 = after.sources[`${name3}.writes`] === "env";
       return {
         name: name3,
-        repoUrl: input3.url,
+        repoUrl: input4.url,
         localPath: slashes2(dir),
-        branch: input3.branch ?? null,
+        branch: input4.branch ?? null,
         tokenConfigured: tokenRef !== void 0,
         tokenStorage: tokenRef === void 0 ? null : "keychain",
         provider: providerOf(m2),
@@ -170370,7 +170688,7 @@ function skillsConfigCommands() {
     writesLocal: false,
     examples: [{}],
     run: async (_input, ctx) => {
-      const { config: config5 } = access3(ctx);
+      const { config: config5 } = access4(ctx);
       const roots = rootsOf(ctx);
       const marketplaces = marketplacesIn(config5).map(([name3, c]) => {
         const dir = clonePathOf(asMarketplace(name3, c), roots.home);
@@ -170398,9 +170716,9 @@ function skillsConfigCommands() {
     writesLocal: false,
     args: [{ name: "name", field: "name", description: "Marketplace name (or repo URL) to inspect" }],
     examples: [{ name: "skills" }],
-    run: async (input3, ctx) => {
-      const { config: config5 } = access3(ctx);
-      const [name3, c] = findMarketplace(config5, input3.name);
+    run: async (input4, ctx) => {
+      const { config: config5 } = access4(ctx);
+      const [name3, c] = findMarketplace(config5, input4.name);
       const dir = clonePathOf(asMarketplace(name3, c), rootsOf(ctx).home);
       if (!isClone(dir)) {
         throw new ToilError("INVALID_INPUT", `Marketplace ${name3} isn't cloned yet: nothing at ${slashes2(dir)}.`, {
@@ -170420,17 +170738,17 @@ function skillsConfigCommands() {
     kind: "cli-only",
     args: [{ name: "name", field: "name", description: "Name of the marketplace to remove" }],
     examples: [{ name: "corp-skills" }],
-    run: async (input3, ctx) => {
-      const { config: config5 } = access3(ctx);
+    run: async (input4, ctx) => {
+      const { config: config5 } = access4(ctx);
       const roots = rootsOf(ctx);
       const path2 = config5.files.global;
       const file2 = readConfigForEdit(path2);
-      const entry = Object.entries(file2.connections).find(([n, c]) => c.area === AREA && (n === input3.name || c.repoUrl === input3.name));
+      const entry = Object.entries(file2.connections).find(([n, c]) => c.area === AREA && (n === input4.name || c.repoUrl === input4.name));
       if (!entry) {
-        const fromEnv2 = marketplacesIn(config5).some(([n, c]) => n === input3.name || c.repoUrl === input3.name);
+        const fromEnv2 = marketplacesIn(config5).some(([n, c]) => n === input4.name || c.repoUrl === input4.name);
         throw new ToilError(
           "INVALID_INPUT",
-          fromEnv2 ? `Marketplace "${input3.name}" is defined by env vars, not your config file, so there's nothing here to remove.` : `Marketplace "${input3.name}" not found.`,
+          fromEnv2 ? `Marketplace "${input4.name}" is defined by env vars, not your config file, so there's nothing here to remove.` : `Marketplace "${input4.name}" not found.`,
           { fix: fromEnv2 ? "Unset its TOIL_CONN_<NAME>_* variables instead." : "Run: toil skills marketplace list" }
         );
       }
@@ -170472,11 +170790,11 @@ function skillsConfigCommands() {
       { flags: "--scope <scope>", field: "scope", description: "Only show this scope: project | user | custom" }
     ],
     examples: [{}, { marketplace: "skills", plugin: "review", source: "marketplace", agent: "codex", scope: "user" }],
-    run: async (input3, ctx) => {
-      const { config: config5 } = access3(ctx);
+    run: async (input4, ctx) => {
+      const { config: config5 } = access4(ctx);
       const roots = rootsOf(ctx);
       const registered = marketplacesIn(config5);
-      const folders = knownFolders(roots).filter((f) => (!input3.agent || f.agent === input3.agent) && (!input3.scope || f.scope === input3.scope));
+      const folders = knownFolders(roots).filter((f) => (!input4.agent || f.agent === input4.agent) && (!input4.scope || f.scope === input4.scope));
       const locations = folders.map((f) => summarize(f.agent, f.scope, f.dir));
       const origins = /* @__PURE__ */ new Map();
       const originOf = (dir) => {
@@ -170515,7 +170833,7 @@ function skillsConfigCommands() {
         for (const name3 of activeSkills(f.dir)) push(name3, recordOf(meta3, f.dir, name3), true);
         for (const [name3, record2] of Object.entries(meta3.disabled ?? {})) push(name3, record2, false);
       }
-      const shown2 = skills.filter((r) => !input3.plugin || r.plugin === input3.plugin).filter((r) => !input3.source || r.source === input3.source).filter((r) => !input3.marketplace || r.marketplace === input3.marketplace || r.repoUrl === input3.marketplace).sort((a, b) => a.location.localeCompare(b.location) || a.skill.localeCompare(b.skill));
+      const shown2 = skills.filter((r) => !input4.plugin || r.plugin === input4.plugin).filter((r) => !input4.source || r.source === input4.source).filter((r) => !input4.marketplace || r.marketplace === input4.marketplace || r.repoUrl === input4.marketplace).sort((a, b) => a.location.localeCompare(b.location) || a.skill.localeCompare(b.skill));
       const byMarketplace = {};
       for (const r of shown2) byMarketplace[r.marketplace ?? "(none)"] = (byMarketplace[r.marketplace ?? "(none)"] ?? 0) + 1;
       const stale = shown2.filter((r) => r.stale).length;
@@ -170535,7 +170853,7 @@ function skillsConfigCommands() {
   });
   return [add2, list7, plugins, remove, status];
 }
-function access3(ctx) {
+function access4(ctx) {
   if (!ctx.manage) throw new Error("A skills config command ran without ctx.manage; define it with defineConfigCommand.");
   return ctx.manage;
 }
@@ -170568,7 +170886,7 @@ function tokenStorage(config5, name3, c) {
 async function deleteUnreferenced2(file2, value2, ctx) {
   const stillUsed = [...Object.values(file2.connections), ...Object.values(file2.defaults)].some((s) => Object.values(s).includes(value2));
   if (stillUsed) return false;
-  const { secrets: secrets2 } = access3(ctx);
+  const { secrets: secrets2 } = access4(ctx);
   try {
     if (!secrets2) throw new Error("no OS credential store is available here");
     return await secrets2.delete(refName(value2), ctx.signal);
@@ -170581,14 +170899,14 @@ async function deleteUnreferenced2(file2, value2, ctx) {
 // src/skills/skill-commands.ts
 import { join as join18 } from "node:path";
 function describe4(ctx, areas2) {
-  const { config: config5 } = access4(ctx);
+  const { config: config5 } = access5(ctx);
   return describeConfig(
     config5,
     areas2.map((a) => a.name),
     connectionsInFile(config5.files.global)
   );
 }
-function access4(ctx) {
+function access5(ctx) {
   if (!ctx.manage) throw new Error("A skill command ran without ctx.manage; define it with defineConfigCommand.");
   return ctx.manage;
 }
@@ -170615,10 +170933,10 @@ function skillCommands(areas2) {
       { flags: "--scope <scope>", field: "scope", description: "Installation scope: project | user (default: user)" }
     ],
     examples: [{ allowWrite: true }, { agent: "github-copilot", scope: "project", allowWrite: true }, { claude: true, allowWrite: true }],
-    run: async (input3, ctx) => {
+    run: async (input4, ctx) => {
       const roots = realRoots(rootsOf(ctx));
-      const agent = agentOf(input3);
-      const scope = input3.scope ?? "user";
+      const agent = agentOf(input4);
+      const scope = input4.scope ?? "user";
       const dir = skillsDir(agent, scope, roots);
       const d2 = describe4(ctx, areas2);
       const { replaced } = installBundledSkill({ agent, scope, dir }, d2, ctx.version);
@@ -170670,7 +170988,7 @@ function skillCommands(areas2) {
 
 // src/registry.ts
 var areas = modules.flatMap((m2) => m2.area ? [m2.area] : []);
-var commands33 = withCoreAliases([...modules.flatMap((m2) => m2.commands), ...connectionsCommands(areas), ...dossiersCommands(areas), ...dossierBuildCommands(areas), ...reposCommands(), ...skillsConfigCommands(), ...skillCommands(areas), ...setupCommands(), ...auditCommands(), waitCommand], areas);
+var commands33 = withCoreAliases([...modules.flatMap((m2) => m2.commands), ...connectionsCommands(areas), ...dossiersCommands(areas), ...dossierBuildCommands(areas), ...reposCommands(), ...skillsConfigCommands(), ...skillCommands(areas), ...setupCommands(), ...auditCommands(), ...feedbackCommands(), waitCommand], areas);
 assertUniquePaths(commands33);
 var ROUTED_ALIASES = [
   {
@@ -170736,7 +171054,7 @@ var PALETTE = {
   amber: [255, 184, 77],
   ink: [246, 241, 233],
   muted: [180, 169, 152],
-  faint: [133, 122, 108],
+  faint: [153, 141, 126],
   bg: [22, 19, 15]
 };
 function detectCaps(out, env, platform = process.platform) {
@@ -171326,7 +171644,7 @@ function look(g) {
     g.cards.push({ tone: m2.kind.trait === "boss" ? "boss" : "robot", heading: m2.kind.name, title: robot.title, lines: [robot.quote] });
   }
 }
-function act(game, input3) {
+function act(game, input4) {
   const g = structuredClone(game);
   g.fx = [];
   if (g.status === "intro") {
@@ -171342,8 +171660,8 @@ function act(game, input3) {
   if (g.player.stun > 0) {
     g.player.stun -= 1;
     say(g, STUCK);
-  } else if (input3 !== "wait") {
-    const d2 = STEPS[input3];
+  } else if (input4 !== "wait") {
+    const d2 = STEPS[input4];
     const to = { x: g.player.x + d2.x, y: g.player.y + d2.y };
     const mob = mobAt(g, to.x, to.y);
     const agent = agentAt(g, to.x, to.y);
@@ -171925,7 +172243,7 @@ function playRogue(io) {
         finish5(err);
       }
     };
-    const play = (input3) => {
+    const play = (input4) => {
       const before = game;
       if (before.status === "won" || before.status === "lost") {
         mode = "lobby";
@@ -171933,7 +172251,7 @@ function playRogue(io) {
         selected2 = 0;
         return;
       }
-      const after = act(before, input3);
+      const after = act(before, input4);
       if (after === before) return;
       game = after;
       since2 = 0;
@@ -171971,8 +172289,8 @@ function playRogue(io) {
       guarded((key6) => {
         if (done) return;
         if (refusal(io.caps(), io.movesCursor)) return stop();
-        const input3 = inputOf(key6);
-        if (input3 === "quit") {
+        const input4 = inputOf(key6);
+        if (input4 === "quit") {
           if (mode === "lobby") return stop();
           if (game?.status === "play") saveNotice = "Run forfeited. Unused effort does not roll over.";
           mode = "lobby";
@@ -171987,12 +172305,12 @@ function playRogue(io) {
           if (!key6.ctrl) lobby(key6);
           return void draw3();
         }
-        if (input3 === "legend") {
+        if (input4 === "legend") {
           legend = !legend;
           return void draw3();
         }
         const g = game;
-        const move = input3 ?? (!key6.ctrl && (g.status !== "play" || g.cards.length) ? "wait" : void 0);
+        const move = input4 ?? (!key6.ctrl && (g.status !== "play" || g.cards.length) ? "wait" : void 0);
         if (move) play(move);
         sync2();
         draw3();
@@ -172258,18 +172576,19 @@ var TAGLINE = "Let your agents handle the toil.";
 var SPEED = 1.25;
 var LETTERS = [
   // t
-  [".##..", ".##..", "#####", ".##..", ".##..", ".##..", ".##..", ".##..", ".##..", "..###"],
+  [".......", ".......", "..###..", "..###..", "..###..", "#######", "#######", "..###..", "..###..", "..###..", "..###..", "..###..", "..####.", "...####"],
   // o
-  ["......", "......", "......", ".####.", "##..##", "##..##", "##..##", "##..##", "##..##", ".####."],
+  [".........", ".........", ".........", ".........", ".........", "..#####..", ".#######.", "###...###", "###...###", "###...###", "###...###", "###...###", ".#######.", "..#####.."],
   // i
-  ["##", "##", "..", "##", "##", "##", "##", "##", "##", "##"],
+  ["...", "###", "###", "...", "...", "###", "###", "###", "###", "###", "###", "###", "###", "###"],
   // l
-  ["##.", "##.", "##.", "##.", "##.", "##.", "##.", "##.", "##.", ".##"]
+  ["###", "###", "###", "###", "###", "###", "###", "###", "###", "###", "###", "###", "###", "###"]
 ];
 var WORD5 = LETTERS[0].map((_2, row) => LETTERS.map((letter) => letter[row]).join(".."));
 var WORD_WIDTH = WORD5[0].length;
 var LOGO_WIDTH = 32;
 var GAP = 3;
+var LEAD = 2;
 var clamp2 = (v) => Math.max(0, Math.min(1, v));
 function wordmarkCells(t, caps, scale = 1) {
   const reveal = clamp2((t - 0.3) / 0.6) * (WORD_WIDTH + 4);
@@ -172307,9 +172626,7 @@ function splashFrame(t, caps, version3) {
   const dot = caps.unicode ? "\xB7" : "-";
   const wide = caps.columns >= LOGO_WIDTH + GAP + WORD_WIDTH * 2 + 6;
   const side = [
-    [],
-    [],
-    [],
+    ...Array.from({ length: LEAD }, () => []),
     ...wordmarkCells(t, caps, wide ? 2 : 1),
     [],
     textCells(typed2(TAGLINE, t, 0.9, 1.4), PALETTE.ink),
@@ -172318,7 +172635,7 @@ function splashFrame(t, caps, version3) {
     textCells(t > 1.5 ? `toil ${version3} ${dot} by Imagile` : "", PALETTE.faint)
   ];
   const stacked = caps.columns < LOGO_WIDTH + GAP + Math.max(WORD_WIDTH, TAGLINE.length) + 4;
-  const rows = stacked ? [...logo, ...side.slice(3)].map((row) => [{ ch: " " }, ...row]) : logo.map((row, i) => [{ ch: " " }, ...row, ...blank2(GAP), ...side[i] ?? []]);
+  const rows = stacked ? [...logo, ...side.slice(LEAD)].map((row) => [{ ch: " " }, ...row]) : logo.map((row, i) => [{ ch: " " }, ...row, ...blank2(GAP), ...side[i] ?? []]);
   return rows.map((row) => renderCells(row, caps));
 }
 var FRAME_MS = 33;
@@ -174437,8 +174754,8 @@ function list6(caps, items, selected2, room) {
 }
 
 // src/welcome/index.ts
-function wantsWelcome(args, input3, output3, env) {
-  return args.length === 0 && input3.isTTY === true && output3.isTTY === true && !env.CI;
+function wantsWelcome(args, input4, output3, env) {
+  return args.length === 0 && input4.isTTY === true && output3.isTTY === true && !env.CI;
 }
 var CTRL_C_WINDOW_MS = 2e3;
 function doubleTap(windowMs, now2) {
@@ -174453,11 +174770,11 @@ function doubleTap(windowMs, now2) {
 var NOTICE2 = "Press Ctrl+C again to exit.";
 async function runWelcome(io, initial2) {
   let data = initial2;
-  const { input: input3, output: output3 } = io;
+  const { input: input4, output: output3 } = io;
   const write = (text4) => output3.write(text4);
-  emitKeypressEvents(input3);
-  input3.setRawMode(true);
-  input3.resume();
+  emitKeypressEvents(input4);
+  input4.setRawMode(true);
+  input4.resume();
   let interrupted = false;
   let exitNow = () => {
   };
@@ -174498,7 +174815,7 @@ async function runWelcome(io, initial2) {
     } else if (notice) setNotice("");
     for (const l of keyListeners) l(k);
   };
-  input3.on("keypress", onKeypress);
+  input4.on("keypress", onKeypress);
   const onSigint = () => onKeypress("", { ctrl: true, name: "c" });
   const signals = io.signals ?? process;
   signals.on("SIGINT", onSigint);
@@ -174514,9 +174831,9 @@ async function runWelcome(io, initial2) {
     if (redraw) output3.off("resize", redraw);
     if (altScreen) write(cursor3.altScreenOff);
     write(cursor3.show);
-    input3.off("keypress", onKeypress);
-    if (input3.isTTY) input3.setRawMode(false);
-    input3.pause();
+    input4.off("keypress", onKeypress);
+    if (input4.isTTY) input4.setRawMode(false);
+    input4.pause();
   };
   try {
     const caps = detectCaps(output3, io.env);
@@ -174552,7 +174869,7 @@ async function runWelcome(io, initial2) {
 
 `);
         running2 = new AbortController();
-        if (input3.isTTY) input3.setRawMode(false);
+        if (input4.isTTY) input4.setRawMode(false);
         let envelope;
         try {
           if (!io.run) throw new Error("This menu was opened without a way to run commands.");
@@ -174561,8 +174878,8 @@ async function runWelcome(io, initial2) {
           envelope = { ok: false, data: null, error: { code: "INTERNAL", message: err instanceof Error ? err.message : String(err) }, meta: { command: step4.args.join(" "), durationMs: 0, version: data.version, contractVersion: CONTRACT_VERSION } };
         } finally {
           running2 = void 0;
-          if (input3.isTTY) input3.setRawMode(true);
-          input3.resume();
+          if (input4.isTTY) input4.setRawMode(true);
+          input4.resume();
         }
         results.push({ args: step4.args, envelope });
         const o = outcome({ args: step4.args, envelope });
@@ -174731,33 +175048,82 @@ var version2 = VERSION;
 var contractVersion = CONTRACT_VERSION;
 var served = commands33.filter(servedOverMcp);
 var byName3 = new Map(served.map((def) => [commandName(def), def]));
+var PERSON_COMMANDS = /* @__PURE__ */ new Set(["connections add", "connections login", "connections remove", "connections writes", "connections default", "feedback"]);
+var forPerson = commands33.filter((def) => PERSON_COMMANDS.has(commandName(def)));
+var personByName = new Map(forPerson.map((def) => [commandName(def), def]));
 var areaInfo = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context) }));
+var info = (def) => ({
+  name: commandName(def),
+  tool: toolName(def),
+  path: [...def.path],
+  area: def.path[0],
+  kind: def.kind ?? "area",
+  description: def.description,
+  writes: def.writes,
+  writesLocal: def.writesLocal === true,
+  writesDependOnInput: def.writesWhen !== void 0 || def.writesLocalWhen !== void 0,
+  inputSchema: inputSchemaFor(def)
+});
+function connectionFields(area31) {
+  const shape = area31.connection.shape;
+  const secretKeys = area31.secrets ?? [];
+  const settings = Object.keys(shape).filter((k) => !secretKeys.includes(k)).sort((a, b) => Number(b === "baseUrl") - Number(a === "baseUrl"));
+  const field4 = (name3, secret) => {
+    const fallback = area31.defaults?.[name3];
+    return {
+      name: name3,
+      description: shape[name3]?.description ?? null,
+      secret,
+      password: secret && area31.secretKinds[name3] === "password",
+      default: fallback === void 0 ? null : String(fallback),
+      required: fallback === void 0 && shape[name3]?.safeParse(void 0).success === false
+    };
+  };
+  return [...settings.map((k) => field4(k, false)), ...secretKeys.filter((k) => k in shape).map((k) => field4(k, true))];
+}
 var listed3;
+var listedForPerson;
+var summaries;
 var registry2 = {
-  areas: areas.map((a) => ({ name: a.name, description: a.description })),
+  get areas() {
+    summaries ??= areas.map((a) => ({ name: a.name, description: a.description, connection: connectionFields(a) }));
+    return summaries;
+  },
   get commands() {
-    listed3 ??= served.map((def) => ({
-      name: commandName(def),
-      tool: toolName(def),
-      path: [...def.path],
-      area: def.path[0],
-      kind: def.kind ?? "area",
-      description: def.description,
-      writes: def.writes,
-      writesLocal: def.writesLocal === true,
-      writesDependOnInput: def.writesWhen !== void 0 || def.writesLocalWhen !== void 0,
-      inputSchema: inputSchemaFor(def)
-    }));
+    listed3 ??= served.map(info);
     return listed3;
+  },
+  get personCommands() {
+    listedForPerson ??= forPerson.map(info);
+    return listedForPerson;
   }
 };
+function prompterFor(person3) {
+  const ask = async (question) => {
+    const answer2 = await person3.ask(question);
+    if (answer2 === void 0) throw new ToilError("CANCELLED", `Nothing was saved: "${question.text}" wasn't answered.`, { fix: "Answer every question the command asks, then try again." });
+    if (typeof answer2 !== "string") throw new ToilError("INVALID_INPUT", `The answer to "${question.text}" must be text.`, { fix: "Pass the text the person typed." });
+    return answer2.trim();
+  };
+  return {
+    ask: async (text4, fallback, id9) => {
+      const answer2 = await ask({ id: id9 ?? "question", text: text4, secret: false, fallback: fallback ?? null });
+      return answer2 === "" ? fallback ?? "" : answer2;
+    },
+    askSecret: (text4, id9) => ask({ id: id9 ?? "secret", text: text4, secret: true, fallback: null })
+  };
+}
 var secrets;
-async function execute3(command, input3 = {}, options2 = {}) {
+async function execute3(command, input4 = {}, options2 = {}) {
   const refuse2 = (message, fix) => failure2(new ToilError("INVALID_INPUT", message, { fix }), { command, durationMs: 0, version: VERSION });
-  const def = byName3.get(command);
+  const def = byName3.get(command) ?? (options2.person ? personByName.get(command) : void 0);
   if (!def) {
     const known = commands33.find((d2) => commandName(d2) === command);
+    if (known && personByName.has(command)) return refuse2(`${command} is a person's command: execute() runs it only with a person to answer its questions.`, `Pass options.person, or run toil ${command} in a terminal.`);
     return known ? refuse2(`${command} isn't served through the API: it's a person's command, on the CLI.`, `Run toil ${command} in a terminal.`) : refuse2(`toil has no command ${JSON.stringify(command)}.`, 'Use a name from registry.commands, such as "version" or "jira search".');
+  }
+  if (options2.person !== void 0 && (typeof options2.person !== "object" || options2.person === null || typeof options2.person.ask !== "function")) {
+    return refuse2("person must be an object with an ask(question) function.", "Pass { ask: (question) => <what the person typed> }.");
   }
   if (options2.caller !== void 0 && (typeof options2.caller !== "string" || !CALLER_LABEL.test(options2.caller))) {
     return refuse2(`caller must be a short name such as "toil-ui", not ${JSON.stringify(options2.caller)}.`, 'Use lowercase letters, digits, ".", "_" and "-", up to 64 characters, starting with a letter or digit.');
@@ -174778,12 +175144,15 @@ async function execute3(command, input3 = {}, options2 = {}) {
     version: VERSION,
     stderr: (text4) => process.stderr.write(text4),
     secrets,
-    ...options2.onProgress ? { progress: options2.onProgress } : {}
+    ...options2.onProgress ? { progress: options2.onProgress } : {},
+    // Only the person's commands are handed it, through ctx.manage; run() keeps it from every other.
+    // A read-only call asks nothing: `feedback` then only previews, and the connections commands are refused anyway.
+    ...options2.person && !options2.readOnly && personByName.has(commandName(d2)) ? { prompt: prompterFor(options2.person) } : {}
   });
-  return runCommand(def, input3, context, VERSION, "api", { targets: served }, { ...options2.readOnly ? { readOnly: true } : {}, ...options2.caller ? { caller: options2.caller } : {} });
+  return runCommand(def, input4, context, VERSION, "api", { targets: served }, { ...options2.readOnly ? { readOnly: true } : {}, ...options2.caller ? { caller: options2.caller } : {} });
 }
-function mapOwi2(input3, options2 = {}) {
-  const values2 = typeof input3 === "string" ? parseOwiInput(input3) : inputValues(input3);
+function mapOwi2(input4, options2 = {}) {
+  const values2 = typeof input4 === "string" ? parseOwiInput(input4) : inputValues(input4);
   const { documents, skipped } = documentsFrom(values2, { command: options2.command, key: options2.key });
   return mapOwi(documents, { fields: fieldOverrides(options2.fields), skipped });
 }
