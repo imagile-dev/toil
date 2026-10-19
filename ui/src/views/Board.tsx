@@ -44,37 +44,37 @@ function Card({ item, others, onMove }: { item: WorkItem; others: StatusCategory
   return (
     <li ref={setNodeRef} style={style} className={`card card--${item.statusCategory.toLowerCase()}${isDragging ? ' card--dragging' : ''}`}>
       <Skin item={item}>
-      <div className="card-top">
-        <ItemLink id={item.id} />
-        <StatusChip category={item.statusCategory} status={item.status} />
-      </div>
-      <p className="card-title">{item.title}</p>
-      <div className="card-foot">
-        <span className="who">
-          <Avatar person={item.assignee} /> {personText(item.assignee)}
-        </span>
-        <span className="field">{estimateText(item)}</span>
-      </div>
-      <InsightChips insights={insights(item, prepared)} />
-      <div className="card-actions">
-        <button type="button" className="drag" {...listeners} {...attributes} aria-label={`Drag ${key} to another column`}>
-          <span aria-hidden="true">⠿</span> Drag
-        </button>
-        <MenuTrigger>
-          <Button className="btn btn--small" aria-label={`Move ${key} to…`}>
-            Move…
-          </Button>
-          <Popover className="popover" placement="bottom end">
-            <Menu className="menu" aria-label={`Move ${key} to`} onAction={(k) => onMove(k as StatusCategory)}>
-              {others.map((c) => (
-                <MenuItem key={c} id={c} className="menu-item">
-                  {label(c)}
-                </MenuItem>
-              ))}
-            </Menu>
-          </Popover>
-        </MenuTrigger>
-      </div>
+        <div className="card-top">
+          <ItemLink id={item.id} />
+          <StatusChip category={item.statusCategory} status={item.status} />
+        </div>
+        <p className="card-title">{item.title}</p>
+        <div className="card-foot">
+          <span className="who">
+            <Avatar person={item.assignee} /> {personText(item.assignee)}
+          </span>
+          <span className="field">{estimateText(item)}</span>
+        </div>
+        <InsightChips insights={insights(item, prepared)} />
+        <div className="card-actions">
+          <button type="button" className="drag" {...listeners} {...attributes} aria-label={`Drag ${key} to another column`}>
+            <span aria-hidden="true">⠿</span> Drag
+          </button>
+          <MenuTrigger>
+            <Button className="btn btn--small" aria-label={`Move ${key} to…`}>
+              Move…
+            </Button>
+            <Popover className="popover" placement="bottom end">
+              <Menu className="menu" aria-label={`Move ${key} to`} onAction={(k) => onMove(k as StatusCategory)}>
+                {others.map((c) => (
+                  <MenuItem key={c} id={c} className="menu-item">
+                    {label(c)}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </Popover>
+          </MenuTrigger>
+        </div>
       </Skin>
     </li>
   );

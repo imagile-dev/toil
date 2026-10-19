@@ -1,8 +1,11 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
+import type { SyncClient, SyncStatus } from '../src/server-client.ts';
+import { SyncPanel } from '../src/sync-panel.tsx';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { BUILT_IN_SKINS, SLOTS, themed } from '../src/skins.tsx';
 import { THEMES, themeNamed } from '../src/themes.ts';
@@ -114,6 +117,17 @@ describe('a renamed word keeps the real one beside it', () => {
 });
 
 describe('the skins', () => {
+  it.each([
+    ['harvest', 'light', 'Almanac (Agent)'],
+    ['starship', 'dark', "Ship's computer (Agent)"],
+    ['realm', 'light', 'Scribe (Agent)'],
+  ])('answer in %s (%s) as %s', async (theme, scheme, name) => {
+    await open('#/dossier/settlement', theme, scheme);
+    const starters = screen.getByRole('group', { name: 'Starter questions' });
+    await userEvent.click(within(starters).getAllByRole('button')[0]!);
+    expect(await screen.findByText(name, {}, { timeout: 4000 })).toBeTruthy();
+  });
+
   it('grow a crop on each Harvest card by its column, and hide the art from screen readers', async () => {
     await open('#/dossier/card-payments', 'harvest', 'light');
     const crops = [...document.querySelectorAll<HTMLImageElement>('.card .harvest-crop')];
@@ -139,5 +153,37 @@ describe('the skins', () => {
     expect(corners.length).toBeGreaterThan(5);
     for (const c of corners) expect(c.getAttribute('aria-hidden')).toBe('true');
     expect(document.querySelector('.top .hud-corners')).toBeTruthy();
+  });
+});
+
+describe('the local app\'s sync panel', () => {
+  const AT = '2026-10-13T08:00:00.000Z';
+  const idle = { running: false, by: null, startedAt: AT, finishedAt: AT, dossier: null, dossiersDone: 1, dossiersTotal: 1, fetched: 0, reused: 0, requests: 0, pages: 0, retries: 0, messages: [], error: null };
+  const status: SyncStatus = {
+    retentionDays: 30,
+    job: idle,
+    dossiers: [
+      {
+        name: 'card-payments',
+        lastSyncAt: AT,
+        status: 'partial',
+        error: 'jira: failed',
+        sources: [
+          { area: 'bitbucket', status: 'ok', lastAttemptAt: AT, lastSuccessAt: AT, watermark: AT, error: null, fix: null, calls: 1, stale: false },
+          { area: 'jira', status: 'failed', lastAttemptAt: AT, lastSuccessAt: AT, watermark: AT, error: 'jira search: jira.imagile.dev answered 503.', fix: 'Try again when the server is back.', calls: 1, stale: true },
+        ],
+      },
+    ],
+  };
+  const client: SyncClient = { status: async () => status, start: async () => status, wipe: async () => status };
+
+  it.each(SCHEMES)('in %s (%s) shows a stale source and the wipe confirmation with no axe violations', async (theme, scheme) => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.dataset.scheme = scheme;
+    const { container } = render(<SyncPanel client={client} onChange={() => {}} />);
+    expect(await screen.findByText(/Showing the last good copy/)).toBeTruthy();
+    expect(await violations(container)).toEqual([]);
+    await userEvent.click(screen.getByRole('button', { name: /Wipe/ }));
+    expect(await violations(container)).toEqual([]);
   });
 });

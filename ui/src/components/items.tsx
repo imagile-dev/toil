@@ -42,5 +42,5 @@ export function typeText(item: WorkItem, theme?: ThemeManifest): string {
   const owi = item.type.charAt(0) + item.type.slice(1).toLowerCase();
   const text = item.typeName && item.typeName.toLowerCase() !== owi.toLowerCase() ? `${item.typeName} (${owi})` : owi;
   // A theme may call an epic a quest, beside the source's own word.
-  return theme && item.type === 'EPIC' ? themed(theme, 'epic', item.typeName ?? owi) : text;
+  return theme?.terms?.epic && item.type === 'EPIC' ? themed(theme, 'epic', item.typeName ?? owi) : text;
 }

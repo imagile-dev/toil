@@ -144,68 +144,68 @@ export function App({ execute, agent, now, preview }: AppProps) {
 
   return (
     <ThemeProvider value={theme}>
-    <SkinProvider value={skins}>
-      <style>{THEMES.map(tokenCss).join('\n')}</style>
-      <a className="skip" href="#main" onClick={skip}>
-        Skip to content
-      </a>
-      <header>
-        {preview && (
-          <p className="banner" role="note">
-            <strong>Preview of an unreleased product.</strong> Sample data only: nothing here connects to a tracker.
-          </p>
-        )}
-        <div className="top">
-          <skins.Header>
-          <a className="brand" href="#/">
-            Toil UI
-          </a>
-          <nav aria-label="Views">
-            <ul>
-              <li>
-                <a href="#/" aria-current={route.view === 'dossiers' ? 'page' : undefined}>
-                  Dossiers
-                </a>
-              </li>
-              {wanted && (
-                <li>
-                  <a href={dossierHref(wanted)} aria-current={route.view === 'dashboard' ? 'page' : undefined}>
-                    {wanted}
-                  </a>
-                </li>
-              )}
-              <li>
-                <a href="#/settings" aria-current={route.view === 'settings' ? 'page' : undefined}>
-                  Settings
-                </a>
-              </li>
-            </ul>
-          </nav>
-          <div className="settings">
-            <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
-            {Object.keys(theme.schemes).length > 1 && (
-              <Choice
-                label="Appearance"
-                value={choice.scheme}
-                onChange={(v) => choice.setScheme(v as typeof choice.scheme)}
-                options={[
-                  { id: 'system', label: 'System' },
-                  { id: 'light', label: 'Light' },
-                  { id: 'dark', label: 'Dark' },
-                ]}
-              />
-            )}
+      <SkinProvider value={skins}>
+        <style>{THEMES.map(tokenCss).join('\n')}</style>
+        <a className="skip" href="#main" onClick={skip}>
+          Skip to content
+        </a>
+        <header>
+          {preview && (
+            <p className="banner" role="note">
+              <strong>Preview of an unreleased product.</strong> Sample data only: nothing here connects to a tracker.
+            </p>
+          )}
+          <div className="top">
+            <skins.Header>
+              <a className="brand" href="#/">
+                Toil UI
+              </a>
+              <nav aria-label="Views">
+                <ul>
+                  <li>
+                    <a href="#/" aria-current={route.view === 'dossiers' ? 'page' : undefined}>
+                      Dossiers
+                    </a>
+                  </li>
+                  {wanted && (
+                    <li>
+                      <a href={dossierHref(wanted)} aria-current={route.view === 'dashboard' ? 'page' : undefined}>
+                        {wanted}
+                      </a>
+                    </li>
+                  )}
+                  <li>
+                    <a href="#/settings" aria-current={route.view === 'settings' ? 'page' : undefined}>
+                      Settings
+                    </a>
+                  </li>
+                </ul>
+              </nav>
+              <div className="settings">
+                <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
+                {Object.keys(theme.schemes).length > 1 && (
+                  <Choice
+                    label="Appearance"
+                    value={choice.scheme}
+                    onChange={(v) => choice.setScheme(v as typeof choice.scheme)}
+                    options={[
+                      { id: 'system', label: 'System' },
+                      { id: 'light', label: 'Light' },
+                      { id: 'dark', label: 'Dark' },
+                    ]}
+                  />
+                )}
+              </div>
+            </skins.Header>
           </div>
-          </skins.Header>
-        </div>
-        <p className="sync">
-          {preview ? 'Sample data' : 'Data'} read {dateTime(now)} through toil, read-only.
-        </p>
-      </header>
-      <main id="main" ref={main}>
-        {body}
-      </main>
-    </SkinProvider>
+          <p className="sync">
+            {preview ? 'Sample data' : 'Data'} read {dateTime(now)} through toil, read-only.
+          </p>
+        </header>
+        <main id="main" ref={main}>
+          {body}
+        </main>
+      </SkinProvider>
     </ThemeProvider>
   );
 }

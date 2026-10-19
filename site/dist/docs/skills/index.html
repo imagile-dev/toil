@@ -1,0 +1,236 @@
+<!DOCTYPE html><html lang="en"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="color-scheme" content="dark"><meta name="theme-color" content="#16130f"><meta name="description" content="Agent skills from git-hosted marketplaces, installed into the folders Codex, GitHub Copilot and Claude Code read, and switched on and off"><meta name="generator" content="Astro v5.16.6"><link rel="canonical" href="https://imagile-dev.github.io/toil/docs/skills/"><meta property="og:site_name" content="toil"><meta property="og:title" content="Skills marketplaces — toil"><meta property="og:description" content="Agent skills from git-hosted marketplaces, installed into the folders Codex, GitHub Copilot and Claude Code read, and switched on and off"><meta property="og:type" content="website"><meta property="og:url" content="https://imagile-dev.github.io/toil/docs/skills/"><meta property="og:image" content="https://imagile-dev.github.io/toil/og.png"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Skills marketplaces — toil"><meta name="twitter:description" content="Agent skills from git-hosted marketplaces, installed into the folders Codex, GitHub Copilot and Claude Code read, and switched on and off"><meta name="twitter:image" content="https://imagile-dev.github.io/toil/og.png"><link rel="icon" href="/toil/favicon.svg" type="image/svg+xml"><link rel="sitemap" href="/toil/sitemap-index.xml"><title>Skills marketplaces — toil</title><link rel="stylesheet" href="/toil/_astro/core.BCS_hkiY.css">
+<style>.page-hero[data-astro-cid-s5hxusys]{position:relative;overflow:clip;padding-block:var(--space-xl) var(--space-lg);border-bottom:1px solid var(--color-line)}.page-hero__glow[data-astro-cid-s5hxusys]{position:absolute;right:-10%;top:-40%;width:60vw;max-width:760px;aspect-ratio:1;background:radial-gradient(closest-side,rgba(var(--rgb-accent),.2),transparent 70%);pointer-events:none}.page-hero__inner[data-astro-cid-s5hxusys]{position:relative;max-width:var(--max-width)}h1[data-astro-cid-s5hxusys]{font-size:var(--text-3xl);margin:var(--space-sm) 0;max-width:22ch}h1[data-astro-cid-s5hxusys] em{font-style:normal;background:var(--gradient-accent);-webkit-background-clip:text;background-clip:text;color:transparent}.page-hero__lead[data-astro-cid-s5hxusys]{font-size:var(--text-lg);color:var(--color-muted);max-width:60ch}@media(prefers-reduced-motion:no-preference){.ph-in[data-astro-cid-s5hxusys]{opacity:0;transform:translateY(14px);animation:ph-rise .7s var(--ease-out) forwards;animation-delay:calc(80ms + var(--i) * .1s)}}@keyframes ph-rise{to{opacity:1;transform:none}}
+.crumb[data-astro-cid-mfwuplem]{margin-top:var(--space-sm);font-size:var(--text-sm);color:var(--color-faint)}.crumb[data-astro-cid-mfwuplem] a[data-astro-cid-mfwuplem]{color:var(--color-muted)}.crumb[data-astro-cid-mfwuplem] a[data-astro-cid-mfwuplem]:hover{color:var(--color-accent)}.doc[data-astro-cid-mfwuplem]{display:grid;gap:var(--space-lg);align-items:start;padding-block:var(--space-lg)}.doc[data-astro-cid-mfwuplem]>[data-astro-cid-mfwuplem]{min-width:0}.doc__facts[data-astro-cid-mfwuplem]{border:1px solid var(--color-line);border-radius:var(--radius-md);background:var(--color-surface);padding:var(--space-md)}.doc__facts[data-astro-cid-mfwuplem] dl{display:grid;gap:var(--space-sm)}.doc__facts[data-astro-cid-mfwuplem] dt{font-family:var(--font-mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--color-faint)}.doc__facts[data-astro-cid-mfwuplem] dd{margin:.2rem 0 0;color:var(--color-ink);font-size:var(--text-sm);overflow-wrap:anywhere}.doc__facts[data-astro-cid-mfwuplem] code{color:var(--color-accent)}.doc__source[data-astro-cid-mfwuplem]{margin-top:var(--space-sm);font-size:var(--text-xs)}.doc__source[data-astro-cid-mfwuplem] a[data-astro-cid-mfwuplem]{display:inline-flex;align-items:center;min-height:44px;color:var(--color-muted)}.doc__source[data-astro-cid-mfwuplem] a[data-astro-cid-mfwuplem]:hover code[data-astro-cid-mfwuplem]{color:var(--color-accent)}.doc__body[data-astro-cid-mfwuplem]{display:grid;gap:var(--space-lg);max-width:72ch}.doc__body[data-astro-cid-mfwuplem]>[data-astro-cid-mfwuplem]{min-width:0}@media(min-width:900px){.doc[data-astro-cid-mfwuplem]{grid-template-columns:16rem minmax(0,1fr)}.doc--wide[data-astro-cid-mfwuplem]{grid-template-columns:minmax(0,1fr)}.doc__facts[data-astro-cid-mfwuplem]{position:sticky;top:88px}}
+.index[data-astro-cid-o3cbk74k]{border-top:1px solid var(--color-line);padding-top:var(--space-md)}.index[data-astro-cid-o3cbk74k] h2[data-astro-cid-o3cbk74k]{font-size:var(--text-2xl);margin-bottom:var(--space-sm);scroll-margin-top:88px}.cmds[data-astro-cid-o3cbk74k]{list-style:none;padding:0;margin:0;display:grid;gap:var(--space-xs)}.cmd[data-astro-cid-o3cbk74k]{border:1px solid var(--color-line);border-radius:var(--radius-md);background:var(--color-surface);padding:var(--space-sm);min-width:0}.cmd__head[data-astro-cid-o3cbk74k]{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}.cmd__name[data-astro-cid-o3cbk74k]{color:var(--color-accent);font-size:var(--text-sm);overflow-wrap:anywhere}.cmd__alias[data-astro-cid-o3cbk74k]{font-size:var(--text-sm);color:var(--color-faint)}.cmd__alias[data-astro-cid-o3cbk74k] code[data-astro-cid-o3cbk74k]{color:var(--color-muted)}.cmd__desc[data-astro-cid-o3cbk74k]{margin-top:.3rem;font-size:var(--text-sm);color:var(--color-muted)}.cmd__meta[data-astro-cid-o3cbk74k]{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.45rem}.cmd__meta[data-astro-cid-o3cbk74k] code[data-astro-cid-o3cbk74k]{font-size:.72rem;overflow-wrap:anywhere}.cmd__tool[data-astro-cid-o3cbk74k]{font-family:var(--font-mono);font-size:.65rem;letter-spacing:.06em;text-transform:uppercase;color:var(--color-faint);margin-right:.35rem}.cmd__tool[data-astro-cid-o3cbk74k] code[data-astro-cid-o3cbk74k]{text-transform:none;letter-spacing:0;color:var(--color-ink)}.cmd__flag[data-astro-cid-o3cbk74k]{border:1px solid var(--color-line);border-radius:4px;padding:0 .3rem;color:var(--color-muted)}.tag[data-astro-cid-o3cbk74k]{font-family:var(--font-mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:.05rem .45rem;border:1px solid var(--color-line-strong);color:var(--color-muted)}.tag--write[data-astro-cid-o3cbk74k]{border-color:color-mix(in oklab,var(--color-accent) 50%,transparent);color:var(--color-accent)}
+</style></head> <body> <a class="skip" href="#main">Skip to content</a> <header class="site-header" data-astro-cid-ctg3m53h> <div class="container site-header__inner" data-astro-cid-ctg3m53h> <a href="/toil/" class="site-header__logo tap" aria-label="toil home" data-astro-cid-ctg3m53h> <svg class="logo" width="28" height="28" viewBox="0 0 64 64" fill="none" aria-hidden="true" data-astro-cid-tvrurpns> <g class="logo__lines" stroke="var(--color-accent)" stroke-width="2.6" stroke-linecap="round" data-astro-cid-tvrurpns> <circle pathLength="100" cx="32" cy="32" r="27" data-astro-cid-tvrurpns></circle> <path pathLength="100" d="M20 32C14.5 32 15.1 18.8 10.7 15.4" data-astro-cid-tvrurpns></path><path pathLength="100" d="M20 32H5" data-astro-cid-tvrurpns></path><path pathLength="100" d="M20 32C14.5 32 15.1 45.2 10.7 48.6" data-astro-cid-tvrurpns></path><path pathLength="100" d="M44 32C49.5 32 48.9 18.8 53.3 15.4" data-astro-cid-tvrurpns></path><path pathLength="100" d="M44 32H59" data-astro-cid-tvrurpns></path><path pathLength="100" d="M44 32C49.5 32 48.9 45.2 53.3 48.6" data-astro-cid-tvrurpns></path> </g> <g class="logo__signals" stroke="var(--color-amber)" stroke-width="3.2" stroke-linecap="round" data-astro-cid-tvrurpns> <path pathLength="100" d="M20 32C14.5 32 15.1 18.8 10.7 15.4" data-astro-cid-tvrurpns></path><path pathLength="100" d="M20 32H5" data-astro-cid-tvrurpns></path><path pathLength="100" d="M20 32C14.5 32 15.1 45.2 10.7 48.6" data-astro-cid-tvrurpns></path><path pathLength="100" d="M44 32C49.5 32 48.9 18.8 53.3 15.4" data-astro-cid-tvrurpns></path><path pathLength="100" d="M44 32H59" data-astro-cid-tvrurpns></path><path pathLength="100" d="M44 32C49.5 32 48.9 45.2 53.3 48.6" data-astro-cid-tvrurpns></path> </g> <g stroke="var(--color-bg)" stroke-width="2" data-astro-cid-tvrurpns> <circle class="logo__tool" style="--i: 0" cx="10.7" cy="15.4" r="3.9" fill="var(--color-amber)" data-astro-cid-tvrurpns></circle><circle class="logo__tool" style="--i: 1" cx="5" cy="32" r="3.9" fill="var(--color-accent)" data-astro-cid-tvrurpns></circle><circle class="logo__tool" style="--i: 2" cx="10.7" cy="48.6" r="3.9" fill="var(--color-ink)" data-astro-cid-tvrurpns></circle><circle class="logo__tool" style="--i: 3" cx="53.3" cy="15.4" r="3.9" fill="var(--color-ink)" data-astro-cid-tvrurpns></circle><circle class="logo__tool" style="--i: 4" cx="59" cy="32" r="3.9" fill="var(--color-accent)" data-astro-cid-tvrurpns></circle><circle class="logo__tool" style="--i: 5" cx="53.3" cy="48.6" r="3.9" fill="var(--color-amber)" data-astro-cid-tvrurpns></circle> </g> <path d="M23 17.5h13l7 7v20a3 3 0 0 1-3 3H23a3 3 0 0 1-3-3v-24a3 3 0 0 1 3-3Z" fill="var(--color-ink)" data-astro-cid-tvrurpns></path> <path d="M36 17.5v4.5a2.5 2.5 0 0 0 2.5 2.5H43Z" fill="var(--color-accent)" data-astro-cid-tvrurpns></path> <path d="m24.5 27.5 5 4.3-5 4.3" stroke="var(--color-bg)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-tvrurpns></path> <path class="logo__cursor" d="M31.8 40h6.2" stroke="var(--color-accent)" stroke-width="3.2" stroke-linecap="round" data-astro-cid-tvrurpns></path> </svg>  <span data-astro-cid-ctg3m53h>toil</span> </a> <a href="https://www.imagile.dev" class="site-header__by tap" aria-label="toil is built by Imagile — visit imagile.dev" data-astro-cid-ctg3m53h> <span class="site-header__by-text" data-astro-cid-ctg3m53h>by</span> <img src="/toil/images/imagile-mark-64.png" srcset="/toil/images/imagile-mark-64.png 1x, /toil/images/imagile-mark-128.png 2x" width="20" height="20" alt="" data-astro-cid-ctg3m53h> <span data-astro-cid-ctg3m53h>Imagile</span> </a> <nav class="site-header__nav" aria-label="Primary" data-astro-cid-ctg3m53h> <ul class="site-header__links" data-astro-cid-ctg3m53h> <li data-astro-cid-ctg3m53h> <a class="tap" href="/toil/how-it-works/" data-astro-cid-ctg3m53h>How it works</a> </li><li data-astro-cid-ctg3m53h> <a class="tap" href="/toil/integrations/" data-astro-cid-ctg3m53h>Integrations</a> </li><li data-astro-cid-ctg3m53h> <a class="tap" href="/toil/docs/" aria-current="page" data-astro-cid-ctg3m53h>Docs</a> </li><li class="nav--wide" data-astro-cid-ctg3m53h> <a class="tap" href="/toil/principles/" data-astro-cid-ctg3m53h>Principles</a> </li><li data-astro-cid-ctg3m53h> <a class="tap" href="/toil/feedback/" data-astro-cid-ctg3m53h>Feedback</a> </li> </ul>  <details class="site-header__menu" data-astro-cid-ctg3m53h> <summary class="tap" aria-label="Menu" data-astro-cid-ctg3m53h> <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true" data-astro-cid-ctg3m53h><path d="M3 6h14M3 10h14M3 14h14" data-astro-cid-ctg3m53h></path></svg> </summary> <ul class="site-header__menu-list" data-astro-cid-ctg3m53h> <li data-astro-cid-ctg3m53h><a class="tap" href="/toil/how-it-works/" data-astro-cid-ctg3m53h>How it works</a></li><li data-astro-cid-ctg3m53h><a class="tap" href="/toil/integrations/" data-astro-cid-ctg3m53h>Integrations</a></li><li data-astro-cid-ctg3m53h><a class="tap" href="/toil/docs/" aria-current="page" data-astro-cid-ctg3m53h>Docs</a></li><li data-astro-cid-ctg3m53h><a class="tap" href="/toil/principles/" data-astro-cid-ctg3m53h>Principles</a></li><li data-astro-cid-ctg3m53h><a class="tap" href="/toil/feedback/" data-astro-cid-ctg3m53h>Feedback</a></li> </ul> </details> <a href="https://github.com/imagile-dev/toil" class="btn btn--ghost btn--sm site-header__gh" data-astro-cid-ctg3m53h> <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true" data-astro-cid-ctg3m53h><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.22 1.88.87 2.34.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.66 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0Z" data-astro-cid-ctg3m53h></path></svg> <span data-astro-cid-ctg3m53h>GitHub</span> </a> </nav> </div> </header>  <main id="main">  <section class="page-hero grid-ground" data-astro-cid-s5hxusys> <div class="page-hero__glow" aria-hidden="true" data-astro-cid-s5hxusys></div> <div class="container page-hero__inner" data-astro-cid-s5hxusys> <p class="eyebrow ph-in" style="--i: 0" data-astro-cid-s5hxusys><b>Docs</b></p> <h1 class="ph-in" style="--i: 1" data-astro-cid-s5hxusys>Skills marketplaces</h1> <p class="page-hero__lead ph-in" style="--i: 2" data-astro-cid-s5hxusys>Agent skills from git-hosted marketplaces, installed into the folders Codex, GitHub Copilot and Claude Code read, and switched on and off</p>  <p class="crumb" data-astro-cid-mfwuplem> <a href="/toil/docs/" data-astro-cid-mfwuplem>Docs</a>  <span aria-hidden="true" data-astro-cid-mfwuplem> / </span><span data-astro-cid-mfwuplem>Skills marketplaces</span> </p>  </div> </section>  <section class="section--tight" data-astro-cid-mfwuplem> <div class="container doc" data-astro-cid-mfwuplem> <aside class="doc__facts" data-reveal data-astro-cid-mfwuplem> <dl> <div><dt>Area</dt><dd><code>toil skills</code></dd></div> <div><dt>The toil skill</dt><dd><code>toil skill</code></dd></div> </dl> <p class="doc__source" data-astro-cid-mfwuplem><a href="https://github.com/imagile-dev/toil/blob/main/skills/toil/skills.md" data-astro-cid-mfwuplem><code data-astro-cid-mfwuplem>skills/toil/skills.md</code></a></p> </aside> <article class="doc__body" data-astro-cid-mfwuplem> <div class="skill-doc" data-astro-cid-mfwuplem> <p>A skills marketplace is a git repository of plugins, each a folder of agent skills
+(<code>plugins/&#x3C;plugin>/skills/&#x3C;skill>/SKILL.md</code>, optionally listed in
+<code>.claude-plugin/marketplace.json</code>). toil clones it, copies plugin skills into the
+skills folder an agent host reads, and switches plugins on and off without deleting
+them. Verification level: <code>unit</code>.</p>
+<p><strong>Supported versions:</strong> git 2.24 or later. toil runs the git already on PATH to clone
+and pull a marketplace, and nothing else. A private marketplace needs git 2.31 or
+later, which takes its token from the environment rather than the command line;
+an older git gets <code>GIT_NOT_FOUND</code> saying so.</p>
+<h2 id="where-skills-go">Where skills go</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th><code>--agent</code></th><th>Project scope (<code>--scope project</code>)</th><th>User scope (<code>--scope user</code>, the default)</th></tr></thead><tbody><tr><td><code>codex</code> (the default)</td><td><code>.agents/skills</code></td><td><code>~/.agents/skills</code></td></tr><tr><td><code>github-copilot</code></td><td><code>.github/skills</code></td><td><code>~/.copilot/skills</code></td></tr><tr><td><code>claude-code</code> (<code>--claude</code>)</td><td><code>.claude/skills</code></td><td><code>~/.claude/skills</code></td></tr></tbody></table>
+<p><code>.agents/skills</code> is read by Codex and GitHub Copilot alike, which is why it’s the
+default. Project scope is the root of the repository the workspace is in, or the
+workspace outside one. <code>--all-agents</code> (on <code>add</code> and <code>sync</code>) installs for all three.</p>
+<p>Each skills folder keeps an index, <code>.toil-installed.json</code>, recording which skills toil
+installed and from where; each installed skill also gets a <code>toil-origin.json</code>. A
+switched-off skill moves to <code>.toil-disabled/</code> in the same folder, which agent hosts
+don’t read. toil replaces only skill folders it installed from the same marketplace
+and plugin: a folder of the same name it didn’t install is left alone, listed in
+<code>failed</code>, with a <code>SKILLS_NOT_REPLACED</code> warning. Symlinks in a marketplace are never
+copied.</p>
+<h2 id="credential-and-configuration">Credential and configuration</h2>
+<p>Each marketplace is a connection of the <code>skills</code> area. <code>toil skills marketplace add</code>
+sets one up from a terminal; in CI, define one with env vars.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Key</th><th>Env var (default connection)</th><th>Meaning</th></tr></thead><tbody><tr><td><code>repoUrl</code></td><td><code>TOIL_SKILLS_REPO_URL</code></td><td>Clone URL: <code>https://…</code>, or a local path. ssh isn’t supported</td></tr><tr><td><code>localPath</code></td><td><code>TOIL_SKILLS_LOCAL_PATH</code></td><td>Where the clone lives (default <code>~/.agents/marketplaces/&#x3C;repo-name></code>)</td></tr><tr><td><code>branch</code></td><td><code>TOIL_SKILLS_BRANCH</code></td><td>Branch to clone (default: the remote HEAD)</td></tr><tr><td><code>username</code></td><td><code>TOIL_SKILLS_USERNAME</code></td><td>User name sent with the token (default <code>x-access-token</code> on GitHub, <code>x-token-auth</code> elsewhere; Bitbucket Data Center personal tokens usually need your username)</td></tr><tr><td><code>provider</code></td><td><code>TOIL_SKILLS_PROVIDER</code></td><td><code>github</code>, <code>bitbucket</code>, <code>ado</code> or <code>git</code>, when the URL doesn’t say</td></tr><tr><td><code>token</code></td><td><code>TOIL_SKILLS_TOKEN</code></td><td>HTTP access token for a private marketplace: a secret</td></tr><tr><td><code>writes</code></td><td><code>TOIL_SKILLS_WRITES</code></td><td><code>true</code> lets <code>sync</code>, <code>enable</code> and <code>disable</code> change skills folders from this marketplace</td></tr></tbody></table>
+<p>A named connection uses <code>TOIL_CONN_&#x3C;NAME>_&#x3C;KEY></code> instead (<code>TOIL_CONN_CORP_SKILLS_TOKEN</code>).
+A whole marketplace from env alone:</p>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#F97583">export</span><span style="color:#E1E4E8"> TOIL_CONN_CORP_SKILLS_AREA</span><span style="color:#F97583">=</span><span style="color:#E1E4E8">skills</span></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#E1E4E8"> TOIL_CONN_CORP_SKILLS_REPO_URL</span><span style="color:#F97583">=</span><span style="color:#E1E4E8">https://bitbucket.imagile.dev/scm/ai/skills.git</span></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#E1E4E8"> TOIL_CONN_CORP_SKILLS_TOKEN</span><span style="color:#F97583">=&#x3C;</span><span style="color:#E1E4E8">token</span><span style="color:#F97583">></span></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#E1E4E8"> TOIL_CONN_CORP_SKILLS_WRITES</span><span style="color:#F97583">=</span><span style="color:#E1E4E8">true</span></span>
+<span class="line"><span style="color:#B392F0">toil</span><span style="color:#9ECBFF"> skills</span><span style="color:#9ECBFF"> marketplace</span><span style="color:#9ECBFF"> sync</span><span style="color:#9ECBFF"> all</span><span style="color:#79B8FF"> --marketplace</span><span style="color:#9ECBFF"> corp-skills</span><span style="color:#79B8FF"> --allow-write</span></span></code></pre>
+<p>The token lives in the OS credential store (config holds only a <code>keychain:</code>
+reference) or an env var, never in the file and never on a command line. Replace it
+with <code>toil connections login &#x3C;name></code>. toil hands it to git for that marketplace’s
+clone and pull only, as an <code>http.&#x3C;url>.extraHeader</code> in git’s environment, which git
+sends to that URL and nowhere else. With no token, git uses your own git credentials.</p>
+<p><code>--marketplace &#x3C;name></code> picks the marketplace by connection name or clone URL;
+without it, the area’s default (the first one added), else the only one.</p>
+<h2 id="writes">Writes</h2>
+<p>Installing, refreshing and switching plugins changes files on this machine, so <code>sync</code>,
+<code>enable</code> and <code>disable</code> need <code>"writes": true</code> on the marketplace and <code>--allow-write</code> on
+the call. <code>add</code> is CLI only, needs <code>--allow-write</code> because it clones, and leaves writes
+off: adding a marketplace never grants installs from it. Turn them on as for any
+connection: <code>"writes": true</code> on it in <code>~/.toil/config.json</code>, or
+<code>TOIL_CONN_&#x3C;NAME>_WRITES=true</code>. <code>remove</code> is CLI only.</p>
+<h2 id="from-the-menu">From the menu</h2>
+<p>Bare <code>toil</code> on a terminal opens a menu with <strong>Agent skills</strong>, which holds three
+things: <strong>Skill plugins</strong> (add, update and remove a marketplace, turn its writes on,
+install a skill plugin for the agent and place you pick, and tick which skill plugins
+are on; it shows the changes before running them), <strong>View installed skills</strong>, and
+<strong>Install the toil skill</strong> (below). Every screen runs the commands below and prints
+each one, so the menu writes exactly what the command would.</p>
+<h2 id="the-toil-skill-itself">The toil skill itself</h2>
+<p>The skill you’re reading ships inside toil. <code>toil skill install --allow-write</code> writes it
+into one agent’s folder (<code>--agent</code> and <code>--scope</code> as above), recorded as <code>bundled</code>, and
+toil keeps it current from then on: <a href="/toil/docs/install/"><code>install.md</code></a> has the detail. <code>skills status</code> lists
+it with <code>source: "bundled"</code>, and <code>stale: true</code> until the next run rewrites a copy
+another toil version wrote. Marketplace and untracked skills are never rewritten.</p>
+<h2 id="commands">Commands</h2>
+<h3 id="toil-skills-marketplace-add-url-localpath"><code>toil skills marketplace add &#x3C;url> [localPath]</code></h3>
+<p>Registers a marketplace and clones it, with writes off; it installs nothing. CLI only;
+<code>setup</code> is an alias. On a terminal it asks for an access token (leave it empty for a
+public repository) and keeps it in the OS credential store. The first marketplace
+becomes the default. Adding it again keeps whatever <code>writes</code> you set.</p>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#B392F0">toil</span><span style="color:#9ECBFF"> skills</span><span style="color:#9ECBFF"> marketplace</span><span style="color:#9ECBFF"> add</span><span style="color:#9ECBFF"> https://bitbucket.imagile.dev/scm/ai/skills.git</span><span style="color:#79B8FF"> --name</span><span style="color:#9ECBFF"> corp-skills</span><span style="color:#79B8FF"> --allow-write</span></span>
+<span class="line"><span style="color:#6A737D"># then set "writes": true on corp-skills in ~/.toil/config.json, and:</span></span>
+<span class="line"><span style="color:#B392F0">toil</span><span style="color:#9ECBFF"> skills</span><span style="color:#9ECBFF"> marketplace</span><span style="color:#9ECBFF"> sync</span><span style="color:#9ECBFF"> all</span><span style="color:#79B8FF"> --marketplace</span><span style="color:#9ECBFF"> corp-skills</span><span style="color:#79B8FF"> --claude</span><span style="color:#79B8FF"> --scope</span><span style="color:#9ECBFF"> project</span><span style="color:#79B8FF"> --allow-write</span></span></code></pre>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Flag</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--name &#x3C;name></code></td><td>Its connection name (default: from the URL)</td></tr><tr><td><code>--branch &#x3C;branch></code></td><td>Branch to clone</td></tr><tr><td><code>--username &#x3C;username></code></td><td>User name sent with the token</td></tr><tr><td><code>--provider &#x3C;provider></code></td><td><code>github</code>, <code>bitbucket</code>, <code>ado</code> or <code>git</code></td></tr></tbody></table>
+<p>Output: <code>{ name, repoUrl, localPath, branch, tokenConfigured, tokenStorage, provider, writes, cloned, available: [{ name, description }], total, next }</code>, <code>next</code> saying how
+to turn writes on and install.</p>
+<h3 id="toil-skills-marketplace-list"><code>toil skills marketplace list</code></h3>
+<p>Every registered marketplace: <code>{ marketplaces: [{ name, repoUrl, localPath, tokenConfigured, tokenStorage, provider, username, upstreamRemote, writes }], total }</code>.
+<code>tokenStorage</code> is <code>keychain</code>, <code>env</code> or <code>null</code>; the token itself is never shown. MCP
+tool: <code>skills_marketplace_list</code>.</p>
+<h3 id="toil-skills-marketplace-plugins-name"><code>toil skills marketplace plugins &#x3C;name></code></h3>
+<p>The plugins a marketplace offers, from its clone: <code>{ marketplace, plugins: [{ name, description }], total }</code>. MCP tool: <code>skills_marketplace_plugins</code>.</p>
+<h3 id="toil-skills-marketplace-sync-plugin"><code>toil skills marketplace sync [plugin]</code></h3>
+<p>Clones the marketplace if it isn’t yet, otherwise pulls it (fast-forward only), then
+installs: one plugin by name, every plugin with <code>all</code>, or with no plugin the ones
+already installed in the target folder. A switched-off plugin stays off; its stashed
+copy is refreshed. MCP tool: <code>skills_marketplace_sync</code>.</p>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#B392F0">toil</span><span style="color:#9ECBFF"> skills</span><span style="color:#9ECBFF"> marketplace</span><span style="color:#9ECBFF"> sync</span><span style="color:#9ECBFF"> review</span><span style="color:#79B8FF"> --allow-write</span></span>
+<span class="line"><span style="color:#B392F0">toil</span><span style="color:#9ECBFF"> skills</span><span style="color:#9ECBFF"> marketplace</span><span style="color:#9ECBFF"> sync</span><span style="color:#9ECBFF"> all</span><span style="color:#79B8FF"> --marketplace</span><span style="color:#9ECBFF"> corp-skills</span><span style="color:#79B8FF"> --claude</span><span style="color:#79B8FF"> --scope</span><span style="color:#9ECBFF"> project</span><span style="color:#79B8FF"> --allow-write</span></span></code></pre>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Flag</th><th>Meaning</th></tr></thead><tbody><tr><td><code>--marketplace &#x3C;name></code></td><td>Which marketplace</td></tr><tr><td><code>--agent &#x3C;agent></code>, <code>--claude</code>, <code>--all-agents</code></td><td>Which agent hosts</td></tr><tr><td><code>--scope &#x3C;scope></code></td><td><code>user</code> (default) or <code>project</code></td></tr><tr><td><code>--installed-only</code></td><td>With <code>all</code>, skip plugins not installed yet</td></tr></tbody></table>
+<p>Output: <code>{ marketplace, plugins: { &#x3C;plugin>: { installed, failed } }, total, target, marketplaceUpdated }</code>; for one plugin <code>{ marketplace, plugin, installed, failed, total, target, marketplaceUpdated }</code>; for several agents <code>targets</code>.</p>
+<h3 id="toil-skills-marketplace-disable-plugin"><code>toil skills marketplace disable &#x3C;plugin></code></h3>
+<p>Switches a plugin off in one skills folder: its skills move to <code>.toil-disabled/</code> and
+their records to <code>disabled</code> in <code>.toil-installed.json</code>. Nothing else in the index
+changes. MCP tool: <code>skills_marketplace_disable</code>.</p>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#B392F0">toil</span><span style="color:#9ECBFF"> skills</span><span style="color:#9ECBFF"> marketplace</span><span style="color:#9ECBFF"> disable</span><span style="color:#9ECBFF"> review</span><span style="color:#79B8FF"> --claude</span><span style="color:#79B8FF"> --allow-write</span></span></code></pre>
+<p>Output: <code>{ disabled, alreadyDisabled, skipped, total, target, plugin, stash, marketplace }</code>.</p>
+<h3 id="toil-skills-marketplace-enable-plugin"><code>toil skills marketplace enable &#x3C;plugin></code></h3>
+<p>Switches a plugin back on. A skill whose stashed copy has gone is listed in
+<code>stashMissing</code>, with a <code>warning</code>; <code>sync &#x3C;plugin></code> restores it. MCP tool:
+<code>skills_marketplace_enable</code>.</p>
+<p>Output: <code>{ enabled, skipped, total, target, plugin, marketplace }</code>.</p>
+<p><code>enable</code> and <code>disable</code> take <code>--marketplace</code>, <code>--agent</code>, <code>--claude</code> and <code>--scope</code>.</p>
+<h3 id="toil-skills-marketplace-remove-name"><code>toil skills marketplace remove &#x3C;name></code></h3>
+<p>Unregisters a marketplace and deletes its token from the OS credential store. Its
+clone and the skills installed from it stay on disk. CLI only.</p>
+<p>Output: <code>{ removed: { name, repoUrl, localPath }, keychainEntryDeleted, remaining }</code>.</p>
+<h3 id="toil-skills-status"><code>toil skills status</code></h3>
+<p>Every skill in every agent skills folder, at both scopes: <code>{ skills: [{ skill, path, agent, scope, location, enabled, source, plugin, marketplace, repoUrl, localPath, upstreamRemote, branch, installedAt, toilVersion, stale }], total, enabled, disabled, untracked, stale, toilVersion, byMarketplace, locations }</code>. <code>source</code> is <code>marketplace</code>,
+<code>bundled</code> or <code>untracked</code> (a skill toil didn’t install). Filter with <code>--marketplace</code>,
+<code>--plugin</code>, <code>--source</code>, <code>--agent</code> and <code>--scope</code>. MCP tool: <code>skills_status</code>.</p>
+<h2 id="not-built-yet">Not built yet</h2>
+<p><code>skills list</code>, <code>uninstall</code>,
+<code>locations</code>, <code>guide</code>, <code>purge-user</code>, <code>marketplace update</code> (use <code>toil connections login</code>
+for a token), <code>marketplace instructions</code>, <code>marketplace purge-plugin</code> and
+<code>marketplace manage</code> (the welcome menu replaces it). <code>skills git-auth</code> is not coming:
+toil gives git a marketplace’s token per call instead of changing your git config.</p> </div>   <section class="index" id="commands-at-a-glance" data-astro-cid-o3cbk74k><h2 data-astro-cid-o3cbk74k>Commands at a glance</h2><ul class="cmds" data-astro-cid-o3cbk74k><li class="cmd" data-astro-cid-o3cbk74k><div class="cmd__head" data-astro-cid-o3cbk74k><code class="cmd__name" data-astro-cid-o3cbk74k>toil skillsmarketplace sync</code><span class="tag tag--write" data-astro-cid-o3cbk74k>write</span></div><p class="cmd__desc" data-astro-cid-o3cbk74k>Clone or pull a marketplace and install its plugins into an agent skills folder: one plugin, &quot;all&quot;, or with none the ones already installed</p><p class="cmd__meta" data-astro-cid-o3cbk74k><span class="cmd__tool" data-astro-cid-o3cbk74k>MCP <code data-astro-cid-o3cbk74k>skills_marketplace_sync</code></span><code class="cmd__flag" data-astro-cid-o3cbk74k>[plugin]</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--agent &lt;agent&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--claude</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--all-agents</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--scope &lt;scope&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--installed-only</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--marketplace &lt;name&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--allow-write</code></p></li><li class="cmd" data-astro-cid-o3cbk74k><div class="cmd__head" data-astro-cid-o3cbk74k><code class="cmd__name" data-astro-cid-o3cbk74k>toil skillsmarketplace enable</code><span class="tag tag--write" data-astro-cid-o3cbk74k>write</span></div><p class="cmd__desc" data-astro-cid-o3cbk74k>Switch a disabled plugin&#39;s skills back on</p><p class="cmd__meta" data-astro-cid-o3cbk74k><span class="cmd__tool" data-astro-cid-o3cbk74k>MCP <code data-astro-cid-o3cbk74k>skills_marketplace_enable</code></span><code class="cmd__flag" data-astro-cid-o3cbk74k>&lt;plugin&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--agent &lt;agent&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--claude</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--scope &lt;scope&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--marketplace &lt;name&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--allow-write</code></p></li><li class="cmd" data-astro-cid-o3cbk74k><div class="cmd__head" data-astro-cid-o3cbk74k><code class="cmd__name" data-astro-cid-o3cbk74k>toil skillsmarketplace disable</code><span class="tag tag--write" data-astro-cid-o3cbk74k>write</span></div><p class="cmd__desc" data-astro-cid-o3cbk74k>Switch a plugin&#39;s skills off without deleting them: they move to a hidden stash (switch back on with marketplace enable)</p><p class="cmd__meta" data-astro-cid-o3cbk74k><span class="cmd__tool" data-astro-cid-o3cbk74k>MCP <code data-astro-cid-o3cbk74k>skills_marketplace_disable</code></span><code class="cmd__flag" data-astro-cid-o3cbk74k>&lt;plugin&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--agent &lt;agent&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--claude</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--scope &lt;scope&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--marketplace &lt;name&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--allow-write</code></p></li><li class="cmd" data-astro-cid-o3cbk74k><div class="cmd__head" data-astro-cid-o3cbk74k><code class="cmd__name" data-astro-cid-o3cbk74k>toil skillsmarketplace add</code><span class="tag tag--write" data-astro-cid-o3cbk74k>write</span><span class="tag" data-astro-cid-o3cbk74k>CLI only</span><span class="cmd__alias" data-astro-cid-o3cbk74k>also <code data-astro-cid-o3cbk74k>toil skills marketplace setup</code></span></div><p class="cmd__desc" data-astro-cid-o3cbk74k>Register a marketplace and clone it, with writes off; asks for a token on the terminal (setup is an alias). Install from it with marketplace sync once writes are on</p><p class="cmd__meta" data-astro-cid-o3cbk74k><code class="cmd__flag" data-astro-cid-o3cbk74k>&lt;url&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>[localPath]</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--name &lt;name&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--branch &lt;branch&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--username &lt;username&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--provider &lt;provider&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--allow-write</code></p></li><li class="cmd" data-astro-cid-o3cbk74k><div class="cmd__head" data-astro-cid-o3cbk74k><code class="cmd__name" data-astro-cid-o3cbk74k>toil skillsmarketplace list</code></div><p class="cmd__desc" data-astro-cid-o3cbk74k>List all registered marketplaces</p><p class="cmd__meta" data-astro-cid-o3cbk74k><span class="cmd__tool" data-astro-cid-o3cbk74k>MCP <code data-astro-cid-o3cbk74k>skills_marketplace_list</code></span></p></li><li class="cmd" data-astro-cid-o3cbk74k><div class="cmd__head" data-astro-cid-o3cbk74k><code class="cmd__name" data-astro-cid-o3cbk74k>toil skillsmarketplace plugins</code></div><p class="cmd__desc" data-astro-cid-o3cbk74k>List the plugins available in a registered marketplace</p><p class="cmd__meta" data-astro-cid-o3cbk74k><span class="cmd__tool" data-astro-cid-o3cbk74k>MCP <code data-astro-cid-o3cbk74k>skills_marketplace_plugins</code></span><code class="cmd__flag" data-astro-cid-o3cbk74k>&lt;name&gt;</code></p></li><li class="cmd" data-astro-cid-o3cbk74k><div class="cmd__head" data-astro-cid-o3cbk74k><code class="cmd__name" data-astro-cid-o3cbk74k>toil skillsmarketplace remove</code><span class="tag" data-astro-cid-o3cbk74k>CLI only</span></div><p class="cmd__desc" data-astro-cid-o3cbk74k>Remove a registered marketplace from the config, and its token from the OS credential store (the local clone and installed skills are kept)</p><p class="cmd__meta" data-astro-cid-o3cbk74k><code class="cmd__flag" data-astro-cid-o3cbk74k>&lt;name&gt;</code></p></li><li class="cmd" data-astro-cid-o3cbk74k><div class="cmd__head" data-astro-cid-o3cbk74k><code class="cmd__name" data-astro-cid-o3cbk74k>toil skillsstatus</code></div><p class="cmd__desc" data-astro-cid-o3cbk74k>Show every installed skill with its plugin, marketplace, and upstream remote, and whether it is on</p><p class="cmd__meta" data-astro-cid-o3cbk74k><span class="cmd__tool" data-astro-cid-o3cbk74k>MCP <code data-astro-cid-o3cbk74k>skills_status</code></span><code class="cmd__flag" data-astro-cid-o3cbk74k>--marketplace &lt;name&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--plugin &lt;name&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--source &lt;source&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--agent &lt;agent&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--scope &lt;scope&gt;</code></p></li></ul></section> <section class="index" id="commands-at-a-glance" data-astro-cid-o3cbk74k><h2 data-astro-cid-o3cbk74k>Commands at a glance</h2><ul class="cmds" data-astro-cid-o3cbk74k><li class="cmd" data-astro-cid-o3cbk74k><div class="cmd__head" data-astro-cid-o3cbk74k><code class="cmd__name" data-astro-cid-o3cbk74k>toil skillinstall</code><span class="tag tag--write" data-astro-cid-o3cbk74k>write</span><span class="tag" data-astro-cid-o3cbk74k>CLI only</span></div><p class="cmd__desc" data-astro-cid-o3cbk74k>Install the toil skill into an agent&#39;s skills folder; toil keeps it current from then on</p><p class="cmd__meta" data-astro-cid-o3cbk74k><code class="cmd__flag" data-astro-cid-o3cbk74k>--agent &lt;agent&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--claude</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--scope &lt;scope&gt;</code><code class="cmd__flag" data-astro-cid-o3cbk74k>--allow-write</code></p></li><li class="cmd" data-astro-cid-o3cbk74k><div class="cmd__head" data-astro-cid-o3cbk74k><code class="cmd__name" data-astro-cid-o3cbk74k>toil skillshow</code></div><p class="cmd__desc" data-astro-cid-o3cbk74k>Show the toil skill: the description toil writes for this config, and every installed copy and whether it is current</p><p class="cmd__meta" data-astro-cid-o3cbk74k><span class="cmd__tool" data-astro-cid-o3cbk74k>MCP <code data-astro-cid-o3cbk74k>skill_show</code></span></p></li></ul></section>   </article> </div> </section>  </main> <footer class="site-footer" data-astro-cid-gcn2mc3v> <div class="container" data-astro-cid-gcn2mc3v> <a class="imagile" href="https://www.imagile.dev" data-reveal data-astro-cid-gcn2mc3v> <img class="imagile__mark" src="/toil/images/imagile-mark-128.png" width="64" height="64" alt="" loading="lazy" data-astro-cid-gcn2mc3v> <div class="imagile__copy" data-astro-cid-gcn2mc3v> <p class="eyebrow" data-astro-cid-gcn2mc3v>Built by <b data-astro-cid-gcn2mc3v>Imagile</b></p> <p class="imagile__line" data-astro-cid-gcn2mc3v>Imagile helps companies put AI to work: training engineers to build with it, designing the agentic workflows that remove the busywork, and shipping the software behind it.</p> </div> <span class="btn btn--primary imagile__cta" data-astro-cid-gcn2mc3v>Visit imagile.dev <span aria-hidden="true" data-astro-cid-gcn2mc3v>→</span></span> </a> <div class="site-footer__inner" data-astro-cid-gcn2mc3v> <div class="site-footer__brand" data-astro-cid-gcn2mc3v> <a href="/toil/" class="site-footer__logo tap" data-astro-cid-gcn2mc3v><svg class="logo" width="22" height="22" viewBox="0 0 64 64" fill="none" aria-hidden="true" data-astro-cid-tvrurpns> <g class="logo__lines" stroke="var(--color-accent)" stroke-width="2.6" stroke-linecap="round" data-astro-cid-tvrurpns> <circle pathLength="100" cx="32" cy="32" r="27" data-astro-cid-tvrurpns></circle> <path pathLength="100" d="M20 32C14.5 32 15.1 18.8 10.7 15.4" data-astro-cid-tvrurpns></path><path pathLength="100" d="M20 32H5" data-astro-cid-tvrurpns></path><path pathLength="100" d="M20 32C14.5 32 15.1 45.2 10.7 48.6" data-astro-cid-tvrurpns></path><path pathLength="100" d="M44 32C49.5 32 48.9 18.8 53.3 15.4" data-astro-cid-tvrurpns></path><path pathLength="100" d="M44 32H59" data-astro-cid-tvrurpns></path><path pathLength="100" d="M44 32C49.5 32 48.9 45.2 53.3 48.6" data-astro-cid-tvrurpns></path> </g> <g class="logo__signals" stroke="var(--color-amber)" stroke-width="3.2" stroke-linecap="round" data-astro-cid-tvrurpns> <path pathLength="100" d="M20 32C14.5 32 15.1 18.8 10.7 15.4" data-astro-cid-tvrurpns></path><path pathLength="100" d="M20 32H5" data-astro-cid-tvrurpns></path><path pathLength="100" d="M20 32C14.5 32 15.1 45.2 10.7 48.6" data-astro-cid-tvrurpns></path><path pathLength="100" d="M44 32C49.5 32 48.9 18.8 53.3 15.4" data-astro-cid-tvrurpns></path><path pathLength="100" d="M44 32H59" data-astro-cid-tvrurpns></path><path pathLength="100" d="M44 32C49.5 32 48.9 45.2 53.3 48.6" data-astro-cid-tvrurpns></path> </g> <g stroke="var(--color-bg)" stroke-width="2" data-astro-cid-tvrurpns> <circle class="logo__tool" style="--i: 0" cx="10.7" cy="15.4" r="3.9" fill="var(--color-amber)" data-astro-cid-tvrurpns></circle><circle class="logo__tool" style="--i: 1" cx="5" cy="32" r="3.9" fill="var(--color-accent)" data-astro-cid-tvrurpns></circle><circle class="logo__tool" style="--i: 2" cx="10.7" cy="48.6" r="3.9" fill="var(--color-ink)" data-astro-cid-tvrurpns></circle><circle class="logo__tool" style="--i: 3" cx="53.3" cy="15.4" r="3.9" fill="var(--color-ink)" data-astro-cid-tvrurpns></circle><circle class="logo__tool" style="--i: 4" cx="59" cy="32" r="3.9" fill="var(--color-accent)" data-astro-cid-tvrurpns></circle><circle class="logo__tool" style="--i: 5" cx="53.3" cy="48.6" r="3.9" fill="var(--color-amber)" data-astro-cid-tvrurpns></circle> </g> <path d="M23 17.5h13l7 7v20a3 3 0 0 1-3 3H23a3 3 0 0 1-3-3v-24a3 3 0 0 1 3-3Z" fill="var(--color-ink)" data-astro-cid-tvrurpns></path> <path d="M36 17.5v4.5a2.5 2.5 0 0 0 2.5 2.5H43Z" fill="var(--color-accent)" data-astro-cid-tvrurpns></path> <path d="m24.5 27.5 5 4.3-5 4.3" stroke="var(--color-bg)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-tvrurpns></path> <path class="logo__cursor" d="M31.8 40h6.2" stroke="var(--color-accent)" stroke-width="3.2" stroke-linecap="round" data-astro-cid-tvrurpns></path> </svg>  toil</a> <p data-astro-cid-gcn2mc3v>The token-efficient alternative to MCP.</p> </div> <ul class="site-footer__links" data-astro-cid-gcn2mc3v> <li data-astro-cid-gcn2mc3v><a class="tap" href="/toil/how-it-works/" data-astro-cid-gcn2mc3v>How it works</a></li> <li data-astro-cid-gcn2mc3v><a class="tap" href="/toil/integrations/" data-astro-cid-gcn2mc3v>Integrations</a></li> <li data-astro-cid-gcn2mc3v><a class="tap" href="/toil/docs/" data-astro-cid-gcn2mc3v>Docs</a></li> <li data-astro-cid-gcn2mc3v><a class="tap" href="/toil/principles/" data-astro-cid-gcn2mc3v>Principles</a></li> <li data-astro-cid-gcn2mc3v><a class="tap" href="https://github.com/imagile-dev/toil" data-astro-cid-gcn2mc3v>GitHub</a></li> <li data-astro-cid-gcn2mc3v><a class="tap" href="/toil/feedback/" data-astro-cid-gcn2mc3v>Feedback</a></li> <li data-astro-cid-gcn2mc3v><a class="tap" href="https://github.com/imagile-dev/toil/issues" data-astro-cid-gcn2mc3v>Issues</a></li> <li data-astro-cid-gcn2mc3v><a class="tap" href="https://www.imagile.dev" data-astro-cid-gcn2mc3v>imagile.dev</a></li> </ul> <p class="site-footer__fine" data-astro-cid-gcn2mc3v>Apache 2.0 licensed · © Imagile</p> </div> </div> </footer>  <script type="module">const n=window.matchMedia("(prefers-reduced-motion: reduce)"),s=Array.from(document.querySelectorAll("[data-parallax]"));if(s.length&&!n.matches){let e=!1;const t=()=>{const r=window.scrollY;for(const a of s){const l=Number(a.dataset.parallax||0);a.style.setProperty("--parallax-y",`${r*l}px`)}e=!1};t(),window.addEventListener("scroll",()=>{e||(e=!0,requestAnimationFrame(t))},{passive:!0})}const o=document.querySelectorAll("[data-reveal]");if(o.length&&"IntersectionObserver"in window&&!n.matches){document.documentElement.classList.add("reveal-armed");const e=new IntersectionObserver(t=>{for(const r of t)r.isIntersecting&&(r.target.classList.add("is-visible"),e.unobserve(r.target))},{threshold:.15,rootMargin:"0px 0px -8% 0px"});o.forEach(t=>e.observe(t))}</script> </body> </html>  

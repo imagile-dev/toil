@@ -100,6 +100,11 @@
   pointer-events: none;
 }
 
+/* The header runs edge to edge, so its brackets stay inside the page. */
+[data-theme="starship"] .top > .hud-corners {
+  inset: 0;
+}
+
 [data-theme="starship"] .hud-corner {
   position: absolute;
   width: 14px;
@@ -263,6 +268,12 @@
 [data-theme="starship"] .starship-jump img {
   border: 1px solid rgba(54, 214, 255, 0.45);
   border-radius: 2px;
+}
+
+/* The local app's sync panel (#257). */
+[data-theme="starship"] .sync-panel {
+  border-top: 1px solid var(--accent);
+  box-shadow: 0 -6px 18px rgba(54, 214, 255, 0.12);
 }
 
 @media (prefers-reduced-motion: no-preference) {

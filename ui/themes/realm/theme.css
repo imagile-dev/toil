@@ -243,3 +243,9 @@
   width: 200px;
   max-width: 100%;
 }
+
+/* The local app's sync panel (#257). */
+[data-theme="realm"] .sync-panel {
+  border-top: 3px double var(--ink);
+  background: transparent;
+}

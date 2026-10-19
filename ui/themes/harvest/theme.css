@@ -249,6 +249,11 @@
 }
 
 /* Motion, only where it is welcome: the watering can tips while a view loads. */
+/* The local app's sync panel (#257). */
+[data-theme="harvest"] .sync-panel {
+  border-top: 6px solid #8a5226;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   [data-theme="harvest"] .harvest-can {
     animation: harvest-pour 0.9s steps(2, jump-none) infinite alternate;
