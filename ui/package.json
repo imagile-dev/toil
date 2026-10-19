@@ -1,6 +1,6 @@
 {
   "name": "@imagile-dev/toil-ui",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.1",
   "description": "Toil UI: a local web app to see and reason about work across Jira, Azure DevOps and GitHub, on toil. Alpha, local only.",
   "license": "Apache-2.0",
   "author": "Imagile",
@@ -39,7 +39,7 @@
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
-    "@imagile-dev/toil": "0.1.0-alpha.2"
+    "@imagile-dev/toil": "0.1.0-alpha.3"
   },
   "peerDependencies": {
     "@anthropic-ai/claude-agent-sdk": ">=0.3.289",
@@ -48,10 +48,18 @@
     "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
-    "@anthropic-ai/claude-agent-sdk": { "optional": true },
-    "@github/copilot-sdk": { "optional": true },
-    "@openai/codex-sdk": { "optional": true },
-    "zod": { "optional": true }
+    "@anthropic-ai/claude-agent-sdk": {
+      "optional": true
+    },
+    "@github/copilot-sdk": {
+      "optional": true
+    },
+    "@openai/codex-sdk": {
+      "optional": true
+    },
+    "zod": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@cfworker/json-schema": "4.1.1",
