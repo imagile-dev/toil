@@ -39,13 +39,14 @@ export const FIXTURE_CONNECTIONS: ConnectionsData = {
   ],
 };
 
-const PROBES: Record<string, string> = {
-  ado: 'GET /_apis/connectionData',
-  bitbucket: 'GET /rest/api/1.0/users',
+/** Each area's live check, as `connections test` reports it (test/config.test.ts holds them to the areas' own probes). */
+export const PROBES: Record<string, string> = {
+  ado: 'GET /DefaultCollection/_apis/connectionData',
+  bitbucket: 'GET /rest/api/1.0/profile/recent/repos',
   jenkins: 'GET /me/api/json',
   jira: 'GET /rest/api/2/myself',
   github: 'GET /user',
-  openshift: 'GET /version',
+  openshift: 'GET /api/v1',
 };
 
 interface Answer {

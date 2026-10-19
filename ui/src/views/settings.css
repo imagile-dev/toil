@@ -1,0 +1,56 @@
+/* The settings pages (#253): the sub-navigation, connection and dossier cards,
+   and the change forms. Colours come from the theme's tokens, so Plain and
+   Crate both style them; every control is at least 44px tall. */
+
+.subnav ul { display: flex; flex-wrap: wrap; gap: 0.25rem; list-style: none; padding: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
+.subnav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 0.75rem; color: var(--ink); text-decoration: none; border-bottom: 3px solid transparent; }
+.subnav a:hover { border-bottom-color: var(--line); }
+.subnav a[aria-current="page"] { border-bottom-color: var(--accent); font-weight: 600; }
+
+.config-off { margin-bottom: 1rem; padding: 0.75rem 1rem; border: 1px solid var(--warn); border-left-width: 4px; border-radius: var(--radius); background: var(--surface); }
+.page-title { font-size: 1.35rem; margin-top: 0.5rem; }
+.page-title + .lede { margin-bottom: 1rem; }
+
+.conn-cards { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr)); gap: 1rem; }
+.conn-card { background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; display: grid; gap: 0.6rem; height: 100%; align-content: start; min-width: 0; }
+.conn-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem; }
+.conn-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; list-style: none; padding: 0; }
+.tag { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); font-size: 0.8125rem; color: var(--ink); background: var(--surface); }
+.tag--accent { border-color: var(--accent); font-weight: 600; }
+.tag--warn { border-color: var(--warn); color: var(--warn); font-weight: 600; }
+.conn-actions, .change-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.btn--danger { border-color: var(--danger); color: var(--danger); font-weight: 600; }
+button.btn:disabled { cursor: not-allowed; opacity: 0.75; }
+
+.change { display: grid; gap: 0.6rem; padding: 1rem; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.panel > .change + .change, .panel > .field-row + .change { margin-top: 0.25rem; }
+.explain { max-width: 70ch; }
+.runs { font-size: 0.875rem; color: var(--muted); }
+.runs code { color: var(--ink); }
+
+.field-row { display: grid; gap: 0.25rem; max-width: 40rem; }
+.field-row label { font-weight: 600; }
+.req { font-weight: 400; color: var(--muted); }
+.field-row input[type="text"], .field-row input[type="password"], .field-row input[type="url"], .field-row textarea, .field-row select {
+  font: inherit;
+  min-height: 44px;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--ink);
+}
+.field-row textarea { font-family: var(--font-mono); font-size: 0.875rem; resize: vertical; }
+.field-row--check { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 0.6rem; }
+.field-row--check input { width: 1.25rem; height: 1.25rem; margin: 0; accent-color: var(--accent); }
+.field-row--check label { font-weight: 400; min-height: 44px; display: inline-flex; align-items: center; }
+.field-row--check .note { grid-column: 1 / -1; }
+.more summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--link); }
+.more[open] { display: grid; gap: 0.6rem; }
+
+.outcome-line:empty { display: none; }
+.outcome-line { display: grid; gap: 0.25rem; padding: 0.5rem 0.75rem; border-radius: var(--radius); border: 1px solid var(--line); }
+.outcome-line--ok { border-color: var(--ok); }
+.outcome-line--failed { border-color: var(--danger); }
+.shown { display: grid; gap: 0.5rem; }

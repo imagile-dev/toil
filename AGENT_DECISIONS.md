@@ -3061,3 +3061,65 @@ Toil UI's sync and SQLite cache (#206 point 2), on the server #249 built.
   changelogs; after one issue changed, the second sent `(project = LAB) AND updated
   >= "…"` and one changelog; with the stub returning 503, the source showed failed
   and stale, and the dashboard kept all seven items.
+
+### #253 configuration
+
+#253's item 4: Settings pages for Connections, Dossiers, and Bounds and time limit,
+driving toil's own config commands through `@imagile-dev/toil/api` on the local
+server.
+
+- **The allowlist** (`ui/src/config.ts`, enforced in `ui/server/config.ts`) is
+  `connections list`, `test`, `add`, `login`, `default`, `writes` and `remove`, and
+  `dossiers list`, `show`, `check`, `init`, `add-repo`, `link` and `field`.
+  `connections login` is in it because "replace a secret" is toil's login path. The
+  reads run `readOnly` even on the config path; only the changes run with readOnly
+  off, each through its own checks. `ui/test/config.test.ts` holds the list to the
+  registry: every read writes nothing, every change is `writesLocal` and never
+  `writes`. Anything else, a tracker write included, is a 403 before a Store sees it.
+- **A core change: `person` on `execute()`.** The connections commands that change
+  connections were CLI only and ask their questions on a terminal, and the API
+  refused them, so nothing could take a secret without a TTY. `ExecuteOptions.person`
+  (`{ ask(question) }`) is the general way: with one, `execute()` also runs
+  `connections add`, `login`, `remove`, `writes` and `default`
+  (`registry.personCommands`) and asks every question through it. The `Prompter`
+  gained a question id (`area`, `setting:<key>`, `secret:<key>`, `confirm`,
+  `confirm-name`), so a host can match a question to a field. The terminal ignores
+  the id. An unanswered question is `CANCELLED`, with nothing saved. Turning writes
+  on still asks for the typed name: the command's own gate, unchanged. The other
+  CLI-only commands (`setup alias`, `dossiers remove`, `skills marketplace remove`)
+  stay refused. `docs/bounds.md`'s `commands.cli-only` row says so.
+  **This loosens a security-class bound for API hosts, which is the maintainer's
+  call:** a program could pass a `person` that answers by itself. The program is
+  in-process code the user installed and runs, which could already write
+  `~/.toil/config.json` itself. No agent can reach this path: MCP is unchanged.
+- **Two additive registry fields:** `registry.areas[].connection` (what
+  `connections add` asks for, in order, with `secret`, `password`, `default` and
+  `required`), so the add form needs no copy of each area's schema; and
+  `registry.personCommands`. `connections list` adds `definedIn: file | env`, so an
+  env-only connection is shown read-only. With an older toil it falls back to "every
+  value from env or CI".
+- **Secrets:** the page sends them in the one request's `secrets` object, never in
+  `input`, so they never reach the audit log's input. The server's `personFrom()`
+  answers a hidden question only from `secrets` and a visible one only from
+  `answers`. The page clears each password field when it submits. The test sweeps
+  every response, the audit log, the config file and everything the process printed
+  for the typed secrets.
+- **Bounds and time limit have no command**, so they're shown read-only. The bound
+  comes from toil's own `BOUND_RELAXED` warning on `connections list`. The time
+  limit is `TOIL_TIMEOUT_MS` in the server's env (the env toil runs in), with toil's
+  default, which the test holds to `DEFAULT_TIMEOUT_MS`. No file is read or edited.
+- **The pinned toil.** The server type-checks and ships against the published
+  0.1.0-alpha.2, which has neither `person` nor `connection`. With it, the add form
+  says to use the CLI, and a person's command comes back as toil's own refusal. The
+  release PR's pin bump brings both. `ui/src/toil.ts` declares `person` on the UI's
+  own `ExecuteOptions`, and the registry test still holds that type to the source's.
+- **Preview:** `ui/src/fixtures/config.ts` answers the reads from sample data. The
+  areas come from `config-areas.json`, which the test holds equal to the registry,
+  and the probes are held to each area's own probe. Every change button is
+  disabled, with a note on the page and beside each button saying why. `toil-ui
+  --sample` serves the same. The App takes `config` as a prop, so the fixtures stay
+  out of the app bundle.
+- **Forms are native elements** (`input`, `select`, `textarea`, `button`), which are
+  accessible as they come. Each change is a `form` named by its heading, saying what
+  it does and the command it runs, with a live `status` or `alert` for toil's
+  answer.

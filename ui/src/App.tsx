@@ -23,12 +23,14 @@ import { Dashboard } from './views/Dashboard.tsx';
 import { Dossiers } from './views/Dossiers.tsx';
 import { ItemView } from './views/Item.tsx';
 import { Settings } from './views/Settings.tsx';
+import type { ConfigApi } from './config.ts';
 
-export type Route = { view: 'dossiers' } | { view: 'settings' } | { view: 'dashboard'; dossier: string } | { view: 'item'; dossier: string; id: string };
+export type SettingsPage = 'connections' | 'dossiers' | 'toil';
+export type Route = { view: 'dossiers' } | { view: 'settings'; page: SettingsPage } | { view: 'dashboard'; dossier: string } | { view: 'item'; dossier: string; id: string };
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/');
-  if (parts[0] === 'settings') return { view: 'settings' };
+  if (parts[0] === 'settings') return { view: 'settings', page: parts[1] === 'dossiers' || parts[1] === 'toil' ? parts[1] : 'connections' };
   if (parts[0] === 'dossier' && parts[1]) {
     const dossier = decodeURIComponent(parts[1]);
     if (parts[2] === 'item' && parts[3]) return { view: 'item', dossier, id: decodeURIComponent(parts.slice(3).join('/')) };
@@ -51,6 +53,8 @@ export interface AppProps {
   /** `execute()` from `@imagile-dev/toil/api`, or the preview's fixture one. */
   execute: Execute;
   agent: Agent;
+  /** toil's config commands, for the settings pages: the server's, or the preview's sample one, which changes nothing. */
+  config?: ConfigApi;
   /** When the data is read; sprint figures are worked out at it. The preview's is fixed. */
   now: string;
   /** The site preview: shows the unreleased-product banner on every view. */
@@ -60,7 +64,7 @@ export interface AppProps {
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, now, preview }: AppProps) {
+export function App({ execute, agent, config, now, preview }: AppProps) {
   const route = useRoute();
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
@@ -130,7 +134,7 @@ export function App({ execute, agent, now, preview }: AppProps) {
 
   let body;
   if (route.view === 'settings') {
-    body = <Settings preview={preview} />;
+    body = <Settings page={route.page} config={config ?? null} />;
   } else if (route.view === 'dossiers') {
     body = !list ? <skins.Loading message="Reading the dossiers…" /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} /> : failure(list.message);
   } else if (!current) {

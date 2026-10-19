@@ -5,8 +5,10 @@ A local web app for seeing work across Jira, Azure DevOps and GitHub, read throu
 with its stories, pull requests, builds and deployments side by side.
 
 **Status: alpha, local only.** It runs on your own machine, binds loopback, and
-reads through toil with your own connections and dossiers, read-only. It is a
-separate package from toil: installing toil never installs it.
+reads through toil with your own connections and dossiers, read-only. Its
+settings pages are the one place it changes anything, and only toil's own
+connections and dossiers. It is a separate package from toil: installing toil
+never installs it.
 
 ## Start it
 
@@ -29,7 +31,7 @@ It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
 Toil UI 0.1.0-alpha.1 (alpha, local only), on toil 0.1.0-alpha.3
-Syncing through toil, read-only, with your own connections and dossiers.
+Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil's own connections and dossiers, when you ask.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
 Open this URL in your browser. It carries this launch's token, so keep it to yourself:
@@ -52,6 +54,29 @@ project board, and the OpenShift namespace of each environment. Every call runs
 in-process through `@imagile-dev/toil/api`, read-only, and toil's audit log
 records it with `via: "api"` and `caller: "toil-ui"`. A call that fails shows on
 its own panel with toil's message and fix.
+
+## Toil's configuration
+
+The Settings pages manage what `toil connections` and `toil dossiers` manage, by
+running those commands through `@imagile-dev/toil/api`, never by editing a file:
+
+- **Connections:** list, add, test, set the default, turn writes on or off,
+  replace a secret (`toil connections login`) and remove. A secret goes from a
+  password field to toil, which keeps it in the OS credential store; the page
+  clears the field, and it is never logged, stored by Toil UI, or sent back.
+  Turning writes on asks you to type the connection's name, as the CLI does. A
+  connection made by `TOIL_*` env vars alone is shown read-only, with where it
+  came from.
+- **Dossiers:** create one, add a repository, link an area, name a field, and
+  show and check any of them. A link to a connection with writes on is refused
+  here, as over MCP: make it on the CLI.
+- **Bounds and time limit:** toil has no command for these, so they are shown
+  read-only, with the file or env var that sets them.
+
+Every change is an explicit action, runs the command's own checks, and is in
+toil's audit log as `caller: "toil-ui"`. The page can run no other command on this
+path, and never a tracker write. Adding or changing connections needs a toil
+newer than 0.1.0-alpha.2; with that one, use the CLI.
 
 ## Sync and the cache
 
@@ -129,8 +154,6 @@ Windows too.
 ## Not in this alpha
 
 - **The agent.** The agent pane has no adapter yet, and says so when asked.
-- **Settings pages** for connections and dossiers. Use `toil connections` and
-  `toil dossiers` on the CLI.
 - **Serving other machines.** It is local only.
 
 ## The package

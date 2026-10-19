@@ -7,6 +7,8 @@ import type { Agent } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { CANNED, FIXTURE_NOW, callKey, fixtureExecute, type Canned } from '../src/fixtures/execute.ts';
 import type { Execute } from '../src/toil.ts';
+import type { ConfigApi } from '../src/config.ts';
+import { fixtureConfig } from '../src/fixtures/config.ts';
 
 /**
  * The views, rendered against the fixture `execute()` and the scripted Agent:
@@ -14,11 +16,11 @@ import type { Execute } from '../src/toil.ts';
  */
 
 const item = (dossier: string, id: string) => `#/dossier/${dossier}/item/${encodeURIComponent(id)}`;
-const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', item('card-payments', 'corp-jira:PAY-101'), '#/settings'];
+const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', item('card-payments', 'corp-jira:PAY-101'), '#/settings', '#/settings/dossiers', '#/settings/toil'];
 
-async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent() }: { preview?: boolean; execute?: Execute; agent?: Agent } = {}) {
+async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent(), config = fixtureConfig() }: { preview?: boolean; execute?: Execute; agent?: Agent; config?: ConfigApi } = {}) {
   window.location.hash = hash;
-  const view = render(<App execute={execute} agent={agent} now={FIXTURE_NOW} preview={preview} />);
+  const view = render(<App execute={execute} agent={agent} config={config} now={FIXTURE_NOW} preview={preview} />);
   await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
   return view;
 }
@@ -261,7 +263,114 @@ describe('settings', () => {
     await open('#/settings');
     expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe("toil's configuration");
-    expect(document.body.textContent).toContain('The preview has no configuration to change');
+    expect(document.body.textContent).toContain('Changes are turned off.');
+    expect(document.body.textContent).toContain('it has no configuration of yours to change');
+  });
+
+  /** The preview's config with changes on, recording what each change sent, and answering it ok. */
+  function recording() {
+    const base = fixtureConfig();
+    const sent: Array<{ command: string; input: Record<string, unknown>; answers: unknown }> = [];
+    const config: ConfigApi = {
+      ...base,
+      disabled: null,
+      run: async (command, input, answers) => {
+        if (['connections list', 'connections test', 'dossiers list', 'dossiers show', 'dossiers check'].includes(command)) return base.run(command, input);
+        sent.push({ command, input, answers: answers ?? null });
+        return { ok: true, data: {}, error: null, meta: { command, durationMs: 0, version: 'x', contractVersion: 1 } };
+      },
+    };
+    return { config, sent };
+  }
+
+  it('in the preview, shows the connections with every change turned off, and still tests one', async () => {
+    await open('#/settings/connections');
+    const card = await screen.findByRole('article', { name: 'corp-jira' });
+    await userEvent.click(within(card).getByRole('button', { name: 'Turn writes off' }));
+    const form = within(card).getByRole('form', { name: 'Turn writes off for corp-jira' });
+    expect((within(form).getByRole('button', { name: 'Turn writes off' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(form.textContent).toContain('Turned off: This is the preview');
+    expect(form.textContent).toContain('Runs toil connections writes corp-jira off');
+    await userEvent.click(within(card).getByRole('button', { name: 'Test' }));
+    await waitFor(() => expect(card.textContent).toContain('corp-jira answered GET /rest/api/2/myself, so its credential works.'));
+  });
+
+  it('shows a connection made by env vars read-only, with where it came from', async () => {
+    await open('#/settings/connections');
+    const card = await screen.findByRole('article', { name: 'github' });
+    expect(within(card).queryByRole('button', { name: /Remove|Make default|Turn writes|Replace secret/ })).toBeNull();
+    expect(within(card).getByRole('button', { name: 'Test' })).toBeTruthy();
+    expect(card.textContent).toContain('TOIL_CONN_GITHUB_*');
+    expect(card.textContent).toContain('token: CI variable');
+  });
+
+  it("turns writes on only with the name typed, and sends what was typed as the command's own confirmation", async () => {
+    const { config, sent } = recording();
+    await open('#/settings/connections', { config });
+    const card = await screen.findByRole('article', { name: 'corp-ado' });
+    await userEvent.click(within(card).getByRole('button', { name: 'Turn writes on' }));
+    const form = within(card).getByRole('form', { name: 'Turn writes on for corp-ado' });
+    await userEvent.type(within(form).getByRole('textbox', { name: /Type corp-ado to turn them on/ }), 'corp-ado');
+    await userEvent.click(within(form).getByRole('button', { name: 'Turn writes on' }));
+    expect(await within(form).findByRole('status')).toBeTruthy();
+    expect(sent).toEqual([{ command: 'connections writes', input: { name: 'corp-ado', state: 'on' }, answers: { answers: { 'confirm-name': 'corp-ado' } } }]);
+  });
+
+  it("adds a connection: every setting answered, the secret sent once and cleared from the page", async () => {
+    const { config, sent } = recording();
+    await open('#/settings/connections', { config });
+    const form = await screen.findByRole('form', { name: 'A new connection' });
+    await userEvent.type(within(form).getByRole('textbox', { name: /^Name/ }), 'corp-jira-2');
+    await userEvent.selectOptions(within(form).getByRole('combobox', { name: 'Area' }), 'jira');
+    await userEvent.type(within(form).getByRole('textbox', { name: /^baseUrl/ }), 'https://jira.imagile.dev');
+    const secret = within(form).getByLabelText(/^apiToken/) as HTMLInputElement;
+    expect(secret.type).toBe('password');
+    await userEvent.type(secret, 'fake-pat-abc12345');
+    expect(form.textContent).toContain('Saves: area jira, baseUrl https://jira.imagile.dev, apiToken to the OS credential store.');
+    await userEvent.click(within(form).getByRole('button', { name: 'Save connection' }));
+    expect(await within(form).findByRole('status')).toBeTruthy();
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ command: 'connections add', input: { name: 'corp-jira-2', area: 'jira' }, answers: { secrets: { apiToken: 'fake-pat-abc12345' } } });
+    const answers = (sent[0]!.answers as { answers: Record<string, string> }).answers;
+    expect(answers).toMatchObject({ confirm: 'y', 'setting:baseUrl': 'https://jira.imagile.dev', 'setting:project': '' });
+    expect((within(form).getByLabelText(/^apiToken/) as HTMLInputElement).value).toBe('');
+    expect(document.body.textContent).not.toContain('fake-pat-abc12345');
+  });
+
+  it('builds a dossier through toil dossiers, and shows and checks one', async () => {
+    const { config, sent } = recording();
+    await open('#/settings/dossiers', { config });
+    const card = await screen.findByRole('article', { name: 'settlement' });
+    await userEvent.click(within(card).getByRole('button', { name: 'Check' }));
+    expect((await within(card).findByRole('status')).textContent).toContain('settlement checks out: no problems.');
+    await userEvent.click(within(card).getByRole('button', { name: 'Show' }));
+    expect(within(card).getByRole('table').textContent).toContain('corp-ado (dossier)');
+
+    const init = screen.getByRole('form', { name: 'Create a dossier' });
+    await userEvent.type(within(init).getByRole('textbox', { name: /^Name/ }), 'payments');
+    await userEvent.click(within(init).getByRole('button', { name: 'Create dossier' }));
+    const field = screen.getByRole('form', { name: 'Name a field in card-payments' });
+    await userEvent.type(within(field).getByRole('textbox', { name: /^Alias/ }), 'storyPoints');
+    await userEvent.type(within(field).getByRole('textbox', { name: /^Field id/ }), 'customfield_10002');
+    await userEvent.click(within(field).getByRole('button', { name: 'Name field' }));
+    const link = screen.getByRole('form', { name: 'Link an area to card-payments' });
+    await userEvent.type(within(link).getByRole('textbox', { name: /^Keys to set/ }), 'project=PAY');
+    await userEvent.click(within(link).getByRole('button', { name: 'Link area' }));
+    await waitFor(() => expect(sent).toHaveLength(3));
+    expect(sent.map((s) => [s.command, s.input])).toEqual([
+      ['dossiers init', { name: 'payments' }],
+      ['dossiers field', { dossier: 'card-payments', area: 'jira', alias: 'storyPoints', id: 'customfield_10002' }],
+      ['dossiers link', { dossier: 'card-payments', area: 'jira', set: ['project=PAY'] }],
+    ]);
+  });
+
+  it('shows the bounds and the time limit read-only, with where each is set', async () => {
+    await open('#/settings/toil');
+    await screen.findByRole('heading', { name: 'Bounds' });
+    expect(document.body.textContent).toContain('Held: commands read and write files only inside the workspace.');
+    expect(document.body.textContent).toContain('/home/you/.toil/config.json');
+    expect(document.body.textContent).toContain("120 s, toil's default");
+    expect(screen.queryByRole('button', { name: /Save|Change/ })).toBeNull();
   });
 });
 

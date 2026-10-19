@@ -14,7 +14,8 @@ import { App } from './App.tsx';
 import type { Agent } from './agent.ts';
 import './app.css';
 import './views.css';
-import { httpAgent, httpExecute, httpSync, signIn, type Session, type SyncStatus } from './server-client.ts';
+import type { ConfigApi } from './config.ts';
+import { httpAgent, httpConfig, httpExecute, httpSync, signIn, type Session, type SyncStatus } from './server-client.ts';
 import { SyncPanel, lastSynced } from './sync-panel.tsx';
 import { CALL_OPTIONS, type Execute } from './toil.ts';
 
@@ -25,13 +26,14 @@ function Local({ session, execute, agent, status }: { session: Session; execute:
   // A new generation remounts the App, so every view reads the cache again.
   const [generation, setGeneration] = useState(0);
   const [sync] = useState(() => (session.sync ? httpSync(session) : null));
+  const [config] = useState<ConfigApi>(() => httpConfig(session));
   const onChange = useCallback((next: SyncStatus) => {
     setSynced(lastSynced(next));
     setGeneration((g) => g + 1);
   }, []);
   return (
     <>
-      <App key={generation} execute={execute} agent={agent} now={synced ?? session.now} preview={session.sample} />
+      <App key={generation} execute={execute} agent={agent} config={config} now={synced ?? session.now} preview={session.sample} />
       {sync && <SyncPanel client={sync} onChange={onChange} />}
     </>
   );
