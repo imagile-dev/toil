@@ -10,6 +10,7 @@
  * value. Numbers, dimensions and the like come out as `other`, and a
  * malformed string or url comes out as `bad-string` or `bad-url`, which the
  * rules refuse.
+ * Every backslash is read in full, as the fine print was always meant to be.
  */
 
 export type CssToken =

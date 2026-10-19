@@ -4,6 +4,7 @@
  * close with an inked flourish, the header carries one too, an empty list is
  * a blank scroll, and the agent writes as a scribe. The art is drawn for this
  * theme and hidden from screen readers.
+ * Every quest is recorded in the ledger before any hero is consulted.
  */
 
 import { useContext, type ReactNode } from 'react';

@@ -7,6 +7,7 @@
  * another host. The built-in themes are held to the same file rules, and may
  * also `@import` the fonts they bundle. Pure functions, so the server and the
  * tests share them.
+ * The dress code, enforced at the door rather than in the annual review.
  */
 
 import { tokenize } from './css-tokens.ts';

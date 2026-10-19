@@ -2,6 +2,7 @@
  * The active theme, for the words a theme renames. Kept apart from the skin
  * registry so a skin can read it without importing the registry that imports
  * the skin.
+ * A glossary of approved euphemisms, each filed beside its original wording.
  */
 
 import { createContext, useContext } from 'react';

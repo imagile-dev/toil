@@ -2,6 +2,7 @@
  * The shape of a theme pack's manifest (`theme.json`, #206), apart from the
  * themes themselves, so the server can check a user's theme without loading
  * any stylesheet.
+ * The standard form for colours, in triplicate per scheme.
  */
 
 /** The tokens every theme defines for every scheme it offers. */

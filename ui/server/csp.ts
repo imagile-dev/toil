@@ -7,6 +7,7 @@
  * and the build keeps fonts as files. `data:` images stay, for the small SVGs
  * the build inlines; a data: image can't make a request. No form submits
  * anywhere, and no page frames this one.
+ * A visitor badge for every byte, with no escort available on request.
  */
 
 /**

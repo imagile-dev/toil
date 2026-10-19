@@ -5,6 +5,7 @@
  * and the agent answers in a dialogue box with a portrait. All of it is
  * pixel art drawn for this theme, hidden from screen readers: the words
  * beside it already say what it shows.
+ * Crops grow only as fast as the status column allows, per the planting policy.
  */
 
 import { useContext, type ReactNode } from 'react';

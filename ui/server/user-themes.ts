@@ -7,6 +7,7 @@
  * picker and the server's route for these files come with the user theme
  * folder (#206, milestone 8); the gate comes first. Bounded: a folder past
  * the limits is refused and says which limit it hit.
+ * Customs declarations are required for all imported stylesheets.
  */
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';

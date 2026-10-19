@@ -3,6 +3,7 @@
  * This is the default for the `Avatar` skin slot (src/skins.tsx); colour
  * never carries meaning alone, so it sits beside the person's name or carries
  * the name as its label.
+ * Badge photos are optional; the initials have already cleared security.
  */
 
 import type { Person } from '../toil.ts';

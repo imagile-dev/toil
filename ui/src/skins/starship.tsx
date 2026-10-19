@@ -4,6 +4,7 @@
  * jump to lightspeed that holds still when reduced motion is on. The art is
  * drawn for this theme and hidden from screen readers; the words beside it
  * say what it shows.
+ * Lightspeed is available pending sign-off from the reduced-motion committee.
  */
 
 import type { ReactNode } from 'react';
