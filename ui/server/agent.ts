@@ -4,13 +4,15 @@
  * one, which takes the viewer from the request, so the adapters #251 adds
  * (Claude, Copilot, Codex) run on the server with the viewer's own
  * subscription and never in the page. It answers and cites; it never writes.
- * Two ship now: the scripted Agent the preview uses, for `--sample`, and
- * `noAgent`, which says plainly that no adapter is set up. A help desk that
- * opens on schedule and admits when nobody is in.
+ * Beside the adapters (server/agents/host.ts, #251) sit the scripted Agent
+ * the preview uses, for `--sample`, and `noAgent`, which says plainly that no
+ * adapter is set up and names the three. A help desk that opens on schedule
+ * and admits when nobody is in.
  */
 
-import type { Answer, Starter } from '../src/agent.ts';
+import { NO_AGENT_FIX, NO_AGENT_NOTICE as NO_AGENT, type Answer, type Starter } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
+import { AgentError } from './agents/cli.ts';
 import type { RequestContext } from './context.ts';
 
 export type { Answer, Starter } from '../src/agent.ts';
@@ -22,6 +24,8 @@ export interface Agent {
   starters(ctx: RequestContext, dossier: string): Promise<Starter[]>;
   /** Answers about the named dossier only, citing every item it used. Throws with a message the pane shows. */
   ask(ctx: RequestContext, dossier: string, prompt: string): Promise<Answer>;
+  /** The same answer as it grows, each value the whole answer so far (#251). Optional; the server falls back to `ask`. */
+  stream?(ctx: RequestContext, dossier: string, prompt: string): AsyncIterable<Answer>;
 }
 
 /** The preview's scripted Agent: canned answers about the sample dossiers. */
@@ -34,13 +38,13 @@ export function fixtureAgent(): Agent {
   };
 }
 
-/** No adapter yet: no starters, and a question gets a plain answer saying so. */
+/** No adapter chosen: no starters, and a question gets a plain answer naming the three adapters. */
 export function noAgent(): Agent {
   return {
     kind: 'none',
     starters: async () => [],
     ask: async () => {
-      throw new Error('No agent is set up in this Toil UI yet. The agent adapters (Claude, Copilot, Codex) come in a later alpha; until then the dashboards work without one.');
+      throw new AgentError(NO_AGENT, NO_AGENT_FIX);
     },
   };
 }

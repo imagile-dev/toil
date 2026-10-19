@@ -96,6 +96,53 @@ show`, and each area's search, history, pull request, build and deployment reads
 Any other command is refused before it reaches toil, and a change to a tracker is
 never made from the page.
 
+## The agent
+
+The docked chat answers with the agent your organization already approved, on the
+subscription you already have. Toil UI has three adapters, each an optional peer
+dependency that is loaded only when you choose it:
+
+| Adapter | Package | Starts | Signs in with |
+|---|---|---|---|
+| Claude | `@anthropic-ai/claude-agent-sdk` (and its peer `zod`) | `claude` (Claude Code) | Claude Code's own login, or Bedrock, Foundry or Vertex through Claude Code's environment switches |
+| GitHub Copilot | `@github/copilot-sdk` | `copilot` (the Copilot CLI) | your Copilot seat, through the CLI |
+| Codex | `@openai/codex-sdk` | `codex` (the Codex CLI) | the CLI's ChatGPT sign-in or its own API key setup |
+
+```bash
+npm install -g @anthropic-ai/claude-agent-sdk zod   # beside a global toil-ui
+```
+
+Then choose it under **Settings, Agent**: the adapter, the model (empty for the CLI's
+default), the CLI's path (empty to use the one on `PATH`) and, for Claude, the
+endpoint. The choice is kept in `<data folder>/agent.json`, never in toil's config,
+and has no field for a key: each SDK signs in the way its CLI does. Install the SDK
+with `--omit=optional` if you don't want its bundled copy of the CLI on disk; Toil UI
+never starts that copy anyway.
+
+- **Only the CLI already on this machine.** Toil UI finds it on `PATH` or at the path
+  you set, hands that path to the SDK, and never downloads one. Not found is a plain
+  error naming the CLI and the fix. On Windows a `.cmd` shim can't be started by the
+  SDKs, so point at the `.exe`.
+- **Read-only tools, one dossier.** The agent gets `owi_query`, `owi_get` and
+  `owi_history` over the cache, `proposal_fields` (a write command's input fields,
+  from toil's registry), and `toil mcp`'s read tools for live lookups, called through
+  toil's `execute()` with `readOnly: true`. The dossier is fixed to the one on screen.
+  There is no write tool, and each SDK's own tools (shell, files, web, plugins, other
+  MCP servers) are switched off.
+- **Citations are checked.** Every answer cites the work items it used as links.
+  The server holds each id it names to what its tools returned, and flags any other
+  as unverified above the answer.
+- **Writes are proposals.** A change the agent suggests comes back as a card with the
+  `toil … --allow-write` command line for you to run through toil's write gate. The
+  agent can't run it.
+- **Codex takes tools only from an MCP server**, so for the length of one question
+  Toil UI serves them at `api/agent/mcp` on its own loopback port, behind a token made
+  for that question. The token reaches Codex in its environment, never on its command
+  line, and the endpoint refuses any request carrying a browser's `Origin`.
+
+With no adapter chosen, the chat says so and names the three. `toil-ui --sample`
+keeps the scripted agent, which answers its starter questions from the sample data.
+
 ## The lock on the door
 
 Any program on the machine, or a web page using DNS rebinding, can reach a local
@@ -109,7 +156,7 @@ port, so the server lets in only the browser holding this launch's token:
 - **No CORS.** No `Access-Control-*` header is ever sent. Every POST also needs the
   page's own `Origin`, a JSON body, and the session's CSRF token.
 - **No network but toil's.** It talks to the hosts in your toil connections, and
-  nothing else.
+  nothing else. The agent CLI you choose talks to its own model endpoint.
 
 ## Settings
 
@@ -128,7 +175,6 @@ Windows too.
 
 ## Not in this alpha
 
-- **The agent.** The agent pane has no adapter yet, and says so when asked.
 - **Settings pages** for connections and dossiers. Use `toil connections` and
   `toil dossiers` on the CLI.
 - **Serving other machines.** It is local only.
@@ -137,7 +183,8 @@ Windows too.
 
 `@imagile-dev/toil-ui` ships the server (`dist/server/toil-ui.js`) and the built app
 (`dist/app/`), and nothing else. It has no install scripts and no native addons,
-spawns no program, and its front end's framework is built in rather than
-installed.
+spawns no program of its own (an agent SDK you install starts its CLI), and its
+front end's framework is built in rather than installed. The agent SDKs are
+optional peer dependencies: none is installed with it.
 
 Apache-2.0. See `NOTICE` for what the app bundles.

@@ -28,6 +28,14 @@ export function npmCli() {
   return found;
 }
 
+/**
+ * The optional peers (#251): the three agent SDKs, each loaded by
+ * server/agents/runtime.ts with a dynamic import only when chosen, and zod,
+ * the Claude SDK's own peer, which its tool schemas are built with. None is
+ * bundled or installed with Toil UI.
+ */
+export const AGENT_PEERS = ['@anthropic-ai/claude-agent-sdk', '@github/copilot-sdk', '@openai/codex-sdk', 'zod'];
+
 const INSTALL_SCRIPTS =['preinstall', 'install', 'postinstall', 'prepare', 'prepack', 'postpack'];
 
 /**
@@ -48,6 +56,8 @@ export function packageProblems(pkg, toilVersion) {
   for (const field of ['optionalDependencies', 'bundleDependencies', 'bundledDependencies']) if (pkg[field] && Object.keys(pkg[field]).length) problems.push(`package.json has ${field}; nothing may install beside toil.`);
   // The agent SDKs (#251) arrive as optional peers, so a user installs only the one their organization approved.
   for (const peer of Object.keys(pkg.peerDependencies ?? {})) if (pkg.peerDependenciesMeta?.[peer]?.optional !== true) problems.push(`peer dependency ${peer} must be optional (peerDependenciesMeta).`);
+  const peers = Object.keys(pkg.peerDependencies ?? {}).sort();
+  if (JSON.stringify(peers) !== JSON.stringify(AGENT_PEERS)) problems.push(`package.json's peer dependencies must be the agent SDKs and the zod the Claude SDK takes, ${AGENT_PEERS.join(', ')}, not ${JSON.stringify(peers)}.`);
   if (JSON.stringify(pkg.bin) !== JSON.stringify({ 'toil-ui': 'dist/server/toil-ui.js' })) problems.push(`package.json's bin must be { "toil-ui": "dist/server/toil-ui.js" }, not ${JSON.stringify(pkg.bin)}.`);
   if (pkg.engines?.node !== '>=24.14') problems.push('package.json must require Node >=24.14, as toil does.');
   return problems;

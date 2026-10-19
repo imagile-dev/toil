@@ -23,6 +23,7 @@ import { Dashboard } from './views/Dashboard.tsx';
 import { Dossiers } from './views/Dossiers.tsx';
 import { ItemView } from './views/Item.tsx';
 import { Settings } from './views/Settings.tsx';
+import type { AgentSettingsPanelProps } from './agent-settings.tsx';
 
 export type Route = { view: 'dossiers' } | { view: 'settings' } | { view: 'dashboard'; dossier: string } | { view: 'item'; dossier: string; id: string };
 
@@ -55,12 +56,14 @@ export interface AppProps {
   now: string;
   /** The site preview: shows the unreleased-product banner on every view. */
   preview: boolean;
+  /** The local app's agent settings (#251), shown under Settings; the preview has none. */
+  agentSettings?: AgentSettingsPanelProps;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, now, preview }: AppProps) {
+export function App({ execute, agent, now, preview, agentSettings }: AppProps) {
   const route = useRoute();
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
@@ -130,7 +133,7 @@ export function App({ execute, agent, now, preview }: AppProps) {
 
   let body;
   if (route.view === 'settings') {
-    body = <Settings preview={preview} />;
+    body = <Settings preview={preview} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'dossiers') {
     body = !list ? <skins.Loading message="Reading the dossiers…" /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} /> : failure(list.message);
   } else if (!current) {

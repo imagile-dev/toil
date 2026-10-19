@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { httpExecute, signIn, type Session } from '../src/server-client.ts';
+import { httpAgent, httpExecute, signIn, type Session } from '../src/server-client.ts';
 
 /**
  * The page's side of the session: it trades the launch token for a session id
@@ -41,5 +41,41 @@ describe('httpExecute', () => {
     expect(init.credentials).toBe('omit');
     expect(init.headers).toEqual({ 'X-Toil-UI-Session': 'sid-1', 'Content-Type': 'application/json', 'X-Toil-UI-CSRF': 'csrf-1' });
     expect(JSON.parse(String(init.body))).toEqual({ command: 'dossiers list', input: {} });
+  });
+});
+
+describe('httpAgent streaming (#251)', () => {
+  const answer = (text: string) => ({ prompt: 'q', parts: [{ text }], citations: [], by: 'Claude', proposals: [] });
+  const ndjson = (lines: unknown[], split = 7) => {
+    const text = lines.map((l) => `${JSON.stringify(l)}\n`).join('');
+    // Chunks that cut lines in half, as a network does.
+    const chunks = Array.from({ length: Math.ceil(text.length / split) }, (_, i) => text.slice(i * split, (i + 1) * split));
+    return new Response(new ReadableStream({ start: (c) => (chunks.forEach((x) => c.enqueue(new TextEncoder().encode(x))), c.close()) }), { headers: { 'content-type': 'application/x-ndjson; charset=utf-8' } });
+  };
+
+  it('asks with stream: true and yields each version of the answer, however the bytes arrive', async () => {
+    const fetch = vi.fn(async () => ndjson([{ answer: answer('a') }, { answer: answer('ab') }, { done: true }]));
+    vi.stubGlobal('fetch', fetch);
+    const agent = await httpAgent({ ...SESSION, agent: 'claude' }, []);
+    const seen = [];
+    for await (const a of agent.stream!('card-payments', 'q')) seen.push(a.parts[0]!.text);
+    expect(seen).toEqual(['a', 'ab']);
+    expect(JSON.parse(String((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body))).toEqual({ dossier: 'card-payments', prompt: 'q', stream: true });
+  });
+
+  it("throws the server's message and fix when the agent fails partway, and when the stream just stops", async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ndjson([{ answer: answer('a') }, { error: { message: 'Claude Code stopped.', fix: 'Sign in.' } }])));
+    const agent = await httpAgent({ ...SESSION, agent: 'claude' }, []);
+    const run = async () => {
+      for await (const _ of agent.stream!('d', 'q')) void _;
+    };
+    await expect(run()).rejects.toThrow('Claude Code stopped. Sign in.');
+    vi.stubGlobal('fetch', vi.fn(async () => ndjson([{ answer: answer('a') }])));
+    await expect(run()).rejects.toThrow(/stopped partway/);
+  });
+
+  it('carries a notice naming the three adapters when the server has none', async () => {
+    const agent = await httpAgent({ ...SESSION, agent: 'none' }, []);
+    for (const p of ['@anthropic-ai/claude-agent-sdk', '@github/copilot-sdk', '@openai/codex-sdk']) expect(agent.notice).toContain(p);
   });
 });

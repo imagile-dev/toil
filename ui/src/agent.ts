@@ -26,6 +26,13 @@ export interface Answer {
   by: string;
   /** Changes it suggests, for a person to review and apply. Never applied by the UI. */
   proposals: Proposal[];
+  /**
+   * Ids the answer names that none of its tool calls returned (#251): the
+   * server's citation check. The pane flags each one as unverified.
+   */
+  unverified?: string[];
+  /** What the server's checks found, in words the pane shows above the answer. */
+  warnings?: string[];
 }
 
 export interface Starter {
@@ -33,7 +40,14 @@ export interface Starter {
   label: string;
 }
 
+/** What the pane says when no adapter is chosen (#251), naming the three. */
+export const NO_AGENT_NOTICE =
+  'No agent is set up in this Toil UI, so nobody can answer yet. Toil UI reasons with the subscription you already have, through one of three adapters: Claude (the Claude Agent SDK, @anthropic-ai/claude-agent-sdk), GitHub Copilot (@github/copilot-sdk) or Codex (@openai/codex-sdk).';
+export const NO_AGENT_FIX = 'Install the one your organization approves beside toil-ui, with its CLI on PATH, and choose it under Settings, Agent. The dashboards work without one, and toil-ui --sample shows the scripted agent.';
+
 export interface Agent {
+  /** A line the pane shows before any question, such as that no agent is set up. */
+  notice?: string;
   /** The questions offered about a dossier before anyone types. */
   starters(dossier: string): Starter[];
   /** Answers about the named dossier only. */
